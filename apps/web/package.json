@@ -1,0 +1,46 @@
+{
+  "name": "@bg/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "echo \"(web lint skipped)\"",
+    "typecheck": "tsc -b --noEmit",
+    "test": "echo \"(web has no tests yet)\""
+  },
+  "dependencies": {
+    "@bg/game-engine": "workspace:*",
+    "@bg/provably-fair": "workspace:*",
+    "@bg/shared": "workspace:*",
+    "@hookform/resolvers": "^3.9.0",
+    "axios": "^1.7.0",
+    "clsx": "^2.1.1",
+    "decimal.js": "^10.4.3",
+    "gsap": "^3.12.5",
+    "lucide-react": "^0.439.0",
+    "pixi.js": "^8.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.52.2",
+    "react-router-dom": "^6.26.0",
+    "socket.io-client": "^4.7.5",
+    "tailwind-merge": "^2.5.2",
+    "zod": "^3.23.8",
+    "zustand": "^4.5.4"
+  },
+  "devDependencies": {
+    "@bg/tsconfig": "workspace:*",
+    "@types/node": "^20.12.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.44",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0"
+  }
+}

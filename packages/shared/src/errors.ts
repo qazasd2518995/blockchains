@@ -1,0 +1,24 @@
+export const ErrorCode = {
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  EMAIL_TAKEN: 'EMAIL_TAKEN',
+  USER_NOT_FOUND: 'USER_NOT_FOUND',
+  INSUFFICIENT_FUNDS: 'INSUFFICIENT_FUNDS',
+  INVALID_BET: 'INVALID_BET',
+  BET_OUT_OF_RANGE: 'BET_OUT_OF_RANGE',
+  GAME_DISABLED: 'GAME_DISABLED',
+  ROUND_NOT_FOUND: 'ROUND_NOT_FOUND',
+  ROUND_NOT_ACTIVE: 'ROUND_NOT_ACTIVE',
+  INVALID_ACTION: 'INVALID_ACTION',
+  SEED_NOT_REVEALED: 'SEED_NOT_REVEALED',
+  RATE_LIMITED: 'RATE_LIMITED',
+  INTERNAL: 'INTERNAL',
+} as const;
+
+export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+export interface ApiError {
+  code: ErrorCodeType;
+  message: string;
+  details?: unknown;
+}

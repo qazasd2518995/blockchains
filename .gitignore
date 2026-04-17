@@ -1,0 +1,49 @@
+# 機密環境變數
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 建置產物
+dist/
+build/
+.turbo/
+.next/
+.cache/
+*.tsbuildinfo
+
+# TypeScript
+tsconfig.tsbuildinfo
+
+# 測試
+coverage/
+.vitest-cache/
+
+# Prisma
+apps/server/prisma/*.db
+apps/server/prisma/*.db-journal
+
+# IDE / 系統
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Capacitor / 行動平台
+apps/web/ios/
+apps/web/android/
+
+# 其他
+*.log
+
+# Claude Code internal
+.claude/

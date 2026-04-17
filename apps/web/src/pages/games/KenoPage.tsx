@@ -1,0 +1,208 @@
+import { useState } from 'react';
+import type { KenoBetRequest, KenoBetResult, KenoRisk } from '@bg/shared';
+import { api, extractApiError } from '@/lib/api';
+import { useAuthStore } from '@/stores/authStore';
+import { BetControls } from '@/components/game/BetControls';
+import { GameHeader } from '@/components/game/GameHeader';
+import { formatAmount, formatMultiplier } from '@/lib/utils';
+import { useTranslation } from '@/i18n/useTranslation';
+
+const POOL_SIZE = 40;
+const MAX_PICKS = 10;
+
+export function KenoPage() {
+  const { user, setBalance } = useAuthStore();
+  const { t } = useTranslation();
+  const balance = Number.parseFloat(user?.balance ?? '0');
+  const [amount, setAmount] = useState(10);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [risk, setRisk] = useState<KenoRisk>('medium');
+  const [result, setResult] = useState<KenoBetResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = (n: number) => {
+    if (busy) return;
+    const next = new Set(selected);
+    if (next.has(n)) next.delete(n);
+    else if (next.size < MAX_PICKS) next.add(n);
+    setSelected(next);
+  };
+
+  const autoPick = () => {
+    const next = new Set<number>();
+    while (next.size < 8) {
+      next.add(Math.floor(Math.random() * POOL_SIZE) + 1);
+    }
+    setSelected(next);
+  };
+
+  const clearAll = () => setSelected(new Set());
+
+  const handleBet = async () => {
+    if (busy || selected.size === 0 || amount <= 0 || amount > balance) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const payload: KenoBetRequest = {
+        amount,
+        selected: Array.from(selected).sort((a, b) => a - b),
+        risk,
+      };
+      const res = await api.post<KenoBetResult>('/games/keno/bet', payload);
+      setResult(res.data);
+      setBalance(res.data.newBalance);
+    } catch (err) {
+      setError(extractApiError(err).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const drawn = new Set(result?.drawn ?? []);
+  const hits = new Set(result?.hits ?? []);
+
+  return (
+    <div>
+      <GameHeader
+        section="§ GAME 04"
+        breadcrumb="KENO_04"
+        title={t.games.keno.title}
+        titleSuffix={t.games.keno.suffix}
+        titleSuffixColor="ice"
+        description={t.games.keno.description}
+        rtpLabel="RTP 97%"
+        rtpAccent="ice"
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div className="space-y-6">
+          <div className="crt-panel scanlines p-6">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3 text-[10px] tracking-[0.25em]">
+              <span className="text-ink-500">TERMINAL://KENO</span>
+              <span className="text-ink-400">
+                {t.games.keno.selected} {selected.size}/{MAX_PICKS}
+              </span>
+            </div>
+
+            <div className="mt-6 grid grid-cols-8 gap-2">
+              {Array.from({ length: POOL_SIZE }, (_, i) => i + 1).map((n) => {
+                const picked = selected.has(n);
+                const isDrawn = drawn.has(n);
+                const isHit = hits.has(n);
+                let cls = 'border-white/10 bg-ink-900/40 text-ink-400';
+                if (isHit) cls = 'border-neon-acid bg-neon-acid text-ink-950 shadow-acid-glow';
+                else if (isDrawn) cls = 'border-neon-ember/50 bg-neon-ember/10 text-neon-ember';
+                else if (picked) cls = 'border-neon-ice/70 bg-neon-ice/10 text-neon-ice';
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => toggle(n)}
+                    disabled={busy}
+                    className={`aspect-square border-2 font-display text-2xl transition ${cls} hover:border-neon-ice/50`}
+                  >
+                    {n}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button type="button" onClick={autoPick} disabled={busy} className="btn-ghost">
+                ⚂ {t.games.keno.autoPick}
+              </button>
+              <button type="button" onClick={clearAll} disabled={busy} className="btn-ghost">
+                ⨯ {t.games.keno.clear}
+              </button>
+            </div>
+          </div>
+
+          {result && (
+            <div
+              className={`border-2 p-5 ${
+                result.payout !== '0.00'
+                  ? 'border-neon-acid bg-neon-acid/5 shadow-acid-glow'
+                  : 'border-neon-ember/60 bg-neon-ember/5'
+              }`}
+            >
+              <div className="flex items-baseline justify-between">
+                <div>
+                  <div className="font-display text-4xl text-bone">
+                    {result.hitCount} / {result.selected.length} {t.games.keno.hits}
+                  </div>
+                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-400">
+                    {formatMultiplier(result.multiplier)} {t.games.dice.payout}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] text-ink-500">{t.history.net}</div>
+                  <div
+                    className={`big-num text-3xl ${
+                      Number.parseFloat(result.profit) >= 0
+                        ? 'text-neon-acid'
+                        : 'text-neon-ember'
+                    }`}
+                  >
+                    {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
+                    {formatAmount(result.profit)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+              ⚠ {error.toUpperCase()}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="crt-panel p-5">
+            <BetControls
+              amount={amount}
+              onAmountChange={setAmount}
+              maxBalance={balance}
+              disabled={busy}
+            />
+
+            <div className="mt-6">
+              <div className="label">{t.games.mines.risk}</div>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {(['low', 'medium', 'high'] as KenoRisk[]).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRisk(r)}
+                    disabled={busy}
+                    className={`border py-2 font-mono text-[11px] tracking-[0.2em] transition ${
+                      risk === r
+                        ? 'border-neon-acid bg-neon-acid/10 text-neon-acid'
+                        : 'border-white/10 bg-ink-950/50 text-ink-300 hover:border-white/30'
+                    }`}
+                  >
+                    {t.games.mines[r]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleBet}
+              disabled={busy || selected.size === 0 || balance < amount}
+              className="btn-acid mt-6 w-full py-4"
+            >
+              → {t.games.keno.draw.toUpperCase()} · {formatAmount(amount)}
+            </button>
+            <div className="mt-2 text-center text-[10px] tracking-[0.25em] text-ink-500">
+              {t.bet.balance} {formatAmount(balance)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

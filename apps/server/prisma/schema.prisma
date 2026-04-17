@@ -1,0 +1,282 @@
+// Prisma schema — 加密博彩遊戲平台
+// 所有金錢欄位用 Decimal(20, 2)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────────────────────────
+// 使用者與身分
+// ───────────────────────────────────────────────
+
+enum Role {
+  PLAYER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String?
+  balance      Decimal  @default(1000) @db.Decimal(20, 2)
+  role         Role     @default(PLAYER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bets          Bet[]
+  transactions  Transaction[]
+  serverSeeds   ServerSeed[]
+  clientSeeds   ClientSeed[]
+  minesRounds   MinesRound[]
+  hiloRounds    HiLoRound[]
+  towerRounds   TowerRound[]
+  refreshTokens RefreshToken[]
+
+  @@index([email])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+// ───────────────────────────────────────────────
+// 金流
+// ───────────────────────────────────────────────
+
+enum TxType {
+  SIGNUP_BONUS
+  BET_PLACE
+  BET_WIN
+  CASHOUT
+  ADJUSTMENT
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  type         TxType
+  amount       Decimal  @db.Decimal(20, 2)
+  balanceAfter Decimal  @db.Decimal(20, 2)
+  betId        String?
+  bet          Bet?     @relation(fields: [betId], references: [id])
+  meta         Json?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([betId])
+}
+
+// ───────────────────────────────────────────────
+// Provably Fair 種子
+// ───────────────────────────────────────────────
+
+model ServerSeed {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  gameCategory String
+  seed         String
+  seedHash     String
+  isActive     Boolean   @default(true)
+  nonce        Int       @default(0)
+  revealedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  bets         Bet[]
+
+  @@index([userId, gameCategory, isActive])
+}
+
+model ClientSeed {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  seed      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isActive])
+}
+
+// ───────────────────────────────────────────────
+// 下注紀錄
+// ───────────────────────────────────────────────
+
+enum BetStatus {
+  PENDING
+  SETTLED
+  VOID
+}
+
+model Bet {
+  id             String     @id @default(cuid())
+  userId         String
+  user           User       @relation(fields: [userId], references: [id])
+  gameId         String
+  amount         Decimal    @db.Decimal(20, 2)
+  multiplier     Decimal    @db.Decimal(20, 4)
+  payout         Decimal    @db.Decimal(20, 2)
+  profit         Decimal    @db.Decimal(20, 2)
+  nonce          Int
+  clientSeedUsed String
+  serverSeedId   String
+  serverSeed     ServerSeed @relation(fields: [serverSeedId], references: [id])
+  resultData     Json
+  status         BetStatus  @default(SETTLED)
+  createdAt      DateTime   @default(now())
+  settledAt      DateTime   @default(now())
+
+  transactions   Transaction[]
+  minesRound     MinesRound? @relation(fields: [minesRoundId], references: [id])
+  minesRoundId   String?     @unique
+  hiloRound      HiLoRound?  @relation(fields: [hiloRoundId], references: [id])
+  hiloRoundId    String?     @unique
+  towerRound     TowerRound? @relation(fields: [towerRoundId], references: [id])
+  towerRoundId   String?     @unique
+
+  @@index([userId, createdAt])
+  @@index([gameId, createdAt])
+}
+
+// ───────────────────────────────────────────────
+// Mines 多步驟局
+// ───────────────────────────────────────────────
+
+enum RoundStatus {
+  ACTIVE
+  BUSTED
+  CASHED_OUT
+}
+
+model MinesRound {
+  id                String      @id @default(cuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+  betAmount         Decimal     @db.Decimal(20, 2)
+  mineCount         Int
+  minePositions     Int[]
+  revealed          Int[]       @default([])
+  currentMultiplier Decimal     @default(1) @db.Decimal(20, 4)
+  status            RoundStatus @default(ACTIVE)
+  nonce             Int
+  serverSeedId      String
+  clientSeedUsed    String
+  createdAt         DateTime    @default(now())
+  finishedAt        DateTime?
+
+  bet               Bet?
+
+  @@index([userId, status])
+}
+
+// ───────────────────────────────────────────────
+// Hi-Lo 多步驟局
+// ───────────────────────────────────────────────
+
+model HiLoRound {
+  id                String      @id @default(cuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+  betAmount         Decimal     @db.Decimal(20, 2)
+  cardIndex         Int         @default(0)
+  history           Json        // [{ rank, suit }, ...]
+  currentMultiplier Decimal     @default(1) @db.Decimal(20, 4)
+  skipsUsed         Int         @default(0)
+  status            RoundStatus @default(ACTIVE)
+  nonce             Int
+  serverSeedId      String
+  clientSeedUsed    String
+  createdAt         DateTime    @default(now())
+  finishedAt        DateTime?
+
+  bet               Bet?
+
+  @@index([userId, status])
+}
+
+// ───────────────────────────────────────────────
+// Tower 多步驟局
+// ───────────────────────────────────────────────
+
+model TowerRound {
+  id                String      @id @default(cuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+  betAmount         Decimal     @db.Decimal(20, 2)
+  difficulty        String
+  safeLayout        Json        // number[][] layer of safe col indices
+  picks             Int[]       @default([])
+  currentLevel      Int         @default(0)
+  currentMultiplier Decimal     @default(1) @db.Decimal(20, 4)
+  status            RoundStatus @default(ACTIVE)
+  nonce             Int
+  serverSeedId      String
+  clientSeedUsed    String
+  createdAt         DateTime    @default(now())
+  finishedAt        DateTime?
+
+  bet               Bet?
+
+  @@index([userId, status])
+}
+
+// ───────────────────────────────────────────────
+// Crash 類共用房間
+// ───────────────────────────────────────────────
+
+enum CrashStatus {
+  BETTING
+  RUNNING
+  CRASHED
+}
+
+model CrashRound {
+  id             String      @id @default(cuid())
+  gameId         String
+  roundNumber    Int
+  serverSeedHash String
+  serverSeed     String?
+  crashPoint     Decimal     @db.Decimal(10, 4)
+  status         CrashStatus @default(BETTING)
+  bettingEndsAt  DateTime?
+  startedAt      DateTime?
+  crashedAt      DateTime?
+  createdAt      DateTime    @default(now())
+
+  bets           CrashBet[]
+
+  @@unique([gameId, roundNumber])
+  @@index([gameId, createdAt])
+}
+
+model CrashBet {
+  id          String     @id @default(cuid())
+  roundId     String
+  round       CrashRound @relation(fields: [roundId], references: [id])
+  userId      String
+  amount      Decimal    @db.Decimal(20, 2)
+  autoCashOut Decimal?   @db.Decimal(10, 4)
+  cashedOutAt Decimal?   @db.Decimal(10, 4)
+  payout      Decimal    @default(0) @db.Decimal(20, 2)
+  createdAt   DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@index([roundId])
+}
+

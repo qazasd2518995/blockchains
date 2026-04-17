@@ -1,0 +1,24 @@
+export interface BalanceResponse {
+  balance: string;
+}
+
+export type TransactionType =
+  | 'SIGNUP_BONUS'
+  | 'BET_PLACE'
+  | 'BET_WIN'
+  | 'CASHOUT'
+  | 'ADJUSTMENT';
+
+export interface TransactionEntry {
+  id: string;
+  type: TransactionType;
+  amount: string;
+  balanceAfter: string;
+  betId: string | null;
+  createdAt: string;
+}
+
+export interface TransactionListResponse {
+  items: TransactionEntry[];
+  nextCursor: string | null;
+}
