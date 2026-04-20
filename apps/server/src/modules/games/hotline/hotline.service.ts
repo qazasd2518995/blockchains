@@ -6,6 +6,7 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
+  runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
 import type { HotlineBetInput } from './hotline.schema.js';
@@ -16,7 +17,7 @@ export class HotlineService {
   async bet(userId: string, input: HotlineBetInput): Promise<HotlineBetResult> {
     const amount = new Prisma.Decimal(input.amount);
 
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
       const seed = await new SeedHelper(tx).getActiveBundle(
         userId,
@@ -62,6 +63,6 @@ export class HotlineService {
         serverSeedHash: seed.serverSeedHash,
         clientSeed: seed.clientSeed,
       };
-    }, serializableTxOpts());
+    });
   }
 }

@@ -6,8 +6,9 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
-  serializableTxOpts,
+  runSerializable,
 } from '../_common/BaseGameService.js';
+import { applyControls } from '../_common/controls.js';
 import type { DiceBetInput } from './dice.schema.js';
 
 export class DiceService {
@@ -16,7 +17,7 @@ export class DiceService {
   async bet(userId: string, input: DiceBetInput): Promise<DiceBetResult> {
     const amount = new Prisma.Decimal(input.amount);
 
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
       const seed = await new SeedHelper(tx).getActiveBundle(
         userId,
@@ -32,19 +33,30 @@ export class DiceService {
         input.direction,
       );
 
-      const multiplier = new Prisma.Decimal(outcome.multiplier.toFixed(4));
-      const payout = outcome.won
-        ? amount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
+      const predictedMultiplier = new Prisma.Decimal(outcome.multiplier.toFixed(4));
+      const predictedPayout = outcome.won
+        ? amount.mul(predictedMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
         : new Prisma.Decimal(0);
-      const profit = payout.minus(amount);
+
+      // 代理後台控制 hook — 可能翻轉結果
+      const controlled = await applyControls(tx, userId, GameId.DICE, {
+        won: outcome.won,
+        amount,
+        multiplier: predictedMultiplier,
+        payout: predictedPayout,
+      });
+      const finalMultiplier = controlled.multiplier;
+      const finalPayout = controlled.payout;
+      const finalWon = controlled.won;
+      const profit = finalPayout.minus(amount);
 
       const bet = await tx.bet.create({
         data: {
           userId,
           gameId: GameId.DICE,
           amount,
-          multiplier,
-          payout,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
           profit,
           nonce: seed.nonce,
           clientSeedUsed: seed.clientSeed,
@@ -54,32 +66,35 @@ export class DiceService {
             target: input.target,
             direction: input.direction,
             winChance: outcome.winChance,
-            won: outcome.won,
+            rawWon: outcome.won,
+            finalWon,
+            controlled: controlled.controlled,
+            flipReason: controlled.flipReason ?? null,
           },
         },
       });
 
       await debitAndRecord(tx, userId, amount, bet.id);
-      const newBalance = outcome.won
-        ? await creditAndRecord(tx, userId, payout, bet.id, 'BET_WIN')
+      const newBalance = finalWon
+        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
         : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
 
       return {
         betId: bet.id,
         roll: outcome.roll,
-        won: outcome.won,
+        won: finalWon,
         target: input.target,
         direction: input.direction,
-        multiplier: outcome.multiplier,
+        multiplier: Number(finalMultiplier.toFixed(4)),
         winChance: outcome.winChance,
         amount: amount.toFixed(2),
-        payout: payout.toFixed(2),
+        payout: finalPayout.toFixed(2),
         profit: profit.toFixed(2),
         newBalance: newBalance.toFixed(2),
         nonce: seed.nonce,
         serverSeedHash: seed.serverSeedHash,
         clientSeed: seed.clientSeed,
       };
-    }, serializableTxOpts());
+    });
   }
 }

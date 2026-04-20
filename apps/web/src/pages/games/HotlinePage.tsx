@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { HotlineBetRequest, HotlineBetResult } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -6,14 +6,15 @@ import { BetControls } from '@/components/game/BetControls';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
+import { HotlineScene } from '@/games/hotline/HotlineScene';
 
-const SYMBOLS = ['🍒', '🔔', '7', '■', '◆', '★'];
+const SYMBOLS = ['●', '◉', '7', '■', '◆', '★'];
 const SYMBOL_COLORS = [
-  'text-[#ff4e50]',
-  'text-[#ffb547]',
-  'text-[#d4ff3a]',
-  'text-[#6df7ff]',
-  'text-[#00ffa3]',
+  'text-[#ff3b7f]',
+  'text-[#ffb020]',
+  'text-[#5b4df8]',
+  'text-[#00b8e6]',
+  'text-[#00d68f]',
   'text-[#dc1f3b]',
 ];
 
@@ -22,50 +23,65 @@ export function HotlinePage() {
   const { t } = useTranslation();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
-  const [grid, setGrid] = useState<number[][]>([
-    [0, 1, 2],
-    [3, 4, 5],
-    [0, 1, 2],
-    [3, 4, 5],
-    [0, 1, 2],
-  ]);
   const [result, setResult] = useState<HotlineBetResult | null>(null);
   const [spinning, setSpinning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sceneRef = useRef<HotlineScene | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    let scene: HotlineScene | null = null;
+    let rafId = 0;
+    const tryInit = () => {
+      if (cancelled) return;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (w < 10 || h < 10) {
+        rafId = requestAnimationFrame(tryInit);
+        return;
+      }
+      scene = new HotlineScene();
+      sceneRef.current = scene;
+      void scene.init(canvas, w, h);
+    };
+    tryInit();
+    return () => {
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      scene?.dispose();
+      sceneRef.current = null;
+    };
+  }, []);
+
   const spin = async () => {
     if (busy || amount <= 0 || amount > balance) return;
     setBusy(true);
     setSpinning(true);
+    setResult(null);
     setError(null);
-    const shuffleTimer = setInterval(() => {
-      setGrid(
-        Array.from({ length: 5 }, () =>
-          Array.from({ length: 3 }, () => Math.floor(Math.random() * SYMBOLS.length)),
-        ),
-      );
-    }, 80);
+
+    sceneRef.current?.resetWinLines();
+    // 樂觀動畫：轉軸立刻開始滾
+    sceneRef.current?.startAnticipation();
+
     try {
       const payload: HotlineBetRequest = { amount };
       const res = await api.post<HotlineBetResult>('/games/hotline/bet', payload);
-      setTimeout(() => {
-        clearInterval(shuffleTimer);
-        setGrid(res.data.grid);
-        setResult(res.data);
-        setBalance(res.data.newBalance);
-        setSpinning(false);
-        setBusy(false);
-      }, 1200);
+      await sceneRef.current?.playSpin(res.data.grid, res.data.lines);
+      setResult(res.data);
+      setBalance(res.data.newBalance);
     } catch (err) {
-      clearInterval(shuffleTimer);
       setError(extractApiError(err).message);
+    } finally {
       setSpinning(false);
       setBusy(false);
     }
   };
-
-  const hotRows = new Set(result?.lines.map((l) => l.row) ?? []);
 
   return (
     <div>
@@ -80,44 +96,18 @@ export function HotlinePage() {
         rtpAccent="ember"
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
           <div className="crt-panel scanlines relative overflow-hidden">
-            <div className="flex items-center justify-between border-b border-white/5 px-5 py-2 text-[10px] tracking-[0.25em]">
+            <div className="flex items-center justify-between border-b border-ink-200 px-4 py-2 text-[10px] tracking-[0.25em]">
               <span className="text-ink-500">TERMINAL://HOTLINE</span>
-              <span className="text-ink-400">
+              <span className="text-ink-600">
                 {spinning ? t.games.hotline.spinning : t.games.hotline.ready}
               </span>
             </div>
 
-            <div className="p-6">
-              <div className="grid grid-cols-5 gap-2">
-                {grid.map((col, reel) => (
-                  <div key={reel} className="space-y-2">
-                    {col.map((sym, row) => {
-                      const isHot = hotRows.has(row);
-                      return (
-                        <div
-                          key={`${reel}-${row}`}
-                          className={`flex aspect-square items-center justify-center border-2 font-display text-5xl transition ${
-                            isHot && !spinning
-                              ? 'border-neon-acid bg-neon-acid/10 shadow-acid-glow'
-                              : 'border-white/10 bg-ink-900'
-                          } ${SYMBOL_COLORS[sym]}`}
-                          style={{
-                            transform: spinning
-                              ? `translateY(${Math.sin(reel + row) * 4}px)`
-                              : 'none',
-                            transition: spinning ? 'none' : 'all 0.3s',
-                          }}
-                        >
-                          {SYMBOLS[sym]}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
+            <div className="aspect-[16/7] w-full p-2">
+              <canvas ref={canvasRef} className="h-full w-full" />
             </div>
           </div>
 
@@ -131,11 +121,11 @@ export function HotlinePage() {
             >
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="font-display text-4xl text-bone">
+                  <div className="font-display text-4xl text-ink-900">
                     {result.lines.length}{' '}
                     {result.lines.length !== 1 ? t.games.hotline.lines : t.games.hotline.line}
                   </div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-400">
+                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
                     {t.games.hotline.totalMult} {formatMultiplier(result.multiplier)}
                   </div>
                 </div>
@@ -149,9 +139,9 @@ export function HotlinePage() {
                   {result.lines.map((l, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between border border-white/10 bg-ink-950/50 px-3 py-1 text-[11px]"
+                      className="flex items-center justify-between border border-ink-200 bg-ink-50/50 px-3 py-1 text-[11px]"
                     >
-                      <span className="font-mono text-ink-300">
+                      <span className="font-mono text-ink-700">
                         {t.games.hotline.row} {l.row} · {l.count}× {SYMBOLS[l.symbol]}
                       </span>
                       <span className="data-num text-neon-acid">{l.payout}×</span>
@@ -197,10 +187,10 @@ export function HotlinePage() {
               {SYMBOLS.map((s, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between border-b border-white/5 pb-1"
+                  className="flex items-center justify-between border-b border-ink-200 pb-1"
                 >
                   <span className={`font-display text-xl ${SYMBOL_COLORS[i]}`}>{s}</span>
-                  <span className="data-num text-ink-300">3x · 4x · 5x</span>
+                  <span className="data-num text-ink-700">3x · 4x · 5x</span>
                 </div>
               ))}
             </div>

@@ -31,16 +31,30 @@ export function DicePage() {
   const potentialPayout = amount * multiplier;
 
   useEffect(() => {
-    if (!canvasRef.current) return;
-    const scene = new DiceScene();
-    sceneRef.current = scene;
-    const width = canvasRef.current.clientWidth;
-    const height = canvasRef.current.clientHeight;
-    void scene.init(canvasRef.current, width, height).then(() => {
-      scene.setTargetLabel(target, direction);
-    });
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    let scene: DiceScene | null = null;
+    let rafId = 0;
+    const tryInit = () => {
+      if (cancelled) return;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (w < 10 || h < 10) {
+        rafId = requestAnimationFrame(tryInit);
+        return;
+      }
+      scene = new DiceScene();
+      sceneRef.current = scene;
+      void scene.init(canvas, w, h).then(() => {
+        if (!cancelled) scene?.setTargetLabel(target, direction);
+      });
+    };
+    tryInit();
     return () => {
-      scene.dispose();
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      scene?.dispose();
       sceneRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -58,11 +72,13 @@ export function DicePage() {
     }
     setError(null);
     setRolling(true);
+    // 樂觀動畫：立刻啟動骰子旋轉，不等 API
+    sceneRef.current?.startAnticipation();
     try {
       const payload: DiceBetRequest = { amount, target, direction };
       const res = await api.post<DiceBetResult>('/games/dice/bet', payload);
       const result = res.data;
-      await sceneRef.current?.playRoll(result.roll, result.won);
+      await sceneRef.current?.playRoll(result.roll, result.won, result.multiplier);
       setLastResult(result);
       setHistory((prev) => [result, ...prev].slice(0, 16));
       setBalance(result.newBalance);
@@ -86,92 +102,72 @@ export function DicePage() {
         rtpAccent="acid"
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          {/* 畫布 + 疊加核心控制（Stake pattern） */}
           <div className="crt-panel scanlines relative overflow-hidden">
-            <div className="flex items-center justify-between border-b border-white/5 px-5 py-2 text-[10px] tracking-[0.25em]">
+            <div className="flex items-center justify-between border-b border-ink-200 px-4 py-2 text-[10px] tracking-[0.25em]">
               <span className="text-ink-500">TERMINAL://DICE</span>
               <span className="text-neon-toxic">
                 <span className="status-dot status-dot-live" />
                 {t.common.ready.toUpperCase()}
               </span>
             </div>
-            <div className="aspect-[16/10] w-full">
+            <div className="relative aspect-[16/7] w-full">
               <canvas ref={canvasRef} className="h-full w-full" />
-            </div>
-          </div>
 
-          <div className="crt-panel p-6">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <div className="flex items-baseline gap-2">
-                <span className="text-[9px] text-ink-500">02</span>
-                <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-300">
-                  {t.games.dice.threshold}
-                </span>
+              {/* 右上角即時統計（疊在畫布上） */}
+              <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 text-[10px] tracking-[0.2em] text-ink-500">
+                <div>
+                  {t.bet.multiplier.toUpperCase()}{' '}
+                  <span className="data-num ml-1 text-neon-acid">
+                    {formatMultiplier(multiplier)}
+                  </span>
+                </div>
+                <div>
+                  {t.bet.winChance.toUpperCase()}{' '}
+                  <span className="data-num ml-1 text-ink-700">{winChance.toFixed(2)}%</span>
+                </div>
+                <div>
+                  {t.bet.potentialPayout.toUpperCase()}{' '}
+                  <span className="data-num ml-1 text-neon-toxic">
+                    {formatAmount(potentialPayout)}
+                  </span>
+                </div>
               </div>
-              <span className="data-num text-[10px] text-ink-500">
-                {t.games.dice.range} {MIN_TARGET}–{MAX_TARGET}
-              </span>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setDirection('under')}
-                className={`relative border-2 p-4 text-left transition ${
-                  direction === 'under'
-                    ? 'border-neon-acid bg-neon-acid/10'
-                    : 'border-white/10 bg-ink-900/40 hover:border-white/30'
-                }`}
-              >
-                <div className="text-[10px] tracking-[0.3em] text-ink-500">
-                  {t.games.dice.directionA}
-                </div>
-                <div
-                  className={`mt-1 font-display text-3xl tracking-tight ${
-                    direction === 'under' ? 'text-neon-acid' : 'text-bone'
-                  }`}
-                >
-                  {t.games.dice.rollUnder} ▾
-                </div>
-                <div className="mt-1 text-[11px] text-ink-400">
-                  {t.games.dice.winIfLess} {target.toFixed(2)}
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDirection('over')}
-                className={`relative border-2 p-4 text-left transition ${
-                  direction === 'over'
-                    ? 'border-neon-ember bg-neon-ember/10'
-                    : 'border-white/10 bg-ink-900/40 hover:border-white/30'
-                }`}
-              >
-                <div className="text-[10px] tracking-[0.3em] text-ink-500">
-                  {t.games.dice.directionB}
-                </div>
-                <div
-                  className={`mt-1 font-display text-3xl tracking-tight ${
-                    direction === 'over' ? 'text-neon-ember' : 'text-bone'
-                  }`}
-                >
-                  {t.games.dice.rollOver} ▴
-                </div>
-                <div className="mt-1 text-[11px] text-ink-400">
-                  {t.games.dice.winIfGreater} {target.toFixed(2)}
-                </div>
-              </button>
-            </div>
-
-            <div className="mt-6">
+            {/* 滑桿 + 方向 toggle（緊貼畫布底部，免捲動） */}
+            <div className="border-t border-ink-200 p-4">
               <div className="mb-2 flex items-baseline justify-between">
-                <div className="flex items-baseline gap-3">
+                <div className="flex items-baseline gap-2">
                   <span className="label">{t.games.dice.threshold}</span>
-                  <span className="big-num text-3xl text-bone">{target.toFixed(2)}</span>
+                  <span className="big-num text-2xl text-ink-900">{target.toFixed(2)}</span>
                 </div>
-                <span className="data-num text-[11px] text-ink-400">
-                  {t.bet.winChance} <span className="text-neon-acid">{winChance.toFixed(2)}%</span>
-                </span>
+                <div className="flex gap-1 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setDirection('under')}
+                    className={`border px-3 py-1 font-mono tracking-[0.2em] transition ${
+                      direction === 'under'
+                        ? 'border-neon-acid bg-neon-acid/10 text-neon-acid'
+                        : 'border-ink-200 bg-ink-50 text-ink-600 hover:border-ink-600'
+                    }`}
+                  >
+                    ▾ {t.games.dice.rollUnder}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDirection('over')}
+                    className={`border px-3 py-1 font-mono tracking-[0.2em] transition ${
+                      direction === 'over'
+                        ? 'border-neon-ember bg-neon-ember/10 text-neon-ember'
+                        : 'border-ink-200 bg-ink-50 text-ink-600 hover:border-ink-600'
+                    }`}
+                  >
+                    ▴ {t.games.dice.rollOver}
+                  </button>
+                </div>
               </div>
               <input
                 type="range"
@@ -182,18 +178,12 @@ export function DicePage() {
                 onChange={(e) => setTarget(Number.parseFloat(e.target.value))}
                 className={`term-range w-full ${direction === 'over' ? 'term-range-ember' : ''}`}
               />
-              <div className="mt-1 flex justify-between text-[9px] text-ink-600">
+              <div className="mt-1 flex justify-between text-[9px] text-ink-400">
                 <span>0.00</span>
                 <span>50.00</span>
                 <span>99.99</span>
               </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <Stat k={t.bet.multiplier} v={formatMultiplier(multiplier)} accent="acid" />
-            <Stat k={t.bet.winChance} v={`${winChance.toFixed(2)}%`} />
-            <Stat k={t.bet.potentialPayout} v={formatAmount(potentialPayout)} />
           </div>
 
           {lastResult && (
@@ -216,7 +206,7 @@ export function DicePage() {
                   <span className="text-[10px] tracking-[0.3em] text-ink-500">
                     {t.games.dice.roll}
                   </span>
-                  <span className="big-num text-5xl text-bone">
+                  <span className="big-num text-5xl text-ink-900">
                     {lastResult.roll.toFixed(2)}
                   </span>
                 </div>
@@ -224,7 +214,7 @@ export function DicePage() {
                   <div className="data-num text-[11px] text-ink-500">{t.games.dice.payout}</div>
                   <div
                     className={`data-num text-2xl font-bold ${
-                      lastResult.won ? 'text-neon-acid' : 'text-ink-400'
+                      lastResult.won ? 'text-neon-acid' : 'text-ink-600'
                     }`}
                   >
                     {Number.parseFloat(lastResult.profit) >= 0 ? '+' : ''}
@@ -267,25 +257,25 @@ export function DicePage() {
               )}
             </button>
 
-            <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] tracking-[0.25em]">
-              <div className="border border-white/10 bg-ink-950/50 p-2 text-center">
-                <div className="text-ink-500">{t.bet.balance}</div>
-                <div className="mt-1 data-num text-sm text-bone">{formatAmount(balance)}</div>
-              </div>
-              <div className="border border-white/10 bg-ink-950/50 p-2 text-center">
-                <div className="text-ink-500">{t.bet.after}</div>
-                <div className="mt-1 data-num text-sm text-neon-acid">
+            <div className="mt-3 flex items-baseline justify-between border-t border-ink-200 pt-3 text-[10px] tracking-[0.25em]">
+              <span className="text-ink-500">
+                {t.bet.balance}{' '}
+                <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+              </span>
+              <span className="text-ink-500">
+                {t.bet.after}{' '}
+                <span className="data-num ml-1 text-neon-acid">
                   {formatAmount(balance - amount)}
-                </div>
-              </div>
+                </span>
+              </span>
             </div>
           </div>
 
           <div className="crt-panel p-5">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+            <div className="flex items-center justify-between border-b border-ink-200 pb-3">
               <div className="flex items-baseline gap-2">
                 <span className="text-[9px] text-ink-500">03</span>
-                <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-300">
+                <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">
                   {t.games.dice.recentRolls}
                 </span>
               </div>
@@ -293,7 +283,7 @@ export function DicePage() {
             </div>
             <div className="mt-3 space-y-1">
               {history.length === 0 && (
-                <div className="py-6 text-center text-[10px] tracking-[0.3em] text-ink-600">
+                <div className="py-6 text-center text-[10px] tracking-[0.3em] text-ink-400">
                   —
                 </div>
               )}
@@ -307,7 +297,7 @@ export function DicePage() {
                   }`}
                 >
                   <span
-                    className={`data-num ${h.won ? 'text-neon-acid' : 'text-ink-400'}`}
+                    className={`data-num ${h.won ? 'text-neon-acid' : 'text-ink-600'}`}
                   >
                     {h.roll.toFixed(2)}
                   </span>
@@ -336,7 +326,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
     <div className="crt-panel p-4">
       <div className="label">{k}</div>
       <div
-        className={`mt-1 big-num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-bone'}`}
+        className={`mt-1 big-num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
       >
         {v}
       </div>

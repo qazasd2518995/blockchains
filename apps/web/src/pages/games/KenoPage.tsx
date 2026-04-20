@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { KenoBetRequest, KenoBetResult, KenoRisk } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -6,6 +6,7 @@ import { BetControls } from '@/components/game/BetControls';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
+import { KenoScene } from '@/games/keno/KenoScene';
 
 const POOL_SIZE = 40;
 const MAX_PICKS = 10;
@@ -20,6 +21,36 @@ export function KenoPage() {
   const [result, setResult] = useState<KenoBetResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sceneRef = useRef<KenoScene | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    let scene: KenoScene | null = null;
+    let rafId = 0;
+    const tryInit = () => {
+      if (cancelled) return;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (w < 10 || h < 10) {
+        rafId = requestAnimationFrame(tryInit);
+        return;
+      }
+      scene = new KenoScene();
+      sceneRef.current = scene;
+      void scene.init(canvas, w, h);
+    };
+    tryInit();
+    return () => {
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      scene?.dispose();
+      sceneRef.current = null;
+    };
+  }, []);
 
   const toggle = (n: number) => {
     if (busy) return;
@@ -50,6 +81,11 @@ export function KenoPage() {
         risk,
       };
       const res = await api.post<KenoBetResult>('/games/keno/bet', payload);
+      await sceneRef.current?.playDraw(
+        res.data.drawn,
+        res.data.selected,
+        res.data.hits,
+      );
       setResult(res.data);
       setBalance(res.data.newBalance);
     } catch (err) {
@@ -75,23 +111,28 @@ export function KenoPage() {
         rtpAccent="ice"
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
-          <div className="crt-panel scanlines p-6">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3 text-[10px] tracking-[0.25em]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          <div className="crt-panel scanlines p-4">
+            <div className="flex items-center justify-between border-b border-ink-200 pb-2 text-[10px] tracking-[0.25em]">
               <span className="text-ink-500">TERMINAL://KENO</span>
-              <span className="text-ink-400">
+              <span className="text-ink-600">
                 {t.games.keno.selected} {selected.size}/{MAX_PICKS}
               </span>
             </div>
 
-            <div className="mt-6 grid grid-cols-8 gap-2">
+            {/* Pixi 開獎動畫區 */}
+            <div className="mt-3 aspect-[16/5] w-full overflow-hidden rounded-lg bg-ink-100/40">
+              <canvas ref={canvasRef} className="h-full w-full" />
+            </div>
+
+            <div className="mt-4 grid grid-cols-8 gap-2">
               {Array.from({ length: POOL_SIZE }, (_, i) => i + 1).map((n) => {
                 const picked = selected.has(n);
                 const isDrawn = drawn.has(n);
                 const isHit = hits.has(n);
-                let cls = 'border-white/10 bg-ink-900/40 text-ink-400';
-                if (isHit) cls = 'border-neon-acid bg-neon-acid text-ink-950 shadow-acid-glow';
+                let cls = 'border-ink-200 bg-ink-100/40 text-ink-600';
+                if (isHit) cls = 'border-neon-acid bg-neon-acid text-ink-50 shadow-acid-glow';
                 else if (isDrawn) cls = 'border-neon-ember/50 bg-neon-ember/10 text-neon-ember';
                 else if (picked) cls = 'border-neon-ice/70 bg-neon-ice/10 text-neon-ice';
                 return (
@@ -128,10 +169,10 @@ export function KenoPage() {
             >
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="font-display text-4xl text-bone">
+                  <div className="font-display text-4xl text-ink-900">
                     {result.hitCount} / {result.selected.length} {t.games.keno.hits}
                   </div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-400">
+                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
                     {formatMultiplier(result.multiplier)} {t.games.dice.payout}
                   </div>
                 </div>
@@ -180,7 +221,7 @@ export function KenoPage() {
                     className={`border py-2 font-mono text-[11px] tracking-[0.2em] transition ${
                       risk === r
                         ? 'border-neon-acid bg-neon-acid/10 text-neon-acid'
-                        : 'border-white/10 bg-ink-950/50 text-ink-300 hover:border-white/30'
+                        : 'border-ink-200 bg-ink-50/50 text-ink-700 hover:border-ink-600'
                     }`}
                   >
                     {t.games.mines[r]}

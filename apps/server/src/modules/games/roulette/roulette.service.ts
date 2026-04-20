@@ -6,6 +6,7 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
+  runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
 import type { RouletteBetInput } from './roulette.schema.js';
@@ -17,7 +18,7 @@ export class RouletteService {
     const totalAmount = input.bets.reduce((s, b) => s + b.amount, 0);
     const amountD = new Prisma.Decimal(totalAmount);
 
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amountD);
       const seed = await new SeedHelper(tx).getActiveBundle(
         userId,
@@ -69,6 +70,6 @@ export class RouletteService {
         serverSeedHash: seed.serverSeedHash,
         clientSeed: seed.clientSeed,
       };
-    }, serializableTxOpts());
+    });
   }
 }

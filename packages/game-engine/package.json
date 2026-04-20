@@ -14,10 +14,12 @@
     "test": "echo \"(engine has no tests yet)\""
   },
   "peerDependencies": {
-    "pixi.js": "^8.0.0"
+    "pixi.js": "^8.0.0",
+    "gsap": "^3.12.0"
   },
   "devDependencies": {
     "@bg/tsconfig": "workspace:*",
+    "gsap": "^3.12.5",
     "pixi.js": "^8.2.0",
     "typescript": "^5.5.0"
   }

@@ -6,6 +6,7 @@ import { BetControls } from '@/components/game/BetControls';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
+import { WheelScene } from '@/games/wheel/WheelScene';
 
 export function WheelPage() {
   const { user, setBalance } = useAuthStore();
@@ -14,46 +15,75 @@ export function WheelPage() {
   const [amount, setAmount] = useState(10);
   const [risk, setRisk] = useState<WheelRisk>('medium');
   const [segments, setSegments] = useState<WheelSegmentCount>(10);
-  const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState<WheelBetResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const tableRef = useRef<number[]>([]);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sceneRef = useRef<WheelScene | null>(null);
+  const [sceneReady, setSceneReady] = useState(false);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    let scene: WheelScene | null = null;
+    let rafId = 0;
+    const tryInit = () => {
+      if (cancelled) return;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (w < 10 || h < 10) {
+        rafId = requestAnimationFrame(tryInit);
+        return;
+      }
+      scene = new WheelScene();
+      sceneRef.current = scene;
+      void scene.init(canvas, w, h).then(() => {
+        if (!cancelled) setSceneReady(true);
+      });
+    };
+    tryInit();
+    return () => {
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      scene?.dispose();
+      sceneRef.current = null;
+      setSceneReady(false);
+    };
+  }, []);
+
+  // 當 risk/segments 改變時重繪輪盤（需等 scene init 完）
+  useEffect(() => {
+    if (!sceneReady || !sceneRef.current) return;
     const preview: number[] = Array.from({ length: segments }, (_, i) => {
       if (risk === 'low') return i % 5 === 4 ? 0 : 1.2;
       if (risk === 'medium') return i % 5 === 2 ? 0 : i % 10 === 0 ? 3 : 1.7;
       return i === 0 ? segments * 0.99 : 0;
     });
-    tableRef.current = preview;
-  }, [risk, segments]);
+    sceneRef.current.setSegments(preview);
+  }, [risk, segments, sceneReady]);
 
   const spin = async () => {
     if (busy || amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
+    // 樂觀動畫：輪盤立刻開始高速旋轉
+    sceneRef.current?.startAnticipation();
     try {
       const payload: WheelBetRequest = { amount, risk, segments };
       const res = await api.post<WheelBetResult>('/games/wheel/bet', payload);
-      const target = res.data.segmentIndex;
-      const segmentAngle = 360 / segments;
-      const finalRotation = 1800 + 360 - (target * segmentAngle + segmentAngle / 2);
-      setRotation((r) => r + finalRotation);
-      setTimeout(() => {
-        setResult(res.data);
-        setBalance(res.data.newBalance);
-        tableRef.current = res.data.segmentMultipliers;
-        setBusy(false);
-      }, 3200);
+      // 用真實的倍率表重繪輪盤
+      sceneRef.current?.setSegments(res.data.segmentMultipliers);
+      await sceneRef.current?.playSpin(res.data.segmentIndex, res.data.multiplier);
+      setResult(res.data);
+      setBalance(res.data.newBalance);
     } catch (err) {
       setError(extractApiError(err).message);
+    } finally {
       setBusy(false);
     }
   };
-
-  const table = tableRef.current.length ? tableRef.current : Array.from({ length: segments }, () => 0);
-  const segmentAngle = 360 / segments;
 
   return (
     <div>
@@ -68,50 +98,24 @@ export function WheelPage() {
         rtpAccent="ember"
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
-          <div className="crt-panel scanlines relative overflow-hidden p-6">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3 text-[10px] tracking-[0.25em]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          <div className="crt-panel scanlines relative overflow-hidden">
+            <div className="flex items-center justify-between border-b border-ink-200 px-4 py-2 text-[10px] tracking-[0.25em]">
               <span className="text-ink-500">TERMINAL://WHEEL</span>
-              <span className="text-ink-400">
+              <span className="text-ink-600">
                 {segments} {t.games.wheel.segments} · {t.games.mines[risk]}
               </span>
             </div>
 
-            <div className="relative mx-auto mt-8 aspect-square w-full max-w-md">
-              <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1 border-x-[12px] border-b-0 border-t-[20px] border-x-transparent border-t-neon-acid" />
-              <div
-                className="absolute inset-0 rounded-full border-2 border-white/10 bg-ink-900 transition-transform duration-[3000ms]"
-                style={{
-                  transform: `rotate(${rotation}deg)`,
-                  transitionTimingFunction: 'cubic-bezier(0.17, 0.67, 0.24, 1)',
-                }}
-              >
-                <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90">
-                  {table.map((mult, i) => {
-                    const startAngle = (i * segmentAngle * Math.PI) / 180;
-                    const endAngle = ((i + 1) * segmentAngle * Math.PI) / 180;
-                    const x1 = 100 + 95 * Math.cos(startAngle);
-                    const y1 = 100 + 95 * Math.sin(startAngle);
-                    const x2 = 100 + 95 * Math.cos(endAngle);
-                    const y2 = 100 + 95 * Math.sin(endAngle);
-                    const large = segmentAngle > 180 ? 1 : 0;
-                    const fill =
-                      mult === 0 ? '#252b3f' : mult < 2 ? '#d4ff3a' : mult < 5 ? '#ffb547' : '#ff4e50';
-                    const stroke = '#05060a';
-                    return (
-                      <path
-                        key={i}
-                        d={`M 100 100 L ${x1} ${y1} A 95 95 0 ${large} 1 ${x2} ${y2} Z`}
-                        fill={fill}
-                        stroke={stroke}
-                        strokeWidth="1"
-                      />
-                    );
-                  })}
-                </svg>
-                <div className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-neon-acid bg-ink-950 font-display text-2xl text-neon-acid">
-                  ✦
+            <div className="relative mx-auto aspect-square w-full max-w-md p-3">
+              <canvas ref={canvasRef} className="h-full w-full" />
+              <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 text-[10px] tracking-[0.2em] text-ink-500">
+                <div>
+                  SEG <span className="data-num ml-1 text-neon-acid">{segments}</span>
+                </div>
+                <div>
+                  RISK <span className="data-num ml-1 text-neon-acid">{risk.toUpperCase()}</span>
                 </div>
               </div>
             </div>
@@ -127,10 +131,10 @@ export function WheelPage() {
             >
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="font-display text-4xl text-bone">
+                  <div className="font-display text-4xl text-ink-900">
                     {formatMultiplier(result.multiplier)}
                   </div>
-                  <div className="text-[11px] tracking-[0.25em] text-ink-400">
+                  <div className="text-[11px] tracking-[0.25em] text-ink-600">
                     {t.games.wheel.segment}{result.segmentIndex}
                   </div>
                 </div>
@@ -169,7 +173,7 @@ export function WheelPage() {
                     className={`border py-2 font-mono text-[11px] tracking-[0.2em] transition ${
                       risk === r
                         ? 'border-neon-acid bg-neon-acid/10 text-neon-acid'
-                        : 'border-white/10 bg-ink-950/50 text-ink-300'
+                        : 'border-ink-200 bg-ink-50/50 text-ink-700'
                     }`}
                   >
                     {t.games.mines[r]}
@@ -189,7 +193,7 @@ export function WheelPage() {
                     className={`border py-2 font-mono text-[11px] transition ${
                       segments === s
                         ? 'border-neon-acid bg-neon-acid/10 text-neon-acid'
-                        : 'border-white/10 bg-ink-950/50 text-ink-300'
+                        : 'border-ink-200 bg-ink-50/50 text-ink-700'
                     }`}
                   >
                     {s}

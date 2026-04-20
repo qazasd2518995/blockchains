@@ -11,6 +11,7 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
+  runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
 import { ApiError } from '../../../utils/errors.js';
@@ -22,7 +23,7 @@ export class MinesService {
   async start(userId: string, input: MinesStartInput): Promise<MinesRoundState> {
     const amount = new Prisma.Decimal(input.amount);
 
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       const active = await tx.minesRound.findFirst({
         where: { userId, status: 'ACTIVE' },
       });
@@ -62,11 +63,11 @@ export class MinesService {
       });
 
       return this.toState(round, seed.serverSeedHash);
-    }, serializableTxOpts());
+    });
   }
 
   async reveal(userId: string, input: MinesRevealInput): Promise<MinesRevealResult> {
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       const round = await tx.minesRound.findFirst({
         where: { id: input.roundId, userId },
       });
@@ -136,11 +137,11 @@ export class MinesService {
         state: this.toState(updated, serverSeed.seedHash),
         hitMine: false,
       };
-    }, serializableTxOpts());
+    });
   }
 
   async cashout(userId: string, input: MinesCashoutInput): Promise<MinesCashoutResult> {
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       const round = await tx.minesRound.findFirst({
         where: { id: input.roundId, userId },
       });
@@ -197,7 +198,7 @@ export class MinesService {
         payout: payout.toFixed(2),
         newBalance: newBalance.toFixed(2),
       };
-    }, serializableTxOpts());
+    });
   }
 
   async getActive(userId: string): Promise<MinesRoundState | null> {

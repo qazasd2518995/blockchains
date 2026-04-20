@@ -13,6 +13,7 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
+  runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
 import { ApiError } from '../../../utils/errors.js';
@@ -24,7 +25,7 @@ export class TowerService {
   async start(userId: string, input: TowerStartInput): Promise<TowerRoundState> {
     const amount = new Prisma.Decimal(input.amount);
 
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       const active = await tx.towerRound.findFirst({ where: { userId, status: 'ACTIVE' } });
       if (active) throw new ApiError('INVALID_ACTION', 'You have an active Tower round');
 
@@ -56,11 +57,11 @@ export class TowerService {
       });
 
       return this.toState(round, seed.serverSeedHash);
-    }, serializableTxOpts());
+    });
   }
 
   async pick(userId: string, input: TowerPickInput): Promise<TowerPickResult> {
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       const round = await tx.towerRound.findFirst({
         where: { id: input.roundId, userId },
       });
@@ -133,11 +134,11 @@ export class TowerService {
         state: this.toState(updated, serverSeedRecord.seedHash, undefined, newLevel >= TOWER_LEVELS),
         hitTrap: false,
       };
-    }, serializableTxOpts());
+    });
   }
 
   async cashout(userId: string, input: TowerCashoutInput): Promise<TowerCashoutResult> {
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       const round = await tx.towerRound.findFirst({ where: { id: input.roundId, userId } });
       if (!round) throw new ApiError('ROUND_NOT_FOUND', 'Round not found');
       if (round.status !== 'ACTIVE') throw new ApiError('ROUND_NOT_ACTIVE', 'Round is not active');
@@ -183,7 +184,7 @@ export class TowerService {
         payout: payout.toFixed(2),
         newBalance: newBalance.toFixed(2),
       };
-    }, serializableTxOpts());
+    });
   }
 
   async getActive(userId: string): Promise<TowerRoundState | null> {

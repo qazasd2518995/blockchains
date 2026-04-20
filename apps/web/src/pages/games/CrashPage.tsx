@@ -6,6 +6,7 @@ import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { getCrashSocket, disconnectCrashSocket } from '@/lib/socket';
 import { useTranslation } from '@/i18n/useTranslation';
+import { CrashScene, type CrashVariant } from '@/games/crash/CrashScene';
 
 interface CrashGameConfig {
   gameId: string;
@@ -13,6 +14,7 @@ interface CrashGameConfig {
   section: string;
   accent: 'acid' | 'ember' | 'toxic' | 'ice';
   glyph: string;
+  variant?: CrashVariant;
 }
 
 interface Props {
@@ -35,6 +37,72 @@ export function CrashPage({ config }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [bettingCountdown, setBettingCountdown] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sceneRef = useRef<CrashScene | null>(null);
+
+  // 初始化 Pixi scene
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    let scene: CrashScene | null = null;
+    let rafId = 0;
+    const tryInit = () => {
+      if (cancelled) return;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (w < 10 || h < 10) {
+        rafId = requestAnimationFrame(tryInit);
+        return;
+      }
+      scene = new CrashScene();
+      sceneRef.current = scene;
+      void scene.init(canvas, w, h, config.variant ?? 'rocket');
+    };
+    tryInit();
+    return () => {
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      scene?.dispose();
+      sceneRef.current = null;
+    };
+  }, [config.variant]);
+
+  // Sync state to Pixi scene
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    if (status === 'BETTING') {
+      sceneRef.current.startBetting(bettingCountdown);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    if (status === 'BETTING') {
+      sceneRef.current.setCountdown(bettingCountdown);
+    }
+  }, [bettingCountdown, status]);
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    if (status === 'RUNNING') {
+      sceneRef.current.startRunning();
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    if (status === 'RUNNING') {
+      sceneRef.current.setMultiplier(multiplier);
+    }
+  }, [multiplier, status]);
+
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    if (status === 'CRASHED' && crashPoint !== null) {
+      sceneRef.current.crash(crashPoint);
+    }
+  }, [status, crashPoint]);
 
   // Derive title/desc from i18n per gameId
   const titleMap: Record<string, { title: string; suffix: string; desc: string }> = {
@@ -161,16 +229,11 @@ export function CrashPage({ config }: Props) {
         }
         setMyBet((b) => (b ? { ...b, cashed: true, payout: res.payout } : b));
         if (res.newBalance) setBalance(res.newBalance);
+        // L4：cashout 成功觸發 tier 慶祝
+        sceneRef.current?.celebrateCashout(multiplier);
       },
     );
   };
-
-  const accentColor = {
-    acid: 'text-neon-acid border-neon-acid',
-    ember: 'text-neon-ember border-neon-ember',
-    toxic: 'text-neon-toxic border-neon-toxic',
-    ice: 'text-neon-ice border-neon-ice',
-  }[config.accent];
 
   return (
     <div>
@@ -185,12 +248,12 @@ export function CrashPage({ config }: Props) {
         rtpAccent={config.accent}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
           <div className="crt-panel scanlines relative overflow-hidden">
-            <div className="flex items-center justify-between border-b border-white/5 px-5 py-2 text-[10px] tracking-[0.25em]">
+            <div className="flex items-center justify-between border-b border-ink-200 px-4 py-2 text-[10px] tracking-[0.25em]">
               <span className="text-ink-500">TERMINAL://{config.gameId.toUpperCase()}</span>
-              <div className="flex items-center gap-3 text-ink-400">
+              <div className="flex items-center gap-3 text-ink-600">
                 {status === 'BETTING' && (
                   <span className="text-neon-acid">
                     <span className="status-dot status-dot-live" />
@@ -213,60 +276,8 @@ export function CrashPage({ config }: Props) {
               </div>
             </div>
 
-            <div className="relative flex aspect-[16/10] items-center justify-center p-8">
-              <div
-                className="pointer-events-none absolute inset-0 opacity-30"
-                style={{
-                  backgroundImage:
-                    'radial-gradient(circle, rgba(212,255,58,0.15) 1px, transparent 1.5px)',
-                  backgroundSize: '32px 32px',
-                }}
-              />
-
-              <svg
-                viewBox="0 0 600 350"
-                className="pointer-events-none absolute inset-0 h-full w-full"
-              >
-                {status !== 'BETTING' &&
-                  (() => {
-                    const maxM = Math.max(multiplier, 2);
-                    const points: string[] = [];
-                    const steps = 40;
-                    for (let i = 0; i <= steps; i += 1) {
-                      const tt = i / steps;
-                      const m = 1 + (multiplier - 1) * (tt * tt);
-                      const x = 30 + tt * 540;
-                      const y = 320 - ((m - 1) / (maxM - 1)) * 280;
-                      points.push(`${x},${y}`);
-                    }
-                    return (
-                      <polyline
-                        points={points.join(' ')}
-                        fill="none"
-                        stroke={status === 'CRASHED' ? '#ff4e50' : '#d4ff3a'}
-                        strokeWidth="3"
-                        opacity="0.9"
-                      />
-                    );
-                  })()}
-              </svg>
-
-              <div className="relative flex flex-col items-center">
-                <div
-                  className={`font-display text-[12rem] leading-none tracking-tight ${accentColor} ${
-                    status === 'CRASHED' ? 'text-neon-ember' : ''
-                  }`}
-                >
-                  {status === 'BETTING' ? config.glyph : `${multiplier.toFixed(2)}×`}
-                </div>
-                <div className="mt-2 text-[12px] tracking-[0.3em] text-ink-500">
-                  {status === 'BETTING'
-                    ? `${t.games.crash.nextIn} ${bettingCountdown}${t.games.crash.seconds}`
-                    : status === 'CRASHED'
-                    ? `${t.games.crash.crashedAt} ${crashPoint?.toFixed(2)}×`
-                    : `${t.games.crash.provable} ${snapshot?.serverSeedHash.slice(0, 16) ?? ''}...`}
-                </div>
-              </div>
+            <div className="relative aspect-[16/7] w-full overflow-hidden">
+              <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
             </div>
           </div>
 
@@ -277,7 +288,7 @@ export function CrashPage({ config }: Props) {
             </div>
             <div className="mt-3 flex flex-wrap gap-1">
               {history.length === 0 && (
-                <span className="text-[10px] tracking-[0.3em] text-ink-600">
+                <span className="text-[10px] tracking-[0.3em] text-ink-400">
                   {t.games.crash.noHistory}
                 </span>
               )}
@@ -351,7 +362,7 @@ export function CrashPage({ config }: Props) {
                   <div className="font-display text-xl text-neon-acid">
                     {t.games.crash.secured}
                   </div>
-                  <div className="data-num text-[11px] text-ink-400">+{myBet.payout}</div>
+                  <div className="data-num text-[11px] text-ink-600">+{myBet.payout}</div>
                 </div>
               )}
               {status === 'CRASHED' && myBet && !myBet.cashed && (
@@ -362,7 +373,7 @@ export function CrashPage({ config }: Props) {
                 </div>
               )}
               {status === 'BETTING' && myBet && (
-                <div className="border border-white/10 bg-ink-900 p-3 text-center">
+                <div className="border border-ink-200 bg-ink-100 p-3 text-center">
                   <div className="text-[10px] tracking-[0.3em] text-ink-500">
                     {t.games.crash.betPlaced}
                   </div>
@@ -378,21 +389,21 @@ export function CrashPage({ config }: Props) {
           </div>
 
           <div className="crt-panel p-5">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <div className="flex items-center justify-between border-b border-ink-200 pb-2">
               <span className="label">{t.games.crash.liveBets}</span>
               <span className="data-num text-[10px] text-ink-500">{players.length}</span>
             </div>
             <div className="mt-3 max-h-64 space-y-1 overflow-y-auto text-[11px]">
-              {players.length === 0 && <div className="py-3 text-center text-ink-600">—</div>}
+              {players.length === 0 && <div className="py-3 text-center text-ink-400">—</div>}
               {players.slice(0, 30).map((p, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between border border-white/5 bg-ink-950/40 px-2 py-1"
+                  className="flex items-center justify-between border border-ink-200 bg-ink-50/40 px-2 py-1"
                 >
-                  <span className="font-mono text-ink-400">
+                  <span className="font-mono text-ink-600">
                     0x{p.userId.slice(-6).toUpperCase()}
                   </span>
-                  <span className="data-num text-ink-300">{p.amount}</span>
+                  <span className="data-num text-ink-700">{p.amount}</span>
                   <span
                     className={`data-num ${p.cashedOutAt ? 'text-neon-acid' : 'text-ink-500'}`}
                   >
@@ -409,12 +420,12 @@ export function CrashPage({ config }: Props) {
 }
 
 export const CRASH_CONFIGS: Record<string, CrashGameConfig> = {
-  rocket: { gameId: 'rocket', breadcrumb: 'ROCKET_10', section: '§ GAME 10', accent: 'acid', glyph: '▲' },
-  aviator: { gameId: 'aviator', breadcrumb: 'AVIATOR_11', section: '§ GAME 11', accent: 'ember', glyph: '◣' },
-  'space-fleet': { gameId: 'space-fleet', breadcrumb: 'FLEET_12', section: '§ GAME 12', accent: 'ice', glyph: '✺' },
-  jetx: { gameId: 'jetx', breadcrumb: 'JETX_13', section: '§ GAME 13', accent: 'acid', glyph: '◢' },
-  balloon: { gameId: 'balloon', breadcrumb: 'BALLOON_14', section: '§ GAME 14', accent: 'ember', glyph: '◯' },
-  jetx3: { gameId: 'jetx3', breadcrumb: 'JETX3_15', section: '§ GAME 15', accent: 'toxic', glyph: '⧨' },
-  'double-x': { gameId: 'double-x', breadcrumb: 'DOUBLEX_16', section: '§ GAME 16', accent: 'ice', glyph: '⊞' },
-  'plinko-x': { gameId: 'plinko-x', breadcrumb: 'PLINKOX_17', section: '§ GAME 17', accent: 'acid', glyph: '▼' },
+  rocket: { gameId: 'rocket', breadcrumb: 'ROCKET_10', section: '§ GAME 10', accent: 'acid', glyph: '▲', variant: 'rocket' },
+  aviator: { gameId: 'aviator', breadcrumb: 'AVIATOR_11', section: '§ GAME 11', accent: 'ember', glyph: '◣', variant: 'aviator' },
+  'space-fleet': { gameId: 'space-fleet', breadcrumb: 'FLEET_12', section: '§ GAME 12', accent: 'ice', glyph: '✺', variant: 'fleet' },
+  jetx: { gameId: 'jetx', breadcrumb: 'JETX_13', section: '§ GAME 13', accent: 'acid', glyph: '◢', variant: 'jet' },
+  balloon: { gameId: 'balloon', breadcrumb: 'BALLOON_14', section: '§ GAME 14', accent: 'ember', glyph: '◯', variant: 'balloon' },
+  jetx3: { gameId: 'jetx3', breadcrumb: 'JETX3_15', section: '§ GAME 15', accent: 'toxic', glyph: '⧨', variant: 'jet' },
+  'double-x': { gameId: 'double-x', breadcrumb: 'DOUBLEX_16', section: '§ GAME 16', accent: 'ice', glyph: '⊞', variant: 'default' },
+  'plinko-x': { gameId: 'plinko-x', breadcrumb: 'PLINKOX_17', section: '§ GAME 17', accent: 'acid', glyph: '▼', variant: 'default' },
 };

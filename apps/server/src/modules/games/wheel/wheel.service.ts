@@ -6,6 +6,7 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
+  runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
 import type { WheelBetInput } from './wheel.schema.js';
@@ -16,7 +17,7 @@ export class WheelService {
   async bet(userId: string, input: WheelBetInput): Promise<WheelBetResult> {
     const amount = new Prisma.Decimal(input.amount);
 
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
       const seed = await new SeedHelper(tx).getActiveBundle(
         userId,
@@ -78,6 +79,6 @@ export class WheelService {
         serverSeedHash: seed.serverSeedHash,
         clientSeed: seed.clientSeed,
       };
-    }, serializableTxOpts());
+    });
   }
 }

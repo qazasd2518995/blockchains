@@ -28,16 +28,30 @@ export function MinesPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
-    const scene = new MinesScene();
-    sceneRef.current = scene;
-    const width = canvasRef.current.clientWidth;
-    const height = canvasRef.current.clientHeight;
-    void scene.init(canvasRef.current, width, height, ({ index }) => {
-      void handleReveal(index);
-    });
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    let scene: MinesScene | null = null;
+    let rafId = 0;
+    const tryInit = () => {
+      if (cancelled) return;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (w < 10 || h < 10) {
+        rafId = requestAnimationFrame(tryInit);
+        return;
+      }
+      scene = new MinesScene();
+      sceneRef.current = scene;
+      void scene.init(canvas, w, h, ({ index }) => {
+        void handleReveal(index);
+      });
+    };
+    tryInit();
     return () => {
-      scene.dispose();
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      scene?.dispose();
       sceneRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,6 +101,8 @@ export function MinesPage() {
     if (!current || current.status !== 'ACTIVE') return;
     if (busy) return;
     setBusy(true);
+    // 樂觀動畫：立刻標記此格為「準備中」脈動
+    sceneRef.current?.markPending(cellIndex);
     try {
       const res = await api.post<MinesRevealResult>('/games/mines/reveal', {
         roundId: current.roundId,
@@ -121,6 +137,7 @@ export function MinesPage() {
       setRound(state);
       roundRef.current = state;
       sceneRef.current?.setClickable(false);
+      sceneRef.current?.celebrateCashout(Number.parseFloat(state.currentMultiplier));
       setBalance(newBalance);
     } catch (err) {
       setError(extractApiError(err).message);
@@ -161,12 +178,12 @@ export function MinesPage() {
         rtpAccent="ember"
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
           <div className="crt-panel scanlines relative overflow-hidden">
-            <div className="flex items-center justify-between border-b border-white/5 px-5 py-2 text-[10px] tracking-[0.25em]">
+            <div className="flex items-center justify-between border-b border-ink-200 px-4 py-2 text-[10px] tracking-[0.25em]">
               <span className="text-ink-500">TERMINAL://MINES</span>
-              <div className="flex items-center gap-3 text-ink-400">
+              <div className="flex items-center gap-3 text-ink-600">
                 <span>
                   {round
                     ? `${t.games.mines.revealed} ${round.revealed.length}/${25 - mineCount}`
@@ -186,25 +203,33 @@ export function MinesPage() {
                 )}
               </div>
             </div>
-            <div className="aspect-square w-full">
+            <div className="relative mx-auto aspect-square w-full max-h-[520px]" style={{ maxWidth: 520 }}>
               <canvas ref={canvasRef} className="h-full w-full" />
+              {/* 右上 overlay — 當前倍率/下一倍/派彩 */}
+              {round && (
+                <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 text-[10px] tracking-[0.2em] text-ink-500">
+                  <div>
+                    {t.games.mines.current.toUpperCase()}{' '}
+                    <span className="data-num ml-1 text-neon-acid">
+                      {formatMultiplier(round.currentMultiplier)}
+                    </span>
+                  </div>
+                  <div>
+                    NEXT{' '}
+                    <span className="data-num ml-1 text-ink-700">
+                      {round.nextMultiplier ? formatMultiplier(round.nextMultiplier) : '—'}
+                    </span>
+                  </div>
+                  <div>
+                    PAYOUT{' '}
+                    <span className="data-num ml-1 text-neon-toxic">
+                      {formatAmount(round.potentialPayout)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
-          {round && (
-            <div className="grid grid-cols-3 gap-3">
-              <Stat
-                k={t.games.mines.current}
-                v={formatMultiplier(round.currentMultiplier)}
-                accent="acid"
-              />
-              <Stat
-                k={t.games.mines.next}
-                v={round.nextMultiplier ? formatMultiplier(round.nextMultiplier) : '—'}
-              />
-              <Stat k={t.bet.potentialPayout} v={formatAmount(round.potentialPayout)} />
-            </div>
-          )}
 
           {isBusted && (
             <div className="border-2 border-neon-ember bg-neon-ember/5 p-5">
@@ -213,7 +238,7 @@ export function MinesPage() {
                   <div className="font-display text-5xl text-neon-ember">
                     {t.games.mines.busted}
                   </div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-400">
+                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
                     {t.games.mines.mineDetonated}
                   </div>
                 </div>
@@ -234,7 +259,7 @@ export function MinesPage() {
                   <div className="font-display text-5xl text-neon-acid">
                     {t.games.mines.cashedOut}
                   </div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-400">
+                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
                     {t.games.mines.secured}
                   </div>
                 </div>
@@ -265,10 +290,10 @@ export function MinesPage() {
             />
 
             <div className="mt-6">
-              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+              <div className="flex items-center justify-between border-b border-ink-200 pb-2">
                 <div className="flex items-baseline gap-2">
                   <span className="text-[9px] text-ink-500">02</span>
-                  <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-300">
+                  <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">
                     {t.games.mines.mines}
                   </span>
                 </div>
@@ -300,7 +325,7 @@ export function MinesPage() {
                     className={`border py-1.5 font-mono text-[11px] transition ${
                       mineCount === v
                         ? 'border-neon-ember bg-neon-ember/10 text-neon-ember'
-                        : 'border-white/10 bg-ink-950/50 text-ink-300 hover:border-neon-ember/50'
+                        : 'border-ink-200 bg-ink-50/50 text-ink-700 hover:border-neon-ember/50'
                     } disabled:opacity-30`}
                   >
                     {v}
@@ -350,11 +375,11 @@ export function MinesPage() {
                 </button>
               )}
               <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] tracking-[0.25em]">
-                <div className="border border-white/10 bg-ink-950/50 p-2 text-center">
+                <div className="border border-ink-200 bg-ink-50/50 p-2 text-center">
                   <div className="text-ink-500">{t.bet.balance}</div>
-                  <div className="mt-1 data-num text-sm text-bone">{formatAmount(balance)}</div>
+                  <div className="mt-1 data-num text-sm text-ink-900">{formatAmount(balance)}</div>
                 </div>
-                <div className="border border-white/10 bg-ink-950/50 p-2 text-center">
+                <div className="border border-ink-200 bg-ink-50/50 p-2 text-center">
                   <div className="text-ink-500">{t.games.mines.atRisk}</div>
                   <div className="mt-1 data-num text-sm text-neon-ember">
                     {round && isActive ? formatAmount(round.amount) : '—'}
@@ -365,10 +390,10 @@ export function MinesPage() {
           </div>
 
           <div className="crt-panel p-5">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+            <div className="flex items-center justify-between border-b border-ink-200 pb-3">
               <div className="flex items-baseline gap-2">
                 <span className="text-[9px] text-ink-500">03</span>
-                <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-300">
+                <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">
                   {t.games.mines.probs}
                 </span>
               </div>
@@ -402,7 +427,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
     <div className="crt-panel p-4">
       <div className="label">{k}</div>
       <div
-        className={`mt-1 big-num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-bone'}`}
+        className={`mt-1 big-num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
       >
         {v}
       </div>
@@ -419,9 +444,9 @@ function ProbRow({
   value: string;
   color: 'acid' | 'ember' | 'ink';
 }) {
-  const c = { acid: 'text-neon-acid', ember: 'text-neon-ember', ink: 'text-ink-300' }[color];
+  const c = { acid: 'text-neon-acid', ember: 'text-neon-ember', ink: 'text-ink-700' }[color];
   return (
-    <div className="flex items-baseline justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0">
+    <div className="flex items-baseline justify-between border-b border-ink-200 pb-2 last:border-0 last:pb-0">
       <span className="label">{label}</span>
       <span className={`data-num ${c}`}>{value}</span>
     </div>

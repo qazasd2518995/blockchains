@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type {
   TowerRoundState,
   TowerPickResult,
@@ -11,6 +11,7 @@ import { BetControls } from '@/components/game/BetControls';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
+import { TowerScene } from '@/games/tower/TowerScene';
 
 export function TowerPage() {
   const { user, setBalance } = useAuthStore();
@@ -22,6 +23,10 @@ export function TowerPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sceneRef = useRef<TowerScene | null>(null);
+  const roundRef = useRef<TowerRoundState | null>(null);
+
   const difficulties: { id: TowerDifficulty; label: string; desc: string }[] = [
     { id: 'easy', label: t.games.tower.easy, desc: t.games.tower.easyDesc },
     { id: 'medium', label: t.games.tower.medium, desc: t.games.tower.mediumDesc },
@@ -31,9 +36,52 @@ export function TowerPage() {
   ];
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    let scene: TowerScene | null = null;
+    let rafId = 0;
+    const tryInit = () => {
+      if (cancelled) return;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (w < 10 || h < 10) {
+        rafId = requestAnimationFrame(tryInit);
+        return;
+      }
+      scene = new TowerScene();
+      sceneRef.current = scene;
+      void scene.init(canvas, w, h, (level, col) => {
+        void pickInternal(level, col);
+      });
+    };
+    tryInit();
+    return () => {
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      scene?.dispose();
+      sceneRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     void api
       .get<{ state: TowerRoundState | null }>('/games/tower/active')
-      .then((res) => setRound(res.data.state))
+      .then((res) => {
+        if (res.data.state) {
+          setRound(res.data.state);
+          roundRef.current = res.data.state;
+          // 恢復 scene 狀態
+          sceneRef.current?.setup(res.data.state.totalLevels, res.data.state.cols);
+          for (let lv = 0; lv < res.data.state.picks.length; lv += 1) {
+            const col = res.data.state.picks[lv];
+            if (col !== undefined) sceneRef.current?.pick(lv, col, true);
+          }
+          sceneRef.current?.focusOnLevel(res.data.state.currentLevel, false);
+          sceneRef.current?.setMultiplier(Number.parseFloat(res.data.state.currentMultiplier).toFixed(2));
+        }
+      })
       .catch(() => undefined);
   }, []);
 
@@ -44,7 +92,11 @@ export function TowerPage() {
     try {
       const res = await api.post<TowerRoundState>('/games/tower/start', { amount, difficulty });
       setRound(res.data);
+      roundRef.current = res.data;
       setBalance((balance - amount).toFixed(2));
+      sceneRef.current?.setup(res.data.totalLevels, res.data.cols);
+      sceneRef.current?.focusOnLevel(0, true);
+      sceneRef.current?.setMultiplier('1.00');
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -52,15 +104,28 @@ export function TowerPage() {
     }
   };
 
-  const pick = async (col: number) => {
-    if (!round || busy || round.status !== 'ACTIVE') return;
+  const pickInternal = async (level: number, col: number) => {
+    // 樂觀動畫：立刻脈動該格
+    sceneRef.current?.markPending(level, col);
+    const current = roundRef.current;
+    if (!current || current.status !== 'ACTIVE') return;
+    if (level !== current.currentLevel) return;
     setBusy(true);
     try {
       const res = await api.post<TowerPickResult>('/games/tower/pick', {
-        roundId: round.roundId,
+        roundId: current.roundId,
         col,
       });
+      sceneRef.current?.pick(level, col, !res.data.hitTrap);
       setRound(res.data.state);
+      roundRef.current = res.data.state;
+      if (res.data.hitTrap && res.data.state.revealedLayout) {
+        sceneRef.current?.revealAll(res.data.state.revealedLayout);
+      } else {
+        sceneRef.current?.setMultiplier(
+          Number.parseFloat(res.data.state.currentMultiplier).toFixed(2),
+        );
+      }
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -76,17 +141,18 @@ export function TowerPage() {
         roundId: round.roundId,
       });
       setRound(res.data.state);
+      roundRef.current = res.data.state;
       setBalance(res.data.newBalance);
+      if (res.data.state.revealedLayout) {
+        sceneRef.current?.revealAll(res.data.state.revealedLayout);
+      }
+      sceneRef.current?.celebrate(Number.parseFloat(res.data.state.currentMultiplier));
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
       setBusy(false);
     }
   };
-
-  const cols = round?.cols ?? 3;
-  const totalLevels = round?.totalLevels ?? 9;
-  const levels = Array.from({ length: totalLevels }, (_, i) => totalLevels - 1 - i);
 
   return (
     <div>
@@ -101,78 +167,20 @@ export function TowerPage() {
         rtpAccent="acid"
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
-          <div className="crt-panel scanlines p-6">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3 text-[10px] tracking-[0.25em]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          <div className="crt-panel scanlines p-3">
+            <div className="flex items-center justify-between border-b border-ink-200 pb-2 text-[10px] tracking-[0.25em]">
               <span className="text-ink-500">TERMINAL://TOWER</span>
-              <span className="text-ink-400">
+              <span className="text-ink-600">
                 {round
                   ? `${t.games.tower.level} ${round.currentLevel}/${round.totalLevels}`
                   : t.games.hilo.idle.toUpperCase()}
               </span>
             </div>
 
-            <div className="mt-6 space-y-1">
-              {levels.map((level) => {
-                const revealed = round?.revealedLayout?.[level];
-                const picked = round?.picks[level];
-                const isCurrent = round?.currentLevel === level && round.status === 'ACTIVE';
-                const isPast = round && level < round.currentLevel;
-                return (
-                  <div
-                    key={level}
-                    className={`flex items-center gap-2 border p-2 ${
-                      isCurrent
-                        ? 'border-neon-acid bg-neon-acid/5 shadow-acid-glow'
-                        : 'border-white/5'
-                    }`}
-                  >
-                    <span className="w-10 text-center text-[10px] tracking-[0.25em] text-ink-500">
-                      L{level + 1}
-                    </span>
-                    <div className="flex flex-1 gap-1">
-                      {Array.from({ length: cols }, (_, c) => {
-                        const isPickedCell = isPast && picked === c;
-                        const isSafeReveal = revealed?.includes(c);
-                        const isBombReveal = revealed !== undefined && !isSafeReveal;
-                        const isClickable = isCurrent && !busy;
-                        let cls = 'border border-white/10 bg-ink-900 text-ink-500';
-                        let label = '·';
-                        if (isPast && isPickedCell) {
-                          cls = 'border-neon-acid bg-neon-acid/20 text-neon-acid';
-                          label = '◆';
-                        } else if (round?.status !== 'ACTIVE' && isSafeReveal) {
-                          cls = 'border-neon-acid/30 bg-neon-acid/5 text-neon-acid';
-                          label = '◆';
-                        } else if (
-                          round?.status !== 'ACTIVE' &&
-                          isBombReveal &&
-                          revealed
-                        ) {
-                          cls = 'border-neon-ember/30 bg-neon-ember/5 text-neon-ember';
-                          label = '✕';
-                        } else if (isClickable) {
-                          cls =
-                            'border-neon-acid/40 bg-ink-900 hover:bg-neon-acid/10 cursor-pointer text-ink-300';
-                          label = '?';
-                        }
-                        return (
-                          <button
-                            key={c}
-                            type="button"
-                            onClick={() => isClickable && pick(c)}
-                            disabled={!isClickable}
-                            className={`flex-1 py-3 font-display text-2xl transition ${cls}`}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="mx-auto mt-2 aspect-[3/4] w-full max-w-[420px]">
+              <canvas ref={canvasRef} className="h-full w-full" />
             </div>
           </div>
 
@@ -196,7 +204,7 @@ export function TowerPage() {
               <div className="font-display text-4xl text-neon-ember">
                 {t.games.tower.trapTriggered}
               </div>
-              <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-400">
+              <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
                 {t.games.mines.loss} -{formatAmount(round.amount)}
               </div>
             </div>
@@ -204,7 +212,7 @@ export function TowerPage() {
           {round?.status === 'CASHED_OUT' && (
             <div className="border-2 border-neon-acid bg-neon-acid/5 p-5 shadow-acid-glow">
               <div className="font-display text-4xl text-neon-acid">{t.games.tower.secured}</div>
-              <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-400">
+              <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
                 {t.games.tower.payout} +{formatAmount(round.potentialPayout)}
               </div>
             </div>
@@ -237,10 +245,10 @@ export function TowerPage() {
                     className={`flex w-full items-center justify-between border p-2 text-left transition ${
                       difficulty === d.id
                         ? 'border-neon-acid bg-neon-acid/10'
-                        : 'border-white/10 bg-ink-950/50 hover:border-white/30'
+                        : 'border-ink-200 bg-ink-50/50 hover:border-ink-600'
                     } disabled:opacity-40`}
                   >
-                    <span className="font-mono text-[12px] font-semibold tracking-[0.2em] text-bone">
+                    <span className="font-mono text-[12px] font-semibold tracking-[0.2em] text-ink-900">
                       {d.label}
                     </span>
                     <span className="text-[10px] text-ink-500">{d.desc}</span>
@@ -289,7 +297,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
     <div className="crt-panel p-4">
       <div className="label">{k}</div>
       <div
-        className={`mt-1 big-num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-bone'}`}
+        className={`mt-1 big-num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
       >
         {v}
       </div>

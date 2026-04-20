@@ -11,6 +11,7 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
+  runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
 import { ApiError } from '../../../utils/errors.js';
@@ -24,7 +25,7 @@ export class HiLoService {
   async start(userId: string, input: HiLoStartInput): Promise<HiLoRoundState> {
     const amount = new Prisma.Decimal(input.amount);
 
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       const active = await tx.hiLoRound.findFirst({ where: { userId, status: 'ACTIVE' } });
       if (active) throw new ApiError('INVALID_ACTION', 'You have an active Hi-Lo round');
 
@@ -51,11 +52,11 @@ export class HiLoService {
       });
 
       return this.toState(round, firstCard, seed.serverSeedHash);
-    }, serializableTxOpts());
+    });
   }
 
   async guess(userId: string, input: HiLoGuessInput): Promise<HiLoGuessResult> {
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       const round = await tx.hiLoRound.findFirst({
         where: { id: input.roundId, userId },
       });
@@ -136,11 +137,11 @@ export class HiLoService {
         drawn,
         correct: true,
       };
-    }, serializableTxOpts());
+    });
   }
 
   async skip(userId: string, roundId: string): Promise<HiLoRoundState> {
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       const round = await tx.hiLoRound.findFirst({ where: { id: roundId, userId } });
       if (!round) throw new ApiError('ROUND_NOT_FOUND', 'Round not found');
       if (round.status !== 'ACTIVE') throw new ApiError('ROUND_NOT_ACTIVE', 'Round is not active');
@@ -165,11 +166,11 @@ export class HiLoService {
         },
       });
       return this.toState(updated, drawn, serverSeedRecord.seedHash);
-    }, serializableTxOpts());
+    });
   }
 
   async cashout(userId: string, input: HiLoCashoutInput): Promise<HiLoCashoutResult> {
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       const round = await tx.hiLoRound.findFirst({
         where: { id: input.roundId, userId },
       });
@@ -217,7 +218,7 @@ export class HiLoService {
         payout: payout.toFixed(2),
         newBalance: newBalance.toFixed(2),
       };
-    }, serializableTxOpts());
+    });
   }
 
   async getActive(userId: string): Promise<HiLoRoundState | null> {

@@ -6,6 +6,7 @@ import type {
   CrashPlayerBet,
   CrashStatus,
 } from '@bg/shared';
+import { runSerializable } from '../modules/games/_common/BaseGameService.js';
 
 const BETTING_WINDOW_MS = 5000;
 const POST_CRASH_MS = 3000;
@@ -28,6 +29,10 @@ export class CrashRoom {
   private roundStartedAt = 0;
   private bettingEndsAt = 0;
   private tickTimer: NodeJS.Timeout | null = null;
+  private pendingAutoCashouts = new Map<
+    string,
+    { betId: string; userId: string; autoCashOut: number }
+  >();
   private roundNumber = 0;
 
   constructor(
@@ -63,6 +68,7 @@ export class CrashRoom {
     this.roundNumber += 1;
     this.currentCrashPoint = crashPoint(seed, `${this.config.gameId}:${this.roundNumber}`);
     this.currentMultiplier = 1.0;
+    this.pendingAutoCashouts.clear();
     this.bettingEndsAt = Date.now() + BETTING_WINDOW_MS;
 
     const round = await this.prisma.crashRound.create({
@@ -122,15 +128,18 @@ export class CrashRoom {
 
   private async autoCashOutCheck(): Promise<void> {
     if (!this.currentRoundId) return;
-    const pending = await this.prisma.crashBet.findMany({
-      where: {
-        roundId: this.currentRoundId,
-        cashedOutAt: null,
-        autoCashOut: { not: null, lte: new Prisma.Decimal(this.currentMultiplier.toFixed(4)) },
-      },
-    });
-    for (const bet of pending) {
-      await this.settleCashout(bet.userId, bet.id, Number(bet.autoCashOut));
+    // 使用記憶體快取的 pending 清單（由 placeBet 時寫入），避免每 100ms 打 DB
+    const ready: { betId: string; userId: string; autoCashOut: number }[] = [];
+    for (const p of this.pendingAutoCashouts.values()) {
+      if (p.autoCashOut <= this.currentMultiplier) ready.push(p);
+    }
+    for (const p of ready) {
+      this.pendingAutoCashouts.delete(p.betId);
+      try {
+        await this.settleCashout(p.userId, p.betId, p.autoCashOut);
+      } catch {
+        // ignore — bet already cashed out or round ended
+      }
     }
   }
 
@@ -207,6 +216,7 @@ export class CrashRoom {
           },
         });
         if (!bet) throw new Error('No active bet');
+        this.pendingAutoCashouts.delete(bet.id);
         const res = await this.settleCashout(payload.userId, bet.id, this.currentMultiplier);
         ack?.({ ok: true, ...res });
       } catch (err) {
@@ -223,7 +233,7 @@ export class CrashRoom {
     if (!this.currentRoundId) throw new Error('No active round');
     const amountD = new Prisma.Decimal(amount);
 
-    const betId = await this.prisma.$transaction(async (tx) => {
+    const betId = await runSerializable(this.prisma, async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (user.balance.lessThan(amountD)) throw new Error('Insufficient funds');
       const updated = await tx.user.update({
@@ -251,7 +261,11 @@ export class CrashRoom {
         },
       });
       return bet.id;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    });
+
+    if (autoCashOut !== undefined && autoCashOut > 1) {
+      this.pendingAutoCashouts.set(betId, { betId, userId, autoCashOut });
+    }
 
     const players = await this.getPlayers();
     this.broadcast('bets:update', { players });
@@ -263,7 +277,7 @@ export class CrashRoom {
     betId: string,
     multiplier: number,
   ): Promise<{ multiplier: number; payout: string; newBalance: string }> {
-    return this.prisma.$transaction(async (tx) => {
+    return runSerializable(this.prisma, async (tx) => {
       const bet = await tx.crashBet.findUniqueOrThrow({ where: { id: betId } });
       if (bet.cashedOutAt) throw new Error('Already cashed out');
       const multD = new Prisma.Decimal(multiplier.toFixed(4));
@@ -292,7 +306,7 @@ export class CrashRoom {
         payout: payout.toFixed(2),
         newBalance: updated.balance.toFixed(2),
       };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    });
   }
 
   private async getPlayers(): Promise<CrashPlayerBet[]> {

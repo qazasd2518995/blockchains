@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { RouletteBetRequest, RouletteBetResult, RouletteLineBet } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
+import { RouletteScene } from '@/games/roulette/RouletteScene';
 
 const RED = new Set([1, 3, 5, 7, 9, 12]);
 const BLACK = new Set([2, 4, 6, 8, 10, 11]);
@@ -23,6 +24,36 @@ export function RoulettePage({ variant }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sceneRef = useRef<RouletteScene | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    let scene: RouletteScene | null = null;
+    let rafId = 0;
+    const tryInit = () => {
+      if (cancelled) return;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (w < 10 || h < 10) {
+        rafId = requestAnimationFrame(tryInit);
+        return;
+      }
+      scene = new RouletteScene();
+      sceneRef.current = scene;
+      void scene.init(canvas, w, h);
+    };
+    tryInit();
+    return () => {
+      cancelled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      scene?.dispose();
+      sceneRef.current = null;
+    };
+  }, []);
+
   const addBet = (bet: Omit<RouletteLineBet, 'amount'>) => {
     setBets((prev) => {
       const existing = prev.find((b) => b.type === bet.type && b.value === bet.value);
@@ -39,6 +70,10 @@ export function RoulettePage({ variant }: Props) {
     if (busy || bets.length === 0 || totalBet > balance) return;
     setBusy(true);
     setError(null);
+    setResult(null);
+    sceneRef.current?.reset();
+    // 樂觀動畫
+    sceneRef.current?.startAnticipation();
     try {
       const payload: RouletteBetRequest = { bets };
       const endpoint =
@@ -46,6 +81,7 @@ export function RoulettePage({ variant }: Props) {
           ? '/games/mini-roulette/bet'
           : '/games/carnival/bet';
       const res = await api.post<RouletteBetResult>(endpoint, payload);
+      await sceneRef.current?.playSpin(res.data.slot);
       setResult(res.data);
       setBalance(res.data.newBalance);
       setBets([]);
@@ -73,17 +109,21 @@ export function RoulettePage({ variant }: Props) {
         rtpAccent="ember"
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
-          <div className="crt-panel scanlines p-6">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3 text-[10px] tracking-[0.25em]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          <div className="crt-panel scanlines p-3">
+            <div className="flex items-center justify-between border-b border-ink-200 pb-2 text-[10px] tracking-[0.25em]">
               <span className="text-ink-500">TERMINAL://ROULETTE</span>
-              <span className="text-ink-400">
+              <span className="text-ink-600">
                 {t.games.roulette.total}: {formatAmount(totalBet)}
               </span>
             </div>
 
-            <div className="mt-6 space-y-2">
+            <div className="relative mx-auto mt-3 aspect-square w-full max-w-[360px]">
+              <canvas ref={canvasRef} className="h-full w-full" />
+            </div>
+
+            <div className="mt-4 space-y-2">
               <div className="grid grid-cols-7 gap-1">
                 <NumberBtn
                   n={0}
@@ -145,22 +185,29 @@ export function RoulettePage({ variant }: Props) {
 
           {result && (
             <div
-              className={`border-2 p-5 ${
+              key={result.betId}
+              className={`animate-reveal rounded-2xl border-2 p-5 ${
                 Number.parseFloat(result.profit) >= 0
-                  ? 'border-neon-acid bg-neon-acid/5'
-                  : 'border-neon-ember/60 bg-neon-ember/5'
+                  ? 'border-neon-toxic bg-grad-win/10 shadow-toxic-glow'
+                  : 'border-neon-ember bg-grad-loss/10 shadow-ember-glow'
               }`}
             >
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="font-display text-5xl text-bone">
+                  <div className="big-num big-num-grad text-6xl">
                     {t.games.roulette.slot} {result.slot}
                   </div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-400">
+                  <div className="mt-2 text-[11px] tracking-[0.25em] text-ink-600">
                     {result.winningBets.length} {t.games.roulette.winningBets}
                   </div>
                 </div>
-                <div className="big-num text-3xl text-neon-acid">
+                <div
+                  className={`big-num text-4xl ${
+                    Number.parseFloat(result.profit) >= 0
+                      ? 'big-num-win'
+                      : 'text-neon-ember'
+                  }`}
+                >
                   {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
                   {formatAmount(result.profit)}
                 </div>
@@ -187,7 +234,7 @@ export function RoulettePage({ variant }: Props) {
                   className={`border py-2 font-mono text-[11px] transition ${
                     chip === v
                       ? 'border-neon-acid bg-neon-acid/10 text-neon-acid'
-                      : 'border-white/10 bg-ink-950/50 text-ink-300'
+                      : 'border-ink-200 bg-ink-50/50 text-ink-700'
                   }`}
                 >
                   {v}
@@ -201,14 +248,14 @@ export function RoulettePage({ variant }: Props) {
               </div>
               <div className="max-h-48 space-y-1 overflow-y-auto text-[11px]">
                 {bets.length === 0 && (
-                  <div className="py-3 text-center text-ink-600">{t.games.roulette.noBetsPlaced}</div>
+                  <div className="py-3 text-center text-ink-400">{t.games.roulette.noBetsPlaced}</div>
                 )}
                 {bets.map((b, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between border border-white/10 bg-ink-950/50 px-2 py-1"
+                    className="flex items-center justify-between border border-ink-200 bg-ink-50/50 px-2 py-1"
                   >
-                    <span className="font-mono text-ink-300">
+                    <span className="font-mono text-ink-700">
                       {b.type.toUpperCase()}
                       {b.value !== undefined ? ` ${b.value}` : ''}
                     </span>
@@ -257,16 +304,16 @@ function NumberBtn({
   variant: 'red' | 'black' | 'green';
 }) {
   const placed = bets.find((b) => b.type === 'straight' && b.value === n);
-  const bg = { red: 'bg-[#dc1f3b]', black: 'bg-ink-800', green: 'bg-[#00ffa3]/50' }[variant];
+  const bg = { red: 'bg-[#dc1f3b]', black: 'bg-ink-200', green: 'bg-[#00ffa3]/50' }[variant];
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`relative aspect-square border border-white/10 ${bg} font-display text-2xl text-bone transition hover:border-neon-acid`}
+      className={`relative aspect-square border border-ink-200 ${bg} font-display text-2xl text-ink-900 transition hover:border-neon-acid`}
     >
       {n}
       {placed && (
-        <span className="absolute -right-1 -top-1 rounded-full border border-ink-950 bg-neon-acid px-1.5 font-mono text-[9px] text-ink-950">
+        <span className="absolute -right-1 -top-1 rounded-full border border-ink-50 bg-neon-acid px-1.5 font-mono text-[9px] text-ink-50">
           {placed.amount}
         </span>
       )}
@@ -284,12 +331,12 @@ function OutsideBtn({
   color?: 'red' | 'black';
 }) {
   const bg =
-    color === 'red' ? 'bg-[#dc1f3b]/30' : color === 'black' ? 'bg-ink-800' : 'bg-ink-900/60';
+    color === 'red' ? 'bg-[#dc1f3b]/30' : color === 'black' ? 'bg-ink-200' : 'bg-ink-100/60';
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`border border-white/10 ${bg} py-2 font-mono text-[11px] tracking-[0.2em] text-ink-300 transition hover:border-neon-acid hover:text-neon-acid`}
+      className={`border border-ink-200 ${bg} py-2 font-mono text-[11px] tracking-[0.2em] text-ink-700 transition hover:border-neon-acid hover:text-neon-acid`}
     >
       {label}
     </button>

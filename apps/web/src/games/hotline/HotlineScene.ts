@@ -1,0 +1,660 @@
+import {
+  Application,
+  Container,
+  Graphics,
+  Text,
+  TextStyle,
+  Ticker,
+  BlurFilter,
+} from 'pixi.js';
+import { gsap } from 'gsap';
+import {
+  ParticlePool,
+  ShakeController,
+  classifyWinTier,
+  TIER_CONFIG,
+  EASE,
+  emitEdgeGlow,
+  emitRayBurst,
+  prewarmShaders,
+} from '@bg/game-engine';
+
+const COLOR_BG = 0xf7f9ff;
+const COLOR_TILE_BG = 0xffffff;
+const COLOR_TILE_STROKE = 0xdde4f3;
+const COLOR_ACID = 0x5b4df8;
+const COLOR_VIOLET = 0x9b6cff;
+const COLOR_EMBER = 0xff3b7f;
+const COLOR_TOXIC = 0x00d68f;
+const COLOR_AMBER = 0xffb020;
+const COLOR_ICE = 0x00b8e6;
+const COLOR_INK = 0x0b0f1e;
+const COLOR_RED = 0xdc1f3b;
+
+// Symbol palette
+const SYMBOL_COLORS = [
+  COLOR_EMBER,  // 🍒 CHERRY
+  COLOR_AMBER,  // 🔔 BELL
+  COLOR_ACID,   // 7 SEVEN
+  COLOR_ICE,    // ■ BAR
+  COLOR_TOXIC,  // ◆ DIAMOND
+  COLOR_RED,    // ★ JACKPOT
+];
+const SYMBOL_GLYPHS = ['●', '◉', '7', '■', '◆', '★'];
+const SYMBOL_LABELS = ['CHERRY', 'BELL', 'SEVEN', 'BAR', 'DIAMOND', 'JACKPOT'];
+const SYMBOL_COUNT = SYMBOL_COLORS.length;
+const REELS = 5;
+const ROWS = 3;
+const REEL_STRIP_LEN = 12; // reel 內部轉動用的延伸符號
+
+interface HotlineLine {
+  row: number;
+  symbol: number;
+  count: number;
+}
+
+interface Particle {
+  g: Graphics;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  gravity: number;
+}
+
+interface ReelData {
+  container: Container;
+  symbols: Container[];
+  cellSize: number;
+  strip: number[]; // 滾動用 symbol index 陣列
+  stripOffset: number; // 當前偏移
+}
+
+export class HotlineScene {
+  private app: Application | null = null;
+  private width = 0;
+  private height = 0;
+
+  private reels: ReelData[] = [];
+  private reelsContainer: Container | null = null;
+  private winLinesLayer: Graphics | null = null;
+  private particles: Container | null = null;
+  private shockwaves: Container | null = null;
+  private flashOverlay: Graphics | null = null;
+
+  private cellSize = 0;
+  private reelGap = 8;
+  private reelX0 = 0;
+  private reelY0 = 0;
+
+  private particleList: Particle[] = [];
+  private ambientTicker: ((tk: Ticker) => void) | null = null;
+  private particleTicker: ((tk: Ticker) => void) | null = null;
+
+  private particlePool: ParticlePool | null = null;
+  private shaker: ShakeController | null = null;
+  private poolTicker: ((tk: Ticker) => void) | null = null;
+
+  async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
+    this.width = width;
+    this.height = height;
+
+    const app = new Application();
+    await app.init({
+      canvas,
+      width,
+      height,
+      backgroundAlpha: 0,
+      resolution: window.devicePixelRatio ?? 1,
+      autoDensity: true,
+      antialias: true,
+    });
+    this.app = app;
+
+    this.createBackground();
+
+    // 計算 reel 尺寸
+    const padding = 24;
+    const availableW = width - padding * 2;
+    this.cellSize = Math.min(
+      (availableW - this.reelGap * (REELS - 1)) / REELS,
+      (height - padding * 2) / ROWS,
+    );
+    const reelsWidth = this.cellSize * REELS + this.reelGap * (REELS - 1);
+    const reelsHeight = this.cellSize * ROWS;
+    this.reelX0 = (width - reelsWidth) / 2;
+    this.reelY0 = (height - reelsHeight) / 2;
+
+    // 背景面板
+    const panel = new Graphics()
+      .roundRect(this.reelX0 - 12, this.reelY0 - 12, reelsWidth + 24, reelsHeight + 24, 20)
+      .fill({ color: COLOR_INK, alpha: 0.05 })
+      .stroke({ color: COLOR_ACID, width: 1, alpha: 0.2 });
+    app.stage.addChild(panel);
+
+    // Reels 容器
+    this.reelsContainer = new Container();
+    app.stage.addChild(this.reelsContainer);
+
+    // 建立 5 條 reel
+    for (let r = 0; r < REELS; r += 1) {
+      this.createReel(r);
+    }
+
+    // 中獎連線層
+    this.winLinesLayer = new Graphics();
+    app.stage.addChild(this.winLinesLayer);
+
+    // 粒子 + shockwave
+    this.particles = new Container();
+    app.stage.addChild(this.particles);
+    this.shockwaves = new Container();
+    app.stage.addChild(this.shockwaves);
+
+    this.particlePool = new ParticlePool(app.stage, 250);
+    this.shaker = new ShakeController(app.stage, app);
+    this.poolTicker = (tk) => this.particlePool?.update(tk);
+    app.ticker.add(this.poolTicker);
+
+    prewarmShaders(app);
+
+    // 全螢幕閃光（JACKPOT 用）
+    this.flashOverlay = new Graphics()
+      .rect(0, 0, width, height)
+      .fill({ color: COLOR_AMBER, alpha: 0 });
+    app.stage.addChild(this.flashOverlay);
+
+    this.startTickers();
+  }
+
+  private createBackground(): void {
+    if (!this.app) return;
+    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.5 });
+    this.app.stage.addChild(bg);
+
+    const glow = new Graphics()
+      .circle(this.width / 2, this.height / 2, this.width * 0.4)
+      .fill({ color: COLOR_ACID, alpha: 0.08 });
+    glow.filters = [new BlurFilter({ strength: 50 })];
+    this.app.stage.addChild(glow);
+
+    // 頂部/底部光條
+    const topBar = new Graphics()
+      .rect(0, 0, this.width, 2)
+      .fill({ color: COLOR_ACID, alpha: 0.4 });
+    const bottomBar = new Graphics()
+      .rect(0, this.height - 2, this.width, 2)
+      .fill({ color: COLOR_ACID, alpha: 0.4 });
+    this.app.stage.addChild(topBar);
+    this.app.stage.addChild(bottomBar);
+  }
+
+  private createReel(reelIndex: number): void {
+    if (!this.reelsContainer) return;
+
+    const reelX = this.reelX0 + reelIndex * (this.cellSize + this.reelGap);
+    const reelY = this.reelY0;
+
+    // 遮罩（防止符號溢出）
+    const mask = new Graphics()
+      .rect(reelX, reelY, this.cellSize, this.cellSize * ROWS)
+      .fill({ color: 0xffffff });
+    this.reelsContainer.addChild(mask);
+
+    const reelContainer = new Container();
+    reelContainer.x = reelX;
+    reelContainer.y = reelY;
+    reelContainer.mask = mask;
+    this.reelsContainer.addChild(reelContainer);
+
+    // 隨機填充 strip（REEL_STRIP_LEN 個符號，會滾動）
+    const strip: number[] = [];
+    for (let i = 0; i < REEL_STRIP_LEN; i += 1) {
+      strip.push(Math.floor(Math.random() * SYMBOL_COUNT));
+    }
+
+    const symbols: Container[] = [];
+    for (let i = 0; i < REEL_STRIP_LEN; i += 1) {
+      const sym = this.createSymbolTile(strip[i]!);
+      sym.x = this.cellSize / 2;
+      sym.y = i * this.cellSize + this.cellSize / 2;
+      reelContainer.addChild(sym);
+      symbols.push(sym);
+    }
+
+    this.reels.push({
+      container: reelContainer,
+      symbols,
+      cellSize: this.cellSize,
+      strip,
+      stripOffset: 0,
+    });
+
+    // Reel 邊框
+    const frame = new Graphics()
+      .roundRect(reelX - 2, reelY - 2, this.cellSize + 4, this.cellSize * ROWS + 4, 8)
+      .stroke({ color: COLOR_TILE_STROKE, width: 2 });
+    this.reelsContainer.addChild(frame);
+  }
+
+  private createSymbolTile(symbolIdx: number): Container {
+    const c = new Container();
+    const size = this.cellSize;
+    const color = SYMBOL_COLORS[symbolIdx]!;
+
+    // tile 陰影
+    const shadow = new Graphics()
+      .roundRect(-size / 2 + 4 + 1, -size / 2 + 4 + 2, size - 8, size - 8, 12)
+      .fill({ color: COLOR_INK, alpha: 0.1 });
+    c.addChild(shadow);
+
+    // tile 主體
+    const tile = new Graphics()
+      .roundRect(-size / 2 + 4, -size / 2 + 4, size - 8, size - 8, 12)
+      .fill({ color: COLOR_TILE_BG })
+      .stroke({ color, width: 2, alpha: 0.35 });
+    c.addChild(tile);
+
+    // tile 頂部高光
+    const hl = new Graphics()
+      .roundRect(-size / 2 + 8, -size / 2 + 8, size - 16, (size - 16) * 0.3, 8)
+      .fill({ color, alpha: 0.08 });
+    c.addChild(hl);
+
+    // Symbol 字符
+    const fontSize = size * 0.48;
+    const style = new TextStyle({
+      fontFamily: 'Orbitron, Chakra Petch, sans-serif',
+      fontSize,
+      fill: color,
+      fontWeight: '700',
+    });
+    const glyph = new Text({ text: SYMBOL_GLYPHS[symbolIdx] ?? '?', style });
+    glyph.anchor.set(0.5);
+    glyph.y = -4;
+    c.addChild(glyph);
+
+    // Symbol 標籤（小字）
+    const labelStyle = new TextStyle({
+      fontFamily: 'JetBrains Mono, monospace',
+      fontSize: 8,
+      fill: color,
+      fontWeight: '600',
+      letterSpacing: 1,
+    });
+    const label = new Text({ text: SYMBOL_LABELS[symbolIdx] ?? '?', style: labelStyle });
+    label.anchor.set(0.5);
+    label.y = size * 0.3;
+    label.alpha = 0.7;
+    c.addChild(label);
+
+    return c;
+  }
+
+  private startTickers(): void {
+    if (!this.app) return;
+    this.ambientTicker = (_tk: Ticker) => {
+      // 暫無 ambient 效果
+    };
+    this.app.ticker.add(this.ambientTicker);
+
+    this.particleTicker = (tk: Ticker) => {
+      for (let i = this.particleList.length - 1; i >= 0; i -= 1) {
+        const p = this.particleList[i]!;
+        p.g.x += p.vx * tk.deltaTime;
+        p.g.y += p.vy * tk.deltaTime;
+        p.vy += p.gravity * tk.deltaTime;
+        p.vx *= 0.98;
+        p.life -= tk.deltaTime;
+        const t = p.life / p.maxLife;
+        p.g.alpha = Math.max(0, t);
+        p.g.scale.set(Math.max(0.1, t));
+        if (p.life <= 0) {
+          this.particles?.removeChild(p.g);
+          p.g.destroy();
+          this.particleList.splice(i, 1);
+        }
+      }
+    };
+    this.app.ticker.add(this.particleTicker);
+  }
+
+  /**
+   * 播放開轉動畫
+   * finalGrid: [reel][row] = symbol index — 後端傳回的最終結果
+   * lines: 中獎連線
+   */
+  /**
+   * 樂觀動畫：按下 SPIN 立刻讓轉軸開始連續滾動（無結果）。
+   * API 回來呼叫 playSpin(...) 接手停到最終 grid。
+   */
+  private anticipating = false;
+  startAnticipation(): void {
+    if (this.anticipating) return;
+    this.anticipating = true;
+    // 讓每條 reel 以輕微不同 offset 持續垂直捲動
+    for (const reel of this.reels) {
+      for (const sym of reel.symbols) {
+        gsap.to(sym, {
+          y: `+=${this.cellSize * 1.2}`,
+          duration: 0.12,
+          ease: 'none',
+          repeat: -1,
+          modifiers: {
+            y: (yStr) => {
+              const yN = Number.parseFloat(yStr);
+              // 超過格高就從頂端 wrap 回來
+              const max = this.cellSize * 5;
+              return `${yN > max ? yN - max : yN}`;
+            },
+          },
+        });
+      }
+    }
+  }
+
+  async playSpin(finalGrid: number[][], lines: HotlineLine[]): Promise<void> {
+    // 清 anticipation 循環
+    if (this.anticipating) {
+      for (const reel of this.reels) {
+        for (const sym of reel.symbols) gsap.killTweensOf(sym);
+      }
+      this.anticipating = false;
+    }
+    // 清除上一局的中獎連線
+    if (this.winLinesLayer) this.winLinesLayer.clear();
+
+    // 讓每條 reel 滾動，依序停在最終位置
+    const baseDuration = 0.9;
+    const stepDelay = 0.22;
+
+    const reelPromises = this.reels.map((reel, reelIdx) =>
+      this.spinReel(reel, reelIdx, finalGrid[reelIdx]!, baseDuration + reelIdx * stepDelay, reelIdx * stepDelay),
+    );
+
+    await Promise.all(reelPromises);
+
+    // 全部停完 → 顯示中獎連線
+    if (lines.length > 0) {
+      await this.sleep(200);
+      this.showWinLines(lines, finalGrid);
+    }
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  private spinReel(
+    reel: ReelData,
+    reelIndex: number,
+    finalColumn: number[],
+    duration: number,
+    delay: number,
+  ): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const { container, symbols } = reel;
+      const cellSize = reel.cellSize;
+
+      // 目標：讓 finalColumn 對應到 reel 的前 ROWS 個位置
+      // 策略：滾動 N 圈後，重繪符號並 snap 到起點
+      const spinCycles = 3 + reelIndex * 0.5; // 後面的 reel 多轉一點
+      const pixelsPerCycle = REEL_STRIP_LEN * cellSize;
+      const totalScroll = spinCycles * pixelsPerCycle;
+
+      // 存一個 offset 變數
+      const state = { offset: 0 };
+      const startOffsets = symbols.map((s) => s.y);
+
+      gsap.to(state, {
+        offset: totalScroll,
+        duration,
+        delay,
+        ease: 'power3.out',
+        onUpdate: () => {
+          // 更新每個符號的 y
+          for (let i = 0; i < symbols.length; i += 1) {
+            const baseY = startOffsets[i]!;
+            let newY = baseY + state.offset;
+            // 循環：超過下方就從上方出現
+            const totalH = REEL_STRIP_LEN * cellSize;
+            newY = ((newY % totalH) + totalH) % totalH;
+            symbols[i]!.y = newY;
+          }
+        },
+        onComplete: () => {
+          // 重繪 final 3 個位置
+          // 把前 3 個 symbol 重新畫成 finalColumn
+          // 其他保持原樣
+          // 但符號的 y 位置需要從 state.offset 停止處推算
+          // 最終把前 ROWS 個（y 從小到大）指定為 finalColumn
+          // 簡單做法：重建整個 reel 的 strip，讓前 ROWS 個 = finalColumn
+          this.snapReelToFinal(reel, finalColumn);
+          // 反彈
+          gsap.fromTo(
+            container.scale,
+            { y: 1 },
+            {
+              y: 0.94,
+              duration: 0.08,
+              ease: 'power2.out',
+              yoyo: true,
+              repeat: 1,
+              onComplete: () => resolve(),
+            },
+          );
+        },
+      });
+    });
+  }
+
+  private snapReelToFinal(reel: ReelData, finalColumn: number[]): void {
+    // 重新定位所有 symbol：前 ROWS 個為 finalColumn，其餘隨機
+    const { container, symbols } = reel;
+    // 先清掉所有 symbol
+    for (const sym of symbols) {
+      container.removeChild(sym);
+      sym.destroy({ children: true });
+    }
+    reel.symbols = [];
+
+    // 建立新的 strip：前 ROWS 個 = finalColumn，後面填隨機
+    const newStrip: number[] = [];
+    for (let i = 0; i < ROWS; i += 1) newStrip.push(finalColumn[i]!);
+    for (let i = ROWS; i < REEL_STRIP_LEN; i += 1) {
+      newStrip.push(Math.floor(Math.random() * SYMBOL_COUNT));
+    }
+    reel.strip = newStrip;
+
+    // 重建 symbols
+    for (let i = 0; i < REEL_STRIP_LEN; i += 1) {
+      const s = this.createSymbolTile(newStrip[i]!);
+      s.x = reel.cellSize / 2;
+      s.y = i * reel.cellSize + reel.cellSize / 2;
+      container.addChild(s);
+      reel.symbols.push(s);
+    }
+  }
+
+  private showWinLines(lines: HotlineLine[], grid: number[][]): void {
+    if (!this.winLinesLayer) return;
+    // 每條 line：從 reel 0 的中心連到 reel N 的中心（row 一致）
+    for (const line of lines) {
+      const y = this.reelY0 + line.row * this.cellSize + this.cellSize / 2;
+      const xStart = this.reelX0 + this.cellSize / 2;
+      const xEnd = this.reelX0 + (line.count - 1) * (this.cellSize + this.reelGap) + this.cellSize / 2;
+      const color = SYMBOL_COLORS[line.symbol]!;
+
+      // 發光連線（3 層）
+      const g = new Graphics();
+      g.moveTo(xStart, y).lineTo(xEnd, y).stroke({ color, width: 18, alpha: 0.2 });
+      g.moveTo(xStart, y).lineTo(xEnd, y).stroke({ color, width: 8, alpha: 0.4 });
+      g.moveTo(xStart, y).lineTo(xEnd, y).stroke({ color, width: 3, alpha: 0.9 });
+      g.alpha = 0;
+      this.winLinesLayer.addChild(g);
+
+      gsap.fromTo(g, { alpha: 0 }, { alpha: 1, duration: 0.3, ease: 'power2.out' });
+
+      // 每個中獎符號脈動 + 粒子
+      for (let reelIdx = 0; reelIdx < line.count; reelIdx += 1) {
+        const reel = this.reels[reelIdx];
+        if (!reel) continue;
+        // 前 ROWS 個 symbol 是 grid 對應位置
+        const sym = reel.symbols[line.row];
+        if (!sym) continue;
+
+        gsap.to(sym.scale, {
+          x: 1.2,
+          y: 1.2,
+          duration: 0.25,
+          ease: 'power2.out',
+          yoyo: true,
+          repeat: 3,
+          delay: reelIdx * 0.1,
+        });
+
+        const wx = this.reelX0 + reelIdx * (this.cellSize + this.reelGap) + this.cellSize / 2;
+        const wy = y;
+        setTimeout(() => {
+          this.emitShockwave(wx, wy, color, this.cellSize * 0.8);
+          // L4 pool
+          this.particlePool?.emit({
+            x: wx,
+            y: wy,
+            count: 15,
+            colors: [color, 0xffffff],
+            speedMin: 2,
+            speedMax: 6,
+          });
+        }, reelIdx * 100);
+      }
+    }
+
+    // JACKPOT（5 連）：全螢幕閃 + 大爆擊
+    const jackpot = lines.find((l) => l.count === 5);
+    if (jackpot) {
+      setTimeout(() => {
+        if (this.flashOverlay) {
+          gsap.fromTo(
+            this.flashOverlay,
+            { alpha: 0.4 },
+            { alpha: 0, duration: 0.8, ease: 'power2.out' },
+          );
+        }
+        const cx = this.width / 2;
+        const cy = this.height / 2;
+        this.emitShockwave(cx, cy, COLOR_AMBER, this.width * 0.4);
+        this.emitShockwave(cx, cy, COLOR_EMBER, this.width * 0.5, 0.15);
+        // L4 mega tier
+        const cfg = TIER_CONFIG.mega;
+        this.particlePool?.emit({
+          x: cx,
+          y: cy,
+          count: cfg.particles,
+          colors: [COLOR_AMBER, COLOR_EMBER, COLOR_VIOLET, 0xffffff],
+          speedMin: 3,
+          speedMax: 12,
+        });
+        this.shaker?.shake(cfg.shakeAmp, cfg.shakeDuration);
+        if (this.app) emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_AMBER, cfg.edgeGlowMs / 1000);
+        if (this.app) emitRayBurst(this.app.stage, this.app, cx, cy, COLOR_AMBER, 1.5);
+      }, 500);
+    } else if (lines.length >= 2) {
+      // 多條連線：small tier shake
+      setTimeout(() => this.shaker?.shake(5, 0.35), 300);
+    }
+  }
+
+  /**
+   * 重置中獎連線（下一局前呼叫）
+   */
+  resetWinLines(): void {
+    if (this.winLinesLayer) this.winLinesLayer.clear();
+  }
+
+  private emitShockwave(x: number, y: number, color: number, maxR: number, delay = 0): void {
+    if (!this.shockwaves) return;
+    const ring = new Graphics();
+    this.shockwaves.addChild(ring);
+    const state = { r: 5, alpha: 0.8 };
+    gsap.to(state, {
+      r: maxR,
+      alpha: 0,
+      duration: 0.7,
+      delay,
+      ease: 'power2.out',
+      onUpdate: () => {
+        ring.clear().circle(x, y, state.r).stroke({ color, width: 3, alpha: state.alpha });
+      },
+      onComplete: () => {
+        this.shockwaves?.removeChild(ring);
+        ring.destroy();
+      },
+    });
+  }
+
+  private emitParticles(x: number, y: number, count: number, colors: number[]): void {
+    if (!this.particles) return;
+    for (let i = 0; i < count; i += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 3 + Math.random() * 9;
+      const size = 2 + Math.random() * 3;
+      const color = colors[Math.floor(Math.random() * colors.length)]!;
+      const g = new Graphics();
+      if (Math.random() > 0.5) g.rect(-size / 2, -size / 2, size, size).fill({ color });
+      else g.circle(0, 0, size).fill({ color });
+      g.x = x;
+      g.y = y;
+      this.particles.addChild(g);
+      this.particleList.push({
+        g,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2,
+        life: 40 + Math.random() * 25,
+        maxLife: 65,
+        gravity: 0.18,
+      });
+    }
+  }
+
+  private cameraShake(intensity: number, duration: number): void {
+    if (!this.app) return;
+    const stage = this.app.stage;
+    const origX = stage.x;
+    const origY = stage.y;
+    const state = { t: 0 };
+    gsap.to(state, {
+      t: 1,
+      duration,
+      ease: 'power2.out',
+      onUpdate: () => {
+        const decay = 1 - state.t;
+        stage.x = origX + (Math.random() - 0.5) * intensity * 2 * decay;
+        stage.y = origY + (Math.random() - 0.5) * intensity * 2 * decay;
+      },
+      onComplete: () => {
+        stage.x = origX;
+        stage.y = origY;
+      },
+    });
+  }
+
+  dispose(): void {
+    if (this.ambientTicker && this.app) this.app.ticker.remove(this.ambientTicker);
+    if (this.particleTicker && this.app) this.app.ticker.remove(this.particleTicker);
+    if (this.poolTicker && this.app) this.app.ticker.remove(this.poolTicker);
+    this.shaker?.dispose();
+    this.shaker = null;
+    this.particlePool?.dispose();
+    this.particlePool = null;
+    this.app?.destroy(true, { children: true });
+    this.app = null;
+    this.reels = [];
+    this.reelsContainer = null;
+    this.winLinesLayer = null;
+    this.particles = null;
+    this.shockwaves = null;
+    this.flashOverlay = null;
+    this.particleList = [];
+  }
+}
