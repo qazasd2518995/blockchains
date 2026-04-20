@@ -42,29 +42,34 @@ export function GameHeader({
 
   return (
     <>
-      <div className="mb-6 flex items-center gap-3 text-[11px] tracking-[0.25em] text-ink-500">
-        <Link to="/lobby" className="transition hover:text-neon-acid">
-          ◄ {t.common.lobby}
-        </Link>
-        <span>/</span>
-        <span className="text-neon-acid">{breadcrumb}</span>
-      </div>
-
-      <div className="mb-8 flex items-end justify-between border-b border-white/10 pb-6">
-        <div>
-          <div className="label">{section}</div>
-          <h1 className="mt-2 font-serif text-6xl font-black italic">
-            <span className="text-bone">
+      {/* 緊湊 header：一列搞定 breadcrumb + 標題 + tags */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 pb-3">
+        <div className="flex min-w-0 items-baseline gap-3">
+          <div className="flex items-center gap-2 text-[10px] tracking-[0.25em] text-ink-500">
+            <Link to="/lobby" className="transition hover:text-neon-acid">
+              ◄ {t.common.lobby}
+            </Link>
+            <span className="text-ink-300">/</span>
+            <span className="text-neon-acid">{breadcrumb}</span>
+          </div>
+          <span className="label text-[9px] text-ink-400">{section}</span>
+          <h1 className="font-display text-2xl font-bold tracking-wide md:text-3xl">
+            <span className="text-ink-900">
               {title}
               {hasSuffix ? separator : ''}
             </span>
-            {hasSuffix && <span className={`italic ${suffixColor}`}>{titleSuffix}</span>}
+            {hasSuffix && <span className={suffixColor}>{titleSuffix}</span>}
           </h1>
-          <p className="mt-3 max-w-xl text-[12px] text-ink-400">{description}</p>
+          <p
+            className="hidden max-w-md truncate text-[11px] text-ink-500 lg:block"
+            title={description}
+          >
+            {description}
+          </p>
         </div>
-        <div className="hidden flex-col items-end gap-2 md:flex">
+        <div className="flex items-center gap-2">
           <span className={tagClass}>{rtpLabel}</span>
-          <span className="tag">
+          <span className="tag hidden md:inline-flex">
             <span className="status-dot status-dot-live" />
             PROVABLY FAIR
           </span>

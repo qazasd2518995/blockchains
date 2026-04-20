@@ -2,11 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --grid-color: rgba(255, 255, 255, 0.03);
-  --grid-size: 48px;
-  --scan-color: rgba(212, 255, 58, 0.04);
-  --noise-opacity: 0.04;
+@keyframes reelBlur {
+  0%, 100% { transform: translateY(-2px); filter: blur(2px); }
+  50% { transform: translateY(2px); filter: blur(3px); }
+}
+
+@keyframes reelStop {
+  0% { transform: translateY(-14px); }
+  60% { transform: translateY(5px); }
+  80% { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes rowGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(91, 77, 248, 0); }
+  50% { box-shadow: 0 0 20px 4px rgba(91, 77, 248, 0.4); }
 }
 
 @layer base {
@@ -17,158 +27,172 @@
   }
 
   html {
-    background: #05060a;
+    background: #f7f9ff;
   }
 
   body {
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-feature-settings: 'ss02', 'ss03', 'tnum';
-    color: #d4d8e5;
+    color: #2e3650;
     background:
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(212, 255, 58, 0.08), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(255, 78, 80, 0.06), transparent 60%),
-      linear-gradient(to bottom, #05060a 0%, #0a0c14 100%);
+      radial-gradient(ellipse 60% 40% at 20% 0%, rgba(91, 77, 248, 0.14), transparent 50%),
+      radial-gradient(ellipse 50% 35% at 90% 20%, rgba(0, 214, 143, 0.1), transparent 50%),
+      radial-gradient(ellipse 55% 40% at 50% 100%, rgba(155, 108, 255, 0.1), transparent 55%),
+      linear-gradient(180deg, #f7f9ff 0%, #eef2fb 100%);
+    background-attachment: fixed;
     min-height: 100vh;
     position: relative;
     overflow-x: hidden;
   }
 
-  /* 网格 + 掃描线 + 杂讯三层背景 */
+  /* Dot pattern overlay（電玩科技格點感） */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background-image:
-      linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
-    background-size: var(--grid-size) var(--grid-size);
+    background-image: radial-gradient(circle, rgba(91, 77, 248, 0.08) 1px, transparent 1.5px);
+    background-size: 28px 28px;
     pointer-events: none;
     z-index: 1;
-    mask-image: radial-gradient(ellipse 100% 80% at 50% 50%, black 30%, transparent 80%);
-  }
-
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background:
-      repeating-linear-gradient(
-        to bottom,
-        transparent 0,
-        transparent 3px,
-        rgba(0, 0, 0, 0.25) 3px,
-        rgba(0, 0, 0, 0.25) 4px
-      );
-    pointer-events: none;
-    z-index: 2;
-    opacity: 0.35;
-    mix-blend-mode: multiply;
+    mask-image: radial-gradient(ellipse 100% 80% at 50% 50%, black 30%, transparent 85%);
   }
 
   h1,
   h2,
   h3,
   h4 {
-    font-family: 'Fraunces', Georgia, serif;
-    font-variation-settings: 'opsz' 144, 'SOFT' 100;
-    letter-spacing: -0.02em;
+    font-family: 'Orbitron', 'Chakra Petch', sans-serif;
+    letter-spacing: 0.02em;
     font-weight: 700;
-    color: #f4efe4;
+    color: #0b0f1e;
+    text-transform: uppercase;
   }
 
   .font-display {
-    font-family: 'Bebas Neue', 'Fraunces', sans-serif;
-    letter-spacing: 0.02em;
-    font-weight: 400;
+    font-family: 'Orbitron', 'Chakra Petch', sans-serif;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .font-hud {
+    font-family: 'Chakra Petch', 'Rajdhani', sans-serif;
+    letter-spacing: 0.03em;
+    font-weight: 600;
   }
 
   ::selection {
-    background: #d4ff3a;
-    color: #05060a;
+    background: #5b4df8;
+    color: #ffffff;
   }
 }
 
 @layer components {
-  /* 掃描线效果（在深色面板上疊加） */
+  /* 卡片系統 —— 圓角 / 玻璃擬態 / 柔和陰影 */
+  .crt-panel {
+    position: relative;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(247, 249, 255, 0.85) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(91, 77, 248, 0.1);
+    border-radius: 16px;
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.9) inset,
+      0 2px 8px -2px rgba(11, 15, 30, 0.06),
+      0 12px 32px -16px rgba(91, 77, 248, 0.15);
+  }
+
+  /* 強調卡片（hover 發光） */
+  .crt-panel-hot {
+    position: relative;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 249, 255, 0.9) 100%);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(91, 77, 248, 0.2);
+    border-radius: 16px;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .crt-panel-hot:hover {
+    border-color: rgba(91, 77, 248, 0.5);
+    box-shadow:
+      0 0 0 3px rgba(91, 77, 248, 0.1),
+      0 20px 48px -16px rgba(91, 77, 248, 0.35);
+    transform: translateY(-3px);
+  }
+
+  /* 掃描線效果（輕量，可選） */
   .scanlines {
     position: relative;
+    overflow: hidden;
   }
-  .scanlines::after {
+  .scanlines::before {
     content: '';
     position: absolute;
     inset: 0;
-    background:
-      repeating-linear-gradient(
-        to bottom,
-        transparent 0,
-        transparent 2px,
-        rgba(255, 255, 255, 0.02) 2px,
-        rgba(255, 255, 255, 0.02) 3px
-      );
+    background: linear-gradient(
+      120deg,
+      transparent 0%,
+      transparent 45%,
+      rgba(91, 77, 248, 0.04) 50%,
+      transparent 55%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 6s linear infinite;
     pointer-events: none;
     z-index: 1;
   }
 
-  /* 主要卡片：像终端视窗 */
-  .crt-panel {
-    position: relative;
-    background: linear-gradient(180deg, #111420 0%, #0a0c14 100%);
-    border: 1px solid rgba(212, 255, 58, 0.08);
-    border-radius: 2px;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.04),
-      0 0 0 1px rgba(0, 0, 0, 0.4),
-      0 20px 40px -20px rgba(0, 0, 0, 0.8);
-  }
-
-  /* 发光卡片 hover 状态 */
-  .crt-panel-hot {
-    position: relative;
-    background: linear-gradient(180deg, #111420 0%, #0a0c14 100%);
-    border: 1px solid rgba(212, 255, 58, 0.3);
-    border-radius: 2px;
-    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .crt-panel-hot:hover {
-    border-color: rgba(212, 255, 58, 0.9);
-    box-shadow:
-      0 0 0 1px rgba(212, 255, 58, 0.5),
-      0 0 60px -10px rgba(212, 255, 58, 0.3);
-    transform: translateY(-2px);
-  }
-
-  /* 主按钮：野蠻式设计（brutalist） */
+  /* 主按鈕：紫色漸層 + 圓角 + glow */
   .btn-acid {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.875rem 1.5rem;
-    background: #d4ff3a;
-    color: #05060a;
-    font-family: 'IBM Plex Mono', monospace;
+    padding: 0.875rem 1.75rem;
+    background: linear-gradient(135deg, #5b4df8 0%, #9b6cff 100%);
+    color: #ffffff;
+    font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
     font-size: 0.875rem;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    border: 2px solid #05060a;
-    box-shadow: 4px 4px 0 0 #05060a;
+    border: none;
+    border-radius: 12px;
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.3) inset,
+      0 8px 20px -6px rgba(91, 77, 248, 0.5),
+      0 2px 6px -2px rgba(91, 77, 248, 0.3);
     cursor: pointer;
-    transition: all 0.1s ease-out;
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-acid::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.25) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 0.6s;
   }
   .btn-acid:hover:not(:disabled) {
-    transform: translate(-1px, -1px);
-    box-shadow: 5px 5px 0 0 #05060a;
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.3) inset,
+      0 12px 28px -6px rgba(91, 77, 248, 0.55),
+      0 4px 10px -2px rgba(91, 77, 248, 0.35);
+  }
+  .btn-acid:hover:not(:disabled)::before {
+    transform: translateX(100%);
   }
   .btn-acid:active:not(:disabled) {
-    transform: translate(4px, 4px);
-    box-shadow: 0 0 0 0 #05060a;
+    transform: translateY(0);
   }
   .btn-acid:disabled {
-    background: #384057;
-    color: #9ba3bf;
+    background: linear-gradient(135deg, #b8c2d9 0%, #dde4f3 100%);
+    color: #7a85a3;
     cursor: not-allowed;
-    box-shadow: 2px 2px 0 0 rgba(0, 0, 0, 0.5);
+    box-shadow: 0 1px 2px 0 rgba(11, 15, 30, 0.04);
   }
 
   .btn-ghost {
@@ -177,21 +201,62 @@
     justify-content: center;
     gap: 0.5rem;
     padding: 0.75rem 1.25rem;
-    background: transparent;
-    color: #d4d8e5;
-    font-family: 'IBM Plex Mono', monospace;
-    font-weight: 500;
+    background: rgba(255, 255, 255, 0.6);
+    color: #2e3650;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
     font-size: 0.8125rem;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    white-space: nowrap;
+    border: 1px solid rgba(91, 77, 248, 0.2);
+    border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s;
+    backdrop-filter: blur(8px);
   }
   .btn-ghost:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(212, 255, 58, 0.5);
-    color: #d4ff3a;
+    background: rgba(91, 77, 248, 0.08);
+    border-color: rgba(91, 77, 248, 0.5);
+    color: #5b4df8;
+    transform: translateY(-1px);
+  }
+
+  /* 小型 action 按鈕（表格列內的 [下注] [转帐] 等） */
+  .btn-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.625rem;
+    background: rgba(255, 255, 255, 0.6);
+    color: #2e3650;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    line-height: 1.3;
+    border: 1px solid rgba(91, 77, 248, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-chip:hover:not(:disabled) {
+    background: rgba(91, 77, 248, 0.08);
+    border-color: rgba(91, 77, 248, 0.5);
+    color: #5b4df8;
+  }
+  .btn-chip.danger {
+    color: #ff3b7f;
+    border-color: rgba(255, 59, 127, 0.3);
+  }
+  .btn-chip.danger:hover:not(:disabled) {
+    background: rgba(255, 59, 127, 0.08);
+    border-color: rgba(255, 59, 127, 0.6);
+  }
+  .btn-chip.success {
+    color: #00a86f;
+    border-color: rgba(0, 214, 143, 0.3);
   }
 
   .btn-ember {
@@ -199,167 +264,200 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.875rem 1.5rem;
-    background: #ff4e50;
-    color: #05060a;
-    font-family: 'IBM Plex Mono', monospace;
+    padding: 0.875rem 1.75rem;
+    background: linear-gradient(135deg, #ff3b7f 0%, #ff4e6c 100%);
+    color: #ffffff;
+    font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
     font-size: 0.875rem;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    border: 2px solid #05060a;
-    box-shadow: 4px 4px 0 0 #05060a;
+    border: none;
+    border-radius: 12px;
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.3) inset,
+      0 8px 20px -6px rgba(255, 59, 127, 0.5);
     cursor: pointer;
-    transition: all 0.1s ease-out;
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .btn-ember:hover:not(:disabled) {
-    transform: translate(-1px, -1px);
-    box-shadow: 5px 5px 0 0 #05060a;
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.3) inset,
+      0 12px 28px -6px rgba(255, 59, 127, 0.55);
   }
   .btn-ember:active:not(:disabled) {
-    transform: translate(4px, 4px);
-    box-shadow: 0 0 0 0 #05060a;
+    transform: translateY(0);
   }
 
-  /* 终端输入框 */
+  /* Input：白底 + 紫色 focus ring */
   .term-input {
     width: 100%;
-    padding: 0.75rem 1rem;
-    background: #05060a;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #f4efe4;
-    font-family: 'IBM Plex Mono', monospace;
+    padding: 0.875rem 1rem;
+    background: #ffffff;
+    border: 1px solid rgba(91, 77, 248, 0.15);
+    color: #0b0f1e;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 0.9375rem;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
     outline: none;
+    border-radius: 10px;
     transition: all 0.2s;
   }
   .term-input:focus {
-    border-color: #d4ff3a;
-    box-shadow: inset 0 0 20px rgba(212, 255, 58, 0.08);
+    border-color: #5b4df8;
+    box-shadow: 0 0 0 4px rgba(91, 77, 248, 0.12);
   }
   .term-input::placeholder {
-    color: #5a6380;
-    letter-spacing: 0.05em;
+    color: #b8c2d9;
   }
 
-  /* 终端 tag / chip */
+  /* Tag */
   .tag {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    padding: 0.25rem 0.625rem;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #9ba3bf;
-    font-family: 'IBM Plex Mono', monospace;
+    padding: 0.3125rem 0.75rem;
+    background: rgba(91, 77, 248, 0.06);
+    border: 1px solid rgba(91, 77, 248, 0.18);
+    color: #515c7a;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: 0.2em;
+    font-weight: 600;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
+    border-radius: 9999px;
   }
   .tag-acid {
-    background: rgba(212, 255, 58, 0.1);
-    border-color: rgba(212, 255, 58, 0.3);
-    color: #d4ff3a;
+    background: rgba(91, 77, 248, 0.1);
+    border-color: rgba(91, 77, 248, 0.35);
+    color: #5b4df8;
   }
   .tag-ember {
-    background: rgba(255, 78, 80, 0.1);
-    border-color: rgba(255, 78, 80, 0.3);
-    color: #ff4e50;
+    background: rgba(255, 59, 127, 0.1);
+    border-color: rgba(255, 59, 127, 0.35);
+    color: #ff3b7f;
   }
   .tag-toxic {
-    background: rgba(0, 255, 163, 0.1);
-    border-color: rgba(0, 255, 163, 0.3);
-    color: #00ffa3;
+    background: rgba(0, 214, 143, 0.1);
+    border-color: rgba(0, 214, 143, 0.35);
+    color: #00a86f;
+  }
+  .tag-gold {
+    background: rgba(255, 176, 32, 0.12);
+    border-color: rgba(255, 176, 32, 0.35);
+    color: #d98e00;
   }
 
-  /* 大数字 display */
+  /* 大數字：加 gradient text 強化電玩感 */
   .big-num {
-    font-family: 'Bebas Neue', sans-serif;
+    font-family: 'Orbitron', 'Chakra Petch', sans-serif;
     font-feature-settings: 'tnum';
-    letter-spacing: -0.01em;
-    line-height: 0.9;
+    letter-spacing: 0.02em;
+    line-height: 0.95;
+    font-weight: 800;
+  }
+  .big-num-grad {
+    background: linear-gradient(135deg, #5b4df8 0%, #9b6cff 50%, #ff3b7f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  .big-num-win {
+    background: linear-gradient(135deg, #00d68f 0%, #00b8e6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
   }
 
   .data-num {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-feature-settings: 'tnum', 'zero';
     font-weight: 500;
   }
 
-  /* 标签（终端字段标签） */
   .label {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: 0.25em;
+    font-weight: 600;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: #5a6380;
+    color: #7a85a3;
   }
 
-  /* 箭头与方向指示器 */
   .caret::before {
     content: '▸';
     margin-right: 0.375rem;
-    color: #d4ff3a;
+    color: #5b4df8;
   }
 
-  /* 滑桿（range input）美化 */
+  /* Range slider：紫色 thumb */
   input[type='range'].term-range {
     -webkit-appearance: none;
     width: 100%;
-    height: 2px;
-    background: rgba(255, 255, 255, 0.1);
+    height: 6px;
+    background: linear-gradient(90deg, rgba(91, 77, 248, 0.2) 0%, rgba(91, 77, 248, 0.05) 100%);
     outline: none;
     cursor: pointer;
+    border-radius: 9999px;
   }
   input[type='range'].term-range::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    background: #d4ff3a;
-    border: 2px solid #05060a;
-    box-shadow: 0 0 0 1px #d4ff3a;
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, #5b4df8 0%, #9b6cff 100%);
+    border: 3px solid #ffffff;
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 1px rgba(91, 77, 248, 0.4),
+      0 4px 8px -2px rgba(91, 77, 248, 0.5);
     cursor: pointer;
   }
   input[type='range'].term-range::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    background: #d4ff3a;
-    border: 2px solid #05060a;
-    box-shadow: 0 0 0 1px #d4ff3a;
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, #5b4df8 0%, #9b6cff 100%);
+    border: 3px solid #ffffff;
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 1px rgba(91, 77, 248, 0.4),
+      0 4px 8px -2px rgba(91, 77, 248, 0.5);
     cursor: pointer;
   }
   input[type='range'].term-range-ember::-webkit-slider-thumb {
-    background: #ff4e50;
-    box-shadow: 0 0 0 1px #ff4e50;
+    background: linear-gradient(135deg, #ff3b7f 0%, #ff4e6c 100%);
+    box-shadow:
+      0 0 0 1px rgba(255, 59, 127, 0.4),
+      0 4px 8px -2px rgba(255, 59, 127, 0.5);
   }
   input[type='range'].term-range-ember::-moz-range-thumb {
-    background: #ff4e50;
-    box-shadow: 0 0 0 1px #ff4e50;
+    background: linear-gradient(135deg, #ff3b7f 0%, #ff4e6c 100%);
+    box-shadow:
+      0 0 0 1px rgba(255, 59, 127, 0.4),
+      0 4px 8px -2px rgba(255, 59, 127, 0.5);
   }
 
-  /* 状态点 */
+  /* 狀態點：螢光綠脈動 */
   .status-dot {
     display: inline-block;
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    margin-right: 0.375rem;
+    margin-right: 0.5rem;
   }
   .status-dot-live {
-    background: #00ffa3;
-    box-shadow: 0 0 10px #00ffa3;
+    background: #00d68f;
+    box-shadow: 0 0 0 3px rgba(0, 214, 143, 0.25), 0 0 12px rgba(0, 214, 143, 0.6);
     animation: blink 2s infinite;
   }
 
-  /* 分隔线 */
   .divider-dot {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: #384057;
+    color: #b8c2d9;
   }
   .divider-dot::before,
   .divider-dot::after {
@@ -368,50 +466,46 @@
     height: 1px;
     background: repeating-linear-gradient(
       to right,
-      rgba(255, 255, 255, 0.15) 0,
-      rgba(255, 255, 255, 0.15) 3px,
+      rgba(91, 77, 248, 0.2) 0,
+      rgba(91, 77, 248, 0.2) 3px,
       transparent 3px,
       transparent 6px
     );
   }
 
-  /* ASCII Box 角 */
-  .ascii-box {
+  /* 邊框輝光邊 */
+  .glow-border-acid {
     position: relative;
   }
-  .ascii-box::before,
-  .ascii-box::after {
+  .glow-border-acid::after {
+    content: '';
     position: absolute;
-    font-family: 'IBM Plex Mono', monospace;
-    color: #d4ff3a;
-    font-size: 0.75rem;
-    line-height: 1;
-    pointer-events: none;
+    inset: -2px;
+    background: linear-gradient(135deg, #5b4df8, #9b6cff, #ff3b7f);
+    border-radius: 18px;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s;
+    filter: blur(8px);
   }
-  .ascii-box::before {
-    content: '┌';
-    top: -1px;
-    left: -1px;
-  }
-  .ascii-box::after {
-    content: '┘';
-    bottom: -1px;
-    right: -1px;
+  .glow-border-acid:hover::after {
+    opacity: 0.5;
   }
 }
 
-/* 卷軸美化 */
+/* 卷軸 */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #05060a;
+  background: #eef2fb;
 }
 ::-webkit-scrollbar-thumb {
-  background: #252b3f;
-  border: 2px solid #05060a;
+  background: linear-gradient(180deg, #b8c2d9 0%, #7a85a3 100%);
+  border: 2px solid #eef2fb;
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #384057;
+  background: linear-gradient(180deg, #5b4df8 0%, #9b6cff 100%);
 }

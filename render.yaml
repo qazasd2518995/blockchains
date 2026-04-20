@@ -1,0 +1,105 @@
+# Render Blueprint — 加密博彩遊戲平台
+# 3 個服務 + 既有 PostgreSQL
+#
+# 服務組成：
+#   1. bg-api      (Node) — Fastify 後端 API + Socket.IO
+#   2. bg-web      (Static) — 玩家前端 apps/web
+#   3. bg-admin    (Static) — 代理後台 apps/admin
+#
+# 部署步驟：
+#   1. 在 Render → New → Blueprint，選本 repo
+#   2. Render 會讀這份 YAML 自動建立三個服務
+#   3. 手動設 Secret：DATABASE_URL / JWT_SECRET / SUPER_ADMIN_PASSWORD
+#   4. Deploy 後在 api service 跑 migration + seed-agent（見 README 部署章節）
+#
+# 重要：修改 CORS_ORIGIN 和前端 VITE_API_BASE 為你實際的 Render URL / 自訂網域
+
+services:
+  # ──────────────────────────────────────────
+  # 1. 後端 API（Fastify + Socket.IO）
+  # ──────────────────────────────────────────
+  - type: web
+    name: bg-api
+    runtime: node
+    plan: starter                # free 會 sleep，建議 starter
+    region: oregon               # DB 同 region
+    buildCommand: |
+      corepack enable
+      pnpm install --frozen-lockfile
+      pnpm --filter @bg/server prisma generate
+      pnpm --filter @bg/server build
+    startCommand: pnpm --filter @bg/server start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 3000
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 7d
+      - key: SIGNUP_BONUS
+        value: 1000
+      - key: MAX_SINGLE_BET
+        value: 100000
+      # ── 下面需要在 Dashboard 手動設為 Secret ──
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPER_ADMIN_USERNAME
+        sync: false
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false
+      # ── CORS：填你實際兩個前端網址（含 https://） ──
+      - key: CORS_ORIGIN
+        sync: false
+
+  # ──────────────────────────────────────────
+  # 2. 玩家前端（apps/web）
+  # ──────────────────────────────────────────
+  - type: web
+    name: bg-web
+    runtime: static
+    plan: starter
+    region: oregon
+    buildCommand: |
+      corepack enable
+      pnpm install --frozen-lockfile
+      pnpm --filter @bg/web build
+    staticPublishPath: apps/web/dist
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE
+        sync: false              # 填 https://bg-api.onrender.com 或自訂 api 網域
+      - key: VITE_SOCKET_BASE
+        sync: false              # 通常同 VITE_API_BASE
+
+  # ──────────────────────────────────────────
+  # 3. 代理後台（apps/admin）
+  # ──────────────────────────────────────────
+  - type: web
+    name: bg-admin
+    runtime: static
+    plan: starter
+    region: oregon
+    buildCommand: |
+      corepack enable
+      pnpm install --frozen-lockfile
+      pnpm --filter @bg/admin build
+    staticPublishPath: apps/admin/dist
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE
+        sync: false

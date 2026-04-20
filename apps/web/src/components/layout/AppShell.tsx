@@ -49,17 +49,17 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative min-h-screen">
-      <div className="sticky top-0 z-50 border-b border-white/5 bg-ink-950/80 backdrop-blur-lg">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.25em]">
-          <div className="flex items-center gap-6 text-ink-400">
+      <div className="sticky top-0 z-50 border-b border-ink-200 bg-ink-50/80 backdrop-blur-lg">
+        <div className="mx-auto flex max-w-[1920px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.25em]">
+          <div className="flex items-center gap-6 text-ink-600">
             <span>
               <span className="status-dot status-dot-live" />
               {t.appshell.connected}
             </span>
             <span className="hidden md:inline">NODE 03 / OREGON-US</span>
-            <span className="hidden lg:inline data-num text-ink-300">{time}</span>
+            <span className="hidden lg:inline data-num text-ink-700">{time}</span>
           </div>
-          <div className="flex items-center gap-4 text-ink-400">
+          <div className="flex items-center gap-4 text-ink-600">
             <span className="hidden sm:inline">
               {t.appshell.session} 0x{user?.id.slice(-6).toUpperCase()}
             </span>
@@ -67,13 +67,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-6 px-6 py-4">
+        <div className="mx-auto flex max-w-[1920px] items-center justify-between gap-6 px-6 py-4">
           <Link to="/lobby" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center border border-neon-acid bg-neon-acid/10 text-neon-acid">
               <span className="font-display text-lg">BG</span>
             </div>
             <div>
-              <div className="font-display text-lg leading-none tracking-widest text-bone">
+              <div className="font-display text-lg leading-none tracking-widest text-ink-900">
                 BLOCKCHAIN<span className="text-neon-acid">.</span>GAME
               </div>
               <div className="label mt-1 text-[9px]">TERMINAL v0.1</div>
@@ -101,9 +101,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {formatAmount(user?.balance ?? '0')}
               </span>
             </button>
-            <div className="hidden border-l border-white/10 pl-3 text-right md:block">
+            <div className="hidden border-l border-ink-200 pl-3 text-right md:block">
               <div className="label">{t.common.operator}</div>
-              <div className="mt-0.5 text-[12px] text-bone">
+              <div className="mt-0.5 text-[12px] text-ink-900">
                 {user?.displayName ?? user?.email?.split('@')[0]}
               </div>
             </div>
@@ -114,10 +114,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <main className="relative z-10 mx-auto max-w-[1600px] px-6 py-8">{children}</main>
+      <main className="relative z-10 mx-auto max-w-[1920px] px-4 py-6 sm:px-6 lg:px-8 xl:px-10">{children}</main>
 
-      <footer className="relative z-10 mt-16 border-t border-white/5 bg-ink-950/50 py-6">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 text-[10px] uppercase tracking-[0.3em] text-ink-500">
+      <footer className="relative z-10 mt-16 border-t border-ink-200 bg-ink-50/50 py-6">
+        <div className="mx-auto flex max-w-[1920px] items-center justify-between px-6 text-[10px] uppercase tracking-[0.3em] text-ink-500">
           <span>{t.appshell.fairPlay}</span>
           <span>{t.appshell.noReal}</span>
         </div>
@@ -132,7 +132,7 @@ function NavItem({ to, label, code }: { to: string; label: string; code: string 
       to={to}
       className={({ isActive }) =>
         `group relative flex items-center gap-2 px-4 py-2 transition ${
-          isActive ? 'text-neon-acid' : 'text-ink-300 hover:text-bone'
+          isActive ? 'text-neon-acid' : 'text-ink-700 hover:text-ink-900'
         }`
       }
     >

@@ -53,10 +53,10 @@ export function ProfilePage() {
 
   return (
     <div className="space-y-10">
-      <section className="border-b border-white/10 pb-6">
+      <section className="border-b border-ink-200 pb-6">
         <div className="label">§ {t.profile.dossierHeader}</div>
         <h1 className="mt-2 font-serif text-6xl font-black italic">
-          <span className="text-bone">{t.profile.your} </span>
+          <span className="text-ink-900">{t.profile.your} </span>
           <span className="text-neon-acid not-italic">{t.profile.dossier}</span>
         </h1>
       </section>
@@ -77,14 +77,14 @@ export function ProfilePage() {
       </section>
 
       <section>
-        <div className="mb-5 flex items-end justify-between border-b border-white/10 pb-4">
+        <div className="mb-5 flex items-end justify-between border-b border-ink-200 pb-4">
           <div>
             <div className="label">§ {t.profile.cryptoSeeds}</div>
             <h2 className="mt-2 font-serif text-3xl italic">
-              <span className="text-bone">{t.profile.provably} </span>
+              <span className="text-ink-900">{t.profile.provably} </span>
               <span className="text-neon-acid not-italic">{t.profile.fair}</span>
             </h2>
-            <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-ink-400">
+            <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-ink-600">
               {t.profile.seedsDesc}
             </p>
           </div>
@@ -102,7 +102,7 @@ export function ProfilePage() {
                 </div>
                 <div>
                   <div className="label">{t.profile.category}</div>
-                  <div className="mt-1 font-display text-2xl uppercase tracking-wider text-bone">
+                  <div className="mt-1 font-display text-2xl uppercase tracking-wider text-ink-900">
                     {s.gameCategory}
                   </div>
                 </div>
@@ -141,10 +141,10 @@ export function ProfilePage() {
         </div>
 
         <div className="crt-panel mt-6 p-5">
-          <div className="flex items-center justify-between border-b border-white/5 pb-3">
+          <div className="flex items-center justify-between border-b border-ink-200 pb-3">
             <div>
               <div className="label">{t.profile.clientSeedOverride}</div>
-              <div className="mt-1 text-[11px] text-ink-400">
+              <div className="mt-1 text-[11px] text-ink-600">
                 {t.profile.clientSeedOverrideHint}
               </div>
             </div>
@@ -203,7 +203,7 @@ export function ProfilePage() {
                 <span className="data-num text-neon-toxic">{reveal.revealedNonce}</span>
               </div>
             </div>
-            <pre className="mt-4 border border-neon-toxic/20 bg-ink-950 p-4 text-[10px] leading-relaxed text-ink-300">
+            <pre className="mt-4 border border-neon-toxic/20 bg-ink-50 p-4 text-[10px] leading-relaxed text-ink-700">
 {`${t.profile.verifyInNode}
 const crypto = require('crypto');
 const hash = crypto.createHash('sha256')
@@ -227,9 +227,9 @@ console.log(hash === '${reveal.revealedSeedHash.slice(0, 24)}...');
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-white/10 bg-ink-900/40 p-5">
+    <div className="border border-ink-200 bg-ink-100/40 p-5">
       <div className="label">{label}</div>
-      <div className="mt-2 truncate font-mono text-sm text-bone">{value}</div>
+      <div className="mt-2 truncate font-mono text-sm text-ink-900">{value}</div>
     </div>
   );
 }
@@ -246,9 +246,9 @@ function SeedRow({
   onCopy: () => void;
 }) {
   return (
-    <div className="flex items-baseline gap-3 border-b border-white/5 pb-2 last:border-0 last:pb-0">
+    <div className="flex items-baseline gap-3 border-b border-ink-200 pb-2 last:border-0 last:pb-0">
       <span className="label w-32 shrink-0">{label}</span>
-      <span className="flex-1 truncate font-mono text-ink-200">{value}</span>
+      <span className="flex-1 truncate font-mono text-ink-800">{value}</span>
       <button
         type="button"
         onClick={onCopy}

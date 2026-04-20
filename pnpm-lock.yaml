@@ -18,6 +18,79 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
+  apps/admin:
+    dependencies:
+      '@bg/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@bg/ui-tokens':
+        specifier: workspace:*
+        version: link:../../packages/ui-tokens
+      '@hookform/resolvers':
+        specifier: ^3.9.0
+        version: 3.10.0(react-hook-form@7.72.1(react@18.3.1))
+      axios:
+        specifier: ^1.7.0
+        version: 1.15.0
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.439.0
+        version: 0.439.0(react@18.3.1)
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      react-hook-form:
+        specifier: ^7.52.2
+        version: 7.72.1(react@18.3.1)
+      react-router-dom:
+        specifier: ^6.26.0
+        version: 6.30.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      tailwind-merge:
+        specifier: ^2.5.2
+        version: 2.6.1
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+      zustand:
+        specifier: ^4.5.4
+        version: 4.5.7(@types/react@18.3.28)(react@18.3.1)
+    devDependencies:
+      '@bg/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      '@types/node':
+        specifier: ^20.12.0
+        version: 20.19.39
+      '@types/react':
+        specifier: ^18.3.0
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.28)
+      '@vitejs/plugin-react':
+        specifier: ^4.3.0
+        version: 4.7.0(vite@5.4.21(@types/node@20.19.39))
+      autoprefixer:
+        specifier: ^10.4.20
+        version: 10.5.0(postcss@8.5.10)
+      postcss:
+        specifier: ^8.4.44
+        version: 8.5.10
+      tailwindcss:
+        specifier: ^3.4.10
+        version: 3.4.19(tsx@4.21.0)
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vite:
+        specifier: ^5.4.0
+        version: 5.4.21(@types/node@20.19.39)
+
   apps/server:
     dependencies:
       '@bg/provably-fair':
@@ -105,6 +178,9 @@ importers:
       '@bg/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@bg/ui-tokens':
+        specifier: workspace:*
+        version: link:../../packages/ui-tokens
       '@hookform/resolvers':
         specifier: ^3.9.0
         version: 3.10.0(react-hook-form@7.72.1(react@18.3.1))
@@ -123,6 +199,9 @@ importers:
       lucide-react:
         specifier: ^0.439.0
         version: 0.439.0(react@18.3.1)
+      pixi-filters:
+        specifier: ^6.1.5
+        version: 6.1.5(pixi.js@8.18.1)
       pixi.js:
         specifier: ^8.2.0
         version: 8.18.1
@@ -187,6 +266,9 @@ importers:
       '@bg/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      gsap:
+        specifier: ^3.12.5
+        version: 3.15.0
       pixi.js:
         specifier: ^8.2.0
         version: 8.18.1
@@ -223,6 +305,12 @@ importers:
         version: 5.9.3
 
   packages/tsconfig: {}
+
+  packages/ui-tokens:
+    dependencies:
+      tailwindcss:
+        specifier: ^3.4.0
+        version: 3.4.19(tsx@4.21.0)
 
 packages:
 
@@ -900,6 +988,9 @@ packages:
 
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
+
+  '@types/gradient-parser@0.1.5':
+    resolution: {integrity: sha512-r7K3NkJz3A95WkVVmjs0NcchhHstC2C/VIYNX4JC6tieviUNo774FFeOHjThr3Vw/WCeMP9kAT77MKbIRlO/4w==}
 
   '@types/methods@1.1.4':
     resolution: {integrity: sha512-ymXWVrDiCxTBE3+RIrrP533E70eA+9qu7zdWoHuOmGujkYtzf4HQF96b8nwHLqhuf4ykX61IGRIB38CC6/sImQ==}
@@ -1768,6 +1859,11 @@ packages:
   pirates@4.0.7:
     resolution: {integrity: sha512-TfySrs/5nm8fQJDcBDuUng3VOUKsd7S+zqvbOTiGXHfxX4wK31ard+hoNuvkicM/2YFzlpDgABOevKSsB4G/FA==}
     engines: {node: '>= 6'}
+
+  pixi-filters@6.1.5:
+    resolution: {integrity: sha512-Ewb/J+kxAbaNN+0/ATJbglAJG+skGJfh7BIDP3ILIDdD6wWk1p0pGa25pVf1T8hGBOQSUNVAmwwJBwkj+cyLLA==}
+    peerDependencies:
+      pixi.js: '>=8.0.0-0'
 
   pixi.js@8.18.1:
     resolution: {integrity: sha512-6LUPWYgulZhp/w4kam2XHXB0QedISZIqrJbRdHLLQ3csn5a38uzKxAp6B5j6s89QFYaIJbg95kvgTRcbgpO1ow==}
@@ -2814,6 +2910,8 @@ snapshots:
 
   '@types/estree@1.0.8': {}
 
+  '@types/gradient-parser@0.1.5': {}
+
   '@types/methods@1.1.4': {}
 
   '@types/node@20.19.39':
@@ -3716,6 +3814,11 @@ snapshots:
       thread-stream: 3.1.0
 
   pirates@4.0.7: {}
+
+  pixi-filters@6.1.5(pixi.js@8.18.1):
+    dependencies:
+      '@types/gradient-parser': 0.1.5
+      pixi.js: 8.18.1
 
   pixi.js@8.18.1:
     dependencies:

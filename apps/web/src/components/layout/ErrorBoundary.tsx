@@ -46,9 +46,9 @@ export class ErrorBoundary extends Component<Props, State> {
           <h1 className="mt-2 font-serif text-6xl font-black italic">
             <span className="text-neon-ember not-italic">{t.err.systemFault}</span>
           </h1>
-          <p className="mt-4 text-[12px] text-ink-400">{t.err.faultDesc}</p>
+          <p className="mt-4 text-[12px] text-ink-600">{t.err.faultDesc}</p>
 
-          <pre className="crt-panel mt-6 overflow-auto border-neon-ember/30 p-5 text-[11px] leading-relaxed text-ink-300">
+          <pre className="crt-panel mt-6 overflow-auto border-neon-ember/30 p-5 text-[11px] leading-relaxed text-ink-700">
 {error.name}: {error.message}
 {error.stack ? '\n\n' + error.stack.split('\n').slice(0, 8).join('\n') : ''}
           </pre>

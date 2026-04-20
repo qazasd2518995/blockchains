@@ -6,7 +6,11 @@ export function getCrashSocket(gameId: string): Socket {
   const ns = `/crash/${gameId}`;
   const existing = sockets.get(ns);
   if (existing) return existing;
-  const url = window.location.origin;
+  // prod: 用 VITE_SOCKET_BASE（例 https://api.xxx.com）；dev: 用 window.location.origin + vite proxy
+  const url =
+    (import.meta.env.VITE_SOCKET_BASE as string | undefined) ||
+    (import.meta.env.VITE_API_BASE as string | undefined) ||
+    window.location.origin;
   const socket = io(`${url}${ns}`, {
     transports: ['websocket', 'polling'],
     reconnection: true,

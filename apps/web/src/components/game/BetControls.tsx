@@ -32,10 +32,10 @@ export function BetControls({
 
   return (
     <div>
-      <div className="flex items-center justify-between border-b border-white/5 pb-2">
+      <div className="flex items-center justify-between border-b border-ink-200 pb-2">
         <div className="flex items-baseline gap-2">
           <span className="text-[9px] text-ink-500">01</span>
-          <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-300">
+          <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">
             {t.bet.stake}
           </span>
         </div>
@@ -62,7 +62,7 @@ export function BetControls({
           type="button"
           disabled={disabled}
           onClick={() => syncText(clamp(amount / 2))}
-          className="border-y border-r border-white/10 bg-ink-900/80 px-3 font-mono text-sm font-bold text-ink-300 transition hover:border-neon-acid hover:text-neon-acid disabled:opacity-40"
+          className="border-y border-r border-ink-200 bg-ink-100/80 px-3 font-mono text-sm font-bold text-ink-700 transition hover:border-neon-acid hover:text-neon-acid disabled:opacity-40"
         >
           ½
         </button>
@@ -70,7 +70,7 @@ export function BetControls({
           type="button"
           disabled={disabled}
           onClick={() => syncText(clamp(amount * 2))}
-          className="border-y border-r border-white/10 bg-ink-900/80 px-3 font-mono text-sm font-bold text-ink-300 transition hover:border-neon-acid hover:text-neon-acid disabled:opacity-40"
+          className="border-y border-r border-ink-200 bg-ink-100/80 px-3 font-mono text-sm font-bold text-ink-700 transition hover:border-neon-acid hover:text-neon-acid disabled:opacity-40"
         >
           2×
         </button>
@@ -83,7 +83,7 @@ export function BetControls({
             type="button"
             disabled={disabled || v > maxBalance}
             onClick={() => syncText(clamp(v))}
-            className="border border-white/10 bg-ink-950/50 py-1.5 font-mono text-[11px] text-ink-300 transition hover:border-neon-acid hover:bg-neon-acid/10 hover:text-neon-acid disabled:opacity-30"
+            className="border border-ink-200 bg-ink-50/50 py-1.5 font-mono text-[11px] text-ink-700 transition hover:border-neon-acid hover:bg-neon-acid/10 hover:text-neon-acid disabled:opacity-30"
           >
             {v}
           </button>

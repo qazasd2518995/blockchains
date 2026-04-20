@@ -1,8 +1,11 @@
 import axios, { AxiosError } from 'axios';
 import { useAuthStore } from '@/stores/authStore';
 
+// prod: https://api.xxx.com；dev: 空字串讓 vite proxy 處理 /api
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_BASE}/api`,
   timeout: 15000,
 });
 
@@ -22,7 +25,7 @@ api.interceptors.response.use(
       const { refreshToken, setTokens, logout } = useAuthStore.getState();
       if (refreshToken) {
         try {
-          const response = await axios.post('/api/auth/refresh', { refreshToken });
+          const response = await axios.post(`${API_BASE}/api/auth/refresh`, { refreshToken });
           const data = response.data as { accessToken: string; refreshToken: string };
           setTokens(data.accessToken, data.refreshToken);
           if (error.config) {
