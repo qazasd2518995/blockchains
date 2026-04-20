@@ -26,7 +26,7 @@ services:
     buildCommand: |
       corepack enable
       corepack prepare pnpm@9.15.4 --activate
-      pnpm install --frozen-lockfile
+      pnpm install --frozen-lockfile --prod=false
       pnpm --filter @bg/server exec prisma generate
       pnpm --filter @bg/server run build
     startCommand: pnpm --filter @bg/server start
@@ -68,7 +68,7 @@ services:
     buildCommand: |
       corepack enable
       corepack prepare pnpm@9.15.4 --activate
-      pnpm install --frozen-lockfile
+      pnpm install --frozen-lockfile --prod=false
       pnpm --filter @bg/web run build
     staticPublishPath: apps/web/dist
     pullRequestPreviewsEnabled: false
@@ -91,7 +91,7 @@ services:
     buildCommand: |
       corepack enable
       corepack prepare pnpm@9.15.4 --activate
-      pnpm install --frozen-lockfile
+      pnpm install --frozen-lockfile --prod=false
       pnpm --filter @bg/admin run build
     staticPublishPath: apps/admin/dist
     pullRequestPreviewsEnabled: false
