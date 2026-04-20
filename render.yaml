@@ -64,8 +64,6 @@ services:
   - type: web
     name: bg-web
     runtime: static
-    plan: starter
-    region: oregon
     buildCommand: |
       corepack enable
       pnpm install --frozen-lockfile
@@ -88,8 +86,6 @@ services:
   - type: web
     name: bg-admin
     runtime: static
-    plan: starter
-    region: oregon
     buildCommand: |
       corepack enable
       pnpm install --frozen-lockfile
