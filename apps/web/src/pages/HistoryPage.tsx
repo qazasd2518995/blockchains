@@ -10,6 +10,9 @@ const ICON: Record<TransactionType, { color: string; icon: string }> = {
   BET_WIN: { color: 'text-neon-acid', icon: '▲' },
   CASHOUT: { color: 'text-neon-acid', icon: '⇧' },
   ADJUSTMENT: { color: 'text-neon-ice', icon: '⟲' },
+  REBATE: { color: 'text-neon-toxic', icon: '↻' },
+  TRANSFER_IN: { color: 'text-neon-acid', icon: '⇩' },
+  TRANSFER_OUT: { color: 'text-neon-ember', icon: '⇧' },
 };
 
 export function HistoryPage() {
@@ -35,7 +38,7 @@ export function HistoryPage() {
 
   return (
     <div className="space-y-10">
-      <section className="border-b border-white/10 pb-6">
+      <section className="border-b border-ink-200 pb-6">
         <div className="label">§ {t.history.ledger}</div>
         <h1 className="mt-2 font-serif text-6xl font-black italic">
           <span className="text-neon-acid not-italic">{t.history.txLog}</span>
@@ -71,12 +74,12 @@ export function HistoryPage() {
       )}
 
       <section className="crt-panel overflow-hidden">
-        <div className="border-b border-white/10 px-5 py-3 text-[10px] tracking-[0.25em] text-ink-500">
+        <div className="border-b border-ink-200 px-5 py-3 text-[10px] tracking-[0.25em] text-ink-500">
           {t.history.showing} {items.length} {t.history.entries}
         </div>
 
         {loading && (
-          <div className="flex items-center gap-2 px-5 py-8 text-[12px] tracking-[0.25em] text-ink-400">
+          <div className="flex items-center gap-2 px-5 py-8 text-[12px] tracking-[0.25em] text-ink-600">
             <span className="status-dot status-dot-live" />
             {t.common.loading.toUpperCase()}
             <span className="animate-blink">_</span>
@@ -85,7 +88,7 @@ export function HistoryPage() {
 
         {!loading && items.length === 0 && (
           <div className="px-5 py-12 text-center">
-            <div className="font-display text-4xl text-ink-700">{t.history.noRecords}</div>
+            <div className="font-display text-4xl text-ink-300">{t.history.noRecords}</div>
             <div className="mt-2 text-[11px] tracking-[0.3em] text-ink-500">
               {t.history.placeFirst}
             </div>
@@ -93,7 +96,7 @@ export function HistoryPage() {
         )}
 
         {!loading && items.length > 0 && (
-          <div className="divide-y divide-white/5">
+          <div className="divide-y divide-ink-200">
             <div className="hidden grid-cols-[120px_120px_1fr_auto_auto] items-baseline gap-4 px-5 py-2 text-[9px] tracking-[0.3em] text-ink-500 md:grid">
               <span>{t.history.time}</span>
               <span>{t.history.type}</span>
@@ -117,7 +120,7 @@ export function HistoryPage() {
                   className="grid grid-cols-[auto_1fr_auto] items-center gap-4 px-5 py-3 transition hover:bg-white/5 md:grid-cols-[120px_120px_1fr_auto_auto]"
                 >
                   <div className="data-num text-[11px]">
-                    <div className="text-bone">{time}</div>
+                    <div className="text-ink-900">{time}</div>
                     <div className="text-[9px] tracking-[0.2em] text-ink-500">
                       {date.toUpperCase()}
                     </div>
@@ -128,7 +131,7 @@ export function HistoryPage() {
                       {t.history.tx[tx.type as keyof typeof t.history.tx] ?? tx.type}
                     </span>
                   </div>
-                  <div className="hidden truncate font-mono text-[11px] text-ink-400 md:block">
+                  <div className="hidden truncate font-mono text-[11px] text-ink-600 md:block">
                     {tx.betId ? `BET_${tx.betId.slice(-6).toUpperCase()}` : '—'}
                   </div>
                   <div
@@ -139,7 +142,7 @@ export function HistoryPage() {
                     {positive ? '+' : ''}
                     {formatAmount(tx.amount)}
                   </div>
-                  <div className="data-num text-right text-[11px] text-ink-400">
+                  <div className="data-num text-right text-[11px] text-ink-600">
                     {formatAmount(tx.balanceAfter)}
                   </div>
                 </div>

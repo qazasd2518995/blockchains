@@ -19,6 +19,11 @@ enum Role {
   ADMIN
 }
 
+enum MarketType {
+  D
+  A
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -26,6 +31,14 @@ model User {
   displayName  String?
   balance      Decimal  @default(1000) @db.Decimal(20, 2)
   role         Role     @default(PLAYER)
+
+  // 代理後台歸屬
+  agentId      String?
+  agent        Agent?     @relation(fields: [agentId], references: [id])
+  marketType   MarketType @default(D)
+  frozenAt     DateTime?
+  notes        String?
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -39,6 +52,7 @@ model User {
   refreshTokens RefreshToken[]
 
   @@index([email])
+  @@index([agentId])
 }
 
 model RefreshToken {
@@ -64,6 +78,9 @@ enum TxType {
   BET_WIN
   CASHOUT
   ADJUSTMENT
+  REBATE
+  TRANSFER_IN
+  TRANSFER_OUT
 }
 
 model Transaction {
@@ -278,5 +295,241 @@ model CrashBet {
 
   @@index([userId, createdAt])
   @@index([roundId])
+}
+
+// ───────────────────────────────────────────────
+// 代理後台：Agent 層級
+// ───────────────────────────────────────────────
+
+enum AgentStatus {
+  ACTIVE
+  FROZEN
+  DELETED
+}
+
+enum RebateMode {
+  PERCENTAGE
+  ALL
+  NONE
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  AGENT
+  SUB_ACCOUNT
+}
+
+model Agent {
+  id                   String      @id @default(cuid())
+  username             String      @unique
+  passwordHash         String
+  displayName          String?
+  parentId             String?
+  parent               Agent?      @relation("AgentTree", fields: [parentId], references: [id])
+  children             Agent[]     @relation("AgentTree")
+  level                Int
+  marketType           MarketType  @default(D)
+  balance              Decimal     @default(0) @db.Decimal(20, 2)
+  commissionBalance    Decimal     @default(0) @db.Decimal(20, 2)
+  commissionRate       Decimal     @default(0.2) @db.Decimal(5, 4)
+  rebateMode           RebateMode  @default(PERCENTAGE)
+  rebatePercentage     Decimal     @default(0.041) @db.Decimal(5, 4)
+  maxRebatePercentage  Decimal     @default(0.041) @db.Decimal(5, 4)
+  bettingLimitLevel    String      @default("level3")
+  status               AgentStatus @default(ACTIVE)
+  role                 AdminRole   @default(AGENT)
+  notes                String?
+  lastLoginAt          DateTime?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  members              User[]
+  refreshTokens        AgentRefreshToken[]
+  auditLogs            AuditLog[]  @relation("AuditActor")
+  winLossControls      WinLossControl[] @relation("WLCOperator")
+  memberWinCaps        MemberWinCapControl[] @relation("CapCreatedBy")
+  memberDeposits       MemberDepositControl[] @relation("DepositCreatedBy")
+
+  @@index([parentId])
+  @@index([username])
+  @@index([level])
+}
+
+model AgentRefreshToken {
+  id        String    @id @default(cuid())
+  agentId   String
+  agent     Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([agentId])
+  @@index([tokenHash])
+}
+
+// ───────────────────────────────────────────────
+// 代理後台：點數轉帳（雙向紀錄）
+// ───────────────────────────────────────────────
+
+enum PointTransferType {
+  AGENT_TO_AGENT
+  AGENT_TO_MEMBER
+  MEMBER_TO_AGENT
+  CS_AGENT_TRANSFER
+  CS_MEMBER_TRANSFER
+  REBATE_PAYOUT
+}
+
+model PointTransfer {
+  id                String            @id @default(cuid())
+  type              PointTransferType
+  fromType          String
+  fromId            String
+  toType            String
+  toId              String
+  amount            Decimal           @db.Decimal(20, 2)
+  fromBeforeBalance Decimal           @db.Decimal(20, 2)
+  fromAfterBalance  Decimal           @db.Decimal(20, 2)
+  toBeforeBalance   Decimal           @db.Decimal(20, 2)
+  toAfterBalance    Decimal           @db.Decimal(20, 2)
+  description       String?
+  operatorId        String?
+  operatorType      String?
+  ipAddress         String?
+  createdAt         DateTime          @default(now())
+
+  @@index([fromType, fromId, createdAt])
+  @@index([toType, toId, createdAt])
+  @@index([operatorId, createdAt])
+}
+
+// ───────────────────────────────────────────────
+// 代理後台：控制（輸贏 / 封頂 / 入金 / 代理線）
+// ───────────────────────────────────────────────
+
+enum ControlMode {
+  NORMAL
+  AGENT_LINE
+  SINGLE_MEMBER
+  AUTO_DETECT
+}
+
+model WinLossControl {
+  id                String      @id @default(cuid())
+  controlMode       ControlMode
+  targetType        String?
+  targetId          String?
+  targetUsername    String?
+  controlPercentage Decimal     @default(50) @db.Decimal(5, 2)
+  winControl        Boolean     @default(false)
+  lossControl       Boolean     @default(false)
+  isActive          Boolean     @default(true)
+  startPeriod       String?
+  operatorId        String?
+  operator          Agent?      @relation("WLCOperator", fields: [operatorId], references: [id])
+  operatorUsername  String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([isActive, controlMode])
+  @@index([targetType, targetId])
+}
+
+model MemberWinCapControl {
+  id               String   @id @default(cuid())
+  memberId         String
+  memberUsername   String   @unique
+  agentId          String
+  creator          Agent    @relation("CapCreatedBy", fields: [agentId], references: [id])
+  winCapAmount     Decimal  @db.Decimal(20, 2)
+  controlWinRate   Decimal  @default(0.70) @db.Decimal(5, 4)
+  triggerThreshold Decimal  @default(0.80) @db.Decimal(5, 4)
+  currentGameDay   String
+  todayWinAmount   Decimal  @default(0) @db.Decimal(20, 2)
+  todayBetCount    Int      @default(0)
+  isActive         Boolean  @default(true)
+  isCapped         Boolean  @default(false)
+  notes            String?
+  operatorUsername String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([isActive, isCapped])
+}
+
+model MemberDepositControl {
+  id               String   @id @default(cuid())
+  memberId         String
+  memberUsername   String
+  agentId          String
+  creator          Agent    @relation("DepositCreatedBy", fields: [agentId], references: [id])
+  depositAmount    Decimal  @db.Decimal(20, 2)
+  targetProfit     Decimal  @db.Decimal(20, 2)
+  startBalance     Decimal  @db.Decimal(20, 2)
+  controlWinRate   Decimal  @default(0.70) @db.Decimal(5, 4)
+  isActive         Boolean  @default(true)
+  isCompleted      Boolean  @default(false)
+  startPeriod      String?
+  notes            String?
+  operatorUsername String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([memberUsername, isActive])
+}
+
+model AgentLineWinCap {
+  id               String   @id @default(cuid())
+  agentId          String   @unique
+  agentUsername    String
+  dailyCap         Decimal  @db.Decimal(20, 2)
+  todayWinAmount   Decimal  @default(0) @db.Decimal(20, 2)
+  currentGameDay   String
+  isActive         Boolean  @default(true)
+  notes            String?
+  operatorUsername String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// 控制介入紀錄（可審計）
+model WinLossControlLogs {
+  id             String   @id @default(cuid())
+  controlId      String
+  betId          String?
+  userId         String
+  gameId         String
+  originalResult Json
+  finalResult    Json
+  flipReason     String
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([controlId, createdAt])
+}
+
+// ───────────────────────────────────────────────
+// 代理後台：審計日誌
+// ───────────────────────────────────────────────
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  actorId       String?
+  actor         Agent?   @relation("AuditActor", fields: [actorId], references: [id])
+  actorType     String
+  actorUsername String
+  action        String
+  targetType    String?
+  targetId      String?
+  oldValues     Json?
+  newValues     Json?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([targetType, targetId, createdAt])
 }
 

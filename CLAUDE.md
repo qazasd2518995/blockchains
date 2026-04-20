@@ -30,6 +30,18 @@ await prisma.$transaction(async (tx) => {
 - 前端送來的 `multiplier`、`payout`、`won`、`result` **一律丟棄不信任**
 - 任何結果由後端呼叫 `@bg/provably-fair` 算出，寫入 DB，再回傳給前端播動畫
 
+### 3.1 代理後台控制與 Provably Fair 的關係
+
+**本平台是運營方可干預的博彩系統**，代理後台可對特定會員或代理線設定輸贏控制（Win/Loss Control、Win Cap、Deposit Control、Agent Line Cap）。啟用時：
+
+- 後端先算出 Provably-Fair HMAC 原始結果（`@bg/provably-fair`），保留於 `Bet.resultData.rawWon / finalWon` 和 `WinLossControlLogs.originalResult` 兩處供審計
+- 控制 hook `applyControls()`（`apps/server/src/modules/games/_common/controls.ts`）可依規則翻轉最終 `Bet.payout` / `multiplier` / `won`
+- 每次翻轉都**必**寫入 `WinLossControlLogs`（`controlId`、`originalResult`、`finalResult`、`flipReason`）
+- API 回應附 `controlled: boolean` 旗標告知此局是否受控
+- PF 測試向量（`packages/provably-fair/__tests__`）驗證的是**原始 HMAC 計算**，與控制介入後的最終結果分離
+
+亦即：**HMAC 計算永遠可驗證；控制介入永遠可審計**。代理後台 Super Admin 以外角色無法建立/修改控制。
+
 ---
 
 ## Monorepo 規則

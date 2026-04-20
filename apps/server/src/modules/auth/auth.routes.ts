@@ -1,14 +1,28 @@
 import type { FastifyInstance } from 'fastify';
-import { registerSchema, loginSchema, refreshSchema } from './auth.schema.js';
+import { loginSchema, refreshSchema } from './auth.schema.js';
 import { AuthService } from './auth.service.js';
 
 export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new AuthService(fastify.prisma, fastify.jwt);
 
+  // 公開註冊已停用：會員帳號僅能由代理後台建立
   fastify.post('/register', async (req, reply) => {
-    const body = registerSchema.parse(req.body);
-    const result = await service.register(body);
-    reply.code(201).send(result);
+    await fastify.prisma.auditLog
+      .create({
+        data: {
+          actorType: 'system',
+          actorUsername: 'system',
+          action: 'register.blocked',
+          targetType: 'auth',
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'] ?? null,
+        },
+      })
+      .catch(() => undefined);
+    reply.code(404).send({
+      code: 'REGISTRATION_CLOSED',
+      message: 'Member accounts are created by agents only.',
+    });
   });
 
   fastify.post('/login', async (req) => {

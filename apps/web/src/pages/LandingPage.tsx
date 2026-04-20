@@ -51,8 +51,8 @@ export function LandingPage() {
 
   return (
     <div className="relative min-h-screen">
-      <div className="relative z-10 border-b border-white/5 bg-ink-950/60 backdrop-blur">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.25em] text-ink-400">
+      <div className="relative z-10 border-b border-ink-200 bg-ink-50/60 backdrop-blur">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.25em] text-ink-600">
           <div className="flex items-center gap-6">
             <span>
               <span className="status-dot status-dot-live" />
@@ -68,16 +68,16 @@ export function LandingPage() {
         </div>
       </div>
 
-      <div className="relative z-10 overflow-hidden border-b border-white/5 bg-ink-900/40 py-2">
-        <div className="flex animate-ticker whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.3em] text-ink-300">
+      <div className="relative z-10 overflow-hidden border-b border-ink-200 bg-ink-100/40 py-2">
+        <div className="flex animate-ticker whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.3em] text-ink-700">
           {[...LIVE_FEED, ...LIVE_FEED, ...LIVE_FEED, ...LIVE_FEED].map((f, i) => (
             <span key={i} className="mx-8 flex items-center gap-3">
               <span className="text-ink-500">{f.player}</span>
-              <span className="text-ink-400">▸</span>
-              <span className="text-bone">{f.game}</span>
+              <span className="text-ink-600">▸</span>
+              <span className="text-ink-900">{f.game}</span>
               <span className="text-neon-acid">{f.multi}</span>
               <span className="text-neon-toxic">{f.win}</span>
-              <span className="text-ink-600">◈</span>
+              <span className="text-ink-400">◈</span>
             </span>
           ))}
         </div>
@@ -89,7 +89,7 @@ export function LandingPage() {
             <span className="font-display text-lg">BG</span>
           </div>
           <div>
-            <div className="font-display text-xl leading-none tracking-widest text-bone">
+            <div className="font-display text-xl leading-none tracking-widest text-ink-900">
               BLOCKCHAIN<span className="text-neon-acid">.</span>GAME
             </div>
             <div className="label mt-1 text-[9px]">{t.landing.crypto}</div>
@@ -97,11 +97,8 @@ export function LandingPage() {
         </Link>
         <nav className="flex items-center gap-3">
           <LocaleToggle />
-          <Link to="/login" className="btn-ghost">
-            [{t.common.login.toUpperCase()}]
-          </Link>
-          <Link to="/register" className="btn-acid">
-            → {t.common.register.toUpperCase()}
+          <Link to="/login" className="btn-acid">
+            → {t.common.login.toUpperCase()}
           </Link>
         </nav>
       </header>
@@ -109,7 +106,7 @@ export function LandingPage() {
       <section className="relative z-10 mx-auto max-w-[1600px] px-6 pb-20 pt-10">
         <div className="grid gap-8 lg:grid-cols-12">
           <div className="lg:col-span-8">
-            <div className="flex items-center gap-3 text-[11px] tracking-[0.3em] text-ink-400">
+            <div className="flex items-center gap-3 text-[11px] tracking-[0.3em] text-ink-600">
               <span className="tag tag-acid">
                 <span className="status-dot status-dot-live" />
                 LIVE
@@ -118,41 +115,38 @@ export function LandingPage() {
             </div>
 
             <h1 className="mt-6 font-serif text-[clamp(3rem,9vw,8rem)] font-black leading-[0.88] tracking-[-0.04em]">
-              <span className="block animate-reveal text-bone">{t.landing.heroLine1}</span>
+              <span className="block animate-reveal text-ink-900">{t.landing.heroLine1}</span>
               <span
-                className="block animate-reveal text-neon-acid"
+                className="block animate-reveal big-num-grad"
                 style={{ animationDelay: '0.15s' }}
               >
                 {t.landing.heroLine2}
               </span>
               <span
-                className="block animate-reveal italic text-bone"
+                className="block animate-reveal italic text-ink-900"
                 style={{ animationDelay: '0.3s' }}
               >
                 {t.landing.heroLine3}
               </span>
             </h1>
 
-            <p className="mt-8 max-w-xl font-mono text-sm leading-relaxed text-ink-300">
+            <p className="mt-8 max-w-xl font-mono text-sm leading-relaxed text-ink-700">
               {t.landing.heroDesc}
             </p>
 
             <div className="mt-10 flex flex-wrap items-center gap-4">
-              <Link to="/register" className="btn-acid">
-                {t.landing.ctaGet}
-              </Link>
-              <Link to="/login" className="btn-ghost">
+              <Link to="/login" className="btn-acid">
                 {t.landing.ctaExisting}
               </Link>
               <span className="text-[10px] uppercase tracking-[0.3em] text-ink-500">
-                {t.landing.freeNoDeposit}
+                § ACCESS MANAGED BY AGENTS
               </span>
             </div>
           </div>
 
           <div className="lg:col-span-4">
             <div className="crt-panel scanlines p-5">
-              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div className="flex items-center justify-between border-b border-ink-200 pb-3">
                 <div className="label">{t.landing.liveFeed}</div>
                 <div className="tag tag-toxic text-[10px]">
                   <span className="status-dot status-dot-live" />
@@ -163,10 +157,10 @@ export function LandingPage() {
                 {LIVE_FEED.map((f, i) => (
                   <li
                     key={i}
-                    className="flex items-center justify-between border-b border-white/5 pb-3 last:border-0 last:pb-0"
+                    className="flex items-center justify-between border-b border-ink-200 pb-3 last:border-0 last:pb-0"
                   >
                     <div>
-                      <div className="text-bone">{f.player}</div>
+                      <div className="text-ink-900">{f.player}</div>
                       <div className="text-[10px] tracking-[0.25em] text-ink-500">{f.game}</div>
                     </div>
                     <div className="text-right">
@@ -191,12 +185,12 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="relative z-10 border-y border-white/5 bg-ink-900/30 py-6">
+      <section className="relative z-10 border-y border-ink-200 bg-ink-100/30 py-6">
         <div className="flex animate-ticker whitespace-nowrap">
           {[...GAMES_TICKER, ...GAMES_TICKER, ...GAMES_TICKER].map((g, i) => (
             <span
               key={i}
-              className="mx-10 font-display text-5xl tracking-[0.1em] text-ink-700"
+              className="mx-10 font-display text-5xl tracking-[0.1em] text-ink-300"
             >
               {g} <span className="text-neon-acid">◆</span>
             </span>
@@ -207,7 +201,7 @@ export function LandingPage() {
       <section className="relative z-10 mx-auto max-w-[1600px] px-6 py-20">
         <div className="mb-12 flex items-center gap-6">
           <div className="label">§ 01</div>
-          <h2 className="font-serif text-4xl italic text-bone">{t.landing.section1}</h2>
+          <h2 className="font-serif text-4xl italic text-ink-900">{t.landing.section1}</h2>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -218,7 +212,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      <footer className="relative z-10 border-t border-white/5 bg-ink-950/60 py-10">
+      <footer className="relative z-10 border-t border-ink-200 bg-ink-50/60 py-10">
         <div className="mx-auto max-w-[1600px] px-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
@@ -237,11 +231,11 @@ export function LandingPage() {
 
 function Stat({ k, v, accent }: { k: string; v: string; accent?: 'ember' }) {
   return (
-    <div className="border border-white/5 bg-ink-950/50 p-3">
+    <div className="border border-ink-200 bg-ink-50/50 p-3">
       <div className="text-[9px] tracking-[0.25em] text-ink-500">{k}</div>
       <div
         className={`mt-1 font-display text-2xl tracking-tight ${
-          accent === 'ember' ? 'text-neon-ember' : 'text-bone'
+          accent === 'ember' ? 'text-neon-ember' : 'text-ink-900'
         }`}
       >
         {v}
@@ -270,12 +264,12 @@ function Feature({
 
   return (
     <div className={`crt-panel-hot p-6 ${colors}`}>
-      <div className="flex items-baseline justify-between border-b border-white/5 pb-3">
+      <div className="flex items-baseline justify-between border-b border-ink-200 pb-3">
         <div className="label">FEATURE_{num}</div>
         <div className={`font-display text-4xl leading-none`}>{num}</div>
       </div>
-      <h3 className="mt-4 font-serif text-2xl font-bold text-bone">{title}</h3>
-      <p className="mt-3 text-[13px] leading-relaxed text-ink-300">{desc}</p>
+      <h3 className="mt-4 font-serif text-2xl font-bold text-ink-900">{title}</h3>
+      <p className="mt-3 text-[13px] leading-relaxed text-ink-700">{desc}</p>
     </div>
   );
 }

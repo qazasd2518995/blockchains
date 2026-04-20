@@ -1,13 +1,10 @@
 import bcrypt from 'bcrypt';
 import { PrismaClient, Prisma } from '@prisma/client';
 import type { UserPublic } from '@bg/shared';
-import { generateServerSeed, generateClientSeed, sha256 } from '@bg/provably-fair';
 import { ApiError } from '../../utils/errors.js';
 import { config } from '../../config.js';
 import { randomBytes, createHash } from 'node:crypto';
-import type { RegisterInput, LoginInput } from './auth.schema.js';
-
-const BCRYPT_ROUNDS = 12;
+import type { LoginInput } from './auth.schema.js';
 
 export interface JwtSigner {
   sign(payload: { sub: string; role: string }): string;
@@ -18,60 +15,6 @@ export class AuthService {
     private readonly prisma: PrismaClient,
     private readonly jwt: JwtSigner,
   ) {}
-
-  async register(
-    input: RegisterInput,
-  ): Promise<{ user: UserPublic; accessToken: string; refreshToken: string }> {
-    const existing = await this.prisma.user.findUnique({ where: { email: input.email } });
-    if (existing) throw new ApiError('EMAIL_TAKEN', 'Email already in use');
-
-    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
-
-    const user = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({
-        data: {
-          email: input.email,
-          passwordHash,
-          displayName: input.displayName,
-          balance: new Prisma.Decimal(config.SIGNUP_BONUS),
-        },
-      });
-
-      await tx.transaction.create({
-        data: {
-          userId: created.id,
-          type: 'SIGNUP_BONUS',
-          amount: new Prisma.Decimal(config.SIGNUP_BONUS),
-          balanceAfter: new Prisma.Decimal(config.SIGNUP_BONUS),
-          meta: { reason: 'New user signup' },
-        },
-      });
-
-      const clientSeed = generateClientSeed();
-      await tx.clientSeed.create({
-        data: { userId: created.id, seed: clientSeed, isActive: true },
-      });
-
-      for (const gameCategory of ['dice', 'mines']) {
-        const seed = generateServerSeed();
-        await tx.serverSeed.create({
-          data: {
-            userId: created.id,
-            gameCategory,
-            seed,
-            seedHash: sha256(seed),
-            isActive: true,
-            nonce: 0,
-          },
-        });
-      }
-
-      return created;
-    });
-
-    const tokens = await this.issueTokens(user.id, user.role);
-    return { user: this.toPublic(user), ...tokens };
-  }
 
   async login(
     input: LoginInput,

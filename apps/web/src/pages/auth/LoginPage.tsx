@@ -49,9 +49,9 @@ export function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center px-6 py-10">
-      <div className="absolute top-0 left-0 right-0 z-10 border-b border-white/5 bg-ink-950/60 backdrop-blur">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.25em] text-ink-400">
-          <Link to="/" className="flex items-center gap-2 text-bone transition hover:text-neon-acid">
+      <div className="absolute top-0 left-0 right-0 z-10 border-b border-ink-200 bg-ink-50/60 backdrop-blur">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.25em] text-ink-600">
+          <Link to="/" className="flex items-center gap-2 text-ink-900 transition hover:text-neon-acid">
             <span className="text-neon-acid">◄</span>
             <span>{t.auth.returnHome}</span>
           </Link>
@@ -66,9 +66,9 @@ export function LoginPage() {
         <div>
           <div className="label">§ {t.auth.authenticate}</div>
           <h1 className="mt-3 font-serif text-6xl font-black leading-none">
-            <span className="text-bone">{t.auth.identifyYourself}</span>
+            <span className="text-ink-900">{t.auth.identifyYourself}</span>
           </h1>
-          <p className="mt-4 font-mono text-[13px] text-ink-400">
+          <p className="mt-4 font-mono text-[13px] text-ink-600">
             {t.auth.loginDesc}
           </p>
 
@@ -116,28 +116,14 @@ export function LoginPage() {
             </div>
           </form>
 
-          <div className="mt-10 divider-dot">
-            <span className="text-[10px] tracking-[0.3em]">OR</span>
+          <div className="mt-10 border-t border-ink-200 pt-5 text-[10px] tracking-[0.3em] text-ink-500">
+            § ACCESS MANAGED BY AGENTS · NO PUBLIC SIGNUP
           </div>
-
-          <Link to="/register" className="mt-6 block">
-            <div className="group flex items-center justify-between border border-white/10 p-4 transition hover:border-neon-acid">
-              <div>
-                <div className="label">{t.auth.newOperator}</div>
-                <div className="mt-1 text-bone">
-                  {t.auth.newOperatorHint}
-                </div>
-              </div>
-              <span className="text-2xl text-ink-500 transition group-hover:translate-x-1 group-hover:text-neon-acid">
-                →
-              </span>
-            </div>
-          </Link>
         </div>
 
         <div className="relative hidden lg:block">
           <div className="crt-panel scanlines h-full p-8">
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <div className="flex items-center justify-between border-b border-ink-200 pb-4">
               <div className="label">{t.auth.systemProtocol}</div>
               <span className="tag tag-toxic">
                 <span className="status-dot status-dot-live" />
@@ -169,8 +155,8 @@ export function LoginPage() {
               <Detail k="PASSWORD_HASH" v="BCRYPT · 12 ROUNDS" />
             </div>
 
-            <div className="mt-10 border-t border-white/5 pt-4">
-              <div className="font-serif text-xl italic leading-tight text-bone">
+            <div className="mt-10 border-t border-ink-200 pt-4">
+              <div className="font-serif text-xl italic leading-tight text-ink-900">
                 {t.auth.trustButVerify}
               </div>
               <div className="mt-2 text-[10px] tracking-[0.3em] text-ink-500">
@@ -200,7 +186,7 @@ function Field({
       <div className="mb-2 flex items-baseline justify-between">
         <div className="flex items-baseline gap-2">
           <span className="text-[9px] text-ink-500">{code}</span>
-          <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-300">
+          <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">
             {label}
           </span>
         </div>
@@ -217,9 +203,9 @@ function Field({
 
 function Detail({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-baseline justify-between border-b border-white/5 pb-2">
+    <div className="flex items-baseline justify-between border-b border-ink-200 pb-2">
       <span className="text-[10px] tracking-[0.25em] text-ink-500">{k}</span>
-      <span className="text-bone data-num">{v}</span>
+      <span className="text-ink-900 data-num">{v}</span>
     </div>
   );
 }

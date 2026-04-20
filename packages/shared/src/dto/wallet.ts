@@ -7,7 +7,10 @@ export type TransactionType =
   | 'BET_PLACE'
   | 'BET_WIN'
   | 'CASHOUT'
-  | 'ADJUSTMENT';
+  | 'ADJUSTMENT'
+  | 'REBATE'
+  | 'TRANSFER_IN'
+  | 'TRANSFER_OUT';
 
 export interface TransactionEntry {
   id: string;

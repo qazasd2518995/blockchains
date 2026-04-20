@@ -4,7 +4,6 @@ import { AuthGuard } from '@/components/layout/AuthGuard';
 import { GuestGuard } from '@/components/layout/GuestGuard';
 import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/auth/LoginPage';
-import { RegisterPage } from '@/pages/auth/RegisterPage';
 import { LobbyPage } from '@/pages/LobbyPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { HistoryPage } from '@/pages/HistoryPage';
@@ -33,7 +32,6 @@ export const router = createBrowserRouter([
     ),
     children: [
       { path: '/login', element: <LoginPage /> },
-      { path: '/register', element: <RegisterPage /> },
     ],
   },
   {
