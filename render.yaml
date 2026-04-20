@@ -71,6 +71,8 @@ services:
       corepack enable
       corepack prepare pnpm@9.15.4 --activate
       pnpm install --frozen-lockfile --prod=false
+      pnpm --filter @bg/shared run build
+      pnpm --filter @bg/provably-fair run build
       pnpm --filter @bg/web run build
     staticPublishPath: apps/web/dist
     pullRequestPreviewsEnabled: false
@@ -94,6 +96,7 @@ services:
       corepack enable
       corepack prepare pnpm@9.15.4 --activate
       pnpm install --frozen-lockfile --prod=false
+      pnpm --filter @bg/shared run build
       pnpm --filter @bg/admin run build
     staticPublishPath: apps/admin/dist
     pullRequestPreviewsEnabled: false
