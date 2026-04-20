@@ -1,0 +1,14 @@
+{
+  "name": "@bg/ui-tokens",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./tailwind.preset.ts",
+  "exports": {
+    ".": "./tailwind.preset.ts",
+    "./global.css": "./global.css"
+  },
+  "peerDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}

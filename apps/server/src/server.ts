@@ -10,7 +10,9 @@ import { config } from './config.js';
 import { GameId } from '@bg/shared';
 import { prismaPlugin } from './plugins/prisma.js';
 import { authPlugin } from './plugins/auth.js';
+import { adminAuthPlugin } from './plugins/adminAuth.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
+import { adminRoutes } from './modules/admin/admin.plugin.js';
 import { walletRoutes } from './modules/wallet/wallet.routes.js';
 import { pfRoutes } from './modules/provably-fair/pf.routes.js';
 import { diceRoutes } from './modules/games/dice/dice.routes.js';
@@ -85,10 +87,12 @@ export async function buildServer(): Promise<FastifyInstance> {
 
   await server.register(prismaPlugin);
   await server.register(authPlugin);
+  await server.register(adminAuthPlugin);
 
   server.get('/api/health', async () => ({ ok: true, env: config.NODE_ENV }));
 
   await server.register(authRoutes, { prefix: '/api/auth' });
+  await server.register(adminRoutes, { prefix: '/api/admin' });
   await server.register(walletRoutes, { prefix: '/api/wallet' });
   await server.register(pfRoutes, { prefix: '/api/pf' });
 

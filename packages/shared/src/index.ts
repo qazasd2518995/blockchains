@@ -13,3 +13,11 @@ export * from './dto/roulette.js';
 export * from './dto/hotline.js';
 export * from './dto/tower.js';
 export * from './dto/crash.js';
+// Admin (agent backoffice)
+export * from './dto/admin/auth.js';
+export * from './dto/admin/agent.js';
+export * from './dto/admin/member.js';
+export * from './dto/admin/transfer.js';
+export * from './dto/admin/report.js';
+export * from './dto/admin/hierarchy.js';
+export * from './dto/admin/audit.js';

@@ -1,0 +1,84 @@
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useState } from 'react';
+import type { MemberPublic } from '@bg/shared';
+import { adminApi, extractApiError } from '@/lib/adminApi';
+import { Modal } from './Modal';
+
+const schema = z.object({
+  delta: z.string().regex(/^-?\d+(\.\d{1,2})?$/),
+  description: z.string().max(200).optional(),
+});
+type FormInput = z.infer<typeof schema>;
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  member: MemberPublic;
+  onDone: (m: MemberPublic) => void;
+}
+
+export function AdjustBalanceModal({ open, onClose, member, onDone }: Props): JSX.Element {
+  const [err, setErr] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<FormInput>({ resolver: zodResolver(schema), defaultValues: { delta: '', description: '' } });
+
+  const onSubmit = async (data: FormInput) => {
+    setErr(null);
+    try {
+      const res = await adminApi.post<MemberPublic>(`/members/${member.id}/adjust-balance`, {
+        delta: data.delta,
+        description: data.description || undefined,
+      });
+      onDone(res.data);
+      reset();
+      onClose();
+    } catch (e) {
+      setErr(extractApiError(e).message);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="ADJUSTMENT" subtitle="系统调整点数" width="sm">
+      <div className="mb-4 border border-ink-200 bg-ink-100/40 p-3 text-[11px]">
+        <div className="flex items-baseline justify-between">
+          <span className="text-ink-500">MEMBER</span>
+          <span className="font-mono">{member.email}</span>
+        </div>
+        <div className="mt-1 flex items-baseline justify-between">
+          <span className="text-ink-500">BAL</span>
+          <span className="data-num text-neon-acid">{member.balance}</span>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <label className="block">
+          <div className="label mb-2">DELTA (正=加 / 负=扣)</div>
+          <input type="text" {...register('delta')} className="term-input font-mono" placeholder="+100.00 或 -50" />
+          {errors.delta && <div className="mt-1 text-[10px] text-neon-ember">⚠ {errors.delta.message}</div>}
+        </label>
+
+        <label className="block">
+          <div className="label mb-2">DESCRIPTION</div>
+          <input type="text" {...register('description')} className="term-input" />
+        </label>
+
+        {err && <div className="border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">⚠ {err}</div>}
+
+        <div className="flex items-center gap-2">
+          <button type="submit" disabled={isSubmitting} className="btn-acid">
+            → 确认调整
+          </button>
+          <button type="button" onClick={onClose} className="btn-ghost">
+            [取消]
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
