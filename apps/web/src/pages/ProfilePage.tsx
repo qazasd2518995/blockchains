@@ -154,7 +154,7 @@ export function ProfilePage() {
               type="text"
               value={clientSeedInput}
               onChange={(e) => setClientSeedInput(e.target.value)}
-              placeholder="MIN 4 CHARS · EX: my_lucky_seed_42"
+              placeholder={t.profile.clientSeedPlaceholder}
               className="term-input flex-1"
             />
             <button

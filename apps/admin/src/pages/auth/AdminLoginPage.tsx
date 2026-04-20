@@ -130,7 +130,7 @@ export function AdminLoginPage(): JSX.Element {
                 BLOCKCHAIN OPS
               </div>
               <div className="mt-2 text-[10px] tracking-[0.3em] text-ink-500">
-                NO PUBLIC SIGNUP · AGENTS ONLY
+                不开放公开注册 · 仅限代理
               </div>
             </div>
           </div>

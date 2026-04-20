@@ -3,6 +3,7 @@ import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatCard } from '@/components/shared/StatCard';
 import { DataTable, type Column } from '@/components/shared/DataTable';
+import { useTranslation } from '@/i18n/useTranslation';
 
 interface WinLossRow {
   id: string;
@@ -46,6 +47,7 @@ interface AgentLineRow {
 }
 
 export function ControlsOverviewPage(): JSX.Element {
+  const { t } = useTranslation();
   const [wl, setWl] = useState<WinLossRow[]>([]);
   const [wc, setWc] = useState<WinCapRow[]>([]);
   const [dc, setDc] = useState<DepositRow[]>([]);
@@ -89,8 +91,8 @@ export function ControlsOverviewPage(): JSX.Element {
       label: 'FLAGS',
       render: (r) => (
         <div className="flex gap-1 text-[10px]">
-          {r.winControl && <span className="tag tag-toxic">WIN</span>}
-          {r.lossControl && <span className="tag tag-ember">LOSS</span>}
+          {r.winControl && <span className="tag tag-toxic">{t.controls.win}</span>}
+          {r.lossControl && <span className="tag tag-ember">{t.controls.loss}</span>}
         </div>
       ),
     },
@@ -98,7 +100,7 @@ export function ControlsOverviewPage(): JSX.Element {
       key: 'status',
       label: 'STATUS',
       render: (r) =>
-        r.isActive ? <span className="tag tag-toxic">ACTIVE</span> : <span className="tag tag-ember">OFF</span>,
+        r.isActive ? <span className="tag tag-toxic">{t.controls.active}</span> : <span className="tag tag-ember">{t.controls.off}</span>,
     },
   ];
 
@@ -111,7 +113,7 @@ export function ControlsOverviewPage(): JSX.Element {
       key: 'status',
       label: 'STATUS',
       render: (r) =>
-        r.isCapped ? <span className="tag tag-ember">CAPPED</span> : r.isActive ? <span className="tag tag-toxic">ACTIVE</span> : <span className="tag tag-ember">OFF</span>,
+        r.isCapped ? <span className="tag tag-ember">{t.controls.capped}</span> : r.isActive ? <span className="tag tag-toxic">{t.controls.active}</span> : <span className="tag tag-ember">{t.controls.off}</span>,
     },
   ];
 
@@ -125,10 +127,10 @@ export function ControlsOverviewPage(): JSX.Element {
       label: 'STATUS',
       render: (r) =>
         r.isCompleted
-          ? <span className="tag tag-acid">DONE</span>
+          ? <span className="tag tag-acid">{t.controls.done}</span>
           : r.isActive
-            ? <span className="tag tag-toxic">ACTIVE</span>
-            : <span className="tag tag-ember">OFF</span>,
+            ? <span className="tag tag-toxic">{t.controls.active}</span>
+            : <span className="tag tag-ember">{t.controls.off}</span>,
     },
   ];
 
@@ -140,7 +142,7 @@ export function ControlsOverviewPage(): JSX.Element {
       key: 'status',
       label: 'STATUS',
       render: (r) =>
-        r.isActive ? <span className="tag tag-toxic">ACTIVE</span> : <span className="tag tag-ember">OFF</span>,
+        r.isActive ? <span className="tag tag-toxic">{t.controls.active}</span> : <span className="tag tag-ember">{t.controls.off}</span>,
     },
   ];
 
@@ -148,9 +150,9 @@ export function ControlsOverviewPage(): JSX.Element {
     <div>
       <PageHeader
         section="§ OPS 06"
-        breadcrumb="CONTROLS / OVERVIEW"
-        title="控制设定"
-        titleSuffix="CONTROL OVERRIDE"
+        breadcrumb={`${t.nav.controls} / 总览`}
+        title={t.nav.controls}
+        titleSuffix="输赢控制"
         titleSuffixColor="ember"
         description="⚠ 所有控制都会主动翻转游戏结果并记录审计。Provably-Fair HMAC 原始结果仍会保留于 Bet.resultData。"
       />
@@ -164,25 +166,25 @@ export function ControlsOverviewPage(): JSX.Element {
 
       {error && (
         <div className="mb-4 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
-          ⚠ {error.toUpperCase()}
+          ⚠ {error}
         </div>
       )}
 
       {loading ? (
-        <div className="crt-panel p-8 text-center text-ink-500">Loading…</div>
+        <div className="crt-panel p-8 text-center text-ink-500">{t.common.loading}…</div>
       ) : (
         <div className="space-y-6">
           <Section title="§ WIN/LOSS CONTROL" subtitle="按百分比翻转输赢">
-            <DataTable columns={wlCols} rows={wl} rowKey={(r) => r.id} empty="暂无" />
+            <DataTable columns={wlCols} rows={wl} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
           <Section title="§ WIN CAP" subtitle="会员单日赢额封顶">
-            <DataTable columns={wcCols} rows={wc} rowKey={(r) => r.id} empty="暂无" />
+            <DataTable columns={wcCols} rows={wc} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
           <Section title="§ DEPOSIT CONTROL" subtitle="依入金目标自动控制胜率">
-            <DataTable columns={dcCols} rows={dc} rowKey={(r) => r.id} empty="暂无" />
+            <DataTable columns={dcCols} rows={dc} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
           <Section title="§ AGENT LINE CAP" subtitle="代理线单日赢额封顶">
-            <DataTable columns={alCols} rows={al} rowKey={(r) => r.id} empty="暂无" />
+            <DataTable columns={alCols} rows={al} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
         </div>
       )}

@@ -62,14 +62,14 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
   const estNext = estimate(member.balance, amountStr, direction);
 
   return (
-    <Modal open={open} onClose={onClose} title="TRANSFER" subtitle={t.transfers.newTransfer} width="md">
+    <Modal open={open} onClose={onClose} title={t.transfers.title} subtitle={t.transfers.newTransfer} width="md">
       <div className="mb-4 border border-ink-200 bg-ink-100/40 p-3 text-[11px]">
         <div className="flex items-baseline justify-between">
-          <span className="text-ink-500">MEMBER</span>
+          <span className="text-ink-500">{t.transfers.member}</span>
           <span className="font-mono text-ink-900">{member.email}</span>
         </div>
         <div className="mt-1 flex items-baseline justify-between">
-          <span className="text-ink-500">CURRENT BAL</span>
+          <span className="text-ink-500">{t.transfers.currentBal}</span>
           <span className="data-num text-neon-acid">{fmt(member.balance)}</span>
         </div>
       </div>
@@ -108,7 +108,7 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
 
         <div className="border border-neon-acid/30 bg-neon-acid/5 p-3 text-[11px]">
           <div className="flex items-baseline justify-between">
-            <span className="text-ink-500">NEXT MEMBER BAL</span>
+            <span className="text-ink-500">{t.transfers.nextBal}</span>
             <span className="data-num text-neon-acid">{estNext}</span>
           </div>
         </div>

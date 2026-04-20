@@ -187,7 +187,7 @@ export function CrashPage({ config }: Props) {
   const handlePlaceBet = () => {
     if (!user) return;
     if (status !== 'BETTING') {
-      setError('ROUND NOT ACCEPTING BETS');
+      setError(t.bet.roundNotAccepting);
       return;
     }
     if (amount <= 0 || amount > balance) {
@@ -332,7 +332,7 @@ export function CrashPage({ config }: Props) {
                 value={autoCashOut}
                 onChange={(e) => setAutoCashOut(e.target.value)}
                 disabled={status !== 'BETTING' || !!myBet}
-                placeholder="2.00"
+                placeholder={t.games.crash.autoCashoutPlaceholder}
                 className="term-input mt-2 text-center font-display text-2xl"
               />
             </div>

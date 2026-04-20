@@ -48,10 +48,10 @@ export function AdminDashboardPage(): JSX.Element {
     <div>
       <PageHeader
         section="§ OPS 01"
-        breadcrumb="DASHBOARD"
+        breadcrumb={t.nav.dashboard}
         title={t.dashboard.title}
         titleSuffix={t.dashboard.subtitle}
-        description={`Welcome ${agent?.displayName ?? agent?.username} · LVL ${agent?.level} · ${agent?.marketType}-盤`}
+        description={`欢迎回来,${agent?.displayName ?? agent?.username} · 层级 ${agent?.level} · ${agent?.marketType}盘`}
       />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -71,18 +71,18 @@ export function AdminDashboardPage(): JSX.Element {
 
       {error && (
         <div className="mt-6 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
-          ⚠ {error.toUpperCase()}
+          ⚠ {error}
         </div>
       )}
 
       <div className="mt-8 crt-panel p-6">
         <div className="flex items-center justify-between border-b border-ink-200 pb-3 text-[10px] tracking-[0.25em]">
           <span className="text-ink-500">§ {t.dashboard.recentActivity}</span>
-          <span className="text-ink-600">{recentAudit.length} entries</span>
+          <span className="text-ink-600">{recentAudit.length} 条记录</span>
         </div>
         <div className="mt-3 space-y-1">
           {recentAudit.length === 0 && (
-            <div className="py-6 text-center text-ink-400">— no activity —</div>
+            <div className="py-6 text-center text-ink-400">— 暂无动态 —</div>
           )}
           {recentAudit.map((r) => (
             <div

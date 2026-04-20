@@ -77,7 +77,7 @@ export function MemberBetRecordsPage(): JSX.Element {
     <div>
       <PageHeader
         section="§ OPS 03"
-        breadcrumb={`MEMBERS / ${member?.email ?? id} / BETS`}
+        breadcrumb={`${t.members.title} / ${member?.email ?? id} / ${t.members.bets}`}
         title={t.members.bets}
         titleSuffix={member?.email ?? ''}
         titleSuffixColor="acid"
@@ -93,7 +93,7 @@ export function MemberBetRecordsPage(): JSX.Element {
           type="text"
           value={gameFilter}
           onChange={(e) => setGameFilter(e.target.value)}
-          placeholder="gameId (e.g. dice)"
+          placeholder="按游戏 ID 过滤（例如 dice）"
           className="term-input max-w-xs"
         />
       </div>

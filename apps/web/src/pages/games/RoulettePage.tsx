@@ -43,7 +43,7 @@ export function RoulettePage({ variant }: Props) {
       }
       scene = new RouletteScene();
       sceneRef.current = scene;
-      void scene.init(canvas, w, h);
+      void scene.init(canvas, w, h, { statusText: t.games.roulette.placeYourBets });
     };
     tryInit();
     return () => {
@@ -52,7 +52,7 @@ export function RoulettePage({ variant }: Props) {
       scene?.dispose();
       sceneRef.current = null;
     };
-  }, []);
+  }, [t.games.roulette.placeYourBets]);
 
   const addBet = (bet: Omit<RouletteLineBet, 'amount'>) => {
     setBets((prev) => {

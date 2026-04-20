@@ -85,17 +85,17 @@ export function TransfersPage(): JSX.Element {
     <div>
       <PageHeader
         section="§ OPS 04"
-        breadcrumb="TRANSFERS / LOG"
+        breadcrumb={`${t.transfers.title} / 记录`}
         title={t.transfers.title}
         titleSuffix={t.transfers.subtitle}
       />
       {error && (
         <div className="mb-4 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
-          ⚠ {error.toUpperCase()}
+          ⚠ {error}
         </div>
       )}
       {loading ? (
-        <div className="crt-panel p-8 text-center text-ink-500">Loading…</div>
+        <div className="crt-panel p-8 text-center text-ink-500">{t.common.loading}…</div>
       ) : (
         <DataTable columns={columns} rows={items} rowKey={(r) => r.id} empty={t.transfers.noTransfer} />
       )}

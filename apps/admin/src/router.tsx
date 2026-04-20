@@ -54,7 +54,7 @@ export const router = createBrowserRouter([
       <div className="flex min-h-screen items-center justify-center">
         <div className="crt-panel p-8 text-center">
           <div className="font-display text-5xl text-neon-ember">404</div>
-          <div className="mt-3 text-[12px] text-ink-500">PATH NOT FOUND</div>
+          <div className="mt-3 text-[12px] text-ink-500">页面不存在</div>
         </div>
       </div>
     ),

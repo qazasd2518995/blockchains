@@ -15,7 +15,7 @@ export function Sidebar(): JSX.Element {
   return (
     <aside className="crt-panel sticky top-[96px] h-[calc(100vh-120px)] w-56 shrink-0 overflow-hidden p-3">
       <div className="border-b border-ink-200 pb-3 text-[9px] tracking-[0.3em] text-ink-500">
-        § NAVIGATION
+        § {t.shell.navigation}
       </div>
       <nav className="mt-3 space-y-1">
         {items.map((it) => (

@@ -81,11 +81,11 @@ export function MembersPage(): JSX.Element {
       label: t.members.status,
       render: (m) =>
         m.status === 'FROZEN' ? (
-          <span className="tag tag-ember">FROZEN</span>
+          <span className="tag tag-ember">{t.agent.status.FROZEN}</span>
         ) : (
           <span className="tag tag-toxic">
             <span className="status-dot status-dot-live" />
-            ACTIVE
+            {t.agent.status.ACTIVE}
           </span>
         ),
     },
@@ -129,7 +129,7 @@ export function MembersPage(): JSX.Element {
     <div>
       <PageHeader
         section="§ OPS 03"
-        breadcrumb="MEMBERS"
+        breadcrumb={t.members.title}
         title={t.members.title}
         titleSuffix={t.members.subtitle}
         titleSuffixColor="toxic"
@@ -153,20 +153,20 @@ export function MembersPage(): JSX.Element {
           onChange={(e) => setStatus(e.target.value as typeof status)}
           className="term-input max-w-[160px]"
         >
-          <option value="">ALL</option>
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="FROZEN">FROZEN</option>
+          <option value="">{t.common.all}</option>
+          <option value="ACTIVE">{t.agent.status.ACTIVE}</option>
+          <option value="FROZEN">{t.agent.status.FROZEN}</option>
         </select>
       </div>
 
       {error && (
         <div className="mb-4 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
-          ⚠ {error.toUpperCase()}
+          ⚠ {error}
         </div>
       )}
 
       {loading ? (
-        <div className="crt-panel p-8 text-center text-ink-500">Loading…</div>
+        <div className="crt-panel p-8 text-center text-ink-500">{t.common.loading}…</div>
       ) : (
         <DataTable columns={columns} rows={items} rowKey={(m) => m.id} empty={t.members.emptyList} />
       )}

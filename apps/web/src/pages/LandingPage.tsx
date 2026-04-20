@@ -139,7 +139,7 @@ export function LandingPage() {
                 {t.landing.ctaExisting}
               </Link>
               <span className="text-[10px] uppercase tracking-[0.3em] text-ink-500">
-                § ACCESS MANAGED BY AGENTS
+                {t.landing.accessManaged}
               </span>
             </div>
           </div>
@@ -175,10 +175,10 @@ export function LandingPage() {
             <div className="mt-4 crt-panel p-5">
               <div className="label">{t.landing.netStats}</div>
               <div className="mt-3 grid grid-cols-2 gap-3">
-                <Stat k="BETS" v="184,291" />
-                <Stat k="WAGERED" v="4.2M" />
-                <Stat k="PAYOUTS" v="4.08M" />
-                <Stat k="EDGE" v="3.2%" accent="ember" />
+                <Stat k={t.landing.netStatBets} v="184,291" />
+                <Stat k={t.landing.netStatWagered} v="4.2M" />
+                <Stat k={t.landing.netStatPayouts} v="4.08M" />
+                <Stat k={t.landing.netStatEdge} v="3.2%" accent="ember" />
               </div>
             </div>
           </div>
@@ -205,10 +205,10 @@ export function LandingPage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Feature num="01" title={t.landing.feat.f1Title} desc={t.landing.feat.f1Desc} accent="acid" />
-          <Feature num="02" title={t.landing.feat.f2Title} desc={t.landing.feat.f2Desc} accent="toxic" />
-          <Feature num="03" title={t.landing.feat.f3Title} desc={t.landing.feat.f3Desc} accent="ember" />
-          <Feature num="04" title={t.landing.feat.f4Title} desc={t.landing.feat.f4Desc} accent="ice" />
+          <Feature num="01" label={t.landing.featureLabel} title={t.landing.feat.f1Title} desc={t.landing.feat.f1Desc} accent="acid" />
+          <Feature num="02" label={t.landing.featureLabel} title={t.landing.feat.f2Title} desc={t.landing.feat.f2Desc} accent="toxic" />
+          <Feature num="03" label={t.landing.featureLabel} title={t.landing.feat.f3Title} desc={t.landing.feat.f3Desc} accent="ember" />
+          <Feature num="04" label={t.landing.featureLabel} title={t.landing.feat.f4Title} desc={t.landing.feat.f4Desc} accent="ice" />
         </div>
       </section>
 
@@ -246,11 +246,13 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'ember' }) {
 
 function Feature({
   num,
+  label,
   title,
   desc,
   accent,
 }: {
   num: string;
+  label: string;
   title: string;
   desc: string;
   accent: 'acid' | 'ember' | 'toxic' | 'ice';
@@ -265,7 +267,7 @@ function Feature({
   return (
     <div className={`crt-panel-hot p-6 ${colors}`}>
       <div className="flex items-baseline justify-between border-b border-ink-200 pb-3">
-        <div className="label">FEATURE_{num}</div>
+        <div className="label">{label}_{num}</div>
         <div className={`font-display text-4xl leading-none`}>{num}</div>
       </div>
       <h3 className="mt-4 font-serif text-2xl font-bold text-ink-900">{title}</h3>

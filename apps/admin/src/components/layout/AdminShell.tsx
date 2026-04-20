@@ -3,10 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { useTranslation } from '@/i18n/useTranslation';
 import { Sidebar } from './Sidebar';
 
 export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
   const { agent, refreshToken, logout } = useAdminAuthStore();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [time, setTime] = useState<string>(currentTime());
 
@@ -32,17 +34,17 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
         <div className="mx-auto flex max-w-[1920px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.25em]">
           <div className="flex items-center gap-6 text-ink-600">
             <span>
-              <span className="status-dot status-dot-live" /> LINK · LIVE
+              <span className="status-dot status-dot-live" /> {t.shell.linkLive}
             </span>
-            <span className="hidden md:inline">NODE 03 / OREGON-US</span>
+            <span className="hidden md:inline">{t.shell.node}</span>
             <span className="hidden lg:inline data-num text-ink-700">{time}</span>
           </div>
           <div className="flex items-center gap-4 text-ink-600">
             <span className="hidden sm:inline">
-              SESSION 0x{agent?.id.slice(-6).toUpperCase()}
+              {t.shell.session} 0x{agent?.id.slice(-6).toUpperCase()}
             </span>
             {agent?.role === 'SUPER_ADMIN' && (
-              <span className="tag tag-gold">SUPER</span>
+              <span className="tag tag-gold">{t.shell.super}</span>
             )}
           </div>
         </div>
@@ -56,35 +58,35 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
               <div className="font-display text-lg leading-none tracking-widest text-ink-900">
                 AGENT<span className="text-neon-acid">.</span>OPS
               </div>
-              <div className="label mt-1 text-[9px]">TERMINAL v0.1</div>
+              <div className="label mt-1 text-[9px]">{t.shell.terminal}</div>
             </div>
           </Link>
 
           <div className="flex items-center gap-3">
             <div className="hidden border-r border-ink-200 pr-3 text-right md:block">
-              <div className="label">OPERATOR</div>
+              <div className="label">{t.shell.operator}</div>
               <div className="mt-0.5 text-[12px] text-ink-900">
                 {agent?.displayName ?? agent?.username}
               </div>
             </div>
             <div className="flex items-center gap-3 border border-neon-acid/30 bg-neon-acid/5 px-4 py-2">
-              <span className="text-[9px] tracking-[0.3em] text-neon-acid/70">BALANCE</span>
+              <span className="text-[9px] tracking-[0.3em] text-neon-acid/70">{t.shell.balance}</span>
               <span className="data-num text-xl font-bold text-neon-acid">
                 {formatDec(agent?.balance ?? '0')}
               </span>
             </div>
             <div className="hidden border-l border-ink-200 pl-3 text-right md:block">
-              <div className="label">LVL</div>
+              <div className="label">{t.shell.level}</div>
               <div className="mt-0.5 text-[12px] text-ink-900">{agent?.level}</div>
             </div>
             <div className="hidden border-l border-ink-200 pl-3 text-right md:block">
-              <div className="label">REBATE</div>
+              <div className="label">{t.shell.rebate}</div>
               <div className="mt-0.5 text-[12px] text-neon-toxic">
                 {formatPct(agent?.rebatePercentage ?? '0')}
               </div>
             </div>
             <button type="button" onClick={handleLogout} className="btn-ghost text-[11px]">
-              [登出]
+              [{t.common.logoutBtn}]
             </button>
           </div>
         </div>

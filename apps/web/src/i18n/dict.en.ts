@@ -39,33 +39,41 @@ export const en: Dict = {
     error: 'Error',
     warn: 'Warn',
     rtp: 'RTP',
+    switchToEnglish: 'Switch to English',
+    switchToChinese: 'Switch to Chinese',
   },
 
   landing: {
     systemOnline: 'SYSTEM ONLINE',
     lastBlock: 'BLOCK HEIGHT',
-    heroLine1: 'FORTUNE IS',
-    heroLine2: 'A FUNCTION',
-    heroLine3: 'of entropy.',
+    heroLine1: 'PROVABLY FAIR,',
+    heroLine2: 'MATH-BACKED,',
+    heroLine3: 'trust-free.',
     heroDesc:
-      '18 crypto casino games. Every dice roll, every mine, every card result is determined by HMAC-SHA256. The server seed hash is published before each round and fully revealed after — players can verify fairness with pure math.',
+      '18 crypto casino games. Every dice roll, every mine, every card is determined by HMAC-SHA256. The server seed hash is published before each round and fully revealed after — you can verify fairness with pure math.',
     ctaGet: '→ GET 1,000 CREDITS',
     ctaExisting: '[EXISTING OPERATOR]',
     freeNoDeposit: 'FREE · NO DEPOSIT',
     section1: 'A casino built on cryptography.',
     liveFeed: 'LIVE FEED',
     netStats: 'NETWORK STATS / 24H',
+    netStatBets: 'BETS',
+    netStatWagered: 'WAGERED',
+    netStatPayouts: 'PAYOUTS',
+    netStatEdge: 'HOUSE EDGE',
+    accessManaged: '§ ACCESS MANAGED BY AGENTS',
     feat: {
       f1Title: 'Provably Fair',
       f1Desc:
-        'HMAC-SHA256 dual-seed commitment. Every result can be verified post-hoc. Math, not trust.',
+        'HMAC-SHA256 dual-seed commitment. Every result verifiable post-hoc. Math, not trust.',
       f2Title: 'RTP 97–99%',
       f2Desc: 'Dice 99%, Plinko 99%, Mines 97%. Industry-leading, edge only 1–3% long term.',
       f3Title: '5–30s per round',
-      f3Desc: 'Short rounds, high frequency. Hundreds of bets per hour. Max payout 1,000,000× (rare).',
+      f3Desc: 'Short rounds, high frequency. Hundreds of bets per hour. Max 1,000,000× (rare).',
       f4Title: 'Eighteen Classics',
       f4Desc: 'From Dice and Mines to Aviator, JetX, Plinko. Every crypto casino genre covered.',
     },
+    featureLabel: 'FEATURE',
     footer: '© 2026 BLOCKCHAIN.GAME · Research use · Play credits only',
     noReal: 'NO REAL MONEY · NO DEPOSIT · NO WITHDRAWAL',
     deployment: 'DEPLOYMENT 001 / APR-2026',
@@ -110,6 +118,9 @@ export const en: Dict = {
     needLetter: 'NEED ≥1 LETTER',
     needDigit: 'NEED ≥1 DIGIT',
     agreementRequired: 'AGREEMENT REQUIRED',
+    emailPlaceholder: 'operator@blockchain.game',
+    passwordPlaceholder: '••••••••••••',
+    callsignPlaceholder: 'Any nickname; shown on leaderboards.',
   },
 
   lobby: {
@@ -165,6 +176,7 @@ export const en: Dict = {
     totalNonces: 'TOTAL_NONCES',
     verifyInNode: '// VERIFY IN NODE REPL:',
     sessionId: 'SESSION_ID',
+    clientSeedPlaceholder: 'MIN 4 CHARS · EX: my_lucky_seed_42',
   },
 
   history: {
@@ -208,6 +220,9 @@ export const en: Dict = {
     start: 'START',
     starting: 'STARTING',
     insufficientBalance: 'INSUFFICIENT BALANCE OR INVALID AMOUNT',
+    roundNotAccepting: 'ROUND NOT ACCEPTING BETS',
+    placeYourBets: 'PLACE YOUR BETS',
+    waiting: 'WAITING…',
   },
 
   notFound: {
@@ -301,6 +316,7 @@ export const en: Dict = {
       clear: 'CLEAR',
       hits: 'HITS',
       draw: 'DRAW',
+      readyToDraw: 'READY · PRESS DRAW',
     },
     wheel: {
       title: 'wheel',
@@ -333,6 +349,7 @@ export const en: Dict = {
       odd: 'ODD',
       high: 'HIGH 7-12',
       col: 'COL',
+      placeYourBets: 'PLACE YOUR BETS',
     },
     plinko: {
       title: 'plinko',
@@ -363,6 +380,7 @@ export const en: Dict = {
       description:
         'Climb 9 levels. Pick a safe cell each level to boost the multiplier; hit a trap and lose it all. Cash out anytime.',
       level: 'LEVEL',
+      levelProgress: 'LEVEL {current} / {total}',
       current: 'CURRENT',
       next: 'NEXT',
       payout: 'PAYOUT',
@@ -423,6 +441,8 @@ export const en: Dict = {
       noHistory: 'NO HISTORY',
       autoCashout: 'AUTO CASHOUT @',
       seconds: 'S',
+      autoCashoutPlaceholder: 'e.g. 2.00',
+      roundNotAccepting: 'ROUND NOT ACCEPTING BETS',
     },
   },
 

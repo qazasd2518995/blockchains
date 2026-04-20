@@ -4,8 +4,10 @@ import type { AgentAnalysisResponse, AgentAnalysisRow } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, type Column } from '@/components/shared/DataTable';
+import { useTranslation } from '@/i18n/useTranslation';
 
 export function AgentAnalysisPage(): JSX.Element {
+  const { t } = useTranslation();
   const [data, setData] = useState<AgentAnalysisResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,40 +88,40 @@ export function AgentAnalysisPage(): JSX.Element {
     <div>
       <PageHeader
         section="§ OPS 05"
-        breadcrumb="REPORTS / AGENT ANALYSIS"
+        breadcrumb="报表 / 代理分析"
         title="代理分析"
-        titleSuffix="AGENT SETTLEMENT"
+        titleSuffix="代理结算"
         titleSuffixColor="amber"
         rightSlot={
           <Link to="/admin/reports" className="btn-ghost text-[11px]">
-            [← 下注记录]
+            [← 返回报表]
           </Link>
         }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2">
-          <span className="label">FROM</span>
+          <span className="label">{t.reports.from}</span>
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="term-input" />
         </label>
         <label className="flex items-center gap-2">
-          <span className="label">TO</span>
+          <span className="label">{t.reports.to}</span>
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="term-input" />
         </label>
         <label className="flex items-center gap-2">
-          <span className="label">ROOT AGENT ID</span>
-          <input type="text" value={rootAgentId} onChange={(e) => setRootAgentId(e.target.value)} placeholder="自己" className="term-input max-w-[240px]" />
+          <span className="label">{t.reports.rootAgentId}</span>
+          <input type="text" value={rootAgentId} onChange={(e) => setRootAgentId(e.target.value)} placeholder="默认为自己" className="term-input max-w-[240px]" />
         </label>
       </div>
 
       {error && (
         <div className="mb-4 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
-          ⚠ {error.toUpperCase()}
+          ⚠ {error}
         </div>
       )}
 
       {loading ? (
-        <div className="crt-panel p-8 text-center text-ink-500">Loading…</div>
+        <div className="crt-panel p-8 text-center text-ink-500">{t.common.loading}…</div>
       ) : data ? (
         <>
           <div className="mb-4 crt-panel p-4">
@@ -136,8 +138,8 @@ export function AgentAnalysisPage(): JSX.Element {
             </div>
           </div>
 
-          <div className="mb-2 label">CHILDREN</div>
-          <DataTable columns={columns} rows={data.children} rowKey={(r) => r.agentId} empty="无下级代理" />
+          <div className="mb-2 label">{t.reports.children}</div>
+          <DataTable columns={columns} rows={data.children} rowKey={(r) => r.agentId} empty="暂无下级代理" />
         </>
       ) : null}
     </div>

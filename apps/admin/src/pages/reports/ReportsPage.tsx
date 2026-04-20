@@ -100,11 +100,11 @@ export function ReportsPage(): JSX.Element {
     <div>
       <PageHeader
         section="§ OPS 05"
-        breadcrumb="REPORTS / 报表统计"
+        breadcrumb="报表统计"
         title="报表统计"
-        titleSuffix="HIERARCHICAL"
+        titleSuffix="层级下钻"
         titleSuffixColor="amber"
-        description="18 栏完整聚合报表。点代理 row 下钻，点会员 row 看下注纪录。"
+        description="18 栏完整聚合报表。点击代理行下钻，点击会员行查看下注记录。"
       />
 
       {data && (

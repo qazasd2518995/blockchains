@@ -8,6 +8,7 @@ import { CreateMemberModal } from '@/components/shared/CreateMemberModal';
 import { TransferModal } from '@/components/shared/TransferModal';
 import { AdjustBalanceModal } from '@/components/shared/AdjustBalanceModal';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
+import { useTranslation } from '@/i18n/useTranslation';
 
 /**
  * 帳號管理（混合階層）
@@ -19,6 +20,7 @@ import { useAdminAuthStore } from '@/stores/adminAuthStore';
 export function AgentHierarchyPage(): JSX.Element {
   const navigate = useNavigate();
   const { agent: me } = useAdminAuthStore();
+  const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const currentParent = params.get('parent') ?? me?.id ?? '';
 
@@ -75,7 +77,7 @@ export function AgentHierarchyPage(): JSX.Element {
     evt.stopPropagation();
     if (m.kind !== 'member') return;
     const next = m.status === 'FROZEN' ? 'ACTIVE' : 'FROZEN';
-    if (next === 'FROZEN' && !confirm('冻结此会员？冻结后将无法下注登入。')) return;
+    if (next === 'FROZEN' && !confirm(t.agents.confirmFreezeMember)) return;
     try {
       await adminApi.patch(`/members/${m.id}/status`, { status: next });
       setReloadKey((k) => k + 1);
@@ -88,7 +90,7 @@ export function AgentHierarchyPage(): JSX.Element {
     evt.stopPropagation();
     if (row.kind !== 'agent') return;
     const next = row.status === 'FROZEN' ? 'ACTIVE' : 'FROZEN';
-    if (next === 'FROZEN' && !confirm(`冻结代理 ${row.username}？下级将无法下注。`)) return;
+    if (next === 'FROZEN' && !confirm(t.agents.confirmFreezeAgentTpl.replace('{name}', row.username))) return;
     try {
       await adminApi.patch(`/agents/${row.id}/status`, { status: next });
       setReloadKey((k) => k + 1);
@@ -98,7 +100,7 @@ export function AgentHierarchyPage(): JSX.Element {
   };
 
   const handleAgentStatus = async (id: string, next: 'ACTIVE' | 'FROZEN' | 'DELETED') => {
-    if (next === 'DELETED' && !confirm('删除此代理？不可逆。')) return;
+    if (next === 'DELETED' && !confirm(t.agents.confirmDeleteAgent)) return;
     try {
       await adminApi.patch(`/agents/${id}/status`, { status: next });
       setReloadKey((k) => k + 1);
@@ -108,7 +110,7 @@ export function AgentHierarchyPage(): JSX.Element {
   };
 
   const handleMemberStatus = async (id: string, next: 'ACTIVE' | 'FROZEN') => {
-    if (next === 'FROZEN' && !confirm('冻结此会员？将无法下注登入。')) return;
+    if (next === 'FROZEN' && !confirm(t.agents.confirmFreezeMemberShort)) return;
     try {
       await adminApi.patch(`/members/${id}/status`, { status: next });
       setReloadKey((k) => k + 1);
@@ -118,19 +120,19 @@ export function AgentHierarchyPage(): JSX.Element {
   };
 
   const handleResetPassword = async (id: string, kind: 'agent' | 'member', name: string) => {
-    const pwd = prompt(`为 ${name} 设置新密码（至少 8 字，须含英数）：`);
+    const pwd = prompt(t.agents.resetPasswordPromptTpl.replace('{name}', name));
     if (!pwd) return;
     try {
       const path = kind === 'agent' ? `/agents/${id}/reset-password` : `/members/${id}/reset-password`;
       await adminApi.post(path, { newPassword: pwd });
-      alert('密码已重设');
+      alert(t.agents.passwordReset);
     } catch (e) {
       setError(extractApiError(e).message);
     }
   };
 
   const handleEditNotes = async (id: string, current: string | null) => {
-    const next = prompt('编辑备注：', current ?? '');
+    const next = prompt(t.agents.editNotesPrompt, current ?? '');
     if (next === null) return;
     try {
       await adminApi.put(`/members/${id}/notes`, { notes: next || null });
@@ -162,15 +164,15 @@ export function AgentHierarchyPage(): JSX.Element {
     <div>
       <PageHeader
         section="§ OPS 02"
-        breadcrumb="ACCOUNTS / MIXED HIERARCHY"
-        title="账号管理"
-        titleSuffix="MIXED HIERARCHY"
+        breadcrumb={t.agents.mixedHierarchyBreadcrumb}
+        title={t.agents.title}
+        titleSuffix={t.agents.mixedHierarchySuffix}
         titleSuffixColor="acid"
-        description="点击代理 row 下钻；点击会员 row 查看下注纪录。"
+        description={t.agents.description}
         rightSlot={
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => setOpenCreateMember(true)} className="btn-acid text-[11px]">
-              + 建立会员
+              + {t.agents.createMember}
             </button>
           </div>
         }
@@ -180,7 +182,9 @@ export function AgentHierarchyPage(): JSX.Element {
         <HierarchyBreadcrumb
           items={data.breadcrumb}
           onSelect={selectParent}
-          terminalLabel={`直属 ${data.stats.agentCount}代理 + ${data.stats.memberCount}会员`}
+          terminalLabel={t.agents.directSummaryTpl
+            .replace('{agents}', data.stats.agentCount.toString())
+            .replace('{members}', data.stats.memberCount.toString())}
         />
       )}
 
@@ -188,18 +192,18 @@ export function AgentHierarchyPage(): JSX.Element {
         <div className="mb-4 crt-panel scanlines p-4">
           <div className="flex flex-wrap items-baseline gap-4">
             <div>
-              <div className="label">CURRENT</div>
+              <div className="label">{t.agents.current}</div>
               <div className="mt-1 flex items-baseline gap-2 font-display text-xl text-ink-900">
                 {data.parent.username}
-                {data.parent.role === 'SUPER_ADMIN' && <span className="tag tag-gold">SUPER</span>}
-                <span className="tag tag-acid">LVL {data.parent.level}</span>
-                <span className="tag tag-acid">{data.parent.marketType}-盤</span>
+                {data.parent.role === 'SUPER_ADMIN' && <span className="tag tag-gold">{t.shell.super}</span>}
+                <span className="tag tag-acid">{t.shell.level} {data.parent.level}</span>
+                <span className="tag tag-acid">{data.parent.marketType}{t.agents.marketSuffix}</span>
               </div>
             </div>
-            <Stat k="BAL" v={fmt(data.parent.balance)} accent="acid" />
-            <Stat k="REBATE" v={pct(data.parent.rebatePercentage)} accent="toxic" />
-            <Stat k="直属代理" v={data.stats.agentCount.toString()} />
-            <Stat k="直属会员" v={data.stats.memberCount.toString()} />
+            <Stat k={t.agents.bal} v={fmt(data.parent.balance)} accent="acid" />
+            <Stat k={t.agents.rebatePct} v={pct(data.parent.rebatePercentage)} accent="toxic" />
+            <Stat k={t.agents.directAgents} v={data.stats.agentCount.toString()} />
+            <Stat k={t.agents.directMembers} v={data.stats.memberCount.toString()} />
           </div>
         </div>
       )}
@@ -209,7 +213,7 @@ export function AgentHierarchyPage(): JSX.Element {
           type="text"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder="搜寻帐号/昵称"
+          placeholder={t.agents.searchPlaceholder}
           className="term-input max-w-xs"
         />
         <select
@@ -217,35 +221,35 @@ export function AgentHierarchyPage(): JSX.Element {
           onChange={(e) => setStatus(e.target.value as typeof status)}
           className="term-input max-w-[160px]"
         >
-          <option value="">ALL STATUS</option>
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="FROZEN">FROZEN</option>
+          <option value="">{t.common.allStatus}</option>
+          <option value="ACTIVE">{t.agent.status.ACTIVE}</option>
+          <option value="FROZEN">{t.agent.status.FROZEN}</option>
         </select>
         <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="btn-ghost text-[11px]">
-          ↻ REFRESH
+          ↻ {t.common.refresh}
         </button>
       </div>
 
       {error && (
         <div className="mb-4 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
-          ⚠ {error.toUpperCase()}
+          ⚠ {error}
         </div>
       )}
 
       {loading ? (
-        <div className="crt-panel p-8 text-center text-ink-500">Loading…</div>
+        <div className="crt-panel p-8 text-center text-ink-500">{t.common.loading}…</div>
       ) : data?.items.length === 0 ? (
-        <div className="crt-panel p-8 text-center text-ink-400">— 此层级为空 —</div>
+        <div className="crt-panel p-8 text-center text-ink-400">{t.agents.emptyLevel}</div>
       ) : (
         <div className="crt-panel overflow-hidden">
           <div className="grid grid-cols-[80px_minmax(180px,1.3fr)_80px_100px_110px_110px_minmax(320px,auto)] border-b border-ink-200 bg-ink-100/40 px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-ink-500">
-            <span>TYPE</span>
-            <span>ACCOUNT</span>
-            <span className="text-right">LVL</span>
-            <span className="text-right">REBATE</span>
-            <span className="text-right">BAL</span>
-            <span className="text-center">STATUS</span>
-            <span className="text-right">ACTIONS</span>
+            <span>{t.agents.type}</span>
+            <span>{t.agents.account}</span>
+            <span className="text-right">{t.shell.level}</span>
+            <span className="text-right">{t.agents.rebatePct}</span>
+            <span className="text-right">{t.agents.bal}</span>
+            <span className="text-center">{t.common.status}</span>
+            <span className="text-right">{t.common.actions}</span>
           </div>
           {data?.items.map((row) => (
             <div
@@ -254,22 +258,22 @@ export function AgentHierarchyPage(): JSX.Element {
               className="grid cursor-pointer grid-cols-[80px_minmax(180px,1.3fr)_80px_100px_110px_110px_minmax(320px,auto)] items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition hover:bg-neon-acid/5"
             >
               {row.kind === 'agent' ? (
-                <span className="tag tag-acid">代理</span>
+                <span className="tag tag-acid">{t.agents.typeAgent}</span>
               ) : (
-                <span className="tag tag-toxic">会员</span>
+                <span className="tag tag-toxic">{t.agents.typeMember}</span>
               )}
 
               <div className="min-w-0">
                 <div className="flex items-center gap-2 font-mono text-ink-900">
                   <span className="truncate">{row.kind === 'agent' ? row.username : row.email}</span>
-                  {row.kind === 'agent' && row.role === 'SUPER_ADMIN' && <span className="tag tag-gold">SUPER</span>}
+                  {row.kind === 'agent' && row.role === 'SUPER_ADMIN' && <span className="tag tag-gold">{t.shell.super}</span>}
                 </div>
                 <div className="mt-0.5 flex gap-3 text-[10px] text-ink-500">
                   {row.displayName && <span>{row.displayName}</span>}
                   {row.kind === 'agent' && (
                     <>
-                      <span>子代理 <span className="data-num text-ink-700">{row.childCount}</span></span>
-                      <span>会员 <span className="data-num text-ink-700">{row.memberCount}</span></span>
+                      <span>{t.agents.subAgents} <span className="data-num text-ink-700">{row.childCount}</span></span>
+                      <span>{t.agents.membersLabel} <span className="data-num text-ink-700">{row.memberCount}</span></span>
                     </>
                   )}
                 </div>
@@ -284,11 +288,11 @@ export function AgentHierarchyPage(): JSX.Element {
               <span className="text-right data-num text-neon-acid">{fmt(row.balance)}</span>
               <span className="text-center">
                 {row.status === 'FROZEN' ? (
-                  <span className="tag tag-ember">FROZEN</span>
+                  <span className="tag tag-ember">{t.agent.status.FROZEN}</span>
                 ) : (
                   <span className="tag tag-toxic">
                     <span className="status-dot status-dot-live" />
-                    ACTIVE
+                    {t.agent.status.ACTIVE}
                   </span>
                 )}
               </span>
@@ -297,22 +301,22 @@ export function AgentHierarchyPage(): JSX.Element {
                 {row.kind === 'agent' ? (
                   <>
                     <button type="button" onClick={(e) => { e.stopPropagation(); selectParent(row.id); }} className="btn-chip">
-                      下级账号
+                      {t.agents.childAccounts}
                     </button>
                     <button type="button" onClick={() => navigate(`/admin/reports?parent=${row.id}`)} className="btn-chip">
-                      报表
+                      {t.agents.reports}
                     </button>
                     <button type="button" onClick={() => navigate(`/admin/audit?targetId=${row.id}`)} className="btn-chip">
-                      日志
+                      {t.agents.logs}
                     </button>
-                    <button type="button" onClick={() => alert('点数转移：请至「点数转帐」页面')} className="btn-chip">
-                      点数转移
+                    <button type="button" onClick={() => alert(t.agents.transferHint)} className="btn-chip">
+                      {t.agents.pointTransfer}
                     </button>
-                    <button type="button" onClick={() => alert('退水设定：请透过 API /agents/:id/rebate')} className="btn-chip">
-                      退水设定
+                    <button type="button" onClick={() => alert(t.agents.rebateHint)} className="btn-chip">
+                      {t.agents.rebateSetup}
                     </button>
                     <button type="button" onClick={() => handleResetPassword(row.id, 'agent', row.username)} className="btn-chip">
-                      重设密码
+                      {t.agents.resetPassword}
                     </button>
                     <StatusDropdown
                       current={row.status}
@@ -322,27 +326,27 @@ export function AgentHierarchyPage(): JSX.Element {
                 ) : (
                   <>
                     <button type="button" onClick={(e) => { e.stopPropagation(); navigate(`/admin/members/${row.id}/bets`); }} className="btn-chip">
-                      下注纪录
+                      {t.agents.betRecords}
                     </button>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); const m = asMemberForModal(row); if (m) setTransferFor(m); }}
                       className="btn-chip"
                     >
-                      点数转移
+                      {t.agents.pointTransfer}
                     </button>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); const m = asMemberForModal(row); if (m) setAdjustFor(m); }}
                       className="btn-chip"
                     >
-                      调整余额
+                      {t.agents.adjustBalance}
                     </button>
                     <button type="button" onClick={() => handleEditNotes(row.id, row.notes)} className="btn-chip">
-                      备注
+                      {t.agents.notesBtn}
                     </button>
                     <button type="button" onClick={() => handleResetPassword(row.id, 'member', row.email)} className="btn-chip">
-                      重设密码
+                      {t.agents.resetPassword}
                     </button>
                     <StatusDropdown
                       current={row.status === 'FROZEN' ? 'FROZEN' : 'ACTIVE'}
@@ -392,16 +396,17 @@ function StatusDropdown({
   onChange: (next: 'ACTIVE' | 'FROZEN' | 'DELETED') => void;
   memberOnly?: boolean;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const options: { value: 'ACTIVE' | 'FROZEN' | 'DELETED'; label: string; style: string }[] = memberOnly
     ? [
-        { value: 'ACTIVE', label: '启用', style: 'text-neon-toxic' },
-        { value: 'FROZEN', label: '冻结', style: 'text-neon-ember' },
+        { value: 'ACTIVE', label: t.agents.enable, style: 'text-neon-toxic' },
+        { value: 'FROZEN', label: t.agents.freezeAction, style: 'text-neon-ember' },
       ]
     : [
-        { value: 'ACTIVE', label: '启用', style: 'text-neon-toxic' },
-        { value: 'FROZEN', label: '冻结', style: 'text-neon-ember' },
-        { value: 'DELETED', label: '删除', style: 'text-neon-ember font-bold' },
+        { value: 'ACTIVE', label: t.agents.enable, style: 'text-neon-toxic' },
+        { value: 'FROZEN', label: t.agents.freezeAction, style: 'text-neon-ember' },
+        { value: 'DELETED', label: t.agents.deleteAction, style: 'text-neon-ember font-bold' },
       ];
   return (
     <div className="relative">
@@ -413,7 +418,7 @@ function StatusDropdown({
         }}
         className="btn-chip"
       >
-        状态 ▾
+        {t.agents.statusMenu} ▾
       </button>
       {open && (
         <>

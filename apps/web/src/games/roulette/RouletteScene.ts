@@ -75,7 +75,15 @@ export class RouletteScene {
   private shaker: ShakeController | null = null;
   private poolTicker: ((tk: Ticker) => void) | null = null;
 
-  async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
+  private statusText = 'PLACE YOUR BETS';
+
+  async init(
+    canvas: HTMLCanvasElement,
+    width: number,
+    height: number,
+    opts?: { statusText?: string },
+  ): Promise<void> {
+    if (opts?.statusText) this.statusText = opts.statusText;
     this.width = width;
     this.height = height;
     this.cx = width / 2;
@@ -320,7 +328,7 @@ export class RouletteScene {
       fontWeight: '600',
       letterSpacing: 4,
     });
-    const label = new Text({ text: 'PLACE YOUR BETS', style });
+    const label = new Text({ text: this.statusText, style });
     label.anchor.set(0.5);
     label.x = this.cx;
     label.y = this.cy + this.outerRadius + 60;
@@ -578,7 +586,7 @@ export class RouletteScene {
 
   reset(): void {
     if (this.statusLabel) {
-      this.statusLabel.text = 'PLACE YOUR BETS';
+      this.statusLabel.text = this.statusText;
       this.statusLabel.style.fill = COLOR_INK;
     }
     // 珠子回到初始位置
