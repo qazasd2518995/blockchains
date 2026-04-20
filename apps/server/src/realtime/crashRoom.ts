@@ -71,16 +71,40 @@ export class CrashRoom {
     this.pendingAutoCashouts.clear();
     this.bettingEndsAt = Date.now() + BETTING_WINDOW_MS;
 
-    const round = await this.prisma.crashRound.create({
-      data: {
-        gameId: this.config.gameId,
-        roundNumber: this.roundNumber,
-        serverSeedHash: this.currentSeedHash,
-        crashPoint: new Prisma.Decimal(this.currentCrashPoint.toFixed(4)),
-        status: 'BETTING',
-        bettingEndsAt: new Date(this.bettingEndsAt),
-      },
-    });
+    // 遇到 unique 衝突（多實例 race / stale in-memory counter）時遞增重試
+    let round: { id: string } | null = null;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        round = await this.prisma.crashRound.create({
+          data: {
+            gameId: this.config.gameId,
+            roundNumber: this.roundNumber,
+            serverSeedHash: this.currentSeedHash,
+            crashPoint: new Prisma.Decimal(this.currentCrashPoint.toFixed(4)),
+            status: 'BETTING',
+            bettingEndsAt: new Date(this.bettingEndsAt),
+          },
+        });
+        break;
+      } catch (err) {
+        const code = (err as { code?: string })?.code;
+        if (code === 'P2002') {
+          // 先抓 DB 最大值重設 counter
+          const max = await this.prisma.crashRound.findFirst({
+            where: { gameId: this.config.gameId },
+            orderBy: { roundNumber: 'desc' },
+            select: { roundNumber: true },
+          });
+          this.roundNumber = (max?.roundNumber ?? this.roundNumber) + 1;
+          this.currentCrashPoint = crashPoint(seed, `${this.config.gameId}:${this.roundNumber}`);
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (!round) {
+      throw new Error(`[crashRoom] failed to create round after 5 retries (gameId=${this.config.gameId})`);
+    }
     this.currentRoundId = round.id;
 
     this.broadcast('round:betting', this.snapshot());
