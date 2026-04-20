@@ -3,19 +3,24 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./dto/*": "./src/dto/*.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
   "scripts": {
+    "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "echo \"(shared lint skipped)\"",
     "test": "echo \"(shared has no tests)\""
   },
-  "devDependencies": {
-    "@bg/tsconfig": "workspace:*",
+  "dependencies": {
     "typescript": "^5.5.0"
+  },
+  "devDependencies": {
+    "@bg/tsconfig": "workspace:*"
   }
 }

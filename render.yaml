@@ -27,6 +27,8 @@ services:
       corepack enable
       corepack prepare pnpm@9.15.4 --activate
       pnpm install --frozen-lockfile --prod=false
+      pnpm --filter @bg/shared run build
+      pnpm --filter @bg/provably-fair run build
       pnpm --filter @bg/server exec prisma generate
       pnpm --filter @bg/server run build
     startCommand: pnpm --filter @bg/server start
