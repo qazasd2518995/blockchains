@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "description": "加密博彩遊戲平台（假幣點數）- 研究與技術學習用途",
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@9.15.4",
   "engines": {
     "node": ">=20",
     "pnpm": ">=9"

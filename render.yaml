@@ -25,9 +25,10 @@ services:
     region: oregon               # DB 同 region
     buildCommand: |
       corepack enable
+      corepack prepare pnpm@9.15.4 --activate
       pnpm install --frozen-lockfile
-      pnpm --filter @bg/server prisma generate
-      pnpm --filter @bg/server build
+      pnpm --filter @bg/server exec prisma generate
+      pnpm --filter @bg/server run build
     startCommand: pnpm --filter @bg/server start
     healthCheckPath: /api/health
     envVars:
@@ -66,8 +67,9 @@ services:
     runtime: static
     buildCommand: |
       corepack enable
+      corepack prepare pnpm@9.15.4 --activate
       pnpm install --frozen-lockfile
-      pnpm --filter @bg/web build
+      pnpm --filter @bg/web run build
     staticPublishPath: apps/web/dist
     pullRequestPreviewsEnabled: false
     routes:
@@ -88,8 +90,9 @@ services:
     runtime: static
     buildCommand: |
       corepack enable
+      corepack prepare pnpm@9.15.4 --activate
       pnpm install --frozen-lockfile
-      pnpm --filter @bg/admin build
+      pnpm --filter @bg/admin run build
     staticPublishPath: apps/admin/dist
     pullRequestPreviewsEnabled: false
     routes:
