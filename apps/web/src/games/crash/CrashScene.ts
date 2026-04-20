@@ -19,14 +19,14 @@ import {
   prewarmShaders,
 } from '@bg/game-engine';
 
-const COLOR_BG_A = 0x1a1f35;
-const COLOR_BG_B = 0x0b0f1e;
-const COLOR_ACID = 0x5b4df8;
-const COLOR_VIOLET = 0x9b6cff;
-const COLOR_EMBER = 0xff3b7f;
-const COLOR_TOXIC = 0x00d68f;
-const COLOR_ICE = 0x00b8e6;
-const COLOR_AMBER = 0xffb020;
+const COLOR_BG_A = 0x0C4632;
+const COLOR_BG_B = 0x0A0806;
+const COLOR_ACID = 0xC9A24C;
+const COLOR_VIOLET = 0xE0BF6E;
+const COLOR_EMBER = 0x8B1A2A;
+const COLOR_TOXIC = 0x1E7A4F;
+const COLOR_ICE = 0x86B49C;
+const COLOR_AMBER = 0xC9A24C;
 const COLOR_WHITE = 0xffffff;
 
 export type CrashVariant = 'rocket' | 'aviator' | 'balloon' | 'jet' | 'fleet' | 'default';
@@ -251,7 +251,7 @@ export class CrashScene {
       this.app.stage.addChild(line);
 
       const style = new TextStyle({
-        fontFamily: 'JetBrains Mono, monospace',
+        fontFamily: 'IBM Plex Mono, monospace',
         fontSize: 11,
         fill: COLOR_ACID,
         fontWeight: '500',
@@ -379,7 +379,7 @@ export class CrashScene {
     if (!this.app) return;
     // 主倍率數字
     const style = new TextStyle({
-      fontFamily: 'Orbitron, Chakra Petch, sans-serif',
+      fontFamily: 'Bodoni Moda, Didot, serif',
       fontSize: Math.round(this.height * 0.32),
       fontWeight: '400',
       fill: COLOR_WHITE,
@@ -396,7 +396,7 @@ export class CrashScene {
 
     // 狀態 / 倒數文字
     const statusStyle = new TextStyle({
-      fontFamily: 'JetBrains Mono, monospace',
+      fontFamily: 'IBM Plex Mono, monospace',
       fontSize: Math.round(this.height * 0.05),
       fontWeight: '600',
       fill: COLOR_ACID,

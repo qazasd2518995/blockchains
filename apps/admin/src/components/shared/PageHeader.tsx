@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
 interface Props {
-  section: string;            // e.g. "§ OPS 01"
-  breadcrumb: string;         // e.g. "DASHBOARD"
+  section: string;
+  breadcrumb: string;
   title: string;
   titleSuffix?: string;
   titleSuffixColor?: 'acid' | 'ember' | 'toxic' | 'amber';
@@ -11,10 +11,10 @@ interface Props {
 }
 
 const suffixMap: Record<NonNullable<Props['titleSuffixColor']>, string> = {
-  acid: 'text-neon-acid',
-  ember: 'text-neon-ember',
-  toxic: 'text-neon-toxic',
-  amber: 'text-neon-amber',
+  acid: 'text-brass-700',
+  ember: 'text-wine-500',
+  toxic: 'text-win',
+  amber: 'text-brass-600',
 };
 
 export function PageHeader({
@@ -27,21 +27,27 @@ export function PageHeader({
   rightSlot,
 }: Props): JSX.Element {
   return (
-    <header className="mb-6 border-b border-ink-200 pb-5">
-      <div className="flex items-center justify-between text-[10px] tracking-[0.3em] text-ink-500">
-        <div className="flex items-center gap-3">
-          <span>{section}</span>
-          <span>/</span>
-          <span className="text-ink-700">{breadcrumb}</span>
+    <header className="mb-7 border-b border-brass-500/40 pb-5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.3em] text-ivory-600">
+          <span className="font-script text-sm normal-case tracking-normal text-brass-700">
+            {section}
+          </span>
+          <span className="text-brass-500">◆</span>
+          <span className="text-ivory-800">{breadcrumb}</span>
         </div>
         {rightSlot}
       </div>
-      <h1 className="mt-3 font-display text-4xl font-extrabold tracking-wide text-ink-900">
+      <h1 className="mt-4 font-serif text-4xl leading-[1.05] tracking-tight text-ivory-950">
         {title}
-        {titleSuffix && <span className={`ml-3 ${suffixMap[titleSuffixColor]}`}>{titleSuffix}</span>}
+        {titleSuffix && (
+          <span className={`ml-3 italic ${suffixMap[titleSuffixColor]}`}>{titleSuffix}</span>
+        )}
       </h1>
       {description && (
-        <p className="mt-2 max-w-3xl font-mono text-[12px] text-ink-600">{description}</p>
+        <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-ivory-700">
+          {description}
+        </p>
       )}
     </header>
   );

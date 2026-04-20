@@ -25,19 +25,27 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center px-4 py-8">
-      <div className="absolute inset-0 bg-ink-900/60 backdrop-blur" onClick={onClose} />
-      <div className={`relative w-full ${widthMap[width]} crt-panel scanlines p-0`}>
-        <div className="flex items-center justify-between border-b border-ink-200 px-6 py-4">
+      <div
+        className="absolute inset-0 bg-felt-900/70 backdrop-blur"
+        onClick={onClose}
+      />
+      <div className={`relative w-full ${widthMap[width]} panel-salon scanlines p-0`}>
+        <div className="flex items-center justify-between border-b border-brass-500/40 px-6 py-4">
           <div>
-            <div className="label">§ {title}</div>
-            {subtitle && <div className="mt-1 font-display text-xl text-ink-900">{subtitle}</div>}
+            <div className="flex items-baseline gap-2">
+              <span className="font-script text-base text-brass-700">{title}</span>
+              <span className="text-brass-500 text-xs">◆</span>
+            </div>
+            {subtitle && (
+              <div className="mt-1 font-serif text-2xl text-ivory-950">{subtitle}</div>
+            )}
           </div>
           <button type="button" onClick={onClose} className="btn-ghost text-[11px]">
             [ESC]
           </button>
         </div>
         <div className="px-6 py-5">{children}</div>
-        {footer && <div className="border-t border-ink-200 px-6 py-3">{footer}</div>}
+        {footer && <div className="border-t border-brass-500/25 px-6 py-3">{footer}</div>}
       </div>
     </div>
   );

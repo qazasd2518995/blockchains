@@ -2,21 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================================================
+   The Gilded Salon — 全域樣式
+   Palette: ivory / felt / brass / wine / ink
+   Type:    Bodoni Moda · Inter Tight · IBM Plex Mono · Italiana
+   ========================================================================= */
+
+/* ---------- 遊戲內殘留 keyframe（保留色調替換） ---------- */
 @keyframes reelBlur {
   0%, 100% { transform: translateY(-2px); filter: blur(2px); }
   50% { transform: translateY(2px); filter: blur(3px); }
 }
-
 @keyframes reelStop {
   0% { transform: translateY(-14px); }
   60% { transform: translateY(5px); }
   80% { transform: translateY(-2px); }
   100% { transform: translateY(0); }
 }
-
 @keyframes rowGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(91, 77, 248, 0); }
-  50% { box-shadow: 0 0 20px 4px rgba(91, 77, 248, 0.4); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 162, 76, 0); }
+  50% { box-shadow: 0 0 20px 4px rgba(201, 162, 76, 0.45); }
 }
 
 @layer base {
@@ -27,99 +32,166 @@
   }
 
   html {
-    background: #f7f9ff;
+    background: #FBF9F4;
   }
 
   body {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-feature-settings: 'ss02', 'ss03', 'tnum';
-    color: #2e3650;
+    font-family: 'Inter Tight', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: 'ss01', 'cv11';
+    color: #1A1510;
     background:
-      radial-gradient(ellipse 60% 40% at 20% 0%, rgba(91, 77, 248, 0.14), transparent 50%),
-      radial-gradient(ellipse 50% 35% at 90% 20%, rgba(0, 214, 143, 0.1), transparent 50%),
-      radial-gradient(ellipse 55% 40% at 50% 100%, rgba(155, 108, 255, 0.1), transparent 55%),
-      linear-gradient(180deg, #f7f9ff 0%, #eef2fb 100%);
+      radial-gradient(ellipse 900px 420px at 50% -5%, rgba(224, 191, 110, 0.22) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 10% 110%, rgba(12, 70, 50, 0.08), transparent 60%),
+      radial-gradient(ellipse 50% 35% at 95% 80%, rgba(107, 15, 26, 0.06), transparent 60%),
+      linear-gradient(180deg, #FFFDF8 0%, #FBF9F4 55%, #F6EFE0 100%);
     background-attachment: fixed;
     min-height: 100vh;
     position: relative;
     overflow-x: hidden;
   }
 
-  /* Dot pattern overlay（電玩科技格點感） */
+  /* 大理石細紋 overlay */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background-image: radial-gradient(circle, rgba(91, 77, 248, 0.08) 1px, transparent 1.5px);
-    background-size: 28px 28px;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(201, 162, 76, 0.035) 0%, transparent 45%),
+      radial-gradient(circle at 80% 70%, rgba(10, 8, 6, 0.03) 0%, transparent 40%),
+      repeating-linear-gradient(
+        28deg,
+        transparent 0,
+        transparent 120px,
+        rgba(201, 162, 76, 0.025) 121px,
+        transparent 122px,
+        transparent 300px
+      );
     pointer-events: none;
     z-index: 1;
-    mask-image: radial-gradient(ellipse 100% 80% at 50% 50%, black 30%, transparent 85%);
   }
 
-  h1,
-  h2,
-  h3,
-  h4 {
-    font-family: 'Orbitron', 'Chakra Petch', sans-serif;
-    letter-spacing: 0.02em;
+  h1, h2, h3, h4 {
+    font-family: 'Bodoni Moda', Didot, 'Playfair Display', serif;
+    letter-spacing: 0.005em;
     font-weight: 700;
-    color: #0b0f1e;
-    text-transform: uppercase;
+    color: #0A0806;
   }
 
   .font-display {
-    font-family: 'Orbitron', 'Chakra Petch', sans-serif;
-    letter-spacing: 0.05em;
+    font-family: 'Bodoni Moda', Didot, serif;
+    letter-spacing: 0.01em;
     font-weight: 700;
-    text-transform: uppercase;
+  }
+
+  .font-serif {
+    font-family: 'Bodoni Moda', Didot, 'Playfair Display', serif;
   }
 
   .font-hud {
-    font-family: 'Chakra Petch', 'Rajdhani', sans-serif;
-    letter-spacing: 0.03em;
+    font-family: 'Inter Tight', ui-sans-serif, system-ui;
+    letter-spacing: 0.12em;
     font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .font-script {
+    font-family: 'Italiana', 'Bodoni Moda', serif;
+    letter-spacing: 0.02em;
+    font-weight: 400;
+  }
+
+  .font-mono {
+    font-family: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+    font-feature-settings: 'tnum', 'zero';
   }
 
   ::selection {
-    background: #5b4df8;
-    color: #ffffff;
+    background: #C9A24C;
+    color: #0A0806;
   }
 }
 
+/* =========================================================================
+   Components
+   ========================================================================= */
 @layer components {
-  /* 卡片系統 —— 圓角 / 玻璃擬態 / 柔和陰影 */
-  .crt-panel {
+
+  /* ---------- 面板 Panel ---------- */
+
+  /* 象牙白卡片 — 雙線黃銅框 */
+  .panel-salon {
     position: relative;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(247, 249, 255, 0.85) 100%);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(91, 77, 248, 0.1);
-    border-radius: 16px;
+    background: linear-gradient(180deg, #FFFDF8 0%, #FBF9F4 100%);
+    border-radius: 4px;
     box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.9) inset,
-      0 2px 8px -2px rgba(11, 15, 30, 0.06),
-      0 12px 32px -16px rgba(91, 77, 248, 0.15);
+      0 0 0 1px #8A6B2A,
+      0 0 0 3px #FBF9F4,
+      0 0 0 4px #C9A24C,
+      0 14px 30px -10px rgba(10, 8, 6, 0.18),
+      0 4px 12px -4px rgba(201, 162, 76, 0.14);
+  }
+  .panel-salon-soft {
+    position: relative;
+    background: linear-gradient(180deg, #FFFDF8 0%, #F6EFE0 100%);
+    border-radius: 4px;
+    border: 1px solid rgba(201, 162, 76, 0.35);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 253, 248, 0.8),
+      0 8px 20px -10px rgba(10, 8, 6, 0.14);
   }
 
-  /* 強調卡片（hover 發光） */
-  .crt-panel-hot {
+  /* 綠絨面板（牌桌） */
+  .panel-felt {
     position: relative;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 249, 255, 0.9) 100%);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(91, 77, 248, 0.2);
-    border-radius: 16px;
-    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .crt-panel-hot:hover {
-    border-color: rgba(91, 77, 248, 0.5);
+    background:
+      radial-gradient(circle at 30% 20%, rgba(255, 253, 248, 0.03) 2px, transparent 2.5px),
+      radial-gradient(circle at 70% 60%, rgba(255, 253, 248, 0.02) 1.5px, transparent 2px),
+      radial-gradient(ellipse at center, #14563E 0%, #0C4632 45%, #073026 100%);
+    background-size: 24px 24px, 30px 30px, 100% 100%;
+    border-radius: 4px;
+    color: #F6EFE0;
     box-shadow:
-      0 0 0 3px rgba(91, 77, 248, 0.1),
-      0 20px 48px -16px rgba(91, 77, 248, 0.35);
+      0 0 0 1px #8A6B2A,
+      0 0 0 3px #0C4632,
+      0 0 0 4px #C9A24C,
+      0 20px 40px -12px rgba(10, 8, 6, 0.45),
+      inset 0 2px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Hover 強化版 */
+  .panel-salon-hot,
+  .panel-felt-hot {
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .panel-salon-hot:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 0 0 1px #8A6B2A,
+      0 0 0 3px #FBF9F4,
+      0 0 0 4px #E0BF6E,
+      0 20px 40px -12px rgba(10, 8, 6, 0.28),
+      0 8px 20px -4px rgba(201, 162, 76, 0.28);
+  }
+  .panel-felt-hot:hover {
     transform: translateY(-3px);
+    box-shadow:
+      0 0 0 1px #8A6B2A,
+      0 0 0 3px #0C4632,
+      0 0 0 4px #E0BF6E,
+      0 28px 52px -14px rgba(10, 8, 6, 0.55),
+      inset 0 2px 18px rgba(0, 0, 0, 0.35),
+      0 0 60px -8px rgba(224, 191, 110, 0.35);
   }
 
-  /* 掃描線效果（輕量，可選） */
+  /* ---------- 舊名相容（暫保留，漸次移除） ---------- */
+  .crt-panel {
+    @apply panel-salon;
+  }
+  .crt-panel-hot {
+    @apply panel-salon panel-salon-hot;
+  }
+
+  /* ---------- 光澤 scanlines（改為黃銅細線掠過） ---------- */
   .scanlines {
     position: relative;
     overflow: hidden;
@@ -129,243 +201,377 @@
     position: absolute;
     inset: 0;
     background: linear-gradient(
-      120deg,
+      115deg,
       transparent 0%,
-      transparent 45%,
-      rgba(91, 77, 248, 0.04) 50%,
-      transparent 55%,
+      transparent 42%,
+      rgba(224, 191, 110, 0.12) 48%,
+      rgba(224, 191, 110, 0.18) 50%,
+      rgba(224, 191, 110, 0.12) 52%,
+      transparent 58%,
       transparent 100%
     );
-    background-size: 200% 100%;
-    animation: shimmer 6s linear infinite;
+    background-size: 220% 100%;
+    animation: brass-shimmer 8s linear infinite;
     pointer-events: none;
     z-index: 1;
+    mix-blend-mode: overlay;
   }
 
-  /* 主按鈕：紫色漸層 + 圓角 + glow */
-  .btn-acid {
+  /* ---------- 按鈕 Buttons ---------- */
+
+  /* 主按鈕：黃銅漸層 */
+  .btn-brass {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     padding: 0.875rem 1.75rem;
-    background: linear-gradient(135deg, #5b4df8 0%, #9b6cff 100%);
-    color: #ffffff;
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 700;
+    background: linear-gradient(135deg, #E0BF6E 0%, #C9A24C 45%, #8A6B2A 100%);
+    color: #0A0806;
+    font-family: 'Bodoni Moda', Didot, serif;
+    font-weight: 600;
     font-size: 0.875rem;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
     border: none;
-    border-radius: 12px;
+    border-radius: 3px;
     box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.3) inset,
-      0 8px 20px -6px rgba(91, 77, 248, 0.5),
-      0 2px 6px -2px rgba(91, 77, 248, 0.3);
+      inset 0 1px 0 0 rgba(255, 253, 248, 0.45),
+      inset 0 -1px 0 0 rgba(10, 8, 6, 0.18),
+      0 0 0 1px #8A6B2A,
+      0 8px 18px -6px rgba(201, 162, 76, 0.55),
+      0 2px 4px -1px rgba(10, 8, 6, 0.2);
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
     position: relative;
     overflow: hidden;
   }
-  .btn-acid::before {
+  .btn-brass::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.25) 50%, transparent 70%);
-    transform: translateX(-100%);
-    transition: transform 0.6s;
+    background: linear-gradient(
+      120deg,
+      transparent 30%,
+      rgba(255, 253, 248, 0.6) 50%,
+      transparent 70%
+    );
+    transform: translateX(-120%);
+    transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
   }
-  .btn-acid:hover:not(:disabled) {
-    transform: translateY(-2px);
+  .btn-brass:hover:not(:disabled) {
+    transform: translateY(-1px);
     box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.3) inset,
-      0 12px 28px -6px rgba(91, 77, 248, 0.55),
-      0 4px 10px -2px rgba(91, 77, 248, 0.35);
+      inset 0 1px 0 0 rgba(255, 253, 248, 0.55),
+      inset 0 -1px 0 0 rgba(10, 8, 6, 0.18),
+      0 0 0 1px #8A6B2A,
+      0 14px 26px -6px rgba(201, 162, 76, 0.6),
+      0 4px 8px -2px rgba(10, 8, 6, 0.22);
   }
-  .btn-acid:hover:not(:disabled)::before {
-    transform: translateX(100%);
+  .btn-brass:hover:not(:disabled)::before {
+    transform: translateX(120%);
   }
-  .btn-acid:active:not(:disabled) {
+  .btn-brass:active:not(:disabled) {
     transform: translateY(0);
   }
-  .btn-acid:disabled {
-    background: linear-gradient(135deg, #b8c2d9 0%, #dde4f3 100%);
-    color: #7a85a3;
+  .btn-brass:disabled {
+    background: linear-gradient(135deg, #EEE4CC 0%, #DCD0B3 100%);
+    color: #8A7F6E;
     cursor: not-allowed;
-    box-shadow: 0 1px 2px 0 rgba(11, 15, 30, 0.04);
+    box-shadow: 0 0 0 1px rgba(138, 127, 110, 0.3);
   }
 
+  /* 次要：牌桌綠按鈕 */
+  .btn-felt {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    background: linear-gradient(180deg, #14563E 0%, #0C4632 100%);
+    color: #F6EFE0;
+    font-family: 'Bodoni Moda', Didot, serif;
+    font-weight: 500;
+    font-size: 0.875rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 3px;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 253, 248, 0.12),
+      0 0 0 1px #C9A24C,
+      0 8px 18px -6px rgba(12, 70, 50, 0.55);
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .btn-felt:hover:not(:disabled) {
+    background: linear-gradient(180deg, #1E6B4A 0%, #14563E 100%);
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 253, 248, 0.14),
+      0 0 0 1px #E0BF6E,
+      0 14px 26px -6px rgba(12, 70, 50, 0.6);
+  }
+  .btn-felt:active:not(:disabled) { transform: translateY(0); }
+  .btn-felt:disabled {
+    background: linear-gradient(180deg, #3A4A40 0%, #2A362F 100%);
+    color: #8A7F6E;
+    cursor: not-allowed;
+  }
+
+  /* 深 bordeaux 警示按鈕 */
+  .btn-wine {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    background: linear-gradient(135deg, #8B1A2A 0%, #6B0F1A 55%, #40080F 100%);
+    color: #F6EFE0;
+    font-family: 'Bodoni Moda', Didot, serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 3px;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 253, 248, 0.18),
+      0 0 0 1px #C9A24C,
+      0 8px 18px -6px rgba(107, 15, 26, 0.6);
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .btn-wine:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 253, 248, 0.2),
+      0 0 0 1px #E0BF6E,
+      0 14px 26px -6px rgba(107, 15, 26, 0.65);
+  }
+
+  /* Ghost：象牙底金邊 */
   .btn-ghost {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     padding: 0.75rem 1.25rem;
-    background: rgba(255, 255, 255, 0.6);
-    color: #2e3650;
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 600;
+    background: rgba(255, 253, 248, 0.7);
+    color: #1A1510;
+    font-family: 'Bodoni Moda', Didot, serif;
+    font-weight: 500;
     font-size: 0.8125rem;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     white-space: nowrap;
-    border: 1px solid rgba(91, 77, 248, 0.2);
-    border-radius: 12px;
+    border: 1px solid rgba(201, 162, 76, 0.55);
+    border-radius: 3px;
     cursor: pointer;
     transition: all 0.2s;
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(6px);
   }
   .btn-ghost:hover:not(:disabled) {
-    background: rgba(91, 77, 248, 0.08);
-    border-color: rgba(91, 77, 248, 0.5);
-    color: #5b4df8;
+    background: rgba(246, 239, 224, 0.9);
+    border-color: #C9A24C;
+    color: #8A6B2A;
     transform: translateY(-1px);
   }
 
-  /* 小型 action 按鈕（表格列內的 [下注] [转帐] 等） */
+  /* Chip：表格內小按鈕 */
   .btn-chip {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.25rem 0.625rem;
-    background: rgba(255, 255, 255, 0.6);
-    color: #2e3650;
-    font-family: 'JetBrains Mono', monospace;
+    padding: 0.3rem 0.7rem;
+    background: rgba(255, 253, 248, 0.6);
+    color: #3A332B;
+    font-family: 'Inter Tight', ui-sans-serif;
     font-weight: 600;
     font-size: 0.6875rem;
     letter-spacing: 0.08em;
     white-space: nowrap;
     line-height: 1.3;
-    border: 1px solid rgba(91, 77, 248, 0.2);
-    border-radius: 6px;
+    border: 1px solid rgba(201, 162, 76, 0.45);
+    border-radius: 2px;
     cursor: pointer;
     transition: all 0.15s;
   }
   .btn-chip:hover:not(:disabled) {
-    background: rgba(91, 77, 248, 0.08);
-    border-color: rgba(91, 77, 248, 0.5);
-    color: #5b4df8;
+    background: rgba(246, 232, 184, 0.5);
+    border-color: #C9A24C;
+    color: #8A6B2A;
   }
   .btn-chip.danger {
-    color: #ff3b7f;
-    border-color: rgba(255, 59, 127, 0.3);
+    color: #8B1A2A;
+    border-color: rgba(139, 26, 42, 0.45);
   }
   .btn-chip.danger:hover:not(:disabled) {
-    background: rgba(255, 59, 127, 0.08);
-    border-color: rgba(255, 59, 127, 0.6);
+    background: rgba(139, 26, 42, 0.08);
+    border-color: #8B1A2A;
   }
   .btn-chip.success {
-    color: #00a86f;
-    border-color: rgba(0, 214, 143, 0.3);
+    color: #1E7A4F;
+    border-color: rgba(30, 122, 79, 0.45);
+  }
+  .btn-chip.success:hover:not(:disabled) {
+    background: rgba(30, 122, 79, 0.08);
+    border-color: #1E7A4F;
   }
 
-  .btn-ember {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.875rem 1.75rem;
-    background: linear-gradient(135deg, #ff3b7f 0%, #ff4e6c 100%);
-    color: #ffffff;
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 700;
-    font-size: 0.875rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    border: none;
-    border-radius: 12px;
-    box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.3) inset,
-      0 8px 20px -6px rgba(255, 59, 127, 0.5);
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .btn-ember:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.3) inset,
-      0 12px 28px -6px rgba(255, 59, 127, 0.55);
-  }
-  .btn-ember:active:not(:disabled) {
-    transform: translateY(0);
-  }
+  /* 舊名相容 —— 將既有 .btn-acid / .btn-ember 轉發到新色系 */
+  .btn-acid { @apply btn-brass; }
+  .btn-ember { @apply btn-wine; }
 
-  /* Input：白底 + 紫色 focus ring */
+  /* ---------- Input ---------- */
+  .input-salon,
   .term-input {
     width: 100%;
-    padding: 0.875rem 1rem;
-    background: #ffffff;
-    border: 1px solid rgba(91, 77, 248, 0.15);
-    color: #0b0f1e;
-    font-family: 'JetBrains Mono', monospace;
+    padding: 0.8rem 1rem;
+    background: #FFFDF8;
+    border: 1px solid rgba(138, 107, 42, 0.5);
+    color: #0A0806;
+    font-family: 'IBM Plex Mono', monospace;
     font-size: 0.9375rem;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
     outline: none;
-    border-radius: 10px;
+    border-radius: 2px;
     transition: all 0.2s;
+    box-shadow:
+      inset 0 1px 0 0 rgba(10, 8, 6, 0.06),
+      inset 0 0 0 1px rgba(255, 253, 248, 0.6);
   }
+  .input-salon:focus,
   .term-input:focus {
-    border-color: #5b4df8;
-    box-shadow: 0 0 0 4px rgba(91, 77, 248, 0.12);
+    border-color: #C9A24C;
+    box-shadow:
+      inset 0 1px 0 0 rgba(10, 8, 6, 0.06),
+      0 0 0 3px rgba(201, 162, 76, 0.28);
   }
+  .input-salon::placeholder,
   .term-input::placeholder {
-    color: #b8c2d9;
+    color: #B8AC8E;
+    font-style: italic;
   }
 
-  /* Tag */
+  /* ---------- Tag / Seal 蠟封 ---------- */
+
+  /* 基礎 tag — 改金邊象牙底 */
   .tag {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    padding: 0.3125rem 0.75rem;
-    background: rgba(91, 77, 248, 0.06);
-    border: 1px solid rgba(91, 77, 248, 0.18);
-    color: #515c7a;
-    font-family: 'JetBrains Mono', monospace;
+    padding: 0.3rem 0.75rem;
+    background: rgba(246, 239, 224, 0.85);
+    border: 1px solid rgba(201, 162, 76, 0.55);
+    color: #5A4F3D;
+    font-family: 'Inter Tight', ui-sans-serif;
     font-size: 0.6875rem;
     font-weight: 600;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
-    border-radius: 9999px;
+    border-radius: 2px;
   }
+  .tag-brass,
   .tag-acid {
-    background: rgba(91, 77, 248, 0.1);
-    border-color: rgba(91, 77, 248, 0.35);
-    color: #5b4df8;
+    background: linear-gradient(180deg, #F6E8B8 0%, #E0BF6E 100%);
+    border-color: #8A6B2A;
+    color: #3A2D12;
   }
+  .tag-wine,
   .tag-ember {
-    background: rgba(255, 59, 127, 0.1);
-    border-color: rgba(255, 59, 127, 0.35);
-    color: #ff3b7f;
+    background: linear-gradient(180deg, #A73A4A 0%, #6B0F1A 100%);
+    border-color: #C9A24C;
+    color: #F6EFE0;
   }
+  .tag-felt,
   .tag-toxic {
-    background: rgba(0, 214, 143, 0.1);
-    border-color: rgba(0, 214, 143, 0.35);
-    color: #00a86f;
+    background: linear-gradient(180deg, #26704F 0%, #14563E 100%);
+    border-color: #C9A24C;
+    color: #F6EFE0;
   }
   .tag-gold {
-    background: rgba(255, 176, 32, 0.12);
-    border-color: rgba(255, 176, 32, 0.35);
-    color: #d98e00;
+    background: linear-gradient(180deg, #E0BF6E 0%, #8A6B2A 100%);
+    border-color: #5E491C;
+    color: #FBF9F4;
+    text-shadow: 0 1px 0 rgba(10, 8, 6, 0.2);
   }
 
-  /* 大數字：加 gradient text 強化電玩感 */
+  /* Wax Seal — 蠟封封印 */
+  .seal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-family: 'Bodoni Moda', Didot, serif;
+    font-weight: 700;
+    font-size: 0.625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    position: relative;
+    box-shadow:
+      inset 0 2px 4px rgba(255, 253, 248, 0.3),
+      inset 0 -2px 6px rgba(10, 8, 6, 0.35),
+      0 4px 10px -2px rgba(10, 8, 6, 0.3);
+    transition: transform 0.3s;
+  }
+  .seal::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    opacity: 0.55;
+  }
+  .seal-vip {
+    background: radial-gradient(circle at 30% 25%, #A73A4A 0%, #6B0F1A 60%, #40080F 100%);
+    color: #E0BF6E;
+  }
+  .seal-live {
+    background: radial-gradient(circle at 30% 25%, #26704F 0%, #14563E 60%, #073026 100%);
+    color: #E0BF6E;
+  }
+  .seal-win {
+    background: radial-gradient(circle at 30% 25%, #E0BF6E 0%, #C9A24C 60%, #8A6B2A 100%);
+    color: #0A0806;
+  }
+  .seal:hover {
+    transform: rotate(-4deg) scale(1.05);
+  }
+  .seal-breath {
+    animation: seal-breath 3.2s ease-in-out infinite;
+  }
+
+  /* ---------- 數字 / 大標 ---------- */
+
   .big-num {
-    font-family: 'Orbitron', 'Chakra Petch', sans-serif;
+    font-family: 'Bodoni Moda', Didot, serif;
     font-feature-settings: 'tnum';
-    letter-spacing: 0.02em;
-    line-height: 0.95;
+    letter-spacing: -0.01em;
+    line-height: 0.9;
     font-weight: 800;
   }
-  .big-num-grad {
-    background: linear-gradient(135deg, #5b4df8 0%, #9b6cff 50%, #ff3b7f 100%);
+  .big-num-grad,
+  .big-num-brass {
+    background: linear-gradient(135deg, #E0BF6E 0%, #C9A24C 40%, #8A6B2A 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 2px 4px rgba(201, 162, 76, 0.25));
+  }
+  .big-num-win {
+    background: linear-gradient(135deg, #26704F 0%, #14563E 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     color: transparent;
   }
-  .big-num-win {
-    background: linear-gradient(135deg, #00d68f 0%, #00b8e6 100%);
+  .big-num-wine {
+    background: linear-gradient(135deg, #A73A4A 0%, #6B0F1A 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -373,91 +579,57 @@
   }
 
   .data-num {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'IBM Plex Mono', monospace;
     font-feature-settings: 'tnum', 'zero';
     font-weight: 500;
   }
+  .data-num-brass { color: #8A6B2A; }
+  .data-num-felt  { color: #14563E; }
+  .data-num-wine  { color: #8B1A2A; }
 
+  /* ---------- Label / Caption ---------- */
   .label {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter Tight', ui-sans-serif;
     font-size: 0.6875rem;
     font-weight: 600;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.28em;
     text-transform: uppercase;
-    color: #7a85a3;
+    color: #8A7F6E;
+  }
+  .label-brass {
+    color: #8A6B2A;
   }
 
   .caret::before {
-    content: '▸';
-    margin-right: 0.375rem;
-    color: #5b4df8;
+    content: '◆';
+    margin-right: 0.45rem;
+    color: #C9A24C;
+    font-size: 0.85em;
   }
 
-  /* Range slider：紫色 thumb */
-  input[type='range'].term-range {
-    -webkit-appearance: none;
-    width: 100%;
-    height: 6px;
-    background: linear-gradient(90deg, rgba(91, 77, 248, 0.2) 0%, rgba(91, 77, 248, 0.05) 100%);
-    outline: none;
-    cursor: pointer;
-    border-radius: 9999px;
+  /* ---------- Divider 花色分隔 ---------- */
+  .divider-suit {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #C9A24C;
+    font-family: 'Bodoni Moda', serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.4em;
   }
-  input[type='range'].term-range::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 22px;
-    height: 22px;
-    background: linear-gradient(135deg, #5b4df8 0%, #9b6cff 100%);
-    border: 3px solid #ffffff;
-    border-radius: 50%;
-    box-shadow:
-      0 0 0 1px rgba(91, 77, 248, 0.4),
-      0 4px 8px -2px rgba(91, 77, 248, 0.5);
-    cursor: pointer;
-  }
-  input[type='range'].term-range::-moz-range-thumb {
-    width: 22px;
-    height: 22px;
-    background: linear-gradient(135deg, #5b4df8 0%, #9b6cff 100%);
-    border: 3px solid #ffffff;
-    border-radius: 50%;
-    box-shadow:
-      0 0 0 1px rgba(91, 77, 248, 0.4),
-      0 4px 8px -2px rgba(91, 77, 248, 0.5);
-    cursor: pointer;
-  }
-  input[type='range'].term-range-ember::-webkit-slider-thumb {
-    background: linear-gradient(135deg, #ff3b7f 0%, #ff4e6c 100%);
-    box-shadow:
-      0 0 0 1px rgba(255, 59, 127, 0.4),
-      0 4px 8px -2px rgba(255, 59, 127, 0.5);
-  }
-  input[type='range'].term-range-ember::-moz-range-thumb {
-    background: linear-gradient(135deg, #ff3b7f 0%, #ff4e6c 100%);
-    box-shadow:
-      0 0 0 1px rgba(255, 59, 127, 0.4),
-      0 4px 8px -2px rgba(255, 59, 127, 0.5);
-  }
-
-  /* 狀態點：螢光綠脈動 */
-  .status-dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-right: 0.5rem;
-  }
-  .status-dot-live {
-    background: #00d68f;
-    box-shadow: 0 0 0 3px rgba(0, 214, 143, 0.25), 0 0 12px rgba(0, 214, 143, 0.6);
-    animation: blink 2s infinite;
+  .divider-suit::before,
+  .divider-suit::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, #C9A24C 25%, #C9A24C 75%, transparent 100%);
   }
 
   .divider-dot {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: #b8c2d9;
+    color: #B8AC8E;
   }
   .divider-dot::before,
   .divider-dot::after {
@@ -466,46 +638,145 @@
     height: 1px;
     background: repeating-linear-gradient(
       to right,
-      rgba(91, 77, 248, 0.2) 0,
-      rgba(91, 77, 248, 0.2) 3px,
+      rgba(201, 162, 76, 0.4) 0,
+      rgba(201, 162, 76, 0.4) 3px,
       transparent 3px,
       transparent 6px
     );
   }
 
-  /* 邊框輝光邊 */
-  .glow-border-acid {
+  /* ---------- 狀態點 ---------- */
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+  }
+  .status-dot-live {
+    background: #26704F;
+    box-shadow:
+      0 0 0 3px rgba(30, 122, 79, 0.28),
+      0 0 10px rgba(30, 122, 79, 0.55);
+    animation: blink 2.4s infinite;
+  }
+  .status-dot-brass {
+    background: #C9A24C;
+    box-shadow:
+      0 0 0 3px rgba(201, 162, 76, 0.28),
+      0 0 10px rgba(201, 162, 76, 0.55);
+  }
+
+  /* ---------- Range Slider ---------- */
+  input[type='range'].term-range {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, rgba(201, 162, 76, 0.45) 0%, rgba(201, 162, 76, 0.12) 100%);
+    outline: none;
+    cursor: pointer;
+    border-radius: 9999px;
+    border: 1px solid rgba(138, 107, 42, 0.35);
+  }
+  input[type='range'].term-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background: radial-gradient(circle at 30% 25%, #E0BF6E 0%, #C9A24C 60%, #8A6B2A 100%);
+    border: 2px solid #FBF9F4;
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 1px #8A6B2A,
+      0 4px 8px -2px rgba(10, 8, 6, 0.3);
+    cursor: pointer;
+  }
+  input[type='range'].term-range::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: radial-gradient(circle at 30% 25%, #E0BF6E 0%, #C9A24C 60%, #8A6B2A 100%);
+    border: 2px solid #FBF9F4;
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 1px #8A6B2A,
+      0 4px 8px -2px rgba(10, 8, 6, 0.3);
+    cursor: pointer;
+  }
+  input[type='range'].term-range-ember::-webkit-slider-thumb,
+  input[type='range'].term-range-wine::-webkit-slider-thumb {
+    background: radial-gradient(circle at 30% 25%, #A73A4A 0%, #6B0F1A 60%, #40080F 100%);
+    box-shadow:
+      0 0 0 1px #5E491C,
+      0 4px 8px -2px rgba(10, 8, 6, 0.35);
+  }
+
+  /* ---------- 水晶頂光暈 ---------- */
+  .crystal-overlay {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(1400px, 100%);
+    height: 420px;
+    background: radial-gradient(ellipse 900px 400px at 50% 0%, rgba(224, 191, 110, 0.35) 0%, rgba(224, 191, 110, 0.08) 45%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+    animation: crystal-breath 6s ease-in-out infinite;
+  }
+
+  /* ---------- 黃銅細邊 utility ---------- */
+  .brass-frame {
+    position: relative;
+    box-shadow:
+      0 0 0 1px #8A6B2A,
+      0 0 0 3px #FBF9F4,
+      0 0 0 4px #C9A24C;
+  }
+  .brass-line {
     position: relative;
   }
-  .glow-border-acid::after {
+  .brass-line::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, #C9A24C 30%, #C9A24C 70%, transparent 100%);
+  }
+
+  /* ---------- Glow border（黃銅版，hover 顯現） ---------- */
+  .glow-border-acid,
+  .glow-border-brass {
+    position: relative;
+  }
+  .glow-border-brass::after {
     content: '';
     position: absolute;
     inset: -2px;
-    background: linear-gradient(135deg, #5b4df8, #9b6cff, #ff3b7f);
-    border-radius: 18px;
+    background: linear-gradient(135deg, #E0BF6E, #C9A24C, #8A6B2A, #E0BF6E);
+    border-radius: 6px;
     z-index: -1;
     opacity: 0;
-    transition: opacity 0.3s;
-    filter: blur(8px);
+    transition: opacity 0.4s;
+    filter: blur(10px);
   }
-  .glow-border-acid:hover::after {
-    opacity: 0.5;
+  .glow-border-brass:hover::after {
+    opacity: 0.65;
   }
 }
 
-/* 卷軸 */
+/* ---------- Scrollbar ---------- */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #eef2fb;
+  background: #F6EFE0;
+  border-left: 1px solid rgba(201, 162, 76, 0.2);
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #b8c2d9 0%, #7a85a3 100%);
-  border: 2px solid #eef2fb;
+  background: linear-gradient(180deg, #C9A24C 0%, #8A6B2A 100%);
+  border: 2px solid #F6EFE0;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #5b4df8 0%, #9b6cff 100%);
+  background: linear-gradient(180deg, #E0BF6E 0%, #C9A24C 100%);
 }

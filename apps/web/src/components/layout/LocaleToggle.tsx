@@ -12,13 +12,13 @@ export function LocaleToggle({ compact = false }: { compact?: boolean }) {
       type="button"
       onClick={toggleLocale}
       title={locale === 'zh' ? t.common.switchToEnglish : t.common.switchToChinese}
-      className={`inline-flex items-center gap-1.5 border border-ink-200 bg-ink-50/50 font-mono text-[11px] font-semibold tracking-[0.2em] text-ink-700 transition hover:border-neon-acid hover:bg-neon-acid/10 hover:text-neon-acid ${
-        compact ? 'px-2 py-1' : 'px-3 py-2'
+      className={`inline-flex items-center gap-2 rounded-sm border border-brass-500/55 bg-ivory-100/70 font-serif text-[12px] font-semibold tracking-[0.18em] text-ivory-900 transition hover:border-brass-500 hover:bg-ivory-200 hover:text-brass-700 ${
+        compact ? 'px-2.5 py-1' : 'px-3.5 py-2'
       }`}
     >
-      <span className="text-neon-acid/80">⌘</span>
+      <span className="text-brass-600">◆</span>
       <span>{current}</span>
-      <span className="text-ink-400">→{next}</span>
+      <span className="text-ivory-500">→ {next}</span>
     </button>
   );
 }

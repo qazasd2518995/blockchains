@@ -41,60 +41,62 @@ export function AdminLoginPage(): JSX.Element {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center px-6 py-10">
-      <div className="absolute inset-0 bg-grad-mesh" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-10">
+      <div className="crystal-overlay" />
 
       <div className="relative z-10 grid w-full max-w-5xl gap-8 lg:grid-cols-2 lg:gap-16">
         <div>
-          <div className="label">§ {t.auth.title}</div>
-          <h1 className="mt-3 font-display text-6xl font-black leading-none text-ink-900">
-            AGENT<span className="text-neon-acid">.</span>OPS
+          <div className="flex items-center gap-2">
+            <span className="font-script text-lg text-brass-700">{t.auth.title}</span>
+            <span className="text-brass-500">◆</span>
+            <span className="label label-brass">salon privé</span>
+          </div>
+          <h1 className="mt-4 font-serif text-6xl leading-[0.95] text-ivory-950">
+            Agent<span className="italic text-brass-700">.</span>Ops
           </h1>
-          <p className="mt-2 font-hud text-[14px] uppercase tracking-[0.25em] text-ink-600">
-            {t.auth.subtitle}
-          </p>
-          <p className="mt-6 max-w-md font-mono text-[12px] leading-relaxed text-ink-600">
+          <p className="mt-3 font-script text-xl text-brass-700">{t.auth.subtitle}</p>
+          <p className="mt-6 max-w-md text-[13px] leading-relaxed text-ivory-700">
             {t.auth.requiresAuth}
           </p>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-10 space-y-5">
-            <Field label={t.auth.username} code="01" error={errors.username?.message}>
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-10 space-y-6">
+            <Field label={t.auth.username} suit="♠" error={errors.username?.message}>
               <input
                 type="text"
                 autoComplete="username"
                 placeholder="superadmin"
-                className="term-input"
+                className="input-salon"
                 {...register('username')}
               />
             </Field>
-            <Field label={t.auth.password} code="02" error={errors.password?.message}>
+            <Field label={t.auth.password} suit="♦" error={errors.password?.message}>
               <input
                 type="password"
                 autoComplete="current-password"
                 placeholder="••••••••••••"
-                className="term-input"
+                className="input-salon"
                 {...register('password')}
               />
             </Field>
 
             {serverError && (
-              <div className="border border-neon-ember/40 bg-neon-ember/5 p-3">
-                <div className="flex items-start gap-2 text-[12px] text-neon-ember">
-                  <span className="font-bold">{t.common.error.toUpperCase()}:</span>
-                  <span className="uppercase tracking-wider">{serverError}</span>
+              <div className="border border-wine-400/50 bg-wine-50 p-4 rounded-sm">
+                <div className="flex items-start gap-2 text-[12px] text-wine-600">
+                  <span className="font-serif font-bold italic">{t.common.error}:</span>
+                  <span className="tracking-wide">{serverError}</span>
                 </div>
               </div>
             )}
 
             <div className="flex items-center gap-3 pt-2">
-              <button type="submit" disabled={isSubmitting} className="btn-acid">
+              <button type="submit" disabled={isSubmitting} className="btn-brass">
                 {isSubmitting ? (
                   <span>
                     {t.auth.authenticating}
                     <span className="animate-blink">_</span>
                   </span>
                 ) : (
-                  `→ ${t.auth.authenticate}`
+                  <>→ {t.auth.authenticate}</>
                 )}
               </button>
             </div>
@@ -102,34 +104,34 @@ export function AdminLoginPage(): JSX.Element {
         </div>
 
         <div className="relative hidden lg:block">
-          <div className="crt-panel scanlines h-full p-8">
-            <div className="flex items-center justify-between border-b border-ink-200 pb-4">
-              <div className="label">{t.auth.protocol}</div>
-              <span className="tag tag-toxic">
-                <span className="status-dot status-dot-live" /> LIVE
-              </span>
+          <div className="panel-felt scanlines h-full p-8">
+            <div className="flex items-center justify-between border-b border-brass-500/40 pb-4">
+              <div className="flex items-baseline gap-2">
+                <span className="font-script text-lg text-brass-300">Protocole</span>
+                <span className="text-brass-500 text-xs">◆</span>
+                <span className="label text-brass-400">{t.auth.protocol}</span>
+              </div>
+              <div className="seal seal-live seal-breath !h-9 !w-9 !text-[8px]">LIVE</div>
             </div>
 
-            <pre className="mt-6 font-mono text-[10px] leading-relaxed text-ink-500">
-{`┌─────────────────────────────────┐
-│  AGENT-OPS AUTH PROTOCOL        │
-│                                 │
-│  [1] Username + Password        │
-│  [2] Bcrypt verify (12 rounds)  │
-│  [3] JWT signed (aud=admin)     │
-│  [4] Refresh token 7-day TTL    │
-│  [5] All ops audited            │
-│  [6] Serializable transactions  │
-│                                 │
-│  TRUST BUT VERIFY.              │
-└─────────────────────────────────┘`}
+            <pre className="mt-8 font-mono text-[10.5px] leading-relaxed text-brass-200/85">
+{`┌────────────────────────────────┐
+│  AGENT-OPS AUTH PROTOCOL       │
+│                                │
+│  [1] Username + Password       │
+│  [2] Bcrypt verify (12 rounds) │
+│  [3] JWT signed (aud=admin)    │
+│  [4] Refresh token 7-day TTL   │
+│  [5] All ops audited           │
+│  [6] Serializable transactions │
+│                                │
+│  TRUST BUT VERIFY.             │
+└────────────────────────────────┘`}
             </pre>
 
-            <div className="mt-10 border-t border-ink-200 pt-4">
-              <div className="font-display text-xl tracking-widest text-ink-900">
-                BLOCKCHAIN OPS
-              </div>
-              <div className="mt-2 text-[10px] tracking-[0.3em] text-ink-500">
+            <div className="mt-10 border-t border-brass-500/40 pt-5">
+              <div className="font-serif text-3xl italic text-ivory-100">Blockchain Ops</div>
+              <div className="mt-2 font-script text-[13px] text-brass-300">
                 不开放公开注册 · 仅限代理
               </div>
             </div>
@@ -142,12 +144,12 @@ export function AdminLoginPage(): JSX.Element {
 
 function Field({
   label,
-  code,
+  suit,
   error,
   children,
 }: {
   label: string;
-  code: string;
+  suit: string;
   error?: string;
   children: React.ReactNode;
 }) {
@@ -155,10 +157,14 @@ function Field({
     <label className="block">
       <div className="mb-2 flex items-baseline justify-between">
         <div className="flex items-baseline gap-2">
-          <span className="text-[9px] text-ink-500">{code}</span>
-          <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">{label}</span>
+          <span className="text-brass-600 text-sm">{suit}</span>
+          <span className="font-serif text-[14px] font-semibold tracking-[0.1em] text-ivory-900">
+            {label}
+          </span>
         </div>
-        {error && <span className="text-[10px] tracking-[0.2em] text-neon-ember">⚠ {error}</span>}
+        {error && (
+          <span className="font-mono text-[10px] tracking-[0.15em] text-wine-500">⚠ {error}</span>
+        )}
       </div>
       {children}
     </label>

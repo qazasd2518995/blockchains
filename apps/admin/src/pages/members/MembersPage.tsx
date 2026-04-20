@@ -74,7 +74,7 @@ export function MembersPage(): JSX.Element {
       key: 'balance',
       label: t.members.balance,
       align: 'right',
-      render: (m) => <span className="data-num text-neon-acid">{fmt(m.balance)}</span>,
+      render: (m) => <span className="data-num text-brass-700">{fmt(m.balance)}</span>,
     },
     {
       key: 'status',
@@ -116,7 +116,7 @@ export function MembersPage(): JSX.Element {
           <button
             type="button"
             onClick={() => handleFreeze(m)}
-            className={`btn-ghost ${m.status === 'FROZEN' ? 'text-neon-toxic' : 'text-neon-ember'}`}
+            className={`btn-ghost ${m.status === 'FROZEN' ? 'text-win' : 'text-wine-500'}`}
           >
             [{m.status === 'FROZEN' ? '解冻' : '冻结'}]
           </button>
@@ -160,7 +160,7 @@ export function MembersPage(): JSX.Element {
       </div>
 
       {error && (
-        <div className="mb-4 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+        <div className="mb-4 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
           ⚠ {error}
         </div>
       )}

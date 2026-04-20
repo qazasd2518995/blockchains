@@ -18,16 +18,20 @@ interface Props<T> {
 
 export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick }: Props<T>): JSX.Element {
   return (
-    <div className="crt-panel overflow-hidden">
+    <div className="panel-salon overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-[12px]">
           <thead>
-            <tr className="border-b border-ink-200 bg-ink-100/40">
+            <tr className="border-b border-brass-500/40 bg-ivory-200/60">
               {columns.map((c) => (
                 <th
                   key={c.key}
-                  className={`px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-500 ${
-                    c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : ''
+                  className={`px-4 py-3 font-mono text-[10px] uppercase tracking-[0.24em] text-brass-700 ${
+                    c.align === 'right'
+                      ? 'text-right'
+                      : c.align === 'center'
+                        ? 'text-center'
+                        : ''
                   }`}
                   style={c.width ? { width: c.width } : undefined}
                 >
@@ -39,16 +43,19 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick }: Props
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-10 text-center text-ink-400">
-                  — {empty ?? 'no data'} —
+                <td
+                  colSpan={columns.length}
+                  className="px-4 py-10 text-center font-script text-base text-ivory-500"
+                >
+                  — {empty ?? '暂无数据'} —
                 </td>
               </tr>
             )}
             {rows.map((r) => (
               <tr
                 key={rowKey(r)}
-                className={`border-b border-ink-100 transition ${
-                  onRowClick ? 'cursor-pointer hover:bg-neon-acid/5' : ''
+                className={`border-b border-brass-500/15 transition ${
+                  onRowClick ? 'cursor-pointer hover:bg-brass-50/40' : ''
                 }`}
                 onClick={() => onRowClick?.(r)}
               >

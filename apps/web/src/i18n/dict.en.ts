@@ -141,6 +141,39 @@ export const en: Dict = {
     avgRtp: 'AVG_RTP',
     systemStatus: 'SYSTEM_STATUS',
     games: 'GAMES',
+    // sidebar
+    allGames: 'All Games',
+    popular: 'Popular',
+    newGames: 'New',
+    favorites: 'Favorites',
+    promotions: 'Promotions',
+    // hero slides
+    heroWelcomeEyebrow: 'WELCOME TO',
+    heroWelcomeTitle: 'The Gilded Salon',
+    heroWelcomeDesc: '1,000 credits on signup · no deposit · fully verifiable',
+    heroWelcomeCta: 'CLAIM NOW',
+    heroFairEyebrow: 'MATH AS WITNESS',
+    heroFairTitle: 'Provably Fair',
+    heroFairDesc: 'HMAC-SHA256 dual-seed · every round independently verifiable',
+    heroFairCta: 'LEARN MORE',
+    heroJackpotEyebrow: 'LIVE POOL',
+    heroJackpotTitle: 'Live Jackpot',
+    heroJackpotDesc: 'Shared across all Crash games · next winner could be you',
+    heroJackpotCta: 'PLAY NOW',
+    // filter tabs
+    filterAll: 'ALL',
+    filterPopular: 'POPULAR',
+    filterNew: 'NEW',
+    filterFavorites: 'FAVORITES',
+    searchPlaceholder: 'Search games…',
+    sortByRtp: 'RTP ▼',
+    sortByName: 'A-Z',
+    // live winners column
+    liveWinnersTitle: 'Recent Big Wins',
+    liveWinnersSub: 'Live · past 5 minutes',
+    // providers
+    providersTitle: 'Game Providers',
+    providersSub: 'Powered by industry leaders',
   },
 
   appshell: {

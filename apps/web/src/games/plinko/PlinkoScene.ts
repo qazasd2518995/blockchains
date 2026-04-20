@@ -19,14 +19,14 @@ import {
   prewarmShaders,
 } from '@bg/game-engine';
 
-const COLOR_BG = 0xf7f9ff;
-const COLOR_ACID = 0x5b4df8;
-const COLOR_VIOLET = 0x9b6cff;
-const COLOR_EMBER = 0xff3b7f;
-const COLOR_TOXIC = 0x00d68f;
-const COLOR_AMBER = 0xffb020;
-const COLOR_ICE = 0x00b8e6;
-const COLOR_INK = 0x0b0f1e;
+const COLOR_BG = 0xFBF9F4;
+const COLOR_ACID = 0xC9A24C;
+const COLOR_VIOLET = 0xE0BF6E;
+const COLOR_EMBER = 0x8B1A2A;
+const COLOR_TOXIC = 0x1E7A4F;
+const COLOR_AMBER = 0xC9A24C;
+const COLOR_ICE = 0x86B49C;
+const COLOR_INK = 0x0A0806;
 const COLOR_WHITE = 0xffffff;
 
 interface Ball {
@@ -222,11 +222,11 @@ export class PlinkoScene {
       const x = this.boardLeft + margin + i * bucketW;
 
       // 顏色依倍率
-      let color = 0xb8c2d9;
+      let color = 0xDCD0B3;
       if (m >= 10) color = COLOR_EMBER;
       else if (m >= 3) color = COLOR_AMBER;
       else if (m >= 1.1) color = COLOR_TOXIC;
-      else if (m < 1) color = 0xb8c2d9;
+      else if (m < 1) color = 0xDCD0B3;
 
       const c = new Container();
       c.x = x;
@@ -481,7 +481,7 @@ export class PlinkoScene {
     let color = COLOR_TOXIC;
     if (b.multiplier >= 10) color = COLOR_EMBER;
     else if (b.multiplier >= 3) color = COLOR_AMBER;
-    else if (b.multiplier < 1) color = 0xb8c2d9;
+    else if (b.multiplier < 1) color = 0xDCD0B3;
 
     const bucketCount = this.multipliers.length;
     const margin = 6;
@@ -507,7 +507,7 @@ export class PlinkoScene {
         x: targetX,
         y: targetY,
         count: won ? tierCfg.particles : 10,
-        colors: won ? [color, COLOR_WHITE, COLOR_ICE] : [0xb8c2d9, COLOR_INK],
+        colors: won ? [color, COLOR_WHITE, COLOR_ICE] : [0xDCD0B3, COLOR_INK],
         speedMin: 3,
         speedMax: won ? 11 : 4,
         angleRad: -Math.PI / 2,

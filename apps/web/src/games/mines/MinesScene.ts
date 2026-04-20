@@ -11,16 +11,16 @@ import {
   prewarmShaders,
 } from '@bg/game-engine';
 
-const COLOR_BG = 0xf7f9ff;
+const COLOR_BG = 0xFBF9F4;
 const COLOR_TILE = 0xffffff;
-const COLOR_TILE_STROKE = 0xdde4f3;
-const COLOR_ACID = 0x5b4df8;
-const COLOR_VIOLET = 0x9b6cff;
-const COLOR_EMBER = 0xff3b7f;
-const COLOR_TOXIC = 0x00d68f;
-const COLOR_ICE = 0x00b8e6;
-const COLOR_AMBER = 0xffb020;
-const COLOR_INK = 0x0b0f1e;
+const COLOR_TILE_STROKE = 0xD1AD5A;
+const COLOR_ACID = 0xC9A24C;
+const COLOR_VIOLET = 0xE0BF6E;
+const COLOR_EMBER = 0x8B1A2A;
+const COLOR_TOXIC = 0x1E7A4F;
+const COLOR_ICE = 0x86B49C;
+const COLOR_AMBER = 0xC9A24C;
+const COLOR_INK = 0x0A0806;
 
 export type MinesCellState = 'hidden' | 'gem' | 'mine';
 
@@ -366,7 +366,7 @@ export class MinesScene {
   private showFloatingText(x: number, y: number, content: string, color: number): void {
     if (!this.floatingTexts) return;
     const style = new TextStyle({
-      fontFamily: 'Orbitron, Chakra Petch, sans-serif',
+      fontFamily: 'Bodoni Moda, Didot, serif',
       fontSize: 40,
       fontWeight: '700',
       fill: color,
@@ -513,7 +513,7 @@ class MinesCell {
     this.glow
       .clear()
       .roundRect(-s / 2 - 4, -s / 2 - 4, s + 8, s + 8, 16)
-      .fill({ color: 0xffb020, alpha: 0.35 });
+      .fill({ color: 0xC9A24C, alpha: 0.35 });
     this.glow.filters = [new BlurFilter({ strength: 10 })];
     gsap.killTweensOf(this.glow);
     gsap.fromTo(this.glow, { alpha: 0.2 }, { alpha: 0.9, duration: 0.3, ease: 'sine.inOut', yoyo: true, repeat: -1 });

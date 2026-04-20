@@ -231,7 +231,7 @@ export function AgentHierarchyPage(): JSX.Element {
       </div>
 
       {error && (
-        <div className="mb-4 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+        <div className="mb-4 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
           ⚠ {error}
         </div>
       )}
@@ -255,7 +255,7 @@ export function AgentHierarchyPage(): JSX.Element {
             <div
               key={`${row.kind}-${row.id}`}
               onClick={() => onRowClick(row)}
-              className="grid cursor-pointer grid-cols-[80px_minmax(180px,1.3fr)_80px_100px_110px_110px_minmax(320px,auto)] items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition hover:bg-neon-acid/5"
+              className="grid cursor-pointer grid-cols-[80px_minmax(180px,1.3fr)_80px_100px_110px_110px_minmax(320px,auto)] items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition hover:bg-brass-50/60"
             >
               {row.kind === 'agent' ? (
                 <span className="tag tag-acid">{t.agents.typeAgent}</span>
@@ -282,10 +282,10 @@ export function AgentHierarchyPage(): JSX.Element {
               <span className="text-right data-num text-ink-700">
                 {row.kind === 'agent' ? `L${row.level}` : '—'}
               </span>
-              <span className="text-right data-num text-neon-toxic">
+              <span className="text-right data-num text-win">
                 {row.kind === 'agent' ? pct(row.rebatePercentage) : '—'}
               </span>
-              <span className="text-right data-num text-neon-acid">{fmt(row.balance)}</span>
+              <span className="text-right data-num text-brass-700">{fmt(row.balance)}</span>
               <span className="text-center">
                 {row.status === 'FROZEN' ? (
                   <span className="tag tag-ember">{t.agent.status.FROZEN}</span>
@@ -400,13 +400,13 @@ function StatusDropdown({
   const [open, setOpen] = useState(false);
   const options: { value: 'ACTIVE' | 'FROZEN' | 'DELETED'; label: string; style: string }[] = memberOnly
     ? [
-        { value: 'ACTIVE', label: t.agents.enable, style: 'text-neon-toxic' },
-        { value: 'FROZEN', label: t.agents.freezeAction, style: 'text-neon-ember' },
+        { value: 'ACTIVE', label: t.agents.enable, style: 'text-win' },
+        { value: 'FROZEN', label: t.agents.freezeAction, style: 'text-wine-500' },
       ]
     : [
-        { value: 'ACTIVE', label: t.agents.enable, style: 'text-neon-toxic' },
-        { value: 'FROZEN', label: t.agents.freezeAction, style: 'text-neon-ember' },
-        { value: 'DELETED', label: t.agents.deleteAction, style: 'text-neon-ember font-bold' },
+        { value: 'ACTIVE', label: t.agents.enable, style: 'text-win' },
+        { value: 'FROZEN', label: t.agents.freezeAction, style: 'text-wine-500' },
+        { value: 'DELETED', label: t.agents.deleteAction, style: 'text-wine-500 font-bold' },
       ];
   return (
     <div className="relative">
@@ -434,7 +434,7 @@ function StatusDropdown({
                   setOpen(false);
                   onChange(o.value);
                 }}
-                className={`block w-full px-3 py-2 text-left text-[11px] font-mono transition hover:bg-neon-acid/10 ${o.style} ${
+                className={`block w-full px-3 py-2 text-left text-[11px] font-mono transition hover:bg-brass-100/50 ${o.style} ${
                   o.value === current ? 'opacity-40' : ''
                 }`}
               >
@@ -450,7 +450,7 @@ function StatusDropdown({
 }
 
 function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' | 'toxic' }) {
-  const color = accent === 'acid' ? 'text-neon-acid' : accent === 'toxic' ? 'text-neon-toxic' : 'text-ink-900';
+  const color = accent === 'acid' ? 'text-brass-700' : accent === 'toxic' ? 'text-win' : 'text-ink-900';
   return (
     <div>
       <div className="label">{k}</div>

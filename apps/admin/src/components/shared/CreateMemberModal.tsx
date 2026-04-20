@@ -111,7 +111,7 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId }: 
         </Field>
 
         {err && (
-          <div className="border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+          <div className="border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
             ⚠ {err}
           </div>
         )}
@@ -147,7 +147,7 @@ function Field({
           <span className="text-[9px] text-ink-500">{code}</span>
           <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">{label}</span>
         </div>
-        {error && <span className="text-[10px] text-neon-ember">⚠ {error}</span>}
+        {error && <span className="text-[10px] text-wine-500">⚠ {error}</span>}
       </div>
       {children}
     </label>

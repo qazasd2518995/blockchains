@@ -23,17 +23,19 @@ export function GameHeader({
   breadcrumb,
 }: Props) {
   const { t, locale } = useTranslation();
+
+  // Map old accent → new palette
   const suffixColor = {
-    acid: 'text-neon-acid',
-    ember: 'text-neon-ember',
-    toxic: 'text-neon-toxic',
-    ice: 'text-neon-ice',
+    acid: 'text-brass-700',
+    ember: 'text-wine-500',
+    toxic: 'text-win',
+    ice: 'text-felt-400',
   }[titleSuffixColor];
 
   const tagClass = {
-    acid: 'tag-acid',
-    ember: 'tag-ember',
-    toxic: 'tag-toxic',
+    acid: 'tag-gold',
+    ember: 'tag-wine',
+    toxic: 'tag-felt',
     ice: 'tag',
   }[rtpAccent];
 
@@ -41,40 +43,37 @@ export function GameHeader({
   const separator = locale === 'en' ? '.' : '';
 
   return (
-    <>
-      {/* 緊湊 header：一列搞定 breadcrumb + 標題 + tags */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 pb-3">
-        <div className="flex min-w-0 items-baseline gap-3">
-          <div className="flex items-center gap-2 text-[10px] tracking-[0.25em] text-ink-500">
-            <Link to="/lobby" className="transition hover:text-neon-acid">
-              ◄ {t.common.lobby}
-            </Link>
-            <span className="text-ink-300">/</span>
-            <span className="text-neon-acid">{breadcrumb}</span>
-          </div>
-          <span className="label text-[9px] text-ink-400">{section}</span>
-          <h1 className="font-display text-2xl font-bold tracking-wide md:text-3xl">
-            <span className="text-ink-900">
-              {title}
-              {hasSuffix ? separator : ''}
-            </span>
-            {hasSuffix && <span className={suffixColor}>{titleSuffix}</span>}
-          </h1>
-          <p
-            className="hidden max-w-md truncate text-[11px] text-ink-500 lg:block"
-            title={description}
-          >
-            {description}
-          </p>
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-brass-500/40 pb-4">
+      <div className="flex min-w-0 items-baseline gap-4">
+        <div className="flex items-center gap-2 font-mono text-[10px] tracking-[0.25em] text-ivory-600">
+          <Link to="/lobby" className="transition hover:text-brass-700">
+            ◄ {t.common.lobby}
+          </Link>
+          <span className="text-brass-500">◆</span>
+          <span className="text-brass-700">{breadcrumb}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={tagClass}>{rtpLabel}</span>
-          <span className="tag hidden md:inline-flex">
-            <span className="status-dot status-dot-live" />
-            PROVABLY FAIR
+        <span className="font-script text-sm text-brass-600">{section}</span>
+        <h1 className="font-serif text-3xl leading-tight md:text-4xl">
+          <span className="text-ivory-950">
+            {title}
+            {hasSuffix ? separator : ''}
           </span>
-        </div>
+          {hasSuffix && <span className={`italic ${suffixColor}`}>{titleSuffix}</span>}
+        </h1>
+        <p
+          className="hidden max-w-md truncate text-[11px] text-ivory-600 lg:block"
+          title={description}
+        >
+          {description}
+        </p>
       </div>
-    </>
+      <div className="flex items-center gap-2">
+        <span className={tagClass}>{rtpLabel}</span>
+        <span className="tag hidden md:inline-flex">
+          <span className="status-dot status-dot-live" />
+          PROVABLY FAIR
+        </span>
+      </div>
+    </div>
   );
 }

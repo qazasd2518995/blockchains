@@ -52,58 +52,70 @@ export function ProfilePage() {
   };
 
   return (
-    <div className="space-y-10">
-      <section className="border-b border-ink-200 pb-6">
-        <div className="label">§ {t.profile.dossierHeader}</div>
-        <h1 className="mt-2 font-serif text-6xl font-black italic">
-          <span className="text-ink-900">{t.profile.your} </span>
-          <span className="text-neon-acid not-italic">{t.profile.dossier}</span>
+    <div className="relative space-y-12">
+      <div className="crystal-overlay" />
+
+      <section className="relative z-10 border-b border-brass-500/40 pb-6">
+        <div className="flex items-center gap-3">
+          <span className="font-script text-lg text-brass-700">{t.profile.dossierHeader}</span>
+          <span className="text-brass-500">◆</span>
+          <span className="label label-brass">membership</span>
+        </div>
+        <h1 className="mt-3 font-serif text-6xl leading-[0.95] text-ivory-950">
+          <span>{t.profile.your} </span>
+          <span className="italic text-brass-700">{t.profile.dossier}</span>
         </h1>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-4">
-        <InfoCard label={t.common.email.toUpperCase()} value={user?.email ?? '—'} />
-        <InfoCard label={t.common.callsign.toUpperCase()} value={user?.displayName ?? '—'} />
+      <section className="relative z-10 grid gap-4 md:grid-cols-4">
+        <InfoCard label={t.common.email} value={user?.email ?? '—'} />
+        <InfoCard label={t.common.callsign} value={user?.displayName ?? '—'} />
         <InfoCard
           label={t.profile.sessionId}
           value={user?.id ? `0x${user.id.slice(-8).toUpperCase()}` : '—'}
         />
-        <div className="crt-panel p-5">
-          <div className="label">{t.common.credits}</div>
-          <div className="mt-2 big-num text-5xl text-neon-acid">
+        <div className="panel-salon p-5">
+          <div className="label label-brass">{t.common.credits}</div>
+          <div className="mt-2 big-num big-num-brass text-5xl">
             {formatAmount(user?.balance ?? '0')}
           </div>
         </div>
       </section>
 
-      <section>
-        <div className="mb-5 flex items-end justify-between border-b border-ink-200 pb-4">
+      <section className="relative z-10">
+        <div className="mb-6 flex items-end justify-between border-b border-brass-500/40 pb-5">
           <div>
-            <div className="label">§ {t.profile.cryptoSeeds}</div>
-            <h2 className="mt-2 font-serif text-3xl italic">
-              <span className="text-ink-900">{t.profile.provably} </span>
-              <span className="text-neon-acid not-italic">{t.profile.fair}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-script text-lg text-brass-700">{t.profile.cryptoSeeds}</span>
+              <span className="text-brass-500">◆</span>
+              <span className="label label-brass">provably fair</span>
+            </div>
+            <h2 className="mt-3 font-serif text-4xl leading-tight text-ivory-950">
+              <span>{t.profile.provably} </span>
+              <span className="italic text-brass-700">{t.profile.fair}</span>
             </h2>
-            <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-ink-600">
+            <p className="mt-4 max-w-2xl text-[13px] leading-relaxed text-ivory-700">
               {t.profile.seedsDesc}
             </p>
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {seeds.map((s) => (
             <div
               key={s.gameCategory}
-              className="crt-panel scanlines grid gap-4 p-5 md:grid-cols-[auto_1fr_auto] md:items-center"
+              className="panel-felt scanlines grid gap-4 p-6 md:grid-cols-[auto_1fr_auto] md:items-center"
             >
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center border border-neon-acid/30 bg-neon-acid/5 font-display text-2xl text-neon-acid">
-                  {s.gameCategory.slice(0, 2).toUpperCase()}
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-brass-400 bg-felt-700 shadow-lift">
+                  <span className="font-serif text-2xl italic text-brass-300">
+                    {s.gameCategory.slice(0, 2).toUpperCase()}
+                  </span>
                 </div>
                 <div>
-                  <div className="label">{t.profile.category}</div>
-                  <div className="mt-1 font-display text-2xl uppercase tracking-wider text-ink-900">
-                    {s.gameCategory}
+                  <div className="label text-brass-400">{t.profile.category}</div>
+                  <div className="mt-1 font-serif text-2xl tracking-tight text-ivory-100">
+                    {s.gameCategory.toUpperCase()}
                   </div>
                 </div>
               </div>
@@ -112,18 +124,20 @@ export function ProfilePage() {
                 <SeedRow
                   label={t.profile.serverHash}
                   value={s.serverSeedHash}
-                  copyLabel={t.common.copy.toUpperCase()}
+                  copyLabel={t.common.copy}
                   onCopy={() => copy(s.serverSeedHash)}
+                  dark
                 />
                 <SeedRow
                   label={t.profile.clientSeed}
                   value={s.clientSeed}
-                  copyLabel={t.common.copy.toUpperCase()}
+                  copyLabel={t.common.copy}
                   onCopy={() => copy(s.clientSeed)}
+                  dark
                 />
                 <div className="flex items-baseline justify-between">
-                  <span className="label">{t.profile.nonce}</span>
-                  <span className="data-num text-neon-acid">
+                  <span className="label text-brass-400">{t.profile.nonce}</span>
+                  <span className="data-num text-brass-300">
                     #{s.nonce.toString().padStart(6, '0')}
                   </span>
                 </div>
@@ -132,7 +146,7 @@ export function ProfilePage() {
               <button
                 type="button"
                 onClick={() => handleRotate(s.gameCategory)}
-                className="btn-ember text-[11px]"
+                className="btn-wine text-[11px]"
               >
                 ⟲ {t.profile.rotate}
               </button>
@@ -140,42 +154,42 @@ export function ProfilePage() {
           ))}
         </div>
 
-        <div className="crt-panel mt-6 p-5">
-          <div className="flex items-center justify-between border-b border-ink-200 pb-3">
+        <div className="panel-salon mt-6 p-6">
+          <div className="flex items-center justify-between border-b border-brass-500/40 pb-3">
             <div>
-              <div className="label">{t.profile.clientSeedOverride}</div>
-              <div className="mt-1 text-[11px] text-ink-600">
+              <div className="label label-brass">{t.profile.clientSeedOverride}</div>
+              <div className="mt-1 font-script text-sm text-ivory-700">
                 {t.profile.clientSeedOverrideHint}
               </div>
             </div>
           </div>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-5 flex gap-3">
             <input
               type="text"
               value={clientSeedInput}
               onChange={(e) => setClientSeedInput(e.target.value)}
               placeholder={t.profile.clientSeedPlaceholder}
-              className="term-input flex-1"
+              className="input-salon flex-1"
             />
             <button
               type="button"
               onClick={handleUpdateClientSeed}
               disabled={clientSeedInput.length < 4}
-              className="btn-acid"
+              className="btn-brass"
             >
-              → {t.common.commit.toUpperCase()}
+              → {t.common.commit}
             </button>
           </div>
         </div>
 
         {reveal && (
-          <div className="crt-panel mt-6 border-neon-toxic/50 p-5">
-            <div className="flex items-center gap-3 border-b border-neon-toxic/20 pb-3">
-              <span className="tag tag-toxic">
+          <div className="panel-salon mt-6 p-6" style={{ boxShadow: '0 0 0 1px #8A6B2A, 0 0 0 3px #FBF9F4, 0 0 0 4px #1E7A4F, 0 14px 30px -10px rgba(10,8,6,0.18)' }}>
+            <div className="flex items-center gap-3 border-b border-win/30 pb-3">
+              <span className="tag tag-felt">
                 <span className="status-dot status-dot-live" />
                 {t.profile.revealed}
               </span>
-              <div className="font-display text-xl tracking-wider text-neon-toxic">
+              <div className="font-serif text-2xl italic text-win">
                 {t.profile.seedUnmasked}
               </div>
             </div>
@@ -183,27 +197,27 @@ export function ProfilePage() {
               <SeedRow
                 label={t.profile.revealedSeed}
                 value={reveal.revealedServerSeed}
-                copyLabel={t.common.copy.toUpperCase()}
+                copyLabel={t.common.copy}
                 onCopy={() => copy(reveal.revealedServerSeed)}
               />
               <SeedRow
                 label={t.profile.originalHash}
                 value={reveal.revealedSeedHash}
-                copyLabel={t.common.copy.toUpperCase()}
+                copyLabel={t.common.copy}
                 onCopy={() => copy(reveal.revealedSeedHash)}
               />
               <SeedRow
                 label={t.profile.newHash}
                 value={reveal.newSeedHash}
-                copyLabel={t.common.copy.toUpperCase()}
+                copyLabel={t.common.copy}
                 onCopy={() => copy(reveal.newSeedHash)}
               />
               <div className="flex items-baseline justify-between">
-                <span className="label">{t.profile.totalNonces}</span>
-                <span className="data-num text-neon-toxic">{reveal.revealedNonce}</span>
+                <span className="label label-brass">{t.profile.totalNonces}</span>
+                <span className="data-num text-win">{reveal.revealedNonce}</span>
               </div>
             </div>
-            <pre className="mt-4 border border-neon-toxic/20 bg-ink-50 p-4 text-[10px] leading-relaxed text-ink-700">
+            <pre className="mt-5 rounded-sm border border-brass-500/30 bg-ivory-200/60 p-4 font-mono text-[10px] leading-relaxed text-ivory-900">
 {`${t.profile.verifyInNode}
 const crypto = require('crypto');
 const hash = crypto.createHash('sha256')
@@ -216,8 +230,8 @@ console.log(hash === '${reveal.revealedSeedHash.slice(0, 24)}...');
         )}
 
         {error && (
-          <div className="mt-4 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
-            {t.common.error.toUpperCase()}: {error.toUpperCase()}
+          <div className="mt-5 border border-wine-400/50 bg-wine-50 p-4 text-[12px] text-wine-600">
+            <span className="font-serif font-bold italic">{t.common.error}:</span> {error}
           </div>
         )}
       </section>
@@ -227,9 +241,9 @@ console.log(hash === '${reveal.revealedSeedHash.slice(0, 24)}...');
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-ink-200 bg-ink-100/40 p-5">
-      <div className="label">{label}</div>
-      <div className="mt-2 truncate font-mono text-sm text-ink-900">{value}</div>
+    <div className="panel-salon-soft p-5">
+      <div className="label label-brass">{label}</div>
+      <div className="mt-2 truncate font-mono text-sm text-ivory-950">{value}</div>
     </div>
   );
 }
@@ -239,20 +253,28 @@ function SeedRow({
   value,
   copyLabel,
   onCopy,
+  dark = false,
 }: {
   label: string;
   value: string;
   copyLabel: string;
   onCopy: () => void;
+  dark?: boolean;
 }) {
+  const labelColor = dark ? 'text-brass-400' : 'label-brass';
+  const valueColor = dark ? 'text-ivory-100' : 'text-ivory-950';
+  const copyColor = dark
+    ? 'text-brass-300 hover:text-brass-200'
+    : 'text-ivory-600 hover:text-brass-700';
+  const borderColor = dark ? 'border-brass-500/20' : 'border-brass-500/25';
   return (
-    <div className="flex items-baseline gap-3 border-b border-ink-200 pb-2 last:border-0 last:pb-0">
-      <span className="label w-32 shrink-0">{label}</span>
-      <span className="flex-1 truncate font-mono text-ink-800">{value}</span>
+    <div className={`flex items-baseline gap-3 border-b ${borderColor} pb-2 last:border-0 last:pb-0`}>
+      <span className={`label w-32 shrink-0 ${labelColor}`}>{label}</span>
+      <span className={`flex-1 truncate font-mono ${valueColor}`}>{value}</span>
       <button
         type="button"
         onClick={onCopy}
-        className="text-[10px] tracking-[0.2em] text-ink-500 transition hover:text-neon-acid"
+        className={`font-serif text-[10px] italic transition ${copyColor}`}
       >
         [{copyLabel}]
       </button>

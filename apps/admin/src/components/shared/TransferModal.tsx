@@ -70,7 +70,7 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
         </div>
         <div className="mt-1 flex items-baseline justify-between">
           <span className="text-ink-500">{t.transfers.currentBal}</span>
-          <span className="data-num text-neon-acid">{fmt(member.balance)}</span>
+          <span className="data-num text-brass-700">{fmt(member.balance)}</span>
         </div>
       </div>
 
@@ -78,11 +78,11 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
         <div>
           <div className="label mb-2">{t.transfers.direction}</div>
           <div className="grid grid-cols-2 gap-2">
-            <label className="flex cursor-pointer items-center justify-center gap-2 border border-ink-200 py-3 text-[11px] tracking-[0.2em] uppercase transition has-[:checked]:border-neon-toxic has-[:checked]:bg-neon-toxic/10 has-[:checked]:text-neon-toxic">
+            <label className="flex cursor-pointer items-center justify-center gap-2 border border-ink-200 py-3 text-[11px] tracking-[0.2em] uppercase transition has-[:checked]:border-neon-toxic has-[:checked]:bg-neon-toxic/10 has-[:checked]:text-win">
               <input type="radio" value="DEPOSIT" {...register('direction')} className="sr-only" />
               <span>⇩ {t.transfers.deposit}</span>
             </label>
-            <label className="flex cursor-pointer items-center justify-center gap-2 border border-ink-200 py-3 text-[11px] tracking-[0.2em] uppercase transition has-[:checked]:border-neon-ember has-[:checked]:bg-neon-ember/10 has-[:checked]:text-neon-ember">
+            <label className="flex cursor-pointer items-center justify-center gap-2 border border-ink-200 py-3 text-[11px] tracking-[0.2em] uppercase transition has-[:checked]:border-neon-ember has-[:checked]:bg-neon-ember/10 has-[:checked]:text-wine-500">
               <input type="radio" value="WITHDRAW" {...register('direction')} className="sr-only" />
               <span>⇧ {t.transfers.withdraw}</span>
             </label>
@@ -98,7 +98,7 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
             className="term-input font-mono text-lg"
             placeholder="0.00"
           />
-          {errors.amount && <div className="mt-1 text-[10px] text-neon-ember">⚠ {errors.amount.message}</div>}
+          {errors.amount && <div className="mt-1 text-[10px] text-wine-500">⚠ {errors.amount.message}</div>}
         </label>
 
         <label className="block">
@@ -106,14 +106,14 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
           <input type="text" {...register('description')} className="term-input" />
         </label>
 
-        <div className="border border-neon-acid/30 bg-neon-acid/5 p-3 text-[11px]">
+        <div className="border border-brass-400/55 bg-brass-50/60 p-3 text-[11px]">
           <div className="flex items-baseline justify-between">
             <span className="text-ink-500">{t.transfers.nextBal}</span>
-            <span className="data-num text-neon-acid">{estNext}</span>
+            <span className="data-num text-brass-700">{estNext}</span>
           </div>
         </div>
 
-        {err && <div className="border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">⚠ {err}</div>}
+        {err && <div className="border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">⚠ {err}</div>}
 
         <div className="flex items-center gap-2 pt-2">
           <button type="submit" disabled={isSubmitting} className="btn-acid">

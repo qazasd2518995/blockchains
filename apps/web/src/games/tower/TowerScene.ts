@@ -19,16 +19,16 @@ import {
   prewarmShaders,
 } from '@bg/game-engine';
 
-const COLOR_BG = 0xf7f9ff;
+const COLOR_BG = 0xFBF9F4;
 const COLOR_TILE = 0xffffff;
-const COLOR_TILE_STROKE = 0xdde4f3;
-const COLOR_ACID = 0x5b4df8;
-const COLOR_VIOLET = 0x9b6cff;
-const COLOR_EMBER = 0xff3b7f;
-const COLOR_TOXIC = 0x00d68f;
-const COLOR_AMBER = 0xffb020;
-const COLOR_ICE = 0x00b8e6;
-const COLOR_INK = 0x0b0f1e;
+const COLOR_TILE_STROKE = 0xD1AD5A;
+const COLOR_ACID = 0xC9A24C;
+const COLOR_VIOLET = 0xE0BF6E;
+const COLOR_EMBER = 0x8B1A2A;
+const COLOR_TOXIC = 0x1E7A4F;
+const COLOR_AMBER = 0xC9A24C;
+const COLOR_ICE = 0x86B49C;
+const COLOR_INK = 0x0A0806;
 
 interface CellHandle {
   container: Container;
@@ -163,7 +163,7 @@ export class TowerScene {
     if (!this.app) return;
     // 頂部：當前層顯示
     const levelStyle = new TextStyle({
-      fontFamily: 'JetBrains Mono, monospace',
+      fontFamily: 'IBM Plex Mono, monospace',
       fontSize: 12,
       fill: COLOR_INK,
       fontWeight: '600',
@@ -179,7 +179,7 @@ export class TowerScene {
 
     // 倍率大字
     const multStyle = new TextStyle({
-      fontFamily: 'Orbitron, Chakra Petch, sans-serif',
+      fontFamily: 'Bodoni Moda, Didot, serif',
       fontSize: 40,
       fill: COLOR_ACID,
       fontWeight: '700',
@@ -264,7 +264,7 @@ export class TowerScene {
 
     // 層級標籤（左側）
     const style = new TextStyle({
-      fontFamily: 'JetBrains Mono, monospace',
+      fontFamily: 'IBM Plex Mono, monospace',
       fontSize: 11,
       fill: COLOR_INK,
       fontWeight: '600',
@@ -304,7 +304,7 @@ export class TowerScene {
 
     // 標籤
     const style = new TextStyle({
-      fontFamily: 'Orbitron, Chakra Petch, sans-serif',
+      fontFamily: 'Bodoni Moda, Didot, serif',
       fontSize: h * 0.6,
       fill: COLOR_INK,
       fontWeight: '700',

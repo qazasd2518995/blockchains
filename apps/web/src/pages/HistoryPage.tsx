@@ -5,14 +5,14 @@ import { formatAmount } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 
 const ICON: Record<TransactionType, { color: string; icon: string }> = {
-  SIGNUP_BONUS: { color: 'text-neon-toxic', icon: '✧' },
-  BET_PLACE: { color: 'text-neon-ember', icon: '▼' },
-  BET_WIN: { color: 'text-neon-acid', icon: '▲' },
-  CASHOUT: { color: 'text-neon-acid', icon: '⇧' },
-  ADJUSTMENT: { color: 'text-neon-ice', icon: '⟲' },
-  REBATE: { color: 'text-neon-toxic', icon: '↻' },
-  TRANSFER_IN: { color: 'text-neon-acid', icon: '⇩' },
-  TRANSFER_OUT: { color: 'text-neon-ember', icon: '⇧' },
+  SIGNUP_BONUS: { color: 'text-win', icon: '✧' },
+  BET_PLACE: { color: 'text-wine-500', icon: '▼' },
+  BET_WIN: { color: 'text-brass-700', icon: '▲' },
+  CASHOUT: { color: 'text-brass-700', icon: '⇧' },
+  ADJUSTMENT: { color: 'text-felt-500', icon: '⟲' },
+  REBATE: { color: 'text-win', icon: '↻' },
+  TRANSFER_IN: { color: 'text-brass-700', icon: '⇩' },
+  TRANSFER_OUT: { color: 'text-wine-500', icon: '⇧' },
 };
 
 export function HistoryPage() {
@@ -37,28 +37,34 @@ export function HistoryPage() {
     .reduce((s, t) => s + Number.parseFloat(t.amount), 0);
 
   return (
-    <div className="space-y-10">
-      <section className="border-b border-ink-200 pb-6">
-        <div className="label">§ {t.history.ledger}</div>
-        <h1 className="mt-2 font-serif text-6xl font-black italic">
-          <span className="text-neon-acid not-italic">{t.history.txLog}</span>
+    <div className="relative space-y-12">
+      <div className="crystal-overlay" />
+
+      <section className="relative z-10 border-b border-brass-500/40 pb-6">
+        <div className="flex items-center gap-3">
+          <span className="font-script text-lg text-brass-700">{t.history.ledger}</span>
+          <span className="text-brass-500">◆</span>
+          <span className="label label-brass">registre</span>
+        </div>
+        <h1 className="mt-3 font-serif text-6xl leading-[0.95] text-ivory-950">
+          <span className="italic text-brass-700">{t.history.txLog}</span>
         </h1>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="crt-panel p-5">
-          <div className="label">{t.history.totalIn}</div>
-          <div className="mt-1 big-num text-4xl text-neon-toxic">+{formatAmount(totalIn)}</div>
+      <section className="relative z-10 grid gap-4 md:grid-cols-3">
+        <div className="panel-salon p-5">
+          <div className="label label-brass">{t.history.totalIn}</div>
+          <div className="mt-2 big-num text-4xl big-num-win">+{formatAmount(totalIn)}</div>
         </div>
-        <div className="crt-panel p-5">
-          <div className="label">{t.history.totalOut}</div>
-          <div className="mt-1 big-num text-4xl text-neon-ember">{formatAmount(totalOut)}</div>
+        <div className="panel-salon p-5">
+          <div className="label label-brass">{t.history.totalOut}</div>
+          <div className="mt-2 big-num text-4xl big-num-wine">{formatAmount(totalOut)}</div>
         </div>
-        <div className="crt-panel p-5">
-          <div className="label">{t.history.net}</div>
+        <div className="panel-salon p-5">
+          <div className="label label-brass">{t.history.net}</div>
           <div
-            className={`mt-1 big-num text-4xl ${
-              totalIn + totalOut >= 0 ? 'text-neon-acid' : 'text-neon-ember'
+            className={`mt-2 big-num text-4xl ${
+              totalIn + totalOut >= 0 ? 'big-num-brass' : 'big-num-wine'
             }`}
           >
             {totalIn + totalOut >= 0 ? '+' : ''}
@@ -68,36 +74,40 @@ export function HistoryPage() {
       </section>
 
       {error && (
-        <div className="border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
-          {t.common.error.toUpperCase()}: {error.toUpperCase()}
+        <div className="relative z-10 border border-wine-400/50 bg-wine-50 p-4 text-[12px] text-wine-600">
+          <span className="font-serif font-bold italic">{t.common.error}:</span> {error}
         </div>
       )}
 
-      <section className="crt-panel overflow-hidden">
-        <div className="border-b border-ink-200 px-5 py-3 text-[10px] tracking-[0.25em] text-ink-500">
-          {t.history.showing} {items.length} {t.history.entries}
+      <section className="panel-salon relative z-10 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-brass-500/40 px-6 py-3">
+          <div className="flex items-baseline gap-2">
+            <span className="font-script text-base text-brass-700">Entries</span>
+            <span className="text-brass-500 text-xs">◆</span>
+            <span className="label label-brass">
+              {t.history.showing} {items.length} {t.history.entries}
+            </span>
+          </div>
         </div>
 
         {loading && (
-          <div className="flex items-center gap-2 px-5 py-8 text-[12px] tracking-[0.25em] text-ink-600">
+          <div className="flex items-center gap-2 px-6 py-8 font-mono text-[12px] tracking-[0.25em] text-ivory-700">
             <span className="status-dot status-dot-live" />
-            {t.common.loading.toUpperCase()}
+            {t.common.loading}
             <span className="animate-blink">_</span>
           </div>
         )}
 
         {!loading && items.length === 0 && (
-          <div className="px-5 py-12 text-center">
-            <div className="font-display text-4xl text-ink-300">{t.history.noRecords}</div>
-            <div className="mt-2 text-[11px] tracking-[0.3em] text-ink-500">
-              {t.history.placeFirst}
-            </div>
+          <div className="px-6 py-16 text-center">
+            <div className="font-serif text-5xl italic text-ivory-400">{t.history.noRecords}</div>
+            <div className="mt-3 font-script text-base text-ivory-700">{t.history.placeFirst}</div>
           </div>
         )}
 
         {!loading && items.length > 0 && (
-          <div className="divide-y divide-ink-200">
-            <div className="hidden grid-cols-[120px_120px_1fr_auto_auto] items-baseline gap-4 px-5 py-2 text-[9px] tracking-[0.3em] text-ink-500 md:grid">
+          <div className="divide-y divide-brass-500/20">
+            <div className="hidden grid-cols-[120px_140px_1fr_auto_auto] items-baseline gap-4 bg-ivory-100/50 px-6 py-3 font-mono text-[9px] tracking-[0.3em] text-brass-700 md:grid">
               <span>{t.history.time}</span>
               <span>{t.history.type}</span>
               <span>{t.history.ref}</span>
@@ -117,32 +127,32 @@ export function HistoryPage() {
               return (
                 <div
                   key={tx.id}
-                  className="grid grid-cols-[auto_1fr_auto] items-center gap-4 px-5 py-3 transition hover:bg-white/5 md:grid-cols-[120px_120px_1fr_auto_auto]"
+                  className="grid grid-cols-[auto_1fr_auto] items-center gap-4 px-6 py-3 transition hover:bg-brass-50/40 md:grid-cols-[120px_140px_1fr_auto_auto]"
                 >
-                  <div className="data-num text-[11px]">
-                    <div className="text-ink-900">{time}</div>
-                    <div className="text-[9px] tracking-[0.2em] text-ink-500">
+                  <div className="font-mono data-num text-[11px]">
+                    <div className="text-ivory-950">{time}</div>
+                    <div className="text-[9px] tracking-[0.2em] text-ivory-600">
                       {date.toUpperCase()}
                     </div>
                   </div>
                   <div className={`flex items-center gap-2 ${meta.color}`}>
                     <span className="text-lg">{meta.icon}</span>
-                    <span className="text-[11px] font-semibold tracking-[0.2em]">
+                    <span className="font-serif text-[12px] font-semibold tracking-[0.1em]">
                       {t.history.tx[tx.type as keyof typeof t.history.tx] ?? tx.type}
                     </span>
                   </div>
-                  <div className="hidden truncate font-mono text-[11px] text-ink-600 md:block">
-                    {tx.betId ? `BET_${tx.betId.slice(-6).toUpperCase()}` : '—'}
+                  <div className="hidden truncate font-mono text-[11px] text-ivory-600 md:block">
+                    {tx.betId ? `BET · ${tx.betId.slice(-6).toUpperCase()}` : '—'}
                   </div>
                   <div
                     className={`data-num text-right text-base font-semibold ${
-                      positive ? 'text-neon-acid' : 'text-neon-ember'
+                      positive ? 'text-win' : 'text-wine-500'
                     }`}
                   >
                     {positive ? '+' : ''}
                     {formatAmount(tx.amount)}
                   </div>
-                  <div className="data-num text-right text-[11px] text-ink-600">
+                  <div className="data-num text-right text-[11px] text-ivory-600">
                     {formatAmount(tx.balanceAfter)}
                   </div>
                 </div>

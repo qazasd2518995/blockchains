@@ -19,15 +19,15 @@ import {
   prewarmShaders,
 } from '@bg/game-engine';
 
-const COLOR_BG = 0xf7f9ff;
+const COLOR_BG = 0xFBF9F4;
 const COLOR_CARD = 0xffffff;
-const COLOR_INK = 0x0b0f1e;
-const COLOR_ACID = 0x5b4df8;
-const COLOR_VIOLET = 0x9b6cff;
-const COLOR_EMBER = 0xff3b7f;
-const COLOR_TOXIC = 0x00d68f;
-const COLOR_ICE = 0x00b8e6;
-const COLOR_RED = 0xdc1f3b;
+const COLOR_INK = 0x0A0806;
+const COLOR_ACID = 0xC9A24C;
+const COLOR_VIOLET = 0xE0BF6E;
+const COLOR_EMBER = 0x8B1A2A;
+const COLOR_TOXIC = 0x1E7A4F;
+const COLOR_ICE = 0x86B49C;
+const COLOR_RED = 0x8B1A2A;
 
 const SUITS = ['♠', '♥', '♦', '♣'];
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -200,7 +200,7 @@ export class HiLoScene {
 
     // 左上角數字 + 花色
     const rankStyle = new TextStyle({
-      fontFamily: 'Orbitron, Chakra Petch, sans-serif',
+      fontFamily: 'Bodoni Moda, Didot, serif',
       fontSize: h * 0.15,
       fill: suitColor,
       fontWeight: '700',

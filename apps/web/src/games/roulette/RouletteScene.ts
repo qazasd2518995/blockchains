@@ -19,15 +19,15 @@ import {
   prewarmShaders,
 } from '@bg/game-engine';
 
-const COLOR_BG = 0xf7f9ff;
-const COLOR_ACID = 0x5b4df8;
-const COLOR_VIOLET = 0x9b6cff;
-const COLOR_EMBER = 0xff3b7f;
-const COLOR_TOXIC = 0x00d68f;
-const COLOR_AMBER = 0xffb020;
-const COLOR_ICE = 0x00b8e6;
-const COLOR_INK = 0x0b0f1e;
-const COLOR_RED = 0xdc1f3b;
+const COLOR_BG = 0xFBF9F4;
+const COLOR_ACID = 0xC9A24C;
+const COLOR_VIOLET = 0xE0BF6E;
+const COLOR_EMBER = 0x8B1A2A;
+const COLOR_TOXIC = 0x1E7A4F;
+const COLOR_AMBER = 0xC9A24C;
+const COLOR_ICE = 0x86B49C;
+const COLOR_INK = 0x0A0806;
+const COLOR_RED = 0x8B1A2A;
 const COLOR_WHITE = 0xffffff;
 
 const SLOTS = 13; // 0 + 1-12
@@ -203,9 +203,9 @@ export class RouletteScene {
 
       // 顏色
       let color = COLOR_INK;
-      if (i === 0) color = 0x1a8a4e; // 綠色 0
+      if (i === 0) color = 0x1E7A4F; // 綠色 0
       else if (RED_NUMBERS.has(i)) color = COLOR_RED;
-      else if (BLACK_NUMBERS.has(i)) color = 0x202030;
+      else if (BLACK_NUMBERS.has(i)) color = 0x0A0806;
 
       g.moveTo(0, 0);
       g.arc(0, 0, this.outerRadius - 4, startA, endA);
@@ -222,7 +222,7 @@ export class RouletteScene {
       const tx = Math.cos(midA) * (this.outerRadius - 30);
       const ty = Math.sin(midA) * (this.outerRadius - 30);
       const style = new TextStyle({
-        fontFamily: 'Orbitron, Chakra Petch, sans-serif',
+        fontFamily: 'Bodoni Moda, Didot, serif',
         fontSize: 24,
         fill: COLOR_WHITE,
         fontWeight: '700',
@@ -268,7 +268,7 @@ export class RouletteScene {
       .stroke({ color: COLOR_AMBER, width: 2 });
     // 中心星
     const starStyle = new TextStyle({
-      fontFamily: 'Orbitron, Chakra Petch, sans-serif',
+      fontFamily: 'Bodoni Moda, Didot, serif',
       fontSize: r * 0.8,
       fill: COLOR_WHITE,
       fontWeight: '700',
@@ -322,7 +322,7 @@ export class RouletteScene {
   private createStatusLabel(): void {
     if (!this.app) return;
     const style = new TextStyle({
-      fontFamily: 'JetBrains Mono, monospace',
+      fontFamily: 'IBM Plex Mono, monospace',
       fontSize: 14,
       fill: COLOR_INK,
       fontWeight: '600',
@@ -480,7 +480,7 @@ export class RouletteScene {
       // 依號碼類型決定特效
       let color = COLOR_TOXIC;
       if (slot === 0) {
-        color = 0x1a8a4e;
+        color = 0x1E7A4F;
       } else if (RED_NUMBERS.has(slot)) {
         color = COLOR_RED;
       } else {

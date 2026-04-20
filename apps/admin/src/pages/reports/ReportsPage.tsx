@@ -139,7 +139,7 @@ export function ReportsPage(): JSX.Element {
       </div>
 
       {error && (
-        <div className="mb-4 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+        <div className="mb-4 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
           ⚠ {error.toUpperCase()}
         </div>
       )}
@@ -170,9 +170,9 @@ function ReportTable({
             <tr className="border-b border-ink-200 bg-ink-100/60 text-[9px] uppercase tracking-[0.2em] text-ink-600">
               <th colSpan={4} className="border-r border-ink-200 py-2 text-center">基础信息</th>
               <th colSpan={3} className="border-r border-ink-200 py-2 text-center">注单</th>
-              <th colSpan={3} className="border-r border-ink-200 py-2 text-center text-neon-ember">会员输赢</th>
-              <th colSpan={6} className="border-r border-ink-200 py-2 text-center text-neon-acid">本级占成</th>
-              <th colSpan={2} className="py-2 text-center text-neon-amber">最终交收</th>
+              <th colSpan={3} className="border-r border-ink-200 py-2 text-center text-wine-500">会员输赢</th>
+              <th colSpan={6} className="border-r border-ink-200 py-2 text-center text-brass-700">本级占成</th>
+              <th colSpan={2} className="py-2 text-center text-brass-600">最终交收</th>
             </tr>
             <tr className="border-b border-ink-200 bg-ink-100/40 text-[9px] uppercase tracking-[0.15em] text-ink-500">
               <Th>级别</Th>
@@ -212,13 +212,13 @@ function ReportTable({
               <td className="px-3 py-3 text-right data-num">{fmt(data.totals.betAmount)}</td>
               <td className="border-r border-ink-200 px-3 py-3 text-right data-num">{fmt(data.totals.validAmount)}</td>
               <WlTd v={data.totals.memberWinLoss} />
-              <td className="px-3 py-3 text-right data-num text-neon-toxic">{fmt(data.totals.totalRebateAmount)}</td>
+              <td className="px-3 py-3 text-right data-num text-win">{fmt(data.totals.totalRebateAmount)}</td>
               <WlTd v={data.totals.memberProfitLossResult} borderRight />
               <td className="px-3 py-3 text-right data-num">{fmt(data.totals.receivableFromDownline)}</td>
               <td className="px-3 py-3 text-right data-num text-ink-500">—</td>
               <WlTd v={data.totals.commissionAmount} />
               <WlTd v={data.totals.commissionAmount} />
-              <td className="px-3 py-3 text-right data-num text-neon-toxic">{fmt(data.totals.earnedRebateAmount)}</td>
+              <td className="px-3 py-3 text-right data-num text-win">{fmt(data.totals.earnedRebateAmount)}</td>
               <WlTd v={data.totals.profitLossResult} borderRight />
               <td className="px-3 py-3 text-right data-num">{fmt(data.totals.volumeRemitted)}</td>
               <WlTd v={data.totals.uplineSettlement} bold />
@@ -235,7 +235,7 @@ function Row({ row, onClick }: { row: HierarchyReportItem; onClick: () => void }
   return (
     <tr
       onClick={onClick}
-      className="cursor-pointer border-b border-ink-100 transition hover:bg-neon-acid/5"
+      className="cursor-pointer border-b border-ink-100 transition hover:bg-brass-50/60"
     >
       <td className="px-3 py-2.5">
         {isAgent ? (
@@ -249,7 +249,7 @@ function Row({ row, onClick }: { row: HierarchyReportItem; onClick: () => void }
         {row.displayName && <div className="mt-0.5 text-[9px] text-ink-500">{row.displayName}</div>}
       </td>
       <td className="px-3 py-2.5 text-[10px] text-ink-500">{row.notes ?? '—'}</td>
-      <td className="border-r border-ink-200 px-3 py-2.5 text-right data-num text-neon-acid">
+      <td className="border-r border-ink-200 px-3 py-2.5 text-right data-num text-brass-700">
         {fmt(row.balance)}
       </td>
 
@@ -258,14 +258,14 @@ function Row({ row, onClick }: { row: HierarchyReportItem; onClick: () => void }
       <td className="border-r border-ink-200 px-3 py-2.5 text-right data-num">{fmt(row.validAmount)}</td>
 
       <WlTd v={row.memberWinLoss} />
-      <td className="px-3 py-2.5 text-right data-num text-neon-toxic">{fmt(row.totalRebateAmount)}</td>
+      <td className="px-3 py-2.5 text-right data-num text-win">{fmt(row.totalRebateAmount)}</td>
       <WlTd v={row.memberProfitLossResult} borderRight />
 
       <td className="px-3 py-2.5 text-right data-num">{fmt(row.receivableFromDownline)}</td>
-      <td className="px-3 py-2.5 text-right data-num text-neon-acid">{pct(row.commissionPercentage)}</td>
+      <td className="px-3 py-2.5 text-right data-num text-brass-700">{pct(row.commissionPercentage)}</td>
       <WlTd v={row.commissionAmount} />
       <WlTd v={row.commissionResult} />
-      <td className="px-3 py-2.5 text-right data-num text-neon-toxic">{fmt(row.earnedRebateAmount)}</td>
+      <td className="px-3 py-2.5 text-right data-num text-win">{fmt(row.earnedRebateAmount)}</td>
       <WlTd v={row.profitLossResult} borderRight />
 
       <td className="px-3 py-2.5 text-right data-num">{fmt(row.volumeRemitted)}</td>
@@ -300,7 +300,7 @@ function WlTd({
   bold?: boolean;
 }): JSX.Element {
   const n = Number.parseFloat(v);
-  const color = n > 0 ? 'text-neon-toxic' : n < 0 ? 'text-neon-ember' : 'text-ink-600';
+  const color = n > 0 ? 'text-win' : n < 0 ? 'text-wine-500' : 'text-ink-600';
   const weight = bold ? 'font-bold' : '';
   return (
     <td className={`px-3 py-2.5 text-right data-num ${color} ${weight} ${borderRight ? 'border-r border-ink-200' : ''}`}>

@@ -138,6 +138,39 @@ export const zh = {
     avgRtp: '平均返奖',
     systemStatus: '系统状态',
     games: '款',
+    // sidebar
+    allGames: '全部游戏',
+    popular: '热门',
+    newGames: '新上架',
+    favorites: '我的最爱',
+    promotions: '优惠活动',
+    // hero slides
+    heroWelcomeEyebrow: '欢迎莅临',
+    heroWelcomeTitle: 'The Gilded Salon',
+    heroWelcomeDesc: '注册即赠 1,000 积分 · 无需充值 · 全程可验证公平',
+    heroWelcomeCta: '立即领取',
+    heroFairEyebrow: '数学作证',
+    heroFairTitle: 'Provably Fair',
+    heroFairDesc: 'HMAC-SHA256 双种子机制 · 每局可自行复算',
+    heroFairCta: '了解更多',
+    heroJackpotEyebrow: '今日累积',
+    heroJackpotTitle: 'Live Jackpot',
+    heroJackpotDesc: '所有 Crash 游戏共同累积 · 下一个爆分的就是你',
+    heroJackpotCta: '开始挑战',
+    // filter tabs
+    filterAll: '全部',
+    filterPopular: '热门',
+    filterNew: '新上架',
+    filterFavorites: '最爱',
+    searchPlaceholder: '搜索游戏...',
+    sortByRtp: 'RTP ▼',
+    sortByName: '名称 A-Z',
+    // live winners column
+    liveWinnersTitle: '最近大赢家',
+    liveWinnersSub: '实时更新 · 过去 5 分钟',
+    // providers
+    providersTitle: '游戏供应商',
+    providersSub: '由业界顶尖团队打造',
   },
 
   appshell: {

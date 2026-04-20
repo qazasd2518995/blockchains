@@ -54,7 +54,7 @@ export function AdjustBalanceModal({ open, onClose, member, onDone }: Props): JS
         </div>
         <div className="mt-1 flex items-baseline justify-between">
           <span className="text-ink-500">{t.adjust.bal}</span>
-          <span className="data-num text-neon-acid">{member.balance}</span>
+          <span className="data-num text-brass-700">{member.balance}</span>
         </div>
       </div>
 
@@ -62,7 +62,7 @@ export function AdjustBalanceModal({ open, onClose, member, onDone }: Props): JS
         <label className="block">
           <div className="label mb-2">{t.adjust.delta}</div>
           <input type="text" {...register('delta')} className="term-input font-mono" placeholder="+100.00 / -50" />
-          {errors.delta && <div className="mt-1 text-[10px] text-neon-ember">⚠ {errors.delta.message}</div>}
+          {errors.delta && <div className="mt-1 text-[10px] text-wine-500">⚠ {errors.delta.message}</div>}
         </label>
 
         <label className="block">
@@ -70,7 +70,7 @@ export function AdjustBalanceModal({ open, onClose, member, onDone }: Props): JS
           <input type="text" {...register('description')} className="term-input" />
         </label>
 
-        {err && <div className="border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">⚠ {err}</div>}
+        {err && <div className="border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">⚠ {err}</div>}
 
         <div className="flex items-center gap-2">
           <button type="submit" disabled={isSubmitting} className="btn-acid">

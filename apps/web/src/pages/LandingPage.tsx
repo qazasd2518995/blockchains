@@ -50,176 +50,205 @@ export function LandingPage() {
   if (accessToken) return <Navigate to="/lobby" replace />;
 
   return (
-    <div className="relative min-h-screen">
-      <div className="relative z-10 border-b border-ink-200 bg-ink-50/60 backdrop-blur">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.25em] text-ink-600">
+    <div className="relative min-h-screen overflow-hidden">
+      {/* Crystal chandelier glow */}
+      <div className="crystal-overlay" />
+
+      {/* ===== TOP BAR ===== */}
+      <div className="relative z-10 border-b border-brass-500/40 bg-ivory-100/70 backdrop-blur">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-ivory-700">
           <div className="flex items-center gap-6">
-            <span>
+            <span className="flex items-center">
               <span className="status-dot status-dot-live" />
               {t.landing.systemOnline}
             </span>
-            <span className="hidden md:inline">NODE 03 / OREGON-US</span>
-            <span className="hidden lg:inline">{t.landing.lastBlock} 2,384,921</span>
+            <span className="hidden md:inline font-script normal-case tracking-normal text-[14px] text-brass-700">
+              Établi · Monte Carlo · MMXXVI
+            </span>
           </div>
           <div className="flex items-center gap-6">
-            <span className="data-num text-neon-acid">{time}</span>
+            <span className="font-mono data-num text-brass-700">{time}</span>
             <span className="hidden sm:inline">RTP 96–99%</span>
           </div>
         </div>
       </div>
 
-      <div className="relative z-10 overflow-hidden border-b border-ink-200 bg-ink-100/40 py-2">
-        <div className="flex animate-ticker whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.3em] text-ink-700">
+      {/* ===== TICKER BANNER ===== */}
+      <div className="relative z-10 overflow-hidden border-b border-brass-500/40 bg-felt-600 py-3">
+        <div className="flex animate-ticker whitespace-nowrap font-serif text-[13px] tracking-[0.3em] text-brass-200">
           {[...LIVE_FEED, ...LIVE_FEED, ...LIVE_FEED, ...LIVE_FEED].map((f, i) => (
-            <span key={i} className="mx-8 flex items-center gap-3">
-              <span className="text-ink-500">{f.player}</span>
-              <span className="text-ink-600">▸</span>
-              <span className="text-ink-900">{f.game}</span>
-              <span className="text-neon-acid">{f.multi}</span>
-              <span className="text-neon-toxic">{f.win}</span>
-              <span className="text-ink-400">◈</span>
+            <span key={i} className="mx-10 flex items-center gap-3">
+              <span className="text-brass-300/70">{f.player}</span>
+              <span className="text-brass-400">◆</span>
+              <span className="italic text-ivory-100">{f.game}</span>
+              <span className="text-brass-300">{f.multi}</span>
+              <span className="text-win">{f.win}</span>
+              <span className="text-brass-500">♠</span>
             </span>
           ))}
         </div>
       </div>
 
-      <header className="relative z-10 mx-auto flex max-w-[1600px] items-center justify-between px-6 py-5">
+      {/* ===== HEADER ===== */}
+      <header className="relative z-10 mx-auto flex max-w-[1600px] items-center justify-between px-6 py-6">
         <Link to="/" className="group flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center border border-neon-acid bg-neon-acid/10 text-neon-acid shadow-acid-glow">
-            <span className="font-display text-lg">BG</span>
+          <div className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-brass-500 bg-gradient-to-br from-ivory-100 to-ivory-200 shadow-lift">
+            <span className="font-serif text-xl italic text-brass-700">B</span>
+            <span className="absolute -right-1 -top-1 text-brass-600 text-lg">♦</span>
           </div>
           <div>
-            <div className="font-display text-xl leading-none tracking-widest text-ink-900">
-              BLOCKCHAIN<span className="text-neon-acid">.</span>GAME
+            <div className="font-serif text-2xl leading-none text-ivory-950">
+              Blockchain<span className="italic text-brass-700">.</span>Game
             </div>
-            <div className="label mt-1 text-[9px]">{t.landing.crypto}</div>
+            <div className="mt-1 font-script text-xs text-ivory-600">{t.landing.crypto}</div>
           </div>
         </Link>
         <nav className="flex items-center gap-3">
           <LocaleToggle />
-          <Link to="/login" className="btn-acid">
-            → {t.common.login.toUpperCase()}
+          <Link to="/login" className="btn-brass">
+            → {t.common.login}
           </Link>
         </nav>
       </header>
 
-      <section className="relative z-10 mx-auto max-w-[1600px] px-6 pb-20 pt-10">
-        <div className="grid gap-8 lg:grid-cols-12">
-          <div className="lg:col-span-8">
-            <div className="flex items-center gap-3 text-[11px] tracking-[0.3em] text-ink-600">
-              <span className="tag tag-acid">
+      {/* ===== HERO ===== */}
+      <section className="relative z-10 mx-auto max-w-[1600px] px-6 pb-24 pt-12">
+        <div className="grid gap-10 lg:grid-cols-12">
+          <div className="lg:col-span-7">
+            <div className="flex items-center gap-3 text-[11px] tracking-[0.3em] text-ivory-700">
+              <span className="tag tag-wine">
                 <span className="status-dot status-dot-live" />
                 LIVE
               </span>
-              <span>{t.landing.deployment}</span>
+              <span className="font-script text-base normal-case tracking-normal text-brass-700">
+                — {t.landing.deployment}
+              </span>
             </div>
 
-            <h1 className="mt-6 font-serif text-[clamp(3rem,9vw,8rem)] font-black leading-[0.88] tracking-[-0.04em]">
-              <span className="block animate-reveal text-ink-900">{t.landing.heroLine1}</span>
+            <h1 className="mt-8 font-serif text-[clamp(3.5rem,10vw,9rem)] font-black leading-[0.88] tracking-[-0.02em] text-ivory-950">
+              <span className="block animate-reveal">{t.landing.heroLine1}</span>
               <span
                 className="block animate-reveal big-num-grad"
-                style={{ animationDelay: '0.15s' }}
+                style={{ animationDelay: '0.18s' }}
               >
                 {t.landing.heroLine2}
               </span>
               <span
-                className="block animate-reveal italic text-ink-900"
-                style={{ animationDelay: '0.3s' }}
+                className="block animate-reveal italic text-wine-500"
+                style={{ animationDelay: '0.36s' }}
               >
                 {t.landing.heroLine3}
               </span>
             </h1>
 
-            <p className="mt-8 max-w-xl font-mono text-sm leading-relaxed text-ink-700">
+            <p className="mt-10 max-w-2xl text-[15px] leading-relaxed text-ivory-800">
               {t.landing.heroDesc}
             </p>
 
-            <div className="mt-10 flex flex-wrap items-center gap-4">
-              <Link to="/login" className="btn-acid">
+            <div className="mt-10 flex flex-wrap items-center gap-5">
+              <Link to="/login" className="btn-brass">
                 {t.landing.ctaExisting}
               </Link>
-              <span className="text-[10px] uppercase tracking-[0.3em] text-ink-500">
+              <span className="flex items-center gap-2 font-script text-base text-brass-700">
+                <span className="text-lg">♠</span>
                 {t.landing.accessManaged}
               </span>
             </div>
           </div>
 
-          <div className="lg:col-span-4">
-            <div className="crt-panel scanlines p-5">
-              <div className="flex items-center justify-between border-b border-ink-200 pb-3">
-                <div className="label">{t.landing.liveFeed}</div>
-                <div className="tag tag-toxic text-[10px]">
-                  <span className="status-dot status-dot-live" />
-                  {t.common.syncing.toUpperCase()}
+          {/* Right column: Live feed (green felt) + Stats (ivory) */}
+          <div className="lg:col-span-5 space-y-4">
+            <div className="panel-felt scanlines p-6">
+              <div className="flex items-center justify-between border-b border-brass-500/40 pb-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-script text-lg text-brass-300">À la Table</span>
+                  <span className="text-brass-500 text-xs">◆</span>
+                  <span className="label text-brass-400">{t.landing.liveFeed}</span>
                 </div>
+                <div className="seal seal-live seal-breath !h-8 !w-8 !text-[8px]">LIVE</div>
               </div>
-              <ul className="mt-4 space-y-3 text-[12px]">
+              <ul className="mt-5 space-y-4 text-[12px]">
                 {LIVE_FEED.map((f, i) => (
                   <li
                     key={i}
-                    className="flex items-center justify-between border-b border-ink-200 pb-3 last:border-0 last:pb-0"
+                    className="flex items-center justify-between border-b border-brass-500/20 pb-4 last:border-0 last:pb-0"
                   >
                     <div>
-                      <div className="text-ink-900">{f.player}</div>
-                      <div className="text-[10px] tracking-[0.25em] text-ink-500">{f.game}</div>
+                      <div className="font-mono text-ivory-100">{f.player}</div>
+                      <div className="mt-0.5 font-script text-[13px] text-brass-300">{f.game}</div>
                     </div>
                     <div className="text-right">
-                      <div className="data-num text-neon-acid">{f.multi}</div>
-                      <div className="data-num text-[11px] text-neon-toxic">{f.win}</div>
+                      <div className="data-num text-xl text-brass-200">{f.multi}</div>
+                      <div className="data-num text-[11px] text-win">{f.win}</div>
                     </div>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="mt-4 crt-panel p-5">
-              <div className="label">{t.landing.netStats}</div>
-              <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="panel-salon p-6">
+              <div className="flex items-baseline justify-between border-b border-brass-500/40 pb-2">
+                <span className="font-script text-lg text-brass-700">Salon Ledger</span>
+                <span className="label label-brass">{t.landing.netStats}</span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3">
                 <Stat k={t.landing.netStatBets} v="184,291" />
-                <Stat k={t.landing.netStatWagered} v="4.2M" />
-                <Stat k={t.landing.netStatPayouts} v="4.08M" />
-                <Stat k={t.landing.netStatEdge} v="3.2%" accent="ember" />
+                <Stat k={t.landing.netStatWagered} v="4.2M" tone="brass" />
+                <Stat k={t.landing.netStatPayouts} v="4.08M" tone="win" />
+                <Stat k={t.landing.netStatEdge} v="3.2%" tone="wine" />
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="relative z-10 border-y border-ink-200 bg-ink-100/30 py-6">
+      {/* ===== GAMES MARQUEE ===== */}
+      <section className="relative z-10 border-y border-brass-500/40 bg-gradient-to-b from-ivory-100 to-ivory-200 py-8 overflow-hidden">
         <div className="flex animate-ticker whitespace-nowrap">
           {[...GAMES_TICKER, ...GAMES_TICKER, ...GAMES_TICKER].map((g, i) => (
             <span
               key={i}
-              className="mx-10 font-display text-5xl tracking-[0.1em] text-ink-300"
+              className="mx-12 flex items-baseline gap-4 font-serif text-6xl italic text-ivory-400"
             >
-              {g} <span className="text-neon-acid">◆</span>
+              {g}
+              <span className="text-brass-500 text-3xl not-italic">♦</span>
             </span>
           ))}
         </div>
       </section>
 
-      <section className="relative z-10 mx-auto max-w-[1600px] px-6 py-20">
-        <div className="mb-12 flex items-center gap-6">
-          <div className="label">§ 01</div>
-          <h2 className="font-serif text-4xl italic text-ink-900">{t.landing.section1}</h2>
+      {/* ===== FEATURES ===== */}
+      <section className="relative z-10 mx-auto max-w-[1600px] px-6 py-24">
+        <div className="mb-14 flex items-end gap-6">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-brass-500 bg-gradient-to-br from-ivory-100 to-ivory-200 shadow-lift">
+            <span className="font-serif text-4xl italic text-brass-700">§</span>
+          </div>
+          <div className="flex-1 border-b border-brass-500/40 pb-3">
+            <div className="font-script text-lg text-brass-700">Chapter I</div>
+            <h2 className="mt-1 font-serif text-5xl italic text-ivory-950">
+              {t.landing.section1}
+            </h2>
+          </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Feature num="01" label={t.landing.featureLabel} title={t.landing.feat.f1Title} desc={t.landing.feat.f1Desc} accent="acid" />
-          <Feature num="02" label={t.landing.featureLabel} title={t.landing.feat.f2Title} desc={t.landing.feat.f2Desc} accent="toxic" />
-          <Feature num="03" label={t.landing.featureLabel} title={t.landing.feat.f3Title} desc={t.landing.feat.f3Desc} accent="ember" />
-          <Feature num="04" label={t.landing.featureLabel} title={t.landing.feat.f4Title} desc={t.landing.feat.f4Desc} accent="ice" />
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+          <Feature num="I" label={t.landing.featureLabel} title={t.landing.feat.f1Title} desc={t.landing.feat.f1Desc} suit="♠" />
+          <Feature num="II" label={t.landing.featureLabel} title={t.landing.feat.f2Title} desc={t.landing.feat.f2Desc} suit="♥" />
+          <Feature num="III" label={t.landing.featureLabel} title={t.landing.feat.f3Title} desc={t.landing.feat.f3Desc} suit="♦" />
+          <Feature num="IV" label={t.landing.featureLabel} title={t.landing.feat.f4Title} desc={t.landing.feat.f4Desc} suit="♣" />
         </div>
       </section>
 
-      <footer className="relative z-10 border-t border-ink-200 bg-ink-50/60 py-10">
+      {/* ===== FOOTER ===== */}
+      <footer className="relative z-10 border-t border-brass-500/40 bg-gradient-to-b from-ivory-100 to-ivory-200 py-12">
         <div className="mx-auto max-w-[1600px] px-6">
+          <div className="divider-suit mb-8"><span>♠ ◆ ♥ ◆ ♦ ◆ ♣</span></div>
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
-              <span className="label">// EOF</span>
-              <span className="text-[11px] text-ink-500">{t.landing.footer}</span>
+              <span className="font-script text-lg text-brass-700">Fin.</span>
+              <span className="font-mono text-[11px] text-ivory-700">{t.landing.footer}</span>
             </div>
-            <div className="flex items-center gap-4 text-[11px] uppercase tracking-[0.3em] text-ink-500">
+            <div className="flex items-center gap-4 font-mono text-[10px] uppercase tracking-[0.3em] text-ivory-600">
               <span>{t.landing.noReal}</span>
             </div>
           </div>
@@ -229,17 +258,27 @@ export function LandingPage() {
   );
 }
 
-function Stat({ k, v, accent }: { k: string; v: string; accent?: 'ember' }) {
+function Stat({
+  k,
+  v,
+  tone = 'ink',
+}: {
+  k: string;
+  v: string;
+  tone?: 'ink' | 'brass' | 'win' | 'wine';
+}) {
+  const cls =
+    tone === 'brass'
+      ? 'big-num-brass'
+      : tone === 'win'
+        ? 'big-num-win'
+        : tone === 'wine'
+          ? 'big-num-wine'
+          : 'text-ivory-950';
   return (
-    <div className="border border-ink-200 bg-ink-50/50 p-3">
-      <div className="text-[9px] tracking-[0.25em] text-ink-500">{k}</div>
-      <div
-        className={`mt-1 font-display text-2xl tracking-tight ${
-          accent === 'ember' ? 'text-neon-ember' : 'text-ink-900'
-        }`}
-      >
-        {v}
-      </div>
+    <div className="border border-brass-500/30 bg-gradient-to-b from-ivory-50 to-ivory-100 p-3">
+      <div className="label label-brass text-[9px]">{k}</div>
+      <div className={`mt-1 font-serif text-2xl tracking-tight ${cls}`}>{v}</div>
     </div>
   );
 }
@@ -249,29 +288,27 @@ function Feature({
   label,
   title,
   desc,
-  accent,
+  suit,
 }: {
   num: string;
   label: string;
   title: string;
   desc: string;
-  accent: 'acid' | 'ember' | 'toxic' | 'ice';
+  suit: string;
 }) {
-  const colors = {
-    acid: 'text-neon-acid border-neon-acid/30 hover:border-neon-acid',
-    ember: 'text-neon-ember border-neon-ember/30 hover:border-neon-ember',
-    toxic: 'text-neon-toxic border-neon-toxic/30 hover:border-neon-toxic',
-    ice: 'text-neon-ice border-neon-ice/30 hover:border-neon-ice',
-  }[accent];
-
   return (
-    <div className={`crt-panel-hot p-6 ${colors}`}>
-      <div className="flex items-baseline justify-between border-b border-ink-200 pb-3">
-        <div className="label">{label}_{num}</div>
-        <div className={`font-display text-4xl leading-none`}>{num}</div>
+    <div className="panel-felt panel-felt-hot relative p-7">
+      <div className="flex items-baseline justify-between border-b border-brass-500/40 pb-3">
+        <div className="font-script text-sm text-brass-300">
+          {label} № {num}
+        </div>
+        <div className="font-serif text-4xl leading-none italic text-brass-300">{num}</div>
       </div>
-      <h3 className="mt-4 font-serif text-2xl font-bold text-ink-900">{title}</h3>
-      <p className="mt-3 text-[13px] leading-relaxed text-ink-700">{desc}</p>
+      <div className="mt-5 flex items-start gap-3">
+        <span className="font-serif text-3xl text-brass-400">{suit}</span>
+        <h3 className="font-serif text-2xl leading-tight text-ivory-100">{title}</h3>
+      </div>
+      <p className="mt-4 text-[13px] leading-relaxed text-brass-200/90">{desc}</p>
     </div>
   );
 }

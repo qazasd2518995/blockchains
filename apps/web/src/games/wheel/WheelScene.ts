@@ -19,16 +19,16 @@ import {
   prewarmShaders,
 } from '@bg/game-engine';
 
-const COLOR_BG = 0xf7f9ff;
-const COLOR_ACID = 0x5b4df8;
-const COLOR_VIOLET = 0x9b6cff;
-const COLOR_EMBER = 0xff3b7f;
-const COLOR_TOXIC = 0x00d68f;
-const COLOR_AMBER = 0xffb020;
-const COLOR_ICE = 0x00b8e6;
-const COLOR_INK = 0x0b0f1e;
+const COLOR_BG = 0xFBF9F4;
+const COLOR_ACID = 0xC9A24C;
+const COLOR_VIOLET = 0xE0BF6E;
+const COLOR_EMBER = 0x8B1A2A;
+const COLOR_TOXIC = 0x1E7A4F;
+const COLOR_AMBER = 0xC9A24C;
+const COLOR_ICE = 0x86B49C;
+const COLOR_INK = 0x0A0806;
 const COLOR_WHITE = 0xffffff;
-const COLOR_GRAY = 0xdde4f3;
+const COLOR_GRAY = 0xD1AD5A;
 
 interface Particle {
   g: Graphics;
@@ -162,7 +162,7 @@ export class WheelScene {
       .stroke({ color: COLOR_WHITE, width: 1, alpha: 0.5 });
     // 中心星
     const starStyle = new TextStyle({
-      fontFamily: 'Orbitron, Chakra Petch, sans-serif',
+      fontFamily: 'Bodoni Moda, Didot, serif',
       fontSize: 36,
       fill: COLOR_WHITE,
       fontWeight: '700',
@@ -284,7 +284,7 @@ export class WheelScene {
         const tx = Math.cos(midA) * this.radius * 0.7;
         const ty = Math.sin(midA) * this.radius * 0.7;
         const style = new TextStyle({
-          fontFamily: 'Orbitron, Chakra Petch, sans-serif',
+          fontFamily: 'Bodoni Moda, Didot, serif',
           fontSize: 18,
           fill: COLOR_INK,
           fontWeight: '700',

@@ -1,45 +1,50 @@
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from '@/i18n/useTranslation';
 
-const items: { code: string; to: string; key: keyof ReturnType<typeof useTranslation>['t']['nav'] }[] = [
-  { code: '01', to: '/admin/dashboard', key: 'dashboard' },
-  { code: '02', to: '/admin/accounts', key: 'accounts' },
-  { code: '03', to: '/admin/transfers', key: 'transfers' },
-  { code: '04', to: '/admin/reports', key: 'reports' },
-  { code: '05', to: '/admin/controls', key: 'controls' },
-  { code: '06', to: '/admin/audit', key: 'audit' },
+const SUITS = ['♠', '♦', '♥', '♣', '◆', '❖'] as const;
+
+const items: { to: string; key: keyof ReturnType<typeof useTranslation>['t']['nav'] }[] = [
+  { to: '/admin/dashboard', key: 'dashboard' },
+  { to: '/admin/accounts', key: 'accounts' },
+  { to: '/admin/transfers', key: 'transfers' },
+  { to: '/admin/reports', key: 'reports' },
+  { to: '/admin/controls', key: 'controls' },
+  { to: '/admin/audit', key: 'audit' },
 ];
 
 export function Sidebar(): JSX.Element {
   const { t } = useTranslation();
   return (
-    <aside className="crt-panel sticky top-[96px] h-[calc(100vh-120px)] w-56 shrink-0 overflow-hidden p-3">
-      <div className="border-b border-ink-200 pb-3 text-[9px] tracking-[0.3em] text-ink-500">
-        § {t.shell.navigation}
+    <aside className="panel-felt sticky top-[108px] h-[calc(100vh-140px)] w-60 shrink-0 overflow-hidden p-4">
+      <div className="flex items-center justify-between border-b border-brass-500/40 pb-3">
+        <span className="font-script text-base text-brass-300">Navigation</span>
+        <span className="text-brass-500">◆</span>
       </div>
-      <nav className="mt-3 space-y-1">
-        {items.map((it) => (
+      <nav className="mt-4 space-y-1.5">
+        {items.map((it, idx) => (
           <NavLink
             key={it.to}
             to={it.to}
             className={({ isActive }) =>
-              `group flex items-center justify-between border px-3 py-2 text-[11px] transition ${
+              `group flex items-center justify-between rounded-sm border px-3 py-2.5 text-[12px] transition ${
                 isActive
-                  ? 'border-neon-acid bg-neon-acid/10 text-neon-acid shadow-acid-glow'
-                  : 'border-transparent text-ink-700 hover:border-ink-200 hover:bg-ink-100/50 hover:text-ink-900'
+                  ? 'border-brass-400 bg-felt-700/70 text-brass-200 shadow-[inset_0_0_0_1px_rgba(201,162,76,0.2)]'
+                  : 'border-transparent text-ivory-100/75 hover:border-brass-500/40 hover:bg-felt-700/40 hover:text-brass-200'
               }`
             }
           >
-            <span className="flex items-center gap-2">
-              <span className="font-mono text-[9px] opacity-60">{it.code}</span>
-              <span className="tracking-[0.2em] uppercase font-semibold">{t.nav[it.key]}</span>
+            <span className="flex items-center gap-2.5">
+              <span className="font-serif text-sm text-brass-400 opacity-80">
+                {SUITS[idx % SUITS.length]}
+              </span>
+              <span className="font-serif tracking-[0.08em]">{t.nav[it.key]}</span>
             </span>
-            <span className="opacity-0 transition group-hover:opacity-60">→</span>
+            <span className="text-brass-400 opacity-0 transition group-hover:opacity-90">→</span>
           </NavLink>
         ))}
       </nav>
-      <div className="absolute bottom-3 left-3 right-3 border-t border-ink-200 pt-3 text-[9px] tracking-[0.3em] text-ink-500">
-        v0.1 · AGENT.OPS
+      <div className="absolute bottom-4 left-4 right-4 border-t border-brass-500/25 pt-3 text-center font-script text-[12px] text-brass-300">
+        v0.1 · Agent.Ops
       </div>
     </aside>
   );

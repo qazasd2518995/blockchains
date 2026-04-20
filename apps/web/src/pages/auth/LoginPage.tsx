@@ -48,11 +48,14 @@ export function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center px-6 py-10">
-      <div className="absolute top-0 left-0 right-0 z-10 border-b border-ink-200 bg-ink-50/60 backdrop-blur">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.25em] text-ink-600">
-          <Link to="/" className="flex items-center gap-2 text-ink-900 transition hover:text-neon-acid">
-            <span className="text-neon-acid">◄</span>
+    <div className="relative min-h-screen overflow-hidden">
+      <div className="crystal-overlay" />
+
+      {/* Top bar */}
+      <div className="relative z-10 border-b border-brass-500/40 bg-ivory-100/70 backdrop-blur">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-ivory-700">
+          <Link to="/" className="flex items-center gap-2 text-ivory-900 transition hover:text-brass-700">
+            <span className="text-brass-600">◄</span>
             <span>{t.auth.returnHome}</span>
           </Link>
           <div className="flex items-center gap-4">
@@ -62,105 +65,114 @@ export function LoginPage() {
         </div>
       </div>
 
-      <div className="relative z-10 grid w-full max-w-5xl gap-8 lg:grid-cols-2 lg:gap-16">
-        <div>
-          <div className="label">§ {t.auth.authenticate}</div>
-          <h1 className="mt-3 font-serif text-6xl font-black leading-none">
-            <span className="text-ink-900">{t.auth.identifyYourself}</span>
-          </h1>
-          <p className="mt-4 font-mono text-[13px] text-ink-600">
-            {t.auth.loginDesc}
-          </p>
+      {/* Body */}
+      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-45px)] max-w-[1400px] items-center justify-center px-6 py-16">
+        <div className="grid w-full gap-12 lg:grid-cols-2 lg:gap-20">
+          {/* Left — form */}
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-script text-lg text-brass-700">{t.auth.authenticate}</span>
+              <span className="text-brass-500 text-sm">◆</span>
+              <span className="label label-brass">séance privée</span>
+            </div>
+            <h1 className="mt-5 font-serif text-6xl leading-[0.95] text-ivory-950">
+              {t.auth.identifyYourself}
+            </h1>
+            <p className="mt-5 max-w-md text-[14px] leading-relaxed text-ivory-700">
+              {t.auth.loginDesc}
+            </p>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-10 space-y-5">
-            <Field label={t.auth.emailLabel} code="01" error={errMap(errors.email?.message)}>
-              <input
-                type="email"
-                autoComplete="email"
-                placeholder="operator@blockchain.game"
-                className="term-input"
-                {...register('email')}
-              />
-            </Field>
-            <Field label={t.auth.password} code="02" error={errMap(errors.password?.message)}>
-              <input
-                type="password"
-                autoComplete="current-password"
-                placeholder="••••••••••••"
-                className="term-input"
-                {...register('password')}
-              />
-            </Field>
+            <form onSubmit={handleSubmit(onSubmit)} className="mt-10 space-y-6">
+              <Field label={t.auth.emailLabel} suit="♠" error={errMap(errors.email?.message)}>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  placeholder={t.auth.emailPlaceholder}
+                  className="input-salon"
+                  {...register('email')}
+                />
+              </Field>
+              <Field label={t.auth.password} suit="♦" error={errMap(errors.password?.message)}>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder={t.auth.passwordPlaceholder}
+                  className="input-salon"
+                  {...register('password')}
+                />
+              </Field>
 
-            {serverError && (
-              <div className="border border-neon-ember/40 bg-neon-ember/5 p-3">
-                <div className="flex items-start gap-2 text-[12px] text-neon-ember">
-                  <span className="font-bold">{t.common.error.toUpperCase()}:</span>
-                  <span className="uppercase tracking-wider">{serverError}</span>
+              {serverError && (
+                <div className="border border-wine-400/50 bg-wine-50 p-4 rounded-sm">
+                  <div className="flex items-start gap-2 text-[12px] text-wine-600">
+                    <span className="font-serif font-bold italic">{t.common.error}:</span>
+                    <span className="tracking-wider">{serverError}</span>
+                  </div>
                 </div>
+              )}
+
+              <div className="flex items-center gap-4 pt-2">
+                <button type="submit" disabled={isSubmitting} className="btn-brass">
+                  {isSubmitting ? (
+                    <span>
+                      {t.auth.authenticating}
+                      <span className="animate-blink">_</span>
+                    </span>
+                  ) : (
+                    <>→ {t.auth.authenticate}</>
+                  )}
+                </button>
+                <span className="font-script text-[13px] text-brass-700">{t.auth.pressEnter}</span>
               </div>
-            )}
+            </form>
 
-            <div className="flex items-center gap-3 pt-2">
-              <button type="submit" disabled={isSubmitting} className="btn-acid">
-                {isSubmitting ? (
-                  <span>
-                    {t.auth.authenticating}
-                    <span className="animate-blink">_</span>
-                  </span>
-                ) : (
-                  `→ ${t.auth.authenticate}`
-                )}
-              </button>
-              <span className="text-[10px] tracking-[0.3em] text-ink-500">{t.auth.pressEnter}</span>
+            <div className="mt-12 divider-suit"><span>♠ ◆ ♥</span></div>
+            <div className="mt-5 text-center font-script text-[14px] text-brass-700">
+              {t.landing.accessManaged}
             </div>
-          </form>
-
-          <div className="mt-10 border-t border-ink-200 pt-5 text-[10px] tracking-[0.3em] text-ink-500">
-            § ACCESS MANAGED BY AGENTS · NO PUBLIC SIGNUP
           </div>
-        </div>
 
-        <div className="relative hidden lg:block">
-          <div className="crt-panel scanlines h-full p-8">
-            <div className="flex items-center justify-between border-b border-ink-200 pb-4">
-              <div className="label">{t.auth.systemProtocol}</div>
-              <span className="tag tag-toxic">
-                <span className="status-dot status-dot-live" />
-                {t.common.active.toUpperCase()}
-              </span>
-            </div>
-
-            <pre className="mt-6 font-mono text-[10px] leading-relaxed text-ink-500">
-{`┌─────────────────────────────────┐
-│  ${t.auth.provablyFairProtocol.padEnd(30)} │
-│                                 │
-│  [1] Server generates seed S    │
-│  [2] Publishes SHA256(S) = H    │
-│  [3] Client provides seed C     │
-│  [4] Nonce N increments /bet    │
-│  [5] Result = HMAC(S, C:N)      │
-│  [6] S revealed at rotate       │
-│  [7] Verify: SHA256(S) === H ✓  │
-│                                 │
-│  MATH GUARANTEES HONESTY.       │
-└─────────────────────────────────┘`}
-            </pre>
-
-            <div className="mt-8 space-y-3 text-[11px]">
-              <Detail k="HASH" v="SHA-256" />
-              <Detail k="HMAC" v="HMAC-SHA256" />
-              <Detail k="SEED_ENTROPY" v="256 BITS" />
-              <Detail k="SESSION_TTL" v="15 MINUTES" />
-              <Detail k="PASSWORD_HASH" v="BCRYPT · 12 ROUNDS" />
-            </div>
-
-            <div className="mt-10 border-t border-ink-200 pt-4">
-              <div className="font-serif text-xl italic leading-tight text-ink-900">
-                {t.auth.trustButVerify}
+          {/* Right — felt protocol panel */}
+          <div className="relative hidden lg:block">
+            <div className="panel-felt scanlines h-full p-8">
+              <div className="flex items-center justify-between border-b border-brass-500/40 pb-4">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-script text-lg text-brass-300">Protocole</span>
+                  <span className="text-brass-500 text-xs">◆</span>
+                  <span className="label text-brass-400">{t.auth.systemProtocol}</span>
+                </div>
+                <div className="seal seal-live seal-breath !h-9 !w-9 !text-[8px]">LIVE</div>
               </div>
-              <div className="mt-2 text-[10px] tracking-[0.3em] text-ink-500">
-                {t.auth.proverb}
+
+              <pre className="mt-8 font-mono text-[10.5px] leading-relaxed text-brass-200/85">
+{`┌────────────────────────────────┐
+│  ${t.auth.provablyFairProtocol.padEnd(28).slice(0, 28)}  │
+│                                │
+│  [1] Server generates seed S   │
+│  [2] Publishes SHA256(S) = H   │
+│  [3] Client provides seed C    │
+│  [4] Nonce N increments /bet   │
+│  [5] Result = HMAC(S, C:N)     │
+│  [6] S revealed at rotate      │
+│  [7] Verify: SHA256(S) === H ✓ │
+│                                │
+│  MATH GUARANTEES HONESTY.      │
+└────────────────────────────────┘`}
+              </pre>
+
+              <div className="mt-8 space-y-3 text-[11px]">
+                <Detail k="HASH" v="SHA-256" />
+                <Detail k="HMAC" v="HMAC-SHA256" />
+                <Detail k="SEED_ENTROPY" v="256 BITS" />
+                <Detail k="SESSION_TTL" v="15 MINUTES" />
+                <Detail k="PASSWORD_HASH" v="BCRYPT · 12 ROUNDS" />
+              </div>
+
+              <div className="mt-10 border-t border-brass-500/40 pt-5">
+                <div className="font-serif text-2xl italic leading-tight text-ivory-100">
+                  {t.auth.trustButVerify}
+                </div>
+                <div className="mt-2 font-script text-sm text-brass-300">{t.auth.proverb}</div>
               </div>
             </div>
           </div>
@@ -172,12 +184,12 @@ export function LoginPage() {
 
 function Field({
   label,
-  code,
+  suit,
   error,
   children,
 }: {
   label: string;
-  code: string;
+  suit: string;
   error?: string;
   children: React.ReactNode;
 }) {
@@ -185,13 +197,13 @@ function Field({
     <label className="block">
       <div className="mb-2 flex items-baseline justify-between">
         <div className="flex items-baseline gap-2">
-          <span className="text-[9px] text-ink-500">{code}</span>
-          <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">
+          <span className="text-brass-600 text-sm">{suit}</span>
+          <span className="font-serif text-[14px] font-semibold tracking-[0.12em] text-ivory-900">
             {label}
           </span>
         </div>
         {error && (
-          <span className="text-[10px] tracking-[0.2em] text-neon-ember">
+          <span className="font-mono text-[10px] tracking-[0.15em] text-wine-500">
             ⚠ {error}
           </span>
         )}
@@ -203,9 +215,9 @@ function Field({
 
 function Detail({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-baseline justify-between border-b border-ink-200 pb-2">
-      <span className="text-[10px] tracking-[0.25em] text-ink-500">{k}</span>
-      <span className="text-ink-900 data-num">{v}</span>
+    <div className="flex items-baseline justify-between border-b border-brass-500/25 pb-2">
+      <span className="font-mono text-[10px] tracking-[0.25em] text-brass-400">{k}</span>
+      <span className="font-mono text-ivory-100 data-num">{v}</span>
     </div>
   );
 }

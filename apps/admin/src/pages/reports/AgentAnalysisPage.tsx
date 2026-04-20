@@ -41,7 +41,7 @@ export function AgentAnalysisPage(): JSX.Element {
   const columns: Column<AgentAnalysisRow>[] = [
     { key: 'username', label: 'USERNAME', render: (r) => <span className="font-mono text-ink-900">{r.username}</span> },
     { key: 'level', label: 'LVL', align: 'center', render: (r) => <span className="tag tag-acid">L{r.level}</span> },
-    { key: 'rebate', label: 'REBATE', align: 'right', render: (r) => <span className="data-num text-neon-toxic">{pct(r.rebatePercentage)}</span> },
+    { key: 'rebate', label: 'REBATE', align: 'right', render: (r) => <span className="data-num text-win">{pct(r.rebatePercentage)}</span> },
     { key: 'members', label: 'MEM', align: 'right', render: (r) => <span className="data-num">{r.memberCount}</span> },
     { key: 'bets', label: 'BETS', align: 'right', render: (r) => <span className="data-num">{r.betCount}</span> },
     { key: 'volume', label: 'VOLUME', align: 'right', render: (r) => <span className="data-num">{fmt(r.betAmount)}</span> },
@@ -52,7 +52,7 @@ export function AgentAnalysisPage(): JSX.Element {
       render: (r) => {
         const n = Number.parseFloat(r.memberWinLoss);
         return (
-          <span className={`data-num ${n >= 0 ? 'text-neon-toxic' : 'text-neon-ember'}`}>
+          <span className={`data-num ${n >= 0 ? 'text-win' : 'text-wine-500'}`}>
             {n >= 0 ? '+' : ''}{fmt(r.memberWinLoss)}
           </span>
         );
@@ -64,7 +64,7 @@ export function AgentAnalysisPage(): JSX.Element {
       align: 'right',
       render: (r) => (
         <div className="data-num text-[11px]">
-          <div className="text-neon-amber">{fmt(r.earnedRebateAmount)}</div>
+          <div className="text-brass-600">{fmt(r.earnedRebateAmount)}</div>
           <div className="text-[9px] text-ink-500">@ {pct(r.earnedRebatePercentage)}</div>
         </div>
       ),
@@ -76,7 +76,7 @@ export function AgentAnalysisPage(): JSX.Element {
       render: (r) => {
         const n = Number.parseFloat(r.uplineSettlement);
         return (
-          <span className={`data-num font-bold ${n >= 0 ? 'text-neon-toxic' : 'text-neon-ember'}`}>
+          <span className={`data-num font-bold ${n >= 0 ? 'text-win' : 'text-wine-500'}`}>
             {n >= 0 ? '+' : ''}{fmt(r.uplineSettlement)}
           </span>
         );
@@ -115,7 +115,7 @@ export function AgentAnalysisPage(): JSX.Element {
       </div>
 
       {error && (
-        <div className="mb-4 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+        <div className="mb-4 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
           ⚠ {error}
         </div>
       )}
@@ -147,7 +147,7 @@ export function AgentAnalysisPage(): JSX.Element {
 }
 
 function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' | 'toxic' | 'ember' }) {
-  const color = accent === 'toxic' ? 'text-neon-toxic' : accent === 'ember' ? 'text-neon-ember' : accent === 'acid' ? 'text-neon-acid' : 'text-ink-900';
+  const color = accent === 'toxic' ? 'text-win' : accent === 'ember' ? 'text-wine-500' : accent === 'acid' ? 'text-brass-700' : 'text-ink-900';
   return (
     <div className="border border-ink-200 bg-ink-100/30 p-3">
       <div className="label">{k}</div>

@@ -64,7 +64,7 @@ export function MemberBetRecordsPage(): JSX.Element {
       render: (r) => {
         const n = Number.parseFloat(r.profit);
         return (
-          <span className={`data-num ${n >= 0 ? 'text-neon-toxic' : 'text-neon-ember'}`}>
+          <span className={`data-num ${n >= 0 ? 'text-win' : 'text-wine-500'}`}>
             {n >= 0 ? '+' : ''}
             {fmt(r.profit)}
           </span>
@@ -99,7 +99,7 @@ export function MemberBetRecordsPage(): JSX.Element {
       </div>
 
       {error && (
-        <div className="mb-4 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+        <div className="mb-4 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
           ⚠ {error.toUpperCase()}
         </div>
       )}

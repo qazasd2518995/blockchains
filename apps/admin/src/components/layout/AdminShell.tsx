@@ -29,17 +29,19 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
 
   return (
     <div className="relative min-h-screen">
-      {/* Top strip */}
-      <div className="sticky top-0 z-50 border-b border-ink-200 bg-ink-50/85 backdrop-blur-lg">
-        <div className="mx-auto flex max-w-[1920px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.25em]">
-          <div className="flex items-center gap-6 text-ink-600">
-            <span>
+      {/* Top strip — felt dark with brass */}
+      <div className="sticky top-0 z-50 border-b border-brass-500/55 bg-felt-800/95 backdrop-blur-lg shadow-[0_2px_12px_-4px_rgba(10,8,6,0.35)]">
+        <div className="mx-auto flex max-w-[1920px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.3em] text-brass-200">
+          <div className="flex items-center gap-6">
+            <span className="flex items-center">
               <span className="status-dot status-dot-live" /> {t.shell.linkLive}
             </span>
-            <span className="hidden md:inline">{t.shell.node}</span>
-            <span className="hidden lg:inline data-num text-ink-700">{time}</span>
+            <span className="hidden md:inline font-script normal-case tracking-normal text-[13px] text-brass-300">
+              {t.shell.node}
+            </span>
+            <span className="hidden lg:inline data-num text-brass-300">{time}</span>
           </div>
-          <div className="flex items-center gap-4 text-ink-600">
+          <div className="flex items-center gap-4">
             <span className="hidden sm:inline">
               {t.shell.session} 0x{agent?.id.slice(-6).toUpperCase()}
             </span>
@@ -49,50 +51,61 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
           </div>
         </div>
 
-        <div className="mx-auto flex max-w-[1920px] items-center justify-between gap-6 px-6 py-4">
+        <div className="mx-auto flex max-w-[1920px] items-center justify-between gap-6 border-t border-brass-500/30 px-6 py-4">
           <Link to="/admin/dashboard" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center border border-neon-acid bg-neon-acid/10 text-neon-acid">
-              <span className="font-display text-lg">OP</span>
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 border-brass-400 bg-felt-700 shadow-lift">
+              <span className="font-serif text-xl italic text-brass-300">A</span>
+              <span className="absolute -right-1 -top-1 text-brass-400 text-sm">◆</span>
             </div>
             <div>
-              <div className="font-display text-lg leading-none tracking-widest text-ink-900">
-                AGENT<span className="text-neon-acid">.</span>OPS
+              <div className="font-serif text-xl leading-none text-ivory-100">
+                Agent<span className="italic text-brass-400">.</span>Ops
               </div>
-              <div className="label mt-1 text-[9px]">{t.shell.terminal}</div>
+              <div className="mt-1 font-script text-[12px] text-brass-300">
+                {t.shell.terminal}
+              </div>
             </div>
           </Link>
 
           <div className="flex items-center gap-3">
-            <div className="hidden border-r border-ink-200 pr-3 text-right md:block">
-              <div className="label">{t.shell.operator}</div>
-              <div className="mt-0.5 text-[12px] text-ink-900">
+            <div className="hidden border-r border-brass-500/30 pr-4 text-right md:block">
+              <div className="label text-brass-400">{t.shell.operator}</div>
+              <div className="mt-0.5 font-serif italic text-[13px] text-ivory-100">
                 {agent?.displayName ?? agent?.username}
               </div>
             </div>
-            <div className="flex items-center gap-3 border border-neon-acid/30 bg-neon-acid/5 px-4 py-2">
-              <span className="text-[9px] tracking-[0.3em] text-neon-acid/70">{t.shell.balance}</span>
-              <span className="data-num text-xl font-bold text-neon-acid">
+            <div className="flex items-center gap-3 rounded-sm border border-brass-400 bg-felt-900/70 px-4 py-2">
+              <span className="font-mono text-[9px] tracking-[0.3em] text-brass-300">
+                {t.shell.balance}
+              </span>
+              <span className="font-serif text-xl font-bold big-num-brass">
                 {formatDec(agent?.balance ?? '0')}
               </span>
             </div>
-            <div className="hidden border-l border-ink-200 pl-3 text-right md:block">
-              <div className="label">{t.shell.level}</div>
-              <div className="mt-0.5 text-[12px] text-ink-900">{agent?.level}</div>
+            <div className="hidden border-l border-brass-500/30 pl-4 text-right md:block">
+              <div className="label text-brass-400">{t.shell.level}</div>
+              <div className="mt-0.5 font-serif text-[13px] italic text-ivory-100">
+                {agent?.level}
+              </div>
             </div>
-            <div className="hidden border-l border-ink-200 pl-3 text-right md:block">
-              <div className="label">{t.shell.rebate}</div>
-              <div className="mt-0.5 text-[12px] text-neon-toxic">
+            <div className="hidden border-l border-brass-500/30 pl-4 text-right md:block">
+              <div className="label text-brass-400">{t.shell.rebate}</div>
+              <div className="mt-0.5 font-mono text-[13px] text-brass-300">
                 {formatPct(agent?.rebatePercentage ?? '0')}
               </div>
             </div>
-            <button type="button" onClick={handleLogout} className="btn-ghost text-[11px]">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-sm border border-brass-500/60 bg-felt-900/50 px-3 py-1.5 font-serif text-[11px] uppercase tracking-[0.16em] text-brass-200 transition hover:border-brass-400 hover:bg-felt-700 hover:text-ivory-100"
+            >
               [{t.common.logoutBtn}]
             </button>
           </div>
         </div>
       </div>
 
-      <main className="relative z-10 mx-auto flex max-w-[1920px] gap-6 px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
+      <main className="relative z-10 mx-auto flex max-w-[1920px] gap-6 px-4 py-8 sm:px-6 lg:px-8 xl:px-10">
         <Sidebar />
         <div className="min-w-0 flex-1">{children}</div>
       </main>
