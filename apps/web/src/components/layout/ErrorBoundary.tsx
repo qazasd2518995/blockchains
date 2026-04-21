@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
       <div className="relative flex min-h-screen items-center justify-center px-6">
         <div className="w-full max-w-2xl">
           <div className="label">§ {t.err.runtimeException}</div>
-          <h1 className="mt-2 font-serif text-6xl font-black italic">
+          <h1 className="mt-2 font-semibold text-6xl font-black italic">
             <span className="text-neon-ember not-italic">{t.err.systemFault}</span>
           </h1>
           <p className="mt-4 text-[12px] text-ink-600">{t.err.faultDesc}</p>
@@ -57,7 +57,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <button type="button" onClick={this.handleReload} className="btn-acid">
               → {t.common.reload.toUpperCase()}
             </button>
-            <button type="button" onClick={this.handleHome} className="btn-ghost">
+            <button type="button" onClick={this.handleHome} className="btn-teal-outline">
               [{t.common.home.toUpperCase()}]
             </button>
           </div>

@@ -56,10 +56,10 @@ export function LoginPage() {
       <div className="crystal-overlay" />
 
       {/* Top bar */}
-      <div className="relative z-10 border-b border-brass-500/40 bg-ivory-100/70 backdrop-blur">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-ivory-700">
-          <Link to="/" className="flex items-center gap-2 text-ivory-900 transition hover:text-brass-700">
-            <span className="text-brass-600">◄</span>
+      <div className="relative z-10 border-b border-[#E5E7EB] bg-white/70 backdrop-blur">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-[#4A5568]">
+          <Link to="/" className="flex items-center gap-2 text-[#0F172A] transition hover:text-[#186073]">
+            <span className="text-[#AE8B35]">◄</span>
             <span>{t.auth.returnHome}</span>
           </Link>
           <div className="flex items-center gap-4">
@@ -75,14 +75,14 @@ export function LoginPage() {
           {/* Left — form */}
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-script text-lg text-brass-700">{t.auth.authenticate}</span>
-              <span className="text-brass-500 text-sm">◆</span>
-              <span className="label label-brass">séance privée</span>
+              <span className="font-semibold text-lg text-[#186073]">{t.auth.authenticate}</span>
+              <span className="text-[#C9A247] text-sm">◆</span>
+              <span className="label text-[#186073]">séance privée</span>
             </div>
-            <h1 className="mt-5 font-serif text-6xl leading-[0.95] text-ivory-950">
+            <h1 className="mt-5 font-semibold text-6xl leading-[0.95] text-[#0F172A]">
               {t.auth.identifyYourself}
             </h1>
-            <p className="mt-5 max-w-md text-[14px] leading-relaxed text-ivory-700">
+            <p className="mt-5 max-w-md text-[14px] leading-relaxed text-[#4A5568]">
               {t.auth.loginDesc}
             </p>
 
@@ -110,16 +110,16 @@ export function LoginPage() {
               </Field>
 
               {serverError && (
-                <div className="border border-wine-400/50 bg-wine-50 p-4 rounded-sm">
-                  <div className="flex items-start gap-2 text-[12px] text-wine-600">
-                    <span className="font-serif font-bold italic">{t.common.error}:</span>
+                <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-4 rounded-sm">
+                  <div className="flex items-start gap-2 text-[12px] text-[#B94538]">
+                    <span className="font-semibold font-bold italic">{t.common.error}:</span>
                     <span className="tracking-wider">{serverError}</span>
                   </div>
                 </div>
               )}
 
               <div className="flex items-center gap-4 pt-2">
-                <button type="submit" disabled={isSubmitting} className="btn-brass">
+                <button type="submit" disabled={isSubmitting} className="btn-teal">
                   {isSubmitting ? (
                     <span>
                       {t.auth.authenticating}
@@ -129,12 +129,12 @@ export function LoginPage() {
                     <>→ {t.auth.authenticate}</>
                   )}
                 </button>
-                <span className="font-script text-[13px] text-brass-700">{t.auth.pressEnter}</span>
+                <span className="font-semibold text-[13px] text-[#186073]">{t.auth.pressEnter}</span>
               </div>
             </form>
 
-            <div className="mt-12 divider-suit"><span>♠ ◆ ♥</span></div>
-            <div className="mt-5 text-center font-script text-[14px] text-brass-700">
+            <div className="mt-12 border-t border-[#E5E7EB]"><span>♠ ◆ ♥</span></div>
+            <div className="mt-5 text-center font-semibold text-[14px] text-[#186073]">
               {t.landing.accessManaged}
             </div>
           </div>
@@ -142,16 +142,16 @@ export function LoginPage() {
           {/* Right — felt protocol panel */}
           <div className="relative hidden lg:block">
             <div className="panel-felt scanlines h-full p-8">
-              <div className="flex items-center justify-between border-b border-brass-500/40 pb-4">
+              <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-4">
                 <div className="flex items-baseline gap-2">
-                  <span className="font-script text-lg text-brass-300">Protocole</span>
-                  <span className="text-brass-500 text-xs">◆</span>
-                  <span className="label text-brass-400">{t.auth.systemProtocol}</span>
+                  <span className="font-semibold text-lg text-[#DEBE66]">Protocole</span>
+                  <span className="text-[#C9A247] text-xs">◆</span>
+                  <span className="label text-[#D0AC4D]">{t.auth.systemProtocol}</span>
                 </div>
-                <div className="seal seal-live seal-breath !h-9 !w-9 !text-[8px]">LIVE</div>
+                <div className="hidden !h-9 !w-9 !text-[8px]">LIVE</div>
               </div>
 
-              <pre className="mt-8 font-mono text-[10.5px] leading-relaxed text-brass-200/85">
+              <pre className="mt-8 font-mono text-[10.5px] leading-relaxed text-[#E8D48A]/85">
 {`┌────────────────────────────────┐
 │  ${t.auth.provablyFairProtocol.padEnd(28).slice(0, 28)}  │
 │                                │
@@ -175,11 +175,11 @@ export function LoginPage() {
                 <Detail k="PASSWORD_HASH" v="BCRYPT · 12 ROUNDS" />
               </div>
 
-              <div className="mt-10 border-t border-brass-500/40 pt-5">
-                <div className="font-serif text-2xl italic leading-tight text-ivory-100">
+              <div className="mt-10 border-t border-[#E5E7EB] pt-5">
+                <div className="font-semibold text-2xl italic leading-tight text-white">
                   {t.auth.trustButVerify}
                 </div>
-                <div className="mt-2 font-script text-sm text-brass-300">{t.auth.proverb}</div>
+                <div className="mt-2 font-semibold text-sm text-[#DEBE66]">{t.auth.proverb}</div>
               </div>
             </div>
           </div>
@@ -204,13 +204,13 @@ function Field({
     <label className="block">
       <div className="mb-2 flex items-baseline justify-between">
         <div className="flex items-baseline gap-2">
-          <span className="text-brass-600 text-sm">{suit}</span>
-          <span className="font-serif text-[14px] font-semibold tracking-[0.12em] text-ivory-900">
+          <span className="text-[#AE8B35] text-sm">{suit}</span>
+          <span className="font-semibold text-[14px] font-semibold tracking-[0.12em] text-[#0F172A]">
             {label}
           </span>
         </div>
         {error && (
-          <span className="font-mono text-[10px] tracking-[0.15em] text-wine-500">
+          <span className="font-mono text-[10px] tracking-[0.15em] text-[#D4574A]">
             ⚠ {error}
           </span>
         )}
@@ -222,9 +222,9 @@ function Field({
 
 function Detail({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-baseline justify-between border-b border-brass-500/25 pb-2">
-      <span className="font-mono text-[10px] tracking-[0.25em] text-brass-400">{k}</span>
-      <span className="font-mono text-ivory-100 data-num">{v}</span>
+    <div className="flex items-baseline justify-between border-b border-[#E5E7EB] pb-2">
+      <span className="font-mono text-[10px] tracking-[0.25em] text-[#D0AC4D]">{k}</span>
+      <span className="font-mono text-white data-num">{v}</span>
     </div>
   );
 }

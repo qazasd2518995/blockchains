@@ -55,35 +55,35 @@ export function LandingPage() {
       <div className="crystal-overlay" />
 
       {/* ===== TOP BAR ===== */}
-      <div className="relative z-10 border-b border-brass-500/40 bg-ivory-100/70 backdrop-blur">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-ivory-700">
+      <div className="relative z-10 border-b border-[#E5E7EB] bg-white/70 backdrop-blur">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-[#4A5568]">
           <div className="flex items-center gap-6">
             <span className="flex items-center">
-              <span className="status-dot status-dot-live" />
+              <span className="dot-online dot-online" />
               {t.landing.systemOnline}
             </span>
-            <span className="hidden md:inline font-script normal-case tracking-normal text-[14px] text-brass-700">
+            <span className="hidden md:inline font-semibold normal-case tracking-normal text-[14px] text-[#186073]">
               Établi · Monte Carlo · MMXXVI
             </span>
           </div>
           <div className="flex items-center gap-6">
-            <span className="font-mono data-num text-brass-700">{time}</span>
+            <span className="font-mono data-num text-[#186073]">{time}</span>
             <span className="hidden sm:inline">RTP 96–99%</span>
           </div>
         </div>
       </div>
 
       {/* ===== TICKER BANNER ===== */}
-      <div className="relative z-10 overflow-hidden border-b border-brass-500/40 bg-felt-600 py-3">
-        <div className="flex animate-ticker whitespace-nowrap font-serif text-[13px] tracking-[0.3em] text-brass-200">
+      <div className="relative z-10 overflow-hidden border-b border-[#E5E7EB] bg-[#135566] py-3">
+        <div className="flex animate-ticker whitespace-nowrap font-semibold text-[13px] tracking-[0.3em] text-[#E8D48A]">
           {[...LIVE_FEED, ...LIVE_FEED, ...LIVE_FEED, ...LIVE_FEED].map((f, i) => (
             <span key={i} className="mx-10 flex items-center gap-3">
-              <span className="text-brass-300/70">{f.player}</span>
-              <span className="text-brass-400">◆</span>
-              <span className="italic text-ivory-100">{f.game}</span>
-              <span className="text-brass-300">{f.multi}</span>
+              <span className="text-[#DEBE66]/70">{f.player}</span>
+              <span className="text-[#D0AC4D]">◆</span>
+              <span className="italic text-white">{f.game}</span>
+              <span className="text-[#DEBE66]">{f.multi}</span>
               <span className="text-win">{f.win}</span>
-              <span className="text-brass-500">♠</span>
+              <span className="text-[#C9A247]">♠</span>
             </span>
           ))}
         </div>
@@ -92,20 +92,20 @@ export function LandingPage() {
       {/* ===== HEADER ===== */}
       <header className="relative z-10 mx-auto flex max-w-[1600px] items-center justify-between px-6 py-6">
         <Link to="/" className="group flex items-center gap-3">
-          <div className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-brass-500 bg-gradient-to-br from-ivory-100 to-ivory-200 shadow-lift">
-            <span className="font-serif text-xl italic text-brass-700">B</span>
-            <span className="absolute -right-1 -top-1 text-brass-600 text-lg">♦</span>
+          <div className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#186073] bg-gradient-to-br from-ivory-100 to-ivory-200 shadow-lift">
+            <span className="font-semibold text-xl italic text-[#186073]">B</span>
+            <span className="absolute -right-1 -top-1 text-[#AE8B35] text-lg">♦</span>
           </div>
           <div>
-            <div className="font-serif text-2xl leading-none text-ivory-950">
-              Blockchain<span className="italic text-brass-700">.</span>Game
+            <div className="font-semibold text-2xl leading-none text-[#0F172A]">
+              Blockchain<span className="italic text-[#186073]">.</span>Game
             </div>
-            <div className="mt-1 font-script text-xs text-ivory-600">{t.landing.crypto}</div>
+            <div className="mt-1 font-semibold text-xs text-[#4A5568]">{t.landing.crypto}</div>
           </div>
         </Link>
         <nav className="flex items-center gap-3">
           <LocaleToggle />
-          <Link to="/login" className="btn-brass">
+          <Link to="/login" className="btn-teal">
             → {t.common.login}
           </Link>
         </nav>
@@ -115,41 +115,41 @@ export function LandingPage() {
       <section className="relative z-10 mx-auto max-w-[1600px] px-6 pb-24 pt-12">
         <div className="grid gap-10 lg:grid-cols-12">
           <div className="lg:col-span-7">
-            <div className="flex items-center gap-3 text-[11px] tracking-[0.3em] text-ivory-700">
+            <div className="flex items-center gap-3 text-[11px] tracking-[0.3em] text-[#4A5568]">
               <span className="tag tag-wine">
-                <span className="status-dot status-dot-live" />
+                <span className="dot-online dot-online" />
                 LIVE
               </span>
-              <span className="font-script text-base normal-case tracking-normal text-brass-700">
+              <span className="font-semibold text-base normal-case tracking-normal text-[#186073]">
                 — {t.landing.deployment}
               </span>
             </div>
 
-            <h1 className="mt-8 font-serif text-[clamp(3.5rem,10vw,9rem)] font-black leading-[0.88] tracking-[-0.02em] text-ivory-950">
+            <h1 className="mt-8 font-semibold text-[clamp(3.5rem,10vw,9rem)] font-black leading-[0.88] tracking-[-0.02em] text-[#0F172A]">
               <span className="block animate-reveal">{t.landing.heroLine1}</span>
               <span
-                className="block animate-reveal big-num-grad"
+                className="block animate-reveal num-grad"
                 style={{ animationDelay: '0.18s' }}
               >
                 {t.landing.heroLine2}
               </span>
               <span
-                className="block animate-reveal italic text-wine-500"
+                className="block animate-reveal italic text-[#D4574A]"
                 style={{ animationDelay: '0.36s' }}
               >
                 {t.landing.heroLine3}
               </span>
             </h1>
 
-            <p className="mt-10 max-w-2xl text-[15px] leading-relaxed text-ivory-800">
+            <p className="mt-10 max-w-2xl text-[15px] leading-relaxed text-[#0F172A]">
               {t.landing.heroDesc}
             </p>
 
             <div className="mt-10 flex flex-wrap items-center gap-5">
-              <Link to="/login" className="btn-brass">
+              <Link to="/login" className="btn-teal">
                 {t.landing.ctaExisting}
               </Link>
-              <span className="flex items-center gap-2 font-script text-base text-brass-700">
+              <span className="flex items-center gap-2 font-semibold text-base text-[#186073]">
                 <span className="text-lg">♠</span>
                 {t.landing.accessManaged}
               </span>
@@ -159,26 +159,26 @@ export function LandingPage() {
           {/* Right column: Live feed (green felt) + Stats (ivory) */}
           <div className="lg:col-span-5 space-y-4">
             <div className="panel-felt scanlines p-6">
-              <div className="flex items-center justify-between border-b border-brass-500/40 pb-3">
+              <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
                 <div className="flex items-baseline gap-2">
-                  <span className="font-script text-lg text-brass-300">À la Table</span>
-                  <span className="text-brass-500 text-xs">◆</span>
-                  <span className="label text-brass-400">{t.landing.liveFeed}</span>
+                  <span className="font-semibold text-lg text-[#DEBE66]">À la Table</span>
+                  <span className="text-[#C9A247] text-xs">◆</span>
+                  <span className="label text-[#D0AC4D]">{t.landing.liveFeed}</span>
                 </div>
-                <div className="seal seal-live seal-breath !h-8 !w-8 !text-[8px]">LIVE</div>
+                <div className="hidden !h-8 !w-8 !text-[8px]">LIVE</div>
               </div>
               <ul className="mt-5 space-y-4 text-[12px]">
                 {LIVE_FEED.map((f, i) => (
                   <li
                     key={i}
-                    className="flex items-center justify-between border-b border-brass-500/20 pb-4 last:border-0 last:pb-0"
+                    className="flex items-center justify-between border-b border-[#186073]/20 pb-4 last:border-0 last:pb-0"
                   >
                     <div>
-                      <div className="font-mono text-ivory-100">{f.player}</div>
-                      <div className="mt-0.5 font-script text-[13px] text-brass-300">{f.game}</div>
+                      <div className="font-mono text-white">{f.player}</div>
+                      <div className="mt-0.5 font-semibold text-[13px] text-[#DEBE66]">{f.game}</div>
                     </div>
                     <div className="text-right">
-                      <div className="data-num text-xl text-brass-200">{f.multi}</div>
+                      <div className="data-num text-xl text-[#E8D48A]">{f.multi}</div>
                       <div className="data-num text-[11px] text-win">{f.win}</div>
                     </div>
                   </li>
@@ -186,10 +186,10 @@ export function LandingPage() {
               </ul>
             </div>
 
-            <div className="panel-salon p-6">
-              <div className="flex items-baseline justify-between border-b border-brass-500/40 pb-2">
-                <span className="font-script text-lg text-brass-700">Salon Ledger</span>
-                <span className="label label-brass">{t.landing.netStats}</span>
+            <div className="card-base p-6">
+              <div className="flex items-baseline justify-between border-b border-[#E5E7EB] pb-2">
+                <span className="font-semibold text-lg text-[#186073]">Salon Ledger</span>
+                <span className="label text-[#186073]">{t.landing.netStats}</span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <Stat k={t.landing.netStatBets} v="184,291" />
@@ -203,15 +203,15 @@ export function LandingPage() {
       </section>
 
       {/* ===== GAMES MARQUEE ===== */}
-      <section className="relative z-10 border-y border-brass-500/40 bg-gradient-to-b from-ivory-100 to-ivory-200 py-8 overflow-hidden">
+      <section className="relative z-10 border-y border-[#E5E7EB] bg-gradient-to-b from-ivory-100 to-ivory-200 py-8 overflow-hidden">
         <div className="flex animate-ticker whitespace-nowrap">
           {[...GAMES_TICKER, ...GAMES_TICKER, ...GAMES_TICKER].map((g, i) => (
             <span
               key={i}
-              className="mx-12 flex items-baseline gap-4 font-serif text-6xl italic text-ivory-400"
+              className="mx-12 flex items-baseline gap-4 font-semibold text-6xl italic text-[#9CA3AF]"
             >
               {g}
-              <span className="text-brass-500 text-3xl not-italic">♦</span>
+              <span className="text-[#C9A247] text-3xl not-italic">♦</span>
             </span>
           ))}
         </div>
@@ -220,12 +220,12 @@ export function LandingPage() {
       {/* ===== FEATURES ===== */}
       <section className="relative z-10 mx-auto max-w-[1600px] px-6 py-24">
         <div className="mb-14 flex items-end gap-6">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-brass-500 bg-gradient-to-br from-ivory-100 to-ivory-200 shadow-lift">
-            <span className="font-serif text-4xl italic text-brass-700">§</span>
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-[#186073] bg-gradient-to-br from-ivory-100 to-ivory-200 shadow-lift">
+            <span className="font-semibold text-4xl italic text-[#186073]">§</span>
           </div>
-          <div className="flex-1 border-b border-brass-500/40 pb-3">
-            <div className="font-script text-lg text-brass-700">Chapter I</div>
-            <h2 className="mt-1 font-serif text-5xl italic text-ivory-950">
+          <div className="flex-1 border-b border-[#E5E7EB] pb-3">
+            <div className="font-semibold text-lg text-[#186073]">Chapter I</div>
+            <h2 className="mt-1 font-semibold text-5xl italic text-[#0F172A]">
               {t.landing.section1}
             </h2>
           </div>
@@ -240,15 +240,15 @@ export function LandingPage() {
       </section>
 
       {/* ===== FOOTER ===== */}
-      <footer className="relative z-10 border-t border-brass-500/40 bg-gradient-to-b from-ivory-100 to-ivory-200 py-12">
+      <footer className="relative z-10 border-t border-[#E5E7EB] bg-gradient-to-b from-ivory-100 to-ivory-200 py-12">
         <div className="mx-auto max-w-[1600px] px-6">
-          <div className="divider-suit mb-8"><span>♠ ◆ ♥ ◆ ♦ ◆ ♣</span></div>
+          <div className="border-t border-[#E5E7EB] mb-8"><span>♠ ◆ ♥ ◆ ♦ ◆ ♣</span></div>
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
-              <span className="font-script text-lg text-brass-700">Fin.</span>
-              <span className="font-mono text-[11px] text-ivory-700">{t.landing.footer}</span>
+              <span className="font-semibold text-lg text-[#186073]">Fin.</span>
+              <span className="font-mono text-[11px] text-[#4A5568]">{t.landing.footer}</span>
             </div>
-            <div className="flex items-center gap-4 font-mono text-[10px] uppercase tracking-[0.3em] text-ivory-600">
+            <div className="flex items-center gap-4 font-mono text-[10px] uppercase tracking-[0.3em] text-[#4A5568]">
               <span>{t.landing.noReal}</span>
             </div>
           </div>
@@ -269,16 +269,16 @@ function Stat({
 }) {
   const cls =
     tone === 'brass'
-      ? 'big-num-brass'
+      ? 'num text-[#C9A247]'
       : tone === 'win'
-        ? 'big-num-win'
+        ? 'num-win'
         : tone === 'wine'
-          ? 'big-num-wine'
-          : 'text-ivory-950';
+          ? 'num-wine'
+          : 'text-[#0F172A]';
   return (
-    <div className="border border-brass-500/30 bg-gradient-to-b from-ivory-50 to-ivory-100 p-3">
-      <div className="label label-brass text-[9px]">{k}</div>
-      <div className={`mt-1 font-serif text-2xl tracking-tight ${cls}`}>{v}</div>
+    <div className="border border-[#186073]/30 bg-gradient-to-b from-ivory-50 to-ivory-100 p-3">
+      <div className="label text-[#186073] text-[9px]">{k}</div>
+      <div className={`mt-1 font-semibold text-2xl tracking-tight ${cls}`}>{v}</div>
     </div>
   );
 }
@@ -298,17 +298,17 @@ function Feature({
 }) {
   return (
     <div className="panel-felt panel-felt-hot relative p-7">
-      <div className="flex items-baseline justify-between border-b border-brass-500/40 pb-3">
-        <div className="font-script text-sm text-brass-300">
+      <div className="flex items-baseline justify-between border-b border-[#E5E7EB] pb-3">
+        <div className="font-semibold text-sm text-[#DEBE66]">
           {label} № {num}
         </div>
-        <div className="font-serif text-4xl leading-none italic text-brass-300">{num}</div>
+        <div className="font-semibold text-4xl leading-none italic text-[#DEBE66]">{num}</div>
       </div>
       <div className="mt-5 flex items-start gap-3">
-        <span className="font-serif text-3xl text-brass-400">{suit}</span>
-        <h3 className="font-serif text-2xl leading-tight text-ivory-100">{title}</h3>
+        <span className="font-semibold text-3xl text-[#D0AC4D]">{suit}</span>
+        <h3 className="font-semibold text-2xl leading-tight text-white">{title}</h3>
       </div>
-      <p className="mt-4 text-[13px] leading-relaxed text-brass-200/90">{desc}</p>
+      <p className="mt-4 text-[13px] leading-relaxed text-[#E8D48A]/90">{desc}</p>
     </div>
   );
 }

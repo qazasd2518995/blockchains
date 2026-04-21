@@ -10,7 +10,7 @@ export function NotFoundPage() {
           4<span className="text-neon-acid">0</span>4
         </div>
         <div className="label mt-4">{t.notFound.code}</div>
-        <div className="mt-6 font-serif text-3xl italic text-ink-900">{t.notFound.msg}</div>
+        <div className="mt-6 font-semibold text-3xl italic text-ink-900">{t.notFound.msg}</div>
         <Link to="/" className="btn-acid mt-10 inline-flex">
           {t.notFound.backHome}
         </Link>

@@ -26,10 +26,10 @@ export function GameHeader({
 
   // Map old accent → new palette
   const suffixColor = {
-    acid: 'text-brass-700',
-    ember: 'text-wine-500',
+    acid: 'text-[#186073]',
+    ember: 'text-[#D4574A]',
     toxic: 'text-win',
-    ice: 'text-felt-400',
+    ice: 'text-[#266F85]',
   }[titleSuffixColor];
 
   const tagClass = {
@@ -43,25 +43,25 @@ export function GameHeader({
   const separator = locale === 'en' ? '.' : '';
 
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-brass-500/40 pb-4">
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#E5E7EB] pb-4">
       <div className="flex min-w-0 items-baseline gap-4">
-        <div className="flex items-center gap-2 font-mono text-[10px] tracking-[0.25em] text-ivory-600">
-          <Link to="/lobby" className="transition hover:text-brass-700">
+        <div className="flex items-center gap-2 font-mono text-[10px] tracking-[0.25em] text-[#4A5568]">
+          <Link to="/lobby" className="transition hover:text-[#186073]">
             ◄ {t.common.lobby}
           </Link>
-          <span className="text-brass-500">◆</span>
-          <span className="text-brass-700">{breadcrumb}</span>
+          <span className="text-[#C9A247]">◆</span>
+          <span className="text-[#186073]">{breadcrumb}</span>
         </div>
-        <span className="font-script text-sm text-brass-600">{section}</span>
-        <h1 className="font-serif text-3xl leading-tight md:text-4xl">
-          <span className="text-ivory-950">
+        <span className="font-semibold text-sm text-[#AE8B35]">{section}</span>
+        <h1 className="font-semibold text-3xl leading-tight md:text-4xl">
+          <span className="text-[#0F172A]">
             {title}
             {hasSuffix ? separator : ''}
           </span>
           {hasSuffix && <span className={`italic ${suffixColor}`}>{titleSuffix}</span>}
         </h1>
         <p
-          className="hidden max-w-md truncate text-[11px] text-ivory-600 lg:block"
+          className="hidden max-w-md truncate text-[11px] text-[#4A5568] lg:block"
           title={description}
         >
           {description}
@@ -70,7 +70,7 @@ export function GameHeader({
       <div className="flex items-center gap-2">
         <span className={tagClass}>{rtpLabel}</span>
         <span className="tag hidden md:inline-flex">
-          <span className="status-dot status-dot-live" />
+          <span className="dot-online dot-online" />
           PROVABLY FAIR
         </span>
       </div>
