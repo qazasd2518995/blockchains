@@ -95,8 +95,8 @@ export const tokensPreset: Partial<Config> = {
       },
       animation: {
         ticker: 'ticker 50s linear infinite',
-        'ticker-slow': 'ticker 80s linear infinite',
         breath: 'breath 1.6s ease-in-out infinite',
+        'card-lift': 'card-lift 0.3s ease-out forwards',
       },
     },
   },
