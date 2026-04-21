@@ -53,17 +53,12 @@ export function ProfilePage() {
 
   return (
     <div className="relative space-y-12">
-      <div className="crystal-overlay" />
-
       <section className="relative z-10 border-b border-[#E5E7EB] pb-6">
         <div className="flex items-center gap-3">
-          <span className="font-semibold text-lg text-[#186073]">{t.profile.dossierHeader}</span>
-          <span className="text-[#C9A247]">◆</span>
-          <span className="label text-[#186073]">membership</span>
+          <span className="text-[14px] font-semibold text-[#186073]">{t.profile.dossierHeader}</span>
         </div>
-        <h1 className="mt-3 font-semibold text-6xl leading-[0.95] text-[#0F172A]">
-          <span>{t.profile.your} </span>
-          <span className="italic text-[#186073]">{t.profile.dossier}</span>
+        <h1 className="mt-3 text-[32px] font-bold text-[#0F172A]">
+          {t.profile.your}{t.profile.dossier}
         </h1>
       </section>
 
@@ -86,13 +81,10 @@ export function ProfilePage() {
         <div className="mb-6 flex items-end justify-between border-b border-[#E5E7EB] pb-5">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-lg text-[#186073]">{t.profile.cryptoSeeds}</span>
-              <span className="text-[#C9A247]">◆</span>
-              <span className="label text-[#186073]">provably fair</span>
+              <span className="text-[14px] font-semibold text-[#186073]">{t.profile.cryptoSeeds}</span>
             </div>
-            <h2 className="mt-3 font-semibold text-4xl leading-tight text-[#0F172A]">
-              <span>{t.profile.provably} </span>
-              <span className="italic text-[#186073]">{t.profile.fair}</span>
+            <h2 className="mt-3 text-[28px] font-bold text-[#0F172A]">
+              {t.profile.provably} {t.profile.fair}
             </h2>
             <p className="mt-4 max-w-2xl text-[13px] leading-relaxed text-[#4A5568]">
               {t.profile.seedsDesc}
