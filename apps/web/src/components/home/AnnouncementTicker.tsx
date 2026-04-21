@@ -2,7 +2,7 @@ import { Megaphone } from 'lucide-react';
 import { FAKE_ANNOUNCEMENTS } from '@/data/fakeAnnouncements';
 
 export function AnnouncementTicker() {
-  // 重複兩倍以讓 translateX -50% 無縫循環
+  // 重复兩倍以让 translateX -50% 无縫循環
   const doubled = [...FAKE_ANNOUNCEMENTS, ...FAKE_ANNOUNCEMENTS];
   return (
     <div className="flex h-9 items-center overflow-hidden border-b border-[#E5E7EB] bg-white">

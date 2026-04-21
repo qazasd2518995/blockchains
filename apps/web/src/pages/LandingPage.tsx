@@ -15,7 +15,7 @@ export function LandingPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#ECECEC]">
-      {/* 未登入 TopBar */}
+      {/* 未登录 TopBar */}
       <header className="sticky top-0 z-40 bg-[#1A2530] text-white shadow-[0_2px_12px_rgba(0,0,0,0.3)]">
         <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-5">
           <Link to="/" className="flex items-center gap-2 text-[22px] font-extrabold tracking-[0.05em]">

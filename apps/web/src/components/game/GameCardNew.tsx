@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { GameMetadata } from '@bg/shared';
 
-// 與 LobbyPage 現有的資料一致
+// 与 LobbyPage 现有的资料一致
 const HAS_COVER = new Set<string>([
   'dice', 'mines', 'hilo', 'keno', 'wheel', 'mini-roulette',
   'plinko', 'hotline', 'rocket', 'aviator', 'space-fleet',
@@ -18,26 +18,26 @@ const GLYPHS: Record<string, string> = {
 
 const NEW_GAMES = new Set(['carnival', 'plinko-x', 'jetx3', 'double-x']);
 
-// 繁中名稱覆寫（game registry 中有些是簡中）
+// 繁中名称覆写（game registry 中有些是简中）
 const NAME_ZH_TW: Record<string, string> = {
   dice: '骰子',
   mines: '踩地雷',
   hilo: '猜大小',
-  keno: '基諾',
-  wheel: '彩色轉輪',
-  'mini-roulette': '迷你輪盤',
-  plinko: '彈珠台',
-  hotline: '熱線',
-  tower: '疊塔',
+  keno: '基诺',
+  wheel: '彩色转轮',
+  'mini-roulette': '迷你轮盘',
+  plinko: '弹珠台',
+  hotline: '热线',
+  tower: '叠塔',
   rocket: '火箭',
-  aviator: '飛行員',
-  'space-fleet': '太空艦隊',
-  jetx: '飆速X',
-  balloon: '氣球',
-  jetx3: '飆速X3',
-  'double-x': '雙倍X',
-  'plinko-x': '掉珠挑戰X',
-  carnival: '狂歡節',
+  aviator: '飞行员',
+  'space-fleet': '太空舰队',
+  jetx: '飙速X',
+  balloon: '气球',
+  jetx3: '飙速X3',
+  'double-x': '双倍X',
+  'plinko-x': '掉珠挑战X',
+  carnival: '狂欢节',
 };
 
 function displayName(meta: GameMetadata): string {
@@ -87,7 +87,7 @@ export function GameCardNew({ game }: { game: GameMetadata }) {
         </div>
       </div>
 
-      {/* 資訊 */}
+      {/* 信息 */}
       <div className="flex flex-col gap-1 p-3">
         <div className="text-[14px] font-semibold text-[#0F172A]">
           {displayName(game)}

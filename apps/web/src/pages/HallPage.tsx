@@ -12,9 +12,9 @@ export function HallPage() {
   if (!hall) {
     return (
       <div className="py-20 text-center">
-        <h1 className="text-[24px] font-bold text-[#0F172A]">館別不存在</h1>
+        <h1 className="text-[24px] font-bold text-[#0F172A]">馆别不存在</h1>
         <Link to="/lobby" className="mt-4 inline-block text-[#186073]">
-          ← 回首頁
+          ← 回首页
         </Link>
       </div>
     );
@@ -30,7 +30,7 @@ export function HallPage() {
     <div className="space-y-6">
       {/* Breadcrumb */}
       <Link to="/lobby" className="inline-flex items-center gap-1 text-[13px] text-[#186073] hover:underline">
-        <ArrowLeft className="h-4 w-4" /> 回首頁
+        <ArrowLeft className="h-4 w-4" /> 回首页
       </Link>
 
       {/* Hero */}
@@ -42,11 +42,11 @@ export function HallPage() {
           <div className="text-[72px] leading-none">{hall.emoji}</div>
           <h1 className="mt-3 text-[32px] font-bold md:text-[40px]">{hall.nameZh}</h1>
           <p className="mt-2 text-[15px] text-white/85">{hall.tagline}</p>
-          <p className="mt-1 text-[12px] text-white/60">共 {games.length} 款遊戲</p>
+          <p className="mt-1 text-[12px] text-white/60">共 {games.length} 款游戏</p>
         </div>
       </section>
 
-      {/* Body: 遊戲網格 + 即時贏家側欄 */}
+      {/* Body: 游戏网格 + 即时赢家側欄 */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_280px]">
         <section>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -59,7 +59,7 @@ export function HallPage() {
         <aside className="space-y-3">
           <h3 className="flex items-center gap-2 text-[16px] font-semibold text-[#0F172A]">
             <span className="dot-online" />
-            即時戰報
+            即时战报
           </h3>
           <div className="rounded-[10px] border border-[#E5E7EB] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
             {liveWins.map((w, i) => (

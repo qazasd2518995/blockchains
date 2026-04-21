@@ -80,7 +80,7 @@ export function LoginPage() {
         </div>
       </header>
 
-      {/* 居中登入卡片 */}
+      {/* 居中登录卡片 */}
       <main className="flex flex-1 items-center justify-center px-5 py-10">
         <div className="w-full max-w-[420px] rounded-[10px] border border-[#E5E7EB] bg-white p-8 shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
           <div className="mb-6 text-center">

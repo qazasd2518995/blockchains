@@ -8,10 +8,10 @@ interface Feature {
 }
 
 const FEATURES: Feature[] = [
-  { icon: ShieldCheck, title: '公平可驗證', desc: 'Provably Fair 演算法，每局可獨立驗證結果' },
-  { icon: Lock,        title: '加密保障',   desc: '128 位加密傳輸，資料安全無虞' },
-  { icon: Zap,         title: '秒速派彩',   desc: '注單結算即時到點，絕不延遲' },
-  { icon: Headphones,  title: '24H 客服',   desc: 'LINE / Telegram 全天候回覆' },
+  { icon: ShieldCheck, title: '公平可验证', desc: 'Provably Fair 算法，每局可独立验证结果' },
+  { icon: Lock,        title: '加密保障',   desc: '128 位加密传输，资料安全无虞' },
+  { icon: Zap,         title: '秒速派彩',   desc: '注单结算即时到点，绝不延迟' },
+  { icon: Headphones,  title: '24H 客服',   desc: 'LINE / Telegram 全天候回复' },
 ];
 
 export function FeaturesStrip() {

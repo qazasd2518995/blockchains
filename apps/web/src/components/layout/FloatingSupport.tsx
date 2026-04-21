@@ -25,7 +25,7 @@ export function FloatingSupport() {
         <div className="flex h-10 items-center gap-2 rounded-full border border-[#E5E7EB] bg-white px-3 shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
           <span className="dot-online" />
           <span className="text-[12px] text-[#4A5568]">
-            在線 <span className="num font-semibold text-[#0F172A]">{online.toLocaleString()}</span>
+            在线 <span className="num font-semibold text-[#0F172A]">{online.toLocaleString()}</span>
           </span>
         </div>
       </div>
@@ -40,11 +40,11 @@ export function FloatingSupport() {
               type="button"
               onClick={() => setModalOpen(false)}
               className="absolute right-3 top-3 text-[#4A5568] hover:text-[#0F172A]"
-              aria-label="關閉"
+              aria-label="关闭"
             >
               <X className="h-5 w-5" />
             </button>
-            <h3 className="mb-4 text-[18px] font-semibold text-[#0F172A]">聯絡客服</h3>
+            <h3 className="mb-4 text-[18px] font-semibold text-[#0F172A]">联系客服</h3>
             <div className="space-y-3">
               <a
                 href="https://line.me/ti/p/~@aaa1788"
@@ -65,7 +65,7 @@ export function FloatingSupport() {
                 <div className="text-[12px] text-[#4A5568]">aaawin1788_bot</div>
               </a>
               <div className="rounded-[6px] border border-dashed border-[#E5E7EB] p-3 text-[12px] text-[#9CA3AF]">
-                回覆時間：24 小時
+                回复时间：24 小时
               </div>
             </div>
           </div>

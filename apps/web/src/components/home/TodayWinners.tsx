@@ -31,7 +31,7 @@ export function TodayWinners() {
       <header className="flex items-baseline justify-between border-b border-[#E5E7EB] px-5 py-4">
         <h2 className="flex items-center gap-2 text-[20px] font-semibold text-[#0F172A]">
           <Trophy className="h-5 w-5 text-[#C9A247]" />
-          今日贏家榜
+          今日赢家榜
         </h2>
         <span className="text-[12px] text-[#9CA3AF]">每日 00:00 重置</span>
       </header>
@@ -40,9 +40,9 @@ export function TodayWinners() {
           <tr className="bg-[#186073] text-[13px] text-white">
             <th className="w-16 py-3 text-center font-medium">排名</th>
             <th className="py-3 text-left font-medium">玩家</th>
-            <th className="py-3 text-left font-medium">遊戲</th>
+            <th className="py-3 text-left font-medium">游戏</th>
             <th className="w-24 py-3 text-right font-medium">倍率</th>
-            <th className="w-32 py-3 pr-5 text-right font-medium">贏得點數</th>
+            <th className="w-32 py-3 pr-5 text-right font-medium">赢得点数</th>
           </tr>
         </thead>
         <tbody>

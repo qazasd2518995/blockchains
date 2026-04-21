@@ -15,9 +15,9 @@ export interface HallMeta {
 export const HALLS: Record<HallId, HallMeta> = {
   crash: {
     id: 'crash',
-    nameZh: 'Crash 飛行館',
+    nameZh: 'Crash 飞行馆',
     emoji: '🚀',
-    tagline: '倍率無上限，敢飛敢收',
+    tagline: '倍率无上限，敢飞敢收',
     gradient: 'linear-gradient(135deg, #051E2B 0%, #186073 50%, #D4574A 100%)',
     gameIds: [
       GameId.ROCKET,
@@ -32,9 +32,9 @@ export const HALLS: Record<HallId, HallMeta> = {
   },
   classic: {
     id: 'classic',
-    nameZh: '經典電子館',
+    nameZh: '经典电子馆',
     emoji: '🎯',
-    tagline: '經典玩法，純粹手感',
+    tagline: '经典玩法，纯粹手感',
     gradient: 'linear-gradient(135deg, #186073 0%, #266F85 50%, #408A9D 100%)',
     gameIds: [
       GameId.DICE,
@@ -47,9 +47,9 @@ export const HALLS: Record<HallId, HallMeta> = {
   },
   strategy: {
     id: 'strategy',
-    nameZh: '策略電子館',
+    nameZh: '策略电子馆',
     emoji: '💎',
-    tagline: '策略取勝，拆彈解謎',
+    tagline: '策略取胜，拆弹解谜',
     gradient: 'linear-gradient(135deg, #0E4555 0%, #266F85 50%, #C9A247 100%)',
     gameIds: [GameId.MINES, GameId.PLINKO, GameId.TOWER, GameId.CARNIVAL],
   },

@@ -19,12 +19,12 @@ function HallCard({ hall }: { hall: HallMeta }) {
       <div className="flex flex-col gap-2 p-5">
         <div className="flex items-baseline justify-between">
           <h3 className="text-[22px] font-bold text-[#0F172A]">{hall.nameZh}</h3>
-          <span className="text-[12px] text-[#9CA3AF]">{hall.gameIds.length} 款遊戲</span>
+          <span className="text-[12px] text-[#9CA3AF]">{hall.gameIds.length} 款游戏</span>
         </div>
         <p className="text-[13px] text-[#4A5568]">{hall.tagline}</p>
         <div className="mt-auto flex items-center justify-between pt-2">
           <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#186073] transition group-hover:gap-2">
-            立即進入 <ArrowRight className="h-4 w-4" />
+            立即进入 <ArrowRight className="h-4 w-4" />
           </span>
         </div>
       </div>

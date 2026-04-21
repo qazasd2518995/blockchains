@@ -9,9 +9,9 @@ import { WinTicker } from '@/components/home/WinTicker';
 import { FloatingSupport } from '@/components/layout/FloatingSupport';
 
 const NAV_ITEMS: { to: string; label: string; icon: typeof Gift }[] = [
-  { to: '/promos',  label: '優惠',      icon: Gift },
-  { to: '/history', label: '遊戲紀錄',  icon: History },
-  { to: '/verify',  label: '公平驗證',  icon: ShieldCheck },
+  { to: '/promos',  label: '优惠',      icon: Gift },
+  { to: '/history', label: '游戏记录',  icon: History },
+  { to: '/verify',  label: '公平验证',  icon: ShieldCheck },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -79,9 +79,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={handleBalanceRefresh}
                 className="flex items-center gap-2 rounded-[6px] border border-[#C9A247]/60 bg-black/30 px-3 py-1.5 transition hover:border-[#C9A247]"
-                title="點擊更新餘額"
+                title="点击更新余额"
               >
-                <span className="text-[11px] text-white/70">餘額</span>
+                <span className="text-[11px] text-white/70">余额</span>
                 <span className="num text-[15px] font-semibold text-[#C9A247]">
                   {formatAmount(user.balance ?? '0')}
                 </span>
@@ -104,7 +104,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => navigate('/history')}
                 className="rounded-[6px] p-2 text-white/75 transition hover:bg-white/10 hover:text-white"
-                aria-label="訊息"
+                aria-label="讯息"
               >
                 <Bell className="h-4 w-4" />
               </button>
@@ -119,13 +119,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           ) : (
             <Link to="/login" className="btn-teal text-[13px]">
-              登入
+              登录
             </Link>
           )}
         </div>
       </header>
 
-      {/* 雙跑馬燈 */}
+      {/* 双跑马灯 */}
       <AnnouncementTicker />
       <WinTicker />
 
@@ -141,9 +141,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <h4 className="mb-3 text-[14px] font-semibold text-[#0F172A]">快捷連結</h4>
             <ul className="space-y-2 text-[13px] text-[#4A5568]">
               <li><Link to="/promos" className="hover:text-[#186073]">新手幫助</Link></li>
-              <li><Link to="/promos" className="hover:text-[#186073]">關於我們</Link></li>
-              <li><Link to="/promos" className="hover:text-[#186073]">服務條款</Link></li>
-              <li><Link to="/promos" className="hover:text-[#186073]">聯絡我們</Link></li>
+              <li><Link to="/promos" className="hover:text-[#186073]">关於我們</Link></li>
+              <li><Link to="/promos" className="hover:text-[#186073]">服務条款</Link></li>
+              <li><Link to="/promos" className="hover:text-[#186073]">联系我们</Link></li>
             </ul>
           </div>
           <div>
@@ -154,7 +154,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <a href="https://www.instagram.com/aaa1788_com/" target="_blank" rel="noreferrer" className="text-[#4A5568] hover:text-[#186073]">Instagram</a>
             </div>
             <p className="mt-4 text-[11px] text-[#9CA3AF]">
-              18+ 負責任博彩 · 本站為技術研究用假幣平台，不涉及真實金流
+              18+ 负责任博彩 · 本站为技術研究用假幣平台，不涉及真实金流
             </p>
           </div>
           <div className="text-right">

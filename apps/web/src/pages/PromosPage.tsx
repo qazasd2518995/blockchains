@@ -1,10 +1,10 @@
 import { Gift } from 'lucide-react';
 
 const PROMOS = [
-  { id: 'week',    title: '每週倍率王',     desc: '週一至週日累積倍率排名，前 10 名分享獎金池', badge: '熱門' },
-  { id: 'vip',     title: 'VIP 等級制度',   desc: '依遊戲量自動升等，享專屬返水與活動',        badge: '制度' },
-  { id: 'jackpot', title: 'Crash 彩池',    desc: 'JetX3 全館累積，任意局觸發 100× 即爆池',     badge: '彩池' },
-  { id: 'friend',  title: '邀請好友',      desc: '好友遊戲量回饋，介紹越多回饋越高',           badge: '推廣' },
+  { id: 'week',    title: '每周倍率王',     desc: '周一至周日累计倍率排名，前 10 名分享奖金池', badge: '热门' },
+  { id: 'vip',     title: 'VIP 等级制度',   desc: '依游戏量自动升等，享专属返水与活动',        badge: '制度' },
+  { id: 'jackpot', title: 'Crash 彩池',    desc: 'JetX3 全馆累计，任意局触发 100× 即爆池',     badge: '彩池' },
+  { id: 'friend',  title: '邀请好友',      desc: '好友游戏量回馈，介绍越多回馈越高',           badge: '推广' },
 ];
 
 export function PromosPage() {
@@ -12,7 +12,7 @@ export function PromosPage() {
     <div className="space-y-6">
       <header className="flex items-center gap-3">
         <Gift className="h-8 w-8 text-[#186073]" />
-        <h1 className="text-[28px] font-bold text-[#0F172A]">活動優惠</h1>
+        <h1 className="text-[28px] font-bold text-[#0F172A]">活动优惠</h1>
       </header>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {PROMOS.map((p) => (
@@ -31,7 +31,7 @@ export function PromosPage() {
         ))}
       </div>
       <p className="text-center text-[12px] text-[#9CA3AF]">
-        * 本頁面為設計占位，正式活動規則以實際公告為準
+        * 本页面为設计占位，正式活动規則以实际公告为准
       </p>
     </div>
   );
