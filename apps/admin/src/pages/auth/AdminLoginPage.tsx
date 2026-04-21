@@ -81,130 +81,87 @@ export function AdminLoginPage(): JSX.Element {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-10">
-      <div className="crystal-overlay" />
-
-      <div className="relative z-10 grid w-full max-w-5xl gap-8 lg:grid-cols-2 lg:gap-16">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-lg text-[#186073]">{t.auth.title}</span>
-            <span className="text-[#C9A247]">◆</span>
-            <span className="label text-[#186073]">salon privé</span>
+    <div className="flex min-h-screen flex-col bg-[#ECECEC]">
+      <header className="h-16 bg-[#1A2530] text-white">
+        <div className="mx-auto flex h-full max-w-[1280px] items-center justify-end px-5">
+          <div className="flex items-center gap-2 text-[22px] font-extrabold tracking-[0.05em]">
+            <span className="rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[20px] text-white">
+              BG
+            </span>
+            <span className="hidden text-[16px] font-bold text-white/90 sm:inline">代理后台</span>
           </div>
-          <h1 className="mt-4 font-semibold text-6xl leading-[0.95] text-[#0F172A]">
-            Agent<span className="italic text-[#186073]">.</span>Ops
-          </h1>
-          <p className="mt-3 font-semibold text-xl text-[#186073]">{t.auth.subtitle}</p>
-          <p className="mt-6 max-w-md text-[13px] leading-relaxed text-[#4A5568]">
-            {t.auth.requiresAuth}
-          </p>
+        </div>
+      </header>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="mt-10 space-y-6">
-            <Field label={t.auth.username} suit="♠" error={errors.username?.message}>
+      <main className="flex flex-1 items-center justify-center px-5 py-10">
+        <div className="w-full max-w-[420px] rounded-[10px] border border-[#E5E7EB] bg-white p-8 shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
+          <div className="mb-6 text-center">
+            <h1 className="text-[24px] font-bold text-[#0F172A]">{t.auth.title}</h1>
+            <p className="mt-2 text-[13px] text-[#4A5568]">{t.auth.requiresAuth}</p>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <Field label={t.auth.username} error={errors.username?.message}>
               <input
                 type="text"
                 autoComplete="username"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder="superadmin"
-                className="input-salon"
+                className="w-full rounded-[6px] border border-[#E5E7EB] px-3 py-2.5 text-[14px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25"
                 {...register('username')}
               />
             </Field>
-            <Field label={t.auth.password} suit="♦" error={errors.password?.message}>
+
+            <Field label={t.auth.password} error={errors.password?.message}>
               <input
                 type="password"
                 autoComplete="current-password"
                 placeholder="••••••••••••"
-                className="input-salon"
+                className="w-full rounded-[6px] border border-[#E5E7EB] px-3 py-2.5 text-[14px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25"
                 {...register('password')}
               />
             </Field>
 
             {serverError && (
-              <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-4 rounded-sm">
-                <div className="flex items-start gap-2 text-[12px] text-[#B94538]">
-                  <span className="font-semibold font-bold italic">{t.common.error}:</span>
-                  <span className="tracking-wide">{serverError}</span>
-                </div>
+              <div className="rounded-[6px] border border-[#D4574A]/40 bg-[#FDF0EE] px-3 py-2.5 text-[12px] text-[#B94538]">
+                ⚠ {serverError}
               </div>
             )}
 
-            <div className="flex items-center gap-3 pt-2">
-              <button type="submit" disabled={isSubmitting} className="btn-teal">
-                {isSubmitting ? (
-                  <span>
-                    {t.auth.authenticating}
-                    <span className="animate-blink">_</span>
-                  </span>
-                ) : (
-                  <>→ {t.auth.authenticate}</>
-                )}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-[6px] bg-[#186073] px-4 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#1E7A90] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? t.auth.authenticating : t.auth.authenticate}
+            </button>
           </form>
-        </div>
 
-        <div className="relative hidden lg:block">
-          <div className="panel-felt scanlines h-full p-8">
-            <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-4">
-              <div className="flex items-baseline gap-2">
-                <span className="font-semibold text-lg text-[#DEBE66]">Protocole</span>
-                <span className="text-[#C9A247] text-xs">◆</span>
-                <span className="label text-[#D0AC4D]">{t.auth.protocol}</span>
-              </div>
-              <div className="hidden !h-9 !w-9 !text-[8px]">LIVE</div>
-            </div>
-
-            <pre className="mt-8 font-mono text-[10.5px] leading-relaxed text-[#E8D48A]/85">
-{`┌────────────────────────────────┐
-│  AGENT-OPS AUTH PROTOCOL       │
-│                                │
-│  [1] Username + Password       │
-│  [2] Bcrypt verify (12 rounds) │
-│  [3] JWT signed (aud=admin)    │
-│  [4] Refresh token 7-day TTL   │
-│  [5] All ops audited           │
-│  [6] Serializable transactions │
-│                                │
-│  TRUST BUT VERIFY.             │
-└────────────────────────────────┘`}
-            </pre>
-
-            <div className="mt-10 border-t border-[#E5E7EB] pt-5">
-              <div className="font-semibold text-3xl italic text-white">Blockchain Ops</div>
-              <div className="mt-2 font-semibold text-[13px] text-[#DEBE66]">
-                不开放公开注册 · 仅限代理
-              </div>
-            </div>
+          <div className="mt-6 border-t border-[#E5E7EB] pt-5 text-center">
+            <p className="text-[12px] text-[#4A5568]">{t.auth.subtitle}</p>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
 
 function Field({
   label,
-  suit,
   error,
   children,
 }: {
   label: string;
-  suit: string;
   error?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className="block">
-      <div className="mb-2 flex items-baseline justify-between">
-        <div className="flex items-baseline gap-2">
-          <span className="text-[#AE8B35] text-sm">{suit}</span>
-          <span className="font-semibold text-[14px] font-semibold tracking-[0.1em] text-[#0F172A]">
-            {label}
-          </span>
-        </div>
-        {error && (
-          <span className="font-mono text-[10px] tracking-[0.15em] text-[#D4574A]">⚠ {error}</span>
-        )}
+      <div className="mb-1.5 flex items-baseline justify-between">
+        <span className="text-[13px] font-semibold text-[#0F172A]">{label}</span>
+        {error && <span className="text-[11px] text-[#D4574A]">⚠ {error}</span>}
       </div>
       {children}
     </label>
