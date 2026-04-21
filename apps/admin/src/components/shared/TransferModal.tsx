@@ -66,7 +66,7 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
       <div className="mb-4 border border-ink-200 bg-ink-100/40 p-3 text-[11px]">
         <div className="flex items-baseline justify-between">
           <span className="text-ink-500">{t.transfers.member}</span>
-          <span className="font-mono text-ink-900">{member.email}</span>
+          <span className="font-mono text-ink-900">{member.username}</span>
         </div>
         <div className="mt-1 flex items-baseline justify-between">
           <span className="text-ink-500">{t.transfers.currentBal}</span>

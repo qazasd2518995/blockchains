@@ -50,7 +50,7 @@ export function AdjustBalanceModal({ open, onClose, member, onDone }: Props): JS
       <div className="mb-4 border border-ink-200 bg-ink-100/40 p-3 text-[11px]">
         <div className="flex items-baseline justify-between">
           <span className="text-ink-500">{t.adjust.member}</span>
-          <span className="font-mono">{member.email}</span>
+          <span className="font-mono">{member.username}</span>
         </div>
         <div className="mt-1 flex items-baseline justify-between">
           <span className="text-ink-500">{t.adjust.bal}</span>

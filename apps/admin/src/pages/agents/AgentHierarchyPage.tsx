@@ -146,7 +146,7 @@ export function AgentHierarchyPage(): JSX.Element {
     if (row.kind !== 'member') return null;
     return {
       id: row.id,
-      email: row.email,
+      username: row.username,
       displayName: row.displayName,
       agentId: data?.parent?.id ?? null,
       agentUsername: data?.parent?.username ?? null,
@@ -265,7 +265,7 @@ export function AgentHierarchyPage(): JSX.Element {
 
               <div className="min-w-0">
                 <div className="flex items-center gap-2 font-mono text-ink-900">
-                  <span className="truncate">{row.kind === 'agent' ? row.username : row.email}</span>
+                  <span className="truncate">{row.username}</span>
                   {row.kind === 'agent' && row.role === 'SUPER_ADMIN' && <span className="tag tag-gold">{t.shell.super}</span>}
                 </div>
                 <div className="mt-0.5 flex gap-3 text-[10px] text-ink-500">
@@ -345,7 +345,7 @@ export function AgentHierarchyPage(): JSX.Element {
                     <button type="button" onClick={() => handleEditNotes(row.id, row.notes)} className="btn-chip">
                       {t.agents.notesBtn}
                     </button>
-                    <button type="button" onClick={() => handleResetPassword(row.id, 'member', row.email)} className="btn-chip">
+                    <button type="button" onClick={() => handleResetPassword(row.id, 'member', row.username)} className="btn-chip">
                       {t.agents.resetPassword}
                     </button>
                     <StatusDropdown

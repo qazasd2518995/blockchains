@@ -82,7 +82,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         { displayName: { contains: q.keyword, mode: 'insensitive' } },
       ];
       memberWhere.OR = [
-        { email: { contains: q.keyword, mode: 'insensitive' } },
+        { username: { contains: q.keyword, mode: 'insensitive' } },
         { displayName: { contains: q.keyword, mode: 'insensitive' } },
       ];
     }
@@ -140,7 +140,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
       | {
           kind: 'member';
           id: string;
-          email: string;
+          username: string;
           displayName: string | null;
           level: null;
           marketType: 'D' | 'A';
@@ -171,7 +171,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
       ...members.map((m): MixedRow => ({
         kind: 'member',
         id: m.id,
-        email: m.email,
+        username: m.username,
         displayName: m.displayName,
         level: null,
         marketType: m.marketType,

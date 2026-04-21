@@ -39,7 +39,7 @@ export async function applyControls(
 ): Promise<ControlOutcome> {
   const member = await tx.user.findUnique({
     where: { id: userId },
-    select: { id: true, agentId: true, email: true },
+    select: { id: true, agentId: true, username: true },
   });
   if (!member) {
     return { ...predicted, controlled: false };

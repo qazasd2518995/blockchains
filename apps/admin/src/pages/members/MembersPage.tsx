@@ -56,11 +56,11 @@ export function MembersPage(): JSX.Element {
 
   const columns: Column<MemberPublic>[] = [
     {
-      key: 'email',
-      label: t.members.email,
+      key: 'username',
+      label: t.members.username,
       render: (m) => (
         <div>
-          <div className="font-mono text-ink-900">{m.email}</div>
+          <div className="font-mono text-ink-900">{m.username}</div>
           {m.displayName && <div className="text-[10px] text-ink-500">{m.displayName}</div>}
         </div>
       ),

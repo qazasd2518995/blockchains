@@ -37,8 +37,8 @@ export class MemberService {
     const ok = await canManageAgent(this.prisma, operator, input.agentId);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot create member under this agent');
 
-    const existing = await this.prisma.user.findUnique({ where: { email: input.email } });
-    if (existing) throw new ApiError('EMAIL_TAKEN', 'Email already in use');
+    const existing = await this.prisma.user.findUnique({ where: { username: input.username } });
+    if (existing) throw new ApiError('USERNAME_TAKEN', 'Username already in use');
 
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
     const initialBalance = input.initialBalance
@@ -71,7 +71,7 @@ export class MemberService {
 
       const created = await tx.user.create({
         data: {
-          email: input.email,
+          username: input.username,
           passwordHash,
           displayName: input.displayName ?? null,
           balance: balanceForMember,
@@ -140,7 +140,7 @@ export class MemberService {
       targetType: 'member',
       targetId: member.id,
       newValues: {
-        email: member.email,
+        username: member.username,
         agentId: member.agentId,
         initialBalance: initialBalance.toFixed(2),
       },
@@ -169,7 +169,7 @@ export class MemberService {
     if (query.status === 'ACTIVE') where.frozenAt = null;
     if (query.keyword) {
       where.OR = [
-        { email: { contains: query.keyword, mode: 'insensitive' } },
+        { username: { contains: query.keyword, mode: 'insensitive' } },
         { displayName: { contains: query.keyword, mode: 'insensitive' } },
       ];
     }
@@ -361,7 +361,7 @@ export class MemberService {
 function toMemberPublic(
   user: {
     id: string;
-    email: string;
+    username: string;
     displayName: string | null;
     agentId: string | null;
     balance: Prisma.Decimal;
@@ -374,7 +374,7 @@ function toMemberPublic(
 ): MemberPublic {
   return {
     id: user.id,
-    email: user.email,
+    username: user.username,
     displayName: user.displayName,
     agentId: user.agentId,
     agentUsername,

@@ -25,6 +25,7 @@ export const zh = {
     operator: '玩家',
     callsign: '昵称',
     email: '邮箱',
+    username: '账号',
     password: '密码',
     next: '下一页',
     prev: '上一页',
@@ -110,6 +111,7 @@ export const zh = {
     trustButVerify: '信任,但请验证。',
     proverb: '— 俄罗斯谚语',
     invalidEmail: '邮箱格式不正确',
+    invalidUsername: '账号只能包含字母、数字,以及 . _ -,长度 3–40 位',
     pwdRequired: '请输入密码',
     minChars: '至少 8 个字符',
     needLetter: '需包含至少 1 个字母',
@@ -118,6 +120,8 @@ export const zh = {
     emailPlaceholder: '邮箱地址',
     passwordPlaceholder: '密码',
     callsignPlaceholder: '任意昵称,方便在排行榜认出自己',
+    usernameLabel: '账号',
+    usernamePlaceholder: '你的会员账号',
   },
 
   lobby: {

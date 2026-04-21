@@ -1,7 +1,7 @@
 export interface BetReportRow {
   id: string;
   gameId: string;
-  memberEmail: string;
+  memberUsername: string;
   agentUsername: string | null;
   amount: string;
   multiplier: string;

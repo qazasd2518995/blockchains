@@ -100,7 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="text-right">
                 <div className="label label-brass">{t.common.operator}</div>
                 <div className="mt-0.5 font-serif text-[13px] italic text-ivory-950">
-                  {user?.displayName ?? user?.email?.split('@')[0]}
+                  {user?.displayName ?? user?.username}
                 </div>
               </div>
               <button type="button" onClick={handleLogout} className="btn-ghost text-[11px]">

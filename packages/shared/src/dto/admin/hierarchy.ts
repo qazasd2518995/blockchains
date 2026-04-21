@@ -18,7 +18,7 @@ export type HierarchyItem =
   | {
       kind: 'member';
       id: string;
-      email: string;
+      username: string;
       displayName: string | null;
       level: null;
       marketType: 'D' | 'A';
@@ -84,7 +84,7 @@ export type HierarchyReportItem =
   | (HierarchyReportCommon & {
       kind: 'member';
       id: string;
-      email: string;
+      username: string;
       displayName: string | null;
       level: null;
       rebatePercentage: string;

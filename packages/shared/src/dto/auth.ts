@@ -1,5 +1,5 @@
 export interface LoginRequest {
-  email: string;
+  username: string;
   password: string;
 }
 
@@ -11,7 +11,7 @@ export interface AuthResponse {
 
 export interface UserPublic {
   id: string;
-  email: string;
+  username: string;
   displayName: string | null;
   balance: string;
   role: 'PLAYER' | 'ADMIN';

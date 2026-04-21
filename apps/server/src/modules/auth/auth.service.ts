@@ -19,10 +19,10 @@ export class AuthService {
   async login(
     input: LoginInput,
   ): Promise<{ user: UserPublic; accessToken: string; refreshToken: string }> {
-    const user = await this.prisma.user.findUnique({ where: { email: input.email } });
-    if (!user) throw new ApiError('INVALID_CREDENTIALS', 'Invalid email or password');
+    const user = await this.prisma.user.findUnique({ where: { username: input.username } });
+    if (!user) throw new ApiError('INVALID_CREDENTIALS', 'Invalid username or password');
     const ok = await bcrypt.compare(input.password, user.passwordHash);
-    if (!ok) throw new ApiError('INVALID_CREDENTIALS', 'Invalid email or password');
+    if (!ok) throw new ApiError('INVALID_CREDENTIALS', 'Invalid username or password');
 
     const tokens = await this.issueTokens(user.id, user.role);
     return { user: this.toPublic(user), ...tokens };
@@ -79,7 +79,7 @@ export class AuthService {
 
   private toPublic(user: {
     id: string;
-    email: string;
+    username: string;
     displayName: string | null;
     balance: Prisma.Decimal;
     role: string;
@@ -87,7 +87,7 @@ export class AuthService {
   }): UserPublic {
     return {
       id: user.id,
-      email: user.email,
+      username: user.username,
       displayName: user.displayName,
       balance: user.balance.toFixed(2),
       role: user.role as UserPublic['role'],

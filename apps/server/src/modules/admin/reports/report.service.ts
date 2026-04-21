@@ -61,7 +61,7 @@ export class ReportService {
     const rows = await this.prisma.bet.findMany({
       where,
       include: {
-        user: { select: { email: true, agentId: true, agent: { select: { username: true } } } },
+        user: { select: { username: true, agentId: true, agent: { select: { username: true } } } },
       },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
@@ -81,7 +81,7 @@ export class ReportService {
       items: page.map((b) => ({
         id: b.id,
         gameId: b.gameId,
-        memberEmail: b.user.email,
+        memberUsername: b.user.username,
         agentUsername: b.user.agent?.username ?? null,
         amount: b.amount.toFixed(2),
         multiplier: b.multiplier.toFixed(4),
@@ -310,7 +310,7 @@ export class ReportService {
         return {
           kind: 'member' as const,
           id: m.id,
-          email: m.email,
+          username: m.username,
           displayName: m.displayName,
           level: null,
           rebatePercentage: '0.0000',
@@ -527,7 +527,7 @@ function emptyStats(
 export interface BetReportRow {
   id: string;
   gameId: string;
-  memberEmail: string;
+  memberUsername: string;
   agentUsername: string | null;
   amount: string;
   multiplier: string;
@@ -602,7 +602,7 @@ export type HierarchyReportRow =
   | (HierarchyReportCommon & {
       kind: 'member';
       id: string;
-      email: string;
+      username: string;
       displayName: string | null;
       level: null;
       rebatePercentage: string;

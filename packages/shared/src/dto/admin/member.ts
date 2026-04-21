@@ -1,6 +1,6 @@
 export interface MemberPublic {
   id: string;
-  email: string;
+  username: string;
   displayName: string | null;
   agentId: string | null;
   agentUsername: string | null;
@@ -15,7 +15,7 @@ export interface MemberPublic {
 
 export interface CreateMemberRequest {
   agentId: string;              // 目標代理（操作者必須能 manage）
-  email: string;
+  username: string;
   password: string;
   displayName?: string;
   initialBalance?: string;      // 若設，從代理 balance 扣除轉到 member

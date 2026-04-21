@@ -68,7 +68,7 @@ export function ProfilePage() {
       </section>
 
       <section className="relative z-10 grid gap-4 md:grid-cols-4">
-        <InfoCard label={t.common.email} value={user?.email ?? '—'} />
+        <InfoCard label={t.common.username} value={user?.username ?? '—'} />
         <InfoCard label={t.common.callsign} value={user?.displayName ?? '—'} />
         <InfoCard
           label={t.profile.sessionId}

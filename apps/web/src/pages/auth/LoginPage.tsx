@@ -10,7 +10,11 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { LocaleToggle } from '@/components/layout/LocaleToggle';
 
 const schema = z.object({
-  email: z.string().email({ message: 'INVALID_EMAIL' }),
+  username: z
+    .string()
+    .min(3, { message: 'INVALID_USERNAME' })
+    .max(40, { message: 'INVALID_USERNAME' })
+    .regex(/^[a-zA-Z0-9._-]+$/, { message: 'INVALID_USERNAME' }),
   password: z.string().min(1, { message: 'PASSWORD_REQUIRED' }),
 });
 
@@ -30,7 +34,7 @@ export function LoginPage() {
   } = useForm<FormInput>({ resolver: zodResolver(schema) });
 
   const errMap = (k?: string) => {
-    if (k === 'INVALID_EMAIL') return t.auth.invalidEmail;
+    if (k === 'INVALID_USERNAME') return t.auth.invalidUsername;
     if (k === 'PASSWORD_REQUIRED') return t.auth.pwdRequired;
     return k;
   };
@@ -83,13 +87,16 @@ export function LoginPage() {
             </p>
 
             <form onSubmit={handleSubmit(onSubmit)} className="mt-10 space-y-6">
-              <Field label={t.auth.emailLabel} suit="♠" error={errMap(errors.email?.message)}>
+              <Field label={t.auth.usernameLabel} suit="♠" error={errMap(errors.username?.message)}>
                 <input
-                  type="email"
-                  autoComplete="email"
-                  placeholder={t.auth.emailPlaceholder}
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder={t.auth.usernamePlaceholder}
                   className="input-salon"
-                  {...register('email')}
+                  {...register('username')}
                 />
               </Field>
               <Field label={t.auth.password} suit="♦" error={errMap(errors.password?.message)}>

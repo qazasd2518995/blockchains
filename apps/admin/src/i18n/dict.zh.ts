@@ -160,6 +160,7 @@ export const dict = {
     subtitle: '会员名册',
     create: '创建会员',
     email: '账号(邮箱)',
+    username: '账号',
     displayName: '昵称',
     agent: '所属代理',
     balance: '余额',

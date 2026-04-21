@@ -9,7 +9,11 @@ import { useTranslation } from '@/i18n/useTranslation';
 
 const schema = z.object({
   agentId: z.string().min(1),
-  email: z.string().email(),
+  username: z
+    .string()
+    .min(3, '账号至少 3 位')
+    .max(40, '账号至多 40 位')
+    .regex(/^[a-zA-Z0-9._-]+$/, '账号仅限字母、数字、. _ -'),
   password: z.string().min(8).regex(/[A-Za-z]/).regex(/\d/),
   displayName: z.string().optional(),
   initialBalance: z
@@ -43,7 +47,7 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId }: 
   useEffect(() => {
     if (!open) return;
     setErr(null);
-    reset({ agentId: defaultAgentId ?? '', email: '', password: '', displayName: '', initialBalance: '', notes: '' });
+    reset({ agentId: defaultAgentId ?? '', username: '', password: '', displayName: '', initialBalance: '', notes: '' });
     void (async () => {
       try {
         // 預設抓自己 + 直接子代理作為候選
@@ -60,7 +64,7 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId }: 
     try {
       const res = await adminApi.post<MemberPublic>('/members', {
         agentId: data.agentId,
-        email: data.email,
+        username: data.username,
         password: data.password,
         displayName: data.displayName || undefined,
         initialBalance: data.initialBalance || undefined,
@@ -90,8 +94,16 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId }: 
           </select>
         </Field>
 
-        <Field label={t.members.email} code="02" error={errors.email?.message}>
-          <input type="email" {...register('email')} className="term-input" placeholder="player@bg.local" />
+        <Field label={t.members.username} code="02" error={errors.username?.message}>
+          <input
+            type="text"
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            {...register('username')}
+            className="term-input"
+            placeholder="player_007"
+          />
         </Field>
 
         <Field label={t.members.password} code="03" error={errors.password?.message}>

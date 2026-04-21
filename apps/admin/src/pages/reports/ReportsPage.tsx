@@ -245,7 +245,7 @@ function Row({ row, onClick }: { row: HierarchyReportItem; onClick: () => void }
         )}
       </td>
       <td className="px-3 py-2.5 font-mono text-ink-900">
-        {isAgent ? row.username : row.email}
+        {row.username}
         {row.displayName && <div className="mt-0.5 text-[9px] text-ink-500">{row.displayName}</div>}
       </td>
       <td className="px-3 py-2.5 text-[10px] text-ink-500">{row.notes ?? '—'}</td>

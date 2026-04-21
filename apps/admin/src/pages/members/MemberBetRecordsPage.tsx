@@ -77,9 +77,9 @@ export function MemberBetRecordsPage(): JSX.Element {
     <div>
       <PageHeader
         section="§ OPS 03"
-        breadcrumb={`${t.members.title} / ${member?.email ?? id} / ${t.members.bets}`}
+        breadcrumb={`${t.members.title} / ${member?.username ?? id} / ${t.members.bets}`}
         title={t.members.bets}
-        titleSuffix={member?.email ?? ''}
+        titleSuffix={member?.username ?? ''}
         titleSuffixColor="acid"
         rightSlot={
           <Link to="/admin/accounts" className="btn-ghost text-[11px]">

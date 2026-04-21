@@ -5,10 +5,10 @@ import { sha256, generateServerSeed, generateClientSeed } from '@bg/provably-fai
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
-  const adminEmail = 'admin@blockchain-game.local';
-  const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
+  const adminUsername = 'admin';
+  const existing = await prisma.user.findUnique({ where: { username: adminUsername } });
   if (existing) {
-    console.log(`[seed] admin already exists (${adminEmail})`);
+    console.log(`[seed] admin already exists (${adminUsername})`);
     return;
   }
 
@@ -16,7 +16,7 @@ async function main(): Promise<void> {
   const user = await prisma.$transaction(async (tx) => {
     const created = await tx.user.create({
       data: {
-        email: adminEmail,
+        username: adminUsername,
         passwordHash,
         displayName: 'Admin',
         role: 'ADMIN',
@@ -51,7 +51,7 @@ async function main(): Promise<void> {
     return created;
   });
 
-  console.log(`[seed] Admin user created: ${user.email} / admin123456`);
+  console.log(`[seed] Admin user created: ${user.username} / admin123456`);
 }
 
 main()

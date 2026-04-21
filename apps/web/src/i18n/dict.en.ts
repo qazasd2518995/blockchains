@@ -27,6 +27,7 @@ export const en: Dict = {
     operator: 'Operator',
     callsign: 'Callsign',
     email: 'Email',
+    username: 'Username',
     password: 'Password',
     next: 'Next',
     prev: 'Prev',
@@ -113,6 +114,7 @@ export const en: Dict = {
     trustButVerify: '"Trust, but verify."',
     proverb: '— RUSSIAN PROVERB',
     invalidEmail: 'INVALID EMAIL FORMAT',
+    invalidUsername: 'USERNAME MUST BE 3–40 CHARS, LETTERS/DIGITS/._-',
     pwdRequired: 'PASSWORD REQUIRED',
     minChars: 'MIN 8 CHARS',
     needLetter: 'NEED ≥1 LETTER',
@@ -121,6 +123,8 @@ export const en: Dict = {
     emailPlaceholder: 'operator@blockchain.game',
     passwordPlaceholder: '••••••••••••',
     callsignPlaceholder: 'Any nickname; shown on leaderboards.',
+    usernameLabel: 'USERNAME',
+    usernamePlaceholder: 'your player handle',
   },
 
   lobby: {
