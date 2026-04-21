@@ -53,7 +53,7 @@ export function WheelPage() {
     };
   }, []);
 
-  // 當 risk/segments 改變時重繪輪盤（需等 scene init 完）
+  // 當 risk/segments 改變時重繪轮盘（需等 scene init 完）
   useEffect(() => {
     if (!sceneReady || !sceneRef.current) return;
     const preview: number[] = Array.from({ length: segments }, (_, i) => {
@@ -68,12 +68,12 @@ export function WheelPage() {
     if (busy || amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
-    // 樂觀動畫：輪盤立刻開始高速旋轉
+    // 乐观动画：轮盘立刻开始高速旋转
     sceneRef.current?.startAnticipation();
     try {
       const payload: WheelBetRequest = { amount, risk, segments };
       const res = await api.post<WheelBetResult>('/games/wheel/bet', payload);
-      // 用真實的倍率表重繪輪盤
+      // 用真實的倍率表重繪轮盘
       sceneRef.current?.setSegments(res.data.segmentMultipliers);
       await sceneRef.current?.playSpin(res.data.segmentIndex, res.data.multiplier);
       setResult(res.data);

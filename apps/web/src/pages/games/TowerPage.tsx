@@ -105,7 +105,7 @@ export function TowerPage() {
   };
 
   const pickInternal = async (level: number, col: number) => {
-    // 樂觀動畫：立刻脈動該格
+    // 乐观动画：立刻脉动该格
     sceneRef.current?.markPending(level, col);
     const current = roundRef.current;
     if (!current || current.status !== 'ACTIVE') return;

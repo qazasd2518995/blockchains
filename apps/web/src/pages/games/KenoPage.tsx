@@ -121,7 +121,7 @@ export function KenoPage() {
               </span>
             </div>
 
-            {/* Pixi 開獎動畫區 */}
+            {/* Pixi 开奖动画區 */}
             <div className="mt-3 aspect-[16/5] w-full overflow-hidden rounded-lg bg-ink-100/40">
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>

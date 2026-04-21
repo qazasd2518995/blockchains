@@ -23,7 +23,7 @@ export function PlinkoPage() {
   const sceneRef = useRef<PlinkoScene | null>(null);
   const [sceneReady, setSceneReady] = useState(false);
 
-  // 初始化 Pixi scene — 等 layout 穩定再 init（避免 StrictMode 雙次 + clientWidth=0 race）
+  // 初始化 Pixi scene — 等 layout 稳定再 init（避免 StrictMode 双次 + clientWidth=0 race）
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -71,7 +71,7 @@ export function PlinkoPage() {
     if (busy || amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
-    // 樂觀動畫：立刻浮現預告球
+    // 乐观动画：立刻浮现预告球
     sceneRef.current?.startAnticipation();
     try {
       const payload: PlinkoBetRequest = { amount, rows, risk };

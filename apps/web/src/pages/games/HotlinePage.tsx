@@ -66,7 +66,7 @@ export function HotlinePage() {
     setError(null);
 
     sceneRef.current?.resetWinLines();
-    // 樂觀動畫：轉軸立刻開始滾
+    // 乐观动画：转轴立刻开始滚
     sceneRef.current?.startAnticipation();
 
     try {

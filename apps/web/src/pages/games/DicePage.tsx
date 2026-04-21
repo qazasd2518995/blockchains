@@ -72,7 +72,7 @@ export function DicePage() {
     }
     setError(null);
     setRolling(true);
-    // 樂觀動畫：立刻啟動骰子旋轉，不等 API
+    // 乐观动画：立刻启动骰子旋转，不等 API
     sceneRef.current?.startAnticipation();
     try {
       const payload: DiceBetRequest = { amount, target, direction };
@@ -104,7 +104,7 @@ export function DicePage() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-4">
-          {/* 畫布 + 疊加核心控制（Stake pattern） */}
+          {/* 画布 + 疊加核心控制（Stake pattern） */}
           <div className="crt-panel scanlines relative overflow-hidden">
             <div className="flex items-center justify-between border-b border-ink-200 px-4 py-2 text-[10px] tracking-[0.25em]">
               <span className="text-ink-500">TERMINAL://DICE</span>
@@ -116,7 +116,7 @@ export function DicePage() {
             <div className="relative aspect-[16/7] w-full">
               <canvas ref={canvasRef} className="h-full w-full" />
 
-              {/* 右上角即時統計（疊在畫布上） */}
+              {/* 右上角即時統計（疊在画布上） */}
               <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 text-[10px] tracking-[0.2em] text-ink-500">
                 <div>
                   {t.bet.multiplier.toUpperCase()}{' '}
@@ -137,7 +137,7 @@ export function DicePage() {
               </div>
             </div>
 
-            {/* 滑桿 + 方向 toggle（緊貼畫布底部，免捲動） */}
+            {/* 滑杆 + 方向 toggle（紧贴画布底部，免滚动） */}
             <div className="border-t border-ink-200 p-4">
               <div className="mb-2 flex items-baseline justify-between">
                 <div className="flex items-baseline gap-2">

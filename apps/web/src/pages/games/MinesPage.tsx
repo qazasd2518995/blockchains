@@ -101,7 +101,7 @@ export function MinesPage() {
     if (!current || current.status !== 'ACTIVE') return;
     if (busy) return;
     setBusy(true);
-    // 樂觀動畫：立刻標記此格為「準備中」脈動
+    // 乐观动画：立刻标记此格为「准备中」脉动
     sceneRef.current?.markPending(cellIndex);
     try {
       const res = await api.post<MinesRevealResult>('/games/mines/reveal', {
