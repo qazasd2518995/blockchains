@@ -1,7 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { useLocaleStore } from '@/stores/localeStore';
 import { zh } from '@/i18n/dict.zh';
-import { en } from '@/i18n/dict.en';
 
 interface Props {
   children: ReactNode;
@@ -36,8 +34,7 @@ export class ErrorBoundary extends Component<Props, State> {
     const { error } = this.state;
     if (!error) return this.props.children;
 
-    const locale = useLocaleStore.getState().locale;
-    const t = locale === 'en' ? en : zh;
+    const t = zh;
 
     return (
       <div className="relative flex min-h-screen items-center justify-center px-6">

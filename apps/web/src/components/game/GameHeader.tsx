@@ -22,7 +22,7 @@ export function GameHeader({
   rtpAccent = 'acid',
   breadcrumb,
 }: Props) {
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
 
   // Map old accent → new palette
   const suffixColor = {
@@ -40,7 +40,7 @@ export function GameHeader({
   }[rtpAccent];
 
   const hasSuffix = titleSuffix.trim().length > 0;
-  const separator = locale === 'en' ? '.' : '';
+  const separator = '';
 
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#E5E7EB] pb-4">
