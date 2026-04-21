@@ -18,6 +18,9 @@ import { PlinkoPage } from '@/pages/games/PlinkoPage';
 import { HotlinePage } from '@/pages/games/HotlinePage';
 import { TowerPage } from '@/pages/games/TowerPage';
 import { CrashPage, CRASH_CONFIGS } from '@/pages/games/CrashPage';
+import { HallPage } from '@/pages/HallPage';
+import { VerifyPage } from '@/pages/VerifyPage';
+import { PromosPage } from '@/pages/PromosPage';
 
 export const router = createBrowserRouter([
   {
@@ -44,6 +47,9 @@ export const router = createBrowserRouter([
     ),
     children: [
       { path: '/lobby', element: <LobbyPage /> },
+      { path: '/hall/:hallId', element: <HallPage /> },
+      { path: '/verify', element: <VerifyPage /> },
+      { path: '/promos', element: <PromosPage /> },
       { path: '/profile', element: <ProfilePage /> },
       { path: '/history', element: <HistoryPage /> },
       { path: '/games/dice', element: <DicePage /> },
