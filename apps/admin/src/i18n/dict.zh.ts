@@ -235,6 +235,39 @@ export const dict = {
   router: {
     pathNotFound: '页面不存在',
   },
+  // 后端错误码 → 中文讯息（依 code 对应，忽略英文 message）
+  errors: {
+    UNAUTHORIZED: '身份未授权,请重新登录',
+    INVALID_CREDENTIALS: '账号或密码错误',
+    EMAIL_TAKEN: '此邮箱已被使用',
+    USER_NOT_FOUND: '找不到该用户',
+    INSUFFICIENT_FUNDS: '余额不足',
+    INVALID_BET: '下注参数不合法',
+    BET_OUT_OF_RANGE: '下注金额超出范围',
+    GAME_DISABLED: '该游戏目前停用',
+    ROUND_NOT_FOUND: '找不到本局数据',
+    ROUND_NOT_ACTIVE: '本局已不接受操作',
+    INVALID_ACTION: '此动作不允许',
+    SEED_NOT_REVEALED: '种子尚未揭露',
+    RATE_LIMITED: '操作过于频繁,请稍候再试',
+    INTERNAL: '系统内部错误,请联系管理员',
+    USERNAME_TAKEN: '此账号已被使用',
+    AGENT_NOT_FOUND: '找不到该代理',
+    MEMBER_NOT_FOUND: '找不到该会员',
+    AGENT_FROZEN: '代理已冻结,无法操作',
+    MEMBER_FROZEN: '会员已冻结,无法操作',
+    HIERARCHY_VIOLATION: '违反层级规则',
+    REBATE_VIOLATION: '退水比例超过上级上限',
+    INVALID_TRANSFER: '转账参数不合法',
+    FORBIDDEN: '权限不足,无法执行此操作',
+    // 服务端 message 关键字补充（backend 以英文文字回报时的 fallback）
+    agentBalanceInsufficient: '代理余额不足',
+    memberBalanceInsufficient: '会员余额不足',
+    amountMustBePositive: '金额必须大于 0',
+    amountCannotBeZero: '金额不能为 0',
+    adjustmentGoNegative: '此调整会让余额变成负数',
+    superAdminCannotFreeze: '超级管理员无法被冻结',
+  },
 };
 
 export type Dict = typeof dict;
