@@ -38,17 +38,11 @@ export function HistoryPage() {
 
   return (
     <div className="relative space-y-12">
-      <div className="crystal-overlay" />
-
       <section className="relative z-10 border-b border-[#E5E7EB] pb-6">
         <div className="flex items-center gap-3">
-          <span className="font-semibold text-lg text-[#186073]">{t.history.ledger}</span>
-          <span className="text-[#C9A247]">◆</span>
-          <span className="label text-[#186073]">registre</span>
+          <span className="text-[14px] font-semibold text-[#186073]">{t.history.ledger}</span>
         </div>
-        <h1 className="mt-3 font-semibold text-6xl leading-[0.95] text-[#0F172A]">
-          <span className="italic text-[#186073]">{t.history.txLog}</span>
-        </h1>
+        <h1 className="mt-3 text-[32px] font-bold text-[#0F172A]">{t.history.txLog}</h1>
       </section>
 
       <section className="relative z-10 grid gap-4 md:grid-cols-3">
@@ -82,9 +76,7 @@ export function HistoryPage() {
       <section className="card-base relative z-10 overflow-hidden">
         <div className="flex items-center justify-between border-b border-[#E5E7EB] px-6 py-3">
           <div className="flex items-baseline gap-2">
-            <span className="font-semibold text-base text-[#186073]">Entries</span>
-            <span className="text-[#C9A247] text-xs">◆</span>
-            <span className="label text-[#186073]">
+            <span className="text-[14px] font-semibold text-[#186073]">
               {t.history.showing} {items.length} {t.history.entries}
             </span>
           </div>
@@ -100,8 +92,8 @@ export function HistoryPage() {
 
         {!loading && items.length === 0 && (
           <div className="px-6 py-16 text-center">
-            <div className="font-semibold text-5xl italic text-[#9CA3AF]">{t.history.noRecords}</div>
-            <div className="mt-3 font-semibold text-base text-[#4A5568]">{t.history.placeFirst}</div>
+            <div className="text-[28px] font-bold text-[#9CA3AF]">{t.history.noRecords}</div>
+            <div className="mt-3 text-sm text-[#4A5568]">{t.history.placeFirst}</div>
           </div>
         )}
 
