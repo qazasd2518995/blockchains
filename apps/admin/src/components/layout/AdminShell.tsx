@@ -53,15 +53,14 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
 
         <div className="mx-auto flex max-w-[1920px] items-center justify-between gap-6 border-t border-[#186073]/30 px-6 py-4">
           <Link to="/admin/dashboard" className="flex items-center gap-3">
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#186073] bg-[#0E4555] shadow-lift">
-              <span className="font-semibold text-xl italic text-[#DEBE66]">A</span>
-              <span className="absolute -right-1 -top-1 text-[#D0AC4D] text-sm">◆</span>
-            </div>
+            <span className="rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[22px] font-extrabold tracking-[0.05em] text-white">
+              BG
+            </span>
             <div>
-              <div className="font-semibold text-xl leading-none text-white">
-                Agent<span className="italic text-[#D0AC4D]">.</span>Ops
+              <div className="text-[18px] font-bold leading-none text-white">
+                代理后台
               </div>
-              <div className="mt-1 font-semibold text-[12px] text-[#DEBE66]">
+              <div className="mt-1 text-[12px] text-[#DEBE66]">
                 {t.shell.terminal}
               </div>
             </div>
