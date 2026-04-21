@@ -31,7 +31,9 @@ services:
       pnpm --filter @bg/provably-fair run build
       pnpm --filter @bg/server exec prisma generate
       pnpm --filter @bg/server run build
-    startCommand: pnpm --filter @bg/server start
+    startCommand: |
+      pnpm --filter @bg/server exec prisma migrate deploy
+      pnpm --filter @bg/server start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
