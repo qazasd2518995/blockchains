@@ -70,7 +70,7 @@ export function AdminDashboardPage(): JSX.Element {
       </div>
 
       {error && (
-        <div className="mt-6 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
+        <div className="mt-6 border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
           ⚠ {error}
         </div>
       )}
@@ -93,7 +93,7 @@ export function AdminDashboardPage(): JSX.Element {
                 {new Date(r.createdAt).toLocaleTimeString('en-GB')}
               </span>
               <span className="font-mono text-ink-700">{r.actorUsername}</span>
-              <span className="font-mono tracking-[0.1em] text-brass-700">{r.action}</span>
+              <span className="font-mono tracking-[0.1em] text-[#186073]">{r.action}</span>
               <span className="text-[10px] text-ink-500">{r.ipAddress ?? ''}</span>
             </div>
           ))}

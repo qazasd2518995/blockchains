@@ -53,7 +53,7 @@ export const router = createBrowserRouter([
     element: (
       <div className="flex min-h-screen items-center justify-center">
         <div className="crt-panel p-8 text-center">
-          <div className="font-display text-5xl text-wine-500">404</div>
+          <div className="font-display text-5xl text-[#D4574A]">404</div>
           <div className="mt-3 text-[12px] text-ink-500">页面不存在</div>
         </div>
       </div>

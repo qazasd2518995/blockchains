@@ -123,7 +123,7 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId }: 
         </Field>
 
         {err && (
-          <div className="border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
+          <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
             ⚠ {err}
           </div>
         )}
@@ -132,7 +132,7 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId }: 
           <button type="submit" disabled={isSubmitting} className="btn-acid">
             → {t.common.create}
           </button>
-          <button type="button" onClick={onClose} className="btn-ghost">
+          <button type="button" onClick={onClose} className="btn-teal-outline">
             [{t.common.cancel}]
           </button>
         </div>
@@ -159,7 +159,7 @@ function Field({
           <span className="text-[9px] text-ink-500">{code}</span>
           <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">{label}</span>
         </div>
-        {error && <span className="text-[10px] text-wine-500">⚠ {error}</span>}
+        {error && <span className="text-[10px] text-[#D4574A]">⚠ {error}</span>}
       </div>
       {children}
     </label>

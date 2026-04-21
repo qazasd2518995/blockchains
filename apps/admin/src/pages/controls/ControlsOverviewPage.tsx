@@ -107,7 +107,7 @@ export function ControlsOverviewPage(): JSX.Element {
   const wcCols: Column<WinCapRow>[] = [
     { key: 'mem', label: 'MEMBER', render: (r) => <span className="font-mono">{r.memberUsername}</span> },
     { key: 'cap', label: 'CAP', align: 'right', render: (r) => <span className="data-num">{fmt(r.winCapAmount)}</span> },
-    { key: 'today', label: 'TODAY WIN', align: 'right', render: (r) => <span className="data-num text-brass-600">{fmt(r.todayWinAmount)}</span> },
+    { key: 'today', label: 'TODAY WIN', align: 'right', render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.todayWinAmount)}</span> },
     { key: 'rate', label: 'CTRL RATE', align: 'right', render: (r) => <span className="data-num">{pct(r.controlWinRate)}</span> },
     {
       key: 'status',
@@ -120,7 +120,7 @@ export function ControlsOverviewPage(): JSX.Element {
   const dcCols: Column<DepositRow>[] = [
     { key: 'mem', label: 'MEMBER', render: (r) => <span className="font-mono">{r.memberUsername}</span> },
     { key: 'dep', label: 'DEPOSIT', align: 'right', render: (r) => <span className="data-num">{fmt(r.depositAmount)}</span> },
-    { key: 'target', label: 'TARGET', align: 'right', render: (r) => <span className="data-num text-brass-600">{fmt(r.targetProfit)}</span> },
+    { key: 'target', label: 'TARGET', align: 'right', render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.targetProfit)}</span> },
     { key: 'rate', label: 'CTRL RATE', align: 'right', render: (r) => <span className="data-num">{pct(r.controlWinRate)}</span> },
     {
       key: 'status',
@@ -137,7 +137,7 @@ export function ControlsOverviewPage(): JSX.Element {
   const alCols: Column<AgentLineRow>[] = [
     { key: 'agent', label: 'AGENT', render: (r) => <span className="font-mono">{r.agentUsername}</span> },
     { key: 'cap', label: 'DAILY CAP', align: 'right', render: (r) => <span className="data-num">{fmt(r.dailyCap)}</span> },
-    { key: 'today', label: 'TODAY WIN', align: 'right', render: (r) => <span className="data-num text-brass-600">{fmt(r.todayWinAmount)}</span> },
+    { key: 'today', label: 'TODAY WIN', align: 'right', render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.todayWinAmount)}</span> },
     {
       key: 'status',
       label: 'STATUS',
@@ -165,7 +165,7 @@ export function ControlsOverviewPage(): JSX.Element {
       </div>
 
       {error && (
-        <div className="mb-4 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
+        <div className="mb-4 border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
           ⚠ {error}
         </div>
       )}

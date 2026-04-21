@@ -54,7 +54,7 @@ export function AdjustBalanceModal({ open, onClose, member, onDone }: Props): JS
         </div>
         <div className="mt-1 flex items-baseline justify-between">
           <span className="text-ink-500">{t.adjust.bal}</span>
-          <span className="data-num text-brass-700">{member.balance}</span>
+          <span className="data-num text-[#186073]">{member.balance}</span>
         </div>
       </div>
 
@@ -62,7 +62,7 @@ export function AdjustBalanceModal({ open, onClose, member, onDone }: Props): JS
         <label className="block">
           <div className="label mb-2">{t.adjust.delta}</div>
           <input type="text" {...register('delta')} className="term-input font-mono" placeholder="+100.00 / -50" />
-          {errors.delta && <div className="mt-1 text-[10px] text-wine-500">⚠ {errors.delta.message}</div>}
+          {errors.delta && <div className="mt-1 text-[10px] text-[#D4574A]">⚠ {errors.delta.message}</div>}
         </label>
 
         <label className="block">
@@ -70,13 +70,13 @@ export function AdjustBalanceModal({ open, onClose, member, onDone }: Props): JS
           <input type="text" {...register('description')} className="term-input" />
         </label>
 
-        {err && <div className="border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">⚠ {err}</div>}
+        {err && <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">⚠ {err}</div>}
 
         <div className="flex items-center gap-2">
           <button type="submit" disabled={isSubmitting} className="btn-acid">
             → {t.common.confirm}
           </button>
-          <button type="button" onClick={onClose} className="btn-ghost">
+          <button type="button" onClick={onClose} className="btn-teal-outline">
             [{t.common.cancel}]
           </button>
         </div>

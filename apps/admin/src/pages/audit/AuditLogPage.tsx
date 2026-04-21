@@ -54,7 +54,7 @@ export function AuditLogPage(): JSX.Element {
       </div>
 
       {error && (
-        <div className="mb-4 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
+        <div className="mb-4 border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
           ⚠ {error}
         </div>
       )}
@@ -68,14 +68,14 @@ export function AuditLogPage(): JSX.Element {
           {items.map((r) => (
             <div key={r.id} className="crt-panel overflow-hidden">
               <div
-                className="grid cursor-pointer grid-cols-[150px_130px_1fr_130px_auto] items-center gap-3 px-4 py-3 text-[11px] transition hover:bg-brass-50/60"
+                className="grid cursor-pointer grid-cols-[150px_130px_1fr_130px_auto] items-center gap-3 px-4 py-3 text-[11px] transition hover:bg-[#FAF2D7]/60"
                 onClick={() => setExpanded(expanded === r.id ? null : r.id)}
               >
                 <span className="data-num text-[10px] text-ink-500">
                   {new Date(r.createdAt).toLocaleString('en-GB')}
                 </span>
                 <span className="font-mono text-ink-700">{r.actorUsername}</span>
-                <span className="font-mono tracking-[0.1em] text-brass-700">{r.action}</span>
+                <span className="font-mono tracking-[0.1em] text-[#186073]">{r.action}</span>
                 <span className="font-mono text-[10px] text-ink-500">
                   {r.targetType ? `${r.targetType}:${r.targetId?.slice(-8) ?? ''}` : '—'}
                 </span>

@@ -64,7 +64,7 @@ export function MemberBetRecordsPage(): JSX.Element {
       render: (r) => {
         const n = Number.parseFloat(r.profit);
         return (
-          <span className={`data-num ${n >= 0 ? 'text-win' : 'text-wine-500'}`}>
+          <span className={`data-num ${n >= 0 ? 'text-win' : 'text-[#D4574A]'}`}>
             {n >= 0 ? '+' : ''}
             {fmt(r.profit)}
           </span>
@@ -82,7 +82,7 @@ export function MemberBetRecordsPage(): JSX.Element {
         titleSuffix={member?.username ?? ''}
         titleSuffixColor="acid"
         rightSlot={
-          <Link to="/admin/accounts" className="btn-ghost text-[11px]">
+          <Link to="/admin/accounts" className="btn-teal-outline text-[11px]">
             [← {t.common.back}]
           </Link>
         }
@@ -99,7 +99,7 @@ export function MemberBetRecordsPage(): JSX.Element {
       </div>
 
       {error && (
-        <div className="mb-4 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
+        <div className="mb-4 border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
           ⚠ {error.toUpperCase()}
         </div>
       )}

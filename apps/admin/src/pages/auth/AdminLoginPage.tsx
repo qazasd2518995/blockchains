@@ -87,15 +87,15 @@ export function AdminLoginPage(): JSX.Element {
       <div className="relative z-10 grid w-full max-w-5xl gap-8 lg:grid-cols-2 lg:gap-16">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-script text-lg text-brass-700">{t.auth.title}</span>
-            <span className="text-brass-500">◆</span>
-            <span className="label label-brass">salon privé</span>
+            <span className="font-semibold text-lg text-[#186073]">{t.auth.title}</span>
+            <span className="text-[#C9A247]">◆</span>
+            <span className="label text-[#186073]">salon privé</span>
           </div>
-          <h1 className="mt-4 font-serif text-6xl leading-[0.95] text-ivory-950">
-            Agent<span className="italic text-brass-700">.</span>Ops
+          <h1 className="mt-4 font-semibold text-6xl leading-[0.95] text-[#0F172A]">
+            Agent<span className="italic text-[#186073]">.</span>Ops
           </h1>
-          <p className="mt-3 font-script text-xl text-brass-700">{t.auth.subtitle}</p>
-          <p className="mt-6 max-w-md text-[13px] leading-relaxed text-ivory-700">
+          <p className="mt-3 font-semibold text-xl text-[#186073]">{t.auth.subtitle}</p>
+          <p className="mt-6 max-w-md text-[13px] leading-relaxed text-[#4A5568]">
             {t.auth.requiresAuth}
           </p>
 
@@ -120,16 +120,16 @@ export function AdminLoginPage(): JSX.Element {
             </Field>
 
             {serverError && (
-              <div className="border border-wine-400/50 bg-wine-50 p-4 rounded-sm">
-                <div className="flex items-start gap-2 text-[12px] text-wine-600">
-                  <span className="font-serif font-bold italic">{t.common.error}:</span>
+              <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-4 rounded-sm">
+                <div className="flex items-start gap-2 text-[12px] text-[#B94538]">
+                  <span className="font-semibold font-bold italic">{t.common.error}:</span>
                   <span className="tracking-wide">{serverError}</span>
                 </div>
               </div>
             )}
 
             <div className="flex items-center gap-3 pt-2">
-              <button type="submit" disabled={isSubmitting} className="btn-brass">
+              <button type="submit" disabled={isSubmitting} className="btn-teal">
                 {isSubmitting ? (
                   <span>
                     {t.auth.authenticating}
@@ -145,16 +145,16 @@ export function AdminLoginPage(): JSX.Element {
 
         <div className="relative hidden lg:block">
           <div className="panel-felt scanlines h-full p-8">
-            <div className="flex items-center justify-between border-b border-brass-500/40 pb-4">
+            <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-4">
               <div className="flex items-baseline gap-2">
-                <span className="font-script text-lg text-brass-300">Protocole</span>
-                <span className="text-brass-500 text-xs">◆</span>
-                <span className="label text-brass-400">{t.auth.protocol}</span>
+                <span className="font-semibold text-lg text-[#DEBE66]">Protocole</span>
+                <span className="text-[#C9A247] text-xs">◆</span>
+                <span className="label text-[#D0AC4D]">{t.auth.protocol}</span>
               </div>
-              <div className="seal seal-live seal-breath !h-9 !w-9 !text-[8px]">LIVE</div>
+              <div className="hidden !h-9 !w-9 !text-[8px]">LIVE</div>
             </div>
 
-            <pre className="mt-8 font-mono text-[10.5px] leading-relaxed text-brass-200/85">
+            <pre className="mt-8 font-mono text-[10.5px] leading-relaxed text-[#E8D48A]/85">
 {`┌────────────────────────────────┐
 │  AGENT-OPS AUTH PROTOCOL       │
 │                                │
@@ -169,9 +169,9 @@ export function AdminLoginPage(): JSX.Element {
 └────────────────────────────────┘`}
             </pre>
 
-            <div className="mt-10 border-t border-brass-500/40 pt-5">
-              <div className="font-serif text-3xl italic text-ivory-100">Blockchain Ops</div>
-              <div className="mt-2 font-script text-[13px] text-brass-300">
+            <div className="mt-10 border-t border-[#E5E7EB] pt-5">
+              <div className="font-semibold text-3xl italic text-white">Blockchain Ops</div>
+              <div className="mt-2 font-semibold text-[13px] text-[#DEBE66]">
                 不开放公开注册 · 仅限代理
               </div>
             </div>
@@ -197,13 +197,13 @@ function Field({
     <label className="block">
       <div className="mb-2 flex items-baseline justify-between">
         <div className="flex items-baseline gap-2">
-          <span className="text-brass-600 text-sm">{suit}</span>
-          <span className="font-serif text-[14px] font-semibold tracking-[0.1em] text-ivory-900">
+          <span className="text-[#AE8B35] text-sm">{suit}</span>
+          <span className="font-semibold text-[14px] font-semibold tracking-[0.1em] text-[#0F172A]">
             {label}
           </span>
         </div>
         {error && (
-          <span className="font-mono text-[10px] tracking-[0.15em] text-wine-500">⚠ {error}</span>
+          <span className="font-mono text-[10px] tracking-[0.15em] text-[#D4574A]">⚠ {error}</span>
         )}
       </div>
       {children}

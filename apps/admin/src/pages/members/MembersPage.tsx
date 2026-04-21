@@ -74,7 +74,7 @@ export function MembersPage(): JSX.Element {
       key: 'balance',
       label: t.members.balance,
       align: 'right',
-      render: (m) => <span className="data-num text-brass-700">{fmt(m.balance)}</span>,
+      render: (m) => <span className="data-num text-[#186073]">{fmt(m.balance)}</span>,
     },
     {
       key: 'status',
@@ -84,7 +84,7 @@ export function MembersPage(): JSX.Element {
           <span className="tag tag-ember">{t.agent.status.FROZEN}</span>
         ) : (
           <span className="tag tag-toxic">
-            <span className="status-dot status-dot-live" />
+            <span className="dot-online dot-online" />
             {t.agent.status.ACTIVE}
           </span>
         ),
@@ -104,19 +104,19 @@ export function MembersPage(): JSX.Element {
       align: 'right',
       render: (m) => (
         <div className="flex items-center justify-end gap-1 text-[10px]">
-          <Link to={`/admin/members/${m.id}/bets`} className="btn-ghost">
+          <Link to={`/admin/members/${m.id}/bets`} className="btn-teal-outline">
             [下注]
           </Link>
-          <button type="button" onClick={() => setTransferFor(m)} className="btn-ghost">
+          <button type="button" onClick={() => setTransferFor(m)} className="btn-teal-outline">
             [转帐]
           </button>
-          <button type="button" onClick={() => setAdjustFor(m)} className="btn-ghost">
+          <button type="button" onClick={() => setAdjustFor(m)} className="btn-teal-outline">
             [调整]
           </button>
           <button
             type="button"
             onClick={() => handleFreeze(m)}
-            className={`btn-ghost ${m.status === 'FROZEN' ? 'text-win' : 'text-wine-500'}`}
+            className={`btn-teal-outline ${m.status === 'FROZEN' ? 'text-win' : 'text-[#D4574A]'}`}
           >
             [{m.status === 'FROZEN' ? '解冻' : '冻结'}]
           </button>
@@ -160,7 +160,7 @@ export function MembersPage(): JSX.Element {
       </div>
 
       {error && (
-        <div className="mb-4 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
+        <div className="mb-4 border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
           ⚠ {error}
         </div>
       )}

@@ -6,20 +6,20 @@ interface Props {
 }
 
 const accentMap: Record<NonNullable<Props['accent']>, { text: string; border: string }> = {
-  acid: { text: 'big-num-brass', border: 'border-l-brass-500' },
-  ember: { text: 'big-num-wine', border: 'border-l-wine-500' },
-  toxic: { text: 'big-num-win', border: 'border-l-win' },
-  amber: { text: 'big-num-brass', border: 'border-l-brass-400' },
-  ice: { text: 'text-felt-500', border: 'border-l-felt-400' },
+  acid: { text: 'num text-[#C9A247]', border: 'border-l-brass-500' },
+  ember: { text: 'num-wine', border: 'border-l-wine-500' },
+  toxic: { text: 'num-win', border: 'border-l-win' },
+  amber: { text: 'num text-[#C9A247]', border: 'border-l-brass-400' },
+  ice: { text: 'text-[#186073]', border: 'border-l-[#266F85]' },
 };
 
 export function StatCard({ label, value, hint, accent = 'acid' }: Props): JSX.Element {
   const { text, border } = accentMap[accent];
   return (
-    <div className={`panel-salon p-5 border-l-[3px] ${border}`}>
-      <div className="label label-brass">{label}</div>
-      <div className={`mt-2 big-num text-4xl ${text}`}>{value}</div>
-      {hint && <div className="mt-2 font-mono text-[10px] tracking-[0.2em] text-ivory-600">{hint}</div>}
+    <div className={`card-base p-5 border-l-[3px] ${border}`}>
+      <div className="label text-[#186073]">{label}</div>
+      <div className={`mt-2 num text-4xl ${text}`}>{value}</div>
+      {hint && <div className="mt-2 font-mono text-[10px] tracking-[0.2em] text-[#4A5568]">{hint}</div>}
     </div>
   );
 }

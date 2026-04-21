@@ -52,7 +52,7 @@ export function AgentAnalysisPage(): JSX.Element {
       render: (r) => {
         const n = Number.parseFloat(r.memberWinLoss);
         return (
-          <span className={`data-num ${n >= 0 ? 'text-win' : 'text-wine-500'}`}>
+          <span className={`data-num ${n >= 0 ? 'text-win' : 'text-[#D4574A]'}`}>
             {n >= 0 ? '+' : ''}{fmt(r.memberWinLoss)}
           </span>
         );
@@ -64,7 +64,7 @@ export function AgentAnalysisPage(): JSX.Element {
       align: 'right',
       render: (r) => (
         <div className="data-num text-[11px]">
-          <div className="text-brass-600">{fmt(r.earnedRebateAmount)}</div>
+          <div className="text-[#AE8B35]">{fmt(r.earnedRebateAmount)}</div>
           <div className="text-[9px] text-ink-500">@ {pct(r.earnedRebatePercentage)}</div>
         </div>
       ),
@@ -76,7 +76,7 @@ export function AgentAnalysisPage(): JSX.Element {
       render: (r) => {
         const n = Number.parseFloat(r.uplineSettlement);
         return (
-          <span className={`data-num font-bold ${n >= 0 ? 'text-win' : 'text-wine-500'}`}>
+          <span className={`data-num font-bold ${n >= 0 ? 'text-win' : 'text-[#D4574A]'}`}>
             {n >= 0 ? '+' : ''}{fmt(r.uplineSettlement)}
           </span>
         );
@@ -93,7 +93,7 @@ export function AgentAnalysisPage(): JSX.Element {
         titleSuffix="代理结算"
         titleSuffixColor="amber"
         rightSlot={
-          <Link to="/admin/reports" className="btn-ghost text-[11px]">
+          <Link to="/admin/reports" className="btn-teal-outline text-[11px]">
             [← 返回报表]
           </Link>
         }
@@ -115,7 +115,7 @@ export function AgentAnalysisPage(): JSX.Element {
       </div>
 
       {error && (
-        <div className="mb-4 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
+        <div className="mb-4 border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
           ⚠ {error}
         </div>
       )}
@@ -147,11 +147,11 @@ export function AgentAnalysisPage(): JSX.Element {
 }
 
 function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' | 'toxic' | 'ember' }) {
-  const color = accent === 'toxic' ? 'text-win' : accent === 'ember' ? 'text-wine-500' : accent === 'acid' ? 'text-brass-700' : 'text-ink-900';
+  const color = accent === 'toxic' ? 'text-win' : accent === 'ember' ? 'text-[#D4574A]' : accent === 'acid' ? 'text-[#186073]' : 'text-ink-900';
   return (
     <div className="border border-ink-200 bg-ink-100/30 p-3">
       <div className="label">{k}</div>
-      <div className={`mt-1 big-num text-2xl ${color}`}>{v}</div>
+      <div className={`mt-1 num text-2xl ${color}`}>{v}</div>
     </div>
   );
 }

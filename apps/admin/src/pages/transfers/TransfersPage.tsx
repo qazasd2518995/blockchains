@@ -61,7 +61,7 @@ export function TransfersPage(): JSX.Element {
       key: 'amt',
       label: t.transfers.amount,
       align: 'right',
-      render: (r) => <span className="data-num text-brass-700">{fmt(r.amount)}</span>,
+      render: (r) => <span className="data-num text-[#186073]">{fmt(r.amount)}</span>,
     },
     {
       key: 'balances',
@@ -90,7 +90,7 @@ export function TransfersPage(): JSX.Element {
         titleSuffix={t.transfers.subtitle}
       />
       {error && (
-        <div className="mb-4 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
+        <div className="mb-4 border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
           ⚠ {error}
         </div>
       )}

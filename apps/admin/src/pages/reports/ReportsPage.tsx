@@ -130,16 +130,16 @@ export function ReportsPage(): JSX.Element {
             <input type="text" value={gameId} onChange={(e) => setGameId(e.target.value)} placeholder="dice / mines …" className="term-input max-w-[160px]" />
           </label>
           <div className="flex items-center gap-1 text-[10px]">
-            <button type="button" onClick={() => quickPreset('today')} className="btn-ghost">[今日]</button>
-            <button type="button" onClick={() => quickPreset('yesterday')} className="btn-ghost">[昨日]</button>
-            <button type="button" onClick={() => quickPreset('thisWeek')} className="btn-ghost">[本周]</button>
-            <button type="button" onClick={() => quickPreset('thisMonth')} className="btn-ghost">[本月]</button>
+            <button type="button" onClick={() => quickPreset('today')} className="btn-teal-outline">[今日]</button>
+            <button type="button" onClick={() => quickPreset('yesterday')} className="btn-teal-outline">[昨日]</button>
+            <button type="button" onClick={() => quickPreset('thisWeek')} className="btn-teal-outline">[本周]</button>
+            <button type="button" onClick={() => quickPreset('thisMonth')} className="btn-teal-outline">[本月]</button>
           </div>
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 border border-wine-400/55 bg-wine-50 p-3 text-[12px] text-wine-500">
+        <div className="mb-4 border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
           ⚠ {error.toUpperCase()}
         </div>
       )}
@@ -170,9 +170,9 @@ function ReportTable({
             <tr className="border-b border-ink-200 bg-ink-100/60 text-[9px] uppercase tracking-[0.2em] text-ink-600">
               <th colSpan={4} className="border-r border-ink-200 py-2 text-center">基础信息</th>
               <th colSpan={3} className="border-r border-ink-200 py-2 text-center">注单</th>
-              <th colSpan={3} className="border-r border-ink-200 py-2 text-center text-wine-500">会员输赢</th>
-              <th colSpan={6} className="border-r border-ink-200 py-2 text-center text-brass-700">本级占成</th>
-              <th colSpan={2} className="py-2 text-center text-brass-600">最终交收</th>
+              <th colSpan={3} className="border-r border-ink-200 py-2 text-center text-[#D4574A]">会员输赢</th>
+              <th colSpan={6} className="border-r border-ink-200 py-2 text-center text-[#186073]">本级占成</th>
+              <th colSpan={2} className="py-2 text-center text-[#AE8B35]">最终交收</th>
             </tr>
             <tr className="border-b border-ink-200 bg-ink-100/40 text-[9px] uppercase tracking-[0.15em] text-ink-500">
               <Th>级别</Th>
@@ -235,7 +235,7 @@ function Row({ row, onClick }: { row: HierarchyReportItem; onClick: () => void }
   return (
     <tr
       onClick={onClick}
-      className="cursor-pointer border-b border-ink-100 transition hover:bg-brass-50/60"
+      className="cursor-pointer border-b border-ink-100 transition hover:bg-[#FAF2D7]/60"
     >
       <td className="px-3 py-2.5">
         {isAgent ? (
@@ -249,7 +249,7 @@ function Row({ row, onClick }: { row: HierarchyReportItem; onClick: () => void }
         {row.displayName && <div className="mt-0.5 text-[9px] text-ink-500">{row.displayName}</div>}
       </td>
       <td className="px-3 py-2.5 text-[10px] text-ink-500">{row.notes ?? '—'}</td>
-      <td className="border-r border-ink-200 px-3 py-2.5 text-right data-num text-brass-700">
+      <td className="border-r border-ink-200 px-3 py-2.5 text-right data-num text-[#186073]">
         {fmt(row.balance)}
       </td>
 
@@ -262,7 +262,7 @@ function Row({ row, onClick }: { row: HierarchyReportItem; onClick: () => void }
       <WlTd v={row.memberProfitLossResult} borderRight />
 
       <td className="px-3 py-2.5 text-right data-num">{fmt(row.receivableFromDownline)}</td>
-      <td className="px-3 py-2.5 text-right data-num text-brass-700">{pct(row.commissionPercentage)}</td>
+      <td className="px-3 py-2.5 text-right data-num text-[#186073]">{pct(row.commissionPercentage)}</td>
       <WlTd v={row.commissionAmount} />
       <WlTd v={row.commissionResult} />
       <td className="px-3 py-2.5 text-right data-num text-win">{fmt(row.earnedRebateAmount)}</td>
@@ -300,7 +300,7 @@ function WlTd({
   bold?: boolean;
 }): JSX.Element {
   const n = Number.parseFloat(v);
-  const color = n > 0 ? 'text-win' : n < 0 ? 'text-wine-500' : 'text-ink-600';
+  const color = n > 0 ? 'text-win' : n < 0 ? 'text-[#D4574A]' : 'text-ink-600';
   const weight = bold ? 'font-bold' : '';
   return (
     <td className={`px-3 py-2.5 text-right data-num ${color} ${weight} ${borderRight ? 'border-r border-ink-200' : ''}`}>
