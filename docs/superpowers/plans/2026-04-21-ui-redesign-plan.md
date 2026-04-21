@@ -55,6 +55,19 @@
 - 花式符號（♠◆♥♣、蠟封、script 字體）
 - `brass-shimmer` / `seal-breath` / `crystal-breath` 動畫
 
+### 同時受影響：apps/admin（代理後台）
+
+`packages/ui-tokens` 是 web + admin 共用，所以改 `tailwind.preset.ts` 會同時影響 admin。決定 **admin 也跟著改**（統一華人娛樂城調性）。
+
+**含義**：
+- `packages/ui-tokens/global.css` 也要改寫（admin 透過 `@import '@bg/ui-tokens/global.css'` 吃這份）
+- Admin 現有頁面若用 `panel-salon-soft` / `btn-brass` 等舊 class 會壞，需在 Task 19 一併做最小 class 替換（替換規則同 web）
+- 不改 admin 的業務 layout / 功能，只換配色、按鈕、卡片 class，不做深度重設計
+
+**Baseline 發現（本次實作中確認）**：
+- `apps/web/src/styles/global.css` 與 `packages/ui-tokens/global.css` 內容**目前相同**（之前 sync 過），但 web 走自己那份、admin 走 ui-tokens 那份
+- `@bg/ui-tokens` 沒有 `build` script（pure TS preset，直接被 Tailwind 吃）—原 plan 中 `pnpm --filter @bg/ui-tokens build` 指令無效，後續 task 驗證一律改跑 `pnpm --filter @bg/web typecheck` 與 `pnpm --filter @bg/admin typecheck`
+
 ---
 
 ## Testing Strategy
@@ -261,21 +274,16 @@ export const tokensPreset: Partial<Config> = {
 export default tokensPreset;
 ```
 
-- [ ] **Step 2:** Build 確認 preset 能編譯
-
-```bash
-pnpm --filter @bg/ui-tokens build
-```
-
-Expected: 成功；檢視 `packages/ui-tokens/dist/tailwind.preset.js` 確認 tokens 含 `teal` / `gold` / `page`。
-
-- [ ] **Step 3:** 此時 `apps/web` 的 class 會壞（因為用了舊 token 如 `bg-ivory-100`、`text-brass-700` 等等）。**先不修**，Task 3 重寫 global.css 與 Task 13-14 重寫 Shell/Lobby 時會一起改。跑 typecheck 確認 TypeScript 本身沒壞（class 字串壞不會被 TS 抓到）：
+- [ ] **Step 2:** `@bg/ui-tokens` 沒有 build script（pure TS preset 直接被 Tailwind 吃）。改跑 typecheck 作為兩端驗證：
 
 ```bash
 pnpm --filter @bg/web typecheck
+pnpm --filter @bg/admin typecheck
 ```
 
-Expected: 綠。
+Expected: 兩邊都綠（class 字串壞不會被 TS 抓到，TypeScript 應該維持 clean；admin + web 後續 class 重寫都會處理）。
+
+- [ ] **Step 3:** 此時 `apps/web` 與 `apps/admin` 的舊 class（`bg-ivory-100`、`text-brass-700` 等）會壞但 TS 不爆。**先不修**，Task 3 重寫 global.css、Task 13-14 重寫 Shell/Lobby、Task 19 清理 admin + 剩餘舊 class 時會一起處理。
 
 - [ ] **Step 4:** Commit
 
@@ -420,117 +428,116 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-### Task 3: 重寫 global.css
+### Task 3: 重寫 global.css（web + ui-tokens 兩份）
+
+**重要**：專案用 **Tailwind v3.4**（`"tailwindcss": "^3.4.10"`），**不是 v4**。所以必須用 v3 語法 `@tailwind base; @tailwind components; @tailwind utilities;`，不可用 v4 的 `@import 'tailwindcss'` 或 `@theme {}`。color tokens 改去 `tailwind.preset.ts` 裡定義（Task 1 已完成）。
 
 **Files:**
-- Modify: `apps/web/src/styles/global.css`
+- Modify: `apps/web/src/styles/global.css`（web 用這份）
+- Modify: `packages/ui-tokens/global.css`（admin 透過 `@import '@bg/ui-tokens/global.css'` 吃這份）
+
+兩份完全相同內容。
 
 - [ ] **Step 1:** 讀當前檔確認內容
 
 ```bash
-wc -l apps/web/src/styles/global.css
+wc -l apps/web/src/styles/global.css packages/ui-tokens/global.css
 ```
 
-- [ ] **Step 2:** 完整覆寫 `apps/web/src/styles/global.css`
+- [ ] **Step 2:** 建立共用 CSS 內容（先寫 web 那份，Step 3 把相同內容複製到 ui-tokens）。完整覆寫 `apps/web/src/styles/global.css`：
 
 ```css
-@import 'tailwindcss';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  --color-page: #ECECEC;
-  --color-card: #FFFFFF;
-  --color-section: #F5F7FA;
-  --color-dark: #1A2530;
-  --color-ink-primary: #0F172A;
-  --color-ink-secondary: #4A5568;
-  --color-teal-500: #186073;
-  --color-gold-500: #C9A247;
-  --color-alert: #D4574A;
-  --color-success: #09B826;
-  --color-border-soft: #E5E7EB;
-}
-
-/* Google Fonts */
+/* Google Fonts — Inter + Noto Sans TC + Roboto Mono */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&family=Roboto+Mono:wght@400;500;600&display=swap');
 
-html, body {
-  background: #ECECEC;
-  color: #0F172A;
-  font-family: Inter, 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
+@layer base {
+  html,
+  body,
+  #root {
+    background: #ECECEC;
+    color: #0F172A;
+    font-family: Inter, 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
 }
 
-/* Numeric class — 等寬對齊金額與倍率 */
-.num {
-  font-family: 'Roboto Mono', 'SF Mono', ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
-}
+@layer components {
+  /* 等寬數字 */
+  .num {
+    font-family: 'Roboto Mono', 'SF Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
 
-/* 跑馬燈基底 */
-.ticker-track {
-  display: inline-flex;
-  white-space: nowrap;
-  animation: ticker 50s linear infinite;
-}
-.ticker-track:hover {
-  animation-play-state: paused;
-}
+  /* 跑馬燈軌道 */
+  .ticker-track {
+    display: inline-flex;
+    white-space: nowrap;
+    animation: ticker 50s linear infinite;
+  }
+  .ticker-track:hover {
+    animation-play-state: paused;
+  }
 
-/* 按鈕 */
-.btn-teal {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem 1rem;
-  background: #186073;
-  color: #FFFFFF;
-  border-radius: 6px;
-  font-weight: 600;
-  transition: background 0.2s ease;
-}
-.btn-teal:hover {
-  background: #1E7A90;
-}
+  /* 按鈕 */
+  .btn-teal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    background: #186073;
+    color: #FFFFFF;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: background 0.2s ease;
+  }
+  .btn-teal:hover {
+    background: #1E7A90;
+  }
 
-.btn-teal-outline {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem 1rem;
-  border: 1px solid #186073;
-  color: #186073;
-  border-radius: 6px;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-.btn-teal-outline:hover {
-  background: #186073;
-  color: #FFFFFF;
-}
+  .btn-teal-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    border: 1px solid #186073;
+    color: #186073;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  .btn-teal-outline:hover {
+    background: #186073;
+    color: #FFFFFF;
+  }
 
-/* 卡片 */
-.card-base {
-  background: #FFFFFF;
-  border: 1px solid #E5E7EB;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
-}
+  /* 卡片 */
+  .card-base {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  }
 
-/* 分區標題 */
-.section-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #0F172A;
-}
+  /* 分區標題 */
+  .section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #0F172A;
+  }
 
-/* 線上綠點 */
-.dot-online {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #09B826;
-  animation: breath 1.6s ease-in-out infinite;
+  /* 線上綠點 */
+  .dot-online {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #09B826;
+    animation: breath 1.6s ease-in-out infinite;
+  }
 }
 
 @keyframes ticker {
@@ -544,23 +551,39 @@ html, body {
 }
 ```
 
-- [ ] **Step 3:** 啟 dev server 初步視覺確認（這一步只看「頁面沒白屏、背景變灰」）
+- [ ] **Step 3:** 把 web 那份複製到 `packages/ui-tokens/global.css`（admin 會吃這份，內容相同）
+
+```bash
+cp apps/web/src/styles/global.css packages/ui-tokens/global.css
+```
+
+- [ ] **Step 4:** Typecheck 兩邊
+
+```bash
+pnpm --filter @bg/web typecheck
+pnpm --filter @bg/admin typecheck
+```
+
+Expected: 綠。
+
+- [ ] **Step 5:** 啟 web dev 初步視覺確認
 
 ```bash
 pnpm --filter @bg/web dev
 ```
 
-Expected: `localhost:5173` 可載入（雖然 Shell 還在用舊 class，頁面會變醜但不該白屏）。手動按 Ctrl+C 結束 dev。
+Expected: `localhost:5173` 可載入、背景變灰、中文字 Noto Sans TC 渲染。**雖然 Shell 仍用舊 class 會醜，但不該白屏**。手動 Ctrl+C 結束。
 
-- [ ] **Step 4:** Commit
+- [ ] **Step 6:** Commit
 
 ```bash
-git add apps/web/src/styles/global.css
-git commit -m "feat(web): rewrite global.css with Chinese casino base styles
+git add apps/web/src/styles/global.css packages/ui-tokens/global.css
+git commit -m "feat(ui): rewrite global.css with Chinese casino base styles (web + admin)
 
 - Light gray body, Inter + Noto Sans TC fonts
 - New .btn-teal / .card-base / .dot-online utility classes
-- Keep ticker keyframe; remove Monte Carlo ones
+- Keep ticker keyframe; remove Monte Carlo animations
+- Sync to packages/ui-tokens/global.css (used by apps/admin)
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
@@ -1987,24 +2010,28 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-### Task 19: 清理遺留 CSS / i18n key
+### Task 19: 清理遺留 CSS / i18n key（web + admin）
 
 **Files:**
-- Modify: `apps/web/src/styles/global.css`（若仍有舊 class 殘留）
-- Review: 其他頁面仍在用舊 class（`panel-salon-soft`、`btn-brass` 等）的地方
+- Review: `apps/web/src/**/*.tsx` 使用舊 class 的地方
+- Review: `apps/admin/src/**/*.tsx` 使用舊 class 的地方
 
 - [ ] **Step 1:** 找出仍使用舊 class 的檔案
 
 ```bash
-grep -rn "panel-salon\|btn-brass\|big-num-brass\|divider-suit\|font-script\|bg-ivory\|bg-felt\|text-brass\|border-brass" apps/web/src/ 2>/dev/null | head -50
+# Web
+grep -rn "panel-salon\|btn-brass\|big-num-brass\|divider-suit\|font-script\|bg-ivory\|bg-felt\|text-brass\|border-brass\|text-wine\|bg-wine" apps/web/src/ 2>/dev/null | head -80
+# Admin
+grep -rn "panel-salon\|btn-brass\|big-num-brass\|divider-suit\|font-script\|bg-ivory\|bg-felt\|text-brass\|border-brass\|text-wine\|bg-wine" apps/admin/src/ 2>/dev/null | head -80
 ```
 
 依 hit 清單逐檔處理。**策略**：
-- 遊戲頁（`DicePage.tsx` 等 18 個）：**這次不動**，保留它們自有視覺。改用 `bg-white` / `bg-[#F5F7FA]` 的容器包一層即可（確認跟 AppShell 的 max-width 一致）
-- `ProfilePage` / `HistoryPage` / `LandingPage` / `LoginPage`：用 `replace` 把壞 class 換成新 token（例如 `bg-ivory-100` → `bg-white`, `text-brass-700` → `text-[#186073]`, `btn-brass` → `btn-teal`）
+- **遊戲頁**（`apps/web/src/pages/games/*.tsx` 共 18 個）：**這次不動**，保留它們自有視覺。遊戲頁內部的 Pixi 畫面與 BetControls 本來就是獨立視覺，外層套新 AppShell 後不會白屏
+- `apps/web/src/pages/LandingPage.tsx / LoginPage.tsx / ProfilePage.tsx / HistoryPage.tsx / NotFoundPage.tsx`：用 replace 把壞 class 換成新 token
+- `apps/admin/src/**/*.tsx`：admin 採最小替換（只改 class、不改業務邏輯）
 - 若有使用 `t.lobby.xxx` 這類 i18n key 但元件已刪除，無害（翻譯對象消失）；i18n 字典暫時留著，不拿掉
 
-- [ ] **Step 2:** 針對 **ProfilePage / HistoryPage / LandingPage / LoginPage** 進行最小改動 — 只做「讓頁面不醜不爆」的 class 替換，**不重寫整頁**。對每個檔案：
+- [ ] **Step 2:** 針對 **ProfilePage / HistoryPage / LandingPage / LoginPage / NotFoundPage + admin 所有頁面**做最小 class 替換 — **不重寫整頁**。替換對照表：
 
 ```bash
 # 範例（每個檔案手動評估 class 清單，下面只列通用替換）
@@ -2037,7 +2064,17 @@ git commit -m "refactor(web): update LandingPage to Chinese casino theme classes
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
-- [ ] **Step 4:** 同樣處理 `LoginPage.tsx`, `ProfilePage.tsx`, `HistoryPage.tsx`，每檔 commit 一次。
+- [ ] **Step 4:** 同樣處理 `LoginPage.tsx`, `ProfilePage.tsx`, `HistoryPage.tsx`, `NotFoundPage.tsx`，每檔 commit 一次。
+
+- [ ] **Step 4b:** 處理 `apps/admin/src/**` 所有使用舊 class 的檔案。每個檔或一組相關檔 commit 一次：
+
+```bash
+pnpm --filter @bg/admin typecheck
+git add apps/admin/
+git commit -m "refactor(admin): update admin pages to Chinese casino theme classes
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+```
 
 - [ ] **Step 5:** 18 款遊戲頁的 layout 不動，但它們使用 AppShell，應該自動繼承新 TopBar。檢查一款遊戲頁（例：`DicePage`）在 dev 能打開：
 
@@ -2071,14 +2108,14 @@ pnpm test
 
 Expected: 全綠（前端無單元測試、只測後端）。
 
-- [ ] **Step 2:** 全量 build
+- [ ] **Step 2:** 全量 build（`@bg/ui-tokens` 無 build script，跳過）
 
 ```bash
-pnpm --filter @bg/ui-tokens build
 pnpm --filter @bg/web build
+pnpm --filter @bg/admin build
 ```
 
-Expected: 無錯誤；產出 `apps/web/dist`。
+Expected: 兩邊無錯誤；產出 `apps/web/dist` 與 `apps/admin/dist`。
 
 - [ ] **Step 3:** 手動 smoke test 全頁面
 
