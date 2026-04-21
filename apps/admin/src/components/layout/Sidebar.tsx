@@ -1,8 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from '@/i18n/useTranslation';
 
-const SUITS = ['♠', '♦', '♥', '♣', '◆', '❖'] as const;
-
 const items: { to: string; key: keyof ReturnType<typeof useTranslation>['t']['nav'] }[] = [
   { to: '/admin/dashboard', key: 'dashboard' },
   { to: '/admin/accounts', key: 'accounts' },
@@ -18,10 +16,9 @@ export function Sidebar(): JSX.Element {
     <aside className="panel-felt sticky top-[108px] h-[calc(100vh-140px)] w-60 shrink-0 overflow-hidden p-4">
       <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
         <span className="font-semibold text-base text-[#DEBE66]">Navigation</span>
-        <span className="text-[#C9A247]">◆</span>
       </div>
       <nav className="mt-4 space-y-1.5">
-        {items.map((it, idx) => (
+        {items.map((it) => (
           <NavLink
             key={it.to}
             to={it.to}
@@ -33,18 +30,13 @@ export function Sidebar(): JSX.Element {
               }`
             }
           >
-            <span className="flex items-center gap-2.5">
-              <span className="font-semibold text-sm text-[#D0AC4D] opacity-80">
-                {SUITS[idx % SUITS.length]}
-              </span>
-              <span className="font-semibold tracking-[0.08em]">{t.nav[it.key]}</span>
-            </span>
+            <span className="font-semibold tracking-[0.08em]">{t.nav[it.key]}</span>
             <span className="text-[#D0AC4D] opacity-0 transition group-hover:opacity-90">→</span>
           </NavLink>
         ))}
       </nav>
       <div className="absolute bottom-4 left-4 right-4 border-t border-[#E5E7EB] pt-3 text-center font-semibold text-[12px] text-[#DEBE66]">
-        v0.1 · Agent.Ops
+        v0.1 · BG 后台
       </div>
     </aside>
   );
