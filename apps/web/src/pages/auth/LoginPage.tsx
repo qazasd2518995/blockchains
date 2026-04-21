@@ -3,11 +3,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import type { AuthResponse } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useTranslation } from '@/i18n/useTranslation';
-import { LocaleToggle } from '@/components/layout/LocaleToggle';
 
 const schema = z.object({
   username: z
@@ -19,6 +19,14 @@ const schema = z.object({
 });
 
 type FormInput = z.infer<typeof schema>;
+
+function safeRedirectPath(raw: string | null): string {
+  if (!raw) return '/lobby';
+  // 防 open redirect：只允许 internal path，禁止 "//" 或 http(s):
+  if (!raw.startsWith('/') || raw.startsWith('//')) return '/lobby';
+  if (/^\/+https?:/i.test(raw)) return '/lobby';
+  return raw;
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -33,7 +41,7 @@ export function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormInput>({ resolver: zodResolver(schema) });
 
-  const errMap = (k?: string) => {
+  const errMap = (k?: string): string | undefined => {
     if (k === 'INVALID_USERNAME') return t.auth.invalidUsername;
     if (k === 'PASSWORD_REQUIRED') return t.auth.pwdRequired;
     return k;
@@ -44,187 +52,114 @@ export function LoginPage() {
     try {
       const res = await api.post<AuthResponse>('/auth/login', data);
       setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
-      const from = params.get('from');
-      navigate(from ?? '/lobby');
+      const target = safeRedirectPath(params.get('from'));
+      navigate(target);
     } catch (err) {
       setServerError(extractApiError(err).message);
     }
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div className="crystal-overlay" />
-
-      {/* Top bar */}
-      <div className="relative z-10 border-b border-[#E5E7EB] bg-white/70 backdrop-blur">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-2.5 text-[10px] uppercase tracking-[0.3em] text-[#4A5568]">
-          <Link to="/" className="flex items-center gap-2 text-[#0F172A] transition hover:text-[#186073]">
-            <span className="text-[#AE8B35]">◄</span>
-            <span>{t.auth.returnHome}</span>
+    <div className="flex min-h-screen flex-col bg-[#ECECEC]">
+      {/* 简易 TopBar */}
+      <header className="h-16 bg-[#1A2530] text-white">
+        <div className="mx-auto flex h-full max-w-[1280px] items-center justify-between px-5">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-[13px] text-white/75 transition hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t.auth.returnHome}
           </Link>
-          <div className="flex items-center gap-4">
-            <span>{t.auth.secureChannel}</span>
-            <LocaleToggle compact />
+          <div className="flex items-center gap-2 text-[22px] font-extrabold tracking-[0.05em]">
+            <span className="rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[20px] text-white">
+              BG
+            </span>
+            <span className="hidden text-[16px] font-bold text-white/90 sm:inline">娱乐城</span>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Body */}
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-45px)] max-w-[1400px] items-center justify-center px-6 py-16">
-        <div className="grid w-full gap-12 lg:grid-cols-2 lg:gap-20">
-          {/* Left — form */}
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-lg text-[#186073]">{t.auth.authenticate}</span>
-              <span className="text-[#C9A247] text-sm">◆</span>
-              <span className="label text-[#186073]">séance privée</span>
-            </div>
-            <h1 className="mt-5 font-semibold text-6xl leading-[0.95] text-[#0F172A]">
-              {t.auth.identifyYourself}
-            </h1>
-            <p className="mt-5 max-w-md text-[14px] leading-relaxed text-[#4A5568]">
-              {t.auth.loginDesc}
-            </p>
-
-            <form onSubmit={handleSubmit(onSubmit)} className="mt-10 space-y-6">
-              <Field label={t.auth.usernameLabel} suit="♠" error={errMap(errors.username?.message)}>
-                <input
-                  type="text"
-                  autoComplete="username"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  placeholder={t.auth.usernamePlaceholder}
-                  className="input-salon"
-                  {...register('username')}
-                />
-              </Field>
-              <Field label={t.auth.password} suit="♦" error={errMap(errors.password?.message)}>
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder={t.auth.passwordPlaceholder}
-                  className="input-salon"
-                  {...register('password')}
-                />
-              </Field>
-
-              {serverError && (
-                <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-4 rounded-sm">
-                  <div className="flex items-start gap-2 text-[12px] text-[#B94538]">
-                    <span className="font-semibold font-bold italic">{t.common.error}:</span>
-                    <span className="tracking-wider">{serverError}</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center gap-4 pt-2">
-                <button type="submit" disabled={isSubmitting} className="btn-teal">
-                  {isSubmitting ? (
-                    <span>
-                      {t.auth.authenticating}
-                      <span className="animate-blink">_</span>
-                    </span>
-                  ) : (
-                    <>→ {t.auth.authenticate}</>
-                  )}
-                </button>
-                <span className="font-semibold text-[13px] text-[#186073]">{t.auth.pressEnter}</span>
-              </div>
-            </form>
-
-            <div className="mt-12 border-t border-[#E5E7EB]"><span>♠ ◆ ♥</span></div>
-            <div className="mt-5 text-center font-semibold text-[14px] text-[#186073]">
-              {t.landing.accessManaged}
-            </div>
+      {/* 居中登入卡片 */}
+      <main className="flex flex-1 items-center justify-center px-5 py-10">
+        <div className="w-full max-w-[420px] rounded-[10px] border border-[#E5E7EB] bg-white p-8 shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
+          <div className="mb-6 text-center">
+            <h1 className="text-[24px] font-bold text-[#0F172A]">{t.auth.identifyYourself}</h1>
+            <p className="mt-2 text-[13px] text-[#4A5568]">{t.auth.loginDesc}</p>
           </div>
 
-          {/* Right — felt protocol panel */}
-          <div className="relative hidden lg:block">
-            <div className="panel-felt scanlines h-full p-8">
-              <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-4">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-semibold text-lg text-[#DEBE66]">Protocole</span>
-                  <span className="text-[#C9A247] text-xs">◆</span>
-                  <span className="label text-[#D0AC4D]">{t.auth.systemProtocol}</span>
-                </div>
-                <div className="hidden !h-9 !w-9 !text-[8px]">LIVE</div>
-              </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <Field label={t.auth.usernameLabel} error={errMap(errors.username?.message)}>
+              <input
+                type="text"
+                autoComplete="username"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder={t.auth.usernamePlaceholder}
+                className="w-full rounded-[6px] border border-[#E5E7EB] px-3 py-2.5 text-[14px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25"
+                {...register('username')}
+              />
+            </Field>
 
-              <pre className="mt-8 font-mono text-[10.5px] leading-relaxed text-[#E8D48A]/85">
-{`┌────────────────────────────────┐
-│  ${t.auth.provablyFairProtocol.padEnd(28).slice(0, 28)}  │
-│                                │
-│  [1] Server generates seed S   │
-│  [2] Publishes SHA256(S) = H   │
-│  [3] Client provides seed C    │
-│  [4] Nonce N increments /bet   │
-│  [5] Result = HMAC(S, C:N)     │
-│  [6] S revealed at rotate      │
-│  [7] Verify: SHA256(S) === H ✓ │
-│                                │
-│  MATH GUARANTEES HONESTY.      │
-└────────────────────────────────┘`}
-              </pre>
+            <Field label={t.auth.password} error={errMap(errors.password?.message)}>
+              <input
+                type="password"
+                autoComplete="current-password"
+                placeholder={t.auth.passwordPlaceholder}
+                className="w-full rounded-[6px] border border-[#E5E7EB] px-3 py-2.5 text-[14px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25"
+                {...register('password')}
+              />
+            </Field>
 
-              <div className="mt-8 space-y-3 text-[11px]">
-                <Detail k="HASH" v="SHA-256" />
-                <Detail k="HMAC" v="HMAC-SHA256" />
-                <Detail k="SEED_ENTROPY" v="256 BITS" />
-                <Detail k="SESSION_TTL" v="15 MINUTES" />
-                <Detail k="PASSWORD_HASH" v="BCRYPT · 12 ROUNDS" />
+            {serverError && (
+              <div className="rounded-[6px] border border-[#D4574A]/40 bg-[#FDF0EE] px-3 py-2.5 text-[12px] text-[#B94538]">
+                ⚠ {serverError}
               </div>
+            )}
 
-              <div className="mt-10 border-t border-[#E5E7EB] pt-5">
-                <div className="font-semibold text-2xl italic leading-tight text-white">
-                  {t.auth.trustButVerify}
-                </div>
-                <div className="mt-2 font-semibold text-sm text-[#DEBE66]">{t.auth.proverb}</div>
-              </div>
-            </div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-[6px] bg-[#186073] px-4 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#1E7A90] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? t.auth.authenticating : t.auth.authenticate}
+            </button>
+          </form>
+
+          <div className="mt-6 border-t border-[#E5E7EB] pt-5 text-center">
+            <p className="text-[12px] text-[#4A5568]">{t.landing.accessManaged}</p>
+            <a
+              href="https://line.me/ti/p/~@aaa1788"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-block text-[13px] font-semibold text-[#186073] hover:underline"
+            >
+              客服 LINE: @aaa1788
+            </a>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
 
 function Field({
   label,
-  suit,
   error,
   children,
 }: {
   label: string;
-  suit: string;
   error?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className="block">
-      <div className="mb-2 flex items-baseline justify-between">
-        <div className="flex items-baseline gap-2">
-          <span className="text-[#AE8B35] text-sm">{suit}</span>
-          <span className="font-semibold text-[14px] font-semibold tracking-[0.12em] text-[#0F172A]">
-            {label}
-          </span>
-        </div>
-        {error && (
-          <span className="font-mono text-[10px] tracking-[0.15em] text-[#D4574A]">
-            ⚠ {error}
-          </span>
-        )}
+      <div className="mb-1.5 flex items-baseline justify-between">
+        <span className="text-[13px] font-semibold text-[#0F172A]">{label}</span>
+        {error && <span className="text-[11px] text-[#D4574A]">⚠ {error}</span>}
       </div>
       {children}
     </label>
-  );
-}
-
-function Detail({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="flex items-baseline justify-between border-b border-[#E5E7EB] pb-2">
-      <span className="font-mono text-[10px] tracking-[0.25em] text-[#D0AC4D]">{k}</span>
-      <span className="font-mono text-white data-num">{v}</span>
-    </div>
   );
 }
