@@ -9,9 +9,9 @@ async function main(): Promise<void> {
   const superUsername = process.env.SUPER_ADMIN_USERNAME ?? 'superadmin';
   const superPassword = process.env.SUPER_ADMIN_PASSWORD;
 
-  if (!superPassword || superPassword.length < 12) {
+  if (!superPassword || superPassword.length < 8) {
     console.error(
-      '[seed-agent] SUPER_ADMIN_PASSWORD must be set and at least 12 chars long. Aborting.',
+      '[seed-agent] SUPER_ADMIN_PASSWORD must be set and at least 8 chars long. Aborting.',
     );
     process.exit(1);
   }
