@@ -137,7 +137,7 @@ export function PlinkoPage() {
                 >
                   <div className="text-[9px] text-ink-500">B{r.bucket}</div>
                   <div
-                    className={`big-num text-xl ${
+                    className={`num text-xl ${
                       r.multiplier >= 1 ? 'text-neon-acid' : 'text-neon-ember'
                     }`}
                   >

@@ -297,7 +297,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
     <div className="crt-panel p-4">
       <div className="label">{k}</div>
       <div
-        className={`mt-1 big-num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
+        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
       >
         {v}
       </div>

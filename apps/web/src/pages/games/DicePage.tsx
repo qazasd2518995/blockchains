@@ -109,7 +109,7 @@ export function DicePage() {
             <div className="flex items-center justify-between border-b border-ink-200 px-4 py-2 text-[10px] tracking-[0.25em]">
               <span className="text-ink-500">TERMINAL://DICE</span>
               <span className="text-neon-toxic">
-                <span className="status-dot status-dot-live" />
+                <span className="dot-online dot-online" />
                 {t.common.ready.toUpperCase()}
               </span>
             </div>
@@ -142,7 +142,7 @@ export function DicePage() {
               <div className="mb-2 flex items-baseline justify-between">
                 <div className="flex items-baseline gap-2">
                   <span className="label">{t.games.dice.threshold}</span>
-                  <span className="big-num text-2xl text-ink-900">{target.toFixed(2)}</span>
+                  <span className="num text-2xl text-ink-900">{target.toFixed(2)}</span>
                 </div>
                 <div className="flex gap-1 text-[10px]">
                   <button
@@ -206,7 +206,7 @@ export function DicePage() {
                   <span className="text-[10px] tracking-[0.3em] text-ink-500">
                     {t.games.dice.roll}
                   </span>
-                  <span className="big-num text-5xl text-ink-900">
+                  <span className="num text-5xl text-ink-900">
                     {lastResult.roll.toFixed(2)}
                   </span>
                 </div>
@@ -326,7 +326,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
     <div className="crt-panel p-4">
       <div className="label">{k}</div>
       <div
-        className={`mt-1 big-num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
+        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
       >
         {v}
       </div>

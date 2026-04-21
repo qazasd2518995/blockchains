@@ -194,7 +194,7 @@ export function RoulettePage({ variant }: Props) {
             >
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="big-num big-num-grad text-6xl">
+                  <div className="num num-grad text-6xl">
                     {t.games.roulette.slot} {result.slot}
                   </div>
                   <div className="mt-2 text-[11px] tracking-[0.25em] text-ink-600">
@@ -202,9 +202,9 @@ export function RoulettePage({ variant }: Props) {
                   </div>
                 </div>
                 <div
-                  className={`big-num text-4xl ${
+                  className={`num text-4xl ${
                     Number.parseFloat(result.profit) >= 0
-                      ? 'big-num-win'
+                      ? 'num-win'
                       : 'text-neon-ember'
                   }`}
                 >
@@ -277,7 +277,7 @@ export function RoulettePage({ variant }: Props) {
               type="button"
               onClick={clear}
               disabled={busy || bets.length === 0}
-              className="btn-ghost mt-2 w-full py-2 text-[11px]"
+              className="btn-teal-outline mt-2 w-full py-2 text-[11px]"
             >
               ⨯ {t.games.roulette.clearBets}
             </button>

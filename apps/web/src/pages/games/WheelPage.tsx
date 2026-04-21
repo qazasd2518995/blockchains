@@ -138,7 +138,7 @@ export function WheelPage() {
                     {t.games.wheel.segment}{result.segmentIndex}
                   </div>
                 </div>
-                <div className="big-num text-3xl text-neon-acid">
+                <div className="num text-3xl text-neon-acid">
                   {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
                   {formatAmount(result.profit)}
                 </div>

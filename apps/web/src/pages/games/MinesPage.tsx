@@ -191,7 +191,7 @@ export function MinesPage() {
                 </span>
                 {isActive && (
                   <span className="text-neon-acid">
-                    <span className="status-dot status-dot-live" />
+                    <span className="dot-online dot-online" />
                     {t.common.active.toUpperCase()}
                   </span>
                 )}
@@ -244,7 +244,7 @@ export function MinesPage() {
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] text-ink-500">{t.games.mines.loss}</div>
-                  <div className="big-num text-3xl text-neon-ember">
+                  <div className="num text-3xl text-neon-ember">
                     -{formatAmount(round.amount)}
                   </div>
                 </div>
@@ -265,7 +265,7 @@ export function MinesPage() {
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] text-ink-500">{t.games.dice.payout}</div>
-                  <div className="big-num text-3xl text-neon-acid">
+                  <div className="num text-3xl text-neon-acid">
                     +{formatAmount(round.potentialPayout)}
                   </div>
                 </div>
@@ -300,7 +300,7 @@ export function MinesPage() {
                 <span className="data-num text-[10px] text-ink-500">{t.games.dice.range} 1–24</span>
               </div>
               <div className="mt-4 flex items-baseline gap-4">
-                <span className="big-num text-6xl text-neon-ember">
+                <span className="num text-6xl text-neon-ember">
                   {mineCount.toString().padStart(2, '0')}
                 </span>
                 <div className="flex-1 text-[10px] tracking-[0.2em] text-ink-500">{riskLabel}</div>
@@ -427,7 +427,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
     <div className="crt-panel p-4">
       <div className="label">{k}</div>
       <div
-        className={`mt-1 big-num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
+        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
       >
         {v}
       </div>

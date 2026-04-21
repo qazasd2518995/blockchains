@@ -256,14 +256,14 @@ export function CrashPage({ config }: Props) {
               <div className="flex items-center gap-3 text-ink-600">
                 {status === 'BETTING' && (
                   <span className="text-neon-acid">
-                    <span className="status-dot status-dot-live" />
+                    <span className="dot-online dot-online" />
                     {t.games.crash.betting} · {bettingCountdown}
                     {t.games.crash.seconds}
                   </span>
                 )}
                 {status === 'RUNNING' && (
                   <span className="text-neon-toxic">
-                    <span className="status-dot status-dot-live" />
+                    <span className="dot-online dot-online" />
                     {t.games.crash.running}
                   </span>
                 )}

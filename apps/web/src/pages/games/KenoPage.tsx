@@ -150,10 +150,10 @@ export function KenoPage() {
             </div>
 
             <div className="mt-4 flex gap-2">
-              <button type="button" onClick={autoPick} disabled={busy} className="btn-ghost">
+              <button type="button" onClick={autoPick} disabled={busy} className="btn-teal-outline">
                 ⚂ {t.games.keno.autoPick}
               </button>
-              <button type="button" onClick={clearAll} disabled={busy} className="btn-ghost">
+              <button type="button" onClick={clearAll} disabled={busy} className="btn-teal-outline">
                 ⨯ {t.games.keno.clear}
               </button>
             </div>
@@ -179,7 +179,7 @@ export function KenoPage() {
                 <div className="text-right">
                   <div className="text-[10px] text-ink-500">{t.history.net}</div>
                   <div
-                    className={`big-num text-3xl ${
+                    className={`num text-3xl ${
                       Number.parseFloat(result.profit) >= 0
                         ? 'text-neon-acid'
                         : 'text-neon-ember'

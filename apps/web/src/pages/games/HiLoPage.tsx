@@ -285,7 +285,7 @@ export function HiLoPage() {
                     type="button"
                     onClick={handleSkip}
                     disabled={busy || round.skipsUsed >= round.maxSkips}
-                    className="btn-ghost w-full py-3"
+                    className="btn-teal-outline w-full py-3"
                   >
                     ⟳ {t.games.hilo.skip.toUpperCase()} ({round.maxSkips - round.skipsUsed}{' '}
                     {t.games.hilo.leftSkips})
@@ -313,7 +313,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
     <div className="crt-panel p-4">
       <div className="label">{k}</div>
       <div
-        className={`mt-1 big-num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
+        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
       >
         {v}
       </div>
