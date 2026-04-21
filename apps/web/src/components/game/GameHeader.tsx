@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from '@/i18n/useTranslation';
 
 interface Props {
@@ -45,11 +46,12 @@ export function GameHeader({
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#E5E7EB] pb-4">
       <div className="flex min-w-0 items-baseline gap-4">
-        <div className="flex items-center gap-2 font-mono text-[10px] tracking-[0.25em] text-[#4A5568]">
-          <Link to="/lobby" className="transition hover:text-[#186073]">
-            ◄ {t.common.lobby}
+        <div className="flex items-center gap-2 text-[12px] text-[#4A5568]">
+          <Link to="/lobby" className="inline-flex items-center gap-1 transition hover:text-[#186073]">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {t.common.lobby}
           </Link>
-          <span className="text-[#C9A247]">◆</span>
+          <span className="text-[#9CA3AF]">/</span>
           <span className="text-[#186073]">{breadcrumb}</span>
         </div>
         <span className="font-semibold text-sm text-[#AE8B35]">{section}</span>
@@ -58,7 +60,7 @@ export function GameHeader({
             {title}
             {hasSuffix ? separator : ''}
           </span>
-          {hasSuffix && <span className={`italic ${suffixColor}`}>{titleSuffix}</span>}
+          {hasSuffix && <span className={suffixColor}>{titleSuffix}</span>}
         </h1>
         <p
           className="hidden max-w-md truncate text-[11px] text-[#4A5568] lg:block"
