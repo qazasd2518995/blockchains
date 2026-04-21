@@ -15,10 +15,10 @@ export class ApiError extends Error {
 export function errorCodeToStatus(code: ErrorCodeType): number {
   switch (code) {
     case 'UNAUTHORIZED':
+    case 'INVALID_CREDENTIALS':
       return 401;
     case 'FORBIDDEN':
       return 403;
-    case 'INVALID_CREDENTIALS':
     case 'EMAIL_TAKEN':
     case 'USERNAME_TAKEN':
       return 409;
