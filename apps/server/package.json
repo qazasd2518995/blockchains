@@ -19,7 +19,8 @@
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:agent": "tsx prisma/seed-agent.ts",
-    "db:reset-admin": "tsx prisma/reset-super-admin.ts"
+    "db:reset-admin": "tsx prisma/reset-super-admin.ts",
+    "db:set-admin-balance": "tsx prisma/set-super-admin-balance.ts"
   },
   "dependencies": {
     "@bg/provably-fair": "workspace:*",
