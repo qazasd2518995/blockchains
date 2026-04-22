@@ -125,7 +125,9 @@ export async function buildServer(): Promise<FastifyInstance> {
     ]) {
       registry.register({ gameId });
     }
-    void registry.startAll();
+    void registry.startAll().catch((err) => {
+      server.log.error(err, '[socket.io] failed to initialize crash rooms');
+    });
     server.log.info('[socket.io] Crash rooms initialized');
   });
 

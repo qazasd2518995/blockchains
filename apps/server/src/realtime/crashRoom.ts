@@ -12,6 +12,9 @@ const BETTING_WINDOW_MS = 5000;
 const POST_CRASH_MS = 3000;
 const TICK_MS = 100;
 const GROWTH_RATE = 0.00006; // multiplier speed; tuned for ~10-20s average
+const ROUND_CREATE_RETRY_BASE_MS = 80;
+const ROUND_CREATE_RETRY_JITTER_MS = 220;
+const PHASE_RECOVERY_MS = 1200;
 
 export interface CrashRoomConfig {
   gameId: string;
@@ -29,6 +32,7 @@ export class CrashRoom {
   private roundStartedAt = 0;
   private bettingEndsAt = 0;
   private tickTimer: NodeJS.Timeout | null = null;
+  private phaseTimer: NodeJS.Timeout | null = null;
   private pendingAutoCashouts = new Map<
     string,
     { betId: string; userId: string; autoCashOut: number }
@@ -57,11 +61,12 @@ export class CrashRoom {
       select: { roundNumber: true },
     });
     this.roundNumber = last?.roundNumber ?? 0;
-    void this.beginBettingPhase();
+    this.scheduleBettingPhase(0);
   }
 
   private async beginBettingPhase(): Promise<void> {
     this.state = 'BETTING';
+    this.currentRoundId = null;
     const seed = generateServerSeed();
     this.currentSeed = seed;
     this.currentSeedHash = sha256(seed);
@@ -89,6 +94,8 @@ export class CrashRoom {
       } catch (err) {
         const code = (err as { code?: string })?.code;
         if (code === 'P2002') {
+          // 用少量隨機退避打破多實例同步 collision。
+          await sleep(this.retryDelayMs(attempt));
           // 先抓 DB 最大值重設 counter
           const max = await this.prisma.crashRound.findFirst({
             where: { gameId: this.config.gameId },
@@ -103,15 +110,17 @@ export class CrashRoom {
       }
     }
     if (!round) {
-      throw new Error(`[crashRoom] failed to create round after 5 retries (gameId=${this.config.gameId})`);
+      console.error(
+        `[crashRoom] failed to create round after 5 retries (gameId=${this.config.gameId}); retrying later`,
+      );
+      this.scheduleBettingPhase(PHASE_RECOVERY_MS + this.retryDelayMs(0));
+      return;
     }
     this.currentRoundId = round.id;
 
     this.broadcast('round:betting', this.snapshot());
 
-    setTimeout(() => {
-      void this.beginRunningPhase();
-    }, BETTING_WINDOW_MS);
+    this.scheduleRunningPhase(BETTING_WINDOW_MS);
   }
 
   private async beginRunningPhase(): Promise<void> {
@@ -137,7 +146,13 @@ export class CrashRoom {
 
       if (this.currentMultiplier >= this.currentCrashPoint) {
         this.currentMultiplier = this.currentCrashPoint;
-        void this.crashPhase();
+        void this.crashPhase().catch((err) => {
+          console.error(
+            `[crashRoom] crashPhase failed (gameId=${this.config.gameId}, roundId=${this.currentRoundId ?? 'n/a'})`,
+            err,
+          );
+          this.scheduleBettingPhase(PHASE_RECOVERY_MS);
+        });
         return;
       }
 
@@ -146,7 +161,12 @@ export class CrashRoom {
         elapsedMs: elapsed,
       });
 
-      void this.autoCashOutCheck();
+      void this.autoCashOutCheck().catch((err) => {
+        console.error(
+          `[crashRoom] autoCashOutCheck failed (gameId=${this.config.gameId}, roundId=${this.currentRoundId ?? 'n/a'})`,
+          err,
+        );
+      });
     }, tickMs);
   }
 
@@ -188,9 +208,7 @@ export class CrashRoom {
       serverSeed: this.currentSeed,
     });
 
-    setTimeout(() => {
-      void this.beginBettingPhase();
-    }, POST_CRASH_MS);
+    this.scheduleBettingPhase(POST_CRASH_MS);
   }
 
   private snapshot(): CrashRoundSnapshot {
@@ -211,6 +229,44 @@ export class CrashRoom {
 
   private broadcast(event: string, payload: unknown): void {
     this.io.of(this.namespace).emit(event, payload);
+  }
+
+  private scheduleBettingPhase(delayMs: number): void {
+    this.clearPhaseTimer();
+    this.phaseTimer = setTimeout(() => {
+      this.phaseTimer = null;
+      void this.beginBettingPhase().catch((err) => {
+        console.error(`[crashRoom] beginBettingPhase failed (gameId=${this.config.gameId})`, err);
+        this.scheduleBettingPhase(PHASE_RECOVERY_MS + this.retryDelayMs(0));
+      });
+    }, delayMs);
+  }
+
+  private scheduleRunningPhase(delayMs: number): void {
+    this.clearPhaseTimer();
+    this.phaseTimer = setTimeout(() => {
+      this.phaseTimer = null;
+      void this.beginRunningPhase().catch((err) => {
+        console.error(
+          `[crashRoom] beginRunningPhase failed (gameId=${this.config.gameId}, roundId=${this.currentRoundId ?? 'n/a'})`,
+          err,
+        );
+        this.scheduleBettingPhase(PHASE_RECOVERY_MS);
+      });
+    }, delayMs);
+  }
+
+  private clearPhaseTimer(): void {
+    if (!this.phaseTimer) return;
+    clearTimeout(this.phaseTimer);
+    this.phaseTimer = null;
+  }
+
+  private retryDelayMs(attempt: number): number {
+    return (
+      ROUND_CREATE_RETRY_BASE_MS * (attempt + 1) +
+      Math.floor(Math.random() * ROUND_CREATE_RETRY_JITTER_MS)
+    );
   }
 
   private handleConnection(socket: Socket): void {
@@ -363,4 +419,10 @@ export class CrashRoomRegistry {
   async startAll(): Promise<void> {
     await Promise.all([...this.rooms.values()].map((r) => r.start()));
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
