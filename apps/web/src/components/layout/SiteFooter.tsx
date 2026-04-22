@@ -27,7 +27,7 @@ export function SiteFooter({ loggedIn = false }: Props): JSX.Element {
 
   return (
     <footer className="mt-16 border-t border-[#E5E7EB] bg-white/[0.85] backdrop-blur">
-      <div className="mx-auto grid max-w-[1360px] gap-8 px-4 py-10 sm:px-5 lg:grid-cols-[minmax(0,1.1fr)_220px_220px] lg:px-6">
+      <div className="mx-auto grid w-full max-w-[1920px] gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1.1fr)_220px_220px] xl:px-8 2xl:px-12">
         <div className="min-w-0">
           <div className="label">BG GAMING</div>
           <h2 className="mt-3 text-[22px] font-bold text-[#0F172A]" translate="no">
@@ -80,7 +80,7 @@ export function SiteFooter({ loggedIn = false }: Props): JSX.Element {
       </div>
 
       <div className="border-t border-[#E5E7EB]">
-        <div className="mx-auto flex max-w-[1360px] flex-col gap-2 px-4 py-4 text-[11px] text-[#9CA3AF] sm:px-5 md:flex-row md:items-center md:justify-between lg:px-6">
+        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-2 px-4 py-4 text-[11px] text-[#9CA3AF] sm:px-6 md:flex-row md:items-center md:justify-between xl:px-8 2xl:px-12">
           <span>Copyright © 2026 BG Gaming. All Rights Reserved.</span>
           <span translate="no">v1.0.1</span>
         </div>

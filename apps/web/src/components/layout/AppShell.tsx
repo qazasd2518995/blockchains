@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <header className="sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)]">
         <div className="border-b border-white/8">
-          <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/80 sm:px-5 lg:px-6">
+          <div className="mx-auto flex w-full max-w-[1920px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/80 sm:px-6 xl:px-8 2xl:px-12">
             <div className="flex items-center gap-2">
               <span className="dot-online" />
               <span>演示點數平台 · 結果可驗證</span>
@@ -73,7 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <div className="mx-auto flex max-w-[1360px] flex-col gap-4 px-4 py-4 sm:px-5 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-x-6 lg:gap-y-4 lg:px-6">
+        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-4 px-4 py-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-x-6 lg:gap-y-4 xl:px-8 2xl:px-12">
           <div className="flex min-w-0 items-center justify-between gap-4">
             <BrandMark to="/lobby" tone="dark" subtitle="Provably Fair · Instant Settlement" />
             {!user ? (
@@ -168,7 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <WinTicker />
 
       <main id="main-content" className="relative z-10 flex-1">
-        <div className="mx-auto max-w-[1360px] px-4 py-6 sm:px-5 lg:px-6">{children}</div>
+        <div className="mx-auto w-full max-w-[1920px] px-4 py-6 sm:px-6 xl:px-8 2xl:px-12">{children}</div>
       </main>
 
       <SiteFooter loggedIn />

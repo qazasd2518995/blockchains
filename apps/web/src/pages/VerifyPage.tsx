@@ -372,8 +372,8 @@ export function VerifyPage() {
 
   return (
     <div className="space-y-8">
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="rounded-[28px] bg-[#0F172A] p-6 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)] md:p-8">
+      <section className="grid gap-6 xl:grid-cols-12">
+        <div className="rounded-[28px] bg-[#0F172A] p-6 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)] md:p-8 xl:col-span-8 2xl:col-span-9">
           <div className="label !text-white/[0.55]">Provably Fair</div>
           <div className="mt-4 flex items-start gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-white/10">
@@ -406,7 +406,7 @@ export function VerifyPage() {
           </div>
         </div>
 
-        <aside className="rounded-[24px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
+        <aside className="rounded-[24px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-4 2xl:col-span-3">
           <div className="label">Current Game</div>
           <h2 className="mt-3 text-[24px] font-bold text-[#0F172A]">{selectedGuide.title}</h2>
           <p className="mt-2 text-[13px] leading-relaxed text-[#4A5568]">{selectedGuide.description}</p>
@@ -424,11 +424,11 @@ export function VerifyPage() {
         </aside>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-6 xl:grid-cols-12">
         <form
           onSubmit={handleVerify}
           noValidate
-          className="rounded-[28px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur"
+          className="rounded-[28px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-8 2xl:col-span-9"
         >
           <SectionHeading
             eyebrow="Verification Form"
@@ -768,7 +768,7 @@ export function VerifyPage() {
             </div>
           </div>
 
-          <div aria-live="polite" className="space-y-4 xl:sticky xl:top-28">
+          <div aria-live="polite" className="space-y-4 xl:col-span-4 xl:sticky xl:top-28 2xl:col-span-3">
             {error ? (
               <div className="flex items-start gap-3 rounded-[24px] border border-[#D4574A]/30 bg-[#FDF0EE] p-5 text-[#B94538]">
                 <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />

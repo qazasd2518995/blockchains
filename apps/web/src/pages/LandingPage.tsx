@@ -34,7 +34,7 @@ export function LandingPage() {
 
       <header className="sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)]">
         <div className="border-b border-white/8">
-          <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/80 sm:px-5 lg:px-6">
+          <div className="mx-auto flex w-full max-w-[1920px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/80 sm:px-6 xl:px-8 2xl:px-12">
             <div className="flex items-center gap-2">
               <span className="dot-online" />
               <span>演示點數平台 · 邀請開通</span>
@@ -50,7 +50,7 @@ export function LandingPage() {
           </div>
         </div>
 
-        <div className="mx-auto flex max-w-[1360px] flex-col gap-4 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between xl:px-8 2xl:px-12">
           <BrandMark to="/" tone="dark" subtitle="Provably Fair · Invite Only" />
 
           <div className="flex flex-wrap items-center gap-2">
@@ -73,7 +73,7 @@ export function LandingPage() {
       <WinTicker />
 
       <main className="relative z-10 flex-1">
-        <div className="mx-auto max-w-[1360px] space-y-8 px-4 py-6 sm:px-5 lg:px-6">
+        <div className="mx-auto w-full max-w-[1920px] space-y-8 px-4 py-6 sm:px-6 xl:px-8 2xl:px-12">
           <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_320px]">
             <div className="space-y-6">
               <HeroBanner />

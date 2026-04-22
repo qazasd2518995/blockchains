@@ -63,21 +63,21 @@ export function HeroBanner() {
   return (
     <section className="group relative w-full overflow-hidden rounded-[10px] shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
       <div
-        className="relative flex h-[320px] items-center px-12 transition-all duration-500 md:h-[407px] md:px-20"
+        className="relative flex h-[320px] items-center px-12 transition-all duration-500 md:h-[407px] md:px-20 xl:h-[450px] 2xl:h-[500px] 2xl:px-24"
         style={{ background: slide.gradient }}
       >
-        <div className="pointer-events-none absolute right-8 top-1/2 hidden -translate-y-1/2 md:block">
-          <div className="relative flex h-[220px] w-[220px] items-center justify-center rounded-full border border-white/20 bg-white/[0.08] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
+        <div className="pointer-events-none absolute right-8 top-1/2 hidden -translate-y-1/2 md:block xl:right-14 2xl:right-20">
+          <div className="relative flex h-[220px] w-[220px] items-center justify-center rounded-full border border-white/20 bg-white/[0.08] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] xl:h-[260px] xl:w-[260px] 2xl:h-[300px] 2xl:w-[300px]">
             <div className="absolute inset-[18px] rounded-full border border-white/15" />
             <div className="absolute inset-[42px] rounded-full border border-white/10" />
-            <Icon className="h-24 w-24 text-white/80" aria-hidden="true" strokeWidth={1.5} />
+            <Icon className="h-24 w-24 text-white/80 xl:h-28 xl:w-28 2xl:h-32 2xl:w-32" aria-hidden="true" strokeWidth={1.5} />
           </div>
         </div>
-        <div className="relative z-10 max-w-[640px]">
-          <h1 className="text-[28px] font-bold leading-tight text-white md:text-[42px]">
+        <div className="relative z-10 max-w-[640px] xl:max-w-[760px] 2xl:max-w-[840px]">
+          <h1 className="text-[28px] font-bold leading-tight text-white md:text-[42px] xl:text-[48px] 2xl:text-[54px]">
             {slide.title}
           </h1>
-          <p className="mt-4 text-[14px] text-white/[0.85] md:text-[18px]">
+          <p className="mt-4 text-[14px] text-white/[0.85] md:text-[18px] xl:text-[20px]">
             {slide.subtitle}
           </p>
         </div>

@@ -22,8 +22,8 @@ export function LobbyPage() {
 
   return (
     <div className="space-y-8">
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_320px]">
-        <div className="space-y-6">
+      <section className="grid gap-6 xl:grid-cols-12">
+        <div className="space-y-6 xl:col-span-8 2xl:col-span-9">
           <HeroBanner />
 
           <section className="rounded-[28px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
@@ -62,7 +62,7 @@ export function LobbyPage() {
           </section>
         </div>
 
-        <aside className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
+        <aside className="grid gap-4 sm:grid-cols-3 xl:col-span-4 xl:grid-cols-1 2xl:col-span-3">
           <LobbyStatCard label="遊戲館別" value={String(HALL_LIST.length)} detail="Crash、經典、策略三種節奏入口" />
           <LobbyStatCard label="上架遊戲" value={String(totalGames)} detail="大廳先分館，再進單一遊戲頁" />
           <LobbyStatCard label="今日榜首" value={numberFormatter.format(topBoardWin)} detail="依戰報更新假幣榜單，方便確認 UI 節奏" />
@@ -94,10 +94,12 @@ export function LobbyPage() {
           description="榜單用來驗證表格密度、數字呈現與手機橫向閱讀。旁邊的 CTA 保留兩條主路徑：核對結果，或回看自己的歷史局數。"
         />
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <TodayWinners />
+        <div className="grid gap-6 xl:grid-cols-12">
+          <div className="xl:col-span-8 2xl:col-span-9">
+            <TodayWinners />
+          </div>
 
-          <aside className="space-y-4">
+          <aside className="space-y-4 xl:col-span-4 2xl:col-span-3">
             <div className="rounded-[24px] border border-white/[0.65] bg-white/[0.92] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
               <div className="label">Quick Paths</div>
               <h3 className="mt-3 text-[22px] font-bold text-[#0F172A]">常用動作維持在同一區。</h3>

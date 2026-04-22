@@ -46,7 +46,7 @@ export function HallPage() {
         <div className="relative px-6 py-8 text-white md:px-8 md:py-10" style={{ background: hall.gradient }}>
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_42%)]" />
 
-          <div className="relative z-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="relative z-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1.3fr)_360px]">
             <div className="min-w-0">
               <Link
                 to="/lobby"
@@ -105,22 +105,22 @@ export function HallPage() {
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="space-y-5">
+      <div className="grid gap-6 xl:grid-cols-12">
+        <section className="space-y-5 xl:col-span-8 2xl:col-span-9">
           <SectionHeading
             eyebrow="Game Floor"
             title={`${hall.nameZh} 遊戲清單`}
             description="進館後就只看該館內容，避免館別切換時還要重新掃描大量不相關的遊戲卡片。"
           />
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
             {games.map((game) => (
               <GameCardNew key={game.id} game={game} />
             ))}
           </div>
         </section>
 
-        <aside className="space-y-4 xl:sticky xl:top-28">
+        <aside className="space-y-4 xl:col-span-4 xl:sticky xl:top-28 2xl:col-span-3">
           <div className="rounded-[24px] border border-white/[0.65] bg-white/[0.92] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
             <div className="flex items-center justify-between gap-3">
               <div>
