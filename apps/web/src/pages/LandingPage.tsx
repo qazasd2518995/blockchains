@@ -5,23 +5,21 @@ import { AnnouncementTicker } from '@/components/home/AnnouncementTicker';
 import { WinTicker } from '@/components/home/WinTicker';
 import { HeroBanner } from '@/components/home/HeroBanner';
 import { GuestHallEntrances } from '@/components/home/GuestHallEntrances';
-import { FeaturesStrip } from '@/components/home/FeaturesStrip';
-import { PartnerLogos } from '@/components/home/PartnerLogos';
 import { FloatingSupport } from '@/components/layout/FloatingSupport';
 import { BrandMark } from '@/components/layout/BrandMark';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SectionHeading } from '@/components/layout/SectionHeading';
 
 const LANDING_HIGHLIGHTS = [
-  { value: '18', label: '精選遊戲', detail: 'Crash、策略、經典玩法一次到位' },
-  { value: '3', label: '遊戲館別', detail: '依節奏切分，不再把所有遊戲塞成一頁' },
-  { value: '100%', label: '瀏覽器驗證', detail: 'Server Seed、Client Seed、Nonce 都能重算' },
+  { value: '18', label: '人氣玩法', detail: 'Crash、策略、經典熱款一次排開' },
+  { value: '3', label: '主題館別', detail: '快節奏、衝高倍、玩策略，今晚想玩哪種都好選' },
+  { value: '100%', label: '局局可查', detail: '想核對結果時，隨時都能自己重算' },
 ];
 
 const ACCESS_STEPS = [
-  { title: '聯絡客服', detail: '先走 LINE 或 Telegram，由客服確認代理來源。' },
-  { title: '開通會員', detail: '後台建立帳號後，再用會員帳密進入平台。' },
-  { title: '進站驗證', detail: '登入後可直接查看遊戲記錄與公平驗證工具。' },
+  { title: '聯絡客服', detail: '加 LINE 或 Telegram，開通會員後就能準備進場。' },
+  { title: '登入平台', detail: '拿到帳號後直接登入，熱門館別和遊戲一眼就到。' },
+  { title: '挑館開玩', detail: '想衝倍數、拚節奏或玩策略，照心情直接切館。' },
 ];
 
 export function LandingPage() {
@@ -95,10 +93,10 @@ export function LandingPage() {
             <aside className="rounded-[28px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
               <div className="label">Invite Access</div>
               <h1 className="mt-3 text-pretty text-[30px] font-bold leading-tight text-[#0F172A]">
-                代理邀請制，先聯絡客服再開通
+                會員開通後，今晚就能直接進場
               </h1>
               <p className="mt-3 text-[14px] leading-relaxed text-[#4A5568]">
-                公開註冊目前關閉。玩家需要先由客服或代理開通帳號，再登入大廳、查看遊戲記錄與公平驗證。
+                先聯絡客服開通會員，登入後就能進館挑桌、追熱門戰報，找到今晚最順手的玩法。
               </p>
 
               <div className="mt-6 flex flex-col gap-3">
@@ -153,14 +151,14 @@ export function LandingPage() {
           <section className="space-y-5">
             <SectionHeading
               eyebrow="Game Floors"
-              title="三大遊戲館，先看節奏再進場"
-              description="Crash 館主打倍率拉升，經典館適合短局高頻，策略館則偏向拆解與取捨。首頁先把路徑分乾淨，再進去看單一遊戲。"
+              title="三大主題館，照你今天的手感進場"
+              description="愛心跳拉滿就衝飛行館，想連玩不停就去經典館，想靠判斷把倍率放大就挑策略館。"
               rightSlot={
                 <Link
-                  to="/verify"
+                  to="/login"
                   className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#186073] transition hover:text-[#0E4555]"
                 >
-                  查看公平驗證
+                  已有會員，直接登入
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               }
@@ -168,34 +166,6 @@ export function LandingPage() {
             <GuestHallEntrances showHeading={false} />
           </section>
 
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="space-y-5">
-              <SectionHeading
-                eyebrow="Platform Rhythm"
-                title="同一套前端語言，覆蓋首頁到遊戲前台"
-                description="這一輪先收斂入口頁與主殼層的版型、配色與互動節奏，避免大廳、驗證、客服和 CTA 各說各話。"
-              />
-              <FeaturesStrip />
-              <PartnerLogos />
-            </div>
-
-            <aside className="rounded-[28px] bg-[#0F172A] p-6 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)]">
-              <div className="label !text-white/[0.55]">Why BG</div>
-              <h2 className="mt-3 text-pretty text-[24px] font-bold leading-tight">
-                結果先能驗，再談輸贏。
-              </h2>
-              <p className="mt-3 text-[13px] leading-relaxed text-white/[0.75]">
-                平台把公平驗證做成獨立頁面，讓玩家不用呼叫 API，就能用公開 seed 與 nonce 在瀏覽器內重算結果。
-              </p>
-              <Link
-                to="/verify"
-                className="btn-chip mt-6 border-white/15 bg-white/[0.05] text-white hover:border-white/30 hover:bg-white/[0.1]"
-              >
-                打開驗證工具
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </aside>
-          </section>
         </div>
       </main>
 

@@ -17,7 +17,7 @@ export const HALLS: Record<HallId, HallMeta> = {
     id: 'crash',
     nameZh: 'Crash 飞行馆',
     iconKey: 'crash',
-    tagline: '倍率无上限，敢飞敢收',
+    tagline: '倍速起飛，看準時機一鍵收分',
     gradient: 'linear-gradient(135deg, #051E2B 0%, #186073 50%, #D4574A 100%)',
     gameIds: [
       GameId.ROCKET,
@@ -34,7 +34,7 @@ export const HALLS: Record<HallId, HallMeta> = {
     id: 'classic',
     nameZh: '经典电子馆',
     iconKey: 'classic',
-    tagline: '经典玩法，纯粹手感',
+    tagline: '經典熱桌連開不停，手感一來就停不下',
     gradient: 'linear-gradient(135deg, #186073 0%, #266F85 50%, #408A9D 100%)',
     gameIds: [
       GameId.DICE,
@@ -49,7 +49,7 @@ export const HALLS: Record<HallId, HallMeta> = {
     id: 'strategy',
     nameZh: '策略电子馆',
     iconKey: 'strategy',
-    tagline: '策略取胜，拆弹解谜',
+    tagline: '邊判斷邊拚高倍，越玩越上頭',
     gradient: 'linear-gradient(135deg, #0E4555 0%, #266F85 50%, #C9A247 100%)',
     gameIds: [GameId.MINES, GameId.PLINKO, GameId.TOWER, GameId.CARNIVAL],
   },

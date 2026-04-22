@@ -10,9 +10,9 @@ import { getHallIcon } from '@/lib/platformIcons';
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
 
 function hallNarrative(hallId: HallId): string {
-  if (hallId === 'crash') return '喜歡看倍率拉升、自己決定什麼時候收手的玩家。';
-  if (hallId === 'classic') return '偏好短局高頻、規則直覺、可以快速切換玩法的玩家。';
-  return '願意讀資訊、拆風險、靠選擇而不是純運氣推進局勢的玩家。';
+  if (hallId === 'crash') return '想追高倍、看準時機一鍵收分的玩家。';
+  if (hallId === 'classic') return '喜歡節奏快、連開幾局都不膩的玩家。';
+  return '想邊判斷邊拚高倍，把手感和腦力一起拉滿的玩家。';
 }
 
 export function HallPage() {
@@ -63,18 +63,18 @@ export function HallPage() {
                 {hall.nameZh}
               </h1>
               <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-white/[0.85]">
-                {hall.tagline} 這一館目前收進 {games.length} 款遊戲，主要適合 {hallNarrative(hall.id)}
+                {hall.tagline}。{games.length} 款人氣玩法已經就位，最適合 {hallNarrative(hall.id)}
               </p>
 
               <div className="mt-5 flex flex-wrap gap-2 text-[12px]">
                 <span className="rounded-full border border-white/20 bg-black/[0.15] px-3 py-1.5 text-white/[0.85]">
-                  {games.length} 款遊戲
+                  {games.length} 款人氣遊戲
                 </span>
                 <span className="rounded-full border border-white/20 bg-black/[0.15] px-3 py-1.5 text-white/[0.85]">
-                  近 8 筆即時戰報
+                  熱門戰報持續刷新
                 </span>
                 <span className="rounded-full border border-white/20 bg-black/[0.15] px-3 py-1.5 text-white/[0.85]">
-                  結果可驗證
+                  今晚就從這一館開玩
                 </span>
               </div>
 
@@ -109,8 +109,8 @@ export function HallPage() {
         <section className="space-y-5 xl:col-span-8 2xl:col-span-9">
           <SectionHeading
             eyebrow="Game Floor"
-            title={`${hall.nameZh} 遊戲清單`}
-            description="進館後就只看該館內容，避免館別切換時還要重新掃描大量不相關的遊戲卡片。"
+            title={`${hall.nameZh} 熱門遊戲`}
+            description="這一館把最對味的玩法都排好了，想直衝熱桌、連開幾局，往下挑就對了。"
           />
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
@@ -125,7 +125,7 @@ export function HallPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="label">Live Board</div>
-                <h2 className="mt-2 text-[22px] font-bold text-[#0F172A]">即時戰報</h2>
+                <h2 className="mt-2 text-[22px] font-bold text-[#0F172A]">這一館正在出分</h2>
               </div>
               <span className="dot-online" />
             </div>
@@ -151,25 +151,18 @@ export function HallPage() {
                 ))
               ) : (
                 <div className="rounded-[18px] border border-dashed border-[#E5E7EB] px-4 py-6 text-center text-[13px] text-[#4A5568]">
-                  這一館目前沒有可展示的即時戰報。
+                  戰報稍後刷新，先往下挑一款你今晚想衝的遊戲。
                 </div>
               )}
             </div>
           </div>
 
           <div className="rounded-[24px] bg-[#0F172A] p-5 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)]">
-            <div className="label !text-white/[0.55]">Provably Fair</div>
-            <h3 className="mt-3 text-[22px] font-bold">卡片之外，還是能追到每局結果。</h3>
+            <div className="label !text-white/[0.55]">Tonight's Pick</div>
+            <h3 className="mt-3 text-[22px] font-bold">{hall.nameZh} 今晚正燙。</h3>
             <p className="mt-2 text-[13px] leading-relaxed text-white/[0.75]">
-              如果這一館剛好是你主要遊玩的區域，直接用驗證頁輸入公開資料，就能在瀏覽器內重算對應結果。
+              先看哪幾款正在出分，再往下直接挑桌開玩。手感來了，就別讓節奏斷掉。
             </p>
-            <Link
-              to="/verify"
-              className="btn-chip mt-5 border-white/15 bg-white/[0.06] text-white hover:border-white/30 hover:bg-white/[0.12]"
-            >
-              前往公平驗證
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
           </div>
         </aside>
       </div>
