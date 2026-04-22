@@ -173,10 +173,10 @@ const RESULT_TITLES: Record<ReactResult['type'], string> = {
 };
 
 const VERIFICATION_STEPS = [
-  '先拿到揭曉後的 server seed，若是 Crash 還要拿到該局 salt。',
-  '輸入 client seed 與 nonce；只有 Crash 不需要這兩個欄位。',
-  '補上遊戲專屬參數，例如風險、段數、目標值或牌序。',
-  '按下驗證後，結果會直接在瀏覽器內重算，不呼叫任何 API。',
+  '先填 server seed；Crash 再補該局 salt。',
+  '非 Crash 遊戲要填 client seed 與 nonce。',
+  '再補玩法參數，例如風險、段數、目標值或牌序。',
+  '按下驗證後，結果會固定顯示在右側。',
 ];
 
 const CARD_RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -424,11 +424,11 @@ export function VerifyPage() {
         </aside>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-12">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,360px)] 2xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
         <form
           onSubmit={handleVerify}
           noValidate
-          className="rounded-[28px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-8 2xl:col-span-9"
+          className="min-w-0 rounded-[28px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur"
         >
           <SectionHeading
             eyebrow="Verification Form"
@@ -753,8 +753,8 @@ export function VerifyPage() {
           </div>
         </form>
 
-        <aside className="space-y-4">
-          <div className="rounded-[24px] border border-white/[0.65] bg-white/[0.92] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
+        <aside className="min-w-0 space-y-4 xl:sticky xl:top-28 xl:self-start">
+          <div className="min-w-0 rounded-[24px] border border-white/[0.65] bg-white/[0.92] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
             <div className="label">How To Verify</div>
             <div className="mt-4 space-y-3">
               {VERIFICATION_STEPS.map((step, index) => (
@@ -762,15 +762,15 @@ export function VerifyPage() {
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#186073] text-[11px] font-bold text-white">
                     {index + 1}
                   </div>
-                  <p className="text-[13px] leading-relaxed text-[#4A5568]">{step}</p>
+                  <p className="min-w-0 text-[13px] leading-relaxed text-[#4A5568]">{step}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <div aria-live="polite" className="space-y-4 xl:col-span-4 xl:sticky xl:top-28 2xl:col-span-3">
+          <div aria-live="polite" className="space-y-4">
             {error ? (
-              <div className="flex items-start gap-3 rounded-[24px] border border-[#D4574A]/30 bg-[#FDF0EE] p-5 text-[#B94538]">
+              <div className="min-w-0 flex items-start gap-3 rounded-[24px] border border-[#D4574A]/30 bg-[#FDF0EE] p-5 text-[#B94538]">
                 <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
                 <div>
                   <div className="text-[14px] font-semibold">驗證失敗</div>
@@ -789,9 +789,9 @@ export function VerifyPage() {
 
 function ResultPanel({ result }: { result: ReactResult }) {
   return (
-    <div className="rounded-[24px] border border-white/[0.65] bg-white/[0.92] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
+    <div className="min-w-0 rounded-[24px] border border-white/[0.65] bg-white/[0.92] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
       <div className="label">Verification Result</div>
-      <h3 className="mt-2 text-[22px] font-bold text-[#0F172A]">{RESULT_TITLES[result.type]}</h3>
+      <h3 className="mt-2 text-pretty text-[22px] font-bold leading-tight text-[#0F172A]">{RESULT_TITLES[result.type]}</h3>
 
       <div className="mt-4 space-y-3 text-[14px]">
         {result.type === 'dice' ? (
@@ -963,12 +963,10 @@ function ResultPanel({ result }: { result: ReactResult }) {
 
 function ResultPlaceholder() {
   return (
-    <div className="rounded-[24px] border border-dashed border-[#D7DEE4] bg-white/72 p-5 text-[13px] leading-relaxed text-[#4A5568]">
+    <div className="min-w-0 rounded-[24px] border border-dashed border-[#D7DEE4] bg-white/72 p-5 text-[13px] leading-relaxed text-[#4A5568]">
       <div className="label">Verification Result</div>
-      <h3 className="mt-2 text-[22px] font-bold text-[#0F172A]">結果會固定顯示在這裡。</h3>
-      <p className="mt-2">
-        輸入必要欄位後按下「驗證結果」，右側區塊會維持同一個位置，避免在長表單裡來回找結果。
-      </p>
+      <h3 className="mt-2 text-pretty text-[22px] font-bold leading-tight text-[#0F172A]">結果會顯示在這裡。</h3>
+      <p className="mt-2">填完必要欄位後按下驗證，結果會固定留在右側。</p>
     </div>
   );
 }
