@@ -17,7 +17,6 @@ import { walletRoutes } from './modules/wallet/wallet.routes.js';
 import { pfRoutes } from './modules/provably-fair/pf.routes.js';
 import { diceRoutes } from './modules/games/dice/dice.routes.js';
 import { minesRoutes } from './modules/games/mines/mines.routes.js';
-import { pingRoutes } from './modules/games/ping/ping.routes.js';
 import { hiloRoutes } from './modules/games/hilo/hilo.routes.js';
 import { kenoRoutes } from './modules/games/keno/keno.routes.js';
 import { wheelRoutes } from './modules/games/wheel/wheel.routes.js';
@@ -97,7 +96,6 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(pfRoutes, { prefix: '/api/pf' });
 
   // Games
-  await server.register(pingRoutes, { prefix: '/api/games/ping' });
   await server.register(diceRoutes, { prefix: '/api/games/dice' });
   await server.register(minesRoutes, { prefix: '/api/games/mines' });
   await server.register(hiloRoutes, { prefix: '/api/games/hilo' });
