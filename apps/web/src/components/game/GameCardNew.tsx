@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { GameMetadata } from '@bg/shared';
+import { getGameIcon } from '@/lib/platformIcons';
 
 // 与 LobbyPage 现有的资料一致
 const HAS_COVER = new Set<string>([
@@ -7,14 +8,6 @@ const HAS_COVER = new Set<string>([
   'plinko', 'hotline', 'rocket', 'aviator', 'space-fleet',
   'balloon', 'jetx3', 'double-x', 'plinko-x',
 ]);
-
-const GLYPHS: Record<string, string> = {
-  dice: '🎲', mines: '💎', hilo: '🂱', keno: '🎱',
-  wheel: '🎡', 'mini-roulette': '🎰', plinko: '💠', hotline: '📞',
-  tower: '🏯', rocket: '🚀', aviator: '✈️', 'space-fleet': '🛸',
-  jetx: '💨', balloon: '🎈', jetx3: '⚡', 'double-x': '✨',
-  'plinko-x': '🌠', carnival: '🎪',
-};
 
 const NEW_GAMES = new Set(['carnival', 'plinko-x', 'jetx3', 'double-x']);
 
@@ -50,7 +43,7 @@ function gamePath(id: string): string {
 
 export function GameCardNew({ game }: { game: GameMetadata }) {
   const cover = HAS_COVER.has(game.id) ? `/games/${game.id}.jpg` : null;
-  const glyph = GLYPHS[game.id] ?? '♠';
+  const GameIcon = getGameIcon(game.id);
   const isNew = NEW_GAMES.has(game.id);
 
   return (
@@ -75,8 +68,10 @@ export function GameCardNew({ game }: { game: GameMetadata }) {
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[72px]">
-            {glyph}
+          <div className="flex h-full w-full items-center justify-center">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-white/15 bg-white/[0.1] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
+              <GameIcon className="h-12 w-12 text-white" aria-hidden="true" strokeWidth={1.6} />
+            </div>
           </div>
         )}
         {/* Hover 覆蓋 */}

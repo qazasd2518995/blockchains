@@ -29,12 +29,12 @@ export function LandingPage() {
   if (accessToken) return <Navigate to="/lobby" replace />;
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#ECECEC]">
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#E9ECEF]">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(24,96,115,0.18),transparent_72%)]" />
 
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0F172A]/92 text-white backdrop-blur-xl shadow-[0_2px_12px_rgba(0,0,0,0.28)]">
-        <div className="border-b border-white/10">
-          <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/70 sm:px-5 lg:px-6">
+      <header className="sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)]">
+        <div className="border-b border-white/8">
+          <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/80 sm:px-5 lg:px-6">
             <div className="flex items-center gap-2">
               <span className="dot-online" />
               <span>演示點數平台 · 邀請開通</span>
@@ -56,7 +56,7 @@ export function LandingPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Link
               to="/verify"
-              className="btn-chip border-white/10 bg-white/[0.04] text-white/80 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+              className="btn-chip border-white/12 bg-[#162338] text-white/84 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white"
             >
               <ShieldCheck className="h-4 w-4" aria-hidden="true" />
               公平驗證

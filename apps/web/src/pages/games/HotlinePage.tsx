@@ -1,22 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
+import { AlertCircle } from 'lucide-react';
 import type { HotlineBetRequest, HotlineBetResult } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
 import { GameHeader } from '@/components/game/GameHeader';
+import { HotlineSymbolBadge } from '@/components/game/HotlineSymbolIcon';
+import { HOTLINE_SYMBOLS } from '@/lib/hotlineSymbols';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { HotlineScene } from '@/games/hotline/HotlineScene';
-
-const SYMBOLS = ['●', '◉', '7', '■', '◆', '★'];
-const SYMBOL_COLORS = [
-  'text-[#ff3b7f]',
-  'text-[#ffb020]',
-  'text-[#5b4df8]',
-  'text-[#00b8e6]',
-  'text-[#00d68f]',
-  'text-[#dc1f3b]',
-];
 
 export function HotlinePage() {
   const { user, setBalance } = useAuthStore();
@@ -139,11 +132,14 @@ export function HotlinePage() {
                   {result.lines.map((l, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between border border-ink-200 bg-ink-50/50 px-3 py-1 text-[11px]"
+                      className="flex items-center justify-between gap-3 border border-ink-200 bg-ink-50/50 px-3 py-2 text-[11px]"
                     >
-                      <span className="font-mono text-ink-700">
-                        {t.games.hotline.row} {l.row} · {l.count}× {SYMBOLS[l.symbol]}
-                      </span>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="font-mono text-ink-700">
+                          {t.games.hotline.row} {l.row} · {l.count}×
+                        </span>
+                        <HotlineSymbolBadge symbol={l.symbol} showLabel useShortLabel />
+                      </div>
                       <span className="data-num text-neon-acid">{l.payout}×</span>
                     </div>
                   ))}
@@ -153,8 +149,9 @@ export function HotlinePage() {
           )}
 
           {error && (
-            <div className="border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
-              ⚠ {error.toUpperCase()}
+            <div className="flex items-start gap-2 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="leading-relaxed">{error.toUpperCase()}</span>
             </div>
           )}
         </div>
@@ -183,13 +180,13 @@ export function HotlinePage() {
 
           <div className="crt-panel p-5">
             <div className="label">{t.games.hotline.payoutTable}</div>
-            <div className="mt-3 space-y-1 text-[11px]">
-              {SYMBOLS.map((s, i) => (
+            <div className="mt-3 space-y-2 text-[11px]">
+              {HOTLINE_SYMBOLS.map((symbol, index) => (
                 <div
-                  key={i}
-                  className="flex items-center justify-between border-b border-ink-200 pb-1"
+                  key={symbol.key}
+                  className="flex items-center justify-between gap-3 border-b border-ink-200 pb-2 last:border-0 last:pb-0"
                 >
-                  <span className={`font-display text-xl ${SYMBOL_COLORS[i]}`}>{s}</span>
+                  <HotlineSymbolBadge symbol={index} showLabel />
                   <span className="data-num text-ink-700">3x · 4x · 5x</span>
                 </div>
               ))}

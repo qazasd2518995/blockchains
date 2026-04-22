@@ -18,6 +18,7 @@ import {
   emitRayBurst,
   prewarmShaders,
 } from '@bg/game-engine';
+import { HOTLINE_SYMBOLS, getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
 
 const COLOR_BG = 0xFBF9F4;
 const COLOR_TILE_BG = 0xffffff;
@@ -29,20 +30,7 @@ const COLOR_TOXIC = 0x1E7A4F;
 const COLOR_AMBER = 0xC9A24C;
 const COLOR_ICE = 0x86B49C;
 const COLOR_INK = 0x0A0806;
-const COLOR_RED = 0x8B1A2A;
-
-// Symbol palette
-const SYMBOL_COLORS = [
-  COLOR_EMBER,  // 🍒 CHERRY
-  COLOR_AMBER,  // 🔔 BELL
-  COLOR_ACID,   // 7 SEVEN
-  COLOR_ICE,    // ■ BAR
-  COLOR_TOXIC,  // ◆ DIAMOND
-  COLOR_RED,    // ★ JACKPOT
-];
-const SYMBOL_GLYPHS = ['●', '◉', '7', '■', '◆', '★'];
-const SYMBOL_LABELS = ['CHERRY', 'BELL', 'SEVEN', 'BAR', 'DIAMOND', 'JACKPOT'];
-const SYMBOL_COUNT = SYMBOL_COLORS.length;
+const SYMBOL_COUNT = HOTLINE_SYMBOLS.length;
 const REELS = 5;
 const ROWS = 3;
 const REEL_STRIP_LEN = 12; // reel 內部轉動用的延伸符號
@@ -240,7 +228,8 @@ export class HotlineScene {
   private createSymbolTile(symbolIdx: number): Container {
     const c = new Container();
     const size = this.cellSize;
-    const color = SYMBOL_COLORS[symbolIdx]!;
+    const meta = getHotlineSymbolMeta(symbolIdx);
+    const color = meta.accentValue;
 
     // tile 陰影
     const shadow = new Graphics()
@@ -261,18 +250,10 @@ export class HotlineScene {
       .fill({ color, alpha: 0.08 });
     c.addChild(hl);
 
-    // Symbol 字符
-    const fontSize = size * 0.48;
-    const style = new TextStyle({
-      fontFamily: 'Bodoni Moda, Didot, serif',
-      fontSize,
-      fill: color,
-      fontWeight: '700',
-    });
-    const glyph = new Text({ text: SYMBOL_GLYPHS[symbolIdx] ?? '?', style });
-    glyph.anchor.set(0.5);
-    glyph.y = -4;
-    c.addChild(glyph);
+    // Symbol 幾何 icon
+    const glow = new Graphics().circle(0, -2, size * 0.18).fill({ color, alpha: 0.08 });
+    c.addChild(glow);
+    c.addChild(this.createSymbolGlyphGraphic(symbolIdx, size * 0.52));
 
     // Symbol 標籤（小字）
     const labelStyle = new TextStyle({
@@ -282,13 +263,139 @@ export class HotlineScene {
       fontWeight: '600',
       letterSpacing: 1,
     });
-    const label = new Text({ text: SYMBOL_LABELS[symbolIdx] ?? '?', style: labelStyle });
+    const label = new Text({ text: meta.label, style: labelStyle });
     label.anchor.set(0.5);
     label.y = size * 0.3;
     label.alpha = 0.7;
     c.addChild(label);
 
     return c;
+  }
+
+  private createSymbolGlyphGraphic(symbolIdx: number, size: number): Container {
+    const meta = getHotlineSymbolMeta(symbolIdx);
+    const color = meta.accentValue;
+    const icon = new Container();
+    const u = size;
+
+    if (meta.key === 'cherry') {
+      icon.addChild(
+        new Graphics().circle(-u * 0.2, u * 0.12, u * 0.16).fill({ color, alpha: 0.14 }).stroke({ color, width: 2 }),
+      );
+      icon.addChild(
+        new Graphics().circle(u * 0.18, u * 0.12, u * 0.16).fill({ color, alpha: 0.14 }).stroke({ color, width: 2 }),
+      );
+      icon.addChild(
+        new Graphics()
+          .moveTo(-u * 0.08, -u * 0.02)
+          .lineTo(u * 0.02, -u * 0.26)
+          .lineTo(u * 0.16, -u * 0.38)
+          .stroke({ color, width: 2 }),
+      );
+      icon.addChild(
+        new Graphics()
+          .moveTo(u * 0.08, -u * 0.02)
+          .lineTo(-u * 0.02, -u * 0.26)
+          .lineTo(-u * 0.16, -u * 0.38)
+          .stroke({ color, width: 2 }),
+      );
+      icon.addChild(
+        new Graphics()
+          .poly([u * 0.06, -u * 0.44, u * 0.27, -u * 0.39, u * 0.2, -u * 0.22, u * 0.02, -u * 0.28])
+          .fill({ color, alpha: 0.14 })
+          .stroke({ color, width: 2 }),
+      );
+      return icon;
+    }
+
+    if (meta.key === 'bell') {
+      icon.addChild(
+        new Graphics()
+          .poly([
+            -u * 0.24, -u * 0.08,
+            -u * 0.28, u * 0.16,
+            -u * 0.18, u * 0.34,
+            u * 0.18, u * 0.34,
+            u * 0.28, u * 0.16,
+            u * 0.24, -u * 0.08,
+          ])
+          .fill({ color, alpha: 0.12 })
+          .stroke({ color, width: 2 }),
+      );
+      icon.addChild(
+        new Graphics().roundRect(-u * 0.09, -u * 0.34, u * 0.18, u * 0.08, 6).fill({ color, alpha: 0.12 }).stroke({ color, width: 2 }),
+      );
+      icon.addChild(new Graphics().circle(0, u * 0.25, u * 0.05).fill({ color }).stroke({ color, width: 1.5 }));
+      icon.addChild(
+        new Graphics().moveTo(-u * 0.12, u * 0.4).lineTo(u * 0.12, u * 0.4).stroke({ color, width: 2 }),
+      );
+      return icon;
+    }
+
+    if (meta.key === 'seven') {
+      icon.addChild(
+        new Graphics()
+          .poly([
+            -u * 0.3, -u * 0.36,
+            u * 0.3, -u * 0.36,
+            u * 0.24, -u * 0.16,
+            u * 0.06, -u * 0.16,
+            -u * 0.08, u * 0.18,
+            u * 0.12, u * 0.18,
+            u * 0.02, u * 0.4,
+            -u * 0.2, u * 0.4,
+            -u * 0.02, -u * 0.04,
+            -u * 0.34, -u * 0.04,
+          ])
+          .fill({ color, alpha: 0.12 })
+          .stroke({ color, width: 2 }),
+      );
+      return icon;
+    }
+
+    if (meta.key === 'bar') {
+      icon.addChild(
+        new Graphics().roundRect(-u * 0.32, -u * 0.26, u * 0.64, u * 0.52, 12).fill({ color, alpha: 0.12 }).stroke({ color, width: 2 }),
+      );
+      for (const y of [-u * 0.11, 0, u * 0.11]) {
+        icon.addChild(
+          new Graphics().roundRect(-u * 0.18, y - u * 0.025, u * 0.36, u * 0.05, 5).fill({ color }).stroke({ color, width: 1.2 }),
+        );
+      }
+      return icon;
+    }
+
+    if (meta.key === 'diamond') {
+      icon.addChild(
+        new Graphics()
+          .poly([0, -u * 0.36, u * 0.28, 0, 0, u * 0.36, -u * 0.28, 0])
+          .fill({ color, alpha: 0.12 })
+          .stroke({ color, width: 2 }),
+      );
+      icon.addChild(new Graphics().moveTo(0, -u * 0.36).lineTo(0, u * 0.36).stroke({ color, width: 1.5, alpha: 0.65 }));
+      icon.addChild(new Graphics().moveTo(-u * 0.28, 0).lineTo(u * 0.28, 0).stroke({ color, width: 1.5, alpha: 0.65 }));
+      return icon;
+    }
+
+    icon.addChild(
+      new Graphics()
+        .poly([
+          -u * 0.34, u * 0.26,
+          -u * 0.28, -u * 0.1,
+          -u * 0.12, u * 0.06,
+          0, -u * 0.24,
+          u * 0.12, u * 0.06,
+          u * 0.28, -u * 0.1,
+          u * 0.34, u * 0.26,
+        ])
+        .fill({ color, alpha: 0.12 })
+        .stroke({ color, width: 2 }),
+    );
+    icon.addChild(new Graphics().roundRect(-u * 0.34, u * 0.2, u * 0.68, u * 0.1, 6).fill({ color, alpha: 0.12 }).stroke({ color, width: 2 }));
+    icon.addChild(new Graphics().circle(-u * 0.28, -u * 0.16, u * 0.04).fill({ color }));
+    icon.addChild(new Graphics().circle(0, -u * 0.32, u * 0.04).fill({ color }));
+    icon.addChild(new Graphics().circle(u * 0.28, -u * 0.16, u * 0.04).fill({ color }));
+    return icon;
   }
 
   private startTickers(): void {
@@ -483,7 +590,7 @@ export class HotlineScene {
       const y = this.reelY0 + line.row * this.cellSize + this.cellSize / 2;
       const xStart = this.reelX0 + this.cellSize / 2;
       const xEnd = this.reelX0 + (line.count - 1) * (this.cellSize + this.reelGap) + this.cellSize / 2;
-      const color = SYMBOL_COLORS[line.symbol]!;
+      const color = getHotlineSymbolMeta(line.symbol).accentValue;
 
       // 發光連線（3 層）
       const g = new Graphics();

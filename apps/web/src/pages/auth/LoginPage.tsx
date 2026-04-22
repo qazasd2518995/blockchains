@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 import type { AuthResponse } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -113,8 +113,9 @@ export function LoginPage() {
             </Field>
 
             {serverError && (
-              <div className="rounded-[6px] border border-[#D4574A]/40 bg-[#FDF0EE] px-3 py-2.5 text-[12px] text-[#B94538]">
-                ⚠ {serverError}
+              <div className="flex items-start gap-2 rounded-[6px] border border-[#D4574A]/40 bg-[#FDF0EE] px-3 py-2.5 text-[12px] text-[#B94538]">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{serverError}</span>
               </div>
             )}
 
@@ -157,7 +158,12 @@ function Field({
     <label className="block">
       <div className="mb-1.5 flex items-baseline justify-between">
         <span className="text-[13px] font-semibold text-[#0F172A]">{label}</span>
-        {error && <span className="text-[11px] text-[#D4574A]">⚠ {error}</span>}
+        {error && (
+          <span className="inline-flex items-center gap-1 text-[11px] text-[#D4574A]">
+            <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+            {error}
+          </span>
+        )}
       </div>
       {children}
     </label>

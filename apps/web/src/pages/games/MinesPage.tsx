@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AlertCircle } from 'lucide-react';
 import type {
   MinesRoundState,
   MinesStartRequest,
@@ -274,8 +275,11 @@ export function MinesPage() {
           )}
 
           {error && (
-            <div className="border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
-              ⚠ {t.common.error.toUpperCase()}: {error.toUpperCase()}
+            <div className="flex items-start gap-2 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="leading-relaxed">
+                {t.common.error.toUpperCase()}: {error.toUpperCase()}
+              </span>
             </div>
           )}
         </div>

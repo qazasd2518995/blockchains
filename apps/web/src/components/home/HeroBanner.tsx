@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getHeroIcon } from '@/lib/platformIcons';
 
 interface Slide {
   id: string;
   title: string;
   subtitle: string;
   gradient: string;
-  emoji: string;
+  icon: LucideIcon;
 }
 
 const SLIDES: Slide[] = [
@@ -15,28 +17,28 @@ const SLIDES: Slide[] = [
     title: '全新改版 · 电子游戏殿堂',
     subtitle: '18 款精选游戏 · 公平可验证 · 即时派彩',
     gradient: 'linear-gradient(135deg, #051E2B 0%, #186073 60%, #C9A247 100%)',
-    emoji: '🎯',
+    icon: getHeroIcon('welcome'),
   },
   {
     id: 'crash',
     title: 'Crash 飞行馆 · 倍率无上限',
     subtitle: 'JetX / Aviator / Rocket · 敢飞敢收',
     gradient: 'linear-gradient(135deg, #1A2530 0%, #135566 50%, #D4574A 100%)',
-    emoji: '🚀',
+    icon: getHeroIcon('crash'),
   },
   {
     id: 'fair',
     title: 'Provably Fair · 每局可验',
     subtitle: 'HMAC-SHA256 算法 · 结果不可篡改',
     gradient: 'linear-gradient(135deg, #093040 0%, #186073 55%, #E8D48A 100%)',
-    emoji: '🔐',
+    icon: getHeroIcon('fair'),
   },
   {
     id: 'strategy',
     title: '策略电子馆 · 拆弹解谜',
     subtitle: 'Mines / Plinko / Tower · 策略取胜',
     gradient: 'linear-gradient(135deg, #0E4555 0%, #266F85 50%, #09B826 100%)',
-    emoji: '💎',
+    icon: getHeroIcon('strategy'),
   },
 ];
 
@@ -53,6 +55,7 @@ export function HeroBanner() {
 
   const slide = SLIDES[idx];
   if (!slide) return null;
+  const Icon = slide.icon;
 
   const prev = () => setIdx((i) => (i - 1 + SLIDES.length) % SLIDES.length);
   const next = () => setIdx((i) => (i + 1) % SLIDES.length);
@@ -63,8 +66,12 @@ export function HeroBanner() {
         className="relative flex h-[320px] items-center px-12 transition-all duration-500 md:h-[407px] md:px-20"
         style={{ background: slide.gradient }}
       >
-        <div className="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2 text-[240px] opacity-25 md:text-[320px]">
-          {slide.emoji}
+        <div className="pointer-events-none absolute right-8 top-1/2 hidden -translate-y-1/2 md:block">
+          <div className="relative flex h-[220px] w-[220px] items-center justify-center rounded-full border border-white/20 bg-white/[0.08] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
+            <div className="absolute inset-[18px] rounded-full border border-white/15" />
+            <div className="absolute inset-[42px] rounded-full border border-white/10" />
+            <Icon className="h-24 w-24 text-white/80" aria-hidden="true" strokeWidth={1.5} />
+          </div>
         </div>
         <div className="relative z-10 max-w-[640px]">
           <h1 className="text-[28px] font-bold leading-tight text-white md:text-[42px]">

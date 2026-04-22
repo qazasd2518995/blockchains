@@ -25,7 +25,9 @@ import {
   type WheelRisk,
   type WheelSegmentCount,
 } from '@bg/provably-fair';
+import { HotlineSymbolIcon } from '@/components/game/HotlineSymbolIcon';
 import { SectionHeading } from '@/components/layout/SectionHeading';
+import { getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
 
 type GameKey =
   | 'dice'
@@ -816,13 +818,17 @@ function ResultPanel({ result }: { result: ReactResult }) {
               {Array.from({ length: 25 }, (_, index) => (
                 <div
                   key={index}
-                  className={`rounded-[10px] p-2 ${
+                  className={`flex items-center justify-center rounded-[10px] p-2 ${
                     result.positions.includes(index)
                       ? 'bg-[#D4574A] text-white'
                       : 'bg-[#F5F7FA] text-[#4A5568]'
                   }`}
                 >
-                  {result.positions.includes(index) ? '💣' : index}
+                  {result.positions.includes(index) ? (
+                    <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    index
+                  )}
                 </div>
               ))}
             </div>
@@ -903,14 +909,22 @@ function ResultPanel({ result }: { result: ReactResult }) {
               <div className="flex gap-1">
                 {result.grid.map((column, columnIndex) => (
                   <div key={columnIndex} className="flex flex-col gap-1">
-                    {column.map((symbol, symbolIndex) => (
-                      <div
-                        key={symbolIndex}
-                        className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#F5F7FA] text-[14px] font-semibold text-[#186073]"
-                      >
-                        {symbol}
-                      </div>
-                    ))}
+                    {column.map((symbol, symbolIndex) => {
+                      const meta = getHotlineSymbolMeta(symbol);
+                      return (
+                        <div
+                          key={symbolIndex}
+                          className="flex h-10 w-10 items-center justify-center rounded-[10px] border bg-white"
+                          style={{
+                            borderColor: `${meta.accentHex}2b`,
+                            backgroundColor: `${meta.accentHex}12`,
+                            color: meta.accentHex,
+                          }}
+                        >
+                          <HotlineSymbolIcon symbol={symbol} className="h-4.5 w-4.5" title={meta.label} />
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
               </div>

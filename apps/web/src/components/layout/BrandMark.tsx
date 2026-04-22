@@ -14,7 +14,7 @@ export function BrandMark({
   className = '',
 }: Props): JSX.Element {
   const titleClass = tone === 'dark' ? 'text-white' : 'text-[#0F172A]';
-  const subtitleClass = tone === 'dark' ? 'text-white/[0.65]' : 'text-[#4A5568]';
+  const subtitleClass = tone === 'dark' ? 'text-white/[0.78]' : 'text-[#4A5568]';
   const badgeClass =
     tone === 'dark'
       ? 'from-[#186073] to-[#0E4555] text-white'

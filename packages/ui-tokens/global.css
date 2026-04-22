@@ -115,8 +115,10 @@
 
   .ticker-track {
     display: inline-flex;
+    width: max-content;
     white-space: nowrap;
-    animation: ticker 50s linear infinite;
+    will-change: transform;
+    animation: ticker var(--ticker-duration, 38s) linear infinite;
   }
 
   .ticker-track:hover {
@@ -454,6 +456,29 @@
     background: #09B826;
     box-shadow: 0 0 0 4px rgba(9, 184, 38, 0.12);
     animation: breath 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes ticker {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes breath {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.72;
+    transform: scale(0.88);
   }
 }
 

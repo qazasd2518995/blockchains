@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AlertCircle } from 'lucide-react';
 import type { CrashPlayerBet, CrashRoundSnapshot } from '@bg/shared';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -310,8 +311,9 @@ export function CrashPage({ config }: Props) {
           </div>
 
           {error && (
-            <div className="border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
-              ⚠ {error.toUpperCase()}
+            <div className="flex items-start gap-2 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="leading-relaxed">{error.toUpperCase()}</span>
             </div>
           )}
         </div>

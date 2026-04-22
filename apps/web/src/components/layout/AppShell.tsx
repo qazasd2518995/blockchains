@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#ECECEC]">
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#E9ECEF]">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(24,96,115,0.18),transparent_72%)]" />
 
       <a
@@ -55,9 +55,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         跳到主要內容
       </a>
 
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0F172A]/92 text-white backdrop-blur-xl shadow-[0_2px_12px_rgba(0,0,0,0.28)]">
-        <div className="border-b border-white/10">
-          <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/70 sm:px-5 lg:px-6">
+      <header className="sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)]">
+        <div className="border-b border-white/8">
+          <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/80 sm:px-5 lg:px-6">
             <div className="flex items-center gap-2">
               <span className="dot-online" />
               <span>演示點數平台 · 結果可驗證</span>
@@ -94,8 +94,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                     className={({ isActive }) =>
                       `inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-semibold transition ${
                         isActive
-                          ? 'border-[#C9A247]/35 bg-white/12 text-white'
-                          : 'border-white/10 bg-white/[0.03] text-white/70 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
+                          ? 'border-[#E8D48A]/50 bg-[#1A2538] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]'
+                          : 'border-white/12 bg-[#162338] text-white/85 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white'
                       }`
                     }
                   >
@@ -112,15 +112,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={handleBalanceRefresh}
-                className="inline-flex items-center gap-2 rounded-full border border-[#C9A247]/35 bg-black/20 px-4 py-2 transition hover:border-[#C9A247] hover:bg-black/30"
+                className="inline-flex items-center gap-2 rounded-full border border-[#C9A247]/40 bg-[#162338] px-4 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition hover:border-[#C9A247] hover:bg-[#1B2940]"
                 title="重新載入餘額"
                 aria-label="重新載入餘額"
               >
-                <span className="label !text-white/50">{t.common.balance}</span>
+                <span className="label !text-white/60">{t.common.balance}</span>
                 <span className="data-num text-[14px] font-semibold text-[#E8D48A]">
                   {formatAmount(user.balance ?? '0')}
                 </span>
-                <RefreshCw className="h-3.5 w-3.5 text-white/50" />
+                <RefreshCw className="h-3.5 w-3.5 text-white/60" />
               </button>
 
               <NavLink
@@ -128,8 +128,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={({ isActive }) =>
                   `inline-flex items-center gap-3 rounded-full border px-2.5 py-1.5 transition ${
                     isActive
-                      ? 'border-white/20 bg-white/12 text-white'
-                      : 'border-white/10 bg-white/[0.03] text-white/80 hover:border-white/20 hover:bg-white/[0.06]'
+                      ? 'border-white/18 bg-[#1B2940] text-white'
+                      : 'border-white/12 bg-[#162338] text-white/88 hover:border-white/24 hover:bg-[#1A2A41]'
                   }`
                 }
               >
@@ -140,7 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <span className="block truncate text-[13px] font-semibold">
                     {user.displayName ?? user.username}
                   </span>
-                  <span className="block text-[10px] text-white/[0.55]">
+                  <span className="block text-[10px] text-white/[0.62]">
                     {t.common.profile}
                   </span>
                 </span>
@@ -149,7 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="btn-chip border-white/10 bg-white/[0.04] text-white/80 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                className="btn-chip border-white/12 bg-[#162338] text-white/82 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white"
                 aria-label="登出"
               >
                 <LogOut className="h-4 w-4" />

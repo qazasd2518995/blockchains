@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Trophy } from 'lucide-react';
+import { type ReactNode, useEffect, useState } from 'react';
+import { Crown, Medal, Trophy } from 'lucide-react';
 import { FAKE_TODAY_TOP10, reshuffleTop10, type RankedWinRecord } from '@/data/fakeStats';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
@@ -11,10 +11,9 @@ function rankStyle(rank: number): string {
   return '';
 }
 
-function rankIcon(rank: number): string {
-  if (rank === 1) return '🥇';
-  if (rank === 2) return '🥈';
-  if (rank === 3) return '🥉';
+function rankIcon(rank: number): ReactNode {
+  if (rank === 1) return <Crown className="mx-auto h-5 w-5" aria-hidden="true" />;
+  if (rank === 2 || rank === 3) return <Medal className="mx-auto h-5 w-5" aria-hidden="true" />;
   return `${rank}`;
 }
 

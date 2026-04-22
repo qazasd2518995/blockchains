@@ -5,6 +5,7 @@ import { HALLS, type HallId } from '@/data/halls';
 import { FAKE_WIN_TICKER } from '@/data/fakeStats';
 import { GameCardNew } from '@/components/game/GameCardNew';
 import { SectionHeading } from '@/components/layout/SectionHeading';
+import { getHallIcon } from '@/lib/platformIcons';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
 
@@ -34,6 +35,7 @@ export function HallPage() {
   const games = hall.gameIds
     .map((id: GameIdType) => GAMES_REGISTRY[id])
     .filter((game): game is NonNullable<typeof game> => Boolean(game));
+  const HallIcon = getHallIcon(hall.iconKey);
 
   const liveWins = FAKE_WIN_TICKER.filter((record) => hall.gameIds.includes(record.gameId as GameIdType)).slice(0, 8);
   const liveWinTotal = liveWins.reduce((sum, record) => sum + record.win, 0);
@@ -54,7 +56,9 @@ export function HallPage() {
                 回到大廳
               </Link>
 
-              <div className="mt-6 text-[64px] leading-none md:text-[84px]">{hall.emoji}</div>
+              <div className="mt-6 flex h-24 w-24 items-center justify-center rounded-[28px] border border-white/20 bg-white/[0.12] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] md:h-28 md:w-28">
+                <HallIcon className="h-12 w-12 text-white md:h-14 md:w-14" aria-hidden="true" strokeWidth={1.6} />
+              </div>
               <h1 className="mt-3 text-pretty text-[32px] font-bold leading-tight md:text-[42px]">
                 {hall.nameZh}
               </h1>

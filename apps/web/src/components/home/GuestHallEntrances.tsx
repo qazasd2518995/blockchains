@@ -1,12 +1,15 @@
 import { Link } from 'react-router-dom';
 import { Lock, ArrowRight } from 'lucide-react';
 import { HALL_LIST, type HallMeta } from '@/data/halls';
+import { getHallIcon } from '@/lib/platformIcons';
 
 interface Props {
   showHeading?: boolean;
 }
 
 function GuestHallCard({ hall }: { hall: HallMeta }) {
+  const Icon = getHallIcon(hall.iconKey);
+
   return (
     <Link
       to={`/login?from=${encodeURIComponent(`/hall/${hall.id}`)}`}
@@ -16,9 +19,9 @@ function GuestHallCard({ hall }: { hall: HallMeta }) {
         className="relative flex flex-1 items-center justify-center"
         style={{ background: hall.gradient }}
       >
-        <span className="text-[140px] leading-none opacity-95 transition-transform duration-300 group-hover:scale-110">
-          {hall.emoji}
-        </span>
+        <div className="flex h-28 w-28 items-center justify-center rounded-full border border-white/20 bg-white/[0.12] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] transition-transform duration-300 group-hover:scale-110">
+          <Icon className="h-14 w-14 text-white" aria-hidden="true" strokeWidth={1.6} />
+        </div>
         <div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           <div className="flex flex-col items-center gap-1 text-white">
             <Lock className="h-6 w-6" />
