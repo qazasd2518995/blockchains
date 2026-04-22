@@ -1,6 +1,7 @@
 import type { Server, Socket } from 'socket.io';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { crashPoint, sha256, generateServerSeed } from '@bg/provably-fair';
+import { randomUUID } from 'node:crypto';
 import type {
   CrashRoundSnapshot,
   CrashPlayerBet,
@@ -15,6 +16,10 @@ const GROWTH_RATE = 0.00006; // multiplier speed; tuned for ~10-20s average
 const ROUND_CREATE_RETRY_BASE_MS = 80;
 const ROUND_CREATE_RETRY_JITTER_MS = 220;
 const PHASE_RECOVERY_MS = 1200;
+const LEASE_DURATION_MS = 15000;
+const LEASE_RENEW_MS = 5000;
+const LEASE_ACQUIRE_RETRY_MS = 2500;
+const LEASE_RETRY_JITTER_MS = 1000;
 
 export interface CrashRoomConfig {
   gameId: string;
@@ -33,11 +38,18 @@ export class CrashRoom {
   private bettingEndsAt = 0;
   private tickTimer: NodeJS.Timeout | null = null;
   private phaseTimer: NodeJS.Timeout | null = null;
+  private leaseTimer: NodeJS.Timeout | null = null;
   private pendingAutoCashouts = new Map<
     string,
     { betId: string; userId: string; autoCashOut: number }
   >();
   private roundNumber = 0;
+  private isLeader = false;
+  private readonly instanceId =
+    process.env.RENDER_INSTANCE_ID ??
+    process.env.RENDER_REPLICA_ID ??
+    process.env.HOSTNAME ??
+    randomUUID();
 
   constructor(
     private readonly io: Server,
@@ -61,10 +73,11 @@ export class CrashRoom {
       select: { roundNumber: true },
     });
     this.roundNumber = last?.roundNumber ?? 0;
-    this.scheduleBettingPhase(0);
+    this.scheduleLeaseAcquire(0);
   }
 
   private async beginBettingPhase(): Promise<void> {
+    if (!this.isLeader) return;
     this.state = 'BETTING';
     this.currentRoundId = null;
     const seed = generateServerSeed();
@@ -79,6 +92,7 @@ export class CrashRoom {
     // 遇到 unique 衝突（多實例 race / stale in-memory counter）時遞增重試
     let round: { id: string } | null = null;
     for (let attempt = 0; attempt < 5; attempt += 1) {
+      if (!this.isLeader) return;
       try {
         round = await this.prisma.crashRound.create({
           data: {
@@ -124,7 +138,7 @@ export class CrashRoom {
   }
 
   private async beginRunningPhase(): Promise<void> {
-    if (!this.currentRoundId) return;
+    if (!this.isLeader || !this.currentRoundId) return;
     this.state = 'RUNNING';
     this.roundStartedAt = Date.now();
 
@@ -171,7 +185,7 @@ export class CrashRoom {
   }
 
   private async autoCashOutCheck(): Promise<void> {
-    if (!this.currentRoundId) return;
+    if (!this.isLeader || !this.currentRoundId) return;
     // 使用記憶體快取的 pending 清單（由 placeBet 時寫入），避免每 100ms 打 DB
     const ready: { betId: string; userId: string; autoCashOut: number }[] = [];
     for (const p of this.pendingAutoCashouts.values()) {
@@ -190,7 +204,7 @@ export class CrashRoom {
   private async crashPhase(): Promise<void> {
     if (this.tickTimer) clearInterval(this.tickTimer);
     this.tickTimer = null;
-    if (!this.currentRoundId || !this.currentSeed) return;
+    if (!this.isLeader || !this.currentRoundId || !this.currentSeed) return;
     this.state = 'CRASHED';
 
     await this.prisma.crashRound.update({
@@ -229,6 +243,144 @@ export class CrashRoom {
 
   private broadcast(event: string, payload: unknown): void {
     this.io.of(this.namespace).emit(event, payload);
+  }
+
+  private scheduleLeaseAcquire(delayMs: number): void {
+    this.clearLeaseTimer();
+    this.leaseTimer = setTimeout(() => {
+      this.leaseTimer = null;
+      void this.tryAcquireLeadership();
+    }, delayMs);
+  }
+
+  private scheduleLeaseRenew(delayMs: number): void {
+    this.clearLeaseTimer();
+    this.leaseTimer = setTimeout(() => {
+      this.leaseTimer = null;
+      void this.tryRenewLeadership();
+    }, delayMs);
+  }
+
+  private clearLeaseTimer(): void {
+    if (!this.leaseTimer) return;
+    clearTimeout(this.leaseTimer);
+    this.leaseTimer = null;
+  }
+
+  private async tryAcquireLeadership(): Promise<void> {
+    try {
+      const acquired = await this.acquireOrRenewLease();
+      if (!acquired) {
+        this.scheduleLeaseAcquire(LEASE_ACQUIRE_RETRY_MS + jitter(LEASE_RETRY_JITTER_MS));
+        return;
+      }
+
+      if (!this.isLeader) {
+        await this.onLeadershipAcquired();
+      } else {
+        this.scheduleLeaseRenew(LEASE_RENEW_MS);
+      }
+    } catch (err) {
+      console.error(
+        `[crashRoom] leadership acquire failed (gameId=${this.config.gameId}, instance=${this.instanceId})`,
+        err,
+      );
+      this.scheduleLeaseAcquire(LEASE_ACQUIRE_RETRY_MS + jitter(LEASE_RETRY_JITTER_MS));
+    }
+  }
+
+  private async tryRenewLeadership(): Promise<void> {
+    if (!this.isLeader) {
+      this.scheduleLeaseAcquire(LEASE_ACQUIRE_RETRY_MS);
+      return;
+    }
+
+    try {
+      const renewed = await this.acquireOrRenewLease();
+      if (!renewed) {
+        this.onLeadershipLost();
+        this.scheduleLeaseAcquire(LEASE_ACQUIRE_RETRY_MS + jitter(LEASE_RETRY_JITTER_MS));
+        return;
+      }
+      this.scheduleLeaseRenew(LEASE_RENEW_MS);
+    } catch (err) {
+      console.error(
+        `[crashRoom] leadership renew failed (gameId=${this.config.gameId}, instance=${this.instanceId})`,
+        err,
+      );
+      this.scheduleLeaseRenew(1000);
+    }
+  }
+
+  private async acquireOrRenewLease(): Promise<boolean> {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + LEASE_DURATION_MS);
+
+    const renewed = await this.prisma.crashRoomLease.updateMany({
+      where: {
+        gameId: this.config.gameId,
+        OR: [
+          { ownerInstanceId: this.instanceId },
+          { expiresAt: { lt: now } },
+        ],
+      },
+      data: {
+        ownerInstanceId: this.instanceId,
+        expiresAt,
+      },
+    });
+    if (renewed.count > 0) return true;
+
+    try {
+      await this.prisma.crashRoomLease.create({
+        data: {
+          gameId: this.config.gameId,
+          ownerInstanceId: this.instanceId,
+          expiresAt,
+        },
+      });
+      return true;
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'P2002') return false;
+      throw err;
+    }
+  }
+
+  private async onLeadershipAcquired(): Promise<void> {
+    this.isLeader = true;
+    this.stopRoundExecution();
+    const last = await this.prisma.crashRound.findFirst({
+      where: { gameId: this.config.gameId },
+      orderBy: { roundNumber: 'desc' },
+      select: { roundNumber: true },
+    });
+    this.roundNumber = last?.roundNumber ?? this.roundNumber;
+    console.info(
+      `[crashRoom] leadership acquired (gameId=${this.config.gameId}, instance=${this.instanceId})`,
+    );
+    this.scheduleLeaseRenew(LEASE_RENEW_MS);
+    this.scheduleBettingPhase(0);
+  }
+
+  private onLeadershipLost(): void {
+    if (!this.isLeader) return;
+    console.warn(
+      `[crashRoom] leadership lost (gameId=${this.config.gameId}, instance=${this.instanceId})`,
+    );
+    this.isLeader = false;
+    this.stopRoundExecution();
+  }
+
+  private stopRoundExecution(): void {
+    this.clearPhaseTimer();
+    if (this.tickTimer) {
+      clearInterval(this.tickTimer);
+      this.tickTimer = null;
+    }
+    this.currentRoundId = null;
+    this.currentMultiplier = 1.0;
+    this.pendingAutoCashouts.clear();
   }
 
   private scheduleBettingPhase(delayMs: number): void {
@@ -425,4 +577,8 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function jitter(maxMs: number): number {
+  return Math.floor(Math.random() * maxMs);
 }

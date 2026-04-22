@@ -297,6 +297,16 @@ model CrashBet {
   @@index([roundId])
 }
 
+model CrashRoomLease {
+  gameId           String   @id
+  ownerInstanceId  String
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
 // ───────────────────────────────────────────────
 // 代理後台：Agent 層級
 // ───────────────────────────────────────────────
@@ -532,4 +542,3 @@ model AuditLog {
   @@index([action, createdAt])
   @@index([targetType, targetId, createdAt])
 }
-
