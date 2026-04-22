@@ -1,3 +1,8 @@
-Hero Banner 位放置處。本次改版前暫用 CSS gradient + 文字占位。
-之後營運提供 1280×407 JPG/PNG 後放這裡，檔名 banner1.jpg ~ banner6.jpg。
-HeroBanner.tsx 會 fallback 顯示漸層色。
+Hero banner 圖檔放置處。
+
+目前使用中的資產：
+- hero-welcome.png
+- hero-crash.png
+- hero-strategy.png
+
+HeroBanner.tsx 直接讀取這三張圖作為首頁 / 大廳主視覺輪播。

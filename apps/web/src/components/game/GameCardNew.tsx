@@ -6,7 +6,7 @@ import { getGameIcon } from '@/lib/platformIcons';
 const HAS_COVER = new Set<string>([
   'dice', 'mines', 'hilo', 'keno', 'wheel', 'mini-roulette',
   'plinko', 'hotline', 'rocket', 'aviator', 'space-fleet',
-  'balloon', 'jetx3', 'double-x', 'plinko-x',
+  'jetx', 'balloon', 'jetx3', 'double-x', 'plinko-x', 'tower', 'carnival',
 ]);
 
 const NEW_GAMES = new Set(['carnival', 'plinko-x', 'jetx3', 'double-x']);

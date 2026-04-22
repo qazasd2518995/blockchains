@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { ImageBanner } from '@/components/shared/ImageBanner';
 import { StatCard } from '@/components/shared/StatCard';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -155,6 +156,14 @@ export function ControlsOverviewPage(): JSX.Element {
         titleSuffix="输赢控制"
         titleSuffixColor="ember"
         description="⚠ 所有控制都会主动翻转游戏结果并记录审计。Provably-Fair HMAC 原始结果仍会保留于 Bet.resultData。"
+      />
+
+      <ImageBanner
+        image="/banners/controls-risk.png"
+        eyebrow="Risk Control Desk"
+        title="先看哪條控制規則在線，再決定今天要不要動手。"
+        description="這一頁專門用來盯住輸贏控制、會員封頂、入金控制與代理線封頂。畫面先給總覽，避免你在多張表之間來回切，調整前也能先確認哪些規則仍在生效。"
+        tone="ember"
       />
 
       <div className="mb-4 grid gap-4 md:grid-cols-4">

@@ -44,6 +44,13 @@ export function HallPage() {
     <div className="space-y-6">
       <section className="overflow-hidden rounded-[28px] border border-black/5 shadow-[0_18px_38px_rgba(15,23,42,0.14)]">
         <div className="relative px-6 py-8 text-white md:px-8 md:py-10" style={{ background: hall.gradient }}>
+          <img
+            src={hall.artwork}
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[52%] max-w-[760px] object-cover opacity-[0.88] mix-blend-screen xl:block"
+          />
+          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[58%] bg-[linear-gradient(270deg,rgba(5,30,43,0.02),rgba(5,30,43,0.16)_45%,rgba(5,30,43,0.5)_100%)] xl:block" />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_42%)]" />
 
           <div className="relative z-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1.3fr)_360px]">

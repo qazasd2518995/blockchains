@@ -28,7 +28,17 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
   };
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen overflow-hidden bg-[#E9ECEF]">
+      <div className="pointer-events-none fixed inset-0">
+        <img
+          src="/backgrounds/admin-shell.png"
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full object-cover opacity-[0.12]"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(233,236,239,0.72)_0%,rgba(233,236,239,0.9)_34%,rgba(233,236,239,0.96)_100%)]" />
+      </div>
+
       {/* Top strip — felt dark with brass */}
       <div className="sticky top-0 z-50 border-b border-[#186073]/55 bg-[#093040]/95 backdrop-blur-lg shadow-[0_2px_12px_-4px_rgba(10,8,6,0.35)]">
         <div className="mx-auto flex max-w-[1920px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.3em] text-[#E8D48A]">

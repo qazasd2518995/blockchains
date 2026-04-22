@@ -11,10 +11,10 @@ interface Props {
 }
 
 const suffixMap: Record<NonNullable<Props['titleSuffixColor']>, string> = {
-  acid: 'text-[#186073]',
-  ember: 'text-[#D4574A]',
+  acid: 'text-[#8FD0DF]',
+  ember: 'text-[#F0A596]',
   toxic: 'text-win',
-  amber: 'text-[#AE8B35]',
+  amber: 'text-[#E8D48A]',
 };
 
 export function PageHeader({
@@ -27,25 +27,33 @@ export function PageHeader({
   rightSlot,
 }: Props): JSX.Element {
   return (
-    <header className="mb-7 border-b border-[#E5E7EB] pb-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.3em] text-[#4A5568]">
-          <span className="font-semibold text-sm normal-case tracking-normal text-[#186073]">
+    <header className="relative mb-7 overflow-hidden rounded-[14px] border border-[#16324A]/12 bg-[#0B1827] px-6 py-6 shadow-[0_20px_48px_rgba(15,23,42,0.08)]">
+      <img
+        src="/backgrounds/admin-shell.png"
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_42%] opacity-24"
+      />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(6,16,30,0.94)_0%,rgba(6,16,30,0.9)_36%,rgba(6,16,30,0.58)_100%)]" />
+
+      <div className="relative flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.3em] text-white/58">
+          <span className="font-semibold text-sm normal-case tracking-normal text-[#8FD0DF]">
             {section}
           </span>
           <span className="text-[#C9A247]">◆</span>
-          <span className="text-[#0F172A]">{breadcrumb}</span>
+          <span className="text-white">{breadcrumb}</span>
         </div>
         {rightSlot}
       </div>
-      <h1 className="mt-4 font-semibold text-4xl leading-[1.05] tracking-tight text-[#0F172A]">
+      <h1 className="relative mt-4 font-semibold text-4xl leading-[1.05] tracking-tight text-white">
         {title}
         {titleSuffix && (
           <span className={`ml-3 italic ${suffixMap[titleSuffixColor]}`}>{titleSuffix}</span>
         )}
       </h1>
       {description && (
-        <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-[#4A5568]">
+        <p className="relative mt-3 max-w-3xl text-[13px] leading-relaxed text-white/72">
           {description}
         </p>
       )}

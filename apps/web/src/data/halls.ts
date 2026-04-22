@@ -9,6 +9,7 @@ export interface HallMeta {
   iconKey: string;
   tagline: string;
   gradient: string;
+  artwork: string;
   gameIds: GameIdType[];
 }
 
@@ -19,6 +20,7 @@ export const HALLS: Record<HallId, HallMeta> = {
     iconKey: 'crash',
     tagline: '倍速起飛，看準時機一鍵收分',
     gradient: 'linear-gradient(135deg, #051E2B 0%, #186073 50%, #D4574A 100%)',
+    artwork: '/halls/crash-card.png',
     gameIds: [
       GameId.ROCKET,
       GameId.AVIATOR,
@@ -36,6 +38,7 @@ export const HALLS: Record<HallId, HallMeta> = {
     iconKey: 'classic',
     tagline: '經典熱桌連開不停，手感一來就停不下',
     gradient: 'linear-gradient(135deg, #186073 0%, #266F85 50%, #408A9D 100%)',
+    artwork: '/halls/classic-card.png',
     gameIds: [
       GameId.DICE,
       GameId.HILO,
@@ -51,6 +54,7 @@ export const HALLS: Record<HallId, HallMeta> = {
     iconKey: 'strategy',
     tagline: '邊判斷邊拚高倍，越玩越上頭',
     gradient: 'linear-gradient(135deg, #0E4555 0%, #266F85 50%, #C9A247 100%)',
+    artwork: '/halls/strategy-card.png',
     gameIds: [GameId.MINES, GameId.PLINKO, GameId.TOWER, GameId.CARNIVAL],
   },
 };

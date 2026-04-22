@@ -81,11 +81,21 @@ export function AdminLoginPage(): JSX.Element {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#ECECEC]">
-      <header className="h-16 bg-[#1A2530] text-white">
-        <div className="mx-auto flex h-full max-w-[1280px] items-center justify-end px-5">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#06111D]">
+      <div className="pointer-events-none absolute inset-0">
+        <img
+          src="/backgrounds/admin-login.png"
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full object-cover opacity-50"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(4,11,20,0.92)_0%,rgba(6,16,30,0.84)_42%,rgba(9,24,40,0.9)_100%)]" />
+      </div>
+
+      <header className="relative z-10 h-16 border-b border-white/8 bg-black/12 text-white backdrop-blur-sm">
+        <div className="mx-auto flex h-full max-w-[1680px] items-center justify-end px-5">
           <div className="flex items-center gap-2 text-[22px] font-extrabold tracking-[0.05em]">
-            <span className="rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[20px] text-white">
+            <span className="rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[20px] text-white shadow-[0_10px_24px_rgba(24,96,115,0.3)]">
               BG
             </span>
             <span className="hidden text-[16px] font-bold text-white/90 sm:inline">代理后台</span>
@@ -93,54 +103,82 @@ export function AdminLoginPage(): JSX.Element {
         </div>
       </header>
 
-      <main className="flex flex-1 items-center justify-center px-5 py-10">
-        <div className="w-full max-w-[420px] rounded-[10px] border border-[#E5E7EB] bg-white p-8 shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
-          <div className="mb-6 text-center">
-            <h1 className="text-[24px] font-bold text-[#0F172A]">{t.auth.title}</h1>
-            <p className="mt-2 text-[13px] text-[#4A5568]">{t.auth.requiresAuth}</p>
-          </div>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Field label={t.auth.username} error={errors.username?.message}>
-              <input
-                type="text"
-                autoComplete="username"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                placeholder="superadmin"
-                className="w-full rounded-[6px] border border-[#E5E7EB] px-3 py-2.5 text-[14px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25"
-                {...register('username')}
-              />
-            </Field>
-
-            <Field label={t.auth.password} error={errors.password?.message}>
-              <input
-                type="password"
-                autoComplete="current-password"
-                placeholder="••••••••••••"
-                className="w-full rounded-[6px] border border-[#E5E7EB] px-3 py-2.5 text-[14px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25"
-                {...register('password')}
-              />
-            </Field>
-
-            {serverError && (
-              <div className="rounded-[6px] border border-[#D4574A]/40 bg-[#FDF0EE] px-3 py-2.5 text-[12px] text-[#B94538]">
-                ⚠ {serverError}
+      <main className="relative z-10 flex flex-1 items-center px-5 py-10">
+        <div className="mx-auto grid w-full max-w-[1680px] items-center gap-8 xl:grid-cols-[minmax(0,1fr)_440px]">
+          <section className="hidden min-w-0 xl:block">
+            <div className="max-w-[760px]">
+              <span className="inline-flex items-center rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/78">
+                Agent Console
+              </span>
+              <h1 className="mt-6 text-[50px] font-bold leading-[1.04] text-white">
+                代理線、交收與風控，先在這裡收回主控權。
+              </h1>
+              <p className="mt-5 max-w-[580px] text-[17px] leading-8 text-white/72">
+                後台專注在層級管理、餘額調整、報表追蹤與控制規則。登入後直接回到主控台，
+                看今天哪條代理線需要處理、哪個帳戶需要調整。
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <span className="inline-flex items-center rounded-full border border-[#C9A247]/36 bg-[#132233]/75 px-4 py-2 text-[13px] font-semibold text-[#EFD886]">
+                  Hierarchy Control
+                </span>
+                <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
+                  Audit Trail
+                </span>
+                <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
+                  Risk Desk
+                </span>
               </div>
-            )}
+            </div>
+          </section>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-[6px] bg-[#186073] px-4 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#1E7A90] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmitting ? t.auth.authenticating : t.auth.authenticate}
-            </button>
-          </form>
+          <div className="w-full max-w-[440px] justify-self-center rounded-[18px] border border-white/12 bg-white/92 p-8 shadow-[0_30px_80px_rgba(2,6,23,0.32)] backdrop-blur-md">
+            <div className="mb-6 text-center">
+              <h1 className="text-[24px] font-bold text-[#0F172A]">{t.auth.title}</h1>
+              <p className="mt-2 text-[13px] text-[#4A5568]">{t.auth.requiresAuth}</p>
+            </div>
 
-          <div className="mt-6 border-t border-[#E5E7EB] pt-5 text-center">
-            <p className="text-[12px] text-[#4A5568]">{t.auth.subtitle}</p>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <Field label={t.auth.username} error={errors.username?.message}>
+                <input
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="superadmin"
+                  className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[14px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25"
+                  {...register('username')}
+                />
+              </Field>
+
+              <Field label={t.auth.password} error={errors.password?.message}>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="••••••••••••"
+                  className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[14px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25"
+                  {...register('password')}
+                />
+              </Field>
+
+              {serverError && (
+                <div className="rounded-[8px] border border-[#D4574A]/40 bg-[#FDF0EE] px-3 py-2.5 text-[12px] text-[#B94538]">
+                  ⚠ {serverError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full rounded-[8px] bg-[#186073] px-4 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#1E7A90] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? t.auth.authenticating : t.auth.authenticate}
+              </button>
+            </form>
+
+            <div className="mt-6 border-t border-[#E5E7EB] pt-5 text-center">
+              <p className="text-[12px] text-[#4A5568]">{t.auth.subtitle}</p>
+            </div>
           </div>
         </div>
       </main>

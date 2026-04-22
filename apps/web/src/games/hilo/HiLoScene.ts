@@ -1,9 +1,9 @@
 import {
   Application,
+  Assets,
   Container,
   Graphics,
-  Text,
-  TextStyle,
+  Sprite,
   Ticker,
   BlurFilter,
 } from 'pixi.js';
@@ -20,17 +20,15 @@ import {
 } from '@bg/game-engine';
 
 const COLOR_BG = 0xFBF9F4;
-const COLOR_CARD = 0xffffff;
 const COLOR_INK = 0x0A0806;
 const COLOR_ACID = 0xC9A24C;
 const COLOR_VIOLET = 0xE0BF6E;
 const COLOR_EMBER = 0x8B1A2A;
 const COLOR_TOXIC = 0x1E7A4F;
 const COLOR_ICE = 0x86B49C;
-const COLOR_RED = 0x8B1A2A;
 
-const SUITS = ['♠', '♥', '♦', '♣'];
-const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const CARD_FILE_RANKS = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'] as const;
+const CARD_FILE_SUITS = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
 
 export interface HiLoCard {
   rank: number;
@@ -91,6 +89,8 @@ export class HiLoScene {
     });
     this.app = app;
 
+    await this.preloadCardAssets();
+
     this.createBackground();
 
     // History cards 層（舊牌左側排列）
@@ -115,6 +115,18 @@ export class HiLoScene {
     prewarmShaders(app);
 
     this.startTickers();
+
+    if (this.currentCard) {
+      this.setCurrentCard(this.currentCard);
+    }
+  }
+
+  private async preloadCardAssets(): Promise<void> {
+    const urls = CARD_FILE_RANKS.flatMap((rank) =>
+      CARD_FILE_SUITS.map((suit) => `/cards/${rank}_of_${suit}.svg`),
+    );
+
+    await Promise.all(urls.map((url) => Assets.load(url).catch(() => null)));
   }
 
   private createBackground(): void {
@@ -171,13 +183,15 @@ export class HiLoScene {
     this.app.ticker.add(this.particleTicker);
   }
 
-  /**
-   * 畫一張牌（正面）
-   */
-  private drawCardFace(container: Container, card: HiLoCard, w: number, h: number): void {
+  private getCardAssetPath(card: HiLoCard): string | null {
+    const rank = CARD_FILE_RANKS[card.rank - 1];
+    const suit = CARD_FILE_SUITS[card.suit];
+    if (!rank || !suit) return null;
+    return `/cards/${rank}_of_${suit}.svg`;
+  }
+
+  private drawCardFaceFallback(container: Container, card: HiLoCard, w: number, h: number): void {
     container.removeChildren();
-    const red = card.suit === 1 || card.suit === 2;
-    const suitColor = red ? COLOR_RED : COLOR_INK;
 
     // 陰影
     const shadow = new Graphics()
@@ -188,68 +202,38 @@ export class HiLoScene {
     // 牌面
     const face = new Graphics()
       .roundRect(-w / 2, -h / 2, w, h, 14)
-      .fill({ color: COLOR_CARD })
+      .fill({ color: 0xffffff })
       .stroke({ color: COLOR_INK, width: 2 });
     container.addChild(face);
+  }
 
-    // 內描邊
-    const inner = new Graphics()
-      .roundRect(-w / 2 + 5, -h / 2 + 5, w - 10, h - 10, 10)
-      .stroke({ color: suitColor, width: 1, alpha: 0.3 });
-    container.addChild(inner);
+  /**
+   * 畫一張牌（正面）
+   */
+  private drawCardFace(container: Container, card: HiLoCard, w: number, h: number): void {
+    container.removeChildren();
 
-    // 左上角數字 + 花色
-    const rankStyle = new TextStyle({
-      fontFamily: 'Bodoni Moda, Didot, serif',
-      fontSize: h * 0.15,
-      fill: suitColor,
-      fontWeight: '700',
-    });
-    const rank = new Text({ text: RANKS[card.rank - 1] ?? '?', style: rankStyle });
-    rank.anchor.set(0, 0);
-    rank.x = -w / 2 + 12;
-    rank.y = -h / 2 + 8;
-    container.addChild(rank);
+    const shadow = new Graphics()
+      .roundRect(-w / 2 + 3, -h / 2 + 6, w, h, 14)
+      .fill({ color: COLOR_INK, alpha: 0.18 });
+    container.addChild(shadow);
 
-    const suitStyle = new TextStyle({
-      fontFamily: 'Georgia, serif',
-      fontSize: h * 0.11,
-      fill: suitColor,
-      fontWeight: '700',
-    });
-    const suitSm = new Text({ text: SUITS[card.suit] ?? '?', style: suitStyle });
-    suitSm.anchor.set(0, 0);
-    suitSm.x = -w / 2 + 12;
-    suitSm.y = -h / 2 + 8 + h * 0.15;
-    container.addChild(suitSm);
+    const cardPath = this.getCardAssetPath(card);
+    if (!cardPath) {
+      this.drawCardFaceFallback(container, card, w, h);
+      return;
+    }
 
-    // 中心大花色
-    const centerStyle = new TextStyle({
-      fontFamily: 'Georgia, serif',
-      fontSize: h * 0.5,
-      fill: suitColor,
-      fontWeight: '700',
-    });
-    const center = new Text({ text: SUITS[card.suit] ?? '?', style: centerStyle });
-    center.anchor.set(0.5);
-    center.x = 0;
-    center.y = 0;
-    container.addChild(center);
+    const sprite = Sprite.from(cardPath);
+    sprite.anchor.set(0.5);
+    sprite.width = w;
+    sprite.height = h;
+    container.addChild(sprite);
 
-    // 右下角（倒置）
-    const rank2 = new Text({ text: RANKS[card.rank - 1] ?? '?', style: rankStyle });
-    rank2.anchor.set(1, 1);
-    rank2.x = w / 2 - 12;
-    rank2.y = h / 2 - 8;
-    rank2.rotation = Math.PI;
-    container.addChild(rank2);
-
-    const suit2 = new Text({ text: SUITS[card.suit] ?? '?', style: suitStyle });
-    suit2.anchor.set(1, 1);
-    suit2.x = w / 2 - 12;
-    suit2.y = h / 2 - 8 - h * 0.15;
-    suit2.rotation = Math.PI;
-    container.addChild(suit2);
+    const frame = new Graphics()
+      .roundRect(-w / 2, -h / 2, w, h, 14)
+      .stroke({ color: COLOR_INK, width: 1.5, alpha: 0.22 });
+    container.addChild(frame);
   }
 
   /**
@@ -444,7 +428,7 @@ export class HiLoScene {
             x: cx,
             y: cy,
             count: 14,
-            colors: [COLOR_EMBER, COLOR_RED],
+            colors: [COLOR_EMBER, COLOR_ACID],
             speedMin: 2,
             speedMax: 4,
             lifeMin: 25,

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { ImageBanner } from '@/components/shared/ImageBanner';
 import { StatCard } from '@/components/shared/StatCard';
 import { useTranslation } from '@/i18n/useTranslation';
 import type { AgentTreeResponse, MemberListResponse, AuditListResponse } from '@bg/shared';
@@ -52,6 +53,13 @@ export function AdminDashboardPage(): JSX.Element {
         title={t.dashboard.title}
         titleSuffix={t.dashboard.subtitle}
         description={`欢迎回来,${agent?.displayName ?? agent?.username} · 层级 ${agent?.level} · ${agent?.marketType}盘`}
+      />
+
+      <ImageBanner
+        image="/banners/dashboard-ops.png"
+        eyebrow="Operations Overview"
+        title="今日代理線、餘額與交收節奏，先在這裡看全局。"
+        description="這裡先給你看最常用的營運概況。下級代理、會員量、主帳餘額與佣金餘額都收在同一塊，往下再接近期動態，判斷今天先處理哪條線。"
       />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

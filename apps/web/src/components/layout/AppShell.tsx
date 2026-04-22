@@ -46,6 +46,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#E9ECEF]">
+      <div className="pointer-events-none fixed inset-0">
+        <img
+          src="/backgrounds/casino-atmosphere.png"
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full object-cover opacity-[0.16]"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(233,236,239,0.72)_0%,rgba(233,236,239,0.9)_30%,rgba(233,236,239,0.96)_100%)]" />
+      </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(24,96,115,0.18),transparent_72%)]" />
 
       <a
