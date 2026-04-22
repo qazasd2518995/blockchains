@@ -19,6 +19,7 @@
     "lint": "echo \"(pf lint skipped)\""
   },
   "dependencies": {
+    "@noble/hashes": "1.4.0",
     "decimal.js": "^10.4.3",
     "typescript": "^5.5.0"
   },

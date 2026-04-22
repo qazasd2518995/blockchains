@@ -1,19 +1,25 @@
-import { createHash, createHmac, randomBytes } from 'node:crypto';
+import { sha256 as nobleSha256 } from '@noble/hashes/sha256';
+import { hmac } from '@noble/hashes/hmac';
+import { bytesToHex, randomBytes as nobleRandomBytes } from '@noble/hashes/utils';
+
+const textEncoder = new TextEncoder();
 
 export function sha256(input: string): string {
-  return createHash('sha256').update(input).digest('hex');
+  return bytesToHex(nobleSha256(textEncoder.encode(input)));
 }
 
 export function hmacSha256(serverSeed: string, message: string): string {
-  return createHmac('sha256', serverSeed).update(message).digest('hex');
+  return bytesToHex(
+    hmac(nobleSha256, textEncoder.encode(serverSeed), textEncoder.encode(message)),
+  );
 }
 
 export function generateServerSeed(bytes = 32): string {
-  return randomBytes(bytes).toString('hex');
+  return bytesToHex(nobleRandomBytes(bytes));
 }
 
 export function generateClientSeed(): string {
-  return randomBytes(16).toString('hex');
+  return bytesToHex(nobleRandomBytes(16));
 }
 
 export function buildMessage(clientSeed: string, nonce: number, cursor = 0): string {
