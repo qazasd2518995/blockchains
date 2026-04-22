@@ -45,7 +45,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick }: Props
               <tr>
                 <td
                   colSpan={columns.length}
-                  className="px-4 py-10 text-center font-semibold text-base text-white0"
+                  className="px-4 py-10 text-center text-base font-semibold text-ink-500"
                 >
                   — {empty ?? '暂无数据'} —
                 </td>
@@ -55,9 +55,19 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick }: Props
               <tr
                 key={rowKey(r)}
                 className={`border-b border-[#186073]/15 transition ${
-                  onRowClick ? 'cursor-pointer hover:bg-[#FAF2D7]/40' : ''
+                  onRowClick
+                    ? 'cursor-pointer hover:bg-[#FAF2D7]/40 focus-within:bg-[#FAF2D7]/40'
+                    : ''
                 }`}
                 onClick={() => onRowClick?.(r)}
+                onKeyDown={(e) => {
+                  if (!onRowClick) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onRowClick(r);
+                  }
+                }}
+                tabIndex={onRowClick ? 0 : undefined}
               >
                 {columns.map((c) => (
                   <td

@@ -44,8 +44,11 @@ export function HeroBanner() {
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
-    const id = setInterval(() => setIdx((i) => (i + 1) % SLIDES.length), 5000);
-    return () => clearInterval(id);
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (media.matches) return undefined;
+
+    const id = window.setInterval(() => setIdx((i) => (i + 1) % SLIDES.length), 5000);
+    return () => window.clearInterval(id);
   }, []);
 
   const slide = SLIDES[idx];
@@ -55,7 +58,7 @@ export function HeroBanner() {
   const next = () => setIdx((i) => (i + 1) % SLIDES.length);
 
   return (
-    <section className="relative w-full overflow-hidden rounded-[10px] shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
+    <section className="group relative w-full overflow-hidden rounded-[10px] shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
       <div
         className="relative flex h-[320px] items-center px-12 transition-all duration-500 md:h-[407px] md:px-20"
         style={{ background: slide.gradient }}
@@ -67,7 +70,7 @@ export function HeroBanner() {
           <h1 className="text-[28px] font-bold leading-tight text-white md:text-[42px]">
             {slide.title}
           </h1>
-          <p className="mt-4 text-[14px] text-white/85 md:text-[18px]">
+          <p className="mt-4 text-[14px] text-white/[0.85] md:text-[18px]">
             {slide.subtitle}
           </p>
         </div>
@@ -76,7 +79,7 @@ export function HeroBanner() {
       <button
         type="button"
         onClick={prev}
-        className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/25 p-2 text-white opacity-0 transition hover:bg-black/45 group-hover:opacity-100"
+        className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/[0.25] p-2 text-white opacity-0 transition hover:bg-black/[0.45] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 group-hover:opacity-100"
         aria-label="上一張"
       >
         <ChevronLeft className="h-5 w-5" />
@@ -84,7 +87,7 @@ export function HeroBanner() {
       <button
         type="button"
         onClick={next}
-        className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/25 p-2 text-white opacity-0 transition hover:bg-black/45 group-hover:opacity-100"
+        className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/[0.25] p-2 text-white opacity-0 transition hover:bg-black/[0.45] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 group-hover:opacity-100"
         aria-label="下一張"
       >
         <ChevronRight className="h-5 w-5" />
@@ -97,7 +100,7 @@ export function HeroBanner() {
             type="button"
             onClick={() => setIdx(i)}
             aria-label={`slide ${i + 1}`}
-            className={`h-2 rounded-full transition-all ${
+            className={`h-2 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
               i === idx ? 'w-8 bg-[#C9A247]' : 'w-2 bg-white/40 hover:bg-white/70'
             }`}
           />

@@ -1,5 +1,5 @@
 import { Link, Navigate } from 'react-router-dom';
-import { LogIn, UserPlus, MessageCircle, Send } from 'lucide-react';
+import { ArrowRight, LogIn, MessageCircle, Send, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { AnnouncementTicker } from '@/components/home/AnnouncementTicker';
 import { WinTicker } from '@/components/home/WinTicker';
@@ -8,117 +8,198 @@ import { GuestHallEntrances } from '@/components/home/GuestHallEntrances';
 import { FeaturesStrip } from '@/components/home/FeaturesStrip';
 import { PartnerLogos } from '@/components/home/PartnerLogos';
 import { FloatingSupport } from '@/components/layout/FloatingSupport';
+import { BrandMark } from '@/components/layout/BrandMark';
+import { SiteFooter } from '@/components/layout/SiteFooter';
+import { SectionHeading } from '@/components/layout/SectionHeading';
+
+const LANDING_HIGHLIGHTS = [
+  { value: '18', label: '精選遊戲', detail: 'Crash、策略、經典玩法一次到位' },
+  { value: '3', label: '遊戲館別', detail: '依節奏切分，不再把所有遊戲塞成一頁' },
+  { value: '100%', label: '瀏覽器驗證', detail: 'Server Seed、Client Seed、Nonce 都能重算' },
+];
+
+const ACCESS_STEPS = [
+  { title: '聯絡客服', detail: '先走 LINE 或 Telegram，由客服確認代理來源。' },
+  { title: '開通會員', detail: '後台建立帳號後，再用會員帳密進入平台。' },
+  { title: '進站驗證', detail: '登入後可直接查看遊戲記錄與公平驗證工具。' },
+];
 
 export function LandingPage() {
   const { accessToken } = useAuthStore();
   if (accessToken) return <Navigate to="/lobby" replace />;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#ECECEC]">
-      {/* 未登录 TopBar */}
-      <header className="sticky top-0 z-40 bg-[#1A2530] text-white shadow-[0_2px_12px_rgba(0,0,0,0.3)]">
-        <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-5">
-          <Link to="/" className="flex items-center gap-2 text-[22px] font-extrabold tracking-[0.05em]">
-            <span className="rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[20px] text-white">
-              BG
-            </span>
-            <span className="hidden text-[18px] font-bold text-white/90 sm:inline">娱乐城</span>
-          </Link>
-          <div className="flex items-center gap-3">
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#ECECEC]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(24,96,115,0.18),transparent_72%)]" />
+
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0F172A]/92 text-white backdrop-blur-xl shadow-[0_2px_12px_rgba(0,0,0,0.28)]">
+        <div className="border-b border-white/10">
+          <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/70 sm:px-5 lg:px-6">
+            <div className="flex items-center gap-2">
+              <span className="dot-online" />
+              <span>演示點數平台 · 邀請開通</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <a href="https://line.me/ti/p/~@aaa1788" target="_blank" rel="noreferrer" className="transition hover:text-white" translate="no">
+                LINE
+              </a>
+              <a href="https://t.me/aaawin1788_bot" target="_blank" rel="noreferrer" className="transition hover:text-white" translate="no">
+                Telegram
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="mx-auto flex max-w-[1360px] flex-col gap-4 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+          <BrandMark to="/" tone="dark" subtitle="Provably Fair · Invite Only" />
+
+          <div className="flex flex-wrap items-center gap-2">
             <Link
-              to="/login"
-              className="flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[14px] text-white/75 transition hover:bg-white/10 hover:text-white"
+              to="/verify"
+              className="btn-chip border-white/10 bg-white/[0.04] text-white/80 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
             >
-              <LogIn className="h-4 w-4" />
-              登录
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+              公平驗證
             </Link>
-            <a
-              href="https://line.me/ti/p/~@aaa1788"
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1.5 rounded-[6px] bg-[#C9A247] px-3 py-1.5 text-[14px] font-semibold text-[#1A2530] transition hover:bg-[#AE8B35]"
-            >
-              <UserPlus className="h-4 w-4" />
-              注册
-            </a>
+            <Link to="/login" className="btn-teal text-[13px]">
+              <LogIn className="h-4 w-4" aria-hidden="true" />
+              會員登入
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* 双跑马灯 */}
       <AnnouncementTicker />
       <WinTicker />
 
-      {/* 内容 */}
-      <main className="flex-1">
-        <div className="mx-auto max-w-[1280px] space-y-8 px-5 py-6">
-          <HeroBanner />
-          <GuestHallEntrances />
-          <FeaturesStrip />
-          <PartnerLogos />
+      <main className="relative z-10 flex-1">
+        <div className="mx-auto max-w-[1360px] space-y-8 px-4 py-6 sm:px-5 lg:px-6">
+          <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_320px]">
+            <div className="space-y-6">
+              <HeroBanner />
 
-          {/* Join CTA */}
-          <section className="rounded-[10px] border border-[#186073]/30 bg-gradient-to-br from-[#186073] to-[#0E4555] p-8 text-white shadow-[0_8px_20px_rgba(24,96,115,0.25)]">
-            <div className="mx-auto max-w-[720px] text-center">
-              <h2 className="text-[26px] font-bold">立即加入 BG 娱乐城</h2>
-              <p className="mt-2 text-[14px] text-white/85">
-                仅限代理邀请开通，请联系客服取得邀请码
+              <div className="grid gap-4 md:grid-cols-3">
+                {LANDING_HIGHLIGHTS.map((item) => (
+                  <article
+                    key={item.label}
+                    className="rounded-[22px] border border-white/[0.65] bg-white/[0.92] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur"
+                  >
+                    <div className="label">{item.label}</div>
+                    <div className="mt-3 data-num text-[30px] font-bold text-[#186073]">{item.value}</div>
+                    <p className="mt-2 text-[13px] leading-relaxed text-[#4A5568]">{item.detail}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            <aside className="rounded-[28px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
+              <div className="label">Invite Access</div>
+              <h1 className="mt-3 text-pretty text-[30px] font-bold leading-tight text-[#0F172A]">
+                代理邀請制，先聯絡客服再開通
+              </h1>
+              <p className="mt-3 text-[14px] leading-relaxed text-[#4A5568]">
+                公開註冊目前關閉。玩家需要先由客服或代理開通帳號，再登入大廳、查看遊戲記錄與公平驗證。
               </p>
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
+
+              <div className="mt-6 flex flex-col gap-3">
                 <a
                   href="https://line.me/ti/p/~@aaa1788"
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-[6px] bg-[#C9A247] px-5 py-2.5 text-[14px] font-semibold text-[#1A2530] transition hover:bg-[#AE8B35]"
+                  className="btn-teal w-full justify-center text-[14px]"
+                  translate="no"
                 >
-                  <MessageCircle className="h-4 w-4" />
-                  联系 LINE 客服
+                  <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                  聯絡 LINE 客服
                 </a>
                 <a
                   href="https://t.me/aaawin1788_bot"
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-[6px] border border-white/40 bg-white/10 px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-white/20"
+                  className="btn-chip w-full justify-center border-[#0F172A]/10 bg-[#0F172A] text-white hover:border-[#0F172A] hover:bg-[#1A2530]"
+                  translate="no"
                 >
-                  <Send className="h-4 w-4" />
-                  联系 Telegram 客服
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                  聯絡 Telegram 客服
                 </a>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[#E5E7EB] px-4 py-3 text-[13px] font-semibold text-[#0F172A] transition hover:border-[#186073]/30 hover:bg-[#F5F7FA]"
+                >
+                  已有會員帳號
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
               </div>
+
+              <div className="mt-6 rounded-[22px] bg-[#F5F7FA] p-4">
+                <div className="label">Access Flow</div>
+                <div className="mt-4 space-y-3">
+                  {ACCESS_STEPS.map((step, index) => (
+                    <div key={step.title} className="flex gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#186073] text-[12px] font-bold text-white">
+                        {index + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-semibold text-[#0F172A]">{step.title}</div>
+                        <p className="mt-1 text-[12px] leading-relaxed text-[#4A5568]">{step.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </aside>
+          </section>
+
+          <section className="space-y-5">
+            <SectionHeading
+              eyebrow="Game Floors"
+              title="三大遊戲館，先看節奏再進場"
+              description="Crash 館主打倍率拉升，經典館適合短局高頻，策略館則偏向拆解與取捨。首頁先把路徑分乾淨，再進去看單一遊戲。"
+              rightSlot={
+                <Link
+                  to="/verify"
+                  className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#186073] transition hover:text-[#0E4555]"
+                >
+                  查看公平驗證
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              }
+            />
+            <GuestHallEntrances showHeading={false} />
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="space-y-5">
+              <SectionHeading
+                eyebrow="Platform Rhythm"
+                title="同一套前端語言，覆蓋首頁到遊戲前台"
+                description="這一輪先收斂入口頁與主殼層的版型、配色與互動節奏，避免大廳、驗證、客服和 CTA 各說各話。"
+              />
+              <FeaturesStrip />
+              <PartnerLogos />
             </div>
+
+            <aside className="rounded-[28px] bg-[#0F172A] p-6 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)]">
+              <div className="label !text-white/[0.55]">Why BG</div>
+              <h2 className="mt-3 text-pretty text-[24px] font-bold leading-tight">
+                結果先能驗，再談輸贏。
+              </h2>
+              <p className="mt-3 text-[13px] leading-relaxed text-white/[0.75]">
+                平台把公平驗證做成獨立頁面，讓玩家不用呼叫 API，就能用公開 seed 與 nonce 在瀏覽器內重算結果。
+              </p>
+              <Link
+                to="/verify"
+                className="btn-chip mt-6 border-white/15 bg-white/[0.05] text-white hover:border-white/30 hover:bg-white/[0.1]"
+              >
+                打開驗證工具
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </aside>
           </section>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="mt-16 border-t border-[#E5E7EB] bg-[#F5F7FA]">
-        <div className="mx-auto grid max-w-[1280px] grid-cols-1 gap-6 px-5 py-8 md:grid-cols-3">
-          <div>
-            <h4 className="mb-3 text-[14px] font-semibold text-[#0F172A]">快捷连结</h4>
-            <ul className="space-y-2 text-[13px] text-[#4A5568]">
-              <li><Link to="/login" className="hover:text-[#186073]">会员登录</Link></li>
-              <li><a href="https://line.me/ti/p/~@aaa1788" target="_blank" rel="noreferrer" className="hover:text-[#186073]">联络客服</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="mb-3 text-[14px] font-semibold text-[#0F172A]">社群</h4>
-            <div className="flex gap-3 text-[13px]">
-              <a href="https://line.me/ti/p/~@aaa1788" target="_blank" rel="noreferrer" className="text-[#4A5568] hover:text-[#186073]">LINE</a>
-              <a href="https://t.me/aaawin1788_bot" target="_blank" rel="noreferrer" className="text-[#4A5568] hover:text-[#186073]">Telegram</a>
-              <a href="https://www.instagram.com/aaa1788_com/" target="_blank" rel="noreferrer" className="text-[#4A5568] hover:text-[#186073]">Instagram</a>
-            </div>
-            <p className="mt-4 text-[11px] text-[#9CA3AF]">
-              18+ 负责任博彩 · 本站为技术研究用假币平台，不涉及真实金流
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-[12px] text-[#9CA3AF]">
-              Copyright © 2026 BG Gaming. All Rights Reserved.
-            </div>
-            <div className="mt-1 text-[11px] text-[#9CA3AF]">v1.0.1</div>
-          </div>
-        </div>
-      </footer>
-
+      <SiteFooter />
       <FloatingSupport />
     </div>
   );
