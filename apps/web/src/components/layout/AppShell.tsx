@@ -82,7 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-4 px-4 py-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-x-6 lg:gap-y-4 xl:px-8 2xl:px-12">
+        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-4 px-4 py-4 sm:px-6 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-x-6 lg:gap-y-0 xl:px-8 2xl:px-12">
           <div className="flex min-w-0 items-center justify-between gap-4">
             <BrandMark to="/lobby" tone="dark" subtitle="Premium Gaming · Instant Settlement" />
             {!user ? (
@@ -92,8 +92,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             ) : null}
           </div>
 
-          <nav className="min-w-0 overflow-x-auto lg:col-span-2 lg:row-start-2 lg:border-t lg:border-white/8 lg:pt-3">
-            <div className="flex min-w-max items-center gap-2 pb-1 lg:mx-auto lg:w-fit lg:pb-0">
+          <nav className="min-w-0 overflow-x-auto lg:flex lg:justify-center">
+            <div className="flex min-w-max items-center gap-2 pb-1 lg:pb-0">
               {NAV_ITEMS.map((it) => {
                 const Icon = it.icon;
                 return (
@@ -117,7 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           {user ? (
-            <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end lg:justify-self-end">
+            <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end">
               <button
                 type="button"
                 onClick={handleBalanceRefresh}
