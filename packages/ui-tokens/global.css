@@ -537,48 +537,64 @@
     align-items: center;
     border-radius: 999px;
     display: inline-flex;
-    gap: 0.25rem;
-    padding: 0.125rem 0.5rem;
-    text-transform: uppercase;
-    font-size: 10px;
+    gap: 0.4rem;
+    padding: 0.3rem 0.7rem;
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   }
 
   .tag-acid {
     background: rgba(24, 96, 115, 0.1);
-    border: 1px solid rgba(24, 96, 115, 0.2);
+    border: 1px solid rgba(24, 96, 115, 0.28);
     color: var(--teal-500);
   }
 
   .tag-toxic {
-    background: rgba(9, 184, 38, 0.1);
-    border: 1px solid rgba(9, 184, 38, 0.25);
-    color: var(--success);
+    background: rgba(9, 184, 38, 0.08);
+    border: 1px solid rgba(9, 184, 38, 0.32);
+    color: #0E8A1F;
   }
 
   .tag-ember {
-    background: rgba(212, 87, 74, 0.1);
-    border: 1px solid rgba(212, 87, 74, 0.2);
+    background: rgba(212, 87, 74, 0.08);
+    border: 1px solid rgba(212, 87, 74, 0.28);
     color: var(--danger);
   }
 
   .tag-gold {
-    background: #FAF2D7;
-    border: 1px solid rgba(201, 162, 71, 0.25);
-    color: #AE8B35;
+    background: linear-gradient(180deg, rgba(247, 224, 158, 0.95) 0%, rgba(232, 207, 125, 0.95) 100%);
+    border: 1px solid rgba(201, 162, 71, 0.55);
+    color: #5A471A;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
   .tag-wine {
-    background: #FDF0EE;
-    border: 1px solid rgba(185, 69, 56, 0.2);
+    background: rgba(185, 69, 56, 0.08);
+    border: 1px solid rgba(185, 69, 56, 0.28);
     color: #B94538;
   }
 
   .tag-felt {
-    background: rgba(14, 69, 85, 0.8);
-    border: 1px solid rgba(24, 96, 115, 0.25);
-    color: #E8D48A;
+    background: rgba(14, 69, 85, 0.85);
+    border: 1px solid rgba(232, 212, 138, 0.35);
+    color: #F3D67D;
+  }
+
+  .tag-onDark {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(6px);
+  }
+
+  .tag-goldOnDark {
+    background: rgba(201, 162, 71, 0.18);
+    border: 1px solid rgba(232, 212, 138, 0.5);
+    color: #F3D67D;
+    backdrop-filter: blur(6px);
   }
 
   .section-title {

@@ -37,12 +37,9 @@ export function GameHeader({
     ice: 'text-[#266F85]',
   }[titleSuffixColor];
 
-  const tagClass = {
-    acid: 'tag-gold',
-    ember: 'tag-wine',
-    toxic: 'tag-felt',
-    ice: 'tag',
-  }[rtpAccent];
+  // RTP accent on dark hero — always use the gold-on-dark chip for legibility
+  void rtpAccent;
+  const tagClass = 'tag tag-goldOnDark';
 
   const hasSuffix = titleSuffix.trim().length > 0;
   const separator = '';
@@ -72,12 +69,8 @@ export function GameHeader({
               <span className="text-white/22">/</span>
               <span className="text-[#8FD0DF]">{breadcrumb}</span>
             </div>
-            <span className="rounded-full border border-[#C9A247]/24 bg-[#132233]/72 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#EFD886]">
-              {section}
-            </span>
-            <span className="hidden rounded-full border border-white/14 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/78 md:inline-flex">
-              Live Game
-            </span>
+            <span className="tag tag-goldOnDark">{section}</span>
+            <span className="tag tag-onDark hidden md:inline-flex">Live Game</span>
           </div>
 
           <h1 className="mt-4 font-semibold text-[30px] leading-tight md:text-[40px]">
@@ -94,9 +87,9 @@ export function GameHeader({
 
         <div className="flex items-center gap-2">
           <span className={tagClass}>{rtpLabel}</span>
-          <span className="tag hidden border-white/14 bg-white/8 text-white/82 md:inline-flex">
+          <span className="tag tag-onDark hidden md:inline-flex">
             <span className="dot-online" />
-            PROVABLY FAIR
+            即時派彩
           </span>
         </div>
       </div>

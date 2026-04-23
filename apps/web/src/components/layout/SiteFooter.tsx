@@ -31,9 +31,9 @@ export function SiteFooter({ loggedIn = false }: Props): JSX.Element {
             頂級遊戲體驗、即時派彩與穩定服務，為您打造專業電子遊戲娛樂平台。
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <span className="tag-gold">18+ Adults Only</span>
-            <span className="tag-acid">VIP Service</span>
-            <span className="tag-toxic">Instant Settlement</span>
+            <span className="tag tag-gold">18+ Adults Only</span>
+            <span className="tag tag-acid">VIP Service</span>
+            <span className="tag tag-toxic">Instant Settlement</span>
           </div>
         </div>
 
