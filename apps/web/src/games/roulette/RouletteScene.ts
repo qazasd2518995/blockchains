@@ -36,8 +36,21 @@ const COLOR_RED = 0xD4574A;
 const COLOR_WHITE = 0xFFFFFF;
 
 const SLOTS = 13; // 0 + 1-12
+const TAU = Math.PI * 2;
 const RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12]);
 const BLACK_NUMBERS = new Set([2, 4, 6, 8, 10, 11]);
+
+function normalizeAngle(angle: number): number {
+  return ((angle % TAU) + TAU) % TAU;
+}
+
+function positiveAngleDelta(from: number, to: number): number {
+  return (to - from + TAU) % TAU;
+}
+
+function negativeAngleDelta(from: number, to: number): number {
+  return -((from - to + TAU) % TAU);
+}
 
 interface Particle {
   g: Graphics;
@@ -201,7 +214,7 @@ export class RouletteScene {
   private drawWheel(): void {
     if (!this.wheelGraphics || !this.numbersContainer) return;
     const g = this.wheelGraphics;
-    const segAngle = (Math.PI * 2) / SLOTS;
+    const segAngle = TAU / SLOTS;
     g.clear();
     this.numbersContainer.removeChildren();
 
@@ -431,17 +444,24 @@ export class RouletteScene {
     // 號碼 i 的中心在 startA + segAngle/2 = -PI/2 + (i+0.5)*segAngle
     // 加上輪盤 rotation θ，要讓 -PI/2 + (i+0.5)*segAngle + θ ≡ -PI/2 (mod 2π)
     // => θ = -(i+0.5)*segAngle  (mod 2π)
-    const wheelFinalBase = -((slot + 0.5) * segAngle);
-    const wheelSpins = 4 + Math.random();
+    const wheelFinalBase = normalizeAngle(-((slot + 0.5) * segAngle));
+    const wheelSpins = 4 + Math.floor(Math.random() * 2);
     const wheelStart = this.wheelContainer.rotation;
-    const wheelTarget = wheelStart + wheelSpins * Math.PI * 2 + (wheelFinalBase - (wheelStart % (Math.PI * 2)));
+    const wheelTarget =
+      wheelStart +
+      wheelSpins * TAU +
+      positiveAngleDelta(normalizeAngle(wheelStart), wheelFinalBase);
 
     // 珠子最終停在指針位置（相對世界座標 -PI/2）
     const ballFinalAngle = -Math.PI / 2;
-    const ballSpins = 6 + Math.random();
+    const ballFinalBase = normalizeAngle(ballFinalAngle);
+    const ballSpins = 6 + Math.floor(Math.random() * 2);
     const ballStart = this.ballAngle;
-    // 珠子反方向（+）
-    const ballTarget = ballStart - ballSpins * Math.PI * 2 - (ballStart % (Math.PI * 2) + Math.PI / 2);
+    // 珠子反方向繞行，但結束角度必須精準回到指針位置。
+    const ballTarget =
+      ballStart -
+      ballSpins * TAU +
+      negativeAngleDelta(normalizeAngle(ballStart), ballFinalBase);
     // 將軌道半徑從外圈逐漸減到內圈（簡單處理：keep external）
 
     if (this.statusLabel) {
@@ -462,7 +482,7 @@ export class RouletteScene {
       // 珠子角度
       const state = { angle: ballStart, radius: this.ballOrbitRadius };
       gsap.to(state, {
-        angle: ballTarget + ballFinalAngle,
+        angle: ballTarget,
         duration,
         ease: 'power3.out',
         onUpdate: () => {
@@ -473,6 +493,13 @@ export class RouletteScene {
           }
         },
         onComplete: () => {
+          this.wheelContainer!.rotation = wheelFinalBase;
+          state.angle = ballFinalAngle;
+          this.ballAngle = ballFinalAngle;
+          if (this.ball) {
+            this.ball.x = Math.cos(ballFinalAngle) * state.radius;
+            this.ball.y = Math.sin(ballFinalAngle) * state.radius;
+          }
           this.spinning = false;
           this.onLand(slot);
           resolve();
