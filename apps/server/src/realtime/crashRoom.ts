@@ -2,6 +2,7 @@ import type { Server, Socket } from 'socket.io';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { crashPoint, sha256, generateServerSeed } from '@bg/provably-fair';
 import { randomUUID } from 'node:crypto';
+import { config as appConfig } from '../config.js';
 import type {
   CrashRoundSnapshot,
   CrashPlayerBet,
@@ -20,6 +21,9 @@ const LEASE_DURATION_MS = 15000;
 const LEASE_RENEW_MS = 5000;
 const LEASE_ACQUIRE_RETRY_MS = 2500;
 const LEASE_RETRY_JITTER_MS = 1000;
+const MIN_BET_AMOUNT = 0.01;
+const MIN_CASHOUT_MULTIPLIER = 1.01;
+const MAX_AUTO_CASHOUT_MULTIPLIER = 1_000_000;
 
 export interface CrashRoomConfig {
   gameId: string;
@@ -146,6 +150,12 @@ export class CrashRoom {
       where: { id: this.currentRoundId },
       data: { status: 'RUNNING', startedAt: new Date(this.roundStartedAt) },
     });
+
+    if (this.currentCrashPoint <= 1.0) {
+      this.currentMultiplier = 1.0;
+      await this.crashPhase();
+      return;
+    }
 
     this.broadcast('round:running', { roundId: this.currentRoundId, startedAt: this.roundStartedAt });
 
@@ -434,6 +444,11 @@ export class CrashRoom {
     socket.on('bet:cashout', async (payload: { userId?: string }, ack?: (res: unknown) => void) => {
       try {
         if (this.state !== 'RUNNING') throw new Error('Round is not running');
+        if (!this.currentRoundId) throw new Error('No active round');
+        if (this.currentMultiplier < MIN_CASHOUT_MULTIPLIER) {
+          throw new Error(`Cashout available from ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}x`);
+        }
+        if (this.currentMultiplier >= this.currentCrashPoint) throw new Error('Round already crashed');
         if (!payload.userId) throw new Error('Missing userId');
         const bet = await this.prisma.crashBet.findFirst({
           where: {
@@ -481,6 +496,21 @@ export class CrashRoom {
     autoCashOut?: number,
   ): Promise<{ betId: string; players: CrashPlayerBet[] }> {
     if (!this.currentRoundId) throw new Error('No active round');
+    if (!Number.isFinite(amount)) throw new Error('Invalid bet amount');
+    if (amount < MIN_BET_AMOUNT) throw new Error(`Minimum bet is ${MIN_BET_AMOUNT.toFixed(2)}`);
+    if (amount > appConfig.MAX_SINGLE_BET) {
+      throw new Error(`Max single bet is ${appConfig.MAX_SINGLE_BET}`);
+    }
+    if (
+      autoCashOut !== undefined &&
+      (!Number.isFinite(autoCashOut) ||
+        autoCashOut < MIN_CASHOUT_MULTIPLIER ||
+        autoCashOut > MAX_AUTO_CASHOUT_MULTIPLIER)
+    ) {
+      throw new Error(
+        `Auto cashout must be between ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}x and ${MAX_AUTO_CASHOUT_MULTIPLIER}x`,
+      );
+    }
     const amountD = new Prisma.Decimal(amount);
 
     const betId = await runSerializable(this.prisma, async (tx) => {
@@ -488,6 +518,11 @@ export class CrashRoom {
       if (user.disabledAt) throw new Error('Account disabled');
       if (user.frozenAt) throw new Error('Account frozen');
       if (user.balance.lessThan(amountD)) throw new Error('Insufficient funds');
+      const existingBet = await tx.crashBet.findFirst({
+        where: { roundId: this.currentRoundId!, userId },
+        select: { id: true },
+      });
+      if (existingBet) throw new Error('Bet already placed for this round');
       const updated = await tx.user.update({
         where: { id: userId },
         data: { balance: { decrement: amountD } },
@@ -515,7 +550,7 @@ export class CrashRoom {
       return bet.id;
     });
 
-    if (autoCashOut !== undefined && autoCashOut > 1) {
+    if (autoCashOut !== undefined) {
       this.pendingAutoCashouts.set(betId, { betId, userId, autoCashOut });
     }
 

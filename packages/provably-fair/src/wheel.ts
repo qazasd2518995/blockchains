@@ -2,6 +2,7 @@ import { hmacFloatStream } from './hmac.js';
 
 export type WheelRisk = 'low' | 'medium' | 'high';
 export type WheelSegmentCount = 10 | 20 | 30 | 40 | 50;
+export const WHEEL_TARGET_RTP = 0.99;
 
 // 每個 (risk, segments) 的倍率表——每個 index 對應一段
 // 數字 0 表示該段為 0x (輸)
@@ -38,9 +39,19 @@ const TABLE: WheelTable = {
   },
 };
 
+function applyTargetRtp(table: number[]): number[] {
+  const currentRtp = table.reduce((sum, multiplier) => sum + multiplier, 0) / table.length;
+  if (currentRtp <= 0) return table;
+  const scale = WHEEL_TARGET_RTP / currentRtp;
+  return table.map((multiplier) => {
+    if (multiplier <= 0) return 0;
+    return Math.floor(multiplier * scale * 10000) / 10000;
+  });
+}
+
 export function wheelTable(risk: WheelRisk, segments: WheelSegmentCount): number[] {
   const rows = TABLE[risk][segments];
-  return rows;
+  return applyTargetRtp(rows);
 }
 
 export function wheelSpin(
@@ -60,5 +71,5 @@ export function wheelMultiplier(
   segmentIndex: number,
 ): number {
   const table = TABLE[risk][segments];
-  return table[segmentIndex] ?? 0;
+  return applyTargetRtp(table)[segmentIndex] ?? 0;
 }

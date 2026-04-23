@@ -24,6 +24,7 @@ interface Props {
 }
 
 type LocalCrashBet = { amount: number; cashed: boolean; payout?: string };
+const MIN_CASHOUT_MULTIPLIER = 1.01;
 
 export function CrashPage({ config }: Props) {
   const { user, setBalance } = useAuthStore();
@@ -293,12 +294,16 @@ export function CrashPage({ config }: Props) {
     }
     const socket = getCrashSocket(config.gameId);
     const autoCO = Number.parseFloat(autoCashOut);
+    if (autoCashOut.trim() && (!Number.isFinite(autoCO) || autoCO < MIN_CASHOUT_MULTIPLIER)) {
+      setError(`AUTO CASHOUT MIN ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}X`);
+      return;
+    }
     socket.emit(
       'bet:place',
       {
         userId: user.id,
         amount,
-        autoCashOut: Number.isFinite(autoCO) && autoCO > 1 ? autoCO : undefined,
+        autoCashOut: Number.isFinite(autoCO) && autoCO >= MIN_CASHOUT_MULTIPLIER ? autoCO : undefined,
       },
       (res: { ok: boolean; error?: string }) => {
         if (!res.ok) {
@@ -318,6 +323,10 @@ export function CrashPage({ config }: Props) {
   const handleCashOut = () => {
     if (!user || !myBet || myBet.cashed) return;
     if (status !== 'RUNNING') return;
+    if (multiplier < MIN_CASHOUT_MULTIPLIER) {
+      setError(`CASHOUT AVAILABLE FROM ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}X`);
+      return;
+    }
     const socket = getCrashSocket(config.gameId);
     socket.emit(
       'bet:cashout',
@@ -463,6 +472,7 @@ export function CrashPage({ config }: Props) {
                 <button
                   type="button"
                   onClick={handleCashOut}
+                  disabled={multiplier < MIN_CASHOUT_MULTIPLIER}
                   className="btn-acid w-full py-4 text-base"
                 >
                   ⇧ {t.games.crash.cashoutAt} {formatMultiplier(multiplier)}
