@@ -331,20 +331,15 @@ export class CrashRoom {
     });
     if (renewed.count > 0) return true;
 
-    try {
-      await this.prisma.crashRoomLease.create({
-        data: {
-          gameId: this.config.gameId,
-          ownerInstanceId: this.instanceId,
-          expiresAt,
-        },
-      });
-      return true;
-    } catch (err) {
-      const code = (err as { code?: string })?.code;
-      if (code === 'P2002') return false;
-      throw err;
-    }
+    const inserted = await this.prisma.crashRoomLease.createMany({
+      data: {
+        gameId: this.config.gameId,
+        ownerInstanceId: this.instanceId,
+        expiresAt,
+      },
+      skipDuplicates: true,
+    });
+    return inserted.count > 0;
   }
 
   private async onLeadershipAcquired(): Promise<void> {
