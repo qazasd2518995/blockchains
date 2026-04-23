@@ -18,7 +18,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 type AccountStatus = 'ACTIVE' | 'FROZEN' | 'DISABLED';
 
 const ACCOUNT_TABLE_GRID =
-  'grid-cols-[80px_minmax(220px,1fr)_72px_116px_106px_minmax(460px,max-content)]';
+  'grid-cols-[80px_minmax(220px,1fr)_72px_116px_106px_minmax(410px,max-content)]';
 
 /**
  * 帳號管理（混合階層）
@@ -272,9 +272,6 @@ export function AgentHierarchyPage(): JSX.Element {
               <div className="flex flex-wrap items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                 {row.kind === 'agent' ? (
                   <>
-                    <button type="button" onClick={() => navigate(`/admin/reports?parent=${row.id}`)} className="btn-chip">
-                      {t.agents.reports}
-                    </button>
                     <button
                       type="button"
                       onClick={() => setAgentTransferFor({ id: row.id, username: row.username, balance: row.balance })}
