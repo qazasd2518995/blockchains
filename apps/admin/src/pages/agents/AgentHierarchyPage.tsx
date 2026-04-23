@@ -284,13 +284,6 @@ export function AgentHierarchyPage(): JSX.Element {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setNotesFor({ kind: 'agent', id: row.id, username: row.username, notes: row.notes })}
-                      className="btn-chip"
-                    >
-                      {t.agents.notesBtn}
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => setRebateFor({ id: row.id, username: row.username })}
                       className="btn-chip"
                     >
@@ -321,6 +314,13 @@ export function AgentHierarchyPage(): JSX.Element {
                       current={row.status === 'DELETED' ? 'DISABLED' : row.status}
                       onChange={(next) => handleAgentStatus(row.id, row.username, next)}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setNotesFor({ kind: 'agent', id: row.id, username: row.username, notes: row.notes })}
+                      className="btn-chip"
+                    >
+                      {t.agents.notesBtn}
+                    </button>
                   </>
                 ) : (
                   <>
@@ -333,13 +333,6 @@ export function AgentHierarchyPage(): JSX.Element {
                       className="btn-chip"
                     >
                       {t.agents.pointTransfer}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNotesFor({ kind: 'member', id: row.id, username: row.username, notes: row.notes })}
-                      className="btn-chip"
-                    >
-                      {t.agents.notesBtn}
                     </button>
                     <button
                       type="button"
@@ -367,6 +360,13 @@ export function AgentHierarchyPage(): JSX.Element {
                       current={row.status}
                       onChange={(next) => handleMemberStatus(row.id, next)}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setNotesFor({ kind: 'member', id: row.id, username: row.username, notes: row.notes })}
+                      className="btn-chip"
+                    >
+                      {t.agents.notesBtn}
+                    </button>
                   </>
                 )}
               </div>
