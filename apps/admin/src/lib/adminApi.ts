@@ -3,12 +3,6 @@ import { useAdminAuthStore } from '@/stores/adminAuthStore';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
-// One-time env dump so you can verify production build has the right API base.
-if (typeof window !== 'undefined') {
-  // eslint-disable-next-line no-console
-  console.info('[adminApi] VITE_API_BASE =', JSON.stringify(API_BASE), ' → baseURL =', `${API_BASE}/api/admin`);
-}
-
 export const adminApi = axios.create({
   baseURL: `${API_BASE}/api/admin`,
   timeout: 15000,
@@ -20,28 +14,14 @@ adminApi.interceptors.request.use((config) => {
     config.headers = config.headers ?? {};
     (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
   }
-  // eslint-disable-next-line no-console
-  console.debug('[adminApi] →', (config.method ?? 'GET').toUpperCase(), (config.baseURL ?? '') + (config.url ?? ''), {
-    hasToken: Boolean(token),
-  });
   return config;
 });
 
 let refreshInFlight: Promise<{ accessToken: string; refreshToken: string }> | null = null;
 
 adminApi.interceptors.response.use(
-  (res) => {
-    // eslint-disable-next-line no-console
-    console.debug('[adminApi] ←', res.status, (res.config.baseURL ?? '') + (res.config.url ?? ''));
-    return res;
-  },
+  (res) => res,
   async (error: AxiosError) => {
-    // eslint-disable-next-line no-console
-    console.warn('[adminApi] ✗', error.response?.status ?? 'network', {
-      url: (error.config?.baseURL ?? '') + (error.config?.url ?? ''),
-      data: error.response?.data,
-      message: error.message,
-    });
     if (error.response?.status === 401) {
       const { refreshToken, setTokens, logout } = useAdminAuthStore.getState();
       if (refreshToken) {

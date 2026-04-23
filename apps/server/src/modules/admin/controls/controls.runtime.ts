@@ -1,6 +1,7 @@
 import { ManualDetectionScope, Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { listAgentDescendants } from '../../../utils/hierarchy.js';
+import { getAdminGameDay, getAdminGameDayWindow } from '../gameDay.js';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -37,9 +38,7 @@ interface AgentRebateProfile {
 }
 
 export function getControlGameDay(now: Date = new Date()): string {
-  const taipei = toTaipeiDate(now);
-  if (taipei.getHours() < 7) taipei.setDate(taipei.getDate() - 1);
-  return formatDateOnly(taipei);
+  return getAdminGameDay(now);
 }
 
 export function getControlGameDayWindow(now: Date = new Date()): {
@@ -47,10 +46,7 @@ export function getControlGameDayWindow(now: Date = new Date()): {
   start: Date;
   end: Date;
 } {
-  const gameDay = getControlGameDay(now);
-  const start = new Date(`${gameDay}T07:00:00+08:00`);
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-  return { gameDay, start, end };
+  return getAdminGameDayWindow(now);
 }
 
 export async function calculateCurrentSettlement(
@@ -220,17 +216,6 @@ function manualScopeRank(scope: ManualDetectionScope): number {
   if (scope === 'MEMBER') return 0;
   if (scope === 'AGENT_LINE') return 1;
   return 2;
-}
-
-function toTaipeiDate(now: Date): Date {
-  return new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
-}
-
-function formatDateOnly(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 function decimal(value: Prisma.Decimal | string | number | null | undefined): Prisma.Decimal {

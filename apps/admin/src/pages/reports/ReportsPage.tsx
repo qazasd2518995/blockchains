@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { HierarchyReportResponse, HierarchyReportItem } from '@bg/shared';
 import { GAMES_REGISTRY, GameId } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { getCurrentGameDay, shiftGameDay, startOfGameWeek } from '@/lib/gameDay';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { HierarchyBreadcrumb } from '@/components/shared/HierarchyBreadcrumb';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
@@ -68,44 +69,32 @@ export function ReportsPage(): JSX.Element {
   };
 
   const quickPreset = (preset: 'today' | 'yesterday' | 'lastWeek' | 'thisWeek' | 'thisMonth') => {
-    const today = new Date();
-    const toStr = (dt: Date) =>
-      `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    const today = getCurrentGameDay();
     switch (preset) {
       case 'today':
-        setStartDate(toStr(today));
-        setEndDate(toStr(today));
+        setStartDate(today);
+        setEndDate(today);
         break;
       case 'yesterday': {
-        const yd = new Date(today);
-        yd.setDate(yd.getDate() - 1);
-        const s = toStr(yd);
-        setStartDate(s);
-        setEndDate(s);
+        const previousGameDay = shiftGameDay(today, -1);
+        setStartDate(previousGameDay);
+        setEndDate(previousGameDay);
         break;
       }
       case 'lastWeek': {
-        const dow = today.getDay() || 7;
-        const lastMon = new Date(today);
-        lastMon.setDate(today.getDate() - dow + 1 - 7);
-        const lastSun = new Date(lastMon);
-        lastSun.setDate(lastMon.getDate() + 6);
-        setStartDate(toStr(lastMon));
-        setEndDate(toStr(lastSun));
+        const thisWeekStart = startOfGameWeek(today);
+        setStartDate(shiftGameDay(thisWeekStart, -7));
+        setEndDate(shiftGameDay(thisWeekStart, -1));
         break;
       }
       case 'thisWeek': {
-        const dow = today.getDay() || 7;
-        const start = new Date(today);
-        start.setDate(today.getDate() - dow + 1);
-        setStartDate(toStr(start));
-        setEndDate(toStr(today));
+        setStartDate(startOfGameWeek(today));
+        setEndDate(today);
         break;
       }
       case 'thisMonth': {
-        const start = new Date(today.getFullYear(), today.getMonth(), 1);
-        setStartDate(toStr(start));
-        setEndDate(toStr(today));
+        setStartDate(`${today.slice(0, 7)}-01`);
+        setEndDate(today);
         break;
       }
     }
@@ -189,7 +178,7 @@ export function ReportsPage(): JSX.Element {
       )}
 
       {loading ? (
-        <div className="crt-panel p-8 text-center text-ink-500">Loading…</div>
+        <div className="crt-panel p-8 text-center text-ink-500">载入中…</div>
       ) : data?.items.length === 0 ? (
         <div className="crt-panel p-8 text-center text-ink-400">— 没有有效下注资料 —</div>
       ) : (

@@ -4,6 +4,12 @@ import { listAgentDescendants, canManageAgent } from '../../../utils/hierarchy.j
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import type { ReportQuery, AgentAnalysisQuery } from './report.schema.js';
 import type { DashboardSummaryResponse } from '@bg/shared';
+import {
+  getAdminGameDay,
+  getAdminGameDayWindowByDay,
+  resolveAdminGameDayRange,
+  shiftAdminGameDay,
+} from '../gameDay.js';
 
 /**
  * 報表聚合服務
@@ -32,7 +38,9 @@ export class ReportService {
   /** 儀表板摘要：7 日下注、活躍會員、遊戲分布（含 Crash 類下注） */
   async dashboardSummary(operator: AdminCurrent): Promise<DashboardSummaryResponse> {
     const now = new Date();
-    const startDate = startOfUtcDay(addUtcDays(now, -6));
+    const currentGameDay = getAdminGameDay(now);
+    const startGameDay = shiftAdminGameDay(currentGameDay, -6);
+    const startDate = getAdminGameDayWindowByDay(startGameDay).start;
     const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const rootAgentId = await this.resolveDashboardRootAgentId(operator);
 
@@ -91,7 +99,7 @@ export class ReportService {
       }),
     ]);
 
-    const dayKeys = Array.from({ length: 7 }, (_, index) => dayKeyUtc(addUtcDays(startDate, index)));
+    const dayKeys = Array.from({ length: 7 }, (_, index) => shiftAdminGameDay(startGameDay, index));
     const trendBuckets = new Map<string, DashboardBucket>();
     for (const key of dayKeys) {
       trendBuckets.set(key, {
@@ -115,7 +123,7 @@ export class ReportService {
       activeMembers7d.add(bet.userId);
       if (bet.createdAt >= since24h) activeMembers24h.add(bet.userId);
 
-      const key = dayKeyUtc(bet.createdAt);
+      const key = getAdminGameDay(bet.createdAt);
       const dayBucket = trendBuckets.get(key);
       if (dayBucket) {
         dayBucket.amount = dayBucket.amount.add(bet.amount);
@@ -177,7 +185,7 @@ export class ReportService {
         const bucket = trendBuckets.get(key);
         return {
           date: key,
-          label: labelFromDayKey(key),
+          label: labelFromGameDay(key),
           betAmount: (bucket?.amount ?? new Prisma.Decimal(0)).toFixed(2),
           betCount: bucket?.count ?? 0,
           activeMembers: bucket?.activeMembers.size ?? 0,
@@ -218,44 +226,43 @@ export class ReportService {
         ? null
         : await this.getDownlineMembers(scopeAgentId);
     const limit = query.limit ?? 100;
-    const cursorDate = query.cursor ? new Date(query.cursor) : null;
-    const createdBefore =
-      cursorDate && Number.isFinite(cursorDate.getTime()) ? cursorDate : undefined;
+    const cursor = parseMergedCursor(query.cursor);
+    const range = resolveAdminGameDayRange(query);
 
     const [standardRows, crashRows, agg] = await Promise.all([
       this.prisma.bet.findMany({
         where: this.buildBetWhere({
           memberIds,
           gameId: query.gameId,
-          startDate: query.startDate ? new Date(query.startDate) : undefined,
-          endDate: query.endDate ? new Date(query.endDate) : undefined,
-          createdBefore,
+          startDate: range.start,
+          endDate: range.end,
+          cursor,
         }),
         include: {
           user: { select: { username: true, agentId: true, agent: { select: { username: true } } } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: limit + 1,
       }),
       this.prisma.crashBet.findMany({
         where: this.buildCrashBetWhere({
           memberIds,
           gameId: query.gameId,
-          startDate: query.startDate ? new Date(query.startDate) : undefined,
-          endDate: query.endDate ? new Date(query.endDate) : undefined,
-          createdBefore,
+          startDate: range.start,
+          endDate: range.end,
+          cursor,
         }),
         include: {
           round: { select: { gameId: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: limit + 1,
       }),
       this.aggregateUnifiedBets({
         memberIds,
         gameId: query.gameId,
-        startDate: query.startDate ? new Date(query.startDate) : undefined,
-        endDate: query.endDate ? new Date(query.endDate) : undefined,
+        startDate: range.start,
+        endDate: range.end,
       }),
     ]);
 
@@ -291,14 +298,14 @@ export class ReportService {
         profit: b.payout.sub(b.amount).toFixed(2),
         createdAt: b.createdAt.toISOString(),
       })),
-    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    ].sort(compareMergedEntries);
 
     const hasMore = merged.length > limit;
     const page = hasMore ? merged.slice(0, limit) : merged;
 
     return {
       items: page,
-      nextCursor: hasMore ? page[page.length - 1]!.createdAt : null,
+      nextCursor: hasMore ? buildMergedCursor(page[page.length - 1]!) : null,
       totals: {
         betCount: agg.betCount,
         betAmount: agg.betAmount.toFixed(2),
@@ -331,8 +338,7 @@ export class ReportService {
       orderBy: { createdAt: 'asc' },
     });
 
-    const startDate = query.startDate ? new Date(query.startDate) : undefined;
-    const endDate = query.endDate ? new Date(query.endDate) : undefined;
+    const { start: startDate, end: endDate } = resolveAdminGameDayRange(query);
     const gameId = query.gameId;
 
     const rootStats = await this.aggregateAgentSubtree(
@@ -457,8 +463,7 @@ export class ReportService {
       cursor = a.parentId;
     }
 
-    const startDate = query.startDate ? new Date(query.startDate) : undefined;
-    const endDate = query.endDate ? new Date(query.endDate) : undefined;
+    const { start: startDate, end: endDate } = resolveAdminGameDayRange(query);
     const gameId = query.gameId;
     const username = query.username?.trim();
     const accountSearchWhere = username
@@ -734,7 +739,7 @@ export class ReportService {
     gameId?: string;
     startDate?: Date;
     endDate?: Date;
-    createdBefore?: Date;
+    cursor?: MergedCursor;
     settlementStatus?: 'settled' | 'unsettled';
   }): Prisma.BetWhereInput {
     const where: Prisma.BetWhereInput = {};
@@ -742,9 +747,8 @@ export class ReportService {
     if (input.gameId) where.gameId = input.gameId;
     if (input.startDate) where.createdAt = { ...(where.createdAt as object), gte: input.startDate };
     if (input.endDate) where.createdAt = { ...(where.createdAt as object), lte: input.endDate };
-    if (input.createdBefore) where.createdAt = { ...(where.createdAt as object), lt: input.createdBefore };
     applySettlementFilter(where, input.settlementStatus);
-    return where;
+    return withMergedCursor(where, input.cursor);
   }
 
   private buildCrashBetWhere(input: {
@@ -752,21 +756,20 @@ export class ReportService {
     gameId?: string;
     startDate?: Date;
     endDate?: Date;
-    createdBefore?: Date;
+    cursor?: MergedCursor;
     settlementStatus?: 'settled' | 'unsettled';
   }): Prisma.CrashBetWhereInput {
     const where: Prisma.CrashBetWhereInput = {};
     if (input.memberIds) where.userId = { in: input.memberIds };
     if (input.startDate) where.createdAt = { ...(where.createdAt as object), gte: input.startDate };
     if (input.endDate) where.createdAt = { ...(where.createdAt as object), lte: input.endDate };
-    if (input.createdBefore) where.createdAt = { ...(where.createdAt as object), lt: input.createdBefore };
     if (input.gameId || input.settlementStatus) {
       const roundWhere: Prisma.CrashRoundWhereInput = {};
       if (input.gameId) roundWhere.gameId = input.gameId;
       applyCrashSettlementFilter(roundWhere, input.settlementStatus);
       where.round = roundWhere;
     }
-    return where;
+    return withMergedCursor(where, input.cursor);
   }
 
   private async aggregateUnifiedBets(input: {
@@ -835,21 +838,54 @@ interface DashboardBetInput {
   createdAt: Date;
 }
 
-function addUtcDays(date: Date, days: number): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + days));
+interface MergedCursor {
+  createdAt: Date;
+  id: string;
 }
 
-function startOfUtcDay(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+function parseMergedCursor(cursor?: string): MergedCursor | undefined {
+  if (!cursor) return undefined;
+  const [createdAtRaw = '', id = ''] = cursor.split('__');
+  if (!id) return undefined;
+  const createdAt = new Date(createdAtRaw);
+  if (!Number.isFinite(createdAt.getTime())) return undefined;
+  return { createdAt, id };
 }
 
-function dayKeyUtc(date: Date): string {
-  return date.toISOString().slice(0, 10);
+function buildMergedCursor(entry: { createdAt: string; id: string }): string {
+  return `${entry.createdAt}__${entry.id}`;
 }
 
-function labelFromDayKey(key: string): string {
+function compareMergedEntries(
+  a: { createdAt: string; id: string },
+  b: { createdAt: string; id: string },
+): number {
+  const timeDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  if (timeDiff !== 0) return timeDiff;
+  return b.id.localeCompare(a.id);
+}
+
+function labelFromGameDay(key: string): string {
   const [, month = '0', day = '0'] = key.split('-');
   return `${Number(month)}/${Number(day)}`;
+}
+
+function withMergedCursor<T extends { id?: unknown; createdAt?: unknown }>(
+  where: T,
+  cursor: MergedCursor | undefined,
+): T {
+  if (!cursor) return where;
+  return {
+    AND: [
+      where,
+      {
+        OR: [
+          { createdAt: { lt: cursor.createdAt } },
+          { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+        ],
+      },
+    ],
+  } as unknown as T;
 }
 
 function emptyStats(

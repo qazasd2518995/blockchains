@@ -11,8 +11,10 @@ export function MemberBetRecordsPage(): JSX.Element {
   const { t } = useTranslation();
   const [member, setMember] = useState<MemberPublic | null>(null);
   const [items, setItems] = useState<MemberBetEntry[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [gameFilter, setGameFilter] = useState('');
 
   useEffect(() => {
@@ -20,16 +22,18 @@ export function MemberBetRecordsPage(): JSX.Element {
     let cancel = false;
     const load = async () => {
       setLoading(true);
+      setError(null);
+      setItems([]);
+      setNextCursor(null);
       try {
         const [mRes, bRes] = await Promise.all([
           adminApi.get<MemberPublic>(`/members/${id}`),
-          adminApi.get<MemberBetListResponse>(`/members/${id}/bets`, {
-            params: gameFilter ? { gameId: gameFilter } : {},
-          }),
+          adminApi.get<MemberBetListResponse>(`/members/${id}/bets`, { params: buildParams(gameFilter) }),
         ]);
         if (!cancel) {
           setMember(mRes.data);
           setItems(bRes.data.items);
+          setNextCursor(bRes.data.nextCursor);
         }
       } catch (e) {
         if (!cancel) setError(extractApiError(e).message);
@@ -42,6 +46,23 @@ export function MemberBetRecordsPage(): JSX.Element {
       cancel = true;
     };
   }, [id, gameFilter]);
+
+  const loadMore = async () => {
+    if (!id || !nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const res = await adminApi.get<MemberBetListResponse>(`/members/${id}/bets`, {
+        params: buildParams(gameFilter, nextCursor),
+      });
+      setItems((current) => [...current, ...res.data.items]);
+      setNextCursor(res.data.nextCursor);
+    } catch (e) {
+      setError(extractApiError(e).message);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const columns: Column<MemberBetEntry>[] = [
     {
@@ -105,12 +126,38 @@ export function MemberBetRecordsPage(): JSX.Element {
       )}
 
       {loading ? (
-        <div className="crt-panel p-8 text-center text-ink-500">Loading…</div>
+        <div className="crt-panel p-8 text-center text-ink-500">{t.common.loading}…</div>
       ) : (
-        <DataTable columns={columns} rows={items} rowKey={(r) => r.id} empty={t.bets.empty} />
+        <>
+          <DataTable
+            columns={columns}
+            rows={items}
+            rowKey={(r) => `${r.createdAt}-${r.id}`}
+            empty={t.bets.empty}
+          />
+          {nextCursor && (
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="btn-teal-outline text-[11px] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loadingMore ? `${t.common.loading}…` : '加载更多'}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
+}
+
+function buildParams(gameFilter: string, cursor?: string): Record<string, string | number> {
+  const params: Record<string, string | number> = { limit: 50 };
+  if (gameFilter) params.gameId = gameFilter;
+  if (cursor) params.cursor = cursor;
+  return params;
 }
 
 function fmt(s: string): string {

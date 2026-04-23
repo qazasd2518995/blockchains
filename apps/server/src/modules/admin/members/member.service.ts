@@ -8,6 +8,7 @@ import { runSerializable } from '../../games/_common/BaseGameService.js';
 import { createPlayerSeeds } from '../../auth/player-seeds.js';
 import { writeAudit } from '../audit/audit.service.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
+import { resolveAdminGameDayRange } from '../gameDay.js';
 import type {
   CreateMemberInput,
   UpdateMemberNotesInput,
@@ -409,36 +410,34 @@ export class MemberService {
   async getBets(
     operator: AdminCurrent,
     id: string,
-  query: MemberBetQuery,
+    query: MemberBetQuery,
   ): Promise<{ items: MemberBetEntry[]; nextCursor: string | null }> {
     const ok = await canManageMember(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot view bets of this member');
     const limit = query.limit ?? 50;
-    const cursorDate = query.cursor ? new Date(query.cursor) : null;
-    const createdBefore = cursorDate && Number.isFinite(cursorDate.getTime()) ? cursorDate : undefined;
+    const cursor = parseMergedCursor(query.cursor);
+    const range = resolveAdminGameDayRange(query);
 
     const betWhere: Prisma.BetWhereInput = { userId: id };
-    if (query.startDate) betWhere.createdAt = { ...(betWhere.createdAt as object), gte: new Date(query.startDate) };
-    if (query.endDate) betWhere.createdAt = { ...(betWhere.createdAt as object), lte: new Date(query.endDate) };
-    if (createdBefore) betWhere.createdAt = { ...(betWhere.createdAt as object), lt: createdBefore };
+    if (range.start) betWhere.createdAt = { ...(betWhere.createdAt as object), gte: range.start };
+    if (range.end) betWhere.createdAt = { ...(betWhere.createdAt as object), lte: range.end };
     if (query.gameId) betWhere.gameId = query.gameId;
 
     const crashWhere: Prisma.CrashBetWhereInput = { userId: id };
-    if (query.startDate) crashWhere.createdAt = { ...(crashWhere.createdAt as object), gte: new Date(query.startDate) };
-    if (query.endDate) crashWhere.createdAt = { ...(crashWhere.createdAt as object), lte: new Date(query.endDate) };
-    if (createdBefore) crashWhere.createdAt = { ...(crashWhere.createdAt as object), lt: createdBefore };
+    if (range.start) crashWhere.createdAt = { ...(crashWhere.createdAt as object), gte: range.start };
+    if (range.end) crashWhere.createdAt = { ...(crashWhere.createdAt as object), lte: range.end };
     if (query.gameId) crashWhere.round = { gameId: query.gameId };
 
     const [rows, crashRows] = await Promise.all([
       this.prisma.bet.findMany({
-        where: betWhere,
-        orderBy: { createdAt: 'desc' },
+        where: withMergedCursor(betWhere, cursor),
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: limit + 1,
       }),
       this.prisma.crashBet.findMany({
-        where: crashWhere,
+        where: withMergedCursor(crashWhere, cursor),
         include: { round: { select: { gameId: true } } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: limit + 1,
       }),
     ]);
@@ -462,15 +461,60 @@ export class MemberService {
         profit: b.payout.sub(b.amount).toFixed(2),
         createdAt: b.createdAt.toISOString(),
       })),
-    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    ].sort(compareMergedEntries);
 
     const hasMore = merged.length > limit;
     const page = hasMore ? merged.slice(0, limit) : merged;
     return {
       items: page,
-      nextCursor: hasMore ? page[page.length - 1]!.createdAt : null,
+      nextCursor: hasMore ? buildMergedCursor(page[page.length - 1]!) : null,
     };
   }
+}
+
+interface MergedCursor {
+  createdAt: Date;
+  id: string;
+}
+
+function parseMergedCursor(cursor?: string): MergedCursor | undefined {
+  if (!cursor) return undefined;
+  const [createdAtRaw = '', id = ''] = cursor.split('__');
+  if (!id) return undefined;
+  const createdAt = new Date(createdAtRaw);
+  if (!Number.isFinite(createdAt.getTime())) return undefined;
+  return { createdAt, id };
+}
+
+function buildMergedCursor(entry: { createdAt: string; id: string }): string {
+  return `${entry.createdAt}__${entry.id}`;
+}
+
+function compareMergedEntries(
+  a: { createdAt: string; id: string },
+  b: { createdAt: string; id: string },
+): number {
+  const timeDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  if (timeDiff !== 0) return timeDiff;
+  return b.id.localeCompare(a.id);
+}
+
+function withMergedCursor<T extends { id?: unknown; createdAt?: unknown }>(
+  where: T,
+  cursor: MergedCursor | undefined,
+): T {
+  if (!cursor) return where;
+  return {
+    AND: [
+      where,
+      {
+        OR: [
+          { createdAt: { lt: cursor.createdAt } },
+          { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+        ],
+      },
+    ],
+  } as unknown as T;
 }
 
 function toMemberPublic(

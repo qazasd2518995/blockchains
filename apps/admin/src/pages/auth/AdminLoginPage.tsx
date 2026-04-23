@@ -3,7 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
-import axios from 'axios';
 import type { AdminAuthResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
@@ -32,49 +31,12 @@ export function AdminLoginPage(): JSX.Element {
   const onSubmit = async (data: FormInput) => {
     setServerError(null);
 
-    const debugTag = '[AdminLogin]';
-    const apiBase = import.meta.env.VITE_API_BASE ?? '(empty)';
-    const fullUrl = `${import.meta.env.VITE_API_BASE ?? ''}/api/admin/auth/login`;
-
-    console.groupCollapsed(`${debugTag} attempting login`);
-    console.log('username:', data.username);
-    console.log('password length:', data.password.length, 'chars');
-    console.log('VITE_API_BASE:', apiBase);
-    console.log('resolved URL:', fullUrl);
-    console.log('timestamp:', new Date().toISOString());
-    console.groupEnd();
-
     try {
       const res = await adminApi.post<AdminAuthResponse>('/auth/login', data);
-      console.log(`${debugTag} ✓ success`, {
-        status: res.status,
-        agentId: res.data.agent?.id,
-        role: res.data.agent?.role,
-      });
       setAuth(res.data.agent, res.data.accessToken, res.data.refreshToken);
       const from = params.get('from');
       navigate(from ? decodeURIComponent(from) : '/admin/dashboard');
     } catch (err) {
-      console.group(`${debugTag} ✗ FAILED`);
-      if (axios.isAxiosError(err)) {
-        console.error('axios error:', {
-          status: err.response?.status,
-          statusText: err.response?.statusText,
-          responseData: err.response?.data,
-          requestUrl: err.config?.url,
-          requestBaseURL: err.config?.baseURL,
-          fullURL: (err.config?.baseURL ?? '') + (err.config?.url ?? ''),
-          requestMethod: err.config?.method,
-          requestBody: err.config?.data,
-          message: err.message,
-          code: err.code,
-        });
-      } else {
-        console.error('non-axios error:', err);
-      }
-      console.error('raw error object:', err);
-      console.groupEnd();
-
       const apiErr = extractApiError(err);
       setServerError(`${apiErr.code} · ${apiErr.message}`);
     }
