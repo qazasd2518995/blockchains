@@ -108,8 +108,10 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         reply.code(400).send({ code: 'INVALID_ACTION', message: 'Member has no agent' });
         return;
       }
-      const created = await fastify.prisma.memberWinCapControl.create({
-        data: {
+      // memberUsername @unique — 用 upsert 避免第二次提交拋 Prisma raw 錯誤
+      const created = await fastify.prisma.memberWinCapControl.upsert({
+        where: { memberUsername: body.memberUsername },
+        create: {
           memberId: body.memberId,
           memberUsername: body.memberUsername,
           agentId: member.agentId,
@@ -120,10 +122,18 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           notes: body.notes ?? null,
           operatorUsername: req.admin.username,
         },
+        update: {
+          winCapAmount: new Prisma.Decimal(body.winCapAmount),
+          controlWinRate: new Prisma.Decimal(body.controlWinRate),
+          triggerThreshold: new Prisma.Decimal(body.triggerThreshold),
+          notes: body.notes ?? null,
+          operatorUsername: req.admin.username,
+          isActive: true,
+        },
       });
       await writeAudit(fastify.prisma, {
         actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.win_cap.create',
+        action: 'control.win_cap.upsert',
         targetType: 'control',
         targetId: created.id,
         newValues: { memberUsername: body.memberUsername, winCapAmount: body.winCapAmount },
@@ -139,7 +149,16 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req) => {
       const { id } = req.params as { id: string };
       const { isActive } = toggleSchema.parse(req.body);
-      return fastify.prisma.memberWinCapControl.update({ where: { id }, data: { isActive } });
+      const updated = await fastify.prisma.memberWinCapControl.update({ where: { id }, data: { isActive } });
+      await writeAudit(fastify.prisma, {
+        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        action: 'control.win_cap.toggle',
+        targetType: 'control',
+        targetId: id,
+        newValues: { isActive },
+        req,
+      });
+      return updated;
     },
   );
 
@@ -149,6 +168,13 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req, reply) => {
       const { id } = req.params as { id: string };
       await fastify.prisma.memberWinCapControl.delete({ where: { id } });
+      await writeAudit(fastify.prisma, {
+        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        action: 'control.win_cap.delete',
+        targetType: 'control',
+        targetId: id,
+        req,
+      });
       reply.code(204).send();
     },
   );
@@ -200,7 +226,16 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req) => {
       const { id } = req.params as { id: string };
       const { isActive } = toggleSchema.parse(req.body);
-      return fastify.prisma.memberDepositControl.update({ where: { id }, data: { isActive } });
+      const updated = await fastify.prisma.memberDepositControl.update({ where: { id }, data: { isActive } });
+      await writeAudit(fastify.prisma, {
+        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        action: 'control.deposit.toggle',
+        targetType: 'control',
+        targetId: id,
+        newValues: { isActive },
+        req,
+      });
+      return updated;
     },
   );
 
@@ -210,6 +245,13 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req, reply) => {
       const { id } = req.params as { id: string };
       await fastify.prisma.memberDepositControl.delete({ where: { id } });
+      await writeAudit(fastify.prisma, {
+        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        action: 'control.deposit.delete',
+        targetType: 'control',
+        targetId: id,
+        req,
+      });
       reply.code(204).send();
     },
   );
@@ -260,7 +302,16 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req) => {
       const { id } = req.params as { id: string };
       const { isActive } = toggleSchema.parse(req.body);
-      return fastify.prisma.agentLineWinCap.update({ where: { id }, data: { isActive } });
+      const updated = await fastify.prisma.agentLineWinCap.update({ where: { id }, data: { isActive } });
+      await writeAudit(fastify.prisma, {
+        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        action: 'control.agent_line.toggle',
+        targetType: 'control',
+        targetId: id,
+        newValues: { isActive },
+        req,
+      });
+      return updated;
     },
   );
 
@@ -270,6 +321,13 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req, reply) => {
       const { id } = req.params as { id: string };
       await fastify.prisma.agentLineWinCap.delete({ where: { id } });
+      await writeAudit(fastify.prisma, {
+        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        action: 'control.agent_line.delete',
+        targetType: 'control',
+        targetId: id,
+        req,
+      });
       reply.code(204).send();
     },
   );

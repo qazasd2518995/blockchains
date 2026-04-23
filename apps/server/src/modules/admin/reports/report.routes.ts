@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { ReportService } from './report.service.js';
-import { reportQuerySchema, agentAnalysisQuerySchema } from './report.schema.js';
+import { reportQuerySchema, agentAnalysisQuerySchema, hierarchyQuerySchema } from './report.schema.js';
 
 export async function reportRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new ReportService(fastify.prisma);
@@ -16,12 +16,7 @@ export async function reportRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.get('/hierarchy', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
-    const q = req.query as Record<string, string | undefined>;
-    return service.hierarchyAnalysis(req.admin, {
-      parentId: q.parentId,
-      startDate: q.startDate,
-      endDate: q.endDate,
-      gameId: q.gameId,
-    });
+    const q = hierarchyQuerySchema.parse(req.query);
+    return service.hierarchyAnalysis(req.admin, q);
   });
 }

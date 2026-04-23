@@ -18,10 +18,24 @@ interface AgentDetail {
   maxRebatePercentage: string;
 }
 
+/** 後端以 fraction 儲存（0.0410 = 4.10%），UI 一律顯示 % */
+function fractionToPctStr(f: string): string {
+  const n = Number.parseFloat(f);
+  if (!Number.isFinite(n)) return '0.00';
+  return (n * 100).toFixed(2);
+}
+
+function pctStrToFraction(p: string): string {
+  const n = Number.parseFloat(p);
+  if (!Number.isFinite(n)) return '0';
+  return (n / 100).toFixed(4);
+}
+
 export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDone }: Props): JSX.Element {
   const [mode, setMode] = useState<'PERCENTAGE' | 'ALL' | 'NONE'>('PERCENTAGE');
-  const [pct, setPct] = useState('0');
-  const [maxPct, setMaxPct] = useState('100');
+  /** 以 % 為單位顯示（字串，例如 "4.10"） */
+  const [pctDisplay, setPctDisplay] = useState('0.00');
+  const [maxPctDisplay, setMaxPctDisplay] = useState('0.00');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -32,8 +46,8 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
       try {
         const res = await adminApi.get<AgentDetail>(`/agents/${agentId}`);
         setMode(res.data.rebateMode);
-        setPct(res.data.rebatePercentage);
-        setMaxPct(res.data.maxRebatePercentage);
+        setPctDisplay(fractionToPctStr(res.data.rebatePercentage));
+        setMaxPctDisplay(fractionToPctStr(res.data.maxRebatePercentage));
       } catch (e) {
         setErr(extractApiError(e).message);
       }
@@ -41,12 +55,25 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
   }, [open, agentId]);
 
   const submit = async (): Promise<void> => {
+    // 前端先做基本校驗避免後端 422
+    const pctNum = Number.parseFloat(pctDisplay);
+    const maxNum = Number.parseFloat(maxPctDisplay);
+    if (mode === 'PERCENTAGE') {
+      if (!Number.isFinite(pctNum) || pctNum < 0) {
+        setErr('退水比例必須為非負數字（%）');
+        return;
+      }
+      if (pctNum > maxNum + 1e-6) {
+        setErr(`退水比例不可超過上限 ${maxPctDisplay}%`);
+        return;
+      }
+    }
     setBusy(true);
     setErr(null);
     try {
       await adminApi.put(`/agents/${agentId}/rebate`, {
         rebateMode: mode,
-        rebatePercentage: pct,
+        rebatePercentage: pctStrToFraction(pctDisplay),
       });
       onDone();
       onClose();
@@ -66,7 +93,7 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
         </div>
         <div className="mt-1 flex items-baseline justify-between">
           <span className="text-ink-500">上限（上級）</span>
-          <span className="data-num text-[#186073]">{maxPct}%</span>
+          <span className="data-num text-[#186073]">{maxPctDisplay}%</span>
         </div>
       </div>
 
@@ -86,14 +113,20 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
 
         {mode === 'PERCENTAGE' && (
           <label className="block">
-            <div className="label mb-2">退水比例（%，不得超過上限）</div>
-            <input
-              type="text"
-              value={pct}
-              onChange={(e) => setPct(e.target.value)}
-              className="term-input font-mono"
-              placeholder="0.5"
-            />
+            <div className="label mb-2">退水比例（%，不得超過 {maxPctDisplay}%）</div>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={pctDisplay}
+                onChange={(e) => setPctDisplay(e.target.value)}
+                className="term-input font-mono pr-8"
+                placeholder="例如 2.50"
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[12px] text-ink-500">
+                %
+              </span>
+            </div>
           </label>
         )}
 

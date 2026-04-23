@@ -19,6 +19,7 @@ export async function memberRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   // Lookup by username — 給控制 modal 填帳號時用
+  // 權限限制：非 SUPER_ADMIN 只能查自己下級樹的會員（避免側道枚舉）
   fastify.get('/lookup', { preHandler: [fastify.authenticateAdmin] }, async (req, reply) => {
     const { username } = req.query as { username?: string };
     if (!username) {
@@ -32,6 +33,14 @@ export async function memberRoutes(fastify: FastifyInstance): Promise<void> {
     if (!user) {
       reply.code(404).send({ code: 'MEMBER_NOT_FOUND', message: 'Member not found' });
       return;
+    }
+    if (req.admin.role !== 'SUPER_ADMIN') {
+      const { canManageMember } = await import('../../../utils/hierarchy.js');
+      const ok = await canManageMember(fastify.prisma, req.admin, user.id);
+      if (!ok) {
+        reply.code(404).send({ code: 'MEMBER_NOT_FOUND', message: 'Member not found' });
+        return;
+      }
     }
     return user;
   });

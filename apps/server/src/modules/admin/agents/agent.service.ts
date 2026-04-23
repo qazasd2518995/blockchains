@@ -16,6 +16,13 @@ import type { FastifyRequest } from 'fastify';
 
 const BCRYPT_ROUNDS = 12;
 
+/**
+ * 平台退水硬上限（電子系列） — 2.5%（fraction 表示：0.025）。
+ * 任何代理／子代理的 rebatePercentage 都不得超過此值，
+ * 即使其上級設定得更高，仍會在此 cap 住。
+ */
+const PLATFORM_REBATE_CAP = new Prisma.Decimal('0.025');
+
 export class AgentService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -85,10 +92,16 @@ export class AgentService {
       throw new ApiError('HIERARCHY_VIOLATION', `level must be ${parent.level + 1}`);
     }
 
-    // rebate ≤ parent.rebatePercentage
+    // rebate ≤ parent.rebatePercentage 且 ≤ 平台硬上限 2.5%
     const rebatePct = new Prisma.Decimal(input.rebatePercentage ?? parent.rebatePercentage);
     if (rebatePct.greaterThan(parent.rebatePercentage)) {
       throw new ApiError('REBATE_VIOLATION', 'rebatePercentage exceeds parent');
+    }
+    if (rebatePct.greaterThan(PLATFORM_REBATE_CAP)) {
+      throw new ApiError(
+        'REBATE_VIOLATION',
+        `rebatePercentage exceeds platform cap ${PLATFORM_REBATE_CAP.mul(100).toFixed(2)}%`,
+      );
     }
     const commissionRate = new Prisma.Decimal(input.commissionRate ?? parent.commissionRate);
     if (commissionRate.greaterThan(parent.commissionRate)) {
@@ -177,6 +190,12 @@ export class AgentService {
     const maxAllowed = existing.parent?.rebatePercentage ?? existing.maxRebatePercentage;
     if (newPct.greaterThan(maxAllowed)) {
       throw new ApiError('REBATE_VIOLATION', 'rebatePercentage exceeds parent');
+    }
+    if (newPct.greaterThan(PLATFORM_REBATE_CAP)) {
+      throw new ApiError(
+        'REBATE_VIOLATION',
+        `rebatePercentage exceeds platform cap ${PLATFORM_REBATE_CAP.mul(100).toFixed(2)}%`,
+      );
     }
     const updated = await this.prisma.agent.update({
       where: { id },

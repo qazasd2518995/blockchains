@@ -19,6 +19,7 @@ export async function agentRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   // Lookup by username — 給控制 / 轉帳 modal 填帳號時用
+  // 權限限制：非 SUPER_ADMIN 只能查自己下級樹的代理（避免側道枚舉）
   fastify.get('/lookup', { preHandler: [fastify.authenticateAdmin] }, async (req, reply) => {
     const { username } = req.query as { username?: string };
     if (!username) {
@@ -32,6 +33,14 @@ export async function agentRoutes(fastify: FastifyInstance): Promise<void> {
     if (!agent) {
       reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
       return;
+    }
+    if (req.admin.role !== 'SUPER_ADMIN') {
+      const { canManageAgent } = await import('../../../utils/hierarchy.js');
+      const ok = await canManageAgent(fastify.prisma, req.admin, agent.id);
+      if (!ok) {
+        reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
+        return;
+      }
     }
     return agent;
   });
