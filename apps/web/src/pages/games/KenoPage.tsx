@@ -8,6 +8,7 @@ import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { KenoScene } from '@/games/keno/KenoScene';
+import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 
 const POOL_SIZE = 40;
 const MAX_PICKS = 10;
@@ -22,6 +23,7 @@ export function KenoPage() {
   const [result, setResult] = useState<KenoBetResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<RecentBetRecord[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<KenoScene | null>(null);
@@ -90,6 +92,18 @@ export function KenoPage() {
       sceneRef.current?.playWinFx(res.data.multiplier, res.data.multiplier > 1);
       setResult(res.data);
       setBalance(res.data.newBalance);
+      setHistory((prev) => [
+        {
+          id: res.data.betId,
+          timestamp: Date.now(),
+          betAmount: amount,
+          multiplier: res.data.multiplier,
+          payout: amount * res.data.multiplier,
+          won: res.data.multiplier > 1,
+          detail: `${res.data.hits.length}/${res.data.selected.length} 命中`,
+        },
+        ...prev,
+      ].slice(0, 30));
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -243,6 +257,8 @@ export function KenoPage() {
               </span>
             </div>
           </div>
+
+          <RecentBetsList records={history} />
         </div>
       </div>
     </div>

@@ -12,6 +12,7 @@ import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { HiLoScene } from '@/games/hilo/HiLoScene';
+import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 
 export function HiLoPage() {
   const { user, setBalance } = useAuthStore();
@@ -21,6 +22,7 @@ export function HiLoPage() {
   const [round, setRound] = useState<HiLoRoundState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<RecentBetRecord[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HiLoScene | null>(null);
@@ -91,6 +93,21 @@ export function HiLoPage() {
       });
       await sceneRef.current?.playDraw(res.data.drawn, res.data.correct);
       setRound(res.data.state);
+      // 答錯 → 一局結束（BUSTED），記錄輸局
+      if (res.data.state.status === 'BUSTED') {
+        setHistory((prev) => [
+          {
+            id: res.data.state.roundId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: 0,
+            payout: 0,
+            won: false,
+            detail: `${res.data.state.history.length} 連對`,
+          },
+          ...prev,
+        ].slice(0, 30));
+      }
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -121,8 +138,21 @@ export function HiLoPage() {
       });
       setRound(res.data.state);
       setBalance(res.data.newBalance);
-      sceneRef.current?.celebrateCashout(Number.parseFloat(res.data.state.currentMultiplier));
-      sceneRef.current?.playWinFx(Number.parseFloat(res.data.state.currentMultiplier), true);
+      const cashMult = Number.parseFloat(res.data.state.currentMultiplier);
+      sceneRef.current?.celebrateCashout(cashMult);
+      sceneRef.current?.playWinFx(cashMult, true);
+      setHistory((prev) => [
+        {
+          id: res.data.state.roundId,
+          timestamp: Date.now(),
+          betAmount: amount,
+          multiplier: cashMult,
+          payout: amount * cashMult,
+          won: true,
+          detail: `${res.data.state.history.length} 連對`,
+        },
+        ...prev,
+      ].slice(0, 30));
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -314,6 +344,8 @@ export function HiLoPage() {
               </div>
             </div>
           </div>
+
+          <RecentBetsList records={history} />
         </div>
       </div>
     </div>

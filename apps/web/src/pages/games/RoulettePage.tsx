@@ -7,6 +7,7 @@ import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { RouletteScene } from '@/games/roulette/RouletteScene';
+import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 
 const RED = new Set([1, 3, 5, 7, 9, 12]);
 const BLACK = new Set([2, 4, 6, 8, 10, 11]);
@@ -24,6 +25,7 @@ export function RoulettePage({ variant }: Props) {
   const [result, setResult] = useState<RouletteBetResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<RecentBetRecord[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<RouletteScene | null>(null);
@@ -90,6 +92,18 @@ export function RoulettePage({ variant }: Props) {
       setResult(res.data);
       setBalance(res.data.newBalance);
       setBets([]);
+      setHistory((prev) => [
+        {
+          id: res.data.betId,
+          timestamp: Date.now(),
+          betAmount: stake,
+          multiplier: fxMult,
+          payout,
+          won: fxMult > 0,
+          detail: `號碼 ${res.data.slot}`,
+        },
+        ...prev,
+      ].slice(0, 30));
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -294,6 +308,8 @@ export function RoulettePage({ variant }: Props) {
               </span>
             </div>
           </div>
+
+          <RecentBetsList records={history} />
         </div>
       </div>
     </div>

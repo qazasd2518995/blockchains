@@ -13,6 +13,7 @@ import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { TowerScene } from '@/games/tower/TowerScene';
+import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 
 export function TowerPage() {
   const { user, setBalance } = useAuthStore();
@@ -23,6 +24,7 @@ export function TowerPage() {
   const [round, setRound] = useState<TowerRoundState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<RecentBetRecord[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<TowerScene | null>(null);
@@ -122,6 +124,18 @@ export function TowerPage() {
       roundRef.current = res.data.state;
       if (res.data.hitTrap && res.data.state.revealedLayout) {
         sceneRef.current?.revealAll(res.data.state.revealedLayout);
+        setHistory((prev) => [
+          {
+            id: res.data.state.roundId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: 0,
+            payout: 0,
+            won: false,
+            detail: `${res.data.state.picks.length} 層 · ${res.data.state.difficulty}`,
+          },
+          ...prev,
+        ].slice(0, 30));
       } else {
         sceneRef.current?.setMultiplier(
           Number.parseFloat(res.data.state.currentMultiplier).toFixed(2),
@@ -147,8 +161,21 @@ export function TowerPage() {
       if (res.data.state.revealedLayout) {
         sceneRef.current?.revealAll(res.data.state.revealedLayout);
       }
-      sceneRef.current?.celebrate(Number.parseFloat(res.data.state.currentMultiplier));
-      sceneRef.current?.playWinFx(Number.parseFloat(res.data.state.currentMultiplier), true);
+      const cashMult = Number.parseFloat(res.data.state.currentMultiplier);
+      sceneRef.current?.celebrate(cashMult);
+      sceneRef.current?.playWinFx(cashMult, true);
+      setHistory((prev) => [
+        {
+          id: res.data.state.roundId,
+          timestamp: Date.now(),
+          betAmount: amount,
+          multiplier: cashMult,
+          payout: amount * cashMult,
+          won: true,
+          detail: `${res.data.state.picks.length} 層 · ${res.data.state.difficulty}`,
+        },
+        ...prev,
+      ].slice(0, 30));
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -298,6 +325,8 @@ export function TowerPage() {
               </div>
             </div>
           </div>
+
+          <RecentBetsList records={history} />
         </div>
       </div>
     </div>

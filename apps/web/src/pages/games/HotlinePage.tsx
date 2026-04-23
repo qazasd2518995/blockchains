@@ -10,6 +10,7 @@ import { HOTLINE_SYMBOLS } from '@/lib/hotlineSymbols';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { HotlineScene } from '@/games/hotline/HotlineScene';
+import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 
 export function HotlinePage() {
   const { user, setBalance } = useAuthStore();
@@ -20,6 +21,7 @@ export function HotlinePage() {
   const [spinning, setSpinning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<RecentBetRecord[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
@@ -66,9 +68,22 @@ export function HotlinePage() {
       const payload: HotlineBetRequest = { amount };
       const res = await api.post<HotlineBetResult>('/games/hotline/bet', payload);
       await sceneRef.current?.playSpin(res.data.grid, res.data.lines);
-      sceneRef.current?.playWinFx(res.data.multiplier ?? 0, (res.data.multiplier ?? 0) > 0);
+      const mult = res.data.multiplier ?? 0;
+      sceneRef.current?.playWinFx(mult, mult > 0);
       setResult(res.data);
       setBalance(res.data.newBalance);
+      setHistory((prev) => [
+        {
+          id: res.data.betId,
+          timestamp: Date.now(),
+          betAmount: amount,
+          multiplier: mult,
+          payout: amount * mult,
+          won: mult > 0,
+          detail: `${res.data.lines.length} 連線`,
+        },
+        ...prev,
+      ].slice(0, 30));
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -198,6 +213,8 @@ export function HotlinePage() {
               ))}
             </div>
           </div>
+
+          <RecentBetsList records={history} />
         </div>
       </div>
     </div>

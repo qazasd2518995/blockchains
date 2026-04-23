@@ -8,6 +8,7 @@ import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { getCrashSocket, disconnectCrashSocket } from '@/lib/socket';
 import { useTranslation } from '@/i18n/useTranslation';
 import { CrashScene, type CrashVariant } from '@/games/crash/CrashScene';
+import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 
 interface CrashGameConfig {
   gameId: string;
@@ -37,6 +38,7 @@ export function CrashPage({ config }: Props) {
   const [history, setHistory] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [bettingCountdown, setBettingCountdown] = useState(0);
+  const [myHistory, setMyHistory] = useState<RecentBetRecord[]>([]);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<CrashScene | null>(null);
@@ -160,6 +162,24 @@ export function CrashPage({ config }: Props) {
       setMultiplier(payload.finalMultiplier);
       setCrashPoint(payload.finalMultiplier);
       setHistory((h) => [payload.finalMultiplier, ...h].slice(0, 20));
+      // 玩家本局有下注但沒 cashout → 記為輸局
+      setMyBet((b) => {
+        if (b && !b.cashed) {
+          setMyHistory((prev) => [
+            {
+              id: `${Date.now()}-${Math.random()}`,
+              timestamp: Date.now(),
+              betAmount: b.amount,
+              multiplier: 0,
+              payout: 0,
+              won: false,
+              detail: `Crashed @ ${payload.finalMultiplier.toFixed(2)}×`,
+            },
+            ...prev,
+          ].slice(0, 30));
+        }
+        return b;
+      });
     };
 
     const onBetsUpdate = (payload: { players: CrashPlayerBet[] }) => {
@@ -238,6 +258,20 @@ export function CrashPage({ config }: Props) {
           : multiplier;
         sceneRef.current?.celebrateCashout(payoutMult);
         sceneRef.current?.playWinFx(payoutMult, true);
+        if (myBet?.amount) {
+          setMyHistory((prev) => [
+            {
+              id: `${Date.now()}-${Math.random()}`,
+              timestamp: Date.now(),
+              betAmount: myBet.amount,
+              multiplier: payoutMult,
+              payout: res.payout ? Number.parseFloat(res.payout) : myBet.amount * payoutMult,
+              won: true,
+              detail: `Cashed @ ${payoutMult.toFixed(2)}×`,
+            },
+            ...prev,
+          ].slice(0, 30));
+        }
       },
     );
   };
@@ -429,6 +463,8 @@ export function CrashPage({ config }: Props) {
               ))}
             </div>
           </div>
+
+          <RecentBetsList records={myHistory} title="我的注單" />
         </div>
       </div>
     </div>

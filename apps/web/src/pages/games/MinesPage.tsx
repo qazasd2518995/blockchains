@@ -10,6 +10,7 @@ import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
 import { MinesScene } from '@/games/mines/MinesScene';
+import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { GameHeader } from '@/components/game/GameHeader';
@@ -27,6 +28,7 @@ export function MinesPage() {
   const [round, setRound] = useState<MinesRoundState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [history, setHistory] = useState<RecentBetRecord[]>([]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -114,6 +116,19 @@ export function MinesPage() {
         sceneRef.current?.revealMine(cellIndex, true);
         sceneRef.current?.setClickable(false);
         if (state.minePositions) sceneRef.current?.revealAllMines(state.minePositions);
+        // BUSTED → 記輸局
+        setHistory((prev) => [
+          {
+            id: state.roundId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: 0,
+            payout: 0,
+            won: false,
+            detail: `${state.revealed.length} 安全 · ${state.mineCount} 雷`,
+          },
+          ...prev,
+        ].slice(0, 30));
       } else {
         sceneRef.current?.revealGem(cellIndex);
       }
@@ -138,9 +153,22 @@ export function MinesPage() {
       setRound(state);
       roundRef.current = state;
       sceneRef.current?.setClickable(false);
-      sceneRef.current?.celebrateCashout(Number.parseFloat(state.currentMultiplier));
-      sceneRef.current?.playWinFx(Number.parseFloat(state.currentMultiplier), true);
+      const cashMult = Number.parseFloat(state.currentMultiplier);
+      sceneRef.current?.celebrateCashout(cashMult);
+      sceneRef.current?.playWinFx(cashMult, true);
       setBalance(newBalance);
+      setHistory((prev) => [
+        {
+          id: state.roundId,
+          timestamp: Date.now(),
+          betAmount: amount,
+          multiplier: cashMult,
+          payout: amount * cashMult,
+          won: true,
+          detail: `${state.revealed.length} 安全 · ${state.mineCount} 雷`,
+        },
+        ...prev,
+      ].slice(0, 30));
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -418,6 +446,8 @@ export function MinesPage() {
               />
             </div>
           </div>
+
+          <RecentBetsList records={history} />
         </div>
       </div>
     </div>

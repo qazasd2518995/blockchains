@@ -8,6 +8,7 @@ import { DiceScene } from '@/games/dice/DiceScene';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { GameHeader } from '@/components/game/GameHeader';
+import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 
 const MIN_TARGET = 1.01;
 const MAX_TARGET = 98.99;
@@ -23,7 +24,7 @@ export function DicePage() {
   const [target, setTarget] = useState(50);
   const [direction, setDirection] = useState<'under' | 'over'>('under');
   const [lastResult, setLastResult] = useState<DiceBetResult | null>(null);
-  const [history, setHistory] = useState<DiceBetResult[]>([]);
+  const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [rolling, setRolling] = useState(false);
 
@@ -82,7 +83,18 @@ export function DicePage() {
       await sceneRef.current?.playRoll(result.roll, result.won, result.multiplier);
       sceneRef.current?.playWinFx(result.multiplier, result.won);
       setLastResult(result);
-      setHistory((prev) => [result, ...prev].slice(0, 16));
+      setHistory((prev) => [
+        {
+          id: result.betId,
+          timestamp: Date.now(),
+          betAmount: amount,
+          multiplier: result.won ? result.multiplier : 0,
+          payout: Number.parseFloat(result.payout),
+          won: result.won,
+          detail: `${result.direction === 'under' ? '▾' : '▴'} ${result.target.toFixed(2)}`,
+        },
+        ...prev,
+      ].slice(0, 30));
       setBalance(result.newBalance);
     } catch (err) {
       setError(extractApiError(err).message);
@@ -264,50 +276,8 @@ export function DicePage() {
             </div>
           </div>
 
-          <div className="game-side-card p-5">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-baseline gap-2">
-                <span className="text-[9px] text-white/55">03</span>
-                <span className="text-[11px] font-semibold tracking-[0.25em] text-white/85">
-                  {t.games.dice.recentRolls}
-                </span>
-              </div>
-              <span className="data-num text-[10px] text-white/55">{history.length}</span>
-            </div>
-            <div className="mt-3 space-y-1">
-              {history.length === 0 && (
-                <div className="py-6 text-center text-[10px] tracking-[0.3em] text-white/40">
-                  —
-                </div>
-              )}
-              {history.map((h) => (
-                <div
-                  key={h.betId}
-                  className={`flex items-center justify-between rounded-[16px] border px-3 py-2 text-[11px] ${
-                    h.won
-                      ? 'border-neon-acid/20 bg-neon-acid/5'
-                      : 'border-neon-ember/20 bg-neon-ember/5'
-                  }`}
-                >
-                  <span
-                    className={`data-num ${h.won ? 'text-[#7DD3FC]' : 'text-white/75'}`}
-                  >
-                    {h.roll.toFixed(2)}
-                  </span>
-                  <span className="text-[9px] tracking-[0.2em] text-white/55">
-                    {h.direction === 'under' ? '▾' : '▴'} {h.target.toFixed(2)}
-                  </span>
-                  <span
-                    className={`data-num font-bold ${
-                      h.won ? 'text-[#7DD3FC]' : 'text-[#FCA5A5]'
-                    }`}
-                  >
-                    {h.won ? formatMultiplier(h.multiplier) : '×0'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <RecentBetsList records={history} />
+
         </div>
       </div>
     </div>

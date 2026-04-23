@@ -8,6 +8,7 @@ import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { PlinkoScene } from '@/games/plinko/PlinkoScene';
+import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 
 export function PlinkoPage() {
   const { user, setBalance } = useAuthStore();
@@ -17,6 +18,7 @@ export function PlinkoPage() {
   const [rows, setRows] = useState(12);
   const [risk, setRisk] = useState<PlinkoRisk>('medium');
   const [results, setResults] = useState<PlinkoBetResult[]>([]);
+  const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,6 +84,18 @@ export function PlinkoPage() {
       await sceneRef.current?.dropBall(res.data.path, res.data.bucket, res.data.multiplier);
       sceneRef.current?.playWinFx(res.data.multiplier, res.data.multiplier > 1);
       setResults((prev) => [res.data, ...prev].slice(0, 8));
+      setHistory((prev) => [
+        {
+          id: res.data.betId,
+          timestamp: Date.now(),
+          betAmount: amount,
+          multiplier: res.data.multiplier,
+          payout: amount * res.data.multiplier,
+          won: res.data.multiplier >= 1,
+          detail: `Bucket ${res.data.bucket}`,
+        },
+        ...prev,
+      ].slice(0, 30));
       setBalance(res.data.newBalance);
     } catch (err) {
       setError(extractApiError(err).message);
@@ -126,30 +140,6 @@ export function PlinkoPage() {
               </div>
             </div>
           </div>
-
-          {results.length > 0 && (
-            <div className="grid grid-cols-4 gap-2">
-              {results.slice(0, 4).map((r, i) => (
-                <div
-                  key={r.betId + i}
-                  className={`game-stat-card text-center ${
-                    r.multiplier >= 1
-                      ? 'border-neon-acid/30 bg-neon-acid/5'
-                      : 'border-neon-ember/30 bg-neon-ember/5'
-                  }`}
-                >
-                  <div className="text-[9px] text-white/55">B{r.bucket}</div>
-                  <div
-                    className={`num text-xl ${
-                      r.multiplier >= 1 ? 'text-[#7DD3FC]' : 'text-[#FCA5A5]'
-                    }`}
-                  >
-                    {formatMultiplier(r.multiplier)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
           {error && (
             <div className="game-alert text-[12px]">
@@ -218,6 +208,8 @@ export function PlinkoPage() {
               </span>
             </div>
           </div>
+
+          <RecentBetsList records={history} />
         </div>
       </div>
     </div>
