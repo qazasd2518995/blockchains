@@ -1,24 +1,68 @@
 import { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
+import { api } from '@/lib/api';
 import { FAKE_ANNOUNCEMENTS } from '@/data/fakeAnnouncements';
 import { TICKER_ICONS } from '@/lib/platformIcons';
 
 const ROTATE_INTERVAL = 3200;
 const VISIBLE_ROWS = 6;
 const ROW_HEIGHT = 56;
+const REFETCH_INTERVAL = 60_000;
+
+interface PublicAnnouncement {
+  id: string;
+  content: string;
+  priority: number;
+  createdAt: string;
+}
 
 export function AnnouncementTicker() {
   const Icon = TICKER_ICONS.announcement;
   const [offset, setOffset] = useState(0);
+  const [messages, setMessages] = useState<string[]>(FAKE_ANNOUNCEMENTS);
 
   useEffect(() => {
+    let cancelled = false;
+    const fetchAnnouncements = async () => {
+      try {
+        const res = await api.get<{ items: PublicAnnouncement[] }>(
+          '/public/announcements',
+          { params: { kind: 'marquee' } },
+        );
+        if (cancelled) return;
+        const sorted = [...res.data.items].sort((a, b) => b.priority - a.priority);
+        const contents = sorted.map((item) => item.content).filter((c) => c.trim().length > 0);
+        if (contents.length > 0) {
+          setMessages(contents);
+        }
+      } catch {
+        // API 失敗時保留現有訊息（初次載入時即 FAKE_ANNOUNCEMENTS fallback）
+      }
+    };
+    void fetchAnnouncements();
     const id = setInterval(() => {
-      setOffset((prev) => (prev + 1) % FAKE_ANNOUNCEMENTS.length);
-    }, ROTATE_INTERVAL);
-    return () => clearInterval(id);
+      void fetchAnnouncements();
+    }, REFETCH_INTERVAL);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, []);
 
-  const loop = [...FAKE_ANNOUNCEMENTS, ...FAKE_ANNOUNCEMENTS];
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const id = setInterval(() => {
+      setOffset((prev) => (prev + 1) % messages.length);
+    }, ROTATE_INTERVAL);
+    return () => clearInterval(id);
+  }, [messages.length]);
+
+  useEffect(() => {
+    // messages 改變時重置 offset 避免超出範圍
+    setOffset(0);
+  }, [messages.length]);
+
+  const loop = [...messages, ...messages];
 
   return (
     <aside

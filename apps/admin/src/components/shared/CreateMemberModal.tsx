@@ -21,6 +21,7 @@ const schema = z.object({
     .regex(/^\d+(\.\d{1,2})?$/, 'must be a positive decimal')
     .optional()
     .or(z.literal('')),
+  bettingLimitLevel: z.enum(['level1', 'level2', 'level3', 'level4', 'level5', 'unlimited']),
   notes: z.string().max(500).optional(),
 });
 
@@ -42,12 +43,12 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId }: 
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormInput>({ resolver: zodResolver(schema), defaultValues: { agentId: defaultAgentId ?? '' } });
+  } = useForm<FormInput>({ resolver: zodResolver(schema), defaultValues: { agentId: defaultAgentId ?? '', bettingLimitLevel: 'level3' } });
 
   useEffect(() => {
     if (!open) return;
     setErr(null);
-    reset({ agentId: defaultAgentId ?? '', username: '', password: '', displayName: '', initialBalance: '', notes: '' });
+    reset({ agentId: defaultAgentId ?? '', username: '', password: '', displayName: '', initialBalance: '', bettingLimitLevel: 'level3', notes: '' });
     void (async () => {
       try {
         // 預設抓自己 + 直接子代理作為候選
@@ -68,6 +69,7 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId }: 
         password: data.password,
         displayName: data.displayName || undefined,
         initialBalance: data.initialBalance || undefined,
+        bettingLimitLevel: data.bettingLimitLevel,
         notes: data.notes || undefined,
       });
       onCreated(res.data);
@@ -118,7 +120,18 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId }: 
           <input type="text" inputMode="decimal" {...register('initialBalance')} className="term-input" placeholder="0.00 (選填)" />
         </Field>
 
-        <Field label={t.members.notes} code="06" error={errors.notes?.message}>
+        <Field label="限红等级" code="06" error={errors.bettingLimitLevel?.message}>
+          <select {...register('bettingLimitLevel')} className="term-input">
+            <option value="level1">新手（单注 100 / 单日 500）</option>
+            <option value="level2">一般（单注 500 / 单日 3,000）</option>
+            <option value="level3">标准（单注 2,000 / 单日 10,000）</option>
+            <option value="level4">进阶（单注 10,000 / 单日 50,000）</option>
+            <option value="level5">VIP（单注 50,000 / 单日 200,000）</option>
+            <option value="unlimited">不限</option>
+          </select>
+        </Field>
+
+        <Field label={t.members.notes} code="07" error={errors.notes?.message}>
           <textarea rows={2} {...register('notes')} className="term-input resize-none" />
         </Field>
 

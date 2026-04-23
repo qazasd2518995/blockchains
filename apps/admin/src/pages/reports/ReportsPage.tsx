@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { HierarchyReportResponse, HierarchyReportItem } from '@bg/shared';
+import { GAMES_REGISTRY, GameId } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { HierarchyBreadcrumb } from '@/components/shared/HierarchyBreadcrumb';
@@ -18,6 +19,7 @@ export function ReportsPage(): JSX.Element {
   const [startDate, setStartDate] = useState(params.get('startDate') ?? '');
   const [endDate, setEndDate] = useState(params.get('endDate') ?? '');
   const [gameId, setGameId] = useState(params.get('gameId') ?? '');
+  const [username, setUsername] = useState(params.get('username') ?? '');
 
   const [data, setData] = useState<HierarchyReportResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +35,7 @@ export function ReportsPage(): JSX.Element {
         if (startDate) q.startDate = new Date(startDate).toISOString();
         if (endDate) q.endDate = new Date(endDate + 'T23:59:59').toISOString();
         if (gameId) q.gameId = gameId;
+        if (username.trim()) q.username = username.trim();
         const res = await adminApi.get<HierarchyReportResponse>('/reports/hierarchy', { params: q });
         if (!cancel) setData(res.data);
       } catch (e) {
@@ -45,7 +48,7 @@ export function ReportsPage(): JSX.Element {
     return () => {
       cancel = true;
     };
-  }, [currentParent, startDate, endDate, gameId]);
+  }, [currentParent, startDate, endDate, gameId, username]);
 
   const selectParent = (id: string | null) => {
     const next = new URLSearchParams(params);
@@ -62,7 +65,7 @@ export function ReportsPage(): JSX.Element {
     }
   };
 
-  const quickPreset = (preset: 'today' | 'yesterday' | 'thisWeek' | 'thisMonth') => {
+  const quickPreset = (preset: 'today' | 'yesterday' | 'lastWeek' | 'thisWeek' | 'thisMonth') => {
     const today = new Date();
     const toStr = (dt: Date) =>
       `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
@@ -77,6 +80,16 @@ export function ReportsPage(): JSX.Element {
         const s = toStr(yd);
         setStartDate(s);
         setEndDate(s);
+        break;
+      }
+      case 'lastWeek': {
+        const dow = today.getDay() || 7;
+        const lastMon = new Date(today);
+        lastMon.setDate(today.getDate() - dow + 1 - 7);
+        const lastSun = new Date(lastMon);
+        lastSun.setDate(lastMon.getDate() + 6);
+        setStartDate(toStr(lastMon));
+        setEndDate(toStr(lastSun));
         break;
       }
       case 'thisWeek': {
@@ -122,17 +135,35 @@ export function ReportsPage(): JSX.Element {
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="term-input" />
           </label>
           <label className="flex items-center gap-2">
-            <span className="label">结束日</span>
+            <span className="label">結束日</span>
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="term-input" />
           </label>
           <label className="flex items-center gap-2">
-            <span className="label">游戏</span>
-            <input type="text" value={gameId} onChange={(e) => setGameId(e.target.value)} placeholder="dice / mines …" className="term-input max-w-[160px]" />
+            <span className="label">遊戲</span>
+            <select value={gameId} onChange={(e) => setGameId(e.target.value)} className="term-input max-w-[180px]">
+              <option value="">全部</option>
+              {Object.values(GameId).map((id) => (
+                <option key={id} value={id}>
+                  {GAMES_REGISTRY[id]?.nameZh ?? id}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2">
+            <span className="label">會員</span>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="搜尋帳號"
+              className="term-input max-w-[160px] font-mono"
+            />
           </label>
           <div className="flex items-center gap-1 text-[10px]">
             <button type="button" onClick={() => quickPreset('today')} className="btn-teal-outline">[今日]</button>
             <button type="button" onClick={() => quickPreset('yesterday')} className="btn-teal-outline">[昨日]</button>
-            <button type="button" onClick={() => quickPreset('thisWeek')} className="btn-teal-outline">[本周]</button>
+            <button type="button" onClick={() => quickPreset('lastWeek')} className="btn-teal-outline">[上週]</button>
+            <button type="button" onClick={() => quickPreset('thisWeek')} className="btn-teal-outline">[本週]</button>
             <button type="button" onClick={() => quickPreset('thisMonth')} className="btn-teal-outline">[本月]</button>
           </div>
         </div>

@@ -8,6 +8,7 @@ export type HierarchyItem =
       marketType: 'D' | 'A';
       balance: string;
       rebatePercentage: string;
+      bettingLimitLevel: string;
       status: 'ACTIVE' | 'FROZEN' | 'DELETED';
       role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
       createdAt: string;
@@ -23,6 +24,7 @@ export type HierarchyItem =
       level: null;
       marketType: 'D' | 'A';
       balance: string;
+      bettingLimitLevel: string;
       status: 'ACTIVE' | 'FROZEN';
       frozenAt: string | null;
       notes: string | null;

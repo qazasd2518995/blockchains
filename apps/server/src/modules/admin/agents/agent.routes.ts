@@ -6,6 +6,7 @@ import {
   updateAgentRebateSchema,
   updateAgentStatusSchema,
   resetPasswordSchema,
+  updateBettingLimitSchema,
 } from './agent.schema.js';
 
 export async function agentRoutes(fastify: FastifyInstance): Promise<void> {
@@ -78,6 +79,12 @@ export async function agentRoutes(fastify: FastifyInstance): Promise<void> {
     const { id } = req.params as { id: string };
     const body = updateAgentStatusSchema.parse(req.body);
     return service.updateStatus(req.admin, id, body, req);
+  });
+
+  fastify.patch('/:id/betting-limit', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
+    const { id } = req.params as { id: string };
+    const body = updateBettingLimitSchema.parse(req.body);
+    return service.updateBettingLimit(req.admin, id, body, req);
   });
 
   fastify.post(

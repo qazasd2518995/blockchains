@@ -1,21 +1,45 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { useTranslation } from '@/i18n/useTranslation';
 import { Sidebar } from './Sidebar';
+import { ProfileModal } from '@/components/shared/ProfileModal';
+import { ChangePasswordModal } from '@/components/shared/ChangePasswordModal';
 
 export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
   const { agent, refreshToken, logout } = useAdminAuthStore();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [time, setTime] = useState<string>(currentTime());
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const id = setInterval(() => setTime(currentTime()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
 
   const handleLogout = async () => {
     try {
@@ -25,6 +49,15 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
     }
     logout();
     navigate('/admin/login', { replace: true });
+  };
+
+  const openProfile = () => {
+    setMenuOpen(false);
+    setProfileOpen(true);
+  };
+  const openChangePassword = () => {
+    setMenuOpen(false);
+    setPwdOpen(true);
   };
 
   return (
@@ -103,13 +136,58 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
                 {formatPct(agent?.rebatePercentage ?? '0')}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-sm border border-[#186073]/60 bg-[#1A2530]/50 px-3 py-1.5 font-semibold text-[11px] uppercase tracking-[0.16em] text-[#E8D48A] transition hover:border-[#186073] hover:bg-[#0E4555] hover:text-white"
-            >
-              [{t.common.logoutBtn}]
-            </button>
+            <div ref={menuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                className="flex items-center gap-2 rounded-sm border border-[#186073]/60 bg-[#1A2530]/50 px-3 py-1.5 font-semibold text-[11px] uppercase tracking-[0.16em] text-[#E8D48A] transition hover:border-[#186073] hover:bg-[#0E4555] hover:text-white"
+              >
+                <span aria-hidden="true">👤</span>
+                <span className="normal-case tracking-normal text-[12px]">
+                  {agent?.username ?? '—'}
+                </span>
+                <span aria-hidden="true" className={`text-[10px] transition-transform ${menuOpen ? 'rotate-180' : ''}`}>▾</span>
+              </button>
+              {menuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-[60] mt-2 w-48 overflow-hidden rounded-sm border border-[#186073] bg-[#0E1B24] shadow-[0_8px_24px_-6px_rgba(0,0,0,0.5)]"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={openProfile}
+                    className="flex w-full items-center justify-between px-3 py-2 text-left text-[12px] text-[#E8D48A] transition hover:bg-[#0E4555]/70 hover:text-white"
+                  >
+                    <span>个人资料</span>
+                    <span className="text-[#D0AC4D]">→</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={openChangePassword}
+                    className="flex w-full items-center justify-between border-t border-[#186073]/40 px-3 py-2 text-left text-[12px] text-[#E8D48A] transition hover:bg-[#0E4555]/70 hover:text-white"
+                  >
+                    <span>更改密码</span>
+                    <span className="text-[#D0AC4D]">→</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      void handleLogout();
+                    }}
+                    className="flex w-full items-center justify-between border-t border-[#186073]/40 px-3 py-2 text-left text-[12px] text-[#E8D48A] transition hover:bg-[#0E4555]/70 hover:text-white"
+                  >
+                    <span>{t.common.logoutBtn}</span>
+                    <span className="text-[#D0AC4D]">→</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -118,6 +196,9 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
         <Sidebar />
         <div className="min-w-0 flex-1">{children}</div>
       </main>
+
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <ChangePasswordModal open={pwdOpen} onClose={() => setPwdOpen(false)} />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import type {
   UpdateMemberStatusInput,
   AdjustMemberBalanceInput,
   ResetMemberPasswordInput,
+  UpdateMemberBettingLimitInput,
   MemberListQuery,
   MemberBetQuery,
 } from './member.schema.js';
@@ -78,6 +79,7 @@ export class MemberService {
           role: 'PLAYER',
           agentId: targetAgent.id,
           marketType: targetAgent.marketType,
+          bettingLimitLevel: input.bettingLimitLevel ?? targetAgent.bettingLimitLevel,
           notes: input.notes ?? null,
         },
       });
@@ -357,6 +359,33 @@ export class MemberService {
     });
   }
 
+  async updateBettingLimit(
+    operator: AdminCurrent,
+    id: string,
+    input: UpdateMemberBettingLimitInput,
+    req?: FastifyRequest,
+  ): Promise<MemberPublic> {
+    const ok = await canManageMember(this.prisma, operator, id);
+    if (!ok) throw new ApiError('FORBIDDEN', 'Cannot modify betting limit');
+    const existing = await this.prisma.user.findUnique({ where: { id } });
+    if (!existing) throw new ApiError('MEMBER_NOT_FOUND', 'Member not found');
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: { bettingLimitLevel: input.bettingLimitLevel },
+      include: { agent: { select: { username: true } } },
+    });
+    await writeAudit(this.prisma, {
+      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      action: 'member.betting_limit.update',
+      targetType: 'member',
+      targetId: id,
+      oldValues: { bettingLimitLevel: existing.bettingLimitLevel },
+      newValues: { bettingLimitLevel: updated.bettingLimitLevel },
+      req,
+    });
+    return toMemberPublic(updated, updated.agent?.username ?? null);
+  }
+
   async getBets(
     operator: AdminCurrent,
     id: string,
@@ -400,6 +429,7 @@ function toMemberPublic(
     agentId: string | null;
     balance: Prisma.Decimal;
     marketType: 'D' | 'A';
+    bettingLimitLevel: string;
     frozenAt: Date | null;
     notes: string | null;
     createdAt: Date;
@@ -414,6 +444,7 @@ function toMemberPublic(
     agentUsername,
     balance: user.balance.toFixed(2),
     marketType: user.marketType,
+    bettingLimitLevel: user.bettingLimitLevel,
     status: user.frozenAt ? 'FROZEN' : 'ACTIVE',
     frozenAt: user.frozenAt?.toISOString() ?? null,
     notes: user.notes,

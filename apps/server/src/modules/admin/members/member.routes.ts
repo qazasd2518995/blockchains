@@ -6,6 +6,7 @@ import {
   updateMemberStatusSchema,
   adjustMemberBalanceSchema,
   resetMemberPasswordSchema,
+  updateMemberBettingLimitSchema,
   memberListQuerySchema,
   memberBetQuerySchema,
 } from './member.schema.js';
@@ -85,6 +86,12 @@ export async function memberRoutes(fastify: FastifyInstance): Promise<void> {
     const body = resetMemberPasswordSchema.parse(req.body);
     await service.resetPassword(req.admin, id, body, req);
     reply.code(204).send();
+  });
+
+  fastify.patch('/:id/betting-limit', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
+    const { id } = req.params as { id: string };
+    const body = updateMemberBettingLimitSchema.parse(req.body);
+    return service.updateBettingLimit(req.admin, id, body, req);
   });
 
   fastify.get('/:id/bets', { preHandler: [fastify.authenticateAdmin] }, async (req) => {

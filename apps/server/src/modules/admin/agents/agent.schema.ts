@@ -36,8 +36,13 @@ export const resetPasswordSchema = z.object({
   newPassword: z.string().min(8).max(128).regex(/[A-Za-z]/).regex(/\d/),
 });
 
+export const updateBettingLimitSchema = z.object({
+  bettingLimitLevel: z.enum(['level1', 'level2', 'level3', 'level4', 'level5', 'unlimited']),
+});
+
 export type CreateAgentInput = z.infer<typeof createAgentSchema>;
 export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;
 export type UpdateAgentRebateInput = z.infer<typeof updateAgentRebateSchema>;
 export type UpdateAgentStatusInput = z.infer<typeof updateAgentStatusSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type UpdateBettingLimitInput = z.infer<typeof updateBettingLimitSchema>;

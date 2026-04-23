@@ -36,6 +36,7 @@ model User {
   agentId      String?
   agent        Agent?     @relation(fields: [agentId], references: [id])
   marketType   MarketType @default(D)
+  bettingLimitLevel String @default("level3")
   frozenAt     DateTime?
   notes        String?
 
@@ -501,6 +502,31 @@ model AgentLineWinCap {
   operatorUsername String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+// ───────────────────────────────────────────────
+// 公告管理（跑馬燈 / 彈窗）
+// ───────────────────────────────────────────────
+
+model Announcement {
+  id        String    @id @default(cuid())
+  content   String    @db.Text
+  /// 'marquee' 跑馬燈 / 'popup' 彈窗
+  kind      String    @default("marquee")
+  /// 優先級，數字大越前面
+  priority  Int       @default(0)
+  /// 是否啟用
+  isActive  Boolean   @default(true)
+  /// 顯示起始時間（null = 立即）
+  startsAt  DateTime?
+  /// 顯示結束時間（null = 永久）
+  endsAt    DateTime?
+  createdBy String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([isActive, kind])
+  @@index([priority])
 }
 
 // 控制介入紀錄（可審計）

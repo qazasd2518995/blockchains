@@ -60,6 +60,8 @@ export const dict = {
     reports: '报表统计',
     controls: '控制设定',
     audit: '审计日志',
+    subAccounts: '子帐号',
+    announcements: '公告管理',
   },
   dashboard: {
     title: '运营总览',

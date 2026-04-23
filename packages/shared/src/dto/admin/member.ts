@@ -6,6 +6,7 @@ export interface MemberPublic {
   agentUsername: string | null;
   balance: string;
   marketType: 'D' | 'A';
+  bettingLimitLevel: string;
   status: 'ACTIVE' | 'FROZEN';
   frozenAt: string | null;
   notes: string | null;
@@ -19,6 +20,7 @@ export interface CreateMemberRequest {
   password: string;
   displayName?: string;
   initialBalance?: string;      // 若設，從代理 balance 扣除轉到 member
+  bettingLimitLevel?: string;
   notes?: string;
 }
 

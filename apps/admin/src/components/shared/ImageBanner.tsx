@@ -4,6 +4,7 @@ interface Props {
   title: string;
   description: string;
   tone?: 'teal' | 'ember';
+  imagePosition?: string;
 }
 
 const toneMap = {
@@ -23,13 +24,14 @@ export function ImageBanner({
   title,
   description,
   tone = 'teal',
+  imagePosition = 'object-[72%_center]',
 }: Props): JSX.Element {
   const style = toneMap[tone];
 
   return (
     <section className={`relative mb-6 overflow-hidden rounded-[14px] border ${style.border} shadow-[0_20px_48px_rgba(15,23,42,0.08)]`}>
       <div className="absolute inset-0">
-        <img src={image} alt="" aria-hidden="true" className="h-full w-full object-cover object-[72%_center]" />
+        <img src={image} alt="" aria-hidden="true" className={`h-full w-full object-cover ${imagePosition}`} />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(6,16,30,0.94)_0%,rgba(6,16,30,0.88)_34%,rgba(6,16,30,0.48)_100%)]" />
       </div>
 

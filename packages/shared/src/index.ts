@@ -21,3 +21,4 @@ export * from './dto/admin/transfer.js';
 export * from './dto/admin/report.js';
 export * from './dto/admin/hierarchy.js';
 export * from './dto/admin/audit.js';
+export * from './dto/admin/subaccount.js';

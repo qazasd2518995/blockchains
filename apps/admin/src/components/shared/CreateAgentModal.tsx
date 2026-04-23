@@ -24,6 +24,7 @@ const schema = z.object({
   rebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']),
   /** 百分比顯示用（%，例如 "2.50"）；送出時換算為 fraction */
   rebatePercentageDisplay: z.string().regex(/^\d+(\.\d+)?$/, '請填 0-2.5 之間的百分比'),
+  bettingLimitLevel: z.enum(['level1', 'level2', 'level3', 'level4', 'level5', 'unlimited']),
   notes: z.string().max(500).optional(),
 });
 
@@ -57,6 +58,7 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: 
       marketType: 'D',
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
+      bettingLimitLevel: 'level3',
     },
   });
 
@@ -74,6 +76,7 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: 
       marketType: 'D',
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
+      bettingLimitLevel: 'level3',
       notes: '',
     });
     void (async () => {
@@ -125,6 +128,7 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: 
         marketType: data.marketType,
         rebateMode: data.rebateMode,
         rebatePercentage: rebateFraction,
+        bettingLimitLevel: data.bettingLimitLevel,
         notes: data.notes || undefined,
       });
       onCreated(res.data);
@@ -209,7 +213,18 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: 
           </Field>
         )}
 
-        <Field label="備註" code="08" error={errors.notes?.message}>
+        <Field label="限紅等級" code="08" error={errors.bettingLimitLevel?.message}>
+          <select {...register('bettingLimitLevel')} className="term-input">
+            <option value="level1">新手（單注 100 / 單日 500）</option>
+            <option value="level2">一般（單注 500 / 單日 3,000）</option>
+            <option value="level3">標準（單注 2,000 / 單日 10,000）</option>
+            <option value="level4">進階（單注 10,000 / 單日 50,000）</option>
+            <option value="level5">VIP（單注 50,000 / 單日 200,000）</option>
+            <option value="unlimited">不限</option>
+          </select>
+        </Field>
+
+        <Field label="備註" code="09" error={errors.notes?.message}>
           <textarea rows={2} {...register('notes')} className="term-input resize-none" />
         </Field>
 

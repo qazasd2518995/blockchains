@@ -11,6 +11,7 @@ import type {
   UpdateAgentRebateInput,
   UpdateAgentStatusInput,
   ResetPasswordInput,
+  UpdateBettingLimitInput,
 } from './agent.schema.js';
 import type { FastifyRequest } from 'fastify';
 
@@ -237,6 +238,32 @@ export class AgentService {
       targetId: id,
       oldValues: { status: existing.status },
       newValues: { status: updated.status },
+      req,
+    });
+    return toPublic(updated);
+  }
+
+  async updateBettingLimit(
+    operator: AdminCurrent,
+    id: string,
+    input: UpdateBettingLimitInput,
+    req?: FastifyRequest,
+  ): Promise<AgentPublic> {
+    const existing = await this.prisma.agent.findUnique({ where: { id } });
+    if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
+    const ok = await canManageAgent(this.prisma, operator, id);
+    if (!ok) throw new ApiError('FORBIDDEN', 'Cannot modify betting limit');
+    const updated = await this.prisma.agent.update({
+      where: { id },
+      data: { bettingLimitLevel: input.bettingLimitLevel },
+    });
+    await writeAudit(this.prisma, {
+      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      action: 'agent.betting_limit.update',
+      targetType: 'agent',
+      targetId: id,
+      oldValues: { bettingLimitLevel: existing.bettingLimitLevel },
+      newValues: { bettingLimitLevel: updated.bettingLimitLevel },
       req,
     });
     return toPublic(updated);

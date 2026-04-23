@@ -87,19 +87,23 @@ export function AdminLoginPage(): JSX.Element {
           src="/backgrounds/admin-login.png"
           alt=""
           aria-hidden="true"
-          className="h-full w-full object-cover opacity-50"
+          className="h-full w-full object-cover object-[68%_62%] opacity-90"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(4,11,20,0.92)_0%,rgba(6,16,30,0.84)_42%,rgba(9,24,40,0.9)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,11,20,0.9)_0%,rgba(6,16,30,0.72)_38%,rgba(6,16,30,0.38)_66%,rgba(6,16,30,0.2)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,11,20,0.18)_0%,rgba(4,11,20,0.08)_48%,rgba(4,11,20,0.28)_100%)]" />
       </div>
 
       <header className="relative z-10 h-16 border-b border-white/8 bg-black/12 text-white backdrop-blur-sm">
-        <div className="mx-auto flex h-full max-w-[1680px] items-center justify-end px-5">
+        <div className="mx-auto flex h-full max-w-[1680px] items-center justify-between px-5">
           <div className="flex items-center gap-2 text-[22px] font-extrabold tracking-[0.05em]">
             <span className="rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[20px] text-white shadow-[0_10px_24px_rgba(24,96,115,0.3)]">
               BG
             </span>
             <span className="hidden text-[16px] font-bold text-white/90 sm:inline">代理后台</span>
           </div>
+          <span className="hidden rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62 sm:inline-flex">
+            Agent Console
+          </span>
         </div>
       </header>
 

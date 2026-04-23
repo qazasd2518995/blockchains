@@ -12,6 +12,7 @@ export const createMemberSchema = z.object({
   password: z.string().min(8).max(128).regex(/[A-Za-z]/).regex(/\d/),
   displayName: z.string().min(1).max(40).optional(),
   initialBalance: decimalString.optional(),
+  bettingLimitLevel: z.string().optional(),
   notes: z.string().max(500).optional(),
 });
 
@@ -30,6 +31,10 @@ export const adjustMemberBalanceSchema = z.object({
 
 export const resetMemberPasswordSchema = z.object({
   newPassword: z.string().min(8).max(128).regex(/[A-Za-z]/).regex(/\d/),
+});
+
+export const updateMemberBettingLimitSchema = z.object({
+  bettingLimitLevel: z.enum(['level1', 'level2', 'level3', 'level4', 'level5', 'unlimited']),
 });
 
 export const memberListQuerySchema = z.object({
@@ -53,5 +58,6 @@ export type UpdateMemberNotesInput = z.infer<typeof updateMemberNotesSchema>;
 export type UpdateMemberStatusInput = z.infer<typeof updateMemberStatusSchema>;
 export type AdjustMemberBalanceInput = z.infer<typeof adjustMemberBalanceSchema>;
 export type ResetMemberPasswordInput = z.infer<typeof resetMemberPasswordSchema>;
+export type UpdateMemberBettingLimitInput = z.infer<typeof updateMemberBettingLimitSchema>;
 export type MemberListQuery = z.infer<typeof memberListQuerySchema>;
 export type MemberBetQuery = z.infer<typeof memberBetQuerySchema>;

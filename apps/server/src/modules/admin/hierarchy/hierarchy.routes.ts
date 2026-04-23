@@ -130,6 +130,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           marketType: 'D' | 'A';
           balance: string;
           rebatePercentage: string;
+          bettingLimitLevel: string;
           status: 'ACTIVE' | 'FROZEN' | 'DELETED';
           role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
           createdAt: string;
@@ -145,6 +146,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           level: null;
           marketType: 'D' | 'A';
           balance: string;
+          bettingLimitLevel: string;
           status: 'ACTIVE' | 'FROZEN';
           frozenAt: string | null;
           notes: string | null;
@@ -161,6 +163,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         marketType: a.marketType,
         balance: a.balance.toFixed(2),
         rebatePercentage: a.rebatePercentage.toFixed(4),
+        bettingLimitLevel: a.bettingLimitLevel,
         status: a.status,
         role: a.role,
         createdAt: a.createdAt.toISOString(),
@@ -176,6 +179,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         level: null,
         marketType: m.marketType,
         balance: m.balance.toFixed(2),
+        bettingLimitLevel: m.bettingLimitLevel,
         status: m.frozenAt ? 'FROZEN' : 'ACTIVE',
         frozenAt: m.frozenAt?.toISOString() ?? null,
         notes: m.notes,

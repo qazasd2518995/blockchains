@@ -9,6 +9,8 @@ import { TransfersPage } from '@/pages/transfers/TransfersPage';
 import { ReportsPage } from '@/pages/reports/ReportsPage';
 import { ControlsOverviewPage } from '@/pages/controls/ControlsOverviewPage';
 import { AuditLogPage } from '@/pages/audit/AuditLogPage';
+import { SubAccountsPage } from '@/pages/subaccounts/SubAccountsPage';
+import { AnnouncementsPage } from '@/pages/announcements/AnnouncementsPage';
 
 export const router = createBrowserRouter([
   {
@@ -46,6 +48,8 @@ export const router = createBrowserRouter([
       { path: '/admin/reports', element: <ReportsPage /> },
       { path: '/admin/controls', element: <ControlsOverviewPage /> },
       { path: '/admin/audit', element: <AuditLogPage /> },
+      { path: '/admin/subaccounts', element: <SubAccountsPage /> },
+      { path: '/admin/announcements', element: <AnnouncementsPage /> },
     ],
   },
   {

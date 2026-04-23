@@ -9,6 +9,7 @@ import { CreateAgentModal } from '@/components/shared/CreateAgentModal';
 import { TransferModal } from '@/components/shared/TransferModal';
 import { AdjustBalanceModal } from '@/components/shared/AdjustBalanceModal';
 import { RebateSettingModal } from '@/components/shared/RebateSettingModal';
+import { BettingLimitModal } from '@/components/shared/BettingLimitModal';
 import { AgentTransferModal } from '@/components/shared/AgentTransferModal';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -39,6 +40,9 @@ export function AgentHierarchyPage(): JSX.Element {
   const [transferFor, setTransferFor] = useState<MemberPublic | null>(null);
   const [adjustFor, setAdjustFor] = useState<MemberPublic | null>(null);
   const [rebateFor, setRebateFor] = useState<{ id: string; username: string } | null>(null);
+  const [bettingLimitFor, setBettingLimitFor] = useState<
+    { targetType: 'agent' | 'member'; id: string; username: string; currentLevel: string } | null
+  >(null);
   const [agentTransferFor, setAgentTransferFor] = useState<{ id: string; username: string; balance: string } | null>(null);
   const [deleteMemberFor, setDeleteMemberFor] = useState<{ id: string; username: string } | null>(null);
 
@@ -159,6 +163,7 @@ export function AgentHierarchyPage(): JSX.Element {
       agentUsername: data?.parent?.username ?? null,
       balance: row.balance,
       marketType: row.marketType,
+      bettingLimitLevel: row.bettingLimitLevel,
       status: row.status,
       frozenAt: row.frozenAt,
       notes: row.notes,
@@ -333,6 +338,20 @@ export function AgentHierarchyPage(): JSX.Element {
                     >
                       {t.agents.rebateSetup}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBettingLimitFor({
+                          targetType: 'agent',
+                          id: row.id,
+                          username: row.username,
+                          currentLevel: row.bettingLimitLevel,
+                        })
+                      }
+                      className="btn-chip"
+                    >
+                      限红
+                    </button>
                     <button type="button" onClick={() => handleResetPassword(row.id, 'agent', row.username)} className="btn-chip">
                       {t.agents.resetPassword}
                     </button>
@@ -362,6 +381,21 @@ export function AgentHierarchyPage(): JSX.Element {
                     </button>
                     <button type="button" onClick={() => handleEditNotes(row.id, row.notes)} className="btn-chip">
                       {t.agents.notesBtn}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBettingLimitFor({
+                          targetType: 'member',
+                          id: row.id,
+                          username: row.username,
+                          currentLevel: row.bettingLimitLevel,
+                        });
+                      }}
+                      className="btn-chip"
+                    >
+                      限红
                     </button>
                     <button type="button" onClick={() => handleResetPassword(row.id, 'member', row.username)} className="btn-chip">
                       {t.agents.resetPassword}
@@ -420,6 +454,17 @@ export function AgentHierarchyPage(): JSX.Element {
           onClose={() => setRebateFor(null)}
           agentId={rebateFor.id}
           agentUsername={rebateFor.username}
+          onDone={() => setReloadKey((k) => k + 1)}
+        />
+      )}
+      {bettingLimitFor && (
+        <BettingLimitModal
+          open
+          onClose={() => setBettingLimitFor(null)}
+          targetType={bettingLimitFor.targetType}
+          targetId={bettingLimitFor.id}
+          targetUsername={bettingLimitFor.username}
+          currentLevel={bettingLimitFor.currentLevel}
           onDone={() => setReloadKey((k) => k + 1)}
         />
       )}

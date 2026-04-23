@@ -15,6 +15,7 @@ import { authRoutes } from './modules/auth/auth.routes.js';
 import { adminRoutes } from './modules/admin/admin.plugin.js';
 import { walletRoutes } from './modules/wallet/wallet.routes.js';
 import { pfRoutes } from './modules/provably-fair/pf.routes.js';
+import { publicAnnouncementRoutes } from './modules/public/announcements.routes.js';
 import { diceRoutes } from './modules/games/dice/dice.routes.js';
 import { minesRoutes } from './modules/games/mines/mines.routes.js';
 import { hiloRoutes } from './modules/games/hilo/hilo.routes.js';
@@ -94,6 +95,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(adminRoutes, { prefix: '/api/admin' });
   await server.register(walletRoutes, { prefix: '/api/wallet' });
   await server.register(pfRoutes, { prefix: '/api/pf' });
+  await server.register(publicAnnouncementRoutes, { prefix: '/api/public' });
 
   // Games
   await server.register(diceRoutes, { prefix: '/api/games/dice' });
