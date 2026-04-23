@@ -12,9 +12,9 @@ type ControlMode = 'SINGLE_MEMBER' | 'AGENT_LINE';
 
 export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Element {
   const [mode, setMode] = useState<ControlMode>('SINGLE_MEMBER');
-  const [targetType, setTargetType] = useState<'agent' | 'member'>('member');
   const [targetUsername, setTargetUsername] = useState('');
   const [pct, setPct] = useState('70');
+  const [startPeriod, setStartPeriod] = useState('');
   const [winControl, setWinControl] = useState(true);
   const [lossControl, setLossControl] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
     setBusy(true);
     setErr(null);
     try {
-      // 先查對應帳號的 id（依 targetType 查 agent 或 member）
+      const targetType = mode === 'AGENT_LINE' ? 'agent' : 'member';
       const endpoint = targetType === 'agent' ? '/agents/lookup' : '/members/lookup';
       const lookup = await adminApi.get<{ id: string; username: string }>(endpoint, {
         params: { username: targetUsername.trim() },
@@ -41,6 +41,7 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
         controlPercentage: pct,
         winControl,
         lossControl,
+        startPeriod: startPeriod.trim() || undefined,
       });
       onDone();
       onClose();
@@ -58,12 +59,7 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
           <div className="label mb-2">控制模式</div>
           <select
             value={mode}
-            onChange={(e) => {
-              const next = e.target.value as ControlMode;
-              setMode(next);
-              // agent_line 模式只能针对代理，single_member 只能针对会员
-              setTargetType(next === 'AGENT_LINE' ? 'agent' : 'member');
-            }}
+            onChange={(e) => setMode(e.target.value as ControlMode)}
             className="term-input"
           >
             <option value="SINGLE_MEMBER">单一会员</option>
@@ -71,40 +67,39 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
           </select>
         </label>
 
+        <label className="block">
+          <div className="label mb-2">{mode === 'AGENT_LINE' ? '目标代理账号' : '目标会员账号'}</div>
+          <input
+            type="text"
+            value={targetUsername}
+            onChange={(e) => setTargetUsername(e.target.value)}
+            className="term-input font-mono"
+            placeholder="账号"
+          />
+        </label>
+
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <div className="label mb-2">目标类型</div>
-            <select
-              value={targetType}
-              onChange={(e) => setTargetType(e.target.value as 'agent' | 'member')}
-              className="term-input"
-            >
-              <option value="member">会员</option>
-              <option value="agent">代理</option>
-            </select>
-          </label>
-          <label className="block">
-            <div className="label mb-2">目标账号</div>
+            <div className="label mb-2">控制百分比（%）</div>
             <input
               type="text"
-              value={targetUsername}
-              onChange={(e) => setTargetUsername(e.target.value)}
+              value={pct}
+              onChange={(e) => setPct(e.target.value)}
               className="term-input font-mono"
-              placeholder="账号"
+              placeholder="50-100"
+            />
+          </label>
+          <label className="block">
+            <div className="label mb-2">起始期号（选填）</div>
+            <input
+              type="text"
+              value={startPeriod}
+              onChange={(e) => setStartPeriod(e.target.value)}
+              className="term-input font-mono"
+              placeholder="例如 20260424001"
             />
           </label>
         </div>
-
-        <label className="block">
-          <div className="label mb-2">控制百分比（%）</div>
-          <input
-            type="text"
-            value={pct}
-            onChange={(e) => setPct(e.target.value)}
-            className="term-input font-mono"
-            placeholder="50-100"
-          />
-        </label>
 
         <div className="flex gap-4">
           <label className="flex items-center gap-2 text-[12px]">

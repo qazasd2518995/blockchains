@@ -428,6 +428,12 @@ enum ControlMode {
   AUTO_DETECT
 }
 
+enum ManualDetectionScope {
+  ALL
+  AGENT_LINE
+  MEMBER
+}
+
 model WinLossControl {
   id                String      @id @default(cuid())
   controlMode       ControlMode
@@ -497,13 +503,41 @@ model AgentLineWinCap {
   agentId          String   @unique
   agentUsername    String
   dailyCap         Decimal  @db.Decimal(20, 2)
+  controlWinRate   Decimal  @default(0.70) @db.Decimal(5, 4)
+  triggerThreshold Decimal  @default(0.80) @db.Decimal(5, 4)
   todayWinAmount   Decimal  @default(0) @db.Decimal(20, 2)
   currentGameDay   String
   isActive         Boolean  @default(true)
+  isCapped         Boolean  @default(false)
   notes            String?
   operatorUsername String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model ManualDetectionControl {
+  id                   String               @id @default(cuid())
+  scope                ManualDetectionScope
+  targetAgentId        String?
+  targetAgentUsername  String?
+  targetMemberId       String?
+  targetMemberUsername String?
+  targetSettlement     Decimal              @db.Decimal(20, 2)
+  controlPercentage    Int                  @default(50)
+  startSettlement      Decimal?             @db.Decimal(20, 2)
+  isActive             Boolean              @default(true)
+  isCompleted          Boolean              @default(false)
+  completedAt          DateTime?
+  completionSettlement Decimal?             @db.Decimal(20, 2)
+  operatorId           String?
+  operatorUsername     String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  @@index([isActive, scope])
+  @@index([targetAgentId, isActive])
+  @@index([targetMemberUsername, isActive])
+  @@index([createdAt])
 }
 
 // ───────────────────────────────────────────────

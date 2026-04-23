@@ -11,6 +11,8 @@ interface Props {
 export function AgentLineControlModal({ open, onClose, onDone }: Props): JSX.Element {
   const [agentUsername, setAgentUsername] = useState('');
   const [dailyCap, setDailyCap] = useState('100000');
+  const [controlWinRate, setControlWinRate] = useState('0.30');
+  const [triggerThreshold, setTriggerThreshold] = useState('0.80');
   const [notes, setNotes] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,6 +32,8 @@ export function AgentLineControlModal({ open, onClose, onDone }: Props): JSX.Ele
         agentId: lookup.data.id,
         agentUsername: lookup.data.username,
         dailyCap,
+        controlWinRate,
+        triggerThreshold,
         notes: notes || undefined,
       });
       onDone();
@@ -53,12 +57,32 @@ export function AgentLineControlModal({ open, onClose, onDone }: Props): JSX.Ele
             className="term-input font-mono"
           />
         </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <div className="label mb-2">单日线下赢额封顶</div>
+            <input
+              type="text"
+              value={dailyCap}
+              onChange={(e) => setDailyCap(e.target.value)}
+              className="term-input font-mono"
+            />
+          </label>
+          <label className="block">
+            <div className="label mb-2">触发后控制胜率</div>
+            <input
+              type="text"
+              value={controlWinRate}
+              onChange={(e) => setControlWinRate(e.target.value)}
+              className="term-input font-mono"
+            />
+          </label>
+        </div>
         <label className="block">
-          <div className="label mb-2">单日线下赢额封顶</div>
+          <div className="label mb-2">触发比例（0-1）</div>
           <input
             type="text"
-            value={dailyCap}
-            onChange={(e) => setDailyCap(e.target.value)}
+            value={triggerThreshold}
+            onChange={(e) => setTriggerThreshold(e.target.value)}
             className="term-input font-mono"
           />
         </label>

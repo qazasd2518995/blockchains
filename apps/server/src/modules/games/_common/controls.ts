@@ -1,4 +1,12 @@
 import { Prisma } from '@prisma/client';
+import {
+  calculateCurrentSettlement,
+  checkAndCompleteManualDetectionControls,
+  findApplicableManualDetectionControl,
+  getAgentAncestors,
+  normalizeAgentLineCapDay,
+  normalizeMemberWinCapDay,
+} from '../../admin/controls/controls.runtime.js';
 
 type Db = Prisma.TransactionClient;
 
@@ -36,9 +44,6 @@ interface ControlDecision {
   controlId: string;
   reason: string;
 }
-
-const DEFAULT_AGENT_LINE_CONTROL_WIN_RATE = new Prisma.Decimal('0.30');
-const DEFAULT_AGENT_LINE_TRIGGER_THRESHOLD = new Prisma.Decimal('0.80');
 
 /**
  * 控制 hook：只決定本局是否需要由後台規則翻轉輸贏。
@@ -118,10 +123,6 @@ export async function finalizeControls(
   }
 }
 
-function todayString(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function isNetWin(result: PredictedResult | FinalizedControlResult): boolean {
   return result.payout.greaterThan(result.amount);
 }
@@ -131,8 +132,8 @@ async function findControlDecision(
   member: MemberScope,
   predicted: PredictedResult,
 ): Promise<ControlDecision | null> {
-  const deposit = await findDepositDecision(tx, member);
-  if (deposit) return deposit;
+  const winLoss = await findWinLossDecision(tx, member);
+  if (winLoss) return winLoss;
 
   const memberCap = await findMemberWinCapDecision(tx, member.id, predicted);
   if (memberCap) return memberCap;
@@ -140,32 +141,51 @@ async function findControlDecision(
   const agentLineCap = await findAgentLineCapDecision(tx, member.agentId, predicted);
   if (agentLineCap) return agentLineCap;
 
-  return findWinLossDecision(tx, member);
+  const deposit = await findDepositDecision(tx, member);
+  if (deposit) return deposit;
+
+  return findManualDetectionDecision(tx, member);
 }
 
-async function findDepositDecision(tx: Db, member: MemberScope): Promise<ControlDecision | null> {
-  const control = await tx.memberDepositControl.findFirst({
-    where: { memberId: member.id, isActive: true, isCompleted: false },
+async function findWinLossDecision(tx: Db, member: MemberScope): Promise<ControlDecision | null> {
+  const controls = await tx.winLossControl.findMany({
+    where: { isActive: true },
     orderBy: { createdAt: 'desc' },
   });
-  if (!control) return null;
+  if (controls.length === 0) return null;
 
-  const currentUser = await tx.user.findUnique({
-    where: { id: member.id },
-    select: { balance: true },
-  });
-  if (currentUser && currentUser.balance.minus(control.startBalance).greaterThanOrEqualTo(control.targetProfit)) {
-    await tx.memberDepositControl.update({
-      where: { id: control.id },
-      data: { isActive: false, isCompleted: true },
-    });
-    return null;
-  }
+  const ancestors = member.agentId ? await getAgentAncestors(tx, member.agentId) : [];
+  const ranked = controls
+    .map((control) => {
+      if (control.controlMode === 'SINGLE_MEMBER' && control.targetId === member.id) {
+        if (control.winControl) return { control, priority: 1, desired: 'WIN' as const };
+        if (control.lossControl) return { control, priority: 4, desired: 'LOSS' as const };
+      }
+
+      if (control.controlMode === 'AGENT_LINE' && control.targetId && ancestors.includes(control.targetId)) {
+        const depth = ancestors.indexOf(control.targetId);
+        if (control.winControl) return { control, priority: 2 + depth, desired: 'WIN' as const };
+        if (control.lossControl) return { control, priority: 20 + depth, desired: 'LOSS' as const };
+      }
+
+      if (control.controlMode === 'AUTO_DETECT' || control.controlMode === 'NORMAL') {
+        if (control.winControl) return { control, priority: 40, desired: 'WIN' as const };
+        if (control.lossControl) return { control, priority: 41, desired: 'LOSS' as const };
+      }
+
+      return null;
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .sort((a, b) => a.priority - b.priority || b.control.createdAt.getTime() - a.control.createdAt.getTime());
+
+  const selected = ranked[0];
+  if (!selected) return null;
+  if (Math.random() >= Number(selected.control.controlPercentage) / 100) return null;
 
   return {
-    desired: Math.random() < Number(control.controlWinRate) ? 'WIN' : 'LOSS',
-    controlId: control.id,
-    reason: 'deposit_control',
+    desired: selected.desired,
+    controlId: selected.control.id,
+    reason: selected.desired === 'WIN' ? 'win_control' : 'loss_control',
   };
 }
 
@@ -223,21 +243,14 @@ async function findAgentLineCapDecision(
     const todayWin = normalized.todayWinAmount;
     const cap = normalized.dailyCap;
     const projected = todayWin.add(predicted.payout.sub(predicted.amount));
+
     if (todayWin.greaterThanOrEqualTo(cap) || projected.greaterThanOrEqualTo(cap)) {
       return { desired: 'LOSS', controlId: normalized.id, reason: 'agent_line_cap' };
     }
 
-    const triggerThreshold =
-      'triggerThreshold' in normalized
-        ? (normalized as { triggerThreshold?: Prisma.Decimal }).triggerThreshold ?? DEFAULT_AGENT_LINE_TRIGGER_THRESHOLD
-        : DEFAULT_AGENT_LINE_TRIGGER_THRESHOLD;
-    const controlWinRate =
-      'controlWinRate' in normalized
-        ? (normalized as { controlWinRate?: Prisma.Decimal }).controlWinRate ?? DEFAULT_AGENT_LINE_CONTROL_WIN_RATE
-        : DEFAULT_AGENT_LINE_CONTROL_WIN_RATE;
-    if (todayWin.greaterThanOrEqualTo(cap.mul(triggerThreshold))) {
+    if (todayWin.greaterThanOrEqualTo(cap.mul(normalized.triggerThreshold))) {
       return {
-        desired: Math.random() < Number(controlWinRate) ? 'WIN' : 'LOSS',
+        desired: Math.random() < Number(normalized.controlWinRate) ? 'WIN' : 'LOSS',
         controlId: normalized.id,
         reason: 'agent_line_cap_rate',
       };
@@ -247,45 +260,54 @@ async function findAgentLineCapDecision(
   return null;
 }
 
-async function findWinLossDecision(tx: Db, member: MemberScope): Promise<ControlDecision | null> {
-  const controls = await tx.winLossControl.findMany({
-    where: { isActive: true },
+async function findDepositDecision(tx: Db, member: MemberScope): Promise<ControlDecision | null> {
+  const control = await tx.memberDepositControl.findFirst({
+    where: { memberId: member.id, isActive: true, isCompleted: false },
     orderBy: { createdAt: 'desc' },
   });
-  if (controls.length === 0) return null;
+  if (!control) return null;
 
-  const ancestors = member.agentId ? await getAgentAncestors(tx, member.agentId) : [];
-  const ranked = controls
-    .map((control) => {
-      if (control.controlMode === 'SINGLE_MEMBER' && control.targetId === member.id) {
-        if (control.winControl) return { control, priority: 1, desired: 'WIN' as const };
-        if (control.lossControl) return { control, priority: 3, desired: 'LOSS' as const };
-      }
-
-      if (control.controlMode === 'AGENT_LINE' && control.targetId && ancestors.includes(control.targetId)) {
-        const depth = ancestors.indexOf(control.targetId);
-        if (control.winControl) return { control, priority: 20 + depth, desired: 'WIN' as const };
-        if (control.lossControl) return { control, priority: 40 + depth, desired: 'LOSS' as const };
-      }
-
-      if (control.controlMode === 'AUTO_DETECT' || control.controlMode === 'NORMAL') {
-        if (control.winControl) return { control, priority: 80, desired: 'WIN' as const };
-        if (control.lossControl) return { control, priority: 81, desired: 'LOSS' as const };
-      }
-
-      return null;
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null)
-    .sort((a, b) => a.priority - b.priority || b.control.createdAt.getTime() - a.control.createdAt.getTime());
-
-  const selected = ranked[0];
-  if (!selected) return null;
-  if (Math.random() >= Number(selected.control.controlPercentage) / 100) return null;
+  const currentUser = await tx.user.findUnique({
+    where: { id: member.id },
+    select: { balance: true },
+  });
+  if (currentUser && currentUser.balance.minus(control.startBalance).greaterThanOrEqualTo(control.targetProfit)) {
+    await tx.memberDepositControl.update({
+      where: { id: control.id },
+      data: { isActive: false, isCompleted: true },
+    });
+    return null;
+  }
 
   return {
-    desired: selected.desired,
-    controlId: selected.control.id,
-    reason: selected.desired === 'WIN' ? 'win_control' : 'loss_control',
+    desired: Math.random() < Number(control.controlWinRate) ? 'WIN' : 'LOSS',
+    controlId: control.id,
+    reason: 'deposit_control',
+  };
+}
+
+async function findManualDetectionDecision(
+  tx: Db,
+  member: MemberScope,
+): Promise<ControlDecision | null> {
+  await checkAndCompleteManualDetectionControls(tx);
+  const applicable = await findApplicableManualDetectionControl(tx, member);
+  if (!applicable) return null;
+
+  if (Math.random() * 100 >= applicable.control.controlPercentage) {
+    return null;
+  }
+
+  const settlement = await calculateCurrentSettlement(
+    tx,
+    applicable.control.scope,
+    applicable.control.targetAgentId,
+    applicable.control.targetMemberUsername,
+  );
+  return {
+    desired: settlement.superiorSettlement.lessThan(applicable.control.targetSettlement) ? 'WIN' : 'LOSS',
+    controlId: applicable.control.id,
+    reason: 'manual_detection',
   };
 }
 
@@ -332,7 +354,10 @@ async function updateAgentLineCaps(
     const nextWin = normalized.todayWinAmount.add(profit);
     await tx.agentLineWinCap.update({
       where: { id: normalized.id },
-      data: { todayWinAmount: nextWin },
+      data: {
+        todayWinAmount: nextWin,
+        isCapped: nextWin.greaterThanOrEqualTo(normalized.dailyCap),
+      },
     });
   }
 }
@@ -356,54 +381,7 @@ async function completeDepositControlIfReached(
   }
 }
 
-async function normalizeMemberWinCapDay(
-  tx: Db,
-  control: Awaited<ReturnType<Db['memberWinCapControl']['findFirst']>> & { id: string },
-) {
-  const day = todayString();
-  if (control.currentGameDay === day) return control;
-  return tx.memberWinCapControl.update({
-    where: { id: control.id },
-    data: {
-      currentGameDay: day,
-      todayWinAmount: new Prisma.Decimal(0),
-      todayBetCount: 0,
-      isCapped: false,
-    },
-  });
-}
-
-async function normalizeAgentLineCapDay(
-  tx: Db,
-  control: Awaited<ReturnType<Db['agentLineWinCap']['findFirst']>> & { id: string },
-) {
-  const day = todayString();
-  if (control.currentGameDay === day) return control;
-  return tx.agentLineWinCap.update({
-    where: { id: control.id },
-    data: {
-      currentGameDay: day,
-      todayWinAmount: new Prisma.Decimal(0),
-    },
-  });
-}
-
-async function getAgentAncestors(tx: Db, agentId: string): Promise<string[]> {
-  const rows = await tx.$queryRaw<{ id: string; depth: number }[]>`
-    WITH RECURSIVE path AS (
-      SELECT id, "parentId", 0 AS depth FROM "Agent" WHERE id = ${agentId}
-      UNION ALL
-      SELECT a.id, a."parentId", path.depth + 1 AS depth
-      FROM "Agent" a
-      JOIN path ON a.id = path."parentId"
-      WHERE path.depth < 20
-    )
-    SELECT id, depth FROM path ORDER BY depth ASC
-  `;
-  return rows.map((row) => row.id);
-}
-
-function flipToLoss(p: PredictedResult, reason: string, controlId: string): ControlOutcome {
+function flipToLoss(_: PredictedResult, reason: string, controlId: string): ControlOutcome {
   return {
     won: false,
     multiplier: new Prisma.Decimal(0),
