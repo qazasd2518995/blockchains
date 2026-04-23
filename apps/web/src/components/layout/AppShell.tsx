@@ -9,6 +9,7 @@ import { WinTicker } from '@/components/home/WinTicker';
 import { FloatingSupport } from '@/components/layout/FloatingSupport';
 import { BrandMark } from '@/components/layout/BrandMark';
 import { SiteFooter } from '@/components/layout/SiteFooter';
+import { SoundToggle } from '@/components/layout/SoundToggle';
 import { useTranslation } from '@/i18n/useTranslation';
 
 const NAV_ITEMS: { to: string; label: string; icon: typeof Gift }[] = [
@@ -155,6 +156,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </span>
               </NavLink>
 
+              <SoundToggle variant="dark" />
+
               <button
                 type="button"
                 onClick={handleLogout}
@@ -166,9 +169,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
           ) : (
-            <Link to="/login" className="btn-teal hidden text-[13px] lg:inline-flex">
-              {t.common.login}
-            </Link>
+            <div className="flex shrink-0 items-center gap-2">
+              <SoundToggle variant="dark" />
+              <Link to="/login" className="btn-teal hidden text-[13px] lg:inline-flex">
+                {t.common.login}
+              </Link>
+            </div>
           )}
         </div>
       </header>

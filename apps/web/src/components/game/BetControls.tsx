@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Sfx } from '@bg/game-engine';
 import { useTranslation } from '@/i18n/useTranslation';
 
 interface BetControlsProps {
@@ -26,6 +27,7 @@ export function BetControls({
   const syncText = (v: number) => {
     onAmountChange(v);
     setText(v.toFixed(2));
+    Sfx.tick();
   };
 
   const clamp = (v: number) => Math.min(maxBalance, Math.max(min, v));

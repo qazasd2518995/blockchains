@@ -5,6 +5,7 @@ import { TIER_CONFIG, classifyWinTier, type WinTier } from './tierThresholds.js'
 import { ParticlePool } from './ParticlePool.js';
 import { ShakeController } from './ShakeController.js';
 import { emitGlowBurst, emitEdgeGlow, emitRayBurst } from './GlowBurst.js';
+import { Sfx } from './SfxEngine.js';
 
 export interface WinCelebrationOptions {
   /** Pixi Application — 提供 ticker、stage 尺寸 */
@@ -105,6 +106,12 @@ export class WinCelebration {
     const cfg = TIER_CONFIG[tier];
     const cx = this.width / 2;
     const cy = this.height / 2;
+
+    // 0) 對應 tier 的勝利音效
+    if (tier === 'mega') Sfx.winMega();
+    else if (tier === 'huge') Sfx.winHuge();
+    else if (tier === 'big') Sfx.winBig();
+    else Sfx.winSmall();
 
     // 1) shake
     if (this.shaker && cfg.shakeAmp > 0) {
