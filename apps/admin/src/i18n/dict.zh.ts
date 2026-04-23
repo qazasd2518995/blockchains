@@ -143,9 +143,9 @@ export const dict = {
   },
   agent: {
     rebateModes: {
-      PERCENTAGE: '百分比',
-      ALL: '上级全收',
-      NONE: '无退水',
+      PERCENTAGE: '按比例分配',
+      ALL: '全拿退水',
+      NONE: '全退下级',
     },
     status: {
       ACTIVE: '启用中',

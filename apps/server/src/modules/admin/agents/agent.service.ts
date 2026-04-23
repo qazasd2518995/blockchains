@@ -23,6 +23,48 @@ const BCRYPT_ROUNDS = 12;
  * 即使其上級設定得更高，仍會在此 cap 住。
  */
 const PLATFORM_REBATE_CAP = new Prisma.Decimal('0.025');
+type RebateMode = 'PERCENTAGE' | 'ALL' | 'NONE';
+type RebateCarrier = {
+  rebateMode: RebateMode;
+  rebatePercentage: Prisma.Decimal;
+  maxRebatePercentage: Prisma.Decimal;
+};
+
+function clampRebateToPlatform(value: Prisma.Decimal): Prisma.Decimal {
+  if (value.lessThan(0)) return new Prisma.Decimal(0);
+  return value.greaterThan(PLATFORM_REBATE_CAP) ? PLATFORM_REBATE_CAP : value;
+}
+
+function effectiveDownlineRebate(agent: RebateCarrier): Prisma.Decimal {
+  if (agent.rebateMode === 'ALL') return new Prisma.Decimal(0);
+  if (agent.rebateMode === 'NONE') return clampRebateToPlatform(agent.maxRebatePercentage);
+  return clampRebateToPlatform(agent.rebatePercentage);
+}
+
+function normalizeRebateForMode(
+  mode: RebateMode,
+  requestedPct: string | undefined,
+  maxAllowed: Prisma.Decimal,
+): Prisma.Decimal {
+  if (mode === 'ALL') return new Prisma.Decimal(0);
+  if (mode === 'NONE') return maxAllowed;
+  return new Prisma.Decimal(requestedPct ?? '0');
+}
+
+function assertRebateWithinBounds(rebatePct: Prisma.Decimal, maxAllowed: Prisma.Decimal): void {
+  if (rebatePct.lessThan(0)) {
+    throw new ApiError('REBATE_VIOLATION', 'rebatePercentage cannot be negative');
+  }
+  if (rebatePct.greaterThan(maxAllowed)) {
+    throw new ApiError('REBATE_VIOLATION', 'rebatePercentage exceeds parent');
+  }
+  if (rebatePct.greaterThan(PLATFORM_REBATE_CAP)) {
+    throw new ApiError(
+      'REBATE_VIOLATION',
+      `rebatePercentage exceeds platform cap ${PLATFORM_REBATE_CAP.mul(100).toFixed(2)}%`,
+    );
+  }
+}
 
 export class AgentService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -93,17 +135,10 @@ export class AgentService {
       throw new ApiError('HIERARCHY_VIOLATION', `level must be ${parent.level + 1}`);
     }
 
-    // rebate ≤ parent.rebatePercentage 且 ≤ 平台硬上限 2.5%
-    const rebatePct = new Prisma.Decimal(input.rebatePercentage ?? parent.rebatePercentage);
-    if (rebatePct.greaterThan(parent.rebatePercentage)) {
-      throw new ApiError('REBATE_VIOLATION', 'rebatePercentage exceeds parent');
-    }
-    if (rebatePct.greaterThan(PLATFORM_REBATE_CAP)) {
-      throw new ApiError(
-        'REBATE_VIOLATION',
-        `rebatePercentage exceeds platform cap ${PLATFORM_REBATE_CAP.mul(100).toFixed(2)}%`,
-      );
-    }
+    const rebateMode = input.rebateMode ?? 'PERCENTAGE';
+    const maxAllowed = effectiveDownlineRebate(parent);
+    const rebatePct = normalizeRebateForMode(rebateMode, input.rebatePercentage, maxAllowed);
+    assertRebateWithinBounds(rebatePct, maxAllowed);
     // 平台目前不啟用占成機制，保留 DB 欄位但固定為 0。
     const commissionRate = new Prisma.Decimal(0);
 
@@ -122,9 +157,9 @@ export class AgentService {
         level: input.level,
         marketType: input.marketType ?? parent.marketType,
         commissionRate,
-        rebateMode: input.rebateMode ?? 'PERCENTAGE',
+        rebateMode,
         rebatePercentage: rebatePct,
-        maxRebatePercentage: parent.rebatePercentage,
+        maxRebatePercentage: maxAllowed,
         bettingLimitLevel: input.bettingLimitLevel ?? parent.bettingLimitLevel,
         notes: input.notes ?? null,
         role: 'AGENT',
@@ -185,20 +220,39 @@ export class AgentService {
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot modify rebate');
-    const newPct = new Prisma.Decimal(input.rebatePercentage);
-    const maxAllowed = existing.parent?.rebatePercentage ?? existing.maxRebatePercentage;
-    if (newPct.greaterThan(maxAllowed)) {
-      throw new ApiError('REBATE_VIOLATION', 'rebatePercentage exceeds parent');
-    }
-    if (newPct.greaterThan(PLATFORM_REBATE_CAP)) {
+    const maxAllowed = existing.parent
+      ? effectiveDownlineRebate(existing.parent)
+      : clampRebateToPlatform(existing.maxRebatePercentage);
+    const newPct = normalizeRebateForMode(input.rebateMode, input.rebatePercentage, maxAllowed);
+    assertRebateWithinBounds(newPct, maxAllowed);
+
+    const newEffectiveDownlineRebate = effectiveDownlineRebate({
+      rebateMode: input.rebateMode,
+      rebatePercentage: newPct,
+      maxRebatePercentage: maxAllowed,
+    });
+    const directChildren = await this.prisma.agent.findMany({
+      where: { parentId: id, status: { not: 'DELETED' } },
+      select: {
+        id: true,
+        username: true,
+        rebateMode: true,
+        rebatePercentage: true,
+        maxRebatePercentage: true,
+      },
+    });
+    const blockingChild = directChildren.find((child) =>
+      effectiveDownlineRebate(child).greaterThan(newEffectiveDownlineRebate),
+    );
+    if (blockingChild) {
       throw new ApiError(
         'REBATE_VIOLATION',
-        `rebatePercentage exceeds platform cap ${PLATFORM_REBATE_CAP.mul(100).toFixed(2)}%`,
+        `下级代理 ${blockingChild.username} 的退水高于本级新设定，请先调低下级退水`,
       );
     }
     const updated = await this.prisma.agent.update({
       where: { id },
-      data: { rebateMode: input.rebateMode, rebatePercentage: newPct },
+      data: { rebateMode: input.rebateMode, rebatePercentage: newPct, maxRebatePercentage: maxAllowed },
     });
     await writeAudit(this.prisma, {
       actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },

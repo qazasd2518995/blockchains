@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Props {
   open: boolean;
@@ -38,13 +39,15 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
-  return (
-    <div className="fixed inset-0 z-[1000] overflow-y-auto overscroll-contain">
-      <div className="flex min-h-full items-center justify-center px-4 py-8">
-        <div
-          className="absolute inset-0 bg-[#1A2530]/70 backdrop-blur"
+  return createPortal(
+    <div className="fixed inset-0 z-[5000] overflow-y-auto overscroll-contain">
+      <div className="relative flex min-h-full items-start justify-center px-4 py-10">
+        <button
+          type="button"
+          aria-label="关闭对话框"
+          className="absolute inset-0 h-full w-full cursor-default bg-[#1A2530]/70 backdrop-blur"
           onClick={onClose}
         />
         <div
@@ -53,7 +56,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
           aria-modal="true"
           aria-labelledby={titleId}
           tabIndex={-1}
-          className={`relative w-full ${widthMap[width]} card-base scanlines p-0 focus:outline-none`}
+          className={`relative z-[1] max-h-[calc(100vh-5rem)] w-full overflow-y-auto ${widthMap[width]} card-base scanlines p-0 focus:outline-none`}
         >
           <div className="flex items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
             <div>
@@ -69,7 +72,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
               type="button"
               onClick={onClose}
               className="btn-teal-outline text-[11px]"
-              aria-label="關閉對話框"
+              aria-label="关闭对话框"
             >
               [ESC]
             </button>
@@ -78,6 +81,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
           {footer && <div className="border-t border-[#E5E7EB] px-6 py-3">{footer}</div>}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

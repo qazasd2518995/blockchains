@@ -18,6 +18,8 @@ interface AgentDetail {
   maxRebatePercentage: string;
 }
 
+type RebateMode = AgentDetail['rebateMode'];
+
 /** 後端以 fraction 儲存（0.0410 = 4.10%），UI 一律顯示 % */
 function fractionToPctStr(f: string): string {
   const n = Number.parseFloat(f);
@@ -30,6 +32,18 @@ function pctStrToFraction(p: string): string {
   if (!Number.isFinite(n)) return '0';
   return (n / 100).toFixed(4);
 }
+
+function rebateFractionForMode(mode: RebateMode, pctDisplay: string, maxPctDisplay: string): string {
+  if (mode === 'ALL') return '0.0000';
+  if (mode === 'NONE') return pctStrToFraction(maxPctDisplay);
+  return pctStrToFraction(pctDisplay);
+}
+
+const rebateModeLabel: Record<RebateMode, string> = {
+  PERCENTAGE: '按比例分配',
+  ALL: '全拿退水',
+  NONE: '全退下级',
+};
 
 export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDone }: Props): JSX.Element {
   const [mode, setMode] = useState<'PERCENTAGE' | 'ALL' | 'NONE'>('PERCENTAGE');
@@ -45,9 +59,10 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
     (async () => {
       try {
         const res = await adminApi.get<AgentDetail>(`/agents/${agentId}`);
+        const nextMaxPct = fractionToPctStr(res.data.maxRebatePercentage);
         setMode(res.data.rebateMode);
-        setPctDisplay(fractionToPctStr(res.data.rebatePercentage));
-        setMaxPctDisplay(fractionToPctStr(res.data.maxRebatePercentage));
+        setPctDisplay(res.data.rebateMode === 'NONE' ? nextMaxPct : fractionToPctStr(res.data.rebatePercentage));
+        setMaxPctDisplay(nextMaxPct);
       } catch (e) {
         setErr(extractApiError(e).message);
       }
@@ -60,11 +75,11 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
     const maxNum = Number.parseFloat(maxPctDisplay);
     if (mode === 'PERCENTAGE') {
       if (!Number.isFinite(pctNum) || pctNum < 0) {
-        setErr('退水比例必須為非負數字（%）');
+        setErr('退水比例必须为非负数字（%）');
         return;
       }
       if (pctNum > maxNum + 1e-6) {
-        setErr(`退水比例不可超過上限 ${maxPctDisplay}%`);
+        setErr(`退水比例不可超过上限 ${maxPctDisplay}%`);
         return;
       }
     }
@@ -73,7 +88,7 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
     try {
       await adminApi.put(`/agents/${agentId}/rebate`, {
         rebateMode: mode,
-        rebatePercentage: pctStrToFraction(pctDisplay),
+        rebatePercentage: rebateFractionForMode(mode, pctDisplay, maxPctDisplay),
       });
       onDone();
       onClose();
@@ -85,14 +100,14 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="退水設定" subtitle={`Agent · ${agentUsername}`} width="sm">
+    <Modal open={open} onClose={onClose} title="退水设定" subtitle={`Agent · ${agentUsername}`} width="sm">
       <div className="mb-4 border border-ink-200 bg-ink-100/40 p-3 text-[11px]">
         <div className="flex items-baseline justify-between">
           <span className="text-ink-500">目前模式</span>
-          <span className="font-mono">{mode}</span>
+          <span className="font-semibold text-ink-900">{rebateModeLabel[mode]}</span>
         </div>
         <div className="mt-1 flex items-baseline justify-between">
-          <span className="text-ink-500">上限（上級）</span>
+          <span className="text-ink-500">上限（上级）</span>
           <span className="data-num text-[#186073]">{maxPctDisplay}%</span>
         </div>
       </div>
@@ -102,18 +117,31 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
           <div className="label mb-2">退水模式</div>
           <select
             value={mode}
-            onChange={(e) => setMode(e.target.value as 'PERCENTAGE' | 'ALL' | 'NONE')}
+            onChange={(e) => {
+              const next = e.target.value as RebateMode;
+              setMode(next);
+              if (next === 'ALL') setPctDisplay('0.00');
+              if (next === 'NONE') setPctDisplay(maxPctDisplay);
+            }}
             className="term-input"
           >
-            <option value="PERCENTAGE">PERCENTAGE（按比例）</option>
-            <option value="ALL">ALL（上級全收）</option>
-            <option value="NONE">NONE（不給）</option>
+            <option value="PERCENTAGE">按比例分配</option>
+            <option value="ALL">全拿退水</option>
+            <option value="NONE">全退下级</option>
           </select>
         </label>
 
+        {mode !== 'PERCENTAGE' && (
+          <div className="rounded-md border border-ink-200 bg-ink-100/40 px-3 py-2 text-[11px] text-ink-600">
+            {mode === 'ALL'
+              ? '本级代理保留全部可用退水，下级可分配退水为 0%。'
+              : `本级代理不保留退水，下级可分配退水为 ${maxPctDisplay}%。`}
+          </div>
+        )}
+
         {mode === 'PERCENTAGE' && (
           <label className="block">
-            <div className="label mb-2">退水比例（%，不得超過 {maxPctDisplay}%）</div>
+            <div className="label mb-2">退水比例（%，不得超过 {maxPctDisplay}%）</div>
             <div className="relative">
               <input
                 type="text"

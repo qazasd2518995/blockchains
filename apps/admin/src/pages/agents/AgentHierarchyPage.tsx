@@ -139,7 +139,9 @@ export function AgentHierarchyPage(): JSX.Element {
         username: currentLayerAgent.username,
         level: currentLayerAgent.level,
         marketType: currentLayerAgent.marketType,
+        rebateMode: currentLayerAgent.rebateMode,
         rebatePercentage: currentLayerAgent.rebatePercentage,
+        maxRebatePercentage: currentLayerAgent.maxRebatePercentage,
         bettingLimitLevel: currentLayerAgent.bettingLimitLevel,
       }
     : undefined;

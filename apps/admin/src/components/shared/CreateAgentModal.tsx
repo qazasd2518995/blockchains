@@ -29,7 +29,12 @@ const schema = z.object({
 
 type FormInput = z.infer<typeof schema>;
 
-type LockedParentAgent = Pick<AgentPublic, 'id' | 'username' | 'level' | 'rebatePercentage' | 'marketType'> & {
+type RebateMode = FormInput['rebateMode'];
+
+type LockedParentAgent = Pick<
+  AgentPublic,
+  'id' | 'username' | 'level' | 'rebateMode' | 'rebatePercentage' | 'maxRebatePercentage' | 'marketType'
+> & {
   bettingLimitLevel?: string | null;
 };
 
@@ -124,9 +129,16 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
     setSelectedParent(p);
   }, [parents, watchedParentId, lockedParent]);
 
-  const parentMaxPct = selectedParent
-    ? Math.min(Number.parseFloat(selectedParent.rebatePercentage) * 100, PLATFORM_REBATE_CAP_PCT)
-    : PLATFORM_REBATE_CAP_PCT;
+  const parentMaxPct = selectedParent ? getEffectiveParentRebatePct(selectedParent) : PLATFORM_REBATE_CAP_PCT;
+
+  useEffect(() => {
+    if (!open) return;
+    if (watchedRebateMode === 'ALL') {
+      setValue('rebatePercentageDisplay', '0.00');
+    } else if (watchedRebateMode === 'NONE') {
+      setValue('rebatePercentageDisplay', parentMaxPct.toFixed(2));
+    }
+  }, [open, parentMaxPct, setValue, watchedRebateMode]);
 
   const onSubmit = async (data: FormInput) => {
     setErr(null);
@@ -148,7 +160,7 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
     }
 
     try {
-      const rebateFraction = (Number.parseFloat(data.rebatePercentageDisplay) / 100).toFixed(4);
+      const rebateFraction = rebateFractionForMode(data.rebateMode, data.rebatePercentageDisplay, parentMaxPct);
       const res = await adminApi.post<AgentPublic>('/agents', {
         parentId: data.parentId,
         username: data.username,
@@ -224,11 +236,19 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
 
         <Field label="退水模式" code="05" error={errors.rebateMode?.message}>
           <select {...register('rebateMode')} className="term-input">
-            <option value="PERCENTAGE">按比例</option>
-            <option value="ALL">上级全收</option>
+            <option value="PERCENTAGE">按比例分配</option>
+            <option value="ALL">全拿退水</option>
             <option value="NONE">全退下级</option>
           </select>
         </Field>
+
+        {watchedRebateMode !== 'PERCENTAGE' && (
+          <div className="rounded-md border border-ink-200 bg-ink-100/40 px-3 py-2 text-[11px] text-ink-600">
+            {watchedRebateMode === 'ALL'
+              ? '本级代理保留全部可用退水，下级可分配退水为 0%。'
+              : `本级代理不保留退水，下级可分配退水为 ${parentMaxPct.toFixed(2)}%。`}
+          </div>
+        )}
 
         {watchedRebateMode === 'PERCENTAGE' && (
           <Field
@@ -295,6 +315,28 @@ function normalizeBettingLimit(value: string | null | undefined): FormInput['bet
     return value;
   }
   return null;
+}
+
+function fractionToPct(value: string | null | undefined): number {
+  const n = Number.parseFloat(value ?? '0');
+  if (!Number.isFinite(n)) return 0;
+  return n * 100;
+}
+
+function getEffectiveParentRebatePct(parent: LockedParentAgent): number {
+  const pct =
+    parent.rebateMode === 'ALL'
+      ? 0
+      : parent.rebateMode === 'NONE'
+        ? fractionToPct(parent.maxRebatePercentage)
+        : fractionToPct(parent.rebatePercentage);
+  return Math.max(0, Math.min(pct, PLATFORM_REBATE_CAP_PCT));
+}
+
+function rebateFractionForMode(mode: RebateMode, pctDisplay: string, parentMaxPct: number): string {
+  if (mode === 'ALL') return '0.0000';
+  if (mode === 'NONE') return (parentMaxPct / 100).toFixed(4);
+  return (Number.parseFloat(pctDisplay) / 100).toFixed(4);
 }
 
 function Field({
