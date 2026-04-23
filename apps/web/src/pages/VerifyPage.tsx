@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BookOpen, Rocket, Sparkles, Target } from 'lucide-react';
+import { ArrowRight, BookOpen } from 'lucide-react';
 import { SectionHeading } from '@/components/layout/SectionHeading';
 
 type HallKey = 'crash' | 'classic' | 'strategy';
@@ -425,38 +425,6 @@ export function VerifyPage() {
             })}
           </div>
         </aside>
-      </section>
-
-      <section className="space-y-5">
-        <SectionHeading
-          eyebrow="Game Floors"
-          title="三大主題館，照你今天的手感進場"
-          description="飛行館一路衝倍率、經典館規則直觀好上手、策略館靠判斷拉開差距。"
-        />
-        <div className="grid gap-4 md:grid-cols-3">
-          {HALLS.map((hall) => {
-            const Icon = hall.key === 'crash' ? Rocket : hall.key === 'classic' ? Sparkles : Target;
-            return (
-              <article
-                key={hall.key}
-                className="rounded-[22px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur"
-              >
-                <div
-                  className="flex h-12 w-12 items-center justify-center rounded-[14px]"
-                  style={{ backgroundColor: `${hall.tone}1f`, color: hall.tone }}
-                >
-                  <Icon className="h-6 w-6" aria-hidden="true" />
-                </div>
-                <div className="mt-4 label">{hall.subtitle}</div>
-                <h3 className="mt-2 text-[20px] font-bold text-[#0F172A]">{hall.title}</h3>
-                <p className="mt-3 text-[13px] leading-relaxed text-[#4A5568]">{hall.intro}</p>
-                <div className="mt-4 inline-flex rounded-full bg-[#F5F7FA] px-3 py-1 text-[11px] font-semibold text-[#4A5568]">
-                  {hall.vibe}
-                </div>
-              </article>
-            );
-          })}
-        </div>
       </section>
 
       <section className="space-y-5">
