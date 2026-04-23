@@ -74,7 +74,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
 
       {/* Top strip — felt dark with brass */}
       <div className="sticky top-0 z-50 border-b border-[#186073]/55 bg-[#093040]/95 backdrop-blur-lg shadow-[0_2px_12px_-4px_rgba(10,8,6,0.35)]">
-        <div className="mx-auto flex max-w-[1920px] items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.3em] text-[#E8D48A]">
+        <div className="flex w-full items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.3em] text-[#E8D48A]">
           <div className="flex items-center gap-6">
             <span className="flex items-center">
               <span className="dot-online dot-online" /> {t.shell.linkLive}
@@ -94,7 +94,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
           </div>
         </div>
 
-        <div className="mx-auto flex max-w-[1920px] items-center justify-between gap-6 border-t border-[#186073]/30 px-6 py-4">
+        <div className="flex w-full items-center justify-between gap-6 border-t border-[#186073]/30 px-6 py-4">
           <Link to="/admin/dashboard" className="flex items-center gap-3">
             <span className="rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[22px] font-extrabold tracking-[0.05em] text-white">
               BG
@@ -192,7 +192,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
         </div>
       </div>
 
-      <main className="relative z-10 mx-auto flex max-w-[1920px] gap-6 px-4 py-8 sm:px-6 lg:px-8 xl:px-10">
+      <main className="relative z-10 flex w-full gap-6 px-4 py-8 sm:px-6 lg:px-8 xl:px-10">
         <Sidebar />
         <div className="min-w-0 flex-1">{children}</div>
       </main>
