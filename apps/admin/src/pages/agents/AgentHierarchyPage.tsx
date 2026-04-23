@@ -17,8 +17,8 @@ import { useTranslation } from '@/i18n/useTranslation';
 
 type AccountStatus = 'ACTIVE' | 'FROZEN' | 'DISABLED';
 
-const ACCOUNT_TABLE_GRID =
-  'grid-cols-[80px_minmax(220px,1fr)_72px_116px_106px_minmax(410px,max-content)]';
+const ACCOUNT_TABLE_COLUMNS = '72px minmax(170px, 1fr) 64px 118px 112px minmax(360px, 0.95fr)';
+const ACCOUNT_TABLE_GRID_STYLE = { gridTemplateColumns: ACCOUNT_TABLE_COLUMNS };
 
 /**
  * 帳號管理（混合階層）
@@ -135,7 +135,7 @@ export function AgentHierarchyPage(): JSX.Element {
   return (
     <div>
       <PageHeader
-        section="§ OPS 02"
+        section="§ 后台 02"
         breadcrumb={t.agents.mixedHierarchyBreadcrumb}
         title={t.agents.title}
         titleSuffix={t.agents.mixedHierarchySuffix}
@@ -171,7 +171,6 @@ export function AgentHierarchyPage(): JSX.Element {
               <div className="mt-1 flex items-baseline gap-2 font-display text-xl text-ink-900">
                 {data.parent.username}
                 {data.parent.role === 'SUPER_ADMIN' && <span className="tag tag-gold">{t.shell.super}</span>}
-                <span className="tag tag-acid">{data.parent.marketType}{t.agents.marketSuffix}</span>
               </div>
             </div>
             <Stat k={t.agents.bal} v={fmt(data.parent.balance)} accent="acid" />
@@ -215,20 +214,24 @@ export function AgentHierarchyPage(): JSX.Element {
       ) : data?.items.length === 0 ? (
         <div className="crt-panel p-8 text-center text-ink-400">{t.agents.emptyLevel}</div>
       ) : (
-        <div className="crt-panel overflow-hidden">
-          <div className={`grid ${ACCOUNT_TABLE_GRID} gap-2 border-b border-ink-200 bg-ink-100/40 px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-ink-500`}>
+        <div className="crt-panel overflow-x-auto">
+          <div
+            className="grid min-w-[960px] gap-2 border-b border-ink-200 bg-ink-100/40 px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-ink-500"
+            style={ACCOUNT_TABLE_GRID_STYLE}
+          >
             <span>{t.agents.type}</span>
             <span>{t.agents.account}</span>
-            <span className="text-right">{t.shell.level}</span>
+            <span className="text-center">{t.shell.level}</span>
             <span className="text-right">{t.agents.bal}</span>
             <span className="text-center">{t.common.status}</span>
-            <span className="text-right">{t.common.actions}</span>
+            <span className="text-left">{t.common.actions}</span>
           </div>
           {data?.items.map((row) => (
             <div
               key={`${row.kind}-${row.id}`}
               onClick={() => onRowClick(row)}
-              className={`grid cursor-pointer ${ACCOUNT_TABLE_GRID} items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition hover:bg-[#FAF2D7]/60`}
+              className="grid min-w-[960px] cursor-pointer items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition hover:bg-[#FAF2D7]/60"
+              style={ACCOUNT_TABLE_GRID_STYLE}
             >
               {row.kind === 'agent' ? (
                 <span className="tag tag-acid">{t.agents.typeAgent}</span>
@@ -252,7 +255,7 @@ export function AgentHierarchyPage(): JSX.Element {
                 </div>
               </div>
 
-              <span className="text-right data-num text-ink-700">
+              <span className="text-center data-num text-ink-700">
                 {row.kind === 'agent' ? `L${row.level}` : '—'}
               </span>
               <span className="text-right data-num text-[#186073]">{fmt(row.balance)}</span>
@@ -269,7 +272,7 @@ export function AgentHierarchyPage(): JSX.Element {
                 )}
               </span>
 
-              <div className="flex flex-wrap items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <div className="flex flex-wrap items-center justify-start gap-1.5" onClick={(e) => e.stopPropagation()}>
                 {row.kind === 'agent' ? (
                   <>
                     <button

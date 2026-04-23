@@ -76,7 +76,7 @@ export function MemberBetRecordsPage(): JSX.Element {
   return (
     <div>
       <PageHeader
-        section="§ OPS 03"
+        section="§ 后台 03"
         breadcrumb={`${t.members.title} / ${member?.username ?? id} / ${t.members.bets}`}
         title={t.members.bets}
         titleSuffix={member?.username ?? ''}

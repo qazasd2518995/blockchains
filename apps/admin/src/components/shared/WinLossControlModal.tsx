@@ -22,7 +22,7 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
 
   const submit = async (): Promise<void> => {
     if (!targetUsername.trim()) {
-      setErr('請填目標帳號');
+      setErr('请填目标账号');
       return;
     }
     setBusy(true);
@@ -52,7 +52,7 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="新增輸贏控制" subtitle="Win / Loss Control" width="md">
+    <Modal open={open} onClose={onClose} title="新增输赢控制" subtitle="按比例翻转输赢" width="md">
       <div className="space-y-4">
         <label className="block">
           <div className="label mb-2">控制模式</div>
@@ -61,36 +61,36 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
             onChange={(e) => {
               const next = e.target.value as ControlMode;
               setMode(next);
-              // agent_line 模式只能針對代理，single_member 只能針對會員
+              // agent_line 模式只能针对代理，single_member 只能针对会员
               setTargetType(next === 'AGENT_LINE' ? 'agent' : 'member');
             }}
             className="term-input"
           >
-            <option value="SINGLE_MEMBER">單一會員</option>
-            <option value="AGENT_LINE">整條代理線</option>
+            <option value="SINGLE_MEMBER">单一会员</option>
+            <option value="AGENT_LINE">整条代理线</option>
           </select>
         </label>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <div className="label mb-2">目標類型</div>
+            <div className="label mb-2">目标类型</div>
             <select
               value={targetType}
               onChange={(e) => setTargetType(e.target.value as 'agent' | 'member')}
               className="term-input"
             >
-              <option value="member">會員</option>
+              <option value="member">会员</option>
               <option value="agent">代理</option>
             </select>
           </label>
           <label className="block">
-            <div className="label mb-2">目標帳號</div>
+            <div className="label mb-2">目标账号</div>
             <input
               type="text"
               value={targetUsername}
               onChange={(e) => setTargetUsername(e.target.value)}
               className="term-input font-mono"
-              placeholder="帳號"
+              placeholder="账号"
             />
           </label>
         </div>
@@ -113,7 +113,7 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
               checked={winControl}
               onChange={(e) => setWinControl(e.target.checked)}
             />
-            放水（將輸翻成贏）
+            放水（将输翻成赢）
           </label>
           <label className="flex items-center gap-2 text-[12px]">
             <input
@@ -121,7 +121,7 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
               checked={lossControl}
               onChange={(e) => setLossControl(e.target.checked)}
             />
-            殺分（將贏翻成輸）
+            杀分（将赢翻成输）
           </label>
         </div>
 

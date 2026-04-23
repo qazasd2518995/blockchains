@@ -140,7 +140,7 @@ export function SubAccountsPage(): JSX.Element {
   return (
     <div>
       <PageHeader
-        section="§ OPS 08"
+        section="§ 后台 08"
         breadcrumb="子帳號 / 唯讀員工帳號"
         title="子帳號"
         titleSuffix="讀取權限 · 員工帳號"

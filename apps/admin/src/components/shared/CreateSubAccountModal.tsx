@@ -82,7 +82,7 @@ export function CreateSubAccountModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="CREATE SUB-ACCOUNT" subtitle="新增子帳號" width="md">
+    <Modal open={open} onClose={onClose} title="创建子账号" subtitle="新增子账号" width="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="border border-[#186073]/30 bg-[#E8F4F8]/40 p-3 text-[12px] text-[#0F4555]">
           將建立在代理{' '}

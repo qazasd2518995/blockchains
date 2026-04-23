@@ -39,13 +39,13 @@ export function AgentAnalysisPage(): JSX.Element {
   }, [startDate, endDate, rootAgentId]);
 
   const columns: Column<AgentAnalysisRow>[] = [
-    { key: 'username', label: 'USERNAME', render: (r) => <span className="font-mono text-ink-900">{r.username}</span> },
-    { key: 'members', label: 'MEM', align: 'right', render: (r) => <span className="data-num">{r.memberCount}</span> },
-    { key: 'bets', label: 'BETS', align: 'right', render: (r) => <span className="data-num">{r.betCount}</span> },
-    { key: 'volume', label: 'VOLUME', align: 'right', render: (r) => <span className="data-num">{fmt(r.betAmount)}</span> },
+    { key: 'username', label: '代理账号', render: (r) => <span className="font-mono text-ink-900">{r.username}</span> },
+    { key: 'members', label: '会员数', align: 'right', render: (r) => <span className="data-num">{r.memberCount}</span> },
+    { key: 'bets', label: '下注笔数', align: 'right', render: (r) => <span className="data-num">{r.betCount}</span> },
+    { key: 'volume', label: '下注量', align: 'right', render: (r) => <span className="data-num">{fmt(r.betAmount)}</span> },
     {
       key: 'winloss',
-      label: 'MEM W/L',
+      label: '会员输赢',
       align: 'right',
       render: (r) => {
         const n = Number.parseFloat(r.memberWinLoss);
@@ -58,7 +58,7 @@ export function AgentAnalysisPage(): JSX.Element {
     },
     {
       key: 'rebateAmt',
-      label: 'REBATE EARN',
+      label: '退水收益',
       align: 'right',
       render: (r) => (
         <div className="data-num text-[11px]">
@@ -69,7 +69,7 @@ export function AgentAnalysisPage(): JSX.Element {
     },
     {
       key: 'settlement',
-      label: 'UPLINE SETTLE',
+      label: '上级结算',
       align: 'right',
       render: (r) => {
         const n = Number.parseFloat(r.uplineSettlement);
@@ -85,7 +85,7 @@ export function AgentAnalysisPage(): JSX.Element {
   return (
     <div>
       <PageHeader
-        section="§ OPS 05"
+        section="§ 后台 05"
         breadcrumb="报表 / 代理分析"
         title="代理分析"
         titleSuffix="代理结算"
@@ -123,13 +123,13 @@ export function AgentAnalysisPage(): JSX.Element {
       ) : data ? (
         <>
           <div className="mb-4 crt-panel p-4">
-            <div className="label mb-2">ROOT SUMMARY · {data.root.username}</div>
+            <div className="label mb-2">根代理汇总 · {data.root.username}</div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <Stat k="MEMBERS" v={data.root.memberCount.toString()} />
-              <Stat k="BETS" v={data.root.betCount.toLocaleString()} />
-              <Stat k="VOLUME" v={fmt(data.root.betAmount)} accent="acid" />
+              <Stat k="会员数" v={data.root.memberCount.toString()} />
+              <Stat k="下注笔数" v={data.root.betCount.toLocaleString()} />
+              <Stat k="下注量" v={fmt(data.root.betAmount)} accent="acid" />
               <Stat
-                k="ROOT SETTLE"
+                k="根线结算"
                 v={`${Number.parseFloat(data.root.uplineSettlement) >= 0 ? '+' : ''}${fmt(data.root.uplineSettlement)}`}
                 accent={Number.parseFloat(data.root.uplineSettlement) >= 0 ? 'toxic' : 'ember'}
               />

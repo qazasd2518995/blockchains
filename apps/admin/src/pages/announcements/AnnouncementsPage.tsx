@@ -155,7 +155,7 @@ export function AnnouncementsPage(): JSX.Element {
   return (
     <div>
       <PageHeader
-        section="§ OPS 08"
+        section="§ 后台 08"
         breadcrumb="公告管理 / 列表"
         title="公告管理"
         titleSuffix="跑馬燈 / 彈窗"

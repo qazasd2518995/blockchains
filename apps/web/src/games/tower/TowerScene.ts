@@ -13,7 +13,6 @@ import {
   ShakeController,
   classifyWinTier,
   TIER_CONFIG,
-  EASE,
   emitEdgeGlow,
   emitGlowBurst,
   emitRayBurst,
@@ -25,7 +24,6 @@ import {
 import { WinCelebration } from '@bg/game-engine';
 
 const COLOR_BG = 0x0F172A;
-const COLOR_TILE = 0xFFFFFF;
 const COLOR_TILE_STROKE = 0xC9A247;
 const COLOR_ACID = 0xF3D67D;
 const COLOR_VIOLET = 0xE8D48A;
@@ -34,6 +32,11 @@ const COLOR_TOXIC = 0x1E7A4F;
 const COLOR_AMBER = 0xF3D67D;
 const COLOR_ICE = 0x266F85;
 const COLOR_INK = 0x0A0806;
+const COLOR_BLUEPRINT = 0x5CBED6;
+const COLOR_BLOCK = 0x344152;
+const COLOR_BLOCK_DARK = 0x182233;
+const COLOR_MORTAR = 0xEEF2F6;
+const COLOR_SAFE_EDGE = 0x7BD68F;
 
 interface CellHandle {
   container: Container;
@@ -149,15 +152,43 @@ export class TowerScene {
     const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
     this.app.stage.addChild(bg);
 
-    // 徑向紫色光暈
+    // 中央施工藍圖光暈
     const glow = new Graphics()
-      .circle(this.width / 2, this.height * 0.3, this.width * 0.5)
-      .fill({ color: COLOR_ACID, alpha: 0.1 });
+      .circle(this.width / 2, this.height * 0.35, this.width * 0.48)
+      .fill({ color: COLOR_BLUEPRINT, alpha: 0.12 });
     glow.filters = [new BlurFilter({ strength: 60 })];
     this.app.stage.addChild(glow);
 
-    // 底部光條（地面）
+    const blueprint = new Graphics();
+    const towerW = Math.min(this.width * 0.58, 280);
+    const left = this.width / 2 - towerW / 2;
+    const right = this.width / 2 + towerW / 2;
+    for (let x = left; x <= right + 1; x += towerW / 4) {
+      blueprint.moveTo(x, 34).lineTo(x, this.height - 48);
+    }
+    for (let y = 64; y < this.height - 52; y += 44) {
+      blueprint.moveTo(left - 20, y).lineTo(right + 20, y);
+    }
+    blueprint.stroke({ color: COLOR_BLUEPRINT, width: 1, alpha: 0.08 });
+
+    const scaffoldLeft = left - 34;
+    const scaffoldRight = right + 34;
+    blueprint
+      .moveTo(scaffoldLeft, this.height - 44)
+      .lineTo(scaffoldLeft + 26, 58)
+      .moveTo(scaffoldRight, this.height - 44)
+      .lineTo(scaffoldRight - 26, 58)
+      .moveTo(scaffoldLeft, this.height - 44)
+      .lineTo(scaffoldRight, this.height - 44)
+      .stroke({ color: COLOR_AMBER, width: 1.4, alpha: 0.12 });
+    this.app.stage.addChild(blueprint);
+
+    // 底部地基
     const ground = new Graphics();
+    ground
+      .roundRect(26, this.height - 42, this.width - 52, 18, 9)
+      .fill({ color: COLOR_BLOCK_DARK, alpha: 0.75 })
+      .stroke({ color: COLOR_ACID, width: 1, alpha: 0.2 });
     ground
       .moveTo(0, this.height - 30)
       .lineTo(this.width, this.height - 30)
@@ -175,33 +206,39 @@ export class TowerScene {
 
   private createTopUI(): void {
     if (!this.app) return;
-    // 頂部：當前層顯示
+    const plate = new Graphics()
+      .roundRect(this.width - 148, 12, 124, 62, 12)
+      .fill({ color: COLOR_BLOCK_DARK, alpha: 0.62 })
+      .stroke({ color: COLOR_AMBER, width: 1, alpha: 0.18 });
+    this.app.stage.addChild(plate);
+
+    // 頂部：當前施工層顯示，靠右避免壓住塔身
     const levelStyle = new TextStyle({
       fontFamily: GAME_FONT_NUM,
       fontSize: 12,
-      fill: COLOR_INK,
+      fill: 0xD8E6F4,
       fontWeight: '600',
       letterSpacing: 4,
     });
-    const levelLabel = new Text({ text: 'LEVEL 0 / 9', style: levelStyle });
-    levelLabel.anchor.set(0.5, 0);
-    levelLabel.x = this.width / 2;
-    levelLabel.y = 16;
-    levelLabel.alpha = 0.7;
+    const levelLabel = new Text({ text: 'LEVEL 1 / 9', style: levelStyle });
+    levelLabel.anchor.set(1, 0);
+    levelLabel.x = this.width - 36;
+    levelLabel.y = 20;
+    levelLabel.alpha = 0.78;
     this.currentLevelLabel = levelLabel;
     this.app.stage.addChild(levelLabel);
 
     // 倍率大字
     const multStyle = new TextStyle({
       fontFamily: GAME_FONT,
-      fontSize: 40,
+      fontSize: 30,
       fill: COLOR_ACID,
       fontWeight: '700',
     });
     const multLabel = new Text({ text: '1.00×', style: multStyle });
-    multLabel.anchor.set(0.5, 0);
-    multLabel.x = this.width / 2;
-    multLabel.y = 34;
+    multLabel.anchor.set(1, 0);
+    multLabel.x = this.width - 36;
+    multLabel.y = 40;
     this.multiplierLabel = multLabel;
     this.app.stage.addChild(multLabel);
   }
@@ -247,8 +284,9 @@ export class TowerScene {
       this.cells.clear();
     }
 
-    // 底層位置
-    this.baseLevelY = this.height - 80;
+    // 底層位置與樓層間距依畫布高度調整，維持可讀的樓層感。
+    this.levelHeight = Math.max(54, Math.min(66, (this.height - 104) / 7.2));
+    this.baseLevelY = this.height - 76;
 
     // 建立所有層（從 0 到 totalLevels-1，0 是最底）
     for (let level = 0; level < totalLevels; level += 1) {
@@ -262,6 +300,7 @@ export class TowerScene {
   private createLevel(level: number): void {
     if (!this.levelsContainer) return;
     const y = this.baseLevelY - level * this.levelHeight;
+    const dims = this.cellDims();
 
     // 層容器
     const levelContainer = new Container();
@@ -270,36 +309,45 @@ export class TowerScene {
     levelContainer.sortableChildren = true;
     this.levelsContainer.addChild(levelContainer);
 
-    // 層地板陰影
-    const floorShadow = new Graphics()
-      .roundRect(-(this.width / 2 - 40), -4, this.width - 80, 8, 4)
-      .fill({ color: COLOR_INK, alpha: 0.05 });
-    levelContainer.addChild(floorShadow);
+    // 樓層梁與左右立柱，讓選格像是在蓋塔。
+    const floorFrame = new Graphics();
+    const frameW = dims.span + 42;
+    const beamY = dims.h / 2 + 6;
+    floorFrame
+      .roundRect(-frameW / 2, beamY, frameW, 10, 5)
+      .fill({ color: COLOR_BLOCK_DARK, alpha: 0.86 })
+      .stroke({ color: COLOR_AMBER, width: 1, alpha: 0.28 });
+    floorFrame
+      .rect(-frameW / 2 + 12, beamY + 3, frameW - 24, 1)
+      .fill({ color: COLOR_AMBER, alpha: 0.18 });
+    floorFrame
+      .roundRect(-frameW / 2 - 7, -dims.h / 2 + 4, 8, dims.h + 18, 4)
+      .fill({ color: COLOR_BLOCK_DARK, alpha: 0.5 });
+    floorFrame
+      .roundRect(frameW / 2 - 1, -dims.h / 2 + 4, 8, dims.h + 18, 4)
+      .fill({ color: COLOR_BLOCK_DARK, alpha: 0.5 });
+    levelContainer.addChild(floorFrame);
 
     // 層級標籤（左側）
     const style = new TextStyle({
       fontFamily: GAME_FONT_NUM,
       fontSize: 11,
-      fill: COLOR_INK,
+      fill: 0xC9D5E3,
       fontWeight: '600',
       letterSpacing: 2,
     });
     const lvText = new Text({ text: `L${level + 1}`, style });
-    lvText.anchor.set(0, 0.5);
-    lvText.x = -this.width / 2 + 28;
-    lvText.alpha = 0.45;
+    lvText.anchor.set(1, 0.5);
+    lvText.x = -frameW / 2 - 14;
+    lvText.alpha = 0.62;
     levelContainer.addChild(lvText);
 
     // 格子
-    const cellGap = 6;
-    const availW = this.width - 130; // 左邊保留 labels, 右邊 padding
-    const cellW = (availW - cellGap * (this.cols - 1)) / this.cols;
-    const cellH = this.levelHeight - 14;
-    const startX = -availW / 2 + cellW / 2 + 12;
+    const startX = -dims.span / 2 + dims.w / 2;
 
     for (let c = 0; c < this.cols; c += 1) {
-      const cx = startX + c * (cellW + cellGap);
-      const cell = this.createCell(level, c, cellW, cellH);
+      const cx = startX + c * (dims.w + dims.gap);
+      const cell = this.createCell(level, c, dims.w, dims.h);
       cell.container.x = cx;
       cell.container.y = 0;
       levelContainer.addChild(cell.container);
@@ -320,7 +368,7 @@ export class TowerScene {
     const style = new TextStyle({
       fontFamily: GAME_FONT,
       fontSize: h * 0.6,
-      fill: COLOR_INK,
+      fill: COLOR_MORTAR,
       fontWeight: '700',
     });
     const label = new Text({ text: '·', style });
@@ -361,41 +409,72 @@ export class TowerScene {
     state: 'hidden' | 'active' | 'safe' | 'trap' | 'picked' | 'past',
   ): void {
     g.clear();
-    const radius = 10;
-    // 陰影
-    g.roundRect(-w / 2 + 2, -h / 2 + 3, w, h, radius).fill({ color: COLOR_INK, alpha: 0.08 });
+    const radius = 9;
+    const drawMasonry = (lineColor: number, alpha: number) => {
+      g.moveTo(-w / 2 + 10, -1).lineTo(w / 2 - 10, -1);
+      g.moveTo(-w * 0.17, -h / 2 + 7).lineTo(-w * 0.17, -4);
+      g.moveTo(w * 0.2, 3).lineTo(w * 0.2, h / 2 - 8);
+      g.stroke({ color: lineColor, width: 1, alpha });
+      g.circle(-w * 0.24, -h * 0.12, 1.8).fill({ color: lineColor, alpha: alpha * 0.8 });
+      g.circle(w * 0.24, h * 0.12, 1.8).fill({ color: lineColor, alpha: alpha * 0.8 });
+    };
+
+    const drawBlock = (
+      fill: number,
+      stroke: number,
+      strokeWidth: number,
+      fillAlpha = 1,
+      highlightAlpha = 0.18,
+    ) => {
+      g.roundRect(-w / 2 + 4, -h / 2 + 6, w, h, radius).fill({
+        color: COLOR_INK,
+        alpha: 0.28,
+      });
+      g.roundRect(-w / 2, -h / 2, w, h, radius)
+        .fill({ color: fill, alpha: fillAlpha })
+        .stroke({ color: stroke, width: strokeWidth, alpha: 0.95 });
+      g.roundRect(-w / 2 + 4, -h / 2 + 4, w - 8, h * 0.32, 6).fill({
+        color: COLOR_MORTAR,
+        alpha: highlightAlpha,
+      });
+    };
 
     switch (state) {
       case 'active':
-        g.roundRect(-w / 2, -h / 2, w, h, radius).fill({ color: COLOR_TILE });
-        g.roundRect(-w / 2, -h / 2, w, h, radius).stroke({ color: COLOR_ACID, width: 2.5 });
-        // 內襯
+        drawBlock(COLOR_MORTAR, COLOR_ACID, 3, 0.98, 0.42);
         g.roundRect(-w / 2 + 3, -h / 2 + 3, w - 6, h - 6, 8).stroke({
           color: COLOR_VIOLET,
-          width: 1,
-          alpha: 0.3,
+          width: 1.2,
+          alpha: 0.45,
         });
+        drawMasonry(COLOR_INK, 0.18);
         break;
       case 'safe':
+        drawBlock(COLOR_TOXIC, COLOR_SAFE_EDGE, 2, 0.65, 0.2);
+        drawMasonry(COLOR_SAFE_EDGE, 0.36);
+        break;
       case 'picked':
-        g.roundRect(-w / 2, -h / 2, w, h, radius).fill({ color: COLOR_TOXIC, alpha: 0.15 });
-        g.roundRect(-w / 2, -h / 2, w, h, radius).stroke({ color: COLOR_TOXIC, width: 2 });
+        drawBlock(COLOR_AMBER, COLOR_ACID, 2.5, 0.92, 0.35);
+        g.roundRect(-w / 2 + 6, h / 2 - 9, w - 12, 4, 2).fill({
+          color: COLOR_TOXIC,
+          alpha: 0.7,
+        });
+        drawMasonry(COLOR_INK, 0.2);
         break;
       case 'trap':
-        g.roundRect(-w / 2, -h / 2, w, h, radius).fill({ color: COLOR_EMBER, alpha: 0.18 });
-        g.roundRect(-w / 2, -h / 2, w, h, radius).stroke({ color: COLOR_EMBER, width: 2 });
+        drawBlock(COLOR_EMBER, COLOR_EMBER, 2.4, 0.52, 0.16);
+        g.moveTo(-w / 2 + 12, -h / 2 + 11).lineTo(w / 2 - 14, h / 2 - 10);
+        g.moveTo(w / 2 - 18, -h / 2 + 12).lineTo(-w / 2 + 16, h / 2 - 8);
+        g.stroke({ color: COLOR_AMBER, width: 2, alpha: 0.52 });
         break;
       case 'past':
-        g.roundRect(-w / 2, -h / 2, w, h, radius).fill({ color: COLOR_TILE, alpha: 0.5 });
-        g.roundRect(-w / 2, -h / 2, w, h, radius).stroke({ color: COLOR_TILE_STROKE, width: 1 });
+        drawBlock(COLOR_BLOCK, COLOR_TILE_STROKE, 1, 0.58, 0.09);
+        drawMasonry(COLOR_MORTAR, 0.12);
         break;
       case 'hidden':
       default:
-        g.roundRect(-w / 2, -h / 2, w, h, radius).fill({ color: COLOR_TILE, alpha: 0.4 });
-        g.roundRect(-w / 2, -h / 2, w, h, radius).stroke({
-          color: COLOR_TILE_STROKE,
-          width: 1,
-        });
+        drawBlock(COLOR_BLOCK, COLOR_TILE_STROKE, 1, 0.7, 0.1);
+        drawMasonry(COLOR_MORTAR, 0.16);
         break;
     }
   }
@@ -403,12 +482,15 @@ export class TowerScene {
   /**
    * 計算 cell 尺寸（供外部操作時重繪）
    */
-  private cellDims(): { w: number; h: number } {
-    const cellGap = 6;
-    const availW = this.width - 130;
-    const w = (availW - cellGap * (this.cols - 1)) / this.cols;
-    const h = this.levelHeight - 14;
-    return { w, h };
+  private cellDims(): { w: number; h: number; gap: number; span: number } {
+    const gap = 7;
+    const towerW = Math.min(this.width - 112, 322);
+    const availW = Math.max(180, towerW - 24);
+    const rawW = (availW - gap * (this.cols - 1)) / this.cols;
+    const w = Math.min(118, Math.max(58, rawW));
+    const h = Math.min(50, Math.max(40, this.levelHeight - 15));
+    const span = w * this.cols + gap * (this.cols - 1);
+    return { w, h, gap, span };
   }
 
   /**
@@ -425,17 +507,18 @@ export class TowerScene {
         const dims = this.cellDims();
         this.drawCellTile(cell.tile, dims.w, dims.h, 'active');
         cell.label.text = '?';
-        cell.label.alpha = 0.5;
+        cell.label.style.fill = COLOR_INK;
+        cell.label.alpha = 0.72;
       }
     }
 
     // 更新 UI
     if (this.currentLevelLabel) {
-      this.currentLevelLabel.text = `LEVEL ${level} / ${this.totalLevels}`;
+      this.currentLevelLabel.text = `LEVEL ${Math.min(level + 1, this.totalLevels)} / ${this.totalLevels}`;
     }
 
     // 相機垂直位移：讓當前層位於畫面中間偏下
-    const targetY = level * this.levelHeight - this.height * 0.25;
+    const targetY = level * this.levelHeight - this.height * 0.3;
     if (animate) {
       gsap.to(this.cameraContainer, {
         y: targetY,
@@ -486,9 +569,9 @@ export class TowerScene {
     if (isSafe) {
       cell.state = 'picked';
       this.drawCellTile(cell.tile, dims.w, dims.h, 'picked');
-      cell.label.text = '◆';
+      cell.label.text = '✓';
       cell.label.alpha = 1;
-      cell.label.style.fill = COLOR_TOXIC;
+      cell.label.style.fill = COLOR_INK;
 
       // 縮放彈跳
       gsap.fromTo(
@@ -529,7 +612,8 @@ export class TowerScene {
         if (!pastCell) continue;
         if (pastCell === cell) continue;
         this.drawCellTile(pastCell.tile, dims.w, dims.h, 'past');
-        pastCell.label.alpha = 0.2;
+        pastCell.label.text = '';
+        pastCell.label.alpha = 0;
       }
 
       // 爬升到下一層
@@ -589,9 +673,9 @@ export class TowerScene {
         if (isSafe) {
           cell.state = 'safe';
           this.drawCellTile(cell.tile, dims.w, dims.h, 'safe');
-          cell.label.text = '◆';
+          cell.label.text = '✓';
           cell.label.alpha = 0.6;
-          cell.label.style.fill = COLOR_TOXIC;
+          cell.label.style.fill = COLOR_SAFE_EDGE;
         } else {
           cell.state = 'trap';
           this.drawCellTile(cell.tile, dims.w, dims.h, 'trap');

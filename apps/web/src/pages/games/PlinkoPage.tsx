@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import type { PlinkoBetRequest, PlinkoBetResult, PlinkoRisk } from '@bg/shared';
+import { plinkoTable } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -57,17 +58,11 @@ export function PlinkoPage() {
     };
   }, []);
 
-  // rows/risk 改變時更新預覽（需等 scene init 完）
+  // rows/risk 改變時更新預覽（需等 scene init 完）。
+  // 預覽必須使用後端同一份正式賠率表，避免下注後倍率槽突然改變。
   useEffect(() => {
     if (!sceneReady || !sceneRef.current) return;
-    const buckets = rows + 1;
-    const preview: number[] = Array.from({ length: buckets }, (_, i) => {
-      const dist = Math.abs(i - rows / 2) / (rows / 2);
-      if (risk === 'low') return Number((0.5 + dist * 4).toFixed(1));
-      if (risk === 'medium') return Number((0.3 + dist * 12).toFixed(1));
-      return Number((0.2 + dist * 40).toFixed(1));
-    });
-    sceneRef.current.setBoard(rows, preview);
+    sceneRef.current.setBoard(rows, plinkoTable(risk, rows));
   }, [rows, risk, sceneReady]);
 
   const drop = async () => {
@@ -79,8 +74,8 @@ export function PlinkoPage() {
     try {
       const payload: PlinkoBetRequest = { amount, rows, risk };
       const res = await api.post<PlinkoBetResult>('/games/plinko/bet', payload);
-      // 用真實倍率表重繪 board
-      sceneRef.current?.setBoard(rows, res.data.multipliers);
+      // 後端回傳同一份正式倍率表；此處重繪只做同步，不應造成賠率跳動。
+      sceneRef.current?.setBoard(res.data.rows, res.data.multipliers);
       await sceneRef.current?.dropBall(res.data.path, res.data.bucket, res.data.multiplier);
       sceneRef.current?.playWinFx(res.data.multiplier, res.data.multiplier > 1);
       setResults((prev) => [res.data, ...prev].slice(0, 8));

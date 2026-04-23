@@ -102,7 +102,7 @@ export function AdminLoginPage(): JSX.Element {
             <span className="hidden text-[16px] font-bold text-white/90 sm:inline">代理后台</span>
           </div>
           <span className="hidden rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62 sm:inline-flex">
-            Agent Console
+            授权代理
           </span>
         </div>
       </header>
@@ -112,7 +112,7 @@ export function AdminLoginPage(): JSX.Element {
           <section className="hidden min-w-0 xl:block">
             <div className="max-w-[760px]">
               <span className="inline-flex items-center rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/78">
-                Agent Console
+                代理后台
               </span>
               <h1 className="mt-6 text-[50px] font-bold leading-[1.04] text-white">
                 代理線、交收與風控，先在這裡收回主控權。
@@ -123,13 +123,13 @@ export function AdminLoginPage(): JSX.Element {
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <span className="inline-flex items-center rounded-full border border-[#C9A247]/36 bg-[#132233]/75 px-4 py-2 text-[13px] font-semibold text-[#EFD886]">
-                  Hierarchy Control
+                  层级管理
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
-                  Audit Trail
+                  审计追踪
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
-                  Risk Desk
+                  风控中心
                 </span>
               </div>
             </div>

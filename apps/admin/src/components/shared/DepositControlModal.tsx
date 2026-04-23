@@ -15,7 +15,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   const [notes, setNotes] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  /** 自動抓的會員當前餘額 */
+  /** 自动抓的会员当前余额 */
   const [memberBalance, setMemberBalance] = useState<string | null>(null);
   const [memberLoaded, setMemberLoaded] = useState(false);
 
@@ -31,7 +31,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
     }
   }, [open]);
 
-  // 目標贏額 = 本次入金 × 1.5（參考系統慣例，readonly）
+  // 目标赢额 = 本次入金 × 1.5（参考系统惯例，readonly）
   const targetProfitNum = (() => {
     const n = Number.parseFloat(depositAmount);
     return Number.isFinite(n) ? n * 1.5 : 0;
@@ -57,7 +57,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
 
   const submit = async (): Promise<void> => {
     if (!memberLoaded || !memberBalance) {
-      setErr('請先搜尋會員（確認餘額）');
+      setErr('请先搜索会员（确认余额）');
       return;
     }
     const memberId = await (async () => {
@@ -71,7 +71,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
       }
     })();
     if (!memberId) {
-      setErr('找不到會員');
+      setErr('找不到会员');
       return;
     }
     setBusy(true);
@@ -96,10 +96,10 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="新增入金控制" subtitle="Deposit Control" width="md">
+    <Modal open={open} onClose={onClose} title="新增入金控制" subtitle="依入金目标控制胜率" width="md">
       <div className="space-y-4">
         <label className="block">
-          <div className="label mb-2">會員帳號</div>
+          <div className="label mb-2">会员账号</div>
           <div className="flex gap-2">
             <input
               type="text"
@@ -110,15 +110,15 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
                 setMemberBalance(null);
               }}
               className="term-input font-mono flex-1"
-              placeholder="輸入會員帳號後按「查詢」"
+              placeholder="输入会员账号后按「查询」"
             />
             <button type="button" onClick={() => void lookupMember()} className="btn-teal-outline text-[11px]">
-              查詢
+              查询
             </button>
           </div>
           {memberLoaded && memberBalance && (
             <div className="mt-2 rounded-[6px] border border-[#186073]/30 bg-[#186073]/5 px-3 py-2 text-[11px] text-[#186073]">
-              會員當前餘額 <span className="data-num ml-1 font-bold">{memberBalance}</span>
+              会员当前余额 <span className="data-num ml-1 font-bold">{memberBalance}</span>
             </div>
           )}
         </label>
@@ -135,7 +135,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
             />
           </label>
           <label className="block">
-            <div className="label mb-2">目標贏額（入金×1.5，自動）</div>
+            <div className="label mb-2">目标赢额（入金×1.5，自动）</div>
             <input
               type="text"
               value={targetProfitNum.toFixed(2)}
@@ -146,7 +146,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
         </div>
 
         <label className="block">
-          <div className="label mb-2">觸發後控制勝率（0-1）</div>
+          <div className="label mb-2">触发后控制胜率（0-1）</div>
           <input
             type="text"
             value={controlWinRate}
@@ -157,7 +157,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
         </label>
 
         <label className="block">
-          <div className="label mb-2">備註</div>
+          <div className="label mb-2">备注</div>
           <input
             type="text"
             value={notes}

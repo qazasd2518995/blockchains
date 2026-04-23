@@ -96,7 +96,7 @@ export function ControlsOverviewPage(): JSX.Element {
     }
   };
   const deleteRow = async (kind: 'win-loss' | 'win-cap' | 'deposit' | 'agent-line', id: string): Promise<void> => {
-    if (!window.confirm('確定刪除此控制規則？')) return;
+    if (!window.confirm('确定删除此控制规则？')) return;
     try {
       await adminApi.delete(`/controls/${kind}/${id}`);
       await reload();
@@ -106,12 +106,12 @@ export function ControlsOverviewPage(): JSX.Element {
   };
 
   const wlCols: Column<WinLossRow>[] = [
-    { key: 'mode', label: 'MODE', render: (r) => <span className="tag tag-acid">{r.controlMode}</span> },
-    { key: 'target', label: 'TARGET', render: (r) => <span className="font-mono text-[11px]">{r.targetUsername ?? '—'}</span> },
-    { key: 'pct', label: 'PCT', align: 'right', render: (r) => <span className="data-num">{r.controlPercentage}%</span> },
+    { key: 'mode', label: '模式', render: (r) => <span className="tag tag-acid">{formatControlMode(r.controlMode)}</span> },
+    { key: 'target', label: '目标账号', render: (r) => <span className="font-mono text-[11px]">{r.targetUsername ?? '—'}</span> },
+    { key: 'pct', label: '比例', align: 'right', render: (r) => <span className="data-num">{r.controlPercentage}%</span> },
     {
       key: 'mode2',
-      label: 'FLAGS',
+      label: '控制方向',
       render: (r) => (
         <div className="flex gap-1 text-[10px]">
           {r.winControl && <span className="tag tag-toxic">{t.controls.win}</span>}
@@ -121,13 +121,13 @@ export function ControlsOverviewPage(): JSX.Element {
     },
     {
       key: 'status',
-      label: 'STATUS',
+      label: '状态',
       render: (r) =>
         r.isActive ? <span className="tag tag-toxic">{t.controls.active}</span> : <span className="tag tag-ember">{t.controls.off}</span>,
     },
     {
       key: 'ops',
-      label: 'OPS',
+      label: '操作',
       align: 'right',
       render: (r) => (
         <div className="flex justify-end gap-1 text-[10px]">
@@ -136,14 +136,14 @@ export function ControlsOverviewPage(): JSX.Element {
             onClick={() => toggleRow('win-loss', r.id, r.isActive)}
             className="btn-teal-outline px-2 py-1"
           >
-            {r.isActive ? '停用' : '啟用'}
+            {r.isActive ? '停用' : '启用'}
           </button>
           <button
             type="button"
             onClick={() => deleteRow('win-loss', r.id)}
             className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
           >
-            刪除
+            删除
           </button>
         </div>
       ),
@@ -151,19 +151,19 @@ export function ControlsOverviewPage(): JSX.Element {
   ];
 
   const wcCols: Column<WinCapRow>[] = [
-    { key: 'mem', label: 'MEMBER', render: (r) => <span className="font-mono">{r.memberUsername}</span> },
-    { key: 'cap', label: 'CAP', align: 'right', render: (r) => <span className="data-num">{fmt(r.winCapAmount)}</span> },
-    { key: 'today', label: 'TODAY WIN', align: 'right', render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.todayWinAmount)}</span> },
-    { key: 'rate', label: 'CTRL RATE', align: 'right', render: (r) => <span className="data-num">{pct(r.controlWinRate)}</span> },
+    { key: 'mem', label: '会员账号', render: (r) => <span className="font-mono">{r.memberUsername}</span> },
+    { key: 'cap', label: '封顶金额', align: 'right', render: (r) => <span className="data-num">{fmt(r.winCapAmount)}</span> },
+    { key: 'today', label: '今日赢额', align: 'right', render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.todayWinAmount)}</span> },
+    { key: 'rate', label: '控制胜率', align: 'right', render: (r) => <span className="data-num">{pct(r.controlWinRate)}</span> },
     {
       key: 'status',
-      label: 'STATUS',
+      label: '状态',
       render: (r) =>
         r.isCapped ? <span className="tag tag-ember">{t.controls.capped}</span> : r.isActive ? <span className="tag tag-toxic">{t.controls.active}</span> : <span className="tag tag-ember">{t.controls.off}</span>,
     },
     {
       key: 'ops',
-      label: 'OPS',
+      label: '操作',
       align: 'right',
       render: (r) => (
         <div className="flex justify-end gap-1 text-[10px]">
@@ -172,14 +172,14 @@ export function ControlsOverviewPage(): JSX.Element {
             onClick={() => toggleRow('win-cap', r.id, r.isActive)}
             className="btn-teal-outline px-2 py-1"
           >
-            {r.isActive ? '停用' : '啟用'}
+            {r.isActive ? '停用' : '启用'}
           </button>
           <button
             type="button"
             onClick={() => deleteRow('win-cap', r.id)}
             className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
           >
-            刪除
+            删除
           </button>
         </div>
       ),
@@ -187,13 +187,13 @@ export function ControlsOverviewPage(): JSX.Element {
   ];
 
   const dcCols: Column<DepositRow>[] = [
-    { key: 'mem', label: 'MEMBER', render: (r) => <span className="font-mono">{r.memberUsername}</span> },
-    { key: 'dep', label: 'DEPOSIT', align: 'right', render: (r) => <span className="data-num">{fmt(r.depositAmount)}</span> },
-    { key: 'target', label: 'TARGET', align: 'right', render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.targetProfit)}</span> },
-    { key: 'rate', label: 'CTRL RATE', align: 'right', render: (r) => <span className="data-num">{pct(r.controlWinRate)}</span> },
+    { key: 'mem', label: '会员账号', render: (r) => <span className="font-mono">{r.memberUsername}</span> },
+    { key: 'dep', label: '入金金额', align: 'right', render: (r) => <span className="data-num">{fmt(r.depositAmount)}</span> },
+    { key: 'target', label: '目标盈利', align: 'right', render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.targetProfit)}</span> },
+    { key: 'rate', label: '控制胜率', align: 'right', render: (r) => <span className="data-num">{pct(r.controlWinRate)}</span> },
     {
       key: 'status',
-      label: 'STATUS',
+      label: '状态',
       render: (r) =>
         r.isCompleted
           ? <span className="tag tag-acid">{t.controls.done}</span>
@@ -203,7 +203,7 @@ export function ControlsOverviewPage(): JSX.Element {
     },
     {
       key: 'ops',
-      label: 'OPS',
+      label: '操作',
       align: 'right',
       render: (r) => (
         <div className="flex justify-end gap-1 text-[10px]">
@@ -212,14 +212,14 @@ export function ControlsOverviewPage(): JSX.Element {
             onClick={() => toggleRow('deposit', r.id, r.isActive)}
             className="btn-teal-outline px-2 py-1"
           >
-            {r.isActive ? '停用' : '啟用'}
+            {r.isActive ? '停用' : '启用'}
           </button>
           <button
             type="button"
             onClick={() => deleteRow('deposit', r.id)}
             className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
           >
-            刪除
+            删除
           </button>
         </div>
       ),
@@ -227,18 +227,18 @@ export function ControlsOverviewPage(): JSX.Element {
   ];
 
   const alCols: Column<AgentLineRow>[] = [
-    { key: 'agent', label: 'AGENT', render: (r) => <span className="font-mono">{r.agentUsername}</span> },
-    { key: 'cap', label: 'DAILY CAP', align: 'right', render: (r) => <span className="data-num">{fmt(r.dailyCap)}</span> },
-    { key: 'today', label: 'TODAY WIN', align: 'right', render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.todayWinAmount)}</span> },
+    { key: 'agent', label: '代理账号', render: (r) => <span className="font-mono">{r.agentUsername}</span> },
+    { key: 'cap', label: '单日封顶', align: 'right', render: (r) => <span className="data-num">{fmt(r.dailyCap)}</span> },
+    { key: 'today', label: '今日赢额', align: 'right', render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.todayWinAmount)}</span> },
     {
       key: 'status',
-      label: 'STATUS',
+      label: '状态',
       render: (r) =>
         r.isActive ? <span className="tag tag-toxic">{t.controls.active}</span> : <span className="tag tag-ember">{t.controls.off}</span>,
     },
     {
       key: 'ops',
-      label: 'OPS',
+      label: '操作',
       align: 'right',
       render: (r) => (
         <div className="flex justify-end gap-1 text-[10px]">
@@ -247,14 +247,14 @@ export function ControlsOverviewPage(): JSX.Element {
             onClick={() => toggleRow('agent-line', r.id, r.isActive)}
             className="btn-teal-outline px-2 py-1"
           >
-            {r.isActive ? '停用' : '啟用'}
+            {r.isActive ? '停用' : '启用'}
           </button>
           <button
             type="button"
             onClick={() => deleteRow('agent-line', r.id)}
             className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
           >
-            刪除
+            删除
           </button>
         </div>
       ),
@@ -264,7 +264,7 @@ export function ControlsOverviewPage(): JSX.Element {
   return (
     <div>
       <PageHeader
-        section="§ OPS 06"
+        section="§ 风控 06"
         breadcrumb={`${t.nav.controls} / 总览`}
         title={t.nav.controls}
         titleSuffix="输赢控制"
@@ -274,18 +274,18 @@ export function ControlsOverviewPage(): JSX.Element {
 
       <ImageBanner
         image="/banners/controls-risk-host.png"
-        eyebrow="Risk Control Desk"
-        title="先看哪條控制規則在線，再決定今天要不要動手。"
-        description="這一頁專門用來盯住輸贏控制、會員封頂、入金控制與代理線封頂。畫面先給總覽，避免你在多張表之間來回切，調整前也能先確認哪些規則仍在生效。"
+        eyebrow="风控中心"
+        title="先看哪条控制规则在线，再决定今天要不要动手。"
+        description="这一页专门用来盯住输赢控制、会员封顶、入金控制与代理线封顶。画面先给总览，避免你在多张表之间来回切，调整前也能先确认哪些规则仍在生效。"
         tone="ember"
         imagePosition="object-[74%_30%]"
       />
 
       <div className="mb-4 grid gap-4 md:grid-cols-4">
-        <StatCard label="WIN/LOSS" value={wl.filter((x) => x.isActive).length.toString()} accent="ember" />
-        <StatCard label="WIN CAP" value={wc.filter((x) => x.isActive).length.toString()} accent="amber" />
-        <StatCard label="DEPOSIT" value={dc.filter((x) => x.isActive).length.toString()} accent="acid" />
-        <StatCard label="AGENT LINE" value={al.filter((x) => x.isActive).length.toString()} accent="toxic" />
+        <StatCard label="输赢控制" value={wl.filter((x) => x.isActive).length.toString()} accent="ember" />
+        <StatCard label="赢额封顶" value={wc.filter((x) => x.isActive).length.toString()} accent="amber" />
+        <StatCard label="入金控制" value={dc.filter((x) => x.isActive).length.toString()} accent="acid" />
+        <StatCard label="代理线封顶" value={al.filter((x) => x.isActive).length.toString()} accent="toxic" />
       </div>
 
       {error && (
@@ -299,28 +299,28 @@ export function ControlsOverviewPage(): JSX.Element {
       ) : (
         <div className="space-y-6">
           <Section
-            title="§ WIN/LOSS CONTROL"
+            title="§ 输赢控制"
             subtitle="按百分比翻转输赢"
             onAdd={() => setWlOpen(true)}
           >
             <DataTable columns={wlCols} rows={wl} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
           <Section
-            title="§ WIN CAP"
+            title="§ 赢额封顶"
             subtitle="会员单日赢额封顶"
             onAdd={() => setWcOpen(true)}
           >
             <DataTable columns={wcCols} rows={wc} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
           <Section
-            title="§ DEPOSIT CONTROL"
+            title="§ 入金控制"
             subtitle="依入金目标自动控制胜率"
             onAdd={() => setDcOpen(true)}
           >
             <DataTable columns={dcCols} rows={dc} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
           <Section
-            title="§ AGENT LINE CAP"
+            title="§ 代理线封顶"
             subtitle="代理线单日赢额封顶"
             onAdd={() => setAlOpen(true)}
           >
@@ -373,4 +373,9 @@ function fmt(s: string): string {
 }
 function pct(s: string): string {
   return `${(Number.parseFloat(s) * 100).toFixed(1)}%`;
+}
+function formatControlMode(mode: string): string {
+  if (mode === 'SINGLE_MEMBER') return '单一会员';
+  if (mode === 'AGENT_LINE') return '整条代理线';
+  return mode;
 }

@@ -112,7 +112,7 @@ export function ReportsPage(): JSX.Element {
   return (
     <div>
       <PageHeader
-        section="§ OPS 05"
+        section="§ 后台 05"
         breadcrumb="报表统计"
         title="报表统计"
         titleSuffix="层级下钻"

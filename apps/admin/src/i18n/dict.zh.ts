@@ -73,7 +73,6 @@ export const dict = {
     commission: '佣金余额',
     rebate: '退水比例',
     level: '层级',
-    marketType: '盘口',
     status: '状态',
     recentActivity: '近期活动',
   },
@@ -93,7 +92,6 @@ export const dict = {
     rebateMode: '退水模式',
     commission: '佣金率',
     bettingLimit: '下注额度',
-    marketType: '盘口',
     balance: '余额',
     memberCount: '会员数',
     subAgentCount: '子代理数',
@@ -141,7 +139,6 @@ export const dict = {
     transferHint: '点数转移：请至「点数转账」页面。',
     rebateHint: '退水设定：请透过 API /agents/:id/rebate。',
     directSummaryTpl: '直属 {agents} 代理 + {members} 会员',
-    marketSuffix: '盘',
     sectionTag: '账号管理',
   },
   agent: {

@@ -28,6 +28,18 @@ describe('plinkoMultiplier', () => {
     }
   });
 
+  it('uses the same table values for preview and settlement', () => {
+    for (const risk of ['low', 'medium', 'high'] as const) {
+      for (let rows = 8; rows <= 16; rows += 1) {
+        const table = plinkoTable(risk, rows);
+        expect(table.length).toBe(rows + 1);
+        for (let bucket = 0; bucket < table.length; bucket += 1) {
+          expect(plinkoMultiplier(risk, rows, bucket)).toBe(table[bucket]);
+        }
+      }
+    }
+  });
+
   it('edge buckets > middle buckets for high risk', () => {
     const table = plinkoTable('high', 12);
     expect(table[0]!).toBeGreaterThan(table[6]!);

@@ -15,7 +15,7 @@ export function Sidebar(): JSX.Element {
   return (
     <aside className="panel-felt sticky top-[108px] h-[calc(100vh-140px)] w-60 shrink-0 overflow-hidden p-4">
       <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
-        <span className="font-semibold text-base text-[#DEBE66]">Navigation</span>
+        <span className="font-semibold text-base text-[#DEBE66]">导航</span>
       </div>
       <nav className="mt-4 space-y-1.5">
         {items.map((it) => (

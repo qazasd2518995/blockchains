@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { ImageBanner } from '@/components/shared/ImageBanner';
 import { StatCard } from '@/components/shared/StatCard';
 import { useTranslation } from '@/i18n/useTranslation';
+import { formatAuditAction } from '@/lib/auditLabels';
 import { getGameMeta, type AuditListResponse, type DashboardSummaryResponse } from '@bg/shared';
 
 const EMPTY_TREND: DashboardSummaryResponse['trend'] = [];
@@ -43,16 +44,16 @@ export function AdminDashboardPage(): JSX.Element {
   return (
     <div>
       <PageHeader
-        section="§ OPS 01"
+        section="§ 后台 01"
         breadcrumb={t.nav.dashboard}
         title={t.dashboard.title}
         titleSuffix={t.dashboard.subtitle}
-        description={`欢迎回来,${agent?.displayName ?? agent?.username} · ${agent?.marketType}盘`}
+        description={`欢迎回来,${agent?.displayName ?? agent?.username}`}
       />
 
       <ImageBanner
         image="/banners/dashboard-agent-host.png"
-        eyebrow="Operations Overview"
+        eyebrow="运营总览"
         title="今日代理線、下注熱度與活躍會員，先在這裡看全局。"
         description="7 日投注量、派彩、遊戲分布與會員活躍集中呈現。先看哪條線最熱、哪款遊戲最會跑量，再往下處理代理與風控動作。"
         imagePosition="object-[73%_28%]"
@@ -165,14 +166,15 @@ export function AdminDashboardPage(): JSX.Element {
             {recentAudit.map((r) => (
               <div
                 key={r.id}
-                className="grid grid-cols-[92px_minmax(90px,130px)_1fr_auto] items-center gap-3 border-b border-ink-100 px-2 py-2 text-[11px]"
+                className="grid grid-cols-[92px_minmax(90px,130px)_1fr] items-center gap-3 border-b border-ink-100 px-2 py-2 text-[11px]"
               >
                 <span className="data-num text-ink-500">
                   {new Date(r.createdAt).toLocaleTimeString('en-GB')}
                 </span>
                 <span className="truncate font-mono text-ink-700">{r.actorUsername}</span>
-                <span className="truncate font-mono tracking-[0.1em] text-[#186073]">{r.action}</span>
-                <span className="text-[10px] text-ink-500">{r.ipAddress ?? ''}</span>
+                <span className="truncate font-semibold tracking-[0.08em] text-[#186073]">
+                  {formatAuditAction(r.action)}
+                </span>
               </div>
             ))}
           </div>

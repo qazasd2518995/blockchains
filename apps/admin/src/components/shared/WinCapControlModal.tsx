@@ -19,7 +19,7 @@ export function WinCapControlModal({ open, onClose, onDone }: Props): JSX.Elemen
 
   const submit = async (): Promise<void> => {
     if (!memberUsername.trim() || !winCapAmount) {
-      setErr('請填會員帳號與封頂金額');
+      setErr('请填会员账号与封顶金额');
       return;
     }
     setBusy(true);
@@ -46,21 +46,21 @@ export function WinCapControlModal({ open, onClose, onDone }: Props): JSX.Elemen
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="新增會員封頂" subtitle="Win Cap Control" width="md">
+    <Modal open={open} onClose={onClose} title="新增会员封顶" subtitle="会员单日赢额封顶" width="md">
       <div className="space-y-4">
         <label className="block">
-          <div className="label mb-2">會員帳號</div>
+          <div className="label mb-2">会员账号</div>
           <input
             type="text"
             value={memberUsername}
             onChange={(e) => setMemberUsername(e.target.value)}
             className="term-input font-mono"
-            placeholder="帳號"
+            placeholder="账号"
           />
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <div className="label mb-2">單日贏額封頂</div>
+            <div className="label mb-2">单日赢额封顶</div>
             <input
               type="text"
               value={winCapAmount}
@@ -70,7 +70,7 @@ export function WinCapControlModal({ open, onClose, onDone }: Props): JSX.Elemen
             />
           </label>
           <label className="block">
-            <div className="label mb-2">觸發後控制勝率</div>
+            <div className="label mb-2">触发后控制胜率</div>
             <input
               type="text"
               value={controlWinRate}
@@ -81,7 +81,7 @@ export function WinCapControlModal({ open, onClose, onDone }: Props): JSX.Elemen
           </label>
         </div>
         <label className="block">
-          <div className="label mb-2">觸發比例（0-1）</div>
+          <div className="label mb-2">触发比例（0-1）</div>
           <input
             type="text"
             value={triggerThreshold}
@@ -91,7 +91,7 @@ export function WinCapControlModal({ open, onClose, onDone }: Props): JSX.Elemen
           />
         </label>
         <label className="block">
-          <div className="label mb-2">備註</div>
+          <div className="label mb-2">备注</div>
           <input
             type="text"
             value={notes}

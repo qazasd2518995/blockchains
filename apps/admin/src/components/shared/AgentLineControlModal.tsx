@@ -17,7 +17,7 @@ export function AgentLineControlModal({ open, onClose, onDone }: Props): JSX.Ele
 
   const submit = async (): Promise<void> => {
     if (!agentUsername.trim()) {
-      setErr('請填代理帳號');
+      setErr('请填代理账号');
       return;
     }
     setBusy(true);
@@ -42,10 +42,10 @@ export function AgentLineControlModal({ open, onClose, onDone }: Props): JSX.Ele
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="新增代理線封頂" subtitle="Agent Line Cap" width="md">
+    <Modal open={open} onClose={onClose} title="新增代理线封顶" subtitle="代理线单日赢额封顶" width="md">
       <div className="space-y-4">
         <label className="block">
-          <div className="label mb-2">代理帳號</div>
+          <div className="label mb-2">代理账号</div>
           <input
             type="text"
             value={agentUsername}
@@ -54,7 +54,7 @@ export function AgentLineControlModal({ open, onClose, onDone }: Props): JSX.Ele
           />
         </label>
         <label className="block">
-          <div className="label mb-2">單日線下贏額封頂</div>
+          <div className="label mb-2">单日线下赢额封顶</div>
           <input
             type="text"
             value={dailyCap}
@@ -63,7 +63,7 @@ export function AgentLineControlModal({ open, onClose, onDone }: Props): JSX.Ele
           />
         </label>
         <label className="block">
-          <div className="label mb-2">備註</div>
+          <div className="label mb-2">备注</div>
           <input
             type="text"
             value={notes}

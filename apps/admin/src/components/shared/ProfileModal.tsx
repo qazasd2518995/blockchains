@@ -36,10 +36,6 @@ function formatRole(role: AgentPublic['role']): string {
   }
 }
 
-function formatMarket(m: AgentPublic['marketType']): string {
-  return m === 'A' ? 'A 盘' : 'D 盘';
-}
-
 export function ProfileModal({ open, onClose }: Props): JSX.Element {
   const { agent, setAgent } = useAdminAuthStore();
   const { t } = useTranslation();
@@ -80,7 +76,6 @@ export function ProfileModal({ open, onClose }: Props): JSX.Element {
             <Row label="账号" value={<span className="font-mono">{agent.username}</span>} />
             <Row label="显示名称" value={agent.displayName ?? '—'} />
             <Row label="角色" value={formatRole(agent.role)} />
-            <Row label="盘口" value={formatMarket(agent.marketType)} />
             <Row label="下注额度" value={<span className="font-mono">{agent.bettingLimitLevel}</span>} />
           </Section>
 

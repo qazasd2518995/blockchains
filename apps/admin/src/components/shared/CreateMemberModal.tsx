@@ -80,7 +80,7 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId }: 
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="CREATE MEMBER" subtitle={t.members.create} width="md">
+    <Modal open={open} onClose={onClose} title="创建会员" subtitle={t.members.create} width="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Field label={t.members.agent} code="01" error={errors.agentId?.message}>
           <select {...register('agentId')} className="term-input">

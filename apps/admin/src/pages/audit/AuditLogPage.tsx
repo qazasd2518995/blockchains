@@ -3,6 +3,7 @@ import type { AuditEntry, AuditListResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { useTranslation } from '@/i18n/useTranslation';
+import { formatAuditAction, formatAuditTarget } from '@/lib/auditLabels';
 
 export function AuditLogPage(): JSX.Element {
   const { t } = useTranslation();
@@ -36,7 +37,7 @@ export function AuditLogPage(): JSX.Element {
   return (
     <div>
       <PageHeader
-        section="§ OPS 07"
+        section="§ 后台 07"
         breadcrumb={`${t.nav.audit} / 记录`}
         title={t.nav.audit}
         titleSuffix="不可篡改轨迹"
@@ -46,7 +47,7 @@ export function AuditLogPage(): JSX.Element {
       <div className="mb-4 flex items-center gap-3">
         <input
           type="text"
-          placeholder="过滤操作名（例如 agent.create）"
+          placeholder="过滤操作名称"
           value={actionFilter}
           onChange={(e) => setActionFilter(e.target.value)}
           className="term-input max-w-xs"
@@ -75,9 +76,9 @@ export function AuditLogPage(): JSX.Element {
                   {new Date(r.createdAt).toLocaleString('en-GB')}
                 </span>
                 <span className="font-mono text-ink-700">{r.actorUsername}</span>
-                <span className="font-mono tracking-[0.1em] text-[#186073]">{r.action}</span>
+                <span className="font-semibold tracking-[0.08em] text-[#186073]">{formatAuditAction(r.action)}</span>
                 <span className="font-mono text-[10px] text-ink-500">
-                  {r.targetType ? `${r.targetType}:${r.targetId?.slice(-8) ?? ''}` : '—'}
+                  {r.targetType ? `${formatAuditTarget(r.targetType)} ${r.targetId?.slice(-8) ?? ''}` : '—'}
                 </span>
                 <span className="text-[10px] text-ink-400">
                   {expanded === r.id ? '▼' : '▶'}
@@ -98,10 +99,6 @@ export function AuditLogPage(): JSX.Element {
                         {JSON.stringify(r.newValues, null, 2) ?? '—'}
                       </pre>
                     </div>
-                  </div>
-                  <div className="mt-3 flex gap-4 text-[10px] text-ink-500">
-                    <span>IP: {r.ipAddress ?? '—'}</span>
-                    <span>ACTOR: {r.actorType}</span>
                   </div>
                 </div>
               )}

@@ -15,6 +15,15 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { TowerScene } from '@/games/tower/TowerScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 
+const TOWER_TOTAL_LEVELS = 9;
+const TOWER_PREVIEW_COLS: Record<TowerDifficulty, number> = {
+  easy: 4,
+  medium: 3,
+  hard: 2,
+  expert: 3,
+  master: 4,
+};
+
 export function TowerPage() {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
@@ -54,9 +63,16 @@ export function TowerPage() {
       }
       scene = new TowerScene();
       sceneRef.current = scene;
-      void scene.init(canvas, w, h, (level, col) => {
-        void pickInternal(level, col);
-      });
+      void scene
+        .init(canvas, w, h, (level, col) => {
+          void pickInternal(level, col);
+        })
+        .then(() => {
+          if (cancelled) return;
+          const active = roundRef.current;
+          if (active) renderTowerState(active);
+          else renderTowerPreview(difficulty);
+        });
     };
     tryInit();
     return () => {
@@ -75,18 +91,32 @@ export function TowerPage() {
         if (res.data.state) {
           setRound(res.data.state);
           roundRef.current = res.data.state;
-          // 恢復 scene 狀態
-          sceneRef.current?.setup(res.data.state.totalLevels, res.data.state.cols);
-          for (let lv = 0; lv < res.data.state.picks.length; lv += 1) {
-            const col = res.data.state.picks[lv];
-            if (col !== undefined) sceneRef.current?.pick(lv, col, true);
-          }
-          sceneRef.current?.focusOnLevel(res.data.state.currentLevel, false);
-          sceneRef.current?.setMultiplier(Number.parseFloat(res.data.state.currentMultiplier).toFixed(2));
+          renderTowerState(res.data.state);
         }
       })
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (roundRef.current?.status === 'ACTIVE') return;
+    renderTowerPreview(difficulty);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [difficulty]);
+
+  function renderTowerPreview(mode: TowerDifficulty) {
+    sceneRef.current?.setup(TOWER_TOTAL_LEVELS, TOWER_PREVIEW_COLS[mode]);
+    sceneRef.current?.setMultiplier('1.00');
+  }
+
+  function renderTowerState(state: TowerRoundState) {
+    sceneRef.current?.setup(state.totalLevels, state.cols);
+    for (let lv = 0; lv < state.picks.length; lv += 1) {
+      const col = state.picks[lv];
+      if (col !== undefined) sceneRef.current?.pick(lv, col, true);
+    }
+    sceneRef.current?.focusOnLevel(state.currentLevel, false);
+    sceneRef.current?.setMultiplier(Number.parseFloat(state.currentMultiplier).toFixed(2));
+  }
 
   const start = async () => {
     if (busy || amount <= 0 || amount > balance) return;
