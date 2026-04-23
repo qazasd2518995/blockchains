@@ -67,9 +67,6 @@ export function LandingPage() {
         </div>
       </header>
 
-      <AnnouncementTicker />
-      <WinTicker />
-
       <main className="relative z-10 flex-1">
         <div className="mx-auto w-full max-w-[1920px] space-y-8 px-4 py-6 sm:px-6 xl:px-8 2xl:px-12">
           <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_320px]">
@@ -171,6 +168,8 @@ export function LandingPage() {
 
       <SiteFooter />
       <FloatingSupport />
+      <WinTicker />
+      <AnnouncementTicker />
     </div>
   );
 }

@@ -173,15 +173,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <AnnouncementTicker />
-      <WinTicker />
-
       <main id="main-content" className="relative z-10 flex-1">
         <div className="mx-auto w-full max-w-[1920px] px-4 py-6 sm:px-6 xl:px-8 2xl:px-12">{children}</div>
       </main>
 
       <SiteFooter loggedIn />
       <FloatingSupport />
+      <WinTicker />
+      <AnnouncementTicker />
     </div>
   );
 }
