@@ -462,6 +462,8 @@ export class CrashRoom {
 
     const betId = await runSerializable(this.prisma, async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+      if (user.disabledAt) throw new Error('Account disabled');
+      if (user.frozenAt) throw new Error('Account frozen');
       if (user.balance.lessThan(amountD)) throw new Error('Insufficient funds');
       const updated = await tx.user.update({
         where: { id: userId },
@@ -507,6 +509,10 @@ export class CrashRoom {
     return runSerializable(this.prisma, async (tx) => {
       const bet = await tx.crashBet.findUniqueOrThrow({ where: { id: betId } });
       if (bet.cashedOutAt) throw new Error('Already cashed out');
+      if (bet.userId !== userId) throw new Error('Bet does not belong to user');
+      const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+      if (user.disabledAt) throw new Error('Account disabled');
+      if (user.frozenAt) throw new Error('Account frozen');
       const multD = new Prisma.Decimal(multiplier.toFixed(4));
       const payout = bet.amount.mul(multD).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
       const updated = await tx.user.update({

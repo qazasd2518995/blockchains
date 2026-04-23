@@ -15,6 +15,7 @@ export interface AdminCurrent {
   username: string;
   role: AdminJwtPayload['role'];
   level: number;
+  status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
 }
 
 declare module 'fastify' {
@@ -29,6 +30,7 @@ declare module 'fastify' {
 
 async function pluginFn(fastify: FastifyInstance): Promise<void> {
   fastify.decorate('authenticateAdmin', async (req: FastifyRequest, _reply: FastifyReply) => {
+    if ((req as unknown as { admin?: AdminCurrent }).admin) return;
     try {
       await req.jwtVerify();
     } catch {
@@ -43,7 +45,7 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
       where: { id: raw.sub },
       select: { id: true, username: true, role: true, level: true, status: true },
     });
-    if (!agent || agent.status !== 'ACTIVE') {
+    if (!agent || agent.status === 'DISABLED' || agent.status === 'DELETED') {
       throw new ApiError('AGENT_FROZEN', 'Agent account is not active');
     }
     (req as unknown as { admin: AdminCurrent }).admin = {
@@ -51,6 +53,7 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
       username: agent.username,
       role: agent.role,
       level: agent.level,
+      status: agent.status,
     };
   });
 

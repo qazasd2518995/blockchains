@@ -6,7 +6,7 @@ import type { Prisma } from '@prisma/client';
 const querySchema = z.object({
   parentId: z.string().optional(),   // 目標代理；不填 = 自己
   keyword: z.string().optional(),
-  status: z.enum(['ACTIVE', 'FROZEN']).optional(),
+  status: z.enum(['ACTIVE', 'FROZEN', 'DISABLED']).optional(),
 });
 
 export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
@@ -72,9 +72,14 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
     if (q.status === 'FROZEN') {
       agentWhere.status = 'FROZEN';
       memberWhere.frozenAt = { not: null };
+      memberWhere.disabledAt = null;
     } else if (q.status === 'ACTIVE') {
       agentWhere.status = 'ACTIVE';
       memberWhere.frozenAt = null;
+      memberWhere.disabledAt = null;
+    } else if (q.status === 'DISABLED') {
+      agentWhere.status = 'DISABLED';
+      memberWhere.disabledAt = { not: null };
     }
     if (q.keyword) {
       agentWhere.OR = [
@@ -131,7 +136,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           balance: string;
           rebatePercentage: string;
           bettingLimitLevel: string;
-          status: 'ACTIVE' | 'FROZEN' | 'DELETED';
+          status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
           role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
           createdAt: string;
           childCount: number;
@@ -147,8 +152,9 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           marketType: 'D' | 'A';
           balance: string;
           bettingLimitLevel: string;
-          status: 'ACTIVE' | 'FROZEN';
+          status: 'ACTIVE' | 'FROZEN' | 'DISABLED';
           frozenAt: string | null;
+          disabledAt: string | null;
           notes: string | null;
           createdAt: string;
         };
@@ -180,8 +186,9 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         marketType: m.marketType,
         balance: m.balance.toFixed(2),
         bettingLimitLevel: m.bettingLimitLevel,
-        status: m.frozenAt ? 'FROZEN' : 'ACTIVE',
+        status: m.disabledAt ? 'DISABLED' : m.frozenAt ? 'FROZEN' : 'ACTIVE',
         frozenAt: m.frozenAt?.toISOString() ?? null,
+        disabledAt: m.disabledAt?.toISOString() ?? null,
         notes: m.notes,
         createdAt: m.createdAt.toISOString(),
       })),

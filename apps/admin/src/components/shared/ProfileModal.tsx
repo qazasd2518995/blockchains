@@ -16,12 +16,6 @@ function formatDec(s: string | null | undefined): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function formatPct(s: string | null | undefined): string {
-  const n = Number.parseFloat(s ?? '0');
-  if (Number.isNaN(n)) return '0.00%';
-  return `${(n * 100).toFixed(2)}%`;
-}
-
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -86,7 +80,6 @@ export function ProfileModal({ open, onClose }: Props): JSX.Element {
             <Row label="账号" value={<span className="font-mono">{agent.username}</span>} />
             <Row label="显示名称" value={agent.displayName ?? '—'} />
             <Row label="角色" value={formatRole(agent.role)} />
-            <Row label="层级" value={<span className="data-num text-[#186073]">L{agent.level}</span>} />
             <Row label="盘口" value={formatMarket(agent.marketType)} />
             <Row label="下注额度" value={<span className="font-mono">{agent.bettingLimitLevel}</span>} />
           </Section>
@@ -95,18 +88,6 @@ export function ProfileModal({ open, onClose }: Props): JSX.Element {
             <Row
               label="账户余额"
               value={<span className="data-num text-[#186073]">{formatDec(agent.balance)}</span>}
-            />
-            <Row
-              label="佣金余额"
-              value={<span className="data-num text-[#186073]">{formatDec(agent.commissionBalance)}</span>}
-            />
-            <Row
-              label="退水比例"
-              value={<span className="data-num text-[#DEBE66]">{formatPct(agent.rebatePercentage)}</span>}
-            />
-            <Row
-              label="退水上限"
-              value={<span className="data-num text-ink-500">{formatPct(agent.maxRebatePercentage)}</span>}
             />
           </Section>
 

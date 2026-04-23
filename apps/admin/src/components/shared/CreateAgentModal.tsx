@@ -149,7 +149,7 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: 
             )}
             {parents.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.username} · LVL{a.level} · 退水 {(Number.parseFloat(a.rebatePercentage) * 100).toFixed(2)}%
+                {a.username}
               </option>
             ))}
           </select>
@@ -215,11 +215,11 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: 
 
         <Field label="限紅等級" code="08" error={errors.bettingLimitLevel?.message}>
           <select {...register('bettingLimitLevel')} className="term-input">
-            <option value="level1">新手（單注 100 / 單日 500）</option>
-            <option value="level2">一般（單注 500 / 單日 3,000）</option>
-            <option value="level3">標準（單注 2,000 / 單日 10,000）</option>
-            <option value="level4">進階（單注 10,000 / 單日 50,000）</option>
-            <option value="level5">VIP（單注 50,000 / 單日 200,000）</option>
+            <option value="level1">新手（單注 100）</option>
+            <option value="level2">一般（單注 500）</option>
+            <option value="level3">標準（單注 2,000）</option>
+            <option value="level4">進階（單注 10,000）</option>
+            <option value="level5">VIP（單注 50,000）</option>
             <option value="unlimited">不限</option>
           </select>
         </Field>

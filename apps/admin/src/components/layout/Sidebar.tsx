@@ -5,11 +5,9 @@ const items: { to: string; key: keyof ReturnType<typeof useTranslation>['t']['na
   { to: '/admin/dashboard', key: 'dashboard' },
   { to: '/admin/accounts', key: 'accounts' },
   { to: '/admin/subaccounts', key: 'subAccounts' },
-  { to: '/admin/transfers', key: 'transfers' },
   { to: '/admin/reports', key: 'reports' },
   { to: '/admin/controls', key: 'controls' },
   { to: '/admin/announcements', key: 'announcements' },
-  { to: '/admin/audit', key: 'audit' },
 ];
 
 export function Sidebar(): JSX.Element {

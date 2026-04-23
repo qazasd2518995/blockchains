@@ -104,10 +104,8 @@ export class AgentService {
         `rebatePercentage exceeds platform cap ${PLATFORM_REBATE_CAP.mul(100).toFixed(2)}%`,
       );
     }
-    const commissionRate = new Prisma.Decimal(input.commissionRate ?? parent.commissionRate);
-    if (commissionRate.greaterThan(parent.commissionRate)) {
-      throw new ApiError('REBATE_VIOLATION', 'commissionRate exceeds parent');
-    }
+    // 平台目前不啟用占成機制，保留 DB 欄位但固定為 0。
+    const commissionRate = new Prisma.Decimal(0);
 
     // username 唯一
     const existing = await this.prisma.agent.findUnique({ where: { username: input.username } });
@@ -231,6 +229,12 @@ export class AgentService {
       where: { id },
       data: { status: input.status },
     });
+    if (input.status === 'DISABLED') {
+      await this.prisma.agentRefreshToken.updateMany({
+        where: { agentId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
     await writeAudit(this.prisma, {
       actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
       action: 'agent.status.update',
@@ -310,7 +314,7 @@ export function toPublic(agent: {
   rebatePercentage: Prisma.Decimal;
   maxRebatePercentage: Prisma.Decimal;
   bettingLimitLevel: string;
-  status: 'ACTIVE' | 'FROZEN' | 'DELETED';
+  status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
   role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
   notes: string | null;
   lastLoginAt: Date | null;

@@ -4,7 +4,7 @@ export interface AdminLoginRequest {
 }
 
 export type AdminRoleDto = 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
-export type AgentStatusDto = 'ACTIVE' | 'FROZEN' | 'DELETED';
+export type AgentStatusDto = 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
 export type MarketTypeDto = 'D' | 'A';
 export type RebateModeDto = 'PERCENTAGE' | 'ALL' | 'NONE';
 

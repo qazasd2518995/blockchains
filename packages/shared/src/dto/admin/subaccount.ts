@@ -13,7 +13,7 @@ export interface ResetSubAccountPasswordRequest {
 }
 
 export interface UpdateSubAccountStatusRequest {
-  status: 'ACTIVE' | 'FROZEN';
+  status: 'ACTIVE' | 'FROZEN' | 'DISABLED';
 }
 
 export interface SubAccountListResponse {

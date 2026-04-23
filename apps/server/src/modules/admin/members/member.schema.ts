@@ -21,7 +21,7 @@ export const updateMemberNotesSchema = z.object({
 });
 
 export const updateMemberStatusSchema = z.object({
-  status: z.enum(['ACTIVE', 'FROZEN']),
+  status: z.enum(['ACTIVE', 'FROZEN', 'DISABLED']),
 });
 
 export const adjustMemberBalanceSchema = z.object({
@@ -40,7 +40,7 @@ export const updateMemberBettingLimitSchema = z.object({
 export const memberListQuerySchema = z.object({
   agentId: z.string().optional(),
   keyword: z.string().optional(),
-  status: z.enum(['ACTIVE', 'FROZEN']).optional(),
+  status: z.enum(['ACTIVE', 'FROZEN', 'DISABLED']).optional(),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });

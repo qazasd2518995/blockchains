@@ -481,7 +481,7 @@ export class ReportService {
           displayName: m.displayName,
           level: null,
           rebatePercentage: '0.0000', // 會員本身不是代理，無分配退水率
-          status: m.frozenAt ? 'FROZEN' : 'ACTIVE',
+          status: m.disabledAt ? 'DISABLED' : m.frozenAt ? 'FROZEN' : 'ACTIVE',
           notes: m.notes,
           balance: m.balance.toFixed(2),
           memberCount: 0,
@@ -495,7 +495,7 @@ export class ReportService {
           memberProfitLossResult: memberWinLoss.toFixed(2), // 參考系統：保持與會員輸贏一致
           receivableFromDownline: memberWinLoss.neg().toFixed(2),
           // 保留 commission 欄位但不影響 uplineSettlement 的計算
-          commissionPercentage: parent.commissionRate.toFixed(4),
+          commissionPercentage: '0.0000',
           commissionAmount: '0.00',
           commissionResult: '0.00',
           earnedRebatePercentage: memberRebatePct.toFixed(4), // 會員獲得的退水率
@@ -548,7 +548,7 @@ export class ReportService {
         username: parent.username,
         level: parent.level,
         rebatePercentage: parent.rebatePercentage.toFixed(4),
-        commissionRate: parent.commissionRate.toFixed(4),
+        commissionRate: '0.0000',
         balance: parent.balance.toFixed(2),
         parentId: parent.parentId,
       },
@@ -654,9 +654,8 @@ export class ReportService {
     // 上級交收 = 整條線輸贏 + 整條線退水 + 當層賺水（參考系統公式）
     const uplineSettlement = memberWinLoss.add(totalLineRebate).add(earnedRebateAmount);
 
-    // commissionRate 欄位保留供審計，但不進入 uplineSettlement 計算
+    // 占成機制目前不啟用；報表保留欄位給傳統格式，但比例固定為 0。
     void parentCommission;
-    const commissionRate = agent.commissionRate;
 
     return {
       betCount: agg._count._all,
@@ -668,7 +667,7 @@ export class ReportService {
       totalRebateAmount: totalLineRebate.toFixed(2),
       memberProfitLossResult: memberWinLoss.toFixed(2),
       receivableFromDownline: receivableFromDownline.toFixed(2),
-      commissionPercentage: commissionRate.toFixed(4),
+      commissionPercentage: '0.0000',
       commissionAmount: '0.00',
       commissionResult: '0.00',
       earnedRebatePercentage: earnedRebatePct.toFixed(4),
@@ -750,7 +749,7 @@ function emptyStats(
     totalRebateAmount: '0.00',
     memberProfitLossResult: '0.00',
     receivableFromDownline: '0.00',
-    commissionPercentage: agent.commissionRate.toFixed(4),
+    commissionPercentage: '0.0000',
     commissionAmount: '0.00',
     commissionResult: '0.00',
     earnedRebatePercentage: earnedPct.toFixed(4),
@@ -834,7 +833,7 @@ export type HierarchyReportRow =
       displayName: string | null;
       level: number;
       rebatePercentage: string;
-      status: 'ACTIVE' | 'FROZEN' | 'DELETED';
+      status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
       role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
     })
   | (HierarchyReportCommon & {
@@ -844,5 +843,5 @@ export type HierarchyReportRow =
       displayName: string | null;
       level: null;
       rebatePercentage: string;
-      status: 'ACTIVE' | 'FROZEN';
+      status: 'ACTIVE' | 'FROZEN' | 'DISABLED';
     });

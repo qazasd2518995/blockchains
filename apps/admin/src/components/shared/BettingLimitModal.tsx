@@ -18,7 +18,6 @@ interface LevelConfig {
   value: LimitLevel;
   label: string;
   perBet: string;
-  perDay: string;
   description: string;
 }
 
@@ -27,42 +26,36 @@ const LEVELS: LevelConfig[] = [
     value: 'level1',
     label: '新手',
     perBet: '100',
-    perDay: '500',
-    description: '单注上限 100，单日上限 500。适合刚注册的新玩家练习。',
+    description: '单注上限 100。适合刚注册的新玩家练习。',
   },
   {
     value: 'level2',
     label: '一般',
     perBet: '500',
-    perDay: '3,000',
-    description: '单注上限 500，单日上限 3,000。适合一般休閒玩家。',
+    description: '单注上限 500。适合一般休閒玩家。',
   },
   {
     value: 'level3',
     label: '标准',
     perBet: '2,000',
-    perDay: '10,000',
-    description: '单注上限 2,000，单日上限 10,000。预设标准等级。',
+    description: '单注上限 2,000。预设标准等级。',
   },
   {
     value: 'level4',
     label: '进阶',
     perBet: '10,000',
-    perDay: '50,000',
-    description: '单注上限 10,000，单日上限 50,000。适合活跃玩家。',
+    description: '单注上限 10,000。适合活跃玩家。',
   },
   {
     value: 'level5',
     label: 'VIP',
     perBet: '50,000',
-    perDay: '200,000',
-    description: '单注上限 50,000，单日上限 200,000。适合高额玩家。',
+    description: '单注上限 50,000。适合高额玩家。',
   },
   {
     value: 'unlimited',
     label: '不限',
     perBet: '∞',
-    perDay: '∞',
     description: '无额度限制。仅代理/会员具备信任关系时才开放。',
   },
 ];
@@ -127,9 +120,9 @@ export function BettingLimitModal({
         </div>
         {currentConfig && (
           <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-ink-500">单注 / 单日</span>
+            <span className="text-ink-500">单注上限</span>
             <span className="font-mono text-ink-700">
-              {currentConfig.perBet} / {currentConfig.perDay}
+              {currentConfig.perBet}
             </span>
           </div>
         )}
@@ -164,7 +157,7 @@ export function BettingLimitModal({
                       <span className="font-mono text-[10px] text-ink-500">{lvl.value}</span>
                     </div>
                     <span className="font-mono text-[11px] text-[#186073]">
-                      单注 {lvl.perBet} · 单日 {lvl.perDay}
+                      单注 {lvl.perBet}
                     </span>
                   </div>
                   <div className="mt-1 text-[11px] leading-relaxed text-ink-500">

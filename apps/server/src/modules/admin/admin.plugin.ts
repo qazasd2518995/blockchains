@@ -16,10 +16,14 @@ export async function adminRoutes(fastify: FastifyInstance): Promise<void> {
 
   // 除 /auth 以外的 admin API 套上全域「子帳號唯讀」守門：
   // - 讀取方法（GET/HEAD/OPTIONS）放行
-  // - 其他寫入方法若為 SUB_ACCOUNT → 回 403
+  // - 其他寫入方法若為 SUB_ACCOUNT 或已凍結代理 → 回 403
   await fastify.register(async (scope) => {
-    scope.addHook('preHandler', async (req) => {
+    scope.addHook('preHandler', async (req, reply) => {
+      await fastify.authenticateAdmin(req, reply);
       if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return;
+      if (req.admin?.status === 'FROZEN') {
+        throw new ApiError('FORBIDDEN', 'Frozen account has read-only access');
+      }
       if (req.admin?.role === 'SUB_ACCOUNT') {
         throw new ApiError('FORBIDDEN', 'Sub-account has read-only access');
       }

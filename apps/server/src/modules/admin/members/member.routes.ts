@@ -69,12 +69,6 @@ export async function memberRoutes(fastify: FastifyInstance): Promise<void> {
     return service.updateStatus(req.admin, id, body, req);
   });
 
-  fastify.delete('/:id', { preHandler: [fastify.authenticateAdmin] }, async (req, reply) => {
-    const { id } = req.params as { id: string };
-    await service.softDelete(req.admin, id, req);
-    reply.code(204).send();
-  });
-
   fastify.post('/:id/adjust-balance', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
     const { id } = req.params as { id: string };
     const body = adjustMemberBalanceSchema.parse(req.body);

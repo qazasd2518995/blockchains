@@ -40,8 +40,6 @@ export function AgentAnalysisPage(): JSX.Element {
 
   const columns: Column<AgentAnalysisRow>[] = [
     { key: 'username', label: 'USERNAME', render: (r) => <span className="font-mono text-ink-900">{r.username}</span> },
-    { key: 'level', label: 'LVL', align: 'center', render: (r) => <span className="tag tag-acid">L{r.level}</span> },
-    { key: 'rebate', label: 'REBATE', align: 'right', render: (r) => <span className="data-num text-win">{pct(r.rebatePercentage)}</span> },
     { key: 'members', label: 'MEM', align: 'right', render: (r) => <span className="data-num">{r.memberCount}</span> },
     { key: 'bets', label: 'BETS', align: 'right', render: (r) => <span className="data-num">{r.betCount}</span> },
     { key: 'volume', label: 'VOLUME', align: 'right', render: (r) => <span className="data-num">{fmt(r.betAmount)}</span> },

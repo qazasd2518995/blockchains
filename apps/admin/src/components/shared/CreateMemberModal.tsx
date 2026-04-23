@@ -90,7 +90,7 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId }: 
             )}
             {agents.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.username} · LVL{a.level}
+                {a.username}
               </option>
             ))}
           </select>
@@ -122,11 +122,11 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId }: 
 
         <Field label="限红等级" code="06" error={errors.bettingLimitLevel?.message}>
           <select {...register('bettingLimitLevel')} className="term-input">
-            <option value="level1">新手（单注 100 / 单日 500）</option>
-            <option value="level2">一般（单注 500 / 单日 3,000）</option>
-            <option value="level3">标准（单注 2,000 / 单日 10,000）</option>
-            <option value="level4">进阶（单注 10,000 / 单日 50,000）</option>
-            <option value="level5">VIP（单注 50,000 / 单日 200,000）</option>
+            <option value="level1">新手（单注 100）</option>
+            <option value="level2">一般（单注 500）</option>
+            <option value="level3">标准（单注 2,000）</option>
+            <option value="level4">进阶（单注 10,000）</option>
+            <option value="level5">VIP（单注 50,000）</option>
             <option value="unlimited">不限</option>
           </select>
         </Field>

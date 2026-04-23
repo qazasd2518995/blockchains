@@ -124,18 +124,6 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
                 {formatDec(agent?.balance ?? '0')}
               </span>
             </div>
-            <div className="hidden border-l border-[#186073]/30 pl-4 text-right md:block">
-              <div className="label text-[#D0AC4D]">{t.shell.level}</div>
-              <div className="mt-0.5 font-semibold text-[13px] italic text-white">
-                {agent?.level}
-              </div>
-            </div>
-            <div className="hidden border-l border-[#186073]/30 pl-4 text-right md:block">
-              <div className="label text-[#D0AC4D]">{t.shell.rebate}</div>
-              <div className="mt-0.5 font-mono text-[13px] text-[#DEBE66]">
-                {formatPct(agent?.rebatePercentage ?? '0')}
-              </div>
-            </div>
             <div ref={menuRef} className="relative">
               <button
                 type="button"
@@ -214,9 +202,4 @@ function formatDec(s: string): string {
   const n = Number.parseFloat(s);
   if (Number.isNaN(n)) return '0.00';
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function formatPct(s: string): string {
-  const n = Number.parseFloat(s);
-  if (Number.isNaN(n)) return '0%';
-  return `${(n * 100).toFixed(2)}%`;
 }

@@ -27,7 +27,7 @@ export const resetSubAccountPasswordSchema = z.object({
 });
 
 export const updateSubAccountStatusSchema = z.object({
-  status: z.enum(['ACTIVE', 'FROZEN']),
+  status: z.enum(['ACTIVE', 'FROZEN', 'DISABLED']),
 });
 
 export const subAccountListQuerySchema = z.object({

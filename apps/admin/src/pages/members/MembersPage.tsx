@@ -6,8 +6,9 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { CreateMemberModal } from '@/components/shared/CreateMemberModal';
 import { TransferModal } from '@/components/shared/TransferModal';
-import { AdjustBalanceModal } from '@/components/shared/AdjustBalanceModal';
 import { useTranslation } from '@/i18n/useTranslation';
+
+type AccountStatus = 'ACTIVE' | 'FROZEN' | 'DISABLED';
 
 export function MembersPage(): JSX.Element {
   const { t } = useTranslation();
@@ -15,10 +16,9 @@ export function MembersPage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [keyword, setKeyword] = useState('');
-  const [status, setStatus] = useState<'' | 'ACTIVE' | 'FROZEN'>('');
+  const [status, setStatus] = useState<'' | AccountStatus>('');
   const [openCreate, setOpenCreate] = useState(false);
   const [transferFor, setTransferFor] = useState<MemberPublic | null>(null);
-  const [adjustFor, setAdjustFor] = useState<MemberPublic | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -43,9 +43,10 @@ export function MembersPage(): JSX.Element {
     };
   }, [keyword, status, reloadKey]);
 
-  const handleFreeze = async (m: MemberPublic) => {
-    const nextStatus = m.status === 'FROZEN' ? 'ACTIVE' : 'FROZEN';
-    if (nextStatus === 'FROZEN' && !confirm(t.members.confirmFreeze)) return;
+  const handleStatus = async (m: MemberPublic, nextStatus: AccountStatus) => {
+    if (nextStatus === m.status) return;
+    if (nextStatus === 'FROZEN' && !confirm(t.agents.confirmFreezeMemberShort)) return;
+    if (nextStatus === 'DISABLED' && !confirm(t.agents.confirmDisableMemberShort)) return;
     try {
       await adminApi.patch(`/members/${m.id}/status`, { status: nextStatus });
       setReloadKey((k) => k + 1);
@@ -82,6 +83,8 @@ export function MembersPage(): JSX.Element {
       render: (m) =>
         m.status === 'FROZEN' ? (
           <span className="tag tag-ember">{t.agent.status.FROZEN}</span>
+        ) : m.status === 'DISABLED' ? (
+          <span className="tag tag-ember">{t.agent.status.DISABLED}</span>
         ) : (
           <span className="tag tag-toxic">
             <span className="dot-online dot-online" />
@@ -110,15 +113,29 @@ export function MembersPage(): JSX.Element {
           <button type="button" onClick={() => setTransferFor(m)} className="btn-teal-outline">
             [转帐]
           </button>
-          <button type="button" onClick={() => setAdjustFor(m)} className="btn-teal-outline">
-            [调整]
+          <button
+            type="button"
+            onClick={() => handleStatus(m, 'ACTIVE')}
+            className="btn-teal-outline text-win"
+            disabled={m.status === 'ACTIVE'}
+          >
+            [启用]
           </button>
           <button
             type="button"
-            onClick={() => handleFreeze(m)}
-            className={`btn-teal-outline ${m.status === 'FROZEN' ? 'text-win' : 'text-[#D4574A]'}`}
+            onClick={() => handleStatus(m, 'FROZEN')}
+            className="btn-teal-outline text-[#B45309]"
+            disabled={m.status === 'FROZEN'}
           >
-            [{m.status === 'FROZEN' ? '解冻' : '冻结'}]
+            [冻结]
+          </button>
+          <button
+            type="button"
+            onClick={() => handleStatus(m, 'DISABLED')}
+            className="btn-teal-outline text-[#D4574A]"
+            disabled={m.status === 'DISABLED'}
+          >
+            [停用]
           </button>
         </div>
       ),
@@ -156,6 +173,7 @@ export function MembersPage(): JSX.Element {
           <option value="">{t.common.all}</option>
           <option value="ACTIVE">{t.agent.status.ACTIVE}</option>
           <option value="FROZEN">{t.agent.status.FROZEN}</option>
+          <option value="DISABLED">{t.agent.status.DISABLED}</option>
         </select>
       </div>
 
@@ -181,14 +199,6 @@ export function MembersPage(): JSX.Element {
           open
           onClose={() => setTransferFor(null)}
           member={transferFor}
-          onDone={() => setReloadKey((k) => k + 1)}
-        />
-      )}
-      {adjustFor && (
-        <AdjustBalanceModal
-          open
-          onClose={() => setAdjustFor(null)}
-          member={adjustFor}
           onDone={() => setReloadKey((k) => k + 1)}
         />
       )}

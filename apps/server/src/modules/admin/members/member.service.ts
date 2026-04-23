@@ -167,8 +167,15 @@ export class MemberService {
     } else if (scopedAgentIds) {
       where.agentId = { in: scopedAgentIds };
     }
-    if (query.status === 'FROZEN') where.frozenAt = { not: null };
-    if (query.status === 'ACTIVE') where.frozenAt = null;
+    if (query.status === 'FROZEN') {
+      where.frozenAt = { not: null };
+      where.disabledAt = null;
+    }
+    if (query.status === 'ACTIVE') {
+      where.frozenAt = null;
+      where.disabledAt = null;
+    }
+    if (query.status === 'DISABLED') where.disabledAt = { not: null };
     if (query.keyword) {
       where.OR = [
         { username: { contains: query.keyword, mode: 'insensitive' } },
@@ -239,19 +246,31 @@ export class MemberService {
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot freeze this member');
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) throw new ApiError('MEMBER_NOT_FOUND', 'Member not found');
-    const frozenAt = input.status === 'FROZEN' ? new Date() : null;
+    const now = new Date();
+    const statusData =
+      input.status === 'ACTIVE'
+        ? { frozenAt: null, disabledAt: null }
+        : input.status === 'FROZEN'
+          ? { frozenAt: now, disabledAt: null }
+          : { frozenAt: null, disabledAt: now };
     const updated = await this.prisma.user.update({
       where: { id },
-      data: { frozenAt },
+      data: statusData,
       include: { agent: { select: { username: true } } },
     });
+    if (input.status === 'DISABLED') {
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
     await writeAudit(this.prisma, {
       actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
-      action: `member.${input.status === 'FROZEN' ? 'freeze' : 'unfreeze'}`,
+      action: `member.status.${input.status.toLowerCase()}`,
       targetType: 'member',
       targetId: id,
-      oldValues: { frozenAt: existing.frozenAt },
-      newValues: { frozenAt: updated.frozenAt },
+      oldValues: { frozenAt: existing.frozenAt, disabledAt: existing.disabledAt },
+      newValues: { frozenAt: updated.frozenAt, disabledAt: updated.disabledAt },
       req,
     });
     return toMemberPublic(updated, updated.agent?.username ?? null);
@@ -273,6 +292,7 @@ export class MemberService {
       data: {
         username: deletedUsername,
         frozenAt: new Date(),
+        disabledAt: new Date(),
         notes: `[deleted by ${operator.username}] ${existing.notes ?? ''}`.slice(0, 500),
       },
     });
@@ -431,6 +451,7 @@ function toMemberPublic(
     marketType: 'D' | 'A';
     bettingLimitLevel: string;
     frozenAt: Date | null;
+    disabledAt: Date | null;
     notes: string | null;
     createdAt: Date;
   },
@@ -445,8 +466,9 @@ function toMemberPublic(
     balance: user.balance.toFixed(2),
     marketType: user.marketType,
     bettingLimitLevel: user.bettingLimitLevel,
-    status: user.frozenAt ? 'FROZEN' : 'ACTIVE',
+    status: user.disabledAt ? 'DISABLED' : user.frozenAt ? 'FROZEN' : 'ACTIVE',
     frozenAt: user.frozenAt?.toISOString() ?? null,
+    disabledAt: user.disabledAt?.toISOString() ?? null,
     notes: user.notes,
     lastLoginAt: null,
     createdAt: user.createdAt.toISOString(),

@@ -29,7 +29,6 @@ export function HierarchyBreadcrumb({ items, onSelect, terminalLabel }: Props): 
                   : 'text-[#0F172A] hover:bg-[#FAF2D7] hover:text-[#186073]'
               }`}
             >
-              <span className="font-mono text-[9px] opacity-70">L{c.level}</span>
               <span className="italic">{c.username}</span>
             </button>
           </span>

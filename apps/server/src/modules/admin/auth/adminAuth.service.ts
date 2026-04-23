@@ -21,7 +21,9 @@ export class AdminAuthService {
   ): Promise<{ agent: AgentPublic; accessToken: string; refreshToken: string }> {
     const agent = await this.prisma.agent.findUnique({ where: { username: input.username } });
     if (!agent) throw new ApiError('INVALID_CREDENTIALS', 'Invalid username or password');
-    if (agent.status !== 'ACTIVE') throw new ApiError('AGENT_FROZEN', 'Agent account is not active');
+    if (agent.status === 'DISABLED' || agent.status === 'DELETED') {
+      throw new ApiError('AGENT_FROZEN', 'Agent account is not active');
+    }
     const ok = await bcrypt.compare(input.password, agent.passwordHash);
     if (!ok) throw new ApiError('INVALID_CREDENTIALS', 'Invalid username or password');
 
@@ -51,6 +53,9 @@ export class AdminAuthService {
       data: { revokedAt: new Date() },
     });
     const agent = await this.prisma.agent.findUniqueOrThrow({ where: { id: record.agentId } });
+    if (agent.status === 'DISABLED' || agent.status === 'DELETED') {
+      throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
+    }
     return this.issueTokens(agent.id, agent.username, agent.role, agent.level);
   }
 
@@ -103,7 +108,7 @@ export class AdminAuthService {
     rebatePercentage: Prisma.Decimal;
     maxRebatePercentage: Prisma.Decimal;
     bettingLimitLevel: string;
-    status: 'ACTIVE' | 'FROZEN' | 'DELETED';
+    status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
     role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
     notes: string | null;
     lastLoginAt: Date | null;

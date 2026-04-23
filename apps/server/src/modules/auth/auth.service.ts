@@ -21,6 +21,7 @@ export class AuthService {
   ): Promise<{ user: UserPublic; accessToken: string; refreshToken: string }> {
     const user = await this.prisma.user.findUnique({ where: { username: input.username } });
     if (!user) throw new ApiError('INVALID_CREDENTIALS', 'Invalid username or password');
+    if (user.disabledAt) throw new ApiError('MEMBER_FROZEN', 'Member account is disabled');
     const ok = await bcrypt.compare(input.password, user.passwordHash);
     if (!ok) throw new ApiError('INVALID_CREDENTIALS', 'Invalid username or password');
 
@@ -45,6 +46,7 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: record.userId } });
+    if (user.disabledAt) throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
     return this.issueTokens(user.id, user.role);
   }
 

@@ -38,9 +38,4 @@ export async function subAccountRoutes(fastify: FastifyInstance): Promise<void> 
     },
   );
 
-  fastify.delete('/:id', { preHandler: [fastify.authenticateAdmin] }, async (req, reply) => {
-    const { id } = req.params as { id: string };
-    await service.softDelete(req.admin, id, req);
-    reply.code(204).send();
-  });
 }

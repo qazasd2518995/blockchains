@@ -124,7 +124,6 @@ export function ReportsPage(): JSX.Element {
         <HierarchyBreadcrumb
           items={data.breadcrumb}
           onSelect={selectParent}
-          terminalLabel={`${data.items.length} 条目 · 占成 ${pct(data.parent.commissionRate)} · 退水 ${pct(data.parent.rebatePercentage)}`}
         />
       )}
 
@@ -270,7 +269,7 @@ function Row({ row, onClick }: { row: HierarchyReportItem; onClick: () => void }
     >
       <td className="px-3 py-2.5">
         {isAgent ? (
-          <span className="tag tag-acid">代理 L{row.level}</span>
+          <span className="tag tag-acid">代理</span>
         ) : (
           <span className="tag tag-toxic">会员</span>
         )}
@@ -293,7 +292,7 @@ function Row({ row, onClick }: { row: HierarchyReportItem; onClick: () => void }
       <WlTd v={row.memberProfitLossResult} borderRight />
 
       <td className="px-3 py-2.5 text-right data-num">{fmt(row.receivableFromDownline)}</td>
-      <td className="px-3 py-2.5 text-right data-num text-[#186073]">{pct(row.commissionPercentage)}</td>
+      <td className="px-3 py-2.5 text-right data-num text-[#186073]">0.00%</td>
       <WlTd v={row.commissionAmount} />
       <WlTd v={row.commissionResult} />
       <td className="px-3 py-2.5 text-right data-num text-win">{fmt(row.earnedRebateAmount)}</td>
@@ -345,7 +344,4 @@ function fmt(s: string): string {
   const n = Number.parseFloat(s);
   if (Number.isNaN(n)) return '0.00';
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function pct(s: string): string {
-  return `${(Number.parseFloat(s) * 100).toFixed(2)}%`;
 }

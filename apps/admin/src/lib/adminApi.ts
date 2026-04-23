@@ -126,6 +126,7 @@ function translateMessage(code: string, rawMessage: string): string {
   if (msg.includes('cannot modify rebate')) return '无权修改退水';
   if (msg.includes('cannot change status')) return '无权变更状态';
   if (msg.includes('cannot reset password')) return '无权重设密码';
+  if (msg.includes('frozen account has read-only access')) return '此账号已冻结，只能查看，无法执行操作';
   if (msg.includes('cannot update this agent')) return '无权修改该代理';
   if (msg.includes('cannot access this agent')) return '无权访问该代理';
   if (msg.includes('rebatepercentage exceeds parent')) return '退水比例超过上级上限';
@@ -139,6 +140,8 @@ function translateMessage(code: string, rawMessage: string): string {
   if (msg.includes('invalid refresh token')) return 'Session 已过期,请重新登录';
   if (msg.includes('invalid username or password')) return '账号或密码错误';
   if (msg.includes('agent account is not active')) return '此代理账号未启用';
+  if (msg.includes('member account is disabled')) return '此会员账号已停用';
+  if (msg.includes('member account is frozen')) return '此会员账号已冻结，只能登入查看，无法操作';
   return DEFAULT_ERRORS[code] ?? rawMessage;
 }
 

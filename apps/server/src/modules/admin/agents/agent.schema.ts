@@ -29,7 +29,7 @@ export const updateAgentRebateSchema = z.object({
 });
 
 export const updateAgentStatusSchema = z.object({
-  status: z.enum(['ACTIVE', 'FROZEN', 'DELETED']),
+  status: z.enum(['ACTIVE', 'FROZEN', 'DISABLED']),
 });
 
 export const resetPasswordSchema = z.object({

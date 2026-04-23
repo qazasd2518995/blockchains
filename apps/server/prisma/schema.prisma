@@ -38,6 +38,7 @@ model User {
   marketType   MarketType @default(D)
   bettingLimitLevel String @default("level3")
   frozenAt     DateTime?
+  disabledAt   DateTime?
   notes        String?
 
   createdAt    DateTime @default(now())
@@ -315,6 +316,7 @@ model CrashRoomLease {
 enum AgentStatus {
   ACTIVE
   FROZEN
+  DISABLED
   DELETED
 }
 
@@ -342,7 +344,7 @@ model Agent {
   marketType           MarketType  @default(D)
   balance              Decimal     @default(0) @db.Decimal(20, 2)
   commissionBalance    Decimal     @default(0) @db.Decimal(20, 2)
-  commissionRate       Decimal     @default(0.2) @db.Decimal(5, 4)
+  commissionRate       Decimal     @default(0) @db.Decimal(5, 4)
   rebateMode           RebateMode  @default(PERCENTAGE)
   rebatePercentage     Decimal     @default(0.041) @db.Decimal(5, 4)
   maxRebatePercentage  Decimal     @default(0.041) @db.Decimal(5, 4)

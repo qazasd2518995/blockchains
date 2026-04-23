@@ -47,7 +47,7 @@ export function AdminDashboardPage(): JSX.Element {
         breadcrumb={t.nav.dashboard}
         title={t.dashboard.title}
         titleSuffix={t.dashboard.subtitle}
-        description={`欢迎回来,${agent?.displayName ?? agent?.username} · 层级 ${agent?.level} · ${agent?.marketType}盘`}
+        description={`欢迎回来,${agent?.displayName ?? agent?.username} · ${agent?.marketType}盘`}
       />
 
       <ImageBanner
@@ -179,7 +179,7 @@ export function AdminDashboardPage(): JSX.Element {
         </section>
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-5 grid gap-4 md:grid-cols-3">
         <StatCard
           label="下級代理"
           value={totals ? totals.downlineAgentCount.toLocaleString('en-US') : '--'}
@@ -194,11 +194,6 @@ export function AdminDashboardPage(): JSX.Element {
           label={t.dashboard.balance}
           value={formatDec(agent?.balance ?? '0')}
           accent="ice"
-        />
-        <StatCard
-          label={t.dashboard.commission}
-          value={formatDec(agent?.commissionBalance ?? '0')}
-          accent="toxic"
         />
       </div>
     </div>

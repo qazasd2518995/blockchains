@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { HierarchyResponse, HierarchyItem, MemberPublic } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
@@ -7,15 +8,17 @@ import { HierarchyBreadcrumb } from '@/components/shared/HierarchyBreadcrumb';
 import { CreateMemberModal } from '@/components/shared/CreateMemberModal';
 import { CreateAgentModal } from '@/components/shared/CreateAgentModal';
 import { TransferModal } from '@/components/shared/TransferModal';
-import { AdjustBalanceModal } from '@/components/shared/AdjustBalanceModal';
 import { RebateSettingModal } from '@/components/shared/RebateSettingModal';
 import { BettingLimitModal } from '@/components/shared/BettingLimitModal';
 import { AgentTransferModal } from '@/components/shared/AgentTransferModal';
+import { Modal } from '@/components/shared/Modal';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
 
+type AccountStatus = 'ACTIVE' | 'FROZEN' | 'DISABLED';
+
 const ACCOUNT_TABLE_GRID =
-  'grid-cols-[80px_minmax(220px,1fr)_72px_88px_116px_106px_minmax(620px,max-content)]';
+  'grid-cols-[80px_minmax(220px,1fr)_72px_116px_106px_minmax(460px,max-content)]';
 
 /**
  * 帳號管理（混合階層）
@@ -35,19 +38,19 @@ export function AgentHierarchyPage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [keyword, setKeyword] = useState('');
-  const [status, setStatus] = useState<'' | 'ACTIVE' | 'FROZEN'>('');
+  const [status, setStatus] = useState<'' | AccountStatus>('');
   const [reloadKey, setReloadKey] = useState(0);
 
   const [openCreateMember, setOpenCreateMember] = useState(false);
   const [openCreateAgent, setOpenCreateAgent] = useState(false);
   const [transferFor, setTransferFor] = useState<MemberPublic | null>(null);
-  const [adjustFor, setAdjustFor] = useState<MemberPublic | null>(null);
   const [rebateFor, setRebateFor] = useState<{ id: string; username: string } | null>(null);
   const [bettingLimitFor, setBettingLimitFor] = useState<
     { targetType: 'agent' | 'member'; id: string; username: string; currentLevel: string } | null
   >(null);
   const [agentTransferFor, setAgentTransferFor] = useState<{ id: string; username: string; balance: string } | null>(null);
-  const [deleteMemberFor, setDeleteMemberFor] = useState<{ id: string; username: string } | null>(null);
+  const [notesFor, setNotesFor] = useState<{ kind: 'agent' | 'member'; id: string; username: string; notes: string | null } | null>(null);
+  const [resetPasswordFor, setResetPasswordFor] = useState<{ kind: 'agent' | 'member'; id: string; username: string } | null>(null);
 
   useEffect(() => {
     let cancel = false;
@@ -87,34 +90,9 @@ export function AgentHierarchyPage(): JSX.Element {
     }
   };
 
-  const handleFreezeMember = async (m: HierarchyItem, evt: React.MouseEvent) => {
-    evt.stopPropagation();
-    if (m.kind !== 'member') return;
-    const next = m.status === 'FROZEN' ? 'ACTIVE' : 'FROZEN';
-    if (next === 'FROZEN' && !confirm(t.agents.confirmFreezeMember)) return;
-    try {
-      await adminApi.patch(`/members/${m.id}/status`, { status: next });
-      setReloadKey((k) => k + 1);
-    } catch (e) {
-      setError(extractApiError(e).message);
-    }
-  };
-
-  const handleFreezeAgent = async (row: HierarchyItem, evt: React.MouseEvent) => {
-    evt.stopPropagation();
-    if (row.kind !== 'agent') return;
-    const next = row.status === 'FROZEN' ? 'ACTIVE' : 'FROZEN';
-    if (next === 'FROZEN' && !confirm(t.agents.confirmFreezeAgentTpl.replace('{name}', row.username))) return;
-    try {
-      await adminApi.patch(`/agents/${row.id}/status`, { status: next });
-      setReloadKey((k) => k + 1);
-    } catch (e) {
-      setError(extractApiError(e).message);
-    }
-  };
-
-  const handleAgentStatus = async (id: string, next: 'ACTIVE' | 'FROZEN' | 'DELETED') => {
-    if (next === 'DELETED' && !confirm(t.agents.confirmDeleteAgent)) return;
+  const handleAgentStatus = async (id: string, username: string, next: AccountStatus) => {
+    if (next === 'FROZEN' && !confirm(t.agents.confirmFreezeAgentTpl.replace('{name}', username))) return;
+    if (next === 'DISABLED' && !confirm(t.agents.confirmDisableAgentTpl.replace('{name}', username))) return;
     try {
       await adminApi.patch(`/agents/${id}/status`, { status: next });
       setReloadKey((k) => k + 1);
@@ -123,33 +101,11 @@ export function AgentHierarchyPage(): JSX.Element {
     }
   };
 
-  const handleMemberStatus = async (id: string, next: 'ACTIVE' | 'FROZEN') => {
+  const handleMemberStatus = async (id: string, next: AccountStatus) => {
     if (next === 'FROZEN' && !confirm(t.agents.confirmFreezeMemberShort)) return;
+    if (next === 'DISABLED' && !confirm(t.agents.confirmDisableMemberShort)) return;
     try {
       await adminApi.patch(`/members/${id}/status`, { status: next });
-      setReloadKey((k) => k + 1);
-    } catch (e) {
-      setError(extractApiError(e).message);
-    }
-  };
-
-  const handleResetPassword = async (id: string, kind: 'agent' | 'member', name: string) => {
-    const pwd = prompt(t.agents.resetPasswordPromptTpl.replace('{name}', name));
-    if (!pwd) return;
-    try {
-      const path = kind === 'agent' ? `/agents/${id}/reset-password` : `/members/${id}/reset-password`;
-      await adminApi.post(path, { newPassword: pwd });
-      alert(t.agents.passwordReset);
-    } catch (e) {
-      setError(extractApiError(e).message);
-    }
-  };
-
-  const handleEditNotes = async (id: string, current: string | null) => {
-    const next = prompt(t.agents.editNotesPrompt, current ?? '');
-    if (next === null) return;
-    try {
-      await adminApi.put(`/members/${id}/notes`, { notes: next || null });
       setReloadKey((k) => k + 1);
     } catch (e) {
       setError(extractApiError(e).message);
@@ -169,6 +125,7 @@ export function AgentHierarchyPage(): JSX.Element {
       bettingLimitLevel: row.bettingLimitLevel,
       status: row.status,
       frozenAt: row.frozenAt,
+      disabledAt: row.disabledAt,
       notes: row.notes,
       lastLoginAt: null,
       createdAt: row.createdAt,
@@ -214,12 +171,10 @@ export function AgentHierarchyPage(): JSX.Element {
               <div className="mt-1 flex items-baseline gap-2 font-display text-xl text-ink-900">
                 {data.parent.username}
                 {data.parent.role === 'SUPER_ADMIN' && <span className="tag tag-gold">{t.shell.super}</span>}
-                <span className="tag tag-acid">{t.shell.level} {data.parent.level}</span>
                 <span className="tag tag-acid">{data.parent.marketType}{t.agents.marketSuffix}</span>
               </div>
             </div>
             <Stat k={t.agents.bal} v={fmt(data.parent.balance)} accent="acid" />
-            <Stat k={t.agents.rebatePct} v={pct(data.parent.rebatePercentage)} accent="toxic" />
             <Stat k={t.agents.directAgents} v={data.stats.agentCount.toString()} />
             <Stat k={t.agents.directMembers} v={data.stats.memberCount.toString()} />
           </div>
@@ -242,6 +197,7 @@ export function AgentHierarchyPage(): JSX.Element {
           <option value="">{t.common.allStatus}</option>
           <option value="ACTIVE">{t.agent.status.ACTIVE}</option>
           <option value="FROZEN">{t.agent.status.FROZEN}</option>
+          <option value="DISABLED">{t.agent.status.DISABLED}</option>
         </select>
         <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="btn-teal-outline text-[11px]">
           ↻ {t.common.refresh}
@@ -264,7 +220,6 @@ export function AgentHierarchyPage(): JSX.Element {
             <span>{t.agents.type}</span>
             <span>{t.agents.account}</span>
             <span className="text-right">{t.shell.level}</span>
-            <span className="text-right">{t.agents.rebatePct}</span>
             <span className="text-right">{t.agents.bal}</span>
             <span className="text-center">{t.common.status}</span>
             <span className="text-right">{t.common.actions}</span>
@@ -300,12 +255,11 @@ export function AgentHierarchyPage(): JSX.Element {
               <span className="text-right data-num text-ink-700">
                 {row.kind === 'agent' ? `L${row.level}` : '—'}
               </span>
-              <span className="text-right data-num text-win">
-                {row.kind === 'agent' ? pct(row.rebatePercentage) : '—'}
-              </span>
               <span className="text-right data-num text-[#186073]">{fmt(row.balance)}</span>
               <span className="text-center">
-                {row.status === 'FROZEN' ? (
+                {row.status === 'DISABLED' ? (
+                  <span className="tag tag-ember">{t.agent.status.DISABLED}</span>
+                ) : row.status === 'FROZEN' ? (
                   <span className="tag tag-ember">{t.agent.status.FROZEN}</span>
                 ) : (
                   <span className="tag tag-toxic">
@@ -318,14 +272,8 @@ export function AgentHierarchyPage(): JSX.Element {
               <div className="flex flex-wrap items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                 {row.kind === 'agent' ? (
                   <>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); selectParent(row.id); }} className="btn-chip">
-                      {t.agents.childAccounts}
-                    </button>
                     <button type="button" onClick={() => navigate(`/admin/reports?parent=${row.id}`)} className="btn-chip">
                       {t.agents.reports}
-                    </button>
-                    <button type="button" onClick={() => navigate(`/admin/audit?targetId=${row.id}`)} className="btn-chip">
-                      {t.agents.logs}
                     </button>
                     <button
                       type="button"
@@ -333,6 +281,13 @@ export function AgentHierarchyPage(): JSX.Element {
                       className="btn-chip"
                     >
                       {t.agents.pointTransfer}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNotesFor({ kind: 'agent', id: row.id, username: row.username, notes: row.notes })}
+                      className="btn-chip"
+                    >
+                      {t.agents.notesBtn}
                     </button>
                     <button
                       type="button"
@@ -355,12 +310,16 @@ export function AgentHierarchyPage(): JSX.Element {
                     >
                       限红
                     </button>
-                    <button type="button" onClick={() => handleResetPassword(row.id, 'agent', row.username)} className="btn-chip">
+                    <button
+                      type="button"
+                      onClick={() => setResetPasswordFor({ kind: 'agent', id: row.id, username: row.username })}
+                      className="btn-chip"
+                    >
                       {t.agents.resetPassword}
                     </button>
                     <StatusDropdown
-                      current={row.status}
-                      onChange={(next) => handleAgentStatus(row.id, next)}
+                      current={row.status === 'DELETED' ? 'DISABLED' : row.status}
+                      onChange={(next) => handleAgentStatus(row.id, row.username, next)}
                     />
                   </>
                 ) : (
@@ -377,12 +336,9 @@ export function AgentHierarchyPage(): JSX.Element {
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); const m = asMemberForModal(row); if (m) setAdjustFor(m); }}
+                      onClick={() => setNotesFor({ kind: 'member', id: row.id, username: row.username, notes: row.notes })}
                       className="btn-chip"
                     >
-                      {t.agents.adjustBalance}
-                    </button>
-                    <button type="button" onClick={() => handleEditNotes(row.id, row.notes)} className="btn-chip">
                       {t.agents.notesBtn}
                     </button>
                     <button
@@ -400,21 +356,17 @@ export function AgentHierarchyPage(): JSX.Element {
                     >
                       限红
                     </button>
-                    <button type="button" onClick={() => handleResetPassword(row.id, 'member', row.username)} className="btn-chip">
+                    <button
+                      type="button"
+                      onClick={() => setResetPasswordFor({ kind: 'member', id: row.id, username: row.username })}
+                      className="btn-chip"
+                    >
                       {t.agents.resetPassword}
                     </button>
                     <StatusDropdown
-                      current={row.status === 'FROZEN' ? 'FROZEN' : 'ACTIVE'}
-                      onChange={(next) => handleMemberStatus(row.id, next === 'FROZEN' ? 'FROZEN' : 'ACTIVE')}
-                      memberOnly
+                      current={row.status}
+                      onChange={(next) => handleMemberStatus(row.id, next)}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setDeleteMemberFor({ id: row.id, username: row.username })}
-                      className="btn-chip border-[#D4574A]/40 text-[#D4574A]"
-                    >
-                      刪除
-                    </button>
                   </>
                 )}
               </div>
@@ -440,14 +392,6 @@ export function AgentHierarchyPage(): JSX.Element {
           open
           onClose={() => setTransferFor(null)}
           member={transferFor}
-          onDone={() => setReloadKey((k) => k + 1)}
-        />
-      )}
-      {adjustFor && (
-        <AdjustBalanceModal
-          open
-          onClose={() => setAdjustFor(null)}
-          member={adjustFor}
           onDone={() => setReloadKey((k) => k + 1)}
         />
       )}
@@ -479,12 +423,23 @@ export function AgentHierarchyPage(): JSX.Element {
           onDone={() => setReloadKey((k) => k + 1)}
         />
       )}
-      {deleteMemberFor && (
-        <ConfirmDeleteMemberDialog
-          member={deleteMemberFor}
-          onClose={() => setDeleteMemberFor(null)}
+      {notesFor && (
+        <NotesModal
+          target={notesFor}
+          onClose={() => setNotesFor(null)}
           onDone={() => {
-            setDeleteMemberFor(null);
+            setNotesFor(null);
+            setReloadKey((k) => k + 1);
+          }}
+          onError={setError}
+        />
+      )}
+      {resetPasswordFor && (
+        <ResetPasswordModal
+          target={resetPasswordFor}
+          onClose={() => setResetPasswordFor(null)}
+          onDone={() => {
+            setResetPasswordFor(null);
             setReloadKey((k) => k + 1);
           }}
           onError={setError}
@@ -494,88 +449,226 @@ export function AgentHierarchyPage(): JSX.Element {
   );
 }
 
-function ConfirmDeleteMemberDialog({
-  member,
+function NotesModal({
+  target,
   onClose,
   onDone,
   onError,
 }: {
-  member: { id: string; username: string };
+  target: { kind: 'agent' | 'member'; id: string; username: string; notes: string | null };
   onClose: () => void;
   onDone: () => void;
   onError: (msg: string) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
+  const [notes, setNotes] = useState(target.notes ?? '');
   const [busy, setBusy] = useState(false);
-  const confirm = async (): Promise<void> => {
+
+  const submit = async (event: React.FormEvent): Promise<void> => {
+    event.preventDefault();
     setBusy(true);
     try {
-      await adminApi.delete(`/members/${member.id}`);
+      if (target.kind === 'agent') {
+        await adminApi.put(`/agents/${target.id}`, { notes: notes.trim() || null });
+      } else {
+        await adminApi.put(`/members/${target.id}/notes`, { notes: notes.trim() || null });
+      }
       onDone();
     } catch (e) {
       onError(extractApiError(e).message);
-      onClose();
     } finally {
       setBusy(false);
     }
   };
+
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#1A2530]/70 backdrop-blur">
-      <div className="card-base w-full max-w-md p-6">
-        <div className="text-[16px] font-semibold text-[#0F172A]">刪除會員</div>
-        <p className="mt-2 text-[13px] text-[#4A5568]">
-          確定刪除會員 <span className="font-mono text-[#D4574A]">{member.username}</span>？
-          此操作會將帳號設為永久停用並保留歷史紀錄供審計。
-        </p>
-        <div className="mt-5 flex items-center gap-2">
-          <button type="button" onClick={confirm} disabled={busy} className="btn-acid border-[#D4574A] bg-[#D4574A] text-white">
-            → 確認刪除
-          </button>
+    <Modal
+      open
+      onClose={onClose}
+      title={t.agents.notesBtn}
+      subtitle={`${target.kind === 'agent' ? t.agents.typeAgent : t.agents.typeMember} · ${target.username}`}
+      width="md"
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <div className="label mb-2">備註內容</div>
+          <textarea
+            value={notes}
+            onChange={(event) => setNotes(event.target.value.slice(0, 500))}
+            className="term-input min-h-[150px] resize-y"
+            placeholder="輸入內部備註，最多 500 字"
+          />
+          <div className="mt-2 text-right text-[10px] tracking-[0.16em] text-ink-400">
+            {notes.length}/500
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t border-ink-200 pt-4">
           <button type="button" onClick={onClose} className="btn-teal-outline">
-            [取消]
+            {t.common.cancel}
+          </button>
+          <button type="submit" disabled={busy} className="btn-acid">
+            {busy ? t.common.loading : t.common.save}
           </button>
         </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
+  );
+}
+
+function ResetPasswordModal({
+  target,
+  onClose,
+  onDone,
+  onError,
+}: {
+  target: { kind: 'agent' | 'member'; id: string; username: string };
+  onClose: () => void;
+  onDone: () => void;
+  onError: (msg: string) => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event: React.FormEvent): Promise<void> => {
+    event.preventDefault();
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      setLocalError('密碼至少 8 字，且必須包含英文字母與數字。');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setLocalError('兩次輸入的密碼不一致。');
+      return;
+    }
+    setBusy(true);
+    setLocalError(null);
+    try {
+      const path =
+        target.kind === 'agent'
+          ? `/agents/${target.id}/reset-password`
+          : `/members/${target.id}/reset-password`;
+      await adminApi.post(path, { newPassword: password });
+      onDone();
+    } catch (e) {
+      onError(extractApiError(e).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={t.agents.resetPassword}
+      subtitle={`${target.kind === 'agent' ? t.agents.typeAgent : t.agents.typeMember} · ${target.username}`}
+      width="sm"
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <div className="border border-[#D4AF37]/35 bg-[#FFF8DA] px-3 py-2 text-[12px] text-ink-700">
+          重設後原有登入憑證會失效，帳號需要使用新密碼重新登入。
+        </div>
+        <div>
+          <div className="label mb-2">新密碼</div>
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="term-input"
+            placeholder="至少 8 字，含英數"
+            autoComplete="new-password"
+          />
+        </div>
+        <div>
+          <div className="label mb-2">再次輸入</div>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            className="term-input"
+            placeholder="確認新密碼"
+            autoComplete="new-password"
+          />
+        </div>
+        {localError && (
+          <div className="border border-[#D4574A]/40 bg-[#FDF0EE] px-3 py-2 text-[12px] text-[#D4574A]">
+            {localError}
+          </div>
+        )}
+        <div className="flex items-center justify-end gap-2 border-t border-ink-200 pt-4">
+          <button type="button" onClick={onClose} className="btn-teal-outline">
+            {t.common.cancel}
+          </button>
+          <button type="submit" disabled={busy} className="btn-acid">
+            {busy ? t.common.loading : t.agents.resetPassword}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
 function StatusDropdown({
   current,
   onChange,
-  memberOnly,
 }: {
-  current: 'ACTIVE' | 'FROZEN' | 'DELETED';
-  onChange: (next: 'ACTIVE' | 'FROZEN' | 'DELETED') => void;
-  memberOnly?: boolean;
+  current: AccountStatus;
+  onChange: (next: AccountStatus) => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
-  const options: { value: 'ACTIVE' | 'FROZEN' | 'DELETED'; label: string; style: string }[] = memberOnly
-    ? [
-        { value: 'ACTIVE', label: t.agents.enable, style: 'text-win' },
-        { value: 'FROZEN', label: t.agents.freezeAction, style: 'text-[#D4574A]' },
-      ]
-    : [
-        { value: 'ACTIVE', label: t.agents.enable, style: 'text-win' },
-        { value: 'FROZEN', label: t.agents.freezeAction, style: 'text-[#D4574A]' },
-        { value: 'DELETED', label: t.agents.deleteAction, style: 'text-[#D4574A] font-bold' },
-      ];
+  const [menuRect, setMenuRect] = useState<{ top: number; left: number } | null>(null);
+  const options: { value: AccountStatus; label: string; style: string }[] = [
+    { value: 'ACTIVE', label: t.agents.enable, style: 'text-win' },
+    { value: 'FROZEN', label: t.agents.freezeAction, style: 'text-[#B45309]' },
+    { value: 'DISABLED', label: t.agents.disableAction, style: 'text-[#D4574A] font-bold' },
+  ];
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('resize', close);
+    window.addEventListener('scroll', close, true);
+    return () => {
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
+    };
+  }, [open]);
+
+  const toggle = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) {
+      const menuWidth = 128;
+      setMenuRect({
+        top: rect.bottom + 6,
+        left: Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8)),
+      });
+    }
+    setOpen((value) => !value);
+  };
+
   return (
-    <div className="relative">
+    <>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((o) => !o);
-        }}
+        onClick={toggle}
         className="btn-chip"
       >
         {t.agents.statusMenu} ▾
       </button>
-      {open && (
+      {open && menuRect && createPortal(
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-50 mt-1 w-24 border border-ink-200 bg-white shadow-lg">
+          <div className="fixed inset-0 z-[1200]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-[1201] w-32 border border-ink-200 bg-white shadow-xl"
+            style={{ top: menuRect.top, left: menuRect.left }}
+            onClick={(event) => event.stopPropagation()}
+          >
             {options.map((o) => (
               <button
                 key={o.value}
@@ -595,9 +688,10 @@ function StatusDropdown({
               </button>
             ))}
           </div>
-        </>
+        </>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }
 
@@ -615,7 +709,4 @@ function fmt(s: string): string {
   const n = Number.parseFloat(s);
   if (Number.isNaN(n)) return '0.00';
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function pct(s: string): string {
-  return `${(Number.parseFloat(s) * 100).toFixed(2)}%`;
 }

@@ -19,7 +19,7 @@ const BCRYPT_ROUNDS = 12;
  * 子帳號 = 同層從屬的唯讀員工帳號。
  * level 與 parent 相同（不是下一層）。
  * rebatePercentage = 0（子帳號不分退水）。
- * commissionRate / maxRebatePercentage / marketType 繼承 parent。
+ * maxRebatePercentage / marketType 繼承 parent；占成欄位保留但固定 0。
  */
 export class SubAccountService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -33,7 +33,7 @@ export class SubAccountService {
   private async resolveParent(
     operator: AdminCurrent,
     requestedParentId: string | undefined,
-  ): Promise<{ id: string; username: string; level: number; commissionRate: import('@prisma/client').Prisma.Decimal; rebatePercentage: import('@prisma/client').Prisma.Decimal; maxRebatePercentage: import('@prisma/client').Prisma.Decimal; marketType: 'D' | 'A'; bettingLimitLevel: string; role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT'; status: 'ACTIVE' | 'FROZEN' | 'DELETED' }> {
+  ): Promise<{ id: string; username: string; level: number; rebatePercentage: import('@prisma/client').Prisma.Decimal; maxRebatePercentage: import('@prisma/client').Prisma.Decimal; marketType: 'D' | 'A'; bettingLimitLevel: string; role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT'; status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED' }> {
     if (operator.role === 'SUB_ACCOUNT') {
       throw new ApiError('FORBIDDEN', 'Sub-account cannot manage sub-accounts');
     }
@@ -63,7 +63,6 @@ export class SubAccountService {
       id: parent.id,
       username: parent.username,
       level: parent.level,
-      commissionRate: parent.commissionRate,
       rebatePercentage: parent.rebatePercentage,
       maxRebatePercentage: parent.maxRebatePercentage,
       marketType: parent.marketType,
@@ -145,7 +144,7 @@ export class SubAccountService {
         parentId: parent.id,
         level: parent.level,
         marketType: parent.marketType,
-        commissionRate: parent.commissionRate,
+        commissionRate: '0',
         rebateMode: 'NONE',
         rebatePercentage: '0',
         maxRebatePercentage: parent.maxRebatePercentage,
@@ -199,8 +198,7 @@ export class SubAccountService {
       data: { status: input.status },
     });
 
-    // 若凍結：撤銷所有 refresh tokens
-    if (input.status === 'FROZEN') {
+    if (input.status === 'DISABLED') {
       await this.prisma.agentRefreshToken.updateMany({
         where: { agentId: id, revokedAt: null },
         data: { revokedAt: new Date() },

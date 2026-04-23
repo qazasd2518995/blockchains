@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { AgentPublic, SubAccountListResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { CreateSubAccountModal } from '@/components/shared/CreateSubAccountModal';
+import { Modal } from '@/components/shared/Modal';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
 
@@ -17,6 +19,7 @@ export function SubAccountsPage(): JSX.Element {
   const [reloadKey, setReloadKey] = useState(0);
   const [openCreate, setOpenCreate] = useState(false);
   const [targetParentId, setTargetParentId] = useState<string>('');
+  const [resetFor, setResetFor] = useState<AgentPublic | null>(null);
 
   const isSuperAdmin = agent?.role === 'SUPER_ADMIN';
   const isSubAccount = agent?.role === 'SUB_ACCOUNT';
@@ -47,31 +50,11 @@ export function SubAccountsPage(): JSX.Element {
     };
   }, [reloadKey, isSuperAdmin, targetParentId]);
 
-  const handleStatus = async (row: AgentPublic, next: 'ACTIVE' | 'FROZEN') => {
+  const handleStatus = async (row: AgentPublic, next: 'ACTIVE' | 'FROZEN' | 'DISABLED') => {
     if (next === 'FROZEN' && !confirm(`確定凍結子帳號 ${row.username}？`)) return;
+    if (next === 'DISABLED' && !confirm(`確定停用子帳號 ${row.username}？停用後將無法登入。`)) return;
     try {
       await adminApi.patch(`/subaccounts/${row.id}/status`, { status: next });
-      setReloadKey((k) => k + 1);
-    } catch (e) {
-      setError(extractApiError(e).message);
-    }
-  };
-
-  const handleResetPassword = async (row: AgentPublic) => {
-    const pwd = prompt(`為 ${row.username} 設置新密碼（至少 8 字,須含英數）:`);
-    if (!pwd) return;
-    try {
-      await adminApi.post(`/subaccounts/${row.id}/reset-password`, { newPassword: pwd });
-      alert('密碼已重設');
-    } catch (e) {
-      setError(extractApiError(e).message);
-    }
-  };
-
-  const handleDelete = async (row: AgentPublic) => {
-    if (!confirm(`確定刪除子帳號 ${row.username}？此操作不可逆（可審計保留）。`)) return;
-    try {
-      await adminApi.delete(`/subaccounts/${row.id}`);
       setReloadKey((k) => k + 1);
     } catch (e) {
       setError(extractApiError(e).message);
@@ -96,6 +79,8 @@ export function SubAccountsPage(): JSX.Element {
         render: (r) =>
           r.status === 'FROZEN' ? (
             <span className="tag tag-ember">{t.agent.status.FROZEN}</span>
+          ) : r.status === 'DISABLED' ? (
+            <span className="tag tag-ember">{t.agent.status.DISABLED}</span>
           ) : r.status === 'DELETED' ? (
             <span className="tag tag-ember">{t.agent.status.DELETED}</span>
           ) : (
@@ -134,7 +119,7 @@ export function SubAccountsPage(): JSX.Element {
             <div className="flex flex-wrap items-center justify-end gap-1.5">
               <button
                 type="button"
-                onClick={() => handleResetPassword(r)}
+                onClick={() => setResetFor(r)}
                 className="btn-chip"
                 disabled={r.status === 'DELETED'}
               >
@@ -145,14 +130,6 @@ export function SubAccountsPage(): JSX.Element {
                 onChange={(next) => handleStatus(r, next)}
                 disabled={r.status === 'DELETED'}
               />
-              <button
-                type="button"
-                onClick={() => handleDelete(r)}
-                className="btn-chip border-[#D4574A]/40 text-[#D4574A]"
-                disabled={r.status === 'DELETED'}
-              >
-                刪除
-              </button>
             </div>
           ),
       },
@@ -229,7 +206,102 @@ export function SubAccountsPage(): JSX.Element {
         parentUsername={parentUsername ?? (isSuperAdmin ? targetParentId : agent?.username ?? null)}
         parentAgentId={isSuperAdmin ? targetParentId || undefined : undefined}
       />
+      {resetFor && (
+        <ResetSubAccountPasswordModal
+          target={resetFor}
+          onClose={() => setResetFor(null)}
+          onDone={() => {
+            setResetFor(null);
+            setReloadKey((k) => k + 1);
+          }}
+          onError={setError}
+        />
+      )}
     </div>
+  );
+}
+
+function ResetSubAccountPasswordModal({
+  target,
+  onClose,
+  onDone,
+  onError,
+}: {
+  target: AgentPublic;
+  onClose: () => void;
+  onDone: () => void;
+  onError: (msg: string) => void;
+}): JSX.Element {
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (event: React.FormEvent): Promise<void> => {
+    event.preventDefault();
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+      setLocalError('密碼至少 8 字，且必須包含英文字母與數字。');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setLocalError('兩次輸入的密碼不一致。');
+      return;
+    }
+    setBusy(true);
+    setLocalError(null);
+    try {
+      await adminApi.post(`/subaccounts/${target.id}/reset-password`, { newPassword: password });
+      onDone();
+    } catch (e) {
+      onError(extractApiError(e).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal open onClose={onClose} title="重設密碼" subtitle={`子帳號 · ${target.username}`} width="sm">
+      <form onSubmit={submit} className="space-y-4">
+        <div className="border border-[#D4AF37]/35 bg-[#FFF8DA] px-3 py-2 text-[12px] text-ink-700">
+          重設後原有登入憑證會失效，子帳號需要使用新密碼重新登入。
+        </div>
+        <div>
+          <div className="label mb-2">新密碼</div>
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="term-input"
+            placeholder="至少 8 字，含英數"
+            autoComplete="new-password"
+          />
+        </div>
+        <div>
+          <div className="label mb-2">再次輸入</div>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            className="term-input"
+            placeholder="確認新密碼"
+            autoComplete="new-password"
+          />
+        </div>
+        {localError && (
+          <div className="border border-[#D4574A]/40 bg-[#FDF0EE] px-3 py-2 text-[12px] text-[#D4574A]">
+            {localError}
+          </div>
+        )}
+        <div className="flex items-center justify-end gap-2 border-t border-ink-200 pt-4">
+          <button type="button" onClick={onClose} className="btn-teal-outline">
+            取消
+          </button>
+          <button type="submit" disabled={busy} className="btn-acid">
+            {busy ? '處理中' : '重設密碼'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -239,32 +311,62 @@ function StatusToggle({
   disabled,
 }: {
   current: AgentPublic['status'];
-  onChange: (next: 'ACTIVE' | 'FROZEN') => void;
+  onChange: (next: 'ACTIVE' | 'FROZEN' | 'DISABLED') => void;
   disabled?: boolean;
 }): JSX.Element {
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
-  const options: { value: 'ACTIVE' | 'FROZEN'; label: string; style: string }[] = [
+  const [menuRect, setMenuRect] = useState<{ top: number; left: number } | null>(null);
+  const options: { value: 'ACTIVE' | 'FROZEN' | 'DISABLED'; label: string; style: string }[] = [
     { value: 'ACTIVE', label: '啟用', style: 'text-win' },
-    { value: 'FROZEN', label: '凍結', style: 'text-[#D4574A]' },
+    { value: 'FROZEN', label: '凍結', style: 'text-[#B45309]' },
+    { value: 'DISABLED', label: '停用', style: 'text-[#D4574A] font-bold' },
   ];
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('resize', close);
+    window.addEventListener('scroll', close, true);
+    return () => {
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
+    };
+  }, [open]);
+
+  const toggle = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (disabled) return;
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) {
+      const menuWidth = 112;
+      setMenuRect({
+        top: rect.bottom + 6,
+        left: Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8)),
+      });
+    }
+    setOpen((o) => !o);
+  };
+
   return (
-    <div className="relative">
+    <>
       <button
+        ref={buttonRef}
         type="button"
         disabled={disabled}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (disabled) return;
-          setOpen((o) => !o);
-        }}
+        onClick={toggle}
         className="btn-chip"
       >
         狀態 ▾
       </button>
-      {open && (
+      {open && menuRect && createPortal(
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-50 mt-1 w-24 border border-ink-200 bg-white shadow-lg">
+          <div className="fixed inset-0 z-[1200]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-[1201] w-28 border border-ink-200 bg-white shadow-lg"
+            style={{ top: menuRect.top, left: menuRect.left }}
+            onClick={(event) => event.stopPropagation()}
+          >
             {options.map((o) => (
               <button
                 key={o.value}
@@ -284,8 +386,9 @@ function StatusToggle({
               </button>
             ))}
           </div>
-        </>
+        </>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }

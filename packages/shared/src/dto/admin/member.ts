@@ -7,8 +7,9 @@ export interface MemberPublic {
   balance: string;
   marketType: 'D' | 'A';
   bettingLimitLevel: string;
-  status: 'ACTIVE' | 'FROZEN';
+  status: 'ACTIVE' | 'FROZEN' | 'DISABLED';
   frozenAt: string | null;
+  disabledAt: string | null;
   notes: string | null;
   lastLoginAt: string | null;
   createdAt: string;
@@ -29,7 +30,7 @@ export interface UpdateMemberNotesRequest {
 }
 
 export interface UpdateMemberStatusRequest {
-  status: 'ACTIVE' | 'FROZEN';
+  status: 'ACTIVE' | 'FROZEN' | 'DISABLED';
 }
 
 export interface AdjustMemberBalanceRequest {

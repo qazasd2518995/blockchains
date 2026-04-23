@@ -1,0 +1,7 @@
+ALTER TYPE "AgentStatus" ADD VALUE IF NOT EXISTS 'DISABLED';
+
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "disabledAt" TIMESTAMP(3);
+
+ALTER TABLE "Agent" ALTER COLUMN "commissionRate" SET DEFAULT 0;
+
+UPDATE "Agent" SET "commissionRate" = 0;

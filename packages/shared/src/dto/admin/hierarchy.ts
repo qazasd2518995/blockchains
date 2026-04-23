@@ -9,7 +9,7 @@ export type HierarchyItem =
       balance: string;
       rebatePercentage: string;
       bettingLimitLevel: string;
-      status: 'ACTIVE' | 'FROZEN' | 'DELETED';
+      status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
       role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
       createdAt: string;
       childCount: number;
@@ -25,8 +25,9 @@ export type HierarchyItem =
       marketType: 'D' | 'A';
       balance: string;
       bettingLimitLevel: string;
-      status: 'ACTIVE' | 'FROZEN';
+      status: 'ACTIVE' | 'FROZEN' | 'DISABLED';
       frozenAt: string | null;
+      disabledAt: string | null;
       notes: string | null;
       createdAt: string;
     };
@@ -41,7 +42,7 @@ export interface HierarchyResponse {
     balance: string;
     rebatePercentage: string;
     role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
-    status: 'ACTIVE' | 'FROZEN' | 'DELETED';
+    status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
     parentId: string | null;
   } | null;
   breadcrumb: { id: string; username: string; level: number }[];
@@ -80,7 +81,7 @@ export type HierarchyReportItem =
       displayName: string | null;
       level: number;
       rebatePercentage: string;
-      status: 'ACTIVE' | 'FROZEN' | 'DELETED';
+      status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
       role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
     })
   | (HierarchyReportCommon & {
@@ -90,7 +91,7 @@ export type HierarchyReportItem =
       displayName: string | null;
       level: null;
       rebatePercentage: string;
-      status: 'ACTIVE' | 'FROZEN';
+      status: 'ACTIVE' | 'FROZEN' | 'DISABLED';
     });
 
 export interface HierarchyReportResponse {
