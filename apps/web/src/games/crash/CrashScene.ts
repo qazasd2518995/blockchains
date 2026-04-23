@@ -681,8 +681,8 @@ export class CrashScene {
     this.maxMultiplier = 2.0;
     this.tensionStart = performance.now() / 1000;
     if (this.statusLabel) {
-      this.statusLabel.text = `PROVABLE ${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
-      this.statusLabel.style.fill = COLOR_TOXIC;
+      this.statusLabel.text = '';
+      this.statusLabel.style.fill = COLOR_WHITE;
     }
     if (this.multiplierLabel) {
       this.multiplierLabel.text = '1.00×';
