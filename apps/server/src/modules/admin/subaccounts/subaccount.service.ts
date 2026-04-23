@@ -14,6 +14,7 @@ import type {
 import type { FastifyRequest } from 'fastify';
 
 const BCRYPT_ROUNDS = 12;
+const MAX_SUB_ACCOUNTS_PER_AGENT = 5;
 
 /**
  * 子帳號 = 同層從屬的唯讀員工帳號。
@@ -26,7 +27,7 @@ export class SubAccountService {
 
   /**
    * 解析「當前操作者」想操作的 parentAgent：
-   * - SUPER_ADMIN：可帶 parentAgentId 指定任一代理；省略則不允許
+   * - SUPER_ADMIN：可帶 parentAgentId 指定任一代理；省略則建立在自己底下
    * - AGENT：一律以自己為 parent，忽略 body.parentAgentId
    * - SUB_ACCOUNT：不允許建立（寫操作已被全域 preHandler 擋住，這裡雙重保險）
    */
@@ -40,10 +41,7 @@ export class SubAccountService {
 
     let parentId: string;
     if (operator.role === 'SUPER_ADMIN') {
-      if (!requestedParentId) {
-        throw new ApiError('INVALID_ACTION', 'parentAgentId required for super admin');
-      }
-      parentId = requestedParentId;
+      parentId = requestedParentId ?? operator.id;
     } else {
       parentId = operator.id;
     }
@@ -78,11 +76,7 @@ export class SubAccountService {
   ): Promise<{ items: AgentPublic[]; parentUsername: string | null }> {
     let parentId: string;
     if (operator.role === 'SUPER_ADMIN') {
-      parentId = requestedParentId ?? '';
-      if (!parentId) {
-        // 沒指定：回空
-        return { items: [], parentUsername: null };
-      }
+      parentId = requestedParentId ?? operator.id;
     } else if (operator.role === 'AGENT') {
       parentId = operator.id;
     } else {
@@ -127,6 +121,20 @@ export class SubAccountService {
     req?: FastifyRequest,
   ): Promise<AgentPublic> {
     const parent = await this.resolveParent(operator, input.parentAgentId);
+
+    const existingSubAccountCount = await this.prisma.agent.count({
+      where: {
+        parentId: parent.id,
+        role: 'SUB_ACCOUNT',
+        status: { not: 'DELETED' },
+      },
+    });
+    if (existingSubAccountCount >= MAX_SUB_ACCOUNTS_PER_AGENT) {
+      throw new ApiError(
+        'INVALID_ACTION',
+        `Each agent can create at most ${MAX_SUB_ACCOUNTS_PER_AGENT} sub-accounts`,
+      );
+    }
 
     // username 唯一
     const existing = await this.prisma.agent.findUnique({

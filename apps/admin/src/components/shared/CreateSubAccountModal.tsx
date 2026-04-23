@@ -9,17 +9,21 @@ import { Modal } from './Modal';
 const schema = z.object({
   username: z
     .string()
-    .min(3, '帳號至少 3 位')
-    .max(64, '帳號至多 64 位')
-    .regex(/^[a-zA-Z0-9._-]+$/, '帳號僅限字母、數字、. _ -'),
+    .min(3, '账号至少 3 位')
+    .max(64, '账号至多 64 位')
+    .regex(/^[a-zA-Z0-9._-]+$/, '账号仅限字母、数字、. _ -'),
   password: z
     .string()
-    .min(8, '密碼至少 8 位')
-    .max(128, '密碼最長 128')
+    .min(8, '密码至少 8 位')
+    .max(128, '密码最长 128')
     .regex(/[A-Za-z]/, '需包含字母')
-    .regex(/\d/, '需包含數字'),
+    .regex(/\d/, '需包含数字'),
+  confirmPassword: z.string().min(8, '请再次输入密码'),
   displayName: z.string().max(40).optional(),
   notes: z.string().max(500).optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+  path: ['confirmPassword'],
+  message: '两次输入的密码不一致',
 });
 
 type FormInput = z.infer<typeof schema>;
@@ -52,6 +56,7 @@ export function CreateSubAccountModal({
     defaultValues: {
       username: '',
       password: '',
+      confirmPassword: '',
       displayName: '',
       notes: '',
     },
@@ -60,7 +65,7 @@ export function CreateSubAccountModal({
   useEffect(() => {
     if (!open) return;
     setErr(null);
-    reset({ username: '', password: '', displayName: '', notes: '' });
+    reset({ username: '', password: '', confirmPassword: '', displayName: '', notes: '' });
   }, [open, reset]);
 
   const onSubmit = async (data: FormInput) => {
@@ -85,40 +90,51 @@ export function CreateSubAccountModal({
     <Modal open={open} onClose={onClose} title="创建子账号" subtitle="新增子账号" width="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="border border-[#186073]/30 bg-[#E8F4F8]/40 p-3 text-[12px] text-[#0F4555]">
-          將建立在代理{' '}
+          将建立在代理{' '}
           <span className="font-mono font-semibold text-[#186073]">
             {parentUsername ?? '—'}
           </span>{' '}
-          下。子帳號僅可「讀取」該代理線的報表、注單、會員列表，不能執行任何管理操作。
+          下。子账号仅可读取该代理线的报表、注单、会员列表，不能执行任何管理操作。
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="帳號" code="01" error={errors.username?.message}>
-            <input
-              type="text"
-              autoComplete="off"
-              autoCapitalize="off"
-              spellCheck={false}
-              {...register('username')}
-              className="term-input font-mono"
-              placeholder="staff_01"
-            />
-          </Field>
-          <Field label="密碼" code="02" error={errors.password?.message}>
+        <Field label="账号" code="01" error={errors.username?.message}>
+          <input
+            type="text"
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            {...register('username')}
+            className="term-input font-mono"
+            placeholder="staff_01"
+          />
+        </Field>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="密码" code="02" error={errors.password?.message}>
             <input
               type="password"
               {...register('password')}
               className="term-input"
-              placeholder="••••••••"
+              placeholder="至少 8 位，含英数"
+              autoComplete="new-password"
+            />
+          </Field>
+          <Field label="确认密码" code="03" error={errors.confirmPassword?.message}>
+            <input
+              type="password"
+              {...register('confirmPassword')}
+              className="term-input"
+              placeholder="再次输入密码"
+              autoComplete="new-password"
             />
           </Field>
         </div>
 
-        <Field label="顯示名稱" code="03" error={errors.displayName?.message}>
-          <input type="text" {...register('displayName')} className="term-input" placeholder="選填" />
+        <Field label="显示名称" code="04" error={errors.displayName?.message}>
+          <input type="text" {...register('displayName')} className="term-input" placeholder="选填" />
         </Field>
 
-        <Field label="備註" code="04" error={errors.notes?.message}>
+        <Field label="备注" code="05" error={errors.notes?.message}>
           <textarea rows={2} {...register('notes')} className="term-input resize-none" />
         </Field>
 
@@ -130,7 +146,7 @@ export function CreateSubAccountModal({
 
         <div className="flex items-center gap-2 pt-2">
           <button type="submit" disabled={isSubmitting} className="btn-acid">
-            → 建立子帳號
+            → 建立子账号
           </button>
           <button type="button" onClick={onClose} className="btn-teal-outline">
             [取消]

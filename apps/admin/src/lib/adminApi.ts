@@ -131,6 +131,7 @@ function translateMessage(code: string, rawMessage: string): string {
   if (msg.includes('cannot access this agent')) return '无权访问该代理';
   if (msg.includes('rebatepercentage exceeds parent')) return '退水比例超过上级上限';
   if (msg.includes('commissionrate exceeds parent')) return '占成比例超过上级上限';
+  if (msg.includes('at most') && msg.includes('sub-accounts')) return '每个代理最多可以创建 5 个子账号';
   if (msg.includes('parent is not active')) return '上级代理未启用';
   if (msg.includes('target agent is not active')) return '目标代理未启用';
   if (msg.includes('admin authentication required')) return '请先登录管理员账号';

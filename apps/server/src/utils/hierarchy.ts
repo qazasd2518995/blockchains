@@ -28,8 +28,11 @@ export async function canManageAgent(
   targetAgentId: string,
 ): Promise<boolean> {
   if (operator.role === 'SUPER_ADMIN') return true;
-  if (operator.id === targetAgentId) return true;
-  const descendants = await listAgentDescendants(db, operator.id);
+
+  const scopeRootId = await resolveAgentScopeRootId(db, operator);
+  if (!scopeRootId) return false;
+  if (scopeRootId === targetAgentId || operator.id === targetAgentId) return true;
+  const descendants = await listAgentDescendants(db, scopeRootId);
   return descendants.includes(targetAgentId);
 }
 
@@ -42,11 +45,25 @@ export async function canManageMember(
   memberId: string,
 ): Promise<boolean> {
   if (operator.role === 'SUPER_ADMIN') return true;
+  const scopeRootId = await resolveAgentScopeRootId(db, operator);
+  if (!scopeRootId) return false;
   const member = await db.user.findUnique({
     where: { id: memberId },
     select: { agentId: true },
   });
   if (!member?.agentId) return false;
-  const descendants = await listAgentDescendants(db, operator.id);
+  const descendants = await listAgentDescendants(db, scopeRootId);
   return descendants.includes(member.agentId);
+}
+
+async function resolveAgentScopeRootId(
+  db: Db,
+  operator: { id: string; role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT' },
+): Promise<string | null> {
+  if (operator.role !== 'SUB_ACCOUNT') return operator.id;
+  const subAccount = await db.agent.findUnique({
+    where: { id: operator.id },
+    select: { parentId: true },
+  });
+  return subAccount?.parentId ?? null;
 }
