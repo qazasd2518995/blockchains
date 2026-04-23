@@ -1,0 +1,97 @@
+Dealer photo prompt pack for login pages, hero banners, and admin banners
+
+Safety and style rules for every prompt:
+- The model must be an adult Taiwanese woman, age 25-30, clearly adult.
+- Glamorous and sexy is okay, but keep it non-explicit: no nudity, no transparent clothing, no lingerie, no fetish styling, no explicit pose.
+- Avoid minors, teen appearance, school uniforms, childlike styling, or anime child proportions.
+- Avoid readable text, logos, brand marks, watermarks, UI screenshots, currency symbols, and real casino brand references.
+- These images are for website backgrounds. Leave clean negative space where the UI overlays text or cards.
+- Prefer photorealistic editorial photography with premium casino lighting. Make skin texture natural, not plastic.
+
+----------------------------------------------------------------------
+01. Agent login background - main priority
+Target path after generation: apps/admin/public/backgrounds/admin-login.png
+Aspect ratio: 16:9 or 2:1 wide background, target 1800 x 1000 or larger
+Prompt:
+Create a photorealistic premium casino operations login background. An adult Taiwanese female casino dealer, age 25-30, stands confidently in a modern private gaming lounge. She wears an elegant black satin dealer mini dress with a tailored vest, bare shoulders, tasteful low neckline, sheer black stockings, and polished heels; glamorous but non-explicit. She holds a deck of cards and stands near a roulette table with soft gold reflections. Composition for website login: keep the left 50 percent dark and uncluttered for large headline text, place the dealer around the center-right but not at the extreme right because a login card will overlay there. Use cinematic lighting, warm gold highlights, teal shadows, shallow depth of field, luxurious marble and velvet textures. Mood: exclusive, seductive, professional, high-end. No readable text, no logos, no watermark, no UI, no nudity.
+
+Negative prompt:
+underage, teen, childlike face, school uniform, lingerie, nude, transparent clothing, explicit pose, pornographic, spread legs, visible nipples, visible genitals, distorted hands, extra fingers, bad anatomy, plastic skin, heavy blur, readable text, logo, watermark
+
+----------------------------------------------------------------------
+02. Member login background
+Target path after generation: apps/web/public/backgrounds/member-login-dealer.png
+Aspect ratio: 16:9 or 2:1 wide background, target 1800 x 1000 or larger
+Prompt:
+Create a photorealistic glamorous online casino member login background. An adult Taiwanese female dealer, age 25-30, smiles subtly while leaning one hand on a blackjack table in a stylish casino lounge. Outfit: elegant deep burgundy cocktail dealer dress, sleeveless, tasteful neckline, fitted silhouette, fully covered, glamorous but non-explicit. Add playing cards, chips, and warm pendant lights in the background. Composition for website UI: left side should have dark negative space for headline copy; dealer should be positioned slightly right of center, with enough room on the far right for a white login form overlay. Color palette: burgundy, champagne gold, dark teal, black marble. Photorealistic editorial lighting, natural skin, premium lens look, shallow depth of field. No readable text, no logos, no watermark, no UI, no nudity.
+
+Negative prompt:
+underage, teen, childlike, school uniform, lingerie, nude, transparent clothing, explicit pose, pornographic, visible nipples, visible genitals, distorted hands, extra fingers, fake plastic skin, unreadable face, readable text, logo, watermark
+
+----------------------------------------------------------------------
+03. Landing page hero - welcome slide
+Target path after generation: apps/web/public/banners/hero-welcome-dealer.png
+Aspect ratio: 2:1 wide banner, target 1980 x 900
+Prompt:
+Create a wide photorealistic casino hero banner for a premium gaming website. An adult Taiwanese female dealer, age 25-30, stands at the right side of a luminous casino floor, presenting an open table with cards and chips. Outfit: elegant ivory and gold dealer dress, sleeveless, tasteful glamorous styling, fully covered, non-explicit. The left 55 percent must remain darker and clean for website headline text. Add subtle roulette wheel glow, slot lights, and polished reflections in the background, but keep it refined rather than cluttered. Color palette: midnight navy, champagne gold, ivory, teal highlights. Camera: cinematic 35mm editorial look, shallow depth of field, realistic skin texture. No readable text, no logos, no watermark, no UI, no nudity.
+
+Negative prompt:
+underage, teen, childlike, school uniform, lingerie, nude, transparent clothing, explicit pose, pornography, readable text, logo, watermark, distorted hands, extra fingers, bad anatomy
+
+----------------------------------------------------------------------
+04. Landing page hero - crash hall slide
+Target path after generation: apps/web/public/banners/hero-crash-dealer.png
+Aspect ratio: 2:1 wide banner, target 1980 x 900
+Prompt:
+Create a wide photorealistic and cinematic crash-game hero banner. An adult Taiwanese female casino host, age 25-30, stands on the right side in a sleek silver-black cocktail dealer outfit with tasteful bare shoulders, fully covered and non-explicit. Behind her, a stylized digital casino wall shows abstract rocket trails, jet light streaks, and rising energy lines, without any readable numbers or text. The left 55 percent should be dark and uncluttered for headline overlay. Mood: fast, exciting, sexy, premium, but still professional. Color palette: electric blue, silver, black, small magenta accents, warm skin tones. No readable text, no logos, no watermark, no UI, no nudity.
+
+Negative prompt:
+underage, teen, childlike, school uniform, lingerie, nude, transparent clothing, explicit pose, pornographic, readable text, logo, watermark, distorted face, distorted hands, extra fingers
+
+----------------------------------------------------------------------
+05. Landing page hero - strategy hall slide
+Target path after generation: apps/web/public/banners/hero-strategy-dealer.png
+Aspect ratio: 2:1 wide banner, target 1980 x 900
+Prompt:
+Create a wide photorealistic strategy casino hero banner. An adult Taiwanese female dealer, age 25-30, stands on the right side beside a polished table with cards, gem tiles, and a small tower of chips. Outfit: emerald green satin dealer dress with a tailored black jacket, tasteful neckline, fully covered, glamorous and non-explicit. Background: elegant private game room with subtle plinko pegs, mines-style tiles, and card symbols as premium decor, not UI. The left 55 percent must be dark negative space for website text overlay. Color palette: emerald green, black, gold, cream, soft cyan highlights. Editorial lighting, shallow depth of field, realistic skin texture. No readable text, no logos, no watermark, no UI, no nudity.
+
+Negative prompt:
+underage, teen, childlike, school uniform, lingerie, nude, transparent clothing, explicit pose, pornographic, readable text, logo, watermark, distorted hands, bad anatomy
+
+----------------------------------------------------------------------
+06. Admin dashboard banner
+Target path after generation: apps/admin/public/banners/dashboard-agent-host.png
+Aspect ratio: 2.2:1 wide banner, target 1800 x 820
+Prompt:
+Create a premium admin dashboard banner for a casino agent operations system. An adult Taiwanese female casino host, age 25-30, stands on the right side in a tailored black and gold dealer uniform, elegant and sexy but professional, fully covered, non-explicit. She looks confident and businesslike, holding a tablet with abstract charts that are not readable. Background: private casino operations desk, soft monitors, chips, ledger books, warm gold and teal lighting. Composition: left 60 percent dark and minimal for admin title and description overlay; subject on right, not too close to the edge. Mood: control room, VIP, high-end operations. No readable text, no logos, no watermark, no UI, no nudity.
+
+Negative prompt:
+underage, teen, school uniform, lingerie, nude, transparent clothing, explicit pose, pornography, readable text, logo, watermark, distorted hands, extra fingers, bad anatomy
+
+----------------------------------------------------------------------
+07. Admin risk controls banner
+Target path after generation: apps/admin/public/banners/controls-risk-host.png
+Aspect ratio: 2.2:1 wide banner, target 1800 x 820
+Prompt:
+Create a premium casino risk-control banner for an agent admin system. An adult Taiwanese female dealer supervisor, age 25-30, stands on the right side wearing a sleek crimson-black tailored casino dress with a fitted blazer, tasteful and glamorous but non-explicit. She is reviewing chips and cards on a dark table while abstract red risk lights and teal monitoring screens glow softly in the background. Keep the left 60 percent dark, clean, and uncluttered for title overlay. Mood: alert, controlled, VIP back-office, seductive but professional. Photorealistic editorial photography, cinematic contrast, natural skin texture. No readable text, no logos, no watermark, no UI, no nudity.
+
+Negative prompt:
+underage, teen, childlike, school uniform, lingerie, nude, transparent clothing, explicit pose, pornographic, readable text, logo, watermark, distorted hands, extra fingers, bad anatomy
+
+----------------------------------------------------------------------
+08. Subtle admin shell background, less sexy and more professional
+Target path after generation: apps/admin/public/backgrounds/admin-shell-host.png
+Aspect ratio: 16:9 wide background, target 1800 x 1000
+Prompt:
+Create a subtle photorealistic background for a casino agent admin shell. A premium private casino lounge is seen out of focus, with a partially visible adult Taiwanese female dealer silhouette at the far right edge, age 25-30, wearing a tasteful black dealer uniform. She should be secondary and mostly atmospheric, not a main pin-up subject. Use dark navy, teal, gold, and black glass textures. Keep the whole frame low contrast enough for admin page headers and tables to remain readable. No readable text, no logos, no watermark, no UI, no nudity, no explicit pose.
+
+Negative prompt:
+underage, teen, childlike, school uniform, lingerie, nude, transparent clothing, explicit pose, pornography, readable text, logo, watermark, sharp busy background, cluttered UI, distorted anatomy
+
+----------------------------------------------------------------------
+Recommended placement order:
+1. Replace admin login first: apps/admin/public/backgrounds/admin-login.png
+2. Add member login as a new file and update LoginPage to use /backgrounds/member-login-dealer.png
+3. If the visual direction works, add 1-3 landing hero variants as optional slides or replacements.
+4. For admin pages, use dealer photos only in dashboard and risk banners. Keep table-heavy pages mostly abstract to preserve readability.
+

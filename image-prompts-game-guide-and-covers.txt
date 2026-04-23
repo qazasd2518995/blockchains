@@ -1,0 +1,146 @@
+Image prompt pack for GAME GUIDE background and 18 game covers
+
+General notes for every image:
+- Generate with the strongest image model available in your tool.
+- Do not render any readable text, game title, logo, watermark, UI button, currency symbol, or brand mark inside the image.
+- The website already overlays all labels and copy. The images should be clean artwork only.
+- Keep the main subject in the center or upper center. Leave the lower 35 percent less busy so text overlays remain readable.
+- Use rich, varied colors across the set. Avoid making all covers the same blue-purple neon style.
+- Avoid real casino brand references, copyrighted character styles, photorealistic real people, screenshots, and cluttered UI panels.
+- If the model allows aspect ratio or size:
+  - Game covers: 3:4 portrait, target 1086 x 1448.
+  - GAME GUIDE background: wide hero, target 1800 x 900 or 2:1.
+
+----------------------------------------------------------------------
+00. GAME GUIDE hero background
+Target path after generation: apps/web/public/backgrounds/game-guide-bg.png
+Aspect ratio: 2:1 wide hero
+Prompt:
+Create a premium wide hero background for an online game guide card, showing a refined fantasy arcade casino floor that combines three zones in one cinematic scene: fast crash flight games, classic dice and wheel games, and strategy puzzle games. On the right side, show a dramatic layered composition with a stylized rocket trail, glowing roulette wheel rim, dice, gem tiles, and plinko pegs floating as polished 3D objects. On the left side, keep generous dark negative space with subtle texture for website copy overlay. The mood should feel high-end, exciting, trustworthy, and modern. Use deep navy and charcoal as the base, with controlled accents of gold, teal, crimson, violet, and electric blue. Add soft volumetric lighting, glassy reflections, subtle particle trails, and depth of field. No text, no numbers, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+01. Rocket
+Target path after generation: apps/web/public/games/rocket.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a premium 3D game cover for a crash game about a rocket launch. A sleek stylized rocket blasts upward from a futuristic launch pad, leaving a bright golden-orange flame trail and sparks. The camera looks slightly upward, making the rocket feel powerful and fast. Background: dark midnight sky with teal clouds and faint stars, not too busy. Color palette: hot orange, gold, deep teal, smoke gray, small red accents. Style: polished 3D mobile game key art with cinematic lighting, sharp silhouette, rich depth, and arcade energy. Keep the rocket centered in the upper half, lower area calmer for text overlay. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+02. Aviator
+Target path after generation: apps/web/public/games/aviator.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a retro aviation inspired game cover for a crash game. Show a charming stylized propeller plane climbing through warm sunset clouds, with a small pilot silhouette visible but not photorealistic. The plane leaves a graceful curved trail that suggests rising multiplier tension without using numbers. Style: painterly 3D illustration, slightly chibi proportions, playful but premium. Color palette: sky blue, cream clouds, coral sunset, brass gold, burgundy shadows. Composition: plane centered upper middle, diagonal climb from lower left to upper right, soft cloud shapes around it. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+03. JetX
+Target path after generation: apps/web/public/games/jetx.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a high-speed futuristic jet game cover with a sleek neon jet slicing through a rainy cyber tunnel. The jet should feel fast and aerodynamic, with electric blue exhaust streaks and crisp motion lines. Style: glossy cyberpunk 3D concept art, more mature and intense than the other covers. Color palette: electric blue, black chrome, cyan reflections, sharp white highlights, small magenta accents. Composition: jet centered, nose angled toward the viewer, tunnel lines pulling upward for speed. Keep lower third less detailed. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+04. JetX3
+Target path after generation: apps/web/public/games/jetx3.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create an energetic arcade cover showing three stylized futuristic jets racing in formation above glowing clouds. Each jet should have a different exhaust color: red, blue, and violet, making the image instantly distinct from a single-jet cover. Style: vibrant anime-mecha inspired 3D illustration, clean shapes, dynamic lighting, premium game poster quality. Color palette: violet sky, red-orange streaks, cobalt blue, neon pink, bright white highlights. Composition: three jets in a triangular formation, center jet slightly larger, upward movement. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+05. Space Fleet
+Target path after generation: apps/web/public/games/space-fleet.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a science fiction game cover showing a compact fleet of stylized spaceships traveling through a starfield and asteroid belt. The ships should look heroic, toy-like but premium, with glowing engine trails and shield reflections. Style: colorful 3D space adventure key art, clean and polished, slightly playful. Color palette: deep indigo space, turquoise engine glow, silver ships, amber nebula, small green highlights. Composition: flagship centered upper half, two smaller ships flanking it, diagonal movement toward a bright nebula. Keep lower third darker and calmer for text overlay. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+06. Balloon
+Target path after generation: apps/web/public/games/balloon.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a cute, cheerful game cover for a balloon crash game. Show a glossy oversized red balloon floating upward through a whimsical carnival sky, with small confetti, soft clouds, and a tiny basket shape below. The balloon should look inflated and tense but friendly, suggesting risk before popping without showing an explosion. Style: chibi 3D toy-like illustration, rounded shapes, soft lighting, playful. Color palette: candy red, aqua blue sky, lemon yellow, mint green, warm white clouds. Composition: balloon centered upper half, vertical rise, simple readable silhouette. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+07. Double X
+Target path after generation: apps/web/public/games/double-x.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a bold abstract game cover for a dual-multiplier crash game. Show two luminous energy paths crossing like twin comet trails, one red-orange and one icy blue, forming a strong X shape in the upper center. Add glossy crystal shards and sparks around the crossing point. Style: premium abstract 3D arcade poster, sharp, dramatic, energetic. Color palette: crimson red, electric blue, black background, silver highlights, small gold sparks. Composition: X shape centered and large, strong contrast, lower third darker for text overlay. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+08. Plinko X
+Target path after generation: apps/web/public/games/plinko-x.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a hybrid crash and plinko game cover. Show a glowing metallic ball dropping through a vertical field of bright pegs, with a rising neon energy trail behind it like a crash multiplier path. The ball should feel fast and exciting, with sparks where it bounces off pegs. Style: premium 3D arcade render, futuristic, high contrast. Color palette: neon purple, cyan, hot pink, chrome silver, dark graphite. Composition: ball centered, peg field forming depth, diagonal bounce trail, lower area slightly darker. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+09. Dice
+Target path after generation: apps/web/public/games/dice.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a clean premium game cover for a dice game. Show two oversized translucent dice tumbling in midair above a polished green velvet table surface, with gold rim lighting and tiny spark particles. The dice pips should be simple and clear, but no other numbers or text. Style: elegant 3D casino object photography, rich material detail, not too dark. Color palette: emerald green, ivory dice, gold highlights, deep charcoal shadows, subtle red accent. Composition: dice centered upper half, shallow depth of field, lower third smooth and uncluttered. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+10. Mini Roulette
+Target path after generation: apps/web/public/games/mini-roulette.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a compact roulette game cover. Show a small polished roulette wheel spinning with a bright ivory ball circling the rim. Use motion blur and elegant reflections, but avoid readable wheel numbers. Style: cinematic 3D render with a classic casino feel, premium and focused. Color palette: lacquer red, black, ivory, brass gold, warm amber light. Composition: roulette wheel seen from a dynamic three-quarter top angle, ball near the upper right, lower third darker for overlay. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+11. Color Wheel
+Target path after generation: apps/web/public/games/wheel.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a vibrant color wheel game cover. Show a glossy prize wheel made of many bright color segments, spinning under studio lights with a clean pointer at the top. Avoid readable numbers or labels on the wheel segments. Style: playful 3D game-show illustration, polished, cheerful, high clarity. Color palette: rainbow segments with dominant yellow, teal, red, purple, and lime; background in clean off-white and soft blue shadows. Composition: wheel centered large, front-facing with slight perspective, simple background. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+12. Hotline
+Target path after generation: apps/web/public/games/hotline.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a neon slot-style game cover for a game called Hotline, without writing the name. Show a stylized slot machine reel stack with fruit symbols, lightning icons, and glowing paylines, but do not include readable letters or numbers. The image should feel like a nightlife arcade. Style: retro synthwave 3D illustration with glossy plastic and neon tubes. Color palette: hot pink, cyan, deep purple, black glass, yellow highlights. Composition: slot reels centered upper half, neon lines framing the subject, lower third darker. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+13. Keno
+Target path after generation: apps/web/public/games/keno.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a lucky number draw game cover inspired by keno, but avoid readable numbers. Show many glossy numbered-lottery-style balls represented mostly by colored circles and soft symbols, swirling out of a transparent golden machine. The feeling should be festive and optimistic. Style: polished 3D casual casino key art, bright and approachable. Color palette: royal blue, gold, white, cherry red, turquoise. Composition: transparent draw globe or bowl centered, balls spiraling upward, clean lower area for overlay. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+14. Hi-Lo
+Target path after generation: apps/web/public/games/hilo.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a strategy card game cover for a higher-or-lower game. Show two elegant playing cards floating face to face with one card angled upward and one downward, using suit symbols and decorative patterns but avoiding readable ranks or letters. Add a subtle split-light concept: warm gold light on one side, cool blue light on the other. Style: refined 3D card illustration with a strategic, mysterious mood. Color palette: midnight blue, ivory cards, gold, crimson, cool cyan. Composition: cards centered upper half, clean dramatic background, lower third subdued. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+15. Mines
+Target path after generation: apps/web/public/games/mines.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a charming strategy puzzle game cover for a mines game. Show a 5 by 5 grid of glossy square tiles floating in perspective, with several safe diamond gems revealed and one hidden bomb tile hinted by a soft red glow under the surface. Keep the mood exciting but not violent. Style: cute 3D puzzle game art, chibi proportions, rounded tiles, high polish. Color palette: jade green, sapphire blue, ruby red glow, gold trim, dark slate background. Composition: tile grid centered, gems in upper middle, lower third less busy. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+16. Tower X
+Target path after generation: apps/web/public/games/tower.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a fantasy strategy game cover for a tower climbing game. Show a stylized vertical tower made of stacked floating platforms, with glowing safe tiles ascending toward a bright treasure light at the top. Add a few shadowy trap tiles, but keep it clean and playful. Style: fantasy 3D mobile game art with a slightly chibi adventure feel. Color palette: moss green, warm gold, stone gray, sky cyan, small purple shadows. Composition: tower rising from lower center to upper center, strong vertical movement, top light as focal point. No readable text, no logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+17. Plinko
+Target path after generation: apps/web/public/games/plinko.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a friendly plinko game cover. Show a bright pearl-like ball bouncing down a triangular peg board into glowing prize slots, with soft trails and rounded pegs. The design should feel approachable and satisfying, different from the futuristic Plinko X cover. Style: clean toy-like 3D illustration, casual arcade, soft polished materials. Color palette: sky blue, white pearl, sunny yellow, coral, mint green. Composition: triangular peg board centered, ball near the upper middle, prize slots hinted at bottom without readable text or numbers. No logos, no watermark, no UI.
+
+----------------------------------------------------------------------
+18. Carnival
+Target path after generation: apps/web/public/games/carnival.jpg
+Aspect ratio: 3:4 portrait
+Prompt:
+Create a festive carnival roulette game cover. Show a whimsical carnival tent interior with a spinning mini wheel, colorful bulbs, ribbons, and confetti. The wheel should feel like a fairground attraction, not a classic casino table, and should have no readable numbers or labels. Style: bright stylized 3D illustration, playful, family-friendly arcade carnival mood. Color palette: cherry red, cream, turquoise, golden bulbs, violet shadows. Composition: wheel centered upper half, tent stripes framing the image, lower third calmer for text overlay. No readable text, no logos, no watermark, no UI.
+

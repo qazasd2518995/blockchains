@@ -355,36 +355,46 @@ export function VerifyPage() {
   return (
     <div className="space-y-8">
       <section className="grid gap-6 xl:grid-cols-12">
-        <div className="rounded-[28px] bg-[#0F172A] p-6 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)] md:p-8 xl:col-span-8 2xl:col-span-9">
-          <div className="label !text-white/[0.55]">Game Guide</div>
-          <div className="mt-4 flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-white/10">
-              <BookOpen className="h-6 w-6 text-[#E8D48A]" aria-hidden="true" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-pretty text-[32px] font-bold leading-tight md:text-[40px]">
-                18 款人氣玩法，一頁讀懂規則與賠率。
-              </h1>
-              <p className="mt-3 max-w-3xl text-[14px] leading-relaxed text-white/[0.78]">
-                飛行、經典、策略三大主題館，從快節奏 Crash 到耐玩的策略對局，挑你今晚最想開的那一桌。每款遊戲都附上玩法步驟、RTP 與最高倍率，幫你快速上手。
-              </p>
-            </div>
-          </div>
+        <div className="relative overflow-hidden rounded-[28px] bg-[#0F172A] p-6 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)] md:p-8 xl:col-span-8 2xl:col-span-9">
+          <img
+            src="/backgrounds/game-guide-bg.png"
+            alt=""
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[72%_center]"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(7,15,28,0.96)_0%,rgba(7,15,28,0.9)_42%,rgba(7,15,28,0.52)_100%)]" />
 
-          <div className="mt-6 flex flex-wrap gap-2 text-[12px]">
-            <span className="rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">RTP 96%–99%</span>
-            <span className="rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">最高 1,000,000×</span>
-            <span className="rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">即時派彩到帳</span>
-          </div>
+          <div className="relative z-10">
+            <div className="label !text-white/[0.55]">Game Guide</div>
+            <div className="mt-4 flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-white/10">
+                <BookOpen className="h-6 w-6 text-[#E8D48A]" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-pretty text-[32px] font-bold leading-tight md:text-[40px]">
+                  18 款人氣玩法，一頁讀懂規則與賠率。
+                </h1>
+                <p className="mt-3 max-w-3xl text-[14px] leading-relaxed text-white/[0.78]">
+                  飛行、經典、策略三大主題館，從快節奏 Crash 到耐玩的策略對局，挑你今晚最想開的那一桌。每款遊戲都附上玩法步驟、RTP 與最高倍率，幫你快速上手。
+                </p>
+              </div>
+            </div>
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Link
-              to="/lobby"
-              className="btn-chip border-white/15 bg-white/[0.06] text-white hover:border-white/30 hover:bg-white/[0.12]"
-            >
-              直接進入大廳
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
+            <div className="mt-6 flex flex-wrap gap-2 text-[12px]">
+              <span className="rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">RTP 96%–99%</span>
+              <span className="rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">最高 1,000,000×</span>
+              <span className="rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">即時派彩到帳</span>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Link
+                to="/lobby"
+                className="btn-chip border-white/15 bg-white/[0.06] text-white hover:border-white/30 hover:bg-white/[0.12]"
+              >
+                直接進入大廳
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
           </div>
         </div>
 
