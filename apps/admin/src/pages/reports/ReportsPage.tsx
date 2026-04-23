@@ -20,6 +20,7 @@ export function ReportsPage(): JSX.Element {
   const [endDate, setEndDate] = useState(params.get('endDate') ?? '');
   const [gameId, setGameId] = useState(params.get('gameId') ?? '');
   const [username, setUsername] = useState(params.get('username') ?? '');
+  const [settlementStatus, setSettlementStatus] = useState(params.get('settlementStatus') ?? '');
 
   const [data, setData] = useState<HierarchyReportResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +37,7 @@ export function ReportsPage(): JSX.Element {
         if (endDate) q.endDate = new Date(endDate + 'T23:59:59').toISOString();
         if (gameId) q.gameId = gameId;
         if (username.trim()) q.username = username.trim();
+        if (settlementStatus) q.settlementStatus = settlementStatus;
         const res = await adminApi.get<HierarchyReportResponse>('/reports/hierarchy', { params: q });
         if (!cancel) setData(res.data);
       } catch (e) {
@@ -48,7 +50,7 @@ export function ReportsPage(): JSX.Element {
     return () => {
       cancel = true;
     };
-  }, [currentParent, startDate, endDate, gameId, username]);
+  }, [currentParent, startDate, endDate, gameId, username, settlementStatus]);
 
   const selectParent = (id: string | null) => {
     const next = new URLSearchParams(params);
@@ -134,11 +136,11 @@ export function ReportsPage(): JSX.Element {
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="term-input" />
           </label>
           <label className="flex items-center gap-2">
-            <span className="label">結束日</span>
+            <span className="label">结束日</span>
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="term-input" />
           </label>
           <label className="flex items-center gap-2">
-            <span className="label">遊戲</span>
+            <span className="label">游戏</span>
             <select value={gameId} onChange={(e) => setGameId(e.target.value)} className="term-input max-w-[180px]">
               <option value="">全部</option>
               {Object.values(GameId).map((id) => (
@@ -149,20 +151,32 @@ export function ReportsPage(): JSX.Element {
             </select>
           </label>
           <label className="flex items-center gap-2">
-            <span className="label">會員</span>
+            <span className="label">状态</span>
+            <select
+              value={settlementStatus}
+              onChange={(e) => setSettlementStatus(e.target.value)}
+              className="term-input max-w-[120px]"
+            >
+              <option value="">全部</option>
+              <option value="settled">已结算</option>
+              <option value="unsettled">未结算</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2">
+            <span className="label">账号</span>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="搜尋帳號"
+              placeholder="代理或会员"
               className="term-input max-w-[160px] font-mono"
             />
           </label>
           <div className="flex items-center gap-1 text-[10px]">
             <button type="button" onClick={() => quickPreset('today')} className="btn-teal-outline">[今日]</button>
             <button type="button" onClick={() => quickPreset('yesterday')} className="btn-teal-outline">[昨日]</button>
-            <button type="button" onClick={() => quickPreset('lastWeek')} className="btn-teal-outline">[上週]</button>
-            <button type="button" onClick={() => quickPreset('thisWeek')} className="btn-teal-outline">[本週]</button>
+            <button type="button" onClick={() => quickPreset('lastWeek')} className="btn-teal-outline">[上周]</button>
+            <button type="button" onClick={() => quickPreset('thisWeek')} className="btn-teal-outline">[本周]</button>
             <button type="button" onClick={() => quickPreset('thisMonth')} className="btn-teal-outline">[本月]</button>
           </div>
         </div>
@@ -177,7 +191,7 @@ export function ReportsPage(): JSX.Element {
       {loading ? (
         <div className="crt-panel p-8 text-center text-ink-500">Loading…</div>
       ) : data?.items.length === 0 ? (
-        <div className="crt-panel p-8 text-center text-ink-400">— 此层级无资料 —</div>
+        <div className="crt-panel p-8 text-center text-ink-400">— 没有有效下注资料 —</div>
       ) : (
         data && <ReportTable data={data} onRowClick={onRowClick} />
       )}

@@ -21,6 +21,8 @@ export const hierarchyQuerySchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   gameId: z.string().optional(),
+  username: z.string().optional(),
+  settlementStatus: z.enum(['settled', 'unsettled']).optional(),
 });
 
 export type ReportQuery = z.infer<typeof reportQuerySchema>;

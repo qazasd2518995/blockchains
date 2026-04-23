@@ -345,6 +345,8 @@ export class ReportService {
       startDate?: string;
       endDate?: string;
       gameId?: string;
+      username?: string;
+      settlementStatus?: 'settled' | 'unsettled';
     },
   ): Promise<{
     parent: {
@@ -415,13 +417,22 @@ export class ReportService {
     const startDate = query.startDate ? new Date(query.startDate) : undefined;
     const endDate = query.endDate ? new Date(query.endDate) : undefined;
     const gameId = query.gameId;
+    const username = query.username?.trim();
+    const accountSearchWhere = username
+      ? {
+          OR: [
+            { username: { contains: username, mode: 'insensitive' as const } },
+            { displayName: { contains: username, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
 
     const childAgents = await this.prisma.agent.findMany({
-      where: { parentId, status: { not: 'DELETED' } },
+      where: { parentId, status: { not: 'DELETED' }, ...accountSearchWhere },
       orderBy: { createdAt: 'asc' },
     });
     const directMembers = await this.prisma.user.findMany({
-      where: { agentId: parentId },
+      where: { agentId: parentId, ...accountSearchWhere },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -434,6 +445,7 @@ export class ReportService {
           gameId,
           parent.rebatePercentage,
           parent.commissionRate,
+          query.settlementStatus,
         );
         return {
           kind: 'agent' as const,
@@ -457,6 +469,7 @@ export class ReportService {
         if (startDate) where.createdAt = { ...(where.createdAt as object), gte: startDate };
         if (endDate) where.createdAt = { ...(where.createdAt as object), lte: endDate };
         if (gameId) where.gameId = gameId;
+        applySettlementFilter(where, query.settlementStatus);
         const agg = await this.prisma.bet.aggregate({
           where,
           _count: { _all: true },
@@ -507,7 +520,7 @@ export class ReportService {
       }),
     );
 
-    const items = [...agentRows, ...memberRows];
+    const items = [...agentRows, ...memberRows].filter(hasEffectiveReportData);
     const totals = items.reduce(
       (acc, r) => {
         acc.betCount += r.betCount;
@@ -597,6 +610,7 @@ export class ReportService {
     gameId?: string,
     parentRebate?: Prisma.Decimal,
     parentCommission?: Prisma.Decimal,
+    settlementStatus?: 'settled' | 'unsettled',
   ): Promise<AgentSubtreeStats> {
     const agentIds = await listAgentDescendants(this.prisma, agent.id);
     const members = await this.prisma.user.findMany({
@@ -612,6 +626,7 @@ export class ReportService {
     if (startDate) where.createdAt = { ...(where.createdAt as object), gte: startDate };
     if (endDate) where.createdAt = { ...(where.createdAt as object), lte: endDate };
     if (gameId) where.gameId = gameId;
+    applySettlementFilter(where, settlementStatus);
 
     const agg = await this.prisma.bet.aggregate({
       where,
@@ -759,6 +774,21 @@ function emptyStats(
     uplineSettlement: '0.00',
     memberCount: 0,
   };
+}
+
+function hasEffectiveReportData(row: HierarchyReportRow): boolean {
+  return row.betCount > 0 || new Prisma.Decimal(row.betAmount).greaterThan(0);
+}
+
+function applySettlementFilter(
+  where: Prisma.BetWhereInput,
+  settlementStatus: 'settled' | 'unsettled' | undefined,
+): void {
+  if (settlementStatus === 'settled') {
+    where.status = 'SETTLED';
+  } else if (settlementStatus === 'unsettled') {
+    where.status = 'PENDING';
+  }
 }
 
 export interface BetReportRow {
