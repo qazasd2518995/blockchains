@@ -30,9 +30,6 @@ export function PromosPage() {
           </div>
         ))}
       </div>
-      <p className="text-center text-[12px] text-[#9CA3AF]">
-        * 本页面为設计占位，正式活动規則以实际公告为准
-      </p>
     </div>
   );
 }

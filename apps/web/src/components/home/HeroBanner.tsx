@@ -83,7 +83,7 @@ export function HeroBanner() {
               即時開玩
             </span>
             <span className="inline-flex items-center rounded-full border border-white/28 bg-[#071523]/72 px-4 py-2 text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(2,6,23,0.22)] backdrop-blur-md">
-              結果可驗證
+              24 小時不打烊
             </span>
           </div>
         </div>

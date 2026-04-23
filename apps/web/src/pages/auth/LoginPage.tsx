@@ -108,7 +108,7 @@ export function LoginPage() {
                   18 款人氣玩法
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
-                  結果可驗證
+                  即時派彩到帳
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
                   即時戰報更新

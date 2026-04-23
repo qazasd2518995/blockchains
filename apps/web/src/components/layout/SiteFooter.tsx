@@ -8,14 +8,14 @@ export function SiteFooter({ loggedIn = false }: Props): JSX.Element {
   const quickLinks = loggedIn
     ? [
         { label: '遊戲大廳', to: '/lobby' },
-        { label: '公平驗證', to: '/verify' },
+        { label: '遊戲說明', to: '/verify' },
         { label: '遊戲記錄', to: '/history' },
         { label: '個人中心', to: '/profile' },
       ]
     : [
         { label: '會員登入', to: '/login' },
         { label: '平台首頁', to: '/' },
-        { label: '公平驗證', to: '/verify' },
+        { label: '遊戲說明', to: '/verify' },
         { label: '遊戲大廳', to: '/lobby' },
       ];
 
@@ -28,11 +28,11 @@ export function SiteFooter({ loggedIn = false }: Props): JSX.Element {
             BG 娛樂城
           </h2>
           <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-[#4A5568]">
-            以數學驗證、即時派彩與假幣演示為核心的遊戲平台。所有頁面與互動正在收斂到同一套前端語言。
+            頂級遊戲體驗、即時派彩與穩定服務，為您打造專業電子遊戲娛樂平台。
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <span className="tag-gold">18+ Demo Credits</span>
-            <span className="tag-acid">Provably Fair</span>
+            <span className="tag-gold">18+ Adults Only</span>
+            <span className="tag-acid">VIP Service</span>
             <span className="tag-toxic">Instant Settlement</span>
           </div>
         </div>

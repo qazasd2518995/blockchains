@@ -91,7 +91,7 @@ const DEFAULT_ERRORS: Record<string, string> = {
   ROUND_NOT_FOUND: '找不到本局数据',
   ROUND_NOT_ACTIVE: '本局已不接受操作',
   INVALID_ACTION: '此动作不允许',
-  SEED_NOT_REVEALED: '种子尚未揭露',
+  SEED_NOT_REVEALED: '会话尚未结束',
   RATE_LIMITED: '操作过于频繁,请稍候再试',
   INTERNAL: '系统内部错误,请联系管理员',
   USERNAME_TAKEN: '此账号已被使用',

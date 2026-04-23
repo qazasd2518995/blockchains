@@ -8,7 +8,7 @@ interface Feature {
 }
 
 const FEATURES: Feature[] = [
-  { icon: ShieldCheck, title: '公平可验证', desc: 'Provably Fair 算法，每局可独立验证结果' },
+  { icon: ShieldCheck, title: '稳定可靠',   desc: '顶级游戏引擎，体验流畅无延迟' },
   { icon: Lock,        title: '加密保障',   desc: '128 位加密传输，资料安全无虞' },
   { icon: Zap,         title: '秒速派彩',   desc: '注单结算即时到点，绝不延迟' },
   { icon: Headphones,  title: '24H 客服',   desc: 'LINE / Telegram 全天候回复' },

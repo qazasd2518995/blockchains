@@ -13,7 +13,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 
 const NAV_ITEMS: { to: string; label: string; icon: typeof Gift }[] = [
   { to: '/lobby', label: '大廳', icon: LayoutGrid },
-  { to: '/verify', label: '公平驗證', icon: ShieldCheck },
+  { to: '/verify', label: '遊戲說明', icon: ShieldCheck },
   { to: '/history', label: '遊戲記錄', icon: History },
   { to: '/promos', label: '優惠活動', icon: Gift },
 ];
@@ -69,7 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="mx-auto flex w-full max-w-[1920px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/80 sm:px-6 xl:px-8 2xl:px-12">
             <div className="flex items-center gap-2">
               <span className="dot-online" />
-              <span>演示點數平台 · 結果可驗證</span>
+              <span>24 小時不打烊 · 即時派彩</span>
             </div>
             <div className="flex items-center gap-4">
               <a href="https://line.me/ti/p/~@aaa1788" target="_blank" rel="noreferrer" className="transition hover:text-white" translate="no">
@@ -84,7 +84,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-4 px-4 py-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-x-6 lg:gap-y-4 xl:px-8 2xl:px-12">
           <div className="flex min-w-0 items-center justify-between gap-4">
-            <BrandMark to="/lobby" tone="dark" subtitle="Provably Fair · Instant Settlement" />
+            <BrandMark to="/lobby" tone="dark" subtitle="Premium Gaming · Instant Settlement" />
             {!user ? (
               <Link to="/login" className="btn-teal text-[13px] lg:hidden">
                 {t.common.login}

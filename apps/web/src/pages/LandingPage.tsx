@@ -13,7 +13,7 @@ import { SectionHeading } from '@/components/layout/SectionHeading';
 const LANDING_HIGHLIGHTS = [
   { value: '18', label: '人氣玩法', detail: 'Crash、策略、經典熱款一次排開' },
   { value: '3', label: '主題館別', detail: '快節奏、衝高倍、玩策略，今晚想玩哪種都好選' },
-  { value: '100%', label: '局局可查', detail: '想核對結果時，隨時都能自己重算' },
+  { value: '24/7', label: '全天候開放', detail: '任何時段都能登入挑桌、追熱門戰報' },
 ];
 
 const ACCESS_STEPS = [
@@ -35,7 +35,7 @@ export function LandingPage() {
           <div className="mx-auto flex w-full max-w-[1920px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/80 sm:px-6 xl:px-8 2xl:px-12">
             <div className="flex items-center gap-2">
               <span className="dot-online" />
-              <span>演示點數平台 · 邀請開通</span>
+              <span>會員制平台 · 邀請開通</span>
             </div>
             <div className="flex items-center gap-4">
               <a href="https://line.me/ti/p/~@aaa1788" target="_blank" rel="noreferrer" className="transition hover:text-white" translate="no">
@@ -49,7 +49,7 @@ export function LandingPage() {
         </div>
 
         <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between xl:px-8 2xl:px-12">
-          <BrandMark to="/" tone="dark" subtitle="Provably Fair · Invite Only" />
+          <BrandMark to="/" tone="dark" subtitle="Premium Gaming · Invite Only" />
 
           <div className="flex flex-wrap items-center gap-2">
             <Link
@@ -57,7 +57,7 @@ export function LandingPage() {
               className="btn-chip border-white/12 bg-[#162338] text-white/84 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white"
             >
               <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-              公平驗證
+              遊戲說明
             </Link>
             <Link to="/login" className="btn-teal text-[13px]">
               <LogIn className="h-4 w-4" aria-hidden="true" />

@@ -59,13 +59,13 @@ pnpm --filter @bg/server prisma migrate dev --name init
 
 ---
 
-## 第五步：跑 Provably Fair 測試（驗證核心演算法）
+## 第五步：跑遊戲演算法測試
 
 ```bash
 pnpm --filter @bg/provably-fair test
 ```
 
-應該看到所有測試 ✓ 綠色通過。**這是平台信任的根基，必須 100% 通過才能繼續。**
+應該看到所有測試 ✓ 綠色通過。**這是平台核心邏輯的基礎，必須 100% 通過才能繼續。**
 
 ---
 
@@ -87,7 +87,7 @@ pnpm dev
 ### 1. 註冊登入
 
 1. 開瀏覽器 → http://localhost:5173
-2. 點「免費註冊」
+2. 點「會員登入」
 3. 輸入 Email + 密碼（8 字元以上、含字母與數字）
 4. 勾選同意條款 → 註冊
 5. 自動登入，應該導向 `/lobby` 大廳
@@ -114,19 +114,7 @@ pnpm dev
 5. 翻到鑽石 → 倍率上升、可繼續或領獎
 6. 翻到地雷 → 爆炸動畫、當局結束
 
-### 5. Provably Fair 驗證
-
-1. 前往「個人」頁面
-2. 看到「dice」、「mines」兩組 Seed Hash
-3. 點某一組的「旋轉 / 揭露」
-4. 舊 Server Seed 被揭露
-5. 用 Node REPL 驗證：
-   ```bash
-   node -e "console.log(require('crypto').createHash('sha256').update('<揭露的 seed>').digest('hex'))"
-   ```
-6. 應該等於原本顯示的 Hash
-
-### 6. 檢查資料庫
+### 5. 檢查資料庫
 
 ```bash
 pnpm --filter @bg/server prisma studio

@@ -155,7 +155,7 @@ export function ControlsOverviewPage(): JSX.Element {
         title={t.nav.controls}
         titleSuffix="输赢控制"
         titleSuffixColor="ember"
-        description="⚠ 所有控制都会主动翻转游戏结果并记录审计。Provably-Fair HMAC 原始结果仍会保留于 Bet.resultData。"
+        description="⚠ 所有控制操作都会主动调整游戏结果并完整记录到审计日志。原始结果会保留于注单数据中以备稽核。"
       />
 
       <ImageBanner

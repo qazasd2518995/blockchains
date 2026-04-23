@@ -7,9 +7,9 @@ interface Badge {
 const BADGES: Badge[] = [
   { id: 'fair',   label: 'Fair Play',       sub: '公平认证' },
   { id: 'ssl',    label: 'SSL 256-bit',     sub: '加密传输' },
-  { id: 'audit',  label: 'Auditable',       sub: '可审计' },
+  { id: 'audit',  label: '24/7 Service',    sub: '全天候服务' },
   { id: '18',     label: '18+',             sub: '年龄限制' },
-  { id: 'pf',     label: 'Provably Fair',   sub: 'HMAC-SHA256' },
+  { id: 'pf',     label: 'Premium Quality', sub: '顶级品质' },
   { id: 'resp',   label: 'Responsible',     sub: '负责任博彩' },
 ];
 
