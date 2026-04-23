@@ -3,6 +3,8 @@ import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from '@/i18n/useTranslation';
 
 interface Props {
+  artwork?: string;
+  artworkPosition?: string;
   section: string;
   title: string;
   titleSuffix: string;
@@ -14,6 +16,8 @@ interface Props {
 }
 
 export function GameHeader({
+  artwork,
+  artworkPosition = 'object-[78%_center]',
   section,
   title,
   titleSuffix,
@@ -42,16 +46,20 @@ export function GameHeader({
 
   const hasSuffix = titleSuffix.trim().length > 0;
   const separator = '';
+  const backdrop = artwork ?? '/backgrounds/casino-atmosphere.png';
+  const backdropOpacity = artwork ? 'opacity-[0.92]' : 'opacity-30';
 
   return (
-    <div className="relative mb-6 overflow-hidden rounded-[14px] border border-[#16324A]/12 bg-[#091725] p-5 shadow-[0_20px_48px_rgba(15,23,42,0.08)]">
+    <div className="relative mb-6 overflow-hidden rounded-[20px] border border-[#16324A]/16 bg-[#091725] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
       <img
-        src="/backgrounds/casino-atmosphere.png"
+        src={backdrop}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_36%] opacity-30"
+        className={`pointer-events-none absolute inset-0 h-full w-full object-cover ${artworkPosition} ${backdropOpacity}`}
       />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(6,16,30,0.92)_0%,rgba(6,16,30,0.82)_42%,rgba(6,16,30,0.48)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(4,12,22,0.96)_0%,rgba(6,16,30,0.88)_30%,rgba(6,16,30,0.58)_60%,rgba(6,16,30,0.2)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_42%,rgba(201,162,71,0.12),transparent_22%)]" />
+      <div className="pointer-events-none absolute inset-x-6 bottom-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0.02),rgba(143,208,223,0.35),rgba(255,255,255,0.02))]" />
 
       <div className="relative flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
@@ -66,6 +74,9 @@ export function GameHeader({
             </div>
             <span className="rounded-full border border-[#C9A247]/24 bg-[#132233]/72 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#EFD886]">
               {section}
+            </span>
+            <span className="hidden rounded-full border border-white/14 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/78 md:inline-flex">
+              Live Game
             </span>
           </div>
 

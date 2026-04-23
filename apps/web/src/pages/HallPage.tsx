@@ -48,16 +48,16 @@ export function HallPage() {
             src={hall.artwork}
             alt=""
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[52%] max-w-[760px] object-cover opacity-[0.88] mix-blend-screen xl:block"
+            className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[52%] max-w-[760px] object-cover opacity-[0.82] xl:block"
           />
-          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[58%] bg-[linear-gradient(270deg,rgba(5,30,43,0.02),rgba(5,30,43,0.16)_45%,rgba(5,30,43,0.5)_100%)] xl:block" />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_42%)]" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[62%] bg-[linear-gradient(270deg,rgba(5,18,34,0.08),rgba(5,18,34,0.24)_38%,rgba(5,18,34,0.78)_100%)] xl:block" />
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(5,18,34,0.86)_0%,rgba(5,18,34,0.72)_34%,rgba(5,18,34,0.32)_62%,rgba(5,18,34,0.1)_100%),radial-gradient(circle_at_top_right,rgba(255,255,255,0.14),transparent_42%)]" />
 
           <div className="relative z-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1.3fr)_360px]">
             <div className="min-w-0">
               <Link
                 to="/lobby"
-                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/[0.15] px-3 py-1.5 text-[12px] font-semibold text-white/[0.85] transition hover:bg-black/[0.25] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                className="inline-flex items-center gap-2 rounded-full border border-white/28 bg-[#071523]/72 px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(2,6,23,0.24)] backdrop-blur-md transition hover:bg-[#0A1B2D]/84 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
               >
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                 回到大廳
@@ -88,14 +88,14 @@ export function HallPage() {
               <div className="mt-6 flex flex-wrap gap-2">
                 <Link
                   to="/verify"
-                  className="btn-chip border-white/20 bg-white/[0.08] text-white hover:border-white/35 hover:bg-white/[0.14]"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/28 bg-[#071523]/72 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(2,6,23,0.24)] backdrop-blur-md transition hover:border-white/36 hover:bg-[#0A1B2D]/84 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
                 >
                   <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                   驗證最近一局
                 </Link>
                 <Link
                   to="/history"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/[0.15] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-black/[0.25] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/28 bg-[#071523]/72 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(2,6,23,0.24)] backdrop-blur-md transition hover:bg-[#0A1B2D]/84 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
                 >
                   查看我的記錄
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />

@@ -79,6 +79,7 @@ export function HotlinePage() {
   return (
     <div>
       <GameHeader
+        artwork="/games/hotline.jpg"
         section="§ GAME 08"
         breadcrumb="HOTLINE_08"
         title={t.games.hotline.title}
@@ -91,26 +92,22 @@ export function HotlinePage() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-4">
-          <div className="crt-panel scanlines relative overflow-hidden">
-            <div className="flex items-center justify-between border-b border-ink-200 px-4 py-2 text-[10px] tracking-[0.25em]">
-              <span className="text-ink-500">TERMINAL://HOTLINE</span>
-              <span className="text-ink-600">
+          <div className="game-stage-panel scanlines relative overflow-hidden">
+            <div className="game-stage-bar">
+              <span className="text-white/62">TERMINAL://HOTLINE</span>
+              <span className="text-white/72">
                 {spinning ? t.games.hotline.spinning : t.games.hotline.ready}
               </span>
             </div>
 
-            <div className="aspect-[16/7] w-full p-2">
+            <div className="game-canvas-shell aspect-[16/7] w-full p-2">
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
           </div>
 
           {result && !spinning && (
             <div
-              className={`border-2 p-5 ${
-                result.multiplier > 0
-                  ? 'border-neon-acid bg-neon-acid/5'
-                  : 'border-neon-ember/60 bg-neon-ember/5'
-              }`}
+              className={`game-result-card ${result.multiplier > 0 ? 'game-result-card-win' : 'game-result-card-loss'}`}
             >
               <div className="flex items-baseline justify-between">
                 <div>
@@ -132,7 +129,7 @@ export function HotlinePage() {
                   {result.lines.map((l, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between gap-3 border border-ink-200 bg-ink-50/50 px-3 py-2 text-[11px]"
+                      className="flex items-center justify-between gap-3 rounded-[16px] border border-ink-200 bg-ink-50/50 px-3 py-2 text-[11px]"
                     >
                       <div className="flex min-w-0 items-center gap-2">
                         <span className="font-mono text-ink-700">
@@ -149,7 +146,7 @@ export function HotlinePage() {
           )}
 
           {error && (
-            <div className="flex items-start gap-2 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+            <div className="game-alert text-[12px]">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="leading-relaxed">{error.toUpperCase()}</span>
             </div>
@@ -157,7 +154,7 @@ export function HotlinePage() {
         </div>
 
         <div className="space-y-4">
-          <div className="crt-panel p-5">
+          <div className="game-side-card p-5">
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -173,12 +170,20 @@ export function HotlinePage() {
             >
               → {t.games.hotline.spin} · {formatAmount(amount)}
             </button>
-            <div className="mt-2 text-center text-[10px] tracking-[0.25em] text-ink-500">
-              {t.bet.balance} {formatAmount(balance)}
+            <div className="game-balance-strip mt-3">
+              <span>
+                {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+              </span>
+              <span>
+                {t.games.hotline.totalMult}{' '}
+                <span className="data-num ml-1 text-neon-ember">
+                  {result ? formatMultiplier(result.multiplier) : '—'}
+                </span>
+              </span>
             </div>
           </div>
 
-          <div className="crt-panel p-5">
+          <div className="game-side-card p-5">
             <div className="label">{t.games.hotline.payoutTable}</div>
             <div className="mt-3 space-y-2 text-[11px]">
               {HOTLINE_SYMBOLS.map((symbol, index) => (

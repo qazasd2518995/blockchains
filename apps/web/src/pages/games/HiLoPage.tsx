@@ -136,6 +136,7 @@ export function HiLoPage() {
   return (
     <div>
       <GameHeader
+        artwork="/games/hilo.jpg"
         section="§ GAME 03"
         breadcrumb="HILO_03"
         title={t.games.hilo.title}
@@ -148,17 +149,17 @@ export function HiLoPage() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-4">
-          <div className="crt-panel scanlines p-4">
-            <div className="flex items-center justify-between border-b border-ink-200 pb-2 text-[10px] tracking-[0.25em]">
-              <span className="text-ink-500">TERMINAL://HILO</span>
-              <span className="text-ink-600">
+          <div className="game-stage-panel scanlines p-4">
+            <div className="game-stage-bar -mx-4 -mt-4 mb-4 rounded-t-[22px]">
+              <span className="text-white/62">TERMINAL://HILO</span>
+              <span className="text-white/72">
                 {round
                   ? `${t.games.hilo.card}${round.cardIndex + 1} · ${t.games.hilo.skips} ${round.skipsUsed}/${round.maxSkips}`
                   : t.games.hilo.idle}
               </span>
             </div>
 
-            <div className="mt-3 aspect-[16/8] w-full">
+            <div className="game-canvas-shell mt-3 aspect-[16/8] w-full">
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
 
@@ -168,7 +169,7 @@ export function HiLoPage() {
                   type="button"
                   onClick={() => handleGuess('higher')}
                   disabled={!isActive || busy}
-                  className="group border-2 border-neon-toxic/30 bg-neon-toxic/5 p-5 text-left transition hover:border-neon-toxic hover:bg-neon-toxic/10 disabled:opacity-40"
+                  className="group rounded-[20px] border border-[rgba(9,184,38,0.22)] bg-[linear-gradient(180deg,rgba(9,184,38,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-5 text-left transition hover:border-[rgba(9,184,38,0.38)] hover:bg-[linear-gradient(180deg,rgba(9,184,38,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40"
                 >
                   <div className="text-[10px] tracking-[0.3em] text-ink-500">
                     {t.games.hilo.higher}
@@ -193,7 +194,7 @@ export function HiLoPage() {
                   type="button"
                   onClick={() => handleGuess('lower')}
                   disabled={!isActive || busy}
-                  className="group border-2 border-neon-ember/30 bg-neon-ember/5 p-5 text-left transition hover:border-neon-ember hover:bg-neon-ember/10 disabled:opacity-40"
+                  className="group rounded-[20px] border border-[rgba(212,87,74,0.22)] bg-[linear-gradient(180deg,rgba(212,87,74,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-5 text-left transition hover:border-[rgba(212,87,74,0.38)] hover:bg-[linear-gradient(180deg,rgba(212,87,74,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40"
                 >
                   <div className="text-[10px] tracking-[0.3em] text-ink-500">
                     {t.games.hilo.lower}
@@ -231,7 +232,7 @@ export function HiLoPage() {
           )}
 
           {round?.status === 'BUSTED' && (
-            <div className="border-2 border-neon-ember bg-neon-ember/5 p-5">
+            <div className="game-result-card game-result-card-loss">
               <div className="font-display text-4xl text-neon-ember">{t.games.hilo.wrongGuess}</div>
               <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
                 {t.games.hilo.roundClosed} · -{formatAmount(round.amount)}
@@ -239,7 +240,7 @@ export function HiLoPage() {
             </div>
           )}
           {round?.status === 'CASHED_OUT' && (
-            <div className="border-2 border-neon-acid bg-neon-acid/5 p-5 shadow-acid-glow">
+            <div className="game-result-card game-result-card-win">
               <div className="font-display text-4xl text-neon-acid">{t.games.hilo.cashedOut}</div>
               <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
                 {t.games.hilo.payoutPlus} {formatAmount(round.potentialPayout)}
@@ -247,7 +248,7 @@ export function HiLoPage() {
             </div>
           )}
           {error && (
-            <div className="flex items-start gap-2 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+            <div className="game-alert text-[12px]">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="leading-relaxed">{error.toUpperCase()}</span>
             </div>
@@ -255,7 +256,7 @@ export function HiLoPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="crt-panel p-5">
+          <div className="game-side-card p-5">
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -287,7 +288,7 @@ export function HiLoPage() {
                     type="button"
                     onClick={handleSkip}
                     disabled={busy || round.skipsUsed >= round.maxSkips}
-                    className="btn-teal-outline w-full py-3"
+                    className="game-choice-btn game-choice-btn-ice w-full justify-center py-3"
                   >
                     ⟳ {t.games.hilo.skip.toUpperCase()} ({round.maxSkips - round.skipsUsed}{' '}
                     {t.games.hilo.leftSkips})
@@ -299,8 +300,16 @@ export function HiLoPage() {
                   ⟲ {t.bet.newRound}
                 </button>
               )}
-              <div className="mt-2 text-center text-[10px] tracking-[0.25em] text-ink-500">
-                {t.bet.balance} {formatAmount(balance)}
+              <div className="game-balance-strip mt-3">
+                <span>
+                  {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+                </span>
+                <span>
+                  {t.games.mines.current}{' '}
+                  <span className="data-num ml-1 text-neon-toxic">
+                    {round ? formatMultiplier(round.currentMultiplier) : '—'}
+                  </span>
+                </span>
               </div>
             </div>
           </div>
@@ -312,7 +321,7 @@ export function HiLoPage() {
 
 function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
   return (
-    <div className="crt-panel p-4">
+    <div className="game-stat-card">
       <div className="label">{k}</div>
       <div
         className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}

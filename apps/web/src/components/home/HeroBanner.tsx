@@ -69,7 +69,7 @@ export function HeroBanner() {
 
       <div className="relative flex h-[320px] items-center px-8 transition-all duration-500 md:h-[407px] md:px-16 xl:h-[450px] xl:px-20 2xl:h-[500px] 2xl:px-24">
         <div className="relative z-10 max-w-[620px] xl:max-w-[720px] 2xl:max-w-[800px]">
-          <span className="inline-flex items-center rounded-full border border-white/16 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white/82">
+          <span className="inline-flex items-center rounded-full border border-white/28 bg-[#071523]/72 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white shadow-[0_10px_24px_rgba(2,6,23,0.22)] backdrop-blur-md">
             {slide.eyebrow}
           </span>
           <h1 className="mt-5 text-[28px] font-bold leading-tight text-white md:text-[42px] xl:text-[48px] 2xl:text-[54px]">
@@ -79,10 +79,10 @@ export function HeroBanner() {
             {slide.subtitle}
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <span className="inline-flex items-center rounded-full border border-[#C9A247]/40 bg-black/20 px-4 py-2 text-[12px] font-semibold text-[#F3DE8D] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]">
+            <span className="inline-flex items-center rounded-full border border-[#C9A247]/42 bg-[#1E1A12]/74 px-4 py-2 text-[12px] font-semibold text-[#F3DE8D] shadow-[0_10px_24px_rgba(2,6,23,0.24),inset_0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-md">
               即時開玩
             </span>
-            <span className="inline-flex items-center rounded-full border border-white/14 bg-white/8 px-4 py-2 text-[12px] font-semibold text-white/78">
+            <span className="inline-flex items-center rounded-full border border-white/28 bg-[#071523]/72 px-4 py-2 text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(2,6,23,0.22)] backdrop-blur-md">
               結果可驗證
             </span>
           </div>

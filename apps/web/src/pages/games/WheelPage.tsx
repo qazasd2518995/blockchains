@@ -89,6 +89,7 @@ export function WheelPage() {
   return (
     <div>
       <GameHeader
+        artwork="/games/wheel.jpg"
         section="§ GAME 05"
         breadcrumb="WHEEL_05"
         title={t.games.wheel.title}
@@ -101,17 +102,17 @@ export function WheelPage() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-4">
-          <div className="crt-panel scanlines relative overflow-hidden">
-            <div className="flex items-center justify-between border-b border-ink-200 px-4 py-2 text-[10px] tracking-[0.25em]">
-              <span className="text-ink-500">TERMINAL://WHEEL</span>
-              <span className="text-ink-600">
+          <div className="game-stage-panel scanlines relative overflow-hidden">
+            <div className="game-stage-bar">
+              <span className="text-white/62">TERMINAL://WHEEL</span>
+              <span className="text-white/72">
                 {segments} {t.games.wheel.segments} · {t.games.mines[risk]}
               </span>
             </div>
 
-            <div className="relative mx-auto aspect-square w-full max-w-md p-3">
+            <div className="game-canvas-shell relative mx-auto aspect-square w-full max-w-md p-3">
               <canvas ref={canvasRef} className="h-full w-full" />
-              <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 text-[10px] tracking-[0.2em] text-ink-500">
+              <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 rounded-[16px] border border-white/10 bg-[#07131F]/52 px-3 py-2 text-[10px] tracking-[0.2em] text-white/62 backdrop-blur">
                 <div>
                   SEG <span className="data-num ml-1 text-neon-acid">{segments}</span>
                 </div>
@@ -123,13 +124,7 @@ export function WheelPage() {
           </div>
 
           {result && (
-            <div
-              className={`border-2 p-5 ${
-                result.multiplier > 0
-                  ? 'border-neon-acid bg-neon-acid/5'
-                  : 'border-neon-ember/60 bg-neon-ember/5'
-              }`}
-            >
+            <div className={`game-result-card ${result.multiplier > 0 ? 'game-result-card-win' : 'game-result-card-loss'}`}>
               <div className="flex items-baseline justify-between">
                 <div>
                   <div className="font-display text-4xl text-ink-900">
@@ -148,7 +143,7 @@ export function WheelPage() {
           )}
 
           {error && (
-            <div className="flex items-start gap-2 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+            <div className="game-alert text-[12px]">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="leading-relaxed">{error.toUpperCase()}</span>
             </div>
@@ -156,7 +151,7 @@ export function WheelPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="crt-panel p-5">
+          <div className="game-side-card p-5">
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -172,11 +167,7 @@ export function WheelPage() {
                     type="button"
                     onClick={() => setRisk(r)}
                     disabled={busy}
-                    className={`border py-2 font-mono text-[11px] tracking-[0.2em] transition ${
-                      risk === r
-                        ? 'border-neon-acid bg-neon-acid/10 text-neon-acid'
-                        : 'border-ink-200 bg-ink-50/50 text-ink-700'
-                    }`}
+                    className={`game-choice-btn px-0 py-3 ${risk === r ? 'game-choice-btn-ember' : ''}`}
                   >
                     {t.games.mines[r]}
                   </button>
@@ -192,11 +183,7 @@ export function WheelPage() {
                     type="button"
                     onClick={() => setSegments(s)}
                     disabled={busy}
-                    className={`border py-2 font-mono text-[11px] transition ${
-                      segments === s
-                        ? 'border-neon-acid bg-neon-acid/10 text-neon-acid'
-                        : 'border-ink-200 bg-ink-50/50 text-ink-700'
-                    }`}
+                    className={`game-choice-btn px-0 py-3 ${segments === s ? 'game-choice-btn-ember' : ''}`}
                   >
                     {s}
                   </button>
@@ -211,8 +198,13 @@ export function WheelPage() {
             >
               → {t.games.wheel.spin} · {formatAmount(amount)}
             </button>
-            <div className="mt-2 text-center text-[10px] tracking-[0.25em] text-ink-500">
-              {t.bet.balance} {formatAmount(balance)}
+            <div className="game-balance-strip mt-3">
+              <span>
+                {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+              </span>
+              <span>
+                {t.games.wheel.segments} <span className="data-num ml-1 text-neon-ember">{segments}</span>
+              </span>
             </div>
           </div>
         </div>

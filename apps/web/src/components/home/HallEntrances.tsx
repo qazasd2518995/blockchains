@@ -22,12 +22,12 @@ function HallCard({ hall }: { hall: HallMeta }) {
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,30,43,0.12),rgba(5,30,43,0.08)_34%,rgba(5,30,43,0.52))]" />
-        <div className="absolute right-4 top-4 flex h-16 w-16 items-center justify-center rounded-full border border-white/20 bg-white/[0.12] shadow-[0_12px_24px_rgba(5,30,43,0.16),inset_0_0_0_1px_rgba(255,255,255,0.08)] backdrop-blur-sm transition-transform duration-300 group-hover:scale-105">
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,30,43,0.2),rgba(5,30,43,0.16)_34%,rgba(5,30,43,0.64))]" />
+        <div className="absolute right-4 top-4 flex h-16 w-16 items-center justify-center rounded-full border border-white/24 bg-[#071523]/54 shadow-[0_12px_24px_rgba(5,30,43,0.22),inset_0_0_0_1px_rgba(255,255,255,0.08)] backdrop-blur-md transition-transform duration-300 group-hover:scale-105">
           <Icon className="h-7 w-7 text-white" aria-hidden="true" strokeWidth={1.8} />
         </div>
         <div className="relative z-10 p-5">
-          <span className="inline-flex rounded-full border border-white/18 bg-black/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/86 backdrop-blur-sm">
+          <span className="inline-flex rounded-full border border-white/28 bg-[#071523]/72 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_10px_24px_rgba(2,6,23,0.22)] backdrop-blur-md">
             {hall.id}
           </span>
         </div>

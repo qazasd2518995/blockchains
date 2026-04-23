@@ -102,6 +102,7 @@ export function KenoPage() {
   return (
     <div>
       <GameHeader
+        artwork="/games/keno.jpg"
         section="§ GAME 04"
         breadcrumb="KENO_04"
         title={t.games.keno.title}
@@ -114,16 +115,15 @@ export function KenoPage() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-4">
-          <div className="crt-panel scanlines p-4">
-            <div className="flex items-center justify-between border-b border-ink-200 pb-2 text-[10px] tracking-[0.25em]">
-              <span className="text-ink-500">TERMINAL://KENO</span>
-              <span className="text-ink-600">
+          <div className="game-stage-panel scanlines p-4">
+            <div className="game-stage-bar -mx-4 -mt-4 mb-4 rounded-t-[22px]">
+              <span className="text-white/62">TERMINAL://KENO</span>
+              <span className="text-white/72">
                 {t.games.keno.selected} {selected.size}/{MAX_PICKS}
               </span>
             </div>
 
-            {/* Pixi 开奖动画區 */}
-            <div className="mt-3 aspect-[16/5] w-full overflow-hidden rounded-lg bg-ink-100/40">
+            <div className="game-canvas-shell mt-3 aspect-[16/5] w-full">
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
 
@@ -142,7 +142,7 @@ export function KenoPage() {
                     type="button"
                     onClick={() => toggle(n)}
                     disabled={busy}
-                    className={`aspect-square border-2 font-display text-2xl transition ${cls} hover:border-neon-ice/50`}
+                    className={`aspect-square rounded-[18px] border-2 font-display text-2xl transition ${cls} hover:border-neon-ice/50`}
                   >
                     {n}
                   </button>
@@ -151,10 +151,10 @@ export function KenoPage() {
             </div>
 
             <div className="mt-4 flex gap-2">
-              <button type="button" onClick={autoPick} disabled={busy} className="btn-teal-outline">
+              <button type="button" onClick={autoPick} disabled={busy} className="game-choice-btn game-choice-btn-ice">
                 ⚂ {t.games.keno.autoPick}
               </button>
-              <button type="button" onClick={clearAll} disabled={busy} className="btn-teal-outline">
+              <button type="button" onClick={clearAll} disabled={busy} className="game-choice-btn">
                 ⨯ {t.games.keno.clear}
               </button>
             </div>
@@ -162,11 +162,7 @@ export function KenoPage() {
 
           {result && (
             <div
-              className={`border-2 p-5 ${
-                result.payout !== '0.00'
-                  ? 'border-neon-acid bg-neon-acid/5 shadow-acid-glow'
-                  : 'border-neon-ember/60 bg-neon-ember/5'
-              }`}
+              className={`game-result-card ${result.payout !== '0.00' ? 'game-result-card-win' : 'game-result-card-loss'}`}
             >
               <div className="flex items-baseline justify-between">
                 <div>
@@ -195,7 +191,7 @@ export function KenoPage() {
           )}
 
           {error && (
-            <div className="flex items-start gap-2 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+            <div className="game-alert text-[12px]">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="leading-relaxed">{error.toUpperCase()}</span>
             </div>
@@ -203,7 +199,7 @@ export function KenoPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="crt-panel p-5">
+          <div className="game-side-card p-5">
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -220,11 +216,7 @@ export function KenoPage() {
                     type="button"
                     onClick={() => setRisk(r)}
                     disabled={busy}
-                    className={`border py-2 font-mono text-[11px] tracking-[0.2em] transition ${
-                      risk === r
-                        ? 'border-neon-acid bg-neon-acid/10 text-neon-acid'
-                        : 'border-ink-200 bg-ink-50/50 text-ink-700 hover:border-ink-600'
-                    }`}
+                    className={`game-choice-btn px-0 py-3 ${risk === r ? 'game-choice-btn-ice' : ''}`}
                   >
                     {t.games.mines[r]}
                   </button>
@@ -240,8 +232,14 @@ export function KenoPage() {
             >
               → {t.games.keno.draw.toUpperCase()} · {formatAmount(amount)}
             </button>
-            <div className="mt-2 text-center text-[10px] tracking-[0.25em] text-ink-500">
-              {t.bet.balance} {formatAmount(balance)}
+            <div className="game-balance-strip mt-3">
+              <span>
+                {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+              </span>
+              <span>
+                {t.games.keno.selected}{' '}
+                <span className="data-num ml-1 text-[#266F85]">{selected.size}</span>
+              </span>
             </div>
           </div>
         </div>

@@ -31,8 +31,8 @@ export function BetControls({
   const clamp = (v: number) => Math.min(maxBalance, Math.max(min, v));
 
   return (
-    <div>
-      <div className="flex items-center justify-between border-b border-ink-200 pb-2">
+    <div className="rounded-[20px] border border-[#16324A]/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.98)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+      <div className="flex items-center justify-between border-b border-[#16324A]/10 pb-2">
         <div className="flex items-baseline gap-2">
           <span className="text-[9px] text-ink-500">01</span>
           <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">
@@ -44,7 +44,7 @@ export function BetControls({
         </span>
       </div>
 
-      <div className="mt-3 flex items-stretch">
+      <div className="mt-4 rounded-[18px] border border-[#16324A]/10 bg-white/80 p-2 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)]">
         <input
           type="text"
           inputMode="decimal"
@@ -56,34 +56,36 @@ export function BetControls({
             else setText(amount.toFixed(2));
           }}
           disabled={disabled}
-          className="term-input flex-1 text-right font-display text-3xl tracking-tight"
+          className="term-input border-0 bg-transparent px-2 py-3 text-right font-display text-4xl tracking-tight shadow-none focus-visible:border-transparent focus-visible:bg-transparent focus-visible:shadow-none"
         />
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => syncText(clamp(amount / 2))}
-          className="border-y border-r border-ink-200 bg-ink-100/80 px-3 font-mono text-sm font-bold text-ink-700 transition hover:border-neon-acid hover:text-neon-acid disabled:opacity-40"
-        >
-          ½
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => syncText(clamp(amount * 2))}
-          className="border-y border-r border-ink-200 bg-ink-100/80 px-3 font-mono text-sm font-bold text-ink-700 transition hover:border-neon-acid hover:text-neon-acid disabled:opacity-40"
-        >
-          2×
-        </button>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => syncText(clamp(amount / 2))}
+            className="game-choice-btn"
+          >
+            ½
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => syncText(clamp(amount * 2))}
+            className="game-choice-btn game-choice-btn-acid"
+          >
+            2×
+          </button>
+        </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-5 gap-1">
+      <div className="mt-3 grid grid-cols-5 gap-2">
         {[1, 10, 100, 1000].map((v) => (
           <button
             key={v}
             type="button"
             disabled={disabled || v > maxBalance}
             onClick={() => syncText(clamp(v))}
-            className="border border-ink-200 bg-ink-50/50 py-1.5 font-mono text-[11px] text-ink-700 transition hover:border-neon-acid hover:bg-neon-acid/10 hover:text-neon-acid disabled:opacity-30"
+            className="game-choice-btn px-0 py-2.5"
           >
             {v}
           </button>
@@ -92,7 +94,7 @@ export function BetControls({
           type="button"
           disabled={disabled}
           onClick={() => syncText(clamp(maxBalance))}
-          className="border border-neon-acid/50 bg-neon-acid/10 py-1.5 font-mono text-[11px] font-bold tracking-[0.2em] text-neon-acid transition hover:bg-neon-acid/20 disabled:opacity-30"
+          className="game-choice-btn game-choice-btn-acid px-0 py-2.5"
         >
           {t.bet.max}
         </button>

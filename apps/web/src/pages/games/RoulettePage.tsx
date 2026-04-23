@@ -100,6 +100,7 @@ export function RoulettePage({ variant }: Props) {
   return (
     <div>
       <GameHeader
+        artwork={isMini ? '/games/mini-roulette.jpg' : '/games/carnival.jpg'}
         section={isMini ? '§ GAME 06' : '§ GAME 18'}
         breadcrumb={isMini ? 'ROULETTE_06' : 'CARNIVAL_18'}
         title={isMini ? t.games.roulette.title : t.games.roulette.titleCarnival}
@@ -112,15 +113,15 @@ export function RoulettePage({ variant }: Props) {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-4">
-          <div className="crt-panel scanlines p-3">
-            <div className="flex items-center justify-between border-b border-ink-200 pb-2 text-[10px] tracking-[0.25em]">
-              <span className="text-ink-500">TERMINAL://ROULETTE</span>
-              <span className="text-ink-600">
+          <div className="game-stage-panel scanlines p-3">
+            <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
+              <span className="text-white/62">TERMINAL://ROULETTE</span>
+              <span className="text-white/72">
                 {t.games.roulette.total}: {formatAmount(totalBet)}
               </span>
             </div>
 
-            <div className="relative mx-auto mt-3 aspect-square w-full max-w-[360px]">
+            <div className="game-canvas-shell relative mx-auto mt-3 aspect-square w-full max-w-[360px]">
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
 
@@ -187,10 +188,10 @@ export function RoulettePage({ variant }: Props) {
           {result && (
             <div
               key={result.betId}
-              className={`animate-reveal rounded-2xl border-2 p-5 ${
+              className={`game-result-card animate-reveal ${
                 Number.parseFloat(result.profit) >= 0
-                  ? 'border-neon-toxic bg-grad-win/10 shadow-toxic-glow'
-                  : 'border-neon-ember bg-grad-loss/10 shadow-ember-glow'
+                  ? 'game-result-card-win'
+                  : 'game-result-card-loss'
               }`}
             >
               <div className="flex items-baseline justify-between">
@@ -217,7 +218,7 @@ export function RoulettePage({ variant }: Props) {
           )}
 
           {error && (
-            <div className="flex items-start gap-2 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+            <div className="game-alert text-[12px]">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="leading-relaxed">{error.toUpperCase()}</span>
             </div>
@@ -225,7 +226,7 @@ export function RoulettePage({ variant }: Props) {
         </div>
 
         <div className="space-y-4">
-          <div className="crt-panel p-5">
+          <div className="game-side-card p-5">
             <div className="label">{t.games.roulette.chipSize}</div>
             <div className="mt-2 grid grid-cols-4 gap-1">
               {[1, 5, 10, 100].map((v) => (
@@ -233,11 +234,7 @@ export function RoulettePage({ variant }: Props) {
                   key={v}
                   type="button"
                   onClick={() => setChip(v)}
-                  className={`border py-2 font-mono text-[11px] transition ${
-                    chip === v
-                      ? 'border-neon-acid bg-neon-acid/10 text-neon-acid'
-                      : 'border-ink-200 bg-ink-50/50 text-ink-700'
-                  }`}
+                  className={`game-choice-btn px-0 py-3 ${chip === v ? 'game-choice-btn-ember' : ''}`}
                 >
                   {v}
                 </button>
@@ -255,7 +252,7 @@ export function RoulettePage({ variant }: Props) {
                 {bets.map((b, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between border border-ink-200 bg-ink-50/50 px-2 py-1"
+                    className="flex items-center justify-between rounded-[14px] border border-ink-200 bg-ink-50/50 px-2 py-1.5"
                   >
                     <span className="font-mono text-ink-700">
                       {b.type.toUpperCase()}
@@ -279,13 +276,18 @@ export function RoulettePage({ variant }: Props) {
               type="button"
               onClick={clear}
               disabled={busy || bets.length === 0}
-              className="btn-teal-outline mt-2 w-full py-2 text-[11px]"
+              className="game-choice-btn mt-2 w-full justify-center py-2 text-[11px]"
             >
               ⨯ {t.games.roulette.clearBets}
             </button>
 
-            <div className="mt-2 text-center text-[10px] tracking-[0.25em] text-ink-500">
-              {t.bet.balance} {formatAmount(balance)}
+            <div className="game-balance-strip mt-3">
+              <span>
+                {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+              </span>
+              <span>
+                {t.games.roulette.total} <span className="data-num ml-1 text-neon-ember">{formatAmount(totalBet)}</span>
+              </span>
             </div>
           </div>
         </div>
@@ -306,12 +308,12 @@ function NumberBtn({
   variant: 'red' | 'black' | 'green';
 }) {
   const placed = bets.find((b) => b.type === 'straight' && b.value === n);
-  const bg = { red: 'bg-[#dc1f3b]', black: 'bg-ink-200', green: 'bg-[#00ffa3]/50' }[variant];
+  const bg = { red: 'bg-[#D4574A]', black: 'bg-[#10263A]', green: 'bg-[#1F8B5F]' }[variant];
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`relative aspect-square border border-ink-200 ${bg} font-display text-2xl text-ink-900 transition hover:border-neon-acid`}
+      className={`relative aspect-square rounded-[16px] border border-white/8 ${bg} font-display text-2xl text-white transition hover:border-[#C9A247] hover:shadow-[0_12px_24px_-18px_rgba(15,23,42,0.55)]`}
     >
       {n}
       {placed && (
@@ -333,12 +335,12 @@ function OutsideBtn({
   color?: 'red' | 'black';
 }) {
   const bg =
-    color === 'red' ? 'bg-[#dc1f3b]/30' : color === 'black' ? 'bg-ink-200' : 'bg-ink-100/60';
+    color === 'red' ? 'bg-[#D4574A]/16' : color === 'black' ? 'bg-[#10263A]' : 'bg-ink-100/70';
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`border border-ink-200 ${bg} py-2 font-mono text-[11px] tracking-[0.2em] text-ink-700 transition hover:border-neon-acid hover:text-neon-acid`}
+      className={`rounded-[14px] border border-[#16324A]/12 ${bg} py-2 font-mono text-[11px] tracking-[0.2em] ${color === 'black' ? 'text-white' : 'text-ink-700'} transition hover:border-[#C9A247] hover:text-[#186073]`}
     >
       {label}
     </button>

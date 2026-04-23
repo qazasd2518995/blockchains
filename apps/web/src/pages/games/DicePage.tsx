@@ -93,6 +93,7 @@ export function DicePage() {
   return (
     <div>
       <GameHeader
+        artwork="/games/dice.jpg"
         section="§ GAME 01"
         breadcrumb="DICE_01"
         title={t.games.dice.title}
@@ -105,20 +106,19 @@ export function DicePage() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-4">
-          {/* 画布 + 疊加核心控制（Stake pattern） */}
-          <div className="crt-panel scanlines relative overflow-hidden">
-            <div className="flex items-center justify-between border-b border-ink-200 px-4 py-2 text-[10px] tracking-[0.25em]">
-              <span className="text-ink-500">TERMINAL://DICE</span>
-              <span className="text-neon-toxic">
+          <div className="game-stage-panel scanlines relative overflow-hidden">
+            <div className="game-stage-bar">
+              <span className="text-white/62">TERMINAL://DICE</span>
+              <span className="text-[#7EE0A4]">
                 <span className="dot-online dot-online" />
                 {t.common.ready.toUpperCase()}
               </span>
             </div>
-            <div className="relative aspect-[16/7] w-full">
+            <div className="game-canvas-shell relative aspect-[16/7] w-full">
               <canvas ref={canvasRef} className="h-full w-full" />
 
               {/* 右上角即時統計（疊在画布上） */}
-              <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 text-[10px] tracking-[0.2em] text-ink-500">
+              <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 rounded-[16px] border border-white/10 bg-[#07131F]/50 px-3 py-2 text-[10px] tracking-[0.2em] text-white/62 backdrop-blur">
                 <div>
                   {t.bet.multiplier.toUpperCase()}{' '}
                   <span className="data-num ml-1 text-neon-acid">
@@ -127,7 +127,7 @@ export function DicePage() {
                 </div>
                 <div>
                   {t.bet.winChance.toUpperCase()}{' '}
-                  <span className="data-num ml-1 text-ink-700">{winChance.toFixed(2)}%</span>
+                    <span className="data-num ml-1 text-white">{winChance.toFixed(2)}%</span>
                 </div>
                 <div>
                   {t.bet.potentialPayout.toUpperCase()}{' '}
@@ -139,7 +139,7 @@ export function DicePage() {
             </div>
 
             {/* 滑杆 + 方向 toggle（紧贴画布底部，免滚动） */}
-            <div className="border-t border-ink-200 p-4">
+            <div className="border-t border-[#16324A]/10 p-4 md:p-5">
               <div className="mb-2 flex items-baseline justify-between">
                 <div className="flex items-baseline gap-2">
                   <span className="label">{t.games.dice.threshold}</span>
@@ -149,22 +149,14 @@ export function DicePage() {
                   <button
                     type="button"
                     onClick={() => setDirection('under')}
-                    className={`border px-3 py-1 font-mono tracking-[0.2em] transition ${
-                      direction === 'under'
-                        ? 'border-neon-acid bg-neon-acid/10 text-neon-acid'
-                        : 'border-ink-200 bg-ink-50 text-ink-600 hover:border-ink-600'
-                    }`}
+                    className={`game-choice-btn px-3 py-2 ${direction === 'under' ? 'game-choice-btn-acid' : ''}`}
                   >
                     ▾ {t.games.dice.rollUnder}
                   </button>
                   <button
                     type="button"
                     onClick={() => setDirection('over')}
-                    className={`border px-3 py-1 font-mono tracking-[0.2em] transition ${
-                      direction === 'over'
-                        ? 'border-neon-ember bg-neon-ember/10 text-neon-ember'
-                        : 'border-ink-200 bg-ink-50 text-ink-600 hover:border-ink-600'
-                    }`}
+                    className={`game-choice-btn px-3 py-2 ${direction === 'over' ? 'game-choice-btn-ember' : ''}`}
                   >
                     ▴ {t.games.dice.rollOver}
                   </button>
@@ -189,11 +181,7 @@ export function DicePage() {
 
           {lastResult && (
             <div
-              className={`border-2 p-5 ${
-                lastResult.won
-                  ? 'border-neon-acid bg-neon-acid/5 shadow-acid-glow'
-                  : 'border-neon-ember/60 bg-neon-ember/5'
-              }`}
+              className={`game-result-card ${lastResult.won ? 'game-result-card-win' : 'game-result-card-loss'}`}
             >
               <div className="flex items-baseline justify-between">
                 <div className="flex items-baseline gap-3">
@@ -227,7 +215,7 @@ export function DicePage() {
           )}
 
           {error && (
-            <div className="flex items-start gap-2 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+            <div className="game-alert text-[12px]">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="leading-relaxed">
                 {t.common.error.toUpperCase()}: {error.toUpperCase()}
@@ -237,7 +225,7 @@ export function DicePage() {
         </div>
 
         <div className="space-y-4">
-          <div className="crt-panel p-5">
+          <div className="game-side-card p-5">
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -261,7 +249,7 @@ export function DicePage() {
               )}
             </button>
 
-            <div className="mt-3 flex items-baseline justify-between border-t border-ink-200 pt-3 text-[10px] tracking-[0.25em]">
+            <div className="game-balance-strip mt-3">
               <span className="text-ink-500">
                 {t.bet.balance}{' '}
                 <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
@@ -275,7 +263,7 @@ export function DicePage() {
             </div>
           </div>
 
-          <div className="crt-panel p-5">
+          <div className="game-side-card p-5">
             <div className="flex items-center justify-between border-b border-ink-200 pb-3">
               <div className="flex items-baseline gap-2">
                 <span className="text-[9px] text-ink-500">03</span>
@@ -294,7 +282,7 @@ export function DicePage() {
               {history.map((h) => (
                 <div
                   key={h.betId}
-                  className={`flex items-center justify-between border px-3 py-1.5 text-[11px] ${
+                  className={`flex items-center justify-between rounded-[16px] border px-3 py-2 text-[11px] ${
                     h.won
                       ? 'border-neon-acid/20 bg-neon-acid/5'
                       : 'border-neon-ember/20 bg-neon-ember/5'
@@ -327,7 +315,7 @@ export function DicePage() {
 
 function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
   return (
-    <div className="crt-panel p-4">
+    <div className="game-stat-card">
       <div className="label">{k}</div>
       <div
         className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}

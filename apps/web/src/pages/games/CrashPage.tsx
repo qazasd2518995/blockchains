@@ -239,6 +239,7 @@ export function CrashPage({ config }: Props) {
   return (
     <div>
       <GameHeader
+        artwork={`/games/${config.gameId}.jpg`}
         section={config.section}
         breadcrumb={config.breadcrumb}
         title={meta.title}
@@ -251,10 +252,10 @@ export function CrashPage({ config }: Props) {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-4">
-          <div className="crt-panel scanlines relative overflow-hidden">
-            <div className="flex items-center justify-between border-b border-ink-200 px-4 py-2 text-[10px] tracking-[0.25em]">
-              <span className="text-ink-500">TERMINAL://{config.gameId.toUpperCase()}</span>
-              <div className="flex items-center gap-3 text-ink-600">
+          <div className="game-stage-panel scanlines relative overflow-hidden">
+            <div className="game-stage-bar">
+              <span className="text-white/62">TERMINAL://{config.gameId.toUpperCase()}</span>
+              <div className="flex items-center gap-3 text-white/72">
                 {status === 'BETTING' && (
                   <span className="text-neon-acid">
                     <span className="dot-online dot-online" />
@@ -277,12 +278,12 @@ export function CrashPage({ config }: Props) {
               </div>
             </div>
 
-            <div className="relative aspect-[16/7] w-full overflow-hidden">
+            <div className="game-canvas-shell relative aspect-[16/7] w-full overflow-hidden">
               <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
             </div>
           </div>
 
-          <div className="crt-panel p-4">
+          <div className="game-side-card p-4">
             <div className="flex items-center justify-between">
               <span className="label">{t.games.crash.recentCrashes}</span>
               <span className="data-num text-[10px] text-ink-500">{history.length}</span>
@@ -296,7 +297,7 @@ export function CrashPage({ config }: Props) {
               {history.map((m, i) => (
                 <span
                   key={i}
-                  className={`border px-2 py-1 font-mono text-[11px] ${
+                  className={`rounded-[14px] border px-2 py-1.5 font-mono text-[11px] ${
                     m >= 10
                       ? 'border-neon-acid/40 bg-neon-acid/10 text-neon-acid'
                       : m >= 2
@@ -311,7 +312,7 @@ export function CrashPage({ config }: Props) {
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+            <div className="game-alert text-[12px]">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="leading-relaxed">{error.toUpperCase()}</span>
             </div>
@@ -319,7 +320,7 @@ export function CrashPage({ config }: Props) {
         </div>
 
         <div className="space-y-4">
-          <div className="crt-panel p-5">
+          <div className="game-side-card p-5">
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -329,14 +330,16 @@ export function CrashPage({ config }: Props) {
 
             <div className="mt-5">
               <div className="label">{t.games.crash.autoCashout}</div>
-              <input
-                type="text"
-                value={autoCashOut}
-                onChange={(e) => setAutoCashOut(e.target.value)}
-                disabled={status !== 'BETTING' || !!myBet}
-                placeholder={t.games.crash.autoCashoutPlaceholder}
-                className="term-input mt-2 text-center font-display text-2xl"
-              />
+              <div className="mt-2 rounded-[18px] border border-[#16324A]/10 bg-white/80 p-2 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)]">
+                <input
+                  type="text"
+                  value={autoCashOut}
+                  onChange={(e) => setAutoCashOut(e.target.value)}
+                  disabled={status !== 'BETTING' || !!myBet}
+                  placeholder={t.games.crash.autoCashoutPlaceholder}
+                  className="term-input border-0 bg-transparent text-center font-display text-2xl shadow-none focus-visible:border-transparent focus-visible:bg-transparent focus-visible:shadow-none"
+                />
+              </div>
             </div>
 
             <div className="mt-6 space-y-2">
@@ -360,7 +363,7 @@ export function CrashPage({ config }: Props) {
                 </button>
               )}
               {myBet && myBet.cashed && (
-                <div className="border-2 border-neon-acid bg-neon-acid/5 p-3 text-center">
+                <div className="game-result-card game-result-card-win text-center">
                   <div className="font-display text-xl text-neon-acid">
                     {t.games.crash.secured}
                   </div>
@@ -368,14 +371,14 @@ export function CrashPage({ config }: Props) {
                 </div>
               )}
               {status === 'CRASHED' && myBet && !myBet.cashed && (
-                <div className="border-2 border-neon-ember bg-neon-ember/5 p-3 text-center">
+                <div className="game-result-card game-result-card-loss text-center">
                   <div className="font-display text-xl text-neon-ember">
                     {t.games.crash.busted}
                   </div>
                 </div>
               )}
               {status === 'BETTING' && myBet && (
-                <div className="border border-ink-200 bg-ink-100 p-3 text-center">
+                <div className="game-stat-card text-center">
                   <div className="text-[10px] tracking-[0.3em] text-ink-500">
                     {t.games.crash.betPlaced}
                   </div>
@@ -384,13 +387,18 @@ export function CrashPage({ config }: Props) {
                   </div>
                 </div>
               )}
-              <div className="mt-2 text-center text-[10px] tracking-[0.25em] text-ink-500">
-                {t.bet.balance} {formatAmount(balance)}
+              <div className="game-balance-strip mt-3">
+                <span>
+                  {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+                </span>
+                <span>
+                  MULTI <span className="data-num ml-1 text-neon-acid">{formatMultiplier(multiplier)}</span>
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="crt-panel p-5">
+          <div className="game-side-card p-5">
             <div className="flex items-center justify-between border-b border-ink-200 pb-2">
               <span className="label">{t.games.crash.liveBets}</span>
               <span className="data-num text-[10px] text-ink-500">{players.length}</span>
@@ -400,7 +408,7 @@ export function CrashPage({ config }: Props) {
               {players.slice(0, 30).map((p, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between border border-ink-200 bg-ink-50/40 px-2 py-1"
+                  className="flex items-center justify-between rounded-[14px] border border-ink-200 bg-ink-50/40 px-2 py-1.5"
                 >
                   <span className="font-mono text-ink-600">
                     0x{p.userId.slice(-6).toUpperCase()}

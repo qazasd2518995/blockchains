@@ -158,6 +158,7 @@ export function TowerPage() {
   return (
     <div>
       <GameHeader
+        artwork="/games/tower.jpg"
         section="§ GAME 09"
         breadcrumb="TOWER_09"
         title={t.games.tower.title}
@@ -170,17 +171,17 @@ export function TowerPage() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-4">
-          <div className="crt-panel scanlines p-3">
-            <div className="flex items-center justify-between border-b border-ink-200 pb-2 text-[10px] tracking-[0.25em]">
-              <span className="text-ink-500">TERMINAL://TOWER</span>
-              <span className="text-ink-600">
+          <div className="game-stage-panel scanlines p-3">
+            <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
+              <span className="text-white/62">TERMINAL://TOWER</span>
+              <span className="text-white/72">
                 {round
                   ? `${t.games.tower.level} ${round.currentLevel}/${round.totalLevels}`
                   : t.games.hilo.idle.toUpperCase()}
               </span>
             </div>
 
-            <div className="mx-auto mt-2 aspect-[3/4] w-full max-w-[420px]">
+            <div className="game-canvas-shell mx-auto mt-2 aspect-[3/4] w-full max-w-[420px]">
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
           </div>
@@ -201,7 +202,7 @@ export function TowerPage() {
           )}
 
           {round?.status === 'BUSTED' && (
-            <div className="border-2 border-neon-ember bg-neon-ember/5 p-5">
+            <div className="game-result-card game-result-card-loss">
               <div className="font-display text-4xl text-neon-ember">
                 {t.games.tower.trapTriggered}
               </div>
@@ -211,7 +212,7 @@ export function TowerPage() {
             </div>
           )}
           {round?.status === 'CASHED_OUT' && (
-            <div className="border-2 border-neon-acid bg-neon-acid/5 p-5 shadow-acid-glow">
+            <div className="game-result-card game-result-card-win">
               <div className="font-display text-4xl text-neon-acid">{t.games.tower.secured}</div>
               <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
                 {t.games.tower.payout} +{formatAmount(round.potentialPayout)}
@@ -219,7 +220,7 @@ export function TowerPage() {
             </div>
           )}
           {error && (
-            <div className="flex items-start gap-2 border border-neon-ember/40 bg-neon-ember/5 p-3 text-[12px] text-neon-ember">
+            <div className="game-alert text-[12px]">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="leading-relaxed">{error.toUpperCase()}</span>
             </div>
@@ -227,7 +228,7 @@ export function TowerPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="crt-panel p-5">
+          <div className="game-side-card p-5">
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -244,10 +245,10 @@ export function TowerPage() {
                     type="button"
                     onClick={() => setDifficulty(d.id)}
                     disabled={round?.status === 'ACTIVE' || busy}
-                    className={`flex w-full items-center justify-between border p-2 text-left transition ${
+                    className={`flex w-full items-center justify-between rounded-[16px] border p-3 text-left transition ${
                       difficulty === d.id
-                        ? 'border-neon-acid bg-neon-acid/10'
-                        : 'border-ink-200 bg-ink-50/50 hover:border-ink-600'
+                        ? 'border-neon-acid/30 bg-neon-acid/8'
+                        : 'border-[#16324A]/12 bg-white/76 hover:border-[#186073]/28'
                     } disabled:opacity-40`}
                   >
                     <span className="font-mono text-[12px] font-semibold tracking-[0.2em] text-ink-900">
@@ -283,8 +284,16 @@ export function TowerPage() {
                   ⇧ {t.bet.cashout.toUpperCase()} · {formatAmount(round.potentialPayout)}
                 </button>
               )}
-              <div className="mt-2 text-center text-[10px] tracking-[0.25em] text-ink-500">
-                {t.bet.balance} {formatAmount(balance)}
+              <div className="game-balance-strip mt-3">
+                <span>
+                  {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+                </span>
+                <span>
+                  {t.games.tower.current}{' '}
+                  <span className="data-num ml-1 text-neon-acid">
+                    {round ? formatMultiplier(round.currentMultiplier) : '—'}
+                  </span>
+                </span>
               </div>
             </div>
           </div>
@@ -296,7 +305,7 @@ export function TowerPage() {
 
 function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
   return (
-    <div className="crt-panel p-4">
+    <div className="game-stat-card">
       <div className="label">{k}</div>
       <div
         className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
