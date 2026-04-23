@@ -7,53 +7,60 @@ import { adminApi, extractApiError } from '@/lib/adminApi';
 import { Modal } from './Modal';
 
 const schema = z.object({
-  parentId: z.string().min(1, '請選擇上級代理'),
+  parentId: z.string().min(1, '请选择上级代理'),
   username: z
     .string()
-    .min(3, '帳號至少 3 位')
-    .max(64, '帳號至多 64 位')
-    .regex(/^[a-zA-Z0-9._-]+$/, '帳號僅限字母、數字、. _ -'),
+    .min(3, '账号至少 3 位')
+    .max(64, '账号至多 64 位')
+    .regex(/^[a-zA-Z0-9._-]+$/, '账号仅限字母、数字、. _ -'),
   password: z
     .string()
-    .min(8, '密碼至少 8 位')
-    .max(128, '密碼最長 128')
+    .min(8, '密码至少 8 位')
+    .max(128, '密码最长 128')
     .regex(/[A-Za-z]/, '需包含字母')
-    .regex(/\d/, '需包含數字'),
+    .regex(/\d/, '需包含数字'),
   displayName: z.string().max(40).optional(),
   rebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']),
-  /** 百分比顯示用（%，例如 "2.50"）；送出時換算為 fraction */
-  rebatePercentageDisplay: z.string().regex(/^\d+(\.\d+)?$/, '請填 0-2.5 之間的百分比'),
+  /** 百分比显示用（%，例如 "2.50"）；送出时换算为 fraction */
+  rebatePercentageDisplay: z.string().regex(/^\d+(\.\d+)?$/, '请填写 0-2.5 之间的百分比'),
   bettingLimitLevel: z.enum(['level1', 'level2', 'level3', 'level4', 'level5', 'unlimited']),
   notes: z.string().max(500).optional(),
 });
 
 type FormInput = z.infer<typeof schema>;
 
+type LockedParentAgent = Pick<AgentPublic, 'id' | 'username' | 'level' | 'rebatePercentage' | 'marketType'> & {
+  bettingLimitLevel?: string | null;
+};
+
 interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: (a: AgentPublic) => void;
   defaultParentId?: string;
+  lockedParent?: LockedParentAgent;
 }
 
-/** 平台硬上限 2.5% (fraction 0.025) — 必須與 server 端 PLATFORM_REBATE_CAP 同步 */
+/** 平台硬上限 2.5% (fraction 0.025) — 必须与 server 端 PLATFORM_REBATE_CAP 同步 */
 const PLATFORM_REBATE_CAP_PCT = 2.5;
 
-export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: Props): JSX.Element {
+export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lockedParent }: Props): JSX.Element {
   const [parents, setParents] = useState<AgentPublic[]>([]);
-  const [selectedParent, setSelectedParent] = useState<AgentPublic | null>(null);
+  const [selectedParent, setSelectedParent] = useState<LockedParentAgent | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const resolvedParentId = lockedParent?.id ?? defaultParentId ?? '';
 
   const {
     register,
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormInput>({
     resolver: zodResolver(schema),
     defaultValues: {
-      parentId: defaultParentId ?? '',
+      parentId: resolvedParentId,
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
       bettingLimitLevel: 'level3',
@@ -67,29 +74,55 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: 
     if (!open) return;
     setErr(null);
     reset({
-      parentId: defaultParentId ?? '',
+      parentId: resolvedParentId,
       username: '',
       password: '',
       displayName: '',
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
-      bettingLimitLevel: 'level3',
+      bettingLimitLevel: normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? 'level3',
       notes: '',
     });
+    if (lockedParent) {
+      setParents([]);
+      setSelectedParent(lockedParent);
+      void (async () => {
+        try {
+          const detail = await adminApi.get<AgentPublic>(`/agents/${lockedParent.id}`);
+          setSelectedParent(detail.data);
+          setValue('parentId', detail.data.id);
+          const inheritedLimit = normalizeBettingLimit(detail.data.bettingLimitLevel);
+          if (inheritedLimit) setValue('bettingLimitLevel', inheritedLimit);
+        } catch {
+          setSelectedParent(lockedParent);
+        }
+      })();
+      return;
+    }
     void (async () => {
       try {
         const me = await adminApi.get<{ items: AgentPublic[] }>('/agents');
-        setParents(me.data.items);
+        let items = me.data.items;
+        if (resolvedParentId && !items.some((a) => a.id === resolvedParentId)) {
+          try {
+            const detail = await adminApi.get<AgentPublic>(`/agents/${resolvedParentId}`);
+            items = [...items, detail.data];
+          } catch {
+            // The submit guard will show a concrete error if this parent is still unavailable.
+          }
+        }
+        setParents(items);
       } catch {
         setParents([]);
       }
     })();
-  }, [open, defaultParentId, reset]);
+  }, [open, resolvedParentId, lockedParent, reset, setValue]);
 
   useEffect(() => {
+    if (lockedParent) return;
     const p = parents.find((a) => a.id === watchedParentId) ?? null;
     setSelectedParent(p);
-  }, [parents, watchedParentId]);
+  }, [parents, watchedParentId, lockedParent]);
 
   const parentMaxPct = selectedParent
     ? Math.min(Number.parseFloat(selectedParent.rebatePercentage) * 100, PLATFORM_REBATE_CAP_PCT)
@@ -98,19 +131,19 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: 
   const onSubmit = async (data: FormInput) => {
     setErr(null);
 
-    // 前端驗證退水上限
+    // 前端验证退水上限
     if (data.rebateMode === 'PERCENTAGE') {
       const pctNum = Number.parseFloat(data.rebatePercentageDisplay);
       if (pctNum > parentMaxPct + 1e-6) {
-        setErr(`退水比例不可超過 ${parentMaxPct.toFixed(2)}%（受上級與平台上限限制）`);
+        setErr(`退水比例不可超过 ${parentMaxPct.toFixed(2)}%（受上级与平台上限限制）`);
         return;
       }
     }
 
-    // 取 parent 計算 level
-    const parent = parents.find((a) => a.id === data.parentId);
+    // 取 parent 计算 level
+    const parent = selectedParent ?? parents.find((a) => a.id === data.parentId);
     if (!parent) {
-      setErr('找不到上級代理');
+      setErr('找不到上级代理');
       return;
     }
 
@@ -134,25 +167,42 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: 
     }
   };
 
+  const modalTitle = lockedParent ? `为 ${lockedParent.username} 新增代理` : '新增代理';
+  const nextLevel = selectedParent ? selectedParent.level + 1 : null;
+  const lockedParentLevel = lockedParent?.level ?? selectedParent?.level;
+
   return (
-    <Modal open={open} onClose={onClose} title="创建代理" subtitle="新增下级代理" width="md">
+    <Modal open={open} onClose={onClose} title={modalTitle} subtitle="新增下级代理" width="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <Field label="上級代理" code="01" error={errors.parentId?.message}>
-          <select {...register('parentId')} className="term-input">
-            <option value="">— 選擇上級 —</option>
-            {defaultParentId && !parents.find((a) => a.id === defaultParentId) && (
-              <option value={defaultParentId}>{defaultParentId}</option>
-            )}
-            {parents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.username}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {lockedParent ? (
+          <div className="rounded-md border border-[#C9A247]/35 bg-[#FFF8DA] px-4 py-3">
+            <input type="hidden" {...register('parentId')} />
+            <div className="label mb-1">上级代理</div>
+            <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-ink-900">
+              <span className="font-mono">{lockedParent.username}</span>
+              {lockedParentLevel !== undefined && <span className="tag tag-acid">L{lockedParentLevel}</span>}
+              {nextLevel !== null && <span className="tag tag-gold">新代理 L{nextLevel}</span>}
+              <span className="text-[11px] font-normal text-ink-500">本代理会建立在当前层级下面</span>
+            </div>
+          </div>
+        ) : (
+          <Field label="上级代理" code="01" error={errors.parentId?.message}>
+            <select {...register('parentId')} className="term-input">
+              <option value="">— 选择上级 —</option>
+              {defaultParentId && !parents.find((a) => a.id === defaultParentId) && (
+                <option value={defaultParentId}>{defaultParentId}</option>
+              )}
+              {parents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.username}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="帳號" code="02" error={errors.username?.message}>
+          <Field label="账号" code="02" error={errors.username?.message}>
             <input
               type="text"
               autoComplete="off"
@@ -160,23 +210,23 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: 
               spellCheck={false}
               {...register('username')}
               className="term-input font-mono"
-              placeholder="agent_001"
+              placeholder="请输入代理账号"
             />
           </Field>
-          <Field label="密碼" code="03" error={errors.password?.message}>
-            <input type="password" {...register('password')} className="term-input" placeholder="••••••••" />
+          <Field label="密码" code="03" error={errors.password?.message}>
+            <input type="password" {...register('password')} className="term-input" placeholder="至少 8 位，含英数" />
           </Field>
         </div>
 
-        <Field label="顯示名稱" code="04" error={errors.displayName?.message}>
-          <input type="text" {...register('displayName')} className="term-input" placeholder="選填" />
+        <Field label="显示名称" code="04" error={errors.displayName?.message}>
+          <input type="text" {...register('displayName')} className="term-input" placeholder="选填" />
         </Field>
 
         <Field label="退水模式" code="05" error={errors.rebateMode?.message}>
           <select {...register('rebateMode')} className="term-input">
             <option value="PERCENTAGE">按比例</option>
-            <option value="ALL">上級全收</option>
-            <option value="NONE">全退下級</option>
+            <option value="ALL">上级全收</option>
+            <option value="NONE">全退下级</option>
           </select>
         </Field>
 
@@ -201,19 +251,19 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: 
           </Field>
         )}
 
-        <Field label="限紅等級" code="07" error={errors.bettingLimitLevel?.message}>
+        <Field label="限红等级" code="07" error={errors.bettingLimitLevel?.message}>
           <select {...register('bettingLimitLevel')} className="term-input">
-            <option value="level1">新手（單注 100）</option>
-            <option value="level2">一般（單注 500）</option>
-            <option value="level3">標準（單注 2,000）</option>
-            <option value="level4">進階（單注 10,000）</option>
-            <option value="level5">VIP（單注 50,000）</option>
+            <option value="level1">新手（单注 100）</option>
+            <option value="level2">一般（单注 500）</option>
+            <option value="level3">标准（单注 2,000）</option>
+            <option value="level4">进阶（单注 10,000）</option>
+            <option value="level5">VIP（单注 50,000）</option>
             <option value="unlimited">不限</option>
           </select>
         </Field>
 
-        <Field label="備註" code="08" error={errors.notes?.message}>
-          <textarea rows={2} {...register('notes')} className="term-input resize-none" />
+        <Field label="备注" code="08" error={errors.notes?.message}>
+          <textarea rows={2} {...register('notes')} className="term-input resize-none" placeholder="备注说明（选填）" />
         </Field>
 
         {err && (
@@ -231,6 +281,20 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId }: 
       </form>
     </Modal>
   );
+}
+
+function normalizeBettingLimit(value: string | null | undefined): FormInput['bettingLimitLevel'] | null {
+  if (
+    value === 'level1' ||
+    value === 'level2' ||
+    value === 'level3' ||
+    value === 'level4' ||
+    value === 'level5' ||
+    value === 'unlimited'
+  ) {
+    return value;
+  }
+  return null;
 }
 
 function Field({

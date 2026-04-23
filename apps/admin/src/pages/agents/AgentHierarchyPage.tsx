@@ -21,11 +21,11 @@ const ACCOUNT_TABLE_COLUMNS = '72px minmax(170px, 1fr) 64px 118px 112px minmax(3
 const ACCOUNT_TABLE_GRID_STYLE = { gridTemplateColumns: ACCOUNT_TABLE_COLUMNS };
 
 /**
- * 帳號管理（混合階層）
- *   - 呈現某 parent 的「直屬代理 + 直屬會員」
- *   - 點代理 row → 下鑽到該代理
- *   - 點會員 row → 切到該會員下注紀錄頁
- *   - breadcrumb 可回到上層
+ * 账号管理（混合阶层）
+ *   - 呈现某 parent 的「直属代理 + 直属会员」
+ *   - 点代理 row → 下钻到该代理
+ *   - 点会员 row → 切到该会员下注纪录页
+ *   - breadcrumb 可回到上层
  */
 export function AgentHierarchyPage(): JSX.Element {
   const navigate = useNavigate();
@@ -132,6 +132,22 @@ export function AgentHierarchyPage(): JSX.Element {
     };
   };
 
+  const currentLayerAgent = data?.parent ?? null;
+  const createTarget = currentLayerAgent
+    ? {
+        id: currentLayerAgent.id,
+        username: currentLayerAgent.username,
+        level: currentLayerAgent.level,
+        marketType: currentLayerAgent.marketType,
+        rebatePercentage: currentLayerAgent.rebatePercentage,
+        bettingLimitLevel: currentLayerAgent.bettingLimitLevel,
+      }
+    : undefined;
+  const canCreateSubAgent = currentLayerAgent ? currentLayerAgent.level < 15 : false;
+  const previousCrumb = data && data.breadcrumb.length > 1
+    ? data.breadcrumb[data.breadcrumb.length - 2]
+    : null;
+
   return (
     <div>
       <PageHeader
@@ -142,13 +158,30 @@ export function AgentHierarchyPage(): JSX.Element {
         titleSuffixColor="acid"
         description={t.agents.description}
         rightSlot={
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setOpenCreateAgent(true)} className="btn-teal-outline text-[11px]">
-              + {t.agents.createSub}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {data && (
+              <span className="rounded-full border border-white/18 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white/82">
+                共 {data.items.length} 个下级（{data.stats.agentCount} 代理 + {data.stats.memberCount} 会员）
+              </span>
+            )}
+            <button
+              type="button"
+              disabled={!currentLayerAgent}
+              onClick={() => setOpenCreateMember(true)}
+              className="btn-acid text-[11px] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              + 新增会员
             </button>
-            <button type="button" onClick={() => setOpenCreateMember(true)} className="btn-acid text-[11px]">
-              + {t.agents.createMember}
-            </button>
+            {canCreateSubAgent && (
+              <button
+                type="button"
+                disabled={!currentLayerAgent}
+                onClick={() => setOpenCreateAgent(true)}
+                className="btn-teal-outline text-[11px] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                + 新增代理
+              </button>
+            )}
           </div>
         }
       />
@@ -157,6 +190,7 @@ export function AgentHierarchyPage(): JSX.Element {
         <HierarchyBreadcrumb
           items={data.breadcrumb}
           onSelect={selectParent}
+          onBack={previousCrumb ? () => selectParent(previousCrumb.id) : undefined}
           terminalLabel={t.agents.directSummaryTpl
             .replace('{agents}', data.stats.agentCount.toString())
             .replace('{members}', data.stats.memberCount.toString())}
@@ -379,13 +413,15 @@ export function AgentHierarchyPage(): JSX.Element {
         open={openCreateMember}
         onClose={() => setOpenCreateMember(false)}
         onCreated={() => setReloadKey((k) => k + 1)}
-        defaultAgentId={currentParent}
+        defaultAgentId={createTarget?.id ?? currentParent}
+        lockedAgent={createTarget ? { id: createTarget.id, username: createTarget.username, level: createTarget.level } : undefined}
       />
       <CreateAgentModal
         open={openCreateAgent}
         onClose={() => setOpenCreateAgent(false)}
         onCreated={() => setReloadKey((k) => k + 1)}
-        defaultParentId={currentParent}
+        defaultParentId={createTarget?.id ?? currentParent}
+        lockedParent={createTarget}
       />
       {transferFor && (
         <TransferModal
@@ -491,12 +527,12 @@ function NotesModal({
     >
       <form onSubmit={submit} className="space-y-4">
         <div>
-          <div className="label mb-2">備註內容</div>
+          <div className="label mb-2">备注内容</div>
           <textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value.slice(0, 500))}
             className="term-input min-h-[150px] resize-y"
-            placeholder="輸入內部備註，最多 500 字"
+            placeholder="输入内部备注，最多 500 字"
           />
           <div className="mt-2 text-right text-[10px] tracking-[0.16em] text-ink-400">
             {notes.length}/500
@@ -535,11 +571,11 @@ function ResetPasswordModal({
   const submit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
     if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
-      setLocalError('密碼至少 8 字，且必須包含英文字母與數字。');
+      setLocalError('密码至少 8 字，且必须包含英文字母与数字。');
       return;
     }
     if (password !== confirmPassword) {
-      setLocalError('兩次輸入的密碼不一致。');
+      setLocalError('两次输入的密码不一致。');
       return;
     }
     setBusy(true);
@@ -568,10 +604,10 @@ function ResetPasswordModal({
     >
       <form onSubmit={submit} className="space-y-4">
         <div className="border border-[#D4AF37]/35 bg-[#FFF8DA] px-3 py-2 text-[12px] text-ink-700">
-          重設後原有登入憑證會失效，帳號需要使用新密碼重新登入。
+          重设后原有登录凭证会失效，账号需要使用新密码重新登录。
         </div>
         <div>
-          <div className="label mb-2">新密碼</div>
+          <div className="label mb-2">新密码</div>
           <input
             type="password"
             value={password}
@@ -588,7 +624,7 @@ function ResetPasswordModal({
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
             className="term-input"
-            placeholder="確認新密碼"
+            placeholder="确认新密码"
             autoComplete="new-password"
           />
         </div>

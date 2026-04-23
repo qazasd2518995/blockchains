@@ -41,6 +41,9 @@ export interface HierarchyResponse {
     marketType: 'D' | 'A';
     balance: string;
     rebatePercentage: string;
+    maxRebatePercentage: string;
+    rebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
+    bettingLimitLevel: string;
     role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
     status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
     parentId: string | null;

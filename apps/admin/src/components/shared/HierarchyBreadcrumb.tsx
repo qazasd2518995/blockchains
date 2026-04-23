@@ -7,11 +7,12 @@ interface Crumb {
 interface Props {
   items: Crumb[];
   onSelect: (id: string | null) => void;
+  onBack?: () => void;
   /** 最末一項通常是目前 parent, 不 clickable */
   terminalLabel?: string;
 }
 
-export function HierarchyBreadcrumb({ items, onSelect, terminalLabel }: Props): JSX.Element {
+export function HierarchyBreadcrumb({ items, onSelect, onBack, terminalLabel }: Props): JSX.Element {
   return (
     <div className="card-base mb-4 flex flex-wrap items-center gap-1 px-4 py-2.5 text-[11px]">
       {items.map((c, idx) => {
@@ -36,6 +37,15 @@ export function HierarchyBreadcrumb({ items, onSelect, terminalLabel }: Props): 
       })}
       {terminalLabel && (
         <span className="ml-3 font-semibold text-[12px] text-[#186073]">· {terminalLabel}</span>
+      )}
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="ml-auto rounded-sm border border-ink-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-ink-600 transition hover:border-[#186073]/40 hover:text-[#186073]"
+        >
+          ← 返回上级
+        </button>
       )}
     </div>
   );
