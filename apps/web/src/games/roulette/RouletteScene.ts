@@ -354,10 +354,8 @@ export class RouletteScene {
     let tick = 0;
     this.ambientTicker = (tk: Ticker) => {
       tick += tk.deltaTime;
-      // Idle：輪盤緩慢自轉
-      if (!this.spinning && this.wheelContainer) {
-        this.wheelContainer.rotation += 0.002 * tk.deltaTime;
-      }
+      // Idle 不再讓輪盤自轉 — 結算後輪盤必須維持 slot 對齊指針，
+      // 任何漂移都會讓玩家以為「結果與停止位置不同」。
     };
     this.app.ticker.add(this.ambientTicker);
 
@@ -413,7 +411,13 @@ export class RouletteScene {
     if (!this.wheelContainer || !this.ball) return;
     // 清 anticipation 無限旋轉
     if (this.wheelContainer) gsap.killTweensOf(this.wheelContainer);
-    if (this.ballContainer) gsap.killTweensOf(this.ballContainer);
+    if (this.ballContainer) {
+      gsap.killTweensOf(this.ballContainer);
+      // 重置 ballContainer.rotation — 否則 anticipation 殘留會讓
+      // 球的世界座標 = ballContainer.rotation 應用 + ball 局部位置，
+      // 導致最終球停的位置偏離指針。
+      this.ballContainer.rotation = 0;
+    }
     this.spinning = true;
 
     const segAngle = (Math.PI * 2) / SLOTS;

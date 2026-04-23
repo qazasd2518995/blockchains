@@ -50,6 +50,27 @@ export class DiceService {
       const finalWon = controlled.won;
       const profit = finalPayout.minus(amount);
 
+      // 若控制翻轉了 won 結果，重新生成一個符合 won 的 roll，避免畫面顯示與結算矛盾
+      // （例如 target=50 under、PF roll=30 理論上贏，但被控制改為輸 — 若仍顯示 30
+      // 玩家會立刻發現不對勁。rawRoll 保留 PF 真值供審計）
+      const rawRoll = outcome.roll;
+      let displayRoll = rawRoll;
+      if (controlled.controlled && finalWon !== outcome.won) {
+        const t = input.target;
+        if (input.direction === 'under') {
+          // under: 贏 → roll < t；輸 → roll >= t
+          displayRoll = finalWon
+            ? Math.min(t - 0.01, Math.random() * t)
+            : t + Math.random() * (100 - t);
+        } else {
+          // over: 贏 → roll > t；輸 → roll <= t
+          displayRoll = finalWon
+            ? t + 0.01 + Math.random() * (100 - t - 0.01)
+            : Math.random() * t;
+        }
+        displayRoll = Math.max(0, Math.min(99.99, Number(displayRoll.toFixed(2))));
+      }
+
       const bet = await tx.bet.create({
         data: {
           userId,
@@ -62,7 +83,8 @@ export class DiceService {
           clientSeedUsed: seed.clientSeed,
           serverSeedId: seed.serverSeedId,
           resultData: {
-            roll: outcome.roll,
+            roll: displayRoll,
+            rawRoll,
             target: input.target,
             direction: input.direction,
             winChance: outcome.winChance,
@@ -81,7 +103,7 @@ export class DiceService {
 
       return {
         betId: bet.id,
-        roll: outcome.roll,
+        roll: displayRoll,
         won: finalWon,
         target: input.target,
         direction: input.direction,

@@ -286,11 +286,12 @@ export class PlinkoScene {
     this.ballTicker = (tk: Ticker) => {
       for (let i = this.balls.length - 1; i >= 0; i -= 1) {
         const b = this.balls[i]!;
-        const gravity = 0.35;
+        // Deterministic 物理：球以恆定 vy 下落，垂直不受水平影響；
+        // 每碰到一排釘子，依 path[row] 精確橫移半格到新位置。
+        // 保證視覺軌跡與最終 bucket 完全吻合。
+        const gravity = 0.42;
         b.vy += gravity * tk.deltaTime;
-        // 水平阻尼
-        b.vx *= 0.995;
-        b.x += b.vx * tk.deltaTime;
+        // 水平位置由 GSAP tween 控制（碰釘時觸發），不再用 vx 累加
         b.y += b.vy * tk.deltaTime;
 
         // 檢測是否碰到某一排釘子（依 path 決定方向）
@@ -300,10 +301,18 @@ export class PlinkoScene {
           if (b.y >= rowY && !b.bouncedRows.has(nextRow)) {
             b.bouncedRows.add(nextRow);
             const dir = b.path[nextRow];
-            // 讓球朝該方向偏移 vx，並彈向下
-            const kick = this.pegSpacing * 0.45;
-            b.vx = (dir === 'right' ? 1 : -1) * kick * 0.15 + (Math.random() - 0.5) * 1.2;
-            b.vy = Math.max(2, b.vy * 0.4 + 1.5); // 彈一下再往下
+            // 精確位移半格，確保跑完所有 row 後 x 會到 bucket 中心
+            const delta = (dir === 'right' ? 1 : -1) * this.pegSpacing * 0.5;
+            const toX = b.x + delta;
+            gsap.to(b, {
+              x: toX,
+              duration: 0.16,
+              ease: 'sine.inOut',
+              onUpdate: () => {
+                b.g.x = b.x;
+              },
+            });
+            b.vy = Math.max(2, b.vy * 0.55 + 1.2); // 彈一下
             b.row += 1;
 
             // 碰撞火花
@@ -311,29 +320,25 @@ export class PlinkoScene {
           }
         }
 
-        // 應用球位置
+        // 應用球位置（x 由上面 tween 控制，這裡只 sync 到 Graphics）
         b.g.x = b.x;
         b.g.y = b.y;
-        // 微旋轉
-        b.g.rotation += b.vx * 0.02 * tk.deltaTime;
+        b.g.rotation += 0.04 * tk.deltaTime;
 
         // 落底判定
         if (b.y >= this.boardBottom + 10) {
-          // 完成：根據 targetBucket 決定落位
           const bucketCount = this.multipliers.length;
           const margin = 6;
           const bucketW = (this.boardRight - this.boardLeft - margin * 2) / bucketCount;
           const targetX = this.boardLeft + margin + b.targetBucket * bucketW + bucketW / 2;
           const targetY = this.boardBottom + 20;
 
-          // 移除 ball 從物理
           this.balls.splice(i, 1);
-
-          // 平滑過渡到目標 bucket
+          // 短 tween 校正最後 1-2px 浮點誤差（不再有大位移 snap）
           gsap.to(b, {
             x: targetX,
             y: targetY,
-            duration: 0.25,
+            duration: 0.14,
             ease: 'power2.out',
             onUpdate: () => {
               b.g.x = b.x;
@@ -343,16 +348,6 @@ export class PlinkoScene {
               this.onLand(b);
             },
           });
-        }
-
-        // 左右邊界反彈（防呆）
-        if (b.x < this.boardLeft - 10) {
-          b.x = this.boardLeft - 10;
-          b.vx = Math.abs(b.vx);
-        }
-        if (b.x > this.boardRight + 10) {
-          b.x = this.boardRight + 10;
-          b.vx = -Math.abs(b.vx);
         }
       }
     };
@@ -453,7 +448,7 @@ export class PlinkoScene {
         g,
         x: g.x,
         y: g.y,
-        vx: (Math.random() - 0.5) * 0.5,
+        vx: 0,
         vy: 2,
         row: 0,
         targetCol: 0,

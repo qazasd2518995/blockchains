@@ -231,8 +231,13 @@ export function CrashPage({ config }: Props) {
         setMyBet((b) => (b ? { ...b, cashed: true, payout: res.payout } : b));
         if (res.newBalance) setBalance(res.newBalance);
         // L4：cashout 成功觸發 tier 慶祝
-        sceneRef.current?.celebrateCashout(multiplier);
-        sceneRef.current?.playWinFx(multiplier, true);
+        // 用 server ack 算出真實倍率（payout / 下注金額），避免 React state 的 multiplier
+        // 是上一個 socket tick 的舊值，造成「畫面顯示 2.50× 但實際 server 已 tick 到 2.55×」
+        const payoutMult = res.payout && myBet?.amount
+          ? Number.parseFloat(res.payout) / myBet.amount
+          : multiplier;
+        sceneRef.current?.celebrateCashout(payoutMult);
+        sceneRef.current?.playWinFx(payoutMult, true);
       },
     );
   };

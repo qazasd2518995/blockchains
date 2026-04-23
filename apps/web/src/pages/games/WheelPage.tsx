@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import type { WheelBetRequest, WheelBetResult, WheelRisk, WheelSegmentCount } from '@bg/shared';
+import { wheelTable } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -55,14 +56,10 @@ export function WheelPage() {
   }, []);
 
   // 當 risk/segments 改變時重繪轮盘（需等 scene init 完）
+  // 用後端共用的 wheelTable 確保預覽倍率與真實結算 100% 一致
   useEffect(() => {
     if (!sceneReady || !sceneRef.current) return;
-    const preview: number[] = Array.from({ length: segments }, (_, i) => {
-      if (risk === 'low') return i % 5 === 4 ? 0 : 1.2;
-      if (risk === 'medium') return i % 5 === 2 ? 0 : i % 10 === 0 ? 3 : 1.7;
-      return i === 0 ? segments * 0.99 : 0;
-    });
-    sceneRef.current.setSegments(preview);
+    sceneRef.current.setSegments(wheelTable(risk, segments));
   }, [risk, segments, sceneReady]);
 
   const spin = async () => {
