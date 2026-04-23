@@ -5,10 +5,25 @@ import type { Config } from 'tailwindcss';
  * 配色：淺灰底 + 白卡片 + 深青強調 + 金色獎金
  * 字體：Inter + Noto Sans TC + 等寬數字
  */
+const FULL_OPACITY_SCALE: Record<string, string> = (() => {
+  const scale: Record<string, string> = {};
+  for (let i = 0; i <= 100; i += 1) {
+    scale[String(i)] = (i / 100).toString();
+  }
+  return scale;
+})();
+
 export const tokensPreset: Partial<Config> = {
   darkMode: 'class',
   theme: {
     extend: {
+      opacity: FULL_OPACITY_SCALE,
+      backgroundOpacity: FULL_OPACITY_SCALE,
+      textOpacity: FULL_OPACITY_SCALE,
+      borderOpacity: FULL_OPACITY_SCALE,
+      ringOpacity: FULL_OPACITY_SCALE,
+      divideOpacity: FULL_OPACITY_SCALE,
+      placeholderOpacity: FULL_OPACITY_SCALE,
       colors: {
         // 頁面 / 卡片
         page: '#ECECEC',
