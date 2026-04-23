@@ -218,7 +218,9 @@ export class ReportService {
         id: true,
         username: true,
         level: true,
+        rebateMode: true,
         rebatePercentage: true,
+        maxRebatePercentage: true,
         commissionRate: true,
         balance: true,
         parentId: true,
@@ -296,25 +298,23 @@ export class ReportService {
         });
         const betAmount = agg._sum.amount ?? new Prisma.Decimal(0);
         const validAmount = betAmount;
-        const profit = agg._sum.profit ?? new Prisma.Decimal(0);
+        const memberWinLoss = agg._sum.profit ?? new Prisma.Decimal(0); // 正=會員贏
         const payout = agg._sum.payout ?? new Prisma.Decimal(0);
-        const totalRebatePct = parent.rebatePercentage; // 直屬會員的退水 = 所屬代理的退水%
-        const totalRebateAmt = betAmount.mul(totalRebatePct);
-        const commissionRate = parent.commissionRate;
-        const commissionAmt = profit.neg().mul(commissionRate);
-        const receivable = profit.neg();
-        // 會員不會「賺取退水」給 parent（parent 自己就是最後一站），差異 = 0
-        const earnedPct = new Prisma.Decimal(0);
-        const earnedAmt = new Prisma.Decimal(0);
-        const volumeRemitted = new Prisma.Decimal(0);
-        const uplineSettle = profit.neg().mul(commissionRate).add(totalRebateAmt);
+
+        // 會員拿的是其所屬代理（parent）的完整退水率
+        const memberRebatePct = parent.rebatePercentage;
+        const memberRebateAmt = betAmount.mul(memberRebatePct);
+
+        // 會員的「上級交收」 = 會員輸贏 + 完整退水（參考系統 calculateItemSuperiorSettlement）
+        const uplineSettle = memberWinLoss.add(memberRebateAmt);
+
         return {
           kind: 'member' as const,
           id: m.id,
           username: m.username,
           displayName: m.displayName,
           level: null,
-          rebatePercentage: '0.0000',
+          rebatePercentage: '0.0000', // 會員本身不是代理，無分配退水率
           status: m.frozenAt ? 'FROZEN' : 'ACTIVE',
           notes: m.notes,
           balance: m.balance.toFixed(2),
@@ -322,19 +322,20 @@ export class ReportService {
           betCount: agg._count._all,
           betAmount: betAmount.toFixed(2),
           validAmount: validAmount.toFixed(2),
-          memberWinLoss: profit.toFixed(2),
+          memberWinLoss: memberWinLoss.toFixed(2),
           payout: payout.toFixed(2),
-          totalRebatePercentage: totalRebatePct.toFixed(4),
-          totalRebateAmount: totalRebateAmt.toFixed(2),
-          memberProfitLossResult: profit.neg().add(totalRebateAmt).toFixed(2),
-          receivableFromDownline: receivable.toFixed(2),
-          commissionPercentage: commissionRate.toFixed(4),
-          commissionAmount: commissionAmt.toFixed(2),
-          commissionResult: commissionAmt.toFixed(2),
-          earnedRebatePercentage: earnedPct.toFixed(4),
-          earnedRebateAmount: earnedAmt.toFixed(2),
-          profitLossResult: commissionAmt.toFixed(2),
-          volumeRemitted: volumeRemitted.toFixed(2),
+          totalRebatePercentage: memberRebatePct.toFixed(4),
+          totalRebateAmount: memberRebateAmt.toFixed(2),
+          memberProfitLossResult: memberWinLoss.toFixed(2), // 參考系統：保持與會員輸贏一致
+          receivableFromDownline: memberWinLoss.neg().toFixed(2),
+          // 保留 commission 欄位但不影響 uplineSettlement 的計算
+          commissionPercentage: parent.commissionRate.toFixed(4),
+          commissionAmount: '0.00',
+          commissionResult: '0.00',
+          earnedRebatePercentage: memberRebatePct.toFixed(4), // 會員獲得的退水率
+          earnedRebateAmount: memberRebateAmt.toFixed(2),
+          profitLossResult: memberWinLoss.toFixed(2),
+          volumeRemitted: '0.00',
           uplineSettlement: uplineSettle.toFixed(2),
         };
       }),
@@ -406,13 +407,23 @@ export class ReportService {
   }
 
   /**
-   * 內部：聚合某 agent 子樹（含 agent 自己直屬會員）的 bet 統計
-   * 回傳 18 欄報表所需的全部數值
+   * 聚合某 agent 子樹（含 agent 自己直屬會員）的 bet 統計
+   *
+   * 公式對齊參考系統（/Users/justin/Desktop/Bet/agent）：
+   *   - 會員輸贏  = Σ(payout - amount) = Σ(profit) 正=會員贏
+   *   - 有效投注  = 下注金額（目前無無效注概念）
+   *   - 下級實際退水率 = rebateMode='ALL' 時 0；rebateMode='NONE' 時 maxRebatePercentage；否則 rebatePercentage
+   *   - 賺水率    = parent.rebate - self.實際rebate（當層代理從此子樹賺到的退水差）
+   *   - 整條線退水 = betAmount × 下級實際退水率
+   *   - 上級交收  = 整條線輸贏 + 整條線退水 + 當層賺水
+   *   - 應收下線  = 整條線輸贏（-memberWinLoss）
    */
   private async aggregateAgentSubtree(
     agent: {
       id: string;
+      rebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
       rebatePercentage: Prisma.Decimal;
+      maxRebatePercentage: Prisma.Decimal;
       commissionRate: Prisma.Decimal;
     },
     startDate?: Date,
@@ -443,39 +454,43 @@ export class ReportService {
     });
 
     const betAmount = agg._sum.amount ?? new Prisma.Decimal(0);
-    const validAmount = betAmount; // 本平台目前沒有無效注概念 → 有效 = 下注
-    const memberWinLoss = agg._sum.profit ?? new Prisma.Decimal(0); // 會員盈虧（正=會員贏）
+    const validAmount = betAmount;
+    const memberWinLoss = agg._sum.profit ?? new Prisma.Decimal(0); // 正=會員贏
     const payout = agg._sum.payout ?? new Prisma.Decimal(0);
 
-    // 退水% = 此層的 rebatePercentage（會員下注產生的退水總池）
-    const totalRebatePct = agent.rebatePercentage;
-    const totalRebateAmt = betAmount.mul(totalRebatePct);
+    // 下級代理的「實際退水率」— 依 rebateMode 調整（參考系統邏輯）
+    // ALL  : 下級被上級賺走全部退水，實際退水率 = 0
+    // NONE : 下級全退給再下級，實際退水率 = maxRebatePercentage
+    // PERCENTAGE : 按設定的比例
+    const actualChildRebate =
+      agent.rebateMode === 'ALL'
+        ? new Prisma.Decimal(0)
+        : agent.rebateMode === 'NONE'
+          ? agent.maxRebatePercentage
+          : agent.rebatePercentage;
 
-    // 賺取退水% = parent.rebate - self.rebate（此子樹對 parent 的退水貢獻率）
-    const earnedRebatePct = parentRebate ? parentRebate.sub(agent.rebatePercentage) : agent.rebatePercentage;
+    // 整條線退水 = 下注 × 下級實際退水率
+    const totalLineRebate = betAmount.mul(actualChildRebate);
+
+    // 當層賺水率 = parent.rebate - 下級實際退水率
+    // 若無 parent（查詢最上層）→ 賺水率 = 下級實際退水率本身（參考系統 showAllTopAgents 路徑）
+    const earnedRebatePct = parentRebate
+      ? parentRebate.sub(actualChildRebate)
+      : actualChildRebate;
     const earnedRebateAmount = betAmount.mul(earnedRebatePct);
 
-    // 佔成% = 此層的 commissionRate
-    const commissionRate = agent.commissionRate;
-    // 佔成金額 = 會員輸贏 × 佔成%  (正=代理賺會員的)
-    const commissionAmount = memberWinLoss.neg().mul(commissionRate);
-
-    // 應收下線 = 會員虧損 = -memberWinLoss
+    // 應收下線 = 會員虧損
     const receivableFromDownline = memberWinLoss.neg();
 
-    // 本級盈虧結果 = 佔成金額 + 賺取退水
-    const profitLossResult = commissionAmount.add(earnedRebateAmount);
+    // 本級盈虧結果 = 會員輸贏 + 當層賺水（當層對上級「賺的」也要算進盈虧）
+    const profitLossResult = memberWinLoss.add(earnedRebateAmount);
 
-    // 上交貨量 = 下注金額 × (parent.commissionRate - self.commissionRate)
-    // 若是 root（沒 parent）= 0
-    const commissionDiff = parentCommission ? parentCommission.sub(commissionRate) : new Prisma.Decimal(0);
-    const volumeRemitted = betAmount.mul(commissionDiff);
+    // 上級交收 = 整條線輸贏 + 整條線退水 + 當層賺水（參考系統公式）
+    const uplineSettlement = memberWinLoss.add(totalLineRebate).add(earnedRebateAmount);
 
-    // 上級交收 = parent 從此子樹收到的：memberLoss × parentCommission + 退水差
-    const uplineSettlement = memberWinLoss
-      .neg()
-      .mul(parentCommission ?? new Prisma.Decimal(0))
-      .add(earnedRebateAmount);
+    // commissionRate 欄位保留供審計，但不進入 uplineSettlement 計算
+    void parentCommission;
+    const commissionRate = agent.commissionRate;
 
     return {
       betCount: agg._count._all,
@@ -483,17 +498,17 @@ export class ReportService {
       validAmount: validAmount.toFixed(2),
       memberWinLoss: memberWinLoss.toFixed(2),
       payout: payout.toFixed(2),
-      totalRebatePercentage: totalRebatePct.toFixed(4),
-      totalRebateAmount: totalRebateAmt.toFixed(2),
-      memberProfitLossResult: memberWinLoss.neg().add(totalRebateAmt).toFixed(2),
+      totalRebatePercentage: actualChildRebate.toFixed(4),
+      totalRebateAmount: totalLineRebate.toFixed(2),
+      memberProfitLossResult: memberWinLoss.toFixed(2),
       receivableFromDownline: receivableFromDownline.toFixed(2),
       commissionPercentage: commissionRate.toFixed(4),
-      commissionAmount: commissionAmount.toFixed(2),
-      commissionResult: commissionAmount.toFixed(2),
+      commissionAmount: '0.00',
+      commissionResult: '0.00',
       earnedRebatePercentage: earnedRebatePct.toFixed(4),
       earnedRebateAmount: earnedRebateAmount.toFixed(2),
       profitLossResult: profitLossResult.toFixed(2),
-      volumeRemitted: volumeRemitted.toFixed(2),
+      volumeRemitted: '0.00',
       uplineSettlement: uplineSettlement.toFixed(2),
       memberCount: members.length,
     };
@@ -503,23 +518,35 @@ export class ReportService {
 function emptyStats(
   parentRebate: Prisma.Decimal | undefined,
   parentCommission: Prisma.Decimal | undefined,
-  agent: { rebatePercentage: Prisma.Decimal; commissionRate: Prisma.Decimal },
+  agent: {
+    rebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
+    rebatePercentage: Prisma.Decimal;
+    maxRebatePercentage: Prisma.Decimal;
+    commissionRate: Prisma.Decimal;
+  },
 ): AgentSubtreeStats {
-  const pr = parentRebate ?? new Prisma.Decimal(0);
+  void parentCommission;
+  const actualChildRebate =
+    agent.rebateMode === 'ALL'
+      ? new Prisma.Decimal(0)
+      : agent.rebateMode === 'NONE'
+        ? agent.maxRebatePercentage
+        : agent.rebatePercentage;
+  const earnedPct = parentRebate ? parentRebate.sub(actualChildRebate) : actualChildRebate;
   return {
     betCount: 0,
     betAmount: '0.00',
     validAmount: '0.00',
     memberWinLoss: '0.00',
     payout: '0.00',
-    totalRebatePercentage: agent.rebatePercentage.toFixed(4),
+    totalRebatePercentage: actualChildRebate.toFixed(4),
     totalRebateAmount: '0.00',
     memberProfitLossResult: '0.00',
     receivableFromDownline: '0.00',
     commissionPercentage: agent.commissionRate.toFixed(4),
     commissionAmount: '0.00',
     commissionResult: '0.00',
-    earnedRebatePercentage: pr.sub(agent.rebatePercentage).toFixed(4),
+    earnedRebatePercentage: earnedPct.toFixed(4),
     earnedRebateAmount: '0.00',
     profitLossResult: '0.00',
     volumeRemitted: '0.00',
