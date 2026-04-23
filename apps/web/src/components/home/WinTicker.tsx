@@ -5,8 +5,8 @@ import { TICKER_ICONS } from '@/lib/platformIcons';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
 const ROTATE_INTERVAL = 3000;
-const VISIBLE_ROWS = 8;
-const ROW_HEIGHT = 56;
+const VISIBLE_ROWS = 6;
+const ROW_HEIGHT = 72;
 const QUEUE_SIZE = 16;
 
 function pickRandom(): WinRecord {
@@ -40,10 +40,10 @@ export function WinTicker() {
   return (
     <aside
       aria-label="即時戰報"
-      className="pointer-events-none fixed left-2 top-1/2 z-30 hidden w-[210px] -translate-y-1/2 xl:block 2xl:left-4 2xl:w-[230px]"
+      className="pointer-events-none fixed left-3 top-1/2 z-30 hidden w-[260px] -translate-y-1/2 xl:block 2xl:left-6 2xl:w-[280px]"
     >
-      <div className="pointer-events-auto overflow-hidden rounded-[16px] border border-white/10 bg-[#0F172A]/95 shadow-[0_18px_40px_rgba(2,6,23,0.42)] backdrop-blur">
-        <div className="flex items-center gap-2 border-b border-white/10 bg-[#111C2E] px-3 py-2 text-[12px] font-semibold text-[#E8D48A]">
+      <div className="pointer-events-auto overflow-hidden rounded-[18px] border border-white/10 bg-[#0F172A]/95 shadow-[0_18px_40px_rgba(2,6,23,0.42)] backdrop-blur">
+        <div className="flex items-center gap-2 border-b border-white/10 bg-[#111C2E] px-4 py-2.5 text-[13px] font-semibold text-[#E8D48A]">
           <Icon className="h-4 w-4" aria-hidden="true" />
           <span>即時戰報</span>
           <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-emerald-300/80">
@@ -62,20 +62,23 @@ export function WinTicker() {
             {loop.map((rec, i) => (
               <div
                 key={`${rec.player}-${rec.gameId}-${i}-${tick}`}
-                className="flex flex-col justify-center gap-1 border-b border-white/[0.06] px-3 text-[11px] leading-tight text-[#E8D48A] last:border-b-0"
+                className="flex flex-col justify-center gap-1.5 border-b border-white/[0.06] px-4 leading-tight text-[#E8D48A] last:border-b-0"
                 style={{ height: ROW_HEIGHT }}
               >
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="h-3 w-3 text-[#D0AC4D]" aria-hidden="true" />
+                <div className="flex items-center gap-1.5 text-[12px]">
+                  <Sparkles className="h-3 w-3 shrink-0 text-[#D0AC4D]" aria-hidden="true" />
                   <span className="font-semibold text-white">{rec.player}</span>
                   <span className="text-white/55">在</span>
                   <span className="truncate font-semibold text-[#F3D67D]">{rec.game}</span>
                 </div>
-                <div className="flex items-center gap-1.5 pl-4 text-[11px]">
-                  <span className="text-white/55">贏得</span>
-                  <span className="num font-semibold text-[#F3D67D]">{numberFormatter.format(rec.win)}</span>
-                  <span className="text-white/40">點</span>
-                  <span className="num ml-auto text-white/70">×{rec.mult.toFixed(2)}</span>
+                <div className="flex items-baseline gap-1.5 pl-[18px] text-[12px]">
+                  <span className="num font-semibold text-[#F3D67D]">
+                    {numberFormatter.format(rec.win)}
+                  </span>
+                  <span className="text-[10px] text-white/40">點</span>
+                  <span className="num ml-auto rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-white/70">
+                    ×{rec.mult.toFixed(2)}
+                  </span>
                 </div>
               </div>
             ))}
