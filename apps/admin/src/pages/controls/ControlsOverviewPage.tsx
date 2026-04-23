@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { ImageBanner } from '@/components/shared/ImageBanner';
 import { StatCard } from '@/components/shared/StatCard';
 import { DataTable, type Column } from '@/components/shared/DataTable';
+import { WinLossControlModal } from '@/components/shared/WinLossControlModal';
+import { WinCapControlModal } from '@/components/shared/WinCapControlModal';
+import { DepositControlModal } from '@/components/shared/DepositControlModal';
+import { AgentLineControlModal } from '@/components/shared/AgentLineControlModal';
 import { useTranslation } from '@/i18n/useTranslation';
 
 interface WinLossRow {
@@ -55,33 +59,51 @@ export function ControlsOverviewPage(): JSX.Element {
   const [al, setAl] = useState<AgentLineRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [wlOpen, setWlOpen] = useState(false);
+  const [wcOpen, setWcOpen] = useState(false);
+  const [dcOpen, setDcOpen] = useState(false);
+  const [alOpen, setAlOpen] = useState(false);
+
+  const reload = useCallback(async () => {
+    try {
+      const [a, b, c, d] = await Promise.all([
+        adminApi.get<{ items: WinLossRow[] }>('/controls/win-loss'),
+        adminApi.get<{ items: WinCapRow[] }>('/controls/win-cap'),
+        adminApi.get<{ items: DepositRow[] }>('/controls/deposit'),
+        adminApi.get<{ items: AgentLineRow[] }>('/controls/agent-line'),
+      ]);
+      setWl(a.data.items);
+      setWc(b.data.items);
+      setDc(c.data.items);
+      setAl(d.data.items);
+    } catch (e) {
+      setError(extractApiError(e).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        const [a, b, c, d] = await Promise.all([
-          adminApi.get<{ items: WinLossRow[] }>('/controls/win-loss'),
-          adminApi.get<{ items: WinCapRow[] }>('/controls/win-cap'),
-          adminApi.get<{ items: DepositRow[] }>('/controls/deposit'),
-          adminApi.get<{ items: AgentLineRow[] }>('/controls/agent-line'),
-        ]);
-        if (!cancel) {
-          setWl(a.data.items);
-          setWc(b.data.items);
-          setDc(c.data.items);
-          setAl(d.data.items);
-        }
-      } catch (e) {
-        if (!cancel) setError(extractApiError(e).message);
-      } finally {
-        if (!cancel) setLoading(false);
-      }
-    })();
-    return () => {
-      cancel = true;
-    };
-  }, []);
+    void reload();
+  }, [reload]);
+
+  const toggleRow = async (kind: 'win-loss' | 'win-cap' | 'deposit' | 'agent-line', id: string, isActive: boolean): Promise<void> => {
+    try {
+      await adminApi.patch(`/controls/${kind}/${id}/toggle`, { isActive: !isActive });
+      await reload();
+    } catch (e) {
+      setError(extractApiError(e).message);
+    }
+  };
+  const deleteRow = async (kind: 'win-loss' | 'win-cap' | 'deposit' | 'agent-line', id: string): Promise<void> => {
+    if (!window.confirm('確定刪除此控制規則？')) return;
+    try {
+      await adminApi.delete(`/controls/${kind}/${id}`);
+      await reload();
+    } catch (e) {
+      setError(extractApiError(e).message);
+    }
+  };
 
   const wlCols: Column<WinLossRow>[] = [
     { key: 'mode', label: 'MODE', render: (r) => <span className="tag tag-acid">{r.controlMode}</span> },
@@ -103,6 +125,29 @@ export function ControlsOverviewPage(): JSX.Element {
       render: (r) =>
         r.isActive ? <span className="tag tag-toxic">{t.controls.active}</span> : <span className="tag tag-ember">{t.controls.off}</span>,
     },
+    {
+      key: 'ops',
+      label: 'OPS',
+      align: 'right',
+      render: (r) => (
+        <div className="flex justify-end gap-1 text-[10px]">
+          <button
+            type="button"
+            onClick={() => toggleRow('win-loss', r.id, r.isActive)}
+            className="btn-teal-outline px-2 py-1"
+          >
+            {r.isActive ? '停用' : '啟用'}
+          </button>
+          <button
+            type="button"
+            onClick={() => deleteRow('win-loss', r.id)}
+            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
+          >
+            刪除
+          </button>
+        </div>
+      ),
+    },
   ];
 
   const wcCols: Column<WinCapRow>[] = [
@@ -115,6 +160,29 @@ export function ControlsOverviewPage(): JSX.Element {
       label: 'STATUS',
       render: (r) =>
         r.isCapped ? <span className="tag tag-ember">{t.controls.capped}</span> : r.isActive ? <span className="tag tag-toxic">{t.controls.active}</span> : <span className="tag tag-ember">{t.controls.off}</span>,
+    },
+    {
+      key: 'ops',
+      label: 'OPS',
+      align: 'right',
+      render: (r) => (
+        <div className="flex justify-end gap-1 text-[10px]">
+          <button
+            type="button"
+            onClick={() => toggleRow('win-cap', r.id, r.isActive)}
+            className="btn-teal-outline px-2 py-1"
+          >
+            {r.isActive ? '停用' : '啟用'}
+          </button>
+          <button
+            type="button"
+            onClick={() => deleteRow('win-cap', r.id)}
+            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
+          >
+            刪除
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -133,6 +201,29 @@ export function ControlsOverviewPage(): JSX.Element {
             ? <span className="tag tag-toxic">{t.controls.active}</span>
             : <span className="tag tag-ember">{t.controls.off}</span>,
     },
+    {
+      key: 'ops',
+      label: 'OPS',
+      align: 'right',
+      render: (r) => (
+        <div className="flex justify-end gap-1 text-[10px]">
+          <button
+            type="button"
+            onClick={() => toggleRow('deposit', r.id, r.isActive)}
+            className="btn-teal-outline px-2 py-1"
+          >
+            {r.isActive ? '停用' : '啟用'}
+          </button>
+          <button
+            type="button"
+            onClick={() => deleteRow('deposit', r.id)}
+            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
+          >
+            刪除
+          </button>
+        </div>
+      ),
+    },
   ];
 
   const alCols: Column<AgentLineRow>[] = [
@@ -144,6 +235,29 @@ export function ControlsOverviewPage(): JSX.Element {
       label: 'STATUS',
       render: (r) =>
         r.isActive ? <span className="tag tag-toxic">{t.controls.active}</span> : <span className="tag tag-ember">{t.controls.off}</span>,
+    },
+    {
+      key: 'ops',
+      label: 'OPS',
+      align: 'right',
+      render: (r) => (
+        <div className="flex justify-end gap-1 text-[10px]">
+          <button
+            type="button"
+            onClick={() => toggleRow('agent-line', r.id, r.isActive)}
+            className="btn-teal-outline px-2 py-1"
+          >
+            {r.isActive ? '停用' : '啟用'}
+          </button>
+          <button
+            type="button"
+            onClick={() => deleteRow('agent-line', r.id)}
+            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
+          >
+            刪除
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -183,25 +297,56 @@ export function ControlsOverviewPage(): JSX.Element {
         <div className="crt-panel p-8 text-center text-ink-500">{t.common.loading}…</div>
       ) : (
         <div className="space-y-6">
-          <Section title="§ WIN/LOSS CONTROL" subtitle="按百分比翻转输赢">
+          <Section
+            title="§ WIN/LOSS CONTROL"
+            subtitle="按百分比翻转输赢"
+            onAdd={() => setWlOpen(true)}
+          >
             <DataTable columns={wlCols} rows={wl} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
-          <Section title="§ WIN CAP" subtitle="会员单日赢额封顶">
+          <Section
+            title="§ WIN CAP"
+            subtitle="会员单日赢额封顶"
+            onAdd={() => setWcOpen(true)}
+          >
             <DataTable columns={wcCols} rows={wc} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
-          <Section title="§ DEPOSIT CONTROL" subtitle="依入金目标自动控制胜率">
+          <Section
+            title="§ DEPOSIT CONTROL"
+            subtitle="依入金目标自动控制胜率"
+            onAdd={() => setDcOpen(true)}
+          >
             <DataTable columns={dcCols} rows={dc} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
-          <Section title="§ AGENT LINE CAP" subtitle="代理线单日赢额封顶">
+          <Section
+            title="§ AGENT LINE CAP"
+            subtitle="代理线单日赢额封顶"
+            onAdd={() => setAlOpen(true)}
+          >
             <DataTable columns={alCols} rows={al} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
         </div>
       )}
+
+      <WinLossControlModal open={wlOpen} onClose={() => setWlOpen(false)} onDone={() => void reload()} />
+      <WinCapControlModal open={wcOpen} onClose={() => setWcOpen(false)} onDone={() => void reload()} />
+      <DepositControlModal open={dcOpen} onClose={() => setDcOpen(false)} onDone={() => void reload()} />
+      <AgentLineControlModal open={alOpen} onClose={() => setAlOpen(false)} onDone={() => void reload()} />
     </div>
   );
 }
 
-function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Section({
+  title,
+  subtitle,
+  children,
+  onAdd,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  onAdd?: () => void;
+}) {
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between">
@@ -209,6 +354,11 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
           <span className="label">{title}</span>
           {subtitle && <span className="ml-2 text-[10px] text-ink-500">· {subtitle}</span>}
         </div>
+        {onAdd && (
+          <button type="button" onClick={onAdd} className="btn-acid text-[11px]">
+            + 新增
+          </button>
+        )}
       </div>
       {children}
     </div>

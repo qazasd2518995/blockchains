@@ -112,6 +112,7 @@ export interface HierarchyReportResponse {
     memberProfitLossResult: string;
     receivableFromDownline: string;
     commissionAmount: string;
+    commissionResult: string;
     earnedRebateAmount: string;
     profitLossResult: string;
     volumeRemitted: string;

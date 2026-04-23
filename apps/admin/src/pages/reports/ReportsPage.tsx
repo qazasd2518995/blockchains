@@ -217,7 +217,7 @@ function ReportTable({
               <td className="px-3 py-3 text-right data-num">{fmt(data.totals.receivableFromDownline)}</td>
               <td className="px-3 py-3 text-right data-num text-ink-500">—</td>
               <WlTd v={data.totals.commissionAmount} />
-              <WlTd v={data.totals.commissionAmount} />
+              <WlTd v={data.totals.commissionResult} />
               <td className="px-3 py-3 text-right data-num text-win">{fmt(data.totals.earnedRebateAmount)}</td>
               <WlTd v={data.totals.profitLossResult} borderRight />
               <td className="px-3 py-3 text-right data-num">{fmt(data.totals.volumeRemitted)}</td>

@@ -7,6 +7,8 @@ import { HierarchyBreadcrumb } from '@/components/shared/HierarchyBreadcrumb';
 import { CreateMemberModal } from '@/components/shared/CreateMemberModal';
 import { TransferModal } from '@/components/shared/TransferModal';
 import { AdjustBalanceModal } from '@/components/shared/AdjustBalanceModal';
+import { RebateSettingModal } from '@/components/shared/RebateSettingModal';
+import { AgentTransferModal } from '@/components/shared/AgentTransferModal';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
 
@@ -34,6 +36,9 @@ export function AgentHierarchyPage(): JSX.Element {
   const [openCreateMember, setOpenCreateMember] = useState(false);
   const [transferFor, setTransferFor] = useState<MemberPublic | null>(null);
   const [adjustFor, setAdjustFor] = useState<MemberPublic | null>(null);
+  const [rebateFor, setRebateFor] = useState<{ id: string; username: string } | null>(null);
+  const [agentTransferFor, setAgentTransferFor] = useState<{ id: string; username: string; balance: string } | null>(null);
+  const [deleteMemberFor, setDeleteMemberFor] = useState<{ id: string; username: string } | null>(null);
 
   useEffect(() => {
     let cancel = false;
@@ -309,10 +314,18 @@ export function AgentHierarchyPage(): JSX.Element {
                     <button type="button" onClick={() => navigate(`/admin/audit?targetId=${row.id}`)} className="btn-chip">
                       {t.agents.logs}
                     </button>
-                    <button type="button" onClick={() => alert(t.agents.transferHint)} className="btn-chip">
+                    <button
+                      type="button"
+                      onClick={() => setAgentTransferFor({ id: row.id, username: row.username, balance: row.balance })}
+                      className="btn-chip"
+                    >
                       {t.agents.pointTransfer}
                     </button>
-                    <button type="button" onClick={() => alert(t.agents.rebateHint)} className="btn-chip">
+                    <button
+                      type="button"
+                      onClick={() => setRebateFor({ id: row.id, username: row.username })}
+                      className="btn-chip"
+                    >
                       {t.agents.rebateSetup}
                     </button>
                     <button type="button" onClick={() => handleResetPassword(row.id, 'agent', row.username)} className="btn-chip">
@@ -353,6 +366,13 @@ export function AgentHierarchyPage(): JSX.Element {
                       onChange={(next) => handleMemberStatus(row.id, next === 'FROZEN' ? 'FROZEN' : 'ACTIVE')}
                       memberOnly
                     />
+                    <button
+                      type="button"
+                      onClick={() => setDeleteMemberFor({ id: row.id, username: row.username })}
+                      className="btn-chip border-[#D4574A]/40 text-[#D4574A]"
+                    >
+                      刪除
+                    </button>
                   </>
                 )}
               </div>
@@ -383,6 +403,79 @@ export function AgentHierarchyPage(): JSX.Element {
           onDone={() => setReloadKey((k) => k + 1)}
         />
       )}
+      {rebateFor && (
+        <RebateSettingModal
+          open
+          onClose={() => setRebateFor(null)}
+          agentId={rebateFor.id}
+          agentUsername={rebateFor.username}
+          onDone={() => setReloadKey((k) => k + 1)}
+        />
+      )}
+      {agentTransferFor && (
+        <AgentTransferModal
+          open
+          onClose={() => setAgentTransferFor(null)}
+          fromAgent={agentTransferFor}
+          onDone={() => setReloadKey((k) => k + 1)}
+        />
+      )}
+      {deleteMemberFor && (
+        <ConfirmDeleteMemberDialog
+          member={deleteMemberFor}
+          onClose={() => setDeleteMemberFor(null)}
+          onDone={() => {
+            setDeleteMemberFor(null);
+            setReloadKey((k) => k + 1);
+          }}
+          onError={setError}
+        />
+      )}
+    </div>
+  );
+}
+
+function ConfirmDeleteMemberDialog({
+  member,
+  onClose,
+  onDone,
+  onError,
+}: {
+  member: { id: string; username: string };
+  onClose: () => void;
+  onDone: () => void;
+  onError: (msg: string) => void;
+}): JSX.Element {
+  const [busy, setBusy] = useState(false);
+  const confirm = async (): Promise<void> => {
+    setBusy(true);
+    try {
+      await adminApi.delete(`/members/${member.id}`);
+      onDone();
+    } catch (e) {
+      onError(extractApiError(e).message);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#1A2530]/70 backdrop-blur">
+      <div className="card-base w-full max-w-md p-6">
+        <div className="text-[16px] font-semibold text-[#0F172A]">刪除會員</div>
+        <p className="mt-2 text-[13px] text-[#4A5568]">
+          確定刪除會員 <span className="font-mono text-[#D4574A]">{member.username}</span>？
+          此操作會將帳號設為永久停用並保留歷史紀錄供審計。
+        </p>
+        <div className="mt-5 flex items-center gap-2">
+          <button type="button" onClick={confirm} disabled={busy} className="btn-acid border-[#D4574A] bg-[#D4574A] text-white">
+            → 確認刪除
+          </button>
+          <button type="button" onClick={onClose} className="btn-teal-outline">
+            [取消]
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

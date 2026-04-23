@@ -201,6 +201,7 @@ export class ReportService {
       memberProfitLossResult: string;
       receivableFromDownline: string;
       commissionAmount: string;
+      commissionResult: string;
       earnedRebateAmount: string;
       profitLossResult: string;
       volumeRemitted: string;
@@ -350,6 +351,7 @@ export class ReportService {
         acc.memberProfitLossResult = acc.memberProfitLossResult.add(new Prisma.Decimal(r.memberProfitLossResult));
         acc.receivableFromDownline = acc.receivableFromDownline.add(new Prisma.Decimal(r.receivableFromDownline));
         acc.commissionAmount = acc.commissionAmount.add(new Prisma.Decimal(r.commissionAmount));
+        acc.commissionResult = acc.commissionResult.add(new Prisma.Decimal(r.commissionResult));
         acc.earnedRebateAmount = acc.earnedRebateAmount.add(new Prisma.Decimal(r.earnedRebateAmount));
         acc.profitLossResult = acc.profitLossResult.add(new Prisma.Decimal(r.profitLossResult));
         acc.volumeRemitted = acc.volumeRemitted.add(new Prisma.Decimal(r.volumeRemitted));
@@ -365,6 +367,7 @@ export class ReportService {
         memberProfitLossResult: new Prisma.Decimal(0),
         receivableFromDownline: new Prisma.Decimal(0),
         commissionAmount: new Prisma.Decimal(0),
+        commissionResult: new Prisma.Decimal(0),
         earnedRebateAmount: new Prisma.Decimal(0),
         profitLossResult: new Prisma.Decimal(0),
         volumeRemitted: new Prisma.Decimal(0),
@@ -393,6 +396,7 @@ export class ReportService {
         memberProfitLossResult: totals.memberProfitLossResult.toFixed(2),
         receivableFromDownline: totals.receivableFromDownline.toFixed(2),
         commissionAmount: totals.commissionAmount.toFixed(2),
+        commissionResult: totals.commissionResult.toFixed(2),
         earnedRebateAmount: totals.earnedRebateAmount.toFixed(2),
         profitLossResult: totals.profitLossResult.toFixed(2),
         volumeRemitted: totals.volumeRemitted.toFixed(2),

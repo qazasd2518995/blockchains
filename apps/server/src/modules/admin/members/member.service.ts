@@ -255,6 +255,40 @@ export class MemberService {
     return toMemberPublic(updated, updated.agent?.username ?? null);
   }
 
+  /**
+   * 軟刪除會員 — 帳號無法登入（frozenAt），username 加前綴避免衝突未來同名建帳。
+   * 真實資料庫記錄保留供審計。真刪除可由 DBA 後續清理。
+   */
+  async softDelete(operator: AdminCurrent, id: string, req?: FastifyRequest): Promise<void> {
+    const ok = await canManageMember(this.prisma, operator, id);
+    if (!ok) throw new ApiError('FORBIDDEN', 'Cannot delete this member');
+    const existing = await this.prisma.user.findUnique({ where: { id } });
+    if (!existing) throw new ApiError('MEMBER_NOT_FOUND', 'Member not found');
+    const stamp = Date.now().toString(36);
+    const deletedUsername = `__del_${stamp}_${existing.username}`.slice(0, 80);
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        username: deletedUsername,
+        frozenAt: new Date(),
+        notes: `[deleted by ${operator.username}] ${existing.notes ?? ''}`.slice(0, 500),
+      },
+    });
+    await writeAudit(this.prisma, {
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
+      action: 'member.delete',
+      targetType: 'member',
+      targetId: id,
+      oldValues: { username: existing.username, frozenAt: existing.frozenAt },
+      newValues: { username: deletedUsername, frozenAt: new Date() },
+      req,
+    });
+  }
+
   async adjustBalance(
     operator: AdminCurrent,
     id: string,

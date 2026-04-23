@@ -18,6 +18,24 @@ export async function agentRoutes(fastify: FastifyInstance): Promise<void> {
     return { items };
   });
 
+  // Lookup by username — 給控制 / 轉帳 modal 填帳號時用
+  fastify.get('/lookup', { preHandler: [fastify.authenticateAdmin] }, async (req, reply) => {
+    const { username } = req.query as { username?: string };
+    if (!username) {
+      reply.code(400).send({ code: 'INVALID_ACTION', message: 'Missing username' });
+      return;
+    }
+    const agent = await fastify.prisma.agent.findUnique({
+      where: { username },
+      select: { id: true, username: true },
+    });
+    if (!agent) {
+      reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
+      return;
+    }
+    return agent;
+  });
+
   fastify.get('/tree', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
     const rootId = (req.query as { rootId?: string }).rootId ?? req.admin.id;
     const root = await service.getTree(rootId);
