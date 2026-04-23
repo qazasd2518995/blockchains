@@ -9,6 +9,8 @@ import {
   emitEdgeGlow,
   emitRayBurst,
   prewarmShaders,
+  GAME_FONT,
+  GAME_FONT_NUM,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -294,7 +296,7 @@ export class DiceScene {
   private createTargetLabel(): void {
     if (!this.app) return;
     const style = new TextStyle({
-      fontFamily: 'IBM Plex Mono, ui-monospace, monospace',
+      fontFamily: GAME_FONT_NUM,
       fontSize: Math.round(this.height * 0.045),
       fontWeight: '600',
       fill: COLOR_ACID,
@@ -312,7 +314,7 @@ export class DiceScene {
   private createRollLabel(): void {
     if (!this.app) return;
     const style = new TextStyle({
-      fontFamily: 'Bodoni Moda, Didot, serif',
+      fontFamily: GAME_FONT,
       fontSize: Math.round(this.height * 0.22),
       fontWeight: '400',
       fill: COLOR_FACE_STROKE,

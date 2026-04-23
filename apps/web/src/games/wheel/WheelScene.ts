@@ -19,6 +19,7 @@ import {
   emitRayBurst,
   prewarmShaders,
   prefersReducedMotion,
+  GAME_FONT,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -174,7 +175,7 @@ export class WheelScene {
       .stroke({ color: COLOR_WHITE, width: 1, alpha: 0.5 });
     // 中心星
     const starStyle = new TextStyle({
-      fontFamily: 'Bodoni Moda, Didot, serif',
+      fontFamily: GAME_FONT,
       fontSize: 36,
       fill: COLOR_WHITE,
       fontWeight: '700',
@@ -254,6 +255,16 @@ export class WheelScene {
     if (!this.wheelGraphics) return;
     const g = this.wheelGraphics;
     g.clear();
+    // 移除舊的倍率 Text，避免每次 setSegments 都疊一層造成「數字疊字」
+    if (this.wheelContainer) {
+      const kids = [...this.wheelContainer.children];
+      for (const k of kids) {
+        if (k !== this.wheelGraphics) {
+          this.wheelContainer.removeChild(k);
+          k.destroy();
+        }
+      }
+    }
     const n = this.multipliers.length;
     if (n === 0) return;
     const segAngle = (Math.PI * 2) / n;
@@ -296,8 +307,8 @@ export class WheelScene {
         const tx = Math.cos(midA) * this.radius * 0.7;
         const ty = Math.sin(midA) * this.radius * 0.7;
         const style = new TextStyle({
-          fontFamily: 'Bodoni Moda, Didot, serif',
-          fontSize: 18,
+          fontFamily: GAME_FONT,
+          fontSize: 17,
           fill: COLOR_INK,
           fontWeight: '700',
         });

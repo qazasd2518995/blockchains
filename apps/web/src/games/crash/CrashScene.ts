@@ -20,6 +20,8 @@ import {
   prewarmShaders,
   motionScale,
   prefersReducedMotion,
+  GAME_FONT,
+  GAME_FONT_NUM,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -264,7 +266,7 @@ export class CrashScene {
       this.app.stage.addChild(line);
 
       const style = new TextStyle({
-        fontFamily: 'IBM Plex Mono, monospace',
+        fontFamily: GAME_FONT_NUM,
         fontSize: 11,
         fill: COLOR_ACID,
         fontWeight: '500',
@@ -392,7 +394,7 @@ export class CrashScene {
     if (!this.app) return;
     // 主倍率數字
     const style = new TextStyle({
-      fontFamily: 'Bodoni Moda, Didot, serif',
+      fontFamily: GAME_FONT,
       fontSize: Math.round(this.height * 0.32),
       fontWeight: '400',
       fill: COLOR_WHITE,
@@ -409,7 +411,7 @@ export class CrashScene {
 
     // 狀態 / 倒數文字
     const statusStyle = new TextStyle({
-      fontFamily: 'IBM Plex Mono, monospace',
+      fontFamily: GAME_FONT_NUM,
       fontSize: Math.round(this.height * 0.05),
       fontWeight: '600',
       fill: COLOR_ACID,

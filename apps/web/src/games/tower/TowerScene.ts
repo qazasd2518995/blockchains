@@ -19,6 +19,8 @@ import {
   emitRayBurst,
   prewarmShaders,
   prefersReducedMotion,
+  GAME_FONT,
+  GAME_FONT_NUM,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -175,7 +177,7 @@ export class TowerScene {
     if (!this.app) return;
     // 頂部：當前層顯示
     const levelStyle = new TextStyle({
-      fontFamily: 'IBM Plex Mono, monospace',
+      fontFamily: GAME_FONT_NUM,
       fontSize: 12,
       fill: COLOR_INK,
       fontWeight: '600',
@@ -191,7 +193,7 @@ export class TowerScene {
 
     // 倍率大字
     const multStyle = new TextStyle({
-      fontFamily: 'Bodoni Moda, Didot, serif',
+      fontFamily: GAME_FONT,
       fontSize: 40,
       fill: COLOR_ACID,
       fontWeight: '700',
@@ -276,7 +278,7 @@ export class TowerScene {
 
     // 層級標籤（左側）
     const style = new TextStyle({
-      fontFamily: 'IBM Plex Mono, monospace',
+      fontFamily: GAME_FONT_NUM,
       fontSize: 11,
       fill: COLOR_INK,
       fontWeight: '600',
@@ -316,7 +318,7 @@ export class TowerScene {
 
     // 標籤
     const style = new TextStyle({
-      fontFamily: 'Bodoni Moda, Didot, serif',
+      fontFamily: GAME_FONT,
       fontSize: h * 0.6,
       fill: COLOR_INK,
       fontWeight: '700',

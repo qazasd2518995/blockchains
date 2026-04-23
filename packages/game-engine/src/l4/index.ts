@@ -8,3 +8,4 @@ export * from './prewarm.js';
 export * from './WinCelebration.js';
 export * from './SfxEngine.js';
 export * from './motion.js';
+export * from './typography.js';

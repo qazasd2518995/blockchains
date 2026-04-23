@@ -19,6 +19,8 @@ import {
   emitRayBurst,
   prewarmShaders,
   prefersReducedMotion,
+  GAME_FONT,
+  GAME_FONT_NUM,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -234,7 +236,7 @@ export class RouletteScene {
       const tx = Math.cos(midA) * (this.outerRadius - 30);
       const ty = Math.sin(midA) * (this.outerRadius - 30);
       const style = new TextStyle({
-        fontFamily: 'Bodoni Moda, Didot, serif',
+        fontFamily: GAME_FONT,
         fontSize: 24,
         fill: COLOR_WHITE,
         fontWeight: '700',
@@ -280,7 +282,7 @@ export class RouletteScene {
       .stroke({ color: COLOR_AMBER, width: 2 });
     // 中心星
     const starStyle = new TextStyle({
-      fontFamily: 'Bodoni Moda, Didot, serif',
+      fontFamily: GAME_FONT,
       fontSize: r * 0.8,
       fill: COLOR_WHITE,
       fontWeight: '700',
@@ -334,7 +336,7 @@ export class RouletteScene {
   private createStatusLabel(): void {
     if (!this.app) return;
     const style = new TextStyle({
-      fontFamily: 'IBM Plex Mono, monospace',
+      fontFamily: GAME_FONT_NUM,
       fontSize: 14,
       fill: COLOR_INK,
       fontWeight: '600',

@@ -11,6 +11,7 @@ import {
   emitRayBurst,
   prewarmShaders,
   prefersReducedMotion,
+  GAME_FONT,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -386,7 +387,7 @@ export class MinesScene {
   private showFloatingText(x: number, y: number, content: string, color: number): void {
     if (!this.floatingTexts) return;
     const style = new TextStyle({
-      fontFamily: 'Bodoni Moda, Didot, serif',
+      fontFamily: GAME_FONT,
       fontSize: 40,
       fontWeight: '700',
       fill: color,

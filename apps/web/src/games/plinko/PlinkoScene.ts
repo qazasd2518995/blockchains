@@ -19,6 +19,7 @@ import {
   emitRayBurst,
   prewarmShaders,
   prefersReducedMotion,
+  GAME_FONT,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -257,7 +258,7 @@ export class PlinkoScene {
       const label = new Text({
         text: `${fmt}×`,
         style: new TextStyle({
-          fontFamily: 'system-ui, -apple-system, "Helvetica Neue", sans-serif',
+          fontFamily: GAME_FONT,
           fontSize: autoSize,
           fill: fillStr,
           fontWeight: '700',

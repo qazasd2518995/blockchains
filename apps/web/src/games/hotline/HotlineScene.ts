@@ -19,6 +19,7 @@ import {
   emitRayBurst,
   prewarmShaders,
   prefersReducedMotion,
+  GAME_FONT_NUM,
 } from '@bg/game-engine';
 import { HOTLINE_SYMBOLS, getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
 import { WinCelebration } from '@bg/game-engine';
@@ -269,7 +270,7 @@ export class HotlineScene {
 
     // Symbol 標籤（小字）
     const labelStyle = new TextStyle({
-      fontFamily: 'IBM Plex Mono, monospace',
+      fontFamily: GAME_FONT_NUM,
       fontSize: 8,
       fill: color,
       fontWeight: '600',

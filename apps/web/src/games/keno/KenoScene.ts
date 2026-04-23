@@ -19,6 +19,8 @@ import {
   emitRayBurst,
   prewarmShaders,
   prefersReducedMotion,
+  GAME_FONT,
+  GAME_FONT_NUM,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -149,7 +151,7 @@ export class KenoScene {
   private createStatusLabel(): void {
     if (!this.app) return;
     const style = new TextStyle({
-      fontFamily: 'IBM Plex Mono, monospace',
+      fontFamily: GAME_FONT_NUM,
       fontSize: 14,
       fill: COLOR_INK,
       fontWeight: '600',
@@ -231,7 +233,7 @@ export class KenoScene {
     // 號碼
     const fontSize = r * 0.85;
     const style = new TextStyle({
-      fontFamily: 'Bodoni Moda, Didot, serif',
+      fontFamily: GAME_FONT,
       fontSize,
       fill: COLOR_WHITE,
       fontWeight: '700',
