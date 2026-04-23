@@ -483,12 +483,11 @@ export class HotlineScene {
     // 清除上一局的中獎連線
     if (this.winLinesLayer) this.winLinesLayer.clear();
 
-    // 讓每條 reel 滾動，依序停在最終位置
-    const baseDuration = 0.9;
-    const stepDelay = 0.22;
-
+    // 所有 reel 同時開始、同時停止 — 整個盤面一起揭曉，避免逐列顯示讓玩家
+    // 誤以為「結果是分批給的」。輕微 stagger 留給每個 reel 的視覺差異感。
+    const duration = 1.2;
     const reelPromises = this.reels.map((reel, reelIdx) =>
-      this.spinReel(reel, reelIdx, finalGrid[reelIdx]!, baseDuration + reelIdx * stepDelay, reelIdx * stepDelay),
+      this.spinReel(reel, reelIdx, finalGrid[reelIdx]!, duration, 0),
     );
 
     await Promise.all(reelPromises);
