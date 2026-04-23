@@ -122,6 +122,7 @@ export function HiLoPage() {
       setRound(res.data.state);
       setBalance(res.data.newBalance);
       sceneRef.current?.celebrateCashout(Number.parseFloat(res.data.state.currentMultiplier));
+      sceneRef.current?.playWinFx(Number.parseFloat(res.data.state.currentMultiplier), true);
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {

@@ -87,6 +87,7 @@ export function KenoPage() {
         res.data.selected,
         res.data.hits,
       );
+      sceneRef.current?.playWinFx(res.data.multiplier, res.data.multiplier > 1);
       setResult(res.data);
       setBalance(res.data.newBalance);
     } catch (err) {

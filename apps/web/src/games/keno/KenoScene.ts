@@ -18,6 +18,7 @@ import {
   emitRayBurst,
   prewarmShaders,
 } from '@bg/game-engine';
+import { WinCelebration } from '@bg/game-engine';
 
 const COLOR_BG = 0xFBF9F4;
 const COLOR_ACID = 0xC9A24C;
@@ -63,6 +64,8 @@ export class KenoScene {
   private particlePool: ParticlePool | null = null;
   private shaker: ShakeController | null = null;
   private poolTicker: ((tk: Ticker) => void) | null = null;
+  private winFx: WinCelebration | null = null;
+
 
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
     this.width = width;
@@ -80,6 +83,13 @@ export class KenoScene {
       antialias: true,
     });
     this.app = app;
+    this.winFx = new WinCelebration({
+      app,
+      parent: app.stage,
+      shakeTarget: app.stage,
+      width: this.width,
+      height: this.height,
+    });
 
     this.createBackground();
 
@@ -471,6 +481,8 @@ export class KenoScene {
     this.shaker = null;
     this.particlePool?.dispose();
     this.particlePool = null;
+    this.winFx?.dispose();
+    this.winFx = null;
     this.app?.destroy(true, { children: true });
     this.app = null;
     this.ballsContainer = null;
@@ -479,5 +491,10 @@ export class KenoScene {
     this.statusLabel = null;
     this.balls = [];
     this.particleList = [];
+  }
+
+  /** L4 共用大獎慶典 — GamePage 在拿到 result 後呼叫一次 */
+  playWinFx(multiplier: number, won: boolean): void {
+    this.winFx?.celebrate(multiplier, won);
   }
 }

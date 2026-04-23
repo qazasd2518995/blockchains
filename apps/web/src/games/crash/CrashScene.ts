@@ -18,6 +18,7 @@ import {
   emitRayBurst,
   prewarmShaders,
 } from '@bg/game-engine';
+import { WinCelebration } from '@bg/game-engine';
 
 const COLOR_BG_A = 0x0C4632;
 const COLOR_BG_B = 0x0A0806;
@@ -88,6 +89,8 @@ export class CrashScene {
   private poolTicker: ((tk: Ticker) => void) | null = null;
   private vignette: Graphics | null = null;
   private tensionStart = 0;
+  private winFx: WinCelebration | null = null;
+
 
   async init(
     canvas: HTMLCanvasElement,
@@ -110,6 +113,13 @@ export class CrashScene {
       antialias: true,
     });
     this.app = app;
+    this.winFx = new WinCelebration({
+      app,
+      parent: app.stage,
+      shakeTarget: app.stage,
+      width: this.width,
+      height: this.height,
+    });
 
     this.createBackground();
     this.starfield = new Container();
@@ -885,6 +895,8 @@ export class CrashScene {
     this.particlePool?.dispose();
     this.particlePool = null;
     this.vignette = null;
+    this.winFx?.dispose();
+    this.winFx = null;
     this.app?.destroy(true, { children: true });
     this.app = null;
     this.starfield = null;
@@ -901,5 +913,10 @@ export class CrashScene {
     this.particleList = [];
     this.trailDots = [];
     this.curvePoints = [];
+  }
+
+  /** L4 共用大獎慶典 — GamePage 在拿到 result 後呼叫一次 */
+  playWinFx(multiplier: number, won: boolean): void {
+    this.winFx?.celebrate(multiplier, won);
   }
 }

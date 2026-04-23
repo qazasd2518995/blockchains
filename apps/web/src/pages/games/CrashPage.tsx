@@ -232,6 +232,7 @@ export function CrashPage({ config }: Props) {
         if (res.newBalance) setBalance(res.newBalance);
         // L4：cashout 成功觸發 tier 慶祝
         sceneRef.current?.celebrateCashout(multiplier);
+        sceneRef.current?.playWinFx(multiplier, true);
       },
     );
   };

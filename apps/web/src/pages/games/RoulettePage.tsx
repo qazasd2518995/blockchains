@@ -83,6 +83,10 @@ export function RoulettePage({ variant }: Props) {
           : '/games/carnival/bet';
       const res = await api.post<RouletteBetResult>(endpoint, payload);
       await sceneRef.current?.playSpin(res.data.slot);
+      const stake = Number.parseFloat(res.data.totalAmount);
+      const payout = Number.parseFloat(res.data.totalPayout);
+      const fxMult = stake > 0 ? payout / stake : 0;
+      sceneRef.current?.playWinFx(fxMult, fxMult > 0);
       setResult(res.data);
       setBalance(res.data.newBalance);
       setBets([]);

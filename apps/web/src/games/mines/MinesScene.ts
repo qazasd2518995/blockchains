@@ -10,6 +10,7 @@ import {
   emitRayBurst,
   prewarmShaders,
 } from '@bg/game-engine';
+import { WinCelebration } from '@bg/game-engine';
 
 const COLOR_BG = 0xFBF9F4;
 const COLOR_TILE = 0xffffff;
@@ -57,6 +58,8 @@ export class MinesScene {
   private particlePool: ParticlePool | null = null;
   private shaker: ShakeController | null = null;
   private poolTicker: ((tk: Ticker) => void) | null = null;
+  private winFx: WinCelebration | null = null;
+
 
   async init(
     canvas: HTMLCanvasElement,
@@ -78,6 +81,13 @@ export class MinesScene {
       antialias: true,
     });
     this.app = app;
+    this.winFx = new WinCelebration({
+      app,
+      parent: app.stage,
+      shakeTarget: app.stage,
+      width: this.width,
+      height: this.height,
+    });
 
     this.createBackground();
 
@@ -437,6 +447,8 @@ export class MinesScene {
     this.shaker = null;
     this.particlePool?.dispose();
     this.particlePool = null;
+    this.winFx?.dispose();
+    this.winFx = null;
     this.app?.destroy(true, { children: true });
     this.app = null;
     this.cells = [];
@@ -445,6 +457,11 @@ export class MinesScene {
     this.floatingTexts = null;
     this.gridContainer = null;
     this.particleList = [];
+  }
+
+  /** L4 共用大獎慶典 — GamePage 在拿到 result 後呼叫一次 */
+  playWinFx(multiplier: number, won: boolean): void {
+    this.winFx?.celebrate(multiplier, won);
   }
 }
 

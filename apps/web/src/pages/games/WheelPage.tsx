@@ -77,6 +77,7 @@ export function WheelPage() {
       // 用真實的倍率表重繪轮盘
       sceneRef.current?.setSegments(res.data.segmentMultipliers);
       await sceneRef.current?.playSpin(res.data.segmentIndex, res.data.multiplier);
+      sceneRef.current?.playWinFx(res.data.multiplier, res.data.multiplier > 1);
       setResult(res.data);
       setBalance(res.data.newBalance);
     } catch (err) {

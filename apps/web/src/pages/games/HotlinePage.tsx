@@ -66,6 +66,7 @@ export function HotlinePage() {
       const payload: HotlineBetRequest = { amount };
       const res = await api.post<HotlineBetResult>('/games/hotline/bet', payload);
       await sceneRef.current?.playSpin(res.data.grid, res.data.lines);
+      sceneRef.current?.playWinFx(res.data.multiplier ?? 0, (res.data.multiplier ?? 0) > 0);
       setResult(res.data);
       setBalance(res.data.newBalance);
     } catch (err) {

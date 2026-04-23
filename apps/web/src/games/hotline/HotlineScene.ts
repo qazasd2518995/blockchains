@@ -19,6 +19,7 @@ import {
   prewarmShaders,
 } from '@bg/game-engine';
 import { HOTLINE_SYMBOLS, getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
+import { WinCelebration } from '@bg/game-engine';
 
 const COLOR_BG = 0xFBF9F4;
 const COLOR_TILE_BG = 0xffffff;
@@ -82,6 +83,8 @@ export class HotlineScene {
   private particlePool: ParticlePool | null = null;
   private shaker: ShakeController | null = null;
   private poolTicker: ((tk: Ticker) => void) | null = null;
+  private winFx: WinCelebration | null = null;
+
 
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
     this.width = width;
@@ -98,6 +101,13 @@ export class HotlineScene {
       antialias: true,
     });
     this.app = app;
+    this.winFx = new WinCelebration({
+      app,
+      parent: app.stage,
+      shakeTarget: app.stage,
+      width: this.width,
+      height: this.height,
+    });
 
     this.createBackground();
 
@@ -754,6 +764,8 @@ export class HotlineScene {
     this.shaker = null;
     this.particlePool?.dispose();
     this.particlePool = null;
+    this.winFx?.dispose();
+    this.winFx = null;
     this.app?.destroy(true, { children: true });
     this.app = null;
     this.reels = [];
@@ -763,5 +775,10 @@ export class HotlineScene {
     this.shockwaves = null;
     this.flashOverlay = null;
     this.particleList = [];
+  }
+
+  /** L4 共用大獎慶典 — GamePage 在拿到 result 後呼叫一次 */
+  playWinFx(multiplier: number, won: boolean): void {
+    this.winFx?.celebrate(multiplier, won);
   }
 }

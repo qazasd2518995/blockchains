@@ -80,6 +80,7 @@ export function DicePage() {
       const res = await api.post<DiceBetResult>('/games/dice/bet', payload);
       const result = res.data;
       await sceneRef.current?.playRoll(result.roll, result.won, result.multiplier);
+      sceneRef.current?.playWinFx(result.multiplier, result.won);
       setLastResult(result);
       setHistory((prev) => [result, ...prev].slice(0, 16));
       setBalance(result.newBalance);

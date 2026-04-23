@@ -80,6 +80,7 @@ export function PlinkoPage() {
       // 用真實倍率表重繪 board
       sceneRef.current?.setBoard(rows, res.data.multipliers);
       await sceneRef.current?.dropBall(res.data.path, res.data.bucket, res.data.multiplier);
+      sceneRef.current?.playWinFx(res.data.multiplier, res.data.multiplier > 1);
       setResults((prev) => [res.data, ...prev].slice(0, 8));
       setBalance(res.data.newBalance);
     } catch (err) {

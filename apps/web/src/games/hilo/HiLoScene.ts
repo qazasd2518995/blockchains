@@ -18,6 +18,7 @@ import {
   emitRayBurst,
   prewarmShaders,
 } from '@bg/game-engine';
+import { WinCelebration } from '@bg/game-engine';
 
 const COLOR_BG = 0xFBF9F4;
 const COLOR_INK = 0x0A0806;
@@ -68,6 +69,8 @@ export class HiLoScene {
   private particlePool: ParticlePool | null = null;
   private shaker: ShakeController | null = null;
   private poolTicker: ((tk: Ticker) => void) | null = null;
+  private winFx: WinCelebration | null = null;
+
 
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
     this.width = width;
@@ -88,6 +91,13 @@ export class HiLoScene {
       antialias: true,
     });
     this.app = app;
+    this.winFx = new WinCelebration({
+      app,
+      parent: app.stage,
+      shakeTarget: app.stage,
+      width: this.width,
+      height: this.height,
+    });
 
     await this.preloadCardAssets();
 
@@ -555,6 +565,8 @@ export class HiLoScene {
     this.shaker = null;
     this.particlePool?.dispose();
     this.particlePool = null;
+    this.winFx?.dispose();
+    this.winFx = null;
     this.app?.destroy(true, { children: true });
     this.app = null;
     this.cardContainer = null;
@@ -565,5 +577,10 @@ export class HiLoScene {
     this.particles = null;
     this.shockwaves = null;
     this.particleList = [];
+  }
+
+  /** L4 共用大獎慶典 — GamePage 在拿到 result 後呼叫一次 */
+  playWinFx(multiplier: number, won: boolean): void {
+    this.winFx?.celebrate(multiplier, won);
   }
 }

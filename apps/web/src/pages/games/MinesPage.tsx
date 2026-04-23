@@ -139,6 +139,7 @@ export function MinesPage() {
       roundRef.current = state;
       sceneRef.current?.setClickable(false);
       sceneRef.current?.celebrateCashout(Number.parseFloat(state.currentMultiplier));
+      sceneRef.current?.playWinFx(Number.parseFloat(state.currentMultiplier), true);
       setBalance(newBalance);
     } catch (err) {
       setError(extractApiError(err).message);

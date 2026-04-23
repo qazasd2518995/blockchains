@@ -18,6 +18,7 @@ import {
   emitRayBurst,
   prewarmShaders,
 } from '@bg/game-engine';
+import { WinCelebration } from '@bg/game-engine';
 
 const COLOR_BG = 0xFBF9F4;
 const COLOR_TILE = 0xffffff;
@@ -77,6 +78,8 @@ export class TowerScene {
   private levelHeight = 58;
   private baseLevelY = 0;
   private onClick: TowerCellClick | null = null;
+  private winFx: WinCelebration | null = null;
+
 
   async init(
     canvas: HTMLCanvasElement,
@@ -99,6 +102,13 @@ export class TowerScene {
       antialias: true,
     });
     this.app = app;
+    this.winFx = new WinCelebration({
+      app,
+      parent: app.stage,
+      shakeTarget: app.stage,
+      width: this.width,
+      height: this.height,
+    });
 
     this.createBackground();
 
@@ -678,6 +688,8 @@ export class TowerScene {
     this.shaker = null;
     this.particlePool?.dispose();
     this.particlePool = null;
+    this.winFx?.dispose();
+    this.winFx = null;
     this.app?.destroy(true, { children: true });
     this.app = null;
     this.cells.clear();
@@ -688,5 +700,10 @@ export class TowerScene {
     this.shockwaves = null;
     this.currentLevelLabel = null;
     this.multiplierLabel = null;
+  }
+
+  /** L4 共用大獎慶典 — GamePage 在拿到 result 後呼叫一次 */
+  playWinFx(multiplier: number, won: boolean): void {
+    this.winFx?.celebrate(multiplier, won);
   }
 }

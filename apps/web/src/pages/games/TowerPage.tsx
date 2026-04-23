@@ -148,6 +148,7 @@ export function TowerPage() {
         sceneRef.current?.revealAll(res.data.state.revealedLayout);
       }
       sceneRef.current?.celebrate(Number.parseFloat(res.data.state.currentMultiplier));
+      sceneRef.current?.playWinFx(Number.parseFloat(res.data.state.currentMultiplier), true);
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
