@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
 import { HALLS, type HallId } from '@/data/halls';
 import { FAKE_WIN_TICKER } from '@/data/fakeStats';
@@ -38,76 +38,51 @@ export function HallPage() {
   const HallIcon = getHallIcon(hall.iconKey);
 
   const liveWins = FAKE_WIN_TICKER.filter((record) => hall.gameIds.includes(record.gameId as GameIdType)).slice(0, 8);
-  const liveWinTotal = liveWins.reduce((sum, record) => sum + record.win, 0);
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-[28px] border border-black/5 shadow-[0_18px_38px_rgba(15,23,42,0.14)]">
-        <div className="relative px-6 py-8 text-white md:px-8 md:py-10" style={{ background: hall.gradient }}>
-          <img
-            src={hall.artwork}
-            alt=""
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[52%] max-w-[760px] object-cover opacity-[0.82] xl:block"
-          />
-          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[62%] bg-[linear-gradient(270deg,rgba(5,18,34,0.08),rgba(5,18,34,0.24)_38%,rgba(5,18,34,0.78)_100%)] xl:block" />
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(5,18,34,0.86)_0%,rgba(5,18,34,0.72)_34%,rgba(5,18,34,0.32)_62%,rgba(5,18,34,0.1)_100%),radial-gradient(circle_at_top_right,rgba(255,255,255,0.14),transparent_42%)]" />
+      <section
+        className="relative overflow-hidden rounded-[24px] border border-black/5 shadow-[0_18px_38px_rgba(15,23,42,0.14)]"
+        style={{ background: hall.gradient }}
+      >
+        <img
+          src={hall.artwork}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-80"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(5,18,34,0.86)_0%,rgba(5,18,34,0.55)_45%,rgba(5,18,34,0.18)_80%,rgba(5,18,34,0.05)_100%)]" />
 
-          <div className="relative z-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1.3fr)_360px]">
+        <div className="relative z-10 flex flex-col gap-3 px-5 py-5 text-white md:flex-row md:items-center md:justify-between md:px-7 md:py-6">
+          <div className="flex min-w-0 items-center gap-4">
+            <Link
+              to="/lobby"
+              aria-label="回到大廳"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/30 text-white/90 backdrop-blur transition hover:bg-black/45"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            </Link>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/[0.1] backdrop-blur">
+              <HallIcon className="h-6 w-6 text-white" aria-hidden="true" strokeWidth={1.7} />
+            </div>
             <div className="min-w-0">
-              <Link
-                to="/lobby"
-                className="inline-flex items-center gap-2 rounded-full border border-white/28 bg-[#071523]/72 px-3 py-1.5 text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(2,6,23,0.24)] backdrop-blur-md transition hover:bg-[#0A1B2D]/84 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                回到大廳
-              </Link>
-
-              <div className="mt-6 flex h-24 w-24 items-center justify-center rounded-[28px] border border-white/20 bg-white/[0.12] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] md:h-28 md:w-28">
-                <HallIcon className="h-12 w-12 text-white md:h-14 md:w-14" aria-hidden="true" strokeWidth={1.6} />
-              </div>
-              <h1 className="mt-3 text-pretty text-[32px] font-bold leading-tight md:text-[42px]">
+              <h1 className="truncate text-pretty text-[22px] font-bold leading-tight md:text-[26px]">
                 {hall.nameZh}
               </h1>
-              <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-white/[0.85]">
-                {hall.tagline}。{games.length} 款人氣玩法已經就位，最適合 {hallNarrative(hall.id)}
+              <p className="mt-0.5 truncate text-[12px] text-white/80 md:text-[13px]">
+                {hall.tagline}．{games.length} 款人氣玩法
               </p>
-
-              <div className="mt-5 flex flex-wrap gap-2 text-[12px]">
-                <span className="rounded-full border border-white/20 bg-black/[0.15] px-3 py-1.5 text-white/[0.85]">
-                  {games.length} 款人氣遊戲
-                </span>
-                <span className="rounded-full border border-white/20 bg-black/[0.15] px-3 py-1.5 text-white/[0.85]">
-                  熱門戰報持續刷新
-                </span>
-                <span className="rounded-full border border-white/20 bg-black/[0.15] px-3 py-1.5 text-white/[0.85]">
-                  今晚就從這一館開玩
-                </span>
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Link
-                  to="/verify"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/28 bg-[#071523]/72 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(2,6,23,0.24)] backdrop-blur-md transition hover:border-white/36 hover:bg-[#0A1B2D]/84 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-                >
-                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                  驗證最近一局
-                </Link>
-                <Link
-                  to="/history"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/28 bg-[#071523]/72 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(2,6,23,0.24)] backdrop-blur-md transition hover:bg-[#0A1B2D]/84 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-                >
-                  查看我的記錄
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </div>
             </div>
+          </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-              <HallMetaCard label="館內遊戲" value={String(games.length)} detail="把同節奏的遊戲收成單一入口。" />
-              <HallMetaCard label="即時戰報" value={String(liveWins.length)} detail="側欄只放這一館的近期戰報，不混館。" />
-              <HallMetaCard label="戰報總額" value={numberFormatter.format(liveWinTotal)} detail="用較大的數字驗證版面與字體穩定性。" />
-            </div>
+          <div className="flex shrink-0 items-center gap-2 self-start md:self-auto">
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-black/35 px-3 py-1.5 text-[11px] font-semibold text-white/90 backdrop-blur">
+              <span className="dot-online" />
+              熱門出分中
+            </span>
+            <span className="hidden items-center rounded-full border border-[#C9A247]/45 bg-[#C9A247]/15 px-3 py-1.5 text-[11px] font-semibold text-[#F3D67D] backdrop-blur sm:inline-flex">
+              {games.length} 款 · 適合 {hallNarrative(hall.id).replace('的玩家。', '')}
+            </span>
           </div>
         </div>
       </section>
@@ -177,20 +152,3 @@ export function HallPage() {
   );
 }
 
-function HallMetaCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <article className="rounded-[20px] border border-white/20 bg-black/[0.15] px-4 py-4 backdrop-blur">
-      <div className="text-[11px] uppercase tracking-[0.16em] text-white/[0.55]">{label}</div>
-      <div className="mt-2 data-num text-[28px] font-bold text-white">{value}</div>
-      <p className="mt-2 text-[12px] leading-relaxed text-white/[0.75]">{detail}</p>
-    </article>
-  );
-}
