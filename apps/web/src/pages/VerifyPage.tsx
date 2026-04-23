@@ -46,6 +46,7 @@ interface Game {
   hall: HallKey;
   name: string;
   english: string;
+  cover: string;
   rtp: string;
   maxMultiplier: string;
   duration: string;
@@ -60,6 +61,7 @@ const GAMES: Game[] = [
     hall: 'crash',
     name: '火箭',
     english: 'Rocket',
+    cover: '/games/rocket.jpg',
     rtp: '97%',
     maxMultiplier: '1,000,000×',
     duration: '5–30 秒',
@@ -76,6 +78,7 @@ const GAMES: Game[] = [
     hall: 'crash',
     name: '飛行員',
     english: 'Aviator',
+    cover: '/games/aviator.jpg',
     rtp: '97%',
     maxMultiplier: '1,000,000×',
     duration: '5–30 秒',
@@ -92,6 +95,7 @@ const GAMES: Game[] = [
     hall: 'crash',
     name: '飆速 X',
     english: 'JetX',
+    cover: '/games/jetx.jpg',
     rtp: '97%',
     maxMultiplier: '1,000,000×',
     duration: '5–30 秒',
@@ -108,6 +112,7 @@ const GAMES: Game[] = [
     hall: 'crash',
     name: '噴射機 X3',
     english: 'JetX3',
+    cover: '/games/jetx3.jpg',
     rtp: '97%',
     maxMultiplier: '1,000,000×',
     duration: '8–35 秒',
@@ -124,6 +129,7 @@ const GAMES: Game[] = [
     hall: 'crash',
     name: '太空艦隊',
     english: 'Space Fleet',
+    cover: '/games/space-fleet.jpg',
     rtp: '97%',
     maxMultiplier: '1,000,000×',
     duration: '6–30 秒',
@@ -140,6 +146,7 @@ const GAMES: Game[] = [
     hall: 'crash',
     name: '氣球',
     english: 'Balloon',
+    cover: '/games/balloon.jpg',
     rtp: '97%',
     maxMultiplier: '1,000,000×',
     duration: '5–25 秒',
@@ -156,6 +163,7 @@ const GAMES: Game[] = [
     hall: 'crash',
     name: '雙倍 X',
     english: 'Double X',
+    cover: '/games/double-x.jpg',
     rtp: '97%',
     maxMultiplier: '1,000,000×',
     duration: '5–30 秒',
@@ -172,6 +180,7 @@ const GAMES: Game[] = [
     hall: 'crash',
     name: '掉珠挑戰 X',
     english: 'Plinko X',
+    cover: '/games/plinko-x.jpg',
     rtp: '97%',
     maxMultiplier: '1,000,000×',
     duration: '5–30 秒',
@@ -188,6 +197,7 @@ const GAMES: Game[] = [
     hall: 'classic',
     name: '骰子',
     english: 'Dice',
+    cover: '/games/dice.jpg',
     rtp: '99%',
     maxMultiplier: '9,900×',
     duration: '單局 3 秒',
@@ -204,6 +214,7 @@ const GAMES: Game[] = [
     hall: 'classic',
     name: '迷你輪盤',
     english: 'Mini Roulette',
+    cover: '/games/mini-roulette.jpg',
     rtp: '97%',
     maxMultiplier: '36×',
     duration: '單局 8 秒',
@@ -220,6 +231,7 @@ const GAMES: Game[] = [
     hall: 'classic',
     name: '彩色轉輪',
     english: 'Color Wheel',
+    cover: '/games/wheel.jpg',
     rtp: '97%',
     maxMultiplier: '50×',
     duration: '單局 6 秒',
@@ -236,6 +248,7 @@ const GAMES: Game[] = [
     hall: 'classic',
     name: '霓虹熱線',
     english: 'Hotline',
+    cover: '/games/hotline.jpg',
     rtp: '96%',
     maxMultiplier: '1,000×',
     duration: '單局 5 秒',
@@ -252,6 +265,7 @@ const GAMES: Game[] = [
     hall: 'classic',
     name: '基諾',
     english: 'Keno',
+    cover: '/games/keno.jpg',
     rtp: '96%',
     maxMultiplier: '10,000×',
     duration: '單局 5 秒',
@@ -268,6 +282,7 @@ const GAMES: Game[] = [
     hall: 'strategy',
     name: '猜大小',
     english: 'Hi-Lo',
+    cover: '/games/hilo.jpg',
     rtp: '99%',
     maxMultiplier: '999×',
     duration: '可連續多局',
@@ -284,6 +299,7 @@ const GAMES: Game[] = [
     hall: 'strategy',
     name: '掃雷',
     english: 'Mines',
+    cover: '/games/mines.jpg',
     rtp: '97%',
     maxMultiplier: '24,000×',
     duration: '可連續多局',
@@ -300,6 +316,7 @@ const GAMES: Game[] = [
     hall: 'strategy',
     name: '疊塔',
     english: 'Tower X',
+    cover: '/games/tower.jpg',
     rtp: '97%',
     maxMultiplier: '50,000×',
     duration: '可連續多局',
@@ -316,6 +333,7 @@ const GAMES: Game[] = [
     hall: 'strategy',
     name: '彈珠台',
     english: 'Plinko',
+    cover: '/games/plinko.jpg',
     rtp: '99%',
     maxMultiplier: '1,000×',
     duration: '單局 3 秒',
@@ -454,44 +472,70 @@ export function VerifyPage() {
             return (
               <article
                 key={game.id}
-                className="flex flex-col rounded-[22px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur"
+                className="relative flex flex-col overflow-hidden rounded-[22px] border border-white/10 bg-[#0B1322] text-white shadow-[0_16px_40px_rgba(2,6,23,0.45)]"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div
-                      className="inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em]"
-                      style={{ backgroundColor: `${hall.tone}1f`, color: hall.tone }}
-                    >
-                      {hall.title}
+                <img
+                  src={game.cover}
+                  alt=""
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.55]"
+                />
+                <div
+                  className="pointer-events-none absolute inset-0"
+                  style={{
+                    background:
+                      'linear-gradient(180deg, rgba(7,15,28,0.35) 0%, rgba(7,15,28,0.78) 38%, rgba(7,15,28,0.94) 70%, rgba(7,15,28,0.97) 100%)',
+                  }}
+                />
+
+                <div className="relative z-10 flex flex-1 flex-col p-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div
+                        className="inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] backdrop-blur"
+                        style={{
+                          backgroundColor: `${hall.tone}33`,
+                          borderColor: `${hall.tone}80`,
+                          color: '#FFE8B0',
+                        }}
+                      >
+                        {hall.title}
+                      </div>
+                      <h3 className="mt-3 text-[24px] font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+                        {game.name}
+                      </h3>
+                      <p className="mt-1 text-[12px] uppercase tracking-[0.18em] text-white/55">
+                        {game.english}
+                      </p>
                     </div>
-                    <h3 className="mt-3 text-[22px] font-bold text-[#0F172A]">{game.name}</h3>
-                    <p className="mt-1 text-[12px] uppercase tracking-[0.18em] text-[#9CA3AF]">{game.english}</p>
                   </div>
-                </div>
 
-                <p className="mt-4 text-[13px] leading-relaxed text-[#4A5568]">{game.intro}</p>
+                  <p className="mt-4 text-[13px] leading-relaxed text-white/80">{game.intro}</p>
 
-                <dl className="mt-5 grid grid-cols-3 gap-2 rounded-[16px] bg-[#F8FAFB] p-3 text-center">
-                  <Stat label="RTP" value={game.rtp} />
-                  <Stat label="最高倍率" value={game.maxMultiplier} />
-                  <Stat label="單局時長" value={game.duration} />
-                </dl>
+                  <dl className="mt-5 grid grid-cols-3 gap-2 rounded-[16px] border border-white/10 bg-white/[0.06] p-3 text-center backdrop-blur">
+                    <Stat label="RTP" value={game.rtp} />
+                    <Stat label="最高倍率" value={game.maxMultiplier} />
+                    <Stat label="單局時長" value={game.duration} />
+                  </dl>
 
-                <div className="mt-5">
-                  <div className="text-[12px] font-semibold text-[#0F172A]">玩法步驟</div>
-                  <ol className="mt-2 space-y-1.5 text-[12px] leading-relaxed text-[#4A5568]">
-                    {game.howToPlay.map((step, index) => (
-                      <li key={index} className="flex gap-2">
-                        <span className="font-semibold text-[#186073]">{index + 1}.</span>
-                        <span>{step}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
+                  <div className="mt-5">
+                    <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#E8D48A]">
+                      玩法步驟
+                    </div>
+                    <ol className="mt-2 space-y-1.5 text-[13px] leading-relaxed text-white/85">
+                      {game.howToPlay.map((step, index) => (
+                        <li key={index} className="flex gap-2">
+                          <span className="font-semibold text-[#F3D67D]">{index + 1}.</span>
+                          <span>{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
 
-                <div className="mt-5 rounded-[14px] border border-[#C9A247]/30 bg-[#FFF7E2] p-3 text-[12px] leading-relaxed text-[#866422]">
-                  <span className="font-semibold">小提示：</span>
-                  {game.tips}
+                  <div className="mt-5 rounded-[14px] border border-[#E8D48A]/35 bg-[#1F1A0E]/70 p-3 text-[12px] leading-relaxed text-[#F5DFA0] backdrop-blur">
+                    <span className="font-semibold text-[#FFE8B0]">小提示：</span>
+                    {game.tips}
+                  </div>
                 </div>
               </article>
             );
@@ -505,8 +549,8 @@ export function VerifyPage() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-[0.18em] text-[#9CA3AF]">{label}</div>
-      <div className="mt-1 text-[13px] font-semibold text-[#0F172A]">{value}</div>
+      <div className="text-[10px] uppercase tracking-[0.18em] text-white/55">{label}</div>
+      <div className="mt-1 text-[13px] font-semibold text-white">{value}</div>
     </div>
   );
 }
