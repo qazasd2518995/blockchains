@@ -15,8 +15,10 @@ import {
   TIER_CONFIG,
   EASE,
   emitEdgeGlow,
+  emitGlowBurst,
   emitRayBurst,
   prewarmShaders,
+  prefersReducedMotion,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -509,6 +511,14 @@ export class TowerScene {
           spreadRad: Math.PI,
         });
         this.emitShockwave(cx, cy, COLOR_TOXIC, dims.w * 1.3);
+        // L4 強化：安全格 emit glow burst，每選對一格儀式感更強
+        if (this.app && !prefersReducedMotion()) {
+          emitGlowBurst(this.app.stage, cx, cy, COLOR_TOXIC, {
+            radius: dims.w * 0.85,
+            peakBlur: 16,
+            durationSec: 0.5,
+          });
+        }
       }
 
       // 讓舊層變 past

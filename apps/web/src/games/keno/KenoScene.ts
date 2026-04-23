@@ -15,8 +15,10 @@ import {
   TIER_CONFIG,
   EASE,
   emitEdgeGlow,
+  emitGlowBurst,
   emitRayBurst,
   prewarmShaders,
+  prefersReducedMotion,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -401,6 +403,14 @@ export class KenoScene {
           if (cfg.shakeAmp > 0) this.shaker?.shake(cfg.shakeAmp, cfg.shakeDuration);
           if (this.app && cfg.edgeGlowMs > 0) emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_AMBER, cfg.edgeGlowMs / 1000);
           if (this.app && cfg.rayBurst) emitRayBurst(this.app.stage, this.app, cx, cy, COLOR_AMBER, 1.2);
+          // L4 強化：高命中數時加中央 glow burst
+          if (this.app && !prefersReducedMotion()) {
+            emitGlowBurst(this.app.stage, cx, cy, COLOR_AMBER, {
+              radius: 90 + hits.length * 8,
+              peakBlur: 20,
+              durationSec: 0.7,
+            });
+          }
         });
       }
     });

@@ -15,8 +15,11 @@ import {
   TIER_CONFIG,
   EASE,
   emitEdgeGlow,
+  emitGlowBurst,
   emitRayBurst,
   prewarmShaders,
+  motionScale,
+  prefersReducedMotion,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -651,6 +654,22 @@ export class CrashScene {
         { x: 1.25, y: 1.25 },
         { x: 1, y: 1, duration: 0.3, ease: 'back.out(1.8)' },
       );
+
+      // 最後 3 秒緊張感：色階 amber → ember，statusLabel pulse
+      if (s <= 3 && s > 0) {
+        const tense = s === 1 ? COLOR_EMBER : COLOR_AMBER;
+        this.multiplierLabel.style.fill = tense;
+        if (this.statusLabel) {
+          this.statusLabel.style.fill = tense;
+          gsap.fromTo(
+            this.statusLabel,
+            { alpha: 0.55 },
+            { alpha: 1, duration: 0.45, ease: EASE.sineInOut, yoyo: true, repeat: 1 },
+          );
+        }
+      } else {
+        this.multiplierLabel.style.fill = COLOR_ACID;
+      }
     }
   }
 
@@ -695,12 +714,41 @@ export class CrashScene {
         } else if (m >= 2) {
           this.multiplierLabel.style.fill = COLOR_TOXIC;
         }
+
+        // 整數倍率穿越時：在 craft 位置噴一個小 glow burst
+        if (this.craft && this.app && !prefersReducedMotion()) {
+          const color = m >= 10 ? COLOR_AMBER : m >= 5 ? COLOR_EMBER : COLOR_TOXIC;
+          emitGlowBurst(this.app.stage, this.craft.x, this.craft.y, color, {
+            radius: 36 + Math.min(60, m * 1.5),
+            peakBlur: 14,
+            durationSec: 0.42,
+          });
+          // 5x+ 同步噴 sparkle 粒子（追加 trail 之外的）
+          if (m >= 5) {
+            this.particlePool?.emit({
+              x: this.craft.x,
+              y: this.craft.y,
+              count: Math.round(motionScale(8 + Math.min(20, m), 0.4)),
+              colors: [color, COLOR_WHITE, COLOR_AMBER],
+              speedMin: 2,
+              speedMax: 6,
+              sizeMin: 1.5,
+              sizeMax: 3.5,
+              lifeMin: 30,
+              lifeMax: 60,
+              gravity: 0.05,
+              spreadRad: Math.PI * 1.4,
+              angleRad: -Math.PI / 2,
+              shape: 'mixed',
+            });
+          }
+        }
       }
     }
 
-    // L4 tension ramp：倍率越高 vignette 越暗（最多 0.4 alpha）
+    // L4 tension ramp：倍率越高 vignette 越暗（最多 0.5 alpha）
     if (this.vignette) {
-      const target = Math.min(0.4, (m - 1) * 0.04);
+      const target = Math.min(0.5, (m - 1) * 0.05);
       // 平滑插值避免跳動
       this.vignette.alpha += (target - this.vignette.alpha) * 0.08;
     }
@@ -764,9 +812,33 @@ export class CrashScene {
     // 曲線變紅
     this.drawCurve();
 
-    // L4 tension vignette 淡出（3s 後才恢復 betting）
+    // L4 tension vignette → 紅色慢呼吸後再淡出
     if (this.vignette) {
-      gsap.to(this.vignette, { alpha: 0, duration: 2, ease: EASE.out });
+      gsap.killTweensOf(this.vignette);
+      gsap.to(this.vignette, { alpha: 0.35, duration: 0.18, ease: EASE.out });
+      gsap.to(this.vignette, {
+        alpha: 0.18,
+        duration: 0.7,
+        delay: 0.18,
+        ease: EASE.sineInOut,
+        yoyo: true,
+        repeat: 1,
+      });
+      gsap.to(this.vignette, {
+        alpha: 0,
+        duration: 1.4,
+        delay: 1.78,
+        ease: EASE.out,
+      });
+    }
+
+    // 失敗 statusLabel 呼吸提示
+    if (this.statusLabel && !prefersReducedMotion()) {
+      gsap.fromTo(
+        this.statusLabel,
+        { alpha: 0.6 },
+        { alpha: 1, duration: 0.55, ease: EASE.sineInOut, yoyo: true, repeat: 3 },
+      );
     }
   }
 

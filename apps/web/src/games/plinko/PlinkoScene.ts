@@ -15,8 +15,10 @@ import {
   TIER_CONFIG,
   EASE,
   emitEdgeGlow,
+  emitGlowBurst,
   emitRayBurst,
   prewarmShaders,
+  prefersReducedMotion,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -533,6 +535,14 @@ export class PlinkoScene {
     }
     if (this.app && tierCfg.rayBurst) {
       emitRayBurst(this.app.stage, this.app, targetX, targetY, color, 1.2);
+    }
+    // L4 強化：落點 emit glow burst（讓「彈珠落定」感更強烈）
+    if (this.app && won && !prefersReducedMotion()) {
+      emitGlowBurst(this.app.stage, targetX, targetY, color, {
+        radius: 60 + Math.min(80, b.multiplier * 6),
+        peakBlur: 18 + Math.min(10, b.multiplier),
+        durationSec: 0.55,
+      });
     }
 
     // 球消失

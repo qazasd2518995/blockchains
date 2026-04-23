@@ -15,8 +15,10 @@ import {
   TIER_CONFIG,
   EASE,
   emitEdgeGlow,
+  emitGlowBurst,
   emitRayBurst,
   prewarmShaders,
+  prefersReducedMotion,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -431,9 +433,16 @@ export class HiLoScene {
             angleRad: -Math.PI / 2,
             spreadRad: Math.PI,
           });
+          if (this.app && !prefersReducedMotion()) {
+            emitGlowBurst(this.app.stage, cx, cy, COLOR_TOXIC, {
+              radius: this.cardW * 1.1,
+              peakBlur: 18,
+              durationSec: 0.55,
+            });
+          }
         } else if (correct === false) {
           this.emitShockwave(cx, cy, COLOR_EMBER, this.cardW * 2);
-          // L4 輸家刻意安靜：少量、慢、不 shake
+          // L4 輸家刻意安靜：少量、慢、不 shake；但加一個短紅邊緣 glow 提示局結束
           this.particlePool?.emit({
             x: cx,
             y: cy,
@@ -444,6 +453,9 @@ export class HiLoScene {
             lifeMin: 25,
             lifeMax: 40,
           });
+          if (this.app && !prefersReducedMotion()) {
+            emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_EMBER, 0.32);
+          }
         }
         // 牌微脈動
         if (this.mainCard) {

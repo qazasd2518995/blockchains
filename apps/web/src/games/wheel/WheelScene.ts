@@ -15,8 +15,10 @@ import {
   TIER_CONFIG,
   EASE,
   emitEdgeGlow,
+  emitGlowBurst,
   emitRayBurst,
   prewarmShaders,
+  prefersReducedMotion,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -414,6 +416,14 @@ export class WheelScene {
       if (cfg.shakeAmp > 0) this.shaker?.shake(cfg.shakeAmp, cfg.shakeDuration);
       if (this.app && cfg.edgeGlowMs > 0) emitEdgeGlow(this.app.stage, this.width, this.height, color, cfg.edgeGlowMs / 1000);
       if (this.app && cfg.rayBurst) emitRayBurst(this.app.stage, this.app, this.cx, this.cy, color, 1.2);
+      // L4 強化：落點 emit glow burst 強化儀式感
+      if (this.app && !prefersReducedMotion()) {
+        emitGlowBurst(this.app.stage, landX, landY, color, {
+          radius: 60 + Math.min(80, multiplier * 6),
+          peakBlur: 18,
+          durationSec: 0.5,
+        });
+      }
     } else {
       // 0 倍：安靜
       this.emitShockwave(landX, landY, COLOR_GRAY, 70);

@@ -15,8 +15,10 @@ import {
   TIER_CONFIG,
   EASE,
   emitEdgeGlow,
+  emitGlowBurst,
   emitRayBurst,
   prewarmShaders,
+  prefersReducedMotion,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -519,6 +521,15 @@ export class RouletteScene {
 
       // L4 shake 弱（落格不是大勝不需強震）
       this.shaker?.shake(5, 0.35);
+
+      // L4 強化：球落定 emit glow burst（強化「球停下」儀式感）
+      if (this.app && !prefersReducedMotion()) {
+        emitGlowBurst(this.app.stage, bx, by, color, {
+          radius: 70,
+          peakBlur: 16,
+          durationSec: 0.55,
+        });
+      }
     }
 
     if (this.statusLabel) {

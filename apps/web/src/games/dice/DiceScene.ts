@@ -386,6 +386,20 @@ export class DiceScene {
     dice.y = this.height / 2;
     // scale punch 進入
     gsap.to(dice.scale, { x: 0.88, y: 0.88, duration: 0.12, ease: EASE.in });
+    // anticipation: 在骰子腳下打一道金色光暈呼吸（增加抽起來的儀式感）
+    if (this.diceGlow) {
+      const glow = this.diceGlow;
+      glow.clear()
+        .circle(dice.x, dice.y + this.diceSize * 0.4, this.diceSize * 0.7)
+        .fill({ color: COLOR_ACID, alpha: 0.32 });
+      glow.filters = [new BlurFilter({ strength: 18 })];
+      gsap.killTweensOf(glow);
+      gsap.fromTo(
+        glow,
+        { alpha: 0 },
+        { alpha: 0.85, duration: 0.4, ease: EASE.out },
+      );
+    }
     // 持續緩慢旋轉直到 playRoll 接手
     gsap.to(dice, {
       rotation: `+=${Math.PI * 2}`,

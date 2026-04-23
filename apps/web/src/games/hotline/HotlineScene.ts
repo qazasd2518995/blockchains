@@ -15,8 +15,10 @@ import {
   TIER_CONFIG,
   EASE,
   emitEdgeGlow,
+  emitGlowBurst,
   emitRayBurst,
   prewarmShaders,
+  prefersReducedMotion,
 } from '@bg/game-engine';
 import { HOTLINE_SYMBOLS, getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
 import { WinCelebration } from '@bg/game-engine';
@@ -643,6 +645,14 @@ export class HotlineScene {
             speedMin: 2,
             speedMax: 6,
           });
+          // L4 強化：每個中獎符號 emit glow burst（讓光柱化）
+          if (this.app && !prefersReducedMotion()) {
+            emitGlowBurst(this.app.stage, wx, wy, color, {
+              radius: this.cellSize * 0.55,
+              peakBlur: 14,
+              durationSec: 0.45,
+            });
+          }
         }, reelIdx * 100);
       }
     }

@@ -7,8 +7,10 @@ import {
   TIER_CONFIG,
   EASE,
   emitEdgeGlow,
+  emitGlowBurst,
   emitRayBurst,
   prewarmShaders,
+  prefersReducedMotion,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -237,6 +239,14 @@ export class MinesScene {
     });
     this.emitShockwave(gx, gy, COLOR_TOXIC, cell.size * 1.1, 0);
     this.showFloatingText(gx, gy, '✓', COLOR_TOXIC);
+    // L4 強化：對該格 emit 一個快速 glow burst，增強「鑽石點亮」的儀式感
+    if (this.app && !prefersReducedMotion()) {
+      emitGlowBurst(this.app.stage, gx, gy, COLOR_TOXIC, {
+        radius: cell.size * 0.95,
+        peakBlur: 14,
+        durationSec: 0.45,
+      });
+    }
   }
 
   revealMine(index: number, big: boolean): void {
