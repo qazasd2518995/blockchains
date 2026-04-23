@@ -187,24 +187,24 @@ export function DicePage() {
               <div className="flex items-baseline justify-between">
                 <div className="flex items-baseline gap-3">
                   <span
-                    className={`font-display text-5xl ${
-                      lastResult.won ? 'text-[#7DD3FC]' : 'text-[#FCA5A5]'
+                    className={`font-display text-5xl font-bold ${
+                      lastResult.won ? 'text-[#F3D67D]' : 'text-[#FCA5A5]'
                     }`}
                   >
                     {lastResult.won ? t.games.dice.win : t.games.dice.loss}
                   </span>
-                  <span className="text-[10px] tracking-[0.3em] text-white/55">
+                  <span className="text-[10px] tracking-[0.3em] text-white/65">
                     {t.games.dice.roll}
                   </span>
-                  <span className="num text-5xl text-white">
+                  <span className="num text-5xl font-bold text-white">
                     {lastResult.roll.toFixed(2)}
                   </span>
                 </div>
                 <div className="text-right">
-                  <div className="data-num text-[11px] text-white/55">{t.games.dice.payout}</div>
+                  <div className="data-num text-[11px] text-white/65">{t.games.dice.payout}</div>
                   <div
                     className={`data-num text-2xl font-bold ${
-                      lastResult.won ? 'text-[#7DD3FC]' : 'text-white/75'
+                      lastResult.won ? 'text-[#F3D67D]' : 'text-white/85'
                     }`}
                   >
                     {Number.parseFloat(lastResult.profit) >= 0 ? '+' : ''}
