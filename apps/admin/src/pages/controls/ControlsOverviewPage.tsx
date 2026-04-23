@@ -273,7 +273,7 @@ export function ControlsOverviewPage(): JSX.Element {
       />
 
       <ImageBanner
-        image="/banners/controls-risk.png"
+        image="/banners/controls-risk-host.png"
         eyebrow="Risk Control Desk"
         title="先看哪條控制規則在線，再決定今天要不要動手。"
         description="這一頁專門用來盯住輸贏控制、會員封頂、入金控制與代理線封頂。畫面先給總覽，避免你在多張表之間來回切，調整前也能先確認哪些規則仍在生效。"

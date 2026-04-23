@@ -29,10 +29,10 @@ export function PageHeader({
   return (
     <header className="relative mb-7 overflow-hidden rounded-[14px] border border-[#16324A]/12 bg-[#0B1827] px-6 py-6 shadow-[0_20px_48px_rgba(15,23,42,0.08)]">
       <img
-        src="/backgrounds/admin-shell.png"
+        src="/backgrounds/admin-shell-host.png"
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_42%] opacity-24"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[72%_42%] opacity-24"
       />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(6,16,30,0.94)_0%,rgba(6,16,30,0.9)_36%,rgba(6,16,30,0.58)_100%)]" />
 

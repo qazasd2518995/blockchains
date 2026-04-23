@@ -31,10 +31,10 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
     <div className="relative min-h-screen overflow-hidden bg-[#E9ECEF]">
       <div className="pointer-events-none fixed inset-0">
         <img
-          src="/backgrounds/admin-shell.png"
+          src="/backgrounds/admin-shell-host.png"
           alt=""
           aria-hidden="true"
-          className="h-full w-full object-cover opacity-[0.12]"
+          className="h-full w-full object-cover object-[72%_center] opacity-[0.12]"
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(233,236,239,0.72)_0%,rgba(233,236,239,0.9)_34%,rgba(233,236,239,0.96)_100%)]" />
       </div>

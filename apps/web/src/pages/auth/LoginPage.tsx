@@ -63,12 +63,12 @@ export function LoginPage() {
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#05121E]">
       <div className="pointer-events-none absolute inset-0">
         <img
-          src="/backgrounds/casino-atmosphere.png"
+          src="/backgrounds/member-login-dealer.png"
           alt=""
           aria-hidden="true"
-          className="h-full w-full object-cover opacity-45"
+          className="h-full w-full object-cover object-[68%_center] opacity-55"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(3,11,22,0.9)_0%,rgba(7,21,36,0.84)_42%,rgba(11,29,46,0.9)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(3,11,22,0.92)_0%,rgba(7,21,36,0.82)_44%,rgba(11,29,46,0.72)_100%)]" />
       </div>
 
       <header className="relative z-10 h-16 border-b border-white/8 bg-black/12 text-white backdrop-blur-sm">

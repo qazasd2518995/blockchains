@@ -56,7 +56,7 @@ export function AdminDashboardPage(): JSX.Element {
       />
 
       <ImageBanner
-        image="/banners/dashboard-ops.png"
+        image="/banners/dashboard-agent-host.png"
         eyebrow="Operations Overview"
         title="今日代理線、餘額與交收節奏，先在這裡看全局。"
         description="這裡先給你看最常用的營運概況。下級代理、會員量、主帳餘額與佣金餘額都收在同一塊，往下再接近期動態，判斷今天先處理哪條線。"
