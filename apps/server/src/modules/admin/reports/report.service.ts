@@ -3,6 +3,7 @@ import { ApiError } from '../../../utils/errors.js';
 import { listAgentDescendants, canManageAgent } from '../../../utils/hierarchy.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import type { ReportQuery, AgentAnalysisQuery } from './report.schema.js';
+import type { DashboardSummaryResponse } from '@bg/shared';
 
 /**
  * 報表聚合服務
@@ -26,6 +27,171 @@ export class ReportService {
       select: { id: true },
     });
     return members.map((m) => m.id);
+  }
+
+  /** 儀表板摘要：7 日下注、活躍會員、遊戲分布（含 Crash 類下注） */
+  async dashboardSummary(operator: AdminCurrent): Promise<DashboardSummaryResponse> {
+    const now = new Date();
+    const startDate = startOfUtcDay(addUtcDays(now, -6));
+    const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const rootAgentId = await this.resolveDashboardRootAgentId(operator);
+
+    const agentIds = rootAgentId ? await listAgentDescendants(this.prisma, rootAgentId) : null;
+    const downlineAgentWhere: Prisma.AgentWhereInput = agentIds
+      ? {
+          id: { in: agentIds.filter((id) => id !== rootAgentId) },
+          role: { not: 'SUB_ACCOUNT' },
+          status: { not: 'DELETED' },
+        }
+      : { role: { not: 'SUB_ACCOUNT' }, status: { not: 'DELETED' } };
+    const memberWhere: Prisma.UserWhereInput = agentIds
+      ? { agentId: { in: agentIds }, role: 'PLAYER' }
+      : { role: 'PLAYER' };
+
+    const [downlineAgentCount, scopedMembers] = await Promise.all([
+      this.prisma.agent.count({ where: downlineAgentWhere }),
+      this.prisma.user.findMany({
+        where: memberWhere,
+        select: { id: true, createdAt: true },
+      }),
+    ]);
+
+    const memberIds = agentIds ? scopedMembers.map((member) => member.id) : null;
+    const betWhere: Prisma.BetWhereInput = {
+      createdAt: { gte: startDate, lte: now },
+    };
+    const crashBetWhere: Prisma.CrashBetWhereInput = {
+      createdAt: { gte: startDate, lte: now },
+    };
+    if (memberIds) {
+      betWhere.userId = { in: memberIds };
+      crashBetWhere.userId = { in: memberIds };
+    }
+
+    const [standardBets, crashBets] = await Promise.all([
+      this.prisma.bet.findMany({
+        where: betWhere,
+        select: {
+          userId: true,
+          gameId: true,
+          amount: true,
+          payout: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.crashBet.findMany({
+        where: crashBetWhere,
+        select: {
+          userId: true,
+          amount: true,
+          payout: true,
+          createdAt: true,
+          round: { select: { gameId: true } },
+        },
+      }),
+    ]);
+
+    const dayKeys = Array.from({ length: 7 }, (_, index) => dayKeyUtc(addUtcDays(startDate, index)));
+    const trendBuckets = new Map<string, DashboardBucket>();
+    for (const key of dayKeys) {
+      trendBuckets.set(key, {
+        amount: new Prisma.Decimal(0),
+        count: 0,
+        activeMembers: new Set<string>(),
+      });
+    }
+
+    const gameBuckets = new Map<string, { amount: Prisma.Decimal; count: number }>();
+    const activeMembers7d = new Set<string>();
+    const activeMembers24h = new Set<string>();
+    let betAmount7d = new Prisma.Decimal(0);
+    let payout7d = new Prisma.Decimal(0);
+    let betCount7d = 0;
+
+    const absorbBet = (bet: DashboardBetInput) => {
+      betAmount7d = betAmount7d.add(bet.amount);
+      payout7d = payout7d.add(bet.payout);
+      betCount7d += 1;
+      activeMembers7d.add(bet.userId);
+      if (bet.createdAt >= since24h) activeMembers24h.add(bet.userId);
+
+      const key = dayKeyUtc(bet.createdAt);
+      const dayBucket = trendBuckets.get(key);
+      if (dayBucket) {
+        dayBucket.amount = dayBucket.amount.add(bet.amount);
+        dayBucket.count += 1;
+        dayBucket.activeMembers.add(bet.userId);
+      }
+
+      const gameBucket = gameBuckets.get(bet.gameId) ?? {
+        amount: new Prisma.Decimal(0),
+        count: 0,
+      };
+      gameBucket.amount = gameBucket.amount.add(bet.amount);
+      gameBucket.count += 1;
+      gameBuckets.set(bet.gameId, gameBucket);
+    };
+
+    for (const bet of standardBets) {
+      absorbBet({
+        userId: bet.userId,
+        gameId: bet.gameId,
+        amount: bet.amount,
+        payout: bet.payout,
+        createdAt: bet.createdAt,
+      });
+    }
+    for (const bet of crashBets) {
+      absorbBet({
+        userId: bet.userId,
+        gameId: bet.round.gameId,
+        amount: bet.amount,
+        payout: bet.payout,
+        createdAt: bet.createdAt,
+      });
+    }
+
+    const newMembers7d = scopedMembers.filter((member) => member.createdAt >= startDate).length;
+    const platformNet7d = betAmount7d.sub(payout7d);
+    const avgBetAmount7d =
+      betCount7d > 0 ? betAmount7d.div(new Prisma.Decimal(betCount7d)) : new Prisma.Decimal(0);
+
+    return {
+      range: {
+        startDate: startDate.toISOString(),
+        endDate: now.toISOString(),
+      },
+      totals: {
+        downlineAgentCount,
+        memberCount: scopedMembers.length,
+        newMembers7d,
+        activeMembers24h: activeMembers24h.size,
+        activeMembers7d: activeMembers7d.size,
+        betCount7d,
+        betAmount7d: betAmount7d.toFixed(2),
+        payout7d: payout7d.toFixed(2),
+        platformNet7d: platformNet7d.toFixed(2),
+        avgBetAmount7d: avgBetAmount7d.toFixed(2),
+      },
+      trend: dayKeys.map((key) => {
+        const bucket = trendBuckets.get(key);
+        return {
+          date: key,
+          label: labelFromDayKey(key),
+          betAmount: (bucket?.amount ?? new Prisma.Decimal(0)).toFixed(2),
+          betCount: bucket?.count ?? 0,
+          activeMembers: bucket?.activeMembers.size ?? 0,
+        };
+      }),
+      gameBreakdown: Array.from(gameBuckets.entries())
+        .sort(([, a], [, b]) => b.amount.comparedTo(a.amount))
+        .slice(0, 6)
+        .map(([gameId, bucket]) => ({
+          gameId,
+          betAmount: bucket.amount.toFixed(2),
+          betCount: bucket.count,
+        })),
+    };
   }
 
   /** 下注列表（依下級樹限制） */
@@ -513,6 +679,47 @@ export class ReportService {
       memberCount: members.length,
     };
   }
+
+  private async resolveDashboardRootAgentId(operator: AdminCurrent): Promise<string | null> {
+    if (operator.role === 'SUPER_ADMIN') return null;
+    if (operator.role !== 'SUB_ACCOUNT') return operator.id;
+    const agent = await this.prisma.agent.findUnique({
+      where: { id: operator.id },
+      select: { parentId: true },
+    });
+    return agent?.parentId ?? operator.id;
+  }
+}
+
+interface DashboardBucket {
+  amount: Prisma.Decimal;
+  count: number;
+  activeMembers: Set<string>;
+}
+
+interface DashboardBetInput {
+  userId: string;
+  gameId: string;
+  amount: Prisma.Decimal;
+  payout: Prisma.Decimal;
+  createdAt: Date;
+}
+
+function addUtcDays(date: Date, days: number): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + days));
+}
+
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function dayKeyUtc(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function labelFromDayKey(key: string): string {
+  const [, month = '0', day = '0'] = key.split('-');
+  return `${Number(month)}/${Number(day)}`;
 }
 
 function emptyStats(

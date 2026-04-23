@@ -14,6 +14,9 @@ import { AgentTransferModal } from '@/components/shared/AgentTransferModal';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
 
+const ACCOUNT_TABLE_GRID =
+  'grid-cols-[80px_minmax(220px,1fr)_72px_88px_116px_106px_minmax(620px,max-content)]';
+
 /**
  * 帳號管理（混合階層）
  *   - 呈現某 parent 的「直屬代理 + 直屬會員」
@@ -257,7 +260,7 @@ export function AgentHierarchyPage(): JSX.Element {
         <div className="crt-panel p-8 text-center text-ink-400">{t.agents.emptyLevel}</div>
       ) : (
         <div className="crt-panel overflow-hidden">
-          <div className="grid grid-cols-[80px_minmax(180px,1.3fr)_80px_100px_110px_110px_minmax(320px,auto)] border-b border-ink-200 bg-ink-100/40 px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-ink-500">
+          <div className={`grid ${ACCOUNT_TABLE_GRID} gap-2 border-b border-ink-200 bg-ink-100/40 px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-ink-500`}>
             <span>{t.agents.type}</span>
             <span>{t.agents.account}</span>
             <span className="text-right">{t.shell.level}</span>
@@ -270,7 +273,7 @@ export function AgentHierarchyPage(): JSX.Element {
             <div
               key={`${row.kind}-${row.id}`}
               onClick={() => onRowClick(row)}
-              className="grid cursor-pointer grid-cols-[80px_minmax(180px,1.3fr)_80px_100px_110px_110px_minmax(320px,auto)] items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition hover:bg-[#FAF2D7]/60"
+              className={`grid cursor-pointer ${ACCOUNT_TABLE_GRID} items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition hover:bg-[#FAF2D7]/60`}
             >
               {row.kind === 'agent' ? (
                 <span className="tag tag-acid">{t.agents.typeAgent}</span>

@@ -20,6 +20,41 @@ export interface ReportResponse {
   };
 }
 
+export interface DashboardTrendPoint {
+  date: string;
+  label: string;
+  betAmount: string;
+  betCount: number;
+  activeMembers: number;
+}
+
+export interface DashboardGameBreakdown {
+  gameId: string;
+  betAmount: string;
+  betCount: number;
+}
+
+export interface DashboardSummaryResponse {
+  range: {
+    startDate: string;
+    endDate: string;
+  };
+  totals: {
+    downlineAgentCount: number;
+    memberCount: number;
+    newMembers7d: number;
+    activeMembers24h: number;
+    activeMembers7d: number;
+    betCount7d: number;
+    betAmount7d: string;
+    payout7d: string;
+    platformNet7d: string;
+    avgBetAmount7d: string;
+  };
+  trend: DashboardTrendPoint[];
+  gameBreakdown: DashboardGameBreakdown[];
+}
+
 export interface AgentAnalysisRow {
   agentId: string;
   username: string;

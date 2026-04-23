@@ -5,6 +5,10 @@ import { reportQuerySchema, agentAnalysisQuerySchema, hierarchyQuerySchema } fro
 export async function reportRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new ReportService(fastify.prisma);
 
+  fastify.get('/dashboard', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
+    return service.dashboardSummary(req.admin);
+  });
+
   fastify.get('/', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
     const q = reportQuerySchema.parse(req.query);
     return service.listBets(req.admin, q);
