@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import type { CrashPlayerBet, CrashRoundSnapshot } from '@bg/shared';
 import { useAuthStore } from '@/stores/authStore';
@@ -23,17 +23,19 @@ interface Props {
   config: CrashGameConfig;
 }
 
+type LocalCrashBet = { amount: number; cashed: boolean; payout?: string };
+
 export function CrashPage({ config }: Props) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
-  const [autoCashOut, setAutoCashOut] = useState('2.00');
+  const [autoCashOut, setAutoCashOut] = useState('');
   const [multiplier, setMultiplier] = useState(1.0);
   const [status, setStatus] = useState<'BETTING' | 'RUNNING' | 'CRASHED'>('BETTING');
   const [snapshot, setSnapshot] = useState<CrashRoundSnapshot | null>(null);
   const [crashPoint, setCrashPoint] = useState<number | null>(null);
-  const [myBet, setMyBet] = useState<{ amount: number; cashed: boolean; payout?: string } | null>(null);
+  const [myBet, setMyBet] = useState<LocalCrashBet | null>(null);
   const [players, setPlayers] = useState<CrashPlayerBet[]>([]);
   const [history, setHistory] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +44,22 @@ export function CrashPage({ config }: Props) {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<CrashScene | null>(null);
+  const myBetRef = useRef<LocalCrashBet | null>(null);
+  const appliedCashoutRef = useRef(false);
+  const multiplierRef = useRef(1.0);
+  const userIdRef = useRef<string | null>(user?.id ?? null);
+
+  useEffect(() => {
+    myBetRef.current = myBet;
+  }, [myBet]);
+
+  useEffect(() => {
+    multiplierRef.current = multiplier;
+  }, [multiplier]);
+
+  useEffect(() => {
+    userIdRef.current = user?.id ?? null;
+  }, [user?.id]);
 
   // 初始化 Pixi scene
   useEffect(() => {
@@ -124,6 +142,53 @@ export function CrashPage({ config }: Props) {
     desc: '',
   };
 
+  const applyCashoutResult = useCallback(
+    (result: { payout: string; newBalance?: string; multiplier?: number }) => {
+      const bet = myBetRef.current;
+      if (!bet || bet.cashed || appliedCashoutRef.current) return false;
+      appliedCashoutRef.current = true;
+
+      const payoutNumber = Number.parseFloat(result.payout);
+      const payoutMult =
+        result.multiplier ??
+        (Number.isFinite(payoutNumber) && bet.amount > 0
+          ? payoutNumber / bet.amount
+          : multiplierRef.current);
+      const updatedBet = { ...bet, cashed: true, payout: result.payout };
+      myBetRef.current = updatedBet;
+      setMyBet(updatedBet);
+      setError(null);
+
+      if (result.newBalance) {
+        setBalance(result.newBalance);
+      } else if (Number.isFinite(payoutNumber)) {
+        const currentBalance = Number.parseFloat(
+          useAuthStore.getState().user?.balance ?? '0',
+        );
+        if (Number.isFinite(currentBalance)) {
+          setBalance((currentBalance + payoutNumber).toFixed(2));
+        }
+      }
+
+      sceneRef.current?.celebrateCashout(payoutMult);
+      sceneRef.current?.playWinFx(payoutMult, true);
+      setMyHistory((prev) => [
+        {
+          id: `${Date.now()}-${Math.random()}`,
+          timestamp: Date.now(),
+          betAmount: bet.amount,
+          multiplier: payoutMult,
+          payout: Number.isFinite(payoutNumber) ? payoutNumber : bet.amount * payoutMult,
+          won: true,
+          detail: `Cashed @ ${payoutMult.toFixed(2)}×`,
+        },
+        ...prev,
+      ].slice(0, 30));
+      return true;
+    },
+    [setBalance],
+  );
+
   useEffect(() => {
     const socket = getCrashSocket(config.gameId);
 
@@ -136,6 +201,8 @@ export function CrashPage({ config }: Props) {
       setSnapshot(snap);
       setStatus('BETTING');
       setCrashPoint(null);
+      myBetRef.current = null;
+      appliedCashoutRef.current = false;
       setMyBet(null);
       setMultiplier(1.0);
       if (snap.bettingEndsAt) {
@@ -184,6 +251,15 @@ export function CrashPage({ config }: Props) {
 
     const onBetsUpdate = (payload: { players: CrashPlayerBet[] }) => {
       setPlayers(payload.players);
+      const currentUserId = userIdRef.current;
+      if (!currentUserId) return;
+      const ownBet = payload.players.find((p) => p.userId === currentUserId);
+      if (ownBet?.cashedOutAt && ownBet.payout) {
+        applyCashoutResult({
+          payout: ownBet.payout,
+          multiplier: ownBet.cashedOutAt,
+        });
+      }
     };
 
     socket.on('round:snapshot', onSnapshot);
@@ -203,7 +279,7 @@ export function CrashPage({ config }: Props) {
       if (countdownRef.current) clearInterval(countdownRef.current);
       disconnectCrashSocket(config.gameId);
     };
-  }, [config.gameId]);
+  }, [applyCashoutResult, config.gameId]);
 
   const handlePlaceBet = () => {
     if (!user) return;
@@ -230,7 +306,10 @@ export function CrashPage({ config }: Props) {
           return;
         }
         setError(null);
-        setMyBet({ amount, cashed: false });
+        const placedBet = { amount, cashed: false };
+        myBetRef.current = placedBet;
+        appliedCashoutRef.current = false;
+        setMyBet(placedBet);
         setBalance((balance - amount).toFixed(2));
       },
     );
@@ -243,34 +322,21 @@ export function CrashPage({ config }: Props) {
     socket.emit(
       'bet:cashout',
       { userId: user.id },
-      (res: { ok: boolean; error?: string; payout?: string; newBalance?: string }) => {
+      (res: { ok: boolean; error?: string; payout?: string; newBalance?: string; multiplier?: number }) => {
         if (!res.ok) {
+          if (res.error?.toLowerCase().includes('no active bet') && myBetRef.current?.cashed) {
+            setError(null);
+            return;
+          }
           setError(res.error ?? 'CASHOUT FAILED');
           return;
         }
-        setMyBet((b) => (b ? { ...b, cashed: true, payout: res.payout } : b));
-        if (res.newBalance) setBalance(res.newBalance);
-        // L4：cashout 成功觸發 tier 慶祝
-        // 用 server ack 算出真實倍率（payout / 下注金額），避免 React state 的 multiplier
-        // 是上一個 socket tick 的舊值，造成「畫面顯示 2.50× 但實際 server 已 tick 到 2.55×」
-        const payoutMult = res.payout && myBet?.amount
-          ? Number.parseFloat(res.payout) / myBet.amount
-          : multiplier;
-        sceneRef.current?.celebrateCashout(payoutMult);
-        sceneRef.current?.playWinFx(payoutMult, true);
-        if (myBet?.amount) {
-          setMyHistory((prev) => [
-            {
-              id: `${Date.now()}-${Math.random()}`,
-              timestamp: Date.now(),
-              betAmount: myBet.amount,
-              multiplier: payoutMult,
-              payout: res.payout ? Number.parseFloat(res.payout) : myBet.amount * payoutMult,
-              won: true,
-              detail: `Cashed @ ${payoutMult.toFixed(2)}×`,
-            },
-            ...prev,
-          ].slice(0, 30));
+        if (res.payout) {
+          applyCashoutResult({
+            payout: res.payout,
+            newBalance: res.newBalance,
+            multiplier: res.multiplier,
+          });
         }
       },
     );

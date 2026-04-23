@@ -442,7 +442,30 @@ export class CrashRoom {
             cashedOutAt: null,
           },
         });
-        if (!bet) throw new Error('No active bet');
+        if (!bet) {
+          const settledBet = await this.prisma.crashBet.findFirst({
+            where: {
+              roundId: this.currentRoundId ?? undefined,
+              userId: payload.userId,
+              cashedOutAt: { not: null },
+            },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (settledBet?.cashedOutAt) {
+            const user = await this.prisma.user.findUniqueOrThrow({
+              where: { id: payload.userId },
+              select: { balance: true },
+            });
+            ack?.({
+              ok: true,
+              multiplier: Number(settledBet.cashedOutAt),
+              payout: settledBet.payout.toFixed(2),
+              newBalance: user.balance.toFixed(2),
+            });
+            return;
+          }
+          throw new Error('No active bet');
+        }
         this.pendingAutoCashouts.delete(bet.id);
         const res = await this.settleCashout(payload.userId, bet.id, this.currentMultiplier);
         ack?.({ ok: true, ...res });

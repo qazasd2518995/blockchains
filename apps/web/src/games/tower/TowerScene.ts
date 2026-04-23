@@ -69,6 +69,7 @@ export class TowerScene {
   private shockwaves: Container | null = null;
   private currentLevelLabel: Text | null = null;
   private multiplierLabel: Text | null = null;
+  private towerBackdrop: Graphics | null = null;
 
   private cells: Map<string, CellHandle> = new Map();
   private particleList: Particle[] = [];
@@ -207,38 +208,38 @@ export class TowerScene {
   private createTopUI(): void {
     if (!this.app) return;
     const plate = new Graphics()
-      .roundRect(this.width - 148, 12, 124, 62, 12)
-      .fill({ color: COLOR_BLOCK_DARK, alpha: 0.62 })
-      .stroke({ color: COLOR_AMBER, width: 1, alpha: 0.18 });
+      .roundRect(this.width / 2 - 118, 12, 236, 34, 12)
+      .fill({ color: COLOR_BLOCK_DARK, alpha: 0.58 })
+      .stroke({ color: COLOR_AMBER, width: 1, alpha: 0.14 });
     this.app.stage.addChild(plate);
 
-    // 頂部：當前施工層顯示，靠右避免壓住塔身
+    // 頂部：當前施工層顯示，放在中央上方，不遮塔身。
     const levelStyle = new TextStyle({
       fontFamily: GAME_FONT_NUM,
-      fontSize: 12,
+      fontSize: 11,
       fill: 0xD8E6F4,
       fontWeight: '600',
-      letterSpacing: 4,
+      letterSpacing: 3,
     });
     const levelLabel = new Text({ text: 'LEVEL 1 / 9', style: levelStyle });
-    levelLabel.anchor.set(1, 0);
-    levelLabel.x = this.width - 36;
-    levelLabel.y = 20;
-    levelLabel.alpha = 0.78;
+    levelLabel.anchor.set(0.5);
+    levelLabel.x = this.width / 2;
+    levelLabel.y = 29;
+    levelLabel.alpha = 0.76;
     this.currentLevelLabel = levelLabel;
     this.app.stage.addChild(levelLabel);
 
-    // 倍率大字
+    // 倍率放在塔底地基上方，避免與樓層重疊。
     const multStyle = new TextStyle({
       fontFamily: GAME_FONT,
-      fontSize: 30,
+      fontSize: 34,
       fill: COLOR_ACID,
       fontWeight: '700',
     });
     const multLabel = new Text({ text: '1.00×', style: multStyle });
-    multLabel.anchor.set(1, 0);
-    multLabel.x = this.width - 36;
-    multLabel.y = 40;
+    multLabel.anchor.set(0.5);
+    multLabel.x = this.width / 2;
+    multLabel.y = this.height - 34;
     this.multiplierLabel = multLabel;
     this.app.stage.addChild(multLabel);
   }
@@ -284,9 +285,11 @@ export class TowerScene {
       this.cells.clear();
     }
 
-    // 底層位置與樓層間距依畫布高度調整，維持可讀的樓層感。
-    this.levelHeight = Math.max(54, Math.min(66, (this.height - 104) / 7.2));
-    this.baseLevelY = this.height - 76;
+    // 預覽時要一次看見完整塔身，避免上緣裁切；正式遊戲仍可用相機聚焦當前層。
+    this.levelHeight = Math.max(42, Math.min(58, (this.height - 132) / 9.15));
+    this.baseLevelY = this.height - 112;
+
+    this.drawTowerBackdrop();
 
     // 建立所有層（從 0 到 totalLevels-1，0 是最底）
     for (let level = 0; level < totalLevels; level += 1) {
@@ -353,6 +356,33 @@ export class TowerScene {
       levelContainer.addChild(cell.container);
       this.cells.set(`${level}:${c}`, cell);
     }
+  }
+
+  private drawTowerBackdrop(): void {
+    if (!this.levelsContainer) return;
+    if (this.towerBackdrop) {
+      this.towerBackdrop.destroy();
+      this.towerBackdrop = null;
+    }
+    const dims = this.cellDims();
+    const frameW = dims.span + 56;
+    const topY = this.baseLevelY - (this.totalLevels - 1) * this.levelHeight - dims.h / 2 - 14;
+    const bottomY = this.baseLevelY + dims.h / 2 + 26;
+    const g = new Graphics();
+    g.roundRect(
+      this.width / 2 - frameW / 2,
+      topY,
+      frameW,
+      bottomY - topY,
+      18,
+    )
+      .fill({ color: 0x102236, alpha: 0.54 })
+      .stroke({ color: COLOR_BLUEPRINT, width: 1, alpha: 0.16 });
+    g.moveTo(this.width / 2 - frameW / 2 + 18, bottomY - 26)
+      .lineTo(this.width / 2 + frameW / 2 - 18, bottomY - 26)
+      .stroke({ color: COLOR_AMBER, width: 1, alpha: 0.24 });
+    this.towerBackdrop = g;
+    this.levelsContainer.addChildAt(g, 0);
   }
 
   private createCell(level: number, col: number, w: number, h: number): CellHandle {
@@ -484,11 +514,11 @@ export class TowerScene {
    */
   private cellDims(): { w: number; h: number; gap: number; span: number } {
     const gap = 7;
-    const towerW = Math.min(this.width - 112, 322);
+    const towerW = Math.min(this.width - 152, 286);
     const availW = Math.max(180, towerW - 24);
     const rawW = (availW - gap * (this.cols - 1)) / this.cols;
     const w = Math.min(118, Math.max(58, rawW));
-    const h = Math.min(50, Math.max(40, this.levelHeight - 15));
+    const h = Math.min(44, Math.max(34, this.levelHeight - 12));
     const span = w * this.cols + gap * (this.cols - 1);
     return { w, h, gap, span };
   }
@@ -517,8 +547,8 @@ export class TowerScene {
       this.currentLevelLabel.text = `LEVEL ${Math.min(level + 1, this.totalLevels)} / ${this.totalLevels}`;
     }
 
-    // 相機垂直位移：讓當前層位於畫面中間偏下
-    const targetY = level * this.levelHeight - this.height * 0.3;
+    // 相機垂直位移：低樓層顯示完整塔身；越高才逐步跟隨，避免預覽被切到。
+    const targetY = level <= 1 ? 0 : Math.min(level * this.levelHeight - this.height * 0.36, 190);
     if (animate) {
       gsap.to(this.cameraContainer, {
         y: targetY,
