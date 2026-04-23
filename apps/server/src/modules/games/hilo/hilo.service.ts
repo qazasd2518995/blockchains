@@ -14,6 +14,7 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
+import { applyControls, finalizeControls } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { HiLoStartInput, HiLoGuessInput, HiLoCashoutInput } from './hilo.schema.js';
 
@@ -72,7 +73,7 @@ export class HiLoService {
       });
 
       const nextIndex = round.cardIndex + 1;
-      const drawn = hiloDraw(serverSeedRecord.seed, round.clientSeedUsed, round.nonce, nextIndex);
+      const rawDrawn = hiloDraw(serverSeedRecord.seed, round.clientSeedUsed, round.nonce, nextIndex);
 
       const winChance =
         input.guess === 'higher'
@@ -80,12 +81,43 @@ export class HiLoService {
           : hiloProbLowerOrEqual(current.rank);
       const stepMultiplier = hiloMultiplier(winChance);
 
-      const correct =
-        input.guess === 'higher' ? drawn.rank >= current.rank : drawn.rank <= current.rank;
+      const rawCorrect =
+        input.guess === 'higher' ? rawDrawn.rank >= current.rank : rawDrawn.rank <= current.rank;
+      const nextMultiplier = round.currentMultiplier.mul(
+        new Prisma.Decimal(stepMultiplier.toFixed(4)),
+      );
+      const predictedPayout = rawCorrect
+        ? round.betAmount.mul(nextMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
+        : new Prisma.Decimal(0);
+      const controlled = await applyControls(tx, userId, GameId.HILO, {
+        won: rawCorrect && predictedPayout.greaterThan(round.betAmount),
+        amount: round.betAmount,
+        multiplier: rawCorrect ? nextMultiplier : new Prisma.Decimal(0),
+        payout: predictedPayout,
+      });
+      const adjusted = adjustHiLoDraw(current, input.guess, controlled.controlled ? controlled.won : rawCorrect, rawDrawn);
+      const drawn = adjusted.card;
+      const correct = adjusted.correct;
+      const effectiveControl = adjusted.correct !== rawCorrect
+        ? controlled
+        : { ...controlled, controlled: false, flipReason: undefined, controlId: undefined };
 
       const newHistory = [...history, drawn];
 
       if (!correct) {
+        const originalResult = {
+          history: [...history, rawDrawn],
+          lastGuess: input.guess,
+          correct: rawCorrect,
+        };
+        const finalResult = {
+          history: newHistory,
+          lastGuess: input.guess,
+          correct: false,
+          controlled: effectiveControl.controlled,
+          flipReason: effectiveControl.flipReason ?? null,
+          raw: effectiveControl.controlled ? originalResult : null,
+        };
         const bet = await tx.bet.create({
           data: {
             userId,
@@ -97,11 +129,7 @@ export class HiLoService {
             nonce: round.nonce,
             clientSeedUsed: round.clientSeedUsed,
             serverSeedId: round.serverSeedId,
-            resultData: {
-              history: newHistory,
-              lastGuess: input.guess,
-              correct: false,
-            } as unknown as Prisma.InputJsonValue,
+            resultData: finalResult as unknown as Prisma.InputJsonValue,
             hiloRoundId: round.id,
           },
         });
@@ -114,6 +142,27 @@ export class HiLoService {
             finishedAt: new Date(),
           },
         });
+        await finalizeControls(
+          tx,
+          userId,
+          GameId.HILO,
+          {
+            won: rawCorrect && predictedPayout.greaterThan(round.betAmount),
+            amount: round.betAmount,
+            multiplier: rawCorrect ? nextMultiplier : new Prisma.Decimal(0),
+            payout: predictedPayout,
+          },
+          {
+            won: false,
+            amount: round.betAmount,
+            multiplier: new Prisma.Decimal(0),
+            payout: new Prisma.Decimal(0),
+          },
+          effectiveControl,
+          bet.id,
+          originalResult as unknown as Prisma.InputJsonValue,
+          finalResult as unknown as Prisma.InputJsonValue,
+        );
         return {
           state: this.toState(updated, drawn, serverSeedRecord.seedHash, bet.id),
           drawn,
@@ -121,9 +170,7 @@ export class HiLoService {
         };
       }
 
-      const newMult = round.currentMultiplier.mul(
-        new Prisma.Decimal(stepMultiplier.toFixed(4)),
-      );
+      const newMult = nextMultiplier;
       const updated = await tx.hiLoRound.update({
         where: { id: round.id },
         data: {
@@ -191,31 +238,63 @@ export class HiLoService {
       const payout = round.betAmount
         .mul(multiplier)
         .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const profit = payout.minus(round.betAmount);
+      const controlled = {
+        won: payout.greaterThan(round.betAmount),
+        multiplier,
+        payout,
+        controlled: false,
+        flipReason: undefined as string | undefined,
+        controlId: undefined as string | undefined,
+      };
+      const finalMultiplier = multiplier;
+      const finalPayout = payout;
+      const profit = finalPayout.minus(round.betAmount);
+      const finalStatus = 'CASHED_OUT';
+      const originalResult = { history, cashedOut: true };
+      const finalResult = {
+        history,
+        cashedOut: finalStatus === 'CASHED_OUT',
+        controlled: controlled.controlled,
+        flipReason: controlled.flipReason ?? null,
+        raw: controlled.controlled ? originalResult : null,
+      };
 
       const bet = await tx.bet.create({
         data: {
           userId,
           gameId: GameId.HILO,
           amount: round.betAmount,
-          multiplier,
-          payout,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
           profit,
           nonce: round.nonce,
           clientSeedUsed: round.clientSeedUsed,
           serverSeedId: round.serverSeedId,
-          resultData: { history, cashedOut: true } as unknown as Prisma.InputJsonValue,
+          resultData: finalResult as unknown as Prisma.InputJsonValue,
           hiloRoundId: round.id,
         },
       });
-      const newBalance = await creditAndRecord(tx, userId, payout, bet.id, 'CASHOUT');
+      const newBalance = finalPayout.greaterThan(0)
+        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'CASHOUT')
+        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
       const updated = await tx.hiLoRound.update({
         where: { id: round.id },
-        data: { status: 'CASHED_OUT', finishedAt: new Date() },
+        data: { status: finalStatus, finishedAt: new Date() },
       });
+      await finalizeControls(
+        tx,
+        userId,
+        GameId.HILO,
+        { won: payout.greaterThan(round.betAmount), amount: round.betAmount, multiplier, payout },
+        { won: finalPayout.greaterThan(round.betAmount), amount: round.betAmount, multiplier: finalMultiplier, payout: finalPayout },
+        controlled,
+        bet.id,
+        originalResult as unknown as Prisma.InputJsonValue,
+        finalResult as unknown as Prisma.InputJsonValue,
+      );
       return {
         state: this.toState(updated, current, serverSeedRecord.seedHash, bet.id),
-        payout: payout.toFixed(2),
+        payout: finalPayout.toFixed(2),
         newBalance: newBalance.toFixed(2),
       };
     });
@@ -280,4 +359,23 @@ export class HiLoService {
       nonce: round.nonce,
     };
   }
+}
+
+function adjustHiLoDraw(
+  current: HiLoCard,
+  guess: HiLoGuessInput['guess'],
+  wantCorrect: boolean,
+  fallback: HiLoCard,
+): { card: HiLoCard; correct: boolean } {
+  const possible = Array.from({ length: 13 }, (_, index) => index + 1);
+  const ranks = possible.filter((rank) => {
+    const correct = guess === 'higher' ? rank >= current.rank : rank <= current.rank;
+    return correct === wantCorrect;
+  });
+  const rank = ranks[0];
+  if (!rank) {
+    const correct = guess === 'higher' ? fallback.rank >= current.rank : fallback.rank <= current.rank;
+    return { card: fallback, correct };
+  }
+  return { card: { rank, suit: fallback.suit }, correct: wantCorrect };
 }

@@ -8,7 +8,7 @@ import {
   creditAndRecord,
   runSerializable,
 } from '../_common/BaseGameService.js';
-import { applyControls } from '../_common/controls.js';
+import { applyControls, finalizeControls } from '../_common/controls.js';
 import type { DiceBetInput } from './dice.schema.js';
 
 export class DiceService {
@@ -71,6 +71,25 @@ export class DiceService {
         displayRoll = Math.max(0, Math.min(99.99, Number(displayRoll.toFixed(2))));
       }
 
+      const originalResult = {
+        roll: rawRoll,
+        target: input.target,
+        direction: input.direction,
+        winChance: outcome.winChance,
+        won: outcome.won,
+      };
+      const finalResult = {
+        roll: displayRoll,
+        rawRoll,
+        target: input.target,
+        direction: input.direction,
+        winChance: outcome.winChance,
+        rawWon: outcome.won,
+        finalWon,
+        controlled: controlled.controlled,
+        flipReason: controlled.flipReason ?? null,
+      };
+
       const bet = await tx.bet.create({
         data: {
           userId,
@@ -82,17 +101,7 @@ export class DiceService {
           nonce: seed.nonce,
           clientSeedUsed: seed.clientSeed,
           serverSeedId: seed.serverSeedId,
-          resultData: {
-            roll: displayRoll,
-            rawRoll,
-            target: input.target,
-            direction: input.direction,
-            winChance: outcome.winChance,
-            rawWon: outcome.won,
-            finalWon,
-            controlled: controlled.controlled,
-            flipReason: controlled.flipReason ?? null,
-          },
+          resultData: finalResult,
         },
       });
 
@@ -100,6 +109,17 @@ export class DiceService {
       const newBalance = finalWon
         ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
         : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+      await finalizeControls(
+        tx,
+        userId,
+        GameId.DICE,
+        { won: outcome.won, amount, multiplier: predictedMultiplier, payout: predictedPayout },
+        { won: finalPayout.greaterThan(amount), amount, multiplier: finalMultiplier, payout: finalPayout },
+        controlled,
+        bet.id,
+        originalResult,
+        finalResult,
+      );
 
       return {
         betId: bet.id,

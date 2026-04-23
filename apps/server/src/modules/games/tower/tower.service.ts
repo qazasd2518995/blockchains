@@ -16,6 +16,7 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
+import { applyControls, finalizeControls } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { TowerStartInput, TowerPickInput, TowerCashoutInput } from './tower.schema.js';
 
@@ -74,15 +75,52 @@ export class TowerService {
         throw new ApiError('INVALID_ACTION', 'Col out of range');
       }
 
-      const layout = round.safeLayout as unknown as number[][];
-      const safeCols = layout[round.currentLevel] ?? [];
-      const isSafe = safeCols.includes(input.col);
+      const rawLayout = round.safeLayout as unknown as number[][];
+      let layout = rawLayout;
+      const safeCols = rawLayout[round.currentLevel] ?? [];
+      const rawSafe = safeCols.includes(input.col);
 
       const serverSeedRecord = await tx.serverSeed.findUniqueOrThrow({
         where: { id: round.serverSeedId },
       });
+      const nextLevel = round.currentLevel + 1;
+      const nextMult = new Prisma.Decimal(towerMultiplier(difficulty, nextLevel).toFixed(4));
+      const predictedPayout = rawSafe
+        ? round.betAmount.mul(nextMult).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
+        : new Prisma.Decimal(0);
+      const controlled = await applyControls(tx, userId, GameId.TOWER, {
+        won: rawSafe && predictedPayout.greaterThan(round.betAmount),
+        amount: round.betAmount,
+        multiplier: rawSafe ? nextMult : new Prisma.Decimal(0),
+        payout: predictedPayout,
+      });
+      if (controlled.controlled) {
+        layout = controlled.won
+          ? forceTowerSafe(rawLayout, round.currentLevel, input.col, cfg.cols)
+          : forceTowerTrap(rawLayout, round.currentLevel, input.col, cfg.cols);
+      }
+      const isSafe = (layout[round.currentLevel] ?? []).includes(input.col);
+      const effectiveControl = isSafe !== rawSafe
+        ? controlled
+        : { ...controlled, controlled: false, flipReason: undefined, controlId: undefined };
 
       if (!isSafe) {
+        const originalResult = {
+          difficulty,
+          layout: rawLayout,
+          picks: [...round.picks, input.col],
+          bustedLevel: round.currentLevel,
+          safe: rawSafe,
+        };
+        const finalResult = {
+          difficulty,
+          layout,
+          picks: [...round.picks, input.col],
+          bustedLevel: round.currentLevel,
+          controlled: effectiveControl.controlled,
+          flipReason: effectiveControl.flipReason ?? null,
+          raw: effectiveControl.controlled ? originalResult : null,
+        };
         const bet = await tx.bet.create({
           data: {
             userId,
@@ -94,12 +132,7 @@ export class TowerService {
             nonce: round.nonce,
             clientSeedUsed: round.clientSeedUsed,
             serverSeedId: round.serverSeedId,
-            resultData: {
-              difficulty,
-              layout,
-              picks: [...round.picks, input.col],
-              bustedLevel: round.currentLevel,
-            },
+            resultData: finalResult as unknown as Prisma.InputJsonValue,
             towerRoundId: round.id,
           },
         });
@@ -107,26 +140,47 @@ export class TowerService {
           where: { id: round.id },
           data: {
             picks: [...round.picks, input.col],
+            safeLayout: layout as unknown as Prisma.InputJsonValue,
             status: 'BUSTED',
             finishedAt: new Date(),
           },
         });
+        await finalizeControls(
+          tx,
+          userId,
+          GameId.TOWER,
+          {
+            won: rawSafe && predictedPayout.greaterThan(round.betAmount),
+            amount: round.betAmount,
+            multiplier: rawSafe ? nextMult : new Prisma.Decimal(0),
+            payout: predictedPayout,
+          },
+          {
+            won: false,
+            amount: round.betAmount,
+            multiplier: new Prisma.Decimal(0),
+            payout: new Prisma.Decimal(0),
+          },
+          effectiveControl,
+          bet.id,
+          originalResult as unknown as Prisma.InputJsonValue,
+          finalResult as unknown as Prisma.InputJsonValue,
+        );
         return {
           state: this.toState(updated, serverSeedRecord.seedHash, bet.id, true),
           hitTrap: true,
         };
       }
 
-      const newLevel = round.currentLevel + 1;
-      const newMult = new Prisma.Decimal(
-        towerMultiplier(difficulty, newLevel).toFixed(4),
-      );
+      const newLevel = nextLevel;
+      const newMult = nextMult;
       const updated = await tx.towerRound.update({
         where: { id: round.id },
         data: {
           currentLevel: newLevel,
           picks: [...round.picks, input.col],
           currentMultiplier: newMult,
+          safeLayout: layout as unknown as Prisma.InputJsonValue,
           ...(newLevel >= TOWER_LEVELS ? { status: 'CASHED_OUT', finishedAt: new Date() } : {}),
         },
       });
@@ -152,36 +206,71 @@ export class TowerService {
 
       const multiplier = round.currentMultiplier;
       const payout = round.betAmount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const profit = payout.minus(round.betAmount);
+      const controlled = {
+        won: payout.greaterThan(round.betAmount),
+        multiplier,
+        payout,
+        controlled: false,
+        flipReason: undefined as string | undefined,
+        controlId: undefined as string | undefined,
+      };
+      const finalMultiplier = multiplier;
+      const finalPayout = payout;
+      const profit = finalPayout.minus(round.betAmount);
+      const finalStatus = 'CASHED_OUT';
+
+      const originalResult = {
+        difficulty: round.difficulty,
+        layout: round.safeLayout,
+        picks: round.picks,
+        cashedOut: true,
+      };
+      const finalResult = {
+        difficulty: round.difficulty,
+        layout: round.safeLayout,
+        picks: round.picks,
+        cashedOut: finalStatus === 'CASHED_OUT',
+        controlled: controlled.controlled,
+        flipReason: controlled.flipReason ?? null,
+        raw: controlled.controlled ? originalResult : null,
+      };
 
       const bet = await tx.bet.create({
         data: {
           userId,
           gameId: GameId.TOWER,
           amount: round.betAmount,
-          multiplier,
-          payout,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
           profit,
           nonce: round.nonce,
           clientSeedUsed: round.clientSeedUsed,
           serverSeedId: round.serverSeedId,
-          resultData: {
-            difficulty: round.difficulty,
-            layout: round.safeLayout,
-            picks: round.picks,
-            cashedOut: true,
-          },
+          resultData: finalResult as unknown as Prisma.InputJsonValue,
           towerRoundId: round.id,
         },
       });
-      const newBalance = await creditAndRecord(tx, userId, payout, bet.id, 'CASHOUT');
+      const newBalance = finalPayout.greaterThan(0)
+        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'CASHOUT')
+        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
       const updated = await tx.towerRound.update({
         where: { id: round.id },
-        data: { status: 'CASHED_OUT', finishedAt: new Date() },
+        data: { status: finalStatus, finishedAt: new Date() },
       });
+      await finalizeControls(
+        tx,
+        userId,
+        GameId.TOWER,
+        { won: payout.greaterThan(round.betAmount), amount: round.betAmount, multiplier, payout },
+        { won: finalPayout.greaterThan(round.betAmount), amount: round.betAmount, multiplier: finalMultiplier, payout: finalPayout },
+        controlled,
+        bet.id,
+        originalResult as unknown as Prisma.InputJsonValue,
+        finalResult as unknown as Prisma.InputJsonValue,
+      );
       return {
         state: this.toState(updated, serverSeedRecord.seedHash, bet.id, true),
-        payout: payout.toFixed(2),
+        payout: finalPayout.toFixed(2),
         newBalance: newBalance.toFixed(2),
       };
     });
@@ -239,4 +328,35 @@ export class TowerService {
       nonce: round.nonce,
     };
   }
+}
+
+function forceTowerSafe(layout: number[][], level: number, col: number, cols: number): number[][] {
+  const next = layout.map((row) => row.slice());
+  const safe = new Set(next[level] ?? []);
+  if (!safe.has(col)) {
+    const keep = Array.from(safe).filter((value) => value !== Array.from(safe)[0]);
+    keep.push(col);
+    next[level] = keep.sort((a, b) => a - b);
+  }
+  return trimTowerSafeCount(next, level, layout[level]?.length ?? 1, cols);
+}
+
+function forceTowerTrap(layout: number[][], level: number, col: number, cols: number): number[][] {
+  const next = layout.map((row) => row.slice());
+  const safe = new Set(next[level] ?? []);
+  if (safe.has(col)) {
+    safe.delete(col);
+    const replacement = Array.from({ length: cols }, (_, index) => index)
+      .find((value) => !safe.has(value) && value !== col);
+    if (replacement !== undefined) safe.add(replacement);
+    next[level] = Array.from(safe).sort((a, b) => a - b);
+  }
+  return trimTowerSafeCount(next, level, layout[level]?.length ?? 1, cols);
+}
+
+function trimTowerSafeCount(layout: number[][], level: number, safeCount: number, cols: number): number[][] {
+  const safe = new Set(layout[level] ?? []);
+  for (let col = 0; safe.size < safeCount && col < cols; col += 1) safe.add(col);
+  layout[level] = Array.from(safe).slice(0, safeCount).sort((a, b) => a - b);
+  return layout;
 }

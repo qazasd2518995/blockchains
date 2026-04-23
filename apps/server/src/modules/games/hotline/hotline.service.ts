@@ -9,6 +9,7 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
+import { applyControls, finalizeControls } from '../_common/controls.js';
 import type { HotlineBetInput } from './hotline.schema.js';
 
 export class HotlineService {
@@ -28,35 +29,73 @@ export class HotlineService {
       const { lines, totalMultiplier } = hotlineEvaluate(grid);
       const multiplierD = new Prisma.Decimal(totalMultiplier.toFixed(4));
       const payout = amount.mul(multiplierD).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const profit = payout.minus(amount);
+      const controlled = await applyControls(tx, userId, GameId.HOTLINE, {
+        won: payout.greaterThan(amount),
+        amount,
+        multiplier: multiplierD,
+        payout,
+      });
+
+      let finalGrid = grid;
+      let finalLines = lines;
+      let finalMultiplier = multiplierD;
+      let finalPayout = payout;
+      if (controlled.controlled) {
+        finalGrid = controlled.won ? winningHotlineGrid() : losingHotlineGrid();
+        const evaluated = hotlineEvaluate(finalGrid);
+        finalLines = evaluated.lines;
+        finalMultiplier = new Prisma.Decimal(evaluated.totalMultiplier.toFixed(4));
+        finalPayout = amount.mul(finalMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+      }
+      const profit = finalPayout.minus(amount);
+
+      const originalResult = { grid, lines };
+      const finalResult = {
+        grid: finalGrid,
+        lines: finalLines,
+        controlled: controlled.controlled,
+        flipReason: controlled.flipReason ?? null,
+        raw: controlled.controlled ? originalResult : null,
+      };
 
       const bet = await tx.bet.create({
         data: {
           userId,
           gameId: GameId.HOTLINE,
           amount,
-          multiplier: multiplierD,
-          payout,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
           profit,
           nonce: seed.nonce,
           clientSeedUsed: seed.clientSeed,
           serverSeedId: seed.serverSeedId,
-          resultData: { grid, lines } as unknown as Prisma.InputJsonValue,
+          resultData: finalResult as unknown as Prisma.InputJsonValue,
         },
       });
       await debitAndRecord(tx, userId, amount, bet.id);
       const newBalance =
-        payout.greaterThan(0)
-          ? await creditAndRecord(tx, userId, payout, bet.id, 'BET_WIN')
+        finalPayout.greaterThan(0)
+          ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
           : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+      await finalizeControls(
+        tx,
+        userId,
+        GameId.HOTLINE,
+        { won: payout.greaterThan(amount), amount, multiplier: multiplierD, payout },
+        { won: finalPayout.greaterThan(amount), amount, multiplier: finalMultiplier, payout: finalPayout },
+        controlled,
+        bet.id,
+        originalResult as unknown as Prisma.InputJsonValue,
+        finalResult as unknown as Prisma.InputJsonValue,
+      );
 
       return {
         betId: bet.id,
-        grid,
-        lines,
-        multiplier: totalMultiplier,
+        grid: finalGrid,
+        lines: finalLines,
+        multiplier: Number(finalMultiplier.toFixed(4)),
         amount: amount.toFixed(2),
-        payout: payout.toFixed(2),
+        payout: finalPayout.toFixed(2),
         profit: profit.toFixed(2),
         newBalance: newBalance.toFixed(2),
         nonce: seed.nonce,
@@ -65,4 +104,24 @@ export class HotlineService {
       };
     });
   }
+}
+
+function winningHotlineGrid(): number[][] {
+  return [
+    [0, 1, 2],
+    [0, 2, 3],
+    [0, 3, 4],
+    [0, 4, 5],
+    [0, 5, 1],
+  ];
+}
+
+function losingHotlineGrid(): number[][] {
+  return [
+    [0, 1, 2],
+    [1, 2, 3],
+    [2, 3, 4],
+    [3, 4, 5],
+    [4, 5, 0],
+  ];
 }

@@ -18,6 +18,25 @@ function todayString(): string {
  * 所有 mutation 都寫 AuditLog。
  */
 export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
+  fastify.get('/logs', { preHandler: [fastify.authenticateAdmin] }, async () => {
+    const logs = await fastify.prisma.winLossControlLogs.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    const userIds = Array.from(new Set(logs.map((log) => log.userId)));
+    const users = await fastify.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, username: true },
+    });
+    const usernames = new Map(users.map((user) => [user.id, user.username]));
+    return {
+      items: logs.map((log) => ({
+        ...log,
+        username: usernames.get(log.userId) ?? log.userId,
+      })),
+    };
+  });
+
   // === WinLossControl ===
   fastify.get('/win-loss', { preHandler: [fastify.authenticateAdmin] }, async () => {
     const items = await fastify.prisma.winLossControl.findMany({ orderBy: { createdAt: 'desc' } });

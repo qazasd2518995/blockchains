@@ -14,6 +14,7 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
+import { applyControls, finalizeControls } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { MinesStartInput, MinesRevealInput, MinesCashoutInput } from './mines.schema.js';
 
@@ -83,10 +84,54 @@ export class MinesService {
         where: { id: round.serverSeedId },
       });
 
-      const hitMine = round.minePositions.includes(input.cellIndex);
+      const rawMinePositions = round.minePositions;
+      let finalMinePositions = rawMinePositions;
+      const rawHitMine = rawMinePositions.includes(input.cellIndex);
+      let hitMine = rawHitMine;
       const newRevealed = [...round.revealed, input.cellIndex];
 
+      const safeMultiplier = new Prisma.Decimal(
+        minesMultiplier(round.mineCount, newRevealed.length).toFixed(4),
+      );
+      const safePayout = round.betAmount.mul(safeMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+      const controlled = await applyControls(tx, userId, GameId.MINES, {
+        won: !rawHitMine && safePayout.greaterThan(round.betAmount),
+        amount: round.betAmount,
+        multiplier: rawHitMine ? new Prisma.Decimal(0) : safeMultiplier,
+        payout: rawHitMine ? new Prisma.Decimal(0) : safePayout,
+      });
+      if (controlled.controlled && controlled.won && rawHitMine) {
+        const moved = moveMineAway(rawMinePositions, input.cellIndex, newRevealed);
+        if (moved) {
+          finalMinePositions = moved;
+          hitMine = false;
+        }
+      } else if (controlled.controlled && !controlled.won && !rawHitMine) {
+        finalMinePositions = moveMineToCell(rawMinePositions, input.cellIndex);
+        hitMine = true;
+      }
+      const effectiveControl = hitMine !== rawHitMine
+        ? controlled
+        : { ...controlled, controlled: false, flipReason: undefined, controlId: undefined };
+
       if (hitMine) {
+        const originalResult = {
+          mineCount: round.mineCount,
+          minePositions: rawMinePositions,
+          revealed: newRevealed,
+          hitMine: rawHitMine,
+          hitCell: input.cellIndex,
+        };
+        const finalResult = {
+          mineCount: round.mineCount,
+          minePositions: finalMinePositions,
+          revealed: newRevealed,
+          hitMine: true,
+          hitCell: input.cellIndex,
+          controlled: effectiveControl.controlled,
+          flipReason: effectiveControl.flipReason ?? null,
+          raw: effectiveControl.controlled ? originalResult : null,
+        };
         const bet = await tx.bet.create({
           data: {
             userId,
@@ -98,13 +143,7 @@ export class MinesService {
             nonce: round.nonce,
             clientSeedUsed: round.clientSeedUsed,
             serverSeedId: round.serverSeedId,
-            resultData: {
-              mineCount: round.mineCount,
-              minePositions: round.minePositions,
-              revealed: newRevealed,
-              hitMine: true,
-              hitCell: input.cellIndex,
-            },
+            resultData: finalResult,
             minesRoundId: round.id,
           },
         });
@@ -113,9 +152,31 @@ export class MinesService {
           data: {
             status: 'BUSTED',
             revealed: newRevealed,
+            minePositions: finalMinePositions,
             finishedAt: new Date(),
           },
         });
+        await finalizeControls(
+          tx,
+          userId,
+          GameId.MINES,
+          {
+            won: !rawHitMine && safePayout.greaterThan(round.betAmount),
+            amount: round.betAmount,
+            multiplier: rawHitMine ? new Prisma.Decimal(0) : safeMultiplier,
+            payout: rawHitMine ? new Prisma.Decimal(0) : safePayout,
+          },
+          {
+            won: false,
+            amount: round.betAmount,
+            multiplier: new Prisma.Decimal(0),
+            payout: new Prisma.Decimal(0),
+          },
+          effectiveControl,
+          bet.id,
+          originalResult,
+          finalResult,
+        );
         return {
           state: this.toState(updated, serverSeed.seedHash, bet.id),
           hitMine: true,
@@ -131,6 +192,7 @@ export class MinesService {
         data: {
           revealed: newRevealed,
           currentMultiplier: currentMult,
+          minePositions: finalMinePositions,
         },
       });
       return {
@@ -159,43 +221,79 @@ export class MinesService {
 
       const multiplier = round.currentMultiplier;
       const payout = round.betAmount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const profit = payout.minus(round.betAmount);
+      const controlled = {
+        won: payout.greaterThan(round.betAmount),
+        multiplier,
+        payout,
+        controlled: false,
+        flipReason: undefined as string | undefined,
+        controlId: undefined as string | undefined,
+      };
+      const finalMultiplier = multiplier;
+      const finalPayout = payout;
+      const profit = finalPayout.minus(round.betAmount);
+      const finalStatus = 'CASHED_OUT';
+
+      const originalResult = {
+        mineCount: round.mineCount,
+        minePositions: round.minePositions,
+        revealed: round.revealed,
+        hitMine: false,
+        cashedOut: true,
+      };
+      const finalResult = {
+        mineCount: round.mineCount,
+        minePositions: round.minePositions,
+        revealed: round.revealed,
+        hitMine: false,
+        cashedOut: true,
+        controlled: controlled.controlled,
+        flipReason: controlled.flipReason ?? null,
+        raw: controlled.controlled ? originalResult : null,
+      };
 
       const bet = await tx.bet.create({
         data: {
           userId,
           gameId: GameId.MINES,
           amount: round.betAmount,
-          multiplier,
-          payout,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
           profit,
           nonce: round.nonce,
           clientSeedUsed: round.clientSeedUsed,
           serverSeedId: round.serverSeedId,
-          resultData: {
-            mineCount: round.mineCount,
-            minePositions: round.minePositions,
-            revealed: round.revealed,
-            hitMine: false,
-            cashedOut: true,
-          },
+          resultData: finalResult,
           minesRoundId: round.id,
         },
       });
 
-      const newBalance = await creditAndRecord(tx, userId, payout, bet.id, 'CASHOUT');
+      const newBalance = finalPayout.greaterThan(0)
+        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'CASHOUT')
+        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
 
       const updated = await tx.minesRound.update({
         where: { id: round.id },
         data: {
-          status: 'CASHED_OUT',
+          status: finalStatus,
           finishedAt: new Date(),
         },
       });
+      await finalizeControls(
+        tx,
+        userId,
+        GameId.MINES,
+        { won: payout.greaterThan(round.betAmount), amount: round.betAmount, multiplier, payout },
+        { won: finalPayout.greaterThan(round.betAmount), amount: round.betAmount, multiplier: finalMultiplier, payout: finalPayout },
+        controlled,
+        bet.id,
+        originalResult,
+        finalResult,
+      );
 
       return {
         state: this.toState(updated, serverSeed.seedHash, bet.id),
-        payout: payout.toFixed(2),
+        payout: finalPayout.toFixed(2),
         newBalance: newBalance.toFixed(2),
       };
     });
@@ -252,4 +350,19 @@ export class MinesService {
       createdAt: round.createdAt.toISOString(),
     };
   }
+}
+
+function moveMineAway(minePositions: number[], cellIndex: number, revealed: number[]): number[] | null {
+  const blocked = new Set([...minePositions, ...revealed]);
+  const replacement = Array.from({ length: MINES_GRID_SIZE }, (_, index) => index)
+    .find((index) => !blocked.has(index));
+  if (replacement === undefined) return null;
+  return minePositions.map((pos) => (pos === cellIndex ? replacement : pos));
+}
+
+function moveMineToCell(minePositions: number[], cellIndex: number): number[] {
+  if (minePositions.includes(cellIndex)) return minePositions;
+  const copy = minePositions.slice();
+  copy[0] = cellIndex;
+  return Array.from(new Set(copy)).slice(0, minePositions.length);
 }

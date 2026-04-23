@@ -9,6 +9,7 @@ import type {
   CrashStatus,
 } from '@bg/shared';
 import { runSerializable } from '../modules/games/_common/BaseGameService.js';
+import { applyControls, finalizeControls, type ControlOutcome, type PredictedResult } from '../modules/games/_common/controls.js';
 
 const BETTING_WINDOW_MS = 5000;
 const POST_CRASH_MS = 3000;
@@ -47,6 +48,7 @@ export class CrashRoom {
     string,
     { betId: string; userId: string; autoCashOut: number }
   >();
+  private roundControlOutcomes = new Map<string, { outcome: ControlOutcome; original: PredictedResult }>();
   private roundNumber = 0;
   private isLeader = false;
   private readonly instanceId =
@@ -91,6 +93,7 @@ export class CrashRoom {
     this.currentCrashPoint = crashPoint(seed, `${this.config.gameId}:${this.roundNumber}`);
     this.currentMultiplier = 1.0;
     this.pendingAutoCashouts.clear();
+    this.roundControlOutcomes.clear();
     this.bettingEndsAt = Date.now() + BETTING_WINDOW_MS;
 
     // 遇到 unique 衝突（多實例 race / stale in-memory counter）時遞增重試
@@ -143,6 +146,7 @@ export class CrashRoom {
 
   private async beginRunningPhase(): Promise<void> {
     if (!this.isLeader || !this.currentRoundId) return;
+    await this.applyRoundControls();
     this.state = 'RUNNING';
     this.roundStartedAt = Date.now();
 
@@ -232,7 +236,103 @@ export class CrashRoom {
       serverSeed: this.currentSeed,
     });
 
+    await this.finalizeCrashedBets();
+
     this.scheduleBettingPhase(POST_CRASH_MS);
+  }
+
+  private async applyRoundControls(): Promise<void> {
+    if (!this.currentRoundId) return;
+    const bets = await this.prisma.crashBet.findMany({
+      where: { roundId: this.currentRoundId },
+      select: { id: true, userId: true, amount: true, autoCashOut: true },
+    });
+    if (bets.length === 0) return;
+
+    let forcedCrashPoint = this.currentCrashPoint;
+    for (const bet of bets) {
+      const autoCashOut = bet.autoCashOut ? Number(bet.autoCashOut) : null;
+      const naturalCashout = autoCashOut !== null && autoCashOut < this.currentCrashPoint
+        ? autoCashOut
+        : null;
+      const predictedMultiplier = new Prisma.Decimal((naturalCashout ?? 0).toFixed(4));
+      const predictedPayout = naturalCashout
+        ? bet.amount.mul(predictedMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
+        : new Prisma.Decimal(0);
+      const original: PredictedResult = {
+        won: predictedPayout.greaterThan(bet.amount),
+        amount: bet.amount,
+        multiplier: predictedMultiplier,
+        payout: predictedPayout,
+      };
+      const outcome = await runSerializable(this.prisma, (tx) =>
+        applyControls(tx, bet.userId, this.config.gameId, original),
+      );
+      if (!outcome.controlled) continue;
+
+      this.roundControlOutcomes.set(bet.id, { outcome, original });
+      if (!outcome.won) {
+        forcedCrashPoint = Math.min(forcedCrashPoint, MIN_CASHOUT_MULTIPLIER);
+      } else {
+        const target = autoCashOut ?? 3;
+        forcedCrashPoint = Math.max(forcedCrashPoint, target + 0.05);
+      }
+    }
+
+    if (Math.abs(forcedCrashPoint - this.currentCrashPoint) >= 0.0001) {
+      this.currentCrashPoint = Number(forcedCrashPoint.toFixed(4));
+      await this.prisma.crashRound.update({
+        where: { id: this.currentRoundId },
+        data: { crashPoint: new Prisma.Decimal(this.currentCrashPoint.toFixed(4)) },
+      });
+    }
+  }
+
+  private async finalizeCrashedBets(): Promise<void> {
+    if (!this.currentRoundId) return;
+    const bets = await this.prisma.crashBet.findMany({
+      where: { roundId: this.currentRoundId, cashedOutAt: null },
+      select: { id: true, userId: true, amount: true },
+    });
+    for (const bet of bets) {
+      const control = this.roundControlOutcomes.get(bet.id);
+      const effectiveOutcome = control?.outcome.won ? null : control?.outcome;
+      const original = control?.original ?? {
+        won: false,
+        amount: bet.amount,
+        multiplier: new Prisma.Decimal(0),
+        payout: new Prisma.Decimal(0),
+      };
+      await runSerializable(this.prisma, (tx) =>
+        finalizeControls(
+          tx,
+          bet.userId,
+          this.config.gameId,
+          original,
+          {
+            won: false,
+            amount: bet.amount,
+            multiplier: new Prisma.Decimal(0),
+            payout: new Prisma.Decimal(0),
+          },
+          effectiveOutcome ?? {
+            won: false,
+            multiplier: new Prisma.Decimal(0),
+            payout: new Prisma.Decimal(0),
+            controlled: false,
+          },
+          bet.id,
+          {
+            crashPoint: original.multiplier.toFixed(4),
+            payout: original.payout.toFixed(2),
+          },
+          {
+            crashPoint: this.currentCrashPoint.toFixed(4),
+            payout: '0.00',
+          },
+        ),
+      );
+    }
   }
 
   private snapshot(): CrashRoundSnapshot {
@@ -590,6 +690,40 @@ export class CrashRoom {
         where: { id: betId },
         data: { cashedOutAt: multD, payout },
       });
+      const control = this.roundControlOutcomes.get(betId);
+      const original = control?.original ?? {
+        won: payout.greaterThan(bet.amount),
+        amount: bet.amount,
+        multiplier: multD,
+        payout,
+      };
+      await finalizeControls(
+        tx,
+        userId,
+        this.config.gameId,
+        original,
+        {
+          won: payout.greaterThan(bet.amount),
+          amount: bet.amount,
+          multiplier: multD,
+          payout,
+        },
+        control?.outcome ?? {
+          won: payout.greaterThan(bet.amount),
+          multiplier: multD,
+          payout,
+          controlled: false,
+        },
+        betId,
+        {
+          cashoutAt: original.multiplier.toFixed(4),
+          payout: original.payout.toFixed(2),
+        },
+        {
+          cashoutAt: multD.toFixed(4),
+          payout: payout.toFixed(2),
+        },
+      );
       const players = await this.getPlayers();
       this.broadcast('bets:update', { players });
       return {

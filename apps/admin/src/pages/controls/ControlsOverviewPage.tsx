@@ -50,6 +50,18 @@ interface AgentLineRow {
   isActive: boolean;
   createdAt: string;
 }
+interface ControlLogRow {
+  id: string;
+  controlId: string;
+  betId: string | null;
+  userId: string;
+  username: string;
+  gameId: string;
+  flipReason: string;
+  originalResult: { payout?: string; multiplier?: string; won?: boolean };
+  finalResult: { payout?: string; multiplier?: string; won?: boolean };
+  createdAt: string;
+}
 
 export function ControlsOverviewPage(): JSX.Element {
   const { t } = useTranslation();
@@ -57,6 +69,7 @@ export function ControlsOverviewPage(): JSX.Element {
   const [wc, setWc] = useState<WinCapRow[]>([]);
   const [dc, setDc] = useState<DepositRow[]>([]);
   const [al, setAl] = useState<AgentLineRow[]>([]);
+  const [logs, setLogs] = useState<ControlLogRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [wlOpen, setWlOpen] = useState(false);
@@ -66,16 +79,18 @@ export function ControlsOverviewPage(): JSX.Element {
 
   const reload = useCallback(async () => {
     try {
-      const [a, b, c, d] = await Promise.all([
+      const [a, b, c, d, e] = await Promise.all([
         adminApi.get<{ items: WinLossRow[] }>('/controls/win-loss'),
         adminApi.get<{ items: WinCapRow[] }>('/controls/win-cap'),
         adminApi.get<{ items: DepositRow[] }>('/controls/deposit'),
         adminApi.get<{ items: AgentLineRow[] }>('/controls/agent-line'),
+        adminApi.get<{ items: ControlLogRow[] }>('/controls/logs'),
       ]);
       setWl(a.data.items);
       setWc(b.data.items);
       setDc(c.data.items);
       setAl(d.data.items);
+      setLogs(e.data.items);
     } catch (e) {
       setError(extractApiError(e).message);
     } finally {
@@ -261,6 +276,25 @@ export function ControlsOverviewPage(): JSX.Element {
     },
   ];
 
+  const logCols: Column<ControlLogRow>[] = [
+    { key: 'time', label: '时间', render: (r) => <span className="font-mono text-[11px]">{formatTime(r.createdAt)}</span> },
+    { key: 'member', label: '会员', render: (r) => <span className="font-mono">{r.username}</span> },
+    { key: 'game', label: '游戏', render: (r) => <span className="tag tag-acid">{r.gameId}</span> },
+    { key: 'reason', label: '原因', render: (r) => <span className="tag tag-ember">{formatReason(r.flipReason)}</span> },
+    {
+      key: 'before',
+      label: '原派彩',
+      align: 'right',
+      render: (r) => <span className="data-num">{r.originalResult?.payout ?? '0.00'}</span>,
+    },
+    {
+      key: 'after',
+      label: '最终派彩',
+      align: 'right',
+      render: (r) => <span className="data-num text-[#186073]">{r.finalResult?.payout ?? '0.00'}</span>,
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -326,6 +360,12 @@ export function ControlsOverviewPage(): JSX.Element {
           >
             <DataTable columns={alCols} rows={al} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
+          <Section
+            title="§ 控制介入纪录"
+            subtitle="最近 100 笔真实套用结果"
+          >
+            <DataTable columns={logCols} rows={logs} rowKey={(r) => r.id} empty={t.common.empty} />
+          </Section>
         </div>
       )}
 
@@ -378,4 +418,24 @@ function formatControlMode(mode: string): string {
   if (mode === 'SINGLE_MEMBER') return '单一会员';
   if (mode === 'AGENT_LINE') return '整条代理线';
   return mode;
+}
+function formatReason(reason: string): string {
+  const map: Record<string, string> = {
+    deposit_control: '入金控制',
+    win_cap: '会员封顶',
+    win_cap_rate: '会员封顶比例',
+    agent_line_cap: '代理线封顶',
+    agent_line_cap_rate: '代理线封顶比例',
+    win_control: '放水',
+    loss_control: '杀分',
+  };
+  return map[reason] ?? reason;
+}
+function formatTime(value: string): string {
+  return new Date(value).toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
