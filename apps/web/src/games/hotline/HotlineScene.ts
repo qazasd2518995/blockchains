@@ -24,15 +24,15 @@ import {
 import { HOTLINE_SYMBOLS, getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG = 0xFBF9F4;
-const COLOR_TILE_BG = 0xffffff;
-const COLOR_TILE_STROKE = 0xD1AD5A;
-const COLOR_ACID = 0xC9A24C;
-const COLOR_VIOLET = 0xE0BF6E;
-const COLOR_EMBER = 0x8B1A2A;
+const COLOR_BG = 0x0F172A;
+const COLOR_TILE_BG = 0xFFFFFF;
+const COLOR_TILE_STROKE = 0xC9A247;
+const COLOR_ACID = 0xF3D67D;
+const COLOR_VIOLET = 0xE8D48A;
+const COLOR_EMBER = 0xD4574A;
 const COLOR_TOXIC = 0x1E7A4F;
-const COLOR_AMBER = 0xC9A24C;
-const COLOR_ICE = 0x86B49C;
+const COLOR_AMBER = 0xF3D67D;
+const COLOR_ICE = 0x266F85;
 const COLOR_INK = 0x0A0806;
 const SYMBOL_COUNT = HOTLINE_SYMBOLS.length;
 const REELS = 5;
@@ -170,7 +170,7 @@ export class HotlineScene {
 
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.5 });
+    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
     this.app.stage.addChild(bg);
 
     const glow = new Graphics()

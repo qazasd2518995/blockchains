@@ -25,15 +25,15 @@ import {
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG_A = 0x0C4632;
-const COLOR_BG_B = 0x0A0806;
-const COLOR_ACID = 0xC9A24C;
-const COLOR_VIOLET = 0xE0BF6E;
-const COLOR_EMBER = 0x8B1A2A;
+const COLOR_BG_A = 0x111C2E;
+const COLOR_BG_B = 0x0B1322;
+const COLOR_ACID = 0xF3D67D;
+const COLOR_VIOLET = 0xE8D48A;
+const COLOR_EMBER = 0xD4574A;
 const COLOR_TOXIC = 0x1E7A4F;
-const COLOR_ICE = 0x86B49C;
-const COLOR_AMBER = 0xC9A24C;
-const COLOR_WHITE = 0xffffff;
+const COLOR_ICE = 0x266F85;
+const COLOR_AMBER = 0xF3D67D;
+const COLOR_WHITE = 0xFFFFFF;
 
 export type CrashVariant = 'rocket' | 'aviator' | 'balloon' | 'jet' | 'fleet' | 'default';
 

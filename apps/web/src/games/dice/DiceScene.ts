@@ -14,15 +14,15 @@ import {
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG = 0xFBF9F4;
-const COLOR_FACE = 0xffffff;
+const COLOR_BG = 0x0F172A;
+const COLOR_FACE = 0xFFFFFF;
 const COLOR_FACE_STROKE = 0x0A0806;
 const COLOR_PIP = 0x0A0806;
-const COLOR_ACID = 0xC9A24C;
-const COLOR_VIOLET = 0xE0BF6E;
-const COLOR_EMBER = 0x8B1A2A;
+const COLOR_ACID = 0xF3D67D;
+const COLOR_VIOLET = 0xE8D48A;
+const COLOR_EMBER = 0xD4574A;
 const COLOR_TOXIC = 0x1E7A4F;
-const COLOR_ICE = 0x86B49C;
+const COLOR_ICE = 0x266F85;
 
 interface PipPos {
   x: number;
@@ -164,7 +164,7 @@ export class DiceScene {
 
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.5 });
+    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
 
     const glowR1 = Math.min(this.width * 0.4, this.height * 0.9);
     const glowR2 = Math.min(this.width * 0.35, this.height * 0.8);
