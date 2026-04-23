@@ -115,7 +115,7 @@ export function RoulettePage({ variant }: Props) {
         <div className="space-y-4">
           <div className="game-stage-panel scanlines p-3">
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
-              <span className="text-white/62">TERMINAL://ROULETTE</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">迷你輪盤</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Roulette</span>
               <span className="text-white/72">
                 {t.games.roulette.total}: {formatAmount(totalBet)}
               </span>
@@ -199,7 +199,7 @@ export function RoulettePage({ variant }: Props) {
                   <div className="num num-grad text-6xl">
                     {t.games.roulette.slot} {result.slot}
                   </div>
-                  <div className="mt-2 text-[11px] tracking-[0.25em] text-ink-600">
+                  <div className="mt-2 text-[11px] tracking-[0.25em] text-white/75">
                     {result.winningBets.length} {t.games.roulette.winningBets}
                   </div>
                 </div>
@@ -207,7 +207,7 @@ export function RoulettePage({ variant }: Props) {
                   className={`num text-4xl ${
                     Number.parseFloat(result.profit) >= 0
                       ? 'num-win'
-                      : 'text-neon-ember'
+                      : 'text-[#FCA5A5]'
                   }`}
                 >
                   {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
@@ -247,18 +247,18 @@ export function RoulettePage({ variant }: Props) {
               </div>
               <div className="max-h-48 space-y-1 overflow-y-auto text-[11px]">
                 {bets.length === 0 && (
-                  <div className="py-3 text-center text-ink-400">{t.games.roulette.noBetsPlaced}</div>
+                  <div className="py-3 text-center text-white/40">{t.games.roulette.noBetsPlaced}</div>
                 )}
                 {bets.map((b, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between rounded-[14px] border border-ink-200 bg-ink-50/50 px-2 py-1.5"
+                    className="flex items-center justify-between rounded-[14px] border border-white/10 bg-white/[0.05] px-2 py-1.5"
                   >
-                    <span className="font-mono text-ink-700">
+                    <span className="font-mono text-white/85">
                       {b.type.toUpperCase()}
                       {b.value !== undefined ? ` ${b.value}` : ''}
                     </span>
-                    <span className="data-num text-neon-acid">{formatAmount(b.amount)}</span>
+                    <span className="data-num text-[#7DD3FC]">{formatAmount(b.amount)}</span>
                   </div>
                 ))}
               </div>
@@ -283,10 +283,10 @@ export function RoulettePage({ variant }: Props) {
 
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+                {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
               </span>
               <span>
-                {t.games.roulette.total} <span className="data-num ml-1 text-neon-ember">{formatAmount(totalBet)}</span>
+                {t.games.roulette.total} <span className="data-num ml-1 text-[#FCA5A5]">{formatAmount(totalBet)}</span>
               </span>
             </div>
           </div>
@@ -335,12 +335,12 @@ function OutsideBtn({
   color?: 'red' | 'black';
 }) {
   const bg =
-    color === 'red' ? 'bg-[#D4574A]/16' : color === 'black' ? 'bg-[#10263A]' : 'bg-ink-100/70';
+    color === 'red' ? 'bg-[#D4574A]/16' : color === 'black' ? 'bg-[#10263A]' : 'bg-white/[0.08]';
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-[14px] border border-[#16324A]/12 ${bg} py-2 font-mono text-[11px] tracking-[0.2em] ${color === 'black' ? 'text-white' : 'text-ink-700'} transition hover:border-[#C9A247] hover:text-[#186073]`}
+      className={`rounded-[14px] border border-white/10 ${bg} py-2 font-mono text-[11px] tracking-[0.2em] ${color === 'black' ? 'text-white' : 'text-white/85'} transition hover:border-[#C9A247] hover:text-[#186073]`}
     >
       {label}
     </button>

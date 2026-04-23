@@ -104,7 +104,7 @@ export function WheelPage() {
         <div className="space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="text-white/62">TERMINAL://WHEEL</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">彩色轉輪</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Wheel</span>
               <span className="text-white/72">
                 {segments} {t.games.wheel.segments} · {t.games.mines[risk]}
               </span>
@@ -114,10 +114,10 @@ export function WheelPage() {
               <canvas ref={canvasRef} className="h-full w-full" />
               <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 rounded-[16px] border border-white/10 bg-[#07131F]/52 px-3 py-2 text-[10px] tracking-[0.2em] text-white/62 backdrop-blur">
                 <div>
-                  SEG <span className="data-num ml-1 text-neon-acid">{segments}</span>
+                  SEG <span className="data-num ml-1 text-[#7DD3FC]">{segments}</span>
                 </div>
                 <div>
-                  RISK <span className="data-num ml-1 text-neon-acid">{risk.toUpperCase()}</span>
+                  RISK <span className="data-num ml-1 text-[#7DD3FC]">{risk.toUpperCase()}</span>
                 </div>
               </div>
             </div>
@@ -127,14 +127,14 @@ export function WheelPage() {
             <div className={`game-result-card ${result.multiplier > 0 ? 'game-result-card-win' : 'game-result-card-loss'}`}>
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="font-display text-4xl text-ink-900">
+                  <div className="font-display text-4xl text-white">
                     {formatMultiplier(result.multiplier)}
                   </div>
-                  <div className="text-[11px] tracking-[0.25em] text-ink-600">
+                  <div className="text-[11px] tracking-[0.25em] text-white/75">
                     {t.games.wheel.segment}{result.segmentIndex}
                   </div>
                 </div>
-                <div className="num text-3xl text-neon-acid">
+                <div className="num text-3xl text-[#7DD3FC]">
                   {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
                   {formatAmount(result.profit)}
                 </div>
@@ -200,10 +200,10 @@ export function WheelPage() {
             </button>
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+                {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
               </span>
               <span>
-                {t.games.wheel.segments} <span className="data-num ml-1 text-neon-ember">{segments}</span>
+                {t.games.wheel.segments} <span className="data-num ml-1 text-[#FCA5A5]">{segments}</span>
               </span>
             </div>
           </div>

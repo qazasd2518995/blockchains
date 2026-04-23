@@ -31,20 +31,20 @@ export function BetControls({
   const clamp = (v: number) => Math.min(maxBalance, Math.max(min, v));
 
   return (
-    <div className="rounded-[20px] border border-[#16324A]/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.98)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-      <div className="flex items-center justify-between border-b border-[#16324A]/10 pb-2">
+    <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <div className="flex items-center justify-between border-b border-white/10 pb-2">
         <div className="flex items-baseline gap-2">
-          <span className="text-[9px] text-ink-500">01</span>
-          <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">
+          <span className="text-[9px] text-white/45">01</span>
+          <span className="text-[11px] font-semibold tracking-[0.16em] text-white/85">
             {t.bet.stake}
           </span>
         </div>
-        <span className="data-num text-[10px] text-ink-500">
+        <span className="data-num text-[10px] text-white/55">
           {t.bet.max} {maxBalance.toFixed(2)}
         </span>
       </div>
 
-      <div className="mt-4 rounded-[18px] border border-[#16324A]/10 bg-white/80 p-2 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)]">
+      <div className="mt-4 rounded-[18px] border border-white/10 bg-white/[0.06] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
         <input
           type="text"
           inputMode="decimal"
@@ -56,7 +56,7 @@ export function BetControls({
             else setText(amount.toFixed(2));
           }}
           disabled={disabled}
-          className="term-input border-0 bg-transparent px-2 py-3 text-right font-display text-4xl tracking-tight shadow-none focus-visible:border-transparent focus-visible:bg-transparent focus-visible:shadow-none"
+          className="w-full border-0 bg-transparent px-2 py-3 text-right font-display text-4xl tracking-tight text-white shadow-none outline-none focus-visible:border-transparent focus-visible:bg-transparent focus-visible:shadow-none"
         />
         <div className="mt-2 grid grid-cols-2 gap-2">
           <button

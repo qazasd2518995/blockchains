@@ -108,7 +108,7 @@ export function DicePage() {
         <div className="space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="text-white/62">TERMINAL://DICE</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">骰子</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Dice</span>
               <span className="text-[#7EE0A4]">
                 <span className="dot-online dot-online" />
                 {t.common.ready.toUpperCase()}
@@ -121,7 +121,7 @@ export function DicePage() {
               <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 rounded-[16px] border border-white/10 bg-[#07131F]/50 px-3 py-2 text-[10px] tracking-[0.2em] text-white/62 backdrop-blur">
                 <div>
                   {t.bet.multiplier.toUpperCase()}{' '}
-                  <span className="data-num ml-1 text-neon-acid">
+                  <span className="data-num ml-1 text-[#7DD3FC]">
                     {formatMultiplier(multiplier)}
                   </span>
                 </div>
@@ -131,7 +131,7 @@ export function DicePage() {
                 </div>
                 <div>
                   {t.bet.potentialPayout.toUpperCase()}{' '}
-                  <span className="data-num ml-1 text-neon-toxic">
+                  <span className="data-num ml-1 text-[#6EE7B7]">
                     {formatAmount(potentialPayout)}
                   </span>
                 </div>
@@ -143,7 +143,7 @@ export function DicePage() {
               <div className="mb-2 flex items-baseline justify-between">
                 <div className="flex items-baseline gap-2">
                   <span className="label">{t.games.dice.threshold}</span>
-                  <span className="num text-2xl text-ink-900">{target.toFixed(2)}</span>
+                  <span className="num text-2xl text-white">{target.toFixed(2)}</span>
                 </div>
                 <div className="flex gap-1 text-[10px]">
                   <button
@@ -171,7 +171,7 @@ export function DicePage() {
                 onChange={(e) => setTarget(Number.parseFloat(e.target.value))}
                 className={`term-range w-full ${direction === 'over' ? 'term-range-ember' : ''}`}
               />
-              <div className="mt-1 flex justify-between text-[9px] text-ink-400">
+              <div className="mt-1 flex justify-between text-[9px] text-white/40">
                 <span>0.00</span>
                 <span>50.00</span>
                 <span>99.99</span>
@@ -187,23 +187,23 @@ export function DicePage() {
                 <div className="flex items-baseline gap-3">
                   <span
                     className={`font-display text-5xl ${
-                      lastResult.won ? 'text-neon-acid' : 'text-neon-ember'
+                      lastResult.won ? 'text-[#7DD3FC]' : 'text-[#FCA5A5]'
                     }`}
                   >
                     {lastResult.won ? t.games.dice.win : t.games.dice.loss}
                   </span>
-                  <span className="text-[10px] tracking-[0.3em] text-ink-500">
+                  <span className="text-[10px] tracking-[0.3em] text-white/55">
                     {t.games.dice.roll}
                   </span>
-                  <span className="num text-5xl text-ink-900">
+                  <span className="num text-5xl text-white">
                     {lastResult.roll.toFixed(2)}
                   </span>
                 </div>
                 <div className="text-right">
-                  <div className="data-num text-[11px] text-ink-500">{t.games.dice.payout}</div>
+                  <div className="data-num text-[11px] text-white/55">{t.games.dice.payout}</div>
                   <div
                     className={`data-num text-2xl font-bold ${
-                      lastResult.won ? 'text-neon-acid' : 'text-ink-600'
+                      lastResult.won ? 'text-[#7DD3FC]' : 'text-white/75'
                     }`}
                   >
                     {Number.parseFloat(lastResult.profit) >= 0 ? '+' : ''}
@@ -250,13 +250,13 @@ export function DicePage() {
             </button>
 
             <div className="game-balance-strip mt-3">
-              <span className="text-ink-500">
+              <span className="text-white/55">
                 {t.bet.balance}{' '}
-                <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+                <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
               </span>
-              <span className="text-ink-500">
+              <span className="text-white/55">
                 {t.bet.after}{' '}
-                <span className="data-num ml-1 text-neon-acid">
+                <span className="data-num ml-1 text-[#7DD3FC]">
                   {formatAmount(balance - amount)}
                 </span>
               </span>
@@ -264,18 +264,18 @@ export function DicePage() {
           </div>
 
           <div className="game-side-card p-5">
-            <div className="flex items-center justify-between border-b border-ink-200 pb-3">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-[9px] text-ink-500">03</span>
-                <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">
+                <span className="text-[9px] text-white/55">03</span>
+                <span className="text-[11px] font-semibold tracking-[0.25em] text-white/85">
                   {t.games.dice.recentRolls}
                 </span>
               </div>
-              <span className="data-num text-[10px] text-ink-500">{history.length}</span>
+              <span className="data-num text-[10px] text-white/55">{history.length}</span>
             </div>
             <div className="mt-3 space-y-1">
               {history.length === 0 && (
-                <div className="py-6 text-center text-[10px] tracking-[0.3em] text-ink-400">
+                <div className="py-6 text-center text-[10px] tracking-[0.3em] text-white/40">
                   —
                 </div>
               )}
@@ -289,16 +289,16 @@ export function DicePage() {
                   }`}
                 >
                   <span
-                    className={`data-num ${h.won ? 'text-neon-acid' : 'text-ink-600'}`}
+                    className={`data-num ${h.won ? 'text-[#7DD3FC]' : 'text-white/75'}`}
                   >
                     {h.roll.toFixed(2)}
                   </span>
-                  <span className="text-[9px] tracking-[0.2em] text-ink-500">
+                  <span className="text-[9px] tracking-[0.2em] text-white/55">
                     {h.direction === 'under' ? '▾' : '▴'} {h.target.toFixed(2)}
                   </span>
                   <span
                     className={`data-num font-bold ${
-                      h.won ? 'text-neon-acid' : 'text-neon-ember'
+                      h.won ? 'text-[#7DD3FC]' : 'text-[#FCA5A5]'
                     }`}
                   >
                     {h.won ? formatMultiplier(h.multiplier) : '×0'}
@@ -318,7 +318,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
     <div className="game-stat-card">
       <div className="label">{k}</div>
       <div
-        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
+        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-[#7DD3FC]' : 'text-white'}`}
       >
         {v}
       </div>

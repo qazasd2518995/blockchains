@@ -293,121 +293,115 @@
     isolation: isolate;
   }
 
-  .scanlines::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    background: repeating-linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.05) 0,
-      rgba(255, 255, 255, 0.05) 1px,
-      transparent 1px,
-      transparent 3px
-    );
-    opacity: 0.12;
-    mix-blend-mode: soft-light;
-  }
-
   .game-stage-panel {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 249, 252, 0.98) 100%);
-    border: 1px solid rgba(22, 50, 74, 0.12);
+    background: linear-gradient(180deg, #0B1322 0%, #0F172A 60%, #111C2E 100%);
+    border: 1px solid rgba(201, 162, 71, 0.18);
     border-radius: 22px;
-    box-shadow: 0 26px 60px -30px rgba(15, 23, 42, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    box-shadow:
+      0 26px 60px -28px rgba(2, 6, 23, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+    color: #E2E8F0;
+    overflow: hidden;
   }
 
   .game-stage-bar {
     align-items: center;
-    background: linear-gradient(90deg, rgba(9, 26, 41, 0.98) 0%, rgba(11, 34, 54, 0.94) 56%, rgba(16, 54, 77, 0.88) 100%);
-    border-bottom: 1px solid rgba(22, 50, 74, 0.12);
-    color: #9CA3AF;
+    background: linear-gradient(90deg, rgba(8, 15, 27, 0.96) 0%, rgba(15, 23, 42, 0.92) 100%);
+    border-bottom: 1px solid rgba(201, 162, 71, 0.18);
+    color: rgba(232, 212, 138, 0.85);
     display: flex;
-    font-size: 10px;
+    font-size: 11px;
+    font-weight: 600;
     justify-content: space-between;
-    letter-spacing: 0.25em;
-    padding: 0.75rem 1rem;
-    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    padding: 0.85rem 1.25rem;
+    text-transform: none;
   }
 
   .game-canvas-shell {
     background:
-      radial-gradient(circle at top, rgba(24, 96, 115, 0.18), transparent 50%),
-      linear-gradient(180deg, rgba(9, 26, 41, 0.08), rgba(9, 26, 41, 0.02));
-    border: 1px solid rgba(22, 50, 74, 0.08);
+      radial-gradient(circle at top, rgba(201, 162, 71, 0.1), transparent 55%),
+      linear-gradient(180deg, rgba(7, 15, 28, 0.6) 0%, rgba(7, 15, 28, 0.4) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 18px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
     overflow: hidden;
   }
 
   .game-side-card {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
-    border: 1px solid rgba(22, 50, 74, 0.1);
+    background: linear-gradient(180deg, #0F172A 0%, #111C2E 100%);
+    border: 1px solid rgba(201, 162, 71, 0.18);
     border-radius: 20px;
-    box-shadow: 0 18px 40px -24px rgba(15, 23, 42, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    box-shadow:
+      0 18px 40px -24px rgba(2, 6, 23, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    color: #E2E8F0;
   }
 
   .game-result-card {
     border-radius: 22px;
     border-style: solid;
-    border-width: 2px;
-    box-shadow: 0 18px 40px -28px rgba(15, 23, 42, 0.28);
+    border-width: 1px;
+    box-shadow: 0 18px 40px -24px rgba(2, 6, 23, 0.55);
     overflow: hidden;
     padding: 1.25rem;
+    color: #FFFFFF;
   }
 
   .game-result-card-win {
-    background: linear-gradient(135deg, rgba(24, 96, 115, 0.1) 0%, rgba(201, 162, 71, 0.14) 100%);
-    border-color: rgba(24, 96, 115, 0.32);
-    box-shadow: 0 18px 42px -24px rgba(24, 96, 115, 0.25);
+    background: linear-gradient(135deg, rgba(24, 96, 115, 0.45) 0%, rgba(201, 162, 71, 0.35) 100%);
+    border-color: rgba(232, 212, 138, 0.4);
+    box-shadow: 0 18px 42px -22px rgba(201, 162, 71, 0.45);
   }
 
   .game-result-card-loss {
-    background: linear-gradient(135deg, rgba(212, 87, 74, 0.08) 0%, rgba(139, 26, 42, 0.1) 100%);
-    border-color: rgba(212, 87, 74, 0.28);
-    box-shadow: 0 18px 42px -24px rgba(212, 87, 74, 0.22);
+    background: linear-gradient(135deg, rgba(143, 48, 39, 0.42) 0%, rgba(60, 18, 14, 0.6) 100%);
+    border-color: rgba(212, 87, 74, 0.4);
+    box-shadow: 0 18px 42px -22px rgba(212, 87, 74, 0.4);
   }
 
   .game-alert {
     align-items: flex-start;
-    background: linear-gradient(180deg, rgba(253, 240, 238, 0.96) 0%, rgba(255, 247, 245, 0.98) 100%);
-    border: 1px solid rgba(212, 87, 74, 0.28);
-    border-radius: 18px;
-    box-shadow: 0 14px 34px -22px rgba(212, 87, 74, 0.24);
-    color: var(--danger);
+    background: linear-gradient(180deg, rgba(60, 18, 14, 0.65) 0%, rgba(40, 12, 10, 0.82) 100%);
+    border: 1px solid rgba(212, 87, 74, 0.42);
+    border-radius: 16px;
+    box-shadow: 0 14px 34px -22px rgba(212, 87, 74, 0.4);
+    color: #FCA5A5;
     display: flex;
     gap: 0.5rem;
     padding: 0.875rem 1rem;
   }
 
   .game-stat-card {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 249, 252, 0.98) 100%);
-    border: 1px solid rgba(22, 50, 74, 0.1);
-    border-radius: 18px;
-    box-shadow: 0 14px 34px -26px rgba(15, 23, 42, 0.28);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     padding: 1rem;
+    color: #FFFFFF;
   }
 
   .game-choice-btn {
     align-items: center;
-    background: rgba(245, 247, 250, 0.78);
-    border: 1px solid rgba(22, 50, 74, 0.12);
-    border-radius: 16px;
-    color: var(--ink-700);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    color: rgba(226, 232, 240, 0.8);
     display: inline-flex;
-    font-family: 'Roboto Mono', 'SF Mono', ui-monospace, monospace;
-    font-size: 11px;
+    font-family: 'Inter', 'Noto Sans TC', sans-serif;
+    font-size: 12px;
     font-weight: 600;
     justify-content: center;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.06em;
     padding: 0.75rem 0.875rem;
     transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   }
 
   .game-choice-btn:hover {
-    border-color: rgba(24, 96, 115, 0.32);
-    background: rgba(24, 96, 115, 0.08);
-    color: var(--teal-500);
+    border-color: rgba(232, 212, 138, 0.45);
+    background: rgba(232, 212, 138, 0.08);
+    color: #F3D67D;
   }
 
   .game-choice-btn:disabled {
@@ -416,41 +410,41 @@
   }
 
   .game-choice-btn-acid {
-    background: rgba(24, 96, 115, 0.1);
-    border-color: rgba(24, 96, 115, 0.32);
-    box-shadow: inset 0 0 0 1px rgba(24, 96, 115, 0.08);
-    color: var(--teal-500);
+    background: rgba(24, 96, 115, 0.28);
+    border-color: rgba(38, 111, 133, 0.6);
+    box-shadow: inset 0 0 0 1px rgba(38, 111, 133, 0.18);
+    color: #7DD3FC;
   }
 
   .game-choice-btn-ember {
-    background: rgba(212, 87, 74, 0.1);
-    border-color: rgba(212, 87, 74, 0.3);
-    box-shadow: inset 0 0 0 1px rgba(212, 87, 74, 0.08);
-    color: var(--danger);
+    background: rgba(212, 87, 74, 0.22);
+    border-color: rgba(212, 87, 74, 0.55);
+    box-shadow: inset 0 0 0 1px rgba(212, 87, 74, 0.18);
+    color: #FCA5A5;
   }
 
   .game-choice-btn-toxic {
-    background: rgba(9, 184, 38, 0.1);
-    border-color: rgba(9, 184, 38, 0.28);
-    box-shadow: inset 0 0 0 1px rgba(9, 184, 38, 0.06);
-    color: var(--success);
+    background: rgba(9, 184, 38, 0.22);
+    border-color: rgba(9, 184, 38, 0.5);
+    box-shadow: inset 0 0 0 1px rgba(9, 184, 38, 0.14);
+    color: #6EE7B7;
   }
 
   .game-choice-btn-ice {
-    background: rgba(38, 111, 133, 0.1);
-    border-color: rgba(38, 111, 133, 0.28);
-    box-shadow: inset 0 0 0 1px rgba(38, 111, 133, 0.08);
-    color: var(--teal-400);
+    background: rgba(38, 111, 133, 0.22);
+    border-color: rgba(38, 111, 133, 0.5);
+    box-shadow: inset 0 0 0 1px rgba(38, 111, 133, 0.16);
+    color: #7DD3FC;
   }
 
   .game-balance-strip {
-    border-top: 1px solid rgba(22, 50, 74, 0.1);
-    color: var(--ink-500);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(226, 232, 240, 0.55);
     display: flex;
     justify-content: space-between;
     gap: 1rem;
-    font-size: 10px;
-    letter-spacing: 0.24em;
+    font-size: 11px;
+    letter-spacing: 0.16em;
     padding-top: 0.875rem;
     text-transform: uppercase;
   }

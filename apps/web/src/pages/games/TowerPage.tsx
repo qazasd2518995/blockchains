@@ -173,7 +173,7 @@ export function TowerPage() {
         <div className="space-y-4">
           <div className="game-stage-panel scanlines p-3">
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
-              <span className="text-white/62">TERMINAL://TOWER</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">疊塔</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Tower</span>
               <span className="text-white/72">
                 {round
                   ? `${t.games.tower.level} ${round.currentLevel}/${round.totalLevels}`
@@ -203,18 +203,18 @@ export function TowerPage() {
 
           {round?.status === 'BUSTED' && (
             <div className="game-result-card game-result-card-loss">
-              <div className="font-display text-4xl text-neon-ember">
+              <div className="font-display text-4xl text-[#FCA5A5]">
                 {t.games.tower.trapTriggered}
               </div>
-              <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
+              <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
                 {t.games.mines.loss} -{formatAmount(round.amount)}
               </div>
             </div>
           )}
           {round?.status === 'CASHED_OUT' && (
             <div className="game-result-card game-result-card-win">
-              <div className="font-display text-4xl text-neon-acid">{t.games.tower.secured}</div>
-              <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
+              <div className="font-display text-4xl text-[#7DD3FC]">{t.games.tower.secured}</div>
+              <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
                 {t.games.tower.payout} +{formatAmount(round.potentialPayout)}
               </div>
             </div>
@@ -248,13 +248,13 @@ export function TowerPage() {
                     className={`flex w-full items-center justify-between rounded-[16px] border p-3 text-left transition ${
                       difficulty === d.id
                         ? 'border-neon-acid/30 bg-neon-acid/8'
-                        : 'border-[#16324A]/12 bg-white/76 hover:border-[#186073]/28'
+                        : 'border-white/10 bg-white/76 hover:border-[#186073]/28'
                     } disabled:opacity-40`}
                   >
-                    <span className="font-mono text-[12px] font-semibold tracking-[0.2em] text-ink-900">
+                    <span className="font-mono text-[12px] font-semibold tracking-[0.2em] text-white">
                       {d.label}
                     </span>
-                    <span className="text-[10px] text-ink-500">{d.desc}</span>
+                    <span className="text-[10px] text-white/55">{d.desc}</span>
                   </button>
                 ))}
               </div>
@@ -286,11 +286,11 @@ export function TowerPage() {
               )}
               <div className="game-balance-strip mt-3">
                 <span>
-                  {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+                  {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
                 </span>
                 <span>
                   {t.games.tower.current}{' '}
-                  <span className="data-num ml-1 text-neon-acid">
+                  <span className="data-num ml-1 text-[#7DD3FC]">
                     {round ? formatMultiplier(round.currentMultiplier) : '—'}
                   </span>
                 </span>
@@ -308,7 +308,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
     <div className="game-stat-card">
       <div className="label">{k}</div>
       <div
-        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
+        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-[#7DD3FC]' : 'text-white'}`}
       >
         {v}
       </div>

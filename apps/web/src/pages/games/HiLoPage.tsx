@@ -151,7 +151,7 @@ export function HiLoPage() {
         <div className="space-y-4">
           <div className="game-stage-panel scanlines p-4">
             <div className="game-stage-bar -mx-4 -mt-4 mb-4 rounded-t-[22px]">
-              <span className="text-white/62">TERMINAL://HILO</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">猜大小</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Hi-Lo</span>
               <span className="text-white/72">
                 {round
                   ? `${t.games.hilo.card}${round.cardIndex + 1} · ${t.games.hilo.skips} ${round.skipsUsed}/${round.maxSkips}`
@@ -171,21 +171,21 @@ export function HiLoPage() {
                   disabled={!isActive || busy}
                   className="group rounded-[20px] border border-[rgba(9,184,38,0.22)] bg-[linear-gradient(180deg,rgba(9,184,38,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-5 text-left transition hover:border-[rgba(9,184,38,0.38)] hover:bg-[linear-gradient(180deg,rgba(9,184,38,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40"
                 >
-                  <div className="text-[10px] tracking-[0.3em] text-ink-500">
+                  <div className="text-[10px] tracking-[0.3em] text-white/55">
                     {t.games.hilo.higher}
                   </div>
-                  <div className="mt-1 font-display text-3xl text-neon-toxic">
+                  <div className="mt-1 font-display text-3xl text-[#6EE7B7]">
                     ▲ {t.games.hilo.high}
                   </div>
                   <div className="mt-2 flex items-baseline justify-between text-[11px]">
-                    <span className="text-ink-600">{t.games.hilo.chance}</span>
-                    <span className="data-num text-ink-900">
+                    <span className="text-white/75">{t.games.hilo.chance}</span>
+                    <span className="data-num text-white">
                       {(round.higherChance * 100).toFixed(1)}%
                     </span>
                   </div>
                   <div className="flex items-baseline justify-between text-[11px]">
-                    <span className="text-ink-600">{t.games.hilo.nextMult}</span>
-                    <span className="data-num text-neon-toxic">
+                    <span className="text-white/75">{t.games.hilo.nextMult}</span>
+                    <span className="data-num text-[#6EE7B7]">
                       {formatMultiplier(round.higherMultiplier)}
                     </span>
                   </div>
@@ -196,21 +196,21 @@ export function HiLoPage() {
                   disabled={!isActive || busy}
                   className="group rounded-[20px] border border-[rgba(212,87,74,0.22)] bg-[linear-gradient(180deg,rgba(212,87,74,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-5 text-left transition hover:border-[rgba(212,87,74,0.38)] hover:bg-[linear-gradient(180deg,rgba(212,87,74,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40"
                 >
-                  <div className="text-[10px] tracking-[0.3em] text-ink-500">
+                  <div className="text-[10px] tracking-[0.3em] text-white/55">
                     {t.games.hilo.lower}
                   </div>
-                  <div className="mt-1 font-display text-3xl text-neon-ember">
+                  <div className="mt-1 font-display text-3xl text-[#FCA5A5]">
                     ▼ {t.games.hilo.low}
                   </div>
                   <div className="mt-2 flex items-baseline justify-between text-[11px]">
-                    <span className="text-ink-600">{t.games.hilo.chance}</span>
-                    <span className="data-num text-ink-900">
+                    <span className="text-white/75">{t.games.hilo.chance}</span>
+                    <span className="data-num text-white">
                       {(round.lowerChance * 100).toFixed(1)}%
                     </span>
                   </div>
                   <div className="flex items-baseline justify-between text-[11px]">
-                    <span className="text-ink-600">{t.games.hilo.nextMult}</span>
-                    <span className="data-num text-neon-ember">
+                    <span className="text-white/75">{t.games.hilo.nextMult}</span>
+                    <span className="data-num text-[#FCA5A5]">
                       {formatMultiplier(round.lowerMultiplier)}
                     </span>
                   </div>
@@ -233,16 +233,16 @@ export function HiLoPage() {
 
           {round?.status === 'BUSTED' && (
             <div className="game-result-card game-result-card-loss">
-              <div className="font-display text-4xl text-neon-ember">{t.games.hilo.wrongGuess}</div>
-              <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
+              <div className="font-display text-4xl text-[#FCA5A5]">{t.games.hilo.wrongGuess}</div>
+              <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
                 {t.games.hilo.roundClosed} · -{formatAmount(round.amount)}
               </div>
             </div>
           )}
           {round?.status === 'CASHED_OUT' && (
             <div className="game-result-card game-result-card-win">
-              <div className="font-display text-4xl text-neon-acid">{t.games.hilo.cashedOut}</div>
-              <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
+              <div className="font-display text-4xl text-[#7DD3FC]">{t.games.hilo.cashedOut}</div>
+              <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
                 {t.games.hilo.payoutPlus} {formatAmount(round.potentialPayout)}
               </div>
             </div>
@@ -302,11 +302,11 @@ export function HiLoPage() {
               )}
               <div className="game-balance-strip mt-3">
                 <span>
-                  {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+                  {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
                 </span>
                 <span>
                   {t.games.mines.current}{' '}
-                  <span className="data-num ml-1 text-neon-toxic">
+                  <span className="data-num ml-1 text-[#6EE7B7]">
                     {round ? formatMultiplier(round.currentMultiplier) : '—'}
                   </span>
                 </span>
@@ -324,7 +324,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
     <div className="game-stat-card">
       <div className="label">{k}</div>
       <div
-        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
+        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-[#7DD3FC]' : 'text-white'}`}
       >
         {v}
       </div>

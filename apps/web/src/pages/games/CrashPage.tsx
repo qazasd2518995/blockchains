@@ -254,25 +254,25 @@ export function CrashPage({ config }: Props) {
         <div className="space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="text-white/62">TERMINAL://{config.gameId.toUpperCase()}</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">{meta.title}</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">{meta.suffix}</span>
               <div className="flex items-center gap-3 text-white/72">
                 {status === 'BETTING' && (
-                  <span className="text-neon-acid">
+                  <span className="text-[#7DD3FC]">
                     <span className="dot-online dot-online" />
                     {t.games.crash.betting} · {bettingCountdown}
                     {t.games.crash.seconds}
                   </span>
                 )}
                 {status === 'RUNNING' && (
-                  <span className="text-neon-toxic">
+                  <span className="text-[#6EE7B7]">
                     <span className="dot-online dot-online" />
                     {t.games.crash.running}
                   </span>
                 )}
                 {status === 'CRASHED' && (
-                  <span className="text-neon-ember">{t.games.crash.crashed}</span>
+                  <span className="text-[#FCA5A5]">{t.games.crash.crashed}</span>
                 )}
-                <span className="hidden text-ink-500 md:inline">
+                <span className="hidden text-white/55 md:inline">
                   #{snapshot?.roundNumber ?? '—'}
                 </span>
               </div>
@@ -286,11 +286,11 @@ export function CrashPage({ config }: Props) {
           <div className="game-side-card p-4">
             <div className="flex items-center justify-between">
               <span className="label">{t.games.crash.recentCrashes}</span>
-              <span className="data-num text-[10px] text-ink-500">{history.length}</span>
+              <span className="data-num text-[10px] text-white/55">{history.length}</span>
             </div>
             <div className="mt-3 flex flex-wrap gap-1">
               {history.length === 0 && (
-                <span className="text-[10px] tracking-[0.3em] text-ink-400">
+                <span className="text-[10px] tracking-[0.3em] text-white/40">
                   {t.games.crash.noHistory}
                 </span>
               )}
@@ -299,10 +299,10 @@ export function CrashPage({ config }: Props) {
                   key={i}
                   className={`rounded-[14px] border px-2 py-1.5 font-mono text-[11px] ${
                     m >= 10
-                      ? 'border-neon-acid/40 bg-neon-acid/10 text-neon-acid'
+                      ? 'border-neon-acid/40 bg-neon-acid/10 text-[#7DD3FC]'
                       : m >= 2
-                      ? 'border-neon-toxic/30 bg-neon-toxic/5 text-neon-toxic'
-                      : 'border-neon-ember/30 bg-neon-ember/5 text-neon-ember'
+                      ? 'border-neon-toxic/30 bg-neon-toxic/5 text-[#6EE7B7]'
+                      : 'border-neon-ember/30 bg-neon-ember/5 text-[#FCA5A5]'
                   }`}
                 >
                   {m.toFixed(2)}×
@@ -364,58 +364,58 @@ export function CrashPage({ config }: Props) {
               )}
               {myBet && myBet.cashed && (
                 <div className="game-result-card game-result-card-win text-center">
-                  <div className="font-display text-xl text-neon-acid">
+                  <div className="font-display text-xl text-[#7DD3FC]">
                     {t.games.crash.secured}
                   </div>
-                  <div className="data-num text-[11px] text-ink-600">+{myBet.payout}</div>
+                  <div className="data-num text-[11px] text-white/75">+{myBet.payout}</div>
                 </div>
               )}
               {status === 'CRASHED' && myBet && !myBet.cashed && (
                 <div className="game-result-card game-result-card-loss text-center">
-                  <div className="font-display text-xl text-neon-ember">
+                  <div className="font-display text-xl text-[#FCA5A5]">
                     {t.games.crash.busted}
                   </div>
                 </div>
               )}
               {status === 'BETTING' && myBet && (
                 <div className="game-stat-card text-center">
-                  <div className="text-[10px] tracking-[0.3em] text-ink-500">
+                  <div className="text-[10px] tracking-[0.3em] text-white/55">
                     {t.games.crash.betPlaced}
                   </div>
-                  <div className="data-num text-lg text-neon-acid">
+                  <div className="data-num text-lg text-[#7DD3FC]">
                     {formatAmount(myBet.amount)}
                   </div>
                 </div>
               )}
               <div className="game-balance-strip mt-3">
                 <span>
-                  {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+                  {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
                 </span>
                 <span>
-                  MULTI <span className="data-num ml-1 text-neon-acid">{formatMultiplier(multiplier)}</span>
+                  MULTI <span className="data-num ml-1 text-[#7DD3FC]">{formatMultiplier(multiplier)}</span>
                 </span>
               </div>
             </div>
           </div>
 
           <div className="game-side-card p-5">
-            <div className="flex items-center justify-between border-b border-ink-200 pb-2">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2">
               <span className="label">{t.games.crash.liveBets}</span>
-              <span className="data-num text-[10px] text-ink-500">{players.length}</span>
+              <span className="data-num text-[10px] text-white/55">{players.length}</span>
             </div>
             <div className="mt-3 max-h-64 space-y-1 overflow-y-auto text-[11px]">
-              {players.length === 0 && <div className="py-3 text-center text-ink-400">—</div>}
+              {players.length === 0 && <div className="py-3 text-center text-white/40">—</div>}
               {players.slice(0, 30).map((p, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between rounded-[14px] border border-ink-200 bg-ink-50/40 px-2 py-1.5"
+                  className="flex items-center justify-between rounded-[14px] border border-white/10 bg-white/[0.04] px-2 py-1.5"
                 >
-                  <span className="font-mono text-ink-600">
+                  <span className="font-mono text-white/75">
                     0x{p.userId.slice(-6).toUpperCase()}
                   </span>
-                  <span className="data-num text-ink-700">{p.amount}</span>
+                  <span className="data-num text-white/85">{p.amount}</span>
                   <span
-                    className={`data-num ${p.cashedOutAt ? 'text-neon-acid' : 'text-ink-500'}`}
+                    className={`data-num ${p.cashedOutAt ? 'text-[#7DD3FC]' : 'text-white/55'}`}
                   >
                     {p.cashedOutAt ? `${p.cashedOutAt.toFixed(2)}×` : '—'}
                   </span>

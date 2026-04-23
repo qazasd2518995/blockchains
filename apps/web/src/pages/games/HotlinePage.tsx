@@ -94,7 +94,7 @@ export function HotlinePage() {
         <div className="space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="text-white/62">TERMINAL://HOTLINE</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">霓虹熱線</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Hotline</span>
               <span className="text-white/72">
                 {spinning ? t.games.hotline.spinning : t.games.hotline.ready}
               </span>
@@ -111,15 +111,15 @@ export function HotlinePage() {
             >
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="font-display text-4xl text-ink-900">
+                  <div className="font-display text-4xl text-white">
                     {result.lines.length}{' '}
                     {result.lines.length !== 1 ? t.games.hotline.lines : t.games.hotline.line}
                   </div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
+                  <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
                     {t.games.hotline.totalMult} {formatMultiplier(result.multiplier)}
                   </div>
                 </div>
-                <div className="num text-3xl text-neon-acid">
+                <div className="num text-3xl text-[#7DD3FC]">
                   {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
                   {formatAmount(result.profit)}
                 </div>
@@ -129,15 +129,15 @@ export function HotlinePage() {
                   {result.lines.map((l, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between gap-3 rounded-[16px] border border-ink-200 bg-ink-50/50 px-3 py-2 text-[11px]"
+                      className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px]"
                     >
                       <div className="flex min-w-0 items-center gap-2">
-                        <span className="font-mono text-ink-700">
+                        <span className="font-mono text-white/85">
                           {t.games.hotline.row} {l.row} · {l.count}×
                         </span>
                         <HotlineSymbolBadge symbol={l.symbol} showLabel useShortLabel />
                       </div>
-                      <span className="data-num text-neon-acid">{l.payout}×</span>
+                      <span className="data-num text-[#7DD3FC]">{l.payout}×</span>
                     </div>
                   ))}
                 </div>
@@ -172,11 +172,11 @@ export function HotlinePage() {
             </button>
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+                {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
               </span>
               <span>
                 {t.games.hotline.totalMult}{' '}
-                <span className="data-num ml-1 text-neon-ember">
+                <span className="data-num ml-1 text-[#FCA5A5]">
                   {result ? formatMultiplier(result.multiplier) : '—'}
                 </span>
               </span>
@@ -189,10 +189,10 @@ export function HotlinePage() {
               {HOTLINE_SYMBOLS.map((symbol, index) => (
                 <div
                   key={symbol.key}
-                  className="flex items-center justify-between gap-3 border-b border-ink-200 pb-2 last:border-0 last:pb-0"
+                  className="flex items-center justify-between gap-3 border-b border-white/10 pb-2 last:border-0 last:pb-0"
                 >
                   <HotlineSymbolBadge symbol={index} showLabel />
-                  <span className="data-num text-ink-700">3x · 4x · 5x</span>
+                  <span className="data-num text-white/85">3x · 4x · 5x</span>
                 </div>
               ))}
             </div>

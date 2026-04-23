@@ -107,7 +107,7 @@ export function PlinkoPage() {
         <div className="space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="text-white/62">TERMINAL://PLINKO</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">彈珠台</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Plinko</span>
               <span className="text-white/72">
                 {rows} {t.games.plinko.rows} · {t.games.mines[risk]}
               </span>
@@ -117,10 +117,10 @@ export function PlinkoPage() {
               {/* 右上角 overlay */}
               <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 rounded-[16px] border border-white/10 bg-[#07131F]/52 px-3 py-2 text-[10px] tracking-[0.2em] text-white/62 backdrop-blur">
                 <div>
-                  ROWS <span className="data-num ml-1 text-neon-acid">{rows}</span>
+                  ROWS <span className="data-num ml-1 text-[#7DD3FC]">{rows}</span>
                 </div>
                 <div>
-                  RISK <span className="data-num ml-1 text-neon-acid">{risk.toUpperCase()}</span>
+                  RISK <span className="data-num ml-1 text-[#7DD3FC]">{risk.toUpperCase()}</span>
                 </div>
               </div>
             </div>
@@ -137,10 +137,10 @@ export function PlinkoPage() {
                       : 'border-neon-ember/30 bg-neon-ember/5'
                   }`}
                 >
-                  <div className="text-[9px] text-ink-500">B{r.bucket}</div>
+                  <div className="text-[9px] text-white/55">B{r.bucket}</div>
                   <div
                     className={`num text-xl ${
-                      r.multiplier >= 1 ? 'text-neon-acid' : 'text-neon-ember'
+                      r.multiplier >= 1 ? 'text-[#7DD3FC]' : 'text-[#FCA5A5]'
                     }`}
                   >
                     {formatMultiplier(r.multiplier)}
@@ -187,7 +187,7 @@ export function PlinkoPage() {
             <div className="mt-4">
               <div className="mb-2 flex items-baseline justify-between">
                 <span className="label">{t.games.plinko.rows}</span>
-                <span className="data-num text-neon-acid">{rows}</span>
+                <span className="data-num text-[#7DD3FC]">{rows}</span>
               </div>
               <input
                 type="range"
@@ -210,10 +210,10 @@ export function PlinkoPage() {
             </button>
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+                {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
               </span>
               <span>
-                {t.games.plinko.rows} <span className="data-num ml-1 text-neon-acid">{rows}</span>
+                {t.games.plinko.rows} <span className="data-num ml-1 text-[#7DD3FC]">{rows}</span>
               </span>
             </div>
           </div>

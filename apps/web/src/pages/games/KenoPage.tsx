@@ -117,7 +117,7 @@ export function KenoPage() {
         <div className="space-y-4">
           <div className="game-stage-panel scanlines p-4">
             <div className="game-stage-bar -mx-4 -mt-4 mb-4 rounded-t-[22px]">
-              <span className="text-white/62">TERMINAL://KENO</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">基諾</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Keno</span>
               <span className="text-white/72">
                 {t.games.keno.selected} {selected.size}/{MAX_PICKS}
               </span>
@@ -132,10 +132,10 @@ export function KenoPage() {
                 const picked = selected.has(n);
                 const isDrawn = drawn.has(n);
                 const isHit = hits.has(n);
-                let cls = 'border-ink-200 bg-ink-100/40 text-ink-600';
+                let cls = 'border-white/10 bg-white/[0.05] text-white/75';
                 if (isHit) cls = 'border-neon-acid bg-neon-acid text-ink-50 shadow-acid-glow';
-                else if (isDrawn) cls = 'border-neon-ember/50 bg-neon-ember/10 text-neon-ember';
-                else if (picked) cls = 'border-neon-ice/70 bg-neon-ice/10 text-neon-ice';
+                else if (isDrawn) cls = 'border-neon-ember/50 bg-neon-ember/10 text-[#FCA5A5]';
+                else if (picked) cls = 'border-neon-ice/70 bg-neon-ice/10 text-[#7DD3FC]';
                 return (
                   <button
                     key={n}
@@ -166,20 +166,20 @@ export function KenoPage() {
             >
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="font-display text-4xl text-ink-900">
+                  <div className="font-display text-4xl text-white">
                     {result.hitCount} / {result.selected.length} {t.games.keno.hits}
                   </div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
+                  <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
                     {formatMultiplier(result.multiplier)} {t.games.dice.payout}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] text-ink-500">{t.history.net}</div>
+                  <div className="text-[10px] text-white/55">{t.history.net}</div>
                   <div
                     className={`num text-3xl ${
                       Number.parseFloat(result.profit) >= 0
-                        ? 'text-neon-acid'
-                        : 'text-neon-ember'
+                        ? 'text-[#7DD3FC]'
+                        : 'text-[#FCA5A5]'
                     }`}
                   >
                     {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
@@ -234,7 +234,7 @@ export function KenoPage() {
             </button>
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-ink-900">{formatAmount(balance)}</span>
+                {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
               </span>
               <span>
                 {t.games.keno.selected}{' '}

@@ -184,7 +184,7 @@ export function MinesPage() {
         <div className="space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="text-white/62">TERMINAL://MINES</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">掃雷</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Mines</span>
               <div className="flex items-center gap-3 text-white/72">
                 <span>
                   {round
@@ -192,16 +192,16 @@ export function MinesPage() {
                     : t.games.hilo.idle.toUpperCase()}
                 </span>
                 {isActive && (
-                  <span className="text-neon-acid">
+                  <span className="text-[#7DD3FC]">
                     <span className="dot-online dot-online" />
                     {t.common.active.toUpperCase()}
                   </span>
                 )}
                 {isBusted && (
-                  <span className="text-neon-ember">{t.games.mines.busted}</span>
+                  <span className="text-[#FCA5A5]">{t.games.mines.busted}</span>
                 )}
                 {isCashedOut && (
-                  <span className="text-neon-toxic">{t.games.mines.cashedOut}</span>
+                  <span className="text-[#6EE7B7]">{t.games.mines.cashedOut}</span>
                 )}
               </div>
             </div>
@@ -212,7 +212,7 @@ export function MinesPage() {
                 <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 rounded-[16px] border border-white/10 bg-[#07131F]/52 px-3 py-2 text-[10px] tracking-[0.2em] text-white/62 backdrop-blur">
                   <div>
                     {t.games.mines.current.toUpperCase()}{' '}
-                    <span className="data-num ml-1 text-neon-acid">
+                    <span className="data-num ml-1 text-[#7DD3FC]">
                       {formatMultiplier(round.currentMultiplier)}
                     </span>
                   </div>
@@ -224,7 +224,7 @@ export function MinesPage() {
                   </div>
                   <div>
                     PAYOUT{' '}
-                    <span className="data-num ml-1 text-neon-toxic">
+                    <span className="data-num ml-1 text-[#6EE7B7]">
                       {formatAmount(round.potentialPayout)}
                     </span>
                   </div>
@@ -237,16 +237,16 @@ export function MinesPage() {
             <div className="game-result-card game-result-card-loss">
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="font-display text-5xl text-neon-ember">
+                  <div className="font-display text-5xl text-[#FCA5A5]">
                     {t.games.mines.busted}
                   </div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
+                  <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
                     {t.games.mines.mineDetonated}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] text-ink-500">{t.games.mines.loss}</div>
-                  <div className="num text-3xl text-neon-ember">
+                  <div className="text-[10px] text-white/55">{t.games.mines.loss}</div>
+                  <div className="num text-3xl text-[#FCA5A5]">
                     -{formatAmount(round.amount)}
                   </div>
                 </div>
@@ -258,16 +258,16 @@ export function MinesPage() {
             <div className="game-result-card game-result-card-win">
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="font-display text-5xl text-neon-acid">
+                  <div className="font-display text-5xl text-[#7DD3FC]">
                     {t.games.mines.cashedOut}
                   </div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-ink-600">
+                  <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
                     {t.games.mines.secured}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] text-ink-500">{t.games.dice.payout}</div>
-                  <div className="num text-3xl text-neon-acid">
+                  <div className="text-[10px] text-white/55">{t.games.dice.payout}</div>
+                  <div className="num text-3xl text-[#7DD3FC]">
                     +{formatAmount(round.potentialPayout)}
                   </div>
                 </div>
@@ -295,20 +295,20 @@ export function MinesPage() {
             />
 
             <div className="mt-6">
-              <div className="flex items-center justify-between border-b border-ink-200 pb-2">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-[9px] text-ink-500">02</span>
-                  <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">
+                  <span className="text-[9px] text-white/55">02</span>
+                  <span className="text-[11px] font-semibold tracking-[0.25em] text-white/85">
                     {t.games.mines.mines}
                   </span>
                 </div>
-                <span className="data-num text-[10px] text-ink-500">{t.games.dice.range} 1–24</span>
+                <span className="data-num text-[10px] text-white/55">{t.games.dice.range} 1–24</span>
               </div>
               <div className="mt-4 flex items-baseline gap-4">
-                <span className="num text-6xl text-neon-ember">
+                <span className="num text-6xl text-[#FCA5A5]">
                   {mineCount.toString().padStart(2, '0')}
                 </span>
-                <div className="flex-1 text-[10px] tracking-[0.2em] text-ink-500">{riskLabel}</div>
+                <div className="flex-1 text-[10px] tracking-[0.2em] text-white/55">{riskLabel}</div>
               </div>
               <input
                 type="range"
@@ -377,12 +377,12 @@ export function MinesPage() {
               )}
               <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] tracking-[0.25em]">
                 <div className="game-stat-card text-center">
-                  <div className="text-ink-500">{t.bet.balance}</div>
-                  <div className="mt-1 data-num text-sm text-ink-900">{formatAmount(balance)}</div>
+                  <div className="text-white/55">{t.bet.balance}</div>
+                  <div className="mt-1 data-num text-sm text-white">{formatAmount(balance)}</div>
                 </div>
                 <div className="game-stat-card text-center">
-                  <div className="text-ink-500">{t.games.mines.atRisk}</div>
-                  <div className="mt-1 data-num text-sm text-neon-ember">
+                  <div className="text-white/55">{t.games.mines.atRisk}</div>
+                  <div className="mt-1 data-num text-sm text-[#FCA5A5]">
                     {round && isActive ? formatAmount(round.amount) : '—'}
                   </div>
                 </div>
@@ -391,10 +391,10 @@ export function MinesPage() {
           </div>
 
           <div className="game-side-card p-5">
-            <div className="flex items-center justify-between border-b border-ink-200 pb-3">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-[9px] text-ink-500">03</span>
-                <span className="text-[11px] font-semibold tracking-[0.25em] text-ink-700">
+                <span className="text-[9px] text-white/55">03</span>
+                <span className="text-[11px] font-semibold tracking-[0.25em] text-white/85">
                   {t.games.mines.probs}
                 </span>
               </div>
@@ -428,7 +428,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
     <div className="game-stat-card">
       <div className="label">{k}</div>
       <div
-        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-neon-acid' : 'text-ink-900'}`}
+        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-[#7DD3FC]' : 'text-white'}`}
       >
         {v}
       </div>
@@ -445,9 +445,9 @@ function ProbRow({
   value: string;
   color: 'acid' | 'ember' | 'ink';
 }) {
-  const c = { acid: 'text-neon-acid', ember: 'text-neon-ember', ink: 'text-ink-700' }[color];
+  const c = { acid: 'text-[#7DD3FC]', ember: 'text-[#FCA5A5]', ink: 'text-white/85' }[color];
   return (
-    <div className="flex items-baseline justify-between border-b border-ink-200 pb-2 last:border-0 last:pb-0">
+    <div className="flex items-baseline justify-between border-b border-white/10 pb-2 last:border-0 last:pb-0">
       <span className="label">{label}</span>
       <span className={`data-num ${c}`}>{value}</span>
     </div>
