@@ -213,38 +213,63 @@ export class ReportService {
       if (!ok) throw new ApiError('FORBIDDEN', 'Cannot view this agent report');
     }
 
-    const memberIds = operator.role === 'SUPER_ADMIN' && !query.agentId
-      ? null
-      : await this.getDownlineMembers(scopeAgentId);
-
+    const memberIds =
+      operator.role === 'SUPER_ADMIN' && !query.agentId
+        ? null
+        : await this.getDownlineMembers(scopeAgentId);
     const limit = query.limit ?? 100;
-    const where: Prisma.BetWhereInput = {};
-    if (memberIds) where.userId = { in: memberIds };
-    if (query.gameId) where.gameId = query.gameId;
-    if (query.startDate) where.createdAt = { ...(where.createdAt as object), gte: new Date(query.startDate) };
-    if (query.endDate) where.createdAt = { ...(where.createdAt as object), lte: new Date(query.endDate) };
+    const cursorDate = query.cursor ? new Date(query.cursor) : null;
+    const createdBefore =
+      cursorDate && Number.isFinite(cursorDate.getTime()) ? cursorDate : undefined;
 
-    const rows = await this.prisma.bet.findMany({
-      where,
-      include: {
-        user: { select: { username: true, agentId: true, agent: { select: { username: true } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-    });
-    const hasMore = rows.length > limit;
-    const page = hasMore ? rows.slice(0, limit) : rows;
+    const [standardRows, crashRows, agg] = await Promise.all([
+      this.prisma.bet.findMany({
+        where: this.buildBetWhere({
+          memberIds,
+          gameId: query.gameId,
+          startDate: query.startDate ? new Date(query.startDate) : undefined,
+          endDate: query.endDate ? new Date(query.endDate) : undefined,
+          createdBefore,
+        }),
+        include: {
+          user: { select: { username: true, agentId: true, agent: { select: { username: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit + 1,
+      }),
+      this.prisma.crashBet.findMany({
+        where: this.buildCrashBetWhere({
+          memberIds,
+          gameId: query.gameId,
+          startDate: query.startDate ? new Date(query.startDate) : undefined,
+          endDate: query.endDate ? new Date(query.endDate) : undefined,
+          createdBefore,
+        }),
+        include: {
+          round: { select: { gameId: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit + 1,
+      }),
+      this.aggregateUnifiedBets({
+        memberIds,
+        gameId: query.gameId,
+        startDate: query.startDate ? new Date(query.startDate) : undefined,
+        endDate: query.endDate ? new Date(query.endDate) : undefined,
+      }),
+    ]);
 
-    // 聚合用 aggregate（取全部，不含 cursor 分頁）
-    const agg = await this.prisma.bet.aggregate({
-      where,
-      _count: { _all: true },
-      _sum: { amount: true, profit: true },
-    });
+    const crashUserIds = Array.from(new Set(crashRows.map((row) => row.userId)));
+    const crashUsers = crashUserIds.length > 0
+      ? await this.prisma.user.findMany({
+          where: { id: { in: crashUserIds } },
+          select: { id: true, username: true, agent: { select: { username: true } } },
+        })
+      : [];
+    const crashUserMap = new Map(crashUsers.map((user) => [user.id, user]));
 
-    return {
-      items: page.map((b) => ({
+    const merged = [
+      ...standardRows.map((b) => ({
         id: b.id,
         gameId: b.gameId,
         memberUsername: b.user.username,
@@ -255,11 +280,29 @@ export class ReportService {
         profit: b.profit.toFixed(2),
         createdAt: b.createdAt.toISOString(),
       })),
-      nextCursor: hasMore ? page[page.length - 1]!.id : null,
+      ...crashRows.map((b) => ({
+        id: b.id,
+        gameId: b.round.gameId,
+        memberUsername: crashUserMap.get(b.userId)?.username ?? b.userId,
+        agentUsername: crashUserMap.get(b.userId)?.agent?.username ?? null,
+        amount: b.amount.toFixed(2),
+        multiplier: (b.cashedOutAt ?? new Prisma.Decimal(0)).toFixed(4),
+        payout: b.payout.toFixed(2),
+        profit: b.payout.sub(b.amount).toFixed(2),
+        createdAt: b.createdAt.toISOString(),
+      })),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const hasMore = merged.length > limit;
+    const page = hasMore ? merged.slice(0, limit) : merged;
+
+    return {
+      items: page,
+      nextCursor: hasMore ? page[page.length - 1]!.createdAt : null,
       totals: {
-        betCount: agg._count._all,
-        betAmount: (agg._sum.amount ?? new Prisma.Decimal(0)).toFixed(2),
-        memberWinLoss: (agg._sum.profit ?? new Prisma.Decimal(0)).toFixed(2),
+        betCount: agg.betCount,
+        betAmount: agg.betAmount.toFixed(2),
+        memberWinLoss: agg.memberWinLoss.toFixed(2),
       },
     };
   }
@@ -465,20 +508,17 @@ export class ReportService {
 
     const memberRows: HierarchyReportRow[] = await Promise.all(
       directMembers.map(async (m) => {
-        const where: Prisma.BetWhereInput = { userId: m.id };
-        if (startDate) where.createdAt = { ...(where.createdAt as object), gte: startDate };
-        if (endDate) where.createdAt = { ...(where.createdAt as object), lte: endDate };
-        if (gameId) where.gameId = gameId;
-        applySettlementFilter(where, query.settlementStatus);
-        const agg = await this.prisma.bet.aggregate({
-          where,
-          _count: { _all: true },
-          _sum: { amount: true, profit: true, payout: true },
+        const agg = await this.aggregateUnifiedBets({
+          memberIds: [m.id],
+          gameId,
+          startDate,
+          endDate,
+          settlementStatus: query.settlementStatus,
         });
-        const betAmount = agg._sum.amount ?? new Prisma.Decimal(0);
+        const betAmount = agg.betAmount;
         const validAmount = betAmount;
-        const memberWinLoss = agg._sum.profit ?? new Prisma.Decimal(0); // 正=會員贏
-        const payout = agg._sum.payout ?? new Prisma.Decimal(0);
+        const memberWinLoss = agg.memberWinLoss; // 正=會員贏
+        const payout = agg.payout;
 
         // 會員拿的是其所屬代理（parent）的完整退水率
         const memberRebatePct = parent.rebatePercentage;
@@ -498,7 +538,7 @@ export class ReportService {
           notes: m.notes,
           balance: m.balance.toFixed(2),
           memberCount: 0,
-          betCount: agg._count._all,
+          betCount: agg.betCount,
           betAmount: betAmount.toFixed(2),
           validAmount: validAmount.toFixed(2),
           memberWinLoss: memberWinLoss.toFixed(2),
@@ -621,23 +661,18 @@ export class ReportService {
       return emptyStats(parentRebate, parentCommission, agent);
     }
     const memberIds = members.map((m) => m.id);
-
-    const where: Prisma.BetWhereInput = { userId: { in: memberIds } };
-    if (startDate) where.createdAt = { ...(where.createdAt as object), gte: startDate };
-    if (endDate) where.createdAt = { ...(where.createdAt as object), lte: endDate };
-    if (gameId) where.gameId = gameId;
-    applySettlementFilter(where, settlementStatus);
-
-    const agg = await this.prisma.bet.aggregate({
-      where,
-      _count: { _all: true },
-      _sum: { amount: true, profit: true, payout: true },
+    const agg = await this.aggregateUnifiedBets({
+      memberIds,
+      gameId,
+      startDate,
+      endDate,
+      settlementStatus,
     });
 
-    const betAmount = agg._sum.amount ?? new Prisma.Decimal(0);
+    const betAmount = agg.betAmount;
     const validAmount = betAmount;
-    const memberWinLoss = agg._sum.profit ?? new Prisma.Decimal(0); // 正=會員贏
-    const payout = agg._sum.payout ?? new Prisma.Decimal(0);
+    const memberWinLoss = agg.memberWinLoss; // 正=會員贏
+    const payout = agg.payout;
 
     // 下級代理的「實際退水率」— 依 rebateMode 調整（參考系統邏輯）
     // ALL  : 下級被上級賺走全部退水，實際退水率 = 0
@@ -673,7 +708,7 @@ export class ReportService {
     void parentCommission;
 
     return {
-      betCount: agg._count._all,
+      betCount: agg.betCount,
       betAmount: betAmount.toFixed(2),
       validAmount: validAmount.toFixed(2),
       memberWinLoss: memberWinLoss.toFixed(2),
@@ -691,6 +726,87 @@ export class ReportService {
       volumeRemitted: '0.00',
       uplineSettlement: uplineSettlement.toFixed(2),
       memberCount: members.length,
+    };
+  }
+
+  private buildBetWhere(input: {
+    memberIds: string[] | null;
+    gameId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    createdBefore?: Date;
+    settlementStatus?: 'settled' | 'unsettled';
+  }): Prisma.BetWhereInput {
+    const where: Prisma.BetWhereInput = {};
+    if (input.memberIds) where.userId = { in: input.memberIds };
+    if (input.gameId) where.gameId = input.gameId;
+    if (input.startDate) where.createdAt = { ...(where.createdAt as object), gte: input.startDate };
+    if (input.endDate) where.createdAt = { ...(where.createdAt as object), lte: input.endDate };
+    if (input.createdBefore) where.createdAt = { ...(where.createdAt as object), lt: input.createdBefore };
+    applySettlementFilter(where, input.settlementStatus);
+    return where;
+  }
+
+  private buildCrashBetWhere(input: {
+    memberIds: string[] | null;
+    gameId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    createdBefore?: Date;
+    settlementStatus?: 'settled' | 'unsettled';
+  }): Prisma.CrashBetWhereInput {
+    const where: Prisma.CrashBetWhereInput = {};
+    if (input.memberIds) where.userId = { in: input.memberIds };
+    if (input.startDate) where.createdAt = { ...(where.createdAt as object), gte: input.startDate };
+    if (input.endDate) where.createdAt = { ...(where.createdAt as object), lte: input.endDate };
+    if (input.createdBefore) where.createdAt = { ...(where.createdAt as object), lt: input.createdBefore };
+    if (input.gameId || input.settlementStatus) {
+      const roundWhere: Prisma.CrashRoundWhereInput = {};
+      if (input.gameId) roundWhere.gameId = input.gameId;
+      applyCrashSettlementFilter(roundWhere, input.settlementStatus);
+      where.round = roundWhere;
+    }
+    return where;
+  }
+
+  private async aggregateUnifiedBets(input: {
+    memberIds: string[] | null;
+    gameId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    createdBefore?: Date;
+    settlementStatus?: 'settled' | 'unsettled';
+  }): Promise<{
+    betCount: number;
+    betAmount: Prisma.Decimal;
+    payout: Prisma.Decimal;
+    memberWinLoss: Prisma.Decimal;
+  }> {
+    const [standardAgg, crashAgg] = await Promise.all([
+      this.prisma.bet.aggregate({
+        where: this.buildBetWhere(input),
+        _count: { _all: true },
+        _sum: { amount: true, profit: true, payout: true },
+      }),
+      this.prisma.crashBet.aggregate({
+        where: this.buildCrashBetWhere(input),
+        _count: { _all: true },
+        _sum: { amount: true, payout: true },
+      }),
+    ]);
+
+    const standardAmount = standardAgg._sum.amount ?? new Prisma.Decimal(0);
+    const standardPayout = standardAgg._sum.payout ?? new Prisma.Decimal(0);
+    const standardProfit = standardAgg._sum.profit ?? new Prisma.Decimal(0);
+    const crashAmount = crashAgg._sum.amount ?? new Prisma.Decimal(0);
+    const crashPayout = crashAgg._sum.payout ?? new Prisma.Decimal(0);
+    const crashProfit = crashPayout.sub(crashAmount);
+
+    return {
+      betCount: standardAgg._count._all + crashAgg._count._all,
+      betAmount: standardAmount.add(crashAmount),
+      payout: standardPayout.add(crashPayout),
+      memberWinLoss: standardProfit.add(crashProfit),
     };
   }
 
@@ -788,6 +904,17 @@ function applySettlementFilter(
     where.status = 'SETTLED';
   } else if (settlementStatus === 'unsettled') {
     where.status = 'PENDING';
+  }
+}
+
+function applyCrashSettlementFilter(
+  where: Prisma.CrashRoundWhereInput,
+  settlementStatus: 'settled' | 'unsettled' | undefined,
+): void {
+  if (settlementStatus === 'settled') {
+    where.status = 'CRASHED';
+  } else if (settlementStatus === 'unsettled') {
+    where.status = { in: ['BETTING', 'RUNNING'] };
   }
 }
 

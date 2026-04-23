@@ -409,25 +409,42 @@ export class MemberService {
   async getBets(
     operator: AdminCurrent,
     id: string,
-    query: MemberBetQuery,
+  query: MemberBetQuery,
   ): Promise<{ items: MemberBetEntry[]; nextCursor: string | null }> {
     const ok = await canManageMember(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot view bets of this member');
     const limit = query.limit ?? 50;
-    const where: Prisma.BetWhereInput = { userId: id };
-    if (query.startDate) where.createdAt = { ...(where.createdAt as object), gte: new Date(query.startDate) };
-    if (query.endDate)   where.createdAt = { ...(where.createdAt as object), lte: new Date(query.endDate) };
-    if (query.gameId) where.gameId = query.gameId;
-    const rows = await this.prisma.bet.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-    });
-    const hasMore = rows.length > limit;
-    const page = hasMore ? rows.slice(0, limit) : rows;
-    return {
-      items: page.map((b) => ({
+    const cursorDate = query.cursor ? new Date(query.cursor) : null;
+    const createdBefore = cursorDate && Number.isFinite(cursorDate.getTime()) ? cursorDate : undefined;
+
+    const betWhere: Prisma.BetWhereInput = { userId: id };
+    if (query.startDate) betWhere.createdAt = { ...(betWhere.createdAt as object), gte: new Date(query.startDate) };
+    if (query.endDate) betWhere.createdAt = { ...(betWhere.createdAt as object), lte: new Date(query.endDate) };
+    if (createdBefore) betWhere.createdAt = { ...(betWhere.createdAt as object), lt: createdBefore };
+    if (query.gameId) betWhere.gameId = query.gameId;
+
+    const crashWhere: Prisma.CrashBetWhereInput = { userId: id };
+    if (query.startDate) crashWhere.createdAt = { ...(crashWhere.createdAt as object), gte: new Date(query.startDate) };
+    if (query.endDate) crashWhere.createdAt = { ...(crashWhere.createdAt as object), lte: new Date(query.endDate) };
+    if (createdBefore) crashWhere.createdAt = { ...(crashWhere.createdAt as object), lt: createdBefore };
+    if (query.gameId) crashWhere.round = { gameId: query.gameId };
+
+    const [rows, crashRows] = await Promise.all([
+      this.prisma.bet.findMany({
+        where: betWhere,
+        orderBy: { createdAt: 'desc' },
+        take: limit + 1,
+      }),
+      this.prisma.crashBet.findMany({
+        where: crashWhere,
+        include: { round: { select: { gameId: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: limit + 1,
+      }),
+    ]);
+
+    const merged = [
+      ...rows.map((b) => ({
         id: b.id,
         gameId: b.gameId,
         amount: b.amount.toFixed(2),
@@ -436,7 +453,22 @@ export class MemberService {
         profit: b.profit.toFixed(2),
         createdAt: b.createdAt.toISOString(),
       })),
-      nextCursor: hasMore ? page[page.length - 1]!.id : null,
+      ...crashRows.map((b) => ({
+        id: b.id,
+        gameId: b.round.gameId,
+        amount: b.amount.toFixed(2),
+        multiplier: (b.cashedOutAt ?? new Prisma.Decimal(0)).toFixed(4),
+        payout: b.payout.toFixed(2),
+        profit: b.payout.sub(b.amount).toFixed(2),
+        createdAt: b.createdAt.toISOString(),
+      })),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const hasMore = merged.length > limit;
+    const page = hasMore ? merged.slice(0, limit) : merged;
+    return {
+      items: page,
+      nextCursor: hasMore ? page[page.length - 1]!.createdAt : null,
     };
   }
 }
