@@ -5,6 +5,7 @@ import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { HierarchyBreadcrumb } from '@/components/shared/HierarchyBreadcrumb';
 import { CreateMemberModal } from '@/components/shared/CreateMemberModal';
+import { CreateAgentModal } from '@/components/shared/CreateAgentModal';
 import { TransferModal } from '@/components/shared/TransferModal';
 import { AdjustBalanceModal } from '@/components/shared/AdjustBalanceModal';
 import { RebateSettingModal } from '@/components/shared/RebateSettingModal';
@@ -34,6 +35,7 @@ export function AgentHierarchyPage(): JSX.Element {
   const [reloadKey, setReloadKey] = useState(0);
 
   const [openCreateMember, setOpenCreateMember] = useState(false);
+  const [openCreateAgent, setOpenCreateAgent] = useState(false);
   const [transferFor, setTransferFor] = useState<MemberPublic | null>(null);
   const [adjustFor, setAdjustFor] = useState<MemberPublic | null>(null);
   const [rebateFor, setRebateFor] = useState<{ id: string; username: string } | null>(null);
@@ -176,6 +178,9 @@ export function AgentHierarchyPage(): JSX.Element {
         description={t.agents.description}
         rightSlot={
           <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setOpenCreateAgent(true)} className="btn-teal-outline text-[11px]">
+              + {t.agents.createSub}
+            </button>
             <button type="button" onClick={() => setOpenCreateMember(true)} className="btn-acid text-[11px]">
               + {t.agents.createMember}
             </button>
@@ -386,6 +391,12 @@ export function AgentHierarchyPage(): JSX.Element {
         onClose={() => setOpenCreateMember(false)}
         onCreated={() => setReloadKey((k) => k + 1)}
         defaultAgentId={currentParent}
+      />
+      <CreateAgentModal
+        open={openCreateAgent}
+        onClose={() => setOpenCreateAgent(false)}
+        onCreated={() => setReloadKey((k) => k + 1)}
+        defaultParentId={currentParent}
       />
       {transferFor && (
         <TransferModal

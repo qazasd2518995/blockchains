@@ -1,9 +1,10 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { MemberPublic, TransferEntry } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { Modal } from './Modal';
 import { useTranslation } from '@/i18n/useTranslation';
 
@@ -24,11 +25,15 @@ interface Props {
 export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Element {
   const { t } = useTranslation();
   const [err, setErr] = useState<string | null>(null);
+  const { agent: me } = useAdminAuthStore();
+  /** 代理（自己）當前餘額 — 從 /agents/:id 拿最新值，避免用 store 裡過期資料 */
+  const [myBalance, setMyBalance] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormInput>({
     resolver: zodResolver(schema),
@@ -36,6 +41,25 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
   });
   const direction = watch('direction');
   const amountStr = watch('amount');
+
+  useEffect(() => {
+    if (!open || !member.agentId) return;
+    void (async () => {
+      try {
+        const res = await adminApi.get<{ id: string; balance: string }>(`/agents/${member.agentId}`);
+        setMyBalance(res.data.balance);
+      } catch {
+        setMyBalance(me?.balance ?? null);
+      }
+    })();
+  }, [open, member.agentId, me]);
+
+  const fillMax = (): void => {
+    // direction = DEPOSIT（代理→會員）→ 用代理餘額
+    // direction = WITHDRAW（會員→代理）→ 用會員餘額
+    const source = direction === 'DEPOSIT' ? myBalance : member.balance;
+    if (source) setValue('amount', source);
+  };
 
   const onSubmit = async (data: FormInput) => {
     if (!member.agentId) {
@@ -63,14 +87,14 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
 
   return (
     <Modal open={open} onClose={onClose} title={t.transfers.title} subtitle={t.transfers.newTransfer} width="md">
-      <div className="mb-4 border border-ink-200 bg-ink-100/40 p-3 text-[11px]">
-        <div className="flex items-baseline justify-between">
-          <span className="text-ink-500">{t.transfers.member}</span>
-          <span className="font-mono text-ink-900">{member.username}</span>
+      <div className="mb-4 grid grid-cols-2 gap-2 border border-ink-200 bg-ink-100/40 p-3 text-[11px]">
+        <div>
+          <div className="text-ink-500">代理餘額（{me?.username ?? '—'}）</div>
+          <div className="mt-0.5 data-num text-[#186073]">{myBalance ? fmt(myBalance) : '—'}</div>
         </div>
-        <div className="mt-1 flex items-baseline justify-between">
-          <span className="text-ink-500">{t.transfers.currentBal}</span>
-          <span className="data-num text-[#186073]">{fmt(member.balance)}</span>
+        <div className="text-right">
+          <div className="text-ink-500">{t.transfers.member}（{member.username}）</div>
+          <div className="mt-0.5 data-num text-[#186073]">{fmt(member.balance)}</div>
         </div>
       </div>
 
@@ -90,7 +114,16 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
         </div>
 
         <label className="block">
-          <div className="label mb-2">{t.transfers.amount}</div>
+          <div className="mb-2 flex items-baseline justify-between">
+            <span className="label">{t.transfers.amount}</span>
+            <button
+              type="button"
+              onClick={fillMax}
+              className="text-[10px] font-semibold text-[#186073] hover:underline"
+            >
+              全部餘額
+            </button>
+          </div>
           <input
             type="text"
             inputMode="decimal"
@@ -106,10 +139,16 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
           <input type="text" {...register('description')} className="term-input" />
         </label>
 
-        <div className="border border-[#186073]/55 bg-[#FAF2D7]/60 p-3 text-[11px]">
-          <div className="flex items-baseline justify-between">
-            <span className="text-ink-500">{t.transfers.nextBal}</span>
-            <span className="data-num text-[#186073]">{estNext}</span>
+        <div className="grid grid-cols-2 gap-2 border border-[#186073]/55 bg-[#FAF2D7]/60 p-3 text-[11px]">
+          <div>
+            <div className="text-ink-500">代理轉後餘額</div>
+            <div className="mt-0.5 data-num text-[#186073]">
+              {myBalance ? estimate(myBalance, amountStr, direction === 'DEPOSIT' ? 'WITHDRAW' : 'DEPOSIT') : '—'}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-ink-500">{t.transfers.nextBal}（會員）</div>
+            <div className="mt-0.5 data-num text-[#186073]">{estNext}</div>
           </div>
         </div>
 

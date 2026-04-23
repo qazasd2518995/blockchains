@@ -8,7 +8,7 @@ interface Props {
   onDone: () => void;
 }
 
-type ControlMode = 'NORMAL' | 'AGENT_LINE' | 'SINGLE_MEMBER' | 'AUTO_DETECT';
+type ControlMode = 'SINGLE_MEMBER' | 'AGENT_LINE';
 
 export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Element {
   const [mode, setMode] = useState<ControlMode>('SINGLE_MEMBER');
@@ -58,13 +58,16 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
           <div className="label mb-2">控制模式</div>
           <select
             value={mode}
-            onChange={(e) => setMode(e.target.value as ControlMode)}
+            onChange={(e) => {
+              const next = e.target.value as ControlMode;
+              setMode(next);
+              // agent_line 模式只能針對代理，single_member 只能針對會員
+              setTargetType(next === 'AGENT_LINE' ? 'agent' : 'member');
+            }}
             className="term-input"
           >
-            <option value="NORMAL">NORMAL（全局）</option>
-            <option value="AGENT_LINE">AGENT_LINE（代理線）</option>
-            <option value="SINGLE_MEMBER">SINGLE_MEMBER（單一會員）</option>
-            <option value="AUTO_DETECT">AUTO_DETECT（自動偵測）</option>
+            <option value="SINGLE_MEMBER">單一會員</option>
+            <option value="AGENT_LINE">整條代理線</option>
           </select>
         </label>
 
