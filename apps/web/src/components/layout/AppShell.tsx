@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#E9ECEF]">
+    <div className="relative flex min-h-[100svh] flex-col overflow-x-hidden bg-[#E9ECEF]">
       <div className="pointer-events-none fixed inset-0">
         <img
           src="/backgrounds/casino-atmosphere.png"
@@ -64,9 +64,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         跳到主要內容
       </a>
 
-      <header className="sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)]">
+      <header className="sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] pt-[env(safe-area-inset-top)] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)]">
         <div className="border-b border-white/8">
-          <div className="mx-auto flex w-full max-w-[1920px] items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/80 sm:px-6 xl:px-8 2xl:px-12">
+          <div className="mx-auto flex w-full max-w-[1920px] items-center justify-between gap-3 px-3 py-2 text-[11px] text-white/80 sm:px-6 xl:px-8 2xl:px-12">
             <div className="flex items-center gap-2">
               <span className="dot-online" />
               <span>24 小時不打烊 · 即時派彩</span>
@@ -75,7 +75,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-4 px-4 py-4 sm:px-6 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-x-6 lg:gap-y-0 xl:px-8 2xl:px-12">
+        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-3 px-3 py-3 sm:px-6 sm:py-4 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-x-6 lg:gap-y-0 xl:px-8 2xl:px-12">
           <div className="flex min-w-0 items-center justify-between gap-4">
             <BrandMark to="/lobby" tone="dark" subtitle="Premium Gaming · Instant Settlement" />
             {!user ? (
@@ -85,8 +85,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             ) : null}
           </div>
 
-          <nav className="min-w-0 overflow-x-auto lg:flex lg:justify-center">
-            <div className="flex min-w-max items-center gap-2 pb-1 lg:pb-0">
+          <nav className="min-w-0 lg:flex lg:justify-center">
+            <div className="grid w-full grid-cols-4 gap-1 pb-1 lg:flex lg:min-w-max lg:items-center lg:gap-2 lg:pb-0">
               {NAV_ITEMS.map((it) => {
                 const Icon = it.icon;
                 return (
@@ -94,14 +94,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                     key={it.to}
                     to={it.to}
                     className={({ isActive }) =>
-                      `inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-semibold transition ${
+                      `inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full border px-2 py-2 text-[12px] font-semibold transition sm:gap-2 sm:px-4 sm:text-[13px] ${
                         isActive
                           ? 'border-[#E8D48A]/50 bg-[#1A2538] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]'
                           : 'border-white/12 bg-[#162338] text-white/85 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white'
                       }`
                     }
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-4 w-4 shrink-0" />
                     {it.label}
                   </NavLink>
                 );
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={handleBalanceRefresh}
-                className="inline-flex items-center gap-2 rounded-full border border-[#C9A247]/40 bg-[#162338] px-4 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition hover:border-[#C9A247] hover:bg-[#1B2940]"
+                className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-full border border-[#C9A247]/40 bg-[#162338] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition hover:border-[#C9A247] hover:bg-[#1B2940] sm:px-4"
                 title="重新載入餘額"
                 aria-label="重新載入餘額"
               >
@@ -149,7 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <main id="main-content" className="relative z-10 flex-1">
-        <div className="mx-auto w-full max-w-[1920px] px-4 py-6 sm:px-6 xl:px-8 2xl:px-12">{children}</div>
+        <div className="mx-auto w-full max-w-[1920px] px-3 py-4 sm:px-6 sm:py-6 xl:px-8 2xl:px-12">{children}</div>
       </main>
 
       <SiteFooter loggedIn />

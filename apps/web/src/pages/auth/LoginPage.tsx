@@ -60,7 +60,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#05121E]">
+    <div className="relative flex min-h-[100svh] flex-col overflow-hidden bg-[#05121E]">
       <div className="pointer-events-none absolute inset-0">
         <img
           src="/backgrounds/member-login-dealer.png"
@@ -90,7 +90,7 @@ export function LoginPage() {
         </div>
       </header>
 
-      <main className="relative z-10 flex flex-1 items-center px-5 py-10">
+      <main className="relative z-10 flex flex-1 items-center px-4 py-6 sm:px-5 sm:py-10">
         <div className="mx-auto grid w-full max-w-[1680px] items-center gap-8 xl:grid-cols-[minmax(0,1fr)_440px]">
           <section className="hidden min-w-0 xl:block">
             <div className="max-w-[760px]">
@@ -118,7 +118,7 @@ export function LoginPage() {
             </div>
           </section>
 
-          <div className="w-full max-w-[440px] justify-self-center rounded-[18px] border border-white/12 bg-white/92 p-8 shadow-[0_30px_80px_rgba(2,6,23,0.32)] backdrop-blur-md">
+          <div className="w-full max-w-[440px] justify-self-center rounded-[14px] border border-white/12 bg-white/92 p-5 shadow-[0_30px_80px_rgba(2,6,23,0.32)] backdrop-blur-md sm:rounded-[18px] sm:p-8">
             <div className="mb-6 text-center">
               <h1 className="text-[24px] font-bold text-[#0F172A]">{t.auth.identifyYourself}</h1>
               <p className="mt-2 text-[13px] text-[#4A5568]">{t.auth.loginDesc}</p>
@@ -133,7 +133,7 @@ export function LoginPage() {
                   autoCorrect="off"
                   spellCheck={false}
                   placeholder={t.auth.usernamePlaceholder}
-                  className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[14px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25"
+                  className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25 sm:text-[14px]"
                   {...register('username')}
                 />
               </Field>
@@ -143,7 +143,7 @@ export function LoginPage() {
                   type="password"
                   autoComplete="current-password"
                   placeholder={t.auth.passwordPlaceholder}
-                  className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[14px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25"
+                  className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25 sm:text-[14px]"
                   {...register('password')}
                 />
               </Field>

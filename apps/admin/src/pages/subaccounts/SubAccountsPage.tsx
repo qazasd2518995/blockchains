@@ -218,7 +218,7 @@ export function SubAccountsPage(): JSX.Element {
       />
 
       {isSuperAdmin && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 crt-panel p-4">
+        <div className="admin-mobile-stack mb-4 flex flex-wrap items-center gap-3 crt-panel p-4">
           <span className="text-[11px] font-semibold tracking-[0.2em] text-ink-600">目标代理</span>
           <input
             type="text"

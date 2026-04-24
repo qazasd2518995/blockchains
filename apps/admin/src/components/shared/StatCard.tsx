@@ -16,9 +16,9 @@ const accentMap: Record<NonNullable<Props['accent']>, { text: string; border: st
 export function StatCard({ label, value, hint, accent = 'acid' }: Props): JSX.Element {
   const { text, border } = accentMap[accent];
   return (
-    <div className={`card-base p-5 border-l-[3px] ${border}`}>
+    <div className={`card-base border-l-[3px] p-4 sm:p-5 ${border}`}>
       <div className="label text-[#186073]">{label}</div>
-      <div className={`mt-2 num text-4xl ${text}`}>{value}</div>
+      <div className={`mt-2 num break-words text-3xl sm:text-4xl ${text}`}>{value}</div>
       {hint && <div className="mt-2 font-mono text-[10px] tracking-[0.2em] text-[#4A5568]">{hint}</div>}
     </div>
   );

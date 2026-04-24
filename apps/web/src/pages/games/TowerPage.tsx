@@ -227,8 +227,8 @@ export function TowerPage() {
         rtpAccent="acid"
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines p-3">
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">疊塔</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Tower</span>
@@ -239,13 +239,13 @@ export function TowerPage() {
               </span>
             </div>
 
-            <div className="game-canvas-shell mx-auto mt-2 aspect-[3/4] w-full max-w-[420px]">
+            <div className="game-canvas-shell game-canvas-tall mx-auto mt-2 aspect-[3/4] w-full max-w-[420px]">
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
           </div>
 
           {round && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Stat
                 k={t.games.tower.current}
                 v={formatMultiplier(round.currentMultiplier)}
@@ -285,7 +285,7 @@ export function TowerPage() {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="game-control-stack space-y-4">
           <div className="game-side-card p-5">
             <BetControls
               amount={amount}
@@ -303,7 +303,7 @@ export function TowerPage() {
                     type="button"
                     onClick={() => setDifficulty(d.id)}
                     disabled={round?.status === 'ACTIVE' || busy}
-                    className={`flex w-full items-center justify-between rounded-[16px] border p-3 text-left transition ${
+                    className={`flex w-full flex-col items-start justify-between gap-1 rounded-[14px] border p-3 text-left transition sm:flex-row sm:items-center sm:rounded-[16px] ${
                       difficulty === d.id
                         ? 'border-neon-acid/30 bg-neon-acid/8'
                         : 'border-white/10 bg-white/76 hover:border-[#186073]/28'

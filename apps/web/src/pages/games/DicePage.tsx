@@ -117,8 +117,8 @@ export function DicePage() {
         rtpAccent="acid"
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">骰子</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Dice</span>
@@ -127,7 +127,7 @@ export function DicePage() {
                 {t.common.ready.toUpperCase()}
               </span>
             </div>
-            <div className="game-canvas-shell relative aspect-[16/7] w-full">
+            <div className="game-canvas-shell game-canvas-wide relative aspect-[16/7] w-full">
               <canvas ref={canvasRef} className="h-full w-full" />
 
               {/* 右上角即時統計（疊在画布上） */}
@@ -153,12 +153,12 @@ export function DicePage() {
 
             {/* 滑杆 + 方向 toggle（紧贴画布底部，免滚动） */}
             <div className="border-t border-[#16324A]/10 p-4 md:p-5">
-              <div className="mb-2 flex items-baseline justify-between">
+              <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
                 <div className="flex items-baseline gap-2">
                   <span className="label">{t.games.dice.threshold}</span>
                   <span className="num text-2xl text-white">{target.toFixed(2)}</span>
                 </div>
-                <div className="flex gap-1 text-[10px]">
+                <div className="grid grid-cols-2 gap-1 text-[10px] sm:flex">
                   <button
                     type="button"
                     onClick={() => setDirection('under')}
@@ -237,7 +237,7 @@ export function DicePage() {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="game-control-stack space-y-4">
           <div className="game-side-card p-5">
             <BetControls
               amount={amount}

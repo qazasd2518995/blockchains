@@ -596,7 +596,7 @@ function Section({
 }) {
   return (
     <div>
-      <div className="mb-2 flex items-baseline justify-between gap-3">
+      <div className="mb-2 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-baseline">
         <div>
           <span className="label">{title}</span>
           {subtitle && <span className="ml-2 text-[10px] text-ink-500">· {subtitle}</span>}

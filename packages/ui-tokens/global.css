@@ -669,3 +669,208 @@
     transform: none !important;
   }
 }
+
+@media (max-width: 767px) {
+  html {
+    scroll-padding-top: 8rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    -webkit-tap-highlight-color: rgba(24, 96, 115, 0.18);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  .btn-teal,
+  .btn-teal-outline,
+  .btn-acid,
+  .btn-ember,
+  .game-choice-btn {
+    min-height: 44px;
+  }
+
+  .btn-chip {
+    min-height: 38px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .input-salon,
+  .term-input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .term-range {
+    height: 2rem;
+  }
+
+  .term-range::-webkit-slider-thumb {
+    height: 24px;
+    margin-top: -9px;
+    width: 24px;
+  }
+
+  .term-range::-moz-range-thumb {
+    height: 24px;
+    width: 24px;
+  }
+
+  .tag {
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  .game-play-grid {
+    gap: 0.875rem !important;
+  }
+
+  .game-main-stack,
+  .game-control-stack {
+    min-width: 0;
+  }
+
+  .game-main-stack,
+  .game-control-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+  }
+
+  .game-main-stack > :not([hidden]) ~ :not([hidden]),
+  .game-control-stack > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0 !important;
+  }
+
+  .game-stage-panel,
+  .game-side-card,
+  .game-result-card,
+  .game-stat-card {
+    border-radius: 16px;
+  }
+
+  .game-side-card {
+    padding: 0.875rem !important;
+  }
+
+  .game-stage-bar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.6rem;
+    justify-content: space-between;
+    letter-spacing: 0.08em;
+    padding: 0.7rem 0.875rem;
+  }
+
+  .game-stage-bar > * {
+    min-width: 0;
+  }
+
+  .game-stage-bar > span:first-child {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .game-canvas-shell {
+    border-radius: 14px;
+  }
+
+  .game-canvas-wide {
+    aspect-ratio: 4 / 3 !important;
+    min-height: 230px;
+  }
+
+  .game-canvas-keno {
+    aspect-ratio: 5 / 2 !important;
+    min-height: 148px;
+  }
+
+  .game-canvas-tall {
+    max-height: min(68svh, 520px);
+  }
+
+  .game-canvas-shell > .pointer-events-none.absolute {
+    max-width: calc(100% - 1rem);
+  }
+
+  .game-canvas-shell > .pointer-events-none.absolute.right-3.top-3 {
+    right: 0.5rem;
+    top: 0.5rem;
+    gap: 0.125rem;
+    letter-spacing: 0.08em;
+    padding: 0.45rem 0.55rem;
+  }
+
+  .game-result-card {
+    padding: 0.875rem;
+  }
+
+  .game-result-card .text-6xl,
+  .game-result-card .text-5xl {
+    font-size: 2rem;
+    line-height: 1.08;
+  }
+
+  .game-result-card .text-4xl {
+    font-size: 1.75rem;
+    line-height: 1.12;
+  }
+
+  .game-result-card > .flex {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .game-result-card > .flex > .text-right {
+    text-align: left;
+  }
+
+  .game-balance-strip {
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    letter-spacing: 0.08em;
+  }
+
+  .game-stat-card {
+    padding: 0.75rem;
+  }
+
+  .game-stat-card .text-3xl {
+    font-size: 1.35rem;
+    line-height: 1.15;
+  }
+
+  .game-choice-btn {
+    border-radius: 12px;
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+  }
+
+  .admin-table-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .admin-mobile-stack {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .admin-mobile-stack > * {
+    width: 100%;
+  }
+
+  .card-base,
+  .crt-panel,
+  .panel-felt {
+    border-radius: 10px;
+  }
+}

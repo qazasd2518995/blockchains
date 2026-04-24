@@ -119,7 +119,7 @@ export function ReportsPage(): JSX.Element {
       )}
 
       <div className="mb-4 crt-panel p-4">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="admin-mobile-stack flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2">
             <span className="label">起始日</span>
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="term-input" />
@@ -161,7 +161,7 @@ export function ReportsPage(): JSX.Element {
               className="term-input max-w-[160px] font-mono"
             />
           </label>
-          <div className="flex items-center gap-1 text-[10px]">
+          <div className="grid grid-cols-2 gap-1 text-[10px] sm:flex sm:items-center">
             <button type="button" onClick={() => quickPreset('today')} className="btn-teal-outline">[今日]</button>
             <button type="button" onClick={() => quickPreset('yesterday')} className="btn-teal-outline">[昨日]</button>
             <button type="button" onClick={() => quickPreset('lastWeek')} className="btn-teal-outline">[上周]</button>
@@ -197,7 +197,7 @@ function ReportTable({
 }): JSX.Element {
   return (
     <div className="crt-panel overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="admin-table-scroll overflow-x-auto">
         <table className="w-full min-w-[1800px] text-[11px]">
           <thead>
             <tr className="border-b border-ink-200 bg-ink-100/60 text-[9px] uppercase tracking-[0.2em] text-ink-600">

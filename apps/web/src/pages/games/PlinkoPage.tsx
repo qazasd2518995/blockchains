@@ -113,8 +113,8 @@ export function PlinkoPage() {
         rtpAccent="acid"
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">彈珠台</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Plinko</span>
@@ -122,7 +122,7 @@ export function PlinkoPage() {
                 {rows} {t.games.plinko.rows} · {t.games.mines[risk]}
               </span>
             </div>
-            <div className="game-canvas-shell relative aspect-[16/11] w-full">
+            <div className="game-canvas-shell game-canvas-wide relative aspect-[16/11] w-full">
               <canvas ref={canvasRef} className="h-full w-full" />
               {/* 右上角 overlay */}
               <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 rounded-[16px] border border-white/10 bg-[#07131F]/52 px-3 py-2 text-[10px] tracking-[0.2em] text-white/62 backdrop-blur">
@@ -144,7 +144,7 @@ export function PlinkoPage() {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="game-control-stack space-y-4">
           <div className="game-side-card p-5">
             <BetControls
               amount={amount}

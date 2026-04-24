@@ -97,7 +97,7 @@ export function AgentAnalysisPage(): JSX.Element {
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="admin-mobile-stack mb-4 flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2">
           <span className="label">{t.reports.from}</span>
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="term-input" />

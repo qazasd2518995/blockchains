@@ -19,14 +19,14 @@ interface Props<T> {
 export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick }: Props<T>): JSX.Element {
   return (
     <div className="card-base overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-[12px]">
+      <div className="admin-table-scroll overflow-x-auto">
+        <table className="w-full min-w-[720px] text-left text-[12px]">
           <thead>
             <tr className="border-b border-[#E5E7EB] bg-[#F5F7FA]/60">
               {columns.map((c) => (
                 <th
                   key={c.key}
-                  className={`px-4 py-3 font-mono text-[10px] uppercase tracking-[0.24em] text-[#186073] ${
+                  className={`whitespace-nowrap px-4 py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-[#186073] sm:tracking-[0.24em] ${
                     c.align === 'right'
                       ? 'text-right'
                       : c.align === 'center'
@@ -72,7 +72,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick }: Props
                 {columns.map((c) => (
                   <td
                     key={c.key}
-                    className={`px-4 py-3 ${
+                    className={`px-4 py-3 align-middle ${
                       c.align === 'right'
                         ? 'text-right'
                         : c.align === 'center'

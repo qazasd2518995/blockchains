@@ -129,8 +129,8 @@ export function RoulettePage({ variant }: Props) {
         rtpAccent="ember"
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines p-3">
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">迷你輪盤</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Roulette</span>
@@ -139,7 +139,7 @@ export function RoulettePage({ variant }: Props) {
               </span>
             </div>
 
-            <div className="game-canvas-shell relative mx-auto mt-3 aspect-square w-full max-w-[360px]">
+            <div className="game-canvas-shell game-canvas-tall relative mx-auto mt-3 aspect-square w-full max-w-[360px]">
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
 
@@ -243,7 +243,7 @@ export function RoulettePage({ variant }: Props) {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="game-control-stack space-y-4">
           <div className="game-side-card p-5">
             <div className="label">{t.games.roulette.chipSize}</div>
             <div className="mt-2 grid grid-cols-4 gap-1">
@@ -333,7 +333,7 @@ function NumberBtn({
     <button
       type="button"
       onClick={onClick}
-      className={`relative aspect-square rounded-[16px] border border-white/8 ${bg} font-display text-2xl text-white transition hover:border-[#C9A247] hover:shadow-[0_12px_24px_-18px_rgba(15,23,42,0.55)]`}
+      className={`relative aspect-square min-h-[42px] rounded-[12px] border border-white/8 ${bg} font-display text-lg text-white transition hover:border-[#C9A247] hover:shadow-[0_12px_24px_-18px_rgba(15,23,42,0.55)] sm:rounded-[16px] sm:text-2xl`}
     >
       {n}
       {placed && (
@@ -360,7 +360,7 @@ function OutsideBtn({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-[14px] border border-white/10 ${bg} py-2 font-mono text-[11px] tracking-[0.2em] ${color === 'black' ? 'text-white' : 'text-white/85'} transition hover:border-[#C9A247] hover:text-[#186073]`}
+      className={`min-h-[42px] rounded-[12px] border border-white/10 ${bg} px-1 py-2 font-mono text-[10px] tracking-[0.08em] ${color === 'black' ? 'text-white' : 'text-white/85'} transition hover:border-[#C9A247] hover:text-[#186073] sm:rounded-[14px] sm:text-[11px] sm:tracking-[0.2em]`}
     >
       {label}
     </button>

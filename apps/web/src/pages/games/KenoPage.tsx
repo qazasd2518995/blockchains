@@ -128,8 +128,8 @@ export function KenoPage() {
         rtpAccent="ice"
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines p-4">
             <div className="game-stage-bar -mx-4 -mt-4 mb-4 rounded-t-[22px]">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">基諾</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Keno</span>
@@ -138,11 +138,11 @@ export function KenoPage() {
               </span>
             </div>
 
-            <div className="game-canvas-shell mt-3 aspect-[16/5] w-full">
+            <div className="game-canvas-shell game-canvas-keno mt-3 aspect-[16/5] w-full">
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
 
-            <div className="mt-4 grid grid-cols-8 gap-2">
+            <div className="mt-4 grid grid-cols-5 gap-1.5 sm:grid-cols-8 sm:gap-2">
               {Array.from({ length: POOL_SIZE }, (_, i) => i + 1).map((n) => {
                 const picked = selected.has(n);
                 const isDrawn = drawn.has(n);
@@ -157,7 +157,7 @@ export function KenoPage() {
                     type="button"
                     onClick={() => toggle(n)}
                     disabled={busy}
-                    className={`aspect-square rounded-[18px] border-2 font-display text-2xl transition ${cls} hover:border-neon-ice/50`}
+                    className={`aspect-square min-h-[46px] rounded-[12px] border-2 font-display text-base transition ${cls} hover:border-neon-ice/50 sm:rounded-[18px] sm:text-2xl`}
                   >
                     {n}
                   </button>
@@ -165,7 +165,7 @@ export function KenoPage() {
               })}
             </div>
 
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:flex">
               <button type="button" onClick={autoPick} disabled={busy} className="game-choice-btn game-choice-btn-ice">
                 ⚂ {t.games.keno.autoPick}
               </button>
@@ -213,7 +213,7 @@ export function KenoPage() {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="game-control-stack space-y-4">
           <div className="game-side-card p-5">
             <BetControls
               amount={amount}

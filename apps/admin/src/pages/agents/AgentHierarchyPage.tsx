@@ -219,7 +219,7 @@ export function AgentHierarchyPage(): JSX.Element {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="admin-mobile-stack mb-4 flex flex-wrap items-center gap-3">
         <input
           type="text"
           value={keyword}
@@ -253,7 +253,7 @@ export function AgentHierarchyPage(): JSX.Element {
       ) : data?.items.length === 0 ? (
         <div className="crt-panel p-8 text-center text-ink-400">{t.agents.emptyLevel}</div>
       ) : (
-        <div className="crt-panel overflow-x-auto">
+        <div className="crt-panel admin-table-scroll overflow-x-auto">
           <div
             className="grid min-w-[960px] gap-2 border-b border-ink-200 bg-ink-100/40 px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-ink-500"
             style={ACCOUNT_TABLE_GRID_STYLE}

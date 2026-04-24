@@ -1,7 +1,31 @@
+import { createHmac } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { loginSchema, refreshSchema } from './auth.schema.js';
 import { AuthService } from './auth.service.js';
 import { ApiError } from '../../utils/errors.js';
+import { config } from '../../config.js';
+
+const BACCARAT_LAUNCH_TTL_SECONDS = 15 * 60;
+
+function toBase64Url(value: string): string {
+  return Buffer.from(value).toString('base64url');
+}
+
+function signBaccaratLaunchToken(payload: Record<string, unknown>): string {
+  const now = Math.floor(Date.now() / 1000);
+  const header = toBase64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = toBase64Url(
+    JSON.stringify({
+      ...payload,
+      iat: now,
+      exp: now + BACCARAT_LAUNCH_TTL_SECONDS,
+    }),
+  );
+  const signature = createHmac('sha256', config.BACCARAT_INTEGRATION_SECRET)
+    .update(`${header}.${body}`)
+    .digest('base64url');
+  return `${header}.${body}.${signature}`;
+}
 
 export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new AuthService(fastify.prisma, fastify.jwt);
@@ -58,21 +82,14 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       throw new ApiError('FORBIDDEN', 'Only player accounts can enter baccarat');
     }
 
-    const signer = fastify.jwt as unknown as {
-      sign(payload: Record<string, unknown>, options?: Record<string, unknown>): string;
-    };
-
-    const launchToken = signer.sign(
-      {
-        aud: 'baccarat-launch',
-        userId: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        balance: user.balance.toFixed(2),
-        role: 'member',
-      },
-      { expiresIn: '15m' },
-    );
+    const launchToken = signBaccaratLaunchToken({
+      aud: 'baccarat-launch',
+      userId: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      balance: user.balance.toFixed(2),
+      role: 'member',
+    });
 
     return { launchToken };
   });

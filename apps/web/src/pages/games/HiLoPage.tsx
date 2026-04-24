@@ -178,8 +178,8 @@ export function HiLoPage() {
         rtpAccent="toxic"
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines p-4">
             <div className="game-stage-bar -mx-4 -mt-4 mb-4 rounded-t-[22px]">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">猜大小</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Hi-Lo</span>
@@ -190,22 +190,22 @@ export function HiLoPage() {
               </span>
             </div>
 
-            <div className="game-canvas-shell mt-3 aspect-[16/8] w-full">
+            <div className="game-canvas-shell game-canvas-wide mt-3 aspect-[16/8] w-full">
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
 
             {round && (
-              <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => handleGuess('higher')}
                   disabled={!isActive || busy}
-                  className="group rounded-[20px] border border-[rgba(9,184,38,0.22)] bg-[linear-gradient(180deg,rgba(9,184,38,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-5 text-left transition hover:border-[rgba(9,184,38,0.38)] hover:bg-[linear-gradient(180deg,rgba(9,184,38,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40"
+                  className="group rounded-[16px] border border-[rgba(9,184,38,0.22)] bg-[linear-gradient(180deg,rgba(9,184,38,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-4 text-left transition hover:border-[rgba(9,184,38,0.38)] hover:bg-[linear-gradient(180deg,rgba(9,184,38,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40 sm:rounded-[20px] sm:p-5"
                 >
                   <div className="text-[10px] tracking-[0.3em] text-white/55">
                     {t.games.hilo.higher}
                   </div>
-                  <div className="mt-1 font-display text-3xl text-[#6EE7B7]">
+                  <div className="mt-1 font-display text-2xl text-[#6EE7B7] sm:text-3xl">
                     ▲ {t.games.hilo.high}
                   </div>
                   <div className="mt-2 flex items-baseline justify-between text-[11px]">
@@ -225,12 +225,12 @@ export function HiLoPage() {
                   type="button"
                   onClick={() => handleGuess('lower')}
                   disabled={!isActive || busy}
-                  className="group rounded-[20px] border border-[rgba(212,87,74,0.22)] bg-[linear-gradient(180deg,rgba(212,87,74,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-5 text-left transition hover:border-[rgba(212,87,74,0.38)] hover:bg-[linear-gradient(180deg,rgba(212,87,74,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40"
+                  className="group rounded-[16px] border border-[rgba(212,87,74,0.22)] bg-[linear-gradient(180deg,rgba(212,87,74,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-4 text-left transition hover:border-[rgba(212,87,74,0.38)] hover:bg-[linear-gradient(180deg,rgba(212,87,74,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40 sm:rounded-[20px] sm:p-5"
                 >
                   <div className="text-[10px] tracking-[0.3em] text-white/55">
                     {t.games.hilo.lower}
                   </div>
-                  <div className="mt-1 font-display text-3xl text-[#FCA5A5]">
+                  <div className="mt-1 font-display text-2xl text-[#FCA5A5] sm:text-3xl">
                     ▼ {t.games.hilo.low}
                   </div>
                   <div className="mt-2 flex items-baseline justify-between text-[11px]">
@@ -251,7 +251,7 @@ export function HiLoPage() {
           </div>
 
           {round && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Stat
                 k={t.games.mines.current}
                 v={formatMultiplier(round.currentMultiplier)}
@@ -286,7 +286,7 @@ export function HiLoPage() {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="game-control-stack space-y-4">
           <div className="game-side-card p-5">
             <BetControls
               amount={amount}

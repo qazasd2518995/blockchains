@@ -44,7 +44,7 @@ export function AuditLogPage(): JSX.Element {
         titleSuffixColor="ember"
       />
 
-      <div className="mb-4 flex items-center gap-3">
+      <div className="admin-mobile-stack mb-4 flex items-center gap-3">
         <input
           type="text"
           placeholder="过滤操作名称"
@@ -69,18 +69,18 @@ export function AuditLogPage(): JSX.Element {
           {items.map((r) => (
             <div key={r.id} className="crt-panel overflow-hidden">
               <div
-                className="grid cursor-pointer grid-cols-[150px_130px_1fr_130px_auto] items-center gap-3 px-4 py-3 text-[11px] transition hover:bg-[#FAF2D7]/60"
+                className="grid cursor-pointer grid-cols-[1fr_auto] items-center gap-2 px-4 py-3 text-[11px] transition hover:bg-[#FAF2D7]/60 sm:grid-cols-[150px_130px_1fr_130px_auto] sm:gap-3"
                 onClick={() => setExpanded(expanded === r.id ? null : r.id)}
               >
                 <span className="data-num text-[10px] text-ink-500">
                   {new Date(r.createdAt).toLocaleString('en-GB')}
                 </span>
-                <span className="font-mono text-ink-700">{r.actorUsername}</span>
-                <span className="font-semibold tracking-[0.08em] text-[#186073]">{formatAuditAction(r.action)}</span>
-                <span className="font-mono text-[10px] text-ink-500">
+                <span className="col-span-2 font-mono text-ink-700 sm:col-auto">{r.actorUsername}</span>
+                <span className="col-span-2 font-semibold tracking-[0.08em] text-[#186073] sm:col-auto">{formatAuditAction(r.action)}</span>
+                <span className="col-span-2 font-mono text-[10px] text-ink-500 sm:col-auto">
                   {r.targetType ? `${formatAuditTarget(r.targetType)} ${r.targetId?.slice(-8) ?? ''}` : '—'}
                 </span>
-                <span className="text-[10px] text-ink-400">
+                <span className="col-start-2 row-start-1 justify-self-end text-[10px] text-ink-400 sm:col-auto sm:row-auto sm:justify-self-auto">
                   {expanded === r.id ? '▼' : '▶'}
                 </span>
               </div>

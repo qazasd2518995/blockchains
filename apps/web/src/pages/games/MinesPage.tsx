@@ -209,8 +209,8 @@ export function MinesPage() {
         rtpAccent="ember"
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">掃雷</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Mines</span>
@@ -234,7 +234,7 @@ export function MinesPage() {
                 )}
               </div>
             </div>
-            <div className="game-canvas-shell relative mx-auto aspect-square w-full max-h-[520px]" style={{ maxWidth: 520 }}>
+            <div className="game-canvas-shell game-canvas-tall relative mx-auto aspect-square w-full max-h-[520px]" style={{ maxWidth: 520 }}>
               <canvas ref={canvasRef} className="h-full w-full" />
               {/* 右上 overlay — 當前倍率/下一倍/派彩 */}
               {round && (
@@ -314,7 +314,7 @@ export function MinesPage() {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="game-control-stack space-y-4">
           <div className="game-side-card p-5">
             <BetControls
               amount={amount}
@@ -334,7 +334,7 @@ export function MinesPage() {
                 <span className="data-num text-[10px] text-white/55">{t.games.dice.range} 1–24</span>
               </div>
               <div className="mt-4 flex items-baseline gap-4">
-                <span className="num text-6xl text-[#FCA5A5]">
+                <span className="num text-5xl text-[#FCA5A5] sm:text-6xl">
                   {mineCount.toString().padStart(2, '0')}
                 </span>
                 <div className="flex-1 text-[10px] tracking-[0.2em] text-white/55">{riskLabel}</div>

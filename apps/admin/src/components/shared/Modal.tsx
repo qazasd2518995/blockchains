@@ -43,7 +43,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
 
   return createPortal(
     <div className="fixed inset-0 z-[5000] overflow-y-auto overscroll-contain">
-      <div className="relative flex min-h-full items-start justify-center px-4 py-10">
+      <div className="relative flex min-h-full items-start justify-center px-3 py-4 sm:px-4 sm:py-10">
         <button
           type="button"
           aria-label="关闭对话框"
@@ -56,16 +56,16 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
           aria-modal="true"
           aria-labelledby={titleId}
           tabIndex={-1}
-          className={`relative z-[1] max-h-[calc(100vh-5rem)] w-full overflow-y-auto ${widthMap[width]} card-base scanlines p-0 focus:outline-none`}
+          className={`relative z-[1] max-h-[calc(100svh-2rem)] w-full overflow-y-auto ${widthMap[width]} card-base scanlines p-0 focus:outline-none sm:max-h-[calc(100vh-5rem)]`}
         >
-          <div className="flex items-center justify-between border-b border-[#E5E7EB] px-6 py-4">
-            <div>
+          <div className="flex items-start justify-between gap-3 border-b border-[#E5E7EB] px-4 py-4 sm:px-6">
+            <div className="min-w-0">
               <div className="flex items-baseline gap-2">
                 <span id={titleId} className="font-semibold text-base text-[#186073]">{title}</span>
                 <span className="text-xs text-[#C9A247]">◆</span>
               </div>
               {subtitle && (
-                <div className="mt-1 font-semibold text-2xl text-[#0F172A]">{subtitle}</div>
+                <div className="mt-1 break-words font-semibold text-xl text-[#0F172A] sm:text-2xl">{subtitle}</div>
               )}
             </div>
             <button
@@ -77,8 +77,8 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
               [ESC]
             </button>
           </div>
-          <div className="px-6 py-5">{children}</div>
-          {footer && <div className="border-t border-[#E5E7EB] px-6 py-3">{footer}</div>}
+          <div className="px-4 py-4 sm:px-6 sm:py-5">{children}</div>
+          {footer && <div className="border-t border-[#E5E7EB] px-4 py-3 sm:px-6">{footer}</div>}
         </div>
       </div>
     </div>,

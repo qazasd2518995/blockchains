@@ -96,18 +96,18 @@ export function BaccaratPage() {
   }, [apiBase, baccaratUrl, iframeKey, user?.role, user?.username]);
 
   return (
-    <div className="-mx-4 space-y-4 sm:-mx-6 xl:-mx-8 2xl:-mx-12">
+    <div className="-mx-4 space-y-3 sm:-mx-6 sm:space-y-4 xl:-mx-8 2xl:-mx-12">
       <section className="overflow-hidden border-y border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] text-white shadow-[0_18px_40px_rgba(2,6,23,0.16)]">
         <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-4 px-4 py-4 sm:px-6 xl:px-8 2xl:px-12 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <div className="label !text-white/45">Table Hall</div>
-            <h1 className="mt-2 text-[30px] font-bold text-white">百家樂</h1>
+            <h1 className="mt-2 text-[26px] font-bold text-white sm:text-[30px]">百家樂</h1>
             <p className="mt-2 max-w-[720px] text-[14px] leading-relaxed text-white/72">
               百家樂會直接內嵌在 BG 站內，外層保留大廳導覽、遊戲記錄與餘額列，切回其他電子遊戲不用重新登入。
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
             <Link
               to="/lobby"
               className="btn-chip border-white/12 bg-[#162338] text-white/82 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white"
@@ -125,7 +125,7 @@ export function BaccaratPage() {
             <button
               type="button"
               onClick={() => setIframeKey((k) => k + 1)}
-              className="btn-chip border-white/12 bg-[#162338] text-white/82 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white"
+              className="btn-chip col-span-2 border-white/12 bg-[#162338] text-white/82 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white sm:col-span-1"
             >
               <RefreshCw className="h-4 w-4" />
               重新載入百家樂
@@ -135,7 +135,7 @@ export function BaccaratPage() {
                 href={launchUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="btn-teal text-[13px]"
+                className="btn-teal col-span-2 text-[13px] sm:col-span-1"
               >
                 新視窗開啟
                 <ExternalLink className="h-4 w-4" />
@@ -163,7 +163,7 @@ export function BaccaratPage() {
               key={iframeKey}
               title="BG Baccarat"
               src={launchUrl}
-              className="h-[calc(100vh-220px)] min-h-[820px] w-full bg-[#0B1220]"
+              className="h-[calc(100svh-190px)] min-h-[560px] w-full bg-[#0B1220] md:h-[calc(100vh-220px)] md:min-h-[820px]"
               allow="autoplay; clipboard-read; clipboard-write; fullscreen"
               referrerPolicy="strict-origin-when-cross-origin"
             />

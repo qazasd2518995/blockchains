@@ -26,12 +26,12 @@ export function LandingPage() {
   if (accessToken) return <Navigate to="/lobby" replace />;
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#E9ECEF]">
+    <div className="relative flex min-h-[100svh] flex-col overflow-x-hidden bg-[#E9ECEF]">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(24,96,115,0.18),transparent_72%)]" />
 
-      <header className="sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)]">
+      <header className="sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] pt-[env(safe-area-inset-top)] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)]">
         <div className="border-b border-white/8">
-          <div className="mx-auto flex w-full max-w-[1920px] items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/80 sm:px-6 xl:px-8 2xl:px-12">
+          <div className="mx-auto flex w-full max-w-[1920px] items-center justify-between gap-3 px-3 py-2 text-[11px] text-white/80 sm:px-6 xl:px-8 2xl:px-12">
             <div className="flex items-center gap-2">
               <span className="dot-online" />
               <span>會員制平台 · 邀請開通</span>
@@ -40,10 +40,10 @@ export function LandingPage() {
           </div>
         </div>
 
-        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between xl:px-8 2xl:px-12">
+        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-3 px-3 py-3 sm:px-6 sm:py-4 lg:flex-row lg:items-center lg:justify-between xl:px-8 2xl:px-12">
           <BrandMark to="/" tone="dark" subtitle="Premium Gaming · Invite Only" />
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
             <Link
               to="/verify"
               className="btn-chip border-white/12 bg-[#162338] text-white/84 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white"
@@ -60,7 +60,7 @@ export function LandingPage() {
       </header>
 
       <main className="relative z-10 flex-1">
-        <div className="mx-auto w-full max-w-[1920px] space-y-8 px-4 py-6 sm:px-6 xl:px-8 2xl:px-12">
+        <div className="mx-auto w-full max-w-[1920px] space-y-6 px-3 py-4 sm:space-y-8 sm:px-6 sm:py-6 xl:px-8 2xl:px-12">
           <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_320px]">
             <div className="space-y-6">
               <HeroBanner />
@@ -69,7 +69,7 @@ export function LandingPage() {
                 {LANDING_HIGHLIGHTS.map((item) => (
                   <article
                     key={item.label}
-                    className="rounded-[22px] border border-white/[0.65] bg-white/[0.92] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur"
+                    className="rounded-[16px] border border-white/[0.65] bg-white/[0.92] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-[22px] sm:p-5"
                   >
                     <div className="label">{item.label}</div>
                     <div className="mt-3 data-num text-[30px] font-bold text-[#186073]">{item.value}</div>
@@ -79,9 +79,9 @@ export function LandingPage() {
               </div>
             </div>
 
-            <aside className="rounded-[28px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
+            <aside className="rounded-[18px] border border-white/[0.65] bg-white/[0.92] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-[28px] sm:p-6">
               <div className="label">Invite Access</div>
-              <h1 className="mt-3 text-pretty text-[30px] font-bold leading-tight text-[#0F172A]">
+              <h1 className="mt-3 text-pretty text-[24px] font-bold leading-tight text-[#0F172A] sm:text-[30px]">
                 會員開通後，今晚就能直接進場
               </h1>
               <p className="mt-3 text-[14px] leading-relaxed text-[#4A5568]">

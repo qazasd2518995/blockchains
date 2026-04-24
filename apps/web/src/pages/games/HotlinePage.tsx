@@ -108,8 +108,8 @@ export function HotlinePage() {
         rtpAccent="ember"
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">霓虹熱線</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Hotline</span>
@@ -118,7 +118,7 @@ export function HotlinePage() {
               </span>
             </div>
 
-            <div className="game-canvas-shell aspect-[16/7] w-full p-2">
+            <div className="game-canvas-shell game-canvas-wide aspect-[16/7] w-full p-2">
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
           </div>
@@ -171,7 +171,7 @@ export function HotlinePage() {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="game-control-stack space-y-4">
           <div className="game-side-card p-5">
             <BetControls
               amount={amount}

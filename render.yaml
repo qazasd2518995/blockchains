@@ -9,7 +9,7 @@
 # 部署步驟：
 #   1. 在 Render → New → Blueprint，選本 repo
 #   2. Render 會讀這份 YAML 自動建立三個服務
-#   3. 手動設 Secret：DATABASE_URL / JWT_SECRET / SUPER_ADMIN_PASSWORD
+#   3. 手動設 Secret：DATABASE_URL / JWT_SECRET / SUPER_ADMIN_PASSWORD / BACCARAT_INTEGRATION_SECRET
 #   4. Deploy 後在 api service 跑 migration + seed-agent（見 README 部署章節）
 #
 # 重要：修改 CORS_ORIGIN 和前端 VITE_API_BASE 為你實際的 Render URL / 自訂網域
@@ -55,6 +55,9 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      # 必須與百家樂後端的 BG_INTEGRATION_SECRET 完全相同
+      - key: BACCARAT_INTEGRATION_SECRET
+        sync: false
       - key: SUPER_ADMIN_USERNAME
         sync: false
       - key: SUPER_ADMIN_PASSWORD
@@ -87,6 +90,8 @@ services:
         sync: false              # 填 https://bg-api.onrender.com 或自訂 api 網域
       - key: VITE_SOCKET_BASE
         sync: false              # 通常同 VITE_API_BASE
+      - key: VITE_BACCARAT_URL
+        sync: false              # 填百家樂前端網址，例如 https://baccarat-frontend-74oz.onrender.com
 
   # ──────────────────────────────────────────
   # 3. 代理後台（apps/admin）

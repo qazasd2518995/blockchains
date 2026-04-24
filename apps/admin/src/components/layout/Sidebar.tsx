@@ -13,17 +13,17 @@ const items: { to: string; key: keyof ReturnType<typeof useTranslation>['t']['na
 export function Sidebar(): JSX.Element {
   const { t } = useTranslation();
   return (
-    <aside className="panel-felt sticky top-[108px] h-[calc(100vh-140px)] w-60 shrink-0 overflow-hidden p-4">
+    <aside className="panel-felt w-full shrink-0 overflow-hidden p-3 lg:sticky lg:top-[132px] lg:h-[calc(100vh-164px)] lg:w-60 lg:p-4">
       <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
         <span className="font-semibold text-base text-[#DEBE66]">导航</span>
       </div>
-      <nav className="mt-4 space-y-1.5">
+      <nav className="mt-3 flex gap-2 overflow-x-auto pb-1 lg:mt-4 lg:block lg:space-y-1.5 lg:overflow-visible lg:pb-0">
         {items.map((it) => (
           <NavLink
             key={it.to}
             to={it.to}
             className={({ isActive }) =>
-              `group flex items-center justify-between rounded-sm border px-3 py-2.5 text-[12px] transition ${
+              `group flex min-h-11 shrink-0 items-center justify-between rounded-sm border px-3 py-2.5 text-[12px] transition lg:w-full ${
                 isActive
                   ? 'border-[#186073] bg-[#0E4555]/70 text-[#E8D48A] shadow-[inset_0_0_0_1px_rgba(201,162,76,0.2)]'
                   : 'border-transparent text-white/75 hover:border-[#E5E7EB] hover:bg-[#0E4555]/40 hover:text-[#E8D48A]'
@@ -35,7 +35,7 @@ export function Sidebar(): JSX.Element {
           </NavLink>
         ))}
       </nav>
-      <div className="absolute bottom-4 left-4 right-4 border-t border-[#E5E7EB] pt-3 text-center font-semibold text-[12px] text-[#DEBE66]">
+      <div className="hidden border-t border-[#E5E7EB] pt-3 text-center font-semibold text-[12px] text-[#DEBE66] lg:absolute lg:bottom-4 lg:left-4 lg:right-4 lg:block">
         v0.1 · BG 后台
       </div>
     </aside>

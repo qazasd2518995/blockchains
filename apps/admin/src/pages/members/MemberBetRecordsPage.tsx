@@ -118,7 +118,7 @@ export function MemberBetRecordsPage(): JSX.Element {
         }
       />
 
-      <div className="mb-4 flex items-center gap-3">
+      <div className="admin-mobile-stack mb-4 flex items-center gap-3">
         <input
           type="text"
           value={gameFilter}

@@ -365,8 +365,8 @@ export function CrashPage({ config }: Props) {
         rtpAccent={config.accent}
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">{meta.title}</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">{meta.suffix}</span>
@@ -393,7 +393,7 @@ export function CrashPage({ config }: Props) {
               </div>
             </div>
 
-            <div className="game-canvas-shell relative aspect-[16/7] w-full overflow-hidden">
+            <div className="game-canvas-shell game-canvas-wide relative aspect-[16/7] w-full overflow-hidden">
               <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
             </div>
           </div>
@@ -434,7 +434,7 @@ export function CrashPage({ config }: Props) {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="game-control-stack space-y-4">
           <div className="game-side-card p-5">
             <BetControls
               amount={amount}

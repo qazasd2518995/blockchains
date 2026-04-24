@@ -75,12 +75,12 @@ export function HeroBanner() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_48%,rgba(201,162,71,0.18),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0))]" />
       </div>
 
-      <div className="relative flex h-[320px] items-center px-8 transition-all duration-500 md:h-[407px] md:px-16 xl:h-[450px] xl:px-20 2xl:h-[500px] 2xl:px-24">
+      <div className="relative flex h-[300px] items-center px-4 transition-all duration-500 sm:h-[320px] sm:px-8 md:h-[407px] md:px-16 xl:h-[450px] xl:px-20 2xl:h-[500px] 2xl:px-24">
         <div className="relative z-10 max-w-[620px] xl:max-w-[720px] 2xl:max-w-[800px]">
-          <span className="inline-flex items-center rounded-full border border-white/28 bg-[#071523]/72 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white shadow-[0_10px_24px_rgba(2,6,23,0.22)] backdrop-blur-md">
+          <span className="inline-flex items-center rounded-full border border-white/28 bg-[#071523]/72 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white shadow-[0_10px_24px_rgba(2,6,23,0.22)] backdrop-blur-md sm:tracking-[0.3em]">
             {slide.eyebrow}
           </span>
-          <h1 className="mt-5 text-[28px] font-bold leading-tight text-white md:text-[42px] xl:text-[48px] 2xl:text-[54px]">
+          <h1 className="mt-5 text-[25px] font-bold leading-tight text-white sm:text-[28px] md:text-[42px] xl:text-[48px] 2xl:text-[54px]">
             {slide.title}
           </h1>
           <p className="mt-4 max-w-[520px] text-[14px] text-white/[0.86] md:text-[18px] xl:max-w-[620px] xl:text-[20px]">
@@ -100,7 +100,7 @@ export function HeroBanner() {
       <button
         type="button"
         onClick={prev}
-        className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/[0.25] p-2 text-white opacity-0 transition hover:bg-black/[0.45] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 group-hover:opacity-100"
+        className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/[0.25] text-white opacity-100 transition hover:bg-black/[0.45] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:left-4 md:opacity-0 md:group-hover:opacity-100"
         aria-label="上一張"
       >
         <ChevronLeft className="h-5 w-5" />
@@ -108,7 +108,7 @@ export function HeroBanner() {
       <button
         type="button"
         onClick={next}
-        className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/[0.25] p-2 text-white opacity-0 transition hover:bg-black/[0.45] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 group-hover:opacity-100"
+        className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/[0.25] text-white opacity-100 transition hover:bg-black/[0.45] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:right-4 md:opacity-0 md:group-hover:opacity-100"
         aria-label="下一張"
       >
         <ChevronRight className="h-5 w-5" />

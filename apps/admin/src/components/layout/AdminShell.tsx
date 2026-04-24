@@ -61,7 +61,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#E9ECEF]">
+    <div className="relative min-h-[100svh] overflow-x-hidden bg-[#E9ECEF]">
       <div className="pointer-events-none fixed inset-0">
         <img
           src="/backgrounds/admin-shell-host.png"
@@ -73,8 +73,8 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
       </div>
 
       {/* Top strip — felt dark with brass */}
-      <div className="sticky top-0 z-50 border-b border-[#186073]/55 bg-[#093040]/95 backdrop-blur-lg shadow-[0_2px_12px_-4px_rgba(10,8,6,0.35)]">
-        <div className="flex w-full items-center justify-between px-6 py-2 text-[10px] uppercase tracking-[0.3em] text-[#E8D48A]">
+      <div className="sticky top-0 z-50 border-b border-[#186073]/55 bg-[#093040]/95 pt-[env(safe-area-inset-top)] shadow-[0_2px_12px_-4px_rgba(10,8,6,0.35)] backdrop-blur-lg">
+        <div className="flex w-full items-center justify-between gap-3 px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-[#E8D48A] sm:px-6 sm:tracking-[0.3em]">
           <div className="flex items-center gap-6">
             <span className="flex items-center">
               <span className="dot-online dot-online" /> {t.shell.linkLive}
@@ -84,7 +84,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
             </span>
             <span className="hidden lg:inline data-num text-[#DEBE66]">{time}</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 items-center justify-end gap-3 sm:gap-4">
             <span className="hidden sm:inline">
               {t.shell.session} 0x{agent?.id.slice(-6).toUpperCase()}
             </span>
@@ -94,12 +94,12 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
           </div>
         </div>
 
-        <div className="flex w-full items-center justify-between gap-6 border-t border-[#186073]/30 px-6 py-4">
-          <Link to="/admin/dashboard" className="flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 border-t border-[#186073]/30 px-3 py-3 sm:px-6 sm:py-4">
+          <Link to="/admin/dashboard" className="flex min-w-0 items-center gap-3">
             <span className="rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[22px] font-extrabold tracking-[0.05em] text-white">
               BG
             </span>
-            <div>
+            <div className="hidden sm:block">
               <div className="text-[18px] font-bold leading-none text-white">
                 代理后台
               </div>
@@ -109,18 +109,18 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
             </div>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:flex-none sm:gap-3">
             <div className="hidden border-r border-[#186073]/30 pr-4 text-right md:block">
               <div className="label text-[#D0AC4D]">{t.shell.operator}</div>
               <div className="mt-0.5 font-semibold italic text-[13px] text-white">
                 {agent?.displayName ?? agent?.username}
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-sm border border-[#186073] bg-[#1A2530]/70 px-4 py-2">
+            <div className="flex min-h-11 min-w-0 items-center gap-2 rounded-sm border border-[#186073] bg-[#1A2530]/70 px-3 py-2 sm:gap-3 sm:px-4">
               <span className="font-mono text-[9px] tracking-[0.3em] text-[#DEBE66]">
                 {t.shell.balance}
               </span>
-              <span className="font-semibold text-xl font-bold num text-[#C9A247]">
+              <span className="num truncate text-base font-bold text-[#C9A247] sm:text-xl">
                 {formatDec(agent?.balance ?? '0')}
               </span>
             </div>
@@ -180,7 +180,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
         </div>
       </div>
 
-      <main className="relative z-10 flex w-full gap-6 px-4 py-8 sm:px-6 lg:px-8 xl:px-10">
+      <main className="relative z-10 flex w-full flex-col gap-4 px-3 py-4 sm:px-6 lg:flex-row lg:gap-6 lg:px-8 lg:py-8 xl:px-10">
         <Sidebar />
         <div className="min-w-0 flex-1">{children}</div>
       </main>

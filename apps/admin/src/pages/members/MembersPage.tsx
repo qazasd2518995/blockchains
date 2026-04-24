@@ -157,7 +157,7 @@ export function MembersPage(): JSX.Element {
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="admin-mobile-stack mb-4 flex flex-wrap items-center gap-3">
         <input
           type="text"
           value={keyword}
