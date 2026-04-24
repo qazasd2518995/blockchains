@@ -18,6 +18,7 @@ export interface TransactionEntry {
   amount: string;
   balanceAfter: string;
   betId: string | null;
+  gameId: string | null;
   createdAt: string;
 }
 

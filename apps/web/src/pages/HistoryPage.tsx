@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getGameMeta } from '@bg/shared';
 import type { TransactionListResponse, TransactionType } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { formatAmount } from '@/lib/utils';
@@ -134,7 +135,7 @@ export function HistoryPage() {
                     </span>
                   </div>
                   <div className="hidden truncate font-mono text-[11px] text-[#4A5568] md:block">
-                    {tx.betId ? `BET · ${tx.betId.slice(-6).toUpperCase()}` : '—'}
+                    {renderReference(tx.gameId, tx.betId)}
                   </div>
                   <div
                     className={`data-num text-right text-base font-semibold ${
@@ -155,4 +156,13 @@ export function HistoryPage() {
       </section>
     </div>
   );
+}
+
+function renderReference(gameId: string | null, betId: string | null): string {
+  const gameName = gameId ? (getGameMeta(gameId)?.nameZh ?? gameId) : null;
+  const betRef = betId ? `BET · ${betId.slice(-6).toUpperCase()}` : null;
+  if (gameName && betRef) return `${gameName} · ${betRef}`;
+  if (gameName) return gameName;
+  if (betRef) return betRef;
+  return '—';
 }

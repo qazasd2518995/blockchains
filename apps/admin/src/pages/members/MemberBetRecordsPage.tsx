@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { getGameMeta } from '@bg/shared';
 import type { MemberPublic, MemberBetListResponse, MemberBetEntry } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -74,7 +75,15 @@ export function MemberBetRecordsPage(): JSX.Element {
         </span>
       ),
     },
-    { key: 'game', label: t.bets.game, render: (r) => <span className="font-mono text-ink-900">{r.gameId}</span> },
+    {
+      key: 'game',
+      label: t.bets.game,
+      render: (r) => (
+        <span className="font-mono text-ink-900">
+          {getGameMeta(r.gameId)?.nameZh ?? r.gameId}
+        </span>
+      ),
+    },
     { key: 'amt', label: t.bets.amount, align: 'right', render: (r) => <span className="data-num">{fmt(r.amount)}</span> },
     { key: 'mult', label: t.bets.multiplier, align: 'right', render: (r) => <span className="data-num">{r.multiplier}x</span> },
     { key: 'payout', label: t.bets.payout, align: 'right', render: (r) => <span className="data-num">{fmt(r.payout)}</span> },
