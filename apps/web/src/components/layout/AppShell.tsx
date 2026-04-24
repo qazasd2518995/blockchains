@@ -6,7 +6,6 @@ import { formatAmount } from '@/lib/utils';
 import { api, extractApiError } from '@/lib/api';
 import { AnnouncementTicker } from '@/components/home/AnnouncementTicker';
 import { WinTicker } from '@/components/home/WinTicker';
-import { FloatingSupport } from '@/components/layout/FloatingSupport';
 import { BrandMark } from '@/components/layout/BrandMark';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SoundToggle } from '@/components/layout/SoundToggle';
@@ -67,19 +66,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <header className="sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)]">
         <div className="border-b border-white/8">
-          <div className="mx-auto flex w-full max-w-[1920px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/80 sm:px-6 xl:px-8 2xl:px-12">
+          <div className="mx-auto flex w-full max-w-[1920px] items-center justify-between gap-3 px-4 py-2 text-[11px] text-white/80 sm:px-6 xl:px-8 2xl:px-12">
             <div className="flex items-center gap-2">
               <span className="dot-online" />
               <span>24 小時不打烊 · 即時派彩</span>
             </div>
-            <div className="flex items-center gap-4">
-              <a href="https://line.me/ti/p/~@aaa1788" target="_blank" rel="noreferrer" className="transition hover:text-white" translate="no">
-                LINE
-              </a>
-              <a href="https://t.me/aaawin1788_bot" target="_blank" rel="noreferrer" className="transition hover:text-white" translate="no">
-                Telegram
-              </a>
-            </div>
+            <span className="hidden sm:inline text-white/55">會員制平台 · 邀請開通</span>
           </div>
         </div>
 
@@ -133,29 +125,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <RefreshCw className="h-3.5 w-3.5 text-white/60" />
               </button>
 
-              <NavLink
-                to="/profile"
-                className={({ isActive }) =>
-                  `inline-flex items-center gap-3 rounded-full border px-2.5 py-1.5 transition ${
-                    isActive
-                      ? 'border-white/18 bg-[#1B2940] text-white'
-                      : 'border-white/12 bg-[#162338] text-white/88 hover:border-white/24 hover:bg-[#1A2A41]'
-                  }`
-                }
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A247] to-[#876A27] text-[11px] font-bold text-white">
-                  {(user.displayName ?? user.username ?? 'U').charAt(0).toUpperCase()}
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-[13px] font-semibold">
-                    {user.displayName ?? user.username}
-                  </span>
-                  <span className="block text-[10px] text-white/[0.62]">
-                    {t.common.profile}
-                  </span>
-                </span>
-              </NavLink>
-
               <SoundToggle variant="dark" />
 
               <button
@@ -184,7 +153,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
 
       <SiteFooter loggedIn />
-      <FloatingSupport />
       <WinTicker />
       <AnnouncementTicker />
     </div>

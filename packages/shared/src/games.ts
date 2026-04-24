@@ -1,4 +1,5 @@
 export const GameId = {
+  BACCARAT: 'baccarat',
   DICE: 'dice',
   MINES: 'mines',
   HILO: 'hilo',
@@ -21,7 +22,7 @@ export const GameId = {
 
 export type GameIdType = (typeof GameId)[keyof typeof GameId];
 
-export type GameCategory = 'single-step' | 'multi-step' | 'realtime-crash';
+export type GameCategory = 'single-step' | 'multi-step' | 'realtime-crash' | 'table';
 
 export interface GameMetadata {
   id: GameIdType;
@@ -37,6 +38,17 @@ export interface GameMetadata {
 }
 
 export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
+  [GameId.BACCARAT]: {
+    id: GameId.BACCARAT,
+    name: 'Baccarat',
+    nameZh: '百家乐',
+    category: 'table',
+    description: 'Multi-table baccarat with table switching and round-based betting.',
+    descriptionZh: '多桌百家乐，支持切桌与逐局下注',
+    rtp: 0.9894,
+    icon: 'baccarat',
+    enabled: true,
+  },
   [GameId.DICE]: {
     id: GameId.DICE,
     name: 'Dice',

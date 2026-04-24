@@ -10,8 +10,9 @@ export interface RankedWinRecord extends WinRecord {
   rank: number;
 }
 
-// 全部 18 款游戏都要出现过
+// 全部 19 款游戏都要出现过
 export const FAKE_WIN_TICKER: WinRecord[] = [
+  { player: 'aa***88', game: '百家乐',      gameId: 'baccarat',      mult: 1.95,  win: 19500  },
   { player: 'a***995', game: '飙速X',      gameId: 'jetx',         mult: 24.6,  win: 12450  },
   { player: 'b***123', game: '飞行员',      gameId: 'aviator',      mult: 88.0,  win: 88000  },
   { player: 'c***456', game: '踩地雷',      gameId: 'mines',        mult: 45.5,  win: 45200  },
@@ -30,12 +31,13 @@ export const FAKE_WIN_TICKER: WinRecord[] = [
   { player: 'p***888', game: '双倍X',       gameId: 'double-x',     mult: 7.3,   win: 14600  },
   { player: 'q***999', game: '掉珠挑战X',   gameId: 'plinko-x',     mult: 19.9,  win: 39800  },
   { player: 'r***000', game: '狂欢节',      gameId: 'carnival',     mult: 6.6,   win: 13200  },
-  // 再來一轮加变化，让总数 > 18
+  // 再來一轮加变化，让总数 > 19
   { player: 's***112', game: '飞行员',      gameId: 'aviator',      mult: 12.3,  win: 18450  },
   { player: 't***334', game: '飙速X',       gameId: 'jetx',         mult: 44.0,  win: 88000  },
   { player: 'u***556', game: '踩地雷',      gameId: 'mines',        mult: 18.8,  win: 56400  },
   { player: 'v***778', game: '弹珠台',      gameId: 'plinko',       mult: 9.1,   win: 18200  },
   { player: 'w***990', game: '骰子',        gameId: 'dice',         mult: 5.5,   win: 11000  },
+  { player: 'bc***07', game: '百家乐',      gameId: 'baccarat',      mult: 2.00,  win: 32000  },
   { player: 'x***113', game: '热线',        gameId: 'hotline',      mult: 250,   win: 125000 },
   { player: 'y***224', game: '火箭',        gameId: 'rocket',       mult: 3.8,   win: 7600   },
   { player: 'z***335', game: '叠塔',        gameId: 'tower',        mult: 2.7,   win: 5400   },

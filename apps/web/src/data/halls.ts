@@ -1,7 +1,7 @@
 import type { GameIdType } from '@bg/shared';
 import { GameId } from '@bg/shared';
 
-export type HallId = 'crash' | 'classic' | 'strategy';
+export type HallId = 'crash' | 'classic' | 'strategy' | 'tables';
 
 export interface HallMeta {
   id: HallId;
@@ -57,9 +57,18 @@ export const HALLS: Record<HallId, HallMeta> = {
     artwork: '/halls/strategy-card.png',
     gameIds: [GameId.MINES, GameId.PLINKO, GameId.TOWER, GameId.CARNIVAL],
   },
+  tables: {
+    id: 'tables',
+    nameZh: '牌桌馆',
+    iconKey: 'tables',
+    tagline: '局局封盘开牌，专注牌路、节奏与桌感',
+    gradient: 'linear-gradient(135deg, #1B2030 0%, #225B66 46%, #C9A247 100%)',
+    artwork: '/halls/tables-card.png',
+    gameIds: [GameId.BACCARAT],
+  },
 };
 
-export const HALL_LIST: HallMeta[] = [HALLS.crash, HALLS.classic, HALLS.strategy];
+export const HALL_LIST: HallMeta[] = [HALLS.crash, HALLS.classic, HALLS.strategy, HALLS.tables];
 
 export function getHallByGameId(gameId: string): HallMeta | undefined {
   return HALL_LIST.find((h) => h.gameIds.includes(gameId as GameIdType));

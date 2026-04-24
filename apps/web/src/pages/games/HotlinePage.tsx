@@ -85,6 +85,8 @@ export function HotlinePage() {
         ...prev,
       ].slice(0, 30));
     } catch (err) {
+      sceneRef.current?.stopAnticipation();
+      sceneRef.current?.resetWinLines();
       setError(extractApiError(err).message);
     } finally {
       setSpinning(false);

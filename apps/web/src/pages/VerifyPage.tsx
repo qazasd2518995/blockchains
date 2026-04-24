@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen } from 'lucide-react';
 import { SectionHeading } from '@/components/layout/SectionHeading';
 
-type HallKey = 'crash' | 'classic' | 'strategy';
+type HallKey = 'crash' | 'classic' | 'strategy' | 'tables';
 
 interface Hall {
   key: HallKey;
@@ -39,6 +39,14 @@ const HALLS: Hall[] = [
     intro: '靠判斷與膽識放大倍率，每一個選擇都會影響獎金的走向。',
     vibe: '腦力對決、越拚越上頭',
   },
+  {
+    key: 'tables',
+    title: '牌桌館',
+    subtitle: 'Table Hall',
+    tone: '#C9A247',
+    intro: '以桌台節奏與逐局封盤為核心，適合看牌路、換桌追手感的玩家。',
+    vibe: '盯牌路、看節奏、專注對局',
+  },
 ];
 
 interface Game {
@@ -56,6 +64,23 @@ interface Game {
 }
 
 const GAMES: Game[] = [
+  {
+    id: 'baccarat',
+    hall: 'tables',
+    name: '百家樂',
+    english: 'Baccarat',
+    cover: '/games/baccarat.jpg',
+    rtp: '98.94%',
+    maxMultiplier: '25×',
+    duration: '單局 20–40 秒',
+    intro: '經典牌桌玩法，押莊、閒、和或對子邊注，封盤後發牌開結果。',
+    howToPlay: [
+      '進桌後先選桌台，封盤前把籌碼押在莊、閒、和或邊注區。',
+      '封盤後系統依百家樂補牌規則發牌並自動判定勝負。',
+      '中獎區域依桌面賠率即時派彩，未中則扣除當局下注。',
+    ],
+    tips: '百家樂核心在桌台節奏與換桌判斷，盯住路單比一味重押更重要。',
+  },
   {
     id: 'rocket',
     hall: 'crash',
@@ -372,10 +397,10 @@ export function VerifyPage() {
               </div>
               <div className="min-w-0">
                 <h1 className="text-pretty text-[32px] font-bold leading-tight md:text-[40px]">
-                  18 款人氣玩法，一頁讀懂規則與賠率。
+                  19 款人氣玩法，一頁讀懂規則與賠率。
                 </h1>
                 <p className="mt-3 max-w-3xl text-[14px] leading-relaxed text-white/[0.78]">
-                  飛行、經典、策略三大主題館，從快節奏 Crash 到耐玩的策略對局，挑你今晚最想開的那一桌。每款遊戲都附上玩法步驟、RTP 與最高倍率，幫你快速上手。
+                  飛行、經典、策略、牌桌四大主題館，從快節奏 Crash 到講究牌路節奏的百家樂，挑你今晚最想開的那一桌。每款遊戲都附上玩法步驟、RTP 與最高倍率，幫你快速上手。
                 </p>
               </div>
             </div>
@@ -411,7 +436,7 @@ export function VerifyPage() {
                   : 'border-[#E5E7EB] bg-white text-[#0F172A] hover:border-[#0F172A]/40'
               }`}
             >
-              <span>全部 18 款</span>
+              <span>全部 19 款</span>
               <span className="text-[12px] opacity-70">{GAMES.length}</span>
             </button>
             {HALLS.map((hall) => {
@@ -440,7 +465,7 @@ export function VerifyPage() {
       <section className="space-y-5">
         <SectionHeading
           eyebrow="Game Catalogue"
-          title={activeHall === 'all' ? '18 款遊戲完整玩法' : `${HALLS.find((h) => h.key === activeHall)?.title} 玩法詳解`}
+          title={activeHall === 'all' ? '19 款遊戲完整玩法' : `${HALLS.find((h) => h.key === activeHall)?.title} 玩法詳解`}
           description="點開卡片看每款遊戲的下注步驟、賠率上限與操作要點。"
         />
 

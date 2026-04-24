@@ -12,6 +12,7 @@ const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
 function hallNarrative(hallId: HallId): string {
   if (hallId === 'crash') return '想追高倍、看準時機一鍵收分的玩家。';
   if (hallId === 'classic') return '喜歡節奏快、連開幾局都不膩的玩家。';
+  if (hallId === 'tables') return '想看牌路、換桌追節奏，專注桌面對局的玩家。';
   return '想邊判斷邊拚高倍，把手感和腦力一起拉滿的玩家。';
 }
 
@@ -151,4 +152,3 @@ export function HallPage() {
     </div>
   );
 }
-

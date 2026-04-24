@@ -4,6 +4,7 @@ import { getGameIcon } from '@/lib/platformIcons';
 
 // 与 LobbyPage 现有的资料一致
 const HAS_COVER = new Set<string>([
+  'baccarat',
   'dice', 'mines', 'hilo', 'keno', 'wheel', 'mini-roulette',
   'plinko', 'hotline', 'rocket', 'aviator', 'space-fleet',
   'jetx', 'balloon', 'jetx3', 'double-x', 'plinko-x', 'tower', 'carnival',
@@ -13,6 +14,7 @@ const NEW_GAMES = new Set(['carnival', 'plinko-x', 'jetx3', 'double-x']);
 
 // 繁中名称覆写（game registry 中有些是简中）
 const NAME_ZH_TW: Record<string, string> = {
+  baccarat: '百家樂',
   dice: '骰子',
   mines: '踩地雷',
   hilo: '猜大小',

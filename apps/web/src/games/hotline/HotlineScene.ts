@@ -87,6 +87,7 @@ export class HotlineScene {
   private shaker: ShakeController | null = null;
   private poolTicker: ((tk: Ticker) => void) | null = null;
   private winFx: WinCelebration | null = null;
+  private lineFxTimers: number[] = [];
 
 
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
@@ -240,6 +241,14 @@ export class HotlineScene {
 
   private createSymbolTile(symbolIdx: number): Container {
     const c = new Container();
+    this.renderSymbolTile(c, symbolIdx);
+    return c;
+  }
+
+  private renderSymbolTile(c: Container, symbolIdx: number): void {
+    const oldChildren = c.removeChildren();
+    for (const child of oldChildren) child.destroy({ children: true });
+
     const size = this.cellSize;
     const meta = getHotlineSymbolMeta(symbolIdx);
     const color = meta.accentValue;
@@ -281,8 +290,6 @@ export class HotlineScene {
     label.y = size * 0.3;
     label.alpha = 0.7;
     c.addChild(label);
-
-    return c;
   }
 
   private createSymbolGlyphGraphic(symbolIdx: number, size: number): Container {
@@ -452,20 +459,21 @@ export class HotlineScene {
   startAnticipation(): void {
     if (this.anticipating) return;
     this.anticipating = true;
-    // 讓每條 reel 以輕微不同 offset 持續垂直捲動
-    for (const reel of this.reels) {
+    for (let reelIndex = 0; reelIndex < this.reels.length; reelIndex += 1) {
+      const reel = this.reels[reelIndex]!;
+      const totalH = REEL_STRIP_LEN * reel.cellSize;
       for (const sym of reel.symbols) {
+        gsap.killTweensOf(sym);
         gsap.to(sym, {
           y: `+=${this.cellSize * 1.2}`,
-          duration: 0.12,
+          duration: 0.1 + reelIndex * 0.015,
           ease: 'none',
           repeat: -1,
           modifiers: {
             y: (yStr) => {
               const yN = Number.parseFloat(yStr);
-              // 超過格高就從頂端 wrap 回來
-              const max = this.cellSize * 5;
-              return `${yN > max ? yN - max : yN}`;
+              const wrapped = ((yN - reel.cellSize / 2) % totalH + totalH) % totalH + reel.cellSize / 2;
+              return `${wrapped}`;
             },
           },
         });
@@ -473,22 +481,22 @@ export class HotlineScene {
     }
   }
 
-  async playSpin(finalGrid: number[][], lines: HotlineLine[]): Promise<void> {
-    // 清 anticipation 循環
-    if (this.anticipating) {
-      for (const reel of this.reels) {
-        for (const sym of reel.symbols) gsap.killTweensOf(sym);
-      }
-      this.anticipating = false;
+  stopAnticipation(): void {
+    if (!this.anticipating) return;
+    for (const reel of this.reels) {
+      for (const sym of reel.symbols) gsap.killTweensOf(sym);
+      this.normalizeReel(reel);
     }
-    // 清除上一局的中獎連線
-    if (this.winLinesLayer) this.winLinesLayer.clear();
+    this.anticipating = false;
+  }
 
-    // 所有 reel 同時開始、同時停止 — 整個盤面一起揭曉，避免逐列顯示讓玩家
-    // 誤以為「結果是分批給的」。輕微 stagger 留給每個 reel 的視覺差異感。
-    const duration = 1.2;
+  async playSpin(finalGrid: number[][], lines: HotlineLine[]): Promise<void> {
+    this.stopAnticipation();
+    this.resetWinLines();
+
+    const duration = 1.15;
     const reelPromises = this.reels.map((reel, reelIdx) =>
-      this.spinReel(reel, reelIdx, finalGrid[reelIdx]!, duration, 0),
+      this.spinReel(reel, reelIdx, finalGrid[reelIdx]!, duration + reelIdx * 0.08, reelIdx * 0.04),
     );
 
     await Promise.all(reelPromises);
@@ -496,7 +504,7 @@ export class HotlineScene {
     // 全部停完 → 顯示中獎連線
     if (lines.length > 0) {
       await this.sleep(200);
-      this.showWinLines(lines, finalGrid);
+      this.showWinLines(lines);
     }
   }
 
@@ -568,36 +576,38 @@ export class HotlineScene {
   }
 
   private snapReelToFinal(reel: ReelData, finalColumn: number[]): void {
-    // 重新定位所有 symbol：前 ROWS 個為 finalColumn，其餘隨機
-    const { container, symbols } = reel;
-    // 先清掉所有 symbol
-    for (const sym of symbols) {
-      container.removeChild(sym);
-      sym.destroy({ children: true });
-    }
-    reel.symbols = [];
-
-    // 建立新的 strip：前 ROWS 個 = finalColumn，後面填隨機
+    const ordered = [...reel.symbols].sort((a, b) => a.y - b.y);
     const newStrip: number[] = [];
     for (let i = 0; i < ROWS; i += 1) newStrip.push(finalColumn[i]!);
     for (let i = ROWS; i < REEL_STRIP_LEN; i += 1) {
       newStrip.push(Math.floor(Math.random() * SYMBOL_COUNT));
     }
     reel.strip = newStrip;
-
-    // 重建 symbols
     for (let i = 0; i < REEL_STRIP_LEN; i += 1) {
-      const s = this.createSymbolTile(newStrip[i]!);
-      s.x = reel.cellSize / 2;
-      s.y = i * reel.cellSize + reel.cellSize / 2;
-      container.addChild(s);
-      reel.symbols.push(s);
+      const symbol = ordered[i]!;
+      gsap.killTweensOf(symbol);
+      gsap.killTweensOf(symbol.scale);
+      symbol.scale.set(1);
+      symbol.alpha = 1;
+      symbol.x = reel.cellSize / 2;
+      symbol.y = i * reel.cellSize + reel.cellSize / 2;
+      this.renderSymbolTile(symbol, newStrip[i]!);
     }
+    reel.symbols = ordered;
   }
 
-  private showWinLines(lines: HotlineLine[], grid: number[][]): void {
+  private normalizeReel(reel: ReelData): void {
+    const ordered = [...reel.symbols].sort((a, b) => a.y - b.y);
+    for (let i = 0; i < ordered.length; i += 1) {
+      const symbol = ordered[i]!;
+      symbol.x = reel.cellSize / 2;
+      symbol.y = i * reel.cellSize + reel.cellSize / 2;
+    }
+    reel.symbols = ordered;
+  }
+
+  private showWinLines(lines: HotlineLine[]): void {
     if (!this.winLinesLayer) return;
-    // 每條 line：從 reel 0 的中心連到 reel N 的中心（row 一致）
     for (const line of lines) {
       const y = this.reelY0 + line.row * this.cellSize + this.cellSize / 2;
       const xStart = this.reelX0 + this.cellSize / 2;
@@ -634,9 +644,8 @@ export class HotlineScene {
 
         const wx = this.reelX0 + reelIdx * (this.cellSize + this.reelGap) + this.cellSize / 2;
         const wy = y;
-        setTimeout(() => {
+        const timer = window.setTimeout(() => {
           this.emitShockwave(wx, wy, color, this.cellSize * 0.8);
-          // L4 pool
           this.particlePool?.emit({
             x: wx,
             y: wy,
@@ -645,7 +654,6 @@ export class HotlineScene {
             speedMin: 2,
             speedMax: 6,
           });
-          // L4 強化：每個中獎符號 emit glow burst（讓光柱化）
           if (this.app && !prefersReducedMotion()) {
             emitGlowBurst(this.app.stage, wx, wy, color, {
               radius: this.cellSize * 0.55,
@@ -654,13 +662,13 @@ export class HotlineScene {
             });
           }
         }, reelIdx * 100);
+        this.lineFxTimers.push(timer);
       }
     }
 
-    // JACKPOT（5 連）：全螢幕閃 + 大爆擊
     const jackpot = lines.find((l) => l.count === 5);
     if (jackpot) {
-      setTimeout(() => {
+      const timer = window.setTimeout(() => {
         if (this.flashOverlay) {
           gsap.fromTo(
             this.flashOverlay,
@@ -686,9 +694,10 @@ export class HotlineScene {
         if (this.app) emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_AMBER, cfg.edgeGlowMs / 1000);
         if (this.app) emitRayBurst(this.app.stage, this.app, cx, cy, COLOR_AMBER, 1.5);
       }, 500);
+      this.lineFxTimers.push(timer);
     } else if (lines.length >= 2) {
-      // 多條連線：small tier shake
-      setTimeout(() => this.shaker?.shake(5, 0.35), 300);
+      const timer = window.setTimeout(() => this.shaker?.shake(5, 0.35), 300);
+      this.lineFxTimers.push(timer);
     }
   }
 
@@ -696,7 +705,34 @@ export class HotlineScene {
    * 重置中獎連線（下一局前呼叫）
    */
   resetWinLines(): void {
-    if (this.winLinesLayer) this.winLinesLayer.clear();
+    for (const timer of this.lineFxTimers) window.clearTimeout(timer);
+    this.lineFxTimers = [];
+
+    if (this.winLinesLayer) {
+      this.winLinesLayer.clear();
+      const children = this.winLinesLayer.removeChildren();
+      for (const child of children) child.destroy({ children: true });
+    }
+    if (this.flashOverlay) {
+      gsap.killTweensOf(this.flashOverlay);
+      this.flashOverlay.alpha = 0;
+    }
+    if (this.shockwaves) {
+      const children = this.shockwaves.removeChildren();
+      for (const child of children) child.destroy({ children: true });
+    }
+    if (this.particles) {
+      const children = this.particles.removeChildren();
+      for (const child of children) child.destroy({ children: true });
+    }
+    this.particleList = [];
+    for (const reel of this.reels) {
+      for (const sym of reel.symbols) {
+        gsap.killTweensOf(sym.scale);
+        sym.scale.set(1);
+        sym.alpha = 1;
+      }
+    }
   }
 
   private emitShockwave(x: number, y: number, color: number, maxR: number, delay = 0): void {
@@ -767,6 +803,8 @@ export class HotlineScene {
   }
 
   dispose(): void {
+    this.stopAnticipation();
+    this.resetWinLines();
     if (this.ambientTicker && this.app) this.app.ticker.remove(this.ambientTicker);
     if (this.particleTicker && this.app) this.app.ticker.remove(this.particleTicker);
     if (this.poolTicker && this.app) this.app.ticker.remove(this.poolTicker);

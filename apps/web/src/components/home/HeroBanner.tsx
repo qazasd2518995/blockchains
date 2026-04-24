@@ -15,7 +15,7 @@ const SLIDES: Slide[] = [
     id: 'welcome',
     eyebrow: 'Main Floor',
     title: '今晚主場已開，熱門遊戲直接上桌',
-    subtitle: '18 款人氣玩法 · 三大主題館別 · 一進場就能開玩',
+    subtitle: '19 款人氣玩法 · 四大主題館別 · 一進場就能開玩',
     image: '/banners/hero-welcome-dealer.png',
     imagePosition: 'object-[74%_center]',
   },
@@ -34,6 +34,14 @@ const SLIDES: Slide[] = [
     subtitle: 'Mines / Plinko / Tower · 拆選擇、拚高倍、越玩越上頭',
     image: '/banners/hero-strategy-dealer.png',
     imagePosition: 'object-[72%_center]',
+  },
+  {
+    id: 'tables',
+    eyebrow: 'Table Hall',
+    title: '牌桌館 · 盯牌路，換桌追節奏',
+    subtitle: 'Baccarat · 同一套 BG 登入，直接進桌開玩',
+    image: '/halls/tables-card.png',
+    imagePosition: 'object-[78%_center]',
   },
 ];
 

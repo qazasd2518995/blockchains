@@ -5,7 +5,6 @@ import { GuestGuard } from '@/components/layout/GuestGuard';
 import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { LobbyPage } from '@/pages/LobbyPage';
-import { ProfilePage } from '@/pages/ProfilePage';
 import { HistoryPage } from '@/pages/HistoryPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { DicePage } from '@/pages/games/DicePage';
@@ -21,6 +20,7 @@ import { CrashPage, CRASH_CONFIGS } from '@/pages/games/CrashPage';
 import { HallPage } from '@/pages/HallPage';
 import { VerifyPage } from '@/pages/VerifyPage';
 import { PromosPage } from '@/pages/PromosPage';
+import { BaccaratPage } from '@/pages/games/BaccaratPage';
 
 export const router = createBrowserRouter([
   {
@@ -50,8 +50,9 @@ export const router = createBrowserRouter([
       { path: '/hall/:hallId', element: <HallPage /> },
       { path: '/verify', element: <VerifyPage /> },
       { path: '/promos', element: <PromosPage /> },
-      { path: '/profile', element: <ProfilePage /> },
+      { path: '/profile', element: <Navigate to="/lobby" replace /> },
       { path: '/history', element: <HistoryPage /> },
+      { path: '/games/baccarat', element: <BaccaratPage /> },
       { path: '/games/dice', element: <DicePage /> },
       { path: '/games/mines', element: <MinesPage /> },
       { path: '/games/hilo', element: <HiLoPage /> },

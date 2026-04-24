@@ -26,8 +26,8 @@ export function LobbyPage() {
         </div>
 
         <aside className="grid gap-4 sm:grid-cols-3 xl:col-span-4 xl:grid-cols-1 2xl:col-span-3">
-          <LobbyStatCard label="熱門館別" value={String(HALL_LIST.length)} detail="三種館別任你切，想衝倍數、拚手感、玩策略都能進場。" />
-          <LobbyStatCard label="可玩遊戲" value={String(totalGames)} detail="從 Crash 到經典熱桌，今晚主場一次排開。" />
+          <LobbyStatCard label="熱門館別" value={String(HALL_LIST.length)} detail="四種館別任你切，想衝倍數、拚手感、玩策略，或直接坐上牌桌都能進場。" />
+          <LobbyStatCard label="可玩遊戲" value={String(totalGames)} detail="從 Crash 到百家樂，今晚主場一次排開。" />
           <LobbyStatCard label="今日最高爆分" value={numberFormatter.format(topBoardWin)} detail="看看今天誰最火，再挑一館跟著開衝。" />
         </aside>
       </section>
@@ -36,13 +36,13 @@ export function LobbyPage() {
         <SectionHeading
           eyebrow="Game Floors"
           title="今晚先衝哪一館？"
-          description="想玩心跳拉滿就進 Crash，想快節奏連玩就去經典館，想靠判斷放大倍率就挑策略館。照你的手感直接進場。"
+          description="想玩心跳拉滿就進 Crash，想快節奏連玩就去經典館，想靠判斷放大倍率就挑策略館，想專注桌面對局就進牌桌館。照你的手感直接進場。"
           rightSlot={
             <Link
-              to="/hall/crash"
+              to="/hall/tables"
               className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#186073] transition hover:text-[#0E4555]"
             >
-              先衝 Crash 館
+              先進牌桌館
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           }

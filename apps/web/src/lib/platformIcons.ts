@@ -27,6 +27,7 @@ export const HALL_ICONS: Record<string, LucideIcon> = {
   crash: Rocket,
   classic: Crosshair,
   strategy: Gem,
+  tables: CircleDot,
 };
 
 export const HERO_ICONS: Record<string, LucideIcon> = {
@@ -37,6 +38,7 @@ export const HERO_ICONS: Record<string, LucideIcon> = {
 };
 
 export const GAME_ICONS: Record<string, LucideIcon> = {
+  baccarat: CircleDot,
   dice: Dice1,
   mines: Gem,
   hilo: ArrowUpDown,

@@ -10,7 +10,6 @@ export function SiteFooter({ loggedIn = false }: Props): JSX.Element {
         { label: '遊戲大廳', to: '/lobby' },
         { label: '遊戲說明', to: '/verify' },
         { label: '遊戲記錄', to: '/history' },
-        { label: '個人中心', to: '/profile' },
       ]
     : [
         { label: '會員登入', to: '/login' },

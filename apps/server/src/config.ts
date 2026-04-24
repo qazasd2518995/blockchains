@@ -13,6 +13,7 @@ const envSchema = z.object({
     .string()
     .default('http://localhost:5173')
     .transform((s) => s.split(',').map((v) => v.trim())),
+  BACCARAT_INTEGRATION_SECRET: z.string().default('dev-baccarat-integration-secret'),
   SIGNUP_BONUS: z.coerce.number().default(1000),
   MAX_SINGLE_BET: z.coerce.number().default(100000),
 });

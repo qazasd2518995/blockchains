@@ -101,12 +101,12 @@ export function LoginPage() {
                 熱門館別今晚全開，登入後直接進場。
               </h1>
               <p className="mt-5 max-w-[560px] text-[17px] leading-8 text-white/72">
-                Crash、經典、策略三大館別已備好節奏。登入後直接挑你今晚要衝的主場，
+                Crash、經典、策略、牌桌四大館別已備好節奏。登入後直接挑你今晚要衝的主場，
                 看準時機放大倍率，或回頭核對每一局結果。
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <span className="inline-flex items-center rounded-full border border-[#C9A247]/36 bg-[#132233]/75 px-4 py-2 text-[13px] font-semibold text-[#EFD886]">
-                  18 款人氣玩法
+                  19 款人氣玩法
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
                   即時派彩到帳
@@ -166,14 +166,6 @@ export function LoginPage() {
 
             <div className="mt-6 border-t border-[#E5E7EB] pt-5 text-center">
               <p className="text-[12px] text-[#4A5568]">{t.landing.accessManaged}</p>
-              <a
-                href="https://line.me/ti/p/~@aaa1788"
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 inline-block text-[13px] font-semibold text-[#186073] hover:underline"
-              >
-                客服 LINE: @aaa1788
-              </a>
             </div>
           </div>
         </div>

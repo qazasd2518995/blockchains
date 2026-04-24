@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { loginSchema, refreshSchema } from './auth.schema.js';
 import { AuthService } from './auth.service.js';
+import { ApiError } from '../../utils/errors.js';
 
 export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new AuthService(fastify.prisma, fastify.jwt);
@@ -43,5 +44,36 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/me', { preHandler: [fastify.authenticate] }, async (req) => {
     return service.getMe(req.userId);
+  });
+
+  fastify.post('/baccarat-launch', { preHandler: [fastify.authenticate] }, async (req) => {
+    const user = await fastify.prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, username: true, role: true, balance: true, displayName: true, disabledAt: true },
+    });
+    if (!user || user.disabledAt) {
+      throw new ApiError('UNAUTHORIZED', 'Authentication required');
+    }
+    if (user.role !== 'PLAYER') {
+      throw new ApiError('FORBIDDEN', 'Only player accounts can enter baccarat');
+    }
+
+    const signer = fastify.jwt as unknown as {
+      sign(payload: Record<string, unknown>, options?: Record<string, unknown>): string;
+    };
+
+    const launchToken = signer.sign(
+      {
+        aud: 'baccarat-launch',
+        userId: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        balance: user.balance.toFixed(2),
+        role: 'member',
+      },
+      { expiresIn: '15m' },
+    );
+
+    return { launchToken };
   });
 }
