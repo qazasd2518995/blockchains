@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { HeroBanner } from '@/components/home/HeroBanner';
 import { HallEntrances } from '@/components/home/HallEntrances';
 import { TodayWinners } from '@/components/home/TodayWinners';
+import { WinTicker } from '@/components/home/WinTicker';
 import { SectionHeading } from '@/components/layout/SectionHeading';
 import { HALL_LIST } from '@/data/halls';
 import { FAKE_TODAY_TOP10 } from '@/data/fakeStats';
@@ -57,7 +58,10 @@ export function LobbyPage() {
           description="熱門戰報持續刷新，看看哪個館別現在最熱，手感到了就直接跟上。"
         />
 
-        <TodayWinners />
+        <div className="grid min-w-0 gap-4 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
+          <WinTicker />
+          <TodayWinners />
+        </div>
       </section>
     </div>
   );

@@ -28,7 +28,7 @@ export function TodayWinners() {
   }, []);
 
   return (
-    <section className="rounded-[10px] border border-[#E5E7EB] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
+    <section className="min-w-0 rounded-[10px] border border-[#E5E7EB] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
       <header className="flex items-baseline justify-between border-b border-[#E5E7EB] px-5 py-4">
         <h2 className="flex items-center gap-2 text-[20px] font-semibold text-[#0F172A]">
           <Trophy className="h-5 w-5 text-[#C9A247]" />
