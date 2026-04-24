@@ -80,6 +80,9 @@ function translateMessage(code: string, rawMessage: string): string {
   if (msg.includes('authentication required')) return '请先登录';
   if (msg.includes('invalid refresh token')) return 'Session 已过期,请重新登录';
   if (msg.includes('member accounts are created by agents only')) return '会员账号需由代理开通,无法公开注册';
+  if (msg.includes('only player accounts can enter baccarat')) {
+    return '当前账号不是玩家账号，只有玩家账号可以进入百家乐';
+  }
   return DEFAULT_ERRORS[code] ?? rawMessage;
 }
 
