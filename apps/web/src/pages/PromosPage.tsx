@@ -246,14 +246,14 @@ export function PromosPage() {
         </div>
       </section>
 
-      <section className="grid gap-8 xl:grid-cols-[minmax(0,1.2fr)_360px]">
-        <div className="space-y-5">
-          <SectionHeading
-            eyebrow="Weekly Rhythm"
-            title="活动节奏"
-            description="把整周档期拆成三个阶段，玩家进入活动页时就知道当前热度集中在哪一段。"
-          />
+      <section className="space-y-5">
+        <SectionHeading
+          eyebrow="Weekly Rhythm"
+          title="活动节奏"
+          description="把整周档期拆成三个阶段，玩家进入活动页时就知道当前热度集中在哪一段。"
+        />
 
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="grid gap-4 md:grid-cols-3">
             {WEEKLY_WINDOWS.map((item) => (
               <article
@@ -265,36 +265,6 @@ export function PromosPage() {
                 <p className="mt-3 text-[13px] leading-7 text-[#4A5568]">{item.description}</p>
               </article>
             ))}
-          </div>
-        </div>
-
-        <section className="space-y-5">
-          <SectionHeading
-            eyebrow="Rules"
-            title="参与提醒"
-            description="规则先讲清楚，玩家才不会觉得活动页只是摆设。"
-          />
-
-          <div className="space-y-4">
-            {RULES.map((rule) => {
-              const Icon = rule.icon;
-              return (
-                <article
-                  key={rule.title}
-                  className="rounded-[20px] border border-[#E5E7EB] bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#E7F3F6] text-[#186073]">
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-[17px] font-bold text-[#0F172A]">{rule.title}</h3>
-                      <p className="mt-2 text-[13px] leading-7 text-[#4A5568]">{rule.description}</p>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
           </div>
 
           <div className="rounded-[22px] border border-[#D8C081] bg-[linear-gradient(135deg,#F9E7A8_0%,#E8D48A_100%)] px-5 py-5 text-[#5A471A] shadow-[0_18px_40px_rgba(174,139,53,0.18)]">
@@ -318,42 +288,64 @@ export function PromosPage() {
               <span className="tag tag-acid">大厅导流</span>
             </div>
           </div>
-        </section>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-[20px] border border-[#E5E7EB] bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E7F3F6] text-[#186073]">
-              <Flame className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div>
-              <div className="label">热点玩法</div>
-              <div className="mt-1 text-[18px] font-bold text-[#0F172A]">Crash / Plinko / Dice</div>
-            </div>
-          </div>
         </div>
 
-        <div className="rounded-[20px] border border-[#E5E7EB] bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FBF4DE] text-[#AE8B35]">
-              <Crown className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div>
-              <div className="label">等级看板</div>
-              <div className="mt-1 text-[18px] font-bold text-[#0F172A]">VIP 升级条件集中展示</div>
-            </div>
-          </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {RULES.map((rule) => {
+            const Icon = rule.icon;
+            return (
+              <article
+                key={rule.title}
+                className="rounded-[20px] border border-[#E5E7EB] bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#E7F3F6] text-[#186073]">
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-[17px] font-bold text-[#0F172A]">{rule.title}</h3>
+                    <p className="mt-2 text-[13px] leading-7 text-[#4A5568]">{rule.description}</p>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
 
-        <div className="rounded-[20px] border border-[#E5E7EB] bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FBEDEA] text-[#B94538]">
-              <Sparkles className="h-5 w-5" aria-hidden="true" />
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-[20px] border border-[#E5E7EB] bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E7F3F6] text-[#186073]">
+                <Flame className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div>
+                <div className="label">热点玩法</div>
+                <div className="mt-1 text-[18px] font-bold text-[#0F172A]">Crash / Plinko / Dice</div>
+              </div>
             </div>
-            <div>
-              <div className="label">活动呈现</div>
-              <div className="mt-1 text-[18px] font-bold text-[#0F172A]">主视觉、档期、规则一页收齐</div>
+          </div>
+
+          <div className="rounded-[20px] border border-[#E5E7EB] bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FBF4DE] text-[#AE8B35]">
+                <Crown className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div>
+                <div className="label">等级看板</div>
+                <div className="mt-1 text-[18px] font-bold text-[#0F172A]">VIP 升级条件集中展示</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[20px] border border-[#E5E7EB] bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FBEDEA] text-[#B94538]">
+                <Sparkles className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div>
+                <div className="label">活动呈现</div>
+                <div className="mt-1 text-[18px] font-bold text-[#0F172A]">主视觉、档期、规则一页收齐</div>
+              </div>
             </div>
           </div>
         </div>
