@@ -26,7 +26,16 @@ export async function walletRoutes(fastify: FastifyInstance): Promise<void> {
       const q = listQuerySchema.parse(req.query);
       const items = await fastify.prisma.transaction.findMany({
         where: { userId: req.userId },
-        include: { bet: { select: { gameId: true } } },
+        include: {
+          bet: {
+            select: {
+              gameId: true,
+              amount: true,
+              payout: true,
+              profit: true,
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
         take: q.limit + 1,
         ...(q.cursor ? { cursor: { id: q.cursor }, skip: 1 } : {}),
@@ -40,6 +49,9 @@ export async function walletRoutes(fastify: FastifyInstance): Promise<void> {
           balanceAfter: tx.balanceAfter.toFixed(2),
           betId: tx.betId,
           gameId: resolveTransactionGameId(tx.bet?.gameId ?? null, tx.meta),
+          betAmount: tx.bet?.amount.toFixed(2) ?? null,
+          payout: tx.bet?.payout.toFixed(2) ?? null,
+          profit: tx.bet?.profit.toFixed(2) ?? null,
           createdAt: tx.createdAt.toISOString(),
         })),
         nextCursor,
@@ -60,7 +72,11 @@ function resolveTransactionGameId(
     return record.gameId;
   }
 
-  if (record.source === 'baccarat_bet' || record.source === 'baccarat_refund') {
+  if (
+    record.source === 'baccarat_bet' ||
+    record.source === 'baccarat_refund' ||
+    record.source === 'baccarat_settle'
+  ) {
     return 'baccarat';
   }
 

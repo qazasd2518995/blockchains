@@ -158,7 +158,23 @@ export async function baccaratIntegrationRoutes(fastify: FastifyInstance): Promi
         },
       });
 
-      const balance = await creditAndRecord(tx, body.userId, payout, bet.id, 'BET_WIN');
+      const balance = payout.greaterThan(0)
+        ? await creditAndRecord(tx, body.userId, payout, bet.id, 'BET_WIN')
+        : (await tx.user.findUniqueOrThrow({ where: { id: body.userId } })).balance;
+
+      if (payout.lessThanOrEqualTo(0)) {
+        await tx.transaction.create({
+          data: {
+            userId: body.userId,
+            type: 'BET_WIN',
+            amount: new Prisma.Decimal(0),
+            balanceAfter: balance,
+            betId: bet.id,
+            meta: { source: 'baccarat_settle' },
+          },
+        });
+      }
+
       return { balance: balance.toFixed(2), betId: bet.id };
     });
   });

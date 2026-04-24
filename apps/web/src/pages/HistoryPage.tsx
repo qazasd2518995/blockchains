@@ -111,6 +111,10 @@ export function HistoryPage() {
               const meta = ICON[tx.type] ?? ICON.ADJUSTMENT;
               const amount = Number.parseFloat(tx.amount);
               const positive = amount >= 0;
+              const profit = tx.profit === null ? null : Number.parseFloat(tx.profit);
+              const profitValue = profit ?? 0;
+              const hasWinLoss =
+                profit !== null && (tx.type === 'BET_WIN' || tx.type === 'CASHOUT');
               const d = new Date(tx.createdAt);
               const time = d.toLocaleTimeString('en-US', { hour12: false });
               const date = d.toLocaleDateString('en-US', {
@@ -131,19 +135,39 @@ export function HistoryPage() {
                   <div className={`flex items-center gap-2 ${meta.color}`}>
                     <span className="text-lg">{meta.icon}</span>
                     <span className="font-semibold text-[12px] font-semibold tracking-[0.1em]">
-                      {t.history.tx[tx.type as keyof typeof t.history.tx] ?? tx.type}
+                      {hasWinLoss
+                        ? t.history.settlement
+                        : (t.history.tx[tx.type as keyof typeof t.history.tx] ?? tx.type)}
                     </span>
                   </div>
                   <div className="hidden truncate font-mono text-[11px] text-[#4A5568] md:block">
-                    {renderReference(tx.gameId, tx.betId)}
+                    <div>{renderReference(tx.gameId, tx.betId)}</div>
+                    {hasWinLoss && tx.betAmount && tx.payout ? (
+                      <div className="mt-1 truncate text-[10px] tracking-normal text-[#9CA3AF]">
+                        {t.history.stake} {formatAmount(tx.betAmount)} · {t.history.payout}{' '}
+                        {formatAmount(tx.payout)}
+                      </div>
+                    ) : null}
                   </div>
                   <div
                     className={`data-num text-right text-base font-semibold ${
                       positive ? 'text-win' : 'text-[#D4574A]'
                     }`}
                   >
-                    {positive ? '+' : ''}
-                    {formatAmount(tx.amount)}
+                    <div>
+                      {positive ? '+' : ''}
+                      {formatAmount(tx.amount)}
+                    </div>
+                    {hasWinLoss ? (
+                      <div
+                        className={`mt-1 text-[11px] ${
+                          profitValue >= 0 ? 'text-win' : 'text-[#D4574A]'
+                        }`}
+                      >
+                        {t.history.winLoss} {profitValue >= 0 ? '+' : ''}
+                        {formatAmount(tx.profit!)}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="data-num text-right text-[11px] text-[#4A5568]">
                     {formatAmount(tx.balanceAfter)}
