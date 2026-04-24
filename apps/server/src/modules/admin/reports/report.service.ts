@@ -10,6 +10,13 @@ import {
   resolveAdminGameDayRange,
   shiftAdminGameDay,
 } from '../gameDay.js';
+import {
+  type DualRebateProfile,
+  calculateRebateAmountByCategory,
+  effectiveDownlineRebate,
+  fallbackRateForGame,
+  weightedRate,
+} from '../rebate.js';
 
 /**
  * 報表聚合服務
@@ -341,25 +348,9 @@ export class ReportService {
     const { start: startDate, end: endDate } = resolveAdminGameDayRange(query);
     const gameId = query.gameId;
 
-    const rootStats = await this.aggregateAgentSubtree(
-      root,
-      startDate,
-      endDate,
-      gameId,
-      undefined,
-      undefined,
-    );
+    const rootStats = await this.aggregateAgentSubtree(root, startDate, endDate, gameId);
     const childStats = await Promise.all(
-      children.map((c) =>
-        this.aggregateAgentSubtree(
-          c,
-          startDate,
-          endDate,
-          gameId,
-          root.rebatePercentage,
-          root.commissionRate,
-        ),
-      ),
+      children.map((c) => this.aggregateAgentSubtree(c, startDate, endDate, gameId, root)),
     );
 
     return {
@@ -367,7 +358,7 @@ export class ReportService {
         agentId: root.id,
         username: root.username,
         level: root.level,
-        rebatePercentage: root.rebatePercentage.toFixed(4),
+        rebatePercentage: resolveConfiguredDisplayRate(root, gameId).toFixed(4),
         balance: root.balance.toFixed(2),
         ...rootStats,
       },
@@ -375,7 +366,7 @@ export class ReportService {
         agentId: c.id,
         username: c.username,
         level: c.level,
-        rebatePercentage: c.rebatePercentage.toFixed(4),
+        rebatePercentage: resolveConfiguredDisplayRate(c, gameId).toFixed(4),
         balance: c.balance.toFixed(2),
         ...childStats[i]!,
       })),
@@ -438,7 +429,9 @@ export class ReportService {
         rebateMode: true,
         rebatePercentage: true,
         maxRebatePercentage: true,
-        commissionRate: true,
+        baccaratRebateMode: true,
+        baccaratRebatePercentage: true,
+        maxBaccaratRebatePercentage: true,
         balance: true,
         parentId: true,
       },
@@ -491,8 +484,7 @@ export class ReportService {
           startDate,
           endDate,
           gameId,
-          parent.rebatePercentage,
-          parent.commissionRate,
+          parent,
           query.settlementStatus,
         );
         return {
@@ -501,7 +493,7 @@ export class ReportService {
           username: c.username,
           displayName: c.displayName,
           level: c.level,
-          rebatePercentage: c.rebatePercentage.toFixed(4),
+          rebatePercentage: resolveConfiguredDisplayRate(c, gameId).toFixed(4),
           status: c.status,
           role: c.role,
           notes: c.notes,
@@ -525,9 +517,18 @@ export class ReportService {
         const memberWinLoss = agg.memberWinLoss; // 正=會員贏
         const payout = agg.payout;
 
-        // 會員拿的是其所屬代理（parent）的完整退水率
-        const memberRebatePct = parent.rebatePercentage;
-        const memberRebateAmt = betAmount.mul(memberRebatePct);
+        const memberElectronicRebatePct = effectiveDownlineRebate(parent, 'electronic');
+        const memberBaccaratRebatePct = effectiveDownlineRebate(parent, 'baccarat');
+        const memberRebateAmt = calculateRebateAmountByCategory(
+          agg,
+          memberElectronicRebatePct,
+          memberBaccaratRebatePct,
+        );
+        const memberRebatePct = weightedRate(
+          betAmount,
+          memberRebateAmt,
+          fallbackRateForGame(gameId, memberElectronicRebatePct, memberBaccaratRebatePct),
+        );
 
         // 會員的「上級交收」 = 會員輸贏 + 完整退水（參考系統 calculateItemSuperiorSettlement）
         const uplineSettle = memberWinLoss.add(memberRebateAmt);
@@ -556,7 +557,7 @@ export class ReportService {
           commissionPercentage: '0.0000',
           commissionAmount: '0.00',
           commissionResult: '0.00',
-          earnedRebatePercentage: memberRebatePct.toFixed(4), // 會員獲得的退水率
+          earnedRebatePercentage: memberRebatePct.toFixed(4),
           earnedRebateAmount: memberRebateAmt.toFixed(2),
           profitLossResult: memberWinLoss.toFixed(2),
           volumeRemitted: '0.00',
@@ -605,7 +606,7 @@ export class ReportService {
         id: parent.id,
         username: parent.username,
         level: parent.level,
-        rebatePercentage: parent.rebatePercentage.toFixed(4),
+        rebatePercentage: resolveConfiguredDisplayRate(parent, gameId).toFixed(4),
         commissionRate: '0.0000',
         balance: parent.balance.toFixed(2),
         parentId: parent.parentId,
@@ -648,13 +649,14 @@ export class ReportService {
       rebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
       rebatePercentage: Prisma.Decimal;
       maxRebatePercentage: Prisma.Decimal;
-      commissionRate: Prisma.Decimal;
+      baccaratRebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
+      baccaratRebatePercentage: Prisma.Decimal;
+      maxBaccaratRebatePercentage: Prisma.Decimal;
     },
     startDate?: Date,
     endDate?: Date,
     gameId?: string,
-    parentRebate?: Prisma.Decimal,
-    parentCommission?: Prisma.Decimal,
+    parentProfile?: DualRebateProfile,
     settlementStatus?: 'settled' | 'unsettled',
   ): Promise<AgentSubtreeStats> {
     const agentIds = await listAgentDescendants(this.prisma, agent.id);
@@ -663,7 +665,7 @@ export class ReportService {
       select: { id: true },
     });
     if (members.length === 0) {
-      return emptyStats(parentRebate, parentCommission, agent);
+      return emptyStats(parentProfile, gameId, agent);
     }
     const memberIds = members.map((m) => m.id);
     const agg = await this.aggregateUnifiedBets({
@@ -679,26 +681,35 @@ export class ReportService {
     const memberWinLoss = agg.memberWinLoss; // 正=會員贏
     const payout = agg.payout;
 
-    // 下級代理的「實際退水率」— 依 rebateMode 調整（參考系統邏輯）
-    // ALL  : 下級被上級賺走全部退水，實際退水率 = 0
-    // NONE : 下級全退給再下級，實際退水率 = maxRebatePercentage
-    // PERCENTAGE : 按設定的比例
-    const actualChildRebate =
-      agent.rebateMode === 'ALL'
-        ? new Prisma.Decimal(0)
-        : agent.rebateMode === 'NONE'
-          ? agent.maxRebatePercentage
-          : agent.rebatePercentage;
+    const actualElectronicRebate = effectiveDownlineRebate(agent, 'electronic');
+    const actualBaccaratRebate = effectiveDownlineRebate(agent, 'baccarat');
+    const totalLineRebate = calculateRebateAmountByCategory(
+      agg,
+      actualElectronicRebate,
+      actualBaccaratRebate,
+    );
 
-    // 整條線退水 = 下注 × 下級實際退水率
-    const totalLineRebate = betAmount.mul(actualChildRebate);
-
-    // 當層賺水率 = parent.rebate - 下級實際退水率
-    // 若無 parent（查詢最上層）→ 賺水率 = 下級實際退水率本身（參考系統 showAllTopAgents 路徑）
-    const earnedRebatePct = parentRebate
-      ? parentRebate.sub(actualChildRebate)
-      : actualChildRebate;
-    const earnedRebateAmount = betAmount.mul(earnedRebatePct);
+    const earnedElectronicRebatePct = parentProfile
+      ? effectiveDownlineRebate(parentProfile, 'electronic').sub(actualElectronicRebate)
+      : actualElectronicRebate;
+    const earnedBaccaratRebatePct = parentProfile
+      ? effectiveDownlineRebate(parentProfile, 'baccarat').sub(actualBaccaratRebate)
+      : actualBaccaratRebate;
+    const earnedRebateAmount = calculateRebateAmountByCategory(
+      agg,
+      earnedElectronicRebatePct,
+      earnedBaccaratRebatePct,
+    );
+    const totalRebateDisplayPct = weightedRate(
+      betAmount,
+      totalLineRebate,
+      fallbackRateForGame(gameId, actualElectronicRebate, actualBaccaratRebate),
+    );
+    const earnedRebateDisplayPct = weightedRate(
+      betAmount,
+      earnedRebateAmount,
+      fallbackRateForGame(gameId, earnedElectronicRebatePct, earnedBaccaratRebatePct),
+    );
 
     // 應收下線 = 會員虧損
     const receivableFromDownline = memberWinLoss.neg();
@@ -709,23 +720,20 @@ export class ReportService {
     // 上級交收 = 整條線輸贏 + 整條線退水 + 當層賺水（參考系統公式）
     const uplineSettlement = memberWinLoss.add(totalLineRebate).add(earnedRebateAmount);
 
-    // 占成機制目前不啟用；報表保留欄位給傳統格式，但比例固定為 0。
-    void parentCommission;
-
     return {
       betCount: agg.betCount,
       betAmount: betAmount.toFixed(2),
       validAmount: validAmount.toFixed(2),
       memberWinLoss: memberWinLoss.toFixed(2),
       payout: payout.toFixed(2),
-      totalRebatePercentage: actualChildRebate.toFixed(4),
+      totalRebatePercentage: totalRebateDisplayPct.toFixed(4),
       totalRebateAmount: totalLineRebate.toFixed(2),
       memberProfitLossResult: memberWinLoss.toFixed(2),
       receivableFromDownline: receivableFromDownline.toFixed(2),
       commissionPercentage: '0.0000',
       commissionAmount: '0.00',
       commissionResult: '0.00',
-      earnedRebatePercentage: earnedRebatePct.toFixed(4),
+      earnedRebatePercentage: earnedRebateDisplayPct.toFixed(4),
       earnedRebateAmount: earnedRebateAmount.toFixed(2),
       profitLossResult: profitLossResult.toFixed(2),
       volumeRemitted: '0.00',
@@ -784,13 +792,22 @@ export class ReportService {
     betAmount: Prisma.Decimal;
     payout: Prisma.Decimal;
     memberWinLoss: Prisma.Decimal;
+    electronicBetAmount: Prisma.Decimal;
+    baccaratBetAmount: Prisma.Decimal;
   }> {
-    const [standardAgg, crashAgg] = await Promise.all([
+    const shouldQueryBaccarat = !input.gameId || input.gameId === 'baccarat';
+    const [standardAgg, baccaratAgg, crashAgg] = await Promise.all([
       this.prisma.bet.aggregate({
         where: this.buildBetWhere(input),
         _count: { _all: true },
         _sum: { amount: true, profit: true, payout: true },
       }),
+      shouldQueryBaccarat
+        ? this.prisma.bet.aggregate({
+            where: this.buildBetWhere({ ...input, gameId: 'baccarat' }),
+            _sum: { amount: true },
+          })
+        : Promise.resolve({ _sum: { amount: new Prisma.Decimal(0) } }),
       this.prisma.crashBet.aggregate({
         where: this.buildCrashBetWhere(input),
         _count: { _all: true },
@@ -804,12 +821,16 @@ export class ReportService {
     const crashAmount = crashAgg._sum.amount ?? new Prisma.Decimal(0);
     const crashPayout = crashAgg._sum.payout ?? new Prisma.Decimal(0);
     const crashProfit = crashPayout.sub(crashAmount);
+    const baccaratAmount = baccaratAgg._sum.amount ?? new Prisma.Decimal(0);
+    const electronicAmount = standardAmount.sub(baccaratAmount).add(crashAmount);
 
     return {
       betCount: standardAgg._count._all + crashAgg._count._all,
       betAmount: standardAmount.add(crashAmount),
       payout: standardPayout.add(crashPayout),
       memberWinLoss: standardProfit.add(crashProfit),
+      electronicBetAmount: electronicAmount,
+      baccaratBetAmount: baccaratAmount,
     };
   }
 
@@ -889,37 +910,40 @@ function withMergedCursor<T extends { id?: unknown; createdAt?: unknown }>(
 }
 
 function emptyStats(
-  parentRebate: Prisma.Decimal | undefined,
-  parentCommission: Prisma.Decimal | undefined,
-  agent: {
-    rebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
-    rebatePercentage: Prisma.Decimal;
-    maxRebatePercentage: Prisma.Decimal;
-    commissionRate: Prisma.Decimal;
-  },
+  parentProfile: DualRebateProfile | undefined,
+  gameId: string | undefined,
+  agent: DualRebateProfile,
 ): AgentSubtreeStats {
-  void parentCommission;
-  const actualChildRebate =
-    agent.rebateMode === 'ALL'
-      ? new Prisma.Decimal(0)
-      : agent.rebateMode === 'NONE'
-        ? agent.maxRebatePercentage
-        : agent.rebatePercentage;
-  const earnedPct = parentRebate ? parentRebate.sub(actualChildRebate) : actualChildRebate;
+  const actualElectronicRebate = effectiveDownlineRebate(agent, 'electronic');
+  const actualBaccaratRebate = effectiveDownlineRebate(agent, 'baccarat');
+  const earnedElectronicRebate = parentProfile
+    ? effectiveDownlineRebate(parentProfile, 'electronic').sub(actualElectronicRebate)
+    : actualElectronicRebate;
+  const earnedBaccaratRebate = parentProfile
+    ? effectiveDownlineRebate(parentProfile, 'baccarat').sub(actualBaccaratRebate)
+    : actualBaccaratRebate;
   return {
     betCount: 0,
     betAmount: '0.00',
     validAmount: '0.00',
     memberWinLoss: '0.00',
     payout: '0.00',
-    totalRebatePercentage: actualChildRebate.toFixed(4),
+    totalRebatePercentage: fallbackRateForGame(
+      gameId,
+      actualElectronicRebate,
+      actualBaccaratRebate,
+    ).toFixed(4),
     totalRebateAmount: '0.00',
     memberProfitLossResult: '0.00',
     receivableFromDownline: '0.00',
     commissionPercentage: '0.0000',
     commissionAmount: '0.00',
     commissionResult: '0.00',
-    earnedRebatePercentage: earnedPct.toFixed(4),
+    earnedRebatePercentage: fallbackRateForGame(
+      gameId,
+      earnedElectronicRebate,
+      earnedBaccaratRebate,
+    ).toFixed(4),
     earnedRebateAmount: '0.00',
     profitLossResult: '0.00',
     volumeRemitted: '0.00',
@@ -993,6 +1017,11 @@ export interface AgentAnalysisRow extends AgentSubtreeStats {
   level: number;
   rebatePercentage: string;
   balance: string;
+}
+
+function resolveConfiguredDisplayRate(agent: DualRebateProfile, gameId?: string): Prisma.Decimal {
+  if (!gameId) return new Prisma.Decimal(0);
+  return effectiveDownlineRebate(agent, gameId === 'baccarat' ? 'baccarat' : 'electronic');
 }
 
 export interface HierarchyReportCommon {

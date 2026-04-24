@@ -142,6 +142,9 @@ export function AgentHierarchyPage(): JSX.Element {
         rebateMode: currentLayerAgent.rebateMode,
         rebatePercentage: currentLayerAgent.rebatePercentage,
         maxRebatePercentage: currentLayerAgent.maxRebatePercentage,
+        baccaratRebateMode: currentLayerAgent.baccaratRebateMode,
+        baccaratRebatePercentage: currentLayerAgent.baccaratRebatePercentage,
+        maxBaccaratRebatePercentage: currentLayerAgent.maxBaccaratRebatePercentage,
         bettingLimitLevel: currentLayerAgent.bettingLimitLevel,
       }
     : undefined;

@@ -10,6 +10,8 @@ export interface CreateAgentRequest {
   commissionRate?: string;
   rebateMode?: RebateModeDto;
   rebatePercentage?: string;
+  baccaratRebateMode?: RebateModeDto;
+  baccaratRebatePercentage?: string;
   bettingLimitLevel?: string;
   notes?: string;
 }
@@ -22,6 +24,8 @@ export interface UpdateAgentRequest {
 export interface UpdateAgentRebateRequest {
   rebateMode: RebateModeDto;
   rebatePercentage: string;
+  baccaratRebateMode?: RebateModeDto;
+  baccaratRebatePercentage?: string;
 }
 
 export interface UpdateAgentStatusRequest {

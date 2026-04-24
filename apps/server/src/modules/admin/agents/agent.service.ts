@@ -5,6 +5,14 @@ import { ApiError } from '../../../utils/errors.js';
 import { canManageAgent } from '../../../utils/hierarchy.js';
 import { writeAudit } from '../audit/audit.service.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
+import {
+  type RebateCategory,
+  type DualRebateProfile,
+  assertRebateWithinBounds,
+  clampRebateToPlatform,
+  effectiveDownlineRebate,
+  normalizeRebateForMode,
+} from '../rebate.js';
 import type {
   CreateAgentInput,
   UpdateAgentInput,
@@ -16,55 +24,6 @@ import type {
 import type { FastifyRequest } from 'fastify';
 
 const BCRYPT_ROUNDS = 12;
-
-/**
- * 平台退水硬上限（電子系列） — 2.5%（fraction 表示：0.025）。
- * 任何代理／子代理的 rebatePercentage 都不得超過此值，
- * 即使其上級設定得更高，仍會在此 cap 住。
- */
-const PLATFORM_REBATE_CAP = new Prisma.Decimal('0.025');
-type RebateMode = 'PERCENTAGE' | 'ALL' | 'NONE';
-type RebateCarrier = {
-  rebateMode: RebateMode;
-  rebatePercentage: Prisma.Decimal;
-  maxRebatePercentage: Prisma.Decimal;
-};
-
-function clampRebateToPlatform(value: Prisma.Decimal): Prisma.Decimal {
-  if (value.lessThan(0)) return new Prisma.Decimal(0);
-  return value.greaterThan(PLATFORM_REBATE_CAP) ? PLATFORM_REBATE_CAP : value;
-}
-
-function effectiveDownlineRebate(agent: RebateCarrier): Prisma.Decimal {
-  if (agent.rebateMode === 'ALL') return new Prisma.Decimal(0);
-  if (agent.rebateMode === 'NONE') return clampRebateToPlatform(agent.maxRebatePercentage);
-  return clampRebateToPlatform(agent.rebatePercentage);
-}
-
-function normalizeRebateForMode(
-  mode: RebateMode,
-  requestedPct: string | undefined,
-  maxAllowed: Prisma.Decimal,
-): Prisma.Decimal {
-  if (mode === 'ALL') return new Prisma.Decimal(0);
-  if (mode === 'NONE') return maxAllowed;
-  return new Prisma.Decimal(requestedPct ?? '0');
-}
-
-function assertRebateWithinBounds(rebatePct: Prisma.Decimal, maxAllowed: Prisma.Decimal): void {
-  if (rebatePct.lessThan(0)) {
-    throw new ApiError('REBATE_VIOLATION', 'rebatePercentage cannot be negative');
-  }
-  if (rebatePct.greaterThan(maxAllowed)) {
-    throw new ApiError('REBATE_VIOLATION', 'rebatePercentage exceeds parent');
-  }
-  if (rebatePct.greaterThan(PLATFORM_REBATE_CAP)) {
-    throw new ApiError(
-      'REBATE_VIOLATION',
-      `rebatePercentage exceeds platform cap ${PLATFORM_REBATE_CAP.mul(100).toFixed(2)}%`,
-    );
-  }
-}
 
 export class AgentService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -136,9 +95,18 @@ export class AgentService {
     }
 
     const rebateMode = input.rebateMode ?? 'PERCENTAGE';
-    const maxAllowed = effectiveDownlineRebate(parent);
+    const maxAllowed = effectiveDownlineRebate(parent, 'electronic');
     const rebatePct = normalizeRebateForMode(rebateMode, input.rebatePercentage, maxAllowed);
-    assertRebateWithinBounds(rebatePct, maxAllowed);
+    this.assertRebateBoundsOrThrow(rebatePct, maxAllowed, 'electronic');
+
+    const baccaratRebateMode = input.baccaratRebateMode ?? rebateMode;
+    const baccaratMaxAllowed = effectiveDownlineRebate(parent, 'baccarat');
+    const baccaratRebatePct = normalizeRebateForMode(
+      baccaratRebateMode,
+      input.baccaratRebatePercentage ?? input.rebatePercentage,
+      baccaratMaxAllowed,
+    );
+    this.assertRebateBoundsOrThrow(baccaratRebatePct, baccaratMaxAllowed, 'baccarat');
     // 平台目前不啟用占成機制，保留 DB 欄位但固定為 0。
     const commissionRate = new Prisma.Decimal(0);
 
@@ -160,6 +128,9 @@ export class AgentService {
         rebateMode,
         rebatePercentage: rebatePct,
         maxRebatePercentage: maxAllowed,
+        baccaratRebateMode,
+        baccaratRebatePercentage: baccaratRebatePct,
+        maxBaccaratRebatePercentage: baccaratMaxAllowed,
         bettingLimitLevel: input.bettingLimitLevel ?? parent.bettingLimitLevel,
         notes: input.notes ?? null,
         role: 'AGENT',
@@ -220,17 +191,38 @@ export class AgentService {
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot modify rebate');
+    const nextElectronicMode = input.rebateMode ?? existing.rebateMode;
     const maxAllowed = existing.parent
-      ? effectiveDownlineRebate(existing.parent)
-      : clampRebateToPlatform(existing.maxRebatePercentage);
-    const newPct = normalizeRebateForMode(input.rebateMode, input.rebatePercentage, maxAllowed);
-    assertRebateWithinBounds(newPct, maxAllowed);
+      ? effectiveDownlineRebate(existing.parent, 'electronic')
+      : clampRebateToPlatform(existing.maxRebatePercentage, 'electronic');
+    const newPct = normalizeRebateForMode(
+      nextElectronicMode,
+      input.rebatePercentage ?? existing.rebatePercentage.toFixed(4),
+      maxAllowed,
+    );
+    this.assertRebateBoundsOrThrow(newPct, maxAllowed, 'electronic');
 
-    const newEffectiveDownlineRebate = effectiveDownlineRebate({
-      rebateMode: input.rebateMode,
+    const nextBaccaratMode = input.baccaratRebateMode ?? existing.baccaratRebateMode;
+    const baccaratMaxAllowed = existing.parent
+      ? effectiveDownlineRebate(existing.parent, 'baccarat')
+      : clampRebateToPlatform(existing.maxBaccaratRebatePercentage, 'baccarat');
+    const newBaccaratPct = normalizeRebateForMode(
+      nextBaccaratMode,
+      input.baccaratRebatePercentage ?? existing.baccaratRebatePercentage.toFixed(4),
+      baccaratMaxAllowed,
+    );
+    this.assertRebateBoundsOrThrow(newBaccaratPct, baccaratMaxAllowed, 'baccarat');
+
+    const nextProfile: DualRebateProfile = {
+      rebateMode: nextElectronicMode,
       rebatePercentage: newPct,
       maxRebatePercentage: maxAllowed,
-    });
+      baccaratRebateMode: nextBaccaratMode,
+      baccaratRebatePercentage: newBaccaratPct,
+      maxBaccaratRebatePercentage: baccaratMaxAllowed,
+    };
+    const newEffectiveDownlineRebate = effectiveDownlineRebate(nextProfile, 'electronic');
+    const newEffectiveBaccaratRebate = effectiveDownlineRebate(nextProfile, 'baccarat');
     const directChildren = await this.prisma.agent.findMany({
       where: { parentId: id, status: { not: 'DELETED' } },
       select: {
@@ -239,28 +231,57 @@ export class AgentService {
         rebateMode: true,
         rebatePercentage: true,
         maxRebatePercentage: true,
+        baccaratRebateMode: true,
+        baccaratRebatePercentage: true,
+        maxBaccaratRebatePercentage: true,
       },
     });
-    const blockingChild = directChildren.find((child) =>
-      effectiveDownlineRebate(child).greaterThan(newEffectiveDownlineRebate),
+    const blockingElectronicChild = directChildren.find((child) =>
+      effectiveDownlineRebate(child, 'electronic').greaterThan(newEffectiveDownlineRebate),
     );
-    if (blockingChild) {
+    if (blockingElectronicChild) {
       throw new ApiError(
         'REBATE_VIOLATION',
-        `下级代理 ${blockingChild.username} 的退水高于本级新设定，请先调低下级退水`,
+        `下级代理 ${blockingElectronicChild.username} 的电子退水高于本级新设定，请先调低下级退水`,
+      );
+    }
+    const blockingBaccaratChild = directChildren.find((child) =>
+      effectiveDownlineRebate(child, 'baccarat').greaterThan(newEffectiveBaccaratRebate),
+    );
+    if (blockingBaccaratChild) {
+      throw new ApiError(
+        'REBATE_VIOLATION',
+        `下级代理 ${blockingBaccaratChild.username} 的百家乐退水高于本级新设定，请先调低下级退水`,
       );
     }
     const updated = await this.prisma.agent.update({
       where: { id },
-      data: { rebateMode: input.rebateMode, rebatePercentage: newPct, maxRebatePercentage: maxAllowed },
+      data: {
+        rebateMode: nextElectronicMode,
+        rebatePercentage: newPct,
+        maxRebatePercentage: maxAllowed,
+        baccaratRebateMode: nextBaccaratMode,
+        baccaratRebatePercentage: newBaccaratPct,
+        maxBaccaratRebatePercentage: baccaratMaxAllowed,
+      },
     });
     await writeAudit(this.prisma, {
       actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
       action: 'agent.rebate.update',
       targetType: 'agent',
       targetId: id,
-      oldValues: { rebateMode: existing.rebateMode, rebatePercentage: existing.rebatePercentage.toFixed(4) },
-      newValues: { rebateMode: updated.rebateMode, rebatePercentage: updated.rebatePercentage.toFixed(4) },
+      oldValues: {
+        rebateMode: existing.rebateMode,
+        rebatePercentage: existing.rebatePercentage.toFixed(4),
+        baccaratRebateMode: existing.baccaratRebateMode,
+        baccaratRebatePercentage: existing.baccaratRebatePercentage.toFixed(4),
+      },
+      newValues: {
+        rebateMode: updated.rebateMode,
+        rebatePercentage: updated.rebatePercentage.toFixed(4),
+        baccaratRebateMode: updated.baccaratRebateMode,
+        baccaratRebatePercentage: updated.baccaratRebatePercentage.toFixed(4),
+      },
       req,
     });
     return toPublic(updated);
@@ -352,6 +373,18 @@ export class AgentService {
       req,
     });
   }
+
+  private assertRebateBoundsOrThrow(
+    rebatePct: Prisma.Decimal,
+    maxAllowed: Prisma.Decimal,
+    category: RebateCategory,
+  ): void {
+    try {
+      assertRebateWithinBounds(rebatePct, maxAllowed, category);
+    } catch (error) {
+      throw new ApiError('REBATE_VIOLATION', error instanceof Error ? error.message : 'Invalid rebate');
+    }
+  }
 }
 
 export function toPublic(agent: {
@@ -367,6 +400,9 @@ export function toPublic(agent: {
   rebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
   rebatePercentage: Prisma.Decimal;
   maxRebatePercentage: Prisma.Decimal;
+  baccaratRebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
+  baccaratRebatePercentage: Prisma.Decimal;
+  maxBaccaratRebatePercentage: Prisma.Decimal;
   bettingLimitLevel: string;
   status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
   role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
@@ -387,6 +423,9 @@ export function toPublic(agent: {
     rebateMode: agent.rebateMode,
     rebatePercentage: agent.rebatePercentage.toFixed(4),
     maxRebatePercentage: agent.maxRebatePercentage.toFixed(4),
+    baccaratRebateMode: agent.baccaratRebateMode,
+    baccaratRebatePercentage: agent.baccaratRebatePercentage.toFixed(4),
+    maxBaccaratRebatePercentage: agent.maxBaccaratRebatePercentage.toFixed(4),
     bettingLimitLevel: agent.bettingLimitLevel,
     status: agent.status,
     role: agent.role,

@@ -2,11 +2,14 @@ import { ManualDetectionScope, Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { listAgentDescendants } from '../../../utils/hierarchy.js';
 import { getAdminGameDay, getAdminGameDayWindow } from '../gameDay.js';
+import {
+  calculateRebateAmountByCategory,
+  effectiveDownlineRebate,
+} from '../rebate.js';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
 const ZERO = new Prisma.Decimal(0);
-const SETTLED_STATUS = Prisma.sql`'SETTLED'::"BetStatus"`;
 
 export interface SettlementSummary {
   gameDay: string;
@@ -27,6 +30,8 @@ interface BetAggregate {
   memberWinLoss: Prisma.Decimal;
   totalBets: number;
   totalPlayers: number;
+  electronicBetAmount: Prisma.Decimal;
+  baccaratBetAmount: Prisma.Decimal;
 }
 
 interface AgentRebateProfile {
@@ -35,6 +40,9 @@ interface AgentRebateProfile {
   rebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
   rebatePercentage: Prisma.Decimal;
   maxRebatePercentage: Prisma.Decimal;
+  baccaratRebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
+  baccaratRebatePercentage: Prisma.Decimal;
+  maxBaccaratRebatePercentage: Prisma.Decimal;
 }
 
 export function getControlGameDay(now: Date = new Date()): string {
@@ -218,18 +226,6 @@ function manualScopeRank(scope: ManualDetectionScope): number {
   return 2;
 }
 
-function decimal(value: Prisma.Decimal | string | number | null | undefined): Prisma.Decimal {
-  if (value instanceof Prisma.Decimal) return value;
-  if (typeof value === 'string' || typeof value === 'number') return new Prisma.Decimal(value);
-  return ZERO;
-}
-
-function actualChildRebate(agent: Pick<AgentRebateProfile, 'rebateMode' | 'rebatePercentage' | 'maxRebatePercentage'>): Prisma.Decimal {
-  if (agent.rebateMode === 'ALL') return ZERO;
-  if (agent.rebateMode === 'NONE') return agent.maxRebatePercentage;
-  return agent.rebatePercentage;
-}
-
 function isTargetReached(
   currentSettlement: Prisma.Decimal,
   targetSettlement: Prisma.Decimal,
@@ -268,6 +264,9 @@ async function calculateMemberSettlement(
         rebateMode: true,
         rebatePercentage: true,
         maxRebatePercentage: true,
+        baccaratRebateMode: true,
+        baccaratRebatePercentage: true,
+        maxBaccaratRebatePercentage: true,
       },
     }),
   ]);
@@ -276,11 +275,35 @@ async function calculateMemberSettlement(
   const parent = agent.parentId
     ? await db.agent.findUnique({
         where: { id: agent.parentId },
-        select: { rebatePercentage: true },
+        select: {
+          rebateMode: true,
+          rebatePercentage: true,
+          maxRebatePercentage: true,
+          baccaratRebateMode: true,
+          baccaratRebatePercentage: true,
+          maxBaccaratRebatePercentage: true,
+        },
       })
     : null;
-  const rebateRate = parent?.rebatePercentage ?? actualChildRebate(agent);
-  return toSummary(window.gameDay, aggregate, aggregate.totalBet.mul(rebateRate));
+  const electronicRate = parent
+    ? effectiveDownlineRebate(parent, 'electronic')
+    : effectiveDownlineRebate(agent, 'electronic');
+  const baccaratRate = parent
+    ? effectiveDownlineRebate(parent, 'baccarat')
+    : effectiveDownlineRebate(agent, 'baccarat');
+  return toSummary(
+    window.gameDay,
+    aggregate,
+    calculateRebateAmountByCategory(
+      {
+        betAmount: aggregate.totalBet,
+        electronicBetAmount: aggregate.electronicBetAmount,
+        baccaratBetAmount: aggregate.baccaratBetAmount,
+      },
+      electronicRate,
+      baccaratRate,
+    ),
+  );
 }
 
 async function calculateAgentLineSettlement(
@@ -338,6 +361,9 @@ async function calculateAgentSubtreeSettlement(
       rebateMode: true,
       rebatePercentage: true,
       maxRebatePercentage: true,
+      baccaratRebateMode: true,
+      baccaratRebatePercentage: true,
+      maxBaccaratRebatePercentage: true,
     },
   });
   if (!agent) return emptySummary(window.gameDay);
@@ -353,11 +379,35 @@ async function calculateAgentSubtreeSettlement(
   const parent = agent.parentId
     ? await db.agent.findUnique({
         where: { id: agent.parentId },
-        select: { rebatePercentage: true },
+        select: {
+          rebateMode: true,
+          rebatePercentage: true,
+          maxRebatePercentage: true,
+          baccaratRebateMode: true,
+          baccaratRebatePercentage: true,
+          maxBaccaratRebatePercentage: true,
+        },
       })
     : null;
-  const rebateRate = parent?.rebatePercentage ?? actualChildRebate(agent);
-  return toSummary(window.gameDay, aggregate, aggregate.totalBet.mul(rebateRate));
+  const electronicRate = parent
+    ? effectiveDownlineRebate(parent, 'electronic')
+    : effectiveDownlineRebate(agent, 'electronic');
+  const baccaratRate = parent
+    ? effectiveDownlineRebate(parent, 'baccarat')
+    : effectiveDownlineRebate(agent, 'baccarat');
+  return toSummary(
+    window.gameDay,
+    aggregate,
+    calculateRebateAmountByCategory(
+      {
+        betAmount: aggregate.totalBet,
+        electronicBetAmount: aggregate.electronicBetAmount,
+        baccaratBetAmount: aggregate.baccaratBetAmount,
+      },
+      electronicRate,
+      baccaratRate,
+    ),
+  );
 }
 
 async function queryBetAggregate(
@@ -369,42 +419,89 @@ async function queryBetAggregate(
     return emptyAggregate();
   }
 
-  const userSql = filter.userId
-    ? Prisma.sql`AND "userId" = ${filter.userId}`
+  const userWhere = filter.userId
+    ? { userId: filter.userId }
     : filter.userIds
-      ? Prisma.sql`AND "userId" IN (${Prisma.join(filter.userIds)})`
-      : Prisma.sql``;
+      ? { userId: { in: filter.userIds } }
+      : {};
 
-  const rows = await db.$queryRaw<
-    {
-      totalBet: string;
-      totalPayout: string;
-      memberWinLoss: string;
-      totalBets: number;
-      totalPlayers: number;
-    }[]
-  >(Prisma.sql`
-    SELECT
-      COALESCE(SUM("amount"), 0)::text AS "totalBet",
-      COALESCE(SUM("payout"), 0)::text AS "totalPayout",
-      COALESCE(SUM("profit"), 0)::text AS "memberWinLoss",
-      COUNT(*)::int AS "totalBets",
-      COUNT(DISTINCT "userId")::int AS "totalPlayers"
-    FROM "Bet"
-    WHERE "status" = ${SETTLED_STATUS}
-      AND "createdAt" >= ${window.start}
-      AND "createdAt" < ${window.end}
-      ${userSql}
-  `);
-  const row = rows[0];
-  if (!row) return emptyAggregate();
+  const [standardAgg, baccaratAgg, crashAgg] = await Promise.all([
+    db.bet.aggregate({
+      where: {
+        ...userWhere,
+        status: 'SETTLED',
+        createdAt: { gte: window.start, lt: window.end },
+      },
+      _count: { _all: true },
+      _sum: { amount: true, payout: true, profit: true },
+    }),
+    db.bet.aggregate({
+      where: {
+        ...userWhere,
+        gameId: 'baccarat',
+        status: 'SETTLED',
+        createdAt: { gte: window.start, lt: window.end },
+      },
+      _sum: { amount: true },
+    }),
+    db.crashBet.aggregate({
+      where: {
+        ...userWhere,
+        createdAt: { gte: window.start, lt: window.end },
+        round: { status: 'CRASHED' },
+      },
+      _count: { _all: true },
+      _sum: { amount: true, payout: true },
+    }),
+  ]);
+
+  const standardAmount = standardAgg._sum.amount ?? ZERO;
+  const standardPayout = standardAgg._sum.payout ?? ZERO;
+  const standardProfit = standardAgg._sum.profit ?? ZERO;
+  const baccaratAmount = baccaratAgg._sum.amount ?? ZERO;
+  const crashAmount = crashAgg._sum.amount ?? ZERO;
+  const crashPayout = crashAgg._sum.payout ?? ZERO;
+  const electronicAmount = standardAmount.sub(baccaratAmount).add(crashAmount);
   return {
-    totalBet: decimal(row.totalBet),
-    totalPayout: decimal(row.totalPayout),
-    memberWinLoss: decimal(row.memberWinLoss),
-    totalBets: Number(row.totalBets ?? 0),
-    totalPlayers: Number(row.totalPlayers ?? 0),
+    totalBet: standardAmount.add(crashAmount),
+    totalPayout: standardPayout.add(crashPayout),
+    memberWinLoss: standardProfit.add(crashPayout.sub(crashAmount)),
+    totalBets: standardAgg._count._all + crashAgg._count._all,
+    totalPlayers: await countDistinctPlayers(db, window, filter),
+    electronicBetAmount: electronicAmount,
+    baccaratBetAmount: baccaratAmount,
   };
+}
+
+async function countDistinctPlayers(
+  db: Db,
+  window: ReturnType<typeof getControlGameDayWindow>,
+  filter: { userId?: string; userIds?: string[] },
+): Promise<number> {
+  if (filter.userIds && filter.userIds.length === 0) return 0;
+
+  const userWhere = filter.userId ? filter.userId : filter.userIds ? { in: filter.userIds } : undefined;
+  const [betPlayers, crashPlayers] = await Promise.all([
+    db.bet.findMany({
+      where: {
+        ...(userWhere !== undefined ? { userId: userWhere } : {}),
+        status: 'SETTLED',
+        createdAt: { gte: window.start, lt: window.end },
+      },
+      select: { userId: true },
+      distinct: ['userId'],
+    }),
+    db.crashBet.findMany({
+      where: {
+        ...(userWhere !== undefined ? { userId: userWhere } : {}),
+        createdAt: { gte: window.start, lt: window.end },
+        round: { status: 'CRASHED' },
+      },
+      select: { userId: true },
+      distinct: ['userId'],
+    }),
+  ]);
+  return new Set([...betPlayers.map((row) => row.userId), ...crashPlayers.map((row) => row.userId)]).size;
 }
 
 function emptyAggregate(): BetAggregate {
@@ -414,6 +511,8 @@ function emptyAggregate(): BetAggregate {
     memberWinLoss: ZERO,
     totalBets: 0,
     totalPlayers: 0,
+    electronicBetAmount: ZERO,
+    baccaratBetAmount: ZERO,
   };
 }
 

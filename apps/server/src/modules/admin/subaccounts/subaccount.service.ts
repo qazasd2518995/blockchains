@@ -19,8 +19,8 @@ const MAX_SUB_ACCOUNTS_PER_AGENT = 5;
 /**
  * 子帳號 = 同層從屬的唯讀員工帳號。
  * level 與 parent 相同（不是下一層）。
- * rebatePercentage = 0（子帳號不分退水）。
- * maxRebatePercentage / marketType 繼承 parent；占成欄位保留但固定 0。
+ * rebatePercentage / baccaratRebatePercentage = 0（子帳號不分退水）。
+ * maxRebatePercentage / maxBaccaratRebatePercentage / marketType 繼承 parent；占成欄位保留但固定 0。
  */
 export class SubAccountService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -34,7 +34,7 @@ export class SubAccountService {
   private async resolveParent(
     operator: AdminCurrent,
     requestedParentId: string | undefined,
-  ): Promise<{ id: string; username: string; level: number; rebatePercentage: import('@prisma/client').Prisma.Decimal; maxRebatePercentage: import('@prisma/client').Prisma.Decimal; marketType: 'D' | 'A'; bettingLimitLevel: string; role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT'; status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED' }> {
+  ): Promise<{ id: string; username: string; level: number; rebatePercentage: import('@prisma/client').Prisma.Decimal; maxRebatePercentage: import('@prisma/client').Prisma.Decimal; baccaratRebatePercentage: import('@prisma/client').Prisma.Decimal; maxBaccaratRebatePercentage: import('@prisma/client').Prisma.Decimal; marketType: 'D' | 'A'; bettingLimitLevel: string; role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT'; status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED' }> {
     if (operator.role === 'SUB_ACCOUNT') {
       throw new ApiError('FORBIDDEN', 'Sub-account cannot manage sub-accounts');
     }
@@ -63,6 +63,8 @@ export class SubAccountService {
       level: parent.level,
       rebatePercentage: parent.rebatePercentage,
       maxRebatePercentage: parent.maxRebatePercentage,
+      baccaratRebatePercentage: parent.baccaratRebatePercentage,
+      maxBaccaratRebatePercentage: parent.maxBaccaratRebatePercentage,
       marketType: parent.marketType,
       bettingLimitLevel: parent.bettingLimitLevel,
       role: parent.role,
@@ -156,6 +158,9 @@ export class SubAccountService {
         rebateMode: 'NONE',
         rebatePercentage: '0',
         maxRebatePercentage: parent.maxRebatePercentage,
+        baccaratRebateMode: 'NONE',
+        baccaratRebatePercentage: '0',
+        maxBaccaratRebatePercentage: parent.maxBaccaratRebatePercentage,
         bettingLimitLevel: parent.bettingLimitLevel,
         notes: input.notes ?? null,
         role: 'SUB_ACCOUNT',

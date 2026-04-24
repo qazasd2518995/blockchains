@@ -35,6 +35,9 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         maxRebatePercentage: true,
         rebateMode: true,
         rebatePercentage: true,
+        maxBaccaratRebatePercentage: true,
+        baccaratRebateMode: true,
+        baccaratRebatePercentage: true,
         bettingLimitLevel: true,
         role: true,
         status: true,
@@ -138,6 +141,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           marketType: 'D' | 'A';
           balance: string;
           rebatePercentage: string;
+          baccaratRebatePercentage?: string;
           bettingLimitLevel: string;
           status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
           role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
@@ -172,6 +176,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         marketType: a.marketType,
         balance: a.balance.toFixed(2),
         rebatePercentage: a.rebatePercentage.toFixed(4),
+        baccaratRebatePercentage: a.baccaratRebatePercentage.toFixed(4),
         bettingLimitLevel: a.bettingLimitLevel,
         status: a.status,
         role: a.role,
@@ -208,6 +213,9 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         rebatePercentage: parent.rebatePercentage.toFixed(4),
         maxRebatePercentage: parent.maxRebatePercentage.toFixed(4),
         rebateMode: parent.rebateMode,
+        baccaratRebatePercentage: parent.baccaratRebatePercentage.toFixed(4),
+        maxBaccaratRebatePercentage: parent.maxBaccaratRebatePercentage.toFixed(4),
+        baccaratRebateMode: parent.baccaratRebateMode,
         bettingLimitLevel: parent.bettingLimitLevel,
         role: parent.role,
         status: parent.status,

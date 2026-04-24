@@ -14,6 +14,8 @@ export const createAgentSchema = z.object({
   commissionRate: decimalString.optional(),
   rebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']).optional(),
   rebatePercentage: decimalString.optional(),
+  baccaratRebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']).optional(),
+  baccaratRebatePercentage: decimalString.optional(),
   bettingLimitLevel: z.string().optional(),
   notes: z.string().max(500).optional(),
 });
@@ -24,8 +26,10 @@ export const updateAgentSchema = z.object({
 });
 
 export const updateAgentRebateSchema = z.object({
-  rebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']),
-  rebatePercentage: decimalString,
+  rebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']).optional(),
+  rebatePercentage: decimalString.optional(),
+  baccaratRebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']).optional(),
+  baccaratRebatePercentage: decimalString.optional(),
 });
 
 export const updateAgentStatusSchema = z.object({

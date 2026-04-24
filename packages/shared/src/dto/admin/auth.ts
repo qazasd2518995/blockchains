@@ -21,6 +21,9 @@ export interface AgentPublic {
   rebateMode: RebateModeDto;
   rebatePercentage: string;
   maxRebatePercentage: string;
+  baccaratRebateMode: RebateModeDto;
+  baccaratRebatePercentage: string;
+  maxBaccaratRebatePercentage: string;
   bettingLimitLevel: string;
   status: AgentStatusDto;
   role: AdminRoleDto;

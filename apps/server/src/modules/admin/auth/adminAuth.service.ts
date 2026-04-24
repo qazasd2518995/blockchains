@@ -107,6 +107,9 @@ export class AdminAuthService {
     rebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
     rebatePercentage: Prisma.Decimal;
     maxRebatePercentage: Prisma.Decimal;
+    baccaratRebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
+    baccaratRebatePercentage: Prisma.Decimal;
+    maxBaccaratRebatePercentage: Prisma.Decimal;
     bettingLimitLevel: string;
     status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
     role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
@@ -127,6 +130,9 @@ export class AdminAuthService {
       rebateMode: agent.rebateMode,
       rebatePercentage: agent.rebatePercentage.toFixed(4),
       maxRebatePercentage: agent.maxRebatePercentage.toFixed(4),
+      baccaratRebateMode: agent.baccaratRebateMode,
+      baccaratRebatePercentage: agent.baccaratRebatePercentage.toFixed(4),
+      maxBaccaratRebatePercentage: agent.maxBaccaratRebatePercentage.toFixed(4),
       bettingLimitLevel: agent.bettingLimitLevel,
       status: agent.status,
       role: agent.role,
