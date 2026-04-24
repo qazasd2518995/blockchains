@@ -8,7 +8,15 @@ async function main(): Promise<void> {
   const adminUsername = 'admin';
   const existing = await prisma.user.findUnique({ where: { username: adminUsername } });
   if (existing) {
-    console.log(`[seed] admin already exists (${adminUsername})`);
+    if (existing.role !== 'PLAYER') {
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: { role: 'PLAYER' },
+      });
+      console.log(`[seed] admin role repaired to PLAYER (${adminUsername})`);
+    } else {
+      console.log(`[seed] admin already exists (${adminUsername})`);
+    }
     return;
   }
 
@@ -19,7 +27,7 @@ async function main(): Promise<void> {
         username: adminUsername,
         passwordHash,
         displayName: 'Admin',
-        role: 'ADMIN',
+        role: 'PLAYER',
         balance: new Prisma.Decimal(10000),
       },
     });
@@ -29,7 +37,7 @@ async function main(): Promise<void> {
         type: 'SIGNUP_BONUS',
         amount: new Prisma.Decimal(10000),
         balanceAfter: new Prisma.Decimal(10000),
-        meta: { note: 'Admin seeded' },
+        meta: { note: 'Default player seeded' },
       },
     });
     await tx.clientSeed.create({
@@ -51,7 +59,7 @@ async function main(): Promise<void> {
     return created;
   });
 
-  console.log(`[seed] Admin user created: ${user.username} / admin123456`);
+  console.log(`[seed] Default player created: ${user.username} / admin123456`);
 }
 
 main()
