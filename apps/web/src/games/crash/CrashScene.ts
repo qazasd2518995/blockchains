@@ -1,9 +1,12 @@
 import {
   Application,
+  Assets,
   Container,
   Graphics,
+  Sprite,
   Text,
   TextStyle,
+  Texture,
   Ticker,
   BlurFilter,
 } from 'pixi.js';
@@ -35,7 +38,59 @@ const COLOR_ICE = 0x266F85;
 const COLOR_AMBER = 0xF3D67D;
 const COLOR_WHITE = 0xFFFFFF;
 
-export type CrashVariant = 'rocket' | 'aviator' | 'balloon' | 'jet' | 'fleet' | 'default';
+export type CrashVariant =
+  | 'rocket'
+  | 'aviator'
+  | 'balloon'
+  | 'jet'
+  | 'fleet'
+  | 'jet3'
+  | 'double'
+  | 'plinko'
+  | 'default';
+
+const ASSET_VARIANT: Record<CrashVariant, Exclude<CrashVariant, 'default'>> = {
+  rocket: 'rocket',
+  aviator: 'aviator',
+  balloon: 'balloon',
+  jet: 'jet',
+  fleet: 'fleet',
+  jet3: 'jet3',
+  double: 'double',
+  plinko: 'plinko',
+  default: 'rocket',
+};
+
+const BACKGROUND_ASSETS: Record<Exclude<CrashVariant, 'default'>, string> = {
+  rocket: '/crash/backgrounds/rocket.jpg',
+  aviator: '/crash/backgrounds/aviator.jpg',
+  balloon: '/crash/backgrounds/balloon.jpg',
+  jet: '/crash/backgrounds/jet.jpg',
+  fleet: '/crash/backgrounds/fleet.jpg',
+  jet3: '/crash/backgrounds/jet3.jpg',
+  double: '/crash/backgrounds/double.jpg',
+  plinko: '/crash/backgrounds/plinko.jpg',
+};
+
+const CRAFT_ASSETS: Record<Exclude<CrashVariant, 'default'>, string> = {
+  rocket: '/crash/craft/rocket.png',
+  aviator: '/crash/craft/aviator.png',
+  balloon: '/crash/craft/balloon.png',
+  jet: '/crash/craft/jet.png',
+  fleet: '/crash/craft/fleet.png',
+  jet3: '/crash/craft/jet3.png',
+  double: '/crash/craft/double.png',
+  plinko: '/crash/craft/plinko.png',
+};
+
+function fitSpriteCover(sprite: Sprite, width: number, height: number): void {
+  const textureWidth = sprite.texture.width || width;
+  const textureHeight = sprite.texture.height || height;
+  const scale = Math.max(width / textureWidth, height / textureHeight);
+  sprite.scale.set(scale);
+  sprite.x = (width - textureWidth * scale) / 2;
+  sprite.y = (height - textureHeight * scale) / 2;
+}
 
 interface Particle {
   g: Graphics;
@@ -68,6 +123,8 @@ export class CrashScene {
   private particles: Container | null = null;
   private overlayGlow: Graphics | null = null;
   private flashOverlay: Graphics | null = null;
+  private backgroundTexture: Texture | null = null;
+  private craftTexture: Texture | null = null;
 
   // Text
   private multiplierLabel: Text | null = null;
@@ -126,6 +183,7 @@ export class CrashScene {
       height: this.height,
     });
 
+    await this.preloadVariantAssets();
     this.createBackground();
     this.starfield = new Container();
     app.stage.addChild(this.starfield);
@@ -171,28 +229,59 @@ export class CrashScene {
     this.startTickers();
   }
 
+  private async preloadVariantAssets(): Promise<void> {
+    const assetVariant = ASSET_VARIANT[this.variant];
+    const [backgroundTexture, craftTexture] = await Promise.all([
+      Assets.load<Texture>(BACKGROUND_ASSETS[assetVariant]).catch(() => null),
+      Assets.load<Texture>(CRAFT_ASSETS[assetVariant]).catch(() => null),
+    ]);
+    this.backgroundTexture = backgroundTexture;
+    this.craftTexture = craftTexture;
+  }
+
   private createBackground(): void {
     if (!this.app) return;
-    // Dark gradient background (crash 需要深色襯托 neon)
-    const bg = new Graphics();
-    // 用多層圓同心模擬漸層
-    const steps = 10;
-    for (let i = 0; i < steps; i += 1) {
-      const alpha = (i / steps) * 0.4;
-      const w = this.width - i * 8;
-      const h = this.height - i * 8;
-      bg.rect((this.width - w) / 2, (this.height - h) / 2, w, h).fill({
-        color: COLOR_BG_A,
-        alpha: alpha * 0.15,
-      });
-    }
-    bg.rect(0, 0, this.width, this.height).fill({ color: COLOR_BG_B, alpha: 0.85 });
-    this.app.stage.addChild(bg);
 
-    // 徑向光暈（紫色核心）
+    const base = new Graphics().rect(0, 0, this.width, this.height).fill({
+      color: COLOR_BG_B,
+      alpha: 0.96,
+    });
+    this.app.stage.addChild(base);
+
+    if (this.backgroundTexture) {
+      const bgSprite = new Sprite(this.backgroundTexture);
+      fitSpriteCover(bgSprite, this.width, this.height);
+      bgSprite.alpha = 0.92;
+      this.app.stage.addChild(bgSprite);
+    } else {
+      const fallback = new Graphics();
+      const steps = 10;
+      for (let i = 0; i < steps; i += 1) {
+        const alpha = (i / steps) * 0.4;
+        const w = this.width - i * 8;
+        const h = this.height - i * 8;
+        fallback.rect((this.width - w) / 2, (this.height - h) / 2, w, h).fill({
+          color: COLOR_BG_A,
+          alpha: alpha * 0.15,
+        });
+      }
+      this.app.stage.addChild(fallback);
+    }
+
+    const shade = new Graphics()
+      .rect(0, 0, this.width, this.height)
+      .fill({ color: 0x020817, alpha: 0.3 });
+    this.app.stage.addChild(shade);
+
+    const centerReadability = new Graphics()
+      .ellipse(this.width * 0.5, this.height * 0.5, this.width * 0.32, this.height * 0.28)
+      .fill({ color: 0x020817, alpha: 0.36 });
+    centerReadability.filters = [new BlurFilter({ strength: 46 })];
+    this.app.stage.addChild(centerReadability);
+
     const glow = new Graphics()
-      .circle(this.width * 0.5, this.height * 0.5, this.width * 0.5)
-      .fill({ color: COLOR_ACID, alpha: 0.15 });
+      .circle(this.width * 0.5, this.height * 0.5, this.width * 0.45)
+      .fill({ color: COLOR_ACID, alpha: 0.08 });
     glow.filters = [new BlurFilter({ strength: 60 })];
     this.app.stage.addChild(glow);
 
@@ -211,7 +300,7 @@ export class CrashScene {
       grid.moveTo(x, 0).lineTo(x, this.height).stroke({
         color: COLOR_ACID,
         width: 1,
-        alpha: 0.05,
+        alpha: 0.035,
       });
     }
     for (let i = 0; i <= rows; i += 1) {
@@ -219,7 +308,7 @@ export class CrashScene {
       grid.moveTo(0, y).lineTo(this.width, y).stroke({
         color: COLOR_ACID,
         width: 1,
-        alpha: 0.05,
+        alpha: 0.035,
       });
     }
     this.app.stage.addChild(grid);
@@ -286,6 +375,16 @@ export class CrashScene {
     craft.y = this.height - 60;
     this.craft = craft;
     this.craftContainer.addChild(craft);
+
+    if (this.craftTexture) {
+      const sprite = new Sprite(this.craftTexture);
+      sprite.anchor.set(0.5);
+      const targetSize = Math.min(118, Math.max(74, this.height * 0.26));
+      const baseSize = Math.max(sprite.texture.width, sprite.texture.height);
+      sprite.scale.set(targetSize / baseSize);
+      craft.addChild(sprite);
+      return;
+    }
 
     this.drawCraftShape(craft);
   }
