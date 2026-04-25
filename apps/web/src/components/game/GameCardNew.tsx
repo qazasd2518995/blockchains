@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { GameMetadata } from '@bg/shared';
+import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 import { getGameIcon } from '@/lib/platformIcons';
 
 // 与 LobbyPage 现有的资料一致
@@ -44,7 +45,7 @@ function gamePath(id: string): string {
 }
 
 export function GameCardNew({ game }: { game: GameMetadata }) {
-  const cover = HAS_COVER.has(game.id) ? `/games/${game.id}.jpg` : null;
+  const cover = HAS_COVER.has(game.id) ? getLobbyGameCover(game.id) : null;
   const GameIcon = getGameIcon(game.id);
   const isNew = NEW_GAMES.has(game.id);
 

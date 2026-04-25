@@ -83,6 +83,17 @@ const CRAFT_ASSETS: Record<Exclude<CrashVariant, 'default'>, string> = {
   plinko: '/crash/craft/plinko.png',
 };
 
+const CRAFT_SPRITE_FORWARD_ANGLE: Record<Exclude<CrashVariant, 'default'>, number> = {
+  rocket: -0.95,
+  aviator: -0.18,
+  balloon: -Math.PI / 2,
+  jet: -0.62,
+  fleet: -0.72,
+  jet3: -0.62,
+  double: -0.65,
+  plinko: -0.55,
+};
+
 function fitSpriteCover(sprite: Sprite, width: number, height: number): void {
   const textureWidth = sprite.texture.width || width;
   const textureHeight = sprite.texture.height || height;
@@ -125,6 +136,8 @@ export class CrashScene {
   private flashOverlay: Graphics | null = null;
   private backgroundTexture: Texture | null = null;
   private craftTexture: Texture | null = null;
+  private craftSprite: Sprite | null = null;
+  private craftBaseScale = 1;
 
   // Text
   private multiplierLabel: Text | null = null;
@@ -381,12 +394,18 @@ export class CrashScene {
       sprite.anchor.set(0.5);
       const targetSize = Math.min(118, Math.max(74, this.height * 0.26));
       const baseSize = Math.max(sprite.texture.width, sprite.texture.height);
-      sprite.scale.set(targetSize / baseSize);
+      this.craftBaseScale = targetSize / baseSize;
+      sprite.scale.set(this.craftBaseScale);
+      this.craftSprite = sprite;
       craft.addChild(sprite);
+      craft.rotation = this.getCraftRotation(1.02, 0, false);
       return;
     }
 
+    this.craftSprite = null;
+    this.craftBaseScale = 1;
     this.drawCraftShape(craft);
+    craft.rotation = this.getCraftRotation(1.02, 0, false);
   }
 
   private drawCraftShape(craft: Container): void {
@@ -545,8 +564,10 @@ export class CrashScene {
       // Idle / Betting：craft 懸停
       if (this.phase === 'idle' || this.phase === 'betting') {
         if (this.craft) {
-          this.craft.y = this.height - 60 + Math.sin(tick * 0.04) * 8;
-          this.craft.rotation = Math.sin(tick * 0.03) * 0.05;
+          this.craft.x = 60 + Math.sin(tick * 0.028) * 2.5;
+          this.craft.y = this.height - 60 + Math.sin(tick * 0.04) * 7;
+          this.craft.rotation = this.getCraftRotation(1.02, tick, false);
+          this.animateCraftSprite(tick, false);
         }
       }
     };
@@ -596,15 +617,25 @@ export class CrashScene {
       // 計算 craft 位置
       const pos = this.multiplierToPosition(this.currentMultiplier);
       if (this.craft && this.craftContainer) {
-        this.craft.x = pos.x;
-        this.craft.y = pos.y;
-        // 依加速度微旋轉
-        const ratio = Math.min(1, (this.currentMultiplier - 1) / (this.maxMultiplier - 1));
-        this.craft.rotation = -0.3 - ratio * 0.6; // 越飛越斜
+        const flightAngle = this.flightTangentAngle(this.currentMultiplier);
+        const intensity = prefersReducedMotion()
+          ? 0
+          : 0.7 + Math.min(1.8, Math.max(0, this.currentMultiplier - 1) * 0.18);
+        const lateralShake =
+          (Math.sin(tick * 0.58) + Math.sin(tick * 1.07) * 0.45) * intensity;
+        const thrustShake = Math.sin(tick * 0.83) * intensity * 0.8;
+        const perp = flightAngle + Math.PI / 2;
+
+        this.craft.x =
+          pos.x + Math.cos(flightAngle) * thrustShake + Math.cos(perp) * lateralShake;
+        this.craft.y =
+          pos.y + Math.sin(flightAngle) * thrustShake + Math.sin(perp) * lateralShake;
+        this.craft.rotation = this.getCraftRotation(this.currentMultiplier, tick, true);
+        this.animateCraftSprite(tick, true);
         // 更換引擎粒子
         if (trailTick > 1) {
           trailTick = 0;
-          this.emitTrail(pos.x, pos.y);
+          this.emitTrail(this.craft.x, this.craft.y, flightAngle);
         }
       }
 
@@ -626,9 +657,7 @@ export class CrashScene {
     const endX = this.width - 80;
     const topY = 80;
 
-    // 以 log(m) 為 progress，映射 1→0, maxMultiplier→1
-    const logMax = Math.log(this.maxMultiplier);
-    const progress = logMax > 0 ? Math.min(1, Math.log(Math.max(1, m)) / logMax) : 0;
+    const progress = this.flightProgress(m);
 
     const x = startX + (endX - startX) * progress;
     // y 使用 ease-out 曲線（起點平、後段陡）
@@ -636,6 +665,55 @@ export class CrashScene {
     const y = startY - (startY - topY) * yProgress;
 
     return { x, y };
+  }
+
+  private flightProgress(m: number): number {
+    const logMax = Math.log(this.maxMultiplier);
+    return logMax > 0 ? Math.min(1, Math.log(Math.max(1, m)) / logMax) : 0;
+  }
+
+  private flightTangentAngle(m: number): number {
+    const startX = 60;
+    const startY = this.height - 60;
+    const endX = this.width - 80;
+    const topY = 80;
+    const progress = Math.max(0.035, this.flightProgress(m));
+    const dx = endX - startX;
+    const dy = -(startY - topY) * 1.6 * Math.pow(progress, 0.6);
+    return Math.atan2(dy, dx);
+  }
+
+  private getCraftRotation(m: number, tick: number, running: boolean): number {
+    const assetVariant = ASSET_VARIANT[this.variant];
+    if (assetVariant === 'balloon') {
+      const progress = this.flightProgress(m);
+      const lean = running ? -0.16 - progress * 0.18 : -0.08;
+      return lean + Math.sin(tick * 0.06) * 0.045;
+    }
+
+    const forwardAngle = this.craftSprite
+      ? CRAFT_SPRITE_FORWARD_ANGLE[assetVariant]
+      : -Math.PI / 2;
+    const flightAngle = this.flightTangentAngle(m);
+    const engineWobble = prefersReducedMotion()
+      ? 0
+      : Math.sin(tick * 0.21) * 0.018 + Math.sin(tick * 0.63) * (running ? 0.026 : 0.012);
+    return flightAngle - forwardAngle + engineWobble;
+  }
+
+  private animateCraftSprite(tick: number, running: boolean): void {
+    if (!this.craftSprite) return;
+    const throttle = running ? Math.min(1, Math.max(0, this.currentMultiplier - 1) / 4) : 0;
+    const pulse = prefersReducedMotion()
+      ? 1
+      : 1 + Math.sin(tick * 0.72) * (running ? 0.018 : 0.01) + throttle * 0.018;
+    this.craftSprite.scale.set(this.craftBaseScale * pulse);
+    this.craftSprite.x = prefersReducedMotion()
+      ? 0
+      : Math.sin(tick * 0.46) * (running ? 1.8 + throttle * 1.5 : 0.7);
+    this.craftSprite.y = prefersReducedMotion()
+      ? 0
+      : Math.sin(tick * 0.67) * (running ? 1.2 + throttle : 0.6);
   }
 
   private drawCurve(): void {
@@ -682,20 +760,27 @@ export class CrashScene {
     curve.fill({ color, alpha: 0.1 });
   }
 
-  private emitTrail(x: number, y: number): void {
+  private emitTrail(x: number, y: number, flightAngle: number): void {
     if (!this.trail) return;
+    const tailOffset = Math.min(54, Math.max(32, this.height * 0.12));
+    const tailX = x - Math.cos(flightAngle) * tailOffset;
+    const tailY = y - Math.sin(flightAngle) * tailOffset;
+    const perp = flightAngle + Math.PI / 2;
     for (let i = 0; i < 3; i += 1) {
       const size = 3 + Math.random() * 4;
       const colors = [COLOR_AMBER, COLOR_EMBER, COLOR_WHITE];
       const color = colors[Math.floor(Math.random() * colors.length)]!;
       const g = new Graphics().circle(0, 0, size).fill({ color });
-      g.x = x + (Math.random() - 0.5) * 16;
-      g.y = y + 15 + Math.random() * 10;
+      const spread = (Math.random() - 0.5) * 18;
+      g.x = tailX + Math.cos(perp) * spread;
+      g.y = tailY + Math.sin(perp) * spread;
       this.trail.addChild(g);
+      const exhaustSpeed = 2.5 + Math.random() * 3.5;
+      const drift = (Math.random() - 0.5) * 1.2;
       this.trailDots.push({
         g,
-        vx: (Math.random() - 0.5) * 2,
-        vy: 2 + Math.random() * 3,
+        vx: -Math.cos(flightAngle) * exhaustSpeed + Math.cos(perp) * drift,
+        vy: -Math.sin(flightAngle) * exhaustSpeed + Math.sin(perp) * drift,
         life: 25 + Math.random() * 15,
         maxLife: 40,
         gravity: 0.1,
@@ -723,8 +808,15 @@ export class CrashScene {
       gsap.to(this.craft, {
         x: 60,
         y: this.height - 60,
-        rotation: 0,
+        alpha: 1,
+        rotation: this.getCraftRotation(1.02, 0, false),
         duration: 0.6,
+        ease: 'power2.out',
+      });
+      gsap.to(this.craft.scale, {
+        x: 1,
+        y: 1,
+        duration: 0.45,
         ease: 'power2.out',
       });
     }

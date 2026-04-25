@@ -22,6 +22,7 @@ import { HALL_LIST, type HallId } from '@/data/halls';
 import { FAKE_TODAY_TOP10, getDriftedOnlineCount } from '@/data/fakeStats';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
+import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 import { getGameIcon, getHallIcon } from '@/lib/platformIcons';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
@@ -315,7 +316,7 @@ function MobileLobbyOnePage() {
 
 function MobileGameCard({ game }: { game: GameMetadata }) {
   const GameIcon = getGameIcon(game.id);
-  const cover = `/games/${game.id}.jpg`;
+  const cover = getLobbyGameCover(game.id);
   const hall = gameHallMap.get(game.id);
   const hallLabel = hall ? MOBILE_HALL_LABEL[hall] : '熱門';
 

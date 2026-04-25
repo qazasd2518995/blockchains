@@ -11,7 +11,7 @@ import type {
 import { runSerializable } from '../modules/games/_common/BaseGameService.js';
 import { applyControls, finalizeControls, type ControlOutcome, type PredictedResult } from '../modules/games/_common/controls.js';
 
-const BETTING_WINDOW_MS = 5000;
+const BETTING_WINDOW_MS = 3000;
 const POST_CRASH_MS = 3000;
 const TICK_MS = 100;
 const GROWTH_RATE = 0.00006; // multiplier speed; tuned for ~10-20s average
