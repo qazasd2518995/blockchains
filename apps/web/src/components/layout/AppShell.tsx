@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Gift, History, LayoutGrid, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
@@ -19,8 +19,10 @@ const NAV_ITEMS: { to: string; label: string; icon: typeof Gift }[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, setBalance, logout, refreshToken } = useAuthStore();
+  const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const isMobileLobby = location.pathname === '/lobby';
 
   const handleLogout = async () => {
     if (refreshToken) {
@@ -63,7 +65,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         跳到主要內容
       </a>
 
-      <header className="sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] pt-[env(safe-area-inset-top)] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)]">
+      <header
+        className={`sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] pt-[env(safe-area-inset-top)] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)] ${
+          isMobileLobby ? 'hidden lg:block' : ''
+        }`}
+      >
         <div className="border-b border-white/8">
           <div className="mx-auto grid w-full max-w-[1920px] gap-2 px-3 py-2 text-[11px] text-white/80 sm:px-6 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center xl:px-8 2xl:px-12">
             <div className="flex items-center gap-2">
@@ -149,10 +155,18 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <main id="main-content" className="relative z-10 flex-1">
-        <div className="mx-auto w-full max-w-[1920px] px-3 py-4 sm:px-6 sm:py-6 xl:px-8 2xl:px-12">{children}</div>
+        <div
+          className={`mx-auto w-full max-w-[1920px] ${
+            isMobileLobby ? 'px-0 py-0 lg:px-8 lg:py-6 2xl:px-12' : 'px-3 py-4 sm:px-6 sm:py-6 xl:px-8 2xl:px-12'
+          }`}
+        >
+          {children}
+        </div>
       </main>
 
-      <SiteFooter loggedIn />
+      <div className={isMobileLobby ? 'hidden lg:block' : ''}>
+        <SiteFooter loggedIn />
+      </div>
     </div>
   );
 }
