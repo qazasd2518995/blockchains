@@ -789,6 +789,32 @@ export class CrashScene {
     }
   }
 
+  private clearTrail(): void {
+    if (!this.trail) return;
+    const children = this.trail.removeChildren();
+    for (const child of children) child.destroy();
+    this.trailDots = [];
+  }
+
+  private restoreCraftVisuals(): void {
+    if (!this.craft) return;
+    gsap.killTweensOf(this.craft);
+    gsap.killTweensOf(this.craft.scale);
+    this.craft.visible = true;
+    this.craft.alpha = 1;
+    this.craft.scale.set(1);
+
+    if (this.craftSprite) {
+      gsap.killTweensOf(this.craftSprite);
+      gsap.killTweensOf(this.craftSprite.scale);
+      this.craftSprite.visible = true;
+      this.craftSprite.alpha = 1;
+      this.craftSprite.x = 0;
+      this.craftSprite.y = 0;
+      this.craftSprite.scale.set(this.craftBaseScale);
+    }
+  }
+
   // === 公開 API ===
 
   startBetting(seconds: number): void {
@@ -798,11 +824,8 @@ export class CrashScene {
     this.curveLayer?.clear();
     this.curvePoints = [];
 
-    // 清空 trail
-    if (this.trail) {
-      this.trail.removeChildren();
-      this.trailDots = [];
-    }
+    this.clearTrail();
+    this.restoreCraftVisuals();
 
     if (this.craft) {
       gsap.to(this.craft, {
@@ -871,6 +894,16 @@ export class CrashScene {
     this.currentMultiplier = 1.0;
     this.maxMultiplier = 2.0;
     this.tensionStart = performance.now() / 1000;
+    this.curveLayer?.clear();
+    this.curvePoints = [];
+    this.clearTrail();
+    this.restoreCraftVisuals();
+    if (this.craft) {
+      const pos = this.multiplierToPosition(1);
+      this.craft.x = pos.x;
+      this.craft.y = pos.y;
+      this.craft.rotation = this.getCraftRotation(1.02, 0, true);
+    }
     if (this.statusLabel) {
       this.statusLabel.text = '';
       this.statusLabel.style.fill = COLOR_WHITE;
@@ -1162,7 +1195,7 @@ export class CrashScene {
     this.vignette = null;
     this.winFx?.dispose();
     this.winFx = null;
-    this.app?.destroy(true, { children: true });
+    this.app?.destroy(false, { children: true });
     this.app = null;
     this.starfield = null;
     this.curveLayer = null;

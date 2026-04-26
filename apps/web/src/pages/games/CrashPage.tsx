@@ -47,6 +47,9 @@ export function CrashPage({ config }: Props) {
   const sceneRef = useRef<CrashScene | null>(null);
   const myBetRef = useRef<LocalCrashBet | null>(null);
   const appliedCashoutRef = useRef(false);
+  const statusRef = useRef(status);
+  const bettingCountdownRef = useRef(bettingCountdown);
+  const crashPointRef = useRef(crashPoint);
   const multiplierRef = useRef(1.0);
   const userIdRef = useRef<string | null>(user?.id ?? null);
 
@@ -55,12 +58,42 @@ export function CrashPage({ config }: Props) {
   }, [myBet]);
 
   useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
+    bettingCountdownRef.current = bettingCountdown;
+  }, [bettingCountdown]);
+
+  useEffect(() => {
+    crashPointRef.current = crashPoint;
+  }, [crashPoint]);
+
+  useEffect(() => {
     multiplierRef.current = multiplier;
   }, [multiplier]);
 
   useEffect(() => {
     userIdRef.current = user?.id ?? null;
   }, [user?.id]);
+
+  const applySceneState = useCallback((scene: CrashScene) => {
+    if (statusRef.current === 'BETTING') {
+      scene.startBetting(bettingCountdownRef.current);
+      scene.setCountdown(bettingCountdownRef.current);
+      return;
+    }
+
+    if (statusRef.current === 'RUNNING') {
+      scene.startRunning();
+      scene.setMultiplier(multiplierRef.current);
+      return;
+    }
+
+    if (statusRef.current === 'CRASHED' && crashPointRef.current !== null) {
+      scene.crash(crashPointRef.current);
+    }
+  }, []);
 
   // 初始化 Pixi scene
   useEffect(() => {
@@ -77,18 +110,33 @@ export function CrashPage({ config }: Props) {
         rafId = requestAnimationFrame(tryInit);
         return;
       }
-      scene = new CrashScene();
-      sceneRef.current = scene;
-      void scene.init(canvas, w, h, config.variant ?? 'rocket');
+      const nextScene = new CrashScene();
+      scene = nextScene;
+      void nextScene
+        .init(canvas, w, h, config.variant ?? 'rocket')
+        .then(() => {
+          if (cancelled) {
+            nextScene.dispose();
+            return;
+          }
+          sceneRef.current = nextScene;
+          applySceneState(nextScene);
+        })
+        .catch((err) => {
+          if (!cancelled) console.error(err);
+          if (sceneRef.current === nextScene) sceneRef.current = null;
+        });
     };
     tryInit();
     return () => {
       cancelled = true;
       if (rafId) cancelAnimationFrame(rafId);
-      scene?.dispose();
-      sceneRef.current = null;
+      if (scene && sceneRef.current === scene) {
+        scene.dispose();
+        sceneRef.current = null;
+      }
     };
-  }, [config.variant]);
+  }, [applySceneState, config.variant]);
 
   // Sync state to Pixi scene
   useEffect(() => {
@@ -193,25 +241,15 @@ export function CrashPage({ config }: Props) {
   useEffect(() => {
     const socket = getCrashSocket(config.gameId);
 
-    const onSnapshot = (snap: CrashRoundSnapshot) => {
-      setSnapshot(snap);
-      setStatus(snap.status);
-    };
-
-    const onBetting = (snap: CrashRoundSnapshot) => {
-      setSnapshot(snap);
-      setStatus('BETTING');
-      setCrashPoint(null);
-      myBetRef.current = null;
-      appliedCashoutRef.current = false;
-      setMyBet(null);
-      setMultiplier(1.0);
+    const syncBettingCountdown = (snap: CrashRoundSnapshot) => {
       if (snap.bettingEndsAt) {
         const end = new Date(snap.bettingEndsAt).getTime();
         if (countdownRef.current) clearInterval(countdownRef.current);
         const tick = () => {
           const left = Math.max(0, end - Date.now());
-          setBettingCountdown(Math.ceil(left / 1000));
+          const nextCountdown = Math.ceil(left / 1000);
+          bettingCountdownRef.current = nextCountdown;
+          setBettingCountdown(nextCountdown);
           if (left <= 0 && countdownRef.current) clearInterval(countdownRef.current);
         };
         tick();
@@ -219,13 +257,47 @@ export function CrashPage({ config }: Props) {
       }
     };
 
-    const onRunning = () => setStatus('RUNNING');
+    const onSnapshot = (snap: CrashRoundSnapshot) => {
+      statusRef.current = snap.status;
+      setSnapshot(snap);
+      setStatus(snap.status);
+      if (snap.status === 'BETTING') {
+        crashPointRef.current = null;
+        multiplierRef.current = 1.0;
+        setCrashPoint(null);
+        setMultiplier(1.0);
+        syncBettingCountdown(snap);
+      }
+    };
+
+    const onBetting = (snap: CrashRoundSnapshot) => {
+      statusRef.current = 'BETTING';
+      crashPointRef.current = null;
+      multiplierRef.current = 1.0;
+      setSnapshot(snap);
+      setStatus('BETTING');
+      setCrashPoint(null);
+      myBetRef.current = null;
+      appliedCashoutRef.current = false;
+      setMyBet(null);
+      setMultiplier(1.0);
+      syncBettingCountdown(snap);
+    };
+
+    const onRunning = () => {
+      statusRef.current = 'RUNNING';
+      setStatus('RUNNING');
+    };
 
     const onTick = (payload: { multiplier: number }) => {
+      multiplierRef.current = payload.multiplier;
       setMultiplier(payload.multiplier);
     };
 
     const onCrashed = (payload: { finalMultiplier: number; serverSeed: string }) => {
+      statusRef.current = 'CRASHED';
+      multiplierRef.current = payload.finalMultiplier;
+      crashPointRef.current = payload.finalMultiplier;
       setStatus('CRASHED');
       setMultiplier(payload.finalMultiplier);
       setCrashPoint(payload.finalMultiplier);
