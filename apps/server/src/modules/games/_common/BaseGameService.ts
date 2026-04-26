@@ -139,8 +139,16 @@ export async function creditAndRecord(
   return updated.balance;
 }
 
-export function serializableTxOpts(): { isolationLevel: Prisma.TransactionIsolationLevel } {
-  return { isolationLevel: Prisma.TransactionIsolationLevel.Serializable };
+export function serializableTxOpts(): {
+  isolationLevel: Prisma.TransactionIsolationLevel;
+  maxWait: number;
+  timeout: number;
+} {
+  return {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    maxWait: 10_000,
+    timeout: 20_000,
+  };
 }
 
 /**

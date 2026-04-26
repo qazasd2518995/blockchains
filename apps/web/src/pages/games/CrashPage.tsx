@@ -17,6 +17,7 @@ interface CrashGameConfig {
   accent: 'acid' | 'ember' | 'toxic' | 'ice';
   glyph: string;
   variant?: CrashVariant;
+  runningLabel?: string;
 }
 
 interface Props {
@@ -453,7 +454,7 @@ export function CrashPage({ config }: Props) {
                 {status === 'RUNNING' && (
                   <span className="text-[#6EE7B7]">
                     <span className="dot-online dot-online" />
-                    {t.games.crash.running}
+                    {config.runningLabel ?? t.games.crash.running}
                   </span>
                 )}
                 {status === 'CRASHED' && (
@@ -627,5 +628,5 @@ export const CRASH_CONFIGS: Record<string, CrashGameConfig> = {
   balloon: { gameId: 'balloon', breadcrumb: 'BALLOON_14', section: '§ GAME 14', accent: 'ember', glyph: '◯', variant: 'balloon' },
   jetx3: { gameId: 'jetx3', breadcrumb: 'JETX3_15', section: '§ GAME 15', accent: 'toxic', glyph: '⧨', variant: 'jet3' },
   'double-x': { gameId: 'double-x', breadcrumb: 'DOUBLEX_16', section: '§ GAME 16', accent: 'ice', glyph: '⊞', variant: 'double' },
-  'plinko-x': { gameId: 'plinko-x', breadcrumb: 'PLINKOX_17', section: '§ GAME 17', accent: 'acid', glyph: '▼', variant: 'plinko' },
+  'plinko-x': { gameId: 'plinko-x', breadcrumb: 'PLINKOX_17', section: '§ GAME 17', accent: 'acid', glyph: '▼', variant: 'plinko', runningLabel: '弹射中' },
 };

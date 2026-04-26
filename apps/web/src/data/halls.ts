@@ -29,7 +29,6 @@ export const HALLS: Record<HallId, HallMeta> = {
       GameId.BALLOON,
       GameId.JETX3,
       GameId.DOUBLE_X,
-      GameId.PLINKO_X,
     ],
   },
   classic: {
@@ -55,7 +54,7 @@ export const HALLS: Record<HallId, HallMeta> = {
     tagline: '邊判斷邊拚高倍，越玩越上頭',
     gradient: 'linear-gradient(135deg, #0E4555 0%, #266F85 50%, #C9A247 100%)',
     artwork: '/halls/strategy-card.png',
-    gameIds: [GameId.MINES, GameId.PLINKO, GameId.TOWER, GameId.CARNIVAL],
+    gameIds: [GameId.MINES, GameId.PLINKO, GameId.PLINKO_X, GameId.TOWER, GameId.CARNIVAL],
   },
   tables: {
     id: 'tables',
