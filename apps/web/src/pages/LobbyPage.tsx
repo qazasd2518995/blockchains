@@ -164,52 +164,48 @@ function MobileLobbyOnePage() {
   return (
     <div className="min-h-[100svh] bg-[#EDF4F7] pb-[calc(env(safe-area-inset-bottom)+18px)] lg:hidden">
       <section className="sticky top-0 z-30 border-b border-[#C9D9E2] bg-white pt-[env(safe-area-inset-top)] shadow-[0_4px_14px_rgba(15,23,42,0.08)]">
-        <div className="px-2.5 py-1.5">
-          <div className="grid min-h-[38px] grid-cols-[1fr_auto_1fr] items-center gap-1.5 min-[380px]:gap-2">
-            <Link
-              to="/lobby"
-              className="flex min-w-0 items-center gap-1.5 justify-self-start"
-              aria-label="返回大廳"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#E9F8F8] text-[17px] font-black text-[#0992A8]">
-                BG
-              </span>
-              <span className="hidden min-w-0 truncate text-[13px] font-black leading-tight text-[#08A6B3] min-[430px]:inline">
-                娛樂城
-              </span>
-            </Link>
+        <div className="flex h-[50px] items-center gap-1 px-2 min-[380px]:gap-1.5 min-[380px]:px-2.5">
+          <Link
+            to="/lobby"
+            className="flex shrink-0 items-center gap-1.5"
+            aria-label="返回大廳"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#E9F8F8] text-[17px] font-black text-[#0992A8] max-[360px]:h-8 max-[360px]:w-8 max-[360px]:text-[15px]">
+              BG
+            </span>
+            <span className="hidden min-w-0 truncate text-[13px] font-black leading-tight text-[#08A6B3] min-[460px]:inline">
+              娛樂城
+            </span>
+          </Link>
 
-            <div className="min-w-0 justify-self-center">
-              <div className="flex max-w-full items-center gap-1 rounded-[8px] bg-[#1479A8] px-2 py-1 text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.18)]">
-                <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span className="shrink-0 text-[11px] font-bold max-[340px]:hidden">在線</span>
-                <span className="num shrink-0 text-[12px] font-black">
-                  {numberFormatter.format(onlineCount)}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex min-w-0 items-center justify-end gap-1 justify-self-end">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#FFEEA6] text-[#6A4B00] max-[340px]:hidden">
-                <Mail className="h-4 w-4" aria-hidden="true" />
-              </div>
-              <div className="flex h-8 min-w-0 items-center gap-1 rounded-[8px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12]">
-                <WalletCards className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span className="data-num max-w-[72px] truncate text-[11px] font-black">
-                  {formatAmount(user?.balance ?? '0')}
-                </span>
-              </div>
-            </div>
+          <div className="flex h-8 shrink-0 items-center gap-1 rounded-[8px] bg-[#1479A8] px-2 text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.18)] max-[370px]:px-1.5">
+            <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="shrink-0 text-[11px] font-bold max-[370px]:hidden">在線</span>
+            <span className="num shrink-0 text-[12px] font-black">
+              {numberFormatter.format(onlineCount)}
+            </span>
           </div>
 
-          <div className="mt-0.5 flex min-w-0 items-center justify-center gap-1">
-            <span className="max-w-[108px] truncate text-[11px] font-bold leading-none text-[#344154]">
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-0.5">
+            <span className="min-w-0 max-w-[54px] truncate text-[11px] font-bold leading-none text-[#344154] min-[390px]:max-w-[66px]">
               {user?.username ?? 'guest'}
             </span>
-            <span className="inline-flex items-center gap-0.5 rounded-[6px] bg-[#4B5563] px-1.5 py-0.5 text-[10px] font-black leading-none text-white">
+            <span className="inline-flex h-[18px] shrink-0 items-center gap-0.5 rounded-[6px] bg-[#4B5563] px-1 text-[10px] font-black leading-none text-white">
               <Crown className="h-2.5 w-2.5" aria-hidden="true" />
               VIP1
             </span>
+          </div>
+
+          <div className="flex shrink-0 items-center justify-end gap-1">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#FFEEA6] text-[#6A4B00] max-[360px]:hidden">
+              <Mail className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <div className="flex h-8 min-w-0 items-center gap-1 rounded-[8px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12]">
+              <WalletCards className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span className="data-num max-w-[72px] truncate text-[11px] font-black">
+                {formatAmount(user?.balance ?? '0')}
+              </span>
+            </div>
           </div>
         </div>
       </section>
@@ -259,7 +255,7 @@ function MobileLobbyOnePage() {
       </section>
 
       <section className="grid grid-cols-[66px_minmax(0,1fr)] gap-2 px-2 py-2">
-        <aside className="sticky top-[calc(env(safe-area-inset-top)+70px)] self-start space-y-1.5">
+        <aside className="sticky top-[calc(env(safe-area-inset-top)+58px)] self-start space-y-1.5">
           {MOBILE_CATEGORIES.map((category) => {
             const Icon = category.iconKey ? getHallIcon(category.iconKey) : Sparkles;
             const selected = activeCategory === category.id;
