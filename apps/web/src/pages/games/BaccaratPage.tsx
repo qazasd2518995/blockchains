@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, History, LayoutGrid, Loader2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
 import type { UserPublic } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -26,6 +26,7 @@ export function BaccaratPage() {
   const [launchUrl, setLaunchUrl] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<LauncherDiagnostics | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
+  const [frameLoaded, setFrameLoaded] = useState(false);
 
   const baccaratUrl = useMemo(() => {
     const raw = (import.meta.env.VITE_BACCARAT_URL as string | undefined)?.trim();
@@ -45,6 +46,7 @@ export function BaccaratPage() {
         setMessage('正在建立百家樂進場憑證...');
         setDiagnostics(null);
         setLaunchUrl(null);
+        setFrameLoaded(false);
 
         const res = await api.post<{ launchToken: string }>('/auth/baccarat-launch');
         if (cancelled) return;
@@ -52,6 +54,7 @@ export function BaccaratPage() {
         const target = new URL('/login', baccaratUrl);
         target.searchParams.set('launchToken', res.data.launchToken);
         setLaunchUrl(target.toString());
+        setMessage('正在載入百家樂遊戲大廳...');
         setStatus('ready');
       } catch (error) {
         if (cancelled) return;
@@ -95,87 +98,86 @@ export function BaccaratPage() {
     };
   }, [apiBase, baccaratUrl, iframeKey, user?.role, user?.username]);
 
+  const handleReload = () => {
+    setFrameLoaded(false);
+    setIframeKey((k) => k + 1);
+  };
+
+  const showLoadingCover = status === 'loading' || (status === 'ready' && launchUrl && !frameLoaded);
+
   return (
-    <div className="-mx-4 space-y-3 sm:-mx-6 sm:space-y-4 xl:-mx-8 2xl:-mx-12">
-      <section className="overflow-hidden border-y border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] text-white shadow-[0_18px_40px_rgba(2,6,23,0.16)]">
-        <div className="mx-auto flex w-full max-w-[1920px] flex-col gap-4 px-4 py-4 sm:px-6 xl:px-8 2xl:px-12 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <div className="label !text-white/45">Table Hall</div>
-            <h1 className="mt-2 text-[26px] font-bold text-white sm:text-[30px]">百家樂</h1>
-            <p className="mt-2 max-w-[720px] text-[14px] leading-relaxed text-white/72">
-              百家樂會直接內嵌在 BG 站內，外層保留大廳導覽、遊戲記錄與餘額列，切回其他電子遊戲不用重新登入。
-            </p>
-          </div>
+    <main className="fixed inset-0 z-[9999] overflow-hidden bg-[#050A13] text-white">
+      {status === 'ready' && launchUrl ? (
+        <iframe
+          key={iframeKey}
+          title="BG Baccarat"
+          src={launchUrl}
+          onLoad={() => setFrameLoaded(true)}
+          className="absolute inset-0 h-full w-full border-0 bg-[#050A13]"
+          allow="autoplay; clipboard-read; clipboard-write; fullscreen"
+          referrerPolicy="strict-origin-when-cross-origin"
+        />
+      ) : null}
 
-          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
-            <Link
-              to="/lobby"
-              className="btn-chip border-white/12 bg-[#162338] text-white/82 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white"
-            >
-              <LayoutGrid className="h-4 w-4" />
-              大廳
-            </Link>
-            <Link
-              to="/history"
-              className="btn-chip border-white/12 bg-[#162338] text-white/82 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white"
-            >
-              <History className="h-4 w-4" />
-              遊戲記錄
-            </Link>
-            <button
-              type="button"
-              onClick={() => setIframeKey((k) => k + 1)}
-              className="btn-chip col-span-2 border-white/12 bg-[#162338] text-white/82 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white sm:col-span-1"
-            >
-              <RefreshCw className="h-4 w-4" />
-              重新載入百家樂
-            </button>
-            {launchUrl ? (
-              <a
-                href={launchUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-teal col-span-2 text-[13px] sm:col-span-1"
-              >
-                新視窗開啟
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            ) : null}
-          </div>
-        </div>
-      </section>
+      {showLoadingCover ? (
+        <section className="absolute inset-0 z-10 overflow-hidden bg-[#060B14]">
+          <img
+            src="/banners/hero-welcome-dealer.png"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover object-[62%_center] opacity-70"
+          />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,8,18,0.94)_0%,rgba(3,8,18,0.74)_44%,rgba(3,8,18,0.28)_100%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_28%,rgba(232,212,138,0.22),transparent_30%)]" />
 
-      <div className="mx-auto w-full max-w-[1920px] px-4 pb-2 sm:px-6 xl:px-8 2xl:px-12">
-        {status === 'loading' ? (
-          <div className="flex min-h-[72vh] items-center justify-center rounded-[22px] border border-[#D9E3EA] bg-white/[0.94] px-6 py-8 shadow-[0_18px_38px_rgba(15,23,42,0.08)]">
-            <div className="flex items-center gap-3 rounded-[18px] border border-[#D9E3EA] bg-[#F8FAFB] px-4 py-4 text-[14px] text-[#186073]">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              <span>{message}</span>
+          <div className="relative z-10 flex min-h-[100svh] items-center px-6 py-8 sm:px-10 lg:px-16">
+            <div className="max-w-[520px]">
+              <div className="inline-flex items-center rounded-full border border-[#E8D48A]/35 bg-[#E8D48A]/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-[#E8D48A]">
+                Baccarat Hall
+              </div>
+              <h1 className="mt-5 text-[38px] font-black leading-tight sm:text-[54px]">
+                進入遊戲中
+              </h1>
+              <p className="mt-4 max-w-[420px] text-[15px] leading-7 text-white/72">
+                正在連接真人百家樂大廳，載入完成後將自動切換到全螢幕遊戲畫面。
+              </p>
+
+              <div className="mt-7 inline-flex items-center gap-3 rounded-[18px] border border-white/12 bg-white/[0.08] px-4 py-3 text-[14px] text-white/88 backdrop-blur">
+                <Loader2 className="h-4 w-4 animate-spin text-[#E8D48A]" aria-hidden="true" />
+                <span>{message}</span>
+              </div>
+
+              <div className="mt-7 flex flex-wrap gap-2">
+                <Link
+                  to="/lobby"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/14 bg-black/25 px-4 py-2 text-[13px] font-semibold text-white/82 backdrop-blur transition hover:border-white/28 hover:bg-black/35 hover:text-white"
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  返回大廳
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleReload}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/14 bg-black/25 px-4 py-2 text-[13px] font-semibold text-white/82 backdrop-blur transition hover:border-white/28 hover:bg-black/35 hover:text-white"
+                >
+                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                  重新載入
+                </button>
+              </div>
             </div>
           </div>
-        ) : status === 'ready' && launchUrl ? (
-          <div className="overflow-hidden rounded-[22px] border border-[#162238] bg-[#0B1220] shadow-[0_22px_48px_rgba(2,6,23,0.18)]">
-            <div className="flex items-center justify-between border-b border-white/8 px-4 py-3 text-[12px] text-white/65">
-              <span className="label !text-white/45">Embedded Baccarat</span>
-              <span className="font-mono text-[11px] text-white/45">{user?.username ?? 'guest'}</span>
-            </div>
-            <iframe
-              key={iframeKey}
-              title="BG Baccarat"
-              src={launchUrl}
-              className="h-[calc(100svh-190px)] min-h-[560px] w-full bg-[#0B1220] md:h-[calc(100vh-220px)] md:min-h-[820px]"
-              allow="autoplay; clipboard-read; clipboard-write; fullscreen"
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
-          </div>
-        ) : (
-          <div className="space-y-4 rounded-[22px] border border-[#E6C9C3] bg-white/[0.94] p-6 shadow-[0_18px_38px_rgba(15,23,42,0.08)]">
+        </section>
+      ) : null}
+
+      {status === 'error' ? (
+        <section className="absolute inset-0 z-20 overflow-auto bg-[#060B14] px-4 py-8 sm:px-6">
+          <div className="mx-auto max-w-3xl rounded-[24px] border border-[#E6C9C3]/35 bg-white/[0.94] p-6 text-[#0F172A] shadow-[0_24px_60px_rgba(0,0,0,0.36)]">
             <div className="rounded-[18px] border border-[#F3D3CF] bg-[#FFF7F6] px-4 py-4 text-[14px] text-[#9F3A2C]">
               {message}
             </div>
 
             {diagnostics ? (
-              <div className="rounded-[18px] border border-[#D9E3EA] bg-[#F8FAFB] px-4 py-4 text-[13px] text-[#334155]">
+              <div className="mt-4 rounded-[18px] border border-[#D9E3EA] bg-[#F8FAFB] px-4 py-4 text-[13px] text-[#334155]">
                 <div className="text-[12px] font-semibold uppercase tracking-[0.24em] text-[#186073]">Launcher Debug</div>
                 <div className="mt-3 grid gap-2 font-mono text-[12px]">
                   <div>currentUser: {diagnostics.currentUser}</div>
@@ -191,23 +193,21 @@ export function BaccaratPage() {
               </div>
             ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setIframeKey((k) => k + 1)} className="btn-teal">
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button type="button" onClick={handleReload} className="btn-teal">
                 再試一次
               </button>
-              <a
-                href={baccaratUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-teal-outline"
-              >
+              <Link to="/lobby" className="btn-teal-outline">
+                返回大廳
+              </Link>
+              <a href={baccaratUrl} target="_blank" rel="noreferrer" className="btn-teal-outline">
                 直接打開百家樂
                 <ExternalLink className="ml-2 h-4 w-4" aria-hidden="true" />
               </a>
             </div>
           </div>
-        )}
-      </div>
-    </div>
+        </section>
+      ) : null}
+    </main>
   );
 }

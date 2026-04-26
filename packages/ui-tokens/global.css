@@ -874,3 +874,76 @@
     border-radius: 10px;
   }
 }
+
+@layer components {
+  .game-fullscreen-shell .game-header {
+    margin-bottom: 0.75rem;
+    border-radius: 14px;
+    padding: 0.9rem 1rem;
+  }
+
+  .game-fullscreen-shell .game-header h1 {
+    margin-top: 0.5rem;
+    font-size: clamp(1.35rem, 2.4vw, 2rem);
+    line-height: 1.05;
+  }
+
+  .game-fullscreen-shell .game-header p {
+    display: none;
+  }
+
+  .game-fullscreen-shell .game-play-grid {
+    gap: 0.75rem !important;
+  }
+
+  .game-fullscreen-shell .game-stage-panel,
+  .game-fullscreen-shell .game-side-card,
+  .game-fullscreen-shell .game-result-card,
+  .game-fullscreen-shell .game-stat-card {
+    border-radius: 14px;
+  }
+
+  .game-fullscreen-shell .game-canvas-wide {
+    min-height: min(58svh, 620px);
+  }
+
+  .game-fullscreen-shell .game-canvas-keno {
+    min-height: min(38svh, 360px);
+  }
+
+  .game-fullscreen-shell .game-canvas-tall {
+    max-height: min(72svh, 640px);
+  }
+
+  @media (max-width: 767px) {
+    .game-fullscreen-shell .game-header {
+      display: none;
+    }
+
+    .game-fullscreen-shell .game-play-grid {
+      gap: 0.5rem !important;
+    }
+
+    .game-fullscreen-shell .game-stage-panel,
+    .game-fullscreen-shell .game-side-card,
+    .game-fullscreen-shell .game-result-card,
+    .game-fullscreen-shell .game-stat-card {
+      border-left-width: 0;
+      border-radius: 0;
+      border-right-width: 0;
+    }
+
+    .game-fullscreen-shell .game-header .tag.tag-onDark,
+    .game-fullscreen-shell .game-header p {
+      display: none;
+    }
+
+    .game-fullscreen-shell .game-canvas-wide {
+      min-height: 280px;
+    }
+
+    .game-fullscreen-shell .game-canvas-keno {
+      min-height: 190px;
+    }
+  }
+}

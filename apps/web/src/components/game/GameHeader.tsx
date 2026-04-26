@@ -47,7 +47,7 @@ export function GameHeader({
   const backdropOpacity = artwork ? 'opacity-[0.92]' : 'opacity-30';
 
   return (
-    <div className="relative mb-4 overflow-hidden rounded-[16px] border border-[#16324A]/16 bg-[#091725] p-4 shadow-[0_24px_60px_rgba(15,23,42,0.16)] sm:mb-6 sm:rounded-[20px] sm:p-6">
+    <div className="game-header relative mb-4 overflow-hidden rounded-[16px] border border-[#16324A]/16 bg-[#091725] p-4 shadow-[0_24px_60px_rgba(15,23,42,0.16)] sm:mb-6 sm:rounded-[20px] sm:p-6">
       <img
         src={backdrop}
         alt=""

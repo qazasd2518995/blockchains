@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { AuthGuard } from '@/components/layout/AuthGuard';
+import { GameFullscreenShell } from '@/components/layout/GameFullscreenShell';
 import { GuestGuard } from '@/components/layout/GuestGuard';
 import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/auth/LoginPage';
@@ -40,19 +41,20 @@ export const router = createBrowserRouter([
   {
     element: (
       <AuthGuard>
-        <AppShell>
-          <Outlet />
-        </AppShell>
+        <Outlet />
       </AuthGuard>
     ),
     children: [
-      { path: '/lobby', element: <LobbyPage /> },
-      { path: '/hall/:hallId', element: <HallPage /> },
-      { path: '/verify', element: <VerifyPage /> },
-      { path: '/promos', element: <PromosPage /> },
-      { path: '/profile', element: <Navigate to="/lobby" replace /> },
-      { path: '/history', element: <HistoryPage /> },
       { path: '/games/baccarat', element: <BaccaratPage /> },
+    ],
+  },
+  {
+    element: (
+      <AuthGuard>
+        <GameFullscreenShell />
+      </AuthGuard>
+    ),
+    children: [
       { path: '/games/dice', element: <DicePage /> },
       { path: '/games/mines', element: <MinesPage /> },
       { path: '/games/hilo', element: <HiLoPage /> },
@@ -71,6 +73,23 @@ export const router = createBrowserRouter([
       { path: '/games/jetx3', element: <CrashPage config={CRASH_CONFIGS.jetx3!} /> },
       { path: '/games/double-x', element: <CrashPage config={CRASH_CONFIGS['double-x']!} /> },
       { path: '/games/plinko-x', element: <CrashPage config={CRASH_CONFIGS['plinko-x']!} /> },
+    ],
+  },
+  {
+    element: (
+      <AuthGuard>
+        <AppShell>
+          <Outlet />
+        </AppShell>
+      </AuthGuard>
+    ),
+    children: [
+      { path: '/lobby', element: <LobbyPage /> },
+      { path: '/hall/:hallId', element: <HallPage /> },
+      { path: '/verify', element: <VerifyPage /> },
+      { path: '/promos', element: <PromosPage /> },
+      { path: '/profile', element: <Navigate to="/lobby" replace /> },
+      { path: '/history', element: <HistoryPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },
