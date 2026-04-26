@@ -24,7 +24,7 @@ const PROMO_CARDS = [
     badge: '热门档期',
     title: '每周倍率王',
     summary: '周一至周日累计倍率排名，前 10 名共享奖励池，越到周末竞争越热。',
-    image: '/games/rocket.jpg',
+    image: '/promos/weekly-multiplier-king.jpg',
     accent: 'teal',
     stats: [
       { label: '统计周期', value: '周一 07:00 - 周日 06:59' },
@@ -50,7 +50,7 @@ const PROMO_CARDS = [
     badge: '彩池加码',
     title: 'Crash 彩池',
     summary: 'JetX3 全馆累计，任意局触发 100× 即爆池，彩池状态会跟着大厅热度持续推高。',
-    image: '/games/jetx3.jpg',
+    image: '/promos/crash-jackpot-pool.jpg',
     accent: 'ember',
     stats: [
       { label: '触发条件', value: '任意局达成 100×' },
