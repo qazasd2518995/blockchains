@@ -7,11 +7,22 @@ import { getGameIcon } from '@/lib/platformIcons';
 const HAS_COVER = new Set<string>([
   'baccarat',
   'dice', 'mines', 'hilo', 'keno', 'wheel', 'mini-roulette',
-  'plinko', 'hotline', 'fruit-slot', 'fortune-slot', 'ocean-slot', 'rocket', 'aviator', 'space-fleet',
+  'plinko', 'hotline', 'fruit-slot', 'fortune-slot', 'ocean-slot', 'temple-slot', 'candy-slot', 'sakura-slot', 'rocket', 'aviator', 'space-fleet',
   'jetx', 'balloon', 'jetx3', 'double-x', 'plinko-x', 'tower', 'carnival',
 ]);
 
-const NEW_GAMES = new Set(['carnival', 'plinko-x', 'jetx3', 'double-x', 'fruit-slot', 'fortune-slot', 'ocean-slot']);
+const NEW_GAMES = new Set([
+  'carnival',
+  'plinko-x',
+  'jetx3',
+  'double-x',
+  'fruit-slot',
+  'fortune-slot',
+  'ocean-slot',
+  'temple-slot',
+  'candy-slot',
+  'sakura-slot',
+]);
 
 // 繁中名称覆写（game registry 中有些是简中）
 const NAME_ZH_TW: Record<string, string> = {
@@ -27,6 +38,9 @@ const NAME_ZH_TW: Record<string, string> = {
   'fruit-slot': '水果拉霸',
   'fortune-slot': '财虎拉霸',
   'ocean-slot': '海神宝藏',
+  'temple-slot': '圣殿宝石',
+  'candy-slot': '糖果派对',
+  'sakura-slot': '夜樱武士',
   tower: '叠塔',
   rocket: '火箭',
   aviator: '飞行员',

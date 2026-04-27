@@ -7,6 +7,8 @@ export interface HotlineBetRequest {
 export interface HotlineWinLine {
   lineId?: string;
   path?: number[];
+  startReel?: number;
+  direction?: 'ltr' | 'rtl';
   row: number;
   symbol: number;
   count: number;

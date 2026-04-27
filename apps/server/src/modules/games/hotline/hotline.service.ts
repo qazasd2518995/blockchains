@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { hotlineSpin, hotlineEvaluate } from '@bg/provably-fair';
+import { getHotlineReelCount, hotlineSpin, hotlineEvaluate } from '@bg/provably-fair';
 import { GameId, type HotlineBetResult } from '@bg/shared';
 import {
   SeedHelper,
@@ -18,6 +18,7 @@ export class HotlineService {
   async bet(userId: string, input: HotlineBetInput): Promise<HotlineBetResult> {
     const amount = new Prisma.Decimal(input.amount);
     const gameId = input.gameId ?? GameId.HOTLINE;
+    const reelCount = getHotlineReelCount(gameId);
 
     return runSerializable(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
@@ -26,7 +27,7 @@ export class HotlineService {
         gameId,
         input.clientSeed,
       );
-      const grid = hotlineSpin(seed.serverSeed, seed.clientSeed, seed.nonce);
+      const grid = hotlineSpin(seed.serverSeed, seed.clientSeed, seed.nonce, reelCount);
       const { lines, totalMultiplier } = hotlineEvaluate(grid);
       const multiplierD = new Prisma.Decimal(totalMultiplier.toFixed(4));
       const payout = amount.mul(multiplierD).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
@@ -42,7 +43,9 @@ export class HotlineService {
       let finalMultiplier = multiplierD;
       let finalPayout = payout;
       if (controlled.controlled) {
-        finalGrid = controlled.won ? winningHotlineGrid() : losingHotlineGrid();
+        finalGrid = controlled.won
+          ? winningHotlineGrid(reelCount)
+          : losingHotlineGrid(reelCount);
         const evaluated = hotlineEvaluate(finalGrid);
         finalLines = evaluated.lines;
         finalMultiplier = new Prisma.Decimal(evaluated.totalMultiplier.toFixed(4));
@@ -107,22 +110,22 @@ export class HotlineService {
   }
 }
 
-function winningHotlineGrid(): number[][] {
+function winningHotlineGrid(reelCount: number): number[][] {
   return [
     [0, 1, 2],
     [0, 2, 3],
     [0, 3, 4],
     [0, 4, 5],
     [0, 5, 1],
-  ];
+  ].slice(0, reelCount);
 }
 
-function losingHotlineGrid(): number[][] {
+function losingHotlineGrid(reelCount: number): number[][] {
   return [
-    [0, 1, 2],
-    [1, 2, 3],
-    [3, 4, 5],
-    [4, 5, 0],
-    [5, 0, 1],
-  ];
+    [3, 5, 0],
+    [2, 5, 3],
+    [2, 3, 4],
+    [0, 4, 0],
+    [5, 0, 3],
+  ].slice(0, reelCount);
 }

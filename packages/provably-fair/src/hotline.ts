@@ -1,7 +1,13 @@
 import { hmacIntStream } from './hmac.js';
 
 export const HOTLINE_REELS = 5;
+export const HOTLINE_MINI_REELS = 3;
 export const HOTLINE_ROWS = 3;
+export const HOTLINE_3X3_GAME_IDS = new Set([
+  'temple-slot',
+  'candy-slot',
+  'sakura-slot',
+]);
 
 // 符號池：權重決定出現率（Stake-style 類 slot）
 // 索引 => 名稱
@@ -35,10 +41,11 @@ export function hotlineSpin(
   serverSeed: string,
   clientSeed: string,
   nonce: number,
+  reelCount = HOTLINE_REELS,
 ): number[][] {
   const stream = hmacIntStream(serverSeed, clientSeed, nonce);
   const grid: number[][] = [];
-  for (let r = 0; r < HOTLINE_REELS; r += 1) {
+  for (let r = 0; r < reelCount; r += 1) {
     const col: number[] = [];
     for (let y = 0; y < HOTLINE_ROWS; y += 1) {
       const v = stream.next().value as number;
@@ -52,13 +59,15 @@ export function hotlineSpin(
 export interface HotlineWinLine {
   lineId: string;
   path: number[];
+  startReel: number;
+  direction: 'ltr' | 'rtl';
   row: number;
   symbol: number;
   count: number;
   payout: number; // multiplier (0 if none)
 }
 
-export const HOTLINE_PAYLINES = [
+export const HOTLINE_PAYLINES_5X3 = [
   { id: 'top', path: [0, 0, 0, 0, 0] },
   { id: 'middle', path: [1, 1, 1, 1, 1] },
   { id: 'bottom', path: [2, 2, 2, 2, 2] },
@@ -66,9 +75,83 @@ export const HOTLINE_PAYLINES = [
   { id: 'v-up', path: [2, 1, 0, 1, 2] },
 ] as const;
 
+export const HOTLINE_PAYLINES_3X3 = [
+  { id: 'top', path: [0, 0, 0] },
+  { id: 'middle', path: [1, 1, 1] },
+  { id: 'bottom', path: [2, 2, 2] },
+  { id: 'diag-down', path: [0, 1, 2] },
+  { id: 'diag-up', path: [2, 1, 0] },
+] as const;
+
+export const HOTLINE_PAYLINES = HOTLINE_PAYLINES_5X3;
+
+export function getHotlineReelCount(gameId?: string): number {
+  return gameId && HOTLINE_3X3_GAME_IDS.has(gameId)
+    ? HOTLINE_MINI_REELS
+    : HOTLINE_REELS;
+}
+
+function getHotlinePaylines(reelCount: number) {
+  return reelCount === HOTLINE_MINI_REELS ? HOTLINE_PAYLINES_3X3 : HOTLINE_PAYLINES_5X3;
+}
+
+function makeHotlineWinLine(
+  payline: { id: string; path: readonly number[] },
+  symbol: number,
+  count: number,
+  startReel: number,
+  direction: 'ltr' | 'rtl',
+): HotlineWinLine {
+  const sym = HOTLINE_SYMBOLS[symbol]!;
+  const payout =
+    count === 5 ? sym.payout5 : count === 4 ? sym.payout4 : sym.payout3;
+  return {
+    lineId: payline.id,
+    path: [...payline.path],
+    startReel,
+    direction,
+    row: payline.path[startReel]!,
+    symbol,
+    count,
+    payout,
+  };
+}
+
+function evaluatePaylineEdge(
+  grid: number[][],
+  payline: { id: string; path: readonly number[] },
+  reelCount: number,
+  direction: 'ltr' | 'rtl',
+): HotlineWinLine | null {
+  const edgeReel = direction === 'ltr' ? 0 : reelCount - 1;
+  const step = direction === 'ltr' ? 1 : -1;
+  const symbol = grid[edgeReel]?.[payline.path[edgeReel]!];
+  if (symbol === undefined) return null;
+
+  let count = 1;
+  for (let reel = edgeReel + step; reel >= 0 && reel < reelCount; reel += step) {
+    if (grid[reel]?.[payline.path[reel]!] === symbol) count += 1;
+    else break;
+  }
+
+  if (count < 3) return null;
+  const startReel = direction === 'ltr' ? 0 : reelCount - count;
+  return makeHotlineWinLine(payline, symbol, count, startReel, direction);
+}
+
+function isSamePaylineWin(a: HotlineWinLine, b: HotlineWinLine): boolean {
+  return (
+    a.lineId === b.lineId &&
+    a.startReel === b.startReel &&
+    a.symbol === b.symbol &&
+    a.count === b.count
+  );
+}
+
 /**
- * Hotline: evaluate five classic paylines from left to right.
- * A line wins when the first three or more reels match on the same payline.
+ * Hotline: evaluate fixed paylines from both outer edges.
+ * This matches common "Both Ways" slots: symbols must be adjacent on a payline
+ * and start from the leftmost or rightmost reel. Middle-only runs do not pay.
  */
 export function hotlineEvaluate(grid: number[][]): {
   lines: HotlineWinLine[];
@@ -76,29 +159,19 @@ export function hotlineEvaluate(grid: number[][]): {
 } {
   const lines: HotlineWinLine[] = [];
   let totalMultiplier = 0;
+  const reelCount = grid.length === HOTLINE_MINI_REELS ? HOTLINE_MINI_REELS : HOTLINE_REELS;
+  const paylines = getHotlinePaylines(reelCount);
 
-  for (const payline of HOTLINE_PAYLINES) {
-    const firstRow = payline.path[0]!;
-    const firstSymbol = grid[0]?.[firstRow];
-    if (firstSymbol === undefined) continue;
-    let count = 1;
-    for (let reel = 1; reel < HOTLINE_REELS; reel += 1) {
-      if (grid[reel]?.[payline.path[reel]!] === firstSymbol) count += 1;
-      else break;
+  for (const payline of paylines) {
+    const leftWin = evaluatePaylineEdge(grid, payline, reelCount, 'ltr');
+    const rightWin = evaluatePaylineEdge(grid, payline, reelCount, 'rtl');
+    if (leftWin) {
+      lines.push(leftWin);
+      totalMultiplier += leftWin.payout;
     }
-    if (count >= 3) {
-      const sym = HOTLINE_SYMBOLS[firstSymbol]!;
-      const payout =
-        count === 5 ? sym.payout5 : count === 4 ? sym.payout4 : sym.payout3;
-      lines.push({
-        lineId: payline.id,
-        path: [...payline.path],
-        row: firstRow,
-        symbol: firstSymbol,
-        count,
-        payout,
-      });
-      totalMultiplier += payout;
+    if (rightWin && (!leftWin || !isSamePaylineWin(leftWin, rightWin))) {
+      lines.push(rightWin);
+      totalMultiplier += rightWin.payout;
     }
   }
 

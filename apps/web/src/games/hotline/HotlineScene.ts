@@ -41,7 +41,7 @@ const COLOR_ICE = 0x266F85;
 const COLOR_INK = 0x0A0806;
 const COLOR_WHITE = 0xFFFFFF;
 const SYMBOL_COUNT = HOTLINE_SYMBOLS.length;
-const REELS = 5;
+const DEFAULT_REELS = 5;
 const ROWS = 3;
 const REEL_STRIP_LEN = 12; // reel 內部轉動用的延伸符號
 
@@ -57,6 +57,8 @@ function fitSpriteCover(sprite: Sprite, width: number, height: number): void {
 interface HotlineLine {
   lineId?: string;
   path?: number[];
+  startReel?: number;
+  direction?: 'ltr' | 'rtl';
   row: number;
   symbol: number;
   count: number;
@@ -84,6 +86,7 @@ export class HotlineScene {
   private width = 0;
   private height = 0;
   private theme: SlotThemeConfig = getSlotTheme('cyber');
+  private reelCount = DEFAULT_REELS;
   private backgroundTexture: Texture | null = null;
   private symbolSheetTexture: Texture | null = null;
   private symbolTextures: Texture[] = [];
@@ -120,6 +123,7 @@ export class HotlineScene {
     this.width = width;
     this.height = height;
     this.theme = theme;
+    this.reelCount = theme.reels;
 
     const app = new Application();
     await app.init({
@@ -147,10 +151,10 @@ export class HotlineScene {
     const padding = 24;
     const availableW = width - padding * 2;
     this.cellSize = Math.min(
-      (availableW - this.reelGap * (REELS - 1)) / REELS,
+      (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount,
       (height - padding * 2) / ROWS,
     );
-    const reelsWidth = this.cellSize * REELS + this.reelGap * (REELS - 1);
+    const reelsWidth = this.cellSize * this.reelCount + this.reelGap * (this.reelCount - 1);
     const reelsHeight = this.cellSize * ROWS;
     this.reelX0 = (width - reelsWidth) / 2;
     this.reelY0 = (height - reelsHeight) / 2;
@@ -166,8 +170,8 @@ export class HotlineScene {
     this.reelsContainer = new Container();
     app.stage.addChild(this.reelsContainer);
 
-    // 建立 5 條 reel
-    for (let r = 0; r < REELS; r += 1) {
+    // 建立主題指定的轉軸數量
+    for (let r = 0; r < this.reelCount; r += 1) {
       this.createReel(r);
     }
 
@@ -697,13 +701,22 @@ export class HotlineScene {
     if (!this.winLinesLayer) return;
     for (const line of lines) {
       const path = this.normalizeLinePath(line);
-      const visibleCount = Math.min(Math.max(line.count, 0), REELS, path.length);
+      const startReel = this.clampLineStart(line.startReel);
+      const visibleCount = Math.min(
+        Math.max(line.count, 0),
+        this.reelCount - startReel,
+        path.length - startReel,
+      );
       if (visibleCount < 3) continue;
 
-      const points = Array.from({ length: visibleCount }, (_, reelIdx) => ({
-        x: this.reelX0 + reelIdx * (this.cellSize + this.reelGap) + this.cellSize / 2,
-        y: this.reelY0 + path[reelIdx]! * this.cellSize + this.cellSize / 2,
-      }));
+      const points = Array.from({ length: visibleCount }, (_, offset) => {
+        const reelIdx = startReel + offset;
+        return {
+          reelIdx,
+          x: this.reelX0 + reelIdx * (this.cellSize + this.reelGap) + this.cellSize / 2,
+          y: this.reelY0 + path[reelIdx]! * this.cellSize + this.cellSize / 2,
+        };
+      });
       const color =
         this.theme.symbols[line.symbol]?.accentValue ??
         getHotlineSymbolMeta(line.symbol).accentValue;
@@ -727,7 +740,8 @@ export class HotlineScene {
       gsap.fromTo(g, { alpha: 0 }, { alpha: 1, duration: 0.3, ease: 'power2.out' });
 
       // 每個中獎符號脈動 + 粒子
-      for (let reelIdx = 0; reelIdx < visibleCount; reelIdx += 1) {
+      for (let offset = 0; offset < visibleCount; offset += 1) {
+        const reelIdx = startReel + offset;
         const reel = this.reels[reelIdx];
         if (!reel) continue;
         const row = path[reelIdx]!;
@@ -741,10 +755,10 @@ export class HotlineScene {
           ease: 'power2.out',
           yoyo: true,
           repeat: 3,
-          delay: reelIdx * 0.1,
+          delay: offset * 0.1,
         });
 
-        const { x: wx, y: wy } = points[reelIdx]!;
+        const { x: wx, y: wy } = points[offset]!;
         const timer = window.setTimeout(() => {
           this.emitShockwave(wx, wy, color, this.cellSize * 0.8);
           this.particlePool?.emit({
@@ -762,7 +776,7 @@ export class HotlineScene {
               durationSec: 0.45,
             });
           }
-        }, reelIdx * 100);
+        }, offset * 100);
         this.lineFxTimers.push(timer);
       }
     }
@@ -804,14 +818,19 @@ export class HotlineScene {
 
   private normalizeLinePath(line: HotlineLine): number[] {
     const fallbackRow = this.clampLineRow(line.row);
-    const fallback = Array.from({ length: REELS }, () => fallbackRow);
-    if (!Array.isArray(line.path) || line.path.length < REELS) return fallback;
-    return line.path.slice(0, REELS).map((row) => this.clampLineRow(row));
+    const fallback = Array.from({ length: this.reelCount }, () => fallbackRow);
+    if (!Array.isArray(line.path) || line.path.length < this.reelCount) return fallback;
+    return line.path.slice(0, this.reelCount).map((row) => this.clampLineRow(row));
   }
 
   private clampLineRow(row: number): number {
     if (!Number.isFinite(row)) return 0;
     return Math.max(0, Math.min(ROWS - 1, Math.trunc(row)));
+  }
+
+  private clampLineStart(startReel?: number): number {
+    if (typeof startReel !== 'number' || !Number.isFinite(startReel)) return 0;
+    return Math.max(0, Math.min(this.reelCount - 1, Math.trunc(startReel)));
   }
 
   /**
