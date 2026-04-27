@@ -167,7 +167,7 @@ export function HiLoPage() {
   return (
     <div>
       <GameHeader
-        artwork="/games/hilo.jpg"
+        artwork="/game-art/hilo/background.png"
         section="§ GAME 03"
         breadcrumb="HILO_03"
         title={t.games.hilo.title}

@@ -149,7 +149,7 @@ export function BaccaratPage() {
       {showLoadingCover ? (
         <section className="absolute inset-0 z-10 overflow-hidden bg-[#060B14]">
           <img
-            src="/banners/hero-welcome-dealer.png"
+            src="/game-art/baccarat/background.png"
             alt=""
             aria-hidden="true"
             className="absolute inset-0 h-full w-full object-cover object-[62%_center] opacity-70"

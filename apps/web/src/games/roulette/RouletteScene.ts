@@ -6,8 +6,10 @@ import {
   TextStyle,
   Ticker,
   BlurFilter,
+  type Texture,
 } from 'pixi.js';
 import { gsap } from 'gsap';
+import { addCoverSprite, loadTextureOrNull } from '../shared/pixiAssets';
 import {
   ParticlePool,
   ShakeController,
@@ -39,6 +41,12 @@ const SLOTS = 13; // 0 + 1-12
 const TAU = Math.PI * 2;
 const RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12]);
 const BLACK_NUMBERS = new Set([2, 4, 6, 8, 10, 11]);
+export type RouletteSkin = 'mini-roulette' | 'carnival';
+
+const ROULETTE_BACKGROUND_ASSETS: Record<RouletteSkin, string> = {
+  'mini-roulette': '/game-art/mini-roulette/background.png',
+  carnival: '/game-art/carnival/background.png',
+};
 
 function normalizeAngle(angle: number): number {
   return ((angle % TAU) + TAU) % TAU;
@@ -86,6 +94,8 @@ export class RouletteScene {
   private spinning = false;
 
   private particleList: Particle[] = [];
+  private skin: RouletteSkin = 'mini-roulette';
+  private backgroundTexture: Texture | null = null;
   private ambientTicker: ((tk: Ticker) => void) | null = null;
   private particleTicker: ((tk: Ticker) => void) | null = null;
 
@@ -101,9 +111,10 @@ export class RouletteScene {
     canvas: HTMLCanvasElement,
     width: number,
     height: number,
-    opts?: { statusText?: string },
+    opts?: { statusText?: string; skin?: RouletteSkin },
   ): Promise<void> {
     if (opts?.statusText) this.statusText = opts.statusText;
+    if (opts?.skin) this.skin = opts.skin;
     this.width = width;
     this.height = height;
     this.cx = width / 2;
@@ -130,6 +141,7 @@ export class RouletteScene {
       height: this.height,
     });
 
+    await this.preloadAssets();
     this.createBackground();
 
     // 輪盤主體容器（會旋轉）
@@ -186,27 +198,37 @@ export class RouletteScene {
     this.startTickers();
   }
 
+  private async preloadAssets(): Promise<void> {
+    this.backgroundTexture = await loadTextureOrNull(ROULETTE_BACKGROUND_ASSETS[this.skin]);
+  }
+
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
+    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
+
+    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.92);
+    if (artwork) {
+      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: this.skin === 'carnival' ? 0.46 : 0.5 });
+      this.app.stage.addChild(veil);
+    }
 
     const glow = new Graphics()
       .circle(this.cx, this.cy, this.outerRadius * 1.4)
-      .fill({ color: COLOR_ACID, alpha: 0.08 });
+      .fill({ color: this.skin === 'carnival' ? COLOR_EMBER : COLOR_ACID, alpha: artwork ? 0.045 : 0.08 });
     glow.filters = [new BlurFilter({ strength: 60 })];
     this.app.stage.addChild(glow);
 
     // 外圈裝飾
     const deco = new Graphics()
       .circle(this.cx, this.cy, this.outerRadius + 24)
-      .stroke({ color: COLOR_ACID, width: 2, alpha: 0.2 });
+      .stroke({ color: COLOR_ACID, width: 2, alpha: artwork ? 0.14 : 0.2 });
     this.app.stage.addChild(deco);
     for (let i = 0; i < 16; i += 1) {
       const a = (i / 16) * Math.PI * 2;
       const px = this.cx + Math.cos(a) * (this.outerRadius + 42);
       const py = this.cy + Math.sin(a) * (this.outerRadius + 42);
-      const dot = new Graphics().circle(px, py, 3).fill({ color: COLOR_ACID, alpha: 0.35 });
+      const dot = new Graphics().circle(px, py, 3).fill({ color: COLOR_ACID, alpha: artwork ? 0.2 : 0.35 });
       this.app.stage.addChild(dot);
     }
   }
@@ -351,7 +373,7 @@ export class RouletteScene {
     const style = new TextStyle({
       fontFamily: GAME_FONT_NUM,
       fontSize: 14,
-      fill: COLOR_INK,
+      fill: COLOR_WHITE,
       fontWeight: '600',
       letterSpacing: 4,
     });
@@ -359,7 +381,7 @@ export class RouletteScene {
     label.anchor.set(0.5);
     label.x = this.cx;
     label.y = this.cy + this.outerRadius + 60;
-    label.alpha = 0.6;
+    label.alpha = 0.72;
     this.statusLabel = label;
     this.app.stage.addChild(label);
   }
@@ -567,7 +589,7 @@ export class RouletteScene {
 
     if (this.statusLabel) {
       this.statusLabel.text = `RESULT: ${slot}`;
-      this.statusLabel.style.fill = COLOR_INK;
+      this.statusLabel.style.fill = COLOR_WHITE;
     }
   }
 

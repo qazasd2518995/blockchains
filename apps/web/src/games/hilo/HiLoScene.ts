@@ -6,8 +6,10 @@ import {
   Sprite,
   Ticker,
   BlurFilter,
+  type Texture,
 } from 'pixi.js';
 import { gsap } from 'gsap';
+import { addCoverSprite, createGridTextures, loadTextureOrNull } from '../shared/pixiAssets';
 import {
   ParticlePool,
   ShakeController,
@@ -29,6 +31,8 @@ const COLOR_VIOLET = 0xE8D48A;
 const COLOR_EMBER = 0xD4574A;
 const COLOR_TOXIC = 0x1E7A4F;
 const COLOR_ICE = 0x266F85;
+const HILO_BACKGROUND_ASSET = '/game-art/hilo/background.png';
+const HILO_SPRITES_ASSET = '/game-art/hilo/sprites.png';
 
 const CARD_FILE_RANKS = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'] as const;
 const CARD_FILE_SUITS = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
@@ -55,7 +59,7 @@ export class HiLoScene {
   private cardContainer: Container | null = null;
   private mainCard: Container | null = null;
   private mainFace: Container | null = null;
-  private mainBack: Graphics | null = null;
+  private mainBack: Container | null = null;
   private historyLayer: Container | null = null;
   private particles: Container | null = null;
   private shockwaves: Container | null = null;
@@ -65,6 +69,8 @@ export class HiLoScene {
   private cardH = 0;
 
   private particleList: Particle[] = [];
+  private backgroundTexture: Texture | null = null;
+  private cardBackTexture: Texture | null = null;
   private ambientTicker: ((tk: Ticker) => void) | null = null;
   private particleTicker: ((tk: Ticker) => void) | null = null;
 
@@ -138,17 +144,28 @@ export class HiLoScene {
       CARD_FILE_SUITS.map((suit) => `/cards/${rank}_of_${suit}.svg`),
     );
 
+    const backgroundPromise = loadTextureOrNull(HILO_BACKGROUND_ASSET);
+    const spriteSheetPromise = loadTextureOrNull(HILO_SPRITES_ASSET);
     await Promise.all(urls.map((url) => Assets.load(url).catch(() => null)));
+    this.backgroundTexture = await backgroundPromise;
+    const spriteSheetTexture = await spriteSheetPromise;
+    this.cardBackTexture = createGridTextures(spriteSheetTexture, 3, 2, 6)[0] ?? null;
   }
 
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
+    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
+
+    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.94);
+    if (artwork) {
+      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.42 });
+      this.app.stage.addChild(veil);
+    }
 
     const glow = new Graphics()
       .circle(this.width / 2, this.height / 2, this.width * 0.4)
-      .fill({ color: COLOR_ACID, alpha: 0.08 });
+      .fill({ color: COLOR_ACID, alpha: artwork ? 0.04 : 0.08 });
     glow.filters = [new BlurFilter({ strength: 50 })];
     this.app.stage.addChild(glow);
 
@@ -156,7 +173,7 @@ export class HiLoScene {
     const grid = new Graphics();
     for (let x = 0; x < this.width; x += 28) {
       for (let y = 0; y < this.height; y += 28) {
-        grid.circle(x, y, 0.8).fill({ color: COLOR_ACID, alpha: 0.08 });
+        grid.circle(x, y, 0.8).fill({ color: COLOR_ACID, alpha: artwork ? 0.035 : 0.08 });
       }
     }
     this.app.stage.addChild(grid);
@@ -251,7 +268,22 @@ export class HiLoScene {
   /**
    * 畫牌背面（紫色花紋）
    */
-  private drawCardBack(face: Graphics, w: number, h: number): void {
+  private drawCardBack(container: Container, w: number, h: number): void {
+    container.removeChildren();
+    if (this.cardBackTexture) {
+      const sprite = new Sprite(this.cardBackTexture);
+      sprite.anchor.set(0.5);
+      sprite.width = w;
+      sprite.height = h;
+      container.addChild(sprite);
+      const frame = new Graphics()
+        .roundRect(-w / 2, -h / 2, w, h, 14)
+        .stroke({ color: COLOR_INK, width: 1.5, alpha: 0.24 });
+      container.addChild(frame);
+      return;
+    }
+
+    const face = new Graphics();
     face
       .clear()
       .roundRect(-w / 2 + 3, -h / 2 + 6, w, h, 14)
@@ -279,6 +311,7 @@ export class HiLoScene {
         .lineTo(w / 2 - 10, y + 30)
         .stroke({ color: COLOR_VIOLET, width: 1, alpha: 0.2 });
     }
+    container.addChild(face);
   }
 
   /**
@@ -305,7 +338,7 @@ export class HiLoScene {
     card_.addChild(face);
 
     // 背面（初始 alpha 0）
-    const back = new Graphics();
+    const back = new Container();
     this.drawCardBack(back, this.cardW, this.cardH);
     back.alpha = 0;
     this.mainBack = back;
@@ -374,7 +407,7 @@ export class HiLoScene {
         this.mainFace = face;
         newC.addChild(face);
 
-        const back = new Graphics();
+        const back = new Container();
         this.drawCardBack(back, this.cardW, this.cardH);
         this.mainBack = back;
         newC.addChild(back);

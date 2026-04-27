@@ -46,7 +46,7 @@ export function RoulettePage({ variant }: Props) {
       }
       scene = new RouletteScene();
       sceneRef.current = scene;
-      void scene.init(canvas, w, h, { statusText: t.games.roulette.placeYourBets });
+      void scene.init(canvas, w, h, { statusText: t.games.roulette.placeYourBets, skin: variant });
     };
     tryInit();
     return () => {
@@ -118,7 +118,7 @@ export function RoulettePage({ variant }: Props) {
   return (
     <div>
       <GameHeader
-        artwork={isMini ? '/games/mini-roulette.jpg' : '/games/carnival.jpg'}
+        artwork={isMini ? '/game-art/mini-roulette/background.png' : '/game-art/carnival/background.png'}
         section={isMini ? '§ GAME 06' : '§ GAME 18'}
         breadcrumb={isMini ? 'ROULETTE_06' : 'CARNIVAL_18'}
         title={isMini ? t.games.roulette.title : t.games.roulette.titleCarnival}
@@ -133,7 +133,7 @@ export function RoulettePage({ variant }: Props) {
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines p-3">
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">迷你輪盤</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Roulette</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">{isMini ? '迷你輪盤' : '狂歡節'}</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Roulette</span>
               <span className="text-white/72">
                 {t.games.roulette.total}: {formatAmount(totalBet)}
               </span>
