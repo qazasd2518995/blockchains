@@ -5,16 +5,29 @@ import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
 import { GameHeader } from '@/components/game/GameHeader';
-import { HotlineSymbolBadge } from '@/components/game/HotlineSymbolIcon';
-import { HOTLINE_SYMBOLS } from '@/lib/hotlineSymbols';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { HotlineScene } from '@/games/hotline/HotlineScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
+import { getSlotTheme, type SlotThemeConfig, type SlotThemeId } from '@/lib/slotThemes';
 
-export function HotlinePage() {
+interface Props {
+  theme?: SlotThemeId;
+}
+
+const SYMBOL_POSITIONS = [
+  '0% 0%',
+  '50% 0%',
+  '100% 0%',
+  '0% 100%',
+  '50% 100%',
+  '100% 100%',
+];
+
+export function HotlinePage({ theme = 'cyber' }: Props) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const slotTheme = getSlotTheme(theme);
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
   const [result, setResult] = useState<HotlineBetResult | null>(null);
@@ -42,7 +55,7 @@ export function HotlinePage() {
       }
       scene = new HotlineScene();
       sceneRef.current = scene;
-      void scene.init(canvas, w, h);
+      void scene.init(canvas, w, h, slotTheme);
     };
     tryInit();
     return () => {
@@ -51,7 +64,7 @@ export function HotlinePage() {
       scene?.dispose();
       sceneRef.current = null;
     };
-  }, []);
+  }, [slotTheme]);
 
   const spin = async () => {
     if (busy || amount <= 0 || amount > balance) return;
@@ -65,7 +78,7 @@ export function HotlinePage() {
     sceneRef.current?.startAnticipation();
 
     try {
-      const payload: HotlineBetRequest = { amount };
+      const payload: HotlineBetRequest = { amount, gameId: slotTheme.gameId };
       const res = await api.post<HotlineBetResult>('/games/hotline/bet', payload);
       await sceneRef.current?.playSpin(res.data.grid, res.data.lines);
       const mult = res.data.multiplier ?? 0;
@@ -97,24 +110,24 @@ export function HotlinePage() {
   return (
     <div>
       <GameHeader
-        artwork="/games/hotline.jpg"
-        section="§ GAME 08"
-        breadcrumb="HOTLINE_08"
-        title={t.games.hotline.title}
-        titleSuffix={t.games.hotline.suffix}
-        titleSuffixColor="ember"
-        description={t.games.hotline.description}
-        rtpLabel="RTP 96%"
-        rtpAccent="ember"
+        artwork={slotTheme.cover}
+        section={slotTheme.section}
+        breadcrumb={slotTheme.breadcrumb}
+        title={slotTheme.title}
+        titleSuffix={slotTheme.suffix}
+        titleSuffixColor={slotTheme.rtpAccent}
+        description={slotTheme.description}
+        rtpLabel={slotTheme.rtpLabel}
+        rtpAccent={slotTheme.rtpAccent}
       />
 
       <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">霓虹熱線</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Hotline</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">{slotTheme.stageLabel}</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">{slotTheme.suffix}</span>
               <span className="text-white/72">
-                {spinning ? t.games.hotline.spinning : t.games.hotline.ready}
+                {spinning ? slotTheme.spinningLabel : slotTheme.readyLabel}
               </span>
             </div>
 
@@ -153,7 +166,7 @@ export function HotlinePage() {
                         <span className="font-mono text-white/85">
                           {t.games.hotline.row} {l.row} · {l.count}×
                         </span>
-                        <HotlineSymbolBadge symbol={l.symbol} showLabel useShortLabel />
+                        <SlotSymbolBadge theme={slotTheme} symbol={l.symbol} showLabel useShortLabel />
                       </div>
                       <span className="data-num text-[#7DD3FC]">{l.payout}×</span>
                     </div>
@@ -204,12 +217,12 @@ export function HotlinePage() {
           <div className="game-side-card p-5">
             <div className="label">{t.games.hotline.payoutTable}</div>
             <div className="mt-3 space-y-2 text-[11px]">
-              {HOTLINE_SYMBOLS.map((symbol, index) => (
+              {slotTheme.symbols.map((symbol, index) => (
                 <div
-                  key={symbol.key}
+                  key={`${slotTheme.id}-${symbol.label}`}
                   className="flex items-center justify-between gap-3 border-b border-white/10 pb-2 last:border-0 last:pb-0"
                 >
-                  <HotlineSymbolBadge symbol={index} showLabel />
+                  <SlotSymbolBadge theme={slotTheme} symbol={index} showLabel />
                   <span className="data-num text-white/85">3x · 4x · 5x</span>
                 </div>
               ))}
@@ -220,5 +233,43 @@ export function HotlinePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SlotSymbolBadge({
+  theme,
+  symbol,
+  showLabel = false,
+  useShortLabel = false,
+}: {
+  theme: SlotThemeConfig;
+  symbol: number;
+  showLabel?: boolean;
+  useShortLabel?: boolean;
+}) {
+  const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
+  const label = useShortLabel ? meta.shortLabel : meta.label;
+
+  return (
+    <span
+      className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+      style={{
+        borderColor: `${meta.accentHex}33`,
+        backgroundColor: `${meta.accentHex}14`,
+        color: meta.accentHex,
+      }}
+    >
+      <span
+        className="block h-7 w-7 shrink-0 rounded-full border bg-cover bg-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.3)]"
+        style={{
+          borderColor: `${meta.accentHex}40`,
+          backgroundImage: `url(${theme.symbolSheet})`,
+          backgroundSize: '300% 200%',
+          backgroundPosition: SYMBOL_POSITIONS[symbol] ?? '0% 0%',
+        }}
+        aria-hidden="true"
+      />
+      {showLabel ? <span className="tracking-[0.18em]">{label}</span> : null}
+    </span>
   );
 }

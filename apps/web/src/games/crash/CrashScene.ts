@@ -679,57 +679,62 @@ export class CrashScene {
     const edge = Math.max(42, Math.min(72, w * 0.12));
     const low = h - Math.max(46, h * 0.16);
     const high = Math.max(54, h * 0.16);
-    const midY = h * 0.55;
 
     switch (ASSET_VARIANT[this.variant]) {
       case 'rocket': {
-        // Rocket：像發射台一樣由底部垂直升空，帶一點風切偏移。
-        const y = low - (low - high) * Math.pow(t, 1.08);
-        const x = w * 0.5 + Math.sin(t * Math.PI * 1.35) * w * 0.045;
+        // Rocket：成熟 crash 常見的垂直升空，只保留少量風偏。
+        const y = low - (low - high) * Math.pow(t, 1.06);
+        const x = w * 0.5 + Math.sin(t * Math.PI * 0.9) * w * 0.028;
         return { x, y };
       }
       case 'aviator': {
-        // Aviator：先沿跑道低空滑行，再弧線離場。
-        const climb = Math.pow(Math.max(0, (t - 0.16) / 0.84), 1.45);
-        const x = edge + (w - edge * 1.35 - edge) * easeOutCubic(t);
-        const y = low + h * 0.035 * Math.sin(t * Math.PI * 1.8) - (low - high) * climb;
+        // Aviator：跑道滑行後平順拉升，不做折返或大幅蛇行。
+        const takeoff = Math.max(0, (t - 0.14) / 0.86);
+        const climb = Math.pow(takeoff, 1.28);
+        const runway = Math.min(t / 0.14, 1);
+        const x = edge + (w - edge * 2) * easeOutCubic(t);
+        const y = low + h * 0.016 * runway - (low - high) * climb;
         return { x, y };
       }
       case 'fleet': {
-        // Fleet：反方向攔截，從右下切往左上。
-        const x = w - edge - (w - edge * 2.2) * easeInOutSine(t);
-        const y = low - (low - high) * Math.pow(t, 1.22) + Math.sin(t * Math.PI * 2.2) * h * 0.035;
+        // Space Fleet：垂直爬升加透視漂移，像編隊從跑道正面升空。
+        const y = low - (low - high) * Math.pow(t, 1.04);
+        const x = w * 0.52 + Math.sin(t * Math.PI * 0.8) * w * 0.04;
         return { x, y };
       }
       case 'jet': {
-        // JetX：低空高速橫移，後段急速拉升。
-        const pull = Math.pow(Math.max(0, (t - 0.38) / 0.62), 1.35);
-        const x = edge + (w - edge * 1.35 - edge) * t;
-        const y = h * 0.7 - h * 0.04 * Math.sin(t * Math.PI * 2.2) - (h * 0.58) * pull;
+        // JetX：高速向前，後段只有可讀的抬升，類似 JetX 市場節奏。
+        const lift = Math.pow(t, 1.75);
+        const x = edge + (w - edge * 2) * t;
+        const y = h * 0.68 - h * 0.07 * t - h * 0.28 * lift;
         return { x, y };
       }
       case 'balloon': {
-        // Balloon：不走直線，像熱氣球被風推著慢慢漂高。
-        const x = w * 0.38 + Math.sin(t * Math.PI * 1.55) * w * 0.16;
-        const y = low - (low - high * 1.12) * Math.pow(t, 0.92);
+        // Balloon：慢速上升、輕微風漂，重點是穩定和膨脹感。
+        const x = w * 0.47 + Math.sin(t * Math.PI * 1.05) * w * 0.075;
+        const y = low - (low - high * 1.08) * Math.pow(t, 0.94);
         return { x, y };
       }
       case 'jet3': {
-        // JetX3：三段式 S 型爬升，像多機編隊穿越。
-        const x = w * 0.5 + Math.sin((t - 0.1) * Math.PI * 1.55) * w * 0.25;
-        const y = low - (low - high) * Math.pow(t, 1.02);
+        // JetX3：編隊同向爬升，只用小幅隊形擺動，不做大 S 迴轉。
+        const x = edge + (w - edge * 2) * t;
+        const y =
+          low -
+          (low - high) * Math.pow(t, 1.08) +
+          Math.sin(t * Math.PI * 1.5) * h * 0.022;
         return { x, y };
       }
       case 'double': {
-        // Double X：雙倍軌跡感，左右衝刺時上下波動。
+        // Double X：雙線交會的感覺用小波浪呈現，主方向仍清楚往右上。
         const x = edge + (w - edge * 2) * easeInOutSine(t);
-        const y = midY + Math.sin(t * Math.PI * 2.35) * h * 0.12 - h * 0.32 * t;
+        const y = h * 0.68 - h * 0.4 * t + Math.sin(t * Math.PI * 2) * h * 0.035;
         return { x, y };
       }
       case 'plinko': {
-        // Plinko X：彈珠彈射感，沿途有短促折返波。
-        const x = edge + (w - edge * 2) * t;
-        const y = h * 0.74 - h * 0.56 * t + Math.sin(t * Math.PI * 5.5) * h * 0.045;
+        // Plinko X：垂直彈射搭配阻尼彈跳，保留彈珠感但避免亂飛。
+        const bounce = Math.abs(Math.sin(t * Math.PI * 4.4)) * (1 - t * 0.45);
+        const x = w * 0.5 + Math.sin(t * Math.PI * 2.6) * w * 0.055;
+        const y = low - (low - high) * t + bounce * h * 0.032;
         return { x, y };
       }
       default: {

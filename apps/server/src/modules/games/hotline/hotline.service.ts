@@ -17,19 +17,20 @@ export class HotlineService {
 
   async bet(userId: string, input: HotlineBetInput): Promise<HotlineBetResult> {
     const amount = new Prisma.Decimal(input.amount);
+    const gameId = input.gameId ?? GameId.HOTLINE;
 
     return runSerializable(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
       const seed = await new SeedHelper(tx).getActiveBundle(
         userId,
-        'hotline',
+        gameId,
         input.clientSeed,
       );
       const grid = hotlineSpin(seed.serverSeed, seed.clientSeed, seed.nonce);
       const { lines, totalMultiplier } = hotlineEvaluate(grid);
       const multiplierD = new Prisma.Decimal(totalMultiplier.toFixed(4));
       const payout = amount.mul(multiplierD).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const controlled = await applyControls(tx, userId, GameId.HOTLINE, {
+      const controlled = await applyControls(tx, userId, gameId, {
         won: payout.greaterThan(amount),
         amount,
         multiplier: multiplierD,
@@ -61,7 +62,7 @@ export class HotlineService {
       const bet = await tx.bet.create({
         data: {
           userId,
-          gameId: GameId.HOTLINE,
+          gameId,
           amount,
           multiplier: finalMultiplier,
           payout: finalPayout,
@@ -80,7 +81,7 @@ export class HotlineService {
       await finalizeControls(
         tx,
         userId,
-        GameId.HOTLINE,
+        gameId,
         { won: payout.greaterThan(amount), amount, multiplier: multiplierD, payout },
         { won: finalPayout.greaterThan(amount), amount, multiplier: finalMultiplier, payout: finalPayout },
         controlled,

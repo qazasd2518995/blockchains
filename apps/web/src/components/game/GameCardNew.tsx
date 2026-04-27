@@ -7,11 +7,11 @@ import { getGameIcon } from '@/lib/platformIcons';
 const HAS_COVER = new Set<string>([
   'baccarat',
   'dice', 'mines', 'hilo', 'keno', 'wheel', 'mini-roulette',
-  'plinko', 'hotline', 'rocket', 'aviator', 'space-fleet',
+  'plinko', 'hotline', 'fruit-slot', 'fortune-slot', 'ocean-slot', 'rocket', 'aviator', 'space-fleet',
   'jetx', 'balloon', 'jetx3', 'double-x', 'plinko-x', 'tower', 'carnival',
 ]);
 
-const NEW_GAMES = new Set(['carnival', 'plinko-x', 'jetx3', 'double-x']);
+const NEW_GAMES = new Set(['carnival', 'plinko-x', 'jetx3', 'double-x', 'fruit-slot', 'fortune-slot', 'ocean-slot']);
 
 // 繁中名称覆写（game registry 中有些是简中）
 const NAME_ZH_TW: Record<string, string> = {
@@ -24,6 +24,9 @@ const NAME_ZH_TW: Record<string, string> = {
   'mini-roulette': '迷你轮盘',
   plinko: '弹珠台',
   hotline: '热线',
+  'fruit-slot': '水果拉霸',
+  'fortune-slot': '财虎拉霸',
+  'ocean-slot': '海神宝藏',
   tower: '叠塔',
   rocket: '火箭',
   aviator: '飞行员',

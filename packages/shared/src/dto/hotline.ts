@@ -1,6 +1,7 @@
 export interface HotlineBetRequest {
   amount: number;
   clientSeed?: string;
+  gameId?: string;
 }
 
 export interface HotlineWinLine {

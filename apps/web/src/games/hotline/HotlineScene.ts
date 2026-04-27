@@ -1,9 +1,13 @@
 import {
   Application,
+  Assets,
   Container,
   Graphics,
+  Rectangle,
+  Sprite,
   Text,
   TextStyle,
+  Texture,
   Ticker,
   BlurFilter,
 } from 'pixi.js';
@@ -22,6 +26,7 @@ import {
   GAME_FONT_NUM,
 } from '@bg/game-engine';
 import { HOTLINE_SYMBOLS, getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
+import { getSlotTheme, type SlotThemeConfig } from '@/lib/slotThemes';
 import { WinCelebration } from '@bg/game-engine';
 
 const COLOR_BG = 0x0F172A;
@@ -34,10 +39,20 @@ const COLOR_TOXIC = 0x1E7A4F;
 const COLOR_AMBER = 0xF3D67D;
 const COLOR_ICE = 0x266F85;
 const COLOR_INK = 0x0A0806;
+const COLOR_WHITE = 0xFFFFFF;
 const SYMBOL_COUNT = HOTLINE_SYMBOLS.length;
 const REELS = 5;
 const ROWS = 3;
 const REEL_STRIP_LEN = 12; // reel 內部轉動用的延伸符號
+
+function fitSpriteCover(sprite: Sprite, width: number, height: number): void {
+  const textureWidth = sprite.texture.width || width;
+  const textureHeight = sprite.texture.height || height;
+  const scale = Math.max(width / textureWidth, height / textureHeight);
+  sprite.scale.set(scale);
+  sprite.x = (width - textureWidth * scale) / 2;
+  sprite.y = (height - textureHeight * scale) / 2;
+}
 
 interface HotlineLine {
   row: number;
@@ -66,6 +81,10 @@ export class HotlineScene {
   private app: Application | null = null;
   private width = 0;
   private height = 0;
+  private theme: SlotThemeConfig = getSlotTheme('cyber');
+  private backgroundTexture: Texture | null = null;
+  private symbolSheetTexture: Texture | null = null;
+  private symbolTextures: Texture[] = [];
 
   private reels: ReelData[] = [];
   private reelsContainer: Container | null = null;
@@ -90,9 +109,15 @@ export class HotlineScene {
   private lineFxTimers: number[] = [];
 
 
-  async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
+  async init(
+    canvas: HTMLCanvasElement,
+    width: number,
+    height: number,
+    theme: SlotThemeConfig = getSlotTheme('cyber'),
+  ): Promise<void> {
     this.width = width;
     this.height = height;
+    this.theme = theme;
 
     const app = new Application();
     await app.init({
@@ -113,6 +138,7 @@ export class HotlineScene {
       height: this.height,
     });
 
+    await this.preloadThemeAssets();
     this.createBackground();
 
     // 計算 reel 尺寸
@@ -169,10 +195,46 @@ export class HotlineScene {
     this.startTickers();
   }
 
+  private async preloadThemeAssets(): Promise<void> {
+    const [backgroundTexture, symbolSheetTexture] = await Promise.all([
+      Assets.load<Texture>(this.theme.background).catch(() => null),
+      Assets.load<Texture>(this.theme.symbolSheet).catch(() => null),
+    ]);
+    this.backgroundTexture = backgroundTexture;
+    this.symbolSheetTexture = symbolSheetTexture;
+    this.symbolTextures = this.createSymbolTextures(symbolSheetTexture);
+  }
+
+  private createSymbolTextures(sheet: Texture | null): Texture[] {
+    if (!sheet) return [];
+    const cellW = sheet.width / 3;
+    const cellH = sheet.height / 2;
+    return Array.from({ length: SYMBOL_COUNT }, (_, symbolIdx) => {
+      const col = symbolIdx % 3;
+      const row = Math.floor(symbolIdx / 3);
+      return new Texture({
+        source: sheet.source,
+        frame: new Rectangle(col * cellW, row * cellH, cellW, cellH),
+      });
+    });
+  }
+
   private createBackground(): void {
     if (!this.app) return;
     const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
     this.app.stage.addChild(bg);
+
+    if (this.backgroundTexture) {
+      const background = new Sprite(this.backgroundTexture);
+      fitSpriteCover(background, this.width, this.height);
+      background.alpha = 0.92;
+      this.app.stage.addChild(background);
+    }
+
+    const stageShade = new Graphics()
+      .rect(0, 0, this.width, this.height)
+      .fill({ color: 0x020817, alpha: 0.22 });
+    this.app.stage.addChild(stageShade);
 
     const glow = new Graphics()
       .circle(this.width / 2, this.height / 2, this.width * 0.4)
@@ -251,13 +313,36 @@ export class HotlineScene {
 
     const size = this.cellSize;
     const meta = getHotlineSymbolMeta(symbolIdx);
-    const color = meta.accentValue;
+    const themeSymbol = this.theme.symbols[symbolIdx] ?? this.theme.symbols[0];
+    const color = themeSymbol?.accentValue ?? meta.accentValue;
 
     // tile 陰影
     const shadow = new Graphics()
       .roundRect(-size / 2 + 4 + 1, -size / 2 + 4 + 2, size - 8, size - 8, 12)
       .fill({ color: COLOR_INK, alpha: 0.1 });
     c.addChild(shadow);
+
+    const symbolTexture = this.symbolTextures[symbolIdx];
+    if (symbolTexture) {
+      const sprite = new Sprite(symbolTexture);
+      sprite.anchor.set(0.5);
+      const target = size - 8;
+      const scale = Math.max(target / symbolTexture.width, target / symbolTexture.height);
+      sprite.scale.set(scale);
+      sprite.alpha = 0.98;
+      c.addChild(sprite);
+
+      const frame = new Graphics()
+        .roundRect(-size / 2 + 3, -size / 2 + 3, size - 6, size - 6, 12)
+        .stroke({ color, width: 2, alpha: 0.52 });
+      c.addChild(frame);
+
+      const shine = new Graphics()
+        .roundRect(-size / 2 + 7, -size / 2 + 7, size - 14, (size - 14) * 0.34, 10)
+        .fill({ color: COLOR_WHITE, alpha: 0.08 });
+      c.addChild(shine);
+      return;
+    }
 
     // tile 主體
     const tile = new Graphics()
@@ -612,7 +697,9 @@ export class HotlineScene {
       const y = this.reelY0 + line.row * this.cellSize + this.cellSize / 2;
       const xStart = this.reelX0 + this.cellSize / 2;
       const xEnd = this.reelX0 + (line.count - 1) * (this.cellSize + this.reelGap) + this.cellSize / 2;
-      const color = getHotlineSymbolMeta(line.symbol).accentValue;
+      const color =
+        this.theme.symbols[line.symbol]?.accentValue ??
+        getHotlineSymbolMeta(line.symbol).accentValue;
 
       // 發光連線（3 層）
       const g = new Graphics();

@@ -1,4 +1,8 @@
 const LOBBY_COVER_OVERRIDES: Record<string, string> = {
+  hotline: '/slots/cyber/cover.png',
+  'fruit-slot': '/slots/fruit/cover.png',
+  'fortune-slot': '/slots/fortune/cover.png',
+  'ocean-slot': '/slots/ocean/cover.png',
   rocket: '/games/lobby/rocket.jpg',
   aviator: '/games/lobby/aviator.jpg',
   'space-fleet': '/games/lobby/space-fleet.jpg',

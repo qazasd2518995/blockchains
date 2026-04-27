@@ -8,6 +8,9 @@ export const GameId = {
   MINI_ROULETTE: 'mini-roulette',
   PLINKO: 'plinko',
   HOTLINE: 'hotline',
+  FRUIT_SLOT: 'fruit-slot',
+  FORTUNE_SLOT: 'fortune-slot',
+  OCEAN_SLOT: 'ocean-slot',
   TOWER: 'tower',
   ROCKET: 'rocket',
   AVIATOR: 'aviator',
@@ -21,6 +24,13 @@ export const GameId = {
 } as const;
 
 export type GameIdType = (typeof GameId)[keyof typeof GameId];
+export const SLOT_GAME_IDS = [
+  GameId.HOTLINE,
+  GameId.FRUIT_SLOT,
+  GameId.FORTUNE_SLOT,
+  GameId.OCEAN_SLOT,
+] as const;
+export type SlotGameIdType = (typeof SLOT_GAME_IDS)[number];
 
 export type GameCategory = 'single-step' | 'multi-step' | 'realtime-crash' | 'table';
 
@@ -133,6 +143,39 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     category: 'single-step',
     description: 'Neon-themed slot machine.',
     descriptionZh: '霓虹风格老虎机',
+    rtp: 0.97,
+    icon: 'slots',
+    enabled: true,
+  },
+  [GameId.FRUIT_SLOT]: {
+    id: GameId.FRUIT_SLOT,
+    name: 'Fruit Slots',
+    nameZh: '水果拉霸',
+    category: 'single-step',
+    description: 'Classic fruit slot with premium reels.',
+    descriptionZh: '经典水果拉霸机',
+    rtp: 0.97,
+    icon: 'slots',
+    enabled: true,
+  },
+  [GameId.FORTUNE_SLOT]: {
+    id: GameId.FORTUNE_SLOT,
+    name: 'Fortune Tiger Slots',
+    nameZh: '财虎拉霸',
+    category: 'single-step',
+    description: 'Asian fortune themed slot machine.',
+    descriptionZh: '华丽财运主题拉霸机',
+    rtp: 0.97,
+    icon: 'slots',
+    enabled: true,
+  },
+  [GameId.OCEAN_SLOT]: {
+    id: GameId.OCEAN_SLOT,
+    name: 'Ocean Treasure Slots',
+    nameZh: '海神宝藏',
+    category: 'single-step',
+    description: 'Ocean treasure themed slot machine.',
+    descriptionZh: '深海宝藏主题拉霸机',
     rtp: 0.97,
     icon: 'slots',
     enabled: true,
