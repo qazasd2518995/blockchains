@@ -52,6 +52,7 @@ export interface ApiErrorBody {
 
 const DEFAULT_ERRORS: Record<string, string> = {
   UNAUTHORIZED: '身份未授权,请重新登录',
+  NETWORK_ERROR: '連線異常，請稍後再試',
   INVALID_CREDENTIALS: '账号或密码错误',
   EMAIL_TAKEN: '此邮箱已被使用',
   USER_NOT_FOUND: '找不到该用户',
@@ -91,6 +92,9 @@ export function extractApiError(err: unknown): ApiErrorBody {
     const body = err.response?.data as ApiErrorBody | undefined;
     if (body && typeof body === 'object' && 'code' in body) {
       return { ...body, message: translateMessage(body.code, body.message) };
+    }
+    if (!err.response) {
+      return { code: 'NETWORK_ERROR', message: DEFAULT_ERRORS.NETWORK_ERROR ?? err.message };
     }
     return { code: 'INTERNAL', message: DEFAULT_ERRORS.INTERNAL ?? err.message };
   }

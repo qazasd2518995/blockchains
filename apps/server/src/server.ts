@@ -6,7 +6,7 @@ import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
 import { Server as SocketIOServer } from 'socket.io';
 
-import { config } from './config.js';
+import { config, isAllowedOrigin } from './config.js';
 import { GameId } from '@bg/shared';
 import { prismaPlugin } from './plugins/prisma.js';
 import { authPlugin } from './plugins/auth.js';
@@ -67,9 +67,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(helmet, { contentSecurityPolicy: false });
   await server.register(cors, {
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
-      const allowed = config.CORS_ORIGIN.includes(origin);
-      cb(null, allowed);
+      cb(null, isAllowedOrigin(origin));
     },
     credentials: true,
   });
@@ -113,7 +111,12 @@ export async function buildServer(): Promise<FastifyInstance> {
   // Socket.IO for Crash games
   server.ready().then(() => {
     const io = new SocketIOServer(server.server, {
-      cors: { origin: config.CORS_ORIGIN, credentials: true },
+      cors: {
+        origin: (origin, cb) => {
+          cb(null, isAllowedOrigin(origin));
+        },
+        credentials: true,
+      },
       transports: ['websocket', 'polling'],
     });
     const registry = new CrashRoomRegistry(io, server.prisma);

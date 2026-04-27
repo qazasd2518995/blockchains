@@ -6,6 +6,7 @@ import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 
 const FALLBACK_BACCARAT_URL = 'http://localhost:5174';
+const BACCARAT_HANDOFF_DELAY_MS = 1200;
 
 interface LauncherDiagnostics {
   currentUser: string;
@@ -27,6 +28,7 @@ export function BaccaratPage() {
   const [diagnostics, setDiagnostics] = useState<LauncherDiagnostics | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
   const [frameLoaded, setFrameLoaded] = useState(false);
+  const [frameVisible, setFrameVisible] = useState(false);
 
   const baccaratUrl = useMemo(() => {
     const raw = (import.meta.env.VITE_BACCARAT_URL as string | undefined)?.trim();
@@ -38,7 +40,22 @@ export function BaccaratPage() {
   );
 
   useEffect(() => {
+    const origin = new URL(baccaratUrl).origin;
+    for (const rel of ['dns-prefetch', 'preconnect']) {
+      const selector = `link[data-baccarat-preconnect="${rel}"]`;
+      if (document.head.querySelector(selector)) continue;
+      const link = document.createElement('link');
+      link.rel = rel;
+      link.href = origin;
+      link.dataset.baccaratPreconnect = rel;
+      if (rel === 'preconnect') link.crossOrigin = 'anonymous';
+      document.head.appendChild(link);
+    }
+  }, [baccaratUrl]);
+
+  useEffect(() => {
     let cancelled = false;
+    let handoffTimer: ReturnType<typeof setTimeout> | undefined;
 
     async function launch() {
       try {
@@ -47,6 +64,7 @@ export function BaccaratPage() {
         setDiagnostics(null);
         setLaunchUrl(null);
         setFrameLoaded(false);
+        setFrameVisible(false);
 
         const res = await api.post<{ launchToken: string }>('/auth/baccarat-launch');
         if (cancelled) return;
@@ -54,8 +72,11 @@ export function BaccaratPage() {
         const target = new URL('/login', baccaratUrl);
         target.searchParams.set('launchToken', res.data.launchToken);
         setLaunchUrl(target.toString());
-        setMessage('正在載入百家樂遊戲大廳...');
+        setMessage('正在交接百家樂遊戲大廳...');
         setStatus('ready');
+        handoffTimer = setTimeout(() => {
+          if (!cancelled) setFrameVisible(true);
+        }, BACCARAT_HANDOFF_DELAY_MS);
       } catch (error) {
         if (cancelled) return;
         const apiError = extractApiError(error);
@@ -95,15 +116,17 @@ export function BaccaratPage() {
     void launch();
     return () => {
       cancelled = true;
+      if (handoffTimer) clearTimeout(handoffTimer);
     };
   }, [apiBase, baccaratUrl, iframeKey, user?.role, user?.username]);
 
   const handleReload = () => {
     setFrameLoaded(false);
+    setFrameVisible(false);
     setIframeKey((k) => k + 1);
   };
 
-  const showLoadingCover = status === 'loading' || (status === 'ready' && launchUrl && !frameLoaded);
+  const showLoadingCover = status === 'loading' || (status === 'ready' && launchUrl && !frameLoaded && !frameVisible);
 
   return (
     <main className="fixed inset-0 z-[9999] overflow-hidden bg-[#050A13] text-white">
@@ -112,10 +135,14 @@ export function BaccaratPage() {
           key={iframeKey}
           title="BG Baccarat"
           src={launchUrl}
-          onLoad={() => setFrameLoaded(true)}
+          onLoad={() => {
+            setFrameLoaded(true);
+            setFrameVisible(true);
+          }}
           className="absolute inset-0 h-full w-full border-0 bg-[#050A13]"
           allow="autoplay; clipboard-read; clipboard-write; fullscreen"
           referrerPolicy="strict-origin-when-cross-origin"
+          loading="eager"
         />
       ) : null}
 
@@ -139,7 +166,7 @@ export function BaccaratPage() {
                 進入遊戲中
               </h1>
               <p className="mt-4 max-w-[420px] text-[15px] leading-7 text-white/72">
-                正在連接真人百家樂大廳，載入完成後將自動切換到全螢幕遊戲畫面。
+                正在連接真人百家樂大廳，將直接切換到全螢幕遊戲畫面。
               </p>
 
               <div className="mt-7 inline-flex items-center gap-3 rounded-[18px] border border-white/12 bg-white/[0.08] px-4 py-3 text-[14px] text-white/88 backdrop-blur">

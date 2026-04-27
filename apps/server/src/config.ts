@@ -26,3 +26,16 @@ if (!parsed.success) {
 
 export const config = parsed.data;
 export type AppConfig = typeof config;
+
+export function isAllowedOrigin(origin?: string): boolean {
+  if (!origin) return true;
+  if (config.CORS_ORIGIN.includes(origin)) return true;
+
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== 'https:') return false;
+    return /^(bg-web|bg-admin)(-[a-z0-9]+)?\.onrender\.com$/i.test(url.hostname);
+  } catch {
+    return false;
+  }
+}
