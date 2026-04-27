@@ -6,8 +6,10 @@ import {
   TextStyle,
   Ticker,
   BlurFilter,
+  type Texture,
 } from 'pixi.js';
 import { gsap } from 'gsap';
+import { addCoverSprite, loadTextureOrNull } from '../shared/pixiAssets';
 import {
   ParticlePool,
   ShakeController,
@@ -37,6 +39,7 @@ const COLOR_BLOCK = 0x344152;
 const COLOR_BLOCK_DARK = 0x182233;
 const COLOR_MORTAR = 0xEEF2F6;
 const COLOR_SAFE_EDGE = 0x7BD68F;
+const TOWER_BACKGROUND_ASSET = '/game-art/tower/background.png';
 
 interface CellHandle {
   container: Container;
@@ -73,6 +76,7 @@ export class TowerScene {
 
   private cells: Map<string, CellHandle> = new Map();
   private particleList: Particle[] = [];
+  private backgroundTexture: Texture | null = null;
   private ambientTicker: ((tk: Ticker) => void) | null = null;
   private particleTicker: ((tk: Ticker) => void) | null = null;
 
@@ -118,6 +122,7 @@ export class TowerScene {
       height: this.height,
     });
 
+    await this.preloadAssets();
     this.createBackground();
 
     // 相機（可整體平移）
@@ -148,15 +153,25 @@ export class TowerScene {
     this.startTickers();
   }
 
+  private async preloadAssets(): Promise<void> {
+    this.backgroundTexture = await loadTextureOrNull(TOWER_BACKGROUND_ASSET);
+  }
+
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
+    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
+
+    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.9);
+    if (artwork) {
+      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.52 });
+      this.app.stage.addChild(veil);
+    }
 
     // 中央施工藍圖光暈
     const glow = new Graphics()
       .circle(this.width / 2, this.height * 0.35, this.width * 0.48)
-      .fill({ color: COLOR_BLUEPRINT, alpha: 0.12 });
+      .fill({ color: COLOR_BLUEPRINT, alpha: artwork ? 0.07 : 0.12 });
     glow.filters = [new BlurFilter({ strength: 60 })];
     this.app.stage.addChild(glow);
 

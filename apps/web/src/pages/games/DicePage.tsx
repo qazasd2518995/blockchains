@@ -106,7 +106,7 @@ export function DicePage() {
   return (
     <div>
       <GameHeader
-        artwork="/games/dice.jpg"
+        artwork="/game-art/dice/background.png"
         section="§ GAME 01"
         breadcrumb="DICE_01"
         title={t.games.dice.title}

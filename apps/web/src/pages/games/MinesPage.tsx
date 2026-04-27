@@ -198,7 +198,7 @@ export function MinesPage() {
   return (
     <div>
       <GameHeader
-        artwork="/games/mines.jpg"
+        artwork="/game-art/mines/background.png"
         section="§ GAME 02"
         breadcrumb="MINES_02"
         title={t.games.mines.title}

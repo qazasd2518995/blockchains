@@ -1,5 +1,6 @@
-import { Application, Container, Graphics, Text, TextStyle, Ticker, BlurFilter } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Text, TextStyle, Ticker, BlurFilter, type Texture } from 'pixi.js';
 import { gsap } from 'gsap';
+import { addCoverSprite, createGridTextures, loadTextureOrNull } from '../shared/pixiAssets';
 import {
   ParticlePool,
   ShakeController,
@@ -23,6 +24,8 @@ const COLOR_VIOLET = 0xE8D48A;
 const COLOR_EMBER = 0xD4574A;
 const COLOR_TOXIC = 0x1E7A4F;
 const COLOR_ICE = 0x266F85;
+const DICE_BACKGROUND_ASSET = '/game-art/dice/background.png';
+const DICE_SPRITES_ASSET = '/game-art/dice/sprites.png';
 
 interface PipPos {
   x: number;
@@ -81,6 +84,7 @@ export class DiceScene {
   private app: Application | null = null;
   private dice: Container | null = null;
   private diceFace: Graphics | null = null;
+  private diceSprite: Sprite | null = null;
   private pipContainer: Container | null = null;
   private diceGlow: Graphics | null = null;
   private rollLabel: Text | null = null;
@@ -91,6 +95,8 @@ export class DiceScene {
 
   private stars: Star[] = [];
   private particleList: Particle[] = [];
+  private backgroundTexture: Texture | null = null;
+  private diceTextures: Texture[] = [];
   private diceSize = 0;
   private width = 0;
   private height = 0;
@@ -132,6 +138,7 @@ export class DiceScene {
       height: this.height,
     });
 
+    await this.preloadAssets();
     this.createBackground();
     this.starfield = new Container();
     app.stage.addChild(this.starfield);
@@ -162,23 +169,38 @@ export class DiceScene {
     this.startAmbient();
   }
 
+  private async preloadAssets(): Promise<void> {
+    const [backgroundTexture, diceSheetTexture] = await Promise.all([
+      loadTextureOrNull(DICE_BACKGROUND_ASSET),
+      loadTextureOrNull(DICE_SPRITES_ASSET),
+    ]);
+    this.backgroundTexture = backgroundTexture;
+    this.diceTextures = createGridTextures(diceSheetTexture, 3, 2, 6);
+  }
+
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
+    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
+    this.app.stage.addChild(bg);
+
+    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.92);
+    if (artwork) {
+      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.44 });
+      this.app.stage.addChild(veil);
+    }
 
     const glowR1 = Math.min(this.width * 0.4, this.height * 0.9);
     const glowR2 = Math.min(this.width * 0.35, this.height * 0.8);
     const glow1 = new Graphics()
       .circle(this.width * 0.2, this.height * 0.1, glowR1)
-      .fill({ color: COLOR_ACID, alpha: 0.08 });
+      .fill({ color: COLOR_ACID, alpha: artwork ? 0.045 : 0.08 });
     glow1.filters = [new BlurFilter({ strength: 40 })];
 
     const glow2 = new Graphics()
       .circle(this.width * 0.8, this.height * 0.9, glowR2)
-      .fill({ color: COLOR_EMBER, alpha: 0.06 });
+      .fill({ color: COLOR_EMBER, alpha: artwork ? 0.035 : 0.06 });
     glow2.filters = [new BlurFilter({ strength: 40 })];
 
-    this.app.stage.addChild(bg);
     this.app.stage.addChild(glow1);
     this.app.stage.addChild(glow2);
 
@@ -186,7 +208,7 @@ export class DiceScene {
     const step = 32;
     for (let x = 0; x < this.width; x += step) {
       for (let y = 0; y < this.height; y += step) {
-        grid.circle(x, y, 1).fill({ color: COLOR_ACID, alpha: 0.1 });
+        grid.circle(x, y, 1).fill({ color: COLOR_ACID, alpha: artwork ? 0.04 : 0.1 });
       }
     }
     this.app.stage.addChild(grid);
@@ -242,14 +264,24 @@ export class DiceScene {
     dice.y = this.height / 2;
     this.dice = dice;
 
-    const face = new Graphics();
-    this.drawFace(face, COLOR_ACID);
-    this.diceFace = face;
-    dice.addChild(face);
+    if (this.diceTextures.length > 0) {
+      const sprite = new Sprite(this.diceTextures[2]!);
+      sprite.anchor.set(0.5);
+      const target = this.diceSize * 1.48;
+      const scale = target / Math.max(sprite.texture.width, sprite.texture.height);
+      sprite.scale.set(scale);
+      this.diceSprite = sprite;
+      dice.addChild(sprite);
+    } else {
+      const face = new Graphics();
+      this.drawFace(face, COLOR_ACID);
+      this.diceFace = face;
+      dice.addChild(face);
+    }
 
     const pipContainer = new Container();
     this.pipContainer = pipContainer;
-    dice.addChild(pipContainer);
+    if (!this.diceSprite) dice.addChild(pipContainer);
     this.drawPips(3);
 
     this.app.stage.addChild(dice);
@@ -269,6 +301,11 @@ export class DiceScene {
   }
 
   private drawPips(value: number): void {
+    const texture = this.diceTextures[value - 1];
+    if (this.diceSprite && texture) {
+      this.diceSprite.texture = texture;
+      return;
+    }
     if (!this.pipContainer) return;
     this.pipContainer.removeChildren();
     const layout = PIP_LAYOUTS[value] ?? PIP_LAYOUTS[1]!;
@@ -424,7 +461,7 @@ export class DiceScene {
   }
 
   async playRoll(roll: number, won: boolean, multiplier = 0): Promise<void> {
-    if (!this.dice || !this.rollLabel || !this.diceFace) return;
+    if (!this.dice || !this.rollLabel) return;
     const dice = this.dice;
     const label = this.rollLabel;
 

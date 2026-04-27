@@ -1,5 +1,6 @@
-import { Application, Container, Graphics, Text, TextStyle, Ticker, BlurFilter } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Text, TextStyle, Ticker, BlurFilter, type Texture } from 'pixi.js';
 import { gsap } from 'gsap';
+import { addCoverSprite, createGridTextures, loadTextureOrNull } from '../shared/pixiAssets';
 import {
   ParticlePool,
   ShakeController,
@@ -25,6 +26,8 @@ const COLOR_TOXIC = 0x1E7A4F;
 const COLOR_ICE = 0x266F85;
 const COLOR_AMBER = 0xF3D67D;
 const COLOR_INK = 0x0A0806;
+const MINES_BACKGROUND_ASSET = '/game-art/mines/background.png';
+const MINES_SPRITES_ASSET = '/game-art/mines/sprites.png';
 
 export type MinesCellState = 'hidden' | 'gem' | 'mine';
 
@@ -51,6 +54,8 @@ export class MinesScene {
   private clickDisabled = false;
 
   private particleList: Particle[] = [];
+  private backgroundTexture: Texture | null = null;
+  private cellTextures: Texture[] = [];
   private particleTicker: ((tk: Ticker) => void) | null = null;
   private ambientTicker: ((tk: Ticker) => void) | null = null;
   private gridContainer: Container | null = null;
@@ -92,6 +97,7 @@ export class MinesScene {
       height: this.height,
     });
 
+    await this.preloadAssets();
     this.createBackground();
 
     // Grid container
@@ -108,7 +114,7 @@ export class MinesScene {
     for (let i = 0; i < 25; i += 1) {
       const row = Math.floor(i / 5);
       const col = i % 5;
-      const cell = new MinesCell(i, cellSize);
+      const cell = new MinesCell(i, cellSize, this.cellTextures);
       cell.container.x = col * (cellSize + gap) + cellSize / 2;
       cell.container.y = row * (cellSize + gap) + cellSize / 2;
       cell.container.eventMode = 'static';
@@ -148,14 +154,29 @@ export class MinesScene {
     this.startTickers();
   }
 
+  private async preloadAssets(): Promise<void> {
+    const [backgroundTexture, spriteSheetTexture] = await Promise.all([
+      loadTextureOrNull(MINES_BACKGROUND_ASSET),
+      loadTextureOrNull(MINES_SPRITES_ASSET),
+    ]);
+    this.backgroundTexture = backgroundTexture;
+    this.cellTextures = createGridTextures(spriteSheetTexture, 3, 2, 6);
+  }
+
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
+    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
+
+    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.9);
+    if (artwork) {
+      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.5 });
+      this.app.stage.addChild(veil);
+    }
 
     const glow = new Graphics()
       .circle(this.width / 2, this.height / 2, this.width * 0.5)
-      .fill({ color: COLOR_ACID, alpha: 0.06 });
+      .fill({ color: COLOR_ACID, alpha: artwork ? 0.035 : 0.06 });
     glow.filters = [new BlurFilter({ strength: 50 })];
     this.app.stage.addChild(glow);
 
@@ -163,7 +184,7 @@ export class MinesScene {
     const step = 32;
     for (let x = 0; x < this.width; x += step) {
       for (let y = 0; y < this.height; y += step) {
-        grid.circle(x, y, 1).fill({ color: COLOR_ACID, alpha: 0.08 });
+        grid.circle(x, y, 1).fill({ color: COLOR_ACID, alpha: artwork ? 0.035 : 0.08 });
       }
     }
     this.app.stage.addChild(grid);
@@ -483,16 +504,27 @@ class MinesCell {
   private readonly tile: Graphics;
   private readonly content: Container;
   private readonly glow: Graphics;
+  private readonly artSprite: Sprite | null = null;
 
   constructor(
     public readonly index: number,
     public readonly size: number,
+    private readonly textures: Texture[] = [],
   ) {
     this.container = new Container();
 
     // Glow 在最底
     this.glow = new Graphics();
     this.container.addChild(this.glow);
+
+    if (this.textures.length > 0) {
+      const sprite = new Sprite(this.textures[0]!);
+      sprite.anchor.set(0.5);
+      sprite.width = size;
+      sprite.height = size;
+      this.artSprite = sprite;
+      this.container.addChild(sprite);
+    }
 
     this.tile = new Graphics();
     this.drawHidden();
@@ -504,6 +536,13 @@ class MinesCell {
 
   private drawHidden(): void {
     const s = this.size;
+    if (this.setArtTexture(0)) {
+      this.tile
+        .clear()
+        .roundRect(-s / 2, -s / 2, s, s, 14)
+        .stroke({ color: COLOR_TILE_STROKE, width: 1.4, alpha: 0.42 });
+      return;
+    }
     this.tile
       .clear()
       // 陰影
@@ -519,6 +558,15 @@ class MinesCell {
       // 中心紫色 accent dot
       .circle(0, 0, s * 0.06)
       .fill({ color: COLOR_ACID, alpha: 0.25 });
+  }
+
+  private setArtTexture(textureIndex: number): boolean {
+    const texture = this.textures[textureIndex];
+    if (!this.artSprite || !texture) return false;
+    this.artSprite.texture = texture;
+    this.artSprite.width = this.size;
+    this.artSprite.height = this.size;
+    return true;
   }
 
   onHoverIn(): void {
@@ -648,6 +696,14 @@ class MinesCell {
 
   private drawGem(): void {
     const s = this.size;
+    this.content.removeChildren();
+    if (this.setArtTexture(1)) {
+      this.tile
+        .clear()
+        .roundRect(-s / 2, -s / 2, s, s, 14)
+        .stroke({ color: COLOR_TOXIC, width: 2.2, alpha: 0.9 });
+      return;
+    }
     // 更新 tile 為綠色
     this.tile
       .clear()
@@ -661,7 +717,6 @@ class MinesCell {
       .fill({ color: COLOR_TOXIC, alpha: 0.1 });
 
     // 鑽石菱形幾何
-    this.content.removeChildren();
     const gem = new Graphics();
     const gemSize = s * 0.28;
     gem
@@ -683,6 +738,15 @@ class MinesCell {
 
   private drawMine(big: boolean): void {
     const s = this.size;
+    this.content.removeChildren();
+    if (this.setArtTexture(2)) {
+      this.tile
+        .clear()
+        .roundRect(-s / 2, -s / 2, s, s, 14)
+        .fill({ color: COLOR_EMBER, alpha: big ? 0.14 : 0.06 })
+        .stroke({ color: COLOR_EMBER, width: big ? 3 : 1.8, alpha: 0.95 });
+      return;
+    }
     this.tile
       .clear()
       .roundRect(-s / 2 + 2, -s / 2 + 4, s, s, 14)
@@ -697,7 +761,6 @@ class MinesCell {
         .fill({ color: COLOR_EMBER, alpha: 0.15 });
     }
 
-    this.content.removeChildren();
     // X 型爆炸
     const m = s * 0.28;
     const x = new Graphics()

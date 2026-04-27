@@ -6,8 +6,10 @@ import {
   TextStyle,
   Ticker,
   BlurFilter,
+  type Texture,
 } from 'pixi.js';
 import { gsap } from 'gsap';
+import { addCoverSprite, loadTextureOrNull } from '../shared/pixiAssets';
 import {
   ParticlePool,
   ShakeController,
@@ -33,6 +35,7 @@ const COLOR_ICE = 0x266F85;
 const COLOR_INK = 0x0A0806;
 const COLOR_WHITE = 0xFFFFFF;
 const COLOR_GRAY = 0xC9A247;
+const WHEEL_BACKGROUND_ASSET = '/game-art/wheel/background.png';
 
 interface Particle {
   g: Graphics;
@@ -60,6 +63,7 @@ export class WheelScene {
 
   private multipliers: number[] = [];
   private particleList: Particle[] = [];
+  private backgroundTexture: Texture | null = null;
 
   private ambientTicker: ((tk: Ticker) => void) | null = null;
   private particleTicker: ((tk: Ticker) => void) | null = null;
@@ -96,6 +100,7 @@ export class WheelScene {
       height: this.height,
     });
 
+    await this.preloadAssets();
     this.createBackground();
 
     this.wheelContainer = new Container();
@@ -136,14 +141,24 @@ export class WheelScene {
     this.startTickers();
   }
 
+  private async preloadAssets(): Promise<void> {
+    this.backgroundTexture = await loadTextureOrNull(WHEEL_BACKGROUND_ASSET);
+  }
+
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
+    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
+
+    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.9);
+    if (artwork) {
+      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.5 });
+      this.app.stage.addChild(veil);
+    }
 
     const glow = new Graphics()
       .circle(this.cx, this.cy, this.radius * 1.3)
-      .fill({ color: COLOR_ACID, alpha: 0.08 });
+      .fill({ color: COLOR_ACID, alpha: artwork ? 0.04 : 0.08 });
     glow.filters = [new BlurFilter({ strength: 50 })];
     this.app.stage.addChild(glow);
 

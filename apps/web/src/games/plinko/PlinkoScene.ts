@@ -6,8 +6,10 @@ import {
   TextStyle,
   Ticker,
   BlurFilter,
+  type Texture,
 } from 'pixi.js';
 import { gsap } from 'gsap';
+import { addCoverSprite, loadTextureOrNull } from '../shared/pixiAssets';
 import {
   ParticlePool,
   ShakeController,
@@ -32,6 +34,7 @@ const COLOR_AMBER = 0xF3D67D;
 const COLOR_ICE = 0x266F85;
 const COLOR_INK = 0x0A0806;
 const COLOR_WHITE = 0xFFFFFF;
+const PLINKO_BACKGROUND_ASSET = '/game-art/plinko/background.png';
 
 interface Ball {
   g: Graphics;
@@ -81,6 +84,7 @@ export class PlinkoScene {
 
   private balls: Ball[] = [];
   private particleList: Particle[] = [];
+  private backgroundTexture: Texture | null = null;
 
   private ambientTicker: ((tk: Ticker) => void) | null = null;
   private ballTicker: ((tk: Ticker) => void) | null = null;
@@ -116,6 +120,7 @@ export class PlinkoScene {
       height: this.height,
     });
 
+    await this.preloadAssets();
     this.createBackground();
 
     this.pegsContainer = new Container();
@@ -144,10 +149,20 @@ export class PlinkoScene {
     this.startTickers();
   }
 
+  private async preloadAssets(): Promise<void> {
+    this.backgroundTexture = await loadTextureOrNull(PLINKO_BACKGROUND_ASSET);
+  }
+
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
+    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
+
+    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.92);
+    if (artwork) {
+      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.42 });
+      this.app.stage.addChild(veil);
+    }
 
     // glow1：用多層同心圓替代 BlurFilter（避免 Pixi v8 BlurFilter 干擾 Text batching）
     const glow1 = new Graphics();
@@ -156,7 +171,7 @@ export class PlinkoScene {
     const rBase1 = this.width * 0.4;
     for (let i = 0; i < 6; i += 1) {
       const r = rBase1 * (0.4 + i * 0.12);
-      const a = 0.02 * (6 - i);
+      const a = (artwork ? 0.012 : 0.02) * (6 - i);
       glow1.circle(cx1, cy1, r).fill({ color: COLOR_ACID, alpha: a });
     }
     this.app.stage.addChild(glow1);
@@ -168,7 +183,7 @@ export class PlinkoScene {
     const rBase2 = this.width * 0.35;
     for (let i = 0; i < 6; i += 1) {
       const r = rBase2 * (0.4 + i * 0.12);
-      const a = 0.015 * (6 - i);
+      const a = (artwork ? 0.009 : 0.015) * (6 - i);
       glow2.circle(cx2, cy2, r).fill({ color: COLOR_EMBER, alpha: a });
     }
     this.app.stage.addChild(glow2);

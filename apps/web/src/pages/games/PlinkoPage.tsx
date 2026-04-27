@@ -102,7 +102,7 @@ export function PlinkoPage() {
   return (
     <div>
       <GameHeader
-        artwork="/games/plinko.jpg"
+        artwork="/game-art/plinko/background.png"
         section="§ GAME 07"
         breadcrumb="PLINKO_07"
         title={t.games.plinko.title}

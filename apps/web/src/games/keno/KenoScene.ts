@@ -6,8 +6,10 @@ import {
   TextStyle,
   Ticker,
   BlurFilter,
+  type Texture,
 } from 'pixi.js';
 import { gsap } from 'gsap';
+import { addCoverSprite, loadTextureOrNull } from '../shared/pixiAssets';
 import {
   ParticlePool,
   ShakeController,
@@ -33,6 +35,7 @@ const COLOR_ICE = 0x266F85;
 const COLOR_AMBER = 0xF3D67D;
 const COLOR_INK = 0x0A0806;
 const COLOR_WHITE = 0xFFFFFF;
+const KENO_BACKGROUND_ASSET = '/game-art/keno/background.png';
 
 interface Ball {
   container: Container;
@@ -62,6 +65,7 @@ export class KenoScene {
 
   private balls: Ball[] = [];
   private particleList: Particle[] = [];
+  private backgroundTexture: Texture | null = null;
   private ambientTicker: ((tk: Ticker) => void) | null = null;
   private particleTicker: ((tk: Ticker) => void) | null = null;
 
@@ -95,6 +99,7 @@ export class KenoScene {
       height: this.height,
     });
 
+    await this.preloadAssets();
     this.createBackground();
 
     this.ballsContainer = new Container();
@@ -118,14 +123,24 @@ export class KenoScene {
     this.startTickers();
   }
 
+  private async preloadAssets(): Promise<void> {
+    this.backgroundTexture = await loadTextureOrNull(KENO_BACKGROUND_ASSET);
+  }
+
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
+    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
+
+    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.92);
+    if (artwork) {
+      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.46 });
+      this.app.stage.addChild(veil);
+    }
 
     const glow = new Graphics()
       .circle(this.width / 2, this.height / 2, this.width * 0.45)
-      .fill({ color: COLOR_ACID, alpha: 0.08 });
+      .fill({ color: COLOR_ACID, alpha: artwork ? 0.04 : 0.08 });
     glow.filters = [new BlurFilter({ strength: 50 })];
     this.app.stage.addChild(glow);
 
@@ -153,7 +168,7 @@ export class KenoScene {
     const style = new TextStyle({
       fontFamily: GAME_FONT_NUM,
       fontSize: 14,
-      fill: COLOR_INK,
+      fill: COLOR_WHITE,
       fontWeight: '600',
       letterSpacing: 4,
     });
@@ -161,7 +176,7 @@ export class KenoScene {
     label.anchor.set(0.5);
     label.x = this.width / 2;
     label.y = 30;
-    label.alpha = 0.6;
+    label.alpha = 0.74;
     this.statusLabel = label;
     this.app.stage.addChild(label);
   }

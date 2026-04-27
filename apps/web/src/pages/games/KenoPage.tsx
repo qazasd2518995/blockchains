@@ -117,7 +117,7 @@ export function KenoPage() {
   return (
     <div>
       <GameHeader
-        artwork="/games/keno.jpg"
+        artwork="/game-art/keno/background.png"
         section="§ GAME 04"
         breadcrumb="KENO_04"
         title={t.games.keno.title}

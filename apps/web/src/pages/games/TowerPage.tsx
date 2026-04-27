@@ -216,7 +216,7 @@ export function TowerPage() {
   return (
     <div>
       <GameHeader
-        artwork="/games/tower.jpg"
+        artwork="/game-art/tower/background.png"
         section="§ GAME 09"
         breadcrumb="TOWER_09"
         title={t.games.tower.title}
