@@ -50,15 +50,25 @@ export function hotlineSpin(
 }
 
 export interface HotlineWinLine {
+  lineId: string;
+  path: number[];
   row: number;
   symbol: number;
   count: number;
   payout: number; // multiplier (0 if none)
 }
 
+export const HOTLINE_PAYLINES = [
+  { id: 'top', path: [0, 0, 0, 0, 0] },
+  { id: 'middle', path: [1, 1, 1, 1, 1] },
+  { id: 'bottom', path: [2, 2, 2, 2, 2] },
+  { id: 'v-down', path: [0, 1, 2, 1, 0] },
+  { id: 'v-up', path: [2, 1, 0, 1, 2] },
+] as const;
+
 /**
- * Hotline: for each row, check if symbols from left form a consecutive match
- * (classic slot paylines — left-to-right match 3+).
+ * Hotline: evaluate five classic paylines from left to right.
+ * A line wins when the first three or more reels match on the same payline.
  */
 export function hotlineEvaluate(grid: number[][]): {
   lines: HotlineWinLine[];
@@ -67,19 +77,27 @@ export function hotlineEvaluate(grid: number[][]): {
   const lines: HotlineWinLine[] = [];
   let totalMultiplier = 0;
 
-  for (let row = 0; row < HOTLINE_ROWS; row += 1) {
-    const firstSymbol = grid[0]?.[row];
+  for (const payline of HOTLINE_PAYLINES) {
+    const firstRow = payline.path[0]!;
+    const firstSymbol = grid[0]?.[firstRow];
     if (firstSymbol === undefined) continue;
     let count = 1;
     for (let reel = 1; reel < HOTLINE_REELS; reel += 1) {
-      if (grid[reel]?.[row] === firstSymbol) count += 1;
+      if (grid[reel]?.[payline.path[reel]!] === firstSymbol) count += 1;
       else break;
     }
     if (count >= 3) {
       const sym = HOTLINE_SYMBOLS[firstSymbol]!;
       const payout =
         count === 5 ? sym.payout5 : count === 4 ? sym.payout4 : sym.payout3;
-      lines.push({ row, symbol: firstSymbol, count, payout });
+      lines.push({
+        lineId: payline.id,
+        path: [...payline.path],
+        row: firstRow,
+        symbol: firstSymbol,
+        count,
+        payout,
+      });
       totalMultiplier += payout;
     }
   }

@@ -5,6 +5,8 @@ export interface HotlineBetRequest {
 }
 
 export interface HotlineWinLine {
+  lineId?: string;
+  path?: number[];
   row: number;
   symbol: number;
   count: number;

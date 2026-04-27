@@ -164,7 +164,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                     >
                       <div className="flex min-w-0 items-center gap-2">
                         <span className="font-mono text-white/85">
-                          {t.games.hotline.row} {l.row} · {l.count}×
+                          {l.lineId ? `${t.games.hotline.line} ${i + 1}` : `${t.games.hotline.row} ${l.row + 1}`} · {l.count}×
                         </span>
                         <SlotSymbolBadge theme={slotTheme} symbol={l.symbol} showLabel useShortLabel />
                       </div>

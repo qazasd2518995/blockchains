@@ -121,8 +121,8 @@ function losingHotlineGrid(): number[][] {
   return [
     [0, 1, 2],
     [1, 2, 3],
-    [2, 3, 4],
     [3, 4, 5],
     [4, 5, 0],
+    [5, 0, 1],
   ];
 }

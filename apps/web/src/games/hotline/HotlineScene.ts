@@ -55,6 +55,8 @@ function fitSpriteCover(sprite: Sprite, width: number, height: number): void {
 }
 
 interface HotlineLine {
+  lineId?: string;
+  path?: number[];
   row: number;
   symbol: number;
   count: number;
@@ -694,29 +696,42 @@ export class HotlineScene {
   private showWinLines(lines: HotlineLine[]): void {
     if (!this.winLinesLayer) return;
     for (const line of lines) {
-      const y = this.reelY0 + line.row * this.cellSize + this.cellSize / 2;
-      const xStart = this.reelX0 + this.cellSize / 2;
-      const xEnd = this.reelX0 + (line.count - 1) * (this.cellSize + this.reelGap) + this.cellSize / 2;
+      const path = this.normalizeLinePath(line);
+      const visibleCount = Math.min(Math.max(line.count, 0), REELS, path.length);
+      if (visibleCount < 3) continue;
+
+      const points = Array.from({ length: visibleCount }, (_, reelIdx) => ({
+        x: this.reelX0 + reelIdx * (this.cellSize + this.reelGap) + this.cellSize / 2,
+        y: this.reelY0 + path[reelIdx]! * this.cellSize + this.cellSize / 2,
+      }));
       const color =
         this.theme.symbols[line.symbol]?.accentValue ??
         getHotlineSymbolMeta(line.symbol).accentValue;
 
       // 發光連線（3 層）
       const g = new Graphics();
-      g.moveTo(xStart, y).lineTo(xEnd, y).stroke({ color, width: 18, alpha: 0.2 });
-      g.moveTo(xStart, y).lineTo(xEnd, y).stroke({ color, width: 8, alpha: 0.4 });
-      g.moveTo(xStart, y).lineTo(xEnd, y).stroke({ color, width: 3, alpha: 0.9 });
+      for (const stroke of [
+        { width: 18, alpha: 0.2 },
+        { width: 8, alpha: 0.4 },
+        { width: 3, alpha: 0.9 },
+      ]) {
+        g.moveTo(points[0]!.x, points[0]!.y);
+        for (let i = 1; i < points.length; i += 1) {
+          g.lineTo(points[i]!.x, points[i]!.y);
+        }
+        g.stroke({ color, width: stroke.width, alpha: stroke.alpha });
+      }
       g.alpha = 0;
       this.winLinesLayer.addChild(g);
 
       gsap.fromTo(g, { alpha: 0 }, { alpha: 1, duration: 0.3, ease: 'power2.out' });
 
       // 每個中獎符號脈動 + 粒子
-      for (let reelIdx = 0; reelIdx < line.count; reelIdx += 1) {
+      for (let reelIdx = 0; reelIdx < visibleCount; reelIdx += 1) {
         const reel = this.reels[reelIdx];
         if (!reel) continue;
-        // 前 ROWS 個 symbol 是 grid 對應位置
-        const sym = reel.symbols[line.row];
+        const row = path[reelIdx]!;
+        const sym = reel.symbols[row];
         if (!sym) continue;
 
         gsap.to(sym.scale, {
@@ -729,8 +744,7 @@ export class HotlineScene {
           delay: reelIdx * 0.1,
         });
 
-        const wx = this.reelX0 + reelIdx * (this.cellSize + this.reelGap) + this.cellSize / 2;
-        const wy = y;
+        const { x: wx, y: wy } = points[reelIdx]!;
         const timer = window.setTimeout(() => {
           this.emitShockwave(wx, wy, color, this.cellSize * 0.8);
           this.particlePool?.emit({
@@ -786,6 +800,18 @@ export class HotlineScene {
       const timer = window.setTimeout(() => this.shaker?.shake(5, 0.35), 300);
       this.lineFxTimers.push(timer);
     }
+  }
+
+  private normalizeLinePath(line: HotlineLine): number[] {
+    const fallbackRow = this.clampLineRow(line.row);
+    const fallback = Array.from({ length: REELS }, () => fallbackRow);
+    if (!Array.isArray(line.path) || line.path.length < REELS) return fallback;
+    return line.path.slice(0, REELS).map((row) => this.clampLineRow(row));
+  }
+
+  private clampLineRow(row: number): number {
+    if (!Number.isFinite(row)) return 0;
+    return Math.max(0, Math.min(ROWS - 1, Math.trunc(row)));
   }
 
   /**
