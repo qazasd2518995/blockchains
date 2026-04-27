@@ -119,6 +119,19 @@ interface Star {
   baseAlpha: number;
 }
 
+interface FlightPoint {
+  x: number;
+  y: number;
+}
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function easeInOutSine(t: number): number {
+  return -(Math.cos(Math.PI * t) - 1) / 2;
+}
+
 export class CrashScene {
   private app: Application | null = null;
   private width = 0;
@@ -564,8 +577,9 @@ export class CrashScene {
       // Idle / Betting：craft 懸停
       if (this.phase === 'idle' || this.phase === 'betting') {
         if (this.craft) {
-          this.craft.x = 60 + Math.sin(tick * 0.028) * 2.5;
-          this.craft.y = this.height - 60 + Math.sin(tick * 0.04) * 7;
+          const idle = this.idlePosition(tick);
+          this.craft.x = idle.x;
+          this.craft.y = idle.y;
           this.craft.rotation = this.getCraftRotation(1.02, tick, false);
           this.animateCraftSprite(tick, false);
         }
@@ -647,24 +661,10 @@ export class CrashScene {
 
   /**
    * 把 multiplier 映射到畫布座標。
-   * 起點：左下 (60, height - 60)
-   * 終點：右上 (width - 80, 80)
-   * 曲線：指數爬升
+   * 不同飛行館使用不同 flight profile，讓視覺節奏不再都從左下飛到右上。
    */
   private multiplierToPosition(m: number): { x: number; y: number } {
-    const startX = 60;
-    const startY = this.height - 60;
-    const endX = this.width - 80;
-    const topY = 80;
-
-    const progress = this.flightProgress(m);
-
-    const x = startX + (endX - startX) * progress;
-    // y 使用 ease-out 曲線（起點平、後段陡）
-    const yProgress = Math.pow(progress, 1.6);
-    const y = startY - (startY - topY) * yProgress;
-
-    return { x, y };
+    return this.positionAtProgress(this.flightProgress(m));
   }
 
   private flightProgress(m: number): number {
@@ -672,15 +672,90 @@ export class CrashScene {
     return logMax > 0 ? Math.min(1, Math.log(Math.max(1, m)) / logMax) : 0;
   }
 
+  private positionAtProgress(progress: number): FlightPoint {
+    const t = Math.max(0, Math.min(1, progress));
+    const w = this.width;
+    const h = this.height;
+    const edge = Math.max(42, Math.min(72, w * 0.12));
+    const low = h - Math.max(46, h * 0.16);
+    const high = Math.max(54, h * 0.16);
+    const midY = h * 0.55;
+
+    switch (ASSET_VARIANT[this.variant]) {
+      case 'rocket': {
+        // Rocket：像發射台一樣由底部垂直升空，帶一點風切偏移。
+        const y = low - (low - high) * Math.pow(t, 1.08);
+        const x = w * 0.5 + Math.sin(t * Math.PI * 1.35) * w * 0.045;
+        return { x, y };
+      }
+      case 'aviator': {
+        // Aviator：先沿跑道低空滑行，再弧線離場。
+        const climb = Math.pow(Math.max(0, (t - 0.16) / 0.84), 1.45);
+        const x = edge + (w - edge * 1.35 - edge) * easeOutCubic(t);
+        const y = low + h * 0.035 * Math.sin(t * Math.PI * 1.8) - (low - high) * climb;
+        return { x, y };
+      }
+      case 'fleet': {
+        // Fleet：反方向攔截，從右下切往左上。
+        const x = w - edge - (w - edge * 2.2) * easeInOutSine(t);
+        const y = low - (low - high) * Math.pow(t, 1.22) + Math.sin(t * Math.PI * 2.2) * h * 0.035;
+        return { x, y };
+      }
+      case 'jet': {
+        // JetX：低空高速橫移，後段急速拉升。
+        const pull = Math.pow(Math.max(0, (t - 0.38) / 0.62), 1.35);
+        const x = edge + (w - edge * 1.35 - edge) * t;
+        const y = h * 0.7 - h * 0.04 * Math.sin(t * Math.PI * 2.2) - (h * 0.58) * pull;
+        return { x, y };
+      }
+      case 'balloon': {
+        // Balloon：不走直線，像熱氣球被風推著慢慢漂高。
+        const x = w * 0.38 + Math.sin(t * Math.PI * 1.55) * w * 0.16;
+        const y = low - (low - high * 1.12) * Math.pow(t, 0.92);
+        return { x, y };
+      }
+      case 'jet3': {
+        // JetX3：三段式 S 型爬升，像多機編隊穿越。
+        const x = w * 0.5 + Math.sin((t - 0.1) * Math.PI * 1.55) * w * 0.25;
+        const y = low - (low - high) * Math.pow(t, 1.02);
+        return { x, y };
+      }
+      case 'double': {
+        // Double X：雙倍軌跡感，左右衝刺時上下波動。
+        const x = edge + (w - edge * 2) * easeInOutSine(t);
+        const y = midY + Math.sin(t * Math.PI * 2.35) * h * 0.12 - h * 0.32 * t;
+        return { x, y };
+      }
+      case 'plinko': {
+        // Plinko X：彈珠彈射感，沿途有短促折返波。
+        const x = edge + (w - edge * 2) * t;
+        const y = h * 0.74 - h * 0.56 * t + Math.sin(t * Math.PI * 5.5) * h * 0.045;
+        return { x, y };
+      }
+      default: {
+        const x = edge + (w - edge * 2) * t;
+        const y = low - (low - high) * Math.pow(t, 1.6);
+        return { x, y };
+      }
+    }
+  }
+
+  private idlePosition(tick: number): FlightPoint {
+    const base = this.positionAtProgress(0);
+    const assetVariant = ASSET_VARIANT[this.variant];
+    const bob = Math.sin(tick * 0.04) * (assetVariant === 'balloon' ? 9 : 5);
+    const sway = Math.sin(tick * 0.028) * (assetVariant === 'rocket' ? 1.5 : 2.5);
+    return {
+      x: base.x + sway,
+      y: base.y + bob,
+    };
+  }
+
   private flightTangentAngle(m: number): number {
-    const startX = 60;
-    const startY = this.height - 60;
-    const endX = this.width - 80;
-    const topY = 80;
-    const progress = Math.max(0.035, this.flightProgress(m));
-    const dx = endX - startX;
-    const dy = -(startY - topY) * 1.6 * Math.pow(progress, 0.6);
-    return Math.atan2(dy, dx);
+    const progress = Math.max(0.01, this.flightProgress(m));
+    const a = this.positionAtProgress(Math.max(0, progress - 0.012));
+    const b = this.positionAtProgress(Math.min(1, progress + 0.012));
+    return Math.atan2(b.y - a.y, b.x - a.x);
   }
 
   private getCraftRotation(m: number, tick: number, running: boolean): number {
@@ -828,9 +903,10 @@ export class CrashScene {
     this.restoreCraftVisuals();
 
     if (this.craft) {
+      const pos = this.positionAtProgress(0);
       gsap.to(this.craft, {
-        x: 60,
-        y: this.height - 60,
+        x: pos.x,
+        y: pos.y,
         alpha: 1,
         rotation: this.getCraftRotation(1.02, 0, false),
         duration: 0.6,
