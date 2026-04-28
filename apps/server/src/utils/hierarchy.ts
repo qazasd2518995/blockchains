@@ -56,7 +56,7 @@ export async function canManageMember(
   return descendants.includes(member.agentId);
 }
 
-async function resolveAgentScopeRootId(
+export async function resolveAgentScopeRootId(
   db: Db,
   operator: { id: string; role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT' },
 ): Promise<string | null> {

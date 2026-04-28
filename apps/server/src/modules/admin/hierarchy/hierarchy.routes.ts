@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { canManageAgent } from '../../../utils/hierarchy.js';
+import { canManageAgent, resolveAgentScopeRootId } from '../../../utils/hierarchy.js';
 import type { Prisma } from '@prisma/client';
+import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 
 const querySchema = z.object({
   parentId: z.string().optional(),   // 目標代理；不填 = 自己
@@ -48,7 +49,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
     if (!parent) return { parent: null, items: [], stats: { agentCount: 0, memberCount: 0 } };
 
     // breadcrumb: 從 parent 沿 parentId 往上爬
-    const breadcrumb: {
+    let breadcrumb: {
       id: string;
       username: string;
       level: number;
@@ -73,6 +74,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
     if (req.admin.role === 'SUPER_ADMIN' && !isPlatformRoot && breadcrumb[0]?.id !== '') {
       breadcrumb.unshift({ id: '', username: '全平台', level: 0 });
     }
+    breadcrumb = await trimBreadcrumbToAdminScope(fastify.prisma, req.admin, breadcrumb);
 
     const agentBaseWhere: Prisma.AgentWhereInput = isPlatformRoot
       ? {
@@ -251,4 +253,15 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
       },
     };
   });
+}
+
+async function trimBreadcrumbToAdminScope(
+  prisma: FastifyInstance['prisma'],
+  operator: AdminCurrent,
+  breadcrumb: { id: string; username: string; level: number }[],
+): Promise<{ id: string; username: string; level: number }[]> {
+  if (operator.role === 'SUPER_ADMIN') return breadcrumb;
+  const scopeRootId = await resolveAgentScopeRootId(prisma, operator);
+  const startIndex = scopeRootId ? breadcrumb.findIndex((item) => item.id === scopeRootId) : -1;
+  return startIndex >= 0 ? breadcrumb.slice(startIndex) : breadcrumb.slice(-1);
 }

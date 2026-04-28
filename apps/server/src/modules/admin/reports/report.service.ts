@@ -1,6 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { ApiError } from '../../../utils/errors.js';
-import { listAgentDescendants, canManageAgent } from '../../../utils/hierarchy.js';
+import { listAgentDescendants, canManageAgent, resolveAgentScopeRootId } from '../../../utils/hierarchy.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import type { ReportQuery, AgentAnalysisQuery } from './report.schema.js';
 import { BACCARAT_GAME_IDS, type DashboardSummaryResponse } from '@bg/shared';
@@ -441,7 +441,7 @@ export class ReportService {
     if (!parent) throw new ApiError('AGENT_NOT_FOUND', 'Parent agent not found');
 
     // breadcrumb 從 parent 沿 parentId 向上
-    const breadcrumb: { id: string; username: string; level: number }[] = isPlatformRoot
+    let breadcrumb: { id: string; username: string; level: number }[] = isPlatformRoot
       ? [{ id: '', username: '全平台', level: 0 }]
       : [];
     let cursor: string | null = isPlatformRoot ? null : parent.id;
@@ -462,6 +462,7 @@ export class ReportService {
     if (operator.role === 'SUPER_ADMIN' && !isPlatformRoot && breadcrumb[0]?.id !== '') {
       breadcrumb.unshift({ id: '', username: '全平台', level: 0 });
     }
+    breadcrumb = await trimBreadcrumbToOperatorScope(this.prisma, operator, breadcrumb);
 
     const { start: startDate, end: endDate } = resolveAdminGameDayRange(query);
     const gameId = query.gameId;
@@ -1060,6 +1061,17 @@ export interface AgentAnalysisRow extends AgentSubtreeStats {
 function resolveConfiguredDisplayRate(agent: DualRebateProfile, gameId?: string): Prisma.Decimal {
   if (!gameId) return new Prisma.Decimal(0);
   return effectiveDownlineRebate(agent, isBaccaratGameId(gameId) ? 'baccarat' : 'electronic');
+}
+
+async function trimBreadcrumbToOperatorScope(
+  prisma: PrismaClient,
+  operator: AdminCurrent,
+  breadcrumb: { id: string; username: string; level: number }[],
+): Promise<{ id: string; username: string; level: number }[]> {
+  if (operator.role === 'SUPER_ADMIN') return breadcrumb;
+  const scopeRootId = await resolveAgentScopeRootId(prisma, operator);
+  const startIndex = scopeRootId ? breadcrumb.findIndex((item) => item.id === scopeRootId) : -1;
+  return startIndex >= 0 ? breadcrumb.slice(startIndex) : breadcrumb.slice(-1);
 }
 
 export interface HierarchyReportCommon {

@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { AgentService } from './agent.service.js';
+import { ApiError } from '../../../utils/errors.js';
+import { canManageAgent } from '../../../utils/hierarchy.js';
 import {
   createAgentSchema,
   updateAgentSchema,
@@ -15,6 +17,8 @@ export async function agentRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
     // 預設列出 operator 的直屬子代理
     const parentId = (req.query as { parentId?: string }).parentId ?? req.admin.id;
+    const ok = await canManageAgent(fastify.prisma, req.admin, parentId);
+    if (!ok) throw new ApiError('FORBIDDEN', 'Cannot list agents under this parent');
     const items = await service.listDirectChildren(parentId);
     return { items };
   });
@@ -36,7 +40,6 @@ export async function agentRoutes(fastify: FastifyInstance): Promise<void> {
       return;
     }
     if (req.admin.role !== 'SUPER_ADMIN') {
-      const { canManageAgent } = await import('../../../utils/hierarchy.js');
       const ok = await canManageAgent(fastify.prisma, req.admin, agent.id);
       if (!ok) {
         reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
@@ -48,6 +51,8 @@ export async function agentRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/tree', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
     const rootId = (req.query as { rootId?: string }).rootId ?? req.admin.id;
+    const ok = await canManageAgent(fastify.prisma, req.admin, rootId);
+    if (!ok) throw new ApiError('FORBIDDEN', 'Cannot view this agent tree');
     const root = await service.getTree(rootId);
     return { root };
   });
