@@ -44,6 +44,7 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
     () => (import.meta.env.VITE_API_BASE as string | undefined)?.trim() || window.location.origin,
     [],
   );
+  const bgLobbyUrl = useMemo(() => new URL('/lobby', window.location.origin).toString(), []);
 
   useEffect(() => {
     const origin = new URL(baccaratUrl).origin;
@@ -81,6 +82,7 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
         target.searchParams.set('gameId', config.gameId);
         target.searchParams.set('provider', config.provider);
         target.searchParams.set('skin', config.skin);
+        target.searchParams.set('returnUrl', bgLobbyUrl);
         setLaunchUrl(target.toString());
         setMessage(`正在交接${config.title}遊戲大廳...`);
         setStatus('ready');
@@ -127,7 +129,7 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [apiBase, baccaratUrl, config.gameId, config.provider, config.skin, config.title, iframeKey, user?.role, user?.username]);
+  }, [apiBase, baccaratUrl, bgLobbyUrl, config.gameId, config.provider, config.skin, config.title, iframeKey, user?.role, user?.username]);
 
   const handleReload = () => {
     setIframeKey((k) => k + 1);
