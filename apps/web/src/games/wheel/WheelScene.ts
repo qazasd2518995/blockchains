@@ -81,6 +81,7 @@ export class WheelScene {
   private shaker: ShakeController | null = null;
   private poolTicker: ((tk: Ticker) => void) | null = null;
   private winFx: WinCelebration | null = null;
+  private spinning = false;
 
 
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
@@ -279,6 +280,7 @@ export class WheelScene {
    * 設定輪盤的區段倍率表（段數 = multipliers.length）
    */
   setSegments(multipliers: number[]): void {
+    if (this.spinning) return;
     this.multipliers = multipliers;
     this.drawWheel();
   }
@@ -371,12 +373,27 @@ export class WheelScene {
    */
   startAnticipation(): void {
     if (!this.wheelContainer) return;
-    // 高速持續旋轉直到 playSpin 接手
+    this.spinning = true;
+    gsap.killTweensOf(this.wheelContainer);
     gsap.to(this.wheelContainer, {
       rotation: `+=${Math.PI * 4}`,
       duration: 1.4,
       ease: 'none',
       repeat: -1,
+    });
+  }
+
+  stopAnticipation(): void {
+    if (!this.wheelContainer) return;
+    gsap.killTweensOf(this.wheelContainer);
+    const stopTarget = this.wheelContainer.rotation + TAU * 0.35;
+    gsap.to(this.wheelContainer, {
+      rotation: stopTarget,
+      duration: 0.55,
+      ease: 'power3.out',
+      onComplete: () => {
+        this.spinning = false;
+      },
     });
   }
 
@@ -403,7 +420,8 @@ export class WheelScene {
     return new Promise<void>((resolve) => {
       const tl = gsap.timeline({
         onComplete: () => {
-          if (this.wheelContainer) this.wheelContainer.rotation = targetBase;
+          if (this.wheelContainer) this.wheelContainer.rotation = target;
+          this.spinning = false;
           this.onLand(segmentIndex, multiplier);
           resolve();
         },
@@ -411,13 +429,13 @@ export class WheelScene {
 
       tl.to(this.wheelContainer, {
         rotation: target,
-        duration: 4,
-        ease: 'power3.out',
+        duration: 4.8,
+        ease: 'power4.out',
       });
 
       // 指針彈跳：每轉過一段就彈一下
       // 為簡化：在最後 0.8 秒每 0.15 秒彈一次
-      const bounceStart = 3.0;
+      const bounceStart = 3.65;
       for (let i = 0; i < 6; i += 1) {
         if (this.pointerContainer) {
           tl.to(

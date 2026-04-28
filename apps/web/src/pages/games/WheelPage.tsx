@@ -73,8 +73,6 @@ export function WheelPage() {
     try {
       const payload: WheelBetRequest = { amount, risk, segments };
       const res = await api.post<WheelBetResult>('/games/wheel/bet', payload);
-      // 用真實的倍率表重繪轮盘
-      sceneRef.current?.setSegments(res.data.segmentMultipliers);
       await sceneRef.current?.playSpin(res.data.segmentIndex, res.data.multiplier);
       sceneRef.current?.playWinFx(res.data.multiplier, res.data.multiplier > 1);
       setResult(res.data);
@@ -92,6 +90,7 @@ export function WheelPage() {
         ...prev,
       ].slice(0, 30));
     } catch (err) {
+      sceneRef.current?.stopAnticipation();
       setError(extractApiError(err).message);
     } finally {
       setBusy(false);
