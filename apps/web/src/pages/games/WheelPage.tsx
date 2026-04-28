@@ -122,7 +122,10 @@ export function WheelPage() {
               </span>
             </div>
 
-            <div className="game-canvas-shell game-canvas-tall relative mx-auto aspect-square w-full max-w-md p-3">
+            <div
+              className="game-canvas-shell game-canvas-tall relative mx-auto aspect-square w-full max-w-[720px] p-2 sm:p-3"
+              style={{ width: 'min(100%, 720px, 76svh)', maxHeight: 'none' }}
+            >
               <canvas ref={canvasRef} className="h-full w-full" />
               <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 rounded-[16px] border border-white/10 bg-[#07131F]/52 px-3 py-2 text-[10px] tracking-[0.2em] text-white/62 backdrop-blur">
                 <div>

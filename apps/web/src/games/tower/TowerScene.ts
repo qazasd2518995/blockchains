@@ -176,7 +176,7 @@ export class TowerScene {
     this.app.stage.addChild(glow);
 
     const blueprint = new Graphics();
-    const towerW = Math.min(this.width * 0.58, 280);
+    const towerW = Math.min(this.width * 0.72, 430);
     const left = this.width / 2 - towerW / 2;
     const right = this.width / 2 + towerW / 2;
     for (let x = left; x <= right + 1; x += towerW / 4) {
@@ -301,8 +301,8 @@ export class TowerScene {
     }
 
     // 預覽時要一次看見完整塔身，避免上緣裁切；正式遊戲仍可用相機聚焦當前層。
-    this.levelHeight = Math.max(42, Math.min(58, (this.height - 132) / 9.15));
-    this.baseLevelY = this.height - 112;
+    this.levelHeight = Math.max(48, Math.min(72, (this.height - 132) / 9.05));
+    this.baseLevelY = this.height - Math.max(98, this.levelHeight * 1.6);
 
     this.drawTowerBackdrop();
 
@@ -528,12 +528,12 @@ export class TowerScene {
    * 計算 cell 尺寸（供外部操作時重繪）
    */
   private cellDims(): { w: number; h: number; gap: number; span: number } {
-    const gap = 7;
-    const towerW = Math.min(this.width - 152, 286);
-    const availW = Math.max(180, towerW - 24);
+    const gap = Math.max(8, Math.min(12, this.width * 0.016));
+    const towerW = Math.min(this.width - 120, 430);
+    const availW = Math.max(220, towerW - 24);
     const rawW = (availW - gap * (this.cols - 1)) / this.cols;
-    const w = Math.min(118, Math.max(58, rawW));
-    const h = Math.min(44, Math.max(34, this.levelHeight - 12));
+    const w = Math.min(154, Math.max(68, rawW));
+    const h = Math.min(58, Math.max(42, this.levelHeight - 12));
     const span = w * this.cols + gap * (this.cols - 1);
     return { w, h, gap, span };
   }

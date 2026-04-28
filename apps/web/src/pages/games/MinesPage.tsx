@@ -234,7 +234,10 @@ export function MinesPage() {
                 )}
               </div>
             </div>
-            <div className="game-canvas-shell game-canvas-tall relative mx-auto aspect-square w-full max-h-[520px]" style={{ maxWidth: 520 }}>
+            <div
+              className="game-canvas-shell game-canvas-tall relative mx-auto aspect-square w-full max-w-[720px] p-2 sm:p-3"
+              style={{ width: 'min(100%, 720px, 76svh)', maxHeight: 'none' }}
+            >
               <canvas ref={canvasRef} className="h-full w-full" />
               {/* 右上 overlay — 當前倍率/下一倍/派彩 */}
               {round && (

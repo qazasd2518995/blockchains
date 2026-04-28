@@ -97,6 +97,7 @@ export function DicePage() {
       ].slice(0, 30));
       setBalance(result.newBalance);
     } catch (err) {
+      sceneRef.current?.stopAnticipation();
       setError(extractApiError(err).message);
     } finally {
       setRolling(false);

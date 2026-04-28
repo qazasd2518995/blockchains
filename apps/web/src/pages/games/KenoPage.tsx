@@ -55,8 +55,14 @@ export function KenoPage() {
     };
   }, []);
 
+  const clearRoundResult = () => {
+    setResult(null);
+    sceneRef.current?.reset();
+  };
+
   const toggle = (n: number) => {
     if (busy) return;
+    if (result) clearRoundResult();
     const next = new Set(selected);
     if (next.has(n)) next.delete(n);
     else if (next.size < MAX_PICKS) next.add(n);
@@ -64,6 +70,8 @@ export function KenoPage() {
   };
 
   const autoPick = () => {
+    if (busy) return;
+    if (result) clearRoundResult();
     const next = new Set<number>();
     while (next.size < 8) {
       next.add(Math.floor(Math.random() * POOL_SIZE) + 1);
@@ -71,12 +79,17 @@ export function KenoPage() {
     setSelected(next);
   };
 
-  const clearAll = () => setSelected(new Set());
+  const clearAll = () => {
+    if (busy) return;
+    if (result) clearRoundResult();
+    setSelected(new Set());
+  };
 
   const handleBet = async () => {
     if (busy || selected.size === 0 || amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
+    clearRoundResult();
     try {
       const payload: KenoBetRequest = {
         amount,
@@ -147,17 +160,17 @@ export function KenoPage() {
                 const picked = selected.has(n);
                 const isDrawn = drawn.has(n);
                 const isHit = hits.has(n);
-                let cls = 'border-white/10 bg-white/[0.05] text-white/75';
-                if (isHit) cls = 'border-neon-acid bg-neon-acid text-ink-50 shadow-acid-glow';
-                else if (isDrawn) cls = 'border-neon-ember/50 bg-neon-ember/10 text-[#FCA5A5]';
-                else if (picked) cls = 'border-neon-ice/70 bg-neon-ice/10 text-[#7DD3FC]';
+                let cls = 'border-white/12 bg-white/[0.06] text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]';
+                if (isHit) cls = 'border-[#F3D67D] bg-[#F3D67D] text-[#0A0806] shadow-[0_0_18px_rgba(243,214,125,0.45),inset_0_1px_0_rgba(255,255,255,0.42)]';
+                else if (isDrawn) cls = 'border-[#D4574A]/70 bg-[#D4574A]/16 text-[#FFD7D3] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]';
+                else if (picked) cls = 'border-[#7DD3FC]/80 bg-[#266F85]/18 text-[#BAE6FD] shadow-[0_0_14px_rgba(125,211,252,0.22),inset_0_1px_0_rgba(255,255,255,0.16)]';
                 return (
                   <button
                     key={n}
                     type="button"
                     onClick={() => toggle(n)}
                     disabled={busy}
-                    className={`aspect-square min-h-[46px] rounded-[12px] border-2 font-display text-base transition ${cls} hover:border-neon-ice/50 sm:rounded-[18px] sm:text-2xl`}
+                    className={`aspect-square min-h-[46px] rounded-[12px] border-2 font-display text-lg font-black leading-none transition ${cls} hover:border-neon-ice/50 sm:rounded-[18px] sm:text-2xl`}
                   >
                     {n}
                   </button>

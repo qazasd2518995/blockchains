@@ -36,6 +36,15 @@ const COLOR_INK = 0x0A0806;
 const COLOR_WHITE = 0xFFFFFF;
 const COLOR_GRAY = 0xC9A247;
 const WHEEL_BACKGROUND_ASSET = '/game-art/wheel/background.png';
+const TAU = Math.PI * 2;
+
+function normalizeAngle(angle: number): number {
+  return ((angle % TAU) + TAU) % TAU;
+}
+
+function positiveAngleDelta(from: number, to: number): number {
+  return (to - from + TAU) % TAU;
+}
 
 interface Particle {
   g: Graphics;
@@ -79,7 +88,7 @@ export class WheelScene {
     this.height = height;
     this.cx = width / 2;
     this.cy = height / 2;
-    this.radius = Math.min(width, height) * 0.4;
+    this.radius = Math.min(width, height) * 0.455;
 
     const app = new Application();
     await app.init({
@@ -180,18 +189,22 @@ export class WheelScene {
 
   private drawCenterHub(): void {
     if (!this.centerHub) return;
+    this.centerHub.removeChildren();
+    const outerRadius = Math.max(38, this.radius * 0.17);
+    const innerRadius = outerRadius * 0.8;
+    const starSize = Math.max(30, outerRadius * 0.78);
     const outer = new Graphics()
-      .circle(0, 0, 45)
+      .circle(0, 0, outerRadius)
       .fill({ color: COLOR_INK })
-      .stroke({ color: COLOR_ACID, width: 3 });
+      .stroke({ color: COLOR_ACID, width: Math.max(3, outerRadius * 0.07) });
     const inner = new Graphics()
-      .circle(0, 0, 36)
+      .circle(0, 0, innerRadius)
       .fill({ color: COLOR_ACID })
       .stroke({ color: COLOR_WHITE, width: 1, alpha: 0.5 });
     // 中心星
     const starStyle = new TextStyle({
       fontFamily: GAME_FONT,
-      fontSize: 36,
+      fontSize: starSize,
       fill: COLOR_WHITE,
       fontWeight: '700',
     });
@@ -204,19 +217,23 @@ export class WheelScene {
 
   private drawPointer(): void {
     if (!this.pointerContainer) return;
+    this.pointerContainer.removeChildren();
+    const w = Math.max(24, this.radius * 0.12);
+    const h = Math.max(28, this.radius * 0.15);
+    const capRadius = Math.max(8, this.radius * 0.04);
     // 指針朝下（指向輪盤外圈的 0 度位置，也就是正上方）
     const shadow = new Graphics()
-      .poly([-14, -2, 14, -2, 0, 26])
+      .poly([-w / 2 - 2, -2, w / 2 + 2, -2, 0, h + 2])
       .fill({ color: COLOR_INK, alpha: 0.3 });
     shadow.x = 2;
     shadow.y = 3;
     const body = new Graphics()
-      .poly([-12, 0, 12, 0, 0, 24])
+      .poly([-w / 2, 0, w / 2, 0, 0, h])
       .fill({ color: COLOR_EMBER })
       .stroke({ color: COLOR_INK, width: 2 });
     // 頂部圓
     const cap = new Graphics()
-      .circle(0, -2, 8)
+      .circle(0, -2, capRadius)
       .fill({ color: COLOR_EMBER })
       .stroke({ color: COLOR_INK, width: 2 });
     this.pointerContainer.addChild(shadow);
@@ -282,7 +299,7 @@ export class WheelScene {
     }
     const n = this.multipliers.length;
     if (n === 0) return;
-    const segAngle = (Math.PI * 2) / n;
+    const segAngle = TAU / n;
 
     // 繪製扇形
     for (let i = 0; i < n; i += 1) {
@@ -313,21 +330,21 @@ export class WheelScene {
     g.circle(0, 0, this.radius).stroke({ color: COLOR_INK, width: 3 });
     g.circle(0, 0, this.radius - 3).stroke({ color: COLOR_WHITE, width: 1, alpha: 0.4 });
 
-    // 倍率文字（只在較大段且非 0 時顯示）
+    // 倍率文字：10/20 段完整顯示，包含 0×，避免玩家看到空白扇區。
     if (n <= 20) {
       for (let i = 0; i < n; i += 1) {
         const m = this.multipliers[i]!;
-        if (m === 0) continue;
         const midA = -Math.PI / 2 + (i + 0.5) * segAngle;
         const tx = Math.cos(midA) * this.radius * 0.7;
         const ty = Math.sin(midA) * this.radius * 0.7;
         const style = new TextStyle({
           fontFamily: GAME_FONT,
-          fontSize: 17,
-          fill: COLOR_INK,
+          fontSize: Math.max(15, Math.min(28, this.radius * 0.105)),
+          fill: m === 0 ? 0x5F4B20 : COLOR_INK,
           fontWeight: '700',
+          stroke: { color: COLOR_WHITE, width: Math.max(1.2, this.radius * 0.006), alpha: 0.28 },
         });
-        const txt = new Text({ text: `${m}×`, style });
+        const txt = new Text({ text: this.formatMultiplierLabel(m), style });
         txt.anchor.set(0.5);
         txt.x = tx;
         txt.y = ty;
@@ -335,6 +352,12 @@ export class WheelScene {
         this.wheelContainer?.addChild(txt);
       }
     }
+  }
+
+  private formatMultiplierLabel(multiplier: number): string {
+    if (multiplier <= 0) return '0×';
+    if (multiplier >= 10) return `${multiplier.toFixed(1).replace(/\.0$/, '')}×`;
+    return `${multiplier.toFixed(2).replace(/\.?0+$/, '')}×`;
   }
 
   /**
@@ -362,25 +385,25 @@ export class WheelScene {
     // 清除 anticipation 的無限旋轉
     gsap.killTweensOf(this.wheelContainer);
     const n = this.multipliers.length;
-    const segAngle = (Math.PI * 2) / n;
+    const segAngle = TAU / n;
 
     // 讓 segmentIndex 轉到正上方（指針位置）
     // 因為 drawWheel 中 segment i 的中心在 -PI/2 + (i+0.5)*segAngle
     // 要讓該段中心對齊 -PI/2（正上方），輪盤旋轉角度 theta 使得
     // -PI/2 + (i+0.5)*segAngle + theta === -PI/2 (mod 2π)
     // => theta = -(i+0.5)*segAngle
-    const targetBase = -((segmentIndex + 0.5) * segAngle);
-    // 加上 4 圈（8π）旋轉
+    const targetBase = normalizeAngle(-((segmentIndex + 0.5) * segAngle));
     const spins = 4 + Math.random() * 2;
-    const startRot = this.wheelContainer.rotation % (Math.PI * 2);
-    // 計算最終角度：確保是順時針轉
-    let target = targetBase;
-    // 正規化：target 在 [startRot + spins*2π - 2π, startRot + spins*2π]
-    target = startRot + spins * Math.PI * 2 + (targetBase - (startRot % (Math.PI * 2)));
+    const startRot = this.wheelContainer.rotation;
+    const target =
+      startRot +
+      spins * TAU +
+      positiveAngleDelta(normalizeAngle(startRot), targetBase);
 
     return new Promise<void>((resolve) => {
       const tl = gsap.timeline({
         onComplete: () => {
+          if (this.wheelContainer) this.wheelContainer.rotation = targetBase;
           this.onLand(segmentIndex, multiplier);
           resolve();
         },
@@ -396,17 +419,19 @@ export class WheelScene {
       // 為簡化：在最後 0.8 秒每 0.15 秒彈一次
       const bounceStart = 3.0;
       for (let i = 0; i < 6; i += 1) {
-        tl.to(
-          this.pointerContainer?.rotation ? this.pointerContainer : {},
-          {
-            rotation: 0.2,
-            duration: 0.05,
-            ease: 'power2.out',
-            yoyo: true,
-            repeat: 1,
-          },
-          bounceStart + i * 0.15,
-        );
+        if (this.pointerContainer) {
+          tl.to(
+            this.pointerContainer,
+            {
+              rotation: 0.2,
+              duration: 0.05,
+              ease: 'power2.out',
+              yoyo: true,
+              repeat: 1,
+            },
+            bounceStart + i * 0.15,
+          );
+        }
       }
     });
   }

@@ -80,7 +80,7 @@ export const router = createBrowserRouter([
       { path: '/games/balloon', element: <CrashPage config={CRASH_CONFIGS.balloon!} /> },
       { path: '/games/jetx3', element: <CrashPage config={CRASH_CONFIGS.jetx3!} /> },
       { path: '/games/double-x', element: <CrashPage config={CRASH_CONFIGS['double-x']!} /> },
-      { path: '/games/plinko-x', element: <CrashPage config={CRASH_CONFIGS['plinko-x']!} /> },
+      { path: '/games/plinko-x', element: <PlinkoPage variant="x" /> },
     ],
   },
   {

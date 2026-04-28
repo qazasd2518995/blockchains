@@ -470,10 +470,18 @@ export class DiceScene {
     dice.y = this.height / 2;
     gsap.killTweensOf(dice);
     gsap.killTweensOf(dice.scale);
+    gsap.killTweensOf(label);
+    gsap.killTweensOf(label.scale);
+    this.stopShuffleTicker();
 
     const winColor = won ? COLOR_TOXIC : COLOR_EMBER;
     const tier = classifyWinTier(multiplier, won);
     const tierCfg = TIER_CONFIG[tier];
+    const finalFace = Math.max(1, Math.min(6, Math.floor(roll / (100 / 6)) + 1));
+    const rollState = { progress: 0 };
+    let lastFaceStep = -1;
+    let finalFaceLocked = false;
+
     return new Promise<void>((resolve) => {
       const tl = gsap.timeline({
         onComplete: () => {
@@ -483,61 +491,114 @@ export class DiceScene {
         },
       });
 
-      tl.to(dice.scale, { x: 0.88, y: 0.88, duration: 0.12, ease: EASE.in });
+      tl.to(dice.scale, { x: 0.9, y: 0.9, duration: 0.1, ease: EASE.in }, 0);
       tl.to(
         dice,
-        { rotation: dice.rotation + Math.PI * 4, duration: 1.3, ease: EASE.expoOut },
-        0.12,
+        {
+          rotation: dice.rotation + Math.PI * 6 + finalFace * 0.09,
+          x: this.width / 2,
+          y: this.height / 2,
+          duration: 1.48,
+          ease: 'power4.out',
+        },
+        0.08,
       );
-      tl.to(dice.scale, { x: 1.25, y: 1.25, duration: 0.6, ease: EASE.backSoft }, 0.12);
-      tl.to(dice.scale, { x: 1, y: 1, duration: 0.5, ease: EASE.out }, 0.72);
+      tl.to(
+        rollState,
+        {
+          progress: 1,
+          duration: 1.48,
+          ease: 'power4.out',
+          onUpdate: () => {
+            if (rollState.progress >= 0.78) {
+              if (!finalFaceLocked) {
+                finalFaceLocked = true;
+                this.drawPips(finalFace);
+              }
+              return;
+            }
 
-      // Shuffle pips（anticipation 若已在跑則會延續；否則此處啟動）
-      if (!this.shuffleTicker && this.app) {
-        let shuffleTick = 0;
-        this.shuffleTicker = (tk: Ticker) => {
-          shuffleTick += tk.deltaTime;
-          if (shuffleTick > 3) {
-            shuffleTick = 0;
-            this.drawPips(Math.floor(Math.random() * 6) + 1);
-          }
-        };
-        this.app.ticker.add(this.shuffleTicker);
-      }
-      gsap.delayedCall(1.2, () => {
-        if (this.shuffleTicker && this.app) {
-          this.app.ticker.remove(this.shuffleTicker);
-          this.shuffleTicker = null;
-        }
-        const finalFace = Math.max(1, Math.min(6, Math.floor(roll / (100 / 6)) + 1));
-        this.drawPips(finalFace);
-      });
+            const faceStep = Math.floor(rollState.progress * 26);
+            if (faceStep !== lastFaceStep) {
+              lastFaceStep = faceStep;
+              const face = ((faceStep + finalFace + 2) % 6) + 1;
+              this.drawPips(face);
+            }
+          },
+          onComplete: () => {
+            this.drawPips(finalFace);
+            finalFaceLocked = true;
+          },
+        },
+        0.08,
+      );
+      tl.to(
+        dice.scale,
+        {
+          x: 1.24,
+          y: 1.24,
+          duration: 0.44,
+          ease: EASE.backSoft,
+        },
+        0.16,
+      );
+      tl.to(
+        dice.scale,
+        {
+          x: 1.02,
+          y: 1.02,
+          duration: 0.62,
+          ease: 'power3.out',
+        },
+        0.62,
+      );
+      tl.to(
+        dice.scale,
+        {
+          x: 1,
+          y: 1,
+          duration: 0.2,
+          ease: 'sine.out',
+        },
+        1.28,
+      );
+      tl.to(
+        dice,
+        {
+          rotation: `+=${finalFace % 2 === 0 ? -0.035 : 0.035}`,
+          duration: 0.18,
+          ease: 'sine.inOut',
+          yoyo: true,
+          repeat: 1,
+        },
+        1.32,
+      );
 
-      // Roll label 計數動畫
-      gsap.delayedCall(1.2, () => {
+      // Roll label 計數動畫：等骰子結果已經可見後再亮出數字。
+      tl.call(() => {
         const rollObj = { v: 0 };
         gsap.to(rollObj, {
           v: roll,
-          duration: 0.8,
+          duration: 0.58,
           ease: 'power3.out',
           onUpdate: () => {
             label.text = rollObj.v.toFixed(2);
-            label.alpha = 0.5 + (rollObj.v / Math.max(0.01, roll)) * 0.5;
+            label.alpha = 0.42 + (rollObj.v / Math.max(0.01, roll)) * 0.58;
           },
           onComplete: () => {
             label.text = roll.toFixed(2);
             label.alpha = 1;
             gsap.fromTo(
               label.scale,
-              { x: 1.4, y: 1.4 },
-              { x: 1, y: 1, duration: 0.6, ease: 'elastic.out(1, 0.4)' },
+              { x: 1.32, y: 1.32 },
+              { x: 1, y: 1, duration: 0.5, ease: 'elastic.out(1, 0.42)' },
             );
-          },
+          }
         });
-      });
+      }, undefined, 1.08);
 
       // 結算特效
-      gsap.delayedCall(1.4, () => {
+      tl.call(() => {
         if (this.diceFace) this.drawFace(this.diceFace, winColor);
 
         // 地面光暈
@@ -602,8 +663,14 @@ export class DiceScene {
         gsap.delayedCall(2.5, () => {
           if (this.diceFace) this.drawFace(this.diceFace, COLOR_ACID);
         });
-      });
+      }, undefined, 1.42);
     });
+  }
+
+  private stopShuffleTicker(): void {
+    if (!this.shuffleTicker || !this.app) return;
+    this.app.ticker.remove(this.shuffleTicker);
+    this.shuffleTicker = null;
   }
 
   private emitShockwave(x: number, y: number, color: number, maxRadius: number, delay = 0): void {
@@ -677,14 +744,26 @@ export class DiceScene {
 
   resetIdle(): void {
     if (!this.rollLabel) return;
+    this.stopAnticipation();
     this.rollLabel.text = '—';
     this.rollLabel.alpha = 0.15;
   }
 
+  stopAnticipation(): void {
+    if (!this.dice) return;
+    this.stopShuffleTicker();
+    gsap.killTweensOf(this.dice);
+    gsap.killTweensOf(this.dice.scale);
+    this.diceAmbientActive = true;
+    this.dice.x = this.width / 2;
+    this.dice.y = this.height / 2;
+    this.dice.scale.set(1);
+  }
+
   dispose(): void {
+    this.stopShuffleTicker();
     if (this.ambientTicker && this.app) this.app.ticker.remove(this.ambientTicker);
     if (this.particleTicker && this.app) this.app.ticker.remove(this.particleTicker);
-    if (this.shuffleTicker && this.app) this.app.ticker.remove(this.shuffleTicker);
     if (this.poolTicker && this.app) this.app.ticker.remove(this.poolTicker);
     this.shaker?.dispose();
     this.shaker = null;

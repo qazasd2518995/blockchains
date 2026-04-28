@@ -239,7 +239,10 @@ export function TowerPage() {
               </span>
             </div>
 
-            <div className="game-canvas-shell game-canvas-tall mx-auto mt-2 aspect-[3/4] w-full max-w-[420px]">
+            <div
+              className="game-canvas-shell game-canvas-tall mx-auto mt-2 aspect-[3/4] w-full max-w-[620px]"
+              style={{ width: 'min(100%, 620px, calc(78svh * 0.75))', maxHeight: 'none' }}
+            >
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
           </div>

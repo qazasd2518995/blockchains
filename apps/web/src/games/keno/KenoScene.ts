@@ -61,6 +61,7 @@ export class KenoScene {
   private ballsContainer: Container | null = null;
   private particles: Container | null = null;
   private shockwaves: Container | null = null;
+  private statusBadge: Graphics | null = null;
   private statusLabel: Text | null = null;
 
   private balls: Ball[] = [];
@@ -78,7 +79,7 @@ export class KenoScene {
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
     this.width = width;
     this.height = height;
-    this.ballRadius = Math.min(width / 24, 28);
+    this.ballRadius = Math.min(width / 20, height / 6, 32);
 
     const app = new Application();
     await app.init({
@@ -165,20 +166,25 @@ export class KenoScene {
 
   private createStatusLabel(): void {
     if (!this.app) return;
+    const badge = new Graphics();
+    this.statusBadge = badge;
+    this.app.stage.addChild(badge);
+
     const style = new TextStyle({
       fontFamily: GAME_FONT_NUM,
-      fontSize: 14,
+      fontSize: Math.max(16, Math.min(28, Math.round(this.height * 0.1))),
       fill: COLOR_WHITE,
-      fontWeight: '600',
-      letterSpacing: 4,
+      fontWeight: '800',
+      letterSpacing: 2,
     });
     const label = new Text({ text: 'READY · 按下開始開獎', style });
     label.anchor.set(0.5);
     label.x = this.width / 2;
-    label.y = 30;
-    label.alpha = 0.74;
+    label.y = Math.max(30, this.height * 0.14);
+    label.alpha = 1;
     this.statusLabel = label;
     this.app.stage.addChild(label);
+    this.setStatus('READY', 'idle');
   }
 
   private startTickers(): void {
@@ -218,7 +224,7 @@ export class KenoScene {
   /**
    * 建立一個號碼球圖形
    */
-  private createBall(n: number, color: number): Container {
+  private createBall(n: number, color: number, tone: 'hit' | 'selected' | 'drawn'): Container {
     const c = new Container();
     const r = this.ballRadius;
 
@@ -230,8 +236,14 @@ export class KenoScene {
     const main = new Graphics()
       .circle(0, 0, r)
       .fill({ color })
-      .stroke({ color: COLOR_WHITE, width: 2 });
+      .stroke({ color: COLOR_WHITE, width: Math.max(2, r * 0.09) });
     c.addChild(main);
+
+    const innerPlate = new Graphics()
+      .circle(0, 0, r * 0.66)
+      .fill({ color: tone === 'selected' ? COLOR_INK : COLOR_WHITE, alpha: tone === 'selected' ? 0.28 : 0.34 })
+      .stroke({ color: tone === 'selected' ? COLOR_WHITE : COLOR_INK, width: 1.5, alpha: 0.28 });
+    c.addChild(innerPlate);
 
     // 上半部高光
     const hl = new Graphics()
@@ -246,13 +258,14 @@ export class KenoScene {
     c.addChild(ring);
 
     // 號碼
-    const fontSize = r * 0.85;
+    const fontSize = Math.max(20, r * 0.98);
     const style = new TextStyle({
       fontFamily: GAME_FONT,
       fontSize,
-      fill: COLOR_WHITE,
-      fontWeight: '700',
-      letterSpacing: 1,
+      fill: tone === 'selected' ? COLOR_WHITE : COLOR_INK,
+      fontWeight: '900',
+      letterSpacing: 0,
+      stroke: { color: tone === 'selected' ? COLOR_INK : COLOR_WHITE, width: Math.max(2, r * 0.1), alpha: 0.72 },
     });
     const txt = new Text({ text: `${n}`, style });
     txt.anchor.set(0.5);
@@ -267,13 +280,20 @@ export class KenoScene {
    */
   reset(): void {
     if (this.ballsContainer) {
-      this.ballsContainer.removeChildren();
+      const children = this.ballsContainer.removeChildren();
+      for (const child of children) child.destroy({ children: true });
       this.balls = [];
     }
-    if (this.statusLabel) {
-      this.statusLabel.text = 'READY · 按下開始開獎';
-      this.statusLabel.style.fill = COLOR_INK;
+    if (this.shockwaves) {
+      const children = this.shockwaves.removeChildren();
+      for (const child of children) child.destroy({ children: true });
     }
+    if (this.particles) {
+      const children = this.particles.removeChildren();
+      for (const child of children) child.destroy({ children: true });
+    }
+    this.particleList = [];
+    this.setStatus('READY', 'idle');
   }
 
   /**
@@ -288,8 +308,7 @@ export class KenoScene {
     const selectedSet = new Set(selected);
 
     if (this.statusLabel) {
-      this.statusLabel.text = 'DRAWING…';
-      this.statusLabel.style.fill = COLOR_ACID;
+      this.setStatus('DRAWING', 'drawing');
     }
 
     const ballsPerRow = 5;
@@ -298,7 +317,7 @@ export class KenoScene {
     const totalW = gap * ballsPerRow;
     const startX = (this.width - totalW) / 2 + gap / 2;
     const totalH = rows * gap;
-    const startY = (this.height - totalH) / 2 + gap / 2 - 20;
+    const startY = Math.max((this.height - totalH) / 2 + gap / 2 - 20, this.height * 0.44);
 
     return new Promise<void>((resolve) => {
       const tl = gsap.timeline({
@@ -306,11 +325,9 @@ export class KenoScene {
           if (this.statusLabel) {
             const count = hits.length;
             if (count > 0) {
-              this.statusLabel.text = `命中 ${count}/${selected.length}`;
-              this.statusLabel.style.fill = COLOR_TOXIC;
+              this.setStatus(`命中 ${count} / ${selected.length}`, 'hit');
             } else {
-              this.statusLabel.text = '未命中';
-              this.statusLabel.style.fill = COLOR_EMBER;
+              this.setStatus('未命中', 'miss');
             }
           }
           resolve();
@@ -332,7 +349,8 @@ export class KenoScene {
         else if (isSelected) color = COLOR_EMBER; // 紅色 = 選了但沒中
         // 一般 = 紫色
 
-        const ball = this.createBall(n, color);
+        const tone = isHit ? 'hit' : isSelected ? 'selected' : 'drawn';
+        const ball = this.createBall(n, color, tone);
         ball.x = this.width / 2;
         ball.y = -this.ballRadius - 20;
         ball.alpha = 0;
@@ -454,6 +472,46 @@ export class KenoScene {
     });
   }
 
+  private setStatus(text: string, tone: 'idle' | 'drawing' | 'hit' | 'miss'): void {
+    if (!this.statusLabel || !this.statusBadge) return;
+
+    const toneColor =
+      tone === 'hit'
+        ? COLOR_TOXIC
+        : tone === 'miss'
+          ? COLOR_EMBER
+          : tone === 'drawing'
+            ? COLOR_ACID
+            : COLOR_ICE;
+    const textColor = tone === 'idle' ? COLOR_WHITE : toneColor;
+    this.statusLabel.text = text;
+    this.statusLabel.style.fill = textColor;
+
+    const paddingX = Math.max(20, this.width * 0.045);
+    const badgeW = Math.min(this.width * 0.82, Math.max(150, this.statusLabel.width + paddingX * 2));
+    const badgeH = Math.max(36, this.statusLabel.height + 14);
+    const x = (this.width - badgeW) / 2;
+    const y = this.statusLabel.y - badgeH / 2;
+    this.statusBadge
+      .clear()
+      .roundRect(x, y, badgeW, badgeH, badgeH / 2)
+      .fill({ color: COLOR_INK, alpha: 0.64 })
+      .stroke({ color: toneColor, width: 2, alpha: tone === 'idle' ? 0.28 : 0.72 });
+    this.statusBadge.alpha = 1;
+
+    gsap.killTweensOf(this.statusBadge);
+    gsap.killTweensOf(this.statusLabel.scale);
+    if (tone === 'hit') {
+      gsap.fromTo(
+        this.statusLabel.scale,
+        { x: 1.18, y: 1.18 },
+        { x: 1, y: 1, duration: 0.45, ease: EASE.back },
+      );
+    } else {
+      this.statusLabel.scale.set(1);
+    }
+  }
+
   private emitParticles(x: number, y: number, count: number, colors: number[]): void {
     if (!this.particles) return;
     for (let i = 0; i < count; i += 1) {
@@ -515,6 +573,7 @@ export class KenoScene {
     this.ballsContainer = null;
     this.particles = null;
     this.shockwaves = null;
+    this.statusBadge = null;
     this.statusLabel = null;
     this.balls = [];
     this.particleList = [];

@@ -11,9 +11,14 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { PlinkoScene } from '@/games/plinko/PlinkoScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 
-export function PlinkoPage() {
+interface PlinkoPageProps {
+  variant?: 'classic' | 'x';
+}
+
+export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const isX = variant === 'x';
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
   const [rows, setRows] = useState(12);
@@ -103,10 +108,10 @@ export function PlinkoPage() {
     <div>
       <GameHeader
         artwork="/game-art/plinko/background.png"
-        section="§ GAME 07"
-        breadcrumb="PLINKO_07"
-        title={t.games.plinko.title}
-        titleSuffix={t.games.plinko.suffix}
+        section={isX ? '§ GAME 17' : '§ GAME 07'}
+        breadcrumb={isX ? 'PLINKOX_17' : 'PLINKO_07'}
+        title={isX ? '掉珠挑戰' : t.games.plinko.title}
+        titleSuffix={isX ? 'X' : t.games.plinko.suffix}
         titleSuffixColor="acid"
         description={t.games.plinko.description}
         rtpLabel="RTP 99%"
@@ -117,7 +122,7 @@ export function PlinkoPage() {
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">彈珠台</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Plinko</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">{isX ? '掉珠挑戰X' : '彈珠台'}</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">{isX ? 'Plinko X' : 'Plinko'}</span>
               <span className="text-white/72">
                 {rows} {t.games.plinko.rows} · {t.games.mines[risk]}
               </span>

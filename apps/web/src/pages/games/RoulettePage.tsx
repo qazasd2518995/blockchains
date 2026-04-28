@@ -55,7 +55,7 @@ export function RoulettePage({ variant }: Props) {
       scene?.dispose();
       sceneRef.current = null;
     };
-  }, [t.games.roulette.placeYourBets]);
+  }, [t.games.roulette.placeYourBets, variant]);
 
   const addBet = (bet: Omit<RouletteLineBet, 'amount'>) => {
     setBets((prev) => {
@@ -139,7 +139,10 @@ export function RoulettePage({ variant }: Props) {
               </span>
             </div>
 
-            <div className="game-canvas-shell game-canvas-tall relative mx-auto mt-3 aspect-square w-full max-w-[360px]">
+            <div
+              className="game-canvas-shell game-canvas-tall relative mx-auto mt-3 aspect-square w-full max-w-[720px] p-2 sm:p-3"
+              style={{ width: 'min(100%, 720px, 76svh)', maxHeight: 'none' }}
+            >
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
 

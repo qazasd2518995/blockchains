@@ -119,8 +119,8 @@ export class RouletteScene {
     this.height = height;
     this.cx = width / 2;
     this.cy = height / 2;
-    this.outerRadius = Math.min(width, height) * 0.42;
-    this.ballOrbitRadius = this.outerRadius - 14;
+    this.outerRadius = Math.min(width, height) * 0.455;
+    this.ballOrbitRadius = this.outerRadius - Math.max(14, this.outerRadius * 0.05);
 
     const app = new Application();
     await app.init({
@@ -268,11 +268,11 @@ export class RouletteScene {
 
       // 號碼文字
       const midA = startA + segAngle / 2;
-      const tx = Math.cos(midA) * (this.outerRadius - 30);
-      const ty = Math.sin(midA) * (this.outerRadius - 30);
+      const tx = Math.cos(midA) * (this.outerRadius - Math.max(28, this.outerRadius * 0.12));
+      const ty = Math.sin(midA) * (this.outerRadius - Math.max(28, this.outerRadius * 0.12));
       const style = new TextStyle({
         fontFamily: GAME_FONT,
-        fontSize: 24,
+        fontSize: Math.max(22, Math.min(38, this.outerRadius * 0.15)),
         fill: COLOR_WHITE,
         fontWeight: '700',
       });
@@ -294,7 +294,8 @@ export class RouletteScene {
 
   private drawCenterHub(): void {
     if (!this.centerHub) return;
-    const r = this.outerRadius * 0.35;
+    this.centerHub.removeChildren();
+    const r = Math.max(44, this.outerRadius * 0.34);
     // 外圈
     const outer = new Graphics()
       .circle(0, 0, r)
@@ -318,7 +319,7 @@ export class RouletteScene {
     // 中心星
     const starStyle = new TextStyle({
       fontFamily: GAME_FONT,
-      fontSize: r * 0.8,
+      fontSize: Math.max(34, r * 0.8),
       fill: COLOR_WHITE,
       fontWeight: '700',
     });
@@ -333,12 +334,13 @@ export class RouletteScene {
   private createBall(): void {
     if (!this.ballContainer) return;
     this.ball = new Graphics();
+    const r = Math.max(7, this.outerRadius * 0.032);
     this.ball
-      .circle(0, 0, 7)
+      .circle(0, 0, r)
       .fill({ color: COLOR_WHITE })
       .stroke({ color: COLOR_INK, width: 1 });
     this.ball
-      .circle(-2, -2, 2.5)
+      .circle(-r * 0.28, -r * 0.28, r * 0.34)
       .fill({ color: COLOR_WHITE, alpha: 0.8 });
     // 初始位置（上方）
     const a = -Math.PI / 2;
@@ -350,17 +352,21 @@ export class RouletteScene {
 
   private drawPointer(): void {
     if (!this.pointerContainer) return;
+    this.pointerContainer.removeChildren();
+    const w = Math.max(24, this.outerRadius * 0.11);
+    const h = Math.max(26, this.outerRadius * 0.13);
+    const capRadius = Math.max(8, this.outerRadius * 0.038);
     const shadow = new Graphics()
-      .poly([-14, -2, 14, -2, 0, 26])
+      .poly([-w / 2 - 2, -2, w / 2 + 2, -2, 0, h + 2])
       .fill({ color: COLOR_INK, alpha: 0.3 });
     shadow.x = 2;
     shadow.y = 3;
     const body = new Graphics()
-      .poly([-12, 0, 12, 0, 0, 24])
+      .poly([-w / 2, 0, w / 2, 0, 0, h])
       .fill({ color: COLOR_AMBER })
       .stroke({ color: COLOR_INK, width: 2 });
     const cap = new Graphics()
-      .circle(0, -2, 8)
+      .circle(0, -2, capRadius)
       .fill({ color: COLOR_AMBER })
       .stroke({ color: COLOR_INK, width: 2 });
     this.pointerContainer.addChild(shadow);
@@ -372,7 +378,7 @@ export class RouletteScene {
     if (!this.app) return;
     const style = new TextStyle({
       fontFamily: GAME_FONT_NUM,
-      fontSize: 14,
+      fontSize: Math.max(14, Math.min(20, this.outerRadius * 0.065)),
       fill: COLOR_WHITE,
       fontWeight: '600',
       letterSpacing: 4,
@@ -380,7 +386,7 @@ export class RouletteScene {
     const label = new Text({ text: this.statusText, style });
     label.anchor.set(0.5);
     label.x = this.cx;
-    label.y = this.cy + this.outerRadius + 60;
+    label.y = Math.min(this.height - 30, this.cy + this.outerRadius + Math.max(38, this.outerRadius * 0.17));
     label.alpha = 0.72;
     this.statusLabel = label;
     this.app.stage.addChild(label);
@@ -450,10 +456,10 @@ export class RouletteScene {
     if (this.wheelContainer) gsap.killTweensOf(this.wheelContainer);
     if (this.ballContainer) {
       gsap.killTweensOf(this.ballContainer);
-      // 重置 ballContainer.rotation — 否則 anticipation 殘留會讓
-      // 球的世界座標 = ballContainer.rotation 應用 + ball 局部位置，
-      // 導致最終球停的位置偏離指針。
+      this.ballAngle = normalizeAngle(this.ballAngle + this.ballContainer.rotation);
       this.ballContainer.rotation = 0;
+      this.ball.x = Math.cos(this.ballAngle) * this.ballOrbitRadius;
+      this.ball.y = Math.sin(this.ballAngle) * this.ballOrbitRadius;
     }
     this.spinning = true;
 
@@ -492,13 +498,13 @@ export class RouletteScene {
     }
 
     return new Promise<void>((resolve) => {
-      const duration = 4.5;
+      const duration = 4.8;
 
       // 輪盤旋轉
       gsap.to(this.wheelContainer!, {
         rotation: wheelTarget,
         duration,
-        ease: 'power3.out',
+        ease: 'power4.out',
       });
 
       // 珠子角度
@@ -506,7 +512,7 @@ export class RouletteScene {
       gsap.to(state, {
         angle: ballTarget,
         duration,
-        ease: 'power3.out',
+        ease: 'power4.out',
         onUpdate: () => {
           this.ballAngle = state.angle;
           if (this.ball) {
