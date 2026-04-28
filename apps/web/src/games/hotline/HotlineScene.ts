@@ -43,7 +43,8 @@ const COLOR_WHITE = 0xFFFFFF;
 const SYMBOL_COUNT = HOTLINE_SYMBOLS.length;
 const DEFAULT_REELS = 5;
 const ROWS = 3;
-const REEL_STRIP_LEN = 12; // reel 內部轉動用的延伸符號
+const REEL_STRIP_LEN = 30; // reel 內部轉動用的延伸符號
+const FINAL_STOP_ROW = 2;
 
 function fitSpriteCover(sprite: Sprite, width: number, height: number): void {
   const textureWidth = sprite.texture.width || width;
@@ -73,9 +74,11 @@ interface Particle {
   gravity: number;
 }
 
+type ReelSymbol = Container & { symbolIndex: number };
+
 interface ReelData {
   container: Container;
-  symbols: Container[];
+  symbols: ReelSymbol[];
   cellSize: number;
   strip: number[]; // 滾動用 symbol index 陣列
   stripOffset: number; // 當前偏移
@@ -283,7 +286,7 @@ export class HotlineScene {
       strip.push(Math.floor(Math.random() * SYMBOL_COUNT));
     }
 
-    const symbols: Container[] = [];
+    const symbols: ReelSymbol[] = [];
     for (let i = 0; i < REEL_STRIP_LEN; i += 1) {
       const sym = this.createSymbolTile(strip[i]!);
       sym.x = this.cellSize / 2;
@@ -307,13 +310,15 @@ export class HotlineScene {
     this.reelsContainer.addChild(frame);
   }
 
-  private createSymbolTile(symbolIdx: number): Container {
-    const c = new Container();
+  private createSymbolTile(symbolIdx: number): ReelSymbol {
+    const c = new Container() as ReelSymbol;
+    c.symbolIndex = -1;
     this.renderSymbolTile(c, symbolIdx);
     return c;
   }
 
-  private renderSymbolTile(c: Container, symbolIdx: number): void {
+  private renderSymbolTile(c: ReelSymbol, symbolIdx: number): void {
+    c.symbolIndex = symbolIdx;
     const oldChildren = c.removeChildren();
     for (const child of oldChildren) child.destroy({ children: true });
 
@@ -572,22 +577,25 @@ export class HotlineScene {
     }
   }
 
-  stopAnticipation(): void {
+  stopAnticipation(normalize = true): void {
     if (!this.anticipating) return;
     for (const reel of this.reels) {
+      gsap.killTweensOf(reel.container);
+      gsap.killTweensOf(reel.container.scale);
       for (const sym of reel.symbols) gsap.killTweensOf(sym);
-      this.normalizeReel(reel);
+      if (normalize) this.normalizeReel(reel);
+      else this.captureReelOrder(reel);
     }
     this.anticipating = false;
   }
 
   async playSpin(finalGrid: number[][], lines: HotlineLine[]): Promise<void> {
-    this.stopAnticipation();
+    this.stopAnticipation(false);
     this.resetWinLines();
 
-    const duration = 1.15;
+    const duration = 1.45;
     const reelPromises = this.reels.map((reel, reelIdx) =>
-      this.spinReel(reel, reelIdx, finalGrid[reelIdx]!, duration + reelIdx * 0.08, reelIdx * 0.04),
+      this.spinReel(reel, reelIdx, finalGrid[reelIdx]!, duration + reelIdx * 0.16, reelIdx * 0.06),
     );
 
     await Promise.all(reelPromises);
@@ -611,90 +619,118 @@ export class HotlineScene {
     delay: number,
   ): Promise<void> {
     return new Promise<void>((resolve) => {
-      const { container, symbols } = reel;
+      const { container } = reel;
       const cellSize = reel.cellSize;
+      const startRow = Math.max(FINAL_STOP_ROW + ROWS + 1, REEL_STRIP_LEN - ROWS - 2 - reelIndex);
+      const currentPhase = this.getReelScrollPhase(reel);
+      const landingStrip = this.buildLandingStrip(reel, finalColumn, startRow);
 
-      // 目標：讓 finalColumn 對應到 reel 的前 ROWS 個位置
-      // 策略：滾動 N 圈後，重繪符號並 snap 到起點
-      const spinCycles = 3 + reelIndex * 0.5; // 後面的 reel 多轉一點
-      const pixelsPerCycle = REEL_STRIP_LEN * cellSize;
-      const totalScroll = spinCycles * pixelsPerCycle;
+      this.renderReelStrip(reel, landingStrip);
+      container.y = this.reelY0 - startRow * cellSize + currentPhase;
+      container.scale.set(1);
 
-      // 存一個 offset 變數
-      const state = { offset: 0 };
-      const startOffsets = symbols.map((s) => s.y);
-
+      const state = { y: container.y };
       gsap.to(state, {
-        offset: totalScroll,
+        y: this.reelY0 - FINAL_STOP_ROW * cellSize,
         duration,
         delay,
-        ease: 'power3.out',
+        ease: 'power4.out',
         onUpdate: () => {
-          // 更新每個符號的 y
-          for (let i = 0; i < symbols.length; i += 1) {
-            const baseY = startOffsets[i]!;
-            let newY = baseY + state.offset;
-            // 循環：超過下方就從上方出現
-            const totalH = REEL_STRIP_LEN * cellSize;
-            newY = ((newY % totalH) + totalH) % totalH;
-            symbols[i]!.y = newY;
-          }
+          container.y = state.y;
         },
         onComplete: () => {
-          // 重繪 final 3 個位置
-          // 把前 3 個 symbol 重新畫成 finalColumn
-          // 其他保持原樣
-          // 但符號的 y 位置需要從 state.offset 停止處推算
-          // 最終把前 ROWS 個（y 從小到大）指定為 finalColumn
-          // 簡單做法：重建整個 reel 的 strip，讓前 ROWS 個 = finalColumn
           this.snapReelToFinal(reel, finalColumn);
-          // 反彈
-          gsap.fromTo(
-            container.scale,
-            { y: 1 },
-            {
-              y: 0.94,
-              duration: 0.08,
-              ease: 'power2.out',
-              yoyo: true,
-              repeat: 1,
-              onComplete: () => resolve(),
-            },
-          );
+          this.playReelStopBounce(container, resolve);
         },
       });
     });
   }
 
-  private snapReelToFinal(reel: ReelData, finalColumn: number[]): void {
-    const ordered = [...reel.symbols].sort((a, b) => a.y - b.y);
-    const newStrip: number[] = [];
-    for (let i = 0; i < ROWS; i += 1) newStrip.push(finalColumn[i]!);
-    for (let i = ROWS; i < REEL_STRIP_LEN; i += 1) {
-      newStrip.push(Math.floor(Math.random() * SYMBOL_COUNT));
+  private buildLandingStrip(reel: ReelData, finalColumn: number[], startRow: number): number[] {
+    const currentVisible = this.getVisibleSymbols(reel);
+    const strip = Array.from({ length: REEL_STRIP_LEN }, () => Math.floor(Math.random() * SYMBOL_COUNT));
+
+    for (let i = 0; i < ROWS; i += 1) {
+      strip[FINAL_STOP_ROW + i] = finalColumn[i] ?? 0;
+      strip[startRow + i] = currentVisible[i] ?? strip[startRow + i] ?? 0;
     }
-    reel.strip = newStrip;
-    for (let i = 0; i < REEL_STRIP_LEN; i += 1) {
-      const symbol = ordered[i]!;
+
+    return strip;
+  }
+
+  private renderReelStrip(reel: ReelData, strip: number[]): void {
+    reel.strip = strip;
+    for (let i = 0; i < reel.symbols.length; i += 1) {
+      const symbol = reel.symbols[i]!;
       gsap.killTweensOf(symbol);
       gsap.killTweensOf(symbol.scale);
       symbol.scale.set(1);
       symbol.alpha = 1;
       symbol.x = reel.cellSize / 2;
       symbol.y = i * reel.cellSize + reel.cellSize / 2;
-      this.renderSymbolTile(symbol, newStrip[i]!);
+      const nextSymbol = strip[i] ?? 0;
+      if (symbol.symbolIndex !== nextSymbol) {
+        this.renderSymbolTile(symbol, nextSymbol);
+      } else {
+        symbol.symbolIndex = nextSymbol;
+      }
     }
+  }
+
+  private getVisibleSymbols(reel: ReelData): number[] {
+    const ordered = [...reel.symbols].sort((a, b) => a.y - b.y);
+    return ordered.slice(0, ROWS).map((symbol) => symbol.symbolIndex);
+  }
+
+  private getReelScrollPhase(reel: ReelData): number {
+    const ordered = [...reel.symbols].sort((a, b) => a.y - b.y);
+    const first = ordered[0];
+    if (!first) return 0;
+    const phase = first.y - reel.cellSize / 2;
+    return Math.max(0, Math.min(reel.cellSize * 0.92, phase));
+  }
+
+  private playReelStopBounce(container: Container, resolve: () => void): void {
+    gsap.fromTo(
+      container.scale,
+      { y: 1 },
+      {
+        y: 0.965,
+        duration: 0.07,
+        ease: 'power2.out',
+        yoyo: true,
+        repeat: 1,
+        onComplete: () => resolve(),
+      },
+    );
+  }
+
+  private snapReelToFinal(reel: ReelData, finalColumn: number[]): void {
+    const newStrip: number[] = [];
+    for (let i = 0; i < ROWS; i += 1) newStrip.push(finalColumn[i]!);
+    for (let i = ROWS; i < REEL_STRIP_LEN; i += 1) {
+      newStrip.push(Math.floor(Math.random() * SYMBOL_COUNT));
+    }
+    reel.container.y = this.reelY0;
+    this.renderReelStrip(reel, newStrip);
+  }
+
+  private captureReelOrder(reel: ReelData): void {
+    const ordered = [...reel.symbols].sort((a, b) => a.y - b.y);
     reel.symbols = ordered;
+    reel.strip = ordered.map((symbol) => symbol.symbolIndex);
   }
 
   private normalizeReel(reel: ReelData): void {
     const ordered = [...reel.symbols].sort((a, b) => a.y - b.y);
+    reel.container.y = this.reelY0;
     for (let i = 0; i < ordered.length; i += 1) {
       const symbol = ordered[i]!;
       symbol.x = reel.cellSize / 2;
       symbol.y = i * reel.cellSize + reel.cellSize / 2;
     }
     reel.symbols = ordered;
+    reel.strip = ordered.map((symbol) => symbol.symbolIndex);
   }
 
   private showWinLines(lines: HotlineLine[]): void {
