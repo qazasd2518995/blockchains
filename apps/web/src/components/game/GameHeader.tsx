@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 
 interface Props {
   artwork?: string;
@@ -28,6 +29,7 @@ export function GameHeader({
   breadcrumb,
 }: Props) {
   const { t } = useTranslation();
+  const returnTarget = useGameReturnTarget();
 
   // Map old accent → new palette
   const suffixColor = {
@@ -62,9 +64,12 @@ export function GameHeader({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <div className="flex items-center gap-2 text-[12px] text-white/68">
-              <Link to="/lobby" className="inline-flex items-center gap-1 transition hover:text-[#8FD0DF]">
+              <Link
+                to={returnTarget.to}
+                className="inline-flex items-center gap-1 transition hover:text-[#8FD0DF]"
+              >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                {t.common.lobby}
+                {returnTarget.label || t.common.lobby}
               </Link>
               <span className="text-white/22">/</span>
               <span className="text-[#8FD0DF]">{breadcrumb}</span>

@@ -7,7 +7,6 @@ import { getBaccaratVariant, type BaccaratVariantId } from '@/lib/baccaratVarian
 import { useAuthStore } from '@/stores/authStore';
 
 const FALLBACK_BACCARAT_URL = 'http://localhost:5174';
-const BACCARAT_HANDOFF_DELAY_MS = 1200;
 
 interface LauncherDiagnostics {
   currentUser: string;
@@ -36,8 +35,6 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
   const [launchUrl, setLaunchUrl] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<LauncherDiagnostics | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
-  const [frameLoaded, setFrameLoaded] = useState(false);
-  const [frameVisible, setFrameVisible] = useState(false);
 
   const baccaratUrl = useMemo(() => {
     const raw = (import.meta.env.VITE_BACCARAT_URL as string | undefined)?.trim();
@@ -64,7 +61,6 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
 
   useEffect(() => {
     let cancelled = false;
-    let handoffTimer: ReturnType<typeof setTimeout> | undefined;
 
     async function launch() {
       try {
@@ -72,8 +68,6 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
         setMessage(`正在建立${config.title}進場憑證...`);
         setDiagnostics(null);
         setLaunchUrl(null);
-        setFrameLoaded(false);
-        setFrameVisible(false);
 
         const res = await api.post<{ launchToken: string }>('/auth/baccarat-launch', {
           gameId: config.gameId,
@@ -90,9 +84,6 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
         setLaunchUrl(target.toString());
         setMessage(`正在交接${config.title}遊戲大廳...`);
         setStatus('ready');
-        handoffTimer = setTimeout(() => {
-          if (!cancelled) setFrameVisible(true);
-        }, BACCARAT_HANDOFF_DELAY_MS);
       } catch (error) {
         if (cancelled) return;
         const apiError = extractApiError(error);
@@ -135,17 +126,14 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
     void launch();
     return () => {
       cancelled = true;
-      if (handoffTimer) clearTimeout(handoffTimer);
     };
   }, [apiBase, baccaratUrl, config.gameId, config.provider, config.skin, config.title, iframeKey, user?.role, user?.username]);
 
   const handleReload = () => {
-    setFrameLoaded(false);
-    setFrameVisible(false);
     setIframeKey((k) => k + 1);
   };
 
-  const showLoadingCover = status === 'loading' || (status === 'ready' && launchUrl && !frameLoaded && !frameVisible);
+  const showLoadingCover = status === 'loading';
 
   return (
     <main className="fixed inset-0 z-[9999] overflow-hidden text-white" style={{ backgroundColor: config.screenBg }}>
@@ -154,10 +142,6 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
           key={iframeKey}
           title={`BG ${config.englishTitle}`}
           src={launchUrl}
-          onLoad={() => {
-            setFrameLoaded(true);
-            setFrameVisible(true);
-          }}
           className="absolute inset-0 h-full w-full border-0"
           style={{ backgroundColor: config.screenBg }}
           allow="autoplay; clipboard-read; clipboard-write; fullscreen"

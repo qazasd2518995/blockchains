@@ -39,6 +39,7 @@ export function HallPage() {
   const HallIcon = getHallIcon(hall.iconKey);
 
   const liveWins = FAKE_WIN_TICKER.filter((record) => hall.gameIds.includes(record.gameId as GameIdType)).slice(0, 8);
+  const hallPath = `/hall/${hall.id}`;
 
   return (
     <div className="space-y-6">
@@ -98,7 +99,12 @@ export function HallPage() {
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
             {games.map((game) => (
-              <GameCardNew key={game.id} game={game} />
+              <GameCardNew
+                key={game.id}
+                game={game}
+                returnTo={hallPath}
+                returnLabel={hall.nameZh}
+              />
             ))}
           </div>
         </section>

@@ -329,11 +329,16 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
   const GameIcon = getGameIcon(game.id);
   const cover = getLobbyGameCover(game.id);
   const hall = gameHallMap.get(game.id);
+  const hallMeta = hall ? hallMetaMap.get(hall) : undefined;
   const hallLabel = hall ? MOBILE_HALL_LABEL[hall] : '熱門';
+  const routeState = hallMeta
+    ? { returnTo: `/hall/${hallMeta.id}`, returnLabel: hallMeta.nameZh }
+    : undefined;
 
   return (
     <Link
       to={mobileGamePath(game.id)}
+      state={routeState}
       className="group relative min-h-[116px] overflow-hidden rounded-[13px] border border-[#D6E5EC] bg-[#F7FCFE] shadow-[0_6px_14px_rgba(15,23,42,0.08)] active:scale-[0.99]"
     >
       <img

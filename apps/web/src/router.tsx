@@ -1,4 +1,5 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import { useLayoutEffect } from 'react';
+import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { GameFullscreenShell } from '@/components/layout/GameFullscreenShell';
@@ -23,83 +24,100 @@ import { VerifyPage } from '@/pages/VerifyPage';
 import { PromosPage } from '@/pages/PromosPage';
 import { BaccaratPage } from '@/pages/games/BaccaratPage';
 
+function RouteViewportReset() {
+  const { pathname } = useLocation();
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [pathname]);
+
+  return <Outlet />;
+}
+
 export const router = createBrowserRouter([
   {
-    path: '/',
-    element: <LandingPage />,
-  },
-  {
-    element: (
-      <GuestGuard>
-        <Outlet />
-      </GuestGuard>
-    ),
+    element: <RouteViewportReset />,
     children: [
-      { path: '/login', element: <LoginPage /> },
+      {
+        path: '/',
+        element: <LandingPage />,
+      },
+      {
+        element: (
+          <GuestGuard>
+            <Outlet />
+          </GuestGuard>
+        ),
+        children: [
+          { path: '/login', element: <LoginPage /> },
+        ],
+      },
+      {
+        element: (
+          <AuthGuard>
+            <Outlet />
+          </AuthGuard>
+        ),
+        children: [
+          { path: '/games/baccarat', element: <BaccaratPage variant="royal" /> },
+          { path: '/games/baccarat-nova', element: <BaccaratPage variant="nova" /> },
+          { path: '/games/baccarat-imperial', element: <BaccaratPage variant="imperial" /> },
+        ],
+      },
+      {
+        element: (
+          <AuthGuard>
+            <GameFullscreenShell />
+          </AuthGuard>
+        ),
+        children: [
+          { path: '/games/dice', element: <DicePage /> },
+          { path: '/games/mines', element: <MinesPage /> },
+          { path: '/games/hilo', element: <HiLoPage /> },
+          { path: '/games/keno', element: <KenoPage /> },
+          { path: '/games/wheel', element: <WheelPage /> },
+          { path: '/games/mini-roulette', element: <RoulettePage variant="mini-roulette" /> },
+          { path: '/games/carnival', element: <RoulettePage variant="carnival" /> },
+          { path: '/games/plinko', element: <PlinkoPage /> },
+          { path: '/games/hotline', element: <HotlinePage theme="cyber" /> },
+          { path: '/games/fruit-slot', element: <HotlinePage theme="fruit" /> },
+          { path: '/games/fortune-slot', element: <HotlinePage theme="fortune" /> },
+          { path: '/games/ocean-slot', element: <HotlinePage theme="ocean" /> },
+          { path: '/games/temple-slot', element: <HotlinePage theme="temple" /> },
+          { path: '/games/candy-slot', element: <HotlinePage theme="candy" /> },
+          { path: '/games/sakura-slot', element: <HotlinePage theme="sakura" /> },
+          { path: '/games/tower', element: <TowerPage /> },
+          { path: '/games/rocket', element: <CrashPage config={CRASH_CONFIGS.rocket!} /> },
+          { path: '/games/aviator', element: <CrashPage config={CRASH_CONFIGS.aviator!} /> },
+          { path: '/games/space-fleet', element: <CrashPage config={CRASH_CONFIGS['space-fleet']!} /> },
+          { path: '/games/jetx', element: <CrashPage config={CRASH_CONFIGS.jetx!} /> },
+          { path: '/games/balloon', element: <CrashPage config={CRASH_CONFIGS.balloon!} /> },
+          { path: '/games/jetx3', element: <CrashPage config={CRASH_CONFIGS.jetx3!} /> },
+          { path: '/games/double-x', element: <CrashPage config={CRASH_CONFIGS['double-x']!} /> },
+          { path: '/games/plinko-x', element: <PlinkoPage variant="x" /> },
+        ],
+      },
+      {
+        element: (
+          <AuthGuard>
+            <AppShell>
+              <Outlet />
+            </AppShell>
+          </AuthGuard>
+        ),
+        children: [
+          { path: '/lobby', element: <LobbyPage /> },
+          { path: '/hall/:hallId', element: <HallPage /> },
+          { path: '/verify', element: <VerifyPage /> },
+          { path: '/promos', element: <PromosPage /> },
+          { path: '/profile', element: <Navigate to="/lobby" replace /> },
+          { path: '/history', element: <HistoryPage /> },
+        ],
+      },
+      { path: '*', element: <NotFoundPage /> },
+      { path: '/404', element: <Navigate to="/" replace /> },
     ],
   },
-  {
-    element: (
-      <AuthGuard>
-        <Outlet />
-      </AuthGuard>
-    ),
-    children: [
-      { path: '/games/baccarat', element: <BaccaratPage variant="royal" /> },
-      { path: '/games/baccarat-nova', element: <BaccaratPage variant="nova" /> },
-      { path: '/games/baccarat-imperial', element: <BaccaratPage variant="imperial" /> },
-    ],
-  },
-  {
-    element: (
-      <AuthGuard>
-        <GameFullscreenShell />
-      </AuthGuard>
-    ),
-    children: [
-      { path: '/games/dice', element: <DicePage /> },
-      { path: '/games/mines', element: <MinesPage /> },
-      { path: '/games/hilo', element: <HiLoPage /> },
-      { path: '/games/keno', element: <KenoPage /> },
-      { path: '/games/wheel', element: <WheelPage /> },
-      { path: '/games/mini-roulette', element: <RoulettePage variant="mini-roulette" /> },
-      { path: '/games/carnival', element: <RoulettePage variant="carnival" /> },
-      { path: '/games/plinko', element: <PlinkoPage /> },
-      { path: '/games/hotline', element: <HotlinePage theme="cyber" /> },
-      { path: '/games/fruit-slot', element: <HotlinePage theme="fruit" /> },
-      { path: '/games/fortune-slot', element: <HotlinePage theme="fortune" /> },
-      { path: '/games/ocean-slot', element: <HotlinePage theme="ocean" /> },
-      { path: '/games/temple-slot', element: <HotlinePage theme="temple" /> },
-      { path: '/games/candy-slot', element: <HotlinePage theme="candy" /> },
-      { path: '/games/sakura-slot', element: <HotlinePage theme="sakura" /> },
-      { path: '/games/tower', element: <TowerPage /> },
-      { path: '/games/rocket', element: <CrashPage config={CRASH_CONFIGS.rocket!} /> },
-      { path: '/games/aviator', element: <CrashPage config={CRASH_CONFIGS.aviator!} /> },
-      { path: '/games/space-fleet', element: <CrashPage config={CRASH_CONFIGS['space-fleet']!} /> },
-      { path: '/games/jetx', element: <CrashPage config={CRASH_CONFIGS.jetx!} /> },
-      { path: '/games/balloon', element: <CrashPage config={CRASH_CONFIGS.balloon!} /> },
-      { path: '/games/jetx3', element: <CrashPage config={CRASH_CONFIGS.jetx3!} /> },
-      { path: '/games/double-x', element: <CrashPage config={CRASH_CONFIGS['double-x']!} /> },
-      { path: '/games/plinko-x', element: <PlinkoPage variant="x" /> },
-    ],
-  },
-  {
-    element: (
-      <AuthGuard>
-        <AppShell>
-          <Outlet />
-        </AppShell>
-      </AuthGuard>
-    ),
-    children: [
-      { path: '/lobby', element: <LobbyPage /> },
-      { path: '/hall/:hallId', element: <HallPage /> },
-      { path: '/verify', element: <VerifyPage /> },
-      { path: '/promos', element: <PromosPage /> },
-      { path: '/profile', element: <Navigate to="/lobby" replace /> },
-      { path: '/history', element: <HistoryPage /> },
-    ],
-  },
-  { path: '*', element: <NotFoundPage /> },
-  { path: '/404', element: <Navigate to="/" replace /> },
 ]);

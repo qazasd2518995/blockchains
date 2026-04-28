@@ -29,6 +29,44 @@ export function MinesPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
+  const stageHintRef = useRef<HTMLDivElement | null>(null);
+  const stageHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hideStageHintElement = (hint: HTMLElement | null) => {
+    if (!hint) return;
+    hint.style.opacity = '0';
+    hint.style.transform = 'translateY(0.5rem)';
+    hint.setAttribute('aria-hidden', 'true');
+  };
+
+  const showStageHintElement = (hint: HTMLElement | null) => {
+    if (stageHintTimerRef.current) clearTimeout(stageHintTimerRef.current);
+    if (hint) {
+      hint.style.opacity = '1';
+      hint.style.transform = 'translateY(0)';
+      hint.setAttribute('aria-hidden', 'false');
+    }
+    stageHintTimerRef.current = setTimeout(() => hideStageHintElement(hint), 2200);
+  };
+
+  const hideStageHint = () => {
+    hideStageHintElement(stageHintRef.current);
+  };
+
+  const showStageHint = () => {
+    showStageHintElement(stageHintRef.current);
+  };
+
+  const showStageHintFromBlocker = (node: HTMLElement) => {
+    const hint = node.parentElement?.querySelector<HTMLElement>('[data-stage-hint]');
+    showStageHintElement(hint ?? stageHintRef.current);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (stageHintTimerRef.current) clearTimeout(stageHintTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -46,9 +84,15 @@ export function MinesPage() {
       }
       scene = new MinesScene();
       sceneRef.current = scene;
-      void scene.init(canvas, w, h, ({ index }) => {
-        void handleReveal(index);
-      });
+      void scene.init(
+        canvas,
+        w,
+        h,
+        ({ index }) => {
+          void handleReveal(index);
+        },
+        showStageHint,
+      );
     };
     tryInit();
     return () => {
@@ -68,6 +112,7 @@ export function MinesPage() {
           const state = res.data.state;
           setRound(state);
           roundRef.current = state;
+          hideStageHint();
           sceneRef.current?.setClickable(true);
           for (const idx of state.revealed) sceneRef.current?.revealGem(idx);
         }
@@ -81,6 +126,7 @@ export function MinesPage() {
       setError(t.bet.insufficientBalance);
       return;
     }
+    hideStageHint();
     setError(null);
     setBusy(true);
     try {
@@ -101,7 +147,10 @@ export function MinesPage() {
 
   const handleReveal = async (cellIndex: number) => {
     const current = roundRef.current;
-    if (!current || current.status !== 'ACTIVE') return;
+    if (!current || current.status !== 'ACTIVE') {
+      showStageHint();
+      return;
+    }
     if (busy) return;
     setBusy(true);
     // 乐观动画：立刻标记此格为「准备中」脉动
@@ -239,6 +288,21 @@ export function MinesPage() {
               style={{ width: 'min(100%, 720px, 76svh)', maxHeight: 'none' }}
             >
               <canvas ref={canvasRef} className="h-full w-full" />
+              {!isActive ? (
+                <button
+                  type="button"
+                  aria-label="請先下注"
+                  className="absolute inset-0 z-10 cursor-pointer bg-transparent"
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    showStageHintFromBlocker(event.currentTarget);
+                  }}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    showStageHintFromBlocker(event.currentTarget);
+                  }}
+                />
+              ) : null}
               {/* 右上 overlay — 當前倍率/下一倍/派彩 */}
               {round && (
                 <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 rounded-[16px] border border-white/10 bg-[#07131F]/52 px-3 py-2 text-[10px] tracking-[0.2em] text-white/62 backdrop-blur">
@@ -262,6 +326,14 @@ export function MinesPage() {
                   </div>
                 </div>
               )}
+              <div
+                ref={stageHintRef}
+                data-stage-hint="mines"
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-3 bottom-3 z-20 translate-y-2 rounded-[14px] border border-[#F3D67D]/45 bg-[#07131F]/88 px-3 py-2 text-center text-[12px] font-bold tracking-[0.08em] text-[#F3D67D] opacity-0 shadow-[0_12px_28px_rgba(2,6,23,0.28)] backdrop-blur transition duration-200"
+              >
+                請先下注並開始本局，再點擊方塊。
+              </div>
             </div>
           </div>
 

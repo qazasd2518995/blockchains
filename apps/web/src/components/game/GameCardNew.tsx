@@ -65,14 +65,22 @@ function gamePath(id: string): string {
   return `/games/${id}`;
 }
 
-export function GameCardNew({ game }: { game: GameMetadata }) {
+interface GameCardNewProps {
+  game: GameMetadata;
+  returnTo?: string;
+  returnLabel?: string;
+}
+
+export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
   const cover = HAS_COVER.has(game.id) ? getLobbyGameCover(game.id) : null;
   const GameIcon = getGameIcon(game.id);
   const isNew = NEW_GAMES.has(game.id);
+  const routeState = returnTo ? { returnTo, returnLabel } : undefined;
 
   return (
     <Link
       to={gamePath(game.id)}
+      state={routeState}
       className="group relative flex flex-col overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:border-[#186073] hover:shadow-[0_8px_20px_rgba(24,96,115,0.18)]"
     >
       {/* Badge */}

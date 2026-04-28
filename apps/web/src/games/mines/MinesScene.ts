@@ -51,7 +51,8 @@ export class MinesScene {
   private shockwaves: Container | null = null;
   private floatingTexts: Container | null = null;
   private onCellClick: ((e: MinesCellClick) => void) | null = null;
-  private clickDisabled = false;
+  private onBlockedClick: (() => void) | null = null;
+  private clickDisabled = true;
 
   private particleList: Particle[] = [];
   private backgroundTexture: Texture | null = null;
@@ -74,10 +75,12 @@ export class MinesScene {
     width: number,
     height: number,
     onCellClick: (e: MinesCellClick) => void,
+    onBlockedClick?: () => void,
   ): Promise<void> {
     this.width = width;
     this.height = height;
     this.onCellClick = onCellClick;
+    this.onBlockedClick = onBlockedClick ?? null;
     const app = new Application();
     await app.init({
       canvas,
@@ -120,7 +123,11 @@ export class MinesScene {
       cell.container.eventMode = 'static';
       cell.container.cursor = 'pointer';
       cell.container.on('pointertap', () => {
-        if (this.clickDisabled || cell.state !== 'hidden') return;
+        if (cell.state !== 'hidden') return;
+        if (this.clickDisabled) {
+          this.onBlockedClick?.();
+          return;
+        }
         this.onCellClick?.({ index: i });
       });
       cell.container.on('pointerover', () => {
@@ -340,7 +347,7 @@ export class MinesScene {
 
   reset(): void {
     for (const cell of this.cells) cell.reset();
-    this.clickDisabled = false;
+    this.clickDisabled = true;
   }
 
   private emitShockwave(

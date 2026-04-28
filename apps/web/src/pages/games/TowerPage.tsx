@@ -38,6 +38,8 @@ export function TowerPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<TowerScene | null>(null);
   const roundRef = useRef<TowerRoundState | null>(null);
+  const stageHintRef = useRef<HTMLDivElement | null>(null);
+  const stageHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const difficulties: { id: TowerDifficulty; label: string; desc: string }[] = [
     { id: 'easy', label: t.games.tower.easy, desc: t.games.tower.easyDesc },
@@ -46,6 +48,42 @@ export function TowerPage() {
     { id: 'expert', label: t.games.tower.expert, desc: t.games.tower.expertDesc },
     { id: 'master', label: t.games.tower.master, desc: t.games.tower.masterDesc },
   ];
+
+  const hideStageHintElement = (hint: HTMLElement | null) => {
+    if (!hint) return;
+    hint.style.opacity = '0';
+    hint.style.transform = 'translateY(0.5rem)';
+    hint.setAttribute('aria-hidden', 'true');
+  };
+
+  const showStageHintElement = (hint: HTMLElement | null) => {
+    if (stageHintTimerRef.current) clearTimeout(stageHintTimerRef.current);
+    if (hint) {
+      hint.style.opacity = '1';
+      hint.style.transform = 'translateY(0)';
+      hint.setAttribute('aria-hidden', 'false');
+    }
+    stageHintTimerRef.current = setTimeout(() => hideStageHintElement(hint), 2200);
+  };
+
+  const hideStageHint = () => {
+    hideStageHintElement(stageHintRef.current);
+  };
+
+  const showStageHint = () => {
+    showStageHintElement(stageHintRef.current);
+  };
+
+  const showStageHintFromBlocker = (node: HTMLElement) => {
+    const hint = node.parentElement?.querySelector<HTMLElement>('[data-stage-hint]');
+    showStageHintElement(hint ?? stageHintRef.current);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (stageHintTimerRef.current) clearTimeout(stageHintTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -91,6 +129,7 @@ export function TowerPage() {
         if (res.data.state) {
           setRound(res.data.state);
           roundRef.current = res.data.state;
+          hideStageHint();
           renderTowerState(res.data.state);
         }
       })
@@ -122,6 +161,7 @@ export function TowerPage() {
     if (busy || amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
+    hideStageHint();
     try {
       const res = await api.post<TowerRoundState>('/games/tower/start', { amount, difficulty });
       setRound(res.data);
@@ -138,11 +178,14 @@ export function TowerPage() {
   };
 
   const pickInternal = async (level: number, col: number) => {
-    // 乐观动画：立刻脉动该格
-    sceneRef.current?.markPending(level, col);
     const current = roundRef.current;
-    if (!current || current.status !== 'ACTIVE') return;
+    if (!current || current.status !== 'ACTIVE') {
+      showStageHint();
+      return;
+    }
     if (level !== current.currentLevel) return;
+    // 樂觀動畫：確認有進行中局之後，才脈動該格。
+    sceneRef.current?.markPending(level, col);
     setBusy(true);
     try {
       const res = await api.post<TowerPickResult>('/games/tower/pick', {
@@ -213,6 +256,8 @@ export function TowerPage() {
     }
   };
 
+  const isActive = round?.status === 'ACTIVE';
+
   return (
     <div>
       <GameHeader
@@ -240,10 +285,33 @@ export function TowerPage() {
             </div>
 
             <div
-              className="game-canvas-shell game-canvas-tall mx-auto mt-2 aspect-[3/4] w-full max-w-[620px]"
+              className="game-canvas-shell game-canvas-tall relative mx-auto mt-2 aspect-[3/4] w-full max-w-[620px]"
               style={{ width: 'min(100%, 620px, calc(78svh * 0.75))', maxHeight: 'none' }}
             >
               <canvas ref={canvasRef} className="h-full w-full" />
+              {!isActive ? (
+                <button
+                  type="button"
+                  aria-label="請先下注"
+                  className="absolute inset-0 z-10 cursor-pointer bg-transparent"
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    showStageHintFromBlocker(event.currentTarget);
+                  }}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    showStageHintFromBlocker(event.currentTarget);
+                  }}
+                />
+              ) : null}
+              <div
+                ref={stageHintRef}
+                data-stage-hint="tower"
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-3 bottom-3 z-20 translate-y-2 rounded-[14px] border border-[#F3D67D]/45 bg-[#07131F]/88 px-3 py-2 text-center text-[12px] font-bold tracking-[0.08em] text-[#F3D67D] opacity-0 shadow-[0_12px_28px_rgba(2,6,23,0.28)] backdrop-blur transition duration-200"
+              >
+                請先下注並開始本局，再點擊塔格。
+              </div>
             </div>
           </div>
 

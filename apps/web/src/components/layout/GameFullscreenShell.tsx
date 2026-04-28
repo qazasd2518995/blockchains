@@ -6,6 +6,7 @@ import { api, extractApiError } from '@/lib/api';
 import { SoundToggle } from '@/components/layout/SoundToggle';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
+import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 
 const GAME_NAME_ZH: Record<string, string> = {
   baccarat: '皇家百家',
@@ -53,6 +54,7 @@ function useCurrentGameMeta() {
 export function GameFullscreenShell() {
   const { user, setBalance } = useAuthStore();
   const game = useCurrentGameMeta();
+  const returnTarget = useGameReturnTarget();
 
   const handleBalanceRefresh = async () => {
     try {
@@ -78,9 +80,9 @@ export function GameFullscreenShell() {
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#07101C]/92 pt-[env(safe-area-inset-top)] shadow-[0_14px_36px_rgba(0,0,0,0.34)] backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-[1920px] items-center gap-2 px-2 sm:px-4 xl:px-5">
           <Link
-            to="/lobby"
+            to={returnTarget.to}
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/82 transition hover:border-white/24 hover:bg-white/[0.1] hover:text-white"
-            aria-label="返回大廳"
+            aria-label={`返回${returnTarget.label}`}
           >
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
