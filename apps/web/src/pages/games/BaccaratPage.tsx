@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
 import type { UserPublic } from '@bg/shared';
@@ -23,20 +23,8 @@ interface LauncherDiagnostics {
   rawMessage: string;
 }
 
-interface LauncherDebugEvent {
-  atMs: number;
-  label: string;
-  detail?: string;
-  tone?: 'info' | 'ok' | 'warn' | 'error';
-}
-
 interface BaccaratPageProps {
   variant?: BaccaratVariantId;
-}
-
-function formatDebugMs(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
 }
 
 export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
@@ -47,9 +35,6 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
   const [launchUrl, setLaunchUrl] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<LauncherDiagnostics | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
-  const launchStartedAtRef = useRef(performance.now());
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [debugEvents, setDebugEvents] = useState<LauncherDebugEvent[]>([]);
 
   const baccaratUrl = useMemo(() => {
     const raw = (import.meta.env.VITE_BACCARAT_URL as string | undefined)?.trim();
@@ -59,24 +44,6 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
     () => (import.meta.env.VITE_API_BASE as string | undefined)?.trim() || window.location.origin,
     [],
   );
-
-  const pushDebug = useCallback((label: string, detail?: string, tone: LauncherDebugEvent['tone'] = 'info') => {
-    const event: LauncherDebugEvent = {
-      atMs: Math.round(performance.now() - launchStartedAtRef.current),
-      label,
-      detail,
-      tone,
-    };
-    setDebugEvents((prev) => [...prev.slice(-14), event]);
-    console.info('[baccarat-launch-debug]', event);
-  }, []);
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setElapsedMs(Math.round(performance.now() - launchStartedAtRef.current));
-    }, 250);
-    return () => window.clearInterval(id);
-  }, [iframeKey]);
 
   useEffect(() => {
     const origin = new URL(baccaratUrl).origin;
@@ -89,55 +56,34 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
       link.dataset.baccaratPreconnect = rel;
       if (rel === 'preconnect') link.crossOrigin = 'anonymous';
       document.head.appendChild(link);
-      pushDebug(`resource hint added: ${rel}`, origin);
     }
-  }, [baccaratUrl, pushDebug]);
+  }, [baccaratUrl]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function launch() {
-      launchStartedAtRef.current = performance.now();
-      setElapsedMs(0);
-      const startEvent: LauncherDebugEvent = {
-        atMs: 0,
-        label: 'BG launcher start',
-        detail: `gameId=${config.gameId} provider=${config.provider} skin=${config.skin}`,
-        tone: 'info',
-      };
-      setDebugEvents([startEvent]);
-      console.info('[baccarat-launch-debug]', startEvent);
-
       try {
         setStatus('loading');
         setMessage(`正在建立${config.title}進場憑證...`);
         setDiagnostics(null);
         setLaunchUrl(null);
 
-        const requestStartedAt = performance.now();
-        pushDebug('POST /auth/baccarat-launch start', `apiBase=${apiBase}`);
         const res = await api.post<{ launchToken: string }>('/auth/baccarat-launch', {
           gameId: config.gameId,
           provider: config.provider,
           skin: config.skin,
         });
         if (cancelled) return;
-        pushDebug(
-          'POST /auth/baccarat-launch ok',
-          `${Math.round(performance.now() - requestStartedAt)}ms tokenLength=${res.data.launchToken.length}`,
-          'ok',
-        );
 
         const target = new URL('/login', baccaratUrl);
         target.searchParams.set('launchToken', res.data.launchToken);
         target.searchParams.set('gameId', config.gameId);
         target.searchParams.set('provider', config.provider);
         target.searchParams.set('skin', config.skin);
-        pushDebug('iframe url prepared', `${target.origin}${target.pathname}?gameId=${config.gameId}&skin=${config.skin}`, 'ok');
         setLaunchUrl(target.toString());
         setMessage(`正在交接${config.title}遊戲大廳...`);
         setStatus('ready');
-        pushDebug('iframe mounted', 'waiting for baccarat /login to finish', 'info');
       } catch (error) {
         if (cancelled) return;
         const apiError = extractApiError(error);
@@ -170,7 +116,6 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
         };
 
         console.error('[baccarat-launch] failed', nextDiagnostics, error);
-        pushDebug('BG launcher failed', `${nextDiagnostics.statusCode} ${nextDiagnostics.rawMessage}`, 'error');
 
         setStatus('error');
         setMessage(apiError.message || `無法進入${config.title}`);
@@ -185,7 +130,6 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
   }, [apiBase, baccaratUrl, config.gameId, config.provider, config.skin, config.title, iframeKey, user?.role, user?.username]);
 
   const handleReload = () => {
-    pushDebug('manual reload clicked', `nextIframeKey=${iframeKey + 1}`, 'warn');
     setIframeKey((k) => k + 1);
   };
 
@@ -198,7 +142,6 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
           key={iframeKey}
           title={`BG ${config.englishTitle}`}
           src={launchUrl}
-          onLoad={() => pushDebug('iframe load event', 'browser reports baccarat frame loaded', 'ok')}
           className="absolute inset-0 h-full w-full border-0"
           style={{ backgroundColor: config.screenBg }}
           allow="autoplay; clipboard-read; clipboard-write; fullscreen"
@@ -206,15 +149,6 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
           loading="eager"
         />
       ) : null}
-
-      <LauncherDebugPanel
-        status={status}
-        elapsedMs={elapsedMs}
-        events={debugEvents}
-        apiBase={apiBase}
-        baccaratUrl={baccaratUrl}
-        launchUrl={launchUrl}
-      />
 
       {showLoadingCover ? (
         <section className="absolute inset-0 z-10 overflow-hidden" style={{ backgroundColor: config.screenBg }}>
@@ -276,7 +210,7 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
 
             {diagnostics ? (
               <div className="mt-4 rounded-[18px] border border-[#D9E3EA] bg-[#F8FAFB] px-4 py-4 text-[13px] text-[#334155]">
-                <div className="text-[12px] font-semibold uppercase tracking-[0.24em] text-[#186073]">Launcher Debug</div>
+                <div className="text-[12px] font-semibold uppercase tracking-[0.24em] text-[#186073]">Launcher Error</div>
                 <div className="mt-3 grid gap-2 font-mono text-[12px]">
                   <div>currentUser: {diagnostics.currentUser}</div>
                   <div>currentRole: {diagnostics.currentRole}</div>
@@ -310,55 +244,5 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
         </section>
       ) : null}
     </main>
-  );
-}
-
-function LauncherDebugPanel({
-  status,
-  elapsedMs,
-  events,
-  apiBase,
-  baccaratUrl,
-  launchUrl,
-}: {
-  status: 'loading' | 'ready' | 'error';
-  elapsedMs: number;
-  events: LauncherDebugEvent[];
-  apiBase: string;
-  baccaratUrl: string;
-  launchUrl: string | null;
-}) {
-  const toneClass = {
-    info: 'text-white/74',
-    ok: 'text-emerald-200',
-    warn: 'text-[#F3D67D]',
-    error: 'text-red-200',
-  };
-
-  return (
-    <aside className="pointer-events-none absolute bottom-3 right-3 z-30 max-h-[48svh] w-[min(420px,calc(100vw-24px))] overflow-hidden rounded-[16px] border border-white/15 bg-[#050A13]/88 p-3 text-left text-white shadow-[0_18px_42px_rgba(0,0,0,0.42)] backdrop-blur">
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-2">
-        <div className="text-[11px] font-black uppercase tracking-[0.24em] text-[#F3D67D]">
-          Launcher Debug
-        </div>
-        <div className="num text-[11px] text-white/70">
-          {status.toUpperCase()} · {formatDebugMs(elapsedMs)}
-        </div>
-      </div>
-      <div className="mt-2 grid gap-1 break-all font-mono text-[10px] leading-relaxed text-white/55">
-        <div>bgApi: {apiBase}</div>
-        <div>baccarat: {baccaratUrl}</div>
-        <div>launchUrl: {launchUrl ? `${new URL(launchUrl).origin}${new URL(launchUrl).pathname}` : 'pending'}</div>
-      </div>
-      <div className="mt-2 max-h-[28svh] space-y-1 overflow-auto pr-1 font-mono text-[10px] leading-relaxed">
-        {events.map((event, index) => (
-          <div key={`${event.atMs}-${event.label}-${index}`} className={toneClass[event.tone ?? 'info']}>
-            <span className="text-white/38">+{formatDebugMs(event.atMs)}</span>{' '}
-            <span className="font-semibold">{event.label}</span>
-            {event.detail ? <span className="text-white/48"> · {event.detail}</span> : null}
-          </div>
-        ))}
-      </div>
-    </aside>
   );
 }
