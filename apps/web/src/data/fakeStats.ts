@@ -1,60 +1,138 @@
 export interface WinRecord {
-  player: string;   // 遮蔽后的显示名，例：'a***995'
-  game: string;     // 游戏中文名
-  gameId: string;   // 对應 GameId
-  mult: number;     // 倍率
-  win: number;      // 赢得点数
+  player: string;
+  game: string;
+  gameId: string;
+  mult: number;
+  win: number;
+  tier?: 'hot' | 'mega' | 'jackpot';
 }
 
 export interface RankedWinRecord extends WinRecord {
   rank: number;
 }
 
-// 全部 19 款游戏都要出现过
-export const FAKE_WIN_TICKER: WinRecord[] = [
-  { player: 'aa***88', game: '百家乐',      gameId: 'baccarat',      mult: 1.95,  win: 19500  },
-  { player: 'a***995', game: '飙速X',      gameId: 'jetx',         mult: 24.6,  win: 12450  },
-  { player: 'b***123', game: '飞行员',      gameId: 'aviator',      mult: 88.0,  win: 88000  },
-  { player: 'c***456', game: '踩地雷',      gameId: 'mines',        mult: 45.5,  win: 45200  },
-  { player: 'd***789', game: '弹珠台',      gameId: 'plinko',       mult: 32.0,  win: 12800  },
-  { player: 'e***012', game: '骰子',        gameId: 'dice',         mult: 9.9,   win: 4950   },
-  { player: 'f***234', game: '火箭',        gameId: 'rocket',       mult: 16.07, win: 80350  },
-  { player: 'g***567', game: '热线',        gameId: 'hotline',      mult: 1000,  win: 500000 },
-  { player: 'h***890', game: '叠塔',        gameId: 'tower',        mult: 5.4,   win: 16200  },
-  { player: 'i***111', game: '猜大小',      gameId: 'hilo',         mult: 3.2,   win: 6400   },
-  { player: 'j***222', game: '基诺',        gameId: 'keno',         mult: 2.1,   win: 2100   },
-  { player: 'k***333', game: '彩色转轮',    gameId: 'wheel',        mult: 4.8,   win: 7200   },
-  { player: 'l***444', game: '迷你轮盘',    gameId: 'mini-roulette', mult: 11.5, win: 34500  },
-  { player: 'm***555', game: '太空舰队',    gameId: 'space-fleet',  mult: 8.7,   win: 26100  },
-  { player: 'n***666', game: '气球',        gameId: 'balloon',      mult: 14.2,  win: 28400  },
-  { player: 'o***777', game: '飙速X3',      gameId: 'jetx3',        mult: 52.0,  win: 156000 },
-  { player: 'p***888', game: '双倍X',       gameId: 'double-x',     mult: 7.3,   win: 14600  },
-  { player: 'q***999', game: '掉珠挑战X',   gameId: 'plinko-x',     mult: 19.9,  win: 39800  },
-  { player: 'r***000', game: '狂欢节',      gameId: 'carnival',     mult: 6.6,   win: 13200  },
-  // 再來一轮加变化，让总数 > 19
-  { player: 's***112', game: '飞行员',      gameId: 'aviator',      mult: 12.3,  win: 18450  },
-  { player: 't***334', game: '飙速X',       gameId: 'jetx',         mult: 44.0,  win: 88000  },
-  { player: 'u***556', game: '踩地雷',      gameId: 'mines',        mult: 18.8,  win: 56400  },
-  { player: 'v***778', game: '弹珠台',      gameId: 'plinko',       mult: 9.1,   win: 18200  },
-  { player: 'w***990', game: '骰子',        gameId: 'dice',         mult: 5.5,   win: 11000  },
-  { player: 'bc***07', game: '百家乐',      gameId: 'baccarat',      mult: 2.00,  win: 32000  },
-  { player: 'x***113', game: '热线',        gameId: 'hotline',      mult: 250,   win: 125000 },
-  { player: 'y***224', game: '火箭',        gameId: 'rocket',       mult: 3.8,   win: 7600   },
-  { player: 'z***335', game: '叠塔',        gameId: 'tower',        mult: 2.7,   win: 5400   },
+const GAME_POOL: Array<{
+  game: string;
+  gameId: string;
+  minMult: number;
+  maxMult: number;
+  minWin: number;
+  maxWin: number;
+}> = [
+  { game: '御龍百家', gameId: 'baccarat-imperial', minMult: 1.95, maxMult: 12, minWin: 18000, maxWin: 260000 },
+  { game: '星耀百家', gameId: 'baccarat-nova', minMult: 1.95, maxMult: 9.5, minWin: 12000, maxWin: 180000 },
+  { game: '飆速X', gameId: 'jetx', minMult: 8, maxMult: 180, minWin: 28000, maxWin: 980000 },
+  { game: '飆速X3', gameId: 'jetx3', minMult: 15, maxMult: 320, minWin: 56000, maxWin: 1680000 },
+  { game: '飛行員', gameId: 'aviator', minMult: 6, maxMult: 140, minWin: 22000, maxWin: 860000 },
+  { game: '火箭', gameId: 'rocket', minMult: 5, maxMult: 120, minWin: 16000, maxWin: 720000 },
+  { game: '太空艦隊', gameId: 'space-fleet', minMult: 4, maxMult: 95, minWin: 12000, maxWin: 480000 },
+  { game: '踩地雷', gameId: 'mines', minMult: 8, maxMult: 160, minWin: 24000, maxWin: 920000 },
+  { game: '疊塔', gameId: 'tower', minMult: 4, maxMult: 80, minWin: 12000, maxWin: 360000 },
+  { game: '掉珠挑戰X', gameId: 'plinko-x', minMult: 12, maxMult: 520, minWin: 52000, maxWin: 1880000 },
+  { game: '彈珠台', gameId: 'plinko', minMult: 8, maxMult: 240, minWin: 26000, maxWin: 880000 },
+  { game: '彩色轉輪', gameId: 'wheel', minMult: 6, maxMult: 70, minWin: 15000, maxWin: 260000 },
+  { game: '迷你輪盤', gameId: 'mini-roulette', minMult: 5, maxMult: 120, minWin: 16000, maxWin: 440000 },
+  { game: '狂歡節', gameId: 'carnival', minMult: 6, maxMult: 96, minWin: 18000, maxWin: 380000 },
+  { game: '水果拉霸', gameId: 'fruit-slot', minMult: 25, maxMult: 900, minWin: 68000, maxWin: 2200000 },
+  { game: '財虎拉霸', gameId: 'fortune-slot', minMult: 30, maxMult: 1200, minWin: 88000, maxWin: 3600000 },
+  { game: '海神寶藏', gameId: 'ocean-slot', minMult: 18, maxMult: 760, minWin: 48000, maxWin: 1800000 },
+  { game: '聖殿寶石', gameId: 'temple-slot', minMult: 20, maxMult: 850, minWin: 62000, maxWin: 2400000 },
+  { game: '糖果派對', gameId: 'candy-slot', minMult: 16, maxMult: 680, minWin: 36000, maxWin: 1500000 },
+  { game: '夜櫻武士', gameId: 'sakura-slot', minMult: 18, maxMult: 780, minWin: 46000, maxWin: 1780000 },
+  { game: '基諾', gameId: 'keno', minMult: 4, maxMult: 80, minWin: 9000, maxWin: 260000 },
+  { game: '猜大小', gameId: 'hilo', minMult: 3, maxMult: 64, minWin: 8000, maxWin: 180000 },
+  { game: '骰子', gameId: 'dice', minMult: 2, maxMult: 48, minWin: 6000, maxWin: 160000 },
 ];
 
-export const FAKE_TODAY_TOP10: RankedWinRecord[] = [
-  { rank: 1,  player: 'V***IP1',  game: '飙速X',      gameId: 'jetx',      mult: 88.0, win: 880000 },
-  { rank: 2,  player: 'a***995',  game: '踩地雷',     gameId: 'mines',     mult: 45.5, win: 452000 },
-  { rank: 3,  player: 'b***123',  game: '飞行员',     gameId: 'aviator',   mult: 32.0, win: 128000 },
-  { rank: 4,  player: 'c***456',  game: '热线',       gameId: 'hotline',   mult: 500,  win: 100000 },
-  { rank: 5,  player: 'd***789',  game: '弹珠台',     gameId: 'plinko',    mult: 18.5, win: 74000  },
-  { rank: 6,  player: 'e***012',  game: '火箭',       gameId: 'rocket',    mult: 22.0, win: 66000  },
-  { rank: 7,  player: 'f***234',  game: '飙速X3',     gameId: 'jetx3',     mult: 12.0, win: 48000  },
-  { rank: 8,  player: 'g***567',  game: '气球',       gameId: 'balloon',   mult: 9.5,  win: 28500  },
-  { rank: 9,  player: 'h***890',  game: '迷你轮盘',   gameId: 'mini-roulette', mult: 11.0, win: 22000 },
-  { rank: 10, player: 'i***111',  game: '叠塔',       gameId: 'tower',     mult: 5.0,  win: 15000  },
+const ACCOUNT_PREFIX = [
+  'ak', 'bc', 'cn', 'dd', 'e9', 'fx', 'gg', 'hk', 'jy', 'kk', 'lo', 'mx', 'ny', 'op',
+  'q7', 'rs', 'sv', 'tg', 'uo', 'vx', 'wm', 'xp', 'ya', 'z9', 'vip', 'ace', 'king',
+  'bb', 'cc', 'dq', 'el', 'ft', 'gm', 'hn', 'io', 'jl', 'kr', 'lt', 'mn', 'np',
 ];
+
+const ACCOUNT_SUFFIX = [
+  '07', '18', '24', '31', '42', '56', '68', '73', '85', '96', '105', '119', '168',
+  '207', '334', '369', '517', '520', '608', '729', '777', '880', '901', '952',
+];
+
+function randomFrom<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)]!;
+}
+
+function randomBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+function randomMaskedPlayer(): string {
+  const prefix = randomFrom(ACCOUNT_PREFIX);
+  const suffix = randomFrom(ACCOUNT_SUFFIX);
+  const stars = Math.random() > 0.72 ? '****' : '***';
+  return `${prefix}${stars}${suffix}`;
+}
+
+function roundWinAmount(value: number): number {
+  if (value >= 1000000) return Math.round(value / 10000) * 10000;
+  if (value >= 100000) return Math.round(value / 1000) * 1000;
+  return Math.round(value / 100) * 100;
+}
+
+function classifyTier(win: number, mult: number): WinRecord['tier'] {
+  if (win >= 1200000 || mult >= 500) return 'jackpot';
+  if (win >= 420000 || mult >= 88) return 'mega';
+  return 'hot';
+}
+
+export function createSimulatedWinRecord(existingPlayers: Set<string> = new Set()): WinRecord {
+  let player = randomMaskedPlayer();
+  let guard = 0;
+  while (existingPlayers.has(player) && guard < 12) {
+    player = randomMaskedPlayer();
+    guard += 1;
+  }
+
+  const game = randomFrom(GAME_POOL);
+  const spike = Math.random();
+  const mult = Number(
+    randomBetween(spike > 0.9 ? game.maxMult * 0.55 : game.minMult, game.maxMult).toFixed(2),
+  );
+  const win = roundWinAmount(randomBetween(game.minWin, game.maxWin) * (spike > 0.94 ? 1.4 : 1));
+
+  return {
+    player,
+    game: game.game,
+    gameId: game.gameId,
+    mult,
+    win,
+    tier: classifyTier(win, mult),
+  };
+}
+
+export function createSimulatedWinFeed(count: number): WinRecord[] {
+  const players = new Set<string>();
+  return Array.from({ length: count }, () => {
+    const record = createSimulatedWinRecord(players);
+    players.add(record.player);
+    return record;
+  });
+}
+
+export function createSimulatedTopWinners(count = 10): RankedWinRecord[] {
+  const players = new Set<string>();
+  return Array.from({ length: count + 8 }, () => {
+    const record = createSimulatedWinRecord(players);
+    players.add(record.player);
+    return {
+      ...record,
+      win: Math.max(record.win, roundWinAmount(record.win * randomBetween(1.15, 2.2))),
+    };
+  })
+    .sort((a, b) => b.win - a.win)
+    .slice(0, count)
+    .map((row, index) => ({ ...row, rank: index + 1 }));
+}
+
+export const FAKE_WIN_TICKER: WinRecord[] = createSimulatedWinFeed(36);
+export const FAKE_TODAY_TOP10: RankedWinRecord[] = createSimulatedTopWinners(10);
 
 export const FAKE_ONLINE_BASE = 1247;
 
@@ -62,19 +140,36 @@ export function getDriftedOnlineCount(): number {
   return FAKE_ONLINE_BASE + Math.floor(Math.random() * 100 - 50);
 }
 
-// 洗牌工具：前 3 名变动机率 10%、后 7 名变动机率 50%
 export function reshuffleTop10(current: RankedWinRecord[]): RankedWinRecord[] {
-  const next = current.map((r) => ({ ...r }));
-  for (let i = 0; i < next.length; i++) {
-    const target = next[i];
+  const next = current.map((row) => ({ ...row }));
+  const currentPlayers = new Set(next.map((row) => row.player));
+
+  for (let index = 0; index < next.length; index += 1) {
+    const target = next[index];
     if (!target) continue;
-    const shouldShuffle = i < 3 ? Math.random() < 0.1 : Math.random() < 0.5;
+    const shouldShuffle = index < 3 ? Math.random() < 0.28 : Math.random() < 0.72;
     if (!shouldShuffle) continue;
-    // 小幅度抖动 win / mult
-    target.win = Math.max(1000, Math.floor(target.win * (0.9 + Math.random() * 0.25)));
-    target.mult = Math.max(1.5, Number((target.mult * (0.9 + Math.random() * 0.25)).toFixed(2)));
+
+    if (index > 2 && Math.random() < 0.45) {
+      const replacement = createSimulatedWinRecord(currentPlayers);
+      currentPlayers.add(replacement.player);
+      Object.assign(target, replacement);
+      target.win = Math.max(replacement.win, roundWinAmount(replacement.win * randomBetween(1.05, 1.8)));
+    } else {
+      target.win = Math.max(1000, roundWinAmount(target.win * randomBetween(0.96, 1.22)));
+      target.mult = Math.max(1.5, Number((target.mult * randomBetween(0.96, 1.16)).toFixed(2)));
+      target.tier = classifyTier(target.win, target.mult);
+    }
   }
-  // 按 win 重新排序
-  next.sort((a, b) => b.win - a.win);
-  return next.map((r, idx) => ({ ...r, rank: idx + 1 }));
+
+  if (Math.random() < 0.65) {
+    const challenger = createSimulatedWinRecord(currentPlayers);
+    challenger.win = Math.max(challenger.win, roundWinAmount(challenger.win * randomBetween(1.2, 2.4)));
+    next.push({ ...challenger, rank: next.length + 1 });
+  }
+
+  return next
+    .sort((a, b) => b.win - a.win)
+    .slice(0, 10)
+    .map((row, index) => ({ ...row, rank: index + 1 }));
 }
