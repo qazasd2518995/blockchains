@@ -153,7 +153,9 @@ export class CrashScene {
   private craftSprite: Sprite | null = null;
   private craftBaseScale = 1;
   private backgroundTileWidth = 0;
+  private backgroundTileHeight = 0;
   private cameraOffsetX = 0;
+  private cameraOffsetY = 0;
 
   // Text
   private multiplierLabel: Text | null = null;
@@ -286,16 +288,22 @@ export class CrashScene {
       fitSpriteCover(bgSprite, this.width, this.height);
       bgSprite.alpha = 0.92;
       const tileWidth = Math.max(this.width, bgSprite.width || this.width);
+      const tileHeight = Math.max(this.height, bgSprite.height || this.height);
       this.backgroundTileWidth = tileWidth;
-      for (let i = -1; i <= 2; i += 1) {
-        const tile = i === 0 ? bgSprite : new Sprite(this.backgroundTexture);
-        if (i !== 0) fitSpriteCover(tile, this.width, this.height);
-        tile.alpha = 0.92;
-        tile.x += i * tileWidth;
-        backgroundLayer.addChild(tile);
+      this.backgroundTileHeight = tileHeight;
+      for (let xIndex = -1; xIndex <= 2; xIndex += 1) {
+        for (let yIndex = -1; yIndex <= 2; yIndex += 1) {
+          const tile = xIndex === 0 && yIndex === 0 ? bgSprite : new Sprite(this.backgroundTexture);
+          if (xIndex !== 0 || yIndex !== 0) fitSpriteCover(tile, this.width, this.height);
+          tile.alpha = 0.92;
+          tile.x += xIndex * tileWidth;
+          tile.y += yIndex * tileHeight;
+          backgroundLayer.addChild(tile);
+        }
       }
     } else {
       this.backgroundTileWidth = this.width;
+      this.backgroundTileHeight = this.height;
       const fallback = new Graphics();
       const steps = 10;
       for (let i = 0; i < steps; i += 1) {
@@ -338,17 +346,19 @@ export class CrashScene {
     const cols = 8;
     const rows = 5;
     const gridTileWidth = this.backgroundTileWidth || this.width;
+    const gridTileHeight = this.backgroundTileHeight || this.height;
     const gridStartX = -gridTileWidth;
     const gridEndX = gridTileWidth * 3;
+    const gridStartY = -gridTileHeight;
+    const gridEndY = gridTileHeight * 3;
     for (let x = gridStartX; x <= gridEndX; x += this.width / cols) {
-      grid.moveTo(x, 0).lineTo(x, this.height).stroke({
+      grid.moveTo(x, gridStartY).lineTo(x, gridEndY).stroke({
         color: COLOR_ACID,
         width: 1,
         alpha: 0.035,
       });
     }
-    for (let i = 0; i <= rows; i += 1) {
-      const y = (this.height / rows) * i;
+    for (let y = gridStartY; y <= gridEndY; y += this.height / rows) {
       grid.moveTo(gridStartX, y).lineTo(gridEndX, y).stroke({
         color: COLOR_ACID,
         width: 1,
@@ -686,7 +696,7 @@ export class CrashScene {
     const world = this.multiplierToWorldPosition(m);
     return {
       x: world.x - this.cameraOffsetX,
-      y: world.y,
+      y: world.y + this.cameraOffsetY,
     };
   }
 
@@ -694,7 +704,7 @@ export class CrashScene {
     const base = this.positionAtProgress(this.flightProgress(m));
     return {
       x: base.x + this.extraForwardTravel(m),
-      y: base.y,
+      y: base.y - this.extraVerticalTravel(m),
     };
   }
 
@@ -720,34 +730,80 @@ export class CrashScene {
     return this.width * speedByVariant[assetVariant] * Math.log1p(excess);
   }
 
+  private extraVerticalTravel(m: number): number {
+    const assetVariant = ASSET_VARIANT[this.variant];
+    const triggerByVariant: Record<Exclude<CrashVariant, 'default'>, number> = {
+      rocket: 1.35,
+      aviator: 0,
+      balloon: 1.45,
+      jet: 0,
+      fleet: 1.38,
+      jet3: 0,
+      double: 0,
+      plinko: 1.55,
+    };
+    const trigger = triggerByVariant[assetVariant];
+    if (trigger <= 0) return 0;
+
+    const excess = Math.max(0, m - trigger);
+    if (excess <= 0) return 0;
+
+    const speedByVariant: Record<Exclude<CrashVariant, 'default'>, number> = {
+      rocket: 0.62,
+      aviator: 0,
+      balloon: 0.46,
+      jet: 0,
+      fleet: 0.56,
+      jet3: 0,
+      double: 0,
+      plinko: 0.4,
+    };
+    return this.height * speedByVariant[assetVariant] * Math.log1p(excess);
+  }
+
   private updateCameraForMultiplier(m: number, deltaTime: number): void {
     const world = this.multiplierToWorldPosition(m);
     const followAnchor = this.width * (this.width < 520 ? 0.66 : 0.7);
-    const desired = Math.max(0, world.x - followAnchor);
-    const easedDesired = prefersReducedMotion() ? desired * 0.45 : desired;
+    const followAnchorY = this.height * (this.height < 360 ? 0.36 : 0.32);
+    const desiredX = Math.max(0, world.x - followAnchor);
+    const desiredY = Math.max(0, followAnchorY - world.y);
+    const easedDesiredX = prefersReducedMotion() ? desiredX * 0.45 : desiredX;
+    const easedDesiredY = prefersReducedMotion() ? desiredY * 0.45 : desiredY;
     const ease = Math.min(1, (prefersReducedMotion() ? 0.08 : 0.18) * deltaTime);
-    const next = this.cameraOffsetX + (easedDesired - this.cameraOffsetX) * ease;
-    const cameraDelta = next - this.cameraOffsetX;
-    this.cameraOffsetX = next;
-    this.applyCameraScroll(cameraDelta);
+    const nextX = this.cameraOffsetX + (easedDesiredX - this.cameraOffsetX) * ease;
+    const nextY = this.cameraOffsetY + (easedDesiredY - this.cameraOffsetY) * ease;
+    const cameraDeltaX = nextX - this.cameraOffsetX;
+    const cameraDeltaY = nextY - this.cameraOffsetY;
+    this.cameraOffsetX = nextX;
+    this.cameraOffsetY = nextY;
+    this.applyCameraScroll(cameraDeltaX, cameraDeltaY);
   }
 
   private resetCamera(): void {
     this.cameraOffsetX = 0;
-    this.applyCameraScroll(0);
+    this.cameraOffsetY = 0;
+    this.applyCameraScroll(0, 0);
   }
 
-  private applyCameraScroll(cameraDelta: number): void {
+  private applyCameraScroll(cameraDeltaX: number, cameraDeltaY: number): void {
     const tileWidth = this.backgroundTileWidth || this.width || 1;
+    const tileHeight = this.backgroundTileHeight || this.height || 1;
     if (this.backgroundLayer) {
-      const scroll = ((this.cameraOffsetX * 0.58) % tileWidth + tileWidth) % tileWidth;
-      this.backgroundLayer.x = -scroll;
+      const scrollX = ((this.cameraOffsetX * 0.58) % tileWidth + tileWidth) % tileWidth;
+      const scrollY = ((this.cameraOffsetY * 0.42) % tileHeight + tileHeight) % tileHeight;
+      this.backgroundLayer.x = -scrollX;
+      this.backgroundLayer.y = scrollY;
     }
 
-    if (Math.abs(cameraDelta) < 0.001 || this.phase !== 'running') return;
+    if (
+      (Math.abs(cameraDeltaX) < 0.001 && Math.abs(cameraDeltaY) < 0.001) ||
+      this.phase !== 'running'
+    ) return;
 
     for (const star of this.stars) {
-      star.g.x -= cameraDelta * (0.08 + star.speed * 0.08);
+      const parallax = 0.08 + star.speed * 0.08;
+      star.g.x -= cameraDeltaX * parallax;
+      star.g.y += cameraDeltaY * parallax;
       if (star.g.x < -8) {
         star.g.x = this.width + 8;
         star.g.y = Math.random() * this.height;
@@ -755,13 +811,22 @@ export class CrashScene {
         star.g.x = -8;
         star.g.y = Math.random() * this.height;
       }
+      if (star.g.y < -8) {
+        star.g.y = this.height + 8;
+        star.g.x = Math.random() * this.width;
+      } else if (star.g.y > this.height + 8) {
+        star.g.y = -8;
+        star.g.x = Math.random() * this.width;
+      }
     }
 
     for (const dot of this.trailDots) {
-      dot.g.x -= cameraDelta;
+      dot.g.x -= cameraDeltaX;
+      dot.g.y += cameraDeltaY;
     }
     for (const particle of this.particleList) {
-      particle.g.x -= cameraDelta;
+      particle.g.x -= cameraDeltaX;
+      particle.g.y += cameraDeltaY;
     }
   }
 

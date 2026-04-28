@@ -361,21 +361,33 @@ export class HiLoService {
   }
 }
 
-function adjustHiLoDraw(
+export function adjustHiLoDraw(
   current: HiLoCard,
   guess: HiLoGuessInput['guess'],
   wantCorrect: boolean,
   fallback: HiLoCard,
 ): { card: HiLoCard; correct: boolean } {
+  const fallbackCorrect = isHiLoGuessCorrect(current.rank, fallback.rank, guess);
+  if (fallbackCorrect === wantCorrect) {
+    return { card: fallback, correct: fallbackCorrect };
+  }
+
   const possible = Array.from({ length: 13 }, (_, index) => index + 1);
   const ranks = possible.filter((rank) => {
-    const correct = guess === 'higher' ? rank >= current.rank : rank <= current.rank;
+    const correct = isHiLoGuessCorrect(current.rank, rank, guess);
     return correct === wantCorrect;
   });
-  const rank = ranks[0];
+  const rank = ranks[((fallback.rank - 1) * 4 + fallback.suit) % ranks.length];
   if (!rank) {
-    const correct = guess === 'higher' ? fallback.rank >= current.rank : fallback.rank <= current.rank;
-    return { card: fallback, correct };
+    return { card: fallback, correct: fallbackCorrect };
   }
   return { card: { rank, suit: fallback.suit }, correct: wantCorrect };
+}
+
+function isHiLoGuessCorrect(
+  currentRank: number,
+  drawnRank: number,
+  guess: HiLoGuessInput['guess'],
+): boolean {
+  return guess === 'higher' ? drawnRank >= currentRank : drawnRank <= currentRank;
 }
