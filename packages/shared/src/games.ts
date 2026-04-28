@@ -1,5 +1,7 @@
 export const GameId = {
   BACCARAT: 'baccarat',
+  BACCARAT_NOVA: 'baccarat-nova',
+  BACCARAT_IMPERIAL: 'baccarat-imperial',
   DICE: 'dice',
   MINES: 'mines',
   HILO: 'hilo',
@@ -27,6 +29,13 @@ export const GameId = {
 } as const;
 
 export type GameIdType = (typeof GameId)[keyof typeof GameId];
+export const BACCARAT_GAME_IDS = [
+  GameId.BACCARAT,
+  GameId.BACCARAT_NOVA,
+  GameId.BACCARAT_IMPERIAL,
+] as const;
+export type BaccaratGameIdType = (typeof BACCARAT_GAME_IDS)[number];
+
 export const SLOT_GAME_IDS = [
   GameId.HOTLINE,
   GameId.FRUIT_SLOT,
@@ -56,11 +65,33 @@ export interface GameMetadata {
 export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
   [GameId.BACCARAT]: {
     id: GameId.BACCARAT,
-    name: 'Baccarat',
-    nameZh: '百家乐',
+    name: 'Royal Baccarat',
+    nameZh: '皇家百家乐',
     category: 'table',
-    description: 'Multi-table baccarat with table switching and round-based betting.',
-    descriptionZh: '多桌百家乐，支持切桌与逐局下注',
+    description: 'Classic live baccarat with royal table styling.',
+    descriptionZh: '经典真人百家乐，金色皇家牌桌风格',
+    rtp: 0.9894,
+    icon: 'baccarat',
+    enabled: true,
+  },
+  [GameId.BACCARAT_NOVA]: {
+    id: GameId.BACCARAT_NOVA,
+    name: 'Nova Baccarat',
+    nameZh: '星耀百家乐',
+    category: 'table',
+    description: 'Live baccarat with a neon studio presentation.',
+    descriptionZh: '霓虹影棚风格真人百家乐',
+    rtp: 0.9894,
+    icon: 'baccarat',
+    enabled: true,
+  },
+  [GameId.BACCARAT_IMPERIAL]: {
+    id: GameId.BACCARAT_IMPERIAL,
+    name: 'Imperial Baccarat',
+    nameZh: '御龙百家乐',
+    category: 'table',
+    description: 'Live baccarat with an imperial red-and-gold casino skin.',
+    descriptionZh: '红金御龙风格真人百家乐',
     rtp: 0.9894,
     icon: 'baccarat',
     enabled: true,

@@ -39,6 +39,8 @@ export const HERO_ICONS: Record<string, LucideIcon> = {
 
 export const GAME_ICONS: Record<string, LucideIcon> = {
   baccarat: CircleDot,
+  'baccarat-nova': CircleDot,
+  'baccarat-imperial': CircleDot,
   dice: Dice1,
   mines: Gem,
   hilo: ArrowUpDown,

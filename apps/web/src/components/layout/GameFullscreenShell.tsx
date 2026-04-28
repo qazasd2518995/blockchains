@@ -8,6 +8,9 @@ import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
 
 const GAME_NAME_ZH: Record<string, string> = {
+  baccarat: '皇家百家',
+  'baccarat-nova': '星耀百家',
+  'baccarat-imperial': '御龍百家',
   dice: '骰子',
   mines: '踩地雷',
   hilo: '猜大小',

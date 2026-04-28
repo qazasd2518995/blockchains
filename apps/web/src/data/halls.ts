@@ -69,7 +69,7 @@ export const HALLS: Record<HallId, HallMeta> = {
     tagline: '局局封盘开牌，专注牌路、节奏与桌感',
     gradient: 'linear-gradient(135deg, #1B2030 0%, #225B66 46%, #C9A247 100%)',
     artwork: '/halls/tables-card.png',
-    gameIds: [GameId.BACCARAT],
+    gameIds: [GameId.BACCARAT, GameId.BACCARAT_NOVA, GameId.BACCARAT_IMPERIAL],
   },
 };
 

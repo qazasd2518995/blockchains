@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
 import type { UserPublic } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
+import { getBaccaratVariant, type BaccaratVariantId } from '@/lib/baccaratVariants';
 import { useAuthStore } from '@/stores/authStore';
 
 const FALLBACK_BACCARAT_URL = 'http://localhost:5174';
@@ -15,15 +16,23 @@ interface LauncherDiagnostics {
   serverRole: string;
   apiBase: string;
   baccaratUrl: string;
+  gameId: string;
+  provider: string;
+  skin: string;
   statusCode: string;
   errorCode: string;
   rawMessage: string;
 }
 
-export function BaccaratPage() {
+interface BaccaratPageProps {
+  variant?: BaccaratVariantId;
+}
+
+export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
   const user = useAuthStore((s) => s.user);
+  const config = getBaccaratVariant(variant);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [message, setMessage] = useState('正在建立百家樂進場憑證...');
+  const [message, setMessage] = useState(`正在建立${config.title}進場憑證...`);
   const [launchUrl, setLaunchUrl] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<LauncherDiagnostics | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
@@ -60,19 +69,26 @@ export function BaccaratPage() {
     async function launch() {
       try {
         setStatus('loading');
-        setMessage('正在建立百家樂進場憑證...');
+        setMessage(`正在建立${config.title}進場憑證...`);
         setDiagnostics(null);
         setLaunchUrl(null);
         setFrameLoaded(false);
         setFrameVisible(false);
 
-        const res = await api.post<{ launchToken: string }>('/auth/baccarat-launch');
+        const res = await api.post<{ launchToken: string }>('/auth/baccarat-launch', {
+          gameId: config.gameId,
+          provider: config.provider,
+          skin: config.skin,
+        });
         if (cancelled) return;
 
         const target = new URL('/login', baccaratUrl);
         target.searchParams.set('launchToken', res.data.launchToken);
+        target.searchParams.set('gameId', config.gameId);
+        target.searchParams.set('provider', config.provider);
+        target.searchParams.set('skin', config.skin);
         setLaunchUrl(target.toString());
-        setMessage('正在交接百家樂遊戲大廳...');
+        setMessage(`正在交接${config.title}遊戲大廳...`);
         setStatus('ready');
         handoffTimer = setTimeout(() => {
           if (!cancelled) setFrameVisible(true);
@@ -100,6 +116,9 @@ export function BaccaratPage() {
           serverRole,
           apiBase,
           baccaratUrl,
+          gameId: config.gameId,
+          provider: config.provider,
+          skin: config.skin,
           statusCode: String(axiosError.response?.status ?? 'n/a'),
           errorCode: apiError.code ?? 'INTERNAL',
           rawMessage: axiosError.response?.data?.message ?? apiError.message ?? '未知錯誤',
@@ -108,7 +127,7 @@ export function BaccaratPage() {
         console.error('[baccarat-launch] failed', nextDiagnostics, error);
 
         setStatus('error');
-        setMessage(apiError.message || '無法進入百家樂');
+        setMessage(apiError.message || `無法進入${config.title}`);
         setDiagnostics(nextDiagnostics);
       }
     }
@@ -118,7 +137,7 @@ export function BaccaratPage() {
       cancelled = true;
       if (handoffTimer) clearTimeout(handoffTimer);
     };
-  }, [apiBase, baccaratUrl, iframeKey, user?.role, user?.username]);
+  }, [apiBase, baccaratUrl, config.gameId, config.provider, config.skin, config.title, iframeKey, user?.role, user?.username]);
 
   const handleReload = () => {
     setFrameLoaded(false);
@@ -129,17 +148,18 @@ export function BaccaratPage() {
   const showLoadingCover = status === 'loading' || (status === 'ready' && launchUrl && !frameLoaded && !frameVisible);
 
   return (
-    <main className="fixed inset-0 z-[9999] overflow-hidden bg-[#050A13] text-white">
+    <main className="fixed inset-0 z-[9999] overflow-hidden text-white" style={{ backgroundColor: config.screenBg }}>
       {status === 'ready' && launchUrl ? (
         <iframe
           key={iframeKey}
-          title="BG Baccarat"
+          title={`BG ${config.englishTitle}`}
           src={launchUrl}
           onLoad={() => {
             setFrameLoaded(true);
             setFrameVisible(true);
           }}
-          className="absolute inset-0 h-full w-full border-0 bg-[#050A13]"
+          className="absolute inset-0 h-full w-full border-0"
+          style={{ backgroundColor: config.screenBg }}
           allow="autoplay; clipboard-read; clipboard-write; fullscreen"
           referrerPolicy="strict-origin-when-cross-origin"
           loading="eager"
@@ -147,37 +167,38 @@ export function BaccaratPage() {
       ) : null}
 
       {showLoadingCover ? (
-        <section className="absolute inset-0 z-10 overflow-hidden bg-[#060B14]">
+        <section className="absolute inset-0 z-10 overflow-hidden" style={{ backgroundColor: config.screenBg }}>
           <img
-            src="/game-art/baccarat/background.png"
+            src={config.background}
             alt=""
             aria-hidden="true"
             className="absolute inset-0 h-full w-full object-cover object-[62%_center] opacity-70"
+            style={{ objectPosition: config.backgroundPosition }}
           />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,8,18,0.94)_0%,rgba(3,8,18,0.74)_44%,rgba(3,8,18,0.28)_100%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_28%,rgba(232,212,138,0.22),transparent_30%)]" />
+          <div className={`absolute inset-0 ${config.overlayClassName}`} />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_28%,rgba(232,212,138,0.20),transparent_30%)]" />
 
           <div className="relative z-10 flex min-h-[100svh] items-center px-6 py-8 sm:px-10 lg:px-16">
             <div className="max-w-[520px]">
-              <div className="inline-flex items-center rounded-full border border-[#E8D48A]/35 bg-[#E8D48A]/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-[#E8D48A]">
-                Baccarat Hall
+              <div className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] ${config.badgeClassName}`}>
+                {config.eyebrow}
               </div>
               <h1 className="mt-5 text-[38px] font-black leading-tight sm:text-[54px]">
-                進入遊戲中
+                {config.loadingTitle}
               </h1>
               <p className="mt-4 max-w-[420px] text-[15px] leading-7 text-white/72">
-                正在連接真人百家樂大廳，將直接切換到全螢幕遊戲畫面。
+                {config.description}
               </p>
 
-              <div className="mt-7 inline-flex items-center gap-3 rounded-[18px] border border-white/12 bg-white/[0.08] px-4 py-3 text-[14px] text-white/88 backdrop-blur">
-                <Loader2 className="h-4 w-4 animate-spin text-[#E8D48A]" aria-hidden="true" />
+              <div className={`mt-7 inline-flex items-center gap-3 rounded-[18px] border px-4 py-3 text-[14px] text-white/88 backdrop-blur ${config.panelClassName}`}>
+                <Loader2 className={`h-4 w-4 animate-spin ${config.spinnerClassName}`} aria-hidden="true" />
                 <span>{message}</span>
               </div>
 
               <div className="mt-7 flex flex-wrap gap-2">
                 <Link
                   to="/lobby"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/14 bg-black/25 px-4 py-2 text-[13px] font-semibold text-white/82 backdrop-blur transition hover:border-white/28 hover:bg-black/35 hover:text-white"
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-semibold backdrop-blur transition ${config.actionClassName}`}
                 >
                   <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                   返回大廳
@@ -185,7 +206,7 @@ export function BaccaratPage() {
                 <button
                   type="button"
                   onClick={handleReload}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/14 bg-black/25 px-4 py-2 text-[13px] font-semibold text-white/82 backdrop-blur transition hover:border-white/28 hover:bg-black/35 hover:text-white"
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-semibold backdrop-blur transition ${config.actionClassName}`}
                 >
                   <RefreshCw className="h-4 w-4" aria-hidden="true" />
                   重新載入
@@ -211,6 +232,9 @@ export function BaccaratPage() {
                   <div>currentRole: {diagnostics.currentRole}</div>
                   <div>serverUser: {diagnostics.serverUser}</div>
                   <div>serverRole: {diagnostics.serverRole}</div>
+                  <div>gameId: {diagnostics.gameId}</div>
+                  <div>provider: {diagnostics.provider}</div>
+                  <div>skin: {diagnostics.skin}</div>
                   <div>statusCode: {diagnostics.statusCode}</div>
                   <div>errorCode: {diagnostics.errorCode}</div>
                   <div>rawMessage: {diagnostics.rawMessage}</div>

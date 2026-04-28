@@ -58,7 +58,9 @@ const MOBILE_HALL_LABEL: Record<HallId, string> = {
 };
 
 const MOBILE_GAME_NAME: Record<string, string> = {
-  baccarat: '百家樂',
+  baccarat: '皇家百家',
+  'baccarat-nova': '星耀百家',
+  'baccarat-imperial': '御龍百家',
   dice: '骰子',
   mines: '踩地雷',
   hilo: '猜大小',

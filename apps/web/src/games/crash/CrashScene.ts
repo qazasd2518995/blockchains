@@ -139,6 +139,7 @@ export class CrashScene {
   private variant: CrashVariant = 'rocket';
 
   // Layers
+  private backgroundLayer: Container | null = null;
   private starfield: Container | null = null;
   private curveLayer: Graphics | null = null;
   private craftContainer: Container | null = null;
@@ -151,6 +152,8 @@ export class CrashScene {
   private craftTexture: Texture | null = null;
   private craftSprite: Sprite | null = null;
   private craftBaseScale = 1;
+  private backgroundTileWidth = 0;
+  private cameraOffsetX = 0;
 
   // Text
   private multiplierLabel: Text | null = null;
@@ -274,12 +277,25 @@ export class CrashScene {
     });
     this.app.stage.addChild(base);
 
+    const backgroundLayer = new Container();
+    this.backgroundLayer = backgroundLayer;
+    this.app.stage.addChild(backgroundLayer);
+
     if (this.backgroundTexture) {
       const bgSprite = new Sprite(this.backgroundTexture);
       fitSpriteCover(bgSprite, this.width, this.height);
       bgSprite.alpha = 0.92;
-      this.app.stage.addChild(bgSprite);
+      const tileWidth = Math.max(this.width, bgSprite.width || this.width);
+      this.backgroundTileWidth = tileWidth;
+      for (let i = -1; i <= 2; i += 1) {
+        const tile = i === 0 ? bgSprite : new Sprite(this.backgroundTexture);
+        if (i !== 0) fitSpriteCover(tile, this.width, this.height);
+        tile.alpha = 0.92;
+        tile.x += i * tileWidth;
+        backgroundLayer.addChild(tile);
+      }
     } else {
+      this.backgroundTileWidth = this.width;
       const fallback = new Graphics();
       const steps = 10;
       for (let i = 0; i < steps; i += 1) {
@@ -291,7 +307,7 @@ export class CrashScene {
           alpha: alpha * 0.15,
         });
       }
-      this.app.stage.addChild(fallback);
+      backgroundLayer.addChild(fallback);
     }
 
     const shade = new Graphics()
@@ -321,8 +337,10 @@ export class CrashScene {
     const grid = new Graphics();
     const cols = 8;
     const rows = 5;
-    for (let i = 0; i <= cols; i += 1) {
-      const x = (this.width / cols) * i;
+    const gridTileWidth = this.backgroundTileWidth || this.width;
+    const gridStartX = -gridTileWidth;
+    const gridEndX = gridTileWidth * 3;
+    for (let x = gridStartX; x <= gridEndX; x += this.width / cols) {
       grid.moveTo(x, 0).lineTo(x, this.height).stroke({
         color: COLOR_ACID,
         width: 1,
@@ -331,13 +349,13 @@ export class CrashScene {
     }
     for (let i = 0; i <= rows; i += 1) {
       const y = (this.height / rows) * i;
-      grid.moveTo(0, y).lineTo(this.width, y).stroke({
+      grid.moveTo(gridStartX, y).lineTo(gridEndX, y).stroke({
         color: COLOR_ACID,
         width: 1,
         alpha: 0.035,
       });
     }
-    this.app.stage.addChild(grid);
+    backgroundLayer.addChild(grid);
   }
 
   private createStars(): void {
@@ -629,6 +647,7 @@ export class CrashScene {
       trailTick += tk.deltaTime;
 
       // 計算 craft 位置
+      this.updateCameraForMultiplier(this.currentMultiplier, tk.deltaTime);
       const pos = this.multiplierToPosition(this.currentMultiplier);
       if (this.craft && this.craftContainer) {
         const flightAngle = this.flightTangentAngle(this.currentMultiplier);
@@ -664,7 +683,86 @@ export class CrashScene {
    * 不同飛行館使用不同 flight profile，讓視覺節奏不再都從左下飛到右上。
    */
   private multiplierToPosition(m: number): { x: number; y: number } {
-    return this.positionAtProgress(this.flightProgress(m));
+    const world = this.multiplierToWorldPosition(m);
+    return {
+      x: world.x - this.cameraOffsetX,
+      y: world.y,
+    };
+  }
+
+  private multiplierToWorldPosition(m: number): FlightPoint {
+    const base = this.positionAtProgress(this.flightProgress(m));
+    return {
+      x: base.x + this.extraForwardTravel(m),
+      y: base.y,
+    };
+  }
+
+  private extraForwardTravel(m: number): number {
+    const assetVariant = ASSET_VARIANT[this.variant];
+    const trigger =
+      assetVariant === 'rocket' || assetVariant === 'fleet' || assetVariant === 'balloon' || assetVariant === 'plinko'
+        ? 1.55
+        : 1.18;
+    const excess = Math.max(0, m - trigger);
+    if (excess <= 0) return 0;
+
+    const speedByVariant: Record<Exclude<CrashVariant, 'default'>, number> = {
+      rocket: 0.2,
+      aviator: 0.5,
+      balloon: 0.16,
+      jet: 0.62,
+      fleet: 0.28,
+      jet3: 0.58,
+      double: 0.56,
+      plinko: 0.3,
+    };
+    return this.width * speedByVariant[assetVariant] * Math.log1p(excess);
+  }
+
+  private updateCameraForMultiplier(m: number, deltaTime: number): void {
+    const world = this.multiplierToWorldPosition(m);
+    const followAnchor = this.width * (this.width < 520 ? 0.66 : 0.7);
+    const desired = Math.max(0, world.x - followAnchor);
+    const easedDesired = prefersReducedMotion() ? desired * 0.45 : desired;
+    const ease = Math.min(1, (prefersReducedMotion() ? 0.08 : 0.18) * deltaTime);
+    const next = this.cameraOffsetX + (easedDesired - this.cameraOffsetX) * ease;
+    const cameraDelta = next - this.cameraOffsetX;
+    this.cameraOffsetX = next;
+    this.applyCameraScroll(cameraDelta);
+  }
+
+  private resetCamera(): void {
+    this.cameraOffsetX = 0;
+    this.applyCameraScroll(0);
+  }
+
+  private applyCameraScroll(cameraDelta: number): void {
+    const tileWidth = this.backgroundTileWidth || this.width || 1;
+    if (this.backgroundLayer) {
+      const scroll = ((this.cameraOffsetX * 0.58) % tileWidth + tileWidth) % tileWidth;
+      this.backgroundLayer.x = -scroll;
+    }
+
+    if (Math.abs(cameraDelta) < 0.001 || this.phase !== 'running') return;
+
+    for (const star of this.stars) {
+      star.g.x -= cameraDelta * (0.08 + star.speed * 0.08);
+      if (star.g.x < -8) {
+        star.g.x = this.width + 8;
+        star.g.y = Math.random() * this.height;
+      } else if (star.g.x > this.width + 8) {
+        star.g.x = -8;
+        star.g.y = Math.random() * this.height;
+      }
+    }
+
+    for (const dot of this.trailDots) {
+      dot.g.x -= cameraDelta;
+    }
+    for (const particle of this.particleList) {
+      particle.g.x -= cameraDelta;
+    }
   }
 
   private flightProgress(m: number): number {
@@ -757,9 +855,9 @@ export class CrashScene {
   }
 
   private flightTangentAngle(m: number): number {
-    const progress = Math.max(0.01, this.flightProgress(m));
-    const a = this.positionAtProgress(Math.max(0, progress - 0.012));
-    const b = this.positionAtProgress(Math.min(1, progress + 0.012));
+    const delta = Math.max(0.016, m * 0.012);
+    const a = this.multiplierToWorldPosition(Math.max(1, m - delta));
+    const b = this.multiplierToWorldPosition(m + delta);
     return Math.atan2(b.y - a.y, b.x - a.x);
   }
 
@@ -903,6 +1001,7 @@ export class CrashScene {
     this.currentMultiplier = 1.0;
     this.curveLayer?.clear();
     this.curvePoints = [];
+    this.resetCamera();
 
     this.clearTrail();
     this.restoreCraftVisuals();
@@ -977,6 +1076,7 @@ export class CrashScene {
     this.tensionStart = performance.now() / 1000;
     this.curveLayer?.clear();
     this.curvePoints = [];
+    this.resetCamera();
     this.clearTrail();
     this.restoreCraftVisuals();
     if (this.craft) {
@@ -1278,6 +1378,7 @@ export class CrashScene {
     this.winFx = null;
     this.app?.destroy(false, { children: true });
     this.app = null;
+    this.backgroundLayer = null;
     this.starfield = null;
     this.curveLayer = null;
     this.craftContainer = null;
@@ -1292,6 +1393,8 @@ export class CrashScene {
     this.particleList = [];
     this.trailDots = [];
     this.curvePoints = [];
+    this.backgroundTileWidth = 0;
+    this.cameraOffsetX = 0;
   }
 
   /** L4 共用大獎慶典 — GamePage 在拿到 result 後呼叫一次 */

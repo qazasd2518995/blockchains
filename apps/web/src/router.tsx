@@ -45,7 +45,9 @@ export const router = createBrowserRouter([
       </AuthGuard>
     ),
     children: [
-      { path: '/games/baccarat', element: <BaccaratPage /> },
+      { path: '/games/baccarat', element: <BaccaratPage variant="royal" /> },
+      { path: '/games/baccarat-nova', element: <BaccaratPage variant="nova" /> },
+      { path: '/games/baccarat-imperial', element: <BaccaratPage variant="imperial" /> },
     ],
   },
   {

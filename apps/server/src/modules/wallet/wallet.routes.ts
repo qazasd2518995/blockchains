@@ -72,6 +72,14 @@ function resolveTransactionGameId(
     return record.gameId;
   }
 
+  const payload = record.payload;
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    const payloadRecord = payload as Record<string, unknown>;
+    if (typeof payloadRecord.gameId === 'string' && payloadRecord.gameId) {
+      return payloadRecord.gameId;
+    }
+  }
+
   if (
     record.source === 'baccarat_bet' ||
     record.source === 'baccarat_refund' ||

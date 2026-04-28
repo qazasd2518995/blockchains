@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { BACCARAT_GAME_IDS } from '@bg/shared';
 
 export type RebateCategory = 'electronic' | 'baccarat';
 export type RebateModeValue = 'PERCENTAGE' | 'ALL' | 'NONE';
@@ -21,6 +22,11 @@ export interface BetAmountMix {
 export const ELECTRONIC_REBATE_CAP = new Prisma.Decimal('0.025');
 export const BACCARAT_REBATE_CAP = new Prisma.Decimal('0.010');
 const ZERO = new Prisma.Decimal(0);
+const BACCARAT_GAME_ID_SET = new Set<string>(BACCARAT_GAME_IDS);
+
+export function isBaccaratGameId(gameId?: string | null): boolean {
+  return Boolean(gameId && BACCARAT_GAME_ID_SET.has(gameId));
+}
 
 export function getPlatformRebateCap(category: RebateCategory): Prisma.Decimal {
   return category === 'baccarat' ? BACCARAT_REBATE_CAP : ELECTRONIC_REBATE_CAP;
@@ -98,7 +104,7 @@ export function assertRebateWithinBounds(
 }
 
 export function getGameRebateCategory(gameId?: string | null): RebateCategory {
-  return gameId === 'baccarat' ? 'baccarat' : 'electronic';
+  return isBaccaratGameId(gameId) ? 'baccarat' : 'electronic';
 }
 
 export function calculateRebateAmountByCategory(

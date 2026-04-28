@@ -7,6 +7,8 @@ const LOBBY_COVER_OVERRIDES: Record<string, string> = {
   'candy-slot': '/slots/candy/cover.png',
   'sakura-slot': '/slots/sakura/cover.png',
   baccarat: '/game-art/baccarat/cover.png',
+  'baccarat-nova': '/games/baccarat.jpg',
+  'baccarat-imperial': '/game-art/baccarat/background.png',
   dice: '/game-art/dice/cover.png',
   mines: '/game-art/mines/cover.png',
   hilo: '/game-art/hilo/cover.png',

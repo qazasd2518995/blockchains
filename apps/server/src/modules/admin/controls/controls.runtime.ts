@@ -1,5 +1,6 @@
 import { ManualDetectionScope, Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
+import { BACCARAT_GAME_IDS } from '@bg/shared';
 import { listAgentDescendants } from '../../../utils/hierarchy.js';
 import { getAdminGameDay, getAdminGameDayWindow } from '../gameDay.js';
 import {
@@ -438,7 +439,7 @@ async function queryBetAggregate(
     db.bet.aggregate({
       where: {
         ...userWhere,
-        gameId: 'baccarat',
+        gameId: { in: [...BACCARAT_GAME_IDS] },
         status: 'SETTLED',
         createdAt: { gte: window.start, lt: window.end },
       },

@@ -3,7 +3,7 @@ import { ApiError } from '../../../utils/errors.js';
 import { listAgentDescendants, canManageAgent } from '../../../utils/hierarchy.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import type { ReportQuery, AgentAnalysisQuery } from './report.schema.js';
-import type { DashboardSummaryResponse } from '@bg/shared';
+import { BACCARAT_GAME_IDS, type DashboardSummaryResponse } from '@bg/shared';
 import {
   getAdminGameDay,
   getAdminGameDayWindowByDay,
@@ -15,6 +15,7 @@ import {
   calculateRebateAmountByCategory,
   effectiveDownlineRebate,
   fallbackRateForGame,
+  isBaccaratGameId,
   weightedRate,
 } from '../rebate.js';
 
@@ -744,7 +745,7 @@ export class ReportService {
 
   private buildBetWhere(input: {
     memberIds: string[] | null;
-    gameId?: string;
+    gameId?: string | string[];
     startDate?: Date;
     endDate?: Date;
     cursor?: MergedCursor;
@@ -752,7 +753,11 @@ export class ReportService {
   }): Prisma.BetWhereInput {
     const where: Prisma.BetWhereInput = {};
     if (input.memberIds) where.userId = { in: input.memberIds };
-    if (input.gameId) where.gameId = input.gameId;
+    if (Array.isArray(input.gameId)) {
+      where.gameId = { in: [...input.gameId] };
+    } else if (input.gameId) {
+      where.gameId = input.gameId;
+    }
     if (input.startDate) where.createdAt = { ...(where.createdAt as object), gte: input.startDate };
     if (input.endDate) where.createdAt = { ...(where.createdAt as object), lte: input.endDate };
     applySettlementFilter(where, input.settlementStatus);
@@ -795,7 +800,8 @@ export class ReportService {
     electronicBetAmount: Prisma.Decimal;
     baccaratBetAmount: Prisma.Decimal;
   }> {
-    const shouldQueryBaccarat = !input.gameId || input.gameId === 'baccarat';
+    const shouldQueryBaccarat = !input.gameId || isBaccaratGameId(input.gameId);
+    const baccaratGameFilter = input.gameId ? input.gameId : [...BACCARAT_GAME_IDS];
     const [standardAgg, baccaratAgg, crashAgg] = await Promise.all([
       this.prisma.bet.aggregate({
         where: this.buildBetWhere(input),
@@ -804,7 +810,7 @@ export class ReportService {
       }),
       shouldQueryBaccarat
         ? this.prisma.bet.aggregate({
-            where: this.buildBetWhere({ ...input, gameId: 'baccarat' }),
+            where: this.buildBetWhere({ ...input, gameId: baccaratGameFilter }),
             _sum: { amount: true },
           })
         : Promise.resolve({ _sum: { amount: new Prisma.Decimal(0) } }),
@@ -1021,7 +1027,7 @@ export interface AgentAnalysisRow extends AgentSubtreeStats {
 
 function resolveConfiguredDisplayRate(agent: DualRebateProfile, gameId?: string): Prisma.Decimal {
   if (!gameId) return new Prisma.Decimal(0);
-  return effectiveDownlineRebate(agent, gameId === 'baccarat' ? 'baccarat' : 'electronic');
+  return effectiveDownlineRebate(agent, isBaccaratGameId(gameId) ? 'baccarat' : 'electronic');
 }
 
 export interface HierarchyReportCommon {

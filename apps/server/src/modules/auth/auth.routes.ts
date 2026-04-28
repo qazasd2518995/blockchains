@@ -1,11 +1,18 @@
 import { createHmac } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
+import { BACCARAT_GAME_IDS } from '@bg/shared';
 import { loginSchema, refreshSchema } from './auth.schema.js';
 import { AuthService } from './auth.service.js';
 import { ApiError } from '../../utils/errors.js';
 import { config } from '../../config.js';
 
 const BACCARAT_LAUNCH_TTL_SECONDS = 15 * 60;
+const baccaratLaunchBodySchema = z.object({
+  gameId: z.enum(BACCARAT_GAME_IDS).default('baccarat'),
+  provider: z.string().min(1).max(80).default('Royal Crown Studios'),
+  skin: z.enum(['royal', 'nova', 'imperial']).default('royal'),
+});
 
 function toBase64Url(value: string): string {
   return Buffer.from(value).toString('base64url');
@@ -71,6 +78,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.post('/baccarat-launch', { preHandler: [fastify.authenticate] }, async (req) => {
+    const body = baccaratLaunchBodySchema.parse(req.body ?? {});
     const user = await fastify.prisma.user.findUnique({
       where: { id: req.userId },
       select: { id: true, username: true, role: true, balance: true, displayName: true, disabledAt: true },
@@ -89,6 +97,9 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
       displayName: user.displayName,
       balance: user.balance.toFixed(2),
       role: 'member',
+      gameId: body.gameId,
+      provider: body.provider,
+      skin: body.skin,
     });
 
     return { launchToken };

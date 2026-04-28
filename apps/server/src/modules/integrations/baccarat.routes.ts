@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
+import { BACCARAT_GAME_IDS } from '@bg/shared';
 import { config } from '../../config.js';
 import { ApiError } from '../../utils/errors.js';
 import {
@@ -32,7 +33,7 @@ const settleSchema = z.object({
   userId: z.string().min(1),
   amount: amountSchema,
   payout: z.coerce.number().min(0).max(1_000_000_000),
-  gameId: z.string().min(1).default('baccarat'),
+  gameId: z.enum(BACCARAT_GAME_IDS).default('baccarat'),
   resultData: z.unknown().optional(),
 });
 
