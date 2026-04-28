@@ -417,8 +417,9 @@ export class ReportService {
       uplineSettlement: string;
     };
   }> {
+    const isPlatformRoot = operator.role === 'SUPER_ADMIN' && !query.parentId;
     const parentId = query.parentId ?? operator.id;
-    const ok = await canManageAgent(this.prisma, operator, parentId);
+    const ok = isPlatformRoot || await canManageAgent(this.prisma, operator, parentId);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot view this subtree');
 
     const parent = await this.prisma.agent.findUnique({
@@ -440,8 +441,10 @@ export class ReportService {
     if (!parent) throw new ApiError('AGENT_NOT_FOUND', 'Parent agent not found');
 
     // breadcrumb 從 parent 沿 parentId 向上
-    const breadcrumb: { id: string; username: string; level: number }[] = [];
-    let cursor: string | null = parent.id;
+    const breadcrumb: { id: string; username: string; level: number }[] = isPlatformRoot
+      ? [{ id: '', username: '全平台', level: 0 }]
+      : [];
+    let cursor: string | null = isPlatformRoot ? null : parent.id;
     while (cursor) {
       const a: {
         id: string;
@@ -456,25 +459,54 @@ export class ReportService {
       breadcrumb.unshift({ id: a.id, username: a.username, level: a.level });
       cursor = a.parentId;
     }
+    if (operator.role === 'SUPER_ADMIN' && !isPlatformRoot && breadcrumb[0]?.id !== '') {
+      breadcrumb.unshift({ id: '', username: '全平台', level: 0 });
+    }
 
     const { start: startDate, end: endDate } = resolveAdminGameDayRange(query);
     const gameId = query.gameId;
     const username = query.username?.trim();
-    const accountSearchWhere = username
+    const agentAccountSearchWhere: Prisma.AgentWhereInput | undefined = username
       ? {
           OR: [
             { username: { contains: username, mode: 'insensitive' as const } },
             { displayName: { contains: username, mode: 'insensitive' as const } },
           ],
         }
-      : {};
+      : undefined;
+    const memberAccountSearchWhere: Prisma.UserWhereInput | undefined = username
+      ? {
+          OR: [
+            { username: { contains: username, mode: 'insensitive' as const } },
+            { displayName: { contains: username, mode: 'insensitive' as const } },
+          ],
+        }
+      : undefined;
+
+    const childAgentBaseWhere: Prisma.AgentWhereInput = isPlatformRoot
+      ? {
+          OR: [{ parentId: null }, { parentId: operator.id }],
+          id: { not: operator.id },
+          role: { not: 'SUPER_ADMIN' },
+          status: { not: 'DELETED' },
+        }
+      : { parentId, status: { not: 'DELETED' } };
+    const directMemberBaseWhere: Prisma.UserWhereInput = isPlatformRoot
+      ? { OR: [{ agentId: null }, { agentId: operator.id }] }
+      : { agentId: parentId };
+    const childAgentWhere: Prisma.AgentWhereInput = agentAccountSearchWhere
+      ? { AND: [childAgentBaseWhere, agentAccountSearchWhere] }
+      : childAgentBaseWhere;
+    const directMemberWhere: Prisma.UserWhereInput = memberAccountSearchWhere
+      ? { AND: [directMemberBaseWhere, memberAccountSearchWhere] }
+      : directMemberBaseWhere;
 
     const childAgents = await this.prisma.agent.findMany({
-      where: { parentId, status: { not: 'DELETED' }, ...accountSearchWhere },
+      where: childAgentWhere,
       orderBy: { createdAt: 'asc' },
     });
     const directMembers = await this.prisma.user.findMany({
-      where: { agentId: parentId, ...accountSearchWhere },
+      where: directMemberWhere,
       orderBy: { createdAt: 'asc' },
     });
 
@@ -604,13 +636,13 @@ export class ReportService {
 
     return {
       parent: {
-        id: parent.id,
-        username: parent.username,
-        level: parent.level,
+        id: isPlatformRoot ? '' : parent.id,
+        username: isPlatformRoot ? '全平台' : parent.username,
+        level: isPlatformRoot ? 0 : parent.level,
         rebatePercentage: resolveConfiguredDisplayRate(parent, gameId).toFixed(4),
         commissionRate: '0.0000',
         balance: parent.balance.toFixed(2),
-        parentId: parent.parentId,
+        parentId: isPlatformRoot ? null : parent.parentId,
       },
       breadcrumb,
       items,

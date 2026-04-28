@@ -124,9 +124,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 title="重新載入餘額"
                 aria-label="重新載入餘額"
               >
-                <span className="label !text-white/60">{t.common.balance}</span>
-                <span className="data-num text-[14px] font-semibold text-[#E8D48A]">
-                  {formatAmount(user.balance ?? '0')}
+                <span className="flex min-w-0 flex-col items-start leading-none">
+                  <span className="max-w-[132px] truncate text-[11px] font-semibold text-white/72">
+                    帳號 {user.username}
+                  </span>
+                  <span className="mt-1 flex items-center gap-1.5">
+                    <span className="label !text-white/60">{t.common.balance}</span>
+                    <span className="data-num text-[14px] font-semibold text-[#E8D48A]">
+                      {formatAmount(user.balance ?? '0')}
+                    </span>
+                  </span>
                 </span>
                 <RefreshCw className="h-3.5 w-3.5 text-white/60" />
               </button>

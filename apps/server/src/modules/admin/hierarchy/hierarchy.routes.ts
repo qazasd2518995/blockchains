@@ -16,9 +16,10 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
    */
   fastify.get('/', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
     const q = querySchema.parse(req.query);
+    const isPlatformRoot = req.admin.role === 'SUPER_ADMIN' && !q.parentId;
     const parentId = q.parentId ?? req.admin.id;
 
-    const ok = await canManageAgent(fastify.prisma, req.admin, parentId);
+    const ok = isPlatformRoot || await canManageAgent(fastify.prisma, req.admin, parentId);
     if (!ok) {
       return { parent: null, items: [], stats: { agentCount: 0, memberCount: 0 } };
     }
@@ -51,8 +52,10 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
       id: string;
       username: string;
       level: number;
-    }[] = [];
-    let cursor: { id: string; parentId: string | null } | null = { id: parent.id, parentId: parent.parentId };
+    }[] = isPlatformRoot ? [{ id: '', username: '全平台', level: 0 }] : [];
+    let cursor: { id: string; parentId: string | null } | null = isPlatformRoot
+      ? null
+      : { id: parent.id, parentId: parent.parentId };
     while (cursor) {
       const a: {
         id: string;
@@ -67,36 +70,55 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
       breadcrumb.unshift({ id: a.id, username: a.username, level: a.level });
       cursor = a.parentId ? { id: a.parentId, parentId: null } : null;
     }
+    if (req.admin.role === 'SUPER_ADMIN' && !isPlatformRoot && breadcrumb[0]?.id !== '') {
+      breadcrumb.unshift({ id: '', username: '全平台', level: 0 });
+    }
 
-    const agentWhere: Prisma.AgentWhereInput = {
-      parentId,
-      status: { not: 'DELETED' },
-    };
-    const memberWhere: Prisma.UserWhereInput = {
-      agentId: parentId,
-    };
+    const agentBaseWhere: Prisma.AgentWhereInput = isPlatformRoot
+      ? {
+          OR: [{ parentId: null }, { parentId: req.admin.id }],
+          id: { not: req.admin.id },
+          role: { not: 'SUPER_ADMIN' },
+          status: { not: 'DELETED' },
+        }
+      : { parentId, status: { not: 'DELETED' } };
+    const memberBaseWhere: Prisma.UserWhereInput = isPlatformRoot
+      ? { OR: [{ agentId: null }, { agentId: req.admin.id }] }
+      : { agentId: parentId };
     if (q.status === 'FROZEN') {
-      agentWhere.status = 'FROZEN';
-      memberWhere.frozenAt = { not: null };
-      memberWhere.disabledAt = null;
+      agentBaseWhere.status = 'FROZEN';
+      memberBaseWhere.frozenAt = { not: null };
+      memberBaseWhere.disabledAt = null;
     } else if (q.status === 'ACTIVE') {
-      agentWhere.status = 'ACTIVE';
-      memberWhere.frozenAt = null;
-      memberWhere.disabledAt = null;
+      agentBaseWhere.status = 'ACTIVE';
+      memberBaseWhere.frozenAt = null;
+      memberBaseWhere.disabledAt = null;
     } else if (q.status === 'DISABLED') {
-      agentWhere.status = 'DISABLED';
-      memberWhere.disabledAt = { not: null };
+      agentBaseWhere.status = 'DISABLED';
+      memberBaseWhere.disabledAt = { not: null };
     }
-    if (q.keyword) {
-      agentWhere.OR = [
-        { username: { contains: q.keyword, mode: 'insensitive' } },
-        { displayName: { contains: q.keyword, mode: 'insensitive' } },
-      ];
-      memberWhere.OR = [
-        { username: { contains: q.keyword, mode: 'insensitive' } },
-        { displayName: { contains: q.keyword, mode: 'insensitive' } },
-      ];
-    }
+    const agentSearchWhere: Prisma.AgentWhereInput | undefined = q.keyword
+      ? {
+          OR: [
+            { username: { contains: q.keyword, mode: 'insensitive' } },
+            { displayName: { contains: q.keyword, mode: 'insensitive' } },
+          ],
+        }
+      : undefined;
+    const memberSearchWhere: Prisma.UserWhereInput | undefined = q.keyword
+      ? {
+          OR: [
+            { username: { contains: q.keyword, mode: 'insensitive' } },
+            { displayName: { contains: q.keyword, mode: 'insensitive' } },
+          ],
+        }
+      : undefined;
+    const agentWhere: Prisma.AgentWhereInput = agentSearchWhere
+      ? { AND: [agentBaseWhere, agentSearchWhere] }
+      : agentBaseWhere;
+    const memberWhere: Prisma.UserWhereInput = memberSearchWhere
+      ? { AND: [memberBaseWhere, memberSearchWhere] }
+      : memberBaseWhere;
 
     const [agents, members] = await Promise.all([
       fastify.prisma.agent.findMany({

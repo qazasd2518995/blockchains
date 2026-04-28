@@ -32,7 +32,7 @@ export function AgentHierarchyPage(): JSX.Element {
   const { agent: me } = useAdminAuthStore();
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
-  const currentParent = params.get('parent') ?? me?.id ?? '';
+  const currentParent = params.get('parent') ?? (me?.role === 'SUPER_ADMIN' ? '' : me?.id ?? '');
 
   const [data, setData] = useState<HierarchyResponse | null>(null);
   const [loading, setLoading] = useState(true);

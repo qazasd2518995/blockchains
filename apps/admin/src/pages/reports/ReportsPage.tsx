@@ -15,7 +15,7 @@ export function ReportsPage(): JSX.Element {
   const navigate = useNavigate();
   const { agent: me } = useAdminAuthStore();
   const [params, setParams] = useSearchParams();
-  const currentParent = params.get('parent') ?? me?.id ?? '';
+  const currentParent = params.get('parent') ?? (me?.role === 'SUPER_ADMIN' ? '' : me?.id ?? '');
 
   const [startDate, setStartDate] = useState(params.get('startDate') ?? '');
   const [endDate, setEndDate] = useState(params.get('endDate') ?? '');

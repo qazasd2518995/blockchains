@@ -159,6 +159,7 @@ export function LobbyPage() {
 
 function MobileLobbyOnePage() {
   const user = useAuthStore((state) => state.user);
+  const username = user?.username ?? 'guest';
   const [onlineCount] = useState(() => getDriftedOnlineCount() + 5200);
   const [activeCategory, setActiveCategory] = useState<'all' | HallId>('all');
   const activeCategoryMeta =
@@ -194,10 +195,7 @@ function MobileLobbyOnePage() {
             </span>
           </div>
 
-          <div className="flex min-w-0 flex-1 items-center justify-center gap-0.5">
-            <span className="min-w-0 max-w-[54px] truncate text-[11px] font-bold leading-none text-[#344154] min-[390px]:max-w-[66px]">
-              {user?.username ?? 'guest'}
-            </span>
+          <div className="flex min-w-[38px] flex-1 items-center justify-center">
             <span className="inline-flex h-[18px] shrink-0 items-center gap-0.5 rounded-[6px] bg-[#4B5563] px-1 text-[10px] font-black leading-none text-white">
               <Crown className="h-2.5 w-2.5" aria-hidden="true" />
               VIP1
@@ -208,9 +206,15 @@ function MobileLobbyOnePage() {
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#FFEEA6] text-[#6A4B00] max-[360px]:hidden">
               <Mail className="h-4 w-4" aria-hidden="true" />
             </div>
-            <div className="flex h-8 min-w-0 items-center gap-1 rounded-[8px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12]">
+            <div
+              className="flex h-8 w-[118px] min-w-0 items-center gap-1 rounded-[8px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12] min-[390px]:w-[132px]"
+              aria-label={`帳號 ${username}，餘額 ${formatAmount(user?.balance ?? '0')}`}
+            >
               <WalletCards className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span className="data-num max-w-[72px] truncate text-[11px] font-black">
+              <span className="min-w-0 flex-1 truncate text-[10px] font-black leading-none text-[#5F4A14]">
+                {username}
+              </span>
+              <span className="data-num max-w-[50px] shrink-0 truncate text-[11px] font-black min-[390px]:max-w-[58px]">
                 {formatAmount(user?.balance ?? '0')}
               </span>
             </div>
