@@ -28,4 +28,10 @@ export interface TransactionEntry {
 export interface TransactionListResponse {
   items: TransactionEntry[];
   nextCursor: string | null;
+  summary: {
+    totalIn: string;
+    totalOut: string;
+    net: string;
+    totalCount: number;
+  };
 }

@@ -93,7 +93,13 @@ export const zh = {
   history: {
     ledger: '账目',
     txLog: '交易明细',
+    dateSearch: '日期查询',
+    currentRange: '当前区间',
+    fromDate: '开始日期',
+    toDate: '结束日期',
+    search: '查询',
     noRecords: '暂无记录',
+    noRecordsInRange: '这个日期区间没有交易明细',
     placeFirst: '开始游戏',
     showing: '显示',
     entries: '笔',
