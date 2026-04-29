@@ -9,7 +9,7 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls } from '../_common/controls.js';
+import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
 import type { WheelBetInput } from './wheel.schema.js';
 
 export class WheelService {
@@ -49,7 +49,7 @@ export class WheelService {
       let finalMultiplier = multiplierD;
       let finalPayout = payout;
       if (controlled.controlled) {
-        finalSegmentIndex = chooseWheelSegment(table, controlled.won);
+        finalSegmentIndex = chooseWheelSegment(table, controlled.won, amount, controlled);
         finalMultiplier = new Prisma.Decimal((table[finalSegmentIndex] ?? 0).toFixed(4));
         finalPayout = amount.mul(finalMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
       }
@@ -116,10 +116,19 @@ export class WheelService {
   }
 }
 
-function chooseWheelSegment(table: number[], wantWin: boolean): number {
+function chooseWheelSegment(
+  table: number[],
+  wantWin: boolean,
+  amount: Prisma.Decimal,
+  controlled: Parameters<typeof multiplierMatchesControlBounds>[2],
+): number {
   const candidates = table
     .map((multiplier, segmentIndex) => ({ segmentIndex, multiplier }))
-    .filter((x) => (wantWin ? x.multiplier > 1 : x.multiplier <= 1));
+    .filter((x) =>
+      wantWin
+        ? x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
+        : x.multiplier <= 1,
+    );
   const pool = candidates.length > 0 ? candidates : table.map((multiplier, segmentIndex) => ({ segmentIndex, multiplier }));
   pool.sort((a, b) => (wantWin ? b.multiplier - a.multiplier : a.multiplier - b.multiplier));
   return pool[0]?.segmentIndex ?? 0;

@@ -41,6 +41,44 @@ export const agentLineControlSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
+export const burstControlSchema = z
+  .object({
+    scope: z.enum(['ALL', 'AGENT_LINE', 'MEMBER']),
+    targetAgentId: z.string().optional().nullable(),
+    targetAgentUsername: z.string().optional().nullable(),
+    targetMemberId: z.string().optional().nullable(),
+    targetMemberUsername: z.string().optional().nullable(),
+    dailyBudget: decimal,
+    memberDailyCap: decimal,
+    singlePayoutCap: decimal,
+    singleMultiplierCap: decimal.default('100'),
+    minBurstMultiplier: decimal.default('8'),
+    smallWinMultiplier: decimal.default('1.5'),
+    burstRate: decimal.default('0.03'),
+    smallWinRate: decimal.default('0.35'),
+    lossRate: decimal.default('0.45'),
+    compensationLoss: decimal.default('500'),
+    riskWinLimit: decimal.default('1000'),
+    cooldownRounds: z.coerce.number().int().min(0).max(200).default(8),
+    notes: z.string().max(500).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.scope === 'AGENT_LINE' && !value.targetAgentId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '代理线爆分控制必须指定目标代理',
+        path: ['targetAgentId'],
+      });
+    }
+    if (value.scope === 'MEMBER' && !value.targetMemberUsername && !value.targetMemberId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '会员爆分控制必须指定目标会员',
+        path: ['targetMemberUsername'],
+      });
+    }
+  });
+
 export const manualDetectionControlSchema = z
   .object({
     scope: z.enum(['ALL', 'AGENT_LINE', 'MEMBER']),
@@ -103,4 +141,5 @@ export type WinLossControlInput = z.infer<typeof winLossControlSchema>;
 export type WinCapControlInput = z.infer<typeof winCapControlSchema>;
 export type DepositControlInput = z.infer<typeof depositControlSchema>;
 export type AgentLineControlInput = z.infer<typeof agentLineControlSchema>;
+export type BurstControlInput = z.infer<typeof burstControlSchema>;
 export type ManualDetectionControlInput = z.infer<typeof manualDetectionControlSchema>;

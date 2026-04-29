@@ -5,6 +5,7 @@ import {
   winCapControlSchema,
   depositControlSchema,
   agentLineControlSchema,
+  burstControlSchema,
   manualDetectionControlSchema,
   manualDetectionQuerySchema,
   deactivateManualDetectionSchema,
@@ -16,6 +17,7 @@ import {
   getAllActiveManualDetectionControls,
   getControlGameDay,
   normalizeAgentLineCapDay,
+  normalizeBurstControlDay,
   normalizeMemberWinCapDay,
 } from './controls.runtime.js';
 import { writeAudit } from '../audit/audit.service.js';
@@ -402,6 +404,155 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
       await writeAudit(fastify.prisma, {
         actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
         action: 'control.agent_line.delete',
+        targetType: 'control',
+        targetId: id,
+        req,
+      });
+      reply.code(204).send();
+    },
+  );
+
+  fastify.get('/burst', { preHandler: [fastify.authenticateAdmin] }, async () => {
+    const items = await fastify.prisma.burstControl.findMany({ orderBy: { createdAt: 'desc' } });
+    const normalized = await Promise.all(items.map((item) => normalizeBurstControlDay(fastify.prisma, item)));
+    return {
+      items: normalized.map((item) => ({
+        ...item,
+        isBudgetSpent: item.todayBurstAmount.greaterThanOrEqualTo(item.dailyBudget),
+      })),
+    };
+  });
+
+  fastify.post(
+    '/burst',
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    async (req, reply) => {
+      const body = burstControlSchema.parse(req.body);
+
+      let targetAgentId = body.targetAgentId ?? null;
+      let targetAgentUsername = body.targetAgentUsername ?? null;
+      let targetMemberId = body.targetMemberId ?? null;
+      let targetMemberUsername = body.targetMemberUsername ?? null;
+
+      if (body.scope === 'AGENT_LINE') {
+        const agent = await fastify.prisma.agent.findUnique({
+          where: { id: targetAgentId ?? undefined },
+          select: { id: true, username: true },
+        });
+        if (!agent) {
+          reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
+          return;
+        }
+        targetAgentId = agent.id;
+        targetAgentUsername = agent.username;
+      }
+
+      if (body.scope === 'MEMBER') {
+        const member = targetMemberId
+          ? await fastify.prisma.user.findUnique({
+              where: { id: targetMemberId },
+              select: { id: true, username: true },
+            })
+          : await fastify.prisma.user.findUnique({
+              where: { username: targetMemberUsername ?? undefined },
+              select: { id: true, username: true },
+            });
+        if (!member) {
+          reply.code(404).send({ code: 'MEMBER_NOT_FOUND', message: 'Member not found' });
+          return;
+        }
+        targetMemberId = member.id;
+        targetMemberUsername = member.username;
+      }
+
+      const existing = await fastify.prisma.burstControl.findFirst({
+        where:
+          body.scope === 'ALL'
+            ? { scope: 'ALL', isActive: true }
+            : body.scope === 'AGENT_LINE'
+              ? { scope: 'AGENT_LINE', targetAgentId, isActive: true }
+              : { scope: 'MEMBER', targetMemberUsername, isActive: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const data = {
+        scope: body.scope as ManualDetectionScope,
+        targetAgentId,
+        targetAgentUsername,
+        targetMemberId,
+        targetMemberUsername,
+        dailyBudget: decimal(body.dailyBudget).toDecimalPlaces(2),
+        memberDailyCap: decimal(body.memberDailyCap).toDecimalPlaces(2),
+        singlePayoutCap: decimal(body.singlePayoutCap).toDecimalPlaces(2),
+        singleMultiplierCap: decimal(body.singleMultiplierCap).toDecimalPlaces(4),
+        minBurstMultiplier: decimal(body.minBurstMultiplier).toDecimalPlaces(4),
+        smallWinMultiplier: decimal(body.smallWinMultiplier).toDecimalPlaces(4),
+        burstRate: decimal(body.burstRate).toDecimalPlaces(4),
+        smallWinRate: decimal(body.smallWinRate).toDecimalPlaces(4),
+        lossRate: decimal(body.lossRate).toDecimalPlaces(4),
+        compensationLoss: decimal(body.compensationLoss).toDecimalPlaces(2),
+        riskWinLimit: decimal(body.riskWinLimit).toDecimalPlaces(2),
+        cooldownRounds: body.cooldownRounds,
+        currentGameDay: getControlGameDay(),
+        notes: body.notes ?? null,
+        operatorId: req.admin.id,
+        operatorUsername: req.admin.username,
+        isActive: true,
+      };
+
+      const record = existing
+        ? await fastify.prisma.burstControl.update({
+            where: { id: existing.id },
+            data,
+          })
+        : await fastify.prisma.burstControl.create({ data });
+
+      await writeAudit(fastify.prisma, {
+        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        action: existing ? 'control.burst.update' : 'control.burst.create',
+        targetType: 'control',
+        targetId: record.id,
+        newValues: {
+          scope: record.scope,
+          targetAgentId: record.targetAgentId,
+          targetMemberUsername: record.targetMemberUsername,
+          dailyBudget: record.dailyBudget.toFixed(2),
+          singlePayoutCap: record.singlePayoutCap.toFixed(2),
+        },
+        req,
+      });
+      reply.code(existing ? 200 : 201).send(record);
+    },
+  );
+
+  fastify.patch(
+    '/burst/:id/toggle',
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    async (req) => {
+      const { id } = req.params as { id: string };
+      const { isActive } = toggleSchema.parse(req.body);
+      const updated = await fastify.prisma.burstControl.update({ where: { id }, data: { isActive } });
+      await writeAudit(fastify.prisma, {
+        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        action: 'control.burst.toggle',
+        targetType: 'control',
+        targetId: id,
+        newValues: { isActive },
+        req,
+      });
+      return updated;
+    },
+  );
+
+  fastify.delete(
+    '/burst/:id',
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    async (req, reply) => {
+      const { id } = req.params as { id: string };
+      await fastify.prisma.burstControl.delete({ where: { id } });
+      await writeAudit(fastify.prisma, {
+        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        action: 'control.burst.delete',
         targetType: 'control',
         targetId: id,
         req,

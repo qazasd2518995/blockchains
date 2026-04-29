@@ -221,6 +221,71 @@ export async function normalizeAgentLineCapDay<T extends { id: string; currentGa
   });
 }
 
+export async function normalizeBurstControlDay<T extends { id: string; currentGameDay: string }>(
+  db: Db,
+  control: T,
+) {
+  const day = getControlGameDay();
+  if (control.currentGameDay === day) return control;
+  return db.burstControl.update({
+    where: { id: control.id },
+    data: {
+      currentGameDay: day,
+      todayBurstAmount: ZERO,
+      todayBurstCount: 0,
+    },
+  });
+}
+
+export async function getAllActiveBurstControls(db: Db) {
+  const items = await db.burstControl.findMany({
+    where: { isActive: true },
+    orderBy: { createdAt: 'desc' },
+  });
+  return [...items].sort((a, b) => {
+    const rankA = manualScopeRank(a.scope);
+    const rankB = manualScopeRank(b.scope);
+    if (rankA !== rankB) return rankA - rankB;
+    return b.createdAt.getTime() - a.createdAt.getTime();
+  });
+}
+
+export async function findApplicableBurstControl(
+  db: Db,
+  member: { username: string; agentId: string | null },
+) {
+  const controls = await getAllActiveBurstControls(db);
+  if (controls.length === 0) return null;
+
+  const memberControl = controls.find(
+    (control) =>
+      control.scope === 'MEMBER' &&
+      control.targetMemberUsername === member.username,
+  );
+  if (memberControl) {
+    return { control: memberControl, depth: -1 };
+  }
+
+  const ancestors = member.agentId ? await getAgentAncestors(db, member.agentId) : [];
+  const lineCandidates = controls
+    .filter(
+      (control) =>
+        control.scope === 'AGENT_LINE' &&
+        control.targetAgentId &&
+        ancestors.includes(control.targetAgentId),
+    )
+    .map((control) => ({
+      control,
+      depth: ancestors.indexOf(control.targetAgentId as string),
+    }))
+    .sort((a, b) => a.depth - b.depth || b.control.createdAt.getTime() - a.control.createdAt.getTime());
+  if (lineCandidates.length > 0) return lineCandidates[0];
+
+  const allControl = controls.find((control) => control.scope === 'ALL');
+  if (!allControl) return null;
+  return { control: allControl, depth: Number.POSITIVE_INFINITY };
+}
+
 function manualScopeRank(scope: ManualDetectionScope): number {
   if (scope === 'MEMBER') return 0;
   if (scope === 'AGENT_LINE') return 1;

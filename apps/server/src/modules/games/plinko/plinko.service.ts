@@ -9,7 +9,7 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls } from '../_common/controls.js';
+import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
 import type { PlinkoBetInput } from './plinko.schema.js';
 
 export class PlinkoService {
@@ -47,7 +47,7 @@ export class PlinkoService {
       let finalMultiplier = multiplierD;
       let finalPayout = payout;
       if (controlled.controlled) {
-        finalBucket = choosePlinkoBucket(multipliers, controlled.won);
+        finalBucket = choosePlinkoBucket(multipliers, controlled.won, amount, controlled);
         finalPath = pathForBucket(input.rows, finalBucket);
         finalMultiplier = new Prisma.Decimal((multipliers[finalBucket] ?? 0).toFixed(4));
         finalPayout = amount.mul(finalMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
@@ -117,10 +117,19 @@ export class PlinkoService {
   }
 }
 
-function choosePlinkoBucket(table: number[], wantWin: boolean): number {
+function choosePlinkoBucket(
+  table: number[],
+  wantWin: boolean,
+  amount: Prisma.Decimal,
+  controlled: Parameters<typeof multiplierMatchesControlBounds>[2],
+): number {
   const candidates = table
     .map((multiplier, bucket) => ({ bucket, multiplier }))
-    .filter((x) => (wantWin ? x.multiplier > 1 : x.multiplier <= 1));
+    .filter((x) =>
+      wantWin
+        ? x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
+        : x.multiplier <= 1,
+    );
   const pool = candidates.length > 0 ? candidates : table.map((multiplier, bucket) => ({ bucket, multiplier }));
   pool.sort((a, b) => (wantWin ? b.multiplier - a.multiplier : a.multiplier - b.multiplier));
   return pool[0]?.bucket ?? 0;

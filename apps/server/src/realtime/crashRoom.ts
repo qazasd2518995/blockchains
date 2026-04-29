@@ -274,8 +274,31 @@ export class CrashRoom {
       if (!outcome.won) {
         forcedCrashPoint = Math.min(forcedCrashPoint, MIN_CASHOUT_MULTIPLIER);
       } else {
-        const target = autoCashOut ?? 3;
-        forcedCrashPoint = Math.max(forcedCrashPoint, target + 0.05);
+        const capFromPayout = outcome.maxPayout
+          ? Number(outcome.maxPayout.div(bet.amount).toFixed(4))
+          : Number.POSITIVE_INFINITY;
+        const maxTarget = Math.min(
+          outcome.maxMultiplier ? Number(outcome.maxMultiplier.toFixed(4)) : Number.POSITIVE_INFINITY,
+          capFromPayout,
+        );
+        const minTarget = outcome.minMultiplier ? Number(outcome.minMultiplier.toFixed(4)) : 1.01;
+        const target = autoCashOut ?? Math.max(3, minTarget, Number(outcome.multiplier.toFixed(4)));
+        if (target > maxTarget) {
+          forcedCrashPoint = Math.min(forcedCrashPoint, MIN_CASHOUT_MULTIPLIER);
+          this.roundControlOutcomes.set(bet.id, {
+            outcome: {
+              won: false,
+              multiplier: new Prisma.Decimal(0),
+              payout: new Prisma.Decimal(0),
+              controlled: true,
+              flipReason: 'burst_budget_guard',
+              controlId: outcome.controlId,
+            },
+            original,
+          });
+        } else {
+          forcedCrashPoint = Math.max(forcedCrashPoint, target + 0.05);
+        }
       }
     }
 
@@ -696,22 +719,34 @@ export class CrashRoom {
         });
         throw new Error('Cashout window missed');
       }
+      if (cashoutControl.controlled && cashoutControl.won) {
+        this.roundControlOutcomes.set(betId, {
+          outcome: cashoutControl,
+          original: cashoutOriginal,
+        });
+      }
+      const settledMultiplier = cashoutControl.controlled && cashoutControl.won
+        ? cashoutControl.multiplier
+        : multD;
+      const settledPayout = cashoutControl.controlled && cashoutControl.won
+        ? cashoutControl.payout
+        : payout;
       const updated = await tx.user.update({
         where: { id: userId },
-        data: { balance: { increment: payout } },
+        data: { balance: { increment: settledPayout } },
       });
       await tx.transaction.create({
         data: {
           userId,
           type: 'CASHOUT',
-          amount: payout,
+          amount: settledPayout,
           balanceAfter: updated.balance,
-          meta: { gameId: this.config.gameId, roundId: this.currentRoundId, multiplier },
+          meta: { gameId: this.config.gameId, roundId: this.currentRoundId, multiplier: Number(settledMultiplier.toFixed(4)) },
         },
       });
       await tx.crashBet.update({
         where: { id: betId },
-        data: { cashedOutAt: multD, payout },
+        data: { cashedOutAt: settledMultiplier, payout: settledPayout },
       });
       const control = this.roundControlOutcomes.get(betId);
       const original = control?.original ?? cashoutOriginal;
@@ -721,10 +756,10 @@ export class CrashRoom {
         this.config.gameId,
         original,
         {
-          won: payout.greaterThan(bet.amount),
+          won: settledPayout.greaterThan(bet.amount),
           amount: bet.amount,
-          multiplier: multD,
-          payout,
+          multiplier: settledMultiplier,
+          payout: settledPayout,
         },
         control?.outcome ?? {
           won: payout.greaterThan(bet.amount),
@@ -738,15 +773,15 @@ export class CrashRoom {
           payout: original.payout.toFixed(2),
         },
         {
-          cashoutAt: multD.toFixed(4),
-          payout: payout.toFixed(2),
+          cashoutAt: settledMultiplier.toFixed(4),
+          payout: settledPayout.toFixed(2),
         },
       );
       const players = await this.getPlayers();
       this.broadcast('bets:update', { players });
       return {
-        multiplier,
-        payout: payout.toFixed(2),
+        multiplier: Number(settledMultiplier.toFixed(4)),
+        payout: settledPayout.toFixed(2),
         newBalance: updated.balance.toFixed(2),
       };
     });

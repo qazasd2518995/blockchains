@@ -9,7 +9,7 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls } from '../_common/controls.js';
+import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
 import type { HotlineBetInput } from './hotline.schema.js';
 
 export class HotlineService {
@@ -44,7 +44,7 @@ export class HotlineService {
       let finalPayout = payout;
       if (controlled.controlled) {
         finalGrid = controlled.won
-          ? winningHotlineGrid(reelCount)
+          ? winningHotlineGrid(reelCount, amount, controlled)
           : losingHotlineGrid(reelCount);
         const evaluated = hotlineEvaluate(finalGrid);
         finalLines = evaluated.lines;
@@ -110,14 +110,42 @@ export class HotlineService {
   }
 }
 
-function winningHotlineGrid(reelCount: number): number[][] {
-  return [
+function winningHotlineGrid(
+  reelCount: number,
+  amount: Prisma.Decimal,
+  controlled: Parameters<typeof multiplierMatchesControlBounds>[2],
+): number[][] {
+  const smallLine = smallWinningHotlineGrid(reelCount);
+  const fullLine = [
     [0, 1, 2],
     [0, 2, 3],
     [0, 3, 4],
     [0, 4, 5],
     [0, 5, 1],
   ].slice(0, reelCount);
+  const pool = [smallLine, fullLine];
+  return pool.find((grid) => {
+    const evaluated = hotlineEvaluate(grid);
+    return evaluated.totalMultiplier > 1 &&
+      multiplierMatchesControlBounds(evaluated.totalMultiplier, amount, controlled);
+  }) ?? fullLine;
+}
+
+function smallWinningHotlineGrid(reelCount: number): number[][] {
+  if (reelCount === 3) {
+    return [
+      [0, 1, 2],
+      [0, 2, 3],
+      [0, 3, 4],
+    ];
+  }
+  return [
+    [0, 1, 2],
+    [0, 2, 3],
+    [0, 3, 4],
+    [1, 4, 5],
+    [2, 5, 1],
+  ];
 }
 
 function losingHotlineGrid(reelCount: number): number[][] {

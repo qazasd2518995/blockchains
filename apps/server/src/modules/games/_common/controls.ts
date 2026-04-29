@@ -2,9 +2,12 @@ import { Prisma } from '@prisma/client';
 import {
   calculateCurrentSettlement,
   checkAndCompleteManualDetectionControls,
+  findApplicableBurstControl,
   findApplicableManualDetectionControl,
   getAgentAncestors,
+  getControlGameDayWindow,
   normalizeAgentLineCapDay,
+  normalizeBurstControlDay,
   normalizeMemberWinCapDay,
 } from '../../admin/controls/controls.runtime.js';
 
@@ -24,6 +27,9 @@ export interface ControlOutcome {
   controlled: boolean;
   flipReason?: string;
   controlId?: string;
+  minMultiplier?: Prisma.Decimal;
+  maxMultiplier?: Prisma.Decimal;
+  maxPayout?: Prisma.Decimal;
 }
 
 export interface FinalizedControlResult {
@@ -43,6 +49,10 @@ interface ControlDecision {
   desired: 'WIN' | 'LOSS';
   controlId: string;
   reason: string;
+  minMultiplier?: Prisma.Decimal;
+  maxMultiplier?: Prisma.Decimal;
+  maxPayout?: Prisma.Decimal;
+  forceWinAdjustment?: boolean;
 }
 
 /**
@@ -73,8 +83,10 @@ export async function applyControls(
     return flipToLoss(predicted, decision.reason, decision.controlId);
   }
 
-  if (predictedNetWin) return { ...predicted, controlled: false };
-  return flipToWin(predicted, decision.reason, decision.controlId);
+  if (predictedNetWin && !decision.forceWinAdjustment && isWithinDecisionBounds(predicted, decision)) {
+    return { ...predicted, controlled: false };
+  }
+  return flipToWin(predicted, decision);
 }
 
 export async function finalizeControls(
@@ -97,6 +109,7 @@ export async function finalizeControls(
   await updateMemberWinCap(tx, member.id, final);
   await updateAgentLineCaps(tx, member.agentId, final);
   await completeDepositControlIfReached(tx, member.id, member.balance);
+  await updateBurstControlUsage(tx, outcome, final);
 
   if (outcome.controlled && outcome.controlId && outcome.flipReason) {
     await tx.winLossControlLogs.create({
@@ -113,6 +126,7 @@ export async function finalizeControls(
         },
         finalResult: {
           won: final.won,
+          amount: final.amount.toFixed(2),
           multiplier: final.multiplier.toFixed(4),
           payout: final.payout.toFixed(2),
           result: finalResult,
@@ -144,7 +158,10 @@ async function findControlDecision(
   const deposit = await findDepositDecision(tx, member);
   if (deposit) return deposit;
 
-  return findManualDetectionDecision(tx, member);
+  const manual = await findManualDetectionDecision(tx, member);
+  if (manual) return manual;
+
+  return findBurstDecision(tx, member, predicted);
 }
 
 async function findWinLossDecision(tx: Db, member: MemberScope): Promise<ControlDecision | null> {
@@ -311,6 +328,108 @@ async function findManualDetectionDecision(
   };
 }
 
+async function findBurstDecision(
+  tx: Db,
+  member: MemberScope,
+  predicted: PredictedResult,
+): Promise<ControlDecision | null> {
+  const applicable = await findApplicableBurstControl(tx, member);
+  if (!applicable) return null;
+
+  const control = await normalizeBurstControlDay(tx, applicable.control);
+  const stats = await getMemberTodayStats(tx, member.id);
+  const memberBurstProfit = await sumMemberBurstProfit(tx, control.id, member.id);
+  const remainingBudget = control.dailyBudget.sub(control.todayBurstAmount);
+  const memberRemaining = control.memberDailyCap.sub(memberBurstProfit);
+  const maxPayout = minDecimal([
+    control.singlePayoutCap,
+    predicted.amount.add(remainingBudget),
+    predicted.amount.add(memberRemaining),
+  ]);
+  const predictedProfit = predicted.payout.sub(predicted.amount);
+  const predictedNetWin = isNetWin(predicted);
+
+  if (remainingBudget.lessThanOrEqualTo(0) || memberRemaining.lessThanOrEqualTo(0)) {
+    return predictedNetWin
+      ? { desired: 'LOSS', controlId: control.id, reason: 'burst_budget_guard' }
+      : null;
+  }
+
+  if (maxPayout.lessThanOrEqualTo(predicted.amount)) {
+    return predictedNetWin
+      ? { desired: 'LOSS', controlId: control.id, reason: 'burst_budget_guard' }
+      : null;
+  }
+
+  const projectedNet = stats.net.add(predictedProfit);
+  if (stats.net.greaterThanOrEqualTo(control.riskWinLimit)) {
+    return predictedNetWin
+      ? { desired: 'LOSS', controlId: control.id, reason: 'burst_risk_guard' }
+      : null;
+  }
+
+  if (
+    predictedNetWin &&
+    (predicted.payout.greaterThan(maxPayout) ||
+      predicted.multiplier.greaterThan(control.singleMultiplierCap) ||
+      projectedNet.greaterThan(control.riskWinLimit))
+  ) {
+    const cappedSmall = minDecimal([control.smallWinMultiplier, control.singleMultiplierCap, maxPayout.div(predicted.amount)]);
+    if (cappedSmall.lessThanOrEqualTo(1)) {
+      return { desired: 'LOSS', controlId: control.id, reason: 'burst_risk_guard' };
+    }
+    return {
+      desired: 'WIN',
+      controlId: control.id,
+      reason: 'burst_risk_cap',
+      minMultiplier: new Prisma.Decimal('1.01'),
+      maxMultiplier: cappedSmall,
+      maxPayout,
+      forceWinAdjustment: true,
+    };
+  }
+
+  const inCooldown = await isBurstCooldownActive(tx, control.id, member.id, control.cooldownRounds);
+  const canBurst = !inCooldown && remainingBudget.greaterThan(0) && memberRemaining.greaterThan(0);
+
+  if (stats.net.lessThanOrEqualTo(control.compensationLoss.negated())) {
+    if (Math.random() < clampRate(control.smallWinRate)) {
+      return smallWinDecision(control.id, control.smallWinMultiplier, control.singleMultiplierCap, maxPayout);
+    }
+  }
+
+  const burstRate = canBurst ? clampRate(control.burstRate) : 0;
+  const smallWinRate = clampRate(control.smallWinRate);
+  const lossRate = clampRate(control.lossRate);
+  const roll = Math.random();
+
+  if (roll < burstRate) {
+    const maxMultiplier = minDecimal([control.singleMultiplierCap, maxPayout.div(predicted.amount)]);
+    const minMultiplier = minDecimal([control.minBurstMultiplier, maxMultiplier]);
+    if (maxMultiplier.greaterThan(1)) {
+      return {
+        desired: 'WIN',
+        controlId: control.id,
+        reason: 'burst_win',
+        minMultiplier: minMultiplier.greaterThan(1) ? minMultiplier : new Prisma.Decimal('1.01'),
+        maxMultiplier,
+        maxPayout,
+        forceWinAdjustment: true,
+      };
+    }
+  }
+
+  if (roll < burstRate + smallWinRate) {
+    return smallWinDecision(control.id, control.smallWinMultiplier, control.singleMultiplierCap, maxPayout);
+  }
+
+  if (roll < burstRate + smallWinRate + lossRate) {
+    return { desired: 'LOSS', controlId: control.id, reason: 'burst_loss' };
+  }
+
+  return null;
+}
+
 async function updateMemberWinCap(
   tx: Db,
   memberId: string,
@@ -381,6 +500,151 @@ async function completeDepositControlIfReached(
   }
 }
 
+async function getMemberTodayStats(tx: Db, userId: string): Promise<{ net: Prisma.Decimal; bets: number }> {
+  const window = getControlGameDayWindow();
+  const [standard, crash] = await Promise.all([
+    tx.bet.aggregate({
+      where: {
+        userId,
+        status: 'SETTLED',
+        createdAt: { gte: window.start, lt: window.end },
+      },
+      _count: { _all: true },
+      _sum: { profit: true },
+    }),
+    tx.crashBet.aggregate({
+      where: {
+        userId,
+        createdAt: { gte: window.start, lt: window.end },
+        round: { status: 'CRASHED' },
+      },
+      _count: { _all: true },
+      _sum: { amount: true, payout: true },
+    }),
+  ]);
+
+  return {
+    net: (standard._sum.profit ?? new Prisma.Decimal(0)).add(
+      (crash._sum.payout ?? new Prisma.Decimal(0)).sub(crash._sum.amount ?? new Prisma.Decimal(0)),
+    ),
+    bets: standard._count._all + crash._count._all,
+  };
+}
+
+async function sumMemberBurstProfit(tx: Db, controlId: string, userId: string): Promise<Prisma.Decimal> {
+  const window = getControlGameDayWindow();
+  const logs = await tx.winLossControlLogs.findMany({
+    where: {
+      controlId,
+      userId,
+      createdAt: { gte: window.start, lt: window.end },
+      flipReason: { in: ['burst_win', 'burst_small_win', 'burst_risk_cap'] },
+    },
+    select: { finalResult: true },
+  });
+
+  return logs.reduce((sum, log) => {
+    const final = log.finalResult as { amount?: string; payout?: string } | null;
+    const amount = new Prisma.Decimal(final?.amount ?? 0);
+    const payout = new Prisma.Decimal(final?.payout ?? 0);
+    return sum.add(Prisma.Decimal.max(payout.sub(amount), 0));
+  }, new Prisma.Decimal(0));
+}
+
+async function isBurstCooldownActive(
+  tx: Db,
+  controlId: string,
+  userId: string,
+  cooldownRounds: number,
+): Promise<boolean> {
+  if (cooldownRounds <= 0) return false;
+  const latest = await tx.winLossControlLogs.findFirst({
+    where: { controlId, userId, flipReason: 'burst_win' },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true },
+  });
+  if (!latest) return false;
+  const [standardCount, crashCount] = await Promise.all([
+    tx.bet.count({
+      where: {
+        userId,
+        status: 'SETTLED',
+        createdAt: { gt: latest.createdAt },
+      },
+    }),
+    tx.crashBet.count({
+      where: {
+        userId,
+        createdAt: { gt: latest.createdAt },
+        round: { status: 'CRASHED' },
+      },
+    }),
+  ]);
+  return standardCount + crashCount < cooldownRounds;
+}
+
+async function updateBurstControlUsage(
+  tx: Db,
+  outcome: ControlOutcome,
+  final: FinalizedControlResult,
+): Promise<void> {
+  if (!outcome.controlled || !outcome.controlId || !outcome.flipReason?.startsWith('burst_')) return;
+  if (!final.payout.greaterThan(final.amount)) return;
+  const control = await tx.burstControl.findUnique({ where: { id: outcome.controlId } });
+  if (!control) return;
+  const normalized = await normalizeBurstControlDay(tx, control);
+  const profit = final.payout.sub(final.amount);
+  await tx.burstControl.update({
+    where: { id: normalized.id },
+    data: {
+      todayBurstAmount: { increment: profit },
+      todayBurstCount: { increment: outcome.flipReason === 'burst_win' ? 1 : 0 },
+    },
+  });
+}
+
+function smallWinDecision(
+  controlId: string,
+  smallWinMultiplier: Prisma.Decimal,
+  singleMultiplierCap: Prisma.Decimal,
+  maxPayout: Prisma.Decimal,
+): ControlDecision {
+  const maxMultiplier = Prisma.Decimal.max(
+    new Prisma.Decimal('1.01'),
+    minDecimal([smallWinMultiplier, singleMultiplierCap]),
+  );
+  return {
+    desired: 'WIN',
+    controlId,
+    reason: 'burst_small_win',
+    minMultiplier: new Prisma.Decimal('1.01'),
+    maxMultiplier,
+    maxPayout,
+    forceWinAdjustment: true,
+  };
+}
+
+function minDecimal(values: Prisma.Decimal[]): Prisma.Decimal {
+  if (values.length === 0) return new Prisma.Decimal(Number.MAX_SAFE_INTEGER);
+  return values.reduce((min, value) => (value.lessThan(min) ? value : min));
+}
+
+function clampRate(value: Prisma.Decimal): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(1, Math.max(0, n));
+}
+
+function isWithinDecisionBounds(
+  result: PredictedResult,
+  decision: ControlDecision,
+): boolean {
+  if (decision.minMultiplier && result.multiplier.lessThan(decision.minMultiplier)) return false;
+  if (decision.maxMultiplier && result.multiplier.greaterThan(decision.maxMultiplier)) return false;
+  if (decision.maxPayout && result.payout.greaterThan(decision.maxPayout)) return false;
+  return true;
+}
+
 function flipToLoss(_: PredictedResult, reason: string, controlId: string): ControlOutcome {
   return {
     won: false,
@@ -392,14 +656,48 @@ function flipToLoss(_: PredictedResult, reason: string, controlId: string): Cont
   };
 }
 
-function flipToWin(p: PredictedResult, reason: string, controlId: string): ControlOutcome {
-  const multiplier = p.multiplier.greaterThan(1) ? p.multiplier : new Prisma.Decimal(2);
+function flipToWin(p: PredictedResult, decision: ControlDecision): ControlOutcome {
+  const payoutCapMultiplier = decision.maxPayout ? decision.maxPayout.div(p.amount) : null;
+  const maxValues = [decision.maxMultiplier, payoutCapMultiplier].filter((value): value is Prisma.Decimal => Boolean(value));
+  const hardMax = maxValues.length > 0
+    ? minDecimal(maxValues)
+    : p.multiplier.greaterThan(1)
+      ? p.multiplier
+      : new Prisma.Decimal(2);
+  const minMultiplier = decision.minMultiplier ?? new Prisma.Decimal(2);
+  if (hardMax.lessThanOrEqualTo(1)) {
+    return flipToLoss(p, 'burst_budget_guard', decision.controlId);
+  }
+
+  const target = p.multiplier.greaterThan(1) ? p.multiplier : minMultiplier;
+  let multiplier = target;
+  if (multiplier.lessThan(minMultiplier)) multiplier = minMultiplier;
+  if (multiplier.greaterThan(hardMax)) multiplier = hardMax;
+  if (multiplier.lessThanOrEqualTo(1)) {
+    return flipToLoss(p, 'burst_budget_guard', decision.controlId);
+  }
+  const payout = p.amount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
   return {
     won: true,
     multiplier,
-    payout: p.amount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
+    payout,
     controlled: true,
-    flipReason: reason,
-    controlId,
+    flipReason: decision.reason,
+    controlId: decision.controlId,
+    minMultiplier: decision.minMultiplier,
+    maxMultiplier: decision.maxMultiplier,
+    maxPayout: decision.maxPayout,
   };
+}
+
+export function multiplierMatchesControlBounds(
+  multiplier: number | Prisma.Decimal,
+  amount: Prisma.Decimal,
+  control: Pick<ControlOutcome, 'minMultiplier' | 'maxMultiplier' | 'maxPayout'>,
+): boolean {
+  const m = multiplier instanceof Prisma.Decimal ? multiplier : new Prisma.Decimal(multiplier);
+  if (control.minMultiplier && m.lessThan(control.minMultiplier)) return false;
+  if (control.maxMultiplier && m.greaterThan(control.maxMultiplier)) return false;
+  if (control.maxPayout && amount.mul(m).greaterThan(control.maxPayout)) return false;
+  return true;
 }

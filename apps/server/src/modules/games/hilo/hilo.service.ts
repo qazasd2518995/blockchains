@@ -245,8 +245,17 @@ export class HiLoService {
         payout,
       });
       const forceLoss = controlled.controlled && !controlled.won;
-      const finalMultiplier = forceLoss ? new Prisma.Decimal(0) : multiplier;
-      const finalPayout = forceLoss ? new Prisma.Decimal(0) : payout;
+      const controlledWin = controlled.controlled && controlled.won;
+      const finalMultiplier = forceLoss
+        ? new Prisma.Decimal(0)
+        : controlledWin
+          ? controlled.multiplier
+          : multiplier;
+      const finalPayout = forceLoss
+        ? new Prisma.Decimal(0)
+        : controlledWin
+          ? controlled.payout
+          : payout;
       const profit = finalPayout.minus(round.betAmount);
       const finalStatus = forceLoss ? 'BUSTED' : 'CASHED_OUT';
       const originalResult = { history, cashedOut: true };

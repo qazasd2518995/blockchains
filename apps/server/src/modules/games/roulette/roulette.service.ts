@@ -9,7 +9,7 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls } from '../_common/controls.js';
+import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
 import type { RouletteBetInput } from './roulette.schema.js';
 
 export class RouletteService {
@@ -43,7 +43,7 @@ export class RouletteService {
       let finalSlot = slot;
       let finalEval = { totalPayout, wins };
       if (controlled.controlled) {
-        finalSlot = chooseRouletteSlot(input.bets as RouletteBet[], totalAmount, controlled.won);
+        finalSlot = chooseRouletteSlot(input.bets as RouletteBet[], totalAmount, controlled.won, amountD, controlled);
         finalEval = rouletteEvaluate(finalSlot, input.bets as RouletteBet[]);
       }
       const finalPayoutD = new Prisma.Decimal(finalEval.totalPayout.toFixed(2));
@@ -114,11 +114,26 @@ export class RouletteService {
   }
 }
 
-function chooseRouletteSlot(bets: RouletteBet[], totalAmount: number, wantWin: boolean): number {
+function chooseRouletteSlot(
+  bets: RouletteBet[],
+  totalAmount: number,
+  wantWin: boolean,
+  amount: Prisma.Decimal,
+  controlled: Parameters<typeof multiplierMatchesControlBounds>[2],
+): number {
   const candidates = Array.from({ length: ROULETTE_SLOTS }, (_, slot) => {
     const evaluated = rouletteEvaluate(slot, bets);
-    return { slot, profit: evaluated.totalPayout - totalAmount, payout: evaluated.totalPayout };
-  }).filter((x) => (wantWin ? x.profit > 0 : x.profit < 0));
+    return {
+      slot,
+      profit: evaluated.totalPayout - totalAmount,
+      payout: evaluated.totalPayout,
+      multiplier: totalAmount > 0 ? evaluated.totalPayout / totalAmount : 0,
+    };
+  }).filter((x) =>
+    wantWin
+      ? x.profit > 0 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
+      : x.profit < 0,
+  );
   const pool = candidates.length > 0
     ? candidates
     : Array.from({ length: ROULETTE_SLOTS }, (_, slot) => {

@@ -518,6 +518,42 @@ model AgentLineWinCap {
   updatedAt        DateTime @updatedAt
 }
 
+model BurstControl {
+  id                   String               @id @default(cuid())
+  scope                ManualDetectionScope
+  targetAgentId        String?
+  targetAgentUsername  String?
+  targetMemberId       String?
+  targetMemberUsername String?
+
+  dailyBudget          Decimal              @db.Decimal(20, 2)
+  todayBurstAmount     Decimal              @default(0) @db.Decimal(20, 2)
+  todayBurstCount      Int                  @default(0)
+  memberDailyCap       Decimal              @db.Decimal(20, 2)
+  singlePayoutCap      Decimal              @db.Decimal(20, 2)
+  singleMultiplierCap  Decimal              @default(100) @db.Decimal(20, 4)
+  minBurstMultiplier   Decimal              @default(8) @db.Decimal(20, 4)
+  smallWinMultiplier   Decimal              @default(1.5) @db.Decimal(20, 4)
+  burstRate            Decimal              @default(0.03) @db.Decimal(5, 4)
+  smallWinRate         Decimal              @default(0.35) @db.Decimal(5, 4)
+  lossRate             Decimal              @default(0.45) @db.Decimal(5, 4)
+  compensationLoss     Decimal              @default(500) @db.Decimal(20, 2)
+  riskWinLimit         Decimal              @default(1000) @db.Decimal(20, 2)
+  cooldownRounds       Int                  @default(8)
+  currentGameDay       String
+  isActive             Boolean              @default(true)
+  notes                String?
+  operatorId           String?
+  operatorUsername     String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  @@index([isActive, scope])
+  @@index([targetAgentId, isActive])
+  @@index([targetMemberUsername, isActive])
+  @@index([currentGameDay])
+}
+
 model ManualDetectionControl {
   id                   String               @id @default(cuid())
   scope                ManualDetectionScope

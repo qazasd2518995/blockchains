@@ -8,6 +8,7 @@ import { WinLossControlModal } from '@/components/shared/WinLossControlModal';
 import { WinCapControlModal } from '@/components/shared/WinCapControlModal';
 import { DepositControlModal } from '@/components/shared/DepositControlModal';
 import { AgentLineControlModal } from '@/components/shared/AgentLineControlModal';
+import { BurstControlModal } from '@/components/shared/BurstControlModal';
 import { ManualDetectionControlModal } from '@/components/shared/ManualDetectionControlModal';
 import { useTranslation } from '@/i18n/useTranslation';
 
@@ -87,6 +88,30 @@ interface AgentLineRow {
   createdAt: string;
 }
 
+interface BurstRow {
+  id: string;
+  scope: 'ALL' | 'AGENT_LINE' | 'MEMBER';
+  targetAgentUsername: string | null;
+  targetMemberUsername: string | null;
+  dailyBudget: string;
+  todayBurstAmount: string;
+  todayBurstCount: number;
+  memberDailyCap: string;
+  singlePayoutCap: string;
+  singleMultiplierCap: string;
+  minBurstMultiplier: string;
+  smallWinMultiplier: string;
+  burstRate: string;
+  smallWinRate: string;
+  lossRate: string;
+  compensationLoss: string;
+  riskWinLimit: string;
+  cooldownRounds: number;
+  isActive: boolean;
+  isBudgetSpent: boolean;
+  createdAt: string;
+}
+
 interface ControlLogRow {
   id: string;
   controlId: string;
@@ -109,6 +134,7 @@ export function ControlsOverviewPage(): JSX.Element {
   const [wc, setWc] = useState<WinCapRow[]>([]);
   const [dc, setDc] = useState<DepositRow[]>([]);
   const [al, setAl] = useState<AgentLineRow[]>([]);
+  const [bc, setBc] = useState<BurstRow[]>([]);
   const [logs, setLogs] = useState<ControlLogRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -117,10 +143,11 @@ export function ControlsOverviewPage(): JSX.Element {
   const [wcOpen, setWcOpen] = useState(false);
   const [dcOpen, setDcOpen] = useState(false);
   const [alOpen, setAlOpen] = useState(false);
+  const [bcOpen, setBcOpen] = useState(false);
 
   const reload = useCallback(async () => {
     try {
-      const [manualStatus, manualHistoryRes, settlement, winLoss, winCap, deposit, agentLine, logRes] =
+      const [manualStatus, manualHistoryRes, settlement, winLoss, winCap, deposit, agentLine, burst, logRes] =
         await Promise.all([
           adminApi.get<{ items: ManualDetectionRow[] }>('/controls/manual-detection/status'),
           adminApi.get<{ items: ManualDetectionRow[] }>('/controls/manual-detection/history'),
@@ -129,6 +156,7 @@ export function ControlsOverviewPage(): JSX.Element {
           adminApi.get<{ items: WinCapRow[] }>('/controls/win-cap'),
           adminApi.get<{ items: DepositRow[] }>('/controls/deposit'),
           adminApi.get<{ items: AgentLineRow[] }>('/controls/agent-line'),
+          adminApi.get<{ items: BurstRow[] }>('/controls/burst'),
           adminApi.get<{ items: ControlLogRow[] }>('/controls/logs'),
         ]);
       setManualActive(manualStatus.data.items);
@@ -138,6 +166,7 @@ export function ControlsOverviewPage(): JSX.Element {
       setWc(winCap.data.items);
       setDc(deposit.data.items);
       setAl(agentLine.data.items);
+      setBc(burst.data.items);
       setLogs(logRes.data.items);
       setError(null);
     } catch (e) {
@@ -152,7 +181,7 @@ export function ControlsOverviewPage(): JSX.Element {
   }, [reload]);
 
   const toggleRow = async (
-    kind: 'win-loss' | 'win-cap' | 'deposit' | 'agent-line',
+    kind: 'win-loss' | 'win-cap' | 'deposit' | 'agent-line' | 'burst',
     id: string,
     isActive: boolean,
   ): Promise<void> => {
@@ -165,7 +194,7 @@ export function ControlsOverviewPage(): JSX.Element {
   };
 
   const deleteRow = async (
-    kind: 'win-loss' | 'win-cap' | 'deposit' | 'agent-line',
+    kind: 'win-loss' | 'win-cap' | 'deposit' | 'agent-line' | 'burst',
     id: string,
   ): Promise<void> => {
     if (!window.confirm('确定删除此控制规则？')) return;
@@ -441,6 +470,41 @@ export function ControlsOverviewPage(): JSX.Element {
     },
   ];
 
+  const bcCols: Column<BurstRow>[] = [
+    { key: 'scope', label: '范围', render: (r) => <span className="tag tag-acid">{formatManualScope(r.scope)}</span> },
+    { key: 'target', label: '目标', render: (r) => <span className="font-mono text-[11px]">{formatBurstTarget(r)}</span> },
+    { key: 'budget', label: '今日池', align: 'right', render: (r) => <span className="data-num">{fmt(r.dailyBudget)}</span> },
+    { key: 'used', label: '已用', align: 'right', render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.todayBurstAmount)}</span> },
+    { key: 'cap', label: '单局上限', align: 'right', render: (r) => <span className="data-num">{fmt(r.singlePayoutCap)}</span> },
+    { key: 'rates', label: '节奏', render: (r) => <span className="font-mono text-[11px]">爆 {pct(r.burstRate)} / 小 {pct(r.smallWinRate)} / 输 {pct(r.lossRate)}</span> },
+    { key: 'risk', label: '风险线', align: 'right', render: (r) => <span className="data-num">{fmt(r.riskWinLimit)}</span> },
+    {
+      key: 'status',
+      label: '状态',
+      render: (r) =>
+        r.isBudgetSpent ? <span className="tag tag-ember">池已用完</span> : r.isActive ? <span className="tag tag-toxic">启用中</span> : <span className="tag tag-ember">停用</span>,
+    },
+    {
+      key: 'ops',
+      label: '操作',
+      align: 'right',
+      render: (r) => (
+        <div className="flex justify-end gap-1 text-[10px]">
+          <button type="button" onClick={() => void toggleRow('burst', r.id, r.isActive)} className="btn-teal-outline px-2 py-1">
+            {r.isActive ? '停用' : '启用'}
+          </button>
+          <button
+            type="button"
+            onClick={() => void deleteRow('burst', r.id)}
+            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
+          >
+            删除
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   const logCols: Column<ControlLogRow>[] = [
     { key: 'time', label: '时间', render: (r) => <span className="font-mono text-[11px]">{formatTime(r.createdAt)}</span> },
     { key: 'member', label: '会员', render: (r) => <span className="font-mono">{r.username}</span> },
@@ -458,24 +522,25 @@ export function ControlsOverviewPage(): JSX.Element {
         title={t.nav.controls}
         titleSuffix="输赢控制"
         titleSuffixColor="ember"
-        description="控制优先级、手动侦测、封顶与真实介入纪录都集中在这一页。后端会依同一套顺序套用到实际结算。"
+        description="控制优先级、手动侦测、封顶、爆分娱乐曲线与真实介入纪录都集中在这一页。后端会依同一套顺序套用到实际结算。"
       />
 
       <ImageBanner
         image="/banners/controls-risk-host.png"
         eyebrow="风控中心"
         title="先看哪条控制在线，再决定今天要把交收拉到哪里。"
-        description="手动侦测、输赢控制、会员封顶、代理线封顶与入金控制已统一到同一套实际结算逻辑。这里看到的状态，就是游戏正在执行的状态。"
+        description="手动侦测、输赢控制、会员封顶、代理线封顶、入金控制与爆分控制已统一到同一套实际结算逻辑。这里看到的状态，就是游戏正在执行的状态。"
         tone="ember"
         imagePosition="object-[74%_30%]"
       />
 
       <div className="mb-4 rounded-[6px] border border-[#AE8B35]/35 bg-[#FFF8E1] px-4 py-3 text-[12px] text-[#5C4B1F]">
         <div className="font-semibold text-[#7A5F15]">控制优先级</div>
-        <div className="mt-1">会员赢控制 &gt; 代理线赢控制 &gt; 会员输控制 &gt; 代理线输控制 &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测</div>
+        <div className="mt-1">会员赢控制 &gt; 代理线赢控制 &gt; 会员输控制 &gt; 代理线输控制 &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 爆分娱乐曲线</div>
+        <div className="mt-1 text-[#7A5F15]/80">爆分控制只在前面的硬性控制都没有命中时介入，用小赢、压输、补偿与冷却制造节奏；高倍自然结果超过预算或风险线时会被压到可控派彩。</div>
       </div>
 
-      <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <StatCard
           label="全盘交收"
           value={signed(allSettlement?.superiorSettlement)}
@@ -486,6 +551,7 @@ export function ControlsOverviewPage(): JSX.Element {
         <StatCard label="输赢控制在线" value={wl.filter((x) => x.isActive).length.toString()} hint="优先于封顶与入金" accent="ember" />
         <StatCard label="会员封顶在线" value={wc.filter((x) => x.isActive).length.toString()} hint="单会员日赢额" accent="amber" />
         <StatCard label="代理线封顶在线" value={al.filter((x) => x.isActive).length.toString()} hint="整条线日赢额" accent="toxic" />
+        <StatCard label="爆分控制在线" value={bc.filter((x) => x.isActive).length.toString()} hint="爆分池 / 娱乐曲线" accent="ice" />
       </div>
 
       {error && (
@@ -568,6 +634,28 @@ export function ControlsOverviewPage(): JSX.Element {
             <DataTable columns={alCols} rows={al} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
 
+          <Section
+            title="§ 爆分控制"
+            subtitle="爆分池、补偿、风险线与冷却"
+            actions={(
+              <button type="button" onClick={() => setBcOpen(true)} className="btn-acid text-[11px]">
+                + 新增
+              </button>
+            )}
+          >
+            <div className="mb-3 grid gap-3 md:grid-cols-4">
+              <MetricCard label="在线规则" value={bc.filter((x) => x.isActive).length.toString()} />
+              <MetricCard label="今日爆分池" value={fmt(sumRows(bc, 'dailyBudget'))} accent="amber" />
+              <MetricCard label="今日已用" value={fmt(sumRows(bc, 'todayBurstAmount'))} accent="toxic" />
+              <MetricCard label="爆分次数" value={bc.reduce((sum, row) => sum + row.todayBurstCount, 0).toString()} accent="ice" />
+            </div>
+            <div className="mb-3 rounded-[6px] border border-[#186073]/20 bg-[#EFF8FB] px-4 py-3 text-[12px] text-[#32505C]">
+              <div className="font-semibold text-[#186073]">运行说明</div>
+              <div className="mt-1">会员今日净输达到补偿输额时，提高小赢机会；净赢接近风险赢额或高倍派彩超过单局上限时，把结果压到小赢或输。爆分命中后会进入冷却局数，避免连续爆分。</div>
+            </div>
+            <DataTable columns={bcCols} rows={bc} rowKey={(r) => r.id} empty={t.common.empty} />
+          </Section>
+
           <Section title="§ 控制介入纪录" subtitle="最近 100 笔真实套用结果">
             <DataTable columns={logCols} rows={logs} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
@@ -579,6 +667,7 @@ export function ControlsOverviewPage(): JSX.Element {
       <WinCapControlModal open={wcOpen} onClose={() => setWcOpen(false)} onDone={() => void reload()} />
       <DepositControlModal open={dcOpen} onClose={() => setDcOpen(false)} onDone={() => void reload()} />
       <AgentLineControlModal open={alOpen} onClose={() => setAlOpen(false)} onDone={() => void reload()} />
+      <BurstControlModal open={bcOpen} onClose={() => setBcOpen(false)} onDone={() => void reload()} />
     </div>
   );
 }
@@ -670,6 +759,16 @@ function formatManualTarget(row: ManualDetectionRow): string {
   return row.targetMemberUsername ?? '—';
 }
 
+function formatBurstTarget(row: BurstRow): string {
+  if (row.scope === 'ALL') return '全盘';
+  if (row.scope === 'AGENT_LINE') return row.targetAgentUsername ?? '—';
+  return row.targetMemberUsername ?? '—';
+}
+
+function sumRows(rows: BurstRow[], key: 'dailyBudget' | 'todayBurstAmount'): string {
+  return rows.reduce((sum, row) => sum + Number.parseFloat(row[key] ?? '0'), 0).toFixed(2);
+}
+
 function manualStatusText(row: ManualDetectionRow): string {
   if (row.isActive && row.isCompleted && row.scope === 'MEMBER') return '达标维持中';
   if (row.isCompleted) return '已达标';
@@ -694,6 +793,12 @@ function formatReason(reason: string): string {
     win_control: '放水',
     loss_control: '杀分',
     manual_detection: '手动侦测',
+    burst_win: '爆分',
+    burst_small_win: '小赢补偿',
+    burst_loss: '娱乐压输',
+    burst_risk_cap: '高倍压低',
+    burst_risk_guard: '风险防守',
+    burst_budget_guard: '爆分池防守',
   };
   return map[reason] ?? reason;
 }

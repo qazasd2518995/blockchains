@@ -9,7 +9,7 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls } from '../_common/controls.js';
+import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
 import type { KenoBetInput } from './keno.schema.js';
 
 export class KenoService {
@@ -44,7 +44,7 @@ export class KenoService {
       let finalMultiplier = multiplierD;
       let finalPayout = payout;
       if (controlled.controlled) {
-        const hitCount = chooseKenoHitCount(input.risk, unique.length, controlled.won);
+        const hitCount = chooseKenoHitCount(input.risk, unique.length, controlled.won, amount, controlled);
         finalDrawn = drawWithHitCount(unique, hitCount);
         finalHits = kenoEvaluate(finalDrawn, unique).hits;
         finalMultiplier = new Prisma.Decimal(kenoMultiplier(input.risk, unique.length, finalHits.length).toFixed(4));
@@ -114,11 +114,21 @@ export class KenoService {
   }
 }
 
-function chooseKenoHitCount(risk: KenoBetInput['risk'], pickCount: number, wantWin: boolean): number {
+function chooseKenoHitCount(
+  risk: KenoBetInput['risk'],
+  pickCount: number,
+  wantWin: boolean,
+  amount: Prisma.Decimal,
+  controlled: Parameters<typeof multiplierMatchesControlBounds>[2],
+): number {
   const candidates = Array.from({ length: pickCount + 1 }, (_, hits) => ({
     hits,
     multiplier: kenoMultiplier(risk, pickCount, hits),
-  })).filter((x) => (wantWin ? x.multiplier > 1 : x.multiplier <= 1));
+  })).filter((x) =>
+    wantWin
+      ? x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
+      : x.multiplier <= 1,
+  );
   const pool = candidates.length > 0 ? candidates : [{ hits: wantWin ? pickCount : 0, multiplier: 0 }];
   pool.sort((a, b) => (wantWin ? b.multiplier - a.multiplier : a.multiplier - b.multiplier));
   return pool[0]?.hits ?? 0;

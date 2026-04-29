@@ -39,8 +39,13 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   'control.deposit.toggle': '切换入金控制',
   'control.deposit.delete': '删除入金控制',
   'control.agent_line.create': '新增代理线封顶',
+  'control.agent_line.upsert': '设置代理线封顶',
   'control.agent_line.toggle': '切换代理线封顶',
   'control.agent_line.delete': '删除代理线封顶',
+  'control.burst.create': '新增爆分控制',
+  'control.burst.update': '更新爆分控制',
+  'control.burst.toggle': '切换爆分控制',
+  'control.burst.delete': '删除爆分控制',
 
   'announcement.create': '新增公告',
   'announcement.update': '更新公告',
@@ -58,6 +63,7 @@ const AUDIT_TARGET_LABELS: Record<string, string> = {
   win_cap_control: '赢额封顶',
   deposit_control: '入金控制',
   agent_line_control: '代理线封顶',
+  burst_control: '爆分控制',
 };
 
 export function formatAuditAction(action: string): string {
