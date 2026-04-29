@@ -9,3 +9,4 @@ export * from './plinko.js';
 export * from './roulette.js';
 export * from './hotline.js';
 export * from './tower.js';
+export * from './blackjack.js';

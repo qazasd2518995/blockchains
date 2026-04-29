@@ -18,6 +18,7 @@ import { RoulettePage } from '@/pages/games/RoulettePage';
 import { PlinkoPage } from '@/pages/games/PlinkoPage';
 import { HotlinePage } from '@/pages/games/HotlinePage';
 import { TowerPage } from '@/pages/games/TowerPage';
+import { BlackjackPage } from '@/pages/games/BlackjackPage';
 import { CrashPage, CRASH_CONFIGS } from '@/pages/games/CrashPage';
 import { HallPage } from '@/pages/HallPage';
 import { VerifyPage } from '@/pages/VerifyPage';
@@ -76,6 +77,7 @@ export const router = createBrowserRouter([
           { path: '/games/dice', element: <DicePage /> },
           { path: '/games/mines', element: <MinesPage /> },
           { path: '/games/hilo', element: <HiLoPage /> },
+          { path: '/games/blackjack', element: <BlackjackPage /> },
           { path: '/games/keno', element: <KenoPage /> },
           { path: '/games/wheel', element: <WheelPage /> },
           { path: '/games/mini-roulette', element: <RoulettePage variant="mini-roulette" /> },

@@ -44,16 +44,20 @@ const MOBILE_CATEGORIES: Array<{
   iconKey?: string;
 }> = [
   { id: 'all', label: '熱門遊戲', shortLabel: '熱門' },
-  { id: 'tables', label: '真人牌桌', shortLabel: '真人', iconKey: 'tables' },
-  { id: 'classic', label: '電子遊戲', shortLabel: '電子', iconKey: 'classic' },
-  { id: 'crash', label: '跑馬燈', shortLabel: '跑馬', iconKey: 'crash' },
-  { id: 'strategy', label: '策略遊戲', shortLabel: '策略', iconKey: 'strategy' },
+  { id: 'crash', label: 'Crash 飛行', shortLabel: '飛行', iconKey: 'crash' },
+  { id: 'tables', label: '棋牌牌桌', shortLabel: '牌桌', iconKey: 'tables' },
+  { id: 'slots', label: '拉霸老虎機', shortLabel: '拉霸', iconKey: 'slots' },
+  { id: 'roulette', label: '輪盤轉輪', shortLabel: '輪盤', iconKey: 'roulette' },
+  { id: 'classic', label: '即開電子', shortLabel: '即開', iconKey: 'classic' },
+  { id: 'strategy', label: '策略挑戰', shortLabel: '策略', iconKey: 'strategy' },
 ];
 
 const MOBILE_HALL_LABEL: Record<HallId, string> = {
-  tables: '真人',
-  classic: '電子',
-  crash: '跑馬',
+  crash: '飛行',
+  tables: '牌桌',
+  slots: '拉霸',
+  roulette: '輪盤',
+  classic: '即開',
   strategy: '策略',
 };
 
@@ -61,6 +65,7 @@ const MOBILE_GAME_NAME: Record<string, string> = {
   baccarat: '皇家百家',
   'baccarat-nova': '星耀百家',
   'baccarat-imperial': '御龍百家',
+  blackjack: '21點',
   dice: '骰子',
   mines: '踩地雷',
   hilo: '猜大小',
@@ -116,7 +121,7 @@ export function LobbyPage() {
         </div>
 
         <aside className="grid gap-4 sm:grid-cols-3 xl:col-span-4 xl:grid-cols-1 2xl:col-span-3">
-          <LobbyStatCard label="熱門館別" value={String(HALL_LIST.length)} detail="四種館別任你切，想衝倍數、拚手感、玩策略，或直接坐上牌桌都能進場。" />
+          <LobbyStatCard label="熱門館別" value={String(HALL_LIST.length)} detail="六種館別任你切，飛行、牌桌、拉霸、輪盤、即開、策略都能直接進場。" />
           <LobbyStatCard label="可玩遊戲" value={String(totalGames)} detail="從 Crash 到百家樂，今晚主場一次排開。" />
           <LobbyStatCard label="今日最高爆分" value={numberFormatter.format(topBoardWin)} detail="看看今天誰最火，再挑一館跟著開衝。" />
         </aside>
@@ -126,13 +131,13 @@ export function LobbyPage() {
         <SectionHeading
           eyebrow="Game Floors"
           title="今晚先衝哪一館？"
-          description="想玩心跳拉滿就進 Crash，想快節奏連玩就去經典館，想靠判斷放大倍率就挑策略館，想專注桌面對局就進牌桌館。照你的手感直接進場。"
+          description="玩法已重新分館：Crash 進飛行館，百家、21 點、比大小進棋牌牌桌館，老虎機進拉霸館，輪盤轉輪獨立，骰子、基諾、彈珠放即開電子館，掃雷與疊塔放策略館。"
           rightSlot={
             <Link
               to="/hall/tables"
               className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#186073] transition hover:text-[#0E4555]"
             >
-              先進牌桌館
+              先進棋牌牌桌館
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           }
@@ -276,7 +281,7 @@ function MobileLobbyOnePage() {
                 key={category.id}
                 type="button"
                 onClick={() => setActiveCategory(category.id)}
-                className={`flex h-[68px] w-full flex-col items-center justify-center gap-1 rounded-[10px] border text-[12px] font-black shadow-[0_6px_14px_rgba(15,23,42,0.08)] transition active:scale-[0.98] ${
+                className={`flex h-[58px] w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border text-[11px] font-black shadow-[0_6px_14px_rgba(15,23,42,0.08)] transition active:scale-[0.98] ${
                   selected
                     ? 'border-[#0F76A3] bg-[linear-gradient(180deg,#22AADA_0%,#1576A2_100%)] text-white'
                     : 'border-[#D8E7EE] bg-white text-[#1D6B83]'
@@ -297,7 +302,7 @@ function MobileLobbyOnePage() {
           })}
           <Link
             to="/promos"
-            className="flex h-[68px] w-full flex-col items-center justify-center gap-1 rounded-[10px] border border-[#D5B75E] bg-[#FFF1B4] text-[12px] font-black text-[#765709] shadow-[0_6px_14px_rgba(15,23,42,0.08)] active:scale-[0.98]"
+            className="flex h-[58px] w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border border-[#D5B75E] bg-[#FFF1B4] text-[11px] font-black text-[#765709] shadow-[0_6px_14px_rgba(15,23,42,0.08)] active:scale-[0.98]"
           >
             <Gift className="h-5 w-5" aria-hidden="true" />
             優惠

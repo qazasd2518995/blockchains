@@ -51,6 +51,7 @@ model User {
   minesRounds   MinesRound[]
   hiloRounds    HiLoRound[]
   towerRounds   TowerRound[]
+  blackjackRounds BlackjackRound[]
   refreshTokens RefreshToken[]
 
   @@index([username])
@@ -168,6 +169,8 @@ model Bet {
   hiloRoundId    String?     @unique
   towerRound     TowerRound? @relation(fields: [towerRoundId], references: [id])
   towerRoundId   String?     @unique
+  blackjackRound BlackjackRound? @relation(fields: [blackjackRoundId], references: [id])
+  blackjackRoundId String?    @unique
 
   @@index([userId, createdAt])
   @@index([gameId, createdAt])
@@ -242,6 +245,34 @@ model TowerRound {
   safeLayout        Json        // number[][] layer of safe col indices
   picks             Int[]       @default([])
   currentLevel      Int         @default(0)
+  currentMultiplier Decimal     @default(1) @db.Decimal(20, 4)
+  status            RoundStatus @default(ACTIVE)
+  nonce             Int
+  serverSeedId      String
+  clientSeedUsed    String
+  createdAt         DateTime    @default(now())
+  finishedAt        DateTime?
+
+  bet               Bet?
+
+  @@index([userId, status])
+}
+
+// ───────────────────────────────────────────────
+// Blackjack / 21 點 多步驟局
+// ───────────────────────────────────────────────
+
+model BlackjackRound {
+  id                String      @id @default(cuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+  betAmount         Decimal     @db.Decimal(20, 2)
+  totalBetAmount    Decimal     @default(0) @db.Decimal(20, 2)
+  dealerHand        Json
+  playerHands       Json
+  activeHandIndex   Int         @default(0)
+  deck              Json
+  deckIndex         Int         @default(0)
   currentMultiplier Decimal     @default(1) @db.Decimal(20, 4)
   status            RoundStatus @default(ACTIVE)
   nonce             Int

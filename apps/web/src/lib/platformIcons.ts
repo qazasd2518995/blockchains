@@ -10,6 +10,7 @@ import {
   Flag,
   Gem,
   Hash,
+  Landmark,
   Megaphone,
   PhoneCall,
   Plane,
@@ -25,9 +26,11 @@ const FALLBACK_ICON = Sparkles;
 
 export const HALL_ICONS: Record<string, LucideIcon> = {
   crash: Rocket,
+  tables: CircleDot,
+  slots: Sparkles,
+  roulette: Disc3,
   classic: Crosshair,
   strategy: Gem,
-  tables: CircleDot,
 };
 
 export const HERO_ICONS: Record<string, LucideIcon> = {
@@ -41,6 +44,7 @@ export const GAME_ICONS: Record<string, LucideIcon> = {
   baccarat: CircleDot,
   'baccarat-nova': CircleDot,
   'baccarat-imperial': CircleDot,
+  blackjack: Landmark,
   dice: Dice1,
   mines: Gem,
   hilo: ArrowUpDown,

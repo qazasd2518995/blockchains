@@ -101,12 +101,12 @@ export function LoginPage() {
                 熱門館別今晚全開，登入後直接進場。
               </h1>
               <p className="mt-5 max-w-[560px] text-[17px] leading-8 text-white/72">
-                Crash、經典、策略、牌桌四大館別已備好節奏。登入後直接挑你今晚要衝的主場，
+                飛行、棋牌牌桌、拉霸、輪盤、即開電子、策略挑戰六大館別已備好節奏。登入後直接挑你今晚要衝的主場，
                 看準時機放大倍率，或回頭核對每一局結果。
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <span className="inline-flex items-center rounded-full border border-[#C9A247]/36 bg-[#132233]/75 px-4 py-2 text-[13px] font-semibold text-[#EFD886]">
-                  19 款人氣玩法
+                  28 款人氣玩法
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
                   即時派彩到帳

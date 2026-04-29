@@ -21,6 +21,7 @@ const GAME_POOL: Array<{
 }> = [
   { game: '御龍百家', gameId: 'baccarat-imperial', minMult: 1.95, maxMult: 12, minWin: 18000, maxWin: 260000 },
   { game: '星耀百家', gameId: 'baccarat-nova', minMult: 1.95, maxMult: 9.5, minWin: 12000, maxWin: 180000 },
+  { game: '21點', gameId: 'blackjack', minMult: 2, maxMult: 2.5, minWin: 8000, maxWin: 180000 },
   { game: '飆速X', gameId: 'jetx', minMult: 8, maxMult: 180, minWin: 28000, maxWin: 980000 },
   { game: '飆速X3', gameId: 'jetx3', minMult: 15, maxMult: 320, minWin: 56000, maxWin: 1680000 },
   { game: '飛行員', gameId: 'aviator', minMult: 6, maxMult: 140, minWin: 22000, maxWin: 860000 },

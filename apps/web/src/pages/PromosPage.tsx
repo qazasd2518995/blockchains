@@ -15,7 +15,7 @@ import { SectionHeading } from '@/components/layout/SectionHeading';
 const HERO_METRICS = [
   { label: '本周焦点', value: '4 档', detail: '热门活动同时进行' },
   { label: '最高亮点', value: '100×', detail: 'Crash 爆池触发门槛' },
-  { label: '适用范围', value: '19 款', detail: '全馆热门玩法同步覆盖' },
+  { label: '适用范围', value: '28 款', detail: '全馆热门玩法同步覆盖' },
 ];
 
 const PROMO_CARDS = [

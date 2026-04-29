@@ -5,7 +5,7 @@ import { getGameIcon } from '@/lib/platformIcons';
 
 // 与 LobbyPage 现有的资料一致
 const HAS_COVER = new Set<string>([
-  'baccarat', 'baccarat-nova', 'baccarat-imperial',
+  'baccarat', 'baccarat-nova', 'baccarat-imperial', 'blackjack',
   'dice', 'mines', 'hilo', 'keno', 'wheel', 'mini-roulette',
   'plinko', 'hotline', 'fruit-slot', 'fortune-slot', 'ocean-slot', 'temple-slot', 'candy-slot', 'sakura-slot', 'rocket', 'aviator', 'space-fleet',
   'jetx', 'balloon', 'jetx3', 'double-x', 'plinko-x', 'tower', 'carnival',
@@ -14,6 +14,7 @@ const HAS_COVER = new Set<string>([
 const NEW_GAMES = new Set([
   'baccarat-nova',
   'baccarat-imperial',
+  'blackjack',
   'carnival',
   'plinko-x',
   'jetx3',
@@ -31,6 +32,7 @@ const NAME_ZH_TW: Record<string, string> = {
   baccarat: '皇家百家',
   'baccarat-nova': '星耀百家',
   'baccarat-imperial': '御龍百家',
+  blackjack: '21点',
   dice: '骰子',
   mines: '踩地雷',
   hilo: '猜大小',

@@ -68,8 +68,8 @@ export function GuestHallEntrances({ showHeading = true }: Props) {
     <section className="space-y-4">
       {showHeading ? (
         <header className="flex items-baseline justify-between">
-        <h2 className="text-[20px] font-semibold text-[#0F172A]">三大游戏馆</h2>
-        <span className="text-[12px] text-[#9CA3AF]">登录后即可进入</span>
+          <h2 className="text-[20px] font-semibold text-[#0F172A]">六大遊戲館</h2>
+          <span className="text-[12px] text-[#9CA3AF]">登录后即可进入</span>
         </header>
       ) : null}
       <div className="grid grid-cols-1 gap-7 md:grid-cols-2">

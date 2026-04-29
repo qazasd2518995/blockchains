@@ -36,7 +36,7 @@ export function LandingPage() {
               <span>會員制平台 · 邀請開通</span>
             </div>
             <AnnouncementTicker />
-            <span className="hidden whitespace-nowrap text-white/55 lg:inline">19 款熱門玩法今晚全開</span>
+            <span className="hidden whitespace-nowrap text-white/55 lg:inline">28 款熱門玩法今晚全開</span>
           </div>
         </div>
 
@@ -120,9 +120,9 @@ export function LandingPage() {
           <section className="space-y-5">
             <SectionHeading
               eyebrow="Game Floors"
-          title="四大主題館，照你今天的手感進場"
-          description="愛心跳拉滿就衝飛行館，想連玩不停就去經典館，想靠判斷把倍率放大就挑策略館，想看牌路節奏就進牌桌館。"
-          rightSlot={
+              title="六大主題館，照你今天的手感進場"
+              description="飛行、棋牌牌桌、拉霸、輪盤、即開電子、策略挑戰都已分好館別；想玩哪種節奏，直接進對應主場。"
+              rightSlot={
                 <Link
                   to="/login"
                   className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#186073] transition hover:text-[#0E4555]"

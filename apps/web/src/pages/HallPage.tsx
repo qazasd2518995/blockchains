@@ -11,8 +11,10 @@ const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
 
 function hallNarrative(hallId: HallId): string {
   if (hallId === 'crash') return '想追高倍、看準時機一鍵收分的玩家。';
-  if (hallId === 'classic') return '喜歡節奏快、連開幾局都不膩的玩家。';
-  if (hallId === 'tables') return '想看牌路、換桌追節奏，專注桌面對局的玩家。';
+  if (hallId === 'tables') return '想玩百家、21 點、比大小，專注牌局判斷的玩家。';
+  if (hallId === 'slots') return '喜歡轉軸連線、主題爆分與短局節奏的玩家。';
+  if (hallId === 'roulette') return '喜歡押號、押色、看輪盤自然停下的玩家。';
+  if (hallId === 'classic') return '喜歡骰子、基諾、彈珠這類短局即開的玩家。';
   return '想邊判斷邊拚高倍，把手感和腦力一起拉滿的玩家。';
 }
 

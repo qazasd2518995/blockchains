@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen } from 'lucide-react';
 import { SectionHeading } from '@/components/layout/SectionHeading';
 
-type HallKey = 'crash' | 'classic' | 'strategy' | 'tables';
+type HallKey = 'crash' | 'tables' | 'slots' | 'roulette' | 'classic' | 'strategy';
 
 interface Hall {
   key: HallKey;
@@ -24,28 +24,44 @@ const HALLS: Hall[] = [
     vibe: '心跳同步、節奏緊湊',
   },
   {
-    key: 'classic',
-    title: '經典館',
-    subtitle: 'Classic Hall',
+    key: 'tables',
+    title: '棋牌牌桌館',
+    subtitle: 'Card Table Hall',
+    tone: '#C9A247',
+    intro: '百家、21 點、比大小都屬於牌類判斷，集中在同一個牌桌館。',
+    vibe: '看牌路、算點數、抓節奏',
+  },
+  {
+    key: 'slots',
+    title: '拉霸館',
+    subtitle: 'Slots Hall',
+    tone: '#C97736',
+    intro: '轉軸、符號、連線派彩集中管理，想玩老虎機直接進這一館。',
+    vibe: '主題爆分、短局連開',
+  },
+  {
+    key: 'roulette',
+    title: '輪盤館',
+    subtitle: 'Roulette Hall',
     tone: '#186073',
-    intro: '骰子、輪盤、老虎機等熟悉玩法，規則直觀，適合連玩不停。',
-    vibe: '上手即贏、輕鬆順手',
+    intro: '輪盤、轉輪、嘉年華輪盤都歸在輪盤轉輪類，下注區域更直覺。',
+    vibe: '押號押色、轉停開獎',
+  },
+  {
+    key: 'classic',
+    title: '即開電子館',
+    subtitle: 'Instant Hall',
+    tone: '#186073',
+    intro: '骰子、基諾、彈珠這類短局即開玩法，規則直觀，節奏乾淨。',
+    vibe: '快速開獎、輕鬆順手',
   },
   {
     key: 'strategy',
-    title: '策略館',
+    title: '策略挑戰館',
     subtitle: 'Strategy Hall',
     tone: '#5B8C40',
-    intro: '靠判斷與膽識放大倍率，每一個選擇都會影響獎金的走向。',
+    intro: '掃雷與疊塔需要逐步判斷與隨時收手，每一個選擇都影響獎金。',
     vibe: '腦力對決、越拚越上頭',
-  },
-  {
-    key: 'tables',
-    title: '牌桌館',
-    subtitle: 'Table Hall',
-    tone: '#C9A247',
-    intro: '以桌台節奏與逐局封盤為核心，適合看牌路、換桌追手感的玩家。',
-    vibe: '盯牌路、看節奏、專注對局',
   },
 ];
 
@@ -114,6 +130,23 @@ const GAMES: Game[] = [
       '中獎區域依桌面賠率即時派彩，未中則扣除當局下注。',
     ],
     tips: '御龍百家視覺更沉穩，適合長時間觀察牌路與桌台節奏。',
+  },
+  {
+    id: 'blackjack',
+    hall: 'tables',
+    name: '21點',
+    english: 'Blackjack 21',
+    cover: '/game-art/blackjack/cover.png',
+    rtp: '99.5%',
+    maxMultiplier: '2.5×',
+    duration: '單局 10–40 秒',
+    intro: '正式 21 點牌桌玩法，玩家與莊家比點數，Blackjack 按 3:2 派彩。',
+    howToPlay: [
+      '起手玩家與莊家各兩張，莊家一張暗牌，玩家可補牌、停牌、加倍或分牌。',
+      '點數超過 21 即爆牌；A 可算 1 或 11，J/Q/K 算 10。',
+      '莊家 16 點以下補牌，17 點以上停牌，軟 17 也停牌。',
+    ],
+    tips: '兩張起手牌同點數可分牌，A 分牌後每手只補一張。',
   },
   {
     id: 'rocket',
@@ -236,7 +269,7 @@ const GAMES: Game[] = [
   },
   {
     id: 'plinkox',
-    hall: 'crash',
+    hall: 'classic',
     name: '掉珠挑戰 X',
     english: 'Plinko X',
     cover: '/games/plinko-x.jpg',
@@ -270,7 +303,7 @@ const GAMES: Game[] = [
   },
   {
     id: 'roulette',
-    hall: 'classic',
+    hall: 'roulette',
     name: '迷你輪盤',
     english: 'Mini Roulette',
     cover: '/game-art/mini-roulette/cover.png',
@@ -287,7 +320,7 @@ const GAMES: Game[] = [
   },
   {
     id: 'wheel',
-    hall: 'classic',
+    hall: 'roulette',
     name: '彩色轉輪',
     english: 'Color Wheel',
     cover: '/game-art/wheel/cover.png',
@@ -304,7 +337,7 @@ const GAMES: Game[] = [
   },
   {
     id: 'hotline',
-    hall: 'classic',
+    hall: 'slots',
     name: '霓虹熱線',
     english: 'Hotline',
     cover: '/slots/cyber/cover.png',
@@ -321,7 +354,7 @@ const GAMES: Game[] = [
   },
   {
     id: 'temple-slot',
-    hall: 'classic',
+    hall: 'slots',
     name: '聖殿寶石',
     english: 'Temple Gems 3x3',
     cover: '/slots/temple/cover.png',
@@ -338,7 +371,7 @@ const GAMES: Game[] = [
   },
   {
     id: 'candy-slot',
-    hall: 'classic',
+    hall: 'slots',
     name: '糖果派對',
     english: 'Candy Party 3x3',
     cover: '/slots/candy/cover.png',
@@ -355,7 +388,7 @@ const GAMES: Game[] = [
   },
   {
     id: 'sakura-slot',
-    hall: 'classic',
+    hall: 'slots',
     name: '夜櫻武士',
     english: 'Sakura Blade 3x3',
     cover: '/slots/sakura/cover.png',
@@ -389,7 +422,7 @@ const GAMES: Game[] = [
   },
   {
     id: 'hilo',
-    hall: 'strategy',
+    hall: 'tables',
     name: '猜大小',
     english: 'Hi-Lo',
     cover: '/game-art/hilo/cover.png',
@@ -440,7 +473,7 @@ const GAMES: Game[] = [
   },
   {
     id: 'plinko',
-    hall: 'strategy',
+    hall: 'classic',
     name: '彈珠台',
     english: 'Plinko',
     cover: '/game-art/plinko/cover.png',
@@ -482,10 +515,10 @@ export function VerifyPage() {
               </div>
               <div className="min-w-0">
                 <h1 className="text-pretty text-[32px] font-bold leading-tight md:text-[40px]">
-                  19 款人氣玩法，一頁讀懂規則與賠率。
+                  {GAMES.length} 款人氣玩法，一頁讀懂規則與賠率。
                 </h1>
                 <p className="mt-3 max-w-3xl text-[14px] leading-relaxed text-white/[0.78]">
-                  飛行、經典、策略、牌桌四大主題館，從快節奏 Crash 到講究牌路節奏的百家樂，挑你今晚最想開的那一桌。每款遊戲都附上玩法步驟、RTP 與最高倍率，幫你快速上手。
+                  飛行、棋牌牌桌、拉霸、輪盤、即開電子、策略挑戰六大主題館，從快節奏 Crash 到講究牌路節奏的百家與 21 點，挑你今晚最想開的那一桌。每款遊戲都附上玩法步驟、RTP 與最高倍率，幫你快速上手。
                 </p>
               </div>
             </div>
@@ -521,7 +554,7 @@ export function VerifyPage() {
                   : 'border-[#E5E7EB] bg-white text-[#0F172A] hover:border-[#0F172A]/40'
               }`}
             >
-              <span>全部 19 款</span>
+              <span>全部 {GAMES.length} 款</span>
               <span className="text-[12px] opacity-70">{GAMES.length}</span>
             </button>
             {HALLS.map((hall) => {
@@ -550,7 +583,7 @@ export function VerifyPage() {
       <section className="space-y-5">
         <SectionHeading
           eyebrow="Game Catalogue"
-          title={activeHall === 'all' ? '19 款遊戲完整玩法' : `${HALLS.find((h) => h.key === activeHall)?.title} 玩法詳解`}
+          title={activeHall === 'all' ? `${GAMES.length} 款遊戲完整玩法` : `${HALLS.find((h) => h.key === activeHall)?.title} 玩法詳解`}
           description="點開卡片看每款遊戲的下注步驟、賠率上限與操作要點。"
         />
 
