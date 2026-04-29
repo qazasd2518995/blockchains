@@ -1,1 +1,29 @@
 @import '@bg/ui-tokens/global.css';
+
+@layer components {
+  .admin-table-scroll table {
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+  }
+
+  .admin-table-scroll table .data-num,
+  .admin-table-scroll table .num,
+  .admin-report-number {
+    font-family: Inter, 'Noto Sans TC', 'Microsoft JhengHei', Arial, sans-serif !important;
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-rendering: geometricPrecision;
+  }
+
+  .admin-table-scroll table td .data-num,
+  .admin-table-scroll table td.data-num {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .admin-table-scroll table tr.bg-ink-100\/60 .data-num {
+    font-weight: 700;
+  }
+}
