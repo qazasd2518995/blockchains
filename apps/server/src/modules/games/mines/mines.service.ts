@@ -221,18 +221,17 @@ export class MinesService {
 
       const multiplier = round.currentMultiplier;
       const payout = round.betAmount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const controlled = {
+      const controlled = await applyControls(tx, userId, GameId.MINES, {
         won: payout.greaterThan(round.betAmount),
+        amount: round.betAmount,
         multiplier,
         payout,
-        controlled: false,
-        flipReason: undefined as string | undefined,
-        controlId: undefined as string | undefined,
-      };
-      const finalMultiplier = multiplier;
-      const finalPayout = payout;
+      });
+      const forceLoss = controlled.controlled && !controlled.won;
+      const finalMultiplier = forceLoss ? new Prisma.Decimal(0) : multiplier;
+      const finalPayout = forceLoss ? new Prisma.Decimal(0) : payout;
       const profit = finalPayout.minus(round.betAmount);
-      const finalStatus = 'CASHED_OUT';
+      const finalStatus = forceLoss ? 'BUSTED' : 'CASHED_OUT';
 
       const originalResult = {
         mineCount: round.mineCount,
@@ -245,8 +244,8 @@ export class MinesService {
         mineCount: round.mineCount,
         minePositions: round.minePositions,
         revealed: round.revealed,
-        hitMine: false,
-        cashedOut: true,
+        hitMine: forceLoss,
+        cashedOut: !forceLoss,
         controlled: controlled.controlled,
         flipReason: controlled.flipReason ?? null,
         raw: controlled.controlled ? originalResult : null,

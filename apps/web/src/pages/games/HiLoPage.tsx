@@ -138,6 +138,22 @@ export function HiLoPage() {
       });
       setRound(res.data.state);
       setBalance(res.data.newBalance);
+      if (res.data.state.status === 'BUSTED') {
+        setHistory((prev) => [
+          {
+            id: res.data.state.roundId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: 0,
+            payout: 0,
+            won: false,
+            detail: `${res.data.state.history.length} 連對`,
+          },
+          ...prev,
+        ].slice(0, 30));
+        return;
+      }
+
       const cashMult = Number.parseFloat(res.data.state.currentMultiplier);
       sceneRef.current?.celebrateCashout(cashMult);
       sceneRef.current?.playWinFx(cashMult, true);

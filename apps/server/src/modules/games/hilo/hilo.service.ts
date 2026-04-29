@@ -238,22 +238,22 @@ export class HiLoService {
       const payout = round.betAmount
         .mul(multiplier)
         .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const controlled = {
+      const controlled = await applyControls(tx, userId, GameId.HILO, {
         won: payout.greaterThan(round.betAmount),
+        amount: round.betAmount,
         multiplier,
         payout,
-        controlled: false,
-        flipReason: undefined as string | undefined,
-        controlId: undefined as string | undefined,
-      };
-      const finalMultiplier = multiplier;
-      const finalPayout = payout;
+      });
+      const forceLoss = controlled.controlled && !controlled.won;
+      const finalMultiplier = forceLoss ? new Prisma.Decimal(0) : multiplier;
+      const finalPayout = forceLoss ? new Prisma.Decimal(0) : payout;
       const profit = finalPayout.minus(round.betAmount);
-      const finalStatus = 'CASHED_OUT';
+      const finalStatus = forceLoss ? 'BUSTED' : 'CASHED_OUT';
       const originalResult = { history, cashedOut: true };
       const finalResult = {
         history,
-        cashedOut: finalStatus === 'CASHED_OUT',
+        cashedOut: !forceLoss,
+        bustedByCashoutControl: forceLoss,
         controlled: controlled.controlled,
         flipReason: controlled.flipReason ?? null,
         raw: controlled.controlled ? originalResult : null,

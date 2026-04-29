@@ -234,6 +234,22 @@ export function TowerPage() {
       if (res.data.state.revealedLayout) {
         sceneRef.current?.revealAll(res.data.state.revealedLayout);
       }
+      if (res.data.state.status === 'BUSTED') {
+        setHistory((prev) => [
+          {
+            id: res.data.state.roundId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: 0,
+            payout: 0,
+            won: false,
+            detail: `${res.data.state.picks.length} 層 · ${res.data.state.difficulty}`,
+          },
+          ...prev,
+        ].slice(0, 30));
+        return;
+      }
+
       const cashMult = Number.parseFloat(res.data.state.currentMultiplier);
       sceneRef.current?.celebrate(cashMult);
       sceneRef.current?.playWinFx(cashMult, true);

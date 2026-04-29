@@ -202,10 +202,27 @@ export function MinesPage() {
       setRound(state);
       roundRef.current = state;
       sceneRef.current?.setClickable(false);
+      setBalance(newBalance);
+      if (state.status === 'BUSTED') {
+        if (state.minePositions) sceneRef.current?.revealAllMines(state.minePositions);
+        setHistory((prev) => [
+          {
+            id: state.roundId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: 0,
+            payout: 0,
+            won: false,
+            detail: `${state.revealed.length} 安全 · ${state.mineCount} 雷`,
+          },
+          ...prev,
+        ].slice(0, 30));
+        return;
+      }
+
       const cashMult = Number.parseFloat(state.currentMultiplier);
       sceneRef.current?.celebrateCashout(cashMult);
       sceneRef.current?.playWinFx(cashMult, true);
-      setBalance(newBalance);
       setHistory((prev) => [
         {
           id: state.roundId,

@@ -673,6 +673,29 @@ export class CrashRoom {
       if (user.frozenAt) throw new Error('Account frozen');
       const multD = new Prisma.Decimal(multiplier.toFixed(4));
       const payout = bet.amount.mul(multD).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+      const existingControl = this.roundControlOutcomes.get(betId);
+      if (existingControl?.outcome.controlled && !existingControl.outcome.won) {
+        throw new Error('Cashout window missed');
+      }
+      const cashoutOriginal: PredictedResult = {
+        won: payout.greaterThan(bet.amount),
+        amount: bet.amount,
+        multiplier: multD,
+        payout,
+      };
+      const cashoutControl = existingControl?.outcome ?? await applyControls(
+        tx,
+        userId,
+        this.config.gameId,
+        cashoutOriginal,
+      );
+      if (cashoutControl.controlled && !cashoutControl.won) {
+        this.roundControlOutcomes.set(betId, {
+          outcome: cashoutControl,
+          original: cashoutOriginal,
+        });
+        throw new Error('Cashout window missed');
+      }
       const updated = await tx.user.update({
         where: { id: userId },
         data: { balance: { increment: payout } },
@@ -691,12 +714,7 @@ export class CrashRoom {
         data: { cashedOutAt: multD, payout },
       });
       const control = this.roundControlOutcomes.get(betId);
-      const original = control?.original ?? {
-        won: payout.greaterThan(bet.amount),
-        amount: bet.amount,
-        multiplier: multD,
-        payout,
-      };
+      const original = control?.original ?? cashoutOriginal;
       await finalizeControls(
         tx,
         userId,

@@ -10,6 +10,7 @@ import {
   debitAndRecord,
   runSerializable,
 } from '../games/_common/BaseGameService.js';
+import { applyControls, finalizeControls } from '../games/_common/controls.js';
 
 const userParamSchema = z.object({
   userId: z.string().min(1),
@@ -141,6 +142,31 @@ export async function baccaratIntegrationRoutes(fastify: FastifyInstance): Promi
       const multiplier = amount.greaterThan(0)
         ? payout.div(amount).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP)
         : new Prisma.Decimal(0);
+      const original = {
+        won: payout.greaterThan(amount),
+        amount,
+        multiplier,
+        payout,
+      };
+      const controlled = await applyControls(tx, body.userId, body.gameId, original);
+      const finalPayout = controlled.controlled ? controlled.payout : payout;
+      const finalMultiplier = controlled.controlled ? controlled.multiplier : multiplier;
+      const submittedResult = body.resultData ?? null;
+      const originalResult = {
+        source: 'baccarat_settle',
+        resultData: submittedResult,
+        multiplier: multiplier.toFixed(4),
+        payout: payout.toFixed(2),
+      };
+      const finalResult = {
+        source: 'baccarat_settle',
+        resultData: submittedResult,
+        controlled: controlled.controlled,
+        flipReason: controlled.flipReason ?? null,
+        multiplier: finalMultiplier.toFixed(4),
+        payout: finalPayout.toFixed(2),
+        raw: controlled.controlled ? originalResult : null,
+      };
 
       const seed = await new SeedHelper(tx).getActiveBundle(body.userId, body.gameId);
       const bet = await tx.bet.create({
@@ -148,22 +174,22 @@ export async function baccaratIntegrationRoutes(fastify: FastifyInstance): Promi
           userId: body.userId,
           gameId: body.gameId,
           amount,
-          multiplier,
-          payout,
-          profit: payout.sub(amount),
+          multiplier: finalMultiplier,
+          payout: finalPayout,
+          profit: finalPayout.sub(amount),
           nonce: seed.nonce,
           clientSeedUsed: seed.clientSeed,
           serverSeedId: seed.serverSeedId,
-          resultData: body.resultData ?? {},
+          resultData: finalResult as Prisma.InputJsonValue,
           status: 'SETTLED',
         },
       });
 
-      const balance = payout.greaterThan(0)
-        ? await creditAndRecord(tx, body.userId, payout, bet.id, 'BET_WIN')
+      const balance = finalPayout.greaterThan(0)
+        ? await creditAndRecord(tx, body.userId, finalPayout, bet.id, 'BET_WIN')
         : (await tx.user.findUniqueOrThrow({ where: { id: body.userId } })).balance;
 
-      if (payout.lessThanOrEqualTo(0)) {
+      if (finalPayout.lessThanOrEqualTo(0)) {
         await tx.transaction.create({
           data: {
             userId: body.userId,
@@ -176,7 +202,30 @@ export async function baccaratIntegrationRoutes(fastify: FastifyInstance): Promi
         });
       }
 
-      return { balance: balance.toFixed(2), betId: bet.id };
+      await finalizeControls(
+        tx,
+        body.userId,
+        body.gameId,
+        original,
+        {
+          won: finalPayout.greaterThan(amount),
+          amount,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
+        },
+        controlled,
+        bet.id,
+        originalResult as Prisma.InputJsonValue,
+        finalResult as Prisma.InputJsonValue,
+      );
+
+      return {
+        balance: balance.toFixed(2),
+        betId: bet.id,
+        payout: finalPayout.toFixed(2),
+        multiplier: finalMultiplier.toFixed(4),
+        controlled: controlled.controlled,
+      };
     });
   });
 }

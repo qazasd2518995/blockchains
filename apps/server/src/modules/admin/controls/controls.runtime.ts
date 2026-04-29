@@ -318,16 +318,116 @@ async function calculateAgentLineSettlement(
 
 async function calculateAllSettlement(db: Db): Promise<SettlementSummary> {
   const window = getControlGameDayWindow();
-  const roots = await db.agent.findMany({
-    where: { parentId: null, status: { not: 'DELETED' } },
-    select: { id: true },
-    orderBy: { createdAt: 'asc' },
-  });
-  if (roots.length === 0) return emptySummary(window.gameDay);
+  const [superAdmins, roots] = await Promise.all([
+    db.agent.findMany({
+      where: { role: 'SUPER_ADMIN', status: { not: 'DELETED' } },
+      select: {
+        id: true,
+        parentId: true,
+        rebateMode: true,
+        rebatePercentage: true,
+        maxRebatePercentage: true,
+        baccaratRebateMode: true,
+        baccaratRebatePercentage: true,
+        maxBaccaratRebatePercentage: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
+    findPlatformRootAgents(db),
+  ]);
 
   const summaries = await Promise.all(
     roots.map((root) => calculateAgentSubtreeSettlement(db, root.id, window)),
   );
+  const directMemberSummary = await calculatePlatformDirectMembersSettlement(db, window, superAdmins);
+  const allSummaries = [...summaries, directMemberSummary].filter((item) => item.totalBets > 0);
+  if (allSummaries.length === 0) return emptySummary(window.gameDay);
+
+  return allSummaries.reduce(
+    (acc, current) => ({
+      gameDay: current.gameDay,
+      totalBet: acc.totalBet.add(current.totalBet),
+      totalPayout: acc.totalPayout.add(current.totalPayout),
+      memberWinLoss: acc.memberWinLoss.add(current.memberWinLoss),
+      totalRebate: acc.totalRebate.add(current.totalRebate),
+      superiorSettlement: acc.superiorSettlement.add(current.superiorSettlement),
+      totalBets: acc.totalBets + current.totalBets,
+      totalPlayers: acc.totalPlayers + current.totalPlayers,
+      status:
+        acc.superiorSettlement.add(current.superiorSettlement).gt(0) ? 'green' : 'red',
+      statusText:
+        acc.superiorSettlement.add(current.superiorSettlement).gt(0)
+          ? '绿色(平台亏损)'
+          : '红色(平台盈利)',
+    }),
+    emptySummary(window.gameDay),
+  );
+}
+
+async function findPlatformRootAgents(db: Db): Promise<Array<{ id: string }>> {
+  const superAdmins = await db.agent.findMany({
+    where: { role: 'SUPER_ADMIN', status: { not: 'DELETED' } },
+    select: { id: true },
+  });
+  const superAdminIds = superAdmins.map((agent) => agent.id);
+  const parentFilters: Prisma.AgentWhereInput[] = [{ parentId: null }];
+  if (superAdminIds.length > 0) {
+    parentFilters.push({ parentId: { in: superAdminIds } });
+  }
+
+  return db.agent.findMany({
+    where: {
+      OR: parentFilters,
+      role: { not: 'SUPER_ADMIN' },
+      status: { not: 'DELETED' },
+    },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
+async function calculatePlatformDirectMembersSettlement(
+  db: Db,
+  window: ReturnType<typeof getControlGameDayWindow>,
+  superAdmins: AgentRebateProfile[],
+): Promise<SettlementSummary> {
+  const summaries: SettlementSummary[] = [];
+  const unattachedMembers = await db.user.findMany({
+    where: { agentId: null },
+    select: { id: true },
+  });
+  if (unattachedMembers.length > 0) {
+    const aggregate = await queryBetAggregate(db, window, {
+      userIds: unattachedMembers.map((member) => member.id),
+    });
+    summaries.push(toSummary(window.gameDay, aggregate, ZERO));
+  }
+
+  for (const admin of superAdmins) {
+    const directMembers = await db.user.findMany({
+      where: { agentId: admin.id },
+      select: { id: true },
+    });
+    if (directMembers.length === 0) continue;
+
+    const aggregate = await queryBetAggregate(db, window, {
+      userIds: directMembers.map((member) => member.id),
+    });
+    summaries.push(toSummary(
+      window.gameDay,
+      aggregate,
+      calculateRebateAmountByCategory(
+        {
+          betAmount: aggregate.totalBet,
+          electronicBetAmount: aggregate.electronicBetAmount,
+          baccaratBetAmount: aggregate.baccaratBetAmount,
+        },
+        effectiveDownlineRebate(admin, 'electronic'),
+        effectiveDownlineRebate(admin, 'baccarat'),
+      ),
+    ));
+  }
+
   return summaries.reduce(
     (acc, current) => ({
       gameDay: current.gameDay,
