@@ -14,7 +14,7 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls } from '../_common/controls.js';
+import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { HiLoStartInput, HiLoGuessInput, HiLoCashoutInput } from './hilo.schema.js';
 
@@ -95,11 +95,29 @@ export class HiLoService {
         multiplier: rawCorrect ? nextMultiplier : new Prisma.Decimal(0),
         payout: predictedPayout,
       });
-      const adjusted = adjustHiLoDraw(current, input.guess, controlled.controlled ? controlled.won : rawCorrect, rawDrawn);
+      const controlledWinOutOfBounds =
+        controlled.controlled &&
+        controlled.won &&
+        !multiplierMatchesControlBounds(nextMultiplier, round.betAmount, controlled);
+      const effectiveDesiredCorrect = controlled.controlled
+        ? controlledWinOutOfBounds
+          ? false
+          : controlled.won
+        : rawCorrect;
+      const adjusted = adjustHiLoDraw(current, input.guess, effectiveDesiredCorrect, rawDrawn);
       const drawn = adjusted.card;
       const correct = adjusted.correct;
       const effectiveControl = adjusted.correct !== rawCorrect
-        ? controlled
+        ? controlledWinOutOfBounds
+          ? {
+              won: false,
+              multiplier: new Prisma.Decimal(0),
+              payout: new Prisma.Decimal(0),
+              controlled: true,
+              flipReason: controlled.flipReason === 'burst_risk_cap' ? 'burst_risk_guard' : 'burst_budget_guard',
+              controlId: controlled.controlId,
+            }
+          : controlled
         : { ...controlled, controlled: false, flipReason: undefined, controlId: undefined };
 
       const newHistory = [...history, drawn];
@@ -288,7 +306,7 @@ export class HiLoService {
         : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
       const updated = await tx.hiLoRound.update({
         where: { id: round.id },
-        data: { status: finalStatus, finishedAt: new Date() },
+        data: { status: finalStatus, currentMultiplier: finalMultiplier, finishedAt: new Date() },
       });
       await finalizeControls(
         tx,
