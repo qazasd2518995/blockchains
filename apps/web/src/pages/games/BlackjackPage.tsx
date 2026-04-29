@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AlertCircle, BadgeDollarSign, ChevronsRight, Hand, Play, Scissors, Shield } from 'lucide-react';
-import type { BlackjackCard, BlackjackRoundResult, BlackjackRoundState } from '@bg/shared';
+import type { BlackjackCard, BlackjackPlayerHand, BlackjackRoundResult, BlackjackRoundState } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -12,6 +12,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 
 const CARD_FILE_RANKS = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'] as const;
 const CARD_FILE_SUITS = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
+const DEAL_STEP_MS = 260;
 
 export function BlackjackPage() {
   const { user, setBalance } = useAuthStore();
@@ -19,24 +20,52 @@ export function BlackjackPage() {
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
   const [round, setRound] = useState<BlackjackRoundState | null>(null);
+  const [displayRound, setDisplayRound] = useState<BlackjackRoundState | null>(null);
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const [busy, setBusy] = useState(false);
+  const [animating, setAnimating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const animationTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
 
   useEffect(() => {
     void api
       .get<{ state: BlackjackRoundState | null }>('/games/blackjack/active')
-      .then((res) => setRound(res.data.state))
+      .then((res) => {
+        setRound(res.data.state);
+        setDisplayRound(res.data.state);
+      })
       .catch(() => undefined);
   }, []);
 
+  useEffect(() => () => clearAnimationTimers(animationTimers.current), []);
+
+  const tableRound = displayRound ?? round;
   const activeHand = round?.playerHands[round.activeHandIndex] ?? null;
-  const settled = round && round.status !== 'ACTIVE';
+  const displayActiveHand = tableRound?.playerHands[tableRound.activeHandIndex] ?? null;
+  const settled = round && round.status !== 'ACTIVE' && !animating;
   const resultSummary = useMemo(() => summarizeRound(round), [round]);
+
+  const playRoundAnimation = (nextRound: BlackjackRoundState) => {
+    clearAnimationTimers(animationTimers.current);
+    const previous = displayRound ?? round;
+    const frames = buildBlackjackDealFrames(previous, nextRound);
+
+    setAnimating(frames.length > 1);
+    frames.forEach((frame, index) => {
+      const timer = setTimeout(() => {
+        setDisplayRound(frame);
+        if (index === frames.length - 1) {
+          setAnimating(false);
+        }
+      }, index * DEAL_STEP_MS);
+      animationTimers.current.push(timer);
+    });
+  };
 
   const applyResult = (result: BlackjackRoundResult, fallbackBet: number) => {
     setRound(result.state);
     if (result.newBalance) setBalance(result.newBalance);
+    playRoundAnimation(result.state);
     if (result.state.status !== 'ACTIVE') {
       const totalBet = Number.parseFloat(result.state.totalBetAmount);
       const payout = Number.parseFloat(result.state.potentialPayout);
@@ -56,7 +85,7 @@ export function BlackjackPage() {
   };
 
   const runAction = async (path: string, fallbackBet = amount) => {
-    if (!round || busy) return;
+    if (!round || busy || animating) return;
     setBusy(true);
     setError(null);
     try {
@@ -70,7 +99,7 @@ export function BlackjackPage() {
   };
 
   const handleStart = async () => {
-    if (busy || amount <= 0 || amount > balance) return;
+    if (busy || animating || amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
     try {
@@ -84,7 +113,10 @@ export function BlackjackPage() {
   };
 
   const handleReset = () => {
+    clearAnimationTimers(animationTimers.current);
     setRound(null);
+    setDisplayRound(null);
+    setAnimating(false);
     setError(null);
   };
 
@@ -111,7 +143,7 @@ export function BlackjackPage() {
               <span className="ml-2 text-white/55 uppercase">Blackjack</span>
               <span className="text-[#7EE0A4]">
                 <span className="dot-online" />
-                {round ? (round.status === 'ACTIVE' ? t.games.blackjack.dealing : t.common.ready) : t.games.hilo.idle}
+                {tableRound ? (tableRound.status === 'ACTIVE' ? t.games.blackjack.dealing : t.common.ready) : t.games.hilo.idle}
               </span>
             </div>
 
@@ -129,20 +161,24 @@ export function BlackjackPage() {
                   <TableLabel
                     title={t.games.blackjack.dealer}
                     value={
-                      round?.dealerScore
-                        ? round.dealerHoleHidden
+                      tableRound?.dealerScore
+                        ? tableRound.dealerHoleHidden
                           ? t.games.blackjack.holeHidden
-                          : `${round.dealerScore.total}${round.dealerScore.soft ? ' SOFT' : ''}`
+                          : `${tableRound.dealerScore.total}${tableRound.dealerScore.soft ? ' SOFT' : ''}`
                         : '--'
                     }
                   />
                   <div className="mt-3 flex min-h-[150px] flex-wrap items-center justify-center gap-2 sm:gap-3">
-                    {round ? (
+                    {tableRound ? (
                       <>
-                        {round.dealerCards.map((card, index) => (
-                          <CardImage key={`dealer-${index}-${card.rank}-${card.suit}`} card={card} />
+                        {tableRound.dealerCards.map((card, index) => (
+                          <CardImage
+                            key={`dealer-${index}-${card.rank}-${card.suit}`}
+                            card={card}
+                            lane="dealer"
+                          />
                         ))}
-                        {round.dealerHoleHidden && <CardBack />}
+                        {tableRound.dealerHoleHidden && <CardBack />}
                       </>
                     ) : (
                       <EmptySeat label={t.games.blackjack.placeBetToDeal} />
@@ -152,15 +188,17 @@ export function BlackjackPage() {
 
                 <div className="mx-auto grid w-full max-w-[720px] grid-cols-3 gap-2 rounded-full border border-[#C9A247]/20 bg-[#06101C]/70 p-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-white/60 backdrop-blur">
                   <div>
-                    <span className="block text-[#E8D48A]">{formatAmount(round?.totalBetAmount ?? amount)}</span>
+                    <span className="block text-[#E8D48A]">{formatAmount(tableRound?.totalBetAmount ?? amount)}</span>
                     {t.bet.amount}
                   </div>
                   <div>
-                    <span className="block text-[#7DD3FC]">{formatAmount(round?.potentialPayout ?? 0)}</span>
+                    <span className="block text-[#7DD3FC]">{formatAmount(tableRound?.potentialPayout ?? 0)}</span>
                     {t.bet.potentialPayout}
                   </div>
                   <div>
-                    <span className="block text-[#6EE7B7]">{activeHand ? activeHand.score.total : '--'}</span>
+                    <span className="block text-[#6EE7B7]">
+                      {displayActiveHand && displayActiveHand.cards.length > 0 ? displayActiveHand.score.total : '--'}
+                    </span>
                     {t.games.blackjack.handValue}
                   </div>
                 </div>
@@ -168,15 +206,17 @@ export function BlackjackPage() {
                 <section>
                   <TableLabel
                     title={t.games.blackjack.player}
-                    value={activeHand ? `${t.games.blackjack.hand} ${round!.activeHandIndex + 1}` : '--'}
+                    value={displayActiveHand ? `${t.games.blackjack.hand} ${tableRound!.activeHandIndex + 1}` : '--'}
                   />
-                  <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    {round ? (
-                      round.playerHands.map((hand, index) => (
+                  <div className="mt-3 flex flex-wrap justify-center gap-3">
+                    {tableRound ? (
+                      tableRound.playerHands.map((hand, index) => (
                         <div
                           key={hand.id}
-                          className={`rounded-[18px] border p-3 backdrop-blur ${
-                            index === round.activeHandIndex && round.status === 'ACTIVE'
+                          className={`w-full rounded-[18px] border p-3 backdrop-blur ${
+                            tableRound.playerHands.length > 1 ? 'md:max-w-[360px] md:basis-[calc(50%-0.375rem)]' : 'max-w-[560px]'
+                          } ${
+                            index === tableRound.activeHandIndex && tableRound.status === 'ACTIVE'
                               ? 'border-[#E8D48A]/70 bg-[#0F1E2E]/84 shadow-[0_0_28px_rgba(232,212,138,0.12)]'
                               : 'border-white/10 bg-[#07111E]/64'
                           }`}
@@ -186,13 +226,17 @@ export function BlackjackPage() {
                               {t.games.blackjack.hand} {index + 1}
                             </div>
                             <div className="rounded-full bg-white/[0.08] px-2 py-1 text-[10px] font-bold text-[#E8D48A]">
-                              {formatAmount(hand.bet)} · {hand.score.total}
-                              {hand.score.soft ? ' SOFT' : ''}
+                              {formatAmount(hand.bet)} · {hand.cards.length > 0 ? hand.score.total : '--'}
+                              {hand.cards.length > 0 && hand.score.soft ? ' SOFT' : ''}
                             </div>
                           </div>
                           <div className="flex min-h-[132px] flex-wrap items-center justify-center gap-2">
                             {hand.cards.map((card, cardIndex) => (
-                              <CardImage key={`${hand.id}-${cardIndex}-${card.rank}-${card.suit}`} card={card} />
+                              <CardImage
+                                key={`${hand.id}-${cardIndex}-${card.rank}-${card.suit}`}
+                                card={card}
+                                lane="player"
+                              />
                             ))}
                           </div>
                           <div className="mt-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.16em]">
@@ -259,7 +303,7 @@ export function BlackjackPage() {
                 <button
                   type="button"
                   onClick={handleStart}
-                  disabled={busy || balance < amount}
+                  disabled={busy || animating || balance < amount}
                   className="btn-acid col-span-2 w-full py-4"
                 >
                   <Play className="h-4 w-4" aria-hidden="true" />
@@ -272,25 +316,25 @@ export function BlackjackPage() {
                   <ActionButton
                     icon={<ChevronsRight className="h-4 w-4" aria-hidden="true" />}
                     label={t.games.blackjack.hit}
-                    disabled={busy || !round.canHit}
+                    disabled={busy || animating || !round.canHit}
                     onClick={() => runAction('/games/blackjack/hit')}
                   />
                   <ActionButton
                     icon={<Hand className="h-4 w-4" aria-hidden="true" />}
                     label={t.games.blackjack.stand}
-                    disabled={busy || !round.canStand}
+                    disabled={busy || animating || !round.canStand}
                     onClick={() => runAction('/games/blackjack/stand')}
                   />
                   <ActionButton
                     icon={<BadgeDollarSign className="h-4 w-4" aria-hidden="true" />}
                     label={t.games.blackjack.double}
-                    disabled={busy || !round.canDouble || balance < Number.parseFloat(activeHand?.bet ?? '0')}
+                    disabled={busy || animating || !round.canDouble || balance < Number.parseFloat(activeHand?.bet ?? '0')}
                     onClick={() => runAction('/games/blackjack/double')}
                   />
                   <ActionButton
                     icon={<Scissors className="h-4 w-4" aria-hidden="true" />}
                     label={t.games.blackjack.split}
-                    disabled={busy || !round.canSplit || balance < Number.parseFloat(activeHand?.bet ?? '0')}
+                    disabled={busy || animating || !round.canSplit || balance < Number.parseFloat(activeHand?.bet ?? '0')}
                     onClick={() => runAction('/games/blackjack/split')}
                   />
                 </>
@@ -376,27 +420,199 @@ function EmptySeat({ label }: { label: string }) {
   );
 }
 
-function CardImage({ card }: { card: BlackjackCard }) {
+function CardImage({ card, lane }: { card: BlackjackCard; lane: 'dealer' | 'player' }) {
   const path = getCardAssetPath(card);
   const label = `${rankLabel(card.rank)} ${suitLabel(card.suit)}`;
   return (
-    <img
-      src={path}
-      alt={label}
-      className="h-[122px] w-[82px] rounded-[8px] object-contain shadow-[0_14px_28px_rgba(0,0,0,0.38)] sm:h-[148px] sm:w-[100px]"
-      draggable={false}
-    />
+    <span className={`blackjack-card-shell blackjack-card-deal blackjack-card-deal-${lane}`}>
+      <img
+        src={path}
+        alt={label}
+        className="h-[122px] w-[82px] rounded-[8px] object-contain shadow-[0_14px_28px_rgba(0,0,0,0.38)] sm:h-[148px] sm:w-[100px]"
+        draggable={false}
+      />
+    </span>
   );
 }
 
 function CardBack() {
   return (
-    <div className="flex h-[122px] w-[82px] items-center justify-center rounded-[8px] border border-[#E8D48A]/50 bg-[radial-gradient(circle_at_50%_35%,rgba(232,212,138,0.34),transparent_30%),linear-gradient(135deg,#07111E,#143B4C_52%,#07111E)] shadow-[0_14px_28px_rgba(0,0,0,0.38)] sm:h-[148px] sm:w-[100px]">
-      <div className="rounded-full border border-[#E8D48A]/45 px-3 py-2 text-[10px] font-black tracking-[0.22em] text-[#E8D48A]">
-        BG
+    <span className="blackjack-card-shell blackjack-card-deal blackjack-card-deal-dealer">
+      <div className="flex h-[122px] w-[82px] items-center justify-center rounded-[8px] border border-[#E8D48A]/50 bg-[radial-gradient(circle_at_50%_35%,rgba(232,212,138,0.34),transparent_30%),linear-gradient(135deg,#07111E,#143B4C_52%,#07111E)] shadow-[0_14px_28px_rgba(0,0,0,0.38)] sm:h-[148px] sm:w-[100px]">
+        <div className="rounded-full border border-[#E8D48A]/45 px-3 py-2 text-[10px] font-black tracking-[0.22em] text-[#E8D48A]">
+          BG
+        </div>
       </div>
-    </div>
+    </span>
   );
+}
+
+function clearAnimationTimers(timers: Array<ReturnType<typeof setTimeout>>): void {
+  timers.splice(0).forEach((timer) => clearTimeout(timer));
+}
+
+function buildBlackjackDealFrames(
+  previous: BlackjackRoundState | null,
+  next: BlackjackRoundState,
+): BlackjackRoundState[] {
+  if (!previous || previous.roundId !== next.roundId) {
+    return compactFrames(buildOpeningFrames(next));
+  }
+
+  const frames: BlackjackRoundState[] = [];
+  const handCounts = next.playerHands.map((hand, index) => {
+    const previousHand = previous.playerHands.find((candidate) => candidate.id === hand.id) ?? previous.playerHands[index];
+    return Math.min(previousHand?.cards.length ?? 0, hand.cards.length);
+  });
+  let dealerCount = Math.min(previous.dealerCards.length, next.dealerCards.length);
+  let dealerHoleHidden = previous.dealerHoleHidden && next.dealerHoleHidden;
+
+  frames.push(makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, false));
+
+  next.playerHands.forEach((hand, index) => {
+    while ((handCounts[index] ?? 0) < hand.cards.length) {
+      handCounts[index] = (handCounts[index] ?? 0) + 1;
+      frames.push(makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, next.status === 'ACTIVE'));
+    }
+  });
+
+  if (next.dealerHoleHidden) {
+    dealerHoleHidden = true;
+    frames.push(makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, next.status === 'ACTIVE'));
+  } else {
+    dealerHoleHidden = false;
+    while (dealerCount < next.dealerCards.length) {
+      dealerCount += 1;
+      frames.push(makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, false));
+    }
+  }
+
+  frames.push(next);
+  return compactFrames(frames);
+}
+
+function buildOpeningFrames(next: BlackjackRoundState): BlackjackRoundState[] {
+  const frames: BlackjackRoundState[] = [];
+  const handCounts = next.playerHands.map(() => 0);
+  let dealerCount = 0;
+
+  frames.push(makeVisibleRound(next, 0, false, handCounts, false));
+
+  if (next.playerHands[0]?.cards.length) {
+    handCounts[0] = 1;
+    frames.push(makeVisibleRound(next, dealerCount, false, handCounts, false));
+  }
+
+  if (next.dealerCards.length > 0) {
+    dealerCount = 1;
+    frames.push(makeVisibleRound(next, dealerCount, false, handCounts, false));
+  }
+
+  if ((next.playerHands[0]?.cards.length ?? 0) > 1) {
+    handCounts[0] = 2;
+    frames.push(makeVisibleRound(next, dealerCount, false, handCounts, next.status === 'ACTIVE'));
+  }
+
+  if (next.dealerHoleHidden) {
+    frames.push(makeVisibleRound(next, dealerCount, true, handCounts, true));
+  } else {
+    while (dealerCount < next.dealerCards.length) {
+      dealerCount += 1;
+      frames.push(makeVisibleRound(next, dealerCount, false, handCounts, false));
+    }
+  }
+
+  frames.push(next);
+  return frames;
+}
+
+function makeVisibleRound(
+  source: BlackjackRoundState,
+  dealerCount: number,
+  dealerHoleHidden: boolean,
+  handCounts: number[],
+  revealHandMeta: boolean,
+): BlackjackRoundState {
+  const dealerCards = source.dealerCards.slice(0, dealerCount);
+  return {
+    ...source,
+    dealerCards,
+    dealerHoleHidden,
+    dealerScore: dealerCards.length > 0 ? scoreCards(dealerCards) : null,
+    playerHands: source.playerHands.map((hand, index) => {
+      const visibleCount = Math.min(handCounts[index] ?? hand.cards.length, hand.cards.length);
+      return maskHand(hand, visibleCount, revealHandMeta || source.status === 'ACTIVE');
+    }),
+  };
+}
+
+function maskHand(hand: BlackjackPlayerHand, visibleCount: number, revealMeta: boolean): BlackjackPlayerHand {
+  const cards = hand.cards.slice(0, visibleCount);
+  const complete = cards.length >= hand.cards.length;
+  const masked: BlackjackPlayerHand = {
+    ...hand,
+    cards,
+    score: scoreCards(cards),
+    status: complete ? hand.status : 'PLAYING',
+  };
+
+  if (!complete || !revealMeta) {
+    delete masked.outcome;
+    delete masked.payout;
+    delete masked.multiplier;
+  }
+
+  return masked;
+}
+
+function scoreCards(cards: BlackjackCard[]) {
+  let total = 0;
+  let aces = 0;
+  cards.forEach((card) => {
+    if (card.rank === 1) {
+      aces += 1;
+      total += 11;
+    } else {
+      total += Math.min(card.rank, 10);
+    }
+  });
+  while (total > 21 && aces > 0) {
+    total -= 10;
+    aces -= 1;
+  }
+  return {
+    total,
+    soft: aces > 0,
+    isBust: total > 21,
+    isBlackjack: cards.length === 2 && total === 21,
+  };
+}
+
+function compactFrames(frames: BlackjackRoundState[]): BlackjackRoundState[] {
+  const compacted: BlackjackRoundState[] = [];
+  frames.forEach((frame) => {
+    if (frameFingerprint(compacted[compacted.length - 1]) !== frameFingerprint(frame)) {
+      compacted.push(frame);
+    }
+  });
+  return compacted.length > 0 ? compacted : frames;
+}
+
+function frameFingerprint(frame: BlackjackRoundState | undefined): string {
+  if (!frame) return '';
+  return JSON.stringify({
+    status: frame.status,
+    dealer: frame.dealerCards.map((card) => `${card.rank}-${card.suit}`),
+    dealerHoleHidden: frame.dealerHoleHidden,
+    activeHandIndex: frame.activeHandIndex,
+    hands: frame.playerHands.map((hand) => ({
+      id: hand.id,
+      cards: hand.cards.map((card) => `${card.rank}-${card.suit}`),
+      status: hand.status,
+      outcome: hand.outcome,
+      payout: hand.payout,
+    })),
+  });
 }
 
 function getCardAssetPath(card: BlackjackCard): string {

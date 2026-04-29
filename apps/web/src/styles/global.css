@@ -1,1 +1,49 @@
 @import '@bg/ui-tokens/global.css';
+
+@layer components {
+  .blackjack-card-shell {
+    display: inline-flex;
+    perspective: 900px;
+    transform-origin: center;
+    will-change: transform, opacity, filter;
+  }
+
+  .blackjack-card-deal {
+    animation: blackjack-card-deal 360ms cubic-bezier(0.2, 0.85, 0.22, 1) both;
+  }
+
+  .blackjack-card-deal-dealer {
+    --blackjack-deal-x: 96px;
+    --blackjack-deal-y: -92px;
+    --blackjack-deal-rotate: 10deg;
+  }
+
+  .blackjack-card-deal-player {
+    --blackjack-deal-x: -72px;
+    --blackjack-deal-y: 94px;
+    --blackjack-deal-rotate: -8deg;
+  }
+}
+
+@keyframes blackjack-card-deal {
+  0% {
+    opacity: 0;
+    filter: blur(5px) brightness(1.2);
+    transform:
+      translate3d(var(--blackjack-deal-x, 0), var(--blackjack-deal-y, 0), 0)
+      rotate(var(--blackjack-deal-rotate, 0))
+      scale(0.86);
+  }
+
+  58% {
+    opacity: 1;
+    filter: blur(0) brightness(1.08);
+    transform: translate3d(0, 0, 0) rotate(1.5deg) scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0) brightness(1);
+    transform: translate3d(0, 0, 0) rotate(0) scale(1);
+  }
+}
