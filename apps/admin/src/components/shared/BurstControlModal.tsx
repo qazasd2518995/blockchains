@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
 import { Modal } from './Modal';
 
 interface Props {
@@ -12,7 +13,7 @@ type Scope = 'ALL' | 'AGENT_LINE' | 'MEMBER';
 
 export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element {
   const [scope, setScope] = useState<Scope>('ALL');
-  const [targetValue, setTargetValue] = useState('');
+  const [target, setTarget] = useState<AccountSearchOption | null>(null);
   const [dailyBudget, setDailyBudget] = useState('50000');
   const [memberDailyCap, setMemberDailyCap] = useState('5000');
   const [singlePayoutCap, setSinglePayoutCap] = useState('3000');
@@ -32,7 +33,7 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
   useEffect(() => {
     if (!open) {
       setScope('ALL');
-      setTargetValue('');
+      setTarget(null);
       setErr(null);
       setBusy(false);
     }
@@ -45,16 +46,12 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
     targetMemberUsername?: string;
   }> => {
     if (scope === 'ALL') return {};
-    if (!targetValue.trim()) {
-      throw new Error(scope === 'AGENT_LINE' ? '请填目标代理账号' : '请填目标会员账号');
+    if (!target) {
+      throw new Error(scope === 'AGENT_LINE' ? '请先选择目标代理账号' : '请先选择目标会员账号');
     }
-    const endpoint = scope === 'AGENT_LINE' ? '/agents/lookup' : '/members/lookup';
-    const lookup = await adminApi.get<{ id: string; username: string }>(endpoint, {
-      params: { username: targetValue.trim() },
-    });
     return scope === 'AGENT_LINE'
-      ? { targetAgentId: lookup.data.id, targetAgentUsername: lookup.data.username }
-      : { targetMemberId: lookup.data.id, targetMemberUsername: lookup.data.username };
+      ? { targetAgentId: target.id, targetAgentUsername: target.username }
+      : { targetMemberId: target.id, targetMemberUsername: target.username };
   };
 
   const submit = async (): Promise<void> => {
@@ -102,7 +99,7 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
               value={scope}
               onChange={(e) => {
                 setScope(e.target.value as Scope);
-                setTargetValue('');
+                setTarget(null);
               }}
               className="term-input"
             >
@@ -112,15 +109,14 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
             </select>
           </label>
           {scope !== 'ALL' && (
-            <label className="block">
-              <div className="label mb-2">{scope === 'AGENT_LINE' ? '目标代理账号' : '目标会员账号'}</div>
-              <input
-                type="text"
-                value={targetValue}
-                onChange={(e) => setTargetValue(e.target.value)}
-                className="term-input font-mono"
-              />
-            </label>
+            <AccountSearchSelect
+              key={scope}
+              kind={scope === 'AGENT_LINE' ? 'agent' : 'member'}
+              label={scope === 'AGENT_LINE' ? '目标代理账号' : '目标会员账号'}
+              value={target}
+              onChange={setTarget}
+              placeholder={scope === 'AGENT_LINE' ? '输入代理账号或全名' : '输入会员账号或全名'}
+            />
           )}
         </div>
 

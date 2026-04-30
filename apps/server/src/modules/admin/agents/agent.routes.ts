@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
+import type { Prisma } from '@prisma/client';
 import { AgentService } from './agent.service.js';
 import { ApiError } from '../../../utils/errors.js';
-import { canManageAgent } from '../../../utils/hierarchy.js';
+import { canManageAgent, listAgentDescendants, resolveAgentScopeRootId } from '../../../utils/hierarchy.js';
 import {
   createAgentSchema,
   updateAgentSchema,
@@ -23,8 +24,53 @@ export async function agentRoutes(fastify: FastifyInstance): Promise<void> {
     return { items };
   });
 
-  // Lookup by username — 給控制 / 轉帳 modal 填帳號時用
+  // Search by username / displayName — 給控制 / 轉帳 modal 即時搜尋選單使用
   // 權限限制：非 SUPER_ADMIN 只能查自己下級樹的代理（避免側道枚舉）
+  fastify.get('/search', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
+    const { q = '', limit = '12' } = req.query as { q?: string; limit?: string };
+    const keyword = q.trim();
+    const take = Math.min(Math.max(Number.parseInt(limit, 10) || 12, 1), 25);
+    const where: Prisma.AgentWhereInput = {
+      status: { not: 'DELETED' },
+      role: { not: 'SUB_ACCOUNT' },
+    };
+
+    if (req.admin.role !== 'SUPER_ADMIN') {
+      const rootId = await resolveAgentScopeRootId(fastify.prisma, req.admin);
+      const scopedIds = rootId ? await listAgentDescendants(fastify.prisma, rootId) : [];
+      where.id = { in: scopedIds };
+    }
+    if (keyword) {
+      where.OR = [
+        { username: { contains: keyword, mode: 'insensitive' } },
+        { displayName: { contains: keyword, mode: 'insensitive' } },
+        { id: keyword },
+      ];
+    }
+
+    const items = await fastify.prisma.agent.findMany({
+      where,
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        level: true,
+        balance: true,
+        status: true,
+        role: true,
+      },
+      orderBy: [{ level: 'asc' }, { username: 'asc' }],
+      take,
+    });
+
+    return {
+      items: items.map((agent) => ({
+        ...agent,
+        balance: agent.balance.toFixed(2),
+      })),
+    };
+  });
+
   fastify.get('/lookup', { preHandler: [fastify.authenticateAdmin] }, async (req, reply) => {
     const { username } = req.query as { username?: string };
     if (!username) {

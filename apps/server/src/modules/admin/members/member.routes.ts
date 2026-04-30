@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
+import type { Prisma } from '@prisma/client';
 import { MemberService } from './member.service.js';
+import { listAgentDescendants, resolveAgentScopeRootId } from '../../../utils/hierarchy.js';
 import {
   createMemberSchema,
   updateMemberNotesSchema,
@@ -19,8 +21,51 @@ export async function memberRoutes(fastify: FastifyInstance): Promise<void> {
     return service.list(req.admin, query);
   });
 
-  // Lookup by username — 給控制 modal 填帳號時用
+  // Search by username / displayName — 給控制 modal 即時搜尋選單使用
   // 權限限制：非 SUPER_ADMIN 只能查自己下級樹的會員（避免側道枚舉）
+  fastify.get('/search', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
+    const { q = '', limit = '12' } = req.query as { q?: string; limit?: string };
+    const keyword = q.trim();
+    const take = Math.min(Math.max(Number.parseInt(limit, 10) || 12, 1), 25);
+    const where: Prisma.UserWhereInput = { role: 'PLAYER' };
+
+    if (req.admin.role !== 'SUPER_ADMIN') {
+      const rootId = await resolveAgentScopeRootId(fastify.prisma, req.admin);
+      const scopedIds = rootId ? await listAgentDescendants(fastify.prisma, rootId) : [];
+      where.agentId = { in: scopedIds };
+    }
+    if (keyword) {
+      where.OR = [
+        { username: { contains: keyword, mode: 'insensitive' } },
+        { displayName: { contains: keyword, mode: 'insensitive' } },
+        { id: keyword },
+      ];
+    }
+
+    const items = await fastify.prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        balance: true,
+        agent: { select: { username: true } },
+      },
+      orderBy: { username: 'asc' },
+      take,
+    });
+
+    return {
+      items: items.map((member) => ({
+        id: member.id,
+        username: member.username,
+        displayName: member.displayName,
+        balance: member.balance.toFixed(2),
+        agentUsername: member.agent?.username ?? null,
+      })),
+    };
+  });
+
   fastify.get('/lookup', { preHandler: [fastify.authenticateAdmin] }, async (req, reply) => {
     const { username } = req.query as { username?: string };
     if (!username) {

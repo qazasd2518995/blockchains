@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
 import { Modal } from './Modal';
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
 }
 
 export function AgentLineControlModal({ open, onClose, onDone }: Props): JSX.Element {
-  const [agentUsername, setAgentUsername] = useState('');
+  const [agent, setAgent] = useState<AccountSearchOption | null>(null);
   const [dailyCap, setDailyCap] = useState('100000');
   const [controlWinRate, setControlWinRate] = useState('0.30');
   const [triggerThreshold, setTriggerThreshold] = useState('0.80');
@@ -18,19 +19,16 @@ export function AgentLineControlModal({ open, onClose, onDone }: Props): JSX.Ele
   const [busy, setBusy] = useState(false);
 
   const submit = async (): Promise<void> => {
-    if (!agentUsername.trim()) {
-      setErr('请填代理账号');
+    if (!agent) {
+      setErr('请先选择代理账号');
       return;
     }
     setBusy(true);
     setErr(null);
     try {
-      const lookup = await adminApi.get<{ id: string; username: string }>('/agents/lookup', {
-        params: { username: agentUsername.trim() },
-      });
       await adminApi.post('/controls/agent-line', {
-        agentId: lookup.data.id,
-        agentUsername: lookup.data.username,
+        agentId: agent.id,
+        agentUsername: agent.username,
         dailyCap,
         controlWinRate,
         triggerThreshold,
@@ -48,15 +46,13 @@ export function AgentLineControlModal({ open, onClose, onDone }: Props): JSX.Ele
   return (
     <Modal open={open} onClose={onClose} title="新增代理线封顶" subtitle="代理线单日赢额封顶" width="md">
       <div className="space-y-4">
-        <label className="block">
-          <div className="label mb-2">代理账号</div>
-          <input
-            type="text"
-            value={agentUsername}
-            onChange={(e) => setAgentUsername(e.target.value)}
-            className="term-input font-mono"
-          />
-        </label>
+        <AccountSearchSelect
+          kind="agent"
+          label="代理账号"
+          value={agent}
+          onChange={setAgent}
+          placeholder="输入代理账号或全名"
+        />
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
             <div className="label mb-2">单日线下赢额封顶</div>

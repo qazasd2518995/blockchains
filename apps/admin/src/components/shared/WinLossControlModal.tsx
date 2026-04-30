@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
 import { Modal } from './Modal';
 
 interface Props {
@@ -12,7 +13,7 @@ type ControlMode = 'SINGLE_MEMBER' | 'AGENT_LINE';
 
 export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Element {
   const [mode, setMode] = useState<ControlMode>('SINGLE_MEMBER');
-  const [targetUsername, setTargetUsername] = useState('');
+  const [target, setTarget] = useState<AccountSearchOption | null>(null);
   const [pct, setPct] = useState('70');
   const [startPeriod, setStartPeriod] = useState('');
   const [winControl, setWinControl] = useState(true);
@@ -21,23 +22,19 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   const [busy, setBusy] = useState(false);
 
   const submit = async (): Promise<void> => {
-    if (!targetUsername.trim()) {
-      setErr('请填目标账号');
+    if (!target) {
+      setErr('请先从搜索选单选择目标账号');
       return;
     }
     setBusy(true);
     setErr(null);
     try {
       const targetType = mode === 'AGENT_LINE' ? 'agent' : 'member';
-      const endpoint = targetType === 'agent' ? '/agents/lookup' : '/members/lookup';
-      const lookup = await adminApi.get<{ id: string; username: string }>(endpoint, {
-        params: { username: targetUsername.trim() },
-      });
       await adminApi.post('/controls/win-loss', {
         controlMode: mode,
         targetType,
-        targetId: lookup.data.id,
-        targetUsername: lookup.data.username,
+        targetId: target.id,
+        targetUsername: target.username,
         controlPercentage: pct,
         winControl,
         lossControl,
@@ -59,7 +56,10 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
           <div className="label mb-2">控制模式</div>
           <select
             value={mode}
-            onChange={(e) => setMode(e.target.value as ControlMode)}
+            onChange={(e) => {
+              setMode(e.target.value as ControlMode);
+              setTarget(null);
+            }}
             className="term-input"
           >
             <option value="SINGLE_MEMBER">单一会员</option>
@@ -67,16 +67,14 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
           </select>
         </label>
 
-        <label className="block">
-          <div className="label mb-2">{mode === 'AGENT_LINE' ? '目标代理账号' : '目标会员账号'}</div>
-          <input
-            type="text"
-            value={targetUsername}
-            onChange={(e) => setTargetUsername(e.target.value)}
-            className="term-input font-mono"
-            placeholder="账号"
-          />
-        </label>
+        <AccountSearchSelect
+          key={mode}
+          kind={mode === 'AGENT_LINE' ? 'agent' : 'member'}
+          label={mode === 'AGENT_LINE' ? '目标代理账号' : '目标会员账号'}
+          value={target}
+          onChange={setTarget}
+          placeholder={mode === 'AGENT_LINE' ? '输入代理账号或全名' : '输入会员账号或全名'}
+        />
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">

@@ -7,6 +7,7 @@ import { getCurrentGameDay, shiftGameDay, startOfGameWeek } from '@/lib/gameDay'
 import { PageHeader } from '@/components/shared/PageHeader';
 import { HierarchyBreadcrumb } from '@/components/shared/HierarchyBreadcrumb';
 import { MemberBetRecordsModal } from '@/components/shared/MemberBetRecordsModal';
+import { AccountSearchSelect, type AccountSearchOption } from '@/components/shared/AccountSearchSelect';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 
 /**
@@ -21,6 +22,10 @@ export function ReportsPage(): JSX.Element {
   const [endDate, setEndDate] = useState(params.get('endDate') ?? '');
   const [gameId, setGameId] = useState(params.get('gameId') ?? '');
   const [username, setUsername] = useState(params.get('username') ?? '');
+  const [selectedAccount, setSelectedAccount] = useState<AccountSearchOption | null>(() => {
+    const initialUsername = params.get('username');
+    return initialUsername ? { id: initialUsername, username: initialUsername, displayName: null } : null;
+  });
   const [settlementStatus, setSettlementStatus] = useState(params.get('settlementStatus') ?? '');
 
   const [data, setData] = useState<HierarchyReportResponse | null>(null);
@@ -157,16 +162,30 @@ export function ReportsPage(): JSX.Element {
               <option value="unsettled">未结算</option>
             </select>
           </label>
-          <label className="flex items-center gap-2">
-            <span className="label">账号</span>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="代理或会员"
-              className="term-input max-w-[160px] font-mono"
+          <div className="w-full max-w-[260px]">
+            <AccountSearchSelect
+              kind="mixed"
+              label="账号"
+              value={selectedAccount}
+              onChange={(next) => {
+                setSelectedAccount(next);
+                setUsername(next?.username ?? '');
+              }}
+              placeholder="输入代理或会员账号/全名"
             />
-          </label>
+          </div>
+          {username && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedAccount(null);
+                setUsername('');
+              }}
+              className="btn-teal-outline text-[10px]"
+            >
+              [清除账号]
+            </button>
+          )}
           <div className="grid grid-cols-2 gap-1 text-[10px] sm:flex sm:items-center">
             <button type="button" onClick={() => quickPreset('today')} className="btn-teal-outline">[今日]</button>
             <button type="button" onClick={() => quickPreset('yesterday')} className="btn-teal-outline">[昨日]</button>

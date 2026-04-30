@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
 import { Modal } from './Modal';
 
 interface Props {
@@ -18,45 +19,21 @@ type Direction = 'DEPOSIT' | 'WITHDRAW';
  */
 export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props): JSX.Element {
   const [direction, setDirection] = useState<Direction>('DEPOSIT');
-  const [toUsername, setToUsername] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  /** lookup 後抓到的目標代理 */
-  const [targetAgent, setTargetAgent] = useState<{ id: string; username: string; balance: string } | null>(null);
+  const [targetAgent, setTargetAgent] = useState<AccountSearchOption | null>(null);
 
   useEffect(() => {
     if (!open) {
       setDirection('DEPOSIT');
-      setToUsername('');
       setAmount('');
       setDescription('');
       setTargetAgent(null);
       setErr(null);
     }
   }, [open]);
-
-  const lookupTarget = async (): Promise<void> => {
-    if (!toUsername.trim()) return;
-    setErr(null);
-    try {
-      const res = await adminApi.get<{ id: string; username: string }>('/agents/lookup', {
-        params: { username: toUsername.trim() },
-      });
-      if (res.data.id === fromAgent.id) {
-        setErr('不能轉給自己');
-        return;
-      }
-      const detail = await adminApi.get<{ id: string; username: string; balance: string }>(
-        `/agents/${res.data.id}`,
-      );
-      setTargetAgent(detail.data);
-    } catch (e) {
-      setTargetAgent(null);
-      setErr(extractApiError(e).message);
-    }
-  };
 
   const fillMax = (): void => {
     // DEPOSIT：從本代理扣 → 以本代理餘額為上限
@@ -67,7 +44,7 @@ export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props):
 
   const submit = async (): Promise<void> => {
     if (!targetAgent) {
-      setErr('請先查詢目標代理');
+      setErr('請先從搜尋選單選擇目標代理');
       return;
     }
     if (!amount) {
@@ -122,7 +99,7 @@ export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props):
           <div className="text-right">
             <div className="text-ink-500">目標代理（{targetAgent?.username ?? '—'}）</div>
             <div className="mt-0.5 data-num text-[#186073]">
-              {targetAgent ? fmt(targetAgent.balance) : '—'}
+              {targetAgent ? fmt(targetAgent.balance ?? '0') : '—'}
             </div>
           </div>
         </div>
@@ -153,24 +130,22 @@ export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props):
           </div>
         </div>
 
-        <label className="block">
-          <div className="label mb-2">目標代理帳號</div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={toUsername}
-              onChange={(e) => {
-                setToUsername(e.target.value);
-                setTargetAgent(null);
-              }}
-              className="term-input font-mono flex-1"
-              placeholder="輸入帳號後按「查詢」"
-            />
-            <button type="button" onClick={() => void lookupTarget()} className="btn-teal-outline text-[11px]">
-              查詢
-            </button>
-          </div>
-        </label>
+        <AccountSearchSelect
+          kind="agent"
+          label="目標代理帳號"
+          value={targetAgent}
+          onChange={(next) => {
+            if (next?.id === fromAgent.id) {
+              setErr('不能轉給自己');
+              setTargetAgent(null);
+              return;
+            }
+            setErr(null);
+            setTargetAgent(next);
+          }}
+          excludeId={fromAgent.id}
+          placeholder="輸入代理帳號或全名"
+        />
 
         <label className="block">
           <div className="mb-2 flex items-baseline justify-between">
@@ -207,7 +182,7 @@ export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props):
             </div>
             <div className="text-right">
               <div className="text-ink-500">目標代理轉後</div>
-              <div className="mt-0.5 data-num text-[#186073]">{predict(targetAgent.balance, !fromPays)}</div>
+              <div className="mt-0.5 data-num text-[#186073]">{predict(targetAgent.balance ?? '0', !fromPays)}</div>
             </div>
           </div>
         )}

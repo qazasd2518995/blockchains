@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { CreateSubAccountModal } from '@/components/shared/CreateSubAccountModal';
 import { Modal } from '@/components/shared/Modal';
+import { AccountSearchSelect, type AccountSearchOption } from '@/components/shared/AccountSearchSelect';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
 
@@ -21,21 +22,20 @@ export function SubAccountsPage(): JSX.Element {
   const [reloadKey, setReloadKey] = useState(0);
   const [openCreate, setOpenCreate] = useState(false);
   const [targetParentId, setTargetParentId] = useState<string>('');
-  const [targetQuery, setTargetQuery] = useState<string>('');
-  const [targetBusy, setTargetBusy] = useState(false);
+  const [targetAgent, setTargetAgent] = useState<AccountSearchOption | null>(null);
   const [resetFor, setResetFor] = useState<AgentPublic | null>(null);
 
   const isSuperAdmin = agent?.role === 'SUPER_ADMIN';
   const isSubAccount = agent?.role === 'SUB_ACCOUNT';
   const selectedParentId = isSuperAdmin ? targetParentId || agent?.id || '' : undefined;
-  const fallbackParentLabel = isSuperAdmin ? targetQuery || agent?.username || null : agent?.username ?? null;
+  const fallbackParentLabel = isSuperAdmin ? targetAgent?.username || agent?.username || null : agent?.username ?? null;
   const selectedParentLabel = parentUsername ?? fallbackParentLabel;
   const isAtLimit = items.length >= MAX_SUB_ACCOUNTS_PER_AGENT;
 
   useEffect(() => {
     if (!isSuperAdmin || !agent) return;
     setTargetParentId((current) => current || agent.id);
-    setTargetQuery((current) => current || agent.username);
+    setTargetAgent((current) => current ?? agentToSearchOption(agent));
   }, [agent, isSuperAdmin]);
 
   useEffect(() => {
@@ -68,37 +68,17 @@ export function SubAccountsPage(): JSX.Element {
     };
   }, [reloadKey, isSuperAdmin, selectedParentId]);
 
-  const applyTargetParent = async (): Promise<void> => {
+  const selectTargetParent = (next: AccountSearchOption | null): void => {
     if (!isSuperAdmin || !agent) return;
-    const query = targetQuery.trim();
     setError(null);
-    if (!query) {
-      setTargetParentId(agent.id);
-      setTargetQuery(agent.username);
-      setReloadKey((k) => k + 1);
+    if (!next) {
+      setTargetAgent(null);
       return;
     }
-
-    setTargetBusy(true);
-    try {
-      let target: Pick<AgentPublic, 'id' | 'username'>;
-      try {
-        const lookup = await adminApi.get<Pick<AgentPublic, 'id' | 'username'>>('/agents/lookup', {
-          params: { username: query },
-        });
-        target = lookup.data;
-      } catch {
-        const detail = await adminApi.get<AgentPublic>(`/agents/${query}`);
-        target = { id: detail.data.id, username: detail.data.username };
-      }
-      setTargetParentId(target.id);
-      setTargetQuery(target.username);
-      setReloadKey((k) => k + 1);
-    } catch (e) {
-      setError(extractApiError(e).message);
-    } finally {
-      setTargetBusy(false);
-    }
+    setParentUsername(null);
+    setTargetParentId(next.id);
+    setTargetAgent(next);
+    setReloadKey((k) => k + 1);
   };
 
   const handleStatus = async (row: AgentPublic, next: 'ACTIVE' | 'FROZEN' | 'DISABLED') => {
@@ -219,34 +199,22 @@ export function SubAccountsPage(): JSX.Element {
 
       {isSuperAdmin && (
         <div className="admin-mobile-stack mb-4 flex flex-wrap items-center gap-3 crt-panel p-4">
-          <span className="text-[11px] font-semibold tracking-[0.2em] text-ink-600">目标代理</span>
-          <input
-            type="text"
-            value={targetQuery}
-            onChange={(e) => setTargetQuery(e.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                void applyTargetParent();
-              }
-            }}
-            placeholder="输入代理账号或 ID，留空为自己"
-            className="term-input max-w-md font-mono"
-          />
-          <button
-            type="button"
-            onClick={() => void applyTargetParent()}
-            disabled={targetBusy}
-            className="btn-teal-outline text-[11px]"
-          >
-            {targetBusy ? t.common.loading : '套用'}
-          </button>
+          <div className="w-full max-w-md">
+            <AccountSearchSelect
+              kind="agent"
+              label="目标代理"
+              value={targetAgent}
+              onChange={selectTargetParent}
+              placeholder="输入代理账号或全名"
+            />
+          </div>
           {agent && (
             <button
               type="button"
               onClick={() => {
+                setParentUsername(null);
                 setTargetParentId(agent.id);
-                setTargetQuery(agent.username);
+                setTargetAgent(agentToSearchOption(agent));
                 setReloadKey((k) => k + 1);
               }}
               className="btn-teal-outline text-[11px]"
@@ -312,6 +280,18 @@ export function SubAccountsPage(): JSX.Element {
       )}
     </div>
   );
+}
+
+function agentToSearchOption(agent: AgentPublic): AccountSearchOption {
+  return {
+    id: agent.id,
+    username: agent.username,
+    displayName: agent.displayName,
+    level: agent.level,
+    balance: agent.balance,
+    status: agent.status,
+    role: agent.role,
+  };
 }
 
 function ResetSubAccountPasswordModal({

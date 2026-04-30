@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
 import { Modal } from './Modal';
 
 interface Props {
@@ -9,24 +10,19 @@ interface Props {
 }
 
 export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Element {
-  const [memberUsername, setMemberUsername] = useState('');
+  const [member, setMember] = useState<AccountSearchOption | null>(null);
   const [depositAmount, setDepositAmount] = useState('1000');
   const [controlWinRate, setControlWinRate] = useState('0.70');
   const [notes, setNotes] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  /** 自动抓的会员当前余额 */
-  const [memberBalance, setMemberBalance] = useState<string | null>(null);
-  const [memberLoaded, setMemberLoaded] = useState(false);
 
   useEffect(() => {
     if (!open) {
-      setMemberUsername('');
+      setMember(null);
       setDepositAmount('1000');
       setControlWinRate('0.70');
       setNotes('');
-      setMemberBalance(null);
-      setMemberLoaded(false);
       setErr(null);
     }
   }, [open]);
@@ -37,52 +33,20 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
     return Number.isFinite(n) ? n * 1.5 : 0;
   })();
 
-  const lookupMember = async (): Promise<void> => {
-    if (!memberUsername.trim()) return;
-    setErr(null);
-    try {
-      const res = await adminApi.get<{ id: string; username: string; balance?: string }>('/members/lookup', {
-        params: { username: memberUsername.trim() },
-      });
-      // lookup 只回 id/username；再拉詳情拿餘額
-      const detail = await adminApi.get<{ id: string; balance: string }>(`/members/${res.data.id}`);
-      setMemberBalance(detail.data.balance);
-      setMemberLoaded(true);
-    } catch (e) {
-      setMemberLoaded(false);
-      setMemberBalance(null);
-      setErr(extractApiError(e).message);
-    }
-  };
-
   const submit = async (): Promise<void> => {
-    if (!memberLoaded || !memberBalance) {
-      setErr('请先搜索会员（确认余额）');
-      return;
-    }
-    const memberId = await (async () => {
-      try {
-        const res = await adminApi.get<{ id: string }>('/members/lookup', {
-          params: { username: memberUsername.trim() },
-        });
-        return res.data.id;
-      } catch {
-        return null;
-      }
-    })();
-    if (!memberId) {
-      setErr('找不到会员');
+    if (!member?.balance) {
+      setErr('请先从搜索选单选择会员');
       return;
     }
     setBusy(true);
     setErr(null);
     try {
       await adminApi.post('/controls/deposit', {
-        memberId,
-        memberUsername: memberUsername.trim(),
+        memberId: member.id,
+        memberUsername: member.username,
         depositAmount,
         targetProfit: targetProfitNum.toFixed(2),
-        startBalance: memberBalance,
+        startBalance: member.balance,
         controlWinRate,
         notes: notes || undefined,
       });
@@ -98,30 +62,13 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   return (
     <Modal open={open} onClose={onClose} title="新增入金控制" subtitle="依入金目标控制胜率" width="md">
       <div className="space-y-4">
-        <label className="block">
-          <div className="label mb-2">会员账号</div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={memberUsername}
-              onChange={(e) => {
-                setMemberUsername(e.target.value);
-                setMemberLoaded(false);
-                setMemberBalance(null);
-              }}
-              className="term-input font-mono flex-1"
-              placeholder="输入会员账号后按「查询」"
-            />
-            <button type="button" onClick={() => void lookupMember()} className="btn-teal-outline text-[11px]">
-              查询
-            </button>
-          </div>
-          {memberLoaded && memberBalance && (
-            <div className="mt-2 rounded-[6px] border border-[#186073]/30 bg-[#186073]/5 px-3 py-2 text-[11px] text-[#186073]">
-              会员当前余额 <span className="data-num ml-1 font-bold">{memberBalance}</span>
-            </div>
-          )}
-        </label>
+        <AccountSearchSelect
+          kind="member"
+          label="会员账号"
+          value={member}
+          onChange={setMember}
+          placeholder="输入会员账号或全名"
+        />
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
@@ -173,7 +120,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
         )}
 
         <div className="flex items-center gap-2 pt-2">
-          <button type="button" onClick={submit} disabled={busy || !memberLoaded} className="btn-acid">
+          <button type="button" onClick={submit} disabled={busy || !member} className="btn-acid">
             → 建立
           </button>
           <button type="button" onClick={onClose} className="btn-teal-outline">

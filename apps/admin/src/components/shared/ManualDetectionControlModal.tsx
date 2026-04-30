@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
 import { Modal } from './Modal';
 
 interface Props {
@@ -20,7 +21,7 @@ interface SettlementPreview {
 
 export function ManualDetectionControlModal({ open, onClose, onDone }: Props): JSX.Element {
   const [scope, setScope] = useState<Scope>('ALL');
-  const [targetValue, setTargetValue] = useState('');
+  const [target, setTarget] = useState<AccountSearchOption | null>(null);
   const [targetSettlement, setTargetSettlement] = useState('0');
   const [controlPercentage, setControlPercentage] = useState('50');
   const [preview, setPreview] = useState<SettlementPreview | null>(null);
@@ -31,7 +32,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
   useEffect(() => {
     if (!open) {
       setScope('ALL');
-      setTargetValue('');
+      setTarget(null);
       setTargetSettlement('0');
       setControlPercentage('50');
       setPreview(null);
@@ -48,16 +49,12 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
     memberUsername?: string;
   }> => {
     if (scope === 'ALL') return {};
-    if (!targetValue.trim()) {
-      throw new Error(scope === 'AGENT_LINE' ? '请填目标代理账号' : '请填目标会员账号');
+    if (!target) {
+      throw new Error(scope === 'AGENT_LINE' ? '请先选择目标代理账号' : '请先选择目标会员账号');
     }
-    const endpoint = scope === 'AGENT_LINE' ? '/agents/lookup' : '/members/lookup';
-    const lookup = await adminApi.get<{ id: string; username: string }>(endpoint, {
-      params: { username: targetValue.trim() },
-    });
     return scope === 'AGENT_LINE'
-      ? { agentId: lookup.data.id, agentUsername: lookup.data.username }
-      : { memberId: lookup.data.id, memberUsername: lookup.data.username };
+      ? { agentId: target.id, agentUsername: target.username }
+      : { memberId: target.id, memberUsername: target.username };
   };
 
   const loadPreview = async (): Promise<void> => {
@@ -113,7 +110,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
             value={scope}
             onChange={(e) => {
               setScope(e.target.value as Scope);
-              setTargetValue('');
+              setTarget(null);
               setPreview(null);
             }}
             className="term-input"
@@ -125,19 +122,17 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
         </label>
 
         {scope !== 'ALL' && (
-          <label className="block">
-            <div className="label mb-2">{scope === 'AGENT_LINE' ? '目标代理账号' : '目标会员账号'}</div>
-            <input
-              type="text"
-              value={targetValue}
-              onChange={(e) => {
-                setTargetValue(e.target.value);
-                setPreview(null);
-              }}
-              className="term-input font-mono"
-              placeholder={scope === 'AGENT_LINE' ? '输入代理账号' : '输入会员账号'}
-            />
-          </label>
+          <AccountSearchSelect
+            key={scope}
+            kind={scope === 'AGENT_LINE' ? 'agent' : 'member'}
+            label={scope === 'AGENT_LINE' ? '目标代理账号' : '目标会员账号'}
+            value={target}
+            onChange={(next) => {
+              setTarget(next);
+              setPreview(null);
+            }}
+            placeholder={scope === 'AGENT_LINE' ? '输入代理账号或全名' : '输入会员账号或全名'}
+          />
         )}
 
         <div className="grid grid-cols-2 gap-3">

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
 import { Modal } from './Modal';
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
 }
 
 export function WinCapControlModal({ open, onClose, onDone }: Props): JSX.Element {
-  const [memberUsername, setMemberUsername] = useState('');
+  const [member, setMember] = useState<AccountSearchOption | null>(null);
   const [winCapAmount, setWinCapAmount] = useState('10000');
   const [controlWinRate, setControlWinRate] = useState('0.30');
   const [triggerThreshold, setTriggerThreshold] = useState('0.80');
@@ -18,19 +19,16 @@ export function WinCapControlModal({ open, onClose, onDone }: Props): JSX.Elemen
   const [busy, setBusy] = useState(false);
 
   const submit = async (): Promise<void> => {
-    if (!memberUsername.trim() || !winCapAmount) {
-      setErr('请填会员账号与封顶金额');
+    if (!member || !winCapAmount) {
+      setErr('请先选择会员账号并填写封顶金额');
       return;
     }
     setBusy(true);
     setErr(null);
     try {
-      const lookup = await adminApi.get<{ id: string; username: string }>('/members/lookup', {
-        params: { username: memberUsername.trim() },
-      });
       await adminApi.post('/controls/win-cap', {
-        memberId: lookup.data.id,
-        memberUsername: lookup.data.username,
+        memberId: member.id,
+        memberUsername: member.username,
         winCapAmount,
         controlWinRate,
         triggerThreshold,
@@ -48,16 +46,13 @@ export function WinCapControlModal({ open, onClose, onDone }: Props): JSX.Elemen
   return (
     <Modal open={open} onClose={onClose} title="新增会员封顶" subtitle="会员单日赢额封顶" width="md">
       <div className="space-y-4">
-        <label className="block">
-          <div className="label mb-2">会员账号</div>
-          <input
-            type="text"
-            value={memberUsername}
-            onChange={(e) => setMemberUsername(e.target.value)}
-            className="term-input font-mono"
-            placeholder="账号"
-          />
-        </label>
+        <AccountSearchSelect
+          kind="member"
+          label="会员账号"
+          value={member}
+          onChange={setMember}
+          placeholder="输入会员账号或全名"
+        />
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
             <div className="label mb-2">单日赢额封顶</div>
