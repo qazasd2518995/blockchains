@@ -52,7 +52,7 @@ export const HALLS: Record<HallId, HallMeta> = {
     iconKey: 'slots',
     tagline: '多款主題老虎機，轉軸、連線、爆分節奏集中開',
     gradient: 'linear-gradient(135deg, #111827 0%, #7C2D12 48%, #C9A247 100%)',
-    artwork: '/slots/fortune/background.png',
+    artwork: '/halls/slots-card.png',
     gameIds: [
       GameId.HOTLINE,
       GameId.FRUIT_SLOT,
@@ -69,7 +69,7 @@ export const HALLS: Record<HallId, HallMeta> = {
     iconKey: 'roulette',
     tagline: '指針、輪盤、轉輪一次排開，押區押色都直覺',
     gradient: 'linear-gradient(135deg, #0F172A 0%, #145369 52%, #D6B75B 100%)',
-    artwork: '/game-art/wheel/background.png',
+    artwork: '/halls/roulette-card.png',
     gameIds: [GameId.WHEEL, GameId.MINI_ROULETTE, GameId.CARNIVAL],
   },
   classic: {
