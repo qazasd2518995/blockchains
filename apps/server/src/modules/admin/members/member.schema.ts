@@ -49,7 +49,9 @@ export const memberBetQuerySchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   gameId: z.string().optional(),
+  settlementStatus: z.enum(['settled', 'unsettled']).optional(),
   cursor: z.string().optional(),
+  page: z.coerce.number().int().min(1).max(100000).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 

@@ -56,4 +56,10 @@ export interface MemberBetEntry {
 export interface MemberBetListResponse {
   items: MemberBetEntry[];
   nextCursor: string | null;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }

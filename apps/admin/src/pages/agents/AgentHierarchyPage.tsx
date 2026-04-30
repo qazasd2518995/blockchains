@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import type { HierarchyResponse, HierarchyItem, MemberPublic } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -24,11 +24,10 @@ const ACCOUNT_TABLE_GRID_STYLE = { gridTemplateColumns: ACCOUNT_TABLE_COLUMNS };
  * 账号管理（混合阶层）
  *   - 呈现某 parent 的「直属代理 + 直属会员」
  *   - 点代理 row → 下钻到该代理
- *   - 点会员 row → 切到该会员下注纪录页
+ *   - 会员 row 只做账号资料与操作，不在账号管理显示下注纪录
  *   - breadcrumb 可回到上层
  */
 export function AgentHierarchyPage(): JSX.Element {
-  const navigate = useNavigate();
   const { agent: me } = useAdminAuthStore();
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
@@ -85,8 +84,6 @@ export function AgentHierarchyPage(): JSX.Element {
   const onRowClick = (row: HierarchyItem) => {
     if (row.kind === 'agent') {
       selectParent(row.id);
-    } else {
-      navigate(`/admin/members/${row.id}/bets`);
     }
   };
 
@@ -269,7 +266,9 @@ export function AgentHierarchyPage(): JSX.Element {
             <div
               key={`${row.kind}-${row.id}`}
               onClick={() => onRowClick(row)}
-              className="grid min-w-[960px] cursor-pointer items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition hover:bg-[#FAF2D7]/60"
+              className={`grid min-w-[960px] items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition ${
+                row.kind === 'agent' ? 'cursor-pointer hover:bg-[#FAF2D7]/60' : 'cursor-default'
+              }`}
               style={ACCOUNT_TABLE_GRID_STYLE}
             >
               {row.kind === 'agent' ? (
@@ -363,9 +362,6 @@ export function AgentHierarchyPage(): JSX.Element {
                   </>
                 ) : (
                   <>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); navigate(`/admin/members/${row.id}/bets`); }} className="btn-chip">
-                      {t.agents.betRecords}
-                    </button>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); const m = asMemberForModal(row); if (m) setTransferFor(m); }}

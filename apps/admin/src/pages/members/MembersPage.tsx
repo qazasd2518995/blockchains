@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import type { MemberPublic, MemberListResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -107,9 +106,6 @@ export function MembersPage(): JSX.Element {
       align: 'right',
       render: (m) => (
         <div className="flex items-center justify-end gap-1 text-[10px]">
-          <Link to={`/admin/members/${m.id}/bets`} className="btn-teal-outline">
-            [下注]
-          </Link>
           <button type="button" onClick={() => setTransferFor(m)} className="btn-teal-outline">
             [转帐]
           </button>

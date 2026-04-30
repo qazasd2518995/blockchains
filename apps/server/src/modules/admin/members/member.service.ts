@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { PrismaClient, Prisma } from '@prisma/client';
-import type { MemberPublic, MemberBetEntry } from '@bg/shared';
+import type { MemberPublic, MemberBetEntry, MemberBetListResponse } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
 import { config } from '../../../config.js';
 import { canManageAgent, canManageMember, listAgentDescendants } from '../../../utils/hierarchy.js';
@@ -411,10 +411,13 @@ export class MemberService {
     operator: AdminCurrent,
     id: string,
     query: MemberBetQuery,
-  ): Promise<{ items: MemberBetEntry[]; nextCursor: string | null }> {
+  ): Promise<MemberBetListResponse> {
     const ok = await canManageMember(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot view bets of this member');
     const limit = query.limit ?? 50;
+    const pageNumber = query.page ?? 1;
+    const offset = (pageNumber - 1) * limit;
+    const take = query.cursor ? limit + 1 : offset + limit + 1;
     const cursor = parseMergedCursor(query.cursor);
     const range = resolveAdminGameDayRange(query);
 
@@ -422,23 +425,31 @@ export class MemberService {
     if (range.start) betWhere.createdAt = { ...(betWhere.createdAt as object), gte: range.start };
     if (range.end) betWhere.createdAt = { ...(betWhere.createdAt as object), lte: range.end };
     if (query.gameId) betWhere.gameId = query.gameId;
+    if (query.settlementStatus === 'settled') betWhere.status = 'SETTLED';
+    if (query.settlementStatus === 'unsettled') betWhere.status = 'PENDING';
 
     const crashWhere: Prisma.CrashBetWhereInput = { userId: id };
     if (range.start) crashWhere.createdAt = { ...(crashWhere.createdAt as object), gte: range.start };
     if (range.end) crashWhere.createdAt = { ...(crashWhere.createdAt as object), lte: range.end };
-    if (query.gameId) crashWhere.round = { gameId: query.gameId };
+    const crashRoundWhere: Prisma.CrashRoundWhereInput = {};
+    if (query.gameId) crashRoundWhere.gameId = query.gameId;
+    if (query.settlementStatus === 'settled') crashRoundWhere.status = 'CRASHED';
+    if (query.settlementStatus === 'unsettled') crashRoundWhere.status = { in: ['BETTING', 'RUNNING'] };
+    if (Object.keys(crashRoundWhere).length > 0) crashWhere.round = crashRoundWhere;
 
-    const [rows, crashRows] = await Promise.all([
+    const [totalBets, totalCrashBets, rows, crashRows] = await Promise.all([
+      this.prisma.bet.count({ where: betWhere }),
+      this.prisma.crashBet.count({ where: crashWhere }),
       this.prisma.bet.findMany({
         where: withMergedCursor(betWhere, cursor),
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: limit + 1,
+        take,
       }),
       this.prisma.crashBet.findMany({
         where: withMergedCursor(crashWhere, cursor),
         include: { round: { select: { gameId: true } } },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: limit + 1,
+        take,
       }),
     ]);
 
@@ -463,11 +474,21 @@ export class MemberService {
       })),
     ].sort(compareMergedEntries);
 
-    const hasMore = merged.length > limit;
-    const page = hasMore ? merged.slice(0, limit) : merged;
+    const total = totalBets + totalCrashBets;
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+    const pageStart = query.cursor ? 0 : offset;
+    const pageEnd = pageStart + limit;
+    const hasMore = query.cursor ? merged.length > limit : merged.length > pageEnd;
+    const page = merged.slice(pageStart, pageEnd);
     return {
       items: page,
       nextCursor: hasMore ? buildMergedCursor(page[page.length - 1]!) : null,
+      pagination: {
+        page: pageNumber,
+        limit,
+        total,
+        totalPages,
+      },
     };
   }
 }

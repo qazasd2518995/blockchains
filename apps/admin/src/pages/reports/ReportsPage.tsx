@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import type { HierarchyReportResponse, HierarchyReportItem } from '@bg/shared';
 import { GAMES_REGISTRY, GameId } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { getCurrentGameDay, shiftGameDay, startOfGameWeek } from '@/lib/gameDay';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { HierarchyBreadcrumb } from '@/components/shared/HierarchyBreadcrumb';
+import { MemberBetRecordsModal } from '@/components/shared/MemberBetRecordsModal';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 
 /**
  * 報表統計（18 欄混合階層下鑽）— 對齊 Bet/agent 原版
  */
 export function ReportsPage(): JSX.Element {
-  const navigate = useNavigate();
   const { agent: me } = useAdminAuthStore();
   const [params, setParams] = useSearchParams();
   const currentParent = params.get('parent') ?? (me?.role === 'SUPER_ADMIN' ? '' : me?.id ?? '');
@@ -26,6 +26,7 @@ export function ReportsPage(): JSX.Element {
   const [data, setData] = useState<HierarchyReportResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [betModalFor, setBetModalFor] = useState<{ id: string; username: string } | null>(null);
 
   useEffect(() => {
     let cancel = false;
@@ -64,7 +65,7 @@ export function ReportsPage(): JSX.Element {
     if (row.kind === 'agent') {
       selectParent(row.id);
     } else {
-      navigate(`/admin/members/${row.id}/bets`);
+      setBetModalFor({ id: row.id, username: row.username });
     }
   };
 
@@ -108,7 +109,7 @@ export function ReportsPage(): JSX.Element {
         title="报表统计"
         titleSuffix="层级下钻"
         titleSuffixColor="amber"
-        description="18 栏完整聚合报表。点击代理行下钻，点击会员行查看下注记录。"
+        description="18 栏完整聚合报表。点击代理行下钻，点击会员行开启注单明细。"
       />
 
       {data && (
@@ -183,6 +184,15 @@ export function ReportsPage(): JSX.Element {
         <div className="crt-panel p-8 text-center text-ink-400">— 没有有效下注资料 —</div>
       ) : (
         data && <ReportTable data={data} onRowClick={onRowClick} />
+      )}
+
+      {betModalFor && (
+        <MemberBetRecordsModal
+          open
+          onClose={() => setBetModalFor(null)}
+          member={betModalFor}
+          filters={{ startDate, endDate, gameId, settlementStatus }}
+        />
       )}
     </div>
   );

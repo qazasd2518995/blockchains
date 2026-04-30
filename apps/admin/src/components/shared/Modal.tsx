@@ -9,10 +9,10 @@ interface Props {
   subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
-  width?: 'sm' | 'md' | 'lg';
+  width?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
-const widthMap = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl' };
+const widthMap = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-[95vw]' };
 
 export function Modal({ open, onClose, title, subtitle, children, footer, width = 'md' }: Props): JSX.Element | null {
   const titleId = useId();
