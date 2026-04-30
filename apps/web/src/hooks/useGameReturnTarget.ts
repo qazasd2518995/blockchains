@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getHallByGameId } from '@/data/halls';
+import { isMobileLobbyViewport } from '@/lib/mobileViewport';
 
 interface GameRouteState {
   returnTo?: unknown;
@@ -21,6 +22,10 @@ export function useGameReturnTarget(): { to: string; label: string } {
   const location = useLocation();
 
   return useMemo(() => {
+    if (isMobileLobbyViewport()) {
+      return { to: '/lobby', label: '大廳' };
+    }
+
     const state = (location.state ?? null) as GameRouteState | null;
     const stateReturnTo = internalPath(state?.returnTo);
     if (stateReturnTo) {

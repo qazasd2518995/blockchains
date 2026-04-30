@@ -1,4 +1,5 @@
-import { Link, useParams } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
 import { HALLS, type HallId } from '@/data/halls';
@@ -6,6 +7,7 @@ import { FAKE_WIN_TICKER } from '@/data/fakeStats';
 import { GameCardNew } from '@/components/game/GameCardNew';
 import { SectionHeading } from '@/components/layout/SectionHeading';
 import { getHallIcon } from '@/lib/platformIcons';
+import { isMobileLobbyViewport } from '@/lib/mobileViewport';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
 
@@ -20,7 +22,14 @@ function hallNarrative(hallId: HallId): string {
 
 export function HallPage() {
   const { hallId } = useParams<{ hallId: string }>();
+  const navigate = useNavigate();
   const hall = hallId && hallId in HALLS ? HALLS[hallId as HallId] : undefined;
+
+  useEffect(() => {
+    if (isMobileLobbyViewport()) {
+      navigate('/lobby', { replace: true });
+    }
+  }, [navigate]);
 
   if (!hall) {
     return (

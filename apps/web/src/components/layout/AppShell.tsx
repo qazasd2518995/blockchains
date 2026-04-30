@@ -8,6 +8,7 @@ import { AnnouncementTicker } from '@/components/home/AnnouncementTicker';
 import { BrandMark } from '@/components/layout/BrandMark';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SoundToggle } from '@/components/layout/SoundToggle';
+import { BaccaratWarmup } from '@/components/game/BaccaratWarmup';
 import { useTranslation } from '@/i18n/useTranslation';
 
 const NAV_ITEMS: { to: string; label: string; icon: typeof Gift }[] = [
@@ -47,6 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative flex min-h-[100svh] flex-col overflow-x-hidden bg-[#E9ECEF]">
+      {user ? <BaccaratWarmup /> : null}
       <div className="pointer-events-none fixed inset-0">
         <img
           src="/backgrounds/casino-atmosphere.png"

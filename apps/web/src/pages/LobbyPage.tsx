@@ -338,11 +338,8 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
   const GameIcon = getGameIcon(game.id);
   const cover = getLobbyGameCover(game.id);
   const hall = gameHallMap.get(game.id);
-  const hallMeta = hall ? hallMetaMap.get(hall) : undefined;
   const hallLabel = hall ? MOBILE_HALL_LABEL[hall] : '熱門';
-  const routeState = hallMeta
-    ? { returnTo: `/hall/${hallMeta.id}`, returnLabel: hallMeta.nameZh }
-    : undefined;
+  const routeState = { returnTo: '/lobby', returnLabel: '大廳' };
 
   return (
     <Link

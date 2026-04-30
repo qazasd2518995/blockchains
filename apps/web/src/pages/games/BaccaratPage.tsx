@@ -4,9 +4,13 @@ import { ArrowLeft, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
 import type { UserPublic } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { getBaccaratVariant, type BaccaratVariantId } from '@/lib/baccaratVariants';
+import {
+  buildBaccaratLaunchUrl,
+  ensureBaccaratResourceHints,
+  resolveApiBase,
+  resolveBaccaratUrl,
+} from '@/lib/baccaratWarmup';
 import { useAuthStore } from '@/stores/authStore';
-
-const FALLBACK_BACCARAT_URL = 'http://localhost:5174';
 
 interface LauncherDiagnostics {
   currentUser: string;
@@ -36,28 +40,12 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
   const [diagnostics, setDiagnostics] = useState<LauncherDiagnostics | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
 
-  const baccaratUrl = useMemo(() => {
-    const raw = (import.meta.env.VITE_BACCARAT_URL as string | undefined)?.trim();
-    return raw && /^https?:\/\//i.test(raw) ? raw : FALLBACK_BACCARAT_URL;
-  }, []);
-  const apiBase = useMemo(
-    () => (import.meta.env.VITE_API_BASE as string | undefined)?.trim() || window.location.origin,
-    [],
-  );
+  const baccaratUrl = useMemo(() => resolveBaccaratUrl(), []);
+  const apiBase = useMemo(() => resolveApiBase(), []);
   const bgLobbyUrl = useMemo(() => new URL('/lobby', window.location.origin).toString(), []);
 
   useEffect(() => {
-    const origin = new URL(baccaratUrl).origin;
-    for (const rel of ['dns-prefetch', 'preconnect']) {
-      const selector = `link[data-baccarat-preconnect="${rel}"]`;
-      if (document.head.querySelector(selector)) continue;
-      const link = document.createElement('link');
-      link.rel = rel;
-      link.href = origin;
-      link.dataset.baccaratPreconnect = rel;
-      if (rel === 'preconnect') link.crossOrigin = 'anonymous';
-      document.head.appendChild(link);
-    }
+    ensureBaccaratResourceHints(baccaratUrl);
   }, [baccaratUrl]);
 
   useEffect(() => {
@@ -77,13 +65,14 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
         });
         if (cancelled) return;
 
-        const target = new URL('/login', baccaratUrl);
-        target.searchParams.set('launchToken', res.data.launchToken);
-        target.searchParams.set('gameId', config.gameId);
-        target.searchParams.set('provider', config.provider);
-        target.searchParams.set('skin', config.skin);
-        target.searchParams.set('returnUrl', bgLobbyUrl);
-        setLaunchUrl(target.toString());
+        setLaunchUrl(
+          buildBaccaratLaunchUrl({
+            baccaratUrl,
+            launchToken: res.data.launchToken,
+            config,
+            returnUrl: bgLobbyUrl,
+          }),
+        );
         setMessage(`正在交接${config.title}遊戲大廳...`);
         setStatus('ready');
       } catch (error) {
