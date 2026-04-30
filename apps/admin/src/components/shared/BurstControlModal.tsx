@@ -14,18 +14,11 @@ type Scope = 'ALL' | 'AGENT_LINE' | 'MEMBER';
 export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element {
   const [scope, setScope] = useState<Scope>('ALL');
   const [target, setTarget] = useState<AccountSearchOption | null>(null);
-  const [dailyBudget, setDailyBudget] = useState('50000');
+  const [burstRate, setBurstRate] = useState('2');
+  const [minBurstProfit, setMinBurstProfit] = useState('200');
+  const [maxBurstProfit, setMaxBurstProfit] = useState('3000');
+  const [dailyBudget, setDailyBudget] = useState('30000');
   const [memberDailyCap, setMemberDailyCap] = useState('5000');
-  const [singlePayoutCap, setSinglePayoutCap] = useState('3000');
-  const [singleMultiplierCap, setSingleMultiplierCap] = useState('100');
-  const [minBurstMultiplier, setMinBurstMultiplier] = useState('8');
-  const [smallWinMultiplier, setSmallWinMultiplier] = useState('1.5');
-  const [burstRate, setBurstRate] = useState('0.03');
-  const [smallWinRate, setSmallWinRate] = useState('0.35');
-  const [lossRate, setLossRate] = useState('0.45');
-  const [compensationLoss, setCompensationLoss] = useState('500');
-  const [riskWinLimit, setRiskWinLimit] = useState('1000');
-  const [cooldownRounds, setCooldownRounds] = useState('8');
   const [notes, setNotes] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,6 +27,12 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
     if (!open) {
       setScope('ALL');
       setTarget(null);
+      setBurstRate('2');
+      setMinBurstProfit('200');
+      setMaxBurstProfit('3000');
+      setDailyBudget('30000');
+      setMemberDailyCap('5000');
+      setNotes('');
       setErr(null);
       setBusy(false);
     }
@@ -62,18 +61,11 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
       await adminApi.post('/controls/burst', {
         scope,
         ...target,
+        burstRate,
+        minBurstProfit,
+        maxBurstProfit,
         dailyBudget,
         memberDailyCap,
-        singlePayoutCap,
-        singleMultiplierCap,
-        minBurstMultiplier,
-        smallWinMultiplier,
-        burstRate,
-        smallWinRate,
-        lossRate,
-        compensationLoss,
-        riskWinLimit,
-        cooldownRounds: Number.parseInt(cooldownRounds, 10),
         notes: notes || undefined,
       });
       onDone();
@@ -86,10 +78,10 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="新增爆分控制" subtitle="爆分池与娱乐曲线" width="lg">
+    <Modal open={open} onClose={onClose} title="新增爆分控制" subtitle="简单爆分池" width="lg">
       <div className="space-y-4">
         <div className="rounded-[6px] border border-[#186073]/20 bg-[#186073]/5 p-3 text-[12px] text-[#334155]">
-          系统会先看强制输赢、封顶、入金与手动侦测；都没有命中时，才用这组参数让会员在小赢、小输与偶尔爆分之间循环。
+          只需要设定爆分机率、单次净赢范围与每日池。系统会自动套用会员上限、剩余池检查、8 局冷却与风险防守，避免连续爆分或单次派彩失控。
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -120,22 +112,22 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
           )}
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <Field label="每日爆分池" value={dailyBudget} onChange={setDailyBudget} />
-          <Field label="单会员每日上限" value={memberDailyCap} onChange={setMemberDailyCap} />
-          <Field label="单局最高派彩" value={singlePayoutCap} onChange={setSinglePayoutCap} />
-          <Field label="单局最高倍率" value={singleMultiplierCap} onChange={setSingleMultiplierCap} />
-          <Field label="爆分最低倍率" value={minBurstMultiplier} onChange={setMinBurstMultiplier} />
-          <Field label="小赢倍率" value={smallWinMultiplier} onChange={setSmallWinMultiplier} />
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="爆分机率（%）" value={burstRate} onChange={setBurstRate} hint="例如 2 = 2%，也可输入 0.02" />
+          <Field label="每日爆分总池" value={dailyBudget} onChange={setDailyBudget} hint="今日所有爆分净赢合计不可超过此金额" />
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
-          <Field label="爆分机率" value={burstRate} onChange={setBurstRate} hint="0.03 = 3%" />
-          <Field label="小赢机率" value={smallWinRate} onChange={setSmallWinRate} hint="0.35 = 35%" />
-          <Field label="压输机率" value={lossRate} onChange={setLossRate} hint="0.45 = 45%" />
-          <Field label="补偿输额" value={compensationLoss} onChange={setCompensationLoss} />
-          <Field label="风险赢额" value={riskWinLimit} onChange={setRiskWinLimit} />
-          <Field label="爆分冷却局数" value={cooldownRounds} onChange={setCooldownRounds} />
+          <Field label="单次最小净赢" value={minBurstProfit} onChange={setMinBurstProfit} />
+          <Field label="单次最大净赢" value={maxBurstProfit} onChange={setMaxBurstProfit} />
+          <Field label="单会员每日上限" value={memberDailyCap} onChange={setMemberDailyCap} />
+        </div>
+
+        <div className="rounded-[6px] border border-[#D4AF37]/30 bg-[#FFF8DA] p-3 text-[12px] text-[#6D5716]">
+          <div className="font-semibold">自动护栏</div>
+          <div className="mt-1">
+            单次爆分会被限制在净赢范围内；若每日池或会员上限不足，会自动停止爆分。会员达到上限后，高倍自然结果会被压到可控小赢或输局。
+          </div>
         </div>
 
         <label className="block">
@@ -183,6 +175,7 @@ function Field({
       <div className="label mb-2">{label}</div>
       <input
         type="text"
+        inputMode="decimal"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="term-input font-mono"

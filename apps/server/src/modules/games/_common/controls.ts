@@ -341,11 +341,12 @@ async function findBurstDecision(
   const memberBurstProfit = await sumMemberBurstProfit(tx, control.id, member.id);
   const remainingBudget = control.dailyBudget.sub(control.todayBurstAmount);
   const memberRemaining = control.memberDailyCap.sub(memberBurstProfit);
-  const maxPayout = minDecimal([
+  const maxBurstProfit = minDecimal([
     control.singlePayoutCap,
-    predicted.amount.add(remainingBudget),
-    predicted.amount.add(memberRemaining),
+    remainingBudget,
+    memberRemaining,
   ]);
+  const maxPayout = predicted.amount.add(maxBurstProfit);
   const predictedProfit = predicted.payout.sub(predicted.amount);
   const predictedNetWin = isNetWin(predicted);
 
@@ -405,7 +406,8 @@ async function findBurstDecision(
 
   if (roll < burstRate) {
     const maxMultiplier = minDecimal([control.singleMultiplierCap, maxPayout.div(predicted.amount)]);
-    const minMultiplier = minDecimal([control.minBurstMultiplier, maxMultiplier]);
+    const minMultiplierByProfit = predicted.amount.add(control.minBurstMultiplier).div(predicted.amount);
+    const minMultiplier = minDecimal([minMultiplierByProfit, maxMultiplier]);
     if (maxMultiplier.greaterThan(1)) {
       return {
         desired: 'WIN',

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { HierarchyReportResponse, HierarchyReportItem } from '@bg/shared';
 import { GAMES_REGISTRY, GameId } from '@bg/shared';
@@ -32,6 +32,20 @@ export function ReportsPage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [betModalFor, setBetModalFor] = useState<{ id: string; username: string } | null>(null);
+  const reportParams = useMemo(() => {
+    const q: Record<string, string> = {};
+    if (currentParent) q.parentId = currentParent;
+    if (startDate) q.startDate = startDate;
+    if (endDate) q.endDate = endDate;
+    if (gameId) q.gameId = gameId;
+    if (username.trim()) q.username = username.trim();
+    if (settlementStatus) q.settlementStatus = settlementStatus;
+    return q;
+  }, [currentParent, endDate, gameId, settlementStatus, startDate, username]);
+  const detailFilters = useMemo(
+    () => ({ startDate, endDate, gameId, settlementStatus }),
+    [endDate, gameId, settlementStatus, startDate],
+  );
 
   useEffect(() => {
     let cancel = false;
@@ -40,14 +54,7 @@ export function ReportsPage(): JSX.Element {
       setError(null);
       setData(null);
       try {
-        const q: Record<string, string> = {};
-        if (currentParent) q.parentId = currentParent;
-        if (startDate) q.startDate = startDate;
-        if (endDate) q.endDate = endDate;
-        if (gameId) q.gameId = gameId;
-        if (username.trim()) q.username = username.trim();
-        if (settlementStatus) q.settlementStatus = settlementStatus;
-        const res = await adminApi.get<HierarchyReportResponse>('/reports/hierarchy', { params: q });
+        const res = await adminApi.get<HierarchyReportResponse>('/reports/hierarchy', { params: reportParams });
         if (!cancel) setData(res.data);
       } catch (e) {
         if (!cancel) {
@@ -62,7 +69,7 @@ export function ReportsPage(): JSX.Element {
     return () => {
       cancel = true;
     };
-  }, [currentParent, startDate, endDate, gameId, username, settlementStatus]);
+  }, [reportParams]);
 
   const selectParent = (id: string | null) => {
     const next = new URLSearchParams(params);
@@ -215,7 +222,7 @@ export function ReportsPage(): JSX.Element {
           open
           onClose={() => setBetModalFor(null)}
           member={betModalFor}
-          filters={{ startDate, endDate, gameId, settlementStatus }}
+          filters={detailFilters}
         />
       )}
     </div>

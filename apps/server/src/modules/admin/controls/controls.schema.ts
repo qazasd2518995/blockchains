@@ -50,15 +50,17 @@ export const burstControlSchema = z
     targetMemberUsername: z.string().optional().nullable(),
     dailyBudget: decimal,
     memberDailyCap: decimal,
-    singlePayoutCap: decimal,
+    minBurstProfit: decimal.default('200'),
+    maxBurstProfit: decimal.optional(),
+    singlePayoutCap: decimal.optional(),
     singleMultiplierCap: decimal.default('100'),
-    minBurstMultiplier: decimal.default('8'),
+    minBurstMultiplier: decimal.optional(),
     smallWinMultiplier: decimal.default('1.5'),
     burstRate: decimal.default('0.03'),
     smallWinRate: decimal.default('0.35'),
     lossRate: decimal.default('0.45'),
     compensationLoss: decimal.default('500'),
-    riskWinLimit: decimal.default('1000'),
+    riskWinLimit: decimal.optional(),
     cooldownRounds: z.coerce.number().int().min(0).max(200).default(8),
     notes: z.string().max(500).optional(),
   })
@@ -75,6 +77,54 @@ export const burstControlSchema = z
         code: z.ZodIssueCode.custom,
         message: '会员爆分控制必须指定目标会员',
         path: ['targetMemberUsername'],
+      });
+    }
+    const maxBurstProfit = value.maxBurstProfit ?? value.singlePayoutCap;
+    if (!maxBurstProfit) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '必须指定单次最大净赢',
+        path: ['maxBurstProfit'],
+      });
+    }
+    const minProfit = Number(value.minBurstProfit);
+    const maxProfit = Number(maxBurstProfit ?? 0);
+    const dailyBudget = Number(value.dailyBudget);
+    const memberDailyCap = Number(value.memberDailyCap);
+    const burstRate = Number(value.burstRate);
+    if (!Number.isFinite(minProfit) || minProfit <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '单次最小净赢必须大于 0',
+        path: ['minBurstProfit'],
+      });
+    }
+    if (!Number.isFinite(maxProfit) || maxProfit <= 0 || maxProfit < minProfit) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '单次最大净赢必须大于等于最小净赢',
+        path: ['maxBurstProfit'],
+      });
+    }
+    if (!Number.isFinite(dailyBudget) || dailyBudget < maxProfit) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '每日爆分总池不可小于单次最大净赢',
+        path: ['dailyBudget'],
+      });
+    }
+    if (!Number.isFinite(memberDailyCap) || memberDailyCap < maxProfit) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '单会员每日上限不可小于单次最大净赢',
+        path: ['memberDailyCap'],
+      });
+    }
+    if (!Number.isFinite(burstRate) || burstRate < 0 || burstRate > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '爆分机率必须介于 0 到 100',
+        path: ['burstRate'],
       });
     }
   });

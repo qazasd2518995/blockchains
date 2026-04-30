@@ -28,6 +28,11 @@ function decimal(value: Prisma.Decimal | string | number | null | undefined): Pr
   return new Prisma.Decimal(0);
 }
 
+function normalizeRate(value: Prisma.Decimal | string | number | null | undefined): Prisma.Decimal {
+  const rate = decimal(value);
+  return rate.greaterThan(1) ? rate.div(100) : rate;
+}
+
 function serializeSettlement(summary: Awaited<ReturnType<typeof calculateCurrentSettlement>>) {
   return {
     gameDay: summary.gameDay,
@@ -475,23 +480,29 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         orderBy: { createdAt: 'desc' },
       });
 
+      const dailyBudget = decimal(body.dailyBudget).toDecimalPlaces(2);
+      const memberDailyCap = decimal(body.memberDailyCap).toDecimalPlaces(2);
+      const minBurstProfit = decimal(body.minBurstProfit ?? body.minBurstMultiplier ?? '200').toDecimalPlaces(2);
+      const maxBurstProfit = decimal(body.maxBurstProfit ?? body.singlePayoutCap ?? '3000').toDecimalPlaces(2);
+      const riskWinLimit = decimal(body.riskWinLimit ?? body.memberDailyCap).toDecimalPlaces(2);
+
       const data = {
         scope: body.scope as ManualDetectionScope,
         targetAgentId,
         targetAgentUsername,
         targetMemberId,
         targetMemberUsername,
-        dailyBudget: decimal(body.dailyBudget).toDecimalPlaces(2),
-        memberDailyCap: decimal(body.memberDailyCap).toDecimalPlaces(2),
-        singlePayoutCap: decimal(body.singlePayoutCap).toDecimalPlaces(2),
+        dailyBudget,
+        memberDailyCap,
+        singlePayoutCap: maxBurstProfit,
         singleMultiplierCap: decimal(body.singleMultiplierCap).toDecimalPlaces(4),
-        minBurstMultiplier: decimal(body.minBurstMultiplier).toDecimalPlaces(4),
+        minBurstMultiplier: minBurstProfit.toDecimalPlaces(4),
         smallWinMultiplier: decimal(body.smallWinMultiplier).toDecimalPlaces(4),
-        burstRate: decimal(body.burstRate).toDecimalPlaces(4),
-        smallWinRate: decimal(body.smallWinRate).toDecimalPlaces(4),
-        lossRate: decimal(body.lossRate).toDecimalPlaces(4),
+        burstRate: normalizeRate(body.burstRate).toDecimalPlaces(4),
+        smallWinRate: normalizeRate(body.smallWinRate).toDecimalPlaces(4),
+        lossRate: normalizeRate(body.lossRate).toDecimalPlaces(4),
         compensationLoss: decimal(body.compensationLoss).toDecimalPlaces(2),
-        riskWinLimit: decimal(body.riskWinLimit).toDecimalPlaces(2),
+        riskWinLimit,
         cooldownRounds: body.cooldownRounds,
         currentGameDay: getControlGameDay(),
         notes: body.notes ?? null,

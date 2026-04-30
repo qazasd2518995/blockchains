@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { GameId, GAMES_REGISTRY, getGameMeta } from '@bg/shared';
+import { useEffect, useMemo, useState } from 'react';
+import { getGameMeta } from '@bg/shared';
 import type { MemberBetEntry, MemberBetListResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
-import { getCurrentGameDay, shiftGameDay, startOfGameWeek } from '@/lib/gameDay';
 import { Modal } from './Modal';
 
 type SettlementStatus = '' | 'settled' | 'unsettled';
@@ -35,9 +34,6 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
   const [items, setItems] = useState<MemberBetEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [startDate, setStartDate] = useState(filters.startDate ?? '');
-  const [endDate, setEndDate] = useState(filters.endDate ?? '');
-  const [gameId, setGameId] = useState(filters.gameId ?? '');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
   const [reloadKey, setReloadKey] = useState(0);
@@ -52,14 +48,14 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
     filters.settlementStatus === 'settled' || filters.settlementStatus === 'unsettled'
       ? filters.settlementStatus
       : '';
+  const startDate = filters.startDate ?? '';
+  const endDate = filters.endDate ?? '';
+  const gameId = filters.gameId ?? '';
 
   useEffect(() => {
     if (!open) return;
-    setStartDate(filters.startDate ?? '');
-    setEndDate(filters.endDate ?? '');
-    setGameId(filters.gameId ?? '');
     setPage(1);
-  }, [filters.endDate, filters.gameId, filters.startDate, member.id, open]);
+  }, [endDate, gameId, member.id, open, settlementStatus, startDate]);
 
   const params = useMemo(() => {
     const q: Record<string, string | number> = { page, limit };
@@ -103,37 +99,6 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
     };
   }, [limit, member.id, open, page, params, reloadKey]);
 
-  const applyPreset = useCallback((preset: 'today' | 'yesterday' | 'lastWeek' | 'thisWeek' | 'thisMonth') => {
-    const today = getCurrentGameDay();
-    switch (preset) {
-      case 'today':
-        setStartDate(today);
-        setEndDate(today);
-        break;
-      case 'yesterday': {
-        const previous = shiftGameDay(today, -1);
-        setStartDate(previous);
-        setEndDate(previous);
-        break;
-      }
-      case 'lastWeek': {
-        const thisWeekStart = startOfGameWeek(today);
-        setStartDate(shiftGameDay(thisWeekStart, -7));
-        setEndDate(shiftGameDay(thisWeekStart, -1));
-        break;
-      }
-      case 'thisWeek':
-        setStartDate(startOfGameWeek(today));
-        setEndDate(today);
-        break;
-      case 'thisMonth':
-        setStartDate(`${today.slice(0, 7)}-01`);
-        setEndDate(today);
-        break;
-    }
-    setPage(1);
-  }, []);
-
   const pageRange = useMemo(() => getPageRange(pagination.page, pagination.totalPages), [pagination.page, pagination.totalPages]);
   const dateLabel = startDate || endDate ? `${startDate || '不限'} 至 ${endDate || '不限'}` : '全部日期';
   const gameLabel = gameId ? (getGameMeta(gameId)?.nameZh ?? gameId) : '全部游戏';
@@ -147,70 +112,9 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
       width="xl"
     >
       <div className="space-y-4">
-        <div className="grid gap-3 border border-ink-200 bg-white/70 p-3 sm:grid-cols-2 xl:grid-cols-[minmax(180px,0.8fr)_minmax(180px,0.8fr)_minmax(180px,1fr)_auto]">
-          <label className="min-w-0">
-            <span className="label mb-1 block">起始日</span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(event) => {
-                setStartDate(event.target.value);
-                setPage(1);
-              }}
-              className="term-input"
-            />
-          </label>
-          <label className="min-w-0">
-            <span className="label mb-1 block">结束日</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(event) => {
-                setEndDate(event.target.value);
-                setPage(1);
-              }}
-              className="term-input"
-            />
-          </label>
-          <label className="min-w-0">
-            <span className="label mb-1 block">游戏</span>
-            <select
-              value={gameId}
-              onChange={(event) => {
-                setGameId(event.target.value);
-                setPage(1);
-              }}
-              className="term-input"
-            >
-              <option value="">全部游戏</option>
-              {Object.values(GameId).map((id) => (
-                <option key={id} value={id}>
-                  {GAMES_REGISTRY[id]?.nameZh ?? id}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex flex-wrap items-end gap-2">
-            <button type="button" onClick={() => applyPreset('today')} className="btn-teal-outline text-[11px]">
-              [今日]
-            </button>
-            <button type="button" onClick={() => applyPreset('yesterday')} className="btn-teal-outline text-[11px]">
-              [昨日]
-            </button>
-            <button type="button" onClick={() => applyPreset('lastWeek')} className="btn-teal-outline text-[11px]">
-              [上周]
-            </button>
-            <button type="button" onClick={() => applyPreset('thisWeek')} className="btn-teal-outline text-[11px]">
-              [本周]
-            </button>
-            <button type="button" onClick={() => applyPreset('thisMonth')} className="btn-teal-outline text-[11px]">
-              [本月]
-            </button>
-          </div>
-        </div>
-
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink-500">
+            <span className="font-semibold text-[#186073]">沿用外层报表条件</span>
             <span className="tag tag-acid">{dateLabel}</span>
             <span className="tag tag-toxic">{gameLabel}</span>
             {settlementStatus && (

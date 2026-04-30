@@ -473,11 +473,11 @@ export function ControlsOverviewPage(): JSX.Element {
   const bcCols: Column<BurstRow>[] = [
     { key: 'scope', label: '范围', render: (r) => <span className="tag tag-acid">{formatManualScope(r.scope)}</span> },
     { key: 'target', label: '目标', render: (r) => <span className="font-mono text-[11px]">{formatBurstTarget(r)}</span> },
-    { key: 'budget', label: '今日池', align: 'right', render: (r) => <span className="data-num">{fmt(r.dailyBudget)}</span> },
+    { key: 'budget', label: '每日池', align: 'right', render: (r) => <span className="data-num">{fmt(r.dailyBudget)}</span> },
     { key: 'used', label: '已用', align: 'right', render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.todayBurstAmount)}</span> },
-    { key: 'cap', label: '单局上限', align: 'right', render: (r) => <span className="data-num">{fmt(r.singlePayoutCap)}</span> },
-    { key: 'rates', label: '节奏', render: (r) => <span className="font-mono text-[11px]">爆 {pct(r.burstRate)} / 小 {pct(r.smallWinRate)} / 输 {pct(r.lossRate)}</span> },
-    { key: 'risk', label: '风险线', align: 'right', render: (r) => <span className="data-num">{fmt(r.riskWinLimit)}</span> },
+    { key: 'range', label: '单次净赢', align: 'right', render: (r) => <span className="data-num">{fmt(r.minBurstMultiplier)}-{fmt(r.singlePayoutCap)}</span> },
+    { key: 'memberCap', label: '会员上限', align: 'right', render: (r) => <span className="data-num">{fmt(r.memberDailyCap)}</span> },
+    { key: 'rates', label: '机率', render: (r) => <span className="font-mono text-[11px]">爆 {pct(r.burstRate)}</span> },
     {
       key: 'status',
       label: '状态',
@@ -522,7 +522,7 @@ export function ControlsOverviewPage(): JSX.Element {
         title={t.nav.controls}
         titleSuffix="输赢控制"
         titleSuffixColor="ember"
-        description="控制优先级、手动侦测、封顶、爆分娱乐曲线与真实介入纪录都集中在这一页。后端会依同一套顺序套用到实际结算。"
+        description="控制优先级、手动侦测、封顶、简单爆分池与真实介入纪录都集中在这一页。后端会依同一套顺序套用到实际结算。"
       />
 
       <ImageBanner
@@ -536,8 +536,8 @@ export function ControlsOverviewPage(): JSX.Element {
 
       <div className="mb-4 rounded-[6px] border border-[#AE8B35]/35 bg-[#FFF8E1] px-4 py-3 text-[12px] text-[#5C4B1F]">
         <div className="font-semibold text-[#7A5F15]">控制优先级</div>
-        <div className="mt-1">会员赢控制 &gt; 代理线赢控制 &gt; 会员输控制 &gt; 代理线输控制 &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 爆分娱乐曲线</div>
-        <div className="mt-1 text-[#7A5F15]/80">爆分控制只在前面的硬性控制都没有命中时介入，用小赢、压输、补偿与冷却制造节奏；高倍自然结果超过预算或风险线时会被压到可控派彩。</div>
+        <div className="mt-1">会员赢控制 &gt; 代理线赢控制 &gt; 会员输控制 &gt; 代理线输控制 &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 爆分控制</div>
+        <div className="mt-1 text-[#7A5F15]/80">爆分控制只在前面的硬性控制都没有命中时介入，用机率、净赢范围、每日池与会员上限制造可控爆分；高倍自然结果超过额度时会被压到可控派彩。</div>
       </div>
 
       <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
@@ -551,7 +551,7 @@ export function ControlsOverviewPage(): JSX.Element {
         <StatCard label="输赢控制在线" value={wl.filter((x) => x.isActive).length.toString()} hint="优先于封顶与入金" accent="ember" />
         <StatCard label="会员封顶在线" value={wc.filter((x) => x.isActive).length.toString()} hint="单会员日赢额" accent="amber" />
         <StatCard label="代理线封顶在线" value={al.filter((x) => x.isActive).length.toString()} hint="整条线日赢额" accent="toxic" />
-        <StatCard label="爆分控制在线" value={bc.filter((x) => x.isActive).length.toString()} hint="爆分池 / 娱乐曲线" accent="ice" />
+        <StatCard label="爆分控制在线" value={bc.filter((x) => x.isActive).length.toString()} hint="机率 / 净赢范围" accent="ice" />
       </div>
 
       {error && (
@@ -636,7 +636,7 @@ export function ControlsOverviewPage(): JSX.Element {
 
           <Section
             title="§ 爆分控制"
-            subtitle="爆分池、补偿、风险线与冷却"
+            subtitle="机率、净赢范围与每日池"
             actions={(
               <button type="button" onClick={() => setBcOpen(true)} className="btn-acid text-[11px]">
                 + 新增
@@ -651,7 +651,7 @@ export function ControlsOverviewPage(): JSX.Element {
             </div>
             <div className="mb-3 rounded-[6px] border border-[#186073]/20 bg-[#EFF8FB] px-4 py-3 text-[12px] text-[#32505C]">
               <div className="font-semibold text-[#186073]">运行说明</div>
-              <div className="mt-1">会员今日净输达到补偿输额时，提高小赢机会；净赢接近风险赢额或高倍派彩超过单局上限时，把结果压到小赢或输。爆分命中后会进入冷却局数，避免连续爆分。</div>
+              <div className="mt-1">后端会把单次派彩限制在净赢范围内，并用每日池、会员每日上限、8 局冷却与风险线自动防守。额度不足时会停止爆分，高倍自然结果会被压到可控小赢或输局。</div>
             </div>
             <DataTable columns={bcCols} rows={bc} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
