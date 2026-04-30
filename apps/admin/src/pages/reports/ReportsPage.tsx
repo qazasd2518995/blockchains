@@ -32,18 +32,23 @@ export function ReportsPage(): JSX.Element {
     let cancel = false;
     const load = async () => {
       setLoading(true);
+      setError(null);
+      setData(null);
       try {
         const q: Record<string, string> = {};
         if (currentParent) q.parentId = currentParent;
-        if (startDate) q.startDate = new Date(startDate).toISOString();
-        if (endDate) q.endDate = new Date(endDate + 'T23:59:59').toISOString();
+        if (startDate) q.startDate = startDate;
+        if (endDate) q.endDate = endDate;
         if (gameId) q.gameId = gameId;
         if (username.trim()) q.username = username.trim();
         if (settlementStatus) q.settlementStatus = settlementStatus;
         const res = await adminApi.get<HierarchyReportResponse>('/reports/hierarchy', { params: q });
         if (!cancel) setData(res.data);
       } catch (e) {
-        if (!cancel) setError(extractApiError(e).message);
+        if (!cancel) {
+          setData(null);
+          setError(extractApiError(e).message);
+        }
       } finally {
         if (!cancel) setLoading(false);
       }

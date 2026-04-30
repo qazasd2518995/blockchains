@@ -63,8 +63,8 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
 
   const params = useMemo(() => {
     const q: Record<string, string | number> = { page, limit };
-    if (startDate) q.startDate = toGameDayIso(startDate);
-    if (endDate) q.endDate = toGameDayIso(endDate);
+    if (startDate) q.startDate = startDate;
+    if (endDate) q.endDate = endDate;
     if (gameId) q.gameId = gameId;
     if (settlementStatus) q.settlementStatus = settlementStatus;
     return q;
@@ -76,6 +76,7 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
     const load = async () => {
       setLoading(true);
       setError(null);
+      setItems([]);
       try {
         const res = await adminApi.get<MemberBetListResponse>(`/members/${member.id}/bets`, { params });
         if (cancel) return;
@@ -369,10 +370,6 @@ function getPageRange(page: number, totalPages: number): number[] {
   const end = Math.min(totalPages, start + visible - 1);
   start = Math.max(1, end - visible + 1);
   return Array.from({ length: end - start + 1 }, (_, index) => start + index);
-}
-
-function toGameDayIso(day: string): string {
-  return new Date(`${day}T12:00:00+08:00`).toISOString();
 }
 
 function shortId(id: string): string {

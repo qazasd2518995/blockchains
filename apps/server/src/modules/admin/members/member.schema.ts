@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
 const decimalString = z.string().regex(/^-?\d+(\.\d+)?$/);
+const adminDateInputSchema = z.string().refine((value) => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return true;
+  return Number.isFinite(new Date(value).getTime());
+}, 'Invalid date');
 
 export const createMemberSchema = z.object({
   agentId: z.string().min(1),
@@ -46,8 +50,8 @@ export const memberListQuerySchema = z.object({
 });
 
 export const memberBetQuerySchema = z.object({
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+  startDate: adminDateInputSchema.optional(),
+  endDate: adminDateInputSchema.optional(),
   gameId: z.string().optional(),
   settlementStatus: z.enum(['settled', 'unsettled']).optional(),
   cursor: z.string().optional(),

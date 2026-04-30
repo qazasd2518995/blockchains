@@ -74,6 +74,7 @@ export function shiftAdminGameDay(gameDay: string, days: number): string {
 
 function resolveDateInputToTaipeiDay(input?: string): string | undefined {
   if (!input) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
   const date = new Date(input);
   if (!Number.isFinite(date.getTime())) return undefined;
   return getTaipeiDateKey(date);

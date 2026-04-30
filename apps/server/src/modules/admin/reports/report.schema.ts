@@ -1,8 +1,13 @@
 import { z } from 'zod';
 
+const adminDateInputSchema = z.string().refine((value) => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return true;
+  return Number.isFinite(new Date(value).getTime());
+}, 'Invalid date');
+
 export const reportQuerySchema = z.object({
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+  startDate: adminDateInputSchema.optional(),
+  endDate: adminDateInputSchema.optional(),
   gameId: z.string().optional(),
   agentId: z.string().optional(),
   cursor: z.string().optional(),
@@ -11,15 +16,15 @@ export const reportQuerySchema = z.object({
 
 export const agentAnalysisQuerySchema = z.object({
   rootAgentId: z.string().optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+  startDate: adminDateInputSchema.optional(),
+  endDate: adminDateInputSchema.optional(),
   gameId: z.string().optional(),
 });
 
 export const hierarchyQuerySchema = z.object({
   parentId: z.string().optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+  startDate: adminDateInputSchema.optional(),
+  endDate: adminDateInputSchema.optional(),
   gameId: z.string().optional(),
   username: z.string().optional(),
   settlementStatus: z.enum(['settled', 'unsettled']).optional(),
