@@ -18,8 +18,8 @@ export function ReportsPage(): JSX.Element {
   const [params, setParams] = useSearchParams();
   const currentParent = params.get('parent') ?? (me?.role === 'SUPER_ADMIN' ? '' : me?.id ?? '');
 
-  const [startDate, setStartDate] = useState(params.get('startDate') ?? '');
-  const [endDate, setEndDate] = useState(params.get('endDate') ?? '');
+  const [startDate, setStartDate] = useState(() => params.get('startDate') || getCurrentGameDay());
+  const [endDate, setEndDate] = useState(() => params.get('endDate') || getCurrentGameDay());
   const [gameId, setGameId] = useState(params.get('gameId') ?? '');
   const [username, setUsername] = useState(params.get('username') ?? '');
   const [selectedAccount, setSelectedAccount] = useState<AccountSearchOption | null>(() => {
@@ -178,7 +178,7 @@ export function ReportsPage(): JSX.Element {
                 setSelectedAccount(next);
                 setUsername(next?.username ?? '');
               }}
-              placeholder="输入代理或会员账号/全名"
+              placeholder="输入账号或全名"
             />
           </div>
           {username && (

@@ -108,6 +108,7 @@ export function AccountSearchSelect({
   };
 
   const helper = value ? selectedHelper(kind, value) : '输入关键字后从清单点选账号';
+  const modeLabel = kind === 'agent' ? 'AGENT' : kind === 'member' ? 'MEMBER' : 'ALL';
 
   return (
     <div ref={boxRef} className="relative">
@@ -129,12 +130,12 @@ export function AccountSearchSelect({
               onChange(null);
             }
           }}
-          className="term-input pr-20 font-mono"
+          className={`term-input font-mono ${kind === 'mixed' ? 'pr-12' : 'pr-20'}`}
           placeholder={placeholder}
           autoComplete="off"
         />
-        <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-400">
-          {kind === 'agent' ? 'AGENT' : kind === 'member' ? 'MEMBER' : 'ACCOUNT'}
+        <div className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase text-ink-400 ${kind === 'mixed' ? 'tracking-[0.08em]' : 'tracking-[0.2em]'}`}>
+          {modeLabel}
         </div>
       </div>
       <div className={`mt-1 text-[10px] ${value ? 'text-[#186073]' : 'text-ink-500'}`}>{helper}</div>
