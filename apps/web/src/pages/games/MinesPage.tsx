@@ -441,7 +441,7 @@ export function MinesPage() {
                 disabled={isActive || busy}
                 className="term-range term-range-ember mt-3 w-full"
               />
-              <div className="mt-3 grid grid-cols-6 gap-1">
+              <div className="mines-count-presets mt-3 grid grid-cols-6 gap-1">
                 {[1, 3, 5, 10, 15, 24].map((v) => (
                   <button
                     key={v}
@@ -496,7 +496,7 @@ export function MinesPage() {
                   ⟲ {t.bet.newRound}
                 </button>
               )}
-              <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] tracking-[0.25em]">
+              <div className="mines-round-stats mt-2 grid grid-cols-2 gap-2 text-[10px] tracking-[0.25em]">
                 <div className="game-stat-card text-center">
                   <div className="text-white/55">{t.bet.balance}</div>
                   <div className="mt-1 data-num text-sm text-white">{formatAmount(balance)}</div>

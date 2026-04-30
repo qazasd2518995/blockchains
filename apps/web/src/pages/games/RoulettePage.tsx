@@ -129,7 +129,7 @@ export function RoulettePage({ variant }: Props) {
         rtpAccent="ember"
       />
 
-      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="game-play-grid game-play-grid--roulette grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines p-3">
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
@@ -146,8 +146,8 @@ export function RoulettePage({ variant }: Props) {
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
 
-            <div className="mt-4 space-y-2">
-              <div className="grid grid-cols-7 gap-1">
+            <div className="roulette-board mt-4 space-y-2">
+              <div className="roulette-number-grid grid grid-cols-7 gap-1">
                 <NumberBtn
                   n={0}
                   onClick={() => addBet({ type: 'straight', value: 0 })}
@@ -165,7 +165,7 @@ export function RoulettePage({ variant }: Props) {
                 ))}
               </div>
 
-              <div className="grid grid-cols-3 gap-1">
+              <div className="roulette-outside-grid grid grid-cols-3 gap-1">
                 <OutsideBtn
                   label={t.games.roulette.low}
                   onClick={() => addBet({ type: 'low' })}
@@ -194,7 +194,7 @@ export function RoulettePage({ variant }: Props) {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-1">
+              <div className="roulette-column-grid grid grid-cols-3 gap-1">
                 {[1, 2, 3].map((col) => (
                   <OutsideBtn
                     key={col}

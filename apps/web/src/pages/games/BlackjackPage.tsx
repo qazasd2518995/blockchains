@@ -134,7 +134,7 @@ export function BlackjackPage() {
         rtpAccent="acid"
       />
 
-      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(320px,0.82fr)]">
+      <div className="game-play-grid game-play-grid--blackjack grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(320px,0.82fr)]">
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines overflow-hidden p-3 sm:p-4">
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px] sm:-mx-4 sm:-mt-4 sm:mb-4">
@@ -147,7 +147,7 @@ export function BlackjackPage() {
               </span>
             </div>
 
-            <div className="relative min-h-[580px] overflow-hidden rounded-[18px] border border-[#C9A247]/20 bg-[#08111E] sm:min-h-[620px]">
+            <div className="blackjack-table-stage relative min-h-[580px] overflow-hidden rounded-[18px] border border-[#C9A247]/20 bg-[#08111E] sm:min-h-[620px]">
               <img
                 src="/game-art/blackjack/background.png"
                 alt=""
@@ -156,7 +156,7 @@ export function BlackjackPage() {
               />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(201,162,71,0.14),transparent_34%),linear-gradient(180deg,rgba(5,10,19,0.58)_0%,rgba(5,10,19,0.88)_100%)]" />
 
-              <div className="relative z-10 flex min-h-[580px] flex-col justify-between gap-5 p-3 sm:min-h-[620px] sm:p-5">
+              <div className="blackjack-table-body relative z-10 flex min-h-[580px] flex-col justify-between gap-5 p-3 sm:min-h-[620px] sm:p-5">
                 <section>
                   <TableLabel
                     title={t.games.blackjack.dealer}

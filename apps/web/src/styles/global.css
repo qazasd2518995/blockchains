@@ -47,3 +47,437 @@
     transform: translate3d(0, 0, 0) rotate(0) scale(1);
   }
 }
+
+@layer components {
+  @media (max-width: 767px) {
+    .game-fullscreen-shell {
+      height: 100svh;
+      min-height: 100svh;
+      overflow: hidden;
+    }
+
+    .game-fullscreen-shell > main {
+      height: calc(100svh - 3.5rem - env(safe-area-inset-top));
+      min-height: 0;
+      overflow: hidden;
+      padding-top: 0.35rem;
+      padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+    }
+
+    .game-fullscreen-shell > main > div {
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .game-fullscreen-shell .game-play-grid {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) !important;
+      grid-template-rows: minmax(0, 1fr) auto;
+      height: 100%;
+      min-height: 0;
+      gap: 0.4rem !important;
+      overflow: hidden;
+    }
+
+    .game-fullscreen-shell .game-main-stack,
+    .game-fullscreen-shell .game-control-stack {
+      min-height: 0;
+      gap: 0.4rem !important;
+    }
+
+    .game-fullscreen-shell .game-main-stack {
+      overflow: hidden;
+    }
+
+    .game-fullscreen-shell .game-main-stack > :not(.game-stage-panel):not(.game-result-card):not(.game-alert) {
+      display: none !important;
+    }
+
+    .game-fullscreen-shell .game-control-stack {
+      max-height: min(44svh, 340px);
+      overflow: visible;
+    }
+
+    .game-fullscreen-shell .game-control-stack > :not(:first-child) {
+      display: none !important;
+    }
+
+    .game-fullscreen-shell .game-stage-panel {
+      display: flex;
+      min-height: 0;
+      flex: 1 1 auto;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 0.45rem !important;
+    }
+
+    .game-fullscreen-shell .game-stage-panel > .game-stage-bar {
+      min-height: 34px;
+      flex: 0 0 auto;
+      margin: -0.45rem -0.45rem 0.35rem !important;
+      border-radius: 0 !important;
+      padding: 0.45rem 0.65rem !important;
+      font-size: 10px;
+      line-height: 1.25;
+    }
+
+    .game-fullscreen-shell .game-stage-bar .dot-online {
+      height: 6px;
+      width: 6px;
+      box-shadow: 0 0 0 3px rgba(9, 184, 38, 0.12);
+    }
+
+    .game-fullscreen-shell .game-stage-panel > .mt-4,
+    .game-fullscreen-shell .game-stage-panel > .mt-3,
+    .game-fullscreen-shell .game-stage-panel > .mt-2 {
+      margin-top: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell .game-stage-panel > .border-t {
+      flex: 0 0 auto;
+      padding: 0.45rem !important;
+    }
+
+    .game-fullscreen-shell .game-stage-panel .label {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+    }
+
+    .game-fullscreen-shell .game-stage-panel .term-range {
+      height: 1.45rem;
+    }
+
+    .game-fullscreen-shell .game-stage-panel .game-choice-btn {
+      min-height: 34px;
+      border-radius: 10px;
+      padding: 0.35rem 0.5rem !important;
+      font-size: 10.5px;
+      letter-spacing: 0.02em;
+    }
+
+    .game-fullscreen-shell .game-stage-panel > .grid {
+      gap: 0.35rem !important;
+      margin-top: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell .game-stage-panel > .grid > button {
+      border-radius: 12px !important;
+      padding: 0.55rem !important;
+    }
+
+    .game-fullscreen-shell .game-stage-panel > .grid > button .text-2xl,
+    .game-fullscreen-shell .game-stage-panel > .grid > button .text-3xl {
+      font-size: 1.15rem !important;
+      line-height: 1.1 !important;
+    }
+
+    .game-fullscreen-shell .game-stage-panel > .game-canvas-shell,
+    .game-fullscreen-shell .game-stage-panel > .relative > .game-canvas-shell {
+      width: 100% !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      flex: 1 1 auto;
+      aspect-ratio: auto !important;
+    }
+
+    .game-fullscreen-shell .game-canvas-wide,
+    .game-fullscreen-shell .game-canvas-keno,
+    .game-fullscreen-shell .game-canvas-tall {
+      min-height: 0 !important;
+      max-height: none !important;
+    }
+
+    .game-fullscreen-shell .game-main-stack > .game-result-card {
+      max-height: 84px;
+      flex: 0 0 auto;
+      overflow: hidden;
+      padding: 0.55rem 0.75rem !important;
+    }
+
+    .game-fullscreen-shell .game-main-stack > .game-alert {
+      max-height: 58px;
+      flex: 0 0 auto;
+      overflow: hidden;
+      padding: 0.55rem 0.75rem !important;
+    }
+
+    .game-fullscreen-shell .game-result-card .text-6xl,
+    .game-fullscreen-shell .game-result-card .text-5xl,
+    .game-fullscreen-shell .game-result-card .text-4xl {
+      font-size: 1.35rem !important;
+      line-height: 1.05 !important;
+    }
+
+    .game-fullscreen-shell .game-control-stack > .game-side-card:first-child {
+      max-height: min(44svh, 340px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 14px 14px 0 0 !important;
+      padding: 0.5rem 0.6rem !important;
+      box-shadow:
+        0 -16px 34px -24px rgba(2, 6, 23, 0.7),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .game-fullscreen-shell .game-control-stack .bet-controls {
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      padding: 0 !important;
+    }
+
+    .game-fullscreen-shell .game-control-stack .bet-controls__header {
+      display: none;
+    }
+
+    .game-fullscreen-shell .game-control-stack .bet-controls__entry {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 90px;
+      align-items: center;
+      gap: 0.35rem;
+      margin-top: 0 !important;
+      padding: 0.3rem !important;
+      border-radius: 12px;
+    }
+
+    .game-fullscreen-shell .game-control-stack .bet-controls__input {
+      min-height: 40px !important;
+      padding: 0.2rem 0.45rem !important;
+      font-size: 20px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell .game-control-stack .bet-controls__adjusters {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.25rem;
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell .game-control-stack .bet-controls__adjusters .game-choice-btn {
+      min-height: 40px;
+      padding: 0 !important;
+    }
+
+    .game-fullscreen-shell .game-control-stack .bet-controls__presets {
+      gap: 0.3rem !important;
+      margin-top: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell .game-control-stack .bet-controls__presets .game-choice-btn {
+      min-height: 32px;
+      border-radius: 9px;
+      padding: 0.2rem 0 !important;
+      font-size: 10px;
+      letter-spacing: 0;
+    }
+
+    .game-fullscreen-shell .game-control-stack .mt-6,
+    .game-fullscreen-shell .game-control-stack .mt-5,
+    .game-fullscreen-shell .game-control-stack .mt-4,
+    .game-fullscreen-shell .game-control-stack .mt-3,
+    .game-fullscreen-shell .game-control-stack .mt-2 {
+      margin-top: 0.45rem !important;
+    }
+
+    .game-fullscreen-shell .game-control-stack .label {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+    }
+
+    .game-fullscreen-shell .game-control-stack .grid {
+      gap: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell .game-control-stack .btn-acid,
+    .game-fullscreen-shell .game-control-stack .btn-ember {
+      min-height: 42px;
+      padding-top: 0.55rem !important;
+      padding-bottom: 0.55rem !important;
+      font-size: 12px;
+      line-height: 1.1;
+    }
+
+    .game-fullscreen-shell .game-control-stack .game-choice-btn {
+      min-height: 34px;
+      border-radius: 10px;
+      padding-top: 0.4rem !important;
+      padding-bottom: 0.4rem !important;
+      font-size: 10.5px;
+      letter-spacing: 0.02em;
+    }
+
+    .game-fullscreen-shell .game-control-stack .game-balance-strip {
+      gap: 0.25rem 0.6rem;
+      padding-top: 0.4rem;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+    }
+
+    .game-fullscreen-shell .game-control-stack .game-stat-card {
+      padding: 0.45rem !important;
+    }
+
+    .game-fullscreen-shell .game-control-stack .term-range {
+      height: 1.45rem;
+    }
+
+    .game-fullscreen-shell .game-play-grid--keno .game-canvas-keno {
+      flex: 0 0 clamp(96px, 17svh, 140px);
+    }
+
+    .game-fullscreen-shell .keno-number-grid {
+      grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+      gap: 0.25rem !important;
+      margin-top: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell .keno-number-grid > button {
+      min-height: 30px !important;
+      border-width: 1px;
+      border-radius: 9px !important;
+      font-size: 13px !important;
+    }
+
+    .game-fullscreen-shell .keno-stage-actions {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 0.35rem !important;
+      margin-top: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell .keno-stage-actions .game-choice-btn {
+      min-height: 34px;
+      padding-top: 0.35rem;
+      padding-bottom: 0.35rem;
+    }
+
+    .game-fullscreen-shell .roulette-board {
+      margin-top: 0.35rem !important;
+      display: grid;
+      gap: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell .roulette-number-grid,
+    .game-fullscreen-shell .roulette-outside-grid,
+    .game-fullscreen-shell .roulette-column-grid {
+      gap: 0.25rem !important;
+    }
+
+    .game-fullscreen-shell .roulette-number-grid button,
+    .game-fullscreen-shell .roulette-outside-grid button,
+    .game-fullscreen-shell .roulette-column-grid button {
+      min-height: 34px;
+      border-radius: 9px;
+      padding: 0.35rem 0.2rem;
+      font-size: 12px;
+    }
+
+    .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-control {
+      margin-top: 0.45rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-options {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.35rem !important;
+      margin-top: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-options > button {
+      min-height: 42px;
+      align-items: center;
+      border-radius: 10px !important;
+      padding: 0.45rem 0.25rem !important;
+      text-align: center;
+    }
+
+    .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-options > button > span:first-child {
+      width: 100%;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
+
+    .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-options > button > span:last-child {
+      display: none;
+    }
+
+    .game-fullscreen-shell[data-game-id="mines"] .mines-round-stats {
+      display: none;
+    }
+
+    .game-fullscreen-shell .game-play-grid--blackjack .game-stage-panel {
+      padding: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell .blackjack-table-stage,
+    .game-fullscreen-shell .blackjack-table-body {
+      min-height: 0 !important;
+    }
+
+    .game-fullscreen-shell .blackjack-table-stage {
+      flex: 1 1 auto;
+      border-radius: 12px !important;
+    }
+
+    .game-fullscreen-shell .blackjack-table-body {
+      height: 100%;
+      gap: 0.35rem !important;
+      padding: 0.45rem !important;
+    }
+
+    .game-fullscreen-shell .blackjack-table-body section {
+      min-height: 0;
+    }
+
+    .game-fullscreen-shell .blackjack-table-body section > .mt-3 {
+      min-height: 78px !important;
+      gap: 0.35rem !important;
+      margin-top: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell .blackjack-table-body .rounded-full {
+      padding: 0.35rem 0.55rem;
+    }
+
+    .game-fullscreen-shell .blackjack-card-shell img,
+    .game-fullscreen-shell .blackjack-card-shell > div {
+      width: 52px !important;
+      height: 78px !important;
+      border-radius: 6px !important;
+    }
+  }
+
+  @media (max-width: 380px), (max-height: 700px) {
+    .game-fullscreen-shell .game-control-stack {
+      max-height: min(42svh, 300px);
+    }
+
+    .game-fullscreen-shell .game-control-stack > .game-side-card:first-child {
+      max-height: min(42svh, 300px);
+    }
+
+    .game-fullscreen-shell .game-control-stack .bet-controls__presets {
+      display: none;
+    }
+
+    .game-fullscreen-shell .game-stage-panel > .game-stage-bar {
+      min-height: 30px;
+      padding-top: 0.35rem !important;
+      padding-bottom: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell .game-play-grid--keno .game-canvas-keno {
+      flex-basis: 90px;
+    }
+
+    .game-fullscreen-shell .keno-number-grid > button {
+      min-height: 27px !important;
+      font-size: 12px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id="mines"] .mines-count-presets {
+      display: none;
+    }
+  }
+}

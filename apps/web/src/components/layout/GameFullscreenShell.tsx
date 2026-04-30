@@ -67,7 +67,10 @@ export function GameFullscreenShell() {
   };
 
   return (
-    <div className="game-fullscreen-shell relative min-h-[100svh] overflow-x-hidden bg-[#050A13] text-white">
+    <div
+      className="game-fullscreen-shell relative min-h-[100svh] overflow-x-hidden bg-[#050A13] text-white"
+      data-game-id={game.id}
+    >
       <div className="pointer-events-none fixed inset-0">
         <img
           src="/backgrounds/casino-atmosphere.png"

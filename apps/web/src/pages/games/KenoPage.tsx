@@ -141,7 +141,7 @@ export function KenoPage() {
         rtpAccent="ice"
       />
 
-      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="game-play-grid game-play-grid--keno grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines p-4">
             <div className="game-stage-bar -mx-4 -mt-4 mb-4 rounded-t-[22px]">
@@ -155,7 +155,7 @@ export function KenoPage() {
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
 
-            <div className="mt-4 grid grid-cols-5 gap-1.5 sm:grid-cols-8 sm:gap-2">
+            <div className="keno-number-grid mt-4 grid grid-cols-5 gap-1.5 sm:grid-cols-8 sm:gap-2">
               {Array.from({ length: POOL_SIZE }, (_, i) => i + 1).map((n) => {
                 const picked = selected.has(n);
                 const isDrawn = drawn.has(n);
@@ -178,7 +178,7 @@ export function KenoPage() {
               })}
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:flex">
+            <div className="keno-stage-actions mt-4 grid grid-cols-2 gap-2 sm:flex">
               <button type="button" onClick={autoPick} disabled={busy} className="game-choice-btn game-choice-btn-ice">
                 ⚂ {t.games.keno.autoPick}
               </button>

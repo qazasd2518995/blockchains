@@ -381,9 +381,9 @@ export function TowerPage() {
               disabled={round?.status === 'ACTIVE' || busy}
             />
 
-            <div className="mt-6">
+            <div className="tower-difficulty-control mt-6">
               <div className="label">{t.games.tower.difficulty}</div>
-              <div className="mt-2 space-y-1">
+              <div className="tower-difficulty-options mt-2 space-y-1">
                 {difficulties.map((d) => (
                   <button
                     key={d.id}
