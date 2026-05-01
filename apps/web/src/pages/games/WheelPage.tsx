@@ -10,10 +10,12 @@ import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { WheelScene } from '@/games/wheel/WheelScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 export function WheelPage() {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
   const [risk, setRisk] = useState<WheelRisk>('medium');
@@ -65,7 +67,9 @@ export function WheelPage() {
   }, [risk, segments, sceneReady]);
 
   const spin = async () => {
-    if (busy || amount <= 0 || amount > balance) return;
+    if (busy) return;
+    if (!requireLogin()) return;
+    if (amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
     // 乐观动画：轮盘立刻开始高速旋转
@@ -170,6 +174,7 @@ export function WheelPage() {
               amount={amount}
               onAmountChange={setAmount}
               maxBalance={balance}
+              guestMode={!user}
               disabled={busy}
             />
             <div className="mt-6">
@@ -207,14 +212,14 @@ export function WheelPage() {
             <button
               type="button"
               onClick={spin}
-              disabled={busy || balance < amount}
+              disabled={busy || (!!user && balance < amount)}
               className="btn-acid mt-6 w-full py-4"
             >
               → {t.games.wheel.spin} · {formatAmount(amount)}
             </button>
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
+                {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
               </span>
               <span>
                 {t.games.wheel.segments} <span className="data-num ml-1 text-[#FCA5A5]">{segments}</span>

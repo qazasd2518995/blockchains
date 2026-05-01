@@ -9,6 +9,7 @@ import { GameHeader } from '@/components/game/GameHeader';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 const CARD_FILE_RANKS = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'] as const;
 const CARD_FILE_SUITS = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
@@ -17,6 +18,7 @@ const DEAL_STEP_MS = 260;
 export function BlackjackPage() {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
   const [round, setRound] = useState<BlackjackRoundState | null>(null);
@@ -99,7 +101,9 @@ export function BlackjackPage() {
   };
 
   const handleStart = async () => {
-    if (busy || animating || amount <= 0 || amount > balance) return;
+    if (busy || animating) return;
+    if (!requireLogin()) return;
+    if (amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
     try {
@@ -295,6 +299,7 @@ export function BlackjackPage() {
               amount={amount}
               onAmountChange={setAmount}
               maxBalance={balance}
+              guestMode={!user}
               disabled={Boolean(round && round.status === 'ACTIVE') || busy}
             />
 
@@ -303,7 +308,7 @@ export function BlackjackPage() {
                 <button
                   type="button"
                   onClick={handleStart}
-                  disabled={busy || animating || balance < amount}
+                  disabled={busy || animating || (!!user && balance < amount)}
                   className="btn-acid col-span-2 w-full py-4"
                 >
                   <Play className="h-4 w-4" aria-hidden="true" />
@@ -349,7 +354,7 @@ export function BlackjackPage() {
 
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
+                {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
               </span>
               <span>
                 {t.bet.multiplier}{' '}

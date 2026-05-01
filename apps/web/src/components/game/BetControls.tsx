@@ -8,6 +8,7 @@ interface BetControlsProps {
   maxBalance: number;
   disabled?: boolean;
   min?: number;
+  guestMode?: boolean;
 }
 
 export function BetControls({
@@ -16,6 +17,7 @@ export function BetControls({
   maxBalance,
   disabled,
   min = 0.01,
+  guestMode = false,
 }: BetControlsProps) {
   const { t } = useTranslation();
   const [text, setText] = useState(amount.toFixed(2));
@@ -30,7 +32,8 @@ export function BetControls({
     Sfx.tick();
   };
 
-  const clamp = (v: number) => Math.min(maxBalance, Math.max(min, v));
+  const effectiveMax = guestMode ? 100000 : maxBalance;
+  const clamp = (v: number) => Math.min(effectiveMax, Math.max(min, v));
 
   return (
     <div className="bet-controls rounded-[16px] border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:rounded-[20px] sm:p-4">
@@ -42,7 +45,7 @@ export function BetControls({
           </span>
         </div>
         <span className="data-num text-[10px] text-white/55">
-          {t.bet.max} {maxBalance.toFixed(2)}
+          {guestMode ? '登入後可下注' : `${t.bet.max} ${maxBalance.toFixed(2)}`}
         </span>
       </div>
 
@@ -85,7 +88,7 @@ export function BetControls({
           <button
             key={v}
             type="button"
-            disabled={disabled || v > maxBalance}
+            disabled={disabled || (!guestMode && v > maxBalance)}
             onClick={() => syncText(clamp(v))}
             className="game-choice-btn px-0 py-2.5"
           >
@@ -94,7 +97,7 @@ export function BetControls({
         ))}
         <button
           type="button"
-          disabled={disabled}
+          disabled={disabled || guestMode}
           onClick={() => syncText(clamp(maxBalance))}
           className="game-choice-btn game-choice-btn-acid px-0 py-2.5"
         >

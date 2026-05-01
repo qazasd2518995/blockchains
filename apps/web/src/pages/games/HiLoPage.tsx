@@ -13,10 +13,12 @@ import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { HiLoScene } from '@/games/hilo/HiLoScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 export function HiLoPage() {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
   const [round, setRound] = useState<HiLoRoundState | null>(null);
@@ -67,7 +69,9 @@ export function HiLoPage() {
   }, []);
 
   const handleStart = async () => {
-    if (busy || amount <= 0 || amount > balance) return;
+    if (busy) return;
+    if (!requireLogin()) return;
+    if (amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
     try {
@@ -308,6 +312,7 @@ export function HiLoPage() {
               amount={amount}
               onAmountChange={setAmount}
               maxBalance={balance}
+              guestMode={!user}
               disabled={isActive || busy}
             />
             <div className="mt-6 space-y-2">
@@ -315,7 +320,7 @@ export function HiLoPage() {
                 <button
                   type="button"
                   onClick={handleStart}
-                  disabled={busy || balance < amount}
+                  disabled={busy || (!!user && balance < amount)}
                   className="btn-acid w-full py-4"
                 >
                   → {t.games.hilo.deal.toUpperCase()} · {formatAmount(amount)}
@@ -349,7 +354,7 @@ export function HiLoPage() {
               )}
               <div className="game-balance-strip mt-3">
                 <span>
-                  {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
+                  {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
                 </span>
                 <span>
                   {t.games.mines.current}{' '}

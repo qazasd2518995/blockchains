@@ -8,6 +8,7 @@ import { formatAmount } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { RouletteScene } from '@/games/roulette/RouletteScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 const RED = new Set([1, 3, 5, 7, 9, 12]);
 const BLACK = new Set([2, 4, 6, 8, 10, 11]);
@@ -19,6 +20,7 @@ interface Props {
 export function RoulettePage({ variant }: Props) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [chip, setChip] = useState(5);
   const [bets, setBets] = useState<RouletteLineBet[]>([]);
@@ -70,7 +72,9 @@ export function RoulettePage({ variant }: Props) {
   const totalBet = bets.reduce((s, b) => s + b.amount, 0);
 
   const handleSpin = async () => {
-    if (busy || bets.length === 0 || totalBet > balance) return;
+    if (busy || bets.length === 0) return;
+    if (!requireLogin()) return;
+    if (totalBet > balance) return;
     setBusy(true);
     setError(null);
     setResult(null);
@@ -288,7 +292,7 @@ export function RoulettePage({ variant }: Props) {
             <button
               type="button"
               onClick={handleSpin}
-              disabled={busy || bets.length === 0 || totalBet > balance}
+              disabled={busy || bets.length === 0 || (!!user && totalBet > balance)}
               className="btn-acid mt-4 w-full py-4"
             >
               → {t.games.roulette.spin} · {formatAmount(totalBet)}
@@ -304,7 +308,7 @@ export function RoulettePage({ variant }: Props) {
 
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
+                {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
               </span>
               <span>
                 {t.games.roulette.total} <span className="data-num ml-1 text-[#FCA5A5]">{formatAmount(totalBet)}</span>

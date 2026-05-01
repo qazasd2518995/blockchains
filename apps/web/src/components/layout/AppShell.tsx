@@ -174,7 +174,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
 
       <div className={isMobileLobby ? 'hidden lg:block' : ''}>
-        <SiteFooter loggedIn />
+        <SiteFooter loggedIn={Boolean(user)} />
       </div>
     </div>
   );

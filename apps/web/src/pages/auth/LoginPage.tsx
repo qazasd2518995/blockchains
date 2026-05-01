@@ -34,6 +34,7 @@ export function LoginPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const { t } = useTranslation();
   const [serverError, setServerError] = useState<string | null>(null);
+  const reason = params.get('reason');
 
   const {
     register,
@@ -123,6 +124,12 @@ export function LoginPage() {
               <h1 className="text-[24px] font-bold text-[#0F172A]">{t.auth.identifyYourself}</h1>
               <p className="mt-2 text-[13px] text-[#4A5568]">{t.auth.loginDesc}</p>
             </div>
+
+            {reason === 'bet' || reason === 'game' ? (
+              <div className="mb-4 rounded-[10px] border border-[#C9A247]/35 bg-[#FFF8DF] px-3 py-2.5 text-[12px] font-semibold leading-relaxed text-[#765709]">
+                請先登入會員，登入完成後會回到剛才的遊戲頁面繼續操作。
+              </div>
+            ) : null}
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <Field label={t.auth.usernameLabel} error={errMap(errors.username?.message)}>

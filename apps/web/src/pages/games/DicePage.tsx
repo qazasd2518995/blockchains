@@ -9,6 +9,7 @@ import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { GameHeader } from '@/components/game/GameHeader';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 const MIN_TARGET = 1.01;
 const MAX_TARGET = 98.99;
@@ -18,6 +19,7 @@ export function DicePage() {
   const sceneRef = useRef<DiceScene | null>(null);
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
 
   const [amount, setAmount] = useState(10);
@@ -68,6 +70,7 @@ export function DicePage() {
 
   const handleBet = async () => {
     if (rolling) return;
+    if (!requireLogin()) return;
     if (amount <= 0 || amount > balance) {
       setError(t.bet.insufficientBalance);
       return;
@@ -244,13 +247,14 @@ export function DicePage() {
               amount={amount}
               onAmountChange={setAmount}
               maxBalance={balance}
+              guestMode={!user}
               disabled={rolling}
             />
 
             <button
               type="button"
               onClick={handleBet}
-              disabled={rolling || balance < amount}
+              disabled={rolling || (!!user && balance < amount)}
               className="btn-acid mt-6 w-full py-4 text-base"
             >
               {rolling ? (
@@ -266,14 +270,16 @@ export function DicePage() {
             <div className="game-balance-strip mt-3">
               <span className="text-white/55">
                 {t.bet.balance}{' '}
-                <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
+                <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
               </span>
-              <span className="text-white/55">
-                {t.bet.after}{' '}
-                <span className="data-num ml-1 text-[#7DD3FC]">
-                  {formatAmount(balance - amount)}
+              {user ? (
+                <span className="text-white/55">
+                  {t.bet.after}{' '}
+                  <span className="data-num ml-1 text-[#7DD3FC]">
+                    {formatAmount(balance - amount)}
+                  </span>
                 </span>
-              </span>
+              ) : null}
             </div>
           </div>
 

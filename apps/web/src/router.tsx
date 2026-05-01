@@ -24,7 +24,6 @@ import { HallPage } from '@/pages/HallPage';
 import { VerifyPage } from '@/pages/VerifyPage';
 import { PromosPage } from '@/pages/PromosPage';
 import { BaccaratPage } from '@/pages/games/BaccaratPage';
-import { useAuthStore } from '@/stores/authStore';
 
 function RouteViewportReset() {
   const { pathname } = useLocation();
@@ -39,8 +38,7 @@ function RouteViewportReset() {
 }
 
 function RootEntry() {
-  const { accessToken } = useAuthStore();
-  return <Navigate to={accessToken ? '/lobby' : '/login'} replace />;
+  return <Navigate to="/lobby" replace />;
 }
 
 export const router = createBrowserRouter([
@@ -65,24 +63,11 @@ export const router = createBrowserRouter([
           { path: '/login', element: <LoginPage /> },
         ],
       },
+      { path: '/games/baccarat', element: <BaccaratPage variant="royal" /> },
+      { path: '/games/baccarat-nova', element: <BaccaratPage variant="nova" /> },
+      { path: '/games/baccarat-imperial', element: <BaccaratPage variant="imperial" /> },
       {
-        element: (
-          <AuthGuard>
-            <Outlet />
-          </AuthGuard>
-        ),
-        children: [
-          { path: '/games/baccarat', element: <BaccaratPage variant="royal" /> },
-          { path: '/games/baccarat-nova', element: <BaccaratPage variant="nova" /> },
-          { path: '/games/baccarat-imperial', element: <BaccaratPage variant="imperial" /> },
-        ],
-      },
-      {
-        element: (
-          <AuthGuard>
-            <GameFullscreenShell />
-          </AuthGuard>
-        ),
+        element: <GameFullscreenShell />,
         children: [
           { path: '/games/dice', element: <DicePage /> },
           { path: '/games/mines', element: <MinesPage /> },
@@ -113,11 +98,9 @@ export const router = createBrowserRouter([
       },
       {
         element: (
-          <AuthGuard>
-            <AppShell>
-              <Outlet />
-            </AppShell>
-          </AuthGuard>
+          <AppShell>
+            <Outlet />
+          </AppShell>
         ),
         children: [
           { path: '/lobby', element: <LobbyPage /> },
@@ -125,6 +108,17 @@ export const router = createBrowserRouter([
           { path: '/verify', element: <VerifyPage /> },
           { path: '/promos', element: <PromosPage /> },
           { path: '/profile', element: <Navigate to="/lobby" replace /> },
+        ],
+      },
+      {
+        element: (
+          <AuthGuard>
+            <AppShell>
+              <Outlet />
+            </AppShell>
+          </AuthGuard>
+        ),
+        children: [
           { path: '/history', element: <HistoryPage /> },
         ],
       },

@@ -11,6 +11,7 @@ import {
   resolveBaccaratUrl,
 } from '@/lib/baccaratWarmup';
 import { useAuthStore } from '@/stores/authStore';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 interface LauncherDiagnostics {
   currentUser: string;
@@ -33,8 +34,9 @@ interface BaccaratPageProps {
 
 export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
   const user = useAuthStore((s) => s.user);
+  const requireLogin = useRequireLogin('game');
   const config = getBaccaratVariant(variant);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [status, setStatus] = useState<'guest' | 'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState(`正在建立${config.title}進場憑證...`);
   const [launchUrl, setLaunchUrl] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<LauncherDiagnostics | null>(null);
@@ -52,6 +54,14 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
     let cancelled = false;
 
     async function launch() {
+      if (!user) {
+        setStatus('guest');
+        setMessage(`登入會員後即可進入${config.title}。`);
+        setDiagnostics(null);
+        setLaunchUrl(null);
+        return;
+      }
+
       try {
         setStatus('loading');
         setMessage(`正在建立${config.title}進場憑證...`);
@@ -118,7 +128,7 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [apiBase, baccaratUrl, bgLobbyUrl, config.gameId, config.provider, config.skin, config.title, iframeKey, user?.role, user?.username]);
+  }, [apiBase, baccaratUrl, bgLobbyUrl, config.gameId, config.provider, config.skin, config.title, iframeKey, user, user?.role, user?.username]);
 
   const handleReload = () => {
     setIframeKey((k) => k + 1);
@@ -186,6 +196,48 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
                   <RefreshCw className="h-4 w-4" aria-hidden="true" />
                   重新載入
                 </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {status === 'guest' ? (
+        <section className="absolute inset-0 z-20 overflow-hidden" style={{ backgroundColor: config.screenBg }}>
+          <img
+            src={config.background}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover object-[62%_center] opacity-70"
+            style={{ objectPosition: config.backgroundPosition }}
+          />
+          <div className={`absolute inset-0 ${config.overlayClassName}`} />
+          <div className="relative z-10 flex min-h-[100svh] items-center px-6 py-8 sm:px-10 lg:px-16">
+            <div className="max-w-[520px]">
+              <div className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] ${config.badgeClassName}`}>
+                {config.eyebrow}
+              </div>
+              <h1 className="mt-5 text-[38px] font-black leading-tight sm:text-[54px]">
+                {config.loadingTitle}
+              </h1>
+              <p className="mt-4 max-w-[420px] text-[15px] leading-7 text-white/72">
+                可先瀏覽大廳與其他遊戲畫面；百家牌桌需要會員身份交接後才能進入。
+              </p>
+              <div className="mt-7 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => requireLogin()}
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-semibold backdrop-blur transition ${config.actionClassName}`}
+                >
+                  登入後進入
+                </button>
+                <Link
+                  to="/lobby"
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-semibold backdrop-blur transition ${config.actionClassName}`}
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  返回大廳
+                </Link>
               </div>
             </div>
           </div>

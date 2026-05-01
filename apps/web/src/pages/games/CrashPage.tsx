@@ -9,6 +9,7 @@ import { getCrashSocket, disconnectCrashSocket } from '@/lib/socket';
 import { useTranslation } from '@/i18n/useTranslation';
 import { CrashScene, type CrashVariant } from '@/games/crash/CrashScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 interface CrashGameConfig {
   gameId: string;
@@ -30,6 +31,7 @@ const MIN_CASHOUT_MULTIPLIER = 1.01;
 export function CrashPage({ config }: Props) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
   const [autoCashOut, setAutoCashOut] = useState('');
@@ -356,7 +358,10 @@ export function CrashPage({ config }: Props) {
   }, [applyCashoutResult, config.gameId]);
 
   const handlePlaceBet = () => {
-    if (!user) return;
+    if (!user) {
+      requireLogin();
+      return;
+    }
     if (status !== 'BETTING') {
       setError(t.bet.roundNotAccepting);
       return;
@@ -513,6 +518,7 @@ export function CrashPage({ config }: Props) {
               amount={amount}
               onAmountChange={setAmount}
               maxBalance={balance}
+              guestMode={!user}
               disabled={status !== 'BETTING' || !!myBet}
             />
 
@@ -535,7 +541,7 @@ export function CrashPage({ config }: Props) {
                 <button
                   type="button"
                   onClick={handlePlaceBet}
-                  disabled={balance < amount}
+                  disabled={!!user && balance < amount}
                   className="btn-acid w-full py-4"
                 >
                   → {t.games.crash.placeBet} · {formatAmount(amount)}
@@ -578,7 +584,7 @@ export function CrashPage({ config }: Props) {
               )}
               <div className="game-balance-strip mt-3">
                 <span>
-                  {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
+                  {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
                 </span>
                 <span>
                   MULTI <span className="data-num ml-1 text-[#7DD3FC]">{formatMultiplier(multiplier)}</span>

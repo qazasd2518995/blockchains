@@ -10,6 +10,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { HotlineScene } from '@/games/hotline/HotlineScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { getSlotTheme, type SlotThemeConfig, type SlotThemeId } from '@/lib/slotThemes';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 interface Props {
   theme?: SlotThemeId;
@@ -27,6 +28,7 @@ const SYMBOL_POSITIONS = [
 export function HotlinePage({ theme = 'cyber' }: Props) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const requireLogin = useRequireLogin();
   const slotTheme = getSlotTheme(theme);
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
@@ -67,7 +69,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   }, [slotTheme]);
 
   const spin = async () => {
-    if (busy || amount <= 0 || amount > balance) return;
+    if (busy) return;
+    if (!requireLogin()) return;
+    if (amount <= 0 || amount > balance) return;
     setBusy(true);
     setSpinning(true);
     setResult(null);
@@ -190,20 +194,21 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               amount={amount}
               onAmountChange={setAmount}
               maxBalance={balance}
+              guestMode={!user}
               disabled={busy}
             />
 
             <button
               type="button"
               onClick={spin}
-              disabled={busy || balance < amount}
+              disabled={busy || (!!user && balance < amount)}
               className="btn-acid mt-6 w-full py-4"
             >
               → {t.games.hotline.spin} · {formatAmount(amount)}
             </button>
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
+                {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
               </span>
               <span>
                 {t.games.hotline.totalMult}{' '}

@@ -7,6 +7,7 @@ import { SoundToggle } from '@/components/layout/SoundToggle';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
+import { buildLoginPath } from '@/hooks/useRequireLogin';
 
 const GAME_NAME_ZH: Record<string, string> = {
   baccarat: '皇家百家',
@@ -56,8 +57,11 @@ export function GameFullscreenShell() {
   const { user, setBalance } = useAuthStore();
   const game = useCurrentGameMeta();
   const returnTarget = useGameReturnTarget();
+  const location = useLocation();
+  const loginPath = buildLoginPath(`${location.pathname}${location.search}`, 'game');
 
   const handleBalanceRefresh = async () => {
+    if (!user) return;
     try {
       const res = await api.get<{ balance: string }>('/wallet/balance');
       setBalance(res.data.balance);
@@ -100,18 +104,27 @@ export function GameFullscreenShell() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleBalanceRefresh}
-            className="hidden h-10 shrink-0 items-center gap-2 rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338] sm:inline-flex"
-            title="重新載入餘額"
-          >
-            <WalletCards className="h-4 w-4" aria-hidden="true" />
-            <span className="data-num">{formatAmount(user?.balance ?? '0')}</span>
-          </button>
+          {user ? (
+            <button
+              type="button"
+              onClick={handleBalanceRefresh}
+              className="hidden h-10 shrink-0 items-center gap-2 rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338] sm:inline-flex"
+              title="重新載入餘額"
+            >
+              <WalletCards className="h-4 w-4" aria-hidden="true" />
+              <span className="data-num">{formatAmount(user.balance ?? '0')}</span>
+            </button>
+          ) : (
+            <Link
+              to={loginPath}
+              className="hidden h-10 shrink-0 items-center rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338] sm:inline-flex"
+            >
+              登入下注
+            </Link>
+          )}
 
           <Link
-            to="/history"
+            to={user ? '/history' : loginPath}
             className="hidden h-10 shrink-0 items-center gap-2 rounded-full border border-white/12 bg-white/[0.06] px-3 text-[12px] font-semibold text-white/72 transition hover:border-white/24 hover:bg-white/[0.1] hover:text-white md:inline-flex"
           >
             <History className="h-4 w-4" aria-hidden="true" />

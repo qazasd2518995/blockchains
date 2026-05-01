@@ -14,6 +14,7 @@ import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { TowerScene } from '@/games/tower/TowerScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 const TOWER_TOTAL_LEVELS = 9;
 const TOWER_PREVIEW_COLS: Record<TowerDifficulty, number> = {
@@ -27,6 +28,7 @@ const TOWER_PREVIEW_COLS: Record<TowerDifficulty, number> = {
 export function TowerPage() {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
   const [difficulty, setDifficulty] = useState<TowerDifficulty>('medium');
@@ -158,7 +160,9 @@ export function TowerPage() {
   }
 
   const start = async () => {
-    if (busy || amount <= 0 || amount > balance) return;
+    if (busy) return;
+    if (!requireLogin()) return;
+    if (amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
     hideStageHint();
@@ -378,6 +382,7 @@ export function TowerPage() {
               amount={amount}
               onAmountChange={setAmount}
               maxBalance={balance}
+              guestMode={!user}
               disabled={round?.status === 'ACTIVE' || busy}
             />
 
@@ -413,7 +418,7 @@ export function TowerPage() {
                     if (round && round.status !== 'ACTIVE') setRound(null);
                     void start();
                   }}
-                  disabled={busy || balance < amount}
+                  disabled={busy || (!!user && balance < amount)}
                   className="btn-acid w-full py-4"
                 >
                   → {t.games.tower.start} · {formatAmount(amount)}
@@ -431,7 +436,7 @@ export function TowerPage() {
               )}
               <div className="game-balance-strip mt-3">
                 <span>
-                  {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
+                  {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
                 </span>
                 <span>
                   {t.games.tower.current}{' '}

@@ -10,6 +10,7 @@ import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { PlinkoScene } from '@/games/plinko/PlinkoScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 interface PlinkoPageProps {
   variant?: 'classic' | 'x';
@@ -18,6 +19,7 @@ interface PlinkoPageProps {
 export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const requireLogin = useRequireLogin();
   const isX = variant === 'x';
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
@@ -71,7 +73,9 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   }, [rows, risk, sceneReady]);
 
   const drop = async () => {
-    if (busy || amount <= 0 || amount > balance) return;
+    if (busy) return;
+    if (!requireLogin()) return;
+    if (amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
     // 乐观动画：立刻浮现预告球
@@ -155,6 +159,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
               amount={amount}
               onAmountChange={setAmount}
               maxBalance={balance}
+              guestMode={!user}
               disabled={busy}
             />
 
@@ -194,14 +199,14 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
             <button
               type="button"
               onClick={drop}
-              disabled={busy || balance < amount}
+              disabled={busy || (!!user && balance < amount)}
               className="btn-acid mt-6 w-full py-4"
             >
               → {t.games.plinko.drop} · {formatAmount(amount)}
             </button>
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
+                {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
               </span>
               <span>
                 {t.games.plinko.rows} <span className="data-num ml-1 text-[#7DD3FC]">{rows}</span>

@@ -9,6 +9,7 @@ import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { KenoScene } from '@/games/keno/KenoScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 const POOL_SIZE = 40;
 const MAX_PICKS = 10;
@@ -16,6 +17,7 @@ const MAX_PICKS = 10;
 export function KenoPage() {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -86,7 +88,9 @@ export function KenoPage() {
   };
 
   const handleBet = async () => {
-    if (busy || selected.size === 0 || amount <= 0 || amount > balance) return;
+    if (busy || selected.size === 0) return;
+    if (!requireLogin()) return;
+    if (amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
     clearRoundResult();
@@ -232,6 +236,7 @@ export function KenoPage() {
               amount={amount}
               onAmountChange={setAmount}
               maxBalance={balance}
+              guestMode={!user}
               disabled={busy}
             />
 
@@ -255,14 +260,14 @@ export function KenoPage() {
             <button
               type="button"
               onClick={handleBet}
-              disabled={busy || selected.size === 0 || balance < amount}
+              disabled={busy || selected.size === 0 || (!!user && balance < amount)}
               className="btn-acid mt-6 w-full py-4"
             >
               → {t.games.keno.draw.toUpperCase()} · {formatAmount(amount)}
             </button>
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-white">{formatAmount(balance)}</span>
+                {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
               </span>
               <span>
                 {t.games.keno.selected}{' '}

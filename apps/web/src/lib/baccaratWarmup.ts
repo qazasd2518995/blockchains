@@ -4,9 +4,11 @@ import { BACCARAT_VARIANTS, type BaccaratVariantConfig } from '@/lib/baccaratVar
 const FALLBACK_BACCARAT_URL = 'http://localhost:5174';
 const WARMUP_IFRAME_ID = 'bg-baccarat-warmup-frame';
 const WARMUP_IFRAME_TTL_MS = 45_000;
+export const BACCARAT_WARMUP_REFRESH_MS = 8 * 60_000;
 
 let warmupPromise: Promise<void> | null = null;
 let warmupKey: string | null = null;
+let warmupCompletedAt = 0;
 
 export function resolveBaccaratUrl(): string {
   const raw = (import.meta.env.VITE_BACCARAT_URL as string | undefined)?.trim();
@@ -59,20 +61,31 @@ export function warmBaccaratInBackground(input: {
   const baccaratUrl = resolveBaccaratUrl();
   const nextWarmupKey = `${input.userId}:${baccaratUrl}`;
   if (warmupPromise && warmupKey === nextWarmupKey) return warmupPromise;
+  if (warmupKey === nextWarmupKey && Date.now() - warmupCompletedAt < BACCARAT_WARMUP_REFRESH_MS) {
+    return Promise.resolve();
+  }
 
   warmupKey = nextWarmupKey;
   warmupPromise = runWarmup({
     baccaratUrl,
     returnUrl: input.returnUrl ?? new URL('/lobby', window.location.origin).toString(),
-  }).catch((error) => {
-    if (warmupKey === nextWarmupKey) {
-      warmupPromise = null;
-      warmupKey = null;
-    }
-    if (import.meta.env.DEV) {
-      console.debug('[baccarat-warmup] failed', error);
-    }
-  });
+  })
+    .then(() => {
+      if (warmupKey === nextWarmupKey) {
+        warmupCompletedAt = Date.now();
+        warmupPromise = null;
+      }
+    })
+    .catch((error) => {
+      if (warmupKey === nextWarmupKey) {
+        warmupPromise = null;
+        warmupKey = null;
+        warmupCompletedAt = 0;
+      }
+      if (import.meta.env.DEV) {
+        console.debug('[baccarat-warmup] failed', error);
+      }
+    });
 
   return warmupPromise;
 }

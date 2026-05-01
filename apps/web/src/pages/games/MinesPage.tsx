@@ -14,6 +14,7 @@ import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBe
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { GameHeader } from '@/components/game/GameHeader';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 export function MinesPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -21,6 +22,7 @@ export function MinesPage() {
   const roundRef = useRef<MinesRoundState | null>(null);
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
+  const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
 
   const [amount, setAmount] = useState(10);
@@ -122,6 +124,7 @@ export function MinesPage() {
 
   const handleStart = async () => {
     if (busy) return;
+    if (!requireLogin()) return;
     if (amount <= 0 || amount > balance) {
       setError(t.bet.insufficientBalance);
       return;
@@ -412,6 +415,7 @@ export function MinesPage() {
               amount={amount}
               onAmountChange={setAmount}
               maxBalance={balance}
+              guestMode={!user}
               disabled={isActive || busy}
             />
 
@@ -461,7 +465,7 @@ export function MinesPage() {
                 <button
                   type="button"
                   onClick={handleStart}
-                  disabled={busy || balance < amount}
+                  disabled={busy || (!!user && balance < amount)}
                   className="btn-acid w-full py-4 text-base"
                 >
                   {busy ? (
@@ -499,7 +503,7 @@ export function MinesPage() {
               <div className="mines-round-stats mt-2 grid grid-cols-2 gap-2 text-[10px] tracking-[0.25em]">
                 <div className="game-stat-card text-center">
                   <div className="text-white/55">{t.bet.balance}</div>
-                  <div className="mt-1 data-num text-sm text-white">{formatAmount(balance)}</div>
+                  <div className="mt-1 data-num text-sm text-white">{user ? formatAmount(balance) : '登入後顯示'}</div>
                 </div>
                 <div className="game-stat-card text-center">
                   <div className="text-white/55">{t.games.mines.atRisk}</div>
