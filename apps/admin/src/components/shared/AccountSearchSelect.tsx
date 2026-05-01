@@ -111,11 +111,11 @@ export function AccountSearchSelect({
   const modeLabel = kind === 'agent' ? 'AGENT' : kind === 'member' ? 'MEMBER' : 'ALL';
 
   return (
-    <div ref={boxRef} className="relative">
+    <div ref={boxRef} className="account-search-select relative">
       <label htmlFor={inputId} className="label mb-2 block">
         {label}
       </label>
-      <div className="relative">
+      <div className="account-search-select__input-wrap relative">
         <input
           id={inputId}
           type="text"
@@ -134,11 +134,11 @@ export function AccountSearchSelect({
           placeholder={placeholder}
           autoComplete="off"
         />
-        <div className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase text-ink-400 ${kind === 'mixed' ? 'tracking-[0.08em]' : 'tracking-[0.2em]'}`}>
+        <div className={`account-search-select__mode pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase text-ink-400 ${kind === 'mixed' ? 'tracking-[0.08em]' : 'tracking-[0.2em]'}`}>
           {modeLabel}
         </div>
       </div>
-      <div className={`mt-1 text-[10px] ${value ? 'text-[#186073]' : 'text-ink-500'}`}>{helper}</div>
+      <div className={`account-search-select__helper mt-1 text-[10px] ${value ? 'text-[#186073]' : 'text-ink-500'}`}>{helper}</div>
 
       {open && query.trim() && (!value || query.trim() !== value.username) && (
         <div className="absolute z-[5200] mt-2 max-h-72 w-full overflow-auto border border-ink-200 bg-white shadow-[0_18px_42px_rgba(15,23,42,0.18)]">

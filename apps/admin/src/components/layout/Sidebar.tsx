@@ -13,11 +13,11 @@ const items: { to: string; key: keyof ReturnType<typeof useTranslation>['t']['na
 export function Sidebar(): JSX.Element {
   const { t } = useTranslation();
   return (
-    <aside className="panel-felt w-full shrink-0 overflow-hidden p-3 lg:sticky lg:top-[132px] lg:h-[calc(100vh-164px)] lg:w-60 lg:p-4">
+    <aside className="admin-nav-panel panel-felt w-full shrink-0 overflow-hidden p-3 lg:sticky lg:top-[132px] lg:h-[calc(100vh-164px)] lg:w-60 lg:p-4">
       <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
-        <span className="font-semibold text-base text-[#DEBE66]">导航</span>
+        <span className="admin-nav-title font-semibold text-base text-[#DEBE66]">导航</span>
       </div>
-      <nav className="mt-3 flex gap-2 overflow-x-auto pb-1 lg:mt-4 lg:block lg:space-y-1.5 lg:overflow-visible lg:pb-0">
+      <nav className="admin-nav-links mt-3 flex gap-2 overflow-x-auto pb-1 lg:mt-4 lg:block lg:space-y-1.5 lg:overflow-visible lg:pb-0">
         {items.map((it) => (
           <NavLink
             key={it.to}

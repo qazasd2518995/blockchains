@@ -56,12 +56,28 @@
       overflow: hidden;
     }
 
+    .game-fullscreen-shell > header > div {
+      height: 3rem !important;
+      padding-left: 0.45rem !important;
+      padding-right: 0.45rem !important;
+    }
+
+    .game-fullscreen-shell > header a,
+    .game-fullscreen-shell > header button {
+      height: 2.35rem !important;
+      width: 2.35rem !important;
+    }
+
+    .game-fullscreen-shell > header .min-w-0.flex-1 > div:first-child {
+      font-size: 14px !important;
+    }
+
     .game-fullscreen-shell > main {
-      height: calc(100svh - 3.5rem - env(safe-area-inset-top));
+      height: calc(100svh - 3rem - env(safe-area-inset-top));
       min-height: 0;
       overflow: hidden;
-      padding-top: 0.35rem;
-      padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+      padding-top: 0.28rem;
+      padding-bottom: max(0.22rem, env(safe-area-inset-bottom));
     }
 
     .game-fullscreen-shell > main > div {
@@ -189,24 +205,87 @@
     }
 
     .game-fullscreen-shell .game-main-stack > .game-result-card {
-      max-height: 84px;
+      display: flex !important;
+      height: 50px;
+      max-height: 50px;
       flex: 0 0 auto;
+      align-items: center;
       overflow: hidden;
-      padding: 0.55rem 0.75rem !important;
+      border-radius: 0 !important;
+      padding: 0.42rem 0.75rem !important;
     }
 
     .game-fullscreen-shell .game-main-stack > .game-alert {
-      max-height: 58px;
+      display: flex !important;
+      height: 44px;
+      max-height: 44px;
       flex: 0 0 auto;
+      align-items: center;
       overflow: hidden;
-      padding: 0.55rem 0.75rem !important;
+      border-radius: 0 !important;
+      padding: 0.42rem 0.75rem !important;
+    }
+
+    .game-fullscreen-shell .game-main-stack > .game-result-card > div,
+    .game-fullscreen-shell .game-main-stack > .game-alert > span {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .game-fullscreen-shell .game-main-stack > .game-result-card > div {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 0.65rem !important;
+    }
+
+    .game-fullscreen-shell .game-result-card > div > div {
+      min-width: 0;
+    }
+
+    .game-fullscreen-shell .game-result-card .items-baseline {
+      align-items: center !important;
+    }
+
+    .game-fullscreen-shell .game-result-card span,
+    .game-fullscreen-shell .game-result-card div {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .game-fullscreen-shell .game-result-card .mt-1,
+    .game-fullscreen-shell .game-result-card .mt-2,
+    .game-fullscreen-shell .game-result-card .mt-3 {
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell .game-result-card [class*="gap-3"] {
+      gap: 0.4rem !important;
     }
 
     .game-fullscreen-shell .game-result-card .text-6xl,
     .game-fullscreen-shell .game-result-card .text-5xl,
     .game-fullscreen-shell .game-result-card .text-4xl {
-      font-size: 1.35rem !important;
-      line-height: 1.05 !important;
+      font-size: 1.08rem !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell .game-result-card .text-3xl,
+    .game-fullscreen-shell .game-result-card .text-2xl {
+      font-size: 1rem !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell .game-result-card [class*="tracking-"] {
+      font-size: 9px !important;
+      letter-spacing: 0.08em !important;
+      line-height: 1.1 !important;
+    }
+
+    .game-fullscreen-shell .game-result-card [class*="text-[10px]"],
+    .game-fullscreen-shell .game-result-card [class*="text-[11px]"] {
+      display: none !important;
     }
 
     .game-fullscreen-shell .game-control-stack > .game-side-card:first-child {
@@ -353,9 +432,9 @@
     }
 
     .game-fullscreen-shell .roulette-board {
-      margin-top: 0.35rem !important;
+      margin-top: 0.28rem !important;
       display: grid;
-      gap: 0.35rem !important;
+      gap: 0.28rem !important;
     }
 
     .game-fullscreen-shell .roulette-number-grid,
@@ -367,10 +446,39 @@
     .game-fullscreen-shell .roulette-number-grid button,
     .game-fullscreen-shell .roulette-outside-grid button,
     .game-fullscreen-shell .roulette-column-grid button {
-      min-height: 34px;
-      border-radius: 9px;
-      padding: 0.35rem 0.2rem;
+      min-height: 31px;
+      border-radius: 8px;
+      padding: 0.28rem 0.15rem;
       font-size: 12px;
+    }
+
+    .game-fullscreen-shell[data-game-id="mini-roulette"] .game-control-stack,
+    .game-fullscreen-shell[data-game-id="carnival"] .game-control-stack {
+      max-height: 205px;
+    }
+
+    .game-fullscreen-shell[data-game-id="mini-roulette"] .game-control-stack > .game-side-card:first-child,
+    .game-fullscreen-shell[data-game-id="carnival"] .game-control-stack > .game-side-card:first-child {
+      max-height: 205px;
+      overflow: hidden;
+      padding: 0.5rem 0.6rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id="mini-roulette"] .roulette-active-bets,
+    .game-fullscreen-shell[data-game-id="carnival"] .roulette-active-bets {
+      display: none !important;
+    }
+
+    .game-fullscreen-shell[data-game-id="mini-roulette"] .game-stage-panel > .game-canvas-shell,
+    .game-fullscreen-shell[data-game-id="carnival"] .game-stage-panel > .game-canvas-shell {
+      flex: 1 1 145px;
+      min-height: 128px !important;
+      padding: 0.25rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id="mini-roulette"] .game-control-stack .game-choice-btn,
+    .game-fullscreen-shell[data-game-id="carnival"] .game-control-stack .game-choice-btn {
+      min-height: 34px;
     }
 
     .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-control {
@@ -449,6 +557,28 @@
   }
 
   @media (max-width: 380px), (max-height: 700px) {
+    .game-fullscreen-shell .game-main-stack > .game-result-card {
+      height: 42px;
+      max-height: 42px;
+      padding-top: 0.32rem !important;
+      padding-bottom: 0.32rem !important;
+    }
+
+    .game-fullscreen-shell .game-main-stack > .game-alert {
+      height: 38px;
+      max-height: 38px;
+      padding-top: 0.32rem !important;
+      padding-bottom: 0.32rem !important;
+    }
+
+    .game-fullscreen-shell .game-result-card .text-6xl,
+    .game-fullscreen-shell .game-result-card .text-5xl,
+    .game-fullscreen-shell .game-result-card .text-4xl,
+    .game-fullscreen-shell .game-result-card .text-3xl,
+    .game-fullscreen-shell .game-result-card .text-2xl {
+      font-size: 0.98rem !important;
+    }
+
     .game-fullscreen-shell .game-control-stack {
       max-height: min(42svh, 300px);
     }
@@ -468,12 +598,19 @@
     }
 
     .game-fullscreen-shell .game-play-grid--keno .game-canvas-keno {
-      flex-basis: 90px;
+      flex-basis: 72px;
     }
 
     .game-fullscreen-shell .keno-number-grid > button {
-      min-height: 27px !important;
+      aspect-ratio: auto !important;
+      height: 28px !important;
+      min-height: 28px !important;
+      border-radius: 8px !important;
       font-size: 12px !important;
+    }
+
+    .game-fullscreen-shell .keno-stage-actions .game-choice-btn {
+      min-height: 30px;
     }
 
     .game-fullscreen-shell[data-game-id="mines"] .mines-count-presets {

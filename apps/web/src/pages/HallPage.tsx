@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
@@ -25,7 +25,7 @@ export function HallPage() {
   const navigate = useNavigate();
   const hall = hallId && hallId in HALLS ? HALLS[hallId as HallId] : undefined;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isMobileLobbyViewport()) {
       navigate('/lobby', { replace: true });
     }

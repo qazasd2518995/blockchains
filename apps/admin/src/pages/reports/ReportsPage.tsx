@@ -136,8 +136,8 @@ export function ReportsPage(): JSX.Element {
         />
       )}
 
-      <div className="mb-4 crt-panel p-4">
-        <div className="admin-mobile-stack flex flex-wrap items-center gap-3">
+      <div className="admin-report-filter mb-4 crt-panel p-4">
+        <div className="admin-report-filter-row admin-mobile-stack flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2">
             <span className="label">起始日</span>
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="term-input" />
@@ -169,7 +169,7 @@ export function ReportsPage(): JSX.Element {
               <option value="unsettled">未结算</option>
             </select>
           </label>
-          <div className="w-full max-w-[260px]">
+          <div className="admin-account-filter w-full max-w-[260px]">
             <AccountSearchSelect
               kind="mixed"
               label="账号"
@@ -193,7 +193,7 @@ export function ReportsPage(): JSX.Element {
               [清除账号]
             </button>
           )}
-          <div className="grid grid-cols-2 gap-1 text-[10px] sm:flex sm:items-center">
+          <div className="admin-report-presets grid grid-cols-2 gap-1 text-[10px] sm:flex sm:items-center">
             <button type="button" onClick={() => quickPreset('today')} className="btn-teal-outline">[今日]</button>
             <button type="button" onClick={() => quickPreset('yesterday')} className="btn-teal-outline">[昨日]</button>
             <button type="button" onClick={() => quickPreset('lastWeek')} className="btn-teal-outline">[上周]</button>

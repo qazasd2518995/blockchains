@@ -61,7 +61,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
   };
 
   return (
-    <div className="relative min-h-[100svh] overflow-x-hidden bg-[#E9ECEF]">
+    <div className="admin-shell relative min-h-[100svh] overflow-x-hidden bg-[#E9ECEF]">
       <div className="pointer-events-none fixed inset-0">
         <img
           src="/backgrounds/admin-shell-host.png"
@@ -73,7 +73,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
       </div>
 
       {/* Top strip — felt dark with brass */}
-      <div className="sticky top-0 z-50 border-b border-[#186073]/55 bg-[#093040]/95 pt-[env(safe-area-inset-top)] shadow-[0_2px_12px_-4px_rgba(10,8,6,0.35)] backdrop-blur-lg">
+      <div className="admin-top-strip sticky top-0 z-50 border-b border-[#186073]/55 bg-[#093040]/95 pt-[env(safe-area-inset-top)] shadow-[0_2px_12px_-4px_rgba(10,8,6,0.35)] backdrop-blur-lg">
         <div className="flex w-full items-center justify-between gap-3 px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-[#E8D48A] sm:px-6 sm:tracking-[0.3em]">
           <div className="flex items-center gap-6">
             <span className="flex items-center">
@@ -94,9 +94,9 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
           </div>
         </div>
 
-        <div className="flex w-full flex-wrap items-center justify-between gap-3 border-t border-[#186073]/30 px-3 py-3 sm:px-6 sm:py-4">
+        <div className="admin-brand-row flex w-full flex-wrap items-center justify-between gap-3 border-t border-[#186073]/30 px-3 py-3 sm:px-6 sm:py-4">
           <Link to="/admin/dashboard" className="flex min-w-0 items-center gap-3">
-            <span className="rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[22px] font-extrabold tracking-[0.05em] text-white">
+            <span className="admin-brand-logo rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[22px] font-extrabold tracking-[0.05em] text-white">
               BG
             </span>
             <div className="hidden sm:block">
@@ -180,7 +180,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
         </div>
       </div>
 
-      <main className="relative z-10 flex w-full flex-col gap-4 px-3 py-4 sm:px-6 lg:flex-row lg:gap-6 lg:px-8 lg:py-8 xl:px-10">
+      <main className="admin-layout-main relative z-10 flex w-full flex-col gap-4 px-3 py-4 sm:px-6 lg:flex-row lg:gap-6 lg:px-8 lg:py-8 xl:px-10">
         <Sidebar />
         <div className="min-w-0 flex-1">{children}</div>
       </main>

@@ -262,7 +262,7 @@ export function RoulettePage({ variant }: Props) {
               ))}
             </div>
 
-            <div className="mt-4 space-y-1">
+            <div className="roulette-active-bets mt-4 space-y-1">
               <div className="label">
                 {t.games.roulette.activeBets} ({bets.length})
               </div>

@@ -27,7 +27,7 @@ export function PageHeader({
   rightSlot,
 }: Props): JSX.Element {
   return (
-    <header className="relative mb-5 overflow-hidden rounded-[12px] border border-[#16324A]/12 bg-[#0B1827] px-4 py-5 shadow-[0_20px_48px_rgba(15,23,42,0.08)] sm:mb-7 sm:rounded-[14px] sm:px-6 sm:py-6">
+    <header className="admin-page-header relative mb-5 overflow-hidden rounded-[12px] border border-[#16324A]/12 bg-[#0B1827] px-4 py-5 shadow-[0_20px_48px_rgba(15,23,42,0.08)] sm:mb-7 sm:rounded-[14px] sm:px-6 sm:py-6">
       <img
         src="/backgrounds/admin-shell-host.png"
         alt=""
