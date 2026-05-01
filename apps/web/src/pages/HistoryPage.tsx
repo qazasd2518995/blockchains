@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getGameMeta } from '@bg/shared';
-import type { TransactionListResponse, TransactionType } from '@bg/shared';
-import { CalendarDays, Search } from 'lucide-react';
+import type { BetDetailResponse, TransactionListResponse, TransactionType } from '@bg/shared';
+import { CalendarDays, ReceiptText, Search, X } from 'lucide-react';
 import { api, extractApiError } from '@/lib/api';
 import { formatAmount } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -140,6 +140,10 @@ export function HistoryPage() {
   const [activePreset, setActivePreset] = useState<DatePreset | null>('today');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [detailBetId, setDetailBetId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<BetDetailResponse | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,6 +197,31 @@ export function HistoryPage() {
     setDateRange(nextRange);
     setAppliedRange(nextRange);
     setActivePreset(null);
+  };
+
+  const handleOpenDetail = (betId: string) => {
+    setDetailBetId(betId);
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    api
+      .get<BetDetailResponse>(`/wallet/bets/${betId}`)
+      .then((res) => {
+        setDetail(res.data);
+      })
+      .catch((err) => {
+        setDetailError(extractApiError(err).message);
+      })
+      .finally(() => {
+        setDetailLoading(false);
+      });
+  };
+
+  const handleCloseDetail = () => {
+    setDetailBetId(null);
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(false);
   };
 
   return (
@@ -359,11 +388,22 @@ export function HistoryPage() {
                   </div>
                   <div className={`flex items-center gap-2 ${meta.color}`}>
                     <span className="text-lg">{meta.icon}</span>
-                    <span className="font-semibold text-[12px] font-semibold tracking-[0.1em]">
-                      {hasWinLoss
-                        ? t.history.settlement
-                        : (t.history.tx[tx.type as keyof typeof t.history.tx] ?? tx.type)}
-                    </span>
+                    <div className="min-w-0">
+                      <span className="font-semibold text-[12px] font-semibold tracking-[0.1em]">
+                        {hasWinLoss
+                          ? t.history.settlement
+                          : (t.history.tx[tx.type as keyof typeof t.history.tx] ?? tx.type)}
+                      </span>
+                      {tx.betId ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetail(tx.betId!)}
+                          className="mt-1 block rounded-full border border-[#186073]/20 bg-white px-2 py-1 text-[10px] font-semibold text-[#186073] md:hidden"
+                        >
+                          查看開獎
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                   <div className="hidden truncate font-mono text-[11px] text-[#4A5568] md:block">
                     <div>{renderReference(tx.gameId, tx.betId)}</div>
@@ -372,6 +412,16 @@ export function HistoryPage() {
                         {t.history.stake} {formatAmount(tx.betAmount)} · {t.history.payout}{' '}
                         {formatAmount(tx.payout)}
                       </div>
+                    ) : null}
+                    {tx.betId ? (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDetail(tx.betId!)}
+                        className="mt-2 inline-flex items-center gap-1 rounded-full border border-[#186073]/18 bg-[#F2FAFC] px-2 py-1 text-[10px] font-semibold text-[#186073] transition hover:border-[#186073]/45 hover:bg-white"
+                      >
+                        <ReceiptText className="h-3 w-3" aria-hidden="true" />
+                        查看開獎
+                      </button>
                     ) : null}
                   </div>
                   <div
@@ -403,6 +453,15 @@ export function HistoryPage() {
           </div>
         )}
       </section>
+
+      {detailBetId ? (
+        <BetDetailModal
+          detail={detail}
+          error={detailError}
+          loading={detailLoading}
+          onClose={handleCloseDetail}
+        />
+      ) : null}
     </div>
   );
 }
@@ -414,4 +473,232 @@ function renderReference(gameId: string | null, betId: string | null): string {
   if (gameName) return gameName;
   if (betRef) return betRef;
   return '—';
+}
+
+function BetDetailModal({
+  detail,
+  error,
+  loading,
+  onClose,
+}: {
+  detail: BetDetailResponse | null;
+  error: string | null;
+  loading: boolean;
+  onClose: () => void;
+}) {
+  const gameName = detail ? (getGameMeta(detail.gameId)?.nameZh ?? detail.gameId) : '';
+  const resultItems = detail ? resultEntries(detail.resultData) : [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-[#07101C]/70 p-0 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6">
+      <div className="max-h-[92svh] w-full overflow-hidden rounded-t-[24px] border border-white/30 bg-white shadow-[0_24px_80px_rgba(7,16,28,0.38)] sm:max-w-3xl sm:rounded-[24px]">
+        <div className="flex items-start justify-between gap-4 border-b border-[#E5E7EB] px-5 py-4">
+          <div>
+            <div className="text-[12px] font-black uppercase tracking-[0.22em] text-[#186073]">
+              開獎詳情
+            </div>
+            <h2 className="mt-1 text-[22px] font-black text-[#0F172A]">
+              {detail ? gameName : '載入中'}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D9E3EA] bg-white text-[#4A5568] transition hover:border-[#186073]/40 hover:text-[#186073]"
+            aria-label="關閉"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="max-h-[calc(92svh-86px)] overflow-y-auto px-5 py-5">
+          {loading ? (
+            <div className="flex items-center gap-2 py-10 font-mono text-[12px] tracking-[0.22em] text-[#4A5568]">
+              <span className="dot-online" />
+              正在載入開獎結果
+              <span className="animate-blink">_</span>
+            </div>
+          ) : null}
+
+          {!loading && error ? (
+            <div className="rounded-[16px] border border-[#D4574A]/30 bg-[#FDF0EE] p-4 text-[13px] font-semibold text-[#B94538]">
+              {error}
+            </div>
+          ) : null}
+
+          {!loading && detail ? (
+            <div className="space-y-5">
+              <div className="grid gap-3 sm:grid-cols-4">
+                <DetailMetric label="下注" value={formatAmount(detail.amount)} />
+                <DetailMetric label="倍率" value={`${Number(detail.multiplier).toFixed(4)}x`} />
+                <DetailMetric label="派彩" value={formatAmount(detail.payout)} />
+                <DetailMetric
+                  label="盈虧"
+                  value={`${Number(detail.profit) >= 0 ? '+' : ''}${formatAmount(detail.profit)}`}
+                  tone={Number(detail.profit) >= 0 ? 'win' : 'lose'}
+                />
+              </div>
+
+              <div className="rounded-[18px] border border-[#D9E3EA] bg-[#F8FBFD] p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="text-[13px] font-black text-[#0F172A]">開獎結果</div>
+                  <div className="font-mono text-[10px] tracking-[0.18em] text-[#718096]">
+                    BET {detail.id.slice(-8).toUpperCase()}
+                  </div>
+                </div>
+
+                {resultItems.length > 0 ? (
+                  <div className="grid gap-2">
+                    {resultItems.map((item) => (
+                      <div
+                        key={item.key}
+                        className="grid gap-1 rounded-[12px] border border-white bg-white/80 px-3 py-2 sm:grid-cols-[140px_1fr] sm:items-start"
+                      >
+                        <div className="text-[11px] font-black text-[#186073]">{item.label}</div>
+                        <div className="break-words font-mono text-[12px] leading-relaxed text-[#0F172A]">
+                          {item.value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-[12px] bg-white px-3 py-4 text-center text-[12px] text-[#718096]">
+                    這筆注單沒有額外開獎資料。
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-[18px] border border-[#D9E3EA] bg-white p-4">
+                <div className="mb-3 text-[13px] font-black text-[#0F172A]">驗證資料</div>
+                <div className="grid gap-2 text-[12px] text-[#4A5568]">
+                  <DetailLine label="局號" value={detail.roundNumber ? `#${detail.roundNumber}` : detail.roundId ?? '—'} />
+                  <DetailLine label="狀態" value={detail.status} />
+                  <DetailLine label="下注時間" value={formatDateTime(detail.createdAt)} />
+                  <DetailLine label="結算時間" value={detail.settledAt ? formatDateTime(detail.settledAt) : '—'} />
+                  <DetailLine label="Server Seed Hash" value={detail.serverSeedHash ?? '—'} />
+                  <DetailLine label="Client Seed" value={detail.clientSeed ?? '—'} />
+                  <DetailLine label="Nonce" value={detail.nonce === null ? '—' : String(detail.nonce)} />
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailMetric({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string;
+  value: string;
+  tone?: 'default' | 'win' | 'lose';
+}) {
+  const toneClass =
+    tone === 'win' ? 'text-win' : tone === 'lose' ? 'text-[#D4574A]' : 'text-[#0F172A]';
+  return (
+    <div className="rounded-[16px] border border-[#D9E3EA] bg-white p-3">
+      <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#718096]">{label}</div>
+      <div className={`mt-1 data-num text-[18px] font-black ${toneClass}`}>{value}</div>
+    </div>
+  );
+}
+
+function DetailLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid gap-1 border-b border-[#EEF2F5] pb-2 last:border-b-0 sm:grid-cols-[150px_1fr]">
+      <span className="font-black text-[#186073]">{label}</span>
+      <span className="break-all font-mono text-[#0F172A]">{value}</span>
+    </div>
+  );
+}
+
+function resultEntries(value: unknown): Array<{ key: string; label: string; value: string }> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return value === null || value === undefined
+      ? []
+      : [{ key: 'result', label: '結果', value: formatResultValue(value) }];
+  }
+
+  return Object.entries(value as Record<string, unknown>)
+    .filter(([, child]) => child !== null && child !== undefined)
+    .map(([key, child]) => ({
+      key,
+      label: RESULT_LABELS[key] ?? key,
+      value: formatResultValue(child),
+    }));
+}
+
+const RESULT_LABELS: Record<string, string> = {
+  roll: '擲出點數',
+  target: '目標值',
+  direction: '方向',
+  winChance: '中獎機率',
+  finalWon: '結果',
+  drawn: '開獎號碼',
+  selected: '選擇號碼',
+  hits: '命中號碼',
+  hitCount: '命中數',
+  risk: '風險',
+  segmentIndex: '落點段位',
+  segments: '段數',
+  multipliers: '倍率表',
+  slot: '開獎格',
+  bets: '下注內容',
+  wins: '中獎項目',
+  grid: '盤面',
+  lines: '中獎線',
+  path: '掉落路徑',
+  bucket: '落點槽',
+  rows: '列數',
+  mineCount: '地雷數',
+  minePositions: '地雷位置',
+  revealed: '已翻位置',
+  hitMine: '是否踩雷',
+  hitCell: '踩雷格',
+  cashedOut: '是否收分',
+  history: '牌序',
+  lastGuess: '最後選擇',
+  correct: '是否正確',
+  dealerHand: '莊家手牌',
+  playerHands: '玩家手牌',
+  totalPayout: '總派彩',
+  rules: '規則',
+  source: '來源',
+  resultData: '牌局結果',
+  roundNumber: '局號',
+  crashPoint: '爆點',
+  autoCashOut: '自動收分',
+  cashoutAt: '收分倍率',
+  payout: '派彩',
+  status: '狀態',
+};
+
+function formatResultValue(value: unknown): string {
+  if (typeof value === 'boolean') return value ? '是' : '否';
+  if (typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(4);
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) {
+    if (value.every((item) => item === null || ['string', 'number', 'boolean'].includes(typeof item))) {
+      return value.map((item) => formatResultValue(item)).join(', ');
+    }
+    return safeJson(value);
+  }
+  if (value && typeof value === 'object') return safeJson(value);
+  return String(value ?? '—');
+}
+
+function safeJson(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function formatDateTime(value: string): string {
+  return new Date(value).toLocaleString('zh-TW', { hour12: false });
 }

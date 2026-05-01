@@ -25,6 +25,25 @@ export interface TransactionEntry {
   createdAt: string;
 }
 
+export interface BetDetailResponse {
+  id: string;
+  kind: 'bet' | 'crash';
+  gameId: string;
+  amount: string;
+  multiplier: string;
+  payout: string;
+  profit: string;
+  status: string;
+  createdAt: string;
+  settledAt: string | null;
+  nonce: number | null;
+  clientSeed: string | null;
+  serverSeedHash: string | null;
+  roundId: string | null;
+  roundNumber: number | null;
+  resultData: unknown;
+}
+
 export interface TransactionListResponse {
   items: TransactionEntry[];
   nextCursor: string | null;

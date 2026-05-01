@@ -646,6 +646,17 @@ export class CrashRoom {
         select: { id: true },
       });
       if (existingBet) throw new Error('Bet already placed for this round');
+      const bet = await tx.crashBet.create({
+        data: {
+          roundId: this.currentRoundId!,
+          userId,
+          amount: amountD,
+          autoCashOut:
+            autoCashOut !== undefined
+              ? new Prisma.Decimal(autoCashOut.toFixed(4))
+              : null,
+        },
+      });
       const updated = await tx.user.update({
         where: { id: userId },
         data: { balance: { decrement: amountD } },
@@ -656,18 +667,11 @@ export class CrashRoom {
           type: 'BET_PLACE',
           amount: amountD.negated(),
           balanceAfter: updated.balance,
-          meta: { gameId: this.config.gameId, roundId: this.currentRoundId },
-        },
-      });
-      const bet = await tx.crashBet.create({
-        data: {
-          roundId: this.currentRoundId!,
-          userId,
-          amount: amountD,
-          autoCashOut:
-            autoCashOut !== undefined
-              ? new Prisma.Decimal(autoCashOut.toFixed(4))
-              : null,
+          meta: {
+            gameId: this.config.gameId,
+            roundId: this.currentRoundId,
+            crashBetId: bet.id,
+          },
         },
       });
       return bet.id;
@@ -741,7 +745,12 @@ export class CrashRoom {
           type: 'CASHOUT',
           amount: settledPayout,
           balanceAfter: updated.balance,
-          meta: { gameId: this.config.gameId, roundId: this.currentRoundId, multiplier: Number(settledMultiplier.toFixed(4)) },
+          meta: {
+            gameId: this.config.gameId,
+            roundId: this.currentRoundId,
+            crashBetId: betId,
+            multiplier: Number(settledMultiplier.toFixed(4)),
+          },
         },
       });
       await tx.crashBet.update({
