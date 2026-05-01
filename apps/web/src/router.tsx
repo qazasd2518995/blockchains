@@ -24,6 +24,7 @@ import { HallPage } from '@/pages/HallPage';
 import { VerifyPage } from '@/pages/VerifyPage';
 import { PromosPage } from '@/pages/PromosPage';
 import { BaccaratPage } from '@/pages/games/BaccaratPage';
+import { useAuthStore } from '@/stores/authStore';
 
 function RouteViewportReset() {
   const { pathname } = useLocation();
@@ -37,12 +38,21 @@ function RouteViewportReset() {
   return <Outlet />;
 }
 
+function RootEntry() {
+  const { accessToken } = useAuthStore();
+  return <Navigate to={accessToken ? '/lobby' : '/login'} replace />;
+}
+
 export const router = createBrowserRouter([
   {
     element: <RouteViewportReset />,
     children: [
       {
         path: '/',
+        element: <RootEntry />,
+      },
+      {
+        path: '/landing',
         element: <LandingPage />,
       },
       {
