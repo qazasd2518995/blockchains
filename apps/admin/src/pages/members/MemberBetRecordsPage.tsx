@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getGameMeta } from '@bg/shared';
-import type { MemberPublic, MemberBetListResponse, MemberBetEntry } from '@bg/shared';
+import type { BetDetailResponse, MemberPublic, MemberBetListResponse, MemberBetEntry } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { useTranslation } from '@/i18n/useTranslation';
+import { BetResultDetailModal } from '@/components/shared/BetResultDetailModal';
 
 export function MemberBetRecordsPage(): JSX.Element {
   const { id = '' } = useParams();
@@ -17,6 +18,10 @@ export function MemberBetRecordsPage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [gameFilter, setGameFilter] = useState('');
+  const [detailBetId, setDetailBetId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<BetDetailResponse | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -65,6 +70,26 @@ export function MemberBetRecordsPage(): JSX.Element {
     }
   };
 
+  const openDetail = (betId: string) => {
+    if (!id) return;
+    setDetailBetId(betId);
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    adminApi
+      .get<BetDetailResponse>(`/members/${id}/bets/${betId}`)
+      .then((res) => setDetail(res.data))
+      .catch((e) => setDetailError(extractApiError(e).message))
+      .finally(() => setDetailLoading(false));
+  };
+
+  const closeDetail = () => {
+    setDetailBetId(null);
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(false);
+  };
+
   const columns: Column<MemberBetEntry>[] = [
     {
       key: 'time',
@@ -100,6 +125,23 @@ export function MemberBetRecordsPage(): JSX.Element {
           </span>
         );
       },
+    },
+    {
+      key: 'detail',
+      label: '开奖',
+      align: 'right',
+      render: (r) => (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            openDetail(r.id);
+          }}
+          className="btn-teal-outline px-2 py-1 text-[10px]"
+        >
+          查看
+        </button>
+      ),
     },
   ];
 
@@ -158,6 +200,14 @@ export function MemberBetRecordsPage(): JSX.Element {
           )}
         </>
       )}
+
+      <BetResultDetailModal
+        open={Boolean(detailBetId)}
+        detail={detail}
+        error={detailError}
+        loading={detailLoading}
+        onClose={closeDetail}
+      />
     </div>
   );
 }

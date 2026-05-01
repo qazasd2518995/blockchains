@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { PrismaClient, Prisma } from '@prisma/client';
-import type { MemberPublic, MemberBetEntry, MemberBetListResponse } from '@bg/shared';
+import type { BetDetailResponse, MemberPublic, MemberBetEntry, MemberBetListResponse } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
 import { config } from '../../../config.js';
 import { canManageAgent, canManageMember, listAgentDescendants } from '../../../utils/hierarchy.js';
@@ -491,6 +491,96 @@ export class MemberService {
       },
     };
   }
+
+  async getBetDetail(
+    operator: AdminCurrent,
+    id: string,
+    betId: string,
+  ): Promise<BetDetailResponse> {
+    const ok = await canManageMember(this.prisma, operator, id);
+    if (!ok) throw new ApiError('FORBIDDEN', 'Cannot view bets of this member');
+
+    const bet = await this.prisma.bet.findFirst({
+      where: { id: betId, userId: id },
+      include: {
+        serverSeed: {
+          select: { seedHash: true },
+        },
+      },
+    });
+
+    if (bet) {
+      return {
+        id: bet.id,
+        kind: 'bet',
+        gameId: bet.gameId,
+        amount: bet.amount.toFixed(2),
+        multiplier: bet.multiplier.toFixed(4),
+        payout: bet.payout.toFixed(2),
+        profit: bet.profit.toFixed(2),
+        status: bet.status,
+        createdAt: bet.createdAt.toISOString(),
+        settledAt: bet.settledAt?.toISOString() ?? null,
+        nonce: bet.nonce,
+        clientSeed: bet.clientSeedUsed,
+        serverSeedHash: bet.serverSeed.seedHash,
+        roundId:
+          bet.minesRoundId ??
+          bet.hiloRoundId ??
+          bet.towerRoundId ??
+          bet.blackjackRoundId ??
+          null,
+        roundNumber: null,
+        resultData: sanitizePublicResult(bet.resultData),
+      };
+    }
+
+    const crashBet = await this.prisma.crashBet.findFirst({
+      where: { id: betId, userId: id },
+      include: {
+        round: true,
+      },
+    });
+
+    if (crashBet) {
+      const payout = crashBet.payout ?? new Prisma.Decimal(0);
+      const profit = payout.minus(crashBet.amount);
+      const multiplier =
+        crashBet.cashedOutAt ??
+        (payout.greaterThan(0) && crashBet.amount.greaterThan(0)
+          ? payout.div(crashBet.amount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN)
+          : new Prisma.Decimal(0));
+      const settled = crashBet.round.status === 'CRASHED';
+
+      return {
+        id: crashBet.id,
+        kind: 'crash',
+        gameId: crashBet.round.gameId,
+        amount: crashBet.amount.toFixed(2),
+        multiplier: multiplier.toFixed(4),
+        payout: payout.toFixed(2),
+        profit: profit.toFixed(2),
+        status: settled ? 'SETTLED' : 'PENDING',
+        createdAt: crashBet.createdAt.toISOString(),
+        settledAt: crashBet.round.crashedAt?.toISOString() ?? null,
+        nonce: null,
+        clientSeed: null,
+        serverSeedHash: crashBet.round.serverSeedHash,
+        roundId: crashBet.roundId,
+        roundNumber: crashBet.round.roundNumber,
+        resultData: {
+          roundNumber: crashBet.round.roundNumber,
+          crashPoint: crashBet.round.crashPoint.toFixed(4),
+          autoCashOut: crashBet.autoCashOut?.toFixed(4) ?? null,
+          cashoutAt: crashBet.cashedOutAt?.toFixed(4) ?? null,
+          payout: payout.toFixed(2),
+          status: crashBet.round.status,
+        },
+      };
+    }
+
+    throw new ApiError('INVALID_BET', 'Bet detail not found');
+  }
 }
 
 interface MergedCursor {
@@ -518,6 +608,36 @@ function compareMergedEntries(
   const timeDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   if (timeDiff !== 0) return timeDiff;
   return b.id.localeCompare(a.id);
+}
+
+function sanitizePublicResult(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizePublicResult(item));
+  }
+
+  const record = asRecord(value);
+  if (!record) return value;
+
+  const internalKeys = new Set([
+    'raw',
+    'rawRoll',
+    'rawWon',
+    'controlled',
+    'flipReason',
+    'controlId',
+    'bustedByCashoutControl',
+  ]);
+  const output: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(record)) {
+    if (internalKeys.has(key)) continue;
+    output[key] = sanitizePublicResult(child);
+  }
+  return output;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
 }
 
 function withMergedCursor<T extends { id?: unknown; createdAt?: unknown }>(

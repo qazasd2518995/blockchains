@@ -138,4 +138,9 @@ export async function memberRoutes(fastify: FastifyInstance): Promise<void> {
     const query = memberBetQuerySchema.parse(req.query);
     return service.getBets(req.admin, id, query);
   });
+
+  fastify.get('/:id/bets/:betId', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
+    const { id, betId } = req.params as { id: string; betId: string };
+    return service.getBetDetail(req.admin, id, betId);
+  });
 }

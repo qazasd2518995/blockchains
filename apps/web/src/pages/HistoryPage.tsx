@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { getGameMeta } from '@bg/shared';
 import type { BetDetailResponse, TransactionListResponse, TransactionType } from '@bg/shared';
 import { CalendarDays, ReceiptText, Search, X } from 'lucide-react';
@@ -616,11 +617,16 @@ function DetailLine({ label, value }: { label: string; value: string }) {
   );
 }
 
-function resultEntries(value: unknown): Array<{ key: string; label: string; value: string }> {
+type DisplayCard = {
+  rank: number;
+  suit: number;
+};
+
+function resultEntries(value: unknown): Array<{ key: string; label: string; value: ReactNode }> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return value === null || value === undefined
       ? []
-      : [{ key: 'result', label: '結果', value: formatResultValue(value) }];
+      : [{ key: 'result', label: '結果', value: formatResultNode('result', value) }];
   }
 
   return Object.entries(value as Record<string, unknown>)
@@ -628,7 +634,7 @@ function resultEntries(value: unknown): Array<{ key: string; label: string; valu
     .map(([key, child]) => ({
       key,
       label: RESULT_LABELS[key] ?? key,
-      value: formatResultValue(child),
+      value: formatResultNode(key, child),
     }));
 }
 
@@ -665,6 +671,11 @@ const RESULT_LABELS: Record<string, string> = {
   correct: '是否正確',
   dealerHand: '莊家手牌',
   playerHands: '玩家手牌',
+  playerCards: '閒家牌',
+  bankerCards: '莊家牌',
+  bankerHand: '莊家牌',
+  dragonCard: '龍牌',
+  tigerCard: '虎牌',
   totalPayout: '總派彩',
   rules: '規則',
   source: '來源',
@@ -676,6 +687,293 @@ const RESULT_LABELS: Record<string, string> = {
   payout: '派彩',
   status: '狀態',
 };
+
+function formatResultNode(key: string, value: unknown): ReactNode {
+  const baccarat = getBaccaratCards(value);
+  if (baccarat) return <BaccaratCardsView data={baccarat} />;
+
+  const blackjackHands = getBlackjackHands(value);
+  if (key === 'playerHands' && blackjackHands.length > 0) {
+    return <BlackjackHandsView hands={blackjackHands} />;
+  }
+
+  const cards = getCardArray(value);
+  if (cards.length > 0) {
+    return <CardStrip cards={cards} />;
+  }
+
+  const card = normalizeCard(value);
+  if (card) {
+    return <CardStrip cards={[card]} />;
+  }
+
+  return formatResultValue(value);
+}
+
+function CardStrip({ cards }: { cards: DisplayCard[] }) {
+  return (
+    <div className="flex flex-wrap gap-2 py-1">
+      {cards.map((card, index) => (
+        <PlayingCardSvg key={`${card.rank}-${card.suit}-${index}`} card={card} />
+      ))}
+    </div>
+  );
+}
+
+function PlayingCardSvg({ card }: { card: DisplayCard }) {
+  const path = getCardAssetPath(card);
+  return (
+    <img
+      src={path}
+      alt={cardLabel(card)}
+      className="h-[86px] w-[58px] rounded-[6px] object-contain shadow-[0_8px_18px_rgba(15,23,42,0.22)] sm:h-[104px] sm:w-[70px]"
+      draggable={false}
+      loading="lazy"
+    />
+  );
+}
+
+function BlackjackHandsView({
+  hands,
+}: {
+  hands: Array<{
+    id: string;
+    cards: DisplayCard[];
+    score?: string;
+    outcome?: string;
+    payout?: string;
+    bet?: string;
+  }>;
+}) {
+  return (
+    <div className="grid gap-3">
+      {hands.map((hand, index) => (
+        <div
+          key={hand.id || `hand-${index}`}
+          className="rounded-[14px] border border-[#D9E3EA] bg-white px-3 py-3"
+        >
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-[11px] font-black text-[#186073]">手牌 {index + 1}</div>
+            <div className="flex flex-wrap gap-2 font-mono text-[10px] text-[#4A5568]">
+              {hand.score ? <span>點數 {hand.score}</span> : null}
+              {hand.outcome ? <span>{hand.outcome}</span> : null}
+              {hand.bet ? <span>下注 {formatAmount(hand.bet)}</span> : null}
+              {hand.payout ? <span>派彩 {formatAmount(hand.payout)}</span> : null}
+            </div>
+          </div>
+          <CardStrip cards={hand.cards} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BaccaratCardsView({
+  data,
+}: {
+  data: {
+    playerCards?: DisplayCard[];
+    bankerCards?: DisplayCard[];
+    dragonCard?: DisplayCard;
+    tigerCard?: DisplayCard;
+    playerPoints?: string | number;
+    bankerPoints?: string | number;
+    winner?: string;
+    result?: string;
+  };
+}) {
+  return (
+    <div className="grid gap-3">
+      {data.playerCards && data.playerCards.length > 0 ? (
+        <CardGroup
+          title="閒家"
+          subtitle={data.playerPoints !== undefined ? `${data.playerPoints} 點` : undefined}
+          cards={data.playerCards}
+        />
+      ) : null}
+      {data.bankerCards && data.bankerCards.length > 0 ? (
+        <CardGroup
+          title="莊家"
+          subtitle={data.bankerPoints !== undefined ? `${data.bankerPoints} 點` : undefined}
+          cards={data.bankerCards}
+        />
+      ) : null}
+      {data.dragonCard ? <CardGroup title="龍" cards={[data.dragonCard]} /> : null}
+      {data.tigerCard ? <CardGroup title="虎" cards={[data.tigerCard]} /> : null}
+      {data.winner || data.result ? (
+        <div className="rounded-[12px] border border-[#C9A247]/25 bg-[#FFF8DF] px-3 py-2 text-[12px] font-black text-[#765709]">
+          結果 {data.winner ?? data.result}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CardGroup({
+  title,
+  subtitle,
+  cards,
+}: {
+  title: string;
+  subtitle?: string;
+  cards: DisplayCard[];
+}) {
+  return (
+    <div className="rounded-[14px] border border-[#D9E3EA] bg-white px-3 py-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="text-[11px] font-black text-[#186073]">{title}</div>
+        {subtitle ? <div className="font-mono text-[10px] text-[#4A5568]">{subtitle}</div> : null}
+      </div>
+      <CardStrip cards={cards} />
+    </div>
+  );
+}
+
+function getBaccaratCards(value: unknown): {
+  playerCards?: DisplayCard[];
+  bankerCards?: DisplayCard[];
+  dragonCard?: DisplayCard;
+  tigerCard?: DisplayCard;
+  playerPoints?: string | number;
+  bankerPoints?: string | number;
+  winner?: string;
+  result?: string;
+} | null {
+  const record = asRecord(value);
+  if (!record) return null;
+
+  const playerCards = getCardArray(
+    record.playerCards ?? record.playerHand ?? record.player ?? record.idleCards,
+  );
+  const bankerCards = getCardArray(
+    record.bankerCards ?? record.bankerHand ?? record.banker ?? record.dealerCards,
+  );
+  const dragonCard = normalizeCard(record.dragonCard ?? record.dragon);
+  const tigerCard = normalizeCard(record.tigerCard ?? record.tiger);
+
+  if (
+    playerCards.length === 0 &&
+    bankerCards.length === 0 &&
+    !dragonCard &&
+    !tigerCard
+  ) {
+    return null;
+  }
+
+  return {
+    playerCards: playerCards.length > 0 ? playerCards : undefined,
+    bankerCards: bankerCards.length > 0 ? bankerCards : undefined,
+    dragonCard: dragonCard ?? undefined,
+    tigerCard: tigerCard ?? undefined,
+    playerPoints: getScalar(record.playerPoints ?? record.playerScore ?? record.playerPoint),
+    bankerPoints: getScalar(record.bankerPoints ?? record.bankerScore ?? record.bankerPoint),
+    winner: getStringScalar(record.winner ?? record.outcome),
+    result: getStringScalar(record.result),
+  };
+}
+
+function getBlackjackHands(value: unknown): Array<{
+  id: string;
+  cards: DisplayCard[];
+  score?: string;
+  outcome?: string;
+  payout?: string;
+  bet?: string;
+}> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item, index) => {
+      const record = asRecord(item);
+      if (!record) return null;
+      const cards = getCardArray(record.cards);
+      if (cards.length === 0) return null;
+      const score = asRecord(record.score);
+      const total = getScalar(score?.total);
+      const soft = score?.soft === true ? ' SOFT' : '';
+      return {
+        id: getStringScalar(record.id) ?? `hand-${index}`,
+        cards,
+        score: total !== undefined ? `${total}${soft}` : undefined,
+        outcome: getStringScalar(record.outcome ?? record.status),
+        payout: getStringScalar(record.payout),
+        bet: getStringScalar(record.bet),
+      };
+    })
+    .filter((hand): hand is NonNullable<typeof hand> => Boolean(hand));
+}
+
+function getCardArray(value: unknown): DisplayCard[] {
+  if (!Array.isArray(value)) return [];
+  const cards = value.map((item) => normalizeCard(item)).filter((card): card is DisplayCard => Boolean(card));
+  return cards.length === value.length ? cards : [];
+}
+
+function normalizeCard(value: unknown): DisplayCard | null {
+  const record = asRecord(value);
+  if (!record) return null;
+
+  const rank = normalizeRank(record.rank ?? record.value ?? record.cardRank);
+  const suit = normalizeSuit(record.suit ?? record.cardSuit);
+  if (rank === null || suit === null) return null;
+  return { rank, suit };
+}
+
+function normalizeRank(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 13) {
+    return value;
+  }
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'a' || normalized === 'ace') return 1;
+  if (normalized === 'j' || normalized === 'jack') return 11;
+  if (normalized === 'q' || normalized === 'queen') return 12;
+  if (normalized === 'k' || normalized === 'king') return 13;
+  const numeric = Number.parseInt(normalized, 10);
+  return Number.isInteger(numeric) && numeric >= 1 && numeric <= 13 ? numeric : null;
+}
+
+function normalizeSuit(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 3) {
+    return value;
+  }
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  const aliases: Record<string, number> = {
+    spade: 0,
+    spades: 0,
+    s: 0,
+    '♠': 0,
+    heart: 1,
+    hearts: 1,
+    h: 1,
+    '♥': 1,
+    diamond: 2,
+    diamonds: 2,
+    d: 2,
+    '♦': 2,
+    club: 3,
+    clubs: 3,
+    c: 3,
+    '♣': 3,
+  };
+  return aliases[normalized] ?? null;
+}
+
+const CARD_FILE_RANKS = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'] as const;
+const CARD_FILE_SUITS = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
+
+function getCardAssetPath(card: DisplayCard): string {
+  const rank = CARD_FILE_RANKS[card.rank - 1] ?? 'ace';
+  const suit = CARD_FILE_SUITS[card.suit] ?? 'spades';
+  return `/cards/${rank}_of_${suit}.svg`;
+}
+
+function cardLabel(card: DisplayCard): string {
+  const rank = CARD_FILE_RANKS[card.rank - 1] ?? String(card.rank);
+  const suit = CARD_FILE_SUITS[card.suit] ?? String(card.suit);
+  return `${rank} of ${suit}`;
+}
 
 function formatResultValue(value: unknown): string {
   if (typeof value === 'boolean') return value ? '是' : '否';
@@ -697,6 +995,21 @@ function safeJson(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function getScalar(value: unknown): string | number | undefined {
+  return typeof value === 'string' || typeof value === 'number' ? value : undefined;
+}
+
+function getStringScalar(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  return undefined;
 }
 
 function formatDateTime(value: string): string {

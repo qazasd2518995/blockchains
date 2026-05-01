@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getGameMeta } from '@bg/shared';
-import type { MemberBetEntry, MemberBetListResponse } from '@bg/shared';
+import type { BetDetailResponse, MemberBetEntry, MemberBetListResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { Modal } from './Modal';
+import { BetResultDetailModal } from './BetResultDetailModal';
 
 type SettlementStatus = '' | 'settled' | 'unsettled';
 
@@ -37,6 +38,10 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
   const [reloadKey, setReloadKey] = useState(0);
+  const [detailBetId, setDetailBetId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<BetDetailResponse | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<PaginationState>({
     page: 1,
     limit: 50,
@@ -103,50 +108,70 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
   const dateLabel = startDate || endDate ? `${startDate || '不限'} 至 ${endDate || '不限'}` : '全部日期';
   const gameLabel = gameId ? (getGameMeta(gameId)?.nameZh ?? gameId) : '全部游戏';
 
+  const openDetail = (betId: string) => {
+    setDetailBetId(betId);
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    adminApi
+      .get<BetDetailResponse>(`/members/${member.id}/bets/${betId}`)
+      .then((res) => setDetail(res.data))
+      .catch((e) => setDetailError(extractApiError(e).message))
+      .finally(() => setDetailLoading(false));
+  };
+
+  const closeDetail = () => {
+    setDetailBetId(null);
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(false);
+  };
+
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="会员下注记录"
-      subtitle={member.username}
-      width="xl"
-    >
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink-500">
-            <span className="font-semibold text-[#186073]">沿用外层报表条件</span>
-            <span className="tag tag-acid">{dateLabel}</span>
-            <span className="tag tag-toxic">{gameLabel}</span>
-            {settlementStatus && (
-              <span className="tag tag-gold">{settlementStatus === 'settled' ? '已结算' : '未结算'}</span>
-            )}
-            <span>
-              共 <span className="data-num text-ink-900">{pagination.total.toLocaleString()}</span> 笔
-            </span>
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        title="会员下注记录"
+        subtitle={member.username}
+        width="xl"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink-500">
+              <span className="font-semibold text-[#186073]">沿用外层报表条件</span>
+              <span className="tag tag-acid">{dateLabel}</span>
+              <span className="tag tag-toxic">{gameLabel}</span>
+              {settlementStatus && (
+                <span className="tag tag-gold">{settlementStatus === 'settled' ? '已结算' : '未结算'}</span>
+              )}
+              <span>
+                共 <span className="data-num text-ink-900">{pagination.total.toLocaleString()}</span> 笔
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-[11px] text-ink-500">
+                每页
+                <select
+                  value={limit}
+                  onChange={(event) => {
+                    setLimit(Number.parseInt(event.target.value, 10));
+                    setPage(1);
+                  }}
+                  className="term-input max-w-[92px]"
+                >
+                  {PAGE_LIMIT_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="button" onClick={() => setReloadKey((key) => key + 1)} className="btn-teal-outline text-[11px]">
+                [刷新]
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 text-[11px] text-ink-500">
-              每页
-              <select
-                value={limit}
-                onChange={(event) => {
-                  setLimit(Number.parseInt(event.target.value, 10));
-                  setPage(1);
-                }}
-                className="term-input max-w-[92px]"
-              >
-                {PAGE_LIMIT_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="button" onClick={() => setReloadKey((key) => key + 1)} className="btn-teal-outline text-[11px]">
-              [刷新]
-            </button>
-          </div>
-        </div>
 
         {error && (
           <div className="border border-[#D4574A]/40 bg-[#FDF0EE] px-3 py-2 text-[12px] text-[#D4574A]">
@@ -165,23 +190,26 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
                 <th className="px-3 py-2 text-right font-semibold">倍率</th>
                 <th className="px-3 py-2 text-right font-semibold">派彩</th>
                 <th className="px-3 py-2 text-right font-semibold">盈亏</th>
+                <th className="px-3 py-2 text-right font-semibold">开奖</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-10 text-center text-ink-500">
+                  <td colSpan={8} className="px-3 py-10 text-center text-ink-500">
                     载入中…
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-10 text-center text-ink-400">
+                  <td colSpan={8} className="px-3 py-10 text-center text-ink-400">
                     — 查询期间内无下注记录 —
                   </td>
                 </tr>
               ) : (
-                items.map((item) => <BetRow key={`${item.createdAt}-${item.id}`} item={item} />)
+                items.map((item) => (
+                  <BetRow key={`${item.createdAt}-${item.id}`} item={item} onOpenDetail={openDetail} />
+                ))
               )}
             </tbody>
           </table>
@@ -214,12 +242,21 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
             </PageButton>
           </div>
         </div>
-      </div>
-    </Modal>
+        </div>
+      </Modal>
+
+      <BetResultDetailModal
+        open={Boolean(detailBetId)}
+        detail={detail}
+        error={detailError}
+        loading={detailLoading}
+        onClose={closeDetail}
+      />
+    </>
   );
 }
 
-function BetRow({ item }: { item: MemberBetEntry }): JSX.Element {
+function BetRow({ item, onOpenDetail }: { item: MemberBetEntry; onOpenDetail: (betId: string) => void }): JSX.Element {
   const profit = Number.parseFloat(item.profit);
   return (
     <tr className="border-b border-ink-100 transition hover:bg-[#FAF2D7]/50">
@@ -235,6 +272,15 @@ function BetRow({ item }: { item: MemberBetEntry }): JSX.Element {
       <td className={`px-3 py-2 text-right data-num font-bold ${profit >= 0 ? 'text-win' : 'text-[#D4574A]'}`}>
         {profit >= 0 ? '+' : ''}
         {formatAmount(item.profit)}
+      </td>
+      <td className="px-3 py-2 text-right">
+        <button
+          type="button"
+          onClick={() => onOpenDetail(item.id)}
+          className="btn-teal-outline px-2 py-1 text-[10px]"
+        >
+          查看
+        </button>
       </td>
     </tr>
   );
