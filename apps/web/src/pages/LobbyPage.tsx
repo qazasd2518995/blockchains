@@ -6,7 +6,6 @@ import {
   Flame,
   Gift,
   History,
-  Mail,
   Megaphone,
   ShieldCheck,
   Sparkles,
@@ -26,6 +25,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 import { getGameIcon, getHallIcon } from '@/lib/platformIcons';
+import { SoundToggle } from '@/components/layout/SoundToggle';
+import { MusicToggle } from '@/components/layout/MusicToggle';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
 const totalGames = new Set(HALL_LIST.flatMap((hall) => hall.gameIds)).size;
@@ -215,19 +216,34 @@ function MobileLobbyOnePage() {
 
           <div className="flex shrink-0 items-center justify-end gap-1">
             {isGuest ? (
-              <Link
-                to="/login?from=%2Flobby&reason=lobby"
-                className="inline-flex h-9 shrink-0 items-center justify-center rounded-[9px] border border-[#D6B75B] bg-[#FFF1B4] px-3 text-[12px] font-black text-[#765709]"
-              >
-                登入
-              </Link>
+              <>
+                <SoundToggle
+                  variant="light"
+                  className="h-8 w-8 rounded-[9px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                />
+                <MusicToggle
+                  variant="light"
+                  className="h-8 w-8 rounded-[9px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                />
+                <Link
+                  to="/login?from=%2Flobby&reason=lobby"
+                  className="inline-flex h-9 shrink-0 items-center justify-center rounded-[9px] border border-[#D6B75B] bg-[#FFF1B4] px-2.5 text-[12px] font-black text-[#765709]"
+                >
+                  登入
+                </Link>
+              </>
             ) : (
               <>
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#FFEEA6] text-[#6A4B00] max-[360px]:hidden">
-                  <Mail className="h-4 w-4" aria-hidden="true" />
-                </div>
+                <SoundToggle
+                  variant="light"
+                  className="h-8 w-8 rounded-[9px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                />
+                <MusicToggle
+                  variant="light"
+                  className="h-8 w-8 rounded-[9px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                />
                 <div
-                  className="flex h-8 w-[118px] min-w-0 items-center gap-1 rounded-[8px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12] min-[390px]:w-[132px]"
+                  className="flex h-8 w-[104px] min-w-0 items-center gap-1 rounded-[8px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12] min-[390px]:w-[122px]"
                   aria-label={`帳號 ${user.username}，餘額 ${formatAmount(user.balance ?? '0')}`}
                 >
                   <WalletCards className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

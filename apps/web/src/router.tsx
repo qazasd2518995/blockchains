@@ -24,6 +24,7 @@ import { HallPage } from '@/pages/HallPage';
 import { VerifyPage } from '@/pages/VerifyPage';
 import { PromosPage } from '@/pages/PromosPage';
 import { BaccaratPage } from '@/pages/games/BaccaratPage';
+import { PlatformBgm } from '@/lib/platformBgm';
 
 function RouteViewportReset() {
   const { pathname } = useLocation();
@@ -32,6 +33,11 @@ function RouteViewportReset() {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
+  }, [pathname]);
+
+  useLayoutEffect(() => {
+    PlatformBgm.setRouteSuppressed(pathname.startsWith('/games/baccarat'));
+    PlatformBgm.init();
   }, [pathname]);
 
   return <Outlet />;

@@ -4,6 +4,7 @@ import { RouterProvider } from 'react-router-dom';
 import { Sfx } from '@bg/game-engine';
 import { router } from './router';
 import { ErrorBoundary } from './components/layout/ErrorBoundary';
+import { PlatformBgm } from './lib/platformBgm';
 import './styles/global.css';
 
 const root = document.getElementById('root');
@@ -14,6 +15,7 @@ function AudioUnlocker(): null {
     const events: Array<keyof WindowEventMap> = ['pointerdown', 'touchstart', 'keydown'];
     const unlock = () => {
       Sfx.unlock();
+      PlatformBgm.unlockFromGesture();
       events.forEach((eventName) => window.removeEventListener(eventName, unlock));
     };
     events.forEach((eventName) => window.addEventListener(eventName, unlock, { passive: true }));

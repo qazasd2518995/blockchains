@@ -4,6 +4,7 @@ import { ArrowLeft, History, RefreshCw, WalletCards } from 'lucide-react';
 import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { SoundToggle } from '@/components/layout/SoundToggle';
+import { MusicToggle } from '@/components/layout/MusicToggle';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
@@ -132,6 +133,7 @@ export function GameFullscreenShell() {
           </Link>
 
           <SoundToggle variant="dark" />
+          <MusicToggle variant="dark" />
 
           <button
             type="button"

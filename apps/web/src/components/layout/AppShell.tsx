@@ -8,6 +8,7 @@ import { AnnouncementTicker } from '@/components/home/AnnouncementTicker';
 import { BrandMark } from '@/components/layout/BrandMark';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SoundToggle } from '@/components/layout/SoundToggle';
+import { MusicToggle } from '@/components/layout/MusicToggle';
 import { BaccaratWarmup } from '@/components/game/BaccaratWarmup';
 import { useTranslation } from '@/i18n/useTranslation';
 
@@ -140,7 +141,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <RefreshCw className="h-3.5 w-3.5 text-white/60" />
               </button>
 
-              <SoundToggle variant="dark" />
+              <SoundToggle variant="dark" showLabel />
+              <MusicToggle variant="dark" showLabel />
 
               <button
                 type="button"
@@ -154,7 +156,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           ) : (
             <div className="flex shrink-0 items-center gap-2">
-              <SoundToggle variant="dark" />
+              <SoundToggle variant="dark" showLabel />
+              <MusicToggle variant="dark" showLabel />
               <Link to="/login" className="btn-teal hidden text-[13px] lg:inline-flex">
                 {t.common.login}
               </Link>

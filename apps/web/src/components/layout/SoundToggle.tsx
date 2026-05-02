@@ -5,9 +5,10 @@ import { Sfx } from '@bg/game-engine';
 interface Props {
   variant?: 'dark' | 'light';
   className?: string;
+  showLabel?: boolean;
 }
 
-export function SoundToggle({ variant = 'dark', className = '' }: Props): JSX.Element {
+export function SoundToggle({ variant = 'dark', className = '', showLabel = false }: Props): JSX.Element {
   const [muted, setMuted] = useState(() => Sfx.isMuted());
 
   useEffect(() => {
@@ -33,9 +34,12 @@ export function SoundToggle({ variant = 'dark', className = '' }: Props): JSX.El
       title={muted ? '開啟音效' : '關閉音效'}
       aria-label={muted ? '開啟音效' : '關閉音效'}
       aria-pressed={muted}
-      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition ${base} ${className}`}
+      className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full border transition ${
+        showLabel ? 'w-auto gap-1.5 px-3' : 'w-9'
+      } ${base} ${className}`}
     >
       <Icon className="h-4 w-4" aria-hidden="true" />
+      {showLabel ? <span className="text-[12px] font-bold">音效</span> : null}
     </button>
   );
 }
