@@ -24,6 +24,7 @@ import {
   prewarmShaders,
   prefersReducedMotion,
   GAME_FONT_NUM,
+  Sfx,
 } from '@bg/game-engine';
 import { HOTLINE_SYMBOLS, getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
 import { getSlotTheme, type SlotThemeConfig } from '@/lib/slotThemes';
@@ -194,6 +195,7 @@ export class HotlineScene {
     app.ticker.add(this.poolTicker);
 
     prewarmShaders(app);
+    Sfx.preloadSlotMachine();
 
     // 全螢幕閃光（JACKPOT 用）
     this.flashOverlay = new Graphics()
@@ -555,6 +557,7 @@ export class HotlineScene {
   startAnticipation(): void {
     if (this.anticipating) return;
     this.anticipating = true;
+    Sfx.slotSpinStart();
     for (let reelIndex = 0; reelIndex < this.reels.length; reelIndex += 1) {
       const reel = this.reels[reelIndex]!;
       const totalH = REEL_STRIP_LEN * reel.cellSize;
@@ -577,8 +580,11 @@ export class HotlineScene {
     }
   }
 
-  stopAnticipation(normalize = true): void {
-    if (!this.anticipating) return;
+  stopAnticipation(normalize = true, stopSound = true): void {
+    if (!this.anticipating) {
+      if (stopSound) Sfx.slotSpinStop();
+      return;
+    }
     for (const reel of this.reels) {
       gsap.killTweensOf(reel.container);
       gsap.killTweensOf(reel.container.scale);
@@ -587,10 +593,11 @@ export class HotlineScene {
       else this.captureReelOrder(reel);
     }
     this.anticipating = false;
+    if (stopSound) Sfx.slotSpinStop();
   }
 
   async playSpin(finalGrid: number[][], lines: HotlineLine[]): Promise<void> {
-    this.stopAnticipation(false);
+    this.stopAnticipation(false, false);
     this.resetWinLines();
 
     const duration = 1.45;
@@ -598,7 +605,11 @@ export class HotlineScene {
       this.spinReel(reel, reelIdx, finalGrid[reelIdx]!, duration + reelIdx * 0.16, reelIdx * 0.06),
     );
 
-    await Promise.all(reelPromises);
+    try {
+      await Promise.all(reelPromises);
+    } finally {
+      Sfx.slotSpinStop();
+    }
 
     // 全部停完 → 顯示中獎連線
     if (lines.length > 0) {
@@ -691,6 +702,7 @@ export class HotlineScene {
   }
 
   private playReelStopBounce(container: Container, resolve: () => void): void {
+    Sfx.slotReelStop();
     gsap.fromTo(
       container.scale,
       { y: 1 },
@@ -735,6 +747,8 @@ export class HotlineScene {
 
   private showWinLines(lines: HotlineLine[]): void {
     if (!this.winLinesLayer) return;
+    const jackpot = lines.find((l) => l.count === 5);
+    Sfx.slotWin(jackpot ? 'big' : lines.length >= 2 ? 'medium' : 'small');
     for (const line of lines) {
       const path = this.normalizeLinePath(line);
       const startReel = this.clampLineStart(line.startReel);
@@ -817,7 +831,6 @@ export class HotlineScene {
       }
     }
 
-    const jackpot = lines.find((l) => l.count === 5);
     if (jackpot) {
       const timer = window.setTimeout(() => {
         if (this.flashOverlay) {
@@ -971,6 +984,7 @@ export class HotlineScene {
   }
 
   dispose(): void {
+    Sfx.slotSpinStop();
     this.stopAnticipation();
     this.resetWinLines();
     if (this.ambientTicker && this.app) this.app.ticker.remove(this.ambientTicker);

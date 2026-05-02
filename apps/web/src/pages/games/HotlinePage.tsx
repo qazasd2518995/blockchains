@@ -142,9 +142,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
           {result && !spinning && (
             <div
-              className={`game-result-card ${result.multiplier > 0 ? 'game-result-card-win' : 'game-result-card-loss'}`}
+              className={`game-result-card slot-result-card ${result.multiplier > 0 ? 'game-result-card-win' : 'game-result-card-loss'}`}
             >
-              <div className="flex items-baseline justify-between">
+              <div className="slot-result-summary flex flex-col items-center justify-center gap-1 text-center">
                 <div>
                   <div className="font-display text-4xl text-white">
                     {result.lines.length}{' '}
@@ -154,7 +154,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                     {t.games.hotline.totalMult} {formatMultiplier(result.multiplier)}
                   </div>
                 </div>
-                <div className="num text-3xl text-[#7DD3FC]">
+                <div className="slot-result-profit num text-3xl text-[#7DD3FC]">
                   {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
                   {formatAmount(result.profit)}
                 </div>

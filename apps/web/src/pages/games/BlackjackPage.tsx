@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AlertCircle, BadgeDollarSign, ChevronsRight, Hand, Play, Scissors, Shield } from 'lucide-react';
-import type { BlackjackCard, BlackjackPlayerHand, BlackjackRoundResult, BlackjackRoundState } from '@bg/shared';
+import type {
+  BlackjackCard,
+  BlackjackHandScore,
+  BlackjackPlayerHand,
+  BlackjackRoundResult,
+  BlackjackRoundState,
+} from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -62,7 +68,11 @@ export function BlackjackPage() {
 
   const tableRound = displayRound ?? round;
   const activeHand = round?.playerHands[round.activeHandIndex] ?? null;
-  const displayActiveHand = tableRound?.playerHands[tableRound.activeHandIndex] ?? null;
+  const displayActiveHandIndex = getDisplayHandIndex(tableRound);
+  const displayActiveHand =
+    tableRound && displayActiveHandIndex >= 0 ? tableRound.playerHands[displayActiveHandIndex] ?? null : null;
+  const dealerScoreLabel = formatBlackjackScore(tableRound?.dealerScore ?? null, tableRound?.dealerHoleHidden ?? false);
+  const playerScoreLabel = formatBlackjackScore(displayActiveHand?.score ?? null);
   const settled = round && round.status !== 'ACTIVE' && !animating;
   const resultSummary = useMemo(() => summarizeRound(round), [round]);
   const enteringCardKeys = useMemo(() => new Set(animationMeta.enteringCards), [animationMeta.enteringCards]);
@@ -192,13 +202,7 @@ export function BlackjackPage() {
                 <section>
                   <TableLabel
                     title={t.games.blackjack.dealer}
-                    value={
-                      tableRound?.dealerScore
-                        ? tableRound.dealerHoleHidden
-                          ? t.games.blackjack.holeHidden
-                          : `${tableRound.dealerScore.total}${tableRound.dealerScore.soft ? ' SOFT' : ''}`
-                        : '--'
-                    }
+                    value={dealerScoreLabel}
                   />
                   <div className="mt-3 flex min-h-[150px] flex-wrap items-center justify-center gap-2 sm:gap-3">
                     {tableRound ? (
@@ -229,27 +233,20 @@ export function BlackjackPage() {
                   </div>
                 </section>
 
-                <div className="mx-auto grid w-full max-w-[720px] grid-cols-3 gap-2 rounded-full border border-[#C9A247]/20 bg-[#06101C]/70 p-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-white/60 backdrop-blur">
-                  <div>
-                    <span className="block text-[#E8D48A]">{formatAmount(tableRound?.totalBetAmount ?? amount)}</span>
-                    {t.bet.amount}
-                  </div>
-                  <div>
-                    <span className="block text-[#7DD3FC]">{formatAmount(tableRound?.potentialPayout ?? 0)}</span>
-                    {t.bet.potentialPayout}
-                  </div>
-                  <div>
-                    <span className="block text-[#6EE7B7]">
-                      {displayActiveHand && displayActiveHand.cards.length > 0 ? displayActiveHand.score.total : '--'}
-                    </span>
-                    {t.games.blackjack.handValue}
-                  </div>
+                <div className="blackjack-scoreboard mx-auto grid w-full max-w-[720px] grid-cols-3 gap-2 rounded-[18px] border border-[#C9A247]/24 bg-[#06101C]/76 p-2 text-center backdrop-blur">
+                  <BlackjackScoreTile label="莊家點數" value={dealerScoreLabel} tone="dealer" />
+                  <BlackjackScoreTile label="玩家點數" value={playerScoreLabel} tone="player" />
+                  <BlackjackScoreTile
+                    label={t.bet.potentialPayout}
+                    value={formatAmount(tableRound?.potentialPayout ?? 0)}
+                    tone="payout"
+                  />
                 </div>
 
                 <section>
                   <TableLabel
                     title={t.games.blackjack.player}
-                    value={displayActiveHand ? `${t.games.blackjack.hand} ${tableRound!.activeHandIndex + 1}` : '--'}
+                    value={displayActiveHand ? `${t.games.blackjack.hand} ${displayActiveHandIndex + 1}` : '--'}
                   />
                   <div className="mt-3 flex flex-wrap justify-center gap-3">
                     {tableRound ? (
@@ -269,8 +266,7 @@ export function BlackjackPage() {
                               {t.games.blackjack.hand} {index + 1}
                             </div>
                             <div className="rounded-full bg-white/[0.08] px-2 py-1 text-[10px] font-bold text-[#E8D48A]">
-                              {formatAmount(hand.bet)} · {hand.cards.length > 0 ? hand.score.total : '--'}
-                              {hand.cards.length > 0 && hand.score.soft ? ' SOFT' : ''}
+                              下注 {formatAmount(hand.bet)} · {formatBlackjackScore(hand.cards.length > 0 ? hand.score : null)}
                             </div>
                           </div>
                           <div className="flex min-h-[132px] flex-wrap items-center justify-center gap-2">
@@ -455,6 +451,32 @@ function TableLabel({ title, value }: { title: string; value: string }) {
     <div className="flex items-center justify-between gap-3 rounded-full border border-white/10 bg-[#050A13]/58 px-3 py-2 backdrop-blur">
       <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#E8D48A]">{title}</div>
       <div className="data-num text-[11px] font-black uppercase tracking-[0.18em] text-white/70">{value}</div>
+    </div>
+  );
+}
+
+function BlackjackScoreTile({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: 'dealer' | 'player' | 'payout';
+}) {
+  const valueClass =
+    tone === 'dealer'
+      ? 'text-[#F3D67D]'
+      : tone === 'player'
+        ? 'text-[#7DD3FC]'
+        : 'text-[#6EE7B7]';
+
+  return (
+    <div className="blackjack-score-tile rounded-[14px] border border-white/10 bg-[#050A13]/68 px-2 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+      <div className="text-[9px] font-black uppercase tracking-[0.18em] text-white/50">{label}</div>
+      <div className={`mt-1 truncate font-display text-[18px] font-black leading-none sm:text-[24px] ${valueClass}`}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -861,6 +883,26 @@ function scoreCards(cards: BlackjackCard[]) {
     isBust: total > 21,
     isBlackjack: cards.length === 2 && total === 21,
   };
+}
+
+function getDisplayHandIndex(round: BlackjackRoundState | null): number {
+  if (!round || round.playerHands.length === 0) return -1;
+  if (round.activeHandIndex >= 0 && round.activeHandIndex < round.playerHands.length) {
+    return round.activeHandIndex;
+  }
+  const playingIndex = round.playerHands.findIndex((hand) => hand.status === 'PLAYING');
+  if (playingIndex >= 0) return playingIndex;
+  return 0;
+}
+
+function formatBlackjackScore(score: BlackjackHandScore | null, hidden = false): string {
+  if (!score || score.total <= 0) return hidden ? '暗牌' : '--';
+  const label = score.isBust
+    ? `爆牌 ${score.total} 點`
+    : score.isBlackjack
+      ? '21 點 BLACKJACK'
+      : `${score.total} 點${score.soft ? ' 軟牌' : ''}`;
+  return hidden ? `明牌 ${label} + 暗牌` : label;
 }
 
 function compactFrames(frames: BlackjackAnimationFrame[]): BlackjackAnimationFrame[] {

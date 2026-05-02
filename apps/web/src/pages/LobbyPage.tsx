@@ -5,8 +5,10 @@ import {
   Crown,
   Flame,
   Gift,
+  History,
   Mail,
   Megaphone,
+  ShieldCheck,
   Sparkles,
   Users,
   WalletCards,
@@ -240,12 +242,28 @@ function MobileLobbyOnePage() {
             )}
           </div>
         </div>
+        <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
+          <Link
+            to={isGuest ? '/login?from=%2Fhistory&reason=history' : '/history'}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-[9px] border border-[#D8E7EE] bg-[#F7FCFE] text-[12px] font-black text-[#17657D] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
+          >
+            <History className="h-4 w-4" aria-hidden="true" />
+            遊戲紀錄
+          </Link>
+          <Link
+            to="/verify"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-[9px] border border-[#D8E7EE] bg-[#F7FCFE] text-[12px] font-black text-[#17657D] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
+          >
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            遊戲說明
+          </Link>
+        </div>
       </section>
 
       <section className="border-b border-[#D1E0E7] bg-white">
         <Link
           to="/promos"
-          className="relative block min-h-[132px] overflow-hidden bg-[#1B2030] active:opacity-95"
+          className="relative block min-h-[118px] overflow-hidden bg-[#1B2030] active:opacity-95"
           aria-label="查看優惠活動"
         >
           <img
@@ -255,7 +273,7 @@ function MobileLobbyOnePage() {
             className="absolute inset-0 h-full w-full object-cover object-[72%_center] opacity-[0.82]"
           />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,18,34,0.92)_0%,rgba(5,18,34,0.72)_47%,rgba(5,18,34,0.12)_100%)]" />
-          <div className="relative z-10 flex min-h-[132px] flex-col justify-center px-4 py-3">
+          <div className="relative z-10 flex min-h-[118px] flex-col justify-center px-4 py-3">
             <span className="inline-flex w-fit items-center gap-1 rounded-[8px] bg-[#F7D568] px-2 py-1 text-[10px] font-black text-[#4B3600] shadow-sm">
               <Gift className="h-3.5 w-3.5" aria-hidden="true" />
               廣告 · 介紹 · 活動

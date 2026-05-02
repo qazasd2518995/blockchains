@@ -410,7 +410,7 @@ export class WheelScene {
     // -PI/2 + (i+0.5)*segAngle + theta === -PI/2 (mod 2π)
     // => theta = -(i+0.5)*segAngle
     const targetBase = normalizeAngle(-((segmentIndex + 0.5) * segAngle));
-    const spins = 4 + Math.random() * 2;
+    const spins = 5 + Math.floor(Math.random() * 2);
     const startRot = this.wheelContainer.rotation;
     const target =
       startRot +
@@ -420,7 +420,7 @@ export class WheelScene {
     return new Promise<void>((resolve) => {
       const tl = gsap.timeline({
         onComplete: () => {
-          if (this.wheelContainer) this.wheelContainer.rotation = target;
+          if (this.wheelContainer) this.wheelContainer.rotation = targetBase;
           this.spinning = false;
           this.onLand(segmentIndex, multiplier);
           resolve();

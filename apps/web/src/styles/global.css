@@ -362,6 +362,21 @@
       display: none !important;
     }
 
+    .game-fullscreen-shell .game-main-stack > .slot-result-card > .slot-result-summary {
+      justify-content: center !important;
+      gap: 0.4rem !important;
+      text-align: center !important;
+    }
+
+    .game-fullscreen-shell .slot-result-card .slot-result-profit {
+      margin-left: 0 !important;
+      text-align: center !important;
+    }
+
+    .game-fullscreen-shell .slot-result-card > .mt-3 {
+      display: none !important;
+    }
+
     .game-fullscreen-shell .game-control-stack > .game-side-card:first-child {
       max-height: min(44svh, 340px);
       overflow-y: auto;
@@ -422,6 +437,40 @@
       min-height: 32px;
       border-radius: 9px;
       padding: 0.2rem 0 !important;
+      font-size: 10px;
+      letter-spacing: 0;
+    }
+
+    .game-fullscreen-shell .crash-auto-cashout {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 0.45rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 0.45rem;
+    }
+
+    .game-fullscreen-shell .crash-auto-cashout__label {
+      min-width: 4.4rem;
+      white-space: nowrap;
+      color: rgba(232, 212, 138, 0.9);
+    }
+
+    .game-fullscreen-shell .crash-auto-cashout__field {
+      margin-top: 0 !important;
+      border-radius: 11px !important;
+      padding: 0.25rem !important;
+    }
+
+    .game-fullscreen-shell .crash-auto-cashout__input {
+      min-height: 34px !important;
+      padding: 0.15rem 0.45rem !important;
+      text-align: right !important;
+      font-size: 16px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell .crash-auto-cashout__input::placeholder {
       font-size: 10px;
       letter-spacing: 0;
     }
@@ -620,6 +669,28 @@
 
     .game-fullscreen-shell .blackjack-table-body .rounded-full {
       padding: 0.35rem 0.55rem;
+    }
+
+    .game-fullscreen-shell .blackjack-scoreboard {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.3rem !important;
+      border-radius: 12px !important;
+      padding: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell .blackjack-score-tile {
+      border-radius: 10px !important;
+      padding: 0.35rem 0.25rem !important;
+    }
+
+    .game-fullscreen-shell .blackjack-score-tile > div:first-child {
+      font-size: 8px !important;
+      letter-spacing: 0.08em !important;
+    }
+
+    .game-fullscreen-shell .blackjack-score-tile > div:last-child {
+      margin-top: 0.18rem !important;
+      font-size: 1rem !important;
     }
 
     .game-fullscreen-shell .blackjack-card-shell img,

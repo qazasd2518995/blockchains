@@ -72,6 +72,7 @@ export function WheelPage() {
     if (amount <= 0 || amount > balance) return;
     setBusy(true);
     setError(null);
+    setResult(null);
     // 乐观动画：轮盘立刻开始高速旋转
     sceneRef.current?.startAnticipation();
     try {
@@ -149,7 +150,7 @@ export function WheelPage() {
                     {formatMultiplier(result.multiplier)}
                   </div>
                   <div className="text-[11px] tracking-[0.25em] text-white/75">
-                    {t.games.wheel.segment}{result.segmentIndex}
+                    第 {result.segmentIndex + 1} {t.games.wheel.segment}
                   </div>
                 </div>
                 <div className="num text-3xl text-[#7DD3FC]">

@@ -11,9 +11,23 @@
 
 const STORAGE_KEY = 'bg.sfx.prefs';
 
+const SLOT_AUDIO = {
+  spin: '/sfx/mixkit/mixkit-slot-machine-wheel-1932.mp3',
+  reelStop: '/sfx/mixkit/mixkit-bonus-collect-award-1937.mp3',
+  win: '/sfx/mixkit/mixkit-slot-machine-win-alert-1931.mp3',
+} as const;
+
+type SlotWinTier = 'small' | 'medium' | 'big';
+
 interface Prefs {
   muted: boolean;
   volume: number;
+}
+
+interface FileLoop {
+  source: AudioBufferSourceNode;
+  gain: GainNode;
+  baseVolume: number;
 }
 
 function loadPrefs(): Prefs {
@@ -45,6 +59,9 @@ class SfxEngineImpl {
   private master: GainNode | null = null;
   private prefs: Prefs;
   private listeners = new Set<(p: Prefs) => void>();
+  private fileCache = new Map<string, AudioBuffer>();
+  private filePromises = new Map<string, Promise<AudioBuffer | null>>();
+  private activeLoops = new Map<string, FileLoop>();
 
   constructor() {
     this.prefs = loadPrefs();
@@ -80,10 +97,13 @@ class SfxEngineImpl {
   setMuted(muted: boolean): void {
     this.prefs = { ...this.prefs, muted };
     savePrefs(this.prefs);
+    if (!muted) this.unlock();
     if (this.master && this.ctx) {
       this.master.gain.cancelScheduledValues(this.ctx.currentTime);
       this.master.gain.setValueAtTime(muted ? 0 : this.prefs.volume, this.ctx.currentTime);
     }
+    if (muted) this.stopAllFileLoops();
+    else this.syncFileLoopVolumes();
     this.notify();
   }
 
@@ -98,6 +118,7 @@ class SfxEngineImpl {
     if (this.master && this.ctx && !this.prefs.muted) {
       this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.04);
     }
+    this.syncFileLoopVolumes();
     this.notify();
   }
 
@@ -114,6 +135,161 @@ class SfxEngineImpl {
 
   private notify(): void {
     for (const cb of this.listeners) cb({ ...this.prefs });
+  }
+
+  unlock(): void {
+    const ctx = this.ensureCtx();
+    if (ctx?.state === 'suspended') void ctx.resume().catch(() => undefined);
+  }
+
+  // ───────── Third-party audio files ─────────
+
+  private getFileVolume(baseVolume: number): number {
+    return Math.max(0, Math.min(1, this.prefs.volume * baseVolume));
+  }
+
+  private loadFileBuffer(src: string): Promise<AudioBuffer | null> {
+    const cached = this.fileCache.get(src);
+    if (cached) return Promise.resolve(cached);
+    const pending = this.filePromises.get(src);
+    if (pending) return pending;
+
+    const promise = fetch(src)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to load audio: ${src}`);
+        return res.arrayBuffer();
+      })
+      .then((data) => {
+        const ctx = this.ensureCtx();
+        if (!ctx) return null;
+        return ctx.decodeAudioData(data.slice(0));
+      })
+      .then((buffer) => {
+        if (buffer) this.fileCache.set(src, buffer);
+        this.filePromises.delete(src);
+        return buffer;
+      })
+      .catch(() => {
+        this.filePromises.delete(src);
+        return null;
+      });
+
+    this.filePromises.set(src, promise);
+    return promise;
+  }
+
+  private playBufferNow(buffer: AudioBuffer, baseVolume: number): void {
+    const ctx = this.ensureCtx();
+    const out = this.out;
+    if (!ctx || !out || this.prefs.muted) return;
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    source.buffer = buffer;
+    gain.gain.value = this.getFileVolume(baseVolume);
+    source.connect(gain);
+    gain.connect(out);
+    source.start();
+    source.onended = () => {
+      source.disconnect();
+      gain.disconnect();
+    };
+  }
+
+  private startBufferLoop(key: string, buffer: AudioBuffer, baseVolume: number): void {
+    const ctx = this.ensureCtx();
+    const out = this.out;
+    if (!ctx || !out || this.prefs.muted) return;
+    this.stopLoop(key);
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    source.buffer = buffer;
+    source.loop = true;
+    gain.gain.value = this.getFileVolume(baseVolume);
+    source.connect(gain);
+    gain.connect(out);
+    this.activeLoops.set(key, { source, gain, baseVolume });
+    source.start();
+    source.onended = () => {
+      if (this.activeLoops.get(key)?.source === source) this.activeLoops.delete(key);
+      source.disconnect();
+      gain.disconnect();
+    };
+  }
+
+  private playFile(src: string, baseVolume = 1): void {
+    this.unlock();
+    if (this.prefs.muted) return;
+    const cached = this.fileCache.get(src);
+    if (cached) {
+      this.playBufferNow(cached, baseVolume);
+      return;
+    }
+    void this.loadFileBuffer(src).then((buffer) => {
+      if (buffer && !this.prefs.muted) this.playBufferNow(buffer, baseVolume);
+    });
+  }
+
+  private startLoop(key: string, src: string, baseVolume = 1): void {
+    this.unlock();
+    this.stopLoop(key);
+    if (this.prefs.muted) return;
+    const cached = this.fileCache.get(src);
+    if (cached) {
+      this.startBufferLoop(key, cached, baseVolume);
+      return;
+    }
+    void this.loadFileBuffer(src).then((buffer) => {
+      if (buffer && !this.prefs.muted && !this.activeLoops.has(key)) {
+        this.startBufferLoop(key, buffer, baseVolume);
+      }
+    });
+  }
+
+  private stopLoop(key: string): void {
+    const loop = this.activeLoops.get(key);
+    if (!loop) return;
+    loop.source.onended = null;
+    try {
+      loop.source.stop();
+    } catch {
+      /* no-op */
+    }
+    loop.source.disconnect();
+    loop.gain.disconnect();
+    this.activeLoops.delete(key);
+  }
+
+  private stopAllFileLoops(): void {
+    for (const key of this.activeLoops.keys()) this.stopLoop(key);
+  }
+
+  private syncFileLoopVolumes(): void {
+    for (const loop of this.activeLoops.values()) {
+      loop.gain.gain.value = this.prefs.muted ? 0 : this.getFileVolume(loop.baseVolume);
+    }
+  }
+
+  preloadSlotMachine(): void {
+    Object.values(SLOT_AUDIO).forEach((src) => {
+      void this.loadFileBuffer(src);
+    });
+  }
+
+  slotSpinStart(): void {
+    this.startLoop('slot-spin', SLOT_AUDIO.spin, 0.36);
+  }
+
+  slotSpinStop(): void {
+    this.stopLoop('slot-spin');
+  }
+
+  slotReelStop(): void {
+    this.playFile(SLOT_AUDIO.reelStop, 0.34);
+  }
+
+  slotWin(tier: SlotWinTier = 'small'): void {
+    const volume = tier === 'big' ? 0.82 : tier === 'medium' ? 0.68 : 0.55;
+    this.playFile(SLOT_AUDIO.win, volume);
   }
 
   // ───────── 程序合成 sound primitives ─────────

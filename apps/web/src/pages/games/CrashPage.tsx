@@ -429,6 +429,8 @@ export function CrashPage({ config }: Props) {
     );
   };
 
+  const controlsLocked = status === 'BETTING' && Boolean(myBet);
+
   return (
     <div>
       <GameHeader
@@ -519,19 +521,20 @@ export function CrashPage({ config }: Props) {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
-              disabled={status !== 'BETTING' || !!myBet}
+              disabled={controlsLocked}
             />
 
-            <div className="mt-5">
-              <div className="label">{t.games.crash.autoCashout}</div>
-              <div className="mt-2 rounded-[18px] border border-[#16324A]/10 bg-white/80 p-2 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)]">
+            <div className="crash-auto-cashout mt-5">
+              <div className="crash-auto-cashout__label label">{t.games.crash.autoCashout}</div>
+              <div className="crash-auto-cashout__field mt-2 rounded-[18px] border border-[#16324A]/10 bg-white/80 p-2 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.35)]">
                 <input
                   type="text"
+                  inputMode="decimal"
                   value={autoCashOut}
                   onChange={(e) => setAutoCashOut(e.target.value)}
-                  disabled={status !== 'BETTING' || !!myBet}
+                  disabled={controlsLocked}
                   placeholder={t.games.crash.autoCashoutPlaceholder}
-                  className="term-input border-0 bg-transparent text-center font-display text-2xl shadow-none focus-visible:border-transparent focus-visible:bg-transparent focus-visible:shadow-none"
+                  className="crash-auto-cashout__input term-input border-0 bg-transparent text-center font-display text-2xl shadow-none focus-visible:border-transparent focus-visible:bg-transparent focus-visible:shadow-none"
                 />
               </div>
             </div>
