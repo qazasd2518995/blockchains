@@ -488,7 +488,7 @@ function BetDetailModal({
   onClose: () => void;
 }) {
   const gameName = detail ? (getGameMeta(detail.gameId)?.nameZh ?? detail.gameId) : '';
-  const resultItems = detail ? resultEntries(detail.resultData) : [];
+  const resultItems = detail ? resultEntries(detail.gameId, detail.resultData) : [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-[#07101C]/70 p-0 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6">
@@ -556,7 +556,7 @@ function BetDetailModal({
                         className="grid gap-1 rounded-[12px] border border-white bg-white/80 px-3 py-2 sm:grid-cols-[140px_1fr] sm:items-start"
                       >
                         <div className="text-[11px] font-black text-[#186073]">{item.label}</div>
-                        <div className="break-words font-mono text-[12px] leading-relaxed text-[#0F172A]">
+                        <div className="min-w-0 break-words text-[12px] leading-relaxed text-[#0F172A]">
                           {item.value}
                         </div>
                       </div>
@@ -622,21 +622,29 @@ type DisplayCard = {
   suit: number;
 };
 
-function resultEntries(value: unknown): Array<{ key: string; label: string; value: ReactNode }> {
+type ResultEntry = { key: string; label: string; value: ReactNode };
+
+function resultEntries(gameId: string, value: unknown): ResultEntry[] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return value === null || value === undefined
       ? []
       : [{ key: 'result', label: '結果', value: formatResultNode('result', value) }];
   }
 
+  const record = value as Record<string, unknown>;
+  const friendly = friendlyResultEntries(gameId, record);
+  if (friendly.length > 0) return friendly;
+
   return Object.entries(value as Record<string, unknown>)
-    .filter(([, child]) => child !== null && child !== undefined)
+    .filter(([key, child]) => !HIDDEN_RESULT_KEYS.has(key) && child !== null && child !== undefined)
     .map(([key, child]) => ({
       key,
       label: RESULT_LABELS[key] ?? key,
       value: formatResultNode(key, child),
     }));
 }
+
+const HIDDEN_RESULT_KEYS = new Set(['raw', 'rawRoll', 'rawWon', 'controlled', 'flipReason', 'controlId']);
 
 const RESULT_LABELS: Record<string, string> = {
   roll: '擲出點數',
@@ -687,6 +695,485 @@ const RESULT_LABELS: Record<string, string> = {
   payout: '派彩',
   status: '狀態',
 };
+
+function friendlyResultEntries(gameId: string, record: Record<string, unknown>): ResultEntry[] {
+  if (gameId === 'dice') return diceResultEntries(record);
+  if (gameId === 'wheel') return wheelResultEntries(record);
+  if (gameId === 'plinko') return plinkoResultEntries(record);
+  if (isHotlineLikeGame(gameId)) return hotlineResultEntries(record);
+  if (gameId === 'keno') return kenoResultEntries(record);
+  if (gameId === 'mines') return minesResultEntries(record);
+  if (gameId === 'tower') return towerResultEntries(record);
+  if (gameId === 'mini-roulette' || gameId === 'carnival') return rouletteResultEntries(record);
+  return [];
+}
+
+function diceResultEntries(record: Record<string, unknown>): ResultEntry[] {
+  const roll = getNumber(record.roll);
+  const target = getNumber(record.target);
+  const direction = getStringScalar(record.direction);
+  const finalWon = getBoolean(record.finalWon ?? record.won);
+  const winChance = getNumber(record.winChance);
+
+  return [
+    {
+      key: 'dice-summary',
+      label: '本局結果',
+      value: (
+        <SummaryStack
+          items={[
+            direction && target !== undefined ? `投注 ${directionLabel(direction)} ${formatPlainNumber(target)} 點` : null,
+            roll !== undefined ? `開出 ${formatPlainNumber(roll)} 點` : null,
+            finalWon !== null ? (finalWon ? '結果：命中' : '結果：未命中') : null,
+            winChance !== undefined ? `中獎機率 ${formatPlainNumber(winChance)}%` : null,
+          ]}
+        />
+      ),
+    },
+  ];
+}
+
+function compactResultEntries(items: Array<ResultEntry | null>): ResultEntry[] {
+  return items.filter((item): item is ResultEntry => item !== null);
+}
+
+function wheelResultEntries(record: Record<string, unknown>): ResultEntry[] {
+  const segmentIndex = getNumber(record.segmentIndex);
+  const segments = getNumber(record.segments);
+  const risk = getStringScalar(record.risk);
+  const multipliers = getNumberArray(record.multipliers);
+  const hitMultiplier = segmentIndex !== undefined ? multipliers[Math.trunc(segmentIndex)] : undefined;
+
+  return compactResultEntries([
+    {
+      key: 'wheel-summary',
+      label: '轉輪結果',
+      value: (
+        <SummaryStack
+          items={[
+            segments !== undefined ? `${segments} 段轉輪` : null,
+            risk ? `風險：${riskLabel(risk)}` : null,
+            segmentIndex !== undefined ? `指針停在第 ${Math.trunc(segmentIndex) + 1} 段` : null,
+            hitMultiplier !== undefined ? `開出倍率 ${formatMultiplierValue(hitMultiplier)}` : null,
+          ]}
+        />
+      ),
+    },
+    multipliers.length > 0
+      ? {
+          key: 'wheel-paytable',
+          label: '倍率表',
+          value: <MultiplierStrip multipliers={multipliers} activeIndex={segmentIndex} />,
+        }
+      : null,
+  ]);
+}
+
+function plinkoResultEntries(record: Record<string, unknown>): ResultEntry[] {
+  const path = getStringArray(record.path);
+  const bucket = getNumber(record.bucket);
+  const rows = getNumber(record.rows);
+  const risk = getStringScalar(record.risk);
+  const multipliers = getNumberArray(record.multipliers);
+  const hitMultiplier = bucket !== undefined ? multipliers[Math.trunc(bucket)] : undefined;
+
+  return compactResultEntries([
+    {
+      key: 'plinko-summary',
+      label: '掉落結果',
+      value: (
+        <SummaryStack
+          items={[
+            rows !== undefined ? `${rows} 列釘盤` : null,
+            risk ? `風險：${riskLabel(risk)}` : null,
+            bucket !== undefined ? `落在從左數第 ${Math.trunc(bucket) + 1} 格` : null,
+            hitMultiplier !== undefined ? `開出倍率 ${formatMultiplierValue(hitMultiplier)}` : null,
+          ]}
+        />
+      ),
+    },
+    path.length > 0
+      ? {
+          key: 'plinko-path',
+          label: '掉落路徑',
+          value: <PathStrip path={path} />,
+        }
+      : null,
+    multipliers.length > 0
+      ? {
+          key: 'plinko-paytable',
+          label: '倍率表',
+          value: <MultiplierStrip multipliers={multipliers} activeIndex={bucket} />,
+        }
+      : null,
+  ]);
+}
+
+function hotlineResultEntries(record: Record<string, unknown>): ResultEntry[] {
+  const grid = getHotlineGrid(record.grid);
+  const lines = getHotlineLines(record.lines);
+  const totalMultiplier = lines.reduce((sum, line) => sum + line.payout, 0);
+
+  return compactResultEntries([
+    grid.length > 0
+      ? {
+          key: 'hotline-grid',
+          label: '盤面',
+          value: <HotlineGridView grid={grid} />,
+        }
+      : null,
+    {
+      key: 'hotline-lines',
+      label: '中獎線',
+      value: <HotlineLinesView lines={lines} totalMultiplier={totalMultiplier} />,
+    },
+  ]);
+}
+
+function kenoResultEntries(record: Record<string, unknown>): ResultEntry[] {
+  const drawn = getNumberArray(record.drawn);
+  const selected = getNumberArray(record.selected);
+  const hits = getNumberArray(record.hits);
+  const risk = getStringScalar(record.risk);
+  return compactResultEntries([
+    {
+      key: 'keno-summary',
+      label: '命中結果',
+      value: (
+        <SummaryStack
+          items={[
+            risk ? `風險：${riskLabel(risk)}` : null,
+            `命中 ${hits.length} / ${selected.length} 個號碼`,
+          ]}
+        />
+      ),
+    },
+    selected.length > 0 ? { key: 'keno-selected', label: '選擇號碼', value: <NumberChips numbers={selected} /> } : null,
+    drawn.length > 0 ? { key: 'keno-drawn', label: '開獎號碼', value: <NumberChips numbers={drawn} highlight={hits} /> } : null,
+    hits.length > 0 ? { key: 'keno-hits', label: '命中號碼', value: <NumberChips numbers={hits} tone="win" /> } : null,
+  ]);
+}
+
+function minesResultEntries(record: Record<string, unknown>): ResultEntry[] {
+  const mineCount = getNumber(record.mineCount);
+  const revealed = getNumberArray(record.revealed);
+  const minePositions = getNumberArray(record.minePositions);
+  const hitMine = getBoolean(record.hitMine);
+  const hitCell = getNumber(record.hitCell);
+  const cashedOut = getBoolean(record.cashedOut);
+  return compactResultEntries([
+    {
+      key: 'mines-summary',
+      label: '本局結果',
+      value: (
+        <SummaryStack
+          items={[
+            mineCount !== undefined ? `本局共有 ${mineCount} 顆地雷` : null,
+            revealed.length > 0 ? `已翻開 ${revealed.length} 格` : null,
+            hitMine === true && hitCell !== undefined ? `踩到第 ${Math.trunc(hitCell) + 1} 格地雷` : null,
+            hitMine === false ? '本次翻牌安全' : null,
+            cashedOut === true ? '已成功收分' : null,
+          ]}
+        />
+      ),
+    },
+    revealed.length > 0 ? { key: 'mines-revealed', label: '已翻位置', value: <CellChips cells={revealed} /> } : null,
+    minePositions.length > 0 ? { key: 'mines-positions', label: '地雷位置', value: <CellChips cells={minePositions} tone="danger" /> } : null,
+  ]);
+}
+
+function towerResultEntries(record: Record<string, unknown>): ResultEntry[] {
+  const difficulty = getStringScalar(record.difficulty);
+  const picks = getNumberArray(record.picks);
+  const bustedLevel = getNumber(record.bustedLevel);
+  const cashedOut = getBoolean(record.cashedOut);
+  return compactResultEntries([
+    {
+      key: 'tower-summary',
+      label: '疊塔結果',
+      value: (
+        <SummaryStack
+          items={[
+            difficulty ? `難度：${difficultyLabel(difficulty)}` : null,
+            picks.length > 0 ? `已選擇 ${picks.length} 層` : null,
+            bustedLevel !== undefined ? `第 ${Math.trunc(bustedLevel) + 1} 層踩到陷阱` : null,
+            cashedOut === true ? '已成功收分' : null,
+          ]}
+        />
+      ),
+    },
+    picks.length > 0 ? { key: 'tower-picks', label: '選擇路徑', value: <CellChips cells={picks} prefix="第" suffix="格" /> } : null,
+  ]);
+}
+
+function rouletteResultEntries(record: Record<string, unknown>): ResultEntry[] {
+  const slot = getNumber(record.slot);
+  const wins = Array.isArray(record.wins) ? record.wins : [];
+  return [
+    {
+      key: 'roulette-summary',
+      label: '輪盤結果',
+      value: (
+        <SummaryStack
+          items={[
+            slot !== undefined ? `開出 ${Math.trunc(slot)} 號` : null,
+            wins.length > 0 ? `共有 ${wins.length} 筆下注中獎` : '本局未中獎',
+          ]}
+        />
+      ),
+    },
+  ];
+}
+
+function SummaryStack({ items }: { items: Array<string | null | undefined> }) {
+  const visible = items.filter((item): item is string => Boolean(item));
+  return (
+    <div className="grid gap-2">
+      {visible.map((item) => (
+        <div
+          key={item}
+          className="rounded-[10px] border border-[#E7EEF3] bg-white px-3 py-2 text-[12px] font-bold text-[#0F172A]"
+        >
+          {item}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MultiplierStrip({
+  multipliers,
+  activeIndex,
+}: {
+  multipliers: number[];
+  activeIndex?: number;
+}) {
+  const active = activeIndex !== undefined ? Math.trunc(activeIndex) : -1;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {multipliers.map((multiplier, index) => (
+        <span
+          key={`${index}-${multiplier}`}
+          className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${
+            index === active
+              ? 'border-[#C9A247] bg-[#FFF4C6] text-[#765709]'
+              : 'border-[#D9E3EA] bg-white text-[#4A5568]'
+          }`}
+        >
+          第 {index + 1} 段 · {formatMultiplierValue(multiplier)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function PathStrip({ path }: { path: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {path.map((step, index) => (
+        <span
+          key={`${step}-${index}`}
+          className="rounded-full border border-[#D9E3EA] bg-white px-2.5 py-1 text-[11px] font-bold text-[#0F172A]"
+        >
+          {index + 1}. {directionStepLabel(step)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function NumberChips({
+  numbers,
+  highlight = [],
+  tone = 'default',
+}: {
+  numbers: number[];
+  highlight?: number[];
+  tone?: 'default' | 'win';
+}) {
+  const highlighted = new Set(highlight.map((number) => Math.trunc(number)));
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {numbers.map((number) => {
+        const normalized = Math.trunc(number);
+        const active = tone === 'win' || highlighted.has(normalized);
+        return (
+          <span
+            key={`${normalized}-${active}`}
+            className={`flex h-8 min-w-8 items-center justify-center rounded-full border px-2 text-[12px] font-black ${
+              active
+                ? 'border-[#17A34A]/35 bg-[#ECFDF3] text-[#12813A]'
+                : 'border-[#D9E3EA] bg-white text-[#0F172A]'
+            }`}
+          >
+            {normalized}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function CellChips({
+  cells,
+  tone = 'default',
+  prefix = '第',
+  suffix = '格',
+}: {
+  cells: number[];
+  tone?: 'default' | 'danger';
+  prefix?: string;
+  suffix?: string;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {cells.map((cell, index) => (
+        <span
+          key={`${cell}-${index}`}
+          className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${
+            tone === 'danger'
+              ? 'border-[#D4574A]/35 bg-[#FDF0EE] text-[#B94538]'
+              : 'border-[#D9E3EA] bg-white text-[#0F172A]'
+          }`}
+        >
+          {prefix}{Math.trunc(cell) + 1}{suffix}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function HotlineGridView({ grid }: { grid: number[][] }) {
+  const rows = Math.max(0, ...grid.map((reel) => reel.length));
+  const rowIndexes = Array.from({ length: rows }, (_, index) => index);
+  return (
+    <div className="grid gap-2">
+      {rowIndexes.map((rowIndex) => (
+        <div key={rowIndex} className="flex flex-wrap items-center gap-1.5">
+          <span className="w-12 text-[10px] font-black text-[#718096]">
+            {slotRowLabel(rowIndex)}
+          </span>
+          {grid.map((reel, reelIndex) => (
+            <SlotSymbolChip
+              key={`${rowIndex}-${reelIndex}-${reel[rowIndex]}`}
+              symbol={reel[rowIndex] ?? 0}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HotlineLinesView({
+  lines,
+  totalMultiplier,
+}: {
+  lines: HotlineWinLineView[];
+  totalMultiplier: number;
+}) {
+  if (lines.length === 0) {
+    return (
+      <div className="rounded-[12px] border border-[#E7EEF3] bg-white px-3 py-3 text-[12px] font-bold text-[#4A5568]">
+        本局沒有形成中獎線。
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-2">
+      <div className="rounded-[12px] border border-[#C9A247]/25 bg-[#FFF8DF] px-3 py-2 text-[12px] font-black text-[#765709]">
+        共 {lines.length} 條中獎線，合計 {formatMultiplierValue(totalMultiplier)}
+      </div>
+      {lines.map((line, index) => (
+        <div
+          key={`${line.lineId}-${line.startReel}-${line.symbol}-${index}`}
+          className="rounded-[12px] border border-[#E7EEF3] bg-white px-3 py-2"
+        >
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[12px] font-black text-[#0F172A]">
+              {paylineLabel(line.lineId)} · {line.direction === 'rtl' ? '由右至左' : '由左至右'}
+            </span>
+            <span className="rounded-full bg-[#ECFDF3] px-2.5 py-1 text-[11px] font-black text-[#12813A]">
+              {formatMultiplierValue(line.payout)}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#4A5568]">
+            <SlotSymbolChip symbol={line.symbol} />
+            <span className="font-bold">連續 {line.count} 個相同符號中獎</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SlotSymbolChip({ symbol }: { symbol: number }) {
+  const meta = slotSymbolMeta(symbol);
+  return (
+    <span
+      className="inline-flex min-w-[72px] items-center justify-center rounded-[10px] border px-2.5 py-1 text-[11px] font-black"
+      style={{
+        borderColor: `${meta.color}55`,
+        backgroundColor: `${meta.color}16`,
+        color: meta.color,
+      }}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+type HotlineWinLineView = {
+  lineId: string;
+  path: number[];
+  startReel: number;
+  direction: string;
+  row: number;
+  symbol: number;
+  count: number;
+  payout: number;
+};
+
+function getHotlineGrid(value: unknown): number[][] {
+  if (!Array.isArray(value)) return [];
+  const grid = value
+    .map((reel) => (Array.isArray(reel) ? reel.map((cell) => getNumber(cell)).filter((cell): cell is number => cell !== undefined) : []))
+    .filter((reel) => reel.length > 0);
+  return grid.length === value.length ? grid : [];
+}
+
+function getHotlineLines(value: unknown): HotlineWinLineView[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      const record = asRecord(item);
+      if (!record) return null;
+      return {
+        lineId: getStringScalar(record.lineId) ?? 'line',
+        path: getNumberArray(record.path),
+        startReel: Math.trunc(getNumber(record.startReel) ?? 0),
+        direction: getStringScalar(record.direction) ?? 'ltr',
+        row: Math.trunc(getNumber(record.row) ?? 0),
+        symbol: Math.trunc(getNumber(record.symbol) ?? 0),
+        count: Math.trunc(getNumber(record.count) ?? 0),
+        payout: getNumber(record.payout) ?? 0,
+      };
+    })
+    .filter((line): line is HotlineWinLineView => Boolean(line));
+}
+
+function isHotlineLikeGame(gameId: string): boolean {
+  return new Set([
+    'hotline',
+    'fruit-slot',
+    'fortune-slot',
+    'ocean-slot',
+    'temple-slot',
+    'candy-slot',
+    'sakura-slot',
+  ]).has(gameId);
+}
 
 function formatResultNode(key: string, value: unknown): ReactNode {
   const baccarat = getBaccaratCards(value);
@@ -1010,6 +1497,110 @@ function getStringScalar(value: unknown): string | undefined {
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return String(value);
   return undefined;
+}
+
+function getNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : undefined;
+  }
+  return undefined;
+}
+
+function getBoolean(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', 'yes', 'win', 'won'].includes(normalized)) return true;
+    if (['false', 'no', 'lose', 'lost'].includes(normalized)) return false;
+  }
+  return null;
+}
+
+function getNumberArray(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => getNumber(item)).filter((item): item is number => item !== undefined);
+}
+
+function getStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => getStringScalar(item)).filter((item): item is string => Boolean(item));
+}
+
+function formatPlainNumber(value: number): string {
+  return Number.isInteger(value)
+    ? String(value)
+    : value.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+}
+
+function formatMultiplierValue(value: number): string {
+  return `${formatPlainNumber(value)}x`;
+}
+
+function directionLabel(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'over') return '大於';
+  if (normalized === 'under') return '小於';
+  return value;
+}
+
+function directionStepLabel(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'left') return '左';
+  if (normalized === 'right') return '右';
+  return value;
+}
+
+function riskLabel(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'low') return '低';
+  if (normalized === 'medium') return '中';
+  if (normalized === 'high') return '高';
+  return value;
+}
+
+function difficultyLabel(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'easy') return '簡單';
+  if (normalized === 'medium') return '中等';
+  if (normalized === 'hard') return '困難';
+  if (normalized === 'expert') return '專家';
+  if (normalized === 'master') return '大師';
+  return value;
+}
+
+function slotRowLabel(index: number): string {
+  if (index === 0) return '上排';
+  if (index === 1) return '中排';
+  if (index === 2) return '下排';
+  return `第 ${index + 1} 排`;
+}
+
+function paylineLabel(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  const labels: Record<string, string> = {
+    top: '上排線',
+    middle: '中排線',
+    bottom: '下排線',
+    'v-down': 'V 型下折線',
+    'v-up': 'V 型上折線',
+    'diag-down': '左上到右下斜線',
+    'diag-up': '左下到右上斜線',
+  };
+  return labels[normalized] ?? value;
+}
+
+function slotSymbolMeta(symbol: number): { label: string; color: string } {
+  const symbols = [
+    { label: '櫻桃', color: '#D43C63' },
+    { label: '金鈴', color: '#D98E26' },
+    { label: '七號', color: '#C9A24C' },
+    { label: 'BAR', color: '#2B8CA8' },
+    { label: '寶石', color: '#1E8E67' },
+    { label: '頭獎', color: '#B52A45' },
+  ];
+  return symbols[Math.trunc(symbol)] ?? { label: `符號 ${symbol}`, color: '#186073' };
 }
 
 function formatDateTime(value: string): string {

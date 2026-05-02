@@ -13,7 +13,25 @@ import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 const CARD_FILE_RANKS = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'] as const;
 const CARD_FILE_SUITS = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
-const DEAL_STEP_MS = 260;
+const DEAL_STEP_MS = 330;
+const QUICK_FRAME_MS = 90;
+const HOLE_FLIP_MS = 560;
+const RESULT_REVEAL_MS = 280;
+const DEALER_HOLE_KEY = 'dealer:hole';
+
+interface BlackjackAnimationMeta {
+  enteringCards: string[];
+  flipDealerHole?: boolean;
+  revealResult?: boolean;
+}
+
+interface BlackjackAnimationFrame {
+  state: BlackjackRoundState;
+  meta: BlackjackAnimationMeta;
+  durationMs: number;
+}
+
+const IDLE_ANIMATION_META: BlackjackAnimationMeta = { enteringCards: [] };
 
 export function BlackjackPage() {
   const { user, setBalance } = useAuthStore();
@@ -26,6 +44,7 @@ export function BlackjackPage() {
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const [busy, setBusy] = useState(false);
   const [animating, setAnimating] = useState(false);
+  const [animationMeta, setAnimationMeta] = useState<BlackjackAnimationMeta>(IDLE_ANIMATION_META);
   const [error, setError] = useState<string | null>(null);
   const animationTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
 
@@ -46,6 +65,7 @@ export function BlackjackPage() {
   const displayActiveHand = tableRound?.playerHands[tableRound.activeHandIndex] ?? null;
   const settled = round && round.status !== 'ACTIVE' && !animating;
   const resultSummary = useMemo(() => summarizeRound(round), [round]);
+  const enteringCardKeys = useMemo(() => new Set(animationMeta.enteringCards), [animationMeta.enteringCards]);
 
   const playRoundAnimation = (nextRound: BlackjackRoundState) => {
     clearAnimationTimers(animationTimers.current);
@@ -53,15 +73,22 @@ export function BlackjackPage() {
     const frames = buildBlackjackDealFrames(previous, nextRound);
 
     setAnimating(frames.length > 1);
-    frames.forEach((frame, index) => {
+    let elapsed = 0;
+    frames.forEach((frame) => {
       const timer = setTimeout(() => {
-        setDisplayRound(frame);
-        if (index === frames.length - 1) {
-          setAnimating(false);
-        }
-      }, index * DEAL_STEP_MS);
+        setDisplayRound(frame.state);
+        setAnimationMeta(frame.meta);
+      }, elapsed);
       animationTimers.current.push(timer);
+      elapsed += frame.durationMs;
     });
+
+    const finishTimer = setTimeout(() => {
+      setAnimating(false);
+      setAnimationMeta(IDLE_ANIMATION_META);
+      setDisplayRound(nextRound);
+    }, Math.max(0, elapsed));
+    animationTimers.current.push(finishTimer);
   };
 
   const applyResult = (result: BlackjackRoundResult, fallbackBet: number) => {
@@ -121,6 +148,7 @@ export function BlackjackPage() {
     setRound(null);
     setDisplayRound(null);
     setAnimating(false);
+    setAnimationMeta(IDLE_ANIMATION_META);
     setError(null);
   };
 
@@ -176,13 +204,24 @@ export function BlackjackPage() {
                     {tableRound ? (
                       <>
                         {tableRound.dealerCards.map((card, index) => (
-                          <CardImage
-                            key={`dealer-${index}-${card.rank}-${card.suit}`}
-                            card={card}
-                            lane="dealer"
-                          />
+                          animationMeta.flipDealerHole && index === 1 ? (
+                            <FlipCardImage
+                              key={`dealer-flip-${card.rank}-${card.suit}`}
+                              card={card}
+                            />
+                          ) : (
+                            <CardImage
+                              key={`dealer-${index}-${card.rank}-${card.suit}`}
+                              card={card}
+                              cardKey={dealerCardKey(index, card)}
+                              isEntering={enteringCardKeys.has(dealerCardKey(index, card))}
+                              lane="dealer"
+                            />
+                          )
                         ))}
-                        {tableRound.dealerHoleHidden && <CardBack />}
+                        {tableRound.dealerHoleHidden && (
+                          <CardBack isEntering={enteringCardKeys.has(DEALER_HOLE_KEY)} />
+                        )}
                       </>
                     ) : (
                       <EmptySeat label={t.games.blackjack.placeBetToDeal} />
@@ -239,6 +278,9 @@ export function BlackjackPage() {
                               <CardImage
                                 key={`${hand.id}-${cardIndex}-${card.rank}-${card.suit}`}
                                 card={card}
+                                cardKey={playerCardKey(hand.id, cardIndex, card)}
+                                isEntering={enteringCardKeys.has(playerCardKey(hand.id, cardIndex, card))}
+                                isSettling={Boolean(animationMeta.revealResult && hand.outcome)}
                                 lane="player"
                               />
                             ))}
@@ -425,11 +467,28 @@ function EmptySeat({ label }: { label: string }) {
   );
 }
 
-function CardImage({ card, lane }: { card: BlackjackCard; lane: 'dealer' | 'player' }) {
+function CardImage({
+  card,
+  cardKey,
+  lane,
+  isEntering = false,
+  isSettling = false,
+}: {
+  card: BlackjackCard;
+  cardKey: string;
+  lane: 'dealer' | 'player';
+  isEntering?: boolean;
+  isSettling?: boolean;
+}) {
   const path = getCardAssetPath(card);
   const label = `${rankLabel(card.rank)} ${suitLabel(card.suit)}`;
   return (
-    <span className={`blackjack-card-shell blackjack-card-deal blackjack-card-deal-${lane}`}>
+    <span
+      className={`blackjack-card-shell blackjack-card-deal-${lane} ${
+        isEntering ? 'blackjack-card-deal' : ''
+      } ${isSettling ? 'blackjack-card-settle' : ''}`}
+      data-card-key={cardKey}
+    >
       <img
         src={path}
         alt={label}
@@ -440,15 +499,43 @@ function CardImage({ card, lane }: { card: BlackjackCard; lane: 'dealer' | 'play
   );
 }
 
-function CardBack() {
+function CardBack({ isEntering = false }: { isEntering?: boolean }) {
   return (
-    <span className="blackjack-card-shell blackjack-card-deal blackjack-card-deal-dealer">
-      <div className="flex h-[122px] w-[82px] items-center justify-center rounded-[8px] border border-[#E8D48A]/50 bg-[radial-gradient(circle_at_50%_35%,rgba(232,212,138,0.34),transparent_30%),linear-gradient(135deg,#07111E,#143B4C_52%,#07111E)] shadow-[0_14px_28px_rgba(0,0,0,0.38)] sm:h-[148px] sm:w-[100px]">
-        <div className="rounded-full border border-[#E8D48A]/45 px-3 py-2 text-[10px] font-black tracking-[0.22em] text-[#E8D48A]">
-          BG
-        </div>
-      </div>
+    <span className={`blackjack-card-shell blackjack-card-deal-dealer ${isEntering ? 'blackjack-card-deal' : ''}`}>
+      <CardBackFace />
     </span>
+  );
+}
+
+function FlipCardImage({ card }: { card: BlackjackCard }) {
+  const path = getCardAssetPath(card);
+  const label = `${rankLabel(card.rank)} ${suitLabel(card.suit)}`;
+  return (
+    <span className="blackjack-card-shell blackjack-card-flip-shell">
+      <span className="blackjack-card-flip">
+        <span className="blackjack-card-face blackjack-card-face-back">
+          <CardBackFace />
+        </span>
+        <span className="blackjack-card-face blackjack-card-face-front">
+          <img
+            src={path}
+            alt={label}
+            className="h-full w-full rounded-[8px] object-contain shadow-[0_18px_34px_rgba(0,0,0,0.42)]"
+            draggable={false}
+          />
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function CardBackFace() {
+  return (
+    <div className="flex h-[122px] w-[82px] items-center justify-center rounded-[8px] border border-[#E8D48A]/50 bg-[radial-gradient(circle_at_50%_35%,rgba(232,212,138,0.34),transparent_30%),linear-gradient(135deg,#07111E,#143B4C_52%,#07111E)] shadow-[0_14px_28px_rgba(0,0,0,0.38)] sm:h-[148px] sm:w-[100px]">
+      <div className="rounded-full border border-[#E8D48A]/45 px-3 py-2 text-[10px] font-black tracking-[0.22em] text-[#E8D48A]">
+        BG
+      </div>
+    </div>
   );
 }
 
@@ -459,76 +546,259 @@ function clearAnimationTimers(timers: Array<ReturnType<typeof setTimeout>>): voi
 function buildBlackjackDealFrames(
   previous: BlackjackRoundState | null,
   next: BlackjackRoundState,
-): BlackjackRoundState[] {
+): BlackjackAnimationFrame[] {
   if (!previous || previous.roundId !== next.roundId) {
     return compactFrames(buildOpeningFrames(next));
   }
 
-  const frames: BlackjackRoundState[] = [];
-  const handCounts = next.playerHands.map((hand, index) => {
-    const previousHand = previous.playerHands.find((candidate) => candidate.id === hand.id) ?? previous.playerHands[index];
-    return Math.min(previousHand?.cards.length ?? 0, hand.cards.length);
-  });
-  let dealerCount = Math.min(previous.dealerCards.length, next.dealerCards.length);
-  let dealerHoleHidden = previous.dealerHoleHidden && next.dealerHoleHidden;
+  const splitFrames = buildSplitFrames(previous, next);
+  if (splitFrames) return compactFrames(splitFrames);
 
-  frames.push(makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, false));
+  const frames: BlackjackAnimationFrame[] = [];
+  const handCounts = buildTransitionHandCounts(previous, next);
+  let dealerCount = Math.min(previous.dealerCards.length, next.dealerCards.length);
+  let dealerHoleHidden = previous.dealerHoleHidden;
+
+  frames.push(
+    animationFrame(
+      makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, next.status === 'ACTIVE'),
+      {},
+      QUICK_FRAME_MS,
+    ),
+  );
 
   next.playerHands.forEach((hand, index) => {
     while ((handCounts[index] ?? 0) < hand.cards.length) {
       handCounts[index] = (handCounts[index] ?? 0) + 1;
-      frames.push(makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, next.status === 'ACTIVE'));
+      const cardIndex = handCounts[index]! - 1;
+      frames.push(
+        animationFrame(
+          makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, next.status === 'ACTIVE'),
+          { enteringCards: [playerCardKey(hand.id, cardIndex, hand.cards[cardIndex]!)] },
+          DEAL_STEP_MS,
+        ),
+      );
     }
   });
 
   if (next.dealerHoleHidden) {
     dealerHoleHidden = true;
-    frames.push(makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, next.status === 'ACTIVE'));
+    frames.push(
+      animationFrame(
+        makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, true),
+        { enteringCards: previous.dealerHoleHidden ? [] : [DEALER_HOLE_KEY] },
+        DEAL_STEP_MS,
+      ),
+    );
   } else {
-    dealerHoleHidden = false;
+    if (previous.dealerHoleHidden && next.dealerCards.length > 1) {
+      dealerCount = Math.max(dealerCount, 2);
+      dealerHoleHidden = false;
+      frames.push(
+        animationFrame(
+          makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, false),
+          { flipDealerHole: true },
+          HOLE_FLIP_MS,
+        ),
+      );
+    } else {
+      dealerHoleHidden = false;
+    }
+
     while (dealerCount < next.dealerCards.length) {
       dealerCount += 1;
-      frames.push(makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, false));
+      frames.push(
+        animationFrame(
+          makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, false),
+          { enteringCards: [dealerCardKey(dealerCount - 1, next.dealerCards[dealerCount - 1]!)] },
+          DEAL_STEP_MS,
+        ),
+      );
     }
   }
 
-  frames.push(next);
+  frames.push(animationFrame(next, { revealResult: next.status !== 'ACTIVE' }, RESULT_REVEAL_MS));
   return compactFrames(frames);
 }
 
-function buildOpeningFrames(next: BlackjackRoundState): BlackjackRoundState[] {
-  const frames: BlackjackRoundState[] = [];
+function buildOpeningFrames(next: BlackjackRoundState): BlackjackAnimationFrame[] {
+  const frames: BlackjackAnimationFrame[] = [];
   const handCounts = next.playerHands.map(() => 0);
   let dealerCount = 0;
 
-  frames.push(makeVisibleRound(next, 0, false, handCounts, false));
+  frames.push(animationFrame(makeVisibleRound(next, 0, false, handCounts, false), {}, QUICK_FRAME_MS));
 
   if (next.playerHands[0]?.cards.length) {
     handCounts[0] = 1;
-    frames.push(makeVisibleRound(next, dealerCount, false, handCounts, false));
+    frames.push(
+      animationFrame(
+        makeVisibleRound(next, dealerCount, false, handCounts, false),
+        { enteringCards: [playerCardKey(next.playerHands[0].id, 0, next.playerHands[0].cards[0]!)] },
+        DEAL_STEP_MS,
+      ),
+    );
   }
 
   if (next.dealerCards.length > 0) {
     dealerCount = 1;
-    frames.push(makeVisibleRound(next, dealerCount, false, handCounts, false));
+    frames.push(
+      animationFrame(
+        makeVisibleRound(next, dealerCount, false, handCounts, false),
+        { enteringCards: [dealerCardKey(0, next.dealerCards[0]!)] },
+        DEAL_STEP_MS,
+      ),
+    );
   }
 
-  if ((next.playerHands[0]?.cards.length ?? 0) > 1) {
+  const openingHand = next.playerHands[0];
+  if (openingHand && openingHand.cards.length > 1) {
     handCounts[0] = 2;
-    frames.push(makeVisibleRound(next, dealerCount, false, handCounts, next.status === 'ACTIVE'));
+    frames.push(
+      animationFrame(
+        makeVisibleRound(next, dealerCount, false, handCounts, next.status === 'ACTIVE'),
+        { enteringCards: [playerCardKey(openingHand.id, 1, openingHand.cards[1]!)] },
+        DEAL_STEP_MS,
+      ),
+    );
   }
 
-  if (next.dealerHoleHidden) {
-    frames.push(makeVisibleRound(next, dealerCount, true, handCounts, true));
-  } else {
+  if (next.dealerHoleHidden || next.dealerCards.length > 1) {
+    frames.push(
+      animationFrame(
+        makeVisibleRound(next, dealerCount, true, handCounts, next.status === 'ACTIVE'),
+        { enteringCards: [DEALER_HOLE_KEY] },
+        DEAL_STEP_MS,
+      ),
+    );
+  }
+
+  if (!next.dealerHoleHidden) {
+    if (next.dealerCards.length > 1) {
+      dealerCount = 2;
+      frames.push(
+        animationFrame(
+          makeVisibleRound(next, dealerCount, false, handCounts, false),
+          { flipDealerHole: true },
+          HOLE_FLIP_MS,
+        ),
+      );
+    }
+
     while (dealerCount < next.dealerCards.length) {
       dealerCount += 1;
-      frames.push(makeVisibleRound(next, dealerCount, false, handCounts, false));
+      frames.push(
+        animationFrame(
+          makeVisibleRound(next, dealerCount, false, handCounts, false),
+          { enteringCards: [dealerCardKey(dealerCount - 1, next.dealerCards[dealerCount - 1]!)] },
+          DEAL_STEP_MS,
+        ),
+      );
     }
   }
 
-  frames.push(next);
+  frames.push(animationFrame(next, { revealResult: next.status !== 'ACTIVE' }, RESULT_REVEAL_MS));
   return frames;
+}
+
+function buildSplitFrames(
+  previous: BlackjackRoundState,
+  next: BlackjackRoundState,
+): BlackjackAnimationFrame[] | null {
+  if (next.playerHands.length <= previous.playerHands.length) return null;
+
+  const splitIndex = previous.activeHandIndex;
+  const previousSplitHand = previous.playerHands[splitIndex];
+  const firstSplitHand = next.playerHands[splitIndex];
+  const secondSplitHand = next.playerHands[splitIndex + 1];
+  if (!previousSplitHand || !firstSplitHand || !secondSplitHand) return null;
+  if (!firstSplitHand.id.startsWith(previousSplitHand.id) || !secondSplitHand.id.startsWith(previousSplitHand.id)) {
+    return null;
+  }
+
+  const frames: BlackjackAnimationFrame[] = [];
+  const handCounts = next.playerHands.map((hand, index) => {
+    const previousHand = previous.playerHands.find((candidate) => candidate.id === hand.id);
+    if (previousHand) return Math.min(previousHand.cards.length, hand.cards.length);
+    if (index === splitIndex || index === splitIndex + 1) return Math.min(1, hand.cards.length);
+    return 0;
+  });
+  let dealerCount = Math.min(previous.dealerCards.length, next.dealerCards.length);
+  let dealerHoleHidden = previous.dealerHoleHidden;
+
+  frames.push(
+    animationFrame(
+      makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, next.status === 'ACTIVE'),
+      {},
+      QUICK_FRAME_MS,
+    ),
+  );
+
+  [splitIndex, splitIndex + 1].forEach((handIndex) => {
+    const hand = next.playerHands[handIndex];
+    if (!hand) return;
+    while ((handCounts[handIndex] ?? 0) < hand.cards.length) {
+      handCounts[handIndex] = (handCounts[handIndex] ?? 0) + 1;
+      const cardIndex = handCounts[handIndex]! - 1;
+      frames.push(
+        animationFrame(
+          makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, next.status === 'ACTIVE'),
+          { enteringCards: [playerCardKey(hand.id, cardIndex, hand.cards[cardIndex]!)] },
+          DEAL_STEP_MS,
+        ),
+      );
+    }
+  });
+
+  if (next.status !== 'ACTIVE') {
+    if (previous.dealerHoleHidden && next.dealerCards.length > 1) {
+      dealerCount = 2;
+      dealerHoleHidden = false;
+      frames.push(
+        animationFrame(
+          makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, false),
+          { flipDealerHole: true },
+          HOLE_FLIP_MS,
+        ),
+      );
+    }
+
+    while (dealerCount < next.dealerCards.length) {
+      dealerCount += 1;
+      frames.push(
+        animationFrame(
+          makeVisibleRound(next, dealerCount, false, handCounts, false),
+          { enteringCards: [dealerCardKey(dealerCount - 1, next.dealerCards[dealerCount - 1]!)] },
+          DEAL_STEP_MS,
+        ),
+      );
+    }
+  }
+
+  frames.push(animationFrame(next, { revealResult: next.status !== 'ACTIVE' }, RESULT_REVEAL_MS));
+  return frames;
+}
+
+function buildTransitionHandCounts(previous: BlackjackRoundState, next: BlackjackRoundState): number[] {
+  return next.playerHands.map((hand, index) => {
+    const previousHand = previous.playerHands.find((candidate) => candidate.id === hand.id) ?? previous.playerHands[index];
+    return Math.min(previousHand?.cards.length ?? 0, hand.cards.length);
+  });
+}
+
+function animationFrame(
+  state: BlackjackRoundState,
+  meta: Partial<BlackjackAnimationMeta> = {},
+  durationMs = DEAL_STEP_MS,
+): BlackjackAnimationFrame {
+  return {
+    state,
+    meta: {
+      enteringCards: meta.enteringCards ?? [],
+      flipDealerHole: meta.flipDealerHole,
+      revealResult: meta.revealResult,
+    },
+    durationMs,
+  };
 }
 
 function makeVisibleRound(
@@ -593,14 +863,22 @@ function scoreCards(cards: BlackjackCard[]) {
   };
 }
 
-function compactFrames(frames: BlackjackRoundState[]): BlackjackRoundState[] {
-  const compacted: BlackjackRoundState[] = [];
+function compactFrames(frames: BlackjackAnimationFrame[]): BlackjackAnimationFrame[] {
+  const compacted: BlackjackAnimationFrame[] = [];
   frames.forEach((frame) => {
-    if (frameFingerprint(compacted[compacted.length - 1]) !== frameFingerprint(frame)) {
+    if (animationFrameFingerprint(compacted[compacted.length - 1]) !== animationFrameFingerprint(frame)) {
       compacted.push(frame);
     }
   });
   return compacted.length > 0 ? compacted : frames;
+}
+
+function animationFrameFingerprint(frame: BlackjackAnimationFrame | undefined): string {
+  if (!frame) return '';
+  return JSON.stringify({
+    state: frameFingerprint(frame.state),
+    meta: frame.meta,
+  });
 }
 
 function frameFingerprint(frame: BlackjackRoundState | undefined): string {
@@ -618,6 +896,14 @@ function frameFingerprint(frame: BlackjackRoundState | undefined): string {
       payout: hand.payout,
     })),
   });
+}
+
+function dealerCardKey(index: number, card: BlackjackCard): string {
+  return `dealer:${index}:${card.rank}:${card.suit}`;
+}
+
+function playerCardKey(handId: string, index: number, card: BlackjackCard): string {
+  return `player:${handId}:${index}:${card.rank}:${card.suit}`;
 }
 
 function getCardAssetPath(card: BlackjackCard): string {

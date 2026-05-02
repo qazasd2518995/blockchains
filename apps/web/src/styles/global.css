@@ -9,42 +9,116 @@
   }
 
   .blackjack-card-deal {
-    animation: blackjack-card-deal 360ms cubic-bezier(0.2, 0.85, 0.22, 1) both;
+    animation: blackjack-card-deal 430ms cubic-bezier(0.18, 0.82, 0.2, 1) both;
   }
 
   .blackjack-card-deal-dealer {
-    --blackjack-deal-x: 96px;
-    --blackjack-deal-y: -92px;
-    --blackjack-deal-rotate: 10deg;
+    --blackjack-deal-x: 88px;
+    --blackjack-deal-y: -138px;
+    --blackjack-deal-rotate: 12deg;
   }
 
   .blackjack-card-deal-player {
-    --blackjack-deal-x: -72px;
-    --blackjack-deal-y: 94px;
-    --blackjack-deal-rotate: -8deg;
+    --blackjack-deal-x: -92px;
+    --blackjack-deal-y: -108px;
+    --blackjack-deal-rotate: -10deg;
+  }
+
+  .blackjack-card-settle {
+    animation: blackjack-card-settle 520ms cubic-bezier(0.2, 0.85, 0.22, 1) both;
+  }
+
+  .blackjack-card-flip-shell {
+    width: 82px;
+    height: 122px;
+  }
+
+  .blackjack-card-flip {
+    position: relative;
+    display: block;
+    width: 82px;
+    height: 122px;
+    transform-style: preserve-3d;
+    animation: blackjack-hole-flip 560ms cubic-bezier(0.2, 0.72, 0.18, 1) both;
+    will-change: transform, filter;
+  }
+
+  .blackjack-card-face {
+    position: absolute;
+    inset: 0;
+    display: block;
+    backface-visibility: hidden;
+    transform-style: preserve-3d;
+  }
+
+  .blackjack-card-face-front {
+    transform: rotateY(180deg);
+  }
+
+  @media (min-width: 640px) {
+    .blackjack-card-flip-shell,
+    .blackjack-card-flip {
+      width: 100px;
+      height: 148px;
+    }
   }
 }
 
 @keyframes blackjack-card-deal {
   0% {
     opacity: 0;
-    filter: blur(5px) brightness(1.2);
+    filter: blur(7px) brightness(1.28);
     transform:
       translate3d(var(--blackjack-deal-x, 0), var(--blackjack-deal-y, 0), 0)
       rotate(var(--blackjack-deal-rotate, 0))
-      scale(0.86);
+      rotateY(-16deg)
+      scale(0.72);
   }
 
-  58% {
+  62% {
     opacity: 1;
-    filter: blur(0) brightness(1.08);
-    transform: translate3d(0, 0, 0) rotate(1.5deg) scale(1.04);
+    filter: blur(0) brightness(1.12);
+    transform: translate3d(-3px, 2px, 0) rotate(1.8deg) rotateY(4deg) scale(1.055);
   }
 
   100% {
     opacity: 1;
     filter: blur(0) brightness(1);
-    transform: translate3d(0, 0, 0) rotate(0) scale(1);
+    transform: translate3d(0, 0, 0) rotate(0) rotateY(0) scale(1);
+  }
+}
+
+@keyframes blackjack-hole-flip {
+  0% {
+    filter: brightness(1);
+    transform: translate3d(0, 0, 0) rotateY(0deg) scale(1);
+  }
+
+  44% {
+    filter: brightness(1.18);
+    transform: translate3d(0, -8px, 0) rotateY(88deg) scale(1.045);
+  }
+
+  100% {
+    filter: brightness(1);
+    transform: translate3d(0, 0, 0) rotateY(180deg) scale(1);
+  }
+}
+
+@keyframes blackjack-card-settle {
+  0% {
+    filter: brightness(1);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  38% {
+    filter: brightness(1.14);
+    transform: translate3d(0, -3px, 0) scale(1.035);
+  }
+
+  100% {
+    filter: brightness(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -552,6 +626,19 @@
     .game-fullscreen-shell .blackjack-card-shell > div {
       width: 52px !important;
       height: 78px !important;
+      border-radius: 6px !important;
+    }
+
+    .game-fullscreen-shell .blackjack-card-flip-shell,
+    .game-fullscreen-shell .blackjack-card-flip {
+      width: 52px !important;
+      height: 78px !important;
+    }
+
+    .game-fullscreen-shell .blackjack-card-face > div,
+    .game-fullscreen-shell .blackjack-card-face img {
+      width: 100% !important;
+      height: 100% !important;
       border-radius: 6px !important;
     }
   }
