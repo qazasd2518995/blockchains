@@ -18,7 +18,8 @@ const ICON: Record<TransactionType, { color: string; icon: string }> = {
   TRANSFER_OUT: { color: 'text-[#D4574A]', icon: '⇧' },
 };
 
-const DETAIL_LIMIT = 300;
+const DEFAULT_PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 
 type DatePreset = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth';
 
@@ -116,6 +117,22 @@ function buildDateParams(range: DateRange): { from?: string; to?: string } {
   };
 }
 
+function padDatePart(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+function formatTransactionStamp(value: string): { date: string; time: string } {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return { date: '----/--/--', time: '--:--:--' };
+  }
+
+  return {
+    date: `${date.getFullYear()}/${padDatePart(date.getMonth() + 1)}/${padDatePart(date.getDate())}`,
+    time: `${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}:${padDatePart(date.getSeconds())}`,
+  };
+}
+
 function summarizeItems(items: TransactionListResponse['items']): TransactionListResponse['summary'] {
   const totalIn = items
     .filter((tx) => Number.parseFloat(tx.amount) > 0)
@@ -141,15 +158,21 @@ export function HistoryPage() {
   const [activePreset, setActivePreset] = useState<DatePreset | null>('today');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageCursors, setPageCursors] = useState<Array<string | null>>([null]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [detailBetId, setDetailBetId] = useState<string | null>(null);
   const [detail, setDetail] = useState<BetDetailResponse | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const currentCursor = pageCursors[pageIndex] ?? null;
 
   useEffect(() => {
     let cancelled = false;
     const params = {
-      limit: DETAIL_LIMIT,
+      limit: pageSize,
+      ...(currentCursor ? { cursor: currentCursor } : {}),
       ...buildDateParams(appliedRange),
     };
 
@@ -161,11 +184,13 @@ export function HistoryPage() {
         if (cancelled) return;
         setItems(res.data.items);
         setReportSummary(res.data.summary ?? null);
+        setNextCursor(res.data.nextCursor);
       })
       .catch((err) => {
         if (cancelled) return;
         setItems([]);
         setReportSummary(null);
+        setNextCursor(null);
         setError(extractApiError(err).message);
       })
       .finally(() => {
@@ -175,22 +200,33 @@ export function HistoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [appliedRange.from, appliedRange.to]);
+  }, [appliedRange.from, appliedRange.to, currentCursor, pageSize]);
 
   const summary = useMemo(() => reportSummary ?? summarizeItems(items), [items, reportSummary]);
   const totalIn = Number.parseFloat(summary.totalIn);
   const totalOut = Number.parseFloat(summary.totalOut);
   const net = Number.parseFloat(summary.net);
+  const totalCount = summary.totalCount;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const displayStart = totalCount === 0 ? 0 : pageIndex * pageSize + 1;
+  const displayEnd = Math.min(totalCount, pageIndex * pageSize + items.length);
   const appliedRangeText =
     appliedRange.from === appliedRange.to
       ? appliedRange.from
       : `${appliedRange.from} ~ ${appliedRange.to}`;
+
+  const resetPagination = () => {
+    setPageIndex(0);
+    setPageCursors([null]);
+    setNextCursor(null);
+  };
 
   const handlePresetClick = (preset: DatePreset) => {
     const nextRange = getPresetRange(preset);
     setDateRange(nextRange);
     setAppliedRange(nextRange);
     setActivePreset(preset);
+    resetPagination();
   };
 
   const handleSearch = () => {
@@ -198,6 +234,26 @@ export function HistoryPage() {
     setDateRange(nextRange);
     setAppliedRange(nextRange);
     setActivePreset(null);
+    resetPagination();
+  };
+
+  const handlePageSizeChange = (nextSize: number) => {
+    setPageSize(nextSize);
+    resetPagination();
+  };
+
+  const handleNextPage = () => {
+    if (!nextCursor) return;
+    setPageCursors((prev) => {
+      const next = prev.slice(0, pageIndex + 1);
+      next[pageIndex + 1] = nextCursor;
+      return next;
+    });
+    setPageIndex((idx) => idx + 1);
+  };
+
+  const handlePrevPage = () => {
+    setPageIndex((idx) => Math.max(0, idx - 1));
   };
 
   const handleOpenDetail = (betId: string) => {
@@ -226,16 +282,16 @@ export function HistoryPage() {
   };
 
   return (
-    <div className="relative space-y-12">
-      <section className="relative z-10 border-b border-[#E5E7EB] pb-6">
+    <div className="relative space-y-5 pb-24 sm:space-y-10 sm:pb-0">
+      <section className="relative z-10 border-b border-[#E5E7EB] pb-4 sm:pb-6">
         <div className="flex items-center gap-3">
           <span className="text-[14px] font-semibold text-[#186073]">{t.history.ledger}</span>
         </div>
-        <h1 className="mt-3 text-[32px] font-bold text-[#0F172A]">{t.history.txLog}</h1>
+        <h1 className="mt-2 text-[30px] font-bold leading-tight text-[#0F172A] sm:mt-3 sm:text-[32px]">{t.history.txLog}</h1>
       </section>
 
-      <section className="card-base relative z-10 p-5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <section className="card-base relative z-10 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <div className="flex items-center gap-2 text-[13px] font-semibold text-[#186073]">
               <CalendarDays className="h-4 w-4" aria-hidden="true" />
@@ -246,13 +302,13 @@ export function HistoryPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
             {DATE_PRESETS.map((preset) => (
               <button
                 key={preset.id}
                 type="button"
                 onClick={() => handlePresetClick(preset.id)}
-                className={`rounded-full border px-3 py-2 text-[12px] font-semibold transition ${
+                className={`h-9 rounded-full border px-1 text-[12px] font-semibold transition sm:h-auto sm:px-3 sm:py-2 ${
                   activePreset === preset.id
                     ? 'border-[#186073] bg-[#186073] text-white shadow-[0_8px_18px_rgba(24,96,115,0.20)]'
                     : 'border-[#D9E3EA] bg-white text-[#186073] hover:border-[#186073]/60 hover:bg-[#F2FAFC]'
@@ -264,7 +320,7 @@ export function HistoryPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-[1fr_1fr_auto]">
           <label className="grid gap-1 text-[12px] font-semibold text-[#4A5568]">
             {t.history.fromDate}
             <input
@@ -274,7 +330,7 @@ export function HistoryPage() {
                 setDateRange((prev) => ({ ...prev, from: event.target.value }));
                 setActivePreset(null);
               }}
-              className="h-11 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[14px] text-[#0F172A] outline-none transition focus:border-[#186073] focus:ring-2 focus:ring-[#186073]/15"
+              className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[14px] text-[#0F172A] outline-none transition focus:border-[#186073] focus:ring-2 focus:ring-[#186073]/15"
             />
           </label>
           <label className="grid gap-1 text-[12px] font-semibold text-[#4A5568]">
@@ -286,14 +342,14 @@ export function HistoryPage() {
                 setDateRange((prev) => ({ ...prev, to: event.target.value }));
                 setActivePreset(null);
               }}
-              className="h-11 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[14px] text-[#0F172A] outline-none transition focus:border-[#186073] focus:ring-2 focus:ring-[#186073]/15"
+              className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[14px] text-[#0F172A] outline-none transition focus:border-[#186073] focus:ring-2 focus:ring-[#186073]/15"
             />
           </label>
           <button
             type="button"
             onClick={handleSearch}
             disabled={!dateRange.from || !dateRange.to || loading}
-            className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-[12px] bg-[#186073] px-5 text-[13px] font-semibold text-white shadow-[0_10px_22px_rgba(24,96,115,0.20)] transition hover:bg-[#124D5E] disabled:cursor-not-allowed disabled:opacity-50"
+            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 self-end rounded-[12px] bg-[#186073] px-5 text-[13px] font-semibold text-white shadow-[0_10px_22px_rgba(24,96,115,0.20)] transition hover:bg-[#124D5E] disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-1"
           >
             <Search className="h-4 w-4" aria-hidden="true" />
             {t.history.search}
@@ -301,19 +357,19 @@ export function HistoryPage() {
         </div>
       </section>
 
-      <section className="relative z-10 grid gap-4 md:grid-cols-3">
-        <div className="card-base p-5">
+      <section className="relative z-10 grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="card-base p-3 sm:p-5">
           <div className="label text-[#186073]">{t.history.totalIn}</div>
-          <div className="mt-2 num text-4xl num-win">+{formatAmount(totalIn)}</div>
+          <div className="mt-1 num text-[18px] num-win sm:mt-2 sm:text-4xl">+{formatAmount(totalIn)}</div>
         </div>
-        <div className="card-base p-5">
+        <div className="card-base p-3 sm:p-5">
           <div className="label text-[#186073]">{t.history.totalOut}</div>
-          <div className="mt-2 num text-4xl num-wine">{formatAmount(totalOut)}</div>
+          <div className="mt-1 num text-[18px] num-wine sm:mt-2 sm:text-4xl">{formatAmount(totalOut)}</div>
         </div>
-        <div className="card-base p-5">
+        <div className="card-base p-3 sm:p-5">
           <div className="label text-[#186073]">{t.history.net}</div>
           <div
-            className={`mt-2 num text-4xl ${
+            className={`mt-1 num text-[18px] sm:mt-2 sm:text-4xl ${
               net >= 0 ? 'num text-[#C9A247]' : 'num-wine'
             }`}
           >
@@ -330,16 +386,41 @@ export function HistoryPage() {
       )}
 
       <section className="card-base relative z-10 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-[#E5E7EB] px-6 py-3">
-          <div className="flex items-baseline gap-2">
-            <span className="text-[14px] font-semibold text-[#186073]">
-              {t.history.showing} {items.length} / {summary.totalCount} {t.history.entries}
+        <div className="flex flex-col gap-3 border-b border-[#E5E7EB] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[15px] font-black text-[#186073]">
+              顯示 {displayStart} - {displayEnd} / {totalCount} 筆
+            </span>
+            <span className="text-[12px] font-semibold text-[#718096]">
+              第 {pageIndex + 1} / {pageCount} 頁
             </span>
           </div>
+          <label className="flex items-center gap-2 text-[13px] font-bold text-[#4A5568]">
+            每頁
+            <select
+              value={pageSize}
+              onChange={(event) => handlePageSizeChange(Number(event.target.value))}
+              className="h-10 rounded-[12px] border border-[#D9E3EA] bg-white px-3 text-[14px] font-black text-[#0F172A] outline-none transition focus:border-[#186073] focus:ring-2 focus:ring-[#186073]/15"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size} 筆
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="hidden grid-cols-[132px_150px_1fr_minmax(160px,auto)_minmax(120px,auto)] items-baseline gap-4 border-b border-[#E5E7EB] bg-white/60 px-6 py-3 text-[12px] font-black tracking-[0.12em] text-[#186073] md:grid">
+          <span>{t.history.time}</span>
+          <span>{t.history.type}</span>
+          <span>{t.history.ref}</span>
+          <span className="text-right">{t.history.amount}</span>
+          <span className="text-right">{t.history.balance}</span>
         </div>
 
         {loading && (
-          <div className="flex items-center gap-2 px-6 py-8 font-mono text-[12px] tracking-[0.25em] text-[#4A5568]">
+          <div className="flex items-center gap-2 px-4 py-8 font-mono text-[12px] tracking-[0.25em] text-[#4A5568] sm:px-6">
             <span className="dot-online dot-online" />
             {t.common.loading}
             <span className="animate-blink">_</span>
@@ -347,21 +428,14 @@ export function HistoryPage() {
         )}
 
         {!loading && items.length === 0 && (
-          <div className="px-6 py-16 text-center">
-            <div className="text-[28px] font-bold text-[#9CA3AF]">{t.history.noRecords}</div>
+          <div className="px-4 py-12 text-center sm:px-6 sm:py-16">
+            <div className="text-[24px] font-bold text-[#9CA3AF] sm:text-[28px]">{t.history.noRecords}</div>
             <div className="mt-3 text-sm text-[#4A5568]">{t.history.noRecordsInRange}</div>
           </div>
         )}
 
         {!loading && items.length > 0 && (
           <div className="divide-y divide-brass-500/20">
-            <div className="hidden grid-cols-[120px_140px_1fr_auto_auto] items-baseline gap-4 bg-white/50 px-6 py-3 font-mono text-[9px] tracking-[0.3em] text-[#186073] md:grid">
-              <span>{t.history.time}</span>
-              <span>{t.history.type}</span>
-              <span>{t.history.ref}</span>
-              <span className="text-right">{t.history.amount}</span>
-              <span className="text-right">{t.history.balance}</span>
-            </div>
             {items.map((tx) => {
               const meta = ICON[tx.type] ?? ICON.ADJUSTMENT;
               const amount = Number.parseFloat(tx.amount);
@@ -370,27 +444,24 @@ export function HistoryPage() {
               const profitValue = profit ?? 0;
               const hasWinLoss =
                 profit !== null && (tx.type === 'BET_WIN' || tx.type === 'CASHOUT');
-              const d = new Date(tx.createdAt);
-              const time = d.toLocaleTimeString('en-US', { hour12: false });
-              const date = d.toLocaleDateString('en-US', {
-                month: 'short',
-                day: '2-digit',
-              });
+              const stamp = formatTransactionStamp(tx.createdAt);
               return (
                 <div
                   key={tx.id}
-                  className="grid grid-cols-[auto_1fr_auto] items-center gap-4 px-6 py-3 transition hover:bg-[#FAF2D7]/40 md:grid-cols-[120px_140px_1fr_auto_auto]"
+                  className="grid grid-cols-[82px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3.5 transition hover:bg-[#FAF2D7]/40 sm:grid-cols-[104px_minmax(0,1fr)_auto] md:grid-cols-[132px_150px_1fr_minmax(160px,auto)_minmax(120px,auto)] md:gap-4 md:px-6 md:py-4"
                 >
-                  <div className="font-mono data-num text-[11px]">
-                    <div className="text-[#0F172A]">{time}</div>
-                    <div className="text-[9px] tracking-[0.2em] text-[#4A5568]">
-                      {date.toUpperCase()}
+                  <div className="data-num">
+                    <div className="text-[14px] font-black leading-tight text-[#0F172A] sm:text-[15px]">
+                      {stamp.time}
+                    </div>
+                    <div className="mt-1 text-[10px] font-bold leading-tight text-[#4A5568] sm:text-[11px]">
+                      {stamp.date}
                     </div>
                   </div>
                   <div className={`flex items-center gap-2 ${meta.color}`}>
-                    <span className="text-lg">{meta.icon}</span>
+                    <span className="text-[20px] leading-none">{meta.icon}</span>
                     <div className="min-w-0">
-                      <span className="font-semibold text-[12px] font-semibold tracking-[0.1em]">
+                      <span className="text-[14px] font-black tracking-[0.08em]">
                         {hasWinLoss
                           ? t.history.settlement
                           : (t.history.tx[tx.type as keyof typeof t.history.tx] ?? tx.type)}
@@ -399,17 +470,29 @@ export function HistoryPage() {
                         <button
                           type="button"
                           onClick={() => handleOpenDetail(tx.betId!)}
-                          className="mt-1 block rounded-full border border-[#186073]/20 bg-white px-2 py-1 text-[10px] font-semibold text-[#186073] md:hidden"
+                          className="mt-1.5 block rounded-full border border-[#186073]/20 bg-white px-2.5 py-1 text-[11px] font-black text-[#186073] md:hidden"
                         >
                           查看開獎
                         </button>
                       ) : null}
+                      <div className="mt-1 truncate text-[11px] font-semibold tracking-normal text-[#4A5568] md:hidden">
+                        {renderReference(tx.gameId, tx.betId)}
+                      </div>
+                      {hasWinLoss && tx.betAmount && tx.payout ? (
+                        <div className="mt-0.5 truncate text-[11px] font-semibold tracking-normal text-[#718096] md:hidden">
+                          {t.history.stake} {formatAmount(tx.betAmount)} · {t.history.payout}{' '}
+                          {formatAmount(tx.payout)}
+                        </div>
+                      ) : null}
+                      <div className="mt-0.5 data-num text-[11px] text-[#718096] md:hidden">
+                        {t.history.balance} {formatAmount(tx.balanceAfter)}
+                      </div>
                     </div>
                   </div>
-                  <div className="hidden truncate font-mono text-[11px] text-[#4A5568] md:block">
+                  <div className="hidden truncate text-[13px] font-semibold leading-relaxed text-[#4A5568] md:block">
                     <div>{renderReference(tx.gameId, tx.betId)}</div>
                     {hasWinLoss && tx.betAmount && tx.payout ? (
-                      <div className="mt-1 truncate text-[10px] tracking-normal text-[#9CA3AF]">
+                      <div className="mt-1 truncate text-[12px] tracking-normal text-[#9CA3AF]">
                         {t.history.stake} {formatAmount(tx.betAmount)} · {t.history.payout}{' '}
                         {formatAmount(tx.payout)}
                       </div>
@@ -418,7 +501,7 @@ export function HistoryPage() {
                       <button
                         type="button"
                         onClick={() => handleOpenDetail(tx.betId!)}
-                        className="mt-2 inline-flex items-center gap-1 rounded-full border border-[#186073]/18 bg-[#F2FAFC] px-2 py-1 text-[10px] font-semibold text-[#186073] transition hover:border-[#186073]/45 hover:bg-white"
+                        className="mt-2 inline-flex items-center gap-1 rounded-full border border-[#186073]/18 bg-[#F2FAFC] px-2.5 py-1 text-[12px] font-black text-[#186073] transition hover:border-[#186073]/45 hover:bg-white"
                       >
                         <ReceiptText className="h-3 w-3" aria-hidden="true" />
                         查看開獎
@@ -426,7 +509,7 @@ export function HistoryPage() {
                     ) : null}
                   </div>
                   <div
-                    className={`data-num text-right text-base font-semibold ${
+                    className={`data-num text-right text-[16px] font-black sm:text-[17px] ${
                       positive ? 'text-win' : 'text-[#D4574A]'
                     }`}
                   >
@@ -436,7 +519,7 @@ export function HistoryPage() {
                     </div>
                     {hasWinLoss ? (
                       <div
-                        className={`mt-1 text-[11px] ${
+                        className={`mt-1 text-[13px] font-black ${
                           profitValue >= 0 ? 'text-win' : 'text-[#D4574A]'
                         }`}
                       >
@@ -445,12 +528,39 @@ export function HistoryPage() {
                       </div>
                     ) : null}
                   </div>
-                  <div className="data-num text-right text-[11px] text-[#4A5568]">
+                  <div className="hidden data-num text-right text-[15px] font-semibold text-[#4A5568] md:block">
                     {formatAmount(tx.balanceAfter)}
                   </div>
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {!loading && totalCount > 0 && (
+          <div className="flex flex-col gap-3 border-t border-[#E5E7EB] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="text-[13px] font-bold text-[#4A5568]">
+              第 <span className="data-num text-[#0F172A]">{pageIndex + 1}</span> /{' '}
+              <span className="data-num text-[#0F172A]">{pageCount}</span> 頁
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <button
+                type="button"
+                onClick={handlePrevPage}
+                disabled={pageIndex === 0 || loading}
+                className="h-10 rounded-[12px] border border-[#D9E3EA] bg-white px-4 text-[13px] font-black text-[#186073] transition hover:border-[#186073]/50 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                上一頁
+              </button>
+              <button
+                type="button"
+                onClick={handleNextPage}
+                disabled={!nextCursor || loading}
+                className="h-10 rounded-[12px] border border-[#186073] bg-[#186073] px-4 text-[13px] font-black text-white transition hover:bg-[#124D5E] disabled:cursor-not-allowed disabled:border-[#D9E3EA] disabled:bg-[#EEF2F5] disabled:text-[#9CA3AF]"
+              >
+                下一頁
+              </button>
+            </div>
           </div>
         )}
       </section>

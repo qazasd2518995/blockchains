@@ -332,7 +332,7 @@ export function BlackjackPage() {
         </div>
 
         <div className="game-control-stack space-y-4">
-          <div className="game-side-card p-5">
+          <div className={`game-side-card p-5 ${settled ? 'blackjack-control-card-settled' : ''}`}>
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -341,7 +341,7 @@ export function BlackjackPage() {
               disabled={Boolean(round && round.status === 'ACTIVE') || busy}
             />
 
-            <div className="mt-6 grid grid-cols-2 gap-2">
+            <div className="blackjack-action-grid mt-6 grid grid-cols-2 gap-2">
               {!round && (
                 <button
                   type="button"
@@ -384,7 +384,11 @@ export function BlackjackPage() {
               )}
 
               {settled && (
-                <button type="button" onClick={handleReset} className="btn-acid col-span-2 w-full py-4">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="blackjack-new-round-btn btn-acid col-span-2 w-full py-4"
+                >
                   {t.bet.newRound}
                 </button>
               )}

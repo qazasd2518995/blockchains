@@ -517,6 +517,41 @@
       letter-spacing: 0.06em;
     }
 
+    .game-fullscreen-shell .blackjack-control-card-settled {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(112px, 0.72fr);
+      align-items: stretch;
+      gap: 0.45rem !important;
+    }
+
+    .game-fullscreen-shell .blackjack-control-card-settled .bet-controls {
+      min-width: 0;
+    }
+
+    .game-fullscreen-shell .blackjack-control-card-settled .bet-controls__entry {
+      height: 100%;
+      min-height: 58px;
+      grid-template-columns: minmax(0, 1fr) 72px;
+    }
+
+    .game-fullscreen-shell .blackjack-control-card-settled .blackjack-action-grid {
+      display: flex !important;
+      align-self: stretch;
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell .blackjack-control-card-settled .blackjack-new-round-btn {
+      height: 100%;
+      min-height: 58px;
+      padding-top: 0.45rem !important;
+      padding-bottom: 0.45rem !important;
+    }
+
+    .game-fullscreen-shell .blackjack-control-card-settled .game-balance-strip {
+      grid-column: 1 / -1;
+      margin-top: 0 !important;
+    }
+
     .game-fullscreen-shell .game-control-stack .game-stat-card {
       padding: 0.45rem !important;
     }

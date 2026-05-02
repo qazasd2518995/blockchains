@@ -141,23 +141,23 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <RefreshCw className="h-3.5 w-3.5 text-white/60" />
               </button>
 
-              <SoundToggle variant="dark" showLabel />
-              <MusicToggle variant="dark" showLabel />
+              <SoundToggle variant="dark" showLabel className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden" />
+              <MusicToggle variant="dark" showLabel className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden" />
 
               <button
                 type="button"
                 onClick={handleLogout}
-                className="btn-chip border-white/12 bg-[#162338] text-white/82 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white"
+                className="btn-chip border-white/12 bg-[#162338] text-white/82 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white max-sm:w-9 max-sm:px-0"
                 aria-label="登出"
               >
                 <LogOut className="h-4 w-4" />
-                登出
+                <span className="max-sm:hidden">登出</span>
               </button>
             </div>
           ) : (
             <div className="flex shrink-0 items-center gap-2">
-              <SoundToggle variant="dark" showLabel />
-              <MusicToggle variant="dark" showLabel />
+              <SoundToggle variant="dark" showLabel className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden" />
+              <MusicToggle variant="dark" showLabel className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden" />
               <Link to="/login" className="btn-teal hidden text-[13px] lg:inline-flex">
                 {t.common.login}
               </Link>

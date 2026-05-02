@@ -496,40 +496,40 @@ export function VerifyPage() {
   const filteredGames = activeHall === 'all' ? GAMES : GAMES.filter((g) => g.hall === activeHall);
 
   return (
-    <div className="space-y-8">
-      <section className="grid gap-6 xl:grid-cols-12">
-        <div className="relative overflow-hidden rounded-[28px] bg-[#0F172A] p-6 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)] md:p-8 xl:col-span-8 2xl:col-span-9">
+    <div className="space-y-5 pb-24 sm:space-y-8 sm:pb-0">
+      <section className="grid gap-3 sm:gap-6 xl:grid-cols-12">
+        <div className="relative overflow-hidden rounded-[24px] bg-[#0F172A] p-4 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)] sm:rounded-[28px] sm:p-6 md:p-8 xl:col-span-8 2xl:col-span-9">
           <img
             src="/backgrounds/game-guide-bg.png"
             alt=""
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[72%_center]"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[68%_center] sm:object-[72%_center]"
           />
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(7,15,28,0.96)_0%,rgba(7,15,28,0.9)_42%,rgba(7,15,28,0.52)_100%)]" />
 
           <div className="relative z-10">
             <div className="label !text-white/[0.55]">Game Guide</div>
-            <div className="mt-4 flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-white/10">
-                <BookOpen className="h-6 w-6 text-[#E8D48A]" aria-hidden="true" />
+            <div className="mt-3 flex items-start gap-3 sm:mt-4 sm:gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-white/10 sm:h-12 sm:w-12">
+                <BookOpen className="h-5 w-5 text-[#E8D48A] sm:h-6 sm:w-6" aria-hidden="true" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-pretty text-[32px] font-bold leading-tight md:text-[40px]">
+                <h1 className="text-pretty text-[28px] font-bold leading-[1.08] sm:text-[32px] md:text-[40px]">
                   {GAMES.length} 款人氣玩法，一頁讀懂規則與賠率。
                 </h1>
-                <p className="mt-3 max-w-3xl text-[14px] leading-relaxed text-white/[0.78]">
+                <p className="mt-3 max-w-3xl text-[13px] leading-6 text-white/[0.78] sm:text-[14px] sm:leading-relaxed">
                   飛行、棋牌牌桌、拉霸、輪盤、即開電子、策略挑戰六大主題館，從快節奏 Crash 到講究牌路節奏的百家與 21 點，挑你今晚最想開的那一桌。每款遊戲都附上玩法步驟、RTP 與最高倍率，幫你快速上手。
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-2 text-[12px]">
-              <span className="rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">RTP 96%–99%</span>
-              <span className="rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">最高 1,000,000×</span>
-              <span className="rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">即時派彩到帳</span>
+            <div className="mt-5 flex gap-2 overflow-x-auto pb-1 text-[12px] sm:mt-6 sm:flex-wrap sm:overflow-visible sm:pb-0">
+              <span className="shrink-0 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">RTP 96%–99%</span>
+              <span className="shrink-0 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">最高 1,000,000×</span>
+              <span className="shrink-0 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">即時派彩到帳</span>
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-2">
+            <div className="mt-5 flex flex-wrap gap-2 sm:mt-6">
               <Link
                 to="/lobby"
                 className="btn-chip border-white/15 bg-white/[0.06] text-white hover:border-white/30 hover:bg-white/[0.12]"
@@ -541,14 +541,14 @@ export function VerifyPage() {
           </div>
         </div>
 
-        <aside className="rounded-[24px] border border-white/[0.65] bg-white/[0.92] p-6 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-4 2xl:col-span-3">
+        <aside className="rounded-[22px] border border-white/[0.65] bg-white/[0.92] p-3 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-[24px] sm:p-6 xl:col-span-4 2xl:col-span-3">
           <div className="label">Hall Filter</div>
-          <h2 className="mt-3 text-[20px] font-bold text-[#0F172A]">挑一館深入看玩法</h2>
-          <div className="mt-4 space-y-2">
+          <h2 className="mt-2 text-[18px] font-bold text-[#0F172A] sm:mt-3 sm:text-[20px]">挑一館深入看玩法</h2>
+          <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:mt-4 sm:block sm:space-y-2 sm:overflow-visible sm:px-0 sm:pb-0">
             <button
               type="button"
               onClick={() => setActiveHall('all')}
-              className={`flex w-full items-center justify-between rounded-full border px-4 py-2.5 text-[13px] font-semibold transition ${
+              className={`flex shrink-0 items-center justify-between gap-2 rounded-full border px-4 py-2.5 text-[13px] font-semibold transition sm:w-full ${
                 activeHall === 'all'
                   ? 'border-[#0F172A] bg-[#0F172A] text-white'
                   : 'border-[#E5E7EB] bg-white text-[#0F172A] hover:border-[#0F172A]/40'
@@ -565,7 +565,7 @@ export function VerifyPage() {
                   key={hall.key}
                   type="button"
                   onClick={() => setActiveHall(hall.key)}
-                  className={`flex w-full items-center justify-between rounded-full border px-4 py-2.5 text-[13px] font-semibold transition ${
+                  className={`flex shrink-0 items-center justify-between gap-2 rounded-full border px-4 py-2.5 text-[13px] font-semibold transition sm:w-full ${
                     active
                       ? 'border-[#0F172A] bg-[#0F172A] text-white'
                       : 'border-[#E5E7EB] bg-white text-[#0F172A] hover:border-[#0F172A]/40'
@@ -580,20 +580,20 @@ export function VerifyPage() {
         </aside>
       </section>
 
-      <section className="space-y-5">
+      <section className="space-y-4 sm:space-y-5">
         <SectionHeading
           eyebrow="Game Catalogue"
           title={activeHall === 'all' ? `${GAMES.length} 款遊戲完整玩法` : `${HALLS.find((h) => h.key === activeHall)?.title} 玩法詳解`}
           description="點開卡片看每款遊戲的下注步驟、賠率上限與操作要點。"
         />
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredGames.map((game) => {
             const hall = HALLS.find((h) => h.key === game.hall)!;
             return (
               <article
                 key={game.id}
-                className="relative flex flex-col overflow-hidden rounded-[22px] border border-white/10 bg-[#0B1322] text-white shadow-[0_16px_40px_rgba(2,6,23,0.45)]"
+                className="relative flex flex-col overflow-hidden rounded-[18px] border border-white/10 bg-[#0B1322] text-white shadow-[0_16px_40px_rgba(2,6,23,0.45)] sm:rounded-[22px]"
               >
                 <img
                   src={game.cover}
@@ -609,7 +609,7 @@ export function VerifyPage() {
                   }}
                 />
 
-                <div className="relative z-10 flex flex-1 flex-col p-6">
+                <div className="relative z-10 flex flex-1 flex-col p-4 sm:p-6">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div
@@ -622,7 +622,7 @@ export function VerifyPage() {
                       >
                         {hall.title}
                       </div>
-                      <h3 className="mt-3 text-[24px] font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+                      <h3 className="mt-3 text-[21px] font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] sm:text-[24px]">
                         {game.name}
                       </h3>
                       <p className="mt-1 text-[12px] uppercase tracking-[0.18em] text-white/55">
@@ -633,17 +633,17 @@ export function VerifyPage() {
 
                   <p className="mt-4 text-[13px] leading-relaxed text-white/80">{game.intro}</p>
 
-                  <dl className="mt-5 grid grid-cols-3 gap-2 rounded-[16px] border border-white/10 bg-white/[0.06] p-3 text-center backdrop-blur">
+                  <dl className="mt-4 grid grid-cols-3 gap-1.5 rounded-[14px] border border-white/10 bg-white/[0.06] p-2.5 text-center backdrop-blur sm:mt-5 sm:gap-2 sm:rounded-[16px] sm:p-3">
                     <Stat label="RTP" value={game.rtp} />
                     <Stat label="最高倍率" value={game.maxMultiplier} />
                     <Stat label="單局時長" value={game.duration} />
                   </dl>
 
-                  <div className="mt-5">
+                  <div className="mt-4 sm:mt-5">
                     <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#E8D48A]">
                       玩法步驟
                     </div>
-                    <ol className="mt-2 space-y-1.5 text-[13px] leading-relaxed text-white/85">
+                    <ol className="mt-2 space-y-1.5 text-[12px] leading-relaxed text-white/85 sm:text-[13px]">
                       {game.howToPlay.map((step, index) => (
                         <li key={index} className="flex gap-2">
                           <span className="font-semibold text-[#F3D67D]">{index + 1}.</span>
@@ -653,7 +653,7 @@ export function VerifyPage() {
                     </ol>
                   </div>
 
-                  <div className="mt-5 rounded-[14px] border border-[#E8D48A]/35 bg-[#1F1A0E]/70 p-3 text-[12px] leading-relaxed text-[#F5DFA0] backdrop-blur">
+                  <div className="mt-4 rounded-[14px] border border-[#E8D48A]/35 bg-[#1F1A0E]/70 p-3 text-[12px] leading-relaxed text-[#F5DFA0] backdrop-blur sm:mt-5">
                     <span className="font-semibold text-[#FFE8B0]">小提示：</span>
                     {game.tips}
                   </div>
