@@ -26,12 +26,12 @@ const SYMBOL_POSITIONS = [
 ];
 
 const MEGA_SYMBOL_PAYOUTS = [
-  '3軸 0.03x · 4軸 0.12x · 5軸 0.45x',
-  '3軸 0.04x · 4軸 0.18x · 5軸 0.70x',
-  '3軸 0.06x · 4軸 0.30x · 5軸 1.20x',
-  '3軸 0.10x · 4軸 0.55x · 5軸 2.50x',
-  '3軸 0.18x · 4軸 1.20x · 5軸 7.00x',
-  '3軸 0.45x · 4軸 4.00x · 5軸 25.00x',
+  '3軸 0.03x · 4軸 0.12x · 5軸+ 0.45x',
+  '3軸 0.04x · 4軸 0.18x · 5軸+ 0.70x',
+  '3軸 0.06x · 4軸 0.30x · 5軸+ 1.20x',
+  '3軸 0.10x · 4軸 0.55x · 5軸+ 2.50x',
+  '3軸 0.18x · 4軸 1.20x · 5軸+ 7.00x',
+  '3軸 0.45x · 4軸 4.00x · 5軸+ 25.00x',
 ];
 const BIG_WIN_MULTIPLIER = 2;
 
@@ -49,27 +49,48 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
+  const [layoutVersion, setLayoutVersion] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
 
   useEffect(() => {
+    if (!isMegaSlot) return;
+    let timer = 0;
+    const scheduleSceneResize = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setLayoutVersion((v) => v + 1), 140);
+    };
+    window.addEventListener('resize', scheduleSceneResize);
+    window.addEventListener('orientationchange', scheduleSceneResize);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('resize', scheduleSceneResize);
+      window.removeEventListener('orientationchange', scheduleSceneResize);
+    };
+  }, [isMegaSlot]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    if (isMegaSlot && window.matchMedia('(orientation: portrait)').matches) return;
+
     let cancelled = false;
     let scene: HotlineScene | null = null;
     let rafId = 0;
     const tryInit = () => {
       if (cancelled) return;
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
+      const w = canvas.parentElement?.clientWidth ?? canvas.clientWidth;
+      const h = canvas.parentElement?.clientHeight ?? canvas.clientHeight;
       if (w < 10 || h < 10) {
         rafId = requestAnimationFrame(tryInit);
         return;
       }
       scene = new HotlineScene();
       sceneRef.current = scene;
-      void scene.init(canvas, w, h, slotTheme);
+      void scene.init(canvas, w, h, slotTheme).then(() => {
+        if (cancelled) scene?.dispose();
+      });
     };
     tryInit();
     return () => {
@@ -78,7 +99,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       scene?.dispose();
       sceneRef.current = null;
     };
-  }, [slotTheme]);
+  }, [isMegaSlot, layoutVersion, slotTheme]);
 
   const spin = async () => {
     if (busy) return;
@@ -146,14 +167,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         : '本局未中';
 
   return (
-    <div>
+    <div className={`slot-game-page ${isMegaSlot ? 'slot-game-page--mega' : 'slot-game-page--classic'}`}>
       {isMegaSlot && (
         <div className="slot-landscape-gate" role="status" aria-live="polite">
           <div className="slot-landscape-gate__panel">
             <RotateCw className="h-9 w-9 text-[#F3D67D]" aria-hidden="true" />
             <div className="text-center">
               <div className="text-sm font-black tracking-[0.18em] text-white">請將手機轉為橫向</div>
-              <div className="mt-1 text-xs font-semibold text-white/65">5x6 盤面需要更寬的遊玩空間</div>
+              <div className="mt-1 text-xs font-semibold text-white/65">Mega 寬版盤面需要更寬的遊玩空間</div>
             </div>
           </div>
         </div>

@@ -44,7 +44,7 @@ const COLOR_WHITE = 0xFFFFFF;
 const SYMBOL_COUNT = HOTLINE_SYMBOLS.length;
 const DEFAULT_REELS = 5;
 const ROWS = 3;
-const MEGA_ROWS = 6;
+const MEGA_ROWS = 5;
 const REEL_STRIP_LEN = 30; // reel 內部轉動用的延伸符號
 const FINAL_STOP_ROW = 2;
 
@@ -1126,7 +1126,7 @@ export class HotlineScene {
     this.particlePool = null;
     this.winFx?.dispose();
     this.winFx = null;
-    this.app?.destroy(true, { children: true });
+    this.app?.destroy(false, { children: true });
     this.app = null;
     this.reels = [];
     this.reelsContainer = null;

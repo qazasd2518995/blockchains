@@ -96,7 +96,7 @@
   <g filter="url(#cover-jungle-shadow)"><polygon points="295,357.8 325.4,393 309.4,441 280.6,441 264.6,393" fill="#facc15" opacity=".44" stroke="#22c55e" stroke-width="7"/><path d="M295 362.6 L295 436.2" stroke="#fff" stroke-width="4" opacity=".55"/></g>
 </g>
 <g>
-  <text x="90" y="118" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="800" letter-spacing="10" fill="#22c55e" opacity="0.9">MEGA 5x6</text>
+  <text x="90" y="118" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="800" letter-spacing="10" fill="#22c55e" opacity="0.9">MEGA 6x5</text>
   <text x="90" y="168" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="900" fill="#fff" letter-spacing="3">JUNGLE RELIC</text>
   <text x="92" y="220" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700" fill="#cbd5e1">WAYS • SMALL PAYS • BIG WIN</text>
 </g>

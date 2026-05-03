@@ -905,6 +905,347 @@
     }
   }
 
+  @media (orientation: landscape) and (max-height: 640px) {
+    .game-fullscreen-shell[data-slot-layout="mega"] {
+      height: 100dvh;
+      min-height: 100dvh;
+      overflow: hidden;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] > header {
+      position: relative;
+      top: auto;
+      padding-top: 0;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] > header > div {
+      height: 42px !important;
+      gap: 0.35rem !important;
+      padding-left: max(0.45rem, env(safe-area-inset-left)) !important;
+      padding-right: max(0.45rem, env(safe-area-inset-right)) !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-back,
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-reload,
+    .game-fullscreen-shell[data-slot-layout="mega"] > header button {
+      height: 34px !important;
+      min-height: 34px !important;
+      width: 34px !important;
+      min-width: 34px !important;
+      padding: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-title-block {
+      flex: 0 1 150px;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-title {
+      font-size: 13px !important;
+      line-height: 1.05 !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-subtitle {
+      display: none;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-balance {
+      display: inline-flex !important;
+      width: auto !important;
+      min-width: 82px !important;
+      height: 34px !important;
+      min-height: 34px !important;
+      padding: 0 0.6rem !important;
+      font-size: 11px !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-balance svg {
+      height: 14px;
+      width: 14px;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-history {
+      display: inline-flex !important;
+      width: 34px !important;
+      min-width: 34px !important;
+      height: 34px !important;
+      min-height: 34px !important;
+      padding: 0 !important;
+      justify-content: center;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-history span {
+      display: none;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] > main {
+      height: calc(100dvh - 42px);
+      min-height: 0;
+      overflow: hidden;
+      padding:
+        0.35rem
+        max(0.45rem, env(safe-area-inset-right))
+        max(0.35rem, env(safe-area-inset-bottom))
+        max(0.45rem, env(safe-area-inset-left));
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] > main > .slot-game-page--mega {
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .slot-game-page--mega > .game-header,
+    .game-fullscreen-shell[data-slot-layout="mega"] .slot-landscape-gate {
+      display: none;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .slot-game-page--mega .game-play-grid {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) minmax(168px, 22vw) !important;
+      height: 100%;
+      min-height: 0;
+      gap: 0.45rem !important;
+      overflow: hidden;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-main-stack,
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack {
+      min-height: 0;
+      height: 100%;
+      max-height: none !important;
+      gap: 0 !important;
+      overflow: hidden;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-main-stack {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-main-stack > :not([hidden]) ~ :not([hidden]),
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack > :not([hidden]) ~ :not([hidden]) {
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-stage-panel {
+      display: flex;
+      flex: 1 1 auto;
+      min-height: 0;
+      height: 100%;
+      flex-direction: column;
+      overflow: hidden;
+      border-radius: 14px !important;
+      padding: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-stage-panel > .game-stage-bar {
+      min-height: 30px;
+      flex: 0 0 30px;
+      margin: -0.35rem -0.35rem 0.3rem !important;
+      border-radius: 0 !important;
+      padding: 0.35rem 0.55rem !important;
+      font-size: 10px;
+      line-height: 1.15;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-stage-panel > .game-canvas-shell {
+      display: flex;
+      flex: 1 1 auto;
+      align-items: center;
+      justify-content: center;
+      width: 100% !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      aspect-ratio: auto !important;
+      border-radius: 12px !important;
+      padding: 0.25rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-stage-panel canvas {
+      display: block;
+      height: 100% !important;
+      width: 100% !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .slot-bigwin-stage {
+      inset: 30px 0.35rem 0.35rem;
+      border-radius: 12px;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack > :not(:first-child) {
+      display: none !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack > .game-side-card:first-child {
+      display: flex;
+      height: 100%;
+      min-height: 0;
+      max-height: none !important;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      border-radius: 14px !important;
+      padding: 0.45rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls {
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      padding: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__header {
+      display: none;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__entry {
+      margin-top: 0 !important;
+      border-radius: 12px !important;
+      padding: 0.25rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__input {
+      min-height: 34px !important;
+      padding: 0.1rem 0.35rem !important;
+      font-size: 18px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__adjusters {
+      gap: 0.25rem !important;
+      margin-top: 0.25rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__adjusters .game-choice-btn {
+      min-height: 30px;
+      padding: 0 !important;
+      font-size: 11px;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__presets {
+      display: grid !important;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0.25rem !important;
+      margin-top: 0.3rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__presets .game-choice-btn {
+      min-height: 28px;
+      border-radius: 8px;
+      padding: 0 !important;
+      font-size: 10px;
+      letter-spacing: 0;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack .btn-acid {
+      min-height: 42px;
+      margin-top: 0.4rem !important;
+      padding: 0.55rem 0.4rem !important;
+      font-size: 12px;
+      line-height: 1.1;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-balance-strip {
+      gap: 0.2rem 0.35rem;
+      margin-top: 0.35rem !important;
+      padding-top: 0.3rem;
+      font-size: 9px;
+      letter-spacing: 0.03em;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-main-stack > .game-result-card,
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-main-stack > .game-alert {
+      position: absolute;
+      left: 50%;
+      bottom: 0.45rem;
+      z-index: 10;
+      display: flex !important;
+      width: min(76%, 520px);
+      max-height: 42px;
+      transform: translateX(-50%);
+      align-items: center;
+      overflow: hidden;
+      border-radius: 999px !important;
+      margin: 0 !important;
+      padding: 0.34rem 0.7rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card > .slot-result-summary {
+      display: flex !important;
+      flex-direction: row !important;
+      justify-content: center !important;
+      gap: 0.55rem !important;
+      width: 100%;
+      min-width: 0;
+      text-align: center !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card > .mt-3,
+    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card .mb-1,
+    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card .mt-1 {
+      display: none !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card .text-4xl,
+    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card .text-3xl,
+    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card .text-2xl {
+      font-size: 1rem !important;
+      line-height: 1 !important;
+      white-space: nowrap;
+    }
+  }
+
+  @media (orientation: landscape) and (max-height: 430px) {
+    .game-fullscreen-shell[data-slot-layout="mega"] .slot-game-page--mega .game-play-grid {
+      grid-template-columns: minmax(0, 1fr) 156px !important;
+      gap: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] > header > div {
+      height: 38px !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] > main {
+      height: calc(100dvh - 38px);
+      padding-top: 0.25rem;
+      padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-title-block {
+      flex-basis: 118px;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-stage-panel > .game-stage-bar {
+      min-height: 26px;
+      flex-basis: 26px;
+      padding-top: 0.28rem !important;
+      padding-bottom: 0.28rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__presets .game-choice-btn {
+      min-height: 24px;
+      font-size: 9px;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack .btn-acid {
+      min-height: 36px;
+      margin-top: 0.3rem !important;
+      padding-top: 0.45rem !important;
+      padding-bottom: 0.45rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout="mega"] .game-balance-strip {
+      display: none;
+    }
+  }
+
   @media (max-width: 767px) and (orientation: portrait) {
     .slot-landscape-gate {
       position: fixed;

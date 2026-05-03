@@ -3,8 +3,8 @@ import { hmacIntStream } from './hmac.js';
 export const HOTLINE_REELS = 5;
 export const HOTLINE_MINI_REELS = 3;
 export const HOTLINE_ROWS = 3;
-export const HOTLINE_MEGA_REELS = 5;
-export const HOTLINE_MEGA_ROWS = 6;
+export const HOTLINE_MEGA_REELS = 6;
+export const HOTLINE_MEGA_ROWS = 5;
 export const HOTLINE_MEGA_MAX_CASCADES = 6;
 export const HOTLINE_3X3_GAME_IDS = new Set([
   'temple-slot',

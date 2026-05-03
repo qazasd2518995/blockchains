@@ -46,6 +46,14 @@ const GAME_NAME_ZH: Record<string, string> = {
   carnival: '狂歡節',
 };
 
+const MEGA_SLOT_GAME_IDS = new Set([
+  'thunder-slot',
+  'dragon-mega-slot',
+  'nebula-slot',
+  'jungle-slot',
+  'vampire-slot',
+]);
+
 function useCurrentGameMeta() {
   const location = useLocation();
   return useMemo(() => {
@@ -65,6 +73,7 @@ export function GameFullscreenShell() {
   const returnTarget = useGameReturnTarget();
   const location = useLocation();
   const loginPath = buildLoginPath(`${location.pathname}${location.search}`, 'game');
+  const slotLayout = MEGA_SLOT_GAME_IDS.has(game.id) ? 'mega' : 'standard';
 
   const handleBalanceRefresh = async () => {
     if (!user) return;
@@ -80,6 +89,7 @@ export function GameFullscreenShell() {
     <div
       className="game-fullscreen-shell relative min-h-[100svh] overflow-x-hidden bg-[#050A13] text-white"
       data-game-id={game.id}
+      data-slot-layout={slotLayout}
     >
       <div className="pointer-events-none fixed inset-0">
         <img
@@ -95,17 +105,17 @@ export function GameFullscreenShell() {
         <div className="mx-auto flex h-14 w-full max-w-[1920px] items-center gap-2 px-2 sm:px-4 xl:px-5">
           <Link
             to={returnTarget.to}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/82 transition hover:border-white/24 hover:bg-white/[0.1] hover:text-white"
+            className="game-shell-back inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/82 transition hover:border-white/24 hover:bg-white/[0.1] hover:text-white"
             aria-label={`返回${returnTarget.label}`}
           >
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
 
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[15px] font-black leading-tight text-white sm:text-[16px]">
+          <div className="game-shell-title-block min-w-0 flex-1">
+            <div className="game-shell-title truncate text-[15px] font-black leading-tight text-white sm:text-[16px]">
               {game.title}
             </div>
-            <div className="truncate text-[10px] font-bold uppercase tracking-[0.22em] text-white/42">
+            <div className="game-shell-subtitle truncate text-[10px] font-bold uppercase tracking-[0.22em] text-white/42">
               {game.subtitle}
             </div>
           </div>
@@ -114,7 +124,7 @@ export function GameFullscreenShell() {
             <button
               type="button"
               onClick={handleBalanceRefresh}
-              className="hidden h-10 shrink-0 items-center gap-2 rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338] sm:inline-flex"
+              className="game-shell-balance hidden h-10 shrink-0 items-center gap-2 rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338] sm:inline-flex"
               title="重新載入餘額"
             >
               <WalletCards className="h-4 w-4" aria-hidden="true" />
@@ -123,7 +133,7 @@ export function GameFullscreenShell() {
           ) : (
             <Link
               to={loginPath}
-              className="hidden h-10 shrink-0 items-center rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338] sm:inline-flex"
+              className="game-shell-balance hidden h-10 shrink-0 items-center rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338] sm:inline-flex"
             >
               登入下注
             </Link>
@@ -131,7 +141,7 @@ export function GameFullscreenShell() {
 
           <Link
             to={user ? '/history' : loginPath}
-            className="hidden h-10 shrink-0 items-center gap-2 rounded-full border border-white/12 bg-white/[0.06] px-3 text-[12px] font-semibold text-white/72 transition hover:border-white/24 hover:bg-white/[0.1] hover:text-white md:inline-flex"
+            className="game-shell-history hidden h-10 shrink-0 items-center gap-2 rounded-full border border-white/12 bg-white/[0.06] px-3 text-[12px] font-semibold text-white/72 transition hover:border-white/24 hover:bg-white/[0.1] hover:text-white md:inline-flex"
           >
             <History className="h-4 w-4" aria-hidden="true" />
             記錄
@@ -143,7 +153,7 @@ export function GameFullscreenShell() {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/72 transition hover:border-white/24 hover:bg-white/[0.1] hover:text-white"
+            className="game-shell-reload inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/72 transition hover:border-white/24 hover:bg-white/[0.1] hover:text-white"
             aria-label="重新載入遊戲"
             title="重新載入遊戲"
           >

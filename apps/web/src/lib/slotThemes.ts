@@ -36,8 +36,8 @@ export interface SlotSymbolThemeMeta {
 export interface SlotThemeConfig {
   id: SlotThemeId;
   gameId: SlotGameId;
-  reels: 3 | 5;
-  rows: 3 | 6;
+  reels: 3 | 5 | 6;
+  rows: 3 | 5;
   title: string;
   suffix: string;
   description: string;
@@ -307,11 +307,11 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
   thunder: {
     id: 'thunder',
     gameId: 'thunder-slot',
-    reels: 5,
-    rows: 6,
+    reels: 6,
+    rows: 5,
     title: '雷神之鎚',
     suffix: 'THUNDER',
-    description: '5x6 全方式連線，低倍小中獎與高倍爆分同時存在。',
+    description: '6x5 全方式連線，低倍小中獎與高倍爆分同時存在。',
     stageLabel: '雷神之鎚',
     readyLabel: '蓄雷待發',
     spinningLabel: '雷電轉軸中',
@@ -328,11 +328,11 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
   dragonMega: {
     id: 'dragonMega',
     gameId: 'dragon-mega-slot',
-    reels: 5,
-    rows: 6,
+    reels: 6,
+    rows: 5,
     title: '龍焰巨輪',
     suffix: 'DRAGON',
-    description: '龍火、金幣與寶珠交錯的 5x6 全方式爆分拉霸。',
+    description: '龍火、金幣與寶珠交錯的 6x5 全方式爆分拉霸。',
     stageLabel: '龍焰巨輪',
     readyLabel: '龍焰待燃',
     spinningLabel: '龍火翻騰中',
@@ -349,11 +349,11 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
   nebula: {
     id: 'nebula',
     gameId: 'nebula-slot',
-    reels: 5,
-    rows: 6,
+    reels: 6,
+    rows: 5,
     title: '星河寶藏',
     suffix: 'NEBULA',
-    description: '星雲、傳送門與水晶構成的科幻 5x6 全方式拉霸。',
+    description: '星雲、傳送門與水晶構成的科幻 6x5 全方式拉霸。',
     stageLabel: '星河寶藏',
     readyLabel: '星門就緒',
     spinningLabel: '星雲連鎖中',
@@ -370,11 +370,11 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
   jungle: {
     id: 'jungle',
     gameId: 'jungle-slot',
-    reels: 5,
-    rows: 6,
+    reels: 6,
+    rows: 5,
     title: '秘境遺跡',
     suffix: 'JUNGLE',
-    description: '雨林遺跡、古老面具與祖母綠的 5x6 全方式拉霸。',
+    description: '雨林遺跡、古老面具與祖母綠的 6x5 全方式拉霸。',
     stageLabel: '秘境遺跡',
     readyLabel: '遺跡甦醒',
     spinningLabel: '藤蔓連鎖中',
@@ -391,11 +391,11 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
   vampire: {
     id: 'vampire',
     gameId: 'vampire-slot',
-    reels: 5,
-    rows: 6,
+    reels: 6,
+    rows: 5,
     title: '暗夜古堡',
     suffix: 'CASTLE',
-    description: '玫瑰、月影與古堡符號打造的哥德 5x6 全方式拉霸。',
+    description: '玫瑰、月影與古堡符號打造的哥德 6x5 全方式拉霸。',
     stageLabel: '暗夜古堡',
     readyLabel: '夜幕降臨',
     spinningLabel: '古堡轉軸中',

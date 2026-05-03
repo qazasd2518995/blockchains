@@ -412,7 +412,7 @@ const GAMES: Game[] = [
     rtp: '96.5%',
     maxMultiplier: '25×+',
     duration: '單局 5 秒',
-    intro: '5 軸 6 列 Mega 老虎機，全方式連續軸派彩，會出現小中獎但總體仍虧損的回本獎。',
+    intro: '6 軸 5 列 Mega 老虎機，全方式連續軸派彩，會出現小中獎但總體仍虧損的回本獎。',
     howToPlay: [
       '選擇下注金額後點擊「旋轉」開始。',
       '相同符號從最左或最右連續出現在至少 3 軸即可派彩。',
@@ -429,9 +429,9 @@ const GAMES: Game[] = [
     rtp: '96.5%',
     maxMultiplier: '25×+',
     duration: '單局 5 秒',
-    intro: '龍焰主題 5x6 全方式老虎機，低倍回本與高倍爆分會交錯出現。',
+    intro: '龍焰主題 6x5 全方式老虎機，低倍回本與高倍爆分會交錯出現。',
     howToPlay: [
-      '下注後旋轉 5 軸 6 列盤面。',
+      '下注後旋轉 6 軸 5 列盤面。',
       '連續軸上相同符號越多，基礎倍率越高。',
       '同軸多個相同符號會增加方式數，形成更高總倍率。',
     ],
@@ -446,7 +446,7 @@ const GAMES: Game[] = [
     rtp: '96.5%',
     maxMultiplier: '25×+',
     duration: '單局 5 秒',
-    intro: '科幻星河風格 5x6 全方式老虎機，重點是多線小派彩與偶發高倍。',
+    intro: '科幻星河風格 6x5 全方式老虎機，重點是多線小派彩與偶發高倍。',
     howToPlay: [
       '相同符號從任一側開始連續 3 軸以上即有派彩。',
       '多個方式同時成立時，系統會合計全部倍率。',
@@ -463,7 +463,7 @@ const GAMES: Game[] = [
     rtp: '96.5%',
     maxMultiplier: '25×+',
     duration: '單局 5 秒',
-    intro: '雨林遺跡風格 5x6 全方式老虎機，低倍符號容易形成回本獎。',
+    intro: '雨林遺跡風格 6x5 全方式老虎機，低倍符號容易形成回本獎。',
     howToPlay: [
       '轉軸停止後自動檢查左右兩側連續軸。',
       '低階符號可形成 0.3x、0.5x 等小派彩。',
@@ -480,7 +480,7 @@ const GAMES: Game[] = [
     rtp: '96.5%',
     maxMultiplier: '25×+',
     duration: '單局 5 秒',
-    intro: '哥德暗夜風格 5x6 全方式老虎機，部分回本與高倍古堡符號並存。',
+    intro: '哥德暗夜風格 6x5 全方式老虎機，部分回本與高倍古堡符號並存。',
     howToPlay: [
       '下注後旋轉，至少 3 軸連續相同符號才派彩。',
       '總倍率小於 1x 時仍會顯示小中獎派彩，但盈虧為負。',
@@ -581,9 +581,9 @@ export function VerifyPage() {
   const filteredGames = activeHall === 'all' ? GAMES : GAMES.filter((g) => g.hall === activeHall);
 
   return (
-    <div className="space-y-5 pb-24 sm:space-y-8 sm:pb-0">
-      <section className="grid gap-3 sm:gap-6 xl:grid-cols-12">
-        <div className="relative overflow-hidden rounded-[24px] bg-[#0F172A] p-4 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)] sm:rounded-[28px] sm:p-6 md:p-8 xl:col-span-8 2xl:col-span-9">
+    <div className="verify-page max-w-full space-y-5 overflow-x-hidden pb-24 sm:space-y-8 sm:pb-0">
+      <section className="grid min-w-0 gap-3 sm:gap-6 xl:grid-cols-12">
+        <div className="relative min-w-0 max-w-full overflow-hidden rounded-[20px] bg-[#0F172A] p-4 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)] sm:rounded-[28px] sm:p-6 md:p-8 xl:col-span-8 2xl:col-span-9">
           <img
             src="/backgrounds/game-guide-bg.png"
             alt=""
@@ -598,11 +598,11 @@ export function VerifyPage() {
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-white/10 sm:h-12 sm:w-12">
                 <BookOpen className="h-5 w-5 text-[#E8D48A] sm:h-6 sm:w-6" aria-hidden="true" />
               </div>
-              <div className="min-w-0">
-                <h1 className="text-pretty text-[28px] font-bold leading-[1.08] sm:text-[32px] md:text-[40px]">
+              <div className="min-w-0 max-w-full">
+                <h1 className="max-w-full break-words text-[24px] font-bold leading-[1.12] [overflow-wrap:anywhere] sm:text-[32px] md:text-[40px]">
                   {GAMES.length} 款人氣玩法，一頁讀懂規則與賠率。
                 </h1>
-                <p className="mt-3 max-w-3xl text-[13px] leading-6 text-white/[0.78] sm:text-[14px] sm:leading-relaxed">
+                <p className="mt-3 max-w-3xl break-words text-[13px] leading-6 text-white/[0.78] [overflow-wrap:anywhere] sm:text-[14px] sm:leading-relaxed">
                   飛行、棋牌牌桌、拉霸、輪盤、即開電子、策略挑戰六大主題館，從快節奏 Crash 到講究牌路節奏的百家與 21 點，挑你今晚最想開的那一桌。每款遊戲都附上玩法步驟、RTP 與最高倍率，幫你快速上手。
                 </p>
               </div>
@@ -626,7 +626,7 @@ export function VerifyPage() {
           </div>
         </div>
 
-        <aside className="rounded-[22px] border border-white/[0.65] bg-white/[0.92] p-3 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-[24px] sm:p-6 xl:col-span-4 2xl:col-span-3">
+        <aside className="min-w-0 max-w-full overflow-hidden rounded-[22px] border border-white/[0.65] bg-white/[0.92] p-3 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-[24px] sm:p-6 xl:col-span-4 2xl:col-span-3">
           <div className="label">Hall Filter</div>
           <h2 className="mt-2 text-[18px] font-bold text-[#0F172A] sm:mt-3 sm:text-[20px]">挑一館深入看玩法</h2>
           <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:mt-4 sm:block sm:space-y-2 sm:overflow-visible sm:px-0 sm:pb-0">

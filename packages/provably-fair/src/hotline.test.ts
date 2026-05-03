@@ -37,7 +37,7 @@ describe('hotlineSpin', () => {
     expect(getHotlineReelCount('temple-slot')).toBe(HOTLINE_MINI_REELS);
   });
 
-  it('supports 5x6 mega slot variants', () => {
+  it('supports 6x5 mega slot variants', () => {
     const grid = hotlineSpin('s', 'c', 1, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS);
     expect(grid.length).toBe(HOTLINE_MEGA_REELS);
     for (const col of grid) {
@@ -51,7 +51,7 @@ describe('hotlineSpin', () => {
     expect(getHotlineRowCount('thunder-slot')).toBe(HOTLINE_MEGA_ROWS);
   });
 
-  it('supports deterministic 5x6 cascade drops after ways wins', () => {
+  it('supports deterministic 6x5 cascade drops after ways wins', () => {
     const result = hotlineSpinCascades('server', 'client', 17, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS);
     const firstGrid = hotlineSpin('server', 'client', 17, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS);
 
@@ -165,13 +165,14 @@ describe('hotlineEvaluate', () => {
     expect(totalMultiplier).toBe(HOTLINE_SYMBOLS[5]!.payout3);
   });
 
-  it('evaluates 5x6 ways wins with partial payout below stake', () => {
+  it('evaluates 6x5 ways wins with partial payout below stake', () => {
     const grid = [
-      [0, 1, 1, 2, 2, 3],
-      [0, 2, 2, 3, 3, 4],
-      [0, 4, 4, 5, 5, 5],
-      [1, 1, 2, 2, 3, 3],
-      [0, 0, 1, 1, 2, 2],
+      [0, 1, 1, 2, 2],
+      [0, 2, 2, 3, 3],
+      [0, 4, 4, 5, 5],
+      [1, 1, 2, 2, 3],
+      [2, 2, 3, 3, 4],
+      [3, 3, 4, 4, 5],
     ];
     const { lines, totalMultiplier } = hotlineEvaluate(grid);
     const lowLine = lines.find((line) => line.symbol === 0 && line.direction === 'ltr');
@@ -183,19 +184,20 @@ describe('hotlineEvaluate', () => {
     expect(totalMultiplier).toBeLessThan(1);
   });
 
-  it('multiplies 5x6 ways by symbol occurrences on each reel', () => {
+  it('multiplies 6x5 ways by symbol occurrences on each reel', () => {
     const grid = [
-      [5, 5, 0, 1, 2, 3],
-      [5, 1, 5, 2, 3, 4],
-      [5, 2, 3, 5, 4, 0],
-      [5, 3, 4, 0, 1, 2],
-      [5, 4, 0, 1, 2, 3],
+      [5, 5, 0, 1, 2],
+      [5, 1, 5, 2, 3],
+      [5, 2, 3, 5, 4],
+      [5, 3, 4, 0, 1],
+      [5, 4, 0, 1, 2],
+      [5, 0, 1, 2, 3],
     ];
     const { lines, totalMultiplier } = hotlineEvaluate(grid);
     const premium = lines.find((line) => line.symbol === 5 && line.direction === 'ltr');
 
     expect(premium).toBeDefined();
-    expect(premium!.count).toBe(5);
+    expect(premium!.count).toBe(6);
     expect(premium!.ways).toBe(8);
     expect(premium!.payout).toBe(200);
     expect(totalMultiplier).toBeGreaterThanOrEqual(200);
