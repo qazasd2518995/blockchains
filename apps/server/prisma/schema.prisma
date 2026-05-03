@@ -569,6 +569,8 @@ model BurstControl {
   smallWinRate         Decimal              @default(0.35) @db.Decimal(5, 4)
   lossRate             Decimal              @default(0.45) @db.Decimal(5, 4)
   compensationLoss     Decimal              @default(500) @db.Decimal(20, 2)
+  capitalRetentionRatio Decimal             @default(0.30) @db.Decimal(5, 4)
+  minEligibilityLoss   Decimal              @default(0) @db.Decimal(20, 2)
   riskWinLimit         Decimal              @default(1000) @db.Decimal(20, 2)
   cooldownRounds       Int                  @default(8)
   currentGameDay       String

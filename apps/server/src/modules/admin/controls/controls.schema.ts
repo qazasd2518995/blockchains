@@ -60,6 +60,8 @@ export const burstControlSchema = z
     smallWinRate: decimal.default('0.35'),
     lossRate: decimal.default('0.45'),
     compensationLoss: decimal.default('500'),
+    capitalRetentionRatio: decimal.default('0.30'),
+    minEligibilityLoss: decimal.default('0'),
     riskWinLimit: decimal.optional(),
     cooldownRounds: z.coerce.number().int().min(0).max(200).default(8),
     notes: z.string().max(500).optional(),
@@ -92,6 +94,8 @@ export const burstControlSchema = z
     const dailyBudget = Number(value.dailyBudget);
     const memberDailyCap = Number(value.memberDailyCap);
     const burstRate = Number(value.burstRate);
+    const capitalRetentionRatio = Number(value.capitalRetentionRatio);
+    const minEligibilityLoss = Number(value.minEligibilityLoss);
     if (!Number.isFinite(minProfit) || minProfit <= 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -125,6 +129,20 @@ export const burstControlSchema = z
         code: z.ZodIssueCode.custom,
         message: '爆分机率必须介于 0 到 100',
         path: ['burstRate'],
+      });
+    }
+    if (!Number.isFinite(capitalRetentionRatio) || capitalRetentionRatio < 0 || capitalRetentionRatio >= 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '本金剩余比例必须介于 0 到 99.99',
+        path: ['capitalRetentionRatio'],
+      });
+    }
+    if (!Number.isFinite(minEligibilityLoss) || minEligibilityLoss < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '最低累亏金额不可小于 0',
+        path: ['minEligibilityLoss'],
       });
     }
   });

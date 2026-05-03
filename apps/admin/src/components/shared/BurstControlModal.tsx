@@ -19,6 +19,8 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
   const [maxBurstProfit, setMaxBurstProfit] = useState('3000');
   const [dailyBudget, setDailyBudget] = useState('30000');
   const [memberDailyCap, setMemberDailyCap] = useState('5000');
+  const [capitalRetentionRatio, setCapitalRetentionRatio] = useState('30');
+  const [minEligibilityLoss, setMinEligibilityLoss] = useState('0');
   const [notes, setNotes] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,6 +34,8 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
       setMaxBurstProfit('3000');
       setDailyBudget('30000');
       setMemberDailyCap('5000');
+      setCapitalRetentionRatio('30');
+      setMinEligibilityLoss('0');
       setNotes('');
       setErr(null);
       setBusy(false);
@@ -66,6 +70,8 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
         maxBurstProfit,
         dailyBudget,
         memberDailyCap,
+        capitalRetentionRatio,
+        minEligibilityLoss,
         notes: notes || undefined,
       });
       onDone();
@@ -81,7 +87,7 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
     <Modal open={open} onClose={onClose} title="新增爆分控制" subtitle="简单爆分池" width="lg">
       <div className="space-y-4">
         <div className="rounded-[6px] border border-[#186073]/20 bg-[#186073]/5 p-3 text-[12px] text-[#334155]">
-          只需要设定爆分机率、单次净赢范围与每日池。系统会自动套用会员上限、剩余池检查、8 局冷却与风险防守，避免连续爆分或单次派彩失控。
+          只需要设定爆分机率、单次净赢范围与每日池。系统会自动套用会员上限、本金剩余门槛、剩余池检查、8 局冷却与风险防守，避免连续爆分或单次派彩失控。
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -123,10 +129,25 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
           <Field label="单会员每日上限" value={memberDailyCap} onChange={setMemberDailyCap} />
         </div>
 
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field
+            label="本金剩余才爆分（%）"
+            value={capitalRetentionRatio}
+            onChange={setCapitalRetentionRatio}
+            hint="30 = 玩家今日本金约剩 30% 时才进爆分池；0 = 不限制"
+          />
+          <Field
+            label="最低累亏金额"
+            value={minEligibilityLoss}
+            onChange={setMinEligibilityLoss}
+            hint="可避免小本金太快进爆分池；0 = 只看本金比例"
+          />
+        </div>
+
         <div className="rounded-[6px] border border-[#D4AF37]/30 bg-[#FFF8DA] p-3 text-[12px] text-[#6D5716]">
           <div className="font-semibold">自动护栏</div>
           <div className="mt-1">
-            单次爆分会被限制在净赢范围内；若每日池或会员上限不足，会自动停止爆分。会员达到上限后，高倍自然结果会被压到可控小赢或输局。
+            单次爆分会被限制在净赢范围内；本金未触发前只跳过爆分池正向介入。若每日池或会员上限不足，会自动停止爆分。会员达到上限后，高倍自然结果会被压到可控小赢或输局。
           </div>
         </div>
 

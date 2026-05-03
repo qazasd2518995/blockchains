@@ -502,6 +502,8 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         smallWinRate: normalizeRate(body.smallWinRate).toDecimalPlaces(4),
         lossRate: normalizeRate(body.lossRate).toDecimalPlaces(4),
         compensationLoss: decimal(body.compensationLoss).toDecimalPlaces(2),
+        capitalRetentionRatio: normalizeRate(body.capitalRetentionRatio).toDecimalPlaces(4),
+        minEligibilityLoss: decimal(body.minEligibilityLoss).toDecimalPlaces(2),
         riskWinLimit,
         cooldownRounds: body.cooldownRounds,
         currentGameDay: getControlGameDay(),
@@ -529,6 +531,8 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           targetMemberUsername: record.targetMemberUsername,
           dailyBudget: record.dailyBudget.toFixed(2),
           singlePayoutCap: record.singlePayoutCap.toFixed(2),
+          capitalRetentionRatio: record.capitalRetentionRatio.toFixed(4),
+          minEligibilityLoss: record.minEligibilityLoss.toFixed(2),
         },
         req,
       });

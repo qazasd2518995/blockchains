@@ -105,6 +105,8 @@ interface BurstRow {
   smallWinRate: string;
   lossRate: string;
   compensationLoss: string;
+  capitalRetentionRatio: string;
+  minEligibilityLoss: string;
   riskWinLimit: string;
   cooldownRounds: number;
   isActive: boolean;
@@ -477,6 +479,7 @@ export function ControlsOverviewPage(): JSX.Element {
     { key: 'used', label: '已用', align: 'right', render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.todayBurstAmount)}</span> },
     { key: 'range', label: '单次净赢', align: 'right', render: (r) => <span className="data-num">{fmt(r.minBurstMultiplier)}-{fmt(r.singlePayoutCap)}</span> },
     { key: 'memberCap', label: '会员上限', align: 'right', render: (r) => <span className="data-num">{fmt(r.memberDailyCap)}</span> },
+    { key: 'eligibility', label: '进池门槛', render: (r) => <span className="font-mono text-[11px]">{formatBurstEligibility(r)}</span> },
     { key: 'rates', label: '机率', render: (r) => <span className="font-mono text-[11px]">爆 {pct(r.burstRate)}</span> },
     {
       key: 'status',
@@ -537,7 +540,7 @@ export function ControlsOverviewPage(): JSX.Element {
       <div className="mb-4 rounded-[6px] border border-[#AE8B35]/35 bg-[#FFF8E1] px-4 py-3 text-[12px] text-[#5C4B1F]">
         <div className="font-semibold text-[#7A5F15]">控制优先级</div>
         <div className="mt-1">会员赢控制 &gt; 代理线赢控制 &gt; 会员输控制 &gt; 代理线输控制 &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 爆分控制</div>
-        <div className="mt-1 text-[#7A5F15]/80">爆分控制只在前面的硬性控制都没有命中时介入，用机率、净赢范围、每日池与会员上限制造可控爆分；高倍自然结果超过额度时会被压到可控派彩。</div>
+        <div className="mt-1 text-[#7A5F15]/80">爆分控制只在前面的硬性控制都没有命中时介入，用机率、净赢范围、本金剩余门槛、每日池与会员上限制造可控爆分；高倍自然结果超过额度时会被压到可控派彩。</div>
       </div>
 
       <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
@@ -651,7 +654,7 @@ export function ControlsOverviewPage(): JSX.Element {
             </div>
             <div className="mb-3 rounded-[6px] border border-[#186073]/20 bg-[#EFF8FB] px-4 py-3 text-[12px] text-[#32505C]">
               <div className="font-semibold text-[#186073]">运行说明</div>
-              <div className="mt-1">后端会把单次派彩限制在净赢范围内，并用每日池、会员每日上限、8 局冷却与风险线自动防守。额度不足时会停止爆分，高倍自然结果会被压到可控小赢或输局。</div>
+              <div className="mt-1">后端会把单次派彩限制在净赢范围内，并用本金剩余门槛、每日池、会员每日上限、8 局冷却与风险线自动防守。额度不足时会停止爆分，高倍自然结果会被压到可控小赢或输局。</div>
             </div>
             <DataTable columns={bcCols} rows={bc} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
@@ -763,6 +766,18 @@ function formatBurstTarget(row: BurstRow): string {
   if (row.scope === 'ALL') return '全盘';
   if (row.scope === 'AGENT_LINE') return row.targetAgentUsername ?? '—';
   return row.targetMemberUsername ?? '—';
+}
+
+function formatBurstEligibility(row: BurstRow): string {
+  const retention = Number.parseFloat(row.capitalRetentionRatio ?? '0');
+  const minLoss = Number.parseFloat(row.minEligibilityLoss ?? '0');
+  if ((!Number.isFinite(retention) || retention <= 0) && (!Number.isFinite(minLoss) || minLoss <= 0)) {
+    return '不限制';
+  }
+  const parts: string[] = [];
+  if (Number.isFinite(retention) && retention > 0) parts.push(`剩 ${pct(row.capitalRetentionRatio)}`);
+  if (Number.isFinite(minLoss) && minLoss > 0) parts.push(`亏 ${fmt(row.minEligibilityLoss)}`);
+  return parts.join(' / ');
 }
 
 function sumRows(rows: BurstRow[], key: 'dailyBudget' | 'todayBurstAmount'): string {

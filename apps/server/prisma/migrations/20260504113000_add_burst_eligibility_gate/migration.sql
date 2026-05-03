@@ -1,0 +1,3 @@
+ALTER TABLE "BurstControl"
+  ADD COLUMN "capitalRetentionRatio" DECIMAL(5,4) NOT NULL DEFAULT 0.30,
+  ADD COLUMN "minEligibilityLoss" DECIMAL(20,2) NOT NULL DEFAULT 0;
