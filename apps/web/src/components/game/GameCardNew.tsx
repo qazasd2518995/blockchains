@@ -8,6 +8,7 @@ const HAS_COVER = new Set<string>([
   'baccarat', 'baccarat-nova', 'baccarat-imperial', 'blackjack',
   'dice', 'mines', 'hilo', 'keno', 'wheel', 'mini-roulette',
   'plinko', 'hotline', 'fruit-slot', 'fortune-slot', 'ocean-slot', 'temple-slot', 'candy-slot', 'sakura-slot', 'rocket', 'aviator', 'space-fleet',
+  'thunder-slot', 'dragon-mega-slot', 'nebula-slot', 'jungle-slot', 'vampire-slot',
   'jetx', 'balloon', 'jetx3', 'double-x', 'plinko-x', 'tower', 'carnival',
 ]);
 
@@ -25,6 +26,11 @@ const NEW_GAMES = new Set([
   'temple-slot',
   'candy-slot',
   'sakura-slot',
+  'thunder-slot',
+  'dragon-mega-slot',
+  'nebula-slot',
+  'jungle-slot',
+  'vampire-slot',
 ]);
 
 // 繁中名称覆写（game registry 中有些是简中）
@@ -47,6 +53,11 @@ const NAME_ZH_TW: Record<string, string> = {
   'temple-slot': '圣殿宝石',
   'candy-slot': '糖果派对',
   'sakura-slot': '夜樱武士',
+  'thunder-slot': '雷神之鎚',
+  'dragon-mega-slot': '龍焰巨輪',
+  'nebula-slot': '星河寶藏',
+  'jungle-slot': '秘境遺跡',
+  'vampire-slot': '暗夜古堡',
   tower: '叠塔',
   rocket: '火箭',
   aviator: '飞行员',

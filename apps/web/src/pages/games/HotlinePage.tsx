@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, RotateCw } from 'lucide-react';
 import type { HotlineBetRequest, HotlineBetResult } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -25,11 +25,23 @@ const SYMBOL_POSITIONS = [
   '100% 100%',
 ];
 
+const MEGA_SYMBOL_PAYOUTS = [
+  '3軸 0.03x · 4軸 0.12x · 5軸 0.45x',
+  '3軸 0.04x · 4軸 0.18x · 5軸 0.70x',
+  '3軸 0.06x · 4軸 0.30x · 5軸 1.20x',
+  '3軸 0.10x · 4軸 0.55x · 5軸 2.50x',
+  '3軸 0.18x · 4軸 1.20x · 5軸 7.00x',
+  '3軸 0.45x · 4軸 4.00x · 5軸 25.00x',
+];
+const BIG_WIN_MULTIPLIER = 2;
+
 export function HotlinePage({ theme = 'cyber' }: Props) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
   const requireLogin = useRequireLogin();
   const slotTheme = getSlotTheme(theme);
+  const isMegaSlot = slotTheme.rows > 3;
+  const canvasAspectClass = isMegaSlot ? 'aspect-[16/10]' : 'aspect-[16/7]';
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
   const [result, setResult] = useState<HotlineBetResult | null>(null);
@@ -84,8 +96,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     try {
       const payload: HotlineBetRequest = { amount, gameId: slotTheme.gameId };
       const res = await api.post<HotlineBetResult>('/games/hotline/bet', payload);
-      await sceneRef.current?.playSpin(res.data.grid, res.data.lines);
+      const cascades = res.data.cascades ?? [];
+      if (cascades.length > 0) {
+        await sceneRef.current?.playCascadeSpin(cascades, res.data.grid);
+      } else {
+        await sceneRef.current?.playSpin(res.data.grid, res.data.lines);
+      }
       const mult = res.data.multiplier ?? 0;
+      const profitValue = Number.parseFloat(res.data.profit);
       sceneRef.current?.playWinFx(mult, mult > 0);
       setResult(res.data);
       setBalance(res.data.newBalance);
@@ -96,8 +114,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           betAmount: amount,
           multiplier: mult,
           payout: amount * mult,
-          won: mult > 0,
-          detail: `${res.data.lines.length} 連線`,
+          won: profitValue >= 0,
+          detail: cascades.length > 0
+            ? `${cascades.length} 次消除 · ${res.data.lines.length} 方式`
+            : `${res.data.lines.length} 連線`,
         },
         ...prev,
       ].slice(0, 30));
@@ -111,8 +131,34 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     }
   };
 
+  const resultAmount = result ? Number.parseFloat(result.amount) : 0;
+  const resultPayout = result ? Number.parseFloat(result.payout) : 0;
+  const resultProfit = result ? Number.parseFloat(result.profit) : 0;
+  const resultMultiplier = result?.multiplier ?? 0;
+  const cascadeCount = result?.cascades?.length ?? 0;
+  const isBigWinResult = resultProfit > 0 && resultMultiplier >= BIG_WIN_MULTIPLIER;
+  const resultTitle = isBigWinResult
+    ? '恭喜爆分'
+    : resultPayout > resultAmount
+      ? '恭喜中獎'
+      : resultPayout > 0
+        ? '小中獎派彩'
+        : '本局未中';
+
   return (
     <div>
+      {isMegaSlot && (
+        <div className="slot-landscape-gate" role="status" aria-live="polite">
+          <div className="slot-landscape-gate__panel">
+            <RotateCw className="h-9 w-9 text-[#F3D67D]" aria-hidden="true" />
+            <div className="text-center">
+              <div className="text-sm font-black tracking-[0.18em] text-white">請將手機轉為橫向</div>
+              <div className="mt-1 text-xs font-semibold text-white/65">5x6 盤面需要更寬的遊玩空間</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <GameHeader
         artwork={slotTheme.cover}
         section={slotTheme.section}
@@ -135,24 +181,50 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               </span>
             </div>
 
-            <div className="game-canvas-shell game-canvas-wide aspect-[16/7] w-full p-2">
+            <div className={`game-canvas-shell game-canvas-wide ${canvasAspectClass} w-full p-2`}>
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
+
+            {result && !spinning && isBigWinResult && (
+              <div
+                className="slot-bigwin-stage"
+                style={slotTheme.bigWin ? { backgroundImage: `linear-gradient(90deg, rgba(5, 10, 19, 0.72), rgba(5, 10, 19, 0.32)), url(${slotTheme.bigWin})` } : undefined}
+              >
+                <div className="slot-bigwin-stage__content">
+                  <div className="slot-bigwin-stage__eyebrow">連鎖消除</div>
+                  <div className="slot-bigwin-stage__title">恭喜爆分</div>
+                  <div className="slot-bigwin-stage__amount">
+                    +{formatAmount(result.profit)}
+                  </div>
+                  <div className="slot-bigwin-stage__meta">
+                    {formatMultiplier(result.multiplier)}
+                    {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {result && !spinning && (
             <div
-              className={`game-result-card slot-result-card ${result.multiplier > 0 ? 'game-result-card-win' : 'game-result-card-loss'}`}
+              className={`game-result-card slot-result-card ${isBigWinResult ? 'slot-result-card-bigwin' : ''} ${resultProfit >= 0 ? 'game-result-card-win' : 'game-result-card-loss'}`}
             >
               <div className="slot-result-summary flex flex-col items-center justify-center gap-1 text-center">
                 <div>
+                  <div className="mb-1 text-[12px] font-black tracking-[0.22em] text-[#F3D67D]">
+                    {resultTitle}
+                  </div>
                   <div className="font-display text-4xl text-white">
                     {result.lines.length}{' '}
                     {result.lines.length !== 1 ? t.games.hotline.lines : t.games.hotline.line}
                   </div>
                   <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
                     {t.games.hotline.totalMult} {formatMultiplier(result.multiplier)}
+                    {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
                   </div>
+                </div>
+                <div className="slot-result-payout num text-2xl text-[#F3D67D]">
+                  派彩 {formatAmount(result.payout)}
                 </div>
                 <div className="slot-result-profit num text-3xl text-[#7DD3FC]">
                   {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
@@ -168,7 +240,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                     >
                       <div className="flex min-w-0 items-center gap-2">
                         <span className="font-mono text-white/85">
-                          {l.lineId ? `${t.games.hotline.line} ${i + 1}` : `${t.games.hotline.row} ${l.row + 1}`} · {l.count}×
+                          {l.ways
+                            ? `方式 ${i + 1} · ${l.count} 軸 · ${l.ways} 組`
+                            : `${l.lineId ? `${t.games.hotline.line} ${i + 1}` : `${t.games.hotline.row} ${l.row + 1}`} · ${l.count}×`}
                         </span>
                         <SlotSymbolBadge theme={slotTheme} symbol={l.symbol} showLabel useShortLabel />
                       </div>
@@ -228,7 +302,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   className="flex items-center justify-between gap-3 border-b border-white/10 pb-2 last:border-0 last:pb-0"
                 >
                   <SlotSymbolBadge theme={slotTheme} symbol={index} showLabel />
-                  <span className="data-num text-white/85">3x · 4x · 5x</span>
+                  <span className="data-num text-right text-white/85">
+                    {isMegaSlot ? MEGA_SYMBOL_PAYOUTS[index] : '3x · 4x · 5x'}
+                  </span>
                 </div>
               ))}
             </div>

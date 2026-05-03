@@ -61,6 +61,11 @@ export const HALLS: Record<HallId, HallMeta> = {
       GameId.TEMPLE_SLOT,
       GameId.CANDY_SLOT,
       GameId.SAKURA_SLOT,
+      GameId.THUNDER_SLOT,
+      GameId.DRAGON_MEGA_SLOT,
+      GameId.NEBULA_SLOT,
+      GameId.JUNGLE_SLOT,
+      GameId.VAMPIRE_SLOT,
     ],
   },
   roulette: {

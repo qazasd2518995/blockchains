@@ -1282,6 +1282,11 @@ function isHotlineLikeGame(gameId: string): boolean {
     'temple-slot',
     'candy-slot',
     'sakura-slot',
+    'thunder-slot',
+    'dragon-mega-slot',
+    'nebula-slot',
+    'jungle-slot',
+    'vampire-slot',
   ]).has(gameId);
 }
 

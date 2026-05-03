@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600">
+
+  <defs>
+    <linearGradient id="sym-thunder-bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="0.45" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <radialGradient id="sym-thunder-glow" cx="50%" cy="48%" r="58%">
+      <stop offset="0" stop-color="#facc15" stop-opacity="0.92"/>
+      <stop offset="0.38" stop-color="#f97316" stop-opacity="0.36"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sym-thunder-gold" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff3a7"/>
+      <stop offset="0.36" stop-color="#facc15"/>
+      <stop offset="0.72" stop-color="#9a6416"/>
+      <stop offset="1" stop-color="#fff1a1"/>
+    </linearGradient>
+    <filter id="sym-thunder-soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="sym-thunder-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#facc15" flood-opacity="0.52"/>
+    </filter>
+  </defs>
+<rect width="900" height="600" fill="#020617"/>
+<g transform="translate(0 0)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-thunder-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#facc15" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#f97316" opacity="0.18" filter="url(#sym-thunder-soft)"/>
+      <g filter="url(#sym-thunder-shadow)"><polygon points="150,76 181.36,152.16 150,188 118.64,152.16" fill="#60a5fa" opacity=".2" stroke="#facc15" stroke-width="8"/><path d="M150 93.91999999999999 L150 167.84 M127.6 123.03999999999999 L174.64 143.2" stroke-linecap="round" stroke-linejoin="round" stroke="#fff" stroke-width="7" opacity=".8"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">RUNE</text>
+    </g>
+<g transform="translate(300 0)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-thunder-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#60a5fa" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#f97316" opacity="0.18" filter="url(#sym-thunder-soft)"/>
+      <g filter="url(#sym-thunder-shadow)"><path d="M150 76 L194.8 98.4 L185.84 163.36 L150 192.48000000000002 L114.16 163.36 L105.19999999999999 98.4 Z" fill="#facc15" opacity=".18" stroke="#facc15" stroke-width="8"/><path d="M150 92.80000000000001 V170.08" stroke="#60a5fa" stroke-width="7"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">SHIELD</text>
+    </g>
+<g transform="translate(600 0)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-thunder-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#facc15" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#f97316" opacity="0.18" filter="url(#sym-thunder-soft)"/>
+      <g filter="url(#sym-thunder-shadow)"><path d="M111.91999999999999 179.04 L181.36 91.68" stroke="#facc15" stroke-width="13"/><path d="M163.44 76 C214.95999999999998 89.44 197.04 137.6 158.96 143.2 C179.12 125.28 181.36 102.88 163.44 76 Z" fill="#60a5fa" opacity=".3" stroke="#fff" stroke-width="6"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">AXE</text>
+    </g>
+<g transform="translate(0 300)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-thunder-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#60a5fa" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#f97316" opacity="0.18" filter="url(#sym-thunder-soft)"/>
+      <g filter="url(#sym-thunder-shadow)"><polygon points="163.44,69.28 111.91999999999999,140.96 145.52,140.96 129.84,194.72 190.32,116.32 156.72,116.32" fill="#facc15" stroke="#fff" stroke-width="6"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">STORM</text>
+    </g>
+<g transform="translate(300 300)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-thunder-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#facc15" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#f97316" opacity="0.18" filter="url(#sym-thunder-soft)"/>
+      <g filter="url(#sym-thunder-shadow)"><rect x="102.96000000000001" y="80.47999999999999" width="80.64" height="31.360000000000003" rx="8.96" fill="#facc15" stroke="#fff" stroke-width="6"/><path d="M152.24 109.6 L188.08 185.76" stroke="#60a5fa" stroke-width="16"/><circle cx="193.68" cy="192.48000000000002" r="8.96" fill="#facc15"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">HAMMER</text>
+    </g>
+<g transform="translate(600 300)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-thunder-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#60a5fa" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#f97316" opacity="0.18" filter="url(#sym-thunder-soft)"/>
+      <g filter="url(#sym-thunder-shadow)"><polygon points="163.44,69.28 111.91999999999999,140.96 145.52,140.96 129.84,194.72 190.32,116.32 156.72,116.32" fill="#facc15" stroke="#fff" stroke-width="6"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">THUNDER</text>
+    </g>
+</svg>

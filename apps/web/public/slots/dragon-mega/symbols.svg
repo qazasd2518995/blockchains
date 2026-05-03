@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600">
+
+  <defs>
+    <linearGradient id="sym-dragon-mega-bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#160b08"/>
+      <stop offset="0.45" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#160b08"/>
+    </linearGradient>
+    <radialGradient id="sym-dragon-mega-glow" cx="50%" cy="48%" r="58%">
+      <stop offset="0" stop-color="#f97316" stop-opacity="0.92"/>
+      <stop offset="0.38" stop-color="#ef4444" stop-opacity="0.36"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sym-dragon-mega-gold" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff3a7"/>
+      <stop offset="0.36" stop-color="#f97316"/>
+      <stop offset="0.72" stop-color="#9a6416"/>
+      <stop offset="1" stop-color="#fff1a1"/>
+    </linearGradient>
+    <filter id="sym-dragon-mega-soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="sym-dragon-mega-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#f97316" flood-opacity="0.52"/>
+    </filter>
+  </defs>
+<rect width="900" height="600" fill="#020617"/>
+<g transform="translate(0 0)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-dragon-mega-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#f97316" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#ef4444" opacity="0.18" filter="url(#sym-dragon-mega-soft)"/>
+      <g filter="url(#sym-dragon-mega-shadow)"><path d="M150 193.60000000000002 C94 143.2 136.56 107.36 143.28 70.39999999999999 C185.84 109.6 208.24 143.2 150 193.60000000000002 Z" fill="#ef4444" stroke="#f97316" stroke-width="7"/><path d="M150 171.2 C132.07999999999998 140.96 150 118.56 158.96 100.64 C176.88 132 178 152.16 150 171.2 Z" fill="#fff3a7"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">EMBER</text>
+    </g>
+<g transform="translate(300 0)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-dragon-mega-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#22c55e" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#ef4444" opacity="0.18" filter="url(#sym-dragon-mega-soft)"/>
+      <g filter="url(#sym-dragon-mega-shadow)"><circle cx="150" cy="132" r="51.52" fill="url(#sym-dragon-mega-gold)" stroke="#fff2a8" stroke-width="6"/><circle cx="150" cy="132" r="33.6" fill="none" stroke="#7c4a03" stroke-width="5"/><text x="150" y="151.33333333333334" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="900" fill="#f97316">$</text></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">COIN</text>
+    </g>
+<g transform="translate(600 0)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-dragon-mega-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#f97316" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#ef4444" opacity="0.18" filter="url(#sym-dragon-mega-soft)"/>
+      <g filter="url(#sym-dragon-mega-shadow)"><path d="M120.88 78.24000000000001 C96.24000000000001 129.76 125.36 174.56 150 194.72 C154.48 145.44 170.16 107.36 120.88 78.24000000000001 Z" fill="#fff7d6" stroke="#f97316" stroke-width="7"/><path d="M174.64 84.96000000000001 C158.96 134.24 181.36 170.08 199.28 188" stroke="#fff7d6" stroke-width="14"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">FANG</text>
+    </g>
+<g transform="translate(0 300)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-dragon-mega-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#22c55e" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#ef4444" opacity="0.18" filter="url(#sym-dragon-mega-soft)"/>
+      <g filter="url(#sym-dragon-mega-shadow)"><circle cx="150" cy="132" r="48.16" fill="#ef4444" opacity=".3" stroke="#f97316" stroke-width="7"/><circle cx="150" cy="132" r="28" fill="none" stroke="#22c55e" stroke-width="7"/><path d="M111.91999999999999 132 C141.04 96.16 172.4 107.36 188.08 132" fill="none" stroke="#fff" stroke-width="5"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">ORB</text>
+    </g>
+<g transform="translate(300 300)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-dragon-mega-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#f97316" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#ef4444" opacity="0.18" filter="url(#sym-dragon-mega-soft)"/>
+      <g filter="url(#sym-dragon-mega-shadow)"><path d="M150 73.75999999999999 C192.56 109.6 197.04 156.64 150 192.48000000000002 C102.96000000000001 154.4 109.68 107.36 150 73.75999999999999 Z" fill="#22c55e" opacity=".35" stroke="#f97316" stroke-width="7"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">SCALE</text>
+    </g>
+<g transform="translate(600 300)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-dragon-mega-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#22c55e" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#ef4444" opacity="0.18" filter="url(#sym-dragon-mega-soft)"/>
+      <g filter="url(#sym-dragon-mega-shadow)"><path d="M94 160 C125.36 93.91999999999999 188.08 82.72 201.52 140.96 C170.16 127.52 143.28 147.68 127.6 182.4" fill="none" stroke="#f97316" stroke-width="13"/><circle cx="190.32" cy="120.8" r="8.96" fill="#fff"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">DRAGON</text>
+    </g>
+</svg>

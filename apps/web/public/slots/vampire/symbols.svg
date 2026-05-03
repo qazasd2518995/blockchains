@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600">
+
+  <defs>
+    <linearGradient id="sym-vampire-bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#100711"/>
+      <stop offset="0.45" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#100711"/>
+    </linearGradient>
+    <radialGradient id="sym-vampire-glow" cx="50%" cy="48%" r="58%">
+      <stop offset="0" stop-color="#fb7185" stop-opacity="0.92"/>
+      <stop offset="0.38" stop-color="#ef4444" stop-opacity="0.36"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sym-vampire-gold" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff3a7"/>
+      <stop offset="0.36" stop-color="#fb7185"/>
+      <stop offset="0.72" stop-color="#9a6416"/>
+      <stop offset="1" stop-color="#fff1a1"/>
+    </linearGradient>
+    <filter id="sym-vampire-soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="sym-vampire-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#fb7185" flood-opacity="0.52"/>
+    </filter>
+  </defs>
+<rect width="900" height="600" fill="#020617"/>
+<g transform="translate(0 0)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-vampire-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#fb7185" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#ef4444" opacity="0.18" filter="url(#sym-vampire-soft)"/>
+      <g filter="url(#sym-vampire-shadow)"><circle cx="150" cy="118.56" r="26.88" fill="#ef4444" stroke="#fb7185" stroke-width="7"/><path d="M150 145.44 L150 190.24" stroke="#a78bfa" stroke-width="8"/><path d="M150 160 C118.64 149.92000000000002 114.16 176.8 138.8 179.04" fill="none" stroke="#a78bfa" stroke-width="6"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">ROSE</text>
+    </g>
+<g transform="translate(300 0)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-vampire-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#a78bfa" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#ef4444" opacity="0.18" filter="url(#sym-vampire-soft)"/>
+      <g filter="url(#sym-vampire-shadow)"><rect x="132.07999999999998" y="123.03999999999999" width="35.84" height="60.480000000000004" rx="8.96" fill="#fff7d6" stroke="#fb7185" stroke-width="6"/><path d="M150 73.75999999999999 C176.88 105.12 153.36 123.03999999999999 150 129.76 C129.84 111.84 144.4 93.91999999999999 150 73.75999999999999 Z" fill="#fb7185"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">CANDLE</text>
+    </g>
+<g transform="translate(600 0)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-vampire-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#fb7185" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#ef4444" opacity="0.18" filter="url(#sym-vampire-soft)"/>
+      <g filter="url(#sym-vampire-shadow)"><path d="M96.24000000000001 140.96 C141.04 82.72 192.56 105.12 203.76 143.2 C165.68 129.76 138.8 140.96 109.68 174.56" fill="#a78bfa" opacity=".38" stroke="#fb7185" stroke-width="7"/><circle cx="172.4" cy="120.8" r="5.6000000000000005" fill="#fff"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">RAVEN</text>
+    </g>
+<g transform="translate(0 300)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-vampire-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#a78bfa" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#ef4444" opacity="0.18" filter="url(#sym-vampire-soft)"/>
+      <g filter="url(#sym-vampire-shadow)"><path d="M111.91999999999999 84.96000000000001 H188.08 C181.36 134.24 161.2 154.4 150 156.64 C138.8 154.4 118.64 134.24 111.91999999999999 84.96000000000001 Z" fill="#ef4444" opacity=".3" stroke="#fb7185" stroke-width="7"/><path d="M150 156.64 V185.76 M125.36 188 H174.64" stroke="#fff" stroke-width="6"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">GOBLET</text>
+    </g>
+<g transform="translate(300 300)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-vampire-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#fb7185" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#ef4444" opacity="0.18" filter="url(#sym-vampire-soft)"/>
+      <g filter="url(#sym-vampire-shadow)"><path d="M170.16 78.24000000000001 C118.64 93.91999999999999 114.16 163.36 161.2 185.76 C96.24000000000001 188 85.04 93.91999999999999 170.16 78.24000000000001 Z" fill="#fb7185" opacity=".75"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">MOON</text>
+    </g>
+<g transform="translate(600 300)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-vampire-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#a78bfa" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#ef4444" opacity="0.18" filter="url(#sym-vampire-soft)"/>
+      <g filter="url(#sym-vampire-shadow)"><path d="M102.96000000000001 183.52 V105.12 H125.36 V82.72 H147.76 V109.6 H170.16 V82.72 H192.56 V183.52 Z" fill="#a78bfa" opacity=".34" stroke="#fb7185" stroke-width="7"/><rect x="141.04" y="143.2" width="17.92" height="40.32" rx="7.840000000000001" fill="#020617"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">CASTLE</text>
+    </g>
+</svg>

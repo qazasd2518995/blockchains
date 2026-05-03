@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+
+  <defs>
+    <linearGradient id="cover-dragon-mega-bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#160b08"/>
+      <stop offset="0.45" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#160b08"/>
+    </linearGradient>
+    <radialGradient id="cover-dragon-mega-glow" cx="50%" cy="48%" r="58%">
+      <stop offset="0" stop-color="#f97316" stop-opacity="0.92"/>
+      <stop offset="0.38" stop-color="#ef4444" stop-opacity="0.36"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cover-dragon-mega-gold" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff3a7"/>
+      <stop offset="0.36" stop-color="#f97316"/>
+      <stop offset="0.72" stop-color="#9a6416"/>
+      <stop offset="1" stop-color="#fff1a1"/>
+    </linearGradient>
+    <filter id="cover-dragon-mega-soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="cover-dragon-mega-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#f97316" flood-opacity="0.52"/>
+    </filter>
+  </defs>
+
+    <rect x="0" y="0" width="1200" height="720" fill="url(#cover-dragon-mega-bg)"/>
+    <ellipse cx="600" cy="330" rx="420" ry="245" fill="url(#cover-dragon-mega-glow)" filter="url(#cover-dragon-mega-soft)" opacity="0.82"/>
+    <path d="M0 500 C230 410 390 485 600 430 C820 372 995 420 1200 335 L1200 720 L0 720 Z" fill="#020617" opacity="0.7"/>
+    <rect x="145" y="130" width="18" height="440" rx="9" fill="#22c55e" opacity="0.09"/>
+      <circle cx="154" cy="155" r="15" fill="#f97316" opacity="0.42"/>
+      <circle cx="154" cy="515" r="9" fill="#22c55e" opacity="0.52"/>
+<rect x="257" y="130" width="18" height="440" rx="9" fill="#22c55e" opacity="0.13"/>
+      <circle cx="266" cy="155" r="15" fill="#f97316" opacity="0.42"/>
+      <circle cx="266" cy="515" r="9" fill="#22c55e" opacity="0.52"/>
+<rect x="369" y="130" width="18" height="440" rx="9" fill="#22c55e" opacity="0.16999999999999998"/>
+      <circle cx="378" cy="155" r="15" fill="#f97316" opacity="0.42"/>
+      <circle cx="378" cy="515" r="9" fill="#22c55e" opacity="0.52"/>
+<rect x="481" y="130" width="18" height="440" rx="9" fill="#22c55e" opacity="0.09"/>
+      <circle cx="490" cy="155" r="15" fill="#f97316" opacity="0.42"/>
+      <circle cx="490" cy="515" r="9" fill="#22c55e" opacity="0.52"/>
+<rect x="593" y="130" width="18" height="440" rx="9" fill="#22c55e" opacity="0.13"/>
+      <circle cx="602" cy="155" r="15" fill="#f97316" opacity="0.42"/>
+      <circle cx="602" cy="515" r="9" fill="#22c55e" opacity="0.52"/>
+<rect x="705" y="130" width="18" height="440" rx="9" fill="#22c55e" opacity="0.16999999999999998"/>
+      <circle cx="714" cy="155" r="15" fill="#f97316" opacity="0.42"/>
+      <circle cx="714" cy="515" r="9" fill="#22c55e" opacity="0.52"/>
+<rect x="817" y="130" width="18" height="440" rx="9" fill="#22c55e" opacity="0.09"/>
+      <circle cx="826" cy="155" r="15" fill="#f97316" opacity="0.42"/>
+      <circle cx="826" cy="515" r="9" fill="#22c55e" opacity="0.52"/>
+<rect x="929" y="130" width="18" height="440" rx="9" fill="#22c55e" opacity="0.13"/>
+      <circle cx="938" cy="155" r="15" fill="#f97316" opacity="0.42"/>
+      <circle cx="938" cy="515" r="9" fill="#22c55e" opacity="0.52"/>
+<rect x="1041" y="130" width="18" height="440" rx="9" fill="#22c55e" opacity="0.16999999999999998"/>
+      <circle cx="1050" cy="155" r="15" fill="#f97316" opacity="0.42"/>
+      <circle cx="1050" cy="515" r="9" fill="#22c55e" opacity="0.52"/>
+    <ellipse cx="55" cy="605" rx="13.6" ry="8" fill="url(#cover-dragon-mega-gold)" opacity="0.25"/>
+<ellipse cx="152" cy="624" rx="15.299999999999999" ry="9" fill="url(#cover-dragon-mega-gold)" opacity="0.33"/>
+<ellipse cx="249" cy="643" rx="17" ry="10" fill="url(#cover-dragon-mega-gold)" opacity="0.41000000000000003"/>
+<ellipse cx="346" cy="610" rx="18.7" ry="11" fill="url(#cover-dragon-mega-gold)" opacity="0.49"/>
+<ellipse cx="443" cy="629" rx="20.4" ry="12" fill="url(#cover-dragon-mega-gold)" opacity="0.25"/>
+<ellipse cx="540" cy="648" rx="13.6" ry="8" fill="url(#cover-dragon-mega-gold)" opacity="0.33"/>
+<ellipse cx="637" cy="615" rx="15.299999999999999" ry="9" fill="url(#cover-dragon-mega-gold)" opacity="0.41000000000000003"/>
+<ellipse cx="734" cy="634" rx="17" ry="10" fill="url(#cover-dragon-mega-gold)" opacity="0.49"/>
+<ellipse cx="831" cy="653" rx="18.7" ry="11" fill="url(#cover-dragon-mega-gold)" opacity="0.25"/>
+<ellipse cx="928" cy="620" rx="20.4" ry="12" fill="url(#cover-dragon-mega-gold)" opacity="0.33"/>
+<ellipse cx="1025" cy="639" rx="13.6" ry="8" fill="url(#cover-dragon-mega-gold)" opacity="0.41000000000000003"/>
+<ellipse cx="1122" cy="606" rx="15.299999999999999" ry="9" fill="url(#cover-dragon-mega-gold)" opacity="0.49"/>
+<ellipse cx="129" cy="625" rx="17" ry="10" fill="url(#cover-dragon-mega-gold)" opacity="0.25"/>
+<ellipse cx="226" cy="644" rx="18.7" ry="11" fill="url(#cover-dragon-mega-gold)" opacity="0.33"/>
+<ellipse cx="323" cy="611" rx="20.4" ry="12" fill="url(#cover-dragon-mega-gold)" opacity="0.41000000000000003"/>
+<ellipse cx="420" cy="630" rx="13.6" ry="8" fill="url(#cover-dragon-mega-gold)" opacity="0.49"/>
+<ellipse cx="517" cy="649" rx="15.299999999999999" ry="9" fill="url(#cover-dragon-mega-gold)" opacity="0.25"/>
+<ellipse cx="614" cy="616" rx="17" ry="10" fill="url(#cover-dragon-mega-gold)" opacity="0.33"/>
+<ellipse cx="711" cy="635" rx="18.7" ry="11" fill="url(#cover-dragon-mega-gold)" opacity="0.41000000000000003"/>
+<ellipse cx="808" cy="654" rx="20.4" ry="12" fill="url(#cover-dragon-mega-gold)" opacity="0.49"/>
+<ellipse cx="905" cy="621" rx="13.6" ry="8" fill="url(#cover-dragon-mega-gold)" opacity="0.25"/>
+<ellipse cx="1002" cy="640" rx="15.299999999999999" ry="9" fill="url(#cover-dragon-mega-gold)" opacity="0.33"/>
+    <rect x="60" y="82" width="1080" height="535" rx="34" fill="none" stroke="#f97316" stroke-opacity="0.35" stroke-width="4"/>
+    <rect x="82" y="104" width="1036" height="491" rx="28" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="2"/>
+
+<g filter="url(#cover-dragon-mega-shadow)">
+  <rect x="208" y="180" width="784" height="320" rx="34" fill="#08111f" stroke="url(#cover-dragon-mega-gold)" stroke-width="5"/>
+  <rect x="235" y="208" width="120" height="264" rx="24" fill="#0b1628" stroke="#f97316" stroke-opacity="0.42" stroke-width="4"/>
+  <rect x="385" y="208" width="120" height="264" rx="24" fill="#0b1628" stroke="#f97316" stroke-opacity="0.42" stroke-width="4"/>
+  <rect x="535" y="208" width="120" height="264" rx="24" fill="#0b1628" stroke="#f97316" stroke-opacity="0.42" stroke-width="4"/>
+  <rect x="685" y="208" width="120" height="264" rx="24" fill="#0b1628" stroke="#f97316" stroke-opacity="0.42" stroke-width="4"/>
+  <rect x="835" y="208" width="120" height="264" rx="24" fill="#0b1628" stroke="#f97316" stroke-opacity="0.42" stroke-width="4"/>
+  <g filter="url(#cover-dragon-mega-shadow)"><path d="M295 329 C255 293 285.4 267.4 290.2 241 C320.6 269 336.6 293 295 329 Z" fill="#ef4444" stroke="#f97316" stroke-width="7"/><path d="M295 313 C282.2 291.4 295 275.4 301.4 262.6 C314.2 285 315 299.4 295 313 Z" fill="#fff3a7"/></g>
+  <g filter="url(#cover-dragon-mega-shadow)"><circle cx="445" cy="285" r="36.800000000000004" fill="url(#cover-dragon-mega-gold)" stroke="#fff2a8" stroke-width="6"/><circle cx="445" cy="285" r="24" fill="none" stroke="#7c4a03" stroke-width="5"/><text x="445" y="304.3333333333333" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="900" fill="#f97316">$</text></g>
+  <g filter="url(#cover-dragon-mega-shadow)"><path d="M574.2 246.6 C556.6 283.4 577.4 315.4 595 329.8 C598.2 294.6 609.4 267.4 574.2 246.6 Z" fill="#fff7d6" stroke="#f97316" stroke-width="7"/><path d="M612.6 251.4 C601.4 286.6 617.4 312.2 630.2 325" stroke="#fff7d6" stroke-width="14"/></g>
+  <g filter="url(#cover-dragon-mega-shadow)"><circle cx="745" cy="285" r="34.4" fill="#ef4444" opacity=".3" stroke="#f97316" stroke-width="7"/><circle cx="745" cy="285" r="20" fill="none" stroke="#22c55e" stroke-width="7"/><path d="M717.8 285 C738.6 259.4 761 267.4 772.2 285" fill="none" stroke="#fff" stroke-width="5"/></g>
+  <g filter="url(#cover-dragon-mega-shadow)"><path d="M895 243.4 C925.4 269 928.6 302.6 895 328.2 C861.4 301 866.2 267.4 895 243.4 Z" fill="#22c55e" opacity=".35" stroke="#f97316" stroke-width="7"/></g>
+  <g filter="url(#cover-dragon-mega-shadow)"><path d="M255 421 C277.4 373.8 322.2 365.8 331.8 407.4 C309.4 397.8 290.2 412.2 279 437" fill="none" stroke="#f97316" stroke-width="13"/><circle cx="323.8" cy="393" r="6.4" fill="#fff"/></g>
+</g>
+<g>
+  <text x="90" y="118" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="800" letter-spacing="10" fill="#f97316" opacity="0.9">MEGA 5x6</text>
+  <text x="90" y="168" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="900" fill="#fff" letter-spacing="3">DRAGON BLAZE</text>
+  <text x="92" y="220" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700" fill="#cbd5e1">WAYS • SMALL PAYS • BIG WIN</text>
+</g>
+<g transform="translate(926 96)">
+  <rect width="190" height="70" rx="35" fill="#111827" stroke="#f97316" stroke-opacity="0.6" stroke-width="3"/>
+  <text x="95" y="45" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="900" fill="#f97316">NEW</text>
+</g>
+</svg>

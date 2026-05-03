@@ -5,8 +5,13 @@ import {
   HOTLINE_REELS,
   HOTLINE_MINI_REELS,
   HOTLINE_ROWS,
+  HOTLINE_MEGA_REELS,
+  HOTLINE_MEGA_ROWS,
   HOTLINE_SYMBOLS,
+  HOTLINE_MEGA_SYMBOLS,
   getHotlineReelCount,
+  getHotlineRowCount,
+  hotlineSpinCascades,
 } from './hotline.js';
 
 describe('hotlineSpin', () => {
@@ -30,6 +35,35 @@ describe('hotlineSpin', () => {
     const grid = hotlineSpin('s', 'c', 1, HOTLINE_MINI_REELS);
     expect(grid.length).toBe(HOTLINE_MINI_REELS);
     expect(getHotlineReelCount('temple-slot')).toBe(HOTLINE_MINI_REELS);
+  });
+
+  it('supports 5x6 mega slot variants', () => {
+    const grid = hotlineSpin('s', 'c', 1, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS);
+    expect(grid.length).toBe(HOTLINE_MEGA_REELS);
+    for (const col of grid) {
+      expect(col.length).toBe(HOTLINE_MEGA_ROWS);
+      for (const sym of col) {
+        expect(sym).toBeGreaterThanOrEqual(0);
+        expect(sym).toBeLessThan(HOTLINE_MEGA_SYMBOLS.length);
+      }
+    }
+    expect(getHotlineReelCount('thunder-slot')).toBe(HOTLINE_MEGA_REELS);
+    expect(getHotlineRowCount('thunder-slot')).toBe(HOTLINE_MEGA_ROWS);
+  });
+
+  it('supports deterministic 5x6 cascade drops after ways wins', () => {
+    const result = hotlineSpinCascades('server', 'client', 17, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS);
+    const firstGrid = hotlineSpin('server', 'client', 17, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS);
+
+    expect(result.initialGrid).toEqual(firstGrid);
+    expect(result.cascades.length).toBeGreaterThan(0);
+    expect(result.cascades[0]!.removed.length).toBeGreaterThan(0);
+    expect(result.finalGrid.length).toBe(HOTLINE_MEGA_REELS);
+    for (const col of result.finalGrid) {
+      expect(col.length).toBe(HOTLINE_MEGA_ROWS);
+    }
+    const stepTotal = result.cascades.reduce((sum, step) => sum + step.multiplier, 0);
+    expect(result.totalMultiplier).toBe(Number(stepTotal.toFixed(4)));
   });
 });
 
@@ -129,5 +163,41 @@ describe('hotlineEvaluate', () => {
     expect(line!.startReel).toBe(0);
     expect(line!.direction).toBe('ltr');
     expect(totalMultiplier).toBe(HOTLINE_SYMBOLS[5]!.payout3);
+  });
+
+  it('evaluates 5x6 ways wins with partial payout below stake', () => {
+    const grid = [
+      [0, 1, 1, 2, 2, 3],
+      [0, 2, 2, 3, 3, 4],
+      [0, 4, 4, 5, 5, 5],
+      [1, 1, 2, 2, 3, 3],
+      [0, 0, 1, 1, 2, 2],
+    ];
+    const { lines, totalMultiplier } = hotlineEvaluate(grid);
+    const lowLine = lines.find((line) => line.symbol === 0 && line.direction === 'ltr');
+
+    expect(lowLine).toBeDefined();
+    expect(lowLine!.count).toBe(3);
+    expect(lowLine!.ways).toBe(1);
+    expect(totalMultiplier).toBeGreaterThan(0);
+    expect(totalMultiplier).toBeLessThan(1);
+  });
+
+  it('multiplies 5x6 ways by symbol occurrences on each reel', () => {
+    const grid = [
+      [5, 5, 0, 1, 2, 3],
+      [5, 1, 5, 2, 3, 4],
+      [5, 2, 3, 5, 4, 0],
+      [5, 3, 4, 0, 1, 2],
+      [5, 4, 0, 1, 2, 3],
+    ];
+    const { lines, totalMultiplier } = hotlineEvaluate(grid);
+    const premium = lines.find((line) => line.symbol === 5 && line.direction === 'ltr');
+
+    expect(premium).toBeDefined();
+    expect(premium!.count).toBe(5);
+    expect(premium!.ways).toBe(8);
+    expect(premium!.payout).toBe(200);
+    expect(totalMultiplier).toBeGreaterThanOrEqual(200);
   });
 });

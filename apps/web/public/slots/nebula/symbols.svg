@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600">
+
+  <defs>
+    <linearGradient id="sym-nebula-bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#06091f"/>
+      <stop offset="0.45" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#06091f"/>
+    </linearGradient>
+    <radialGradient id="sym-nebula-glow" cx="50%" cy="48%" r="58%">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.92"/>
+      <stop offset="0.38" stop-color="#f472b6" stop-opacity="0.36"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sym-nebula-gold" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff3a7"/>
+      <stop offset="0.36" stop-color="#22d3ee"/>
+      <stop offset="0.72" stop-color="#9a6416"/>
+      <stop offset="1" stop-color="#fff1a1"/>
+    </linearGradient>
+    <filter id="sym-nebula-soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="sym-nebula-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#22d3ee" flood-opacity="0.52"/>
+    </filter>
+  </defs>
+<rect width="900" height="600" fill="#020617"/>
+<g transform="translate(0 0)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-nebula-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#22d3ee" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#f472b6" opacity="0.18" filter="url(#sym-nebula-soft)"/>
+      <g filter="url(#sym-nebula-shadow)"><path d="M94 149.92000000000002 C136.56 118.56 158.96 111.84 189.2 87.19999999999999" stroke="#c084fc" stroke-width="10" opacity=".65"/><circle cx="170.16" cy="120.8" r="24.64" fill="#22d3ee" stroke="#fff" stroke-width="5"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">COMET</text>
+    </g>
+<g transform="translate(300 0)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-nebula-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#c084fc" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#f472b6" opacity="0.18" filter="url(#sym-nebula-soft)"/>
+      <g filter="url(#sym-nebula-shadow)"><circle cx="150" cy="132" r="38.080000000000005" fill="#c084fc" opacity=".44" stroke="#22d3ee" stroke-width="7"/><ellipse cx="150" cy="132" rx="62.720000000000006" ry="17.92" fill="none" stroke="#fff" stroke-width="5" transform="rotate(-16 150 132)"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">PLANET</text>
+    </g>
+<g transform="translate(600 0)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-nebula-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#22d3ee" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#f472b6" opacity="0.18" filter="url(#sym-nebula-soft)"/>
+      <g filter="url(#sym-nebula-shadow)"><polygon points="150,71.52 192.56,120.8 170.16,188 129.84,188 107.44,120.8" fill="#c084fc" opacity=".44" stroke="#22d3ee" stroke-width="7"/><path d="M150 78.24000000000001 L150 181.28" stroke="#fff" stroke-width="4" opacity=".55"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">CRYSTAL</text>
+    </g>
+<g transform="translate(0 300)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-nebula-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#c084fc" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#f472b6" opacity="0.18" filter="url(#sym-nebula-soft)"/>
+      <g filter="url(#sym-nebula-shadow)"><circle cx="150" cy="132" r="48.16" fill="#f472b6" opacity=".3" stroke="#22d3ee" stroke-width="7"/><circle cx="150" cy="132" r="28" fill="none" stroke="#c084fc" stroke-width="7"/><path d="M111.91999999999999 132 C141.04 96.16 172.4 107.36 188.08 132" fill="none" stroke="#fff" stroke-width="5"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">PORTAL</text>
+    </g>
+<g transform="translate(300 300)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-nebula-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#22d3ee" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#f472b6" opacity="0.18" filter="url(#sym-nebula-soft)"/>
+      <g filter="url(#sym-nebula-shadow)"><circle cx="150" cy="132" r="15.680000000000001" fill="#fff"/><path d="M150 73.75999999999999 L162.32 120.8 L206 132 L162.32 143.2 L150 190.24 L137.68 143.2 L94 132 L137.68 120.8 Z" fill="#22d3ee" opacity=".7"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">NOVA</text>
+    </g>
+<g transform="translate(600 300)">
+      <rect x="10" y="10" width="280" height="280" rx="38" fill="#07111f" stroke="url(#sym-nebula-gold)" stroke-width="7"/>
+      <rect x="24" y="24" width="252" height="252" rx="30" fill="#101a2c" stroke="#c084fc" stroke-opacity="0.45" stroke-width="4"/>
+      <ellipse cx="150" cy="126" rx="92" ry="72" fill="#f472b6" opacity="0.18" filter="url(#sym-nebula-soft)"/>
+      <g filter="url(#sym-nebula-shadow)"><circle cx="150" cy="132" r="15.680000000000001" fill="#fff"/><path d="M150 73.75999999999999 L162.32 120.8 L206 132 L162.32 143.2 L150 190.24 L137.68 143.2 L94 132 L137.68 120.8 Z" fill="#22d3ee" opacity=".7"/></g>
+      <text x="150" y="248" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="2" fill="#fff">GALAXY</text>
+    </g>
+</svg>

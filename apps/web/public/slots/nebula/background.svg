@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+
+  <defs>
+    <linearGradient id="bg-nebula-bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#06091f"/>
+      <stop offset="0.45" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#06091f"/>
+    </linearGradient>
+    <radialGradient id="bg-nebula-glow" cx="50%" cy="48%" r="58%">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.92"/>
+      <stop offset="0.38" stop-color="#f472b6" stop-opacity="0.36"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bg-nebula-gold" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff3a7"/>
+      <stop offset="0.36" stop-color="#22d3ee"/>
+      <stop offset="0.72" stop-color="#9a6416"/>
+      <stop offset="1" stop-color="#fff1a1"/>
+    </linearGradient>
+    <filter id="bg-nebula-soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="bg-nebula-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#22d3ee" flood-opacity="0.52"/>
+    </filter>
+  </defs>
+<rect width="1600" height="900" fill="url(#bg-nebula-bg)"/>
+<ellipse cx="800" cy="430" rx="565" ry="325" fill="url(#bg-nebula-glow)" filter="url(#bg-nebula-soft)" opacity="0.7"/>
+<rect x="95" y="220" width="26" height="410" rx="13" fill="#c084fc" opacity="0.08"/>
+  <circle cx="108" cy="218" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="189" y="192" width="26" height="438" rx="13" fill="#22d3ee" opacity="0.11"/>
+  <circle cx="202" cy="190" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="283" y="164" width="26" height="466" rx="13" fill="#c084fc" opacity="0.14"/>
+  <circle cx="296" cy="162" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="377" y="220" width="26" height="494" rx="13" fill="#22d3ee" opacity="0.16999999999999998"/>
+  <circle cx="390" cy="218" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="471" y="192" width="26" height="522" rx="13" fill="#c084fc" opacity="0.08"/>
+  <circle cx="484" cy="190" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="565" y="164" width="26" height="410" rx="13" fill="#22d3ee" opacity="0.11"/>
+  <circle cx="578" cy="162" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="659" y="220" width="26" height="438" rx="13" fill="#c084fc" opacity="0.14"/>
+  <circle cx="672" cy="218" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="753" y="192" width="26" height="466" rx="13" fill="#22d3ee" opacity="0.16999999999999998"/>
+  <circle cx="766" cy="190" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="847" y="164" width="26" height="494" rx="13" fill="#c084fc" opacity="0.08"/>
+  <circle cx="860" cy="162" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="941" y="220" width="26" height="522" rx="13" fill="#22d3ee" opacity="0.11"/>
+  <circle cx="954" cy="218" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="1035" y="192" width="26" height="410" rx="13" fill="#c084fc" opacity="0.14"/>
+  <circle cx="1048" cy="190" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="1129" y="164" width="26" height="438" rx="13" fill="#22d3ee" opacity="0.16999999999999998"/>
+  <circle cx="1142" cy="162" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="1223" y="220" width="26" height="466" rx="13" fill="#c084fc" opacity="0.08"/>
+  <circle cx="1236" cy="218" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="1317" y="192" width="26" height="494" rx="13" fill="#22d3ee" opacity="0.11"/>
+  <circle cx="1330" cy="190" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="1411" y="164" width="26" height="522" rx="13" fill="#c084fc" opacity="0.14"/>
+  <circle cx="1424" cy="162" r="20" fill="#22d3ee" opacity="0.33"/>
+<rect x="1505" y="220" width="26" height="410" rx="13" fill="#22d3ee" opacity="0.16999999999999998"/>
+  <circle cx="1518" cy="218" r="20" fill="#22d3ee" opacity="0.33"/>
+<path d="M0 670 C230 575 460 625 710 555 C960 485 1220 520 1600 395 L1600 900 L0 900 Z" fill="#020617" opacity="0.78"/>
+<path d="M140 700 C400 610 610 640 815 590 C1030 540 1260 560 1480 498" fill="none" stroke="#22d3ee" stroke-width="4" stroke-opacity="0.2"/>
+<rect x="60" y="72" width="1480" height="740" rx="38" fill="none" stroke="#22d3ee" stroke-opacity="0.26" stroke-width="4"/>
+<rect x="90" y="102" width="1420" height="680" rx="32" fill="none" stroke="#fff" stroke-opacity="0.08" stroke-width="2"/>
+<text x="800" y="100" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="900" letter-spacing="12" fill="#22d3ee" opacity="0.42">NEBULA FORTUNE</text>
+</svg>

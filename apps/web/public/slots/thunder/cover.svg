@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+
+  <defs>
+    <linearGradient id="cover-thunder-bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="0.45" stop-color="#07111f"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <radialGradient id="cover-thunder-glow" cx="50%" cy="48%" r="58%">
+      <stop offset="0" stop-color="#facc15" stop-opacity="0.92"/>
+      <stop offset="0.38" stop-color="#f97316" stop-opacity="0.36"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cover-thunder-gold" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff3a7"/>
+      <stop offset="0.36" stop-color="#facc15"/>
+      <stop offset="0.72" stop-color="#9a6416"/>
+      <stop offset="1" stop-color="#fff1a1"/>
+    </linearGradient>
+    <filter id="cover-thunder-soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="cover-thunder-shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#facc15" flood-opacity="0.52"/>
+    </filter>
+  </defs>
+
+    <rect x="0" y="0" width="1200" height="720" fill="url(#cover-thunder-bg)"/>
+    <ellipse cx="600" cy="330" rx="420" ry="245" fill="url(#cover-thunder-glow)" filter="url(#cover-thunder-soft)" opacity="0.82"/>
+    <path d="M0 500 C230 410 390 485 600 430 C820 372 995 420 1200 335 L1200 720 L0 720 Z" fill="#020617" opacity="0.7"/>
+    <rect x="145" y="130" width="18" height="440" rx="9" fill="#60a5fa" opacity="0.09"/>
+      <circle cx="154" cy="155" r="15" fill="#facc15" opacity="0.42"/>
+      <circle cx="154" cy="515" r="9" fill="#60a5fa" opacity="0.52"/>
+<rect x="257" y="130" width="18" height="440" rx="9" fill="#60a5fa" opacity="0.13"/>
+      <circle cx="266" cy="155" r="15" fill="#facc15" opacity="0.42"/>
+      <circle cx="266" cy="515" r="9" fill="#60a5fa" opacity="0.52"/>
+<rect x="369" y="130" width="18" height="440" rx="9" fill="#60a5fa" opacity="0.16999999999999998"/>
+      <circle cx="378" cy="155" r="15" fill="#facc15" opacity="0.42"/>
+      <circle cx="378" cy="515" r="9" fill="#60a5fa" opacity="0.52"/>
+<rect x="481" y="130" width="18" height="440" rx="9" fill="#60a5fa" opacity="0.09"/>
+      <circle cx="490" cy="155" r="15" fill="#facc15" opacity="0.42"/>
+      <circle cx="490" cy="515" r="9" fill="#60a5fa" opacity="0.52"/>
+<rect x="593" y="130" width="18" height="440" rx="9" fill="#60a5fa" opacity="0.13"/>
+      <circle cx="602" cy="155" r="15" fill="#facc15" opacity="0.42"/>
+      <circle cx="602" cy="515" r="9" fill="#60a5fa" opacity="0.52"/>
+<rect x="705" y="130" width="18" height="440" rx="9" fill="#60a5fa" opacity="0.16999999999999998"/>
+      <circle cx="714" cy="155" r="15" fill="#facc15" opacity="0.42"/>
+      <circle cx="714" cy="515" r="9" fill="#60a5fa" opacity="0.52"/>
+<rect x="817" y="130" width="18" height="440" rx="9" fill="#60a5fa" opacity="0.09"/>
+      <circle cx="826" cy="155" r="15" fill="#facc15" opacity="0.42"/>
+      <circle cx="826" cy="515" r="9" fill="#60a5fa" opacity="0.52"/>
+<rect x="929" y="130" width="18" height="440" rx="9" fill="#60a5fa" opacity="0.13"/>
+      <circle cx="938" cy="155" r="15" fill="#facc15" opacity="0.42"/>
+      <circle cx="938" cy="515" r="9" fill="#60a5fa" opacity="0.52"/>
+<rect x="1041" y="130" width="18" height="440" rx="9" fill="#60a5fa" opacity="0.16999999999999998"/>
+      <circle cx="1050" cy="155" r="15" fill="#facc15" opacity="0.42"/>
+      <circle cx="1050" cy="515" r="9" fill="#60a5fa" opacity="0.52"/>
+    <ellipse cx="55" cy="605" rx="13.6" ry="8" fill="url(#cover-thunder-gold)" opacity="0.25"/>
+<ellipse cx="152" cy="624" rx="15.299999999999999" ry="9" fill="url(#cover-thunder-gold)" opacity="0.33"/>
+<ellipse cx="249" cy="643" rx="17" ry="10" fill="url(#cover-thunder-gold)" opacity="0.41000000000000003"/>
+<ellipse cx="346" cy="610" rx="18.7" ry="11" fill="url(#cover-thunder-gold)" opacity="0.49"/>
+<ellipse cx="443" cy="629" rx="20.4" ry="12" fill="url(#cover-thunder-gold)" opacity="0.25"/>
+<ellipse cx="540" cy="648" rx="13.6" ry="8" fill="url(#cover-thunder-gold)" opacity="0.33"/>
+<ellipse cx="637" cy="615" rx="15.299999999999999" ry="9" fill="url(#cover-thunder-gold)" opacity="0.41000000000000003"/>
+<ellipse cx="734" cy="634" rx="17" ry="10" fill="url(#cover-thunder-gold)" opacity="0.49"/>
+<ellipse cx="831" cy="653" rx="18.7" ry="11" fill="url(#cover-thunder-gold)" opacity="0.25"/>
+<ellipse cx="928" cy="620" rx="20.4" ry="12" fill="url(#cover-thunder-gold)" opacity="0.33"/>
+<ellipse cx="1025" cy="639" rx="13.6" ry="8" fill="url(#cover-thunder-gold)" opacity="0.41000000000000003"/>
+<ellipse cx="1122" cy="606" rx="15.299999999999999" ry="9" fill="url(#cover-thunder-gold)" opacity="0.49"/>
+<ellipse cx="129" cy="625" rx="17" ry="10" fill="url(#cover-thunder-gold)" opacity="0.25"/>
+<ellipse cx="226" cy="644" rx="18.7" ry="11" fill="url(#cover-thunder-gold)" opacity="0.33"/>
+<ellipse cx="323" cy="611" rx="20.4" ry="12" fill="url(#cover-thunder-gold)" opacity="0.41000000000000003"/>
+<ellipse cx="420" cy="630" rx="13.6" ry="8" fill="url(#cover-thunder-gold)" opacity="0.49"/>
+<ellipse cx="517" cy="649" rx="15.299999999999999" ry="9" fill="url(#cover-thunder-gold)" opacity="0.25"/>
+<ellipse cx="614" cy="616" rx="17" ry="10" fill="url(#cover-thunder-gold)" opacity="0.33"/>
+<ellipse cx="711" cy="635" rx="18.7" ry="11" fill="url(#cover-thunder-gold)" opacity="0.41000000000000003"/>
+<ellipse cx="808" cy="654" rx="20.4" ry="12" fill="url(#cover-thunder-gold)" opacity="0.49"/>
+<ellipse cx="905" cy="621" rx="13.6" ry="8" fill="url(#cover-thunder-gold)" opacity="0.25"/>
+<ellipse cx="1002" cy="640" rx="15.299999999999999" ry="9" fill="url(#cover-thunder-gold)" opacity="0.33"/>
+    <rect x="60" y="82" width="1080" height="535" rx="34" fill="none" stroke="#facc15" stroke-opacity="0.35" stroke-width="4"/>
+    <rect x="82" y="104" width="1036" height="491" rx="28" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="2"/>
+
+<g filter="url(#cover-thunder-shadow)">
+  <rect x="208" y="180" width="784" height="320" rx="34" fill="#08111f" stroke="url(#cover-thunder-gold)" stroke-width="5"/>
+  <rect x="235" y="208" width="120" height="264" rx="24" fill="#0b1628" stroke="#facc15" stroke-opacity="0.42" stroke-width="4"/>
+  <rect x="385" y="208" width="120" height="264" rx="24" fill="#0b1628" stroke="#facc15" stroke-opacity="0.42" stroke-width="4"/>
+  <rect x="535" y="208" width="120" height="264" rx="24" fill="#0b1628" stroke="#facc15" stroke-opacity="0.42" stroke-width="4"/>
+  <rect x="685" y="208" width="120" height="264" rx="24" fill="#0b1628" stroke="#facc15" stroke-opacity="0.42" stroke-width="4"/>
+  <rect x="835" y="208" width="120" height="264" rx="24" fill="#0b1628" stroke="#facc15" stroke-opacity="0.42" stroke-width="4"/>
+  <g filter="url(#cover-thunder-shadow)"><polygon points="295,245 317.4,299.4 295,325 272.6,299.4" fill="#60a5fa" opacity=".2" stroke="#facc15" stroke-width="8"/><path d="M295 257.8 L295 310.6 M279 278.6 L312.6 293" stroke-linecap="round" stroke-linejoin="round" stroke="#fff" stroke-width="7" opacity=".8"/></g>
+  <g filter="url(#cover-thunder-shadow)"><path d="M445 245 L477 261 L470.6 307.4 L445 328.2 L419.4 307.4 L413 261 Z" fill="#facc15" opacity=".18" stroke="#facc15" stroke-width="8"/><path d="M445 257 V312.2" stroke="#60a5fa" stroke-width="7"/></g>
+  <g filter="url(#cover-thunder-shadow)"><path d="M567.8 318.6 L617.4 256.2" stroke="#facc15" stroke-width="13"/><path d="M604.6 245 C641.4 254.6 628.6 289 601.4 293 C615.8 280.2 617.4 264.2 604.6 245 Z" fill="#60a5fa" opacity=".3" stroke="#fff" stroke-width="6"/></g>
+  <g filter="url(#cover-thunder-shadow)"><polygon points="754.6,240.2 717.8,291.4 741.8,291.4 730.6,329.8 773.8,273.8 749.8,273.8" fill="#facc15" stroke="#fff" stroke-width="6"/></g>
+  <g filter="url(#cover-thunder-shadow)"><rect x="861.4" y="248.2" width="57.599999999999994" height="22.400000000000002" rx="6.4" fill="#facc15" stroke="#fff" stroke-width="6"/><path d="M896.6 269 L922.2 323.4" stroke="#60a5fa" stroke-width="16"/><circle cx="926.2" cy="328.2" r="6.4" fill="#facc15"/></g>
+  <g filter="url(#cover-thunder-shadow)"><polygon points="304.6,356.2 267.8,407.4 291.8,407.4 280.6,445.8 323.8,389.8 299.8,389.8" fill="#facc15" stroke="#fff" stroke-width="6"/></g>
+</g>
+<g>
+  <text x="90" y="118" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="800" letter-spacing="10" fill="#facc15" opacity="0.9">MEGA 5x6</text>
+  <text x="90" y="168" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="900" fill="#fff" letter-spacing="3">THUNDER HAMMER</text>
+  <text x="92" y="220" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700" fill="#cbd5e1">WAYS • SMALL PAYS • BIG WIN</text>
+</g>
+<g transform="translate(926 96)">
+  <rect width="190" height="70" rx="35" fill="#111827" stroke="#facc15" stroke-opacity="0.6" stroke-width="3"/>
+  <text x="95" y="45" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="900" fill="#facc15">NEW</text>
+</g>
+</svg>

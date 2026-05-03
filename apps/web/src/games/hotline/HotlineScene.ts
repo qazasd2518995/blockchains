@@ -44,6 +44,7 @@ const COLOR_WHITE = 0xFFFFFF;
 const SYMBOL_COUNT = HOTLINE_SYMBOLS.length;
 const DEFAULT_REELS = 5;
 const ROWS = 3;
+const MEGA_ROWS = 6;
 const REEL_STRIP_LEN = 30; // reel 內部轉動用的延伸符號
 const FINAL_STOP_ROW = 2;
 
@@ -64,6 +65,21 @@ interface HotlineLine {
   row: number;
   symbol: number;
   count: number;
+  payout?: number;
+  ways?: number;
+}
+
+interface HotlineWinPosition {
+  reel: number;
+  row: number;
+}
+
+interface HotlineCascadeStep {
+  index: number;
+  grid: number[][];
+  lines: HotlineLine[];
+  multiplier: number;
+  removed: HotlineWinPosition[];
 }
 
 interface Particle {
@@ -91,6 +107,7 @@ export class HotlineScene {
   private height = 0;
   private theme: SlotThemeConfig = getSlotTheme('cyber');
   private reelCount = DEFAULT_REELS;
+  private rowCount = ROWS;
   private backgroundTexture: Texture | null = null;
   private symbolSheetTexture: Texture | null = null;
   private symbolTextures: Texture[] = [];
@@ -128,6 +145,7 @@ export class HotlineScene {
     this.height = height;
     this.theme = theme;
     this.reelCount = theme.reels;
+    this.rowCount = theme.rows ?? ROWS;
 
     const app = new Application();
     await app.init({
@@ -156,10 +174,10 @@ export class HotlineScene {
     const availableW = width - padding * 2;
     this.cellSize = Math.min(
       (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount,
-      (height - padding * 2) / ROWS,
+      (height - padding * 2) / this.rowCount,
     );
     const reelsWidth = this.cellSize * this.reelCount + this.reelGap * (this.reelCount - 1);
-    const reelsHeight = this.cellSize * ROWS;
+    const reelsHeight = this.cellSize * this.rowCount;
     this.reelX0 = (width - reelsWidth) / 2;
     this.reelY0 = (height - reelsHeight) / 2;
 
@@ -272,7 +290,7 @@ export class HotlineScene {
 
     // 遮罩（防止符號溢出）
     const mask = new Graphics()
-      .rect(reelX, reelY, this.cellSize, this.cellSize * ROWS)
+      .rect(reelX, reelY, this.cellSize, this.cellSize * this.rowCount)
       .fill({ color: 0xffffff });
     this.reelsContainer.addChild(mask);
 
@@ -307,7 +325,7 @@ export class HotlineScene {
 
     // Reel 邊框
     const frame = new Graphics()
-      .roundRect(reelX - 2, reelY - 2, this.cellSize + 4, this.cellSize * ROWS + 4, 8)
+      .roundRect(reelX - 2, reelY - 2, this.cellSize + 4, this.cellSize * this.rowCount + 4, 8)
       .stroke({ color: COLOR_TILE_STROKE, width: 2 });
     this.reelsContainer.addChild(frame);
   }
@@ -618,6 +636,28 @@ export class HotlineScene {
     }
   }
 
+  async playCascadeSpin(cascades: HotlineCascadeStep[], finalGrid: number[][]): Promise<void> {
+    if (cascades.length === 0) {
+      await this.playSpin(finalGrid, []);
+      return;
+    }
+
+    const first = cascades[0]!;
+    await this.playSpin(first.grid, first.lines);
+
+    let previous = first;
+    for (let i = 1; i < cascades.length; i += 1) {
+      const step = cascades[i]!;
+      await this.sleep(720);
+      await this.animateCascadeToGrid(step.grid, previous.removed);
+      this.showWinLines(step.lines);
+      previous = step;
+    }
+
+    await this.sleep(720);
+    await this.animateCascadeToGrid(finalGrid, previous.removed);
+  }
+
   private sleep(ms: number): Promise<void> {
     return new Promise((r) => setTimeout(r, ms));
   }
@@ -632,7 +672,7 @@ export class HotlineScene {
     return new Promise<void>((resolve) => {
       const { container } = reel;
       const cellSize = reel.cellSize;
-      const startRow = Math.max(FINAL_STOP_ROW + ROWS + 1, REEL_STRIP_LEN - ROWS - 2 - reelIndex);
+      const startRow = Math.max(FINAL_STOP_ROW + this.rowCount + 1, REEL_STRIP_LEN - this.rowCount - 2 - reelIndex);
       const currentPhase = this.getReelScrollPhase(reel);
       const landingStrip = this.buildLandingStrip(reel, finalColumn, startRow);
 
@@ -661,7 +701,7 @@ export class HotlineScene {
     const currentVisible = this.getVisibleSymbols(reel);
     const strip = Array.from({ length: REEL_STRIP_LEN }, () => Math.floor(Math.random() * SYMBOL_COUNT));
 
-    for (let i = 0; i < ROWS; i += 1) {
+    for (let i = 0; i < this.rowCount; i += 1) {
       strip[FINAL_STOP_ROW + i] = finalColumn[i] ?? 0;
       strip[startRow + i] = currentVisible[i] ?? strip[startRow + i] ?? 0;
     }
@@ -690,7 +730,7 @@ export class HotlineScene {
 
   private getVisibleSymbols(reel: ReelData): number[] {
     const ordered = [...reel.symbols].sort((a, b) => a.y - b.y);
-    return ordered.slice(0, ROWS).map((symbol) => symbol.symbolIndex);
+    return ordered.slice(0, this.rowCount).map((symbol) => symbol.symbolIndex);
   }
 
   private getReelScrollPhase(reel: ReelData): number {
@@ -717,10 +757,99 @@ export class HotlineScene {
     );
   }
 
+  private async animateCascadeToGrid(nextGrid: number[][], removed: HotlineWinPosition[]): Promise<void> {
+    this.resetWinLines();
+    const removalTweens: Promise<void>[] = [];
+
+    for (const pos of removed) {
+      const reel = this.reels[pos.reel];
+      const sym = reel?.symbols[pos.row];
+      if (!reel || !sym) continue;
+      gsap.killTweensOf(sym);
+      gsap.killTweensOf(sym.scale);
+      const x = this.reelX0 + pos.reel * (this.cellSize + this.reelGap) + this.cellSize / 2;
+      const y = this.reelY0 + pos.row * this.cellSize + this.cellSize / 2;
+      this.emitShockwave(x, y, this.theme.symbols[sym.symbolIndex]?.accentValue ?? COLOR_ACID, this.cellSize * 0.56);
+      this.particlePool?.emit({
+        x,
+        y,
+        count: 9,
+        colors: [this.theme.symbols[sym.symbolIndex]?.accentValue ?? COLOR_ACID, 0xffffff],
+        speedMin: 1.5,
+        speedMax: 5,
+      });
+
+      gsap.to(sym.scale, {
+        x: 0.18,
+        y: 0.18,
+        duration: 0.22,
+        ease: 'back.in(1.8)',
+      });
+      removalTweens.push(new Promise((resolve) => {
+        gsap.to(sym, {
+          alpha: 0,
+          duration: 0.22,
+          ease: 'power2.in',
+          onComplete: resolve,
+        });
+      }));
+    }
+
+    if (removalTweens.length > 0) {
+      Sfx.slotWin(removed.length >= 8 ? 'medium' : 'small');
+      await Promise.all(removalTweens);
+    }
+
+    await this.dropGridIntoPlace(nextGrid);
+  }
+
+  private dropGridIntoPlace(nextGrid: number[][]): Promise<void> {
+    const tweens: Promise<void>[] = [];
+    for (let reelIdx = 0; reelIdx < this.reels.length; reelIdx += 1) {
+      const reel = this.reels[reelIdx]!;
+      this.snapReelToFinal(reel, nextGrid[reelIdx] ?? []);
+
+      for (let row = 0; row < this.rowCount; row += 1) {
+        const sym = reel.symbols[row];
+        if (!sym) continue;
+        const targetY = row * reel.cellSize + reel.cellSize / 2;
+        const delay = reelIdx * 0.035 + row * 0.018;
+        gsap.killTweensOf(sym);
+        gsap.killTweensOf(sym.scale);
+        sym.alpha = 0;
+        sym.scale.set(0.92);
+        sym.y = targetY - reel.cellSize * 0.64;
+        tweens.push(new Promise((resolve) => {
+          gsap.to(sym, {
+            y: targetY,
+            alpha: 1,
+            duration: 0.34,
+            delay,
+            ease: 'back.out(1.45)',
+            onComplete: resolve,
+          });
+          gsap.to(sym.scale, {
+            x: 1,
+            y: 1,
+            duration: 0.28,
+            delay,
+            ease: 'power2.out',
+          });
+        }));
+      }
+    }
+
+    if (tweens.length > 0) {
+      this.shaker?.shake(2.2, 0.18);
+      Sfx.slotReelStop();
+    }
+    return Promise.all(tweens).then(() => undefined);
+  }
+
   private snapReelToFinal(reel: ReelData, finalColumn: number[]): void {
     const newStrip: number[] = [];
-    for (let i = 0; i < ROWS; i += 1) newStrip.push(finalColumn[i]!);
-    for (let i = ROWS; i < REEL_STRIP_LEN; i += 1) {
+    for (let i = 0; i < this.rowCount; i += 1) newStrip.push(finalColumn[i] ?? 0);
+    for (let i = this.rowCount; i < REEL_STRIP_LEN; i += 1) {
       newStrip.push(Math.floor(Math.random() * SYMBOL_COUNT));
     }
     reel.container.y = this.reelY0;
@@ -874,7 +1003,8 @@ export class HotlineScene {
 
   private clampLineRow(row: number): number {
     if (!Number.isFinite(row)) return 0;
-    return Math.max(0, Math.min(ROWS - 1, Math.trunc(row)));
+    const maxRow = Math.max(0, Math.min(MEGA_ROWS, this.rowCount) - 1);
+    return Math.max(0, Math.min(maxRow, Math.trunc(row)));
   }
 
   private clampLineStart(startReel?: number): number {

@@ -13,12 +13,27 @@ export interface HotlineWinLine {
   symbol: number;
   count: number;
   payout: number;
+  ways?: number;
+}
+
+export interface HotlineWinPosition {
+  reel: number;
+  row: number;
+}
+
+export interface HotlineCascadeStep {
+  index: number;
+  grid: number[][];
+  lines: HotlineWinLine[];
+  multiplier: number;
+  removed: HotlineWinPosition[];
 }
 
 export interface HotlineBetResult {
   betId: string;
   grid: number[][];
   lines: HotlineWinLine[];
+  cascades?: HotlineCascadeStep[];
   multiplier: number;
   amount: string;
   payout: string;
