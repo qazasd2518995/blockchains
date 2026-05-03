@@ -10,6 +10,14 @@ import './styles/global.css';
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element');
 
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((error) => {
+      console.error('Service worker registration failed', error);
+    });
+  });
+}
+
 function AudioUnlocker(): null {
   React.useEffect(() => {
     const events: Array<keyof WindowEventMap> = ['pointerdown', 'touchstart', 'keydown'];

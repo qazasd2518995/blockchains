@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { ArrowLeft, History, RefreshCw, WalletCards } from 'lucide-react';
+import { ArrowLeft, History, Maximize2, RefreshCw, Smartphone, WalletCards, X } from 'lucide-react';
 import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { SoundToggle } from '@/components/layout/SoundToggle';
@@ -54,6 +54,14 @@ const MEGA_SLOT_GAME_IDS = new Set([
   'vampire-slot',
 ]);
 
+type NavigatorWithStandalone = Navigator & { standalone?: boolean };
+type FullscreenTarget = HTMLElement & {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+};
+type ScreenOrientationWithLock = ScreenOrientation & {
+  lock?: (orientation: 'landscape') => Promise<void>;
+};
+
 function useCurrentGameMeta() {
   const location = useLocation();
   return useMemo(() => {
@@ -74,6 +82,38 @@ export function GameFullscreenShell() {
   const location = useLocation();
   const loginPath = buildLoginPath(`${location.pathname}${location.search}`, 'game');
   const slotLayout = MEGA_SLOT_GAME_IDS.has(game.id) ? 'mega' : 'standard';
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [standaloneMode, setStandaloneMode] = useState(false);
+  const [immersiveNotice, setImmersiveNotice] = useState<'ios' | 'blocked' | null>(null);
+  const isMegaSlot = slotLayout === 'mega';
+
+  useEffect(() => {
+    const updateMode = () => {
+      setStandaloneMode(isStandaloneDisplayMode() || Boolean(document.fullscreenElement));
+    };
+    const mediaQueries = [
+      window.matchMedia('(display-mode: fullscreen)'),
+      window.matchMedia('(display-mode: standalone)'),
+    ];
+    updateMode();
+    document.addEventListener('fullscreenchange', updateMode);
+    mediaQueries.forEach((query) => query.addEventListener('change', updateMode));
+    return () => {
+      document.removeEventListener('fullscreenchange', updateMode);
+      mediaQueries.forEach((query) => query.removeEventListener('change', updateMode));
+    };
+  }, []);
+
+  const handleEnterImmersive = async () => {
+    const target = shellRef.current ?? document.documentElement;
+    const entered = await requestImmersiveMode(target);
+    if (entered || isStandaloneDisplayMode()) {
+      setStandaloneMode(true);
+      setImmersiveNotice(null);
+      return;
+    }
+    setImmersiveNotice(isAppleTouchDevice() ? 'ios' : 'blocked');
+  };
 
   const handleBalanceRefresh = async () => {
     if (!user) return;
@@ -87,6 +127,7 @@ export function GameFullscreenShell() {
 
   return (
     <div
+      ref={shellRef}
       className="game-fullscreen-shell relative min-h-[100svh] overflow-x-hidden bg-[#050A13] text-white"
       data-game-id={game.id}
       data-slot-layout={slotLayout}
@@ -150,6 +191,19 @@ export function GameFullscreenShell() {
           <SoundToggle variant="dark" />
           <MusicToggle variant="dark" />
 
+          {isMegaSlot && !standaloneMode && (
+            <button
+              type="button"
+              onClick={() => void handleEnterImmersive()}
+              className="game-shell-immersive inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-[#7DD3FC]/35 bg-[#0B2133] px-3 text-[12px] font-bold text-[#BDEBFF] transition hover:border-[#7DD3FC]/65 hover:bg-[#11304A]"
+              aria-label="全螢幕"
+              title="全螢幕"
+            >
+              <Maximize2 className="h-4 w-4" aria-hidden="true" />
+              <span>全螢幕</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => window.location.reload()}
@@ -165,6 +219,72 @@ export function GameFullscreenShell() {
       <main className="relative z-10 mx-auto w-full max-w-[1920px] px-0 py-2 sm:px-4 sm:py-3 xl:px-5">
         <Outlet />
       </main>
+
+      {immersiveNotice && (
+        <div className="game-immersive-notice" role="status" aria-live="polite">
+          <div className="flex min-w-0 items-start gap-3">
+            <Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-[#F3D67D]" aria-hidden="true" />
+            <div className="min-w-0">
+              <div className="font-black text-white">
+                {immersiveNotice === 'ios' ? 'iPhone 全螢幕開法' : '瀏覽器未允許全螢幕'}
+              </div>
+              <div className="mt-1 text-white/72">
+                {immersiveNotice === 'ios'
+                  ? '請用 Safari 分享按鈕加入主畫面，再從主畫面 BG 圖示開啟。'
+                  : '請允許全螢幕，或把 BG 加入主畫面後從圖示開啟。'}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setImmersiveNotice(null)}
+            className="game-immersive-notice__close"
+            aria-label="關閉提示"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
     </div>
   );
+}
+
+async function requestImmersiveMode(target: HTMLElement): Promise<boolean> {
+  const fullscreenTarget = target as FullscreenTarget;
+  let entered = Boolean(document.fullscreenElement);
+
+  try {
+    if (!entered && target.requestFullscreen) {
+      await target.requestFullscreen({ navigationUI: 'hide' });
+      entered = true;
+    } else if (!entered && fullscreenTarget.webkitRequestFullscreen) {
+      await fullscreenTarget.webkitRequestFullscreen();
+      entered = true;
+    }
+  } catch {
+    entered = false;
+  }
+
+  try {
+    await (screen.orientation as ScreenOrientationWithLock | undefined)?.lock?.('landscape');
+  } catch {
+    // iOS Safari and normal browser tabs may reject orientation lock.
+  }
+
+  return entered;
+}
+
+function isStandaloneDisplayMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  const nav = navigator as NavigatorWithStandalone;
+  return (
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: standalone)').matches ||
+    nav.standalone === true
+  );
+}
+
+function isAppleTouchDevice(): boolean {
+  const nav = navigator as Navigator & { maxTouchPoints?: number };
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && (nav.maxTouchPoints ?? 0) > 1);
 }

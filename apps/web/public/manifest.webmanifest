@@ -1,0 +1,47 @@
+{
+  "name": "BG 娛樂城",
+  "short_name": "BG",
+  "description": "BG 娛樂城電子遊戲與即時派彩大廳",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#050A13",
+  "theme_color": "#050A13",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "龍焰巨輪",
+      "short_name": "龍焰",
+      "url": "/games/dragon-mega-slot",
+      "icons": [
+        {
+          "src": "/favicon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "雷神之鎚",
+      "short_name": "雷神",
+      "url": "/games/thunder-slot",
+      "icons": [
+        {
+          "src": "/favicon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}
