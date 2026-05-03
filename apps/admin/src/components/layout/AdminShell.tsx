@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
+import type { AgentPublic } from '@bg/shared';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -9,7 +10,7 @@ import { ProfileModal } from '@/components/shared/ProfileModal';
 import { ChangePasswordModal } from '@/components/shared/ChangePasswordModal';
 
 export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
-  const { agent, refreshToken, logout } = useAdminAuthStore();
+  const { agent, accessToken, refreshToken, setAgent, logout } = useAdminAuthStore();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [time, setTime] = useState<string>(currentTime());
@@ -22,6 +23,35 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
     const id = setInterval(() => setTime(currentTime()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    let active = true;
+
+    const refreshAgent = async () => {
+      try {
+        const res = await adminApi.get<AgentPublic>('/auth/me');
+        if (active && res.data) setAgent(res.data);
+      } catch (err) {
+        console.error(extractApiError(err));
+      }
+    };
+    const handleFocus = () => {
+      void refreshAgent();
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void refreshAgent();
+    };
+
+    void refreshAgent();
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [accessToken, setAgent]);
 
   useEffect(() => {
     if (!menuOpen) return;
