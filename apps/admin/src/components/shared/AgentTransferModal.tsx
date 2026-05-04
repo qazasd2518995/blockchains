@@ -1,21 +1,26 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import type { AgentPublic } from '@bg/shared';
 import {
   ArrowDownToLine,
   ArrowRightLeft,
   ArrowUpFromLine,
   BadgeDollarSign,
+  LockKeyhole,
   SendHorizontal,
   WalletCards,
   X,
 } from 'lucide-react';
 import { adminApi, extractApiError } from '@/lib/adminApi';
-import { AccountSearchSelect, type AccountSearchOption } from './AccountSearchSelect';
+import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { Modal } from './Modal';
+
+type AgentTransferParty = { id: string; username: string; balance: string };
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  fromAgent: { id: string; username: string; balance: string };
+  sourceAgent: AgentTransferParty;
+  targetAgent: AgentTransferParty;
   onDone: () => void;
 }
 
@@ -23,56 +28,76 @@ type Direction = 'DEPOSIT' | 'WITHDRAW';
 
 /**
  * 代理間轉帳 Modal（參考系統 adjustAgentBalanceModal）
- *   DEPOSIT：本代理 → 目標代理（從本代理扣）
- *   WITHDRAW：目標代理 → 本代理（從目標代理扣）
+ *   DEPOSIT：操作代理 → 被點擊的目標代理（從操作代理扣）
+ *   WITHDRAW：被點擊的目標代理 → 操作代理（從目標代理扣）
  */
-export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props): JSX.Element {
+export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, onDone }: Props): JSX.Element {
+  const { agent: me, setAgent } = useAdminAuthStore();
   const [direction, setDirection] = useState<Direction>('DEPOSIT');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [targetAgent, setTargetAgent] = useState<AccountSearchOption | null>(null);
+  const [sourceBalance, setSourceBalance] = useState(sourceAgent.balance);
+  const [targetBalance, setTargetBalance] = useState(targetAgent.balance);
+  const [loadingBalances, setLoadingBalances] = useState(false);
 
   useEffect(() => {
-    if (!open) {
-      setDirection('DEPOSIT');
-      setAmount('');
-      setDescription('');
-      setTargetAgent(null);
-      setErr(null);
-    }
-  }, [open]);
+    setDirection('DEPOSIT');
+    setAmount('');
+    setDescription('');
+    setErr(null);
+    setSourceBalance(sourceAgent.balance);
+    setTargetBalance(targetAgent.balance);
+
+    if (!open) return;
+    let active = true;
+    setLoadingBalances(true);
+    void Promise.allSettled([
+      adminApi.get<AgentTransferParty>(`/agents/${sourceAgent.id}`),
+      adminApi.get<AgentTransferParty>(`/agents/${targetAgent.id}`),
+    ]).then((results) => {
+      if (!active) return;
+      const [sourceResult, targetResult] = results;
+      if (sourceResult.status === 'fulfilled') setSourceBalance(sourceResult.value.data.balance);
+      if (targetResult.status === 'fulfilled') setTargetBalance(targetResult.value.data.balance);
+      setLoadingBalances(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [open, sourceAgent.id, sourceAgent.balance, targetAgent.id, targetAgent.balance]);
 
   const fillMax = (): void => {
-    // DEPOSIT：從本代理扣 → 以本代理餘額為上限
-    // WITHDRAW：從目標代理扣 → 以目標代理餘額為上限
-    const source = direction === 'DEPOSIT' ? fromAgent.balance : targetAgent?.balance;
-    if (source) setAmount(source);
+    setAmount(direction === 'DEPOSIT' ? sourceBalance : targetBalance);
   };
 
   const submit = async (): Promise<void> => {
-    if (!targetAgent) {
-      setErr('請先從搜尋選單選擇目標代理');
+    if (sourceAgent.id === targetAgent.id) {
+      setErr('不能轉給同一個代理');
       return;
     }
-    if (!amount) {
-      setErr('請填金額');
+    const parsedAmount = Number.parseFloat(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setErr('金額必須大於 0');
       return;
     }
     setBusy(true);
     setErr(null);
     try {
-      // DEPOSIT：from → to（fromAgent 付出）
-      // WITHDRAW：to → from（targetAgent 付出）
-      const fromId = direction === 'DEPOSIT' ? fromAgent.id : targetAgent.id;
-      const toId = direction === 'DEPOSIT' ? targetAgent.id : fromAgent.id;
+      const fromId = direction === 'DEPOSIT' ? sourceAgent.id : targetAgent.id;
+      const toId = direction === 'DEPOSIT' ? targetAgent.id : sourceAgent.id;
       await adminApi.post('/transfers/agent-to-agent', {
         fromId,
         toId,
         amount,
         description: description || undefined,
       });
+      if (me && (me.id === sourceAgent.id || me.id === targetAgent.id)) {
+        const res = await adminApi.get<AgentPublic>('/auth/me');
+        setAgent(res.data);
+      }
       onDone();
       onClose();
     } catch (e) {
@@ -96,20 +121,16 @@ export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props):
   };
 
   const fromPays = direction === 'DEPOSIT';
-  const sourceName = fromPays ? fromAgent.username : (targetAgent?.username ?? '目標代理');
-  const sourceBalance = fromPays ? fromAgent.balance : (targetAgent?.balance ?? '0');
-  const sourceAfter = fromPays
-    ? predict(fromAgent.balance, true)
-    : targetAgent ? predict(targetAgent.balance ?? '0', true) : '—';
-  const targetName = fromPays ? (targetAgent?.username ?? '目標代理') : fromAgent.username;
-  const targetBalance = fromPays ? (targetAgent?.balance ?? '0') : fromAgent.balance;
-  const targetAfter = fromPays
-    ? targetAgent ? predict(targetAgent.balance ?? '0', false) : '—'
-    : predict(fromAgent.balance, false);
+  const payerName = fromPays ? sourceAgent.username : targetAgent.username;
+  const payerBalance = fromPays ? sourceBalance : targetBalance;
+  const payerAfter = predict(payerBalance, true);
+  const receiverName = fromPays ? targetAgent.username : sourceAgent.username;
+  const receiverBalance = fromPays ? targetBalance : sourceBalance;
+  const receiverAfter = predict(receiverBalance, false);
   const amountReady = Number.parseFloat(amount) > 0;
 
   return (
-    <Modal open={open} onClose={onClose} title="代理間轉帳" subtitle={`操作端 · ${fromAgent.username}`} width="lg">
+    <Modal open={open} onClose={onClose} title="代理間轉帳" subtitle={`目標代理 · ${targetAgent.username}`} width="lg">
       <div className="-mx-4 -mt-4 sm:-mx-6 sm:-mt-5">
         <div className="border-b border-[#134A54]/50 bg-[#0F2D35] px-4 py-4 text-white sm:px-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -119,20 +140,15 @@ export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props):
                 TRANSFER DESK
               </div>
               <div className="mt-2 break-words text-[18px] font-black leading-tight sm:text-[22px]">
-                {fromPays ? '本代理存入目標代理' : '目標代理提領回本代理'}
+                {fromPays ? '操作代理存入目標代理' : '目標代理提領回操作代理'}
               </div>
               <div className="mt-1 text-[12px] text-white/65">
-                選定目標代理後，右側會即時預估雙方轉後餘額。
+                目標已依列表選取鎖定，右側會即時預估雙方轉後餘額。
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 md:min-w-[280px]">
-              <BalanceTile label="本代理" username={fromAgent.username} balance={fmt(fromAgent.balance)} tone="light" />
-              <BalanceTile
-                label="目標代理"
-                username={targetAgent?.username ?? '尚未選擇'}
-                balance={targetAgent ? fmt(targetAgent.balance ?? '0') : '—'}
-                tone="muted"
-              />
+              <BalanceTile label="操作代理" username={sourceAgent.username} balance={fmt(sourceBalance)} tone="light" />
+              <BalanceTile label="目標代理" username={targetAgent.username} balance={fmt(targetBalance)} tone="muted" />
             </div>
           </div>
         </div>
@@ -146,7 +162,7 @@ export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props):
               <DirectionOption
                 icon={<ArrowDownToLine className="h-5 w-5" aria-hidden="true" />}
                 title="存入目標"
-                detail="本代理扣款，目標代理加點"
+                detail="操作代理扣款，目標代理加點"
                 checked={direction === 'DEPOSIT'}
                 tone="deposit"
                 onChange={() => setDirection('DEPOSIT')}
@@ -154,7 +170,7 @@ export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props):
               <DirectionOption
                 icon={<ArrowUpFromLine className="h-5 w-5" aria-hidden="true" />}
                 title="提領回本"
-                detail="目標代理扣款，本代理加點"
+                detail="目標代理扣款，操作代理加點"
                 checked={direction === 'WITHDRAW'}
                 tone="withdraw"
                 onChange={() => setDirection('WITHDRAW')}
@@ -165,22 +181,19 @@ export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props):
           <section className="rounded-[8px] border border-[#D6DEE4] bg-[#F8FBFC] p-3 shadow-[0_12px_30px_rgba(15,23,42,0.06)] sm:p-4">
             <SectionHeading index="02" title="目標與金額" />
             <div className="mt-3 space-y-4">
-              <AccountSearchSelect
-                kind="agent"
-                label="目標代理帳號"
-                value={targetAgent}
-                onChange={(next) => {
-                  if (next?.id === fromAgent.id) {
-                    setErr('不能轉給自己');
-                    setTargetAgent(null);
-                    return;
-                  }
-                  setErr(null);
-                  setTargetAgent(next);
-                }}
-                excludeId={fromAgent.id}
-                placeholder="輸入代理帳號或全名"
-              />
+              <div className="rounded-[8px] border border-[#186073]/25 bg-white p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-semibold tracking-[0.18em] text-ink-400">已鎖定目標</div>
+                    <div className="mt-1 truncate font-mono text-[15px] font-black text-ink-900">{targetAgent.username}</div>
+                    <div className="mt-1 data-num text-[12px] text-[#186073]">目前 {fmt(targetBalance)}</div>
+                  </div>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#186073]/25 bg-[#EFF8FB] px-2.5 py-1 text-[10px] font-bold text-[#186073]">
+                    <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
+                    LOCKED
+                  </span>
+                </div>
+              </div>
 
               <label className="block">
                 <div className="mb-2 flex items-center justify-between gap-3">
@@ -224,17 +237,17 @@ export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props):
         <aside className="rounded-[8px] border border-[#186073]/25 bg-[#F2F8FA] p-3 shadow-[0_12px_30px_rgba(15,23,42,0.06)] sm:p-4">
           <SectionHeading index="03" title="轉帳預覽" />
           <div className="mt-3 space-y-3">
-            <PreviewAccount label="扣款方" username={sourceName} before={fmt(sourceBalance)} after={amountReady ? sourceAfter : '—'} tone="danger" />
+            <PreviewAccount label="扣款方" username={payerName} before={fmt(payerBalance)} after={amountReady ? payerAfter : '—'} tone="danger" />
             <div className="flex justify-center">
               <div className="grid h-9 w-9 place-items-center rounded-full border border-[#186073]/25 bg-white text-[#186073]">
                 <ArrowRightLeft className="h-4 w-4" aria-hidden="true" />
               </div>
             </div>
-            <PreviewAccount label="收款方" username={targetName} before={fmt(targetBalance)} after={amountReady ? targetAfter : '—'} tone="success" />
+            <PreviewAccount label="收款方" username={receiverName} before={fmt(receiverBalance)} after={amountReady ? receiverAfter : '—'} tone="success" />
           </div>
 
           <div className="mt-4 rounded-[8px] border border-[#D4AF37]/35 bg-[#FFF8DA] p-3 text-[11px] leading-relaxed text-[#6D5716]">
-            提交後會直接寫入代理轉帳紀錄，並同步更新雙方餘額。
+            {loadingBalances ? '正在同步最新餘額，仍可先輸入金額。' : '提交後會直接寫入代理轉帳紀錄，並同步更新雙方餘額。'}
           </div>
         </aside>
       </div>
@@ -250,9 +263,9 @@ export function AgentTransferModal({ open, onClose, fromAgent, onDone }: Props):
           <X className="h-4 w-4" aria-hidden="true" />
           取消
         </button>
-        <button type="button" onClick={submit} disabled={busy || !targetAgent} className="btn-acid inline-flex items-center justify-center gap-2">
+        <button type="button" onClick={submit} disabled={busy} className="btn-acid inline-flex items-center justify-center gap-2">
           <SendHorizontal className="h-4 w-4" aria-hidden="true" />
-          確認轉帳
+          {busy ? '處理中' : '確認轉帳'}
         </button>
       </div>
     </Modal>

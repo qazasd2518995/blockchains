@@ -452,11 +452,16 @@ export function AgentHierarchyPage(): JSX.Element {
           onDone={() => setReloadKey((k) => k + 1)}
         />
       )}
-      {agentTransferFor && (
+      {agentTransferFor && data?.parent && (
         <AgentTransferModal
           open
           onClose={() => setAgentTransferFor(null)}
-          fromAgent={agentTransferFor}
+          sourceAgent={{
+            id: data.parent.id,
+            username: data.parent.username,
+            balance: data.parent.balance,
+          }}
+          targetAgent={agentTransferFor}
           onDone={() => setReloadKey((k) => k + 1)}
         />
       )}
