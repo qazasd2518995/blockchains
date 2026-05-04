@@ -24,9 +24,9 @@ export function prewarmShaders(app: Application): void {
 
     // 跑一個 gsap tween 讓 GSAP 跟 Pixi ticker 綁定
     gsap.to(g, { alpha: 1, duration: 0.05, onComplete: () => {
-      app.stage.removeChild(layer);
-      g.destroy();
-      layer.destroy();
+      if (layer.parent) layer.parent.removeChild(layer);
+      if (!g.destroyed) g.destroy();
+      if (!layer.destroyed) layer.destroy({ children: true });
     } });
   } catch {
     // prewarm 失敗也不影響遊戲，靜默

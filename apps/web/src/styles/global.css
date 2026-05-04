@@ -1361,3 +1361,731 @@
     transform: scale(1);
   }
 }
+
+.game-fullscreen-shell[data-slot-layout="mega"] {
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+.game-fullscreen-shell[data-slot-layout="mega"] > header {
+  display: none;
+}
+
+.game-fullscreen-shell[data-slot-layout="mega"] > main {
+  height: 100dvh;
+  max-width: none;
+  overflow: hidden;
+  padding: 0;
+}
+
+.mega-slot-machine {
+  --mega-slot-bg: none;
+  --mega-slot-cover: none;
+  --mega-slot-accent: #f3d67d;
+  position: relative;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  background: #030813;
+  color: #fff;
+}
+
+.mega-slot-machine__backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(3, 8, 19, 0.92), rgba(3, 8, 19, 0.32) 46%, rgba(3, 8, 19, 0.82)),
+    var(--mega-slot-bg) center / cover no-repeat;
+  filter: saturate(1.1) contrast(1.04);
+}
+
+.mega-slot-machine__backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--mega-slot-accent) 26%, transparent), transparent 34%),
+    linear-gradient(180deg, rgba(3, 8, 19, 0.05), rgba(3, 8, 19, 0.82));
+}
+
+.mega-slot-machine__chrome {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: 44px minmax(0, 1fr) 72px;
+  gap: 8px;
+  height: 100%;
+  padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+}
+
+.mega-slot-topbar {
+  display: grid;
+  grid-template-columns: auto minmax(112px, 180px) minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mega-slot-icon-btn,
+.mega-slot-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(12, 23, 40, 0.72);
+  color: rgba(255, 255, 255, 0.84);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+.mega-slot-pill {
+  gap: 6px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mega-slot-brand {
+  min-width: 0;
+}
+
+.mega-slot-brand__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1.05;
+}
+
+.mega-slot-brand__sub {
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.28em;
+  color: rgba(255, 255, 255, 0.46);
+}
+
+.mega-slot-jackpots {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  height: 38px;
+  overflow: hidden;
+  border: 1px solid rgba(243, 214, 125, 0.24);
+  border-radius: 999px;
+  background: rgba(5, 12, 24, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(10px);
+}
+
+.mega-slot-jackpot {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.mega-slot-jackpot:last-child {
+  border-right: 0;
+}
+
+.mega-slot-jackpot span {
+  font-size: 10px;
+  font-weight: 950;
+  color: #f3d67d;
+}
+
+.mega-slot-jackpot strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.mega-slot-body {
+  display: grid;
+  grid-template-columns: minmax(118px, 15vw) minmax(0, 1fr) minmax(92px, 13vw);
+  gap: 8px;
+  min-height: 0;
+}
+
+.mega-slot-side,
+.mega-slot-stage,
+.mega-slot-controls {
+  border: 1px solid rgba(243, 214, 125, 0.28);
+  background: rgba(8, 16, 30, 0.62);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 16px 42px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(8px);
+}
+
+.mega-slot-side {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.mega-slot-logo-card {
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(5, 10, 19, 0.18), rgba(5, 10, 19, 0.72)),
+    var(--mega-slot-cover) center / cover no-repeat;
+  padding: 10px;
+  min-height: 88px;
+}
+
+.mega-slot-logo-card__eyebrow,
+.mega-slot-logo-card__suffix {
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.22em;
+  color: #f3d67d;
+}
+
+.mega-slot-logo-card__title {
+  margin-top: 7px;
+  font-size: clamp(15px, 2vw, 26px);
+  font-weight: 950;
+  line-height: 0.95;
+  text-shadow: 0 3px 16px rgba(0, 0, 0, 0.55);
+}
+
+.mega-slot-logo-card__suffix {
+  margin-top: 5px;
+  color: color-mix(in srgb, var(--mega-slot-accent) 78%, white);
+}
+
+.mega-slot-bonus-panel {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+
+.mega-slot-multiplier {
+  display: grid;
+  place-items: center;
+  min-height: 58px;
+  border-radius: 999px;
+  border: 2px solid rgba(243, 214, 125, 0.52);
+  background: radial-gradient(circle, color-mix(in srgb, var(--mega-slot-accent) 30%, transparent), rgba(5, 10, 19, 0.78));
+  font-family: var(--font-display, Inter, system-ui, sans-serif);
+  font-size: clamp(22px, 4vw, 42px);
+  font-weight: 950;
+  color: #f3d67d;
+  text-shadow: 0 0 22px color-mix(in srgb, var(--mega-slot-accent) 58%, transparent);
+}
+
+.mega-slot-free-spins {
+  display: grid;
+  justify-items: center;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(5, 10, 19, 0.56);
+  padding: 8px 6px;
+}
+
+.mega-slot-free-spins strong {
+  font-size: 22px;
+  line-height: 1;
+  color: #7dd3fc;
+}
+
+.mega-slot-free-spins span {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.mega-slot-mini-pay {
+  display: grid;
+  gap: 5px;
+  margin-top: auto;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.mega-slot-mini-pay > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.mega-slot-mini-pay span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mega-slot-side--right {
+  padding: 0;
+}
+
+.mega-slot-hero-art {
+  height: 100%;
+  background:
+    linear-gradient(90deg, rgba(5, 10, 19, 0.18), rgba(5, 10, 19, 0.72)),
+    var(--mega-slot-cover) center / cover no-repeat;
+  filter: saturate(1.08) contrast(1.06);
+}
+
+.mega-slot-stage {
+  position: relative;
+  display: grid;
+  grid-template-rows: 38px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.mega-slot-win-meter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(243, 214, 125, 0.38);
+  background: linear-gradient(90deg, rgba(5, 10, 19, 0.75), rgba(32, 23, 13, 0.72), rgba(5, 10, 19, 0.75));
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.mega-slot-win-meter span {
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  color: #f3d67d;
+}
+
+.mega-slot-win-meter strong {
+  font-family: var(--font-display, Inter, system-ui, sans-serif);
+  font-size: clamp(20px, 3vw, 32px);
+  color: white;
+}
+
+.mega-slot-board {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  margin-top: 8px;
+  background: rgba(3, 8, 19, 0.74);
+  box-shadow:
+    inset 0 0 0 2px rgba(243, 214, 125, 0.18),
+    inset 0 0 54px rgba(0, 0, 0, 0.42);
+}
+
+.mega-slot-canvas,
+.mega-slot-fallback-grid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.mega-slot-canvas {
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.mega-slot-canvas--ready {
+  opacity: 1;
+}
+
+.mega-slot-fallback-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: min(0.8vw, 8px);
+  padding: min(1.6vw, 18px);
+  opacity: 1;
+  transition: opacity 160ms ease;
+}
+
+.mega-slot-fallback-grid--hidden {
+  opacity: 0;
+}
+
+.mega-slot-fallback-reel {
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: min(0.8vw, 8px);
+  min-height: 0;
+}
+
+.mega-slot-fallback-symbol {
+  min-height: 0;
+  border: 2px solid;
+  border-radius: 9px;
+  background-color: #050914;
+  background-repeat: no-repeat;
+  background-size: 300% 200%;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 0 14px rgba(0, 0, 0, 0.36);
+}
+
+.mega-slot-scene-error {
+  position: absolute;
+  inset: auto 12px 12px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 87, 74, 0.45);
+  background: rgba(54, 14, 18, 0.86);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 850;
+  color: #fecaca;
+}
+
+.mega-slot-controls {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.8fr) minmax(96px, 0.8fr) minmax(150px, 1fr) minmax(220px, 1.2fr) minmax(110px, 0.8fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+  border-radius: 14px;
+  padding: 8px;
+}
+
+.mega-slot-control-tile {
+  min-width: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.09);
+  padding-right: 8px;
+}
+
+.mega-slot-control-tile span {
+  display: block;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.46);
+}
+
+.mega-slot-control-tile strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 15px;
+  color: #f3d67d;
+}
+
+.mega-slot-betbox {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  gap: 6px;
+  align-items: center;
+}
+
+.mega-slot-betbox button,
+.mega-slot-presets button {
+  min-width: 0;
+  height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  font-weight: 850;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.mega-slot-betbox button:last-child,
+.mega-slot-presets button:last-child {
+  border-color: rgba(125, 211, 252, 0.42);
+  background: rgba(20, 91, 109, 0.7);
+  color: #8fe7ff;
+}
+
+.mega-slot-betbox input {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  border: 1px solid rgba(243, 214, 125, 0.28);
+  border-radius: 999px;
+  background: rgba(5, 10, 19, 0.62);
+  padding: 0 12px;
+  text-align: center;
+  font-family: var(--font-display, Inter, system-ui, sans-serif);
+  font-size: 20px;
+  font-weight: 900;
+  color: white;
+  outline: 0;
+}
+
+.mega-slot-presets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.mega-slot-betbox button:disabled,
+.mega-slot-presets button:disabled,
+.mega-slot-spin:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.mega-slot-spin {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: 54px;
+  border: 2px solid rgba(243, 214, 125, 0.58);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--mega-slot-accent) 42%, transparent), rgba(7, 20, 34, 0.92)),
+    linear-gradient(180deg, rgba(243, 214, 125, 0.2), rgba(24, 96, 115, 0.5));
+  box-shadow:
+    inset 0 0 0 5px rgba(5, 10, 19, 0.26),
+    0 0 30px color-mix(in srgb, var(--mega-slot-accent) 28%, transparent);
+  color: white;
+}
+
+.mega-slot-spin span {
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+}
+
+.mega-slot-spin strong {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  color: #f3d67d;
+}
+
+.mega-slot-alert {
+  position: absolute;
+  left: 50%;
+  bottom: 86px;
+  z-index: 5;
+  display: inline-flex;
+  max-width: min(620px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 87, 74, 0.5);
+  background: rgba(55, 18, 23, 0.9);
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 850;
+  color: #fecaca;
+}
+
+.game-fullscreen-shell[data-slot-layout="mega"] .slot-bigwin-stage {
+  display: flex;
+  inset: 54px 8px 8px;
+  border-radius: 10px;
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .mega-slot-machine__chrome {
+    grid-template-rows: 38px minmax(0, 1fr) 58px;
+    gap: 5px;
+    padding: 5px max(6px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+  }
+
+  .mega-slot-topbar {
+    grid-template-columns: auto minmax(88px, 132px) minmax(0, 1fr) auto auto auto;
+    gap: 5px;
+  }
+
+  .mega-slot-icon-btn,
+  .mega-slot-pill {
+    height: 32px;
+    min-width: 32px;
+  }
+
+  .mega-slot-pill {
+    width: 32px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .mega-slot-brand__title {
+    font-size: 14px;
+  }
+
+  .mega-slot-brand__sub {
+    font-size: 8px;
+  }
+
+  .mega-slot-jackpots {
+    height: 32px;
+  }
+
+  .mega-slot-jackpot {
+    gap: 4px;
+    padding: 0 4px;
+  }
+
+  .mega-slot-jackpot span {
+    font-size: 8px;
+  }
+
+  .mega-slot-jackpot strong {
+    font-size: 10px;
+  }
+
+  .mega-slot-body {
+    grid-template-columns: 104px minmax(0, 1fr) 84px;
+    gap: 5px;
+  }
+
+  .mega-slot-side,
+  .mega-slot-stage {
+    border-radius: 10px;
+    padding: 5px;
+  }
+
+  .mega-slot-logo-card {
+    min-height: 60px;
+    padding: 7px;
+  }
+
+  .mega-slot-logo-card__title {
+    font-size: 15px;
+  }
+
+  .mega-slot-bonus-panel {
+    gap: 5px;
+  }
+
+  .mega-slot-multiplier {
+    min-height: 42px;
+    font-size: 22px;
+  }
+
+  .mega-slot-free-spins {
+    padding: 5px;
+  }
+
+  .mega-slot-free-spins strong {
+    font-size: 17px;
+  }
+
+  .mega-slot-mini-pay {
+    display: none;
+  }
+
+  .mega-slot-stage {
+    grid-template-rows: 28px minmax(0, 1fr);
+  }
+
+  .mega-slot-win-meter {
+    gap: 8px;
+  }
+
+  .mega-slot-win-meter span {
+    font-size: 10px;
+  }
+
+  .mega-slot-win-meter strong {
+    font-size: 18px;
+  }
+
+  .mega-slot-board {
+    margin-top: 5px;
+  }
+
+  .mega-slot-controls {
+    grid-template-columns: minmax(74px, 0.75fr) minmax(74px, 0.75fr) minmax(128px, 1fr) minmax(176px, 1.25fr) minmax(88px, 0.78fr);
+    gap: 5px;
+    border-radius: 10px;
+    padding: 5px;
+  }
+
+  .mega-slot-control-tile span {
+    font-size: 8px;
+  }
+
+  .mega-slot-control-tile strong {
+    font-size: 11px;
+  }
+
+  .mega-slot-betbox {
+    grid-template-columns: 32px minmax(0, 1fr) 32px;
+    gap: 4px;
+  }
+
+  .mega-slot-betbox button,
+  .mega-slot-presets button {
+    height: 30px;
+    font-size: 10px;
+  }
+
+  .mega-slot-betbox input {
+    height: 34px;
+    padding: 0 6px;
+    font-size: 16px;
+  }
+
+  .mega-slot-presets {
+    gap: 4px;
+  }
+
+  .mega-slot-spin {
+    height: 44px;
+  }
+
+  .mega-slot-spin span,
+  .mega-slot-spin strong {
+    font-size: 10px;
+  }
+
+  .game-fullscreen-shell[data-slot-layout="mega"] .slot-bigwin-stage {
+    inset: 38px 5px 5px;
+  }
+}
+
+@media (orientation: landscape) and (max-width: 760px) {
+  .mega-slot-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mega-slot-side {
+    display: none;
+  }
+
+  .mega-slot-jackpot:nth-child(3),
+  .mega-slot-jackpot:nth-child(4),
+  .mega-slot-control-tile:nth-child(2) {
+    display: none;
+  }
+
+  .mega-slot-jackpots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mega-slot-controls {
+    grid-template-columns: minmax(72px, 0.8fr) minmax(122px, 1fr) minmax(152px, 1.2fr) minmax(84px, 0.8fr);
+  }
+}

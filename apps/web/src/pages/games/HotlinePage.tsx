@@ -1,16 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, RotateCw } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
+import { AlertCircle, ArrowLeft, History, RotateCw } from 'lucide-react';
 import type { HotlineBetRequest, HotlineBetResult } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
 import { GameHeader } from '@/components/game/GameHeader';
+import { SoundToggle } from '@/components/layout/SoundToggle';
+import { MusicToggle } from '@/components/layout/MusicToggle';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { HotlineScene } from '@/games/hotline/HotlineScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { getSlotTheme, type SlotThemeConfig, type SlotThemeId } from '@/lib/slotThemes';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
+import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 
 interface Props {
   theme?: SlotThemeId;
@@ -34,11 +38,13 @@ const MEGA_SYMBOL_PAYOUTS = [
   '3軸 0.45x · 4軸 4.00x · 5軸+ 25.00x',
 ];
 const BIG_WIN_MULTIPLIER = 2;
+const MEGA_PRESETS = [1, 10, 100, 1000];
 
 export function HotlinePage({ theme = 'cyber' }: Props) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
   const requireLogin = useRequireLogin();
+  const returnTarget = useGameReturnTarget();
   const slotTheme = getSlotTheme(theme);
   const isMegaSlot = slotTheme.rows > 3;
   const canvasAspectClass = isMegaSlot ? 'aspect-[16/10]' : 'aspect-[16/7]';
@@ -50,9 +56,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const [layoutVersion, setLayoutVersion] = useState(0);
+  const [sceneReady, setSceneReady] = useState(false);
+  const [sceneError, setSceneError] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
+  const fallbackGrid = useMemo(() => createFallbackGrid(slotTheme), [slotTheme]);
+  const jackpotValues = useMemo(() => createJackpotValues(slotTheme.id), [slotTheme.id]);
 
   useEffect(() => {
     if (!isMegaSlot) return;
@@ -73,6 +83,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    setSceneReady(false);
+    setSceneError(null);
     if (isMegaSlot && window.matchMedia('(orientation: portrait)').matches) return;
 
     let cancelled = false;
@@ -89,7 +101,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       scene = new HotlineScene();
       sceneRef.current = scene;
       void scene.init(canvas, w, h, slotTheme).then(() => {
-        if (cancelled) scene?.dispose();
+        if (cancelled) {
+          scene?.dispose();
+          return;
+        }
+        setSceneReady(true);
+        setSceneError(null);
+      }).catch((err) => {
+        if (cancelled) return;
+        console.error(err);
+        setSceneError('遊戲畫面載入失敗，請重新整理');
       });
     };
     tryInit();
@@ -100,6 +121,12 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       sceneRef.current = null;
     };
   }, [isMegaSlot, layoutVersion, slotTheme]);
+
+  const setMegaAmount = (next: number): void => {
+    const max = user ? Math.max(balance, 0.01) : 100000;
+    const clamped = Math.min(max, Math.max(0.01, next));
+    setAmount(Number.parseFloat(clamped.toFixed(2)));
+  };
 
   const spin = async () => {
     if (busy) return;
@@ -165,6 +192,178 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       : resultPayout > 0
         ? '小中獎派彩'
         : '本局未中';
+
+  if (isMegaSlot) {
+    return (
+      <div
+        className="slot-game-page slot-game-page--mega mega-slot-machine"
+        style={{
+          '--mega-slot-bg': `url(${slotTheme.background})`,
+          '--mega-slot-cover': `url(${slotTheme.cover})`,
+          '--mega-slot-accent': slotTheme.symbols[5]?.accentHex ?? '#F3D67D',
+        } as CSSProperties}
+      >
+        <div className="slot-landscape-gate" role="status" aria-live="polite">
+          <div className="slot-landscape-gate__panel">
+            <RotateCw className="h-9 w-9 text-[#F3D67D]" aria-hidden="true" />
+            <div className="text-center">
+              <div className="text-sm font-black tracking-[0.18em] text-white">請將手機轉為橫向</div>
+              <div className="mt-1 text-xs font-semibold text-white/65">Mega 寬版盤面需要更寬的遊玩空間</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mega-slot-machine__backdrop" aria-hidden="true" />
+        <div className="mega-slot-machine__chrome">
+          <header className="mega-slot-topbar">
+            <Link to={returnTarget.to} className="mega-slot-icon-btn" aria-label={`返回${returnTarget.label}`}>
+              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            </Link>
+            <div className="mega-slot-brand">
+              <div className="mega-slot-brand__title">{slotTheme.title}</div>
+              <div className="mega-slot-brand__sub">{slotTheme.suffix} MEGA WAYS</div>
+            </div>
+            <div className="mega-slot-jackpots" aria-label="彩金">
+              {jackpotValues.map((item) => (
+                <div key={item.label} className="mega-slot-jackpot">
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </div>
+              ))}
+            </div>
+            <Link to={user ? '/history' : '/login'} className="mega-slot-pill">
+              <History className="h-4 w-4" aria-hidden="true" />
+              記錄
+            </Link>
+            <SoundToggle variant="dark" />
+            <MusicToggle variant="dark" />
+          </header>
+
+          <div className="mega-slot-body">
+            <aside className="mega-slot-side mega-slot-side--left">
+              <div className="mega-slot-logo-card">
+                <div className="mega-slot-logo-card__eyebrow">{slotTheme.section}</div>
+                <div className="mega-slot-logo-card__title">{slotTheme.title}</div>
+                <div className="mega-slot-logo-card__suffix">{slotTheme.suffix}</div>
+              </div>
+              <div className="mega-slot-bonus-panel">
+                <div className="mega-slot-multiplier">1×</div>
+                <div className="mega-slot-free-spins">
+                  <strong>{result?.cascades?.length ?? 0}</strong>
+                  <span>連鎖消除</span>
+                </div>
+              </div>
+              <div className="mega-slot-mini-pay">
+                {slotTheme.symbols.slice(0, 3).map((symbol, index) => (
+                  <div key={symbol.label}>
+                    <SlotSymbolBadge theme={slotTheme} symbol={index} useShortLabel />
+                    <span>{MEGA_SYMBOL_PAYOUTS[index]}</span>
+                  </div>
+                ))}
+              </div>
+            </aside>
+
+            <section className="mega-slot-stage" aria-label={`${slotTheme.title} 6x5 盤面`}>
+              <div className="mega-slot-win-meter">
+                <span>{result ? resultTitle : slotTheme.readyLabel}</span>
+                <strong>
+                  {result ? formatAmount(result.payout) : '0.00'}
+                </strong>
+              </div>
+              <div className="mega-slot-board">
+                <MegaFallbackGrid
+                  theme={slotTheme}
+                  grid={fallbackGrid}
+                  hidden={sceneReady && !sceneError}
+                />
+                <canvas
+                  ref={canvasRef}
+                  className={`mega-slot-canvas ${sceneReady && !sceneError ? 'mega-slot-canvas--ready' : ''}`}
+                />
+                {sceneError && (
+                  <div className="mega-slot-scene-error">
+                    <AlertCircle className="h-5 w-5" aria-hidden="true" />
+                    {sceneError}
+                  </div>
+                )}
+              </div>
+              {result && !spinning && isBigWinResult && (
+                <div
+                  className="slot-bigwin-stage"
+                  style={slotTheme.bigWin ? { backgroundImage: `linear-gradient(90deg, rgba(5, 10, 19, 0.72), rgba(5, 10, 19, 0.32)), url(${slotTheme.bigWin})` } : undefined}
+                >
+                  <div className="slot-bigwin-stage__content">
+                    <div className="slot-bigwin-stage__eyebrow">連鎖消除</div>
+                    <div className="slot-bigwin-stage__title">恭喜爆分</div>
+                    <div className="slot-bigwin-stage__amount">+{formatAmount(result.profit)}</div>
+                    <div className="slot-bigwin-stage__meta">
+                      {formatMultiplier(result.multiplier)}
+                      {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <aside className="mega-slot-side mega-slot-side--right" aria-hidden="true">
+              <div className="mega-slot-hero-art" />
+            </aside>
+          </div>
+
+          <footer className="mega-slot-controls">
+            <div className="mega-slot-control-tile">
+              <span>餘額</span>
+              <strong>{user ? formatAmount(balance) : '登入後顯示'}</strong>
+            </div>
+            <div className="mega-slot-control-tile">
+              <span>本局派彩</span>
+              <strong>{result ? formatAmount(result.payout) : '0.00'}</strong>
+            </div>
+            <div className="mega-slot-betbox">
+              <button type="button" onClick={() => setMegaAmount(amount / 2)} disabled={busy}>½</button>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={amount.toFixed(2)}
+                disabled={busy}
+                onChange={(event) => {
+                  const next = Number.parseFloat(event.target.value);
+                  if (Number.isFinite(next)) setMegaAmount(next);
+                }}
+                aria-label="下注金額"
+              />
+              <button type="button" onClick={() => setMegaAmount(amount * 2)} disabled={busy}>2×</button>
+            </div>
+            <div className="mega-slot-presets">
+              {MEGA_PRESETS.map((preset) => (
+                <button key={preset} type="button" onClick={() => setMegaAmount(preset)} disabled={busy || (!!user && preset > balance)}>
+                  {preset}
+                </button>
+              ))}
+              <button type="button" onClick={() => setMegaAmount(balance)} disabled={busy || !user}>最大</button>
+            </div>
+            <button
+              type="button"
+              onClick={spin}
+              disabled={busy || (!!user && balance < amount)}
+              className="mega-slot-spin"
+              aria-label={t.games.hotline.spin}
+            >
+              <span>{busy ? '轉動中' : t.games.hotline.spin}</span>
+              <strong>{formatAmount(amount)}</strong>
+            </button>
+          </footer>
+
+          {(error || sceneError) && (
+            <div className="mega-slot-alert">
+              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>{(error ?? sceneError)?.toUpperCase()}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`slot-game-page ${isMegaSlot ? 'slot-game-page--mega' : 'slot-game-page--classic'}`}>
@@ -374,4 +573,58 @@ function SlotSymbolBadge({
       {showLabel ? <span className="tracking-[0.18em]">{label}</span> : null}
     </span>
   );
+}
+
+function MegaFallbackGrid({
+  theme,
+  grid,
+  hidden,
+}: {
+  theme: SlotThemeConfig;
+  grid: number[][];
+  hidden: boolean;
+}) {
+  return (
+    <div className={`mega-slot-fallback-grid ${hidden ? 'mega-slot-fallback-grid--hidden' : ''}`} aria-hidden="true">
+      {grid.map((reel, reelIndex) => (
+        <div key={`${theme.id}-fallback-reel-${reelIndex}`} className="mega-slot-fallback-reel">
+          {reel.map((symbol, rowIndex) => {
+            const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
+            return (
+              <div
+                key={`${reelIndex}-${rowIndex}-${symbol}`}
+                className="mega-slot-fallback-symbol"
+                style={{
+                  borderColor: `${meta.accentHex}88`,
+                  backgroundImage: `url(${theme.symbolSheet})`,
+                  backgroundPosition: SYMBOL_POSITIONS[symbol] ?? '0% 0%',
+                }}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function createFallbackGrid(theme: SlotThemeConfig): number[][] {
+  const symbolCount = theme.symbols.length || 6;
+  return Array.from({ length: theme.reels }, (_, reel) =>
+    Array.from({ length: theme.rows }, (_, row) => (reel * 2 + row + theme.id.length) % symbolCount),
+  );
+}
+
+function createJackpotValues(themeId: string): { label: string; value: string }[] {
+  const seed = Array.from(themeId).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return [
+    { label: 'GRAND', value: formatJackpot(820000 + seed * 37.12) },
+    { label: 'MAJOR', value: formatJackpot(180000 + seed * 19.8) },
+    { label: 'MINOR', value: formatJackpot(18000 + seed * 2.7) },
+    { label: 'MINI', value: formatJackpot(5200 + seed * 0.92) },
+  ];
+}
+
+function formatJackpot(value: number): string {
+  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
