@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { AlertCircle, Car, Flag, Gauge, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type {
@@ -8,6 +8,7 @@ import type {
   ChickenRoadStartRequest,
   ChickenRoadStepResult,
 } from '@bg/shared';
+import { chickenRoadMultiplier } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { BetControls } from '@/components/game/BetControls';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
@@ -16,6 +17,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 
 const TOTAL_STEPS = 20;
+const VISIBLE_STEP_COUNT = 12;
 
 const DIFFICULTIES: Array<{
   id: ChickenRoadDifficulty;
@@ -71,15 +73,33 @@ export function ChickenRoadPage() {
   const currentMultiplier = round ? Number.parseFloat(round.currentMultiplier) : 1;
   const potentialPayout = round ? Number.parseFloat(round.potentialPayout) : amount;
   const visualStep = isBusted && round?.hitStep ? round.hitStep : currentStep;
-  const progress = Math.min(1, Math.max(0, visualStep / totalSteps));
   const chickenState = isBusted ? 'busted' : isCashedOut ? 'cashout' : busy ? 'hop' : 'idle';
   const selectedDifficulty = DIFFICULTIES.find((item) => item.id === difficulty) ?? DIFFICULTIES[1]!;
   const profitPreview = Math.max(0, potentialPayout - (round ? Number.parseFloat(round.amount) : amount));
+  const stepMultipliers = useMemo(
+    () => Array.from({ length: totalSteps }, (_, index) => chickenRoadMultiplier(difficulty, index + 1)),
+    [difficulty, totalSteps],
+  );
+  const visibleStepCount = Math.min(totalSteps, VISIBLE_STEP_COUNT);
+  const visibleStepStart = Math.min(
+    Math.max(1, visualStep - (visibleStepCount - 4)),
+    Math.max(1, totalSteps - visibleStepCount + 1),
+  );
+  const visibleSteps = useMemo(
+    () => Array.from({ length: visibleStepCount }, (_, index) => visibleStepStart + index),
+    [visibleStepCount, visibleStepStart],
+  );
+  const runnerSlot =
+    visualStep <= 0
+      ? -0.55
+      : Math.min(visibleStepCount - 0.5, Math.max(0.5, visualStep - visibleStepStart + 0.5));
+  const runnerLeft = visualStep <= 0 ? 8 : 12 + (runnerSlot / visibleStepCount) * 88;
 
   const nextLaneLabel = useMemo(() => {
-    if (!round || !round.nextMultiplier) return '終點';
+    if (!round) return `第一格 ${formatMultiplier(stepMultipliers[0] ?? 1)}`;
+    if (!round.nextMultiplier) return '終點';
     return `下一步 ${formatMultiplier(round.nextMultiplier)}`;
-  }, [round]);
+  }, [round, stepMultipliers]);
 
   const start = async () => {
     if (busy) return;
@@ -273,19 +293,24 @@ export function ChickenRoadPage() {
               <div className="chicken-road-start-zone" />
             </div>
 
-            <div className="chicken-road-lanes" aria-label="過馬路進度">
-              {Array.from({ length: totalSteps }, (_, index) => {
-                const stepNumber = index + 1;
+            <div
+              className="chicken-road-lanes"
+              aria-label="過馬路進度"
+              style={{ gridTemplateColumns: `repeat(${visibleStepCount}, minmax(0, 1fr))` } as CSSProperties}
+            >
+              {visibleSteps.map((stepNumber) => {
                 const crossed = stepNumber <= currentStep;
                 const isNext = isActive && stepNumber === currentStep + 1;
                 const hit = round?.hitStep === stepNumber;
                 const revealedSafe = round?.path?.[stepNumber - 1] === true;
+                const multiplier = stepMultipliers[stepNumber - 1] ?? 1;
                 return (
                   <div
                     key={stepNumber}
                     className={`chicken-road-lane ${crossed ? 'chicken-road-lane--crossed' : ''} ${isNext ? 'chicken-road-lane--next' : ''} ${hit ? 'chicken-road-lane--hit' : ''} ${revealedSafe && round?.path ? 'chicken-road-lane--safe' : ''}`}
                   >
-                    <span>{stepNumber}</span>
+                    <span className="chicken-road-lane__step">{stepNumber}</span>
+                    <span className="chicken-road-lane__mult">{formatMultiplier(multiplier)}</span>
                   </div>
                 );
               })}
@@ -295,26 +320,21 @@ export function ChickenRoadPage() {
               {TRAFFIC_CARS.map((car) => (
                 <span
                   key={car.id}
-                  className={`chicken-road-traffic-car chicken-road-traffic-car--${car.sprite}`}
+                  className={`chicken-road-traffic-car chicken-road-traffic-car--${car.sprite} ${
+                    car.reverse ? 'chicken-road-traffic-car--up' : 'chicken-road-traffic-car--down'
+                  }`}
                   style={{
                     left: `${car.left}%`,
                     animationDelay: `${car.delay}s`,
                     animationDuration: `${car.duration}s`,
-                    animationDirection: car.reverse ? 'reverse' : 'normal',
                   }}
                 />
               ))}
             </div>
 
-            <div className="chicken-road-multiplier-line" aria-hidden="true">
-              {Array.from({ length: 6 }, (_, index) => (
-                <span key={index}>{index === 0 ? '起點' : formatMultiplier((1.15 + index * 0.22).toFixed(2))}</span>
-              ))}
-            </div>
-
             <div
               className={`chicken-road-runner chicken-road-runner--${chickenState}`}
-              style={{ left: `${7 + progress * 84}%` }}
+              style={{ left: `${runnerLeft}%` }}
               aria-hidden="true"
             />
 
@@ -336,7 +356,11 @@ export function ChickenRoadPage() {
 
       <div className="chicken-road-info-grid">
         <Stat icon={Gauge} label="目前倍率" value={formatMultiplier(currentMultiplier)} />
-        <Stat icon={Flag} label="下一步" value={round?.nextMultiplier ? formatMultiplier(round.nextMultiplier) : '終點'} />
+        <Stat
+          icon={Flag}
+          label="下一步"
+          value={round?.nextMultiplier ? formatMultiplier(round.nextMultiplier) : formatMultiplier(stepMultipliers[0] ?? 1)}
+        />
         <Stat icon={Trophy} label="可領取" value={formatAmount(potentialPayout)} />
         <Stat icon={Car} label="進度" value={`${currentStep}/${totalSteps}`} />
       </div>
