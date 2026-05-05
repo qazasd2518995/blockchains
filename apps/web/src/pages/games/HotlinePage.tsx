@@ -57,7 +57,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const [layoutVersion, setLayoutVersion] = useState(0);
   const [sceneReady, setSceneReady] = useState(false);
-  const [sceneError, setSceneError] = useState<string | null>(null);
+  const [sceneFallback, setSceneFallback] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
@@ -84,7 +84,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     setSceneReady(false);
-    setSceneError(null);
+    const useHtmlMegaBoard = isMegaSlot && (
+      window.matchMedia('(max-height: 640px)').matches ||
+      window.matchMedia('(pointer: coarse)').matches
+    );
+    if (useHtmlMegaBoard) {
+      sceneRef.current = null;
+      setSceneFallback(true);
+      return;
+    }
+    setSceneFallback(false);
     if (isMegaSlot && window.matchMedia('(orientation: portrait)').matches) return;
 
     let cancelled = false;
@@ -106,11 +115,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           return;
         }
         setSceneReady(true);
-        setSceneError(null);
+        setSceneFallback(false);
       }).catch((err) => {
         if (cancelled) return;
         console.error(err);
-        setSceneError('遊戲畫面載入失敗，請重新整理');
+        scene?.dispose();
+        sceneRef.current = null;
+        setSceneReady(false);
+        setSceneFallback(true);
       });
     };
     tryInit();
@@ -273,19 +285,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <div className="mega-slot-board">
                 <MegaFallbackGrid
                   theme={slotTheme}
-                  grid={fallbackGrid}
-                  hidden={sceneReady && !sceneError}
+                  grid={result?.grid ?? fallbackGrid}
+                  spinning={busy}
+                  hidden={sceneReady && !sceneFallback}
                 />
                 <canvas
                   ref={canvasRef}
-                  className={`mega-slot-canvas ${sceneReady && !sceneError ? 'mega-slot-canvas--ready' : ''}`}
+                  className={`mega-slot-canvas ${sceneReady && !sceneFallback ? 'mega-slot-canvas--ready' : ''}`}
                 />
-                {sceneError && (
-                  <div className="mega-slot-scene-error">
-                    <AlertCircle className="h-5 w-5" aria-hidden="true" />
-                    {sceneError}
-                  </div>
-                )}
               </div>
               {result && !spinning && isBigWinResult && (
                 <div
@@ -354,10 +361,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             </button>
           </footer>
 
-          {(error || sceneError) && (
+          {error && (
             <div className="mega-slot-alert">
               <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>{(error ?? sceneError)?.toUpperCase()}</span>
+              <span>{error.toUpperCase()}</span>
             </div>
           )}
         </div>
@@ -578,14 +585,19 @@ function SlotSymbolBadge({
 function MegaFallbackGrid({
   theme,
   grid,
+  spinning,
   hidden,
 }: {
   theme: SlotThemeConfig;
   grid: number[][];
+  spinning: boolean;
   hidden: boolean;
 }) {
   return (
-    <div className={`mega-slot-fallback-grid ${hidden ? 'mega-slot-fallback-grid--hidden' : ''}`} aria-hidden="true">
+    <div
+      className={`mega-slot-fallback-grid ${spinning ? 'mega-slot-fallback-grid--spinning' : ''} ${hidden ? 'mega-slot-fallback-grid--hidden' : ''}`}
+      aria-hidden="true"
+    >
       {grid.map((reel, reelIndex) => (
         <div key={`${theme.id}-fallback-reel-${reelIndex}`} className="mega-slot-fallback-reel">
           {reel.map((symbol, rowIndex) => {
@@ -599,7 +611,9 @@ function MegaFallbackGrid({
                   backgroundImage: `url(${theme.symbolSheet})`,
                   backgroundPosition: SYMBOL_POSITIONS[symbol] ?? '0% 0%',
                 }}
-              />
+              >
+                <span>{meta.shortLabel}</span>
+              </div>
             );
           })}
         </div>

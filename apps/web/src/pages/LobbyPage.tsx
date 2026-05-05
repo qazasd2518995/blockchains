@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  Crown,
   Flame,
   Gift,
   History,
@@ -208,16 +207,11 @@ function MobileLobbyOnePage() {
             </span>
           </div>
 
-          <div className="flex min-w-[38px] flex-1 items-center justify-center">
-            {user ? (
-              <span className="inline-flex h-[18px] shrink-0 items-center gap-0.5 rounded-[6px] bg-[#4B5563] px-1 text-[10px] font-black leading-none text-white">
-                <Crown className="h-2.5 w-2.5" aria-hidden="true" />
-                VIP1
-              </span>
-            ) : (
+          {isGuest && (
+            <div className="flex min-w-[38px] flex-1 items-center justify-center">
               <span className="truncate text-[11px] font-black text-[#6B7280]">遊客瀏覽</span>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="flex shrink-0 items-center justify-end gap-1">
             {isGuest ? (
