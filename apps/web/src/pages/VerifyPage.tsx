@@ -60,7 +60,7 @@ const HALLS: Hall[] = [
     title: '策略挑戰館',
     subtitle: 'Strategy Hall',
     tone: '#5B8C40',
-    intro: '掃雷與疊塔需要逐步判斷與隨時收手，每一個選擇都影響獎金。',
+    intro: '掃雷、疊塔與小雞過馬路都需要逐步判斷與隨時收手，每一個選擇都影響獎金。',
     vibe: '腦力對決、越拚越上頭',
   },
 ];
@@ -555,6 +555,23 @@ const GAMES: Game[] = [
       '隨時可領獎；踩到陷阱則當局結束。',
     ],
     tips: '專家與大師難度倍率成長極快，適合追求極限的玩家。',
+  },
+  {
+    id: 'chicken-road',
+    hall: 'strategy',
+    name: '小雞過馬路',
+    english: 'Chicken Road',
+    cover: '/game-art/chicken-road/cover.png',
+    rtp: '97%',
+    maxMultiplier: '50,000×',
+    duration: '可連續多局',
+    intro: '下注後讓小雞一格一格穿越車道，安全通過就提高倍率，撞到車則本局歸零。',
+    howToPlay: [
+      '選擇難度與下注金額後開始本局。',
+      '每次點擊前進一步會揭曉下一條車道是否安全。',
+      '安全時倍率上升，可繼續挑戰或立即領取；撞車則失去本局下注。',
+    ],
+    tips: '難度越高單步倍率越快，但撞車機率也越高；想穩定累積就提早領取。',
   },
   {
     id: 'plinko',

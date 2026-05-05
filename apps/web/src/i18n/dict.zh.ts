@@ -36,7 +36,7 @@ export const zh = {
     heroLine1: '即时开局,',
     heroLine2: '畅快派彩.',
     heroLine3: '随玩随领。',
-    heroDesc: '28 款精选游戏 · 24H 不打烊 · 即时派彩',
+    heroDesc: '全馆精选游戏 · 24H 不打烊 · 即时派彩',
     featureLabel: '平台优势',
     feat: {
       f: ['稳定流畅', '加密保障', '秒速派彩', '24H 开放'],

@@ -98,7 +98,7 @@ export const HALLS: Record<HallId, HallMeta> = {
     tagline: '逐步選擇、隨時收手，靠判斷把倍率一路推高',
     gradient: 'linear-gradient(135deg, #0E4555 0%, #266F85 50%, #C9A247 100%)',
     artwork: '/halls/strategy-card.png',
-    gameIds: [GameId.MINES, GameId.TOWER],
+    gameIds: [GameId.MINES, GameId.TOWER, GameId.CHICKEN_ROAD],
   },
 };
 

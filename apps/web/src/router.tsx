@@ -18,6 +18,7 @@ import { RoulettePage } from '@/pages/games/RoulettePage';
 import { PlinkoPage } from '@/pages/games/PlinkoPage';
 import { HotlinePage } from '@/pages/games/HotlinePage';
 import { TowerPage } from '@/pages/games/TowerPage';
+import { ChickenRoadPage } from '@/pages/games/ChickenRoadPage';
 import { BlackjackPage } from '@/pages/games/BlackjackPage';
 import { CrashPage, CRASH_CONFIGS } from '@/pages/games/CrashPage';
 import { HallPage } from '@/pages/HallPage';
@@ -97,6 +98,7 @@ export const router = createBrowserRouter([
           { path: '/games/jungle-slot', element: <HotlinePage theme="jungle" /> },
           { path: '/games/vampire-slot', element: <HotlinePage theme="vampire" /> },
           { path: '/games/tower', element: <TowerPage /> },
+          { path: '/games/chicken-road', element: <ChickenRoadPage /> },
           { path: '/games/rocket', element: <CrashPage config={CRASH_CONFIGS.rocket!} /> },
           { path: '/games/aviator', element: <CrashPage config={CRASH_CONFIGS.aviator!} /> },
           { path: '/games/space-fleet', element: <CrashPage config={CRASH_CONFIGS['space-fleet']!} /> },

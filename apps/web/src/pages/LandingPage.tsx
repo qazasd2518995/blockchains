@@ -36,7 +36,7 @@ export function LandingPage() {
               <span>會員制平台 · 邀請開通</span>
             </div>
             <AnnouncementTicker />
-            <span className="hidden whitespace-nowrap text-white/55 lg:inline">28 款熱門玩法今晚全開</span>
+            <span className="hidden whitespace-nowrap text-white/55 lg:inline">全館熱門玩法今晚全開</span>
           </div>
         </div>
 

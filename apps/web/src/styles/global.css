@@ -1929,6 +1929,289 @@
   border-radius: 10px;
 }
 
+.chicken-road-stage {
+  overflow: hidden;
+  padding: 0;
+}
+
+.chicken-road-arena {
+  position: relative;
+  min-height: min(62svh, 620px);
+  overflow: hidden;
+  border-radius: 0 0 22px 22px;
+  background: #050a13;
+}
+
+.chicken-road-road-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(5, 10, 19, 0.82), rgba(5, 10, 19, 0.22) 34%, rgba(5, 10, 19, 0.18) 66%, rgba(5, 10, 19, 0.82)),
+    linear-gradient(180deg, rgba(5, 10, 19, 0.32), rgba(5, 10, 19, 0.14)),
+    url('/game-art/chicken-road/background.png') center / cover no-repeat;
+  transform: scale(1.02);
+}
+
+.chicken-road-cars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.88;
+}
+
+.chicken-road-car {
+  position: absolute;
+  left: -92px;
+  height: clamp(18px, 4.5vw, 34px);
+  width: clamp(52px, 10vw, 90px);
+  border-radius: 999px 999px 12px 12px;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.18),
+    0 8px 18px rgba(0, 0, 0, 0.36);
+  animation: chicken-road-drive linear infinite;
+}
+
+.chicken-road-car::before,
+.chicken-road-car::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  height: 8px;
+  width: 8px;
+  border-radius: 999px;
+  background: #101827;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+.chicken-road-car::before {
+  left: 10px;
+}
+
+.chicken-road-car::after {
+  right: 10px;
+}
+
+.chicken-road-car--0 {
+  background: linear-gradient(90deg, #06b6d4, #7dd3fc 48%, #0891b2);
+}
+
+.chicken-road-car--1 {
+  background: linear-gradient(90deg, #dc2626, #fb7185 48%, #991b1b);
+  animation-direction: reverse;
+}
+
+.chicken-road-car--2 {
+  background: linear-gradient(90deg, #2563eb, #93c5fd 48%, #1d4ed8);
+}
+
+.chicken-road-car--3 {
+  background: linear-gradient(90deg, #65a30d, #bef264 48%, #3f6212);
+  animation-direction: reverse;
+}
+
+.chicken-road-track {
+  position: absolute;
+  top: 7%;
+  bottom: 7%;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  width: min(34vw, 250px);
+  min-width: 150px;
+  transform: translateX(-50%);
+  grid-template-rows: repeat(20, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.chicken-road-tile {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(5, 10, 19, 0.46);
+  color: rgba(255, 255, 255, 0.36);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+.chicken-road-tile span {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: clamp(7px, 1vw, 10px);
+  font-weight: 900;
+}
+
+.chicken-road-tile--next {
+  border-color: rgba(243, 214, 125, 0.72);
+  background: rgba(243, 214, 125, 0.2);
+  color: #fff4b5;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 22px rgba(243, 214, 125, 0.24);
+}
+
+.chicken-road-tile--crossed,
+.chicken-road-tile--safe {
+  border-color: rgba(110, 231, 183, 0.5);
+  background: rgba(20, 184, 166, 0.22);
+  color: #d1fae5;
+}
+
+.chicken-road-tile--hit {
+  border-color: rgba(252, 165, 165, 0.76);
+  background: rgba(127, 29, 29, 0.58);
+  color: #fecaca;
+}
+
+.chicken-road-chicken {
+  position: absolute;
+  left: 50%;
+  z-index: 4;
+  width: clamp(58px, 9vw, 108px);
+  aspect-ratio: 1;
+  transform: translate(-50%, 48%);
+  background-image: url('/game-art/chicken-road/sprites.png');
+  background-repeat: no-repeat;
+  background-size: 410% 270%;
+  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.48));
+  transition:
+    bottom 360ms cubic-bezier(0.2, 0.84, 0.2, 1),
+    transform 180ms ease,
+    filter 180ms ease;
+}
+
+.chicken-road-chicken--idle {
+  background-position: 4% 8%;
+}
+
+.chicken-road-chicken--hop {
+  background-position: 43% 8%;
+  transform: translate(-50%, 36%) scale(1.08);
+  filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.52)) brightness(1.08);
+}
+
+.chicken-road-chicken--busted {
+  background-position: 82% 8%;
+  transform: translate(-50%, 48%) rotate(-8deg) scale(1.06);
+  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.48)) saturate(0.72);
+}
+
+.chicken-road-meter {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 5;
+  display: grid;
+  min-width: 150px;
+  gap: 2px;
+  border: 1px solid rgba(243, 214, 125, 0.28);
+  border-radius: 18px;
+  background: rgba(5, 10, 19, 0.72);
+  padding: 12px 14px;
+  text-align: right;
+  backdrop-filter: blur(12px);
+}
+
+.chicken-road-meter span,
+.chicken-road-meter small {
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.54);
+}
+
+.chicken-road-meter strong {
+  font-family: var(--font-display, Inter, system-ui, sans-serif);
+  font-size: clamp(24px, 4vw, 42px);
+  color: #f3d67d;
+}
+
+.chicken-road-difficulty {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.055);
+  padding: 12px;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    opacity 160ms ease;
+}
+
+.chicken-road-difficulty:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.chicken-road-difficulty strong,
+.chicken-road-difficulty small {
+  display: block;
+}
+
+.chicken-road-difficulty strong {
+  font-size: 13px;
+  font-weight: 950;
+  color: white;
+}
+
+.chicken-road-difficulty small {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.chicken-road-difficulty em {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.26);
+  background: rgba(14, 116, 144, 0.18);
+  padding: 4px 7px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+  color: #8fe7ff;
+}
+
+.chicken-road-difficulty--active {
+  border-color: rgba(243, 214, 125, 0.45);
+  background: rgba(243, 214, 125, 0.11);
+}
+
+@keyframes chicken-road-drive {
+  from {
+    transform: translateX(-10vw);
+  }
+
+  to {
+    transform: translateX(calc(100vw + 220px));
+  }
+}
+
+@media (max-width: 640px) {
+  .chicken-road-arena {
+    min-height: 520px;
+  }
+
+  .chicken-road-track {
+    width: min(48vw, 190px);
+  }
+
+  .chicken-road-meter {
+    right: 10px;
+    bottom: 10px;
+    min-width: 124px;
+    padding: 10px;
+  }
+}
+
 .a2hs-prompt {
   position: fixed;
   inset: 0;

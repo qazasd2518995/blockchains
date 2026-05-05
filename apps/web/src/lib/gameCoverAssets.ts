@@ -23,6 +23,7 @@ const LOBBY_COVER_OVERRIDES: Record<string, string> = {
   wheel: '/game-art/wheel/cover.png',
   'mini-roulette': '/game-art/mini-roulette/cover.png',
   tower: '/game-art/tower/cover.png',
+  'chicken-road': '/game-art/chicken-road/cover.png',
   carnival: '/game-art/carnival/cover.png',
   rocket: '/games/lobby/rocket.jpg',
   aviator: '/games/lobby/aviator.jpg',

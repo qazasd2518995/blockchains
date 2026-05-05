@@ -107,7 +107,7 @@ export function LoginPage() {
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <span className="inline-flex items-center rounded-full border border-[#C9A247]/36 bg-[#132233]/75 px-4 py-2 text-[13px] font-semibold text-[#EFD886]">
-                  28 款人氣玩法
+                  全館人氣玩法
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
                   即時派彩到帳

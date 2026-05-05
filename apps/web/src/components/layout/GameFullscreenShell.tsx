@@ -35,6 +35,7 @@ const GAME_NAME_ZH: Record<string, string> = {
   'jungle-slot': '秘境遺跡',
   'vampire-slot': '暗夜古堡',
   tower: '疊塔',
+  'chicken-road': '小雞過馬路',
   rocket: '火箭',
   aviator: '飛行員',
   'space-fleet': '太空艦隊',

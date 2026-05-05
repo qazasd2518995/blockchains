@@ -29,6 +29,7 @@ const GAME_POOL: Array<{
   { game: '太空艦隊', gameId: 'space-fleet', minMult: 4, maxMult: 95, minWin: 12000, maxWin: 480000 },
   { game: '踩地雷', gameId: 'mines', minMult: 8, maxMult: 160, minWin: 24000, maxWin: 920000 },
   { game: '疊塔', gameId: 'tower', minMult: 4, maxMult: 80, minWin: 12000, maxWin: 360000 },
+  { game: '小雞過馬路', gameId: 'chicken-road', minMult: 3, maxMult: 240, minWin: 12000, maxWin: 780000 },
   { game: '掉珠挑戰X', gameId: 'plinko-x', minMult: 12, maxMult: 520, minWin: 52000, maxWin: 1880000 },
   { game: '彈珠台', gameId: 'plinko', minMult: 8, maxMult: 240, minWin: 26000, maxWin: 880000 },
   { game: '彩色轉輪', gameId: 'wheel', minMult: 6, maxMult: 70, minWin: 15000, maxWin: 260000 },

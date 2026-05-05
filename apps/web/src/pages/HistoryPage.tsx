@@ -814,6 +814,7 @@ function friendlyResultEntries(gameId: string, record: Record<string, unknown>):
   if (gameId === 'keno') return kenoResultEntries(record);
   if (gameId === 'mines') return minesResultEntries(record);
   if (gameId === 'tower') return towerResultEntries(record);
+  if (gameId === 'chicken-road') return chickenRoadResultEntries(record);
   if (gameId === 'mini-roulette' || gameId === 'carnival') return rouletteResultEntries(record);
   return [];
 }
@@ -1014,6 +1015,35 @@ function towerResultEntries(record: Record<string, unknown>): ResultEntry[] {
     },
     picks.length > 0 ? { key: 'tower-picks', label: '選擇路徑', value: <CellChips cells={picks} prefix="第" suffix="格" /> } : null,
   ]);
+}
+
+function chickenRoadResultEntries(record: Record<string, unknown>): ResultEntry[] {
+  const difficulty = getStringScalar(record.difficulty);
+  const currentStep = getNumber(record.currentStep);
+  const totalSteps = getNumber(record.totalSteps);
+  const hitStep = getNumber(record.hitStep);
+  const cashedOut = getBoolean(record.cashedOut);
+  const status = getStringScalar(record.status);
+
+  return [
+    {
+      key: 'chicken-road-summary',
+      label: '過馬路結果',
+      value: (
+        <SummaryStack
+          items={[
+            difficulty ? `難度：${difficultyLabel(difficulty)}` : null,
+            currentStep !== undefined && totalSteps !== undefined
+              ? `已通過 ${Math.trunc(currentStep)} / ${Math.trunc(totalSteps)} 條車道`
+              : null,
+            hitStep !== undefined ? `第 ${Math.trunc(hitStep)} 條車道撞車` : null,
+            cashedOut === true ? '已成功領取獎金' : null,
+            status === 'ACTIVE' ? '本局仍在進行中' : null,
+          ]}
+        />
+      ),
+    },
+  ];
 }
 
 function rouletteResultEntries(record: Record<string, unknown>): ResultEntry[] {

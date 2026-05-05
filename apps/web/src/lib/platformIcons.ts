@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   ArrowUpDown,
+  Bird,
   Building2,
   Circle,
   CircleDot,
@@ -65,6 +66,7 @@ export const GAME_ICONS: Record<string, LucideIcon> = {
   'jungle-slot': Gem,
   'vampire-slot': Sparkles,
   tower: Building2,
+  'chicken-road': Bird,
   rocket: Rocket,
   aviator: Plane,
   'space-fleet': Disc3,
