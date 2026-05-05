@@ -63,7 +63,32 @@ describe('hotlineSpin', () => {
       expect(col.length).toBe(HOTLINE_MEGA_ROWS);
     }
     const stepTotal = result.cascades.reduce((sum, step) => sum + step.multiplier, 0);
-    expect(result.totalMultiplier).toBe(Number(stepTotal.toFixed(4)));
+    expect(result.features).toBeDefined();
+    expect(result.features!.baseWinMultiplier).toBe(Number(stepTotal.toFixed(4)));
+    expect(result.totalMultiplier).toBe(result.features!.totalMultiplier);
+  });
+
+  it('adds deterministic mega multiplier symbols to winning cascades', () => {
+    const result = Array.from({ length: 200 }, (_, nonce) =>
+      hotlineSpinCascades('server', 'client', nonce, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS),
+    ).find((item) => (item.features?.baseMultiplierSymbols.length ?? 0) > 0);
+
+    expect(result).toBeDefined();
+    expect(result!.features!.baseMultiplierTotal).toBeGreaterThanOrEqual(2);
+    expect(result!.features!.baseAppliedMultiplier).toBe(result!.features!.baseMultiplierTotal);
+    expect(result!.totalMultiplier).toBeGreaterThanOrEqual(result!.features!.baseWinMultiplier);
+  });
+
+  it('triggers and accounts for mega free spins from scatter symbols', () => {
+    const result = Array.from({ length: 500 }, (_, nonce) =>
+      hotlineSpinCascades('bonus-server', 'bonus-client', nonce, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS),
+    ).find((item) => (item.features?.freeSpinsAwarded ?? 0) > 0);
+
+    expect(result).toBeDefined();
+    expect(result!.features!.scatterCount).toBeGreaterThanOrEqual(3);
+    expect(result!.features!.freeSpinsPlayed).toBeGreaterThan(0);
+    expect(result!.features!.freeSpinsPlayed).toBeLessThanOrEqual(result!.features!.freeSpinsAwarded);
+    expect(result!.features!.freeSpinRounds.length).toBe(result!.features!.freeSpinsPlayed);
   });
 });
 

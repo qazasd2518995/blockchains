@@ -1615,6 +1615,40 @@
   color: rgba(255, 255, 255, 0.68);
 }
 
+.mega-slot-feature-stack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+.mega-slot-feature-stack > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  border-radius: 9px;
+  border: 1px solid rgba(243, 214, 125, 0.18);
+  background: rgba(5, 10, 19, 0.42);
+  padding: 6px 7px;
+}
+
+.mega-slot-feature-stack span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.52);
+}
+
+.mega-slot-feature-stack strong {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10px;
+  color: #f3d67d;
+}
+
 .mega-slot-mini-pay {
   display: grid;
   gap: 5px;
@@ -1652,7 +1686,7 @@
 .mega-slot-stage {
   position: relative;
   display: grid;
-  grid-template-rows: 38px minmax(0, 1fr);
+  grid-template-rows: 50px minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -1661,28 +1695,55 @@
 }
 
 .mega-slot-win-meter {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
   justify-content: center;
   gap: 12px;
   min-width: 0;
   border-radius: 999px;
-  border: 1px solid rgba(243, 214, 125, 0.38);
-  background: linear-gradient(90deg, rgba(5, 10, 19, 0.75), rgba(32, 23, 13, 0.72), rgba(5, 10, 19, 0.75));
+  border: 2px solid rgba(243, 214, 125, 0.42);
+  background:
+    linear-gradient(90deg, rgba(5, 10, 19, 0.88), rgba(61, 26, 15, 0.78), rgba(5, 10, 19, 0.88)),
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--mega-slot-accent) 24%, transparent), transparent 64%);
+  padding: 0 16px;
   color: rgba(255, 255, 255, 0.84);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 24px color-mix(in srgb, var(--mega-slot-accent) 14%, transparent);
 }
 
-.mega-slot-win-meter span {
+.mega-slot-win-meter--settled {
+  border-color: rgba(243, 214, 125, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 0 34px color-mix(in srgb, var(--mega-slot-accent) 28%, transparent);
+}
+
+.mega-slot-win-meter__label {
   font-size: 13px;
   font-weight: 950;
   letter-spacing: 0.12em;
   color: #f3d67d;
+  white-space: nowrap;
 }
 
 .mega-slot-win-meter strong {
   font-family: var(--font-display, Inter, system-ui, sans-serif);
   font-size: clamp(20px, 3vw, 32px);
   color: white;
+  white-space: nowrap;
+  text-shadow: 0 0 18px rgba(243, 214, 125, 0.28);
+}
+
+.mega-slot-win-meter__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.56);
 }
 
 .mega-slot-board {
@@ -1771,6 +1832,69 @@
   letter-spacing: 0.08em;
   color: rgba(255, 255, 255, 0.78);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+}
+
+.mega-slot-special-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: min(0.8vw, 8px);
+  padding: min(1.6vw, 18px);
+  pointer-events: none;
+}
+
+.mega-slot-special-symbol {
+  align-self: center;
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: clamp(34px, 4vw, 54px);
+  height: clamp(24px, 3vw, 38px);
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  padding: 0 8px;
+  font-family: var(--font-display, Inter, system-ui, sans-serif);
+  font-size: clamp(11px, 1.6vw, 18px);
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.78);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+    0 8px 24px rgba(0, 0, 0, 0.42);
+  animation: mega-slot-special-pop 520ms cubic-bezier(0.2, 0.84, 0.2, 1) both;
+}
+
+.mega-slot-special-symbol--multiplier {
+  border-color: rgba(125, 211, 252, 0.88);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.35), transparent 28%),
+    linear-gradient(180deg, rgba(20, 184, 166, 0.96), rgba(14, 116, 144, 0.9));
+}
+
+.mega-slot-special-symbol--scatter {
+  border-color: rgba(243, 214, 125, 0.9);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.38), transparent 30%),
+    linear-gradient(180deg, rgba(245, 158, 11, 0.96), rgba(180, 83, 9, 0.92));
+}
+
+@keyframes mega-slot-special-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.72);
+    filter: brightness(1.6);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
 }
 
 @keyframes mega-slot-symbol-pulse {
@@ -1929,183 +2053,489 @@
   border-radius: 10px;
 }
 
-.chicken-road-stage {
-  overflow: hidden;
-  padding: 0;
+.chicken-road-page {
+  width: 100%;
+  padding: 8px;
 }
 
-.chicken-road-arena {
-  position: relative;
-  min-height: min(62svh, 620px);
-  overflow: hidden;
-  border-radius: 0 0 22px 22px;
-  background: #050a13;
-}
-
-.chicken-road-road-bg {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, rgba(5, 10, 19, 0.82), rgba(5, 10, 19, 0.22) 34%, rgba(5, 10, 19, 0.18) 66%, rgba(5, 10, 19, 0.82)),
-    linear-gradient(180deg, rgba(5, 10, 19, 0.32), rgba(5, 10, 19, 0.14)),
-    url('/game-art/chicken-road/background.png') center / cover no-repeat;
-  transform: scale(1.02);
-}
-
-.chicken-road-cars {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.88;
-}
-
-.chicken-road-car {
-  position: absolute;
-  left: -92px;
-  height: clamp(18px, 4.5vw, 34px);
-  width: clamp(52px, 10vw, 90px);
-  border-radius: 999px 999px 12px 12px;
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.18),
-    0 8px 18px rgba(0, 0, 0, 0.36);
-  animation: chicken-road-drive linear infinite;
-}
-
-.chicken-road-car::before,
-.chicken-road-car::after {
-  content: '';
-  position: absolute;
-  bottom: -4px;
-  height: 8px;
-  width: 8px;
-  border-radius: 999px;
-  background: #101827;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12);
-}
-
-.chicken-road-car::before {
-  left: 10px;
-}
-
-.chicken-road-car::after {
-  right: 10px;
-}
-
-.chicken-road-car--0 {
-  background: linear-gradient(90deg, #06b6d4, #7dd3fc 48%, #0891b2);
-}
-
-.chicken-road-car--1 {
-  background: linear-gradient(90deg, #dc2626, #fb7185 48%, #991b1b);
-  animation-direction: reverse;
-}
-
-.chicken-road-car--2 {
-  background: linear-gradient(90deg, #2563eb, #93c5fd 48%, #1d4ed8);
-}
-
-.chicken-road-car--3 {
-  background: linear-gradient(90deg, #65a30d, #bef264 48%, #3f6212);
-  animation-direction: reverse;
-}
-
-.chicken-road-track {
-  position: absolute;
-  top: 7%;
-  bottom: 7%;
-  left: 50%;
-  z-index: 2;
+.chicken-road-arcade {
   display: grid;
-  width: min(34vw, 250px);
-  min-width: 150px;
-  transform: translateX(-50%);
-  grid-template-rows: repeat(20, minmax(0, 1fr));
-  gap: 3px;
+  min-height: min(72svh, 760px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  background: #0c1c28;
+  box-shadow:
+    0 30px 70px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  grid-template-columns: minmax(280px, 390px) minmax(0, 1fr);
 }
 
-.chicken-road-tile {
+.chicken-road-control-panel {
   position: relative;
+  z-index: 5;
   display: flex;
-  min-height: 0;
+  flex-direction: column;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at 78% 16%, rgba(125, 211, 252, 0.12), transparent 22%),
+    linear-gradient(180deg, rgba(37, 58, 72, 0.98), rgba(17, 36, 50, 0.98));
+  padding: clamp(16px, 2.4vw, 28px);
+}
+
+.chicken-road-control-tabs {
+  display: inline-flex;
+  width: 100%;
+  border-radius: 999px;
+  background: rgba(5, 15, 24, 0.72);
+  padding: 7px;
+}
+
+.chicken-road-control-tabs span {
+  display: inline-flex;
+  min-height: 46px;
+  width: 100%;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
-  background: rgba(5, 10, 19, 0.46);
-  color: rgba(255, 255, 255, 0.36);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+  background: #465e70;
+  font-size: 16px;
+  font-weight: 950;
+  color: #f8fafc;
 }
 
-.chicken-road-tile span {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: clamp(7px, 1vw, 10px);
+.chicken-road-control-body {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.chicken-road-select-label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
   font-weight: 900;
+  color: rgba(255, 255, 255, 0.62);
 }
 
-.chicken-road-tile--next {
-  border-color: rgba(243, 214, 125, 0.72);
-  background: rgba(243, 214, 125, 0.2);
-  color: #fff4b5;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 0 22px rgba(243, 214, 125, 0.24);
+.chicken-road-select {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 12px;
+  background: #102433;
+  padding: 0 14px;
+  font-size: 16px;
+  font-weight: 900;
+  color: #ffffff;
+  outline: none;
 }
 
-.chicken-road-tile--crossed,
-.chicken-road-tile--safe {
-  border-color: rgba(110, 231, 183, 0.5);
-  background: rgba(20, 184, 166, 0.22);
-  color: #d1fae5;
+.chicken-road-select:disabled {
+  opacity: 0.58;
 }
 
-.chicken-road-tile--hit {
-  border-color: rgba(252, 165, 165, 0.76);
-  background: rgba(127, 29, 29, 0.58);
-  color: #fecaca;
+.chicken-road-difficulty-summary {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  background: rgba(7, 16, 28, 0.45);
+  padding: 10px 12px;
 }
 
-.chicken-road-chicken {
-  position: absolute;
-  left: 50%;
-  z-index: 4;
-  width: clamp(58px, 9vw, 108px);
-  aspect-ratio: 1;
-  transform: translate(-50%, 48%);
-  background-image: url('/game-art/chicken-road/sprites.png');
-  background-repeat: no-repeat;
-  background-size: 410% 270%;
-  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.48));
+.chicken-road-difficulty-summary span {
+  border-radius: 999px;
+  background: rgba(125, 211, 252, 0.18);
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 950;
+  color: #9ae8ff;
+}
+
+.chicken-road-difficulty-summary strong {
+  min-width: 0;
+  text-align: right;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.chicken-road-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.chicken-road-primary,
+.chicken-road-cashout,
+.chicken-road-reset {
+  display: inline-flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 950;
   transition:
-    bottom 360ms cubic-bezier(0.2, 0.84, 0.2, 1),
+    opacity 160ms ease,
+    transform 160ms ease,
+    background 160ms ease;
+}
+
+.chicken-road-primary {
+  background: #3b78db;
+  color: #ffffff;
+  box-shadow: 0 14px 26px rgba(35, 106, 214, 0.24);
+}
+
+.chicken-road-cashout {
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  background: rgba(125, 211, 252, 0.16);
+  color: #c8f1ff;
+}
+
+.chicken-road-reset {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.chicken-road-primary:disabled,
+.chicken-road-cashout:disabled,
+.chicken-road-reset:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.chicken-road-primary:not(:disabled):active,
+.chicken-road-cashout:not(:disabled):active,
+.chicken-road-reset:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.chicken-road-profit-box {
+  display: grid;
+  gap: 5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 16px;
+}
+
+.chicken-road-profit-box span,
+.chicken-road-profit-box small {
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.chicken-road-profit-box strong {
+  font-size: 28px;
+  font-weight: 950;
+  color: #f8fafc;
+}
+
+.chicken-road-road-panel {
+  display: grid;
+  min-width: 0;
+  grid-template-rows: auto minmax(420px, 1fr);
+  background: #0d1d29;
+}
+
+.chicken-road-road-topbar {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(5, 12, 21, 0.38);
+  padding: 0 18px;
+}
+
+.chicken-road-road-topbar > div:first-child {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.chicken-road-road-topbar strong,
+.chicken-road-road-topbar span,
+.chicken-road-status {
+  font-weight: 950;
+}
+
+.chicken-road-road-topbar strong {
+  margin-right: 12px;
+  color: #f5dd91;
+}
+
+.chicken-road-road-topbar span,
+.chicken-road-status {
+  letter-spacing: 0.24em;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+}
+
+.chicken-road-road {
+  position: relative;
+  min-height: 420px;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(15, 32, 45, 0.98) 0 12%, transparent 12%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    #0d1d29;
+  background-size:
+    auto,
+    10.5% 100%,
+    100% 20%,
+    auto;
+}
+
+.chicken-road-road::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 12%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 9.6%,
+      rgba(255, 255, 255, 0.08) 9.6% 10%,
+      transparent 10% 10.5%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 72px,
+      rgba(255, 255, 255, 0.09) 72px 96px,
+      transparent 96px 120px
+    );
+  opacity: 0.55;
+}
+
+.chicken-road-sidewalk {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 3;
+  width: 12%;
+  min-width: 90px;
+  border-right: 8px solid rgba(96, 119, 132, 0.7);
+  background:
+    linear-gradient(180deg, transparent 0 80%, rgba(5, 10, 19, 0.18) 80%),
+    #223847;
+}
+
+.chicken-road-traffic-light {
+  position: absolute;
+  top: 12%;
+  right: 14px;
+  display: flex;
+  gap: 8px;
+  border-radius: 999px;
+  background: #405667;
+  padding: 8px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.chicken-road-traffic-light span {
+  display: block;
+  height: 26px;
+  width: 26px;
+  border-radius: 999px;
+  background: #263a48;
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.08);
+}
+
+.chicken-road-traffic-light span:first-child {
+  background: #ffd24a;
+}
+
+.chicken-road-start-zone {
+  position: absolute;
+  right: -8px;
+  bottom: 26%;
+  height: 18%;
+  width: 100%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.25) 0 16px,
+      transparent 16px 28px
+    );
+  opacity: 0.78;
+}
+
+.chicken-road-lanes {
+  position: absolute;
+  inset: 0 0 0 12%;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(20, minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.chicken-road-lane {
+  position: relative;
+  border-left: 1px dashed rgba(255, 255, 255, 0.08);
+  background: transparent;
+}
+
+.chicken-road-lane:last-child {
+  border-right: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.chicken-road-lane span {
+  position: absolute;
+  right: 6px;
+  bottom: 24%;
+  border-radius: 999px;
+  background: rgba(51, 69, 82, 0.94);
+  padding: 6px 8px;
+  font-size: clamp(9px, 0.9vw, 12px);
+  font-weight: 950;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.chicken-road-lane--next {
+  background: rgba(243, 214, 125, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(243, 214, 125, 0.18);
+}
+
+.chicken-road-lane--crossed,
+.chicken-road-lane--safe {
+  background: rgba(35, 211, 146, 0.08);
+}
+
+.chicken-road-lane--hit {
+  background: rgba(220, 38, 38, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.2);
+}
+
+.chicken-road-traffic {
+  position: absolute;
+  inset: 0 0 0 12%;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.chicken-road-traffic-car {
+  position: absolute;
+  top: -170px;
+  width: clamp(54px, 5vw, 94px);
+  aspect-ratio: 0.75;
+  transform: translateX(-50%);
+  background-image: url('/game-art/chicken-road/vehicles.png');
+  background-repeat: no-repeat;
+  background-size: 400% 200%;
+  filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.38));
+  animation: chicken-road-drive-down linear infinite;
+}
+
+.chicken-road-traffic-car--0 {
+  background-position: 0% 0%;
+}
+
+.chicken-road-traffic-car--1 {
+  background-position: 33.333% 0%;
+}
+
+.chicken-road-traffic-car--2 {
+  background-position: 66.666% 0%;
+}
+
+.chicken-road-traffic-car--3 {
+  background-position: 100% 0%;
+}
+
+.chicken-road-traffic-car--4 {
+  background-position: 0% 100%;
+}
+
+.chicken-road-traffic-car--5 {
+  background-position: 33.333% 100%;
+}
+
+.chicken-road-traffic-car--6 {
+  background-position: 66.666% 100%;
+}
+
+.chicken-road-traffic-car--7 {
+  background-position: 100% 100%;
+}
+
+.chicken-road-runner {
+  position: absolute;
+  bottom: 17%;
+  z-index: 7;
+  width: clamp(76px, 7.5vw, 138px);
+  aspect-ratio: 1.45;
+  transform: translateX(-50%);
+  background-image: url('/game-art/chicken-road/chicken-side.png');
+  background-repeat: no-repeat;
+  background-size: 300% 200%;
+  filter: drop-shadow(0 16px 14px rgba(0, 0, 0, 0.36));
+  transition:
+    left 420ms cubic-bezier(0.2, 0.88, 0.2, 1),
     transform 180ms ease,
     filter 180ms ease;
 }
 
-.chicken-road-chicken--idle {
-  background-position: 4% 8%;
+.chicken-road-runner--idle {
+  background-position: 0% 0%;
 }
 
-.chicken-road-chicken--hop {
-  background-position: 43% 8%;
-  transform: translate(-50%, 36%) scale(1.08);
-  filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.52)) brightness(1.08);
+.chicken-road-runner--hop {
+  background-position: 50% 0%;
+  transform: translate(-50%, -18%) scale(1.05);
 }
 
-.chicken-road-chicken--busted {
-  background-position: 82% 8%;
-  transform: translate(-50%, 48%) rotate(-8deg) scale(1.06);
-  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.48)) saturate(0.72);
+.chicken-road-runner--cashout {
+  background-position: 50% 100%;
+  transform: translateX(-50%) scale(1.08);
+  filter: drop-shadow(0 16px 14px rgba(0, 0, 0, 0.36)) brightness(1.08);
+}
+
+.chicken-road-runner--busted {
+  background-position: 100% 100%;
+  transform: translateX(-50%) rotate(-5deg);
+  filter: drop-shadow(0 16px 14px rgba(0, 0, 0, 0.36)) saturate(0.78);
+}
+
+.chicken-road-multiplier-line {
+  position: absolute;
+  right: 3%;
+  bottom: 20%;
+  left: 16%;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3%;
+  pointer-events: none;
+}
+
+.chicken-road-multiplier-line span {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(67, 88, 103, 0.94);
+  padding: 0 8px;
+  font-size: clamp(10px, 1.4vw, 15px);
+  font-weight: 950;
+  color: #ffffff;
 }
 
 .chicken-road-meter {
   position: absolute;
-  right: 18px;
-  bottom: 18px;
-  z-index: 5;
+  right: clamp(14px, 2vw, 26px);
+  top: clamp(14px, 2vw, 26px);
+  z-index: 8;
   display: grid;
-  min-width: 150px;
+  min-width: 148px;
   gap: 2px;
-  border: 1px solid rgba(243, 214, 125, 0.28);
+  border: 1px solid rgba(243, 214, 125, 0.34);
   border-radius: 18px;
   background: rgba(5, 10, 19, 0.72);
   padding: 12px 14px;
@@ -2118,96 +2548,149 @@
   font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.54);
+  color: rgba(255, 255, 255, 0.58);
 }
 
 .chicken-road-meter strong {
   font-family: var(--font-display, Inter, system-ui, sans-serif);
-  font-size: clamp(24px, 4vw, 42px);
+  font-size: clamp(26px, 4vw, 44px);
   color: #f3d67d;
 }
 
-.chicken-road-difficulty {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.055);
-  padding: 12px;
-  text-align: left;
-  transition:
-    border-color 160ms ease,
-    background 160ms ease,
-    opacity 160ms ease;
+.chicken-road-result {
+  position: absolute;
+  left: 50%;
+  top: 16%;
+  z-index: 10;
+  display: grid;
+  min-width: min(340px, calc(100% - 40px));
+  transform: translateX(-50%);
+  place-items: center;
+  border-radius: 20px;
+  padding: 18px 22px;
+  text-align: center;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(12px);
 }
 
-.chicken-road-difficulty:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.chicken-road-difficulty strong,
-.chicken-road-difficulty small {
-  display: block;
-}
-
-.chicken-road-difficulty strong {
-  font-size: 13px;
+.chicken-road-result strong {
+  font-size: clamp(22px, 3vw, 36px);
   font-weight: 950;
-  color: white;
 }
 
-.chicken-road-difficulty small {
-  margin-top: 3px;
-  font-size: 11px;
-  font-weight: 650;
-  color: rgba(255, 255, 255, 0.56);
+.chicken-road-result span {
+  margin-top: 4px;
+  font-size: clamp(18px, 2.4vw, 28px);
+  font-weight: 950;
 }
 
-.chicken-road-difficulty em {
-  flex: 0 0 auto;
-  border-radius: 999px;
-  border: 1px solid rgba(125, 211, 252, 0.26);
-  background: rgba(14, 116, 144, 0.18);
-  padding: 4px 7px;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 900;
-  color: #8fe7ff;
+.chicken-road-result--win {
+  border: 1px solid rgba(52, 211, 153, 0.36);
+  background: rgba(6, 78, 59, 0.72);
+  color: #d1fae5;
 }
 
-.chicken-road-difficulty--active {
-  border-color: rgba(243, 214, 125, 0.45);
-  background: rgba(243, 214, 125, 0.11);
+.chicken-road-result--loss {
+  border: 1px solid rgba(248, 113, 113, 0.36);
+  background: rgba(127, 29, 29, 0.72);
+  color: #fee2e2;
 }
 
-@keyframes chicken-road-drive {
+.chicken-road-info-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@keyframes chicken-road-drive-down {
   from {
-    transform: translateX(-10vw);
+    top: -190px;
   }
 
   to {
-    transform: translateX(calc(100vw + 220px));
+    top: calc(100% + 190px);
+  }
+}
+
+@media (max-width: 980px) {
+  .chicken-road-arcade {
+    grid-template-columns: 1fr;
+  }
+
+  .chicken-road-control-panel {
+    order: 2;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: 0;
+  }
+
+  .chicken-road-road-panel {
+    order: 1;
+    grid-template-rows: auto minmax(360px, 52svh);
+  }
+
+  .chicken-road-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 640px) {
-  .chicken-road-arena {
-    min-height: 520px;
+  .chicken-road-page {
+    padding: 0;
   }
 
-  .chicken-road-track {
-    width: min(48vw, 190px);
+  .chicken-road-arcade {
+    min-height: 0;
+    border-radius: 0;
+  }
+
+  .chicken-road-road-panel {
+    grid-template-rows: auto minmax(320px, 46svh);
+  }
+
+  .chicken-road-road-topbar {
+    min-height: 52px;
+    padding: 0 12px;
+  }
+
+  .chicken-road-road-topbar span {
+    display: none;
+  }
+
+  .chicken-road-control-panel {
+    padding: 14px;
+  }
+
+  .chicken-road-sidewalk {
+    min-width: 64px;
+  }
+
+  .chicken-road-traffic-light {
+    right: 8px;
+  }
+
+  .chicken-road-traffic-light span {
+    height: 18px;
+    width: 18px;
+  }
+
+  .chicken-road-lane span {
+    display: none;
+  }
+
+  .chicken-road-multiplier-line {
+    left: 18%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .chicken-road-multiplier-line span:nth-child(n+4) {
+    display: none;
   }
 
   .chicken-road-meter {
+    top: 10px;
     right: 10px;
-    bottom: 10px;
-    min-width: 124px;
+    min-width: 120px;
     padding: 10px;
   }
 }
@@ -2525,19 +3008,37 @@
     font-size: 17px;
   }
 
+  .mega-slot-feature-stack {
+    gap: 4px;
+  }
+
+  .mega-slot-feature-stack > div {
+    padding: 4px 5px;
+  }
+
+  .mega-slot-feature-stack span {
+    font-size: 7px;
+  }
+
+  .mega-slot-feature-stack strong {
+    font-size: 9px;
+  }
+
   .mega-slot-mini-pay {
     display: none;
   }
 
   .mega-slot-stage {
-    grid-template-rows: 28px minmax(0, 1fr);
+    grid-template-rows: 38px minmax(0, 1fr);
   }
 
   .mega-slot-win-meter {
-    gap: 8px;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 7px;
+    padding: 0 10px;
   }
 
-  .mega-slot-win-meter span {
+  .mega-slot-win-meter__label {
     font-size: 10px;
   }
 
@@ -2545,8 +3046,19 @@
     font-size: 18px;
   }
 
+  .mega-slot-win-meter__meta {
+    font-size: 8px;
+  }
+
   .mega-slot-board {
     margin-top: 5px;
+  }
+
+  .mega-slot-special-symbol {
+    min-width: 30px;
+    height: 22px;
+    padding: 0 6px;
+    font-size: 10px;
   }
 
   .mega-slot-controls {

@@ -38,6 +38,11 @@ export const HOTLINE_MEGA_SYMBOLS = [
   { name: 'HIGH_A', weight: 8, payout3: 0.18, payout4: 1.2, payout5: 7 },
   { name: 'PREMIUM', weight: 3, payout3: 0.45, payout4: 4, payout5: 25 },
 ] as const;
+export const HOTLINE_MEGA_FREE_SPIN_TRIGGER = 3;
+export const HOTLINE_MEGA_FREE_SPIN_BASE_AWARD = 5;
+export const HOTLINE_MEGA_FREE_SPIN_RETRIGGER_AWARD = 3;
+export const HOTLINE_MEGA_MAX_FREE_SPINS = 15;
+export const HOTLINE_MEGA_MULTIPLIER_VALUES = [2, 3, 5, 8, 10, 15, 25, 50] as const;
 
 export type HotlineSymbol = (typeof HOTLINE_SYMBOLS)[number] | (typeof HOTLINE_MEGA_SYMBOLS)[number];
 
@@ -89,12 +94,49 @@ export interface HotlineCascadeStep {
   removed: HotlineWinPosition[];
 }
 
+export interface HotlineSpecialSymbol extends HotlineWinPosition {
+  type: 'scatter' | 'multiplier';
+  value?: number;
+}
+
+export interface HotlineFreeSpinRound {
+  index: number;
+  initialGrid: number[][];
+  finalGrid: number[][];
+  cascades: HotlineCascadeStep[];
+  lines: HotlineWinLine[];
+  baseMultiplier: number;
+  scatterSymbols: HotlineSpecialSymbol[];
+  multiplierSymbols: HotlineSpecialSymbol[];
+  multiplierTotal: number;
+  appliedMultiplier: number;
+  totalMultiplier: number;
+  extraFreeSpinsAwarded: number;
+}
+
+export interface HotlineMegaFeatureResult {
+  scatterSymbols: HotlineSpecialSymbol[];
+  scatterCount: number;
+  freeSpinsAwarded: number;
+  freeSpinsPlayed: number;
+  baseWinMultiplier: number;
+  baseMultiplierSymbols: HotlineSpecialSymbol[];
+  baseMultiplierTotal: number;
+  baseAppliedMultiplier: number;
+  baseTotalMultiplier: number;
+  freeSpinRounds: HotlineFreeSpinRound[];
+  freeSpinMultiplierBank: number;
+  freeSpinWinMultiplier: number;
+  totalMultiplier: number;
+}
+
 export interface HotlineCascadeResult {
   initialGrid: number[][];
   finalGrid: number[][];
   cascades: HotlineCascadeStep[];
   lines: HotlineWinLine[];
   totalMultiplier: number;
+  features?: HotlineMegaFeatureResult;
 }
 
 export interface HotlineWinLine {
@@ -119,11 +161,49 @@ export function hotlineSpinCascades(
 ): HotlineCascadeResult {
   const stream = hmacIntStream(serverSeed, clientSeed, nonce);
   const symbols = getHotlineSymbolsForRows(rowCount);
-  const nextSymbol = (): number => {
+  const nextRandom01 = (): number => {
     const v = stream.next().value as number;
-    return pickSymbol(v / 0x1_0000_0000, symbols);
+    return v / 0x1_0000_0000;
+  };
+  const nextSymbol = (): number => {
+    return pickSymbol(nextRandom01(), symbols);
   };
 
+  const round = runHotlineCascadeRound(
+    nextSymbol,
+    reelCount,
+    rowCount,
+    maxCascades,
+  );
+  const features = rowCount >= HOTLINE_MEGA_ROWS
+    ? buildMegaFeatureResult(
+      round,
+      nextRandom01,
+      nextSymbol,
+      reelCount,
+      rowCount,
+      maxCascades,
+    )
+    : undefined;
+
+  return {
+    initialGrid: round.initialGrid,
+    finalGrid: round.finalGrid,
+    cascades: round.cascades,
+    lines: round.lines,
+    totalMultiplier: features?.totalMultiplier ?? round.totalMultiplier,
+    ...(features ? { features } : {}),
+  };
+}
+
+type HotlineInternalCascadeRound = Omit<HotlineCascadeResult, 'features'>;
+
+function runHotlineCascadeRound(
+  nextSymbol: () => number,
+  reelCount: number,
+  rowCount: number,
+  maxCascades: number,
+): HotlineInternalCascadeRound {
   let grid = Array.from({ length: reelCount }, () =>
     Array.from({ length: rowCount }, () => nextSymbol()),
   );
@@ -158,6 +238,189 @@ export function hotlineSpinCascades(
     lines: allLines,
     totalMultiplier: Number(totalMultiplier.toFixed(4)),
   };
+}
+
+function buildMegaFeatureResult(
+  baseRound: HotlineInternalCascadeRound,
+  nextRandom01: () => number,
+  nextSymbol: () => number,
+  reelCount: number,
+  rowCount: number,
+  maxCascades: number,
+): HotlineMegaFeatureResult {
+  const scatterSymbols = drawMegaScatterSymbols(nextRandom01, reelCount, rowCount);
+  const baseMultiplierSymbols = drawMegaMultiplierSymbols(
+    nextRandom01,
+    reelCount,
+    rowCount,
+    baseRound.totalMultiplier,
+    false,
+  );
+  const baseMultiplierTotal = sumSpecialValues(baseMultiplierSymbols);
+  const baseAppliedMultiplier = baseRound.totalMultiplier > 0 && baseMultiplierTotal > 0
+    ? baseMultiplierTotal
+    : 1;
+  const baseTotalMultiplier = roundMultiplier(baseRound.totalMultiplier * baseAppliedMultiplier);
+
+  let freeSpinsAwarded = scatterSymbols.length >= HOTLINE_MEGA_FREE_SPIN_TRIGGER
+    ? HOTLINE_MEGA_FREE_SPIN_BASE_AWARD + (scatterSymbols.length - HOTLINE_MEGA_FREE_SPIN_TRIGGER) * 2
+    : 0;
+  let freeSpinMultiplierBank = 0;
+  let freeSpinWinMultiplier = 0;
+  const freeSpinRounds: HotlineFreeSpinRound[] = [];
+
+  for (
+    let index = 0;
+    index < freeSpinsAwarded && index < HOTLINE_MEGA_MAX_FREE_SPINS;
+    index += 1
+  ) {
+    const round = runHotlineCascadeRound(nextSymbol, reelCount, rowCount, maxCascades);
+    const scatterRoundSymbols = drawMegaScatterSymbols(nextRandom01, reelCount, rowCount);
+    const extraFreeSpinsAwarded = scatterRoundSymbols.length >= HOTLINE_MEGA_FREE_SPIN_TRIGGER
+      ? HOTLINE_MEGA_FREE_SPIN_RETRIGGER_AWARD
+      : 0;
+    const multiplierSymbols = drawMegaMultiplierSymbols(
+      nextRandom01,
+      reelCount,
+      rowCount,
+      round.totalMultiplier,
+      true,
+    );
+    const multiplierTotal = sumSpecialValues(multiplierSymbols);
+    freeSpinMultiplierBank = roundMultiplier(freeSpinMultiplierBank + multiplierTotal);
+    const appliedMultiplier = round.totalMultiplier > 0 && freeSpinMultiplierBank > 0
+      ? freeSpinMultiplierBank
+      : 1;
+    const totalMultiplier = roundMultiplier(round.totalMultiplier * appliedMultiplier);
+    freeSpinWinMultiplier = roundMultiplier(freeSpinWinMultiplier + totalMultiplier);
+
+    if (extraFreeSpinsAwarded > 0) {
+      freeSpinsAwarded = Math.min(
+        HOTLINE_MEGA_MAX_FREE_SPINS,
+        freeSpinsAwarded + extraFreeSpinsAwarded,
+      );
+    }
+
+    freeSpinRounds.push({
+      index,
+      initialGrid: round.initialGrid,
+      finalGrid: round.finalGrid,
+      cascades: round.cascades,
+      lines: round.lines,
+      baseMultiplier: round.totalMultiplier,
+      scatterSymbols: scatterRoundSymbols,
+      multiplierSymbols,
+      multiplierTotal,
+      appliedMultiplier,
+      totalMultiplier,
+      extraFreeSpinsAwarded,
+    });
+  }
+
+  return {
+    scatterSymbols,
+    scatterCount: scatterSymbols.length,
+    freeSpinsAwarded,
+    freeSpinsPlayed: freeSpinRounds.length,
+    baseWinMultiplier: baseRound.totalMultiplier,
+    baseMultiplierSymbols,
+    baseMultiplierTotal,
+    baseAppliedMultiplier,
+    baseTotalMultiplier,
+    freeSpinRounds,
+    freeSpinMultiplierBank,
+    freeSpinWinMultiplier,
+    totalMultiplier: roundMultiplier(baseTotalMultiplier + freeSpinWinMultiplier),
+  };
+}
+
+function drawMegaScatterSymbols(
+  nextRandom01: () => number,
+  reelCount: number,
+  rowCount: number,
+): HotlineSpecialSymbol[] {
+  const roll = nextRandom01();
+  const count =
+    roll < 0.018 ? 5 :
+      roll < 0.046 ? 4 :
+        roll < 0.11 ? 3 :
+          roll < 0.29 ? 2 :
+            roll < 0.52 ? 1 :
+              0;
+
+  return pickUniquePositions(nextRandom01, count, reelCount, rowCount)
+    .map((position) => ({ ...position, type: 'scatter' as const }));
+}
+
+function drawMegaMultiplierSymbols(
+  nextRandom01: () => number,
+  reelCount: number,
+  rowCount: number,
+  baseMultiplier: number,
+  freeSpinMode: boolean,
+): HotlineSpecialSymbol[] {
+  const roll = nextRandom01();
+  const chance = freeSpinMode ? 0.52 : 0.32;
+  if (baseMultiplier <= 0 || roll >= chance) return [];
+
+  const countRoll = nextRandom01();
+  const count = freeSpinMode
+    ? countRoll < 0.08 ? 3 : countRoll < 0.32 ? 2 : 1
+    : countRoll < 0.05 ? 3 : countRoll < 0.2 ? 2 : 1;
+  return pickUniquePositions(nextRandom01, count, reelCount, rowCount)
+    .map((position) => ({
+      ...position,
+      type: 'multiplier' as const,
+      value: pickMegaMultiplierValue(nextRandom01),
+    }));
+}
+
+function pickMegaMultiplierValue(nextRandom01: () => number): number {
+  const weighted = [
+    { value: 2, weight: 34 },
+    { value: 3, weight: 26 },
+    { value: 5, weight: 18 },
+    { value: 8, weight: 10 },
+    { value: 10, weight: 7 },
+    { value: 15, weight: 3 },
+    { value: 25, weight: 1.5 },
+    { value: 50, weight: 0.5 },
+  ];
+  const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
+  const target = nextRandom01() * totalWeight;
+  let accum = 0;
+  for (const item of weighted) {
+    accum += item.weight;
+    if (target < accum) return item.value;
+  }
+  return 2;
+}
+
+function pickUniquePositions(
+  nextRandom01: () => number,
+  count: number,
+  reelCount: number,
+  rowCount: number,
+): HotlineWinPosition[] {
+  const max = reelCount * rowCount;
+  const target = Math.max(0, Math.min(count, max));
+  const keyed = new Map<string, HotlineWinPosition>();
+
+  while (keyed.size < target) {
+    const reel = Math.floor(nextRandom01() * reelCount);
+    const row = Math.floor(nextRandom01() * rowCount);
+    keyed.set(`${reel}:${row}`, { reel, row });
+  }
+
+  return [...keyed.values()].sort((a, b) => a.reel - b.reel || a.row - b.row);
+}
+
+function sumSpecialValues(symbols: HotlineSpecialSymbol[]): number {
+  return symbols.reduce((sum, symbol) => sum + (symbol.value ?? 0), 0);
+}
+
+function roundMultiplier(value: number): number {
+  return Number(value.toFixed(4));
 }
 
 export const HOTLINE_PAYLINES_5X3 = [

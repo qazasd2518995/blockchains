@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, History, RotateCw } from 'lucide-react';
-import type { HotlineBetRequest, HotlineBetResult } from '@bg/shared';
+import type {
+  HotlineBetRequest,
+  HotlineBetResult,
+  HotlineMegaFeatureResult,
+  HotlineSpecialSymbol,
+} from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -164,6 +169,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       }
       const mult = res.data.multiplier ?? 0;
       const profitValue = Number.parseFloat(res.data.profit);
+      const featureDetail = formatMegaFeatureDetail(res.data.features);
       sceneRef.current?.playWinFx(mult, mult > 0);
       setResult(res.data);
       setBalance(res.data.newBalance);
@@ -175,9 +181,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           multiplier: mult,
           payout: amount * mult,
           won: profitValue >= 0,
-          detail: cascades.length > 0
+          detail: `${cascades.length > 0
             ? `${cascades.length} 次消除 · ${res.data.lines.length} 方式`
-            : `${res.data.lines.length} 連線`,
+            : `${res.data.lines.length} 連線`}${featureDetail ? ` · ${featureDetail}` : ''}`,
         },
         ...prev,
       ].slice(0, 30));
@@ -196,6 +202,33 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const resultProfit = result ? Number.parseFloat(result.profit) : 0;
   const resultMultiplier = result?.multiplier ?? 0;
   const cascadeCount = result?.cascades?.length ?? 0;
+  const megaFeatures = result?.features;
+  const megaFreeSpinRounds = megaFeatures?.freeSpinRounds ?? [];
+  const lastFreeSpinRound = megaFreeSpinRounds[megaFreeSpinRounds.length - 1];
+  const visibleSpecialSymbols = megaFeatures
+    ? [
+      ...megaFeatures.scatterSymbols,
+      ...megaFeatures.baseMultiplierSymbols,
+      ...(lastFreeSpinRound?.scatterSymbols ?? []),
+      ...(lastFreeSpinRound?.multiplierSymbols ?? []),
+    ]
+    : [];
+  const megaActiveMultiplier = Math.max(
+    1,
+    megaFeatures?.freeSpinMultiplierBank ?? 0,
+    megaFeatures?.baseMultiplierTotal ?? 0,
+  );
+  const megaFreeSpinProgress = megaFeatures && megaFeatures.freeSpinsAwarded > 0
+    ? `${megaFeatures.freeSpinsPlayed}/${megaFeatures.freeSpinsAwarded}`
+    : '0';
+  const megaWinMeterLabel = result ? '本局贏分' : '翻轉獎金';
+  const megaWinMeterMeta = megaFeatures
+    ? [
+      cascadeCount > 0 ? `${cascadeCount} 次消除` : '',
+      megaFeatures.baseMultiplierTotal > 0 ? `倍數 ${megaFeatures.baseMultiplierTotal}×` : '',
+      megaFeatures.freeSpinsAwarded > 0 ? `免費旋轉 ${megaFeatures.freeSpinsPlayed}/${megaFeatures.freeSpinsAwarded}` : '',
+    ].filter(Boolean).join(' · ')
+    : slotTheme.readyLabel;
   const isBigWinResult = resultProfit > 0 && resultMultiplier >= BIG_WIN_MULTIPLIER;
   const resultTitle = isBigWinResult
     ? '恭喜爆分'
@@ -259,10 +292,20 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 <div className="mega-slot-logo-card__suffix">{slotTheme.suffix}</div>
               </div>
               <div className="mega-slot-bonus-panel">
-                <div className="mega-slot-multiplier">1×</div>
+                <div className="mega-slot-multiplier">{megaActiveMultiplier}×</div>
                 <div className="mega-slot-free-spins">
-                  <strong>{result?.cascades?.length ?? 0}</strong>
-                  <span>連鎖消除</span>
+                  <strong>{megaFreeSpinProgress}</strong>
+                  <span>免費旋轉</span>
+                </div>
+                <div className="mega-slot-feature-stack">
+                  <div>
+                    <span>倍數符號</span>
+                    <strong>{megaFeatures?.baseMultiplierTotal ? `${megaFeatures.baseMultiplierTotal}×` : '待觸發'}</strong>
+                  </div>
+                  <div>
+                    <span>SCATTER</span>
+                    <strong>{megaFeatures ? `${megaFeatures.scatterCount}/3` : '0/3'}</strong>
+                  </div>
                 </div>
               </div>
               <div className="mega-slot-mini-pay">
@@ -276,11 +319,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             </aside>
 
             <section className="mega-slot-stage" aria-label={`${slotTheme.title} 6x5 盤面`}>
-              <div className="mega-slot-win-meter">
-                <span>{result ? resultTitle : slotTheme.readyLabel}</span>
-                <strong>
-                  {result ? formatAmount(result.payout) : '0.00'}
-                </strong>
+              <div className={`mega-slot-win-meter ${result ? 'mega-slot-win-meter--settled' : ''}`}>
+                <div className="mega-slot-win-meter__label">{megaWinMeterLabel}</div>
+                <strong>{result ? formatAmount(result.payout) : '0.00'}</strong>
+                <div className="mega-slot-win-meter__meta">{megaWinMeterMeta}</div>
               </div>
               <div className="mega-slot-board">
                 <MegaFallbackGrid
@@ -289,6 +331,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   spinning={busy}
                   hidden={sceneReady && !sceneFallback}
                 />
+                <MegaSpecialOverlay symbols={visibleSpecialSymbols} />
                 <canvas
                   ref={canvasRef}
                   className={`mega-slot-canvas ${sceneReady && !sceneFallback ? 'mega-slot-canvas--ready' : ''}`}
@@ -622,6 +665,27 @@ function MegaFallbackGrid({
   );
 }
 
+function MegaSpecialOverlay({ symbols }: { symbols: HotlineSpecialSymbol[] }) {
+  if (symbols.length === 0) return null;
+
+  return (
+    <div className="mega-slot-special-overlay" aria-hidden="true">
+      {symbols.map((symbol, index) => (
+        <div
+          key={`${symbol.type}-${symbol.reel}-${symbol.row}-${symbol.value ?? 'free'}-${index}`}
+          className={`mega-slot-special-symbol mega-slot-special-symbol--${symbol.type}`}
+          style={{
+            gridColumn: symbol.reel + 1,
+            gridRow: symbol.row + 1,
+          }}
+        >
+          {symbol.type === 'multiplier' ? `${symbol.value ?? 2}×` : 'FREE'}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function createFallbackGrid(theme: SlotThemeConfig): number[][] {
   const symbolCount = theme.symbols.length || 6;
   return Array.from({ length: theme.reels }, (_, reel) =>
@@ -641,4 +705,13 @@ function createJackpotValues(themeId: string): { label: string; value: string }[
 
 function formatJackpot(value: number): string {
   return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatMegaFeatureDetail(features?: HotlineMegaFeatureResult): string {
+  if (!features) return '';
+  const parts = [
+    features.baseMultiplierTotal > 0 ? `倍數 ${features.baseMultiplierTotal}×` : '',
+    features.freeSpinsAwarded > 0 ? `免費 ${features.freeSpinsPlayed}/${features.freeSpinsAwarded}` : '',
+  ].filter(Boolean);
+  return parts.join(' · ');
 }

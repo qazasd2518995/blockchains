@@ -6,14 +6,13 @@ import {
   hotlineSpinCascades,
   hotlineEvaluate,
 } from '@bg/provably-fair';
-import { GameId, type HotlineBetResult } from '@bg/shared';
+import { GameId, type HotlineBetResult, type HotlineMegaFeatureResult } from '@bg/shared';
 import {
   SeedHelper,
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
   runSerializable,
-  serializableTxOpts,
 } from '../_common/BaseGameService.js';
 import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
 import type { HotlineBetInput } from './hotline.schema.js';
@@ -53,6 +52,7 @@ export class HotlineService {
       let finalGrid = naturalRound.grid;
       let finalLines = naturalRound.lines;
       let finalCascades = naturalRound.cascades;
+      let finalFeatures = naturalRound.features;
       let finalMultiplier = multiplierD;
       let finalPayout = payout;
       if (controlled.controlled) {
@@ -64,6 +64,9 @@ export class HotlineService {
         finalCascades = [];
         finalMultiplier = new Prisma.Decimal(evaluated.totalMultiplier.toFixed(4));
         finalPayout = amount.mul(finalMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+        finalFeatures = rowCount > 3
+          ? buildControlledMegaFeature(Number(finalMultiplier.toFixed(4)))
+          : undefined;
       }
       const profit = finalPayout.minus(amount);
 
@@ -71,11 +74,13 @@ export class HotlineService {
         grid: naturalRound.grid,
         lines: naturalRound.lines,
         cascades: naturalRound.cascades,
+        ...(naturalRound.features ? { features: naturalRound.features } : {}),
       };
       const finalResult = {
         grid: finalGrid,
         lines: finalLines,
         cascades: finalCascades,
+        ...(finalFeatures ? { features: finalFeatures } : {}),
         controlled: controlled.controlled,
         flipReason: controlled.flipReason ?? null,
         raw: controlled.controlled ? originalResult : null,
@@ -117,6 +122,7 @@ export class HotlineService {
         grid: finalGrid,
         lines: finalLines,
         cascades: finalCascades,
+        ...(finalFeatures ? { features: finalFeatures } : {}),
         multiplier: Number(finalMultiplier.toFixed(4)),
         amount: amount.toFixed(2),
         payout: finalPayout.toFixed(2),
@@ -132,6 +138,7 @@ export class HotlineService {
 
 type HotlineRound = Pick<HotlineBetResult, 'grid' | 'lines' | 'cascades'> & {
   totalMultiplier: number;
+  features?: HotlineMegaFeatureResult;
 };
 
 function buildHotlineRound(
@@ -147,6 +154,7 @@ function buildHotlineRound(
       grid: cascaded.finalGrid,
       lines: cascaded.lines,
       cascades: cascaded.cascades,
+      ...(cascaded.features ? { features: cascaded.features } : {}),
       totalMultiplier: cascaded.totalMultiplier,
     };
   }
@@ -272,4 +280,22 @@ function losingHotlineGrid(gameId: string): number[][] {
     [0, 4, 0],
     [5, 0, 3],
   ].slice(0, reelCount);
+}
+
+function buildControlledMegaFeature(totalMultiplier: number): HotlineMegaFeatureResult {
+  return {
+    scatterSymbols: [],
+    scatterCount: 0,
+    freeSpinsAwarded: 0,
+    freeSpinsPlayed: 0,
+    baseWinMultiplier: totalMultiplier,
+    baseMultiplierSymbols: [],
+    baseMultiplierTotal: 0,
+    baseAppliedMultiplier: 1,
+    baseTotalMultiplier: totalMultiplier,
+    freeSpinRounds: [],
+    freeSpinMultiplierBank: 0,
+    freeSpinWinMultiplier: 0,
+    totalMultiplier,
+  };
 }

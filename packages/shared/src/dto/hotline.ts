@@ -29,11 +29,48 @@ export interface HotlineCascadeStep {
   removed: HotlineWinPosition[];
 }
 
+export interface HotlineSpecialSymbol extends HotlineWinPosition {
+  type: 'scatter' | 'multiplier';
+  value?: number;
+}
+
+export interface HotlineFreeSpinRound {
+  index: number;
+  initialGrid: number[][];
+  finalGrid: number[][];
+  cascades: HotlineCascadeStep[];
+  lines: HotlineWinLine[];
+  baseMultiplier: number;
+  scatterSymbols: HotlineSpecialSymbol[];
+  multiplierSymbols: HotlineSpecialSymbol[];
+  multiplierTotal: number;
+  appliedMultiplier: number;
+  totalMultiplier: number;
+  extraFreeSpinsAwarded: number;
+}
+
+export interface HotlineMegaFeatureResult {
+  scatterSymbols: HotlineSpecialSymbol[];
+  scatterCount: number;
+  freeSpinsAwarded: number;
+  freeSpinsPlayed: number;
+  baseWinMultiplier: number;
+  baseMultiplierSymbols: HotlineSpecialSymbol[];
+  baseMultiplierTotal: number;
+  baseAppliedMultiplier: number;
+  baseTotalMultiplier: number;
+  freeSpinRounds: HotlineFreeSpinRound[];
+  freeSpinMultiplierBank: number;
+  freeSpinWinMultiplier: number;
+  totalMultiplier: number;
+}
+
 export interface HotlineBetResult {
   betId: string;
   grid: number[][];
   lines: HotlineWinLine[];
   cascades?: HotlineCascadeStep[];
+  features?: HotlineMegaFeatureResult;
   multiplier: number;
   amount: string;
   payout: string;

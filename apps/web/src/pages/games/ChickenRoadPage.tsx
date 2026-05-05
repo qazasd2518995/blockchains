@@ -10,7 +10,6 @@ import type {
 } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { BetControls } from '@/components/game/BetControls';
-import { GameHeader } from '@/components/game/GameHeader';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { useAuthStore } from '@/stores/authStore';
@@ -28,6 +27,17 @@ const DIFFICULTIES: Array<{
   { id: 'medium', label: '普通', desc: '標準車流，風險與倍率均衡', tone: 'MID' },
   { id: 'hard', label: '困難', desc: '高速車流，倍率成長更快', tone: 'HIGH' },
   { id: 'hardcore', label: '瘋狂', desc: '極高波動，單步倍率暴衝', tone: 'MAX' },
+];
+
+const TRAFFIC_CARS = [
+  { id: 'taxi-a', sprite: 2, left: 23, delay: -0.7, duration: 5.8, reverse: false },
+  { id: 'police-a', sprite: 3, left: 34, delay: -2.5, duration: 6.7, reverse: true },
+  { id: 'red-a', sprite: 0, left: 46, delay: -1.2, duration: 5.4, reverse: false },
+  { id: 'truck-a', sprite: 5, left: 57, delay: -3.6, duration: 8.4, reverse: true },
+  { id: 'blue-a', sprite: 1, left: 68, delay: -0.4, duration: 6.2, reverse: false },
+  { id: 'bus-a', sprite: 4, left: 79, delay: -4.1, duration: 9.1, reverse: true },
+  { id: 'orange-a', sprite: 6, left: 90, delay: -1.9, duration: 5.2, reverse: false },
+  { id: 'van-a', sprite: 7, left: 96, delay: -5.3, duration: 7.6, reverse: true },
 ];
 
 export function ChickenRoadPage() {
@@ -60,8 +70,11 @@ export function ChickenRoadPage() {
   const isCashedOut = round?.status === 'CASHED_OUT';
   const currentMultiplier = round ? Number.parseFloat(round.currentMultiplier) : 1;
   const potentialPayout = round ? Number.parseFloat(round.potentialPayout) : amount;
-  const progress = Math.min(1, Math.max(0, currentStep / totalSteps));
-  const chickenState = isBusted ? 'busted' : busy ? 'hop' : 'idle';
+  const visualStep = isBusted && round?.hitStep ? round.hitStep : currentStep;
+  const progress = Math.min(1, Math.max(0, visualStep / totalSteps));
+  const chickenState = isBusted ? 'busted' : isCashedOut ? 'cashout' : busy ? 'hop' : 'idle';
+  const selectedDifficulty = DIFFICULTIES.find((item) => item.id === difficulty) ?? DIFFICULTIES[1]!;
+  const profitPreview = Math.max(0, potentialPayout - (round ? Number.parseFloat(round.amount) : amount));
 
   const nextLaneLabel = useMemo(() => {
     if (!round || !round.nextMultiplier) return '終點';
@@ -168,117 +181,14 @@ export function ChickenRoadPage() {
   };
 
   return (
-    <div>
-      <GameHeader
-        artwork="/game-art/chicken-road/background.png"
-        section="§ GAME 30"
-        breadcrumb="CHICKEN_30"
-        title="小雞過馬路"
-        titleSuffix="CHICKEN ROAD"
-        titleSuffixColor="ember"
-        description="一步一步穿越車道，倍率會越過越高；在車子撞到前隨時領取。"
-        rtpLabel="RTP 97%"
-        rtpAccent="ember"
-      />
-
-      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="game-main-stack space-y-4">
-          <div className="chicken-road-stage game-stage-panel scanlines">
-            <div className="game-stage-bar">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">小雞過馬路</span>
-              <span className="ml-2 text-white/40">·</span>
-              <span className="ml-2 text-white/55 uppercase">Chicken Road</span>
-              <div className="flex items-center gap-3 text-white/72">
-                <span>{round ? `${currentStep}/${totalSteps} 車道` : 'READY'}</span>
-                {isActive && <span className="text-[#7DD3FC]"><span className="dot-online" /> LIVE</span>}
-                {isBusted && <span className="text-[#FCA5A5]">撞車</span>}
-                {isCashedOut && <span className="text-[#6EE7B7]">已領取</span>}
-              </div>
-            </div>
-
-            <div className="chicken-road-arena">
-              <div className="chicken-road-road-bg" aria-hidden="true" />
-              <div className="chicken-road-cars" aria-hidden="true">
-                {Array.from({ length: 10 }, (_, index) => (
-                  <span
-                    key={index}
-                    className={`chicken-road-car chicken-road-car--${index % 4}`}
-                    style={{
-                      top: `${12 + index * 7.8}%`,
-                      animationDelay: `${-(index * 0.62)}s`,
-                      animationDuration: `${5.6 + (index % 4) * 0.7}s`,
-                    }}
-                  />
-                ))}
-              </div>
-
-              <div className="chicken-road-track" aria-label="過馬路進度">
-                {Array.from({ length: totalSteps }, (_, rawIndex) => {
-                  const stepNumber = totalSteps - rawIndex;
-                  const crossed = stepNumber <= currentStep;
-                  const isNext = isActive && stepNumber === currentStep + 1;
-                  const hit = round?.hitStep === stepNumber;
-                  const revealedSafe = round?.path?.[stepNumber - 1] === true;
-                  return (
-                    <div
-                      key={stepNumber}
-                      className={`chicken-road-tile ${crossed ? 'chicken-road-tile--crossed' : ''} ${isNext ? 'chicken-road-tile--next' : ''} ${hit ? 'chicken-road-tile--hit' : ''} ${revealedSafe && round?.path ? 'chicken-road-tile--safe' : ''}`}
-                    >
-                      <span>{stepNumber}</span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div
-                className={`chicken-road-chicken chicken-road-chicken--${chickenState}`}
-                style={{ bottom: `${6 + progress * 84}%` }}
-                aria-hidden="true"
-              />
-
-              <div className="chicken-road-meter">
-                <span>目前倍率</span>
-                <strong>{formatMultiplier(currentMultiplier)}</strong>
-                <small>{nextLaneLabel}</small>
-              </div>
-            </div>
+    <div className="chicken-road-page">
+      <section className="chicken-road-arcade" aria-label="小雞過馬路遊戲">
+        <aside className="chicken-road-control-panel">
+          <div className="chicken-road-control-tabs" aria-label="投注模式">
+            <span>手動投注</span>
           </div>
 
-          {round && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-              <Stat icon={Gauge} label="目前倍率" value={formatMultiplier(round.currentMultiplier)} />
-              <Stat icon={Flag} label="下一步" value={round.nextMultiplier ? formatMultiplier(round.nextMultiplier) : '終點'} />
-              <Stat icon={Trophy} label="可領取" value={formatAmount(round.potentialPayout)} />
-              <Stat icon={Car} label="進度" value={`${round.currentStep}/${round.totalSteps}`} />
-            </div>
-          )}
-
-          {isBusted && round && (
-            <div className="game-result-card game-result-card-loss">
-              <div className="font-display text-4xl text-[#FCA5A5]">小雞被車撞到了</div>
-              <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
-                本局虧損 -{formatAmount(round.amount)}
-              </div>
-            </div>
-          )}
-          {isCashedOut && round && (
-            <div className="game-result-card game-result-card-win">
-              <div className="font-display text-4xl text-[#7DD3FC]">成功過馬路</div>
-              <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
-                派彩 +{formatAmount(round.potentialPayout)}
-              </div>
-            </div>
-          )}
-          {error && (
-            <div className="game-alert text-[12px]">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="leading-relaxed">{error.toUpperCase()}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="game-control-stack space-y-4">
-          <div className="game-side-card p-5">
+          <div className="chicken-road-control-body">
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -287,66 +197,168 @@ export function ChickenRoadPage() {
               disabled={isActive || busy}
             />
 
-            <div className="mt-6">
-              <div className="label">難度</div>
-              <div className="mt-2 grid gap-2">
+            <label className="chicken-road-select-label">
+              <span>難度</span>
+              <select
+                value={difficulty}
+                onChange={(event) => setDifficulty(event.target.value as ChickenRoadDifficulty)}
+                disabled={isActive || busy}
+                className="chicken-road-select"
+              >
                 {DIFFICULTIES.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setDifficulty(item.id)}
-                    disabled={isActive || busy}
-                    className={`chicken-road-difficulty ${difficulty === item.id ? 'chicken-road-difficulty--active' : ''}`}
-                  >
-                    <span>
-                      <strong>{item.label}</strong>
-                      <small>{item.desc}</small>
-                    </span>
-                    <em>{item.tone}</em>
-                  </button>
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
                 ))}
-              </div>
+              </select>
+            </label>
+
+            <div className="chicken-road-difficulty-summary">
+              <span>{selectedDifficulty.tone}</span>
+              <strong>{selectedDifficulty.desc}</strong>
             </div>
 
-            <div className="mt-6 grid gap-2">
+            <div className="chicken-road-actions">
               {!isActive ? (
-                <button type="button" onClick={() => void start()} disabled={busy} className="btn-primary w-full">
-                  → 開始穿越 · {formatAmount(amount)}
+                <button type="button" onClick={() => void start()} disabled={busy} className="chicken-road-primary">
+                  投注
                 </button>
               ) : (
                 <>
-                  <button type="button" onClick={() => void step()} disabled={busy} className="btn-primary w-full">
-                    → 前進一步 {round?.nextMultiplier ? `· ${formatMultiplier(round.nextMultiplier)}` : ''}
+                  <button type="button" onClick={() => void step()} disabled={busy} className="chicken-road-primary">
+                    跳下一格
                   </button>
                   <button
                     type="button"
                     onClick={() => void cashout()}
                     disabled={busy || currentStep <= 0}
-                    className="game-choice-btn game-choice-btn-acid min-h-[46px]"
+                    className="chicken-road-cashout"
                   >
-                    領取 · {formatAmount(potentialPayout)}
+                    領取
                   </button>
                 </>
               )}
               {round && !isActive && (
-                <button type="button" onClick={resetRound} className="game-choice-btn min-h-[44px]">
+                <button type="button" onClick={resetRound} className="chicken-road-reset">
                   再來一局
                 </button>
               )}
             </div>
-          </div>
 
-          <div className="game-side-card p-5">
-            <div className="label">玩法邏輯</div>
-            <div className="mt-3 space-y-2 text-[12px] leading-6 text-white/68">
-              <p>每前進一格，倍率依難度提升。</p>
-              <p>玩家可隨時領取；若該格被車撞到，本局本金歸零。</p>
-              <p>難度只調整波動，整體 RTP 固定 97%。</p>
+            <div className="chicken-road-profit-box">
+              <span>可領取</span>
+              <strong>{formatAmount(potentialPayout)}</strong>
+              <small>總利潤 {formatAmount(profitPreview)} · {formatMultiplier(currentMultiplier)}</small>
+            </div>
+          </div>
+        </aside>
+
+        <section className="chicken-road-road-panel">
+          <div className="chicken-road-road-topbar">
+            <div>
+              <strong>小雞過馬路</strong>
+              <span>CHICKEN ROAD</span>
+            </div>
+            <div className="chicken-road-status">
+              {round ? `${currentStep}/${totalSteps}` : 'READY'}
             </div>
           </div>
 
-          <RecentBetsList records={history} />
+          <div className="chicken-road-road">
+            <div className="chicken-road-sidewalk" aria-hidden="true">
+              <div className="chicken-road-traffic-light">
+                <span />
+                <span />
+              </div>
+              <div className="chicken-road-start-zone" />
+            </div>
+
+            <div className="chicken-road-lanes" aria-label="過馬路進度">
+              {Array.from({ length: totalSteps }, (_, index) => {
+                const stepNumber = index + 1;
+                const crossed = stepNumber <= currentStep;
+                const isNext = isActive && stepNumber === currentStep + 1;
+                const hit = round?.hitStep === stepNumber;
+                const revealedSafe = round?.path?.[stepNumber - 1] === true;
+                return (
+                  <div
+                    key={stepNumber}
+                    className={`chicken-road-lane ${crossed ? 'chicken-road-lane--crossed' : ''} ${isNext ? 'chicken-road-lane--next' : ''} ${hit ? 'chicken-road-lane--hit' : ''} ${revealedSafe && round?.path ? 'chicken-road-lane--safe' : ''}`}
+                  >
+                    <span>{stepNumber}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="chicken-road-traffic" aria-hidden="true">
+              {TRAFFIC_CARS.map((car) => (
+                <span
+                  key={car.id}
+                  className={`chicken-road-traffic-car chicken-road-traffic-car--${car.sprite}`}
+                  style={{
+                    left: `${car.left}%`,
+                    animationDelay: `${car.delay}s`,
+                    animationDuration: `${car.duration}s`,
+                    animationDirection: car.reverse ? 'reverse' : 'normal',
+                  }}
+                />
+              ))}
+            </div>
+
+            <div className="chicken-road-multiplier-line" aria-hidden="true">
+              {Array.from({ length: 6 }, (_, index) => (
+                <span key={index}>{index === 0 ? '起點' : formatMultiplier((1.15 + index * 0.22).toFixed(2))}</span>
+              ))}
+            </div>
+
+            <div
+              className={`chicken-road-runner chicken-road-runner--${chickenState}`}
+              style={{ left: `${7 + progress * 84}%` }}
+              aria-hidden="true"
+            />
+
+            <div className="chicken-road-meter">
+              <span>目前倍率</span>
+              <strong>{formatMultiplier(currentMultiplier)}</strong>
+              <small>{nextLaneLabel}</small>
+            </div>
+
+            {(isBusted || isCashedOut) && round && (
+              <div className={`chicken-road-result ${isBusted ? 'chicken-road-result--loss' : 'chicken-road-result--win'}`}>
+                <strong>{isBusted ? '撞車失敗' : '成功領取'}</strong>
+                <span>{isBusted ? `-${formatAmount(round.amount)}` : `+${formatAmount(round.potentialPayout)}`}</span>
+              </div>
+            )}
+          </div>
+        </section>
+      </section>
+
+      <div className="chicken-road-info-grid">
+        <Stat icon={Gauge} label="目前倍率" value={formatMultiplier(currentMultiplier)} />
+        <Stat icon={Flag} label="下一步" value={round?.nextMultiplier ? formatMultiplier(round.nextMultiplier) : '終點'} />
+        <Stat icon={Trophy} label="可領取" value={formatAmount(potentialPayout)} />
+        <Stat icon={Car} label="進度" value={`${currentStep}/${totalSteps}`} />
+      </div>
+
+      {error && (
+        <div className="game-alert mt-4 text-[12px]">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="leading-relaxed">{error.toUpperCase()}</span>
         </div>
+      )}
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+        <div className="game-side-card p-5">
+          <div className="label">玩法邏輯</div>
+          <div className="mt-3 space-y-2 text-[12px] leading-6 text-white/68">
+            <p>每前進一格，倍率依難度提升。</p>
+            <p>玩家可隨時領取；若該格被車撞到，本局本金歸零。</p>
+            <p>難度只調整波動，整體 RTP 固定 97%。</p>
+          </div>
+        </div>
+
+        <RecentBetsList records={history} />
       </div>
     </div>
   );
