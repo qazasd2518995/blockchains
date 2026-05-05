@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { Sfx } from '@bg/game-engine';
 import { router } from './router';
+import { AddToHomeScreenPrompt } from './components/layout/AddToHomeScreenPrompt';
 import { ErrorBoundary } from './components/layout/ErrorBoundary';
 import { PlatformBgm } from './lib/platformBgm';
 import './styles/global.css';
@@ -39,6 +40,7 @@ ReactDOM.createRoot(root).render(
     <AudioUnlocker />
     <ErrorBoundary>
       <RouterProvider router={router} />
+      <AddToHomeScreenPrompt />
     </ErrorBoundary>
   </React.StrictMode>,
 );
