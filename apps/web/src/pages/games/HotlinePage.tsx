@@ -876,6 +876,7 @@ function SlotSymbolBadge({
 }) {
   const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
   const label = useShortLabel ? meta.shortLabel : meta.label;
+  const symbolImage = getMegaSlotSymbolImage(theme, symbol);
 
   return (
     <span
@@ -890,9 +891,10 @@ function SlotSymbolBadge({
         className="block h-7 w-7 shrink-0 rounded-full border bg-cover bg-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.3)]"
         style={{
           borderColor: `${meta.accentHex}40`,
-          backgroundImage: `url(${theme.symbolSheet})`,
-          backgroundSize: '300% 200%',
-          backgroundPosition: SYMBOL_POSITIONS[symbol] ?? '0% 0%',
+          backgroundImage: `url(${symbolImage ?? theme.symbolSheet})`,
+          backgroundSize: symbolImage ? 'contain' : '300% 200%',
+          backgroundPosition: symbolImage ? 'center' : SYMBOL_POSITIONS[symbol] ?? '0% 0%',
+          backgroundRepeat: 'no-repeat',
         }}
         aria-hidden="true"
       />
@@ -921,6 +923,7 @@ function MegaFallbackGrid({
         <div key={`${theme.id}-fallback-reel-${reelIndex}`} className="mega-slot-fallback-reel">
           {reel.map((symbol, rowIndex) => {
             const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
+            const symbolImage = getMegaSlotSymbolImage(theme, symbol);
             return (
               <div
                 key={`${reelIndex}-${rowIndex}-${symbol}`}
@@ -931,6 +934,15 @@ function MegaFallbackGrid({
                   backgroundPosition: SYMBOL_POSITIONS[symbol] ?? '0% 0%',
                 }}
               >
+                {symbolImage && (
+                  <img
+                    src={symbolImage}
+                    alt=""
+                    draggable={false}
+                    decoding="async"
+                    aria-hidden="true"
+                  />
+                )}
                 <span>{meta.shortLabel}</span>
               </div>
             );
@@ -939,6 +951,12 @@ function MegaFallbackGrid({
       ))}
     </div>
   );
+}
+
+function getMegaSlotSymbolImage(theme: SlotThemeConfig, symbol: number): string | null {
+  if (theme.rows <= 3) return null;
+  if (!Number.isInteger(symbol) || symbol < 0 || symbol >= theme.symbols.length) return null;
+  return theme.symbolSheet.replace(/symbols\.png$/, `symbol-${symbol}.png`);
 }
 
 function MegaSpecialOverlay({ symbols }: { symbols: HotlineSpecialSymbol[] }) {

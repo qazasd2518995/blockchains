@@ -1828,6 +1828,7 @@
 .mega-slot-fallback-symbol {
   position: relative;
   min-height: 0;
+  overflow: hidden;
   border: 2px solid;
   border-radius: 9px;
   background-color: #050914;
@@ -1838,8 +1839,22 @@
     0 0 14px rgba(0, 0, 0, 0.36);
 }
 
+.mega-slot-fallback-symbol img {
+  position: absolute;
+  inset: 4px;
+  z-index: 1;
+  display: block;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.5));
+  user-select: none;
+}
+
 .mega-slot-fallback-symbol span {
   position: absolute;
+  z-index: 2;
   right: 6px;
   bottom: 4px;
   border-radius: 999px;
@@ -1850,6 +1865,10 @@
   letter-spacing: 0.08em;
   color: rgba(255, 255, 255, 0.78);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+}
+
+.mega-slot-fallback-symbol img + span {
+  display: none;
 }
 
 .mega-slot-special-overlay {
