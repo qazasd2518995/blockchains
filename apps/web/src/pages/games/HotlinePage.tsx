@@ -35,14 +35,14 @@ const SYMBOL_POSITIONS = [
 ];
 
 const MEGA_SYMBOL_PAYOUTS = [
-  '3軸 0.03x · 4軸 0.12x · 5軸+ 0.45x',
-  '3軸 0.04x · 4軸 0.18x · 5軸+ 0.70x',
-  '3軸 0.06x · 4軸 0.30x · 5軸+ 1.20x',
-  '3軸 0.10x · 4軸 0.55x · 5軸+ 2.50x',
-  '3軸 0.18x · 4軸 1.20x · 5軸+ 7.00x',
-  '3軸 0.45x · 4軸 4.00x · 5軸+ 25.00x',
+  '8-9個 0.024x · 10-11個 0.072x · 12+個 0.24x',
+  '8-9個 0.030x · 10-11個 0.096x · 12+個 0.36x',
+  '8-9個 0.048x · 10-11個 0.156x · 12+個 0.66x',
+  '8-9個 0.072x · 10-11個 0.264x · 12+個 1.32x',
+  '8-9個 0.144x · 10-11個 0.660x · 12+個 3.60x',
+  '8-9個 0.336x · 10-11個 1.920x · 12+個 12.00x',
 ];
-const BIG_WIN_MULTIPLIER = 2;
+const BIG_WIN_MULTIPLIER = 20;
 const MEGA_PRESETS = [1, 10, 100, 1000];
 
 export function HotlinePage({ theme = 'cyber' }: Props) {
@@ -167,9 +167,20 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       } else {
         await sceneRef.current?.playSpin(res.data.grid, res.data.lines);
       }
+      const freeSpinRounds = res.data.features?.freeSpinRounds ?? [];
+      for (const round of freeSpinRounds) {
+        await delay(360);
+        if (round.cascades.length > 0) {
+          await sceneRef.current?.playCascadeSpin(round.cascades, round.finalGrid);
+        } else {
+          await sceneRef.current?.playSpin(round.finalGrid, round.lines);
+        }
+      }
       const mult = res.data.multiplier ?? 0;
       const profitValue = Number.parseFloat(res.data.profit);
       const featureDetail = formatMegaFeatureDetail(res.data.features);
+      const totalCascadeCount =
+        cascades.length + freeSpinRounds.reduce((sum, round) => sum + round.cascades.length, 0);
       sceneRef.current?.playWinFx(mult, mult > 0);
       setResult(res.data);
       setBalance(res.data.newBalance);
@@ -181,8 +192,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           multiplier: mult,
           payout: amount * mult,
           won: profitValue >= 0,
-          detail: `${cascades.length > 0
-            ? `${cascades.length} 次消除 · ${res.data.lines.length} 方式`
+          detail: `${totalCascadeCount > 0
+            ? `${totalCascadeCount} 次消除 · ${res.data.lines.length} 組合`
             : `${res.data.lines.length} 連線`}${featureDetail ? ` · ${featureDetail}` : ''}`,
         },
         ...prev,
@@ -201,10 +212,12 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const resultPayout = result ? Number.parseFloat(result.payout) : 0;
   const resultProfit = result ? Number.parseFloat(result.profit) : 0;
   const resultMultiplier = result?.multiplier ?? 0;
-  const cascadeCount = result?.cascades?.length ?? 0;
   const megaFeatures = result?.features;
   const megaFreeSpinRounds = megaFeatures?.freeSpinRounds ?? [];
   const lastFreeSpinRound = megaFreeSpinRounds[megaFreeSpinRounds.length - 1];
+  const cascadeCount = (result?.cascades?.length ?? 0) +
+    megaFreeSpinRounds.reduce((sum, round) => sum + round.cascades.length, 0);
+  const resultDisplayGrid = lastFreeSpinRound?.finalGrid ?? result?.grid ?? fallbackGrid;
   const visibleSpecialSymbols = megaFeatures
     ? [
       ...megaFeatures.scatterSymbols,
@@ -304,7 +317,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   </div>
                   <div>
                     <span>SCATTER</span>
-                    <strong>{megaFeatures ? `${megaFeatures.scatterCount}/3` : '0/3'}</strong>
+                    <strong>{megaFeatures ? `${megaFeatures.scatterCount}/4` : '0/4'}</strong>
                   </div>
                 </div>
               </div>
@@ -327,7 +340,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <div className="mega-slot-board">
                 <MegaFallbackGrid
                   theme={slotTheme}
-                  grid={result?.grid ?? fallbackGrid}
+                  grid={resultDisplayGrid}
                   spinning={busy}
                   hidden={sceneReady && !sceneFallback}
                 />
@@ -511,7 +524,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                       <div className="flex min-w-0 items-center gap-2">
                         <span className="font-mono text-white/85">
                           {l.ways
-                            ? `方式 ${i + 1} · ${l.count} 軸 · ${l.ways} 組`
+                            ? l.lineId?.startsWith('cluster-')
+                              ? `組合 ${i + 1} · ${l.count} 個`
+                              : `方式 ${i + 1} · ${l.count} 軸 · ${l.ways} 組`
                             : `${l.lineId ? `${t.games.hotline.line} ${i + 1}` : `${t.games.hotline.row} ${l.row + 1}`} · ${l.count}×`}
                         </span>
                         <SlotSymbolBadge theme={slotTheme} symbol={l.symbol} showLabel useShortLabel />
@@ -705,6 +720,10 @@ function createJackpotValues(themeId: string): { label: string; value: string }[
 
 function formatJackpot(value: number): string {
   return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function formatMegaFeatureDetail(features?: HotlineMegaFeatureResult): string {

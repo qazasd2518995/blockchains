@@ -60,6 +60,7 @@ function fitSpriteCover(sprite: Sprite, width: number, height: number): void {
 interface HotlineLine {
   lineId?: string;
   path?: number[];
+  positions?: HotlineWinPosition[];
   startReel?: number;
   direction?: 'ltr' | 'rtl';
   row: number;
@@ -800,32 +801,71 @@ export class HotlineScene {
       await Promise.all(removalTweens);
     }
 
-    await this.dropGridIntoPlace(nextGrid);
+    await this.dropGridIntoPlace(nextGrid, removed);
   }
 
-  private dropGridIntoPlace(nextGrid: number[][]): Promise<void> {
+  private dropGridIntoPlace(nextGrid: number[][], removed: HotlineWinPosition[]): Promise<void> {
     const tweens: Promise<void>[] = [];
+    const removedByReel = new Map<number, Set<number>>();
+    for (const pos of removed) {
+      const rows = removedByReel.get(pos.reel) ?? new Set<number>();
+      rows.add(pos.row);
+      removedByReel.set(pos.reel, rows);
+    }
+
     for (let reelIdx = 0; reelIdx < this.reels.length; reelIdx += 1) {
       const reel = this.reels[reelIdx]!;
-      this.snapReelToFinal(reel, nextGrid[reelIdx] ?? []);
+      const removedRows = removedByReel.get(reelIdx);
+      const finalColumn = nextGrid[reelIdx] ?? [];
+      if (!removedRows || removedRows.size === 0) {
+        for (let row = 0; row < this.rowCount; row += 1) {
+          const sym = reel.symbols[row];
+          const nextSymbol = finalColumn[row] ?? sym?.symbolIndex ?? 0;
+          if (sym && sym.symbolIndex !== nextSymbol) this.renderSymbolTile(sym, nextSymbol);
+        }
+        this.captureReelOrder(reel);
+        continue;
+      }
+
+      const ordered = [...reel.symbols].sort((a, b) => a.y - b.y);
+      const survivors = ordered.filter((_symbol, row) => !removedRows.has(row));
+      const enteringCount = Math.max(0, this.rowCount - survivors.length);
+      const entering = ordered
+        .filter((_symbol, row) => removedRows.has(row))
+        .slice(0, enteringCount);
+      const finalOrder = [...entering, ...survivors].slice(0, this.rowCount);
+
+      while (finalOrder.length < this.rowCount) {
+        const fallback = ordered[finalOrder.length];
+        if (!fallback) break;
+        finalOrder.push(fallback);
+      }
+
+      reel.symbols = finalOrder;
+      reel.container.y = this.reelY0;
 
       for (let row = 0; row < this.rowCount; row += 1) {
-        const sym = reel.symbols[row];
+        const sym = finalOrder[row];
         if (!sym) continue;
         const targetY = row * reel.cellSize + reel.cellSize / 2;
-        const delay = reelIdx * 0.035 + row * 0.018;
+        const delay = reelIdx * 0.025 + row * 0.02;
         gsap.killTweensOf(sym);
         gsap.killTweensOf(sym.scale);
-        sym.alpha = 0;
-        sym.scale.set(0.92);
-        sym.y = targetY - reel.cellSize * 0.64;
+        const nextSymbol = finalColumn[row] ?? 0;
+        if (sym.symbolIndex !== nextSymbol) this.renderSymbolTile(sym, nextSymbol);
+        const isEntering = row < enteringCount;
+        sym.alpha = isEntering ? 0 : 1;
+        sym.scale.set(isEntering ? 0.92 : 1);
+        if (isEntering) {
+          sym.y = targetY - reel.cellSize * (enteringCount + 0.62);
+        }
         tweens.push(new Promise((resolve) => {
           gsap.to(sym, {
             y: targetY,
             alpha: 1,
-            duration: 0.34,
+            duration: isEntering ? 0.36 : 0.42,
             delay,
-            ease: 'back.out(1.45)',
+            ease: isEntering ? 'back.out(1.45)' : 'power3.out',
             onComplete: resolve,
           });
           gsap.to(sym.scale, {
@@ -837,6 +877,7 @@ export class HotlineScene {
           });
         }));
       }
+      reel.strip = finalOrder.map((symbol) => symbol.symbolIndex);
     }
 
     if (tweens.length > 0) {
@@ -879,6 +920,10 @@ export class HotlineScene {
     const jackpot = lines.find((l) => l.count === 5);
     Sfx.slotWin(jackpot ? 'big' : lines.length >= 2 ? 'medium' : 'small');
     for (const line of lines) {
+      if (line.positions && line.positions.length > 0) {
+        this.showClusterWin(line);
+        continue;
+      }
       const path = this.normalizeLinePath(line);
       const startReel = this.clampLineStart(line.startReel);
       const visibleCount = Math.min(
@@ -991,6 +1036,51 @@ export class HotlineScene {
     } else if (lines.length >= 2) {
       const timer = window.setTimeout(() => this.shaker?.shake(5, 0.35), 300);
       this.lineFxTimers.push(timer);
+    }
+  }
+
+  private showClusterWin(line: HotlineLine): void {
+    const positions = line.positions ?? [];
+    if (positions.length === 0 || !this.winLinesLayer) return;
+    const color =
+      this.theme.symbols[line.symbol]?.accentValue ??
+      getHotlineSymbolMeta(line.symbol).accentValue;
+
+    for (const pos of positions) {
+      const reel = this.reels[pos.reel];
+      const sym = reel?.symbols[pos.row];
+      if (!reel || !sym) continue;
+      const x = this.reelX0 + pos.reel * (this.cellSize + this.reelGap) + this.cellSize / 2;
+      const y = this.reelY0 + pos.row * this.cellSize + this.cellSize / 2;
+      const ring = new Graphics();
+      ring.roundRect(
+        x - this.cellSize * 0.45,
+        y - this.cellSize * 0.45,
+        this.cellSize * 0.9,
+        this.cellSize * 0.9,
+        this.cellSize * 0.16,
+      );
+      ring.stroke({ color, width: 3, alpha: 0.78 });
+      ring.alpha = 0;
+      this.winLinesLayer.addChild(ring);
+      gsap.fromTo(ring, { alpha: 0 }, { alpha: 1, duration: 0.22, ease: 'power2.out' });
+      gsap.to(ring, { alpha: 0.18, duration: 0.34, delay: 0.52, ease: 'power2.in' });
+      gsap.to(sym.scale, {
+        x: 1.14,
+        y: 1.14,
+        duration: 0.2,
+        ease: 'power2.out',
+        yoyo: true,
+        repeat: 3,
+      });
+      this.particlePool?.emit({
+        x,
+        y,
+        count: positions.length >= 10 ? 5 : 3,
+        colors: [color, 0xffffff],
+        speedMin: 1,
+        speedMax: 3.6,
+      });
     }
   }
 
