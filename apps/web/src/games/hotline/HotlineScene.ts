@@ -838,21 +838,33 @@ export class HotlineScene {
       }
 
       const ordered = [...reel.symbols].sort((a, b) => a.y - b.y);
-      const survivors = ordered.filter((_symbol, row) => !removedRows.has(row));
+      const visible = ordered.slice(0, this.rowCount);
+      const offscreen = ordered.slice(this.rowCount);
+      const survivors = visible.filter((_symbol, row) => !removedRows.has(row));
       const enteringCount = Math.max(0, this.rowCount - survivors.length);
-      const entering = ordered
+      const entering = visible
         .filter((_symbol, row) => removedRows.has(row))
         .slice(0, enteringCount);
       const finalOrder = [...entering, ...survivors].slice(0, this.rowCount);
 
       while (finalOrder.length < this.rowCount) {
-        const fallback = ordered[finalOrder.length];
+        const fallback = offscreen.shift();
         if (!fallback) break;
         finalOrder.push(fallback);
       }
 
-      reel.symbols = finalOrder;
+      reel.symbols = [...finalOrder, ...offscreen];
       reel.container.y = this.reelY0;
+
+      for (let i = 0; i < offscreen.length; i += 1) {
+        const sym = offscreen[i]!;
+        gsap.killTweensOf(sym);
+        gsap.killTweensOf(sym.scale);
+        sym.x = reel.cellSize / 2;
+        sym.y = (this.rowCount + i) * reel.cellSize + reel.cellSize / 2;
+        sym.alpha = 1;
+        sym.scale.set(1);
+      }
 
       for (let row = 0; row < this.rowCount; row += 1) {
         const sym = finalOrder[row];
@@ -887,14 +899,16 @@ export class HotlineScene {
           });
         }));
       }
-      reel.strip = finalOrder.map((symbol) => symbol.symbolIndex);
+      reel.strip = reel.symbols.map((symbol) => symbol.symbolIndex);
     }
 
     if (tweens.length > 0) {
       this.shaker?.shake(2.2, 0.18);
       Sfx.slotReelStop();
     }
-    return Promise.all(tweens).then(() => undefined);
+    return Promise.all(tweens).then(() => {
+      for (const reel of this.reels) this.normalizeReel(reel);
+    });
   }
 
   private snapReelToFinal(reel: ReelData, finalColumn: number[]): void {
