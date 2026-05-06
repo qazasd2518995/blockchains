@@ -1601,6 +1601,14 @@
   padding: 8px 6px;
 }
 
+.mega-slot-free-spins--active {
+  border-color: color-mix(in srgb, var(--mega-slot-accent) 54%, rgba(255, 255, 255, 0.16));
+  background:
+    radial-gradient(circle at 50% 8%, color-mix(in srgb, var(--mega-slot-accent) 28%, transparent), transparent 62%),
+    rgba(5, 10, 19, 0.68);
+  box-shadow: inset 0 0 18px color-mix(in srgb, var(--mega-slot-accent) 15%, transparent);
+}
+
 .mega-slot-free-spins strong {
   font-size: 22px;
   line-height: 1;
@@ -1613,6 +1621,16 @@
   font-weight: 850;
   letter-spacing: 0.12em;
   color: rgba(255, 255, 255, 0.68);
+}
+
+.mega-slot-free-spins small {
+  margin-top: 3px;
+  max-width: 100%;
+  font-size: 8px;
+  font-weight: 850;
+  line-height: 1.15;
+  color: rgba(255, 255, 255, 0.52);
+  text-align: center;
 }
 
 .mega-slot-feature-stack {
@@ -3039,6 +3057,14 @@
 
   .mega-slot-free-spins strong {
     font-size: 17px;
+  }
+
+  .mega-slot-free-spins span {
+    font-size: 8px;
+  }
+
+  .mega-slot-free-spins small {
+    font-size: 7px;
   }
 
   .mega-slot-feature-stack {

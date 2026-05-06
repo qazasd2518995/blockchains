@@ -54,6 +54,7 @@ interface LiveMegaRoundState {
   cascadeCount: number;
   freeSpinsPlayed: number;
   freeSpinsAwarded: number;
+  freeSpinMode: boolean;
   activeMultiplier: number;
   baseMultiplierTotal: number;
   scatterCount: number;
@@ -168,6 +169,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     cascadeCount: 0,
     freeSpinsPlayed: 0,
     freeSpinsAwarded: 0,
+    freeSpinMode: false,
     activeMultiplier: 1,
     baseMultiplierTotal: 0,
     scatterCount: 0,
@@ -262,6 +264,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         }
         updateLiveMegaRound({
           grid,
+          freeSpinMode: false,
           scatterCount: features.scatterCount,
           freeSpinsAwarded: revealedFreeSpinsAwarded,
           activeMultiplier: Math.max(1, features.baseMultiplierTotal),
@@ -303,10 +306,12 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         const freeRoundPatch: Partial<LiveMegaRoundState> = {
           freeSpinsPlayed: round.index + 1,
           freeSpinsAwarded: revealedFreeSpinsAwarded,
+          freeSpinMode: true,
           activeMultiplier: Math.max(1, revealedFreeMultiplierBank),
           scatterCount: round.scatterSymbols.length,
           specialSymbols: roundSpecialSymbols,
         };
+        updateLiveMegaRound({ ...freeRoundPatch, grid: round.initialGrid });
 
         if (round.cascades.length > 0) {
           await playCascadeOrFallback(round.cascades, round.finalGrid, (step) => {
@@ -340,6 +345,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         cascadeCount: totalCascadeCount,
         freeSpinsPlayed: features?.freeSpinsPlayed ?? 0,
         freeSpinsAwarded: features?.freeSpinsAwarded ?? 0,
+        freeSpinMode: false,
         activeMultiplier: Math.max(
           1,
           features?.freeSpinMultiplierBank ?? 0,
@@ -389,9 +395,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const resultDisplayGrid = lastFreeSpinRound?.finalGrid ?? result?.grid ?? fallbackGrid;
   const visibleSpecialSymbols = megaFeatures
     ? [
-      ...megaFeatures.scatterSymbols,
       ...megaFeatures.baseMultiplierSymbols,
-      ...(lastFreeSpinRound?.scatterSymbols ?? []),
       ...(lastFreeSpinRound?.multiplierSymbols ?? []),
     ]
     : [];
@@ -412,13 +416,19 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     ].filter(Boolean).join(' · ')
     : slotTheme.readyLabel;
   const megaDisplayGrid = result ? resultDisplayGrid : liveMegaRound?.grid ?? fallbackGrid;
-  const megaDisplaySpecialSymbols = result ? visibleSpecialSymbols : liveMegaRound?.specialSymbols ?? [];
+  const megaDisplaySpecialSymbols = (
+    result ? visibleSpecialSymbols : liveMegaRound?.specialSymbols ?? []
+  ).filter((symbol) => symbol.type === 'multiplier');
   const megaDisplayPayout = result ? resultPayout : liveMegaRound?.payout ?? 0;
   const megaDisplayActiveMultiplier = result ? megaActiveMultiplier : liveMegaRound?.activeMultiplier ?? 1;
+  const megaDisplayFreeSpinsPlayed = result ? megaFeatures?.freeSpinsPlayed ?? 0 : liveMegaRound?.freeSpinsPlayed ?? 0;
+  const megaDisplayFreeSpinsAwarded = result ? megaFeatures?.freeSpinsAwarded ?? 0 : liveMegaRound?.freeSpinsAwarded ?? 0;
+  const megaDisplayFreeSpinMode = !result && (liveMegaRound?.freeSpinMode ?? false);
+  const megaDisplayFreeSpinsRemaining = Math.max(0, megaDisplayFreeSpinsAwarded - megaDisplayFreeSpinsPlayed);
   const megaDisplayFreeSpinProgress = result
     ? megaFreeSpinProgress
-    : liveMegaRound && liveMegaRound.freeSpinsAwarded > 0
-      ? `${liveMegaRound.freeSpinsPlayed}/${liveMegaRound.freeSpinsAwarded}`
+    : megaDisplayFreeSpinsAwarded > 0
+      ? `${megaDisplayFreeSpinsPlayed}/${megaDisplayFreeSpinsAwarded}`
       : '0';
   const megaDisplayBaseMultiplier = result
     ? megaFeatures?.baseMultiplierTotal ?? 0
@@ -426,6 +436,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const megaDisplayScatterCount = result
     ? megaFeatures?.scatterCount ?? 0
     : liveMegaRound?.scatterCount ?? 0;
+  const megaScatterTriggerTarget = megaDisplayFreeSpinMode ? 3 : 4;
   const megaDisplayCascadeCount = result ? cascadeCount : liveMegaRound?.cascadeCount ?? 0;
   const megaDisplayWinMeterLabel = result || liveMegaRound ? '本局贏分' : megaWinMeterLabel;
   const liveMegaWinMeterMeta = liveMegaRound
@@ -438,6 +449,21 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     ].filter(Boolean).join(' · ') || slotTheme.readyLabel
     : slotTheme.readyLabel;
   const megaDisplayWinMeterMeta = result ? megaWinMeterMeta : liveMegaWinMeterMeta;
+  const megaFreeSpinStatus = megaDisplayFreeSpinsAwarded > 0
+    ? result
+      ? '已完成'
+      : megaDisplayFreeSpinMode
+        ? `本回合免費 · 剩餘 ${megaDisplayFreeSpinsRemaining}`
+        : '已觸發，準備進入免費旋轉'
+    : '4 SCATTER 觸發';
+  const megaSpinButtonLabel = busy
+    ? megaDisplayFreeSpinMode
+      ? '免費旋轉'
+      : '轉動中'
+    : t.games.hotline.spin;
+  const megaSpinButtonValue = busy && megaDisplayFreeSpinMode
+    ? `剩 ${megaDisplayFreeSpinsRemaining}`
+    : formatAmount(amount);
   const isBigWinResult = resultProfit > 0 && resultMultiplier >= BIG_WIN_MULTIPLIER;
   const resultTitle = isBigWinResult
     ? '恭喜爆分'
@@ -502,9 +528,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               </div>
               <div className="mega-slot-bonus-panel">
                 <div className="mega-slot-multiplier">{megaDisplayActiveMultiplier}×</div>
-                <div className="mega-slot-free-spins">
+                <div className={`mega-slot-free-spins ${megaDisplayFreeSpinsAwarded > 0 ? 'mega-slot-free-spins--active' : ''}`}>
                   <strong>{megaDisplayFreeSpinProgress}</strong>
-                  <span>免費旋轉</span>
+                  <span>{megaDisplayFreeSpinMode ? '免費旋轉中' : '免費旋轉'}</span>
+                  <small>{megaFreeSpinStatus}</small>
                 </div>
                 <div className="mega-slot-feature-stack">
                   <div>
@@ -513,7 +540,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   </div>
                   <div>
                     <span>SCATTER</span>
-                    <strong>{megaDisplayScatterCount}/4</strong>
+                    <strong>{megaDisplayScatterCount}/{megaScatterTriggerTarget}</strong>
                   </div>
                 </div>
               </div>
@@ -608,8 +635,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               className="mega-slot-spin"
               aria-label={t.games.hotline.spin}
             >
-              <span>{busy ? '轉動中' : t.games.hotline.spin}</span>
-              <strong>{formatAmount(amount)}</strong>
+              <span>{megaSpinButtonLabel}</span>
+              <strong>{megaSpinButtonValue}</strong>
             </button>
           </footer>
 
@@ -890,7 +917,7 @@ function MegaSpecialOverlay({ symbols }: { symbols: HotlineSpecialSymbol[] }) {
             gridRow: symbol.row + 1,
           }}
         >
-          {symbol.type === 'multiplier' ? `${symbol.value ?? 2}×` : 'FREE'}
+          {symbol.type === 'multiplier' ? `${symbol.value ?? 2}×` : 'SCATTER'}
         </div>
       ))}
     </div>
@@ -939,9 +966,7 @@ function getFinalMegaSpecialSymbols(features?: HotlineMegaFeatureResult): Hotlin
   if (!features) return [];
   const lastFreeSpinRound = features.freeSpinRounds[features.freeSpinRounds.length - 1];
   return [
-    ...features.scatterSymbols,
     ...features.baseMultiplierSymbols,
-    ...(lastFreeSpinRound?.scatterSymbols ?? []),
     ...(lastFreeSpinRound?.multiplierSymbols ?? []),
   ];
 }
