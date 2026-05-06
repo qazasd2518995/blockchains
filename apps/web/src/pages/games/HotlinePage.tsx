@@ -432,7 +432,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const resultDisplayGrid = lastFreeSpinRound?.finalGrid ?? result?.grid ?? fallbackGrid;
   const visibleSpecialSymbols = megaFeatures
     ? [
+      ...megaFeatures.scatterSymbols,
       ...megaFeatures.baseMultiplierSymbols,
+      ...(lastFreeSpinRound?.scatterSymbols ?? []),
       ...(lastFreeSpinRound?.multiplierSymbols ?? []),
     ]
     : [];
@@ -453,9 +455,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     ].filter(Boolean).join(' · ')
     : slotTheme.readyLabel;
   const megaDisplayGrid = result ? resultDisplayGrid : liveMegaRound?.grid ?? fallbackGrid;
-  const megaDisplaySpecialSymbols = (
-    result ? visibleSpecialSymbols : liveMegaRound?.specialSymbols ?? []
-  ).filter((symbol) => symbol.type === 'multiplier');
+  const megaDisplaySpecialSymbols = result ? visibleSpecialSymbols : liveMegaRound?.specialSymbols ?? [];
   const megaDisplayPayout = result ? resultPayout : liveMegaRound?.payout ?? 0;
   const megaDisplayActiveMultiplier = result ? megaActiveMultiplier : liveMegaRound?.activeMultiplier ?? 1;
   const megaDisplayFreeSpinsPlayed = result ? megaFeatures?.freeSpinsPlayed ?? 0 : liveMegaRound?.freeSpinsPlayed ?? 0;
@@ -604,7 +604,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   spinning={busy}
                   hidden={sceneReady && !sceneFallback}
                 />
-                <MegaSpecialOverlay symbols={megaDisplaySpecialSymbols} />
+                <MegaSpecialOverlay theme={slotTheme} symbols={megaDisplaySpecialSymbols} />
                 <canvas
                   ref={canvasRef}
                   className={`mega-slot-canvas ${sceneReady && !sceneFallback ? 'mega-slot-canvas--ready' : ''}`}
@@ -930,8 +930,8 @@ function MegaFallbackGrid({
                 className="mega-slot-fallback-symbol"
                 style={{
                   borderColor: `${meta.accentHex}88`,
-                  backgroundImage: `url(${theme.symbolSheet})`,
-                  backgroundPosition: SYMBOL_POSITIONS[symbol] ?? '0% 0%',
+                  backgroundImage: symbolImage ? 'none' : `url(${theme.symbolSheet})`,
+                  backgroundPosition: symbolImage ? 'center' : SYMBOL_POSITIONS[symbol] ?? '0% 0%',
                 }}
               >
                 {symbolImage && (
@@ -959,23 +959,49 @@ function getMegaSlotSymbolImage(theme: SlotThemeConfig, symbol: number): string 
   return theme.symbolSheet.replace(/symbols\.png$/, `symbol-${symbol}.png`);
 }
 
-function MegaSpecialOverlay({ symbols }: { symbols: HotlineSpecialSymbol[] }) {
+function getMegaSlotMultiplierImage(theme: SlotThemeConfig): string {
+  return theme.symbolSheet.replace(/symbols\.png$/, 'multiplier.png');
+}
+
+function MegaSpecialOverlay({
+  theme,
+  symbols,
+}: {
+  theme: SlotThemeConfig;
+  symbols: HotlineSpecialSymbol[];
+}) {
   if (symbols.length === 0) return null;
 
   return (
     <div className="mega-slot-special-overlay" aria-hidden="true">
-      {symbols.map((symbol, index) => (
-        <div
-          key={`${symbol.type}-${symbol.reel}-${symbol.row}-${symbol.value ?? 'free'}-${index}`}
-          className={`mega-slot-special-symbol mega-slot-special-symbol--${symbol.type}`}
-          style={{
-            gridColumn: symbol.reel + 1,
-            gridRow: symbol.row + 1,
-          }}
-        >
-          {symbol.type === 'multiplier' ? `${symbol.value ?? 2}×` : 'SCATTER'}
-        </div>
-      ))}
+      {symbols.map((symbol, index) => {
+        const multiplierImage = getMegaSlotMultiplierImage(theme);
+        return (
+          <div
+            key={`${symbol.type}-${symbol.reel}-${symbol.row}-${symbol.value ?? 'free'}-${index}`}
+            className={`mega-slot-special-symbol mega-slot-special-symbol--${symbol.type}`}
+            style={{
+              gridColumn: symbol.reel + 1,
+              gridRow: symbol.row + 1,
+            }}
+          >
+            {symbol.type === 'multiplier' ? (
+              <>
+                <span
+                  className="mega-slot-special-symbol__art"
+                  style={{ backgroundImage: `url(${multiplierImage})` }}
+                />
+                <span className="mega-slot-special-symbol__value">{symbol.value ?? 2}×</span>
+              </>
+            ) : (
+              <>
+                <span className="mega-slot-special-symbol__art" />
+                <span className="mega-slot-special-symbol__value">SCATTER</span>
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -45,7 +45,7 @@ export const HOTLINE_MEGA_FREE_SPIN_RETRIGGER_TRIGGER = 3;
 export const HOTLINE_MEGA_FREE_SPIN_BASE_AWARD = 15;
 export const HOTLINE_MEGA_FREE_SPIN_RETRIGGER_AWARD = 5;
 export const HOTLINE_MEGA_MAX_FREE_SPINS = 30;
-export const HOTLINE_MEGA_MULTIPLIER_VALUES = [2, 3, 5, 8, 10, 15, 25, 50] as const;
+export const HOTLINE_MEGA_MULTIPLIER_VALUES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50, 100, 250, 500, 1000] as const;
 
 export type HotlineSymbol = (typeof HOTLINE_SYMBOLS)[number] | (typeof HOTLINE_MEGA_SYMBOLS)[number];
 
@@ -391,12 +391,20 @@ function pickMegaMultiplierValue(nextRandom01: () => number): number {
   const weighted = [
     { value: 2, weight: 44 },
     { value: 3, weight: 28 },
+    { value: 4, weight: 22 },
     { value: 5, weight: 16 },
+    { value: 6, weight: 12 },
     { value: 8, weight: 7 },
-    { value: 10, weight: 3 },
-    { value: 15, weight: 1.2 },
-    { value: 25, weight: 0.6 },
+    { value: 10, weight: 4 },
+    { value: 12, weight: 3 },
+    { value: 15, weight: 1.5 },
+    { value: 20, weight: 0.9 },
+    { value: 25, weight: 0.5 },
     { value: 50, weight: 0.2 },
+    { value: 100, weight: 0.07 },
+    { value: 250, weight: 0.02 },
+    { value: 500, weight: 0.006 },
+    { value: 1000, weight: 0.001 },
   ];
   const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
   const target = nextRandom01() * totalWeight;

@@ -1841,11 +1841,15 @@
 
 .mega-slot-fallback-symbol img {
   position: absolute;
-  inset: 4px;
+  left: 50%;
+  top: 50%;
   z-index: 1;
   display: block;
   width: calc(100% - 8px);
   height: calc(100% - 8px);
+  max-width: 92%;
+  max-height: calc(100% - 8px);
+  transform: translate(-50%, -50%);
   object-fit: contain;
   object-position: center;
   filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.5));
@@ -1886,38 +1890,87 @@
 .mega-slot-special-symbol {
   align-self: center;
   justify-self: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: clamp(34px, 4vw, 54px);
-  height: clamp(24px, 3vw, 38px);
-  border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.72);
-  padding: 0 8px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: auto;
+  height: min(86%, 74px);
+  aspect-ratio: 1 / 1;
+  max-width: 86%;
+  min-width: 42px;
+  min-height: 42px;
+  border-radius: 50%;
+  padding: 0;
   font-family: var(--font-display, Inter, system-ui, sans-serif);
-  font-size: clamp(11px, 1.6vw, 18px);
+  font-size: clamp(11px, 1.45vw, 18px);
   font-weight: 950;
   letter-spacing: 0.02em;
   color: #fff;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.78);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
-    0 8px 24px rgba(0, 0, 0, 0.42);
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.56));
   animation: mega-slot-special-pop 520ms cubic-bezier(0.2, 0.84, 0.2, 1) both;
 }
 
+.mega-slot-special-symbol__art {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.mega-slot-special-symbol__value {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40%;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.64);
+  background: rgba(3, 8, 19, 0.64);
+  padding: 2px 6px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 4px 12px rgba(0, 0, 0, 0.38);
+}
+
 .mega-slot-special-symbol--multiplier {
-  border-color: rgba(125, 211, 252, 0.88);
-  background:
-    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.35), transparent 28%),
-    linear-gradient(180deg, rgba(20, 184, 166, 0.96), rgba(14, 116, 144, 0.9));
+  color: #fef3c7;
 }
 
 .mega-slot-special-symbol--scatter {
-  border-color: rgba(243, 214, 125, 0.9);
+  border: 2px solid color-mix(in srgb, var(--mega-slot-accent) 72%, white);
   background:
-    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.38), transparent 30%),
-    linear-gradient(180deg, rgba(245, 158, 11, 0.96), rgba(180, 83, 9, 0.92));
+    radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.36), transparent 25%),
+    radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--mega-slot-accent) 50%, transparent), transparent 68%),
+    linear-gradient(145deg, rgba(245, 158, 11, 0.96), rgba(126, 34, 206, 0.88));
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.16),
+    0 0 22px color-mix(in srgb, var(--mega-slot-accent) 42%, transparent);
+}
+
+.mega-slot-special-symbol--scatter .mega-slot-special-symbol__art {
+  inset: 17%;
+  border-radius: 28%;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.1) 36%, transparent 62%),
+    conic-gradient(
+      from 45deg,
+      rgba(243, 214, 125, 0.95),
+      rgba(125, 211, 252, 0.88),
+      color-mix(in srgb, var(--mega-slot-accent) 82%, white),
+      rgba(243, 214, 125, 0.95)
+    );
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 56%, 79% 92%, 50% 70%, 21% 92%, 32% 56%, 2% 35%, 39% 35%);
+}
+
+.mega-slot-special-symbol--scatter .mega-slot-special-symbol__value {
+  min-width: 0;
+  padding: 2px 5px;
+  font-size: clamp(7px, 0.82vw, 10px);
+  letter-spacing: 0.08em;
 }
 
 .mega-slot-free-spin-intro {
