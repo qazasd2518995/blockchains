@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CHICKEN_ROAD_MAX_MULTIPLIER,
   CHICKEN_ROAD_TOTAL_STEPS,
   chickenRoadMultiplier,
   chickenRoadNextMultiplier,
@@ -39,13 +40,17 @@ describe('chickenRoadMultiplier', () => {
     expect(chickenRoadMultiplier('hardcore', 3)).toBeGreaterThan(chickenRoadMultiplier('easy', 3));
   });
 
-  it('rejects steps past the finish line', () => {
+  it('caps extreme multipliers at the configured max', () => {
+    expect(chickenRoadMultiplier('hardcore', CHICKEN_ROAD_TOTAL_STEPS)).toBe(CHICKEN_ROAD_MAX_MULTIPLIER);
+  });
+
+  it('rejects steps past the safety limit', () => {
     expect(() => chickenRoadMultiplier('easy', CHICKEN_ROAD_TOTAL_STEPS + 1)).toThrow();
   });
 });
 
 describe('chickenRoadNextMultiplier', () => {
-  it('returns null at the finish line', () => {
+  it('returns null at the safety limit', () => {
     expect(chickenRoadNextMultiplier('easy', CHICKEN_ROAD_TOTAL_STEPS)).toBeNull();
   });
 });

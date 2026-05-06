@@ -8,7 +8,7 @@ import type {
   ChickenRoadStartRequest,
   ChickenRoadStepResult,
 } from '@bg/shared';
-import { chickenRoadMultiplier } from '@bg/provably-fair';
+import { CHICKEN_ROAD_TOTAL_STEPS, chickenRoadMultiplier } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { BetControls } from '@/components/game/BetControls';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
@@ -16,7 +16,6 @@ import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 
-const TOTAL_STEPS = 20;
 const VISIBLE_STEP_COUNT = 12;
 
 const DIFFICULTIES: Array<{
@@ -31,16 +30,12 @@ const DIFFICULTIES: Array<{
   { id: 'hardcore', label: '瘋狂', desc: '極高波動，單步倍率暴衝', tone: 'MAX' },
 ];
 
-const TRAFFIC_CARS = [
-  { id: 'taxi-a', sprite: 2, left: 23, delay: -0.7, duration: 5.8, reverse: false },
-  { id: 'police-a', sprite: 3, left: 34, delay: -2.5, duration: 6.7, reverse: true },
-  { id: 'red-a', sprite: 0, left: 46, delay: -1.2, duration: 5.4, reverse: false },
-  { id: 'truck-a', sprite: 5, left: 57, delay: -3.6, duration: 8.4, reverse: true },
-  { id: 'blue-a', sprite: 1, left: 68, delay: -0.4, duration: 6.2, reverse: false },
-  { id: 'bus-a', sprite: 4, left: 79, delay: -4.1, duration: 9.1, reverse: true },
-  { id: 'orange-a', sprite: 6, left: 90, delay: -1.9, duration: 5.2, reverse: false },
-  { id: 'van-a', sprite: 7, left: 96, delay: -5.3, duration: 7.6, reverse: true },
-];
+const TRAFFIC_SPEED_BY_DIFFICULTY: Record<ChickenRoadDifficulty, number> = {
+  easy: 1.25,
+  medium: 1,
+  hard: 0.82,
+  hardcore: 0.66,
+};
 
 export function ChickenRoadPage() {
   const { user, setBalance } = useAuthStore();
@@ -66,7 +61,7 @@ export function ChickenRoadPage() {
   }, []);
 
   const currentStep = round?.currentStep ?? 0;
-  const totalSteps = round?.totalSteps ?? TOTAL_STEPS;
+  const totalSteps = round?.totalSteps ?? CHICKEN_ROAD_TOTAL_STEPS;
   const isActive = round?.status === 'ACTIVE';
   const isBusted = round?.status === 'BUSTED';
   const isCashedOut = round?.status === 'CASHED_OUT';
@@ -80,11 +75,10 @@ export function ChickenRoadPage() {
     () => Array.from({ length: totalSteps }, (_, index) => chickenRoadMultiplier(difficulty, index + 1)),
     [difficulty, totalSteps],
   );
-  const visibleStepCount = Math.min(totalSteps, VISIBLE_STEP_COUNT);
-  const visibleStepStart = Math.min(
-    Math.max(1, visualStep - (visibleStepCount - 4)),
-    Math.max(1, totalSteps - visibleStepCount + 1),
-  );
+  const visibleStepCount = VISIBLE_STEP_COUNT;
+  const visibleStepStart = visualStep <= visibleStepCount
+    ? 1
+    : visualStep - visibleStepCount + 1;
   const visibleSteps = useMemo(
     () => Array.from({ length: visibleStepCount }, (_, index) => visibleStepStart + index),
     [visibleStepCount, visibleStepStart],
@@ -94,10 +88,28 @@ export function ChickenRoadPage() {
       ? -0.55
       : Math.min(visibleStepCount - 0.5, Math.max(0.5, visualStep - visibleStepStart + 0.5));
   const runnerLeft = visualStep <= 0 ? 8 : 12 + (runnerSlot / visibleStepCount) * 88;
+  const cameraOffset = Math.max(0, visibleStepStart - 1);
+  const visibleTraffic = useMemo(
+    () => visibleSteps.map((stepNumber) => {
+      const cue = trafficCueForStep(stepNumber, difficulty);
+      return {
+        ...cue,
+        stepNumber,
+        left: laneCenterPercent(stepNumber, visibleStepStart, visibleStepCount),
+      };
+    }),
+    [difficulty, visibleStepCount, visibleStepStart, visibleSteps],
+  );
+  const hitTraffic = isBusted && round?.hitStep
+    ? {
+      ...trafficCueForStep(round.hitStep, difficulty),
+      left: laneCenterPercent(round.hitStep, visibleStepStart, visibleStepCount),
+    }
+    : null;
 
   const nextLaneLabel = useMemo(() => {
     if (!round) return `第一格 ${formatMultiplier(stepMultipliers[0] ?? 1)}`;
-    if (!round.nextMultiplier) return '終點';
+    if (!round.nextMultiplier) return '路線上限';
     return `下一步 ${formatMultiplier(round.nextMultiplier)}`;
   }, [round, stepMultipliers]);
 
@@ -194,7 +206,7 @@ export function ChickenRoadPage() {
         multiplier,
         payout,
         won,
-        detail: `${state.currentStep}/${state.totalSteps} 車道 · ${difficultyLabel(state.difficulty)}`,
+        detail: `第 ${state.currentStep} 格 · ${difficultyLabel(state.difficulty)}`,
       },
       ...prev,
     ].slice(0, 30));
@@ -280,11 +292,14 @@ export function ChickenRoadPage() {
               <span>CHICKEN ROAD</span>
             </div>
             <div className="chicken-road-status">
-              {round ? `${currentStep}/${totalSteps}` : 'READY'}
+              {round ? `第 ${currentStep} 格` : 'READY'}
             </div>
           </div>
 
-          <div className="chicken-road-road">
+          <div
+            className="chicken-road-road"
+            style={{ '--chicken-road-camera': cameraOffset } as CSSProperties}
+          >
             <div className="chicken-road-sidewalk" aria-hidden="true">
               <div className="chicken-road-traffic-light">
                 <span />
@@ -317,9 +332,9 @@ export function ChickenRoadPage() {
             </div>
 
             <div className="chicken-road-traffic" aria-hidden="true">
-              {TRAFFIC_CARS.map((car) => (
+              {visibleTraffic.map((car) => (
                 <span
-                  key={car.id}
+                  key={`${car.stepNumber}-${car.sprite}`}
                   className={`chicken-road-traffic-car chicken-road-traffic-car--${car.sprite} ${
                     car.reverse ? 'chicken-road-traffic-car--up' : 'chicken-road-traffic-car--down'
                   }`}
@@ -330,6 +345,14 @@ export function ChickenRoadPage() {
                   }}
                 />
               ))}
+              {hitTraffic && (
+                <span
+                  className={`chicken-road-hit-car chicken-road-traffic-car--${hitTraffic.sprite} ${
+                    hitTraffic.reverse ? 'chicken-road-hit-car--up' : 'chicken-road-hit-car--down'
+                  }`}
+                  style={{ left: `${hitTraffic.left}%` }}
+                />
+              )}
             </div>
 
             <div
@@ -362,7 +385,7 @@ export function ChickenRoadPage() {
           value={round?.nextMultiplier ? formatMultiplier(round.nextMultiplier) : formatMultiplier(stepMultipliers[0] ?? 1)}
         />
         <Stat icon={Trophy} label="可領取" value={formatAmount(potentialPayout)} />
-        <Stat icon={Car} label="進度" value={`${currentStep}/${totalSteps}`} />
+        <Stat icon={Car} label="已通過" value={`${currentStep} 格`} />
       </div>
 
       {error && (
@@ -376,9 +399,9 @@ export function ChickenRoadPage() {
         <div className="game-side-card p-5">
           <div className="label">玩法邏輯</div>
           <div className="mt-3 space-y-2 text-[12px] leading-6 text-white/68">
-            <p>每前進一格，倍率依難度提升。</p>
-            <p>玩家可隨時領取；若該格被車撞到，本局本金歸零。</p>
-            <p>難度只調整波動，整體 RTP 固定 97%。</p>
+            <p>每前進一格，倍率依難度提升，道路會持續往右延伸。</p>
+            <p>玩家可隨時領取；若進入車流命中區，本局本金歸零。</p>
+            <p>沒有固定終點，玩法核心是撐越遠倍率越高，直到撞車或自行領取。</p>
           </div>
         </div>
 
@@ -390,6 +413,34 @@ export function ChickenRoadPage() {
 
 function difficultyLabel(difficulty: ChickenRoadDifficulty): string {
   return DIFFICULTIES.find((item) => item.id === difficulty)?.label ?? difficulty;
+}
+
+function trafficCueForStep(stepNumber: number, difficulty: ChickenRoadDifficulty): {
+  sprite: number;
+  reverse: boolean;
+  duration: number;
+  delay: number;
+} {
+  const seed = stepNumber * 1103515245 + difficulty.length * 2654435761;
+  const sprite = Math.abs(seed) % 8;
+  const reverse = stepNumber % 2 === 0;
+  const speedFactor = TRAFFIC_SPEED_BY_DIFFICULTY[difficulty] ?? 1;
+  const baseDuration = 4.9 + (Math.abs(seed >> 7) % 34) / 10;
+  const duration = Number((baseDuration * speedFactor).toFixed(2));
+  const delay = -Number((((Math.abs(seed >> 13) % 100) / 100) * duration).toFixed(2));
+  return { sprite, reverse, duration, delay };
+}
+
+function laneCenterPercent(
+  stepNumber: number,
+  visibleStepStart: number,
+  visibleStepCount: number,
+): number {
+  const slot = Math.min(
+    visibleStepCount - 0.5,
+    Math.max(0.5, stepNumber - visibleStepStart + 0.5),
+  );
+  return Number(((slot / visibleStepCount) * 100).toFixed(3));
 }
 
 function Stat({

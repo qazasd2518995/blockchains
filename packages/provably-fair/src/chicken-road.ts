@@ -2,8 +2,9 @@ import { hmacFloatStream } from './hmac.js';
 
 export type ChickenRoadDifficulty = 'easy' | 'medium' | 'hard' | 'hardcore';
 
-export const CHICKEN_ROAD_TOTAL_STEPS = 20;
+export const CHICKEN_ROAD_TOTAL_STEPS = 500;
 export const CHICKEN_ROAD_HOUSE_EDGE = 0.03;
+export const CHICKEN_ROAD_MAX_MULTIPLIER = 50000;
 
 export const CHICKEN_ROAD_CONFIG: Record<
   ChickenRoadDifficulty,
@@ -44,7 +45,7 @@ export function chickenRoadMultiplier(
   const config = CHICKEN_ROAD_CONFIG[difficulty];
   if (!config) throw new Error(`Unknown chicken road difficulty: ${difficulty}`);
   const fair = Math.pow(1 / config.survivalRate, currentStep);
-  const multiplier = fair * (1 - CHICKEN_ROAD_HOUSE_EDGE);
+  const multiplier = Math.min(CHICKEN_ROAD_MAX_MULTIPLIER, fair * (1 - CHICKEN_ROAD_HOUSE_EDGE));
   return Math.floor(multiplier * 10000) / 10000;
 }
 

@@ -2440,6 +2440,7 @@
 
 .chicken-road-road {
   position: relative;
+  --chicken-road-camera: 0;
   min-height: 420px;
   overflow: hidden;
   background:
@@ -2452,6 +2453,12 @@
     10.5% 100%,
     100% 20%,
     auto;
+  background-position:
+    0 0,
+    calc(var(--chicken-road-camera) * -18px) 0,
+    0 0,
+    0 0;
+  transition: background-position 420ms cubic-bezier(0.2, 0.88, 0.2, 1);
 }
 
 .chicken-road-road::before {
@@ -2472,6 +2479,10 @@
       transparent 96px 120px
     );
   opacity: 0.55;
+  background-position:
+    calc(var(--chicken-road-camera) * -18px) 0,
+    0 0;
+  transition: background-position 420ms cubic-bezier(0.2, 0.88, 0.2, 1);
 }
 
 .chicken-road-sidewalk {
@@ -2627,6 +2638,46 @@
   background-repeat: no-repeat;
   background-size: 400% 200%;
   filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.38));
+}
+
+.chicken-road-hit-car {
+  position: absolute;
+  z-index: 9;
+  bottom: 13%;
+  width: clamp(68px, 6.2vw, 116px);
+  aspect-ratio: 0.75;
+  background-image: url('/game-art/chicken-road/vehicles.png');
+  background-repeat: no-repeat;
+  background-size: 400% 200%;
+  filter:
+    drop-shadow(0 18px 22px rgba(0, 0, 0, 0.48))
+    saturate(1.08)
+    brightness(1.08);
+}
+
+.chicken-road-hit-car::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 108%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(252, 165, 165, 0.92) 0 16%, rgba(248, 113, 113, 0.5) 17% 34%, transparent 58%);
+  transform: translate(-50%, -50%);
+  animation: chicken-road-impact-burst 520ms ease-out both;
+  pointer-events: none;
+}
+
+.chicken-road-hit-car--down {
+  transform: translateX(-50%) rotate(180deg);
+  animation: chicken-road-impact-down 540ms cubic-bezier(0.2, 0.86, 0.2, 1) both;
+}
+
+.chicken-road-hit-car--up {
+  transform: translateX(-50%);
+  animation: chicken-road-impact-up 540ms cubic-bezier(0.2, 0.86, 0.2, 1) both;
 }
 
 .chicken-road-traffic-car--down {
@@ -2804,6 +2855,56 @@
 
   to {
     bottom: calc(100% + 190px);
+  }
+}
+
+@keyframes chicken-road-impact-down {
+  0% {
+    opacity: 0.96;
+    transform: translate(-50%, -260%) rotate(180deg);
+  }
+
+  76% {
+    opacity: 1;
+    transform: translate(-50%, -10%) rotate(180deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -18%) rotate(183deg);
+  }
+}
+
+@keyframes chicken-road-impact-up {
+  0% {
+    opacity: 0.96;
+    transform: translate(-50%, 230%);
+  }
+
+  76% {
+    opacity: 1;
+    transform: translate(-50%, -10%);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -18%) rotate(-3deg);
+  }
+}
+
+@keyframes chicken-road-impact-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.48);
+  }
+
+  42% {
+    opacity: 0.92;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.28);
   }
 }
 

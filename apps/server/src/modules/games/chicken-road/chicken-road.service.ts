@@ -103,14 +103,19 @@ export class ChickenRoadService {
   async step(userId: string, input: ChickenRoadStepInput): Promise<ChickenRoadStepResult> {
     return runSerializable(this.prisma, async (tx) => {
       const bet = await this.findActiveBet(tx, userId, input.roundId);
-      const data = parseRoundData(bet.resultData);
-      if (data.currentStep >= data.totalSteps) {
-        throw new ApiError('INVALID_ACTION', 'Chicken already reached the finish line');
-      }
-
+      const parsedData = parseRoundData(bet.resultData);
       const serverSeed = await tx.serverSeed.findUniqueOrThrow({
         where: { id: bet.serverSeedId },
       });
+      const data = normalizeRoundData(
+        parsedData,
+        serverSeed.seed,
+        bet.clientSeedUsed,
+        bet.nonce,
+      );
+      if (data.currentStep >= data.totalSteps) {
+        throw new ApiError('INVALID_ACTION', 'Chicken Road safety limit reached');
+      }
 
       const stepIndex = data.currentStep;
       const nextStep = stepIndex + 1;
@@ -267,14 +272,19 @@ export class ChickenRoadService {
   async cashout(userId: string, input: ChickenRoadCashoutInput): Promise<ChickenRoadCashoutResult> {
     return runSerializable(this.prisma, async (tx) => {
       const bet = await this.findActiveBet(tx, userId, input.roundId);
-      const data = parseRoundData(bet.resultData);
-      if (data.currentStep <= 0) {
-        throw new ApiError('INVALID_ACTION', 'Cross at least one lane before cashing out');
-      }
-
+      const parsedData = parseRoundData(bet.resultData);
       const serverSeed = await tx.serverSeed.findUniqueOrThrow({
         where: { id: bet.serverSeedId },
       });
+      const data = normalizeRoundData(
+        parsedData,
+        serverSeed.seed,
+        bet.clientSeedUsed,
+        bet.nonce,
+      );
+      if (data.currentStep <= 0) {
+        throw new ApiError('INVALID_ACTION', 'Cross at least one lane before cashing out');
+      }
 
       const multiplier = new Prisma.Decimal(
         chickenRoadMultiplier(data.difficulty, data.currentStep).toFixed(4),
@@ -363,7 +373,13 @@ export class ChickenRoadService {
     const serverSeed = await this.prisma.serverSeed.findUniqueOrThrow({
       where: { id: bet.serverSeedId },
     });
-    return this.toState(bet, parseRoundData(bet.resultData), serverSeed.seedHash);
+    const data = normalizeRoundData(
+      parseRoundData(bet.resultData),
+      serverSeed.seed,
+      bet.clientSeedUsed,
+      bet.nonce,
+    );
+    return this.toState(bet, data, serverSeed.seedHash);
   }
 
   private async findActiveBet(
@@ -443,5 +459,24 @@ function parseRoundData(value: Prisma.JsonValue): ChickenRoadStoredData {
     controlled: data.controlled,
     flipReason: data.flipReason,
     raw: data.raw,
+  };
+}
+
+function normalizeRoundData(
+  data: ChickenRoadStoredData,
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+): ChickenRoadStoredData {
+  if (data.totalSteps >= CHICKEN_ROAD_TOTAL_STEPS && data.path.length >= CHICKEN_ROAD_TOTAL_STEPS) {
+    return data;
+  }
+
+  const regeneratedPath = chickenRoadPath(serverSeed, clientSeed, nonce, data.difficulty);
+  const mergedPath = regeneratedPath.map((cell, index) => data.path[index] ?? cell);
+  return {
+    ...data,
+    totalSteps: CHICKEN_ROAD_TOTAL_STEPS,
+    path: mergedPath,
   };
 }
