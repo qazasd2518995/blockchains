@@ -19,12 +19,14 @@ const NAV_ITEMS: { to: string; label: string; icon: typeof Gift }[] = [
   { to: '/promos', label: '優惠活動', icon: Gift },
 ];
 
+const MOBILE_WHITE_ROUTES = new Set(['/lobby', '/verify', '/history', '/promos']);
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, setBalance, logout, refreshToken } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const isMobileLobby = location.pathname === '/lobby';
+  const useMobileWhiteChrome = MOBILE_WHITE_ROUTES.has(location.pathname);
 
   const handleLogout = async () => {
     if (refreshToken) {
@@ -70,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <header
         className={`sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] pt-[env(safe-area-inset-top)] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)] ${
-          isMobileLobby ? 'hidden lg:block' : ''
+          useMobileWhiteChrome ? 'hidden lg:block' : ''
         }`}
       >
         <div className="border-b border-white/8">
@@ -169,14 +171,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main id="main-content" className="relative z-10 flex-1">
         <div
           className={`mx-auto w-full max-w-[1920px] ${
-            isMobileLobby ? 'px-0 py-0 lg:px-8 lg:py-6 2xl:px-12' : 'px-3 py-4 sm:px-6 sm:py-6 xl:px-8 2xl:px-12'
+            useMobileWhiteChrome ? 'px-0 py-0 lg:px-8 lg:py-6 2xl:px-12' : 'px-3 py-4 sm:px-6 sm:py-6 xl:px-8 2xl:px-12'
           }`}
         >
           {children}
         </div>
       </main>
 
-      <div className={isMobileLobby ? 'hidden lg:block' : ''}>
+      <div className={useMobileWhiteChrome ? 'hidden lg:block' : ''}>
         <SiteFooter loggedIn={Boolean(user)} />
       </div>
     </div>

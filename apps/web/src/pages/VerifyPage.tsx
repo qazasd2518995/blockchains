@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen } from 'lucide-react';
 import { SectionHeading } from '@/components/layout/SectionHeading';
+import { MobilePageHeader } from '@/components/layout/MobilePageHeader';
 
 type HallKey = 'crash' | 'tables' | 'slots' | 'roulette' | 'classic' | 'strategy';
 
@@ -592,13 +593,109 @@ const GAMES: Game[] = [
   },
 ];
 
+const HALL_FILTERS: Array<{
+  key: HallKey | 'all';
+  title: string;
+  count: number;
+}> = [
+  { key: 'all', title: '全部玩法', count: GAMES.length },
+  ...HALLS.map((hall) => ({
+    key: hall.key,
+    title: hall.title,
+    count: GAMES.filter((game) => game.hall === hall.key).length,
+  })),
+];
+
 export function VerifyPage() {
   const [activeHall, setActiveHall] = useState<HallKey | 'all'>('all');
 
   const filteredGames = activeHall === 'all' ? GAMES : GAMES.filter((g) => g.hall === activeHall);
+  const activeHallMeta = activeHall === 'all' ? null : HALLS.find((hall) => hall.key === activeHall);
 
   return (
-    <div className="verify-page max-w-full space-y-5 overflow-x-hidden pb-24 sm:space-y-8 sm:pb-0">
+    <>
+      <div className="min-h-[100svh] bg-[#EDF4F7] pb-[calc(env(safe-area-inset-bottom)+18px)] lg:hidden">
+        <MobilePageHeader title="遊戲說明" subtitle="GAME GUIDE" active="verify" />
+
+        <section className="border-b border-[#D1E0E7] bg-white px-2 py-2">
+          <div className="rounded-[13px] border border-[#D6E5EC] bg-[#F8FCFE] p-3 shadow-[0_6px_14px_rgba(15,23,42,0.07)]">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-[#E9F8F8] text-[#0E7189]">
+                <BookOpen className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#7A8B97]">
+                  GAME GUIDE
+                </div>
+                <h1 className="mt-1 text-[22px] font-black leading-tight text-[#12333E]">
+                  {GAMES.length} 款玩法規則與賠率
+                </h1>
+                <p className="mt-1 text-[12px] font-semibold leading-5 text-[#516976] [overflow-wrap:anywhere]">
+                  飛行、牌桌、拉霸、輪盤、即開電子與策略挑戰都整理成短卡片，先看懂規則再進大廳。
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-1.5">
+              <MobileGuideMetric label="RTP" value="96%–99%" />
+              <MobileGuideMetric label="最高倍率" value="1,000,000×" />
+              <MobileGuideMetric label="派彩" value="即時到帳" />
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-[#D1E0E7] bg-[#EDF4F7]/96 px-2 py-2">
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+            {HALL_FILTERS.map((filter) => {
+              const active = activeHall === filter.key;
+              return (
+                <button
+                  key={filter.key}
+                  type="button"
+                  onClick={() => setActiveHall(filter.key)}
+                  className={`flex h-10 shrink-0 items-center gap-2 rounded-[10px] border px-3 text-[12px] font-black shadow-[0_4px_10px_rgba(15,23,42,0.06)] transition active:scale-[0.99] ${
+                    active
+                      ? 'border-[#0F76A3] bg-[#1576A2] text-white'
+                      : 'border-[#D8E7EE] bg-white text-[#17657D]'
+                  }`}
+                >
+                  <span>{filter.title}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                      active ? 'bg-white/18 text-white' : 'bg-[#EEF7FA] text-[#5D7682]'
+                    }`}
+                  >
+                    {filter.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="space-y-2 px-2 py-2">
+          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#D6E5EC] bg-white px-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.06)]">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="h-4 w-1 rounded-full bg-[#1DA6D2]" />
+              <span className="truncate text-[14px] font-black text-[#12333E]">
+                {activeHallMeta ? activeHallMeta.title : '全部遊戲'}
+              </span>
+            </div>
+            <span className="rounded-full bg-[#E9F8F8] px-2 py-1 text-[11px] font-bold text-[#0E7189]">
+              {filteredGames.length} 款
+            </span>
+          </div>
+
+          <div className="grid gap-2">
+            {filteredGames.map((game) => {
+              const hall = HALLS.find((h) => h.key === game.hall)!;
+              return <MobileGuideGameCard key={game.id} game={game} hall={hall} />;
+            })}
+          </div>
+        </section>
+      </div>
+
+      <div className="verify-page hidden max-w-full space-y-5 overflow-x-hidden pb-24 sm:space-y-8 sm:pb-0 lg:block">
       <section className="grid min-w-0 gap-3 sm:gap-6 xl:grid-cols-12">
         <div className="relative min-w-0 max-w-full overflow-hidden rounded-[20px] bg-[#0F172A] p-4 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)] sm:rounded-[28px] sm:p-6 md:p-8 xl:col-span-8 2xl:col-span-9">
           <img
@@ -765,7 +862,74 @@ export function VerifyPage() {
           })}
         </div>
       </section>
+      </div>
+    </>
+  );
+}
+
+function MobileGuideMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[9px] border border-[#D6E5EC] bg-white px-2 py-2 text-center">
+      <div className="truncate text-[10px] font-black text-[#7A8B97]">{label}</div>
+      <div className="mt-0.5 truncate text-[12px] font-black text-[#12333E]">{value}</div>
     </div>
+  );
+}
+
+function MobileGuideGameCard({ game, hall }: { game: Game; hall: Hall }) {
+  return (
+    <article className="overflow-hidden rounded-[13px] border border-[#D6E5EC] bg-white shadow-[0_6px_14px_rgba(15,23,42,0.08)]">
+      <div className="flex gap-2.5 p-2.5">
+        <img
+          src={game.cover}
+          alt={game.name}
+          className="h-[88px] w-[112px] shrink-0 rounded-[10px] object-cover"
+          loading="lazy"
+        />
+        <div className="min-w-0 flex-1">
+          <div
+            className="inline-flex max-w-full rounded-[8px] px-2 py-1 text-[10px] font-black text-white"
+            style={{ backgroundColor: hall.tone }}
+          >
+            <span className="truncate">{hall.title}</span>
+          </div>
+          <h2 className="mt-1.5 text-[18px] font-black leading-tight text-[#12333E] [overflow-wrap:anywhere]">
+            {game.name}
+          </h2>
+          <p className="mt-0.5 truncate text-[10px] font-black uppercase tracking-[0.18em] text-[#7A8B97]">
+            {game.english}
+          </p>
+          <p className="mt-1.5 line-clamp-2 text-[12px] font-semibold leading-5 text-[#516976]">
+            {game.intro}
+          </p>
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-3 gap-1.5 border-y border-[#E6F0F5] bg-[#F7FCFE] px-2 py-2">
+        <MobileGuideMetric label="RTP" value={game.rtp} />
+        <MobileGuideMetric label="最高倍率" value={game.maxMultiplier} />
+        <MobileGuideMetric label="時長" value={game.duration} />
+      </dl>
+
+      <div className="space-y-2 p-3">
+        <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#1D6B83]">玩法步驟</div>
+        <ol className="space-y-1.5">
+          {game.howToPlay.map((step, index) => (
+            <li key={index} className="flex gap-2 text-[12px] font-semibold leading-5 text-[#365663]">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E9F8F8] text-[10px] font-black text-[#0E7189]">
+                {index + 1}
+              </span>
+              <span className="min-w-0 [overflow-wrap:anywhere]">{step}</span>
+            </li>
+          ))}
+        </ol>
+
+        <div className="rounded-[10px] border border-[#EFE2B0] bg-[#FFF9E8] px-2.5 py-2 text-[12px] font-semibold leading-5 text-[#6A5320] [overflow-wrap:anywhere]">
+          <span className="font-black text-[#9B7420]">小提示：</span>
+          {game.tips}
+        </div>
+      </div>
+    </article>
   );
 }
 

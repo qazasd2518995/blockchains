@@ -11,6 +11,7 @@ import {
   Trophy,
 } from 'lucide-react';
 import { SectionHeading } from '@/components/layout/SectionHeading';
+import { MobilePageHeader } from '@/components/layout/MobilePageHeader';
 
 const HERO_METRICS = [
   { label: '本周焦点', value: '4 档', detail: '热门活动同时进行' },
@@ -117,7 +118,106 @@ const RULES = [
 
 export function PromosPage() {
   return (
-    <div className="space-y-10 pb-6">
+    <>
+      <div className="min-h-[100svh] bg-[#EDF4F7] pb-[calc(env(safe-area-inset-bottom)+18px)] lg:hidden">
+        <MobilePageHeader title="優惠活動" subtitle="PROMOTIONS" active="promos" />
+
+        <section className="border-b border-[#D1E0E7] bg-white">
+          <div className="relative min-h-[132px] overflow-hidden bg-[#1B2030]">
+            <img
+              src="/banners/hero-crash-dealer.png"
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-cover object-[72%_center] opacity-[0.82]"
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,18,34,0.92)_0%,rgba(5,18,34,0.72)_47%,rgba(5,18,34,0.12)_100%)]" />
+            <div className="relative z-10 flex min-h-[132px] flex-col justify-center px-4 py-3">
+              <span className="inline-flex w-fit items-center gap-1 rounded-[8px] bg-[#F7D568] px-2 py-1 text-[10px] font-black text-[#4B3600] shadow-sm">
+                <Gift className="h-3.5 w-3.5" aria-hidden="true" />
+                本週活動看板
+              </span>
+              <h1 className="mt-2 max-w-[250px] text-[26px] font-black leading-tight text-white">
+                熱門優惠集中看
+              </h1>
+              <p className="mt-1 max-w-[270px] text-[12px] font-semibold leading-5 text-white/78">
+                倍率榜、Crash 彩池、VIP 等級與邀請活動，跟大廳同一套入口節奏。
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-2 px-2 py-2">
+          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#D6E5EC] bg-white px-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.06)]">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="h-4 w-1 rounded-full bg-[#1DA6D2]" />
+              <span className="truncate text-[14px] font-black text-[#12333E]">當前活動重點</span>
+            </div>
+            <span className="rounded-full bg-[#ECFDF5] px-2 py-1 text-[11px] font-bold text-[#15803D]">
+              {PROMO_CARDS.length} 檔
+            </span>
+          </div>
+
+          <div className="grid gap-2">
+            {PROMO_CARDS.map((promo) => (
+              <article
+                key={promo.id}
+                className="overflow-hidden rounded-[13px] border border-[#D6E5EC] bg-white shadow-[0_6px_14px_rgba(15,23,42,0.08)]"
+              >
+                <div className="relative min-h-[112px] overflow-hidden">
+                  <img
+                    src={promo.image}
+                    alt={promo.title}
+                    className="absolute inset-0 h-full w-full object-cover object-center opacity-[0.88]"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.96)_0%,rgba(255,255,255,0.78)_50%,rgba(255,255,255,0.2)_100%)]" />
+                  <div className="relative z-10 flex min-h-[112px] flex-col justify-between p-3">
+                    <div>
+                      <span className="inline-flex rounded-[8px] bg-[#E9F8F8] px-2 py-1 text-[10px] font-black text-[#0E7189]">
+                        {promo.badge}
+                      </span>
+                      <h2 className="mt-2 text-[20px] font-black leading-tight text-[#12333E]">{promo.title}</h2>
+                    </div>
+                    <p className="max-w-[260px] text-[12px] font-semibold leading-5 text-[#315967]">
+                      {promo.summary}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-1.5 border-t border-[#E6F0F5] bg-[#F7FCFE] p-2">
+                  {promo.stats.map((stat) => (
+                    <div key={stat.label} className="flex items-start justify-between gap-3 rounded-[9px] bg-white px-2.5 py-2">
+                      <span className="shrink-0 text-[11px] font-black text-[#1D6B83]">{stat.label}</span>
+                      <span className="min-w-0 text-right text-[12px] font-bold leading-5 text-[#12333E]">{stat.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-2 px-2 pb-3">
+          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#D6E5EC] bg-white px-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.06)]">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="h-4 w-1 rounded-full bg-[#F7B733]" />
+              <span className="truncate text-[14px] font-black text-[#12333E]">活動節奏</span>
+            </div>
+            <CalendarDays className="h-4 w-4 text-[#1D6B83]" aria-hidden="true" />
+          </div>
+          <div className="grid gap-2">
+            {WEEKLY_WINDOWS.map((item) => (
+              <article key={item.title} className="rounded-[13px] border border-[#D6E5EC] bg-white p-3 shadow-[0_6px_14px_rgba(15,23,42,0.07)]">
+                <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7A8B97]">{item.title}</div>
+                <h3 className="mt-1 text-[17px] font-black text-[#12333E]">{item.subtitle}</h3>
+                <p className="mt-1 text-[12px] font-semibold leading-5 text-[#516976]">{item.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="hidden space-y-10 pb-6 lg:block">
       <section className="relative overflow-hidden rounded-[28px] border border-[#162238] bg-[#0D1728] shadow-[0_24px_60px_rgba(2,6,23,0.28)]">
         <img
           src="/banners/hero-crash-dealer.png"
@@ -350,6 +450,7 @@ export function PromosPage() {
           </div>
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 }

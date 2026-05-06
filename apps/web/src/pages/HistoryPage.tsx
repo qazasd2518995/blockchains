@@ -6,6 +6,7 @@ import { CalendarDays, ReceiptText, Search, X } from 'lucide-react';
 import { api, extractApiError } from '@/lib/api';
 import { formatAmount } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
+import { MobilePageHeader } from '@/components/layout/MobilePageHeader';
 
 const ICON: Record<TransactionType, { color: string; icon: string }> = {
   SIGNUP_BONUS: { color: 'text-win', icon: '✧' },
@@ -282,15 +283,32 @@ export function HistoryPage() {
   };
 
   return (
-    <div className="relative space-y-5 pb-24 sm:space-y-10 sm:pb-0">
-      <section className="relative z-10 border-b border-[#E5E7EB] pb-4 sm:pb-6">
+    <div className="relative min-h-[100svh] bg-[#EDF4F7] pb-[calc(env(safe-area-inset-bottom)+18px)] lg:min-h-0 lg:space-y-10 lg:bg-transparent lg:pb-0">
+      <MobilePageHeader title="遊戲紀錄" subtitle="BET LEDGER" active="history" />
+
+      <div className="space-y-3 px-2 py-2 lg:space-y-10 lg:px-0 lg:py-0">
+      <section className="relative z-10 hidden border-b border-[#E5E7EB] pb-4 lg:block lg:pb-6">
         <div className="flex items-center gap-3">
           <span className="text-[14px] font-semibold text-[#186073]">{t.history.ledger}</span>
         </div>
         <h1 className="mt-2 text-[30px] font-bold leading-tight text-[#0F172A] sm:mt-3 sm:text-[32px]">{t.history.txLog}</h1>
       </section>
 
-      <section className="card-base relative z-10 p-4 sm:p-5">
+      <section className="rounded-[13px] border border-[#D6E5EC] bg-white p-3 shadow-[0_6px_14px_rgba(15,23,42,0.08)] lg:hidden">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[#E9F8F8] text-[#0E7189]">
+            <ReceiptText className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-black leading-tight text-[#12333E]">{t.history.txLog}</h1>
+            <p className="mt-1 text-[12px] font-semibold leading-5 text-[#516976]">
+              查詢投注、派彩、轉點與餘額變化，日期區間會同步套用下方列表。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="card-base relative z-10 p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <div className="flex items-center gap-2 text-[13px] font-semibold text-[#186073]">
@@ -357,16 +375,16 @@ export function HistoryPage() {
         </div>
       </section>
 
-      <section className="relative z-10 grid grid-cols-3 gap-2 sm:gap-4">
-        <div className="card-base p-3 sm:p-5">
+      <section className="relative z-10 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
+        <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
           <div className="label text-[#186073]">{t.history.totalIn}</div>
           <div className="mt-1 num text-[18px] num-win sm:mt-2 sm:text-4xl">+{formatAmount(totalIn)}</div>
         </div>
-        <div className="card-base p-3 sm:p-5">
+        <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
           <div className="label text-[#186073]">{t.history.totalOut}</div>
           <div className="mt-1 num text-[18px] num-wine sm:mt-2 sm:text-4xl">{formatAmount(totalOut)}</div>
         </div>
-        <div className="card-base p-3 sm:p-5">
+        <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
           <div className="label text-[#186073]">{t.history.net}</div>
           <div
             className={`mt-1 num text-[18px] sm:mt-2 sm:text-4xl ${
@@ -385,7 +403,7 @@ export function HistoryPage() {
         </div>
       )}
 
-      <section className="card-base relative z-10 overflow-hidden">
+      <section className="card-base relative z-10 overflow-hidden max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)]">
         <div className="flex flex-col gap-3 border-b border-[#E5E7EB] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex flex-col gap-0.5">
             <span className="text-[15px] font-black text-[#186073]">
@@ -573,6 +591,7 @@ export function HistoryPage() {
           onClose={handleCloseDetail}
         />
       ) : null}
+      </div>
     </div>
   );
 }
