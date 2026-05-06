@@ -1901,6 +1901,105 @@
     linear-gradient(180deg, rgba(245, 158, 11, 0.96), rgba(180, 83, 9, 0.92));
 }
 
+.mega-slot-free-spin-intro {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--mega-slot-accent) 30%, transparent), transparent 45%),
+    linear-gradient(90deg, rgba(3, 8, 19, 0.68), rgba(3, 8, 19, 0.22), rgba(3, 8, 19, 0.68));
+  pointer-events: none;
+  animation: mega-slot-free-intro-fade 1600ms ease both;
+}
+
+.mega-slot-free-spin-intro--retrigger {
+  animation-duration: 1300ms;
+}
+
+.mega-slot-free-spin-intro__burst {
+  position: absolute;
+  width: min(58vw, 520px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--mega-slot-accent) 72%, white);
+  background:
+    repeating-conic-gradient(
+      from 0deg,
+      color-mix(in srgb, var(--mega-slot-accent) 56%, transparent) 0deg 8deg,
+      transparent 8deg 18deg
+    );
+  filter: blur(0.2px);
+  opacity: 0.55;
+  animation: mega-slot-free-intro-burst 1600ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
+}
+
+.mega-slot-free-spin-intro__panel {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  min-width: min(72%, 440px);
+  border-radius: 18px;
+  border: 2px solid color-mix(in srgb, var(--mega-slot-accent) 72%, rgba(255, 255, 255, 0.22));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(17, 24, 39, 0.92), rgba(5, 10, 19, 0.9));
+  padding: clamp(18px, 3vw, 30px) clamp(18px, 4vw, 40px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 18px 60px rgba(0, 0, 0, 0.5),
+    0 0 42px color-mix(in srgb, var(--mega-slot-accent) 36%, transparent);
+  animation: mega-slot-free-intro-panel 620ms cubic-bezier(0.2, 0.84, 0.2, 1) both;
+}
+
+.mega-slot-free-spin-intro__eyebrow {
+  font-size: clamp(10px, 1.2vw, 14px);
+  font-weight: 950;
+  letter-spacing: 0.22em;
+  color: #7dd3fc;
+}
+
+.mega-slot-free-spin-intro__title {
+  margin-top: 6px;
+  font-size: clamp(24px, 4.2vw, 54px);
+  font-weight: 950;
+  line-height: 1;
+  color: #fff;
+  text-align: center;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.24),
+    0 0 26px color-mix(in srgb, var(--mega-slot-accent) 54%, transparent);
+}
+
+.mega-slot-free-spin-intro__spins {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 8px;
+  font-family: var(--font-display, Inter, system-ui, sans-serif);
+  font-size: clamp(42px, 7vw, 86px);
+  font-weight: 950;
+  line-height: 0.9;
+  color: #f3d67d;
+  text-shadow: 0 0 28px rgba(243, 214, 125, 0.42);
+}
+
+.mega-slot-free-spin-intro__spins span {
+  font-size: 0.38em;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.mega-slot-free-spin-intro__meta {
+  margin-top: 8px;
+  font-size: clamp(10px, 1.2vw, 14px);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.72);
+  text-align: center;
+}
+
 @keyframes mega-slot-special-pop {
   0% {
     opacity: 0;
@@ -1912,6 +2011,49 @@
     opacity: 1;
     transform: translateY(0) scale(1);
     filter: brightness(1);
+  }
+}
+
+@keyframes mega-slot-free-intro-fade {
+  0% {
+    opacity: 0;
+  }
+
+  12%,
+  78% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes mega-slot-free-intro-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.44) rotate(0deg);
+  }
+
+  32% {
+    opacity: 0.64;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.18) rotate(42deg);
+  }
+}
+
+@keyframes mega-slot-free-intro-panel {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.82);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -3118,6 +3260,24 @@
     height: 22px;
     padding: 0 6px;
     font-size: 10px;
+  }
+
+  .mega-slot-free-spin-intro__panel {
+    min-width: min(78%, 360px);
+    border-radius: 12px;
+    padding: 14px 18px;
+  }
+
+  .mega-slot-free-spin-intro__title {
+    font-size: 24px;
+  }
+
+  .mega-slot-free-spin-intro__spins {
+    font-size: 42px;
+  }
+
+  .mega-slot-free-spin-intro__meta {
+    font-size: 9px;
   }
 
   .mega-slot-controls {

@@ -46,6 +46,8 @@ const MEGA_SYMBOL_PAYOUTS = [
 ];
 const BIG_WIN_MULTIPLIER = 20;
 const MEGA_MAX_TOTAL_MULTIPLIER = 1000;
+const MEGA_FREE_SPIN_INTRO_MS = 1600;
+const MEGA_FREE_SPIN_RETRIGGER_MS = 1300;
 const MEGA_PRESETS = [1, 10, 100, 1000];
 
 interface LiveMegaRoundState {
@@ -60,6 +62,13 @@ interface LiveMegaRoundState {
   scatterCount: number;
   specialSymbols: HotlineSpecialSymbol[];
   grid: number[][];
+}
+
+interface MegaFreeSpinIntro {
+  kind: 'trigger' | 'retrigger';
+  spins: number;
+  totalSpins: number;
+  scatterCount: number;
 }
 
 export function HotlinePage({ theme = 'cyber' }: Props) {
@@ -81,6 +90,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [sceneReady, setSceneReady] = useState(false);
   const [sceneFallback, setSceneFallback] = useState(false);
   const [liveMegaRound, setLiveMegaRound] = useState<LiveMegaRoundState | null>(null);
+  const [megaFreeSpinIntro, setMegaFreeSpinIntro] = useState<MegaFreeSpinIntro | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
@@ -186,6 +196,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     }));
   };
 
+  const showMegaFreeSpinIntro = async (
+    intro: MegaFreeSpinIntro,
+    duration = MEGA_FREE_SPIN_INTRO_MS,
+  ): Promise<void> => {
+    if (!isMegaSlot) return;
+    setMegaFreeSpinIntro(intro);
+    await delay(duration);
+    setMegaFreeSpinIntro(null);
+  };
+
   const spin = async () => {
     if (busy) return;
     if (!requireLogin()) return;
@@ -194,6 +214,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setSpinning(true);
     setResult(null);
     setLiveMegaRound(isMegaSlot ? createInitialLiveMegaRound() : null);
+    setMegaFreeSpinIntro(null);
     setError(null);
 
     sceneRef.current?.resetWinLines();
@@ -296,6 +317,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         await playSpinOrFallback(res.data.grid, res.data.lines);
         revealBaseState(res.data.grid);
       }
+      if (features && revealedFreeSpinsAwarded > 0 && freeSpinRounds.length > 0) {
+        await delay(260);
+        await showMegaFreeSpinIntro({
+          kind: 'trigger',
+          spins: revealedFreeSpinsAwarded,
+          totalSpins: revealedFreeSpinsAwarded,
+          scatterCount: features.scatterCount,
+        });
+      }
       for (const round of freeSpinRounds) {
         await delay(360);
         revealedFreeMultiplierBank = roundMegaMultiplier(revealedFreeMultiplierBank + round.multiplierTotal);
@@ -331,6 +361,12 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           updateLiveMegaRound({
             freeSpinsAwarded: revealedFreeSpinsAwarded,
           });
+          await showMegaFreeSpinIntro({
+            kind: 'retrigger',
+            spins: round.extraFreeSpinsAwarded,
+            totalSpins: revealedFreeSpinsAwarded,
+            scatterCount: round.scatterSymbols.length,
+          }, MEGA_FREE_SPIN_RETRIGGER_MS);
         }
       }
       const mult = res.data.multiplier ?? 0;
@@ -376,6 +412,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       sceneRef.current?.stopAnticipation();
       sceneRef.current?.resetWinLines();
       setLiveMegaRound(null);
+      setMegaFreeSpinIntro(null);
       setError(extractApiError(err).message);
     } finally {
       setSpinning(false);
@@ -572,6 +609,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   ref={canvasRef}
                   className={`mega-slot-canvas ${sceneReady && !sceneFallback ? 'mega-slot-canvas--ready' : ''}`}
                 />
+                {megaFreeSpinIntro && <MegaFreeSpinIntroOverlay intro={megaFreeSpinIntro} />}
               </div>
               {result && !spinning && isBigWinResult && (
                 <div
@@ -920,6 +958,34 @@ function MegaSpecialOverlay({ symbols }: { symbols: HotlineSpecialSymbol[] }) {
           {symbol.type === 'multiplier' ? `${symbol.value ?? 2}×` : 'SCATTER'}
         </div>
       ))}
+    </div>
+  );
+}
+
+function MegaFreeSpinIntroOverlay({ intro }: { intro: MegaFreeSpinIntro }) {
+  const isRetrigger = intro.kind === 'retrigger';
+  return (
+    <div
+      className={`mega-slot-free-spin-intro ${isRetrigger ? 'mega-slot-free-spin-intro--retrigger' : ''}`}
+      role="status"
+      aria-live="assertive"
+    >
+      <div className="mega-slot-free-spin-intro__burst" aria-hidden="true" />
+      <div className="mega-slot-free-spin-intro__panel">
+        <div className="mega-slot-free-spin-intro__eyebrow">
+          {intro.scatterCount} SCATTER
+        </div>
+        <div className="mega-slot-free-spin-intro__title">
+          {isRetrigger ? '追加免費旋轉' : '免費旋轉已觸發'}
+        </div>
+        <div className="mega-slot-free-spin-intro__spins">
+          {isRetrigger ? `+${intro.spins}` : intro.spins}
+          <span>次</span>
+        </div>
+        <div className="mega-slot-free-spin-intro__meta">
+          {isRetrigger ? `目前總次數 ${intro.totalSpins}` : '接下來轉動不扣下注'}
+        </div>
+      </div>
     </div>
   );
 }
