@@ -66,7 +66,7 @@ interface HotlineLine {
   row: number;
   symbol: number;
   count: number;
-  payout?: number;
+  payout: number;
   ways?: number;
 }
 
@@ -81,6 +81,10 @@ interface HotlineCascadeStep {
   lines: HotlineLine[];
   multiplier: number;
   removed: HotlineWinPosition[];
+}
+
+interface HotlineCascadePlaybackOptions {
+  onStepWin?: (step: HotlineCascadeStep) => void;
 }
 
 interface Particle {
@@ -637,7 +641,11 @@ export class HotlineScene {
     }
   }
 
-  async playCascadeSpin(cascades: HotlineCascadeStep[], finalGrid: number[][]): Promise<void> {
+  async playCascadeSpin(
+    cascades: HotlineCascadeStep[],
+    finalGrid: number[][],
+    options: HotlineCascadePlaybackOptions = {},
+  ): Promise<void> {
     if (cascades.length === 0) {
       await this.playSpin(finalGrid, []);
       return;
@@ -645,6 +653,7 @@ export class HotlineScene {
 
     const first = cascades[0]!;
     await this.playSpin(first.grid, first.lines);
+    options.onStepWin?.(first);
 
     let previous = first;
     for (let i = 1; i < cascades.length; i += 1) {
@@ -652,6 +661,7 @@ export class HotlineScene {
       await this.sleep(720);
       await this.animateCascadeToGrid(step.grid, previous.removed);
       this.showWinLines(step.lines);
+      options.onStepWin?.(step);
       previous = step;
     }
 
