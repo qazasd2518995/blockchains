@@ -8,6 +8,8 @@ export const adminApi = axios.create({
   timeout: 15000,
 });
 
+type RetriableRequestConfig = NonNullable<AxiosError['config']> & { _retry?: boolean };
+
 adminApi.interceptors.request.use((config) => {
   const token = useAdminAuthStore.getState().accessToken;
   if (token) {
@@ -22,7 +24,8 @@ let refreshInFlight: Promise<{ accessToken: string; refreshToken: string }> | nu
 adminApi.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
-    if (error.response?.status === 401) {
+    const originalConfig = error.config as RetriableRequestConfig | undefined;
+    if (error.response?.status === 401 && !originalConfig?._retry) {
       const { refreshToken, setTokens, logout } = useAdminAuthStore.getState();
       if (refreshToken) {
         try {
@@ -36,10 +39,11 @@ adminApi.interceptors.response.use(
           }
           const data = await refreshInFlight;
           setTokens(data.accessToken, data.refreshToken);
-          if (error.config) {
-            error.config.headers = error.config.headers ?? {};
-            (error.config.headers as Record<string, string>).Authorization = `Bearer ${data.accessToken}`;
-            return axios.request(error.config);
+          if (originalConfig) {
+            originalConfig._retry = true;
+            originalConfig.headers = originalConfig.headers ?? {};
+            (originalConfig.headers as Record<string, string>).Authorization = `Bearer ${data.accessToken}`;
+            return axios.request(originalConfig);
           }
         } catch {
           logout();

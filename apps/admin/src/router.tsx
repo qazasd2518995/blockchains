@@ -1,16 +1,30 @@
+import { lazy, Suspense, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { AdminGuard, AdminGuestGuard } from '@/components/layout/AdminGuard';
-import { AdminLoginPage } from '@/pages/auth/AdminLoginPage';
-import { AdminDashboardPage } from '@/pages/dashboard/AdminDashboardPage';
-import { AgentHierarchyPage } from '@/pages/agents/AgentHierarchyPage';
-import { MemberBetRecordsPage } from '@/pages/members/MemberBetRecordsPage';
-import { TransfersPage } from '@/pages/transfers/TransfersPage';
-import { ReportsPage } from '@/pages/reports/ReportsPage';
-import { ControlsOverviewPage } from '@/pages/controls/ControlsOverviewPage';
-import { AuditLogPage } from '@/pages/audit/AuditLogPage';
-import { SubAccountsPage } from '@/pages/subaccounts/SubAccountsPage';
-import { AnnouncementsPage } from '@/pages/announcements/AnnouncementsPage';
+
+const AdminLoginPage = lazy(() => import('@/pages/auth/AdminLoginPage').then((m) => ({ default: m.AdminLoginPage })));
+const AdminDashboardPage = lazy(() => import('@/pages/dashboard/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
+const AgentHierarchyPage = lazy(() => import('@/pages/agents/AgentHierarchyPage').then((m) => ({ default: m.AgentHierarchyPage })));
+const MemberBetRecordsPage = lazy(() => import('@/pages/members/MemberBetRecordsPage').then((m) => ({ default: m.MemberBetRecordsPage })));
+const TransfersPage = lazy(() => import('@/pages/transfers/TransfersPage').then((m) => ({ default: m.TransfersPage })));
+const ReportsPage = lazy(() => import('@/pages/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })));
+const ControlsOverviewPage = lazy(() => import('@/pages/controls/ControlsOverviewPage').then((m) => ({ default: m.ControlsOverviewPage })));
+const AuditLogPage = lazy(() => import('@/pages/audit/AuditLogPage').then((m) => ({ default: m.AuditLogPage })));
+const SubAccountsPage = lazy(() => import('@/pages/subaccounts/SubAccountsPage').then((m) => ({ default: m.SubAccountsPage })));
+const AnnouncementsPage = lazy(() => import('@/pages/announcements/AnnouncementsPage').then((m) => ({ default: m.AnnouncementsPage })));
+
+function RouteLoading(): JSX.Element {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center text-[12px] font-semibold tracking-[0.24em] text-ink-500">
+      LOADING
+    </div>
+  );
+}
+
+function suspended(element: ReactNode): JSX.Element {
+  return <Suspense fallback={<RouteLoading />}>{element}</Suspense>;
+}
 
 export const router = createBrowserRouter([
   {
@@ -30,7 +44,7 @@ export const router = createBrowserRouter([
         <Outlet />
       </AdminGuestGuard>
     ),
-    children: [{ path: '/admin/login', element: <AdminLoginPage /> }],
+    children: [{ path: '/admin/login', element: suspended(<AdminLoginPage />) }],
   },
   {
     element: (
@@ -41,15 +55,15 @@ export const router = createBrowserRouter([
       </AdminGuard>
     ),
     children: [
-      { path: '/admin/dashboard', element: <AdminDashboardPage /> },
-      { path: '/admin/accounts', element: <AgentHierarchyPage /> },
-      { path: '/admin/members/:id/bets', element: <MemberBetRecordsPage /> },
-      { path: '/admin/transfers', element: <TransfersPage /> },
-      { path: '/admin/reports', element: <ReportsPage /> },
-      { path: '/admin/controls', element: <ControlsOverviewPage /> },
-      { path: '/admin/audit', element: <AuditLogPage /> },
-      { path: '/admin/subaccounts', element: <SubAccountsPage /> },
-      { path: '/admin/announcements', element: <AnnouncementsPage /> },
+      { path: '/admin/dashboard', element: suspended(<AdminDashboardPage />) },
+      { path: '/admin/accounts', element: suspended(<AgentHierarchyPage />) },
+      { path: '/admin/members/:id/bets', element: suspended(<MemberBetRecordsPage />) },
+      { path: '/admin/transfers', element: suspended(<TransfersPage />) },
+      { path: '/admin/reports', element: suspended(<ReportsPage />) },
+      { path: '/admin/controls', element: suspended(<ControlsOverviewPage />) },
+      { path: '/admin/audit', element: suspended(<AuditLogPage />) },
+      { path: '/admin/subaccounts', element: suspended(<SubAccountsPage />) },
+      { path: '/admin/announcements', element: suspended(<AnnouncementsPage />) },
     ],
   },
   {

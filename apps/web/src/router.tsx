@@ -1,31 +1,46 @@
-import { useLayoutEffect } from 'react';
+import { lazy, Suspense, useLayoutEffect, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { GameFullscreenShell } from '@/components/layout/GameFullscreenShell';
 import { GuestGuard } from '@/components/layout/GuestGuard';
-import { LandingPage } from '@/pages/LandingPage';
-import { LoginPage } from '@/pages/auth/LoginPage';
-import { LobbyPage } from '@/pages/LobbyPage';
-import { HistoryPage } from '@/pages/HistoryPage';
-import { NotFoundPage } from '@/pages/NotFoundPage';
-import { DicePage } from '@/pages/games/DicePage';
-import { MinesPage } from '@/pages/games/MinesPage';
-import { HiLoPage } from '@/pages/games/HiLoPage';
-import { KenoPage } from '@/pages/games/KenoPage';
-import { WheelPage } from '@/pages/games/WheelPage';
-import { RoulettePage } from '@/pages/games/RoulettePage';
-import { PlinkoPage } from '@/pages/games/PlinkoPage';
-import { HotlinePage } from '@/pages/games/HotlinePage';
-import { TowerPage } from '@/pages/games/TowerPage';
-import { ChickenRoadPage } from '@/pages/games/ChickenRoadPage';
-import { BlackjackPage } from '@/pages/games/BlackjackPage';
-import { CrashPage, CRASH_CONFIGS } from '@/pages/games/CrashPage';
-import { HallPage } from '@/pages/HallPage';
-import { VerifyPage } from '@/pages/VerifyPage';
-import { PromosPage } from '@/pages/PromosPage';
-import { BaccaratPage } from '@/pages/games/BaccaratPage';
 import { PlatformBgm } from '@/lib/platformBgm';
+import { CRASH_CONFIGS } from '@/pages/games/crashConfigs';
+
+const LandingPage = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })));
+const LoginPage = lazy(() => import('@/pages/auth/LoginPage').then((m) => ({ default: m.LoginPage })));
+const LobbyPage = lazy(() => import('@/pages/LobbyPage').then((m) => ({ default: m.LobbyPage })));
+const HistoryPage = lazy(() => import('@/pages/HistoryPage').then((m) => ({ default: m.HistoryPage })));
+const HallPage = lazy(() => import('@/pages/HallPage').then((m) => ({ default: m.HallPage })));
+const VerifyPage = lazy(() => import('@/pages/VerifyPage').then((m) => ({ default: m.VerifyPage })));
+const PromosPage = lazy(() => import('@/pages/PromosPage').then((m) => ({ default: m.PromosPage })));
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
+
+const BaccaratPage = lazy(() => import('@/pages/games/BaccaratPage').then((m) => ({ default: m.BaccaratPage })));
+const BlackjackPage = lazy(() => import('@/pages/games/BlackjackPage').then((m) => ({ default: m.BlackjackPage })));
+const ChickenRoadPage = lazy(() => import('@/pages/games/ChickenRoadPage').then((m) => ({ default: m.ChickenRoadPage })));
+const CrashPage = lazy(() => import('@/pages/games/CrashPage').then((m) => ({ default: m.CrashPage })));
+const DicePage = lazy(() => import('@/pages/games/DicePage').then((m) => ({ default: m.DicePage })));
+const HiLoPage = lazy(() => import('@/pages/games/HiLoPage').then((m) => ({ default: m.HiLoPage })));
+const HotlinePage = lazy(() => import('@/pages/games/HotlinePage').then((m) => ({ default: m.HotlinePage })));
+const KenoPage = lazy(() => import('@/pages/games/KenoPage').then((m) => ({ default: m.KenoPage })));
+const MinesPage = lazy(() => import('@/pages/games/MinesPage').then((m) => ({ default: m.MinesPage })));
+const PlinkoPage = lazy(() => import('@/pages/games/PlinkoPage').then((m) => ({ default: m.PlinkoPage })));
+const RoulettePage = lazy(() => import('@/pages/games/RoulettePage').then((m) => ({ default: m.RoulettePage })));
+const TowerPage = lazy(() => import('@/pages/games/TowerPage').then((m) => ({ default: m.TowerPage })));
+const WheelPage = lazy(() => import('@/pages/games/WheelPage').then((m) => ({ default: m.WheelPage })));
+
+function RouteLoading(): JSX.Element {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center text-[12px] font-semibold tracking-[0.24em] text-white/55">
+      LOADING
+    </div>
+  );
+}
+
+function suspended(element: ReactNode): JSX.Element {
+  return <Suspense fallback={<RouteLoading />}>{element}</Suspense>;
+}
 
 function RouteViewportReset() {
   const { pathname } = useLocation();
@@ -58,7 +73,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/landing',
-        element: <LandingPage />,
+        element: suspended(<LandingPage />),
       },
       {
         element: (
@@ -67,46 +82,46 @@ export const router = createBrowserRouter([
           </GuestGuard>
         ),
         children: [
-          { path: '/login', element: <LoginPage /> },
+          { path: '/login', element: suspended(<LoginPage />) },
         ],
       },
-      { path: '/games/baccarat', element: <BaccaratPage variant="royal" /> },
-      { path: '/games/baccarat-nova', element: <BaccaratPage variant="nova" /> },
-      { path: '/games/baccarat-imperial', element: <BaccaratPage variant="imperial" /> },
+      { path: '/games/baccarat', element: suspended(<BaccaratPage variant="royal" />) },
+      { path: '/games/baccarat-nova', element: suspended(<BaccaratPage variant="nova" />) },
+      { path: '/games/baccarat-imperial', element: suspended(<BaccaratPage variant="imperial" />) },
       {
         element: <GameFullscreenShell />,
         children: [
-          { path: '/games/dice', element: <DicePage /> },
-          { path: '/games/mines', element: <MinesPage /> },
-          { path: '/games/hilo', element: <HiLoPage /> },
-          { path: '/games/blackjack', element: <BlackjackPage /> },
-          { path: '/games/keno', element: <KenoPage /> },
-          { path: '/games/wheel', element: <WheelPage /> },
-          { path: '/games/mini-roulette', element: <RoulettePage variant="mini-roulette" /> },
-          { path: '/games/carnival', element: <RoulettePage variant="carnival" /> },
-          { path: '/games/plinko', element: <PlinkoPage /> },
-          { path: '/games/hotline', element: <HotlinePage theme="cyber" /> },
-          { path: '/games/fruit-slot', element: <HotlinePage theme="fruit" /> },
-          { path: '/games/fortune-slot', element: <HotlinePage theme="fortune" /> },
-          { path: '/games/ocean-slot', element: <HotlinePage theme="ocean" /> },
-          { path: '/games/temple-slot', element: <HotlinePage theme="temple" /> },
-          { path: '/games/candy-slot', element: <HotlinePage theme="candy" /> },
-          { path: '/games/sakura-slot', element: <HotlinePage theme="sakura" /> },
-          { path: '/games/thunder-slot', element: <HotlinePage theme="thunder" /> },
-          { path: '/games/dragon-mega-slot', element: <HotlinePage theme="dragonMega" /> },
-          { path: '/games/nebula-slot', element: <HotlinePage theme="nebula" /> },
-          { path: '/games/jungle-slot', element: <HotlinePage theme="jungle" /> },
-          { path: '/games/vampire-slot', element: <HotlinePage theme="vampire" /> },
-          { path: '/games/tower', element: <TowerPage /> },
-          { path: '/games/chicken-road', element: <ChickenRoadPage /> },
-          { path: '/games/rocket', element: <CrashPage config={CRASH_CONFIGS.rocket!} /> },
-          { path: '/games/aviator', element: <CrashPage config={CRASH_CONFIGS.aviator!} /> },
-          { path: '/games/space-fleet', element: <CrashPage config={CRASH_CONFIGS['space-fleet']!} /> },
-          { path: '/games/jetx', element: <CrashPage config={CRASH_CONFIGS.jetx!} /> },
-          { path: '/games/balloon', element: <CrashPage config={CRASH_CONFIGS.balloon!} /> },
-          { path: '/games/jetx3', element: <CrashPage config={CRASH_CONFIGS.jetx3!} /> },
-          { path: '/games/double-x', element: <CrashPage config={CRASH_CONFIGS['double-x']!} /> },
-          { path: '/games/plinko-x', element: <PlinkoPage variant="x" /> },
+          { path: '/games/dice', element: suspended(<DicePage />) },
+          { path: '/games/mines', element: suspended(<MinesPage />) },
+          { path: '/games/hilo', element: suspended(<HiLoPage />) },
+          { path: '/games/blackjack', element: suspended(<BlackjackPage />) },
+          { path: '/games/keno', element: suspended(<KenoPage />) },
+          { path: '/games/wheel', element: suspended(<WheelPage />) },
+          { path: '/games/mini-roulette', element: suspended(<RoulettePage variant="mini-roulette" />) },
+          { path: '/games/carnival', element: suspended(<RoulettePage variant="carnival" />) },
+          { path: '/games/plinko', element: suspended(<PlinkoPage />) },
+          { path: '/games/hotline', element: suspended(<HotlinePage theme="cyber" />) },
+          { path: '/games/fruit-slot', element: suspended(<HotlinePage theme="fruit" />) },
+          { path: '/games/fortune-slot', element: suspended(<HotlinePage theme="fortune" />) },
+          { path: '/games/ocean-slot', element: suspended(<HotlinePage theme="ocean" />) },
+          { path: '/games/temple-slot', element: suspended(<HotlinePage theme="temple" />) },
+          { path: '/games/candy-slot', element: suspended(<HotlinePage theme="candy" />) },
+          { path: '/games/sakura-slot', element: suspended(<HotlinePage theme="sakura" />) },
+          { path: '/games/thunder-slot', element: suspended(<HotlinePage theme="thunder" />) },
+          { path: '/games/dragon-mega-slot', element: suspended(<HotlinePage theme="dragonMega" />) },
+          { path: '/games/nebula-slot', element: suspended(<HotlinePage theme="nebula" />) },
+          { path: '/games/jungle-slot', element: suspended(<HotlinePage theme="jungle" />) },
+          { path: '/games/vampire-slot', element: suspended(<HotlinePage theme="vampire" />) },
+          { path: '/games/tower', element: suspended(<TowerPage />) },
+          { path: '/games/chicken-road', element: suspended(<ChickenRoadPage />) },
+          { path: '/games/rocket', element: suspended(<CrashPage config={CRASH_CONFIGS.rocket!} />) },
+          { path: '/games/aviator', element: suspended(<CrashPage config={CRASH_CONFIGS.aviator!} />) },
+          { path: '/games/space-fleet', element: suspended(<CrashPage config={CRASH_CONFIGS['space-fleet']!} />) },
+          { path: '/games/jetx', element: suspended(<CrashPage config={CRASH_CONFIGS.jetx!} />) },
+          { path: '/games/balloon', element: suspended(<CrashPage config={CRASH_CONFIGS.balloon!} />) },
+          { path: '/games/jetx3', element: suspended(<CrashPage config={CRASH_CONFIGS.jetx3!} />) },
+          { path: '/games/double-x', element: suspended(<CrashPage config={CRASH_CONFIGS['double-x']!} />) },
+          { path: '/games/plinko-x', element: suspended(<PlinkoPage variant="x" />) },
         ],
       },
       {
@@ -116,10 +131,10 @@ export const router = createBrowserRouter([
           </AppShell>
         ),
         children: [
-          { path: '/lobby', element: <LobbyPage /> },
-          { path: '/hall/:hallId', element: <HallPage /> },
-          { path: '/verify', element: <VerifyPage /> },
-          { path: '/promos', element: <PromosPage /> },
+          { path: '/lobby', element: suspended(<LobbyPage />) },
+          { path: '/hall/:hallId', element: suspended(<HallPage />) },
+          { path: '/verify', element: suspended(<VerifyPage />) },
+          { path: '/promos', element: suspended(<PromosPage />) },
           { path: '/profile', element: <Navigate to="/lobby" replace /> },
         ],
       },
@@ -132,10 +147,10 @@ export const router = createBrowserRouter([
           </AuthGuard>
         ),
         children: [
-          { path: '/history', element: <HistoryPage /> },
+          { path: '/history', element: suspended(<HistoryPage />) },
         ],
       },
-      { path: '*', element: <NotFoundPage /> },
+      { path: '*', element: suspended(<NotFoundPage />) },
       { path: '/404', element: <Navigate to="/" replace /> },
     ],
   },

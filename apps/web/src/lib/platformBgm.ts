@@ -144,7 +144,7 @@ class PlatformBgmImpl {
     if (this.audio) return this.audio;
 
     const audio = new Audio();
-    audio.preload = 'auto';
+    audio.preload = 'none';
     audio.volume = this.prefs.volume;
     audio.crossOrigin = 'anonymous';
     audio.addEventListener('ended', () => this.playNextTrack());
@@ -173,7 +173,6 @@ class PlatformBgmImpl {
     }
     this.currentIndex = nextIndex;
     audio.src = TRACKS[nextIndex]!.src;
-    audio.load();
     this.notify();
   }
 

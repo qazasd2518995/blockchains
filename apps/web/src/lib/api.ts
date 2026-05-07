@@ -9,6 +9,9 @@ export const api = axios.create({
   timeout: 15000,
 });
 
+type RetriableRequestConfig = NonNullable<AxiosError['config']> & { _retry?: boolean };
+let refreshInFlight: Promise<{ accessToken: string; refreshToken: string }> | null = null;
+
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) {
@@ -21,17 +24,28 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
-    if (error.response?.status === 401) {
+    const originalConfig = error.config as RetriableRequestConfig | undefined;
+    if (error.response?.status === 401 && !originalConfig?._retry) {
       const { refreshToken, setTokens, logout } = useAuthStore.getState();
       if (refreshToken) {
         try {
-          const response = await axios.post(`${API_BASE}/api/auth/refresh`, { refreshToken });
-          const data = response.data as { accessToken: string; refreshToken: string };
+          if (!refreshInFlight) {
+            refreshInFlight = axios
+              .post(`${API_BASE}/api/auth/refresh`, { refreshToken })
+              .then((r) => r.data as { accessToken: string; refreshToken: string })
+              .finally(() => {
+                setTimeout(() => {
+                  refreshInFlight = null;
+                }, 0);
+              });
+          }
+          const data = await refreshInFlight;
           setTokens(data.accessToken, data.refreshToken);
-          if (error.config) {
-            error.config.headers = error.config.headers ?? {};
-            (error.config.headers as Record<string, string>).Authorization = `Bearer ${data.accessToken}`;
-            return axios.request(error.config);
+          if (originalConfig) {
+            originalConfig._retry = true;
+            originalConfig.headers = originalConfig.headers ?? {};
+            (originalConfig.headers as Record<string, string>).Authorization = `Bearer ${data.accessToken}`;
+            return axios.request(originalConfig);
           }
         } catch {
           logout();
