@@ -37,17 +37,20 @@ export class AuthService {
 
   async refresh(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     const tokenHash = hashRefresh(refreshToken);
-    const record = await this.prisma.refreshToken.findUnique({ where: { tokenHash } });
-    if (!record || record.revokedAt || record.expiresAt < new Date()) {
-      throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
-    }
-    await this.prisma.refreshToken.update({
-      where: { id: record.id },
-      data: { revokedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      const record = await tx.refreshToken.findUnique({ where: { tokenHash } });
+      if (!record || record.revokedAt || record.expiresAt < new Date()) {
+        throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
+      }
+      const revoked = await tx.refreshToken.updateMany({
+        where: { id: record.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      if (revoked.count !== 1) throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
+      const user = await tx.user.findUniqueOrThrow({ where: { id: record.userId } });
+      if (user.disabledAt) throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
+      return this.issueTokens(user.id, user.role, tx);
     });
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: record.userId } });
-    if (user.disabledAt) throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
-    return this.issueTokens(user.id, user.role);
   }
 
   async logout(refreshToken: string): Promise<void> {
@@ -65,11 +68,12 @@ export class AuthService {
   private async issueTokens(
     userId: string,
     role: string,
+    db: PrismaClient | Prisma.TransactionClient = this.prisma,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const accessToken = this.jwt.sign({ sub: userId, role });
     const refreshToken = randomBytes(48).toString('hex');
     const ttlMs = parseDuration(config.JWT_REFRESH_TTL);
-    await this.prisma.refreshToken.create({
+    await db.refreshToken.create({
       data: {
         userId,
         tokenHash: hashRefresh(refreshToken),

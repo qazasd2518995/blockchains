@@ -3,7 +3,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import type { BetDetailResponse, MemberPublic, MemberBetEntry, MemberBetListResponse } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
 import { config } from '../../../config.js';
-import { canManageAgent, canManageMember, listAgentDescendants } from '../../../utils/hierarchy.js';
+import { canManageAgent, canManageMember, listAgentDescendants, resolveAgentScopeRootId } from '../../../utils/hierarchy.js';
 import { runSerializable } from '../../games/_common/BaseGameService.js';
 import { createPlayerSeeds } from '../../auth/player-seeds.js';
 import { writeAudit } from '../audit/audit.service.js';
@@ -155,9 +155,14 @@ export class MemberService {
 
   async list(operator: AdminCurrent, query: MemberListQuery): Promise<{ items: MemberPublic[]; nextCursor: string | null }> {
     const limit = query.limit ?? 50;
+    const scopeRootId = operator.role === 'SUPER_ADMIN'
+      ? null
+      : await resolveAgentScopeRootId(this.prisma, operator);
     const scopedAgentIds = operator.role === 'SUPER_ADMIN'
       ? null
-      : await listAgentDescendants(this.prisma, operator.id);
+      : scopeRootId
+        ? await listAgentDescendants(this.prisma, scopeRootId)
+        : [];
 
     const where: Prisma.UserWhereInput = {};
     if (query.agentId) {
@@ -318,6 +323,9 @@ export class MemberService {
     input: AdjustMemberBalanceInput,
     req?: FastifyRequest,
   ): Promise<MemberPublic> {
+    if (operator.role !== 'SUPER_ADMIN') {
+      throw new ApiError('FORBIDDEN', 'Only super admin can adjust member balance directly');
+    }
     const ok = await canManageMember(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot adjust this member');
     const delta = new Prisma.Decimal(input.delta);

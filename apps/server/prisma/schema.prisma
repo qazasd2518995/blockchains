@@ -326,8 +326,27 @@ model CrashBet {
   payout      Decimal    @default(0) @db.Decimal(20, 2)
   createdAt   DateTime   @default(now())
 
+  @@unique([roundId, userId])
   @@index([userId, createdAt])
   @@index([roundId])
+}
+
+model BaccaratIntegrationLedger {
+  id           String    @id @default(cuid())
+  providerTxId String    @unique
+  action       String
+  status       String    @default("COMPLETED")
+  userId       String?
+  amount       Decimal?  @db.Decimal(20, 2)
+  payout       Decimal?  @db.Decimal(20, 2)
+  betId        String?
+  response     Json?
+  meta         Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
 }
 
 model CrashRoomLease {

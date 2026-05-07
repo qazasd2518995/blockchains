@@ -3,6 +3,15 @@ import { sha256, generateServerSeed, generateClientSeed } from '@bg/provably-fai
 import { ApiError } from '../../../utils/errors.js';
 import { config } from '../../../config.js';
 
+const RETRYABLE_ACTIVE_STATE_UNIQUE_INDEXES = new Set([
+  'ServerSeed_one_active_per_user_game_key',
+  'ClientSeed_one_active_per_user_key',
+  'MinesRound_one_active_per_user_key',
+  'HiLoRound_one_active_per_user_key',
+  'TowerRound_one_active_per_user_key',
+  'BlackjackRound_one_active_per_user_key',
+]);
+
 export interface ActiveSeedBundle {
   serverSeedId: string;
   serverSeed: string;
@@ -95,6 +104,7 @@ export async function debitAndRecord(
   userId: string,
   amount: Prisma.Decimal,
   betId: string | null = null,
+  meta?: Prisma.InputJsonValue,
 ): Promise<Prisma.Decimal> {
   const updated = await tx.user.update({
     where: { id: userId },
@@ -107,6 +117,7 @@ export async function debitAndRecord(
       amount: amount.negated(),
       balanceAfter: updated.balance,
       betId,
+      meta,
     },
   });
   return updated.balance;
@@ -118,6 +129,7 @@ export async function creditAndRecord(
   amount: Prisma.Decimal,
   betId: string | null = null,
   type: 'BET_WIN' | 'CASHOUT' = 'BET_WIN',
+  meta?: Prisma.InputJsonValue,
 ): Promise<Prisma.Decimal> {
   if (amount.lessThanOrEqualTo(0)) {
     const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
@@ -134,6 +146,7 @@ export async function creditAndRecord(
       amount,
       balanceAfter: updated.balance,
       betId,
+      meta,
     },
   });
   return updated.balance;
@@ -181,7 +194,7 @@ function isRetryableTxError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
   const e = err as {
     code?: string;
-    meta?: { code?: string };
+    meta?: { code?: string; target?: unknown };
     message?: string;
   };
   // Prisma known codes
@@ -191,6 +204,17 @@ function isRetryableTxError(err: unknown): boolean {
   if (e.meta?.code === '40001' || e.meta?.code === '40P01') return true;
   // 文字匹配保險
   const msg = String(e.message ?? '').toLowerCase();
+  if (
+    e.code === 'P2002' &&
+    (
+      (typeof e.meta?.target === 'string' && RETRYABLE_ACTIVE_STATE_UNIQUE_INDEXES.has(e.meta.target)) ||
+      Array.from(RETRYABLE_ACTIVE_STATE_UNIQUE_INDEXES).some((indexName) =>
+        msg.includes(indexName.toLowerCase()),
+      )
+    )
+  ) {
+    return true;
+  }
   if (msg.includes('write conflict') || msg.includes('deadlock') || msg.includes('serialization failure')) {
     return true;
   }

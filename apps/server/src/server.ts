@@ -123,7 +123,15 @@ export async function buildServer(): Promise<FastifyInstance> {
       },
       transports: ['websocket', 'polling'],
     });
-    const registry = new CrashRoomRegistry(io, server.prisma);
+    const registry = new CrashRoomRegistry(io, server.prisma, {
+      verifyToken: async (token) => {
+        const payload = await server.jwt.verify<{ sub: string; role: string }>(token);
+        if (!payload.sub || payload.role !== 'PLAYER') {
+          throw new Error('Authentication required');
+        }
+        return { userId: payload.sub };
+      },
+    });
     for (const gameId of [
       GameId.ROCKET,
       GameId.AVIATOR,

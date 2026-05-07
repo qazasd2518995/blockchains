@@ -19,18 +19,21 @@ const userParamSchema = z.object({
 const amountSchema = z.coerce.number().positive().max(1_000_000_000);
 
 const betPlaceSchema = z.object({
+  providerTxId: z.string().min(1).max(120),
   userId: z.string().min(1),
   amount: amountSchema,
   meta: z.unknown().optional(),
 });
 
 const betClearSchema = z.object({
+  providerTxId: z.string().min(1).max(120),
   userId: z.string().min(1),
   amount: amountSchema,
   meta: z.unknown().optional(),
 });
 
 const settleSchema = z.object({
+  providerTxId: z.string().min(1).max(120),
   userId: z.string().min(1),
   amount: amountSchema,
   payout: z.coerce.number().min(0).max(1_000_000_000),
@@ -50,26 +53,130 @@ function roundMoney(value: number): Prisma.Decimal {
   return new Prisma.Decimal(value).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 }
 
+type BaccaratAction = 'bet-place' | 'bet-clear' | 'settle';
+type JsonObject = Record<string, unknown>;
+type BaccaratLedgerRead = {
+  action: string;
+  status: string;
+  userId: string | null;
+  amount: Prisma.Decimal | null;
+  payout: Prisma.Decimal | null;
+  response: Prisma.JsonValue | null;
+};
+
+function integrationMeta(
+  source: string,
+  providerTxId: string,
+  payload?: unknown,
+): Prisma.InputJsonObject {
+  return payload === undefined
+    ? { source, providerTxId }
+    : { source, providerTxId, payload: payload as Prisma.InputJsonValue };
+}
+
 async function syncAdjustment(
-  fastify: FastifyInstance,
+  tx: Prisma.TransactionClient,
   userId: string,
   amount: Prisma.Decimal,
   meta: unknown,
 ): Promise<Prisma.Decimal> {
-  const updated = await fastify.prisma.user.update({
+  const updated = await tx.user.update({
     where: { id: userId },
     data: { balance: { increment: amount } },
   });
-  await fastify.prisma.transaction.create({
+  await tx.transaction.create({
     data: {
       userId,
       type: 'ADJUSTMENT',
       amount,
       balanceAfter: updated.balance,
-      meta: meta === undefined ? { source: 'baccarat_refund' } : { source: 'baccarat_refund', payload: meta },
+      meta: meta as Prisma.InputJsonValue,
     },
   });
   return updated.balance;
+}
+
+async function runIdempotentBaccarat<T extends JsonObject>(
+  fastify: FastifyInstance,
+  input: {
+    providerTxId: string;
+    action: BaccaratAction;
+    userId: string;
+    amount?: Prisma.Decimal;
+    payout?: Prisma.Decimal;
+    meta?: unknown;
+    execute: (tx: Prisma.TransactionClient) => Promise<{ response: T; betId?: string | null }>;
+  },
+): Promise<T> {
+  try {
+    return await runSerializable(fastify.prisma, async (tx) => {
+      const existing = await tx.baccaratIntegrationLedger.findUnique({
+        where: { providerTxId: input.providerTxId },
+      });
+      if (existing) return readLedgerResponse<T>(existing, input);
+
+      const ledger = await tx.baccaratIntegrationLedger.create({
+        data: {
+          providerTxId: input.providerTxId,
+          action: input.action,
+          status: 'PROCESSING',
+          userId: input.userId,
+          amount: input.amount ?? null,
+          payout: input.payout ?? null,
+          meta: input.meta === undefined ? undefined : (input.meta as Prisma.InputJsonValue),
+        },
+      });
+
+      const result = await input.execute(tx);
+      await tx.baccaratIntegrationLedger.update({
+        where: { id: ledger.id },
+        data: {
+          status: 'COMPLETED',
+          betId: result.betId ?? null,
+          response: result.response as Prisma.InputJsonValue,
+        },
+      });
+      return result.response;
+    });
+  } catch (err) {
+    if ((err as { code?: string })?.code !== 'P2002') throw err;
+    const existing = await fastify.prisma.baccaratIntegrationLedger.findUnique({
+      where: { providerTxId: input.providerTxId },
+    });
+    if (!existing) throw err;
+    return readLedgerResponse<T>(existing, input);
+  }
+}
+
+function readLedgerResponse<T extends JsonObject>(
+  ledger: BaccaratLedgerRead,
+  expected: {
+    action: BaccaratAction;
+    userId: string;
+    amount?: Prisma.Decimal;
+    payout?: Prisma.Decimal;
+  },
+): T {
+  if (ledger.action !== expected.action) {
+    throw new ApiError('INVALID_ACTION', 'providerTxId was already used for another action');
+  }
+  if (
+    ledger.userId !== expected.userId ||
+    !sameOptionalDecimal(ledger.amount, expected.amount) ||
+    !sameOptionalDecimal(ledger.payout, expected.payout)
+  ) {
+    throw new ApiError('INVALID_ACTION', 'providerTxId was already used with different payload');
+  }
+  if (ledger.status !== 'COMPLETED' || !ledger.response) {
+    throw new ApiError('INVALID_ACTION', 'Duplicate request is still processing');
+  }
+  return ledger.response as T;
+}
+
+function sameOptionalDecimal(stored: Prisma.Decimal | null, expected?: Prisma.Decimal): boolean {
+  if (stored === null && expected === undefined) return true;
+  if (stored === null || expected === undefined) return false;
+  return stored.equals(expected);
 }
 
 export async function baccaratIntegrationRoutes(fastify: FastifyInstance): Promise<void> {
@@ -91,141 +198,181 @@ export async function baccaratIntegrationRoutes(fastify: FastifyInstance): Promi
   fastify.post('/bet-place', async (req) => {
     assertIntegrationSecret(req);
     const body = betPlaceSchema.parse(req.body);
-    return runSerializable(fastify.prisma, async (tx) => {
-      const user = await tx.user.findUnique({
-        where: { id: body.userId },
-        select: { id: true, balance: true, frozenAt: true, disabledAt: true },
-      });
-      if (!user || user.disabledAt) throw new ApiError('USER_NOT_FOUND', 'User not found');
-      if (user.frozenAt) throw new ApiError('MEMBER_FROZEN', 'Member account is frozen');
-
-      const amount = roundMoney(body.amount);
-      if (user.balance.lessThan(amount)) {
-        throw new ApiError('INSUFFICIENT_FUNDS', 'Insufficient balance');
-      }
-      const balance = await debitAndRecord(tx, body.userId, amount, null);
-      if (body.meta !== undefined) {
-        await tx.transaction.updateMany({
-          where: { userId: body.userId, type: 'BET_PLACE', betId: null, balanceAfter: balance },
-          data: { meta: { source: 'baccarat_bet', payload: body.meta } },
+    const amount = roundMoney(body.amount);
+    return runIdempotentBaccarat(fastify, {
+      providerTxId: body.providerTxId,
+      action: 'bet-place',
+      userId: body.userId,
+      amount,
+      meta: body.meta,
+      execute: async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: body.userId },
+          select: { id: true, balance: true, frozenAt: true, disabledAt: true },
         });
-      }
-      return { balance: balance.toFixed(2) };
+        if (!user || user.disabledAt) throw new ApiError('USER_NOT_FOUND', 'User not found');
+        if (user.frozenAt) throw new ApiError('MEMBER_FROZEN', 'Member account is frozen');
+
+        if (user.balance.lessThan(amount)) {
+          throw new ApiError('INSUFFICIENT_FUNDS', 'Insufficient balance');
+        }
+        const balance = await debitAndRecord(
+          tx,
+          body.userId,
+          amount,
+          null,
+          integrationMeta('baccarat_bet', body.providerTxId, body.meta),
+        );
+        return { response: { balance: balance.toFixed(2) } };
+      },
     });
   });
 
   fastify.post('/bet-clear', async (req) => {
     assertIntegrationSecret(req);
     const body = betClearSchema.parse(req.body);
-    const user = await fastify.prisma.user.findUnique({
-      where: { id: body.userId },
-      select: { id: true, disabledAt: true },
-    });
-    if (!user || user.disabledAt) throw new ApiError('USER_NOT_FOUND', 'User not found');
+    const amount = roundMoney(body.amount);
+    return runIdempotentBaccarat(fastify, {
+      providerTxId: body.providerTxId,
+      action: 'bet-clear',
+      userId: body.userId,
+      amount,
+      meta: body.meta,
+      execute: async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: body.userId },
+          select: { id: true, disabledAt: true },
+        });
+        if (!user || user.disabledAt) throw new ApiError('USER_NOT_FOUND', 'User not found');
 
-    const balance = await syncAdjustment(fastify, body.userId, roundMoney(body.amount), body.meta);
-    return { balance: balance.toFixed(2) };
+        const balance = await syncAdjustment(
+          tx,
+          body.userId,
+          amount,
+          integrationMeta('baccarat_refund', body.providerTxId, body.meta),
+        );
+        return { response: { balance: balance.toFixed(2) } };
+      },
+    });
   });
 
   fastify.post('/settle', async (req) => {
     assertIntegrationSecret(req);
     const body = settleSchema.parse(req.body);
-    return runSerializable(fastify.prisma, async (tx) => {
-      const user = await tx.user.findUnique({
-        where: { id: body.userId },
-        select: { id: true, disabledAt: true },
-      });
-      if (!user || user.disabledAt) throw new ApiError('USER_NOT_FOUND', 'User not found');
+    const amount = roundMoney(body.amount);
+    const payout = roundMoney(body.payout);
+    return runIdempotentBaccarat(fastify, {
+      providerTxId: body.providerTxId,
+      action: 'settle',
+      userId: body.userId,
+      amount,
+      payout,
+      meta: body.resultData,
+      execute: async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: body.userId },
+          select: { id: true, disabledAt: true },
+        });
+        if (!user || user.disabledAt) throw new ApiError('USER_NOT_FOUND', 'User not found');
 
-      const amount = roundMoney(body.amount);
-      const payout = roundMoney(body.payout);
-      const multiplier = amount.greaterThan(0)
-        ? payout.div(amount).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP)
-        : new Prisma.Decimal(0);
-      const original = {
-        won: payout.greaterThan(amount),
-        amount,
-        multiplier,
-        payout,
-      };
-      const controlled = await applyControls(tx, body.userId, body.gameId, original);
-      const finalPayout = controlled.controlled ? controlled.payout : payout;
-      const finalMultiplier = controlled.controlled ? controlled.multiplier : multiplier;
-      const submittedResult = body.resultData ?? null;
-      const originalResult = {
-        source: 'baccarat_settle',
-        resultData: submittedResult,
-        multiplier: multiplier.toFixed(4),
-        payout: payout.toFixed(2),
-      };
-      const finalResult = {
-        source: 'baccarat_settle',
-        resultData: submittedResult,
-        controlled: controlled.controlled,
-        flipReason: controlled.flipReason ?? null,
-        multiplier: finalMultiplier.toFixed(4),
-        payout: finalPayout.toFixed(2),
-        raw: controlled.controlled ? originalResult : null,
-      };
-
-      const seed = await new SeedHelper(tx).getActiveBundle(body.userId, body.gameId);
-      const bet = await tx.bet.create({
-        data: {
-          userId: body.userId,
-          gameId: body.gameId,
+        const multiplier = amount.greaterThan(0)
+          ? payout.div(amount).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP)
+          : new Prisma.Decimal(0);
+        const original = {
+          won: payout.greaterThan(amount),
           amount,
-          multiplier: finalMultiplier,
-          payout: finalPayout,
-          profit: finalPayout.sub(amount),
-          nonce: seed.nonce,
-          clientSeedUsed: seed.clientSeed,
-          serverSeedId: seed.serverSeedId,
-          resultData: finalResult as Prisma.InputJsonValue,
-          status: 'SETTLED',
-        },
-      });
+          multiplier,
+          payout,
+        };
+        const controlled = await applyControls(tx, body.userId, body.gameId, original);
+        const finalPayout = controlled.controlled ? controlled.payout : payout;
+        const finalMultiplier = controlled.controlled ? controlled.multiplier : multiplier;
+        const submittedResult = body.resultData ?? null;
+        const originalResult = {
+          source: 'baccarat_settle',
+          resultData: submittedResult,
+          multiplier: multiplier.toFixed(4),
+          payout: payout.toFixed(2),
+        };
+        const finalResult = {
+          source: 'baccarat_settle',
+          resultData: submittedResult,
+          controlled: controlled.controlled,
+          flipReason: controlled.flipReason ?? null,
+          multiplier: finalMultiplier.toFixed(4),
+          payout: finalPayout.toFixed(2),
+          raw: controlled.controlled ? originalResult : null,
+        };
 
-      const balance = finalPayout.greaterThan(0)
-        ? await creditAndRecord(tx, body.userId, finalPayout, bet.id, 'BET_WIN')
-        : (await tx.user.findUniqueOrThrow({ where: { id: body.userId } })).balance;
-
-      if (finalPayout.lessThanOrEqualTo(0)) {
-        await tx.transaction.create({
+        const seed = await new SeedHelper(tx).getActiveBundle(body.userId, body.gameId);
+        const bet = await tx.bet.create({
           data: {
             userId: body.userId,
-            type: 'BET_WIN',
-            amount: new Prisma.Decimal(0),
-            balanceAfter: balance,
-            betId: bet.id,
-            meta: { source: 'baccarat_settle' },
+            gameId: body.gameId,
+            amount,
+            multiplier: finalMultiplier,
+            payout: finalPayout,
+            profit: finalPayout.sub(amount),
+            nonce: seed.nonce,
+            clientSeedUsed: seed.clientSeed,
+            serverSeedId: seed.serverSeedId,
+            resultData: finalResult as Prisma.InputJsonValue,
+            status: 'SETTLED',
           },
         });
-      }
 
-      await finalizeControls(
-        tx,
-        body.userId,
-        body.gameId,
-        original,
-        {
-          won: finalPayout.greaterThan(amount),
-          amount,
-          multiplier: finalMultiplier,
-          payout: finalPayout,
-        },
-        controlled,
-        bet.id,
-        originalResult as Prisma.InputJsonValue,
-        finalResult as Prisma.InputJsonValue,
-      );
+        const balance = finalPayout.greaterThan(0)
+          ? await creditAndRecord(
+              tx,
+              body.userId,
+              finalPayout,
+              bet.id,
+              'BET_WIN',
+              integrationMeta('baccarat_settle', body.providerTxId),
+            )
+          : (await tx.user.findUniqueOrThrow({ where: { id: body.userId } })).balance;
 
-      return {
-        balance: balance.toFixed(2),
-        betId: bet.id,
-        payout: finalPayout.toFixed(2),
-        multiplier: finalMultiplier.toFixed(4),
-        controlled: controlled.controlled,
-      };
+        if (finalPayout.lessThanOrEqualTo(0)) {
+          await tx.transaction.create({
+            data: {
+              userId: body.userId,
+              type: 'BET_WIN',
+              amount: new Prisma.Decimal(0),
+              balanceAfter: balance,
+              betId: bet.id,
+              meta: integrationMeta('baccarat_settle', body.providerTxId),
+            },
+          });
+        }
+
+        await finalizeControls(
+          tx,
+          body.userId,
+          body.gameId,
+          original,
+          {
+            won: finalPayout.greaterThan(amount),
+            amount,
+            multiplier: finalMultiplier,
+            payout: finalPayout,
+          },
+          controlled,
+          bet.id,
+          originalResult as Prisma.InputJsonValue,
+          finalResult as Prisma.InputJsonValue,
+        );
+
+        return {
+          betId: bet.id,
+          response: {
+            balance: balance.toFixed(2),
+            betId: bet.id,
+            payout: finalPayout.toFixed(2),
+            multiplier: finalMultiplier.toFixed(4),
+            controlled: controlled.controlled,
+          },
+        };
+      },
     });
   });
 }

@@ -44,19 +44,22 @@ export class AdminAuthService {
 
   async refresh(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     const tokenHash = hashRefresh(refreshToken);
-    const record = await this.prisma.agentRefreshToken.findUnique({ where: { tokenHash } });
-    if (!record || record.revokedAt || record.expiresAt < new Date()) {
-      throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
-    }
-    await this.prisma.agentRefreshToken.update({
-      where: { id: record.id },
-      data: { revokedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      const record = await tx.agentRefreshToken.findUnique({ where: { tokenHash } });
+      if (!record || record.revokedAt || record.expiresAt < new Date()) {
+        throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
+      }
+      const revoked = await tx.agentRefreshToken.updateMany({
+        where: { id: record.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      if (revoked.count !== 1) throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
+      const agent = await tx.agent.findUniqueOrThrow({ where: { id: record.agentId } });
+      if (agent.status === 'DISABLED' || agent.status === 'DELETED') {
+        throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
+      }
+      return this.issueTokens(agent.id, agent.username, agent.role, agent.level, tx);
     });
-    const agent = await this.prisma.agent.findUniqueOrThrow({ where: { id: record.agentId } });
-    if (agent.status === 'DISABLED' || agent.status === 'DELETED') {
-      throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
-    }
-    return this.issueTokens(agent.id, agent.username, agent.role, agent.level);
   }
 
   async logout(refreshToken: string): Promise<void> {
@@ -74,6 +77,7 @@ export class AdminAuthService {
     username: string,
     role: string,
     level: number,
+    db: PrismaClient | Prisma.TransactionClient = this.prisma,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const accessToken = this.jwt.sign({
       sub: agentId,
@@ -84,7 +88,7 @@ export class AdminAuthService {
     });
     const refreshToken = randomBytes(48).toString('hex');
     const ttlMs = parseDuration(config.JWT_REFRESH_TTL);
-    await this.prisma.agentRefreshToken.create({
+    await db.agentRefreshToken.create({
       data: {
         agentId,
         tokenHash: hashRefresh(refreshToken),

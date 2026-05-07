@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { useAuthStore } from '@/stores/authStore';
 
 const sockets = new Map<string, Socket>();
 
@@ -15,6 +16,9 @@ export function getCrashSocket(gameId: string): Socket {
     transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionAttempts: 5,
+    auth: (cb) => {
+      cb({ token: useAuthStore.getState().accessToken });
+    },
   });
   sockets.set(ns, socket);
   return socket;

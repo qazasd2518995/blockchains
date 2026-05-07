@@ -32,6 +32,10 @@ export interface CrashRoomConfig {
   growthRate?: number;
 }
 
+export interface CrashRoomAuth {
+  verifyToken: (token: string) => Promise<{ userId: string }>;
+}
+
 export class CrashRoom {
   private state: CrashStatus = 'BETTING';
   private currentRoundId: string | null = null;
@@ -61,6 +65,7 @@ export class CrashRoom {
     private readonly io: Server,
     private readonly prisma: PrismaClient,
     private readonly config: CrashRoomConfig,
+    private readonly auth: CrashRoomAuth,
   ) {}
 
   get namespace(): string {
@@ -69,6 +74,17 @@ export class CrashRoom {
 
   async start(): Promise<void> {
     const nsp = this.io.of(this.namespace);
+    nsp.use(async (socket, next) => {
+      try {
+        const token = readSocketToken(socket);
+        if (!token) throw new Error('Authentication required');
+        const verified = await this.auth.verifyToken(token);
+        socket.data.userId = verified.userId;
+        next();
+      } catch (err) {
+        next(err instanceof Error ? err : new Error('Authentication required'));
+      }
+    });
     nsp.on('connection', (socket) => {
       this.handleConnection(socket);
     });
@@ -552,19 +568,20 @@ export class CrashRoom {
   private handleConnection(socket: Socket): void {
     socket.emit('round:snapshot', this.snapshot());
 
-    socket.on('bet:place', async (payload: { userId?: string; amount?: number; autoCashOut?: number }, ack?: (res: unknown) => void) => {
+    socket.on('bet:place', async (payload: { amount?: number; autoCashOut?: number }, ack?: (res: unknown) => void) => {
       try {
         if (this.state !== 'BETTING') throw new Error('Round is not accepting bets');
         if (!this.currentRoundId) throw new Error('No active round');
-        if (!payload.userId || !payload.amount) throw new Error('Missing userId/amount');
-        const res = await this.placeBet(payload.userId, payload.amount, payload.autoCashOut);
+        const userId = getSocketUserId(socket);
+        if (!payload.amount) throw new Error('Missing amount');
+        const res = await this.placeBet(userId, payload.amount, payload.autoCashOut);
         ack?.({ ok: true, ...res });
       } catch (err) {
         ack?.({ ok: false, error: (err as Error).message });
       }
     });
 
-    socket.on('bet:cashout', async (payload: { userId?: string }, ack?: (res: unknown) => void) => {
+    socket.on('bet:cashout', async (_payload: unknown, ack?: (res: unknown) => void) => {
       try {
         if (this.state !== 'RUNNING') throw new Error('Round is not running');
         if (!this.currentRoundId) throw new Error('No active round');
@@ -572,11 +589,11 @@ export class CrashRoom {
           throw new Error(`Cashout available from ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}x`);
         }
         if (this.currentMultiplier >= this.currentCrashPoint) throw new Error('Round already crashed');
-        if (!payload.userId) throw new Error('Missing userId');
+        const userId = getSocketUserId(socket);
         const bet = await this.prisma.crashBet.findFirst({
           where: {
             roundId: this.currentRoundId ?? undefined,
-            userId: payload.userId,
+            userId,
             cashedOutAt: null,
           },
         });
@@ -584,14 +601,14 @@ export class CrashRoom {
           const settledBet = await this.prisma.crashBet.findFirst({
             where: {
               roundId: this.currentRoundId ?? undefined,
-              userId: payload.userId,
+              userId,
               cashedOutAt: { not: null },
             },
             orderBy: { createdAt: 'desc' },
           });
           if (settledBet?.cashedOutAt) {
             const user = await this.prisma.user.findUniqueOrThrow({
-              where: { id: payload.userId },
+              where: { id: userId },
               select: { balance: true },
             });
             ack?.({
@@ -605,7 +622,7 @@ export class CrashRoom {
           throw new Error('No active bet');
         }
         this.pendingAutoCashouts.delete(bet.id);
-        const res = await this.settleCashout(payload.userId, bet.id, this.currentMultiplier);
+        const res = await this.settleCashout(userId, bet.id, this.currentMultiplier);
         ack?.({ ok: true, ...res });
       } catch (err) {
         ack?.({ ok: false, error: (err as Error).message });
@@ -618,7 +635,8 @@ export class CrashRoom {
     amount: number,
     autoCashOut?: number,
   ): Promise<{ betId: string; players: CrashPlayerBet[]; newBalance: string }> {
-    if (!this.currentRoundId) throw new Error('No active round');
+    const roundId = this.currentRoundId;
+    if (!roundId) throw new Error('No active round');
     if (!Number.isFinite(amount)) throw new Error('Invalid bet amount');
     if (amount < MIN_BET_AMOUNT) throw new Error(`Minimum bet is ${MIN_BET_AMOUNT.toFixed(2)}`);
     if (amount > appConfig.MAX_SINGLE_BET) {
@@ -637,26 +655,43 @@ export class CrashRoom {
     const amountD = new Prisma.Decimal(amount);
 
     const placed = await runSerializable(this.prisma, async (tx) => {
+      const round = await tx.crashRound.findUnique({
+        where: { id: roundId },
+        select: { status: true, bettingEndsAt: true },
+      });
+      if (!round || round.status !== 'BETTING') throw new Error('Round is not accepting bets');
+      if (round.bettingEndsAt && round.bettingEndsAt.getTime() <= Date.now()) {
+        throw new Error('Round is not accepting bets');
+      }
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (user.disabledAt) throw new Error('Account disabled');
       if (user.frozenAt) throw new Error('Account frozen');
       if (user.balance.lessThan(amountD)) throw new Error('Insufficient funds');
       const existingBet = await tx.crashBet.findFirst({
-        where: { roundId: this.currentRoundId!, userId },
+        where: { roundId, userId },
         select: { id: true },
       });
       if (existingBet) throw new Error('Bet already placed for this round');
-      const bet = await tx.crashBet.create({
-        data: {
-          roundId: this.currentRoundId!,
-          userId,
-          amount: amountD,
-          autoCashOut:
-            autoCashOut !== undefined
-              ? new Prisma.Decimal(autoCashOut.toFixed(4))
-              : null,
-        },
-      });
+      let bet: { id: string };
+      try {
+        bet = await tx.crashBet.create({
+          data: {
+            roundId,
+            userId,
+            amount: amountD,
+            autoCashOut:
+              autoCashOut !== undefined
+                ? new Prisma.Decimal(autoCashOut.toFixed(4))
+                : null,
+          },
+          select: { id: true },
+        });
+      } catch (err) {
+        if ((err as { code?: string })?.code === 'P2002') {
+          throw new Error('Bet already placed for this round');
+        }
+        throw err;
+      }
       const updated = await tx.user.update({
         where: { id: userId },
         data: { balance: { decrement: amountD } },
@@ -669,7 +704,7 @@ export class CrashRoom {
           balanceAfter: updated.balance,
           meta: {
             gameId: this.config.gameId,
-            roundId: this.currentRoundId,
+            roundId,
             crashBetId: bet.id,
           },
         },
@@ -691,14 +726,24 @@ export class CrashRoom {
     betId: string,
     multiplier: number,
   ): Promise<{ multiplier: number; payout: string; newBalance: string }> {
-    return runSerializable(this.prisma, async (tx) => {
+    const activeRoundId = this.currentRoundId;
+    const settled = await runSerializable(this.prisma, async (tx) => {
+      const round = activeRoundId
+        ? await tx.crashRound.findUnique({
+            where: { id: activeRoundId },
+            select: { id: true, status: true, crashPoint: true },
+          })
+        : null;
+      if (!round || round.status !== 'RUNNING') throw new Error('Round is not running');
       const bet = await tx.crashBet.findUniqueOrThrow({ where: { id: betId } });
       if (bet.cashedOutAt) throw new Error('Already cashed out');
       if (bet.userId !== userId) throw new Error('Bet does not belong to user');
+      if (bet.roundId !== round.id) throw new Error('Bet does not belong to active round');
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (user.disabledAt) throw new Error('Account disabled');
       if (user.frozenAt) throw new Error('Account frozen');
       const multD = new Prisma.Decimal(multiplier.toFixed(4));
+      if (multD.greaterThanOrEqualTo(round.crashPoint)) throw new Error('Round already crashed');
       const payout = bet.amount.mul(multD).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
       const existingControl = this.roundControlOutcomes.get(betId);
       if (existingControl?.outcome.controlled && !existingControl.outcome.won) {
@@ -735,6 +780,11 @@ export class CrashRoom {
       const settledPayout = cashoutControl.controlled && cashoutControl.won
         ? cashoutControl.payout
         : payout;
+      const claimed = await tx.crashBet.updateMany({
+        where: { id: betId, cashedOutAt: null },
+        data: { cashedOutAt: settledMultiplier, payout: settledPayout },
+      });
+      if (claimed.count !== 1) throw new Error('Already cashed out');
       const updated = await tx.user.update({
         where: { id: userId },
         data: { balance: { increment: settledPayout } },
@@ -747,15 +797,11 @@ export class CrashRoom {
           balanceAfter: updated.balance,
           meta: {
             gameId: this.config.gameId,
-            roundId: this.currentRoundId,
+            roundId: activeRoundId,
             crashBetId: betId,
             multiplier: Number(settledMultiplier.toFixed(4)),
           },
         },
-      });
-      await tx.crashBet.update({
-        where: { id: betId },
-        data: { cashedOutAt: settledMultiplier, payout: settledPayout },
       });
       const control = this.roundControlOutcomes.get(betId);
       const original = control?.original ?? cashoutOriginal;
@@ -786,14 +832,15 @@ export class CrashRoom {
           payout: settledPayout.toFixed(2),
         },
       );
-      const players = await this.getPlayers();
-      this.broadcast('bets:update', { players });
       return {
         multiplier: Number(settledMultiplier.toFixed(4)),
         payout: settledPayout.toFixed(2),
         newBalance: updated.balance.toFixed(2),
       };
     });
+    const players = await this.getPlayers();
+    this.broadcast('bets:update', { players });
+    return settled;
   }
 
   private async getPlayers(): Promise<CrashPlayerBet[]> {
@@ -815,10 +862,14 @@ export class CrashRoom {
 export class CrashRoomRegistry {
   private rooms = new Map<string, CrashRoom>();
 
-  constructor(private readonly io: Server, private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly io: Server,
+    private readonly prisma: PrismaClient,
+    private readonly auth: CrashRoomAuth,
+  ) {}
 
   register(config: CrashRoomConfig): CrashRoom {
-    const room = new CrashRoom(this.io, this.prisma, config);
+    const room = new CrashRoom(this.io, this.prisma, config, this.auth);
     this.rooms.set(config.gameId, room);
     return room;
   }
@@ -836,4 +887,22 @@ function sleep(ms: number): Promise<void> {
 
 function jitter(maxMs: number): number {
   return Math.floor(Math.random() * maxMs);
+}
+
+function readSocketToken(socket: Socket): string | null {
+  const token = socket.handshake.auth?.token;
+  if (typeof token === 'string' && token.length > 0) return token;
+  const header = socket.handshake.headers.authorization;
+  const raw = Array.isArray(header) ? header[0] : header;
+  if (!raw) return null;
+  const [scheme, value] = raw.split(' ');
+  return scheme?.toLowerCase() === 'bearer' && value ? value : null;
+}
+
+function getSocketUserId(socket: Socket): string {
+  const userId = socket.data.userId;
+  if (typeof userId !== 'string' || userId.length === 0) {
+    throw new Error('Authentication required');
+  }
+  return userId;
 }

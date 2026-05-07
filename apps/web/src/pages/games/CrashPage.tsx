@@ -379,7 +379,6 @@ export function CrashPage({ config }: Props) {
     socket.emit(
       'bet:place',
       {
-        userId: user.id,
         amount,
         autoCashOut: Number.isFinite(autoCO) && autoCO >= MIN_CASHOUT_MULTIPLIER ? autoCO : undefined,
       },
@@ -408,7 +407,7 @@ export function CrashPage({ config }: Props) {
     const socket = getCrashSocket(config.gameId);
     socket.emit(
       'bet:cashout',
-      { userId: user.id },
+      {},
       (res: { ok: boolean; error?: string; payout?: string; newBalance?: string; multiplier?: number }) => {
         if (!res.ok) {
           if (res.error?.toLowerCase().includes('no active bet') && myBetRef.current?.cashed) {

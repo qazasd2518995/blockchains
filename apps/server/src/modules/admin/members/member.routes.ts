@@ -114,11 +114,15 @@ export async function memberRoutes(fastify: FastifyInstance): Promise<void> {
     return service.updateStatus(req.admin, id, body, req);
   });
 
-  fastify.post('/:id/adjust-balance', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
-    const { id } = req.params as { id: string };
-    const body = adjustMemberBalanceSchema.parse(req.body);
-    return service.adjustBalance(req.admin, id, body, req);
-  });
+  fastify.post(
+    '/:id/adjust-balance',
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    async (req) => {
+      const { id } = req.params as { id: string };
+      const body = adjustMemberBalanceSchema.parse(req.body);
+      return service.adjustBalance(req.admin, id, body, req);
+    },
+  );
 
   fastify.post('/:id/reset-password', { preHandler: [fastify.authenticateAdmin] }, async (req, reply) => {
     const { id } = req.params as { id: string };
