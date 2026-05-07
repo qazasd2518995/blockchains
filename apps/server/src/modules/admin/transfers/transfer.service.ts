@@ -35,6 +35,9 @@ export class TransferService {
       const from = await tx.agent.findUnique({ where: { id: input.fromId } });
       const to = await tx.agent.findUnique({ where: { id: input.toId } });
       if (!from || !to) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
+      if (from.role === 'SUB_ACCOUNT' || to.role === 'SUB_ACCOUNT') {
+        throw new ApiError('INVALID_TRANSFER', 'Sub-account cannot transfer points');
+      }
       if (from.balance.lessThan(amount)) throw new ApiError('INSUFFICIENT_FUNDS', 'From agent insufficient');
 
       const fromAfter = from.balance.sub(amount);

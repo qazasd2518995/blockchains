@@ -1,13 +1,27 @@
 import { z } from 'zod';
 
-const decimal = z.string().regex(/^-?\d+(\.\d+)?$/);
+const signedDecimal = z.string().regex(/^-?\d+(\.\d+)?$/);
+const decimal = z.string().regex(/^\d+(\.\d+)?$/);
+const positiveDecimal = decimal.refine((value) => Number.parseFloat(value) > 0, 'must be > 0');
+const rateDecimal = decimal.refine((value) => {
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) && n >= 0 && n <= 100;
+}, 'must be between 0 and 100');
+const positiveRateDecimal = decimal.refine((value) => {
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) && n > 0 && n <= 100;
+}, 'must be > 0 and <= 100');
+const fractionDecimal = decimal.refine((value) => {
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) && n >= 0 && n <= 1;
+}, 'must be between 0 and 1');
 
 export const winLossControlSchema = z.object({
   controlMode: z.enum(['NORMAL', 'AGENT_LINE', 'SINGLE_MEMBER', 'AUTO_DETECT']),
   targetType: z.enum(['agent', 'member']).optional().nullable(),
   targetId: z.string().optional().nullable(),
   targetUsername: z.string().optional().nullable(),
-  controlPercentage: decimal.default('50'),
+  controlPercentage: positiveRateDecimal.default('50'),
   winControl: z.boolean().default(false),
   lossControl: z.boolean().default(false),
   startPeriod: z.string().optional().nullable(),
@@ -16,28 +30,28 @@ export const winLossControlSchema = z.object({
 export const winCapControlSchema = z.object({
   memberId: z.string(),
   memberUsername: z.string(),
-  winCapAmount: decimal,
-  controlWinRate: decimal.default('0.70'),
-  triggerThreshold: decimal.default('0.80'),
+  winCapAmount: positiveDecimal,
+  controlWinRate: fractionDecimal.default('0.70'),
+  triggerThreshold: fractionDecimal.default('0.80'),
   notes: z.string().max(500).optional(),
 });
 
 export const depositControlSchema = z.object({
   memberId: z.string(),
   memberUsername: z.string(),
-  depositAmount: decimal,
-  targetProfit: decimal,
+  depositAmount: positiveDecimal,
+  targetProfit: positiveDecimal,
   startBalance: decimal,
-  controlWinRate: decimal.default('0.70'),
+  controlWinRate: fractionDecimal.default('0.70'),
   notes: z.string().max(500).optional(),
 });
 
 export const agentLineControlSchema = z.object({
   agentId: z.string(),
   agentUsername: z.string(),
-  dailyCap: decimal,
-  controlWinRate: decimal.default('0.70'),
-  triggerThreshold: decimal.default('0.80'),
+  dailyCap: positiveDecimal,
+  controlWinRate: fractionDecimal.default('0.70'),
+  triggerThreshold: fractionDecimal.default('0.80'),
   notes: z.string().max(500).optional(),
 });
 
@@ -56,11 +70,11 @@ export const burstControlSchema = z
     singleMultiplierCap: decimal.default('100'),
     minBurstMultiplier: decimal.optional(),
     smallWinMultiplier: decimal.default('1.5'),
-    burstRate: decimal.default('0.03'),
-    smallWinRate: decimal.default('0.35'),
-    lossRate: decimal.default('0.45'),
+    burstRate: rateDecimal.default('0.03'),
+    smallWinRate: rateDecimal.default('0.35'),
+    lossRate: rateDecimal.default('0.45'),
     compensationLoss: decimal.default('500'),
-    capitalRetentionRatio: decimal.default('0.30'),
+    capitalRetentionRatio: rateDecimal.default('0.30'),
     minEligibilityLoss: decimal.default('0'),
     riskWinLimit: decimal.optional(),
     cooldownRounds: z.coerce.number().int().min(0).max(200).default(8),
@@ -154,7 +168,7 @@ export const manualDetectionControlSchema = z
     targetAgentUsername: z.string().optional().nullable(),
     targetMemberId: z.string().optional().nullable(),
     targetMemberUsername: z.string().optional().nullable(),
-    targetSettlement: decimal,
+    targetSettlement: signedDecimal,
     controlPercentage: z.coerce.number().int().min(1).max(100).default(50),
   })
   .superRefine((value, ctx) => {

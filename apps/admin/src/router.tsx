@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { AdminGuard, AdminGuestGuard } from '@/components/layout/AdminGuard';
+import { useAdminAuthStore } from '@/stores/adminAuthStore';
 
 const AdminLoginPage = lazy(() => import('@/pages/auth/AdminLoginPage').then((m) => ({ default: m.AdminLoginPage })));
 const AdminDashboardPage = lazy(() => import('@/pages/dashboard/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
@@ -24,6 +25,12 @@ function RouteLoading(): JSX.Element {
 
 function suspended(element: ReactNode): JSX.Element {
   return <Suspense fallback={<RouteLoading />}>{element}</Suspense>;
+}
+
+function SuperAdminOnly({ children }: { children: ReactNode }): JSX.Element {
+  const { agent } = useAdminAuthStore();
+  if (agent?.role !== 'SUPER_ADMIN') return <Navigate to="/admin/dashboard" replace />;
+  return <>{children}</>;
 }
 
 export const router = createBrowserRouter([
@@ -60,10 +67,10 @@ export const router = createBrowserRouter([
       { path: '/admin/members/:id/bets', element: suspended(<MemberBetRecordsPage />) },
       { path: '/admin/transfers', element: suspended(<TransfersPage />) },
       { path: '/admin/reports', element: suspended(<ReportsPage />) },
-      { path: '/admin/controls', element: suspended(<ControlsOverviewPage />) },
+      { path: '/admin/controls', element: suspended(<SuperAdminOnly><ControlsOverviewPage /></SuperAdminOnly>) },
       { path: '/admin/audit', element: suspended(<AuditLogPage />) },
       { path: '/admin/subaccounts', element: suspended(<SubAccountsPage />) },
-      { path: '/admin/announcements', element: suspended(<AnnouncementsPage />) },
+      { path: '/admin/announcements', element: suspended(<SuperAdminOnly><AnnouncementsPage /></SuperAdminOnly>) },
     ],
   },
   {

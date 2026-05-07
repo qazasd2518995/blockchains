@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
 const decimalString = z.string().regex(/^-?\d+(\.\d+)?$/);
+const nonNegativeMoneyString = z
+  .string()
+  .regex(/^\d+(\.\d{1,2})?$/)
+  .refine((value) => Number.parseFloat(value) >= 0, 'must be >= 0');
 const adminDateInputSchema = z.string().refine((value) => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return true;
   return Number.isFinite(new Date(value).getTime());
@@ -15,7 +19,7 @@ export const createMemberSchema = z.object({
     .regex(/^[a-zA-Z0-9._-]+$/, 'Username may only contain letters, digits, and . _ -'),
   password: z.string().min(8).max(128).regex(/[A-Za-z]/).regex(/\d/),
   displayName: z.string().min(1).max(40).optional(),
-  initialBalance: decimalString.optional(),
+  initialBalance: nonNegativeMoneyString.optional(),
   bettingLimitLevel: z.string().optional(),
   notes: z.string().max(500).optional(),
 });

@@ -30,7 +30,7 @@ export class AgentService {
 
   async listDirectChildren(parentId: string): Promise<AgentPublic[]> {
     const rows = await this.prisma.agent.findMany({
-      where: { parentId, status: { not: 'DELETED' } },
+      where: { parentId, role: { not: 'SUB_ACCOUNT' }, status: { not: 'DELETED' } },
       orderBy: { createdAt: 'desc' },
     });
     return rows.map(toPublic);
@@ -39,6 +39,7 @@ export class AgentService {
   async getById(operator: AdminCurrent, id: string): Promise<AgentPublic> {
     const agent = await this.prisma.agent.findUnique({ where: { id } });
     if (!agent) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
+    if (agent.role === 'SUB_ACCOUNT') throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot access this agent');
     return toPublic(agent);
@@ -46,7 +47,7 @@ export class AgentService {
 
   async getTree(rootId: string): Promise<AgentTreeNode> {
     const all = await this.prisma.agent.findMany({
-      where: { status: { not: 'DELETED' } },
+      where: { role: { not: 'SUB_ACCOUNT' }, status: { not: 'DELETED' } },
       orderBy: { level: 'asc' },
     });
     const memberCounts = await this.prisma.user.groupBy({
@@ -158,6 +159,7 @@ export class AgentService {
   ): Promise<AgentPublic> {
     const existing = await this.prisma.agent.findUnique({ where: { id } });
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
+    if (existing.role === 'SUB_ACCOUNT') throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot update this agent');
 
@@ -189,6 +191,7 @@ export class AgentService {
   ): Promise<AgentPublic> {
     const existing = await this.prisma.agent.findUnique({ where: { id }, include: { parent: true } });
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
+    if (existing.role === 'SUB_ACCOUNT') throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot modify rebate');
     const nextElectronicMode = input.rebateMode ?? existing.rebateMode;
@@ -295,6 +298,7 @@ export class AgentService {
   ): Promise<AgentPublic> {
     const existing = await this.prisma.agent.findUnique({ where: { id } });
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
+    if (existing.role === 'SUB_ACCOUNT') throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot change status');
     if (existing.role === 'SUPER_ADMIN' && input.status !== 'ACTIVE') {
@@ -330,6 +334,7 @@ export class AgentService {
   ): Promise<AgentPublic> {
     const existing = await this.prisma.agent.findUnique({ where: { id } });
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
+    if (existing.role === 'SUB_ACCOUNT') throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot modify betting limit');
     const updated = await this.prisma.agent.update({
@@ -356,6 +361,7 @@ export class AgentService {
   ): Promise<void> {
     const existing = await this.prisma.agent.findUnique({ where: { id } });
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
+    if (existing.role === 'SUB_ACCOUNT') throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot reset password');
     const passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);

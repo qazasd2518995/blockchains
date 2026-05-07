@@ -80,10 +80,10 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
       ? {
           OR: [{ parentId: null }, { parentId: req.admin.id }],
           id: { not: req.admin.id },
-          role: { not: 'SUPER_ADMIN' },
+          role: { notIn: ['SUPER_ADMIN', 'SUB_ACCOUNT'] },
           status: { not: 'DELETED' },
         }
-      : { parentId, status: { not: 'DELETED' } };
+      : { parentId, role: { not: 'SUB_ACCOUNT' }, status: { not: 'DELETED' } };
     const memberBaseWhere: Prisma.UserWhereInput = isPlatformRoot
       ? { OR: [{ agentId: null }, { agentId: req.admin.id }] }
       : { agentId: parentId };
@@ -137,7 +137,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
     const childCountsRaw = agents.length > 0
       ? await fastify.prisma.agent.groupBy({
           by: ['parentId'],
-          where: { parentId: { in: agents.map((a) => a.id) } },
+          where: { parentId: { in: agents.map((a) => a.id) }, role: { not: 'SUB_ACCOUNT' } },
           _count: { _all: true },
         })
       : [];

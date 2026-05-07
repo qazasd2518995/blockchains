@@ -73,6 +73,11 @@ async function serializeManualControl(
  * 所有 mutation 都寫 AuditLog。
  */
 export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
+  fastify.addHook('preHandler', async (req, reply) => {
+    await fastify.authenticateAdmin(req, reply);
+    await fastify.requireSuperAdmin(req, reply);
+  });
+
   fastify.get('/logs', { preHandler: [fastify.authenticateAdmin] }, async () => {
     const logs = await fastify.prisma.winLossControlLogs.findMany({
       orderBy: { createdAt: 'desc' },

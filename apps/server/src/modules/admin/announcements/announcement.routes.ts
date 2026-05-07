@@ -7,10 +7,15 @@ import {
 import { writeAudit } from '../audit/audit.service.js';
 
 /**
- * 公告管理 CRUD（僅 super-admin 可建立/改/刪；所有已登入代理可讀）。
+ * 公告管理 CRUD（僅 super-admin 可瀏覽、建立、修改、刪除）。
  * 所有 mutation 都寫 AuditLog。
  */
 export async function announcementRoutes(fastify: FastifyInstance): Promise<void> {
+  fastify.addHook('preHandler', async (req, reply) => {
+    await fastify.authenticateAdmin(req, reply);
+    await fastify.requireSuperAdmin(req, reply);
+  });
+
   fastify.get('/', { preHandler: [fastify.authenticateAdmin] }, async () => {
     const items = await fastify.prisma.announcement.findMany({
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],

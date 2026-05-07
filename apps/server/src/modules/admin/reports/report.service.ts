@@ -342,7 +342,7 @@ export class ReportService {
     if (!root) throw new ApiError('AGENT_NOT_FOUND', 'Root agent not found');
 
     const children = await this.prisma.agent.findMany({
-      where: { parentId: rootId, status: { not: 'DELETED' } },
+      where: { parentId: rootId, role: { not: 'SUB_ACCOUNT' }, status: { not: 'DELETED' } },
       orderBy: { createdAt: 'asc' },
     });
 

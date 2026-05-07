@@ -8,15 +8,20 @@ import { useTranslation } from '@/i18n/useTranslation';
 export function TransfersPage(): JSX.Element {
   const { t } = useTranslation();
   const [items, setItems] = useState<TransferEntry[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancel = false;
     (async () => {
       try {
-        const res = await adminApi.get<TransferListResponse>('/transfers');
-        if (!cancel) setItems(res.data.items);
+        const res = await adminApi.get<TransferListResponse>('/transfers', { params: { limit: '50' } });
+        if (!cancel) {
+          setItems(res.data.items);
+          setNextCursor(res.data.nextCursor);
+        }
       } catch (e) {
         if (!cancel) setError(extractApiError(e).message);
       } finally {
@@ -27,6 +32,22 @@ export function TransfersPage(): JSX.Element {
       cancel = true;
     };
   }, []);
+
+  const loadMore = async (): Promise<void> => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await adminApi.get<TransferListResponse>('/transfers', {
+        params: { cursor: nextCursor, limit: '50' },
+      });
+      setItems((current) => [...current, ...res.data.items]);
+      setNextCursor(res.data.nextCursor);
+    } catch (e) {
+      setError(extractApiError(e).message);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const columns: Column<TransferEntry>[] = [
     {
@@ -97,7 +118,21 @@ export function TransfersPage(): JSX.Element {
       {loading ? (
         <div className="crt-panel p-8 text-center text-ink-500">{t.common.loading}…</div>
       ) : (
-        <DataTable columns={columns} rows={items} rowKey={(r) => r.id} empty={t.transfers.noTransfer} />
+        <>
+          <DataTable columns={columns} rows={items} rowKey={(r) => r.id} empty={t.transfers.noTransfer} />
+          {nextCursor && (
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => void loadMore()}
+                disabled={loadingMore}
+                className="btn-teal-outline"
+              >
+                {loadingMore ? t.common.loading : '加载更多'}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
