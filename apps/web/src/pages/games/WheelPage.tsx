@@ -82,18 +82,20 @@ export function WheelPage() {
       sceneRef.current?.playWinFx(res.data.multiplier, res.data.multiplier > 1);
       setResult(res.data);
       setBalance(res.data.newBalance);
-      setHistory((prev) => [
-        {
-          id: res.data.betId,
-          timestamp: Date.now(),
-          betAmount: amount,
-          multiplier: res.data.multiplier,
-          payout: amount * res.data.multiplier,
-          won: res.data.multiplier > 1,
-          detail: `${risk} · ${segments} 段`,
-        },
-        ...prev,
-      ].slice(0, 30));
+      setHistory((prev) =>
+        [
+          {
+            id: res.data.betId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: res.data.multiplier,
+            payout: amount * res.data.multiplier,
+            won: res.data.multiplier > 1,
+            detail: `${risk} · ${segments} 段`,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
     } catch (err) {
       sceneRef.current?.stopAnticipation();
       setError(extractApiError(err).message);
@@ -112,7 +114,7 @@ export function WheelPage() {
         titleSuffix={t.games.wheel.suffix}
         titleSuffixColor="ember"
         description={t.games.wheel.description}
-        rtpLabel="RTP 96%"
+        rtpLabel="RTP 99%"
         rtpAccent="ember"
       />
 
@@ -120,7 +122,9 @@ export function WheelPage() {
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">彩色轉輪</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Wheel</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">彩色轉輪</span>
+              <span className="ml-2 text-white/40">·</span>
+              <span className="ml-2 text-white/55 uppercase">Wheel</span>
               <span className="text-white/72">
                 {segments} {t.games.wheel.segments} · {t.games.mines[risk]}
               </span>
@@ -143,7 +147,9 @@ export function WheelPage() {
           </div>
 
           {result && (
-            <div className={`game-result-card ${result.multiplier > 0 ? 'game-result-card-win' : 'game-result-card-loss'}`}>
+            <div
+              className={`game-result-card ${result.multiplier > 0 ? 'game-result-card-win' : 'game-result-card-loss'}`}
+            >
               <div className="flex items-baseline justify-between">
                 <div>
                   <div className="font-display text-4xl text-white">
@@ -220,10 +226,14 @@ export function WheelPage() {
             </button>
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
+                {t.bet.balance}{' '}
+                <span className="data-num ml-1 text-white">
+                  {user ? formatAmount(balance) : '登入後顯示'}
+                </span>
               </span>
               <span>
-                {t.games.wheel.segments} <span className="data-num ml-1 text-[#FCA5A5]">{segments}</span>
+                {t.games.wheel.segments}{' '}
+                <span className="data-num ml-1 text-[#FCA5A5]">{segments}</span>
               </span>
             </div>
           </div>

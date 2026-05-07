@@ -294,10 +294,10 @@ const GAMES: Game[] = [
     rtp: '99%',
     maxMultiplier: '9,900×',
     duration: '單局 3 秒',
-    intro: '經典骰寶玩法，預測骰子點數落在門檻上方或下方即贏。',
+    intro: '經典 Dice 玩法，預測點數低於門檻或大於等於門檻即贏。',
     howToPlay: [
       '設定門檻值（0.01–99.99）並選擇「Over」或「Under」。',
-      '系統開出 0.00–100.00 的點數，符合預測即勝出。',
+      '系統開出 0.00–99.99 的點數，符合預測即勝出。',
       '勝率越低、賠率越高，依門檻自動換算。',
     ],
     tips: '骰子 RTP 高達 99%，是長期最穩定的玩法之一。',
@@ -308,16 +308,16 @@ const GAMES: Game[] = [
     name: '迷你輪盤',
     english: 'Mini Roulette',
     cover: '/game-art/mini-roulette/cover.png',
-    rtp: '97%',
-    maxMultiplier: '36×',
+    rtp: '96.15%',
+    maxMultiplier: '12×',
     duration: '單局 8 秒',
-    intro: '歐式迷你輪盤，下注號碼或紅黑、奇偶、大小皆可。',
+    intro: '13 格迷你輪盤，下注號碼或紅黑、奇偶、大小皆可。',
     howToPlay: [
       '在桌面下注號碼、顏色、奇偶或區段。',
       '所有下注確認後點擊「開始旋轉」開球。',
-      '球落定後依下注區自動派彩。',
+      '球落定後依下注區自動派彩；未覆蓋 0 的下注出 0 時半退。',
     ],
-    tips: '單號賠率 35:1，外圍下注勝率較高、賠率較低，依風格選擇。',
+    tips: '單號賠率 11:1，外圍下注勝率較高、賠率較低，依風格選擇。',
   },
   {
     id: 'wheel',
@@ -325,8 +325,8 @@ const GAMES: Game[] = [
     name: '彩色轉輪',
     english: 'Color Wheel',
     cover: '/game-art/wheel/cover.png',
-    rtp: '97%',
-    maxMultiplier: '250×',
+    rtp: '99%',
+    maxMultiplier: '49.5×',
     duration: '單局 6 秒',
     intro: '旋轉轉輪，指針停在你押注的顏色即贏。',
     howToPlay: [
@@ -413,10 +413,10 @@ const GAMES: Game[] = [
     rtp: '96.5%',
     maxMultiplier: '5,000×+',
     duration: '單局 5 秒',
-    intro: '6 軸 5 列 Mega 老虎機，全方式連續軸派彩，含連鎖消除、倍數符號與免費旋轉。',
+    intro: '6 軸 5 列 Mega 老虎機，同符號計數派彩，含連鎖消除、倍數符號與免費旋轉。',
     howToPlay: [
       '選擇下注金額後點擊「旋轉」開始。',
-      '相同符號從最左或最右連續出現在至少 3 軸即可派彩。',
+      '同一符號在盤面累積達指定數量即可派彩，派彩後會進入連鎖消除。',
       '基礎局累積 4 個以上 SCATTER 觸發免費旋轉；免費局 3 個以上 SCATTER 追加次數。',
     ],
     tips: '適合喜歡雷電爆分、連鎖視覺與高波動節奏的玩家。',
@@ -430,10 +430,10 @@ const GAMES: Game[] = [
     rtp: '96.5%',
     maxMultiplier: '5,000×+',
     duration: '單局 5 秒',
-    intro: '龍焰主題 6x5 全方式老虎機，低倍回本、高倍爆分、免費旋轉與特殊倍數會交錯出現。',
+    intro: '龍焰主題 6x5 計數派彩老虎機，低倍回本、高倍爆分、免費旋轉與特殊倍數會交錯出現。',
     howToPlay: [
       '下注後旋轉 6 軸 5 列盤面。',
-      '連續軸上相同符號越多，基礎倍率越高。',
+      '盤面上相同符號累積越多，基礎倍率越高。',
       '倍數符號會套用在本局贏分；免費旋轉中倍數會持續累積。',
     ],
     tips: '龍焰巨輪適合追求中高波動與視覺爆發感。',
@@ -447,10 +447,10 @@ const GAMES: Game[] = [
     rtp: '96.5%',
     maxMultiplier: '5,000×+',
     duration: '單局 5 秒',
-    intro: '科幻星河風格 6x5 全方式老虎機，重點是多線小派彩、連鎖消除與偶發高倍。',
+    intro: '科幻星河風格 6x5 計數派彩老虎機，重點是小派彩、連鎖消除與偶發高倍。',
     howToPlay: [
-      '相同符號從任一側開始連續 3 軸以上即有派彩。',
-      '多個方式同時成立時，系統會合計全部倍率。',
+      '同一符號在盤面累積達指定數量即有派彩。',
+      '多個符號同時成立時，系統會合計全部倍率。',
       '派彩可能小於下注；若出現倍數符號或免費旋轉，獎金會繼續放大。',
     ],
     tips: '星河寶藏節奏偏中波動，適合連玩觀察方式累積。',
@@ -464,9 +464,9 @@ const GAMES: Game[] = [
     rtp: '96.5%',
     maxMultiplier: '5,000×+',
     duration: '單局 5 秒',
-    intro: '雨林遺跡風格 6x5 全方式老虎機，低倍符號容易形成回本獎，SCATTER 可開免費旋轉。',
+    intro: '雨林遺跡風格 6x5 計數派彩老虎機，低倍符號容易形成回本獎，SCATTER 可開免費旋轉。',
     howToPlay: [
-      '轉軸停止後自動檢查左右兩側連續軸。',
+      '轉軸停止後自動檢查同符號累積數量。',
       '低階符號可形成 0.3x、0.5x 等小派彩。',
       '免費旋轉中取得倍數符號會累積倍率，後續中獎會用累積倍率放大。',
     ],
@@ -481,9 +481,9 @@ const GAMES: Game[] = [
     rtp: '96.5%',
     maxMultiplier: '5,000×+',
     duration: '單局 5 秒',
-    intro: '哥德暗夜風格 6x5 全方式老虎機，部分回本、高倍古堡符號、特殊倍數與免費旋轉並存。',
+    intro: '哥德暗夜風格 6x5 計數派彩老虎機，部分回本、高倍古堡符號、特殊倍數與免費旋轉並存。',
     howToPlay: [
-      '下注後旋轉，至少 3 軸連續相同符號才派彩。',
+      '下注後旋轉，同符號累積達指定數量才派彩。',
       '總倍率小於 1x 時仍會顯示小中獎派彩，但盈虧為負。',
       '達到高倍、倍數符號加成或免費旋轉累積時會顯示爆分慶祝動畫。',
     ],
@@ -515,9 +515,9 @@ const GAMES: Game[] = [
     rtp: '99%',
     maxMultiplier: '999×',
     duration: '可連續多局',
-    intro: '猜下一張牌比目前牌大或小，連對越多倍率越高。',
+    intro: '猜下一張牌大於等於或小於等於目前牌，連對越多倍率越高。',
     howToPlay: [
-      '系統發出第一張牌，預測下一張比它大或小。',
+      '系統發出第一張牌，預測下一張大於等於或小於等於它。',
       '猜對則倍率累積，可選擇繼續或領獎。',
       '猜錯則當局結束，獎金歸零。',
     ],
@@ -610,7 +610,8 @@ export function VerifyPage() {
   const [activeHall, setActiveHall] = useState<HallKey | 'all'>('all');
 
   const filteredGames = activeHall === 'all' ? GAMES : GAMES.filter((g) => g.hall === activeHall);
-  const activeHallMeta = activeHall === 'all' ? null : HALLS.find((hall) => hall.key === activeHall);
+  const activeHallMeta =
+    activeHall === 'all' ? null : HALLS.find((hall) => hall.key === activeHall);
 
   return (
     <>
@@ -696,172 +697,187 @@ export function VerifyPage() {
       </div>
 
       <div className="verify-page hidden max-w-full space-y-5 overflow-x-hidden pb-24 sm:space-y-8 sm:pb-0 lg:block">
-      <section className="grid min-w-0 gap-3 sm:gap-6 xl:grid-cols-12">
-        <div className="relative min-w-0 max-w-full overflow-hidden rounded-[20px] bg-[#0F172A] p-4 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)] sm:rounded-[28px] sm:p-6 md:p-8 xl:col-span-8 2xl:col-span-9">
-          <img
-            src="/backgrounds/game-guide-bg.png"
-            alt=""
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[68%_center] sm:object-[72%_center]"
-          />
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(7,15,28,0.96)_0%,rgba(7,15,28,0.9)_42%,rgba(7,15,28,0.52)_100%)]" />
+        <section className="grid min-w-0 gap-3 sm:gap-6 xl:grid-cols-12">
+          <div className="relative min-w-0 max-w-full overflow-hidden rounded-[20px] bg-[#0F172A] p-4 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)] sm:rounded-[28px] sm:p-6 md:p-8 xl:col-span-8 2xl:col-span-9">
+            <img
+              src="/backgrounds/game-guide-bg.png"
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[68%_center] sm:object-[72%_center]"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(7,15,28,0.96)_0%,rgba(7,15,28,0.9)_42%,rgba(7,15,28,0.52)_100%)]" />
 
-          <div className="relative z-10">
-            <div className="label !text-white/[0.55]">Game Guide</div>
-            <div className="mt-3 flex items-start gap-3 sm:mt-4 sm:gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-white/10 sm:h-12 sm:w-12">
-                <BookOpen className="h-5 w-5 text-[#E8D48A] sm:h-6 sm:w-6" aria-hidden="true" />
+            <div className="relative z-10">
+              <div className="label !text-white/[0.55]">Game Guide</div>
+              <div className="mt-3 flex items-start gap-3 sm:mt-4 sm:gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-white/10 sm:h-12 sm:w-12">
+                  <BookOpen className="h-5 w-5 text-[#E8D48A] sm:h-6 sm:w-6" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 max-w-full">
+                  <h1 className="max-w-full break-words text-[24px] font-bold leading-[1.12] [overflow-wrap:anywhere] sm:text-[32px] md:text-[40px]">
+                    {GAMES.length} 款人氣玩法，一頁讀懂規則與賠率。
+                  </h1>
+                  <p className="mt-3 max-w-3xl break-words text-[13px] leading-6 text-white/[0.78] [overflow-wrap:anywhere] sm:text-[14px] sm:leading-relaxed">
+                    飛行、棋牌牌桌、拉霸、輪盤、即開電子、策略挑戰六大主題館，從快節奏 Crash
+                    到講究牌路節奏的百家與 21
+                    點，挑你今晚最想開的那一桌。每款遊戲都附上玩法步驟、RTP
+                    與最高倍率，幫你快速上手。
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0 max-w-full">
-                <h1 className="max-w-full break-words text-[24px] font-bold leading-[1.12] [overflow-wrap:anywhere] sm:text-[32px] md:text-[40px]">
-                  {GAMES.length} 款人氣玩法，一頁讀懂規則與賠率。
-                </h1>
-                <p className="mt-3 max-w-3xl break-words text-[13px] leading-6 text-white/[0.78] [overflow-wrap:anywhere] sm:text-[14px] sm:leading-relaxed">
-                  飛行、棋牌牌桌、拉霸、輪盤、即開電子、策略挑戰六大主題館，從快節奏 Crash 到講究牌路節奏的百家與 21 點，挑你今晚最想開的那一桌。每款遊戲都附上玩法步驟、RTP 與最高倍率，幫你快速上手。
-                </p>
+
+              <div className="mt-5 flex gap-2 overflow-x-auto pb-1 text-[12px] sm:mt-6 sm:flex-wrap sm:overflow-visible sm:pb-0">
+                <span className="shrink-0 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">
+                  RTP 96%–99%
+                </span>
+                <span className="shrink-0 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">
+                  最高 1,000,000×
+                </span>
+                <span className="shrink-0 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">
+                  即時派彩到帳
+                </span>
               </div>
-            </div>
 
-            <div className="mt-5 flex gap-2 overflow-x-auto pb-1 text-[12px] sm:mt-6 sm:flex-wrap sm:overflow-visible sm:pb-0">
-              <span className="shrink-0 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">RTP 96%–99%</span>
-              <span className="shrink-0 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">最高 1,000,000×</span>
-              <span className="shrink-0 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">即時派彩到帳</span>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-2 sm:mt-6">
-              <Link
-                to="/lobby"
-                className="btn-chip border-white/15 bg-white/[0.06] text-white hover:border-white/30 hover:bg-white/[0.12]"
-              >
-                直接進入大廳
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+              <div className="mt-5 flex flex-wrap gap-2 sm:mt-6">
+                <Link
+                  to="/lobby"
+                  className="btn-chip border-white/15 bg-white/[0.06] text-white hover:border-white/30 hover:bg-white/[0.12]"
+                >
+                  直接進入大廳
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
 
-        <aside className="min-w-0 max-w-full overflow-hidden rounded-[22px] border border-white/[0.65] bg-white/[0.92] p-3 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-[24px] sm:p-6 xl:col-span-4 2xl:col-span-3">
-          <div className="label">Hall Filter</div>
-          <h2 className="mt-2 text-[18px] font-bold text-[#0F172A] sm:mt-3 sm:text-[20px]">挑一館深入看玩法</h2>
-          <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:mt-4 sm:block sm:space-y-2 sm:overflow-visible sm:px-0 sm:pb-0">
-            <button
-              type="button"
-              onClick={() => setActiveHall('all')}
-              className={`flex shrink-0 items-center justify-between gap-2 rounded-full border px-4 py-2.5 text-[13px] font-semibold transition sm:w-full ${
-                activeHall === 'all'
-                  ? 'border-[#0F172A] bg-[#0F172A] text-white'
-                  : 'border-[#E5E7EB] bg-white text-[#0F172A] hover:border-[#0F172A]/40'
-              }`}
-            >
-              <span>全部 {GAMES.length} 款</span>
-              <span className="text-[12px] opacity-70">{GAMES.length}</span>
-            </button>
-            {HALLS.map((hall) => {
-              const count = GAMES.filter((g) => g.hall === hall.key).length;
-              const active = activeHall === hall.key;
+          <aside className="min-w-0 max-w-full overflow-hidden rounded-[22px] border border-white/[0.65] bg-white/[0.92] p-3 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-[24px] sm:p-6 xl:col-span-4 2xl:col-span-3">
+            <div className="label">Hall Filter</div>
+            <h2 className="mt-2 text-[18px] font-bold text-[#0F172A] sm:mt-3 sm:text-[20px]">
+              挑一館深入看玩法
+            </h2>
+            <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:mt-4 sm:block sm:space-y-2 sm:overflow-visible sm:px-0 sm:pb-0">
+              <button
+                type="button"
+                onClick={() => setActiveHall('all')}
+                className={`flex shrink-0 items-center justify-between gap-2 rounded-full border px-4 py-2.5 text-[13px] font-semibold transition sm:w-full ${
+                  activeHall === 'all'
+                    ? 'border-[#0F172A] bg-[#0F172A] text-white'
+                    : 'border-[#E5E7EB] bg-white text-[#0F172A] hover:border-[#0F172A]/40'
+                }`}
+              >
+                <span>全部 {GAMES.length} 款</span>
+                <span className="text-[12px] opacity-70">{GAMES.length}</span>
+              </button>
+              {HALLS.map((hall) => {
+                const count = GAMES.filter((g) => g.hall === hall.key).length;
+                const active = activeHall === hall.key;
+                return (
+                  <button
+                    key={hall.key}
+                    type="button"
+                    onClick={() => setActiveHall(hall.key)}
+                    className={`flex shrink-0 items-center justify-between gap-2 rounded-full border px-4 py-2.5 text-[13px] font-semibold transition sm:w-full ${
+                      active
+                        ? 'border-[#0F172A] bg-[#0F172A] text-white'
+                        : 'border-[#E5E7EB] bg-white text-[#0F172A] hover:border-[#0F172A]/40'
+                    }`}
+                  >
+                    <span>{hall.title}</span>
+                    <span className="text-[12px] opacity-70">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+        </section>
+
+        <section className="space-y-4 sm:space-y-5">
+          <SectionHeading
+            eyebrow="Game Catalogue"
+            title={
+              activeHall === 'all'
+                ? `${GAMES.length} 款遊戲完整玩法`
+                : `${HALLS.find((h) => h.key === activeHall)?.title} 玩法詳解`
+            }
+            description="點開卡片看每款遊戲的下注步驟、賠率上限與操作要點。"
+          />
+
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredGames.map((game) => {
+              const hall = HALLS.find((h) => h.key === game.hall)!;
               return (
-                <button
-                  key={hall.key}
-                  type="button"
-                  onClick={() => setActiveHall(hall.key)}
-                  className={`flex shrink-0 items-center justify-between gap-2 rounded-full border px-4 py-2.5 text-[13px] font-semibold transition sm:w-full ${
-                    active
-                      ? 'border-[#0F172A] bg-[#0F172A] text-white'
-                      : 'border-[#E5E7EB] bg-white text-[#0F172A] hover:border-[#0F172A]/40'
-                  }`}
+                <article
+                  key={game.id}
+                  className="relative flex flex-col overflow-hidden rounded-[18px] border border-white/10 bg-[#0B1322] text-white shadow-[0_16px_40px_rgba(2,6,23,0.45)] sm:rounded-[22px]"
                 >
-                  <span>{hall.title}</span>
-                  <span className="text-[12px] opacity-70">{count}</span>
-                </button>
+                  <img
+                    src={game.cover}
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.55]"
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      background:
+                        'linear-gradient(180deg, rgba(7,15,28,0.35) 0%, rgba(7,15,28,0.78) 38%, rgba(7,15,28,0.94) 70%, rgba(7,15,28,0.97) 100%)',
+                    }}
+                  />
+
+                  <div className="relative z-10 flex flex-1 flex-col p-4 sm:p-6">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div
+                          className="inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] backdrop-blur"
+                          style={{
+                            backgroundColor: `${hall.tone}33`,
+                            borderColor: `${hall.tone}80`,
+                            color: '#FFE8B0',
+                          }}
+                        >
+                          {hall.title}
+                        </div>
+                        <h3 className="mt-3 text-[21px] font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] sm:text-[24px]">
+                          {game.name}
+                        </h3>
+                        <p className="mt-1 text-[12px] uppercase tracking-[0.18em] text-white/55">
+                          {game.english}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-[13px] leading-relaxed text-white/80">{game.intro}</p>
+
+                    <dl className="mt-4 grid grid-cols-3 gap-1.5 rounded-[14px] border border-white/10 bg-white/[0.06] p-2.5 text-center backdrop-blur sm:mt-5 sm:gap-2 sm:rounded-[16px] sm:p-3">
+                      <Stat label="RTP" value={game.rtp} />
+                      <Stat label="最高倍率" value={game.maxMultiplier} />
+                      <Stat label="單局時長" value={game.duration} />
+                    </dl>
+
+                    <div className="mt-4 sm:mt-5">
+                      <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#E8D48A]">
+                        玩法步驟
+                      </div>
+                      <ol className="mt-2 space-y-1.5 text-[12px] leading-relaxed text-white/85 sm:text-[13px]">
+                        {game.howToPlay.map((step, index) => (
+                          <li key={index} className="flex gap-2">
+                            <span className="font-semibold text-[#F3D67D]">{index + 1}.</span>
+                            <span>{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    <div className="mt-4 rounded-[14px] border border-[#E8D48A]/35 bg-[#1F1A0E]/70 p-3 text-[12px] leading-relaxed text-[#F5DFA0] backdrop-blur sm:mt-5">
+                      <span className="font-semibold text-[#FFE8B0]">小提示：</span>
+                      {game.tips}
+                    </div>
+                  </div>
+                </article>
               );
             })}
           </div>
-        </aside>
-      </section>
-
-      <section className="space-y-4 sm:space-y-5">
-        <SectionHeading
-          eyebrow="Game Catalogue"
-          title={activeHall === 'all' ? `${GAMES.length} 款遊戲完整玩法` : `${HALLS.find((h) => h.key === activeHall)?.title} 玩法詳解`}
-          description="點開卡片看每款遊戲的下注步驟、賠率上限與操作要點。"
-        />
-
-        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredGames.map((game) => {
-            const hall = HALLS.find((h) => h.key === game.hall)!;
-            return (
-              <article
-                key={game.id}
-                className="relative flex flex-col overflow-hidden rounded-[18px] border border-white/10 bg-[#0B1322] text-white shadow-[0_16px_40px_rgba(2,6,23,0.45)] sm:rounded-[22px]"
-              >
-                <img
-                  src={game.cover}
-                  alt=""
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.55]"
-                />
-                <div
-                  className="pointer-events-none absolute inset-0"
-                  style={{
-                    background:
-                      'linear-gradient(180deg, rgba(7,15,28,0.35) 0%, rgba(7,15,28,0.78) 38%, rgba(7,15,28,0.94) 70%, rgba(7,15,28,0.97) 100%)',
-                  }}
-                />
-
-                <div className="relative z-10 flex flex-1 flex-col p-4 sm:p-6">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div
-                        className="inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] backdrop-blur"
-                        style={{
-                          backgroundColor: `${hall.tone}33`,
-                          borderColor: `${hall.tone}80`,
-                          color: '#FFE8B0',
-                        }}
-                      >
-                        {hall.title}
-                      </div>
-                      <h3 className="mt-3 text-[21px] font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] sm:text-[24px]">
-                        {game.name}
-                      </h3>
-                      <p className="mt-1 text-[12px] uppercase tracking-[0.18em] text-white/55">
-                        {game.english}
-                      </p>
-                    </div>
-                  </div>
-
-                  <p className="mt-4 text-[13px] leading-relaxed text-white/80">{game.intro}</p>
-
-                  <dl className="mt-4 grid grid-cols-3 gap-1.5 rounded-[14px] border border-white/10 bg-white/[0.06] p-2.5 text-center backdrop-blur sm:mt-5 sm:gap-2 sm:rounded-[16px] sm:p-3">
-                    <Stat label="RTP" value={game.rtp} />
-                    <Stat label="最高倍率" value={game.maxMultiplier} />
-                    <Stat label="單局時長" value={game.duration} />
-                  </dl>
-
-                  <div className="mt-4 sm:mt-5">
-                    <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#E8D48A]">
-                      玩法步驟
-                    </div>
-                    <ol className="mt-2 space-y-1.5 text-[12px] leading-relaxed text-white/85 sm:text-[13px]">
-                      {game.howToPlay.map((step, index) => (
-                        <li key={index} className="flex gap-2">
-                          <span className="font-semibold text-[#F3D67D]">{index + 1}.</span>
-                          <span>{step}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-
-                  <div className="mt-4 rounded-[14px] border border-[#E8D48A]/35 bg-[#1F1A0E]/70 p-3 text-[12px] leading-relaxed text-[#F5DFA0] backdrop-blur sm:mt-5">
-                    <span className="font-semibold text-[#FFE8B0]">小提示：</span>
-                    {game.tips}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
+        </section>
       </div>
     </>
   );
@@ -912,10 +928,15 @@ function MobileGuideGameCard({ game, hall }: { game: Game; hall: Hall }) {
       </dl>
 
       <div className="space-y-2 p-3">
-        <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#1D6B83]">玩法步驟</div>
+        <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#1D6B83]">
+          玩法步驟
+        </div>
         <ol className="space-y-1.5">
           {game.howToPlay.map((step, index) => (
-            <li key={index} className="flex gap-2 text-[12px] font-semibold leading-5 text-[#365663]">
+            <li
+              key={index}
+              className="flex gap-2 text-[12px] font-semibold leading-5 text-[#365663]"
+            >
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E9F8F8] text-[10px] font-black text-[#0E7189]">
                 {index + 1}
               </span>

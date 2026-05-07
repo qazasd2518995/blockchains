@@ -56,111 +56,111 @@ export interface SlotThemeConfig {
 }
 
 const CYBER_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'NEON 7', shortLabel: 'N7', accentHex: '#F45CFF', accentValue: 0xF45CFF },
-  { label: 'DIAMOND', shortLabel: 'DIA', accentHex: '#54E8FF', accentValue: 0x54E8FF },
-  { label: 'CHIP', shortLabel: 'CHP', accentHex: '#36C5FF', accentValue: 0x36C5FF },
-  { label: 'ORB', shortLabel: 'ORB', accentHex: '#A855F7', accentValue: 0xA855F7 },
-  { label: 'BAR', shortLabel: 'BAR', accentHex: '#22D3EE', accentValue: 0x22D3EE },
-  { label: 'CROWN', shortLabel: 'CRN', accentHex: '#F4B53F', accentValue: 0xF4B53F },
+  { label: 'NEON 7', shortLabel: 'N7', accentHex: '#F45CFF', accentValue: 0xf45cff },
+  { label: 'DIAMOND', shortLabel: 'DIA', accentHex: '#54E8FF', accentValue: 0x54e8ff },
+  { label: 'CHIP', shortLabel: 'CHP', accentHex: '#36C5FF', accentValue: 0x36c5ff },
+  { label: 'ORB', shortLabel: 'ORB', accentHex: '#A855F7', accentValue: 0xa855f7 },
+  { label: 'BAR', shortLabel: 'BAR', accentHex: '#22D3EE', accentValue: 0x22d3ee },
+  { label: 'CROWN', shortLabel: 'CRN', accentHex: '#F4B53F', accentValue: 0xf4b53f },
 ];
 
 const FRUIT_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'CHERRY', shortLabel: 'CHR', accentHex: '#D43C63', accentValue: 0xD43C63 },
-  { label: 'LEMON', shortLabel: 'LEM', accentHex: '#E4B431', accentValue: 0xE4B431 },
-  { label: 'MELON', shortLabel: 'MEL', accentHex: '#33A862', accentValue: 0x33A862 },
-  { label: 'BELL', shortLabel: 'BEL', accentHex: '#D9A032', accentValue: 0xD9A032 },
-  { label: 'SEVEN', shortLabel: 'SEV', accentHex: '#D83D36', accentValue: 0xD83D36 },
-  { label: 'BAR', shortLabel: 'BAR', accentHex: '#B88733', accentValue: 0xB88733 },
+  { label: 'CHERRY', shortLabel: 'CHR', accentHex: '#D43C63', accentValue: 0xd43c63 },
+  { label: 'LEMON', shortLabel: 'LEM', accentHex: '#E4B431', accentValue: 0xe4b431 },
+  { label: 'MELON', shortLabel: 'MEL', accentHex: '#33A862', accentValue: 0x33a862 },
+  { label: 'BELL', shortLabel: 'BEL', accentHex: '#D9A032', accentValue: 0xd9a032 },
+  { label: 'SEVEN', shortLabel: 'SEV', accentHex: '#D83D36', accentValue: 0xd83d36 },
+  { label: 'BAR', shortLabel: 'BAR', accentHex: '#B88733', accentValue: 0xb88733 },
 ];
 
 const FORTUNE_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'TIGER', shortLabel: 'TGR', accentHex: '#D9A032', accentValue: 0xD9A032 },
-  { label: 'DRAGON', shortLabel: 'DRG', accentHex: '#1EA06D', accentValue: 0x1EA06D },
-  { label: 'ENVELOPE', shortLabel: 'ENV', accentHex: '#D94B45', accentValue: 0xD94B45 },
-  { label: 'INGOT', shortLabel: 'ING', accentHex: '#F2C15B', accentValue: 0xF2C15B },
-  { label: 'LOTUS', shortLabel: 'LOT', accentHex: '#46B884', accentValue: 0x46B884 },
-  { label: 'CROWN', shortLabel: 'CRN', accentHex: '#C43D35', accentValue: 0xC43D35 },
+  { label: 'TIGER', shortLabel: 'TGR', accentHex: '#D9A032', accentValue: 0xd9a032 },
+  { label: 'DRAGON', shortLabel: 'DRG', accentHex: '#1EA06D', accentValue: 0x1ea06d },
+  { label: 'ENVELOPE', shortLabel: 'ENV', accentHex: '#D94B45', accentValue: 0xd94b45 },
+  { label: 'INGOT', shortLabel: 'ING', accentHex: '#F2C15B', accentValue: 0xf2c15b },
+  { label: 'LOTUS', shortLabel: 'LOT', accentHex: '#46B884', accentValue: 0x46b884 },
+  { label: 'CROWN', shortLabel: 'CRN', accentHex: '#C43D35', accentValue: 0xc43d35 },
 ];
 
 const OCEAN_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'PEARL', shortLabel: 'PRL', accentHex: '#A5F3FC', accentValue: 0xA5F3FC },
-  { label: 'ANCHOR', shortLabel: 'ANC', accentHex: '#E0B75A', accentValue: 0xE0B75A },
-  { label: 'CHEST', shortLabel: 'CHS', accentHex: '#C9913D', accentValue: 0xC9913D },
-  { label: 'SAPPHIRE', shortLabel: 'SAP', accentHex: '#3B82F6', accentValue: 0x3B82F6 },
-  { label: 'WHEEL', shortLabel: 'WHL', accentHex: '#D6A64A', accentValue: 0xD6A64A },
-  { label: 'TRIDENT', shortLabel: 'TRI', accentHex: '#22D3EE', accentValue: 0x22D3EE },
+  { label: 'PEARL', shortLabel: 'PRL', accentHex: '#A5F3FC', accentValue: 0xa5f3fc },
+  { label: 'ANCHOR', shortLabel: 'ANC', accentHex: '#E0B75A', accentValue: 0xe0b75a },
+  { label: 'CHEST', shortLabel: 'CHS', accentHex: '#C9913D', accentValue: 0xc9913d },
+  { label: 'SAPPHIRE', shortLabel: 'SAP', accentHex: '#3B82F6', accentValue: 0x3b82f6 },
+  { label: 'WHEEL', shortLabel: 'WHL', accentHex: '#D6A64A', accentValue: 0xd6a64a },
+  { label: 'TRIDENT', shortLabel: 'TRI', accentHex: '#22D3EE', accentValue: 0x22d3ee },
 ];
 
 const TEMPLE_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'SCARAB', shortLabel: 'SCR', accentHex: '#D9A032', accentValue: 0xD9A032 },
-  { label: 'MASK', shortLabel: 'MSK', accentHex: '#2DD4BF', accentValue: 0x2DD4BF },
-  { label: 'SUN', shortLabel: 'SUN', accentHex: '#F3D67D', accentValue: 0xF3D67D },
-  { label: 'SERPENT', shortLabel: 'SRP', accentHex: '#1EA06D', accentValue: 0x1EA06D },
-  { label: 'EMERALD', shortLabel: 'EMR', accentHex: '#10B981', accentValue: 0x10B981 },
-  { label: 'CROWN', shortLabel: 'CRN', accentHex: '#F2C15B', accentValue: 0xF2C15B },
+  { label: 'SCARAB', shortLabel: 'SCR', accentHex: '#D9A032', accentValue: 0xd9a032 },
+  { label: 'MASK', shortLabel: 'MSK', accentHex: '#2DD4BF', accentValue: 0x2dd4bf },
+  { label: 'SUN', shortLabel: 'SUN', accentHex: '#F3D67D', accentValue: 0xf3d67d },
+  { label: 'SERPENT', shortLabel: 'SRP', accentHex: '#1EA06D', accentValue: 0x1ea06d },
+  { label: 'EMERALD', shortLabel: 'EMR', accentHex: '#10B981', accentValue: 0x10b981 },
+  { label: 'CROWN', shortLabel: 'CRN', accentHex: '#F2C15B', accentValue: 0xf2c15b },
 ];
 
 const CANDY_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'LOLLIPOP', shortLabel: 'POP', accentHex: '#F472B6', accentValue: 0xF472B6 },
-  { label: 'CANDY', shortLabel: 'CND', accentHex: '#38BDF8', accentValue: 0x38BDF8 },
-  { label: 'GUMMY', shortLabel: 'GMY', accentHex: '#A78BFA', accentValue: 0xA78BFA },
-  { label: 'DONUT', shortLabel: 'DNT', accentHex: '#FB7185', accentValue: 0xFB7185 },
-  { label: 'STAR', shortLabel: 'STR', accentHex: '#FBBF24', accentValue: 0xFBBF24 },
-  { label: 'CUPCAKE', shortLabel: 'CAK', accentHex: '#34D399', accentValue: 0x34D399 },
+  { label: 'LOLLIPOP', shortLabel: 'POP', accentHex: '#F472B6', accentValue: 0xf472b6 },
+  { label: 'CANDY', shortLabel: 'CND', accentHex: '#38BDF8', accentValue: 0x38bdf8 },
+  { label: 'GUMMY', shortLabel: 'GMY', accentHex: '#A78BFA', accentValue: 0xa78bfa },
+  { label: 'DONUT', shortLabel: 'DNT', accentHex: '#FB7185', accentValue: 0xfb7185 },
+  { label: 'STAR', shortLabel: 'STR', accentHex: '#FBBF24', accentValue: 0xfbbf24 },
+  { label: 'CUPCAKE', shortLabel: 'CAK', accentHex: '#34D399', accentValue: 0x34d399 },
 ];
 
 const SAKURA_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'KATANA', shortLabel: 'KTN', accentHex: '#E5E7EB', accentValue: 0xE5E7EB },
-  { label: 'MASK', shortLabel: 'MSK', accentHex: '#EF4444', accentValue: 0xEF4444 },
-  { label: 'SAKURA', shortLabel: 'SAK', accentHex: '#F9A8D4', accentValue: 0xF9A8D4 },
-  { label: 'LANTERN', shortLabel: 'LNT', accentHex: '#F97316', accentValue: 0xF97316 },
-  { label: 'FAN', shortLabel: 'FAN', accentHex: '#C084FC', accentValue: 0xC084FC },
-  { label: 'COIN', shortLabel: 'COI', accentHex: '#F2C15B', accentValue: 0xF2C15B },
+  { label: 'KATANA', shortLabel: 'KTN', accentHex: '#E5E7EB', accentValue: 0xe5e7eb },
+  { label: 'MASK', shortLabel: 'MSK', accentHex: '#EF4444', accentValue: 0xef4444 },
+  { label: 'SAKURA', shortLabel: 'SAK', accentHex: '#F9A8D4', accentValue: 0xf9a8d4 },
+  { label: 'LANTERN', shortLabel: 'LNT', accentHex: '#F97316', accentValue: 0xf97316 },
+  { label: 'FAN', shortLabel: 'FAN', accentHex: '#C084FC', accentValue: 0xc084fc },
+  { label: 'COIN', shortLabel: 'COI', accentHex: '#F2C15B', accentValue: 0xf2c15b },
 ];
 
 const THUNDER_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'RUNE', shortLabel: 'RUN', accentHex: '#8DD7FF', accentValue: 0x8DD7FF },
-  { label: 'SHIELD', shortLabel: 'SHD', accentHex: '#F0C96A', accentValue: 0xF0C96A },
-  { label: 'AXE', shortLabel: 'AXE', accentHex: '#B8C7D9', accentValue: 0xB8C7D9 },
-  { label: 'STORM', shortLabel: 'STM', accentHex: '#60A5FA', accentValue: 0x60A5FA },
-  { label: 'HAMMER', shortLabel: 'HAM', accentHex: '#FBBF24', accentValue: 0xFBBF24 },
-  { label: 'THUNDER', shortLabel: 'THR', accentHex: '#F97316', accentValue: 0xF97316 },
+  { label: 'RUNE', shortLabel: 'RUN', accentHex: '#8DD7FF', accentValue: 0x8dd7ff },
+  { label: 'SHIELD', shortLabel: 'SHD', accentHex: '#F0C96A', accentValue: 0xf0c96a },
+  { label: 'AXE', shortLabel: 'AXE', accentHex: '#B8C7D9', accentValue: 0xb8c7d9 },
+  { label: 'STORM', shortLabel: 'STM', accentHex: '#60A5FA', accentValue: 0x60a5fa },
+  { label: 'HAMMER', shortLabel: 'HAM', accentHex: '#FBBF24', accentValue: 0xfbbf24 },
+  { label: 'THUNDER', shortLabel: 'THR', accentHex: '#F97316', accentValue: 0xf97316 },
 ];
 
 const DRAGON_MEGA_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'EMBER', shortLabel: 'EMB', accentHex: '#FB923C', accentValue: 0xFB923C },
-  { label: 'COIN', shortLabel: 'COI', accentHex: '#FACC15', accentValue: 0xFACC15 },
-  { label: 'FANG', shortLabel: 'FNG', accentHex: '#FDE68A', accentValue: 0xFDE68A },
-  { label: 'ORB', shortLabel: 'ORB', accentHex: '#EF4444', accentValue: 0xEF4444 },
-  { label: 'SCALE', shortLabel: 'SCL', accentHex: '#22C55E', accentValue: 0x22C55E },
-  { label: 'DRAGON', shortLabel: 'DRG', accentHex: '#F59E0B', accentValue: 0xF59E0B },
+  { label: 'EMBER', shortLabel: 'EMB', accentHex: '#FB923C', accentValue: 0xfb923c },
+  { label: 'COIN', shortLabel: 'COI', accentHex: '#FACC15', accentValue: 0xfacc15 },
+  { label: 'FANG', shortLabel: 'FNG', accentHex: '#FDE68A', accentValue: 0xfde68a },
+  { label: 'ORB', shortLabel: 'ORB', accentHex: '#EF4444', accentValue: 0xef4444 },
+  { label: 'SCALE', shortLabel: 'SCL', accentHex: '#22C55E', accentValue: 0x22c55e },
+  { label: 'DRAGON', shortLabel: 'DRG', accentHex: '#F59E0B', accentValue: 0xf59e0b },
 ];
 
 const NEBULA_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'COMET', shortLabel: 'CMT', accentHex: '#93C5FD', accentValue: 0x93C5FD },
-  { label: 'PLANET', shortLabel: 'PLN', accentHex: '#C084FC', accentValue: 0xC084FC },
-  { label: 'CRYSTAL', shortLabel: 'CRY', accentHex: '#22D3EE', accentValue: 0x22D3EE },
-  { label: 'PORTAL', shortLabel: 'PRT', accentHex: '#A78BFA', accentValue: 0xA78BFA },
-  { label: 'NOVA', shortLabel: 'NVA', accentHex: '#F472B6', accentValue: 0xF472B6 },
-  { label: 'GALAXY', shortLabel: 'GLX', accentHex: '#FDE68A', accentValue: 0xFDE68A },
+  { label: 'COMET', shortLabel: 'CMT', accentHex: '#93C5FD', accentValue: 0x93c5fd },
+  { label: 'PLANET', shortLabel: 'PLN', accentHex: '#C084FC', accentValue: 0xc084fc },
+  { label: 'CRYSTAL', shortLabel: 'CRY', accentHex: '#22D3EE', accentValue: 0x22d3ee },
+  { label: 'PORTAL', shortLabel: 'PRT', accentHex: '#A78BFA', accentValue: 0xa78bfa },
+  { label: 'NOVA', shortLabel: 'NVA', accentHex: '#F472B6', accentValue: 0xf472b6 },
+  { label: 'GALAXY', shortLabel: 'GLX', accentHex: '#FDE68A', accentValue: 0xfde68a },
 ];
 
 const JUNGLE_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'LEAF', shortLabel: 'LEF', accentHex: '#86EFAC', accentValue: 0x86EFAC },
-  { label: 'IDOL', shortLabel: 'IDL', accentHex: '#D97706', accentValue: 0xD97706 },
-  { label: 'MASK', shortLabel: 'MSK', accentHex: '#FBBF24', accentValue: 0xFBBF24 },
-  { label: 'SERPENT', shortLabel: 'SRP', accentHex: '#22C55E', accentValue: 0x22C55E },
-  { label: 'EMERALD', shortLabel: 'EMR', accentHex: '#10B981', accentValue: 0x10B981 },
-  { label: 'RELIC', shortLabel: 'RLC', accentHex: '#FACC15', accentValue: 0xFACC15 },
+  { label: 'LEAF', shortLabel: 'LEF', accentHex: '#86EFAC', accentValue: 0x86efac },
+  { label: 'IDOL', shortLabel: 'IDL', accentHex: '#D97706', accentValue: 0xd97706 },
+  { label: 'MASK', shortLabel: 'MSK', accentHex: '#FBBF24', accentValue: 0xfbbf24 },
+  { label: 'SERPENT', shortLabel: 'SRP', accentHex: '#22C55E', accentValue: 0x22c55e },
+  { label: 'EMERALD', shortLabel: 'EMR', accentHex: '#10B981', accentValue: 0x10b981 },
+  { label: 'RELIC', shortLabel: 'RLC', accentHex: '#FACC15', accentValue: 0xfacc15 },
 ];
 
 const VAMPIRE_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'ROSE', shortLabel: 'ROS', accentHex: '#FB7185', accentValue: 0xFB7185 },
-  { label: 'CANDLE', shortLabel: 'CDL', accentHex: '#F8C66A', accentValue: 0xF8C66A },
-  { label: 'RAVEN', shortLabel: 'RVN', accentHex: '#A78BFA', accentValue: 0xA78BFA },
-  { label: 'GOBLET', shortLabel: 'GOB', accentHex: '#EF4444', accentValue: 0xEF4444 },
-  { label: 'MOON', shortLabel: 'MON', accentHex: '#CBD5E1', accentValue: 0xCBD5E1 },
-  { label: 'CASTLE', shortLabel: 'CST', accentHex: '#F472B6', accentValue: 0xF472B6 },
+  { label: 'ROSE', shortLabel: 'ROS', accentHex: '#FB7185', accentValue: 0xfb7185 },
+  { label: 'CANDLE', shortLabel: 'CDL', accentHex: '#F8C66A', accentValue: 0xf8c66a },
+  { label: 'RAVEN', shortLabel: 'RVN', accentHex: '#A78BFA', accentValue: 0xa78bfa },
+  { label: 'GOBLET', shortLabel: 'GOB', accentHex: '#EF4444', accentValue: 0xef4444 },
+  { label: 'MOON', shortLabel: 'MON', accentHex: '#CBD5E1', accentValue: 0xcbd5e1 },
+  { label: 'CASTLE', shortLabel: 'CST', accentHex: '#F472B6', accentValue: 0xf472b6 },
 ];
 
 export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
@@ -311,7 +311,7 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
     rows: 5,
     title: '雷神之鎚',
     suffix: 'THUNDER',
-    description: '6x5 全方式連線，低倍小中獎與高倍爆分同時存在。',
+    description: '6x5 同符號計數派彩，低倍小中獎與高倍爆分同時存在。',
     stageLabel: '雷神之鎚',
     readyLabel: '蓄雷待發',
     spinningLabel: '雷電轉軸中',
@@ -332,7 +332,7 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
     rows: 5,
     title: '龍焰巨輪',
     suffix: 'DRAGON',
-    description: '龍火、金幣與寶珠交錯的 6x5 全方式爆分拉霸。',
+    description: '龍火、金幣與寶珠交錯的 6x5 計數派彩爆分拉霸。',
     stageLabel: '龍焰巨輪',
     readyLabel: '龍焰待燃',
     spinningLabel: '龍火翻騰中',
@@ -353,7 +353,7 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
     rows: 5,
     title: '星河寶藏',
     suffix: 'NEBULA',
-    description: '星雲、傳送門與水晶構成的科幻 6x5 全方式拉霸。',
+    description: '星雲、傳送門與水晶構成的科幻 6x5 計數派彩拉霸。',
     stageLabel: '星河寶藏',
     readyLabel: '星門就緒',
     spinningLabel: '星雲連鎖中',
@@ -374,7 +374,7 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
     rows: 5,
     title: '秘境遺跡',
     suffix: 'JUNGLE',
-    description: '雨林遺跡、古老面具與祖母綠的 6x5 全方式拉霸。',
+    description: '雨林遺跡、古老面具與祖母綠的 6x5 計數派彩拉霸。',
     stageLabel: '秘境遺跡',
     readyLabel: '遺跡甦醒',
     spinningLabel: '藤蔓連鎖中',
@@ -395,7 +395,7 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
     rows: 5,
     title: '暗夜古堡',
     suffix: 'CASTLE',
-    description: '玫瑰、月影與古堡符號打造的哥德 6x5 全方式拉霸。',
+    description: '玫瑰、月影與古堡符號打造的哥德 6x5 計數派彩拉霸。',
     stageLabel: '暗夜古堡',
     readyLabel: '夜幕降臨',
     spinningLabel: '古堡轉軸中',

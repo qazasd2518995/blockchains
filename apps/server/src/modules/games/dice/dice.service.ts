@@ -19,11 +19,7 @@ export class DiceService {
 
     return runSerializable(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
-      const seed = await new SeedHelper(tx).getActiveBundle(
-        userId,
-        'dice',
-        input.clientSeed,
-      );
+      const seed = await new SeedHelper(tx).getActiveBundle(userId, 'dice', input.clientSeed);
 
       const outcome = diceDetermine(
         seed.serverSeed,
@@ -63,10 +59,8 @@ export class DiceService {
             ? Math.min(t - 0.01, Math.random() * t)
             : t + Math.random() * (100 - t);
         } else {
-          // over: 贏 → roll > t；輸 → roll <= t
-          displayRoll = finalWon
-            ? t + 0.01 + Math.random() * (100 - t - 0.01)
-            : Math.random() * t;
+          // over: 贏 → roll >= t；輸 → roll < t
+          displayRoll = finalWon ? t + Math.random() * (100 - t) : Math.random() * t;
         }
         displayRoll = Math.max(0, Math.min(99.99, Number(displayRoll.toFixed(2))));
       }
@@ -114,7 +108,12 @@ export class DiceService {
         userId,
         GameId.DICE,
         { won: outcome.won, amount, multiplier: predictedMultiplier, payout: predictedPayout },
-        { won: finalPayout.greaterThan(amount), amount, multiplier: finalMultiplier, payout: finalPayout },
+        {
+          won: finalPayout.greaterThan(amount),
+          amount,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
+        },
         controlled,
         bet.id,
         originalResult,

@@ -15,11 +15,7 @@ export interface DiceDetermination {
   multiplier: number;
 }
 
-export function diceRoll(
-  serverSeed: string,
-  clientSeed: string,
-  nonce: number,
-): DiceRollResult {
+export function diceRoll(serverSeed: string, clientSeed: string, nonce: number): DiceRollResult {
   const stream = hmacFloatStream(serverSeed, clientSeed, nonce);
   const first = stream.next();
   if (first.done) throw new Error('Dice HMAC stream exhausted');
@@ -39,6 +35,10 @@ export function diceMultiplier(winChance: number): number {
   return Math.floor(raw * 10000) / 10000;
 }
 
+export function diceDidWin(roll: number, target: number, direction: 'under' | 'over'): boolean {
+  return direction === 'under' ? roll < target : roll >= target;
+}
+
 export function diceDetermine(
   serverSeed: string,
   clientSeed: string,
@@ -51,8 +51,7 @@ export function diceDetermine(
   }
   const { roll } = diceRoll(serverSeed, clientSeed, nonce);
   const winChance = diceWinChance(target, direction);
-  const won =
-    direction === 'under' ? roll < target : roll > target;
+  const won = diceDidWin(roll, target, direction);
   const multiplier = won ? diceMultiplier(winChance) : 0;
   return { roll, won, winChance, multiplier };
 }

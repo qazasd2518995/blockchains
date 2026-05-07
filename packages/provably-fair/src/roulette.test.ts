@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { rouletteSpin, rouletteEvaluate, ROULETTE_SLOTS } from './roulette.js';
+import {
+  rouletteSpin,
+  rouletteEvaluate,
+  ROULETTE_SLOTS,
+  ROULETTE_STRAIGHT_PAYOUT_RATIO,
+} from './roulette.js';
 
 describe('rouletteSpin', () => {
   it('slot in range', () => {
@@ -15,7 +20,7 @@ describe('rouletteEvaluate', () => {
   it('straight bet hits', () => {
     const r = rouletteEvaluate(7, [{ type: 'straight', value: 7, amount: 10 }]);
     expect(r.wins.length).toBe(1);
-    expect(r.totalPayout).toBeGreaterThan(0);
+    expect(r.totalPayout).toBe(10 * (ROULETTE_STRAIGHT_PAYOUT_RATIO + 1));
   });
 
   it('red bet loses on black', () => {
@@ -31,5 +36,15 @@ describe('rouletteEvaluate', () => {
   it('La Partage on 0 returns half', () => {
     const r = rouletteEvaluate(0, [{ type: 'red', amount: 10 }]);
     expect(r.totalPayout).toBe(5);
+  });
+
+  it('half-back applies to non-zero straight bets on zero', () => {
+    const r = rouletteEvaluate(0, [{ type: 'straight', value: 7, amount: 10 }]);
+    expect(r.totalPayout).toBe(5);
+  });
+
+  it('straight zero covers zero and pays the normal straight ratio', () => {
+    const r = rouletteEvaluate(0, [{ type: 'straight', value: 0, amount: 10 }]);
+    expect(r.totalPayout).toBe(10 * (ROULETTE_STRAIGHT_PAYOUT_RATIO + 1));
   });
 });

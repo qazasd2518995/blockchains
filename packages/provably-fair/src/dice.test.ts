@@ -3,6 +3,7 @@ import {
   diceRoll,
   diceWinChance,
   diceMultiplier,
+  diceDidWin,
   diceDetermine,
   DICE_HOUSE_EDGE,
 } from './dice.js';
@@ -73,6 +74,16 @@ describe('diceMultiplier', () => {
       const rtp = (winChance / 100) * diceMultiplier(winChance);
       expect(rtp).toBeCloseTo(1 - DICE_HOUSE_EDGE, 3);
     }
+  });
+});
+
+describe('diceDidWin', () => {
+  it('uses displayed two-decimal boundaries consistently', () => {
+    expect(diceDidWin(49.99, 50, 'under')).toBe(true);
+    expect(diceDidWin(50, 50, 'under')).toBe(false);
+    expect(diceDidWin(50, 50, 'over')).toBe(true);
+    expect(diceDidWin(49.99, 50, 'over')).toBe(false);
+    expect(diceDidWin(99.99, 99.99, 'over')).toBe(true);
   });
 });
 

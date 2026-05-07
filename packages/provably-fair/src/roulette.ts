@@ -5,6 +5,7 @@ export const ROULETTE_SLOTS = 13;
 
 export const RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12]);
 export const BLACK_NUMBERS = new Set([2, 4, 6, 8, 10, 11]);
+export const ROULETTE_STRAIGHT_PAYOUT_RATIO = 11;
 
 export interface RouletteBet {
   type: 'straight' | 'red' | 'black' | 'odd' | 'even' | 'low' | 'high' | 'column';
@@ -33,18 +34,18 @@ export function rouletteEvaluate(
     let payoutRatio = 0;
 
     if (slot === 0) {
-      // La Partage: non-straight-0 bets get half back
+      // Mini Roulette half-back: bets that do not cover zero lose only half.
       if (bet.type !== 'straight' || bet.value !== 0) {
         wins.push({ bet, payout: bet.amount * 0.5 });
         totalPayout += bet.amount * 0.5;
         continue;
       } else {
-        payoutRatio = 12; // 12:1 for straight 0 with 13 slots
+        payoutRatio = ROULETTE_STRAIGHT_PAYOUT_RATIO;
       }
     } else {
       switch (bet.type) {
         case 'straight':
-          if (bet.value === slot) payoutRatio = 12; // 12:1
+          if (bet.value === slot) payoutRatio = ROULETTE_STRAIGHT_PAYOUT_RATIO;
           break;
         case 'red':
           if (RED_NUMBERS.has(slot)) payoutRatio = 1;
