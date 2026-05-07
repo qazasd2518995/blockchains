@@ -125,6 +125,9 @@ const THUNDER_SYMBOLS: SlotSymbolThemeMeta[] = [
   { label: 'STORM', shortLabel: 'STM', accentHex: '#60A5FA', accentValue: 0x60a5fa },
   { label: 'HAMMER', shortLabel: 'HAM', accentHex: '#FBBF24', accentValue: 0xfbbf24 },
   { label: 'THUNDER', shortLabel: 'THR', accentHex: '#F97316', accentValue: 0xf97316 },
+  { label: 'YELLOW GEM', shortLabel: 'YEL', accentHex: '#FDE047', accentValue: 0xfde047 },
+  { label: 'GREEN GEM', shortLabel: 'GRN', accentHex: '#22C55E', accentValue: 0x22c55e },
+  { label: 'BLUE GEM', shortLabel: 'BLU', accentHex: '#38BDF8', accentValue: 0x38bdf8 },
 ];
 
 const DRAGON_MEGA_SYMBOLS: SlotSymbolThemeMeta[] = [
@@ -134,6 +137,9 @@ const DRAGON_MEGA_SYMBOLS: SlotSymbolThemeMeta[] = [
   { label: 'ORB', shortLabel: 'ORB', accentHex: '#EF4444', accentValue: 0xef4444 },
   { label: 'SCALE', shortLabel: 'SCL', accentHex: '#22C55E', accentValue: 0x22c55e },
   { label: 'DRAGON', shortLabel: 'DRG', accentHex: '#F59E0B', accentValue: 0xf59e0b },
+  { label: 'CROWN', shortLabel: 'CRW', accentHex: '#FDE047', accentValue: 0xfde047 },
+  { label: 'FIRE GEM', shortLabel: 'FIG', accentHex: '#F97316', accentValue: 0xf97316 },
+  { label: 'HOARD', shortLabel: 'HRD', accentHex: '#A3E635', accentValue: 0xa3e635 },
 ];
 
 const NEBULA_SYMBOLS: SlotSymbolThemeMeta[] = [
@@ -143,6 +149,9 @@ const NEBULA_SYMBOLS: SlotSymbolThemeMeta[] = [
   { label: 'PORTAL', shortLabel: 'PRT', accentHex: '#A78BFA', accentValue: 0xa78bfa },
   { label: 'NOVA', shortLabel: 'NVA', accentHex: '#F472B6', accentValue: 0xf472b6 },
   { label: 'GALAXY', shortLabel: 'GLX', accentHex: '#FDE68A', accentValue: 0xfde68a },
+  { label: 'STAR CORE', shortLabel: 'SRC', accentHex: '#F0ABFC', accentValue: 0xf0abfc },
+  { label: 'ASTEROID', shortLabel: 'AST', accentHex: '#94A3B8', accentValue: 0x94a3b8 },
+  { label: 'QUASAR', shortLabel: 'QSR', accentHex: '#67E8F9', accentValue: 0x67e8f9 },
 ];
 
 const JUNGLE_SYMBOLS: SlotSymbolThemeMeta[] = [
@@ -152,6 +161,9 @@ const JUNGLE_SYMBOLS: SlotSymbolThemeMeta[] = [
   { label: 'SERPENT', shortLabel: 'SRP', accentHex: '#22C55E', accentValue: 0x22c55e },
   { label: 'EMERALD', shortLabel: 'EMR', accentHex: '#10B981', accentValue: 0x10b981 },
   { label: 'RELIC', shortLabel: 'RLC', accentHex: '#FACC15', accentValue: 0xfacc15 },
+  { label: 'TOTEM', shortLabel: 'TOT', accentHex: '#D9F99D', accentValue: 0xd9f99d },
+  { label: 'GOLD FRUIT', shortLabel: 'GLF', accentHex: '#FBBF24', accentValue: 0xfbbf24 },
+  { label: 'TEMPLE KEY', shortLabel: 'KEY', accentHex: '#34D399', accentValue: 0x34d399 },
 ];
 
 const VAMPIRE_SYMBOLS: SlotSymbolThemeMeta[] = [
@@ -161,6 +173,9 @@ const VAMPIRE_SYMBOLS: SlotSymbolThemeMeta[] = [
   { label: 'GOBLET', shortLabel: 'GOB', accentHex: '#EF4444', accentValue: 0xef4444 },
   { label: 'MOON', shortLabel: 'MON', accentHex: '#CBD5E1', accentValue: 0xcbd5e1 },
   { label: 'CASTLE', shortLabel: 'CST', accentHex: '#F472B6', accentValue: 0xf472b6 },
+  { label: 'BAT', shortLabel: 'BAT', accentHex: '#A78BFA', accentValue: 0xa78bfa },
+  { label: 'BLOOD GEM', shortLabel: 'BLD', accentHex: '#DC2626', accentValue: 0xdc2626 },
+  { label: 'COFFIN', shortLabel: 'COF', accentHex: '#E879F9', accentValue: 0xe879f9 },
 ];
 
 export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {

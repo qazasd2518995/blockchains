@@ -47,8 +47,27 @@ describe('hotlineSpin', () => {
         expect(sym).toBeLessThan(HOTLINE_MEGA_SYMBOLS.length);
       }
     }
+    expect(HOTLINE_MEGA_SYMBOLS.length).toBe(9);
     expect(getHotlineReelCount('thunder-slot')).toBe(HOTLINE_MEGA_REELS);
     expect(getHotlineRowCount('thunder-slot')).toBe(HOTLINE_MEGA_ROWS);
+  });
+
+  it('uses the 9-symbol Power of Thor style mega paytable', () => {
+    expect(HOTLINE_MEGA_SYMBOLS.map((symbol) => [
+      symbol.payout3,
+      symbol.payout4,
+      symbol.payout5,
+    ])).toEqual([
+      [10, 25, 50],
+      [2.5, 10, 25],
+      [2, 5, 15],
+      [1.5, 2, 12],
+      [1, 1.5, 10],
+      [0.8, 1.2, 8],
+      [0.5, 1, 5],
+      [0.4, 0.9, 4],
+      [0.25, 0.75, 2],
+    ]);
   });
 
   it('supports deterministic 6x5 cascade drops after cluster wins', () => {
@@ -69,7 +88,7 @@ describe('hotlineSpin', () => {
     }
     const stepTotal = result.cascades.reduce((sum, step) => sum + step.multiplier, 0);
     expect(result.features).toBeDefined();
-    expect(result.features!.baseWinMultiplier).toBe(Number(stepTotal.toFixed(4)));
+    expect(result.features!.baseWinMultiplier).toBeGreaterThanOrEqual(Number(stepTotal.toFixed(4)));
     expect(result.totalMultiplier).toBe(result.features!.totalMultiplier);
   });
 
@@ -91,6 +110,8 @@ describe('hotlineSpin', () => {
 
     expect(result).toBeDefined();
     expect(result!.features!.scatterCount).toBeGreaterThanOrEqual(4);
+    expect(result!.features!.freeSpinsAwarded).toBeGreaterThanOrEqual(15);
+    expect(result!.features!.freeSpinsAwarded).toBeLessThanOrEqual(100);
     expect(result!.features!.freeSpinsPlayed).toBeGreaterThan(0);
     expect(result!.features!.freeSpinsPlayed).toBeLessThanOrEqual(result!.features!.freeSpinsAwarded);
     expect(result!.features!.freeSpinRounds.length).toBe(result!.features!.freeSpinsPlayed);

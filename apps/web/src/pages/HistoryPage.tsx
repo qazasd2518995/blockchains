@@ -1763,6 +1763,9 @@ function slotSymbolMeta(symbol: number): { label: string; color: string } {
     { label: 'BAR', color: '#2B8CA8' },
     { label: '寶石', color: '#1E8E67' },
     { label: '頭獎', color: '#B52A45' },
+    { label: '黃寶石', color: '#FDE047' },
+    { label: '綠寶石', color: '#22C55E' },
+    { label: '藍寶石', color: '#38BDF8' },
   ];
   return symbols[Math.trunc(symbol)] ?? { label: `符號 ${symbol}`, color: '#186073' };
 }

@@ -41,7 +41,6 @@ const COLOR_AMBER = 0xF3D67D;
 const COLOR_ICE = 0x266F85;
 const COLOR_INK = 0x0A0806;
 const COLOR_WHITE = 0xFFFFFF;
-const SYMBOL_COUNT = HOTLINE_SYMBOLS.length;
 const DEFAULT_REELS = 5;
 const ROWS = 3;
 const MEGA_ROWS = 5;
@@ -55,6 +54,10 @@ function fitSpriteCover(sprite: Sprite, width: number, height: number): void {
   sprite.scale.set(scale);
   sprite.x = (width - textureWidth * scale) / 2;
   sprite.y = (height - textureHeight * scale) / 2;
+}
+
+function themeSymbolImage(theme: SlotThemeConfig, symbolIdx: number): string {
+  return theme.symbolSheet.replace(/symbols\.png$/, `symbol-${symbolIdx}.png`);
 }
 
 interface HotlineLine {
@@ -115,7 +118,7 @@ export class HotlineScene {
   private rowCount = ROWS;
   private backgroundTexture: Texture | null = null;
   private symbolSheetTexture: Texture | null = null;
-  private symbolTextures: Texture[] = [];
+  private symbolTextures: Array<Texture | null> = [];
 
   private reels: ReelData[] = [];
   private reelsContainer: Container | null = null;
@@ -241,14 +244,22 @@ export class HotlineScene {
     ]);
     this.backgroundTexture = backgroundTexture;
     this.symbolSheetTexture = symbolSheetTexture;
-    this.symbolTextures = this.createSymbolTextures(symbolSheetTexture);
+    if (this.rowCount > ROWS) {
+      this.symbolTextures = await Promise.all(
+        this.theme.symbols.map((_symbol, symbolIdx) =>
+          Assets.load<Texture>(themeSymbolImage(this.theme, symbolIdx)).catch(() => null),
+        ),
+      );
+      return;
+    }
+    this.symbolTextures = this.createSymbolTextures(symbolSheetTexture, HOTLINE_SYMBOLS.length);
   }
 
-  private createSymbolTextures(sheet: Texture | null): Texture[] {
+  private createSymbolTextures(sheet: Texture | null, count: number): Texture[] {
     if (!sheet) return [];
     const cellW = sheet.width / 3;
     const cellH = sheet.height / 2;
-    return Array.from({ length: SYMBOL_COUNT }, (_, symbolIdx) => {
+    return Array.from({ length: count }, (_, symbolIdx) => {
       const col = symbolIdx % 3;
       const row = Math.floor(symbolIdx / 3);
       return new Texture({
@@ -313,7 +324,7 @@ export class HotlineScene {
     // 隨機填充 strip（REEL_STRIP_LEN 個符號，會滾動）
     const strip: number[] = [];
     for (let i = 0; i < REEL_STRIP_LEN; i += 1) {
-      strip.push(Math.floor(Math.random() * SYMBOL_COUNT));
+      strip.push(this.randomSymbolIndex());
     }
 
     const symbols: ReelSymbol[] = [];
@@ -715,7 +726,7 @@ export class HotlineScene {
 
   private buildLandingStrip(reel: ReelData, finalColumn: number[], startRow: number): number[] {
     const currentVisible = this.getVisibleSymbols(reel);
-    const strip = Array.from({ length: REEL_STRIP_LEN }, () => Math.floor(Math.random() * SYMBOL_COUNT));
+    const strip = Array.from({ length: REEL_STRIP_LEN }, () => this.randomSymbolIndex());
 
     for (let i = 0; i < this.rowCount; i += 1) {
       strip[FINAL_STOP_ROW + i] = finalColumn[i] ?? 0;
@@ -920,7 +931,7 @@ export class HotlineScene {
     const newStrip: number[] = [];
     for (let i = 0; i < this.rowCount; i += 1) newStrip.push(finalColumn[i] ?? 0);
     for (let i = this.rowCount; i < REEL_STRIP_LEN; i += 1) {
-      newStrip.push(Math.floor(Math.random() * SYMBOL_COUNT));
+      newStrip.push(this.randomSymbolIndex());
     }
     reel.container.y = this.reelY0;
     this.renderReelStrip(reel, newStrip);
@@ -942,6 +953,10 @@ export class HotlineScene {
     }
     reel.symbols = ordered;
     reel.strip = ordered.map((symbol) => symbol.symbolIndex);
+  }
+
+  private randomSymbolIndex(): number {
+    return Math.floor(Math.random() * Math.max(1, this.theme.symbols.length));
   }
 
   private showWinLines(lines: HotlineLine[]): void {

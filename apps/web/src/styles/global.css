@@ -1912,6 +1912,32 @@
     0 0 14px rgba(0, 0, 0, 0.36);
 }
 
+.mega-slot-fallback-symbol--winning {
+  border-color: #7dd3fc !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.5),
+    0 0 0 2px rgba(125, 211, 252, 0.42),
+    0 0 24px rgba(56, 189, 248, 0.78);
+  animation: mega-slot-symbol-win-frame 820ms ease-in-out infinite;
+}
+
+.mega-slot-fallback-symbol--winning::before {
+  position: absolute;
+  inset: -2px;
+  z-index: 3;
+  border-radius: inherit;
+  border: 2px solid rgba(125, 211, 252, 0.95);
+  box-shadow:
+    0 0 12px rgba(34, 211, 238, 0.95),
+    inset 0 0 14px rgba(34, 211, 238, 0.54);
+  content: '';
+  pointer-events: none;
+}
+
+.mega-slot-fallback-symbol--winning img {
+  animation: mega-slot-symbol-win-spin 780ms ease-in-out infinite;
+}
+
 .mega-slot-fallback-symbol--removing {
   animation: mega-slot-symbol-remove 280ms cubic-bezier(0.34, 0.02, 0.24, 1) both;
   box-shadow:
@@ -1960,6 +1986,53 @@
 
 .mega-slot-fallback-symbol img + span {
   display: none;
+}
+
+.mega-slot-fallback-win-pop {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 6;
+  display: grid;
+  min-width: min(42%, 260px);
+  transform: translate(-50%, -50%);
+  place-items: center;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.58);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(125, 211, 252, 0.24), transparent 58%),
+    rgba(3, 8, 19, 0.82);
+  padding: 10px 14px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 16px 38px rgba(0, 0, 0, 0.48),
+    0 0 30px rgba(56, 189, 248, 0.28);
+  color: #fff;
+  pointer-events: none;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.86);
+  animation: mega-slot-fallback-win-pop 980ms ease both;
+}
+
+.mega-slot-fallback-win-pop span {
+  font-size: clamp(9px, 1.05vw, 12px);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: rgba(232, 244, 255, 0.78);
+}
+
+.mega-slot-fallback-win-pop strong {
+  font-family: var(--font-display, Inter, system-ui, sans-serif);
+  font-size: clamp(22px, 3vw, 42px);
+  line-height: 1;
+  color: #f3d67d;
+}
+
+.mega-slot-fallback-win-pop small {
+  margin-top: 5px;
+  font-size: clamp(9px, 1vw, 12px);
+  font-weight: 800;
+  color: #7dd3fc;
 }
 
 .mega-slot-special-overlay {
@@ -2211,6 +2284,46 @@
   50% {
     transform: translateY(2px) scale(1.015);
     filter: brightness(1.22);
+  }
+}
+
+@keyframes mega-slot-symbol-win-frame {
+  0%,
+  100% {
+    filter: brightness(1.08);
+  }
+
+  50% {
+    filter: brightness(1.38);
+  }
+}
+
+@keyframes mega-slot-symbol-win-spin {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+
+  50% {
+    transform: translate(-50%, -50%) scale(1.08) rotate(4deg);
+  }
+}
+
+@keyframes mega-slot-fallback-win-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -42%) scale(0.8);
+  }
+
+  16%,
+  78% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -54%) scale(0.92);
   }
 }
 
@@ -3795,6 +3908,12 @@
     height: 100%;
     max-width: 100%;
     max-height: 100%;
+  }
+
+  .mega-slot-fallback-win-pop {
+    min-width: min(58%, 240px);
+    border-radius: 10px;
+    padding: 8px 10px;
   }
 
   .mega-slot-special-symbol {
