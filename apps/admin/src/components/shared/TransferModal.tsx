@@ -7,6 +7,7 @@ import { adminApi, extractApiError } from '@/lib/adminApi';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { Modal } from './Modal';
 import { useTranslation } from '@/i18n/useTranslation';
+import { requestAdminLiveRefresh } from '@/lib/adminRefreshEvents';
 
 const schema = z.object({
   direction: z.enum(['DEPOSIT', 'WITHDRAW']),
@@ -75,6 +76,7 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
         amount: signed,
         description: data.description || undefined,
       });
+      requestAdminLiveRefresh();
       reset();
       onDone();
       onClose();

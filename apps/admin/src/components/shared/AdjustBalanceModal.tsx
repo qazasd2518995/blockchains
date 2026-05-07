@@ -6,6 +6,7 @@ import type { MemberPublic } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { Modal } from './Modal';
 import { useTranslation } from '@/i18n/useTranslation';
+import { requestAdminLiveRefresh } from '@/lib/adminRefreshEvents';
 
 const schema = z.object({
   delta: z.string().regex(/^-?\d+(\.\d{1,2})?$/),
@@ -37,6 +38,7 @@ export function AdjustBalanceModal({ open, onClose, member, onDone }: Props): JS
         delta: data.delta,
         description: data.description || undefined,
       });
+      requestAdminLiveRefresh();
       onDone(res.data);
       reset();
       onClose();

@@ -8,6 +8,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { Sidebar } from './Sidebar';
 import { ProfileModal } from '@/components/shared/ProfileModal';
 import { ChangePasswordModal } from '@/components/shared/ChangePasswordModal';
+import { ADMIN_LIVE_REFRESH_EVENT } from '@/lib/adminRefreshEvents';
 
 export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
   const { agent, accessToken, refreshToken, setAgent, logout } = useAdminAuthStore();
@@ -27,13 +28,18 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
   useEffect(() => {
     if (!accessToken) return;
     let active = true;
+    let refreshing = false;
 
     const refreshAgent = async () => {
+      if (refreshing) return;
+      refreshing = true;
       try {
         const res = await adminApi.get<AgentPublic>('/auth/me');
         if (active && res.data) setAgent(res.data);
       } catch (err) {
         console.error(extractApiError(err));
+      } finally {
+        refreshing = false;
       }
     };
     const handleFocus = () => {
@@ -44,11 +50,15 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
     };
 
     void refreshAgent();
+    const timer = window.setInterval(refreshAgent, 5_000);
     window.addEventListener('focus', handleFocus);
+    window.addEventListener(ADMIN_LIVE_REFRESH_EVENT, handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       active = false;
+      window.clearInterval(timer);
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener(ADMIN_LIVE_REFRESH_EVENT, handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [accessToken, setAgent]);

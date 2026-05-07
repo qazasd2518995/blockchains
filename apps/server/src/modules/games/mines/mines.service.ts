@@ -177,9 +177,14 @@ export class MinesService {
           originalResult,
           finalResult,
         );
+        const user = await tx.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: { balance: true },
+        });
         return {
           state: this.toState(updated, serverSeed.seedHash, bet.id),
           hitMine: true,
+          newBalance: user.balance.toFixed(2),
         };
       }
 

@@ -6,6 +6,7 @@ import type { AgentPublic, MemberPublic } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { Modal } from './Modal';
 import { useTranslation } from '@/i18n/useTranslation';
+import { requestAdminLiveRefresh } from '@/lib/adminRefreshEvents';
 
 const schema = z.object({
   agentId: z.string().min(1),
@@ -104,6 +105,7 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId, lo
         bettingLimitLevel: data.bettingLimitLevel,
         notes: data.notes || undefined,
       });
+      requestAdminLiveRefresh();
       onCreated(res.data);
       onClose();
     } catch (e) {

@@ -199,6 +199,7 @@ export function TowerPage() {
       sceneRef.current?.pick(level, col, !res.data.hitTrap);
       setRound(res.data.state);
       roundRef.current = res.data.state;
+      if (res.data.newBalance) setBalance(res.data.newBalance);
       if (res.data.hitTrap && res.data.state.revealedLayout) {
         sceneRef.current?.revealAll(res.data.state.revealedLayout);
         setHistory((prev) => [
@@ -210,6 +211,23 @@ export function TowerPage() {
             payout: 0,
             won: false,
             detail: `${res.data.state.picks.length} 層 · ${res.data.state.difficulty}`,
+          },
+          ...prev,
+        ].slice(0, 30));
+      } else if (res.data.state.status === 'CASHED_OUT') {
+        if (res.data.state.revealedLayout) sceneRef.current?.revealAll(res.data.state.revealedLayout);
+        const cashMult = Number.parseFloat(res.data.state.currentMultiplier);
+        sceneRef.current?.celebrate(cashMult);
+        sceneRef.current?.playWinFx(cashMult, true);
+        setHistory((prev) => [
+          {
+            id: res.data.state.roundId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: cashMult,
+            payout: amount * cashMult,
+            won: cashMult >= 1,
+            detail: `通關 · ${res.data.state.difficulty}`,
           },
           ...prev,
         ].slice(0, 30));

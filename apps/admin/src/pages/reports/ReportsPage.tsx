@@ -9,6 +9,7 @@ import { HierarchyBreadcrumb } from '@/components/shared/HierarchyBreadcrumb';
 import { MemberBetRecordsModal } from '@/components/shared/MemberBetRecordsModal';
 import { AccountSearchSelect, type AccountSearchOption } from '@/components/shared/AccountSearchSelect';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
+import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
 
 /**
  * 報表統計（18 欄混合階層下鑽）— 對齊 Bet/agent 原版
@@ -32,6 +33,8 @@ export function ReportsPage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [betModalFor, setBetModalFor] = useState<{ id: string; username: string } | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  useAdminLiveRefresh(() => setReloadKey((k) => k + 1));
   const reportParams = useMemo(() => {
     const q: Record<string, string> = {};
     if (currentParent) q.parentId = currentParent;
@@ -52,7 +55,6 @@ export function ReportsPage(): JSX.Element {
     const load = async () => {
       setLoading(true);
       setError(null);
-      setData(null);
       try {
         const res = await adminApi.get<HierarchyReportResponse>('/reports/hierarchy', { params: reportParams });
         if (!cancel) setData(res.data);
@@ -69,7 +71,7 @@ export function ReportsPage(): JSX.Element {
     return () => {
       cancel = true;
     };
-  }, [reportParams]);
+  }, [reloadKey, reportParams]);
 
   const selectParent = (id: string | null) => {
     const next = new URLSearchParams(params);

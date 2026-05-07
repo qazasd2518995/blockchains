@@ -617,7 +617,7 @@ export class CrashRoom {
     userId: string,
     amount: number,
     autoCashOut?: number,
-  ): Promise<{ betId: string; players: CrashPlayerBet[] }> {
+  ): Promise<{ betId: string; players: CrashPlayerBet[]; newBalance: string }> {
     if (!this.currentRoundId) throw new Error('No active round');
     if (!Number.isFinite(amount)) throw new Error('Invalid bet amount');
     if (amount < MIN_BET_AMOUNT) throw new Error(`Minimum bet is ${MIN_BET_AMOUNT.toFixed(2)}`);
@@ -636,7 +636,7 @@ export class CrashRoom {
     }
     const amountD = new Prisma.Decimal(amount);
 
-    const betId = await runSerializable(this.prisma, async (tx) => {
+    const placed = await runSerializable(this.prisma, async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (user.disabledAt) throw new Error('Account disabled');
       if (user.frozenAt) throw new Error('Account frozen');
@@ -674,16 +674,16 @@ export class CrashRoom {
           },
         },
       });
-      return bet.id;
+      return { betId: bet.id, newBalance: updated.balance.toFixed(2) };
     });
 
     if (autoCashOut !== undefined) {
-      this.pendingAutoCashouts.set(betId, { betId, userId, autoCashOut });
+      this.pendingAutoCashouts.set(placed.betId, { betId: placed.betId, userId, autoCashOut });
     }
 
     const players = await this.getPlayers();
     this.broadcast('bets:update', { players });
-    return { betId, players };
+    return { ...placed, players };
   }
 
   private async settleCashout(

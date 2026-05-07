@@ -194,9 +194,14 @@ export class ChickenRoadService {
           originalResult as unknown as Prisma.InputJsonValue,
           finalResult as unknown as Prisma.InputJsonValue,
         );
+        const user = await tx.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: { balance: true },
+        });
         return {
           state: this.toState(updated, finalResult, serverSeed.seedHash, true),
           hit: true,
+          newBalance: user.balance.toFixed(2),
         };
       }
 

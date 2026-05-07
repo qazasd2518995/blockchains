@@ -383,7 +383,7 @@ export function CrashPage({ config }: Props) {
         amount,
         autoCashOut: Number.isFinite(autoCO) && autoCO >= MIN_CASHOUT_MULTIPLIER ? autoCO : undefined,
       },
-      (res: { ok: boolean; error?: string }) => {
+      (res: { ok: boolean; error?: string; newBalance?: string }) => {
         if (!res.ok) {
           setError(res.error ?? 'BET FAILED');
           return;
@@ -393,7 +393,7 @@ export function CrashPage({ config }: Props) {
         myBetRef.current = placedBet;
         appliedCashoutRef.current = false;
         setMyBet(placedBet);
-        setBalance((balance - amount).toFixed(2));
+        setBalance(res.newBalance ?? (balance - amount).toFixed(2));
       },
     );
   };

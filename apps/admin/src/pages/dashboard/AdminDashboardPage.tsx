@@ -7,6 +7,7 @@ import { StatCard } from '@/components/shared/StatCard';
 import { useTranslation } from '@/i18n/useTranslation';
 import { formatAuditAction } from '@/lib/auditLabels';
 import { getGameMeta, type AuditListResponse, type DashboardSummaryResponse } from '@bg/shared';
+import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
 
 const EMPTY_TREND: DashboardSummaryResponse['trend'] = [];
 const EMPTY_GAMES: DashboardSummaryResponse['gameBreakdown'] = [];
@@ -17,6 +18,8 @@ export function AdminDashboardPage(): JSX.Element {
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
   const [recentAudit, setRecentAudit] = useState<AuditListResponse['items']>([]);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  useAdminLiveRefresh(() => setReloadKey((k) => k + 1));
 
   useEffect(() => {
     const load = async () => {
@@ -33,7 +36,7 @@ export function AdminDashboardPage(): JSX.Element {
       }
     };
     void load();
-  }, []);
+  }, [reloadKey]);
 
   const totals = summary?.totals;
   const activeRate = useMemo(() => {

@@ -97,6 +97,7 @@ export function HiLoPage() {
       });
       await sceneRef.current?.playDraw(res.data.drawn, res.data.correct);
       setRound(res.data.state);
+      if (res.data.newBalance) setBalance(res.data.newBalance);
       // 答錯 → 一局結束（BUSTED），記錄輸局
       if (res.data.state.status === 'BUSTED') {
         setHistory((prev) => [

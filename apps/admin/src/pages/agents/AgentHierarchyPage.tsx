@@ -14,6 +14,7 @@ import { AgentTransferModal } from '@/components/shared/AgentTransferModal';
 import { Modal } from '@/components/shared/Modal';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
 
 type AccountStatus = 'ACTIVE' | 'FROZEN' | 'DISABLED';
 
@@ -50,6 +51,7 @@ export function AgentHierarchyPage(): JSX.Element {
   const [agentTransferFor, setAgentTransferFor] = useState<{ id: string; username: string; balance: string } | null>(null);
   const [notesFor, setNotesFor] = useState<{ kind: 'agent' | 'member'; id: string; username: string; notes: string | null } | null>(null);
   const [resetPasswordFor, setResetPasswordFor] = useState<{ kind: 'agent' | 'member'; id: string; username: string } | null>(null);
+  useAdminLiveRefresh(() => setReloadKey((k) => k + 1));
 
   useEffect(() => {
     let cancel = false;

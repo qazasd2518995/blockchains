@@ -181,10 +181,15 @@ export class HiLoService {
           originalResult as unknown as Prisma.InputJsonValue,
           finalResult as unknown as Prisma.InputJsonValue,
         );
+        const user = await tx.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: { balance: true },
+        });
         return {
           state: this.toState(updated, drawn, serverSeedRecord.seedHash, bet.id),
           drawn,
           correct: false,
+          newBalance: user.balance.toFixed(2),
         };
       }
 

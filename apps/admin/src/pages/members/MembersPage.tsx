@@ -6,6 +6,7 @@ import { DataTable, type Column } from '@/components/shared/DataTable';
 import { CreateMemberModal } from '@/components/shared/CreateMemberModal';
 import { TransferModal } from '@/components/shared/TransferModal';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
 
 type AccountStatus = 'ACTIVE' | 'FROZEN' | 'DISABLED';
 
@@ -19,6 +20,7 @@ export function MembersPage(): JSX.Element {
   const [openCreate, setOpenCreate] = useState(false);
   const [transferFor, setTransferFor] = useState<MemberPublic | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  useAdminLiveRefresh(() => setReloadKey((k) => k + 1));
 
   useEffect(() => {
     let cancel = false;

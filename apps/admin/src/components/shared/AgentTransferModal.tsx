@@ -13,6 +13,7 @@ import {
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { Modal } from './Modal';
+import { requestAdminLiveRefresh } from '@/lib/adminRefreshEvents';
 
 type AgentTransferParty = { id: string; username: string; balance: string };
 
@@ -98,6 +99,7 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
         const res = await adminApi.get<AgentPublic>('/auth/me');
         setAgent(res.data);
       }
+      requestAdminLiveRefresh();
       onDone();
       onClose();
     } catch (e) {

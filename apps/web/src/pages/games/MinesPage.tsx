@@ -163,10 +163,11 @@ export function MinesPage() {
         roundId: current.roundId,
         cellIndex,
       });
-      const { state, hitMine } = res.data;
+      const { state, hitMine, newBalance } = res.data;
       if (hitMine) {
         sceneRef.current?.revealMine(cellIndex, true);
         sceneRef.current?.setClickable(false);
+        if (newBalance) setBalance(newBalance);
         if (state.minePositions) sceneRef.current?.revealAllMines(state.minePositions);
         // BUSTED → 記輸局
         setHistory((prev) => [

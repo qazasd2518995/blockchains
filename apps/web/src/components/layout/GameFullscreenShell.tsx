@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
+import { useLiveBalance } from '@/hooks/useLiveBalance';
 
 const GAME_NAME_ZH: Record<string, string> = {
   baccarat: '皇家百家',
@@ -87,6 +88,7 @@ export function GameFullscreenShell() {
   const [standaloneMode, setStandaloneMode] = useState(false);
   const [immersiveNotice, setImmersiveNotice] = useState<'ios' | 'blocked' | null>(null);
   const isMegaSlot = slotLayout === 'mega';
+  useLiveBalance();
 
   useEffect(() => {
     const updateMode = () => {

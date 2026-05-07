@@ -11,6 +11,7 @@ import { SoundToggle } from '@/components/layout/SoundToggle';
 import { MusicToggle } from '@/components/layout/MusicToggle';
 import { BaccaratWarmup } from '@/components/game/BaccaratWarmup';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useLiveBalance } from '@/hooks/useLiveBalance';
 
 const NAV_ITEMS: { to: string; label: string; icon: typeof Gift }[] = [
   { to: '/lobby', label: '大廳', icon: LayoutGrid },
@@ -27,6 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const useMobileWhiteChrome = MOBILE_WHITE_ROUTES.has(location.pathname);
+  useLiveBalance();
 
   const handleLogout = async () => {
     if (refreshToken) {

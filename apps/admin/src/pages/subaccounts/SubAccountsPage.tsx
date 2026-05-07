@@ -9,6 +9,7 @@ import { Modal } from '@/components/shared/Modal';
 import { AccountSearchSelect, type AccountSearchOption } from '@/components/shared/AccountSearchSelect';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
 
 const MAX_SUB_ACCOUNTS_PER_AGENT = 5;
 
@@ -24,6 +25,7 @@ export function SubAccountsPage(): JSX.Element {
   const [targetParentId, setTargetParentId] = useState<string>('');
   const [targetAgent, setTargetAgent] = useState<AccountSearchOption | null>(null);
   const [resetFor, setResetFor] = useState<AgentPublic | null>(null);
+  useAdminLiveRefresh(() => setReloadKey((k) => k + 1));
 
   const isSuperAdmin = agent?.role === 'SUPER_ADMIN';
   const isSubAccount = agent?.role === 'SUB_ACCOUNT';
