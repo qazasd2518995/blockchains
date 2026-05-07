@@ -68,11 +68,8 @@
   0% {
     opacity: 0;
     filter: blur(7px) brightness(1.28);
-    transform:
-      translate3d(var(--blackjack-deal-x, 0), var(--blackjack-deal-y, 0), 0)
-      rotate(var(--blackjack-deal-rotate, 0))
-      rotateY(-16deg)
-      scale(0.72);
+    transform: translate3d(var(--blackjack-deal-x, 0), var(--blackjack-deal-y, 0), 0)
+      rotate(var(--blackjack-deal-rotate, 0)) rotateY(-16deg) scale(0.72);
   }
 
   62% {
@@ -313,7 +310,9 @@
       overflow: hidden;
     }
 
-    .game-fullscreen-shell .game-main-stack > :not(.game-stage-panel):not(.game-result-card):not(.game-alert) {
+    .game-fullscreen-shell
+      .game-main-stack
+      > :not(.game-stage-panel):not(.game-result-card):not(.game-alert) {
       display: none !important;
     }
 
@@ -467,7 +466,7 @@
       margin-top: 0 !important;
     }
 
-    .game-fullscreen-shell .game-result-card [class*="gap-3"] {
+    .game-fullscreen-shell .game-result-card [class*='gap-3'] {
       gap: 0.4rem !important;
     }
 
@@ -484,14 +483,14 @@
       line-height: 1 !important;
     }
 
-    .game-fullscreen-shell .game-result-card [class*="tracking-"] {
+    .game-fullscreen-shell .game-result-card [class*='tracking-'] {
       font-size: 9px !important;
       letter-spacing: 0.08em !important;
       line-height: 1.1 !important;
     }
 
-    .game-fullscreen-shell .game-result-card [class*="text-[10px]"],
-    .game-fullscreen-shell .game-result-card [class*="text-[11px]"] {
+    .game-fullscreen-shell .game-result-card [class*='text-[10px]'],
+    .game-fullscreen-shell .game-result-card [class*='text-[11px]'] {
       display: none !important;
     }
 
@@ -743,47 +742,51 @@
       font-size: 12px;
     }
 
-    .game-fullscreen-shell[data-game-id="mini-roulette"] .game-control-stack,
-    .game-fullscreen-shell[data-game-id="carnival"] .game-control-stack {
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .game-control-stack,
+    .game-fullscreen-shell[data-game-id='carnival'] .game-control-stack {
       max-height: min(48svh, 290px);
     }
 
-    .game-fullscreen-shell[data-game-id="mini-roulette"] .game-control-stack > .game-side-card:first-child,
-    .game-fullscreen-shell[data-game-id="carnival"] .game-control-stack > .game-side-card:first-child {
+    .game-fullscreen-shell[data-game-id='mini-roulette']
+      .game-control-stack
+      > .game-side-card:first-child,
+    .game-fullscreen-shell[data-game-id='carnival']
+      .game-control-stack
+      > .game-side-card:first-child {
       max-height: min(48svh, 290px);
       overflow-y: auto;
       padding: 0.5rem 0.6rem !important;
     }
 
-    .game-fullscreen-shell[data-game-id="mini-roulette"] .roulette-active-bets,
-    .game-fullscreen-shell[data-game-id="carnival"] .roulette-active-bets {
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-active-bets,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-active-bets {
       display: none !important;
     }
 
-    .game-fullscreen-shell[data-game-id="mini-roulette"] .game-stage-panel > .game-canvas-shell,
-    .game-fullscreen-shell[data-game-id="carnival"] .game-stage-panel > .game-canvas-shell {
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .game-stage-panel > .game-canvas-shell,
+    .game-fullscreen-shell[data-game-id='carnival'] .game-stage-panel > .game-canvas-shell {
       flex: 1 1 145px;
       min-height: 128px !important;
       padding: 0.25rem !important;
     }
 
-    .game-fullscreen-shell[data-game-id="mini-roulette"] .game-control-stack .game-choice-btn,
-    .game-fullscreen-shell[data-game-id="carnival"] .game-control-stack .game-choice-btn {
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .game-control-stack .game-choice-btn,
+    .game-fullscreen-shell[data-game-id='carnival'] .game-control-stack .game-choice-btn {
       min-height: 44px;
     }
 
-    .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-control {
+    .game-fullscreen-shell[data-game-id='tower'] .tower-difficulty-control {
       margin-top: 0.45rem !important;
     }
 
-    .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-options {
+    .game-fullscreen-shell[data-game-id='tower'] .tower-difficulty-options {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 0.35rem !important;
       margin-top: 0.35rem !important;
     }
 
-    .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-options > button {
+    .game-fullscreen-shell[data-game-id='tower'] .tower-difficulty-options > button {
       min-height: 44px;
       align-items: center;
       border-radius: 10px !important;
@@ -791,17 +794,23 @@
       text-align: center;
     }
 
-    .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-options > button > span:first-child {
+    .game-fullscreen-shell[data-game-id='tower']
+      .tower-difficulty-options
+      > button
+      > span:first-child {
       width: 100%;
       font-size: 11px;
       letter-spacing: 0.08em;
     }
 
-    .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-options > button > span:last-child {
+    .game-fullscreen-shell[data-game-id='tower']
+      .tower-difficulty-options
+      > button
+      > span:last-child {
       display: none;
     }
 
-    .game-fullscreen-shell[data-game-id="mines"] .mines-round-stats {
+    .game-fullscreen-shell[data-game-id='mines'] .mines-round-stats {
       display: none;
     }
 
@@ -939,34 +948,34 @@
       min-height: 40px;
     }
 
-    .game-fullscreen-shell[data-game-id="mines"] .mines-count-presets {
+    .game-fullscreen-shell[data-game-id='mines'] .mines-count-presets {
       display: none;
     }
   }
 
   @media (orientation: landscape) and (max-height: 640px) {
-    .game-fullscreen-shell[data-slot-layout="mega"] {
+    .game-fullscreen-shell[data-slot-layout='mega'] {
       height: 100dvh;
       min-height: 100dvh;
       overflow: hidden;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] > header {
+    .game-fullscreen-shell[data-slot-layout='mega'] > header {
       position: relative;
       top: auto;
       padding-top: 0;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] > header > div {
+    .game-fullscreen-shell[data-slot-layout='mega'] > header > div {
       height: 46px !important;
       gap: 0.35rem !important;
       padding-left: max(0.45rem, env(safe-area-inset-left)) !important;
       padding-right: max(0.45rem, env(safe-area-inset-right)) !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-back,
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-reload,
-    .game-fullscreen-shell[data-slot-layout="mega"] > header button {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-back,
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-reload,
+    .game-fullscreen-shell[data-slot-layout='mega'] > header button {
       height: 40px !important;
       min-height: 40px !important;
       width: 40px !important;
@@ -974,20 +983,20 @@
       padding: 0 !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-title-block {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-title-block {
       flex: 0 1 150px;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-title {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-title {
       font-size: 13px !important;
       line-height: 1.05 !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-subtitle {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-subtitle {
       display: none;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-balance {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-balance {
       display: inline-flex !important;
       width: auto !important;
       min-width: 82px !important;
@@ -997,12 +1006,12 @@
       font-size: 11px !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-balance svg {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-balance svg {
       height: 14px;
       width: 14px;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-history {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-history {
       display: inline-flex !important;
       width: 40px !important;
       min-width: 40px !important;
@@ -1012,11 +1021,11 @@
       justify-content: center;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-history span {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-history span {
       display: none;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-immersive {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-immersive {
       width: 40px !important;
       min-width: 40px !important;
       height: 40px !important;
@@ -1025,11 +1034,11 @@
       padding: 0 !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-immersive span {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-immersive span {
       display: none;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-immersive-notice {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-immersive-notice {
       top: calc(46px + env(safe-area-inset-top));
       right: max(0.45rem, env(safe-area-inset-right));
       width: min(20rem, calc(100vw - 0.9rem));
@@ -1037,29 +1046,26 @@
       font-size: 11px;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] > main {
+    .game-fullscreen-shell[data-slot-layout='mega'] > main {
       height: calc(100dvh - 46px);
       min-height: 0;
       overflow: hidden;
-      padding:
-        0.35rem
-        max(0.45rem, env(safe-area-inset-right))
-        max(0.35rem, env(safe-area-inset-bottom))
-        max(0.45rem, env(safe-area-inset-left));
+      padding: 0.35rem max(0.45rem, env(safe-area-inset-right))
+        max(0.35rem, env(safe-area-inset-bottom)) max(0.45rem, env(safe-area-inset-left));
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] > main > .slot-game-page--mega {
+    .game-fullscreen-shell[data-slot-layout='mega'] > main > .slot-game-page--mega {
       height: 100%;
       min-height: 0;
       overflow: hidden;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .slot-game-page--mega > .game-header,
-    .game-fullscreen-shell[data-slot-layout="mega"] .slot-landscape-gate {
+    .game-fullscreen-shell[data-slot-layout='mega'] .slot-game-page--mega > .game-header,
+    .game-fullscreen-shell[data-slot-layout='mega'] .slot-landscape-gate {
       display: none;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .slot-game-page--mega .game-play-grid {
+    .game-fullscreen-shell[data-slot-layout='mega'] .slot-game-page--mega .game-play-grid {
       display: grid !important;
       grid-template-columns: minmax(0, 1fr) minmax(168px, 22vw) !important;
       height: 100%;
@@ -1068,8 +1074,8 @@
       overflow: hidden;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-main-stack,
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-main-stack,
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-control-stack {
       min-height: 0;
       height: 100%;
       max-height: none !important;
@@ -1077,18 +1083,24 @@
       overflow: hidden;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-main-stack {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-main-stack {
       position: relative;
       display: flex;
       flex-direction: column;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-main-stack > :not([hidden]) ~ :not([hidden]),
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack > :not([hidden]) ~ :not([hidden]) {
+    .game-fullscreen-shell[data-slot-layout='mega']
+      .game-main-stack
+      > :not([hidden])
+      ~ :not([hidden]),
+    .game-fullscreen-shell[data-slot-layout='mega']
+      .game-control-stack
+      > :not([hidden])
+      ~ :not([hidden]) {
       margin-top: 0 !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-stage-panel {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-stage-panel {
       display: flex;
       flex: 1 1 auto;
       min-height: 0;
@@ -1099,7 +1111,7 @@
       padding: 0.35rem !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-stage-panel > .game-stage-bar {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-stage-panel > .game-stage-bar {
       min-height: 34px;
       flex: 0 0 34px;
       margin: -0.35rem -0.35rem 0.3rem !important;
@@ -1109,7 +1121,7 @@
       line-height: 1.15;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-stage-panel > .game-canvas-shell {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-stage-panel > .game-canvas-shell {
       display: flex;
       flex: 1 1 auto;
       align-items: center;
@@ -1122,27 +1134,29 @@
       padding: 0.25rem !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-stage-panel canvas {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-stage-panel canvas {
       display: block;
       height: 100% !important;
       width: 100% !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .slot-bigwin-stage {
+    .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage {
       inset: 30px 0.35rem 0.35rem;
       border-radius: 12px;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-control-stack {
       display: grid;
       grid-template-rows: minmax(0, 1fr);
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack > :not(:first-child) {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-control-stack > :not(:first-child) {
       display: none !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack > .game-side-card:first-child {
+    .game-fullscreen-shell[data-slot-layout='mega']
+      .game-control-stack
+      > .game-side-card:first-child {
       display: flex;
       height: 100%;
       min-height: 0;
@@ -1154,49 +1168,49 @@
       padding: 0.45rem !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls {
+    .game-fullscreen-shell[data-slot-layout='mega'] .bet-controls {
       border: 0;
       background: transparent;
       box-shadow: none;
       padding: 0 !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__header {
+    .game-fullscreen-shell[data-slot-layout='mega'] .bet-controls__header {
       display: none;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__entry {
+    .game-fullscreen-shell[data-slot-layout='mega'] .bet-controls__entry {
       margin-top: 0 !important;
       border-radius: 12px !important;
       padding: 0.25rem !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__input {
+    .game-fullscreen-shell[data-slot-layout='mega'] .bet-controls__input {
       min-height: 40px !important;
       padding: 0.2rem 0.4rem !important;
       font-size: 18px !important;
       line-height: 1 !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__adjusters {
+    .game-fullscreen-shell[data-slot-layout='mega'] .bet-controls__adjusters {
       gap: 0.25rem !important;
       margin-top: 0.25rem !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__adjusters .game-choice-btn {
+    .game-fullscreen-shell[data-slot-layout='mega'] .bet-controls__adjusters .game-choice-btn {
       min-height: 40px;
       padding: 0 !important;
       font-size: 11px;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__presets {
+    .game-fullscreen-shell[data-slot-layout='mega'] .bet-controls__presets {
       display: grid !important;
       grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 0.25rem !important;
       margin-top: 0.3rem !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__presets .game-choice-btn {
+    .game-fullscreen-shell[data-slot-layout='mega'] .bet-controls__presets .game-choice-btn {
       min-height: 40px;
       border-radius: 8px;
       padding: 0 !important;
@@ -1204,7 +1218,7 @@
       letter-spacing: 0;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack .btn-acid {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-control-stack .btn-acid {
       min-height: 44px;
       margin-top: 0.4rem !important;
       padding: 0.55rem 0.4rem !important;
@@ -1212,7 +1226,7 @@
       line-height: 1.1;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-balance-strip {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-balance-strip {
       gap: 0.2rem 0.35rem;
       margin-top: 0.35rem !important;
       padding-top: 0.3rem;
@@ -1220,8 +1234,8 @@
       letter-spacing: 0.03em;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-main-stack > .game-result-card,
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-main-stack > .game-alert {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-main-stack > .game-result-card,
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-main-stack > .game-alert {
       position: absolute;
       left: 50%;
       bottom: 0.45rem;
@@ -1237,7 +1251,7 @@
       padding: 0.34rem 0.7rem !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card > .slot-result-summary {
+    .game-fullscreen-shell[data-slot-layout='mega'] .slot-result-card > .slot-result-summary {
       display: flex !important;
       flex-direction: row !important;
       justify-content: center !important;
@@ -1247,15 +1261,15 @@
       text-align: center !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card > .mt-3,
-    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card .mb-1,
-    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card .mt-1 {
+    .game-fullscreen-shell[data-slot-layout='mega'] .slot-result-card > .mt-3,
+    .game-fullscreen-shell[data-slot-layout='mega'] .slot-result-card .mb-1,
+    .game-fullscreen-shell[data-slot-layout='mega'] .slot-result-card .mt-1 {
       display: none !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card .text-4xl,
-    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card .text-3xl,
-    .game-fullscreen-shell[data-slot-layout="mega"] .slot-result-card .text-2xl {
+    .game-fullscreen-shell[data-slot-layout='mega'] .slot-result-card .text-4xl,
+    .game-fullscreen-shell[data-slot-layout='mega'] .slot-result-card .text-3xl,
+    .game-fullscreen-shell[data-slot-layout='mega'] .slot-result-card .text-2xl {
       font-size: 1rem !important;
       line-height: 1 !important;
       white-space: nowrap;
@@ -1263,50 +1277,50 @@
   }
 
   @media (orientation: landscape) and (max-height: 430px) {
-    .game-fullscreen-shell[data-slot-layout="mega"] .slot-game-page--mega .game-play-grid {
+    .game-fullscreen-shell[data-slot-layout='mega'] .slot-game-page--mega .game-play-grid {
       grid-template-columns: minmax(0, 1fr) 156px !important;
       gap: 0.35rem !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] > header > div {
+    .game-fullscreen-shell[data-slot-layout='mega'] > header > div {
       height: 44px !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] > main {
+    .game-fullscreen-shell[data-slot-layout='mega'] > main {
       height: calc(100dvh - 44px);
       padding-top: 0.25rem;
       padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-immersive-notice {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-immersive-notice {
       top: calc(42px + env(safe-area-inset-top));
       max-width: 17rem;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-title-block {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-title-block {
       flex-basis: 118px;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-stage-panel > .game-stage-bar {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-stage-panel > .game-stage-bar {
       min-height: 30px;
       flex-basis: 30px;
       padding-top: 0.28rem !important;
       padding-bottom: 0.28rem !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__presets .game-choice-btn {
+    .game-fullscreen-shell[data-slot-layout='mega'] .bet-controls__presets .game-choice-btn {
       min-height: 40px;
       font-size: 9px;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack .btn-acid {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-control-stack .btn-acid {
       min-height: 40px;
       margin-top: 0.3rem !important;
       padding-top: 0.45rem !important;
       padding-bottom: 0.45rem !important;
     }
 
-    .game-fullscreen-shell[data-slot-layout="mega"] .game-balance-strip {
+    .game-fullscreen-shell[data-slot-layout='mega'] .game-balance-strip {
       display: none;
     }
   }
@@ -1364,17 +1378,17 @@
   }
 }
 
-.game-fullscreen-shell[data-slot-layout="mega"] {
+.game-fullscreen-shell[data-slot-layout='mega'] {
   height: 100dvh;
   min-height: 100dvh;
   overflow: hidden;
 }
 
-.game-fullscreen-shell[data-slot-layout="mega"] > header {
+.game-fullscreen-shell[data-slot-layout='mega'] > header {
   display: none;
 }
 
-.game-fullscreen-shell[data-slot-layout="mega"] > main {
+.game-fullscreen-shell[data-slot-layout='mega'] > main {
   height: 100dvh;
   max-width: none;
   overflow: hidden;
@@ -1407,7 +1421,11 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--mega-slot-accent) 26%, transparent), transparent 34%),
+    radial-gradient(
+      circle at 50% 20%,
+      color-mix(in srgb, var(--mega-slot-accent) 26%, transparent),
+      transparent 34%
+    ),
     linear-gradient(180deg, rgba(3, 8, 19, 0.05), rgba(3, 8, 19, 0.82));
 }
 
@@ -1418,7 +1436,8 @@
   grid-template-rows: 44px minmax(0, 1fr) 72px;
   gap: 8px;
   height: 100%;
-  padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
 }
 
 .mega-slot-topbar {
@@ -1595,7 +1614,11 @@
   min-height: 58px;
   border-radius: 999px;
   border: 2px solid rgba(243, 214, 125, 0.52);
-  background: radial-gradient(circle, color-mix(in srgb, var(--mega-slot-accent) 30%, transparent), rgba(5, 10, 19, 0.78));
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--mega-slot-accent) 30%, transparent),
+    rgba(5, 10, 19, 0.78)
+  );
   font-family: var(--font-display, Inter, system-ui, sans-serif);
   font-size: clamp(22px, 4vw, 42px);
   font-weight: 950;
@@ -1615,7 +1638,11 @@
 .mega-slot-free-spins--active {
   border-color: color-mix(in srgb, var(--mega-slot-accent) 54%, rgba(255, 255, 255, 0.16));
   background:
-    radial-gradient(circle at 50% 8%, color-mix(in srgb, var(--mega-slot-accent) 28%, transparent), transparent 62%),
+    radial-gradient(
+      circle at 50% 8%,
+      color-mix(in srgb, var(--mega-slot-accent) 28%, transparent),
+      transparent 62%
+    ),
     rgba(5, 10, 19, 0.68);
   box-shadow: inset 0 0 18px color-mix(in srgb, var(--mega-slot-accent) 15%, transparent);
 }
@@ -1734,7 +1761,11 @@
   border: 2px solid rgba(243, 214, 125, 0.42);
   background:
     linear-gradient(90deg, rgba(5, 10, 19, 0.88), rgba(61, 26, 15, 0.78), rgba(5, 10, 19, 0.88)),
-    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--mega-slot-accent) 24%, transparent), transparent 64%);
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--mega-slot-accent) 24%, transparent),
+      transparent 64%
+    );
   padding: 0 16px;
   color: rgba(255, 255, 255, 0.84);
   box-shadow:
@@ -1821,19 +1852,32 @@
   visibility: hidden;
 }
 
-.mega-slot-fallback-grid--spinning .mega-slot-fallback-symbol {
-  animation: mega-slot-symbol-pulse 420ms ease-in-out infinite;
-}
-
-.mega-slot-fallback-grid--spinning .mega-slot-fallback-reel:nth-child(2n) .mega-slot-fallback-symbol {
-  animation-delay: 90ms;
-}
-
 .mega-slot-fallback-reel {
-  display: grid;
-  grid-template-rows: repeat(5, minmax(0, 1fr));
-  gap: min(0.8vw, 8px);
+  position: relative;
+  display: block;
   min-height: 0;
+  overflow: hidden;
+}
+
+.mega-slot-fallback-reel-track {
+  --mega-slot-reel-items: 5;
+  --mega-slot-reel-duration: 520ms;
+  display: grid;
+  grid-template-rows: repeat(var(--mega-slot-reel-items), minmax(0, 1fr));
+  gap: min(0.8vw, 8px);
+  height: calc((var(--mega-slot-reel-items) / 5) * 100%);
+  min-height: 100%;
+  will-change: transform;
+}
+
+.mega-slot-fallback-grid--spinning .mega-slot-fallback-reel-track {
+  animation: mega-slot-reel-scroll var(--mega-slot-reel-duration) linear infinite;
+}
+
+.mega-slot-fallback-grid--spinning
+  .mega-slot-fallback-reel:nth-child(2n)
+  .mega-slot-fallback-reel-track {
+  animation-direction: reverse;
 }
 
 .mega-slot-fallback-symbol {
@@ -1955,7 +1999,11 @@
   border: 2px solid color-mix(in srgb, var(--mega-slot-accent) 72%, white);
   background:
     radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.36), transparent 25%),
-    radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--mega-slot-accent) 50%, transparent), transparent 68%),
+    radial-gradient(
+      circle at 50% 55%,
+      color-mix(in srgb, var(--mega-slot-accent) 50%, transparent),
+      transparent 68%
+    ),
     linear-gradient(145deg, rgba(245, 158, 11, 0.96), rgba(126, 34, 206, 0.88));
   box-shadow:
     inset 0 0 0 2px rgba(255, 255, 255, 0.16),
@@ -1966,7 +2014,12 @@
   inset: 17%;
   border-radius: 28%;
   background:
-    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.1) 36%, transparent 62%),
+    radial-gradient(
+      circle at 50% 45%,
+      rgba(255, 255, 255, 0.92),
+      rgba(255, 255, 255, 0.1) 36%,
+      transparent 62%
+    ),
     conic-gradient(
       from 45deg,
       rgba(243, 214, 125, 0.95),
@@ -1974,7 +2027,18 @@
       color-mix(in srgb, var(--mega-slot-accent) 82%, white),
       rgba(243, 214, 125, 0.95)
     );
-  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 56%, 79% 92%, 50% 70%, 21% 92%, 32% 56%, 2% 35%, 39% 35%);
+  clip-path: polygon(
+    50% 0%,
+    61% 35%,
+    98% 35%,
+    68% 56%,
+    79% 92%,
+    50% 70%,
+    21% 92%,
+    32% 56%,
+    2% 35%,
+    39% 35%
+  );
 }
 
 .mega-slot-special-symbol--scatter .mega-slot-special-symbol__value {
@@ -1992,7 +2056,11 @@
   place-items: center;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--mega-slot-accent) 30%, transparent), transparent 45%),
+    radial-gradient(
+      circle at 50% 48%,
+      color-mix(in srgb, var(--mega-slot-accent) 30%, transparent),
+      transparent 45%
+    ),
     linear-gradient(90deg, rgba(3, 8, 19, 0.68), rgba(3, 8, 19, 0.22), rgba(3, 8, 19, 0.68));
   pointer-events: none;
   animation: mega-slot-free-intro-fade 1600ms ease both;
@@ -2008,12 +2076,11 @@
   aspect-ratio: 1;
   border-radius: 999px;
   border: 2px solid color-mix(in srgb, var(--mega-slot-accent) 72%, white);
-  background:
-    repeating-conic-gradient(
-      from 0deg,
-      color-mix(in srgb, var(--mega-slot-accent) 56%, transparent) 0deg 8deg,
-      transparent 8deg 18deg
-    );
+  background: repeating-conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--mega-slot-accent) 56%, transparent) 0deg 8deg,
+    transparent 8deg 18deg
+  );
   filter: blur(0.2px);
   opacity: 0.55;
   animation: mega-slot-free-intro-burst 1600ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
@@ -2153,9 +2220,28 @@
   }
 }
 
+@keyframes mega-slot-reel-scroll {
+  0% {
+    transform: translate3d(0, -66.666%, 0);
+    filter: brightness(1.18) blur(1.2px);
+  }
+
+  72% {
+    filter: brightness(1.08) blur(0.75px);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0);
+    filter: brightness(1) blur(0);
+  }
+}
+
 .mega-slot-controls {
   display: grid;
-  grid-template-columns: minmax(96px, 0.8fr) minmax(96px, 0.8fr) minmax(150px, 1fr) minmax(220px, 1.2fr) minmax(110px, 0.8fr);
+  grid-template-columns: minmax(96px, 0.8fr) minmax(96px, 0.8fr) minmax(150px, 1fr) minmax(
+      220px,
+      1.2fr
+    ) minmax(110px, 0.8fr);
   align-items: center;
   gap: 8px;
   min-height: 0;
@@ -2256,7 +2342,11 @@
   border: 2px solid rgba(243, 214, 125, 0.58);
   border-radius: 999px;
   background:
-    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--mega-slot-accent) 42%, transparent), rgba(7, 20, 34, 0.92)),
+    radial-gradient(
+      circle at 50% 42%,
+      color-mix(in srgb, var(--mega-slot-accent) 42%, transparent),
+      rgba(7, 20, 34, 0.92)
+    ),
     linear-gradient(180deg, rgba(243, 214, 125, 0.2), rgba(24, 96, 115, 0.5));
   box-shadow:
     inset 0 0 0 5px rgba(5, 10, 19, 0.26),
@@ -2295,7 +2385,7 @@
   color: #fecaca;
 }
 
-.game-fullscreen-shell[data-slot-layout="mega"] .slot-bigwin-stage {
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage {
   display: flex;
   inset: 54px 8px 8px;
   border-radius: 10px;
@@ -2540,8 +2630,7 @@
   background:
     linear-gradient(90deg, rgba(15, 32, 45, 0.98) 0 12%, transparent 12%),
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    #0d1d29;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px), #0d1d29;
   background-size:
     auto,
     10.5% 100%,
@@ -2586,9 +2675,7 @@
   width: 12%;
   min-width: 90px;
   border-right: 8px solid rgba(96, 119, 132, 0.7);
-  background:
-    linear-gradient(180deg, transparent 0 80%, rgba(5, 10, 19, 0.18) 80%),
-    #223847;
+  background: linear-gradient(180deg, transparent 0 80%, rgba(5, 10, 19, 0.18) 80%), #223847;
 }
 
 .chicken-road-traffic-light {
@@ -2622,12 +2709,11 @@
   bottom: 26%;
   height: 18%;
   width: 100%;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.25) 0 16px,
-      transparent 16px 28px
-    );
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.25) 0 16px,
+    transparent 16px 28px
+  );
   opacity: 0.78;
 }
 
@@ -2693,7 +2779,9 @@
 .chicken-road-lane--next .chicken-road-lane__mult {
   background: rgba(108, 80, 28, 0.98);
   color: #fde68a;
-  box-shadow: 0 0 0 2px rgba(243, 214, 125, 0.18), 0 14px 28px rgba(0, 0, 0, 0.28);
+  box-shadow:
+    0 0 0 2px rgba(243, 214, 125, 0.18),
+    0 14px 28px rgba(0, 0, 0, 0.28);
 }
 
 .chicken-road-lane--crossed,
@@ -2743,10 +2831,7 @@
   background-image: url('/game-art/chicken-road/vehicles.png');
   background-repeat: no-repeat;
   background-size: 400% 200%;
-  filter:
-    drop-shadow(0 18px 22px rgba(0, 0, 0, 0.48))
-    saturate(1.08)
-    brightness(1.08);
+  filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.48)) saturate(1.08) brightness(1.08);
 }
 
 .chicken-road-hit-car::after {
@@ -2757,8 +2842,12 @@
   width: 108%;
   aspect-ratio: 1;
   border-radius: 999px;
-  background:
-    radial-gradient(circle, rgba(252, 165, 165, 0.92) 0 16%, rgba(248, 113, 113, 0.5) 17% 34%, transparent 58%);
+  background: radial-gradient(
+    circle,
+    rgba(252, 165, 165, 0.92) 0 16%,
+    rgba(248, 113, 113, 0.5) 17% 34%,
+    transparent 58%
+  );
   transform: translate(-50%, -50%);
   animation: chicken-road-impact-burst 520ms ease-out both;
   pointer-events: none;
@@ -3181,7 +3270,8 @@
   align-items: flex-end;
   justify-content: center;
   background: rgba(2, 6, 23, 0.58);
-  padding: 16px max(14px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  padding: 16px max(14px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
   color: #f8fafc;
 }
 
@@ -3411,7 +3501,8 @@
   .mega-slot-machine__chrome {
     grid-template-rows: 40px minmax(0, 1fr) 62px;
     gap: 4px;
-    padding: 4px max(5px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(5px, env(safe-area-inset-left));
+    padding: 4px max(5px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom))
+      max(5px, env(safe-area-inset-left));
   }
 
   .mega-slot-topbar {
@@ -3540,7 +3631,7 @@
     padding: 6px;
   }
 
-  .mega-slot-fallback-reel {
+  .mega-slot-fallback-reel-track {
     gap: 4px;
   }
 
@@ -3586,7 +3677,10 @@
   }
 
   .mega-slot-controls {
-    grid-template-columns: minmax(74px, 0.75fr) minmax(74px, 0.75fr) minmax(128px, 1fr) minmax(176px, 1.25fr) minmax(88px, 0.78fr);
+    grid-template-columns: minmax(74px, 0.75fr) minmax(74px, 0.75fr) minmax(128px, 1fr) minmax(
+        176px,
+        1.25fr
+      ) minmax(88px, 0.78fr);
     gap: 4px;
     border-radius: 10px;
     padding: 4px;
@@ -3630,7 +3724,7 @@
     font-size: 10px;
   }
 
-  .game-fullscreen-shell[data-slot-layout="mega"] .slot-bigwin-stage {
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage {
     inset: 38px 5px 5px;
   }
 }
@@ -3655,6 +3749,9 @@
   }
 
   .mega-slot-controls {
-    grid-template-columns: minmax(72px, 0.8fr) minmax(122px, 1fr) minmax(152px, 1.2fr) minmax(84px, 0.8fr);
+    grid-template-columns: minmax(72px, 0.8fr) minmax(122px, 1fr) minmax(152px, 1.2fr) minmax(
+        84px,
+        0.8fr
+      );
   }
 }

@@ -27,14 +27,7 @@ interface Props {
   theme?: SlotThemeId;
 }
 
-const SYMBOL_POSITIONS = [
-  '0% 0%',
-  '50% 0%',
-  '100% 0%',
-  '0% 100%',
-  '50% 100%',
-  '100% 100%',
-];
+const SYMBOL_POSITIONS = ['0% 0%', '50% 0%', '100% 0%', '0% 100%', '50% 100%', '100% 100%'];
 
 const MEGA_SYMBOL_PAYOUTS = [
   '8-9個 0.024x · 10-11個 0.072x · 12+個 0.24x',
@@ -117,17 +110,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     setSceneReady(false);
-    const useHtmlMegaBoard = isMegaSlot && (
-      window.matchMedia('(max-height: 640px)').matches ||
-      window.matchMedia('(pointer: coarse)').matches
-    );
+    const useHtmlMegaBoard =
+      isMegaSlot &&
+      window.matchMedia('(orientation: landscape)').matches &&
+      window.matchMedia('(max-height: 420px)').matches;
     if (useHtmlMegaBoard) {
       sceneRef.current = null;
       setSceneFallback(true);
       return;
     }
     setSceneFallback(false);
-    if (isMegaSlot && window.matchMedia('(orientation: portrait)').matches) return;
 
     let cancelled = false;
     let scene: HotlineScene | null = null;
@@ -142,21 +134,24 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       }
       scene = new HotlineScene();
       sceneRef.current = scene;
-      void scene.init(canvas, w, h, slotTheme).then(() => {
-        if (cancelled) {
+      void scene
+        .init(canvas, w, h, slotTheme)
+        .then(() => {
+          if (cancelled) {
+            scene?.dispose();
+            return;
+          }
+          setSceneReady(true);
+          setSceneFallback(false);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          console.error(err);
           scene?.dispose();
-          return;
-        }
-        setSceneReady(true);
-        setSceneFallback(false);
-      }).catch((err) => {
-        if (cancelled) return;
-        console.error(err);
-        scene?.dispose();
-        sceneRef.current = null;
-        setSceneReady(false);
-        setSceneFallback(true);
-      });
+          sceneRef.current = null;
+          setSceneReady(false);
+          setSceneFallback(true);
+        });
     };
     tryInit();
     return () => {
@@ -227,13 +222,22 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       const cascades = res.data.cascades ?? [];
       const features = res.data.features;
       const freeSpinRounds = features?.freeSpinRounds ?? [];
-      const totalExtraFreeSpins = freeSpinRounds.reduce((sum, round) => sum + round.extraFreeSpinsAwarded, 0);
-      let revealedFreeSpinsAwarded = Math.max(0, (features?.freeSpinsAwarded ?? 0) - totalExtraFreeSpins);
+      const totalExtraFreeSpins = freeSpinRounds.reduce(
+        (sum, round) => sum + round.extraFreeSpinsAwarded,
+        0,
+      );
+      let revealedFreeSpinsAwarded = Math.max(
+        0,
+        (features?.freeSpinsAwarded ?? 0) - totalExtraFreeSpins,
+      );
       let revealedFreeMultiplierBank = 0;
       let revealedMultiplier = 0;
       let revealedCascadeCount = 0;
 
-      const playSpinOrFallback = async (grid: number[][], lines: HotlineWinLine[]): Promise<void> => {
+      const playSpinOrFallback = async (
+        grid: number[][],
+        lines: HotlineWinLine[],
+      ): Promise<void> => {
         const scene = sceneRef.current;
         if (scene) {
           await scene.playSpin(grid, lines);
@@ -268,7 +272,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         patch: Partial<LiveMegaRoundState>,
       ): void => {
         revealedCascadeCount += 1;
-        revealedMultiplier = roundMegaMultiplier(revealedMultiplier + step.multiplier * appliedMultiplier);
+        revealedMultiplier = roundMegaMultiplier(
+          revealedMultiplier + step.multiplier * appliedMultiplier,
+        );
         updateLiveMegaRound({
           ...patch,
           grid: step.grid,
@@ -290,27 +296,25 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           freeSpinsAwarded: revealedFreeSpinsAwarded,
           activeMultiplier: Math.max(1, features.baseMultiplierTotal),
           baseMultiplierTotal: features.baseMultiplierTotal,
-          specialSymbols: [
-            ...features.scatterSymbols,
-            ...features.baseMultiplierSymbols,
-          ],
+          specialSymbols: [...features.scatterSymbols, ...features.baseMultiplierSymbols],
         });
       };
 
       if (cascades.length > 0) {
         await playCascadeOrFallback(cascades, res.data.grid, (step) => {
-          revealCascadeStep(step, features?.baseAppliedMultiplier ?? 1, features
-            ? {
-              scatterCount: features.scatterCount,
-              freeSpinsAwarded: revealedFreeSpinsAwarded,
-              activeMultiplier: Math.max(1, features.baseMultiplierTotal),
-              baseMultiplierTotal: features.baseMultiplierTotal,
-              specialSymbols: [
-                ...features.scatterSymbols,
-                ...features.baseMultiplierSymbols,
-              ],
-            }
-            : {});
+          revealCascadeStep(
+            step,
+            features?.baseAppliedMultiplier ?? 1,
+            features
+              ? {
+                  scatterCount: features.scatterCount,
+                  freeSpinsAwarded: revealedFreeSpinsAwarded,
+                  activeMultiplier: Math.max(1, features.baseMultiplierTotal),
+                  baseMultiplierTotal: features.baseMultiplierTotal,
+                  specialSymbols: [...features.scatterSymbols, ...features.baseMultiplierSymbols],
+                }
+              : {},
+          );
         });
         revealBaseState(res.data.grid);
       } else {
@@ -328,11 +332,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       }
       for (const round of freeSpinRounds) {
         await delay(360);
-        revealedFreeMultiplierBank = roundMegaMultiplier(revealedFreeMultiplierBank + round.multiplierTotal);
-        const roundSpecialSymbols = [
-          ...round.scatterSymbols,
-          ...round.multiplierSymbols,
-        ];
+        revealedFreeMultiplierBank = roundMegaMultiplier(
+          revealedFreeMultiplierBank + round.multiplierTotal,
+        );
+        const roundSpecialSymbols = [...round.scatterSymbols, ...round.multiplierSymbols];
         const freeRoundPatch: Partial<LiveMegaRoundState> = {
           freeSpinsPlayed: round.index + 1,
           freeSpinsAwarded: revealedFreeSpinsAwarded,
@@ -361,12 +364,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           updateLiveMegaRound({
             freeSpinsAwarded: revealedFreeSpinsAwarded,
           });
-          await showMegaFreeSpinIntro({
-            kind: 'retrigger',
-            spins: round.extraFreeSpinsAwarded,
-            totalSpins: revealedFreeSpinsAwarded,
-            scatterCount: round.scatterSymbols.length,
-          }, MEGA_FREE_SPIN_RETRIGGER_MS);
+          await showMegaFreeSpinIntro(
+            {
+              kind: 'retrigger',
+              spins: round.extraFreeSpinsAwarded,
+              totalSpins: revealedFreeSpinsAwarded,
+              scatterCount: round.scatterSymbols.length,
+            },
+            MEGA_FREE_SPIN_RETRIGGER_MS,
+          );
         }
       }
       const mult = res.data.multiplier ?? 0;
@@ -394,20 +400,24 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       });
       setResult(res.data);
       setBalance(res.data.newBalance);
-      setHistory((prev) => [
-        {
-          id: res.data.betId,
-          timestamp: Date.now(),
-          betAmount: amount,
-          multiplier: mult,
-          payout: amount * mult,
-          won: profitValue >= 0,
-          detail: `${totalCascadeCount > 0
-            ? `${totalCascadeCount} 次消除 · ${res.data.lines.length} 組合`
-            : `${res.data.lines.length} 連線`}${featureDetail ? ` · ${featureDetail}` : ''}`,
-        },
-        ...prev,
-      ].slice(0, 30));
+      setHistory((prev) =>
+        [
+          {
+            id: res.data.betId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: mult,
+            payout: amount * mult,
+            won: profitValue >= 0,
+            detail: `${
+              totalCascadeCount > 0
+                ? `${totalCascadeCount} 次消除 · ${res.data.lines.length} 組合`
+                : `${res.data.lines.length} 連線`
+            }${featureDetail ? ` · ${featureDetail}` : ''}`,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
     } catch (err) {
       sceneRef.current?.stopAnticipation();
       sceneRef.current?.resetWinLines();
@@ -427,80 +437,99 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const megaFeatures = result?.features;
   const megaFreeSpinRounds = megaFeatures?.freeSpinRounds ?? [];
   const lastFreeSpinRound = megaFreeSpinRounds[megaFreeSpinRounds.length - 1];
-  const cascadeCount = (result?.cascades?.length ?? 0) +
+  const cascadeCount =
+    (result?.cascades?.length ?? 0) +
     megaFreeSpinRounds.reduce((sum, round) => sum + round.cascades.length, 0);
   const resultDisplayGrid = lastFreeSpinRound?.finalGrid ?? result?.grid ?? fallbackGrid;
   const visibleSpecialSymbols = megaFeatures
     ? [
-      ...megaFeatures.scatterSymbols,
-      ...megaFeatures.baseMultiplierSymbols,
-      ...(lastFreeSpinRound?.scatterSymbols ?? []),
-      ...(lastFreeSpinRound?.multiplierSymbols ?? []),
-    ]
+        ...megaFeatures.scatterSymbols,
+        ...megaFeatures.baseMultiplierSymbols,
+        ...(lastFreeSpinRound?.scatterSymbols ?? []),
+        ...(lastFreeSpinRound?.multiplierSymbols ?? []),
+      ]
     : [];
   const megaActiveMultiplier = Math.max(
     1,
     megaFeatures?.freeSpinMultiplierBank ?? 0,
     megaFeatures?.baseMultiplierTotal ?? 0,
   );
-  const megaFreeSpinProgress = megaFeatures && megaFeatures.freeSpinsAwarded > 0
-    ? `${megaFeatures.freeSpinsPlayed}/${megaFeatures.freeSpinsAwarded}`
-    : '0';
+  const megaFreeSpinProgress =
+    megaFeatures && megaFeatures.freeSpinsAwarded > 0
+      ? `${megaFeatures.freeSpinsPlayed}/${megaFeatures.freeSpinsAwarded}`
+      : '0';
   const megaWinMeterLabel = result ? '本局贏分' : '翻轉獎金';
   const megaWinMeterMeta = megaFeatures
     ? [
-      cascadeCount > 0 ? `${cascadeCount} 次消除` : '',
-      megaFeatures.baseMultiplierTotal > 0 ? `倍數 ${megaFeatures.baseMultiplierTotal}×` : '',
-      megaFeatures.freeSpinsAwarded > 0 ? `免費旋轉 ${megaFeatures.freeSpinsPlayed}/${megaFeatures.freeSpinsAwarded}` : '',
-    ].filter(Boolean).join(' · ')
+        cascadeCount > 0 ? `${cascadeCount} 次消除` : '',
+        megaFeatures.baseMultiplierTotal > 0 ? `倍數 ${megaFeatures.baseMultiplierTotal}×` : '',
+        megaFeatures.freeSpinsAwarded > 0
+          ? `免費旋轉 ${megaFeatures.freeSpinsPlayed}/${megaFeatures.freeSpinsAwarded}`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' · ')
     : slotTheme.readyLabel;
-  const megaDisplayGrid = result ? resultDisplayGrid : liveMegaRound?.grid ?? fallbackGrid;
-  const megaDisplaySpecialSymbols = result ? visibleSpecialSymbols : liveMegaRound?.specialSymbols ?? [];
-  const megaDisplayPayout = result ? resultPayout : liveMegaRound?.payout ?? 0;
-  const megaDisplayActiveMultiplier = result ? megaActiveMultiplier : liveMegaRound?.activeMultiplier ?? 1;
-  const megaDisplayFreeSpinsPlayed = result ? megaFeatures?.freeSpinsPlayed ?? 0 : liveMegaRound?.freeSpinsPlayed ?? 0;
-  const megaDisplayFreeSpinsAwarded = result ? megaFeatures?.freeSpinsAwarded ?? 0 : liveMegaRound?.freeSpinsAwarded ?? 0;
+  const megaDisplayGrid = result ? resultDisplayGrid : (liveMegaRound?.grid ?? fallbackGrid);
+  const megaDisplaySpecialSymbols = result
+    ? visibleSpecialSymbols
+    : (liveMegaRound?.specialSymbols ?? []);
+  const megaDisplayPayout = result ? resultPayout : (liveMegaRound?.payout ?? 0);
+  const megaDisplayActiveMultiplier = result
+    ? megaActiveMultiplier
+    : (liveMegaRound?.activeMultiplier ?? 1);
+  const megaDisplayFreeSpinsPlayed = result
+    ? (megaFeatures?.freeSpinsPlayed ?? 0)
+    : (liveMegaRound?.freeSpinsPlayed ?? 0);
+  const megaDisplayFreeSpinsAwarded = result
+    ? (megaFeatures?.freeSpinsAwarded ?? 0)
+    : (liveMegaRound?.freeSpinsAwarded ?? 0);
   const megaDisplayFreeSpinMode = !result && (liveMegaRound?.freeSpinMode ?? false);
-  const megaDisplayFreeSpinsRemaining = Math.max(0, megaDisplayFreeSpinsAwarded - megaDisplayFreeSpinsPlayed);
+  const megaDisplayFreeSpinsRemaining = Math.max(
+    0,
+    megaDisplayFreeSpinsAwarded - megaDisplayFreeSpinsPlayed,
+  );
   const megaDisplayFreeSpinProgress = result
     ? megaFreeSpinProgress
     : megaDisplayFreeSpinsAwarded > 0
       ? `${megaDisplayFreeSpinsPlayed}/${megaDisplayFreeSpinsAwarded}`
       : '0';
   const megaDisplayBaseMultiplier = result
-    ? megaFeatures?.baseMultiplierTotal ?? 0
-    : liveMegaRound?.baseMultiplierTotal ?? 0;
+    ? (megaFeatures?.baseMultiplierTotal ?? 0)
+    : (liveMegaRound?.baseMultiplierTotal ?? 0);
   const megaDisplayScatterCount = result
-    ? megaFeatures?.scatterCount ?? 0
-    : liveMegaRound?.scatterCount ?? 0;
+    ? (megaFeatures?.scatterCount ?? 0)
+    : (liveMegaRound?.scatterCount ?? 0);
   const megaScatterTriggerTarget = megaDisplayFreeSpinMode ? 3 : 4;
-  const megaDisplayCascadeCount = result ? cascadeCount : liveMegaRound?.cascadeCount ?? 0;
+  const megaDisplayCascadeCount = result ? cascadeCount : (liveMegaRound?.cascadeCount ?? 0);
   const megaDisplayWinMeterLabel = result || liveMegaRound ? '本局贏分' : megaWinMeterLabel;
   const liveMegaWinMeterMeta = liveMegaRound
     ? [
-      megaDisplayCascadeCount > 0 ? `${megaDisplayCascadeCount} 次消除` : '',
-      megaDisplayBaseMultiplier > 0 ? `倍數 ${megaDisplayBaseMultiplier}×` : '',
-      liveMegaRound.freeSpinsAwarded > 0
-        ? `免費旋轉 ${liveMegaRound.freeSpinsPlayed}/${liveMegaRound.freeSpinsAwarded}`
-        : '',
-    ].filter(Boolean).join(' · ') || slotTheme.readyLabel
+        megaDisplayCascadeCount > 0 ? `${megaDisplayCascadeCount} 次消除` : '',
+        megaDisplayBaseMultiplier > 0 ? `倍數 ${megaDisplayBaseMultiplier}×` : '',
+        liveMegaRound.freeSpinsAwarded > 0
+          ? `免費旋轉 ${liveMegaRound.freeSpinsPlayed}/${liveMegaRound.freeSpinsAwarded}`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' · ') || slotTheme.readyLabel
     : slotTheme.readyLabel;
   const megaDisplayWinMeterMeta = result ? megaWinMeterMeta : liveMegaWinMeterMeta;
-  const megaFreeSpinStatus = megaDisplayFreeSpinsAwarded > 0
-    ? result
-      ? '已完成'
-      : megaDisplayFreeSpinMode
-        ? `本回合免費 · 剩餘 ${megaDisplayFreeSpinsRemaining}`
-        : '已觸發，準備進入免費旋轉'
-    : '4 SCATTER 觸發';
+  const megaFreeSpinStatus =
+    megaDisplayFreeSpinsAwarded > 0
+      ? result
+        ? '已完成'
+        : megaDisplayFreeSpinMode
+          ? `本回合免費 · 剩餘 ${megaDisplayFreeSpinsRemaining}`
+          : '已觸發，準備進入免費旋轉'
+      : '4 SCATTER 觸發';
   const megaSpinButtonLabel = busy
     ? megaDisplayFreeSpinMode
       ? '免費旋轉'
       : '轉動中'
     : t.games.hotline.spin;
-  const megaSpinButtonValue = busy && megaDisplayFreeSpinMode
-    ? `剩 ${megaDisplayFreeSpinsRemaining}`
-    : formatAmount(amount);
+  const megaSpinButtonValue =
+    busy && megaDisplayFreeSpinMode ? `剩 ${megaDisplayFreeSpinsRemaining}` : formatAmount(amount);
   const isBigWinResult = resultProfit > 0 && resultMultiplier >= BIG_WIN_MULTIPLIER;
   const resultTitle = isBigWinResult
     ? '恭喜爆分'
@@ -514,18 +543,24 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     return (
       <div
         className="slot-game-page slot-game-page--mega mega-slot-machine"
-        style={{
-          '--mega-slot-bg': `url(${slotTheme.background})`,
-          '--mega-slot-cover': `url(${slotTheme.cover})`,
-          '--mega-slot-accent': slotTheme.symbols[5]?.accentHex ?? '#F3D67D',
-        } as CSSProperties}
+        style={
+          {
+            '--mega-slot-bg': `url(${slotTheme.background})`,
+            '--mega-slot-cover': `url(${slotTheme.cover})`,
+            '--mega-slot-accent': slotTheme.symbols[5]?.accentHex ?? '#F3D67D',
+          } as CSSProperties
+        }
       >
         <div className="slot-landscape-gate" role="status" aria-live="polite">
           <div className="slot-landscape-gate__panel">
             <RotateCw className="h-9 w-9 text-[#F3D67D]" aria-hidden="true" />
             <div className="text-center">
-              <div className="text-sm font-black tracking-[0.18em] text-white">請將手機轉為橫向</div>
-              <div className="mt-1 text-xs font-semibold text-white/65">Mega 寬版盤面需要更寬的遊玩空間</div>
+              <div className="text-sm font-black tracking-[0.18em] text-white">
+                請將手機轉為橫向
+              </div>
+              <div className="mt-1 text-xs font-semibold text-white/65">
+                Mega 寬版盤面需要更寬的遊玩空間
+              </div>
             </div>
           </div>
         </div>
@@ -533,7 +568,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         <div className="mega-slot-machine__backdrop" aria-hidden="true" />
         <div className="mega-slot-machine__chrome">
           <header className="mega-slot-topbar">
-            <Link to={returnTarget.to} className="mega-slot-icon-btn" aria-label={`返回${returnTarget.label}`}>
+            <Link
+              to={returnTarget.to}
+              className="mega-slot-icon-btn"
+              aria-label={`返回${returnTarget.label}`}
+            >
               <ArrowLeft className="h-5 w-5" aria-hidden="true" />
             </Link>
             <div className="mega-slot-brand">
@@ -565,7 +604,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               </div>
               <div className="mega-slot-bonus-panel">
                 <div className="mega-slot-multiplier">{megaDisplayActiveMultiplier}×</div>
-                <div className={`mega-slot-free-spins ${megaDisplayFreeSpinsAwarded > 0 ? 'mega-slot-free-spins--active' : ''}`}>
+                <div
+                  className={`mega-slot-free-spins ${megaDisplayFreeSpinsAwarded > 0 ? 'mega-slot-free-spins--active' : ''}`}
+                >
                   <strong>{megaDisplayFreeSpinProgress}</strong>
                   <span>{megaDisplayFreeSpinMode ? '免費旋轉中' : '免費旋轉'}</span>
                   <small>{megaFreeSpinStatus}</small>
@@ -573,11 +614,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 <div className="mega-slot-feature-stack">
                   <div>
                     <span>倍數符號</span>
-                    <strong>{megaDisplayBaseMultiplier > 0 ? `${megaDisplayBaseMultiplier}×` : '待觸發'}</strong>
+                    <strong>
+                      {megaDisplayBaseMultiplier > 0 ? `${megaDisplayBaseMultiplier}×` : '待觸發'}
+                    </strong>
                   </div>
                   <div>
                     <span>SCATTER</span>
-                    <strong>{megaDisplayScatterCount}/{megaScatterTriggerTarget}</strong>
+                    <strong>
+                      {megaDisplayScatterCount}/{megaScatterTriggerTarget}
+                    </strong>
                   </div>
                 </div>
               </div>
@@ -592,7 +637,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             </aside>
 
             <section className="mega-slot-stage" aria-label={`${slotTheme.title} 6x5 盤面`}>
-              <div className={`mega-slot-win-meter ${result || megaDisplayPayout > 0 ? 'mega-slot-win-meter--settled' : ''}`}>
+              <div
+                className={`mega-slot-win-meter ${result || megaDisplayPayout > 0 ? 'mega-slot-win-meter--settled' : ''}`}
+              >
                 <div className="mega-slot-win-meter__label">{megaDisplayWinMeterLabel}</div>
                 <strong>{formatAmount(megaDisplayPayout)}</strong>
                 <div className="mega-slot-win-meter__meta">{megaDisplayWinMeterMeta}</div>
@@ -614,7 +661,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               {result && !spinning && isBigWinResult && (
                 <div
                   className="slot-bigwin-stage"
-                  style={slotTheme.bigWin ? { backgroundImage: `linear-gradient(90deg, rgba(5, 10, 19, 0.72), rgba(5, 10, 19, 0.32)), url(${slotTheme.bigWin})` } : undefined}
+                  style={
+                    slotTheme.bigWin
+                      ? {
+                          backgroundImage: `linear-gradient(90deg, rgba(5, 10, 19, 0.72), rgba(5, 10, 19, 0.32)), url(${slotTheme.bigWin})`,
+                        }
+                      : undefined
+                  }
                 >
                   <div className="slot-bigwin-stage__content">
                     <div className="slot-bigwin-stage__eyebrow">連鎖消除</div>
@@ -644,7 +697,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <strong>{formatAmount(megaDisplayPayout)}</strong>
             </div>
             <div className="mega-slot-betbox">
-              <button type="button" onClick={() => setMegaAmount(amount / 2)} disabled={busy}>½</button>
+              <button type="button" onClick={() => setMegaAmount(amount / 2)} disabled={busy}>
+                ½
+              </button>
               <input
                 type="text"
                 inputMode="decimal"
@@ -656,15 +711,24 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 }}
                 aria-label="下注金額"
               />
-              <button type="button" onClick={() => setMegaAmount(amount * 2)} disabled={busy}>2×</button>
+              <button type="button" onClick={() => setMegaAmount(amount * 2)} disabled={busy}>
+                2×
+              </button>
             </div>
             <div className="mega-slot-presets">
               {MEGA_PRESETS.map((preset) => (
-                <button key={preset} type="button" onClick={() => setMegaAmount(preset)} disabled={busy || (!!user && preset > balance)}>
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setMegaAmount(preset)}
+                  disabled={busy || (!!user && preset > balance)}
+                >
                   {preset}
                 </button>
               ))}
-              <button type="button" onClick={() => setMegaAmount(balance)} disabled={busy || !user}>最大</button>
+              <button type="button" onClick={() => setMegaAmount(balance)} disabled={busy || !user}>
+                最大
+              </button>
             </div>
             <button
               type="button"
@@ -690,14 +754,20 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   }
 
   return (
-    <div className={`slot-game-page ${isMegaSlot ? 'slot-game-page--mega' : 'slot-game-page--classic'}`}>
+    <div
+      className={`slot-game-page ${isMegaSlot ? 'slot-game-page--mega' : 'slot-game-page--classic'}`}
+    >
       {isMegaSlot && (
         <div className="slot-landscape-gate" role="status" aria-live="polite">
           <div className="slot-landscape-gate__panel">
             <RotateCw className="h-9 w-9 text-[#F3D67D]" aria-hidden="true" />
             <div className="text-center">
-              <div className="text-sm font-black tracking-[0.18em] text-white">請將手機轉為橫向</div>
-              <div className="mt-1 text-xs font-semibold text-white/65">Mega 寬版盤面需要更寬的遊玩空間</div>
+              <div className="text-sm font-black tracking-[0.18em] text-white">
+                請將手機轉為橫向
+              </div>
+              <div className="mt-1 text-xs font-semibold text-white/65">
+                Mega 寬版盤面需要更寬的遊玩空間
+              </div>
             </div>
           </div>
         </div>
@@ -719,7 +789,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">{slotTheme.stageLabel}</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">{slotTheme.suffix}</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">
+                {slotTheme.stageLabel}
+              </span>
+              <span className="ml-2 text-white/40">·</span>
+              <span className="ml-2 text-white/55 uppercase">{slotTheme.suffix}</span>
               <span className="text-white/72">
                 {spinning ? slotTheme.spinningLabel : slotTheme.readyLabel}
               </span>
@@ -732,14 +806,18 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             {result && !spinning && isBigWinResult && (
               <div
                 className="slot-bigwin-stage"
-                style={slotTheme.bigWin ? { backgroundImage: `linear-gradient(90deg, rgba(5, 10, 19, 0.72), rgba(5, 10, 19, 0.32)), url(${slotTheme.bigWin})` } : undefined}
+                style={
+                  slotTheme.bigWin
+                    ? {
+                        backgroundImage: `linear-gradient(90deg, rgba(5, 10, 19, 0.72), rgba(5, 10, 19, 0.32)), url(${slotTheme.bigWin})`,
+                      }
+                    : undefined
+                }
               >
                 <div className="slot-bigwin-stage__content">
                   <div className="slot-bigwin-stage__eyebrow">連鎖消除</div>
                   <div className="slot-bigwin-stage__title">恭喜爆分</div>
-                  <div className="slot-bigwin-stage__amount">
-                    +{formatAmount(result.profit)}
-                  </div>
+                  <div className="slot-bigwin-stage__amount">+{formatAmount(result.profit)}</div>
                   <div className="slot-bigwin-stage__meta">
                     {formatMultiplier(result.multiplier)}
                     {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
@@ -790,7 +868,12 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                               : `方式 ${i + 1} · ${l.count} 軸 · ${l.ways} 組`
                             : `${l.lineId ? `${t.games.hotline.line} ${i + 1}` : `${t.games.hotline.row} ${l.row + 1}`} · ${l.count}×`}
                         </span>
-                        <SlotSymbolBadge theme={slotTheme} symbol={l.symbol} showLabel useShortLabel />
+                        <SlotSymbolBadge
+                          theme={slotTheme}
+                          symbol={l.symbol}
+                          showLabel
+                          useShortLabel
+                        />
                       </div>
                       <span className="data-num text-[#7DD3FC]">{l.payout}×</span>
                     </div>
@@ -828,7 +911,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             </button>
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
+                {t.bet.balance}{' '}
+                <span className="data-num ml-1 text-white">
+                  {user ? formatAmount(balance) : '登入後顯示'}
+                </span>
               </span>
               <span>
                 {t.games.hotline.totalMult}{' '}
@@ -893,7 +979,7 @@ function SlotSymbolBadge({
           borderColor: `${meta.accentHex}40`,
           backgroundImage: `url(${symbolImage ?? theme.symbolSheet})`,
           backgroundSize: symbolImage ? 'contain' : '300% 200%',
-          backgroundPosition: symbolImage ? 'center' : SYMBOL_POSITIONS[symbol] ?? '0% 0%',
+          backgroundPosition: symbolImage ? 'center' : (SYMBOL_POSITIONS[symbol] ?? '0% 0%'),
           backgroundRepeat: 'no-repeat',
         }}
         aria-hidden="true"
@@ -919,38 +1005,67 @@ function MegaFallbackGrid({
       className={`mega-slot-fallback-grid ${spinning ? 'mega-slot-fallback-grid--spinning' : ''} ${hidden ? 'mega-slot-fallback-grid--hidden' : ''}`}
       aria-hidden="true"
     >
-      {grid.map((reel, reelIndex) => (
-        <div key={`${theme.id}-fallback-reel-${reelIndex}`} className="mega-slot-fallback-reel">
-          {reel.map((symbol, rowIndex) => {
-            const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
-            const symbolImage = getMegaSlotSymbolImage(theme, symbol);
-            return (
-              <div
-                key={`${reelIndex}-${rowIndex}-${symbol}`}
-                className="mega-slot-fallback-symbol"
-                style={{
-                  borderColor: `${meta.accentHex}88`,
-                  backgroundImage: symbolImage ? 'none' : `url(${theme.symbolSheet})`,
-                  backgroundPosition: symbolImage ? 'center' : SYMBOL_POSITIONS[symbol] ?? '0% 0%',
-                }}
-              >
-                {symbolImage && (
-                  <img
-                    src={symbolImage}
-                    alt=""
-                    draggable={false}
-                    decoding="async"
-                    aria-hidden="true"
-                  />
-                )}
-                <span>{meta.shortLabel}</span>
-              </div>
-            );
-          })}
-        </div>
-      ))}
+      {grid.map((reel, reelIndex) => {
+        const reelStrip = spinning ? createFallbackSpinStrip(theme, reel, reelIndex) : reel;
+        const style = {
+          '--mega-slot-reel-items': reelStrip.length,
+          '--mega-slot-reel-duration': `${0.46 + reelIndex * 0.055}s`,
+        } as CSSProperties;
+        return (
+          <div key={`${theme.id}-fallback-reel-${reelIndex}`} className="mega-slot-fallback-reel">
+            <div className="mega-slot-fallback-reel-track" style={style}>
+              {reelStrip.map((symbol, rowIndex) => {
+                const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
+                const symbolImage = getMegaSlotSymbolImage(theme, symbol);
+                return (
+                  <div
+                    key={`${reelIndex}-${rowIndex}-${symbol}-${spinning ? 'spin' : 'idle'}`}
+                    className="mega-slot-fallback-symbol"
+                    style={{
+                      borderColor: `${meta.accentHex}88`,
+                      backgroundImage: symbolImage ? 'none' : `url(${theme.symbolSheet})`,
+                      backgroundPosition: symbolImage
+                        ? 'center'
+                        : (SYMBOL_POSITIONS[symbol] ?? '0% 0%'),
+                    }}
+                  >
+                    {symbolImage && (
+                      <img
+                        src={symbolImage}
+                        alt=""
+                        draggable={false}
+                        decoding="async"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span>{meta.shortLabel}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
+}
+
+function createFallbackSpinStrip(
+  theme: SlotThemeConfig,
+  reel: number[],
+  reelIndex: number,
+): number[] {
+  const symbolCount = theme.symbols.length || 6;
+  const extraRows = theme.rows * 2;
+  const lead = Array.from(
+    { length: extraRows },
+    (_, index) => (index + reelIndex * 2 + theme.id.length) % symbolCount,
+  );
+  const trail = Array.from(
+    { length: extraRows },
+    (_, index) => (index * 2 + reelIndex + theme.id.length + 3) % symbolCount,
+  );
+  return [...lead, ...reel, ...trail];
 }
 
 function getMegaSlotSymbolImage(theme: SlotThemeConfig, symbol: number): string | null {
@@ -961,6 +1076,10 @@ function getMegaSlotSymbolImage(theme: SlotThemeConfig, symbol: number): string 
 
 function getMegaSlotMultiplierImage(theme: SlotThemeConfig): string {
   return theme.symbolSheet.replace(/symbols\.png$/, 'multiplier.png');
+}
+
+function getMegaSlotScatterImage(theme: SlotThemeConfig): string {
+  return theme.symbolSheet.replace(/symbols\.png$/, 'scatter.png');
 }
 
 function MegaSpecialOverlay({
@@ -976,6 +1095,7 @@ function MegaSpecialOverlay({
     <div className="mega-slot-special-overlay" aria-hidden="true">
       {symbols.map((symbol, index) => {
         const multiplierImage = getMegaSlotMultiplierImage(theme);
+        const scatterImage = getMegaSlotScatterImage(theme);
         return (
           <div
             key={`${symbol.type}-${symbol.reel}-${symbol.row}-${symbol.value ?? 'free'}-${index}`}
@@ -995,7 +1115,10 @@ function MegaSpecialOverlay({
               </>
             ) : (
               <>
-                <span className="mega-slot-special-symbol__art" />
+                <span
+                  className="mega-slot-special-symbol__art"
+                  style={{ backgroundImage: `url(${scatterImage})` }}
+                />
                 <span className="mega-slot-special-symbol__value">SCATTER</span>
               </>
             )}
@@ -1016,9 +1139,7 @@ function MegaFreeSpinIntroOverlay({ intro }: { intro: MegaFreeSpinIntro }) {
     >
       <div className="mega-slot-free-spin-intro__burst" aria-hidden="true" />
       <div className="mega-slot-free-spin-intro__panel">
-        <div className="mega-slot-free-spin-intro__eyebrow">
-          {intro.scatterCount} SCATTER
-        </div>
+        <div className="mega-slot-free-spin-intro__eyebrow">{intro.scatterCount} SCATTER</div>
         <div className="mega-slot-free-spin-intro__title">
           {isRetrigger ? '追加免費旋轉' : '免費旋轉已觸發'}
         </div>
@@ -1037,7 +1158,10 @@ function MegaFreeSpinIntroOverlay({ intro }: { intro: MegaFreeSpinIntro }) {
 function createFallbackGrid(theme: SlotThemeConfig): number[][] {
   const symbolCount = theme.symbols.length || 6;
   return Array.from({ length: theme.reels }, (_, reel) =>
-    Array.from({ length: theme.rows }, (_, row) => (reel * 2 + row + theme.id.length) % symbolCount),
+    Array.from(
+      { length: theme.rows },
+      (_, row) => (reel * 2 + row + theme.id.length) % symbolCount,
+    ),
   );
 }
 
@@ -1075,17 +1199,16 @@ function getFinalMegaGrid(result: HotlineBetResult, fallbackGrid: number[][]): n
 function getFinalMegaSpecialSymbols(features?: HotlineMegaFeatureResult): HotlineSpecialSymbol[] {
   if (!features) return [];
   const lastFreeSpinRound = features.freeSpinRounds[features.freeSpinRounds.length - 1];
-  return [
-    ...features.baseMultiplierSymbols,
-    ...(lastFreeSpinRound?.multiplierSymbols ?? []),
-  ];
+  return [...features.baseMultiplierSymbols, ...(lastFreeSpinRound?.multiplierSymbols ?? [])];
 }
 
 function formatMegaFeatureDetail(features?: HotlineMegaFeatureResult): string {
   if (!features) return '';
   const parts = [
     features.baseMultiplierTotal > 0 ? `倍數 ${features.baseMultiplierTotal}×` : '',
-    features.freeSpinsAwarded > 0 ? `免費 ${features.freeSpinsPlayed}/${features.freeSpinsAwarded}` : '',
+    features.freeSpinsAwarded > 0
+      ? `免費 ${features.freeSpinsPlayed}/${features.freeSpinsAwarded}`
+      : '',
   ].filter(Boolean);
   return parts.join(' · ');
 }
