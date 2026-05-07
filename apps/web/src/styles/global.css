@@ -2028,56 +2028,18 @@
 }
 
 .mega-slot-special-symbol--scatter {
-  border: 2px solid color-mix(in srgb, var(--mega-slot-accent) 72%, white);
-  background:
-    radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.36), transparent 25%),
-    radial-gradient(
-      circle at 50% 55%,
-      color-mix(in srgb, var(--mega-slot-accent) 50%, transparent),
-      transparent 68%
-    ),
-    linear-gradient(145deg, rgba(245, 158, 11, 0.96), rgba(126, 34, 206, 0.88));
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.16),
-    0 0 22px color-mix(in srgb, var(--mega-slot-accent) 42%, transparent);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .mega-slot-special-symbol--scatter .mega-slot-special-symbol__art {
-  inset: 17%;
-  border-radius: 28%;
-  background:
-    radial-gradient(
-      circle at 50% 45%,
-      rgba(255, 255, 255, 0.92),
-      rgba(255, 255, 255, 0.1) 36%,
-      transparent 62%
-    ),
-    conic-gradient(
-      from 45deg,
-      rgba(243, 214, 125, 0.95),
-      rgba(125, 211, 252, 0.88),
-      color-mix(in srgb, var(--mega-slot-accent) 82%, white),
-      rgba(243, 214, 125, 0.95)
-    );
-  clip-path: polygon(
-    50% 0%,
-    61% 35%,
-    98% 35%,
-    68% 56%,
-    79% 92%,
-    50% 70%,
-    21% 92%,
-    32% 56%,
-    2% 35%,
-    39% 35%
-  );
-}
-
-.mega-slot-special-symbol--scatter .mega-slot-special-symbol__value {
-  min-width: 0;
-  padding: 2px 5px;
-  font-size: clamp(7px, 0.82vw, 10px);
-  letter-spacing: 0.08em;
+  inset: -10%;
+  background-size: contain;
+  filter:
+    drop-shadow(0 0 12px color-mix(in srgb, var(--mega-slot-accent) 34%, transparent))
+    saturate(1.08);
 }
 
 .mega-slot-free-spin-intro {

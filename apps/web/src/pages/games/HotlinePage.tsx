@@ -1174,13 +1174,10 @@ function MegaSpecialOverlay({
                 <span className="mega-slot-special-symbol__value">{symbol.value ?? 2}×</span>
               </>
             ) : (
-              <>
-                <span
-                  className="mega-slot-special-symbol__art"
-                  style={{ backgroundImage: `url(${scatterImage})` }}
-                />
-                <span className="mega-slot-special-symbol__value">SCATTER</span>
-              </>
+              <span
+                className="mega-slot-special-symbol__art"
+                style={{ backgroundImage: `url(${scatterImage})` }}
+              />
             )}
           </div>
         );
