@@ -73,6 +73,10 @@ interface MegaFallbackWinPop {
   meta: string;
 }
 
+interface SpinOptions {
+  buyFeature?: boolean;
+}
+
 export function HotlinePage({ theme = 'cyber' }: Props) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
@@ -215,10 +219,12 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setMegaFreeSpinIntro(null);
   };
 
-  const spin = async () => {
+  const spin = async (options: SpinOptions = {}) => {
     if (busy) return;
     if (!requireLogin()) return;
-    if (amount <= 0 || amount > balance) return;
+    const buyFeature = Boolean(options.buyFeature && isMegaSlot);
+    const stakeAmount = buyFeature ? Number((amount * 100).toFixed(2)) : amount;
+    if (amount <= 0 || stakeAmount > balance) return;
     setBusy(true);
     setSpinning(true);
     setResult(null);
@@ -237,10 +243,18 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setMegaFallbackSpinning(isMegaSlot && !activeScene);
 
     try {
-      const payload: HotlineBetRequest = { amount, gameId: slotTheme.gameId };
+      const payload: HotlineBetRequest = {
+        amount,
+        gameId: slotTheme.gameId,
+        ...(buyFeature ? { buyFeature: true } : {}),
+      };
       const res = await api.post<HotlineBetResult>('/games/hotline/bet', payload);
       const cascades = res.data.cascades ?? [];
       const features = res.data.features;
+      const baseBetAmount = Number.parseFloat(res.data.baseAmount ?? String(amount));
+      const settledStakeAmount = Number.parseFloat(res.data.stakeAmount ?? res.data.amount);
+      const displayMultiplier =
+        res.data.buyFeature && features ? features.totalMultiplier : (res.data.multiplier ?? 0);
       const freeSpinRounds = features?.freeSpinRounds ?? [];
       const totalExtraFreeSpins = freeSpinRounds.reduce(
         (sum, round) => sum + round.extraFreeSpinsAwarded,
@@ -279,7 +293,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       ): Promise<void> => {
         const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
         if (scene) {
-          await scene.playCascadeSpin(steps, finalGrid, { onStepWin: (step) => void onStepWin(step) });
+          await scene.playCascadeSpin(steps, finalGrid, {
+            onStepWin: (step) => void onStepWin(step),
+          });
           return;
         }
 
@@ -337,18 +353,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       ): MegaFallbackWinPop => {
         revealedCascadeCount += 1;
         const appliedStepMultiplier = roundMegaMultiplier(step.multiplier * appliedMultiplier);
-        revealedMultiplier = roundMegaMultiplier(
-          revealedMultiplier + appliedStepMultiplier,
-        );
+        revealedMultiplier = roundMegaMultiplier(revealedMultiplier + appliedStepMultiplier);
         updateLiveMegaRound({
           ...patch,
           grid: step.grid,
           cascadeCount: revealedCascadeCount,
           multiplier: revealedMultiplier,
-          payout: roundMegaPayout(amount, revealedMultiplier),
+          payout: roundMegaPayout(baseBetAmount, revealedMultiplier),
         });
         return {
-          amount: `+${formatAmount(roundMegaPayout(amount, appliedStepMultiplier))}`,
+          amount: `+${formatAmount(roundMegaPayout(baseBetAmount, appliedStepMultiplier))}`,
           meta: [
             `${step.removed.length} 個符號`,
             formatMultiplier(step.multiplier),
@@ -452,13 +466,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       }
       const mult = res.data.multiplier ?? 0;
       const profitValue = Number.parseFloat(res.data.profit);
-      const featureDetail = formatMegaFeatureDetail(res.data.features);
+      const payoutValue = Number.parseFloat(res.data.payout);
+      const featureDetail = formatMegaFeatureDetail(res.data.features, res.data.buyFeature);
       const totalCascadeCount =
         cascades.length + freeSpinRounds.reduce((sum, round) => sum + round.cascades.length, 0);
-      sceneRef.current?.playWinFx(mult, mult > 0);
+      sceneRef.current?.playWinFx(displayMultiplier, profitValue >= 0);
       updateLiveMegaRound({
-        payout: Number.parseFloat(res.data.payout),
-        multiplier: mult,
+        payout: payoutValue,
+        multiplier: displayMultiplier,
         cascadeCount: totalCascadeCount,
         freeSpinsPlayed: features?.freeSpinsPlayed ?? 0,
         freeSpinsAwarded: features?.freeSpinsAwarded ?? 0,
@@ -480,9 +495,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           {
             id: res.data.betId,
             timestamp: Date.now(),
-            betAmount: amount,
+            betAmount: settledStakeAmount,
             multiplier: mult,
-            payout: amount * mult,
+            payout: payoutValue,
             won: profitValue >= 0,
             detail: `${
               totalCascadeCount > 0
@@ -520,6 +535,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const resultProfit = result ? Number.parseFloat(result.profit) : 0;
   const resultMultiplier = result?.multiplier ?? 0;
   const megaFeatures = result?.features;
+  const resultDisplayMultiplier =
+    result?.buyFeature && megaFeatures ? megaFeatures.totalMultiplier : resultMultiplier;
   const megaFreeSpinRounds = megaFeatures?.freeSpinRounds ?? [];
   const lastFreeSpinRound = megaFreeSpinRounds[megaFreeSpinRounds.length - 1];
   const cascadeCount =
@@ -546,6 +563,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const megaWinMeterLabel = result ? '本局贏分' : '翻轉獎金';
   const megaWinMeterMeta = megaFeatures
     ? [
+        result?.buyFeature ? `買入 ${formatAmount(resultAmount)}` : '',
         cascadeCount > 0 ? `${cascadeCount} 次消除` : '',
         megaFeatures.baseMultiplierTotal > 0 ? `倍數 ${megaFeatures.baseMultiplierTotal}×` : '',
         megaFeatures.freeSpinsAwarded > 0
@@ -615,7 +633,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     : t.games.hotline.spin;
   const megaSpinButtonValue =
     busy && megaDisplayFreeSpinMode ? `剩 ${megaDisplayFreeSpinsRemaining}` : formatAmount(amount);
-  const isBigWinResult = resultProfit > 0 && resultMultiplier >= BIG_WIN_MULTIPLIER;
+  const megaBuyFeatureCost = Number((amount * 100).toFixed(2));
+  const canBuyMegaFeature = isMegaSlot && !busy && (!user || balance >= megaBuyFeatureCost);
+  const isBigWinResult = resultProfit > 0 && resultDisplayMultiplier >= BIG_WIN_MULTIPLIER;
   const resultTitle = isBigWinResult
     ? '恭喜爆分'
     : resultPayout > resultAmount
@@ -763,7 +783,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                     <div className="slot-bigwin-stage__title">恭喜爆分</div>
                     <div className="slot-bigwin-stage__amount">+{formatAmount(result.profit)}</div>
                     <div className="slot-bigwin-stage__meta">
-                      {formatMultiplier(result.multiplier)}
+                      {formatMultiplier(resultDisplayMultiplier)}
                       {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
                     </div>
                   </div>
@@ -819,16 +839,28 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 最大
               </button>
             </div>
-            <button
-              type="button"
-              onClick={spin}
-              disabled={busy || (!!user && balance < amount)}
-              className="mega-slot-spin"
-              aria-label={t.games.hotline.spin}
-            >
-              <span>{megaSpinButtonLabel}</span>
-              <strong>{megaSpinButtonValue}</strong>
-            </button>
+            <div className="mega-slot-action-stack">
+              <button
+                type="button"
+                onClick={() => void spin({ buyFeature: true })}
+                disabled={!canBuyMegaFeature}
+                className="mega-slot-buy"
+                aria-label="購買免費遊戲"
+              >
+                <span>購買免費</span>
+                <strong>100× · {formatAmount(megaBuyFeatureCost)}</strong>
+              </button>
+              <button
+                type="button"
+                onClick={() => void spin()}
+                disabled={busy || (!!user && balance < amount)}
+                className="mega-slot-spin"
+                aria-label={t.games.hotline.spin}
+              >
+                <span>{megaSpinButtonLabel}</span>
+                <strong>{megaSpinButtonValue}</strong>
+              </button>
+            </div>
           </footer>
 
           {error && (
@@ -908,7 +940,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   <div className="slot-bigwin-stage__title">恭喜爆分</div>
                   <div className="slot-bigwin-stage__amount">+{formatAmount(result.profit)}</div>
                   <div className="slot-bigwin-stage__meta">
-                    {formatMultiplier(result.multiplier)}
+                    {formatMultiplier(resultDisplayMultiplier)}
                     {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
                   </div>
                 </div>
@@ -930,7 +962,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                     {result.lines.length !== 1 ? t.games.hotline.lines : t.games.hotline.line}
                   </div>
                   <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
-                    {t.games.hotline.totalMult} {formatMultiplier(result.multiplier)}
+                    {t.games.hotline.totalMult} {formatMultiplier(resultDisplayMultiplier)}
                     {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
                   </div>
                 </div>
@@ -992,7 +1024,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
             <button
               type="button"
-              onClick={spin}
+              onClick={() => void spin()}
               disabled={busy || (!!user && balance < amount)}
               className="btn-acid mt-6 w-full py-4"
             >
@@ -1008,7 +1040,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <span>
                 {t.games.hotline.totalMult}{' '}
                 <span className="data-num ml-1 text-[#FCA5A5]">
-                  {result ? formatMultiplier(result.multiplier) : '—'}
+                  {result ? formatMultiplier(resultDisplayMultiplier) : '—'}
                 </span>
               </span>
             </div>
@@ -1129,15 +1161,17 @@ function MegaFallbackGrid({
                   <div
                     key={`${reelIndex}-${rowIndex}-${symbol}-${spinning ? 'spin' : 'idle'}`}
                     className={`mega-slot-fallback-symbol ${winning ? 'mega-slot-fallback-symbol--winning' : ''} ${removing ? 'mega-slot-fallback-symbol--removing' : ''}`}
-                    style={{
-                      borderColor: `${meta.accentHex}88`,
-                      backgroundImage: symbolImage ? 'none' : `url(${theme.symbolSheet})`,
-                      backgroundPosition: symbolImage
-                        ? 'center'
-                        : (SYMBOL_POSITIONS[symbol] ?? '0% 0%'),
-                      '--mega-slot-reel-index': reelIndex,
-                      '--mega-slot-row-index': rowIndex,
-                    } as CSSProperties}
+                    style={
+                      {
+                        borderColor: `${meta.accentHex}88`,
+                        backgroundImage: symbolImage ? 'none' : `url(${theme.symbolSheet})`,
+                        backgroundPosition: symbolImage
+                          ? 'center'
+                          : (SYMBOL_POSITIONS[symbol] ?? '0% 0%'),
+                        '--mega-slot-reel-index': reelIndex,
+                        '--mega-slot-row-index': rowIndex,
+                      } as CSSProperties
+                    }
                   >
                     {symbolImage && (
                       <img
@@ -1316,9 +1350,10 @@ function getFinalMegaSpecialSymbols(features?: HotlineMegaFeatureResult): Hotlin
   return [...features.baseMultiplierSymbols, ...(lastFreeSpinRound?.multiplierSymbols ?? [])];
 }
 
-function formatMegaFeatureDetail(features?: HotlineMegaFeatureResult): string {
+function formatMegaFeatureDetail(features?: HotlineMegaFeatureResult, buyFeature = false): string {
   if (!features) return '';
   const parts = [
+    buyFeature ? '購買免費' : '',
     features.baseMultiplierTotal > 0 ? `倍數 ${features.baseMultiplierTotal}×` : '',
     features.freeSpinsAwarded > 0
       ? `免費 ${features.freeSpinsPlayed}/${features.freeSpinsAwarded}`

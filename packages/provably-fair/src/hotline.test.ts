@@ -11,6 +11,7 @@ import {
   HOTLINE_MEGA_SYMBOLS,
   getHotlineReelCount,
   getHotlineRowCount,
+  hotlineBuyFreeSpins,
   hotlineSpinCascades,
 } from './hotline.js';
 
@@ -53,11 +54,9 @@ describe('hotlineSpin', () => {
   });
 
   it('uses the 9-symbol Power of Thor style mega paytable', () => {
-    expect(HOTLINE_MEGA_SYMBOLS.map((symbol) => [
-      symbol.payout3,
-      symbol.payout4,
-      symbol.payout5,
-    ])).toEqual([
+    expect(
+      HOTLINE_MEGA_SYMBOLS.map((symbol) => [symbol.payout3, symbol.payout4, symbol.payout5]),
+    ).toEqual([
       [10, 25, 50],
       [2.5, 10, 25],
       [2, 5, 15],
@@ -71,12 +70,26 @@ describe('hotlineSpin', () => {
   });
 
   it('supports deterministic 6x5 cascade drops after cluster wins', () => {
-    const nonce = Array.from({ length: 200 }, (_, i) => i).find((i) =>
-      hotlineSpinCascades('server', 'client', i, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS).cascades.length > 0,
+    const nonce = Array.from({ length: 200 }, (_, i) => i).find(
+      (i) =>
+        hotlineSpinCascades('server', 'client', i, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS).cascades
+          .length > 0,
     );
     expect(nonce).toBeDefined();
-    const result = hotlineSpinCascades('server', 'client', nonce!, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS);
-    const firstGrid = hotlineSpin('server', 'client', nonce!, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS);
+    const result = hotlineSpinCascades(
+      'server',
+      'client',
+      nonce!,
+      HOTLINE_MEGA_REELS,
+      HOTLINE_MEGA_ROWS,
+    );
+    const firstGrid = hotlineSpin(
+      'server',
+      'client',
+      nonce!,
+      HOTLINE_MEGA_REELS,
+      HOTLINE_MEGA_ROWS,
+    );
 
     expect(result.initialGrid).toEqual(firstGrid);
     expect(result.cascades.length).toBeGreaterThan(0);
@@ -105,7 +118,13 @@ describe('hotlineSpin', () => {
 
   it('triggers and accounts for mega free spins from scatter symbols', () => {
     const result = Array.from({ length: 1500 }, (_, nonce) =>
-      hotlineSpinCascades('bonus-server', 'bonus-client', nonce, HOTLINE_MEGA_REELS, HOTLINE_MEGA_ROWS),
+      hotlineSpinCascades(
+        'bonus-server',
+        'bonus-client',
+        nonce,
+        HOTLINE_MEGA_REELS,
+        HOTLINE_MEGA_ROWS,
+      ),
     ).find((item) => (item.features?.freeSpinsAwarded ?? 0) > 0);
 
     expect(result).toBeDefined();
@@ -113,14 +132,50 @@ describe('hotlineSpin', () => {
     expect(result!.features!.freeSpinsAwarded).toBeGreaterThanOrEqual(15);
     expect(result!.features!.freeSpinsAwarded).toBeLessThanOrEqual(100);
     expect(result!.features!.freeSpinsPlayed).toBeGreaterThan(0);
-    expect(result!.features!.freeSpinsPlayed).toBeLessThanOrEqual(result!.features!.freeSpinsAwarded);
+    expect(result!.features!.freeSpinsPlayed).toBeLessThanOrEqual(
+      result!.features!.freeSpinsAwarded,
+    );
     expect(result!.features!.freeSpinRounds.length).toBe(result!.features!.freeSpinsPlayed);
+  });
+
+  it('buys deterministic mega free spins with a 15-spin trigger', () => {
+    const result = hotlineBuyFreeSpins(
+      'buy-server',
+      'buy-client',
+      7,
+      HOTLINE_MEGA_REELS,
+      HOTLINE_MEGA_ROWS,
+    );
+    const repeat = hotlineBuyFreeSpins(
+      'buy-server',
+      'buy-client',
+      7,
+      HOTLINE_MEGA_REELS,
+      HOTLINE_MEGA_ROWS,
+    );
+
+    expect(result).toEqual(repeat);
+    expect(result.cascades).toEqual([]);
+    expect(result.lines).toEqual([]);
+    expect(result.features).toBeDefined();
+    expect(result.features!.scatterCount).toBe(4);
+    expect(result.features!.scatterSymbols.length).toBe(4);
+    expect(result.features!.freeSpinsAwarded).toBeGreaterThanOrEqual(15);
+    expect(result.features!.freeSpinsAwarded).toBeLessThanOrEqual(100);
+    expect(result.features!.freeSpinsPlayed).toBe(result.features!.freeSpinRounds.length);
+    expect(result.totalMultiplier).toBe(result.features!.totalMultiplier);
   });
 });
 
 describe('hotlineEvaluate', () => {
   it('detects a 3-of-a-kind line', () => {
-    const grid = [[0, 1, 2], [0, 3, 4], [0, 5, 0], [5, 2, 1], [3, 4, 2]];
+    const grid = [
+      [0, 1, 2],
+      [0, 3, 4],
+      [0, 5, 0],
+      [5, 2, 1],
+      [3, 4, 2],
+    ];
     const { lines } = hotlineEvaluate(grid);
     expect(lines.length).toBeGreaterThanOrEqual(1);
     expect(lines[0]!.symbol).toBe(0);

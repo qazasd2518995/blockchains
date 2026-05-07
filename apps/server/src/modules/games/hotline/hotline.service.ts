@@ -3,6 +3,7 @@ import {
   getHotlineReelCount,
   getHotlineRowCount,
   hotlineSpin,
+  hotlineBuyFreeSpins,
   hotlineSpinCascades,
   hotlineEvaluate,
 } from '@bg/provably-fair';
@@ -14,73 +15,92 @@ import {
   creditAndRecord,
   runSerializable,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
+import {
+  applyControls,
+  finalizeControls,
+  multiplierMatchesControlBounds,
+} from '../_common/controls.js';
 import type { HotlineBetInput } from './hotline.schema.js';
 
 export class HotlineService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async bet(userId: string, input: HotlineBetInput): Promise<HotlineBetResult> {
-    const amount = new Prisma.Decimal(input.amount);
+    const baseAmount = new Prisma.Decimal(input.amount);
     const gameId = input.gameId ?? GameId.HOTLINE;
     const reelCount = getHotlineReelCount(gameId);
     const rowCount = getHotlineRowCount(gameId);
+    const buyFeature = Boolean(input.buyFeature);
+    if (buyFeature && rowCount <= 3) {
+      throw new Error('BUY_FEATURE_ONLY_AVAILABLE_FOR_MEGA_SLOT');
+    }
+    const stakeAmount = buyFeature ? baseAmount.mul(100) : baseAmount;
 
     return runSerializable(this.prisma, async (tx) => {
-      await lockUserAndCheckFunds(tx, userId, amount);
-      const seed = await new SeedHelper(tx).getActiveBundle(
-        userId,
-        gameId,
-        input.clientSeed,
-      );
+      await lockUserAndCheckFunds(tx, userId, stakeAmount);
+      const seed = await new SeedHelper(tx).getActiveBundle(userId, gameId, input.clientSeed);
       const naturalRound = buildHotlineRound(
         seed.serverSeed,
         seed.clientSeed,
         seed.nonce,
         reelCount,
         rowCount,
+        buyFeature,
       );
       const multiplierD = new Prisma.Decimal(naturalRound.totalMultiplier.toFixed(4));
-      const payout = amount.mul(multiplierD).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const controlled = await applyControls(tx, userId, gameId, {
-        won: payout.greaterThan(amount),
-        amount,
-        multiplier: multiplierD,
+      const payout = baseAmount.mul(multiplierD).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+      const accountingMultiplierD = stakeAmount.greaterThan(0)
+        ? payout.div(stakeAmount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN)
+        : new Prisma.Decimal(0);
+      const controlPrediction = {
+        won: payout.greaterThan(stakeAmount),
+        amount: stakeAmount,
+        multiplier: accountingMultiplierD,
         payout,
-      });
+      };
+      const controlled = buyFeature
+        ? { ...controlPrediction, controlled: false as const }
+        : await applyControls(tx, userId, gameId, controlPrediction);
 
       let finalGrid = naturalRound.grid;
       let finalLines = naturalRound.lines;
       let finalCascades = naturalRound.cascades;
       let finalFeatures = naturalRound.features;
-      let finalMultiplier = multiplierD;
+      let finalMultiplier = accountingMultiplierD;
       let finalPayout = payout;
       if (controlled.controlled) {
         finalGrid = controlled.won
-          ? winningHotlineGrid(gameId, amount, controlled)
+          ? winningHotlineGrid(gameId, stakeAmount, controlled)
           : losingHotlineGrid(gameId);
         const evaluated = hotlineEvaluate(finalGrid);
         finalLines = evaluated.lines;
         finalCascades = [];
         finalMultiplier = new Prisma.Decimal(evaluated.totalMultiplier.toFixed(4));
-        finalPayout = amount.mul(finalMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-        finalFeatures = rowCount > 3
-          ? buildControlledMegaFeature(Number(finalMultiplier.toFixed(4)))
-          : undefined;
+        finalPayout = stakeAmount
+          .mul(finalMultiplier)
+          .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+        finalFeatures =
+          rowCount > 3 ? buildControlledMegaFeature(Number(finalMultiplier.toFixed(4))) : undefined;
       }
-      const profit = finalPayout.minus(amount);
+      const profit = finalPayout.minus(stakeAmount);
 
       const originalResult = {
         grid: naturalRound.grid,
         lines: naturalRound.lines,
         cascades: naturalRound.cascades,
         ...(naturalRound.features ? { features: naturalRound.features } : {}),
+        buyFeature,
+        baseAmount: baseAmount.toFixed(2),
+        stakeAmount: stakeAmount.toFixed(2),
       };
       const finalResult = {
         grid: finalGrid,
         lines: finalLines,
         cascades: finalCascades,
         ...(finalFeatures ? { features: finalFeatures } : {}),
+        buyFeature,
+        baseAmount: baseAmount.toFixed(2),
+        stakeAmount: stakeAmount.toFixed(2),
         controlled: controlled.controlled,
         flipReason: controlled.flipReason ?? null,
         raw: controlled.controlled ? originalResult : null,
@@ -90,7 +110,7 @@ export class HotlineService {
         data: {
           userId,
           gameId,
-          amount,
+          amount: stakeAmount,
           multiplier: finalMultiplier,
           payout: finalPayout,
           profit,
@@ -100,17 +120,21 @@ export class HotlineService {
           resultData: finalResult as unknown as Prisma.InputJsonValue,
         },
       });
-      await debitAndRecord(tx, userId, amount, bet.id);
-      const newBalance =
-        finalPayout.greaterThan(0)
-          ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
-          : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+      await debitAndRecord(tx, userId, stakeAmount, bet.id);
+      const newBalance = finalPayout.greaterThan(0)
+        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
+        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
       await finalizeControls(
         tx,
         userId,
         gameId,
-        { won: payout.greaterThan(amount), amount, multiplier: multiplierD, payout },
-        { won: finalPayout.greaterThan(amount), amount, multiplier: finalMultiplier, payout: finalPayout },
+        controlPrediction,
+        {
+          won: finalPayout.greaterThan(stakeAmount),
+          amount: stakeAmount,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
+        },
         controlled,
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,
@@ -123,8 +147,15 @@ export class HotlineService {
         lines: finalLines,
         cascades: finalCascades,
         ...(finalFeatures ? { features: finalFeatures } : {}),
+        ...(buyFeature
+          ? {
+              buyFeature: true,
+              baseAmount: baseAmount.toFixed(2),
+              stakeAmount: stakeAmount.toFixed(2),
+            }
+          : {}),
         multiplier: Number(finalMultiplier.toFixed(4)),
-        amount: amount.toFixed(2),
+        amount: stakeAmount.toFixed(2),
         payout: finalPayout.toFixed(2),
         profit: profit.toFixed(2),
         newBalance: newBalance.toFixed(2),
@@ -147,9 +178,12 @@ function buildHotlineRound(
   nonce: number,
   reelCount: number,
   rowCount: number,
+  buyFeature = false,
 ): HotlineRound {
   if (rowCount > 3) {
-    const cascaded = hotlineSpinCascades(serverSeed, clientSeed, nonce, reelCount, rowCount);
+    const cascaded = buyFeature
+      ? hotlineBuyFreeSpins(serverSeed, clientSeed, nonce, reelCount, rowCount)
+      : hotlineSpinCascades(serverSeed, clientSeed, nonce, reelCount, rowCount);
     return {
       grid: cascaded.finalGrid,
       lines: cascaded.lines,
@@ -189,11 +223,15 @@ function winningHotlineGrid(
     [0, 5, 1],
   ].slice(0, reelCount);
   const pool = [smallLine, fullLine];
-  return pool.find((grid) => {
-    const evaluated = hotlineEvaluate(grid);
-    return evaluated.totalMultiplier > 1 &&
-      multiplierMatchesControlBounds(evaluated.totalMultiplier, amount, controlled);
-  }) ?? fullLine;
+  return (
+    pool.find((grid) => {
+      const evaluated = hotlineEvaluate(grid);
+      return (
+        evaluated.totalMultiplier > 1 &&
+        multiplierMatchesControlBounds(evaluated.totalMultiplier, amount, controlled)
+      );
+    }) ?? fullLine
+  );
 }
 
 function winningMegaHotlineGrid(
@@ -235,11 +273,15 @@ function winningMegaHotlineGrid(
     ],
   ];
 
-  return candidates.find((grid) => {
-    const evaluated = hotlineEvaluate(grid);
-    return evaluated.totalMultiplier > 1 &&
-      multiplierMatchesControlBounds(evaluated.totalMultiplier, amount, controlled);
-  }) ?? candidates[2]!;
+  return (
+    candidates.find((grid) => {
+      const evaluated = hotlineEvaluate(grid);
+      return (
+        evaluated.totalMultiplier > 1 &&
+        multiplierMatchesControlBounds(evaluated.totalMultiplier, amount, controlled)
+      );
+    }) ?? candidates[2]!
+  );
 }
 
 function smallWinningHotlineGrid(reelCount: number): number[][] {

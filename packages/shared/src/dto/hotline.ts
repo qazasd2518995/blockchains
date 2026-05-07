@@ -2,6 +2,7 @@ export interface HotlineBetRequest {
   amount: number;
   clientSeed?: string;
   gameId?: string;
+  buyFeature?: boolean;
 }
 
 export interface HotlineWinLine {
@@ -72,6 +73,9 @@ export interface HotlineBetResult {
   lines: HotlineWinLine[];
   cascades?: HotlineCascadeStep[];
   features?: HotlineMegaFeatureResult;
+  buyFeature?: boolean;
+  baseAmount?: string;
+  stakeAmount?: string;
   multiplier: number;
   amount: string;
   payout: string;

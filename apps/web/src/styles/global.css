@@ -1485,6 +1485,7 @@
 .mega-slot-pill:focus-visible,
 .mega-slot-betbox button:focus-visible,
 .mega-slot-presets button:focus-visible,
+.mega-slot-buy:focus-visible,
 .mega-slot-spin:focus-visible {
   outline: 2px solid rgba(243, 214, 125, 0.7);
   outline-offset: 2px;
@@ -2122,8 +2123,7 @@
 .mega-slot-special-symbol--scatter .mega-slot-special-symbol__art {
   inset: 3%;
   background-size: contain;
-  filter:
-    drop-shadow(0 0 12px color-mix(in srgb, var(--mega-slot-accent) 34%, transparent))
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--mega-slot-accent) 34%, transparent))
     saturate(1.08);
 }
 
@@ -2396,10 +2396,9 @@
 
 .mega-slot-controls {
   display: grid;
-  grid-template-columns: minmax(96px, 0.8fr) minmax(96px, 0.8fr) minmax(150px, 1fr) minmax(
-      220px,
-      1.2fr
-    ) minmax(110px, 0.8fr);
+  grid-template-columns:
+    minmax(96px, 0.8fr) minmax(96px, 0.8fr) minmax(150px, 1fr) minmax(220px, 1.2fr)
+    minmax(250px, 1.1fr);
   align-items: center;
   gap: 8px;
   min-height: 0;
@@ -2487,9 +2486,33 @@
 
 .mega-slot-betbox button:disabled,
 .mega-slot-presets button:disabled,
+.mega-slot-buy:disabled,
 .mega-slot-spin:disabled {
   cursor: not-allowed;
   opacity: 0.42;
+}
+
+.mega-slot-action-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr);
+  gap: 6px;
+  min-width: 0;
+}
+
+.mega-slot-buy {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: 54px;
+  border: 1px solid rgba(125, 211, 252, 0.48);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(125, 211, 252, 0.22), transparent 62%),
+    linear-gradient(180deg, rgba(20, 91, 109, 0.82), rgba(7, 20, 34, 0.94));
+  box-shadow:
+    inset 0 0 0 4px rgba(5, 10, 19, 0.2),
+    0 0 24px rgba(125, 211, 252, 0.16);
+  color: #e0f8ff;
 }
 
 .mega-slot-spin {
@@ -2512,16 +2535,22 @@
   color: white;
 }
 
+.mega-slot-buy span,
 .mega-slot-spin span {
   font-size: 12px;
   font-weight: 950;
   letter-spacing: 0.12em;
 }
 
+.mega-slot-buy strong,
 .mega-slot-spin strong {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 12px;
   color: #f3d67d;
+}
+
+.mega-slot-buy strong {
+  color: #8fe7ff;
 }
 
 .mega-slot-alert {
@@ -3965,10 +3994,9 @@
   }
 
   .mega-slot-controls {
-    grid-template-columns: minmax(74px, 0.75fr) minmax(74px, 0.75fr) minmax(128px, 1fr) minmax(
-        176px,
-        1.25fr
-      ) minmax(88px, 0.78fr);
+    grid-template-columns:
+      minmax(74px, 0.75fr) minmax(74px, 0.75fr) minmax(128px, 1fr) minmax(176px, 1.25fr)
+      minmax(170px, 1.1fr);
     gap: 4px;
     border-radius: 10px;
     padding: 3px 4px;
@@ -4003,10 +4031,17 @@
     gap: 4px;
   }
 
+  .mega-slot-action-stack {
+    gap: 4px;
+  }
+
+  .mega-slot-buy,
   .mega-slot-spin {
     height: 42px;
   }
 
+  .mega-slot-buy span,
+  .mega-slot-buy strong,
   .mega-slot-spin span,
   .mega-slot-spin strong {
     font-size: 10px;
@@ -4038,8 +4073,8 @@
 
   .mega-slot-controls {
     grid-template-columns: minmax(72px, 0.8fr) minmax(122px, 1fr) minmax(152px, 1.2fr) minmax(
-        84px,
-        0.8fr
+        174px,
+        1.2fr
       );
   }
 }

@@ -20,6 +20,7 @@ export const hotlineBetSchema = z.object({
   amount: z.number().positive().max(100000),
   clientSeed: z.string().min(4).max(64).optional(),
   gameId: z.enum(slotGameIds).optional(),
+  buyFeature: z.boolean().optional(),
 });
 
 export type HotlineBetInput = z.infer<typeof hotlineBetSchema>;
