@@ -7,6 +7,7 @@ import type {
   HotlineCascadeStep,
   HotlineMegaFeatureResult,
   HotlineSpecialSymbol,
+  HotlineWinPosition,
   HotlineWinLine,
 } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
@@ -84,6 +85,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [sceneFallback, setSceneFallback] = useState(false);
   const [liveMegaRound, setLiveMegaRound] = useState<LiveMegaRoundState | null>(null);
   const [megaFreeSpinIntro, setMegaFreeSpinIntro] = useState<MegaFreeSpinIntro | null>(null);
+  const [megaFallbackSpinning, setMegaFallbackSpinning] = useState(false);
+  const [megaFallbackRemoved, setMegaFallbackRemoved] = useState<HotlineWinPosition[]>([]);
+  const [megaFallbackDropping, setMegaFallbackDropping] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
@@ -210,11 +214,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setResult(null);
     setLiveMegaRound(isMegaSlot ? createInitialLiveMegaRound() : null);
     setMegaFreeSpinIntro(null);
+    setMegaFallbackRemoved([]);
+    setMegaFallbackDropping(false);
     setError(null);
 
-    sceneRef.current?.resetWinLines();
+    const activeScene = sceneReady && !sceneFallback ? sceneRef.current : null;
+    activeScene?.resetWinLines();
     // 乐观动画：转轴立刻开始滚
-    sceneRef.current?.startAnticipation();
+    activeScene?.startAnticipation();
+    setMegaFallbackSpinning(isMegaSlot && !activeScene);
 
     try {
       const payload: HotlineBetRequest = { amount, gameId: slotTheme.gameId };
@@ -238,13 +246,18 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         grid: number[][],
         lines: HotlineWinLine[],
       ): Promise<void> => {
-        const scene = sceneRef.current;
+        const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
         if (scene) {
           await scene.playSpin(grid, lines);
           return;
         }
-        await delay(lines.length > 0 ? 640 : 420);
+        setMegaFallbackRemoved([]);
+        setMegaFallbackDropping(false);
+        setMegaFallbackSpinning(true);
+        await delay(lines.length > 0 ? 820 : 620);
+        setMegaFallbackSpinning(false);
         updateLiveMegaRound({ grid });
+        if (lines.length > 0) await delay(260);
       };
 
       const playCascadeOrFallback = async (
@@ -252,18 +265,45 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         finalGrid: number[][],
         onStepWin: (step: HotlineCascadeStep) => void,
       ): Promise<void> => {
-        const scene = sceneRef.current;
+        const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
         if (scene) {
           await scene.playCascadeSpin(steps, finalGrid, { onStepWin });
           return;
         }
 
-        for (let i = 0; i < steps.length; i += 1) {
-          await delay(i === 0 ? 640 : 720);
-          onStepWin(steps[i]!);
+        const first = steps[0];
+        if (!first) {
+          await playSpinOrFallback(finalGrid, []);
+          return;
         }
-        await delay(420);
+
+        await playSpinOrFallback(first.grid, first.lines);
+        onStepWin(first);
+
+        let previous = first;
+        for (let i = 1; i < steps.length; i += 1) {
+          const step = steps[i]!;
+          await playFallbackCascadeDrop(previous.removed, step.grid);
+          onStepWin(step);
+          previous = step;
+        }
+
+        await playFallbackCascadeDrop(previous.removed, finalGrid);
         updateLiveMegaRound({ grid: finalGrid });
+      };
+
+      const playFallbackCascadeDrop = async (
+        removed: HotlineWinPosition[],
+        nextGrid: number[][],
+      ): Promise<void> => {
+        await delay(460);
+        setMegaFallbackRemoved(removed);
+        await delay(280);
+        setMegaFallbackRemoved([]);
+        setMegaFallbackDropping(true);
+        updateLiveMegaRound({ grid: nextGrid });
+        await delay(380);
+        setMegaFallbackDropping(false);
       };
 
       const revealCascadeStep = (
@@ -423,10 +463,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       sceneRef.current?.resetWinLines();
       setLiveMegaRound(null);
       setMegaFreeSpinIntro(null);
+      setMegaFallbackSpinning(false);
+      setMegaFallbackRemoved([]);
+      setMegaFallbackDropping(false);
       setError(extractApiError(err).message);
     } finally {
       setSpinning(false);
       setBusy(false);
+      setMegaFallbackSpinning(false);
+      setMegaFallbackRemoved([]);
+      setMegaFallbackDropping(false);
     }
   };
 
@@ -648,7 +694,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 <MegaFallbackGrid
                   theme={slotTheme}
                   grid={megaDisplayGrid}
-                  spinning={busy}
+                  spinning={megaFallbackSpinning}
+                  removed={megaFallbackRemoved}
+                  dropping={megaFallbackDropping}
                   hidden={sceneReady && !sceneFallback}
                 />
                 <MegaSpecialOverlay theme={slotTheme} symbols={megaDisplaySpecialSymbols} />
@@ -993,16 +1041,25 @@ function MegaFallbackGrid({
   theme,
   grid,
   spinning,
+  removed,
+  dropping,
   hidden,
 }: {
   theme: SlotThemeConfig;
   grid: number[][];
   spinning: boolean;
+  removed: HotlineWinPosition[];
+  dropping: boolean;
   hidden: boolean;
 }) {
+  const removedKeys = useMemo(
+    () => new Set(removed.map((position) => `${position.reel}:${position.row}`)),
+    [removed],
+  );
+
   return (
     <div
-      className={`mega-slot-fallback-grid ${spinning ? 'mega-slot-fallback-grid--spinning' : ''} ${hidden ? 'mega-slot-fallback-grid--hidden' : ''}`}
+      className={`mega-slot-fallback-grid ${spinning ? 'mega-slot-fallback-grid--spinning' : ''} ${dropping ? 'mega-slot-fallback-grid--dropping' : ''} ${hidden ? 'mega-slot-fallback-grid--hidden' : ''}`}
       aria-hidden="true"
     >
       {grid.map((reel, reelIndex) => {
@@ -1017,17 +1074,20 @@ function MegaFallbackGrid({
               {reelStrip.map((symbol, rowIndex) => {
                 const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
                 const symbolImage = getMegaSlotSymbolImage(theme, symbol);
+                const removing = !spinning && removedKeys.has(`${reelIndex}:${rowIndex}`);
                 return (
                   <div
                     key={`${reelIndex}-${rowIndex}-${symbol}-${spinning ? 'spin' : 'idle'}`}
-                    className="mega-slot-fallback-symbol"
+                    className={`mega-slot-fallback-symbol ${removing ? 'mega-slot-fallback-symbol--removing' : ''}`}
                     style={{
                       borderColor: `${meta.accentHex}88`,
                       backgroundImage: symbolImage ? 'none' : `url(${theme.symbolSheet})`,
                       backgroundPosition: symbolImage
                         ? 'center'
                         : (SYMBOL_POSITIONS[symbol] ?? '0% 0%'),
-                    }}
+                      '--mega-slot-reel-index': reelIndex,
+                      '--mega-slot-row-index': rowIndex,
+                    } as CSSProperties}
                   >
                     {symbolImage && (
                       <img

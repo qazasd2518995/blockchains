@@ -259,7 +259,7 @@
     }
 
     .game-fullscreen-shell > header > div {
-      height: 3.25rem !important;
+      height: 3rem !important;
       padding-left: 0.5rem !important;
       padding-right: 0.5rem !important;
     }
@@ -277,7 +277,7 @@
     }
 
     .game-fullscreen-shell > main {
-      height: calc(100svh - 3.25rem - env(safe-area-inset-top));
+      height: calc(100svh - 3rem - env(safe-area-inset-top));
       min-height: 0;
       overflow: hidden;
       padding-top: 0.28rem;
@@ -317,8 +317,9 @@
     }
 
     .game-fullscreen-shell .game-control-stack {
-      max-height: min(48svh, 370px);
-      overflow: visible;
+      align-self: end;
+      max-height: max(218px, min(37svh, 300px));
+      overflow: hidden;
     }
 
     .game-fullscreen-shell .game-control-stack > :not(:first-child) {
@@ -510,7 +511,7 @@
     }
 
     .game-fullscreen-shell .game-control-stack > .game-side-card:first-child {
-      max-height: min(48svh, 370px);
+      max-height: max(218px, min(37svh, 300px));
       overflow-y: auto;
       overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
@@ -534,7 +535,7 @@
 
     .game-fullscreen-shell .game-control-stack .bet-controls__entry {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 90px;
+      grid-template-columns: minmax(0, 1fr) 84px;
       align-items: center;
       gap: 0.35rem;
       margin-top: 0 !important;
@@ -545,7 +546,7 @@
     .game-fullscreen-shell .game-control-stack .bet-controls__input {
       min-height: 44px !important;
       padding: 0.2rem 0.45rem !important;
-      font-size: 20px !important;
+      font-size: 19px !important;
       line-height: 1 !important;
     }
 
@@ -693,20 +694,27 @@
     }
 
     .game-fullscreen-shell .game-play-grid--keno .game-canvas-keno {
-      flex: 0 0 clamp(96px, 17svh, 140px);
+      flex: 0 0 clamp(76px, 13svh, 108px);
     }
 
     .game-fullscreen-shell .keno-number-grid {
-      grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+      grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+      flex: 1 1 auto;
+      align-content: start;
       gap: 0.3rem !important;
       margin-top: 0.35rem !important;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding-right: 0.1rem;
+      -webkit-overflow-scrolling: touch;
     }
 
     .game-fullscreen-shell .keno-number-grid > button {
-      min-height: 40px !important;
+      min-height: 38px !important;
       border-width: 1px;
       border-radius: 10px !important;
-      font-size: 14px !important;
+      font-size: 13px !important;
     }
 
     .game-fullscreen-shell .keno-stage-actions {
@@ -814,6 +822,10 @@
       display: none;
     }
 
+    .game-fullscreen-shell[data-game-id='mines'] .mines-count-presets {
+      display: none;
+    }
+
     .game-fullscreen-shell .game-play-grid--blackjack .game-stage-panel {
       padding: 0.35rem !important;
     }
@@ -915,11 +927,11 @@
     }
 
     .game-fullscreen-shell .game-control-stack {
-      max-height: min(48svh, 340px);
+      max-height: max(196px, min(35svh, 270px));
     }
 
     .game-fullscreen-shell .game-control-stack > .game-side-card:first-child {
-      max-height: min(48svh, 340px);
+      max-height: max(196px, min(35svh, 270px));
     }
 
     .game-fullscreen-shell .game-control-stack .bet-controls__presets {
@@ -933,7 +945,7 @@
     }
 
     .game-fullscreen-shell .game-play-grid--keno .game-canvas-keno {
-      flex-basis: 72px;
+      flex-basis: 64px;
     }
 
     .game-fullscreen-shell .keno-number-grid > button {
@@ -949,6 +961,12 @@
     }
 
     .game-fullscreen-shell[data-game-id='mines'] .mines-count-presets {
+      display: none;
+    }
+  }
+
+  @media (max-width: 430px), (max-width: 767px) and (max-height: 820px) {
+    .game-fullscreen-shell .game-control-stack .bet-controls__presets {
       display: none;
     }
   }
@@ -1894,6 +1912,20 @@
     0 0 14px rgba(0, 0, 0, 0.36);
 }
 
+.mega-slot-fallback-symbol--removing {
+  animation: mega-slot-symbol-remove 280ms cubic-bezier(0.34, 0.02, 0.24, 1) both;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    0 0 20px color-mix(in srgb, var(--mega-slot-accent) 36%, transparent);
+}
+
+.mega-slot-fallback-grid--dropping .mega-slot-fallback-symbol {
+  animation: mega-slot-symbol-drop 380ms cubic-bezier(0.16, 0.84, 0.28, 1) both;
+  animation-delay: calc(
+    (var(--mega-slot-reel-index, 0) * 22ms) + (var(--mega-slot-row-index, 0) * 15ms)
+  );
+}
+
 .mega-slot-fallback-symbol img {
   position: absolute;
   left: 50%;
@@ -2217,6 +2249,45 @@
   50% {
     transform: translateY(2px) scale(1.015);
     filter: brightness(1.22);
+  }
+}
+
+@keyframes mega-slot-symbol-remove {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1.15);
+  }
+
+  52% {
+    opacity: 0.88;
+    transform: scale(1.08);
+    filter: brightness(1.7);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.16) rotate(8deg);
+    filter: brightness(2);
+  }
+}
+
+@keyframes mega-slot-symbol-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-28%) scale(0.94);
+    filter: brightness(1.45);
+  }
+
+  74% {
+    opacity: 1;
+    transform: translateY(3%) scale(1.02);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
   }
 }
 
@@ -3262,6 +3333,123 @@
   }
 }
 
+@media (max-width: 640px) {
+  .game-fullscreen-shell[data-game-id='chicken-road'] > main {
+    padding-bottom: max(0.2rem, env(safe-area-inset-bottom));
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-page {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-arcade {
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-road-panel {
+    min-height: 0;
+    grid-template-rows: 44px minmax(0, 1fr);
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-road {
+    min-height: 0;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-control-panel {
+    max-height: max(196px, min(31svh, 252px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 8px 10px max(10px, env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-control-tabs,
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-difficulty-summary {
+    display: none;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-control-body {
+    gap: 8px;
+    margin-top: 0;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .bet-controls__presets {
+    display: none;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .bet-controls {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0 !important;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .bet-controls__header {
+    display: none;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .bet-controls__entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 84px;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0 !important;
+    border-radius: 12px;
+    padding: 0.3rem !important;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .bet-controls__input {
+    min-height: 44px !important;
+    padding: 0.2rem 0.45rem !important;
+    font-size: 19px !important;
+    line-height: 1 !important;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .bet-controls__adjusters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.25rem;
+    margin-top: 0 !important;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .bet-controls__adjusters .game-choice-btn {
+    min-height: 44px;
+    padding: 0 !important;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-select-label {
+    gap: 5px;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-select {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-actions {
+    gap: 6px;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-primary,
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-cashout,
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-reset {
+    min-height: 44px;
+    border-radius: 11px;
+    font-size: 14px;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-profit-box {
+    padding-top: 8px;
+  }
+
+  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-profit-box strong {
+    font-size: 20px;
+  }
+}
+
 .a2hs-prompt {
   position: fixed;
   inset: 0;
@@ -3499,7 +3687,7 @@
 
 @media (orientation: landscape) and (max-height: 520px) {
   .mega-slot-machine__chrome {
-    grid-template-rows: 40px minmax(0, 1fr) 62px;
+    grid-template-rows: 40px minmax(0, 1fr) 58px;
     gap: 4px;
     padding: 4px max(5px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom))
       max(5px, env(safe-area-inset-left));
@@ -3683,7 +3871,7 @@
       ) minmax(88px, 0.78fr);
     gap: 4px;
     border-radius: 10px;
-    padding: 4px;
+    padding: 3px 4px;
   }
 
   .mega-slot-control-tile span {
@@ -3716,7 +3904,7 @@
   }
 
   .mega-slot-spin {
-    height: 44px;
+    height: 42px;
   }
 
   .mega-slot-spin span,
