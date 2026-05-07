@@ -186,13 +186,13 @@ function MobileLobbyOnePage() {
   return (
     <div className="min-h-[100svh] bg-[#EDF4F7] pb-[calc(env(safe-area-inset-bottom)+18px)] lg:hidden">
       <section className="sticky top-0 z-30 border-b border-[#C9D9E2] bg-white pt-[env(safe-area-inset-top)] shadow-[0_4px_14px_rgba(15,23,42,0.08)]">
-        <div className="flex h-[50px] items-center gap-1 px-2 min-[380px]:gap-1.5 min-[380px]:px-2.5">
+        <div className="flex h-[58px] items-center gap-1 px-2 min-[380px]:gap-1.5 min-[380px]:px-2.5">
           <Link
             to="/lobby"
-            className="flex shrink-0 items-center gap-1.5"
+            className="flex min-h-11 shrink-0 items-center gap-1.5"
             aria-label="返回大廳"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#E9F8F8] text-[17px] font-black text-[#0992A8] max-[360px]:h-8 max-[360px]:w-8 max-[360px]:text-[15px]">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-[#E9F8F8] text-[17px] font-black text-[#0992A8] max-[360px]:text-[15px]">
               BG
             </span>
             <span className="hidden min-w-0 truncate text-[13px] font-black leading-tight text-[#08A6B3] min-[460px]:inline">
@@ -219,15 +219,15 @@ function MobileLobbyOnePage() {
               <>
                 <SoundToggle
                   variant="light"
-                  className="h-8 w-8 rounded-[9px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                  className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
                 />
                 <MusicToggle
                   variant="light"
-                  className="h-8 w-8 rounded-[9px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                  className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
                 />
                 <Link
                   to="/login?from=%2Flobby&reason=lobby"
-                  className="inline-flex h-9 shrink-0 items-center justify-center rounded-[9px] border border-[#D6B75B] bg-[#FFF1B4] px-2.5 text-[12px] font-black text-[#765709]"
+                  className="inline-flex h-11 shrink-0 items-center justify-center rounded-[10px] border border-[#D6B75B] bg-[#FFF1B4] px-3 text-[12px] font-black text-[#765709]"
                 >
                   登入
                 </Link>
@@ -236,14 +236,14 @@ function MobileLobbyOnePage() {
               <>
                 <SoundToggle
                   variant="light"
-                  className="h-8 w-8 rounded-[9px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                  className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
                 />
                 <MusicToggle
                   variant="light"
-                  className="h-8 w-8 rounded-[9px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                  className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
                 />
                 <div
-                  className="flex h-8 w-[104px] min-w-0 items-center gap-1 rounded-[8px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12] min-[390px]:w-[122px]"
+                  className="flex h-10 w-[94px] min-w-0 items-center gap-1 rounded-[9px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12] min-[390px]:h-11 min-[390px]:w-[116px]"
                   aria-label={`帳號 ${user.username}，餘額 ${formatAmount(user.balance ?? '0')}`}
                 >
                   <WalletCards className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -261,14 +261,14 @@ function MobileLobbyOnePage() {
         <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
           <Link
             to={isGuest ? '/login?from=%2Fhistory&reason=history' : '/history'}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-[9px] border border-[#D8E7EE] bg-[#F7FCFE] text-[12px] font-black text-[#17657D] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-[#D8E7EE] bg-[#F7FCFE] text-[12px] font-black text-[#17657D] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
           >
             <History className="h-4 w-4" aria-hidden="true" />
             遊戲紀錄
           </Link>
           <Link
             to="/verify"
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-[9px] border border-[#D8E7EE] bg-[#F7FCFE] text-[12px] font-black text-[#17657D] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-[#D8E7EE] bg-[#F7FCFE] text-[12px] font-black text-[#17657D] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
           >
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
             遊戲說明

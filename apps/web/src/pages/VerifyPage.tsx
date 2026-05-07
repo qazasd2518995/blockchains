@@ -653,7 +653,7 @@ export function VerifyPage() {
                   key={filter.key}
                   type="button"
                   onClick={() => setActiveHall(filter.key)}
-                  className={`flex h-10 shrink-0 items-center gap-2 rounded-[10px] border px-3 text-[12px] font-black shadow-[0_4px_10px_rgba(15,23,42,0.06)] transition active:scale-[0.99] ${
+                  className={`flex h-11 shrink-0 items-center gap-2 rounded-[10px] border px-3 text-[12px] font-black shadow-[0_4px_10px_rgba(15,23,42,0.06)] transition active:scale-[0.99] ${
                     active
                       ? 'border-[#0F76A3] bg-[#1576A2] text-white'
                       : 'border-[#D8E7EE] bg-white text-[#17657D]'

@@ -100,7 +100,7 @@ export function HeroBanner() {
       <button
         type="button"
         onClick={prev}
-        className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/[0.25] text-white opacity-100 transition hover:bg-black/[0.45] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:left-4 md:opacity-0 md:group-hover:opacity-100"
+        className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/[0.25] text-white opacity-100 transition hover:bg-black/[0.45] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:left-4 md:opacity-0 md:group-hover:opacity-100"
         aria-label="上一張"
       >
         <ChevronLeft className="h-5 w-5" />
@@ -108,7 +108,7 @@ export function HeroBanner() {
       <button
         type="button"
         onClick={next}
-        className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/[0.25] text-white opacity-100 transition hover:bg-black/[0.45] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:right-4 md:opacity-0 md:group-hover:opacity-100"
+        className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/[0.25] text-white opacity-100 transition hover:bg-black/[0.45] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:right-4 md:opacity-0 md:group-hover:opacity-100"
         aria-label="下一張"
       >
         <ChevronRight className="h-5 w-5" />
@@ -121,10 +121,15 @@ export function HeroBanner() {
             type="button"
             onClick={() => setIdx(i)}
             aria-label={`slide ${i + 1}`}
-            className={`h-2 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
-              i === idx ? 'w-8 bg-[#C9A247]' : 'w-2 bg-white/40 hover:bg-white/70'
-            }`}
-          />
+            className="group grid h-11 w-11 place-items-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          >
+            <span
+              aria-hidden="true"
+              className={`h-2 rounded-full transition-all ${
+                i === idx ? 'w-8 bg-[#C9A247]' : 'w-2 bg-white/40 group-hover:bg-white/70'
+              }`}
+            />
+          </button>
         ))}
       </div>
     </section>

@@ -64,8 +64,8 @@
     }
 
     .admin-shell .admin-brand-row .min-h-11 {
-      min-height: 36px !important;
-      padding: 0.35rem 0.5rem !important;
+      min-height: 44px !important;
+      padding: 0.45rem 0.6rem !important;
     }
 
     .admin-shell .admin-brand-row .min-h-11 .num {
@@ -74,9 +74,9 @@
     }
 
     .admin-shell .admin-brand-row button[aria-haspopup='menu'] {
-      min-height: 36px;
+      min-height: 44px;
       max-width: 132px;
-      padding: 0.35rem 0.5rem !important;
+      padding: 0.45rem 0.6rem !important;
       letter-spacing: 0.04em !important;
     }
 
@@ -109,9 +109,9 @@
     }
 
     .admin-shell .admin-nav-links a {
-      min-height: 36px;
+      min-height: 44px;
       justify-content: center;
-      padding: 0.4rem 0.35rem !important;
+      padding: 0.55rem 0.4rem !important;
       text-align: center;
       font-size: 11px !important;
       line-height: 1.1;
@@ -181,11 +181,11 @@
 
     .admin-shell .admin-report-filter-row .term-input,
     .admin-shell .admin-report-filter-row select.term-input {
-      min-height: 38px !important;
+      min-height: 44px !important;
       max-width: none !important;
-      border-radius: 9px !important;
-      padding: 0.42rem 0.55rem !important;
-      font-size: 14px !important;
+      border-radius: 10px !important;
+      padding: 0.55rem 0.65rem !important;
+      font-size: 16px !important;
       line-height: 1.2 !important;
     }
 
@@ -220,9 +220,9 @@
     }
 
     .admin-shell .admin-report-presets .btn-teal-outline {
-      min-height: 36px;
-      padding: 0.35rem 0.2rem !important;
-      border-radius: 7px !important;
+      min-height: 44px;
+      padding: 0.55rem 0.25rem !important;
+      border-radius: 8px !important;
       font-size: 12px !important;
       line-height: 1;
     }

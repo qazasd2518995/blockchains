@@ -71,7 +71,7 @@ export function HallPage() {
             <Link
               to="/lobby"
               aria-label="回到大廳"
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/30 text-white/90 backdrop-blur transition hover:bg-black/45"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/30 text-white/90 backdrop-blur transition hover:bg-black/45"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             </Link>

@@ -30,9 +30,9 @@ export function MobilePageHeader({
 
   return (
     <section className="sticky top-0 z-30 border-b border-[#C9D9E2] bg-white pt-[env(safe-area-inset-top)] shadow-[0_4px_14px_rgba(15,23,42,0.08)] lg:hidden">
-      <div className="flex h-[50px] items-center gap-2 px-2.5">
-        <Link to="/lobby" className="flex shrink-0 items-center gap-1.5" aria-label="返回大廳">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#E9F8F8] text-[17px] font-black text-[#0992A8]">
+      <div className="flex h-[56px] items-center gap-2 px-2.5">
+        <Link to="/lobby" className="flex min-h-11 shrink-0 items-center gap-1.5" aria-label="返回大廳">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-[#E9F8F8] text-[17px] font-black text-[#0992A8]">
             BG
           </span>
         </Link>
@@ -46,7 +46,7 @@ export function MobilePageHeader({
 
         {user ? (
           <div
-            className="flex h-8 w-[118px] min-w-0 items-center gap-1 rounded-[8px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12]"
+            className="flex h-11 w-[118px] min-w-0 items-center gap-1 rounded-[10px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12]"
             aria-label={`帳號 ${user.username}，餘額 ${formatAmount(user.balance ?? '0')}`}
           >
             <WalletCards className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -60,7 +60,7 @@ export function MobilePageHeader({
         ) : (
           <Link
             to={`/login?from=${encodeURIComponent(`/${active === 'lobby' ? 'lobby' : active}`)}&reason=${active}`}
-            className="inline-flex h-9 shrink-0 items-center justify-center rounded-[9px] border border-[#D6B75B] bg-[#FFF1B4] px-2.5 text-[12px] font-black text-[#765709]"
+            className="inline-flex h-11 shrink-0 items-center justify-center rounded-[10px] border border-[#D6B75B] bg-[#FFF1B4] px-3 text-[12px] font-black text-[#765709]"
           >
             登入
           </Link>
@@ -75,7 +75,7 @@ export function MobilePageHeader({
               key={item.key}
               to={item.to}
               className={({ isActive }) =>
-                `inline-flex h-9 items-center justify-center gap-1 rounded-[9px] border text-[12px] font-black shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99] ${
+                `inline-flex h-11 items-center justify-center gap-1 rounded-[10px] border text-[12px] font-black shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99] ${
                   isActive || active === item.key
                     ? 'border-[#0F76A3] bg-[#1576A2] text-white'
                     : 'border-[#D8E7EE] bg-[#F7FCFE] text-[#17657D]'

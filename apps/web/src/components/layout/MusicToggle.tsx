@@ -33,8 +33,8 @@ export function MusicToggle({ variant = 'dark', className = '', showLabel = fals
       title={state.muted ? '開啟音樂' : '關閉音樂'}
       aria-label={state.muted ? '開啟音樂' : '關閉音樂'}
       aria-pressed={state.muted}
-      className={`inline-flex h-9 shrink-0 items-center justify-center rounded-full border transition ${
-        showLabel ? 'w-auto gap-1.5 px-3' : 'w-9'
+      className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border transition ${
+        showLabel ? 'h-11 w-auto gap-1.5 px-3' : 'h-11 w-11'
       } ${base} ${className}`}
     >
       <Icon className="h-4 w-4" aria-hidden="true" />

@@ -56,7 +56,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
           aria-modal="true"
           aria-labelledby={titleId}
           tabIndex={-1}
-          className={`relative z-[1] max-h-[calc(100svh-2rem)] w-full overflow-y-auto ${widthMap[width]} card-base scanlines p-0 focus:outline-none sm:max-h-[calc(100vh-5rem)]`}
+          className={`relative z-[1] max-h-[calc(100svh-2rem)] w-full overflow-y-auto ${widthMap[width]} card-base scanlines p-0 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#186073]/35 focus-visible:outline-offset-2 sm:max-h-[calc(100vh-5rem)]`}
         >
           <div className="flex items-start justify-between gap-3 border-b border-[#E5E7EB] px-4 py-4 sm:px-6">
             <div className="min-w-0">

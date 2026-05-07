@@ -52,7 +52,10 @@ export function BetControls({
       <div className="bet-controls__entry mt-3 rounded-[16px] border border-white/10 bg-white/[0.06] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:mt-4 sm:rounded-[18px]">
         <input
           type="text"
+          name="bet-amount"
           inputMode="decimal"
+          autoComplete="off"
+          aria-label={t.bet.stake}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onBlur={() => {
@@ -61,7 +64,7 @@ export function BetControls({
             else setText(amount.toFixed(2));
           }}
           disabled={disabled}
-          className="bet-controls__input w-full border-0 bg-transparent px-2 py-2 text-right font-display text-[30px] tracking-tight text-white shadow-none outline-none focus-visible:border-transparent focus-visible:bg-transparent focus-visible:shadow-none sm:py-3 sm:text-4xl"
+          className="bet-controls__input w-full border-0 bg-transparent px-2 py-2 text-right font-display text-[30px] tracking-tight text-white shadow-none focus-visible:border-transparent focus-visible:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#F3D67D]/60 focus-visible:outline-offset-2 focus-visible:shadow-none sm:py-3 sm:text-4xl"
         />
         <div className="bet-controls__adjusters mt-2 grid grid-cols-2 gap-2">
           <button

@@ -262,15 +262,17 @@
     }
 
     .game-fullscreen-shell > header > div {
-      height: 3rem !important;
-      padding-left: 0.45rem !important;
-      padding-right: 0.45rem !important;
+      height: 3.25rem !important;
+      padding-left: 0.5rem !important;
+      padding-right: 0.5rem !important;
     }
 
     .game-fullscreen-shell > header a,
     .game-fullscreen-shell > header button {
-      height: 2.35rem !important;
-      width: 2.35rem !important;
+      height: 2.75rem !important;
+      min-height: 2.75rem !important;
+      width: 2.75rem !important;
+      min-width: 2.75rem !important;
     }
 
     .game-fullscreen-shell > header .min-w-0.flex-1 > div:first-child {
@@ -278,7 +280,7 @@
     }
 
     .game-fullscreen-shell > main {
-      height: calc(100svh - 3rem - env(safe-area-inset-top));
+      height: calc(100svh - 3.25rem - env(safe-area-inset-top));
       min-height: 0;
       overflow: hidden;
       padding-top: 0.28rem;
@@ -316,7 +318,7 @@
     }
 
     .game-fullscreen-shell .game-control-stack {
-      max-height: min(44svh, 340px);
+      max-height: min(48svh, 370px);
       overflow: visible;
     }
 
@@ -334,7 +336,7 @@
     }
 
     .game-fullscreen-shell .game-stage-panel > .game-stage-bar {
-      min-height: 34px;
+      min-height: 40px;
       flex: 0 0 auto;
       margin: -0.45rem -0.45rem 0.35rem !important;
       border-radius: 0 !important;
@@ -370,10 +372,10 @@
     }
 
     .game-fullscreen-shell .game-stage-panel .game-choice-btn {
-      min-height: 34px;
+      min-height: 44px;
       border-radius: 10px;
-      padding: 0.35rem 0.5rem !important;
-      font-size: 10.5px;
+      padding: 0.55rem 0.55rem !important;
+      font-size: 11px;
       letter-spacing: 0.02em;
     }
 
@@ -509,7 +511,7 @@
     }
 
     .game-fullscreen-shell .game-control-stack > .game-side-card:first-child {
-      max-height: min(44svh, 340px);
+      max-height: min(48svh, 370px);
       overflow-y: auto;
       overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
@@ -542,7 +544,7 @@
     }
 
     .game-fullscreen-shell .game-control-stack .bet-controls__input {
-      min-height: 40px !important;
+      min-height: 44px !important;
       padding: 0.2rem 0.45rem !important;
       font-size: 20px !important;
       line-height: 1 !important;
@@ -555,7 +557,7 @@
     }
 
     .game-fullscreen-shell .game-control-stack .bet-controls__adjusters .game-choice-btn {
-      min-height: 40px;
+      min-height: 44px;
       padding: 0 !important;
     }
 
@@ -565,10 +567,10 @@
     }
 
     .game-fullscreen-shell .game-control-stack .bet-controls__presets .game-choice-btn {
-      min-height: 32px;
-      border-radius: 9px;
-      padding: 0.2rem 0 !important;
-      font-size: 10px;
+      min-height: 44px;
+      border-radius: 10px;
+      padding: 0.35rem 0 !important;
+      font-size: 11px;
       letter-spacing: 0;
     }
 
@@ -594,7 +596,7 @@
     }
 
     .game-fullscreen-shell .crash-auto-cashout__input {
-      min-height: 34px !important;
+      min-height: 44px !important;
       padding: 0.15rem 0.45rem !important;
       text-align: right !important;
       font-size: 16px !important;
@@ -625,7 +627,7 @@
 
     .game-fullscreen-shell .game-control-stack .btn-acid,
     .game-fullscreen-shell .game-control-stack .btn-ember {
-      min-height: 42px;
+      min-height: 46px;
       padding-top: 0.55rem !important;
       padding-bottom: 0.55rem !important;
       font-size: 12px;
@@ -633,11 +635,11 @@
     }
 
     .game-fullscreen-shell .game-control-stack .game-choice-btn {
-      min-height: 34px;
+      min-height: 44px;
       border-radius: 10px;
-      padding-top: 0.4rem !important;
-      padding-bottom: 0.4rem !important;
-      font-size: 10.5px;
+      padding-top: 0.5rem !important;
+      padding-bottom: 0.5rem !important;
+      font-size: 11px;
       letter-spacing: 0.02em;
     }
 
@@ -696,16 +698,16 @@
     }
 
     .game-fullscreen-shell .keno-number-grid {
-      grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
-      gap: 0.25rem !important;
+      grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+      gap: 0.3rem !important;
       margin-top: 0.35rem !important;
     }
 
     .game-fullscreen-shell .keno-number-grid > button {
-      min-height: 30px !important;
+      min-height: 40px !important;
       border-width: 1px;
-      border-radius: 9px !important;
-      font-size: 13px !important;
+      border-radius: 10px !important;
+      font-size: 14px !important;
     }
 
     .game-fullscreen-shell .keno-stage-actions {
@@ -715,9 +717,9 @@
     }
 
     .game-fullscreen-shell .keno-stage-actions .game-choice-btn {
-      min-height: 34px;
-      padding-top: 0.35rem;
-      padding-bottom: 0.35rem;
+      min-height: 44px;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
     }
 
     .game-fullscreen-shell .roulette-board {
@@ -735,21 +737,21 @@
     .game-fullscreen-shell .roulette-number-grid button,
     .game-fullscreen-shell .roulette-outside-grid button,
     .game-fullscreen-shell .roulette-column-grid button {
-      min-height: 31px;
-      border-radius: 8px;
-      padding: 0.28rem 0.15rem;
+      min-height: 40px;
+      border-radius: 9px;
+      padding: 0.4rem 0.2rem;
       font-size: 12px;
     }
 
     .game-fullscreen-shell[data-game-id="mini-roulette"] .game-control-stack,
     .game-fullscreen-shell[data-game-id="carnival"] .game-control-stack {
-      max-height: 205px;
+      max-height: min(48svh, 290px);
     }
 
     .game-fullscreen-shell[data-game-id="mini-roulette"] .game-control-stack > .game-side-card:first-child,
     .game-fullscreen-shell[data-game-id="carnival"] .game-control-stack > .game-side-card:first-child {
-      max-height: 205px;
-      overflow: hidden;
+      max-height: min(48svh, 290px);
+      overflow-y: auto;
       padding: 0.5rem 0.6rem !important;
     }
 
@@ -767,7 +769,7 @@
 
     .game-fullscreen-shell[data-game-id="mini-roulette"] .game-control-stack .game-choice-btn,
     .game-fullscreen-shell[data-game-id="carnival"] .game-control-stack .game-choice-btn {
-      min-height: 34px;
+      min-height: 44px;
     }
 
     .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-control {
@@ -782,7 +784,7 @@
     }
 
     .game-fullscreen-shell[data-game-id="tower"] .tower-difficulty-options > button {
-      min-height: 42px;
+      min-height: 44px;
       align-items: center;
       border-radius: 10px !important;
       padding: 0.45rem 0.25rem !important;
@@ -904,11 +906,11 @@
     }
 
     .game-fullscreen-shell .game-control-stack {
-      max-height: min(42svh, 300px);
+      max-height: min(48svh, 340px);
     }
 
     .game-fullscreen-shell .game-control-stack > .game-side-card:first-child {
-      max-height: min(42svh, 300px);
+      max-height: min(48svh, 340px);
     }
 
     .game-fullscreen-shell .game-control-stack .bet-controls__presets {
@@ -916,7 +918,7 @@
     }
 
     .game-fullscreen-shell .game-stage-panel > .game-stage-bar {
-      min-height: 30px;
+      min-height: 36px;
       padding-top: 0.35rem !important;
       padding-bottom: 0.35rem !important;
     }
@@ -927,14 +929,14 @@
 
     .game-fullscreen-shell .keno-number-grid > button {
       aspect-ratio: auto !important;
-      height: 28px !important;
-      min-height: 28px !important;
-      border-radius: 8px !important;
-      font-size: 12px !important;
+      height: auto !important;
+      min-height: 40px !important;
+      border-radius: 9px !important;
+      font-size: 13px !important;
     }
 
     .game-fullscreen-shell .keno-stage-actions .game-choice-btn {
-      min-height: 30px;
+      min-height: 40px;
     }
 
     .game-fullscreen-shell[data-game-id="mines"] .mines-count-presets {
@@ -956,7 +958,7 @@
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] > header > div {
-      height: 42px !important;
+      height: 46px !important;
       gap: 0.35rem !important;
       padding-left: max(0.45rem, env(safe-area-inset-left)) !important;
       padding-right: max(0.45rem, env(safe-area-inset-right)) !important;
@@ -965,10 +967,10 @@
     .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-back,
     .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-reload,
     .game-fullscreen-shell[data-slot-layout="mega"] > header button {
-      height: 34px !important;
-      min-height: 34px !important;
-      width: 34px !important;
-      min-width: 34px !important;
+      height: 40px !important;
+      min-height: 40px !important;
+      width: 40px !important;
+      min-width: 40px !important;
       padding: 0 !important;
     }
 
@@ -989,8 +991,8 @@
       display: inline-flex !important;
       width: auto !important;
       min-width: 82px !important;
-      height: 34px !important;
-      min-height: 34px !important;
+      height: 40px !important;
+      min-height: 40px !important;
       padding: 0 0.6rem !important;
       font-size: 11px !important;
     }
@@ -1002,10 +1004,10 @@
 
     .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-history {
       display: inline-flex !important;
-      width: 34px !important;
-      min-width: 34px !important;
-      height: 34px !important;
-      min-height: 34px !important;
+      width: 40px !important;
+      min-width: 40px !important;
+      height: 40px !important;
+      min-height: 40px !important;
       padding: 0 !important;
       justify-content: center;
     }
@@ -1015,10 +1017,10 @@
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] .game-shell-immersive {
-      width: 34px !important;
-      min-width: 34px !important;
-      height: 34px !important;
-      min-height: 34px !important;
+      width: 40px !important;
+      min-width: 40px !important;
+      height: 40px !important;
+      min-height: 40px !important;
       justify-content: center;
       padding: 0 !important;
     }
@@ -1036,7 +1038,7 @@
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] > main {
-      height: calc(100dvh - 42px);
+      height: calc(100dvh - 46px);
       min-height: 0;
       overflow: hidden;
       padding:
@@ -1098,8 +1100,8 @@
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] .game-stage-panel > .game-stage-bar {
-      min-height: 30px;
-      flex: 0 0 30px;
+      min-height: 34px;
+      flex: 0 0 34px;
       margin: -0.35rem -0.35rem 0.3rem !important;
       border-radius: 0 !important;
       padding: 0.35rem 0.55rem !important;
@@ -1170,8 +1172,8 @@
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__input {
-      min-height: 34px !important;
-      padding: 0.1rem 0.35rem !important;
+      min-height: 40px !important;
+      padding: 0.2rem 0.4rem !important;
       font-size: 18px !important;
       line-height: 1 !important;
     }
@@ -1182,7 +1184,7 @@
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__adjusters .game-choice-btn {
-      min-height: 30px;
+      min-height: 40px;
       padding: 0 !important;
       font-size: 11px;
     }
@@ -1195,7 +1197,7 @@
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__presets .game-choice-btn {
-      min-height: 28px;
+      min-height: 40px;
       border-radius: 8px;
       padding: 0 !important;
       font-size: 10px;
@@ -1203,7 +1205,7 @@
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack .btn-acid {
-      min-height: 42px;
+      min-height: 44px;
       margin-top: 0.4rem !important;
       padding: 0.55rem 0.4rem !important;
       font-size: 12px;
@@ -1267,11 +1269,11 @@
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] > header > div {
-      height: 38px !important;
+      height: 44px !important;
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] > main {
-      height: calc(100dvh - 38px);
+      height: calc(100dvh - 44px);
       padding-top: 0.25rem;
       padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
     }
@@ -1286,19 +1288,19 @@
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] .game-stage-panel > .game-stage-bar {
-      min-height: 26px;
-      flex-basis: 26px;
+      min-height: 30px;
+      flex-basis: 30px;
       padding-top: 0.28rem !important;
       padding-bottom: 0.28rem !important;
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] .bet-controls__presets .game-choice-btn {
-      min-height: 24px;
+      min-height: 40px;
       font-size: 9px;
     }
 
     .game-fullscreen-shell[data-slot-layout="mega"] .game-control-stack .btn-acid {
-      min-height: 36px;
+      min-height: 40px;
       margin-top: 0.3rem !important;
       padding-top: 0.45rem !important;
       padding-bottom: 0.45rem !important;
@@ -1432,14 +1434,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 38px;
-  height: 38px;
+  min-width: 44px;
+  height: 44px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
   background: rgba(12, 23, 40, 0.72);
   color: rgba(255, 255, 255, 0.84);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(10px);
+}
+
+.mega-slot-icon-btn:focus-visible,
+.mega-slot-pill:focus-visible,
+.mega-slot-betbox button:focus-visible,
+.mega-slot-presets button:focus-visible,
+.mega-slot-spin:focus-visible {
+  outline: 2px solid rgba(243, 214, 125, 0.7);
+  outline-offset: 2px;
 }
 
 .mega-slot-pill {
@@ -2179,7 +2190,7 @@
 
 .mega-slot-betbox {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
   gap: 6px;
   align-items: center;
 }
@@ -2187,7 +2198,7 @@
 .mega-slot-betbox button,
 .mega-slot-presets button {
   min-width: 0;
-  height: 38px;
+  height: 44px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
@@ -2206,7 +2217,7 @@
 .mega-slot-betbox input {
   width: 100%;
   min-width: 0;
-  height: 42px;
+  height: 44px;
   border: 1px solid rgba(243, 214, 125, 0.28);
   border-radius: 999px;
   background: rgba(5, 10, 19, 0.62);
@@ -2217,6 +2228,11 @@
   font-weight: 900;
   color: white;
   outline: 0;
+}
+
+.mega-slot-betbox input:focus-visible {
+  outline: 2px solid rgba(243, 214, 125, 0.7);
+  outline-offset: 2px;
 }
 
 .mega-slot-presets {
@@ -2361,6 +2377,12 @@
   font-weight: 900;
   color: #ffffff;
   outline: none;
+}
+
+.chicken-road-select:focus-visible {
+  border-color: rgba(125, 211, 252, 0.72);
+  outline: 2px solid rgba(125, 211, 252, 0.42);
+  outline-offset: 2px;
 }
 
 .chicken-road-select:disabled {
@@ -3181,8 +3203,8 @@
   top: 12px;
   right: 12px;
   display: inline-flex;
-  height: 34px;
-  width: 34px;
+  height: 44px;
+  width: 44px;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -3191,12 +3213,19 @@
   color: rgba(255, 255, 255, 0.78);
 }
 
+.a2hs-prompt__close:focus-visible,
+.a2hs-prompt__primary:focus-visible,
+.a2hs-prompt__secondary:focus-visible {
+  outline: 2px solid rgba(243, 214, 125, 0.72);
+  outline-offset: 2px;
+}
+
 .a2hs-prompt__hero {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 12px;
-  padding-right: 40px;
+  padding-right: 54px;
 }
 
 .a2hs-prompt__icon {
@@ -3373,14 +3402,14 @@
 
   .a2hs-prompt__primary,
   .a2hs-prompt__secondary {
-    min-height: 38px;
+    min-height: 44px;
     font-size: 13px;
   }
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
   .mega-slot-machine__chrome {
-    grid-template-rows: 34px minmax(0, 1fr) 54px;
+    grid-template-rows: 40px minmax(0, 1fr) 62px;
     gap: 4px;
     padding: 4px max(5px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(5px, env(safe-area-inset-left));
   }
@@ -3392,12 +3421,12 @@
 
   .mega-slot-icon-btn,
   .mega-slot-pill {
-    height: 32px;
-    min-width: 32px;
+    height: 40px;
+    min-width: 40px;
   }
 
   .mega-slot-pill {
-    width: 32px;
+    width: 40px;
     padding: 0;
     font-size: 0;
   }
@@ -3411,7 +3440,7 @@
   }
 
   .mega-slot-jackpots {
-    height: 32px;
+    height: 40px;
   }
 
   .mega-slot-jackpot {
@@ -3572,18 +3601,18 @@
   }
 
   .mega-slot-betbox {
-    grid-template-columns: 32px minmax(0, 1fr) 32px;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
     gap: 4px;
   }
 
   .mega-slot-betbox button,
   .mega-slot-presets button {
-    height: 30px;
+    height: 40px;
     font-size: 10px;
   }
 
   .mega-slot-betbox input {
-    height: 34px;
+    height: 40px;
     padding: 0 6px;
     font-size: 16px;
   }

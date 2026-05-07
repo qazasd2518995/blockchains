@@ -170,6 +170,7 @@ export function GameFullscreenShell() {
               onClick={handleBalanceRefresh}
               className="game-shell-balance hidden h-10 shrink-0 items-center gap-2 rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338] sm:inline-flex"
               title="重新載入餘額"
+              aria-label={`重新載入餘額，目前餘額 ${formatAmount(user.balance ?? '0')}`}
             >
               <WalletCards className="h-4 w-4" aria-hidden="true" />
               <span className="data-num">{formatAmount(user.balance ?? '0')}</span>

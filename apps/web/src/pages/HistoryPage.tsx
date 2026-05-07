@@ -326,7 +326,7 @@ export function HistoryPage() {
                 key={preset.id}
                 type="button"
                 onClick={() => handlePresetClick(preset.id)}
-                className={`h-9 rounded-full border px-1 text-[12px] font-semibold transition sm:h-auto sm:px-3 sm:py-2 ${
+                className={`h-11 rounded-full border px-1 text-[12px] font-semibold transition sm:h-auto sm:px-3 sm:py-2 ${
                   activePreset === preset.id
                     ? 'border-[#186073] bg-[#186073] text-white shadow-[0_8px_18px_rgba(24,96,115,0.20)]'
                     : 'border-[#D9E3EA] bg-white text-[#186073] hover:border-[#186073]/60 hover:bg-[#F2FAFC]'
@@ -348,7 +348,7 @@ export function HistoryPage() {
                 setDateRange((prev) => ({ ...prev, from: event.target.value }));
                 setActivePreset(null);
               }}
-              className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[14px] text-[#0F172A] outline-none transition focus:border-[#186073] focus:ring-2 focus:ring-[#186073]/15"
+              className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[16px] text-[#0F172A] outline-none transition focus-visible:border-[#186073] focus-visible:ring-2 focus-visible:ring-[#186073]/15 sm:text-[14px]"
             />
           </label>
           <label className="grid gap-1 text-[12px] font-semibold text-[#4A5568]">
@@ -360,7 +360,7 @@ export function HistoryPage() {
                 setDateRange((prev) => ({ ...prev, to: event.target.value }));
                 setActivePreset(null);
               }}
-              className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[14px] text-[#0F172A] outline-none transition focus:border-[#186073] focus:ring-2 focus:ring-[#186073]/15"
+              className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[16px] text-[#0F172A] outline-none transition focus-visible:border-[#186073] focus-visible:ring-2 focus-visible:ring-[#186073]/15 sm:text-[14px]"
             />
           </label>
           <button
@@ -418,7 +418,7 @@ export function HistoryPage() {
             <select
               value={pageSize}
               onChange={(event) => handlePageSizeChange(Number(event.target.value))}
-              className="h-10 rounded-[12px] border border-[#D9E3EA] bg-white px-3 text-[14px] font-black text-[#0F172A] outline-none transition focus:border-[#186073] focus:ring-2 focus:ring-[#186073]/15"
+              className="h-11 rounded-[12px] border border-[#D9E3EA] bg-white px-3 text-[16px] font-black text-[#0F172A] outline-none transition focus-visible:border-[#186073] focus-visible:ring-2 focus-visible:ring-[#186073]/15 sm:text-[14px]"
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
@@ -566,7 +566,7 @@ export function HistoryPage() {
                 type="button"
                 onClick={handlePrevPage}
                 disabled={pageIndex === 0 || loading}
-                className="h-10 rounded-[12px] border border-[#D9E3EA] bg-white px-4 text-[13px] font-black text-[#186073] transition hover:border-[#186073]/50 disabled:cursor-not-allowed disabled:opacity-45"
+                className="h-11 rounded-[12px] border border-[#D9E3EA] bg-white px-4 text-[13px] font-black text-[#186073] transition hover:border-[#186073]/50 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 上一頁
               </button>
@@ -574,7 +574,7 @@ export function HistoryPage() {
                 type="button"
                 onClick={handleNextPage}
                 disabled={!nextCursor || loading}
-                className="h-10 rounded-[12px] border border-[#186073] bg-[#186073] px-4 text-[13px] font-black text-white transition hover:bg-[#124D5E] disabled:cursor-not-allowed disabled:border-[#D9E3EA] disabled:bg-[#EEF2F5] disabled:text-[#9CA3AF]"
+                className="h-11 rounded-[12px] border border-[#186073] bg-[#186073] px-4 text-[13px] font-black text-white transition hover:bg-[#124D5E] disabled:cursor-not-allowed disabled:border-[#D9E3EA] disabled:bg-[#EEF2F5] disabled:text-[#9CA3AF]"
               >
                 下一頁
               </button>
@@ -634,7 +634,7 @@ function BetDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#D9E3EA] bg-white text-[#4A5568] transition hover:border-[#186073]/40 hover:text-[#186073]"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#D9E3EA] bg-white text-[#4A5568] transition hover:border-[#186073]/40 hover:text-[#186073]"
             aria-label="關閉"
           >
             <X className="h-5 w-5" aria-hidden="true" />

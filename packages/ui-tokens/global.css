@@ -129,7 +129,8 @@
   .btn-teal-outline,
   .btn-acid,
   .btn-ember,
-  .btn-chip {
+  .btn-chip,
+  .game-choice-btn {
     touch-action: manipulation;
   }
 
@@ -421,6 +422,11 @@
     color: #F3D67D;
   }
 
+  .game-choice-btn:focus-visible {
+    outline: 2px solid transparent;
+    box-shadow: 0 0 0 3px rgba(243, 214, 125, 0.26);
+  }
+
   .game-choice-btn:disabled {
     cursor: not-allowed;
     opacity: 0.4;
@@ -509,7 +515,8 @@
   }
 
   .term-range:focus-visible {
-    outline: none;
+    outline: 2px solid rgba(24, 96, 115, 0.35);
+    outline-offset: 4px;
   }
 
   .term-range::-webkit-slider-runnable-track {
@@ -696,7 +703,7 @@
   }
 
   .btn-chip {
-    min-height: 38px;
+    min-height: 44px;
     padding: 0.5rem 0.75rem;
   }
 
