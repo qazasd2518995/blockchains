@@ -2983,6 +2983,7 @@
 @media (max-width: 980px) {
   .chicken-road-arcade {
     grid-template-columns: 1fr;
+    min-height: 0;
   }
 
   .chicken-road-control-panel {
@@ -2993,7 +2994,7 @@
 
   .chicken-road-road-panel {
     order: 1;
-    grid-template-rows: auto minmax(360px, 52svh);
+    grid-template-rows: auto minmax(390px, 56svh);
   }
 
   .chicken-road-info-grid {
@@ -3012,11 +3013,15 @@
   }
 
   .chicken-road-road-panel {
-    grid-template-rows: auto minmax(320px, 46svh);
+    grid-template-rows: auto minmax(380px, 54svh);
+  }
+
+  .chicken-road-road {
+    min-height: 380px;
   }
 
   .chicken-road-road-topbar {
-    min-height: 52px;
+    min-height: 50px;
     padding: 0 12px;
   }
 
@@ -3025,11 +3030,54 @@
   }
 
   .chicken-road-control-panel {
-    padding: 14px;
+    padding: 12px;
+  }
+
+  .chicken-road-control-tabs {
+    padding: 6px;
+  }
+
+  .chicken-road-control-tabs span {
+    min-height: 40px;
+    font-size: 15px;
+  }
+
+  .chicken-road-control-body {
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .chicken-road-select {
+    min-height: 42px;
+    font-size: 15px;
+  }
+
+  .chicken-road-difficulty-summary {
+    min-height: 40px;
+    padding: 8px 10px;
+  }
+
+  .chicken-road-actions {
+    gap: 9px;
+  }
+
+  .chicken-road-primary,
+  .chicken-road-cashout,
+  .chicken-road-reset {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .chicken-road-profit-box {
+    padding-top: 12px;
+  }
+
+  .chicken-road-profit-box strong {
+    font-size: 24px;
   }
 
   .chicken-road-sidewalk {
-    min-width: 64px;
+    min-width: 58px;
   }
 
   .chicken-road-traffic-light {
@@ -3042,22 +3090,64 @@
   }
 
   .chicken-road-lane__step {
-    display: none;
+    bottom: calc(19% + 36px);
+    display: grid;
+    min-height: 22px;
+    min-width: 22px;
+    padding: 0 6px;
+    font-size: 9px;
   }
 
   .chicken-road-lane__mult {
     bottom: 19%;
-    min-height: 30px;
-    min-width: min(92%, 74px);
+    min-height: 32px;
+    min-width: min(88%, 92px);
     padding: 0 6px;
-    font-size: 10px;
+    font-size: 12px;
+  }
+
+  .chicken-road-traffic-car {
+    width: clamp(46px, 13vw, 64px);
+  }
+
+  .chicken-road-hit-car {
+    width: clamp(58px, 15vw, 78px);
+  }
+
+  .chicken-road-runner {
+    width: clamp(66px, 18vw, 90px);
   }
 
   .chicken-road-meter {
     top: 10px;
     right: 10px;
-    min-width: 120px;
-    padding: 10px;
+    min-width: 112px;
+    border-radius: 16px;
+    padding: 9px 10px;
+  }
+
+  .chicken-road-meter span,
+  .chicken-road-meter small {
+    font-size: 9px;
+  }
+
+  .chicken-road-meter strong {
+    font-size: 30px;
+  }
+}
+
+@media (max-width: 430px) {
+  .chicken-road-road-panel {
+    grid-template-rows: auto minmax(370px, 52svh);
+  }
+
+  .chicken-road-road {
+    min-height: 370px;
+  }
+
+  .chicken-road-lane__mult {
+    min-width: min(88%, 78px);
+    font-size: 11px;
   }
 }
 
@@ -3290,9 +3380,9 @@
 
 @media (orientation: landscape) and (max-height: 520px) {
   .mega-slot-machine__chrome {
-    grid-template-rows: 38px minmax(0, 1fr) 58px;
-    gap: 5px;
-    padding: 5px max(6px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+    grid-template-rows: 34px minmax(0, 1fr) 54px;
+    gap: 4px;
+    padding: 4px max(5px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) max(5px, env(safe-area-inset-left));
   }
 
   .mega-slot-topbar {
@@ -3339,13 +3429,13 @@
 
   .mega-slot-body {
     grid-template-columns: 104px minmax(0, 1fr) 84px;
-    gap: 5px;
+    gap: 4px;
   }
 
   .mega-slot-side,
   .mega-slot-stage {
     border-radius: 10px;
-    padding: 5px;
+    padding: 4px;
   }
 
   .mega-slot-logo-card {
@@ -3403,36 +3493,49 @@
   }
 
   .mega-slot-stage {
-    grid-template-rows: 38px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .mega-slot-win-meter {
-    grid-template-columns: auto auto minmax(0, 1fr);
-    gap: 7px;
-    padding: 0 10px;
-  }
-
-  .mega-slot-win-meter__label {
-    font-size: 10px;
-  }
-
-  .mega-slot-win-meter strong {
-    font-size: 18px;
-  }
-
-  .mega-slot-win-meter__meta {
-    font-size: 8px;
+    display: none;
   }
 
   .mega-slot-board {
-    margin-top: 5px;
+    margin-top: 0;
+    border-radius: 8px;
+  }
+
+  .mega-slot-fallback-grid,
+  .mega-slot-special-overlay {
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .mega-slot-fallback-reel {
+    gap: 4px;
+  }
+
+  .mega-slot-fallback-symbol {
+    border-width: 1px;
+    border-radius: 8px;
+  }
+
+  .mega-slot-fallback-symbol img {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
   }
 
   .mega-slot-special-symbol {
-    min-width: 30px;
-    height: 22px;
-    padding: 0 6px;
-    font-size: 10px;
+    width: min(90%, 68px);
+    height: auto;
+    min-width: 34px;
+    min-height: 34px;
+    max-width: 90%;
+    padding: 0;
+    aspect-ratio: 1 / 1;
+    font-size: clamp(10px, 1.8vw, 16px);
   }
 
   .mega-slot-free-spin-intro__panel {
@@ -3455,9 +3558,9 @@
 
   .mega-slot-controls {
     grid-template-columns: minmax(74px, 0.75fr) minmax(74px, 0.75fr) minmax(128px, 1fr) minmax(176px, 1.25fr) minmax(88px, 0.78fr);
-    gap: 5px;
+    gap: 4px;
     border-radius: 10px;
-    padding: 5px;
+    padding: 4px;
   }
 
   .mega-slot-control-tile span {

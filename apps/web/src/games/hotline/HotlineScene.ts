@@ -174,8 +174,13 @@ export class HotlineScene {
     await this.preloadThemeAssets();
     this.createBackground();
 
+    // Mega 盤面在手機橫向高度很有限，內距要跟著縮小，否則 6x5 符號會被壓得太小。
+    const isMegaLayout = this.rowCount > ROWS;
+    const shortSide = Math.min(width, height);
+    const padding = isMegaLayout ? Math.max(8, Math.min(16, Math.round(shortSide * 0.035))) : 24;
+    this.reelGap = isMegaLayout ? Math.max(4, Math.min(8, Math.round(shortSide * 0.016))) : 8;
+
     // 計算 reel 尺寸
-    const padding = 24;
     const availableW = width - padding * 2;
     this.cellSize = Math.min(
       (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount,

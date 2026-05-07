@@ -16,7 +16,24 @@ import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 
-const VISIBLE_STEP_COUNT = 12;
+const DESKTOP_VISIBLE_STEP_COUNT = 12;
+
+type ViewportSize = {
+  width: number;
+  height: number;
+};
+
+function readViewportSize(): ViewportSize {
+  if (typeof window === 'undefined') {
+    return { width: 1024, height: 768 };
+  }
+
+  const viewport = window.visualViewport;
+  return {
+    width: Math.round(viewport?.width ?? window.innerWidth),
+    height: Math.round(viewport?.height ?? window.innerHeight),
+  };
+}
 
 const DIFFICULTIES: Array<{
   id: ChickenRoadDifficulty;
@@ -47,6 +64,7 @@ export function ChickenRoadPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
+  const [viewportSize, setViewportSize] = useState<ViewportSize>(readViewportSize);
 
   useEffect(() => {
     void api
@@ -58,6 +76,26 @@ export function ChickenRoadPage() {
         }
       })
       .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const updateViewportSize = () => {
+      const next = readViewportSize();
+      setViewportSize((current) => (
+        current.width === next.width && current.height === next.height ? current : next
+      ));
+    };
+
+    updateViewportSize();
+    window.addEventListener('resize', updateViewportSize);
+    window.addEventListener('orientationchange', updateViewportSize);
+    window.visualViewport?.addEventListener('resize', updateViewportSize);
+
+    return () => {
+      window.removeEventListener('resize', updateViewportSize);
+      window.removeEventListener('orientationchange', updateViewportSize);
+      window.visualViewport?.removeEventListener('resize', updateViewportSize);
+    };
   }, []);
 
   const currentStep = round?.currentStep ?? 0;
@@ -75,7 +113,13 @@ export function ChickenRoadPage() {
     () => Array.from({ length: totalSteps }, (_, index) => chickenRoadMultiplier(difficulty, index + 1)),
     [difficulty, totalSteps],
   );
-  const visibleStepCount = VISIBLE_STEP_COUNT;
+  const visibleStepCount = useMemo(() => {
+    if (viewportSize.width <= 430) return 6;
+    if (viewportSize.width <= 640) return 8;
+    if (viewportSize.height <= 520 && viewportSize.width <= 980) return 8;
+    if (viewportSize.width <= 980) return 10;
+    return DESKTOP_VISIBLE_STEP_COUNT;
+  }, [viewportSize.height, viewportSize.width]);
   const visibleStepStart = visualStep <= visibleStepCount
     ? 1
     : visualStep - visibleStepCount + 1;
