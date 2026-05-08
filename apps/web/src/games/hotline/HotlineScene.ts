@@ -105,6 +105,7 @@ interface HotlineCascadePlaybackOptions {
   fast?: boolean;
   specialSymbols?: HotlineSpecialSymbol[];
   finalSpecialSymbols?: HotlineSpecialSymbol[];
+  payoutAmount?: number;
 }
 
 interface HotlineSpecialHighlightOptions {
@@ -856,7 +857,7 @@ export class HotlineScene {
     // 全部停完 → 顯示中獎連線
     if (lines.length > 0) {
       await this.sleep(this.scaleMs(200));
-      this.showWinLines(lines);
+      this.showWinLines(lines, options.payoutAmount);
     }
   }
 
@@ -871,6 +872,7 @@ export class HotlineScene {
       await this.playSpin(finalGrid, [], {
         fast: this.playbackFast,
         specialSymbols: finalSpecialSymbols,
+        payoutAmount: options.payoutAmount,
       });
       return;
     }
@@ -879,6 +881,7 @@ export class HotlineScene {
     await this.playSpin(first.grid, first.lines, {
       fast: this.playbackFast,
       specialSymbols: options.specialSymbols,
+      payoutAmount: options.payoutAmount,
     });
     options.onStepWin?.(first);
     const specialByCell = this.createSpecialSymbolMap(options.specialSymbols);
@@ -889,7 +892,7 @@ export class HotlineScene {
       const step = cascades[i]!;
       await this.sleep(this.scaleMs(720));
       await this.animateCascadeToGrid(step.grid, previous.removed, specialByCell);
-      this.showWinLines(step.lines);
+      this.showWinLines(step.lines, options.payoutAmount);
       options.onStepWin?.(step);
       previous = step;
     }
@@ -1458,13 +1461,13 @@ export class HotlineScene {
     return Math.floor(Math.random() * Math.max(1, this.theme.symbols.length));
   }
 
-  private showWinLines(lines: HotlineLine[]): void {
+  private showWinLines(lines: HotlineLine[], payoutAmount?: number): void {
     if (!this.winLinesLayer) return;
     const jackpot = lines.find((l) => l.count === 5);
     Sfx.slotWin(jackpot ? 'big' : lines.length >= 2 ? 'medium' : 'small');
     for (const line of lines) {
       if (line.positions && line.positions.length > 0) {
-        this.showClusterWin(line);
+        this.showClusterWin(line, payoutAmount);
         continue;
       }
       const path = this.normalizeLinePath(line);
@@ -1549,6 +1552,18 @@ export class HotlineScene {
         );
         this.lineFxTimers.push(timer);
       }
+
+      const payoutPoint = points[Math.floor(points.length / 2)] ?? points[0];
+      if (payoutPoint) {
+        this.emitWinAmountLabel(
+          payoutPoint.x + this.cellSize * 0.16,
+          payoutPoint.y - this.cellSize * 0.18,
+          line.payout,
+          payoutAmount,
+          color,
+          this.scaleMs(180),
+        );
+      }
     }
 
     if (jackpot) {
@@ -1589,7 +1604,7 @@ export class HotlineScene {
     }
   }
 
-  private showClusterWin(line: HotlineLine): void {
+  private showClusterWin(line: HotlineLine, payoutAmount?: number): void {
     const positions = line.positions ?? [];
     if (positions.length === 0 || !this.winLinesLayer) return;
     const color =
@@ -1640,6 +1655,95 @@ export class HotlineScene {
         speedMax: 3.6,
       });
     }
+
+    const anchor = positions[Math.floor(positions.length / 2)] ?? positions[0];
+    if (anchor) {
+      const x = this.reelX0 + anchor.reel * (this.cellSize + this.reelGap) + this.cellSize / 2;
+      const y = this.reelY0 + anchor.row * this.cellSize + this.cellSize / 2;
+      this.emitWinAmountLabel(
+        x + this.cellSize * 0.16,
+        y - this.cellSize * 0.18,
+        line.payout,
+        payoutAmount,
+        color,
+        this.scaleMs(160),
+      );
+    }
+  }
+
+  private emitWinAmountLabel(
+    x: number,
+    y: number,
+    multiplier: number,
+    payoutAmount: number | undefined,
+    color: number,
+    delayMs = 0,
+  ): void {
+    if (!this.winLinesLayer || multiplier <= 0) return;
+    const value =
+      typeof payoutAmount === 'number' && Number.isFinite(payoutAmount) && payoutAmount > 0
+        ? multiplier * payoutAmount
+        : multiplier;
+    const suffix =
+      typeof payoutAmount === 'number' && Number.isFinite(payoutAmount) && payoutAmount > 0
+        ? ''
+        : '×';
+    const style = new TextStyle({
+      fontFamily: GAME_FONT_NUM,
+      fontSize: Math.max(14, Math.min(32, this.cellSize * 0.24)),
+      fill: COLOR_WHITE,
+      fontWeight: '900',
+      letterSpacing: 0.4,
+      stroke: { color: COLOR_INK, width: 5 },
+      dropShadow: {
+        color,
+        alpha: 0.8,
+        blur: 10,
+        distance: 0,
+      },
+    });
+    const label = new Text({ text: `+${this.formatWinAmount(value)}${suffix}`, style });
+    label.anchor.set(0.5);
+    label.x = x;
+    label.y = y;
+    label.alpha = 0;
+    label.scale.set(0.82);
+    this.winLinesLayer.addChild(label);
+
+    const delay = delayMs / 1000;
+    gsap.to(label, {
+      alpha: 1,
+      duration: this.scaleSec(0.14),
+      delay,
+      ease: 'power2.out',
+    });
+    gsap.to(label.scale, {
+      x: 1,
+      y: 1,
+      duration: this.scaleSec(0.18),
+      delay,
+      ease: 'back.out(1.9)',
+    });
+    gsap.to(label, {
+      alpha: 0,
+      y: y - this.cellSize * 0.3,
+      duration: this.scaleSec(0.4),
+      delay: delay + this.scaleSec(0.64),
+      ease: 'power2.in',
+      onComplete: () => {
+        this.winLinesLayer?.removeChild(label);
+        label.destroy();
+      },
+    });
+  }
+
+  private formatWinAmount(value: number): string {
+    if (!Number.isFinite(value)) return '0';
+    const rounded = Number(value.toFixed(2));
+    return rounded.toLocaleString('en-US', {
+      minimumFractionDigits: rounded % 1 === 0 ? 0 : 2,
+      maximumFractionDigits: 2,
+    });
   }
 
   private normalizeLinePath(line: HotlineLine): number[] {

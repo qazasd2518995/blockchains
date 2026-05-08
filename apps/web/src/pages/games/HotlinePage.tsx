@@ -343,7 +343,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       ): Promise<void> => {
         const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
         if (scene) {
-          await scene.playSpin(grid, lines, { fast: spinFast, specialSymbols });
+          await scene.playSpin(grid, lines, {
+            fast: spinFast,
+            specialSymbols,
+            payoutAmount: baseBetAmount,
+          });
           return;
         }
         setMegaFallbackRemoved([]);
@@ -391,6 +395,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             fast: spinFast,
             specialSymbols,
             finalSpecialSymbols,
+            payoutAmount: baseBetAmount,
             onStepWin: (step) => void onStepWin(step),
           });
           return;
