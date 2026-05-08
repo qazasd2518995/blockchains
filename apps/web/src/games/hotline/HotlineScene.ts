@@ -30,17 +30,17 @@ import { HOTLINE_SYMBOLS, getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
 import { getSlotTheme, type SlotThemeConfig } from '@/lib/slotThemes';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG = 0x0F172A;
-const COLOR_TILE_BG = 0xFFFFFF;
-const COLOR_TILE_STROKE = 0xC9A247;
-const COLOR_ACID = 0xF3D67D;
-const COLOR_VIOLET = 0xE8D48A;
-const COLOR_EMBER = 0xD4574A;
-const COLOR_TOXIC = 0x1E7A4F;
-const COLOR_AMBER = 0xF3D67D;
-const COLOR_ICE = 0x266F85;
-const COLOR_INK = 0x0A0806;
-const COLOR_WHITE = 0xFFFFFF;
+const COLOR_BG = 0x0f172a;
+const COLOR_TILE_BG = 0xffffff;
+const COLOR_TILE_STROKE = 0xc9a247;
+const COLOR_ACID = 0xf3d67d;
+const COLOR_VIOLET = 0xe8d48a;
+const COLOR_EMBER = 0xd4574a;
+const COLOR_TOXIC = 0x1e7a4f;
+const COLOR_AMBER = 0xf3d67d;
+const COLOR_ICE = 0x266f85;
+const COLOR_INK = 0x0a0806;
+const COLOR_WHITE = 0xffffff;
 const DEFAULT_REELS = 5;
 const ROWS = 3;
 const MEGA_ROWS = 5;
@@ -88,6 +88,7 @@ interface HotlineCascadeStep {
 
 interface HotlineCascadePlaybackOptions {
   onStepWin?: (step: HotlineCascadeStep) => void;
+  fast?: boolean;
 }
 
 interface Particle {
@@ -141,7 +142,7 @@ export class HotlineScene {
   private poolTicker: ((tk: Ticker) => void) | null = null;
   private winFx: WinCelebration | null = null;
   private lineFxTimers: number[] = [];
-
+  private playbackFast = false;
 
   async init(
     canvas: HTMLCanvasElement,
@@ -271,7 +272,9 @@ export class HotlineScene {
 
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.92 });
+    const bg = new Graphics()
+      .rect(0, 0, this.width, this.height)
+      .fill({ color: COLOR_BG, alpha: 0.92 });
     this.app.stage.addChild(bg);
 
     if (this.backgroundTexture) {
@@ -293,9 +296,7 @@ export class HotlineScene {
     this.app.stage.addChild(glow);
 
     // 頂部/底部光條
-    const topBar = new Graphics()
-      .rect(0, 0, this.width, 2)
-      .fill({ color: COLOR_ACID, alpha: 0.4 });
+    const topBar = new Graphics().rect(0, 0, this.width, 2).fill({ color: COLOR_ACID, alpha: 0.4 });
     const bottomBar = new Graphics()
       .rect(0, this.height - 2, this.width, 2)
       .fill({ color: COLOR_ACID, alpha: 0.4 });
@@ -437,10 +438,16 @@ export class HotlineScene {
 
     if (meta.key === 'cherry') {
       icon.addChild(
-        new Graphics().circle(-u * 0.2, u * 0.12, u * 0.16).fill({ color, alpha: 0.14 }).stroke({ color, width: 2 }),
+        new Graphics()
+          .circle(-u * 0.2, u * 0.12, u * 0.16)
+          .fill({ color, alpha: 0.14 })
+          .stroke({ color, width: 2 }),
       );
       icon.addChild(
-        new Graphics().circle(u * 0.18, u * 0.12, u * 0.16).fill({ color, alpha: 0.14 }).stroke({ color, width: 2 }),
+        new Graphics()
+          .circle(u * 0.18, u * 0.12, u * 0.16)
+          .fill({ color, alpha: 0.14 })
+          .stroke({ color, width: 2 }),
       );
       icon.addChild(
         new Graphics()
@@ -469,22 +476,39 @@ export class HotlineScene {
       icon.addChild(
         new Graphics()
           .poly([
-            -u * 0.24, -u * 0.08,
-            -u * 0.28, u * 0.16,
-            -u * 0.18, u * 0.34,
-            u * 0.18, u * 0.34,
-            u * 0.28, u * 0.16,
-            u * 0.24, -u * 0.08,
+            -u * 0.24,
+            -u * 0.08,
+            -u * 0.28,
+            u * 0.16,
+            -u * 0.18,
+            u * 0.34,
+            u * 0.18,
+            u * 0.34,
+            u * 0.28,
+            u * 0.16,
+            u * 0.24,
+            -u * 0.08,
           ])
           .fill({ color, alpha: 0.12 })
           .stroke({ color, width: 2 }),
       );
       icon.addChild(
-        new Graphics().roundRect(-u * 0.09, -u * 0.34, u * 0.18, u * 0.08, 6).fill({ color, alpha: 0.12 }).stroke({ color, width: 2 }),
+        new Graphics()
+          .roundRect(-u * 0.09, -u * 0.34, u * 0.18, u * 0.08, 6)
+          .fill({ color, alpha: 0.12 })
+          .stroke({ color, width: 2 }),
       );
-      icon.addChild(new Graphics().circle(0, u * 0.25, u * 0.05).fill({ color }).stroke({ color, width: 1.5 }));
       icon.addChild(
-        new Graphics().moveTo(-u * 0.12, u * 0.4).lineTo(u * 0.12, u * 0.4).stroke({ color, width: 2 }),
+        new Graphics()
+          .circle(0, u * 0.25, u * 0.05)
+          .fill({ color })
+          .stroke({ color, width: 1.5 }),
+      );
+      icon.addChild(
+        new Graphics()
+          .moveTo(-u * 0.12, u * 0.4)
+          .lineTo(u * 0.12, u * 0.4)
+          .stroke({ color, width: 2 }),
       );
       return icon;
     }
@@ -493,16 +517,26 @@ export class HotlineScene {
       icon.addChild(
         new Graphics()
           .poly([
-            -u * 0.3, -u * 0.36,
-            u * 0.3, -u * 0.36,
-            u * 0.24, -u * 0.16,
-            u * 0.06, -u * 0.16,
-            -u * 0.08, u * 0.18,
-            u * 0.12, u * 0.18,
-            u * 0.02, u * 0.4,
-            -u * 0.2, u * 0.4,
-            -u * 0.02, -u * 0.04,
-            -u * 0.34, -u * 0.04,
+            -u * 0.3,
+            -u * 0.36,
+            u * 0.3,
+            -u * 0.36,
+            u * 0.24,
+            -u * 0.16,
+            u * 0.06,
+            -u * 0.16,
+            -u * 0.08,
+            u * 0.18,
+            u * 0.12,
+            u * 0.18,
+            u * 0.02,
+            u * 0.4,
+            -u * 0.2,
+            u * 0.4,
+            -u * 0.02,
+            -u * 0.04,
+            -u * 0.34,
+            -u * 0.04,
           ])
           .fill({ color, alpha: 0.12 })
           .stroke({ color, width: 2 }),
@@ -512,11 +546,17 @@ export class HotlineScene {
 
     if (meta.key === 'bar') {
       icon.addChild(
-        new Graphics().roundRect(-u * 0.32, -u * 0.26, u * 0.64, u * 0.52, 12).fill({ color, alpha: 0.12 }).stroke({ color, width: 2 }),
+        new Graphics()
+          .roundRect(-u * 0.32, -u * 0.26, u * 0.64, u * 0.52, 12)
+          .fill({ color, alpha: 0.12 })
+          .stroke({ color, width: 2 }),
       );
       for (const y of [-u * 0.11, 0, u * 0.11]) {
         icon.addChild(
-          new Graphics().roundRect(-u * 0.18, y - u * 0.025, u * 0.36, u * 0.05, 5).fill({ color }).stroke({ color, width: 1.2 }),
+          new Graphics()
+            .roundRect(-u * 0.18, y - u * 0.025, u * 0.36, u * 0.05, 5)
+            .fill({ color })
+            .stroke({ color, width: 1.2 }),
         );
       }
       return icon;
@@ -529,26 +569,48 @@ export class HotlineScene {
           .fill({ color, alpha: 0.12 })
           .stroke({ color, width: 2 }),
       );
-      icon.addChild(new Graphics().moveTo(0, -u * 0.36).lineTo(0, u * 0.36).stroke({ color, width: 1.5, alpha: 0.65 }));
-      icon.addChild(new Graphics().moveTo(-u * 0.28, 0).lineTo(u * 0.28, 0).stroke({ color, width: 1.5, alpha: 0.65 }));
+      icon.addChild(
+        new Graphics()
+          .moveTo(0, -u * 0.36)
+          .lineTo(0, u * 0.36)
+          .stroke({ color, width: 1.5, alpha: 0.65 }),
+      );
+      icon.addChild(
+        new Graphics()
+          .moveTo(-u * 0.28, 0)
+          .lineTo(u * 0.28, 0)
+          .stroke({ color, width: 1.5, alpha: 0.65 }),
+      );
       return icon;
     }
 
     icon.addChild(
       new Graphics()
         .poly([
-          -u * 0.34, u * 0.26,
-          -u * 0.28, -u * 0.1,
-          -u * 0.12, u * 0.06,
-          0, -u * 0.24,
-          u * 0.12, u * 0.06,
-          u * 0.28, -u * 0.1,
-          u * 0.34, u * 0.26,
+          -u * 0.34,
+          u * 0.26,
+          -u * 0.28,
+          -u * 0.1,
+          -u * 0.12,
+          u * 0.06,
+          0,
+          -u * 0.24,
+          u * 0.12,
+          u * 0.06,
+          u * 0.28,
+          -u * 0.1,
+          u * 0.34,
+          u * 0.26,
         ])
         .fill({ color, alpha: 0.12 })
         .stroke({ color, width: 2 }),
     );
-    icon.addChild(new Graphics().roundRect(-u * 0.34, u * 0.2, u * 0.68, u * 0.1, 6).fill({ color, alpha: 0.12 }).stroke({ color, width: 2 }));
+    icon.addChild(
+      new Graphics()
+        .roundRect(-u * 0.34, u * 0.2, u * 0.68, u * 0.1, 6)
+        .fill({ color, alpha: 0.12 })
+        .stroke({ color, width: 2 }),
+    );
     icon.addChild(new Graphics().circle(-u * 0.28, -u * 0.16, u * 0.04).fill({ color }));
     icon.addChild(new Graphics().circle(0, -u * 0.32, u * 0.04).fill({ color }));
     icon.addChild(new Graphics().circle(u * 0.28, -u * 0.16, u * 0.04).fill({ color }));
@@ -593,7 +655,7 @@ export class HotlineScene {
    * API 回來呼叫 playSpin(...) 接手停到最終 grid。
    */
   private anticipating = false;
-  startAnticipation(): void {
+  startAnticipation(fast = false): void {
     if (this.anticipating) return;
     this.anticipating = true;
     Sfx.slotSpinStart();
@@ -604,13 +666,14 @@ export class HotlineScene {
         gsap.killTweensOf(sym);
         gsap.to(sym, {
           y: `+=${this.cellSize * 1.2}`,
-          duration: 0.1 + reelIndex * 0.015,
+          duration: fast ? 0.045 + reelIndex * 0.006 : 0.1 + reelIndex * 0.015,
           ease: 'none',
           repeat: -1,
           modifiers: {
             y: (yStr) => {
               const yN = Number.parseFloat(yStr);
-              const wrapped = ((yN - reel.cellSize / 2) % totalH + totalH) % totalH + reel.cellSize / 2;
+              const wrapped =
+                ((((yN - reel.cellSize / 2) % totalH) + totalH) % totalH) + reel.cellSize / 2;
               return `${wrapped}`;
             },
           },
@@ -635,13 +698,26 @@ export class HotlineScene {
     if (stopSound) Sfx.slotSpinStop();
   }
 
-  async playSpin(finalGrid: number[][], lines: HotlineLine[]): Promise<void> {
+  async playSpin(
+    finalGrid: number[][],
+    lines: HotlineLine[],
+    options: HotlineCascadePlaybackOptions = {},
+  ): Promise<void> {
+    this.playbackFast = Boolean(options.fast);
     this.stopAnticipation(false, false);
     this.resetWinLines();
 
-    const duration = 1.45;
+    const duration = this.playbackFast ? 0.48 : 1.45;
+    const reelDurationGap = this.playbackFast ? 0.045 : 0.16;
+    const reelDelayGap = this.playbackFast ? 0.012 : 0.06;
     const reelPromises = this.reels.map((reel, reelIdx) =>
-      this.spinReel(reel, reelIdx, finalGrid[reelIdx]!, duration + reelIdx * 0.16, reelIdx * 0.06),
+      this.spinReel(
+        reel,
+        reelIdx,
+        finalGrid[reelIdx]!,
+        duration + reelIdx * reelDurationGap,
+        reelIdx * reelDelayGap,
+      ),
     );
 
     try {
@@ -652,7 +728,7 @@ export class HotlineScene {
 
     // 全部停完 → 顯示中獎連線
     if (lines.length > 0) {
-      await this.sleep(200);
+      await this.sleep(this.scaleMs(200));
       this.showWinLines(lines);
     }
   }
@@ -662,31 +738,42 @@ export class HotlineScene {
     finalGrid: number[][],
     options: HotlineCascadePlaybackOptions = {},
   ): Promise<void> {
+    this.playbackFast = Boolean(options.fast);
     if (cascades.length === 0) {
-      await this.playSpin(finalGrid, []);
+      await this.playSpin(finalGrid, [], { fast: this.playbackFast });
       return;
     }
 
     const first = cascades[0]!;
-    await this.playSpin(first.grid, first.lines);
+    await this.playSpin(first.grid, first.lines, { fast: this.playbackFast });
     options.onStepWin?.(first);
 
     let previous = first;
     for (let i = 1; i < cascades.length; i += 1) {
       const step = cascades[i]!;
-      await this.sleep(720);
+      await this.sleep(this.scaleMs(720));
       await this.animateCascadeToGrid(step.grid, previous.removed);
       this.showWinLines(step.lines);
       options.onStepWin?.(step);
       previous = step;
     }
 
-    await this.sleep(720);
+    await this.sleep(this.scaleMs(720));
     await this.animateCascadeToGrid(finalGrid, previous.removed);
   }
 
   private sleep(ms: number): Promise<void> {
     return new Promise((r) => setTimeout(r, ms));
+  }
+
+  private scaleSec(seconds: number): number {
+    if (!this.playbackFast) return seconds;
+    return Math.max(0.035, seconds * 0.34);
+  }
+
+  private scaleMs(ms: number): number {
+    if (!this.playbackFast) return ms;
+    return Math.max(30, Math.round(ms * 0.34));
   }
 
   private spinReel(
@@ -699,7 +786,10 @@ export class HotlineScene {
     return new Promise<void>((resolve) => {
       const { container } = reel;
       const cellSize = reel.cellSize;
-      const startRow = Math.max(FINAL_STOP_ROW + this.rowCount + 1, REEL_STRIP_LEN - this.rowCount - 2 - reelIndex);
+      const startRow = Math.max(
+        FINAL_STOP_ROW + this.rowCount + 1,
+        REEL_STRIP_LEN - this.rowCount - 2 - reelIndex,
+      );
       const currentPhase = this.getReelScrollPhase(reel);
       const landingStrip = this.buildLandingStrip(reel, finalColumn, startRow);
 
@@ -775,7 +865,7 @@ export class HotlineScene {
       { y: 1 },
       {
         y: 0.965,
-        duration: 0.07,
+        duration: this.scaleSec(0.07),
         ease: 'power2.out',
         yoyo: true,
         repeat: 1,
@@ -784,7 +874,10 @@ export class HotlineScene {
     );
   }
 
-  private async animateCascadeToGrid(nextGrid: number[][], removed: HotlineWinPosition[]): Promise<void> {
+  private async animateCascadeToGrid(
+    nextGrid: number[][],
+    removed: HotlineWinPosition[],
+  ): Promise<void> {
     this.resetWinLines();
     const removalTweens: Promise<void>[] = [];
 
@@ -796,7 +889,12 @@ export class HotlineScene {
       gsap.killTweensOf(sym.scale);
       const x = this.reelX0 + pos.reel * (this.cellSize + this.reelGap) + this.cellSize / 2;
       const y = this.reelY0 + pos.row * this.cellSize + this.cellSize / 2;
-      this.emitShockwave(x, y, this.theme.symbols[sym.symbolIndex]?.accentValue ?? COLOR_ACID, this.cellSize * 0.56);
+      this.emitShockwave(
+        x,
+        y,
+        this.theme.symbols[sym.symbolIndex]?.accentValue ?? COLOR_ACID,
+        this.cellSize * 0.56,
+      );
       this.particlePool?.emit({
         x,
         y,
@@ -809,17 +907,19 @@ export class HotlineScene {
       gsap.to(sym.scale, {
         x: 0.18,
         y: 0.18,
-        duration: 0.22,
+        duration: this.scaleSec(0.22),
         ease: 'back.in(1.8)',
       });
-      removalTweens.push(new Promise((resolve) => {
-        gsap.to(sym, {
-          alpha: 0,
-          duration: 0.22,
-          ease: 'power2.in',
-          onComplete: resolve,
-        });
-      }));
+      removalTweens.push(
+        new Promise((resolve) => {
+          gsap.to(sym, {
+            alpha: 0,
+            duration: this.scaleSec(0.22),
+            ease: 'power2.in',
+            onComplete: resolve,
+          });
+        }),
+      );
     }
 
     if (removalTweens.length > 0) {
@@ -886,7 +986,7 @@ export class HotlineScene {
         const sym = finalOrder[row];
         if (!sym) continue;
         const targetY = row * reel.cellSize + reel.cellSize / 2;
-        const delay = reelIdx * 0.025 + row * 0.02;
+        const delay = this.scaleSec(reelIdx * 0.025 + row * 0.02);
         gsap.killTweensOf(sym);
         gsap.killTweensOf(sym.scale);
         const nextSymbol = finalColumn[row] ?? 0;
@@ -897,23 +997,25 @@ export class HotlineScene {
         if (isEntering) {
           sym.y = targetY - reel.cellSize * (enteringCount + 0.62);
         }
-        tweens.push(new Promise((resolve) => {
-          gsap.to(sym, {
-            y: targetY,
-            alpha: 1,
-            duration: isEntering ? 0.36 : 0.42,
-            delay,
-            ease: isEntering ? 'back.out(1.45)' : 'power3.out',
-            onComplete: resolve,
-          });
-          gsap.to(sym.scale, {
-            x: 1,
-            y: 1,
-            duration: 0.28,
-            delay,
-            ease: 'power2.out',
-          });
-        }));
+        tweens.push(
+          new Promise((resolve) => {
+            gsap.to(sym, {
+              y: targetY,
+              alpha: 1,
+              duration: this.scaleSec(isEntering ? 0.36 : 0.42),
+              delay,
+              ease: isEntering ? 'back.out(1.45)' : 'power3.out',
+              onComplete: resolve,
+            });
+            gsap.to(sym.scale, {
+              x: 1,
+              y: 1,
+              duration: this.scaleSec(0.28),
+              delay,
+              ease: 'power2.out',
+            });
+          }),
+        );
       }
       reel.strip = reel.symbols.map((symbol) => symbol.symbolIndex);
     }
@@ -1005,7 +1107,7 @@ export class HotlineScene {
       g.alpha = 0;
       this.winLinesLayer.addChild(g);
 
-      gsap.fromTo(g, { alpha: 0 }, { alpha: 1, duration: 0.3, ease: 'power2.out' });
+      gsap.fromTo(g, { alpha: 0 }, { alpha: 1, duration: this.scaleSec(0.3), ease: 'power2.out' });
 
       // 每個中獎符號脈動 + 粒子
       for (let offset = 0; offset < visibleCount; offset += 1) {
@@ -1019,32 +1121,35 @@ export class HotlineScene {
         gsap.to(sym.scale, {
           x: 1.2,
           y: 1.2,
-          duration: 0.25,
+          duration: this.scaleSec(0.25),
           ease: 'power2.out',
           yoyo: true,
           repeat: 3,
-          delay: offset * 0.1,
+          delay: this.scaleSec(offset * 0.1),
         });
 
         const { x: wx, y: wy } = points[offset]!;
-        const timer = window.setTimeout(() => {
-          this.emitShockwave(wx, wy, color, this.cellSize * 0.8);
-          this.particlePool?.emit({
-            x: wx,
-            y: wy,
-            count: 15,
-            colors: [color, 0xffffff],
-            speedMin: 2,
-            speedMax: 6,
-          });
-          if (this.app && !prefersReducedMotion()) {
-            emitGlowBurst(this.app.stage, wx, wy, color, {
-              radius: this.cellSize * 0.55,
-              peakBlur: 14,
-              durationSec: 0.45,
+        const timer = window.setTimeout(
+          () => {
+            this.emitShockwave(wx, wy, color, this.cellSize * 0.8);
+            this.particlePool?.emit({
+              x: wx,
+              y: wy,
+              count: 15,
+              colors: [color, 0xffffff],
+              speedMin: 2,
+              speedMax: 6,
             });
-          }
-        }, offset * 100);
+            if (this.app && !prefersReducedMotion()) {
+              emitGlowBurst(this.app.stage, wx, wy, color, {
+                radius: this.cellSize * 0.55,
+                peakBlur: 14,
+                durationSec: 0.45,
+              });
+            }
+          },
+          this.scaleMs(offset * 100),
+        );
         this.lineFxTimers.push(timer);
       }
     }
@@ -1055,13 +1160,13 @@ export class HotlineScene {
           gsap.fromTo(
             this.flashOverlay,
             { alpha: 0.4 },
-            { alpha: 0, duration: 0.8, ease: 'power2.out' },
+            { alpha: 0, duration: this.scaleSec(0.8), ease: 'power2.out' },
           );
         }
         const cx = this.width / 2;
         const cy = this.height / 2;
         this.emitShockwave(cx, cy, COLOR_AMBER, this.width * 0.4);
-        this.emitShockwave(cx, cy, COLOR_EMBER, this.width * 0.5, 0.15);
+        this.emitShockwave(cx, cy, COLOR_EMBER, this.width * 0.5, this.scaleSec(0.15));
         // L4 mega tier
         const cfg = TIER_CONFIG.mega;
         this.particlePool?.emit({
@@ -1073,12 +1178,16 @@ export class HotlineScene {
           speedMax: 12,
         });
         this.shaker?.shake(cfg.shakeAmp, cfg.shakeDuration);
-        if (this.app) emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_AMBER, cfg.edgeGlowMs / 1000);
+        if (this.app)
+          emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_AMBER, cfg.edgeGlowMs / 1000);
         if (this.app) emitRayBurst(this.app.stage, this.app, cx, cy, COLOR_AMBER, 1.5);
-      }, 500);
+      }, this.scaleMs(500));
       this.lineFxTimers.push(timer);
     } else if (lines.length >= 2) {
-      const timer = window.setTimeout(() => this.shaker?.shake(5, 0.35), 300);
+      const timer = window.setTimeout(
+        () => this.shaker?.shake(5, this.scaleSec(0.35)),
+        this.scaleMs(300),
+      );
       this.lineFxTimers.push(timer);
     }
   }
@@ -1087,8 +1196,7 @@ export class HotlineScene {
     const positions = line.positions ?? [];
     if (positions.length === 0 || !this.winLinesLayer) return;
     const color =
-      this.theme.symbols[line.symbol]?.accentValue ??
-      getHotlineSymbolMeta(line.symbol).accentValue;
+      this.theme.symbols[line.symbol]?.accentValue ?? getHotlineSymbolMeta(line.symbol).accentValue;
 
     for (const pos of positions) {
       const reel = this.reels[pos.reel];
@@ -1107,12 +1215,21 @@ export class HotlineScene {
       ring.stroke({ color, width: 3, alpha: 0.78 });
       ring.alpha = 0;
       this.winLinesLayer.addChild(ring);
-      gsap.fromTo(ring, { alpha: 0 }, { alpha: 1, duration: 0.22, ease: 'power2.out' });
-      gsap.to(ring, { alpha: 0.18, duration: 0.34, delay: 0.52, ease: 'power2.in' });
+      gsap.fromTo(
+        ring,
+        { alpha: 0 },
+        { alpha: 1, duration: this.scaleSec(0.22), ease: 'power2.out' },
+      );
+      gsap.to(ring, {
+        alpha: 0.18,
+        duration: this.scaleSec(0.34),
+        delay: this.scaleSec(0.52),
+        ease: 'power2.in',
+      });
       gsap.to(sym.scale, {
         x: 1.14,
         y: 1.14,
-        duration: 0.2,
+        duration: this.scaleSec(0.2),
         ease: 'power2.out',
         yoyo: true,
         repeat: 3,
@@ -1188,8 +1305,8 @@ export class HotlineScene {
     gsap.to(state, {
       r: maxR,
       alpha: 0,
-      duration: 0.7,
-      delay,
+      duration: this.scaleSec(0.7),
+      delay: this.scaleSec(delay),
       ease: 'power2.out',
       onUpdate: () => {
         ring.clear().circle(x, y, state.r).stroke({ color, width: 3, alpha: state.alpha });

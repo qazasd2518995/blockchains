@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, History, RotateCw } from 'lucide-react';
+import { AlertCircle, ArrowLeft, History, RotateCw, Zap } from 'lucide-react';
 import type {
   HotlineBetRequest,
   HotlineBetResult,
@@ -79,7 +79,36 @@ interface MegaFallbackWinPop {
 }
 
 interface SpinOptions {
+  amountOverride?: number;
+  balanceOverride?: number;
+  autoSpin?: boolean;
   buyFeature?: boolean;
+  fastSpin?: boolean;
+}
+
+interface AutoSpinSettings {
+  rounds: number;
+  amount: number;
+  lossLimit: number;
+  profitTarget: number;
+  singleWinLimit: number;
+  stopOnAnyWin: boolean;
+  stopOnFreeSpins: boolean;
+}
+
+const AUTO_SPIN_ROUND_PRESETS = [10, 25, 50, 100];
+
+function createDefaultAutoSpinSettings(amount: number): AutoSpinSettings {
+  const baseAmount = roundCurrency(amount);
+  return {
+    rounds: 25,
+    amount: baseAmount,
+    lossLimit: roundCurrency(baseAmount * 25),
+    profitTarget: 0,
+    singleWinLimit: 0,
+    stopOnAnyWin: false,
+    stopOnFreeSpins: true,
+  };
 }
 
 export function HotlinePage({ theme = 'cyber' }: Props) {
@@ -107,11 +136,31 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [megaFallbackRemoved, setMegaFallbackRemoved] = useState<HotlineWinPosition[]>([]);
   const [megaFallbackDropping, setMegaFallbackDropping] = useState(false);
   const [megaFallbackWinPop, setMegaFallbackWinPop] = useState<MegaFallbackWinPop | null>(null);
+  const [autoSpinOpen, setAutoSpinOpen] = useState(false);
+  const [autoSpinSettings, setAutoSpinSettings] = useState<AutoSpinSettings>(() =>
+    createDefaultAutoSpinSettings(10),
+  );
+  const [autoSpinActive, setAutoSpinActive] = useState(false);
+  const [autoSpinRemaining, setAutoSpinRemaining] = useState(0);
+  const [autoSpinStopReason, setAutoSpinStopReason] = useState('');
+  const [fastSpin, setFastSpin] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
+  const autoSpinStopRequestedRef = useRef(false);
+  const fastSpinRef = useRef(false);
   const fallbackGrid = useMemo(() => createFallbackGrid(slotTheme), [slotTheme]);
   const jackpotValues = useMemo(() => createJackpotValues(slotTheme.id), [slotTheme.id]);
+
+  useEffect(() => {
+    fastSpinRef.current = fastSpin;
+  }, [fastSpin]);
+
+  useEffect(() => {
+    return () => {
+      autoSpinStopRequestedRef.current = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isMegaSlot) return;
@@ -224,12 +273,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setMegaFreeSpinIntro(null);
   };
 
-  const spin = async (options: SpinOptions = {}) => {
-    if (busy) return;
-    if (!requireLogin()) return;
+  const spin = async (options: SpinOptions = {}): Promise<HotlineBetResult | null> => {
+    if (busy && !options.autoSpin) return null;
+    if (!requireLogin()) return null;
+    const spinAmount = roundCurrency(options.amountOverride ?? amount);
+    const availableBalance = options.balanceOverride ?? balance;
     const buyFeature = Boolean(options.buyFeature && isMegaSlot);
-    const stakeAmount = buyFeature ? Number((amount * 100).toFixed(2)) : amount;
-    if (amount <= 0 || stakeAmount > balance) return;
+    const spinFast = options.fastSpin ?? fastSpinRef.current;
+    const stakeAmount = buyFeature ? roundCurrency(spinAmount * 100) : spinAmount;
+    if (spinAmount <= 0 || stakeAmount > availableBalance) return null;
     setBusy(true);
     setSpinning(true);
     setResult(null);
@@ -244,19 +296,19 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const activeScene = sceneReady && !sceneFallback ? sceneRef.current : null;
     activeScene?.resetWinLines();
     // 乐观动画：转轴立刻开始滚
-    activeScene?.startAnticipation();
+    activeScene?.startAnticipation(spinFast);
     setMegaFallbackSpinning(isMegaSlot && !activeScene);
 
     try {
       const payload: HotlineBetRequest = {
-        amount,
+        amount: spinAmount,
         gameId: slotTheme.gameId,
         ...(buyFeature ? { buyFeature: true } : {}),
       };
       const res = await api.post<HotlineBetResult>('/games/hotline/bet', payload);
       const cascades = res.data.cascades ?? [];
       const features = res.data.features;
-      const baseBetAmount = Number.parseFloat(res.data.baseAmount ?? String(amount));
+      const baseBetAmount = Number.parseFloat(res.data.baseAmount ?? String(spinAmount));
       const settledStakeAmount = Number.parseFloat(res.data.stakeAmount ?? res.data.amount);
       const displayMultiplier =
         res.data.buyFeature && features ? features.totalMultiplier : (res.data.multiplier ?? 0);
@@ -279,16 +331,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       ): Promise<void> => {
         const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
         if (scene) {
-          await scene.playSpin(grid, lines);
+          await scene.playSpin(grid, lines, { fast: spinFast });
           return;
         }
         setMegaFallbackRemoved([]);
         setMegaFallbackDropping(false);
         setMegaFallbackSpinning(true);
-        await delay(lines.length > 0 ? 820 : 620);
+        await delay(scaleSpinDelay(lines.length > 0 ? 820 : 620, spinFast));
         setMegaFallbackSpinning(false);
         updateLiveMegaRound({ grid });
-        if (lines.length > 0) await delay(260);
+        if (lines.length > 0) await delay(scaleSpinDelay(260, spinFast));
       };
 
       const playCascadeOrFallback = async (
@@ -299,6 +351,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
         if (scene) {
           await scene.playCascadeSpin(steps, finalGrid, {
+            fast: spinFast,
             onStepWin: (step) => void onStepWin(step),
           });
           return;
@@ -330,14 +383,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         nextGrid: number[][],
       ): Promise<void> => {
         setMegaFallbackRemoved(removed);
-        await delay(420);
+        await delay(scaleSpinDelay(420, spinFast));
         setMegaFallbackRemoved([]);
         setMegaFallbackWinning([]);
         setMegaFallbackDropping(true);
         updateLiveMegaRound({ grid: nextGrid });
-        await delay(520);
+        await delay(scaleSpinDelay(520, spinFast));
         setMegaFallbackDropping(false);
-        await delay(120);
+        await delay(scaleSpinDelay(120, spinFast));
       };
 
       const playFallbackWinHold = async (
@@ -347,7 +400,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         if (positions.length === 0) return;
         setMegaFallbackWinning(positions);
         setMegaFallbackWinPop(winPop);
-        await delay(980);
+        await delay(scaleSpinDelay(980, spinFast));
         setMegaFallbackWinPop(null);
       };
 
@@ -416,16 +469,19 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         revealBaseState(res.data.grid);
       }
       if (features && revealedFreeSpinsAwarded > 0 && freeSpinRounds.length > 0) {
-        await delay(260);
-        await showMegaFreeSpinIntro({
-          kind: 'trigger',
-          spins: revealedFreeSpinsAwarded,
-          totalSpins: revealedFreeSpinsAwarded,
-          scatterCount: features.scatterCount,
-        });
+        await delay(scaleSpinDelay(260, spinFast));
+        await showMegaFreeSpinIntro(
+          {
+            kind: 'trigger',
+            spins: revealedFreeSpinsAwarded,
+            totalSpins: revealedFreeSpinsAwarded,
+            scatterCount: features.scatterCount,
+          },
+          scaleSpinDelay(MEGA_FREE_SPIN_INTRO_MS, spinFast),
+        );
       }
       for (const round of freeSpinRounds) {
-        await delay(360);
+        await delay(scaleSpinDelay(360, spinFast));
         revealedFreeMultiplierBank = roundMegaMultiplier(
           revealedFreeMultiplierBank + round.multiplierTotal,
         );
@@ -465,7 +521,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               totalSpins: revealedFreeSpinsAwarded,
               scatterCount: round.scatterSymbols.length,
             },
-            MEGA_FREE_SPIN_RETRIGGER_MS,
+            scaleSpinDelay(MEGA_FREE_SPIN_RETRIGGER_MS, spinFast),
           );
         }
       }
@@ -513,6 +569,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           ...prev,
         ].slice(0, 30),
       );
+      return res.data;
     } catch (err) {
       sceneRef.current?.stopAnticipation();
       sceneRef.current?.resetWinLines();
@@ -524,6 +581,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       setMegaFallbackDropping(false);
       setMegaFallbackWinPop(null);
       setError(extractApiError(err).message);
+      return null;
     } finally {
       setSpinning(false);
       setBusy(false);
@@ -533,6 +591,115 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       setMegaFallbackDropping(false);
       setMegaFallbackWinPop(null);
     }
+  };
+
+  const openAutoSpinSettings = (): void => {
+    if (busy || autoSpinActive) return;
+    setAutoSpinSettings((prev) => ({
+      ...prev,
+      amount: roundCurrency(amount),
+      lossLimit: prev.lossLimit > 0 ? prev.lossLimit : roundCurrency(amount * 25),
+    }));
+    setAutoSpinStopReason('');
+    setAutoSpinOpen(true);
+  };
+
+  const updateAutoSpinSetting = <Key extends keyof AutoSpinSettings>(
+    key: Key,
+    value: AutoSpinSettings[Key],
+  ): void => {
+    setAutoSpinSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const stopAutoSpin = (): void => {
+    autoSpinStopRequestedRef.current = true;
+    setAutoSpinStopReason('停止中');
+  };
+
+  const startAutoSpin = async (): Promise<void> => {
+    if (busy || autoSpinActive) return;
+    if (!requireLogin()) return;
+
+    const config = normalizeAutoSpinSettings(autoSpinSettings);
+    if (config.rounds <= 0 || config.amount <= 0) return;
+    if (balance < config.amount) {
+      setError('餘額不足，無法啟動自動轉動');
+      return;
+    }
+
+    setAmount(config.amount);
+    setAutoSpinOpen(false);
+    setAutoSpinActive(true);
+    setAutoSpinRemaining(config.rounds);
+    setAutoSpinStopReason('');
+    autoSpinStopRequestedRef.current = false;
+
+    let runningBalance = balance;
+    const startBalance = balance;
+    let stopReason = '';
+
+    for (let index = 0; index < config.rounds; index += 1) {
+      if (autoSpinStopRequestedRef.current) {
+        stopReason = '手動停止';
+        break;
+      }
+      if (runningBalance < config.amount) {
+        stopReason = '餘額不足';
+        break;
+      }
+
+      setAutoSpinRemaining(config.rounds - index);
+      const roundResult = await spin({
+        amountOverride: config.amount,
+        balanceOverride: runningBalance,
+        autoSpin: true,
+        fastSpin: fastSpinRef.current,
+      });
+
+      if (!roundResult) {
+        stopReason = '自動轉動中斷';
+        break;
+      }
+      if (autoSpinStopRequestedRef.current) {
+        stopReason = '手動停止';
+        break;
+      }
+
+      runningBalance = Number.parseFloat(roundResult.newBalance);
+      const payout = Number.parseFloat(roundResult.payout);
+      const cumulativeProfit = Math.max(0, runningBalance - startBalance);
+      const cumulativeLoss = Math.max(0, startBalance - runningBalance);
+
+      if (config.stopOnAnyWin && payout > 0) {
+        stopReason = '任意中獎';
+        break;
+      }
+      if (config.stopOnFreeSpins && (roundResult.features?.freeSpinsAwarded ?? 0) > 0) {
+        stopReason = '免費遊戲';
+        break;
+      }
+      if (config.singleWinLimit > 0 && payout >= config.singleWinLimit) {
+        stopReason = '單局派彩達標';
+        break;
+      }
+      if (config.profitTarget > 0 && cumulativeProfit >= config.profitTarget) {
+        stopReason = '停利達標';
+        break;
+      }
+      if (config.lossLimit > 0 && cumulativeLoss >= config.lossLimit) {
+        stopReason = '停損達標';
+        break;
+      }
+
+      if (index < config.rounds - 1) {
+        await delay(scaleSpinDelay(isMegaSlot ? 420 : 240, fastSpinRef.current));
+      }
+    }
+
+    setAutoSpinRemaining(0);
+    setAutoSpinActive(false);
+    autoSpinStopRequestedRef.current = false;
+    setAutoSpinStopReason(stopReason || '自動轉動完成');
   };
 
   const resultAmount = result ? Number.parseFloat(result.amount) : 0;
@@ -639,7 +806,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const megaSpinButtonValue =
     busy && megaDisplayFreeSpinMode ? `剩 ${megaDisplayFreeSpinsRemaining}` : formatAmount(amount);
   const megaBuyFeatureCost = Number((amount * 100).toFixed(2));
-  const canBuyMegaFeature = isMegaSlot && !busy && (!user || balance >= megaBuyFeatureCost);
+  const controlsLocked = busy || autoSpinActive;
+  const canBuyMegaFeature =
+    isMegaSlot && !controlsLocked && (!user || balance >= megaBuyFeatureCost);
+  const autoSpinButtonLabel = autoSpinActive ? '停止' : 'AUTO';
+  const autoSpinButtonValue = autoSpinActive
+    ? autoSpinRemaining > 0
+      ? `剩 ${autoSpinRemaining}`
+      : '停止中'
+    : '設定';
+  const fastSpinButtonValue = fastSpin ? '開啟' : '一般';
   const isBigWinResult = resultProfit > 0 && resultDisplayMultiplier >= BIG_WIN_MULTIPLIER;
   const resultTitle = isBigWinResult
     ? '恭喜爆分'
@@ -648,11 +824,154 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       : resultPayout > 0
         ? '小中獎派彩'
         : '本局未中';
+  const autoSpinDialog = autoSpinOpen ? (
+    <div
+      className="slot-auto-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="slot-auto-title"
+    >
+      <div className="slot-auto-modal__panel">
+        <div className="slot-auto-modal__header">
+          <div>
+            <span>自動轉動</span>
+            <strong id="slot-auto-title">{slotTheme.title}</strong>
+          </div>
+          <button type="button" onClick={() => setAutoSpinOpen(false)} aria-label="關閉">
+            關閉
+          </button>
+        </div>
+
+        <div className="slot-auto-modal__body">
+          <label className="slot-auto-field">
+            <span>轉動次數</span>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={autoSpinSettings.rounds}
+              onChange={(event) =>
+                updateAutoSpinSetting('rounds', Number.parseInt(event.target.value, 10) || 1)
+              }
+            />
+          </label>
+          <div className="slot-auto-presets">
+            {AUTO_SPIN_ROUND_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => updateAutoSpinSetting('rounds', preset)}
+                className={autoSpinSettings.rounds === preset ? 'slot-auto-preset--active' : ''}
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+
+          <div className="slot-auto-grid">
+            <label className="slot-auto-field">
+              <span>下注金額</span>
+              <input
+                type="number"
+                min={0.01}
+                step={0.01}
+                value={autoSpinSettings.amount}
+                onChange={(event) =>
+                  updateAutoSpinSetting('amount', Number.parseFloat(event.target.value) || 0)
+                }
+              />
+            </label>
+            <label className="slot-auto-field">
+              <span>停損</span>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={autoSpinSettings.lossLimit}
+                onChange={(event) =>
+                  updateAutoSpinSetting('lossLimit', Number.parseFloat(event.target.value) || 0)
+                }
+              />
+            </label>
+            <label className="slot-auto-field">
+              <span>停利</span>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={autoSpinSettings.profitTarget}
+                onChange={(event) =>
+                  updateAutoSpinSetting('profitTarget', Number.parseFloat(event.target.value) || 0)
+                }
+              />
+            </label>
+            <label className="slot-auto-field">
+              <span>單局派彩</span>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={autoSpinSettings.singleWinLimit}
+                onChange={(event) =>
+                  updateAutoSpinSetting(
+                    'singleWinLimit',
+                    Number.parseFloat(event.target.value) || 0,
+                  )
+                }
+              />
+            </label>
+          </div>
+
+          <div className="slot-auto-switches">
+            <label className="slot-auto-switch">
+              <input
+                type="checkbox"
+                checked={autoSpinSettings.stopOnAnyWin}
+                onChange={(event) => updateAutoSpinSetting('stopOnAnyWin', event.target.checked)}
+              />
+              <span>任意中獎停止</span>
+            </label>
+            <label className="slot-auto-switch">
+              <input
+                type="checkbox"
+                checked={autoSpinSettings.stopOnFreeSpins}
+                onChange={(event) => updateAutoSpinSetting('stopOnFreeSpins', event.target.checked)}
+              />
+              <span>免費遊戲停止</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="slot-auto-modal__footer">
+          <div className="slot-auto-summary">
+            <span>餘額 {user ? formatAmount(balance) : '登入後顯示'}</span>
+            <strong>每轉 {formatAmount(autoSpinSettings.amount)}</strong>
+          </div>
+          <div className="slot-auto-actions">
+            <button type="button" onClick={() => setAutoSpinOpen(false)}>
+              取消
+            </button>
+            <button
+              type="button"
+              onClick={() => void startAutoSpin()}
+              disabled={
+                autoSpinSettings.rounds <= 0 ||
+                autoSpinSettings.amount <= 0 ||
+                (!!user && balance < autoSpinSettings.amount)
+              }
+            >
+              開始自動
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   if (isMegaSlot) {
     return (
       <div
-        className="slot-game-page slot-game-page--mega mega-slot-machine"
+        className={`slot-game-page slot-game-page--mega mega-slot-machine ${fastSpin ? 'mega-slot-machine--fast' : ''}`}
         style={
           {
             '--mega-slot-bg': `url(${slotTheme.background})`,
@@ -764,6 +1083,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   dropping={megaFallbackDropping}
                   winPop={megaFallbackWinPop}
                   hidden={sceneReady && !sceneFallback}
+                  fast={fastSpin}
                 />
                 <MegaSpecialOverlay theme={slotTheme} symbols={megaDisplaySpecialSymbols} />
                 <canvas
@@ -811,21 +1131,29 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <strong>{formatAmount(megaDisplayPayout)}</strong>
             </div>
             <div className="mega-slot-betbox">
-              <button type="button" onClick={() => setMegaAmount(amount / 2)} disabled={busy}>
+              <button
+                type="button"
+                onClick={() => setMegaAmount(amount / 2)}
+                disabled={controlsLocked}
+              >
                 ½
               </button>
               <input
                 type="text"
                 inputMode="decimal"
                 value={amount.toFixed(2)}
-                disabled={busy}
+                disabled={controlsLocked}
                 onChange={(event) => {
                   const next = Number.parseFloat(event.target.value);
                   if (Number.isFinite(next)) setMegaAmount(next);
                 }}
                 aria-label="下注金額"
               />
-              <button type="button" onClick={() => setMegaAmount(amount * 2)} disabled={busy}>
+              <button
+                type="button"
+                onClick={() => setMegaAmount(amount * 2)}
+                disabled={controlsLocked}
+              >
                 2×
               </button>
             </div>
@@ -835,16 +1163,41 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   key={preset}
                   type="button"
                   onClick={() => setMegaAmount(preset)}
-                  disabled={busy || (!!user && preset > balance)}
+                  disabled={controlsLocked || (!!user && preset > balance)}
                 >
                   {preset}
                 </button>
               ))}
-              <button type="button" onClick={() => setMegaAmount(balance)} disabled={busy || !user}>
+              <button
+                type="button"
+                onClick={() => setMegaAmount(balance)}
+                disabled={controlsLocked || !user}
+              >
                 最大
               </button>
             </div>
             <div className="mega-slot-action-stack">
+              <button
+                type="button"
+                onClick={() => setFastSpin((value) => !value)}
+                className={`mega-slot-speed ${fastSpin ? 'mega-slot-speed--active' : ''}`}
+                aria-label={fastSpin ? '關閉加速轉動' : '開啟加速轉動'}
+                aria-pressed={fastSpin}
+              >
+                <Zap className="h-4 w-4" aria-hidden="true" />
+                <span>加速</span>
+                <strong>{fastSpinButtonValue}</strong>
+              </button>
+              <button
+                type="button"
+                onClick={autoSpinActive ? stopAutoSpin : openAutoSpinSettings}
+                disabled={busy && !autoSpinActive}
+                className="mega-slot-auto"
+                aria-label={autoSpinActive ? '停止自動轉動' : '設定自動轉動'}
+              >
+                <span>{autoSpinButtonLabel}</span>
+                <strong>{autoSpinButtonValue}</strong>
+              </button>
               <button
                 type="button"
                 onClick={() => void spin({ buyFeature: true })}
@@ -858,7 +1211,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <button
                 type="button"
                 onClick={() => void spin()}
-                disabled={busy || (!!user && balance < amount)}
+                disabled={controlsLocked || (!!user && balance < amount)}
                 className="mega-slot-spin"
                 aria-label={t.games.hotline.spin}
               >
@@ -868,6 +1221,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             </div>
           </footer>
 
+          {autoSpinStopReason && (
+            <div className="mega-slot-auto-status">
+              <span>自動轉動</span>
+              <strong>{autoSpinStopReason}</strong>
+            </div>
+          )}
+
           {error && (
             <div className="mega-slot-alert">
               <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -875,13 +1235,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             </div>
           )}
         </div>
+        {autoSpinDialog}
       </div>
     );
   }
 
   return (
     <div
-      className={`slot-game-page ${isMegaSlot ? 'slot-game-page--mega' : 'slot-game-page--classic'}`}
+      className={`slot-game-page ${isMegaSlot ? 'slot-game-page--mega' : 'slot-game-page--classic'} ${fastSpin ? 'slot-game-page--fast' : ''}`}
     >
       {isMegaSlot && (
         <div className="slot-landscape-gate" role="status" aria-live="polite">
@@ -1024,17 +1385,45 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
-              disabled={busy}
+              disabled={controlsLocked}
             />
 
-            <button
-              type="button"
-              onClick={() => void spin()}
-              disabled={busy || (!!user && balance < amount)}
-              className="btn-acid mt-6 w-full py-4"
-            >
-              → {t.games.hotline.spin} · {formatAmount(amount)}
-            </button>
+            <div className="slot-spin-actions">
+              <button
+                type="button"
+                onClick={() => setFastSpin((value) => !value)}
+                className={`slot-speed-button ${fastSpin ? 'slot-speed-button--active' : ''}`}
+                aria-label={fastSpin ? '關閉加速轉動' : '開啟加速轉動'}
+                aria-pressed={fastSpin}
+              >
+                <Zap className="h-4 w-4" aria-hidden="true" />
+                <span>加速</span>
+                <strong>{fastSpinButtonValue}</strong>
+              </button>
+              <button
+                type="button"
+                onClick={autoSpinActive ? stopAutoSpin : openAutoSpinSettings}
+                disabled={busy && !autoSpinActive}
+                className="slot-auto-button"
+              >
+                <span>{autoSpinButtonLabel}</span>
+                <strong>{autoSpinButtonValue}</strong>
+              </button>
+              <button
+                type="button"
+                onClick={() => void spin()}
+                disabled={controlsLocked || (!!user && balance < amount)}
+                className="btn-acid w-full py-4"
+              >
+                → {t.games.hotline.spin} · {formatAmount(amount)}
+              </button>
+            </div>
+            {autoSpinStopReason && (
+              <div className="slot-auto-status">
+                <span>自動轉動</span>
+                <strong>{autoSpinStopReason}</strong>
+              </div>
+            )}
             <div className="game-balance-strip mt-3">
               <span>
                 {t.bet.balance}{' '}
@@ -1071,6 +1460,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           <RecentBetsList records={history} />
         </div>
       </div>
+      {autoSpinDialog}
     </div>
   );
 }
@@ -1124,6 +1514,7 @@ function MegaFallbackGrid({
   dropping,
   winPop,
   hidden,
+  fast,
 }: {
   theme: SlotThemeConfig;
   grid: number[][];
@@ -1133,6 +1524,7 @@ function MegaFallbackGrid({
   dropping: boolean;
   winPop: MegaFallbackWinPop | null;
   hidden: boolean;
+  fast: boolean;
 }) {
   const winningKeys = useMemo(
     () => new Set(winning.map((position) => `${position.reel}:${position.row}`)),
@@ -1145,14 +1537,14 @@ function MegaFallbackGrid({
 
   return (
     <div
-      className={`mega-slot-fallback-grid ${spinning ? 'mega-slot-fallback-grid--spinning' : ''} ${dropping ? 'mega-slot-fallback-grid--dropping' : ''} ${hidden ? 'mega-slot-fallback-grid--hidden' : ''}`}
+      className={`mega-slot-fallback-grid ${spinning ? 'mega-slot-fallback-grid--spinning' : ''} ${dropping ? 'mega-slot-fallback-grid--dropping' : ''} ${hidden ? 'mega-slot-fallback-grid--hidden' : ''} ${fast ? 'mega-slot-fallback-grid--fast' : ''}`}
       aria-hidden="true"
     >
       {grid.map((reel, reelIndex) => {
         const reelStrip = spinning ? createFallbackSpinStrip(theme, reel, reelIndex) : reel;
         const style = {
           '--mega-slot-reel-items': reelStrip.length,
-          '--mega-slot-reel-duration': `${0.46 + reelIndex * 0.055}s`,
+          '--mega-slot-reel-duration': `${(fast ? 0.18 : 0.46) + reelIndex * (fast ? 0.018 : 0.055)}s`,
         } as CSSProperties;
         return (
           <div key={`${theme.id}-fallback-reel-${reelIndex}`} className="mega-slot-fallback-reel">
@@ -1334,6 +1726,28 @@ function formatJackpot(value: number): string {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function scaleSpinDelay(ms: number, fast: boolean): number {
+  if (!fast) return ms;
+  return Math.max(40, Math.round(ms * 0.34));
+}
+
+function roundCurrency(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Number(Math.max(0, value).toFixed(2));
+}
+
+function normalizeAutoSpinSettings(settings: AutoSpinSettings): AutoSpinSettings {
+  return {
+    rounds: Math.max(1, Math.min(500, Math.floor(settings.rounds || 1))),
+    amount: roundCurrency(settings.amount),
+    lossLimit: roundCurrency(settings.lossLimit),
+    profitTarget: roundCurrency(settings.profitTarget),
+    singleWinLimit: roundCurrency(settings.singleWinLimit),
+    stopOnAnyWin: settings.stopOnAnyWin,
+    stopOnFreeSpins: settings.stopOnFreeSpins,
+  };
 }
 
 function roundMegaMultiplier(value: number): number {
