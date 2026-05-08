@@ -151,6 +151,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [autoSpinRemaining, setAutoSpinRemaining] = useState(0);
   const [autoSpinStopReason, setAutoSpinStopReason] = useState('');
   const [fastSpin, setFastSpin] = useState(false);
+  const [dismissedBigWinBetId, setDismissedBigWinBetId] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
@@ -300,6 +301,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setMegaFallbackDropping(false);
     setMegaFallbackWinPop(null);
     setMegaFallbackSpinSpecialSymbols([]);
+    setDismissedBigWinBetId(null);
     setError(null);
 
     const activeScene = sceneReady && !sceneFallback ? sceneRef.current : null;
@@ -915,6 +917,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     : '設定';
   const fastSpinButtonValue = fastSpin ? '開啟' : '一般';
   const isBigWinResult = resultProfit > 0 && resultDisplayMultiplier >= BIG_WIN_MULTIPLIER;
+  const showBigWinOverlay = Boolean(
+    result && !spinning && isBigWinResult && dismissedBigWinBetId !== result.betId,
+  );
   const resultTitle = isBigWinResult
     ? '恭喜爆分'
     : resultPayout > resultAmount
@@ -1192,9 +1197,12 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 />
                 {megaFreeSpinIntro && <MegaFreeSpinIntroOverlay intro={megaFreeSpinIntro} />}
               </div>
-              {result && !spinning && isBigWinResult && (
-                <div
+              {result && showBigWinOverlay && (
+                <button
+                  type="button"
                   className="slot-bigwin-stage"
+                  aria-label="關閉大獎畫面"
+                  onClick={() => setDismissedBigWinBetId(result.betId)}
                   style={
                     slotTheme.bigWin
                       ? {
@@ -1212,7 +1220,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                       {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
                     </div>
                   </div>
-                </div>
+                </button>
               )}
             </section>
 
@@ -1390,9 +1398,12 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
 
-            {result && !spinning && isBigWinResult && (
-              <div
+            {result && showBigWinOverlay && (
+              <button
+                type="button"
                 className="slot-bigwin-stage"
+                aria-label="關閉大獎畫面"
+                onClick={() => setDismissedBigWinBetId(result.betId)}
                 style={
                   slotTheme.bigWin
                     ? {
@@ -1410,7 +1421,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                     {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
                   </div>
                 </div>
-              </div>
+              </button>
             )}
           </div>
 

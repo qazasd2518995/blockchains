@@ -1005,13 +1005,15 @@ export class HotlineScene {
 
     const ring = new Graphics();
     ring.roundRect(
-      x - this.cellSize * 0.48,
-      y - this.cellSize * 0.48,
+      -this.cellSize * 0.48,
+      -this.cellSize * 0.48,
       this.cellSize * 0.96,
       this.cellSize * 0.96,
       this.cellSize * 0.16,
     );
     ring.stroke({ color, width: 4, alpha: 0.94 });
+    ring.x = x;
+    ring.y = y;
     ring.alpha = 0;
     this.winLinesLayer?.addChild(ring);
 

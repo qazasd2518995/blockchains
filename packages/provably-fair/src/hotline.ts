@@ -453,30 +453,30 @@ function drawMegaScatterSymbols(
 ): HotlineSpecialSymbol[] {
   const roll = nextRandom01();
   const count = freeSpinMode
-    ? roll < 0.003
+    ? roll < 0.0006
       ? 6
-      : roll < 0.014
+      : roll < 0.0025
         ? 5
-        : roll < 0.048
+        : roll < 0.008
           ? 4
-          : roll < 0.14
+          : roll < 0.025
             ? 3
-            : roll < 0.34
+            : roll < 0.1
               ? 2
-              : roll < 0.6
+              : roll < 0.28
                 ? 1
                 : 0
-    : roll < 0.0002
+    : roll < 0.0001
       ? 6
-      : roll < 0.001
+      : roll < 0.0005
         ? 5
-        : roll < 0.004
+        : roll < 0.003
           ? 4
-          : roll < 0.04
+          : roll < 0.035
             ? 3
-            : roll < 0.2
+            : roll < 0.175
               ? 2
-              : roll < 0.48
+              : roll < 0.425
                 ? 1
                 : 0;
 
