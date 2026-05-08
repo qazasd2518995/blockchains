@@ -84,7 +84,7 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     descriptionZh: '经典真人百家乐，金色皇家牌桌风格',
     rtp: 0.9894,
     icon: 'baccarat',
-    enabled: true,
+    enabled: false,
   },
   [GameId.BACCARAT_NOVA]: {
     id: GameId.BACCARAT_NOVA,
@@ -95,7 +95,7 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     descriptionZh: '霓虹影棚风格真人百家乐',
     rtp: 0.9894,
     icon: 'baccarat',
-    enabled: true,
+    enabled: false,
   },
   [GameId.BACCARAT_IMPERIAL]: {
     id: GameId.BACCARAT_IMPERIAL,
@@ -106,7 +106,7 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     descriptionZh: '红金御龙风格真人百家乐',
     rtp: 0.9894,
     icon: 'baccarat',
-    enabled: true,
+    enabled: false,
   },
   [GameId.BLACKJACK]: {
     id: GameId.BLACKJACK,
@@ -345,7 +345,7 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     nameZh: '小雞過馬路',
     category: 'multi-step',
     description: 'Cross traffic lanes, raise the multiplier, and cash out before a car hits.',
-    descriptionZh: '逐步穿越車道、累積倍率，車子撞到前可隨時領取',
+    descriptionZh: '逐步穿越車道、累積倍率，命中車流前可隨時領取',
     rtp: 0.97,
     icon: 'chicken-road',
     enabled: true,

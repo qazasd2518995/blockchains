@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { GAMES_REGISTRY } from '@bg/shared';
 import { HALL_LIST, type HallMeta } from '@/data/halls';
 import { getHallIcon } from '@/lib/platformIcons';
 
 function HallCard({ hall }: { hall: HallMeta }) {
   const Icon = getHallIcon(hall.iconKey);
+  const gameCount = hall.gameIds.filter((id) => GAMES_REGISTRY[id]?.enabled).length;
 
   return (
     <Link
@@ -39,7 +41,7 @@ function HallCard({ hall }: { hall: HallMeta }) {
             {hall.nameZh}
           </h3>
           <span className="shrink-0 rounded-full bg-[#EDF4F7] px-3 py-1 text-[12px] font-semibold text-[#557083]">
-            {hall.gameIds.length} 款遊戲
+            {gameCount} 款遊戲
           </span>
         </div>
         <p className="text-[15px] leading-7 text-[#4A5568]">{hall.tagline}</p>

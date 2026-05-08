@@ -1560,63 +1560,65 @@ function MegaFallbackGrid({
       className={`mega-slot-fallback-grid ${spinning ? 'mega-slot-fallback-grid--spinning' : ''} ${dropping ? 'mega-slot-fallback-grid--dropping' : ''} ${hidden ? 'mega-slot-fallback-grid--hidden' : ''} ${fast ? 'mega-slot-fallback-grid--fast' : ''}`}
       aria-hidden="true"
     >
-      {grid.map((reel, reelIndex) => {
-        const reelStrip = spinning ? createFallbackSpinStrip(theme, reel, reelIndex) : reel;
-        const style = {
-          '--mega-slot-reel-items': reelStrip.length,
-          '--mega-slot-reel-duration': `${(fast ? 0.18 : 0.46) + reelIndex * (fast ? 0.018 : 0.055)}s`,
-        } as CSSProperties;
-        return (
-          <div key={`${theme.id}-fallback-reel-${reelIndex}`} className="mega-slot-fallback-reel">
-            <div className="mega-slot-fallback-reel-track" style={style}>
-              {reelStrip.map((symbol, rowIndex) => {
-                const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
-                const special = spinning
-                  ? undefined
-                  : specialByCell.get(`${reelIndex}:${rowIndex}`);
-                const symbolImage = getMegaSlotDisplayImage(theme, symbol, special);
-                const winning = !spinning && winningKeys.has(`${reelIndex}:${rowIndex}`);
-                const removing = !spinning && removedKeys.has(`${reelIndex}:${rowIndex}`);
-                return (
-                  <div
-                    key={`${reelIndex}-${rowIndex}-${symbol}-${specialKey(special)}-${spinning ? 'spin' : 'idle'}`}
-                    className={`mega-slot-fallback-symbol ${special ? `mega-slot-fallback-symbol--${special.type}` : ''} ${winning ? 'mega-slot-fallback-symbol--winning' : ''} ${removing ? 'mega-slot-fallback-symbol--removing' : ''}`}
-                    style={
-                      {
-                        borderColor: `${meta.accentHex}88`,
-                        backgroundImage: symbolImage ? 'none' : `url(${theme.symbolSheet})`,
-                        backgroundPosition: symbolImage
-                          ? 'center'
-                          : (SYMBOL_POSITIONS[symbol] ?? '0% 0%'),
-                        '--mega-slot-reel-index': reelIndex,
-                        '--mega-slot-row-index': rowIndex,
-                      } as CSSProperties
-                    }
-                  >
-                    {symbolImage && (
-                      <img
-                        src={symbolImage}
-                        alt=""
-                        draggable={false}
-                        decoding="async"
-                        aria-hidden="true"
-                      />
-                    )}
-                    {special?.type === 'multiplier' ? (
-                      <strong className="mega-slot-fallback-symbol__multiplier">
-                        {special.value ?? 2}×
-                      </strong>
-                    ) : null}
-                    <span>
-                      {special ? (special.type === 'scatter' ? 'SC' : '倍') : meta.shortLabel}
-                    </span>
-                  </div>
-                );
-              })}
+      <div className="mega-slot-fallback-frame">
+        {grid.map((reel, reelIndex) => {
+          const reelStrip = spinning ? createFallbackSpinStrip(theme, reel, reelIndex) : reel;
+          const style = {
+            '--mega-slot-reel-items': reelStrip.length,
+            '--mega-slot-reel-duration': `${(fast ? 0.18 : 0.46) + reelIndex * (fast ? 0.018 : 0.055)}s`,
+          } as CSSProperties;
+          return (
+            <div key={`${theme.id}-fallback-reel-${reelIndex}`} className="mega-slot-fallback-reel">
+              <div className="mega-slot-fallback-reel-track" style={style}>
+                {reelStrip.map((symbol, rowIndex) => {
+                  const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
+                  const special = spinning
+                    ? undefined
+                    : specialByCell.get(`${reelIndex}:${rowIndex}`);
+                  const symbolImage = getMegaSlotDisplayImage(theme, symbol, special);
+                  const winning = !spinning && winningKeys.has(`${reelIndex}:${rowIndex}`);
+                  const removing = !spinning && removedKeys.has(`${reelIndex}:${rowIndex}`);
+                  return (
+                    <div
+                      key={`${reelIndex}-${rowIndex}-${symbol}-${specialKey(special)}-${spinning ? 'spin' : 'idle'}`}
+                      className={`mega-slot-fallback-symbol ${special ? `mega-slot-fallback-symbol--${special.type}` : ''} ${winning ? 'mega-slot-fallback-symbol--winning' : ''} ${removing ? 'mega-slot-fallback-symbol--removing' : ''}`}
+                      style={
+                        {
+                          borderColor: `${meta.accentHex}88`,
+                          backgroundImage: symbolImage ? 'none' : `url(${theme.symbolSheet})`,
+                          backgroundPosition: symbolImage
+                            ? 'center'
+                            : (SYMBOL_POSITIONS[symbol] ?? '0% 0%'),
+                          '--mega-slot-reel-index': reelIndex,
+                          '--mega-slot-row-index': rowIndex,
+                        } as CSSProperties
+                      }
+                    >
+                      {symbolImage && (
+                        <img
+                          src={symbolImage}
+                          alt=""
+                          draggable={false}
+                          decoding="async"
+                          aria-hidden="true"
+                        />
+                      )}
+                      {special?.type === 'multiplier' ? (
+                        <strong className="mega-slot-fallback-symbol__multiplier">
+                          {special.value ?? 2}×
+                        </strong>
+                      ) : null}
+                      <span>
+                        {special ? (special.type === 'scatter' ? 'SC' : '倍') : meta.shortLabel}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
       {winPop ? (
         <div className="mega-slot-fallback-win-pop" role="status">
           <span>消除贏分</span>

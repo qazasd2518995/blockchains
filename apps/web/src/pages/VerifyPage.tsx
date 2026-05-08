@@ -29,7 +29,7 @@ const HALLS: Hall[] = [
     title: '棋牌牌桌館',
     subtitle: 'Card Table Hall',
     tone: '#C9A247',
-    intro: '百家、21 點、比大小都屬於牌類判斷，集中在同一個牌桌館。',
+    intro: '21 點、比大小都屬於牌類判斷，集中在同一個牌桌館。',
     vibe: '看牌路、算點數、抓節奏',
   },
   {
@@ -566,13 +566,13 @@ const GAMES: Game[] = [
     rtp: '97%',
     maxMultiplier: '50,000×',
     duration: '可連續多局',
-    intro: '下注後讓小雞一格一格穿越車道，安全通過就提高倍率，撞到車則本局歸零。',
+    intro: '下注後讓小雞一格一格穿越車道，安全通過就提高倍率，命中車流則本局歸零。',
     howToPlay: [
       '選擇難度與下注金額後開始本局。',
       '每次點擊前進一步會揭曉下一條車道是否安全。',
-      '安全時倍率上升，可繼續挑戰或立即領取；撞車則失去本局下注。',
+      '安全時倍率上升，可繼續挑戰或立即領取；未通過車道則失去本局下注。',
     ],
-    tips: '難度越高單步倍率越快，但撞車機率也越高；想穩定累積就提早領取。',
+    tips: '難度越高單步倍率越快，但未通過機率也越高；想穩定累積就提早領取。',
   },
   {
     id: 'plinko',
@@ -593,23 +593,27 @@ const GAMES: Game[] = [
   },
 ];
 
+const HIDDEN_GAME_IDS = new Set(['baccarat', 'baccarat-nova', 'baccarat-imperial']);
+const VISIBLE_GAMES = GAMES.filter((game) => !HIDDEN_GAME_IDS.has(game.id));
+
 const HALL_FILTERS: Array<{
   key: HallKey | 'all';
   title: string;
   count: number;
 }> = [
-  { key: 'all', title: '全部玩法', count: GAMES.length },
+  { key: 'all', title: '全部玩法', count: VISIBLE_GAMES.length },
   ...HALLS.map((hall) => ({
     key: hall.key,
     title: hall.title,
-    count: GAMES.filter((game) => game.hall === hall.key).length,
+    count: VISIBLE_GAMES.filter((game) => game.hall === hall.key).length,
   })),
 ];
 
 export function VerifyPage() {
   const [activeHall, setActiveHall] = useState<HallKey | 'all'>('all');
 
-  const filteredGames = activeHall === 'all' ? GAMES : GAMES.filter((g) => g.hall === activeHall);
+  const filteredGames =
+    activeHall === 'all' ? VISIBLE_GAMES : VISIBLE_GAMES.filter((g) => g.hall === activeHall);
   const activeHallMeta =
     activeHall === 'all' ? null : HALLS.find((hall) => hall.key === activeHall);
 
@@ -629,7 +633,7 @@ export function VerifyPage() {
                   GAME GUIDE
                 </div>
                 <h1 className="mt-1 text-[22px] font-black leading-tight text-[#12333E]">
-                  {GAMES.length} 款玩法規則與賠率
+                  {VISIBLE_GAMES.length} 款玩法規則與賠率
                 </h1>
                 <p className="mt-1 text-[12px] font-semibold leading-5 text-[#516976] [overflow-wrap:anywhere]">
                   飛行、牌桌、拉霸、輪盤、即開電子與策略挑戰都整理成短卡片，先看懂規則再進大廳。
@@ -715,12 +719,12 @@ export function VerifyPage() {
                 </div>
                 <div className="min-w-0 max-w-full">
                   <h1 className="max-w-full break-words text-[24px] font-bold leading-[1.12] [overflow-wrap:anywhere] sm:text-[32px] md:text-[40px]">
-                    {GAMES.length} 款人氣玩法，一頁讀懂規則與賠率。
+                    {VISIBLE_GAMES.length} 款人氣玩法，一頁讀懂規則與賠率。
                   </h1>
                   <p className="mt-3 max-w-3xl break-words text-[13px] leading-6 text-white/[0.78] [overflow-wrap:anywhere] sm:text-[14px] sm:leading-relaxed">
                     飛行、棋牌牌桌、拉霸、輪盤、即開電子、策略挑戰六大主題館，從快節奏 Crash
-                    到講究牌路節奏的百家與 21
-                    點，挑你今晚最想開的那一桌。每款遊戲都附上玩法步驟、RTP
+                    到講究手牌判斷的 21
+                    點與比大小，挑你今晚最想開的那一桌。每款遊戲都附上玩法步驟、RTP
                     與最高倍率，幫你快速上手。
                   </p>
                 </div>
@@ -765,11 +769,11 @@ export function VerifyPage() {
                     : 'border-[#E5E7EB] bg-white text-[#0F172A] hover:border-[#0F172A]/40'
                 }`}
               >
-                <span>全部 {GAMES.length} 款</span>
-                <span className="text-[12px] opacity-70">{GAMES.length}</span>
+                <span>全部 {VISIBLE_GAMES.length} 款</span>
+                <span className="text-[12px] opacity-70">{VISIBLE_GAMES.length}</span>
               </button>
               {HALLS.map((hall) => {
-                const count = GAMES.filter((g) => g.hall === hall.key).length;
+                const count = VISIBLE_GAMES.filter((g) => g.hall === hall.key).length;
                 const active = activeHall === hall.key;
                 return (
                   <button
@@ -796,7 +800,7 @@ export function VerifyPage() {
             eyebrow="Game Catalogue"
             title={
               activeHall === 'all'
-                ? `${GAMES.length} 款遊戲完整玩法`
+                ? `${VISIBLE_GAMES.length} 款遊戲完整玩法`
                 : `${HALLS.find((h) => h.key === activeHall)?.title} 玩法詳解`
             }
             description="點開卡片看每款遊戲的下注步驟、賠率上限與操作要點。"

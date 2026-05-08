@@ -134,7 +134,9 @@ function formatTransactionStamp(value: string): { date: string; time: string } {
   };
 }
 
-function summarizeItems(items: TransactionListResponse['items']): TransactionListResponse['summary'] {
+function summarizeItems(
+  items: TransactionListResponse['items'],
+): TransactionListResponse['summary'] {
   const totalIn = items
     .filter((tx) => Number.parseFloat(tx.amount) > 0)
     .reduce((sum, tx) => sum + Number.parseFloat(tx.amount), 0);
@@ -153,7 +155,9 @@ function summarizeItems(items: TransactionListResponse['items']): TransactionLis
 export function HistoryPage() {
   const { t } = useTranslation();
   const [items, setItems] = useState<TransactionListResponse['items']>([]);
-  const [reportSummary, setReportSummary] = useState<TransactionListResponse['summary'] | null>(null);
+  const [reportSummary, setReportSummary] = useState<TransactionListResponse['summary'] | null>(
+    null,
+  );
   const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange('today'));
   const [appliedRange, setAppliedRange] = useState<DateRange>(() => getPresetRange('today'));
   const [activePreset, setActivePreset] = useState<DatePreset | null>('today');
@@ -287,310 +291,321 @@ export function HistoryPage() {
       <MobilePageHeader title="遊戲紀錄" subtitle="BET LEDGER" active="history" />
 
       <div className="space-y-3 px-2 py-2 lg:space-y-10 lg:px-0 lg:py-0">
-      <section className="relative z-10 hidden border-b border-[#E5E7EB] pb-4 lg:block lg:pb-6">
-        <div className="flex items-center gap-3">
-          <span className="text-[14px] font-semibold text-[#186073]">{t.history.ledger}</span>
-        </div>
-        <h1 className="mt-2 text-[30px] font-bold leading-tight text-[#0F172A] sm:mt-3 sm:text-[32px]">{t.history.txLog}</h1>
-      </section>
-
-      <section className="rounded-[13px] border border-[#D6E5EC] bg-white p-3 shadow-[0_6px_14px_rgba(15,23,42,0.08)] lg:hidden">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[#E9F8F8] text-[#0E7189]">
-            <ReceiptText className="h-5 w-5" aria-hidden="true" />
+        <section className="relative z-10 hidden border-b border-[#E5E7EB] pb-4 lg:block lg:pb-6">
+          <div className="flex items-center gap-3">
+            <span className="text-[14px] font-semibold text-[#186073]">{t.history.ledger}</span>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-[20px] font-black leading-tight text-[#12333E]">{t.history.txLog}</h1>
-            <p className="mt-1 text-[12px] font-semibold leading-5 text-[#516976]">
-              查詢投注、派彩、轉點與餘額變化，日期區間會同步套用下方列表。
-            </p>
-          </div>
-        </div>
-      </section>
+          <h1 className="mt-2 text-[30px] font-bold leading-tight text-[#0F172A] sm:mt-3 sm:text-[32px]">
+            {t.history.txLog}
+          </h1>
+        </section>
 
-      <section className="card-base relative z-10 p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-[13px] font-semibold text-[#186073]">
-              <CalendarDays className="h-4 w-4" aria-hidden="true" />
-              {t.history.dateSearch}
+        <section className="rounded-[13px] border border-[#D6E5EC] bg-white p-3 shadow-[0_6px_14px_rgba(15,23,42,0.08)] lg:hidden">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[#E9F8F8] text-[#0E7189]">
+              <ReceiptText className="h-5 w-5" aria-hidden="true" />
             </div>
-            <div className="mt-1 text-[12px] text-[#4A5568]">
-              {t.history.currentRange}: <span className="font-mono text-[#0F172A]">{appliedRangeText}</span>
+            <div className="min-w-0">
+              <h1 className="text-[20px] font-black leading-tight text-[#12333E]">
+                {t.history.txLog}
+              </h1>
+              <p className="mt-1 text-[12px] font-semibold leading-5 text-[#516976]">
+                查詢投注、派彩、轉點與餘額變化，日期區間會同步套用下方列表。
+              </p>
             </div>
           </div>
+        </section>
 
-          <div className="grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
-            {DATE_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => handlePresetClick(preset.id)}
-                className={`h-11 rounded-full border px-1 text-[12px] font-semibold transition sm:h-auto sm:px-3 sm:py-2 ${
-                  activePreset === preset.id
-                    ? 'border-[#186073] bg-[#186073] text-white shadow-[0_8px_18px_rgba(24,96,115,0.20)]'
-                    : 'border-[#D9E3EA] bg-white text-[#186073] hover:border-[#186073]/60 hover:bg-[#F2FAFC]'
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <section className="card-base relative z-10 p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-[13px] font-semibold text-[#186073]">
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                {t.history.dateSearch}
+              </div>
+              <div className="mt-1 text-[12px] text-[#4A5568]">
+                {t.history.currentRange}:{' '}
+                <span className="font-mono text-[#0F172A]">{appliedRangeText}</span>
+              </div>
+            </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-[1fr_1fr_auto]">
-          <label className="grid gap-1 text-[12px] font-semibold text-[#4A5568]">
-            {t.history.fromDate}
-            <input
-              type="date"
-              value={dateRange.from}
-              onChange={(event) => {
-                setDateRange((prev) => ({ ...prev, from: event.target.value }));
-                setActivePreset(null);
-              }}
-              className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[16px] text-[#0F172A] outline-none transition focus-visible:border-[#186073] focus-visible:ring-2 focus-visible:ring-[#186073]/15 sm:text-[14px]"
-            />
-          </label>
-          <label className="grid gap-1 text-[12px] font-semibold text-[#4A5568]">
-            {t.history.toDate}
-            <input
-              type="date"
-              value={dateRange.to}
-              onChange={(event) => {
-                setDateRange((prev) => ({ ...prev, to: event.target.value }));
-                setActivePreset(null);
-              }}
-              className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[16px] text-[#0F172A] outline-none transition focus-visible:border-[#186073] focus-visible:ring-2 focus-visible:ring-[#186073]/15 sm:text-[14px]"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={handleSearch}
-            disabled={!dateRange.from || !dateRange.to || loading}
-            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 self-end rounded-[12px] bg-[#186073] px-5 text-[13px] font-semibold text-white shadow-[0_10px_22px_rgba(24,96,115,0.20)] transition hover:bg-[#124D5E] disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-1"
-          >
-            <Search className="h-4 w-4" aria-hidden="true" />
-            {t.history.search}
-          </button>
-        </div>
-      </section>
-
-      <section className="relative z-10 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
-        <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
-          <div className="label text-[#186073]">{t.history.totalIn}</div>
-          <div className="mt-1 num text-[18px] num-win sm:mt-2 sm:text-4xl">+{formatAmount(totalIn)}</div>
-        </div>
-        <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
-          <div className="label text-[#186073]">{t.history.totalOut}</div>
-          <div className="mt-1 num text-[18px] num-wine sm:mt-2 sm:text-4xl">{formatAmount(totalOut)}</div>
-        </div>
-        <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
-          <div className="label text-[#186073]">{t.history.net}</div>
-          <div
-            className={`mt-1 num text-[18px] sm:mt-2 sm:text-4xl ${
-              net >= 0 ? 'num text-[#C9A247]' : 'num-wine'
-            }`}
-          >
-            {net >= 0 ? '+' : ''}
-            {formatAmount(net)}
-          </div>
-        </div>
-      </section>
-
-      {error && (
-        <div className="relative z-10 border border-[#D4574A]/40 bg-[#FDF0EE] p-4 text-[12px] text-[#B94538]">
-          <span className="font-semibold font-bold italic">{t.common.error}:</span> {error}
-        </div>
-      )}
-
-      <section className="card-base relative z-10 overflow-hidden max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)]">
-        <div className="flex flex-col gap-3 border-b border-[#E5E7EB] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[15px] font-black text-[#186073]">
-              顯示 {displayStart} - {displayEnd} / {totalCount} 筆
-            </span>
-            <span className="text-[12px] font-semibold text-[#718096]">
-              第 {pageIndex + 1} / {pageCount} 頁
-            </span>
-          </div>
-          <label className="flex items-center gap-2 text-[13px] font-bold text-[#4A5568]">
-            每頁
-            <select
-              value={pageSize}
-              onChange={(event) => handlePageSizeChange(Number(event.target.value))}
-              className="h-11 rounded-[12px] border border-[#D9E3EA] bg-white px-3 text-[16px] font-black text-[#0F172A] outline-none transition focus-visible:border-[#186073] focus-visible:ring-2 focus-visible:ring-[#186073]/15 sm:text-[14px]"
-            >
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <option key={size} value={size}>
-                  {size} 筆
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="hidden grid-cols-[132px_150px_1fr_minmax(160px,auto)_minmax(120px,auto)] items-baseline gap-4 border-b border-[#E5E7EB] bg-white/60 px-6 py-3 text-[12px] font-black tracking-[0.12em] text-[#186073] md:grid">
-          <span>{t.history.time}</span>
-          <span>{t.history.type}</span>
-          <span>{t.history.ref}</span>
-          <span className="text-right">{t.history.amount}</span>
-          <span className="text-right">{t.history.balance}</span>
-        </div>
-
-        {loading && (
-          <div className="flex items-center gap-2 px-4 py-8 font-mono text-[12px] tracking-[0.25em] text-[#4A5568] sm:px-6">
-            <span className="dot-online dot-online" />
-            {t.common.loading}
-            <span className="animate-blink">_</span>
-          </div>
-        )}
-
-        {!loading && items.length === 0 && (
-          <div className="px-4 py-12 text-center sm:px-6 sm:py-16">
-            <div className="text-[24px] font-bold text-[#9CA3AF] sm:text-[28px]">{t.history.noRecords}</div>
-            <div className="mt-3 text-sm text-[#4A5568]">{t.history.noRecordsInRange}</div>
-          </div>
-        )}
-
-        {!loading && items.length > 0 && (
-          <div className="divide-y divide-brass-500/20">
-            {items.map((tx) => {
-              const meta = ICON[tx.type] ?? ICON.ADJUSTMENT;
-              const amount = Number.parseFloat(tx.amount);
-              const positive = amount >= 0;
-              const profit = tx.profit === null ? null : Number.parseFloat(tx.profit);
-              const profitValue = profit ?? 0;
-              const hasWinLoss =
-                profit !== null && (tx.type === 'BET_WIN' || tx.type === 'CASHOUT');
-              const stamp = formatTransactionStamp(tx.createdAt);
-              return (
-                <div
-                  key={tx.id}
-                  className="grid grid-cols-[82px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3.5 transition hover:bg-[#FAF2D7]/40 sm:grid-cols-[104px_minmax(0,1fr)_auto] md:grid-cols-[132px_150px_1fr_minmax(160px,auto)_minmax(120px,auto)] md:gap-4 md:px-6 md:py-4"
+            <div className="grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
+              {DATE_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handlePresetClick(preset.id)}
+                  className={`h-11 rounded-full border px-1 text-[12px] font-semibold transition sm:h-auto sm:px-3 sm:py-2 ${
+                    activePreset === preset.id
+                      ? 'border-[#186073] bg-[#186073] text-white shadow-[0_8px_18px_rgba(24,96,115,0.20)]'
+                      : 'border-[#D9E3EA] bg-white text-[#186073] hover:border-[#186073]/60 hover:bg-[#F2FAFC]'
+                  }`}
                 >
-                  <div className="data-num">
-                    <div className="text-[14px] font-black leading-tight text-[#0F172A] sm:text-[15px]">
-                      {stamp.time}
-                    </div>
-                    <div className="mt-1 text-[10px] font-bold leading-tight text-[#4A5568] sm:text-[11px]">
-                      {stamp.date}
-                    </div>
-                  </div>
-                  <div className={`flex items-center gap-2 ${meta.color}`}>
-                    <span className="text-[20px] leading-none">{meta.icon}</span>
-                    <div className="min-w-0">
-                      <span className="text-[14px] font-black tracking-[0.08em]">
-                        {hasWinLoss
-                          ? t.history.settlement
-                          : (t.history.tx[tx.type as keyof typeof t.history.tx] ?? tx.type)}
-                      </span>
-                      {tx.betId ? (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDetail(tx.betId!)}
-                          className="mt-1.5 block rounded-full border border-[#186073]/20 bg-white px-2.5 py-1 text-[11px] font-black text-[#186073] md:hidden"
-                        >
-                          查看開獎
-                        </button>
-                      ) : null}
-                      <div className="mt-1 truncate text-[11px] font-semibold tracking-normal text-[#4A5568] md:hidden">
-                        {renderReference(tx.gameId, tx.betId)}
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-[1fr_1fr_auto]">
+            <label className="grid gap-1 text-[12px] font-semibold text-[#4A5568]">
+              {t.history.fromDate}
+              <input
+                type="date"
+                value={dateRange.from}
+                onChange={(event) => {
+                  setDateRange((prev) => ({ ...prev, from: event.target.value }));
+                  setActivePreset(null);
+                }}
+                className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[16px] text-[#0F172A] outline-none transition focus-visible:border-[#186073] focus-visible:ring-2 focus-visible:ring-[#186073]/15 sm:text-[14px]"
+              />
+            </label>
+            <label className="grid gap-1 text-[12px] font-semibold text-[#4A5568]">
+              {t.history.toDate}
+              <input
+                type="date"
+                value={dateRange.to}
+                onChange={(event) => {
+                  setDateRange((prev) => ({ ...prev, to: event.target.value }));
+                  setActivePreset(null);
+                }}
+                className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[16px] text-[#0F172A] outline-none transition focus-visible:border-[#186073] focus-visible:ring-2 focus-visible:ring-[#186073]/15 sm:text-[14px]"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={!dateRange.from || !dateRange.to || loading}
+              className="col-span-2 inline-flex h-11 items-center justify-center gap-2 self-end rounded-[12px] bg-[#186073] px-5 text-[13px] font-semibold text-white shadow-[0_10px_22px_rgba(24,96,115,0.20)] transition hover:bg-[#124D5E] disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-1"
+            >
+              <Search className="h-4 w-4" aria-hidden="true" />
+              {t.history.search}
+            </button>
+          </div>
+        </section>
+
+        <section className="relative z-10 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
+          <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
+            <div className="label text-[#186073]">{t.history.totalIn}</div>
+            <div className="mt-1 num text-[18px] num-win sm:mt-2 sm:text-4xl">
+              +{formatAmount(totalIn)}
+            </div>
+          </div>
+          <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
+            <div className="label text-[#186073]">{t.history.totalOut}</div>
+            <div className="mt-1 num text-[18px] num-wine sm:mt-2 sm:text-4xl">
+              {formatAmount(totalOut)}
+            </div>
+          </div>
+          <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
+            <div className="label text-[#186073]">{t.history.net}</div>
+            <div
+              className={`mt-1 num text-[18px] sm:mt-2 sm:text-4xl ${
+                net >= 0 ? 'num text-[#C9A247]' : 'num-wine'
+              }`}
+            >
+              {net >= 0 ? '+' : ''}
+              {formatAmount(net)}
+            </div>
+          </div>
+        </section>
+
+        {error && (
+          <div className="relative z-10 border border-[#D4574A]/40 bg-[#FDF0EE] p-4 text-[12px] text-[#B94538]">
+            <span className="font-semibold font-bold italic">{t.common.error}:</span> {error}
+          </div>
+        )}
+
+        <section className="card-base relative z-10 overflow-hidden max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)]">
+          <div className="flex flex-col gap-3 border-b border-[#E5E7EB] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[15px] font-black text-[#186073]">
+                顯示 {displayStart} - {displayEnd} / {totalCount} 筆
+              </span>
+              <span className="text-[12px] font-semibold text-[#718096]">
+                第 {pageIndex + 1} / {pageCount} 頁
+              </span>
+            </div>
+            <label className="flex items-center gap-2 text-[13px] font-bold text-[#4A5568]">
+              每頁
+              <select
+                value={pageSize}
+                onChange={(event) => handlePageSizeChange(Number(event.target.value))}
+                className="h-11 rounded-[12px] border border-[#D9E3EA] bg-white px-3 text-[16px] font-black text-[#0F172A] outline-none transition focus-visible:border-[#186073] focus-visible:ring-2 focus-visible:ring-[#186073]/15 sm:text-[14px]"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size} 筆
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="hidden grid-cols-[132px_150px_1fr_minmax(160px,auto)_minmax(120px,auto)] items-baseline gap-4 border-b border-[#E5E7EB] bg-white/60 px-6 py-3 text-[12px] font-black tracking-[0.12em] text-[#186073] md:grid">
+            <span>{t.history.time}</span>
+            <span>{t.history.type}</span>
+            <span>{t.history.ref}</span>
+            <span className="text-right">{t.history.amount}</span>
+            <span className="text-right">{t.history.balance}</span>
+          </div>
+
+          {loading && (
+            <div className="flex items-center gap-2 px-4 py-8 font-mono text-[12px] tracking-[0.25em] text-[#4A5568] sm:px-6">
+              <span className="dot-online dot-online" />
+              {t.common.loading}
+              <span className="animate-blink">_</span>
+            </div>
+          )}
+
+          {!loading && items.length === 0 && (
+            <div className="px-4 py-12 text-center sm:px-6 sm:py-16">
+              <div className="text-[24px] font-bold text-[#9CA3AF] sm:text-[28px]">
+                {t.history.noRecords}
+              </div>
+              <div className="mt-3 text-sm text-[#4A5568]">{t.history.noRecordsInRange}</div>
+            </div>
+          )}
+
+          {!loading && items.length > 0 && (
+            <div className="divide-y divide-brass-500/20">
+              {items.map((tx) => {
+                const meta = ICON[tx.type] ?? ICON.ADJUSTMENT;
+                const amount = Number.parseFloat(tx.amount);
+                const positive = amount >= 0;
+                const profit = tx.profit === null ? null : Number.parseFloat(tx.profit);
+                const profitValue = profit ?? 0;
+                const hasWinLoss =
+                  profit !== null && (tx.type === 'BET_WIN' || tx.type === 'CASHOUT');
+                const stamp = formatTransactionStamp(tx.createdAt);
+                return (
+                  <div
+                    key={tx.id}
+                    className="grid grid-cols-[82px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3.5 transition hover:bg-[#FAF2D7]/40 sm:grid-cols-[104px_minmax(0,1fr)_auto] md:grid-cols-[132px_150px_1fr_minmax(160px,auto)_minmax(120px,auto)] md:gap-4 md:px-6 md:py-4"
+                  >
+                    <div className="data-num">
+                      <div className="text-[14px] font-black leading-tight text-[#0F172A] sm:text-[15px]">
+                        {stamp.time}
                       </div>
+                      <div className="mt-1 text-[10px] font-bold leading-tight text-[#4A5568] sm:text-[11px]">
+                        {stamp.date}
+                      </div>
+                    </div>
+                    <div className={`flex items-center gap-2 ${meta.color}`}>
+                      <span className="text-[20px] leading-none">{meta.icon}</span>
+                      <div className="min-w-0">
+                        <span className="text-[14px] font-black tracking-[0.08em]">
+                          {hasWinLoss
+                            ? t.history.settlement
+                            : (t.history.tx[tx.type as keyof typeof t.history.tx] ?? tx.type)}
+                        </span>
+                        {tx.betId ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDetail(tx.betId!)}
+                            className="mt-1.5 block rounded-full border border-[#186073]/20 bg-white px-2.5 py-1 text-[11px] font-black text-[#186073] md:hidden"
+                          >
+                            查看開獎
+                          </button>
+                        ) : null}
+                        <div className="mt-1 truncate text-[11px] font-semibold tracking-normal text-[#4A5568] md:hidden">
+                          {renderReference(tx.gameId, tx.betId)}
+                        </div>
+                        {hasWinLoss && tx.betAmount && tx.payout ? (
+                          <div className="mt-0.5 truncate text-[11px] font-semibold tracking-normal text-[#718096] md:hidden">
+                            {t.history.stake} {formatAmount(tx.betAmount)} · {t.history.payout}{' '}
+                            {formatAmount(tx.payout)}
+                          </div>
+                        ) : null}
+                        <div className="mt-0.5 data-num text-[11px] text-[#718096] md:hidden">
+                          {t.history.balance} {formatAmount(tx.balanceAfter)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="hidden truncate text-[13px] font-semibold leading-relaxed text-[#4A5568] md:block">
+                      <div>{renderReference(tx.gameId, tx.betId)}</div>
                       {hasWinLoss && tx.betAmount && tx.payout ? (
-                        <div className="mt-0.5 truncate text-[11px] font-semibold tracking-normal text-[#718096] md:hidden">
+                        <div className="mt-1 truncate text-[12px] tracking-normal text-[#9CA3AF]">
                           {t.history.stake} {formatAmount(tx.betAmount)} · {t.history.payout}{' '}
                           {formatAmount(tx.payout)}
                         </div>
                       ) : null}
-                      <div className="mt-0.5 data-num text-[11px] text-[#718096] md:hidden">
-                        {t.history.balance} {formatAmount(tx.balanceAfter)}
+                      {tx.betId ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetail(tx.betId!)}
+                          className="mt-2 inline-flex items-center gap-1 rounded-full border border-[#186073]/18 bg-[#F2FAFC] px-2.5 py-1 text-[12px] font-black text-[#186073] transition hover:border-[#186073]/45 hover:bg-white"
+                        >
+                          <ReceiptText className="h-3 w-3" aria-hidden="true" />
+                          查看開獎
+                        </button>
+                      ) : null}
+                    </div>
+                    <div
+                      className={`data-num text-right text-[16px] font-black sm:text-[17px] ${
+                        positive ? 'text-win' : 'text-[#D4574A]'
+                      }`}
+                    >
+                      <div>
+                        {positive ? '+' : ''}
+                        {formatAmount(tx.amount)}
                       </div>
+                      {hasWinLoss ? (
+                        <div
+                          className={`mt-1 text-[13px] font-black ${
+                            profitValue >= 0 ? 'text-win' : 'text-[#D4574A]'
+                          }`}
+                        >
+                          {t.history.winLoss} {profitValue >= 0 ? '+' : ''}
+                          {formatAmount(tx.profit!)}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="hidden data-num text-right text-[15px] font-semibold text-[#4A5568] md:block">
+                      {formatAmount(tx.balanceAfter)}
                     </div>
                   </div>
-                  <div className="hidden truncate text-[13px] font-semibold leading-relaxed text-[#4A5568] md:block">
-                    <div>{renderReference(tx.gameId, tx.betId)}</div>
-                    {hasWinLoss && tx.betAmount && tx.payout ? (
-                      <div className="mt-1 truncate text-[12px] tracking-normal text-[#9CA3AF]">
-                        {t.history.stake} {formatAmount(tx.betAmount)} · {t.history.payout}{' '}
-                        {formatAmount(tx.payout)}
-                      </div>
-                    ) : null}
-                    {tx.betId ? (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenDetail(tx.betId!)}
-                        className="mt-2 inline-flex items-center gap-1 rounded-full border border-[#186073]/18 bg-[#F2FAFC] px-2.5 py-1 text-[12px] font-black text-[#186073] transition hover:border-[#186073]/45 hover:bg-white"
-                      >
-                        <ReceiptText className="h-3 w-3" aria-hidden="true" />
-                        查看開獎
-                      </button>
-                    ) : null}
-                  </div>
-                  <div
-                    className={`data-num text-right text-[16px] font-black sm:text-[17px] ${
-                      positive ? 'text-win' : 'text-[#D4574A]'
-                    }`}
-                  >
-                    <div>
-                      {positive ? '+' : ''}
-                      {formatAmount(tx.amount)}
-                    </div>
-                    {hasWinLoss ? (
-                      <div
-                        className={`mt-1 text-[13px] font-black ${
-                          profitValue >= 0 ? 'text-win' : 'text-[#D4574A]'
-                        }`}
-                      >
-                        {t.history.winLoss} {profitValue >= 0 ? '+' : ''}
-                        {formatAmount(tx.profit!)}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="hidden data-num text-right text-[15px] font-semibold text-[#4A5568] md:block">
-                    {formatAmount(tx.balanceAfter)}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {!loading && totalCount > 0 && (
-          <div className="flex flex-col gap-3 border-t border-[#E5E7EB] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <div className="text-[13px] font-bold text-[#4A5568]">
-              第 <span className="data-num text-[#0F172A]">{pageIndex + 1}</span> /{' '}
-              <span className="data-num text-[#0F172A]">{pageCount}</span> 頁
+                );
+              })}
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-              <button
-                type="button"
-                onClick={handlePrevPage}
-                disabled={pageIndex === 0 || loading}
-                className="h-11 rounded-[12px] border border-[#D9E3EA] bg-white px-4 text-[13px] font-black text-[#186073] transition hover:border-[#186073]/50 disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                上一頁
-              </button>
-              <button
-                type="button"
-                onClick={handleNextPage}
-                disabled={!nextCursor || loading}
-                className="h-11 rounded-[12px] border border-[#186073] bg-[#186073] px-4 text-[13px] font-black text-white transition hover:bg-[#124D5E] disabled:cursor-not-allowed disabled:border-[#D9E3EA] disabled:bg-[#EEF2F5] disabled:text-[#9CA3AF]"
-              >
-                下一頁
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+          )}
 
-      {detailBetId ? (
-        <BetDetailModal
-          detail={detail}
-          error={detailError}
-          loading={detailLoading}
-          onClose={handleCloseDetail}
-        />
-      ) : null}
+          {!loading && totalCount > 0 && (
+            <div className="flex flex-col gap-3 border-t border-[#E5E7EB] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="text-[13px] font-bold text-[#4A5568]">
+                第 <span className="data-num text-[#0F172A]">{pageIndex + 1}</span> /{' '}
+                <span className="data-num text-[#0F172A]">{pageCount}</span> 頁
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                <button
+                  type="button"
+                  onClick={handlePrevPage}
+                  disabled={pageIndex === 0 || loading}
+                  className="h-11 rounded-[12px] border border-[#D9E3EA] bg-white px-4 text-[13px] font-black text-[#186073] transition hover:border-[#186073]/50 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  上一頁
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextPage}
+                  disabled={!nextCursor || loading}
+                  className="h-11 rounded-[12px] border border-[#186073] bg-[#186073] px-4 text-[13px] font-black text-white transition hover:bg-[#124D5E] disabled:cursor-not-allowed disabled:border-[#D9E3EA] disabled:bg-[#EEF2F5] disabled:text-[#9CA3AF]"
+                >
+                  下一頁
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {detailBetId ? (
+          <BetDetailModal
+            detail={detail}
+            error={detailError}
+            loading={detailLoading}
+            onClose={handleCloseDetail}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -701,13 +716,22 @@ function BetDetailModal({
               <div className="rounded-[18px] border border-[#D9E3EA] bg-white p-4">
                 <div className="mb-3 text-[13px] font-black text-[#0F172A]">驗證資料</div>
                 <div className="grid gap-2 text-[12px] text-[#4A5568]">
-                  <DetailLine label="局號" value={detail.roundNumber ? `#${detail.roundNumber}` : detail.roundId ?? '—'} />
+                  <DetailLine
+                    label="局號"
+                    value={detail.roundNumber ? `#${detail.roundNumber}` : (detail.roundId ?? '—')}
+                  />
                   <DetailLine label="狀態" value={detail.status} />
                   <DetailLine label="下注時間" value={formatDateTime(detail.createdAt)} />
-                  <DetailLine label="結算時間" value={detail.settledAt ? formatDateTime(detail.settledAt) : '—'} />
+                  <DetailLine
+                    label="結算時間"
+                    value={detail.settledAt ? formatDateTime(detail.settledAt) : '—'}
+                  />
                   <DetailLine label="Server Seed Hash" value={detail.serverSeedHash ?? '—'} />
                   <DetailLine label="Client Seed" value={detail.clientSeed ?? '—'} />
-                  <DetailLine label="Nonce" value={detail.nonce === null ? '—' : String(detail.nonce)} />
+                  <DetailLine
+                    label="Nonce"
+                    value={detail.nonce === null ? '—' : String(detail.nonce)}
+                  />
                 </div>
               </div>
             </div>
@@ -731,7 +755,9 @@ function DetailMetric({
     tone === 'win' ? 'text-win' : tone === 'lose' ? 'text-[#D4574A]' : 'text-[#0F172A]';
   return (
     <div className="rounded-[16px] border border-[#D9E3EA] bg-white p-3">
-      <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#718096]">{label}</div>
+      <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#718096]">
+        {label}
+      </div>
       <div className={`mt-1 data-num text-[18px] font-black ${toneClass}`}>{value}</div>
     </div>
   );
@@ -773,7 +799,14 @@ function resultEntries(gameId: string, value: unknown): ResultEntry[] {
     }));
 }
 
-const HIDDEN_RESULT_KEYS = new Set(['raw', 'rawRoll', 'rawWon', 'controlled', 'flipReason', 'controlId']);
+const HIDDEN_RESULT_KEYS = new Set([
+  'raw',
+  'rawRoll',
+  'rawWon',
+  'controlled',
+  'flipReason',
+  'controlId',
+]);
 
 const RESULT_LABELS: Record<string, string> = {
   roll: '擲出點數',
@@ -852,7 +885,9 @@ function diceResultEntries(record: Record<string, unknown>): ResultEntry[] {
       value: (
         <SummaryStack
           items={[
-            direction && target !== undefined ? `投注 ${directionLabel(direction)} ${formatPlainNumber(target)} 點` : null,
+            direction && target !== undefined
+              ? `投注 ${directionLabel(direction)} ${formatPlainNumber(target)} 點`
+              : null,
             roll !== undefined ? `開出 ${formatPlainNumber(roll)} 點` : null,
             finalWon !== null ? (finalWon ? '結果：命中' : '結果：未命中') : null,
             winChance !== undefined ? `中獎機率 ${formatPlainNumber(winChance)}%` : null,
@@ -872,7 +907,8 @@ function wheelResultEntries(record: Record<string, unknown>): ResultEntry[] {
   const segments = getNumber(record.segments);
   const risk = getStringScalar(record.risk);
   const multipliers = getNumberArray(record.multipliers);
-  const hitMultiplier = segmentIndex !== undefined ? multipliers[Math.trunc(segmentIndex)] : undefined;
+  const hitMultiplier =
+    segmentIndex !== undefined ? multipliers[Math.trunc(segmentIndex)] : undefined;
 
   return compactResultEntries([
     {
@@ -978,9 +1014,19 @@ function kenoResultEntries(record: Record<string, unknown>): ResultEntry[] {
         />
       ),
     },
-    selected.length > 0 ? { key: 'keno-selected', label: '選擇號碼', value: <NumberChips numbers={selected} /> } : null,
-    drawn.length > 0 ? { key: 'keno-drawn', label: '開獎號碼', value: <NumberChips numbers={drawn} highlight={hits} /> } : null,
-    hits.length > 0 ? { key: 'keno-hits', label: '命中號碼', value: <NumberChips numbers={hits} tone="win" /> } : null,
+    selected.length > 0
+      ? { key: 'keno-selected', label: '選擇號碼', value: <NumberChips numbers={selected} /> }
+      : null,
+    drawn.length > 0
+      ? {
+          key: 'keno-drawn',
+          label: '開獎號碼',
+          value: <NumberChips numbers={drawn} highlight={hits} />,
+        }
+      : null,
+    hits.length > 0
+      ? { key: 'keno-hits', label: '命中號碼', value: <NumberChips numbers={hits} tone="win" /> }
+      : null,
   ]);
 }
 
@@ -1000,15 +1046,25 @@ function minesResultEntries(record: Record<string, unknown>): ResultEntry[] {
           items={[
             mineCount !== undefined ? `本局共有 ${mineCount} 顆地雷` : null,
             revealed.length > 0 ? `已翻開 ${revealed.length} 格` : null,
-            hitMine === true && hitCell !== undefined ? `踩到第 ${Math.trunc(hitCell) + 1} 格地雷` : null,
+            hitMine === true && hitCell !== undefined
+              ? `踩到第 ${Math.trunc(hitCell) + 1} 格地雷`
+              : null,
             hitMine === false ? '本次翻牌安全' : null,
             cashedOut === true ? '已成功收分' : null,
           ]}
         />
       ),
     },
-    revealed.length > 0 ? { key: 'mines-revealed', label: '已翻位置', value: <CellChips cells={revealed} /> } : null,
-    minePositions.length > 0 ? { key: 'mines-positions', label: '地雷位置', value: <CellChips cells={minePositions} tone="danger" /> } : null,
+    revealed.length > 0
+      ? { key: 'mines-revealed', label: '已翻位置', value: <CellChips cells={revealed} /> }
+      : null,
+    minePositions.length > 0
+      ? {
+          key: 'mines-positions',
+          label: '地雷位置',
+          value: <CellChips cells={minePositions} tone="danger" />,
+        }
+      : null,
   ]);
 }
 
@@ -1032,7 +1088,13 @@ function towerResultEntries(record: Record<string, unknown>): ResultEntry[] {
         />
       ),
     },
-    picks.length > 0 ? { key: 'tower-picks', label: '選擇路徑', value: <CellChips cells={picks} prefix="第" suffix="格" /> } : null,
+    picks.length > 0
+      ? {
+          key: 'tower-picks',
+          label: '選擇路徑',
+          value: <CellChips cells={picks} prefix="第" suffix="格" />,
+        }
+      : null,
   ]);
 }
 
@@ -1055,7 +1117,7 @@ function chickenRoadResultEntries(record: Record<string, unknown>): ResultEntry[
             currentStep !== undefined && totalSteps !== undefined
               ? `已通過 ${Math.trunc(currentStep)} / ${Math.trunc(totalSteps)} 條車道`
               : null,
-            hitStep !== undefined ? `第 ${Math.trunc(hitStep)} 條車道撞車` : null,
+            hitStep !== undefined ? `第 ${Math.trunc(hitStep)} 條車道未通過` : null,
             cashedOut === true ? '已成功領取獎金' : null,
             status === 'ACTIVE' ? '本局仍在進行中' : null,
           ]}
@@ -1195,7 +1257,9 @@ function CellChips({
               : 'border-[#D9E3EA] bg-white text-[#0F172A]'
           }`}
         >
-          {prefix}{Math.trunc(cell) + 1}{suffix}
+          {prefix}
+          {Math.trunc(cell) + 1}
+          {suffix}
         </span>
       ))}
     </div>
@@ -1297,7 +1361,11 @@ type HotlineWinLineView = {
 function getHotlineGrid(value: unknown): number[][] {
   if (!Array.isArray(value)) return [];
   const grid = value
-    .map((reel) => (Array.isArray(reel) ? reel.map((cell) => getNumber(cell)).filter((cell): cell is number => cell !== undefined) : []))
+    .map((reel) =>
+      Array.isArray(reel)
+        ? reel.map((cell) => getNumber(cell)).filter((cell): cell is number => cell !== undefined)
+        : [],
+    )
     .filter((reel) => reel.length > 0);
   return grid.length === value.length ? grid : [];
 }
@@ -1502,12 +1570,7 @@ function getBaccaratCards(value: unknown): {
   const dragonCard = normalizeCard(record.dragonCard ?? record.dragon);
   const tigerCard = normalizeCard(record.tigerCard ?? record.tiger);
 
-  if (
-    playerCards.length === 0 &&
-    bankerCards.length === 0 &&
-    !dragonCard &&
-    !tigerCard
-  ) {
+  if (playerCards.length === 0 && bankerCards.length === 0 && !dragonCard && !tigerCard) {
     return null;
   }
 
@@ -1555,7 +1618,9 @@ function getBlackjackHands(value: unknown): Array<{
 
 function getCardArray(value: unknown): DisplayCard[] {
   if (!Array.isArray(value)) return [];
-  const cards = value.map((item) => normalizeCard(item)).filter((card): card is DisplayCard => Boolean(card));
+  const cards = value
+    .map((item) => normalizeCard(item))
+    .filter((card): card is DisplayCard => Boolean(card));
   return cards.length === value.length ? cards : [];
 }
 
@@ -1611,7 +1676,21 @@ function normalizeSuit(value: unknown): number | null {
   return aliases[normalized] ?? null;
 }
 
-const CARD_FILE_RANKS = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'] as const;
+const CARD_FILE_RANKS = [
+  'ace',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  'jack',
+  'queen',
+  'king',
+] as const;
 const CARD_FILE_SUITS = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
 
 function getCardAssetPath(card: DisplayCard): string {
@@ -1631,7 +1710,9 @@ function formatResultValue(value: unknown): string {
   if (typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(4);
   if (typeof value === 'string') return value;
   if (Array.isArray(value)) {
-    if (value.every((item) => item === null || ['string', 'number', 'boolean'].includes(typeof item))) {
+    if (
+      value.every((item) => item === null || ['string', 'number', 'boolean'].includes(typeof item))
+    ) {
       return value.map((item) => formatResultValue(item)).join(', ');
     }
     return safeJson(value);

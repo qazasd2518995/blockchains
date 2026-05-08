@@ -35,16 +35,10 @@ export const HALLS: Record<HallId, HallMeta> = {
     id: 'tables',
     nameZh: '棋牌牌桌馆',
     iconKey: 'tables',
-    tagline: '看牌路、拚手牌，專注每一局牌桌節奏',
+    tagline: '拚手牌、算點數，專注每一局牌桌節奏',
     gradient: 'linear-gradient(135deg, #1B2030 0%, #225B66 46%, #C9A247 100%)',
     artwork: '/halls/tables-card.png',
-    gameIds: [
-      GameId.BACCARAT,
-      GameId.BACCARAT_NOVA,
-      GameId.BACCARAT_IMPERIAL,
-      GameId.BLACKJACK,
-      GameId.HILO,
-    ],
+    gameIds: [GameId.BLACKJACK, GameId.HILO],
   },
   slots: {
     id: 'slots',
@@ -84,12 +78,7 @@ export const HALLS: Record<HallId, HallMeta> = {
     tagline: '骰子、基諾、彈珠這類短局即開玩法集中在這裡',
     gradient: 'linear-gradient(135deg, #186073 0%, #266F85 50%, #408A9D 100%)',
     artwork: '/halls/classic-card.png',
-    gameIds: [
-      GameId.DICE,
-      GameId.KENO,
-      GameId.PLINKO,
-      GameId.PLINKO_X,
-    ],
+    gameIds: [GameId.DICE, GameId.KENO, GameId.PLINKO, GameId.PLINKO_X],
   },
   strategy: {
     id: 'strategy',

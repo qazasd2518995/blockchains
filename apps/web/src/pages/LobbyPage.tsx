@@ -28,12 +28,15 @@ import { SoundToggle } from '@/components/layout/SoundToggle';
 import { MusicToggle } from '@/components/layout/MusicToggle';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
-const totalGames = new Set(HALL_LIST.flatMap((hall) => hall.gameIds)).size;
+const visibleGameIds = Array.from(
+  new Set(HALL_LIST.flatMap((hall) => hall.gameIds).filter((id) => GAMES_REGISTRY[id]?.enabled)),
+);
+const totalGames = visibleGameIds.length;
 const topBoardWin = Math.max(...FAKE_TODAY_TOP10.map((row) => row.win));
-const mobileGameIds = Array.from(new Set(HALL_LIST.flatMap((hall) => hall.gameIds)));
+const mobileGameIds = visibleGameIds;
 const mobileGames = mobileGameIds
   .map((id: GameIdType) => GAMES_REGISTRY[id])
-  .filter((game): game is NonNullable<typeof game> => Boolean(game));
+  .filter((game): game is NonNullable<typeof game> => Boolean(game?.enabled));
 const gameHallMap = new Map<string, HallId>(
   HALL_LIST.flatMap((hall) => hall.gameIds.map((gameId) => [gameId, hall.id] as const)),
 );
@@ -110,7 +113,9 @@ function mobileGamePath(gameId: string): string {
 
 function mobileCategoryCount(categoryId: 'all' | HallId): number {
   if (categoryId === 'all') return mobileGames.length;
-  return hallMetaMap.get(categoryId)?.gameIds.length ?? 0;
+  return (
+    hallMetaMap.get(categoryId)?.gameIds.filter((id) => GAMES_REGISTRY[id]?.enabled).length ?? 0
+  );
 }
 
 export function LobbyPage() {
@@ -123,48 +128,60 @@ export function LobbyPage() {
       <MobileLobbyOnePage />
 
       <div className="hidden space-y-8 lg:block">
-      <section className="grid gap-6 xl:grid-cols-12">
-        <div className="xl:col-span-8 2xl:col-span-9">
-          <HeroBanner />
-        </div>
+        <section className="grid gap-6 xl:grid-cols-12">
+          <div className="xl:col-span-8 2xl:col-span-9">
+            <HeroBanner />
+          </div>
 
-        <aside className="grid gap-4 sm:grid-cols-3 xl:col-span-4 xl:grid-cols-1 2xl:col-span-3">
-          <LobbyStatCard label="熱門館別" value={String(HALL_LIST.length)} detail="六種館別任你切，飛行、牌桌、拉霸、輪盤、即開、策略都能直接進場。" />
-          <LobbyStatCard label="可玩遊戲" value={String(totalGames)} detail="從 Crash 到百家樂，今晚主場一次排開。" />
-          <LobbyStatCard label="今日最高爆分" value={numberFormatter.format(topBoardWin)} detail="看看今天誰最火，再挑一館跟著開衝。" />
-        </aside>
-      </section>
+          <aside className="grid gap-4 sm:grid-cols-3 xl:col-span-4 xl:grid-cols-1 2xl:col-span-3">
+            <LobbyStatCard
+              label="熱門館別"
+              value={String(HALL_LIST.length)}
+              detail="六種館別任你切，飛行、牌桌、拉霸、輪盤、即開、策略都能直接進場。"
+            />
+            <LobbyStatCard
+              label="可玩遊戲"
+              value={String(totalGames)}
+              detail="從 Crash 到老虎機，今晚主場一次排開。"
+            />
+            <LobbyStatCard
+              label="今日最高爆分"
+              value={numberFormatter.format(topBoardWin)}
+              detail="看看今天誰最火，再挑一館跟著開衝。"
+            />
+          </aside>
+        </section>
 
-      <section className="space-y-5">
-        <SectionHeading
-          eyebrow="Game Floors"
-          title="今晚先衝哪一館？"
-          description="玩法已重新分館：Crash 進飛行館，百家、21 點、比大小進棋牌牌桌館，老虎機進拉霸館，輪盤轉輪獨立，骰子、基諾、彈珠放即開電子館，掃雷與疊塔放策略館。"
-          rightSlot={
-            <Link
-              to="/hall/tables"
-              className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#186073] transition hover:text-[#0E4555]"
-            >
-              先進棋牌牌桌館
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          }
-        />
-        <HallEntrances />
-      </section>
+        <section className="space-y-5">
+          <SectionHeading
+            eyebrow="Game Floors"
+            title="今晚先衝哪一館？"
+            description="玩法已重新分館：Crash 進飛行館，21 點、比大小進棋牌牌桌館，老虎機進拉霸館，輪盤轉輪獨立，骰子、基諾、彈珠放即開電子館，掃雷與疊塔放策略館。"
+            rightSlot={
+              <Link
+                to="/hall/tables"
+                className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#186073] transition hover:text-[#0E4555]"
+              >
+                先進棋牌牌桌館
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            }
+          />
+          <HallEntrances />
+        </section>
 
-      <section className="space-y-5">
-        <SectionHeading
-          eyebrow="Live Board"
-          title="今天誰在爆分"
-          description="熱門戰報持續刷新，看看哪個館別現在最熱，手感到了就直接跟上。"
-        />
+        <section className="space-y-5">
+          <SectionHeading
+            eyebrow="Live Board"
+            title="今天誰在爆分"
+            description="熱門戰報持續刷新，看看哪個館別現在最熱，手感到了就直接跟上。"
+          />
 
-        <div className="grid min-w-0 gap-4 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
-          <WinTicker />
-          <TodayWinners />
-        </div>
-      </section>
+          <div className="grid min-w-0 gap-4 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
+            <WinTicker />
+            <TodayWinners />
+          </div>
+        </section>
       </div>
     </>
   );
@@ -311,8 +328,24 @@ function MobileLobbyOnePage() {
         </div>
         <div className="min-w-0 flex-1 overflow-hidden px-3">
           <div className="ticker-track h-full items-center gap-8 [--ticker-duration:30s]">
-            {[...['系統維護升級公告', '新遊戲 JetX3 震撼上架', '每週倍率王活動開跑', '理性遊戲，量力而為'], ...['系統維護升級公告', '新遊戲 JetX3 震撼上架', '每週倍率王活動開跑', '理性遊戲，量力而為']].map((msg, idx) => (
-              <span key={`${msg}-${idx}`} className="inline-flex text-[13px] font-bold text-[#22718A]">
+            {[
+              ...[
+                '系統維護升級公告',
+                '新遊戲 JetX3 震撼上架',
+                '每週倍率王活動開跑',
+                '理性遊戲，量力而為',
+              ],
+              ...[
+                '系統維護升級公告',
+                '新遊戲 JetX3 震撼上架',
+                '每週倍率王活動開跑',
+                '理性遊戲，量力而為',
+              ],
+            ].map((msg, idx) => (
+              <span
+                key={`${msg}-${idx}`}
+                className="inline-flex text-[13px] font-bold text-[#22718A]"
+              >
                 {msg}
               </span>
             ))}
@@ -424,15 +457,7 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
   );
 }
 
-function LobbyStatCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
+function LobbyStatCard({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <article className="rounded-[24px] border border-white/[0.65] bg-white/[0.92] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
       <div className="label">{label}</div>

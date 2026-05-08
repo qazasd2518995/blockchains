@@ -9,7 +9,6 @@ import { BrandMark } from '@/components/layout/BrandMark';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SoundToggle } from '@/components/layout/SoundToggle';
 import { MusicToggle } from '@/components/layout/MusicToggle';
-import { BaccaratWarmup } from '@/components/game/BaccaratWarmup';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useLiveBalance } from '@/hooks/useLiveBalance';
 
@@ -53,7 +52,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative flex min-h-[100svh] flex-col overflow-x-hidden bg-[#E9ECEF]">
-      {user ? <BaccaratWarmup /> : null}
       <div className="pointer-events-none fixed inset-0">
         <img
           src="/backgrounds/casino-atmosphere.png"
@@ -84,7 +82,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span>24 小時不打烊 · 即時派彩</span>
             </div>
             <AnnouncementTicker />
-            <span className="hidden whitespace-nowrap text-white/55 lg:inline">會員制平台 · 邀請開通</span>
+            <span className="hidden whitespace-nowrap text-white/55 lg:inline">
+              會員制平台 · 邀請開通
+            </span>
           </div>
         </div>
 
@@ -145,8 +145,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <RefreshCw className="h-3.5 w-3.5 text-white/60" />
               </button>
 
-              <SoundToggle variant="dark" showLabel className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden" />
-              <MusicToggle variant="dark" showLabel className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden" />
+              <SoundToggle
+                variant="dark"
+                showLabel
+                className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden"
+              />
+              <MusicToggle
+                variant="dark"
+                showLabel
+                className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden"
+              />
 
               <button
                 type="button"
@@ -160,8 +168,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           ) : (
             <div className="flex shrink-0 items-center gap-2">
-              <SoundToggle variant="dark" showLabel className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden" />
-              <MusicToggle variant="dark" showLabel className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden" />
+              <SoundToggle
+                variant="dark"
+                showLabel
+                className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden"
+              />
+              <MusicToggle
+                variant="dark"
+                showLabel
+                className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden"
+              />
               <Link to="/login" className="btn-teal hidden text-[13px] lg:inline-flex">
                 {t.common.login}
               </Link>
@@ -173,7 +189,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main id="main-content" className="relative z-10 flex-1">
         <div
           className={`mx-auto w-full max-w-[1920px] ${
-            useMobileWhiteChrome ? 'px-0 py-0 lg:px-8 lg:py-6 2xl:px-12' : 'px-3 py-4 sm:px-6 sm:py-6 xl:px-8 2xl:px-12'
+            useMobileWhiteChrome
+              ? 'px-0 py-0 lg:px-8 lg:py-6 2xl:px-12'
+              : 'px-3 py-4 sm:px-6 sm:py-6 xl:px-8 2xl:px-12'
           }`}
         >
           {children}

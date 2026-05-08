@@ -438,7 +438,7 @@ export function ChickenRoadPage() {
               <div
                 className={`chicken-road-result ${isBusted ? 'chicken-road-result--loss' : 'chicken-road-result--win'}`}
               >
-                <strong>{isBusted ? '撞車失敗' : '成功領取'}</strong>
+                <strong>{isBusted ? '闖關失敗' : '成功領取'}</strong>
                 <span>
                   {isBusted
                     ? `-${formatAmount(round.amount)}`
@@ -478,7 +478,7 @@ export function ChickenRoadPage() {
           <div className="mt-3 space-y-2 text-[12px] leading-6 text-white/68">
             <p>每前進一格，倍率依難度提升，道路會持續往右延伸。</p>
             <p>玩家可隨時領取；若進入車流命中區，本局本金歸零。</p>
-            <p>路段最長 500 格，玩法核心是撐越遠倍率越高，直到撞車或自行領取。</p>
+            <p>路段最長 500 格，玩法核心是撐越遠倍率越高，直到命中車流或自行領取。</p>
           </div>
         </div>
 

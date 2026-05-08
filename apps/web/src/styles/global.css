@@ -1832,6 +1832,7 @@
 }
 
 .mega-slot-board {
+  container-type: size;
   position: relative;
   min-height: 0;
   overflow: hidden;
@@ -1854,6 +1855,9 @@
 
 .mega-slot-canvas {
   z-index: 2;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
   opacity: 0;
   transition: opacity 180ms ease;
 }
@@ -1865,11 +1869,23 @@
 .mega-slot-fallback-grid {
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: min(0.8vw, 8px);
-  padding: min(1.6vw, 18px);
+  place-items: center;
   opacity: 1;
   transition: opacity 160ms ease;
+}
+
+.mega-slot-fallback-frame {
+  display: grid;
+  width: min(calc(100% - 36px), calc((100vh - 160px) * 1.2));
+  height: auto;
+  max-height: calc(100% - 36px);
+  aspect-ratio: 6 / 5;
+  width: min(calc(100cqw - 36px), calc((100cqh - 36px) * 1.2));
+  height: min(calc(100cqh - 36px), calc((100cqw - 36px) / 1.2));
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: min(0.8vw, 8px);
 }
 
 .mega-slot-fallback-grid--hidden {
@@ -4221,9 +4237,10 @@
     border-radius: 8px;
   }
 
-  .mega-slot-fallback-grid {
+  .mega-slot-fallback-frame {
+    width: min(calc(100cqw - 12px), calc((100cqh - 12px) * 1.2));
+    height: min(calc(100cqh - 12px), calc((100cqw - 12px) / 1.2));
     gap: 4px;
-    padding: 6px;
   }
 
   .mega-slot-fallback-reel-track {

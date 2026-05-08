@@ -13,7 +13,7 @@ const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
 
 function hallNarrative(hallId: HallId): string {
   if (hallId === 'crash') return '想追高倍、看準時機一鍵收分的玩家。';
-  if (hallId === 'tables') return '想玩百家、21 點、比大小，專注牌局判斷的玩家。';
+  if (hallId === 'tables') return '想玩 21 點、比大小，專注牌局判斷的玩家。';
   if (hallId === 'slots') return '喜歡轉軸連線、主題爆分與短局節奏的玩家。';
   if (hallId === 'roulette') return '喜歡押號、押色、看輪盤自然停下的玩家。';
   if (hallId === 'classic') return '喜歡骰子、基諾、彈珠這類短局即開的玩家。';
@@ -46,10 +46,12 @@ export function HallPage() {
 
   const games = hall.gameIds
     .map((id: GameIdType) => GAMES_REGISTRY[id])
-    .filter((game): game is NonNullable<typeof game> => Boolean(game));
+    .filter((game): game is NonNullable<typeof game> => Boolean(game?.enabled));
   const HallIcon = getHallIcon(hall.iconKey);
 
-  const liveWins = FAKE_WIN_TICKER.filter((record) => hall.gameIds.includes(record.gameId as GameIdType)).slice(0, 8);
+  const liveWins = FAKE_WIN_TICKER.filter((record) =>
+    hall.gameIds.includes(record.gameId as GameIdType),
+  ).slice(0, 8);
   const hallPath = `/hall/${hall.id}`;
 
   return (
@@ -138,14 +140,18 @@ export function HallPage() {
                     className="flex items-center justify-between gap-3 rounded-[18px] border border-[#E5E7EB] bg-[#F8FAFB] px-4 py-3"
                   >
                     <div className="min-w-0">
-                      <div className="truncate text-[13px] font-semibold text-[#0F172A]">{record.player}</div>
+                      <div className="truncate text-[13px] font-semibold text-[#0F172A]">
+                        {record.player}
+                      </div>
                       <div className="truncate text-[11px] text-[#4A5568]">{record.game}</div>
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="data-num text-[13px] font-semibold text-[#C9A247]">
                         +{numberFormatter.format(record.win)}
                       </div>
-                      <div className="num text-[11px] text-[#4A5568]">×{record.mult.toFixed(2)}</div>
+                      <div className="num text-[11px] text-[#4A5568]">
+                        ×{record.mult.toFixed(2)}
+                      </div>
                     </div>
                   </div>
                 ))
