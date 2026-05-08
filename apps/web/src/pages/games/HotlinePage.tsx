@@ -74,6 +74,7 @@ interface MegaFreeSpinIntro {
 }
 
 interface MegaFallbackWinPop {
+  label?: string;
   amount: string;
   meta: string;
 }
@@ -133,9 +134,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [megaFreeSpinIntro, setMegaFreeSpinIntro] = useState<MegaFreeSpinIntro | null>(null);
   const [megaFallbackSpinning, setMegaFallbackSpinning] = useState(false);
   const [megaFallbackWinning, setMegaFallbackWinning] = useState<HotlineWinPosition[]>([]);
+  const [megaFallbackSpecialWinning, setMegaFallbackSpecialWinning] = useState<
+    HotlineWinPosition[]
+  >([]);
   const [megaFallbackRemoved, setMegaFallbackRemoved] = useState<HotlineWinPosition[]>([]);
   const [megaFallbackDropping, setMegaFallbackDropping] = useState(false);
   const [megaFallbackWinPop, setMegaFallbackWinPop] = useState<MegaFallbackWinPop | null>(null);
+  const [megaFallbackSpinSpecialSymbols, setMegaFallbackSpinSpecialSymbols] = useState<
+    HotlineSpecialSymbol[]
+  >([]);
   const [autoSpinOpen, setAutoSpinOpen] = useState(false);
   const [autoSpinSettings, setAutoSpinSettings] = useState<AutoSpinSettings>(() =>
     createDefaultAutoSpinSettings(10),
@@ -288,9 +295,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setLiveMegaRound(isMegaSlot ? createInitialLiveMegaRound() : null);
     setMegaFreeSpinIntro(null);
     setMegaFallbackWinning([]);
+    setMegaFallbackSpecialWinning([]);
     setMegaFallbackRemoved([]);
     setMegaFallbackDropping(false);
     setMegaFallbackWinPop(null);
+    setMegaFallbackSpinSpecialSymbols([]);
     setError(null);
 
     const activeScene = sceneReady && !sceneFallback ? sceneRef.current : null;
@@ -337,11 +346,34 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         }
         setMegaFallbackRemoved([]);
         setMegaFallbackDropping(false);
+        setMegaFallbackSpinSpecialSymbols(specialSymbols);
+        updateLiveMegaRound({ grid, specialSymbols: [] });
         setMegaFallbackSpinning(true);
         await delay(scaleSpinDelay(lines.length > 0 ? 820 : 620, spinFast));
         setMegaFallbackSpinning(false);
-        updateLiveMegaRound({ grid });
+        setMegaFallbackSpinSpecialSymbols([]);
+        updateLiveMegaRound({ grid, specialSymbols });
         if (lines.length > 0) await delay(scaleSpinDelay(260, spinFast));
+      };
+
+      const playSpecialHighlightOrFallback = async (
+        symbols: HotlineSpecialSymbol[],
+        type: HotlineSpecialSymbol['type'],
+        label: string,
+        winPop?: MegaFallbackWinPop,
+      ): Promise<void> => {
+        const filtered = symbols.filter((symbol) => symbol.type === type);
+        if (filtered.length === 0) return;
+        const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
+        if (scene) {
+          await scene.highlightSpecialSymbols(filtered, { fast: spinFast, type, label });
+          return;
+        }
+        setMegaFallbackSpecialWinning(filtered.map(({ reel, row }) => ({ reel, row })));
+        if (winPop) setMegaFallbackWinPop(winPop);
+        await delay(scaleSpinDelay(type === 'scatter' ? 980 : 860, spinFast));
+        setMegaFallbackSpecialWinning([]);
+        if (winPop) setMegaFallbackWinPop(null);
       };
 
       const playCascadeOrFallback = async (
@@ -349,12 +381,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         finalGrid: number[][],
         onStepWin: (step: HotlineCascadeStep) => MegaFallbackWinPop,
         specialSymbols: HotlineSpecialSymbol[] = [],
+        finalSpecialSymbols: HotlineSpecialSymbol[] = specialSymbols,
       ): Promise<void> => {
         const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
         if (scene) {
           await scene.playCascadeSpin(steps, finalGrid, {
             fast: spinFast,
             specialSymbols,
+            finalSpecialSymbols,
             onStepWin: (step) => void onStepWin(step),
           });
           return;
@@ -362,7 +396,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
         const first = steps[0];
         if (!first) {
-          await playSpinOrFallback(finalGrid, [], specialSymbols);
+          await playSpinOrFallback(finalGrid, [], finalSpecialSymbols);
           return;
         }
 
@@ -377,20 +411,37 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           previous = step;
         }
 
-        await playFallbackCascadeDrop(previous.removed, finalGrid);
-        updateLiveMegaRound({ grid: finalGrid });
+        await playFallbackCascadeDrop(previous.removed, finalGrid, finalSpecialSymbols);
+        const multiplierSymbols = finalSpecialSymbols.filter(
+          (symbol) => symbol.type === 'multiplier',
+        );
+        if (multiplierSymbols.length > 0) {
+          const multiplierTotal = sumSpecialSymbolValues(multiplierSymbols);
+          await playSpecialHighlightOrFallback(
+            multiplierSymbols,
+            'multiplier',
+            `倍數啟動 ×${multiplierTotal}`,
+            {
+              label: '倍數啟動',
+              amount: `×${multiplierTotal}`,
+              meta: '倍數符號啟動',
+            },
+          );
+        }
+        updateLiveMegaRound({ grid: finalGrid, specialSymbols: finalSpecialSymbols });
       };
 
       const playFallbackCascadeDrop = async (
         removed: HotlineWinPosition[],
         nextGrid: number[][],
+        specialSymbols: HotlineSpecialSymbol[] = [],
       ): Promise<void> => {
         setMegaFallbackRemoved(removed);
         await delay(scaleSpinDelay(420, spinFast));
         setMegaFallbackRemoved([]);
         setMegaFallbackWinning([]);
         setMegaFallbackDropping(true);
-        updateLiveMegaRound({ grid: nextGrid });
+        updateLiveMegaRound({ grid: nextGrid, specialSymbols });
         await delay(scaleSpinDelay(520, spinFast));
         setMegaFallbackDropping(false);
         await delay(scaleSpinDelay(120, spinFast));
@@ -468,11 +519,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                     freeSpinsAwarded: revealedFreeSpinsAwarded,
                     activeMultiplier: Math.max(1, features.baseMultiplierTotal),
                     baseMultiplierTotal: features.baseMultiplierTotal,
-                    specialSymbols: [...features.scatterSymbols, ...features.baseMultiplierSymbols],
                   }
                 : {},
             );
           },
+          [],
           baseSpecialSymbols,
         );
         revealBaseState(res.data.grid);
@@ -481,6 +532,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         revealBaseState(res.data.grid);
       }
       if (features && revealedFreeSpinsAwarded > 0 && freeSpinRounds.length > 0) {
+        await playSpecialHighlightOrFallback(
+          features.scatterSymbols,
+          'scatter',
+          `${features.scatterCount} SCATTER 免費旋轉`,
+          {
+            label: 'BONUS',
+            amount: 'FREE SPINS',
+            meta: `${features.scatterCount} SCATTER`,
+          },
+        );
         await delay(scaleSpinDelay(260, spinFast));
         await showMegaFreeSpinIntro(
           {
@@ -503,6 +564,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           freeSpinsAwarded: revealedFreeSpinsAwarded,
           freeSpinMode: true,
           activeMultiplier: Math.max(1, revealedFreeMultiplierBank),
+          scatterCount: 0,
+          specialSymbols: [],
+        };
+        const freeRoundFinalPatch: Partial<LiveMegaRoundState> = {
+          ...freeRoundPatch,
           scatterCount: round.scatterSymbols.length,
           specialSymbols: roundSpecialSymbols,
         };
@@ -515,12 +581,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             (step) => {
               return revealCascadeStep(step, round.appliedMultiplier, freeRoundPatch);
             },
+            [],
             roundSpecialSymbols,
           );
-          updateLiveMegaRound({ ...freeRoundPatch, grid: round.finalGrid });
+          updateLiveMegaRound({ ...freeRoundFinalPatch, grid: round.finalGrid });
         } else {
           await playSpinOrFallback(round.finalGrid, round.lines, roundSpecialSymbols);
-          updateLiveMegaRound({ ...freeRoundPatch, grid: round.finalGrid });
+          updateLiveMegaRound({ ...freeRoundFinalPatch, grid: round.finalGrid });
         }
 
         if (round.extraFreeSpinsAwarded > 0 && features) {
@@ -531,6 +598,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           updateLiveMegaRound({
             freeSpinsAwarded: revealedFreeSpinsAwarded,
           });
+          await playSpecialHighlightOrFallback(
+            round.scatterSymbols,
+            'scatter',
+            `${round.scatterSymbols.length} SCATTER 追加`,
+            {
+              label: 'BONUS',
+              amount: `+${round.extraFreeSpinsAwarded} FREE`,
+              meta: `${round.scatterSymbols.length} SCATTER`,
+            },
+          );
           await showMegaFreeSpinIntro(
             {
               kind: 'retrigger',
@@ -594,9 +671,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       setMegaFreeSpinIntro(null);
       setMegaFallbackSpinning(false);
       setMegaFallbackWinning([]);
+      setMegaFallbackSpecialWinning([]);
       setMegaFallbackRemoved([]);
       setMegaFallbackDropping(false);
       setMegaFallbackWinPop(null);
+      setMegaFallbackSpinSpecialSymbols([]);
       setError(extractApiError(err).message);
       return null;
     } finally {
@@ -604,9 +683,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       setBusy(false);
       setMegaFallbackSpinning(false);
       setMegaFallbackWinning([]);
+      setMegaFallbackSpecialWinning([]);
       setMegaFallbackRemoved([]);
       setMegaFallbackDropping(false);
       setMegaFallbackWinPop(null);
+      setMegaFallbackSpinSpecialSymbols([]);
     }
   };
 
@@ -1096,12 +1177,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   grid={megaDisplayGrid}
                   spinning={megaFallbackSpinning}
                   winning={megaFallbackWinning}
+                  specialWinning={megaFallbackSpecialWinning}
                   removed={megaFallbackRemoved}
                   dropping={megaFallbackDropping}
                   winPop={megaFallbackWinPop}
                   hidden={sceneReady && !sceneFallback}
                   fast={fastSpin}
                   specialSymbols={megaDisplaySpecialSymbols}
+                  spinSpecialSymbols={megaFallbackSpinSpecialSymbols}
                 />
                 <canvas
                   ref={canvasRef}
@@ -1527,27 +1610,35 @@ function MegaFallbackGrid({
   grid,
   spinning,
   winning,
+  specialWinning,
   removed,
   dropping,
   winPop,
   hidden,
   fast,
   specialSymbols,
+  spinSpecialSymbols,
 }: {
   theme: SlotThemeConfig;
   grid: number[][];
   spinning: boolean;
   winning: HotlineWinPosition[];
+  specialWinning: HotlineWinPosition[];
   removed: HotlineWinPosition[];
   dropping: boolean;
   winPop: MegaFallbackWinPop | null;
   hidden: boolean;
   fast: boolean;
   specialSymbols: HotlineSpecialSymbol[];
+  spinSpecialSymbols: HotlineSpecialSymbol[];
 }) {
   const winningKeys = useMemo(
     () => new Set(winning.map((position) => `${position.reel}:${position.row}`)),
     [winning],
+  );
+  const specialWinningKeys = useMemo(
+    () => new Set(specialWinning.map((position) => `${position.reel}:${position.row}`)),
+    [specialWinning],
   );
   const removedKeys = useMemo(
     () => new Set(removed.map((position) => `${position.reel}:${position.row}`)),
@@ -1562,7 +1653,9 @@ function MegaFallbackGrid({
     >
       <div className="mega-slot-fallback-frame">
         {grid.map((reel, reelIndex) => {
-          const reelStrip = spinning ? createFallbackSpinStrip(theme, reel, reelIndex) : reel;
+          const reelStrip: MegaFallbackSpinItem[] = spinning
+            ? createFallbackSpinStrip(theme, reel, reelIndex, spinSpecialSymbols)
+            : reel.map((symbol, row) => ({ symbol, row }));
           const style = {
             '--mega-slot-reel-items': reelStrip.length,
             '--mega-slot-reel-duration': `${(fast ? 0.18 : 0.46) + reelIndex * (fast ? 0.018 : 0.055)}s`,
@@ -1570,21 +1663,25 @@ function MegaFallbackGrid({
           return (
             <div key={`${theme.id}-fallback-reel-${reelIndex}`} className="mega-slot-fallback-reel">
               <div className="mega-slot-fallback-reel-track" style={style}>
-                {reelStrip.map((symbol, rowIndex) => {
+                {reelStrip.map((item, rowIndex) => {
+                  const symbol = item.symbol;
                   const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
-                  const special = spinning
-                    ? undefined
-                    : specialByCell.get(`${reelIndex}:${rowIndex}`);
+                  const cellRow = item.row ?? rowIndex;
+                  const cellKey = `${reelIndex}:${cellRow}`;
+                  const special =
+                    item.special ?? (spinning ? undefined : specialByCell.get(cellKey));
                   const symbolImage = getMegaSlotDisplayImage(theme, symbol, special);
-                  const winning = !spinning && winningKeys.has(`${reelIndex}:${rowIndex}`);
-                  const removing = !spinning && removedKeys.has(`${reelIndex}:${rowIndex}`);
+                  const winning = !spinning && winningKeys.has(cellKey);
+                  const specialHighlighted = !spinning && specialWinningKeys.has(cellKey);
+                  const removing = !spinning && removedKeys.has(cellKey);
                   return (
                     <div
                       key={`${reelIndex}-${rowIndex}-${symbol}-${specialKey(special)}-${spinning ? 'spin' : 'idle'}`}
-                      className={`mega-slot-fallback-symbol ${special ? `mega-slot-fallback-symbol--${special.type}` : ''} ${winning ? 'mega-slot-fallback-symbol--winning' : ''} ${removing ? 'mega-slot-fallback-symbol--removing' : ''}`}
+                      className={`mega-slot-fallback-symbol ${special ? `mega-slot-fallback-symbol--${special.type}` : ''} ${winning ? 'mega-slot-fallback-symbol--winning' : ''} ${specialHighlighted ? 'mega-slot-fallback-symbol--special-highlight' : ''} ${removing ? 'mega-slot-fallback-symbol--removing' : ''}`}
                       style={
                         {
                           borderColor: `${meta.accentHex}88`,
+                          '--mega-slot-accent': meta.accentHex,
                           backgroundImage: symbolImage ? 'none' : `url(${theme.symbolSheet})`,
                           backgroundPosition: symbolImage
                             ? 'center'
@@ -1621,7 +1718,7 @@ function MegaFallbackGrid({
       </div>
       {winPop ? (
         <div className="mega-slot-fallback-win-pop" role="status">
-          <span>消除贏分</span>
+          <span>{winPop.label ?? '消除贏分'}</span>
           <strong>{winPop.amount}</strong>
           <small>{winPop.meta}</small>
         </div>
@@ -1630,22 +1727,37 @@ function MegaFallbackGrid({
   );
 }
 
+interface MegaFallbackSpinItem {
+  symbol: number;
+  row?: number;
+  special?: HotlineSpecialSymbol;
+}
+
 function createFallbackSpinStrip(
   theme: SlotThemeConfig,
   reel: number[],
   reelIndex: number,
-): number[] {
+  specialSymbols: HotlineSpecialSymbol[] = [],
+): MegaFallbackSpinItem[] {
   const symbolCount = theme.symbols.length || 6;
   const extraRows = theme.rows * 2;
-  const lead = Array.from(
-    { length: extraRows },
-    (_, index) => (index + reelIndex * 2 + theme.id.length) % symbolCount,
+  const specialByRow = new Map(
+    specialSymbols
+      .filter((symbol) => symbol.reel === reelIndex)
+      .map((symbol) => [symbol.row, symbol] as const),
   );
-  const trail = Array.from(
-    { length: extraRows },
-    (_, index) => (index * 2 + reelIndex + theme.id.length + 3) % symbolCount,
-  );
-  return [...lead, ...reel, ...trail];
+  const lead = Array.from({ length: extraRows }, (_, index) => ({
+    symbol: (index + reelIndex * 2 + theme.id.length) % symbolCount,
+  }));
+  const final = reel.map((symbol, row) => ({
+    symbol,
+    row,
+    special: specialByRow.get(row),
+  }));
+  const trail = Array.from({ length: extraRows }, (_, index) => ({
+    symbol: (index * 2 + reelIndex + theme.id.length + 3) % symbolCount,
+  }));
+  return [...lead, ...final, ...trail];
 }
 
 function getMegaSlotSymbolImage(theme: SlotThemeConfig, symbol: number): string | null {
@@ -1771,6 +1883,10 @@ function roundMegaPayout(amount: number, multiplier: number): number {
   return Number((amount * multiplier).toFixed(2));
 }
 
+function sumSpecialSymbolValues(symbols: HotlineSpecialSymbol[]): number {
+  return symbols.reduce((sum, symbol) => sum + (symbol.value ?? 0), 0);
+}
+
 function getFinalMegaGrid(result: HotlineBetResult, fallbackGrid: number[][]): number[][] {
   const rounds = result.features?.freeSpinRounds ?? [];
   return rounds[rounds.length - 1]?.finalGrid ?? result.grid ?? fallbackGrid;
@@ -1779,7 +1895,12 @@ function getFinalMegaGrid(result: HotlineBetResult, fallbackGrid: number[][]): n
 function getFinalMegaSpecialSymbols(features?: HotlineMegaFeatureResult): HotlineSpecialSymbol[] {
   if (!features) return [];
   const lastFreeSpinRound = features.freeSpinRounds[features.freeSpinRounds.length - 1];
-  return [...features.baseMultiplierSymbols, ...(lastFreeSpinRound?.multiplierSymbols ?? [])];
+  return [
+    ...features.scatterSymbols,
+    ...features.baseMultiplierSymbols,
+    ...(lastFreeSpinRound?.scatterSymbols ?? []),
+    ...(lastFreeSpinRound?.multiplierSymbols ?? []),
+  ];
 }
 
 function getSlotPayoutLabel(

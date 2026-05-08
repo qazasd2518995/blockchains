@@ -104,6 +104,14 @@ interface HotlineCascadePlaybackOptions {
   onStepWin?: (step: HotlineCascadeStep) => void;
   fast?: boolean;
   specialSymbols?: HotlineSpecialSymbol[];
+  finalSpecialSymbols?: HotlineSpecialSymbol[];
+}
+
+interface HotlineSpecialHighlightOptions {
+  fast?: boolean;
+  type?: HotlineSpecialSymbol['type'];
+  label?: string;
+  multiplierTotal?: number;
 }
 
 interface Particle {
@@ -466,8 +474,11 @@ export class HotlineScene {
     fallbackColor: number,
   ): void {
     const size = this.cellSize;
-    const color = special.type === 'scatter' ? COLOR_ACID : COLOR_ICE;
+    const isScatter = special.type === 'scatter';
+    const color = isScatter ? COLOR_ACID : COLOR_ICE;
     const texture = special.type === 'scatter' ? this.scatterTexture : this.multiplierTexture;
+    const fillColor = isScatter ? 0x24120d : COLOR_INK;
+    const strokeColor = isScatter ? COLOR_AMBER : COLOR_ICE;
 
     const shadow = new Graphics()
       .roundRect(-size / 2 + 4 + 1, -size / 2 + 4 + 2, size - 8, size - 8, 12)
@@ -476,18 +487,31 @@ export class HotlineScene {
 
     const tile = new Graphics()
       .roundRect(-size / 2 + 3, -size / 2 + 3, size - 6, size - 6, 12)
-      .fill({ color: COLOR_INK, alpha: 0.72 })
+      .fill({ color: fillColor, alpha: isScatter ? 0.92 : 0.72 })
       .stroke({
-        color: special.type === 'scatter' ? fallbackColor : COLOR_ICE,
-        width: 2,
-        alpha: 0.68,
+        color: strokeColor,
+        width: isScatter ? 3 : 2,
+        alpha: isScatter ? 0.9 : 0.68,
       });
     c.addChild(tile);
+
+    if (isScatter) {
+      const bonusPlate = new Graphics()
+        .roundRect(-size / 2 + 9, -size / 2 + 9, size - 18, size - 18, 10)
+        .fill({ color: 0x5c2241, alpha: 0.34 })
+        .stroke({ color: fallbackColor, width: 1, alpha: 0.56 });
+      c.addChild(bonusPlate);
+      const halo = new Graphics()
+        .circle(0, 0, size * 0.34)
+        .fill({ color: COLOR_AMBER, alpha: 0.1 })
+        .stroke({ color: COLOR_AMBER, width: 2, alpha: 0.42 });
+      c.addChild(halo);
+    }
 
     if (texture) {
       const sprite = new Sprite(texture);
       sprite.anchor.set(0.5);
-      const target = size - 8;
+      const target = size - (isScatter ? 12 : 8);
       const scale = Math.min(target / texture.width, target / texture.height);
       sprite.scale.set(scale);
       sprite.alpha = 0.98;
@@ -508,6 +532,21 @@ export class HotlineScene {
       value.anchor.set(0.5);
       value.y = size * 0.02;
       c.addChild(value);
+    }
+
+    if (isScatter) {
+      const labelStyle = new TextStyle({
+        fontFamily: GAME_FONT_NUM,
+        fontSize: Math.max(7, size * 0.1),
+        fill: COLOR_AMBER,
+        fontWeight: '900',
+        letterSpacing: 1.5,
+        stroke: { color: COLOR_INK, width: 3 },
+      });
+      const label = new Text({ text: 'BONUS', style: labelStyle });
+      label.anchor.set(0.5);
+      label.y = size * 0.34;
+      c.addChild(label);
     }
 
     const shine = new Graphics()
@@ -827,10 +866,11 @@ export class HotlineScene {
     options: HotlineCascadePlaybackOptions = {},
   ): Promise<void> {
     this.playbackFast = Boolean(options.fast);
+    const finalSpecialSymbols = options.finalSpecialSymbols ?? options.specialSymbols ?? [];
     if (cascades.length === 0) {
       await this.playSpin(finalGrid, [], {
         fast: this.playbackFast,
-        specialSymbols: options.specialSymbols,
+        specialSymbols: finalSpecialSymbols,
       });
       return;
     }
@@ -842,6 +882,7 @@ export class HotlineScene {
     });
     options.onStepWin?.(first);
     const specialByCell = this.createSpecialSymbolMap(options.specialSymbols);
+    const finalSpecialByCell = this.createSpecialSymbolMap(finalSpecialSymbols);
 
     let previous = first;
     for (let i = 1; i < cascades.length; i += 1) {
@@ -854,7 +895,179 @@ export class HotlineScene {
     }
 
     await this.sleep(this.scaleMs(720));
-    await this.animateCascadeToGrid(finalGrid, previous.removed, specialByCell);
+    await this.animateCascadeToGrid(finalGrid, previous.removed, finalSpecialByCell);
+    const multiplierSymbols = finalSpecialSymbols.filter((symbol) => symbol.type === 'multiplier');
+    if (multiplierSymbols.length > 0) {
+      const multiplierTotal = multiplierSymbols.reduce(
+        (sum, symbol) => sum + (symbol.value ?? 0),
+        0,
+      );
+      await this.highlightSpecialSymbols(multiplierSymbols, {
+        fast: this.playbackFast,
+        type: 'multiplier',
+        label: `倍數啟動 ×${multiplierTotal}`,
+        multiplierTotal,
+      });
+    }
+  }
+
+  async highlightSpecialSymbols(
+    specialSymbols: HotlineSpecialSymbol[],
+    options: HotlineSpecialHighlightOptions = {},
+  ): Promise<void> {
+    const previousFast = this.playbackFast;
+    this.playbackFast = Boolean(options.fast ?? this.playbackFast);
+    const filtered = specialSymbols.filter(
+      (symbol) => !options.type || symbol.type === options.type,
+    );
+    if (filtered.length === 0) {
+      this.playbackFast = previousFast;
+      return;
+    }
+
+    const kind = options.type ?? filtered[0]?.type ?? 'scatter';
+    const color = kind === 'scatter' ? COLOR_AMBER : COLOR_ICE;
+    const label = options.label ?? (kind === 'scatter' ? 'BONUS SCATTER' : '倍數啟動');
+    Sfx.slotWin(kind === 'scatter' || filtered.length >= 3 ? 'medium' : 'small');
+
+    const bannerPromise = this.showSpecialBanner(label, color);
+    const pulsePromises = filtered.map((special, index) =>
+      this.pulseSpecialSymbol(special, color, index),
+    );
+
+    await Promise.all([bannerPromise, ...pulsePromises]);
+    this.playbackFast = previousFast;
+  }
+
+  private showSpecialBanner(label: string, color: number): Promise<void> {
+    if (!this.app) return this.sleep(this.scaleMs(420));
+    const style = new TextStyle({
+      fontFamily: GAME_FONT_NUM,
+      fontSize: Math.max(18, Math.min(42, this.cellSize * 0.34)),
+      fill: COLOR_WHITE,
+      fontWeight: '900',
+      letterSpacing: 1,
+      stroke: { color: COLOR_INK, width: 6 },
+      dropShadow: {
+        color,
+        alpha: 0.8,
+        blur: 12,
+        distance: 0,
+      },
+    });
+    const banner = new Text({ text: label, style });
+    banner.anchor.set(0.5);
+    banner.x = this.width / 2;
+    banner.y = this.reelY0 + this.cellSize * this.rowCount * 0.5;
+    banner.alpha = 0;
+    banner.scale.set(0.86);
+    this.app.stage.addChild(banner);
+
+    return new Promise((resolve) => {
+      gsap.to(banner, {
+        alpha: 1,
+        duration: this.scaleSec(0.16),
+        ease: 'power2.out',
+      });
+      gsap.to(banner.scale, {
+        x: 1,
+        y: 1,
+        duration: this.scaleSec(0.2),
+        ease: 'back.out(1.8)',
+      });
+      gsap.to(banner, {
+        alpha: 0,
+        y: banner.y - this.cellSize * 0.18,
+        duration: this.scaleSec(0.28),
+        delay: this.scaleSec(0.55),
+        ease: 'power2.in',
+        onComplete: () => {
+          this.app?.stage.removeChild(banner);
+          banner.destroy();
+          resolve();
+        },
+      });
+    });
+  }
+
+  private pulseSpecialSymbol(
+    special: HotlineSpecialSymbol,
+    color: number,
+    index: number,
+  ): Promise<void> {
+    const reel = this.reels[special.reel];
+    const sym = reel?.symbols[special.row];
+    const x = this.reelX0 + special.reel * (this.cellSize + this.reelGap) + this.cellSize / 2;
+    const y = this.reelY0 + special.row * this.cellSize + this.cellSize / 2;
+    const delay = this.scaleSec(index * 0.06);
+
+    if (!reel || !sym) return this.sleep(this.scaleMs(420));
+
+    const ring = new Graphics();
+    ring.roundRect(
+      x - this.cellSize * 0.48,
+      y - this.cellSize * 0.48,
+      this.cellSize * 0.96,
+      this.cellSize * 0.96,
+      this.cellSize * 0.16,
+    );
+    ring.stroke({ color, width: 4, alpha: 0.94 });
+    ring.alpha = 0;
+    this.winLinesLayer?.addChild(ring);
+
+    gsap.killTweensOf(sym.scale);
+    gsap.to(sym.scale, {
+      x: 1.18,
+      y: 1.18,
+      duration: this.scaleSec(0.18),
+      delay,
+      ease: 'power2.out',
+      yoyo: true,
+      repeat: 3,
+    });
+
+    const timer = window.setTimeout(
+      () => {
+        this.emitShockwave(x, y, color, this.cellSize * 0.78);
+        this.particlePool?.emit({
+          x,
+          y,
+          count: 18,
+          colors: [color, COLOR_WHITE],
+          speedMin: 2,
+          speedMax: 6,
+        });
+      },
+      this.scaleMs(index * 60),
+    );
+    this.lineFxTimers.push(timer);
+
+    return new Promise((resolve) => {
+      gsap.to(ring, {
+        alpha: 1,
+        duration: this.scaleSec(0.14),
+        delay,
+        ease: 'power2.out',
+      });
+      gsap.to(ring.scale, {
+        x: 1.16,
+        y: 1.16,
+        duration: this.scaleSec(0.42),
+        delay,
+        ease: 'power2.out',
+      });
+      gsap.to(ring, {
+        alpha: 0,
+        duration: this.scaleSec(0.28),
+        delay: delay + this.scaleSec(0.55),
+        ease: 'power2.in',
+        onComplete: () => {
+          this.winLinesLayer?.removeChild(ring);
+          ring.destroy();
+          resolve();
+        },
+      });
+    });
   }
 
   private sleep(ms: number): Promise<void> {
@@ -1078,15 +1291,47 @@ export class HotlineScene {
       const removedRows = removedByReel.get(reelIdx);
       const finalColumn = nextGrid[reelIdx] ?? [];
       if (!removedRows || removedRows.size === 0) {
+        let hasAnimatedArrival = false;
         for (let row = 0; row < this.rowCount; row += 1) {
           const sym = reel.symbols[row];
           const nextSymbol = finalColumn[row] ?? sym?.symbolIndex ?? 0;
           const special = specialByCell.get(`${reelIdx}:${row}`);
+          const nextSpecialKey = specialKey(special);
+          const isSpecialArrival = Boolean(special && sym?.specialKey !== nextSpecialKey);
           if (sym && (sym.symbolIndex !== nextSymbol || sym.specialKey !== specialKey(special))) {
             this.renderSymbolTile(sym, nextSymbol, special);
           }
+          if (sym && isSpecialArrival) {
+            hasAnimatedArrival = true;
+            const targetY = row * reel.cellSize + reel.cellSize / 2;
+            gsap.killTweensOf(sym);
+            gsap.killTweensOf(sym.scale);
+            sym.x = reel.cellSize / 2;
+            sym.y = targetY - reel.cellSize * (1.3 + row * 0.08);
+            sym.alpha = 0;
+            sym.scale.set(0.9);
+            tweens.push(
+              new Promise((resolve) => {
+                gsap.to(sym, {
+                  y: targetY,
+                  alpha: 1,
+                  duration: this.scaleSec(0.36),
+                  delay: this.scaleSec(reelIdx * 0.025 + row * 0.02),
+                  ease: 'back.out(1.45)',
+                  onComplete: resolve,
+                });
+                gsap.to(sym.scale, {
+                  x: 1,
+                  y: 1,
+                  duration: this.scaleSec(0.28),
+                  delay: this.scaleSec(reelIdx * 0.025 + row * 0.02),
+                  ease: 'power2.out',
+                });
+              }),
+            );
+          }
         }
-        this.captureReelOrder(reel);
+        if (!hasAnimatedArrival) this.captureReelOrder(reel);
         continue;
       }
 
@@ -1128,14 +1373,16 @@ export class HotlineScene {
         gsap.killTweensOf(sym.scale);
         const nextSymbol = finalColumn[row] ?? 0;
         const special = specialByCell.get(`${reelIdx}:${row}`);
-        if (sym.symbolIndex !== nextSymbol || sym.specialKey !== specialKey(special)) {
+        const nextSpecialKey = specialKey(special);
+        const isSpecialArrival = Boolean(special && sym.specialKey !== nextSpecialKey);
+        if (sym.symbolIndex !== nextSymbol || sym.specialKey !== nextSpecialKey) {
           this.renderSymbolTile(sym, nextSymbol, special);
         }
-        const isEntering = row < enteringCount;
+        const isEntering = row < enteringCount || isSpecialArrival;
         sym.alpha = isEntering ? 0 : 1;
         sym.scale.set(isEntering ? 0.92 : 1);
         if (isEntering) {
-          sym.y = targetY - reel.cellSize * (enteringCount + 0.62);
+          sym.y = targetY - reel.cellSize * (Math.max(enteringCount, 1) + 0.62);
         }
         tweens.push(
           new Promise((resolve) => {

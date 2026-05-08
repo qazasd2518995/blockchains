@@ -16,6 +16,17 @@ import {
   hotlineSpinCascades,
 } from './hotline.js';
 
+function megaScatterPayout(count: number): number {
+  if (count >= 6) return 100;
+  if (count === 5) return 5;
+  if (count === 4) return 3;
+  return 0;
+}
+
+function positionKey(position: { reel: number; row: number }): string {
+  return `${position.reel}:${position.row}`;
+}
+
 describe('hotlineSpin', () => {
   it('returns grid of HOTLINE_REELS cols × HOTLINE_ROWS rows', () => {
     const grid = hotlineSpin('s', 'c', 1);
@@ -136,6 +147,60 @@ describe('hotlineSpin', () => {
     expect(result!.features!.baseMultiplierTotal).toBeGreaterThanOrEqual(2);
     expect(result!.features!.baseAppliedMultiplier).toBe(result!.features!.baseMultiplierTotal);
     expect(result!.totalMultiplier).toBeGreaterThanOrEqual(result!.features!.baseWinMultiplier);
+
+    const symbolWinMultiplier = Number(
+      result!.cascades.reduce((sum, step) => sum + step.multiplier, 0).toFixed(4),
+    );
+    const scatterMultiplier = megaScatterPayout(result!.features!.scatterCount);
+    expect(symbolWinMultiplier).toBeGreaterThan(0);
+    expect(result!.features!.baseTotalMultiplier).toBe(
+      Number(
+        (scatterMultiplier + symbolWinMultiplier * result!.features!.baseAppliedMultiplier).toFixed(
+          4,
+        ),
+      ),
+    );
+
+    const scatterPositions = new Set(result!.features!.scatterSymbols.map(positionKey));
+    for (const multiplier of result!.features!.baseMultiplierSymbols) {
+      expect(scatterPositions.has(positionKey(multiplier))).toBe(false);
+    }
+  });
+
+  it('does not create mega multiplier symbols without normal symbol clears', () => {
+    const results = Array.from({ length: 900 }, (_, nonce) =>
+      hotlineSpinCascades(
+        'scatter-server',
+        'scatter-client',
+        nonce,
+        HOTLINE_MEGA_REELS,
+        HOTLINE_MEGA_ROWS,
+      ),
+    );
+
+    for (const result of results) {
+      const features = result.features;
+      if (!features) continue;
+      if (features.baseMultiplierSymbols.length > 0) {
+        expect(result.cascades.length).toBeGreaterThan(0);
+        expect(result.cascades.reduce((sum, step) => sum + step.multiplier, 0)).toBeGreaterThan(0);
+      }
+      const scatterPositions = new Set(features.scatterSymbols.map(positionKey));
+      for (const multiplier of features.baseMultiplierSymbols) {
+        expect(scatterPositions.has(positionKey(multiplier))).toBe(false);
+      }
+
+      for (const round of features.freeSpinRounds) {
+        if (round.multiplierSymbols.length > 0) {
+          expect(round.cascades.length).toBeGreaterThan(0);
+          expect(round.cascades.reduce((sum, step) => sum + step.multiplier, 0)).toBeGreaterThan(0);
+        }
+        const roundScatterPositions = new Set(round.scatterSymbols.map(positionKey));
+        for (const multiplier of round.multiplierSymbols) {
+          expect(roundScatterPositions.has(positionKey(multiplier))).toBe(false);
+        }
+      }
+    }
   });
 
   it('triggers and accounts for mega free spins from scatter symbols', () => {

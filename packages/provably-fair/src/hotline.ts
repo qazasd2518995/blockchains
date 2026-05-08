@@ -321,18 +321,22 @@ function buildMegaFeatureResult(
 ): HotlineMegaFeatureResult {
   const scatterSymbols = drawMegaScatterSymbols(nextRandom01, reelCount, rowCount, false);
   const baseScatterMultiplier = getMegaScatterPayout(scatterSymbols.length);
-  const baseWinMultiplier = roundMultiplier(baseRound.totalMultiplier + baseScatterMultiplier);
+  const baseSymbolWinMultiplier = baseRound.totalMultiplier;
+  const baseWinMultiplier = roundMultiplier(baseSymbolWinMultiplier + baseScatterMultiplier);
   const baseMultiplierSymbols = drawMegaMultiplierSymbols(
     nextRandom01,
     reelCount,
     rowCount,
-    baseWinMultiplier,
+    baseSymbolWinMultiplier,
     false,
+    scatterSymbols,
   );
   const baseMultiplierTotal = sumSpecialValues(baseMultiplierSymbols);
   const baseAppliedMultiplier =
-    baseWinMultiplier > 0 && baseMultiplierTotal > 0 ? baseMultiplierTotal : 1;
-  const baseTotalMultiplier = roundMultiplier(baseWinMultiplier * baseAppliedMultiplier);
+    baseSymbolWinMultiplier > 0 && baseMultiplierTotal > 0 ? baseMultiplierTotal : 1;
+  const baseTotalMultiplier = roundMultiplier(
+    baseScatterMultiplier + baseSymbolWinMultiplier * baseAppliedMultiplier,
+  );
 
   const initialFreeSpinsAwarded =
     scatterSymbols.length >= HOTLINE_MEGA_FREE_SPIN_TRIGGER ? HOTLINE_MEGA_FREE_SPIN_BASE_AWARD : 0;
@@ -387,7 +391,8 @@ function runMegaFreeSpinRounds(
     const round = runHotlineCascadeRound(nextSymbol, reelCount, rowCount, maxCascades);
     const scatterRoundSymbols = drawMegaScatterSymbols(nextRandom01, reelCount, rowCount, true);
     const roundScatterMultiplier = getMegaScatterPayout(scatterRoundSymbols.length);
-    const roundBaseMultiplier = roundMultiplier(round.totalMultiplier + roundScatterMultiplier);
+    const roundSymbolWinMultiplier = round.totalMultiplier;
+    const roundBaseMultiplier = roundMultiplier(roundSymbolWinMultiplier + roundScatterMultiplier);
     const extraFreeSpinsAwarded =
       scatterRoundSymbols.length >= HOTLINE_MEGA_FREE_SPIN_RETRIGGER_TRIGGER
         ? HOTLINE_MEGA_FREE_SPIN_RETRIGGER_AWARD
@@ -396,14 +401,17 @@ function runMegaFreeSpinRounds(
       nextRandom01,
       reelCount,
       rowCount,
-      roundBaseMultiplier,
+      roundSymbolWinMultiplier,
       true,
+      scatterRoundSymbols,
     );
     const multiplierTotal = sumSpecialValues(multiplierSymbols);
     freeSpinMultiplierBank = roundMultiplier(freeSpinMultiplierBank + multiplierTotal);
     const appliedMultiplier =
-      roundBaseMultiplier > 0 && freeSpinMultiplierBank > 0 ? freeSpinMultiplierBank : 1;
-    const totalMultiplier = roundMultiplier(roundBaseMultiplier * appliedMultiplier);
+      roundSymbolWinMultiplier > 0 && freeSpinMultiplierBank > 0 ? freeSpinMultiplierBank : 1;
+    const totalMultiplier = roundMultiplier(
+      roundScatterMultiplier + roundSymbolWinMultiplier * appliedMultiplier,
+    );
     freeSpinWinMultiplier = roundMultiplier(freeSpinWinMultiplier + totalMultiplier);
 
     if (extraFreeSpinsAwarded > 0) {
@@ -484,6 +492,7 @@ function drawMegaMultiplierSymbols(
   rowCount: number,
   baseMultiplier: number,
   freeSpinMode: boolean,
+  blockedPositions: HotlineWinPosition[] = [],
 ): HotlineSpecialSymbol[] {
   const roll = nextRandom01();
   const chance = freeSpinMode ? 0.18 : 0.07;
@@ -501,11 +510,13 @@ function drawMegaMultiplierSymbols(
       : countRoll < 0.07
         ? 2
         : 1;
-  return pickUniquePositions(nextRandom01, count, reelCount, rowCount).map((position) => ({
-    ...position,
-    type: 'multiplier' as const,
-    value: pickMegaMultiplierValue(nextRandom01),
-  }));
+  return pickUniquePositions(nextRandom01, count, reelCount, rowCount, blockedPositions).map(
+    (position) => ({
+      ...position,
+      type: 'multiplier' as const,
+      value: pickMegaMultiplierValue(nextRandom01),
+    }),
+  );
 }
 
 function pickMegaMultiplierValue(nextRandom01: () => number): number {
@@ -549,14 +560,17 @@ function pickUniquePositions(
   count: number,
   reelCount: number,
   rowCount: number,
+  blockedPositions: HotlineWinPosition[] = [],
 ): HotlineWinPosition[] {
   const max = reelCount * rowCount;
-  const target = Math.max(0, Math.min(count, max));
+  const blocked = new Set(blockedPositions.map((position) => `${position.reel}:${position.row}`));
+  const target = Math.max(0, Math.min(count, max - blocked.size));
   const keyed = new Map<string, HotlineWinPosition>();
 
   while (keyed.size < target) {
     const reel = Math.floor(nextRandom01() * reelCount);
     const row = Math.floor(nextRandom01() * rowCount);
+    if (blocked.has(`${reel}:${row}`)) continue;
     keyed.set(`${reel}:${row}`, { reel, row });
   }
 

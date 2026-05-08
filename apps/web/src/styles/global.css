@@ -2022,11 +2022,22 @@
 }
 
 .mega-slot-fallback-symbol--scatter {
-  border-color: color-mix(in srgb, var(--mega-slot-accent) 64%, #ffffff) !important;
+  border-color: #f3d67d !important;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(243, 214, 125, 0.28), transparent 42%),
+    radial-gradient(circle at 50% 72%, rgba(217, 70, 239, 0.2), transparent 54%),
+    linear-gradient(160deg, rgba(85, 32, 27, 0.96), rgba(30, 17, 46, 0.96)) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 0 28px rgba(243, 214, 125, 0.16),
+    0 0 18px rgba(243, 214, 125, 0.32);
 }
 
 .mega-slot-fallback-symbol--multiplier {
   border-color: rgba(125, 211, 252, 0.82) !important;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(125, 211, 252, 0.24), transparent 44%),
+    linear-gradient(160deg, rgba(8, 20, 35, 0.96), rgba(9, 44, 55, 0.92)) !important;
 }
 
 .mega-slot-fallback-symbol--scatter img,
@@ -2036,6 +2047,53 @@
   max-width: calc(100% - 8px);
   max-height: calc(100% - 8px);
   object-fit: contain;
+}
+
+.mega-slot-fallback-symbol--scatter::after,
+.mega-slot-fallback-symbol--multiplier::after {
+  position: absolute;
+  inset: 6px;
+  z-index: 0;
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+}
+
+.mega-slot-fallback-symbol--scatter::after {
+  border: 1px solid rgba(243, 214, 125, 0.48);
+  box-shadow:
+    inset 0 0 16px rgba(243, 214, 125, 0.2),
+    0 0 18px rgba(217, 70, 239, 0.2);
+}
+
+.mega-slot-fallback-symbol--multiplier::after {
+  border: 1px solid rgba(125, 211, 252, 0.42);
+  box-shadow:
+    inset 0 0 16px rgba(125, 211, 252, 0.18),
+    0 0 18px rgba(34, 211, 238, 0.18);
+}
+
+.mega-slot-fallback-symbol--special-highlight {
+  z-index: 4;
+  animation: mega-slot-special-symbol-pulse 820ms ease-in-out infinite;
+}
+
+.mega-slot-fallback-grid--fast .mega-slot-fallback-symbol--special-highlight {
+  animation-duration: 300ms;
+}
+
+.mega-slot-fallback-symbol--special-highlight::before {
+  position: absolute;
+  inset: -3px;
+  z-index: 4;
+  border-radius: inherit;
+  border: 2px solid rgba(243, 214, 125, 0.96);
+  box-shadow:
+    0 0 16px rgba(243, 214, 125, 0.95),
+    0 0 34px rgba(34, 211, 238, 0.58),
+    inset 0 0 18px rgba(255, 255, 255, 0.44);
+  content: '';
+  pointer-events: none;
 }
 
 .mega-slot-fallback-symbol__multiplier {
@@ -2322,6 +2380,19 @@
 
   50% {
     transform: translate(-50%, -50%) scale(1.08) rotate(4deg);
+  }
+}
+
+@keyframes mega-slot-special-symbol-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1.08) saturate(1.05);
+  }
+
+  50% {
+    transform: scale(1.07);
+    filter: brightness(1.38) saturate(1.28);
   }
 }
 
