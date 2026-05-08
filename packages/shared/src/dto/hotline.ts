@@ -5,6 +5,15 @@ export interface HotlineBetRequest {
   buyFeature?: boolean;
 }
 
+export interface HotlineJackpotSnapshot {
+  gameId: string;
+  grand: string;
+  major: string;
+  minor: string;
+  mini: string;
+  updatedAt: string;
+}
+
 export interface HotlineWinLine {
   lineId?: string;
   path?: number[];
@@ -81,6 +90,7 @@ export interface HotlineBetResult {
   payout: string;
   profit: string;
   newBalance: string;
+  jackpot?: HotlineJackpotSnapshot;
   nonce: number;
   serverSeedHash: string;
   clientSeed: string;

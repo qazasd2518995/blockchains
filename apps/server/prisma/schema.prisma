@@ -176,6 +176,16 @@ model Bet {
   @@index([gameId, createdAt])
 }
 
+model HotlineJackpotPool {
+  gameId    String   @id
+  grand     Decimal  @default(0) @db.Decimal(20, 2)
+  major     Decimal  @default(0) @db.Decimal(20, 2)
+  minor     Decimal  @default(0) @db.Decimal(20, 2)
+  mini      Decimal  @default(0) @db.Decimal(20, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // ───────────────────────────────────────────────
 // Mines 多步驟局
 // ───────────────────────────────────────────────

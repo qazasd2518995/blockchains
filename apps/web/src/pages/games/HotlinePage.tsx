@@ -5,6 +5,7 @@ import type {
   HotlineBetRequest,
   HotlineBetResult,
   HotlineCascadeStep,
+  HotlineJackpotSnapshot,
   HotlineMegaFeatureResult,
   HotlineSpecialSymbol,
   HotlineWinPosition,
@@ -152,13 +153,19 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [autoSpinStopReason, setAutoSpinStopReason] = useState('');
   const [fastSpin, setFastSpin] = useState(false);
   const [dismissedBigWinBetId, setDismissedBigWinBetId] = useState<string | null>(null);
+  const [jackpotSnapshot, setJackpotSnapshot] = useState<HotlineJackpotSnapshot | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
   const autoSpinStopRequestedRef = useRef(false);
   const fastSpinRef = useRef(false);
   const fallbackGrid = useMemo(() => createFallbackGrid(slotTheme), [slotTheme]);
-  const jackpotValues = useMemo(() => createJackpotValues(slotTheme.id), [slotTheme.id]);
+  const fallbackJackpotValues = useMemo(() => createJackpotValues(slotTheme.id), [slotTheme.id]);
+  const jackpotValues = useMemo(
+    () =>
+      jackpotSnapshot ? createJackpotValuesFromSnapshot(jackpotSnapshot) : fallbackJackpotValues,
+    [fallbackJackpotValues, jackpotSnapshot],
+  );
 
   useEffect(() => {
     fastSpinRef.current = fastSpin;
@@ -169,6 +176,32 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       autoSpinStopRequestedRef.current = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isMegaSlot || !user?.id) {
+      setJackpotSnapshot(null);
+      return;
+    }
+
+    let cancelled = false;
+    const loadJackpot = async () => {
+      try {
+        const res = await api.get<HotlineJackpotSnapshot>('/games/hotline/jackpot', {
+          params: { gameId: slotTheme.gameId },
+        });
+        if (!cancelled) setJackpotSnapshot(res.data);
+      } catch {
+        // Keep the current snapshot or fallback seed values if live jackpot is temporarily unavailable.
+      }
+    };
+
+    void loadJackpot();
+    const timer = window.setInterval(loadJackpot, 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [isMegaSlot, slotTheme.gameId, user?.id]);
 
   useEffect(() => {
     if (!isMegaSlot) return;
@@ -651,6 +684,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         grid: getFinalMegaGrid(res.data, fallbackGrid),
       });
       setResult(res.data);
+      if (res.data.jackpot) setJackpotSnapshot(res.data.jackpot);
       setBalance(res.data.newBalance);
       setHistory((prev) =>
         [
@@ -1858,6 +1892,17 @@ function createJackpotValues(themeId: string): { label: string; value: string }[
     { label: 'MAJOR', value: formatJackpot(180000 + seed * 19.8) },
     { label: 'MINOR', value: formatJackpot(18000 + seed * 2.7) },
     { label: 'MINI', value: formatJackpot(5200 + seed * 0.92) },
+  ];
+}
+
+function createJackpotValuesFromSnapshot(
+  snapshot: HotlineJackpotSnapshot,
+): { label: string; value: string }[] {
+  return [
+    { label: 'GRAND', value: formatJackpot(Number.parseFloat(snapshot.grand)) },
+    { label: 'MAJOR', value: formatJackpot(Number.parseFloat(snapshot.major)) },
+    { label: 'MINOR', value: formatJackpot(Number.parseFloat(snapshot.minor)) },
+    { label: 'MINI', value: formatJackpot(Number.parseFloat(snapshot.mini)) },
   ];
 }
 

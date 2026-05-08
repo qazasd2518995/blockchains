@@ -7,7 +7,12 @@ import {
   hotlineSpinCascades,
   hotlineEvaluate,
 } from '@bg/provably-fair';
-import { GameId, type HotlineBetResult, type HotlineMegaFeatureResult } from '@bg/shared';
+import {
+  GameId,
+  type HotlineBetResult,
+  type HotlineJackpotSnapshot,
+  type HotlineMegaFeatureResult,
+} from '@bg/shared';
 import {
   SeedHelper,
   lockUserAndCheckFunds,
@@ -22,8 +27,41 @@ import {
 } from '../_common/controls.js';
 import type { HotlineBetInput } from './hotline.schema.js';
 
+const HOTLINE_JACKPOT_THEME_KEYS: Record<string, string> = {
+  [GameId.THUNDER_SLOT]: 'thunder',
+  [GameId.DRAGON_MEGA_SLOT]: 'dragonMega',
+  [GameId.NEBULA_SLOT]: 'nebula',
+  [GameId.JUNGLE_SLOT]: 'jungle',
+  [GameId.VAMPIRE_SLOT]: 'vampire',
+};
+
+const HOTLINE_JACKPOT_CONTRIBUTION_RATES = {
+  grand: new Prisma.Decimal('0.006'),
+  major: new Prisma.Decimal('0.0035'),
+  minor: new Prisma.Decimal('0.0018'),
+  mini: new Prisma.Decimal('0.0012'),
+} as const;
+
+type HotlineJackpotRecord = {
+  gameId: string;
+  grand: Prisma.Decimal;
+  major: Prisma.Decimal;
+  minor: Prisma.Decimal;
+  mini: Prisma.Decimal;
+  updatedAt: Date;
+};
+
 export class HotlineService {
   constructor(private readonly prisma: PrismaClient) {}
+
+  async jackpot(gameId: string): Promise<HotlineJackpotSnapshot> {
+    if (getHotlineRowCount(gameId) <= 3) {
+      throw new Error('JACKPOT_ONLY_AVAILABLE_FOR_MEGA_SLOT');
+    }
+
+    const pool = await this.getOrCreateJackpotPool(this.prisma, gameId);
+    return toJackpotSnapshot(pool);
+  }
 
   async bet(userId: string, input: HotlineBetInput): Promise<HotlineBetResult> {
     const baseAmount = new Prisma.Decimal(input.amount);
@@ -140,6 +178,8 @@ export class HotlineService {
         originalResult as unknown as Prisma.InputJsonValue,
         finalResult as unknown as Prisma.InputJsonValue,
       );
+      const jackpot =
+        rowCount > 3 ? await this.addJackpotContribution(tx, gameId, stakeAmount) : undefined;
 
       return {
         betId: bet.id,
@@ -159,12 +199,106 @@ export class HotlineService {
         payout: finalPayout.toFixed(2),
         profit: profit.toFixed(2),
         newBalance: newBalance.toFixed(2),
+        ...(jackpot ? { jackpot } : {}),
         nonce: seed.nonce,
         serverSeedHash: seed.serverSeedHash,
         clientSeed: seed.clientSeed,
       };
     });
   }
+
+  private async addJackpotContribution(
+    tx: Prisma.TransactionClient,
+    gameId: string,
+    stakeAmount: Prisma.Decimal,
+  ): Promise<HotlineJackpotSnapshot> {
+    const seedValues = createInitialJackpotValues(gameId);
+    const contribution = {
+      grand: stakeAmount
+        .mul(HOTLINE_JACKPOT_CONTRIBUTION_RATES.grand)
+        .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
+      major: stakeAmount
+        .mul(HOTLINE_JACKPOT_CONTRIBUTION_RATES.major)
+        .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
+      minor: stakeAmount
+        .mul(HOTLINE_JACKPOT_CONTRIBUTION_RATES.minor)
+        .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
+      mini: stakeAmount
+        .mul(HOTLINE_JACKPOT_CONTRIBUTION_RATES.mini)
+        .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
+    };
+
+    const pool = await tx.hotlineJackpotPool.upsert({
+      where: { gameId },
+      create: {
+        gameId,
+        grand: seedValues.grand.plus(contribution.grand),
+        major: seedValues.major.plus(contribution.major),
+        minor: seedValues.minor.plus(contribution.minor),
+        mini: seedValues.mini.plus(contribution.mini),
+      },
+      update: {
+        grand: { increment: contribution.grand },
+        major: { increment: contribution.major },
+        minor: { increment: contribution.minor },
+        mini: { increment: contribution.mini },
+      },
+    });
+
+    return toJackpotSnapshot(pool);
+  }
+
+  private async getOrCreateJackpotPool(
+    client: PrismaClient | Prisma.TransactionClient,
+    gameId: string,
+  ): Promise<HotlineJackpotRecord> {
+    const existing = await client.hotlineJackpotPool.findUnique({ where: { gameId } });
+    if (existing) return existing;
+
+    const seedValues = createInitialJackpotValues(gameId);
+    try {
+      return await client.hotlineJackpotPool.create({
+        data: {
+          gameId,
+          grand: seedValues.grand,
+          major: seedValues.major,
+          minor: seedValues.minor,
+          mini: seedValues.mini,
+        },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        return client.hotlineJackpotPool.findUniqueOrThrow({ where: { gameId } });
+      }
+      throw err;
+    }
+  }
+}
+
+function createInitialJackpotValues(
+  gameId: string,
+): Omit<HotlineJackpotRecord, 'gameId' | 'updatedAt'> {
+  const themeKey = HOTLINE_JACKPOT_THEME_KEYS[gameId] ?? gameId;
+  const seed = Array.from(themeKey).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return {
+    grand: new Prisma.Decimal(820000)
+      .plus(new Prisma.Decimal(seed).mul('37.12'))
+      .toDecimalPlaces(2),
+    major: new Prisma.Decimal(180000).plus(new Prisma.Decimal(seed).mul('19.8')).toDecimalPlaces(2),
+    minor: new Prisma.Decimal(18000).plus(new Prisma.Decimal(seed).mul('2.7')).toDecimalPlaces(2),
+    mini: new Prisma.Decimal(5200).plus(new Prisma.Decimal(seed).mul('0.92')).toDecimalPlaces(2),
+  };
+}
+
+function toJackpotSnapshot(pool: HotlineJackpotRecord): HotlineJackpotSnapshot {
+  return {
+    gameId: pool.gameId,
+    grand: pool.grand.toFixed(2),
+    major: pool.major.toFixed(2),
+    minor: pool.minor.toFixed(2),
+    mini: pool.mini.toFixed(2),
+    updatedAt: pool.updatedAt.toISOString(),
+  };
 }
 
 type HotlineRound = Pick<HotlineBetResult, 'grid' | 'lines' | 'cascades'> & {

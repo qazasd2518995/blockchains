@@ -23,4 +23,9 @@ export const hotlineBetSchema = z.object({
   buyFeature: z.boolean().optional(),
 });
 
+export const hotlineJackpotQuerySchema = z.object({
+  gameId: z.enum(slotGameIds),
+});
+
 export type HotlineBetInput = z.infer<typeof hotlineBetSchema>;
+export type HotlineJackpotQuery = z.infer<typeof hotlineJackpotQuerySchema>;
