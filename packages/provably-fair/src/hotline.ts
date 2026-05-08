@@ -28,6 +28,15 @@ export const HOTLINE_SYMBOLS = [
   { name: 'JACKPOT', weight: 2, payout3: 50, payout4: 250, payout5: 1000 },
 ] as const;
 
+export const HOTLINE_MINI_SYMBOLS = [
+  { name: 'CHERRY', weight: 20, payout3: 2.1, payout4: 0, payout5: 0 },
+  { name: 'BELL', weight: 15, payout3: 3.15, payout4: 0, payout5: 0 },
+  { name: 'SEVEN', weight: 10, payout3: 5.3, payout4: 0, payout5: 0 },
+  { name: 'BAR', weight: 8, payout3: 10.6, payout4: 0, payout5: 0 },
+  { name: 'DIAMOND', weight: 5, payout3: 22, payout4: 0, payout5: 0 },
+  { name: 'JACKPOT', weight: 2, payout3: 125, payout4: 0, payout5: 0 },
+] as const;
+
 export const HOTLINE_MEGA_SYMBOLS = [
   { name: 'PREMIUM_A', weight: 4, payout3: 10, payout4: 25, payout5: 50 },
   { name: 'PREMIUM_B', weight: 5, payout3: 2.5, payout4: 10, payout5: 25 },
@@ -55,6 +64,7 @@ export const HOTLINE_MEGA_SCATTER_PAYOUTS = {
 
 export type HotlineSymbol =
   | (typeof HOTLINE_SYMBOLS)[number]
+  | (typeof HOTLINE_MINI_SYMBOLS)[number]
   | (typeof HOTLINE_MEGA_SYMBOLS)[number];
 
 function pickSymbol(rand01: number, symbols: readonly HotlineSymbol[]): number {
@@ -79,7 +89,7 @@ export function hotlineSpin(
   rowCount = HOTLINE_ROWS,
 ): number[][] {
   const stream = hmacIntStream(serverSeed, clientSeed, nonce);
-  const symbols = getHotlineSymbolsForRows(rowCount);
+  const symbols = getHotlineSymbolsForGrid(reelCount, rowCount);
   const grid: number[][] = [];
   for (let r = 0; r < reelCount; r += 1) {
     const col: number[] = [];
@@ -172,7 +182,7 @@ export function hotlineSpinCascades(
   maxCascades = HOTLINE_MEGA_MAX_CASCADES,
 ): HotlineCascadeResult {
   const stream = hmacIntStream(serverSeed, clientSeed, nonce);
-  const symbols = getHotlineSymbolsForRows(rowCount);
+  const symbols = getHotlineSymbolsForGrid(reelCount, rowCount);
   const nextRandom01 = (): number => {
     const v = stream.next().value as number;
     return v / 0x1_0000_0000;
@@ -206,7 +216,7 @@ export function hotlineBuyFreeSpins(
   maxCascades = HOTLINE_MEGA_MAX_CASCADES,
 ): HotlineCascadeResult {
   const stream = hmacIntStream(serverSeed, clientSeed, nonce);
-  const symbols = getHotlineSymbolsForRows(rowCount);
+  const symbols = getHotlineSymbolsForGrid(reelCount, rowCount);
   const nextRandom01 = (): number => {
     const v = stream.next().value as number;
     return v / 0x1_0000_0000;
@@ -601,8 +611,10 @@ function getHotlinePaylines(reelCount: number) {
   return reelCount === HOTLINE_MINI_REELS ? HOTLINE_PAYLINES_3X3 : HOTLINE_PAYLINES_5X3;
 }
 
-function getHotlineSymbolsForRows(rowCount: number): readonly HotlineSymbol[] {
-  return rowCount >= HOTLINE_MEGA_ROWS ? HOTLINE_MEGA_SYMBOLS : HOTLINE_SYMBOLS;
+function getHotlineSymbolsForGrid(reelCount: number, rowCount: number): readonly HotlineSymbol[] {
+  if (rowCount >= HOTLINE_MEGA_ROWS) return HOTLINE_MEGA_SYMBOLS;
+  if (reelCount === HOTLINE_MINI_REELS) return HOTLINE_MINI_SYMBOLS;
+  return HOTLINE_SYMBOLS;
 }
 
 function makeHotlineWinLine(
@@ -611,8 +623,9 @@ function makeHotlineWinLine(
   count: number,
   startReel: number,
   direction: 'ltr' | 'rtl',
+  symbols: readonly HotlineSymbol[],
 ): HotlineWinLine {
-  const sym = HOTLINE_SYMBOLS[symbol]!;
+  const sym = symbols[symbol]!;
   const payout = count === 5 ? sym.payout5 : count === 4 ? sym.payout4 : sym.payout3;
   return {
     lineId: payline.id,
@@ -631,6 +644,7 @@ function evaluatePaylineEdge(
   payline: { id: string; path: readonly number[] },
   reelCount: number,
   direction: 'ltr' | 'rtl',
+  symbols: readonly HotlineSymbol[],
 ): HotlineWinLine | null {
   const edgeReel = direction === 'ltr' ? 0 : reelCount - 1;
   const step = direction === 'ltr' ? 1 : -1;
@@ -645,7 +659,7 @@ function evaluatePaylineEdge(
 
   if (count < 3) return null;
   const startReel = direction === 'ltr' ? 0 : reelCount - count;
-  return makeHotlineWinLine(payline, symbol, count, startReel, direction);
+  return makeHotlineWinLine(payline, symbol, count, startReel, direction, symbols);
 }
 
 function isSamePaylineWin(a: HotlineWinLine, b: HotlineWinLine): boolean {
@@ -673,10 +687,11 @@ export function hotlineEvaluate(grid: number[][]): {
   let totalMultiplier = 0;
   const reelCount = grid.length === HOTLINE_MINI_REELS ? HOTLINE_MINI_REELS : HOTLINE_REELS;
   const paylines = getHotlinePaylines(reelCount);
+  const symbols = getHotlineSymbolsForGrid(reelCount, rowCount);
 
   for (const payline of paylines) {
-    const leftWin = evaluatePaylineEdge(grid, payline, reelCount, 'ltr');
-    const rightWin = evaluatePaylineEdge(grid, payline, reelCount, 'rtl');
+    const leftWin = evaluatePaylineEdge(grid, payline, reelCount, 'ltr', symbols);
+    const rightWin = evaluatePaylineEdge(grid, payline, reelCount, 'rtl', symbols);
     if (leftWin) {
       lines.push(leftWin);
       totalMultiplier += leftWin.payout;

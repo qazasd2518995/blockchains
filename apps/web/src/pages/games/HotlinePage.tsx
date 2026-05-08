@@ -10,6 +10,7 @@ import type {
   HotlineWinPosition,
   HotlineWinLine,
 } from '@bg/shared';
+import { HOTLINE_MINI_SYMBOLS, HOTLINE_SYMBOLS } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -41,6 +42,10 @@ const MEGA_SYMBOL_PAYOUTS = [
   '8-9個 0.4x · 10-11個 0.9x · 12+個 4x',
   '8-9個 0.25x · 10-11個 0.75x · 12+個 2x',
 ];
+const CLASSIC_SYMBOL_PAYOUTS = HOTLINE_SYMBOLS.map(
+  (symbol) => `3個 ${symbol.payout3}x · 4個 ${symbol.payout4}x · 5個 ${symbol.payout5}x`,
+);
+const MINI_SYMBOL_PAYOUTS = HOTLINE_MINI_SYMBOLS.map((symbol) => `3個 ${symbol.payout3}x`);
 const BIG_WIN_MULTIPLIER = 20;
 const MEGA_MAX_TOTAL_MULTIPLIER = 1000;
 const MEGA_FREE_SPIN_INTRO_MS = 1600;
@@ -1056,7 +1061,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 >
                   <SlotSymbolBadge theme={slotTheme} symbol={index} showLabel />
                   <span className="data-num text-right text-white/85">
-                    {isMegaSlot ? MEGA_SYMBOL_PAYOUTS[index] : '3x · 4x · 5x'}
+                    {getSlotPayoutLabel(slotTheme, index, isMegaSlot)}
                   </span>
                 </div>
               ))}
@@ -1348,6 +1353,16 @@ function getFinalMegaSpecialSymbols(features?: HotlineMegaFeatureResult): Hotlin
   if (!features) return [];
   const lastFreeSpinRound = features.freeSpinRounds[features.freeSpinRounds.length - 1];
   return [...features.baseMultiplierSymbols, ...(lastFreeSpinRound?.multiplierSymbols ?? [])];
+}
+
+function getSlotPayoutLabel(
+  slotTheme: SlotThemeConfig,
+  symbolIndex: number,
+  isMegaSlot: boolean,
+): string {
+  if (isMegaSlot) return MEGA_SYMBOL_PAYOUTS[symbolIndex] ?? '';
+  if (slotTheme.reels === 3) return MINI_SYMBOL_PAYOUTS[symbolIndex] ?? '';
+  return CLASSIC_SYMBOL_PAYOUTS[symbolIndex] ?? '';
 }
 
 function formatMegaFeatureDetail(features?: HotlineMegaFeatureResult, buyFeature = false): string {

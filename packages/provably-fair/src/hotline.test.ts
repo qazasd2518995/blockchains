@@ -8,6 +8,7 @@ import {
   HOTLINE_MEGA_REELS,
   HOTLINE_MEGA_ROWS,
   HOTLINE_SYMBOLS,
+  HOTLINE_MINI_SYMBOLS,
   HOTLINE_MEGA_SYMBOLS,
   getHotlineReelCount,
   getHotlineRowCount,
@@ -35,7 +36,28 @@ describe('hotlineSpin', () => {
   it('supports 3x3 slot variants', () => {
     const grid = hotlineSpin('s', 'c', 1, HOTLINE_MINI_REELS);
     expect(grid.length).toBe(HOTLINE_MINI_REELS);
+    for (const col of grid) {
+      expect(col.length).toBe(HOTLINE_ROWS);
+      for (const sym of col) {
+        expect(sym).toBeGreaterThanOrEqual(0);
+        expect(sym).toBeLessThan(HOTLINE_MINI_SYMBOLS.length);
+      }
+    }
+    expect(HOTLINE_MINI_SYMBOLS.length).toBe(HOTLINE_SYMBOLS.length);
     expect(getHotlineReelCount('temple-slot')).toBe(HOTLINE_MINI_REELS);
+  });
+
+  it('uses a dedicated 3x3 fixed-line paytable near 97% RTP', () => {
+    const totalWeight = HOTLINE_MINI_SYMBOLS.reduce((sum, symbol) => sum + symbol.weight, 0);
+    const singleLineRtp = HOTLINE_MINI_SYMBOLS.reduce(
+      (sum, symbol) => sum + (symbol.weight / totalWeight) ** 3 * symbol.payout3,
+      0,
+    );
+
+    expect(Number((singleLineRtp * 5).toFixed(4))).toBe(0.9701);
+    expect(HOTLINE_MINI_SYMBOLS.map((symbol) => symbol.payout3)).toEqual([
+      2.1, 3.15, 5.3, 10.6, 22, 125,
+    ]);
   });
 
   it('supports 6x5 mega slot variants', () => {
@@ -268,7 +290,7 @@ describe('hotlineEvaluate', () => {
     expect(line!.count).toBe(3);
     expect(line!.startReel).toBe(0);
     expect(line!.direction).toBe('ltr');
-    expect(totalMultiplier).toBe(HOTLINE_SYMBOLS[5]!.payout3);
+    expect(totalMultiplier).toBe(HOTLINE_MINI_SYMBOLS[5]!.payout3);
   });
 
   it('does not pay 6x5 mega clusters below eight matching symbols', () => {
