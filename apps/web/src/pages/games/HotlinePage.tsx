@@ -328,10 +328,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       const playSpinOrFallback = async (
         grid: number[][],
         lines: HotlineWinLine[],
+        specialSymbols: HotlineSpecialSymbol[] = [],
       ): Promise<void> => {
         const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
         if (scene) {
-          await scene.playSpin(grid, lines, { fast: spinFast });
+          await scene.playSpin(grid, lines, { fast: spinFast, specialSymbols });
           return;
         }
         setMegaFallbackRemoved([]);
@@ -347,11 +348,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         steps: HotlineCascadeStep[],
         finalGrid: number[][],
         onStepWin: (step: HotlineCascadeStep) => MegaFallbackWinPop,
+        specialSymbols: HotlineSpecialSymbol[] = [],
       ): Promise<void> => {
         const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
         if (scene) {
           await scene.playCascadeSpin(steps, finalGrid, {
             fast: spinFast,
+            specialSymbols,
             onStepWin: (step) => void onStepWin(step),
           });
           return;
@@ -359,11 +362,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
         const first = steps[0];
         if (!first) {
-          await playSpinOrFallback(finalGrid, []);
+          await playSpinOrFallback(finalGrid, [], specialSymbols);
           return;
         }
 
-        await playSpinOrFallback(first.grid, first.lines);
+        await playSpinOrFallback(first.grid, first.lines, specialSymbols);
         await playFallbackWinHold(first.removed, onStepWin(first));
 
         let previous = first;
@@ -447,25 +450,34 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         });
       };
 
+      const baseSpecialSymbols = features
+        ? [...features.scatterSymbols, ...features.baseMultiplierSymbols]
+        : [];
+
       if (cascades.length > 0) {
-        await playCascadeOrFallback(cascades, res.data.grid, (step) => {
-          return revealCascadeStep(
-            step,
-            features?.baseAppliedMultiplier ?? 1,
-            features
-              ? {
-                  scatterCount: features.scatterCount,
-                  freeSpinsAwarded: revealedFreeSpinsAwarded,
-                  activeMultiplier: Math.max(1, features.baseMultiplierTotal),
-                  baseMultiplierTotal: features.baseMultiplierTotal,
-                  specialSymbols: [...features.scatterSymbols, ...features.baseMultiplierSymbols],
-                }
-              : {},
-          );
-        });
+        await playCascadeOrFallback(
+          cascades,
+          res.data.grid,
+          (step) => {
+            return revealCascadeStep(
+              step,
+              features?.baseAppliedMultiplier ?? 1,
+              features
+                ? {
+                    scatterCount: features.scatterCount,
+                    freeSpinsAwarded: revealedFreeSpinsAwarded,
+                    activeMultiplier: Math.max(1, features.baseMultiplierTotal),
+                    baseMultiplierTotal: features.baseMultiplierTotal,
+                    specialSymbols: [...features.scatterSymbols, ...features.baseMultiplierSymbols],
+                  }
+                : {},
+            );
+          },
+          baseSpecialSymbols,
+        );
         revealBaseState(res.data.grid);
       } else {
-        await playSpinOrFallback(res.data.grid, res.data.lines);
+        await playSpinOrFallback(res.data.grid, res.data.lines, baseSpecialSymbols);
         revealBaseState(res.data.grid);
       }
       if (features && revealedFreeSpinsAwarded > 0 && freeSpinRounds.length > 0) {
@@ -497,12 +509,17 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         updateLiveMegaRound({ ...freeRoundPatch, grid: round.initialGrid });
 
         if (round.cascades.length > 0) {
-          await playCascadeOrFallback(round.cascades, round.finalGrid, (step) => {
-            return revealCascadeStep(step, round.appliedMultiplier, freeRoundPatch);
-          });
+          await playCascadeOrFallback(
+            round.cascades,
+            round.finalGrid,
+            (step) => {
+              return revealCascadeStep(step, round.appliedMultiplier, freeRoundPatch);
+            },
+            roundSpecialSymbols,
+          );
           updateLiveMegaRound({ ...freeRoundPatch, grid: round.finalGrid });
         } else {
-          await playSpinOrFallback(round.finalGrid, round.lines);
+          await playSpinOrFallback(round.finalGrid, round.lines, roundSpecialSymbols);
           updateLiveMegaRound({ ...freeRoundPatch, grid: round.finalGrid });
         }
 
@@ -1084,8 +1101,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   winPop={megaFallbackWinPop}
                   hidden={sceneReady && !sceneFallback}
                   fast={fastSpin}
+                  specialSymbols={megaDisplaySpecialSymbols}
                 />
-                <MegaSpecialOverlay theme={slotTheme} symbols={megaDisplaySpecialSymbols} />
                 <canvas
                   ref={canvasRef}
                   className={`mega-slot-canvas ${sceneReady && !sceneFallback ? 'mega-slot-canvas--ready' : ''}`}
@@ -1106,7 +1123,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   <div className="slot-bigwin-stage__content">
                     <div className="slot-bigwin-stage__eyebrow">連鎖消除</div>
                     <div className="slot-bigwin-stage__title">恭喜爆分</div>
-                    <div className="slot-bigwin-stage__amount">+{formatAmount(result.profit)}</div>
+                    <div className="slot-bigwin-stage__amount">{formatAmount(result.payout)}</div>
                     <div className="slot-bigwin-stage__meta">
                       {formatMultiplier(resultDisplayMultiplier)}
                       {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
@@ -1304,7 +1321,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 <div className="slot-bigwin-stage__content">
                   <div className="slot-bigwin-stage__eyebrow">連鎖消除</div>
                   <div className="slot-bigwin-stage__title">恭喜爆分</div>
-                  <div className="slot-bigwin-stage__amount">+{formatAmount(result.profit)}</div>
+                  <div className="slot-bigwin-stage__amount">{formatAmount(result.payout)}</div>
                   <div className="slot-bigwin-stage__meta">
                     {formatMultiplier(resultDisplayMultiplier)}
                     {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
@@ -1515,6 +1532,7 @@ function MegaFallbackGrid({
   winPop,
   hidden,
   fast,
+  specialSymbols,
 }: {
   theme: SlotThemeConfig;
   grid: number[][];
@@ -1525,6 +1543,7 @@ function MegaFallbackGrid({
   winPop: MegaFallbackWinPop | null;
   hidden: boolean;
   fast: boolean;
+  specialSymbols: HotlineSpecialSymbol[];
 }) {
   const winningKeys = useMemo(
     () => new Set(winning.map((position) => `${position.reel}:${position.row}`)),
@@ -1534,6 +1553,7 @@ function MegaFallbackGrid({
     () => new Set(removed.map((position) => `${position.reel}:${position.row}`)),
     [removed],
   );
+  const specialByCell = useMemo(() => createSpecialSymbolMap(specialSymbols), [specialSymbols]);
 
   return (
     <div
@@ -1551,13 +1571,16 @@ function MegaFallbackGrid({
             <div className="mega-slot-fallback-reel-track" style={style}>
               {reelStrip.map((symbol, rowIndex) => {
                 const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
-                const symbolImage = getMegaSlotSymbolImage(theme, symbol);
+                const special = spinning
+                  ? undefined
+                  : specialByCell.get(`${reelIndex}:${rowIndex}`);
+                const symbolImage = getMegaSlotDisplayImage(theme, symbol, special);
                 const winning = !spinning && winningKeys.has(`${reelIndex}:${rowIndex}`);
                 const removing = !spinning && removedKeys.has(`${reelIndex}:${rowIndex}`);
                 return (
                   <div
-                    key={`${reelIndex}-${rowIndex}-${symbol}-${spinning ? 'spin' : 'idle'}`}
-                    className={`mega-slot-fallback-symbol ${winning ? 'mega-slot-fallback-symbol--winning' : ''} ${removing ? 'mega-slot-fallback-symbol--removing' : ''}`}
+                    key={`${reelIndex}-${rowIndex}-${symbol}-${specialKey(special)}-${spinning ? 'spin' : 'idle'}`}
+                    className={`mega-slot-fallback-symbol ${special ? `mega-slot-fallback-symbol--${special.type}` : ''} ${winning ? 'mega-slot-fallback-symbol--winning' : ''} ${removing ? 'mega-slot-fallback-symbol--removing' : ''}`}
                     style={
                       {
                         borderColor: `${meta.accentHex}88`,
@@ -1579,7 +1602,14 @@ function MegaFallbackGrid({
                         aria-hidden="true"
                       />
                     )}
-                    <span>{meta.shortLabel}</span>
+                    {special?.type === 'multiplier' ? (
+                      <strong className="mega-slot-fallback-symbol__multiplier">
+                        {special.value ?? 2}×
+                      </strong>
+                    ) : null}
+                    <span>
+                      {special ? (special.type === 'scatter' ? 'SC' : '倍') : meta.shortLabel}
+                    </span>
                   </div>
                 );
               })}
@@ -1622,6 +1652,16 @@ function getMegaSlotSymbolImage(theme: SlotThemeConfig, symbol: number): string 
   return theme.symbolSheet.replace(/symbols\.png$/, `symbol-${symbol}.png`);
 }
 
+function getMegaSlotDisplayImage(
+  theme: SlotThemeConfig,
+  symbol: number,
+  special?: HotlineSpecialSymbol,
+): string | null {
+  if (special?.type === 'scatter') return getMegaSlotScatterImage(theme);
+  if (special?.type === 'multiplier') return getMegaSlotMultiplierImage(theme);
+  return getMegaSlotSymbolImage(theme, symbol);
+}
+
 function getMegaSlotMultiplierImage(theme: SlotThemeConfig): string {
   return theme.symbolSheet.replace(/symbols\.png$/, 'multiplier.png');
 }
@@ -1630,48 +1670,19 @@ function getMegaSlotScatterImage(theme: SlotThemeConfig): string {
   return theme.symbolSheet.replace(/symbols\.png$/, 'scatter.png');
 }
 
-function MegaSpecialOverlay({
-  theme,
-  symbols,
-}: {
-  theme: SlotThemeConfig;
-  symbols: HotlineSpecialSymbol[];
-}) {
-  if (symbols.length === 0) return null;
+function createSpecialSymbolMap(
+  symbols: HotlineSpecialSymbol[],
+): Map<string, HotlineSpecialSymbol> {
+  const map = new Map<string, HotlineSpecialSymbol>();
+  for (const symbol of symbols) {
+    map.set(`${symbol.reel}:${symbol.row}`, symbol);
+  }
+  return map;
+}
 
-  return (
-    <div className="mega-slot-special-overlay" aria-hidden="true">
-      {symbols.map((symbol, index) => {
-        const multiplierImage = getMegaSlotMultiplierImage(theme);
-        const scatterImage = getMegaSlotScatterImage(theme);
-        return (
-          <div
-            key={`${symbol.type}-${symbol.reel}-${symbol.row}-${symbol.value ?? 'free'}-${index}`}
-            className={`mega-slot-special-symbol mega-slot-special-symbol--${symbol.type}`}
-            style={{
-              gridColumn: symbol.reel + 1,
-              gridRow: symbol.row + 1,
-            }}
-          >
-            {symbol.type === 'multiplier' ? (
-              <>
-                <span
-                  className="mega-slot-special-symbol__art"
-                  style={{ backgroundImage: `url(${multiplierImage})` }}
-                />
-                <span className="mega-slot-special-symbol__value">{symbol.value ?? 2}×</span>
-              </>
-            ) : (
-              <span
-                className="mega-slot-special-symbol__art"
-                style={{ backgroundImage: `url(${scatterImage})` }}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
+function specialKey(symbol?: HotlineSpecialSymbol): string {
+  if (!symbol) return '';
+  return `${symbol.type}:${symbol.value ?? ''}`;
 }
 
 function MegaFreeSpinIntroOverlay({ intro }: { intro: MegaFreeSpinIntro }) {

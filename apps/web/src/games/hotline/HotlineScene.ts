@@ -60,6 +60,15 @@ function themeSymbolImage(theme: SlotThemeConfig, symbolIdx: number): string {
   return theme.symbolSheet.replace(/symbols\.png$/, `symbol-${symbolIdx}.png`);
 }
 
+function themeSpecialImage(theme: SlotThemeConfig, type: HotlineSpecialSymbol['type']): string {
+  return theme.symbolSheet.replace(/symbols\.png$/, `${type}.png`);
+}
+
+function specialKey(special?: HotlineSpecialSymbol): string {
+  if (!special) return '';
+  return `${special.type}:${special.value ?? ''}`;
+}
+
 interface HotlineLine {
   lineId?: string;
   path?: number[];
@@ -78,6 +87,11 @@ interface HotlineWinPosition {
   row: number;
 }
 
+interface HotlineSpecialSymbol extends HotlineWinPosition {
+  type: 'scatter' | 'multiplier';
+  value?: number;
+}
+
 interface HotlineCascadeStep {
   index: number;
   grid: number[][];
@@ -89,6 +103,7 @@ interface HotlineCascadeStep {
 interface HotlineCascadePlaybackOptions {
   onStepWin?: (step: HotlineCascadeStep) => void;
   fast?: boolean;
+  specialSymbols?: HotlineSpecialSymbol[];
 }
 
 interface Particle {
@@ -100,7 +115,7 @@ interface Particle {
   gravity: number;
 }
 
-type ReelSymbol = Container & { symbolIndex: number };
+type ReelSymbol = Container & { symbolIndex: number; specialKey?: string };
 
 interface ReelData {
   container: Container;
@@ -120,6 +135,8 @@ export class HotlineScene {
   private backgroundTexture: Texture | null = null;
   private symbolSheetTexture: Texture | null = null;
   private symbolTextures: Array<Texture | null> = [];
+  private scatterTexture: Texture | null = null;
+  private multiplierTexture: Texture | null = null;
 
   private reels: ReelData[] = [];
   private reelsContainer: Container | null = null;
@@ -246,11 +263,18 @@ export class HotlineScene {
     this.backgroundTexture = backgroundTexture;
     this.symbolSheetTexture = symbolSheetTexture;
     if (this.rowCount > ROWS) {
-      this.symbolTextures = await Promise.all(
-        this.theme.symbols.map((_symbol, symbolIdx) =>
-          Assets.load<Texture>(themeSymbolImage(this.theme, symbolIdx)).catch(() => null),
+      const [symbolTextures, scatterTexture, multiplierTexture] = await Promise.all([
+        Promise.all(
+          this.theme.symbols.map((_symbol, symbolIdx) =>
+            Assets.load<Texture>(themeSymbolImage(this.theme, symbolIdx)).catch(() => null),
+          ),
         ),
-      );
+        Assets.load<Texture>(themeSpecialImage(this.theme, 'scatter')).catch(() => null),
+        Assets.load<Texture>(themeSpecialImage(this.theme, 'multiplier')).catch(() => null),
+      ]);
+      this.symbolTextures = symbolTextures;
+      this.scatterTexture = scatterTexture;
+      this.multiplierTexture = multiplierTexture;
       return;
     }
     this.symbolTextures = this.createSymbolTextures(symbolSheetTexture, HOTLINE_SYMBOLS.length);
@@ -359,8 +383,9 @@ export class HotlineScene {
     return c;
   }
 
-  private renderSymbolTile(c: ReelSymbol, symbolIdx: number): void {
+  private renderSymbolTile(c: ReelSymbol, symbolIdx: number, special?: HotlineSpecialSymbol): void {
     c.symbolIndex = symbolIdx;
+    c.specialKey = specialKey(special);
     const oldChildren = c.removeChildren();
     for (const child of oldChildren) child.destroy({ children: true });
 
@@ -368,6 +393,11 @@ export class HotlineScene {
     const meta = getHotlineSymbolMeta(symbolIdx);
     const themeSymbol = this.theme.symbols[symbolIdx] ?? this.theme.symbols[0];
     const color = themeSymbol?.accentValue ?? meta.accentValue;
+
+    if (special) {
+      this.renderSpecialSymbolTile(c, special, color);
+      return;
+    }
 
     // tile 陰影
     const shadow = new Graphics()
@@ -428,6 +458,62 @@ export class HotlineScene {
     label.y = size * 0.3;
     label.alpha = 0.7;
     c.addChild(label);
+  }
+
+  private renderSpecialSymbolTile(
+    c: ReelSymbol,
+    special: HotlineSpecialSymbol,
+    fallbackColor: number,
+  ): void {
+    const size = this.cellSize;
+    const color = special.type === 'scatter' ? COLOR_ACID : COLOR_ICE;
+    const texture = special.type === 'scatter' ? this.scatterTexture : this.multiplierTexture;
+
+    const shadow = new Graphics()
+      .roundRect(-size / 2 + 4 + 1, -size / 2 + 4 + 2, size - 8, size - 8, 12)
+      .fill({ color: COLOR_INK, alpha: 0.18 });
+    c.addChild(shadow);
+
+    const tile = new Graphics()
+      .roundRect(-size / 2 + 3, -size / 2 + 3, size - 6, size - 6, 12)
+      .fill({ color: COLOR_INK, alpha: 0.72 })
+      .stroke({
+        color: special.type === 'scatter' ? fallbackColor : COLOR_ICE,
+        width: 2,
+        alpha: 0.68,
+      });
+    c.addChild(tile);
+
+    if (texture) {
+      const sprite = new Sprite(texture);
+      sprite.anchor.set(0.5);
+      const target = size - 8;
+      const scale = Math.min(target / texture.width, target / texture.height);
+      sprite.scale.set(scale);
+      sprite.alpha = 0.98;
+      c.addChild(sprite);
+    } else {
+      c.addChild(this.createSymbolGlyphGraphic(special.type === 'scatter' ? 5 : 4, size * 0.52));
+    }
+
+    if (special.type === 'multiplier') {
+      const valueStyle = new TextStyle({
+        fontFamily: GAME_FONT_NUM,
+        fontSize: Math.max(14, size * 0.22),
+        fill: 0xffffff,
+        fontWeight: '900',
+        stroke: { color: COLOR_INK, width: 4 },
+      });
+      const value = new Text({ text: `${special.value ?? 2}×`, style: valueStyle });
+      value.anchor.set(0.5);
+      value.y = size * 0.02;
+      c.addChild(value);
+    }
+
+    const shine = new Graphics()
+      .roundRect(-size / 2 + 7, -size / 2 + 7, size - 14, (size - 14) * 0.28, 10)
+      .fill({ color, alpha: 0.09 });
+    c.addChild(shine);
   }
 
   private createSymbolGlyphGraphic(symbolIdx: number, size: number): Container {
@@ -706,6 +792,7 @@ export class HotlineScene {
     this.playbackFast = Boolean(options.fast);
     this.stopAnticipation(false, false);
     this.resetWinLines();
+    const specialByCell = this.createSpecialSymbolMap(options.specialSymbols);
 
     const duration = this.playbackFast ? 0.48 : 1.45;
     const reelDurationGap = this.playbackFast ? 0.045 : 0.16;
@@ -715,6 +802,7 @@ export class HotlineScene {
         reel,
         reelIdx,
         finalGrid[reelIdx]!,
+        this.getSpecialColumn(specialByCell, reelIdx),
         duration + reelIdx * reelDurationGap,
         reelIdx * reelDelayGap,
       ),
@@ -740,26 +828,33 @@ export class HotlineScene {
   ): Promise<void> {
     this.playbackFast = Boolean(options.fast);
     if (cascades.length === 0) {
-      await this.playSpin(finalGrid, [], { fast: this.playbackFast });
+      await this.playSpin(finalGrid, [], {
+        fast: this.playbackFast,
+        specialSymbols: options.specialSymbols,
+      });
       return;
     }
 
     const first = cascades[0]!;
-    await this.playSpin(first.grid, first.lines, { fast: this.playbackFast });
+    await this.playSpin(first.grid, first.lines, {
+      fast: this.playbackFast,
+      specialSymbols: options.specialSymbols,
+    });
     options.onStepWin?.(first);
+    const specialByCell = this.createSpecialSymbolMap(options.specialSymbols);
 
     let previous = first;
     for (let i = 1; i < cascades.length; i += 1) {
       const step = cascades[i]!;
       await this.sleep(this.scaleMs(720));
-      await this.animateCascadeToGrid(step.grid, previous.removed);
+      await this.animateCascadeToGrid(step.grid, previous.removed, specialByCell);
       this.showWinLines(step.lines);
       options.onStepWin?.(step);
       previous = step;
     }
 
     await this.sleep(this.scaleMs(720));
-    await this.animateCascadeToGrid(finalGrid, previous.removed);
+    await this.animateCascadeToGrid(finalGrid, previous.removed, specialByCell);
   }
 
   private sleep(ms: number): Promise<void> {
@@ -780,6 +875,7 @@ export class HotlineScene {
     reel: ReelData,
     reelIndex: number,
     finalColumn: number[],
+    finalSpecials: Array<HotlineSpecialSymbol | undefined>,
     duration: number,
     delay: number,
   ): Promise<void> {
@@ -792,8 +888,12 @@ export class HotlineScene {
       );
       const currentPhase = this.getReelScrollPhase(reel);
       const landingStrip = this.buildLandingStrip(reel, finalColumn, startRow);
+      const landingSpecials = new Map<number, HotlineSpecialSymbol>();
+      finalSpecials.forEach((special, row) => {
+        if (special) landingSpecials.set(FINAL_STOP_ROW + row, special);
+      });
 
-      this.renderReelStrip(reel, landingStrip);
+      this.renderReelStrip(reel, landingStrip, landingSpecials);
       container.y = this.reelY0 - startRow * cellSize + currentPhase;
       container.scale.set(1);
 
@@ -807,7 +907,7 @@ export class HotlineScene {
           container.y = state.y;
         },
         onComplete: () => {
-          this.snapReelToFinal(reel, finalColumn);
+          this.snapReelToFinal(reel, finalColumn, finalSpecials);
           this.playReelStopBounce(container, resolve);
         },
       });
@@ -826,10 +926,15 @@ export class HotlineScene {
     return strip;
   }
 
-  private renderReelStrip(reel: ReelData, strip: number[]): void {
+  private renderReelStrip(
+    reel: ReelData,
+    strip: number[],
+    specialByStripIndex: Map<number, HotlineSpecialSymbol> = new Map(),
+  ): void {
     reel.strip = strip;
     for (let i = 0; i < reel.symbols.length; i += 1) {
       const symbol = reel.symbols[i]!;
+      const special = specialByStripIndex.get(i);
       gsap.killTweensOf(symbol);
       gsap.killTweensOf(symbol.scale);
       symbol.scale.set(1);
@@ -837,10 +942,12 @@ export class HotlineScene {
       symbol.x = reel.cellSize / 2;
       symbol.y = i * reel.cellSize + reel.cellSize / 2;
       const nextSymbol = strip[i] ?? 0;
-      if (symbol.symbolIndex !== nextSymbol) {
-        this.renderSymbolTile(symbol, nextSymbol);
+      const nextSpecialKey = specialKey(special);
+      if (symbol.symbolIndex !== nextSymbol || symbol.specialKey !== nextSpecialKey) {
+        this.renderSymbolTile(symbol, nextSymbol, special);
       } else {
         symbol.symbolIndex = nextSymbol;
+        symbol.specialKey = nextSpecialKey;
       }
     }
   }
@@ -856,6 +963,28 @@ export class HotlineScene {
     if (!first) return 0;
     const phase = first.y - reel.cellSize / 2;
     return Math.max(0, Math.min(reel.cellSize * 0.92, phase));
+  }
+
+  private createSpecialSymbolMap(
+    specialSymbols: HotlineSpecialSymbol[] = [],
+  ): Map<string, HotlineSpecialSymbol> {
+    const map = new Map<string, HotlineSpecialSymbol>();
+    for (const special of specialSymbols) {
+      if (!Number.isInteger(special.reel) || !Number.isInteger(special.row)) continue;
+      if (special.reel < 0 || special.reel >= this.reelCount) continue;
+      if (special.row < 0 || special.row >= this.rowCount) continue;
+      map.set(`${special.reel}:${special.row}`, special);
+    }
+    return map;
+  }
+
+  private getSpecialColumn(
+    specialByCell: Map<string, HotlineSpecialSymbol>,
+    reelIndex: number,
+  ): Array<HotlineSpecialSymbol | undefined> {
+    return Array.from({ length: this.rowCount }, (_unused, row) =>
+      specialByCell.get(`${reelIndex}:${row}`),
+    );
   }
 
   private playReelStopBounce(container: Container, resolve: () => void): void {
@@ -877,6 +1006,7 @@ export class HotlineScene {
   private async animateCascadeToGrid(
     nextGrid: number[][],
     removed: HotlineWinPosition[],
+    specialByCell: Map<string, HotlineSpecialSymbol> = new Map(),
   ): Promise<void> {
     this.resetWinLines();
     const removalTweens: Promise<void>[] = [];
@@ -927,10 +1057,14 @@ export class HotlineScene {
       await Promise.all(removalTweens);
     }
 
-    await this.dropGridIntoPlace(nextGrid, removed);
+    await this.dropGridIntoPlace(nextGrid, removed, specialByCell);
   }
 
-  private dropGridIntoPlace(nextGrid: number[][], removed: HotlineWinPosition[]): Promise<void> {
+  private dropGridIntoPlace(
+    nextGrid: number[][],
+    removed: HotlineWinPosition[],
+    specialByCell: Map<string, HotlineSpecialSymbol> = new Map(),
+  ): Promise<void> {
     const tweens: Promise<void>[] = [];
     const removedByReel = new Map<number, Set<number>>();
     for (const pos of removed) {
@@ -947,7 +1081,10 @@ export class HotlineScene {
         for (let row = 0; row < this.rowCount; row += 1) {
           const sym = reel.symbols[row];
           const nextSymbol = finalColumn[row] ?? sym?.symbolIndex ?? 0;
-          if (sym && sym.symbolIndex !== nextSymbol) this.renderSymbolTile(sym, nextSymbol);
+          const special = specialByCell.get(`${reelIdx}:${row}`);
+          if (sym && (sym.symbolIndex !== nextSymbol || sym.specialKey !== specialKey(special))) {
+            this.renderSymbolTile(sym, nextSymbol, special);
+          }
         }
         this.captureReelOrder(reel);
         continue;
@@ -990,7 +1127,10 @@ export class HotlineScene {
         gsap.killTweensOf(sym);
         gsap.killTweensOf(sym.scale);
         const nextSymbol = finalColumn[row] ?? 0;
-        if (sym.symbolIndex !== nextSymbol) this.renderSymbolTile(sym, nextSymbol);
+        const special = specialByCell.get(`${reelIdx}:${row}`);
+        if (sym.symbolIndex !== nextSymbol || sym.specialKey !== specialKey(special)) {
+          this.renderSymbolTile(sym, nextSymbol, special);
+        }
         const isEntering = row < enteringCount;
         sym.alpha = isEntering ? 0 : 1;
         sym.scale.set(isEntering ? 0.92 : 1);
@@ -1029,14 +1169,22 @@ export class HotlineScene {
     });
   }
 
-  private snapReelToFinal(reel: ReelData, finalColumn: number[]): void {
+  private snapReelToFinal(
+    reel: ReelData,
+    finalColumn: number[],
+    finalSpecials: Array<HotlineSpecialSymbol | undefined> = [],
+  ): void {
     const newStrip: number[] = [];
     for (let i = 0; i < this.rowCount; i += 1) newStrip.push(finalColumn[i] ?? 0);
     for (let i = this.rowCount; i < REEL_STRIP_LEN; i += 1) {
       newStrip.push(this.randomSymbolIndex());
     }
     reel.container.y = this.reelY0;
-    this.renderReelStrip(reel, newStrip);
+    const specialByStripIndex = new Map<number, HotlineSpecialSymbol>();
+    finalSpecials.forEach((special, row) => {
+      if (special) specialByStripIndex.set(row, special);
+    });
+    this.renderReelStrip(reel, newStrip, specialByStripIndex);
   }
 
   private captureReelOrder(reel: ReelData): void {
