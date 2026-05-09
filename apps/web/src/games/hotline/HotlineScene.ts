@@ -130,6 +130,7 @@ interface ReelData {
   container: Container;
   symbols: ReelSymbol[];
   cellSize: number;
+  cellWidth: number;
   strip: number[]; // 滾動用 symbol index 陣列
   stripOffset: number; // 當前偏移
 }
@@ -155,6 +156,7 @@ export class HotlineScene {
   private flashOverlay: Graphics | null = null;
 
   private cellSize = 0;
+  private cellWidth = 0;
   private reelGap = 8;
   private reelX0 = 0;
   private reelY0 = 0;
@@ -210,13 +212,20 @@ export class HotlineScene {
     const padding = isMegaLayout ? Math.max(8, Math.min(16, Math.round(shortSide * 0.035))) : 24;
     this.reelGap = isMegaLayout ? Math.max(4, Math.min(8, Math.round(shortSide * 0.016))) : 8;
 
-    // 計算 reel 尺寸
+    // 計算 reel 尺寸。Mega 盤面使用非正方形 cell，讓 6x5 符號填滿寬版 frame。
     const availableW = width - padding * 2;
-    this.cellSize = Math.min(
-      (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount,
-      (height - padding * 2) / this.rowCount,
-    );
-    const reelsWidth = this.cellSize * this.reelCount + this.reelGap * (this.reelCount - 1);
+    const availableH = height - padding * 2;
+    if (isMegaLayout) {
+      this.cellWidth = (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount;
+      this.cellSize = availableH / this.rowCount;
+    } else {
+      this.cellSize = Math.min(
+        (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount,
+        availableH / this.rowCount,
+      );
+      this.cellWidth = this.cellSize;
+    }
+    const reelsWidth = this.cellWidth * this.reelCount + this.reelGap * (this.reelCount - 1);
     const reelsHeight = this.cellSize * this.rowCount;
     this.reelX0 = (width - reelsWidth) / 2;
     this.reelY0 = (height - reelsHeight) / 2;
@@ -305,21 +314,22 @@ export class HotlineScene {
 
   private createBackground(): void {
     if (!this.app) return;
+    const isMegaLayout = this.rowCount > ROWS;
     const bg = new Graphics()
       .rect(0, 0, this.width, this.height)
-      .fill({ color: COLOR_BG, alpha: 0.92 });
+      .fill({ color: COLOR_BG, alpha: isMegaLayout ? 0.18 : 0.92 });
     this.app.stage.addChild(bg);
 
     if (this.backgroundTexture) {
       const background = new Sprite(this.backgroundTexture);
       fitSpriteCover(background, this.width, this.height);
-      background.alpha = 0.92;
+      background.alpha = isMegaLayout ? 1 : 0.92;
       this.app.stage.addChild(background);
     }
 
     const stageShade = new Graphics()
       .rect(0, 0, this.width, this.height)
-      .fill({ color: 0x020817, alpha: 0.22 });
+      .fill({ color: 0x020817, alpha: isMegaLayout ? 0.06 : 0.22 });
     this.app.stage.addChild(stageShade);
 
     const glow = new Graphics()
@@ -340,12 +350,12 @@ export class HotlineScene {
   private createReel(reelIndex: number): void {
     if (!this.reelsContainer) return;
 
-    const reelX = this.reelX0 + reelIndex * (this.cellSize + this.reelGap);
+    const reelX = this.reelX0 + reelIndex * (this.cellWidth + this.reelGap);
     const reelY = this.reelY0;
 
     // 遮罩（防止符號溢出）
     const mask = new Graphics()
-      .rect(reelX, reelY, this.cellSize, this.cellSize * this.rowCount)
+      .rect(reelX, reelY, this.cellWidth, this.cellSize * this.rowCount)
       .fill({ color: 0xffffff });
     this.reelsContainer.addChild(mask);
 
@@ -364,7 +374,7 @@ export class HotlineScene {
     const symbols: ReelSymbol[] = [];
     for (let i = 0; i < REEL_STRIP_LEN; i += 1) {
       const sym = this.createSymbolTile(strip[i]!);
-      sym.x = this.cellSize / 2;
+      sym.x = this.cellWidth / 2;
       sym.y = i * this.cellSize + this.cellSize / 2;
       reelContainer.addChild(sym);
       symbols.push(sym);
@@ -374,13 +384,14 @@ export class HotlineScene {
       container: reelContainer,
       symbols,
       cellSize: this.cellSize,
+      cellWidth: this.cellWidth,
       strip,
       stripOffset: 0,
     });
 
     // Reel 邊框
     const frame = new Graphics()
-      .roundRect(reelX - 2, reelY - 2, this.cellSize + 4, this.cellSize * this.rowCount + 4, 8)
+      .roundRect(reelX - 2, reelY - 2, this.cellWidth + 4, this.cellSize * this.rowCount + 4, 8)
       .stroke({ color: COLOR_TILE_STROKE, width: 2 });
     this.reelsContainer.addChild(frame);
   }
@@ -398,7 +409,9 @@ export class HotlineScene {
     const oldChildren = c.removeChildren();
     for (const child of oldChildren) child.destroy({ children: true });
 
-    const size = this.cellSize;
+    const width = this.cellWidth;
+    const height = this.cellSize;
+    const size = Math.min(width, height);
     const meta = getHotlineSymbolMeta(symbolIdx);
     const themeSymbol = this.theme.symbols[symbolIdx] ?? this.theme.symbols[0];
     const color = themeSymbol?.accentValue ?? meta.accentValue;
@@ -410,7 +423,7 @@ export class HotlineScene {
 
     // tile 陰影
     const shadow = new Graphics()
-      .roundRect(-size / 2 + 4 + 1, -size / 2 + 4 + 2, size - 8, size - 8, 12)
+      .roundRect(-width / 2 + 5, -height / 2 + 6, width - 8, height - 8, 12)
       .fill({ color: COLOR_INK, alpha: 0.1 });
     c.addChild(shadow);
 
@@ -418,19 +431,20 @@ export class HotlineScene {
     if (symbolTexture) {
       const sprite = new Sprite(symbolTexture);
       sprite.anchor.set(0.5);
-      const target = size - 8;
-      const scale = Math.max(target / symbolTexture.width, target / symbolTexture.height);
+      const targetW = width - 8;
+      const targetH = height - 8;
+      const scale = Math.min(targetW / symbolTexture.width, targetH / symbolTexture.height);
       sprite.scale.set(scale);
       sprite.alpha = 0.98;
       c.addChild(sprite);
 
       const frame = new Graphics()
-        .roundRect(-size / 2 + 3, -size / 2 + 3, size - 6, size - 6, 12)
+        .roundRect(-width / 2 + 3, -height / 2 + 3, width - 6, height - 6, 12)
         .stroke({ color, width: 2, alpha: 0.52 });
       c.addChild(frame);
 
       const shine = new Graphics()
-        .roundRect(-size / 2 + 7, -size / 2 + 7, size - 14, (size - 14) * 0.34, 10)
+        .roundRect(-width / 2 + 7, -height / 2 + 7, width - 14, (height - 14) * 0.34, 10)
         .fill({ color: COLOR_WHITE, alpha: 0.08 });
       c.addChild(shine);
       return;
@@ -438,14 +452,14 @@ export class HotlineScene {
 
     // tile 主體
     const tile = new Graphics()
-      .roundRect(-size / 2 + 4, -size / 2 + 4, size - 8, size - 8, 12)
+      .roundRect(-width / 2 + 4, -height / 2 + 4, width - 8, height - 8, 12)
       .fill({ color: COLOR_TILE_BG })
       .stroke({ color, width: 2, alpha: 0.35 });
     c.addChild(tile);
 
     // tile 頂部高光
     const hl = new Graphics()
-      .roundRect(-size / 2 + 8, -size / 2 + 8, size - 16, (size - 16) * 0.3, 8)
+      .roundRect(-width / 2 + 8, -height / 2 + 8, width - 16, (height - 16) * 0.3, 8)
       .fill({ color, alpha: 0.08 });
     c.addChild(hl);
 
@@ -474,7 +488,9 @@ export class HotlineScene {
     special: HotlineSpecialSymbol,
     fallbackColor: number,
   ): void {
-    const size = this.cellSize;
+    const width = this.cellWidth;
+    const height = this.cellSize;
+    const size = Math.min(width, height);
     const isScatter = special.type === 'scatter';
     const color = isScatter ? COLOR_ACID : COLOR_ICE;
     const texture = special.type === 'scatter' ? this.scatterTexture : this.multiplierTexture;
@@ -482,12 +498,12 @@ export class HotlineScene {
     const strokeColor = isScatter ? COLOR_AMBER : COLOR_ICE;
 
     const shadow = new Graphics()
-      .roundRect(-size / 2 + 4 + 1, -size / 2 + 4 + 2, size - 8, size - 8, 12)
+      .roundRect(-width / 2 + 5, -height / 2 + 6, width - 8, height - 8, 12)
       .fill({ color: COLOR_INK, alpha: 0.18 });
     c.addChild(shadow);
 
     const tile = new Graphics()
-      .roundRect(-size / 2 + 3, -size / 2 + 3, size - 6, size - 6, 12)
+      .roundRect(-width / 2 + 3, -height / 2 + 3, width - 6, height - 6, 12)
       .fill({ color: fillColor, alpha: isScatter ? 0.92 : 0.72 })
       .stroke({
         color: strokeColor,
@@ -498,7 +514,7 @@ export class HotlineScene {
 
     if (isScatter) {
       const bonusPlate = new Graphics()
-        .roundRect(-size / 2 + 9, -size / 2 + 9, size - 18, size - 18, 10)
+        .roundRect(-width / 2 + 9, -height / 2 + 9, width - 18, height - 18, 10)
         .fill({ color: 0x5c2241, alpha: 0.34 })
         .stroke({ color: fallbackColor, width: 1, alpha: 0.56 });
       c.addChild(bonusPlate);
@@ -512,8 +528,9 @@ export class HotlineScene {
     if (texture) {
       const sprite = new Sprite(texture);
       sprite.anchor.set(0.5);
-      const target = size - (isScatter ? 12 : 8);
-      const scale = Math.min(target / texture.width, target / texture.height);
+      const targetW = width - (isScatter ? 12 : 8);
+      const targetH = height - (isScatter ? 12 : 8);
+      const scale = Math.min(targetW / texture.width, targetH / texture.height);
       sprite.scale.set(scale);
       sprite.alpha = 0.98;
       c.addChild(sprite);
@@ -546,12 +563,12 @@ export class HotlineScene {
       });
       const label = new Text({ text: 'BONUS', style: labelStyle });
       label.anchor.set(0.5);
-      label.y = size * 0.34;
+      label.y = height * 0.34;
       c.addChild(label);
     }
 
     const shine = new Graphics()
-      .roundRect(-size / 2 + 7, -size / 2 + 7, size - 14, (size - 14) * 0.28, 10)
+      .roundRect(-width / 2 + 7, -height / 2 + 7, width - 14, (height - 14) * 0.28, 10)
       .fill({ color, alpha: 0.09 });
     c.addChild(shine);
   }
@@ -1000,7 +1017,7 @@ export class HotlineScene {
   ): Promise<void> {
     const reel = this.reels[special.reel];
     const sym = reel?.symbols[special.row];
-    const x = this.reelX0 + special.reel * (this.cellSize + this.reelGap) + this.cellSize / 2;
+    const x = this.reelX0 + special.reel * (this.cellWidth + this.reelGap) + this.cellWidth / 2;
     const y = this.reelY0 + special.row * this.cellSize + this.cellSize / 2;
     const delay = this.scaleSec(index * 0.06);
 
@@ -1157,7 +1174,7 @@ export class HotlineScene {
       gsap.killTweensOf(symbol.scale);
       symbol.scale.set(1);
       symbol.alpha = 1;
-      symbol.x = reel.cellSize / 2;
+      symbol.x = reel.cellWidth / 2;
       symbol.y = i * reel.cellSize + reel.cellSize / 2;
       const nextSymbol = strip[i] ?? 0;
       const nextSpecialKey = specialKey(special);
@@ -1235,7 +1252,7 @@ export class HotlineScene {
       if (!reel || !sym) continue;
       gsap.killTweensOf(sym);
       gsap.killTweensOf(sym.scale);
-      const x = this.reelX0 + pos.reel * (this.cellSize + this.reelGap) + this.cellSize / 2;
+      const x = this.reelX0 + pos.reel * (this.cellWidth + this.reelGap) + this.cellWidth / 2;
       const y = this.reelY0 + pos.row * this.cellSize + this.cellSize / 2;
       this.emitShockwave(
         x,
@@ -1311,7 +1328,7 @@ export class HotlineScene {
             const targetY = row * reel.cellSize + reel.cellSize / 2;
             gsap.killTweensOf(sym);
             gsap.killTweensOf(sym.scale);
-            sym.x = reel.cellSize / 2;
+            sym.x = reel.cellWidth / 2;
             sym.y = targetY - reel.cellSize * (1.3 + row * 0.08);
             sym.alpha = 0;
             sym.scale.set(0.9);
@@ -1363,7 +1380,7 @@ export class HotlineScene {
         const sym = offscreen[i]!;
         gsap.killTweensOf(sym);
         gsap.killTweensOf(sym.scale);
-        sym.x = reel.cellSize / 2;
+        sym.x = reel.cellWidth / 2;
         sym.y = (this.rowCount + i) * reel.cellSize + reel.cellSize / 2;
         sym.alpha = 1;
         sym.scale.set(1);
@@ -1450,7 +1467,7 @@ export class HotlineScene {
     reel.container.y = this.reelY0;
     for (let i = 0; i < ordered.length; i += 1) {
       const symbol = ordered[i]!;
-      symbol.x = reel.cellSize / 2;
+      symbol.x = reel.cellWidth / 2;
       symbol.y = i * reel.cellSize + reel.cellSize / 2;
     }
     reel.symbols = ordered;
@@ -1483,7 +1500,7 @@ export class HotlineScene {
         const reelIdx = startReel + offset;
         return {
           reelIdx,
-          x: this.reelX0 + reelIdx * (this.cellSize + this.reelGap) + this.cellSize / 2,
+          x: this.reelX0 + reelIdx * (this.cellWidth + this.reelGap) + this.cellWidth / 2,
           y: this.reelY0 + path[reelIdx]! * this.cellSize + this.cellSize / 2,
         };
       });
@@ -1614,7 +1631,7 @@ export class HotlineScene {
       const reel = this.reels[pos.reel];
       const sym = reel?.symbols[pos.row];
       if (!reel || !sym) continue;
-      const x = this.reelX0 + pos.reel * (this.cellSize + this.reelGap) + this.cellSize / 2;
+      const x = this.reelX0 + pos.reel * (this.cellWidth + this.reelGap) + this.cellWidth / 2;
       const y = this.reelY0 + pos.row * this.cellSize + this.cellSize / 2;
       const ring = new Graphics();
       ring.roundRect(
@@ -1658,7 +1675,7 @@ export class HotlineScene {
 
     const anchor = positions[Math.floor(positions.length / 2)] ?? positions[0];
     if (anchor) {
-      const x = this.reelX0 + anchor.reel * (this.cellSize + this.reelGap) + this.cellSize / 2;
+      const x = this.reelX0 + anchor.reel * (this.cellWidth + this.reelGap) + this.cellWidth / 2;
       const y = this.reelY0 + anchor.row * this.cellSize + this.cellSize / 2;
       this.emitWinAmountLabel(
         x + this.cellSize * 0.16,
@@ -1773,20 +1790,17 @@ export class HotlineScene {
 
     if (this.winLinesLayer) {
       this.winLinesLayer.clear();
-      const children = this.winLinesLayer.removeChildren();
-      for (const child of children) child.destroy({ children: true });
+      this.destroyLayerChildren(this.winLinesLayer);
     }
     if (this.flashOverlay) {
       gsap.killTweensOf(this.flashOverlay);
       this.flashOverlay.alpha = 0;
     }
     if (this.shockwaves) {
-      const children = this.shockwaves.removeChildren();
-      for (const child of children) child.destroy({ children: true });
+      this.destroyLayerChildren(this.shockwaves);
     }
     if (this.particles) {
-      const children = this.particles.removeChildren();
-      for (const child of children) child.destroy({ children: true });
+      this.destroyLayerChildren(this.particles);
     }
     this.particleList = [];
     for (const reel of this.reels) {
@@ -1795,6 +1809,16 @@ export class HotlineScene {
         sym.scale.set(1);
         sym.alpha = 1;
       }
+    }
+  }
+
+  private destroyLayerChildren(layer: Container): void {
+    const children = layer.removeChildren();
+    for (const child of children) {
+      gsap.killTweensOf(child);
+      const scale = (child as { scale?: unknown }).scale;
+      if (scale) gsap.killTweensOf(scale);
+      if (!(child as { destroyed?: boolean }).destroyed) child.destroy({ children: true });
     }
   }
 
@@ -1810,9 +1834,11 @@ export class HotlineScene {
       delay: this.scaleSec(delay),
       ease: 'power2.out',
       onUpdate: () => {
+        if (ring.destroyed) return;
         ring.clear().circle(x, y, state.r).stroke({ color, width: 3, alpha: state.alpha });
       },
       onComplete: () => {
+        if (ring.destroyed) return;
         this.shockwaves?.removeChild(ring);
         ring.destroy();
       },

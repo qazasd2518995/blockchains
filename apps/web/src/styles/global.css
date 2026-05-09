@@ -422,10 +422,12 @@
 
     .game-fullscreen-shell .game-main-stack > .game-result-card {
       display: flex !important;
+      width: 100% !important;
       height: 50px;
       max-height: 50px;
       flex: 0 0 auto;
       align-items: center;
+      justify-content: center !important;
       overflow: hidden;
       border-radius: 0 !important;
       padding: 0.42rem 0.75rem !important;
@@ -506,6 +508,7 @@
 
     .game-fullscreen-shell .game-main-stack > .slot-result-card > .slot-result-summary {
       width: 100% !important;
+      flex-direction: column !important;
       align-items: center !important;
       justify-content: center !important;
       gap: 0.4rem !important;
@@ -1509,7 +1512,6 @@
 .mega-slot-icon-btn:focus-visible,
 .mega-slot-pill:focus-visible,
 .mega-slot-betbox button:focus-visible,
-.mega-slot-presets button:focus-visible,
 .mega-slot-speed:focus-visible,
 .mega-slot-auto:focus-visible,
 .mega-slot-buy:focus-visible,
@@ -1797,6 +1799,9 @@
   min-height: 0;
   overflow: hidden;
   border-radius: 12px;
+  background:
+    linear-gradient(90deg, rgba(3, 8, 19, 0.8), rgba(3, 8, 19, 0.36), rgba(3, 8, 19, 0.8)),
+    var(--mega-slot-bg) center / cover no-repeat;
   padding: 8px;
 }
 
@@ -1863,7 +1868,10 @@
   overflow: hidden;
   border-radius: 10px;
   margin-top: 8px;
-  background: rgba(3, 8, 19, 0.74);
+  background:
+    radial-gradient(circle at 50% 48%, rgba(3, 8, 19, 0.18), rgba(3, 8, 19, 0.72) 74%),
+    linear-gradient(90deg, rgba(3, 8, 19, 0.32), rgba(3, 8, 19, 0.06), rgba(3, 8, 19, 0.32)),
+    var(--mega-slot-bg) center / cover no-repeat;
   box-shadow:
     inset 0 0 0 2px rgba(243, 214, 125, 0.18),
     inset 0 0 54px rgba(0, 0, 0, 0.42);
@@ -1883,6 +1891,8 @@
   display: block;
   width: 100% !important;
   height: 100% !important;
+  border-radius: inherit;
+  background: inherit;
   opacity: 0;
   transition: opacity 180ms ease;
 }
@@ -2497,8 +2507,7 @@
 .mega-slot-controls {
   display: grid;
   grid-template-columns:
-    minmax(96px, 0.8fr) minmax(96px, 0.8fr) minmax(150px, 1fr) minmax(220px, 1.2fr)
-    minmax(320px, 1.2fr);
+    minmax(96px, 0.8fr) minmax(96px, 0.8fr) minmax(150px, 1fr) minmax(420px, 1.9fr);
   align-items: center;
   gap: 8px;
   min-height: 0;
@@ -2538,8 +2547,7 @@
   align-items: center;
 }
 
-.mega-slot-betbox button,
-.mega-slot-presets button {
+.mega-slot-betbox button {
   min-width: 0;
   height: 44px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -2550,8 +2558,7 @@
   color: rgba(255, 255, 255, 0.72);
 }
 
-.mega-slot-betbox button:last-child,
-.mega-slot-presets button:last-child {
+.mega-slot-betbox button:last-child {
   border-color: rgba(125, 211, 252, 0.42);
   background: rgba(20, 91, 109, 0.7);
   color: #8fe7ff;
@@ -2578,14 +2585,7 @@
   outline-offset: 2px;
 }
 
-.mega-slot-presets {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-}
-
 .mega-slot-betbox button:disabled,
-.mega-slot-presets button:disabled,
 .mega-slot-speed:disabled,
 .mega-slot-auto:disabled,
 .mega-slot-buy:disabled,
@@ -4381,8 +4381,8 @@
 
   .mega-slot-controls {
     grid-template-columns:
-      minmax(74px, 0.75fr) minmax(74px, 0.75fr) minmax(128px, 1fr) minmax(176px, 1.25fr)
-      minmax(292px, 1.35fr);
+      minmax(74px, 0.75fr) minmax(74px, 0.75fr) minmax(128px, 1fr)
+      minmax(292px, 1.7fr);
     gap: 4px;
     border-radius: 10px;
     padding: 3px 4px;
@@ -4401,8 +4401,7 @@
     gap: 4px;
   }
 
-  .mega-slot-betbox button,
-  .mega-slot-presets button {
+  .mega-slot-betbox button {
     height: 40px;
     font-size: 10px;
   }
@@ -4411,10 +4410,6 @@
     height: 40px;
     padding: 0 6px;
     font-size: 16px;
-  }
-
-  .mega-slot-presets {
-    gap: 4px;
   }
 
   .mega-slot-action-stack {
@@ -4488,10 +4483,6 @@
     gap: 4px;
   }
 
-  .mega-slot-presets {
-    display: none;
-  }
-
   .mega-slot-controls {
     grid-template-columns: minmax(76px, 0.7fr) minmax(132px, 0.95fr) minmax(288px, 1.8fr);
   }
@@ -4506,8 +4497,8 @@
 
   .slot-auto-modal__panel {
     display: flex;
-    width: 100%;
-    max-height: min(82svh, 560px);
+    width: min(100%, 430px);
+    max-height: min(76svh, 520px);
     flex-direction: column;
     overflow: hidden;
     border-radius: 18px 18px 0 0;
@@ -4536,7 +4527,7 @@
 
   .slot-auto-modal__body {
     flex: 1 1 auto;
-    gap: 10px;
+    gap: 8px;
     overflow-y: auto;
     padding: 10px 12px;
     overscroll-behavior: contain;
@@ -4548,7 +4539,7 @@
   }
 
   .slot-auto-field input {
-    min-height: 38px;
+    min-height: 36px;
     border-radius: 10px;
     padding: 0 10px;
     font-size: 15px;
@@ -4559,7 +4550,7 @@
   }
 
   .slot-auto-presets button {
-    min-height: 34px;
+    min-height: 32px;
     border-radius: 10px;
   }
 
@@ -4570,7 +4561,7 @@
   }
 
   .slot-auto-switch {
-    min-height: 40px;
+    min-height: 36px;
     gap: 7px;
     padding: 0 9px;
     font-size: 11px;

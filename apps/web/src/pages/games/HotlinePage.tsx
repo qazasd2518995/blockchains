@@ -51,8 +51,6 @@ const BIG_WIN_MULTIPLIER = 20;
 const MEGA_MAX_TOTAL_MULTIPLIER = 1000;
 const MEGA_FREE_SPIN_INTRO_MS = 1600;
 const MEGA_FREE_SPIN_RETRIGGER_MS = 1300;
-const MEGA_PRESETS = [1, 10, 100, 1000];
-
 interface LiveMegaRoundState {
   payout: number;
   multiplier: number;
@@ -1302,25 +1300,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 disabled={controlsLocked}
               >
                 2×
-              </button>
-            </div>
-            <div className="mega-slot-presets">
-              {MEGA_PRESETS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setMegaAmount(preset)}
-                  disabled={controlsLocked || (!!user && preset > balance)}
-                >
-                  {preset}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setMegaAmount(balance)}
-                disabled={controlsLocked || !user}
-              >
-                最大
               </button>
             </div>
             <div className="mega-slot-action-stack">
