@@ -170,14 +170,46 @@ export function CrashPage({ config }: Props) {
 
   // Derive title/desc from i18n per gameId
   const titleMap: Record<string, { title: string; suffix: string; desc: string }> = {
-    rocket: { title: t.games.crash.rocketTitle, suffix: t.games.crash.defaultSuffix, desc: t.games.crash.descRocket },
-    aviator: { title: t.games.crash.aviatorTitle, suffix: t.games.crash.defaultSuffix, desc: t.games.crash.descAviator },
-    'space-fleet': { title: t.games.crash.fleetTitle, suffix: t.games.crash.fleetSuffix, desc: t.games.crash.descFleet },
-    jetx: { title: t.games.crash.jetxTitle, suffix: t.games.crash.jetxSuffix, desc: t.games.crash.descJetx },
-    balloon: { title: t.games.crash.balloonTitle, suffix: t.games.crash.defaultSuffix, desc: t.games.crash.descBalloon },
-    jetx3: { title: t.games.crash.jetx3Title, suffix: t.games.crash.jetx3Suffix, desc: t.games.crash.descJetx3 },
-    'double-x': { title: t.games.crash.doubleTitle, suffix: t.games.crash.doubleSuffix, desc: t.games.crash.descDouble },
-    'plinko-x': { title: t.games.crash.plinkoXTitle, suffix: t.games.crash.plinkoXSuffix, desc: t.games.crash.descPlinkoX },
+    rocket: {
+      title: t.games.crash.rocketTitle,
+      suffix: t.games.crash.defaultSuffix,
+      desc: t.games.crash.descRocket,
+    },
+    aviator: {
+      title: t.games.crash.aviatorTitle,
+      suffix: t.games.crash.defaultSuffix,
+      desc: t.games.crash.descAviator,
+    },
+    'space-fleet': {
+      title: t.games.crash.fleetTitle,
+      suffix: t.games.crash.fleetSuffix,
+      desc: t.games.crash.descFleet,
+    },
+    jetx: {
+      title: t.games.crash.jetxTitle,
+      suffix: t.games.crash.jetxSuffix,
+      desc: t.games.crash.descJetx,
+    },
+    balloon: {
+      title: t.games.crash.balloonTitle,
+      suffix: t.games.crash.defaultSuffix,
+      desc: t.games.crash.descBalloon,
+    },
+    jetx3: {
+      title: t.games.crash.jetx3Title,
+      suffix: t.games.crash.jetx3Suffix,
+      desc: t.games.crash.descJetx3,
+    },
+    'double-x': {
+      title: t.games.crash.doubleTitle,
+      suffix: t.games.crash.doubleSuffix,
+      desc: t.games.crash.descDouble,
+    },
+    'plinko-x': {
+      title: t.games.crash.plinkoXTitle,
+      suffix: t.games.crash.plinkoXSuffix,
+      desc: t.games.crash.descPlinkoX,
+    },
   };
   const meta = titleMap[config.gameId] ?? {
     title: config.gameId,
@@ -205,9 +237,7 @@ export function CrashPage({ config }: Props) {
       if (result.newBalance) {
         setBalance(result.newBalance);
       } else if (Number.isFinite(payoutNumber)) {
-        const currentBalance = Number.parseFloat(
-          useAuthStore.getState().user?.balance ?? '0',
-        );
+        const currentBalance = Number.parseFloat(useAuthStore.getState().user?.balance ?? '0');
         if (Number.isFinite(currentBalance)) {
           setBalance((currentBalance + payoutNumber).toFixed(2));
         }
@@ -215,18 +245,20 @@ export function CrashPage({ config }: Props) {
 
       sceneRef.current?.celebrateCashout(payoutMult);
       sceneRef.current?.playWinFx(payoutMult, true);
-      setMyHistory((prev) => [
-        {
-          id: `${Date.now()}-${Math.random()}`,
-          timestamp: Date.now(),
-          betAmount: bet.amount,
-          multiplier: payoutMult,
-          payout: Number.isFinite(payoutNumber) ? payoutNumber : bet.amount * payoutMult,
-          won: true,
-          detail: `Cashed @ ${payoutMult.toFixed(2)}×`,
-        },
-        ...prev,
-      ].slice(0, 30));
+      setMyHistory((prev) =>
+        [
+          {
+            id: `${Date.now()}-${Math.random()}`,
+            timestamp: Date.now(),
+            betAmount: bet.amount,
+            multiplier: payoutMult,
+            payout: Number.isFinite(payoutNumber) ? payoutNumber : bet.amount * payoutMult,
+            won: true,
+            detail: `Cashed @ ${payoutMult.toFixed(2)}×`,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
       return true;
     },
     [setBalance],
@@ -299,18 +331,20 @@ export function CrashPage({ config }: Props) {
       // 玩家本局有下注但沒 cashout → 記為輸局
       setMyBet((b) => {
         if (b && !b.cashed) {
-          setMyHistory((prev) => [
-            {
-              id: `${Date.now()}-${Math.random()}`,
-              timestamp: Date.now(),
-              betAmount: b.amount,
-              multiplier: 0,
-              payout: 0,
-              won: false,
-              detail: `Crashed @ ${payload.finalMultiplier.toFixed(2)}×`,
-            },
-            ...prev,
-          ].slice(0, 30));
+          setMyHistory((prev) =>
+            [
+              {
+                id: `${Date.now()}-${Math.random()}`,
+                timestamp: Date.now(),
+                betAmount: b.amount,
+                multiplier: 0,
+                payout: 0,
+                won: false,
+                detail: `Crashed @ ${payload.finalMultiplier.toFixed(2)}×`,
+              },
+              ...prev,
+            ].slice(0, 30),
+          );
         }
         return b;
       });
@@ -371,7 +405,8 @@ export function CrashPage({ config }: Props) {
       'bet:place',
       {
         amount,
-        autoCashOut: Number.isFinite(autoCO) && autoCO >= MIN_CASHOUT_MULTIPLIER ? autoCO : undefined,
+        autoCashOut:
+          Number.isFinite(autoCO) && autoCO >= MIN_CASHOUT_MULTIPLIER ? autoCO : undefined,
       },
       (res: { ok: boolean; error?: string; newBalance?: string }) => {
         if (!res.ok) {
@@ -399,7 +434,13 @@ export function CrashPage({ config }: Props) {
     socket.emit(
       'bet:cashout',
       {},
-      (res: { ok: boolean; error?: string; payout?: string; newBalance?: string; multiplier?: number }) => {
+      (res: {
+        ok: boolean;
+        error?: string;
+        payout?: string;
+        newBalance?: string;
+        multiplier?: number;
+      }) => {
         if (!res.ok) {
           if (res.error?.toLowerCase().includes('no active bet') && myBetRef.current?.cashed) {
             setError(null);
@@ -420,6 +461,8 @@ export function CrashPage({ config }: Props) {
   };
 
   const controlsLocked = status === 'BETTING' && Boolean(myBet);
+  const liveCashoutPayout =
+    status === 'RUNNING' && myBet && !myBet.cashed ? myBet.amount * multiplier : 0;
 
   return (
     <div>
@@ -439,7 +482,9 @@ export function CrashPage({ config }: Props) {
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">{meta.title}</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">{meta.suffix}</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">{meta.title}</span>
+              <span className="ml-2 text-white/40">·</span>
+              <span className="ml-2 text-white/55 uppercase">{meta.suffix}</span>
               <div className="flex items-center gap-3 text-white/72">
                 {status === 'BETTING' && (
                   <span className="text-[#7DD3FC]">
@@ -486,8 +531,8 @@ export function CrashPage({ config }: Props) {
                     m >= 10
                       ? 'border-neon-acid/40 bg-neon-acid/10 text-[#7DD3FC]'
                       : m >= 2
-                      ? 'border-neon-toxic/30 bg-neon-toxic/5 text-[#6EE7B7]'
-                      : 'border-neon-ember/30 bg-neon-ember/5 text-[#FCA5A5]'
+                        ? 'border-neon-toxic/30 bg-neon-toxic/5 text-[#6EE7B7]'
+                        : 'border-neon-ember/30 bg-neon-ember/5 text-[#FCA5A5]'
                   }`}
                 >
                   {m.toFixed(2)}×
@@ -547,22 +592,25 @@ export function CrashPage({ config }: Props) {
                   disabled={multiplier < MIN_CASHOUT_MULTIPLIER}
                   className="btn-acid w-full py-4 text-base"
                 >
-                  ⇧ {t.games.crash.cashoutAt} {formatMultiplier(multiplier)}
+                  <span className="flex flex-col items-center justify-center gap-1 leading-tight">
+                    <span>
+                      ⇧ {t.games.crash.cashoutAt} {formatMultiplier(multiplier)}
+                    </span>
+                    <strong className="data-num text-xl text-white">
+                      {formatAmount(liveCashoutPayout)}
+                    </strong>
+                  </span>
                 </button>
               )}
               {myBet && myBet.cashed && (
                 <div className="game-result-card game-result-card-win text-center">
-                  <div className="font-display text-xl text-[#7DD3FC]">
-                    {t.games.crash.secured}
-                  </div>
+                  <div className="font-display text-xl text-[#7DD3FC]">{t.games.crash.secured}</div>
                   <div className="data-num text-[11px] text-white/75">+{myBet.payout}</div>
                 </div>
               )}
               {status === 'CRASHED' && myBet && !myBet.cashed && (
                 <div className="game-result-card game-result-card-loss text-center">
-                  <div className="font-display text-xl text-[#FCA5A5]">
-                    {t.games.crash.busted}
-                  </div>
+                  <div className="font-display text-xl text-[#FCA5A5]">{t.games.crash.busted}</div>
                 </div>
               )}
               {status === 'BETTING' && myBet && (
@@ -577,10 +625,16 @@ export function CrashPage({ config }: Props) {
               )}
               <div className="game-balance-strip mt-3">
                 <span>
-                  {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
+                  {t.bet.balance}{' '}
+                  <span className="data-num ml-1 text-white">
+                    {user ? formatAmount(balance) : '登入後顯示'}
+                  </span>
                 </span>
                 <span>
-                  MULTI <span className="data-num ml-1 text-[#7DD3FC]">{formatMultiplier(multiplier)}</span>
+                  MULTI{' '}
+                  <span className="data-num ml-1 text-[#7DD3FC]">
+                    {formatMultiplier(multiplier)}
+                  </span>
                 </span>
               </div>
             </div>

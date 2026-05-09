@@ -916,19 +916,6 @@ export class HotlineScene {
 
     await this.sleep(this.scaleMs(720));
     await this.animateCascadeToGrid(finalGrid, previous.removed, finalSpecialByCell);
-    const multiplierSymbols = finalSpecialSymbols.filter((symbol) => symbol.type === 'multiplier');
-    if (multiplierSymbols.length > 0) {
-      const multiplierTotal = multiplierSymbols.reduce(
-        (sum, symbol) => sum + (symbol.value ?? 0),
-        0,
-      );
-      await this.highlightSpecialSymbols(multiplierSymbols, {
-        fast: this.playbackFast,
-        type: 'multiplier',
-        label: `倍數啟動 ×${multiplierTotal}`,
-        multiplierTotal,
-      });
-    }
   }
 
   async highlightSpecialSymbols(

@@ -78,6 +78,11 @@ interface MegaFallbackWinPop {
   meta: string;
 }
 
+interface MegaMultiplierActivation {
+  symbols: HotlineSpecialSymbol[];
+  total: number;
+}
+
 interface SpinOptions {
   amountOverride?: number;
   balanceOverride?: number;
@@ -142,6 +147,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [megaFallbackSpinSpecialSymbols, setMegaFallbackSpinSpecialSymbols] = useState<
     HotlineSpecialSymbol[]
   >([]);
+  const [megaFreeSpinAwaitingClick, setMegaFreeSpinAwaitingClick] = useState(false);
   const [autoSpinOpen, setAutoSpinOpen] = useState(false);
   const [autoSpinSettings, setAutoSpinSettings] = useState<AutoSpinSettings>(() =>
     createDefaultAutoSpinSettings(10),
@@ -156,6 +162,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
   const autoSpinStopRequestedRef = useRef(false);
+  const megaFreeSpinContinueRef = useRef<(() => void) | null>(null);
   const fastSpinRef = useRef(false);
   const fallbackGrid = useMemo(() => createFallbackGrid(slotTheme), [slotTheme]);
   const fallbackJackpotValues = useMemo(() => createJackpotValues(slotTheme.id), [slotTheme.id]);
@@ -172,6 +179,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   useEffect(() => {
     return () => {
       autoSpinStopRequestedRef.current = true;
+      megaFreeSpinContinueRef.current = null;
     };
   }, []);
 
@@ -303,6 +311,30 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setMegaFreeSpinIntro(null);
   };
 
+  const continueMegaFreeSpin = (): void => {
+    const resume = megaFreeSpinContinueRef.current;
+    if (!resume) return;
+    megaFreeSpinContinueRef.current = null;
+    setMegaFreeSpinAwaitingClick(false);
+    resume();
+  };
+
+  const waitForMegaFreeSpinClick = (autoPlay: boolean): Promise<void> => {
+    if (autoPlay) return Promise.resolve();
+    setMegaFreeSpinAwaitingClick(true);
+    return new Promise((resolve) => {
+      megaFreeSpinContinueRef.current = resolve;
+    });
+  };
+
+  const handleMegaSpinClick = (): void => {
+    if (megaFreeSpinAwaitingClick) {
+      continueMegaFreeSpin();
+      return;
+    }
+    void spin();
+  };
+
   const spin = async (options: SpinOptions = {}): Promise<HotlineBetResult | null> => {
     if (busy && !options.autoSpin) return null;
     if (!requireLogin()) return null;
@@ -323,6 +355,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setMegaFallbackDropping(false);
     setMegaFallbackWinPop(null);
     setMegaFallbackSpinSpecialSymbols([]);
+    setMegaFreeSpinAwaitingClick(false);
+    megaFreeSpinContinueRef.current = null;
     setDismissedBigWinBetId(null);
     setError(null);
 
@@ -357,6 +391,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       let revealedFreeMultiplierBank = 0;
       let revealedMultiplier = 0;
       let revealedCascadeCount = 0;
+      const baseMultiplierActivation = createMultiplierActivation(
+        features?.baseMultiplierSymbols ?? [],
+        features?.baseAppliedMultiplier ?? 1,
+        cascades,
+      );
+      const baseActivatedMultiplierTotal = getActivatedBaseMultiplierTotal(features);
+      const baseCascadeDisplayMultiplier = baseMultiplierActivation
+        ? 1
+        : (features?.baseAppliedMultiplier ?? 1);
 
       const playSpinOrFallback = async (
         grid: number[][],
@@ -410,6 +453,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         onStepWin: (step: HotlineCascadeStep) => MegaFallbackWinPop,
         specialSymbols: HotlineSpecialSymbol[] = [],
         finalSpecialSymbols: HotlineSpecialSymbol[] = specialSymbols,
+        multiplierActivation?: MegaMultiplierActivation,
+        onMultiplierActivated?: () => void,
       ): Promise<void> => {
         const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
         if (scene) {
@@ -420,6 +465,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             payoutAmount: baseBetAmount,
             onStepWin: (step) => void onStepWin(step),
           });
+          if (multiplierActivation) {
+            await scene.highlightSpecialSymbols(multiplierActivation.symbols, {
+              fast: spinFast,
+              type: 'multiplier',
+              label: `倍數啟動 ×${multiplierActivation.total}`,
+              multiplierTotal: multiplierActivation.total,
+            });
+            onMultiplierActivated?.();
+          }
           return;
         }
 
@@ -441,21 +495,18 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         }
 
         await playFallbackCascadeDrop(previous.removed, finalGrid, finalSpecialSymbols);
-        const multiplierSymbols = finalSpecialSymbols.filter(
-          (symbol) => symbol.type === 'multiplier',
-        );
-        if (multiplierSymbols.length > 0) {
-          const multiplierTotal = sumSpecialSymbolValues(multiplierSymbols);
+        if (multiplierActivation) {
           await playSpecialHighlightOrFallback(
-            multiplierSymbols,
+            multiplierActivation.symbols,
             'multiplier',
-            `倍數啟動 ×${multiplierTotal}`,
+            `倍數啟動 ×${multiplierActivation.total}`,
             {
               label: '倍數啟動',
-              amount: `×${multiplierTotal}`,
-              meta: '倍數符號啟動',
+              amount: `×${multiplierActivation.total}`,
+              meta: '本輪消除贏分套用倍數',
             },
           );
+          onMultiplierActivated?.();
         }
         updateLiveMegaRound({ grid: finalGrid, specialSymbols: finalSpecialSymbols });
       };
@@ -489,11 +540,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
       const revealCascadeStep = (
         step: HotlineCascadeStep,
-        appliedMultiplier: number,
+        displayedAppliedMultiplier: number,
         patch: Partial<LiveMegaRoundState>,
       ): MegaFallbackWinPop => {
         revealedCascadeCount += 1;
-        const appliedStepMultiplier = roundMegaMultiplier(step.multiplier * appliedMultiplier);
+        const appliedStepMultiplier = roundMegaMultiplier(
+          step.multiplier * displayedAppliedMultiplier,
+        );
         revealedMultiplier = roundMegaMultiplier(revealedMultiplier + appliedStepMultiplier);
         updateLiveMegaRound({
           ...patch,
@@ -507,11 +560,36 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           meta: [
             `${step.removed.length} 個符號`,
             formatMultiplier(step.multiplier),
-            appliedMultiplier > 1 ? `倍數 ${appliedMultiplier}×` : '',
+            displayedAppliedMultiplier > 1 ? `倍數 ${displayedAppliedMultiplier}×` : '',
           ]
             .filter(Boolean)
             .join(' · '),
         };
+      };
+
+      const applyActivatedMultiplierToRevealedWin = (
+        baseRoundMultiplier: number,
+        displayedAppliedMultiplier: number,
+        targetAppliedMultiplier: number,
+        patch: Partial<LiveMegaRoundState>,
+      ): void => {
+        const displayedRoundMultiplier = roundMegaMultiplier(
+          baseRoundMultiplier * displayedAppliedMultiplier,
+        );
+        const targetRoundMultiplier = roundMegaMultiplier(
+          baseRoundMultiplier * targetAppliedMultiplier,
+        );
+        const multiplierDelta = roundMegaMultiplier(
+          Math.max(0, targetRoundMultiplier - displayedRoundMultiplier),
+        );
+        if (multiplierDelta > 0) {
+          revealedMultiplier = roundMegaMultiplier(revealedMultiplier + multiplierDelta);
+        }
+        updateLiveMegaRound({
+          ...patch,
+          multiplier: revealedMultiplier,
+          payout: roundMegaPayout(baseBetAmount, revealedMultiplier),
+        });
       };
 
       const revealBaseState = (grid: number[][]): void => {
@@ -524,8 +602,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           freeSpinMode: false,
           scatterCount: features.scatterCount,
           freeSpinsAwarded: revealedFreeSpinsAwarded,
-          activeMultiplier: Math.max(1, features.baseMultiplierTotal),
-          baseMultiplierTotal: features.baseMultiplierTotal,
+          activeMultiplier: Math.max(1, baseActivatedMultiplierTotal),
+          baseMultiplierTotal: baseActivatedMultiplierTotal,
           specialSymbols: [...features.scatterSymbols, ...features.baseMultiplierSymbols],
         });
       };
@@ -541,19 +619,40 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           (step) => {
             return revealCascadeStep(
               step,
-              features?.baseAppliedMultiplier ?? 1,
+              baseCascadeDisplayMultiplier,
               features
                 ? {
                     scatterCount: features.scatterCount,
                     freeSpinsAwarded: revealedFreeSpinsAwarded,
-                    activeMultiplier: Math.max(1, features.baseMultiplierTotal),
-                    baseMultiplierTotal: features.baseMultiplierTotal,
+                    activeMultiplier: baseMultiplierActivation
+                      ? 1
+                      : Math.max(1, baseActivatedMultiplierTotal),
+                    baseMultiplierTotal: baseMultiplierActivation
+                      ? 0
+                      : baseActivatedMultiplierTotal,
                   }
                 : {},
             );
           },
           [],
           baseSpecialSymbols,
+          baseMultiplierActivation,
+          baseMultiplierActivation
+            ? () =>
+                applyActivatedMultiplierToRevealedWin(
+                  sumCascadeMultipliers(cascades),
+                  baseCascadeDisplayMultiplier,
+                  features?.baseAppliedMultiplier ?? 1,
+                  {
+                    grid: res.data.grid,
+                    scatterCount: features?.scatterCount ?? 0,
+                    freeSpinsAwarded: revealedFreeSpinsAwarded,
+                    activeMultiplier: Math.max(1, baseActivatedMultiplierTotal),
+                    baseMultiplierTotal: baseActivatedMultiplierTotal,
+                    specialSymbols: baseSpecialSymbols,
+                  },
+                )
+            : undefined,
         );
         revealBaseState(res.data.grid);
       } else {
@@ -583,21 +682,33 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         );
       }
       for (const round of freeSpinRounds) {
+        await waitForMegaFreeSpinClick(Boolean(options.autoSpin));
         await delay(scaleSpinDelay(360, spinFast));
-        revealedFreeMultiplierBank = roundMegaMultiplier(
-          revealedFreeMultiplierBank + round.multiplierTotal,
+        const previousFreeMultiplierBank = revealedFreeMultiplierBank;
+        const roundHasSymbolClear = hasCascadeSymbolClear(round.cascades);
+        const nextFreeMultiplierBank = roundMegaMultiplier(
+          revealedFreeMultiplierBank + (roundHasSymbolClear ? round.multiplierTotal : 0),
         );
+        const freeRoundMultiplierActivation = createMultiplierActivation(
+          round.multiplierSymbols,
+          Math.max(1, nextFreeMultiplierBank),
+          round.cascades,
+        );
+        const freeRoundDisplayMultiplier = freeRoundMultiplierActivation
+          ? Math.max(1, previousFreeMultiplierBank)
+          : Math.max(1, nextFreeMultiplierBank);
         const roundSpecialSymbols = [...round.scatterSymbols, ...round.multiplierSymbols];
         const freeRoundPatch: Partial<LiveMegaRoundState> = {
           freeSpinsPlayed: round.index + 1,
           freeSpinsAwarded: revealedFreeSpinsAwarded,
           freeSpinMode: true,
-          activeMultiplier: Math.max(1, revealedFreeMultiplierBank),
+          activeMultiplier: Math.max(1, previousFreeMultiplierBank),
           scatterCount: 0,
           specialSymbols: [],
         };
         const freeRoundFinalPatch: Partial<LiveMegaRoundState> = {
           ...freeRoundPatch,
+          activeMultiplier: Math.max(1, nextFreeMultiplierBank),
           scatterCount: round.scatterSymbols.length,
           specialSymbols: roundSpecialSymbols,
         };
@@ -608,14 +719,30 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             round.cascades,
             round.finalGrid,
             (step) => {
-              return revealCascadeStep(step, round.appliedMultiplier, freeRoundPatch);
+              return revealCascadeStep(step, freeRoundDisplayMultiplier, freeRoundPatch);
             },
             [],
             roundSpecialSymbols,
+            freeRoundMultiplierActivation,
+            freeRoundMultiplierActivation
+              ? () => {
+                  revealedFreeMultiplierBank = nextFreeMultiplierBank;
+                  applyActivatedMultiplierToRevealedWin(
+                    sumCascadeMultipliers(round.cascades),
+                    freeRoundDisplayMultiplier,
+                    Math.max(1, nextFreeMultiplierBank),
+                    { ...freeRoundFinalPatch, grid: round.finalGrid },
+                  );
+                }
+              : undefined,
           );
+          if (!freeRoundMultiplierActivation) {
+            revealedFreeMultiplierBank = nextFreeMultiplierBank;
+          }
           updateLiveMegaRound({ ...freeRoundFinalPatch, grid: round.finalGrid });
         } else {
           await playSpinOrFallback(round.finalGrid, round.lines, roundSpecialSymbols);
+          revealedFreeMultiplierBank = nextFreeMultiplierBank;
           updateLiveMegaRound({ ...freeRoundFinalPatch, grid: round.finalGrid });
         }
 
@@ -655,6 +782,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       const totalCascadeCount =
         cascades.length + freeSpinRounds.reduce((sum, round) => sum + round.cascades.length, 0);
       sceneRef.current?.playWinFx(displayMultiplier, profitValue >= 0);
+      const finalBaseActivatedMultiplierTotal = getActivatedBaseMultiplierTotal(features);
       updateLiveMegaRound({
         payout: payoutValue,
         multiplier: displayMultiplier,
@@ -665,9 +793,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         activeMultiplier: Math.max(
           1,
           features?.freeSpinMultiplierBank ?? 0,
-          features?.baseMultiplierTotal ?? 0,
+          finalBaseActivatedMultiplierTotal,
         ),
-        baseMultiplierTotal: features?.baseMultiplierTotal ?? 0,
+        baseMultiplierTotal: finalBaseActivatedMultiplierTotal,
         scatterCount: features?.scatterCount ?? 0,
         specialSymbols: getFinalMegaSpecialSymbols(features),
         grid: getFinalMegaGrid(res.data, fallbackGrid),
@@ -706,6 +834,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       setMegaFallbackDropping(false);
       setMegaFallbackWinPop(null);
       setMegaFallbackSpinSpecialSymbols([]);
+      setMegaFreeSpinAwaitingClick(false);
+      megaFreeSpinContinueRef.current = null;
       setError(extractApiError(err).message);
       return null;
     } finally {
@@ -718,6 +848,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       setMegaFallbackDropping(false);
       setMegaFallbackWinPop(null);
       setMegaFallbackSpinSpecialSymbols([]);
+      setMegaFreeSpinAwaitingClick(false);
+      megaFreeSpinContinueRef.current = null;
     }
   };
 
@@ -835,6 +967,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const resultProfit = result ? Number.parseFloat(result.profit) : 0;
   const resultMultiplier = result?.multiplier ?? 0;
   const megaFeatures = result?.features;
+  const megaActivatedBaseMultiplier = getActivatedBaseMultiplierTotal(megaFeatures);
   const resultDisplayMultiplier =
     result?.buyFeature && megaFeatures ? megaFeatures.totalMultiplier : resultMultiplier;
   const megaFreeSpinRounds = megaFeatures?.freeSpinRounds ?? [];
@@ -854,7 +987,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const megaActiveMultiplier = Math.max(
     1,
     megaFeatures?.freeSpinMultiplierBank ?? 0,
-    megaFeatures?.baseMultiplierTotal ?? 0,
+    megaActivatedBaseMultiplier,
   );
   const megaFreeSpinProgress =
     megaFeatures && megaFeatures.freeSpinsAwarded > 0
@@ -865,7 +998,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     ? [
         result?.buyFeature ? `買入 ${formatAmount(resultAmount)}` : '',
         cascadeCount > 0 ? `${cascadeCount} 次消除` : '',
-        megaFeatures.baseMultiplierTotal > 0 ? `倍數 ${megaFeatures.baseMultiplierTotal}×` : '',
+        megaActivatedBaseMultiplier > 0 ? `倍數 ${megaActivatedBaseMultiplier}×` : '',
         megaFeatures.freeSpinsAwarded > 0
           ? `免費旋轉 ${megaFeatures.freeSpinsPlayed}/${megaFeatures.freeSpinsAwarded}`
           : '',
@@ -898,7 +1031,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       ? `${megaDisplayFreeSpinsPlayed}/${megaDisplayFreeSpinsAwarded}`
       : '0';
   const megaDisplayBaseMultiplier = result
-    ? (megaFeatures?.baseMultiplierTotal ?? 0)
+    ? megaActivatedBaseMultiplier
     : (liveMegaRound?.baseMultiplierTotal ?? 0);
   const megaDisplayScatterCount = result
     ? (megaFeatures?.scatterCount ?? 0)
@@ -922,26 +1055,36 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     megaDisplayFreeSpinsAwarded > 0
       ? result
         ? '已完成'
-        : megaDisplayFreeSpinMode
-          ? `本回合免費 · 剩餘 ${megaDisplayFreeSpinsRemaining}`
-          : '已觸發，準備進入免費旋轉'
+        : megaFreeSpinAwaitingClick
+          ? `點擊轉動 · 剩餘 ${megaDisplayFreeSpinsRemaining}`
+          : megaDisplayFreeSpinMode
+            ? `本回合免費 · 剩餘 ${megaDisplayFreeSpinsRemaining}`
+            : '已觸發，準備進入免費旋轉'
       : '4 SCATTER 觸發';
   const megaScenePending = isMegaSlot && !sceneReady && !sceneFallback;
   const megaSpinButtonLabel = megaScenePending
     ? '載入中'
-    : busy
-    ? megaDisplayFreeSpinMode
+    : megaFreeSpinAwaitingClick
       ? '免費旋轉'
-      : '轉動中'
-    : t.games.hotline.spin;
-  const megaSpinButtonValue =
-    megaScenePending
-      ? '請稍候'
+      : busy
+        ? megaDisplayFreeSpinMode
+          ? '免費旋轉'
+          : '轉動中'
+        : t.games.hotline.spin;
+  const megaSpinButtonValue = megaScenePending
+    ? '請稍候'
+    : megaFreeSpinAwaitingClick
+      ? '點擊轉動'
       : busy && megaDisplayFreeSpinMode
         ? `剩 ${megaDisplayFreeSpinsRemaining}`
         : formatAmount(amount);
   const megaBuyFeatureCost = Number((amount * 100).toFixed(2));
   const controlsLocked = busy || autoSpinActive || megaScenePending;
+  const megaSpinDisabled =
+    megaScenePending ||
+    autoSpinActive ||
+    (busy && !megaFreeSpinAwaitingClick) ||
+    (!megaFreeSpinAwaitingClick && !!user && balance < amount);
   const canBuyMegaFeature =
     isMegaSlot && !controlsLocked && (!user || balance >= megaBuyFeatureCost);
   const autoSpinButtonLabel = autoSpinActive ? '停止' : 'AUTO';
@@ -1334,8 +1477,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => void spin()}
-                disabled={controlsLocked || (!!user && balance < amount)}
+                onClick={handleMegaSpinClick}
+                disabled={megaSpinDisabled}
                 className="mega-slot-spin"
                 aria-label={t.games.hotline.spin}
               >
@@ -1732,6 +1875,9 @@ function MegaFallbackGrid({
                           {special.value ?? 2}×
                         </strong>
                       ) : null}
+                      {special?.type === 'scatter' ? (
+                        <strong className="mega-slot-fallback-symbol__bonus">BONUS</strong>
+                      ) : null}
                       <span>
                         {special ? (special.type === 'scatter' ? 'SC' : '倍') : meta.shortLabel}
                       </span>
@@ -1921,8 +2067,36 @@ function roundMegaPayout(amount: number, multiplier: number): number {
   return Number((amount * multiplier).toFixed(2));
 }
 
-function sumSpecialSymbolValues(symbols: HotlineSpecialSymbol[]): number {
-  return symbols.reduce((sum, symbol) => sum + (symbol.value ?? 0), 0);
+function hasCascadeSymbolClear(cascades: HotlineCascadeStep[]): boolean {
+  return cascades.some((step) => step.removed.length > 0 && step.multiplier > 0);
+}
+
+function sumCascadeMultipliers(cascades: HotlineCascadeStep[]): number {
+  return roundMegaMultiplier(cascades.reduce((sum, step) => sum + step.multiplier, 0));
+}
+
+function getActivatedBaseMultiplierTotal(features?: HotlineMegaFeatureResult): number {
+  if (!features || features.baseAppliedMultiplier <= 1) return 0;
+  return features.baseMultiplierTotal;
+}
+
+function createMultiplierActivation(
+  symbols: HotlineSpecialSymbol[],
+  appliedMultiplier: number,
+  cascades: HotlineCascadeStep[],
+): MegaMultiplierActivation | undefined {
+  const multiplierSymbols = symbols.filter((symbol) => symbol.type === 'multiplier');
+  if (
+    !hasCascadeSymbolClear(cascades) ||
+    multiplierSymbols.length === 0 ||
+    appliedMultiplier <= 1
+  ) {
+    return undefined;
+  }
+  return {
+    symbols: multiplierSymbols,
+    total: appliedMultiplier,
+  };
 }
 
 function getFinalMegaGrid(result: HotlineBetResult, fallbackGrid: number[][]): number[][] {
@@ -1953,9 +2127,10 @@ function getSlotPayoutLabel(
 
 function formatMegaFeatureDetail(features?: HotlineMegaFeatureResult, buyFeature = false): string {
   if (!features) return '';
+  const activatedBaseMultiplierTotal = getActivatedBaseMultiplierTotal(features);
   const parts = [
     buyFeature ? '購買免費' : '',
-    features.baseMultiplierTotal > 0 ? `倍數 ${features.baseMultiplierTotal}×` : '',
+    activatedBaseMultiplierTotal > 0 ? `倍數 ${activatedBaseMultiplierTotal}×` : '',
     features.freeSpinsAwarded > 0
       ? `免費 ${features.freeSpinsPlayed}/${features.freeSpinsAwarded}`
       : '',

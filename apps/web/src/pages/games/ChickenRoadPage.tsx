@@ -329,7 +329,8 @@ export function ChickenRoadPage() {
                     disabled={busy || currentStep <= 0}
                     className="chicken-road-cashout"
                   >
-                    領取
+                    <span>領取</span>
+                    <strong>{formatAmount(potentialPayout)}</strong>
                   </button>
                 </>
               )}
