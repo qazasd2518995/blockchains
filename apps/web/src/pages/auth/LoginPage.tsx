@@ -99,21 +99,20 @@ export function LoginPage() {
                 Player Login
               </span>
               <h1 className="mt-6 text-[52px] font-bold leading-[1.04] text-white">
-                熱門館別今晚全開，登入後直接進場。
+                歡迎回來，登入後立即進入遊戲大廳。
               </h1>
               <p className="mt-5 max-w-[560px] text-[17px] leading-8 text-white/72">
-                飛行、棋牌牌桌、拉霸、輪盤、即開電子、策略挑戰六大館別已備好節奏。登入後直接挑你今晚要衝的主場，
-                看準時機放大倍率，或回頭核對每一局結果。
+                登入會員帳號後，可以選擇喜歡的館別與遊戲，查看餘額、投注紀錄與每局結果，繼續你的娛樂體驗。
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <span className="inline-flex items-center rounded-full border border-[#C9A247]/36 bg-[#132233]/75 px-4 py-2 text-[13px] font-semibold text-[#EFD886]">
-                  全館人氣玩法
+                  遊戲大廳
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
-                  即時派彩到帳
+                  會員錢包
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
-                  即時戰報更新
+                  投注紀錄
                 </span>
               </div>
             </div>

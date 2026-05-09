@@ -108,21 +108,20 @@ export function AdminLoginPage(): JSX.Element {
                 代理后台
               </span>
               <h1 className="mt-6 text-[50px] font-bold leading-[1.04] text-white">
-                代理線、交收與風控，先在這裡收回主控權。
+                代理管理平台，協助你掌握團隊與會員帳務。
               </h1>
               <p className="mt-5 max-w-[580px] text-[17px] leading-8 text-white/72">
-                後台專注在層級管理、餘額調整、報表追蹤與控制規則。登入後直接回到主控台，
-                看今天哪條代理線需要處理、哪個帳戶需要調整。
+                登入後可查看代理層級、會員資料、餘額異動與報表紀錄，快速處理日常營運與帳務確認。
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <span className="inline-flex items-center rounded-full border border-[#C9A247]/36 bg-[#132233]/75 px-4 py-2 text-[13px] font-semibold text-[#EFD886]">
-                  层级管理
+                  代理層級
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
-                  审计追踪
+                  會員帳務
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
-                  风控中心
+                  報表紀錄
                 </span>
               </div>
             </div>
