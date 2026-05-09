@@ -1,24 +1,52 @@
 import bcrypt from 'bcrypt';
 import { PrismaClient, Prisma } from '@prisma/client';
-import type { AgentPublic } from '@bg/shared';
+import type { AdminCaptchaResponse, AgentPublic } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
 import { config } from '../../../config.js';
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, createHash, createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import type { AdminLoginInput } from './adminAuth.schema.js';
+
+const CAPTCHA_TTL_MS = 5 * 60 * 1000;
+const CAPTCHA_MAX_USED_NONCES = 10_000;
+
+interface CaptchaTokenPayload {
+  codeHash: string;
+  exp: number;
+  nonce: string;
+}
 
 export interface AdminJwtSigner {
   sign(payload: Record<string, unknown>): string;
 }
 
 export class AdminAuthService {
+  private readonly usedCaptchaNonces = new Map<string, number>();
+
   constructor(
     private readonly prisma: PrismaClient,
     private readonly jwt: AdminJwtSigner,
   ) {}
 
+  issueCaptcha(): AdminCaptchaResponse {
+    const captchaCode = randomInt(0, 10_000).toString().padStart(4, '0');
+    const exp = Date.now() + CAPTCHA_TTL_MS;
+    const payload: CaptchaTokenPayload = {
+      codeHash: hashCaptchaCode(captchaCode),
+      exp,
+      nonce: randomBytes(16).toString('hex'),
+    };
+    return {
+      captchaCode,
+      captchaToken: signCaptchaPayload(payload),
+      expiresAt: new Date(exp).toISOString(),
+    };
+  }
+
   async login(
     input: AdminLoginInput,
   ): Promise<{ agent: AgentPublic; accessToken: string; refreshToken: string }> {
+    this.verifyCaptcha(input.captchaCode, input.captchaToken);
+
     const agent = await this.prisma.agent.findUnique({ where: { username: input.username } });
     if (!agent) throw new ApiError('INVALID_CREDENTIALS', 'Invalid username or password');
     if (agent.status === 'DISABLED' || agent.status === 'DELETED') {
@@ -145,6 +173,39 @@ export class AdminAuthService {
       createdAt: agent.createdAt.toISOString(),
     };
   }
+
+  private verifyCaptcha(captchaCode: string, captchaToken: string): void {
+    if (!/^\d{4}$/.test(captchaCode)) {
+      throw new ApiError('INVALID_CAPTCHA', 'Invalid verification code');
+    }
+
+    const payload = verifyCaptchaToken(captchaToken);
+    const now = Date.now();
+    this.cleanupCaptchaNonces(now);
+
+    if (payload.exp < now) {
+      throw new ApiError('INVALID_CAPTCHA', 'Verification code expired');
+    }
+    if (this.usedCaptchaNonces.has(payload.nonce)) {
+      throw new ApiError('INVALID_CAPTCHA', 'Verification code already used');
+    }
+
+    if (!safeEqual(hashCaptchaCode(captchaCode), payload.codeHash)) {
+      throw new ApiError('INVALID_CAPTCHA', 'Invalid verification code');
+    }
+
+    this.usedCaptchaNonces.set(payload.nonce, payload.exp);
+  }
+
+  private cleanupCaptchaNonces(now: number): void {
+    if (this.usedCaptchaNonces.size > CAPTCHA_MAX_USED_NONCES) {
+      this.usedCaptchaNonces.clear();
+      return;
+    }
+    for (const [nonce, exp] of this.usedCaptchaNonces) {
+      if (exp < now) this.usedCaptchaNonces.delete(nonce);
+    }
+  }
 }
 
 export function hashRefresh(token: string): string {
@@ -159,4 +220,44 @@ function parseDuration(d: string): number {
   const multiplier =
     unit === 's' ? 1000 : unit === 'm' ? 60000 : unit === 'h' ? 3600000 : 86400000;
   return value * multiplier;
+}
+
+function signCaptchaPayload(payload: CaptchaTokenPayload): string {
+  const body = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  const sig = createHmac('sha256', config.JWT_SECRET).update(body).digest('base64url');
+  return `${body}.${sig}`;
+}
+
+function verifyCaptchaToken(token: string): CaptchaTokenPayload {
+  const [body, sig] = token.split('.');
+  if (!body || !sig) throw new ApiError('INVALID_CAPTCHA', 'Invalid verification token');
+  const expectedSig = createHmac('sha256', config.JWT_SECRET).update(body).digest('base64url');
+  if (!safeEqual(sig, expectedSig)) {
+    throw new ApiError('INVALID_CAPTCHA', 'Invalid verification token');
+  }
+
+  try {
+    const parsed = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as Partial<CaptchaTokenPayload>;
+    if (
+      typeof parsed.codeHash !== 'string' ||
+      typeof parsed.nonce !== 'string' ||
+      typeof parsed.exp !== 'number'
+    ) {
+      throw new Error('Malformed captcha payload');
+    }
+    return { codeHash: parsed.codeHash, exp: parsed.exp, nonce: parsed.nonce };
+  } catch {
+    throw new ApiError('INVALID_CAPTCHA', 'Invalid verification token');
+  }
+}
+
+function hashCaptchaCode(code: string): string {
+  return createHash('sha256').update(`${config.JWT_SECRET}:${code}`).digest('hex');
+}
+
+function safeEqual(a: string, b: string): boolean {
+  const aBuffer = Buffer.from(a);
+  const bBuffer = Buffer.from(b);
+  if (aBuffer.length !== bBuffer.length) return false;
+  return timingSafeEqual(aBuffer, bBuffer);
 }

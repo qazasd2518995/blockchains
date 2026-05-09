@@ -29,6 +29,7 @@ export function errorCodeToStatus(code: ErrorCodeType): number {
       return 404;
     case 'INSUFFICIENT_FUNDS':
     case 'INVALID_BET':
+    case 'INVALID_CAPTCHA':
     case 'BET_OUT_OF_RANGE':
     case 'INVALID_ACTION':
     case 'ROUND_NOT_ACTIVE':

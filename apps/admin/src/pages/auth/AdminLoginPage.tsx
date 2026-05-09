@@ -2,8 +2,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useState } from 'react';
-import type { AdminAuthResponse } from '@bg/shared';
+import { useCallback, useEffect, useState } from 'react';
+import type { AdminAuthResponse, AdminCaptchaResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -11,6 +11,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 const schema = z.object({
   username: z.string().min(1, { message: 'REQUIRED' }),
   password: z.string().min(1, { message: 'REQUIRED' }),
+  captchaCode: z.string().regex(/^\d{4}$/, { message: '请输入4位数字' }),
 });
 
 type FormInput = z.infer<typeof schema>;
@@ -21,24 +22,54 @@ export function AdminLoginPage(): JSX.Element {
   const setAuth = useAdminAuthStore((s) => s.setAuth);
   const { t } = useTranslation();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [captcha, setCaptcha] = useState<AdminCaptchaResponse | null>(null);
+  const [captchaLoading, setCaptchaLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormInput>({ resolver: zodResolver(schema) });
 
+  const refreshCaptcha = useCallback(async () => {
+    setCaptchaLoading(true);
+    try {
+      const res = await adminApi.get<AdminCaptchaResponse>('/auth/captcha');
+      setCaptcha(res.data);
+      setValue('captchaCode', '');
+    } catch {
+      setCaptcha(null);
+      setServerError('验证码载入失败，请重新整理页面');
+    } finally {
+      setCaptchaLoading(false);
+    }
+  }, [setValue]);
+
+  useEffect(() => {
+    void refreshCaptcha();
+  }, [refreshCaptcha]);
+
   const onSubmit = async (data: FormInput) => {
     setServerError(null);
+    if (!captcha) {
+      setServerError('请先取得验证码');
+      await refreshCaptcha();
+      return;
+    }
 
     try {
-      const res = await adminApi.post<AdminAuthResponse>('/auth/login', data);
+      const res = await adminApi.post<AdminAuthResponse>('/auth/login', {
+        ...data,
+        captchaToken: captcha.captchaToken,
+      });
       setAuth(res.data.agent, res.data.accessToken, res.data.refreshToken);
       const from = params.get('from');
       navigate(from ? decodeURIComponent(from) : '/admin/dashboard');
     } catch (err) {
       const apiErr = extractApiError(err);
       setServerError(`${apiErr.code} · ${apiErr.message}`);
+      await refreshCaptcha();
     }
   };
 
@@ -111,7 +142,7 @@ export function AdminLoginPage(): JSX.Element {
                   autoCapitalize="off"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="superadmin"
+                  placeholder="请输入代理账号"
                   className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25 sm:text-[14px]"
                   {...register('username')}
                 />
@@ -125,6 +156,36 @@ export function AdminLoginPage(): JSX.Element {
                   className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25 sm:text-[14px]"
                   {...register('password')}
                 />
+              </Field>
+
+              <Field label="验证码" error={errors.captchaCode?.message}>
+                <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="4位数字"
+                    maxLength={4}
+                    className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25 sm:text-[14px]"
+                    {...register('captchaCode')}
+                    onInput={(event) => {
+                      const next = event.currentTarget.value
+                        .replace(/\D/g, '')
+                        .slice(0, 4);
+                      event.currentTarget.value = next;
+                      setValue('captchaCode', next, { shouldValidate: true });
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void refreshCaptcha()}
+                    disabled={captchaLoading}
+                    className="rounded-[8px] border border-[#186073]/28 bg-[#F6FBFD] px-3 py-2.5 font-mono text-[18px] font-black tracking-[0.18em] text-[#186073] transition hover:bg-[#EAF6FA] disabled:cursor-wait disabled:opacity-60"
+                    aria-label="重新产生验证码"
+                  >
+                    {captchaLoading ? '----' : (captcha?.captchaCode ?? '----')}
+                  </button>
+                </div>
               </Field>
 
               {serverError && (

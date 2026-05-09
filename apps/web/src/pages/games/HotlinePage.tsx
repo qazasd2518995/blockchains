@@ -221,15 +221,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     setSceneReady(false);
-    const useHtmlMegaBoard =
-      isMegaSlot &&
-      window.matchMedia('(orientation: landscape)').matches &&
-      window.matchMedia('(max-height: 420px)').matches;
-    if (useHtmlMegaBoard) {
-      sceneRef.current = null;
-      setSceneFallback(true);
-      return;
-    }
     setSceneFallback(false);
 
     let cancelled = false;
@@ -935,15 +926,22 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           ? `本回合免費 · 剩餘 ${megaDisplayFreeSpinsRemaining}`
           : '已觸發，準備進入免費旋轉'
       : '4 SCATTER 觸發';
-  const megaSpinButtonLabel = busy
+  const megaScenePending = isMegaSlot && !sceneReady && !sceneFallback;
+  const megaSpinButtonLabel = megaScenePending
+    ? '載入中'
+    : busy
     ? megaDisplayFreeSpinMode
       ? '免費旋轉'
       : '轉動中'
     : t.games.hotline.spin;
   const megaSpinButtonValue =
-    busy && megaDisplayFreeSpinMode ? `剩 ${megaDisplayFreeSpinsRemaining}` : formatAmount(amount);
+    megaScenePending
+      ? '請稍候'
+      : busy && megaDisplayFreeSpinMode
+        ? `剩 ${megaDisplayFreeSpinsRemaining}`
+        : formatAmount(amount);
   const megaBuyFeatureCost = Number((amount * 100).toFixed(2));
-  const controlsLocked = busy || autoSpinActive;
+  const controlsLocked = busy || autoSpinActive || megaScenePending;
   const canBuyMegaFeature =
     isMegaSlot && !controlsLocked && (!user || balance >= megaBuyFeatureCost);
   const autoSpinButtonLabel = autoSpinActive ? '停止' : 'AUTO';

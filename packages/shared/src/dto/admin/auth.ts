@@ -1,6 +1,14 @@
 export interface AdminLoginRequest {
   username: string;
   password: string;
+  captchaCode: string;
+  captchaToken: string;
+}
+
+export interface AdminCaptchaResponse {
+  captchaCode: string;
+  captchaToken: string;
+  expiresAt: string;
 }
 
 export type AdminRoleDto = 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';

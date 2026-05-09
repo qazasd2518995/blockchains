@@ -66,6 +66,7 @@ export interface ApiErrorBody {
 const DEFAULT_ERRORS: Record<string, string> = {
   UNAUTHORIZED: '身份未授权,请重新登录',
   INVALID_CREDENTIALS: '账号或密码错误',
+  INVALID_CAPTCHA: '验证码错误或已过期',
   EMAIL_TAKEN: '此邮箱已被使用',
   USER_NOT_FOUND: '找不到该用户',
   INSUFFICIENT_FUNDS: '余额不足',

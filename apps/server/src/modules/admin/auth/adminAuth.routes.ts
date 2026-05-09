@@ -5,6 +5,10 @@ import { AdminAuthService } from './adminAuth.service.js';
 export async function adminAuthRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new AdminAuthService(fastify.prisma, fastify.jwt);
 
+  fastify.get('/captcha', async () => {
+    return service.issueCaptcha();
+  });
+
   fastify.post('/login', async (req) => {
     const body = adminLoginSchema.parse(req.body);
     return service.login(body);
