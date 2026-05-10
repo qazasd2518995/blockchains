@@ -50,13 +50,11 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
     };
 
     void refreshAgent();
-    const timer = window.setInterval(refreshAgent, 5_000);
     window.addEventListener('focus', handleFocus);
     window.addEventListener(ADMIN_LIVE_REFRESH_EVENT, handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       active = false;
-      window.clearInterval(timer);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener(ADMIN_LIVE_REFRESH_EVENT, handleFocus);
       document.removeEventListener('visibilitychange', handleVisibility);
@@ -128,9 +126,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
             <span className="hidden sm:inline">
               {t.shell.session} 0x{agent?.id.slice(-6).toUpperCase()}
             </span>
-            {agent?.role === 'SUPER_ADMIN' && (
-              <span className="tag tag-gold">{t.shell.super}</span>
-            )}
+            {agent?.role === 'SUPER_ADMIN' && <span className="tag tag-gold">{t.shell.super}</span>}
           </div>
         </div>
 
@@ -140,12 +136,8 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
               BG
             </span>
             <div className="hidden sm:block">
-              <div className="text-[18px] font-bold leading-none text-white">
-                代理后台
-              </div>
-              <div className="mt-1 text-[12px] text-[#DEBE66]">
-                {t.shell.terminal}
-              </div>
+              <div className="text-[18px] font-bold leading-none text-white">代理后台</div>
+              <div className="mt-1 text-[12px] text-[#DEBE66]">{t.shell.terminal}</div>
             </div>
           </Link>
 
@@ -176,7 +168,12 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
                 <span className="normal-case tracking-normal text-[12px]">
                   {agent?.username ?? '—'}
                 </span>
-                <span aria-hidden="true" className={`text-[10px] transition-transform ${menuOpen ? 'rotate-180' : ''}`}>▾</span>
+                <span
+                  aria-hidden="true"
+                  className={`text-[10px] transition-transform ${menuOpen ? 'rotate-180' : ''}`}
+                >
+                  ▾
+                </span>
               </button>
               {menuOpen && (
                 <div

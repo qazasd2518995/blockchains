@@ -32,7 +32,7 @@ export function AgentHierarchyPage(): JSX.Element {
   const { agent: me } = useAdminAuthStore();
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
-  const currentParent = params.get('parent') ?? (me?.role === 'SUPER_ADMIN' ? '' : me?.id ?? '');
+  const currentParent = params.get('parent') ?? (me?.role === 'SUPER_ADMIN' ? '' : (me?.id ?? ''));
 
   const [data, setData] = useState<HierarchyResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,12 +45,28 @@ export function AgentHierarchyPage(): JSX.Element {
   const [openCreateAgent, setOpenCreateAgent] = useState(false);
   const [transferFor, setTransferFor] = useState<MemberPublic | null>(null);
   const [rebateFor, setRebateFor] = useState<{ id: string; username: string } | null>(null);
-  const [bettingLimitFor, setBettingLimitFor] = useState<
-    { targetType: 'agent' | 'member'; id: string; username: string; currentLevel: string } | null
-  >(null);
-  const [agentTransferFor, setAgentTransferFor] = useState<{ id: string; username: string; balance: string } | null>(null);
-  const [notesFor, setNotesFor] = useState<{ kind: 'agent' | 'member'; id: string; username: string; notes: string | null } | null>(null);
-  const [resetPasswordFor, setResetPasswordFor] = useState<{ kind: 'agent' | 'member'; id: string; username: string } | null>(null);
+  const [bettingLimitFor, setBettingLimitFor] = useState<{
+    targetType: 'agent' | 'member';
+    id: string;
+    username: string;
+    currentLevel: string;
+  } | null>(null);
+  const [agentTransferFor, setAgentTransferFor] = useState<{
+    id: string;
+    username: string;
+    balance: string;
+  } | null>(null);
+  const [notesFor, setNotesFor] = useState<{
+    kind: 'agent' | 'member';
+    id: string;
+    username: string;
+    notes: string | null;
+  } | null>(null);
+  const [resetPasswordFor, setResetPasswordFor] = useState<{
+    kind: 'agent' | 'member';
+    id: string;
+    username: string;
+  } | null>(null);
   useAdminLiveRefresh(() => setReloadKey((k) => k + 1));
 
   useEffect(() => {
@@ -90,8 +106,13 @@ export function AgentHierarchyPage(): JSX.Element {
   };
 
   const handleAgentStatus = async (id: string, username: string, next: AccountStatus) => {
-    if (next === 'FROZEN' && !confirm(t.agents.confirmFreezeAgentTpl.replace('{name}', username))) return;
-    if (next === 'DISABLED' && !confirm(t.agents.confirmDisableAgentTpl.replace('{name}', username))) return;
+    if (next === 'FROZEN' && !confirm(t.agents.confirmFreezeAgentTpl.replace('{name}', username)))
+      return;
+    if (
+      next === 'DISABLED' &&
+      !confirm(t.agents.confirmDisableAgentTpl.replace('{name}', username))
+    )
+      return;
     try {
       await adminApi.patch(`/agents/${id}/status`, { status: next });
       setReloadKey((k) => k + 1);
@@ -148,9 +169,8 @@ export function AgentHierarchyPage(): JSX.Element {
       }
     : undefined;
   const canCreateSubAgent = currentLayerAgent ? currentLayerAgent.level < 15 : false;
-  const previousCrumb = data && data.breadcrumb.length > 1
-    ? data.breadcrumb[data.breadcrumb.length - 2]
-    : null;
+  const previousCrumb =
+    data && data.breadcrumb.length > 1 ? data.breadcrumb[data.breadcrumb.length - 2] : null;
 
   return (
     <div>
@@ -162,10 +182,11 @@ export function AgentHierarchyPage(): JSX.Element {
         titleSuffixColor="acid"
         description={t.agents.description}
         rightSlot={
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="account-page-actions flex flex-wrap items-center justify-end gap-2">
             {data && (
               <span className="rounded-full border border-white/18 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white/82">
-                共 {data.items.length} 个下级（{data.stats.agentCount} 代理 + {data.stats.memberCount} 会员）
+                共 {data.items.length} 个下级（{data.stats.agentCount} 代理 +{' '}
+                {data.stats.memberCount} 会员）
               </span>
             )}
             <button
@@ -202,13 +223,15 @@ export function AgentHierarchyPage(): JSX.Element {
       )}
 
       {data?.parent && (
-        <div className="mb-4 crt-panel scanlines p-4">
+        <div className="account-current-panel mb-4 crt-panel scanlines p-4">
           <div className="flex flex-wrap items-baseline gap-4">
             <div>
               <div className="label">{t.agents.current}</div>
               <div className="mt-1 flex items-baseline gap-2 font-display text-xl text-ink-900">
                 {data.parent.username}
-                {data.parent.role === 'SUPER_ADMIN' && <span className="tag tag-gold">{t.shell.super}</span>}
+                {data.parent.role === 'SUPER_ADMIN' && (
+                  <span className="tag tag-gold">{t.shell.super}</span>
+                )}
               </div>
             </div>
             <Stat k={t.agents.bal} v={fmt(data.parent.balance)} accent="acid" />
@@ -218,7 +241,7 @@ export function AgentHierarchyPage(): JSX.Element {
         </div>
       )}
 
-      <div className="admin-mobile-stack mb-4 flex flex-wrap items-center gap-3">
+      <div className="account-hierarchy-filters admin-mobile-stack mb-4 flex flex-wrap items-center gap-3">
         <input
           type="text"
           value={keyword}
@@ -236,7 +259,11 @@ export function AgentHierarchyPage(): JSX.Element {
           <option value="FROZEN">{t.agent.status.FROZEN}</option>
           <option value="DISABLED">{t.agent.status.DISABLED}</option>
         </select>
-        <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="btn-teal-outline text-[11px]">
+        <button
+          type="button"
+          onClick={() => setReloadKey((k) => k + 1)}
+          className="btn-teal-outline text-[11px]"
+        >
           ↻ {t.common.refresh}
         </button>
       </div>
@@ -252,9 +279,9 @@ export function AgentHierarchyPage(): JSX.Element {
       ) : data?.items.length === 0 ? (
         <div className="crt-panel p-8 text-center text-ink-400">{t.agents.emptyLevel}</div>
       ) : (
-        <div className="crt-panel admin-table-scroll overflow-x-auto">
+        <div className="account-hierarchy-list crt-panel admin-table-scroll overflow-x-auto">
           <div
-            className="grid min-w-[960px] gap-2 border-b border-ink-200 bg-ink-100/40 px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-ink-500"
+            className="account-hierarchy-head grid min-w-[960px] gap-2 border-b border-ink-200 bg-ink-100/40 px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-ink-500"
             style={ACCOUNT_TABLE_GRID_STYLE}
           >
             <span>{t.agents.type}</span>
@@ -268,7 +295,7 @@ export function AgentHierarchyPage(): JSX.Element {
             <div
               key={`${row.kind}-${row.id}`}
               onClick={() => onRowClick(row)}
-              className={`grid min-w-[960px] items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition ${
+              className={`account-hierarchy-row grid min-w-[960px] items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition ${
                 row.kind === 'agent' ? 'cursor-pointer hover:bg-[#FAF2D7]/60' : 'cursor-default'
               }`}
               style={ACCOUNT_TABLE_GRID_STYLE}
@@ -282,14 +309,22 @@ export function AgentHierarchyPage(): JSX.Element {
               <div className="min-w-0">
                 <div className="flex items-center gap-2 font-mono text-ink-900">
                   <span className="truncate">{row.username}</span>
-                  {row.kind === 'agent' && row.role === 'SUPER_ADMIN' && <span className="tag tag-gold">{t.shell.super}</span>}
+                  {row.kind === 'agent' && row.role === 'SUPER_ADMIN' && (
+                    <span className="tag tag-gold">{t.shell.super}</span>
+                  )}
                 </div>
                 <div className="mt-0.5 flex gap-3 text-[10px] text-ink-500">
                   {row.displayName && <span>{row.displayName}</span>}
                   {row.kind === 'agent' && (
                     <>
-                      <span>{t.agents.subAgents} <span className="data-num text-ink-700">{row.childCount}</span></span>
-                      <span>{t.agents.membersLabel} <span className="data-num text-ink-700">{row.memberCount}</span></span>
+                      <span>
+                        {t.agents.subAgents}{' '}
+                        <span className="data-num text-ink-700">{row.childCount}</span>
+                      </span>
+                      <span>
+                        {t.agents.membersLabel}{' '}
+                        <span className="data-num text-ink-700">{row.memberCount}</span>
+                      </span>
                     </>
                   )}
                 </div>
@@ -312,12 +347,21 @@ export function AgentHierarchyPage(): JSX.Element {
                 )}
               </span>
 
-              <div className="flex flex-wrap items-center justify-start gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <div
+                className="account-hierarchy-actions flex flex-wrap items-center justify-start gap-1.5"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {row.kind === 'agent' ? (
                   <>
                     <button
                       type="button"
-                      onClick={() => setAgentTransferFor({ id: row.id, username: row.username, balance: row.balance })}
+                      onClick={() =>
+                        setAgentTransferFor({
+                          id: row.id,
+                          username: row.username,
+                          balance: row.balance,
+                        })
+                      }
                       className="btn-chip"
                     >
                       {t.agents.pointTransfer}
@@ -345,7 +389,9 @@ export function AgentHierarchyPage(): JSX.Element {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setResetPasswordFor({ kind: 'agent', id: row.id, username: row.username })}
+                      onClick={() =>
+                        setResetPasswordFor({ kind: 'agent', id: row.id, username: row.username })
+                      }
                       className="btn-chip"
                     >
                       {t.agents.resetPassword}
@@ -356,7 +402,14 @@ export function AgentHierarchyPage(): JSX.Element {
                     />
                     <button
                       type="button"
-                      onClick={() => setNotesFor({ kind: 'agent', id: row.id, username: row.username, notes: row.notes })}
+                      onClick={() =>
+                        setNotesFor({
+                          kind: 'agent',
+                          id: row.id,
+                          username: row.username,
+                          notes: row.notes,
+                        })
+                      }
                       className="btn-chip"
                     >
                       {t.agents.notesBtn}
@@ -366,7 +419,11 @@ export function AgentHierarchyPage(): JSX.Element {
                   <>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); const m = asMemberForModal(row); if (m) setTransferFor(m); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const m = asMemberForModal(row);
+                        if (m) setTransferFor(m);
+                      }}
                       className="btn-chip"
                     >
                       {t.agents.pointTransfer}
@@ -388,7 +445,9 @@ export function AgentHierarchyPage(): JSX.Element {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setResetPasswordFor({ kind: 'member', id: row.id, username: row.username })}
+                      onClick={() =>
+                        setResetPasswordFor({ kind: 'member', id: row.id, username: row.username })
+                      }
                       className="btn-chip"
                     >
                       {t.agents.resetPassword}
@@ -399,7 +458,14 @@ export function AgentHierarchyPage(): JSX.Element {
                     />
                     <button
                       type="button"
-                      onClick={() => setNotesFor({ kind: 'member', id: row.id, username: row.username, notes: row.notes })}
+                      onClick={() =>
+                        setNotesFor({
+                          kind: 'member',
+                          id: row.id,
+                          username: row.username,
+                          notes: row.notes,
+                        })
+                      }
                       className="btn-chip"
                     >
                       {t.agents.notesBtn}
@@ -417,7 +483,11 @@ export function AgentHierarchyPage(): JSX.Element {
         onClose={() => setOpenCreateMember(false)}
         onCreated={() => setReloadKey((k) => k + 1)}
         defaultAgentId={createTarget?.id ?? currentParent}
-        lockedAgent={createTarget ? { id: createTarget.id, username: createTarget.username, level: createTarget.level } : undefined}
+        lockedAgent={
+          createTarget
+            ? { id: createTarget.id, username: createTarget.username, level: createTarget.level }
+            : undefined
+        }
       />
       <CreateAgentModal
         open={openCreateAgent}
@@ -697,50 +767,48 @@ function StatusDropdown({
 
   return (
     <>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={toggle}
-        className="btn-chip"
-      >
+      <button ref={buttonRef} type="button" onClick={toggle} className="btn-chip">
         {t.agents.statusMenu} ▾
       </button>
-      {open && menuRect && createPortal(
-        <>
-          <div className="fixed inset-0 z-[1200]" onClick={() => setOpen(false)} />
-          <div
-            className="fixed z-[1201] w-32 border border-ink-200 bg-white shadow-xl"
-            style={{ top: menuRect.top, left: menuRect.left }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            {options.map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                disabled={o.value === current}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpen(false);
-                  onChange(o.value);
-                }}
-                className={`block w-full px-3 py-2 text-left text-[11px] font-mono transition hover:bg-[#F3E5AE]/50 ${o.style} ${
-                  o.value === current ? 'opacity-40' : ''
-                }`}
-              >
-                {o.label}
-                {o.value === current && <span className="ml-2 text-[9px]">✓</span>}
-              </button>
-            ))}
-          </div>
-        </>,
-        document.body,
-      )}
+      {open &&
+        menuRect &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-[1200]" onClick={() => setOpen(false)} />
+            <div
+              className="fixed z-[1201] w-32 border border-ink-200 bg-white shadow-xl"
+              style={{ top: menuRect.top, left: menuRect.left }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              {options.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  disabled={o.value === current}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpen(false);
+                    onChange(o.value);
+                  }}
+                  className={`block w-full px-3 py-2 text-left text-[11px] font-mono transition hover:bg-[#F3E5AE]/50 ${o.style} ${
+                    o.value === current ? 'opacity-40' : ''
+                  }`}
+                >
+                  {o.label}
+                  {o.value === current && <span className="ml-2 text-[9px]">✓</span>}
+                </button>
+              ))}
+            </div>
+          </>,
+          document.body,
+        )}
     </>
   );
 }
 
 function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' | 'toxic' }) {
-  const color = accent === 'acid' ? 'text-[#186073]' : accent === 'toxic' ? 'text-win' : 'text-ink-900';
+  const color =
+    accent === 'acid' ? 'text-[#186073]' : accent === 'toxic' ? 'text-win' : 'text-ink-900';
   return (
     <div>
       <div className="label">{k}</div>

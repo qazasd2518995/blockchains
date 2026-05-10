@@ -3,7 +3,9 @@
 @layer components {
   .admin-table-scroll table {
     font-variant-numeric: tabular-nums lining-nums;
-    font-feature-settings: 'tnum' 1, 'lnum' 1;
+    font-feature-settings:
+      'tnum' 1,
+      'lnum' 1;
   }
 
   .admin-table-scroll table .data-num,
@@ -11,7 +13,9 @@
   .admin-report-number {
     font-family: Inter, 'Noto Sans TC', 'Microsoft JhengHei', Arial, sans-serif !important;
     font-variant-numeric: tabular-nums lining-nums;
-    font-feature-settings: 'tnum' 1, 'lnum' 1;
+    font-feature-settings:
+      'tnum' 1,
+      'lnum' 1;
     font-weight: 600;
     letter-spacing: 0;
     text-rendering: geometricPrecision;
@@ -151,6 +155,85 @@
       line-height: 1.45 !important;
     }
 
+    .admin-shell .account-page-actions {
+      display: grid !important;
+      width: 100%;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.4rem !important;
+      justify-content: stretch !important;
+    }
+
+    .admin-shell .account-page-actions > span {
+      grid-column: 1 / -1;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .admin-shell .account-page-actions > button {
+      min-height: 38px;
+      width: 100%;
+      justify-content: center;
+      border-radius: 8px !important;
+      padding-inline: 0.5rem !important;
+      font-size: 11px !important;
+      line-height: 1.1;
+    }
+
+    .admin-shell .account-current-panel {
+      margin-bottom: 0.75rem !important;
+      padding: 0.75rem !important;
+    }
+
+    .admin-shell .account-current-panel > div {
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.85rem 0.7rem !important;
+      align-items: start !important;
+    }
+
+    .admin-shell .account-current-panel > div > div:first-child {
+      grid-column: 1 / -1;
+    }
+
+    .admin-shell .account-current-panel .text-xl {
+      font-size: 20px !important;
+      line-height: 1.15 !important;
+    }
+
+    .admin-shell .account-hierarchy-filters {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) 96px;
+      gap: 0.5rem !important;
+      margin-bottom: 0.75rem !important;
+    }
+
+    .admin-shell .account-hierarchy-filters .term-input,
+    .admin-shell .account-hierarchy-filters select.term-input,
+    .admin-shell .account-hierarchy-filters button {
+      min-height: 40px !important;
+      width: 100% !important;
+      max-width: none !important;
+      border-radius: 8px !important;
+      padding: 0.45rem 0.55rem !important;
+      font-size: 14px !important;
+      line-height: 1.15 !important;
+    }
+
+    .admin-shell .account-hierarchy-filters input.term-input {
+      grid-column: 1 / -1;
+    }
+
+    .admin-shell .account-hierarchy-filters select.term-input {
+      grid-column: 1 / 2;
+    }
+
+    .admin-shell .account-hierarchy-filters button {
+      grid-column: 2 / 3;
+      justify-content: center;
+      padding-inline: 0.35rem !important;
+      font-size: 11px !important;
+    }
+
     .admin-shell .admin-report-filter {
       margin-bottom: 0.75rem !important;
       border-radius: 12px !important;
@@ -230,6 +313,34 @@
     .admin-shell .admin-table-scroll {
       margin-inline: -0.75rem;
       border-radius: 0;
+    }
+
+    .admin-shell .account-hierarchy-list {
+      margin-inline: -0.75rem !important;
+      overflow-x: auto !important;
+      border-radius: 0 !important;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .admin-shell .account-hierarchy-head,
+    .admin-shell .account-hierarchy-row {
+      min-width: 820px !important;
+      gap: 0.35rem !important;
+      padding: 0.55rem 0.7rem !important;
+    }
+
+    .admin-shell .account-hierarchy-actions {
+      gap: 0.3rem !important;
+    }
+
+    .admin-shell .account-hierarchy-actions .btn-chip {
+      min-height: 30px;
+      justify-content: center;
+      padding: 0.32rem 0.45rem !important;
+      border-radius: 6px !important;
+      font-size: 10px !important;
+      line-height: 1 !important;
+      white-space: nowrap;
     }
 
     .admin-shell .crt-panel {
