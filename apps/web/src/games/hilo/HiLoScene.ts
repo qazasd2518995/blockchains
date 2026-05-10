@@ -24,17 +24,31 @@ import {
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG = 0x0F172A;
-const COLOR_INK = 0x0A0806;
-const COLOR_ACID = 0xF3D67D;
-const COLOR_VIOLET = 0xE8D48A;
-const COLOR_EMBER = 0xD4574A;
-const COLOR_TOXIC = 0x1E7A4F;
-const COLOR_ICE = 0x266F85;
+const COLOR_BG = 0x0f172a;
+const COLOR_INK = 0x0a0806;
+const COLOR_ACID = 0xf3d67d;
+const COLOR_VIOLET = 0xe8d48a;
+const COLOR_EMBER = 0xd4574a;
+const COLOR_TOXIC = 0x1e7a4f;
+const COLOR_ICE = 0x266f85;
 const HILO_BACKGROUND_ASSET = '/game-art/hilo/background.png';
 const HILO_SPRITES_ASSET = '/game-art/hilo/sprites.png';
 
-const CARD_FILE_RANKS = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'] as const;
+const CARD_FILE_RANKS = [
+  'ace',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  'jack',
+  'queen',
+  'king',
+] as const;
 const CARD_FILE_SUITS = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
 
 export interface HiLoCard {
@@ -79,13 +93,13 @@ export class HiLoScene {
   private poolTicker: ((tk: Ticker) => void) | null = null;
   private winFx: WinCelebration | null = null;
 
-
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
     this.width = width;
     this.height = height;
 
-    // 牌大小
-    this.cardW = Math.min(width * 0.22, 160);
+    // 牌大小：手機版 canvas 較窄，主牌需要更大才看得清楚發牌。
+    const preferredCardWidth = width < 640 ? width * 0.34 : width * 0.22;
+    this.cardW = Math.min(Math.max(preferredCardWidth, 96), height * 0.62, 180);
     this.cardH = this.cardW * 1.5;
 
     const app = new Application();
@@ -154,12 +168,22 @@ export class HiLoScene {
 
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
+    const bg = new Graphics()
+      .rect(0, 0, this.width, this.height)
+      .fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
 
-    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.94);
+    const artwork = addCoverSprite(
+      this.app.stage,
+      this.backgroundTexture,
+      this.width,
+      this.height,
+      0.94,
+    );
     if (artwork) {
-      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.42 });
+      const veil = new Graphics()
+        .rect(0, 0, this.width, this.height)
+        .fill({ color: COLOR_BG, alpha: 0.42 });
       this.app.stage.addChild(veil);
     }
 
@@ -372,16 +396,8 @@ export class HiLoScene {
         duration: 0.5,
         ease: 'power2.inOut',
       });
-      tl.to(
-        oldCard.scale,
-        { x: 0.35, y: 0.35, duration: 0.5, ease: 'power2.inOut' },
-        '<',
-      );
-      tl.to(
-        oldCard,
-        { rotation: (Math.random() - 0.5) * 0.4, duration: 0.5 },
-        '<',
-      );
+      tl.to(oldCard.scale, { x: 0.35, y: 0.35, duration: 0.5, ease: 'power2.inOut' }, '<');
+      tl.to(oldCard, { rotation: (Math.random() - 0.5) * 0.4, duration: 0.5 }, '<');
 
       // 將 oldCard 移到 history 層
       tl.call(() => {
@@ -598,7 +614,8 @@ export class HiLoScene {
       });
     }
     if (cfg.shakeAmp > 0) this.shaker?.shake(cfg.shakeAmp, cfg.shakeDuration);
-    if (cfg.edgeGlowMs > 0) emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_TOXIC, cfg.edgeGlowMs / 1000);
+    if (cfg.edgeGlowMs > 0)
+      emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_TOXIC, cfg.edgeGlowMs / 1000);
     if (cfg.rayBurst) emitRayBurst(this.app.stage, this.app, cx, cy, COLOR_TOXIC, 1.2);
   }
 

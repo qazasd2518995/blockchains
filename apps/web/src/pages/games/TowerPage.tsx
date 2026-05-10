@@ -202,35 +202,40 @@ export function TowerPage() {
       if (res.data.newBalance) setBalance(res.data.newBalance);
       if (res.data.hitTrap && res.data.state.revealedLayout) {
         sceneRef.current?.revealAll(res.data.state.revealedLayout);
-        setHistory((prev) => [
-          {
-            id: res.data.state.roundId,
-            timestamp: Date.now(),
-            betAmount: amount,
-            multiplier: 0,
-            payout: 0,
-            won: false,
-            detail: `${res.data.state.picks.length} 層 · ${res.data.state.difficulty}`,
-          },
-          ...prev,
-        ].slice(0, 30));
+        setHistory((prev) =>
+          [
+            {
+              id: res.data.state.roundId,
+              timestamp: Date.now(),
+              betAmount: amount,
+              multiplier: 0,
+              payout: 0,
+              won: false,
+              detail: `${res.data.state.picks.length} 層 · ${res.data.state.difficulty}`,
+            },
+            ...prev,
+          ].slice(0, 30),
+        );
       } else if (res.data.state.status === 'CASHED_OUT') {
-        if (res.data.state.revealedLayout) sceneRef.current?.revealAll(res.data.state.revealedLayout);
+        if (res.data.state.revealedLayout)
+          sceneRef.current?.revealAll(res.data.state.revealedLayout);
         const cashMult = Number.parseFloat(res.data.state.currentMultiplier);
         sceneRef.current?.celebrate(cashMult);
         sceneRef.current?.playWinFx(cashMult, true);
-        setHistory((prev) => [
-          {
-            id: res.data.state.roundId,
-            timestamp: Date.now(),
-            betAmount: amount,
-            multiplier: cashMult,
-            payout: amount * cashMult,
-            won: cashMult >= 1,
-            detail: `通關 · ${res.data.state.difficulty}`,
-          },
-          ...prev,
-        ].slice(0, 30));
+        setHistory((prev) =>
+          [
+            {
+              id: res.data.state.roundId,
+              timestamp: Date.now(),
+              betAmount: amount,
+              multiplier: cashMult,
+              payout: amount * cashMult,
+              won: cashMult >= 1,
+              detail: `通關 · ${res.data.state.difficulty}`,
+            },
+            ...prev,
+          ].slice(0, 30),
+        );
       } else {
         sceneRef.current?.setMultiplier(
           Number.parseFloat(res.data.state.currentMultiplier).toFixed(2),
@@ -257,36 +262,40 @@ export function TowerPage() {
         sceneRef.current?.revealAll(res.data.state.revealedLayout);
       }
       if (res.data.state.status === 'BUSTED') {
-        setHistory((prev) => [
-          {
-            id: res.data.state.roundId,
-            timestamp: Date.now(),
-            betAmount: amount,
-            multiplier: 0,
-            payout: 0,
-            won: false,
-            detail: `${res.data.state.picks.length} 層 · ${res.data.state.difficulty}`,
-          },
-          ...prev,
-        ].slice(0, 30));
+        setHistory((prev) =>
+          [
+            {
+              id: res.data.state.roundId,
+              timestamp: Date.now(),
+              betAmount: amount,
+              multiplier: 0,
+              payout: 0,
+              won: false,
+              detail: `${res.data.state.picks.length} 層 · ${res.data.state.difficulty}`,
+            },
+            ...prev,
+          ].slice(0, 30),
+        );
         return;
       }
 
       const cashMult = Number.parseFloat(res.data.state.currentMultiplier);
       sceneRef.current?.celebrate(cashMult);
       sceneRef.current?.playWinFx(cashMult, true);
-      setHistory((prev) => [
-        {
-          id: res.data.state.roundId,
-          timestamp: Date.now(),
-          betAmount: amount,
-          multiplier: cashMult,
-          payout: amount * cashMult,
-          won: true,
-          detail: `${res.data.state.picks.length} 層 · ${res.data.state.difficulty}`,
-        },
-        ...prev,
-      ].slice(0, 30));
+      setHistory((prev) =>
+        [
+          {
+            id: res.data.state.roundId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: cashMult,
+            payout: amount * cashMult,
+            won: true,
+            detail: `${res.data.state.picks.length} 層 · ${res.data.state.difficulty}`,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -310,11 +319,13 @@ export function TowerPage() {
         rtpAccent="acid"
       />
 
-      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="game-play-grid game-play-grid--tower grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="game-main-stack space-y-4">
-          <div className="game-stage-panel scanlines p-3">
+          <div className="tower-stage-panel game-stage-panel scanlines p-3">
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">疊塔</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Tower</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">疊塔</span>
+              <span className="ml-2 text-white/40">·</span>
+              <span className="ml-2 text-white/55 uppercase">Tower</span>
               <span className="text-white/72">
                 {round
                   ? `${t.games.tower.level} ${round.currentLevel}/${round.totalLevels}`
@@ -323,7 +334,7 @@ export function TowerPage() {
             </div>
 
             <div
-              className="game-canvas-shell game-canvas-tall relative mx-auto mt-2 aspect-[3/4] w-full max-w-[620px]"
+              className="tower-canvas game-canvas-shell game-canvas-tall relative mx-auto mt-2 aspect-[3/4] w-full max-w-[620px]"
               style={{ width: 'min(100%, 620px, calc(78svh * 0.75))', maxHeight: 'none' }}
             >
               <canvas ref={canvasRef} className="h-full w-full" />
@@ -394,8 +405,12 @@ export function TowerPage() {
           )}
         </div>
 
-        <div className="game-control-stack space-y-4">
-          <div className="game-side-card p-5">
+        <div
+          className={`game-control-stack space-y-4 ${isActive ? 'tower-control-stack--active' : ''}`}
+        >
+          <div
+            className={`tower-control-card game-side-card p-5 ${isActive ? 'tower-control-card--active' : ''}`}
+          >
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -428,7 +443,7 @@ export function TowerPage() {
               </div>
             </div>
 
-            <div className="mt-6 space-y-2">
+            <div className="tower-action-panel mt-6 space-y-2">
               {(!round || round.status !== 'ACTIVE') && (
                 <button
                   type="button"
@@ -454,7 +469,10 @@ export function TowerPage() {
               )}
               <div className="game-balance-strip mt-3">
                 <span>
-                  {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
+                  {t.bet.balance}{' '}
+                  <span className="data-num ml-1 text-white">
+                    {user ? formatAmount(balance) : '登入後顯示'}
+                  </span>
                 </span>
                 <span>
                   {t.games.tower.current}{' '}
@@ -477,9 +495,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
   return (
     <div className="game-stat-card">
       <div className="label">{k}</div>
-      <div
-        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-[#7DD3FC]' : 'text-white'}`}
-      >
+      <div className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-[#7DD3FC]' : 'text-white'}`}>
         {v}
       </div>
     </div>

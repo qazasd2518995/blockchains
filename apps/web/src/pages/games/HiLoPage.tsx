@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import type {
-  HiLoRoundState,
-  HiLoGuessResult,
-  HiLoCashoutResult,
-} from '@bg/shared';
+import type { HiLoRoundState, HiLoGuessResult, HiLoCashoutResult } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -100,18 +96,20 @@ export function HiLoPage() {
       if (res.data.newBalance) setBalance(res.data.newBalance);
       // 答錯 → 一局結束（BUSTED），記錄輸局
       if (res.data.state.status === 'BUSTED') {
-        setHistory((prev) => [
-          {
-            id: res.data.state.roundId,
-            timestamp: Date.now(),
-            betAmount: amount,
-            multiplier: 0,
-            payout: 0,
-            won: false,
-            detail: `${res.data.state.history.length} 連對`,
-          },
-          ...prev,
-        ].slice(0, 30));
+        setHistory((prev) =>
+          [
+            {
+              id: res.data.state.roundId,
+              timestamp: Date.now(),
+              betAmount: amount,
+              multiplier: 0,
+              payout: 0,
+              won: false,
+              detail: `${res.data.state.history.length} 連對`,
+            },
+            ...prev,
+          ].slice(0, 30),
+        );
       }
     } catch (err) {
       setError(extractApiError(err).message);
@@ -144,36 +142,40 @@ export function HiLoPage() {
       setRound(res.data.state);
       setBalance(res.data.newBalance);
       if (res.data.state.status === 'BUSTED') {
-        setHistory((prev) => [
-          {
-            id: res.data.state.roundId,
-            timestamp: Date.now(),
-            betAmount: amount,
-            multiplier: 0,
-            payout: 0,
-            won: false,
-            detail: `${res.data.state.history.length} 連對`,
-          },
-          ...prev,
-        ].slice(0, 30));
+        setHistory((prev) =>
+          [
+            {
+              id: res.data.state.roundId,
+              timestamp: Date.now(),
+              betAmount: amount,
+              multiplier: 0,
+              payout: 0,
+              won: false,
+              detail: `${res.data.state.history.length} 連對`,
+            },
+            ...prev,
+          ].slice(0, 30),
+        );
         return;
       }
 
       const cashMult = Number.parseFloat(res.data.state.currentMultiplier);
       sceneRef.current?.celebrateCashout(cashMult);
       sceneRef.current?.playWinFx(cashMult, true);
-      setHistory((prev) => [
-        {
-          id: res.data.state.roundId,
-          timestamp: Date.now(),
-          betAmount: amount,
-          multiplier: cashMult,
-          payout: amount * cashMult,
-          won: true,
-          detail: `${res.data.state.history.length} 連對`,
-        },
-        ...prev,
-      ].slice(0, 30));
+      setHistory((prev) =>
+        [
+          {
+            id: res.data.state.roundId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: cashMult,
+            payout: amount * cashMult,
+            won: true,
+            detail: `${res.data.state.history.length} 連對`,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -199,11 +201,13 @@ export function HiLoPage() {
         rtpAccent="toxic"
       />
 
-      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="game-play-grid game-play-grid--hilo grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="game-main-stack space-y-4">
-          <div className="game-stage-panel scanlines p-4">
+          <div className="hilo-stage-panel game-stage-panel scanlines p-4">
             <div className="game-stage-bar -mx-4 -mt-4 mb-4 rounded-t-[22px]">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">猜大小</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Hi-Lo</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">猜大小</span>
+              <span className="ml-2 text-white/40">·</span>
+              <span className="ml-2 text-white/55 uppercase">Hi-Lo</span>
               <span className="text-white/72">
                 {round
                   ? `${t.games.hilo.card}${round.cardIndex + 1} · ${t.games.hilo.skips} ${round.skipsUsed}/${round.maxSkips}`
@@ -211,17 +215,17 @@ export function HiLoPage() {
               </span>
             </div>
 
-            <div className="game-canvas-shell game-canvas-wide mt-3 aspect-[16/8] w-full">
+            <div className="hilo-canvas game-canvas-shell game-canvas-wide mt-3 aspect-[16/8] w-full">
               <canvas ref={canvasRef} className="h-full w-full" />
             </div>
 
             {round && (
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="hilo-choice-grid mt-4 grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => handleGuess('higher')}
                   disabled={!isActive || busy}
-                  className="group rounded-[16px] border border-[rgba(9,184,38,0.22)] bg-[linear-gradient(180deg,rgba(9,184,38,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-4 text-left transition hover:border-[rgba(9,184,38,0.38)] hover:bg-[linear-gradient(180deg,rgba(9,184,38,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40 sm:rounded-[20px] sm:p-5"
+                  className="hilo-choice-card group rounded-[16px] border border-[rgba(9,184,38,0.22)] bg-[linear-gradient(180deg,rgba(9,184,38,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-4 text-left transition hover:border-[rgba(9,184,38,0.38)] hover:bg-[linear-gradient(180deg,rgba(9,184,38,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40 sm:rounded-[20px] sm:p-5"
                 >
                   <div className="text-[10px] tracking-[0.3em] text-white/55">
                     {t.games.hilo.higher}
@@ -246,7 +250,7 @@ export function HiLoPage() {
                   type="button"
                   onClick={() => handleGuess('lower')}
                   disabled={!isActive || busy}
-                  className="group rounded-[16px] border border-[rgba(212,87,74,0.22)] bg-[linear-gradient(180deg,rgba(212,87,74,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-4 text-left transition hover:border-[rgba(212,87,74,0.38)] hover:bg-[linear-gradient(180deg,rgba(212,87,74,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40 sm:rounded-[20px] sm:p-5"
+                  className="hilo-choice-card group rounded-[16px] border border-[rgba(212,87,74,0.22)] bg-[linear-gradient(180deg,rgba(212,87,74,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-4 text-left transition hover:border-[rgba(212,87,74,0.38)] hover:bg-[linear-gradient(180deg,rgba(212,87,74,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40 sm:rounded-[20px] sm:p-5"
                 >
                   <div className="text-[10px] tracking-[0.3em] text-white/55">
                     {t.games.hilo.lower}
@@ -279,7 +283,10 @@ export function HiLoPage() {
                 accent="acid"
               />
               <Stat k={t.bet.potentialPayout} v={formatAmount(round.potentialPayout)} />
-              <Stat k={t.games.hilo.card.replace(/#|CARD /, '').trim() || 'CARD'} v={`#${round.cardIndex + 1}`} />
+              <Stat
+                k={t.games.hilo.card.replace(/#|CARD /, '').trim() || 'CARD'}
+                v={`#${round.cardIndex + 1}`}
+              />
             </div>
           )}
 
@@ -307,8 +314,12 @@ export function HiLoPage() {
           )}
         </div>
 
-        <div className="game-control-stack space-y-4">
-          <div className="game-side-card p-5">
+        <div
+          className={`game-control-stack space-y-4 ${isActive ? 'hilo-control-stack--active' : ''}`}
+        >
+          <div
+            className={`hilo-control-card game-side-card p-5 ${isActive ? 'hilo-control-card--active' : ''}`}
+          >
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -316,7 +327,7 @@ export function HiLoPage() {
               guestMode={!user}
               disabled={isActive || busy}
             />
-            <div className="mt-6 space-y-2">
+            <div className="hilo-action-panel mt-6 space-y-2">
               {!round && (
                 <button
                   type="button"
@@ -328,7 +339,7 @@ export function HiLoPage() {
                 </button>
               )}
               {isActive && (
-                <>
+                <div className="hilo-active-actions grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={handleCashout}
@@ -346,7 +357,7 @@ export function HiLoPage() {
                     ⟳ {t.games.hilo.skip.toUpperCase()} ({round.maxSkips - round.skipsUsed}{' '}
                     {t.games.hilo.leftSkips})
                   </button>
-                </>
+                </div>
               )}
               {(round?.status === 'BUSTED' || round?.status === 'CASHED_OUT') && (
                 <button type="button" onClick={handleReset} className="btn-ember w-full py-4">
@@ -355,7 +366,10 @@ export function HiLoPage() {
               )}
               <div className="game-balance-strip mt-3">
                 <span>
-                  {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
+                  {t.bet.balance}{' '}
+                  <span className="data-num ml-1 text-white">
+                    {user ? formatAmount(balance) : '登入後顯示'}
+                  </span>
                 </span>
                 <span>
                   {t.games.mines.current}{' '}
@@ -378,9 +392,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
   return (
     <div className="game-stat-card">
       <div className="label">{k}</div>
-      <div
-        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-[#7DD3FC]' : 'text-white'}`}
-      >
+      <div className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-[#7DD3FC]' : 'text-white'}`}>
         {v}
       </div>
     </div>

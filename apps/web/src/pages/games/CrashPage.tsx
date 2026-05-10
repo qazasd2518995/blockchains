@@ -17,6 +17,7 @@ interface Props {
 }
 
 type LocalCrashBet = { amount: number; cashed: boolean; payout?: string };
+type QueuedCrashBet = { amount: number; autoCashOut?: number; roundNumber?: number };
 const MIN_CASHOUT_MULTIPLIER = 1.01;
 
 export function CrashPage({ config }: Props) {
@@ -31,6 +32,7 @@ export function CrashPage({ config }: Props) {
   const [snapshot, setSnapshot] = useState<CrashRoundSnapshot | null>(null);
   const [crashPoint, setCrashPoint] = useState<number | null>(null);
   const [myBet, setMyBet] = useState<LocalCrashBet | null>(null);
+  const [queuedBet, setQueuedBet] = useState<QueuedCrashBet | null>(null);
   const [players, setPlayers] = useState<CrashPlayerBet[]>([]);
   const [history, setHistory] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +42,7 @@ export function CrashPage({ config }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<CrashScene | null>(null);
   const myBetRef = useRef<LocalCrashBet | null>(null);
+  const queuedBetRef = useRef<QueuedCrashBet | null>(null);
   const appliedCashoutRef = useRef(false);
   const statusRef = useRef(status);
   const bettingCountdownRef = useRef(bettingCountdown);
@@ -50,6 +53,10 @@ export function CrashPage({ config }: Props) {
   useEffect(() => {
     myBetRef.current = myBet;
   }, [myBet]);
+
+  useEffect(() => {
+    queuedBetRef.current = queuedBet;
+  }, [queuedBet]);
 
   useEffect(() => {
     statusRef.current = status;
@@ -363,12 +370,56 @@ export function CrashPage({ config }: Props) {
       }
     };
 
+    const onBetQueued = (payload: {
+      amount: string;
+      autoCashOut?: number;
+      roundNumber?: number;
+    }) => {
+      const queuedAmount = Number.parseFloat(payload.amount);
+      if (!Number.isFinite(queuedAmount)) return;
+      const queued = {
+        amount: queuedAmount,
+        autoCashOut: payload.autoCashOut,
+        roundNumber: payload.roundNumber,
+      };
+      queuedBetRef.current = queued;
+      setQueuedBet(queued);
+      setError(null);
+    };
+
+    const onBetConfirmed = (payload: {
+      amount: string;
+      autoCashOut?: number;
+      newBalance?: string;
+      roundNumber?: number;
+    }) => {
+      const confirmedAmount = Number.parseFloat(payload.amount);
+      if (!Number.isFinite(confirmedAmount)) return;
+      const placedBet = { amount: confirmedAmount, cashed: false };
+      queuedBetRef.current = null;
+      myBetRef.current = placedBet;
+      appliedCashoutRef.current = false;
+      setQueuedBet(null);
+      setMyBet(placedBet);
+      setError(null);
+      if (payload.newBalance) setBalance(payload.newBalance);
+    };
+
+    const onBetQueueFailed = (payload: { error?: string }) => {
+      queuedBetRef.current = null;
+      setQueuedBet(null);
+      setError(payload.error ?? 'NEXT ROUND BET FAILED');
+    };
+
     socket.on('round:snapshot', onSnapshot);
     socket.on('round:betting', onBetting);
     socket.on('round:running', onRunning);
     socket.on('round:tick', onTick);
     socket.on('round:crashed', onCrashed);
     socket.on('bets:update', onBetsUpdate);
+    socket.on('bet:queued', onBetQueued);
+    socket.on('bet:confirmed', onBetConfirmed);
+    socket.on('bet:queue_failed', onBetQueueFailed);
 
     return () => {
       socket.off('round:snapshot', onSnapshot);
@@ -377,18 +428,20 @@ export function CrashPage({ config }: Props) {
       socket.off('round:tick', onTick);
       socket.off('round:crashed', onCrashed);
       socket.off('bets:update', onBetsUpdate);
+      socket.off('bet:queued', onBetQueued);
+      socket.off('bet:confirmed', onBetConfirmed);
+      socket.off('bet:queue_failed', onBetQueueFailed);
       if (countdownRef.current) clearInterval(countdownRef.current);
       disconnectCrashSocket(config.gameId);
     };
-  }, [applyCashoutResult, config.gameId]);
+  }, [applyCashoutResult, config.gameId, setBalance]);
 
   const handlePlaceBet = () => {
     if (!user) {
       requireLogin();
       return;
     }
-    if (status !== 'BETTING') {
-      setError(t.bet.roundNotAccepting);
+    if (queuedBetRef.current) {
       return;
     }
     if (amount <= 0 || amount > balance) {
@@ -408,12 +461,29 @@ export function CrashPage({ config }: Props) {
         autoCashOut:
           Number.isFinite(autoCO) && autoCO >= MIN_CASHOUT_MULTIPLIER ? autoCO : undefined,
       },
-      (res: { ok: boolean; error?: string; newBalance?: string }) => {
+      (res: {
+        ok: boolean;
+        error?: string;
+        newBalance?: string;
+        queued?: boolean;
+        roundNumber?: number;
+      }) => {
         if (!res.ok) {
           setError(res.error ?? 'BET FAILED');
           return;
         }
         setError(null);
+        if (res.queued) {
+          const queued = {
+            amount,
+            autoCashOut:
+              Number.isFinite(autoCO) && autoCO >= MIN_CASHOUT_MULTIPLIER ? autoCO : undefined,
+            roundNumber: res.roundNumber,
+          };
+          queuedBetRef.current = queued;
+          setQueuedBet(queued);
+          return;
+        }
         const placedBet = { amount, cashed: false };
         myBetRef.current = placedBet;
         appliedCashoutRef.current = false;
@@ -460,9 +530,11 @@ export function CrashPage({ config }: Props) {
     );
   };
 
-  const controlsLocked = status === 'BETTING' && Boolean(myBet);
+  const controlsLocked = Boolean(queuedBet) || (status === 'BETTING' && Boolean(myBet));
   const liveCashoutPayout =
     status === 'RUNNING' && myBet && !myBet.cashed ? myBet.amount * multiplier : 0;
+  const canShowCurrentBetButton = status === 'BETTING' && !myBet && !queuedBet;
+  const canShowNextRoundBetButton = status !== 'BETTING' && !queuedBet;
 
   return (
     <div>
@@ -575,7 +647,7 @@ export function CrashPage({ config }: Props) {
             </div>
 
             <div className="mt-6 space-y-2">
-              {status === 'BETTING' && !myBet && (
+              {canShowCurrentBetButton && (
                 <button
                   type="button"
                   onClick={handlePlaceBet}
@@ -601,6 +673,27 @@ export function CrashPage({ config }: Props) {
                     </strong>
                   </span>
                 </button>
+              )}
+              {canShowNextRoundBetButton && (
+                <button
+                  type="button"
+                  onClick={handlePlaceBet}
+                  disabled={!!user && balance < amount}
+                  className="btn-acid w-full py-4"
+                >
+                  → {t.games.crash.nextRoundBet} · {formatAmount(amount)}
+                </button>
+              )}
+              {queuedBet && (
+                <div className="game-stat-card text-center">
+                  <div className="text-[10px] tracking-[0.3em] text-white/55">
+                    {t.games.crash.nextRoundQueued}
+                    {queuedBet.roundNumber ? ` #${queuedBet.roundNumber}` : ''}
+                  </div>
+                  <div className="data-num text-lg text-[#7DD3FC]">
+                    {formatAmount(queuedBet.amount)}
+                  </div>
+                </div>
               )}
               {myBet && myBet.cashed && (
                 <div className="game-result-card game-result-card-win text-center">

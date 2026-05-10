@@ -811,6 +811,48 @@
       margin-top: 0.45rem !important;
     }
 
+    .game-fullscreen-shell[data-game-id='tower'] .game-play-grid--tower {
+      gap: 0.28rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower'] .tower-stage-panel {
+      padding: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower'] .tower-stage-panel > .game-stage-bar {
+      margin: -0.35rem -0.35rem 0.3rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower'] .tower-canvas {
+      flex: 1 1 clamp(260px, 48svh, 430px) !important;
+      min-height: clamp(240px, 44svh, 410px) !important;
+      width: min(100%, 620px, calc(84svh * 0.75)) !important;
+      border-radius: 12px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower'] .tower-control-stack--active {
+      max-height: 96px;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower']
+      .tower-control-stack--active
+      > .game-side-card:first-child {
+      max-height: 96px;
+      overflow: hidden;
+      padding: 0.42rem 0.55rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower'] .tower-control-card--active .bet-controls,
+    .game-fullscreen-shell[data-game-id='tower']
+      .tower-control-card--active
+      .tower-difficulty-control {
+      display: none;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower'] .tower-control-card--active .tower-action-panel {
+      margin-top: 0 !important;
+    }
+
     .game-fullscreen-shell[data-game-id='tower'] .tower-difficulty-options {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -819,11 +861,13 @@
     }
 
     .game-fullscreen-shell[data-game-id='tower'] .tower-difficulty-options > button {
+      display: flex !important;
       min-height: 44px;
-      align-items: center;
+      align-items: center !important;
+      justify-content: center !important;
       border-radius: 10px !important;
       padding: 0.45rem 0.25rem !important;
-      text-align: center;
+      text-align: center !important;
     }
 
     .game-fullscreen-shell[data-game-id='tower']
@@ -831,6 +875,7 @@
       > button
       > span:first-child {
       width: 100%;
+      text-align: center;
       font-size: 11px;
       letter-spacing: 0.08em;
     }
@@ -842,12 +887,108 @@
       display: none;
     }
 
+    .game-fullscreen-shell[data-game-id='tower'] .tower-action-panel .btn-acid {
+      min-height: 44px !important;
+      padding: 0.5rem 0.45rem !important;
+    }
+
     .game-fullscreen-shell[data-game-id='mines'] .mines-round-stats {
       display: none;
     }
 
     .game-fullscreen-shell[data-game-id='mines'] .mines-count-presets {
       display: none;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .game-play-grid--hilo {
+      gap: 0.28rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-stage-panel {
+      padding: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-stage-panel > .game-stage-bar {
+      margin: -0.35rem -0.35rem 0.3rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-canvas {
+      flex: 1 1 clamp(210px, 38svh, 340px) !important;
+      min-height: clamp(190px, 34svh, 320px) !important;
+      border-radius: 12px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      flex: 0 0 auto;
+      gap: 0.35rem !important;
+      margin-top: 0.35rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-card {
+      min-height: 78px;
+      border-radius: 12px !important;
+      padding: 0.48rem 0.5rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-card > div:first-child {
+      display: none;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-card .text-2xl,
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-card .text-3xl {
+      margin-top: 0 !important;
+      font-size: 1.1rem !important;
+      line-height: 1.05 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-card .mt-2 {
+      margin-top: 0.3rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-card .text-\[11px\] {
+      font-size: 10px !important;
+      line-height: 1.15;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-control-stack--active {
+      max-height: 106px;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo']
+      .hilo-control-stack--active
+      > .game-side-card:first-child {
+      max-height: 106px;
+      overflow: hidden;
+      padding: 0.42rem 0.55rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-control-card--active .bet-controls {
+      display: none;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-control-card--active .hilo-action-panel {
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-active-actions {
+      grid-template-columns: minmax(0, 1fr) minmax(92px, 0.72fr) !important;
+      gap: 0.4rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-active-actions .btn-acid,
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-active-actions .game-choice-btn {
+      min-height: 43px !important;
+      padding: 0.45rem 0.4rem !important;
+      border-radius: 10px !important;
+      font-size: 11px !important;
+      line-height: 1.05;
+      white-space: normal;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-control-card--active .game-balance-strip {
+      margin-top: 0.34rem !important;
+      padding-top: 0.3rem !important;
     }
 
     .game-fullscreen-shell .game-play-grid--blackjack .game-stage-panel {
@@ -986,6 +1127,40 @@
 
     .game-fullscreen-shell[data-game-id='mines'] .mines-count-presets {
       display: none;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-canvas {
+      flex-basis: 184px !important;
+      min-height: 170px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-card {
+      min-height: 70px;
+      padding: 0.42rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-card .text-2xl,
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-card .text-3xl {
+      font-size: 1rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-control-stack--active,
+    .game-fullscreen-shell[data-game-id='hilo']
+      .hilo-control-stack--active
+      > .game-side-card:first-child {
+      max-height: 98px;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower'] .tower-canvas {
+      flex-basis: 226px !important;
+      min-height: 210px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower'] .tower-control-stack--active,
+    .game-fullscreen-shell[data-game-id='tower']
+      .tower-control-stack--active
+      > .game-side-card:first-child {
+      max-height: 90px;
     }
   }
 

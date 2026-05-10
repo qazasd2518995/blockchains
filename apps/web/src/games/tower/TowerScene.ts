@@ -25,21 +25,21 @@ import {
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG = 0x0F172A;
-const COLOR_TILE_STROKE = 0xC9A247;
-const COLOR_ACID = 0xF3D67D;
-const COLOR_VIOLET = 0xE8D48A;
-const COLOR_EMBER = 0xD4574A;
-const COLOR_TOXIC = 0x1E7A4F;
-const COLOR_AMBER = 0xF3D67D;
-const COLOR_ICE = 0x266F85;
-const COLOR_INK = 0x0A0806;
-const COLOR_BLUEPRINT = 0x5CBED6;
+const COLOR_BG = 0x0f172a;
+const COLOR_TILE_STROKE = 0xc9a247;
+const COLOR_ACID = 0xf3d67d;
+const COLOR_VIOLET = 0xe8d48a;
+const COLOR_EMBER = 0xd4574a;
+const COLOR_TOXIC = 0x1e7a4f;
+const COLOR_AMBER = 0xf3d67d;
+const COLOR_ICE = 0x266f85;
+const COLOR_INK = 0x0a0806;
+const COLOR_BLUEPRINT = 0x5cbed6;
 const COLOR_BLOCK = 0x344152;
 const COLOR_BLOCK_DARK = 0x182233;
-const COLOR_MORTAR = 0xEEF2F6;
-const COLOR_SAFE_EDGE = 0x7BD68F;
-const TOWER_BACKGROUND_ASSET = '/game-art/tower/background.png';
+const COLOR_MORTAR = 0xeef2f6;
+const COLOR_SAFE_EDGE = 0x7bd68f;
+const TOWER_BACKGROUND_ASSET = '/game-art/tower/stage-background.png';
 
 interface CellHandle {
   container: Container;
@@ -91,7 +91,6 @@ export class TowerScene {
   private baseLevelY = 0;
   private onClick: TowerCellClick | null = null;
   private winFx: WinCelebration | null = null;
-
 
   async init(
     canvas: HTMLCanvasElement,
@@ -159,12 +158,22 @@ export class TowerScene {
 
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
+    const bg = new Graphics()
+      .rect(0, 0, this.width, this.height)
+      .fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
 
-    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.9);
+    const artwork = addCoverSprite(
+      this.app.stage,
+      this.backgroundTexture,
+      this.width,
+      this.height,
+      0.96,
+    );
     if (artwork) {
-      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.52 });
+      const veil = new Graphics()
+        .rect(0, 0, this.width, this.height)
+        .fill({ color: COLOR_BG, alpha: 0.28 });
       this.app.stage.addChild(veil);
     }
 
@@ -174,30 +183,6 @@ export class TowerScene {
       .fill({ color: COLOR_BLUEPRINT, alpha: artwork ? 0.07 : 0.12 });
     glow.filters = [new BlurFilter({ strength: 60 })];
     this.app.stage.addChild(glow);
-
-    const blueprint = new Graphics();
-    const towerW = Math.min(this.width * 0.72, 430);
-    const left = this.width / 2 - towerW / 2;
-    const right = this.width / 2 + towerW / 2;
-    for (let x = left; x <= right + 1; x += towerW / 4) {
-      blueprint.moveTo(x, 34).lineTo(x, this.height - 48);
-    }
-    for (let y = 64; y < this.height - 52; y += 44) {
-      blueprint.moveTo(left - 20, y).lineTo(right + 20, y);
-    }
-    blueprint.stroke({ color: COLOR_BLUEPRINT, width: 1, alpha: 0.08 });
-
-    const scaffoldLeft = left - 34;
-    const scaffoldRight = right + 34;
-    blueprint
-      .moveTo(scaffoldLeft, this.height - 44)
-      .lineTo(scaffoldLeft + 26, 58)
-      .moveTo(scaffoldRight, this.height - 44)
-      .lineTo(scaffoldRight - 26, 58)
-      .moveTo(scaffoldLeft, this.height - 44)
-      .lineTo(scaffoldRight, this.height - 44)
-      .stroke({ color: COLOR_AMBER, width: 1.4, alpha: 0.12 });
-    this.app.stage.addChild(blueprint);
 
     // 底部地基
     const ground = new Graphics();
@@ -211,11 +196,14 @@ export class TowerScene {
       .stroke({ color: COLOR_ACID, width: 1, alpha: 0.3 });
 
     for (let x = 20; x < this.width - 20; x += 10) {
-      ground.moveTo(x, this.height - 30).lineTo(x + 5, this.height - 30).stroke({
-        color: COLOR_ACID,
-        width: 2,
-        alpha: 0.4,
-      });
+      ground
+        .moveTo(x, this.height - 30)
+        .lineTo(x + 5, this.height - 30)
+        .stroke({
+          color: COLOR_ACID,
+          width: 2,
+          alpha: 0.4,
+        });
     }
     this.app.stage.addChild(ground);
   }
@@ -232,7 +220,7 @@ export class TowerScene {
     const levelStyle = new TextStyle({
       fontFamily: GAME_FONT_NUM,
       fontSize: 11,
-      fill: 0xD8E6F4,
+      fill: 0xd8e6f4,
       fontWeight: '600',
       letterSpacing: 3,
     });
@@ -327,30 +315,13 @@ export class TowerScene {
     levelContainer.sortableChildren = true;
     this.levelsContainer.addChild(levelContainer);
 
-    // 樓層梁與左右立柱，讓選格像是在蓋塔。
-    const floorFrame = new Graphics();
     const frameW = dims.span + 42;
-    const beamY = dims.h / 2 + 6;
-    floorFrame
-      .roundRect(-frameW / 2, beamY, frameW, 10, 5)
-      .fill({ color: COLOR_BLOCK_DARK, alpha: 0.86 })
-      .stroke({ color: COLOR_AMBER, width: 1, alpha: 0.28 });
-    floorFrame
-      .rect(-frameW / 2 + 12, beamY + 3, frameW - 24, 1)
-      .fill({ color: COLOR_AMBER, alpha: 0.18 });
-    floorFrame
-      .roundRect(-frameW / 2 - 7, -dims.h / 2 + 4, 8, dims.h + 18, 4)
-      .fill({ color: COLOR_BLOCK_DARK, alpha: 0.5 });
-    floorFrame
-      .roundRect(frameW / 2 - 1, -dims.h / 2 + 4, 8, dims.h + 18, 4)
-      .fill({ color: COLOR_BLOCK_DARK, alpha: 0.5 });
-    levelContainer.addChild(floorFrame);
 
     // 層級標籤（左側）
     const style = new TextStyle({
       fontFamily: GAME_FONT_NUM,
       fontSize: 11,
-      fill: 0xC9D5E3,
+      fill: 0xc9d5e3,
       fontWeight: '600',
       letterSpacing: 2,
     });
@@ -380,22 +351,40 @@ export class TowerScene {
       this.towerBackdrop = null;
     }
     const dims = this.cellDims();
-    const frameW = dims.span + 56;
+    const frameW = dims.span + 62;
     const topY = this.baseLevelY - (this.totalLevels - 1) * this.levelHeight - dims.h / 2 - 14;
     const bottomY = this.baseLevelY + dims.h / 2 + 26;
     const g = new Graphics();
-    g.roundRect(
-      this.width / 2 - frameW / 2,
-      topY,
-      frameW,
-      bottomY - topY,
-      18,
-    )
+    g.roundRect(this.width / 2 - frameW / 2, topY, frameW, bottomY - topY, 18)
       .fill({ color: 0x102236, alpha: 0.54 })
       .stroke({ color: COLOR_BLUEPRINT, width: 1, alpha: 0.16 });
-    g.moveTo(this.width / 2 - frameW / 2 + 18, bottomY - 26)
-      .lineTo(this.width / 2 + frameW / 2 - 18, bottomY - 26)
-      .stroke({ color: COLOR_AMBER, width: 1, alpha: 0.24 });
+
+    const left = this.width / 2 - frameW / 2;
+    const right = this.width / 2 + frameW / 2;
+    g.roundRect(left + 8, topY + 8, 7, bottomY - topY - 16, 4).fill({
+      color: COLOR_AMBER,
+      alpha: 0.08,
+    });
+    g.roundRect(right - 15, topY + 8, 7, bottomY - topY - 16, 4).fill({
+      color: COLOR_AMBER,
+      alpha: 0.08,
+    });
+
+    for (let level = 0; level < this.totalLevels; level += 1) {
+      const y = this.baseLevelY - level * this.levelHeight;
+      const beamY = y + dims.h / 2 + 6;
+      g.roundRect(left + 18, beamY, frameW - 36, 4, 2)
+        .fill({ color: COLOR_BLOCK_DARK, alpha: 0.42 })
+        .stroke({ color: COLOR_AMBER, width: 1, alpha: 0.1 });
+      g.roundRect(left + 30, y - dims.h / 2 - 5, frameW - 60, dims.h + 10, 12).fill({
+        color: COLOR_BLUEPRINT,
+        alpha: level === this.currentLevel ? 0.05 : 0.026,
+      });
+    }
+
+    g.moveTo(left + 20, bottomY - 20)
+      .lineTo(right - 20, bottomY - 20)
+      .stroke({ color: COLOR_AMBER, width: 1, alpha: 0.18 });
     this.towerBackdrop = g;
     this.levelsContainer.addChildAt(g, 0);
   }
@@ -750,7 +739,8 @@ export class TowerScene {
       speedMax: 11,
     });
     if (cfg.shakeAmp > 0) this.shaker?.shake(cfg.shakeAmp, cfg.shakeDuration);
-    if (this.app && cfg.edgeGlowMs > 0) emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_TOXIC, cfg.edgeGlowMs / 1000);
+    if (this.app && cfg.edgeGlowMs > 0)
+      emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_TOXIC, cfg.edgeGlowMs / 1000);
     if (this.app && cfg.rayBurst) emitRayBurst(this.app.stage, this.app, cx, cy, COLOR_TOXIC, 1.3);
   }
 

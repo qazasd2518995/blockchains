@@ -3,13 +3,14 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { crashPoint, sha256, generateServerSeed } from '@bg/provably-fair';
 import { randomUUID } from 'node:crypto';
 import { config as appConfig } from '../config.js';
-import type {
-  CrashRoundSnapshot,
-  CrashPlayerBet,
-  CrashStatus,
-} from '@bg/shared';
+import type { CrashRoundSnapshot, CrashPlayerBet, CrashStatus } from '@bg/shared';
 import { runSerializable } from '../modules/games/_common/BaseGameService.js';
-import { applyControls, finalizeControls, type ControlOutcome, type PredictedResult } from '../modules/games/_common/controls.js';
+import {
+  applyControls,
+  finalizeControls,
+  type ControlOutcome,
+  type PredictedResult,
+} from '../modules/games/_common/controls.js';
 
 const BETTING_WINDOW_MS = 3000;
 const POST_CRASH_MS = 3000;
@@ -25,6 +26,13 @@ const LEASE_RETRY_JITTER_MS = 1000;
 const MIN_BET_AMOUNT = 0.01;
 const MIN_CASHOUT_MULTIPLIER = 1.01;
 const MAX_AUTO_CASHOUT_MULTIPLIER = 1_000_000;
+
+type QueuedCrashBet = {
+  userId: string;
+  amount: number;
+  autoCashOut?: number;
+  queuedAt: number;
+};
 
 export interface CrashRoomConfig {
   gameId: string;
@@ -52,7 +60,11 @@ export class CrashRoom {
     string,
     { betId: string; userId: string; autoCashOut: number }
   >();
-  private roundControlOutcomes = new Map<string, { outcome: ControlOutcome; original: PredictedResult }>();
+  private nextRoundBets = new Map<string, QueuedCrashBet>();
+  private roundControlOutcomes = new Map<
+    string,
+    { outcome: ControlOutcome; original: PredictedResult }
+  >();
   private roundNumber = 0;
   private isLeader = false;
   private readonly instanceId =
@@ -156,8 +168,9 @@ export class CrashRoom {
     this.currentRoundId = round.id;
 
     this.broadcast('round:betting', this.snapshot());
+    await this.flushQueuedBets();
 
-    this.scheduleRunningPhase(BETTING_WINDOW_MS);
+    this.scheduleRunningPhase(Math.max(0, this.bettingEndsAt - Date.now()));
   }
 
   private async beginRunningPhase(): Promise<void> {
@@ -177,7 +190,10 @@ export class CrashRoom {
       return;
     }
 
-    this.broadcast('round:running', { roundId: this.currentRoundId, startedAt: this.roundStartedAt });
+    this.broadcast('round:running', {
+      roundId: this.currentRoundId,
+      startedAt: this.roundStartedAt,
+    });
 
     const tickMs = this.config.tickMs ?? TICK_MS;
     const growth = this.config.growthRate ?? GROWTH_RATE;
@@ -268,9 +284,8 @@ export class CrashRoom {
     let forcedCrashPoint = this.currentCrashPoint;
     for (const bet of bets) {
       const autoCashOut = bet.autoCashOut ? Number(bet.autoCashOut) : null;
-      const naturalCashout = autoCashOut !== null && autoCashOut < this.currentCrashPoint
-        ? autoCashOut
-        : null;
+      const naturalCashout =
+        autoCashOut !== null && autoCashOut < this.currentCrashPoint ? autoCashOut : null;
       const predictedMultiplier = new Prisma.Decimal((naturalCashout ?? 0).toFixed(4));
       const predictedPayout = naturalCashout
         ? bet.amount.mul(predictedMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
@@ -294,7 +309,9 @@ export class CrashRoom {
           ? Number(outcome.maxPayout.div(bet.amount).toFixed(4))
           : Number.POSITIVE_INFINITY;
         const maxTarget = Math.min(
-          outcome.maxMultiplier ? Number(outcome.maxMultiplier.toFixed(4)) : Number.POSITIVE_INFINITY,
+          outcome.maxMultiplier
+            ? Number(outcome.maxMultiplier.toFixed(4))
+            : Number.POSITIVE_INFINITY,
           capFromPayout,
         );
         const minTarget = outcome.minMultiplier ? Number(outcome.minMultiplier.toFixed(4)) : 1.01;
@@ -468,10 +485,7 @@ export class CrashRoom {
     const renewed = await this.prisma.crashRoomLease.updateMany({
       where: {
         gameId: this.config.gameId,
-        OR: [
-          { ownerInstanceId: this.instanceId },
-          { expiresAt: { lt: now } },
-        ],
+        OR: [{ ownerInstanceId: this.instanceId }, { expiresAt: { lt: now } }],
       },
       data: {
         ownerInstanceId: this.instanceId,
@@ -566,20 +580,33 @@ export class CrashRoom {
   }
 
   private handleConnection(socket: Socket): void {
+    const connectedUserId = getSocketUserId(socket);
+    socket.join(crashUserRoom(connectedUserId));
     socket.emit('round:snapshot', this.snapshot());
 
-    socket.on('bet:place', async (payload: { amount?: number; autoCashOut?: number }, ack?: (res: unknown) => void) => {
-      try {
-        if (this.state !== 'BETTING') throw new Error('Round is not accepting bets');
-        if (!this.currentRoundId) throw new Error('No active round');
-        const userId = getSocketUserId(socket);
-        if (!payload.amount) throw new Error('Missing amount');
-        const res = await this.placeBet(userId, payload.amount, payload.autoCashOut);
-        ack?.({ ok: true, ...res });
-      } catch (err) {
-        ack?.({ ok: false, error: (err as Error).message });
-      }
-    });
+    socket.on(
+      'bet:place',
+      async (payload: { amount?: number; autoCashOut?: number }, ack?: (res: unknown) => void) => {
+        try {
+          const userId = getSocketUserId(socket);
+          if (!payload.amount) throw new Error('Missing amount');
+          if (this.state === 'BETTING' && this.currentRoundId) {
+            try {
+              const res = await this.placeBet(userId, payload.amount, payload.autoCashOut);
+              ack?.({ ok: true, ...res });
+              return;
+            } catch (err) {
+              if (!isLateBetRequeueError((err as Error).message)) throw err;
+            }
+          }
+
+          const res = await this.queueNextRoundBet(userId, payload.amount, payload.autoCashOut);
+          ack?.({ ok: true, ...res });
+        } catch (err) {
+          ack?.({ ok: false, error: (err as Error).message });
+        }
+      },
+    );
 
     socket.on('bet:cashout', async (_payload: unknown, ack?: (res: unknown) => void) => {
       try {
@@ -588,7 +615,8 @@ export class CrashRoom {
         if (this.currentMultiplier < MIN_CASHOUT_MULTIPLIER) {
           throw new Error(`Cashout available from ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}x`);
         }
-        if (this.currentMultiplier >= this.currentCrashPoint) throw new Error('Round already crashed');
+        if (this.currentMultiplier >= this.currentCrashPoint)
+          throw new Error('Round already crashed');
         const userId = getSocketUserId(socket);
         const bet = await this.prisma.crashBet.findFirst({
           where: {
@@ -637,22 +665,7 @@ export class CrashRoom {
   ): Promise<{ betId: string; players: CrashPlayerBet[]; newBalance: string }> {
     const roundId = this.currentRoundId;
     if (!roundId) throw new Error('No active round');
-    if (!Number.isFinite(amount)) throw new Error('Invalid bet amount');
-    if (amount < MIN_BET_AMOUNT) throw new Error(`Minimum bet is ${MIN_BET_AMOUNT.toFixed(2)}`);
-    if (amount > appConfig.MAX_SINGLE_BET) {
-      throw new Error(`Max single bet is ${appConfig.MAX_SINGLE_BET}`);
-    }
-    if (
-      autoCashOut !== undefined &&
-      (!Number.isFinite(autoCashOut) ||
-        autoCashOut < MIN_CASHOUT_MULTIPLIER ||
-        autoCashOut > MAX_AUTO_CASHOUT_MULTIPLIER)
-    ) {
-      throw new Error(
-        `Auto cashout must be between ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}x and ${MAX_AUTO_CASHOUT_MULTIPLIER}x`,
-      );
-    }
-    const amountD = new Prisma.Decimal(amount);
+    const amountD = this.validateBetInput(amount, autoCashOut);
 
     const placed = await runSerializable(this.prisma, async (tx) => {
       const round = await tx.crashRound.findUnique({
@@ -680,9 +693,7 @@ export class CrashRoom {
             userId,
             amount: amountD,
             autoCashOut:
-              autoCashOut !== undefined
-                ? new Prisma.Decimal(autoCashOut.toFixed(4))
-                : null,
+              autoCashOut !== undefined ? new Prisma.Decimal(autoCashOut.toFixed(4)) : null,
           },
           select: { id: true },
         });
@@ -721,6 +732,89 @@ export class CrashRoom {
     return { ...placed, players };
   }
 
+  private async queueNextRoundBet(
+    userId: string,
+    amount: number,
+    autoCashOut?: number,
+  ): Promise<{ queued: true; roundNumber: number }> {
+    const amountD = this.validateBetInput(amount, autoCashOut);
+    if (this.nextRoundBets.has(userId)) throw new Error('Next round bet already queued');
+
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { balance: true, disabledAt: true, frozenAt: true },
+    });
+    if (user.disabledAt) throw new Error('Account disabled');
+    if (user.frozenAt) throw new Error('Account frozen');
+    if (user.balance.lessThan(amountD)) throw new Error('Insufficient funds');
+
+    const roundNumber = this.roundNumber + 1;
+    const queued: QueuedCrashBet = {
+      userId,
+      amount: Number(amountD.toFixed(2)),
+      autoCashOut,
+      queuedAt: Date.now(),
+    };
+    this.nextRoundBets.set(userId, queued);
+    this.emitToUser(userId, 'bet:queued', {
+      amount: amountD.toFixed(2),
+      autoCashOut,
+      roundNumber,
+    });
+    return { queued: true, roundNumber };
+  }
+
+  private async flushQueuedBets(): Promise<void> {
+    if (!this.currentRoundId || this.nextRoundBets.size === 0) return;
+    const queuedBets = Array.from(this.nextRoundBets.values()).sort(
+      (a, b) => a.queuedAt - b.queuedAt,
+    );
+    this.nextRoundBets.clear();
+
+    for (const queued of queuedBets) {
+      try {
+        const placed = await this.placeBet(queued.userId, queued.amount, queued.autoCashOut);
+        this.emitToUser(queued.userId, 'bet:confirmed', {
+          betId: placed.betId,
+          amount: new Prisma.Decimal(queued.amount).toFixed(2),
+          autoCashOut: queued.autoCashOut,
+          newBalance: placed.newBalance,
+          roundId: this.currentRoundId,
+          roundNumber: this.roundNumber,
+        });
+      } catch (err) {
+        this.emitToUser(queued.userId, 'bet:queue_failed', {
+          roundId: this.currentRoundId,
+          roundNumber: this.roundNumber,
+          error: (err as Error).message,
+        });
+      }
+    }
+  }
+
+  private validateBetInput(amount: number, autoCashOut?: number): Prisma.Decimal {
+    if (!Number.isFinite(amount)) throw new Error('Invalid bet amount');
+    if (amount < MIN_BET_AMOUNT) throw new Error(`Minimum bet is ${MIN_BET_AMOUNT.toFixed(2)}`);
+    if (amount > appConfig.MAX_SINGLE_BET) {
+      throw new Error(`Max single bet is ${appConfig.MAX_SINGLE_BET}`);
+    }
+    if (
+      autoCashOut !== undefined &&
+      (!Number.isFinite(autoCashOut) ||
+        autoCashOut < MIN_CASHOUT_MULTIPLIER ||
+        autoCashOut > MAX_AUTO_CASHOUT_MULTIPLIER)
+    ) {
+      throw new Error(
+        `Auto cashout must be between ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}x and ${MAX_AUTO_CASHOUT_MULTIPLIER}x`,
+      );
+    }
+    return new Prisma.Decimal(amount);
+  }
+
+  private emitToUser(userId: string, event: string, payload: unknown): void {
+    this.io.of(this.namespace).to(crashUserRoom(userId)).emit(event, payload);
+  }
+
   private async settleCashout(
     userId: string,
     betId: string,
@@ -755,12 +849,9 @@ export class CrashRoom {
         multiplier: multD,
         payout,
       };
-      const cashoutControl = existingControl?.outcome ?? await applyControls(
-        tx,
-        userId,
-        this.config.gameId,
-        cashoutOriginal,
-      );
+      const cashoutControl =
+        existingControl?.outcome ??
+        (await applyControls(tx, userId, this.config.gameId, cashoutOriginal));
       if (cashoutControl.controlled && !cashoutControl.won) {
         this.roundControlOutcomes.set(betId, {
           outcome: cashoutControl,
@@ -774,12 +865,10 @@ export class CrashRoom {
           original: cashoutOriginal,
         });
       }
-      const settledMultiplier = cashoutControl.controlled && cashoutControl.won
-        ? cashoutControl.multiplier
-        : multD;
-      const settledPayout = cashoutControl.controlled && cashoutControl.won
-        ? cashoutControl.payout
-        : payout;
+      const settledMultiplier =
+        cashoutControl.controlled && cashoutControl.won ? cashoutControl.multiplier : multD;
+      const settledPayout =
+        cashoutControl.controlled && cashoutControl.won ? cashoutControl.payout : payout;
       const claimed = await tx.crashBet.updateMany({
         where: { id: betId, cashedOutAt: null },
         data: { cashedOutAt: settledMultiplier, payout: settledPayout },
@@ -905,4 +994,12 @@ function getSocketUserId(socket: Socket): string {
     throw new Error('Authentication required');
   }
   return userId;
+}
+
+function crashUserRoom(userId: string): string {
+  return `user:${userId}`;
+}
+
+function isLateBetRequeueError(message: string): boolean {
+  return message === 'Round is not accepting bets';
 }
