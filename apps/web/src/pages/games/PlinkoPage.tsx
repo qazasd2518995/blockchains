@@ -16,6 +16,9 @@ interface PlinkoPageProps {
   variant?: 'classic' | 'x';
 }
 
+const PLINKO_MIN_ROWS = 8;
+const PLINKO_MAX_ROWS = 12;
+
 export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
@@ -23,7 +26,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   const isX = variant === 'x';
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
-  const [rows, setRows] = useState(12);
+  const [rows, setRows] = useState(10);
   const [risk, setRisk] = useState<PlinkoRisk>('medium');
   const [results, setResults] = useState<PlinkoBetResult[]>([]);
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
@@ -88,18 +91,20 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
       await sceneRef.current?.dropBall(res.data.path, res.data.bucket, res.data.multiplier);
       sceneRef.current?.playWinFx(res.data.multiplier, res.data.multiplier > 1);
       setResults((prev) => [res.data, ...prev].slice(0, 8));
-      setHistory((prev) => [
-        {
-          id: res.data.betId,
-          timestamp: Date.now(),
-          betAmount: amount,
-          multiplier: res.data.multiplier,
-          payout: amount * res.data.multiplier,
-          won: res.data.multiplier >= 1,
-          detail: `Bucket ${res.data.bucket}`,
-        },
-        ...prev,
-      ].slice(0, 30));
+      setHistory((prev) =>
+        [
+          {
+            id: res.data.betId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: res.data.multiplier,
+            payout: amount * res.data.multiplier,
+            won: res.data.multiplier >= 1,
+            detail: `Bucket ${res.data.bucket}`,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
       setBalance(res.data.newBalance);
     } catch (err) {
       setError(extractApiError(err).message);
@@ -126,7 +131,11 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">{isX ? '掉珠挑戰X' : '彈珠台'}</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">{isX ? 'Plinko X' : 'Plinko'}</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">
+                {isX ? '掉珠挑戰X' : '彈珠台'}
+              </span>
+              <span className="ml-2 text-white/40">·</span>
+              <span className="ml-2 text-white/55 uppercase">{isX ? 'Plinko X' : 'Plinko'}</span>
               <span className="text-white/72">
                 {rows} {t.games.plinko.rows} · {t.games.mines[risk]}
               </span>
@@ -187,8 +196,8 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
               </div>
               <input
                 type="range"
-                min={8}
-                max={16}
+                min={PLINKO_MIN_ROWS}
+                max={PLINKO_MAX_ROWS}
                 value={rows}
                 onChange={(e) => setRows(Number.parseInt(e.target.value, 10))}
                 disabled={busy}
@@ -206,7 +215,10 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
             </button>
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
+                {t.bet.balance}{' '}
+                <span className="data-num ml-1 text-white">
+                  {user ? formatAmount(balance) : '登入後顯示'}
+                </span>
               </span>
               <span>
                 {t.games.plinko.rows} <span className="data-num ml-1 text-[#7DD3FC]">{rows}</span>

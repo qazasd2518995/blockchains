@@ -25,15 +25,15 @@ import {
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG = 0x0F172A;
-const COLOR_ACID = 0xF3D67D;
-const COLOR_VIOLET = 0xE8D48A;
-const COLOR_EMBER = 0xD4574A;
-const COLOR_TOXIC = 0x1E7A4F;
-const COLOR_AMBER = 0xF3D67D;
-const COLOR_ICE = 0x266F85;
-const COLOR_INK = 0x0A0806;
-const COLOR_WHITE = 0xFFFFFF;
+const COLOR_BG = 0x0f172a;
+const COLOR_ACID = 0xf3d67d;
+const COLOR_VIOLET = 0xe8d48a;
+const COLOR_EMBER = 0xd4574a;
+const COLOR_TOXIC = 0x1e7a4f;
+const COLOR_AMBER = 0xf3d67d;
+const COLOR_ICE = 0x266f85;
+const COLOR_INK = 0x0a0806;
+const COLOR_WHITE = 0xffffff;
 const PLINKO_BACKGROUND_ASSET = '/game-art/plinko/background.png';
 
 interface Ball {
@@ -96,7 +96,6 @@ export class PlinkoScene {
   private poolTicker: ((tk: Ticker) => void) | null = null;
   private winFx: WinCelebration | null = null;
 
-
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
     this.width = width;
     this.height = height;
@@ -155,12 +154,22 @@ export class PlinkoScene {
 
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
+    const bg = new Graphics()
+      .rect(0, 0, this.width, this.height)
+      .fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
 
-    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.92);
+    const artwork = addCoverSprite(
+      this.app.stage,
+      this.backgroundTexture,
+      this.width,
+      this.height,
+      0.92,
+    );
     if (artwork) {
-      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.42 });
+      const veil = new Graphics()
+        .rect(0, 0, this.width, this.height)
+        .fill({ color: COLOR_BG, alpha: 0.42 });
       this.app.stage.addChild(veil);
     }
 
@@ -196,15 +205,60 @@ export class PlinkoScene {
     this.rows = rows;
     this.multipliers = multipliers;
 
-    // 計算尺寸
-    this.pegSpacing = this.width / (rows + 3);
-    this.rowSpacing = (this.height - this.boardTop - 80) / (rows + 1);
-    this.boardLeft = this.pegSpacing;
-    this.boardRight = this.width - this.pegSpacing;
+    const sidePadding = Math.max(24, Math.min(54, this.width * 0.075));
+    const bucketCount = Math.max(1, multipliers.length);
+    this.boardTop = Math.max(42, Math.min(62, this.height * 0.105));
+    this.boardLeft = sidePadding;
+    this.boardRight = this.width - sidePadding;
+    this.pegSpacing = (this.boardRight - this.boardLeft) / bucketCount;
+    this.pegRadius = rows >= 12 ? 3.2 : 3.8;
+    this.ballRadius = rows >= 12 ? 7 : 8;
+    this.rowSpacing = (this.height - this.boardTop - this.bucketHeight() - 34) / (rows + 1);
     this.boardBottom = this.boardTop + this.rowSpacing * (rows + 1);
 
     this.drawPegs();
     this.drawBuckets();
+  }
+
+  private bucketHeight(): number {
+    return Math.max(34, Math.min(44, this.height * 0.082));
+  }
+
+  private bucketLayout(): {
+    left: number;
+    bucketW: number;
+    bucketH: number;
+    y: number;
+    count: number;
+  } {
+    const count = Math.max(1, this.multipliers.length);
+    const bucketW = (this.boardRight - this.boardLeft) / count;
+    return {
+      left: this.boardLeft,
+      bucketW,
+      bucketH: this.bucketHeight(),
+      y: this.boardBottom - 8,
+      count,
+    };
+  }
+
+  private bucketCenterX(bucket: number): number {
+    const layout = this.bucketLayout();
+    const clamped = Math.max(0, Math.min(layout.count - 1, bucket));
+    return layout.left + clamped * layout.bucketW + layout.bucketW / 2;
+  }
+
+  private pathStartX(): number {
+    return (this.bucketCenterX(0) + this.bucketCenterX(this.rows)) / 2;
+  }
+
+  private pathXAfterSteps(path: ('left' | 'right')[], steps: number): number {
+    const clampedSteps = Math.max(0, Math.min(this.rows, steps));
+    let rights = 0;
+    for (let i = 0; i < clampedSteps; i += 1) {
+      if (path[i] === 'right') rights += 1;
+    }
+    return this.pathStartX() + (rights * 2 - clampedSteps) * (this.pegSpacing / 2);
   }
 
   private drawPegs(): void {
@@ -235,40 +289,33 @@ export class PlinkoScene {
   private drawBuckets(): void {
     if (!this.bucketsContainer) return;
     this.bucketsContainer.removeChildren();
-    const bucketCount = this.multipliers.length;
-    // 對齊 peg 範圍（boardLeft ~ boardRight）而不是全寬 + 留邊距避免最邊兩格貼邊被 clip
-    const margin = 6;
-    const areaW = this.boardRight - this.boardLeft - margin * 2;
-    const bucketW = areaW / bucketCount;
-    const bucketH = 44;
-    const y = this.boardBottom - 10;
+    const { bucketW, bucketH, left, y } = this.bucketLayout();
 
-    for (let i = 0; i < bucketCount; i += 1) {
+    for (let i = 0; i < this.multipliers.length; i += 1) {
       const mRaw = this.multipliers[i];
-      const m: number =
-        mRaw === undefined || mRaw === null || Number.isNaN(mRaw) ? 0 : mRaw;
-      const x = this.boardLeft + margin + i * bucketW;
+      const m: number = mRaw === undefined || mRaw === null || Number.isNaN(mRaw) ? 0 : mRaw;
+      const x = left + i * bucketW;
 
       // 顏色依倍率
-      let color = 0xDCD0B3;
+      let color = 0xdcd0b3;
       if (m >= 10) color = COLOR_EMBER;
       else if (m >= 3) color = COLOR_AMBER;
       else if (m >= 1.1) color = COLOR_TOXIC;
-      else if (m < 1) color = 0xDCD0B3;
+      else if (m < 1) color = 0xdcd0b3;
 
       const c = new Container();
       c.x = x;
       c.y = y;
 
       const box = new Graphics()
-        .roundRect(2, 0, bucketW - 4, bucketH, 6)
+        .roundRect(2, 0, Math.max(8, bucketW - 4), bucketH, 6)
         .fill({ color, alpha: 0.18 })
         .stroke({ color, width: 2 });
       c.addChild(box);
 
       // 倍率文字
       const fmt = m < 1 ? m.toFixed(1) : m < 10 ? m.toFixed(1) : m.toFixed(0);
-      const autoSize = Math.max(10, Math.min(bucketW * 0.38, 18));
+      const autoSize = Math.max(9, Math.min(bucketW * 0.34, 16));
       const fillStr = `#${color.toString(16).padStart(6, '0')}`;
       const label = new Text({
         text: `${fmt}×`,
@@ -316,23 +363,21 @@ export class PlinkoScene {
           const rowY = this.boardTop + (nextRow + 1) * this.rowSpacing;
           if (b.y >= rowY && !b.bouncedRows.has(nextRow)) {
             b.bouncedRows.add(nextRow);
-            const dir = b.path[nextRow];
-            // 精確位移半格，確保跑完所有 row 後 x 會到 bucket 中心
-            const delta = (dir === 'right' ? 1 : -1) * this.pegSpacing * 0.5;
-            const toX = b.x + delta;
+            const toX = this.pathXAfterSteps(b.path, nextRow + 1);
+            const sparkX = (b.x + toX) / 2;
             gsap.to(b, {
               x: toX,
-              duration: 0.16,
-              ease: 'sine.inOut',
+              duration: 0.18,
+              ease: 'power1.out',
               onUpdate: () => {
                 b.g.x = b.x;
               },
             });
-            b.vy = Math.max(2, b.vy * 0.55 + 1.2); // 彈一下
+            b.vy = Math.max(2.1, b.vy * 0.56 + 1.05); // 彈一下
             b.row += 1;
 
             // 碰撞火花
-            this.emitPegSparks(b.x, rowY);
+            this.emitPegSparks(sparkX, rowY);
           }
         }
 
@@ -343,18 +388,16 @@ export class PlinkoScene {
 
         // 落底判定
         if (b.y >= this.boardBottom + 10) {
-          const bucketCount = this.multipliers.length;
-          const margin = 6;
-          const bucketW = (this.boardRight - this.boardLeft - margin * 2) / bucketCount;
-          const targetX = this.boardLeft + margin + b.targetBucket * bucketW + bucketW / 2;
-          const targetY = this.boardBottom + 20;
+          const layout = this.bucketLayout();
+          const targetX = this.bucketCenterX(b.targetBucket);
+          const targetY = layout.y + layout.bucketH * 0.42;
 
           this.balls.splice(i, 1);
           // 短 tween 校正最後 1-2px 浮點誤差（不再有大位移 snap）
           gsap.to(b, {
             x: targetX,
             y: targetY,
-            duration: 0.14,
+            duration: 0.16,
             ease: 'power2.out',
             onUpdate: () => {
               b.g.x = b.x;
@@ -399,8 +442,10 @@ export class PlinkoScene {
     if (!this.ballsContainer) return;
     this.stopAnticipation();
     const g = new Graphics();
-    g.circle(0, 0, this.ballRadius).fill({ color: COLOR_AMBER }).stroke({ color: COLOR_INK, width: 1.5 });
-    g.x = this.width / 2;
+    g.circle(0, 0, this.ballRadius)
+      .fill({ color: COLOR_AMBER })
+      .stroke({ color: COLOR_INK, width: 1.5 });
+    g.x = this.pathStartX();
     g.y = this.boardTop - 14;
     g.alpha = 0;
     g.scale.set(0.6);
@@ -438,11 +483,7 @@ export class PlinkoScene {
   /**
    * 丟一顆球
    */
-  async dropBall(
-    path: ('left' | 'right')[],
-    bucket: number,
-    multiplier: number,
-  ): Promise<void> {
+  async dropBall(path: ('left' | 'right')[], bucket: number, multiplier: number): Promise<void> {
     if (!this.ballsContainer) return;
 
     // 清除預告球
@@ -451,12 +492,14 @@ export class PlinkoScene {
     return new Promise<void>((resolve) => {
       const g = new Graphics();
       // 球
-      g.circle(0, 0, this.ballRadius).fill({ color: COLOR_AMBER }).stroke({ color: COLOR_INK, width: 1.5 });
+      g.circle(0, 0, this.ballRadius)
+        .fill({ color: COLOR_AMBER })
+        .stroke({ color: COLOR_INK, width: 1.5 });
       g.circle(-this.ballRadius * 0.3, -this.ballRadius * 0.3, this.ballRadius * 0.4).fill({
         color: COLOR_WHITE,
         alpha: 0.7,
       });
-      g.x = this.width / 2;
+      g.x = this.pathStartX();
       g.y = this.boardTop - 10;
       this.ballsContainer?.addChild(g);
 
@@ -504,13 +547,11 @@ export class PlinkoScene {
     let color = COLOR_TOXIC;
     if (b.multiplier >= 10) color = COLOR_EMBER;
     else if (b.multiplier >= 3) color = COLOR_AMBER;
-    else if (b.multiplier < 1) color = 0xDCD0B3;
+    else if (b.multiplier < 1) color = 0xdcd0b3;
 
-    const bucketCount = this.multipliers.length;
-    const margin = 6;
-    const bucketW = (this.boardRight - this.boardLeft - margin * 2) / bucketCount;
-    const targetX = this.boardLeft + margin + b.targetBucket * bucketW + bucketW / 2;
-    const targetY = this.boardBottom;
+    const layout = this.bucketLayout();
+    const targetX = this.bucketCenterX(b.targetBucket);
+    const targetY = layout.y + layout.bucketH * 0.35;
 
     const won = b.multiplier >= 1;
     const tier = classifyWinTier(b.multiplier, won);
@@ -530,7 +571,7 @@ export class PlinkoScene {
         x: targetX,
         y: targetY,
         count: won ? tierCfg.particles : 10,
-        colors: won ? [color, COLOR_WHITE, COLOR_ICE] : [0xDCD0B3, COLOR_INK],
+        colors: won ? [color, COLOR_WHITE, COLOR_ICE] : [0xdcd0b3, COLOR_INK],
         speedMin: 3,
         speedMax: won ? 11 : 4,
         angleRad: -Math.PI / 2,

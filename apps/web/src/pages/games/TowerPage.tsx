@@ -319,9 +319,13 @@ export function TowerPage() {
         rtpAccent="acid"
       />
 
-      <div className="game-play-grid game-play-grid--tower grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div
+        className={`game-play-grid game-play-grid--tower grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] ${isActive ? 'game-play-grid--tower-active' : ''}`}
+      >
         <div className="game-main-stack space-y-4">
-          <div className="tower-stage-panel game-stage-panel scanlines p-3">
+          <div
+            className={`tower-stage-panel game-stage-panel scanlines p-3 ${isActive ? 'tower-stage-panel--active' : ''}`}
+          >
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">疊塔</span>
               <span className="ml-2 text-white/40">·</span>

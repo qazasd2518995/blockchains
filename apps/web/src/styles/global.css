@@ -830,6 +830,30 @@
       border-radius: 12px !important;
     }
 
+    .game-fullscreen-shell[data-game-id='tower'] .game-play-grid--tower-active {
+      grid-template-rows: minmax(0, 1fr) auto !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower'] .tower-stage-panel--active {
+      justify-content: stretch;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower'] .tower-stage-panel--active .tower-canvas {
+      width: 100% !important;
+      max-width: none !important;
+      height: auto !important;
+      min-height: 0 !important;
+      flex: 1 1 auto !important;
+      align-self: stretch;
+      margin-top: 0.28rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower'] .tower-stage-panel--active .tower-canvas canvas {
+      display: block;
+      height: 100% !important;
+      width: 100% !important;
+    }
+
     .game-fullscreen-shell[data-game-id='tower'] .tower-control-stack--active {
       max-height: 96px;
     }
@@ -1154,6 +1178,11 @@
     .game-fullscreen-shell[data-game-id='tower'] .tower-canvas {
       flex-basis: 226px !important;
       min-height: 210px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='tower'] .tower-stage-panel--active .tower-canvas {
+      flex-basis: auto !important;
+      min-height: 0 !important;
     }
 
     .game-fullscreen-shell[data-game-id='tower'] .tower-control-stack--active,

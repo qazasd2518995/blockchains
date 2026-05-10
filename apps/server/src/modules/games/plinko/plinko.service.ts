@@ -9,7 +9,11 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
+import {
+  applyControls,
+  finalizeControls,
+  multiplierMatchesControlBounds,
+} from '../_common/controls.js';
 import type { PlinkoBetInput } from './plinko.schema.js';
 
 export class PlinkoService {
@@ -20,17 +24,8 @@ export class PlinkoService {
 
     return runSerializable(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
-      const seed = await new SeedHelper(tx).getActiveBundle(
-        userId,
-        'plinko',
-        input.clientSeed,
-      );
-      const { path, bucket } = plinkoPath(
-        seed.serverSeed,
-        seed.clientSeed,
-        seed.nonce,
-        input.rows,
-      );
+      const seed = await new SeedHelper(tx).getActiveBundle(userId, 'plinko', input.clientSeed);
+      const { path, bucket } = plinkoPath(seed.serverSeed, seed.clientSeed, seed.nonce, input.rows);
       const multiplier = plinkoMultiplier(input.risk, input.rows, bucket);
       const multipliers = plinkoTable(input.risk, input.rows);
       const multiplierD = new Prisma.Decimal(multiplier.toFixed(4));
@@ -81,16 +76,20 @@ export class PlinkoService {
         },
       });
       await debitAndRecord(tx, userId, amount, bet.id);
-      const newBalance =
-        finalPayout.greaterThan(0)
-          ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
-          : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+      const newBalance = finalPayout.greaterThan(0)
+        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
+        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
       await finalizeControls(
         tx,
         userId,
         GameId.PLINKO,
         { won: payout.greaterThan(amount), amount, multiplier: multiplierD, payout },
-        { won: finalPayout.greaterThan(amount), amount, multiplier: finalMultiplier, payout: finalPayout },
+        {
+          won: finalPayout.greaterThan(amount),
+          amount,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
+        },
         controlled,
         bet.id,
         originalResult,
@@ -130,12 +129,19 @@ function choosePlinkoBucket(
         ? x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
         : x.multiplier <= 1,
     );
-  const pool = candidates.length > 0 ? candidates : table.map((multiplier, bucket) => ({ bucket, multiplier }));
+  const pool =
+    candidates.length > 0
+      ? candidates
+      : table.map((multiplier, bucket) => ({ bucket, multiplier }));
   pool.sort((a, b) => (wantWin ? b.multiplier - a.multiplier : a.multiplier - b.multiplier));
   return pool[0]?.bucket ?? 0;
 }
 
 function pathForBucket(rows: number, bucket: number): ('left' | 'right')[] {
   const rights = Math.max(0, Math.min(rows, bucket));
-  return Array.from({ length: rows }, (_, index) => (index < rights ? 'right' : 'left'));
+  return Array.from({ length: rows }, (_, index) => {
+    const before = Math.floor((index * rights) / rows);
+    const after = Math.floor(((index + 1) * rights) / rows);
+    return after > before ? 'right' : 'left';
+  });
 }

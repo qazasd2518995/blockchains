@@ -288,9 +288,9 @@ export class TowerScene {
       this.cells.clear();
     }
 
-    // 預覽時要一次看見完整塔身，避免上緣裁切；正式遊戲仍可用相機聚焦當前層。
-    this.levelHeight = Math.max(48, Math.min(72, (this.height - 132) / 9.05));
-    this.baseLevelY = this.height - Math.max(98, this.levelHeight * 1.6);
+    // 依畫布高度撐開塔身，避免手機 active 狀態下塔身集中在上半部、底下留白。
+    this.levelHeight = Math.max(48, Math.min(88, (this.height - 118) / this.totalLevels));
+    this.baseLevelY = this.height - Math.max(82, this.levelHeight * 1.28);
 
     this.drawTowerBackdrop();
 
