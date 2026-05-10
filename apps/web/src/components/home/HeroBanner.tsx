@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ResponsiveImage } from '@/lib/optimizedImages';
+import { useTranslation } from '@/i18n/useTranslation';
 
 interface Slide {
   id: string;
@@ -10,66 +12,70 @@ interface Slide {
   imagePosition: string;
 }
 
-const SLIDES: Slide[] = [
-  {
-    id: 'welcome',
-    eyebrow: 'Main Floor',
-    title: '今晚主場已開，熱門遊戲直接上桌',
-    subtitle: '全館人氣玩法 · 六大主題館別 · 一進場就能開玩',
-    image: '/banners/hero-welcome-dealer.png',
-    imagePosition: 'object-[74%_center]',
-  },
-  {
-    id: 'crash',
-    eyebrow: 'Crash Hall',
-    title: 'Crash 飛行館 · 倍率一路拉滿',
-    subtitle: 'JetX / Aviator / Rocket · 看準時機一鍵收分',
-    image: '/banners/hero-crash-dealer.png',
-    imagePosition: 'object-[72%_center]',
-  },
-  {
-    id: 'strategy',
-    eyebrow: 'Strategy Hall',
-    title: '策略挑戰館 · 讀局勢再放大獎',
-    subtitle: 'Mines / Tower / Chicken Road · 拆選擇、拚高倍、越玩越上頭',
-    image: '/banners/hero-strategy-dealer.png',
-    imagePosition: 'object-[72%_center]',
-  },
-  {
-    id: 'tables',
-    eyebrow: 'Table Hall',
-    title: '棋牌牌桌館 · 盯牌路，換桌追節奏',
-    subtitle: 'Baccarat / Blackjack / Hi-Lo · 同一套 BG 登入，直接進桌開玩',
-    image: '/halls/tables-card.png',
-    imagePosition: 'object-[78%_center]',
-  },
-];
-
 export function HeroBanner() {
+  const { t } = useTranslation();
   const [idx, setIdx] = useState(0);
+  const slides: Slide[] = [
+    {
+      id: 'welcome',
+      eyebrow: t.hero.welcomeEyebrow,
+      title: t.hero.welcomeTitle,
+      subtitle: t.hero.welcomeSubtitle,
+      image: '/banners/hero-welcome-dealer.png',
+      imagePosition: 'object-[74%_center]',
+    },
+    {
+      id: 'crash',
+      eyebrow: t.hero.crashEyebrow,
+      title: t.hero.crashTitle,
+      subtitle: t.hero.crashSubtitle,
+      image: '/banners/hero-crash-dealer.png',
+      imagePosition: 'object-[72%_center]',
+    },
+    {
+      id: 'strategy',
+      eyebrow: t.hero.strategyEyebrow,
+      title: t.hero.strategyTitle,
+      subtitle: t.hero.strategySubtitle,
+      image: '/banners/hero-strategy-dealer.png',
+      imagePosition: 'object-[72%_center]',
+    },
+    {
+      id: 'tables',
+      eyebrow: t.hero.tablesEyebrow,
+      title: t.hero.tablesTitle,
+      subtitle: t.hero.tablesSubtitle,
+      image: '/halls/tables-card.png',
+      imagePosition: 'object-[78%_center]',
+    },
+  ];
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (media.matches) return undefined;
 
-    const id = window.setInterval(() => setIdx((i) => (i + 1) % SLIDES.length), 5000);
+    const id = window.setInterval(() => setIdx((i) => (i + 1) % slides.length), 5000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [slides.length]);
 
-  const slide = SLIDES[idx];
+  const slide = slides[idx];
   if (!slide) return null;
 
-  const prev = () => setIdx((i) => (i - 1 + SLIDES.length) % SLIDES.length);
-  const next = () => setIdx((i) => (i + 1) % SLIDES.length);
+  const prev = () => setIdx((i) => (i - 1 + slides.length) % slides.length);
+  const next = () => setIdx((i) => (i + 1) % slides.length);
 
   return (
     <section className="group relative w-full overflow-hidden rounded-[10px] border border-[#16324A]/18 shadow-[0_24px_60px_rgba(15,23,42,0.14)]">
       <div className="absolute inset-0">
-        <img
+        <ResponsiveImage
           src={slide.image}
           alt=""
           aria-hidden="true"
+          preset="hero"
+          sizes="100vw"
           className={`h-full w-full object-cover ${slide.imagePosition}`}
+          loading={idx === 0 ? 'eager' : 'lazy'}
+          fetchPriority={idx === 0 ? 'high' : 'auto'}
         />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,11,22,0.94)_0%,rgba(5,18,34,0.88)_34%,rgba(5,18,34,0.52)_60%,rgba(5,18,34,0.22)_100%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_48%,rgba(201,162,71,0.18),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0))]" />
@@ -88,10 +94,10 @@ export function HeroBanner() {
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <span className="inline-flex items-center rounded-full border border-[#C9A247]/42 bg-[#1E1A12]/74 px-4 py-2 text-[12px] font-semibold text-[#F3DE8D] shadow-[0_10px_24px_rgba(2,6,23,0.24),inset_0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-md">
-              即時開玩
+              {t.hero.playNow}
             </span>
             <span className="inline-flex items-center rounded-full border border-white/28 bg-[#071523]/72 px-4 py-2 text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(2,6,23,0.22)] backdrop-blur-md">
-              24 小時不打烊
+              {t.hero.open247}
             </span>
           </div>
         </div>
@@ -101,7 +107,7 @@ export function HeroBanner() {
         type="button"
         onClick={prev}
         className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/[0.25] text-white opacity-100 transition hover:bg-black/[0.45] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:left-4 md:opacity-0 md:group-hover:opacity-100"
-        aria-label="上一張"
+        aria-label={t.hero.previous}
       >
         <ChevronLeft className="h-5 w-5" />
       </button>
@@ -109,13 +115,13 @@ export function HeroBanner() {
         type="button"
         onClick={next}
         className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/[0.25] text-white opacity-100 transition hover:bg-black/[0.45] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:right-4 md:opacity-0 md:group-hover:opacity-100"
-        aria-label="下一張"
+        aria-label={t.hero.next}
       >
         <ChevronRight className="h-5 w-5" />
       </button>
 
       <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
-        {SLIDES.map((s, i) => (
+        {slides.map((s, i) => (
           <button
             key={s.id}
             type="button"

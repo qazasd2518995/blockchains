@@ -8,10 +8,10 @@ interface Feature {
 }
 
 const FEATURES: Feature[] = [
-  { icon: ShieldCheck, title: '稳定可靠',   desc: '顶级游戏引擎，体验流畅无延迟' },
-  { icon: Lock,        title: '加密保障',   desc: '128 位加密传输，资料安全无虞' },
-  { icon: Zap,         title: '秒速派彩',   desc: '注单结算即时到点，绝不延迟' },
-  { icon: Clock3,      title: '24H 开放',   desc: '随时登入大厅，热门玩法全天候开放' },
+  { icon: ShieldCheck, title: '穩定可靠', desc: '頂級遊戲引擎，體驗流暢無延遲' },
+  { icon: Lock, title: '加密保障', desc: '128 位加密傳輸，資料安全無虞' },
+  { icon: Zap, title: '秒速派彩', desc: '注單結算即時到點，絕不延遲' },
+  { icon: Clock3, title: '24H 開放', desc: '隨時登入大廳，熱門玩法全天候開放' },
 ];
 
 export function FeaturesStrip() {

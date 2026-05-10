@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "optimize:images": "node scripts/optimize-images.mjs",
     "preview": "vite preview",
     "lint": "echo \"(web lint skipped)\"",
     "typecheck": "tsc -b --noEmit",

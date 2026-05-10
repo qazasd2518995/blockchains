@@ -1,14 +1,20 @@
 import { Link } from 'react-router-dom';
 import { Lock, ArrowRight } from 'lucide-react';
 import { HALL_LIST, type HallMeta } from '@/data/halls';
+import { ResponsiveImage } from '@/lib/optimizedImages';
 import { getHallIcon } from '@/lib/platformIcons';
+import { getLocalizedHallName, getLocalizedHallTagline } from '@/i18n/hallLabels';
+import { useTranslation } from '@/i18n/useTranslation';
 
 interface Props {
   showHeading?: boolean;
 }
 
 function GuestHallCard({ hall }: { hall: HallMeta }) {
+  const { locale, t } = useTranslation();
   const Icon = getHallIcon(hall.iconKey);
+  const name = getLocalizedHallName(hall, locale);
+  const tagline = getLocalizedHallTagline(hall, locale);
 
   return (
     <Link
@@ -19,10 +25,12 @@ function GuestHallCard({ hall }: { hall: HallMeta }) {
         className="relative h-[260px] shrink-0 overflow-hidden sm:h-[300px] 2xl:h-[330px]"
         style={{ background: hall.gradient }}
       >
-        <img
+        <ResponsiveImage
           src={hall.artwork}
           alt=""
           aria-hidden="true"
+          preset="hall-card"
+          sizes="(min-width: 768px) 50vw, 100vw"
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
           loading="lazy"
         />
@@ -39,23 +47,23 @@ function GuestHallCard({ hall }: { hall: HallMeta }) {
         <div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           <div className="flex flex-col items-center gap-1 text-white">
             <Lock className="h-6 w-6" />
-            <span className="text-[13px] font-semibold">登录后进入</span>
+            <span className="text-[13px] font-semibold">{t.landing.guestHallsNeedLogin}</span>
           </div>
         </div>
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-4 p-5 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <h3 className="text-pretty text-[26px] font-black leading-tight text-[#0F172A]">
-            {hall.nameZh}
+            {name}
           </h3>
           <span className="shrink-0 rounded-full bg-[#EDF4F7] px-3 py-1 text-[12px] font-semibold text-[#557083]">
-            {hall.gameIds.length} 款遊戲
+            {hall.gameIds.length} {t.common.gamesCountUnit}
           </span>
         </div>
-        <p className="text-[15px] leading-7 text-[#4A5568]">{hall.tagline}</p>
+        <p className="text-[15px] leading-7 text-[#4A5568]">{tagline}</p>
         <div className="mt-auto flex items-center justify-between pt-2">
           <span className="inline-flex items-center gap-2 text-[14px] font-bold text-[#186073] transition group-hover:gap-3">
-            登入進入 <ArrowRight className="h-4 w-4" />
+            {t.common.loginToEnter} <ArrowRight className="h-4 w-4" />
           </span>
         </div>
       </div>
@@ -64,12 +72,13 @@ function GuestHallCard({ hall }: { hall: HallMeta }) {
 }
 
 export function GuestHallEntrances({ showHeading = true }: Props) {
+  const { t } = useTranslation();
   return (
     <section className="space-y-4">
       {showHeading ? (
         <header className="flex items-baseline justify-between">
-          <h2 className="text-[20px] font-semibold text-[#0F172A]">六大遊戲館</h2>
-          <span className="text-[12px] text-[#9CA3AF]">登录后即可进入</span>
+          <h2 className="text-[20px] font-semibold text-[#0F172A]">{t.landing.guestHallsTitle}</h2>
+          <span className="text-[12px] text-[#9CA3AF]">{t.landing.guestHallsNeedLogin}</span>
         </header>
       ) : null}
       <div className="grid grid-cols-1 gap-7 md:grid-cols-2">

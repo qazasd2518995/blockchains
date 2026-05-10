@@ -8,19 +8,13 @@ import { GameCardNew } from '@/components/game/GameCardNew';
 import { SectionHeading } from '@/components/layout/SectionHeading';
 import { getHallIcon } from '@/lib/platformIcons';
 import { isMobileLobbyViewport } from '@/lib/mobileViewport';
+import { getLocalizedHallName, getLocalizedHallTagline } from '@/i18n/hallLabels';
+import { useTranslation } from '@/i18n/useTranslation';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
 
-function hallNarrative(hallId: HallId): string {
-  if (hallId === 'crash') return '想追高倍、看準時機一鍵收分的玩家。';
-  if (hallId === 'tables') return '想玩 21 點、比大小，專注牌局判斷的玩家。';
-  if (hallId === 'slots') return '喜歡轉軸連線、主題爆分與短局節奏的玩家。';
-  if (hallId === 'roulette') return '喜歡押號、押色、看輪盤自然停下的玩家。';
-  if (hallId === 'classic') return '喜歡骰子、基諾、彈珠這類短局即開的玩家。';
-  return '想邊判斷邊拚高倍，把手感和腦力一起拉滿的玩家。';
-}
-
 export function HallPage() {
+  const { locale, t } = useTranslation();
   const { hallId } = useParams<{ hallId: string }>();
   const navigate = useNavigate();
   const hall = hallId && hallId in HALLS ? HALLS[hallId as HallId] : undefined;
@@ -35,15 +29,17 @@ export function HallPage() {
     return (
       <div className="rounded-[28px] border border-white/[0.65] bg-white/[0.92] px-6 py-14 text-center shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
         <div className="label">Missing Hall</div>
-        <h1 className="mt-3 text-[30px] font-bold text-[#0F172A]">館別不存在</h1>
-        <p className="mt-3 text-[14px] text-[#4A5568]">請回到大廳重新選擇館別。</p>
+        <h1 className="mt-3 text-[30px] font-bold text-[#0F172A]">{t.hallPage.notFoundTitle}</h1>
+        <p className="mt-3 text-[14px] text-[#4A5568]">{t.hallPage.notFoundDesc}</p>
         <Link to="/lobby" className="btn-teal mt-6 inline-flex text-[13px]">
-          返回大廳
+          {t.common.lobby}
         </Link>
       </div>
     );
   }
 
+  const hallName = getLocalizedHallName(hall, locale);
+  const hallTagline = getLocalizedHallTagline(hall, locale);
   const games = hall.gameIds
     .map((id: GameIdType) => GAMES_REGISTRY[id])
     .filter((game): game is NonNullable<typeof game> => Boolean(game?.enabled));
@@ -72,7 +68,7 @@ export function HallPage() {
           <div className="flex min-w-0 items-center gap-4">
             <Link
               to="/lobby"
-              aria-label="回到大廳"
+              aria-label={t.common.lobby}
               className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/30 text-white/90 backdrop-blur transition hover:bg-black/45"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -82,10 +78,10 @@ export function HallPage() {
             </div>
             <div className="min-w-0">
               <h1 className="truncate text-pretty text-[22px] font-bold leading-tight md:text-[26px]">
-                {hall.nameZh}
+                {hallName}
               </h1>
               <p className="mt-0.5 truncate text-[12px] text-white/80 md:text-[13px]">
-                {hall.tagline}．{games.length} 款人氣玩法
+                {hallTagline}．{games.length} {t.hallPage.popularGamesUnit}
               </p>
             </div>
           </div>
@@ -93,10 +89,10 @@ export function HallPage() {
           <div className="flex shrink-0 items-center gap-2 self-start md:self-auto">
             <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-black/35 px-3 py-1.5 text-[11px] font-semibold text-white/90 backdrop-blur">
               <span className="dot-online" />
-              熱門出分中
+              {t.hallPage.hotNow}
             </span>
             <span className="hidden items-center rounded-full border border-[#C9A247]/45 bg-[#C9A247]/15 px-3 py-1.5 text-[11px] font-semibold text-[#F3D67D] backdrop-blur sm:inline-flex">
-              {games.length} 款 · 適合 {hallNarrative(hall.id).replace('的玩家。', '')}
+              {games.length} {t.common.gamesCountUnit}
             </span>
           </div>
         </div>
@@ -106,18 +102,13 @@ export function HallPage() {
         <section className="space-y-5 xl:col-span-8 2xl:col-span-9">
           <SectionHeading
             eyebrow="Game Floor"
-            title={`${hall.nameZh} 熱門遊戲`}
-            description="這一館把最對味的玩法都排好了，想直衝熱桌、連開幾局，往下挑就對了。"
+            title={`${hallName} ${t.hallPage.hotGames}`}
+            description={t.hallPage.description}
           />
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
             {games.map((game) => (
-              <GameCardNew
-                key={game.id}
-                game={game}
-                returnTo={hallPath}
-                returnLabel={hall.nameZh}
-              />
+              <GameCardNew key={game.id} game={game} returnTo={hallPath} returnLabel={hallName} />
             ))}
           </div>
         </section>
@@ -127,7 +118,9 @@ export function HallPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="label">Live Board</div>
-                <h2 className="mt-2 text-[22px] font-bold text-[#0F172A]">這一館正在出分</h2>
+                <h2 className="mt-2 text-[22px] font-bold text-[#0F172A]">
+                  {t.hallPage.liveBoardTitle}
+                </h2>
               </div>
               <span className="dot-online" />
             </div>
@@ -157,7 +150,7 @@ export function HallPage() {
                 ))
               ) : (
                 <div className="rounded-[18px] border border-dashed border-[#E5E7EB] px-4 py-6 text-center text-[13px] text-[#4A5568]">
-                  戰報稍後刷新，先往下挑一款你今晚想衝的遊戲。
+                  {t.hallPage.emptyLive}
                 </div>
               )}
             </div>
@@ -165,9 +158,11 @@ export function HallPage() {
 
           <div className="rounded-[24px] bg-[#0F172A] p-5 text-white shadow-[0_18px_38px_rgba(15,23,42,0.24)]">
             <div className="label !text-white/[0.55]">Tonight's Pick</div>
-            <h3 className="mt-3 text-[22px] font-bold">{hall.nameZh} 今晚正燙。</h3>
+            <h3 className="mt-3 text-[22px] font-bold">
+              {hallName} {t.hallPage.tonightPickTitle}
+            </h3>
             <p className="mt-2 text-[13px] leading-relaxed text-white/[0.75]">
-              先看哪幾款正在出分，再往下直接挑桌開玩。手感來了，就別讓節奏斷掉。
+              {t.hallPage.tonightPickDesc}
             </p>
           </div>
         </aside>

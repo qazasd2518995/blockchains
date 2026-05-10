@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Music, VolumeOff } from 'lucide-react';
 import { PlatformBgm, type BgmState } from '@/lib/platformBgm';
+import { useTranslation } from '@/i18n/useTranslation';
 
 interface Props {
   variant?: 'dark' | 'light';
@@ -8,7 +9,12 @@ interface Props {
   showLabel?: boolean;
 }
 
-export function MusicToggle({ variant = 'dark', className = '', showLabel = false }: Props): JSX.Element {
+export function MusicToggle({
+  variant = 'dark',
+  className = '',
+  showLabel = false,
+}: Props): JSX.Element {
+  const { t } = useTranslation();
   const [state, setState] = useState<BgmState>(() => PlatformBgm.getSnapshot());
 
   useEffect(() => {
@@ -26,19 +32,21 @@ export function MusicToggle({ variant = 'dark', className = '', showLabel = fals
     PlatformBgm.toggleMuted();
   };
 
+  const label = state.muted ? t.common.musicOn : t.common.musicOff;
+
   return (
     <button
       type="button"
       onClick={toggle}
-      title={state.muted ? '開啟音樂' : '關閉音樂'}
-      aria-label={state.muted ? '開啟音樂' : '關閉音樂'}
+      title={label}
+      aria-label={label}
       aria-pressed={state.muted}
       className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border transition ${
         showLabel ? 'h-11 w-auto gap-1.5 px-3' : 'h-11 w-11'
       } ${base} ${className}`}
     >
       <Icon className="h-4 w-4" aria-hidden="true" />
-      {showLabel ? <span className="text-[12px] font-bold">音樂</span> : null}
+      {showLabel ? <span className="text-[12px] font-bold">{t.common.music}</span> : null}
     </button>
   );
 }

@@ -2,6 +2,8 @@ import { Link, NavLink } from 'react-router-dom';
 import { Gift, History, LayoutGrid, ShieldCheck, WalletCards } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
+import { useTranslation } from '@/i18n/useTranslation';
 
 type MobilePageKey = 'lobby' | 'verify' | 'history' | 'promos';
 
@@ -27,11 +29,16 @@ export function MobilePageHeader({
   active: MobilePageKey;
 }) {
   const user = useAuthStore((state) => state.user);
+  const { t } = useTranslation();
 
   return (
     <section className="sticky top-0 z-30 border-b border-[#C9D9E2] bg-white pt-[env(safe-area-inset-top)] shadow-[0_4px_14px_rgba(15,23,42,0.08)] lg:hidden">
       <div className="flex h-[56px] items-center gap-2 px-2.5">
-        <Link to="/lobby" className="flex min-h-11 shrink-0 items-center gap-1.5" aria-label="返回大廳">
+        <Link
+          to="/lobby"
+          className="flex min-h-11 shrink-0 items-center gap-1.5"
+          aria-label={t.common.lobby}
+        >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-[#E9F8F8] text-[17px] font-black text-[#0992A8]">
             BG
           </span>
@@ -47,7 +54,7 @@ export function MobilePageHeader({
         {user ? (
           <div
             className="flex h-11 w-[118px] min-w-0 items-center gap-1 rounded-[10px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12]"
-            aria-label={`帳號 ${user.username}，餘額 ${formatAmount(user.balance ?? '0')}`}
+            aria-label={`${t.common.account} ${user.username}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
           >
             <WalletCards className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate text-[10px] font-black leading-none text-[#5F4A14]">
@@ -62,9 +69,10 @@ export function MobilePageHeader({
             to={`/login?from=${encodeURIComponent(`/${active === 'lobby' ? 'lobby' : active}`)}&reason=${active}`}
             className="inline-flex h-11 shrink-0 items-center justify-center rounded-[10px] border border-[#D6B75B] bg-[#FFF1B4] px-3 text-[12px] font-black text-[#765709]"
           >
-            登入
+            {t.common.login}
           </Link>
         )}
+        <LanguageSwitcher variant="light" compact className="h-11 w-11 rounded-[10px]" />
       </div>
 
       <nav className="grid grid-cols-4 gap-1.5 px-2 pb-2">
@@ -83,7 +91,13 @@ export function MobilePageHeader({
               }
             >
               <Icon className="h-4 w-4" aria-hidden="true" />
-              {item.label}
+              {item.key === 'lobby'
+                ? t.common.lobby
+                : item.key === 'verify'
+                  ? t.common.gameGuide
+                  : item.key === 'history'
+                    ? t.common.history
+                    : t.common.promos}
             </NavLink>
           );
         })}

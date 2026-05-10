@@ -22,10 +22,15 @@ import { HALL_LIST, type HallId } from '@/data/halls';
 import { FAKE_TODAY_TOP10, getDriftedOnlineCount } from '@/data/fakeStats';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
+import { warmGameAssets } from '@/lib/gameAssetManifest';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
+import { ResponsiveImage } from '@/lib/optimizedImages';
 import { getGameIcon, getHallIcon } from '@/lib/platformIcons';
 import { SoundToggle } from '@/components/layout/SoundToggle';
 import { MusicToggle } from '@/components/layout/MusicToggle';
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
+import { getLocalizedGameTitle } from '@/i18n/gameLabels';
+import { useTranslation } from '@/i18n/useTranslation';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
 const visibleGameIds = Array.from(
@@ -66,47 +71,6 @@ const MOBILE_HALL_LABEL: Record<HallId, string> = {
   strategy: '策略',
 };
 
-const MOBILE_GAME_NAME: Record<string, string> = {
-  baccarat: '皇家百家',
-  'baccarat-nova': '星耀百家',
-  'baccarat-imperial': '御龍百家',
-  blackjack: '21點',
-  dice: '骰子',
-  mines: '踩地雷',
-  hilo: '猜大小',
-  keno: '基諾',
-  wheel: '彩色轉輪',
-  'mini-roulette': '迷你輪盤',
-  plinko: '彈珠台',
-  hotline: '熱線',
-  'fruit-slot': '水果拉霸',
-  'fortune-slot': '財虎拉霸',
-  'ocean-slot': '海神寶藏',
-  'temple-slot': '聖殿寶石',
-  'candy-slot': '糖果派對',
-  'sakura-slot': '夜櫻武士',
-  'thunder-slot': '雷神之鎚',
-  'dragon-mega-slot': '龍焰巨輪',
-  'nebula-slot': '星河寶藏',
-  'jungle-slot': '秘境遺跡',
-  'vampire-slot': '暗夜古堡',
-  tower: '疊塔',
-  'chicken-road': '小雞過馬路',
-  rocket: '火箭',
-  aviator: '飛行員',
-  'space-fleet': '太空艦隊',
-  jetx: '飆速X',
-  balloon: '氣球',
-  jetx3: '飆速X3',
-  'double-x': '雙倍X',
-  'plinko-x': '掉珠挑戰X',
-  carnival: '狂歡節',
-};
-
-function mobileGameName(game: GameMetadata): string {
-  return MOBILE_GAME_NAME[game.id] ?? game.nameZh;
-}
-
 function mobileGamePath(gameId: string): string {
   return `/games/${gameId}`;
 }
@@ -119,6 +83,8 @@ function mobileCategoryCount(categoryId: 'all' | HallId): number {
 }
 
 export function LobbyPage() {
+  const { t } = useTranslation();
+
   useEffect(() => {
     void api.get('/health').catch(() => undefined);
   }, []);
@@ -135,19 +101,19 @@ export function LobbyPage() {
 
           <aside className="grid gap-4 sm:grid-cols-3 xl:col-span-4 xl:grid-cols-1 2xl:col-span-3">
             <LobbyStatCard
-              label="熱門館別"
+              label={t.lobbyStats.hotHalls}
               value={String(HALL_LIST.length)}
-              detail="六種館別任你切，飛行、牌桌、拉霸、輪盤、即開、策略都能直接進場。"
+              detail={t.lobbyStats.hotHallsDetail}
             />
             <LobbyStatCard
-              label="可玩遊戲"
+              label={t.lobbyStats.playableGames}
               value={String(totalGames)}
-              detail="從 Crash 到老虎機，今晚主場一次排開。"
+              detail={t.lobbyStats.playableGamesDetail}
             />
             <LobbyStatCard
-              label="今日最高爆分"
+              label={t.lobbyStats.topWin}
               value={numberFormatter.format(topBoardWin)}
-              detail="看看今天誰最火，再挑一館跟著開衝。"
+              detail={t.lobbyStats.topWinDetail}
             />
           </aside>
         </section>
@@ -155,14 +121,14 @@ export function LobbyPage() {
         <section className="space-y-5">
           <SectionHeading
             eyebrow="Game Floors"
-            title="今晚先衝哪一館？"
-            description="玩法已重新分館：Crash 進飛行館，21 點、比大小進棋牌牌桌館，老虎機進拉霸館，輪盤轉輪獨立，骰子、基諾、彈珠放即開電子館，掃雷與疊塔放策略館。"
+            title={t.lobbyStats.hallTitle}
+            description={t.lobbyStats.hallDescription}
             rightSlot={
               <Link
                 to="/hall/tables"
                 className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#186073] transition hover:text-[#0E4555]"
               >
-                先進棋牌牌桌館
+                {t.lobbyStats.enterTables}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             }
@@ -173,8 +139,8 @@ export function LobbyPage() {
         <section className="space-y-5">
           <SectionHeading
             eyebrow="Live Board"
-            title="今天誰在爆分"
-            description="熱門戰報持續刷新，看看哪個館別現在最熱，手感到了就直接跟上。"
+            title={t.lobbyStats.liveBoardTitle}
+            description={t.lobbyStats.liveBoardDescription}
           />
 
           <div className="grid min-w-0 gap-4 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
@@ -188,6 +154,7 @@ export function LobbyPage() {
 }
 
 function MobileLobbyOnePage() {
+  const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const isGuest = !user;
   const [onlineCount] = useState(() => getDriftedOnlineCount() + 5200);
@@ -207,19 +174,21 @@ function MobileLobbyOnePage() {
           <Link
             to="/lobby"
             className="flex min-h-11 shrink-0 items-center gap-1.5"
-            aria-label="返回大廳"
+            aria-label={t.common.lobby}
           >
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-[#E9F8F8] text-[17px] font-black text-[#0992A8] max-[360px]:text-[15px]">
               BG
             </span>
             <span className="hidden min-w-0 truncate text-[13px] font-black leading-tight text-[#08A6B3] min-[460px]:inline">
-              娛樂城
+              {t.landing.brandName.replace(/^BG\s*/, '')}
             </span>
           </Link>
 
           <div className="flex h-8 shrink-0 items-center gap-1 rounded-[8px] bg-[#1479A8] px-2 text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.18)] max-[370px]:px-1.5">
             <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span className="shrink-0 text-[11px] font-bold max-[370px]:hidden">在線</span>
+            <span className="shrink-0 text-[11px] font-bold max-[370px]:hidden">
+              {t.common.live}
+            </span>
             <span className="num shrink-0 text-[12px] font-black">
               {numberFormatter.format(onlineCount)}
             </span>
@@ -227,7 +196,9 @@ function MobileLobbyOnePage() {
 
           {isGuest && (
             <div className="flex min-w-[38px] flex-1 items-center justify-center">
-              <span className="truncate text-[11px] font-black text-[#6B7280]">遊客瀏覽</span>
+              <span className="truncate text-[11px] font-black text-[#6B7280]">
+                {t.lobbyStats.guestBrowsing}
+              </span>
             </div>
           )}
 
@@ -242,11 +213,16 @@ function MobileLobbyOnePage() {
                   variant="light"
                   className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
                 />
+                <LanguageSwitcher
+                  variant="light"
+                  compact
+                  className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                />
                 <Link
                   to="/login?from=%2Flobby&reason=lobby"
                   className="inline-flex h-11 shrink-0 items-center justify-center rounded-[10px] border border-[#D6B75B] bg-[#FFF1B4] px-3 text-[12px] font-black text-[#765709]"
                 >
-                  登入
+                  {t.common.login}
                 </Link>
               </>
             ) : (
@@ -259,9 +235,14 @@ function MobileLobbyOnePage() {
                   variant="light"
                   className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
                 />
+                <LanguageSwitcher
+                  variant="light"
+                  compact
+                  className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                />
                 <div
                   className="flex h-10 w-[94px] min-w-0 items-center gap-1 rounded-[9px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12] min-[390px]:h-11 min-[390px]:w-[116px]"
-                  aria-label={`帳號 ${user.username}，餘額 ${formatAmount(user.balance ?? '0')}`}
+                  aria-label={`${t.common.account} ${user.username}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
                 >
                   <WalletCards className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   <span className="min-w-0 flex-1 truncate text-[10px] font-black leading-none text-[#5F4A14]">
@@ -281,14 +262,14 @@ function MobileLobbyOnePage() {
             className="inline-flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-[#D8E7EE] bg-[#F7FCFE] text-[12px] font-black text-[#17657D] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
           >
             <History className="h-4 w-4" aria-hidden="true" />
-            遊戲紀錄
+            {t.common.history}
           </Link>
           <Link
             to="/verify"
             className="inline-flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-[#D8E7EE] bg-[#F7FCFE] text-[12px] font-black text-[#17657D] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
           >
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-            遊戲說明
+            {t.common.gameGuide}
           </Link>
         </div>
       </section>
@@ -297,25 +278,29 @@ function MobileLobbyOnePage() {
         <Link
           to="/promos"
           className="relative block min-h-[118px] overflow-hidden bg-[#1B2030] active:opacity-95"
-          aria-label="查看優惠活動"
+          aria-label={t.common.promos}
         >
-          <img
+          <ResponsiveImage
             src="/banners/hero-crash-dealer.png"
             alt=""
             aria-hidden="true"
+            preset="hero"
+            sizes="100vw"
             className="absolute inset-0 h-full w-full object-cover object-[72%_center] opacity-[0.82]"
+            loading="eager"
+            fetchPriority="high"
           />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,18,34,0.92)_0%,rgba(5,18,34,0.72)_47%,rgba(5,18,34,0.12)_100%)]" />
           <div className="relative z-10 flex min-h-[118px] flex-col justify-center px-4 py-3">
             <span className="inline-flex w-fit items-center gap-1 rounded-[8px] bg-[#F7D568] px-2 py-1 text-[10px] font-black text-[#4B3600] shadow-sm">
               <Gift className="h-3.5 w-3.5" aria-hidden="true" />
-              廣告 · 介紹 · 活動
+              {t.lobbyStats.promoEyebrow}
             </span>
             <h1 className="mt-2 max-w-[230px] text-[26px] font-black leading-tight text-white">
-              老玩家投注滿額送
+              {t.lobbyStats.promoTitle}
             </h1>
             <p className="mt-1 max-w-[236px] text-[12px] font-semibold leading-5 text-white/78">
-              熱門玩法、限時任務、會員優惠集中展示。
+              {t.lobbyStats.promoDescription}
             </p>
           </div>
         </Link>
@@ -417,21 +402,29 @@ function MobileLobbyOnePage() {
 }
 
 function MobileGameCard({ game }: { game: GameMetadata }) {
+  const { locale } = useTranslation();
   const GameIcon = getGameIcon(game.id);
   const cover = getLobbyGameCover(game.id);
   const hall = gameHallMap.get(game.id);
   const hallLabel = hall ? MOBILE_HALL_LABEL[hall] : '熱門';
   const routeState = { returnTo: '/lobby', returnLabel: '大廳' };
+  const warmAssets = () => warmGameAssets(game.id);
+  const title = getLocalizedGameTitle(game.id, locale, game.nameZh);
 
   return (
     <Link
       to={mobileGamePath(game.id)}
       state={routeState}
+      onFocus={warmAssets}
+      onPointerDown={warmAssets}
+      onPointerEnter={warmAssets}
       className="group relative min-h-[116px] overflow-hidden rounded-[13px] border border-[#D6E5EC] bg-[#F7FCFE] shadow-[0_6px_14px_rgba(15,23,42,0.08)] active:scale-[0.99]"
     >
-      <img
+      <ResponsiveImage
         src={cover}
-        alt={mobileGameName(game)}
+        alt={title}
+        preset="lobby-card"
+        sizes="50vw"
         className="absolute inset-0 h-full w-full object-cover object-center opacity-[0.84] transition duration-300 group-active:scale-[1.03]"
         loading="lazy"
       />
@@ -439,9 +432,7 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
       <div className="absolute inset-x-0 bottom-0 h-12 bg-[linear-gradient(0deg,rgba(4,28,42,0.46),transparent)]" />
       <div className="relative z-10 flex h-full min-h-[116px] flex-col justify-between p-2.5">
         <div className="min-w-0">
-          <h3 className="truncate text-[16px] font-black leading-tight text-[#17343F]">
-            {mobileGameName(game)}
-          </h3>
+          <h3 className="truncate text-[16px] font-black leading-tight text-[#17343F]">{title}</h3>
           <span className="mt-1 inline-flex rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black text-[#1681A5] shadow-sm">
             {hallLabel}
           </span>

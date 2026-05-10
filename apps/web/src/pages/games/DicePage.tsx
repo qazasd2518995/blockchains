@@ -77,7 +77,7 @@ export function DicePage() {
     }
     setError(null);
     setRolling(true);
-    // 乐观动画：立刻启动骰子旋转，不等 API
+    // 樂觀動畫：立刻啟動骰子旋轉，不等 API
     sceneRef.current?.startAnticipation();
     try {
       const payload: DiceBetRequest = { amount, target, direction };
@@ -159,7 +159,7 @@ export function DicePage() {
               </div>
             </div>
 
-            {/* 滑杆 + 方向 toggle（紧贴画布底部，免滚动） */}
+            {/* 滑桿 + 方向 toggle（緊貼畫布底部，免滾動） */}
             <div className="border-t border-[#16324A]/10 p-4 md:p-5">
               <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
                 <div className="flex items-baseline gap-2">

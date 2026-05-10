@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { api } from '@/lib/api';
-import { FAKE_ANNOUNCEMENTS } from '@/data/fakeAnnouncements';
+import { useTranslation } from '@/i18n/useTranslation';
 import { TICKER_ICONS } from '@/lib/platformIcons';
 
 const REFETCH_INTERVAL = 60_000;
@@ -14,25 +14,25 @@ interface PublicAnnouncement {
 }
 
 export function AnnouncementTicker() {
+  const { t } = useTranslation();
   const Icon = TICKER_ICONS.announcement;
-  const [messages, setMessages] = useState<string[]>(FAKE_ANNOUNCEMENTS);
+  const [remoteMessages, setRemoteMessages] = useState<string[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const fetchAnnouncements = async () => {
       try {
-        const res = await api.get<{ items: PublicAnnouncement[] }>(
-          '/public/announcements',
-          { params: { kind: 'marquee' } },
-        );
+        const res = await api.get<{ items: PublicAnnouncement[] }>('/public/announcements', {
+          params: { kind: 'marquee' },
+        });
         if (cancelled) return;
         const sorted = [...res.data.items].sort((a, b) => b.priority - a.priority);
         const contents = sorted.map((item) => item.content).filter((c) => c.trim().length > 0);
         if (contents.length > 0) {
-          setMessages(contents);
+          setRemoteMessages(contents);
         }
       } catch {
-        // API 失敗時保留現有訊息（初次載入時即 FAKE_ANNOUNCEMENTS fallback）
+        // API 失敗時保留本地 fallback。
       }
     };
     void fetchAnnouncements();
@@ -45,17 +45,18 @@ export function AnnouncementTicker() {
     };
   }, []);
 
+  const messages = remoteMessages ?? t.announcements.items;
   const loop = [...messages, ...messages];
 
   return (
     <div
-      aria-label="最新公告"
+      aria-label={t.announcements.latest}
       className="min-w-0 overflow-hidden rounded-full border border-white/10 bg-[#162338]/86 text-white/82 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]"
     >
       <div className="flex min-h-8 items-center gap-2 px-3 py-1.5">
         <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-[#E8D48A]">
           <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-          最新公告
+          {t.announcements.latest}
         </span>
         <div className="min-w-0 flex-1 overflow-hidden">
           <div className="ticker-track gap-7 [--ticker-duration:54s]">

@@ -84,7 +84,7 @@ export function RoulettePage({ variant }: Props) {
     setError(null);
     setResult(null);
     sceneRef.current?.reset();
-    // 乐观动画
+    // 樂觀動畫
     sceneRef.current?.startAnticipation();
     try {
       const payload: RouletteBetRequest = { bets };

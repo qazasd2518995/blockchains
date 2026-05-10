@@ -16,7 +16,7 @@ export interface HallMeta {
 export const HALLS: Record<HallId, HallMeta> = {
   crash: {
     id: 'crash',
-    nameZh: 'Crash 飞行馆',
+    nameZh: 'Crash 飛行館',
     iconKey: 'crash',
     tagline: '倍速起飛，看準時機一鍵收分',
     gradient: 'linear-gradient(135deg, #051E2B 0%, #186073 50%, #D4574A 100%)',
@@ -33,7 +33,7 @@ export const HALLS: Record<HallId, HallMeta> = {
   },
   tables: {
     id: 'tables',
-    nameZh: '棋牌牌桌馆',
+    nameZh: '棋牌牌桌館',
     iconKey: 'tables',
     tagline: '拚手牌、算點數，專注每一局牌桌節奏',
     gradient: 'linear-gradient(135deg, #1B2030 0%, #225B66 46%, #C9A247 100%)',
@@ -42,7 +42,7 @@ export const HALLS: Record<HallId, HallMeta> = {
   },
   slots: {
     id: 'slots',
-    nameZh: '拉霸老虎机馆',
+    nameZh: '拉霸老虎機館',
     iconKey: 'slots',
     tagline: '多款主題老虎機，轉軸、連線、爆分節奏集中開',
     gradient: 'linear-gradient(135deg, #111827 0%, #7C2D12 48%, #C9A247 100%)',
@@ -64,7 +64,7 @@ export const HALLS: Record<HallId, HallMeta> = {
   },
   roulette: {
     id: 'roulette',
-    nameZh: '轮盘转轮馆',
+    nameZh: '輪盤轉輪館',
     iconKey: 'roulette',
     tagline: '指針、輪盤、轉輪一次排開，押區押色都直覺',
     gradient: 'linear-gradient(135deg, #0F172A 0%, #145369 52%, #D6B75B 100%)',
@@ -73,7 +73,7 @@ export const HALLS: Record<HallId, HallMeta> = {
   },
   classic: {
     id: 'classic',
-    nameZh: '即开电子馆',
+    nameZh: '即開電子館',
     iconKey: 'classic',
     tagline: '骰子、基諾、彈珠這類短局即開玩法集中在這裡',
     gradient: 'linear-gradient(135deg, #186073 0%, #266F85 50%, #408A9D 100%)',
@@ -82,7 +82,7 @@ export const HALLS: Record<HallId, HallMeta> = {
   },
   strategy: {
     id: 'strategy',
-    nameZh: '策略挑战馆',
+    nameZh: '策略挑戰館',
     iconKey: 'strategy',
     tagline: '逐步選擇、隨時收手，靠判斷把倍率一路推高',
     gradient: 'linear-gradient(135deg, #0E4555 0%, #266F85 50%, #C9A247 100%)',

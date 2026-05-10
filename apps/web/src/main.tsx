@@ -6,6 +6,7 @@ import { router } from './router';
 import { AddToHomeScreenPrompt } from './components/layout/AddToHomeScreenPrompt';
 import { ErrorBoundary } from './components/layout/ErrorBoundary';
 import { PlatformBgm } from './lib/platformBgm';
+import { I18nProvider } from './i18n/useTranslation';
 import './styles/global.css';
 
 const root = document.getElementById('root');
@@ -37,10 +38,12 @@ function AudioUnlocker(): null {
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <AudioUnlocker />
-    <ErrorBoundary>
-      <RouterProvider router={router} />
-      <AddToHomeScreenPrompt />
-    </ErrorBoundary>
+    <I18nProvider>
+      <AudioUnlocker />
+      <ErrorBoundary>
+        <RouterProvider router={router} />
+        <AddToHomeScreenPrompt />
+      </ErrorBoundary>
+    </I18nProvider>
   </React.StrictMode>,
 );

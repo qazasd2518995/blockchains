@@ -46,7 +46,7 @@ export function BetControls({
           </span>
         </div>
         <span className="data-num text-[10px] text-white/55">
-          {guestMode ? '登入後可下注' : `${t.bet.max} ${maxBalance.toFixed(2)}`}
+          {guestMode ? t.bet.loginToBet : `${t.bet.max} ${maxBalance.toFixed(2)}`}
         </span>
       </div>
 

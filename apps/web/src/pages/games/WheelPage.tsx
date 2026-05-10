@@ -65,7 +65,7 @@ export function WheelPage() {
     };
   }, []);
 
-  // 當 risk/segments 改變時重繪轮盘（需等 scene init 完）
+  // 當 risk/segments 改變時重繪輪盤（需等 scene init 完）
   // 用後端共用的 wheelTable 確保預覽倍率與真實結算 100% 一致
   useEffect(() => {
     if (!sceneReady || !sceneRef.current) return;
@@ -79,7 +79,7 @@ export function WheelPage() {
     setBusy(true);
     setError(null);
     setResult(null);
-    // 乐观动画：轮盘立刻开始高速旋转
+    // 樂觀動畫：輪盤立刻開始高速旋轉
     sceneRef.current?.startAnticipation();
     try {
       const payload: WheelBetRequest = { amount, risk, segments };

@@ -5,48 +5,14 @@ import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { SoundToggle } from '@/components/layout/SoundToggle';
 import { MusicToggle } from '@/components/layout/MusicToggle';
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
 import { useLiveBalance } from '@/hooks/useLiveBalance';
-
-const GAME_NAME_ZH: Record<string, string> = {
-  baccarat: '皇家百家',
-  'baccarat-nova': '星耀百家',
-  'baccarat-imperial': '御龍百家',
-  blackjack: '21點',
-  dice: '骰子',
-  mines: '踩地雷',
-  hilo: '猜大小',
-  keno: '基諾',
-  wheel: '彩色轉輪',
-  'mini-roulette': '迷你輪盤',
-  plinko: '彈珠台',
-  hotline: '熱線',
-  'fruit-slot': '水果拉霸',
-  'fortune-slot': '財虎拉霸',
-  'ocean-slot': '海神寶藏',
-  'temple-slot': '聖殿寶石',
-  'candy-slot': '糖果派對',
-  'sakura-slot': '夜櫻武士',
-  'thunder-slot': '雷神之鎚',
-  'dragon-mega-slot': '龍焰巨輪',
-  'nebula-slot': '星河寶藏',
-  'jungle-slot': '秘境遺跡',
-  'vampire-slot': '暗夜古堡',
-  tower: '疊塔',
-  'chicken-road': '小雞過馬路',
-  rocket: '火箭',
-  aviator: '飛行員',
-  'space-fleet': '太空艦隊',
-  jetx: '飆速X',
-  balloon: '氣球',
-  jetx3: '飆速X3',
-  'double-x': '雙倍X',
-  'plinko-x': '掉珠挑戰X',
-  carnival: '狂歡節',
-};
+import { getLocalizedGameTitle } from '@/i18n/gameLabels';
+import { useTranslation } from '@/i18n/useTranslation';
 
 const MEGA_SLOT_GAME_IDS = new Set([
   'thunder-slot',
@@ -66,19 +32,21 @@ type ScreenOrientationWithLock = ScreenOrientation & {
 
 function useCurrentGameMeta() {
   const location = useLocation();
+  const { locale } = useTranslation();
   return useMemo(() => {
     const gameId = location.pathname.replace(/^\/games\//, '').split('/')[0] ?? '';
     const game = GAMES_REGISTRY[gameId as GameIdType];
     return {
       id: gameId,
-      title: GAME_NAME_ZH[gameId] ?? game?.nameZh ?? '遊戲',
+      title: getLocalizedGameTitle(gameId, locale, game?.nameZh ?? '遊戲'),
       subtitle: game?.name ?? gameId.toUpperCase(),
     };
-  }, [location.pathname]);
+  }, [locale, location.pathname]);
 }
 
 export function GameFullscreenShell() {
   const { user, setBalance } = useAuthStore();
+  const { t } = useTranslation();
   const game = useCurrentGameMeta();
   const returnTarget = useGameReturnTarget();
   const location = useLocation();
@@ -150,7 +118,7 @@ export function GameFullscreenShell() {
           <Link
             to={returnTarget.to}
             className="game-shell-back inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/82 transition hover:border-white/24 hover:bg-white/[0.1] hover:text-white"
-            aria-label={`返回${returnTarget.label}`}
+            aria-label={`${t.common.back}${returnTarget.label}`}
           >
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           </Link>
@@ -169,8 +137,8 @@ export function GameFullscreenShell() {
               type="button"
               onClick={handleBalanceRefresh}
               className="game-shell-balance inline-flex h-10 min-w-0 shrink-0 items-center gap-2 rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338]"
-              title="重新載入餘額"
-              aria-label={`重新載入餘額，目前餘額 ${formatAmount(user.balance ?? '0')}`}
+              title={t.common.reload}
+              aria-label={`${t.common.reload}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
             >
               <WalletCards className="h-4 w-4" aria-hidden="true" />
               <span className="data-num">{formatAmount(user.balance ?? '0')}</span>
@@ -180,7 +148,7 @@ export function GameFullscreenShell() {
               to={loginPath}
               className="game-shell-balance inline-flex h-10 min-w-0 shrink-0 items-center rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338]"
             >
-              登入下注
+              {t.common.loginToBet}
             </Link>
           )}
 
@@ -189,22 +157,23 @@ export function GameFullscreenShell() {
             className="game-shell-history hidden h-10 shrink-0 items-center gap-2 rounded-full border border-white/12 bg-white/[0.06] px-3 text-[12px] font-semibold text-white/72 transition hover:border-white/24 hover:bg-white/[0.1] hover:text-white md:inline-flex"
           >
             <History className="h-4 w-4" aria-hidden="true" />
-            記錄
+            {t.common.record}
           </Link>
 
           <SoundToggle variant="dark" />
           <MusicToggle variant="dark" />
+          <LanguageSwitcher variant="dark" compact />
 
           {isMegaSlot && !standaloneMode && (
             <button
               type="button"
               onClick={() => void handleEnterImmersive()}
               className="game-shell-immersive inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-[#7DD3FC]/35 bg-[#0B2133] px-3 text-[12px] font-bold text-[#BDEBFF] transition hover:border-[#7DD3FC]/65 hover:bg-[#11304A]"
-              aria-label="全螢幕"
-              title="全螢幕"
+              aria-label={t.common.fullscreen}
+              title={t.common.fullscreen}
             >
               <Maximize2 className="h-4 w-4" aria-hidden="true" />
-              <span>全螢幕</span>
+              <span>{t.common.fullscreen}</span>
             </button>
           )}
 
@@ -212,8 +181,8 @@ export function GameFullscreenShell() {
             type="button"
             onClick={() => window.location.reload()}
             className="game-shell-reload inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/72 transition hover:border-white/24 hover:bg-white/[0.1] hover:text-white"
-            aria-label="重新載入遊戲"
-            title="重新載入遊戲"
+            aria-label={t.common.reload}
+            title={t.common.reload}
           >
             <RefreshCw className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -230,12 +199,14 @@ export function GameFullscreenShell() {
             <Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-[#F3D67D]" aria-hidden="true" />
             <div className="min-w-0">
               <div className="font-black text-white">
-                {immersiveNotice === 'ios' ? 'iPhone 全螢幕開法' : '瀏覽器未允許全螢幕'}
+                {immersiveNotice === 'ios'
+                  ? t.common.iosFullscreenGuide
+                  : t.common.fullscreenBlocked}
               </div>
               <div className="mt-1 text-white/72">
                 {immersiveNotice === 'ios'
-                  ? '請用 Safari 分享按鈕加入主畫面，再從主畫面 BG 圖示開啟。'
-                  : '請允許全螢幕，或把 BG 加入主畫面後從圖示開啟。'}
+                  ? t.common.iosFullscreenHelp
+                  : t.common.fullscreenBlockedHelp}
               </div>
             </div>
           </div>
@@ -243,7 +214,7 @@ export function GameFullscreenShell() {
             type="button"
             onClick={() => setImmersiveNotice(null)}
             className="game-immersive-notice__close"
-            aria-label="關閉提示"
+            aria-label={t.common.close}
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>

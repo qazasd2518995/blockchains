@@ -9,14 +9,19 @@ import { BrandMark } from '@/components/layout/BrandMark';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { SoundToggle } from '@/components/layout/SoundToggle';
 import { MusicToggle } from '@/components/layout/MusicToggle';
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useLiveBalance } from '@/hooks/useLiveBalance';
 
-const NAV_ITEMS: { to: string; label: string; icon: typeof Gift }[] = [
-  { to: '/lobby', label: '大廳', icon: LayoutGrid },
-  { to: '/verify', label: '遊戲說明', icon: ShieldCheck },
-  { to: '/history', label: '遊戲記錄', icon: History },
-  { to: '/promos', label: '優惠活動', icon: Gift },
+const NAV_ITEMS: {
+  to: string;
+  labelKey: 'lobby' | 'gameGuide' | 'history' | 'promos';
+  icon: typeof Gift;
+}[] = [
+  { to: '/lobby', labelKey: 'lobby', icon: LayoutGrid },
+  { to: '/verify', labelKey: 'gameGuide', icon: ShieldCheck },
+  { to: '/history', labelKey: 'history', icon: History },
+  { to: '/promos', labelKey: 'promos', icon: Gift },
 ];
 
 const MOBILE_WHITE_ROUTES = new Set(['/lobby', '/verify', '/history', '/promos']);
@@ -67,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         href="#main-content"
         className="sr-only absolute left-4 top-4 z-[100] rounded-md bg-white px-3 py-2 text-sm font-semibold text-[#0F172A] shadow focus:not-sr-only"
       >
-        跳到主要內容
+        {t.common.skipToMain}
       </a>
 
       <header
@@ -79,11 +84,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="mx-auto grid w-full max-w-[1920px] gap-2 px-3 py-2 text-[11px] text-white/80 sm:px-6 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center xl:px-8 2xl:px-12">
             <div className="flex items-center gap-2">
               <span className="dot-online" />
-              <span>24 小時不打烊 · 即時派彩</span>
+              <span>{t.common.aroundTheClock}</span>
             </div>
             <AnnouncementTicker />
             <span className="hidden whitespace-nowrap text-white/55 lg:inline">
-              會員制平台 · 邀請開通
+              {t.common.invitationOnly}
             </span>
           </div>
         </div>
@@ -115,7 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     }
                   >
                     <Icon className="h-4 w-4 shrink-0" />
-                    {it.label}
+                    {t.common[it.labelKey]}
                   </NavLink>
                 );
               })}
@@ -128,12 +133,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={handleBalanceRefresh}
                 className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-full border border-[#C9A247]/40 bg-[#162338] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition hover:border-[#C9A247] hover:bg-[#1B2940] sm:px-4"
-                title="重新載入餘額"
-                aria-label="重新載入餘額"
+                title={t.common.reload}
+                aria-label={t.common.reload}
               >
                 <span className="flex min-w-0 flex-col items-start leading-none">
                   <span className="max-w-[132px] truncate text-[11px] font-semibold text-white/72">
-                    帳號 {user.username}
+                    {t.common.account} {user.username}
                   </span>
                   <span className="mt-1 flex items-center gap-1.5">
                     <span className="label !text-white/60">{t.common.balance}</span>
@@ -155,15 +160,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 showLabel
                 className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden"
               />
+              <LanguageSwitcher variant="dark" compact className="max-sm:w-9" />
 
               <button
                 type="button"
                 onClick={handleLogout}
                 className="btn-chip border-white/12 bg-[#162338] text-white/82 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white max-sm:w-9 max-sm:px-0"
-                aria-label="登出"
+                aria-label={t.common.logout}
               >
                 <LogOut className="h-4 w-4" />
-                <span className="max-sm:hidden">登出</span>
+                <span className="max-sm:hidden">{t.common.logout}</span>
               </button>
             </div>
           ) : (
@@ -178,6 +184,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 showLabel
                 className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden"
               />
+              <LanguageSwitcher variant="dark" compact className="max-sm:w-9" />
               <Link to="/login" className="btn-teal hidden text-[13px] lg:inline-flex">
                 {t.common.login}
               </Link>

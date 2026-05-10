@@ -1,15 +1,48 @@
 import { Link } from 'react-router-dom';
 import type { GameMetadata } from '@bg/shared';
+import { warmGameAssets } from '@/lib/gameAssetManifest';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
+import { ResponsiveImage } from '@/lib/optimizedImages';
 import { getGameIcon } from '@/lib/platformIcons';
+import { getLocalizedGameTitle } from '@/i18n/gameLabels';
+import { useTranslation } from '@/i18n/useTranslation';
 
-// 与 LobbyPage 现有的资料一致
+// 與 LobbyPage 現有的資料一致
 const HAS_COVER = new Set<string>([
-  'baccarat', 'baccarat-nova', 'baccarat-imperial', 'blackjack',
-  'dice', 'mines', 'hilo', 'keno', 'wheel', 'mini-roulette',
-  'plinko', 'hotline', 'fruit-slot', 'fortune-slot', 'ocean-slot', 'temple-slot', 'candy-slot', 'sakura-slot', 'rocket', 'aviator', 'space-fleet',
-  'thunder-slot', 'dragon-mega-slot', 'nebula-slot', 'jungle-slot', 'vampire-slot',
-  'jetx', 'balloon', 'jetx3', 'double-x', 'plinko-x', 'tower', 'chicken-road', 'carnival',
+  'baccarat',
+  'baccarat-nova',
+  'baccarat-imperial',
+  'blackjack',
+  'dice',
+  'mines',
+  'hilo',
+  'keno',
+  'wheel',
+  'mini-roulette',
+  'plinko',
+  'hotline',
+  'fruit-slot',
+  'fortune-slot',
+  'ocean-slot',
+  'temple-slot',
+  'candy-slot',
+  'sakura-slot',
+  'rocket',
+  'aviator',
+  'space-fleet',
+  'thunder-slot',
+  'dragon-mega-slot',
+  'nebula-slot',
+  'jungle-slot',
+  'vampire-slot',
+  'jetx',
+  'balloon',
+  'jetx3',
+  'double-x',
+  'plinko-x',
+  'tower',
+  'chicken-road',
+  'carnival',
 ]);
 
 const NEW_GAMES = new Set([
@@ -34,48 +67,6 @@ const NEW_GAMES = new Set([
   'chicken-road',
 ]);
 
-// 繁中名称覆写（game registry 中有些是简中）
-const NAME_ZH_TW: Record<string, string> = {
-  baccarat: '皇家百家',
-  'baccarat-nova': '星耀百家',
-  'baccarat-imperial': '御龍百家',
-  blackjack: '21点',
-  dice: '骰子',
-  mines: '踩地雷',
-  hilo: '猜大小',
-  keno: '基诺',
-  wheel: '彩色转轮',
-  'mini-roulette': '迷你轮盘',
-  plinko: '弹珠台',
-  hotline: '热线',
-  'fruit-slot': '水果拉霸',
-  'fortune-slot': '财虎拉霸',
-  'ocean-slot': '海神宝藏',
-  'temple-slot': '圣殿宝石',
-  'candy-slot': '糖果派对',
-  'sakura-slot': '夜樱武士',
-  'thunder-slot': '雷神之鎚',
-  'dragon-mega-slot': '龍焰巨輪',
-  'nebula-slot': '星河寶藏',
-  'jungle-slot': '秘境遺跡',
-  'vampire-slot': '暗夜古堡',
-  tower: '叠塔',
-  'chicken-road': '小雞過馬路',
-  rocket: '火箭',
-  aviator: '飞行员',
-  'space-fleet': '太空舰队',
-  jetx: '飙速X',
-  balloon: '气球',
-  jetx3: '飙速X3',
-  'double-x': '双倍X',
-  'plinko-x': '掉珠挑战X',
-  carnival: '狂欢节',
-};
-
-function displayName(meta: GameMetadata): string {
-  return NAME_ZH_TW[meta.id] ?? meta.nameZh;
-}
-
 function gamePath(id: string): string {
   return `/games/${id}`;
 }
@@ -87,15 +78,21 @@ interface GameCardNewProps {
 }
 
 export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
+  const { locale, t } = useTranslation();
   const cover = HAS_COVER.has(game.id) ? getLobbyGameCover(game.id) : null;
   const GameIcon = getGameIcon(game.id);
   const isNew = NEW_GAMES.has(game.id);
   const routeState = returnTo ? { returnTo, returnLabel } : undefined;
+  const warmAssets = () => warmGameAssets(game.id);
+  const title = getLocalizedGameTitle(game.id, locale, game.nameZh);
 
   return (
     <Link
       to={gamePath(game.id)}
       state={routeState}
+      onFocus={warmAssets}
+      onPointerDown={warmAssets}
+      onPointerEnter={warmAssets}
       className="group relative flex flex-col overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:border-[#186073] hover:shadow-[0_8px_20px_rgba(24,96,115,0.18)]"
     >
       {/* Badge */}
@@ -108,9 +105,11 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
       {/* 封面 */}
       <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-[#186073] to-[#0E4555]">
         {cover ? (
-          <img
+          <ResponsiveImage
             src={cover}
-            alt={displayName(game)}
+            alt={title}
+            preset="lobby-card"
+            sizes="(min-width: 1280px) 190px, (min-width: 768px) 22vw, 46vw"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
           />
@@ -124,16 +123,14 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
         {/* Hover 覆蓋 */}
         <div className="absolute inset-0 flex items-center justify-center bg-[#186073]/80 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           <span className="rounded-[6px] border-2 border-white bg-transparent px-4 py-1.5 text-[13px] font-semibold text-white">
-            立即遊玩
+            {t.bet.start}
           </span>
         </div>
       </div>
 
-      {/* 信息 */}
+      {/* 資訊 */}
       <div className="flex flex-col gap-1 p-3">
-        <div className="text-[14px] font-semibold text-[#0F172A]">
-          {displayName(game)}
-        </div>
+        <div className="text-[14px] font-semibold text-[#0F172A]">{title}</div>
         <div className="text-[11px] text-[#9CA3AF]">{game.name}</div>
       </div>
     </Link>

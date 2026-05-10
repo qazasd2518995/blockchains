@@ -383,7 +383,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
     const activeScene = sceneReady && !sceneFallback ? sceneRef.current : null;
     activeScene?.resetWinLines();
-    // 乐观动画：转轴立刻开始滚
+    // 樂觀動畫：轉軸立刻開始滾
     activeScene?.startAnticipation(spinFast);
     setMegaFallbackSpinning(isMegaSlot && !activeScene);
 

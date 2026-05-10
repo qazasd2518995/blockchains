@@ -1,8 +1,8 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import { Crown, Flame, Medal, Trophy, Zap } from 'lucide-react';
 import { FAKE_TODAY_TOP10, reshuffleTop10, type RankedWinRecord } from '@/data/fakeStats';
-
-const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
+import { getLocalizedGameTitle } from '@/i18n/gameLabels';
+import { useTranslation } from '@/i18n/useTranslation';
 
 function rankStyle(rank: number): string {
   if (rank === 1) return 'bg-gradient-to-r from-[#E8D48A] to-[#C9A247] text-[#5A471A]';
@@ -17,12 +17,12 @@ function rankIcon(rank: number): ReactNode {
   return `${rank}`;
 }
 
-function tierBadge(row: RankedWinRecord): ReactNode {
+function tierBadge(row: RankedWinRecord, label: string): ReactNode {
   if (row.tier === 'jackpot') {
     return (
       <span className="inline-flex items-center gap-1 rounded-full border border-[#F3D67D]/40 bg-[#F3D67D]/20 px-2 py-1 text-[10px] font-black text-[#6A4B00]">
         <Zap className="h-3 w-3" aria-hidden="true" />
-        爆分
+        {label}
       </span>
     );
   }
@@ -30,7 +30,7 @@ function tierBadge(row: RankedWinRecord): ReactNode {
     return (
       <span className="inline-flex items-center gap-1 rounded-full border border-[#38BDF8]/35 bg-[#E0F2FE] px-2 py-1 text-[10px] font-black text-[#075985]">
         <Flame className="h-3 w-3" aria-hidden="true" />
-        高倍
+        {label}
       </span>
     );
   }
@@ -38,6 +38,8 @@ function tierBadge(row: RankedWinRecord): ReactNode {
 }
 
 export function TodayWinners() {
+  const { locale, t } = useTranslation();
+  const numberFormatter = new Intl.NumberFormat(locale);
   const [rows, setRows] = useState<RankedWinRecord[]>(FAKE_TODAY_TOP10);
   const [refresh, setRefresh] = useState(0);
 
@@ -55,29 +57,29 @@ export function TodayWinners() {
         <div>
           <h2 className="flex items-center gap-2 text-[20px] font-semibold text-[#0F172A]">
             <Trophy className="h-5 w-5 text-[#C9A247]" />
-            今日贏家榜
+            {t.feed.todayWinners}
           </h2>
           <div className="mt-1 flex items-center gap-2 text-[11px] text-[#64748B]">
             <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-            戰報持續刷新
+            {t.feed.continuousRefresh}
           </div>
         </div>
         <div className="text-right">
-          <span className="text-[12px] text-[#9CA3AF]">每日 00:00 重置</span>
+          <span className="text-[12px] text-[#9CA3AF]">{t.feed.dailyReset}</span>
           <div className="num mt-1 text-[11px] font-bold text-[#186073]">
             HOT {String(refresh % 100).padStart(2, '0')}
           </div>
         </div>
       </header>
       <div className="overflow-x-auto">
-        <table className="min-w-[720px] w-full" aria-label="今日赢家榜">
+        <table className="min-w-[720px] w-full" aria-label={t.feed.todayWinners}>
           <thead>
             <tr className="bg-[#186073] text-[13px] text-white">
-              <th className="w-16 py-3 text-center font-medium">排名</th>
-              <th className="py-3 text-left font-medium">玩家</th>
-              <th className="py-3 text-left font-medium">游戏</th>
-              <th className="w-24 py-3 text-right font-medium">倍率</th>
-              <th className="w-32 py-3 pr-5 text-right font-medium">赢得点数</th>
+              <th className="w-16 py-3 text-center font-medium">{t.feed.ranking}</th>
+              <th className="py-3 text-left font-medium">{t.feed.player}</th>
+              <th className="py-3 text-left font-medium">{t.feed.game}</th>
+              <th className="w-24 py-3 text-right font-medium">{t.feed.multiplier}</th>
+              <th className="w-32 py-3 pr-5 text-right font-medium">{t.feed.pointsWon}</th>
             </tr>
           </thead>
           <tbody>
@@ -88,16 +90,19 @@ export function TodayWinners() {
                   row.rank <= 3 ? rankStyle(row.rank) : idx % 2 === 0 ? 'bg-white' : 'bg-[#F5F7FA]'
                 } ${row.tier === 'jackpot' ? 'shadow-[inset_4px_0_0_#C9A247]' : row.tier === 'mega' ? 'shadow-[inset_4px_0_0_#38BDF8]' : ''}`}
               >
-                <td className="py-3 text-center text-[18px] font-bold">
-                  {rankIcon(row.rank)}
-                </td>
+                <td className="py-3 text-center text-[18px] font-bold">{rankIcon(row.rank)}</td>
                 <td className="py-3 text-[14px] font-medium">
                   <div className="flex items-center gap-2">
                     <span>{row.player}</span>
-                    {tierBadge(row)}
+                    {tierBadge(
+                      row,
+                      row.tier === 'jackpot' ? t.feed.jackpot : t.feed.highMultiplier,
+                    )}
                   </div>
                 </td>
-                <td className="py-3 text-[14px]">{row.game}</td>
+                <td className="py-3 text-[14px]">
+                  {getLocalizedGameTitle(row.gameId, locale, row.game)}
+                </td>
                 <td className="py-3 text-right text-[14px] num font-semibold">
                   ×{row.mult.toFixed(2)}
                 </td>

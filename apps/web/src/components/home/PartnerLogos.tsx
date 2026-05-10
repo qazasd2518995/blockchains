@@ -5,12 +5,12 @@ interface Badge {
 }
 
 const BADGES: Badge[] = [
-  { id: 'fair',   label: 'Fair Play',       sub: '公平认证' },
-  { id: 'ssl',    label: 'SSL 256-bit',     sub: '加密传输' },
-  { id: 'audit',  label: '24/7 Service',    sub: '全天候服务' },
-  { id: '18',     label: '18+',             sub: '年龄限制' },
-  { id: 'pf',     label: 'Premium Quality', sub: '顶级品质' },
-  { id: 'resp',   label: 'Responsible',     sub: '负责任博彩' },
+  { id: 'fair', label: 'Fair Play', sub: '公平認證' },
+  { id: 'ssl', label: 'SSL 256-bit', sub: '加密傳輸' },
+  { id: 'audit', label: '24/7 Service', sub: '全天候服務' },
+  { id: '18', label: '18+', sub: '年齡限制' },
+  { id: 'pf', label: 'Premium Quality', sub: '頂級品質' },
+  { id: 'resp', label: 'Responsible', sub: '負責任博彩' },
 ];
 
 export function PartnerLogos() {

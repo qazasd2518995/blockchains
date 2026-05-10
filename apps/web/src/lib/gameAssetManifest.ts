@@ -1,0 +1,260 @@
+import { SLOT_THEMES, type SlotThemeConfig, type SlotThemeId } from '@/lib/slotThemes';
+import { getLobbyGameCover } from '@/lib/gameCoverAssets';
+
+export type GameAssetKind =
+  | 'background'
+  | 'big-win'
+  | 'card'
+  | 'cover'
+  | 'craft'
+  | 'sprite'
+  | 'symbol';
+
+export interface GameAssetEntry {
+  src: string;
+  kind: GameAssetKind;
+  critical?: boolean;
+  pixi?: boolean;
+}
+
+export interface GameAssetManifest {
+  gameId: string;
+  assets: GameAssetEntry[];
+}
+
+interface PreloadGameAssetsOptions {
+  includeNonCritical?: boolean;
+  usePixi?: boolean;
+}
+
+const CARD_RANKS = [
+  'ace',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  'jack',
+  'queen',
+  'king',
+] as const;
+
+const CARD_SUITS = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
+const CRASH_VARIANTS: Record<string, string> = {
+  rocket: 'rocket',
+  aviator: 'aviator',
+  'space-fleet': 'fleet',
+  jetx: 'jet',
+  balloon: 'balloon',
+  jetx3: 'jet3',
+  'double-x': 'double',
+};
+const SLOT_GAMES_WITH_INDIVIDUAL_SYMBOLS = new Set<SlotThemeId>([
+  'thunder',
+  'dragonMega',
+  'nebula',
+  'jungle',
+  'vampire',
+]);
+const preloadCache = new Map<string, Promise<void>>();
+const warmedGames = new Set<string>();
+
+export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
+  blackjack: {
+    gameId: 'blackjack',
+    assets: [
+      criticalAsset('/game-art/blackjack/cover.png', 'cover'),
+      criticalAsset('/game-art/blackjack/background.png', 'background'),
+      ...CARD_SUITS.flatMap((suit) =>
+        CARD_RANKS.map((rank) => asset(`/cards/${rank}_of_${suit}.svg`, 'card')),
+      ),
+    ],
+  },
+  dice: simplePixiGame('dice'),
+  mines: simplePixiGame('mines'),
+  hilo: simplePixiGame('hilo'),
+  keno: simplePixiGame('keno'),
+  wheel: simplePixiGame('wheel'),
+  plinko: simplePixiGame('plinko'),
+  'plinko-x': simplePixiGame('plinko', 'plinko-x'),
+  tower: {
+    gameId: 'tower',
+    assets: [
+      criticalAsset('/game-art/tower/cover.png', 'cover'),
+      criticalPixiAsset('/game-art/tower/background.png', 'background'),
+      criticalPixiAsset('/game-art/tower/stage-background.png', 'background'),
+      criticalPixiAsset('/game-art/tower/sprites.png', 'sprite'),
+    ],
+  },
+  'mini-roulette': {
+    gameId: 'mini-roulette',
+    assets: [
+      criticalAsset('/game-art/mini-roulette/cover.png', 'cover'),
+      criticalPixiAsset('/game-art/mini-roulette/background.png', 'background'),
+    ],
+  },
+  carnival: {
+    gameId: 'carnival',
+    assets: [
+      criticalAsset('/game-art/carnival/cover.png', 'cover'),
+      criticalPixiAsset('/game-art/carnival/background.png', 'background'),
+    ],
+  },
+  'chicken-road': {
+    gameId: 'chicken-road',
+    assets: [
+      criticalAsset('/game-art/chicken-road/cover.png', 'cover'),
+      criticalAsset('/game-art/chicken-road/background.png', 'background'),
+      criticalAsset('/game-art/chicken-road/chicken-side.png', 'sprite'),
+      criticalAsset('/game-art/chicken-road/sprites.png', 'sprite'),
+      criticalAsset('/game-art/chicken-road/vehicles.png', 'sprite'),
+    ],
+  },
+  ...Object.fromEntries(Object.keys(CRASH_VARIANTS).map((gameId) => [gameId, crashGame(gameId)])),
+  ...Object.fromEntries(
+    Object.values(SLOT_THEMES).map((theme) => [theme.gameId, slotGame(theme)] as const),
+  ),
+};
+
+export function getGameAssetManifest(gameId: string): GameAssetManifest | null {
+  return GAME_ASSET_MANIFESTS[gameId] ?? null;
+}
+
+export function preloadGameAssets(
+  gameId: string,
+  options: PreloadGameAssetsOptions = {},
+): Promise<void> {
+  const includeNonCritical = options.includeNonCritical ?? false;
+  const cacheKey = `${gameId}:${includeNonCritical ? 'all' : 'critical'}:${options.usePixi ?? true}`;
+  const cached = preloadCache.get(cacheKey);
+  if (cached) return cached;
+
+  const manifest = getGameAssetManifest(gameId);
+  if (!manifest) return Promise.resolve();
+
+  const assets = includeNonCritical
+    ? manifest.assets
+    : manifest.assets.filter((entry) => entry.critical);
+  const promise = Promise.all(assets.map((entry) => preloadAsset(entry, options))).then(() => {
+    if (!includeNonCritical) warmRemainingGameAssets(gameId, options);
+  });
+  preloadCache.set(cacheKey, promise);
+  return promise;
+}
+
+export function warmGameAssets(gameId: string): void {
+  void preloadGameAssets(gameId, { includeNonCritical: false, usePixi: false });
+}
+
+function warmRemainingGameAssets(gameId: string, options: PreloadGameAssetsOptions): void {
+  if (warmedGames.has(gameId)) return;
+  warmedGames.add(gameId);
+
+  const run = () => {
+    void preloadGameAssets(gameId, { ...options, includeNonCritical: true }).catch(() => undefined);
+  };
+
+  if (typeof window === 'undefined') return;
+  const idleWindow = window as Window & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+  };
+  if (idleWindow.requestIdleCallback) {
+    idleWindow.requestIdleCallback(run, { timeout: 2500 });
+  } else {
+    window.setTimeout(run, 300);
+  }
+}
+
+function simplePixiGame(folder: string, gameId = folder): GameAssetManifest {
+  return {
+    gameId,
+    assets: [
+      criticalAsset(`/game-art/${folder}/cover.png`, 'cover'),
+      criticalPixiAsset(`/game-art/${folder}/background.png`, 'background'),
+      criticalPixiAsset(`/game-art/${folder}/sprites.png`, 'sprite'),
+    ],
+  };
+}
+
+function crashGame(gameId: string): GameAssetManifest {
+  const variant = CRASH_VARIANTS[gameId] ?? gameId;
+  return {
+    gameId,
+    assets: [
+      criticalAsset(getLobbyGameCover(gameId), 'cover'),
+      criticalPixiAsset(`/crash/backgrounds/${variant}.jpg`, 'background'),
+      criticalPixiAsset(`/crash/craft/${variant}.png`, 'craft'),
+    ],
+  };
+}
+
+function slotGame(theme: SlotThemeConfig): GameAssetManifest {
+  const assets: GameAssetEntry[] = [
+    criticalAsset(theme.cover, 'cover'),
+    criticalPixiAsset(theme.background, 'background'),
+    criticalPixiAsset(theme.symbolSheet, 'symbol'),
+    criticalPixiAsset(theme.symbolSheet.replace(/symbols\.png$/, 'scatter.png'), 'symbol'),
+  ];
+
+  if (theme.bigWin) assets.push(asset(theme.bigWin, 'big-win'));
+
+  if (SLOT_GAMES_WITH_INDIVIDUAL_SYMBOLS.has(theme.id)) {
+    assets.push(
+      criticalPixiAsset(theme.symbolSheet.replace(/symbols\.png$/, 'multiplier.png'), 'symbol'),
+    );
+    assets.push(
+      ...theme.symbols.map((_symbol, index) =>
+        criticalPixiAsset(
+          theme.symbolSheet.replace(/symbols\.png$/, `symbol-${index}.png`),
+          'symbol',
+        ),
+      ),
+    );
+  }
+
+  return { gameId: theme.gameId, assets };
+}
+
+function asset(src: string, kind: GameAssetKind): GameAssetEntry {
+  return { src, kind };
+}
+
+function criticalAsset(src: string, kind: GameAssetKind): GameAssetEntry {
+  return { src, kind, critical: true };
+}
+
+function criticalPixiAsset(src: string, kind: GameAssetKind): GameAssetEntry {
+  return { src, kind, critical: true, pixi: true };
+}
+
+async function preloadAsset(
+  entry: GameAssetEntry,
+  options: PreloadGameAssetsOptions,
+): Promise<void> {
+  void entry.pixi;
+  void options.usePixi;
+  await preloadBrowserImage(entry.src);
+}
+
+function preloadBrowserImage(src: string): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  if (!/\.(avif|jpe?g|png|svg|webp)$/i.test(src)) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.decoding = 'async';
+    image.onload = () => {
+      if ('decode' in image) {
+        image.decode().then(resolve).catch(resolve);
+      } else {
+        resolve();
+      }
+    };
+    image.onerror = () => resolve();
+    image.src = src;
+  });
+}

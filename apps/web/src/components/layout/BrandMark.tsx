@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from '@/i18n/useTranslation';
 
 interface Props {
   to: string;
@@ -7,12 +8,8 @@ interface Props {
   className?: string;
 }
 
-export function BrandMark({
-  to,
-  subtitle,
-  tone = 'dark',
-  className = '',
-}: Props): JSX.Element {
+export function BrandMark({ to, subtitle, tone = 'dark', className = '' }: Props): JSX.Element {
+  const { t } = useTranslation();
   const titleClass = tone === 'dark' ? 'text-white' : 'text-[#0F172A]';
   const subtitleClass = tone === 'dark' ? 'text-white/[0.78]' : 'text-[#4A5568]';
   const badgeClass =
@@ -29,8 +26,11 @@ export function BrandMark({
         BG
       </span>
       <span className="min-w-0">
-        <span className={`block truncate text-[15px] font-extrabold tracking-[0.22em] ${titleClass}`} translate="no">
-          BG 娛樂城
+        <span
+          className={`block truncate text-[15px] font-extrabold tracking-[0.22em] ${titleClass}`}
+          translate="no"
+        >
+          {t.landing.brandName}
         </span>
         {subtitle ? (
           <span className={`mt-0.5 block truncate text-[11px] ${subtitleClass}`}>{subtitle}</span>

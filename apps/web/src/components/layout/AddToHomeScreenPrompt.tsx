@@ -9,6 +9,8 @@ import {
   X,
   type LucideProps,
 } from 'lucide-react';
+import type { Dict } from '@/i18n/types';
+import { useTranslation } from '@/i18n/useTranslation';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -27,6 +29,7 @@ const SESSION_SEEN_KEY = 'bg.mobileA2hsPrompt.seen.v1';
 const INSTALLED_KEY = 'bg.mobileA2hsPrompt.installed.v1';
 
 export function AddToHomeScreenPrompt() {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [platform, setPlatform] = useState<MobileInstallPlatform>('other');
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -85,7 +88,7 @@ export function AddToHomeScreenPrompt() {
     };
   }, []);
 
-  const steps = useMemo(() => getInstallSteps(platform), [platform]);
+  const steps = useMemo(() => getInstallSteps(platform, t.install), [platform, t.install]);
   const canInstallDirectly = Boolean(installPrompt);
 
   const closeForSession = () => {
@@ -118,9 +121,19 @@ export function AddToHomeScreenPrompt() {
   if (!visible) return null;
 
   return (
-    <div className="a2hs-prompt" role="dialog" aria-modal="true" aria-labelledby="a2hs-prompt-title">
+    <div
+      className="a2hs-prompt"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="a2hs-prompt-title"
+    >
       <div className="a2hs-prompt__sheet">
-        <button type="button" className="a2hs-prompt__close" onClick={closeForSession} aria-label="關閉加入主畫面提示">
+        <button
+          type="button"
+          className="a2hs-prompt__close"
+          onClick={closeForSession}
+          aria-label={t.install.closePrompt}
+        >
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
 
@@ -129,16 +142,14 @@ export function AddToHomeScreenPrompt() {
             <Smartphone className="h-6 w-6" />
           </div>
           <div className="min-w-0">
-            <div className="a2hs-prompt__eyebrow">手機遊玩建議</div>
+            <div className="a2hs-prompt__eyebrow">{t.install.eyebrow}</div>
             <h2 id="a2hs-prompt-title" className="a2hs-prompt__title">
-              加到主畫面，遊戲畫面更完整
+              {t.install.title}
             </h2>
           </div>
         </div>
 
-        <p className="a2hs-prompt__copy">
-          從主畫面 BG 圖示開啟時，網址列、分頁列會少很多，橫向遊玩 Mega slot 會更接近全螢幕。
-        </p>
+        <p className="a2hs-prompt__copy">{t.install.copy}</p>
 
         <div className="a2hs-prompt__steps">
           {steps.map((step) => {
@@ -159,16 +170,20 @@ export function AddToHomeScreenPrompt() {
 
         <div className="a2hs-prompt__actions">
           {canInstallDirectly ? (
-            <button type="button" className="a2hs-prompt__primary" onClick={() => void installDirectly()}>
-              直接安裝
+            <button
+              type="button"
+              className="a2hs-prompt__primary"
+              onClick={() => void installDirectly()}
+            >
+              {t.install.directInstall}
             </button>
           ) : (
             <button type="button" className="a2hs-prompt__primary" onClick={closeForSession}>
-              我知道了
+              {t.install.gotIt}
             </button>
           )}
           <button type="button" className="a2hs-prompt__secondary" onClick={closeForSession}>
-            稍後
+            {t.install.later}
           </button>
         </div>
       </div>
@@ -176,28 +191,39 @@ export function AddToHomeScreenPrompt() {
   );
 }
 
-function getInstallSteps(platform: MobileInstallPlatform): InstallStep[] {
+function getInstallSteps(platform: MobileInstallPlatform, labels: Dict['install']): InstallStep[] {
   if (platform === 'ios') {
     return [
-      { icon: Share2, title: '點 Safari 分享', text: '點底部或上方的分享按鈕。' },
-      { icon: SquarePlus, title: '加入主畫面', text: '選擇「加入主畫面」。' },
-      { icon: Home, title: '從 BG 圖示開啟', text: '之後用主畫面圖示進入平台。' },
+      createInstallStep(Share2, labels.iosSteps[0]),
+      createInstallStep(SquarePlus, labels.iosSteps[1]),
+      createInstallStep(Home, labels.iosSteps[2]),
     ];
   }
 
   if (platform === 'android') {
     return [
-      { icon: MoreHorizontal, title: '開啟瀏覽器選單', text: '點右上角選單或安裝提示。' },
-      { icon: Download, title: '安裝應用程式', text: '選擇「安裝」或「加入主畫面」。' },
-      { icon: Home, title: '從 BG 圖示開啟', text: '之後用主畫面圖示進入平台。' },
+      createInstallStep(MoreHorizontal, labels.androidSteps[0]),
+      createInstallStep(Download, labels.androidSteps[1]),
+      createInstallStep(Home, labels.androidSteps[2]),
     ];
   }
 
   return [
-    { icon: MoreHorizontal, title: '開啟瀏覽器選單', text: '找到分享、選單或更多設定。' },
-    { icon: SquarePlus, title: '加入主畫面', text: '選擇加入主畫面或安裝。' },
-    { icon: Home, title: '從 BG 圖示開啟', text: '之後用主畫面圖示進入平台。' },
+    createInstallStep(MoreHorizontal, labels.otherSteps[0]),
+    createInstallStep(SquarePlus, labels.otherSteps[1]),
+    createInstallStep(Home, labels.otherSteps[2]),
   ];
+}
+
+function createInstallStep(
+  icon: ComponentType<LucideProps>,
+  labels: { title: string; text: string } | undefined,
+): InstallStep {
+  return {
+    icon,
+    title: labels?.title ?? '',
+    text: labels?.text ?? '',
+  };
 }
 
 function shouldShowInstallPrompt(): boolean {
@@ -210,7 +236,10 @@ function shouldShowInstallPrompt(): boolean {
 }
 
 function isLikelyMobileDevice(): boolean {
-  const nav = navigator as Navigator & { userAgentData?: { mobile?: boolean }; maxTouchPoints?: number };
+  const nav = navigator as Navigator & {
+    userAgentData?: { mobile?: boolean };
+    maxTouchPoints?: number;
+  };
   const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   return (
     Boolean(nav.userAgentData?.mobile) ||
@@ -233,7 +262,11 @@ function isStandaloneDisplayMode(): boolean {
 function detectMobilePlatform(): MobileInstallPlatform {
   const nav = navigator as Navigator & { maxTouchPoints?: number };
   const ua = navigator.userAgent;
-  if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && (nav.maxTouchPoints ?? 0) > 1)) return 'ios';
+  if (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && (nav.maxTouchPoints ?? 0) > 1)
+  )
+    return 'ios';
   if (/Android/i.test(ua)) return 'android';
   return 'other';
 }

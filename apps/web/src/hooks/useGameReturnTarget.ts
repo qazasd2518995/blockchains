@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getHallByGameId } from '@/data/halls';
+import { getLocalizedHallName } from '@/i18n/hallLabels';
+import { useTranslation } from '@/i18n/useTranslation';
 import { isMobileLobbyViewport } from '@/lib/mobileViewport';
 
 interface GameRouteState {
@@ -20,10 +22,11 @@ function currentGameId(pathname: string): string {
 
 export function useGameReturnTarget(): { to: string; label: string } {
   const location = useLocation();
+  const { locale, t } = useTranslation();
 
   return useMemo(() => {
     if (isMobileLobbyViewport()) {
-      return { to: '/lobby', label: '大廳' };
+      return { to: '/lobby', label: t.common.lobby };
     }
 
     const state = (location.state ?? null) as GameRouteState | null;
@@ -31,13 +34,13 @@ export function useGameReturnTarget(): { to: string; label: string } {
     if (stateReturnTo) {
       return {
         to: stateReturnTo,
-        label: typeof state?.returnLabel === 'string' ? state.returnLabel : '館別',
+        label: typeof state?.returnLabel === 'string' ? state.returnLabel : t.common.hall,
       };
     }
 
     const hall = getHallByGameId(currentGameId(location.pathname));
-    if (hall) return { to: `/hall/${hall.id}`, label: hall.nameZh };
+    if (hall) return { to: `/hall/${hall.id}`, label: getLocalizedHallName(hall, locale) };
 
-    return { to: '/lobby', label: '大廳' };
-  }, [location.pathname, location.state]);
+    return { to: '/lobby', label: t.common.lobby };
+  }, [locale, location.pathname, location.state, t.common.hall, t.common.lobby]);
 }

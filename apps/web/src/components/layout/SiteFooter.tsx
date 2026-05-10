@@ -1,21 +1,23 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from '@/i18n/useTranslation';
 
 interface Props {
   loggedIn?: boolean;
 }
 
 export function SiteFooter({ loggedIn = false }: Props): JSX.Element {
+  const { t } = useTranslation();
   const quickLinks = loggedIn
     ? [
-        { label: '遊戲大廳', to: '/lobby' },
-        { label: '遊戲說明', to: '/verify' },
-        { label: '遊戲記錄', to: '/history' },
+        { label: t.common.lobby, to: '/lobby' },
+        { label: t.common.gameGuide, to: '/verify' },
+        { label: t.common.history, to: '/history' },
       ]
     : [
-        { label: '會員登入', to: '/login' },
-        { label: '平台首頁', to: '/' },
-        { label: '遊戲說明', to: '/verify' },
-        { label: '遊戲大廳', to: '/lobby' },
+        { label: t.common.login, to: '/login' },
+        { label: t.common.home, to: '/' },
+        { label: t.common.gameGuide, to: '/verify' },
+        { label: t.common.lobby, to: '/lobby' },
       ];
 
   return (
@@ -24,10 +26,10 @@ export function SiteFooter({ loggedIn = false }: Props): JSX.Element {
         <div className="min-w-0">
           <div className="label">BG GAMING</div>
           <h2 className="mt-3 text-[22px] font-bold text-[#0F172A]" translate="no">
-            BG 娛樂城
+            {t.landing.brandName}
           </h2>
           <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-[#4A5568]">
-            頂級遊戲體驗、即時派彩與穩定服務，為您打造專業電子遊戲娛樂平台。
+            {t.landing.section1}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="tag tag-gold">18+ Adults Only</span>
@@ -37,7 +39,7 @@ export function SiteFooter({ loggedIn = false }: Props): JSX.Element {
         </div>
 
         <div>
-          <div className="label">快捷連結</div>
+          <div className="label">{t.common.quickLinks}</div>
           <ul className="mt-4 space-y-2 text-[13px] text-[#4A5568]">
             {quickLinks.map((link) => (
               <li key={link.label}>

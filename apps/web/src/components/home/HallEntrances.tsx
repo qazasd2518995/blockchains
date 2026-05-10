@@ -2,11 +2,17 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { GAMES_REGISTRY } from '@bg/shared';
 import { HALL_LIST, type HallMeta } from '@/data/halls';
+import { ResponsiveImage } from '@/lib/optimizedImages';
 import { getHallIcon } from '@/lib/platformIcons';
+import { getLocalizedHallName, getLocalizedHallTagline } from '@/i18n/hallLabels';
+import { useTranslation } from '@/i18n/useTranslation';
 
 function HallCard({ hall }: { hall: HallMeta }) {
+  const { locale, t } = useTranslation();
   const Icon = getHallIcon(hall.iconKey);
   const gameCount = hall.gameIds.filter((id) => GAMES_REGISTRY[id]?.enabled).length;
+  const name = getLocalizedHallName(hall, locale);
+  const tagline = getLocalizedHallTagline(hall, locale);
 
   return (
     <Link
@@ -17,10 +23,12 @@ function HallCard({ hall }: { hall: HallMeta }) {
         className="relative h-[260px] shrink-0 overflow-hidden sm:h-[300px] 2xl:h-[330px]"
         style={{ background: hall.gradient }}
       >
-        <img
+        <ResponsiveImage
           src={hall.artwork}
           alt=""
           aria-hidden="true"
+          preset="hall-card"
+          sizes="(min-width: 768px) 50vw, 100vw"
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
           loading="lazy"
         />
@@ -38,16 +46,16 @@ function HallCard({ hall }: { hall: HallMeta }) {
       <div className="flex min-w-0 flex-1 flex-col gap-4 p-5 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <h3 className="text-pretty text-[26px] font-black leading-tight text-[#0F172A]">
-            {hall.nameZh}
+            {name}
           </h3>
           <span className="shrink-0 rounded-full bg-[#EDF4F7] px-3 py-1 text-[12px] font-semibold text-[#557083]">
-            {gameCount} 款遊戲
+            {gameCount} {t.common.gamesCountUnit}
           </span>
         </div>
-        <p className="text-[15px] leading-7 text-[#4A5568]">{hall.tagline}</p>
+        <p className="text-[15px] leading-7 text-[#4A5568]">{tagline}</p>
         <div className="mt-auto flex items-center justify-between pt-2">
           <span className="inline-flex items-center gap-2 text-[14px] font-bold text-[#186073] transition group-hover:gap-3">
-            立即進入 <ArrowRight className="h-4 w-4" />
+            {t.common.enterNow} <ArrowRight className="h-4 w-4" />
           </span>
         </div>
       </div>

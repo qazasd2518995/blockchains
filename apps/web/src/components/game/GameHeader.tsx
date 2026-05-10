@@ -75,7 +75,7 @@ export function GameHeader({
               <span className="text-[#8FD0DF]">{breadcrumb}</span>
             </div>
             <span className="tag tag-goldOnDark">{section}</span>
-            <span className="tag tag-onDark hidden md:inline-flex">Live Game</span>
+            <span className="tag tag-onDark hidden md:inline-flex">{t.common.liveGame}</span>
           </div>
 
           <h1 className="mt-4 font-semibold text-[26px] leading-tight sm:text-[30px] md:text-[40px]">
@@ -85,7 +85,10 @@ export function GameHeader({
             </span>
             {hasSuffix && <span className={suffixColor}>{titleSuffix}</span>}
           </h1>
-          <p className="mt-3 max-w-3xl text-[13px] leading-relaxed text-white/72 md:text-[14px]" title={description}>
+          <p
+            className="mt-3 max-w-3xl text-[13px] leading-relaxed text-white/72 md:text-[14px]"
+            title={description}
+          >
             {description}
           </p>
         </div>
@@ -94,7 +97,7 @@ export function GameHeader({
           <span className={tagClass}>{rtpLabel}</span>
           <span className="tag tag-onDark hidden md:inline-flex">
             <span className="dot-online" />
-            即時派彩
+            {t.common.realtimePayout}
           </span>
         </div>
       </div>

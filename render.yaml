@@ -21,8 +21,8 @@ services:
   - type: web
     name: bg-api
     runtime: node
-    plan: starter                # free 會 sleep，建議 starter
-    region: oregon               # DB 同 region
+    plan: starter # free 會 sleep，建議 starter
+    region: oregon # DB 同 region
     buildCommand: |
       corepack enable
       corepack prepare pnpm@9.15.4 --activate
@@ -85,11 +85,15 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_BASE
-        sync: false              # 填 https://bg-api.onrender.com 或自訂 api 網域
+        sync: false # 填 https://bg-api.onrender.com 或自訂 api 網域
       - key: VITE_SOCKET_BASE
-        sync: false              # 通常同 VITE_API_BASE
+        sync: false # 通常同 VITE_API_BASE
       - key: VITE_BACCARAT_URL
-        sync: false              # 填百家樂前端網址，例如 https://baccarat-frontend-74oz.onrender.com
+        sync: false # 填百家樂前端網址，例如 https://baccarat-frontend-74oz.onrender.com
+      - key: VITE_IMAGE_TRANSFORM_PROVIDER
+        value: local # local 使用 /_optimized；Cloudflare 可改 cloudflare
+      - key: VITE_IMAGE_CDN_BASE
+        sync: false # Cloudflare Transform/CDN 網域，例如 https://cdn.example.com
 
   # ──────────────────────────────────────────
   # 3. 代理後台（apps/admin）
