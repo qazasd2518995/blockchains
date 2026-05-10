@@ -131,7 +131,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
-  const [layoutVersion, setLayoutVersion] = useState(0);
   const [sceneReady, setSceneReady] = useState(false);
   const [sceneFallback, setSceneFallback] = useState(false);
   const [liveMegaRound, setLiveMegaRound] = useState<LiveMegaRoundState | null>(null);
@@ -143,6 +142,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   >([]);
   const [megaFallbackRemoved, setMegaFallbackRemoved] = useState<HotlineWinPosition[]>([]);
   const [megaFallbackDropping, setMegaFallbackDropping] = useState(false);
+  const [megaFallbackDropOffsets, setMegaFallbackDropOffsets] = useState<Record<string, number>>(
+    {},
+  );
   const [megaFallbackWinPop, setMegaFallbackWinPop] = useState<MegaFallbackWinPop | null>(null);
   const [megaFallbackSpinSpecialSymbols, setMegaFallbackSpinSpecialSymbols] = useState<
     HotlineSpecialSymbol[]
@@ -210,22 +212,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   }, [isMegaSlot, slotTheme.gameId, user?.id]);
 
   useEffect(() => {
-    if (!isMegaSlot) return;
-    let timer = 0;
-    const scheduleSceneResize = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => setLayoutVersion((v) => v + 1), 140);
-    };
-    window.addEventListener('resize', scheduleSceneResize);
-    window.addEventListener('orientationchange', scheduleSceneResize);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener('resize', scheduleSceneResize);
-      window.removeEventListener('orientationchange', scheduleSceneResize);
-    };
-  }, [isMegaSlot]);
-
-  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     setSceneReady(false);
@@ -234,6 +220,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     let cancelled = false;
     let scene: HotlineScene | null = null;
     let rafId = 0;
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      if (sceneRef.current === scene) sceneRef.current = null;
+      setSceneReady(false);
+      setSceneFallback(true);
+    };
+    canvas.addEventListener('webglcontextlost', handleContextLost, false);
+
     const tryInit = () => {
       if (cancelled) return;
       const w = canvas.parentElement?.clientWidth ?? canvas.clientWidth;
@@ -249,6 +243,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         .then(() => {
           if (cancelled) {
             scene?.dispose();
+            return;
+          }
+          if (isCanvasWebGlContextLost(canvas)) {
+            scene?.dispose();
+            sceneRef.current = null;
+            setSceneReady(false);
+            setSceneFallback(true);
             return;
           }
           setSceneReady(true);
@@ -268,9 +269,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       cancelled = true;
       if (rafId) cancelAnimationFrame(rafId);
       scene?.dispose();
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
       sceneRef.current = null;
     };
-  }, [isMegaSlot, layoutVersion, slotTheme]);
+  }, [slotTheme]);
 
   const setMegaAmount = (next: number): void => {
     const max = user ? Math.max(balance, 0.01) : 100000;
@@ -353,6 +355,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setMegaFallbackSpecialWinning([]);
     setMegaFallbackRemoved([]);
     setMegaFallbackDropping(false);
+    setMegaFallbackDropOffsets({});
     setMegaFallbackWinPop(null);
     setMegaFallbackSpinSpecialSymbols([]);
     setMegaFreeSpinAwaitingClick(false);
@@ -489,12 +492,17 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         let previous = first;
         for (let i = 1; i < steps.length; i += 1) {
           const step = steps[i]!;
-          await playFallbackCascadeDrop(previous.removed, step.grid);
+          await playFallbackCascadeDrop(previous.grid, previous.removed, step.grid);
           await playFallbackWinHold(step.removed, onStepWin(step));
           previous = step;
         }
 
-        await playFallbackCascadeDrop(previous.removed, finalGrid, finalSpecialSymbols);
+        await playFallbackCascadeDrop(
+          previous.grid,
+          previous.removed,
+          finalGrid,
+          finalSpecialSymbols,
+        );
         if (multiplierActivation) {
           await playSpecialHighlightOrFallback(
             multiplierActivation.symbols,
@@ -512,6 +520,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       };
 
       const playFallbackCascadeDrop = async (
+        currentGrid: number[][],
         removed: HotlineWinPosition[],
         nextGrid: number[][],
         specialSymbols: HotlineSpecialSymbol[] = [],
@@ -520,10 +529,12 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         await delay(scaleSpinDelay(420, spinFast));
         setMegaFallbackRemoved([]);
         setMegaFallbackWinning([]);
+        setMegaFallbackDropOffsets(buildMegaFallbackDropOffsets(currentGrid, removed, nextGrid));
         setMegaFallbackDropping(true);
         updateLiveMegaRound({ grid: nextGrid, specialSymbols });
         await delay(scaleSpinDelay(520, spinFast));
         setMegaFallbackDropping(false);
+        setMegaFallbackDropOffsets({});
         await delay(scaleSpinDelay(120, spinFast));
       };
 
@@ -1363,6 +1374,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   specialWinning={megaFallbackSpecialWinning}
                   removed={megaFallbackRemoved}
                   dropping={megaFallbackDropping}
+                  dropOffsets={megaFallbackDropOffsets}
                   winPop={megaFallbackWinPop}
                   hidden={sceneReady && !sceneFallback}
                   fast={fastSpin}
@@ -1783,6 +1795,7 @@ function MegaFallbackGrid({
   specialWinning,
   removed,
   dropping,
+  dropOffsets,
   winPop,
   hidden,
   fast,
@@ -1796,6 +1809,7 @@ function MegaFallbackGrid({
   specialWinning: HotlineWinPosition[];
   removed: HotlineWinPosition[];
   dropping: boolean;
+  dropOffsets: Record<string, number>;
   winPop: MegaFallbackWinPop | null;
   hidden: boolean;
   fast: boolean;
@@ -1844,20 +1858,23 @@ function MegaFallbackGrid({
                   const winning = !spinning && winningKeys.has(cellKey);
                   const specialHighlighted = !spinning && specialWinningKeys.has(cellKey);
                   const removing = !spinning && removedKeys.has(cellKey);
+                  const dropOffset = dropOffsets[cellKey];
+                  const isDroppingCell = !spinning && dropping && dropOffset !== undefined;
                   return (
                     <div
                       key={`${reelIndex}-${rowIndex}-${symbol}-${specialKey(special)}-${spinning ? 'spin' : 'idle'}`}
-                      className={`mega-slot-fallback-symbol ${special ? `mega-slot-fallback-symbol--${special.type}` : ''} ${winning ? 'mega-slot-fallback-symbol--winning' : ''} ${specialHighlighted ? 'mega-slot-fallback-symbol--special-highlight' : ''} ${removing ? 'mega-slot-fallback-symbol--removing' : ''}`}
+                      className={`mega-slot-fallback-symbol ${special ? `mega-slot-fallback-symbol--${special.type}` : ''} ${winning ? 'mega-slot-fallback-symbol--winning' : ''} ${specialHighlighted ? 'mega-slot-fallback-symbol--special-highlight' : ''} ${removing ? 'mega-slot-fallback-symbol--removing' : ''} ${isDroppingCell ? 'mega-slot-fallback-symbol--dropping-cell' : ''}`}
                       style={
                         {
                           borderColor: `${meta.accentHex}88`,
                           '--mega-slot-accent': meta.accentHex,
-                          backgroundImage: symbolImage ? 'none' : `url(${theme.symbolSheet})`,
+                          backgroundImage: symbolImage ? undefined : `url(${theme.symbolSheet})`,
                           backgroundPosition: symbolImage
                             ? 'center'
                             : (SYMBOL_POSITIONS[symbol] ?? '0% 0%'),
                           '--mega-slot-reel-index': reelIndex,
                           '--mega-slot-row-index': rowIndex,
+                          '--mega-slot-drop-offset': dropOffset ?? -1.15,
                         } as CSSProperties
                       }
                     >
@@ -1931,6 +1948,51 @@ function createFallbackSpinStrip(
     symbol: (index * 2 + reelIndex + theme.id.length + 3) % symbolCount,
   }));
   return [...lead, ...final, ...trail];
+}
+
+function buildMegaFallbackDropOffsets(
+  currentGrid: number[][],
+  removed: HotlineWinPosition[],
+  nextGrid: number[][],
+): Record<string, number> {
+  const offsets: Record<string, number> = {};
+  const removedRowsByReel = new Map<number, Set<number>>();
+  for (const position of removed) {
+    const rows = removedRowsByReel.get(position.reel) ?? new Set<number>();
+    rows.add(position.row);
+    removedRowsByReel.set(position.reel, rows);
+  }
+
+  for (const [reelIndex, removedRows] of removedRowsByReel.entries()) {
+    const currentReel = currentGrid[reelIndex] ?? [];
+    const nextReel = nextGrid[reelIndex] ?? [];
+    const rowCount = nextReel.length;
+    if (rowCount === 0 || removedRows.size === 0) continue;
+
+    const survivorRows = currentReel
+      .map((_, row) => row)
+      .filter((row) => row < rowCount && !removedRows.has(row));
+    const entryCount = Math.max(0, rowCount - survivorRows.length);
+
+    for (let row = 0; row < rowCount; row += 1) {
+      const offset =
+        row < entryCount
+          ? -(entryCount - row + 0.2)
+          : (survivorRows[row - entryCount] ?? row) - row;
+      if (offset !== 0) offsets[`${reelIndex}:${row}`] = offset;
+    }
+  }
+
+  return offsets;
+}
+
+function isCanvasWebGlContextLost(canvas: HTMLCanvasElement): boolean {
+  try {
+    const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+    return gl?.isContextLost() ?? false;
+  } catch {
+    return false;
+  }
 }
 
 function getMegaSlotSymbolImage(theme: SlotThemeConfig, symbol: number): string | null {

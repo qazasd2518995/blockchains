@@ -31,7 +31,6 @@ import { getSlotTheme, type SlotThemeConfig } from '@/lib/slotThemes';
 import { WinCelebration } from '@bg/game-engine';
 
 const COLOR_BG = 0x0f172a;
-const COLOR_TILE_BG = 0xffffff;
 const COLOR_TILE_STROKE = 0xc9a247;
 const COLOR_ACID = 0xf3d67d;
 const COLOR_VIOLET = 0xe8d48a;
@@ -424,8 +423,19 @@ export class HotlineScene {
     // tile 陰影
     const shadow = new Graphics()
       .roundRect(-width / 2 + 5, -height / 2 + 6, width - 8, height - 8, 12)
-      .fill({ color: COLOR_INK, alpha: 0.1 });
+      .fill({ color: COLOR_INK, alpha: 0.22 });
     c.addChild(shadow);
+
+    const tile = new Graphics()
+      .roundRect(-width / 2 + 3, -height / 2 + 3, width - 6, height - 6, 12)
+      .fill({ color: COLOR_INK, alpha: 0.84 })
+      .stroke({ color, width: 2, alpha: 0.46 });
+    c.addChild(tile);
+
+    const tileGlow = new Graphics()
+      .roundRect(-width / 2 + 7, -height / 2 + 7, width - 14, height - 14, 10)
+      .fill({ color, alpha: 0.08 });
+    c.addChild(tileGlow);
 
     const symbolTexture = this.symbolTextures[symbolIdx];
     if (symbolTexture) {
@@ -440,7 +450,7 @@ export class HotlineScene {
 
       const frame = new Graphics()
         .roundRect(-width / 2 + 3, -height / 2 + 3, width - 6, height - 6, 12)
-        .stroke({ color, width: 2, alpha: 0.52 });
+        .stroke({ color, width: 2, alpha: 0.6 });
       c.addChild(frame);
 
       const shine = new Graphics()
@@ -449,13 +459,6 @@ export class HotlineScene {
       c.addChild(shine);
       return;
     }
-
-    // tile 主體
-    const tile = new Graphics()
-      .roundRect(-width / 2 + 4, -height / 2 + 4, width - 8, height - 8, 12)
-      .fill({ color: COLOR_TILE_BG })
-      .stroke({ color, width: 2, alpha: 0.35 });
-    c.addChild(tile);
 
     // tile 頂部高光
     const hl = new Graphics()
