@@ -4295,12 +4295,8 @@
   }
 
   .mega-slot-body {
-    grid-template-columns: 104px minmax(0, 1fr);
+    grid-template-columns: 104px minmax(0, 1fr) 84px;
     gap: 4px;
-  }
-
-  .mega-slot-side--right {
-    display: none;
   }
 
   .mega-slot-side,
@@ -4496,14 +4492,11 @@
 
 @media (orientation: landscape) and (max-width: 760px) {
   .mega-slot-body {
-    grid-template-columns: minmax(86px, 24vw) minmax(0, 1fr);
+    grid-template-columns: minmax(82px, 22vw) minmax(0, 1fr) minmax(58px, 15vw);
     gap: 4px;
   }
 
-  .mega-slot-side--right {
-    display: none;
-  }
-
+  .mega-slot-side--right,
   .mega-slot-side--left {
     display: flex;
   }
