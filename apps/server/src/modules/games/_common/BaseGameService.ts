@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { sha256, generateServerSeed, generateClientSeed } from '@bg/provably-fair';
+import { MIN_BET_AMOUNT } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
 import { config } from '../../../config.js';
 
@@ -89,6 +90,9 @@ export async function lockUserAndCheckFunds(
   const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
   if (amount.lessThanOrEqualTo(0)) {
     throw new ApiError('INVALID_BET', 'Bet amount must be positive');
+  }
+  if (amount.lessThan(MIN_BET_AMOUNT)) {
+    throw new ApiError('INVALID_BET', `Minimum bet is ${MIN_BET_AMOUNT.toFixed(2)}`);
   }
   if (amount.greaterThan(config.MAX_SINGLE_BET)) {
     throw new ApiError('BET_OUT_OF_RANGE', `Max single bet is ${config.MAX_SINGLE_BET}`);
@@ -206,16 +210,19 @@ function isRetryableTxError(err: unknown): boolean {
   const msg = String(e.message ?? '').toLowerCase();
   if (
     e.code === 'P2002' &&
-    (
-      (typeof e.meta?.target === 'string' && RETRYABLE_ACTIVE_STATE_UNIQUE_INDEXES.has(e.meta.target)) ||
+    ((typeof e.meta?.target === 'string' &&
+      RETRYABLE_ACTIVE_STATE_UNIQUE_INDEXES.has(e.meta.target)) ||
       Array.from(RETRYABLE_ACTIVE_STATE_UNIQUE_INDEXES).some((indexName) =>
         msg.includes(indexName.toLowerCase()),
-      )
-    )
+      ))
   ) {
     return true;
   }
-  if (msg.includes('write conflict') || msg.includes('deadlock') || msg.includes('serialization failure')) {
+  if (
+    msg.includes('write conflict') ||
+    msg.includes('deadlock') ||
+    msg.includes('serialization failure')
+  ) {
     return true;
   }
   return false;

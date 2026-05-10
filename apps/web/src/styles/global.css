@@ -28,6 +28,19 @@
     animation: blackjack-card-settle 520ms cubic-bezier(0.2, 0.85, 0.22, 1) both;
   }
 
+  .game-balance-strip {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 0.7rem;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.58);
+  }
+
   .blackjack-card-flip-shell {
     width: 82px;
     height: 122px;
@@ -279,6 +292,32 @@
       min-height: 2.75rem !important;
       width: 2.75rem !important;
       min-width: 2.75rem !important;
+    }
+
+    .game-fullscreen-shell > header .game-shell-balance {
+      width: auto !important;
+      min-width: 0 !important;
+      max-width: 108px;
+      height: 2.35rem !important;
+      min-height: 2.35rem !important;
+      gap: 0.28rem !important;
+      padding-right: 0.5rem !important;
+      padding-left: 0.5rem !important;
+      font-size: 10px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell > header .game-shell-balance svg {
+      width: 13px;
+      height: 13px;
+      flex: 0 0 auto;
+    }
+
+    .game-fullscreen-shell > header .game-shell-balance .data-num {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .game-fullscreen-shell > header .min-w-0.flex-1 > div:first-child {
@@ -672,6 +711,190 @@
       padding-top: 0.4rem;
       font-size: 10px;
       letter-spacing: 0.06em;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .game-control-stack {
+      max-height: min(176px, 29svh);
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .game-control-stack
+      > .game-side-card:first-child {
+      max-height: min(176px, 29svh);
+      overflow: hidden;
+      padding: 0.42rem 0.58rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .game-control-stack
+      .bet-controls__entry {
+      grid-template-columns: minmax(0, 1fr) 76px;
+      gap: 0.28rem;
+      padding: 0.22rem !important;
+      border-radius: 11px;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .game-control-stack
+      .bet-controls__input {
+      min-height: 38px !important;
+      padding: 0.1rem 0.38rem !important;
+      font-size: 18px !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .game-control-stack
+      .bet-controls__adjusters {
+      gap: 0.2rem;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .game-control-stack
+      .bet-controls__adjusters
+      .game-choice-btn {
+      min-height: 38px;
+      border-radius: 9px;
+      font-size: 10px;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .game-control-stack
+      .bet-controls__presets {
+      display: none;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-spin-actions {
+      grid-template-columns: minmax(68px, 0.58fr) minmax(76px, 0.64fr) minmax(0, 1fr);
+      gap: 0.35rem;
+      margin-top: 0.48rem;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard'] .slot-game-page--classic .slot-speed-button,
+    .game-fullscreen-shell[data-slot-layout='standard'] .slot-game-page--classic .slot-auto-button,
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-spin-actions
+      .btn-acid {
+      min-height: 40px;
+      border-radius: 11px;
+      padding: 0.38rem 0.42rem !important;
+      font-size: 11px;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-speed-button {
+      grid-template-columns: auto minmax(0, 1fr);
+      column-gap: 0.25rem;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-speed-button
+      svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-speed-button
+      span,
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-auto-button
+      span {
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-speed-button
+      strong,
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-auto-button
+      strong {
+      font-size: 10px;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard'] .slot-game-page--classic .slot-auto-status {
+      margin-top: 0.35rem;
+      padding: 0.32rem 0.5rem;
+      border-radius: 9px;
+      font-size: 9px;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .game-balance-strip {
+      margin-top: 0.35rem !important;
+      padding-top: 0.28rem;
+      font-size: 9px;
+      letter-spacing: 0.03em;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .game-main-stack
+      > .slot-result-card {
+      display: grid !important;
+      place-items: center !important;
+      padding-right: 0.75rem !important;
+      padding-left: 0.75rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .game-main-stack
+      > .slot-result-card
+      > .slot-result-summary {
+      display: grid !important;
+      width: auto !important;
+      max-width: 100%;
+      place-items: center !important;
+      justify-content: center !important;
+      align-content: center !important;
+      gap: 0.12rem !important;
+      margin-right: auto !important;
+      margin-left: auto !important;
+      text-align: center !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-result-summary
+      > div,
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-result-payout,
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-result-profit {
+      width: auto !important;
+      max-width: 100%;
+      margin-right: 0 !important;
+      margin-left: 0 !important;
+      justify-self: center !important;
+      text-align: center !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-result-profit {
+      display: none !important;
     }
 
     .game-fullscreen-shell .blackjack-control-card-settled {
@@ -1093,6 +1316,16 @@
   }
 
   @media (max-width: 380px), (max-height: 700px) {
+    .game-fullscreen-shell > header .game-shell-balance {
+      max-width: 88px;
+      padding-right: 0.42rem !important;
+      padding-left: 0.42rem !important;
+    }
+
+    .game-fullscreen-shell > header .game-shell-balance svg {
+      display: none;
+    }
+
     .game-fullscreen-shell .game-main-stack > .game-result-card {
       height: 42px;
       max-height: 42px;
@@ -2735,10 +2968,7 @@
 
 .mega-slot-controls {
   display: grid;
-  grid-template-columns: minmax(96px, 0.8fr) minmax(96px, 0.8fr) minmax(150px, 1fr) minmax(
-      420px,
-      1.9fr
-    );
+  grid-template-columns: minmax(96px, 0.8fr) minmax(150px, 1fr) minmax(420px, 1.9fr);
   align-items: center;
   gap: 8px;
   min-height: 0;
@@ -4635,9 +4865,7 @@
   }
 
   .mega-slot-controls {
-    grid-template-columns:
-      minmax(74px, 0.75fr) minmax(74px, 0.75fr) minmax(128px, 1fr)
-      minmax(292px, 1.7fr);
+    grid-template-columns: minmax(74px, 0.75fr) minmax(128px, 1fr) minmax(292px, 1.7fr);
     gap: 4px;
     border-radius: 10px;
     padding: 3px 4px;

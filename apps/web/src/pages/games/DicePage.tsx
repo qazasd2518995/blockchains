@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import type { DiceBetRequest, DiceBetResult } from '@bg/shared';
+import { MIN_BET_AMOUNT, type DiceBetRequest, type DiceBetResult } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -71,7 +71,7 @@ export function DicePage() {
   const handleBet = async () => {
     if (rolling) return;
     if (!requireLogin()) return;
-    if (amount <= 0 || amount > balance) {
+    if (amount < MIN_BET_AMOUNT || amount > balance) {
       setError(t.bet.insufficientBalance);
       return;
     }
@@ -86,18 +86,20 @@ export function DicePage() {
       await sceneRef.current?.playRoll(result.roll, result.won, result.multiplier);
       sceneRef.current?.playWinFx(result.multiplier, result.won);
       setLastResult(result);
-      setHistory((prev) => [
-        {
-          id: result.betId,
-          timestamp: Date.now(),
-          betAmount: amount,
-          multiplier: result.won ? result.multiplier : 0,
-          payout: Number.parseFloat(result.payout),
-          won: result.won,
-          detail: `${result.direction === 'under' ? '▾' : '▴'} ${result.target.toFixed(2)}`,
-        },
-        ...prev,
-      ].slice(0, 30));
+      setHistory((prev) =>
+        [
+          {
+            id: result.betId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: result.won ? result.multiplier : 0,
+            payout: Number.parseFloat(result.payout),
+            won: result.won,
+            detail: `${result.direction === 'under' ? '▾' : '▴'} ${result.target.toFixed(2)}`,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
       setBalance(result.newBalance);
     } catch (err) {
       sceneRef.current?.stopAnticipation();
@@ -125,7 +127,9 @@ export function DicePage() {
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">骰子</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Dice</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">骰子</span>
+              <span className="ml-2 text-white/40">·</span>
+              <span className="ml-2 text-white/55 uppercase">Dice</span>
               <span className="text-[#7EE0A4]">
                 <span className="dot-online dot-online" />
                 {t.common.ready.toUpperCase()}
@@ -144,7 +148,7 @@ export function DicePage() {
                 </div>
                 <div>
                   {t.bet.winChance.toUpperCase()}{' '}
-                    <span className="data-num ml-1 text-white">{winChance.toFixed(2)}%</span>
+                  <span className="data-num ml-1 text-white">{winChance.toFixed(2)}%</span>
                 </div>
                 <div>
                   {t.bet.potentialPayout.toUpperCase()}{' '}
@@ -267,24 +271,19 @@ export function DicePage() {
               )}
             </button>
 
-            <div className="game-balance-strip mt-3">
-              <span className="text-white/55">
-                {t.bet.balance}{' '}
-                <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
-              </span>
-              {user ? (
+            {user ? (
+              <div className="game-balance-strip mt-3">
                 <span className="text-white/55">
                   {t.bet.after}{' '}
                   <span className="data-num ml-1 text-[#7DD3FC]">
                     {formatAmount(balance - amount)}
                   </span>
                 </span>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
 
           <RecentBetsList records={history} />
-
         </div>
       </div>
     </div>
@@ -295,9 +294,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
   return (
     <div className="game-stat-card">
       <div className="label">{k}</div>
-      <div
-        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-[#7DD3FC]' : 'text-white'}`}
-      >
+      <div className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-[#7DD3FC]' : 'text-white'}`}>
         {v}
       </div>
     </div>

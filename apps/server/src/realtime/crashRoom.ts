@@ -3,7 +3,12 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { crashPoint, sha256, generateServerSeed } from '@bg/provably-fair';
 import { randomUUID } from 'node:crypto';
 import { config as appConfig } from '../config.js';
-import type { CrashRoundSnapshot, CrashPlayerBet, CrashStatus } from '@bg/shared';
+import {
+  MIN_BET_AMOUNT,
+  type CrashRoundSnapshot,
+  type CrashPlayerBet,
+  type CrashStatus,
+} from '@bg/shared';
 import { runSerializable } from '../modules/games/_common/BaseGameService.js';
 import {
   applyControls,
@@ -14,8 +19,8 @@ import {
 
 const BETTING_WINDOW_MS = 3000;
 const POST_CRASH_MS = 3000;
-const TICK_MS = 100;
-const GROWTH_RATE = 0.00006; // multiplier speed; tuned for ~10-20s average
+const TICK_MS = 80;
+const GROWTH_RATE = 0.0001; // multiplier speed; 2x in ~6.9s, 3x in ~11s
 const ROUND_CREATE_RETRY_BASE_MS = 80;
 const ROUND_CREATE_RETRY_JITTER_MS = 220;
 const PHASE_RECOVERY_MS = 1200;
@@ -23,7 +28,6 @@ const LEASE_DURATION_MS = 15000;
 const LEASE_RENEW_MS = 5000;
 const LEASE_ACQUIRE_RETRY_MS = 2500;
 const LEASE_RETRY_JITTER_MS = 1000;
-const MIN_BET_AMOUNT = 0.01;
 const MIN_CASHOUT_MULTIPLIER = 1.01;
 const MAX_AUTO_CASHOUT_MULTIPLIER = 1_000_000;
 
@@ -583,6 +587,24 @@ export class CrashRoom {
     const connectedUserId = getSocketUserId(socket);
     socket.join(crashUserRoom(connectedUserId));
     socket.emit('round:snapshot', this.snapshot());
+    const queuedBet = this.nextRoundBets.get(connectedUserId);
+    if (queuedBet) {
+      socket.emit('bet:queued', {
+        amount: queuedBet.amount.toFixed(2),
+        autoCashOut: queuedBet.autoCashOut,
+        roundNumber: this.roundNumber + 1,
+      });
+    }
+    void this.getPlayers()
+      .then((players) => {
+        socket.emit('bets:update', { players });
+      })
+      .catch((err) => {
+        console.error(
+          `[crashRoom] failed to send connection bet snapshot (gameId=${this.config.gameId})`,
+          err,
+        );
+      });
 
     socket.on(
       'bet:place',

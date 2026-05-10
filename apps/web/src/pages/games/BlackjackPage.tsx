@@ -1,12 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { AlertCircle, BadgeDollarSign, ChevronsRight, Hand, Play, Scissors, Shield } from 'lucide-react';
-import type {
-  BlackjackCard,
-  BlackjackHandScore,
-  BlackjackPlayerHand,
-  BlackjackRoundResult,
-  BlackjackRoundState,
+import {
+  AlertCircle,
+  BadgeDollarSign,
+  ChevronsRight,
+  Hand,
+  Play,
+  Scissors,
+  Shield,
+} from 'lucide-react';
+import {
+  MIN_BET_AMOUNT,
+  type BlackjackCard,
+  type BlackjackHandScore,
+  type BlackjackPlayerHand,
+  type BlackjackRoundResult,
+  type BlackjackRoundState,
 } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -17,7 +26,21 @@ import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 
-const CARD_FILE_RANKS = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'] as const;
+const CARD_FILE_RANKS = [
+  'ace',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  'jack',
+  'queen',
+  'king',
+] as const;
 const CARD_FILE_SUITS = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
 const DEAL_STEP_MS = 330;
 const QUICK_FRAME_MS = 90;
@@ -70,12 +93,21 @@ export function BlackjackPage() {
   const activeHand = round?.playerHands[round.activeHandIndex] ?? null;
   const displayActiveHandIndex = getDisplayHandIndex(tableRound);
   const displayActiveHand =
-    tableRound && displayActiveHandIndex >= 0 ? tableRound.playerHands[displayActiveHandIndex] ?? null : null;
-  const dealerScoreLabel = formatBlackjackScore(tableRound?.dealerScore ?? null, tableRound?.dealerHoleHidden ?? false);
+    tableRound && displayActiveHandIndex >= 0
+      ? (tableRound.playerHands[displayActiveHandIndex] ?? null)
+      : null;
+  const dealerScoreLabel = formatBlackjackScore(
+    tableRound?.dealerScore ?? null,
+    tableRound?.dealerHoleHidden ?? false,
+  );
   const playerScoreLabel = formatBlackjackScore(displayActiveHand?.score ?? null);
   const settled = round && round.status !== 'ACTIVE' && !animating;
   const resultSummary = useMemo(() => summarizeRound(round), [round]);
-  const enteringCardKeys = useMemo(() => new Set(animationMeta.enteringCards), [animationMeta.enteringCards]);
+  const settledProfit = settled ? blackjackRoundProfit(round) : 0;
+  const enteringCardKeys = useMemo(
+    () => new Set(animationMeta.enteringCards),
+    [animationMeta.enteringCards],
+  );
 
   const playRoundAnimation = (nextRound: BlackjackRoundState) => {
     clearAnimationTimers(animationTimers.current);
@@ -93,11 +125,14 @@ export function BlackjackPage() {
       elapsed += frame.durationMs;
     });
 
-    const finishTimer = setTimeout(() => {
-      setAnimating(false);
-      setAnimationMeta(IDLE_ANIMATION_META);
-      setDisplayRound(nextRound);
-    }, Math.max(0, elapsed));
+    const finishTimer = setTimeout(
+      () => {
+        setAnimating(false);
+        setAnimationMeta(IDLE_ANIMATION_META);
+        setDisplayRound(nextRound);
+      },
+      Math.max(0, elapsed),
+    );
     animationTimers.current.push(finishTimer);
   };
 
@@ -108,18 +143,20 @@ export function BlackjackPage() {
     if (result.state.status !== 'ACTIVE') {
       const totalBet = Number.parseFloat(result.state.totalBetAmount);
       const payout = Number.parseFloat(result.state.potentialPayout);
-      setHistory((prev) => [
-        {
-          id: result.state.roundId,
-          timestamp: Date.now(),
-          betAmount: Number.isFinite(totalBet) ? totalBet : fallbackBet,
-          multiplier: totalBet > 0 ? payout / totalBet : 0,
-          payout,
-          won: payout > totalBet,
-          detail: resultSummaryLabel(result.state),
-        },
-        ...prev,
-      ].slice(0, 30));
+      setHistory((prev) =>
+        [
+          {
+            id: result.state.roundId,
+            timestamp: Date.now(),
+            betAmount: Number.isFinite(totalBet) ? totalBet : fallbackBet,
+            multiplier: totalBet > 0 ? payout / totalBet : 0,
+            payout,
+            won: payout > totalBet,
+            detail: resultSummaryLabel(result.state),
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
     }
   };
 
@@ -140,7 +177,7 @@ export function BlackjackPage() {
   const handleStart = async () => {
     if (busy || animating) return;
     if (!requireLogin()) return;
-    if (amount <= 0 || amount > balance) return;
+    if (amount < MIN_BET_AMOUNT || amount > balance) return;
     setBusy(true);
     setError(null);
     try {
@@ -180,12 +217,16 @@ export function BlackjackPage() {
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines overflow-hidden p-3 sm:p-4">
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px] sm:-mx-4 sm:-mt-4 sm:mb-4">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">21点</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">21點</span>
               <span className="ml-2 text-white/40">·</span>
               <span className="ml-2 text-white/55 uppercase">Blackjack</span>
               <span className="text-[#7EE0A4]">
                 <span className="dot-online" />
-                {tableRound ? (tableRound.status === 'ACTIVE' ? t.games.blackjack.dealing : t.common.ready) : t.games.hilo.idle}
+                {tableRound
+                  ? tableRound.status === 'ACTIVE'
+                    ? t.games.blackjack.dealing
+                    : t.common.ready
+                  : t.games.hilo.idle}
               </span>
             </div>
 
@@ -200,14 +241,11 @@ export function BlackjackPage() {
 
               <div className="blackjack-table-body relative z-10 flex min-h-[580px] flex-col justify-between gap-5 p-3 sm:min-h-[620px] sm:p-5">
                 <section>
-                  <TableLabel
-                    title={t.games.blackjack.dealer}
-                    value={dealerScoreLabel}
-                  />
+                  <TableLabel title={t.games.blackjack.dealer} value={dealerScoreLabel} />
                   <div className="mt-3 flex min-h-[150px] flex-wrap items-center justify-center gap-2 sm:gap-3">
                     {tableRound ? (
                       <>
-                        {tableRound.dealerCards.map((card, index) => (
+                        {tableRound.dealerCards.map((card, index) =>
                           animationMeta.flipDealerHole && index === 1 ? (
                             <FlipCardImage
                               key={`dealer-flip-${card.rank}-${card.suit}`}
@@ -221,8 +259,8 @@ export function BlackjackPage() {
                               isEntering={enteringCardKeys.has(dealerCardKey(index, card))}
                               lane="dealer"
                             />
-                          )
-                        ))}
+                          ),
+                        )}
                         {tableRound.dealerHoleHidden && (
                           <CardBack isEntering={enteringCardKeys.has(DEALER_HOLE_KEY)} />
                         )}
@@ -246,7 +284,11 @@ export function BlackjackPage() {
                 <section>
                   <TableLabel
                     title={t.games.blackjack.player}
-                    value={displayActiveHand ? `${t.games.blackjack.hand} ${displayActiveHandIndex + 1}` : '--'}
+                    value={
+                      displayActiveHand
+                        ? `${t.games.blackjack.hand} ${displayActiveHandIndex + 1}`
+                        : '--'
+                    }
                   />
                   <div className="mt-3 flex flex-wrap justify-center gap-3">
                     {tableRound ? (
@@ -254,7 +296,9 @@ export function BlackjackPage() {
                         <div
                           key={hand.id}
                           className={`w-full rounded-[18px] border p-3 backdrop-blur ${
-                            tableRound.playerHands.length > 1 ? 'md:max-w-[360px] md:basis-[calc(50%-0.375rem)]' : 'max-w-[560px]'
+                            tableRound.playerHands.length > 1
+                              ? 'md:max-w-[360px] md:basis-[calc(50%-0.375rem)]'
+                              : 'max-w-[560px]'
                           } ${
                             index === tableRound.activeHandIndex && tableRound.status === 'ACTIVE'
                               ? 'border-[#E8D48A]/70 bg-[#0F1E2E]/84 shadow-[0_0_28px_rgba(232,212,138,0.12)]'
@@ -266,7 +310,8 @@ export function BlackjackPage() {
                               {t.games.blackjack.hand} {index + 1}
                             </div>
                             <div className="rounded-full bg-white/[0.08] px-2 py-1 text-[10px] font-bold text-[#E8D48A]">
-                              下注 {formatAmount(hand.bet)} · {formatBlackjackScore(hand.cards.length > 0 ? hand.score : null)}
+                              下注 {formatAmount(hand.bet)} ·{' '}
+                              {formatBlackjackScore(hand.cards.length > 0 ? hand.score : null)}
                             </div>
                           </div>
                           <div className="flex min-h-[132px] flex-wrap items-center justify-center gap-2">
@@ -275,14 +320,20 @@ export function BlackjackPage() {
                                 key={`${hand.id}-${cardIndex}-${card.rank}-${card.suit}`}
                                 card={card}
                                 cardKey={playerCardKey(hand.id, cardIndex, card)}
-                                isEntering={enteringCardKeys.has(playerCardKey(hand.id, cardIndex, card))}
+                                isEntering={enteringCardKeys.has(
+                                  playerCardKey(hand.id, cardIndex, card),
+                                )}
                                 isSettling={Boolean(animationMeta.revealResult && hand.outcome)}
                                 lane="player"
                               />
                             ))}
                           </div>
                           <div className="mt-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.16em]">
-                            <span className={hand.outcome === 'LOSE' ? 'text-[#FCA5A5]' : 'text-white/52'}>
+                            <span
+                              className={
+                                hand.outcome === 'LOSE' ? 'text-[#FCA5A5]' : 'text-white/52'
+                              }
+                            >
                               {hand.outcome ? outcomeLabel(hand.outcome) : hand.status}
                             </span>
                             <span className="data-num text-[#6EE7B7]">
@@ -303,20 +354,25 @@ export function BlackjackPage() {
           {settled && (
             <div
               className={`game-result-card ${
-                Number.parseFloat(round.potentialPayout) > Number.parseFloat(round.totalBetAmount)
-                  ? 'game-result-card-win'
-                  : 'game-result-card-loss'
+                settledProfit >= 0 ? 'game-result-card-win' : 'game-result-card-loss'
               }`}
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
                 <div>
                   <div className="font-display text-4xl text-[#F3D67D]">{resultSummary.title}</div>
-                  <div className="mt-1 text-[11px] tracking-[0.2em] text-white/65">{resultSummary.detail}</div>
+                  <div className="mt-1 text-[11px] tracking-[0.2em] text-white/65">
+                    {resultSummary.detail}
+                  </div>
                 </div>
                 <div className="text-left sm:text-right">
-                  <div className="data-num text-[11px] text-white/55">{t.games.dice.payout}</div>
-                  <div className="data-num text-3xl font-black text-[#6EE7B7]">
-                    {formatAmount(round.potentialPayout)}
+                  <div className="data-num text-[11px] text-white/55">盈虧</div>
+                  <div
+                    className={`data-num text-3xl font-black ${
+                      settledProfit >= 0 ? 'text-[#6EE7B7]' : 'text-[#FCA5A5]'
+                    }`}
+                  >
+                    {settledProfit > 0 ? '+' : ''}
+                    {formatAmount(settledProfit)}
                   </div>
                 </div>
               </div>
@@ -371,13 +427,23 @@ export function BlackjackPage() {
                   <ActionButton
                     icon={<BadgeDollarSign className="h-4 w-4" aria-hidden="true" />}
                     label={t.games.blackjack.double}
-                    disabled={busy || animating || !round.canDouble || balance < Number.parseFloat(activeHand?.bet ?? '0')}
+                    disabled={
+                      busy ||
+                      animating ||
+                      !round.canDouble ||
+                      balance < Number.parseFloat(activeHand?.bet ?? '0')
+                    }
                     onClick={() => runAction('/games/blackjack/double')}
                   />
                   <ActionButton
                     icon={<Scissors className="h-4 w-4" aria-hidden="true" />}
                     label={t.games.blackjack.split}
-                    disabled={busy || animating || !round.canSplit || balance < Number.parseFloat(activeHand?.bet ?? '0')}
+                    disabled={
+                      busy ||
+                      animating ||
+                      !round.canSplit ||
+                      balance < Number.parseFloat(activeHand?.bet ?? '0')
+                    }
                     onClick={() => runAction('/games/blackjack/split')}
                   />
                 </>
@@ -396,12 +462,14 @@ export function BlackjackPage() {
 
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
-              </span>
-              <span>
                 {t.bet.multiplier}{' '}
                 <span className="data-num ml-1 text-[#7DD3FC]">
-                  {round ? formatMultiplier(Number.parseFloat(round.potentialPayout) / Math.max(1, Number.parseFloat(round.totalBetAmount))) : '--'}
+                  {round
+                    ? formatMultiplier(
+                        Number.parseFloat(round.potentialPayout) /
+                          Math.max(1, Number.parseFloat(round.totalBetAmount)),
+                      )
+                    : '--'}
                 </span>
               </span>
             </div>
@@ -453,8 +521,12 @@ function ActionButton({
 function TableLabel({ title, value }: { title: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-full border border-white/10 bg-[#050A13]/58 px-3 py-2 backdrop-blur">
-      <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#E8D48A]">{title}</div>
-      <div className="data-num text-[11px] font-black uppercase tracking-[0.18em] text-white/70">{value}</div>
+      <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#E8D48A]">
+        {title}
+      </div>
+      <div className="data-num text-[11px] font-black uppercase tracking-[0.18em] text-white/70">
+        {value}
+      </div>
     </div>
   );
 }
@@ -469,16 +541,14 @@ function BlackjackScoreTile({
   tone: 'dealer' | 'player' | 'payout';
 }) {
   const valueClass =
-    tone === 'dealer'
-      ? 'text-[#F3D67D]'
-      : tone === 'player'
-        ? 'text-[#7DD3FC]'
-        : 'text-[#6EE7B7]';
+    tone === 'dealer' ? 'text-[#F3D67D]' : tone === 'player' ? 'text-[#7DD3FC]' : 'text-[#6EE7B7]';
 
   return (
     <div className="blackjack-score-tile rounded-[14px] border border-white/10 bg-[#050A13]/68 px-2 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
       <div className="text-[9px] font-black uppercase tracking-[0.18em] text-white/50">{label}</div>
-      <div className={`mt-1 truncate font-display text-[18px] font-black leading-none sm:text-[24px] ${valueClass}`}>
+      <div
+        className={`mt-1 truncate font-display text-[18px] font-black leading-none sm:text-[24px] ${valueClass}`}
+      >
         {value}
       </div>
     </div>
@@ -527,7 +597,9 @@ function CardImage({
 
 function CardBack({ isEntering = false }: { isEntering?: boolean }) {
   return (
-    <span className={`blackjack-card-shell blackjack-card-deal-dealer ${isEntering ? 'blackjack-card-deal' : ''}`}>
+    <span
+      className={`blackjack-card-shell blackjack-card-deal-dealer ${isEntering ? 'blackjack-card-deal' : ''}`}
+    >
       <CardBackFace />
     </span>
   );
@@ -599,7 +671,13 @@ function buildBlackjackDealFrames(
       const cardIndex = handCounts[index]! - 1;
       frames.push(
         animationFrame(
-          makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, next.status === 'ACTIVE'),
+          makeVisibleRound(
+            next,
+            dealerCount,
+            dealerHoleHidden,
+            handCounts,
+            next.status === 'ACTIVE',
+          ),
           { enteringCards: [playerCardKey(hand.id, cardIndex, hand.cards[cardIndex]!)] },
           DEAL_STEP_MS,
         ),
@@ -652,14 +730,18 @@ function buildOpeningFrames(next: BlackjackRoundState): BlackjackAnimationFrame[
   const handCounts = next.playerHands.map(() => 0);
   let dealerCount = 0;
 
-  frames.push(animationFrame(makeVisibleRound(next, 0, false, handCounts, false), {}, QUICK_FRAME_MS));
+  frames.push(
+    animationFrame(makeVisibleRound(next, 0, false, handCounts, false), {}, QUICK_FRAME_MS),
+  );
 
   if (next.playerHands[0]?.cards.length) {
     handCounts[0] = 1;
     frames.push(
       animationFrame(
         makeVisibleRound(next, dealerCount, false, handCounts, false),
-        { enteringCards: [playerCardKey(next.playerHands[0].id, 0, next.playerHands[0].cards[0]!)] },
+        {
+          enteringCards: [playerCardKey(next.playerHands[0].id, 0, next.playerHands[0].cards[0]!)],
+        },
         DEAL_STEP_MS,
       ),
     );
@@ -737,7 +819,10 @@ function buildSplitFrames(
   const firstSplitHand = next.playerHands[splitIndex];
   const secondSplitHand = next.playerHands[splitIndex + 1];
   if (!previousSplitHand || !firstSplitHand || !secondSplitHand) return null;
-  if (!firstSplitHand.id.startsWith(previousSplitHand.id) || !secondSplitHand.id.startsWith(previousSplitHand.id)) {
+  if (
+    !firstSplitHand.id.startsWith(previousSplitHand.id) ||
+    !secondSplitHand.id.startsWith(previousSplitHand.id)
+  ) {
     return null;
   }
 
@@ -767,7 +852,13 @@ function buildSplitFrames(
       const cardIndex = handCounts[handIndex]! - 1;
       frames.push(
         animationFrame(
-          makeVisibleRound(next, dealerCount, dealerHoleHidden, handCounts, next.status === 'ACTIVE'),
+          makeVisibleRound(
+            next,
+            dealerCount,
+            dealerHoleHidden,
+            handCounts,
+            next.status === 'ACTIVE',
+          ),
           { enteringCards: [playerCardKey(hand.id, cardIndex, hand.cards[cardIndex]!)] },
           DEAL_STEP_MS,
         ),
@@ -804,9 +895,14 @@ function buildSplitFrames(
   return frames;
 }
 
-function buildTransitionHandCounts(previous: BlackjackRoundState, next: BlackjackRoundState): number[] {
+function buildTransitionHandCounts(
+  previous: BlackjackRoundState,
+  next: BlackjackRoundState,
+): number[] {
   return next.playerHands.map((hand, index) => {
-    const previousHand = previous.playerHands.find((candidate) => candidate.id === hand.id) ?? previous.playerHands[index];
+    const previousHand =
+      previous.playerHands.find((candidate) => candidate.id === hand.id) ??
+      previous.playerHands[index];
     return Math.min(previousHand?.cards.length ?? 0, hand.cards.length);
   });
 }
@@ -847,7 +943,11 @@ function makeVisibleRound(
   };
 }
 
-function maskHand(hand: BlackjackPlayerHand, visibleCount: number, revealMeta: boolean): BlackjackPlayerHand {
+function maskHand(
+  hand: BlackjackPlayerHand,
+  visibleCount: number,
+  revealMeta: boolean,
+): BlackjackPlayerHand {
   const cards = hand.cards.slice(0, visibleCount);
   const complete = cards.length >= hand.cards.length;
   const masked: BlackjackPlayerHand = {
@@ -912,7 +1012,10 @@ function formatBlackjackScore(score: BlackjackHandScore | null, hidden = false):
 function compactFrames(frames: BlackjackAnimationFrame[]): BlackjackAnimationFrame[] {
   const compacted: BlackjackAnimationFrame[] = [];
   frames.forEach((frame) => {
-    if (animationFrameFingerprint(compacted[compacted.length - 1]) !== animationFrameFingerprint(frame)) {
+    if (
+      animationFrameFingerprint(compacted[compacted.length - 1]) !==
+      animationFrameFingerprint(frame)
+    ) {
       compacted.push(frame);
     }
   });
@@ -969,13 +1072,13 @@ function suitLabel(suit: number): string {
 function outcomeLabel(outcome: string): string {
   switch (outcome) {
     case 'BLACKJACK':
-      return 'BLACKJACK';
+      return '黑傑克';
     case 'WIN':
-      return 'WIN';
+      return '勝';
     case 'PUSH':
-      return 'PUSH';
+      return '平手';
     default:
-      return 'LOSE';
+      return '負';
   }
 }
 
@@ -983,17 +1086,41 @@ function summarizeRound(round: BlackjackRoundState | null): { title: string; det
   if (!round) return { title: '--', detail: '' };
   const totalBet = Number.parseFloat(round.totalBetAmount);
   const payout = Number.parseFloat(round.potentialPayout);
+  const profit = blackjackRoundProfit(round);
   if (payout > totalBet) {
-    return { title: 'PLAYER WIN', detail: `+${formatAmount(payout - totalBet)} · ${resultSummaryLabel(round)}` };
+    return {
+      title: '玩家勝',
+      detail: `淨贏 +${formatAmount(profit)} · ${resultSummaryLabel(round)}`,
+    };
   }
   if (payout === totalBet) {
-    return { title: 'PUSH', detail: resultSummaryLabel(round) };
+    return { title: '平手', detail: `退回本金 · ${resultSummaryLabel(round)}` };
   }
-  return { title: 'DEALER WIN', detail: resultSummaryLabel(round) };
+  return { title: '莊家勝', detail: `淨輸 ${formatAmount(profit)} · ${resultSummaryLabel(round)}` };
 }
 
 function resultSummaryLabel(round: BlackjackRoundState): string {
   return round.playerHands
-    .map((hand, index) => `${index + 1}:${hand.outcome ?? hand.status}`)
+    .map((hand, index) => `手牌 ${index + 1}：${blackjackHandStateLabel(hand)}`)
     .join(' · ');
+}
+
+function blackjackRoundProfit(round: BlackjackRoundState): number {
+  return Number.parseFloat(round.potentialPayout) - Number.parseFloat(round.totalBetAmount);
+}
+
+function blackjackHandStateLabel(hand: BlackjackPlayerHand): string {
+  if (hand.outcome) return outcomeLabel(hand.outcome);
+  switch (hand.status) {
+    case 'PLAYING':
+      return '進行中';
+    case 'STANDING':
+      return '停牌';
+    case 'BUSTED':
+      return '爆牌';
+    case 'RESOLVED':
+      return '已結算';
+    default:
+      return hand.status;
+  }
 }

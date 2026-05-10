@@ -168,7 +168,7 @@ export function GameFullscreenShell() {
             <button
               type="button"
               onClick={handleBalanceRefresh}
-              className="game-shell-balance hidden h-10 shrink-0 items-center gap-2 rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338] sm:inline-flex"
+              className="game-shell-balance inline-flex h-10 min-w-0 shrink-0 items-center gap-2 rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338]"
               title="重新載入餘額"
               aria-label={`重新載入餘額，目前餘額 ${formatAmount(user.balance ?? '0')}`}
             >
@@ -178,7 +178,7 @@ export function GameFullscreenShell() {
           ) : (
             <Link
               to={loginPath}
-              className="game-shell-balance hidden h-10 shrink-0 items-center rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338] sm:inline-flex"
+              className="game-shell-balance inline-flex h-10 min-w-0 shrink-0 items-center rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338]"
             >
               登入下注
             </Link>
@@ -290,5 +290,8 @@ function isStandaloneDisplayMode(): boolean {
 
 function isAppleTouchDevice(): boolean {
   const nav = navigator as Navigator & { maxTouchPoints?: number };
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && (nav.maxTouchPoints ?? 0) > 1);
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && (nav.maxTouchPoints ?? 0) > 1)
+  );
 }

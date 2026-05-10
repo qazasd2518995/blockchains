@@ -11,6 +11,7 @@ import type {
   HotlineWinPosition,
   HotlineWinLine,
 } from '@bg/shared';
+import { MIN_BET_AMOUNT } from '@bg/shared';
 import { HOTLINE_MINI_SYMBOLS, HOTLINE_SYMBOLS } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -101,6 +102,10 @@ interface AutoSpinSettings {
   stopOnFreeSpins: boolean;
 }
 
+type AutoSpinNumberField = 'rounds' | 'amount' | 'lossLimit' | 'profitTarget' | 'singleWinLimit';
+
+type AutoSpinInputDraft = Record<AutoSpinNumberField, string>;
+
 const AUTO_SPIN_ROUND_PRESETS = [10, 25, 50, 100];
 
 function createDefaultAutoSpinSettings(amount: number): AutoSpinSettings {
@@ -113,6 +118,16 @@ function createDefaultAutoSpinSettings(amount: number): AutoSpinSettings {
     singleWinLimit: 0,
     stopOnAnyWin: false,
     stopOnFreeSpins: true,
+  };
+}
+
+function createAutoSpinInputDraft(settings: AutoSpinSettings): AutoSpinInputDraft {
+  return {
+    rounds: String(settings.rounds),
+    amount: String(settings.amount),
+    lossLimit: String(settings.lossLimit),
+    profitTarget: String(settings.profitTarget),
+    singleWinLimit: String(settings.singleWinLimit),
   };
 }
 
@@ -153,6 +168,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [autoSpinOpen, setAutoSpinOpen] = useState(false);
   const [autoSpinSettings, setAutoSpinSettings] = useState<AutoSpinSettings>(() =>
     createDefaultAutoSpinSettings(10),
+  );
+  const [autoSpinInputDraft, setAutoSpinInputDraft] = useState<AutoSpinInputDraft>(() =>
+    createAutoSpinInputDraft(createDefaultAutoSpinSettings(10)),
   );
   const [autoSpinActive, setAutoSpinActive] = useState(false);
   const [autoSpinRemaining, setAutoSpinRemaining] = useState(0);
@@ -275,8 +293,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   }, [slotTheme]);
 
   const setMegaAmount = (next: number): void => {
-    const max = user ? Math.max(balance, 0.01) : 100000;
-    const clamped = Math.min(max, Math.max(0.01, next));
+    const max = user ? Math.max(balance, MIN_BET_AMOUNT) : 100000;
+    const clamped = Math.max(MIN_BET_AMOUNT, Math.min(max, next));
     setAmount(Number.parseFloat(clamped.toFixed(2)));
   };
 
@@ -345,7 +363,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const buyFeature = Boolean(options.buyFeature && isMegaSlot);
     const spinFast = options.fastSpin ?? fastSpinRef.current;
     const stakeAmount = buyFeature ? roundCurrency(spinAmount * 100) : spinAmount;
-    if (spinAmount <= 0 || stakeAmount > availableBalance) return null;
+    if (spinAmount < MIN_BET_AMOUNT || stakeAmount > availableBalance) return null;
     setBusy(true);
     setSpinning(true);
     setResult(null);
@@ -866,11 +884,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
   const openAutoSpinSettings = (): void => {
     if (busy || autoSpinActive) return;
-    setAutoSpinSettings((prev) => ({
-      ...prev,
+    const nextSettings: AutoSpinSettings = {
+      ...autoSpinSettings,
       amount: roundCurrency(amount),
-      lossLimit: prev.lossLimit > 0 ? prev.lossLimit : roundCurrency(amount * 25),
-    }));
+      lossLimit:
+        autoSpinSettings.lossLimit > 0 ? autoSpinSettings.lossLimit : roundCurrency(amount * 25),
+    };
+    setAutoSpinSettings(nextSettings);
+    setAutoSpinInputDraft(createAutoSpinInputDraft(nextSettings));
     setAutoSpinStopReason('');
     setAutoSpinOpen(true);
   };
@@ -880,6 +901,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     value: AutoSpinSettings[Key],
   ): void => {
     setAutoSpinSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const updateAutoSpinNumberSetting = (key: AutoSpinNumberField, value: string): void => {
+    setAutoSpinInputDraft((prev) => ({ ...prev, [key]: value }));
+
+    const parsed = key === 'rounds' ? Number.parseInt(value, 10) : Number.parseFloat(value);
+    updateAutoSpinSetting(key, Number.isFinite(parsed) ? parsed : 0);
   };
 
   const stopAutoSpin = (): void => {
@@ -892,7 +920,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     if (!requireLogin()) return;
 
     const config = normalizeAutoSpinSettings(autoSpinSettings);
-    if (config.rounds <= 0 || config.amount <= 0) return;
+    if (config.rounds <= 0 || config.amount < MIN_BET_AMOUNT) return;
     if (balance < config.amount) {
       setError('餘額不足，無法啟動自動轉動');
       return;
@@ -1141,10 +1169,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               type="number"
               min={1}
               max={500}
-              value={autoSpinSettings.rounds}
-              onChange={(event) =>
-                updateAutoSpinSetting('rounds', Number.parseInt(event.target.value, 10) || 1)
-              }
+              value={autoSpinInputDraft.rounds}
+              onChange={(event) => updateAutoSpinNumberSetting('rounds', event.target.value)}
             />
           </label>
           <div className="slot-auto-presets">
@@ -1152,7 +1178,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <button
                 key={preset}
                 type="button"
-                onClick={() => updateAutoSpinSetting('rounds', preset)}
+                onClick={() => {
+                  updateAutoSpinSetting('rounds', preset);
+                  setAutoSpinInputDraft((prev) => ({ ...prev, rounds: String(preset) }));
+                }}
                 className={autoSpinSettings.rounds === preset ? 'slot-auto-preset--active' : ''}
               >
                 {preset}
@@ -1165,12 +1194,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <span>下注金額</span>
               <input
                 type="number"
-                min={0.01}
+                min={MIN_BET_AMOUNT}
                 step={0.01}
-                value={autoSpinSettings.amount}
-                onChange={(event) =>
-                  updateAutoSpinSetting('amount', Number.parseFloat(event.target.value) || 0)
-                }
+                value={autoSpinInputDraft.amount}
+                onChange={(event) => updateAutoSpinNumberSetting('amount', event.target.value)}
               />
             </label>
             <label className="slot-auto-field">
@@ -1179,10 +1206,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 type="number"
                 min={0}
                 step={0.01}
-                value={autoSpinSettings.lossLimit}
-                onChange={(event) =>
-                  updateAutoSpinSetting('lossLimit', Number.parseFloat(event.target.value) || 0)
-                }
+                value={autoSpinInputDraft.lossLimit}
+                onChange={(event) => updateAutoSpinNumberSetting('lossLimit', event.target.value)}
               />
             </label>
             <label className="slot-auto-field">
@@ -1191,9 +1216,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 type="number"
                 min={0}
                 step={0.01}
-                value={autoSpinSettings.profitTarget}
+                value={autoSpinInputDraft.profitTarget}
                 onChange={(event) =>
-                  updateAutoSpinSetting('profitTarget', Number.parseFloat(event.target.value) || 0)
+                  updateAutoSpinNumberSetting('profitTarget', event.target.value)
                 }
               />
             </label>
@@ -1203,12 +1228,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 type="number"
                 min={0}
                 step={0.01}
-                value={autoSpinSettings.singleWinLimit}
+                value={autoSpinInputDraft.singleWinLimit}
                 onChange={(event) =>
-                  updateAutoSpinSetting(
-                    'singleWinLimit',
-                    Number.parseFloat(event.target.value) || 0,
-                  )
+                  updateAutoSpinNumberSetting('singleWinLimit', event.target.value)
                 }
               />
             </label>
@@ -1236,7 +1258,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
         <div className="slot-auto-modal__footer">
           <div className="slot-auto-summary">
-            <span>餘額 {user ? formatAmount(balance) : '登入後顯示'}</span>
             <strong>每轉 {formatAmount(autoSpinSettings.amount)}</strong>
           </div>
           <div className="slot-auto-actions">
@@ -1248,7 +1269,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               onClick={() => void startAutoSpin()}
               disabled={
                 autoSpinSettings.rounds <= 0 ||
-                autoSpinSettings.amount <= 0 ||
+                autoSpinSettings.amount < MIN_BET_AMOUNT ||
                 (!!user && balance < autoSpinSettings.amount)
               }
             >
@@ -1420,10 +1441,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           </div>
 
           <footer className="mega-slot-controls">
-            <div className="mega-slot-control-tile">
-              <span>餘額</span>
-              <strong>{user ? formatAmount(balance) : '登入後顯示'}</strong>
-            </div>
             <div className="mega-slot-control-tile">
               <span>本局派彩</span>
               <strong>{formatAmount(megaDisplayPayout)}</strong>
@@ -1707,12 +1724,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               </div>
             )}
             <div className="game-balance-strip mt-3">
-              <span>
-                {t.bet.balance}{' '}
-                <span className="data-num ml-1 text-white">
-                  {user ? formatAmount(balance) : '登入後顯示'}
-                </span>
-              </span>
               <span>
                 {t.games.hotline.totalMult}{' '}
                 <span className="data-num ml-1 text-[#FCA5A5]">
@@ -2112,7 +2123,7 @@ function roundCurrency(value: number): number {
 function normalizeAutoSpinSettings(settings: AutoSpinSettings): AutoSpinSettings {
   return {
     rounds: Math.max(1, Math.min(500, Math.floor(settings.rounds || 1))),
-    amount: roundCurrency(settings.amount),
+    amount: Math.max(MIN_BET_AMOUNT, roundCurrency(settings.amount)),
     lossLimit: roundCurrency(settings.lossLimit),
     profitTarget: roundCurrency(settings.profitTarget),
     singleWinLimit: roundCurrency(settings.singleWinLimit),

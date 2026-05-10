@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { MIN_BET_AMOUNT } from '@bg/shared';
 
-const rouletteAmountSchema = z.number().positive().max(100000);
+const rouletteAmountSchema = z.number().min(MIN_BET_AMOUNT).max(100000);
 const rouletteBetItemSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('straight'),

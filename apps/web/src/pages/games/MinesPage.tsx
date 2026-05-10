@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import type {
-  MinesRoundState,
-  MinesStartRequest,
-  MinesRevealResult,
-  MinesCashoutResult,
+import {
+  MIN_BET_AMOUNT,
+  type MinesRoundState,
+  type MinesStartRequest,
+  type MinesRevealResult,
+  type MinesCashoutResult,
 } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -125,7 +126,7 @@ export function MinesPage() {
   const handleStart = async () => {
     if (busy) return;
     if (!requireLogin()) return;
-    if (amount <= 0 || amount > balance) {
+    if (amount < MIN_BET_AMOUNT || amount > balance) {
       setError(t.bet.insufficientBalance);
       return;
     }
@@ -170,18 +171,20 @@ export function MinesPage() {
         if (newBalance) setBalance(newBalance);
         if (state.minePositions) sceneRef.current?.revealAllMines(state.minePositions);
         // BUSTED → 記輸局
-        setHistory((prev) => [
-          {
-            id: state.roundId,
-            timestamp: Date.now(),
-            betAmount: amount,
-            multiplier: 0,
-            payout: 0,
-            won: false,
-            detail: `${state.revealed.length} 安全 · ${state.mineCount} 雷`,
-          },
-          ...prev,
-        ].slice(0, 30));
+        setHistory((prev) =>
+          [
+            {
+              id: state.roundId,
+              timestamp: Date.now(),
+              betAmount: amount,
+              multiplier: 0,
+              payout: 0,
+              won: false,
+              detail: `${state.revealed.length} 安全 · ${state.mineCount} 雷`,
+            },
+            ...prev,
+          ].slice(0, 30),
+        );
       } else {
         sceneRef.current?.revealGem(cellIndex);
       }
@@ -209,36 +212,40 @@ export function MinesPage() {
       setBalance(newBalance);
       if (state.status === 'BUSTED') {
         if (state.minePositions) sceneRef.current?.revealAllMines(state.minePositions);
-        setHistory((prev) => [
-          {
-            id: state.roundId,
-            timestamp: Date.now(),
-            betAmount: amount,
-            multiplier: 0,
-            payout: 0,
-            won: false,
-            detail: `${state.revealed.length} 安全 · ${state.mineCount} 雷`,
-          },
-          ...prev,
-        ].slice(0, 30));
+        setHistory((prev) =>
+          [
+            {
+              id: state.roundId,
+              timestamp: Date.now(),
+              betAmount: amount,
+              multiplier: 0,
+              payout: 0,
+              won: false,
+              detail: `${state.revealed.length} 安全 · ${state.mineCount} 雷`,
+            },
+            ...prev,
+          ].slice(0, 30),
+        );
         return;
       }
 
       const cashMult = Number.parseFloat(state.currentMultiplier);
       sceneRef.current?.celebrateCashout(cashMult);
       sceneRef.current?.playWinFx(cashMult, true);
-      setHistory((prev) => [
-        {
-          id: state.roundId,
-          timestamp: Date.now(),
-          betAmount: amount,
-          multiplier: cashMult,
-          payout: amount * cashMult,
-          won: true,
-          detail: `${state.revealed.length} 安全 · ${state.mineCount} 雷`,
-        },
-        ...prev,
-      ].slice(0, 30));
+      setHistory((prev) =>
+        [
+          {
+            id: state.roundId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: cashMult,
+            payout: amount * cashMult,
+            won: true,
+            detail: `${state.revealed.length} 安全 · ${state.mineCount} 雷`,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -260,10 +267,10 @@ export function MinesPage() {
     mineCount <= 3
       ? t.games.mines.low
       : mineCount <= 8
-      ? t.games.mines.medium
-      : mineCount <= 16
-      ? t.games.mines.high
-      : t.games.mines.extreme;
+        ? t.games.mines.medium
+        : mineCount <= 16
+          ? t.games.mines.high
+          : t.games.mines.extreme;
 
   return (
     <div>
@@ -283,7 +290,9 @@ export function MinesPage() {
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">掃雷</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Mines</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">掃雷</span>
+              <span className="ml-2 text-white/40">·</span>
+              <span className="ml-2 text-white/55 uppercase">Mines</span>
               <div className="flex items-center gap-3 text-white/72">
                 <span>
                   {round
@@ -296,12 +305,8 @@ export function MinesPage() {
                     {t.common.active.toUpperCase()}
                   </span>
                 )}
-                {isBusted && (
-                  <span className="text-[#FCA5A5]">{t.games.mines.busted}</span>
-                )}
-                {isCashedOut && (
-                  <span className="text-[#6EE7B7]">{t.games.mines.cashedOut}</span>
-                )}
+                {isBusted && <span className="text-[#FCA5A5]">{t.games.mines.busted}</span>}
+                {isCashedOut && <span className="text-[#6EE7B7]">{t.games.mines.cashedOut}</span>}
               </div>
             </div>
             <div
@@ -362,18 +367,14 @@ export function MinesPage() {
             <div className="game-result-card game-result-card-loss">
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="font-display text-5xl text-[#FCA5A5]">
-                    {t.games.mines.busted}
-                  </div>
+                  <div className="font-display text-5xl text-[#FCA5A5]">{t.games.mines.busted}</div>
                   <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
                     {t.games.mines.mineDetonated}
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] text-white/55">{t.games.mines.loss}</div>
-                  <div className="num text-3xl text-[#FCA5A5]">
-                    -{formatAmount(round.amount)}
-                  </div>
+                  <div className="num text-3xl text-[#FCA5A5]">-{formatAmount(round.amount)}</div>
                 </div>
               </div>
             </div>
@@ -428,7 +429,9 @@ export function MinesPage() {
                     {t.games.mines.mines}
                   </span>
                 </div>
-                <span className="data-num text-[10px] text-white/55">{t.games.dice.range} 1–24</span>
+                <span className="data-num text-[10px] text-white/55">
+                  {t.games.dice.range} 1–24
+                </span>
               </div>
               <div className="mt-4 flex items-baseline gap-4">
                 <span className="num text-5xl text-[#FCA5A5] sm:text-6xl">
@@ -501,11 +504,7 @@ export function MinesPage() {
                   ⟲ {t.bet.newRound}
                 </button>
               )}
-              <div className="mines-round-stats mt-2 grid grid-cols-2 gap-2 text-[10px] tracking-[0.25em]">
-                <div className="game-stat-card text-center">
-                  <div className="text-white/55">{t.bet.balance}</div>
-                  <div className="mt-1 data-num text-sm text-white">{user ? formatAmount(balance) : '登入後顯示'}</div>
-                </div>
+              <div className="mines-round-stats mt-2 grid grid-cols-1 gap-2 text-[10px] tracking-[0.25em]">
                 <div className="game-stat-card text-center">
                   <div className="text-white/55">{t.games.mines.atRisk}</div>
                   <div className="mt-1 data-num text-sm text-[#FCA5A5]">
@@ -555,9 +554,7 @@ function Stat({ k, v, accent }: { k: string; v: string; accent?: 'acid' }) {
   return (
     <div className="game-stat-card">
       <div className="label">{k}</div>
-      <div
-        className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-[#7DD3FC]' : 'text-white'}`}
-      >
+      <div className={`mt-1 num text-3xl ${accent === 'acid' ? 'text-[#7DD3FC]' : 'text-white'}`}>
         {v}
       </div>
     </div>

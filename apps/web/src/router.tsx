@@ -175,10 +175,7 @@ export const router = createBrowserRouter([
             path: '/games/double-x',
             element: suspended(<CrashPage config={CRASH_CONFIGS['double-x']!} />),
           },
-          {
-            path: '/games/plinko-x',
-            element: suspended(<CrashPage config={CRASH_CONFIGS['plinko-x']!} />),
-          },
+          { path: '/games/plinko-x', element: suspended(<PlinkoPage variant="x" />) },
         ],
       },
       {

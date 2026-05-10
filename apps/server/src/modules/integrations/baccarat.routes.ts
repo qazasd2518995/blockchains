@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { BACCARAT_GAME_IDS } from '@bg/shared';
+import { BACCARAT_GAME_IDS, MIN_BET_AMOUNT } from '@bg/shared';
 import { config } from '../../config.js';
 import { ApiError } from '../../utils/errors.js';
 import {
@@ -16,7 +16,7 @@ const userParamSchema = z.object({
   userId: z.string().min(1),
 });
 
-const amountSchema = z.coerce.number().positive().max(1_000_000_000);
+const amountSchema = z.coerce.number().min(MIN_BET_AMOUNT).max(1_000_000_000);
 
 const betPlaceSchema = z.object({
   providerTxId: z.string().min(1).max(120),

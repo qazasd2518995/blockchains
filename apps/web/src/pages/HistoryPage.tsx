@@ -978,9 +978,44 @@ function plinkoResultEntries(record: Record<string, unknown>): ResultEntry[] {
 function hotlineResultEntries(record: Record<string, unknown>): ResultEntry[] {
   const grid = getHotlineGrid(record.grid);
   const lines = getHotlineLines(record.lines);
+  const cascades = Array.isArray(record.cascades) ? record.cascades.length : 0;
+  const features = asRecord(record.features);
+  const freeSpinRounds = Array.isArray(features?.freeSpinRounds)
+    ? features.freeSpinRounds.length
+    : 0;
+  const freeSpinsAwarded = getNumber(features?.freeSpinsAwarded);
+  const freeSpinsPlayed = getNumber(features?.freeSpinsPlayed);
+  const baseAppliedMultiplier = getNumber(features?.baseAppliedMultiplier);
+  const freeSpinMultiplierBank = getNumber(features?.freeSpinMultiplierBank);
+  const featureTotalMultiplier = getNumber(features?.totalMultiplier);
   const totalMultiplier = lines.reduce((sum, line) => sum + line.payout, 0);
 
   return compactResultEntries([
+    features || cascades > 0
+      ? {
+          key: 'hotline-feature-summary',
+          label: '特殊紀錄',
+          value: (
+            <SummaryStack
+              items={[
+                cascades > 0 ? `消除 ${cascades} 次` : null,
+                freeSpinsAwarded !== undefined
+                  ? `免費遊戲 ${freeSpinsPlayed ?? freeSpinRounds} / ${freeSpinsAwarded} 次`
+                  : null,
+                baseAppliedMultiplier && baseAppliedMultiplier > 1
+                  ? `本局倍數 ${formatPlainNumber(baseAppliedMultiplier)}×`
+                  : null,
+                freeSpinMultiplierBank && freeSpinMultiplierBank > 0
+                  ? `免費遊戲累積倍數 ${formatPlainNumber(freeSpinMultiplierBank)}×`
+                  : null,
+                featureTotalMultiplier !== undefined
+                  ? `總倍率 ${formatPlainNumber(featureTotalMultiplier)}×`
+                  : null,
+              ]}
+            />
+          ),
+        }
+      : null,
     grid.length > 0
       ? {
           key: 'hotline-grid',

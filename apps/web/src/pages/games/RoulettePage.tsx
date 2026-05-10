@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import type { RouletteBetRequest, RouletteBetResult, RouletteLineBet } from '@bg/shared';
+import {
+  MIN_BET_AMOUNT,
+  type RouletteBetRequest,
+  type RouletteBetResult,
+  type RouletteLineBet,
+} from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { GameHeader } from '@/components/game/GameHeader';
@@ -22,7 +27,7 @@ export function RoulettePage({ variant }: Props) {
   const { t } = useTranslation();
   const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
-  const [chip, setChip] = useState(5);
+  const [chip, setChip] = useState(MIN_BET_AMOUNT);
   const [bets, setBets] = useState<RouletteLineBet[]>([]);
   const [result, setResult] = useState<RouletteBetResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -84,9 +89,7 @@ export function RoulettePage({ variant }: Props) {
     try {
       const payload: RouletteBetRequest = { bets };
       const endpoint =
-        variant === 'mini-roulette'
-          ? '/games/mini-roulette/bet'
-          : '/games/carnival/bet';
+        variant === 'mini-roulette' ? '/games/mini-roulette/bet' : '/games/carnival/bet';
       const res = await api.post<RouletteBetResult>(endpoint, payload);
       await sceneRef.current?.playSpin(res.data.slot);
       const stake = Number.parseFloat(res.data.totalAmount);
@@ -97,18 +100,20 @@ export function RoulettePage({ variant }: Props) {
       setResult(res.data);
       setBalance(res.data.newBalance);
       setBets([]);
-      setHistory((prev) => [
-        {
-          id: res.data.betId,
-          timestamp: Date.now(),
-          betAmount: stake,
-          multiplier: fxMult,
-          payout,
-          won: profit > 0,
-          detail: `號碼 ${res.data.slot}`,
-        },
-        ...prev,
-      ].slice(0, 30));
+      setHistory((prev) =>
+        [
+          {
+            id: res.data.betId,
+            timestamp: Date.now(),
+            betAmount: stake,
+            multiplier: fxMult,
+            payout,
+            won: profit > 0,
+            detail: `號碼 ${res.data.slot}`,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -123,7 +128,9 @@ export function RoulettePage({ variant }: Props) {
   return (
     <div>
       <GameHeader
-        artwork={isMini ? '/game-art/mini-roulette/background.png' : '/game-art/carnival/background.png'}
+        artwork={
+          isMini ? '/game-art/mini-roulette/background.png' : '/game-art/carnival/background.png'
+        }
         section={isMini ? '§ GAME 06' : '§ GAME 18'}
         breadcrumb={isMini ? 'ROULETTE_06' : 'CARNIVAL_18'}
         title={isMini ? t.games.roulette.title : t.games.roulette.titleCarnival}
@@ -138,7 +145,11 @@ export function RoulettePage({ variant }: Props) {
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines p-3">
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">{isMini ? '迷你輪盤' : '狂歡節'}</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Roulette</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">
+                {isMini ? '迷你輪盤' : '狂歡節'}
+              </span>
+              <span className="ml-2 text-white/40">·</span>
+              <span className="ml-2 text-white/55 uppercase">Roulette</span>
               <span className="text-white/72">
                 {t.games.roulette.total}: {formatAmount(totalBet)}
               </span>
@@ -171,10 +182,7 @@ export function RoulettePage({ variant }: Props) {
               </div>
 
               <div className="roulette-outside-grid grid grid-cols-3 gap-1">
-                <OutsideBtn
-                  label={t.games.roulette.low}
-                  onClick={() => addBet({ type: 'low' })}
-                />
+                <OutsideBtn label={t.games.roulette.low} onClick={() => addBet({ type: 'low' })} />
                 <OutsideBtn
                   label={t.games.roulette.even}
                   onClick={() => addBet({ type: 'even' })}
@@ -189,10 +197,7 @@ export function RoulettePage({ variant }: Props) {
                   onClick={() => addBet({ type: 'black' })}
                   color="black"
                 />
-                <OutsideBtn
-                  label={t.games.roulette.odd}
-                  onClick={() => addBet({ type: 'odd' })}
-                />
+                <OutsideBtn label={t.games.roulette.odd} onClick={() => addBet({ type: 'odd' })} />
                 <OutsideBtn
                   label={t.games.roulette.high}
                   onClick={() => addBet({ type: 'high' })}
@@ -231,9 +236,7 @@ export function RoulettePage({ variant }: Props) {
                 </div>
                 <div
                   className={`num text-4xl ${
-                    Number.parseFloat(result.profit) >= 0
-                      ? 'num-win'
-                      : 'text-[#FCA5A5]'
+                    Number.parseFloat(result.profit) >= 0 ? 'num-win' : 'text-[#FCA5A5]'
                   }`}
                 >
                   {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
@@ -255,7 +258,7 @@ export function RoulettePage({ variant }: Props) {
           <div className="game-side-card p-5">
             <div className="label">{t.games.roulette.chipSize}</div>
             <div className="mt-2 grid grid-cols-4 gap-1">
-              {[1, 5, 10, 100].map((v) => (
+              {[10, 100, 1000, 10000].map((v) => (
                 <button
                   key={v}
                   type="button"
@@ -273,7 +276,9 @@ export function RoulettePage({ variant }: Props) {
               </div>
               <div className="max-h-48 space-y-1 overflow-y-auto text-[11px]">
                 {bets.length === 0 && (
-                  <div className="py-3 text-center text-white/40">{t.games.roulette.noBetsPlaced}</div>
+                  <div className="py-3 text-center text-white/40">
+                    {t.games.roulette.noBetsPlaced}
+                  </div>
                 )}
                 {bets.map((b, i) => (
                   <div
@@ -309,10 +314,8 @@ export function RoulettePage({ variant }: Props) {
 
             <div className="game-balance-strip mt-3">
               <span>
-                {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
-              </span>
-              <span>
-                {t.games.roulette.total} <span className="data-num ml-1 text-[#FCA5A5]">{formatAmount(totalBet)}</span>
+                {t.games.roulette.total}{' '}
+                <span className="data-num ml-1 text-[#FCA5A5]">{formatAmount(totalBet)}</span>
               </span>
             </div>
           </div>

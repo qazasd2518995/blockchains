@@ -140,7 +140,6 @@ export async function buildServer(): Promise<FastifyInstance> {
       GameId.BALLOON,
       GameId.JETX3,
       GameId.DOUBLE_X,
-      GameId.PLINKO_X,
     ]) {
       registry.register({ gameId });
     }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import type { KenoBetRequest, KenoBetResult, KenoRisk } from '@bg/shared';
+import { MIN_BET_AMOUNT, type KenoBetRequest, type KenoBetResult, type KenoRisk } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -90,7 +90,7 @@ export function KenoPage() {
   const handleBet = async () => {
     if (busy || selected.size === 0) return;
     if (!requireLogin()) return;
-    if (amount <= 0 || amount > balance) return;
+    if (amount < MIN_BET_AMOUNT || amount > balance) return;
     setBusy(true);
     setError(null);
     clearRoundResult();
@@ -101,26 +101,24 @@ export function KenoPage() {
         risk,
       };
       const res = await api.post<KenoBetResult>('/games/keno/bet', payload);
-      await sceneRef.current?.playDraw(
-        res.data.drawn,
-        res.data.selected,
-        res.data.hits,
-      );
+      await sceneRef.current?.playDraw(res.data.drawn, res.data.selected, res.data.hits);
       sceneRef.current?.playWinFx(res.data.multiplier, res.data.multiplier > 1);
       setResult(res.data);
       setBalance(res.data.newBalance);
-      setHistory((prev) => [
-        {
-          id: res.data.betId,
-          timestamp: Date.now(),
-          betAmount: amount,
-          multiplier: res.data.multiplier,
-          payout: amount * res.data.multiplier,
-          won: res.data.multiplier > 1,
-          detail: `${res.data.hits.length}/${res.data.selected.length} 命中`,
-        },
-        ...prev,
-      ].slice(0, 30));
+      setHistory((prev) =>
+        [
+          {
+            id: res.data.betId,
+            timestamp: Date.now(),
+            betAmount: amount,
+            multiplier: res.data.multiplier,
+            payout: amount * res.data.multiplier,
+            won: res.data.multiplier > 1,
+            detail: `${res.data.hits.length}/${res.data.selected.length} 命中`,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
@@ -149,7 +147,9 @@ export function KenoPage() {
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines p-4">
             <div className="game-stage-bar -mx-4 -mt-4 mb-4 rounded-t-[22px]">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">基諾</span><span className="ml-2 text-white/40">·</span><span className="ml-2 text-white/55 uppercase">Keno</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">基諾</span>
+              <span className="ml-2 text-white/40">·</span>
+              <span className="ml-2 text-white/55 uppercase">Keno</span>
               <span className="text-white/72">
                 {t.games.keno.selected} {selected.size}/{MAX_PICKS}
               </span>
@@ -164,10 +164,17 @@ export function KenoPage() {
                 const picked = selected.has(n);
                 const isDrawn = drawn.has(n);
                 const isHit = hits.has(n);
-                let cls = 'border-white/12 bg-white/[0.06] text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]';
-                if (isHit) cls = 'border-[#F3D67D] bg-[#F3D67D] text-[#0A0806] shadow-[0_0_18px_rgba(243,214,125,0.45),inset_0_1px_0_rgba(255,255,255,0.42)]';
-                else if (isDrawn) cls = 'border-[#D4574A]/70 bg-[#D4574A]/16 text-[#FFD7D3] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]';
-                else if (picked) cls = 'border-[#7DD3FC]/80 bg-[#266F85]/18 text-[#BAE6FD] shadow-[0_0_14px_rgba(125,211,252,0.22),inset_0_1px_0_rgba(255,255,255,0.16)]';
+                let cls =
+                  'border-white/12 bg-white/[0.06] text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]';
+                if (isHit)
+                  cls =
+                    'border-[#F3D67D] bg-[#F3D67D] text-[#0A0806] shadow-[0_0_18px_rgba(243,214,125,0.45),inset_0_1px_0_rgba(255,255,255,0.42)]';
+                else if (isDrawn)
+                  cls =
+                    'border-[#D4574A]/70 bg-[#D4574A]/16 text-[#FFD7D3] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]';
+                else if (picked)
+                  cls =
+                    'border-[#7DD3FC]/80 bg-[#266F85]/18 text-[#BAE6FD] shadow-[0_0_14px_rgba(125,211,252,0.22),inset_0_1px_0_rgba(255,255,255,0.16)]';
                 return (
                   <button
                     key={n}
@@ -183,7 +190,12 @@ export function KenoPage() {
             </div>
 
             <div className="keno-stage-actions mt-4 grid grid-cols-2 gap-2 sm:flex">
-              <button type="button" onClick={autoPick} disabled={busy} className="game-choice-btn game-choice-btn-ice">
+              <button
+                type="button"
+                onClick={autoPick}
+                disabled={busy}
+                className="game-choice-btn game-choice-btn-ice"
+              >
                 ⚂ {t.games.keno.autoPick}
               </button>
               <button type="button" onClick={clearAll} disabled={busy} className="game-choice-btn">
@@ -209,9 +221,7 @@ export function KenoPage() {
                   <div className="text-[10px] text-white/55">{t.history.net}</div>
                   <div
                     className={`num text-3xl ${
-                      Number.parseFloat(result.profit) >= 0
-                        ? 'text-[#7DD3FC]'
-                        : 'text-[#FCA5A5]'
+                      Number.parseFloat(result.profit) >= 0 ? 'text-[#7DD3FC]' : 'text-[#FCA5A5]'
                     }`}
                   >
                     {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
@@ -266,9 +276,6 @@ export function KenoPage() {
               → {t.games.keno.draw.toUpperCase()} · {formatAmount(amount)}
             </button>
             <div className="game-balance-strip mt-3">
-              <span>
-                {t.bet.balance} <span className="data-num ml-1 text-white">{user ? formatAmount(balance) : '登入後顯示'}</span>
-              </span>
               <span>
                 {t.games.keno.selected}{' '}
                 <span className="data-num ml-1 text-[#266F85]">{selected.size}</span>

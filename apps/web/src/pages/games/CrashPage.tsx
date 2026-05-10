@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import type { CrashPlayerBet, CrashRoundSnapshot } from '@bg/shared';
+import { MIN_BET_AMOUNT, type CrashPlayerBet, type CrashRoundSnapshot } from '@bg/shared';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
 import { GameHeader } from '@/components/game/GameHeader';
@@ -212,11 +212,6 @@ export function CrashPage({ config }: Props) {
       suffix: t.games.crash.doubleSuffix,
       desc: t.games.crash.descDouble,
     },
-    'plinko-x': {
-      title: t.games.crash.plinkoXTitle,
-      suffix: t.games.crash.plinkoXSuffix,
-      desc: t.games.crash.descPlinkoX,
-    },
   };
   const meta = titleMap[config.gameId] ?? {
     title: config.gameId,
@@ -362,6 +357,16 @@ export function CrashPage({ config }: Props) {
       const currentUserId = userIdRef.current;
       if (!currentUserId) return;
       const ownBet = payload.players.find((p) => p.userId === currentUserId);
+      if (ownBet && !ownBet.cashedOutAt) {
+        const activeAmount = Number.parseFloat(ownBet.amount);
+        if (Number.isFinite(activeAmount)) {
+          const restoredBet = { amount: activeAmount, cashed: false };
+          myBetRef.current = restoredBet;
+          setMyBet(restoredBet);
+          queuedBetRef.current = null;
+          setQueuedBet(null);
+        }
+      }
       if (ownBet?.cashedOutAt && ownBet.payout) {
         applyCashoutResult({
           payout: ownBet.payout,
@@ -444,7 +449,7 @@ export function CrashPage({ config }: Props) {
     if (queuedBetRef.current) {
       return;
     }
-    if (amount <= 0 || amount > balance) {
+    if (amount < MIN_BET_AMOUNT || amount > balance) {
       setError(t.bet.insufficientBalance);
       return;
     }
@@ -717,12 +722,6 @@ export function CrashPage({ config }: Props) {
                 </div>
               )}
               <div className="game-balance-strip mt-3">
-                <span>
-                  {t.bet.balance}{' '}
-                  <span className="data-num ml-1 text-white">
-                    {user ? formatAmount(balance) : '登入後顯示'}
-                  </span>
-                </span>
                 <span>
                   MULTI{' '}
                   <span className="data-num ml-1 text-[#7DD3FC]">

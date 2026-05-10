@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import type { HiLoRoundState, HiLoGuessResult, HiLoCashoutResult } from '@bg/shared';
+import {
+  MIN_BET_AMOUNT,
+  type HiLoRoundState,
+  type HiLoGuessResult,
+  type HiLoCashoutResult,
+} from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -67,7 +72,7 @@ export function HiLoPage() {
   const handleStart = async () => {
     if (busy) return;
     if (!requireLogin()) return;
-    if (amount <= 0 || amount > balance) return;
+    if (amount < MIN_BET_AMOUNT || amount > balance) return;
     setBusy(true);
     setError(null);
     try {
@@ -365,12 +370,6 @@ export function HiLoPage() {
                 </button>
               )}
               <div className="game-balance-strip mt-3">
-                <span>
-                  {t.bet.balance}{' '}
-                  <span className="data-num ml-1 text-white">
-                    {user ? formatAmount(balance) : '登入後顯示'}
-                  </span>
-                </span>
                 <span>
                   {t.games.mines.current}{' '}
                   <span className="data-num ml-1 text-[#6EE7B7]">

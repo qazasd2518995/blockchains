@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Sfx } from '@bg/game-engine';
+import { MIN_BET_AMOUNT } from '@bg/shared';
 import { useTranslation } from '@/i18n/useTranslation';
 
 interface BetControlsProps {
@@ -16,7 +17,7 @@ export function BetControls({
   onAmountChange,
   maxBalance,
   disabled,
-  min = 0.01,
+  min = MIN_BET_AMOUNT,
   guestMode = false,
 }: BetControlsProps) {
   const { t } = useTranslation();
@@ -33,7 +34,7 @@ export function BetControls({
   };
 
   const effectiveMax = guestMode ? 100000 : maxBalance;
-  const clamp = (v: number) => Math.min(effectiveMax, Math.max(min, v));
+  const clamp = (v: number) => Math.max(min, Math.min(effectiveMax, v));
 
   return (
     <div className="bet-controls rounded-[16px] border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:rounded-[20px] sm:p-4">
@@ -87,7 +88,7 @@ export function BetControls({
       </div>
 
       <div className="bet-controls__presets mt-3 grid grid-cols-5 gap-1.5 sm:gap-2">
-        {[1, 10, 100, 1000].map((v) => (
+        {[10, 100, 1000, 10000].map((v) => (
           <button
             key={v}
             type="button"

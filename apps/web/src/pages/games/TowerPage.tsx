@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import type {
-  TowerRoundState,
-  TowerPickResult,
-  TowerCashoutResult,
-  TowerDifficulty,
+import {
+  MIN_BET_AMOUNT,
+  type TowerRoundState,
+  type TowerPickResult,
+  type TowerCashoutResult,
+  type TowerDifficulty,
 } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -162,7 +163,7 @@ export function TowerPage() {
   const start = async () => {
     if (busy) return;
     if (!requireLogin()) return;
-    if (amount <= 0 || amount > balance) return;
+    if (amount < MIN_BET_AMOUNT || amount > balance) return;
     setBusy(true);
     setError(null);
     hideStageHint();
@@ -472,12 +473,6 @@ export function TowerPage() {
                 </button>
               )}
               <div className="game-balance-strip mt-3">
-                <span>
-                  {t.bet.balance}{' '}
-                  <span className="data-num ml-1 text-white">
-                    {user ? formatAmount(balance) : '登入後顯示'}
-                  </span>
-                </span>
                 <span>
                   {t.games.tower.current}{' '}
                   <span className="data-num ml-1 text-[#7DD3FC]">

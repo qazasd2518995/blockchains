@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import type { WheelBetRequest, WheelBetResult, WheelRisk, WheelSegmentCount } from '@bg/shared';
+import {
+  MIN_BET_AMOUNT,
+  type WheelBetRequest,
+  type WheelBetResult,
+  type WheelRisk,
+  type WheelSegmentCount,
+} from '@bg/shared';
 import { wheelTable } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -69,7 +75,7 @@ export function WheelPage() {
   const spin = async () => {
     if (busy) return;
     if (!requireLogin()) return;
-    if (amount <= 0 || amount > balance) return;
+    if (amount < MIN_BET_AMOUNT || amount > balance) return;
     setBusy(true);
     setError(null);
     setResult(null);
@@ -225,12 +231,6 @@ export function WheelPage() {
               → {t.games.wheel.spin} · {formatAmount(amount)}
             </button>
             <div className="game-balance-strip mt-3">
-              <span>
-                {t.bet.balance}{' '}
-                <span className="data-num ml-1 text-white">
-                  {user ? formatAmount(balance) : '登入後顯示'}
-                </span>
-              </span>
               <span>
                 {t.games.wheel.segments}{' '}
                 <span className="data-num ml-1 text-[#FCA5A5]">{segments}</span>

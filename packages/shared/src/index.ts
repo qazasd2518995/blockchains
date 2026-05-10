@@ -1,4 +1,5 @@
 export * from './games.js';
+export * from './limits.js';
 export * from './errors.js';
 export * from './dto/auth.js';
 export * from './dto/wallet.js';

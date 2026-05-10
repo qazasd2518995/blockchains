@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { AlertCircle, Car, Flag, Gauge, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type {
-  ChickenRoadCashoutResult,
-  ChickenRoadDifficulty,
-  ChickenRoadRoundState,
-  ChickenRoadStartRequest,
-  ChickenRoadStepResult,
+import {
+  MIN_BET_AMOUNT,
+  type ChickenRoadCashoutResult,
+  type ChickenRoadDifficulty,
+  type ChickenRoadRoundState,
+  type ChickenRoadStartRequest,
+  type ChickenRoadStepResult,
 } from '@bg/shared';
 import { CHICKEN_ROAD_TOTAL_STEPS, chickenRoadMultiplier } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
@@ -167,7 +168,7 @@ export function ChickenRoadPage() {
   const start = async () => {
     if (busy) return;
     if (!requireLogin()) return;
-    if (amount <= 0 || amount > balance) {
+    if (amount < MIN_BET_AMOUNT || amount > balance) {
       setError('餘額不足');
       return;
     }

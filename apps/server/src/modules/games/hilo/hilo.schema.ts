@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { MIN_BET_AMOUNT } from '@bg/shared';
 
 export const hiloStartSchema = z.object({
-  amount: z.number().positive().max(100000),
+  amount: z.number().min(MIN_BET_AMOUNT).max(100000),
   clientSeed: z.string().min(4).max(64).optional(),
 });
 
