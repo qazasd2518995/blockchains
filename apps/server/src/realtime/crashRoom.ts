@@ -17,10 +17,10 @@ import {
   type PredictedResult,
 } from '../modules/games/_common/controls.js';
 
-const BETTING_WINDOW_MS = 3000;
-const POST_CRASH_MS = 3000;
+const BETTING_WINDOW_MS = 2000;
+const POST_CRASH_MS = 1500;
 const TICK_MS = 80;
-const GROWTH_RATE = 0.0001; // multiplier speed; 2x in ~6.9s, 3x in ~11s
+const GROWTH_RATE = 0.00016; // multiplier speed; 2x in ~4.3s, 3x in ~6.9s
 const ROUND_CREATE_RETRY_BASE_MS = 80;
 const ROUND_CREATE_RETRY_JITTER_MS = 220;
 const PHASE_RECOVERY_MS = 1200;

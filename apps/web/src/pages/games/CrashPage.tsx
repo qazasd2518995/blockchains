@@ -4,7 +4,7 @@ import { MIN_BET_AMOUNT, type CrashPlayerBet, type CrashRoundSnapshot } from '@b
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
 import { GameHeader } from '@/components/game/GameHeader';
-import { formatAmount, formatMultiplier } from '@/lib/utils';
+import { formatAmount } from '@/lib/utils';
 import { getCrashSocket, disconnectCrashSocket } from '@/lib/socket';
 import { useTranslation } from '@/i18n/useTranslation';
 import { CrashScene } from '@/games/crash/CrashScene';
@@ -19,6 +19,12 @@ interface Props {
 type LocalCrashBet = { amount: number; cashed: boolean; payout?: string };
 type QueuedCrashBet = { amount: number; autoCashOut?: number; roundNumber?: number };
 const MIN_CASHOUT_MULTIPLIER = 1.01;
+
+function formatCrashMultiplier(value: string | number): string {
+  const n = typeof value === 'string' ? Number.parseFloat(value) : value;
+  if (!Number.isFinite(n)) return '—';
+  return `${n.toFixed(1)}×`;
+}
 
 export function CrashPage({ config }: Props) {
   const { user, setBalance } = useAuthStore();
@@ -256,7 +262,7 @@ export function CrashPage({ config }: Props) {
             multiplier: payoutMult,
             payout: Number.isFinite(payoutNumber) ? payoutNumber : bet.amount * payoutMult,
             won: true,
-            detail: `Cashed @ ${payoutMult.toFixed(2)}×`,
+            detail: `Cashed @ ${formatCrashMultiplier(payoutMult)}`,
           },
           ...prev,
         ].slice(0, 30),
@@ -342,7 +348,7 @@ export function CrashPage({ config }: Props) {
                 multiplier: 0,
                 payout: 0,
                 won: false,
-                detail: `Crashed @ ${payload.finalMultiplier.toFixed(2)}×`,
+                detail: `Crashed @ ${formatCrashMultiplier(payload.finalMultiplier)}`,
               },
               ...prev,
             ].slice(0, 30),
@@ -612,7 +618,7 @@ export function CrashPage({ config }: Props) {
                         : 'border-neon-ember/30 bg-neon-ember/5 text-[#FCA5A5]'
                   }`}
                 >
-                  {m.toFixed(2)}×
+                  {formatCrashMultiplier(m)}
                 </span>
               ))}
             </div>
@@ -671,7 +677,7 @@ export function CrashPage({ config }: Props) {
                 >
                   <span className="flex flex-col items-center justify-center gap-1 leading-tight">
                     <span>
-                      ⇧ {t.games.crash.cashoutAt} {formatMultiplier(multiplier)}
+                      ⇧ {t.games.crash.cashoutAt} {formatCrashMultiplier(multiplier)}
                     </span>
                     <strong className="data-num text-xl text-white">
                       {formatAmount(liveCashoutPayout)}
@@ -725,7 +731,7 @@ export function CrashPage({ config }: Props) {
                 <span>
                   MULTI{' '}
                   <span className="data-num ml-1 text-[#7DD3FC]">
-                    {formatMultiplier(multiplier)}
+                    {formatCrashMultiplier(multiplier)}
                   </span>
                 </span>
               </div>
@@ -751,7 +757,7 @@ export function CrashPage({ config }: Props) {
                   <span
                     className={`data-num ${p.cashedOutAt ? 'text-[#7DD3FC]' : 'text-white/55'}`}
                   >
-                    {p.cashedOutAt ? `${p.cashedOutAt.toFixed(2)}×` : '—'}
+                    {p.cashedOutAt ? formatCrashMultiplier(p.cashedOutAt) : '—'}
                   </span>
                 </div>
               ))}

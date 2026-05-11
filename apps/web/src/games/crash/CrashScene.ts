@@ -28,15 +28,15 @@ import {
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG_A = 0x111C2E;
-const COLOR_BG_B = 0x0B1322;
-const COLOR_ACID = 0xF3D67D;
-const COLOR_VIOLET = 0xE8D48A;
-const COLOR_EMBER = 0xD4574A;
-const COLOR_TOXIC = 0x1E7A4F;
-const COLOR_ICE = 0x266F85;
-const COLOR_AMBER = 0xF3D67D;
-const COLOR_WHITE = 0xFFFFFF;
+const COLOR_BG_A = 0x111c2e;
+const COLOR_BG_B = 0x0b1322;
+const COLOR_ACID = 0xf3d67d;
+const COLOR_VIOLET = 0xe8d48a;
+const COLOR_EMBER = 0xd4574a;
+const COLOR_TOXIC = 0x1e7a4f;
+const COLOR_ICE = 0x266f85;
+const COLOR_AMBER = 0xf3d67d;
+const COLOR_WHITE = 0xffffff;
 
 export type CrashVariant =
   | 'rocket'
@@ -101,6 +101,10 @@ function fitSpriteCover(sprite: Sprite, width: number, height: number): void {
   sprite.scale.set(scale);
   sprite.x = (width - textureWidth * scale) / 2;
   sprite.y = (height - textureHeight * scale) / 2;
+}
+
+function formatCrashMultiplier(value: number): string {
+  return `${value.toFixed(1)}×`;
 }
 
 interface Particle {
@@ -183,7 +187,6 @@ export class CrashScene {
   private vignette: Graphics | null = null;
   private tensionStart = 0;
   private winFx: WinCelebration | null = null;
-
 
   async init(
     canvas: HTMLCanvasElement,
@@ -400,11 +403,14 @@ export class CrashScene {
     for (const l of labels) {
       const line = new Graphics();
       for (let x = 20; x < this.width - 20; x += 10) {
-        line.moveTo(x, l.y).lineTo(x + 5, l.y).stroke({
-          color: COLOR_ACID,
-          width: 1,
-          alpha: 0.15,
-        });
+        line
+          .moveTo(x, l.y)
+          .lineTo(x + 5, l.y)
+          .stroke({
+            color: COLOR_ACID,
+            width: 1,
+            alpha: 0.15,
+          });
       }
       this.app.stage.addChild(line);
 
@@ -458,11 +464,16 @@ export class CrashScene {
       case 'rocket':
         // 火箭主體
         g.poly([
-          0, -size * 1.2,
-          size * 0.5, 0,
-          size * 0.35, size * 0.6,
-          -size * 0.35, size * 0.6,
-          -size * 0.5, 0,
+          0,
+          -size * 1.2,
+          size * 0.5,
+          0,
+          size * 0.35,
+          size * 0.6,
+          -size * 0.35,
+          size * 0.6,
+          -size * 0.5,
+          0,
         ]).fill({ color: COLOR_WHITE });
         // 機身條紋
         g.rect(-size * 0.35, -size * 0.1, size * 0.7, size * 0.15).fill({ color: COLOR_ACID });
@@ -496,10 +507,12 @@ export class CrashScene {
           alpha: 0.5,
         });
         // 繩子
-        g.moveTo(0, size * 0.4).lineTo(0, size * 0.8).stroke({
-          color: COLOR_WHITE,
-          width: 1,
-        });
+        g.moveTo(0, size * 0.4)
+          .lineTo(0, size * 0.8)
+          .stroke({
+            color: COLOR_WHITE,
+            width: 1,
+          });
         // 吊籃
         g.rect(-size * 0.2, size * 0.8, size * 0.4, size * 0.2).fill({ color: COLOR_AMBER });
         break;
@@ -507,16 +520,26 @@ export class CrashScene {
       case 'jet':
         // 噴射機
         g.poly([
-          0, -size * 1.0,
-          size * 0.2, -size * 0.3,
-          size * 0.8, size * 0.2,
-          size * 0.15, size * 0.1,
-          size * 0.3, size * 0.7,
-          0, size * 0.5,
-          -size * 0.3, size * 0.7,
-          -size * 0.15, size * 0.1,
-          -size * 0.8, size * 0.2,
-          -size * 0.2, -size * 0.3,
+          0,
+          -size * 1.0,
+          size * 0.2,
+          -size * 0.3,
+          size * 0.8,
+          size * 0.2,
+          size * 0.15,
+          size * 0.1,
+          size * 0.3,
+          size * 0.7,
+          0,
+          size * 0.5,
+          -size * 0.3,
+          size * 0.7,
+          -size * 0.15,
+          size * 0.1,
+          -size * 0.8,
+          size * 0.2,
+          -size * 0.2,
+          -size * 0.3,
         ]).fill({ color: COLOR_ACID });
         // 駕駛艙
         g.ellipse(0, -size * 0.4, size * 0.12, size * 0.25).fill({ color: COLOR_ICE });
@@ -525,16 +548,18 @@ export class CrashScene {
       case 'fleet':
         // 太空戰艦（三角形）
         g.poly([
-          0, -size * 1.1,
-          size * 0.8, size * 0.5,
-          0, size * 0.3,
-          -size * 0.8, size * 0.5,
+          0,
+          -size * 1.1,
+          size * 0.8,
+          size * 0.5,
+          0,
+          size * 0.3,
+          -size * 0.8,
+          size * 0.5,
         ]).fill({ color: COLOR_ACID });
-        g.poly([
-          0, -size * 0.7,
-          size * 0.4, size * 0.2,
-          -size * 0.4, size * 0.2,
-        ]).fill({ color: COLOR_ICE });
+        g.poly([0, -size * 0.7, size * 0.4, size * 0.2, -size * 0.4, size * 0.2]).fill({
+          color: COLOR_ICE,
+        });
         // 引擎光核
         g.circle(0, size * 0.1, size * 0.12).fill({ color: COLOR_AMBER });
         break;
@@ -560,7 +585,7 @@ export class CrashScene {
       align: 'center',
       letterSpacing: -4,
     });
-    const label = new Text({ text: '1.00×', style });
+    const label = new Text({ text: formatCrashMultiplier(1), style });
     label.anchor.set(0.5);
     label.x = this.width / 2;
     label.y = this.height / 2;
@@ -664,15 +689,12 @@ export class CrashScene {
         const intensity = prefersReducedMotion()
           ? 0
           : 0.7 + Math.min(1.8, Math.max(0, this.currentMultiplier - 1) * 0.18);
-        const lateralShake =
-          (Math.sin(tick * 0.58) + Math.sin(tick * 1.07) * 0.45) * intensity;
+        const lateralShake = (Math.sin(tick * 0.58) + Math.sin(tick * 1.07) * 0.45) * intensity;
         const thrustShake = Math.sin(tick * 0.83) * intensity * 0.8;
         const perp = flightAngle + Math.PI / 2;
 
-        this.craft.x =
-          pos.x + Math.cos(flightAngle) * thrustShake + Math.cos(perp) * lateralShake;
-        this.craft.y =
-          pos.y + Math.sin(flightAngle) * thrustShake + Math.sin(perp) * lateralShake;
+        this.craft.x = pos.x + Math.cos(flightAngle) * thrustShake + Math.cos(perp) * lateralShake;
+        this.craft.y = pos.y + Math.sin(flightAngle) * thrustShake + Math.sin(perp) * lateralShake;
         this.craft.rotation = this.getCraftRotation(this.currentMultiplier, tick, true);
         this.animateCraftSprite(tick, true);
         // 更換引擎粒子
@@ -711,7 +733,10 @@ export class CrashScene {
   private extraForwardTravel(m: number): number {
     const assetVariant = ASSET_VARIANT[this.variant];
     const trigger =
-      assetVariant === 'rocket' || assetVariant === 'fleet' || assetVariant === 'balloon' || assetVariant === 'plinko'
+      assetVariant === 'rocket' ||
+      assetVariant === 'fleet' ||
+      assetVariant === 'balloon' ||
+      assetVariant === 'plinko'
         ? 1.55
         : 1.18;
     const excess = Math.max(0, m - trigger);
@@ -789,8 +814,8 @@ export class CrashScene {
     const tileWidth = this.backgroundTileWidth || this.width || 1;
     const tileHeight = this.backgroundTileHeight || this.height || 1;
     if (this.backgroundLayer) {
-      const scrollX = ((this.cameraOffsetX * 0.58) % tileWidth + tileWidth) % tileWidth;
-      const scrollY = ((this.cameraOffsetY * 0.42) % tileHeight + tileHeight) % tileHeight;
+      const scrollX = (((this.cameraOffsetX * 0.58) % tileWidth) + tileWidth) % tileWidth;
+      const scrollY = (((this.cameraOffsetY * 0.42) % tileHeight) + tileHeight) % tileHeight;
       this.backgroundLayer.x = -scrollX;
       this.backgroundLayer.y = scrollY;
     }
@@ -798,7 +823,8 @@ export class CrashScene {
     if (
       (Math.abs(cameraDeltaX) < 0.001 && Math.abs(cameraDeltaY) < 0.001) ||
       this.phase !== 'running'
-    ) return;
+    )
+      return;
 
     for (const star of this.stars) {
       const parallax = 0.08 + star.speed * 0.08;
@@ -881,10 +907,7 @@ export class CrashScene {
       case 'jet3': {
         // JetX3：編隊同向爬升，只用小幅隊形擺動，不做大 S 迴轉。
         const x = edge + (w - edge * 2) * t;
-        const y =
-          low -
-          (low - high) * Math.pow(t, 1.08) +
-          Math.sin(t * Math.PI * 1.5) * h * 0.022;
+        const y = low - (low - high) * Math.pow(t, 1.08) + Math.sin(t * Math.PI * 1.5) * h * 0.022;
         return { x, y };
       }
       case 'double': {
@@ -934,9 +957,7 @@ export class CrashScene {
       return lean + Math.sin(tick * 0.06) * 0.045;
     }
 
-    const forwardAngle = this.craftSprite
-      ? CRAFT_SPRITE_FORWARD_ANGLE[assetVariant]
-      : -Math.PI / 2;
+    const forwardAngle = this.craftSprite ? CRAFT_SPRITE_FORWARD_ANGLE[assetVariant] : -Math.PI / 2;
     const flightAngle = this.flightTangentAngle(m);
     const engineWobble = prefersReducedMotion()
       ? 0
@@ -1155,7 +1176,7 @@ export class CrashScene {
       this.statusLabel.style.fill = COLOR_WHITE;
     }
     if (this.multiplierLabel) {
-      this.multiplierLabel.text = '1.00×';
+      this.multiplierLabel.text = formatCrashMultiplier(1);
       this.multiplierLabel.style.fill = COLOR_WHITE;
       this.multiplierLabel.scale.set(1);
     }
@@ -1170,7 +1191,7 @@ export class CrashScene {
     this.maxMultiplier = Math.max(this.maxMultiplier, m * 1.2, 2);
 
     if (this.multiplierLabel) {
-      this.multiplierLabel.text = `${m.toFixed(2)}×`;
+      this.multiplierLabel.text = formatCrashMultiplier(m);
       const newInt = Math.floor(m);
       if (newInt > prevInt && newInt >= 2) {
         // L4 tension：倍率每過整數 punch scale + 色階更新
@@ -1241,7 +1262,7 @@ export class CrashScene {
 
     // 倍率數字變紅
     if (this.multiplierLabel) {
-      this.multiplierLabel.text = `${finalMultiplier.toFixed(2)}×`;
+      this.multiplierLabel.text = formatCrashMultiplier(finalMultiplier);
       this.multiplierLabel.style.fill = COLOR_EMBER;
       gsap.fromTo(
         this.multiplierLabel.scale,
@@ -1251,7 +1272,7 @@ export class CrashScene {
     }
 
     if (this.statusLabel) {
-      this.statusLabel.text = `CRASHED @ ${finalMultiplier.toFixed(2)}×`;
+      this.statusLabel.text = `CRASHED @ ${formatCrashMultiplier(finalMultiplier)}`;
       this.statusLabel.style.fill = COLOR_EMBER;
     }
 
@@ -1332,7 +1353,8 @@ export class CrashScene {
       });
     }
     if (cfg.shakeAmp > 0) this.shaker?.shake(cfg.shakeAmp, cfg.shakeDuration);
-    if (cfg.edgeGlowMs > 0) emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_TOXIC, cfg.edgeGlowMs / 1000);
+    if (cfg.edgeGlowMs > 0)
+      emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_TOXIC, cfg.edgeGlowMs / 1000);
     if (cfg.rayBurst) emitRayBurst(this.app.stage, this.app, cx, cy, COLOR_TOXIC, 1.2);
   }
 
