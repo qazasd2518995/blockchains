@@ -480,6 +480,13 @@ export function CrashPage({ config }: Props) {
       queuedBetRef.current = null;
       setQueuedBet(null);
       setError(payload.error ?? 'NEXT ROUND BET FAILED');
+      if (autoBetActiveRef.current) {
+        autoBetActiveRef.current = false;
+        autoBetSubmittingRef.current = false;
+        autoBetSettingsRef.current = null;
+        setAutoBetActive(false);
+        setAutoBetStopReason(payload.error ?? t.games.crash.autoFailed);
+      }
     };
 
     const onBetQueueCanceled = () => {
@@ -514,7 +521,7 @@ export function CrashPage({ config }: Props) {
       if (countdownRef.current) clearInterval(countdownRef.current);
       disconnectCrashSocket(config.gameId);
     };
-  }, [applyCashoutResult, config.gameId, setBalance]);
+  }, [applyCashoutResult, config.gameId, setBalance, t.games.crash.autoFailed]);
 
   const submitCrashBet = useCallback(
     (
@@ -638,6 +645,7 @@ export function CrashPage({ config }: Props) {
     (reason?: string, cancelQueued = true): void => {
       autoBetActiveRef.current = false;
       autoBetSubmittingRef.current = false;
+      autoBetSettingsRef.current = null;
       setAutoBetActive(false);
       setAutoBetStopReason(reason ?? t.games.crash.autoStopped);
       if (cancelQueued && queuedBetRef.current) {
@@ -966,8 +974,8 @@ export function CrashPage({ config }: Props) {
           )}
         </div>
 
-        <div className="game-control-stack space-y-4">
-          <div className="game-side-card p-5">
+        <div className="crash-control-stack game-control-stack space-y-4">
+          <div className="crash-control-card game-side-card p-5">
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -1014,7 +1022,7 @@ export function CrashPage({ config }: Props) {
               </div>
             )}
 
-            <div className="mt-6 space-y-2">
+            <div className="crash-action-stack mt-6 space-y-2">
               {canShowCurrentBetButton && (
                 <button
                   type="button"

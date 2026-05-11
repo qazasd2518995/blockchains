@@ -834,6 +834,120 @@
       letter-spacing: 0.06em;
     }
 
+    .game-fullscreen-shell .crash-control-stack {
+      max-height: max(156px, min(28svh, 186px));
+    }
+
+    .game-fullscreen-shell .crash-control-stack > .crash-control-card:first-child {
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(104px, 0.88fr);
+      gap: 0.4rem;
+      max-height: max(156px, min(28svh, 186px));
+      overflow: hidden;
+      align-items: stretch;
+    }
+
+    .game-fullscreen-shell .crash-control-card > .bet-controls {
+      min-width: 0;
+      align-self: stretch;
+    }
+
+    .game-fullscreen-shell .crash-control-card .bet-controls__entry {
+      grid-template-columns: minmax(0, 1fr) 66px;
+      min-height: 42px;
+      padding: 0.22rem !important;
+    }
+
+    .game-fullscreen-shell .crash-control-card .bet-controls__input {
+      min-height: 38px !important;
+      font-size: 18px !important;
+    }
+
+    .game-fullscreen-shell .crash-control-card .bet-controls__adjusters .game-choice-btn {
+      min-height: 38px;
+      border-radius: 9px;
+    }
+
+    .game-fullscreen-shell .crash-control-card .bet-controls__presets {
+      display: none;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-auto-cashout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      align-self: stretch;
+      gap: 0.24rem;
+      margin-top: 0 !important;
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-auto-cashout__label {
+      min-width: 0;
+      font-size: 9px;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-auto-cashout__field {
+      align-self: stretch;
+      min-height: 42px;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-auto-cashout__input {
+      min-height: 38px !important;
+      text-align: center !important;
+      font-size: 18px !important;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-auto-bot-button {
+      min-height: 42px;
+      margin-top: 0 !important;
+      align-self: stretch;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-action-stack {
+      display: grid;
+      min-width: 0;
+      align-self: stretch;
+      align-content: stretch;
+      gap: 0.32rem;
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-action-stack > .btn-acid,
+    .game-fullscreen-shell .crash-control-card .crash-action-stack > .btn-ember {
+      min-height: 42px;
+      border-radius: 11px;
+      padding: 0.38rem 0.42rem !important;
+      font-size: 11px;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-action-stack .game-stat-card,
+    .game-fullscreen-shell .crash-control-card .crash-action-stack .game-result-card {
+      min-height: 38px;
+      border-radius: 10px;
+      padding: 0.34rem 0.42rem !important;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-action-stack .game-stat-card .data-num,
+    .game-fullscreen-shell .crash-control-card .crash-action-stack .game-result-card .data-num {
+      font-size: 13px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-action-stack .game-balance-strip {
+      display: none;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-auto-bot-status {
+      grid-column: 1 / -1;
+      display: flex;
+      min-height: 26px;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0 !important;
+    }
+
     .game-fullscreen-shell[data-slot-layout='standard']
       .slot-game-page--classic
       .game-control-stack {
@@ -1475,6 +1589,14 @@
 
     .game-fullscreen-shell .game-control-stack > .game-side-card:first-child {
       max-height: max(196px, min(35svh, 270px));
+    }
+
+    .game-fullscreen-shell .crash-control-stack {
+      max-height: max(150px, min(27svh, 178px));
+    }
+
+    .game-fullscreen-shell .crash-control-stack > .crash-control-card:first-child {
+      max-height: max(150px, min(27svh, 178px));
     }
 
     .game-fullscreen-shell .game-control-stack .bet-controls__presets {
