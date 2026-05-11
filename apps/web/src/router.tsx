@@ -83,7 +83,10 @@ function suspended(element: ReactNode): JSX.Element {
 function gameRoute(path: string, gameId: string, element: ReactNode) {
   return {
     path,
-    loader: () => preloadGameAssets(gameId),
+    loader: async () => {
+      await preloadGameAssets(gameId);
+      return null;
+    },
     element: suspended(element),
   };
 }
