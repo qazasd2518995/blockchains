@@ -452,9 +452,6 @@ export function CrashPage({ config }: Props) {
       requireLogin();
       return;
     }
-    if (queuedBetRef.current) {
-      return;
-    }
     if (amount < MIN_BET_AMOUNT || amount > balance) {
       setError(t.bet.insufficientBalance);
       return;
@@ -541,11 +538,11 @@ export function CrashPage({ config }: Props) {
     );
   };
 
-  const controlsLocked = Boolean(queuedBet) || (status === 'BETTING' && Boolean(myBet));
+  const controlsLocked = status === 'BETTING' && (Boolean(myBet) || Boolean(queuedBet));
   const liveCashoutPayout =
     status === 'RUNNING' && myBet && !myBet.cashed ? myBet.amount * multiplier : 0;
   const canShowCurrentBetButton = status === 'BETTING' && !myBet && !queuedBet;
-  const canShowNextRoundBetButton = status !== 'BETTING' && !queuedBet;
+  const canShowNextRoundBetButton = status !== 'BETTING';
 
   return (
     <div>
@@ -692,7 +689,8 @@ export function CrashPage({ config }: Props) {
                   disabled={!!user && balance < amount}
                   className="btn-acid w-full py-4"
                 >
-                  → {t.games.crash.nextRoundBet} · {formatAmount(amount)}
+                  → {queuedBet ? t.games.crash.updateNextRoundBet : t.games.crash.nextRoundBet} ·{' '}
+                  {formatAmount(amount)}
                 </button>
               )}
               {queuedBet && (

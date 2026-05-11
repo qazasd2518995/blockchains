@@ -758,9 +758,9 @@ export class CrashRoom {
     userId: string,
     amount: number,
     autoCashOut?: number,
-  ): Promise<{ queued: true; roundNumber: number }> {
+  ): Promise<{ queued: true; roundNumber: number; updated: boolean }> {
     const amountD = this.validateBetInput(amount, autoCashOut);
-    if (this.nextRoundBets.has(userId)) throw new Error('Next round bet already queued');
+    const updated = this.nextRoundBets.has(userId);
 
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -783,7 +783,7 @@ export class CrashRoom {
       autoCashOut,
       roundNumber,
     });
-    return { queued: true, roundNumber };
+    return { queued: true, roundNumber, updated };
   }
 
   private async flushQueuedBets(): Promise<void> {

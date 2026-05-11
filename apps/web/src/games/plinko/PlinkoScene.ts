@@ -33,6 +33,7 @@ const COLOR_TOXIC = 0x1e7a4f;
 const COLOR_AMBER = 0xf3d67d;
 const COLOR_ICE = 0x266f85;
 const COLOR_INK = 0x0a0806;
+const COLOR_BUCKET_BG = 0x07131f;
 const COLOR_WHITE = 0xffffff;
 const PLINKO_BACKGROUND_ASSET = '/game-art/plinko/background.png';
 
@@ -60,6 +61,24 @@ interface Particle {
   gravity: number;
 }
 
+function formatMultiplierLabel(value: number): string {
+  return value < 1 ? value.toFixed(1) : value < 10 ? value.toFixed(1) : value.toFixed(0);
+}
+
+function formatPotentialPayout(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '';
+  const rounded = Math.floor(value * 100) / 100;
+  if (rounded >= 1_000_000) return `${trimFixed(rounded / 1_000_000)}M`;
+  if (rounded >= 1_000) return `${trimFixed(rounded / 1_000)}K`;
+  if (rounded >= 100) return rounded.toFixed(0);
+  return trimFixed(rounded);
+}
+
+function trimFixed(value: number): string {
+  const decimals = value >= 10 ? 0 : 1;
+  return value.toFixed(decimals).replace(/\.0$/, '');
+}
+
 export class PlinkoScene {
   private app: Application | null = null;
   private width = 0;
@@ -81,6 +100,7 @@ export class PlinkoScene {
   private boardBottom = 0;
   private boardLeft = 0;
   private boardRight = 0;
+  private betAmount = 0;
 
   private balls: Ball[] = [];
   private particleList: Particle[] = [];
@@ -220,8 +240,13 @@ export class PlinkoScene {
     this.drawBuckets();
   }
 
+  setBetAmount(amount: number): void {
+    this.betAmount = Number.isFinite(amount) && amount > 0 ? amount : 0;
+    this.drawBuckets();
+  }
+
   private bucketHeight(): number {
-    return Math.max(34, Math.min(44, this.height * 0.082));
+    return Math.max(30, Math.min(38, this.height * 0.07));
   }
 
   private bucketLayout(): {
@@ -307,15 +332,26 @@ export class PlinkoScene {
       c.x = x;
       c.y = y;
 
-      const box = new Graphics()
-        .roundRect(2, 0, Math.max(8, bucketW - 4), bucketH, 6)
-        .fill({ color, alpha: 0.18 })
-        .stroke({ color, width: 2 });
+      const cardW = Math.max(8, bucketW - 4);
+      const strokeWidth = this.width < 520 ? 1.5 : 2;
+      const box = new Graphics();
+      box.roundRect(2, 0, cardW, bucketH, 5).fill({ color: COLOR_BUCKET_BG, alpha: 0.92 });
+      box.roundRect(2, 0, cardW, bucketH, 5).fill({ color, alpha: 0.12 });
+      box.roundRect(4, 2, Math.max(4, cardW - 4), Math.max(7, bucketH * 0.36), 4).fill({
+        color: COLOR_WHITE,
+        alpha: 0.05,
+      });
+      box.roundRect(2, 0, cardW, bucketH, 5).stroke({
+        color,
+        width: strokeWidth,
+        alpha: 0.95,
+      });
       c.addChild(box);
 
       // 倍率文字
-      const fmt = m < 1 ? m.toFixed(1) : m < 10 ? m.toFixed(1) : m.toFixed(0);
-      const autoSize = Math.max(9, Math.min(bucketW * 0.34, 16));
+      const fmt = formatMultiplierLabel(m);
+      const hasPayout = this.betAmount > 0;
+      const autoSize = Math.max(8, Math.min(bucketW * 0.32, hasPayout ? 13 : 15));
       const fillStr = `#${color.toString(16).padStart(6, '0')}`;
       const label = new Text({
         text: `${fmt}×`,
@@ -325,13 +361,35 @@ export class PlinkoScene {
           fill: fillStr,
           fontWeight: '700',
           align: 'center',
+          stroke: { color: COLOR_INK, width: 2 },
         }),
         resolution: 2,
       });
       label.anchor.set(0.5);
       label.x = bucketW / 2;
-      label.y = bucketH / 2;
+      label.y = hasPayout ? bucketH * 0.35 : bucketH / 2;
       c.addChild(label);
+
+      if (hasPayout) {
+        const payout = formatPotentialPayout(this.betAmount * m);
+        const payoutSize = Math.max(7, Math.min(bucketW * 0.25, 10));
+        const payoutLabel = new Text({
+          text: payout,
+          style: new TextStyle({
+            fontFamily: GAME_FONT,
+            fontSize: payoutSize,
+            fill: COLOR_WHITE,
+            fontWeight: '700',
+            align: 'center',
+            stroke: { color: COLOR_INK, width: 2 },
+          }),
+          resolution: 2,
+        });
+        payoutLabel.anchor.set(0.5);
+        payoutLabel.x = bucketW / 2;
+        payoutLabel.y = bucketH * 0.72;
+        c.addChild(payoutLabel);
+      }
 
       this.bucketsContainer.addChild(c);
     }

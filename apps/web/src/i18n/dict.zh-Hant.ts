@@ -521,6 +521,7 @@ export const zhHant = {
       betPlaced: '下注成功',
       placeBet: '下注',
       nextRoundBet: '下局下注',
+      updateNextRoundBet: '修改下局下注',
       nextRoundQueued: '已排入下局',
       cashoutAt: '提領倍率',
       autoCashout: '自動提領',

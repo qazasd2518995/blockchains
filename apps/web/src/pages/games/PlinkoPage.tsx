@@ -80,6 +80,11 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
     sceneRef.current.setBoard(rows, plinkoTable(risk, rows));
   }, [rows, risk, sceneReady]);
 
+  useEffect(() => {
+    if (!sceneReady || !sceneRef.current) return;
+    sceneRef.current.setBetAmount(amount);
+  }, [amount, sceneReady]);
+
   const drop = async () => {
     if (busy) return;
     if (!requireLogin()) return;

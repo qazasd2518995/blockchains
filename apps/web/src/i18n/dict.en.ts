@@ -539,6 +539,7 @@ export const en = {
       betPlaced: 'Bet Placed',
       placeBet: 'Bet',
       nextRoundBet: 'Next Round Bet',
+      updateNextRoundBet: 'Update Next Bet',
       nextRoundQueued: 'Queued for next round',
       cashoutAt: 'Cashout Multiplier',
       autoCashout: 'Auto Cashout',
