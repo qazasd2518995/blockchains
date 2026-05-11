@@ -41,6 +41,61 @@
     color: rgba(255, 255, 255, 0.58);
   }
 
+  .crash-history-strip {
+    pointer-events: none;
+    position: absolute;
+    top: 0.5rem;
+    right: 0.55rem;
+    left: 0.55rem;
+    z-index: 8;
+    display: flex;
+    flex-direction: row-reverse;
+    gap: 0.32rem;
+    overflow: hidden;
+    padding-left: 2.2rem;
+    mask-image: linear-gradient(90deg, transparent 0, #000 2.2rem, #000 100%);
+  }
+
+  .crash-history-chip {
+    display: inline-flex;
+    flex: 0 0 auto;
+    min-width: 3.1rem;
+    height: 1.35rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 0.42rem;
+    background: rgba(7, 16, 28, 0.82);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 8px 18px rgba(0, 0, 0, 0.22);
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+    font-size: 0.66rem;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+  }
+
+  .crash-history-chip--low {
+    border-color: rgba(212, 87, 74, 0.58);
+    background: linear-gradient(180deg, rgba(212, 87, 74, 0.28), rgba(7, 16, 28, 0.84));
+    color: #fca5a5;
+  }
+
+  .crash-history-chip--win {
+    border-color: rgba(30, 122, 79, 0.72);
+    background: linear-gradient(180deg, rgba(30, 122, 79, 0.32), rgba(7, 16, 28, 0.84));
+    color: #6ee7b7;
+  }
+
+  .crash-history-chip--hot {
+    border-color: rgba(243, 214, 125, 0.78);
+    background: linear-gradient(180deg, rgba(243, 214, 125, 0.34), rgba(7, 16, 28, 0.84));
+    color: #f3d67d;
+  }
+
   .blackjack-card-flip-shell {
     width: 82px;
     height: 122px;
@@ -669,6 +724,26 @@
     .game-fullscreen-shell .crash-auto-cashout__input::placeholder {
       font-size: 10px;
       letter-spacing: 0;
+    }
+
+    .game-fullscreen-shell .game-control-stack .crash-auto-bot-button {
+      min-height: 40px;
+      border-radius: 11px;
+      padding: 0.38rem 0.5rem !important;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell .game-control-stack .crash-auto-bot-button span,
+    .game-fullscreen-shell .game-control-stack .crash-auto-bot-button strong {
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+
+    .game-fullscreen-shell .game-control-stack .crash-auto-bot-status {
+      margin-top: 0.35rem;
+      padding: 0.32rem 0.5rem;
+      border-radius: 9px;
+      font-size: 9px;
     }
 
     .game-fullscreen-shell .game-control-stack .mt-6,
@@ -1423,6 +1498,95 @@
       .tower-control-stack--active
       > .game-side-card:first-child {
       max-height: 90px;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .game-play-grid--dice {
+      grid-template-rows: minmax(0, 1fr) auto;
+      gap: 0.32rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-stage-panel {
+      padding-bottom: 0.32rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-canvas {
+      flex-basis: 230px !important;
+      min-height: 210px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-threshold-panel {
+      padding: 0.34rem 0.48rem 0.4rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-threshold-panel .mb-2 {
+      margin-bottom: 0.22rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-threshold-panel .gap-3 {
+      gap: 0.28rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-threshold-panel .num {
+      font-size: 1.2rem !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-threshold-panel .game-choice-btn {
+      min-height: 36px;
+      padding-top: 0.34rem !important;
+      padding-bottom: 0.34rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-threshold-panel .term-range {
+      height: 1.12rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-threshold-panel .mt-1 {
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-stack,
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-card {
+      max-height: 146px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-card {
+      overflow: hidden !important;
+      padding: 0.42rem 0.58rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-card .bet-controls__entry {
+      grid-template-columns: minmax(0, 1fr) 76px;
+      gap: 0.28rem;
+      padding: 0.22rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-card .bet-controls__input {
+      min-height: 38px !important;
+      padding: 0.1rem 0.38rem !important;
+      font-size: 18px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice']
+      .dice-control-card
+      .bet-controls__adjusters
+      .game-choice-btn {
+      min-height: 38px;
+      border-radius: 9px;
+      font-size: 10px;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-bet-button {
+      min-height: 40px;
+      margin-top: 0.38rem !important;
+      border-radius: 11px;
+      padding: 0.42rem 0.5rem !important;
+      font-size: 11px;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-card .game-balance-strip {
+      display: none;
     }
   }
 
@@ -3248,6 +3412,30 @@
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 12px;
   color: #8fe7ff;
+}
+
+.crash-auto-bot-button {
+  width: 100%;
+  border-color: rgba(243, 214, 125, 0.44);
+  background:
+    radial-gradient(circle at 50% 36%, rgba(243, 214, 125, 0.16), transparent 62%),
+    rgba(20, 31, 50, 0.74);
+}
+
+.crash-auto-bot-button--active {
+  border-color: rgba(125, 211, 252, 0.54);
+  background:
+    radial-gradient(circle at 50% 36%, rgba(125, 211, 252, 0.22), transparent 62%),
+    rgba(20, 91, 109, 0.78);
+  color: #e0f8ff;
+}
+
+.crash-auto-bot-status {
+  margin-top: 8px;
+}
+
+.crash-auto-presets {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .slot-auto-modal {

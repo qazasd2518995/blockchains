@@ -587,6 +587,16 @@ export class CrashRoom {
     const connectedUserId = getSocketUserId(socket);
     socket.join(crashUserRoom(connectedUserId));
     socket.emit('round:snapshot', this.snapshot());
+    void this.getCrashHistory()
+      .then((multipliers) => {
+        socket.emit('round:history', { multipliers });
+      })
+      .catch((err) => {
+        console.error(
+          `[crashRoom] failed to send crash history (gameId=${this.config.gameId})`,
+          err,
+        );
+      });
     const queuedBet = this.nextRoundBets.get(connectedUserId);
     if (queuedBet) {
       socket.emit('bet:queued', {
@@ -674,6 +684,21 @@ export class CrashRoom {
         this.pendingAutoCashouts.delete(bet.id);
         const res = await this.settleCashout(userId, bet.id, this.currentMultiplier);
         ack?.({ ok: true, ...res });
+      } catch (err) {
+        ack?.({ ok: false, error: (err as Error).message });
+      }
+    });
+
+    socket.on('bet:cancelQueued', (_payload: unknown, ack?: (res: unknown) => void) => {
+      try {
+        const userId = getSocketUserId(socket);
+        const canceled = this.nextRoundBets.delete(userId);
+        if (canceled) {
+          this.emitToUser(userId, 'bet:queue_canceled', {
+            roundNumber: this.roundNumber + 1,
+          });
+        }
+        ack?.({ ok: true, canceled });
       } catch (err) {
         ack?.({ ok: false, error: (err as Error).message });
       }
@@ -967,6 +992,20 @@ export class CrashRoom {
       cashedOutAt: b.cashedOutAt ? Number(b.cashedOutAt) : undefined,
       payout: b.payout.toFixed(2),
     }));
+  }
+
+  private async getCrashHistory(): Promise<number[]> {
+    const rounds = await this.prisma.crashRound.findMany({
+      where: {
+        gameId: this.config.gameId,
+        status: 'CRASHED',
+        crashedAt: { not: null },
+      },
+      orderBy: { roundNumber: 'desc' },
+      take: 20,
+      select: { crashPoint: true },
+    });
+    return rounds.map((round) => Number(round.crashPoint));
   }
 }
 

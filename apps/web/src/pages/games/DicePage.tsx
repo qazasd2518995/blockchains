@@ -110,7 +110,7 @@ export function DicePage() {
   };
 
   return (
-    <div>
+    <div className="dice-game-page">
       <GameHeader
         artwork="/game-art/dice/background.png"
         section="§ GAME 01"
@@ -123,9 +123,9 @@ export function DicePage() {
         rtpAccent="acid"
       />
 
-      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="game-play-grid game-play-grid--dice grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="game-main-stack space-y-4">
-          <div className="game-stage-panel scanlines relative overflow-hidden">
+          <div className="dice-stage-panel game-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">骰子</span>
               <span className="ml-2 text-white/40">·</span>
@@ -135,7 +135,7 @@ export function DicePage() {
                 {t.common.ready.toUpperCase()}
               </span>
             </div>
-            <div className="game-canvas-shell game-canvas-wide relative aspect-[16/7] w-full">
+            <div className="dice-canvas game-canvas-shell game-canvas-wide relative aspect-[16/7] w-full">
               <canvas ref={canvasRef} className="h-full w-full" />
 
               {/* 右上角即時統計（疊在画布上） */}
@@ -160,7 +160,7 @@ export function DicePage() {
             </div>
 
             {/* 滑桿 + 方向 toggle（緊貼畫布底部，免滾動） */}
-            <div className="border-t border-[#16324A]/10 p-4 md:p-5">
+            <div className="dice-threshold-panel border-t border-[#16324A]/10 p-4 md:p-5">
               <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
                 <div className="flex items-baseline gap-2">
                   <span className="label">{t.games.dice.threshold}</span>
@@ -245,8 +245,8 @@ export function DicePage() {
           )}
         </div>
 
-        <div className="game-control-stack space-y-4">
-          <div className="game-side-card p-5">
+        <div className="dice-control-stack game-control-stack space-y-4">
+          <div className="dice-control-card game-side-card p-5">
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -259,7 +259,7 @@ export function DicePage() {
               type="button"
               onClick={handleBet}
               disabled={rolling || (!!user && balance < amount)}
-              className="btn-acid mt-6 w-full py-4 text-base"
+              className="dice-bet-button btn-acid mt-6 w-full py-4 text-base"
             >
               {rolling ? (
                 <span>

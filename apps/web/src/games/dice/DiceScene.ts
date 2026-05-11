@@ -1,4 +1,14 @@
-import { Application, Container, Graphics, Sprite, Text, TextStyle, Ticker, BlurFilter, type Texture } from 'pixi.js';
+import {
+  Application,
+  Container,
+  Graphics,
+  Sprite,
+  Text,
+  TextStyle,
+  Ticker,
+  BlurFilter,
+  type Texture,
+} from 'pixi.js';
 import { gsap } from 'gsap';
 import { addCoverSprite, createGridTextures, loadTextureOrNull } from '../shared/pixiAssets';
 import {
@@ -15,15 +25,16 @@ import {
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG = 0x0F172A;
-const COLOR_FACE = 0xFFFFFF;
-const COLOR_FACE_STROKE = 0x0A0806;
-const COLOR_PIP = 0x0A0806;
-const COLOR_ACID = 0xF3D67D;
-const COLOR_VIOLET = 0xE8D48A;
-const COLOR_EMBER = 0xD4574A;
-const COLOR_TOXIC = 0x1E7A4F;
-const COLOR_ICE = 0x266F85;
+const COLOR_BG = 0x0f172a;
+const COLOR_FACE = 0xffffff;
+const COLOR_FACE_STROKE = 0x0a0806;
+const COLOR_PIP = 0x0a0806;
+const COLOR_ACID = 0xf3d67d;
+const COLOR_VIOLET = 0xe8d48a;
+const COLOR_EMBER = 0xd4574a;
+const COLOR_TOXIC = 0x1e7a4f;
+const COLOR_ICE = 0x266f85;
+const COLOR_WHITE = 0xffffff;
 const DICE_BACKGROUND_ASSET = '/game-art/dice/background.png';
 const DICE_SPRITES_ASSET = '/game-art/dice/sprites.png';
 
@@ -112,7 +123,6 @@ export class DiceScene {
   private poolTicker: ((tk: Ticker) => void) | null = null;
   private winFx: WinCelebration | null = null;
 
-
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
     this.width = width;
     this.height = height;
@@ -180,12 +190,22 @@ export class DiceScene {
 
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
+    const bg = new Graphics()
+      .rect(0, 0, this.width, this.height)
+      .fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
 
-    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.92);
+    const artwork = addCoverSprite(
+      this.app.stage,
+      this.backgroundTexture,
+      this.width,
+      this.height,
+      0.92,
+    );
     if (artwork) {
-      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.44 });
+      const veil = new Graphics()
+        .rect(0, 0, this.width, this.height)
+        .fill({ color: COLOR_BG, alpha: 0.44 });
       this.app.stage.addChild(veil);
     }
 
@@ -324,7 +344,11 @@ export class DiceScene {
       this.pipContainer.addChild(dot);
 
       const hl = new Graphics()
-        .circle(pip.x * offset - pipRadius * 0.3, pip.y * offset - pipRadius * 0.3, pipRadius * 0.25)
+        .circle(
+          pip.x * offset - pipRadius * 0.3,
+          pip.y * offset - pipRadius * 0.3,
+          pipRadius * 0.25,
+        )
         .fill({ color: COLOR_FACE, alpha: 0.5 });
       this.pipContainer.addChild(hl);
     }
@@ -354,15 +378,22 @@ export class DiceScene {
       fontFamily: GAME_FONT,
       fontSize: Math.round(this.height * 0.22),
       fontWeight: '400',
-      fill: COLOR_FACE_STROKE,
+      fill: COLOR_WHITE,
       align: 'center',
       letterSpacing: 4,
+      stroke: { color: COLOR_FACE_STROKE, width: Math.max(4, Math.round(this.height * 0.012)) },
+      dropShadow: {
+        color: COLOR_FACE_STROKE,
+        alpha: 0.7,
+        blur: 10,
+        distance: 0,
+      },
     });
     const label = new Text({ text: '—', style });
     label.anchor.set(0.5);
     label.x = this.width / 2;
-    label.y = this.height * 0.85;
-    label.alpha = 0.15;
+    label.y = this.height * 0.8;
+    label.alpha = 0.22;
     this.rollLabel = label;
     this.app.stage.addChild(label);
   }
@@ -408,9 +439,7 @@ export class DiceScene {
   setTargetLabel(target: number, direction: 'under' | 'over'): void {
     if (!this.targetLabel) return;
     this.targetLabel.text =
-      direction === 'under'
-        ? `◂ TARGET  ${target.toFixed(2)}`
-        : `${target.toFixed(2)}  TARGET ▸`;
+      direction === 'under' ? `◂ TARGET  ${target.toFixed(2)}` : `${target.toFixed(2)}  TARGET ▸`;
   }
 
   /**
@@ -428,16 +457,13 @@ export class DiceScene {
     // anticipation: 在骰子腳下打一道金色光暈呼吸（增加抽起來的儀式感）
     if (this.diceGlow) {
       const glow = this.diceGlow;
-      glow.clear()
+      glow
+        .clear()
         .circle(dice.x, dice.y + this.diceSize * 0.4, this.diceSize * 0.7)
         .fill({ color: COLOR_ACID, alpha: 0.32 });
       glow.filters = [new BlurFilter({ strength: 18 })];
       gsap.killTweensOf(glow);
-      gsap.fromTo(
-        glow,
-        { alpha: 0 },
-        { alpha: 0.85, duration: 0.4, ease: EASE.out },
-      );
+      gsap.fromTo(glow, { alpha: 0 }, { alpha: 0.85, duration: 0.4, ease: EASE.out });
     }
     // 持續緩慢旋轉直到 playRoll 接手
     gsap.to(dice, {
@@ -575,95 +601,114 @@ export class DiceScene {
       );
 
       // Roll label 計數動畫：等骰子結果已經可見後再亮出數字。
-      tl.call(() => {
-        const rollObj = { v: 0 };
-        gsap.to(rollObj, {
-          v: roll,
-          duration: 0.58,
-          ease: 'power3.out',
-          onUpdate: () => {
-            label.text = rollObj.v.toFixed(2);
-            label.alpha = 0.42 + (rollObj.v / Math.max(0.01, roll)) * 0.58;
-          },
-          onComplete: () => {
-            label.text = roll.toFixed(2);
-            label.alpha = 1;
-            gsap.fromTo(
-              label.scale,
-              { x: 1.32, y: 1.32 },
-              { x: 1, y: 1, duration: 0.5, ease: 'elastic.out(1, 0.42)' },
-            );
-          }
-        });
-      }, undefined, 1.08);
+      tl.call(
+        () => {
+          const rollObj = { v: 0 };
+          gsap.to(rollObj, {
+            v: roll,
+            duration: 0.58,
+            ease: 'power3.out',
+            onUpdate: () => {
+              label.text = rollObj.v.toFixed(2);
+              label.alpha = 0.42 + (rollObj.v / Math.max(0.01, roll)) * 0.58;
+            },
+            onComplete: () => {
+              label.text = roll.toFixed(2);
+              label.alpha = 1;
+              gsap.fromTo(
+                label.scale,
+                { x: 1.32, y: 1.32 },
+                { x: 1, y: 1, duration: 0.5, ease: 'elastic.out(1, 0.42)' },
+              );
+            },
+          });
+        },
+        undefined,
+        1.08,
+      );
 
       // 結算特效
-      tl.call(() => {
-        if (this.diceFace) this.drawFace(this.diceFace, winColor);
+      tl.call(
+        () => {
+          if (this.diceFace) this.drawFace(this.diceFace, winColor);
 
-        // 地面光暈
-        if (this.diceGlow) {
-          const glow = this.diceGlow;
-          glow.clear().circle(dice.x, dice.y, this.diceSize * 0.8).fill({ color: winColor, alpha: 0.4 });
-          glow.filters = [new BlurFilter({ strength: 30 })];
-          gsap.fromTo(
-            glow,
-            { alpha: 0 },
-            {
-              alpha: 1,
-              duration: 0.25,
-              ease: 'power3.out',
-              onComplete: () => {
-                gsap.to(glow, { alpha: 0, duration: 1.5, ease: 'power2.inOut' });
+          // 地面光暈
+          if (this.diceGlow) {
+            const glow = this.diceGlow;
+            glow
+              .clear()
+              .circle(dice.x, dice.y, this.diceSize * 0.8)
+              .fill({ color: winColor, alpha: 0.4 });
+            glow.filters = [new BlurFilter({ strength: 30 })];
+            gsap.fromTo(
+              glow,
+              { alpha: 0 },
+              {
+                alpha: 1,
+                duration: 0.25,
+                ease: 'power3.out',
+                onComplete: () => {
+                  gsap.to(glow, { alpha: 0, duration: 1.5, ease: 'power2.inOut' });
+                },
               },
-            },
-          );
-        }
+            );
+          }
 
-        // 震波（贏時雙層、輸時單層弱）
-        this.emitShockwave(dice.x, dice.y, winColor, this.diceSize * 1.2);
-        if (won) this.emitShockwave(dice.x, dice.y, winColor, this.diceSize * 1.8, 0.15);
+          // 震波（贏時雙層、輸時單層弱）
+          this.emitShockwave(dice.x, dice.y, winColor, this.diceSize * 1.2);
+          if (won) this.emitShockwave(dice.x, dice.y, winColor, this.diceSize * 1.8, 0.15);
 
-        if (won) {
-          // 粒子用 pool
-          this.particlePool?.emit({
-            x: dice.x,
-            y: dice.y,
-            count: tierCfg.particles,
-            colors: [COLOR_TOXIC, COLOR_ICE, COLOR_ACID],
-            speedMin: 3,
-            speedMax: 10,
+          if (won) {
+            // 粒子用 pool
+            this.particlePool?.emit({
+              x: dice.x,
+              y: dice.y,
+              count: tierCfg.particles,
+              colors: [COLOR_TOXIC, COLOR_ICE, COLOR_ACID],
+              speedMin: 3,
+              speedMax: 10,
+            });
+            // Tier 分級 shake（倍率 <10x 不 shake，避免影響 count-up 讀數）
+            if (tierCfg.shakeAmp > 0 && this.shaker) {
+              gsap.delayedCall(0.3, () =>
+                this.shaker?.shake(tierCfg.shakeAmp, tierCfg.shakeDuration),
+              );
+            }
+            // 邊緣 glow
+            if (this.app && tierCfg.edgeGlowMs > 0) {
+              emitEdgeGlow(
+                this.app.stage,
+                this.width,
+                this.height,
+                winColor,
+                tierCfg.edgeGlowMs / 1000,
+              );
+            }
+            // 大獎 ray burst
+            if (this.app && tierCfg.rayBurst) {
+              emitRayBurst(this.app.stage, this.app, dice.x, dice.y, winColor, 1.2);
+            }
+          } else {
+            // 輸家刻意安靜：不 shake、不大範圍粒子
+            this.particlePool?.emit({
+              x: dice.x,
+              y: dice.y,
+              count: 14,
+              colors: [COLOR_EMBER, COLOR_FACE_STROKE],
+              speedMin: 2,
+              speedMax: 4,
+              lifeMin: 30,
+              lifeMax: 45,
+            });
+          }
+
+          gsap.delayedCall(2.5, () => {
+            if (this.diceFace) this.drawFace(this.diceFace, COLOR_ACID);
           });
-          // Tier 分級 shake（倍率 <10x 不 shake，避免影響 count-up 讀數）
-          if (tierCfg.shakeAmp > 0 && this.shaker) {
-            gsap.delayedCall(0.3, () => this.shaker?.shake(tierCfg.shakeAmp, tierCfg.shakeDuration));
-          }
-          // 邊緣 glow
-          if (this.app && tierCfg.edgeGlowMs > 0) {
-            emitEdgeGlow(this.app.stage, this.width, this.height, winColor, tierCfg.edgeGlowMs / 1000);
-          }
-          // 大獎 ray burst
-          if (this.app && tierCfg.rayBurst) {
-            emitRayBurst(this.app.stage, this.app, dice.x, dice.y, winColor, 1.2);
-          }
-        } else {
-          // 輸家刻意安靜：不 shake、不大範圍粒子
-          this.particlePool?.emit({
-            x: dice.x,
-            y: dice.y,
-            count: 14,
-            colors: [COLOR_EMBER, COLOR_FACE_STROKE],
-            speedMin: 2,
-            speedMax: 4,
-            lifeMin: 30,
-            lifeMax: 45,
-          });
-        }
-
-        gsap.delayedCall(2.5, () => {
-          if (this.diceFace) this.drawFace(this.diceFace, COLOR_ACID);
-        });
-      }, undefined, 1.42);
+        },
+        undefined,
+        1.42,
+      );
     });
   }
 
