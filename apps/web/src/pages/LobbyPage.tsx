@@ -26,10 +26,10 @@ import { warmGameAssets } from '@/lib/gameAssetManifest';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 import { ResponsiveImage } from '@/lib/optimizedImages';
 import { getGameIcon, getHallIcon } from '@/lib/platformIcons';
-import { SoundToggle } from '@/components/layout/SoundToggle';
-import { MusicToggle } from '@/components/layout/MusicToggle';
+import { AudioMenu } from '@/components/layout/AudioMenu';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { getLocalizedGameTitle } from '@/i18n/gameLabels';
+import { getLocalizedHallName, getLocalizedHallShort } from '@/i18n/hallLabels';
 import { useTranslation } from '@/i18n/useTranslation';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
@@ -49,27 +49,16 @@ const hallMetaMap = new Map(HALL_LIST.map((hall) => [hall.id, hall]));
 
 const MOBILE_CATEGORIES: Array<{
   id: 'all' | HallId;
-  label: string;
-  shortLabel: string;
   iconKey?: string;
 }> = [
-  { id: 'all', label: '熱門遊戲', shortLabel: '熱門' },
-  { id: 'crash', label: 'Crash 飛行', shortLabel: '飛行', iconKey: 'crash' },
-  { id: 'tables', label: '棋牌牌桌', shortLabel: '牌桌', iconKey: 'tables' },
-  { id: 'slots', label: '拉霸老虎機', shortLabel: '拉霸', iconKey: 'slots' },
-  { id: 'roulette', label: '輪盤轉輪', shortLabel: '輪盤', iconKey: 'roulette' },
-  { id: 'classic', label: '即開電子', shortLabel: '即開', iconKey: 'classic' },
-  { id: 'strategy', label: '策略挑戰', shortLabel: '策略', iconKey: 'strategy' },
+  { id: 'all' },
+  { id: 'crash', iconKey: 'crash' },
+  { id: 'tables', iconKey: 'tables' },
+  { id: 'slots', iconKey: 'slots' },
+  { id: 'roulette', iconKey: 'roulette' },
+  { id: 'classic', iconKey: 'classic' },
+  { id: 'strategy', iconKey: 'strategy' },
 ];
-
-const MOBILE_HALL_LABEL: Record<HallId, string> = {
-  crash: '飛行',
-  tables: '牌桌',
-  slots: '拉霸',
-  roulette: '輪盤',
-  classic: '即開',
-  strategy: '策略',
-};
 
 function mobileGamePath(gameId: string): string {
   return `/games/${gameId}`;
@@ -80,6 +69,21 @@ function mobileCategoryCount(categoryId: 'all' | HallId): number {
   return (
     hallMetaMap.get(categoryId)?.gameIds.filter((id) => GAMES_REGISTRY[id]?.enabled).length ?? 0
   );
+}
+
+function getMobileCategoryLabel(
+  categoryId: 'all' | HallId,
+  locale: ReturnType<typeof useTranslation>['locale'],
+  t: ReturnType<typeof useTranslation>['t'],
+): { label: string; shortLabel: string } {
+  if (categoryId === 'all') {
+    return { label: t.lobbyStats.mobileAllGames, shortLabel: t.lobbyStats.mobileAllShort };
+  }
+  const hall = hallMetaMap.get(categoryId);
+  return {
+    label: hall ? getLocalizedHallName(hall, locale) : categoryId,
+    shortLabel: getLocalizedHallShort(categoryId, locale),
+  };
 }
 
 export function LobbyPage() {
@@ -154,13 +158,12 @@ export function LobbyPage() {
 }
 
 function MobileLobbyOnePage() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const isGuest = !user;
   const [onlineCount] = useState(() => getDriftedOnlineCount() + 5200);
   const [activeCategory, setActiveCategory] = useState<'all' | HallId>('all');
-  const activeCategoryMeta =
-    MOBILE_CATEGORIES.find((category) => category.id === activeCategory) ?? MOBILE_CATEGORIES[0]!;
+  const activeCategoryMeta = getMobileCategoryLabel(activeCategory, locale, t);
 
   const games = useMemo(() => {
     if (activeCategory === 'all') return mobileGames;
@@ -205,11 +208,7 @@ function MobileLobbyOnePage() {
           <div className="flex shrink-0 items-center justify-end gap-1">
             {isGuest ? (
               <>
-                <SoundToggle
-                  variant="light"
-                  className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
-                />
-                <MusicToggle
+                <AudioMenu
                   variant="light"
                   className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
                 />
@@ -227,11 +226,7 @@ function MobileLobbyOnePage() {
               </>
             ) : (
               <>
-                <SoundToggle
-                  variant="light"
-                  className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
-                />
-                <MusicToggle
+                <AudioMenu
                   variant="light"
                   className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
                 />
@@ -309,31 +304,20 @@ function MobileLobbyOnePage() {
       <section className="flex h-9 overflow-hidden border-b border-[#CFE0E8] bg-white">
         <div className="flex w-[58px] shrink-0 items-center justify-center gap-1 bg-[#1681B1] text-[14px] font-black text-white">
           <Megaphone className="h-4 w-4" aria-hidden="true" />
-          公告
+          {t.announcements.latest}
         </div>
         <div className="min-w-0 flex-1 overflow-hidden px-3">
           <div className="ticker-track h-full items-center gap-8 [--ticker-duration:30s]">
-            {[
-              ...[
-                '系統維護升級公告',
-                '新遊戲 JetX3 震撼上架',
-                '每週倍率王活動開跑',
-                '理性遊戲，量力而為',
-              ],
-              ...[
-                '系統維護升級公告',
-                '新遊戲 JetX3 震撼上架',
-                '每週倍率王活動開跑',
-                '理性遊戲，量力而為',
-              ],
-            ].map((msg, idx) => (
-              <span
-                key={`${msg}-${idx}`}
-                className="inline-flex text-[13px] font-bold text-[#22718A]"
-              >
-                {msg}
-              </span>
-            ))}
+            {[...t.announcements.items.slice(0, 4), ...t.announcements.items.slice(0, 4)].map(
+              (msg, idx) => (
+                <span
+                  key={`${msg}-${idx}`}
+                  className="inline-flex text-[13px] font-bold text-[#22718A]"
+                >
+                  {msg}
+                </span>
+              ),
+            )}
           </div>
         </div>
       </section>
@@ -343,6 +327,7 @@ function MobileLobbyOnePage() {
           {MOBILE_CATEGORIES.map((category) => {
             const Icon = category.iconKey ? getHallIcon(category.iconKey) : Sparkles;
             const selected = activeCategory === category.id;
+            const categoryLabel = getMobileCategoryLabel(category.id, locale, t);
             return (
               <button
                 key={category.id}
@@ -356,7 +341,7 @@ function MobileLobbyOnePage() {
                 aria-pressed={selected}
               >
                 <Icon className="h-5 w-5 shrink-0" aria-hidden="true" strokeWidth={2} />
-                <span className="leading-none">{category.shortLabel}</span>
+                <span className="leading-none">{categoryLabel.shortLabel}</span>
                 <span
                   className={`num rounded-full px-1.5 py-0.5 text-[9px] leading-none ${
                     selected ? 'bg-white/20 text-white' : 'bg-[#E9F5F8] text-[#4D8798]'
@@ -372,7 +357,7 @@ function MobileLobbyOnePage() {
             className="flex h-[58px] w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border border-[#D5B75E] bg-[#FFF1B4] text-[11px] font-black text-[#765709] shadow-[0_6px_14px_rgba(15,23,42,0.08)] active:scale-[0.98]"
           >
             <Gift className="h-5 w-5" aria-hidden="true" />
-            優惠
+            {t.common.promos}
           </Link>
         </aside>
 
@@ -386,7 +371,7 @@ function MobileLobbyOnePage() {
             </div>
             <div className="flex shrink-0 items-center gap-1 rounded-full bg-[#ECFDF5] px-2 py-1 text-[11px] font-bold text-[#15803D]">
               <Flame className="h-3.5 w-3.5" aria-hidden="true" />
-              LIVE
+              {t.common.live}
             </div>
           </div>
 
@@ -402,12 +387,12 @@ function MobileLobbyOnePage() {
 }
 
 function MobileGameCard({ game }: { game: GameMetadata }) {
-  const { locale } = useTranslation();
+  const { locale, t } = useTranslation();
   const GameIcon = getGameIcon(game.id);
   const cover = getLobbyGameCover(game.id);
   const hall = gameHallMap.get(game.id);
-  const hallLabel = hall ? MOBILE_HALL_LABEL[hall] : '熱門';
-  const routeState = { returnTo: '/lobby', returnLabel: '大廳' };
+  const hallLabel = hall ? getLocalizedHallShort(hall, locale) : t.lobbyStats.mobileAllShort;
+  const routeState = { returnTo: '/lobby', returnLabel: t.common.lobby };
   const warmAssets = () => warmGameAssets(game.id);
   const title = getLocalizedGameTitle(game.id, locale, game.nameZh);
 

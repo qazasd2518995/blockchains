@@ -7,8 +7,7 @@ import { api, extractApiError } from '@/lib/api';
 import { AnnouncementTicker } from '@/components/home/AnnouncementTicker';
 import { BrandMark } from '@/components/layout/BrandMark';
 import { SiteFooter } from '@/components/layout/SiteFooter';
-import { SoundToggle } from '@/components/layout/SoundToggle';
-import { MusicToggle } from '@/components/layout/MusicToggle';
+import { AudioMenu } from '@/components/layout/AudioMenu';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useLiveBalance } from '@/hooks/useLiveBalance';
@@ -150,12 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <RefreshCw className="h-3.5 w-3.5 text-white/60" />
               </button>
 
-              <SoundToggle
-                variant="dark"
-                showLabel
-                className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden"
-              />
-              <MusicToggle
+              <AudioMenu
                 variant="dark"
                 showLabel
                 className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden"
@@ -174,12 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           ) : (
             <div className="flex shrink-0 items-center gap-2">
-              <SoundToggle
-                variant="dark"
-                showLabel
-                className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden"
-              />
-              <MusicToggle
+              <AudioMenu
                 variant="dark"
                 showLabel
                 className="max-sm:w-9 max-sm:px-0 max-sm:[&>span]:hidden"

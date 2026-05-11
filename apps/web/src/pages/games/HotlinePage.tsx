@@ -17,8 +17,7 @@ import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
 import { GameHeader } from '@/components/game/GameHeader';
-import { SoundToggle } from '@/components/layout/SoundToggle';
-import { MusicToggle } from '@/components/layout/MusicToggle';
+import { AudioMenu } from '@/components/layout/AudioMenu';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { HotlineScene } from '@/games/hotline/HotlineScene';
@@ -1333,8 +1332,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <History className="h-4 w-4" aria-hidden="true" />
               記錄
             </Link>
-            <SoundToggle variant="dark" />
-            <MusicToggle variant="dark" />
+            <AudioMenu variant="dark" />
           </header>
 
           <div className="mega-slot-body">

@@ -3,8 +3,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { ArrowLeft, History, Maximize2, RefreshCw, Smartphone, WalletCards, X } from 'lucide-react';
 import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
-import { SoundToggle } from '@/components/layout/SoundToggle';
-import { MusicToggle } from '@/components/layout/MusicToggle';
+import { AudioMenu } from '@/components/layout/AudioMenu';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
@@ -160,8 +159,7 @@ export function GameFullscreenShell() {
             {t.common.record}
           </Link>
 
-          <SoundToggle variant="dark" />
-          <MusicToggle variant="dark" />
+          <AudioMenu variant="dark" />
           <LanguageSwitcher variant="dark" compact />
 
           {isMegaSlot && !standaloneMode && (

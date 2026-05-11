@@ -39,6 +39,7 @@ export const zhHant = {
     skipToMain: '跳到主要內容',
     loginToBet: '登入下注',
     hall: '館別',
+    audio: '音訊',
     sound: '音效',
     soundOn: '開啟音效',
     soundOff: '關閉音效',
@@ -235,6 +236,8 @@ export const zhHant = {
     promoEyebrow: '廣告 · 介紹 · 活動',
     promoTitle: '老玩家投注滿額送',
     promoDescription: '熱門玩法、限時任務、會員優惠集中展示。',
+    mobileAllGames: '熱門遊戲',
+    mobileAllShort: '熱門',
   },
   feed: {
     instantBoard: '即時戰報',

@@ -202,7 +202,7 @@ function simplifyDict(value: unknown): unknown {
   return value;
 }
 
-function toSimplified(value: string): string {
+export function toSimplified(value: string): string {
   return Object.entries(TRADITIONAL_TO_SIMPLIFIED).reduce(
     (text, [traditional, simplified]) => text.split(traditional).join(simplified),
     value,

@@ -41,6 +41,7 @@ export const en = {
     skipToMain: 'Skip to main content',
     loginToBet: 'Log in to bet',
     hall: 'Hall',
+    audio: 'Audio',
     sound: 'Sound',
     soundOn: 'Turn sound on',
     soundOff: 'Turn sound off',
@@ -253,6 +254,8 @@ export const en = {
     promoEyebrow: 'Ad · Intro · Event',
     promoTitle: 'Full-bet rewards for returning players',
     promoDescription: 'Popular games, limited missions and member rewards in one place.',
+    mobileAllGames: 'Popular Games',
+    mobileAllShort: 'Hot',
   },
   feed: {
     instantBoard: 'Live Wins',

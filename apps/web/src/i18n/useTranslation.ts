@@ -20,6 +20,7 @@ import {
   type Dict,
   type Locale,
 } from './types';
+import { installLegacyDomLocalizer } from './legacyDomLocalizer';
 
 const STORAGE_KEY = 'bg.locale';
 
@@ -63,6 +64,8 @@ export function I18nProvider({ children }: { children: ReactNode }): JSX.Element
     document.documentElement.dir = 'ltr';
     localStorage.setItem(STORAGE_KEY, locale);
   }, [locale]);
+
+  useEffect(() => installLegacyDomLocalizer(locale), [locale]);
 
   const setLocale = useCallback((nextLocale: Locale) => {
     setLocaleState(nextLocale);
