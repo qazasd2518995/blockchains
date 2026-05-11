@@ -9,6 +9,7 @@ import { Sidebar } from './Sidebar';
 import { ProfileModal } from '@/components/shared/ProfileModal';
 import { ChangePasswordModal } from '@/components/shared/ChangePasswordModal';
 import { ADMIN_LIVE_REFRESH_EVENT } from '@/lib/adminRefreshEvents';
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 
 export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
   const { agent, accessToken, refreshToken, setAgent, logout } = useAdminAuthStore();
@@ -136,7 +137,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
               BG
             </span>
             <div className="hidden sm:block">
-              <div className="text-[18px] font-bold leading-none text-white">代理后台</div>
+              <div className="text-[18px] font-bold leading-none text-white">{t.shell.brand}</div>
               <div className="mt-1 text-[12px] text-[#DEBE66]">{t.shell.terminal}</div>
             </div>
           </Link>
@@ -148,6 +149,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
                 {agent?.displayName ?? agent?.username}
               </div>
             </div>
+            <LanguageSwitcher compact />
             <div className="flex min-h-11 min-w-0 items-center gap-2 rounded-sm border border-[#186073] bg-[#1A2530]/70 px-3 py-2 sm:gap-3 sm:px-4">
               <span className="font-mono text-[9px] tracking-[0.3em] text-[#DEBE66]">
                 {t.shell.balance}
@@ -186,7 +188,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
                     onClick={openProfile}
                     className="flex w-full items-center justify-between px-3 py-2 text-left text-[12px] text-[#E8D48A] transition hover:bg-[#0E4555]/70 hover:text-white"
                   >
-                    <span>个人资料</span>
+                    <span>{t.shell.profile}</span>
                     <span className="text-[#D0AC4D]">→</span>
                   </button>
                   <button
@@ -195,7 +197,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
                     onClick={openChangePassword}
                     className="flex w-full items-center justify-between border-t border-[#186073]/40 px-3 py-2 text-left text-[12px] text-[#E8D48A] transition hover:bg-[#0E4555]/70 hover:text-white"
                   >
-                    <span>更改密码</span>
+                    <span>{t.shell.changePassword}</span>
                     <span className="text-[#D0AC4D]">→</span>
                   </button>
                   <button

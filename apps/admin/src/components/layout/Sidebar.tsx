@@ -18,12 +18,16 @@ const items: {
 export function Sidebar(): JSX.Element {
   const { t } = useTranslation();
   const { agent } = useAdminAuthStore();
-  const visibleItems = items.filter((item) => !item.superAdminOnly || agent?.role === 'SUPER_ADMIN');
+  const visibleItems = items.filter(
+    (item) => !item.superAdminOnly || agent?.role === 'SUPER_ADMIN',
+  );
 
   return (
     <aside className="admin-nav-panel panel-felt w-full shrink-0 overflow-hidden p-3 lg:sticky lg:top-[132px] lg:h-[calc(100vh-164px)] lg:w-60 lg:p-4">
       <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
-        <span className="admin-nav-title font-semibold text-base text-[#DEBE66]">导航</span>
+        <span className="admin-nav-title font-semibold text-base text-[#DEBE66]">
+          {t.shell.navigation}
+        </span>
       </div>
       <nav className="admin-nav-links mt-3 flex gap-2 overflow-x-auto pb-1 lg:mt-4 lg:block lg:space-y-1.5 lg:overflow-visible lg:pb-0">
         {visibleItems.map((it) => (
@@ -44,7 +48,7 @@ export function Sidebar(): JSX.Element {
         ))}
       </nav>
       <div className="hidden border-t border-[#E5E7EB] pt-3 text-center font-semibold text-[12px] text-[#DEBE66] lg:absolute lg:bottom-4 lg:left-4 lg:right-4 lg:block">
-        v0.1 · BG 后台
+        v0.1 · {t.shell.brandShort}
       </div>
     </aside>
   );

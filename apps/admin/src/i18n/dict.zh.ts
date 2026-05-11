@@ -1,10 +1,12 @@
-export const dict = {
+export const zhHans = {
   common: {
     loading: '载入中',
     error: '错误',
     save: '保存',
     cancel: '取消',
     confirm: '确认',
+    close: '关闭',
+    closeDialog: '关闭对话框',
     create: '创建',
     delete: '删除',
     edit: '编辑',
@@ -28,11 +30,27 @@ export const dict = {
     more: '更多',
     empty: '暂无数据',
     logoutBtn: '登出',
+    language: '语言',
   },
   auth: {
     login: '登录',
     username: '代理账号',
     password: '密码',
+    currentPassword: '目前密码',
+    newPassword: '新密码',
+    confirmNewPassword: '确认新密码',
+    newPasswordHint: '新密码（至少 8 字，须含英文与数字）',
+    accountSecurity: '账户安全',
+    updatePassword: '更新密码',
+    passwordUpdated: '密码已更新',
+    currentPasswordRequired: '请输入目前密码',
+    newPasswordMin: '新密码至少 8 字',
+    newPasswordTooLong: '新密码过长',
+    newPasswordLetter: '新密码须包含英文字母',
+    newPasswordDigit: '新密码须包含数字',
+    confirmPasswordRequired: '请再次输入新密码',
+    newPasswordMismatch: '两次输入的新密码不一致',
+    newPasswordSame: '新密码不可与目前密码相同',
     authenticate: '验证身份',
     authenticating: '验证中',
     invalidCreds: '账号或密码错误',
@@ -41,6 +59,22 @@ export const dict = {
     subtitle: '代理运营管理系统',
     protocol: '系统协议',
     requiresAuth: '仅限授权代理 · 公开注册已关闭',
+    authorizedAgent: '授权代理',
+    heroEyebrow: '代理后台',
+    heroTitle: '代理管理平台，协助你掌握团队与会员账务。',
+    heroDescription:
+      '登录后可查看代理层级、会员资料、余额异动与报表记录，快速处理日常运营与账务确认。',
+    heroChipHierarchy: '代理层级',
+    heroChipMembers: '会员账务',
+    heroChipReports: '报表记录',
+    usernamePlaceholder: '请输入代理账号',
+    captcha: '验证码',
+    captchaPlaceholder: '4位数字',
+    captchaReload: '重新产生验证码',
+    captchaLoadFailed: '验证码载入失败，请重新整理页面',
+    captchaRequired: '请先取得验证码',
+    captchaDigits: '请输入4位数字',
+    required: '必填',
   },
   shell: {
     linkLive: '连线 · 在线',
@@ -53,6 +87,10 @@ export const dict = {
     level: '层级',
     rebate: '退水',
     navigation: '导航',
+    brand: '代理后台',
+    brandShort: 'BG 后台',
+    profile: '个人资料',
+    changePassword: '更改密码',
   },
   nav: {
     dashboard: '仪表板',
@@ -274,4 +312,6 @@ export const dict = {
   },
 };
 
-export type Dict = typeof dict;
+export const dict = zhHans;
+
+export type Dict = typeof zhHans;

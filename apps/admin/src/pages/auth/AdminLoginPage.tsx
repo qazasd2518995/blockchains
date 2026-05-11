@@ -7,11 +7,12 @@ import type { AdminAuthResponse, AdminCaptchaResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 
 const schema = z.object({
   username: z.string().min(1, { message: 'REQUIRED' }),
   password: z.string().min(1, { message: 'REQUIRED' }),
-  captchaCode: z.string().regex(/^\d{4}$/, { message: '请输入4位数字' }),
+  captchaCode: z.string().regex(/^\d{4}$/, { message: 'CAPTCHA_DIGITS' }),
 });
 
 type FormInput = z.infer<typeof schema>;
@@ -40,11 +41,11 @@ export function AdminLoginPage(): JSX.Element {
       setValue('captchaCode', '');
     } catch {
       setCaptcha(null);
-      setServerError('验证码载入失败，请重新整理页面');
+      setServerError(t.auth.captchaLoadFailed);
     } finally {
       setCaptchaLoading(false);
     }
-  }, [setValue]);
+  }, [setValue, t.auth.captchaLoadFailed]);
 
   useEffect(() => {
     void refreshCaptcha();
@@ -53,7 +54,7 @@ export function AdminLoginPage(): JSX.Element {
   const onSubmit = async (data: FormInput) => {
     setServerError(null);
     if (!captcha) {
-      setServerError('请先取得验证码');
+      setServerError(t.auth.captchaRequired);
       await refreshCaptcha();
       return;
     }
@@ -71,6 +72,12 @@ export function AdminLoginPage(): JSX.Element {
       setServerError(`${apiErr.code} · ${apiErr.message}`);
       await refreshCaptcha();
     }
+  };
+  const fieldError = (message?: string): string | undefined => {
+    if (!message) return undefined;
+    if (message === 'REQUIRED') return t.auth.required;
+    if (message === 'CAPTCHA_DIGITS') return t.auth.captchaDigits;
+    return message;
   };
 
   return (
@@ -92,11 +99,16 @@ export function AdminLoginPage(): JSX.Element {
             <span className="rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[20px] text-white shadow-[0_10px_24px_rgba(24,96,115,0.3)]">
               BG
             </span>
-            <span className="hidden text-[16px] font-bold text-white/90 sm:inline">代理后台</span>
+            <span className="hidden text-[16px] font-bold text-white/90 sm:inline">
+              {t.shell.brand}
+            </span>
           </div>
-          <span className="hidden rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62 sm:inline-flex">
-            授权代理
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="hidden rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/62 sm:inline-flex">
+              {t.auth.authorizedAgent}
+            </span>
+            <LanguageSwitcher compact />
+          </div>
         </div>
       </header>
 
@@ -105,23 +117,23 @@ export function AdminLoginPage(): JSX.Element {
           <section className="hidden min-w-0 xl:block">
             <div className="max-w-[760px]">
               <span className="inline-flex items-center rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-white/78">
-                代理后台
+                {t.auth.heroEyebrow}
               </span>
               <h1 className="mt-6 text-[50px] font-bold leading-[1.04] text-white">
-                代理管理平台，協助你掌握團隊與會員帳務。
+                {t.auth.heroTitle}
               </h1>
               <p className="mt-5 max-w-[580px] text-[17px] leading-8 text-white/72">
-                登入後可查看代理層級、會員資料、餘額異動與報表紀錄，快速處理日常營運與帳務確認。
+                {t.auth.heroDescription}
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <span className="inline-flex items-center rounded-full border border-[#C9A247]/36 bg-[#132233]/75 px-4 py-2 text-[13px] font-semibold text-[#EFD886]">
-                  代理層級
+                  {t.auth.heroChipHierarchy}
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
-                  會員帳務
+                  {t.auth.heroChipMembers}
                 </span>
                 <span className="inline-flex items-center rounded-full border border-white/12 bg-white/7 px-4 py-2 text-[13px] font-semibold text-white/80">
-                  報表紀錄
+                  {t.auth.heroChipReports}
                 </span>
               </div>
             </div>
@@ -134,20 +146,20 @@ export function AdminLoginPage(): JSX.Element {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <Field label={t.auth.username} error={errors.username?.message}>
+              <Field label={t.auth.username} error={fieldError(errors.username?.message)}>
                 <input
                   type="text"
                   autoComplete="username"
                   autoCapitalize="off"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="请输入代理账号"
+                  placeholder={t.auth.usernamePlaceholder}
                   className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25 sm:text-[14px]"
                   {...register('username')}
                 />
               </Field>
 
-              <Field label={t.auth.password} error={errors.password?.message}>
+              <Field label={t.auth.password} error={fieldError(errors.password?.message)}>
                 <input
                   type="password"
                   autoComplete="current-password"
@@ -157,20 +169,18 @@ export function AdminLoginPage(): JSX.Element {
                 />
               </Field>
 
-              <Field label="验证码" error={errors.captchaCode?.message}>
+              <Field label={t.auth.captcha} error={fieldError(errors.captchaCode?.message)}>
                 <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-2">
                   <input
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    placeholder="4位数字"
+                    placeholder={t.auth.captchaPlaceholder}
                     maxLength={4}
                     className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25 sm:text-[14px]"
                     {...register('captchaCode')}
                     onInput={(event) => {
-                      const next = event.currentTarget.value
-                        .replace(/\D/g, '')
-                        .slice(0, 4);
+                      const next = event.currentTarget.value.replace(/\D/g, '').slice(0, 4);
                       event.currentTarget.value = next;
                       setValue('captchaCode', next, { shouldValidate: true });
                     }}
@@ -180,7 +190,7 @@ export function AdminLoginPage(): JSX.Element {
                     onClick={() => void refreshCaptcha()}
                     disabled={captchaLoading}
                     className="rounded-[8px] border border-[#186073]/28 bg-[#F6FBFD] px-3 py-2.5 font-mono text-[18px] font-black tracking-[0.18em] text-[#186073] transition hover:bg-[#EAF6FA] disabled:cursor-wait disabled:opacity-60"
-                    aria-label="重新产生验证码"
+                    aria-label={t.auth.captchaReload}
                   >
                     {captchaLoading ? '----' : (captcha?.captchaCode ?? '----')}
                   </button>

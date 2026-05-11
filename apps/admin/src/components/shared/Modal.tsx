@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from '@/i18n/useTranslation';
 
 interface Props {
   open: boolean;
@@ -14,14 +15,24 @@ interface Props {
 
 const widthMap = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-[95vw]' };
 
-export function Modal({ open, onClose, title, subtitle, children, footer, width = 'md' }: Props): JSX.Element | null {
+export function Modal({
+  open,
+  onClose,
+  title,
+  subtitle,
+  children,
+  footer,
+  width = 'md',
+}: Props): JSX.Element | null {
+  const { t } = useTranslation();
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const lastActiveRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    lastActiveRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    lastActiveRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -46,7 +57,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
       <div className="relative flex min-h-full items-start justify-center px-3 py-4 sm:px-4 sm:py-10">
         <button
           type="button"
-          aria-label="关闭对话框"
+          aria-label={t.common.closeDialog}
           className="absolute inset-0 h-full w-full cursor-default bg-[#1A2530]/70 backdrop-blur"
           onClick={onClose}
         />
@@ -61,18 +72,22 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
           <div className="flex items-start justify-between gap-3 border-b border-[#E5E7EB] px-4 py-4 sm:px-6">
             <div className="min-w-0">
               <div className="flex items-baseline gap-2">
-                <span id={titleId} className="font-semibold text-base text-[#186073]">{title}</span>
+                <span id={titleId} className="font-semibold text-base text-[#186073]">
+                  {title}
+                </span>
                 <span className="text-xs text-[#C9A247]">◆</span>
               </div>
               {subtitle && (
-                <div className="mt-1 break-words font-semibold text-xl text-[#0F172A] sm:text-2xl">{subtitle}</div>
+                <div className="mt-1 break-words font-semibold text-xl text-[#0F172A] sm:text-2xl">
+                  {subtitle}
+                </div>
               )}
             </div>
             <button
               type="button"
               onClick={onClose}
               className="btn-teal-outline text-[11px]"
-              aria-label="关闭对话框"
+              aria-label={t.common.closeDialog}
             >
               [ESC]
             </button>

@@ -16,21 +16,21 @@ function formatDec(s: string | null | undefined): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function formatDateTime(iso: string | null | undefined): string {
+function formatDateTime(iso: string | null | undefined, locale: string): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('zh-Hans', { hour12: false });
+  return d.toLocaleString(locale, { hour12: false });
 }
 
-function formatRole(role: AgentPublic['role']): string {
+function formatRole(role: AgentPublic['role'], t: ReturnType<typeof useTranslation>['t']): string {
   switch (role) {
     case 'SUPER_ADMIN':
-      return '超级管理员';
+      return t.shell.super;
     case 'AGENT':
-      return '代理';
+      return t.agents.typeAgent;
     case 'SUB_ACCOUNT':
-      return '子账号';
+      return t.nav.subAccounts;
     default:
       return role;
   }
@@ -38,7 +38,7 @@ function formatRole(role: AgentPublic['role']): string {
 
 export function ProfileModal({ open, onClose }: Props): JSX.Element {
   const { agent, setAgent } = useAdminAuthStore();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -59,10 +59,14 @@ export function ProfileModal({ open, onClose }: Props): JSX.Element {
   }, [open, setAgent]);
 
   return (
-    <Modal open={open} onClose={onClose} title="个人资料" subtitle={agent?.displayName ?? agent?.username ?? '—'} width="md">
-      {loading && (
-        <div className="mb-3 text-[12px] text-ink-500">{t.common.loading}…</div>
-      )}
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t.shell.profile}
+      subtitle={agent?.displayName ?? agent?.username ?? '—'}
+      width="md"
+    >
+      {loading && <div className="mb-3 text-[12px] text-ink-500">{t.common.loading}…</div>}
       {err && (
         <div className="mb-3 border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
           ⚠ {err}
@@ -71,31 +75,54 @@ export function ProfileModal({ open, onClose }: Props): JSX.Element {
 
       {agent && (
         <div className="space-y-4">
-          <Section title="基本资料">
-            <Row label="ID" value={<span className="font-mono text-[12px] text-ink-700">{agent.id}</span>} />
-            <Row label="账号" value={<span className="font-mono">{agent.username}</span>} />
-            <Row label="显示名称" value={agent.displayName ?? '—'} />
-            <Row label="角色" value={formatRole(agent.role)} />
-            <Row label="下注额度" value={<span className="font-mono">{agent.bettingLimitLevel}</span>} />
+          <Section title={t.shell.profile}>
+            <Row
+              label="ID"
+              value={<span className="font-mono text-[12px] text-ink-700">{agent.id}</span>}
+            />
+            <Row
+              label={t.agents.account}
+              value={<span className="font-mono">{agent.username}</span>}
+            />
+            <Row label={t.agents.displayName} value={agent.displayName ?? '—'} />
+            <Row label={t.agents.type} value={formatRole(agent.role, t)} />
+            <Row
+              label={t.agents.bettingLimit}
+              value={<span className="font-mono">{agent.bettingLimitLevel}</span>}
+            />
           </Section>
 
-          <Section title="财务">
+          <Section title={t.shell.balance}>
             <Row
-              label="账户余额"
+              label={t.dashboard.balance}
               value={<span className="data-num text-[#186073]">{formatDec(agent.balance)}</span>}
             />
           </Section>
 
-          <Section title="登录">
-            <Row label="最后登录" value={<span className="font-mono text-[12px]">{formatDateTime(agent.lastLoginAt)}</span>} />
-            <Row label="创建时间" value={<span className="font-mono text-[12px]">{formatDateTime(agent.createdAt)}</span>} />
+          <Section title={t.auth.login}>
+            <Row
+              label={t.agents.lastLogin}
+              value={
+                <span className="font-mono text-[12px]">
+                  {formatDateTime(agent.lastLoginAt, locale)}
+                </span>
+              }
+            />
+            <Row
+              label={t.agents.createdAt}
+              value={
+                <span className="font-mono text-[12px]">
+                  {formatDateTime(agent.createdAt, locale)}
+                </span>
+              }
+            />
           </Section>
         </div>
       )}
 
       <div className="mt-5 flex items-center gap-2">
         <button type="button" onClick={onClose} className="btn-teal-outline">
-          [关闭]
+          [{t.common.close}]
         </button>
       </div>
     </Modal>
