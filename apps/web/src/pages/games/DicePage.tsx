@@ -157,6 +157,22 @@ export function DicePage() {
                   </span>
                 </div>
               </div>
+
+              {lastResult && (
+                <div
+                  className={`dice-mobile-result-pill ${
+                    lastResult.won
+                      ? 'dice-mobile-result-pill--win'
+                      : 'dice-mobile-result-pill--loss'
+                  }`}
+                >
+                  <span>{lastResult.won ? t.games.dice.win : t.games.dice.loss}</span>
+                  <strong>
+                    {Number.parseFloat(lastResult.profit) >= 0 ? '+' : ''}
+                    {formatAmount(lastResult.profit)}
+                  </strong>
+                </div>
+              )}
             </div>
 
             {/* 滑桿 + 方向 toggle（緊貼畫布底部，免滾動） */}
@@ -202,7 +218,9 @@ export function DicePage() {
 
           {lastResult && (
             <div
-              className={`game-result-card ${lastResult.won ? 'game-result-card-win' : 'game-result-card-loss'}`}
+              className={`dice-result-card game-result-card ${
+                lastResult.won ? 'game-result-card-win' : 'game-result-card-loss'
+              }`}
             >
               <div className="flex items-baseline justify-between">
                 <div className="flex items-baseline gap-3">

@@ -82,7 +82,7 @@ export const zhHant = {
     ],
   },
   announcements: {
-    latest: '最新公告',
+    latest: '公告',
     items: [
       '系統維護升級公告',
       '新遊戲 JetX3 震撼上架',

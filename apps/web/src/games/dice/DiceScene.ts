@@ -376,7 +376,7 @@ export class DiceScene {
     if (!this.app) return;
     const style = new TextStyle({
       fontFamily: GAME_FONT,
-      fontSize: Math.round(this.height * 0.22),
+      fontSize: Math.round(this.height * 0.18),
       fontWeight: '400',
       fill: COLOR_WHITE,
       align: 'center',
@@ -392,7 +392,7 @@ export class DiceScene {
     const label = new Text({ text: '—', style });
     label.anchor.set(0.5);
     label.x = this.width / 2;
-    label.y = this.height * 0.8;
+    label.y = this.height * 0.72;
     label.alpha = 0.22;
     this.rollLabel = label;
     this.app.stage.addChild(label);
