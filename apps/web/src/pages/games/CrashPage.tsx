@@ -778,6 +778,7 @@ export function CrashPage({ config }: Props) {
   const canShowCurrentBetButton = status === 'BETTING' && !myBet && !queuedBet;
   const canShowNextRoundBetButton = status !== 'BETTING';
   const stageHistory = history.slice(0, 12);
+  const mobileLiveBetRows = players.slice(0, 4);
   const autoBetDialog = autoBetOpen ? (
     <div
       className="slot-auto-modal crash-auto-modal"
@@ -935,6 +936,34 @@ export function CrashPage({ config }: Props) {
                   ))}
                 </div>
               )}
+              <div className="crash-mobile-live-bets" aria-label={t.games.crash.liveBets}>
+                <div className="crash-mobile-live-bets__header">
+                  <span>{t.games.crash.liveBets}</span>
+                  <strong>
+                    {t.games.crash.liveReal} · {players.length}
+                  </strong>
+                </div>
+                <div className="crash-mobile-live-bets__table">
+                  <div>{t.games.crash.livePlayer}</div>
+                  <div>{t.games.crash.liveStake}</div>
+                  <div>{t.games.crash.liveCashout}</div>
+                  {mobileLiveBetRows.length === 0 ? (
+                    <span className="crash-mobile-live-bets__empty">{t.games.crash.liveEmpty}</span>
+                  ) : (
+                    mobileLiveBetRows.map((p, i) => (
+                      <div className="crash-mobile-live-bets__row" key={`${p.userId}-${i}`}>
+                        <span>0x{p.userId.slice(-4).toUpperCase()}</span>
+                        <span className="data-num">{p.amount}</span>
+                        <span className={p.cashedOutAt ? 'text-[#6EE7B7]' : 'text-white/55'}>
+                          {p.cashedOutAt
+                            ? formatCrashMultiplier(p.cashedOutAt)
+                            : t.games.crash.liveWaiting}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 

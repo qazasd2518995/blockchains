@@ -143,7 +143,7 @@ export function RoulettePage({ variant }: Props) {
 
       <div className="game-play-grid game-play-grid--roulette grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="game-main-stack space-y-4">
-          <div className="game-stage-panel scanlines p-3">
+          <div className="game-stage-panel roulette-stage-panel scanlines p-3">
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">
                 {isMini ? '迷你輪盤' : '狂歡節'}
@@ -156,7 +156,7 @@ export function RoulettePage({ variant }: Props) {
             </div>
 
             <div
-              className="game-canvas-shell game-canvas-tall relative mx-auto mt-3 aspect-square w-full max-w-[720px] p-2 sm:p-3"
+              className="game-canvas-shell game-canvas-tall roulette-canvas relative mx-auto mt-3 aspect-square w-full max-w-[720px] p-2 sm:p-3"
               style={{ width: 'min(100%, 720px, 76svh)', maxHeight: 'none' }}
             >
               <canvas ref={canvasRef} className="h-full w-full" />
@@ -219,7 +219,7 @@ export function RoulettePage({ variant }: Props) {
           {result && (
             <div
               key={result.betId}
-              className={`game-result-card animate-reveal ${
+              className={`game-result-card roulette-result-card animate-reveal ${
                 Number.parseFloat(result.profit) >= 0
                   ? 'game-result-card-win'
                   : 'game-result-card-loss'
@@ -255,7 +255,7 @@ export function RoulettePage({ variant }: Props) {
         </div>
 
         <div className="game-control-stack space-y-4">
-          <div className="game-side-card p-5">
+          <div className="game-side-card roulette-control-card p-5">
             <div className="label">{t.games.roulette.chipSize}</div>
             <div className="mt-2 grid grid-cols-4 gap-1">
               {[10, 100, 1000, 10000].map((v) => (

@@ -96,6 +96,44 @@
     color: #f3d67d;
   }
 
+  .crash-mobile-live-bets {
+    display: none;
+  }
+
+  .game-activity-heat {
+    pointer-events: none;
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 4.35rem);
+    left: max(1rem, calc(50vw - 42rem));
+    z-index: 38;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.34rem;
+    border: 1px solid rgba(125, 211, 252, 0.22);
+    border-radius: 999px;
+    background: rgba(7, 16, 28, 0.68);
+    padding: 0.32rem 0.56rem;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 10px 26px rgba(0, 0, 0, 0.26);
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    backdrop-filter: blur(10px);
+  }
+
+  .game-activity-heat svg {
+    color: #8fe7ff;
+  }
+
+  .game-activity-heat strong {
+    color: #f3d67d;
+    font-size: 0.78rem;
+    letter-spacing: 0;
+  }
+
   .dice-mobile-result-pill {
     pointer-events: none;
     position: absolute;
@@ -417,6 +455,19 @@
       font-size: 14px !important;
     }
 
+    .game-fullscreen-shell .game-activity-heat {
+      top: calc(env(safe-area-inset-top) + 3.42rem);
+      left: clamp(7.1rem, 32vw, 13rem);
+      max-width: 6.8rem;
+      gap: 0.26rem;
+      padding: 0.3rem 0.48rem;
+      font-size: 0.62rem;
+    }
+
+    .game-fullscreen-shell .game-activity-heat strong {
+      font-size: 0.72rem;
+    }
+
     .game-fullscreen-shell > main {
       height: calc(100svh - 3rem - env(safe-area-inset-top));
       min-height: 0;
@@ -550,6 +601,87 @@
     .game-fullscreen-shell .game-canvas-tall {
       min-height: 0 !important;
       max-height: none !important;
+    }
+
+    .game-fullscreen-shell .crash-mobile-live-bets {
+      pointer-events: none;
+      position: absolute;
+      right: 0.55rem;
+      bottom: 0.55rem;
+      left: 0.55rem;
+      z-index: 8;
+      display: grid;
+      gap: 0.25rem;
+      border: 1px solid rgba(125, 211, 252, 0.18);
+      border-radius: 0.72rem;
+      background: rgba(7, 16, 28, 0.62);
+      padding: 0.42rem 0.5rem;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 14px 28px rgba(0, 0, 0, 0.26);
+      color: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(10px);
+    }
+
+    .game-fullscreen-shell .crash-mobile-live-bets__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.4rem;
+      font-size: 9px;
+      font-weight: 950;
+      letter-spacing: 0.14em;
+      line-height: 1;
+      color: rgba(232, 212, 138, 0.9);
+    }
+
+    .game-fullscreen-shell .crash-mobile-live-bets__header strong {
+      font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+      color: #8fe7ff;
+    }
+
+    .game-fullscreen-shell .crash-mobile-live-bets__table {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(4.1rem, 0.8fr) minmax(3.9rem, 0.7fr);
+      align-items: center;
+      gap: 0.16rem 0.35rem;
+      overflow: hidden;
+      font-size: 9px;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell .crash-mobile-live-bets__table > div:not(.crash-mobile-live-bets__row) {
+      color: rgba(255, 255, 255, 0.38);
+      font-weight: 900;
+      letter-spacing: 0.08em;
+    }
+
+    .game-fullscreen-shell .crash-mobile-live-bets__row {
+      display: contents;
+    }
+
+    .game-fullscreen-shell .crash-mobile-live-bets__row > span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+      font-size: 10px;
+      font-weight: 850;
+    }
+
+    .game-fullscreen-shell .crash-mobile-live-bets__row > span:nth-child(2) {
+      color: #f3d67d;
+    }
+
+    .game-fullscreen-shell .crash-mobile-live-bets__empty {
+      grid-column: 1 / -1;
+      padding: 0.16rem 0 0.05rem;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.42);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
     }
 
     .game-fullscreen-shell .game-main-stack > .game-result-card {
@@ -790,6 +922,49 @@
       padding: 0.32rem 0.5rem;
       border-radius: 9px;
       font-size: 9px;
+    }
+
+    .game-fullscreen-shell .game-control-stack .plinko-auto-bot-button {
+      min-height: 40px;
+      border-radius: 11px;
+      padding: 0.38rem 0.5rem !important;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell .game-control-stack .plinko-auto-bot-button span,
+    .game-fullscreen-shell .game-control-stack .plinko-auto-bot-button strong {
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+
+    .game-fullscreen-shell .game-control-stack .plinko-auto-bot-status {
+      margin-top: 0.35rem;
+      padding: 0.32rem 0.5rem;
+      border-radius: 9px;
+      font-size: 9px;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-control-card,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-control-card {
+      padding: 0.48rem 0.58rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-balls-control,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-balls-control {
+      margin-top: 0.42rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-balls-control .mb-2,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-balls-control .mb-2 {
+      margin-bottom: 0.32rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-balls-grid .game-choice-btn,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-balls-grid .game-choice-btn {
+      min-height: 36px;
+      padding-top: 0.32rem !important;
+      padding-bottom: 0.32rem !important;
+      font-size: 10px;
     }
 
     .game-fullscreen-shell .game-control-stack .mt-6,
@@ -1212,29 +1387,32 @@
     }
 
     .game-fullscreen-shell .roulette-board {
-      margin-top: 0.28rem !important;
+      margin-top: 0.32rem !important;
       display: grid;
-      gap: 0.28rem !important;
+      gap: 0.22rem !important;
     }
 
     .game-fullscreen-shell .roulette-number-grid,
     .game-fullscreen-shell .roulette-outside-grid,
     .game-fullscreen-shell .roulette-column-grid {
-      gap: 0.25rem !important;
+      gap: 0.22rem !important;
     }
 
     .game-fullscreen-shell .roulette-number-grid button,
     .game-fullscreen-shell .roulette-outside-grid button,
     .game-fullscreen-shell .roulette-column-grid button {
-      min-height: 40px;
-      border-radius: 9px;
-      padding: 0.4rem 0.2rem;
-      font-size: 12px;
+      aspect-ratio: auto !important;
+      min-height: 34px !important;
+      height: 34px !important;
+      border-radius: 8px !important;
+      padding: 0.18rem 0.12rem !important;
+      font-size: 12px !important;
+      line-height: 1 !important;
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .game-control-stack,
     .game-fullscreen-shell[data-game-id='carnival'] .game-control-stack {
-      max-height: min(48svh, 290px);
+      max-height: min(30svh, 184px);
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette']
@@ -1243,9 +1421,9 @@
     .game-fullscreen-shell[data-game-id='carnival']
       .game-control-stack
       > .game-side-card:first-child {
-      max-height: min(48svh, 290px);
+      max-height: min(30svh, 184px);
       overflow-y: auto;
-      padding: 0.5rem 0.6rem !important;
+      padding: 0.42rem 0.55rem !important;
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-active-bets,
@@ -1255,14 +1433,44 @@
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .game-stage-panel > .game-canvas-shell,
     .game-fullscreen-shell[data-game-id='carnival'] .game-stage-panel > .game-canvas-shell {
-      flex: 1 1 145px;
-      min-height: 128px !important;
-      padding: 0.25rem !important;
+      flex: 1 1 clamp(200px, 34svh, 330px);
+      min-height: clamp(190px, 31svh, 310px) !important;
+      padding: 0.2rem !important;
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .game-control-stack .game-choice-btn,
     .game-fullscreen-shell[data-game-id='carnival'] .game-control-stack .game-choice-btn {
-      min-height: 44px;
+      min-height: 34px !important;
+      padding-top: 0.28rem !important;
+      padding-bottom: 0.28rem !important;
+      font-size: 10px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-control-card .label,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-control-card .label {
+      font-size: 9px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-control-card .btn-acid,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-control-card .btn-acid {
+      min-height: 40px !important;
+      border-radius: 11px !important;
+      padding-top: 0.36rem !important;
+      padding-bottom: 0.36rem !important;
+      font-size: 11px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-control-card .game-balance-strip,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-control-card .game-balance-strip {
+      padding-top: 0.25rem !important;
+      font-size: 9px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-result-card,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-result-card {
+      height: 44px !important;
+      max-height: 44px !important;
     }
 
     .game-fullscreen-shell[data-game-id='tower'] .tower-difficulty-control {
@@ -3604,6 +3812,76 @@
 
 .crash-auto-presets {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.plinko-auto-bot-button {
+  width: 100%;
+  border-color: rgba(125, 211, 252, 0.42);
+  background:
+    radial-gradient(circle at 50% 36%, rgba(125, 211, 252, 0.16), transparent 62%),
+    rgba(20, 31, 50, 0.74);
+}
+
+.plinko-auto-bot-button--active {
+  border-color: rgba(243, 214, 125, 0.58);
+  background:
+    radial-gradient(circle at 50% 36%, rgba(243, 214, 125, 0.22), transparent 62%),
+    rgba(92, 70, 38, 0.78);
+  color: #fff3b8;
+}
+
+.plinko-auto-bot-status {
+  margin-top: 8px;
+}
+
+.plinko-balls-control .data-num {
+  white-space: nowrap;
+}
+
+.plinko-balls-grid .game-choice-btn {
+  min-width: 0;
+}
+
+.plinko-auto-modal__panel {
+  width: min(560px, calc(100vw - 24px));
+}
+
+.plinko-auto-section {
+  display: grid;
+  gap: 8px;
+}
+
+.plinko-auto-section__title {
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  color: #86efac;
+}
+
+.plinko-auto-presets {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.plinko-auto-presets--rounds {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.plinko-auto-readonly {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(5, 10, 19, 0.44);
+  padding: 0 12px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 14px;
+  font-weight: 850;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.plinko-auto-custom {
+  margin-top: 2px;
 }
 
 .slot-auto-modal {

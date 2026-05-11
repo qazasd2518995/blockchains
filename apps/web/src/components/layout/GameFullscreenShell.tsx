@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { ArrowLeft, History, Maximize2, RefreshCw, Smartphone, WalletCards, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  History,
+  Maximize2,
+  RefreshCw,
+  Smartphone,
+  UsersRound,
+  WalletCards,
+  X,
+} from 'lucide-react';
 import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { AudioMenu } from '@/components/layout/AudioMenu';
@@ -187,6 +196,12 @@ export function GameFullscreenShell() {
         </div>
       </header>
 
+      <GameActivityHeat
+        gameId={game.id}
+        label={t.common.activityHeat}
+        ariaLabel={t.common.activityHeatLabel}
+      />
+
       <main className="relative z-10 mx-auto w-full max-w-[1920px] px-0 py-2 sm:px-4 sm:py-3 xl:px-5">
         <Outlet />
       </main>
@@ -220,6 +235,58 @@ export function GameFullscreenShell() {
       )}
     </div>
   );
+}
+
+function GameActivityHeat({
+  gameId,
+  label,
+  ariaLabel,
+}: {
+  gameId: string;
+  label: string;
+  ariaLabel: string;
+}) {
+  const [count, setCount] = useState(() => getInitialActivityHeat(gameId));
+
+  useEffect(() => {
+    setCount(getInitialActivityHeat(gameId));
+    const timer = window.setInterval(
+      () => {
+        setCount((current) => {
+          const delta = Math.floor(Math.random() * 7) - 3;
+          const nextDelta = delta === 0 ? 1 : delta;
+          return clampActivityHeat(current + nextDelta);
+        });
+      },
+      2600 + (hashString(gameId) % 1100),
+    );
+    return () => window.clearInterval(timer);
+  }, [gameId]);
+
+  return (
+    <div className="game-activity-heat" aria-label={`${ariaLabel} ${count}`}>
+      <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />
+      <span>{label}</span>
+      <strong className="data-num">{count}</strong>
+    </div>
+  );
+}
+
+function getInitialActivityHeat(gameId: string): number {
+  return 10 + (hashString(gameId) % 51);
+}
+
+function clampActivityHeat(value: number): number {
+  return Math.max(10, Math.min(60, value));
+}
+
+function hashString(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash >>> 0);
 }
 
 async function requestImmersiveMode(target: HTMLElement): Promise<boolean> {

@@ -103,6 +103,7 @@ export class PlinkoScene {
   private betAmount = 0;
 
   private balls: Ball[] = [];
+  private anticipationBalls: Graphics[] = [];
   private particleList: Particle[] = [];
   private backgroundTexture: Texture | null = null;
 
@@ -495,20 +496,19 @@ export class PlinkoScene {
    * 樂觀動畫：按下 DROP 立刻呼叫，播「準備球」從頂部浮現並脈動等待 API 回應。
    * API 回來時呼叫 dropBall(...) 真正釋放。
    */
-  private anticipationBall: Graphics | null = null;
-  startAnticipation(): void {
-    if (!this.ballsContainer) return;
-    this.stopAnticipation();
+  startAnticipation(): Graphics | null {
+    if (!this.ballsContainer) return null;
     const g = new Graphics();
     g.circle(0, 0, this.ballRadius)
       .fill({ color: COLOR_AMBER })
       .stroke({ color: COLOR_INK, width: 1.5 });
-    g.x = this.pathStartX();
+    const pendingOffset = (this.anticipationBalls.length % 5) - 2;
+    g.x = this.pathStartX() + pendingOffset * Math.max(2, this.ballRadius * 0.42);
     g.y = this.boardTop - 14;
     g.alpha = 0;
     g.scale.set(0.6);
     this.ballsContainer.addChild(g);
-    this.anticipationBall = g;
+    this.anticipationBalls.push(g);
     gsap.to(g, { alpha: 1, duration: 0.2, ease: 'power2.out' });
     gsap.to(g.scale, {
       x: 1,
@@ -526,29 +526,49 @@ export class PlinkoScene {
       repeat: -1,
       delay: 0.2,
     });
+    return g;
   }
 
-  private stopAnticipation(): void {
-    if (this.anticipationBall) {
-      gsap.killTweensOf(this.anticipationBall);
-      gsap.killTweensOf(this.anticipationBall.scale);
-      this.ballsContainer?.removeChild(this.anticipationBall);
-      this.anticipationBall.destroy();
-      this.anticipationBall = null;
+  cancelAnticipation(ball: Graphics | null | undefined): void {
+    this.stopAnticipation(ball);
+  }
+
+  private claimAnticipation(ball: Graphics | null | undefined): Graphics | null {
+    if (!ball) return null;
+    const index = this.anticipationBalls.indexOf(ball);
+    if (index < 0) return null;
+    this.anticipationBalls.splice(index, 1);
+    gsap.killTweensOf(ball);
+    gsap.killTweensOf(ball.scale);
+    return ball;
+  }
+
+  private stopAnticipation(ball?: Graphics | null): void {
+    const targets = ball ? [ball] : this.anticipationBalls.slice();
+    for (const target of targets) {
+      const index = this.anticipationBalls.indexOf(target);
+      if (index >= 0) this.anticipationBalls.splice(index, 1);
+      gsap.killTweensOf(target);
+      gsap.killTweensOf(target.scale);
+      this.ballsContainer?.removeChild(target);
+      target.destroy();
     }
   }
 
   /**
    * 丟一顆球
    */
-  async dropBall(path: ('left' | 'right')[], bucket: number, multiplier: number): Promise<void> {
+  async dropBall(
+    path: ('left' | 'right')[],
+    bucket: number,
+    multiplier: number,
+    anticipationBall?: Graphics | null,
+  ): Promise<void> {
     if (!this.ballsContainer) return;
 
-    // 清除預告球
-    this.stopAnticipation();
-
     return new Promise<void>((resolve) => {
-      const g = new Graphics();
+      const g = this.claimAnticipation(anticipationBall) ?? new Graphics();
+      g.clear();
       // 球
       g.circle(0, 0, this.ballRadius)
         .fill({ color: COLOR_AMBER })
@@ -559,7 +579,9 @@ export class PlinkoScene {
       });
       g.x = this.pathStartX();
       g.y = this.boardTop - 10;
-      this.ballsContainer?.addChild(g);
+      g.alpha = 1;
+      g.scale.set(1);
+      if (!g.parent) this.ballsContainer?.addChild(g);
 
       this.balls.push({
         g,
@@ -768,6 +790,7 @@ export class PlinkoScene {
     this.pegsContainer = null;
     this.bucketsContainer = null;
     this.ballsContainer = null;
+    this.anticipationBalls = [];
     this.particles = null;
     this.shockwaves = null;
     this.balls = [];
