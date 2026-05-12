@@ -27,8 +27,6 @@ const schema = z.object({
   displayName: z.string().max(40).optional(),
   rebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']),
   rebatePercentageDisplay: z.string().regex(/^\d+(\.\d+)?$/, '请填写有效百分比'),
-  baccaratRebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']),
-  baccaratRebatePercentageDisplay: z.string().regex(/^\d+(\.\d+)?$/, '请填写有效百分比'),
   bettingLimitLevel: z.enum(['level1', 'level2', 'level3', 'level4', 'level5', 'unlimited']),
   notes: z.string().max(500).optional(),
 });
@@ -78,15 +76,12 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
       parentId: resolvedParentId,
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
-      baccaratRebateMode: 'PERCENTAGE',
-      baccaratRebatePercentageDisplay: '0',
       bettingLimitLevel: 'level3',
     },
   });
 
   const watchedParentId = watch('parentId');
   const watchedRebateMode = watch('rebateMode');
-  const watchedBaccaratRebateMode = watch('baccaratRebateMode');
 
   useEffect(() => {
     if (!open) return;
@@ -98,8 +93,6 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
       displayName: '',
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
-      baccaratRebateMode: 'PERCENTAGE',
-      baccaratRebatePercentageDisplay: '0',
       bettingLimitLevel: normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? 'level3',
       notes: '',
     });
@@ -147,9 +140,6 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
   const electronicParentMaxPct = selectedParent
     ? getEffectiveParentRebatePct(selectedParent, 'electronic')
     : null;
-  const baccaratParentMaxPct = selectedParent
-    ? getEffectiveParentRebatePct(selectedParent, 'baccarat')
-    : null;
 
   useEffect(() => {
     if (!open || electronicParentMaxPct === null) return;
@@ -160,19 +150,10 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
     }
   }, [open, electronicParentMaxPct, setValue, watchedRebateMode]);
 
-  useEffect(() => {
-    if (!open || baccaratParentMaxPct === null) return;
-    if (watchedBaccaratRebateMode === 'ALL') {
-      setValue('baccaratRebatePercentageDisplay', '0.00');
-    } else if (watchedBaccaratRebateMode === 'NONE') {
-      setValue('baccaratRebatePercentageDisplay', baccaratParentMaxPct.toFixed(2));
-    }
-  }, [open, baccaratParentMaxPct, setValue, watchedBaccaratRebateMode]);
-
   const onSubmit = async (data: FormInput) => {
     setErr(null);
 
-    if (electronicParentMaxPct === null || baccaratParentMaxPct === null) {
+    if (electronicParentMaxPct === null) {
       setErr('正在读取当前层级可分配退水，请稍后再试');
       return;
     }
@@ -181,13 +162,6 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
       const pctNum = Number.parseFloat(data.rebatePercentageDisplay);
       if (pctNum > electronicParentMaxPct + 1e-6) {
         setErr(`电子退水比例不可超过 ${electronicParentMaxPct.toFixed(2)}%`);
-        return;
-      }
-    }
-    if (data.baccaratRebateMode === 'PERCENTAGE') {
-      const pctNum = Number.parseFloat(data.baccaratRebatePercentageDisplay);
-      if (pctNum > baccaratParentMaxPct + 1e-6) {
-        setErr(`百家乐退水比例不可超过 ${baccaratParentMaxPct.toFixed(2)}%`);
         return;
       }
     }
@@ -204,11 +178,6 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
         data.rebatePercentageDisplay,
         electronicParentMaxPct,
       );
-      const baccaratRebateFraction = rebateFractionForMode(
-        data.baccaratRebateMode,
-        data.baccaratRebatePercentageDisplay,
-        baccaratParentMaxPct,
-      );
       const res = await adminApi.post<AgentPublic>('/agents', {
         parentId: data.parentId,
         username: data.username,
@@ -217,8 +186,8 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
         level: parent.level + 1,
         rebateMode: data.rebateMode,
         rebatePercentage: electronicRebateFraction,
-        baccaratRebateMode: data.baccaratRebateMode,
-        baccaratRebatePercentage: baccaratRebateFraction,
+        baccaratRebateMode: 'PERCENTAGE',
+        baccaratRebatePercentage: '0.0000',
         bettingLimitLevel: data.bettingLimitLevel,
         notes: data.notes || undefined,
       });
@@ -300,23 +269,7 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
           parentMaxPct={electronicParentMaxPct}
         />
 
-        <RebateEditor
-          title="百家乐退水"
-          codePrefix="07"
-          description={
-            baccaratParentMaxPct === null
-              ? '读取当前层级可分配退水中。'
-              : `当前层级最多可往下分配 ${baccaratParentMaxPct.toFixed(2)}%，百家乐单独计算。`
-          }
-          modeError={errors.baccaratRebateMode?.message}
-          amountError={errors.baccaratRebatePercentageDisplay?.message}
-          modeRegister={register('baccaratRebateMode')}
-          amountRegister={register('baccaratRebatePercentageDisplay')}
-          mode={watchedBaccaratRebateMode}
-          parentMaxPct={baccaratParentMaxPct}
-        />
-
-        <Field label="限红等级" code="09" error={errors.bettingLimitLevel?.message}>
+        <Field label="限红等级" code="07" error={errors.bettingLimitLevel?.message}>
           <select {...register('bettingLimitLevel')} className="term-input">
             <option value="level1">新手（单注 100）</option>
             <option value="level2">一般（单注 500）</option>
@@ -327,7 +280,7 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
           </select>
         </Field>
 
-        <Field label="备注" code="10" error={errors.notes?.message}>
+        <Field label="备注" code="08" error={errors.notes?.message}>
           <textarea rows={2} {...register('notes')} className="term-input resize-none" placeholder="备注说明（选填）" />
         </Field>
 

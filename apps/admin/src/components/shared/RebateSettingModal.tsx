@@ -21,9 +21,6 @@ interface AgentDetail {
   rebateMode: RebateMode;
   rebatePercentage: string;
   maxRebatePercentage: string;
-  baccaratRebateMode: RebateMode;
-  baccaratRebatePercentage: string;
-  maxBaccaratRebatePercentage: string;
 }
 
 const rebateModeLabel: Record<RebateMode, string> = {
@@ -36,8 +33,6 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
   const [detail, setDetail] = useState<AgentDetail | null>(null);
   const [electronicMode, setElectronicMode] = useState<RebateMode>('PERCENTAGE');
   const [electronicPctDisplay, setElectronicPctDisplay] = useState('0.00');
-  const [baccaratMode, setBaccaratMode] = useState<RebateMode>('PERCENTAGE');
-  const [baccaratPctDisplay, setBaccaratPctDisplay] = useState('0.00');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -51,16 +46,9 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
         const next = res.data;
         setDetail(next);
         const electronicMaxPct = fractionToPctStr(next.maxRebatePercentage);
-        const baccaratMaxPct = fractionToPctStr(next.maxBaccaratRebatePercentage);
         setElectronicMode(next.rebateMode);
         setElectronicPctDisplay(
           next.rebateMode === 'NONE' ? electronicMaxPct : fractionToPctStr(next.rebatePercentage),
-        );
-        setBaccaratMode(next.baccaratRebateMode);
-        setBaccaratPctDisplay(
-          next.baccaratRebateMode === 'NONE'
-            ? baccaratMaxPct
-            : fractionToPctStr(next.baccaratRebatePercentage),
         );
       } catch (e) {
         setErr(extractApiError(e).message);
@@ -71,9 +59,7 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
   const submit = async (): Promise<void> => {
     if (!detail) return;
     const electronicMaxPct = Number.parseFloat(fractionToPctStr(detail.maxRebatePercentage));
-    const baccaratMaxPct = Number.parseFloat(fractionToPctStr(detail.maxBaccaratRebatePercentage));
     const electronicPct = Number.parseFloat(electronicPctDisplay);
-    const baccaratPct = Number.parseFloat(baccaratPctDisplay);
 
     if (electronicMode === 'PERCENTAGE') {
       if (!Number.isFinite(electronicPct) || electronicPct < 0) {
@@ -82,16 +68,6 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
       }
       if (electronicPct > electronicMaxPct + 1e-6) {
         setErr(`电子退水比例不可超过上限 ${electronicMaxPct.toFixed(2)}%`);
-        return;
-      }
-    }
-    if (baccaratMode === 'PERCENTAGE') {
-      if (!Number.isFinite(baccaratPct) || baccaratPct < 0) {
-        setErr('百家乐退水比例必须为非负数字（%）');
-        return;
-      }
-      if (baccaratPct > baccaratMaxPct + 1e-6) {
-        setErr(`百家乐退水比例不可超过上限 ${baccaratMaxPct.toFixed(2)}%`);
         return;
       }
     }
@@ -105,12 +81,6 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
           electronicMode,
           electronicPctDisplay,
           electronicMaxPct,
-        ),
-        baccaratRebateMode: baccaratMode,
-        baccaratRebatePercentage: rebateFractionForMode(
-          baccaratMode,
-          baccaratPctDisplay,
-          baccaratMaxPct,
         ),
       });
       onDone();
@@ -139,22 +109,6 @@ export function RebateSettingModal({ open, onClose, agentId, agentUsername, onDo
             if (next === 'NONE') setElectronicPctDisplay(maxPct);
           }}
           onPctChange={setElectronicPctDisplay}
-        />
-
-        <RebateSection
-          title="百家乐退水"
-          description="只显示当前层级可往下分配的百家乐退水额度。"
-          mode={baccaratMode}
-          pctDisplay={baccaratPctDisplay}
-          maxPctDisplay={detail ? fractionToPctStr(detail.maxBaccaratRebatePercentage) : '0.00'}
-          onModeChange={(next) => {
-            setBaccaratMode(next);
-            if (!detail) return;
-            const maxPct = fractionToPctStr(detail.maxBaccaratRebatePercentage);
-            if (next === 'ALL') setBaccaratPctDisplay('0.00');
-            if (next === 'NONE') setBaccaratPctDisplay(maxPct);
-          }}
-          onPctChange={setBaccaratPctDisplay}
         />
 
         {err && (

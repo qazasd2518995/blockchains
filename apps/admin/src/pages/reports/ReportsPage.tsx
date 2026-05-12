@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { HierarchyReportResponse, HierarchyReportItem } from '@bg/shared';
-import { GAMES_REGISTRY, GameId } from '@bg/shared';
+import { BACCARAT_GAME_IDS, GAMES_REGISTRY, GameId } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { getCurrentGameDay, shiftGameDay, startOfGameWeek } from '@/lib/gameDay';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -14,6 +14,9 @@ import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
 /**
  * 報表統計（18 欄混合階層下鑽）— 對齊 Bet/agent 原版
  */
+const HIDDEN_ADMIN_GAME_IDS = new Set<string>(BACCARAT_GAME_IDS);
+const REPORT_GAME_OPTIONS = Object.values(GameId).filter((id) => !HIDDEN_ADMIN_GAME_IDS.has(id));
+
 export function ReportsPage(): JSX.Element {
   const { agent: me } = useAdminAuthStore();
   const [params, setParams] = useSearchParams();
@@ -152,7 +155,7 @@ export function ReportsPage(): JSX.Element {
             <span className="label">游戏</span>
             <select value={gameId} onChange={(e) => setGameId(e.target.value)} className="term-input max-w-[180px]">
               <option value="">全部</option>
-              {Object.values(GameId).map((id) => (
+              {REPORT_GAME_OPTIONS.map((id) => (
                 <option key={id} value={id}>
                   {GAMES_REGISTRY[id]?.nameZh ?? id}
                 </option>
