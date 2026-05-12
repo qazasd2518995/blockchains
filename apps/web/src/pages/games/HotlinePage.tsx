@@ -17,6 +17,7 @@ import {
   HOTLINE_JACKPOT_RESET_OFFSET_SECONDS,
   HOTLINE_JACKPOT_RESET_VALUE,
   HOTLINE_JACKPOT_SIMULATION_EPOCH,
+  MAX_BET_AMOUNT,
   MIN_BET_AMOUNT,
 } from '@bg/shared';
 import { HOTLINE_MINI_SYMBOLS, HOTLINE_SYMBOLS } from '@bg/provably-fair';
@@ -145,7 +146,7 @@ type AutoSpinInputDraft = Record<AutoSpinNumberField, string>;
 const AUTO_SPIN_ROUND_PRESETS = [10, 25, 50, 100];
 
 function createDefaultAutoSpinSettings(amount: number): AutoSpinSettings {
-  const baseAmount = roundCurrency(amount);
+  const baseAmount = Math.max(MIN_BET_AMOUNT, Math.min(MAX_BET_AMOUNT, roundCurrency(amount)));
   return {
     rounds: 25,
     amount: baseAmount,
@@ -221,10 +222,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const megaFreeSpinContinueRef = useRef<(() => void) | null>(null);
   const fastSpinRef = useRef(false);
   const fallbackGrid = useMemo(() => createFallbackGrid(slotTheme), [slotTheme]);
-  const fallbackJackpotValues = useMemo(
-    () => createFallbackJackpotValues(),
-    [slotTheme.id],
-  );
+  const fallbackJackpotValues = useMemo(() => createFallbackJackpotValues(), [slotTheme.id]);
 
   useEffect(() => {
     fastSpinRef.current = fastSpin;
@@ -327,7 +325,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   }, [slotTheme]);
 
   const setMegaAmount = (next: number): void => {
-    const max = user ? Math.max(balance, MIN_BET_AMOUNT) : 100000;
+    const max = user ? Math.max(MIN_BET_AMOUNT, Math.min(balance, MAX_BET_AMOUNT)) : MAX_BET_AMOUNT;
     const clamped = Math.max(MIN_BET_AMOUNT, Math.min(max, next));
     setAmount(Number.parseFloat(clamped.toFixed(2)));
   };
@@ -920,7 +918,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     if (busy || autoSpinActive) return;
     const nextSettings: AutoSpinSettings = {
       ...autoSpinSettings,
-      amount: roundCurrency(amount),
+      amount: Math.max(MIN_BET_AMOUNT, Math.min(MAX_BET_AMOUNT, roundCurrency(amount))),
       lossLimit:
         autoSpinSettings.lossLimit > 0 ? autoSpinSettings.lossLimit : roundCurrency(amount * 25),
     };
@@ -953,6 +951,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     if (busy || autoSpinActive) return;
     if (!requireLogin()) return;
 
+    if (autoSpinSettings.amount > MAX_BET_AMOUNT) {
+      setError(`單注上限為 ${formatAmount(MAX_BET_AMOUNT)}。`);
+      return;
+    }
     const config = normalizeAutoSpinSettings(autoSpinSettings);
     if (config.rounds <= 0 || config.amount < MIN_BET_AMOUNT) return;
     if (balance < config.amount) {
@@ -1229,6 +1231,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <input
                 type="number"
                 min={MIN_BET_AMOUNT}
+                max={MAX_BET_AMOUNT}
                 step={0.01}
                 value={autoSpinInputDraft.amount}
                 onChange={(event) => updateAutoSpinNumberSetting('amount', event.target.value)}
@@ -1304,6 +1307,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               disabled={
                 autoSpinSettings.rounds <= 0 ||
                 autoSpinSettings.amount < MIN_BET_AMOUNT ||
+                autoSpinSettings.amount > MAX_BET_AMOUNT ||
                 (!!user && balance < autoSpinSettings.amount)
               }
             >
@@ -1355,10 +1359,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <div className="mega-slot-brand__title">{slotTheme.title}</div>
               <div className="mega-slot-brand__sub">{slotTheme.suffix} MEGA WAYS</div>
             </div>
-            <MegaJackpotTicker
-              snapshot={jackpotSnapshot}
-              fallbackValues={fallbackJackpotValues}
-            />
+            <MegaJackpotTicker snapshot={jackpotSnapshot} fallbackValues={fallbackJackpotValues} />
             <Link to={user ? '/history' : '/login'} className="mega-slot-pill">
               <History className="h-4 w-4" aria-hidden="true" />
               記錄
@@ -2228,7 +2229,7 @@ function roundCurrency(value: number): number {
 function normalizeAutoSpinSettings(settings: AutoSpinSettings): AutoSpinSettings {
   return {
     rounds: Math.max(1, Math.min(500, Math.floor(settings.rounds || 1))),
-    amount: Math.max(MIN_BET_AMOUNT, roundCurrency(settings.amount)),
+    amount: Math.max(MIN_BET_AMOUNT, Math.min(MAX_BET_AMOUNT, roundCurrency(settings.amount))),
     lossLimit: roundCurrency(settings.lossLimit),
     profitTarget: roundCurrency(settings.profitTarget),
     singleWinLimit: roundCurrency(settings.singleWinLimit),

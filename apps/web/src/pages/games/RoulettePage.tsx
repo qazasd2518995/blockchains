@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import {
+  MAX_BET_AMOUNT,
   MIN_BET_AMOUNT,
+  ROULETTE_MAX_BET_LINES,
   type RouletteBetRequest,
   type RouletteBetResult,
   type RouletteLineBet,
@@ -22,6 +24,13 @@ const BLACK = new Set([2, 4, 6, 8, 10, 11]);
 const ROULETTE_STRAIGHT_ODDS = '12x';
 const ROULETTE_EVEN_ODDS = '2x';
 const ROULETTE_COLUMN_ODDS = '3x';
+
+function formatBetLimit(value: number): string {
+  return value.toLocaleString('en-US', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+  });
+}
 
 interface Props {
   variant: 'mini-roulette' | 'carnival';
@@ -69,24 +78,73 @@ export function RoulettePage({ variant }: Props) {
     };
   }, [t.games.roulette.placeYourBets, variant]);
 
-  const addBet = (bet: Omit<RouletteLineBet, 'amount'>) => {
-    setBets((prev) => {
-      const existing = prev.find((b) => b.type === bet.type && b.value === bet.value);
-      if (existing) {
-        return prev.map((b) => (b === existing ? { ...b, amount: b.amount + chip } : b));
-      }
-      return [...prev, { ...bet, amount: chip }];
-    });
-  };
-
   const totalBet = bets.reduce((s, b) => s + b.amount, 0);
   const getBetAmount = (type: RouletteLineBet['type'], value?: number) =>
     bets.find((b) => b.type === type && b.value === value)?.amount ?? 0;
 
+  const addBet = (bet: Omit<RouletteLineBet, 'amount'>) => {
+    if (busy) return;
+    if (chip < MIN_BET_AMOUNT) {
+      setError(`最低下注為 ${formatBetLimit(MIN_BET_AMOUNT)}。`);
+      return;
+    }
+    if (chip > MAX_BET_AMOUNT) {
+      setError(`單注上限為 ${formatBetLimit(MAX_BET_AMOUNT)}。`);
+      return;
+    }
+
+    const existing = bets.find((b) => b.type === bet.type && b.value === bet.value);
+    if (existing) {
+      const nextAmount = existing.amount + chip;
+      if (nextAmount > MAX_BET_AMOUNT) {
+        setError(`單一投注項目上限為 ${formatBetLimit(MAX_BET_AMOUNT)}。`);
+        return;
+      }
+      const projectedTotal = totalBet + chip;
+      if (projectedTotal > MAX_BET_AMOUNT) {
+        setError(`本次下注總額上限為 ${formatBetLimit(MAX_BET_AMOUNT)}。`);
+        return;
+      }
+      setBets(bets.map((b) => (b === existing ? { ...b, amount: nextAmount } : b)));
+      setError(null);
+      setResult(null);
+      return;
+    }
+
+    if (bets.length >= ROULETTE_MAX_BET_LINES) {
+      setError(`輪盤一次最多可選 ${ROULETTE_MAX_BET_LINES} 個投注項目。`);
+      return;
+    }
+
+    if (totalBet + chip > MAX_BET_AMOUNT) {
+      setError(`本次下注總額上限為 ${formatBetLimit(MAX_BET_AMOUNT)}。`);
+      return;
+    }
+
+    setBets([...bets, { ...bet, amount: chip }]);
+    setError(null);
+    setResult(null);
+  };
+
   const handleSpin = async () => {
     if (busy || bets.length === 0) return;
     if (!requireLogin()) return;
-    if (totalBet > balance) return;
+    if (bets.length > ROULETTE_MAX_BET_LINES) {
+      setError(`輪盤一次最多可選 ${ROULETTE_MAX_BET_LINES} 個投注項目。`);
+      return;
+    }
+    if (bets.some((bet) => bet.amount > MAX_BET_AMOUNT)) {
+      setError(`單一投注項目上限為 ${formatBetLimit(MAX_BET_AMOUNT)}。`);
+      return;
+    }
+    if (totalBet > MAX_BET_AMOUNT) {
+      setError(`本次下注總額上限為 ${formatBetLimit(MAX_BET_AMOUNT)}。`);
+      return;
+    }
+    if (totalBet > balance) {
+      setError(`餘額不足，目前可用 ${formatBetLimit(balance)}。`);
+      return;
+    }
     setBusy(true);
     setError(null);
     setResult(null);
@@ -295,6 +353,7 @@ export function RoulettePage({ variant }: Props) {
                 guestMode={!user}
                 disabled={busy}
                 label={t.games.roulette.chipSize}
+                max={MAX_BET_AMOUNT}
                 showPresets={false}
               />
             </div>
@@ -328,7 +387,12 @@ export function RoulettePage({ variant }: Props) {
               <button
                 type="button"
                 onClick={handleSpin}
-                disabled={busy || bets.length === 0 || (!!user && totalBet > balance)}
+                disabled={
+                  busy ||
+                  bets.length === 0 ||
+                  totalBet > MAX_BET_AMOUNT ||
+                  (!!user && totalBet > balance)
+                }
                 className="btn-acid mt-4 w-full py-4"
               >
                 → {t.games.roulette.spin} · {formatAmount(totalBet)}

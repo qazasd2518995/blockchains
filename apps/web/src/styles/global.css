@@ -41,6 +41,20 @@
     color: rgba(255, 255, 255, 0.58);
   }
 
+  .bet-controls__limit-hint {
+    min-height: 1rem;
+    margin-top: 0.45rem;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .bet-controls__limit-hint--error {
+    color: #fca5a5;
+  }
+
   .roulette-number-btn,
   .roulette-outside-btn {
     display: flex;
@@ -920,6 +934,13 @@
       letter-spacing: 0;
     }
 
+    .game-fullscreen-shell .game-control-stack .bet-controls__limit-hint {
+      min-height: 0.78rem;
+      margin-top: 0.26rem;
+      font-size: 9px;
+      letter-spacing: 0.02em;
+    }
+
     .game-fullscreen-shell .crash-auto-cashout {
       display: grid;
       grid-template-columns: auto minmax(0, 1fr);
@@ -1039,8 +1060,14 @@
       font-size: 17px !important;
     }
 
-    .game-fullscreen-shell[data-game-id='plinko'] .plinko-control-card .bet-controls__adjusters .game-choice-btn,
-    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-control-card .bet-controls__adjusters .game-choice-btn {
+    .game-fullscreen-shell[data-game-id='plinko']
+      .plinko-control-card
+      .bet-controls__adjusters
+      .game-choice-btn,
+    .game-fullscreen-shell[data-game-id='plinko-x']
+      .plinko-control-card
+      .bet-controls__adjusters
+      .game-choice-btn {
       min-height: 36px;
     }
 
@@ -5415,7 +5442,6 @@
     border-radius: 11px;
     font-size: 14px;
   }
-
 }
 
 .a2hs-prompt {

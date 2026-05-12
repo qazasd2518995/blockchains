@@ -7,7 +7,13 @@ import { ZodError } from 'zod';
 import { Server as SocketIOServer } from 'socket.io';
 
 import { config, isAllowedOrigin } from './config.js';
-import { GameId } from '@bg/shared';
+import {
+  GameId,
+  MAX_BET_AMOUNT,
+  MIN_BET_AMOUNT,
+  PLINKO_MAX_BALLS,
+  ROULETTE_MAX_BET_LINES,
+} from '@bg/shared';
 import { prismaPlugin } from './plugins/prisma.js';
 import { authPlugin } from './plugins/auth.js';
 import { adminAuthPlugin } from './plugins/adminAuth.js';
@@ -31,6 +37,58 @@ import { chickenRoadRoutes } from './modules/games/chicken-road/chicken-road.rou
 import { CrashRoomRegistry } from './realtime/crashRoom.js';
 import { ApiError, errorCodeToStatus } from './utils/errors.js';
 
+function formatCurrencyLimit(value: number): string {
+  return value.toLocaleString('en-US', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+  });
+}
+
+function zodBetError(error: ZodError): { code: string; message: string; details: unknown } {
+  const issue = error.issues[0];
+  const path = issue?.path.map(String).join('.') ?? '';
+  const details = error.flatten();
+
+  if (path.includes('amount')) {
+    if (issue?.code === 'too_small') {
+      return {
+        code: 'BET_OUT_OF_RANGE',
+        message: `最低下注為 ${formatCurrencyLimit(MIN_BET_AMOUNT)}。`,
+        details,
+      };
+    }
+    if (issue?.code === 'too_big') {
+      return {
+        code: 'BET_OUT_OF_RANGE',
+        message: `單注上限為 ${formatCurrencyLimit(MAX_BET_AMOUNT)}。`,
+        details,
+      };
+    }
+  }
+
+  if (path === 'bets' && issue?.code === 'too_big') {
+    return {
+      code: 'BET_OUT_OF_RANGE',
+      message: `輪盤一次最多可選 ${ROULETTE_MAX_BET_LINES} 個投注項目。`,
+      details,
+    };
+  }
+
+  if (path === 'balls' && issue?.code === 'too_big') {
+    return {
+      code: 'BET_OUT_OF_RANGE',
+      message: `彈珠台一次最多 ${PLINKO_MAX_BALLS} 顆。`,
+      details,
+    };
+  }
+
+  return {
+    code: 'INVALID_BET',
+    message: '下注設定不符合規則，請檢查金額或選項。',
+    details,
+  };
+}
+
 export async function buildServer(): Promise<FastifyInstance> {
   const server = Fastify({
     logger: {
@@ -51,11 +109,7 @@ export async function buildServer(): Promise<FastifyInstance> {
       return;
     }
     if (error instanceof ZodError) {
-      reply.code(400).send({
-        code: 'INVALID_BET',
-        message: 'Invalid request',
-        details: error.flatten(),
-      });
+      reply.code(400).send(zodBetError(error));
       return;
     }
     request.log.error(error);

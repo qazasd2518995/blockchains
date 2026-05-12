@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { MINES_MIN_COUNT, MINES_MAX_COUNT, MINES_GRID_SIZE } from '@bg/provably-fair';
-import { MIN_BET_AMOUNT } from '@bg/shared';
+import { MAX_BET_AMOUNT, MIN_BET_AMOUNT } from '@bg/shared';
 
 export const minesStartSchema = z.object({
-  amount: z.number().min(MIN_BET_AMOUNT).max(100000),
+  amount: z.number().min(MIN_BET_AMOUNT).max(MAX_BET_AMOUNT),
   mineCount: z.number().int().min(MINES_MIN_COUNT).max(MINES_MAX_COUNT),
   clientSeed: z.string().min(4).max(64).optional(),
 });

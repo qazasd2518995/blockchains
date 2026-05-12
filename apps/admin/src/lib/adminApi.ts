@@ -42,7 +42,8 @@ adminApi.interceptors.response.use(
           if (originalConfig) {
             originalConfig._retry = true;
             originalConfig.headers = originalConfig.headers ?? {};
-            (originalConfig.headers as Record<string, string>).Authorization = `Bearer ${data.accessToken}`;
+            (originalConfig.headers as Record<string, string>).Authorization =
+              `Bearer ${data.accessToken}`;
             return axios.request(originalConfig);
           }
         } catch {
@@ -70,8 +71,8 @@ const DEFAULT_ERRORS: Record<string, string> = {
   EMAIL_TAKEN: '此邮箱已被使用',
   USER_NOT_FOUND: '找不到该用户',
   INSUFFICIENT_FUNDS: '余额不足',
-  INVALID_BET: '下注参数不合法',
-  BET_OUT_OF_RANGE: '下注金额超出范围',
+  INVALID_BET: '下注设定不符合规则，请检查金额或选项',
+  BET_OUT_OF_RANGE: '下注金额超出限红',
   GAME_DISABLED: '该游戏目前停用',
   ROUND_NOT_FOUND: '找不到本局数据',
   ROUND_NOT_ACTIVE: '本局已不接受操作',
@@ -91,10 +92,13 @@ const DEFAULT_ERRORS: Record<string, string> = {
 };
 
 function translateMessage(code: string, rawMessage: string): string {
+  const raw = rawMessage ?? '';
   const msg = (rawMessage ?? '').toLowerCase();
-  if (msg.includes('agent balance insufficient') || msg.includes('from agent insufficient')) return '代理余额不足';
+  if (msg.includes('agent balance insufficient') || msg.includes('from agent insufficient'))
+    return '代理余额不足';
   if (msg.includes('member balance') && msg.includes('insufficient')) return '会员余额不足';
-  if (msg.includes('amount must be > 0') || msg.includes('amount must be positive')) return '金额必须大于 0';
+  if (msg.includes('amount must be > 0') || msg.includes('amount must be positive'))
+    return '金额必须大于 0';
   if (msg.includes('amount cannot be zero')) return '金额不能为 0';
   if (msg.includes('adjustment would go negative')) return '此调整会让余额变成负数';
   if (msg.includes('cannot freeze super admin')) return '超级管理员无法被冻结';
@@ -111,12 +115,14 @@ function translateMessage(code: string, rawMessage: string): string {
   if (msg.includes('cannot modify rebate')) return '无权修改退水';
   if (msg.includes('cannot change status')) return '无权变更状态';
   if (msg.includes('cannot reset password')) return '无权重设密码';
-  if (msg.includes('frozen account has read-only access')) return '此账号已冻结，只能查看，无法执行操作';
+  if (msg.includes('frozen account has read-only access'))
+    return '此账号已冻结，只能查看，无法执行操作';
   if (msg.includes('cannot update this agent')) return '无权修改该代理';
   if (msg.includes('cannot access this agent')) return '无权访问该代理';
   if (msg.includes('rebatepercentage exceeds parent')) return '退水比例超过上级上限';
   if (msg.includes('commissionrate exceeds parent')) return '占成比例超过上级上限';
-  if (msg.includes('at most') && msg.includes('sub-accounts')) return '每个代理最多可以创建 5 个子账号';
+  if (msg.includes('at most') && msg.includes('sub-accounts'))
+    return '每个代理最多可以创建 5 个子账号';
   if (msg.includes('parent is not active')) return '上级代理未启用';
   if (msg.includes('target agent is not active')) return '目标代理未启用';
   if (msg.includes('admin authentication required')) return '请先登录管理员账号';
@@ -128,6 +134,9 @@ function translateMessage(code: string, rawMessage: string): string {
   if (msg.includes('agent account is not active')) return '此代理账号未启用';
   if (msg.includes('member account is disabled')) return '此会员账号已停用';
   if (msg.includes('member account is frozen')) return '此会员账号已冻结，只能登入查看，无法操作';
+  if (raw.trim() && raw.trim().toLowerCase() !== 'invalid request' && /[\u4e00-\u9fff]/.test(raw)) {
+    return raw;
+  }
   return DEFAULT_ERRORS[code] ?? rawMessage;
 }
 

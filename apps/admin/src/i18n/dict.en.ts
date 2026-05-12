@@ -289,7 +289,7 @@ export const en = {
     USER_NOT_FOUND: 'User not found',
     INSUFFICIENT_FUNDS: 'Insufficient balance',
     INVALID_BET: 'Invalid bet parameters',
-    BET_OUT_OF_RANGE: 'Bet amount is out of range',
+    BET_OUT_OF_RANGE: 'Bet amount exceeds the table limit',
     GAME_DISABLED: 'This game is currently disabled',
     ROUND_NOT_FOUND: 'Round not found',
     ROUND_NOT_ACTIVE: 'This round no longer accepts operations',

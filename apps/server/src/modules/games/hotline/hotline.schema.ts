@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GameId, MIN_BET_AMOUNT } from '@bg/shared';
+import { GameId, MAX_BET_AMOUNT, MIN_BET_AMOUNT } from '@bg/shared';
 
 const slotGameIds = [
   GameId.HOTLINE,
@@ -17,7 +17,7 @@ const slotGameIds = [
 ] as const;
 
 export const hotlineBetSchema = z.object({
-  amount: z.number().min(MIN_BET_AMOUNT).max(100000),
+  amount: z.number().min(MIN_BET_AMOUNT).max(MAX_BET_AMOUNT),
   clientSeed: z.string().min(4).max(64).optional(),
   gameId: z.enum(slotGameIds).optional(),
   buyFeature: z.boolean().optional(),

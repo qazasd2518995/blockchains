@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import { MIN_BET_AMOUNT, type CrashPlayerBet, type CrashRoundSnapshot } from '@bg/shared';
+import {
+  MAX_BET_AMOUNT,
+  MIN_BET_AMOUNT,
+  type CrashPlayerBet,
+  type CrashRoundSnapshot,
+} from '@bg/shared';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
 import { GameActivityHeat } from '@/components/game/GameActivityHeat';
@@ -56,7 +61,7 @@ function parseCrashAutoSettings(draft: CrashAutoDraft): CrashAutoSettings | null
   const amount = roundCurrency(Number.parseFloat(draft.amount));
   const autoCashOut = Number.parseFloat(draft.autoCashOut);
   if (roundsRaw !== '∞' && !Number.isFinite(rounds)) return null;
-  if (!Number.isFinite(amount) || amount < MIN_BET_AMOUNT) return null;
+  if (!Number.isFinite(amount) || amount < MIN_BET_AMOUNT || amount > MAX_BET_AMOUNT) return null;
   if (!Number.isFinite(autoCashOut) || autoCashOut < MIN_CASHOUT_MULTIPLIER) return null;
   return {
     rounds,
@@ -615,7 +620,15 @@ export function CrashPage({ config }: Props) {
         return Promise.resolve(false);
       }
       const currentBalance = Number.parseFloat(useAuthStore.getState().user?.balance ?? '0');
-      if (betAmount < MIN_BET_AMOUNT || betAmount > currentBalance) {
+      if (betAmount < MIN_BET_AMOUNT) {
+        setError(`最低下注為 ${formatAmount(MIN_BET_AMOUNT)}。`);
+        return Promise.resolve(false);
+      }
+      if (betAmount > MAX_BET_AMOUNT) {
+        setError(`單注上限為 ${formatAmount(MAX_BET_AMOUNT)}。`);
+        return Promise.resolve(false);
+      }
+      if (betAmount > currentBalance) {
         setError(t.bet.insufficientBalance);
         return Promise.resolve(false);
       }
@@ -822,7 +835,14 @@ export function CrashPage({ config }: Props) {
     }
     const settings = parseCrashAutoSettings(autoBetDraft);
     if (!settings) {
-      setError(`AUTO CASHOUT MIN ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}X`);
+      const draftAmount = roundCurrency(Number.parseFloat(autoBetDraft.amount));
+      if (!Number.isFinite(draftAmount) || draftAmount < MIN_BET_AMOUNT) {
+        setError(`最低下注為 ${formatAmount(MIN_BET_AMOUNT)}。`);
+      } else if (draftAmount > MAX_BET_AMOUNT) {
+        setError(`單注上限為 ${formatAmount(MAX_BET_AMOUNT)}。`);
+      } else {
+        setError(`AUTO CASHOUT MIN ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}X`);
+      }
       return;
     }
     const currentBalance = Number.parseFloat(useAuthStore.getState().user?.balance ?? '0');
@@ -907,6 +927,7 @@ export function CrashPage({ config }: Props) {
               <input
                 type="number"
                 min={MIN_BET_AMOUNT}
+                max={MAX_BET_AMOUNT}
                 step={0.01}
                 value={autoBetDraft.amount}
                 onChange={(event) => updateAutoBetDraft('amount', event.target.value)}

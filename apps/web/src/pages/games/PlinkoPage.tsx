@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import {
+  MAX_BET_AMOUNT,
   MIN_BET_AMOUNT,
   type PlinkoBatchBetRequest,
   type PlinkoBatchBetResult,
@@ -71,7 +72,7 @@ function roundCurrency(value: number): number {
 }
 
 function createPlinkoAutoDraft(amount: number, balls = 1): PlinkoAutoDraft {
-  const stake = Math.max(MIN_BET_AMOUNT, amount);
+  const stake = Math.max(MIN_BET_AMOUNT, Math.min(MAX_BET_AMOUNT, amount));
   return {
     rounds: '10',
     amount: stake.toFixed(2),
@@ -106,7 +107,7 @@ function parsePlinkoAutoSettings(
   const amount = roundCurrency(Number.parseFloat(draft.amount));
   const balls = clampBallCount(Number.parseFloat(draft.balls));
   if (!Number.isFinite(rounds) || rounds < 1 || rounds > 1000) return null;
-  if (!Number.isFinite(amount) || amount < MIN_BET_AMOUNT) return null;
+  if (!Number.isFinite(amount) || amount < MIN_BET_AMOUNT || amount > MAX_BET_AMOUNT) return null;
   if (!Number.isFinite(balls) || balls < PLINKO_MIN_BALLS || balls > PLINKO_MAX_BALLS) {
     return null;
   }
@@ -297,17 +298,16 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
             (dropResult, index) =>
               new Promise<void>((resolve) => {
                 window.setTimeout(() => {
-                  void (sceneRef.current?.dropBall(
-                    dropResult.path,
-                    dropResult.bucket,
-                    dropResult.multiplier,
-                    anticipationBalls[index],
-                  ) ?? Promise.resolve())
+                  void (
+                    sceneRef.current?.dropBall(
+                      dropResult.path,
+                      dropResult.bucket,
+                      dropResult.multiplier,
+                      anticipationBalls[index],
+                    ) ?? Promise.resolve()
+                  )
                     .then(() => {
-                      sceneRef.current?.playWinFx(
-                        dropResult.multiplier,
-                        dropResult.multiplier > 1,
-                      );
+                      sceneRef.current?.playWinFx(dropResult.multiplier, dropResult.multiplier > 1);
                     })
                     .finally(resolve);
                 }, index * 90);
@@ -378,10 +378,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   const launchAutoDrop = useCallback(async () => {
     const settings = autoSettingsRef.current;
     if (!settings || !autoActiveRef.current) return;
-    if (
-      !sceneReady ||
-      activeDropsRef.current + settings.balls > MAX_ACTIVE_PLINKO_DROPS
-    ) {
+    if (!sceneReady || activeDropsRef.current + settings.balls > MAX_ACTIVE_PLINKO_DROPS) {
       return;
     }
     const remaining = autoRemainingRef.current;
@@ -446,7 +443,14 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
     }
     const settings = parsePlinkoAutoSettings(autoDraft, rows, risk);
     if (!settings) {
-      setError(t.games.plinko.autoInvalid);
+      const draftAmount = roundCurrency(Number.parseFloat(autoDraft.amount));
+      if (!Number.isFinite(draftAmount) || draftAmount < MIN_BET_AMOUNT) {
+        setError(`最低下注為 ${formatAmount(MIN_BET_AMOUNT)}。`);
+      } else if (draftAmount > MAX_BET_AMOUNT) {
+        setError(`單注上限為 ${formatAmount(MAX_BET_AMOUNT)}。`);
+      } else {
+        setError(t.games.plinko.autoInvalid);
+      }
       return;
     }
     const currentBalance = Number.parseFloat(useAuthStore.getState().user?.balance ?? '0');
@@ -541,6 +545,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
               <input
                 type="number"
                 min={MIN_BET_AMOUNT}
+                max={MAX_BET_AMOUNT}
                 step={0.01}
                 value={autoDraft.amount}
                 onChange={(event) => updateAutoDraft('amount', event.target.value)}

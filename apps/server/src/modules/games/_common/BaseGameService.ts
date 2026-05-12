@@ -13,6 +13,13 @@ const RETRYABLE_ACTIVE_STATE_UNIQUE_INDEXES = new Set([
   'BlackjackRound_one_active_per_user_key',
 ]);
 
+function formatBetLimit(value: number): string {
+  return value.toLocaleString('en-US', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+  });
+}
+
 export interface ActiveSeedBundle {
   serverSeedId: string;
   serverSeed: string;
@@ -96,13 +103,13 @@ export async function lockUserAndCheckFunds(
   await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
   const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
   if (amount.lessThanOrEqualTo(0)) {
-    throw new ApiError('INVALID_BET', 'Bet amount must be positive');
+    throw new ApiError('BET_OUT_OF_RANGE', `最低下注為 ${formatBetLimit(MIN_BET_AMOUNT)}。`);
   }
   if (amount.lessThan(MIN_BET_AMOUNT)) {
-    throw new ApiError('INVALID_BET', `Minimum bet is ${MIN_BET_AMOUNT.toFixed(2)}`);
+    throw new ApiError('BET_OUT_OF_RANGE', `最低下注為 ${formatBetLimit(MIN_BET_AMOUNT)}。`);
   }
   if (amount.greaterThan(config.MAX_SINGLE_BET)) {
-    throw new ApiError('BET_OUT_OF_RANGE', `Max single bet is ${config.MAX_SINGLE_BET}`);
+    throw new ApiError('BET_OUT_OF_RANGE', `單注上限為 ${formatBetLimit(config.MAX_SINGLE_BET)}。`);
   }
   if (user.balance.lessThan(amount)) {
     throw new ApiError('INSUFFICIENT_FUNDS', 'Insufficient balance');

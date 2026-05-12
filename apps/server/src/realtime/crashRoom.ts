@@ -22,6 +22,13 @@ const POST_CRASH_MS = 1500;
 const TICK_MS = 80;
 const GROWTH_RATE = 0.00016; // multiplier speed; 2x in ~4.3s, 3x in ~6.9s
 const ROUND_CREATE_RETRY_BASE_MS = 80;
+
+function formatBetLimit(value: number): string {
+  return value.toLocaleString('en-US', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+  });
+}
 const ROUND_CREATE_RETRY_JITTER_MS = 220;
 const PHASE_RECOVERY_MS = 1200;
 const LEASE_DURATION_MS = 15000;
@@ -840,10 +847,10 @@ export class CrashRoom {
   }
 
   private validateBetInput(amount: number, autoCashOut?: number): Prisma.Decimal {
-    if (!Number.isFinite(amount)) throw new Error('Invalid bet amount');
-    if (amount < MIN_BET_AMOUNT) throw new Error(`Minimum bet is ${MIN_BET_AMOUNT.toFixed(2)}`);
+    if (!Number.isFinite(amount)) throw new Error('請輸入有效下注金額。');
+    if (amount < MIN_BET_AMOUNT) throw new Error(`最低下注為 ${formatBetLimit(MIN_BET_AMOUNT)}。`);
     if (amount > appConfig.MAX_SINGLE_BET) {
-      throw new Error(`Max single bet is ${appConfig.MAX_SINGLE_BET}`);
+      throw new Error(`單注上限為 ${formatBetLimit(appConfig.MAX_SINGLE_BET)}。`);
     }
     if (
       autoCashOut !== undefined &&

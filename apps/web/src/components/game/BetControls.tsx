@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Sfx } from '@bg/game-engine';
-import { MIN_BET_AMOUNT } from '@bg/shared';
+import { MAX_BET_AMOUNT, MIN_BET_AMOUNT } from '@bg/shared';
 import { useTranslation } from '@/i18n/useTranslation';
 
 interface BetControlsProps {
@@ -9,8 +9,10 @@ interface BetControlsProps {
   maxBalance: number;
   disabled?: boolean;
   min?: number;
+  max?: number;
   guestMode?: boolean;
   label?: string;
+  limitLabel?: string;
   showPresets?: boolean;
 }
 
@@ -20,24 +22,50 @@ export function BetControls({
   maxBalance,
   disabled,
   min = MIN_BET_AMOUNT,
+  max = MAX_BET_AMOUNT,
   guestMode = false,
   label,
+  limitLabel,
   showPresets = true,
 }: BetControlsProps) {
   const { t } = useTranslation();
   const [text, setText] = useState(amount.toFixed(2));
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const formatLimit = (value: number) =>
+    value.toLocaleString('en-US', {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    });
+
+  const availableBalance = Number.isFinite(maxBalance) ? Math.max(0, maxBalance) : 0;
+  const stakeMax = Math.max(min, max);
+  const effectiveMax = guestMode ? stakeMax : Math.min(stakeMax, Math.max(min, availableBalance));
+
+  const validateAmount = (raw: string): string | null => {
+    if (!raw.trim()) return null;
+    const v = Number(raw);
+    if (!Number.isFinite(v)) return '請輸入有效下注金額。';
+    if (v < min) return `最低下注為 ${formatLimit(min)}。`;
+    if (v > stakeMax) return `單注上限為 ${formatLimit(stakeMax)}。`;
+    if (!guestMode && v > availableBalance) {
+      return `餘額不足，目前可用 ${formatLimit(availableBalance)}。`;
+    }
+    return null;
+  };
 
   useEffect(() => {
     setText(amount.toFixed(2));
-  }, [amount]);
+    setLocalError(validateAmount(amount.toFixed(2)));
+  }, [amount, maxBalance, max]);
 
   const syncText = (v: number) => {
     onAmountChange(v);
     setText(v.toFixed(2));
+    setLocalError(null);
     Sfx.tick();
   };
 
-  const effectiveMax = guestMode ? 100000 : maxBalance;
   const clamp = (v: number) => Math.max(min, Math.min(effectiveMax, v));
 
   return (
@@ -50,7 +78,7 @@ export function BetControls({
           </span>
         </div>
         <span className="data-num text-[10px] text-white/55">
-          {guestMode ? t.bet.loginToBet : `${t.bet.max} ${maxBalance.toFixed(2)}`}
+          {guestMode ? t.bet.loginToBet : `${limitLabel ?? '單注上限'} ${formatLimit(stakeMax)}`}
         </span>
       </div>
 
@@ -62,11 +90,17 @@ export function BetControls({
           autoComplete="off"
           aria-label={label ?? t.bet.stake}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            setLocalError(validateAmount(e.target.value));
+          }}
           onBlur={() => {
-            const v = Number.parseFloat(text);
+            const v = Number(text);
             if (Number.isFinite(v)) syncText(clamp(v));
-            else setText(amount.toFixed(2));
+            else {
+              setText(amount.toFixed(2));
+              setLocalError(null);
+            }
           }}
           disabled={disabled}
           className="bet-controls__input w-full border-0 bg-transparent px-2 py-2 text-right font-display text-[30px] tracking-tight text-white shadow-none focus-visible:border-transparent focus-visible:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#F3D67D]/60 focus-visible:outline-offset-2 focus-visible:shadow-none sm:py-3 sm:text-4xl"
@@ -90,6 +124,13 @@ export function BetControls({
           </button>
         </div>
       </div>
+      <div
+        className={`bet-controls__limit-hint ${
+          localError ? 'bet-controls__limit-hint--error' : ''
+        }`}
+      >
+        {localError ?? `${limitLabel ?? '單注上限'} ${formatLimit(stakeMax)}`}
+      </div>
 
       {showPresets ? (
         <div className="bet-controls__presets mt-3 grid grid-cols-5 gap-1.5 sm:gap-2">
@@ -97,7 +138,7 @@ export function BetControls({
             <button
               key={v}
               type="button"
-              disabled={disabled || (!guestMode && v > maxBalance)}
+              disabled={disabled || (!guestMode && v > availableBalance)}
               onClick={() => syncText(clamp(v))}
               className="game-choice-btn px-0 py-2.5"
             >
@@ -107,7 +148,7 @@ export function BetControls({
           <button
             type="button"
             disabled={disabled || guestMode}
-            onClick={() => syncText(clamp(maxBalance))}
+            onClick={() => syncText(clamp(availableBalance))}
             className="game-choice-btn game-choice-btn-acid px-0 py-2.5"
           >
             {t.bet.max}

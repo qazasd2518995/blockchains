@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { z } from 'zod';
+import { MAX_BET_AMOUNT } from '@bg/shared';
 
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -15,7 +16,7 @@ const envSchema = z.object({
     .transform((s) => s.split(',').map((v) => v.trim())),
   BACCARAT_INTEGRATION_SECRET: z.string().default('dev-baccarat-integration-secret'),
   SIGNUP_BONUS: z.coerce.number().default(1000),
-  MAX_SINGLE_BET: z.coerce.number().default(100000),
+  MAX_SINGLE_BET: z.coerce.number().default(MAX_BET_AMOUNT),
 });
 
 const parsed = envSchema.safeParse(process.env);
