@@ -53,7 +53,10 @@ export function WheelPage() {
       scene = new WheelScene();
       sceneRef.current = scene;
       void scene.init(canvas, w, h).then(() => {
-        if (!cancelled) setSceneReady(true);
+        if (!cancelled) {
+          scene?.setSegments(wheelTable('medium', 10));
+          setSceneReady(true);
+        }
       });
     };
     tryInit();
@@ -125,9 +128,9 @@ export function WheelPage() {
         rtpAccent="ember"
       />
 
-      <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="game-play-grid game-play-grid--wheel grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="game-main-stack space-y-4">
-          <div className="game-stage-panel scanlines relative overflow-hidden">
+          <div className="game-stage-panel wheel-stage-panel scanlines relative overflow-hidden">
             <div className="game-stage-bar">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">彩色轉輪</span>
               <span className="ml-2 text-white/40">·</span>
@@ -139,7 +142,7 @@ export function WheelPage() {
             </div>
 
             <div
-              className="game-canvas-shell game-canvas-tall relative mx-auto aspect-square w-full max-w-[720px] p-2 sm:p-3"
+              className="game-canvas-shell game-canvas-tall wheel-canvas relative mx-auto aspect-square w-full max-w-[720px] p-2 sm:p-3"
               style={{ width: 'min(100%, 720px, 76svh)', maxHeight: 'none' }}
             >
               <canvas ref={canvasRef} className="h-full w-full" />
@@ -156,7 +159,7 @@ export function WheelPage() {
 
           {result && (
             <div
-              className={`game-result-card ${result.multiplier > 0 ? 'game-result-card-win' : 'game-result-card-loss'}`}
+              className={`game-result-card wheel-result-card ${result.multiplier > 0 ? 'game-result-card-win' : 'game-result-card-loss'}`}
             >
               <div className="flex items-baseline justify-between">
                 <div>
@@ -184,7 +187,11 @@ export function WheelPage() {
         </div>
 
         <div className="game-control-stack space-y-4">
-          <div className="game-side-card p-5">
+          <div
+            className={`game-side-card wheel-control-card p-5 ${
+              result ? 'wheel-control-card--result' : ''
+            }`}
+          >
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -192,7 +199,16 @@ export function WheelPage() {
               guestMode={!user}
               disabled={busy}
             />
-            <div className="mt-6">
+            {result && (
+              <div className="wheel-control-result">
+                <span className="font-display text-white">{formatMultiplier(result.multiplier)}</span>
+                <span className="data-num text-[#7DD3FC]">
+                  {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
+                  {formatAmount(result.profit)}
+                </span>
+              </div>
+            )}
+            <div className="wheel-risk-control mt-6">
               <div className="label">{t.games.mines.risk}</div>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {(['low', 'medium', 'high'] as WheelRisk[]).map((r) => (
@@ -208,9 +224,9 @@ export function WheelPage() {
                 ))}
               </div>
             </div>
-            <div className="mt-4">
+            <div className="wheel-segments-control mt-4">
               <div className="label">{t.games.wheel.segments}</div>
-              <div className="mt-2 grid grid-cols-5 gap-1">
+              <div className="wheel-segments-grid mt-2 grid grid-cols-5 gap-1">
                 {([10, 20, 30, 40, 50] as WheelSegmentCount[]).map((s) => (
                   <button
                     key={s}
@@ -228,11 +244,11 @@ export function WheelPage() {
               type="button"
               onClick={spin}
               disabled={busy || (!!user && balance < amount)}
-              className="btn-acid mt-6 w-full py-4"
+              className="btn-acid wheel-spin-button mt-6 w-full py-4"
             >
               → {t.games.wheel.spin} · {formatAmount(amount)}
             </button>
-            <div className="game-balance-strip mt-3">
+            <div className="game-balance-strip wheel-balance-strip mt-3">
               <span>
                 {t.games.wheel.segments}{' '}
                 <span className="data-num ml-1 text-[#FCA5A5]">{segments}</span>

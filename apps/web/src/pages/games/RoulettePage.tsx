@@ -8,6 +8,7 @@ import {
 } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import { BetControls } from '@/components/game/BetControls';
 import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount } from '@/lib/utils';
@@ -18,6 +19,9 @@ import { useRequireLogin } from '@/hooks/useRequireLogin';
 
 const RED = new Set([1, 3, 5, 7, 9, 12]);
 const BLACK = new Set([2, 4, 6, 8, 10, 11]);
+const ROULETTE_STRAIGHT_ODDS = '12x';
+const ROULETTE_EVEN_ODDS = '2x';
+const ROULETTE_COLUMN_ODDS = '3x';
 
 interface Props {
   variant: 'mini-roulette' | 'carnival';
@@ -76,6 +80,8 @@ export function RoulettePage({ variant }: Props) {
   };
 
   const totalBet = bets.reduce((s, b) => s + b.amount, 0);
+  const getBetAmount = (type: RouletteLineBet['type'], value?: number) =>
+    bets.find((b) => b.type === type && b.value === value)?.amount ?? 0;
 
   const handleSpin = async () => {
     if (busy || bets.length === 0) return;
@@ -171,7 +177,7 @@ export function RoulettePage({ variant }: Props) {
                 <NumberBtn
                   n={0}
                   onClick={() => addBet({ type: 'straight', value: 0 })}
-                  bets={bets}
+                  placedAmount={getBetAmount('straight', 0)}
                   variant="green"
                 />
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
@@ -179,31 +185,49 @@ export function RoulettePage({ variant }: Props) {
                     key={n}
                     n={n}
                     onClick={() => addBet({ type: 'straight', value: n })}
-                    bets={bets}
+                    placedAmount={getBetAmount('straight', n)}
                     variant={RED.has(n) ? 'red' : BLACK.has(n) ? 'black' : 'black'}
                   />
                 ))}
               </div>
 
               <div className="roulette-outside-grid grid grid-cols-3 gap-1">
-                <OutsideBtn label={t.games.roulette.low} onClick={() => addBet({ type: 'low' })} />
+                <OutsideBtn
+                  label={t.games.roulette.low}
+                  odds={ROULETTE_EVEN_ODDS}
+                  placedAmount={getBetAmount('low')}
+                  onClick={() => addBet({ type: 'low' })}
+                />
                 <OutsideBtn
                   label={t.games.roulette.even}
+                  odds={ROULETTE_EVEN_ODDS}
+                  placedAmount={getBetAmount('even')}
                   onClick={() => addBet({ type: 'even' })}
                 />
                 <OutsideBtn
                   label={t.games.roulette.red}
+                  odds={ROULETTE_EVEN_ODDS}
+                  placedAmount={getBetAmount('red')}
                   onClick={() => addBet({ type: 'red' })}
                   color="red"
                 />
                 <OutsideBtn
                   label={t.games.roulette.black}
+                  odds={ROULETTE_EVEN_ODDS}
+                  placedAmount={getBetAmount('black')}
                   onClick={() => addBet({ type: 'black' })}
                   color="black"
                 />
-                <OutsideBtn label={t.games.roulette.odd} onClick={() => addBet({ type: 'odd' })} />
+                <OutsideBtn
+                  label={t.games.roulette.odd}
+                  odds={ROULETTE_EVEN_ODDS}
+                  placedAmount={getBetAmount('odd')}
+                  onClick={() => addBet({ type: 'odd' })}
+                />
                 <OutsideBtn
                   label={t.games.roulette.high}
+                  odds={ROULETTE_EVEN_ODDS}
+                  placedAmount={getBetAmount('high')}
                   onClick={() => addBet({ type: 'high' })}
                 />
               </div>
@@ -212,7 +236,9 @@ export function RoulettePage({ variant }: Props) {
                 {[1, 2, 3].map((col) => (
                   <OutsideBtn
                     key={col}
-                    label={`${t.games.roulette.col} ${col} (2:1)`}
+                    label={`${t.games.roulette.col} ${col}`}
+                    odds={ROULETTE_COLUMN_ODDS}
+                    placedAmount={getBetAmount('column', col)}
                     onClick={() => addBet({ type: 'column', value: col })}
                   />
                 ))}
@@ -261,19 +287,16 @@ export function RoulettePage({ variant }: Props) {
         <div className="game-control-stack space-y-4">
           <div className="game-side-card roulette-control-card p-5">
             <div className="roulette-chip-panel">
-              <div className="label">{t.games.roulette.chipSize}</div>
-              <div className="roulette-chip-grid mt-2 grid grid-cols-4 gap-1">
-                {[10, 100, 1000, 10000].map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setChip(v)}
-                    className={`game-choice-btn px-0 py-3 ${chip === v ? 'game-choice-btn-ember' : ''}`}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
+              <div className="roulette-chip-title label">{t.games.roulette.chipSize}</div>
+              <BetControls
+                amount={chip}
+                onAmountChange={setChip}
+                maxBalance={balance}
+                guestMode={!user}
+                disabled={busy}
+                label={t.games.roulette.chipSize}
+                showPresets={false}
+              />
             </div>
 
             <div className="roulette-active-bets mt-4 space-y-1">
@@ -338,26 +361,26 @@ export function RoulettePage({ variant }: Props) {
 function NumberBtn({
   n,
   onClick,
-  bets,
+  placedAmount,
   variant,
 }: {
   n: number;
   onClick: () => void;
-  bets: RouletteLineBet[];
+  placedAmount: number;
   variant: 'red' | 'black' | 'green';
 }) {
-  const placed = bets.find((b) => b.type === 'straight' && b.value === n);
   const bg = { red: 'bg-[#D4574A]', black: 'bg-[#10263A]', green: 'bg-[#1F8B5F]' }[variant];
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`relative aspect-square min-h-[42px] rounded-[12px] border border-white/8 ${bg} font-display text-lg text-white transition hover:border-[#C9A247] hover:shadow-[0_12px_24px_-18px_rgba(15,23,42,0.55)] sm:rounded-[16px] sm:text-2xl`}
+      className={`roulette-number-btn relative aspect-square min-h-[42px] rounded-[12px] border border-white/8 ${bg} font-display text-lg text-white transition hover:border-[#C9A247] hover:shadow-[0_12px_24px_-18px_rgba(15,23,42,0.55)] sm:rounded-[16px] sm:text-2xl ${placedAmount > 0 ? 'ring-2 ring-[#F3D67D]/70' : ''}`}
     >
-      {n}
-      {placed && (
+      <span className="roulette-bet-main">{n}</span>
+      <span className="roulette-bet-odds">{ROULETTE_STRAIGHT_ODDS}</span>
+      {placedAmount > 0 && (
         <span className="absolute -right-1 -top-1 rounded-full border border-ink-50 bg-neon-acid px-1.5 font-mono text-[9px] text-ink-50">
-          {placed.amount}
+          {formatAmount(placedAmount)}
         </span>
       )}
     </button>
@@ -366,10 +389,14 @@ function NumberBtn({
 
 function OutsideBtn({
   label,
+  odds,
+  placedAmount = 0,
   onClick,
   color,
 }: {
   label: string;
+  odds: string;
+  placedAmount?: number;
   onClick: () => void;
   color?: 'red' | 'black';
 }) {
@@ -379,9 +406,15 @@ function OutsideBtn({
     <button
       type="button"
       onClick={onClick}
-      className={`min-h-[42px] rounded-[12px] border border-white/10 ${bg} px-1 py-2 font-mono text-[10px] tracking-[0.08em] ${color === 'black' ? 'text-white' : 'text-white/85'} transition hover:border-[#C9A247] hover:text-[#186073] sm:rounded-[14px] sm:text-[11px] sm:tracking-[0.2em]`}
+      className={`roulette-outside-btn relative min-h-[42px] rounded-[12px] border border-white/10 ${bg} px-1 py-2 font-mono text-[10px] tracking-[0.08em] ${color === 'black' ? 'text-white' : 'text-white/85'} transition hover:border-[#C9A247] hover:text-[#186073] sm:rounded-[14px] sm:text-[11px] sm:tracking-[0.2em] ${placedAmount > 0 ? 'border-[#F3D67D]/70 text-[#F3D67D]' : ''}`}
     >
-      {label}
+      <span className="roulette-bet-main">{label}</span>
+      <span className="roulette-bet-odds">{odds}</span>
+      {placedAmount > 0 && (
+        <span className="absolute -right-1 -top-1 rounded-full border border-ink-50 bg-neon-acid px-1.5 font-mono text-[9px] text-ink-50">
+          {formatAmount(placedAmount)}
+        </span>
+      )}
     </button>
   );
 }

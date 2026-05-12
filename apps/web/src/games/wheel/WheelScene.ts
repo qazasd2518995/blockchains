@@ -2,11 +2,12 @@ import {
   Application,
   Container,
   Graphics,
+  Sprite,
   Text,
   TextStyle,
   Ticker,
   BlurFilter,
-  type Texture,
+  Texture,
 } from 'pixi.js';
 import { gsap } from 'gsap';
 import { addCoverSprite, loadTextureOrNull } from '../shared/pixiAssets';
@@ -405,33 +406,48 @@ export class WheelScene {
       g.circle(px, py, bulbRadius).fill({ color: WHEEL_THEME.bulb, alpha: n > 30 ? 0.55 : 0.78 });
     }
 
-    // 倍率文字：10/20 段完整顯示，包含 0×，避免玩家看到空白扇區。
-    if (n <= 20) {
-      for (let i = 0; i < n; i += 1) {
-        const m = this.multipliers[i]!;
-        const paint = this.getSegmentPaint(m);
-        const midA = -Math.PI / 2 + (i + 0.5) * segAngle;
-        const tx = Math.cos(midA) * this.radius * 0.7;
-        const ty = Math.sin(midA) * this.radius * 0.7;
-        const style = new TextStyle({
-          fontFamily: GAME_FONT,
-          fontSize: Math.max(15, Math.min(28, this.radius * 0.105)),
-          fill: paint.textColor,
-          fontWeight: '700',
-          stroke: {
-            color: paint.textColor === COLOR_INK ? COLOR_WHITE : COLOR_INK,
-            width: Math.max(1.2, this.radius * 0.006),
-            alpha: 0.32,
-          },
-        });
-        const txt = new Text({ text: this.formatMultiplierLabel(m), style });
-        txt.anchor.set(0.5);
-        txt.x = tx;
-        txt.y = ty;
-        txt.rotation = midA + Math.PI / 2;
-        this.wheelContainer?.addChild(txt);
-      }
+    // 倍率文字：先畫成一張 canvas texture，再掛到輪盤容器，避免大量旋轉 Text 造成 WebGL 字形碎片。
+    const labelFontSize =
+      n <= 20
+        ? Math.max(15, Math.min(28, this.radius * 0.105))
+        : n <= 30
+          ? Math.max(10, Math.min(16, this.radius * 0.062))
+          : n <= 40
+            ? Math.max(8.5, Math.min(13, this.radius * 0.052))
+            : Math.max(7.5, Math.min(11, this.radius * 0.046));
+    const labelRadius = this.radius * (n <= 20 ? 0.7 : n <= 30 ? 0.74 : 0.77);
+    const labelPadding = 26;
+    const labelSize = Math.ceil((this.radius + labelPadding) * 2);
+    const labelScale = Math.min(2, Math.max(1, globalThis.devicePixelRatio || 1));
+    const labelCanvas = document.createElement('canvas');
+    labelCanvas.width = Math.ceil(labelSize * labelScale);
+    labelCanvas.height = Math.ceil(labelSize * labelScale);
+    const ctx = labelCanvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(labelScale, labelScale);
+    ctx.translate(labelSize / 2, labelSize / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `700 ${labelFontSize}px ${GAME_FONT}`;
+    for (let i = 0; i < n; i += 1) {
+      const m = this.multipliers[i]!;
+      const paint = this.getSegmentPaint(m);
+      const midA = -Math.PI / 2 + (i + 0.5) * segAngle;
+      const tx = Math.cos(midA) * labelRadius;
+      const ty = Math.sin(midA) * labelRadius;
+      ctx.save();
+      ctx.translate(tx, ty);
+      ctx.rotate(midA + Math.PI / 2);
+      ctx.globalAlpha = n > 30 && m <= 0 ? 0.78 : 0.94;
+      ctx.fillStyle = `#${paint.textColor.toString(16).padStart(6, '0')}`;
+      ctx.fillText(this.formatMultiplierLabel(m), 0, 0);
+      ctx.restore();
     }
+    const labelSprite = new Sprite(Texture.from(labelCanvas));
+    labelSprite.anchor.set(0.5);
+    labelSprite.width = labelSize;
+    labelSprite.height = labelSize;
+    this.wheelContainer?.addChild(labelSprite);
   }
 
   private formatMultiplierLabel(multiplier: number): string {

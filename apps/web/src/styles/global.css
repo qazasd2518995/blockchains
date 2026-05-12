@@ -41,6 +41,43 @@
     color: rgba(255, 255, 255, 0.58);
   }
 
+  .roulette-number-btn,
+  .roulette-outside-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.12rem;
+    line-height: 1;
+  }
+
+  .roulette-bet-main {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  .roulette-bet-odds {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 0.56em;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    color: rgba(243, 214, 125, 0.92);
+    line-height: 1;
+  }
+
+  .roulette-outside-btn .roulette-bet-odds {
+    font-size: 0.82em;
+  }
+
+  .roulette-chip-title,
+  .wheel-control-result {
+    display: none;
+  }
+
   .crash-history-strip {
     pointer-events: none;
     position: absolute;
@@ -1523,10 +1560,10 @@
     .game-fullscreen-shell .roulette-outside-grid button,
     .game-fullscreen-shell .roulette-column-grid button {
       aspect-ratio: auto !important;
-      min-height: 31px !important;
-      height: 31px !important;
+      min-height: 35px !important;
+      height: 35px !important;
       border-radius: 8px !important;
-      padding: 0.18rem 0.12rem !important;
+      padding: 0.16rem 0.1rem !important;
       font-size: 11px !important;
       line-height: 1 !important;
     }
@@ -1534,6 +1571,21 @@
     .game-fullscreen-shell .roulette-column-grid button {
       font-size: 9px !important;
       letter-spacing: 0 !important;
+    }
+
+    .game-fullscreen-shell .roulette-number-btn .roulette-bet-main {
+      font-size: 13px;
+    }
+
+    .game-fullscreen-shell .roulette-number-btn .roulette-bet-odds,
+    .game-fullscreen-shell .roulette-outside-btn .roulette-bet-odds {
+      font-size: 8px;
+      letter-spacing: 0;
+    }
+
+    .game-fullscreen-shell .roulette-outside-btn .roulette-bet-main {
+      font-size: 10px;
+      letter-spacing: 0.02em;
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .game-control-stack,
@@ -1567,11 +1619,37 @@
       min-width: 0;
     }
 
-    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-chip-grid,
-    .game-fullscreen-shell[data-game-id='carnival'] .roulette-chip-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-      gap: 0.28rem !important;
-      margin-top: 0.3rem !important;
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-chip-title,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-chip-title {
+      display: block;
+      margin-bottom: 0.22rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-chip-panel .bet-controls__entry,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-chip-panel .bet-controls__entry {
+      grid-template-columns: minmax(0, 1fr) 58px;
+      gap: 0.22rem;
+      min-height: 36px;
+      padding: 0.2rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-chip-panel .bet-controls__input,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-chip-panel .bet-controls__input {
+      min-height: 34px !important;
+      padding: 0.08rem 0.32rem !important;
+      font-size: 16px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette']
+      .roulette-chip-panel
+      .bet-controls__adjusters
+      .game-choice-btn,
+    .game-fullscreen-shell[data-game-id='carnival']
+      .roulette-chip-panel
+      .bet-controls__adjusters
+      .game-choice-btn {
+      min-height: 34px;
+      font-size: 10px !important;
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-action-panel,
@@ -1629,13 +1707,6 @@
       line-height: 1.1;
     }
 
-    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-chip-grid .game-choice-btn,
-    .game-fullscreen-shell[data-game-id='carnival'] .roulette-chip-grid .game-choice-btn {
-      height: 30px !important;
-      min-height: 30px !important;
-      padding: 0 !important;
-    }
-
     .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-action-panel .btn-acid,
     .game-fullscreen-shell[data-game-id='carnival'] .roulette-action-panel .btn-acid {
       height: 40px !important;
@@ -1659,6 +1730,102 @@
     .game-fullscreen-shell[data-game-id='carnival'] .roulette-result-card {
       height: 44px !important;
       max-height: 44px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel'] .game-main-stack > .wheel-result-card {
+      display: none !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel'] .game-control-stack {
+      max-height: max(174px, min(31svh, 218px));
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel']
+      .game-control-stack
+      > .wheel-control-card:first-child {
+      display: grid;
+      grid-template-columns: minmax(0, 0.84fr) minmax(0, 1.16fr);
+      align-content: start;
+      gap: 0.34rem 0.38rem;
+      max-height: max(174px, min(31svh, 218px));
+      overflow: hidden;
+      padding: 0.5rem 0.6rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-control-card > .bet-controls,
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-control-result,
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-spin-button {
+      grid-column: 1 / -1;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-control-result {
+      display: flex;
+      min-height: 26px;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid rgba(125, 211, 252, 0.18);
+      border-radius: 10px;
+      background: rgba(7, 19, 31, 0.55);
+      padding: 0.24rem 0.5rem;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-control-card .bet-controls__entry {
+      grid-template-columns: minmax(0, 1fr) 72px;
+      min-height: 38px;
+      gap: 0.26rem;
+      padding: 0.22rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-control-card .bet-controls__input {
+      min-height: 36px !important;
+      padding: 0.1rem 0.38rem !important;
+      font-size: 18px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel']
+      .wheel-control-card
+      .bet-controls__adjusters
+      .game-choice-btn {
+      min-height: 36px;
+      font-size: 10px;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-risk-control,
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-segments-control {
+      min-width: 0;
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-risk-control .mt-2,
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-segments-control .mt-2 {
+      margin-top: 0.22rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-risk-control .game-choice-btn,
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-segments-control .game-choice-btn {
+      min-height: 31px;
+      border-radius: 9px;
+      padding: 0.16rem 0 !important;
+      font-size: 10px;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-segments-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      gap: 0.24rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-spin-button {
+      min-height: 40px !important;
+      margin-top: 0 !important;
+      border-radius: 11px !important;
+      padding: 0.36rem 0.5rem !important;
+      font-size: 11px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='wheel'] .wheel-balance-strip {
+      display: none;
     }
 
     .game-fullscreen-shell[data-game-id='tower'] .tower-difficulty-control {

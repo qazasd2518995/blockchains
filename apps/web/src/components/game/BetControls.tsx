@@ -10,6 +10,8 @@ interface BetControlsProps {
   disabled?: boolean;
   min?: number;
   guestMode?: boolean;
+  label?: string;
+  showPresets?: boolean;
 }
 
 export function BetControls({
@@ -19,6 +21,8 @@ export function BetControls({
   disabled,
   min = MIN_BET_AMOUNT,
   guestMode = false,
+  label,
+  showPresets = true,
 }: BetControlsProps) {
   const { t } = useTranslation();
   const [text, setText] = useState(amount.toFixed(2));
@@ -42,7 +46,7 @@ export function BetControls({
         <div className="flex items-baseline gap-2">
           <span className="text-[9px] text-white/45">01</span>
           <span className="text-[11px] font-semibold tracking-[0.16em] text-white/85">
-            {t.bet.stake}
+            {label ?? t.bet.stake}
           </span>
         </div>
         <span className="data-num text-[10px] text-white/55">
@@ -56,7 +60,7 @@ export function BetControls({
           name="bet-amount"
           inputMode="decimal"
           autoComplete="off"
-          aria-label={t.bet.stake}
+          aria-label={label ?? t.bet.stake}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onBlur={() => {
@@ -87,27 +91,29 @@ export function BetControls({
         </div>
       </div>
 
-      <div className="bet-controls__presets mt-3 grid grid-cols-5 gap-1.5 sm:gap-2">
-        {[10, 100, 1000, 10000].map((v) => (
+      {showPresets ? (
+        <div className="bet-controls__presets mt-3 grid grid-cols-5 gap-1.5 sm:gap-2">
+          {[10, 100, 1000, 10000].map((v) => (
+            <button
+              key={v}
+              type="button"
+              disabled={disabled || (!guestMode && v > maxBalance)}
+              onClick={() => syncText(clamp(v))}
+              className="game-choice-btn px-0 py-2.5"
+            >
+              {v}
+            </button>
+          ))}
           <button
-            key={v}
             type="button"
-            disabled={disabled || (!guestMode && v > maxBalance)}
-            onClick={() => syncText(clamp(v))}
-            className="game-choice-btn px-0 py-2.5"
+            disabled={disabled || guestMode}
+            onClick={() => syncText(clamp(maxBalance))}
+            className="game-choice-btn game-choice-btn-acid px-0 py-2.5"
           >
-            {v}
+            {t.bet.max}
           </button>
-        ))}
-        <button
-          type="button"
-          disabled={disabled || guestMode}
-          onClick={() => syncText(clamp(maxBalance))}
-          className="game-choice-btn game-choice-btn-acid px-0 py-2.5"
-        >
-          {t.bet.max}
-        </button>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
