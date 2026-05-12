@@ -78,7 +78,14 @@ export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
   mines: simplePixiGame('mines'),
   hilo: simplePixiGame('hilo'),
   keno: simplePixiGame('keno'),
-  wheel: simplePixiGame('wheel'),
+  wheel: {
+    gameId: 'wheel',
+    assets: [
+      criticalAsset('/game-art/wheel/cover.png', 'cover'),
+      criticalPixiAsset('/game-art/wheel/background-v2.png', 'background'),
+      criticalPixiAsset('/game-art/wheel/sprites.png', 'sprite'),
+    ],
+  },
   plinko: simplePixiGame('plinko'),
   'plinko-x': simplePixiGame('plinko', 'plinko-x'),
   tower: {
@@ -94,14 +101,14 @@ export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
     gameId: 'mini-roulette',
     assets: [
       criticalAsset('/game-art/mini-roulette/cover.png', 'cover'),
-      criticalPixiAsset('/game-art/mini-roulette/background.png', 'background'),
+      criticalPixiAsset('/game-art/mini-roulette/background-v2.png', 'background'),
     ],
   },
   carnival: {
     gameId: 'carnival',
     assets: [
       criticalAsset('/game-art/carnival/cover.png', 'cover'),
-      criticalPixiAsset('/game-art/carnival/background.png', 'background'),
+      criticalPixiAsset('/game-art/carnival/background-v2.png', 'background'),
     ],
   },
   'chicken-road': {

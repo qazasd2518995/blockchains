@@ -28,13 +28,9 @@ import { WinCelebration } from '@bg/game-engine';
 
 const COLOR_BG = 0x0F172A;
 const COLOR_ACID = 0xF3D67D;
-const COLOR_VIOLET = 0xE8D48A;
-const COLOR_EMBER = 0xD4574A;
 const COLOR_TOXIC = 0x1E7A4F;
 const COLOR_AMBER = 0xF3D67D;
-const COLOR_ICE = 0x266F85;
 const COLOR_INK = 0x0A0806;
-const COLOR_RED = 0xD4574A;
 const COLOR_WHITE = 0xFFFFFF;
 
 const SLOTS = 13; // 0 + 1-12
@@ -44,8 +40,55 @@ const BLACK_NUMBERS = new Set([2, 4, 6, 8, 10, 11]);
 export type RouletteSkin = 'mini-roulette' | 'carnival';
 
 const ROULETTE_BACKGROUND_ASSETS: Record<RouletteSkin, string> = {
-  'mini-roulette': '/game-art/mini-roulette/background.png',
-  carnival: '/game-art/carnival/background.png',
+  'mini-roulette': '/game-art/mini-roulette/background-v2.png',
+  carnival: '/game-art/carnival/background-v2.png',
+};
+
+const ROULETTE_THEMES: Record<
+  RouletteSkin,
+  {
+    veilAlpha: number;
+    glow: number;
+    rim: number;
+    rimDark: number;
+    green: number;
+    red: number;
+    black: number;
+    separator: number;
+    bulb: number;
+    hub: number;
+    hubInner: number;
+    pointer: number;
+  }
+> = {
+  'mini-roulette': {
+    veilAlpha: 0.35,
+    glow: 0xF3D67D,
+    rim: 0xEBCB74,
+    rimDark: 0x100A05,
+    green: 0x1F8B5F,
+    red: 0xD9574F,
+    black: 0x080706,
+    separator: 0xF3D67D,
+    bulb: 0xFFE39B,
+    hub: 0x090706,
+    hubInner: 0xF3D67D,
+    pointer: 0xF3D67D,
+  },
+  carnival: {
+    veilAlpha: 0.28,
+    glow: 0xB84CFF,
+    rim: 0xFFD66B,
+    rimDark: 0x170516,
+    green: 0x159C86,
+    red: 0xC83F68,
+    black: 0x120B1A,
+    separator: 0xFFD66B,
+    bulb: 0xFFB347,
+    hub: 0x160817,
+    hubInner: 0xE044A4,
+    pointer: 0xFFD66B,
+  },
 };
 
 function normalizeAngle(angle: number): number {
@@ -202,33 +245,38 @@ export class RouletteScene {
     this.backgroundTexture = await loadTextureOrNull(ROULETTE_BACKGROUND_ASSETS[this.skin]);
   }
 
+  private getTheme(): (typeof ROULETTE_THEMES)[RouletteSkin] {
+    return ROULETTE_THEMES[this.skin];
+  }
+
   private createBackground(): void {
     if (!this.app) return;
+    const theme = this.getTheme();
     const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
 
     const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.92);
     if (artwork) {
-      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: this.skin === 'carnival' ? 0.46 : 0.5 });
+      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: theme.veilAlpha });
       this.app.stage.addChild(veil);
     }
 
     const glow = new Graphics()
       .circle(this.cx, this.cy, this.outerRadius * 1.4)
-      .fill({ color: this.skin === 'carnival' ? COLOR_EMBER : COLOR_ACID, alpha: artwork ? 0.045 : 0.08 });
+      .fill({ color: theme.glow, alpha: artwork ? 0.07 : 0.1 });
     glow.filters = [new BlurFilter({ strength: 60 })];
     this.app.stage.addChild(glow);
 
     // 外圈裝飾
     const deco = new Graphics()
       .circle(this.cx, this.cy, this.outerRadius + 24)
-      .stroke({ color: COLOR_ACID, width: 2, alpha: artwork ? 0.14 : 0.2 });
+      .stroke({ color: theme.rim, width: 2, alpha: artwork ? 0.24 : 0.3 });
     this.app.stage.addChild(deco);
     for (let i = 0; i < 16; i += 1) {
       const a = (i / 16) * Math.PI * 2;
       const px = this.cx + Math.cos(a) * (this.outerRadius + 42);
       const py = this.cy + Math.sin(a) * (this.outerRadius + 42);
-      const dot = new Graphics().circle(px, py, 3).fill({ color: COLOR_ACID, alpha: artwork ? 0.2 : 0.35 });
+      const dot = new Graphics().circle(px, py, 3).fill({ color: theme.bulb, alpha: artwork ? 0.38 : 0.45 });
       this.app.stage.addChild(dot);
     }
   }
@@ -236,35 +284,58 @@ export class RouletteScene {
   private drawWheel(): void {
     if (!this.wheelGraphics || !this.numbersContainer) return;
     const g = this.wheelGraphics;
+    const theme = this.getTheme();
     const segAngle = TAU / SLOTS;
+    const segmentRadius = this.outerRadius - Math.max(10, this.outerRadius * 0.035);
+    const innerBandRadius = this.outerRadius * 0.43;
     g.clear();
     this.numbersContainer.removeChildren();
 
-    // 外圈
-    g.circle(0, 0, this.outerRadius + 3)
-      .fill({ color: COLOR_INK })
-      .circle(0, 0, this.outerRadius)
-      .fill({ color: COLOR_INK });
+    g.circle(0, this.outerRadius * 0.035, this.outerRadius + 18).fill({
+      color: COLOR_INK,
+      alpha: 0.42,
+    });
+    g.circle(0, 0, this.outerRadius + 13).fill({ color: theme.rimDark });
+    g.circle(0, 0, this.outerRadius + 8).stroke({
+      color: theme.rim,
+      width: Math.max(5, this.outerRadius * 0.03),
+      alpha: 0.95,
+    });
+    g.circle(0, 0, this.outerRadius + 2).stroke({
+      color: COLOR_WHITE,
+      width: 1,
+      alpha: 0.18,
+    });
+    g.circle(0, 0, this.outerRadius - 2).fill({ color: theme.rimDark, alpha: 0.96 });
 
     for (let i = 0; i < SLOTS; i += 1) {
       const startA = -Math.PI / 2 + i * segAngle;
       const endA = startA + segAngle;
 
       // 顏色
-      let color = COLOR_INK;
-      if (i === 0) color = 0x1E7A4F; // 綠色 0
-      else if (RED_NUMBERS.has(i)) color = COLOR_RED;
-      else if (BLACK_NUMBERS.has(i)) color = 0x0A0806;
+      let color = theme.black;
+      if (i === 0) color = theme.green;
+      else if (RED_NUMBERS.has(i)) color = theme.red;
+      else if (BLACK_NUMBERS.has(i)) color = theme.black;
 
       g.moveTo(0, 0);
-      g.arc(0, 0, this.outerRadius - 4, startA, endA);
+      g.arc(0, 0, segmentRadius, startA, endA);
       g.closePath();
       g.fill({ color });
 
+      g.moveTo(0, 0);
+      g.arc(0, 0, segmentRadius * 0.98, startA + segAngle * 0.05, endA - segAngle * 0.05);
+      g.closePath();
+      g.fill({ color: COLOR_WHITE, alpha: i === 0 ? 0.08 : 0.045 });
+
       // 分隔線
-      const x1 = Math.cos(startA) * (this.outerRadius - 4);
-      const y1 = Math.sin(startA) * (this.outerRadius - 4);
-      g.moveTo(0, 0).lineTo(x1, y1).stroke({ color: COLOR_AMBER, width: 1.5, alpha: 0.6 });
+      const x1 = Math.cos(startA) * segmentRadius;
+      const y1 = Math.sin(startA) * segmentRadius;
+      g.moveTo(0, 0).lineTo(x1, y1).stroke({
+        color: theme.separator,
+        width: Math.max(1.2, this.outerRadius * 0.007),
+        alpha: 0.72,
+      });
 
       // 號碼文字
       const midA = startA + segAngle / 2;
@@ -284,38 +355,71 @@ export class RouletteScene {
       this.numbersContainer.addChild(txt);
     }
 
-    // 內圈金環
+    for (let i = 0; i < SLOTS; i += 1) {
+      const midA = -Math.PI / 2 + (i + 0.5) * segAngle;
+      const px = Math.cos(midA) * (this.outerRadius + 4);
+      const py = Math.sin(midA) * (this.outerRadius + 4);
+      const bulbRadius = Math.max(3, this.outerRadius * 0.015);
+      g.circle(px, py, bulbRadius).fill({ color: theme.bulb, alpha: 0.82 });
+      g.circle(px - bulbRadius * 0.28, py - bulbRadius * 0.28, bulbRadius * 0.38).fill({
+        color: COLOR_WHITE,
+        alpha: 0.6,
+      });
+    }
+
     g.circle(0, 0, this.outerRadius - 4).stroke({
-      color: COLOR_AMBER,
-      width: 2,
-      alpha: 0.7,
+      color: theme.rim,
+      width: Math.max(2, this.outerRadius * 0.014),
+      alpha: 0.82,
+    });
+    g.circle(0, 0, innerBandRadius).fill({
+      color: theme.rimDark,
+      alpha: 0.78,
+    });
+    g.circle(0, 0, innerBandRadius).stroke({
+      color: theme.rim,
+      width: Math.max(2, this.outerRadius * 0.012),
+      alpha: 0.78,
+    });
+    g.circle(0, 0, innerBandRadius * 0.8).stroke({
+      color: COLOR_WHITE,
+      width: 1,
+      alpha: 0.18,
     });
   }
 
   private drawCenterHub(): void {
     if (!this.centerHub) return;
     this.centerHub.removeChildren();
+    const theme = this.getTheme();
     const r = Math.max(44, this.outerRadius * 0.34);
+    const shadow = new Graphics().circle(0, r * 0.04, r * 1.08).fill({
+      color: COLOR_INK,
+      alpha: 0.38,
+    });
     // 外圈
     const outer = new Graphics()
       .circle(0, 0, r)
-      .fill({ color: COLOR_INK })
-      .stroke({ color: COLOR_AMBER, width: 2 });
+      .fill({ color: theme.hub })
+      .stroke({ color: theme.rim, width: Math.max(3, r * 0.06) });
+    const trim = new Graphics()
+      .circle(0, 0, r * 0.86)
+      .stroke({ color: COLOR_WHITE, width: 1, alpha: 0.16 });
     // 內圈
     const inner = new Graphics()
       .circle(0, 0, r * 0.7)
-      .fill({ color: COLOR_ACID })
+      .fill({ color: theme.hubInner })
       .stroke({ color: COLOR_WHITE, width: 1, alpha: 0.4 });
     // 十字
     const cross = new Graphics();
     cross
       .moveTo(-r * 0.5, 0)
       .lineTo(r * 0.5, 0)
-      .stroke({ color: COLOR_AMBER, width: 2 });
+      .stroke({ color: theme.rim, width: 2, alpha: 0.75 });
     cross
       .moveTo(0, -r * 0.5)
       .lineTo(0, r * 0.5)
-      .stroke({ color: COLOR_AMBER, width: 2 });
+      .stroke({ color: theme.rim, width: 2, alpha: 0.75 });
     // 中心星
     const starStyle = new TextStyle({
       fontFamily: GAME_FONT,
@@ -325,7 +429,9 @@ export class RouletteScene {
     });
     const star = new Text({ text: '✦', style: starStyle });
     star.anchor.set(0.5);
+    this.centerHub.addChild(shadow);
     this.centerHub.addChild(outer);
+    this.centerHub.addChild(trim);
     this.centerHub.addChild(inner);
     this.centerHub.addChild(cross);
     this.centerHub.addChild(star);
@@ -353,9 +459,14 @@ export class RouletteScene {
   private drawPointer(): void {
     if (!this.pointerContainer) return;
     this.pointerContainer.removeChildren();
+    const theme = this.getTheme();
     const w = Math.max(24, this.outerRadius * 0.11);
     const h = Math.max(26, this.outerRadius * 0.13);
     const capRadius = Math.max(8, this.outerRadius * 0.038);
+    const glow = new Graphics()
+      .circle(0, h * 0.46, w * 0.76)
+      .fill({ color: theme.pointer, alpha: 0.22 });
+    glow.filters = [new BlurFilter({ strength: 12 })];
     const shadow = new Graphics()
       .poly([-w / 2 - 2, -2, w / 2 + 2, -2, 0, h + 2])
       .fill({ color: COLOR_INK, alpha: 0.3 });
@@ -363,12 +474,13 @@ export class RouletteScene {
     shadow.y = 3;
     const body = new Graphics()
       .poly([-w / 2, 0, w / 2, 0, 0, h])
-      .fill({ color: COLOR_AMBER })
+      .fill({ color: theme.pointer })
       .stroke({ color: COLOR_INK, width: 2 });
     const cap = new Graphics()
       .circle(0, -2, capRadius)
-      .fill({ color: COLOR_AMBER })
+      .fill({ color: theme.pointer })
       .stroke({ color: COLOR_INK, width: 2 });
+    this.pointerContainer.addChild(glow);
     this.pointerContainer.addChild(shadow);
     this.pointerContainer.addChild(body);
     this.pointerContainer.addChild(cap);
@@ -547,17 +659,18 @@ export class RouletteScene {
   private onLand(slot: number): void {
     // 珠子停在指針下方：世界座標 (cx, cy - R*0.78)
     if (this.ball && this.ballContainer) {
+      const theme = this.getTheme();
       const bx = this.ballContainer.x + this.ball.x;
       const by = this.ballContainer.y + this.ball.y;
 
       // 依號碼類型決定特效
       let color = COLOR_TOXIC;
       if (slot === 0) {
-        color = 0x1E7A4F;
+        color = theme.green;
       } else if (RED_NUMBERS.has(slot)) {
-        color = COLOR_RED;
+        color = theme.red;
       } else {
-        color = COLOR_AMBER;
+        color = theme.rim;
       }
 
       this.emitShockwave(bx, by, color, 120);

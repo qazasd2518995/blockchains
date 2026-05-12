@@ -130,7 +130,9 @@ export function RoulettePage({ variant }: Props) {
     <div>
       <GameHeader
         artwork={
-          isMini ? '/game-art/mini-roulette/background.png' : '/game-art/carnival/background.png'
+          isMini
+            ? '/game-art/mini-roulette/background-v2.png'
+            : '/game-art/carnival/background-v2.png'
         }
         section={isMini ? '§ GAME 06' : '§ GAME 18'}
         breadcrumb={isMini ? 'ROULETTE_06' : 'CARNIVAL_18'}

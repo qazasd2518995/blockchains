@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-10T18:18:29.737Z",
+  "generatedAt": "2026-05-12T14:30:51.618Z",
   "widths": [
     480,
     960,
@@ -152,6 +152,11 @@
       "960": "/_optimized/game-art/blackjack/cover@960.webp",
       "1600": "/_optimized/game-art/blackjack/cover@1600.webp"
     },
+    "/game-art/carnival/background-v2.png": {
+      "480": "/_optimized/game-art/carnival/background-v2@480.webp",
+      "960": "/_optimized/game-art/carnival/background-v2@960.webp",
+      "1600": "/_optimized/game-art/carnival/background-v2@1600.webp"
+    },
     "/game-art/carnival/background.png": {
       "480": "/_optimized/game-art/carnival/background@480.webp",
       "960": "/_optimized/game-art/carnival/background@960.webp",
@@ -247,6 +252,11 @@
       "960": "/_optimized/game-art/mines/sprites@960.webp",
       "1600": "/_optimized/game-art/mines/sprites@1600.webp"
     },
+    "/game-art/mini-roulette/background-v2.png": {
+      "480": "/_optimized/game-art/mini-roulette/background-v2@480.webp",
+      "960": "/_optimized/game-art/mini-roulette/background-v2@960.webp",
+      "1600": "/_optimized/game-art/mini-roulette/background-v2@1600.webp"
+    },
     "/game-art/mini-roulette/background.png": {
       "480": "/_optimized/game-art/mini-roulette/background@480.webp",
       "960": "/_optimized/game-art/mini-roulette/background@960.webp",
@@ -291,6 +301,11 @@
       "480": "/_optimized/game-art/tower/stage-background@480.webp",
       "960": "/_optimized/game-art/tower/stage-background@960.webp",
       "1600": "/_optimized/game-art/tower/stage-background@1600.webp"
+    },
+    "/game-art/wheel/background-v2.png": {
+      "480": "/_optimized/game-art/wheel/background-v2@480.webp",
+      "960": "/_optimized/game-art/wheel/background-v2@960.webp",
+      "1600": "/_optimized/game-art/wheel/background-v2@1600.webp"
     },
     "/game-art/wheel/background.png": {
       "480": "/_optimized/game-art/wheel/background@480.webp",

@@ -26,8 +26,6 @@ import {
 import { WinCelebration } from '@bg/game-engine';
 
 const COLOR_BG = 0x0F172A;
-const COLOR_ACID = 0xF3D67D;
-const COLOR_VIOLET = 0xE8D48A;
 const COLOR_EMBER = 0xD4574A;
 const COLOR_TOXIC = 0x1E7A4F;
 const COLOR_AMBER = 0xF3D67D;
@@ -35,8 +33,22 @@ const COLOR_ICE = 0x266F85;
 const COLOR_INK = 0x0A0806;
 const COLOR_WHITE = 0xFFFFFF;
 const COLOR_GRAY = 0xC9A247;
-const WHEEL_BACKGROUND_ASSET = '/game-art/wheel/background.png';
+const WHEEL_BACKGROUND_ASSET = '/game-art/wheel/background-v2.png';
 const TAU = Math.PI * 2;
+
+const WHEEL_THEME = {
+  veilAlpha: 0.34,
+  glow: 0x39D5E8,
+  rim: 0xF3D67D,
+  rimDark: 0x07131F,
+  pointer: 0xF3D67D,
+  bulb: 0xFFE39B,
+  zero: 0x26364A,
+  low: 0x139D84,
+  medium: 0xF3D67D,
+  high: 0xD4574A,
+  jackpot: 0x7C4DFF,
+};
 
 function normalizeAngle(angle: number): number {
   return ((angle % TAU) + TAU) % TAU;
@@ -162,20 +174,20 @@ export class WheelScene {
 
     const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.9);
     if (artwork) {
-      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.5 });
+      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: WHEEL_THEME.veilAlpha });
       this.app.stage.addChild(veil);
     }
 
     const glow = new Graphics()
       .circle(this.cx, this.cy, this.radius * 1.3)
-      .fill({ color: COLOR_ACID, alpha: artwork ? 0.04 : 0.08 });
+      .fill({ color: WHEEL_THEME.glow, alpha: artwork ? 0.08 : 0.1 });
     glow.filters = [new BlurFilter({ strength: 50 })];
     this.app.stage.addChild(glow);
 
     // 外圈裝飾光環
     const ring = new Graphics()
       .circle(this.cx, this.cy, this.radius + 20)
-      .stroke({ color: COLOR_ACID, width: 2, alpha: 0.2 });
+      .stroke({ color: WHEEL_THEME.rim, width: 2, alpha: artwork ? 0.24 : 0.3 });
     this.app.stage.addChild(ring);
 
     // 小裝飾點（圍繞輪盤外圍）
@@ -183,7 +195,7 @@ export class WheelScene {
       const a = (i / 12) * Math.PI * 2;
       const px = this.cx + Math.cos(a) * (this.radius + 36);
       const py = this.cy + Math.sin(a) * (this.radius + 36);
-      const dot = new Graphics().circle(px, py, 3).fill({ color: COLOR_ACID, alpha: 0.4 });
+      const dot = new Graphics().circle(px, py, 3).fill({ color: WHEEL_THEME.bulb, alpha: 0.45 });
       this.app.stage.addChild(dot);
     }
   }
@@ -194,13 +206,20 @@ export class WheelScene {
     const outerRadius = Math.max(38, this.radius * 0.17);
     const innerRadius = outerRadius * 0.8;
     const starSize = Math.max(30, outerRadius * 0.78);
+    const shadow = new Graphics().circle(0, outerRadius * 0.08, outerRadius * 1.16).fill({
+      color: COLOR_INK,
+      alpha: 0.36,
+    });
     const outer = new Graphics()
       .circle(0, 0, outerRadius)
-      .fill({ color: COLOR_INK })
-      .stroke({ color: COLOR_ACID, width: Math.max(3, outerRadius * 0.07) });
+      .fill({ color: WHEEL_THEME.rimDark })
+      .stroke({ color: WHEEL_THEME.rim, width: Math.max(3, outerRadius * 0.08) });
+    const trim = new Graphics()
+      .circle(0, 0, outerRadius * 0.9)
+      .stroke({ color: COLOR_WHITE, width: 1, alpha: 0.18 });
     const inner = new Graphics()
       .circle(0, 0, innerRadius)
-      .fill({ color: COLOR_ACID })
+      .fill({ color: WHEEL_THEME.rim })
       .stroke({ color: COLOR_WHITE, width: 1, alpha: 0.5 });
     // 中心星
     const starStyle = new TextStyle({
@@ -211,7 +230,9 @@ export class WheelScene {
     });
     const star = new Text({ text: '✦', style: starStyle });
     star.anchor.set(0.5);
+    this.centerHub.addChild(shadow);
     this.centerHub.addChild(outer);
+    this.centerHub.addChild(trim);
     this.centerHub.addChild(inner);
     this.centerHub.addChild(star);
   }
@@ -223,6 +244,10 @@ export class WheelScene {
     const h = Math.max(28, this.radius * 0.15);
     const capRadius = Math.max(8, this.radius * 0.04);
     // 指針朝下（指向輪盤外圈的 0 度位置，也就是正上方）
+    const glow = new Graphics()
+      .circle(0, h * 0.46, w * 0.78)
+      .fill({ color: WHEEL_THEME.pointer, alpha: 0.22 });
+    glow.filters = [new BlurFilter({ strength: 12 })];
     const shadow = new Graphics()
       .poly([-w / 2 - 2, -2, w / 2 + 2, -2, 0, h + 2])
       .fill({ color: COLOR_INK, alpha: 0.3 });
@@ -230,13 +255,14 @@ export class WheelScene {
     shadow.y = 3;
     const body = new Graphics()
       .poly([-w / 2, 0, w / 2, 0, 0, h])
-      .fill({ color: COLOR_EMBER })
+      .fill({ color: WHEEL_THEME.pointer })
       .stroke({ color: COLOR_INK, width: 2 });
     // 頂部圓
     const cap = new Graphics()
       .circle(0, -2, capRadius)
-      .fill({ color: COLOR_EMBER })
+      .fill({ color: WHEEL_THEME.pointer })
       .stroke({ color: COLOR_INK, width: 2 });
+    this.pointerContainer.addChild(glow);
     this.pointerContainer.addChild(shadow);
     this.pointerContainer.addChild(body);
     this.pointerContainer.addChild(cap);
@@ -285,6 +311,15 @@ export class WheelScene {
     this.drawWheel();
   }
 
+  private getSegmentPaint(multiplier: number): { color: number; textColor: number } {
+    if (multiplier <= 0) return { color: WHEEL_THEME.zero, textColor: COLOR_GRAY };
+    if (multiplier < 1) return { color: 0x364B62, textColor: COLOR_WHITE };
+    if (multiplier < 2) return { color: WHEEL_THEME.low, textColor: COLOR_WHITE };
+    if (multiplier < 5) return { color: WHEEL_THEME.medium, textColor: COLOR_INK };
+    if (multiplier < 20) return { color: WHEEL_THEME.high, textColor: COLOR_WHITE };
+    return { color: WHEEL_THEME.jackpot, textColor: COLOR_WHITE };
+  }
+
   private drawWheel(): void {
     if (!this.wheelGraphics) return;
     const g = this.wheelGraphics;
@@ -302,49 +337,92 @@ export class WheelScene {
     const n = this.multipliers.length;
     if (n === 0) return;
     const segAngle = TAU / n;
+    const segmentRadius = this.radius - Math.max(9, this.radius * 0.028);
+    const innerBandRadius = this.radius * 0.32;
+
+    g.circle(0, this.radius * 0.04, this.radius + 20).fill({
+      color: COLOR_INK,
+      alpha: 0.42,
+    });
+    g.circle(0, 0, this.radius + 16).fill({ color: WHEEL_THEME.rimDark, alpha: 0.98 });
+    g.circle(0, 0, this.radius + 10).stroke({
+      color: WHEEL_THEME.rim,
+      width: Math.max(5, this.radius * 0.032),
+      alpha: 0.96,
+    });
+    g.circle(0, 0, this.radius + 2).stroke({ color: COLOR_WHITE, width: 1, alpha: 0.16 });
+    g.circle(0, 0, this.radius - 2).fill({ color: WHEEL_THEME.rimDark, alpha: 0.9 });
 
     // 繪製扇形
     for (let i = 0; i < n; i += 1) {
       const m = this.multipliers[i]!;
-      // 顏色依倍率
-      let color = COLOR_GRAY;
-      if (m === 0) color = COLOR_GRAY;
-      else if (m < 2) color = COLOR_TOXIC;
-      else if (m < 5) color = COLOR_AMBER;
-      else color = COLOR_EMBER;
+      const paint = this.getSegmentPaint(m);
 
       // 起始從 -PI/2（正上方）開始
       const startA = -Math.PI / 2 + i * segAngle;
       const endA = startA + segAngle;
 
       g.moveTo(0, 0);
-      g.arc(0, 0, this.radius, startA, endA);
+      g.arc(0, 0, segmentRadius, startA, endA);
       g.closePath();
-      g.fill({ color });
+      g.fill({ color: paint.color });
+
+      g.moveTo(0, 0);
+      g.arc(0, 0, segmentRadius * 0.97, startA + segAngle * 0.04, endA - segAngle * 0.04);
+      g.closePath();
+      g.fill({ color: COLOR_WHITE, alpha: m >= 2 ? 0.065 : 0.04 });
 
       // 邊界線
-      const x1 = Math.cos(startA) * this.radius;
-      const y1 = Math.sin(startA) * this.radius;
-      g.moveTo(0, 0).lineTo(x1, y1).stroke({ color: COLOR_INK, width: 2 });
+      const x1 = Math.cos(startA) * segmentRadius;
+      const y1 = Math.sin(startA) * segmentRadius;
+      g.moveTo(0, 0).lineTo(x1, y1).stroke({
+        color: WHEEL_THEME.rimDark,
+        width: Math.max(1.4, this.radius * 0.008),
+        alpha: 0.82,
+      });
     }
 
     // 外圈
-    g.circle(0, 0, this.radius).stroke({ color: COLOR_INK, width: 3 });
-    g.circle(0, 0, this.radius - 3).stroke({ color: COLOR_WHITE, width: 1, alpha: 0.4 });
+    g.circle(0, 0, this.radius).stroke({
+      color: WHEEL_THEME.rim,
+      width: Math.max(2, this.radius * 0.016),
+      alpha: 0.9,
+    });
+    g.circle(0, 0, this.radius - 8).stroke({ color: COLOR_WHITE, width: 1, alpha: 0.26 });
+    g.circle(0, 0, innerBandRadius).fill({ color: WHEEL_THEME.rimDark, alpha: 0.72 });
+    g.circle(0, 0, innerBandRadius).stroke({
+      color: WHEEL_THEME.rim,
+      width: Math.max(2, this.radius * 0.012),
+      alpha: 0.8,
+    });
+    g.circle(0, 0, innerBandRadius * 0.78).stroke({ color: COLOR_WHITE, width: 1, alpha: 0.16 });
+
+    for (let i = 0; i < n; i += 1) {
+      const midA = -Math.PI / 2 + (i + 0.5) * segAngle;
+      const px = Math.cos(midA) * (this.radius + 4);
+      const py = Math.sin(midA) * (this.radius + 4);
+      const bulbRadius = Math.max(2.2, Math.min(5, this.radius * 0.015));
+      g.circle(px, py, bulbRadius).fill({ color: WHEEL_THEME.bulb, alpha: n > 30 ? 0.55 : 0.78 });
+    }
 
     // 倍率文字：10/20 段完整顯示，包含 0×，避免玩家看到空白扇區。
     if (n <= 20) {
       for (let i = 0; i < n; i += 1) {
         const m = this.multipliers[i]!;
+        const paint = this.getSegmentPaint(m);
         const midA = -Math.PI / 2 + (i + 0.5) * segAngle;
         const tx = Math.cos(midA) * this.radius * 0.7;
         const ty = Math.sin(midA) * this.radius * 0.7;
         const style = new TextStyle({
           fontFamily: GAME_FONT,
           fontSize: Math.max(15, Math.min(28, this.radius * 0.105)),
-          fill: m === 0 ? 0x5F4B20 : COLOR_INK,
+          fill: paint.textColor,
           fontWeight: '700',
-          stroke: { color: COLOR_WHITE, width: Math.max(1.2, this.radius * 0.006), alpha: 0.28 },
+          stroke: {
+            color: paint.textColor === COLOR_INK ? COLOR_WHITE : COLOR_INK,
+            width: Math.max(1.2, this.radius * 0.006),
+            alpha: 0.32,
+          },
         });
         const txt = new Text({ text: this.formatMultiplierLabel(m), style });
         txt.anchor.set(0.5);

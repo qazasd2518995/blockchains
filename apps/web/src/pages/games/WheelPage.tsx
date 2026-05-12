@@ -114,7 +114,7 @@ export function WheelPage() {
   return (
     <div>
       <GameHeader
-        artwork="/game-art/wheel/background.png"
+        artwork="/game-art/wheel/background-v2.png"
         section="§ GAME 05"
         breadcrumb="WHEEL_05"
         title={t.games.wheel.title}
