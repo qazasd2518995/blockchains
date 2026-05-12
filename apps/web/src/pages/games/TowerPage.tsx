@@ -10,6 +10,7 @@ import {
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
+import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -331,6 +332,7 @@ export function TowerPage() {
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">疊塔</span>
               <span className="ml-2 text-white/40">·</span>
               <span className="ml-2 text-white/55 uppercase">Tower</span>
+              <GameActivityHeat gameId="tower" />
               <span className="text-white/72">
                 {round
                   ? `${t.games.tower.level} ${round.currentLevel}/${round.totalLevels}`

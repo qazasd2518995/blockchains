@@ -10,6 +10,7 @@ import { plinkoTable } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
+import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -705,6 +706,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
               </span>
               <span className="ml-2 text-white/40">·</span>
               <span className="ml-2 text-white/55 uppercase">{isX ? 'Plinko X' : 'Plinko'}</span>
+              <GameActivityHeat gameId={isX ? 'plinko-x' : 'plinko'} />
               <span className="text-white/72">
                 {rows} {t.games.plinko.rows} · {t.games.mines[risk]}
               </span>

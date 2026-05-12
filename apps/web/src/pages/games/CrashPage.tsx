@@ -3,6 +3,7 @@ import { AlertCircle } from 'lucide-react';
 import { MIN_BET_AMOUNT, type CrashPlayerBet, type CrashRoundSnapshot } from '@bg/shared';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
+import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount } from '@/lib/utils';
 import { getCrashSocket, disconnectCrashSocket } from '@/lib/socket';
@@ -20,8 +21,17 @@ type LocalCrashBet = { amount: number; cashed: boolean; payout?: string };
 type QueuedCrashBet = { amount: number; autoCashOut?: number; roundNumber?: number };
 type CrashAutoSettings = { rounds: number | null; amount: number; autoCashOut: number };
 type CrashAutoDraft = { rounds: string; amount: string; autoCashOut: string };
+type SimulatedCrashBet = {
+  id: string;
+  account: string;
+  amount: number;
+  cashoutAt: number | null;
+};
 const MIN_CASHOUT_MULTIPLIER = 1.01;
 const CRASH_AUTO_ROUND_PRESETS = ['∞', '10', '100'];
+const SIMULATED_LIVE_MIN = 10;
+const SIMULATED_LIVE_MAX = 28;
+let simulatedLiveBetSerial = 0;
 
 function formatCrashMultiplier(value: string | number): string {
   const n = typeof value === 'string' ? Number.parseFloat(value) : value;
@@ -60,6 +70,63 @@ function roundCurrency(value: number): number {
   return Number(Math.max(0, value).toFixed(2));
 }
 
+function createSimulatedCrashBets(gameId: string): SimulatedCrashBet[] {
+  const count = SIMULATED_LIVE_MIN + (hashString(gameId) % 10) + Math.floor(Math.random() * 6);
+  return Array.from({ length: Math.min(SIMULATED_LIVE_MAX, count) }, () =>
+    createSimulatedCrashBet(gameId),
+  );
+}
+
+function updateSimulatedCrashBets(gameId: string, current: SimulatedCrashBet[]) {
+  const next = current.map((bet) =>
+    bet.cashoutAt === null && Math.random() > 0.76
+      ? { ...bet, cashoutAt: randomSimulatedCashout() }
+      : bet,
+  );
+  const additions = 1 + (Math.random() > 0.72 ? 1 : 0);
+  for (let i = 0; i < additions; i += 1) {
+    next.unshift(createSimulatedCrashBet(gameId));
+  }
+  const target = SIMULATED_LIVE_MIN + Math.floor(Math.random() * (SIMULATED_LIVE_MAX - 7));
+  return next.slice(0, Math.max(SIMULATED_LIVE_MIN, target));
+}
+
+function createSimulatedCrashBet(gameId: string): SimulatedCrashBet {
+  simulatedLiveBetSerial += 1;
+  return {
+    id: `${gameId}-${Date.now()}-${simulatedLiveBetSerial}`,
+    account: createMaskedAccount(),
+    amount: createSimulatedStake(),
+    cashoutAt: Math.random() > 0.62 ? randomSimulatedCashout() : null,
+  };
+}
+
+function createMaskedAccount() {
+  const letters = 'abcdefghjkmnpqrstuvwxyz';
+  const prefix = letters[Math.floor(Math.random() * letters.length)] ?? 'a';
+  const suffix = String(10 + Math.floor(Math.random() * 90));
+  return `${prefix}******${suffix}`;
+}
+
+function createSimulatedStake() {
+  const weighted = Math.random() ** 1.85;
+  const amount = 10 + Math.floor((weighted * 19990) / 10) * 10;
+  return Math.max(10, Math.min(20000, amount));
+}
+
+function randomSimulatedCashout() {
+  return Number((1.1 + Math.random() ** 1.7 * 10.9).toFixed(1));
+}
+
+function hashString(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash >>> 0);
+}
+
 export function CrashPage({ config }: Props) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
@@ -74,6 +141,9 @@ export function CrashPage({ config }: Props) {
   const [myBet, setMyBet] = useState<LocalCrashBet | null>(null);
   const [queuedBet, setQueuedBet] = useState<QueuedCrashBet | null>(null);
   const [players, setPlayers] = useState<CrashPlayerBet[]>([]);
+  const [simulatedLiveBets, setSimulatedLiveBets] = useState<SimulatedCrashBet[]>(() =>
+    createSimulatedCrashBets(config.gameId),
+  );
   const [history, setHistory] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [bettingCountdown, setBettingCountdown] = useState(0);
@@ -523,6 +593,17 @@ export function CrashPage({ config }: Props) {
     };
   }, [applyCashoutResult, config.gameId, setBalance, t.games.crash.autoFailed]);
 
+  useEffect(() => {
+    setSimulatedLiveBets(createSimulatedCrashBets(config.gameId));
+    const timer = window.setInterval(
+      () => {
+        setSimulatedLiveBets((current) => updateSimulatedCrashBets(config.gameId, current));
+      },
+      850 + (hashString(config.gameId) % 650),
+    );
+    return () => window.clearInterval(timer);
+  }, [config.gameId]);
+
   const submitCrashBet = useCallback(
     (
       betAmount: number,
@@ -778,7 +859,7 @@ export function CrashPage({ config }: Props) {
   const canShowCurrentBetButton = status === 'BETTING' && !myBet && !queuedBet;
   const canShowNextRoundBetButton = status !== 'BETTING';
   const stageHistory = history.slice(0, 12);
-  const mobileLiveBetRows = players.slice(0, 4);
+  const mobileLiveBetRows = simulatedLiveBets.slice(0, 18);
   const autoBetDialog = autoBetOpen ? (
     <div
       className="slot-auto-modal crash-auto-modal"
@@ -893,6 +974,7 @@ export function CrashPage({ config }: Props) {
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">{meta.title}</span>
               <span className="ml-2 text-white/40">·</span>
               <span className="ml-2 text-white/55 uppercase">{meta.suffix}</span>
+              <GameActivityHeat gameId={config.gameId} />
               <div className="flex items-center gap-3 text-white/72">
                 {status === 'BETTING' && (
                   <span className="text-[#7DD3FC]">
@@ -940,28 +1022,24 @@ export function CrashPage({ config }: Props) {
                 <div className="crash-mobile-live-bets__header">
                   <span>{t.games.crash.liveBets}</span>
                   <strong>
-                    {t.games.crash.liveReal} · {players.length}
+                    {t.common.activityHeat} · {simulatedLiveBets.length}
                   </strong>
                 </div>
                 <div className="crash-mobile-live-bets__table">
                   <div>{t.games.crash.livePlayer}</div>
                   <div>{t.games.crash.liveStake}</div>
                   <div>{t.games.crash.liveCashout}</div>
-                  {mobileLiveBetRows.length === 0 ? (
-                    <span className="crash-mobile-live-bets__empty">{t.games.crash.liveEmpty}</span>
-                  ) : (
-                    mobileLiveBetRows.map((p, i) => (
-                      <div className="crash-mobile-live-bets__row" key={`${p.userId}-${i}`}>
-                        <span>0x{p.userId.slice(-4).toUpperCase()}</span>
-                        <span className="data-num">{p.amount}</span>
-                        <span className={p.cashedOutAt ? 'text-[#6EE7B7]' : 'text-white/55'}>
-                          {p.cashedOutAt
-                            ? formatCrashMultiplier(p.cashedOutAt)
-                            : t.games.crash.liveWaiting}
-                        </span>
-                      </div>
-                    ))
-                  )}
+                  {mobileLiveBetRows.map((p) => (
+                    <div className="crash-mobile-live-bets__row" key={p.id}>
+                      <span>{p.account}</span>
+                      <span className="data-num">{formatAmount(p.amount)}</span>
+                      <span className={p.cashoutAt ? 'text-[#6EE7B7]' : 'text-white/55'}>
+                        {p.cashoutAt
+                          ? formatCrashMultiplier(p.cashoutAt)
+                          : t.games.crash.liveWaiting}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1136,23 +1214,18 @@ export function CrashPage({ config }: Props) {
           <div className="game-side-card p-5">
             <div className="flex items-center justify-between border-b border-white/10 pb-2">
               <span className="label">{t.games.crash.liveBets}</span>
-              <span className="data-num text-[10px] text-white/55">{players.length}</span>
+              <span className="data-num text-[10px] text-white/55">{simulatedLiveBets.length}</span>
             </div>
             <div className="mt-3 max-h-64 space-y-1 overflow-y-auto text-[11px]">
-              {players.length === 0 && <div className="py-3 text-center text-white/40">—</div>}
-              {players.slice(0, 30).map((p, i) => (
+              {simulatedLiveBets.slice(0, 30).map((p) => (
                 <div
-                  key={i}
+                  key={p.id}
                   className="flex items-center justify-between rounded-[14px] border border-white/10 bg-white/[0.04] px-2 py-1.5"
                 >
-                  <span className="font-mono text-white/75">
-                    0x{p.userId.slice(-6).toUpperCase()}
-                  </span>
-                  <span className="data-num text-white/85">{p.amount}</span>
-                  <span
-                    className={`data-num ${p.cashedOutAt ? 'text-[#7DD3FC]' : 'text-white/55'}`}
-                  >
-                    {p.cashedOutAt ? formatCrashMultiplier(p.cashedOutAt) : '—'}
+                  <span className="font-mono text-white/75">{p.account}</span>
+                  <span className="data-num text-white/85">{formatAmount(p.amount)}</span>
+                  <span className={`data-num ${p.cashoutAt ? 'text-[#7DD3FC]' : 'text-white/55'}`}>
+                    {p.cashoutAt ? formatCrashMultiplier(p.cashoutAt) : '—'}
                   </span>
                 </div>
               ))}

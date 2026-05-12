@@ -8,6 +8,7 @@ import {
 } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -150,6 +151,7 @@ export function RoulettePage({ variant }: Props) {
               </span>
               <span className="ml-2 text-white/40">·</span>
               <span className="ml-2 text-white/55 uppercase">Roulette</span>
+              <GameActivityHeat gameId={variant} />
               <span className="text-white/72">
                 {t.games.roulette.total}: {formatAmount(totalBet)}
               </span>

@@ -12,6 +12,7 @@ import {
 import { CHICKEN_ROAD_TOTAL_STEPS, chickenRoadMultiplier } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { BetControls } from '@/components/game/BetControls';
+import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { useAuthStore } from '@/stores/authStore';
@@ -358,6 +359,7 @@ export function ChickenRoadPage() {
               <strong>小雞過馬路</strong>
               <span>CHICKEN ROAD</span>
             </div>
+            <GameActivityHeat gameId="chicken-road" />
             <div className="chicken-road-status">{round ? `第 ${currentStep} 格` : 'READY'}</div>
           </div>
 

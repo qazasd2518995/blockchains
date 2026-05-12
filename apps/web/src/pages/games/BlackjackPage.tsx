@@ -20,6 +20,7 @@ import {
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
+import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
@@ -220,6 +221,7 @@ export function BlackjackPage() {
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">21點</span>
               <span className="ml-2 text-white/40">·</span>
               <span className="ml-2 text-white/55 uppercase">Blackjack</span>
+              <GameActivityHeat gameId="blackjack" />
               <span className="text-[#7EE0A4]">
                 <span className="dot-online" />
                 {tableRound

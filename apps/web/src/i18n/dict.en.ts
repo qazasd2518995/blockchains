@@ -60,8 +60,8 @@ export const en = {
     gamesCountUnit: 'games',
     enterNow: 'Enter Now',
     loginToEnter: 'Log in to enter',
-    activityHeat: 'Heat',
-    activityHeatLabel: 'Activity heat indicator',
+    activityHeat: 'Online',
+    activityHeatLabel: 'Online players',
   },
   install: {
     closePrompt: 'Close Home Screen prompt',

@@ -16,6 +16,7 @@ import { HOTLINE_MINI_SYMBOLS, HOTLINE_SYMBOLS } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
+import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
 import { AudioMenu } from '@/components/layout/AudioMenu';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
@@ -1575,6 +1576,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               </span>
               <span className="ml-2 text-white/40">·</span>
               <span className="ml-2 text-white/55 uppercase">{slotTheme.suffix}</span>
+              <GameActivityHeat gameId={slotTheme.gameId} />
               <span className="text-white/72">
                 {spinning ? slotTheme.spinningLabel : slotTheme.readyLabel}
               </span>

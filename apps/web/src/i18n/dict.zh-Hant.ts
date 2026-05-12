@@ -56,8 +56,8 @@ export const zhHant = {
     gamesCountUnit: '款遊戲',
     enterNow: '立即進入',
     loginToEnter: '登入進入',
-    activityHeat: '人氣',
-    activityHeatLabel: '人氣熱度指標',
+    activityHeat: '在線',
+    activityHeatLabel: '在線人數',
   },
   install: {
     closePrompt: '關閉加入主畫面提示',

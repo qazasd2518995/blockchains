@@ -4,6 +4,7 @@ import { MIN_BET_AMOUNT, type DiceBetRequest, type DiceBetResult } from '@bg/sha
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
+import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { DiceScene } from '@/games/dice/DiceScene';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -130,6 +131,7 @@ export function DicePage() {
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">骰子</span>
               <span className="ml-2 text-white/40">·</span>
               <span className="ml-2 text-white/55 uppercase">Dice</span>
+              <GameActivityHeat gameId="dice" />
               <span className="text-[#7EE0A4]">
                 <span className="dot-online dot-online" />
                 {t.common.ready.toUpperCase()}

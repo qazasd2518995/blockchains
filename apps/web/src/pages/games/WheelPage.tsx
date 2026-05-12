@@ -11,6 +11,7 @@ import { wheelTable } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
+import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -131,6 +132,7 @@ export function WheelPage() {
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">彩色轉輪</span>
               <span className="ml-2 text-white/40">·</span>
               <span className="ml-2 text-white/55 uppercase">Wheel</span>
+              <GameActivityHeat gameId="wheel" />
               <span className="text-white/72">
                 {segments} {t.games.wheel.segments} · {t.games.mines[risk]}
               </span>

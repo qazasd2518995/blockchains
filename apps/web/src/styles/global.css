@@ -102,10 +102,8 @@
 
   .game-activity-heat {
     pointer-events: none;
-    position: fixed;
-    top: calc(env(safe-area-inset-top) + 4.35rem);
-    left: max(1rem, calc(50vw - 42rem));
-    z-index: 38;
+    flex: 0 0 auto;
+    margin-left: auto;
     display: inline-flex;
     align-items: center;
     gap: 0.34rem;
@@ -122,6 +120,10 @@
     letter-spacing: 0.08em;
     line-height: 1;
     backdrop-filter: blur(10px);
+  }
+
+  .game-activity-heat + * {
+    margin-left: 0.5rem;
   }
 
   .game-activity-heat svg {
@@ -456,9 +458,7 @@
     }
 
     .game-fullscreen-shell .game-activity-heat {
-      top: calc(env(safe-area-inset-top) + 3.42rem);
-      left: clamp(7.1rem, 32vw, 13rem);
-      max-width: 6.8rem;
+      max-width: 6.2rem;
       gap: 0.26rem;
       padding: 0.3rem 0.48rem;
       font-size: 0.62rem;
@@ -604,7 +604,7 @@
     }
 
     .game-fullscreen-shell .crash-mobile-live-bets {
-      pointer-events: none;
+      pointer-events: auto;
       position: absolute;
       right: 0.55rem;
       bottom: 0.55rem;
@@ -614,7 +614,7 @@
       gap: 0.25rem;
       border: 1px solid rgba(125, 211, 252, 0.18);
       border-radius: 0.72rem;
-      background: rgba(7, 16, 28, 0.62);
+      background: rgba(7, 16, 28, 0.76);
       padding: 0.42rem 0.5rem;
       box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -645,9 +645,12 @@
       grid-template-columns: minmax(0, 1fr) minmax(4.1rem, 0.8fr) minmax(3.9rem, 0.7fr);
       align-items: center;
       gap: 0.16rem 0.35rem;
-      overflow: hidden;
+      max-height: 5rem;
+      overflow-y: auto;
+      overscroll-behavior: contain;
       font-size: 9px;
       line-height: 1.05;
+      -webkit-overflow-scrolling: touch;
     }
 
     .game-fullscreen-shell .crash-mobile-live-bets__table > div:not(.crash-mobile-live-bets__row) {
@@ -4836,6 +4839,17 @@
 
   .chicken-road-road-topbar span {
     display: none;
+  }
+
+  .chicken-road-road-topbar .game-activity-heat span {
+    color: rgba(255, 255, 255, 0.76);
+    display: inline;
+    letter-spacing: 0.08em;
+  }
+
+  .chicken-road-road-topbar .game-activity-heat strong {
+    margin-right: 0;
+    color: #f3d67d;
   }
 
   .chicken-road-control-panel {

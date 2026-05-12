@@ -4,6 +4,7 @@ import { MIN_BET_AMOUNT, type KenoBetRequest, type KenoBetResult, type KenoRisk 
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
+import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -150,6 +151,7 @@ export function KenoPage() {
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">基諾</span>
               <span className="ml-2 text-white/40">·</span>
               <span className="ml-2 text-white/55 uppercase">Keno</span>
+              <GameActivityHeat gameId="keno" />
               <span className="text-white/72">
                 {t.games.keno.selected} {selected.size}/{MAX_PICKS}
               </span>
