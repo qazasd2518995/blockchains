@@ -1508,32 +1508,37 @@
     }
 
     .game-fullscreen-shell .roulette-board {
-      margin-top: 0.32rem !important;
+      margin-top: 0.26rem !important;
       display: grid;
-      gap: 0.22rem !important;
+      gap: 0.18rem !important;
     }
 
     .game-fullscreen-shell .roulette-number-grid,
     .game-fullscreen-shell .roulette-outside-grid,
     .game-fullscreen-shell .roulette-column-grid {
-      gap: 0.22rem !important;
+      gap: 0.18rem !important;
     }
 
     .game-fullscreen-shell .roulette-number-grid button,
     .game-fullscreen-shell .roulette-outside-grid button,
     .game-fullscreen-shell .roulette-column-grid button {
       aspect-ratio: auto !important;
-      min-height: 34px !important;
-      height: 34px !important;
+      min-height: 31px !important;
+      height: 31px !important;
       border-radius: 8px !important;
       padding: 0.18rem 0.12rem !important;
-      font-size: 12px !important;
+      font-size: 11px !important;
       line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell .roulette-column-grid button {
+      font-size: 9px !important;
+      letter-spacing: 0 !important;
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .game-control-stack,
     .game-fullscreen-shell[data-game-id='carnival'] .game-control-stack {
-      max-height: min(30svh, 184px);
+      max-height: max(120px, min(22svh, 136px));
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette']
@@ -1542,9 +1547,39 @@
     .game-fullscreen-shell[data-game-id='carnival']
       .game-control-stack
       > .game-side-card:first-child {
-      max-height: min(30svh, 184px);
-      overflow-y: auto;
-      padding: 0.42rem 0.55rem !important;
+      max-height: max(120px, min(22svh, 136px));
+      overflow: hidden;
+      padding: 0.38rem 0.5rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-control-card,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-control-card {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+      align-items: stretch;
+      gap: 0.42rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-chip-panel,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-chip-panel,
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-action-panel,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-action-panel {
+      min-width: 0;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-chip-grid,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-chip-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 0.28rem !important;
+      margin-top: 0.3rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-action-panel,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-action-panel {
+      display: grid;
+      grid-template-rows: 40px 30px 18px;
+      gap: 0.28rem;
+      align-content: start;
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-active-bets,
@@ -1554,8 +1589,8 @@
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .game-stage-panel > .game-canvas-shell,
     .game-fullscreen-shell[data-game-id='carnival'] .game-stage-panel > .game-canvas-shell {
-      flex: 1 1 clamp(200px, 34svh, 330px);
-      min-height: clamp(190px, 31svh, 310px) !important;
+      flex: 1 1 clamp(176px, 29svh, 286px);
+      min-height: clamp(168px, 27svh, 270px) !important;
       padding: 0.2rem !important;
     }
 
@@ -1584,8 +1619,40 @@
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-control-card .game-balance-strip,
     .game-fullscreen-shell[data-game-id='carnival'] .roulette-control-card .game-balance-strip {
-      padding-top: 0.25rem !important;
+      justify-content: flex-end;
+      margin-top: 0 !important;
+      border: 0;
+      background: transparent;
+      padding: 0 !important;
+      box-shadow: none;
       font-size: 9px !important;
+      line-height: 1.1;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-chip-grid .game-choice-btn,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-chip-grid .game-choice-btn {
+      height: 30px !important;
+      min-height: 30px !important;
+      padding: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-action-panel .btn-acid,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-action-panel .btn-acid {
+      height: 40px !important;
+      min-height: 40px !important;
+      margin-top: 0 !important;
+      overflow: hidden;
+      padding: 0.2rem 0.35rem !important;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-action-panel .game-choice-btn,
+    .game-fullscreen-shell[data-game-id='carnival'] .roulette-action-panel .game-choice-btn {
+      height: 30px !important;
+      min-height: 30px !important;
+      margin-top: 0 !important;
+      padding: 0.12rem 0.35rem !important;
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-result-card,

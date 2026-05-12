@@ -260,18 +260,20 @@ export function RoulettePage({ variant }: Props) {
 
         <div className="game-control-stack space-y-4">
           <div className="game-side-card roulette-control-card p-5">
-            <div className="label">{t.games.roulette.chipSize}</div>
-            <div className="mt-2 grid grid-cols-4 gap-1">
-              {[10, 100, 1000, 10000].map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setChip(v)}
-                  className={`game-choice-btn px-0 py-3 ${chip === v ? 'game-choice-btn-ember' : ''}`}
-                >
-                  {v}
-                </button>
-              ))}
+            <div className="roulette-chip-panel">
+              <div className="label">{t.games.roulette.chipSize}</div>
+              <div className="roulette-chip-grid mt-2 grid grid-cols-4 gap-1">
+                {[10, 100, 1000, 10000].map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setChip(v)}
+                    className={`game-choice-btn px-0 py-3 ${chip === v ? 'game-choice-btn-ember' : ''}`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="roulette-active-bets mt-4 space-y-1">
@@ -299,28 +301,30 @@ export function RoulettePage({ variant }: Props) {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleSpin}
-              disabled={busy || bets.length === 0 || (!!user && totalBet > balance)}
-              className="btn-acid mt-4 w-full py-4"
-            >
-              → {t.games.roulette.spin} · {formatAmount(totalBet)}
-            </button>
-            <button
-              type="button"
-              onClick={clear}
-              disabled={busy || bets.length === 0}
-              className="game-choice-btn mt-2 w-full justify-center py-2 text-[11px]"
-            >
-              ⨯ {t.games.roulette.clearBets}
-            </button>
+            <div className="roulette-action-panel">
+              <button
+                type="button"
+                onClick={handleSpin}
+                disabled={busy || bets.length === 0 || (!!user && totalBet > balance)}
+                className="btn-acid mt-4 w-full py-4"
+              >
+                → {t.games.roulette.spin} · {formatAmount(totalBet)}
+              </button>
+              <button
+                type="button"
+                onClick={clear}
+                disabled={busy || bets.length === 0}
+                className="game-choice-btn mt-2 w-full justify-center py-2 text-[11px]"
+              >
+                ⨯ {t.games.roulette.clearBets}
+              </button>
 
-            <div className="game-balance-strip mt-3">
-              <span>
-                {t.games.roulette.total}{' '}
-                <span className="data-num ml-1 text-[#FCA5A5]">{formatAmount(totalBet)}</span>
-              </span>
+              <div className="game-balance-strip mt-3">
+                <span>
+                  {t.games.roulette.total}{' '}
+                  <span className="data-num ml-1 text-[#FCA5A5]">{formatAmount(totalBet)}</span>
+                </span>
+              </div>
             </div>
           </div>
 
