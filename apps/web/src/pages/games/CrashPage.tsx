@@ -859,7 +859,7 @@ export function CrashPage({ config }: Props) {
   const canShowCurrentBetButton = status === 'BETTING' && !myBet && !queuedBet;
   const canShowNextRoundBetButton = status !== 'BETTING';
   const stageHistory = history.slice(0, 12);
-  const mobileLiveBetRows = simulatedLiveBets.slice(0, 18);
+  const mobileLiveBetRows = simulatedLiveBets.slice(0, 12);
   const autoBetDialog = autoBetOpen ? (
     <div
       className="slot-auto-modal crash-auto-modal"
@@ -1026,20 +1026,24 @@ export function CrashPage({ config }: Props) {
                   </strong>
                 </div>
                 <div className="crash-mobile-live-bets__table">
-                  <div>{t.games.crash.livePlayer}</div>
-                  <div>{t.games.crash.liveStake}</div>
-                  <div>{t.games.crash.liveCashout}</div>
-                  {mobileLiveBetRows.map((p) => (
-                    <div className="crash-mobile-live-bets__row" key={p.id}>
-                      <span>{p.account}</span>
-                      <span className="data-num">{formatAmount(p.amount)}</span>
-                      <span className={p.cashoutAt ? 'text-[#6EE7B7]' : 'text-white/55'}>
-                        {p.cashoutAt
-                          ? formatCrashMultiplier(p.cashoutAt)
-                          : t.games.crash.liveWaiting}
-                      </span>
-                    </div>
-                  ))}
+                  <div className="crash-mobile-live-bets__head">
+                    <span>{t.games.crash.livePlayer}</span>
+                    <span>{t.games.crash.liveStake}</span>
+                    <span>{t.games.crash.liveCashout}</span>
+                  </div>
+                  <div className="crash-mobile-live-bets__body">
+                    {mobileLiveBetRows.map((p) => (
+                      <div className="crash-mobile-live-bets__row" key={p.id}>
+                        <span>{p.account}</span>
+                        <span className="data-num">{formatAmount(p.amount)}</span>
+                        <span className={p.cashoutAt ? 'text-[#6EE7B7]' : 'text-white/55'}>
+                          {p.cashoutAt
+                            ? formatCrashMultiplier(p.cashoutAt)
+                            : t.games.crash.liveWaiting}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

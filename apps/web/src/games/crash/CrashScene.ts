@@ -37,6 +37,7 @@ const COLOR_TOXIC = 0x1e7a4f;
 const COLOR_ICE = 0x266f85;
 const COLOR_AMBER = 0xf3d67d;
 const COLOR_WHITE = 0xffffff;
+const COMPACT_STAGE_WIDTH = 700;
 
 export type CrashVariant =
   | 'rocket'
@@ -576,14 +577,15 @@ export class CrashScene {
 
   private createLabels(): void {
     if (!this.app) return;
+    const compact = this.isCompactStage();
     // 主倍率數字
     const style = new TextStyle({
       fontFamily: GAME_FONT,
-      fontSize: Math.round(this.height * 0.32),
+      fontSize: Math.round(this.height * (compact ? 0.25 : 0.3)),
       fontWeight: '400',
       fill: COLOR_WHITE,
       align: 'center',
-      letterSpacing: -4,
+      letterSpacing: compact ? -2 : -4,
     });
     const label = new Text({ text: formatCrashMultiplier(1), style });
     label.anchor.set(0.5);
@@ -872,7 +874,8 @@ export class CrashScene {
     switch (ASSET_VARIANT[this.variant]) {
       case 'rocket': {
         // Rocket：成熟 crash 常見的垂直升空，只保留少量風偏。
-        const y = low - (low - high) * Math.pow(t, 1.06);
+        const launchLow = this.isCompactStage() ? h - Math.max(118, h * 0.28) : low;
+        const y = launchLow - (launchLow - high) * Math.pow(t, 1.06);
         const x = w * 0.5 + Math.sin(t * Math.PI * 0.9) * w * 0.028;
         return { x, y };
       }
@@ -940,6 +943,10 @@ export class CrashScene {
       x: base.x + sway,
       y: base.y + bob,
     };
+  }
+
+  private isCompactStage(): boolean {
+    return this.width <= COMPACT_STAGE_WIDTH;
   }
 
   private flightTangentAngle(m: number): number {

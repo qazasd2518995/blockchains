@@ -112,10 +112,6 @@ export function ChickenRoadPage() {
   const chickenState = isBusted ? 'busted' : isCashedOut ? 'cashout' : busy ? 'hop' : 'idle';
   const selectedDifficulty =
     DIFFICULTIES.find((item) => item.id === difficulty) ?? DIFFICULTIES[1]!;
-  const profitPreview = Math.max(
-    0,
-    potentialPayout - (round ? Number.parseFloat(round.amount) : amount),
-  );
   const stepMultipliers = useMemo(
     () =>
       Array.from({ length: totalSteps }, (_, index) =>
@@ -345,14 +341,6 @@ export function ChickenRoadPage() {
                   再來一局
                 </button>
               )}
-            </div>
-
-            <div className="chicken-road-profit-box">
-              <span>可領取</span>
-              <strong>{formatAmount(potentialPayout)}</strong>
-              <small>
-                總利潤 {formatAmount(profitPreview)} · {formatMultiplier(currentMultiplier)}
-              </small>
             </div>
           </div>
         </aside>

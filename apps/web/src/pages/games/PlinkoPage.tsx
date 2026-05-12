@@ -763,37 +763,39 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
               </div>
             </div>
 
-            <div className="mt-6">
-              <div className="label">{t.games.mines.risk}</div>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {(['low', 'medium', 'high'] as PlinkoRisk[]).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRisk(r)}
-                    disabled={boardControlsLocked}
-                    className={`game-choice-btn px-0 py-3 ${risk === r ? 'game-choice-btn-acid' : ''}`}
-                  >
-                    {t.games.mines[r]}
-                  </button>
-                ))}
+            <div className="plinko-board-controls">
+              <div className="plinko-risk-control mt-6">
+                <div className="label">{t.games.mines.risk}</div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {(['low', 'medium', 'high'] as PlinkoRisk[]).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setRisk(r)}
+                      disabled={boardControlsLocked}
+                      className={`game-choice-btn px-0 py-3 ${risk === r ? 'game-choice-btn-acid' : ''}`}
+                    >
+                      {t.games.mines[r]}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="mt-4">
-              <div className="mb-2 flex items-baseline justify-between">
-                <span className="label">{t.games.plinko.rows}</span>
-                <span className="data-num text-[#7DD3FC]">{rows}</span>
+              <div className="plinko-rows-control mt-4">
+                <div className="mb-2 flex items-baseline justify-between">
+                  <span className="label">{t.games.plinko.rows}</span>
+                  <span className="data-num text-[#7DD3FC]">{rows}</span>
+                </div>
+                <input
+                  type="range"
+                  min={PLINKO_MIN_ROWS}
+                  max={PLINKO_MAX_ROWS}
+                  value={rows}
+                  onChange={(e) => setRows(Number.parseInt(e.target.value, 10))}
+                  disabled={boardControlsLocked}
+                  className="term-range w-full"
+                />
               </div>
-              <input
-                type="range"
-                min={PLINKO_MIN_ROWS}
-                max={PLINKO_MAX_ROWS}
-                value={rows}
-                onChange={(e) => setRows(Number.parseInt(e.target.value, 10))}
-                disabled={boardControlsLocked}
-                className="term-range w-full"
-              />
             </div>
 
             <button
@@ -831,11 +833,6 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
                 <strong>{autoStopReason}</strong>
               </div>
             )}
-            <div className="game-balance-strip mt-3">
-              <span>
-                {t.games.plinko.rows} <span className="data-num ml-1 text-[#7DD3FC]">{rows}</span>
-              </span>
-            </div>
           </div>
 
           <RecentBetsList records={history} />

@@ -622,33 +622,6 @@ export function VerifyPage() {
       <div className="min-h-[100svh] bg-[#EDF4F7] pb-[calc(env(safe-area-inset-bottom)+18px)] lg:hidden">
         <MobilePageHeader title="遊戲說明" subtitle="GAME GUIDE" active="verify" />
 
-        <section className="border-b border-[#D1E0E7] bg-white px-2 py-2">
-          <div className="rounded-[13px] border border-[#D6E5EC] bg-[#F8FCFE] p-3 shadow-[0_6px_14px_rgba(15,23,42,0.07)]">
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-[#E9F8F8] text-[#0E7189]">
-                <BookOpen className="h-5 w-5" aria-hidden="true" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#7A8B97]">
-                  GAME GUIDE
-                </div>
-                <h1 className="mt-1 text-[22px] font-black leading-tight text-[#12333E]">
-                  {VISIBLE_GAMES.length} 款玩法規則與賠率
-                </h1>
-                <p className="mt-1 text-[12px] font-semibold leading-5 text-[#516976] [overflow-wrap:anywhere]">
-                  飛行、牌桌、拉霸、輪盤、即開電子與策略挑戰都整理成短卡片，先看懂規則再進大廳。
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-1.5">
-              <MobileGuideMetric label="RTP" value="96%–99%" />
-              <MobileGuideMetric label="最高倍率" value="1,000,000×" />
-              <MobileGuideMetric label="派彩" value="即時到帳" />
-            </div>
-          </div>
-        </section>
-
         <section className="border-b border-[#D1E0E7] bg-[#EDF4F7]/96 px-2 py-2">
           <div className="flex gap-1.5 overflow-x-auto pb-0.5">
             {HALL_FILTERS.map((filter) => {

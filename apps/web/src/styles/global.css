@@ -642,35 +642,45 @@
 
     .game-fullscreen-shell .crash-mobile-live-bets__table {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(4.1rem, 0.8fr) minmax(3.9rem, 0.7fr);
-      align-items: center;
-      gap: 0.16rem 0.35rem;
-      max-height: 5rem;
-      overflow-y: auto;
+      gap: 0.18rem;
       overscroll-behavior: contain;
-      font-size: 9px;
-      line-height: 1.05;
       -webkit-overflow-scrolling: touch;
     }
 
-    .game-fullscreen-shell .crash-mobile-live-bets__table > div:not(.crash-mobile-live-bets__row) {
-      color: rgba(255, 255, 255, 0.38);
-      font-weight: 900;
-      letter-spacing: 0.08em;
+    .game-fullscreen-shell .crash-mobile-live-bets__head,
+    .game-fullscreen-shell .crash-mobile-live-bets__row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(4.2rem, 0.82fr) minmax(3.8rem, 0.68fr);
+      align-items: center;
+      column-gap: 0.45rem;
     }
 
-    .game-fullscreen-shell .crash-mobile-live-bets__row {
-      display: contents;
+    .game-fullscreen-shell .crash-mobile-live-bets__head {
+      color: rgba(255, 255, 255, 0.38);
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      line-height: 1.1;
+    }
+
+    .game-fullscreen-shell .crash-mobile-live-bets__body {
+      display: grid;
+      gap: 0.16rem;
+      max-height: 6.7rem;
+      overflow-y: auto;
+      padding-right: 0.15rem;
     }
 
     .game-fullscreen-shell .crash-mobile-live-bets__row > span {
+      display: block;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-      font-size: 10px;
+      font-size: 10.5px;
       font-weight: 850;
+      line-height: 1.28;
     }
 
     .game-fullscreen-shell .crash-mobile-live-bets__row > span:nth-child(2) {
@@ -952,22 +962,130 @@
       padding: 0.48rem 0.58rem !important;
     }
 
+    .game-fullscreen-shell[data-game-id='plinko'] .game-control-stack,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .game-control-stack {
+      max-height: max(206px, min(35svh, 244px));
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .game-control-stack > .plinko-control-card,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .game-control-stack > .plinko-control-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: stretch;
+      gap: 0.38rem;
+      max-height: none;
+      overflow: hidden;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-control-card > .bet-controls,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-control-card > .bet-controls,
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-control-card > .plinko-auto-bot-status,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-control-card > .plinko-auto-bot-status {
+      grid-column: 1 / -1;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-control-card > .bet-controls,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-control-card > .bet-controls {
+      min-width: 0;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-control-card .bet-controls__entry,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-control-card .bet-controls__entry {
+      grid-template-columns: minmax(0, 1fr) 68px;
+      min-height: 38px;
+      padding: 0.22rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-control-card .bet-controls__input,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-control-card .bet-controls__input {
+      min-height: 36px !important;
+      font-size: 17px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-control-card .bet-controls__adjusters .game-choice-btn,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-control-card .bet-controls__adjusters .game-choice-btn {
+      min-height: 36px;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-control-card .bet-controls__presets,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-control-card .bet-controls__presets {
+      display: none;
+    }
+
     .game-fullscreen-shell[data-game-id='plinko'] .plinko-balls-control,
     .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-balls-control {
-      margin-top: 0.42rem !important;
+      min-width: 0;
+      margin-top: 0 !important;
     }
 
     .game-fullscreen-shell[data-game-id='plinko'] .plinko-balls-control .mb-2,
     .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-balls-control .mb-2 {
-      margin-bottom: 0.32rem !important;
+      margin-bottom: 0.24rem !important;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-balls-control .data-num,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-balls-control .data-num {
+      display: none;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-balls-grid,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-balls-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
 
     .game-fullscreen-shell[data-game-id='plinko'] .plinko-balls-grid .game-choice-btn,
     .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-balls-grid .game-choice-btn {
-      min-height: 36px;
-      padding-top: 0.32rem !important;
-      padding-bottom: 0.32rem !important;
+      min-height: 31px;
+      padding: 0.2rem 0 !important;
       font-size: 10px;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-board-controls,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-board-controls {
+      display: grid;
+      min-width: 0;
+      align-content: start;
+      gap: 0.34rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-risk-control,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-risk-control,
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-rows-control,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-rows-control {
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-risk-control .mt-2,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-risk-control .mt-2 {
+      margin-top: 0.24rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-risk-control .game-choice-btn,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-risk-control .game-choice-btn {
+      min-height: 31px;
+      padding: 0.2rem 0 !important;
+      font-size: 10px;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-rows-control .mb-2,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-rows-control .mb-2 {
+      margin-bottom: 0.16rem !important;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-rows-control .term-range,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-rows-control .term-range {
+      height: 1.1rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-control-card > .btn-acid,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-control-card > .btn-acid,
+    .game-fullscreen-shell[data-game-id='plinko'] .plinko-control-card > .plinko-auto-bot-button,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .plinko-control-card > .plinko-auto-bot-button {
+      align-self: stretch;
+      min-height: 42px;
+      margin-top: 0 !important;
     }
 
     .game-fullscreen-shell .game-control-stack .mt-6,
@@ -4260,26 +4378,6 @@
   transform: translateY(1px);
 }
 
-.chicken-road-profit-box {
-  display: grid;
-  gap: 5px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  padding-top: 16px;
-}
-
-.chicken-road-profit-box span,
-.chicken-road-profit-box small {
-  font-size: 12px;
-  font-weight: 900;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.chicken-road-profit-box strong {
-  font-size: 28px;
-  font-weight: 950;
-  color: #f8fafc;
-}
-
 .chicken-road-road-panel {
   display: grid;
   min-width: 0;
@@ -4901,14 +4999,6 @@
     font-size: 16px;
   }
 
-  .chicken-road-profit-box {
-    padding-top: 12px;
-  }
-
-  .chicken-road-profit-box strong {
-    font-size: 24px;
-  }
-
   .chicken-road-sidewalk {
     min-width: 58px;
   }
@@ -5092,13 +5182,6 @@
     font-size: 14px;
   }
 
-  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-profit-box {
-    padding-top: 8px;
-  }
-
-  .game-fullscreen-shell[data-game-id='chicken-road'] .chicken-road-profit-box strong {
-    font-size: 20px;
-  }
 }
 
 .a2hs-prompt {

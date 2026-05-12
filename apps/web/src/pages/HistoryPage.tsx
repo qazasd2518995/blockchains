@@ -300,22 +300,6 @@ export function HistoryPage() {
           </h1>
         </section>
 
-        <section className="rounded-[13px] border border-[#D6E5EC] bg-white p-3 shadow-[0_6px_14px_rgba(15,23,42,0.08)] lg:hidden">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[#E9F8F8] text-[#0E7189]">
-              <ReceiptText className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-[20px] font-black leading-tight text-[#12333E]">
-                {t.history.txLog}
-              </h1>
-              <p className="mt-1 text-[12px] font-semibold leading-5 text-[#516976]">
-                查詢投注、派彩、轉點與餘額變化，日期區間會同步套用下方列表。
-              </p>
-            </div>
-          </div>
-        </section>
-
         <section className="card-base relative z-10 p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div>
