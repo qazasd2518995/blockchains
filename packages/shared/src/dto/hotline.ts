@@ -1,3 +1,28 @@
+export const HOTLINE_JACKPOT_RESET_VALUE = '1000';
+
+export const HOTLINE_JACKPOT_SIMULATION_EPOCH = '2026-01-01T00:00:00.000Z';
+
+export const HOTLINE_JACKPOT_PASSIVE_GROWTH_PER_SECOND = {
+  grand: '42',
+  major: '28',
+  minor: '7.5',
+  mini: '2.2',
+} as const;
+
+export const HOTLINE_JACKPOT_RESET_INTERVAL_SECONDS = {
+  grand: '21600',
+  major: '7200',
+  minor: '2700',
+  mini: '900',
+} as const;
+
+export const HOTLINE_JACKPOT_RESET_OFFSET_SECONDS = {
+  grand: '1370',
+  major: '611',
+  minor: '233',
+  mini: '97',
+} as const;
+
 export interface HotlineBetRequest {
   amount: number;
   clientSeed?: string;
@@ -12,6 +37,7 @@ export interface HotlineJackpotSnapshot {
   minor: string;
   mini: string;
   updatedAt: string;
+  asOf?: string;
 }
 
 export interface HotlineWinLine {

@@ -11,7 +11,14 @@ import type {
   HotlineWinPosition,
   HotlineWinLine,
 } from '@bg/shared';
-import { MIN_BET_AMOUNT } from '@bg/shared';
+import {
+  HOTLINE_JACKPOT_PASSIVE_GROWTH_PER_SECOND,
+  HOTLINE_JACKPOT_RESET_INTERVAL_SECONDS,
+  HOTLINE_JACKPOT_RESET_OFFSET_SECONDS,
+  HOTLINE_JACKPOT_RESET_VALUE,
+  HOTLINE_JACKPOT_SIMULATION_EPOCH,
+  MIN_BET_AMOUNT,
+} from '@bg/shared';
 import { HOTLINE_MINI_SYMBOLS, HOTLINE_SYMBOLS } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -52,6 +59,35 @@ const BIG_WIN_MULTIPLIER = 20;
 const MEGA_MAX_TOTAL_MULTIPLIER = 1000;
 const MEGA_FREE_SPIN_INTRO_MS = 1600;
 const MEGA_FREE_SPIN_RETRIGGER_MS = 1300;
+const JACKPOT_KEYS = ['grand', 'major', 'minor', 'mini'] as const;
+type JackpotKey = (typeof JACKPOT_KEYS)[number];
+const JACKPOT_LABELS: Record<JackpotKey, string> = {
+  grand: 'GRAND',
+  major: 'MAJOR',
+  minor: 'MINOR',
+  mini: 'MINI',
+};
+const JACKPOT_GROWTH_PER_SECOND = {
+  grand: Number.parseFloat(HOTLINE_JACKPOT_PASSIVE_GROWTH_PER_SECOND.grand),
+  major: Number.parseFloat(HOTLINE_JACKPOT_PASSIVE_GROWTH_PER_SECOND.major),
+  minor: Number.parseFloat(HOTLINE_JACKPOT_PASSIVE_GROWTH_PER_SECOND.minor),
+  mini: Number.parseFloat(HOTLINE_JACKPOT_PASSIVE_GROWTH_PER_SECOND.mini),
+} as const;
+const JACKPOT_RESET_VALUE = Number.parseFloat(HOTLINE_JACKPOT_RESET_VALUE);
+const JACKPOT_EPOCH_MS = Date.parse(HOTLINE_JACKPOT_SIMULATION_EPOCH);
+const JACKPOT_RESET_INTERVAL_MS: Record<JackpotKey, number> = {
+  grand: Number.parseInt(HOTLINE_JACKPOT_RESET_INTERVAL_SECONDS.grand, 10) * 1000,
+  major: Number.parseInt(HOTLINE_JACKPOT_RESET_INTERVAL_SECONDS.major, 10) * 1000,
+  minor: Number.parseInt(HOTLINE_JACKPOT_RESET_INTERVAL_SECONDS.minor, 10) * 1000,
+  mini: Number.parseInt(HOTLINE_JACKPOT_RESET_INTERVAL_SECONDS.mini, 10) * 1000,
+};
+const JACKPOT_RESET_OFFSET_MS: Record<JackpotKey, number> = {
+  grand: Number.parseInt(HOTLINE_JACKPOT_RESET_OFFSET_SECONDS.grand, 10) * 1000,
+  major: Number.parseInt(HOTLINE_JACKPOT_RESET_OFFSET_SECONDS.major, 10) * 1000,
+  minor: Number.parseInt(HOTLINE_JACKPOT_RESET_OFFSET_SECONDS.minor, 10) * 1000,
+  mini: Number.parseInt(HOTLINE_JACKPOT_RESET_OFFSET_SECONDS.mini, 10) * 1000,
+};
+type JackpotDisplayValue = { label: string; key: JackpotKey; value: number };
 interface LiveMegaRoundState {
   payout: number;
   multiplier: number;
@@ -185,11 +221,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const megaFreeSpinContinueRef = useRef<(() => void) | null>(null);
   const fastSpinRef = useRef(false);
   const fallbackGrid = useMemo(() => createFallbackGrid(slotTheme), [slotTheme]);
-  const fallbackJackpotValues = useMemo(() => createJackpotValues(slotTheme.id), [slotTheme.id]);
-  const jackpotValues = useMemo(
-    () =>
-      jackpotSnapshot ? createJackpotValuesFromSnapshot(jackpotSnapshot) : fallbackJackpotValues,
-    [fallbackJackpotValues, jackpotSnapshot],
+  const fallbackJackpotValues = useMemo(
+    () => createFallbackJackpotValues(),
+    [slotTheme.id],
   );
 
   useEffect(() => {
@@ -1321,14 +1355,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <div className="mega-slot-brand__title">{slotTheme.title}</div>
               <div className="mega-slot-brand__sub">{slotTheme.suffix} MEGA WAYS</div>
             </div>
-            <div className="mega-slot-jackpots" aria-label="彩金">
-              {jackpotValues.map((item) => (
-                <div key={item.label} className="mega-slot-jackpot">
-                  <span>{item.label}</span>
-                  <strong>{item.value}</strong>
-                </div>
-              ))}
-            </div>
+            <MegaJackpotTicker
+              snapshot={jackpotSnapshot}
+              fallbackValues={fallbackJackpotValues}
+            />
             <Link to={user ? '/history' : '/login'} className="mega-slot-pill">
               <History className="h-4 w-4" aria-hidden="true" />
               記錄
@@ -2081,25 +2111,100 @@ function createFallbackGrid(theme: SlotThemeConfig): number[][] {
   );
 }
 
-function createJackpotValues(themeId: string): { label: string; value: string }[] {
-  const seed = Array.from(themeId).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+function MegaJackpotTicker({
+  snapshot,
+  fallbackValues,
+}: {
+  snapshot: HotlineJackpotSnapshot | null;
+  fallbackValues: JackpotDisplayValue[];
+}): JSX.Element {
+  const [now, setNow] = useState(() => Date.now());
+  const fallbackStartedAtRef = useRef(Date.now());
+
+  useEffect(() => {
+    fallbackStartedAtRef.current = Date.now();
+  }, [fallbackValues]);
+
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [snapshot]);
+
+  const values = useMemo(
+    () => createLiveJackpotValues(snapshot, fallbackValues, now, fallbackStartedAtRef.current),
+    [fallbackValues, now, snapshot],
+  );
+
+  return (
+    <div className="mega-slot-jackpots" aria-label="彩金">
+      {values.map((item) => (
+        <div key={item.key} className="mega-slot-jackpot">
+          <span>{item.label}</span>
+          <strong>{formatJackpot(item.value)}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function createFallbackJackpotValues(): JackpotDisplayValue[] {
   return [
-    { label: 'GRAND', value: formatJackpot(820000 + seed * 37.12) },
-    { label: 'MAJOR', value: formatJackpot(180000 + seed * 19.8) },
-    { label: 'MINOR', value: formatJackpot(18000 + seed * 2.7) },
-    { label: 'MINI', value: formatJackpot(5200 + seed * 0.92) },
+    { label: JACKPOT_LABELS.grand, key: 'grand', value: JACKPOT_RESET_VALUE },
+    { label: JACKPOT_LABELS.major, key: 'major', value: JACKPOT_RESET_VALUE },
+    { label: JACKPOT_LABELS.minor, key: 'minor', value: JACKPOT_RESET_VALUE },
+    { label: JACKPOT_LABELS.mini, key: 'mini', value: JACKPOT_RESET_VALUE },
   ];
 }
 
-function createJackpotValuesFromSnapshot(
-  snapshot: HotlineJackpotSnapshot,
-): { label: string; value: string }[] {
-  return [
-    { label: 'GRAND', value: formatJackpot(Number.parseFloat(snapshot.grand)) },
-    { label: 'MAJOR', value: formatJackpot(Number.parseFloat(snapshot.major)) },
-    { label: 'MINOR', value: formatJackpot(Number.parseFloat(snapshot.minor)) },
-    { label: 'MINI', value: formatJackpot(Number.parseFloat(snapshot.mini)) },
-  ];
+function createLiveJackpotValues(
+  snapshot: HotlineJackpotSnapshot | null,
+  fallbackValues: JackpotDisplayValue[],
+  now: number,
+  fallbackAsOf: number,
+): JackpotDisplayValue[] {
+  const snapshotAsOf = snapshot ? Date.parse(snapshot.asOf ?? snapshot.updatedAt) : fallbackAsOf;
+  const asOf = Number.isFinite(snapshotAsOf) ? snapshotAsOf : fallbackAsOf;
+
+  return JACKPOT_KEYS.map((key) => {
+    const fallback = fallbackValues.find((item) => item.key === key);
+    const baseValue = snapshot ? Number.parseFloat(snapshot[key]) : (fallback?.value ?? 0);
+    const value = growJackpotDisplayValue(
+      Number.isFinite(baseValue) ? baseValue : (fallback?.value ?? JACKPOT_RESET_VALUE),
+      asOf,
+      now,
+      key,
+    );
+    return {
+      key,
+      label: JACKPOT_LABELS[key],
+      value,
+    };
+  });
+}
+
+function growJackpotDisplayValue(
+  baseValue: number,
+  baseAsOf: number,
+  now: number,
+  key: JackpotKey,
+): number {
+  const cycleStart = getJackpotCycleStartMs(now, key);
+  const effectiveBaseAsOf = baseAsOf < cycleStart ? cycleStart : baseAsOf;
+  const effectiveBaseValue = baseAsOf < cycleStart ? JACKPOT_RESET_VALUE : baseValue;
+  const elapsedSeconds = Math.max(0, Math.floor((now - effectiveBaseAsOf) / 1000));
+  return effectiveBaseValue + JACKPOT_GROWTH_PER_SECOND[key] * elapsedSeconds;
+}
+
+function getJackpotCycleStartMs(timestampMs: number, key: JackpotKey): number {
+  const epochMs = Number.isFinite(JACKPOT_EPOCH_MS) ? JACKPOT_EPOCH_MS : Date.UTC(2026, 0, 1);
+  const shifted = timestampMs - epochMs - JACKPOT_RESET_OFFSET_MS[key];
+  if (shifted <= 0) return epochMs + JACKPOT_RESET_OFFSET_MS[key];
+  return (
+    epochMs +
+    JACKPOT_RESET_OFFSET_MS[key] +
+    Math.floor(shifted / JACKPOT_RESET_INTERVAL_MS[key]) * JACKPOT_RESET_INTERVAL_MS[key]
+  );
 }
 
 function formatJackpot(value: number): string {

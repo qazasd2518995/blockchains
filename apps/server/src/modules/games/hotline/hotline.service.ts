@@ -9,6 +9,11 @@ import {
 } from '@bg/provably-fair';
 import {
   GameId,
+  HOTLINE_JACKPOT_PASSIVE_GROWTH_PER_SECOND,
+  HOTLINE_JACKPOT_RESET_INTERVAL_SECONDS,
+  HOTLINE_JACKPOT_RESET_OFFSET_SECONDS,
+  HOTLINE_JACKPOT_RESET_VALUE,
+  HOTLINE_JACKPOT_SIMULATION_EPOCH,
   type HotlineBetResult,
   type HotlineJackpotSnapshot,
   type HotlineMegaFeatureResult,
@@ -27,20 +32,34 @@ import {
 } from '../_common/controls.js';
 import type { HotlineBetInput } from './hotline.schema.js';
 
-const HOTLINE_JACKPOT_THEME_KEYS: Record<string, string> = {
-  [GameId.THUNDER_SLOT]: 'thunder',
-  [GameId.DRAGON_MEGA_SLOT]: 'dragonMega',
-  [GameId.NEBULA_SLOT]: 'nebula',
-  [GameId.JUNGLE_SLOT]: 'jungle',
-  [GameId.VAMPIRE_SLOT]: 'vampire',
-};
-
 const HOTLINE_JACKPOT_CONTRIBUTION_RATES = {
   grand: new Prisma.Decimal('0.006'),
   major: new Prisma.Decimal('0.0035'),
   minor: new Prisma.Decimal('0.0018'),
   mini: new Prisma.Decimal('0.0012'),
 } as const;
+type HotlineJackpotKey = keyof typeof HOTLINE_JACKPOT_CONTRIBUTION_RATES;
+
+const HOTLINE_JACKPOT_PASSIVE_GROWTH = {
+  grand: new Prisma.Decimal(HOTLINE_JACKPOT_PASSIVE_GROWTH_PER_SECOND.grand),
+  major: new Prisma.Decimal(HOTLINE_JACKPOT_PASSIVE_GROWTH_PER_SECOND.major),
+  minor: new Prisma.Decimal(HOTLINE_JACKPOT_PASSIVE_GROWTH_PER_SECOND.minor),
+  mini: new Prisma.Decimal(HOTLINE_JACKPOT_PASSIVE_GROWTH_PER_SECOND.mini),
+} as const;
+const HOTLINE_JACKPOT_RESET = new Prisma.Decimal(HOTLINE_JACKPOT_RESET_VALUE);
+const HOTLINE_JACKPOT_EPOCH_MS = Date.parse(HOTLINE_JACKPOT_SIMULATION_EPOCH);
+const HOTLINE_JACKPOT_RESET_INTERVAL_MS: Record<HotlineJackpotKey, number> = {
+  grand: Number.parseInt(HOTLINE_JACKPOT_RESET_INTERVAL_SECONDS.grand, 10) * 1000,
+  major: Number.parseInt(HOTLINE_JACKPOT_RESET_INTERVAL_SECONDS.major, 10) * 1000,
+  minor: Number.parseInt(HOTLINE_JACKPOT_RESET_INTERVAL_SECONDS.minor, 10) * 1000,
+  mini: Number.parseInt(HOTLINE_JACKPOT_RESET_INTERVAL_SECONDS.mini, 10) * 1000,
+};
+const HOTLINE_JACKPOT_RESET_OFFSET_MS: Record<HotlineJackpotKey, number> = {
+  grand: Number.parseInt(HOTLINE_JACKPOT_RESET_OFFSET_SECONDS.grand, 10) * 1000,
+  major: Number.parseInt(HOTLINE_JACKPOT_RESET_OFFSET_SECONDS.major, 10) * 1000,
+  minor: Number.parseInt(HOTLINE_JACKPOT_RESET_OFFSET_SECONDS.minor, 10) * 1000,
+  mini: Number.parseInt(HOTLINE_JACKPOT_RESET_OFFSET_SECONDS.mini, 10) * 1000,
+};
 
 type HotlineJackpotRecord = {
   gameId: string;
@@ -51,6 +70,8 @@ type HotlineJackpotRecord = {
   updatedAt: Date;
 };
 
+type HotlineJackpotValues = Pick<HotlineJackpotRecord, 'grand' | 'major' | 'minor' | 'mini'>;
+
 export class HotlineService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -60,7 +81,7 @@ export class HotlineService {
     }
 
     const pool = await this.getOrCreateJackpotPool(this.prisma, gameId);
-    return toJackpotSnapshot(pool);
+    return toJackpotSnapshot(pool, new Date());
   }
 
   async bet(userId: string, input: HotlineBetInput): Promise<HotlineBetResult> {
@@ -212,7 +233,6 @@ export class HotlineService {
     gameId: string,
     stakeAmount: Prisma.Decimal,
   ): Promise<HotlineJackpotSnapshot> {
-    const seedValues = createInitialJackpotValues(gameId);
     const contribution = {
       grand: stakeAmount
         .mul(HOTLINE_JACKPOT_CONTRIBUTION_RATES.grand)
@@ -228,24 +248,20 @@ export class HotlineService {
         .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
     };
 
-    const pool = await tx.hotlineJackpotPool.upsert({
+    const now = new Date();
+    const basePool = await this.getOrCreateJackpotPool(tx, gameId);
+    const grown = growJackpotValues(basePool, now);
+    const pool = await tx.hotlineJackpotPool.update({
       where: { gameId },
-      create: {
-        gameId,
-        grand: seedValues.grand.plus(contribution.grand),
-        major: seedValues.major.plus(contribution.major),
-        minor: seedValues.minor.plus(contribution.minor),
-        mini: seedValues.mini.plus(contribution.mini),
-      },
-      update: {
-        grand: { increment: contribution.grand },
-        major: { increment: contribution.major },
-        minor: { increment: contribution.minor },
-        mini: { increment: contribution.mini },
+      data: {
+        grand: grown.grand.plus(contribution.grand).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
+        major: grown.major.plus(contribution.major).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
+        minor: grown.minor.plus(contribution.minor).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
+        mini: grown.mini.plus(contribution.mini).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
       },
     });
 
-    return toJackpotSnapshot(pool);
+    return toJackpotSnapshot(pool, now);
   }
 
   private async getOrCreateJackpotPool(
@@ -255,7 +271,7 @@ export class HotlineService {
     const existing = await client.hotlineJackpotPool.findUnique({ where: { gameId } });
     if (existing) return existing;
 
-    const seedValues = createInitialJackpotValues(gameId);
+    const seedValues = createInitialJackpotValues();
     try {
       return await client.hotlineJackpotPool.create({
         data: {
@@ -275,29 +291,66 @@ export class HotlineService {
   }
 }
 
-function createInitialJackpotValues(
-  gameId: string,
-): Omit<HotlineJackpotRecord, 'gameId' | 'updatedAt'> {
-  const themeKey = HOTLINE_JACKPOT_THEME_KEYS[gameId] ?? gameId;
-  const seed = Array.from(themeKey).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+function createInitialJackpotValues(): Omit<HotlineJackpotRecord, 'gameId' | 'updatedAt'> {
   return {
-    grand: new Prisma.Decimal(820000)
-      .plus(new Prisma.Decimal(seed).mul('37.12'))
-      .toDecimalPlaces(2),
-    major: new Prisma.Decimal(180000).plus(new Prisma.Decimal(seed).mul('19.8')).toDecimalPlaces(2),
-    minor: new Prisma.Decimal(18000).plus(new Prisma.Decimal(seed).mul('2.7')).toDecimalPlaces(2),
-    mini: new Prisma.Decimal(5200).plus(new Prisma.Decimal(seed).mul('0.92')).toDecimalPlaces(2),
+    grand: HOTLINE_JACKPOT_RESET,
+    major: HOTLINE_JACKPOT_RESET,
+    minor: HOTLINE_JACKPOT_RESET,
+    mini: HOTLINE_JACKPOT_RESET,
   };
 }
 
-function toJackpotSnapshot(pool: HotlineJackpotRecord): HotlineJackpotSnapshot {
+function growJackpotValues(pool: HotlineJackpotRecord, asOf: Date): HotlineJackpotValues {
+  return {
+    grand: growJackpotValue(pool.grand, pool.updatedAt, asOf, 'grand'),
+    major: growJackpotValue(pool.major, pool.updatedAt, asOf, 'major'),
+    minor: growJackpotValue(pool.minor, pool.updatedAt, asOf, 'minor'),
+    mini: growJackpotValue(pool.mini, pool.updatedAt, asOf, 'mini'),
+  };
+}
+
+function growJackpotValue(
+  storedValue: Prisma.Decimal,
+  updatedAt: Date,
+  asOf: Date,
+  key: HotlineJackpotKey,
+): Prisma.Decimal {
+  const cycleStartMs = getJackpotCycleStartMs(asOf.getTime(), key);
+  const storedAtMs = updatedAt.getTime();
+  const baseAtMs = storedAtMs < cycleStartMs ? cycleStartMs : storedAtMs;
+  const baseValue = storedAtMs < cycleStartMs ? HOTLINE_JACKPOT_RESET : storedValue;
+  const elapsedSeconds = Math.max(0, Math.floor((asOf.getTime() - baseAtMs) / 1000));
+
+  if (elapsedSeconds <= 0) {
+    return baseValue.toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  }
+
+  return baseValue
+    .plus(HOTLINE_JACKPOT_PASSIVE_GROWTH[key].mul(elapsedSeconds))
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+}
+
+function getJackpotCycleStartMs(timestampMs: number, key: HotlineJackpotKey): number {
+  const intervalMs = HOTLINE_JACKPOT_RESET_INTERVAL_MS[key];
+  const offsetMs = HOTLINE_JACKPOT_RESET_OFFSET_MS[key];
+  const epochMs = Number.isFinite(HOTLINE_JACKPOT_EPOCH_MS)
+    ? HOTLINE_JACKPOT_EPOCH_MS
+    : Date.UTC(2026, 0, 1);
+  const shifted = timestampMs - epochMs - offsetMs;
+  if (shifted <= 0) return epochMs + offsetMs;
+  return epochMs + offsetMs + Math.floor(shifted / intervalMs) * intervalMs;
+}
+
+function toJackpotSnapshot(pool: HotlineJackpotRecord, asOf: Date): HotlineJackpotSnapshot {
+  const values = growJackpotValues(pool, asOf);
   return {
     gameId: pool.gameId,
-    grand: pool.grand.toFixed(2),
-    major: pool.major.toFixed(2),
-    minor: pool.minor.toFixed(2),
-    mini: pool.mini.toFixed(2),
+    grand: values.grand.toFixed(2),
+    major: values.major.toFixed(2),
+    minor: values.minor.toFixed(2),
+    mini: values.mini.toFixed(2),
     updatedAt: pool.updatedAt.toISOString(),
+    asOf: asOf.toISOString(),
   };
 }
 
