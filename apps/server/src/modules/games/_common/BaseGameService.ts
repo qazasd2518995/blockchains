@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, type ServerSeed } from '@prisma/client';
 import { sha256, generateServerSeed, generateClientSeed } from '@bg/provably-fair';
 import { MIN_BET_AMOUNT } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
@@ -29,9 +29,15 @@ export class SeedHelper {
     gameCategory: string,
     providedClientSeed?: string,
   ): Promise<ActiveSeedBundle> {
-    let server = await this.tx.serverSeed.findFirst({
-      where: { userId, gameCategory, isActive: true },
-    });
+    let [server] = await this.tx.$queryRaw<ServerSeed[]>`
+      SELECT *
+      FROM "ServerSeed"
+      WHERE "userId" = ${userId}
+        AND "gameCategory" = ${gameCategory}
+        AND "isActive" = true
+      LIMIT 1
+      FOR UPDATE
+    `;
     if (!server) {
       const seed = generateServerSeed();
       server = await this.tx.serverSeed.create({
@@ -87,6 +93,7 @@ export async function lockUserAndCheckFunds(
   userId: string,
   amount: Prisma.Decimal,
 ): Promise<{ id: string; balance: Prisma.Decimal; displayName: string | null }> {
+  await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
   const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
   if (amount.lessThanOrEqualTo(0)) {
     throw new ApiError('INVALID_BET', 'Bet amount must be positive');
@@ -177,7 +184,7 @@ export function serializableTxOpts(): {
 export async function runSerializable<T>(
   prisma: PrismaClient,
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
-  maxAttempts = 4,
+  maxAttempts = 7,
 ): Promise<T> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -186,8 +193,7 @@ export async function runSerializable<T>(
     } catch (err) {
       lastErr = err;
       if (!isRetryableTxError(err) || attempt === maxAttempts) throw err;
-      // 指數退避 + 小抖動：20, 40, 80ms
-      const delay = 20 * 2 ** (attempt - 1) + Math.floor(Math.random() * 10);
+      const delay = Math.min(800, 35 * 2 ** (attempt - 1)) + Math.floor(Math.random() * 35);
       await new Promise((r) => setTimeout(r, delay));
     }
   }

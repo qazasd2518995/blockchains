@@ -7,6 +7,10 @@ export interface PlinkoBetRequest {
   clientSeed?: string;
 }
 
+export interface PlinkoBatchBetRequest extends PlinkoBetRequest {
+  balls: number;
+}
+
 export interface PlinkoBetResult {
   betId: string;
   path: ('left' | 'right')[];
@@ -22,4 +26,9 @@ export interface PlinkoBetResult {
   nonce: number;
   serverSeedHash: string;
   clientSeed: string;
+}
+
+export interface PlinkoBatchBetResult {
+  results: PlinkoBetResult[];
+  newBalance: string;
 }

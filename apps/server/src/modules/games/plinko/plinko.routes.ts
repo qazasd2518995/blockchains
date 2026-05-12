@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { plinkoBetSchema } from './plinko.schema.js';
+import { plinkoBatchBetSchema, plinkoBetSchema } from './plinko.schema.js';
 import { PlinkoService } from './plinko.service.js';
 
 export async function plinkoRoutes(fastify: FastifyInstance): Promise<void> {
@@ -9,5 +9,10 @@ export async function plinkoRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/bet', async (req) => {
     const body = plinkoBetSchema.parse(req.body);
     return service.bet(req.userId, body);
+  });
+
+  fastify.post('/bet-batch', async (req) => {
+    const body = plinkoBatchBetSchema.parse(req.body);
+    return service.betBatch(req.userId, body);
   });
 }

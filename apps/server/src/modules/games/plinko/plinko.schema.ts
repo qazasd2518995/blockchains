@@ -9,4 +9,9 @@ export const plinkoBetSchema = z.object({
   clientSeed: z.string().min(4).max(64).optional(),
 });
 
+export const plinkoBatchBetSchema = plinkoBetSchema.extend({
+  balls: z.number().int().min(1).max(20),
+});
+
 export type PlinkoBetInput = z.infer<typeof plinkoBetSchema>;
+export type PlinkoBatchBetInput = z.infer<typeof plinkoBatchBetSchema>;

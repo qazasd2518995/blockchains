@@ -19,6 +19,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 
 const DESKTOP_VISIBLE_STEP_COUNT = 12;
+const CHICKEN_ROAD_MIN_AHEAD_STEPS = 2;
 
 type ViewportSize = {
   width: number;
@@ -129,7 +130,10 @@ export function ChickenRoadPage() {
     if (viewportSize.width <= 980) return 10;
     return DESKTOP_VISIBLE_STEP_COUNT;
   }, [viewportSize.height, viewportSize.width]);
-  const visibleStepStart = visualStep <= visibleStepCount ? 1 : visualStep - visibleStepCount + 1;
+  const visibleStepStart = useMemo(
+    () => getVisibleStepStart(visualStep, visibleStepCount, totalSteps),
+    [totalSteps, visibleStepCount, visualStep],
+  );
   const visibleSteps = useMemo(
     () => Array.from({ length: visibleStepCount }, (_, index) => visibleStepStart + index),
     [visibleStepCount, visibleStepStart],
@@ -387,13 +391,17 @@ export function ChickenRoadPage() {
               {visibleSteps.map((stepNumber) => {
                 const crossed = stepNumber <= currentStep;
                 const isNext = isActive && stepNumber === currentStep + 1;
+                const isPreview =
+                  isActive &&
+                  stepNumber > currentStep + 1 &&
+                  stepNumber <= currentStep + CHICKEN_ROAD_MIN_AHEAD_STEPS;
                 const hit = round?.hitStep === stepNumber;
                 const revealedSafe = round?.path?.[stepNumber - 1] === true;
                 const multiplier = stepMultipliers[stepNumber - 1] ?? 1;
                 return (
                   <div
                     key={stepNumber}
-                    className={`chicken-road-lane ${crossed ? 'chicken-road-lane--crossed' : ''} ${isNext ? 'chicken-road-lane--next' : ''} ${hit ? 'chicken-road-lane--hit' : ''} ${revealedSafe && round?.path ? 'chicken-road-lane--safe' : ''}`}
+                    className={`chicken-road-lane ${crossed ? 'chicken-road-lane--crossed' : ''} ${isNext ? 'chicken-road-lane--next' : ''} ${isPreview ? 'chicken-road-lane--preview' : ''} ${hit ? 'chicken-road-lane--hit' : ''} ${revealedSafe && round?.path ? 'chicken-road-lane--safe' : ''}`}
                   >
                     <span className="chicken-road-lane__step">{stepNumber}</span>
                     <span className="chicken-road-lane__mult">{formatMultiplier(multiplier)}</span>
@@ -494,6 +502,24 @@ export function ChickenRoadPage() {
 
 function difficultyLabel(difficulty: ChickenRoadDifficulty): string {
   return DIFFICULTIES.find((item) => item.id === difficulty)?.label ?? difficulty;
+}
+
+function getVisibleStepStart(
+  visualStep: number,
+  visibleStepCount: number,
+  totalSteps: number,
+): number {
+  if (visualStep <= 0) return 1;
+
+  const actualAheadSteps = Math.min(
+    CHICKEN_ROAD_MIN_AHEAD_STEPS,
+    Math.max(0, totalSteps - visualStep),
+  );
+  const desiredStart =
+    visualStep - Math.max(0, visibleStepCount - actualAheadSteps - 1);
+  const maxStart = Math.max(1, totalSteps - visibleStepCount + 1);
+
+  return Math.min(maxStart, Math.max(1, desiredStart));
 }
 
 function trafficCueForStep(

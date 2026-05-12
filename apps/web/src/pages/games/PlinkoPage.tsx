@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import {
   MIN_BET_AMOUNT,
-  type PlinkoBetRequest,
+  type PlinkoBatchBetRequest,
+  type PlinkoBatchBetResult,
   type PlinkoBetResult,
   type PlinkoRisk,
 } from '@bg/shared';
@@ -146,7 +147,6 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<PlinkoScene | null>(null);
   const activeDropsRef = useRef(0);
-  const pendingDropsRef = useRef(0);
   const pendingStakeRef = useRef(0);
   const autoActiveRef = useRef(false);
   const autoRemainingRef = useRef<number | null>(null);
@@ -251,60 +251,99 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
     };
   }, []);
 
-  const placePlinkoDrop = useCallback(
-    async (options: PlinkoDropOptions = {}): Promise<boolean> => {
-      const dropSource = options.source ?? 'manual';
+  const startPlinkoDrops = useCallback(
+    async (count: number, options: PlinkoDropOptions = {}): Promise<boolean> => {
+      const balls = clampBallCount(count);
       const betAmount = options.amount ?? amount;
       const betRows = options.rows ?? rows;
       const betRisk = options.risk ?? risk;
-
-      if (!sceneReady || activeDropsRef.current >= MAX_ACTIVE_PLINKO_DROPS) return false;
+      const dropSource = options.source ?? 'manual';
+      if (!sceneReady || activeDropsRef.current + balls > MAX_ACTIVE_PLINKO_DROPS) {
+        if (dropSource === 'manual') setError(t.games.plinko.tooManyBalls);
+        return false;
+      }
       if (!requireLogin()) return false;
       const latestBalance = Number.parseFloat(useAuthStore.getState().user?.balance ?? '0');
-      if (betAmount < MIN_BET_AMOUNT || betAmount > latestBalance) {
+      const totalStake = roundCurrency(betAmount * balls);
+      if (betAmount < MIN_BET_AMOUNT || totalStake + pendingStakeRef.current > latestBalance) {
         setError(t.bet.insufficientBalance);
         return false;
       }
-      changeActiveDrops(1);
+
+      changeActiveDrops(balls);
+      pendingStakeRef.current = roundCurrency(pendingStakeRef.current + totalStake);
       setError(null);
-      // 樂觀動畫：立刻浮現預告球
-      const anticipationBall = sceneRef.current?.startAnticipation() ?? null;
+      const anticipationBalls = Array.from({ length: balls }, () =>
+        sceneRef.current?.startAnticipation(),
+      );
+
       try {
-        const payload: PlinkoBetRequest = { amount: betAmount, rows: betRows, risk: betRisk };
-        const res = await api.post<PlinkoBetResult>('/games/plinko/bet', payload);
-        // 後端回傳同一份正式倍率表；此處重繪只做同步，不應造成賠率跳動。
-        sceneRef.current?.setBoard(res.data.rows, res.data.multipliers);
+        const payload: PlinkoBatchBetRequest = {
+          amount: betAmount,
+          rows: betRows,
+          risk: betRisk,
+          balls,
+        };
+        const res = await api.post<PlinkoBatchBetResult>('/games/plinko/bet-batch', payload);
+        const dropResults = res.data.results;
+        const firstResult = dropResults[0];
+        if (firstResult) {
+          sceneRef.current?.setBoard(firstResult.rows, firstResult.multipliers);
+        }
         setBalance(res.data.newBalance);
-        await sceneRef.current?.dropBall(
-          res.data.path,
-          res.data.bucket,
-          res.data.multiplier,
-          anticipationBall,
+
+        await Promise.all(
+          dropResults.map(
+            (dropResult, index) =>
+              new Promise<void>((resolve) => {
+                window.setTimeout(() => {
+                  void (sceneRef.current?.dropBall(
+                    dropResult.path,
+                    dropResult.bucket,
+                    dropResult.multiplier,
+                    anticipationBalls[index],
+                  ) ?? Promise.resolve())
+                    .then(() => {
+                      sceneRef.current?.playWinFx(
+                        dropResult.multiplier,
+                        dropResult.multiplier > 1,
+                      );
+                    })
+                    .finally(resolve);
+                }, index * 90);
+              }),
+          ),
         );
-        sceneRef.current?.playWinFx(res.data.multiplier, res.data.multiplier > 1);
-        setResults((prev) => [res.data, ...prev].slice(0, 8));
+
+        const newestFirst = [...dropResults].reverse();
+        setResults((prev) => [...newestFirst, ...prev].slice(0, 8));
         setHistory((prev) =>
           [
-            {
-              id: res.data.betId,
+            ...newestFirst.map((dropResult) => ({
+              id: dropResult.betId,
               timestamp: Date.now(),
               betAmount,
-              multiplier: res.data.multiplier,
-              payout: Number.parseFloat(res.data.payout),
-              won: res.data.multiplier >= 1,
-              detail: `Bucket ${res.data.bucket}`,
-            },
+              multiplier: dropResult.multiplier,
+              payout: Number.parseFloat(dropResult.payout),
+              won: dropResult.multiplier >= 1,
+              detail: `Bucket ${dropResult.bucket}`,
+            })),
             ...prev,
           ].slice(0, 30),
         );
-        if (dropSource === 'auto') applyAutoResult(res.data);
-        return true;
+        if (dropSource === 'auto') {
+          for (const dropResult of dropResults) applyAutoResult(dropResult);
+        }
+        return dropResults.length > 0;
       } catch (err) {
-        sceneRef.current?.cancelAnticipation(anticipationBall);
+        for (const anticipationBall of anticipationBalls) {
+          sceneRef.current?.cancelAnticipation(anticipationBall);
+        }
         setError(extractApiError(err).message);
         return false;
       } finally {
-        changeActiveDrops(-1);
+        changeActiveDrops(-balls);
+        pendingStakeRef.current = roundCurrency(pendingStakeRef.current - totalStake);
         if (
           dropSource === 'auto' &&
           autoActiveRef.current &&
@@ -327,50 +366,6 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
       stopAutoDrop,
       t.bet.insufficientBalance,
       t.games.plinko.autoFinished,
-    ],
-  );
-
-  const startPlinkoDrops = useCallback(
-    async (count: number, options: PlinkoDropOptions = {}): Promise<boolean> => {
-      const balls = clampBallCount(count);
-      const betAmount = options.amount ?? amount;
-      const dropSource = options.source ?? 'manual';
-      const activeOrPending = activeDropsRef.current + pendingDropsRef.current;
-      if (!sceneReady || activeOrPending + balls > MAX_ACTIVE_PLINKO_DROPS) {
-        if (dropSource === 'manual') setError(t.games.plinko.tooManyBalls);
-        return false;
-      }
-      if (!requireLogin()) return false;
-      const latestBalance = Number.parseFloat(useAuthStore.getState().user?.balance ?? '0');
-      const totalStake = roundCurrency(betAmount * balls);
-      if (betAmount < MIN_BET_AMOUNT || totalStake + pendingStakeRef.current > latestBalance) {
-        setError(t.bet.insufficientBalance);
-        return false;
-      }
-
-      pendingDropsRef.current += balls;
-      pendingStakeRef.current = roundCurrency(pendingStakeRef.current + totalStake);
-      const launches = Array.from({ length: balls }, (_, index) => {
-        return new Promise<boolean>((resolve) => {
-          window.setTimeout(() => {
-            pendingDropsRef.current = Math.max(0, pendingDropsRef.current - 1);
-            void placePlinkoDrop(options)
-              .then(resolve, () => resolve(false))
-              .finally(() => {
-                pendingStakeRef.current = roundCurrency(pendingStakeRef.current - betAmount);
-              });
-          }, index * 55);
-        });
-      });
-      const started = await Promise.all(launches);
-      return started.some(Boolean);
-    },
-    [
-      amount,
-      placePlinkoDrop,
-      requireLogin,
-      sceneReady,
-      t.bet.insufficientBalance,
       t.games.plinko.tooManyBalls,
     ],
   );
@@ -385,7 +380,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
     if (!settings || !autoActiveRef.current) return;
     if (
       !sceneReady ||
-      activeDropsRef.current + pendingDropsRef.current + settings.balls > MAX_ACTIVE_PLINKO_DROPS
+      activeDropsRef.current + settings.balls > MAX_ACTIVE_PLINKO_DROPS
     ) {
       return;
     }
@@ -414,7 +409,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
       if (activeDrops === 0) stopAutoDrop(t.games.plinko.autoFinished);
       return;
     }
-    if (activeDrops + pendingDropsRef.current + settings.balls > MAX_ACTIVE_PLINKO_DROPS) return;
+    if (activeDrops + settings.balls > MAX_ACTIVE_PLINKO_DROPS) return;
     const timer = window.setTimeout(() => {
       void launchAutoDrop();
     }, 360);
@@ -481,8 +476,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   const boardControlsLocked = autoActive || activeDrops > 0;
   const selectedBallCount = clampBallCount(ballCount);
   const selectedTotalStake = roundCurrency(amount * selectedBallCount);
-  const dropLimitReached =
-    activeDrops + pendingDropsRef.current + selectedBallCount > MAX_ACTIVE_PLINKO_DROPS;
+  const dropLimitReached = activeDrops + selectedBallCount > MAX_ACTIVE_PLINKO_DROPS;
   const autoDialog = autoOpen ? (
     <div
       className="slot-auto-modal plinko-auto-modal"
