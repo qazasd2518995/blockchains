@@ -72,7 +72,14 @@ export class PlinkoService {
     let finalMultiplier = multiplierD;
     let finalPayout = payout;
     if (controlled.controlled) {
-      finalBucket = choosePlinkoBucket(multipliers, controlled.won, amount, controlled);
+      finalBucket = choosePlinkoBucket(
+        multipliers,
+        controlled.won,
+        amount,
+        controlled,
+        bucket,
+        Number(controlled.multiplier.toFixed(4)),
+      );
       finalPath = pathForBucket(input.rows, finalBucket);
       finalMultiplier = new Prisma.Decimal((multipliers[finalBucket] ?? 0).toFixed(4));
       finalPayout = amount.mul(finalMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
@@ -150,6 +157,8 @@ function choosePlinkoBucket(
   wantWin: boolean,
   amount: Prisma.Decimal,
   controlled: Parameters<typeof multiplierMatchesControlBounds>[2],
+  originalBucket: number,
+  targetMultiplier: number,
 ): number {
   const candidates = table
     .map((multiplier, bucket) => ({ bucket, multiplier }))
@@ -162,7 +171,16 @@ function choosePlinkoBucket(
     candidates.length > 0
       ? candidates
       : table.map((multiplier, bucket) => ({ bucket, multiplier }));
-  pool.sort((a, b) => (wantWin ? b.multiplier - a.multiplier : a.multiplier - b.multiplier));
+  pool.sort((a, b) => {
+    if (wantWin) {
+      const targetDiff =
+        Math.abs(a.multiplier - targetMultiplier) - Math.abs(b.multiplier - targetMultiplier);
+      if (targetDiff !== 0) return targetDiff;
+    }
+    const bucketDiff = Math.abs(a.bucket - originalBucket) - Math.abs(b.bucket - originalBucket);
+    if (bucketDiff !== 0) return bucketDiff;
+    return a.multiplier - b.multiplier;
+  });
   return pool[0]?.bucket ?? 0;
 }
 

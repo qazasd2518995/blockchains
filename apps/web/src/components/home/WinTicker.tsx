@@ -45,7 +45,7 @@ export function WinTicker() {
   return (
     <article
       aria-label={t.feed.instantBoard}
-      className="min-w-0 self-start overflow-hidden rounded-[10px] border border-[#162238] bg-[#0F172A] shadow-[0_12px_30px_rgba(15,23,42,0.12)]"
+      className="flex h-full min-w-0 flex-col overflow-hidden rounded-[10px] border border-[#162238] bg-[#0F172A] shadow-[0_12px_30px_rgba(15,23,42,0.12)]"
     >
       <div className="flex items-center gap-2 border-b border-white/10 bg-[#111C2E] px-4 py-3 text-[13px] font-semibold text-[#E8D48A]">
         <Icon className="h-4 w-4" aria-hidden="true" />
@@ -62,7 +62,7 @@ export function WinTicker() {
         </span>
         <span className="num text-[#7DD3FC]">+{burst.toString().padStart(2, '0')} NEW</span>
       </div>
-      <div className="relative overflow-hidden" style={{ height: VISIBLE_ROWS * ROW_HEIGHT }}>
+      <div className="relative flex-1 overflow-hidden" style={{ minHeight: VISIBLE_ROWS * ROW_HEIGHT }}>
         <div
           className="flex flex-col transition-transform duration-700 ease-out"
           style={{ transform: `translateY(-${offset * ROW_HEIGHT}px)` }}
