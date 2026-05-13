@@ -22,6 +22,7 @@ import {
   prewarmShaders,
   prefersReducedMotion,
   GAME_FONT,
+  Sfx,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -116,6 +117,9 @@ export class PlinkoScene {
   private shaker: ShakeController | null = null;
   private poolTicker: ((tk: Ticker) => void) | null = null;
   private winFx: WinCelebration | null = null;
+  private lastLaunchSfxAt = 0;
+  private lastPegSfxAt = 0;
+  private lastLandSfxAt = 0;
 
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
     this.width = width;
@@ -138,6 +142,7 @@ export class PlinkoScene {
       shakeTarget: app.stage,
       width: this.width,
       height: this.height,
+      playSound: false,
     });
 
     await this.preloadAssets();
@@ -513,6 +518,7 @@ export class PlinkoScene {
     this.ballsContainer.addChild(g);
     this.anticipationBalls.push(g);
     const delay = Math.min(0.16, pendingIndex * 0.025);
+    this.playThrottledLaunchSfx();
     gsap.to(g, { alpha: 1, duration: 0.12, delay, ease: 'power2.out' });
     gsap.to(g.scale, {
       x: 1,
@@ -622,6 +628,7 @@ export class PlinkoScene {
   }
 
   private onLand(b: Ball): void {
+    this.playThrottledLandSfx(b.multiplier);
     if (b.multiplier > 1) this.playWinFx(b.multiplier, true);
 
     // Bucket 亮起
@@ -711,6 +718,7 @@ export class PlinkoScene {
   }
 
   private emitPegSparks(x: number, y: number): void {
+    this.playThrottledPegSfx();
     // L4: 熱路徑（每球彈數次），用 pool 避免 new Graphics
     this.particlePool?.emit({
       x,
@@ -726,6 +734,31 @@ export class PlinkoScene {
       gravity: 0.1,
       shape: 'circle',
     });
+  }
+
+  private nowMs(): number {
+    return typeof performance !== 'undefined' ? performance.now() : Date.now();
+  }
+
+  private playThrottledLaunchSfx(): void {
+    const now = this.nowMs();
+    if (now - this.lastLaunchSfxAt < 42) return;
+    this.lastLaunchSfxAt = now;
+    Sfx.plinkoLaunch();
+  }
+
+  private playThrottledPegSfx(): void {
+    const now = this.nowMs();
+    if (now - this.lastPegSfxAt < 58) return;
+    this.lastPegSfxAt = now;
+    Sfx.plinkoPeg();
+  }
+
+  private playThrottledLandSfx(multiplier: number): void {
+    const now = this.nowMs();
+    if (now - this.lastLandSfxAt < 55) return;
+    this.lastLandSfxAt = now;
+    Sfx.plinkoLand(multiplier);
   }
 
   private emitShockwave(x: number, y: number, color: number, maxR: number): void {

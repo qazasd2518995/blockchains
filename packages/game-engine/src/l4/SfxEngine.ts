@@ -414,6 +414,75 @@ class SfxEngineImpl {
     this.tone({ freq: 880, type: 'sine', durationSec: 0.05, peakGain: 0.08 });
   }
 
+  /** Plinko ball launch: short mechanical flick. */
+  plinkoLaunch(): void {
+    this.tone({
+      freq: 480,
+      type: 'triangle',
+      durationSec: 0.1,
+      peakGain: 0.09,
+      pitchEndFreq: 720,
+      attack: 0.003,
+      release: 0.055,
+      filter: { type: 'highpass', freq: 260 },
+    });
+    this.noise({ durationSec: 0.045, peakGain: 0.025, filter: { type: 'highpass', freq: 2600 } });
+  }
+
+  /** Plinko peg hit: tiny glass-metal ping, intentionally quiet for multi-ball drops. */
+  plinkoPeg(): void {
+    const freq = 1120 + Math.random() * 520;
+    this.tone({
+      freq,
+      type: 'sine',
+      durationSec: 0.05,
+      peakGain: 0.032,
+      pitchEndFreq: freq * 1.18,
+      attack: 0.002,
+      release: 0.028,
+      filter: { type: 'highpass', freq: 900 },
+    });
+  }
+
+  /** Plinko landing sound. Multiplier decides whether it is a soft loss or coin win. */
+  plinkoLand(multiplier: number): void {
+    if (multiplier <= 1) {
+      this.tone({
+        freq: 260,
+        type: 'triangle',
+        durationSec: 0.16,
+        peakGain: 0.06,
+        pitchEndFreq: 170,
+        pitchSweepShape: 'linear',
+        release: 0.11,
+        filter: { type: 'lowpass', freq: 620 },
+      });
+      return;
+    }
+
+    const big = multiplier >= 10;
+    const medium = multiplier >= 3;
+    const notes = big ? [784, 1175, 1568, 2093] : medium ? [740, 988, 1480] : [880, 1320];
+    notes.forEach((freq, i) => {
+      this.tone({
+        freq,
+        type: 'triangle',
+        durationSec: big ? 0.34 : 0.24,
+        peakGain: big ? 0.16 : medium ? 0.12 : 0.09,
+        delaySec: i * 0.045,
+        attack: 0.004,
+        decay: 0.035,
+        release: big ? 0.18 : 0.12,
+      });
+    });
+    this.noise({
+      durationSec: big ? 0.28 : 0.14,
+      peakGain: big ? 0.055 : 0.035,
+      delaySec: 0.02,
+      filter: { type: 'highpass', freq: 4200 },
+    });
+  }
+
   /** Loss "deflate" — soft and not punishing. */
   loss(): void {
     this.tone({

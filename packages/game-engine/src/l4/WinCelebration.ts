@@ -23,6 +23,8 @@ export interface WinCelebrationOptions {
   /** 多語言金額／倍率前後綴 */
   multiplierLabel?: string; // '×' default
   amountLabel?: string;     // 'WIN' default
+  /** 是否由共用慶祝元件播放音效；個別遊戲可自行接管 */
+  playSound?: boolean;
 }
 
 const DEFAULT_PRIMARY = 0xF3D67D;   // 金
@@ -50,6 +52,7 @@ export class WinCelebration {
   private readonly secondary: number;
   private readonly multiplierLabel: string;
   private readonly amountLabel: string;
+  private readonly playSound: boolean;
 
   private readonly fxLayer: Container;
   private readonly textLayer: Container;
@@ -68,6 +71,7 @@ export class WinCelebration {
     this.secondary = opts.secondaryColor ?? DEFAULT_SECONDARY;
     this.multiplierLabel = opts.multiplierLabel ?? '×';
     this.amountLabel = opts.amountLabel ?? 'WIN';
+    this.playSound = opts.playSound ?? true;
 
     this.fxLayer = new Container();
     this.fxLayer.eventMode = 'none';
@@ -108,10 +112,12 @@ export class WinCelebration {
     const cy = this.height / 2;
 
     // 0) 對應 tier 的勝利音效
-    if (tier === 'mega') Sfx.winMega();
-    else if (tier === 'huge') Sfx.winHuge();
-    else if (tier === 'big') Sfx.winBig();
-    else Sfx.winSmall();
+    if (this.playSound) {
+      if (tier === 'mega') Sfx.winMega();
+      else if (tier === 'huge') Sfx.winHuge();
+      else if (tier === 'big') Sfx.winBig();
+      else Sfx.winSmall();
+    }
 
     // 1) shake
     if (this.shaker && cfg.shakeAmp > 0) {
