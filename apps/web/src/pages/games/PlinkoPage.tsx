@@ -306,9 +306,6 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
                       anticipationBalls[index],
                     ) ?? Promise.resolve()
                   )
-                    .then(() => {
-                      sceneRef.current?.playWinFx(dropResult.multiplier, dropResult.multiplier > 1);
-                    })
                     .finally(resolve);
                 }, index * 90);
               }),

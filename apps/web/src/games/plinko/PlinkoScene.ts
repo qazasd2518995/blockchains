@@ -493,7 +493,7 @@ export class PlinkoScene {
   }
 
   /**
-   * 樂觀動畫：按下 DROP 立刻呼叫，播「準備球」從頂部浮現並脈動等待 API 回應。
+   * 樂觀動畫：按下 DROP 立刻呼叫，讓球先落到第一排釘子前等待 API 回應。
    * API 回來時呼叫 dropBall(...) 真正釋放。
    */
   startAnticipation(): Graphics | null {
@@ -502,29 +502,42 @@ export class PlinkoScene {
     g.circle(0, 0, this.ballRadius)
       .fill({ color: COLOR_AMBER })
       .stroke({ color: COLOR_INK, width: 1.5 });
-    const pendingOffset = (this.anticipationBalls.length % 5) - 2;
+    const pendingIndex = this.anticipationBalls.length;
+    const pendingOffset = (pendingIndex % 5) - 2;
+    const firstPegY = this.boardTop + this.rowSpacing;
+    const holdY = Math.max(this.boardTop - 2, firstPegY - this.ballRadius * 2.15);
     g.x = this.pathStartX() + pendingOffset * Math.max(2, this.ballRadius * 0.42);
-    g.y = this.boardTop - 14;
+    g.y = Math.max(8, this.boardTop - this.rowSpacing * 0.82);
     g.alpha = 0;
     g.scale.set(0.6);
     this.ballsContainer.addChild(g);
     this.anticipationBalls.push(g);
-    gsap.to(g, { alpha: 1, duration: 0.2, ease: 'power2.out' });
+    const delay = Math.min(0.16, pendingIndex * 0.025);
+    gsap.to(g, { alpha: 1, duration: 0.12, delay, ease: 'power2.out' });
     gsap.to(g.scale, {
       x: 1,
       y: 1,
-      duration: 0.18,
+      duration: 0.14,
+      delay,
       ease: 'back.out(1.8)',
     });
-    // 輕微脈動，直到 dropBall 呼叫
-    gsap.to(g.scale, {
-      x: 1.15,
-      y: 1.15,
-      duration: 0.45,
-      ease: 'sine.inOut',
-      yoyo: true,
-      repeat: -1,
-      delay: 0.2,
+    gsap.to(g, {
+      x: this.pathStartX() + pendingOffset * Math.max(1.5, this.ballRadius * 0.24),
+      y: holdY,
+      duration: 0.34,
+      delay,
+      ease: 'power1.in',
+      onComplete: () => {
+        // API 還沒回來時，停在第一排釘子前做輕微脈動。
+        gsap.to(g.scale, {
+          x: 1.12,
+          y: 1.12,
+          duration: 0.38,
+          ease: 'sine.inOut',
+          yoyo: true,
+          repeat: -1,
+        });
+      },
     });
     return g;
   }
@@ -567,7 +580,12 @@ export class PlinkoScene {
     if (!this.ballsContainer) return;
 
     return new Promise<void>((resolve) => {
-      const g = this.claimAnticipation(anticipationBall) ?? new Graphics();
+      const claimedBall = this.claimAnticipation(anticipationBall);
+      const g = claimedBall ?? new Graphics();
+      const firstPegY = this.boardTop + this.rowSpacing;
+      const startY = claimedBall
+        ? Math.min(Math.max(g.y, this.boardTop - 10), firstPegY - this.ballRadius * 1.25)
+        : this.boardTop - 10;
       g.clear();
       // 球
       g.circle(0, 0, this.ballRadius)
@@ -578,7 +596,7 @@ export class PlinkoScene {
         alpha: 0.7,
       });
       g.x = this.pathStartX();
-      g.y = this.boardTop - 10;
+      g.y = startY;
       g.alpha = 1;
       g.scale.set(1);
       if (!g.parent) this.ballsContainer?.addChild(g);
@@ -604,6 +622,8 @@ export class PlinkoScene {
   }
 
   private onLand(b: Ball): void {
+    if (b.multiplier > 1) this.playWinFx(b.multiplier, true);
+
     // Bucket 亮起
     if (this.bucketsContainer) {
       const bucket = this.bucketsContainer.children[b.targetBucket];
