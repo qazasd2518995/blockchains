@@ -49,6 +49,10 @@ interface Ball {
   path: ('left' | 'right')[]; // 預定路徑
   targetBucket: number;
   multiplier: number;
+  xStart: number;
+  xTarget: number;
+  xTweenElapsed: number;
+  xTweenDuration: number;
   onDone: (bucket: number, multiplier: number) => void;
   bouncedRows: Set<number>; // 已經過的排，避免重複碰撞判定
 }
@@ -78,6 +82,11 @@ function formatPotentialPayout(value: number): string {
 function trimFixed(value: number): string {
   const decimals = value >= 10 ? 0 : 1;
   return value.toFixed(decimals).replace(/\.0$/, '');
+}
+
+function easeOutQuad(t: number): number {
+  const clamped = Math.max(0, Math.min(1, t));
+  return 1 - (1 - clamped) * (1 - clamped);
 }
 
 export class PlinkoScene {
@@ -120,6 +129,8 @@ export class PlinkoScene {
   private lastLaunchSfxAt = 0;
   private lastPegSfxAt = 0;
   private lastLandSfxAt = 0;
+  private lastPegVisualFxAt = 0;
+  private lastLandingVisualFxAt = 0;
 
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
     this.width = width;
@@ -418,7 +429,14 @@ export class PlinkoScene {
         // 保證視覺軌跡與最終 bucket 完全吻合。
         const gravity = 0.42;
         b.vy += gravity * tk.deltaTime;
-        // 水平位置由 GSAP tween 控制（碰釘時觸發），不再用 vx 累加
+        // 水平位置由 ticker 內部 tween 控制，避免多顆球時建立大量 GSAP tween。
+        if (b.xTweenElapsed < b.xTweenDuration) {
+          b.xTweenElapsed = Math.min(b.xTweenDuration, b.xTweenElapsed + tk.deltaTime);
+          const t = b.xTweenDuration > 0 ? b.xTweenElapsed / b.xTweenDuration : 1;
+          b.x = b.xStart + (b.xTarget - b.xStart) * easeOutQuad(t);
+        } else {
+          b.x = b.xTarget;
+        }
         b.y += b.vy * tk.deltaTime;
 
         // 檢測是否碰到某一排釘子（依 path 決定方向）
@@ -429,14 +447,10 @@ export class PlinkoScene {
             b.bouncedRows.add(nextRow);
             const toX = this.pathXAfterSteps(b.path, nextRow + 1);
             const sparkX = (b.x + toX) / 2;
-            gsap.to(b, {
-              x: toX,
-              duration: 0.18,
-              ease: 'power1.out',
-              onUpdate: () => {
-                b.g.x = b.x;
-              },
-            });
+            b.xStart = b.x;
+            b.xTarget = toX;
+            b.xTweenElapsed = 0;
+            b.xTweenDuration = 11;
             b.vy = Math.max(2.1, b.vy * 0.56 + 1.05); // 彈一下
             b.row += 1;
 
@@ -501,14 +515,14 @@ export class PlinkoScene {
    * 樂觀動畫：按下 DROP 立刻呼叫，讓球先落到第一排釘子前等待 API 回應。
    * API 回來時呼叫 dropBall(...) 真正釋放。
    */
-  startAnticipation(): Graphics | null {
+  startAnticipation(batchIndex = this.anticipationBalls.length, batchSize = 1): Graphics | null {
     if (!this.ballsContainer) return null;
     const g = new Graphics();
     g.circle(0, 0, this.ballRadius)
       .fill({ color: COLOR_AMBER })
       .stroke({ color: COLOR_INK, width: 1.5 });
-    const pendingIndex = this.anticipationBalls.length;
-    const pendingOffset = (pendingIndex % 5) - 2;
+    const isLargeBatch = batchSize >= 10;
+    const pendingOffset = (batchIndex % 5) - 2;
     const firstPegY = this.boardTop + this.rowSpacing;
     const holdY = Math.max(this.boardTop - 2, firstPegY - this.ballRadius * 2.15);
     g.x = this.pathStartX() + pendingOffset * Math.max(2, this.ballRadius * 0.42);
@@ -517,12 +531,12 @@ export class PlinkoScene {
     g.scale.set(0.6);
     this.ballsContainer.addChild(g);
     this.anticipationBalls.push(g);
-    const delay = Math.min(0.16, pendingIndex * 0.025);
+    const delay = isLargeBatch ? Math.min(0.12, batchIndex * 0.012) : Math.min(0.16, batchIndex * 0.025);
     this.playThrottledLaunchSfx();
-    gsap.to(g, { alpha: 1, duration: 0.12, delay, ease: 'power2.out' });
+    gsap.to(g, { alpha: isLargeBatch ? 0.88 : 1, duration: 0.12, delay, ease: 'power2.out' });
     gsap.to(g.scale, {
-      x: 1,
-      y: 1,
+      x: isLargeBatch ? 0.92 : 1,
+      y: isLargeBatch ? 0.92 : 1,
       duration: 0.14,
       delay,
       ease: 'back.out(1.8)',
@@ -534,6 +548,7 @@ export class PlinkoScene {
       delay,
       ease: 'power1.in',
       onComplete: () => {
+        if (isLargeBatch) return;
         // API 還沒回來時，停在第一排釘子前做輕微脈動。
         gsap.to(g.scale, {
           x: 1.12,
@@ -618,6 +633,10 @@ export class PlinkoScene {
         path,
         targetBucket: bucket,
         multiplier,
+        xStart: g.x,
+        xTarget: g.x,
+        xTweenElapsed: 0,
+        xTweenDuration: 0,
         bouncedRows: new Set(),
         onDone: (_b, m) => {
           void m;
@@ -629,10 +648,16 @@ export class PlinkoScene {
 
   private onLand(b: Ball): void {
     this.playThrottledLandSfx(b.multiplier);
-    if (b.multiplier > 1) this.playWinFx(b.multiplier, true);
+    const highLoad = this.isHighLoad();
+    const now = this.nowMs();
+    const canPlayLandingVisual = !highLoad || b.multiplier >= 10 || now - this.lastLandingVisualFxAt > 180;
+    if (canPlayLandingVisual) this.lastLandingVisualFxAt = now;
+    if (b.multiplier > 1 && (!highLoad || b.multiplier >= 3 || canPlayLandingVisual)) {
+      this.playWinFx(b.multiplier, true);
+    }
 
     // Bucket 亮起
-    if (this.bucketsContainer) {
+    if (this.bucketsContainer && (!highLoad || b.multiplier >= 3 || canPlayLandingVisual)) {
       const bucket = this.bucketsContainer.children[b.targetBucket];
       if (bucket) {
         gsap.fromTo(
@@ -666,18 +691,25 @@ export class PlinkoScene {
 
     // 震波大小隨 tier
     const shockRadius = tier === 'mega' ? 180 : tier === 'huge' ? 140 : tier === 'big' ? 100 : 70;
-    this.emitShockwave(targetX, targetY, color, shockRadius);
-    if (tier === 'huge' || tier === 'mega') {
+    if (canPlayLandingVisual) {
+      this.emitShockwave(targetX, targetY, color, shockRadius);
+    }
+    if (canPlayLandingVisual && (tier === 'huge' || tier === 'mega')) {
       // 大獎疊第二層震波
       this.emitShockwave(targetX, targetY, color, shockRadius * 1.5);
     }
 
     // 粒子用 pool（向上扇形噴）
-    if (tierCfg.particles > 0) {
+    const particleCount = highLoad
+      ? Math.min(won ? tierCfg.particles : 10, won ? 8 : 4)
+      : won
+        ? tierCfg.particles
+        : 10;
+    if (canPlayLandingVisual && particleCount > 0) {
       this.particlePool?.emit({
         x: targetX,
         y: targetY,
-        count: won ? tierCfg.particles : 10,
+        count: particleCount,
         colors: won ? [color, COLOR_WHITE, COLOR_ICE] : [0xdcd0b3, COLOR_INK],
         speedMin: 3,
         speedMax: won ? 11 : 4,
@@ -686,17 +718,17 @@ export class PlinkoScene {
       });
     }
 
-    if (won && tierCfg.shakeAmp > 0 && this.shaker) {
+    if (won && tierCfg.shakeAmp > 0 && this.shaker && (!highLoad || b.multiplier >= 10)) {
       this.shaker.shake(tierCfg.shakeAmp, tierCfg.shakeDuration);
     }
-    if (this.app && won && tierCfg.edgeGlowMs > 0) {
+    if (this.app && won && tierCfg.edgeGlowMs > 0 && (!highLoad || b.multiplier >= 10)) {
       emitEdgeGlow(this.app.stage, this.width, this.height, color, tierCfg.edgeGlowMs / 1000);
     }
-    if (this.app && tierCfg.rayBurst) {
+    if (this.app && tierCfg.rayBurst && (!highLoad || b.multiplier >= 10)) {
       emitRayBurst(this.app.stage, this.app, targetX, targetY, color, 1.2);
     }
     // L4 強化：落點 emit glow burst（讓「彈珠落定」感更強烈）
-    if (this.app && won && !prefersReducedMotion()) {
+    if (this.app && won && !prefersReducedMotion() && (!highLoad || b.multiplier >= 10)) {
       emitGlowBurst(this.app.stage, targetX, targetY, color, {
         radius: 60 + Math.min(80, b.multiplier * 6),
         peakBlur: 18 + Math.min(10, b.multiplier),
@@ -719,11 +751,15 @@ export class PlinkoScene {
 
   private emitPegSparks(x: number, y: number): void {
     this.playThrottledPegSfx();
+    const highLoad = this.isHighLoad();
+    const now = this.nowMs();
+    if (highLoad && now - this.lastPegVisualFxAt < 28) return;
+    this.lastPegVisualFxAt = now;
     // L4: 熱路徑（每球彈數次），用 pool 避免 new Graphics
     this.particlePool?.emit({
       x,
       y,
-      count: 3,
+      count: highLoad ? 1 : 3,
       colors: [COLOR_WHITE, COLOR_ICE],
       speedMin: 1,
       speedMax: 3,
@@ -734,6 +770,10 @@ export class PlinkoScene {
       gravity: 0.1,
       shape: 'circle',
     });
+  }
+
+  private isHighLoad(): boolean {
+    return this.balls.length + this.anticipationBalls.length >= 12;
   }
 
   private nowMs(): number {

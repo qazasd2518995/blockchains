@@ -274,8 +274,8 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
       changeActiveDrops(balls);
       pendingStakeRef.current = roundCurrency(pendingStakeRef.current + totalStake);
       setError(null);
-      const anticipationBalls = Array.from({ length: balls }, () =>
-        sceneRef.current?.startAnticipation(),
+      const anticipationBalls = Array.from({ length: balls }, (_, index) =>
+        sceneRef.current?.startAnticipation(index, balls),
       );
 
       try {
