@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { MIN_BET_AMOUNT, type DiceBetRequest, type DiceBetResult } from '@bg/shared';
+import { DICE_HOUSE_EDGE, DICE_MAX_TARGET, DICE_MIN_TARGET } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -11,9 +12,6 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { GameHeader } from '@/components/game/GameHeader';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
-
-const MIN_TARGET = 1.01;
-const MAX_TARGET = 98.99;
 
 export function DicePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,7 +30,8 @@ export function DicePage() {
   const [rolling, setRolling] = useState(false);
 
   const winChance = direction === 'under' ? target : 100 - target;
-  const multiplier = winChance > 0 ? 99 / winChance : 0;
+  const multiplier =
+    winChance > 0 ? Math.floor(((1 - DICE_HOUSE_EDGE) * 10000 * 100) / winChance) / 10000 : 0;
   const potentialPayout = amount * multiplier;
 
   useEffect(() => {
@@ -120,7 +119,7 @@ export function DicePage() {
         titleSuffix={t.games.dice.suffix}
         titleSuffixColor="acid"
         description={t.games.dice.description}
-        rtpLabel="RTP 99%"
+        rtpLabel="RTP 96.5%"
         rtpAccent="acid"
       />
 
@@ -203,17 +202,17 @@ export function DicePage() {
               </div>
               <input
                 type="range"
-                min={MIN_TARGET}
-                max={MAX_TARGET}
+                min={DICE_MIN_TARGET}
+                max={DICE_MAX_TARGET}
                 step={0.01}
                 value={target}
                 onChange={(e) => setTarget(Number.parseFloat(e.target.value))}
                 className={`term-range w-full ${direction === 'over' ? 'term-range-ember' : ''}`}
               />
               <div className="mt-1 flex justify-between text-[9px] text-white/40">
-                <span>0.00</span>
+                <span>{DICE_MIN_TARGET.toFixed(2)}</span>
                 <span>50.00</span>
-                <span>99.99</span>
+                <span>{DICE_MAX_TARGET.toFixed(2)}</span>
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import { hmacIntStream } from './hmac.js';
 
-export const HILO_HOUSE_EDGE = 0.02;
+export const HILO_HOUSE_EDGE = 0.035;
 
 // 1..13 對應 A,2,3,...,J,Q,K
 export interface HiLoDraw {

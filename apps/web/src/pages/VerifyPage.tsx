@@ -138,14 +138,14 @@ const GAMES: Game[] = [
     name: '21點',
     english: 'Blackjack 21',
     cover: '/game-art/blackjack/cover.png',
-    rtp: '99.5%',
-    maxMultiplier: '2.5×',
+    rtp: '97%',
+    maxMultiplier: '2×',
     duration: '單局 10–40 秒',
-    intro: '正式 21 點牌桌玩法，玩家與莊家比點數，Blackjack 按 3:2 派彩。',
+    intro: '正式 21 點牌桌玩法，玩家與莊家比點數，Blackjack 按 1:1 派彩。',
     howToPlay: [
       '起手玩家與莊家各兩張，莊家一張暗牌，玩家可補牌、停牌、加倍或分牌。',
       '點數超過 21 即爆牌；A 可算 1 或 11，J/Q/K 算 10。',
-      '莊家 16 點以下補牌，17 點以上停牌，軟 17 也停牌。',
+      '莊家 16 點以下補牌，硬 17 停牌，軟 17 仍會補牌。',
     ],
     tips: '兩張起手牌同點數可分牌，A 分牌後每手只補一張。',
   },
@@ -274,8 +274,8 @@ const GAMES: Game[] = [
     name: '掉珠挑戰 X',
     english: 'Plinko X',
     cover: '/games/plinko-x.jpg',
-    rtp: '99%',
-    maxMultiplier: '170×',
+    rtp: '96.5%',
+    maxMultiplier: '165×',
     duration: '單局 3 秒',
     intro: 'X 視覺主題彈珠台，彈珠穿越釘陣後落入倍率槽結算。',
     howToPlay: [
@@ -291,16 +291,16 @@ const GAMES: Game[] = [
     name: '骰子',
     english: 'Dice',
     cover: '/game-art/dice/cover.png',
-    rtp: '99%',
-    maxMultiplier: '9,900×',
+    rtp: '96.5%',
+    maxMultiplier: '24.12×',
     duration: '單局 3 秒',
     intro: '經典 Dice 玩法，預測點數低於門檻或大於等於門檻即贏。',
     howToPlay: [
-      '設定門檻值（0.01–99.99）並選擇「Over」或「Under」。',
+      '設定門檻值（4.00–96.00）並選擇「Over」或「Under」。',
       '系統開出 0.00–99.99 的點數，符合預測即勝出。',
       '勝率越低、賠率越高，依門檻自動換算。',
     ],
-    tips: '骰子 RTP 高達 99%，是長期最穩定的玩法之一。',
+    tips: '骰子賠率依 96.5% RTP 換算，退水後仍維持負期望。',
   },
   {
     id: 'roulette',
@@ -325,8 +325,8 @@ const GAMES: Game[] = [
     name: '彩色轉輪',
     english: 'Color Wheel',
     cover: '/game-art/wheel/cover.png',
-    rtp: '99%',
-    maxMultiplier: '49.5×',
+    rtp: '96.5%',
+    maxMultiplier: '48.25×',
     duration: '單局 6 秒',
     intro: '旋轉轉輪，指針停在你押注的顏色即贏。',
     howToPlay: [
@@ -512,7 +512,7 @@ const GAMES: Game[] = [
     name: '猜大小',
     english: 'Hi-Lo',
     cover: '/game-art/hilo/cover.png',
-    rtp: '99%',
+    rtp: '96.5%',
     maxMultiplier: '999×',
     duration: '可連續多局',
     intro: '猜下一張牌大於等於或小於等於目前牌，連對越多倍率越高。',
@@ -580,8 +580,8 @@ const GAMES: Game[] = [
     name: '彈珠台',
     english: 'Plinko',
     cover: '/game-art/plinko/cover.png',
-    rtp: '99%',
-    maxMultiplier: '1,000×',
+    rtp: '96.5%',
+    maxMultiplier: '165×',
     duration: '單局 3 秒',
     intro: '彈珠穿越釘陣自由落下，落入哪個倍率槽就拿那個倍率。',
     howToPlay: [
@@ -705,7 +705,7 @@ export function VerifyPage() {
 
               <div className="mt-5 flex gap-2 overflow-x-auto pb-1 text-[12px] sm:mt-6 sm:flex-wrap sm:overflow-visible sm:pb-0">
                 <span className="shrink-0 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">
-                  RTP 96%–99%
+                  RTP 96%–97%
                 </span>
                 <span className="shrink-0 rounded-full border border-white/20 bg-white/[0.06] px-3 py-1.5 text-white/[0.85]">
                   最高 1,000,000×

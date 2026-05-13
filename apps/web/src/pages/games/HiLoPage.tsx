@@ -203,7 +203,7 @@ export function HiLoPage() {
         titleSuffix={t.games.hilo.suffix}
         titleSuffixColor="toxic"
         description={t.games.hilo.description}
-        rtpLabel="RTP 99%"
+        rtpLabel="RTP 96.5%"
         rtpAccent="toxic"
       />
 

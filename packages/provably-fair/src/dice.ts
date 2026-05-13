@@ -1,8 +1,8 @@
 import { hmacFloatStream } from './hmac.js';
 
-export const DICE_HOUSE_EDGE = 0.01;
-export const DICE_MIN_TARGET = 0.01;
-export const DICE_MAX_TARGET = 99.99;
+export const DICE_HOUSE_EDGE = 0.035;
+export const DICE_MIN_TARGET = 4;
+export const DICE_MAX_TARGET = 96;
 
 export interface DiceRollResult {
   roll: number;

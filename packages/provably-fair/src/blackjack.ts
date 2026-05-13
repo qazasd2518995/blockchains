@@ -13,10 +13,10 @@ export interface BlackjackScore {
 }
 
 export const BLACKJACK_HOUSE_RULES = {
-  blackjackPayout: 2.5,
+  blackjackPayout: 2,
   regularWinPayout: 2,
   pushPayout: 1,
-  dealerStandsSoft17: true,
+  dealerStandsSoft17: false,
 } as const;
 
 export function blackjackDeck(

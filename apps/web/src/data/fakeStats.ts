@@ -19,7 +19,7 @@ const GAME_POOL: Array<{
   minWin: number;
   maxWin: number;
 }> = [
-  { game: '21點', gameId: 'blackjack', minMult: 2, maxMult: 2.5, minWin: 8000, maxWin: 180000 },
+  { game: '21點', gameId: 'blackjack', minMult: 2, maxMult: 2, minWin: 8000, maxWin: 180000 },
   { game: '飆速X', gameId: 'jetx', minMult: 8, maxMult: 180, minWin: 28000, maxWin: 980000 },
   { game: '飆速X3', gameId: 'jetx3', minMult: 15, maxMult: 320, minWin: 56000, maxWin: 1680000 },
   { game: '飛行員', gameId: 'aviator', minMult: 6, maxMult: 140, minWin: 22000, maxWin: 860000 },
@@ -46,12 +46,12 @@ const GAME_POOL: Array<{
     game: '掉珠挑戰X',
     gameId: 'plinko-x',
     minMult: 12,
-    maxMult: 520,
+    maxMult: 165,
     minWin: 52000,
     maxWin: 1880000,
   },
-  { game: '彈珠台', gameId: 'plinko', minMult: 8, maxMult: 240, minWin: 26000, maxWin: 880000 },
-  { game: '彩色轉輪', gameId: 'wheel', minMult: 2, maxMult: 49.5, minWin: 15000, maxWin: 260000 },
+  { game: '彈珠台', gameId: 'plinko', minMult: 8, maxMult: 165, minWin: 26000, maxWin: 880000 },
+  { game: '彩色轉輪', gameId: 'wheel', minMult: 2, maxMult: 48, minWin: 15000, maxWin: 260000 },
   {
     game: '迷你輪盤',
     gameId: 'mini-roulette',
@@ -151,7 +151,7 @@ const GAME_POOL: Array<{
   },
   { game: '基諾', gameId: 'keno', minMult: 4, maxMult: 80, minWin: 9000, maxWin: 260000 },
   { game: '猜大小', gameId: 'hilo', minMult: 3, maxMult: 64, minWin: 8000, maxWin: 180000 },
-  { game: '骰子', gameId: 'dice', minMult: 2, maxMult: 48, minWin: 6000, maxWin: 160000 },
+  { game: '骰子', gameId: 'dice', minMult: 2, maxMult: 24, minWin: 6000, maxWin: 160000 },
 ];
 
 const ACCOUNT_PREFIX = [

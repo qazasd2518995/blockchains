@@ -124,7 +124,7 @@ export function WheelPage() {
         titleSuffix={t.games.wheel.suffix}
         titleSuffixColor="ember"
         description={t.games.wheel.description}
-        rtpLabel="RTP 99%"
+        rtpLabel="RTP 96.5%"
         rtpAccent="ember"
       />
 
@@ -201,7 +201,9 @@ export function WheelPage() {
             />
             {result && (
               <div className="wheel-control-result">
-                <span className="font-display text-white">{formatMultiplier(result.multiplier)}</span>
+                <span className="font-display text-white">
+                  {formatMultiplier(result.multiplier)}
+                </span>
                 <span className="data-num text-[#7DD3FC]">
                   {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
                   {formatAmount(result.profit)}

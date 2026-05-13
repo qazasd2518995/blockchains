@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { wheelSpin, wheelMultiplier, wheelTable, type WheelRisk, type WheelSegmentCount } from './wheel.js';
+import {
+  WHEEL_TARGET_RTP,
+  wheelSpin,
+  wheelMultiplier,
+  wheelTable,
+  type WheelRisk,
+  type WheelSegmentCount,
+} from './wheel.js';
 
 describe('wheelSpin', () => {
   it('segmentIndex within range', () => {
@@ -24,15 +31,15 @@ describe('wheelMultiplier', () => {
     }
   });
 
-  it('keeps every risk and segment table below 100% RTP', () => {
+  it('keeps every risk and segment table near the target RTP', () => {
     const risks: WheelRisk[] = ['low', 'medium', 'high'];
     const segments: WheelSegmentCount[] = [10, 20, 30, 40, 50];
     for (const risk of risks) {
       for (const segmentCount of segments) {
         const table = wheelTable(risk, segmentCount);
         const rtp = table.reduce((sum, multiplier) => sum + multiplier, 0) / table.length;
-        expect(rtp).toBeGreaterThan(0.989);
-        expect(rtp).toBeLessThanOrEqual(0.99);
+        expect(rtp).toBeGreaterThan(WHEEL_TARGET_RTP - 0.0002);
+        expect(rtp).toBeLessThanOrEqual(WHEEL_TARGET_RTP + 0.0000001);
       }
     }
   });

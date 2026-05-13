@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  hiloDraw,
-  hiloProbHigherOrEqual,
-  hiloProbLowerOrEqual,
-  hiloMultiplier,
-} from './hilo.js';
+import { hiloDraw, hiloProbHigherOrEqual, hiloProbLowerOrEqual, hiloMultiplier } from './hilo.js';
 
 describe('hiloDraw', () => {
   it('returns rank in 1..13', () => {
@@ -42,8 +37,8 @@ describe('hiloProbs', () => {
 });
 
 describe('hiloMultiplier', () => {
-  it('applies 2% house edge', () => {
-    expect(hiloMultiplier(0.5)).toBeCloseTo(1.96, 3);
+  it('applies 3.5% house edge', () => {
+    expect(hiloMultiplier(0.5)).toBeCloseTo(1.93, 3);
   });
 
   it('returns 0 for impossible chance', () => {

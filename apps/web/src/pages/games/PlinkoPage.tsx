@@ -305,8 +305,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
                       dropResult.multiplier,
                       anticipationBalls[index],
                     ) ?? Promise.resolve()
-                  )
-                    .finally(resolve);
+                  ).finally(resolve);
                 }, index * 90);
               }),
           ),
@@ -689,7 +688,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
         titleSuffix={isX ? 'X' : t.games.plinko.suffix}
         titleSuffixColor="acid"
         description={t.games.plinko.description}
-        rtpLabel="RTP 99%"
+        rtpLabel="RTP 96.5%"
         rtpAccent="acid"
       />
 

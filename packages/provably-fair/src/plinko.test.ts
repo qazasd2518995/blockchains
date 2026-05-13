@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { plinkoPath, plinkoMultiplier, plinkoTable } from './plinko.js';
+import {
+  PLINKO_TARGET_RTP,
+  plinkoPath,
+  plinkoMultiplier,
+  plinkoTable,
+  type PlinkoRisk,
+} from './plinko.js';
 
 describe('plinkoPath', () => {
   it('returns path length equal to rows', () => {
@@ -45,4 +51,28 @@ describe('plinkoMultiplier', () => {
     expect(table[0]!).toBeGreaterThan(table[6]!);
     expect(table[12]!).toBeGreaterThan(table[6]!);
   });
+
+  it('keeps every table near the target RTP', () => {
+    const risks: PlinkoRisk[] = ['low', 'medium', 'high'];
+    for (const risk of risks) {
+      for (let rows = 8; rows <= 16; rows += 1) {
+        const table = plinkoTable(risk, rows);
+        const rtp = table.reduce(
+          (sum, multiplier, bucket) => sum + multiplier * (binomial(rows, bucket) / 2 ** rows),
+          0,
+        );
+        expect(rtp).toBeGreaterThan(PLINKO_TARGET_RTP - 0.0002);
+        expect(rtp).toBeLessThanOrEqual(PLINKO_TARGET_RTP);
+      }
+    }
+  });
 });
+
+function binomial(n: number, k: number): number {
+  const m = Math.min(k, n - k);
+  let result = 1;
+  for (let i = 1; i <= m; i += 1) {
+    result = (result * (n - m + i)) / i;
+  }
+  return result;
+}

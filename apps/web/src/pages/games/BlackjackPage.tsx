@@ -210,7 +210,7 @@ export function BlackjackPage() {
         titleSuffix={t.games.blackjack.suffix}
         titleSuffixColor="acid"
         description={t.games.blackjack.description}
-        rtpLabel="RTP 99.5%"
+        rtpLabel="RTP 97%"
         rtpAccent="acid"
       />
 

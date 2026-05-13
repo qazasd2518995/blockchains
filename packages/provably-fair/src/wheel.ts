@@ -2,7 +2,7 @@ import { hmacFloatStream } from './hmac.js';
 
 export type WheelRisk = 'low' | 'medium' | 'high';
 export type WheelSegmentCount = 10 | 20 | 30 | 40 | 50;
-export const WHEEL_TARGET_RTP = 0.99;
+export const WHEEL_TARGET_RTP = 0.965;
 
 // 每個 (risk, segments) 的倍率表——每個 index 對應一段
 // 數字 0 表示該段為 0x (輸)
@@ -12,8 +12,9 @@ type WheelTable = Record<WheelRisk, Record<WheelSegmentCount, number[]>>;
 const TABLE: WheelTable = {
   low: {
     10: [1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.2, 1.2, 1.2, 0],
-    20: [1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.2, 1.2, 1.2, 0,
-         1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.2, 1.2, 1.2, 0],
+    20: [
+      1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.2, 1.2, 1.2, 0, 1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.2, 1.2, 1.2, 0,
+    ],
     30: Array.from({ length: 30 }, (_, i) => (i % 5 === 4 ? 0 : i % 5 === 0 ? 1.5 : 1.2)),
     40: Array.from({ length: 40 }, (_, i) => (i % 4 === 3 ? 0 : 1.2)),
     50: Array.from({ length: 50 }, (_, i) => (i % 5 === 4 ? 0 : 1.2)),

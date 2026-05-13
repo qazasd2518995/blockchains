@@ -4,6 +4,7 @@ export type PlinkoRisk = 'low' | 'medium' | 'high';
 
 export const PLINKO_MIN_ROWS = 8;
 export const PLINKO_MAX_ROWS = 16;
+export const PLINKO_TARGET_RTP = 0.965;
 
 /**
  * Multiplier tables keyed by (risk, rows).
@@ -65,16 +66,41 @@ export function plinkoPath(
   return { path, bucket };
 }
 
-export function plinkoMultiplier(
-  risk: PlinkoRisk,
-  rows: number,
-  bucket: number,
-): number {
-  const row = TABLES[risk][rows];
+export function plinkoMultiplier(risk: PlinkoRisk, rows: number, bucket: number): number {
+  const row = plinkoTable(risk, rows);
   if (!row) return 0;
   return row[bucket] ?? 0;
 }
 
 export function plinkoTable(risk: PlinkoRisk, rows: number): number[] {
-  return TABLES[risk][rows] ?? [];
+  const row = TABLES[risk][rows] ?? [];
+  return applyTargetRtp(row, rows);
+}
+
+function applyTargetRtp(table: number[], rows: number): number[] {
+  if (table.length === 0) return table;
+  const currentRtp = table.reduce(
+    (sum, multiplier, bucket) => sum + multiplier * bucketProbability(rows, bucket),
+    0,
+  );
+  if (currentRtp <= 0) return table;
+  const scale = PLINKO_TARGET_RTP / currentRtp;
+  return table.map((multiplier) => {
+    if (multiplier <= 0) return 0;
+    return Math.floor(multiplier * scale * 10000) / 10000;
+  });
+}
+
+function bucketProbability(rows: number, bucket: number): number {
+  return binomial(rows, bucket) / 2 ** rows;
+}
+
+function binomial(n: number, k: number): number {
+  if (k < 0 || k > n) return 0;
+  const m = Math.min(k, n - k);
+  let result = 1;
+  for (let i = 1; i <= m; i += 1) {
+    result = (result * (n - m + i)) / i;
+  }
+  return result;
 }

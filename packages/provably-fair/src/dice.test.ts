@@ -6,6 +6,8 @@ import {
   diceDidWin,
   diceDetermine,
   DICE_HOUSE_EDGE,
+  DICE_MAX_TARGET,
+  DICE_MIN_TARGET,
 } from './dice.js';
 
 describe('diceRoll', () => {
@@ -59,17 +61,17 @@ describe('diceWinChance', () => {
 });
 
 describe('diceMultiplier', () => {
-  it('applies 1% house edge', () => {
-    expect(diceMultiplier(50)).toBeCloseTo(1.98, 4);
-    expect(diceMultiplier(10)).toBeCloseTo(9.9, 4);
-    expect(diceMultiplier(99)).toBeCloseTo(1.0, 4);
+  it('applies 3.5% house edge', () => {
+    expect(diceMultiplier(50)).toBeCloseTo(1.93, 4);
+    expect(diceMultiplier(10)).toBeCloseTo(9.65, 4);
+    expect(diceMultiplier(96)).toBeCloseTo(1.0052, 4);
   });
 
   it('returns 0 for zero chance', () => {
     expect(diceMultiplier(0)).toBe(0);
   });
 
-  it('produces RTP of 99% at any target', () => {
+  it('produces RTP of 96.5% at any target', () => {
     for (const winChance of [10, 25, 50, 75, 90]) {
       const rtp = (winChance / 100) * diceMultiplier(winChance);
       expect(rtp).toBeCloseTo(1 - DICE_HOUSE_EDGE, 3);
@@ -89,28 +91,28 @@ describe('diceDidWin', () => {
 
 describe('diceDetermine', () => {
   it('wins when roll under target for under direction', () => {
-    const r = diceDetermine('seed', 'client', 1, 99.99, 'under');
+    const r = diceDetermine('seed', 'client', 1, DICE_MAX_TARGET, 'under');
     expect(r.won).toBe(true);
     expect(r.multiplier).toBeGreaterThan(0);
   });
 
   it('loses when roll over target for under direction', () => {
-    const r = diceDetermine('seed', 'client', 1, 0.01, 'under');
+    const r = diceDetermine('seed', 'client', 1, DICE_MIN_TARGET, 'under');
     expect(r.won).toBe(false);
     expect(r.multiplier).toBe(0);
   });
 
   it('wins when roll over target for over direction', () => {
-    const r = diceDetermine('seed', 'client', 1, 0.01, 'over');
+    const r = diceDetermine('seed', 'client', 1, DICE_MIN_TARGET, 'over');
     expect(r.won).toBe(true);
   });
 
   it('rejects out-of-range targets', () => {
-    expect(() => diceDetermine('s', 'c', 1, 0, 'under')).toThrow();
-    expect(() => diceDetermine('s', 'c', 1, 100, 'under')).toThrow();
+    expect(() => diceDetermine('s', 'c', 1, DICE_MIN_TARGET - 0.01, 'under')).toThrow();
+    expect(() => diceDetermine('s', 'c', 1, DICE_MAX_TARGET + 0.01, 'under')).toThrow();
   });
 
-  it('approaches 99% RTP over large samples', () => {
+  it('approaches 96.5% RTP over large samples', () => {
     let totalPayout = 0;
     const totalBet = 10000;
     for (let nonce = 1; nonce <= totalBet; nonce += 1) {

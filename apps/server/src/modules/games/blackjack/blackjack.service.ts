@@ -82,7 +82,11 @@ export class BlackjackService {
       if (active) throw new ApiError('INVALID_ACTION', 'You have an active Blackjack round');
 
       await lockUserAndCheckFunds(tx, userId, amount);
-      const seed = await new SeedHelper(tx).getActiveBundle(userId, GameId.BLACKJACK, input.clientSeed);
+      const seed = await new SeedHelper(tx).getActiveBundle(
+        userId,
+        GameId.BLACKJACK,
+        input.clientSeed,
+      );
       const deck = blackjackDeck(seed.serverSeed, seed.clientSeed, seed.nonce);
       const playerCards = [deck[0]!, deck[2]!];
       const dealerHand = [deck[1]!, deck[3]!];
@@ -112,10 +116,11 @@ export class BlackjackService {
         : null;
       const finalOpeningHands = controlledNatural?.hands ?? natural?.hands ?? playerHands;
       const finalOpeningDealer = controlledNatural?.dealerHand ?? dealerHand;
-      const finalOpeningPayout = controlledNatural?.payout ?? natural?.payout ?? new Prisma.Decimal(0);
-      const finalOpeningMultiplier = controlledNatural?.multiplier ?? natural?.multiplier ?? new Prisma.Decimal(1);
-      const finalOpeningStatus =
-        finalOpeningPayout.greaterThan(0) ? 'CASHED_OUT' : 'BUSTED';
+      const finalOpeningPayout =
+        controlledNatural?.payout ?? natural?.payout ?? new Prisma.Decimal(0);
+      const finalOpeningMultiplier =
+        controlledNatural?.multiplier ?? natural?.multiplier ?? new Prisma.Decimal(1);
+      const finalOpeningStatus = finalOpeningPayout.greaterThan(0) ? 'CASHED_OUT' : 'BUSTED';
 
       const round = await tx.blackjackRound.create({
         data: {
@@ -175,7 +180,12 @@ export class BlackjackService {
           tx,
           userId,
           GameId.BLACKJACK,
-          { won: natural.payout.greaterThan(amount), amount, multiplier: natural.multiplier, payout: natural.payout },
+          {
+            won: natural.payout.greaterThan(amount),
+            amount,
+            multiplier: natural.multiplier,
+            payout: natural.payout,
+          },
           {
             won: finalOpeningPayout.greaterThan(amount),
             amount,
@@ -215,7 +225,8 @@ export class BlackjackService {
       const hands = parseHands(round.playerHands);
       const deck = parseDeck(round.deck);
       const active = getActiveHandOrThrow(hands, round.activeHandIndex);
-      if (active.splitAces) throw new ApiError('INVALID_ACTION', 'Split aces receive one card only');
+      if (active.splitAces)
+        throw new ApiError('INVALID_ACTION', 'Split aces receive one card only');
 
       const { card, nextIndex } = drawCard(deck, round.deckIndex);
       active.cards = [...active.cards, card];
@@ -231,7 +242,16 @@ export class BlackjackService {
 
       const nextActive = findNextPlayingHand(hands, round.activeHandIndex);
       if (nextActive === -1) {
-        return this.resolveRound(tx, userId, round, hands, parseCards(round.dealerHand), deck, nextIndex, serverSeedHash);
+        return this.resolveRound(
+          tx,
+          userId,
+          round,
+          hands,
+          parseCards(round.dealerHand),
+          deck,
+          nextIndex,
+          serverSeedHash,
+        );
       }
 
       const updated = await tx.blackjackRound.update({
@@ -282,7 +302,8 @@ export class BlackjackService {
       const hands = parseHands(round.playerHands);
       const deck = parseDeck(round.deck);
       const active = getActiveHandOrThrow(hands, round.activeHandIndex);
-      if (!canDoubleHand(active)) throw new ApiError('INVALID_ACTION', 'You can double only on a fresh two-card hand');
+      if (!canDoubleHand(active))
+        throw new ApiError('INVALID_ACTION', 'You can double only on a fresh two-card hand');
 
       const extraBet = new Prisma.Decimal(active.bet);
       await lockUserAndCheckFunds(tx, userId, extraBet);
@@ -367,8 +388,14 @@ export class BlackjackService {
       hands.splice(round.activeHandIndex, 1, firstHand, secondHand);
 
       const nextTotalBet = round.totalBetAmount.add(extraBet);
-      const nextActive = splitAces ? findNextPlayingHand(hands, round.activeHandIndex) : round.activeHandIndex;
-      const roundWithExtra = { ...round, totalBetAmount: nextTotalBet, deckIndex: secondDraw.nextIndex };
+      const nextActive = splitAces
+        ? findNextPlayingHand(hands, round.activeHandIndex)
+        : round.activeHandIndex;
+      const roundWithExtra = {
+        ...round,
+        totalBetAmount: nextTotalBet,
+        deckIndex: secondDraw.nextIndex,
+      };
       if (nextActive === -1) {
         const settled = await this.resolveRound(
           tx,
@@ -461,7 +488,12 @@ export class BlackjackService {
       payout: rawPayout,
     });
 
-    const controlledFinal = applyBlackjackControl(raw, finalDealerHand, round.totalBetAmount, controlled);
+    const controlledFinal = applyBlackjackControl(
+      raw,
+      finalDealerHand,
+      round.totalBetAmount,
+      controlled,
+    );
     const finalHands = controlledFinal.hands;
     const finalDealer = controlledFinal.dealerHand;
     const finalPayout = controlledFinal.payout;
@@ -555,7 +587,9 @@ export class BlackjackService {
     const visibleDealerCards = isActive ? dealerHand.slice(0, 1) : dealerHand;
     const potentialPayout = isActive
       ? estimateActivePayout(hands, round.activeHandIndex)
-      : round.totalBetAmount.mul(round.currentMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+      : round.totalBetAmount
+          .mul(round.currentMultiplier)
+          .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
 
     return {
       roundId: round.id,
@@ -583,7 +617,12 @@ function settleOpeningBlackjack(
   hands: StoredBlackjackHand[],
   dealerHand: BlackjackCard[],
   amount: Prisma.Decimal,
-): { hands: StoredBlackjackHand[]; payout: Prisma.Decimal; multiplier: Prisma.Decimal; status: 'BUSTED' | 'CASHED_OUT' } | null {
+): {
+  hands: StoredBlackjackHand[];
+  payout: Prisma.Decimal;
+  multiplier: Prisma.Decimal;
+  status: 'BUSTED' | 'CASHED_OUT';
+} | null {
   const playerScore = blackjackScore(hands[0]!.cards);
   const dealerScore = blackjackScore(dealerHand);
   if (!playerScore.isBlackjack && !dealerScore.isBlackjack) return null;
@@ -596,7 +635,9 @@ function settleOpeningBlackjack(
     settled[0]!.payout = amount.toFixed(2);
     settled[0]!.multiplier = '1.0000';
   } else if (playerScore.isBlackjack) {
-    payout = amount.mul(BLACKJACK_HOUSE_RULES.blackjackPayout).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+    payout = amount
+      .mul(BLACKJACK_HOUSE_RULES.blackjackPayout)
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
     settled[0]!.outcome = 'BLACKJACK';
     settled[0]!.payout = payout.toFixed(2);
     settled[0]!.multiplier = BLACKJACK_HOUSE_RULES.blackjackPayout.toFixed(4);
@@ -698,7 +739,8 @@ function applyBlackjackControl(
       multiplier: new Prisma.Decimal(0),
       payout: new Prisma.Decimal(0),
       controlled: true,
-      flipReason: control.flipReason === 'burst_risk_cap' ? 'burst_risk_guard' : 'burst_budget_guard',
+      flipReason:
+        control.flipReason === 'burst_risk_cap' ? 'burst_risk_guard' : 'burst_budget_guard',
       controlId: control.controlId,
     };
     const hands = rawHands.map((hand) => ({
@@ -752,7 +794,8 @@ function canDoubleHand(hand: StoredBlackjackHand): boolean {
 }
 
 function canSplitHand(hand: StoredBlackjackHand, handCount: number): boolean {
-  if (hand.status !== 'PLAYING' || hand.cards.length !== 2 || handCount >= MAX_SPLIT_HANDS) return false;
+  if (hand.status !== 'PLAYING' || hand.cards.length !== 2 || handCount >= MAX_SPLIT_HANDS)
+    return false;
   return blackjackSplitValue(hand.cards[0]!) === blackjackSplitValue(hand.cards[1]!);
 }
 
@@ -780,7 +823,10 @@ function getActiveHandOrThrow(hands: StoredBlackjackHand[], index: number): Stor
   return hand;
 }
 
-function drawCard(deck: BlackjackCard[], deckIndex: number): { card: BlackjackCard; nextIndex: number } {
+function drawCard(
+  deck: BlackjackCard[],
+  deckIndex: number,
+): { card: BlackjackCard; nextIndex: number } {
   const card = deck[deckIndex];
   if (!card) throw new ApiError('INTERNAL', 'Blackjack deck exhausted');
   return { card, nextIndex: deckIndex + 1 };
@@ -815,7 +861,10 @@ function estimateActivePayout(hands: StoredBlackjackHand[], activeIndex: number)
 }
 
 function sumHandPayout(hands: StoredBlackjackHand[]): Prisma.Decimal {
-  return hands.reduce((sum, hand) => sum.add(new Prisma.Decimal(hand.payout ?? 0)), new Prisma.Decimal(0));
+  return hands.reduce(
+    (sum, hand) => sum.add(new Prisma.Decimal(hand.payout ?? 0)),
+    new Prisma.Decimal(0),
+  );
 }
 
 function multiplierFromPayout(payout: Prisma.Decimal, amount: Prisma.Decimal): Prisma.Decimal {
@@ -825,7 +874,7 @@ function multiplierFromPayout(payout: Prisma.Decimal, amount: Prisma.Decimal): P
 
 function blackjackRulesPayload() {
   return {
-    blackjackPays: '3:2',
+    blackjackPays: '1:1',
     regularWinPays: '1:1',
     pushReturnsStake: true,
     dealerStandsSoft17: BLACKJACK_HOUSE_RULES.dealerStandsSoft17,

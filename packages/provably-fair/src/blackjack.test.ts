@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BLACKJACK_HOUSE_RULES,
   blackjackDealerShouldHit,
   blackjackDeck,
   blackjackScore,
@@ -45,9 +46,14 @@ describe('blackjackScore', () => {
 });
 
 describe('blackjackDealerShouldHit', () => {
-  it('stands on all 17 including soft 17', () => {
+  it('uses the house rules tuned for fixed rebate', () => {
+    expect(BLACKJACK_HOUSE_RULES.blackjackPayout).toBe(2);
+    expect(BLACKJACK_HOUSE_RULES.dealerStandsSoft17).toBe(false);
+  });
+
+  it('hits soft 17 and stands on hard 17', () => {
     expect(blackjackDealerShouldHit([c(10), c(6)])).toBe(true);
     expect(blackjackDealerShouldHit([c(10), c(7)])).toBe(false);
-    expect(blackjackDealerShouldHit([c(1), c(6)])).toBe(false);
+    expect(blackjackDealerShouldHit([c(1), c(6)])).toBe(true);
   });
 });
