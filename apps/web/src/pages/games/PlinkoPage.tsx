@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import {
   MAX_BET_AMOUNT,
@@ -69,6 +69,14 @@ function clampBallCount(value: number): number {
 function roundCurrency(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Number(Math.max(0, value).toFixed(2));
+}
+
+function readViewportBox() {
+  const viewport = window.visualViewport;
+  return {
+    width: Math.round(viewport?.width ?? window.innerWidth),
+    height: Math.round(viewport?.height ?? window.innerHeight),
+  };
 }
 
 function createPlinkoAutoDraft(amount: number, balls = 1): PlinkoAutoDraft {
@@ -154,6 +162,52 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   const autoSettingsRef = useRef<PlinkoAutoSettings | null>(null);
   const autoNetProfitRef = useRef(0);
   const [sceneReady, setSceneReady] = useState(false);
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    const shell = canvasRef.current?.closest<HTMLElement>('.game-fullscreen-shell');
+    if (!shell) return;
+
+    const root = document.documentElement;
+    let stableBox = readViewportBox();
+    let refreshTimer: number | null = null;
+
+    const applyStableHeight = () => {
+      const value = `${Math.max(1, stableBox.height)}px`;
+      shell.style.setProperty('--plinko-shell-height', value);
+      root.style.setProperty('--plinko-shell-height', value);
+    };
+
+    const refreshStableHeight = () => {
+      stableBox = readViewportBox();
+      applyStableHeight();
+    };
+
+    const scheduleRefresh = () => {
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(refreshStableHeight, 320);
+    };
+
+    const handleViewportResize = () => {
+      const nextBox = readViewportBox();
+      const orientationChanged = Math.abs(nextBox.width - stableBox.width) > 24;
+      if (orientationChanged) scheduleRefresh();
+    };
+
+    applyStableHeight();
+    window.addEventListener('resize', handleViewportResize);
+    window.addEventListener('orientationchange', scheduleRefresh);
+    window.visualViewport?.addEventListener('resize', handleViewportResize);
+
+    return () => {
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+      window.removeEventListener('resize', handleViewportResize);
+      window.removeEventListener('orientationchange', scheduleRefresh);
+      window.visualViewport?.removeEventListener('resize', handleViewportResize);
+      shell.style.removeProperty('--plinko-shell-height');
+      root.style.removeProperty('--plinko-shell-height');
+    };
+  }, []);
 
   const changeActiveDrops = useCallback((delta: number) => {
     activeDropsRef.current = Math.max(0, activeDropsRef.current + delta);

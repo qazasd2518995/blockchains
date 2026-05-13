@@ -478,6 +478,22 @@
       background: #050a13;
     }
 
+    html:has(.game-fullscreen-shell[data-game-id='plinko']),
+    body:has(.game-fullscreen-shell[data-game-id='plinko']),
+    #root:has(.game-fullscreen-shell[data-game-id='plinko']),
+    html:has(.game-fullscreen-shell[data-game-id='plinko-x']),
+    body:has(.game-fullscreen-shell[data-game-id='plinko-x']),
+    #root:has(.game-fullscreen-shell[data-game-id='plinko-x']) {
+      height: var(--plinko-shell-height, 100svh);
+      min-height: var(--plinko-shell-height, 100svh);
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'],
+    .game-fullscreen-shell[data-game-id='plinko-x'] {
+      height: var(--plinko-shell-height, 100svh) !important;
+      min-height: var(--plinko-shell-height, 100svh) !important;
+    }
+
     .game-fullscreen-shell > header > div {
       height: 3rem !important;
       padding-left: 0.5rem !important;
@@ -540,6 +556,11 @@
       overflow: hidden;
       padding-top: 0.28rem;
       padding-bottom: max(0.22rem, env(safe-area-inset-bottom));
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] > main,
+    .game-fullscreen-shell[data-game-id='plinko-x'] > main {
+      height: calc(var(--plinko-shell-height, 100svh) - 3rem - env(safe-area-inset-top)) !important;
     }
 
     .game-fullscreen-shell > main > div {
