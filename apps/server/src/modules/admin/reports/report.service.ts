@@ -18,6 +18,11 @@ import {
   isBaccaratGameId,
   weightedRate,
 } from '../rebate.js';
+import {
+  effectiveBetAmountForReport,
+  getHedgedTurnoverGameFilter,
+  includesHedgedTurnoverGame,
+} from './effectiveBetAmount.js';
 
 /**
  * 報表聚合服務
@@ -547,7 +552,7 @@ export class ReportService {
           settlementStatus: query.settlementStatus,
         });
         const betAmount = agg.betAmount;
-        const validAmount = betAmount;
+        const validAmount = agg.validAmount;
         const memberWinLoss = agg.memberWinLoss; // 正=會員贏
         const payout = agg.payout;
 
@@ -671,10 +676,10 @@ export class ReportService {
    *
    * 公式對齊參考系統（/Users/justin/Desktop/Bet/agent）：
    *   - 會員輸贏  = Σ(payout - amount) = Σ(profit) 正=會員贏
-   *   - 有效投注  = 下注金額（目前無無效注概念）
+   *   - 有效投注  = 下注金額扣除輪盤類對押/全覆蓋等低風險流水
    *   - 下級實際退水率 = rebateMode='ALL' 時 0；rebateMode='NONE' 時 maxRebatePercentage；否則 rebatePercentage
    *   - 賺水率    = parent.rebate - self.實際rebate（當層代理從此子樹賺到的退水差）
-   *   - 整條線退水 = betAmount × 下級實際退水率
+   *   - 整條線退水 = validAmount × 下級實際退水率
    *   - 上級交收  = -(整條線輸贏 + 整條線退水 + 當層賺水)
    *                  報表欄位代表「本列對上級」的交收方向，和本級盈虧反向。
    *   - 應收下線  = 整條線輸贏（-memberWinLoss）
@@ -713,7 +718,7 @@ export class ReportService {
     });
 
     const betAmount = agg.betAmount;
-    const validAmount = betAmount;
+    const validAmount = agg.validAmount;
     const memberWinLoss = agg.memberWinLoss; // 正=會員贏
     const payout = agg.payout;
 
@@ -832,12 +837,14 @@ export class ReportService {
     betAmount: Prisma.Decimal;
     payout: Prisma.Decimal;
     memberWinLoss: Prisma.Decimal;
+    validAmount: Prisma.Decimal;
     electronicBetAmount: Prisma.Decimal;
     baccaratBetAmount: Prisma.Decimal;
   }> {
     const shouldQueryBaccarat = !input.gameId || isBaccaratGameId(input.gameId);
     const baccaratGameFilter = input.gameId ? input.gameId : [...BACCARAT_GAME_IDS];
-    const [standardAgg, baccaratAgg, crashAgg] = await Promise.all([
+    const shouldQueryHedgedGames = includesHedgedTurnoverGame(input.gameId);
+    const [standardAgg, baccaratAgg, crashAgg, hedgedRows] = await Promise.all([
       this.prisma.bet.aggregate({
         where: this.buildBetWhere(input),
         _count: { _all: true },
@@ -854,6 +861,15 @@ export class ReportService {
         _count: { _all: true },
         _sum: { amount: true, payout: true },
       }),
+      shouldQueryHedgedGames
+        ? this.prisma.bet.findMany({
+            where: this.buildBetWhere({
+              ...input,
+              gameId: getHedgedTurnoverGameFilter(input.gameId),
+            }),
+            select: { gameId: true, amount: true, resultData: true },
+          })
+        : Promise.resolve([]),
     ]);
 
     const standardAmount = standardAgg._sum.amount ?? new Prisma.Decimal(0);
@@ -863,13 +879,24 @@ export class ReportService {
     const crashPayout = crashAgg._sum.payout ?? new Prisma.Decimal(0);
     const crashProfit = crashPayout.sub(crashAmount);
     const baccaratAmount = baccaratAgg._sum.amount ?? new Prisma.Decimal(0);
-    const electronicAmount = standardAmount.sub(baccaratAmount).add(crashAmount);
+    const hedgedReduction = hedgedRows.reduce((sum, row) => {
+      const effective = effectiveBetAmountForReport(row);
+      const reduction = row.amount.sub(effective);
+      return reduction.greaterThan(0) ? sum.add(reduction) : sum;
+    }, new Prisma.Decimal(0));
+    const validStandardAmount = standardAmount.sub(hedgedReduction);
+    const clampedValidStandardAmount = validStandardAmount.greaterThan(0)
+      ? validStandardAmount
+      : new Prisma.Decimal(0);
+    const validAmount = clampedValidStandardAmount.add(crashAmount);
+    const electronicAmount = clampedValidStandardAmount.sub(baccaratAmount).add(crashAmount);
 
     return {
       betCount: standardAgg._count._all + crashAgg._count._all,
       betAmount: standardAmount.add(crashAmount),
       payout: standardPayout.add(crashPayout),
       memberWinLoss: standardProfit.add(crashProfit),
+      validAmount,
       electronicBetAmount: electronicAmount,
       baccaratBetAmount: baccaratAmount,
     };
