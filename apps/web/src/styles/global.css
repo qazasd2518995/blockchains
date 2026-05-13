@@ -458,10 +458,24 @@
   }
 
   @media (max-width: 767px) {
+    html:has(.game-fullscreen-shell),
+    body:has(.game-fullscreen-shell),
+    #root:has(.game-fullscreen-shell) {
+      min-height: 100dvh;
+      overflow: hidden;
+      background: #050a13;
+    }
+
     .game-fullscreen-shell {
+      position: fixed;
+      inset: 0;
+      width: 100%;
       height: 100svh;
       min-height: 100svh;
+      height: 100dvh;
+      min-height: 100dvh;
       overflow: hidden;
+      background: #050a13;
     }
 
     .game-fullscreen-shell > header > div {
@@ -521,6 +535,7 @@
 
     .game-fullscreen-shell > main {
       height: calc(100svh - 3rem - env(safe-area-inset-top));
+      height: calc(100dvh - 3rem - env(safe-area-inset-top));
       min-height: 0;
       overflow: hidden;
       padding-top: 0.28rem;
@@ -561,7 +576,7 @@
 
     .game-fullscreen-shell .game-control-stack {
       align-self: end;
-      max-height: max(218px, min(37svh, 300px));
+      max-height: max(218px, min(37dvh, 300px));
       overflow: hidden;
     }
 
@@ -658,15 +673,15 @@
       pointer-events: auto;
       position: absolute;
       right: 0.55rem;
-      bottom: 0.55rem;
+      bottom: 0.48rem;
       left: 0.55rem;
       z-index: 8;
       display: grid;
-      gap: 0.25rem;
+      gap: 0.16rem;
       border: 1px solid rgba(125, 211, 252, 0.18);
-      border-radius: 0.72rem;
+      border-radius: 0.66rem;
       background: rgba(7, 16, 28, 0.76);
-      padding: 0.42rem 0.5rem;
+      padding: 0.32rem 0.46rem;
       box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.08),
         0 14px 28px rgba(0, 0, 0, 0.26);
@@ -679,7 +694,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 0.4rem;
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 950;
       letter-spacing: 0.14em;
       line-height: 1;
@@ -693,7 +708,7 @@
 
     .game-fullscreen-shell .crash-mobile-live-bets__table {
       display: grid;
-      gap: 0.18rem;
+      gap: 0.1rem;
       overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
     }
@@ -708,18 +723,24 @@
 
     .game-fullscreen-shell .crash-mobile-live-bets__head {
       color: rgba(255, 255, 255, 0.38);
-      font-size: 9px;
+      font-size: 8px;
       font-weight: 900;
       letter-spacing: 0.08em;
-      line-height: 1.1;
+      line-height: 1;
     }
 
     .game-fullscreen-shell .crash-mobile-live-bets__body {
       display: grid;
-      gap: 0.16rem;
-      max-height: 6.7rem;
+      gap: 0.1rem;
+      max-height: 1.55rem;
       overflow-y: auto;
       padding-right: 0.15rem;
+      scrollbar-width: none;
+    }
+
+    .game-fullscreen-shell .crash-mobile-live-bets__body::-webkit-scrollbar {
+      width: 0;
+      height: 0;
     }
 
     .game-fullscreen-shell .crash-mobile-live-bets__row > span {
@@ -729,9 +750,9 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-      font-size: 10.5px;
+      font-size: 10px;
       font-weight: 850;
-      line-height: 1.28;
+      line-height: 1.1;
     }
 
     .game-fullscreen-shell .crash-mobile-live-bets__row > span:nth-child(2) {
@@ -871,7 +892,7 @@
     }
 
     .game-fullscreen-shell .game-control-stack > .game-side-card:first-child {
-      max-height: max(218px, min(37svh, 300px));
+      max-height: max(218px, min(37dvh, 300px));
       overflow-y: auto;
       overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
@@ -1195,14 +1216,14 @@
     }
 
     .game-fullscreen-shell .crash-control-stack {
-      max-height: max(156px, min(28svh, 186px));
+      max-height: max(156px, min(28dvh, 186px));
     }
 
     .game-fullscreen-shell .crash-control-stack > .crash-control-card:first-child {
       display: grid;
       grid-template-columns: minmax(0, 1.12fr) minmax(104px, 0.88fr);
       gap: 0.4rem;
-      max-height: max(156px, min(28svh, 186px));
+      max-height: max(156px, min(28dvh, 186px));
       overflow: hidden;
       align-items: stretch;
     }
@@ -2174,19 +2195,19 @@
     }
 
     .game-fullscreen-shell .game-control-stack {
-      max-height: max(196px, min(35svh, 270px));
+      max-height: max(196px, min(35dvh, 270px));
     }
 
     .game-fullscreen-shell .game-control-stack > .game-side-card:first-child {
-      max-height: max(196px, min(35svh, 270px));
+      max-height: max(196px, min(35dvh, 270px));
     }
 
     .game-fullscreen-shell .crash-control-stack {
-      max-height: max(150px, min(27svh, 178px));
+      max-height: max(150px, min(27dvh, 178px));
     }
 
     .game-fullscreen-shell .crash-control-stack > .crash-control-card:first-child {
-      max-height: max(150px, min(27svh, 178px));
+      max-height: max(150px, min(27dvh, 178px));
     }
 
     .game-fullscreen-shell .game-control-stack .bet-controls__presets {

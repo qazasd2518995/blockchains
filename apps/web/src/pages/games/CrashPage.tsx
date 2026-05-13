@@ -36,6 +36,8 @@ const MIN_CASHOUT_MULTIPLIER = 1.01;
 const CRASH_AUTO_ROUND_PRESETS = ['∞', '10', '100'];
 const SIMULATED_LIVE_MIN = 10;
 const SIMULATED_LIVE_MAX = 28;
+const SIMULATED_STAKE_MIN = 20;
+const SIMULATED_STAKE_MAX = 500;
 let simulatedLiveBetSerial = 0;
 
 function formatCrashMultiplier(value: string | number): string {
@@ -114,9 +116,10 @@ function createMaskedAccount() {
 }
 
 function createSimulatedStake() {
-  const weighted = Math.random() ** 1.85;
-  const amount = 10 + Math.floor((weighted * 19990) / 10) * 10;
-  return Math.max(10, Math.min(20000, amount));
+  const weighted = Math.random() ** 1.45;
+  const range = SIMULATED_STAKE_MAX - SIMULATED_STAKE_MIN;
+  const amount = SIMULATED_STAKE_MIN + Math.floor((weighted * range) / 10) * 10;
+  return Math.max(SIMULATED_STAKE_MIN, Math.min(SIMULATED_STAKE_MAX, amount));
 }
 
 function randomSimulatedCashout() {
