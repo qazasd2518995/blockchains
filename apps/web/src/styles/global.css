@@ -1760,7 +1760,7 @@
     }
 
     .game-fullscreen-shell[data-game-id='wheel'] .game-main-stack > .wheel-result-card {
-      display: none !important;
+      display: flex !important;
     }
 
     .game-fullscreen-shell[data-game-id='wheel'] .game-control-stack {
@@ -1786,7 +1786,7 @@
     }
 
     .game-fullscreen-shell[data-game-id='wheel'] .wheel-control-result {
-      display: flex;
+      display: none !important;
       min-height: 26px;
       align-items: center;
       justify-content: space-between;
