@@ -182,6 +182,18 @@ export function serializableTxOpts(): {
   };
 }
 
+export function lockedTxOpts(): {
+  isolationLevel: Prisma.TransactionIsolationLevel;
+  maxWait: number;
+  timeout: number;
+} {
+  return {
+    isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+    maxWait: 10_000,
+    timeout: 20_000,
+  };
+}
+
 /**
  * PostgreSQL 的 Serializable 隔離級別下，並發交易可能產生
  * 40001 (serialization_failure) 或 P2034/P2028 死鎖錯誤。
@@ -193,10 +205,32 @@ export async function runSerializable<T>(
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
   maxAttempts = 7,
 ): Promise<T> {
+  return runTxWithRetry(prisma, fn, serializableTxOpts(), maxAttempts);
+}
+
+/**
+ * 適用於交易內已用 SELECT ... FOR UPDATE 明確鎖定資源的流程。
+ * ReadCommitted 會讓同玩家/同 seed 下注等待上一筆提交後讀最新資料，
+ * 可避免 Serializable 在等待 row lock 後頻繁丟 40001。
+ */
+export async function runLockedTransaction<T>(
+  prisma: PrismaClient,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  maxAttempts = 5,
+): Promise<T> {
+  return runTxWithRetry(prisma, fn, lockedTxOpts(), maxAttempts);
+}
+
+async function runTxWithRetry<T>(
+  prisma: PrismaClient,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  opts: Parameters<PrismaClient['$transaction']>[1],
+  maxAttempts: number,
+): Promise<T> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await prisma.$transaction(fn, serializableTxOpts());
+      return await prisma.$transaction(fn, opts);
     } catch (err) {
       lastErr = err;
       if (!isRetryableTxError(err) || attempt === maxAttempts) throw err;

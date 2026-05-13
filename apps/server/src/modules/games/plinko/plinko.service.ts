@@ -6,7 +6,7 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
-  runSerializable,
+  runLockedTransaction,
 } from '../_common/BaseGameService.js';
 import {
   applyControls,
@@ -22,7 +22,7 @@ export class PlinkoService {
   async bet(userId: string, input: PlinkoBetInput): Promise<PlinkoBetResult> {
     const amount = new Prisma.Decimal(input.amount);
 
-    return runSerializable(this.prisma, async (tx) => {
+    return runLockedTransaction(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
       return this.settleOne(tx, userId, input, amount);
     });
@@ -32,7 +32,7 @@ export class PlinkoService {
     const amount = new Prisma.Decimal(input.amount);
     const totalStake = amount.mul(input.balls);
 
-    return runSerializable(this.prisma, async (tx) => {
+    return runLockedTransaction(this.prisma, async (tx) => {
       const user = await lockUserAndCheckFunds(tx, userId, amount);
       if (user.balance.lessThan(totalStake)) {
         throw new ApiError('INSUFFICIENT_FUNDS', 'Insufficient balance');
