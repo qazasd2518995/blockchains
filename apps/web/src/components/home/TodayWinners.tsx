@@ -52,7 +52,7 @@ export function TodayWinners() {
   }, []);
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
+    <section className="flex h-[var(--live-board-height)] min-w-0 flex-col overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
       <header className="flex items-baseline justify-between border-b border-[#E5E7EB] px-5 py-4">
         <div>
           <h2 className="flex items-center gap-2 text-[20px] font-semibold text-[#0F172A]">
@@ -71,7 +71,7 @@ export function TodayWinners() {
           </div>
         </div>
       </header>
-      <div className="overflow-x-auto">
+      <div className="min-h-0 flex-1 overflow-auto">
         <table className="min-w-[720px] w-full" aria-label={t.feed.todayWinners}>
           <thead>
             <tr className="bg-[#186073] text-[13px] text-white">

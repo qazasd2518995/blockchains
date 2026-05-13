@@ -147,7 +147,7 @@ export function LobbyPage() {
             description={t.lobbyStats.liveBoardDescription}
           />
 
-          <div className="grid min-w-0 gap-4 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
+          <div className="grid min-w-0 items-start gap-4 [--live-board-height:clamp(560px,44vw,640px)] xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
             <WinTicker />
             <TodayWinners />
           </div>
