@@ -133,8 +133,9 @@ export async function buildServer(): Promise<FastifyInstance> {
     'Server logging configured',
   );
 
-  server.addHook('onRequest', async (request) => {
+  server.addHook('onRequest', async (request, reply) => {
     markRequestStart(request);
+    reply.header('x-request-id', request.id);
   });
 
   server.addHook('onResponse', async (request, reply) => {

@@ -1,7 +1,9 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+const ADMIN_API_DEBUG = String(import.meta.env.VITE_ADMIN_API_DEBUG ?? '').toLowerCase() === 'true';
+const SENSITIVE_KEY_RE = /(authorization|cookie|password|token|secret|seed|signature|credential|key)/i;
 
 export const adminApi = axios.create({
   baseURL: `${API_BASE}/api/admin`,
@@ -9,20 +11,63 @@ export const adminApi = axios.create({
 });
 
 type RetriableRequestConfig = NonNullable<AxiosError['config']> & { _retry?: boolean };
+type DebugRequestConfig = InternalAxiosRequestConfig & { _debugStartedAt?: number };
+
+function nowMs(): number {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now();
+}
+
+function sanitizeForDebug(value: unknown, depth = 0): unknown {
+  if (value === null || value === undefined) return value;
+  if (typeof value === 'string') return value.length > 240 ? `${value.slice(0, 240)}...` : value;
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  if (depth >= 4) return '[MaxDepth]';
+  if (Array.isArray(value)) return value.slice(0, 20).map((item) => sanitizeForDebug(item, depth + 1));
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value as Record<string, unknown>).slice(0, 40)) {
+      out[key] = SENSITIVE_KEY_RE.test(key) ? '[Redacted]' : sanitizeForDebug(item, depth + 1);
+    }
+    return out;
+  }
+  return String(value);
+}
+
+function debugAdminApi(message: string, payload: Record<string, unknown>): void {
+  if (!ADMIN_API_DEBUG) return;
+  console.debug(`[admin-api] ${message}`, sanitizeForDebug(payload));
+}
 
 adminApi.interceptors.request.use((config) => {
+  (config as DebugRequestConfig)._debugStartedAt = nowMs();
   const token = useAdminAuthStore.getState().accessToken;
   if (token) {
     config.headers = config.headers ?? {};
     (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
   }
+  debugAdminApi('request', {
+    method: config.method?.toUpperCase(),
+    url: config.url,
+    params: config.params,
+    data: config.data,
+  });
   return config;
 });
 
 let refreshInFlight: Promise<{ accessToken: string; refreshToken: string }> | null = null;
 
 adminApi.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    const startedAt = (res.config as DebugRequestConfig)._debugStartedAt;
+    debugAdminApi('response', {
+      method: res.config.method?.toUpperCase(),
+      url: res.config.url,
+      status: res.status,
+      requestId: res.headers['x-request-id'],
+      durationMs: startedAt ? Number((nowMs() - startedAt).toFixed(1)) : undefined,
+    });
+    return res;
+  },
   async (error: AxiosError) => {
     const originalConfig = error.config as RetriableRequestConfig | undefined;
     if (error.response?.status === 401 && !originalConfig?._retry) {
@@ -53,6 +98,16 @@ adminApi.interceptors.response.use(
         logout();
       }
     }
+    const startedAt = error.config ? (error.config as DebugRequestConfig)._debugStartedAt : undefined;
+    debugAdminApi('error', {
+      method: error.config?.method?.toUpperCase(),
+      url: error.config?.url,
+      status: error.response?.status,
+      requestId: error.response?.headers?.['x-request-id'],
+      durationMs: startedAt ? Number((nowMs() - startedAt).toFixed(1)) : undefined,
+      response: error.response?.data,
+      message: error.message,
+    });
     throw error;
   },
 );
