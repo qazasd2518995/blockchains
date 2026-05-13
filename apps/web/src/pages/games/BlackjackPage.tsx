@@ -244,7 +244,7 @@ export function BlackjackPage() {
               <div className="blackjack-table-body relative z-10 flex min-h-[580px] flex-col justify-between gap-5 p-3 sm:min-h-[620px] sm:p-5">
                 <section>
                   <TableLabel title={t.games.blackjack.dealer} value={dealerScoreLabel} />
-                  <div className="mt-3 flex min-h-[150px] flex-wrap items-center justify-center gap-2 sm:gap-3">
+                  <div className="blackjack-dealer-card-row mt-3 flex min-h-[150px] flex-wrap items-center justify-center gap-2 sm:gap-3">
                     {tableRound ? (
                       <>
                         {tableRound.dealerCards.map((card, index) =>
@@ -292,12 +292,12 @@ export function BlackjackPage() {
                         : '--'
                     }
                   />
-                  <div className="mt-3 flex flex-wrap justify-center gap-3">
+                  <div className="blackjack-player-hands mt-3 flex flex-wrap justify-center gap-3">
                     {tableRound ? (
                       tableRound.playerHands.map((hand, index) => (
                         <div
                           key={hand.id}
-                          className={`w-full rounded-[18px] border p-3 backdrop-blur ${
+                          className={`blackjack-player-hand w-full rounded-[18px] border p-3 backdrop-blur ${
                             tableRound.playerHands.length > 1
                               ? 'md:max-w-[360px] md:basis-[calc(50%-0.375rem)]'
                               : 'max-w-[560px]'
@@ -307,7 +307,7 @@ export function BlackjackPage() {
                               : 'border-white/10 bg-[#07111E]/64'
                           }`}
                         >
-                          <div className="mb-2 flex items-center justify-between gap-2">
+                          <div className="blackjack-player-hand-header mb-2 flex items-center justify-between gap-2">
                             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/50">
                               {t.games.blackjack.hand} {index + 1}
                             </div>
@@ -316,7 +316,7 @@ export function BlackjackPage() {
                               {formatBlackjackScore(hand.cards.length > 0 ? hand.score : null)}
                             </div>
                           </div>
-                          <div className="flex min-h-[132px] flex-wrap items-center justify-center gap-2">
+                          <div className="blackjack-player-card-row flex min-h-[132px] flex-wrap items-center justify-center gap-2">
                             {hand.cards.map((card, cardIndex) => (
                               <CardImage
                                 key={`${hand.id}-${cardIndex}-${card.rank}-${card.suit}`}
@@ -330,7 +330,7 @@ export function BlackjackPage() {
                               />
                             ))}
                           </div>
-                          <div className="mt-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.16em]">
+                          <div className="blackjack-player-hand-footer mt-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.16em]">
                             <span
                               className={
                                 hand.outcome === 'LOSE' ? 'text-[#FCA5A5]' : 'text-white/52'
@@ -512,7 +512,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="game-choice-btn game-choice-btn-ice inline-flex items-center justify-center gap-2 py-3 disabled:opacity-35"
+      className="blackjack-action-btn game-choice-btn game-choice-btn-ice inline-flex items-center justify-center gap-2 py-3 disabled:opacity-35"
     >
       {icon}
       {label}
@@ -522,7 +522,7 @@ function ActionButton({
 
 function TableLabel({ title, value }: { title: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-full border border-white/10 bg-[#050A13]/58 px-3 py-2 backdrop-blur">
+    <div className="blackjack-table-label flex items-center justify-between gap-3 rounded-full border border-white/10 bg-[#050A13]/58 px-3 py-2 backdrop-blur">
       <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#E8D48A]">
         {title}
       </div>
@@ -559,7 +559,7 @@ function BlackjackScoreTile({
 
 function EmptySeat({ label }: { label: string }) {
   return (
-    <div className="flex min-h-[132px] w-full items-center justify-center rounded-[18px] border border-dashed border-white/12 bg-[#07111E]/42 text-[11px] font-bold uppercase tracking-[0.18em] text-white/36">
+    <div className="blackjack-empty-seat flex min-h-[132px] w-full items-center justify-center rounded-[18px] border border-dashed border-white/12 bg-[#07111E]/42 text-[11px] font-bold uppercase tracking-[0.18em] text-white/36">
       {label}
     </div>
   );
