@@ -97,6 +97,7 @@ export class PlinkoScene {
   private pegsContainer: Container | null = null;
   private bucketsContainer: Container | null = null;
   private ballsContainer: Container | null = null;
+  private backgroundLayer: Container | null = null;
   private particles: Container | null = null;
   private shockwaves: Container | null = null;
 
@@ -191,13 +192,24 @@ export class PlinkoScene {
 
   private createBackground(): void {
     if (!this.app) return;
+    if (this.backgroundLayer) {
+      this.app.stage.removeChild(this.backgroundLayer);
+      this.backgroundLayer.destroy({ children: true });
+      this.backgroundLayer = null;
+    }
+
+    const layer = new Container();
+    layer.eventMode = 'none';
+    this.backgroundLayer = layer;
+    this.app.stage.addChildAt(layer, 0);
+
     const bg = new Graphics()
       .rect(0, 0, this.width, this.height)
       .fill({ color: COLOR_BG, alpha: 1 });
-    this.app.stage.addChild(bg);
+    layer.addChild(bg);
 
     const artwork = addCoverSprite(
-      this.app.stage,
+      layer,
       this.backgroundTexture,
       this.width,
       this.height,
@@ -207,7 +219,7 @@ export class PlinkoScene {
       const veil = new Graphics()
         .rect(0, 0, this.width, this.height)
         .fill({ color: COLOR_BG, alpha: 0.42 });
-      this.app.stage.addChild(veil);
+      layer.addChild(veil);
     }
 
     // glow1：用多層同心圓替代 BlurFilter（避免 Pixi v8 BlurFilter 干擾 Text batching）
@@ -220,7 +232,7 @@ export class PlinkoScene {
       const a = (artwork ? 0.012 : 0.02) * (6 - i);
       glow1.circle(cx1, cy1, r).fill({ color: COLOR_ACID, alpha: a });
     }
-    this.app.stage.addChild(glow1);
+    layer.addChild(glow1);
 
     // glow2：同樣用多層圓替代
     const glow2 = new Graphics();
@@ -232,7 +244,20 @@ export class PlinkoScene {
       const a = (artwork ? 0.009 : 0.015) * (6 - i);
       glow2.circle(cx2, cy2, r).fill({ color: COLOR_EMBER, alpha: a });
     }
-    this.app.stage.addChild(glow2);
+    layer.addChild(glow2);
+  }
+
+  resize(width: number, height: number): void {
+    if (!this.app) return;
+    const nextWidth = Math.max(10, Math.round(width));
+    const nextHeight = Math.max(10, Math.round(height));
+    if (Math.abs(nextWidth - this.width) < 2 && Math.abs(nextHeight - this.height) < 2) return;
+
+    this.width = nextWidth;
+    this.height = nextHeight;
+    this.app.renderer.resize(nextWidth, nextHeight);
+    this.createBackground();
+    this.setBoard(this.rows, this.multipliers);
   }
 
   /**
@@ -883,6 +908,7 @@ export class PlinkoScene {
     this.pegsContainer = null;
     this.bucketsContainer = null;
     this.ballsContainer = null;
+    this.backgroundLayer = null;
     this.anticipationBalls = [];
     this.particles = null;
     this.shockwaves = null;

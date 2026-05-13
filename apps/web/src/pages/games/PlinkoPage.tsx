@@ -201,6 +201,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
     if (!canvas) return;
     let cancelled = false;
     let scene: PlinkoScene | null = null;
+    let resizeObserver: ResizeObserver | null = null;
 
     const tryInit = () => {
       if (cancelled) return;
@@ -213,13 +214,21 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
       scene = new PlinkoScene();
       sceneRef.current = scene;
       void scene.init(canvas, w, h).then(() => {
-        if (!cancelled) setSceneReady(true);
+        if (cancelled || !scene) return;
+        resizeObserver = new ResizeObserver((entries) => {
+          const rect = entries[0]?.contentRect;
+          if (!rect || cancelled || !scene) return;
+          scene.resize(rect.width, rect.height);
+        });
+        resizeObserver.observe(canvas);
+        setSceneReady(true);
       });
     };
     tryInit();
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
       scene?.dispose();
       sceneRef.current = null;
       setSceneReady(false);

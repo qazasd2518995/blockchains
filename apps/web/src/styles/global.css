@@ -1052,7 +1052,15 @@
 
     .game-fullscreen-shell[data-game-id='plinko'] .game-control-stack,
     .game-fullscreen-shell[data-game-id='plinko-x'] .game-control-stack {
+      height: max(198px, min(34dvh, 232px));
+      height: max(198px, min(34svh, 232px));
       max-height: max(198px, min(34dvh, 232px));
+      max-height: max(198px, min(34svh, 232px));
+    }
+
+    .game-fullscreen-shell[data-game-id='plinko'] .game-play-grid,
+    .game-fullscreen-shell[data-game-id='plinko-x'] .game-play-grid {
+      grid-template-rows: minmax(0, 1fr) max(198px, min(34svh, 232px));
     }
 
     .game-fullscreen-shell[data-game-id='plinko'] .game-control-stack > .plinko-control-card,
@@ -1061,6 +1069,8 @@
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       align-items: stretch;
       gap: 0.26rem 0.34rem;
+      height: 100%;
+      min-height: 0;
       max-height: none;
       overflow: hidden;
     }
