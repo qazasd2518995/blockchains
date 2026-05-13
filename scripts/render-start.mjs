@@ -4,6 +4,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const prismaCli = resolve(repoRoot, 'apps/server/node_modules/.bin/prisma');
+const prismaSchema = resolve(repoRoot, 'apps/server/prisma/schema.prisma');
 const migrateAttempts = positiveInt(process.env.RENDER_MIGRATE_ATTEMPTS, 10);
 const migrateRetryMs = positiveInt(process.env.RENDER_MIGRATE_RETRY_MS, 5000);
 
@@ -59,7 +61,7 @@ function run(command, args) {
 
 for (let attempt = 1; attempt <= migrateAttempts; attempt += 1) {
   console.log(`[render-start] Running Prisma migrations (${attempt}/${migrateAttempts}).`);
-  const code = await run('pnpm', ['--filter', '@bg/server', 'exec', 'prisma', 'migrate', 'deploy']);
+  const code = await run(prismaCli, ['migrate', 'deploy', '--schema', prismaSchema]);
   if (receivedSignal) {
     process.exit(code);
   }
