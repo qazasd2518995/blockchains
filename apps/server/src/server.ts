@@ -36,6 +36,16 @@ import { blackjackRoutes } from './modules/games/blackjack/blackjack.routes.js';
 import { chickenRoadRoutes } from './modules/games/chicken-road/chicken-road.routes.js';
 import { CrashRoomRegistry } from './realtime/crashRoom.js';
 import { ApiError, errorCodeToStatus } from './utils/errors.js';
+import {
+  getRequestLogContext,
+  getSafeRequestPayload,
+  hasRequestErrorLogged,
+  markRequestErrorLogged,
+  markRequestStart,
+  sanitizeForLog,
+  shouldDebugRequest,
+  shouldSkipRequestLog,
+} from './utils/requestLogging.js';
 
 function formatCurrencyLimit(value: number): string {
   return value.toLocaleString('en-US', {
@@ -92,7 +102,24 @@ function zodBetError(error: ZodError): { code: string; message: string; details:
 export async function buildServer(): Promise<FastifyInstance> {
   const server = Fastify({
     logger: {
-      level: config.NODE_ENV === 'test' ? 'warn' : 'info',
+      level: config.NODE_ENV === 'test' ? 'warn' : config.LOG_LEVEL,
+      redact: {
+        censor: '[Redacted]',
+        paths: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'res.headers["set-cookie"]',
+          'payload.body.password',
+          'payload.body.token',
+          'payload.body.accessToken',
+          'payload.body.refreshToken',
+          'payload.body.clientSeed',
+          'payload.body.serverSeed',
+          'payload.query.token',
+          'payload.query.accessToken',
+          'payload.query.refreshToken',
+        ],
+      },
       transport:
         config.NODE_ENV === 'development'
           ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } }
@@ -101,19 +128,90 @@ export async function buildServer(): Promise<FastifyInstance> {
     trustProxy: true,
   });
 
+  server.log.info(
+    { env: config.NODE_ENV, logLevel: server.log.level, slowRequestMs: config.SLOW_REQUEST_MS },
+    'Server logging configured',
+  );
+
+  server.addHook('onRequest', async (request) => {
+    markRequestStart(request);
+  });
+
+  server.addHook('onResponse', async (request, reply) => {
+    if (shouldSkipRequestLog(request)) return;
+
+    const context = getRequestLogContext(request, reply);
+    const payload = getSafeRequestPayload(request);
+    const durationMs = typeof context.durationMs === 'number' ? context.durationMs : undefined;
+
+    if (reply.statusCode >= 500 && !hasRequestErrorLogged(request)) {
+      request.log.error({ ...context, payload }, 'Request completed with server error');
+      return;
+    }
+
+    if (reply.statusCode >= 400 && !hasRequestErrorLogged(request)) {
+      request.log.warn({ ...context, payload }, 'Request completed with client error');
+      return;
+    }
+
+    if (durationMs !== undefined && durationMs >= config.SLOW_REQUEST_MS) {
+      request.log.warn({ ...context, payload }, 'Slow request completed');
+      return;
+    }
+
+    if (shouldDebugRequest(request)) {
+      request.log.debug({ ...context, payload }, 'Request completed');
+    }
+  });
+
   server.setErrorHandler((error, request, reply) => {
     if (error instanceof ApiError) {
+      const statusCode = errorCodeToStatus(error.code);
+      const logPayload = {
+        ...getRequestLogContext(request),
+        statusCode,
+        code: error.code,
+        details: sanitizeForLog(error.details),
+        payload: getSafeRequestPayload(request),
+      };
+      markRequestErrorLogged(request);
+      if (statusCode >= 500) {
+        request.log.error(logPayload, 'API error');
+      } else {
+        request.log.warn(logPayload, 'API error');
+      }
       reply
-        .code(errorCodeToStatus(error.code))
+        .code(statusCode)
         .send({ code: error.code, message: error.message, details: error.details });
       return;
     }
     if (error instanceof ZodError) {
-      reply.code(400).send(zodBetError(error));
+      const response = zodBetError(error);
+      markRequestErrorLogged(request);
+      request.log.warn(
+        {
+          ...getRequestLogContext(request),
+          statusCode: 400,
+          code: response.code,
+          issues: sanitizeForLog(error.issues),
+          payload: getSafeRequestPayload(request),
+        },
+        'Request validation failed',
+      );
+      reply.code(400).send(response);
       return;
     }
-    request.log.error(error);
     const statusCode = error.statusCode ?? 500;
+    markRequestErrorLogged(request);
+    request.log.error(
+      {
+        err: error,
+        ...getRequestLogContext(request),
+        statusCode,
+        payload: getSafeRequestPayload(request),
+      },
+      'Unhandled request error',
+    );
     reply.code(statusCode).send({
       code: statusCode === 400 ? 'INVALID_BET' : 'INTERNAL',
       message: error.message || 'Internal server error',
