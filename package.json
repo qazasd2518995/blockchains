@@ -5,7 +5,7 @@
   "description": "加密博彩遊戲平台（假幣點數）- 研究與技術學習用途",
   "packageManager": "pnpm@9.15.4",
   "engines": {
-    "node": ">=20",
+    "node": ">=22.13.0",
     "pnpm": ">=9"
   },
   "scripts": {
