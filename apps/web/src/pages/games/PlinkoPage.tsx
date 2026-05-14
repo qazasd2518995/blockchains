@@ -359,18 +359,12 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
         await Promise.all(
           dropResults.map(
             (dropResult, index) =>
-              new Promise<void>((resolve) => {
-                window.setTimeout(() => {
-                  void (
-                    sceneRef.current?.dropBall(
-                      dropResult.path,
-                      dropResult.bucket,
-                      dropResult.multiplier,
-                      anticipationBalls[index],
-                    ) ?? Promise.resolve()
-                  ).finally(resolve);
-                }, index * 90);
-              }),
+              sceneRef.current?.dropBall(
+                dropResult.path,
+                dropResult.bucket,
+                dropResult.multiplier,
+                anticipationBalls[index],
+              ) ?? Promise.resolve(),
           ),
         );
 

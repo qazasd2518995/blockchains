@@ -49,6 +49,7 @@ interface Ball {
   path: ('left' | 'right')[]; // 預定路徑
   targetBucket: number;
   multiplier: number;
+  resultReady: boolean;
   xStart: number;
   xTarget: number;
   xTweenElapsed: number;
@@ -491,6 +492,13 @@ export class PlinkoScene {
 
         // 落底判定
         if (b.y >= this.boardBottom + 10) {
+          if (!b.resultReady) {
+            b.y = this.boardBottom + 8;
+            b.vy = 0;
+            b.g.y = b.y;
+            continue;
+          }
+
           const layout = this.bucketLayout();
           const targetX = this.bucketCenterX(b.targetBucket);
           const targetY = layout.y + layout.bucketH * 0.42;
@@ -537,53 +545,48 @@ export class PlinkoScene {
   }
 
   /**
-   * 樂觀動畫：按下 DROP 立刻呼叫，讓球先落到第一排釘子前等待 API 回應。
-   * API 回來時呼叫 dropBall(...) 真正釋放。
+   * 樂觀動畫：按下 DROP 立刻呼叫，球會馬上開始下落。
+   * API 回來時呼叫 dropBall(...)，把剩餘路徑接上正式結果。
    */
   startAnticipation(batchIndex = this.anticipationBalls.length, batchSize = 1): Graphics | null {
     if (!this.ballsContainer) return null;
-    const g = new Graphics();
-    g.circle(0, 0, this.ballRadius)
-      .fill({ color: COLOR_AMBER })
-      .stroke({ color: COLOR_INK, width: 1.5 });
+    const g = this.createBallGraphic();
     const isLargeBatch = batchSize >= 10;
     const pendingOffset = (batchIndex % 5) - 2;
-    const firstPegY = this.boardTop + this.rowSpacing;
-    const holdY = Math.max(this.boardTop - 2, firstPegY - this.ballRadius * 2.15);
     g.x = this.pathStartX() + pendingOffset * Math.max(2, this.ballRadius * 0.42);
-    g.y = Math.max(8, this.boardTop - this.rowSpacing * 0.82);
+    g.y = Math.max(8, this.boardTop - this.rowSpacing * 1.18 - batchIndex * 0.9);
     g.alpha = 0;
     g.scale.set(0.6);
     this.ballsContainer.addChild(g);
     this.anticipationBalls.push(g);
-    const delay = isLargeBatch ? Math.min(0.12, batchIndex * 0.012) : Math.min(0.16, batchIndex * 0.025);
     this.playThrottledLaunchSfx();
-    gsap.to(g, { alpha: isLargeBatch ? 0.88 : 1, duration: 0.12, delay, ease: 'power2.out' });
+    gsap.to(g, { alpha: isLargeBatch ? 0.88 : 1, duration: 0.1, ease: 'power2.out' });
     gsap.to(g.scale, {
       x: isLargeBatch ? 0.92 : 1,
       y: isLargeBatch ? 0.92 : 1,
-      duration: 0.14,
-      delay,
+      duration: 0.12,
       ease: 'back.out(1.8)',
     });
-    gsap.to(g, {
-      x: this.pathStartX() + pendingOffset * Math.max(1.5, this.ballRadius * 0.24),
-      y: holdY,
-      duration: 0.34,
-      delay,
-      ease: 'power1.in',
-      onComplete: () => {
-        if (isLargeBatch) return;
-        // API 還沒回來時，停在第一排釘子前做輕微脈動。
-        gsap.to(g.scale, {
-          x: 1.12,
-          y: 1.12,
-          duration: 0.38,
-          ease: 'sine.inOut',
-          yoyo: true,
-          repeat: -1,
-        });
-      },
+
+    const provisionalPath = this.createProvisionalPath(batchIndex);
+    this.balls.push({
+      g,
+      x: g.x,
+      y: g.y,
+      vx: 0,
+      vy: 1.25 + (batchIndex % 4) * 0.08,
+      row: 0,
+      targetCol: 0,
+      path: provisionalPath,
+      targetBucket: Math.floor(this.rows / 2),
+      multiplier: 0,
+      resultReady: false,
+      xStart: g.x,
+      xTarget: this.pathStartX(),
+      xTweenElapsed: 0,
+      xTweenDuration: 12,
+      bouncedRows: new Set(),
+      onDone: () => undefined,
     });
     return g;
   }
@@ -607,11 +610,70 @@ export class PlinkoScene {
     for (const target of targets) {
       const index = this.anticipationBalls.indexOf(target);
       if (index >= 0) this.anticipationBalls.splice(index, 1);
+      const activeIndex = this.balls.findIndex((b) => b.g === target);
+      if (activeIndex >= 0) this.balls.splice(activeIndex, 1);
       gsap.killTweensOf(target);
       gsap.killTweensOf(target.scale);
       this.ballsContainer?.removeChild(target);
       target.destroy();
     }
+  }
+
+  private createBallGraphic(): Graphics {
+    const g = new Graphics();
+    g.circle(0, 0, this.ballRadius)
+      .fill({ color: COLOR_AMBER })
+      .stroke({ color: COLOR_INK, width: 1.5 });
+    g.circle(-this.ballRadius * 0.3, -this.ballRadius * 0.3, this.ballRadius * 0.4).fill({
+      color: COLOR_WHITE,
+      alpha: 0.7,
+    });
+    return g;
+  }
+
+  private createProvisionalPath(batchIndex: number): ('left' | 'right')[] {
+    return Array.from({ length: this.rows }, (_, index) =>
+      (index + batchIndex) % 2 === 0 ? 'left' : 'right',
+    );
+  }
+
+  private createPathContinuation(
+    currentRow: number,
+    rightsSoFar: number,
+    targetBucket: number,
+  ): ('left' | 'right')[] {
+    const remainingRows = Math.max(0, this.rows - currentRow);
+    const rightsNeeded = Math.max(0, Math.min(remainingRows, targetBucket - rightsSoFar));
+    return Array.from({ length: remainingRows }, (_, index) => {
+      const before = Math.floor((index * rightsNeeded) / remainingRows);
+      const after = Math.floor(((index + 1) * rightsNeeded) / remainingRows);
+      return after > before ? 'right' : 'left';
+    });
+  }
+
+  private applyFinalResult(
+    ball: Ball,
+    path: ('left' | 'right')[],
+    bucket: number,
+    multiplier: number,
+  ): void {
+    const currentRow = Math.max(0, Math.min(this.rows, ball.row));
+    let rightsSoFar = 0;
+    for (let index = 0; index < currentRow; index += 1) {
+      if (ball.path[index] === 'right') rightsSoFar += 1;
+    }
+    const finalizedPath =
+      currentRow === 0
+        ? path
+        : [
+            ...ball.path.slice(0, currentRow),
+            ...this.createPathContinuation(currentRow, rightsSoFar, bucket),
+          ];
+    ball.path = finalizedPath;
+    ball.targetBucket = bucket;
+    ball.multiplier = multiplier;
+    ball.resultReady = true;
+    if (ball.vy <= 0) ball.vy = 1.8;
   }
 
   /**
@@ -627,20 +689,18 @@ export class PlinkoScene {
 
     return new Promise<void>((resolve) => {
       const claimedBall = this.claimAnticipation(anticipationBall);
-      const g = claimedBall ?? new Graphics();
+      const activeBall = claimedBall ? this.balls.find((b) => b.g === claimedBall) : undefined;
+      if (activeBall) {
+        activeBall.onDone = () => resolve();
+        this.applyFinalResult(activeBall, path, bucket, multiplier);
+        return;
+      }
+
+      const g = claimedBall ?? this.createBallGraphic();
       const firstPegY = this.boardTop + this.rowSpacing;
       const startY = claimedBall
         ? Math.min(Math.max(g.y, this.boardTop - 10), firstPegY - this.ballRadius * 1.25)
         : this.boardTop - 10;
-      g.clear();
-      // 球
-      g.circle(0, 0, this.ballRadius)
-        .fill({ color: COLOR_AMBER })
-        .stroke({ color: COLOR_INK, width: 1.5 });
-      g.circle(-this.ballRadius * 0.3, -this.ballRadius * 0.3, this.ballRadius * 0.4).fill({
-        color: COLOR_WHITE,
-        alpha: 0.7,
-      });
       g.x = this.pathStartX();
       g.y = startY;
       g.alpha = 1;
@@ -658,6 +718,7 @@ export class PlinkoScene {
         path,
         targetBucket: bucket,
         multiplier,
+        resultReady: true,
         xStart: g.x,
         xTarget: g.x,
         xTweenElapsed: 0,
