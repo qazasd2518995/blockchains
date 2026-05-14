@@ -33,7 +33,7 @@ import type { BlackjackActionInput, BlackjackStartInput } from './blackjack.sche
 
 const MAX_SPLIT_HANDS = 4;
 
-interface StoredBlackjackHand {
+export interface StoredBlackjackHand {
   id: string;
   cards: BlackjackCard[];
   bet: string;
@@ -694,47 +694,21 @@ export function settleBlackjackHands(
   });
 }
 
-function applyBlackjackControl(
+export function applyBlackjackControl(
   rawHands: StoredBlackjackHand[],
   dealerHand: BlackjackCard[],
   amount: Prisma.Decimal,
   control: ControlOutcome,
 ): ControlledBlackjackSettlement {
-  const rawPayout = sumHandPayout(rawHands);
-  const rawMultiplier = multiplierFromPayout(rawPayout, amount);
-  if (!control.controlled) {
-    return {
-      dealerHand,
-      hands: rawHands,
-      payout: rawPayout,
-      multiplier: rawMultiplier,
-      controlled: false,
-      outcome: control,
-    };
-  }
+  if (!control.controlled) return rawBlackjackSettlement(rawHands, dealerHand, amount, control);
 
   if (!control.won) {
-    const hands = rawHands.map((hand) => ({
-      ...hand,
-      status: 'RESOLVED' as const,
-      outcome: 'LOSE' as const,
-      payout: '0.00',
-      multiplier: '0.0000',
-    }));
-    return {
-      dealerHand: makeDealerTwenty(),
-      hands,
-      payout: new Prisma.Decimal(0),
-      multiplier: new Prisma.Decimal(0),
-      controlled: true,
-      flipReason: control.flipReason,
-      outcome: control,
-    };
+    return applyBlackjackLossControl(rawHands, dealerHand, amount, control);
   }
 
   const targetMultiplier = new Prisma.Decimal(BLACKJACK_HOUSE_RULES.regularWinPayout);
   if (!multiplierMatchesControlBounds(targetMultiplier, amount, control)) {
-    const guarded = {
+    const guarded: ControlOutcome = {
       won: false,
       multiplier: new Prisma.Decimal(0),
       payout: new Prisma.Decimal(0),
@@ -743,46 +717,134 @@ function applyBlackjackControl(
         control.flipReason === 'burst_risk_cap' ? 'burst_risk_guard' : 'burst_budget_guard',
       controlId: control.controlId,
     };
-    const hands = rawHands.map((hand) => ({
-      ...hand,
-      status: 'RESOLVED' as const,
-      outcome: 'LOSE' as const,
-      payout: '0.00',
-      multiplier: '0.0000',
-    }));
-    return {
-      dealerHand: makeDealerTwenty(),
-      hands,
-      payout: new Prisma.Decimal(0),
-      multiplier: new Prisma.Decimal(0),
-      controlled: true,
-      flipReason: guarded.flipReason,
-      outcome: guarded,
-    };
+    return applyBlackjackLossControl(rawHands, dealerHand, amount, guarded);
+  }
+
+  return applyBlackjackWinControl(rawHands, dealerHand, amount, control);
+}
+
+function rawBlackjackSettlement(
+  rawHands: StoredBlackjackHand[],
+  dealerHand: BlackjackCard[],
+  amount: Prisma.Decimal,
+  outcome?: ControlOutcome,
+): ControlledBlackjackSettlement {
+  const payout = sumHandPayout(rawHands);
+  const multiplier = multiplierFromPayout(payout, amount);
+  return {
+    dealerHand,
+    hands: rawHands,
+    payout,
+    multiplier,
+    controlled: false,
+    outcome: outcome?.controlled
+      ? {
+          won: payout.greaterThan(amount),
+          multiplier,
+          payout,
+          controlled: false,
+        }
+      : (outcome ?? {
+          won: payout.greaterThan(amount),
+          multiplier,
+          payout,
+          controlled: false,
+        }),
+  };
+}
+
+function applyBlackjackLossControl(
+  rawHands: StoredBlackjackHand[],
+  dealerHand: BlackjackCard[],
+  amount: Prisma.Decimal,
+  control: ControlOutcome,
+): ControlledBlackjackSettlement {
+  if (!canRepresentControlledLoss(rawHands)) {
+    return rawBlackjackSettlement(rawHands, dealerHand, amount, control);
+  }
+
+  const hands = rawHands.map((hand) => ({
+    ...hand,
+    status: 'RESOLVED' as const,
+    outcome: 'LOSE' as const,
+    payout: '0.00',
+    multiplier: '0.0000',
+  }));
+  return {
+    dealerHand: makeDealerTwentyOne(),
+    hands,
+    payout: new Prisma.Decimal(0),
+    multiplier: new Prisma.Decimal(0),
+    controlled: true,
+    flipReason: control.flipReason,
+    outcome: control,
+  };
+}
+
+function applyBlackjackWinControl(
+  rawHands: StoredBlackjackHand[],
+  dealerHand: BlackjackCard[],
+  amount: Prisma.Decimal,
+  control: ControlOutcome,
+): ControlledBlackjackSettlement {
+  if (!canRepresentControlledWin(rawHands)) {
+    return rawBlackjackSettlement(rawHands, dealerHand, amount, control);
   }
 
   const hands = rawHands.map((hand) => {
     const bet = new Prisma.Decimal(hand.bet);
+    const score = blackjackScore(hand.cards);
+    if (score.isBust || hand.status === 'BUSTED') {
+      return {
+        ...hand,
+        status: 'RESOLVED' as const,
+        outcome: 'LOSE' as const,
+        payout: '0.00',
+        multiplier: '0.0000',
+      };
+    }
+
     const payout = bet.mul(BLACKJACK_HOUSE_RULES.regularWinPayout);
     return {
       ...hand,
       status: 'RESOLVED' as const,
-      cards: makePlayerTwenty(hand.cards[0]?.suit ?? 0),
-      outcome: 'WIN' as const,
+      outcome: score.isBlackjack ? ('BLACKJACK' as const) : ('WIN' as const),
       payout: payout.toFixed(2),
       multiplier: BLACKJACK_HOUSE_RULES.regularWinPayout.toFixed(4),
     };
   });
   const payout = sumHandPayout(hands);
+  const multiplier = multiplierFromPayout(payout, amount);
+  if (
+    payout.lessThanOrEqualTo(amount) ||
+    !multiplierMatchesControlBounds(multiplier, amount, control)
+  ) {
+    return rawBlackjackSettlement(rawHands, dealerHand, amount, control);
+  }
+
   return {
-    dealerHand: makeDealerEighteen(),
+    dealerHand: makeDealerBust(),
     hands,
     payout,
-    multiplier: multiplierFromPayout(payout, amount),
+    multiplier,
     controlled: true,
     flipReason: control.flipReason,
     outcome: control,
   };
+}
+
+function canRepresentControlledLoss(hands: StoredBlackjackHand[]): boolean {
+  return hands.every((hand) => {
+    const score = blackjackScore(hand.cards);
+    return score.isBust || hand.status === 'BUSTED' || score.total < 21;
+  });
+}
+
+function canRepresentControlledWin(hands: StoredBlackjackHand[]): boolean {
+  return hands.some((hand) => {
+    const score = blackjackScore(hand.cards);
+    return !score.isBust && hand.status !== 'BUSTED';
+  });
 }
 
 function canHitHand(hand: StoredBlackjackHand): boolean {
@@ -883,23 +945,18 @@ function blackjackRulesPayload() {
   };
 }
 
-function makeDealerTwenty(): BlackjackCard[] {
+function makeDealerTwentyOne(): BlackjackCard[] {
   return [
     { rank: 10, suit: 0 },
-    { rank: 13, suit: 1 },
+    { rank: 6, suit: 1 },
+    { rank: 5, suit: 2 },
   ];
 }
 
-function makeDealerEighteen(): BlackjackCard[] {
+function makeDealerBust(): BlackjackCard[] {
   return [
+    { rank: 10, suit: 0 },
+    { rank: 6, suit: 1 },
     { rank: 10, suit: 2 },
-    { rank: 8, suit: 3 },
-  ];
-}
-
-function makePlayerTwenty(suit: number): BlackjackCard[] {
-  return [
-    { rank: 10, suit },
-    { rank: 12, suit: (suit + 1) % 4 },
   ];
 }
