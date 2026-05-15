@@ -226,26 +226,17 @@ export class MinesService {
 
       const multiplier = round.currentMultiplier;
       const payout = round.betAmount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const controlled = await applyControls(tx, userId, GameId.MINES, {
+      const controlOutcome = {
         won: payout.greaterThan(round.betAmount),
         amount: round.betAmount,
         multiplier,
         payout,
-      });
-      const forceLoss = controlled.controlled && !controlled.won;
-      const controlledWin = controlled.controlled && controlled.won;
-      const finalMultiplier = forceLoss
-        ? new Prisma.Decimal(0)
-        : controlledWin
-          ? controlled.multiplier
-          : multiplier;
-      const finalPayout = forceLoss
-        ? new Prisma.Decimal(0)
-        : controlledWin
-          ? controlled.payout
-          : payout;
+        controlled: false,
+      };
+      const finalMultiplier = multiplier;
+      const finalPayout = payout;
       const profit = finalPayout.minus(round.betAmount);
-      const finalStatus = forceLoss ? 'BUSTED' : 'CASHED_OUT';
+      const finalStatus = 'CASHED_OUT';
 
       const originalResult = {
         mineCount: round.mineCount,
@@ -258,11 +249,11 @@ export class MinesService {
         mineCount: round.mineCount,
         minePositions: round.minePositions,
         revealed: round.revealed,
-        hitMine: forceLoss,
-        cashedOut: !forceLoss,
-        controlled: controlled.controlled,
-        flipReason: controlled.flipReason ?? null,
-        raw: controlled.controlled ? originalResult : null,
+        hitMine: false,
+        cashedOut: true,
+        controlled: false,
+        flipReason: null,
+        raw: null,
       };
 
       const bet = await tx.bet.create({
@@ -298,7 +289,7 @@ export class MinesService {
         GameId.MINES,
         { won: payout.greaterThan(round.betAmount), amount: round.betAmount, multiplier, payout },
         { won: finalPayout.greaterThan(round.betAmount), amount: round.betAmount, multiplier: finalMultiplier, payout: finalPayout },
-        controlled,
+        controlOutcome,
         bet.id,
         originalResult,
         finalResult,

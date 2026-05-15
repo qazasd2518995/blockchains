@@ -295,40 +295,24 @@ export class ChickenRoadService {
         chickenRoadMultiplier(data.difficulty, data.currentStep).toFixed(4),
       );
       const payout = bet.amount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const controlled = await applyControls(tx, userId, GameId.CHICKEN_ROAD, {
+      const controlOutcome = {
         won: payout.greaterThan(bet.amount),
         amount: bet.amount,
         multiplier,
         payout,
-      });
-      const forceLoss = controlled.controlled && !controlled.won;
-      const controlledWin = controlled.controlled && controlled.won;
-      const finalMultiplier = forceLoss
-        ? new Prisma.Decimal(0)
-        : controlledWin
-          ? controlled.multiplier
-          : multiplier;
-      const finalPayout = forceLoss
-        ? new Prisma.Decimal(0)
-        : controlledWin
-          ? controlled.payout
-          : payout;
-      const finalStatus: ChickenRoadStoredStatus = forceLoss ? 'BUSTED' : 'CASHED_OUT';
+        controlled: false,
+      };
+      const finalMultiplier = multiplier;
+      const finalPayout = payout;
+      const finalStatus: ChickenRoadStoredStatus = 'CASHED_OUT';
       const finalResult: ChickenRoadStoredData = {
         ...data,
         status: finalStatus,
-        hitStep: forceLoss ? data.currentStep + 1 : null,
-        cashedOut: !forceLoss,
-        controlled: controlled.controlled,
-        flipReason: controlled.flipReason ?? null,
-        raw: controlled.controlled
-          ? {
-              difficulty: data.difficulty,
-              path: data.path,
-              currentStep: data.currentStep,
-              cashedOut: true,
-            }
-          : null,
+        hitStep: null,
+        cashedOut: true,
+        controlled: false,
+        flipReason: null,
+        raw: null,
       };
       const profit = finalPayout.minus(bet.amount);
       const settled = await tx.bet.update({
@@ -351,7 +335,7 @@ export class ChickenRoadService {
         GameId.CHICKEN_ROAD,
         { won: payout.greaterThan(bet.amount), amount: bet.amount, multiplier, payout },
         { won: finalPayout.greaterThan(bet.amount), amount: bet.amount, multiplier: finalMultiplier, payout: finalPayout },
-        controlled,
+        controlOutcome,
         settled.id,
         {
           difficulty: data.difficulty,
