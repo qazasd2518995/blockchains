@@ -107,7 +107,40 @@ describe('applyBlackjackControl', () => {
     expect(settled.controlled).toBe(true);
     expect(settled.hands[0]?.cards).toEqual(originalCards);
     expect(settled.hands[0]?.outcome).toBe('WIN');
-    expect(settled.dealerHand).toEqual([c(10, 0), c(6, 1), c(10, 2)]);
+    expect(settled.dealerHand[0]).toEqual(c(10, 2));
+    expect(settled.dealerHand.map((card) => Math.min(card.rank === 1 ? 11 : card.rank, 10))).toEqual([
+      10,
+      6,
+      10,
+    ]);
+  });
+
+  it('preserves the visible dealer upcard when forcing a loss', () => {
+    const originalCards = [c(10, 0), c(5, 1)];
+    const [rawHand] = settleBlackjackHands([hand(originalCards, { status: 'STANDING' })], [
+      c(8, 2),
+      c(10, 3),
+    ]);
+
+    const settled = applyBlackjackControl(
+      [rawHand!],
+      [c(8, 2), c(10, 3)],
+      new Prisma.Decimal('10.00'),
+      {
+        won: false,
+        multiplier: new Prisma.Decimal('0'),
+        payout: new Prisma.Decimal('0.00'),
+        controlled: true,
+        flipReason: 'manual_test',
+        controlId: 'control-1',
+      },
+    );
+
+    expect(settled.controlled).toBe(true);
+    expect(settled.hands[0]?.cards).toEqual(originalCards);
+    expect(settled.hands[0]?.outcome).toBe('LOSE');
+    expect(settled.dealerHand[0]).toEqual(c(8, 2));
+    expect(settled.dealerHand).toEqual([c(8, 2), c(3, 0), c(10, 0)]);
   });
 
   it('does not force an impossible loss for a natural blackjack', () => {

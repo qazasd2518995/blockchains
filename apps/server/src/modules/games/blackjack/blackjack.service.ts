@@ -771,7 +771,7 @@ function applyBlackjackLossControl(
     multiplier: '0.0000',
   }));
   return {
-    dealerHand: makeDealerTwentyOne(),
+    dealerHand: makeDealerTwentyOne(dealerHand),
     hands,
     payout: new Prisma.Decimal(0),
     multiplier: new Prisma.Decimal(0),
@@ -823,7 +823,7 @@ function applyBlackjackWinControl(
   }
 
   return {
-    dealerHand: makeDealerBust(),
+    dealerHand: makeDealerBust(dealerHand),
     hands,
     payout,
     multiplier,
@@ -945,18 +945,57 @@ function blackjackRulesPayload() {
   };
 }
 
-function makeDealerTwentyOne(): BlackjackCard[] {
-  return [
-    { rank: 10, suit: 0 },
-    { rank: 6, suit: 1 },
-    { rank: 5, suit: 2 },
-  ];
+function makeDealerTwentyOne(source: BlackjackCard[]): BlackjackCard[] {
+  const upcard = source[0] ?? { rank: 10, suit: 0 };
+  const avoid = [upcard];
+  if (upcard.rank === 1) {
+    return [upcard, pickCard(10, avoid)];
+  }
+  if (cardPoint(upcard) === 10) {
+    return [upcard, pickCard(1, avoid)];
+  }
+
+  const middleRank = 11 - cardPoint(upcard);
+  const middle = pickCard(middleRank, avoid);
+  return [upcard, middle, pickCard(10, [...avoid, middle])];
 }
 
-function makeDealerBust(): BlackjackCard[] {
-  return [
-    { rank: 10, suit: 0 },
-    { rank: 6, suit: 1 },
-    { rank: 10, suit: 2 },
-  ];
+function makeDealerBust(source: BlackjackCard[]): BlackjackCard[] {
+  const upcard = source[0] ?? { rank: 10, suit: 0 };
+  const avoid = [upcard];
+  const value = cardPoint(upcard);
+
+  if (upcard.rank === 1) {
+    const first = pickCard(5, avoid);
+    const second = pickCard(10, [...avoid, first]);
+    const third = pickCard(10, [...avoid, first, second]);
+    return [upcard, first, second, third];
+  }
+
+  if (value === 10) {
+    const middle = pickCard(6, avoid);
+    return [upcard, middle, pickCard(10, [...avoid, middle])];
+  }
+
+  if (value >= 7) {
+    const middle = pickCard(16 - value, avoid);
+    return [upcard, middle, pickCard(10, [...avoid, middle])];
+  }
+
+  const first = pickCard(10, avoid);
+  return [upcard, first, pickCard(10, [...avoid, first])];
+}
+
+function cardPoint(card: BlackjackCard): number {
+  if (card.rank === 1) return 11;
+  return Math.min(card.rank, 10);
+}
+
+function pickCard(rank: number, avoid: BlackjackCard[]): BlackjackCard {
+  for (let suit = 0; suit < 4; suit += 1) {
+    if (!avoid.some((card) => card.rank === rank && card.suit === suit)) {
+      return { rank, suit };
+    }
+  }
+  return { rank, suit: 0 };
 }

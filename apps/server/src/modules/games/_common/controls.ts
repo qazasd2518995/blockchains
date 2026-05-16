@@ -156,8 +156,8 @@ async function findControlDecision(
   member: MemberScope,
   predicted: PredictedResult,
 ): Promise<ControlDecision | null> {
-  const winLoss = await findWinLossDecision(tx, member);
-  if (winLoss) return winLoss;
+  const memberWinLoss = await findWinLossDecision(tx, member, 'member');
+  if (memberWinLoss) return memberWinLoss;
 
   const memberCap = await findMemberWinCapDecision(tx, member.id, predicted);
   if (memberCap) return memberCap;
@@ -168,13 +168,28 @@ async function findControlDecision(
   const deposit = await findDepositDecision(tx, member);
   if (deposit) return deposit;
 
-  const manual = await findManualDetectionDecision(tx, member);
-  if (manual) return manual;
+  const targetedManual = await findManualDetectionDecision(tx, member, 'targeted');
+  if (targetedManual) return targetedManual;
 
-  return findBurstDecision(tx, member, predicted);
+  const burst = await findBurstDecision(tx, member, predicted);
+  if (burst) return burst;
+
+  const globalManual = await findManualDetectionDecision(tx, member, 'global');
+  if (globalManual) return globalManual;
+
+  const agentLineWinLoss = await findWinLossDecision(tx, member, 'agent_line');
+  if (agentLineWinLoss) return agentLineWinLoss;
+
+  return findWinLossDecision(tx, member, 'global');
 }
 
-async function findWinLossDecision(tx: Db, member: MemberScope): Promise<ControlDecision | null> {
+type WinLossDecisionScope = 'all' | 'member' | 'agent_line' | 'global';
+
+async function findWinLossDecision(
+  tx: Db,
+  member: MemberScope,
+  scope: WinLossDecisionScope = 'all',
+): Promise<ControlDecision | null> {
   const controls = await tx.winLossControl.findMany({
     where: { isActive: true },
     orderBy: { createdAt: 'desc' },
@@ -184,18 +199,30 @@ async function findWinLossDecision(tx: Db, member: MemberScope): Promise<Control
   const ancestors = member.agentId ? await getAgentAncestors(tx, member.agentId) : [];
   const ranked = controls
     .map((control) => {
-      if (control.controlMode === 'SINGLE_MEMBER' && control.targetId === member.id) {
+      if (
+        (scope === 'all' || scope === 'member') &&
+        control.controlMode === 'SINGLE_MEMBER' &&
+        control.targetId === member.id
+      ) {
         if (control.winControl) return { control, priority: 1, desired: 'WIN' as const };
         if (control.lossControl) return { control, priority: 4, desired: 'LOSS' as const };
       }
 
-      if (control.controlMode === 'AGENT_LINE' && control.targetId && ancestors.includes(control.targetId)) {
+      if (
+        (scope === 'all' || scope === 'agent_line') &&
+        control.controlMode === 'AGENT_LINE' &&
+        control.targetId &&
+        ancestors.includes(control.targetId)
+      ) {
         const depth = ancestors.indexOf(control.targetId);
         if (control.winControl) return { control, priority: 2 + depth, desired: 'WIN' as const };
         if (control.lossControl) return { control, priority: 20 + depth, desired: 'LOSS' as const };
       }
 
-      if (control.controlMode === 'AUTO_DETECT' || control.controlMode === 'NORMAL') {
+      if (
+        (scope === 'all' || scope === 'global') &&
+        (control.controlMode === 'AUTO_DETECT' || control.controlMode === 'NORMAL')
+      ) {
         if (control.winControl) return { control, priority: 40, desired: 'WIN' as const };
         if (control.lossControl) return { control, priority: 41, desired: 'LOSS' as const };
       }
@@ -316,10 +343,13 @@ async function findDepositDecision(tx: Db, member: MemberScope): Promise<Control
 async function findManualDetectionDecision(
   tx: Db,
   member: MemberScope,
+  scope: 'all' | 'targeted' | 'global' = 'all',
 ): Promise<ControlDecision | null> {
   await checkAndCompleteManualDetectionControls(tx);
   const applicable = await findApplicableManualDetectionControl(tx, member);
   if (!applicable) return null;
+  if (scope === 'targeted' && applicable.control.scope === 'ALL') return null;
+  if (scope === 'global' && applicable.control.scope !== 'ALL') return null;
 
   if (Math.random() * 100 >= applicable.control.controlPercentage) {
     return null;
