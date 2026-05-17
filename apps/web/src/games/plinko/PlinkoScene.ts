@@ -133,6 +133,7 @@ export class PlinkoScene {
   private lastLandSfxAt = 0;
   private lastPegVisualFxAt = 0;
   private lastLandingVisualFxAt = 0;
+  private launchSequence = 0;
 
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
     this.width = width;
@@ -465,8 +466,20 @@ export class PlinkoScene {
         }
         b.y += b.vy * tk.deltaTime;
 
-        // 檢測是否碰到某一排釘子（依 path 決定方向）
         const nextRow = b.row;
+        if (!b.resultReady && nextRow >= Math.max(0, this.rows - 1)) {
+          const holdY = this.boardTop + this.rows * this.rowSpacing - this.ballRadius * 0.65;
+          if (b.y >= holdY) {
+            b.y = holdY;
+            b.vy = Math.min(b.vy, 0.45);
+            b.g.x = b.x;
+            b.g.y = b.y;
+            b.g.rotation += 0.02 * tk.deltaTime;
+            continue;
+          }
+        }
+
+        // 檢測是否碰到某一排釘子（依 path 決定方向）
         if (nextRow < this.rows) {
           const rowY = this.boardTop + (nextRow + 1) * this.rowSpacing;
           if (b.y >= rowY && !b.bouncedRows.has(nextRow)) {
@@ -550,31 +563,46 @@ export class PlinkoScene {
    */
   startAnticipation(batchIndex = this.anticipationBalls.length, batchSize = 1): Graphics | null {
     if (!this.ballsContainer) return null;
+    const launchIndex = this.launchSequence;
+    this.launchSequence += 1;
+    const localIndex = Math.max(0, Number.isFinite(batchIndex) ? Math.floor(batchIndex) : launchIndex);
+    const totalBalls = Math.max(1, Number.isFinite(batchSize) ? Math.floor(batchSize) : 1);
     const g = this.createBallGraphic();
-    const isLargeBatch = batchSize >= 10;
-    const pendingOffset = (batchIndex % 5) - 2;
-    g.x = this.pathStartX() + pendingOffset * Math.max(2, this.ballRadius * 0.42);
-    g.y = Math.max(8, this.boardTop - this.rowSpacing * 1.18 - batchIndex * 0.9);
+    const isLargeBatch = totalBalls >= 10;
+    const visibleLanes = Math.min(Math.max(totalBalls, 1), 7);
+    const lane = totalBalls > 1 ? (localIndex % visibleLanes) - (visibleLanes - 1) / 2 : 0;
+    const rowOffset = totalBalls > 1 ? Math.floor(localIndex / visibleLanes) : 0;
+    const fanSpacing = Math.max(this.ballRadius * 0.9, Math.min(this.pegSpacing * 0.16, this.ballRadius * 1.45));
+    const jitter = totalBalls > 1 ? (((launchIndex * 13) % 7) - 3) * 0.18 : 0;
+    const targetScale = isLargeBatch ? 0.84 : totalBalls > 1 ? 0.92 : 1;
+    g.x = this.pathStartX() + (lane + jitter) * fanSpacing;
+    g.y = Math.max(
+      8,
+      this.boardTop -
+        this.rowSpacing * 1.25 -
+        rowOffset * this.ballRadius * 1.2 -
+        (localIndex % 3) * 1.35,
+    );
     g.alpha = 0;
-    g.scale.set(0.6);
+    g.scale.set(targetScale * 0.62);
     this.ballsContainer.addChild(g);
     this.anticipationBalls.push(g);
     this.playThrottledLaunchSfx();
     gsap.to(g, { alpha: isLargeBatch ? 0.88 : 1, duration: 0.1, ease: 'power2.out' });
     gsap.to(g.scale, {
-      x: isLargeBatch ? 0.92 : 1,
-      y: isLargeBatch ? 0.92 : 1,
+      x: targetScale,
+      y: targetScale,
       duration: 0.12,
       ease: 'back.out(1.8)',
     });
 
-    const provisionalPath = this.createProvisionalPath(batchIndex);
+    const provisionalPath = this.createProvisionalPath(localIndex, totalBalls, launchIndex);
     this.balls.push({
       g,
       x: g.x,
       y: g.y,
       vx: 0,
-      vy: 1.25 + (batchIndex % 4) * 0.08,
+      vy: 1.25 + (launchIndex % 5) * 0.08,
       row: 0,
       targetCol: 0,
       path: provisionalPath,
@@ -631,10 +659,40 @@ export class PlinkoScene {
     return g;
   }
 
-  private createProvisionalPath(batchIndex: number): ('left' | 'right')[] {
-    return Array.from({ length: this.rows }, (_, index) =>
-      (index + batchIndex) % 2 === 0 ? 'left' : 'right',
-    );
+  private createProvisionalPath(
+    batchIndex: number,
+    batchSize = 1,
+    seedIndex = batchIndex,
+  ): ('left' | 'right')[] {
+    const rows = Math.max(1, this.rows);
+    const totalBalls = Math.max(1, Math.floor(batchSize));
+    const localIndex = Math.max(0, Math.floor(batchIndex));
+    const baseBucket =
+      totalBalls > 1
+        ? Math.round(((localIndex + 0.5) / totalBalls) * rows)
+        : Math.floor(rows / 2);
+    const jitterRange = totalBalls > rows ? 2 : 0;
+    const jitter =
+      jitterRange > 0 ? ((seedIndex * 7 + 3) % (jitterRange * 2 + 1)) - jitterRange : 0;
+    const targetBucket = Math.max(0, Math.min(rows, baseBucket + jitter));
+    let rights = 0;
+    let seed = (((seedIndex + 1) * 2654435761) >>> 0) || 1;
+
+    return Array.from({ length: rows }, (_, row) => {
+      const remainingRows = rows - row;
+      const rightsNeeded = targetBucket - rights;
+      if (rightsNeeded <= 0) return 'left';
+      if (rightsNeeded >= remainingRows) {
+        rights += 1;
+        return 'right';
+      }
+
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      const noise = ((seed >>> 8) / 0x01000000 - 0.5) * 0.42;
+      const chooseRight = rightsNeeded / remainingRows + noise >= 0.5;
+      if (chooseRight) rights += 1;
+      return chooseRight ? 'right' : 'left';
+    });
   }
 
   private createPathContinuation(
@@ -657,7 +715,12 @@ export class PlinkoScene {
     bucket: number,
     multiplier: number,
   ): void {
-    const currentRow = Math.max(0, Math.min(this.rows, ball.row));
+    const maxSteerableRow = Math.max(0, this.rows - 1);
+    const currentRow = Math.max(0, Math.min(maxSteerableRow, ball.row));
+    if (ball.row > currentRow) {
+      ball.row = currentRow;
+      ball.bouncedRows.delete(currentRow);
+    }
     let rightsSoFar = 0;
     for (let index = 0; index < currentRow; index += 1) {
       if (ball.path[index] === 'right') rightsSoFar += 1;
