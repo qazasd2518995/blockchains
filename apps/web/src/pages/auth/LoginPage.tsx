@@ -118,20 +118,10 @@ export function LoginPage() {
             </div>
           </section>
 
-          <div className="w-full max-w-[440px] justify-self-center rounded-[14px] border border-white/12 bg-white/92 p-5 text-center shadow-[0_30px_80px_rgba(2,6,23,0.32)] backdrop-blur-md sm:rounded-[18px] sm:p-8">
-            <div className="mb-6 flex flex-col items-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-[14px] border border-[#186073]/15 bg-[#186073]/10 text-[18px] font-black tracking-[0.08em] text-[#186073]">
-                BG
-              </div>
-              <div className="mt-4 text-[11px] font-black uppercase tracking-[0.22em] text-[#718096]">
-                Member Access
-              </div>
-              <h1 className="mt-2 text-[28px] font-black leading-tight text-[#0F172A]">
-                {t.auth.identifyYourself}
-              </h1>
-              <p className="mt-2 max-w-[280px] text-[13px] leading-relaxed text-[#4A5568]">
-                {t.auth.loginDesc}
-              </p>
+          <div className="w-full max-w-[440px] justify-self-center rounded-[14px] border border-white/12 bg-white/92 p-5 shadow-[0_30px_80px_rgba(2,6,23,0.32)] backdrop-blur-md sm:rounded-[18px] sm:p-8">
+            <div className="mb-6 text-center">
+              <h1 className="text-[24px] font-bold text-[#0F172A]">{t.auth.identifyYourself}</h1>
+              <p className="mt-2 text-[13px] text-[#4A5568]">{t.auth.loginDesc}</p>
             </div>
 
             {reason === 'bet' || reason === 'game' ? (
@@ -140,7 +130,7 @@ export function LoginPage() {
               </div>
             ) : null}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-left">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <Field label={t.auth.usernameLabel} error={errMap(errors.username?.message)}>
                 <input
                   type="text"

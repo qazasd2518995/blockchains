@@ -55,7 +55,7 @@ export const zhHans = {
     authenticating: '验证中',
     invalidCreds: '账号或密码错误',
     secureChannel: '加密通道 · TLS 1.3',
-    title: '代理后台登录',
+    title: '代理后台',
     subtitle: '代理运营管理系统',
     protocol: '系统协议',
     requiresAuth: '仅限授权代理 · 公开注册已关闭',
