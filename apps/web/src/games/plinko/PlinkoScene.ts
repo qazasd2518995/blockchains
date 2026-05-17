@@ -454,7 +454,7 @@ export class PlinkoScene {
         // Deterministic 物理：球以恆定 vy 下落，垂直不受水平影響；
         // 每碰到一排釘子，依 path[row] 精確橫移半格到新位置。
         // 保證視覺軌跡與最終 bucket 完全吻合。
-        const gravity = 0.42;
+        const gravity = b.resultReady ? 0.36 : 0.28;
         b.vy += gravity * tk.deltaTime;
         // 水平位置由 ticker 內部 tween 控制，避免多顆球時建立大量 GSAP tween。
         if (b.xTweenElapsed < b.xTweenDuration) {
@@ -467,6 +467,19 @@ export class PlinkoScene {
         b.y += b.vy * tk.deltaTime;
 
         const nextRow = b.row;
+        if (!b.resultReady && nextRow === 0) {
+          const firstPegY = this.boardTop + this.rowSpacing;
+          const holdY = firstPegY - this.ballRadius * 1.35;
+          if (b.y >= holdY) {
+            b.y = holdY;
+            b.vy = Math.min(b.vy, 0.35);
+            b.g.x = b.x;
+            b.g.y = b.y;
+            b.g.rotation += 0.02 * tk.deltaTime;
+            continue;
+          }
+        }
+
         if (!b.resultReady && nextRow >= Math.max(0, this.rows - 1)) {
           const holdY = this.boardTop + this.rows * this.rowSpacing - this.ballRadius * 0.65;
           if (b.y >= holdY) {
@@ -602,7 +615,7 @@ export class PlinkoScene {
       x: g.x,
       y: g.y,
       vx: 0,
-      vy: 1.25 + (launchIndex % 5) * 0.08,
+      vy: 0.95 + (launchIndex % 5) * 0.06,
       row: 0,
       targetCol: 0,
       path: provisionalPath,
@@ -736,7 +749,7 @@ export class PlinkoScene {
     ball.targetBucket = bucket;
     ball.multiplier = multiplier;
     ball.resultReady = true;
-    if (ball.vy <= 0) ball.vy = 1.8;
+    if (ball.vy < 1.35) ball.vy = 1.35;
   }
 
   /**

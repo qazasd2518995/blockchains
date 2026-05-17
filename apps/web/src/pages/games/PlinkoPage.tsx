@@ -337,9 +337,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
       changeActiveDrops(balls);
       pendingStakeRef.current = roundCurrency(pendingStakeRef.current + totalStake);
       setError(null);
-      const anticipationBalls = Array.from({ length: balls }, (_, index) =>
-        sceneRef.current?.startAnticipation(index, balls),
-      );
+      let anticipationBalls: Array<ReturnType<PlinkoScene['startAnticipation']> | undefined> = [];
 
       try {
         const payload: PlinkoBatchBetRequest = {
@@ -348,7 +346,11 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
           risk: betRisk,
           balls,
         };
-        const res = await api.post<PlinkoBatchBetResult>('/games/plinko/bet-batch', payload);
+        const betRequest = api.post<PlinkoBatchBetResult>('/games/plinko/bet-batch', payload);
+        anticipationBalls = Array.from({ length: balls }, (_, index) =>
+          sceneRef.current?.startAnticipation(index, balls),
+        );
+        const res = await betRequest;
         const dropResults = res.data.results;
         const firstResult = dropResults[0];
         if (firstResult) {

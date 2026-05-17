@@ -3,6 +3,7 @@ import { plinkoPath, plinkoMultiplier, plinkoTable } from '@bg/provably-fair';
 import { GameId, type PlinkoBatchBetResult, type PlinkoBetResult } from '@bg/shared';
 import {
   SeedHelper,
+  type ActiveSeedBundle,
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
@@ -37,9 +38,15 @@ export class PlinkoService {
       if (user.balance.lessThan(totalStake)) {
         throw new ApiError('INSUFFICIENT_FUNDS', 'Insufficient balance');
       }
+      const seedBundles = await new SeedHelper(tx).getActiveBundles(
+        userId,
+        'plinko',
+        input.balls,
+        input.clientSeed,
+      );
       const results: PlinkoBetResult[] = [];
       for (let index = 0; index < input.balls; index += 1) {
-        results.push(await this.settleOne(tx, userId, input, amount));
+        results.push(await this.settleOne(tx, userId, input, amount, seedBundles[index]));
       }
       const newBalance =
         results.at(-1)?.newBalance ??
@@ -53,8 +60,10 @@ export class PlinkoService {
     userId: string,
     input: PlinkoBetInput | PlinkoBatchBetInput,
     amount: Prisma.Decimal,
+    seedBundle?: ActiveSeedBundle,
   ): Promise<PlinkoBetResult> {
-    const seed = await new SeedHelper(tx).getActiveBundle(userId, 'plinko', input.clientSeed);
+    const seed =
+      seedBundle ?? (await new SeedHelper(tx).getActiveBundle(userId, 'plinko', input.clientSeed));
     const { path, bucket } = plinkoPath(seed.serverSeed, seed.clientSeed, seed.nonce, input.rows);
     const multiplier = plinkoMultiplier(input.risk, input.rows, bucket);
     const multipliers = plinkoTable(input.risk, input.rows);

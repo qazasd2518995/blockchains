@@ -36,6 +36,20 @@ export class SeedHelper {
     gameCategory: string,
     providedClientSeed?: string,
   ): Promise<ActiveSeedBundle> {
+    const [bundle] = await this.getActiveBundles(userId, gameCategory, 1, providedClientSeed);
+    if (!bundle) {
+      throw new ApiError('INTERNAL', 'Unable to prepare game seed');
+    }
+    return bundle;
+  }
+
+  async getActiveBundles(
+    userId: string,
+    gameCategory: string,
+    count: number,
+    providedClientSeed?: string,
+  ): Promise<ActiveSeedBundle[]> {
+    const bundleCount = Math.max(1, Math.floor(count));
     let [server] = await this.tx.$queryRaw<ServerSeed[]>`
       SELECT *
       FROM "ServerSeed"
@@ -82,16 +96,17 @@ export class SeedHelper {
 
     const incremented = await this.tx.serverSeed.update({
       where: { id: server.id },
-      data: { nonce: { increment: 1 } },
+      data: { nonce: { increment: bundleCount } },
     });
 
-    return {
+    const firstNonce = incremented.nonce - bundleCount + 1;
+    return Array.from({ length: bundleCount }, (_, index) => ({
       serverSeedId: server.id,
       serverSeed: server.seed,
       serverSeedHash: server.seedHash,
       clientSeed: clientSeedRecord.seed,
-      nonce: incremented.nonce,
-    };
+      nonce: firstNonce + index,
+    }));
   }
 }
 
