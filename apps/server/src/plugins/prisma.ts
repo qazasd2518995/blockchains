@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import fp from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
+import { config } from '../config.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -48,7 +49,7 @@ async function connectWithRetry(prisma: PrismaClient, fastify: FastifyInstance):
 
 async function pluginFn(fastify: FastifyInstance): Promise<void> {
   const prisma = new PrismaClient({
-    log: fastify.log.level === 'debug' ? ['query', 'error', 'warn'] : ['error'],
+    log: config.PRISMA_QUERY_LOG ? ['query', 'error', 'warn'] : ['error', 'warn'],
   });
   try {
     await connectWithRetry(prisma, fastify);

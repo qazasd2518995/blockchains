@@ -79,7 +79,7 @@ export function hasRequestErrorLogged(request: FastifyRequest): boolean {
 
 export function shouldSkipRequestLog(request: FastifyRequest): boolean {
   const pathname = pathnameOf(request);
-  return request.method === 'OPTIONS' || pathname === '/api/health';
+  return request.method === 'OPTIONS' || pathname === '/api/health' || pathname === '/';
 }
 
 export function shouldDebugRequest(request: FastifyRequest): boolean {

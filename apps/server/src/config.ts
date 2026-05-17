@@ -3,6 +3,10 @@ import { z } from 'zod';
 import { MAX_BET_AMOUNT } from '@bg/shared';
 
 const defaultLogLevel = process.env.NODE_ENV === 'test' ? 'warn' : 'info';
+const booleanEnv = z
+  .enum(['true', 'false', '1', '0', 'yes', 'no', 'on', 'off'])
+  .default('false')
+  .transform((value) => ['true', '1', 'yes', 'on'].includes(value));
 
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -13,6 +17,7 @@ const envSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default(defaultLogLevel),
+  PRISMA_QUERY_LOG: booleanEnv,
   SLOW_REQUEST_MS: z.coerce.number().int().positive().default(1000),
   CORS_ORIGIN: z
     .string()

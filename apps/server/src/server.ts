@@ -125,11 +125,17 @@ export async function buildServer(): Promise<FastifyInstance> {
           ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } }
           : undefined,
     },
+    disableRequestLogging: true,
     trustProxy: true,
   });
 
   server.log.info(
-    { env: config.NODE_ENV, logLevel: server.log.level, slowRequestMs: config.SLOW_REQUEST_MS },
+    {
+      env: config.NODE_ENV,
+      logLevel: server.log.level,
+      prismaQueryLog: config.PRISMA_QUERY_LOG,
+      slowRequestMs: config.SLOW_REQUEST_MS,
+    },
     'Server logging configured',
   );
 
@@ -243,6 +249,10 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(authPlugin);
   await server.register(adminAuthPlugin);
 
+  server.head('/', async (_request, reply) => {
+    reply.code(204).send();
+  });
+  server.get('/', async () => ({ ok: true, env: config.NODE_ENV }));
   server.get('/api/health', async () => ({ ok: true, env: config.NODE_ENV }));
 
   await server.register(authRoutes, { prefix: '/api/auth' });
