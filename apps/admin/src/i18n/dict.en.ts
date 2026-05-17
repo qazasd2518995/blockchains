@@ -57,7 +57,7 @@ export const en = {
     authenticating: 'Authenticating',
     invalidCreds: 'Incorrect account or password',
     secureChannel: 'Encrypted channel · TLS 1.3',
-    title: 'Agent Admin',
+    title: 'Agent Admin Login',
     subtitle: 'Agent Operations Management',
     protocol: 'System Protocol',
     requiresAuth: 'Authorized agents only · Public registration is closed',
