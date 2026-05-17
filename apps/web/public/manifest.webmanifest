@@ -1,7 +1,7 @@
 {
-  "name": "BG 娛樂城",
-  "short_name": "BG",
-  "description": "BG 娛樂城電子遊戲與即時派彩大廳",
+  "name": "八千代娛樂城",
+  "short_name": "八千代",
+  "description": "八千代娛樂城電子遊戲與即時派彩大廳",
   "id": "/",
   "start_url": "/",
   "scope": "/",
@@ -15,6 +15,12 @@
       "src": "/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/brand/yachiyo-emblem.png",
+      "sizes": "824x824",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],

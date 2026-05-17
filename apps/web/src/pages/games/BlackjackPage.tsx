@@ -633,7 +633,7 @@ function CardBackFace() {
   return (
     <div className="flex h-[122px] w-[82px] items-center justify-center rounded-[8px] border border-[#E8D48A]/50 bg-[radial-gradient(circle_at_50%_35%,rgba(232,212,138,0.34),transparent_30%),linear-gradient(135deg,#07111E,#143B4C_52%,#07111E)] shadow-[0_14px_28px_rgba(0,0,0,0.38)] sm:h-[148px] sm:w-[100px]">
       <div className="rounded-full border border-[#E8D48A]/45 px-3 py-2 text-[10px] font-black tracking-[0.22em] text-[#E8D48A]">
-        BG
+        八
       </div>
     </div>
   );

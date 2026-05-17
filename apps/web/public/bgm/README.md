@@ -1,4 +1,4 @@
-# BG platform BGM
+# Yachiyo platform BGM
 
 User-provided platform background music files copied from `/Users/justin/Downloads` on 2026-05-02.
 

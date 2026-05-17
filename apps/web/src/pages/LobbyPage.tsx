@@ -179,11 +179,16 @@ function MobileLobbyOnePage() {
             className="flex min-h-11 shrink-0 items-center gap-1.5"
             aria-label={t.common.lobby}
           >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-[#E9F8F8] text-[17px] font-black text-[#0992A8] max-[360px]:text-[15px]">
-              BG
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#F59E0B]/30 bg-[#FFF7ED]">
+              <img
+                src="/brand/yachiyo-emblem.png"
+                alt=""
+                className="h-10 w-10 object-contain"
+                draggable={false}
+              />
             </span>
-            <span className="hidden min-w-0 truncate text-[13px] font-black leading-tight text-[#08A6B3] min-[460px]:inline">
-              {t.landing.brandName.replace(/^BG\s*/, '')}
+            <span className="hidden min-w-0 truncate text-[13px] font-black leading-tight text-[#B45309] min-[460px]:inline">
+              {t.landing.brandName}
             </span>
           </Link>
 

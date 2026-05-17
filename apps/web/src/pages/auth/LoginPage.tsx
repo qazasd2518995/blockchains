@@ -83,10 +83,12 @@ export function LoginPage() {
             {t.auth.returnHome}
           </Link>
           <div className="flex items-center gap-2 text-[22px] font-extrabold tracking-[0.05em]">
-            <span className="rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[20px] text-white shadow-[0_10px_24px_rgba(24,96,115,0.3)]">
-              BG
+            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[8px] border border-[#F59E0B]/35 bg-[#130C07]/72 shadow-[0_10px_24px_rgba(245,158,11,0.22)]">
+              <img src="/brand/yachiyo-emblem.png" alt="" className="h-9 w-9 object-contain" />
             </span>
-            <span className="hidden text-[16px] font-bold text-white/90 sm:inline">娱乐城</span>
+            <span className="hidden text-[16px] font-bold text-white/90 sm:inline">
+              {t.landing.brandName}
+            </span>
           </div>
         </div>
       </header>
@@ -120,6 +122,17 @@ export function LoginPage() {
 
           <div className="w-full max-w-[440px] justify-self-center rounded-[14px] border border-white/12 bg-white/92 p-5 shadow-[0_30px_80px_rgba(2,6,23,0.32)] backdrop-blur-md sm:rounded-[18px] sm:p-8">
             <div className="mb-6 text-center">
+              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-[16px] border border-[#F59E0B]/30 bg-[#130C07]/92 shadow-[0_14px_34px_rgba(245,158,11,0.24)]">
+                <img
+                  src="/brand/yachiyo-emblem.png"
+                  alt=""
+                  className="h-[72px] w-[72px] object-contain"
+                  draggable={false}
+                />
+              </div>
+              <div className="mb-2 text-[18px] font-black tracking-[0.06em] text-[#B45309]">
+                {t.landing.brandName}
+              </div>
               <h1 className="text-[24px] font-bold text-[#0F172A]">{t.auth.identifyYourself}</h1>
               <p className="mt-2 text-[13px] text-[#4A5568]">{t.auth.loginDesc}</p>
             </div>

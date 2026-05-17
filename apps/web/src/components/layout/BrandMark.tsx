@@ -14,16 +14,20 @@ export function BrandMark({ to, subtitle, tone = 'dark', className = '' }: Props
   const subtitleClass = tone === 'dark' ? 'text-white/[0.78]' : 'text-[#4A5568]';
   const badgeClass =
     tone === 'dark'
-      ? 'from-[#186073] to-[#0E4555] text-white'
-      : 'from-[#1A2530] to-[#186073] text-white';
+      ? 'border-[#F59E0B]/35 bg-[#130C07]/72'
+      : 'border-[#F59E0B]/30 bg-[#FFF7ED]';
 
   return (
     <Link to={to} className={`flex min-w-0 items-center gap-3 ${className}`}>
       <span
-        className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br text-[17px] font-extrabold uppercase tracking-[0.18em] ${badgeClass}`}
-        translate="no"
+        className={`inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border ${badgeClass}`}
       >
-        BG
+        <img
+          src="/brand/yachiyo-emblem.png"
+          alt=""
+          className="h-10 w-10 object-contain"
+          draggable={false}
+        />
       </span>
       <span className="min-w-0">
         <span

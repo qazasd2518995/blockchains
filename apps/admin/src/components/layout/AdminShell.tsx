@@ -133,8 +133,8 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
 
         <div className="admin-brand-row flex w-full flex-wrap items-center justify-between gap-3 border-t border-[#186073]/30 px-3 py-3 sm:px-6 sm:py-4">
           <Link to="/admin/dashboard" className="flex min-w-0 items-center gap-3">
-            <span className="admin-brand-logo rounded-[6px] bg-gradient-to-br from-[#186073] to-[#0E4555] px-2 py-0.5 text-[22px] font-extrabold tracking-[0.05em] text-white">
-              BG
+            <span className="admin-brand-logo flex h-10 w-10 items-center justify-center overflow-hidden rounded-[8px] border border-[#F59E0B]/35 bg-[#130C07]/72 shadow-[0_10px_24px_rgba(245,158,11,0.18)]">
+              <img src="/brand/yachiyo-emblem.png" alt="" className="h-9 w-9 object-contain" />
             </span>
             <div className="hidden sm:block">
               <div className="text-[18px] font-bold leading-none text-white">{t.shell.brand}</div>

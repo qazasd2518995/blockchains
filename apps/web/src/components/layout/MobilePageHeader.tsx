@@ -39,8 +39,13 @@ export function MobilePageHeader({
           className="flex min-h-11 shrink-0 items-center gap-1.5"
           aria-label={t.common.lobby}
         >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-[#E9F8F8] text-[17px] font-black text-[#0992A8]">
-            BG
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#F59E0B]/30 bg-[#FFF7ED]">
+            <img
+              src="/brand/yachiyo-emblem.png"
+              alt=""
+              className="h-10 w-10 object-contain"
+              draggable={false}
+            />
           </span>
         </Link>
 

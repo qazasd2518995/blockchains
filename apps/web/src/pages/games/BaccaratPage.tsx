@@ -141,7 +141,7 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
       {status === 'ready' && launchUrl ? (
         <iframe
           key={iframeKey}
-          title={`BG ${config.englishTitle}`}
+          title={`八千代 ${config.englishTitle}`}
           src={launchUrl}
           className="absolute inset-0 h-full w-full border-0"
           style={{ backgroundColor: config.screenBg }}
