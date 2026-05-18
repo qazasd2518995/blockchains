@@ -43,8 +43,12 @@ const COLOR_WHITE = 0xffffff;
 const DEFAULT_REELS = 5;
 const ROWS = 3;
 const MEGA_ROWS = 5;
-const REEL_STRIP_LEN = 30; // reel 內部轉動用的延伸符號
+const REEL_STRIP_LEN = 18; // reel 內部轉動用的延伸符號，控制物件量避免手機卡頓
 const FINAL_STOP_ROW = 2;
+const CLASSIC_RENDER_DPR = 1.6;
+const MEGA_RENDER_DPR = 1.35;
+const CLASSIC_PARTICLE_POOL_SIZE = 180;
+const MEGA_PARTICLE_POOL_SIZE = 120;
 
 function fitSpriteCover(sprite: Sprite, width: number, height: number): void {
   const textureWidth = sprite.texture.width || width;
@@ -61,6 +65,17 @@ function themeSymbolImage(theme: SlotThemeConfig, symbolIdx: number): string {
 
 function themeSpecialImage(theme: SlotThemeConfig, type: HotlineSpecialSymbol['type']): string {
   return theme.symbolSheet.replace(/symbols\.png$/, `${type}.png`);
+}
+
+function optimizedPublicImage(src: string, width: 480 | 960 | 1600): string {
+  if (!src || src.startsWith('data:') || src.startsWith('blob:') || /^https?:\/\//i.test(src)) {
+    return src;
+  }
+  if (!/\.(avif|jpe?g|png|webp)$/i.test(src)) return src;
+  const normalized = src.replace(/^\//, '');
+  const extensionIndex = normalized.lastIndexOf('.');
+  const withoutExtension = extensionIndex > -1 ? normalized.slice(0, extensionIndex) : normalized;
+  return `/_optimized/${withoutExtension}@${width}.webp`;
 }
 
 function specialKey(special?: HotlineSpecialSymbol): string {
@@ -163,6 +178,7 @@ export class HotlineScene {
   private particleList: Particle[] = [];
   private ambientTicker: ((tk: Ticker) => void) | null = null;
   private particleTicker: ((tk: Ticker) => void) | null = null;
+  private anticipationTicker: ((tk: Ticker) => void) | null = null;
 
   private particlePool: ParticlePool | null = null;
   private shaker: ShakeController | null = null;
@@ -184,16 +200,18 @@ export class HotlineScene {
     this.rowCount = theme.rows ?? ROWS;
 
     const app = new Application();
+    const rendererResolution = this.getRendererResolution();
     await app.init({
       canvas,
       width,
       height,
       backgroundAlpha: 0,
-      resolution: window.devicePixelRatio ?? 1,
+      resolution: rendererResolution,
       autoDensity: true,
-      antialias: true,
+      antialias: this.rowCount <= ROWS && rendererResolution <= CLASSIC_RENDER_DPR,
     });
     this.app = app;
+    app.stage.eventMode = 'none';
     this.winFx = new WinCelebration({
       app,
       parent: app.stage,
@@ -255,7 +273,10 @@ export class HotlineScene {
     this.shockwaves = new Container();
     app.stage.addChild(this.shockwaves);
 
-    this.particlePool = new ParticlePool(app.stage, 250);
+    this.particlePool = new ParticlePool(
+      app.stage,
+      this.rowCount > ROWS ? MEGA_PARTICLE_POOL_SIZE : CLASSIC_PARTICLE_POOL_SIZE,
+    );
     this.shaker = new ShakeController(app.stage, app);
     this.poolTicker = (tk) => this.particlePool?.update(tk);
     app.ticker.add(this.poolTicker);
@@ -274,8 +295,8 @@ export class HotlineScene {
 
   private async preloadThemeAssets(): Promise<void> {
     const [backgroundTexture, symbolSheetTexture] = await Promise.all([
-      Assets.load<Texture>(this.theme.background).catch(() => null),
-      Assets.load<Texture>(this.theme.symbolSheet).catch(() => null),
+      this.loadTexture(this.theme.background, this.rowCount > ROWS ? 960 : 960),
+      this.loadTexture(this.theme.symbolSheet, this.rowCount > ROWS ? 480 : 960),
     ]);
     this.backgroundTexture = backgroundTexture;
     this.symbolSheetTexture = symbolSheetTexture;
@@ -283,11 +304,11 @@ export class HotlineScene {
       const [symbolTextures, scatterTexture, multiplierTexture] = await Promise.all([
         Promise.all(
           this.theme.symbols.map((_symbol, symbolIdx) =>
-            Assets.load<Texture>(themeSymbolImage(this.theme, symbolIdx)).catch(() => null),
+            this.loadTexture(themeSymbolImage(this.theme, symbolIdx), 480),
           ),
         ),
-        Assets.load<Texture>(themeSpecialImage(this.theme, 'scatter')).catch(() => null),
-        Assets.load<Texture>(themeSpecialImage(this.theme, 'multiplier')).catch(() => null),
+        this.loadTexture(themeSpecialImage(this.theme, 'scatter'), 480),
+        this.loadTexture(themeSpecialImage(this.theme, 'multiplier'), 480),
       ]);
       this.symbolTextures = symbolTextures;
       this.scatterTexture = scatterTexture;
@@ -295,6 +316,21 @@ export class HotlineScene {
       return;
     }
     this.symbolTextures = this.createSymbolTextures(symbolSheetTexture, HOTLINE_SYMBOLS.length);
+  }
+
+  private async loadTexture(src: string, width: 480 | 960 | 1600): Promise<Texture | null> {
+    const optimizedSrc = optimizedPublicImage(src, width);
+    if (optimizedSrc !== src) {
+      const optimized = await Assets.load<Texture>(optimizedSrc).catch(() => null);
+      if (optimized) return optimized;
+    }
+    return Assets.load<Texture>(src).catch(() => null);
+  }
+
+  private getRendererResolution(): number {
+    const deviceResolution =
+      typeof window === 'undefined' ? 1 : Math.max(1, window.devicePixelRatio || 1);
+    return Math.min(deviceResolution, this.rowCount > ROWS ? MEGA_RENDER_DPR : CLASSIC_RENDER_DPR);
   }
 
   private createSymbolTextures(sheet: Texture | null, count: number): Texture[] {
@@ -397,14 +433,19 @@ export class HotlineScene {
 
   private createSymbolTile(symbolIdx: number): ReelSymbol {
     const c = new Container() as ReelSymbol;
+    c.eventMode = 'none';
     c.symbolIndex = -1;
     this.renderSymbolTile(c, symbolIdx);
     return c;
   }
 
   private renderSymbolTile(c: ReelSymbol, symbolIdx: number, special?: HotlineSpecialSymbol): void {
+    const nextSpecialKey = specialKey(special);
+    if (c.symbolIndex === symbolIdx && c.specialKey === nextSpecialKey && c.children.length > 0) {
+      return;
+    }
     c.symbolIndex = symbolIdx;
-    c.specialKey = specialKey(special);
+    c.specialKey = nextSpecialKey;
     const oldChildren = c.removeChildren();
     for (const child of oldChildren) child.destroy({ children: true });
 
@@ -440,6 +481,7 @@ export class HotlineScene {
     const symbolTexture = this.symbolTextures[symbolIdx];
     if (symbolTexture) {
       const sprite = new Sprite(symbolTexture);
+      sprite.eventMode = 'none';
       sprite.anchor.set(0.5);
       const targetW = width - 8;
       const targetH = height - 8;
@@ -530,6 +572,7 @@ export class HotlineScene {
 
     if (texture) {
       const sprite = new Sprite(texture);
+      sprite.eventMode = 'none';
       sprite.anchor.set(0.5);
       const targetW = width - (isScatter ? 12 : 8);
       const targetH = height - (isScatter ? 12 : 8);
@@ -765,11 +808,6 @@ export class HotlineScene {
 
   private startTickers(): void {
     if (!this.app) return;
-    this.ambientTicker = (_tk: Ticker) => {
-      // 暫無 ambient 效果
-    };
-    this.app.ticker.add(this.ambientTicker);
-
     this.particleTicker = (tk: Ticker) => {
       for (let i = this.particleList.length - 1; i >= 0; i -= 1) {
         const p = this.particleList[i]!;
@@ -802,37 +840,45 @@ export class HotlineScene {
    */
   private anticipating = false;
   startAnticipation(fast = false): void {
-    if (this.anticipating) return;
+    if (this.anticipating || !this.app) return;
     this.anticipating = true;
     Sfx.slotSpinStart();
-    for (let reelIndex = 0; reelIndex < this.reels.length; reelIndex += 1) {
-      const reel = this.reels[reelIndex]!;
-      const totalH = REEL_STRIP_LEN * reel.cellSize;
+    for (const reel of this.reels) {
       for (const sym of reel.symbols) {
         gsap.killTweensOf(sym);
-        gsap.to(sym, {
-          y: `+=${this.cellSize * 1.2}`,
-          duration: fast ? 0.045 + reelIndex * 0.006 : 0.1 + reelIndex * 0.015,
-          ease: 'none',
-          repeat: -1,
-          modifiers: {
-            y: (yStr) => {
-              const yN = Number.parseFloat(yStr);
-              const wrapped =
-                ((((yN - reel.cellSize / 2) % totalH) + totalH) % totalH) + reel.cellSize / 2;
-              return `${wrapped}`;
-            },
-          },
-        });
+        gsap.killTweensOf(sym.scale);
       }
     }
+    const speeds = this.reels.map((reel, reelIndex) => {
+      const base = fast ? 0.46 : 0.24;
+      return reel.cellSize * base * (1 + reelIndex * 0.035);
+    });
+    this.anticipationTicker = (tk: Ticker) => {
+      const delta = Math.min(2.5, Math.max(0.25, tk.deltaTime));
+      for (let reelIndex = 0; reelIndex < this.reels.length; reelIndex += 1) {
+        const reel = this.reels[reelIndex]!;
+        const speed = speeds[reelIndex] ?? reel.cellSize * 0.24;
+        const totalH = REEL_STRIP_LEN * reel.cellSize;
+        const maxY = totalH + reel.cellSize / 2;
+        for (const sym of reel.symbols) {
+          sym.y += speed * delta;
+          while (sym.y >= maxY) {
+            sym.y -= totalH;
+            this.renderSymbolTile(sym, this.randomSymbolIndex());
+          }
+        }
+      }
+    };
+    this.app.ticker.add(this.anticipationTicker);
   }
 
   stopAnticipation(normalize = true, stopSound = true): void {
     if (!this.anticipating) {
+      this.clearAnticipationTicker();
       if (stopSound) Sfx.slotSpinStop();
       return;
     }
+    this.clearAnticipationTicker();
     for (const reel of this.reels) {
       gsap.killTweensOf(reel.container);
       gsap.killTweensOf(reel.container.scale);
@@ -842,6 +888,13 @@ export class HotlineScene {
     }
     this.anticipating = false;
     if (stopSound) Sfx.slotSpinStop();
+  }
+
+  private clearAnticipationTicker(): void {
+    if (this.anticipationTicker && this.app) {
+      this.app.ticker.remove(this.anticipationTicker);
+    }
+    this.anticipationTicker = null;
   }
 
   async playSpin(

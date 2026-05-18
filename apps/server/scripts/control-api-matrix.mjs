@@ -36,7 +36,10 @@ import { GameId, SLOT_GAME_IDS } from '@bg/shared';
 const prisma = new PrismaClient();
 const amount = 10;
 const password = 'ControlApiTest123!';
-const runId = `ctrl_api_${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}`;
+const runId = `ctrl_api_${new Date()
+  .toISOString()
+  .replace(/[-:.TZ]/g, '')
+  .slice(0, 14)}`;
 const clientSeed = `${runId}_client`;
 const testSeedBase = `${runId}_server`;
 const gameFilter = argCsv('--game');
@@ -79,15 +82,16 @@ const controlCases = [
     listUrl: '/api/admin/controls/win-loss',
     deleteUrl: (id) => `/api/admin/controls/win-loss/${id}`,
     toggleUrl: (id) => `/api/admin/controls/win-loss/${id}/toggle`,
-    create: () => adminPost('/api/admin/controls/win-loss', {
-      controlMode: 'SINGLE_MEMBER',
-      targetType: 'member',
-      targetId: player.id,
-      targetUsername: player.username,
-      controlPercentage: '100',
-      winControl: true,
-      lossControl: false,
-    }),
+    create: () =>
+      adminPost('/api/admin/controls/win-loss', {
+        controlMode: 'SINGLE_MEMBER',
+        targetType: 'member',
+        targetId: player.id,
+        targetUsername: player.username,
+        controlPercentage: '100',
+        winControl: true,
+        lossControl: false,
+      }),
   },
   {
     key: 'win_loss_loss',
@@ -99,15 +103,16 @@ const controlCases = [
     listUrl: '/api/admin/controls/win-loss',
     deleteUrl: (id) => `/api/admin/controls/win-loss/${id}`,
     toggleUrl: (id) => `/api/admin/controls/win-loss/${id}/toggle`,
-    create: () => adminPost('/api/admin/controls/win-loss', {
-      controlMode: 'SINGLE_MEMBER',
-      targetType: 'member',
-      targetId: player.id,
-      targetUsername: player.username,
-      controlPercentage: '100',
-      winControl: false,
-      lossControl: true,
-    }),
+    create: () =>
+      adminPost('/api/admin/controls/win-loss', {
+        controlMode: 'SINGLE_MEMBER',
+        targetType: 'member',
+        targetId: player.id,
+        targetUsername: player.username,
+        controlPercentage: '100',
+        winControl: false,
+        lossControl: true,
+      }),
   },
   {
     key: 'member_win_cap',
@@ -119,14 +124,15 @@ const controlCases = [
     listUrl: '/api/admin/controls/win-cap',
     deleteUrl: (id) => `/api/admin/controls/win-cap/${id}`,
     toggleUrl: (id) => `/api/admin/controls/win-cap/${id}/toggle`,
-    create: () => adminPost('/api/admin/controls/win-cap', {
-      memberId: player.id,
-      memberUsername: player.username,
-      winCapAmount: '1',
-      controlWinRate: '0',
-      triggerThreshold: '0',
-      notes: runId,
-    }),
+    create: () =>
+      adminPost('/api/admin/controls/win-cap', {
+        memberId: player.id,
+        memberUsername: player.username,
+        winCapAmount: '1',
+        controlWinRate: '0',
+        triggerThreshold: '0',
+        notes: runId,
+      }),
   },
   {
     key: 'agent_line_cap',
@@ -138,14 +144,15 @@ const controlCases = [
     listUrl: '/api/admin/controls/agent-line',
     deleteUrl: (id) => `/api/admin/controls/agent-line/${id}`,
     toggleUrl: (id) => `/api/admin/controls/agent-line/${id}/toggle`,
-    create: () => adminPost('/api/admin/controls/agent-line', {
-      agentId: lineAgent.id,
-      agentUsername: lineAgent.username,
-      dailyCap: '1',
-      controlWinRate: '0',
-      triggerThreshold: '0',
-      notes: runId,
-    }),
+    create: () =>
+      adminPost('/api/admin/controls/agent-line', {
+        agentId: lineAgent.id,
+        agentUsername: lineAgent.username,
+        dailyCap: '1',
+        controlWinRate: '0',
+        triggerThreshold: '0',
+        notes: runId,
+      }),
   },
   {
     key: 'deposit_win',
@@ -202,12 +209,13 @@ const controlCases = [
     supportsToggle: false,
     listUrl: '/api/admin/controls/manual-detection/status',
     deleteUrl: (id) => `/api/admin/controls/manual-detection/${id}`,
-    create: () => adminPost('/api/admin/controls/manual-detection/activate', {
-      scope: 'MEMBER',
-      targetMemberUsername: player.username,
-      targetSettlement: '999999999',
-      controlPercentage: 100,
-    }),
+    create: () =>
+      adminPost('/api/admin/controls/manual-detection/activate', {
+        scope: 'MEMBER',
+        targetMemberUsername: player.username,
+        targetSettlement: '999999999',
+        controlPercentage: 100,
+      }),
   },
   {
     key: 'manual_detection_loss',
@@ -218,12 +226,13 @@ const controlCases = [
     supportsToggle: false,
     listUrl: '/api/admin/controls/manual-detection/status',
     deleteUrl: (id) => `/api/admin/controls/manual-detection/${id}`,
-    create: () => adminPost('/api/admin/controls/manual-detection/activate', {
-      scope: 'MEMBER',
-      targetMemberUsername: player.username,
-      targetSettlement: '-999999999',
-      controlPercentage: 100,
-    }),
+    create: () =>
+      adminPost('/api/admin/controls/manual-detection/activate', {
+        scope: 'MEMBER',
+        targetMemberUsername: player.username,
+        targetSettlement: '-999999999',
+        controlPercentage: 100,
+      }),
   },
   {
     key: 'burst_win',
@@ -236,11 +245,15 @@ const controlCases = [
     listUrl: '/api/admin/controls/burst',
     deleteUrl: (id) => `/api/admin/controls/burst/${id}`,
     toggleUrl: (id) => `/api/admin/controls/burst/${id}/toggle`,
-    create: () => adminPost('/api/admin/controls/burst', burstBody({
-      burstRate: '100',
-      smallWinRate: '0',
-      lossRate: '0',
-    })),
+    create: () =>
+      adminPost(
+        '/api/admin/controls/burst',
+        burstBody({
+          burstRate: '100',
+          smallWinRate: '0',
+          lossRate: '0',
+        }),
+      ),
   },
   {
     key: 'burst_loss',
@@ -253,11 +266,15 @@ const controlCases = [
     listUrl: '/api/admin/controls/burst',
     deleteUrl: (id) => `/api/admin/controls/burst/${id}`,
     toggleUrl: (id) => `/api/admin/controls/burst/${id}/toggle`,
-    create: () => adminPost('/api/admin/controls/burst', burstBody({
-      burstRate: '0',
-      smallWinRate: '0',
-      lossRate: '100',
-    })),
+    create: () =>
+      adminPost(
+        '/api/admin/controls/burst',
+        burstBody({
+          burstRate: '0',
+          smallWinRate: '0',
+          lossRate: '100',
+        }),
+      ),
   },
 ];
 
@@ -346,7 +363,9 @@ function selectedGames() {
 }
 
 function selectedControls() {
-  return controlFilter ? controlCases.filter((control) => controlFilter.has(control.key)) : controlCases;
+  return controlFilter
+    ? controlCases.filter((control) => controlFilter.has(control.key))
+    : controlCases;
 }
 
 function acceptsBurstLossPlan(plan) {
@@ -484,19 +503,23 @@ async function runControlGameCase(control, game) {
     const log = await latestControlLog(controlId, game.id);
 
     const pendingWinPass =
-      control.desired === 'WIN' &&
-      game.winCanRemainPending &&
-      run.effect === 'WIN' &&
-      !log;
+      control.desired === 'WIN' && game.winCanRemainPending && run.effect === 'WIN' && !log;
     if (pendingWinPass) {
-      return { ok: true, gameId: game.id, control: control.key, note: 'pending win effect verified' };
+      return {
+        ok: true,
+        gameId: game.id,
+        control: control.key,
+        note: 'pending win effect verified',
+      };
     }
 
     if (!log) {
       throw new Error(`no WinLossControlLogs row for ${controlId}; effect=${run.effect}`);
     }
     if (!control.expectedReasons.includes(log.flipReason)) {
-      throw new Error(`unexpected flipReason ${log.flipReason}, expected one of ${control.expectedReasons.join(', ')}`);
+      throw new Error(
+        `unexpected flipReason ${log.flipReason}, expected one of ${control.expectedReasons.join(', ')}`,
+      );
     }
     const finalWon = Boolean(log.finalResult?.won);
     if (control.desired === 'WIN' && !finalWon) {
@@ -532,7 +555,9 @@ async function assertListed(control, id) {
 
 async function deleteControl(control, id) {
   if (control.key.startsWith('manual_detection')) {
-    await adminPost('/api/admin/controls/manual-detection/deactivate', { id }).catch(() => undefined);
+    await adminPost('/api/admin/controls/manual-detection/deactivate', { id }).catch(
+      () => undefined,
+    );
   }
   await adminDelete(control.deleteUrl(id));
 }
@@ -602,7 +627,8 @@ function findPlan(game, raw, acceptPlan) {
   const seed = `${testSeedBase}:${game.id}:plan:${raw}`;
   for (let nonce = 1; nonce <= (game.maxSearch ?? 50000); nonce += 1) {
     const plan = game.plan(seed, clientSeed, nonce, raw);
-    if (plan.rawWin === wantWin && (!acceptPlan || acceptPlan(plan))) return { ...plan, nonce, seed };
+    if (plan.rawWin === wantWin && (!acceptPlan || acceptPlan(plan)))
+      return { ...plan, nonce, seed };
   }
   throw new Error(`cannot find raw ${raw} plan for ${game.id}`);
 }
@@ -616,7 +642,12 @@ function makeDiceGame() {
     plan: (seed, c, nonce) => {
       const outcome = diceDetermine(seed, c, nonce, payload.target, payload.direction);
       const payout = outcome.multiplier * amount;
-      return { rawWin: outcome.won && payout > amount, multiplier: outcome.multiplier, payout, payload };
+      return {
+        rawWin: outcome.won && payout > amount,
+        multiplier: outcome.multiplier,
+        payout,
+        payload,
+      };
     },
     run: async (plan) => {
       const res = await playerPost('/api/games/dice/bet', plan.payload);
@@ -699,7 +730,12 @@ function makeRouletteGame(id, url, name) {
       const { slot } = rouletteSpin(seed, c, nonce);
       const evaluated = rouletteEvaluate(slot, payload.bets);
       const multiplier = evaluated.totalPayout / amount;
-      return { rawWin: evaluated.totalPayout > amount, multiplier, payout: evaluated.totalPayout, payload };
+      return {
+        rawWin: evaluated.totalPayout > amount,
+        multiplier,
+        payout: evaluated.totalPayout,
+        payload,
+      };
     },
     run: async (plan) => {
       const res = await playerPost(url, plan.payload);
@@ -720,7 +756,10 @@ function makeHotlineGame(id) {
       const round =
         rowCount > 3
           ? hotlineSpinCascades(seed, c, nonce, reelCount, rowCount)
-          : { totalMultiplier: hotlineEvaluate(hotlineSpin(seed, c, nonce, reelCount, rowCount)).totalMultiplier };
+          : {
+              totalMultiplier: hotlineEvaluate(hotlineSpin(seed, c, nonce, reelCount, rowCount))
+                .totalMultiplier,
+            };
       const payout = round.totalMultiplier * amount;
       return { rawWin: payout > amount, multiplier: round.totalMultiplier, payout, payload };
     },
@@ -777,33 +816,54 @@ function makeHiloGame() {
         for (const guess of ['higher', 'lower']) {
           const current = hiloDraw(seed, c, nonce, 0);
           const next = hiloDraw(seed, c, nonce, 1);
-          const rawCorrect = guess === 'higher' ? next.rank >= current.rank : next.rank <= current.rank;
-          const chance = guess === 'higher' ? hiloProbHigherOrEqual(current.rank) : hiloProbLowerOrEqual(current.rank);
+          const rawCorrect =
+            guess === 'higher' ? next.rank >= current.rank : next.rank <= current.rank;
+          const chance =
+            guess === 'higher'
+              ? hiloProbHigherOrEqual(current.rank)
+              : hiloProbLowerOrEqual(current.rank);
           const multiplier = hiloMultiplier(chance);
           if (rawCorrect && multiplier * amount > amount) {
-            return { rawWin: true, multiplier, payout: multiplier * amount, startPayload, guessPayload: { guess } };
+            return {
+              rawWin: true,
+              multiplier,
+              payout: multiplier * amount,
+              startPayload,
+              guessPayload: { guess },
+            };
           }
         }
       } else {
         const current = hiloDraw(seed, c, nonce, 0);
         const next = hiloDraw(seed, c, nonce, 1);
         for (const guess of ['higher', 'lower']) {
-          const rawCorrect = guess === 'higher' ? next.rank >= current.rank : next.rank <= current.rank;
-          const chance = guess === 'higher' ? hiloProbHigherOrEqual(current.rank) : hiloProbLowerOrEqual(current.rank);
+          const rawCorrect =
+            guess === 'higher' ? next.rank >= current.rank : next.rank <= current.rank;
+          const chance =
+            guess === 'higher'
+              ? hiloProbHigherOrEqual(current.rank)
+              : hiloProbLowerOrEqual(current.rank);
           const multiplier = hiloMultiplier(chance);
           if (!rawCorrect) {
             return {
               rawWin: false,
               multiplier,
               payout: multiplier * amount,
-              controlSafeWin: multiplier > 1 && multiplier <= 3 && multiplier * amount <= amount + 20,
+              controlSafeWin:
+                multiplier > 1 && multiplier <= 3 && multiplier * amount <= amount + 20,
               startPayload,
               guessPayload: { guess },
             };
           }
         }
       }
-      return { rawWin: raw === 'win' ? false : true, multiplier: 0, payout: 0, startPayload, guessPayload: { guess: 'higher' } };
+      return {
+        rawWin: raw === 'win' ? false : true,
+        multiplier: 0,
+        payout: 0,
+        startPayload,
+        guessPayload: { guess: 'higher' },
+      };
     },
     run: async (plan) => {
       const start = await playerPost('/api/games/hilo/start', plan.startPayload);
@@ -894,13 +954,19 @@ function makeBlackjackGame() {
       const start = await playerPost('/api/games/blackjack/start', plan.startPayload);
       if (start.body.state?.status !== 'ACTIVE') {
         const latest = await latestBet(GameId.BLACKJACK);
-        return { effect: latest?.payout?.greaterThan(latest.amount) ? 'WIN' : 'LOSS', body: start.body };
+        return {
+          effect: latest?.payout?.greaterThan(latest.amount) ? 'WIN' : 'LOSS',
+          body: start.body,
+        };
       }
       const stand = await playerPost('/api/games/blackjack/stand', {
         roundId: start.body.state.roundId,
       });
       const latest = await latestBet(GameId.BLACKJACK);
-      return { effect: latest?.payout?.greaterThan(latest.amount) ? 'WIN' : 'LOSS', body: stand.body };
+      return {
+        effect: latest?.payout?.greaterThan(latest.amount) ? 'WIN' : 'LOSS',
+        body: stand.body,
+      };
     },
   };
 }
@@ -914,7 +980,7 @@ function settleBlackjackStand(seed, c, nonce) {
 
   if (playerScore.isBlackjack || dealerScore.isBlackjack) {
     if (playerScore.isBlackjack && dealerScore.isBlackjack) return { payout: amount, playerScore };
-    if (playerScore.isBlackjack) return { payout: amount * 2, playerScore };
+    if (playerScore.isBlackjack) return { payout: amount * 2.5, playerScore };
     return { payout: 0, playerScore };
   }
 
@@ -1022,11 +1088,17 @@ async function reportPotentialInterference() {
     where: {
       isActive: true,
       operatorUsername: { not: { startsWith: runId } },
-      OR: [{ controlMode: 'NORMAL' }, { controlMode: 'AUTO_DETECT' }, { controlMode: 'AGENT_LINE' }],
+      OR: [
+        { controlMode: 'NORMAL' },
+        { controlMode: 'AUTO_DETECT' },
+        { controlMode: 'AGENT_LINE' },
+      ],
     },
   });
   if (activeWinLoss > 0) {
-    console.warn(`[control-api] warning: ${activeWinLoss} active non-test win/loss controls may preempt lower-priority controls.`);
+    console.warn(
+      `[control-api] warning: ${activeWinLoss} active non-test win/loss controls may preempt lower-priority controls.`,
+    );
   }
 }
 
@@ -1036,7 +1108,9 @@ function printSummary() {
   console.log('\n[control-api] Summary');
   console.log(`  passed: ${passed}`);
   console.log(`  failed: ${failed.length}`);
-  console.log('  skipped realtime socket games: rocket, aviator, space-fleet, jetx, balloon, jetx3, double-x');
+  console.log(
+    '  skipped realtime socket games: rocket, aviator, space-fleet, jetx, balloon, jetx3, double-x',
+  );
   console.log('  skipped disabled/external games: baccarat, baccarat-nova, baccarat-imperial');
   console.log('  skipped registry-only game without backend route: plinko-x');
   if (failed.length > 0) {
@@ -1062,8 +1136,12 @@ async function cleanup(prefix) {
   await prisma.winLossControlLogs.deleteMany({
     where: userIds.length ? { userId: { in: userIds } } : { controlId: { startsWith: prefix } },
   });
-  await prisma.memberWinCapControl.deleteMany({ where: { memberUsername: { startsWith: prefix } } });
-  await prisma.memberDepositControl.deleteMany({ where: { memberUsername: { startsWith: prefix } } });
+  await prisma.memberWinCapControl.deleteMany({
+    where: { memberUsername: { startsWith: prefix } },
+  });
+  await prisma.memberDepositControl.deleteMany({
+    where: { memberUsername: { startsWith: prefix } },
+  });
   if (agentIds.length) {
     await prisma.agentLineWinCap.deleteMany({ where: { agentId: { in: agentIds } } });
   }
@@ -1109,7 +1187,10 @@ async function cleanup(prefix) {
 
   if (agentIds.length) {
     await prisma.agentRefreshToken.deleteMany({ where: { agentId: { in: agentIds } } });
-    await prisma.agent.updateMany({ where: { parentId: { in: agentIds } }, data: { parentId: null } });
+    await prisma.agent.updateMany({
+      where: { parentId: { in: agentIds } },
+      data: { parentId: null },
+    });
     await prisma.agent.deleteMany({ where: { id: { in: agentIds } } });
   }
 }

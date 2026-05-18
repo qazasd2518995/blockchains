@@ -85,10 +85,10 @@ describe('settleBlackjackHands', () => {
 describe('applyBlackjackControl', () => {
   it('preserves player cards when forcing a win', () => {
     const originalCards = [c(10, 0), c(5, 1)];
-    const [rawHand] = settleBlackjackHands([hand(originalCards, { status: 'STANDING' })], [
-      c(10, 2),
-      c(8, 3),
-    ]);
+    const [rawHand] = settleBlackjackHands(
+      [hand(originalCards, { status: 'STANDING' })],
+      [c(10, 2), c(8, 3)],
+    );
 
     const settled = applyBlackjackControl(
       [rawHand!],
@@ -108,19 +108,17 @@ describe('applyBlackjackControl', () => {
     expect(settled.hands[0]?.cards).toEqual(originalCards);
     expect(settled.hands[0]?.outcome).toBe('WIN');
     expect(settled.dealerHand[0]).toEqual(c(10, 2));
-    expect(settled.dealerHand.map((card) => Math.min(card.rank === 1 ? 11 : card.rank, 10))).toEqual([
-      10,
-      6,
-      10,
-    ]);
+    expect(
+      settled.dealerHand.map((card) => Math.min(card.rank === 1 ? 11 : card.rank, 10)),
+    ).toEqual([10, 6, 10]);
   });
 
   it('preserves the visible dealer upcard when forcing a loss', () => {
     const originalCards = [c(10, 0), c(5, 1)];
-    const [rawHand] = settleBlackjackHands([hand(originalCards, { status: 'STANDING' })], [
-      c(8, 2),
-      c(10, 3),
-    ]);
+    const [rawHand] = settleBlackjackHands(
+      [hand(originalCards, { status: 'STANDING' })],
+      [c(8, 2), c(10, 3)],
+    );
 
     const settled = applyBlackjackControl(
       [rawHand!],
@@ -149,8 +147,8 @@ describe('applyBlackjackControl', () => {
       [
         hand(originalCards, {
           outcome: 'BLACKJACK',
-          payout: '20.00',
-          multiplier: '2.0000',
+          payout: '25.00',
+          multiplier: '2.5000',
         }),
       ],
       [c(10, 2), c(8, 3)],
@@ -168,5 +166,36 @@ describe('applyBlackjackControl', () => {
     expect(settled.controlled).toBe(false);
     expect(settled.hands[0]?.cards).toEqual(originalCards);
     expect(settled.hands[0]?.outcome).toBe('BLACKJACK');
+    expect(settled.hands[0]?.payout).toBe('25.00');
+    expect(settled.hands[0]?.multiplier).toBe('2.5000');
+  });
+
+  it('keeps a controlled natural blackjack at 3:2 payout', () => {
+    const originalCards = [c(1, 0), c(13, 1)];
+    const settled = applyBlackjackControl(
+      [
+        hand(originalCards, {
+          outcome: 'BLACKJACK',
+          payout: '25.00',
+          multiplier: '2.5000',
+        }),
+      ],
+      [c(10, 2), c(8, 3)],
+      new Prisma.Decimal('10.00'),
+      {
+        won: true,
+        multiplier: new Prisma.Decimal('2.5'),
+        payout: new Prisma.Decimal('25.00'),
+        controlled: true,
+        flipReason: 'manual_test',
+        controlId: 'control-1',
+      },
+    );
+
+    expect(settled.controlled).toBe(true);
+    expect(settled.hands[0]?.cards).toEqual(originalCards);
+    expect(settled.hands[0]?.outcome).toBe('BLACKJACK');
+    expect(settled.hands[0]?.payout).toBe('25.00');
+    expect(settled.hands[0]?.multiplier).toBe('2.5000');
   });
 });

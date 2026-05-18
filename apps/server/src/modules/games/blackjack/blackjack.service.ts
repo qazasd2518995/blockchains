@@ -706,7 +706,7 @@ export function applyBlackjackControl(
     return applyBlackjackLossControl(rawHands, dealerHand, amount, control);
   }
 
-  const targetMultiplier = new Prisma.Decimal(BLACKJACK_HOUSE_RULES.regularWinPayout);
+  const targetMultiplier = controlledWinTargetMultiplier(rawHands);
   if (!multiplierMatchesControlBounds(targetMultiplier, amount, control)) {
     const guarded: ControlOutcome = {
       won: false,
@@ -804,13 +804,17 @@ function applyBlackjackWinControl(
       };
     }
 
-    const payout = bet.mul(BLACKJACK_HOUSE_RULES.regularWinPayout);
+    const isNaturalBlackjack = hand.outcome === 'BLACKJACK' && score.isBlackjack && !hand.splitAces;
+    const payoutMultiplier = isNaturalBlackjack
+      ? BLACKJACK_HOUSE_RULES.blackjackPayout
+      : BLACKJACK_HOUSE_RULES.regularWinPayout;
+    const payout = bet.mul(payoutMultiplier);
     return {
       ...hand,
       status: 'RESOLVED' as const,
-      outcome: score.isBlackjack ? ('BLACKJACK' as const) : ('WIN' as const),
+      outcome: isNaturalBlackjack ? ('BLACKJACK' as const) : ('WIN' as const),
       payout: payout.toFixed(2),
-      multiplier: BLACKJACK_HOUSE_RULES.regularWinPayout.toFixed(4),
+      multiplier: payoutMultiplier.toFixed(4),
     };
   });
   const payout = sumHandPayout(hands);
@@ -845,6 +849,23 @@ function canRepresentControlledWin(hands: StoredBlackjackHand[]): boolean {
     const score = blackjackScore(hand.cards);
     return !score.isBust && hand.status !== 'BUSTED';
   });
+}
+
+function controlledWinTargetMultiplier(hands: StoredBlackjackHand[]): Prisma.Decimal {
+  const hasNaturalBlackjack = hands.some((hand) => {
+    const score = blackjackScore(hand.cards);
+    return (
+      hand.outcome === 'BLACKJACK' &&
+      score.isBlackjack &&
+      !hand.splitAces &&
+      hand.status !== 'BUSTED'
+    );
+  });
+  return new Prisma.Decimal(
+    hasNaturalBlackjack
+      ? BLACKJACK_HOUSE_RULES.blackjackPayout
+      : BLACKJACK_HOUSE_RULES.regularWinPayout,
+  );
 }
 
 function canHitHand(hand: StoredBlackjackHand): boolean {
@@ -936,7 +957,7 @@ function multiplierFromPayout(payout: Prisma.Decimal, amount: Prisma.Decimal): P
 
 function blackjackRulesPayload() {
   return {
-    blackjackPays: '1:1',
+    blackjackPays: '3:2',
     regularWinPays: '1:1',
     pushReturnsStake: true,
     dealerStandsSoft17: BLACKJACK_HOUSE_RULES.dealerStandsSoft17,

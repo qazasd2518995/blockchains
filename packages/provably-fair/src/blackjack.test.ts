@@ -47,7 +47,7 @@ describe('blackjackScore', () => {
 
 describe('blackjackDealerShouldHit', () => {
   it('uses the house rules tuned for fixed rebate', () => {
-    expect(BLACKJACK_HOUSE_RULES.blackjackPayout).toBe(2);
+    expect(BLACKJACK_HOUSE_RULES.blackjackPayout).toBe(2.5);
     expect(BLACKJACK_HOUSE_RULES.dealerStandsSoft17).toBe(false);
   });
 

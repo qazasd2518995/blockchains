@@ -141,7 +141,7 @@ const GAMES: Game[] = [
     rtp: '97%',
     maxMultiplier: '2×',
     duration: '單局 10–40 秒',
-    intro: '正式 21 點牌桌玩法，玩家與莊家比點數，Blackjack 按 1:1 派彩。',
+    intro: '正式 21 點牌桌玩法，玩家與莊家比點數，Blackjack 按 3:2 派彩。',
     howToPlay: [
       '起手玩家與莊家各兩張，莊家一張暗牌，玩家可補牌、停牌、加倍或分牌。',
       '點數超過 21 即爆牌；A 可算 1 或 11，J/Q/K 算 10。',
