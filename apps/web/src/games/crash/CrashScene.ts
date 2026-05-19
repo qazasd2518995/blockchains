@@ -1118,7 +1118,7 @@ export class CrashScene {
     }
 
     if (this.multiplierLabel) {
-      this.multiplierLabel.text = `${seconds}`;
+      this.multiplierLabel.text = seconds > 0 ? `${seconds}` : formatCrashMultiplier(1);
       this.multiplierLabel.style.fill = COLOR_ACID;
       this.multiplierLabel.alpha = 1;
       gsap.fromTo(
@@ -1128,7 +1128,7 @@ export class CrashScene {
       );
     }
     if (this.statusLabel) {
-      this.statusLabel.text = 'BETTING WINDOW';
+      this.statusLabel.text = seconds > 0 ? 'BETTING WINDOW' : 'READY';
       this.statusLabel.style.fill = COLOR_ACID;
     }
   }

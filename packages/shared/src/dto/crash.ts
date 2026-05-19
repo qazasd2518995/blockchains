@@ -14,6 +14,7 @@ export interface CrashRoundSnapshot {
 }
 
 export interface CrashBetRequest {
+  gameId?: string;
   amount: number;
   autoCashOut?: number;
   clientSeed?: string;
@@ -22,6 +23,21 @@ export interface CrashBetRequest {
 export interface CrashCashOutResponse {
   multiplier: number;
   payout: string;
+  newBalance: string;
+}
+
+export interface CrashSoloRoundState extends CrashRoundSnapshot {
+  betId: string;
+  amount: string;
+  autoCashOut?: number;
+  cashedOutAt?: number;
+  payout: string;
+  currentMultiplier: number;
+  elapsedMs: number;
+  newBalance?: string;
+}
+
+export interface CrashBetStartResponse extends CrashSoloRoundState {
   newBalance: string;
 }
 

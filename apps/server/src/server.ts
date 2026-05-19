@@ -4,11 +4,9 @@ import helmet from '@fastify/helmet';
 import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
-import { Server as SocketIOServer } from 'socket.io';
 
 import { config, isAllowedOrigin } from './config.js';
 import {
-  GameId,
   MAX_BET_AMOUNT,
   MIN_BET_AMOUNT,
   PLINKO_MAX_BALLS,
@@ -34,7 +32,7 @@ import { hotlineRoutes } from './modules/games/hotline/hotline.routes.js';
 import { towerRoutes } from './modules/games/tower/tower.routes.js';
 import { blackjackRoutes } from './modules/games/blackjack/blackjack.routes.js';
 import { chickenRoadRoutes } from './modules/games/chicken-road/chicken-road.routes.js';
-import { CrashRoomRegistry } from './realtime/crashRoom.js';
+import { crashRoutes } from './modules/games/crash/crash.routes.js';
 import { ApiError, errorCodeToStatus } from './utils/errors.js';
 import {
   getRequestLogContext,
@@ -274,43 +272,8 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(towerRoutes, { prefix: '/api/games/tower' });
   await server.register(blackjackRoutes, { prefix: '/api/games/blackjack' });
   await server.register(chickenRoadRoutes, { prefix: '/api/games/chicken-road' });
-
-  // Socket.IO for Crash games
-  server.ready().then(() => {
-    const io = new SocketIOServer(server.server, {
-      cors: {
-        origin: (origin, cb) => {
-          cb(null, isAllowedOrigin(origin));
-        },
-        credentials: true,
-      },
-      transports: ['websocket', 'polling'],
-    });
-    const registry = new CrashRoomRegistry(io, server.prisma, {
-      verifyToken: async (token) => {
-        const payload = await server.jwt.verify<{ sub: string; role: string }>(token);
-        if (!payload.sub || payload.role !== 'PLAYER') {
-          throw new Error('Authentication required');
-        }
-        return { userId: payload.sub };
-      },
-    });
-    for (const gameId of [
-      GameId.ROCKET,
-      GameId.AVIATOR,
-      GameId.SPACE_FLEET,
-      GameId.JETX,
-      GameId.BALLOON,
-      GameId.JETX3,
-      GameId.DOUBLE_X,
-    ]) {
-      registry.register({ gameId });
-    }
-    void registry.startAll().catch((err) => {
-      server.log.error(err, '[socket.io] failed to initialize crash rooms');
-    });
-    server.log.info('[socket.io] Crash rooms initialized');
-  });
+  await server.register(crashRoutes, { prefix: '/api/games/crash' });
+  server.log.info('[crash] Solo crash API enabled; shared countdown rooms disabled');
 
   return server;
 }

@@ -3,15 +3,16 @@ import { AlertCircle } from 'lucide-react';
 import {
   MAX_BET_AMOUNT,
   MIN_BET_AMOUNT,
-  type CrashPlayerBet,
-  type CrashRoundSnapshot,
+  type CrashBetStartResponse,
+  type CrashCashOutResponse,
+  type CrashSoloRoundState,
 } from '@bg/shared';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
 import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount } from '@/lib/utils';
-import { getCrashSocket, disconnectCrashSocket } from '@/lib/socket';
+import { api, extractApiError } from '@/lib/api';
 import { useTranslation } from '@/i18n/useTranslation';
 import { CrashScene } from '@/games/crash/CrashScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
@@ -22,8 +23,13 @@ interface Props {
   config: CrashGameConfig;
 }
 
-type LocalCrashBet = { amount: number; cashed: boolean; payout?: string };
-type QueuedCrashBet = { amount: number; autoCashOut?: number; roundNumber?: number };
+type LocalCrashBet = {
+  amount: number;
+  cashed: boolean;
+  payout?: string;
+  roundId?: string;
+  betId?: string;
+};
 type CrashAutoSettings = { rounds: number | null; amount: number; autoCashOut: number };
 type CrashAutoDraft = { rounds: string; amount: string; autoCashOut: string };
 type SimulatedCrashBet = {
@@ -38,6 +44,7 @@ const SIMULATED_LIVE_MIN = 10;
 const SIMULATED_LIVE_MAX = 28;
 const SIMULATED_STAKE_MIN = 20;
 const SIMULATED_STAKE_MAX = 500;
+const SOLO_CLIENT_GROWTH_RATE = 0.00072;
 let simulatedLiveBetSerial = 0;
 
 function formatCrashMultiplier(value: string | number): string {
@@ -144,17 +151,14 @@ export function CrashPage({ config }: Props) {
   const [autoCashOut, setAutoCashOut] = useState('');
   const [multiplier, setMultiplier] = useState(1.0);
   const [status, setStatus] = useState<'BETTING' | 'RUNNING' | 'CRASHED'>('BETTING');
-  const [snapshot, setSnapshot] = useState<CrashRoundSnapshot | null>(null);
+  const [roundNumber, setRoundNumber] = useState<number | null>(null);
   const [crashPoint, setCrashPoint] = useState<number | null>(null);
   const [myBet, setMyBet] = useState<LocalCrashBet | null>(null);
-  const [queuedBet, setQueuedBet] = useState<QueuedCrashBet | null>(null);
-  const [players, setPlayers] = useState<CrashPlayerBet[]>([]);
   const [simulatedLiveBets, setSimulatedLiveBets] = useState<SimulatedCrashBet[]>(() =>
     createSimulatedCrashBets(config.gameId),
   );
   const [history, setHistory] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [bettingCountdown, setBettingCountdown] = useState(0);
   const [myHistory, setMyHistory] = useState<RecentBetRecord[]>([]);
   const [autoBetOpen, setAutoBetOpen] = useState(false);
   const [autoBetDraft, setAutoBetDraft] = useState<CrashAutoDraft>(() =>
@@ -163,14 +167,14 @@ export function CrashPage({ config }: Props) {
   const [autoBetActive, setAutoBetActive] = useState(false);
   const [autoBetRemaining, setAutoBetRemaining] = useState<number | null>(null);
   const [autoBetStopReason, setAutoBetStopReason] = useState('');
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const roundPollRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const optimisticFlightRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<CrashScene | null>(null);
   const myBetRef = useRef<LocalCrashBet | null>(null);
-  const queuedBetRef = useRef<QueuedCrashBet | null>(null);
   const appliedCashoutRef = useRef(false);
+  const finalizedRoundRef = useRef<string | null>(null);
   const statusRef = useRef(status);
-  const bettingCountdownRef = useRef(bettingCountdown);
   const crashPointRef = useRef(crashPoint);
   const multiplierRef = useRef(1.0);
   const userIdRef = useRef<string | null>(user?.id ?? null);
@@ -184,16 +188,8 @@ export function CrashPage({ config }: Props) {
   }, [myBet]);
 
   useEffect(() => {
-    queuedBetRef.current = queuedBet;
-  }, [queuedBet]);
-
-  useEffect(() => {
     statusRef.current = status;
   }, [status]);
-
-  useEffect(() => {
-    bettingCountdownRef.current = bettingCountdown;
-  }, [bettingCountdown]);
 
   useEffect(() => {
     crashPointRef.current = crashPoint;
@@ -217,8 +213,7 @@ export function CrashPage({ config }: Props) {
 
   const applySceneState = useCallback((scene: CrashScene) => {
     if (statusRef.current === 'BETTING') {
-      scene.startBetting(bettingCountdownRef.current);
-      scene.setCountdown(bettingCountdownRef.current);
+      scene.startBetting(0);
       return;
     }
 
@@ -280,16 +275,9 @@ export function CrashPage({ config }: Props) {
   useEffect(() => {
     if (!sceneRef.current) return;
     if (status === 'BETTING') {
-      sceneRef.current.startBetting(bettingCountdown);
+      sceneRef.current.startBetting(0);
     }
   }, [status]);
-
-  useEffect(() => {
-    if (!sceneRef.current) return;
-    if (status === 'BETTING') {
-      sceneRef.current.setCountdown(bettingCountdown);
-    }
-  }, [bettingCountdown, status]);
 
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -403,203 +391,152 @@ export function CrashPage({ config }: Props) {
     [setBalance],
   );
 
-  useEffect(() => {
-    const socket = getCrashSocket(config.gameId);
+  const clearOptimisticFlight = useCallback(() => {
+    if (optimisticFlightRef.current) {
+      window.clearTimeout(optimisticFlightRef.current);
+      optimisticFlightRef.current = null;
+    }
+  }, []);
 
-    const syncBettingCountdown = (snap: CrashRoundSnapshot) => {
-      if (snap.bettingEndsAt) {
-        const end = new Date(snap.bettingEndsAt).getTime();
-        if (countdownRef.current) clearInterval(countdownRef.current);
-        const tick = () => {
-          const left = Math.max(0, end - Date.now());
-          const nextCountdown = Math.ceil(left / 1000);
-          bettingCountdownRef.current = nextCountdown;
-          setBettingCountdown(nextCountdown);
-          if (left <= 0 && countdownRef.current) clearInterval(countdownRef.current);
-        };
-        tick();
-        countdownRef.current = setInterval(tick, 100);
-      }
-    };
-
-    const onSnapshot = (snap: CrashRoundSnapshot) => {
-      statusRef.current = snap.status;
-      setSnapshot(snap);
-      setStatus(snap.status);
-      if (snap.status === 'BETTING') {
-        crashPointRef.current = null;
-        multiplierRef.current = 1.0;
-        setCrashPoint(null);
-        setMultiplier(1.0);
-        syncBettingCountdown(snap);
-      }
-    };
-
-    const onBetting = (snap: CrashRoundSnapshot) => {
-      statusRef.current = 'BETTING';
-      crashPointRef.current = null;
-      multiplierRef.current = 1.0;
-      setSnapshot(snap);
-      setStatus('BETTING');
-      setCrashPoint(null);
-      myBetRef.current = null;
-      appliedCashoutRef.current = false;
-      setMyBet(null);
-      setMultiplier(1.0);
-      syncBettingCountdown(snap);
-    };
-
-    const onRunning = () => {
+  const startOptimisticFlight = useCallback(
+    (betAmount: number) => {
+      clearOptimisticFlight();
       statusRef.current = 'RUNNING';
+      multiplierRef.current = 1;
+      crashPointRef.current = null;
+      appliedCashoutRef.current = false;
+      finalizedRoundRef.current = null;
+      const optimisticBet = { amount: betAmount, cashed: false };
+      myBetRef.current = optimisticBet;
+      setMyBet(optimisticBet);
+      setCrashPoint(null);
       setStatus('RUNNING');
-    };
+      setMultiplier(1);
+      sceneRef.current?.startRunning();
 
-    const onTick = (payload: { multiplier: number }) => {
-      multiplierRef.current = payload.multiplier;
-      setMultiplier(payload.multiplier);
-    };
+      const startedAt = Date.now();
+      const tick = () => {
+        if (statusRef.current !== 'RUNNING') return;
+        const elapsed = Date.now() - startedAt;
+        const next = Math.min(1.35, Math.max(1, Math.exp(SOLO_CLIENT_GROWTH_RATE * elapsed)));
+        multiplierRef.current = next;
+        setMultiplier(next);
+        sceneRef.current?.setMultiplier(next);
+        optimisticFlightRef.current = window.setTimeout(tick, 60);
+      };
+      optimisticFlightRef.current = window.setTimeout(tick, 40);
+    },
+    [clearOptimisticFlight],
+  );
 
-    const onCrashed = (payload: { finalMultiplier: number; serverSeed: string }) => {
-      statusRef.current = 'CRASHED';
-      multiplierRef.current = payload.finalMultiplier;
-      crashPointRef.current = payload.finalMultiplier;
-      setStatus('CRASHED');
-      setMultiplier(payload.finalMultiplier);
-      setCrashPoint(payload.finalMultiplier);
-      setHistory((h) => [payload.finalMultiplier, ...h].slice(0, 20));
-      // 玩家本局有下注但沒 cashout → 記為輸局
-      setMyBet((b) => {
-        if (b && !b.cashed) {
-          setMyHistory((prev) =>
-            [
-              {
-                id: `${Date.now()}-${Math.random()}`,
-                timestamp: Date.now(),
-                betAmount: b.amount,
-                multiplier: 0,
-                payout: 0,
-                won: false,
-                detail: `Crashed @ ${formatCrashMultiplier(payload.finalMultiplier)}`,
-              },
-              ...prev,
-            ].slice(0, 30),
-          );
-        }
-        return b;
-      });
-    };
+  const clearRoundPoll = useCallback(() => {
+    if (roundPollRef.current) {
+      window.clearTimeout(roundPollRef.current);
+      roundPollRef.current = null;
+    }
+  }, []);
 
-    const onBetsUpdate = (payload: { players: CrashPlayerBet[] }) => {
-      setPlayers(payload.players);
-      const currentUserId = userIdRef.current;
-      if (!currentUserId) return;
-      const ownBet = payload.players.find((p) => p.userId === currentUserId);
-      if (ownBet && !ownBet.cashedOutAt) {
-        const activeAmount = Number.parseFloat(ownBet.amount);
-        if (Number.isFinite(activeAmount)) {
-          const restoredBet = { amount: activeAmount, cashed: false };
-          myBetRef.current = restoredBet;
-          setMyBet(restoredBet);
-          queuedBetRef.current = null;
-          setQueuedBet(null);
-        }
-      }
-      if (ownBet?.cashedOutAt && ownBet.payout) {
+  const handleRoundState = useCallback(
+    (state: CrashSoloRoundState) => {
+      clearOptimisticFlight();
+      statusRef.current = state.status;
+      multiplierRef.current = state.currentMultiplier;
+      setStatus(state.status);
+      setRoundNumber(state.roundNumber);
+      setMultiplier(state.currentMultiplier);
+      if (state.newBalance) setBalance(state.newBalance);
+
+      if (state.cashedOutAt && Number.parseFloat(state.payout) > 0) {
         applyCashoutResult({
-          payout: ownBet.payout,
-          multiplier: ownBet.cashedOutAt,
+          payout: state.payout,
+          newBalance: state.newBalance,
+          multiplier: state.cashedOutAt,
         });
       }
-    };
 
-    const onHistory = (payload: { multipliers?: number[] }) => {
-      const multipliers = Array.isArray(payload.multipliers)
-        ? payload.multipliers.filter((value) => Number.isFinite(value) && value > 0)
-        : [];
-      setHistory(multipliers.slice(0, 20));
-    };
-
-    const onBetQueued = (payload: {
-      amount: string;
-      autoCashOut?: number;
-      roundNumber?: number;
-    }) => {
-      const queuedAmount = Number.parseFloat(payload.amount);
-      if (!Number.isFinite(queuedAmount)) return;
-      const queued = {
-        amount: queuedAmount,
-        autoCashOut: payload.autoCashOut,
-        roundNumber: payload.roundNumber,
-      };
-      queuedBetRef.current = queued;
-      setQueuedBet(queued);
-      setError(null);
-    };
-
-    const onBetConfirmed = (payload: {
-      amount: string;
-      autoCashOut?: number;
-      newBalance?: string;
-      roundNumber?: number;
-    }) => {
-      const confirmedAmount = Number.parseFloat(payload.amount);
-      if (!Number.isFinite(confirmedAmount)) return;
-      const placedBet = { amount: confirmedAmount, cashed: false };
-      queuedBetRef.current = null;
-      myBetRef.current = placedBet;
-      appliedCashoutRef.current = false;
-      setQueuedBet(null);
-      setMyBet(placedBet);
-      setError(null);
-      if (payload.newBalance) setBalance(payload.newBalance);
-    };
-
-    const onBetQueueFailed = (payload: { error?: string }) => {
-      queuedBetRef.current = null;
-      setQueuedBet(null);
-      setError(payload.error ?? 'NEXT ROUND BET FAILED');
-      if (autoBetActiveRef.current) {
-        autoBetActiveRef.current = false;
-        autoBetSubmittingRef.current = false;
-        autoBetSettingsRef.current = null;
-        setAutoBetActive(false);
-        setAutoBetStopReason(payload.error ?? t.games.crash.autoFailed);
+      if (state.status === 'CRASHED') {
+        const finalMultiplier = state.crashPoint ?? state.currentMultiplier;
+        crashPointRef.current = finalMultiplier;
+        setCrashPoint(finalMultiplier);
+        if (finalizedRoundRef.current !== state.roundId) {
+          finalizedRoundRef.current = state.roundId;
+          setHistory((h) => [finalMultiplier, ...h].slice(0, 20));
+          const bet = myBetRef.current;
+          if (bet && !bet.cashed) {
+            setMyHistory((prev) =>
+              [
+                {
+                  id: `${Date.now()}-${Math.random()}`,
+                  timestamp: Date.now(),
+                  betAmount: bet.amount,
+                  multiplier: 0,
+                  payout: 0,
+                  won: false,
+                  detail: `Crashed @ ${formatCrashMultiplier(finalMultiplier)}`,
+                },
+                ...prev,
+              ].slice(0, 30),
+            );
+          }
+        }
+      } else if (state.status === 'RUNNING') {
+        crashPointRef.current = null;
+        setCrashPoint(null);
       }
-    };
+    },
+    [applyCashoutResult, clearOptimisticFlight, setBalance],
+  );
 
-    const onBetQueueCanceled = () => {
-      queuedBetRef.current = null;
-      setQueuedBet(null);
-    };
+  const scheduleRoundPoll = useCallback(
+    (roundId: string) => {
+      clearRoundPoll();
+      const tick = async () => {
+        try {
+          const res = await api.get<CrashSoloRoundState>(
+            `/games/crash/round/${encodeURIComponent(roundId)}`,
+          );
+          handleRoundState(res.data);
+          if (res.data.status === 'RUNNING') {
+            roundPollRef.current = window.setTimeout(tick, 90);
+          } else {
+            clearRoundPoll();
+          }
+        } catch (err) {
+          setError(extractApiError(err).message);
+          clearRoundPoll();
+        }
+      };
+      roundPollRef.current = window.setTimeout(tick, 60);
+    },
+    [clearRoundPoll, handleRoundState],
+  );
 
-    socket.on('round:snapshot', onSnapshot);
-    socket.on('round:betting', onBetting);
-    socket.on('round:running', onRunning);
-    socket.on('round:tick', onTick);
-    socket.on('round:crashed', onCrashed);
-    socket.on('bets:update', onBetsUpdate);
-    socket.on('round:history', onHistory);
-    socket.on('bet:queued', onBetQueued);
-    socket.on('bet:confirmed', onBetConfirmed);
-    socket.on('bet:queue_failed', onBetQueueFailed);
-    socket.on('bet:queue_canceled', onBetQueueCanceled);
-
+  useEffect(() => {
+    finalizedRoundRef.current = null;
+    clearRoundPoll();
+    clearOptimisticFlight();
+    setRoundNumber(null);
+    setStatus('BETTING');
+    statusRef.current = 'BETTING';
+    multiplierRef.current = 1;
+    setMultiplier(1);
+    setCrashPoint(null);
+    api
+      .get<{ multipliers?: number[] }>('/games/crash/history', {
+        params: { gameId: config.gameId },
+      })
+      .then((res) => {
+        const multipliers = Array.isArray(res.data.multipliers)
+          ? res.data.multipliers.filter((value) => Number.isFinite(value) && value > 0)
+          : [];
+        setHistory(multipliers.slice(0, 20));
+      })
+      .catch(() => undefined);
     return () => {
-      socket.off('round:snapshot', onSnapshot);
-      socket.off('round:betting', onBetting);
-      socket.off('round:running', onRunning);
-      socket.off('round:tick', onTick);
-      socket.off('round:crashed', onCrashed);
-      socket.off('bets:update', onBetsUpdate);
-      socket.off('round:history', onHistory);
-      socket.off('bet:queued', onBetQueued);
-      socket.off('bet:confirmed', onBetConfirmed);
-      socket.off('bet:queue_failed', onBetQueueFailed);
-      socket.off('bet:queue_canceled', onBetQueueCanceled);
-      if (countdownRef.current) clearInterval(countdownRef.current);
-      disconnectCrashSocket(config.gameId);
+      clearRoundPoll();
+      clearOptimisticFlight();
     };
-  }, [applyCashoutResult, config.gameId, setBalance, t.games.crash.autoFailed]);
+  }, [clearOptimisticFlight, clearRoundPoll, config.gameId]);
 
   useEffect(() => {
     setSimulatedLiveBets(createSimulatedCrashBets(config.gameId));
@@ -613,7 +550,7 @@ export function CrashPage({ config }: Props) {
   }, [config.gameId]);
 
   const submitCrashBet = useCallback(
-    (
+    async (
       betAmount: number,
       autoCashOutValue?: number,
       options?: { silentAuth?: boolean },
@@ -640,53 +577,60 @@ export function CrashPage({ config }: Props) {
         (!Number.isFinite(autoCashOutValue) || autoCashOutValue < MIN_CASHOUT_MULTIPLIER)
       ) {
         setError(`AUTO CASHOUT MIN ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}X`);
-        return Promise.resolve(false);
+        return false;
       }
 
-      return new Promise((resolve) => {
-        const socket = getCrashSocket(config.gameId);
-        socket.emit(
-          'bet:place',
-          {
-            amount: betAmount,
-            autoCashOut:
-              autoCashOutValue !== undefined ? Number(autoCashOutValue.toFixed(4)) : undefined,
-          },
-          (res: {
-            ok: boolean;
-            error?: string;
-            newBalance?: string;
-            queued?: boolean;
-            roundNumber?: number;
-          }) => {
-            if (!res.ok) {
-              setError(res.error ?? 'BET FAILED');
-              resolve(false);
-              return;
-            }
-            setError(null);
-            if (res.queued) {
-              const queued = {
-                amount: betAmount,
-                autoCashOut: autoCashOutValue,
-                roundNumber: res.roundNumber,
-              };
-              queuedBetRef.current = queued;
-              setQueuedBet(queued);
-              resolve(true);
-              return;
-            }
-            const placedBet = { amount: betAmount, cashed: false };
-            myBetRef.current = placedBet;
-            appliedCashoutRef.current = false;
-            setMyBet(placedBet);
-            setBalance(res.newBalance ?? (currentBalance - betAmount).toFixed(2));
-            resolve(true);
-          },
-        );
-      });
+      try {
+        clearRoundPoll();
+        startOptimisticFlight(betAmount);
+        const res = await api.post<CrashBetStartResponse>('/games/crash/bet', {
+          gameId: config.gameId,
+          amount: betAmount,
+          autoCashOut:
+            autoCashOutValue !== undefined ? Number(autoCashOutValue.toFixed(4)) : undefined,
+        });
+        const placedBet = {
+          amount: betAmount,
+          cashed: false,
+          roundId: res.data.roundId,
+          betId: res.data.betId,
+          payout: res.data.payout,
+        };
+        myBetRef.current = placedBet;
+        appliedCashoutRef.current = false;
+        finalizedRoundRef.current = null;
+        setMyBet(placedBet);
+        setError(null);
+        setBalance(res.data.newBalance ?? (currentBalance - betAmount).toFixed(2));
+        handleRoundState(res.data);
+        if (res.data.status === 'RUNNING') scheduleRoundPoll(res.data.roundId);
+        return true;
+      } catch (err) {
+        clearOptimisticFlight();
+        statusRef.current = 'BETTING';
+        multiplierRef.current = 1;
+        myBetRef.current = null;
+        setStatus('BETTING');
+        setMultiplier(1);
+        setCrashPoint(null);
+        setMyBet(null);
+        sceneRef.current?.startBetting(0);
+        setError(extractApiError(err).message);
+        return false;
+      }
     },
-    [config.gameId, requireLogin, setBalance, t.bet.insufficientBalance, user],
+    [
+      clearRoundPoll,
+      clearOptimisticFlight,
+      config.gameId,
+      handleRoundState,
+      requireLogin,
+      scheduleRoundPoll,
+      setBalance,
+      startOptimisticFlight,
+      t.bet.insufficientBalance,
+      user,
+    ],
   );
 
   const handlePlaceBet = () => {
@@ -701,58 +645,43 @@ export function CrashPage({ config }: Props) {
     );
   };
 
-  const handleCashOut = () => {
+  const handleCashOut = async () => {
     if (!user || !myBet || myBet.cashed) return;
     if (status !== 'RUNNING') return;
+    if (!myBet.roundId) return;
     if (multiplier < MIN_CASHOUT_MULTIPLIER) {
       setError(`CASHOUT AVAILABLE FROM ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}X`);
       return;
     }
-    const socket = getCrashSocket(config.gameId);
-    socket.emit(
-      'bet:cashout',
-      {},
-      (res: {
-        ok: boolean;
-        error?: string;
-        payout?: string;
-        newBalance?: string;
-        multiplier?: number;
-      }) => {
-        if (!res.ok) {
-          if (res.error?.toLowerCase().includes('no active bet') && myBetRef.current?.cashed) {
-            setError(null);
-            return;
-          }
-          setError(res.error ?? 'CASHOUT FAILED');
-          return;
+    try {
+      const res = await api.post<CrashCashOutResponse>('/games/crash/cashout', {
+        roundId: myBet.roundId,
+      });
+      applyCashoutResult(res.data);
+    } catch (err) {
+      setError(extractApiError(err).message);
+      if (myBet.roundId) {
+        try {
+          const res = await api.get<CrashSoloRoundState>(
+            `/games/crash/round/${encodeURIComponent(myBet.roundId)}`,
+          );
+          handleRoundState(res.data);
+        } catch {
+          // keep the actionable cashout error visible
         }
-        if (res.payout) {
-          applyCashoutResult({
-            payout: res.payout,
-            newBalance: res.newBalance,
-            multiplier: res.multiplier,
-          });
-        }
-      },
-    );
+      }
+    }
   };
 
   const stopAutoBet = useCallback(
-    (reason?: string, cancelQueued = true): void => {
+    (reason?: string, _cancelQueued = true): void => {
       autoBetActiveRef.current = false;
       autoBetSubmittingRef.current = false;
       autoBetSettingsRef.current = null;
       setAutoBetActive(false);
       setAutoBetStopReason(reason ?? t.games.crash.autoStopped);
-      if (cancelQueued && queuedBetRef.current) {
-        const socket = getCrashSocket(config.gameId);
-        socket.emit('bet:cancelQueued', {}, () => undefined);
-        queuedBetRef.current = null;
-        setQueuedBet(null);
-      }
     },
-    [config.gameId, t.games.crash.autoStopped],
+    [t.games.crash.autoStopped],
   );
 
   const finishAutoBetSubmission = useCallback(() => {
@@ -780,8 +709,7 @@ export function CrashPage({ config }: Props) {
       stopAutoBet(t.games.crash.autoFailed, true);
       return;
     }
-    if (queuedBetRef.current) return;
-    if (statusRef.current === 'BETTING' && myBetRef.current) return;
+    if (statusRef.current === 'RUNNING') return;
 
     autoBetSubmittingRef.current = true;
     const ok = await submitCrashBet(settings.amount, settings.autoCashOut, { silentAuth: true });
@@ -806,15 +734,7 @@ export function CrashPage({ config }: Props) {
       void tryAutoBet();
     }, 90);
     return () => window.clearTimeout(timer);
-  }, [
-    autoBetActive,
-    bettingCountdown,
-    myBet,
-    queuedBet,
-    snapshot?.roundNumber,
-    status,
-    tryAutoBet,
-  ]);
+  }, [autoBetActive, myBet, status, tryAutoBet]);
 
   const openAutoBetSettings = () => {
     if (!user) {
@@ -875,12 +795,10 @@ export function CrashPage({ config }: Props) {
       ? '∞'
       : `${t.games.crash.autoRemaining} ${autoBetRemaining}`
     : t.games.crash.autoBotSettings;
-  const controlsLocked =
-    autoBetActive || (status === 'BETTING' && (Boolean(myBet) || Boolean(queuedBet)));
+  const controlsLocked = autoBetActive || status === 'RUNNING';
   const liveCashoutPayout =
     status === 'RUNNING' && myBet && !myBet.cashed ? myBet.amount * multiplier : 0;
-  const canShowCurrentBetButton = status === 'BETTING' && !myBet && !queuedBet;
-  const canShowNextRoundBetButton = status !== 'BETTING';
+  const canShowCurrentBetButton = status !== 'RUNNING';
   const stageHistory = history.slice(0, 12);
   const mobileLiveBetRows = simulatedLiveBets.slice(0, 12);
   const autoBetDialog = autoBetOpen ? (
@@ -1003,8 +921,7 @@ export function CrashPage({ config }: Props) {
                 {status === 'BETTING' && (
                   <span className="text-[#7DD3FC]">
                     <span className="dot-online dot-online" />
-                    {t.games.crash.betting} · {bettingCountdown}
-                    {t.games.crash.seconds}
+                    即開
                   </span>
                 )}
                 {status === 'RUNNING' && (
@@ -1017,7 +934,7 @@ export function CrashPage({ config }: Props) {
                   <span className="text-[#FCA5A5]">{t.games.crash.crashed}</span>
                 )}
                 <span className="hidden text-white/55 md:inline">
-                  #{snapshot?.roundNumber ?? '—'}
+                  #{roundNumber ?? '—'}
                 </span>
               </div>
             </div>
@@ -1172,7 +1089,7 @@ export function CrashPage({ config }: Props) {
                 <button
                   type="button"
                   onClick={handleCashOut}
-                  disabled={multiplier < MIN_CASHOUT_MULTIPLIER}
+                  disabled={!myBet.roundId || multiplier < MIN_CASHOUT_MULTIPLIER}
                   className="btn-acid w-full py-4 text-base"
                 >
                   <span className="flex flex-col items-center justify-center gap-1 leading-tight">
@@ -1185,28 +1102,6 @@ export function CrashPage({ config }: Props) {
                   </span>
                 </button>
               )}
-              {canShowNextRoundBetButton && (
-                <button
-                  type="button"
-                  onClick={handlePlaceBet}
-                  disabled={!!user && balance < amount}
-                  className="btn-acid w-full py-4"
-                >
-                  → {queuedBet ? t.games.crash.updateNextRoundBet : t.games.crash.nextRoundBet} ·{' '}
-                  {formatAmount(amount)}
-                </button>
-              )}
-              {queuedBet && (
-                <div className="game-stat-card text-center">
-                  <div className="text-[10px] tracking-[0.3em] text-white/55">
-                    {t.games.crash.nextRoundQueued}
-                    {queuedBet.roundNumber ? ` #${queuedBet.roundNumber}` : ''}
-                  </div>
-                  <div className="data-num text-lg text-[#7DD3FC]">
-                    {formatAmount(queuedBet.amount)}
-                  </div>
-                </div>
-              )}
               {myBet && myBet.cashed && (
                 <div className="game-result-card game-result-card-win text-center">
                   <div className="font-display text-xl text-[#7DD3FC]">{t.games.crash.secured}</div>
@@ -1216,16 +1111,6 @@ export function CrashPage({ config }: Props) {
               {status === 'CRASHED' && myBet && !myBet.cashed && (
                 <div className="game-result-card game-result-card-loss text-center">
                   <div className="font-display text-xl text-[#FCA5A5]">{t.games.crash.busted}</div>
-                </div>
-              )}
-              {status === 'BETTING' && myBet && (
-                <div className="game-stat-card text-center">
-                  <div className="text-[10px] tracking-[0.3em] text-white/55">
-                    {t.games.crash.betPlaced}
-                  </div>
-                  <div className="data-num text-lg text-[#7DD3FC]">
-                    {formatAmount(myBet.amount)}
-                  </div>
                 </div>
               )}
               <div className="game-balance-strip mt-3">

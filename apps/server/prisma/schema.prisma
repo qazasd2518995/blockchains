@@ -334,6 +334,9 @@ model CrashBet {
   autoCashOut Decimal?   @db.Decimal(10, 4)
   cashedOutAt Decimal?   @db.Decimal(10, 4)
   payout      Decimal    @default(0) @db.Decimal(20, 2)
+  controlOriginal Json?
+  controlOutcome Json?
+  controlFinalizedAt DateTime?
   createdAt   DateTime   @default(now())
 
   @@unique([roundId, userId])
