@@ -406,7 +406,7 @@ export class CrashSoloService {
   }
 
   private async nextRoundNumber(tx: Prisma.TransactionClient, gameId: string): Promise<number> {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`crash-round:${gameId}`}))`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`crash-round:${gameId}`}))`;
     const last = await tx.crashRound.findFirst({
       where: { gameId },
       orderBy: { roundNumber: 'desc' },
