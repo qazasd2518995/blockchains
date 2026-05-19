@@ -444,6 +444,9 @@ export function CrashPage({ config }: Props) {
       setStatus(state.status);
       setRoundNumber(state.roundNumber);
       setMultiplier(state.currentMultiplier);
+      if (state.status === 'RUNNING') {
+        sceneRef.current?.setMultiplier(state.currentMultiplier, state.elapsedMs);
+      }
       if (state.newBalance) setBalance(state.newBalance);
 
       if (state.cashedOutAt && Number.parseFloat(state.payout) > 0) {

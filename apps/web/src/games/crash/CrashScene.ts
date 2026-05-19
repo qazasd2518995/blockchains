@@ -38,6 +38,7 @@ const COLOR_ICE = 0x266f85;
 const COLOR_AMBER = 0xf3d67d;
 const COLOR_WHITE = 0xffffff;
 const COMPACT_STAGE_WIDTH = 700;
+const SOLO_SCENE_GROWTH_RATE = 0.00072;
 
 export type CrashVariant =
   | 'rocket'
@@ -172,6 +173,9 @@ export class CrashScene {
   private trailDots: Particle[] = [];
   private curvePoints: { x: number; y: number }[] = [];
   private currentMultiplier = 1.0;
+  private targetMultiplier = 1.0;
+  private lastEffectMultiplier = 1.0;
+  private runningStartedAtMs = 0;
   private maxMultiplier = 2.0;
   private phase: 'idle' | 'betting' | 'running' | 'crashed' = 'idle';
   private countdownSeconds = 0;
@@ -683,6 +687,8 @@ export class CrashScene {
       if (this.phase !== 'running') return;
       trailTick += tk.deltaTime;
 
+      this.advanceRunningMultiplier(tk.deltaTime);
+
       // 計算 craft 位置
       this.updateCameraForMultiplier(this.currentMultiplier, tk.deltaTime);
       const pos = this.multiplierToPosition(this.currentMultiplier);
@@ -956,6 +962,26 @@ export class CrashScene {
     return Math.atan2(b.y - a.y, b.x - a.x);
   }
 
+  private advanceRunningMultiplier(deltaTime: number): void {
+    if (this.runningStartedAtMs > 0) {
+      const elapsedMs = Math.max(0, performance.now() - this.runningStartedAtMs);
+      const clockMultiplier = Math.exp(SOLO_SCENE_GROWTH_RATE * elapsedMs);
+      this.targetMultiplier = Math.max(this.targetMultiplier, clockMultiplier);
+    }
+
+    const target = Math.max(1, this.targetMultiplier);
+    this.maxMultiplier = Math.max(this.maxMultiplier, target * 1.2, 2);
+    const diff = target - this.currentMultiplier;
+    if (diff > 0.0001) {
+      const catchup = diff > 0.12 ? 0.36 : 0.18;
+      const alpha = Math.min(1, catchup * deltaTime);
+      this.currentMultiplier += diff * alpha;
+      if (target - this.currentMultiplier < 0.002) this.currentMultiplier = target;
+    }
+
+    this.renderMultiplier(this.currentMultiplier);
+  }
+
   private getCraftRotation(m: number, tick: number, running: boolean): number {
     const assetVariant = ASSET_VARIANT[this.variant];
     if (assetVariant === 'balloon') {
@@ -1092,6 +1118,9 @@ export class CrashScene {
     this.phase = 'betting';
     this.countdownSeconds = seconds;
     this.currentMultiplier = 1.0;
+    this.targetMultiplier = 1.0;
+    this.lastEffectMultiplier = 1.0;
+    this.runningStartedAtMs = 0;
     this.curveLayer?.clear();
     this.curvePoints = [];
     this.resetCamera();
@@ -1165,6 +1194,9 @@ export class CrashScene {
   startRunning(): void {
     this.phase = 'running';
     this.currentMultiplier = 1.0;
+    this.targetMultiplier = 1.0;
+    this.lastEffectMultiplier = 1.0;
+    this.runningStartedAtMs = performance.now();
     this.maxMultiplier = 2.0;
     this.tensionStart = performance.now() / 1000;
     this.curveLayer?.clear();
@@ -1191,11 +1223,32 @@ export class CrashScene {
     if (this.vignette) this.vignette.alpha = 0;
   }
 
-  setMultiplier(m: number): void {
-    const prevInt = Math.floor(this.currentMultiplier);
-    this.currentMultiplier = m;
+  setMultiplier(m: number, elapsedMs?: number): void {
+    if (!Number.isFinite(m)) return;
+    const nextMultiplier = Math.max(1, m);
+
+    if (this.phase === 'running') {
+      if (Number.isFinite(elapsedMs)) {
+        const serverStartedAt = performance.now() - Math.max(0, elapsedMs ?? 0);
+        this.runningStartedAtMs =
+          this.runningStartedAtMs > 0
+            ? this.runningStartedAtMs * 0.85 + serverStartedAt * 0.15
+            : serverStartedAt;
+      }
+      this.targetMultiplier = Math.max(this.targetMultiplier, nextMultiplier);
+      this.maxMultiplier = Math.max(this.maxMultiplier, nextMultiplier * 1.2, 2);
+      return;
+    }
+
+    this.currentMultiplier = nextMultiplier;
+    this.targetMultiplier = nextMultiplier;
     // 動態擴展 max
-    this.maxMultiplier = Math.max(this.maxMultiplier, m * 1.2, 2);
+    this.maxMultiplier = Math.max(this.maxMultiplier, nextMultiplier * 1.2, 2);
+    this.renderMultiplier(nextMultiplier);
+  }
+
+  private renderMultiplier(m: number): void {
+    const prevInt = Math.floor(this.lastEffectMultiplier);
 
     if (this.multiplierLabel) {
       this.multiplierLabel.text = formatCrashMultiplier(m);
@@ -1252,11 +1305,22 @@ export class CrashScene {
       // 平滑插值避免跳動
       this.vignette.alpha += (target - this.vignette.alpha) * 0.08;
     }
+    this.lastEffectMultiplier = Math.max(this.lastEffectMultiplier, m);
   }
 
   crash(finalMultiplier: number): void {
     this.phase = 'crashed';
     this.currentMultiplier = finalMultiplier;
+    this.targetMultiplier = finalMultiplier;
+    this.maxMultiplier = Math.max(this.maxMultiplier, finalMultiplier * 1.2, 2);
+    this.runningStartedAtMs = 0;
+
+    if (this.craft) {
+      const finalPos = this.multiplierToPosition(finalMultiplier);
+      this.craft.x = finalPos.x;
+      this.craft.y = finalPos.y;
+      this.craft.rotation = this.getCraftRotation(finalMultiplier, 0, true);
+    }
 
     // 全螢幕紅閃
     if (this.flashOverlay) {
