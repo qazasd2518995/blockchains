@@ -12,13 +12,13 @@
   "theme_color": "#050A13",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/brand/yachiyo-emblem.png?v=20260519",
+      "sizes": "824x824",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/brand/yachiyo-emblem.png",
+      "src": "/brand/yachiyo-emblem.png?v=20260519",
       "sizes": "824x824",
       "type": "image/png",
       "purpose": "any maskable"
@@ -31,9 +31,9 @@
       "url": "/games/dragon-mega-slot",
       "icons": [
         {
-          "src": "/favicon.svg",
-          "sizes": "any",
-          "type": "image/svg+xml"
+          "src": "/brand/yachiyo-emblem.png?v=20260519",
+          "sizes": "824x824",
+          "type": "image/png"
         }
       ]
     },
@@ -43,9 +43,9 @@
       "url": "/games/thunder-slot",
       "icons": [
         {
-          "src": "/favicon.svg",
-          "sizes": "any",
-          "type": "image/svg+xml"
+          "src": "/brand/yachiyo-emblem.png?v=20260519",
+          "sizes": "824x824",
+          "type": "image/png"
         }
       ]
     }

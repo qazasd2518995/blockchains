@@ -1,4 +1,4 @@
-const VERSION = 'bg-assets-v1';
+const VERSION = 'yachiyo-assets-v2';
 const IMAGE_CACHE = `${VERSION}:images`;
 const STATIC_CACHE = `${VERSION}:static`;
 const IMAGE_MAX_ENTRIES = 260;
