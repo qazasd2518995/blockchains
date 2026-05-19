@@ -1,8 +1,7 @@
-const VERSION = 'yachiyo-assets-v2';
+const VERSION = 'yachiyo-assets-v3';
 const IMAGE_CACHE = `${VERSION}:images`;
-const STATIC_CACHE = `${VERSION}:static`;
 const IMAGE_MAX_ENTRIES = 260;
-const STATIC_MAX_ENTRIES = 120;
+const RELOAD_CLIENTS_ON_ACTIVATE = true;
 const IMAGE_PATH_RE =
   /^\/(?:_optimized|backgrounds|banners|cards|crash|game-art|games|halls|promos|slots)\//;
 const IMAGE_EXT_RE = /\.(?:avif|gif|jpe?g|png|svg|webp)$/i;
@@ -20,13 +19,28 @@ self.addEventListener('activate', (event) => {
         .then((keys) =>
           Promise.all(
             keys
-              .filter((key) => key.startsWith('bg-assets-') && !key.startsWith(VERSION))
+              .filter(
+                (key) =>
+                  (key.startsWith('bg-assets-') || key.startsWith('yachiyo-assets-')) &&
+                  !key.startsWith(VERSION),
+              )
               .map((key) => caches.delete(key)),
           ),
         ),
-    ]),
+    ]).then(() => reloadClientsOnActivate()),
   );
 });
+
+async function reloadClientsOnActivate() {
+  if (!RELOAD_CLIENTS_ON_ACTIVATE) return;
+  const clients = await self.clients.matchAll({ type: 'window' });
+  await Promise.all(
+    clients.map((client) => {
+      if ('navigate' in client) return client.navigate(client.url);
+      return undefined;
+    }),
+  );
+}
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
@@ -37,11 +51,6 @@ self.addEventListener('fetch', (event) => {
 
   if (isImageRequest(url, request)) {
     event.respondWith(cacheFirst(request, IMAGE_CACHE, IMAGE_MAX_ENTRIES));
-    return;
-  }
-
-  if (url.pathname.startsWith('/assets/')) {
-    event.respondWith(staleWhileRevalidate(request, STATIC_CACHE, STATIC_MAX_ENTRIES));
   }
 });
 
@@ -62,21 +71,6 @@ async function cacheFirst(request, cacheName, maxEntries) {
     cache.put(request, response.clone()).then(() => trimCache(cache, maxEntries));
   }
   return response;
-}
-
-async function staleWhileRevalidate(request, cacheName, maxEntries) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-  const network = fetch(request)
-    .then((response) => {
-      if (isCacheable(response)) {
-        cache.put(request, response.clone()).then(() => trimCache(cache, maxEntries));
-      }
-      return response;
-    })
-    .catch(() => cached);
-
-  return cached || network;
 }
 
 function isCacheable(response) {
