@@ -33,6 +33,7 @@ export interface CrashSoloRoundState extends CrashRoundSnapshot {
   payout: string;
   currentMultiplier: number;
   elapsedMs: number;
+  visualCrashPoint?: number;
   newBalance?: string;
 }
 

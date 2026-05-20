@@ -174,6 +174,7 @@ export class CrashScene {
   private curvePoints: { x: number; y: number }[] = [];
   private currentMultiplier = 1.0;
   private targetMultiplier = 1.0;
+  private crashLimit: number | null = null;
   private lastEffectMultiplier = 1.0;
   private runningStartedAtMs = 0;
   private maxMultiplier = 2.0;
@@ -969,7 +970,7 @@ export class CrashScene {
       this.targetMultiplier = Math.max(this.targetMultiplier, clockMultiplier);
     }
 
-    const target = Math.max(1, this.targetMultiplier);
+    const target = this.clampToCrashLimit(Math.max(1, this.targetMultiplier));
     this.maxMultiplier = Math.max(this.maxMultiplier, target * 1.2, 2);
     const diff = target - this.currentMultiplier;
     if (diff > 0.0001) {
@@ -977,6 +978,8 @@ export class CrashScene {
       const alpha = Math.min(1, catchup * deltaTime);
       this.currentMultiplier += diff * alpha;
       if (target - this.currentMultiplier < 0.002) this.currentMultiplier = target;
+    } else if (this.currentMultiplier > target) {
+      this.currentMultiplier = target;
     }
 
     this.renderMultiplier(this.currentMultiplier);
@@ -1119,6 +1122,7 @@ export class CrashScene {
     this.countdownSeconds = seconds;
     this.currentMultiplier = 1.0;
     this.targetMultiplier = 1.0;
+    this.crashLimit = null;
     this.lastEffectMultiplier = 1.0;
     this.runningStartedAtMs = 0;
     this.curveLayer?.clear();
@@ -1195,6 +1199,7 @@ export class CrashScene {
     this.phase = 'running';
     this.currentMultiplier = 1.0;
     this.targetMultiplier = 1.0;
+    this.crashLimit = null;
     this.lastEffectMultiplier = 1.0;
     this.runningStartedAtMs = performance.now();
     this.maxMultiplier = 2.0;
@@ -1225,7 +1230,7 @@ export class CrashScene {
 
   setMultiplier(m: number, elapsedMs?: number): void {
     if (!Number.isFinite(m)) return;
-    const nextMultiplier = Math.max(1, m);
+    const nextMultiplier = this.clampToCrashLimit(Math.max(1, m));
 
     if (this.phase === 'running') {
       if (Number.isFinite(elapsedMs)) {
@@ -1245,6 +1250,18 @@ export class CrashScene {
     // 動態擴展 max
     this.maxMultiplier = Math.max(this.maxMultiplier, nextMultiplier * 1.2, 2);
     this.renderMultiplier(nextMultiplier);
+  }
+
+  setCrashLimit(limit: number | null): void {
+    this.crashLimit = Number.isFinite(limit) && limit !== null && limit >= 1 ? limit : null;
+    if (this.crashLimit === null) return;
+    this.targetMultiplier = Math.min(this.targetMultiplier, this.crashLimit);
+    this.currentMultiplier = Math.min(this.currentMultiplier, this.crashLimit);
+    this.maxMultiplier = Math.max(this.maxMultiplier, this.crashLimit * 1.2, 2);
+  }
+
+  private clampToCrashLimit(m: number): number {
+    return this.crashLimit === null ? m : Math.min(m, this.crashLimit);
   }
 
   private renderMultiplier(m: number): void {
@@ -1310,6 +1327,7 @@ export class CrashScene {
 
   crash(finalMultiplier: number): void {
     this.phase = 'crashed';
+    this.crashLimit = finalMultiplier;
     this.currentMultiplier = finalMultiplier;
     this.targetMultiplier = finalMultiplier;
     this.maxMultiplier = Math.max(this.maxMultiplier, finalMultiplier * 1.2, 2);

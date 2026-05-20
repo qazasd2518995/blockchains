@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { GameId, SLOT_GAME_IDS } from '@bg/shared';
 import {
   calculateCurrentSettlement,
   checkAndCompleteManualDetectionControls,
@@ -58,12 +59,51 @@ interface ControlDecision {
   forceWinAdjustment?: boolean;
 }
 
+export interface ControlOptions {
+  /**
+   * Force burst eligibility for a specific game path, or disable it for paths
+   * that should only use the other control systems.
+   */
+  burstEligible?: boolean;
+  /**
+   * Highest multiplier the selected game configuration can reasonably hit.
+   * This lets configurable games like wheel qualify by risk/segment settings
+   * instead of only by the multiplier of the natural result.
+   */
+  burstPotentialMultiplier?: Prisma.Decimal | number | string;
+  /**
+   * Only prevent over-cap burst wins. Used for feature-buy paths where forcing
+   * an artificial positive result would create a suspicious visual replay.
+   */
+  burstGuardOnly?: boolean;
+}
+
 interface BurstEligibility {
   eligible: boolean;
   loss: Prisma.Decimal;
   capital: Prisma.Decimal;
   requiredLoss: Prisma.Decimal;
 }
+
+const BURST_CONTROL_MIN_POTENTIAL_MULTIPLIER = new Prisma.Decimal(20);
+const BURST_ALWAYS_ELIGIBLE_GAME_IDS = new Set<string>([
+  GameId.MINES,
+  GameId.HILO,
+  GameId.KENO,
+  GameId.PLINKO,
+  GameId.PLINKO_X,
+  GameId.TOWER,
+  GameId.CHICKEN_ROAD,
+  GameId.ROCKET,
+  GameId.AVIATOR,
+  GameId.SPACE_FLEET,
+  GameId.JETX,
+  GameId.BALLOON,
+  GameId.JETX3,
+  GameId.DOUBLE_X,
+  ...SLOT_GAME_IDS,
+]);
+const BURST_CONDITIONAL_GAME_IDS = new Set<string>([GameId.DICE, GameId.WHEEL]);
 
 /**
  * 控制 hook：只決定本局是否需要由後台規則翻轉輸贏。
@@ -77,6 +117,7 @@ export async function applyControls(
   userId: string,
   gameId: string,
   predicted: PredictedResult,
+  options: ControlOptions = {},
 ): Promise<ControlOutcome> {
   const member = await tx.user.findUnique({
     where: { id: userId },
@@ -84,7 +125,7 @@ export async function applyControls(
   });
   if (!member) return { ...predicted, controlled: false };
 
-  const decision = await findControlDecision(tx, member, predicted);
+  const decision = await findControlDecision(tx, member, gameId, predicted, options);
   if (!decision) return { ...predicted, controlled: false };
 
   const predictedNetWin = isNetWin(predicted);
@@ -93,7 +134,11 @@ export async function applyControls(
     return flipToLoss(predicted, decision.reason, decision.controlId);
   }
 
-  if (predictedNetWin && !decision.forceWinAdjustment && isWithinDecisionBounds(predicted, decision)) {
+  if (
+    predictedNetWin &&
+    !decision.forceWinAdjustment &&
+    isWithinDecisionBounds(predicted, decision)
+  ) {
     return { ...predicted, controlled: false };
   }
   return flipToWin(predicted, decision);
@@ -154,8 +199,14 @@ function isNetWin(result: PredictedResult | FinalizedControlResult): boolean {
 async function findControlDecision(
   tx: Db,
   member: MemberScope,
+  gameId: string,
   predicted: PredictedResult,
+  options: ControlOptions,
 ): Promise<ControlDecision | null> {
+  if (options.burstGuardOnly) {
+    return findBurstDecision(tx, member, gameId, predicted, options);
+  }
+
   const explicitWinLoss = await findWinLossDecision(tx, member);
   if (explicitWinLoss) return explicitWinLoss;
 
@@ -171,7 +222,7 @@ async function findControlDecision(
   const targetedManual = await findManualDetectionDecision(tx, member, 'targeted');
   if (targetedManual) return targetedManual;
 
-  const burst = await findBurstDecision(tx, member, predicted);
+  const burst = await findBurstDecision(tx, member, gameId, predicted, options);
   if (burst) return burst;
 
   const globalManual = await findManualDetectionDecision(tx, member, 'global');
@@ -227,7 +278,10 @@ async function findWinLossDecision(
       return null;
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
-    .sort((a, b) => a.priority - b.priority || b.control.createdAt.getTime() - a.control.createdAt.getTime());
+    .sort(
+      (a, b) =>
+        a.priority - b.priority || b.control.createdAt.getTime() - a.control.createdAt.getTime(),
+    );
 
   const selected = ranked[0];
   if (!selected) return null;
@@ -322,7 +376,10 @@ async function findDepositDecision(tx: Db, member: MemberScope): Promise<Control
     where: { id: member.id },
     select: { balance: true },
   });
-  if (currentUser && currentUser.balance.minus(control.startBalance).greaterThanOrEqualTo(control.targetProfit)) {
+  if (
+    currentUser &&
+    currentUser.balance.minus(control.startBalance).greaterThanOrEqualTo(control.targetProfit)
+  ) {
     await tx.memberDepositControl.update({
       where: { id: control.id },
       data: { isActive: false, isCompleted: true },
@@ -359,7 +416,9 @@ async function findManualDetectionDecision(
     applicable.control.targetMemberUsername,
   );
   return {
-    desired: settlement.superiorSettlement.lessThan(applicable.control.targetSettlement) ? 'WIN' : 'LOSS',
+    desired: settlement.superiorSettlement.lessThan(applicable.control.targetSettlement)
+      ? 'WIN'
+      : 'LOSS',
     controlId: applicable.control.id,
     reason: 'manual_detection',
   };
@@ -368,8 +427,12 @@ async function findManualDetectionDecision(
 async function findBurstDecision(
   tx: Db,
   member: MemberScope,
+  gameId: string,
   predicted: PredictedResult,
+  options: ControlOptions,
 ): Promise<ControlDecision | null> {
+  if (!isBurstControlEligible(gameId, predicted, options)) return null;
+
   const applicable = await findApplicableBurstControl(tx, member);
   if (!applicable) return null;
 
@@ -378,15 +441,12 @@ async function findBurstDecision(
   const memberBurstProfit = await sumMemberBurstProfit(tx, control.id, member.id);
   const remainingBudget = control.dailyBudget.sub(control.todayBurstAmount);
   const memberRemaining = control.memberDailyCap.sub(memberBurstProfit);
-  const maxBurstProfit = minDecimal([
-    control.singlePayoutCap,
-    remainingBudget,
-    memberRemaining,
-  ]);
+  const maxBurstProfit = minDecimal([control.singlePayoutCap, remainingBudget, memberRemaining]);
   const maxPayout = predicted.amount.add(maxBurstProfit);
   const predictedProfit = predicted.payout.sub(predicted.amount);
   const predictedNetWin = isNetWin(predicted);
   const eligibility = await getBurstEligibility(tx, member.id, stats.net, control);
+  const guardOnly = options.burstGuardOnly === true;
 
   if (remainingBudget.lessThanOrEqualTo(0) || memberRemaining.lessThanOrEqualTo(0)) {
     return predictedNetWin
@@ -413,10 +473,14 @@ async function findBurstDecision(
       predicted.multiplier.greaterThan(control.singleMultiplierCap) ||
       projectedNet.greaterThan(control.riskWinLimit))
   ) {
-    if (!eligibility.eligible) {
+    if (guardOnly || !eligibility.eligible) {
       return { desired: 'LOSS', controlId: control.id, reason: 'burst_risk_guard' };
     }
-    const cappedSmall = minDecimal([control.smallWinMultiplier, control.singleMultiplierCap, maxPayout.div(predicted.amount)]);
+    const cappedSmall = minDecimal([
+      control.smallWinMultiplier,
+      control.singleMultiplierCap,
+      maxPayout.div(predicted.amount),
+    ]);
     if (cappedSmall.lessThanOrEqualTo(1)) {
       return { desired: 'LOSS', controlId: control.id, reason: 'burst_risk_guard' };
     }
@@ -431,12 +495,19 @@ async function findBurstDecision(
     };
   }
 
+  if (guardOnly) return null;
+
   const inCooldown = await isBurstCooldownActive(tx, control.id, member.id, control.cooldownRounds);
   const canBurst = !inCooldown && remainingBudget.greaterThan(0) && memberRemaining.greaterThan(0);
 
   if (eligibility.eligible && stats.net.lessThanOrEqualTo(control.compensationLoss.negated())) {
     if (Math.random() < clampRate(control.smallWinRate)) {
-      return smallWinDecision(control.id, control.smallWinMultiplier, control.singleMultiplierCap, maxPayout);
+      return smallWinDecision(
+        control.id,
+        control.smallWinMultiplier,
+        control.singleMultiplierCap,
+        maxPayout,
+      );
     }
   }
 
@@ -446,8 +517,13 @@ async function findBurstDecision(
   const roll = Math.random();
 
   if (roll < burstRate) {
-    const maxMultiplier = minDecimal([control.singleMultiplierCap, maxPayout.div(predicted.amount)]);
-    const minMultiplierByProfit = predicted.amount.add(control.minBurstMultiplier).div(predicted.amount);
+    const maxMultiplier = minDecimal([
+      control.singleMultiplierCap,
+      maxPayout.div(predicted.amount),
+    ]);
+    const minMultiplierByProfit = predicted.amount
+      .add(control.minBurstMultiplier)
+      .div(predicted.amount);
     const minMultiplier = minDecimal([minMultiplierByProfit, maxMultiplier]);
     if (maxMultiplier.greaterThan(1)) {
       return {
@@ -463,7 +539,12 @@ async function findBurstDecision(
   }
 
   if (roll < burstRate + smallWinRate) {
-    return smallWinDecision(control.id, control.smallWinMultiplier, control.singleMultiplierCap, maxPayout);
+    return smallWinDecision(
+      control.id,
+      control.smallWinMultiplier,
+      control.singleMultiplierCap,
+      maxPayout,
+    );
   }
 
   if (roll < burstRate + smallWinRate + lossRate) {
@@ -471,6 +552,24 @@ async function findBurstDecision(
   }
 
   return null;
+}
+
+export function isBurstControlEligible(
+  gameId: string,
+  predicted: Pick<PredictedResult, 'multiplier'>,
+  options: ControlOptions = {},
+): boolean {
+  if (options.burstEligible === false) return false;
+  if (options.burstEligible === true) return true;
+  if (BURST_ALWAYS_ELIGIBLE_GAME_IDS.has(gameId)) return true;
+  if (!BURST_CONDITIONAL_GAME_IDS.has(gameId)) return false;
+
+  const configuredPotential = toDecimalOrNull(options.burstPotentialMultiplier);
+  const potential =
+    configuredPotential && configuredPotential.greaterThan(predicted.multiplier)
+      ? configuredPotential
+      : predicted.multiplier;
+  return potential.greaterThanOrEqualTo(BURST_CONTROL_MIN_POTENTIAL_MULTIPLIER);
 }
 
 async function getBurstEligibility(
@@ -606,7 +705,10 @@ async function completeDepositControlIfReached(
   }
 }
 
-async function getMemberTodayStats(tx: Db, userId: string): Promise<{ net: Prisma.Decimal; bets: number }> {
+async function getMemberTodayStats(
+  tx: Db,
+  userId: string,
+): Promise<{ net: Prisma.Decimal; bets: number }> {
   const window = getControlGameDayWindow();
   const [standard, crash] = await Promise.all([
     tx.bet.aggregate({
@@ -637,7 +739,11 @@ async function getMemberTodayStats(tx: Db, userId: string): Promise<{ net: Prism
   };
 }
 
-async function sumMemberBurstProfit(tx: Db, controlId: string, userId: string): Promise<Prisma.Decimal> {
+async function sumMemberBurstProfit(
+  tx: Db,
+  controlId: string,
+  userId: string,
+): Promise<Prisma.Decimal> {
   const window = getControlGameDayWindow();
   const logs = await tx.winLossControlLogs.findMany({
     where: {
@@ -694,7 +800,8 @@ async function updateBurstControlUsage(
   outcome: ControlOutcome,
   final: FinalizedControlResult,
 ): Promise<void> {
-  if (!outcome.controlled || !outcome.controlId || !outcome.flipReason?.startsWith('burst_')) return;
+  if (!outcome.controlled || !outcome.controlId || !outcome.flipReason?.startsWith('burst_'))
+    return;
   if (!final.payout.greaterThan(final.amount)) return;
   const control = await tx.burstControl.findUnique({ where: { id: outcome.controlId } });
   if (!control) return;
@@ -741,16 +848,28 @@ function clampRate(value: Prisma.Decimal): number {
   return Math.min(1, Math.max(0, n));
 }
 
-function clampDecimal(value: Prisma.Decimal, min: Prisma.Decimal, max: Prisma.Decimal): Prisma.Decimal {
+function clampDecimal(
+  value: Prisma.Decimal,
+  min: Prisma.Decimal,
+  max: Prisma.Decimal,
+): Prisma.Decimal {
   if (value.lessThan(min)) return min;
   if (value.greaterThan(max)) return max;
   return value;
 }
 
-function isWithinDecisionBounds(
-  result: PredictedResult,
-  decision: ControlDecision,
-): boolean {
+function toDecimalOrNull(
+  value: Prisma.Decimal | number | string | undefined,
+): Prisma.Decimal | null {
+  if (value === undefined || value === null) return null;
+  try {
+    return value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value);
+  } catch {
+    return null;
+  }
+}
+
+function isWithinDecisionBounds(result: PredictedResult, decision: ControlDecision): boolean {
   if (decision.minMultiplier && result.multiplier.lessThan(decision.minMultiplier)) return false;
   if (decision.maxMultiplier && result.multiplier.greaterThan(decision.maxMultiplier)) return false;
   if (decision.maxPayout && result.payout.greaterThan(decision.maxPayout)) return false;
@@ -770,12 +889,15 @@ function flipToLoss(_: PredictedResult, reason: string, controlId: string): Cont
 
 function flipToWin(p: PredictedResult, decision: ControlDecision): ControlOutcome {
   const payoutCapMultiplier = decision.maxPayout ? decision.maxPayout.div(p.amount) : null;
-  const maxValues = [decision.maxMultiplier, payoutCapMultiplier].filter((value): value is Prisma.Decimal => Boolean(value));
-  const hardMax = maxValues.length > 0
-    ? minDecimal(maxValues)
-    : p.multiplier.greaterThan(1)
-      ? p.multiplier
-      : new Prisma.Decimal(2);
+  const maxValues = [decision.maxMultiplier, payoutCapMultiplier].filter(
+    (value): value is Prisma.Decimal => Boolean(value),
+  );
+  const hardMax =
+    maxValues.length > 0
+      ? minDecimal(maxValues)
+      : p.multiplier.greaterThan(1)
+        ? p.multiplier
+        : new Prisma.Decimal(2);
   const minMultiplier = decision.minMultiplier ?? new Prisma.Decimal(2);
   if (hardMax.lessThanOrEqualTo(1)) {
     return flipToLoss(p, 'burst_budget_guard', decision.controlId);

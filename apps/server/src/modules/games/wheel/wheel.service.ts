@@ -9,7 +9,11 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
+import {
+  applyControls,
+  finalizeControls,
+  multiplierMatchesControlBounds,
+} from '../_common/controls.js';
 import type { WheelBetInput } from './wheel.schema.js';
 
 export class WheelService {
@@ -20,30 +24,28 @@ export class WheelService {
 
     return runSerializable(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
-      const seed = await new SeedHelper(tx).getActiveBundle(
-        userId,
-        'wheel',
-        input.clientSeed,
-      );
+      const seed = await new SeedHelper(tx).getActiveBundle(userId, 'wheel', input.clientSeed);
       const segments = input.segments as WheelSegmentCount;
-      const { segmentIndex } = wheelSpin(
-        seed.serverSeed,
-        seed.clientSeed,
-        seed.nonce,
-        segments,
-      );
+      const { segmentIndex } = wheelSpin(seed.serverSeed, seed.clientSeed, seed.nonce, segments);
       const multiplier = wheelMultiplier(input.risk, segments, segmentIndex);
       const table = wheelTable(input.risk, segments);
       const multiplierD = new Prisma.Decimal(multiplier.toFixed(4));
-      const payout = amount
-        .mul(multiplierD)
-        .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const controlled = await applyControls(tx, userId, GameId.WHEEL, {
-        won: payout.greaterThan(amount),
-        amount,
-        multiplier: multiplierD,
-        payout,
-      });
+      const payout = amount.mul(multiplierD).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+      const maxPotentialMultiplier = new Prisma.Decimal(Math.max(...table).toFixed(4));
+      const controlled = await applyControls(
+        tx,
+        userId,
+        GameId.WHEEL,
+        {
+          won: payout.greaterThan(amount),
+          amount,
+          multiplier: multiplierD,
+          payout,
+        },
+        {
+          burstPotentialMultiplier: maxPotentialMultiplier,
+        },
+      );
 
       let finalSegmentIndex = segmentIndex;
       let finalMultiplier = multiplierD;
@@ -81,16 +83,20 @@ export class WheelService {
         },
       });
       await debitAndRecord(tx, userId, amount, bet.id);
-      const newBalance =
-        finalPayout.greaterThan(0)
-          ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
-          : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+      const newBalance = finalPayout.greaterThan(0)
+        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
+        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
       await finalizeControls(
         tx,
         userId,
         GameId.WHEEL,
         { won: payout.greaterThan(amount), amount, multiplier: multiplierD, payout },
-        { won: finalPayout.greaterThan(amount), amount, multiplier: finalMultiplier, payout: finalPayout },
+        {
+          won: finalPayout.greaterThan(amount),
+          amount,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
+        },
         controlled,
         bet.id,
         originalResult,
@@ -129,7 +135,10 @@ function chooseWheelSegment(
         ? x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
         : x.multiplier <= 1,
     );
-  const pool = candidates.length > 0 ? candidates : table.map((multiplier, segmentIndex) => ({ segmentIndex, multiplier }));
+  const pool =
+    candidates.length > 0
+      ? candidates
+      : table.map((multiplier, segmentIndex) => ({ segmentIndex, multiplier }));
   pool.sort((a, b) => (wantWin ? b.multiplier - a.multiplier : a.multiplier - b.multiplier));
   return pool[0]?.segmentIndex ?? 0;
 }

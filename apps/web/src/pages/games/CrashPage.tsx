@@ -77,6 +77,20 @@ function roundCurrency(value: number): number {
   return Number(Math.max(0, value).toFixed(2));
 }
 
+function crashElapsedMs(multiplier: number): number {
+  if (!Number.isFinite(multiplier) || multiplier <= 1) return 0;
+  return Math.max(0, Math.floor(Math.log(multiplier) / SOLO_CLIENT_GROWTH_RATE));
+}
+
+function nextRoundPollDelay(state: CrashSoloRoundState): number {
+  const finalMultiplier = state.visualCrashPoint;
+  if (!Number.isFinite(finalMultiplier) || finalMultiplier === undefined) return 70;
+  const remainingMs = crashElapsedMs(finalMultiplier) - state.elapsedMs;
+  if (remainingMs <= 180) return 24;
+  if (remainingMs <= 650) return 42;
+  return 70;
+}
+
 function createSimulatedCrashBets(gameId: string): SimulatedCrashBet[] {
   const count = SIMULATED_LIVE_MIN + (hashString(gameId) % 10) + Math.floor(Math.random() * 6);
   return Array.from({ length: Math.min(SIMULATED_LIVE_MAX, count) }, () =>
@@ -161,12 +175,14 @@ export function CrashPage({ config }: Props) {
   const [autoBetStopReason, setAutoBetStopReason] = useState('');
   const roundPollRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const optimisticFlightRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const canvasShellRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<CrashScene | null>(null);
   const myBetRef = useRef<LocalCrashBet | null>(null);
   const finalizedRoundRef = useRef<string | null>(null);
   const statusRef = useRef(status);
   const crashPointRef = useRef(crashPoint);
+  const visualCrashPointRef = useRef<number | null>(null);
   const multiplierRef = useRef(1.0);
   const userIdRef = useRef<string | null>(user?.id ?? null);
   const autoBetActiveRef = useRef(false);
@@ -210,6 +226,7 @@ export function CrashPage({ config }: Props) {
 
     if (statusRef.current === 'RUNNING') {
       scene.startRunning();
+      scene.setCrashLimit(visualCrashPointRef.current);
       scene.setMultiplier(multiplierRef.current);
       return;
     }
@@ -222,27 +239,50 @@ export function CrashPage({ config }: Props) {
   // 初始化 Pixi scene
   useEffect(() => {
     const canvas = canvasRef.current;
+    const shell = canvasShellRef.current ?? canvas?.parentElement;
     if (!canvas) return;
     let cancelled = false;
     let scene: CrashScene | null = null;
     let rafId = 0;
-    const tryInit = () => {
+    let resizeObserver: ResizeObserver | null = null;
+    let initToken = 0;
+    let lastWidth = 0;
+    let lastHeight = 0;
+
+    const fillCanvas = () => {
+      canvas.style.position = 'absolute';
+      canvas.style.inset = '0';
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.display = 'block';
+    };
+
+    const readSize = () => {
+      const rect = (shell ?? canvas).getBoundingClientRect();
+      const w = Math.round(rect.width || canvas.clientWidth);
+      const h = Math.round(rect.height || canvas.clientHeight);
+      return { w, h };
+    };
+
+    const initScene = (w: number, h: number) => {
       if (cancelled) return;
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
-      if (w < 10 || h < 10) {
-        rafId = requestAnimationFrame(tryInit);
-        return;
-      }
+      fillCanvas();
+      lastWidth = w;
+      lastHeight = h;
+      const token = ++initToken;
+      const previous = scene;
       const nextScene = new CrashScene();
       scene = nextScene;
+      sceneRef.current = nextScene;
+      previous?.dispose();
       void nextScene
         .init(canvas, w, h, config.variant ?? 'rocket')
         .then(() => {
-          if (cancelled) {
+          if (cancelled || token !== initToken) {
             nextScene.dispose();
             return;
           }
+          fillCanvas();
           sceneRef.current = nextScene;
           applySceneState(nextScene);
         })
@@ -251,10 +291,42 @@ export function CrashPage({ config }: Props) {
           if (sceneRef.current === nextScene) sceneRef.current = null;
         });
     };
+
+    const ensureSceneSize = () => {
+      if (cancelled) return;
+      fillCanvas();
+      const { w, h } = readSize();
+      if (w < 10 || h < 10) {
+        rafId = requestAnimationFrame(ensureSceneSize);
+        return;
+      }
+      if (!scene || Math.abs(w - lastWidth) > 3 || Math.abs(h - lastHeight) > 3) {
+        initScene(w, h);
+      }
+    };
+
+    const scheduleEnsureSceneSize = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(ensureSceneSize);
+    };
+
+    const tryInit = () => {
+      if (cancelled) return;
+      fillCanvas();
+      const { w, h } = readSize();
+      if (w < 10 || h < 10) {
+        rafId = requestAnimationFrame(tryInit);
+        return;
+      }
+      initScene(w, h);
+      resizeObserver = new ResizeObserver(scheduleEnsureSceneSize);
+      resizeObserver.observe(shell ?? canvas);
+    };
     tryInit();
     return () => {
       cancelled = true;
       if (rafId) cancelAnimationFrame(rafId);
+      resizeObserver?.disconnect();
       if (scene && sceneRef.current === scene) {
         scene.dispose();
         sceneRef.current = null;
@@ -274,6 +346,8 @@ export function CrashPage({ config }: Props) {
     if (!sceneRef.current) return;
     if (status === 'RUNNING') {
       sceneRef.current.startRunning();
+      sceneRef.current.setCrashLimit(visualCrashPointRef.current);
+      sceneRef.current.setMultiplier(multiplierRef.current);
     }
   }, [status]);
 
@@ -348,6 +422,7 @@ export function CrashPage({ config }: Props) {
       statusRef.current = 'RUNNING';
       multiplierRef.current = 1;
       crashPointRef.current = null;
+      visualCrashPointRef.current = null;
       finalizedRoundRef.current = null;
       const optimisticBet = { amount: betAmount };
       myBetRef.current = optimisticBet;
@@ -356,18 +431,7 @@ export function CrashPage({ config }: Props) {
       setStatus('RUNNING');
       setMultiplier(1);
       sceneRef.current?.startRunning();
-
-      const startedAt = Date.now();
-      const tick = () => {
-        if (statusRef.current !== 'RUNNING') return;
-        const elapsed = Date.now() - startedAt;
-        const next = Math.min(1.35, Math.max(1, Math.exp(SOLO_CLIENT_GROWTH_RATE * elapsed)));
-        multiplierRef.current = next;
-        setMultiplier(next);
-        sceneRef.current?.setMultiplier(next);
-        optimisticFlightRef.current = window.setTimeout(tick, 60);
-      };
-      optimisticFlightRef.current = window.setTimeout(tick, 40);
+      sceneRef.current?.setCrashLimit(1);
     },
     [clearOptimisticFlight],
   );
@@ -383,19 +447,30 @@ export function CrashPage({ config }: Props) {
     (state: CrashSoloRoundState) => {
       clearOptimisticFlight();
       statusRef.current = state.status;
-      multiplierRef.current = state.currentMultiplier;
+      const visualCrashPoint = Number.isFinite(state.visualCrashPoint)
+        ? state.visualCrashPoint!
+        : null;
+      visualCrashPointRef.current = visualCrashPoint;
+      const safeCurrentMultiplier =
+        visualCrashPoint && state.status === 'RUNNING'
+          ? Math.min(state.currentMultiplier, visualCrashPoint)
+          : state.currentMultiplier;
+      multiplierRef.current = safeCurrentMultiplier;
       setStatus(state.status);
       setRoundNumber(state.roundNumber);
-      setMultiplier(state.currentMultiplier);
+      setMultiplier(safeCurrentMultiplier);
       if (state.status === 'RUNNING') {
-        sceneRef.current?.setMultiplier(state.currentMultiplier, state.elapsedMs);
+        sceneRef.current?.setCrashLimit(visualCrashPoint);
+        sceneRef.current?.setMultiplier(safeCurrentMultiplier, state.elapsedMs);
       }
       if (state.newBalance) setBalance(state.newBalance);
 
       if (state.status === 'CRASHED') {
         const finalMultiplier = state.crashPoint ?? state.currentMultiplier;
         crashPointRef.current = finalMultiplier;
+        visualCrashPointRef.current = finalMultiplier;
         setCrashPoint(finalMultiplier);
+        sceneRef.current?.setCrashLimit(finalMultiplier);
         if (finalizedRoundRef.current !== state.roundId) {
           finalizedRoundRef.current = state.roundId;
           setHistory((h) => [finalMultiplier, ...h].slice(0, 20));
@@ -435,7 +510,7 @@ export function CrashPage({ config }: Props) {
           );
           handleRoundState(res.data);
           if (res.data.status === 'RUNNING') {
-            roundPollRef.current = window.setTimeout(tick, 90);
+            roundPollRef.current = window.setTimeout(tick, nextRoundPollDelay(res.data));
           } else {
             clearRoundPoll();
           }
@@ -459,6 +534,7 @@ export function CrashPage({ config }: Props) {
     multiplierRef.current = 1;
     setMultiplier(1);
     setCrashPoint(null);
+    visualCrashPointRef.current = null;
     api
       .get<{ multipliers?: number[] }>('/games/crash/history', {
         params: { gameId: config.gameId },
@@ -809,7 +885,7 @@ export function CrashPage({ config }: Props) {
               </div>
             </div>
 
-            <div className="game-canvas-shell game-canvas-wide relative aspect-[16/7] w-full overflow-hidden">
+            <div ref={canvasShellRef} className="game-canvas-shell game-canvas-wide relative aspect-[16/7] w-full overflow-hidden">
               <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
               {stageHistory.length > 0 && (
                 <div className="crash-history-strip" aria-label={t.games.crash.recentCrashes}>

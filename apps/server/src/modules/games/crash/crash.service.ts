@@ -362,6 +362,7 @@ function toRoundState(
       ? Number(round.crashPoint.toFixed(4))
       : Number(currentMultiplier.toFixed(4)),
     elapsedMs,
+    visualCrashPoint: Number(round.crashPoint.toFixed(4)),
     newBalance,
   };
 }

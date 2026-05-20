@@ -117,9 +117,19 @@ export class HotlineService {
         multiplier: accountingMultiplierD,
         payout,
       };
-      const controlled = buyFeature
-        ? { ...controlPrediction, controlled: false as const }
-        : await applyControls(tx, userId, gameId, controlPrediction);
+      const controlled = await applyControls(
+        tx,
+        userId,
+        gameId,
+        controlPrediction,
+        buyFeature
+          ? {
+              burstEligible: true,
+              burstGuardOnly: true,
+              burstPotentialMultiplier: accountingMultiplierD,
+            }
+          : undefined,
+      );
 
       let finalGrid = naturalRound.grid;
       let finalLines = naturalRound.lines;
@@ -139,7 +149,9 @@ export class HotlineService {
           .mul(finalMultiplier)
           .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
         finalFeatures =
-          rowCount > 3 ? buildControlledMegaFeature(Number(finalMultiplier.toFixed(4))) : undefined;
+          rowCount > 3
+            ? buildControlledMegaFeature(Number(finalMultiplier.toFixed(4)), buyFeature)
+            : undefined;
       }
       const profit = finalPayout.minus(stakeAmount);
 
@@ -511,7 +523,48 @@ function losingHotlineGrid(gameId: string): number[][] {
   ].slice(0, reelCount);
 }
 
-function buildControlledMegaFeature(totalMultiplier: number): HotlineMegaFeatureResult {
+function buildControlledMegaFeature(
+  totalMultiplier: number,
+  buyFeature = false,
+): HotlineMegaFeatureResult {
+  if (buyFeature) {
+    const blankGrid = losingHotlineGrid(GameId.THUNDER_SLOT);
+    const freeSpinRounds = Array.from({ length: 15 }, (_, index) => ({
+      index,
+      initialGrid: blankGrid,
+      finalGrid: blankGrid,
+      cascades: [],
+      lines: [],
+      baseMultiplier: 0,
+      scatterSymbols: [],
+      multiplierSymbols: [],
+      multiplierTotal: 0,
+      appliedMultiplier: 1,
+      totalMultiplier: 0,
+      extraFreeSpinsAwarded: 0,
+    }));
+    return {
+      scatterSymbols: [
+        { reel: 0, row: 0, type: 'scatter' },
+        { reel: 1, row: 1, type: 'scatter' },
+        { reel: 2, row: 2, type: 'scatter' },
+        { reel: 3, row: 3, type: 'scatter' },
+      ],
+      scatterCount: 4,
+      freeSpinsAwarded: 15,
+      freeSpinsPlayed: freeSpinRounds.length,
+      baseWinMultiplier: 0,
+      baseMultiplierSymbols: [],
+      baseMultiplierTotal: 0,
+      baseAppliedMultiplier: 1,
+      baseTotalMultiplier: 0,
+      freeSpinRounds,
+      freeSpinMultiplierBank: 0,
+      freeSpinWinMultiplier: totalMultiplier,
+      totalMultiplier,
+    };
+  }
+
   return {
     scatterSymbols: [],
     scatterCount: 0,
