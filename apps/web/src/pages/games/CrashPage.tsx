@@ -84,11 +84,11 @@ function crashElapsedMs(multiplier: number): number {
 
 function nextRoundPollDelay(state: CrashSoloRoundState): number {
   const finalMultiplier = state.visualCrashPoint;
-  if (!Number.isFinite(finalMultiplier) || finalMultiplier === undefined) return 70;
+  if (!Number.isFinite(finalMultiplier) || finalMultiplier === undefined) return 120;
   const remainingMs = crashElapsedMs(finalMultiplier) - state.elapsedMs;
-  if (remainingMs <= 180) return 24;
-  if (remainingMs <= 650) return 42;
-  return 70;
+  if (remainingMs <= 160) return 40;
+  if (remainingMs <= 420) return 70;
+  return Math.min(360, Math.max(120, remainingMs - 320));
 }
 
 function createSimulatedCrashBets(gameId: string): SimulatedCrashBet[] {
@@ -184,6 +184,9 @@ export function CrashPage({ config }: Props) {
   const crashPointRef = useRef(crashPoint);
   const visualCrashPointRef = useRef<number | null>(null);
   const multiplierRef = useRef(1.0);
+  const publishedMultiplierRef = useRef(1.0);
+  const lastMultiplierPublishAtRef = useRef(0);
+  const sceneClockSyncedRef = useRef(false);
   const userIdRef = useRef<string | null>(user?.id ?? null);
   const autoBetActiveRef = useRef(false);
   const autoBetRemainingRef = useRef<number | null>(null);
@@ -201,10 +204,6 @@ export function CrashPage({ config }: Props) {
   useEffect(() => {
     crashPointRef.current = crashPoint;
   }, [crashPoint]);
-
-  useEffect(() => {
-    multiplierRef.current = multiplier;
-  }, [multiplier]);
 
   useEffect(() => {
     userIdRef.current = user?.id ?? null;
@@ -422,6 +421,9 @@ export function CrashPage({ config }: Props) {
       clearOptimisticFlight();
       statusRef.current = 'RUNNING';
       multiplierRef.current = 1;
+      publishedMultiplierRef.current = 1;
+      lastMultiplierPublishAtRef.current = performance.now();
+      sceneClockSyncedRef.current = false;
       crashPointRef.current = null;
       visualCrashPointRef.current = null;
       finalizedRoundRef.current = null;
@@ -465,13 +467,29 @@ export function CrashPage({ config }: Props) {
             )
           : safeCurrentMultiplier;
       multiplierRef.current = displayMultiplier;
+      const publishMultiplier = (() => {
+        if (state.status !== 'RUNNING') return true;
+        const now = performance.now();
+        const roundedChanged =
+          Math.round(displayMultiplier * 10) !==
+          Math.round(publishedMultiplierRef.current * 10);
+        return roundedChanged || now - lastMultiplierPublishAtRef.current > 220;
+      })();
       setStatus(state.status);
       setRoundNumber(state.roundNumber);
-      setMultiplier(displayMultiplier);
+      if (publishMultiplier) {
+        publishedMultiplierRef.current = displayMultiplier;
+        lastMultiplierPublishAtRef.current = performance.now();
+        setMultiplier(displayMultiplier);
+      }
       if (state.status === 'RUNNING') {
         sceneRef.current?.setPreflightMultiplierCap(null);
         sceneRef.current?.setCrashLimit(visualCrashPoint);
-        sceneRef.current?.setMultiplier(displayMultiplier, state.elapsedMs);
+        sceneRef.current?.setMultiplier(
+          displayMultiplier,
+          sceneClockSyncedRef.current ? undefined : state.elapsedMs,
+        );
+        sceneClockSyncedRef.current = true;
       }
       if (state.newBalance) setBalance(state.newBalance);
 
@@ -479,7 +497,11 @@ export function CrashPage({ config }: Props) {
         const finalMultiplier = state.crashPoint ?? state.currentMultiplier;
         crashPointRef.current = finalMultiplier;
         visualCrashPointRef.current = finalMultiplier;
+        publishedMultiplierRef.current = finalMultiplier;
+        lastMultiplierPublishAtRef.current = performance.now();
+        sceneClockSyncedRef.current = false;
         setCrashPoint(finalMultiplier);
+        setMultiplier(finalMultiplier);
         sceneRef.current?.setCrashLimit(finalMultiplier);
         if (finalizedRoundRef.current !== state.roundId) {
           finalizedRoundRef.current = state.roundId;
@@ -542,6 +564,9 @@ export function CrashPage({ config }: Props) {
     setStatus('BETTING');
     statusRef.current = 'BETTING';
     multiplierRef.current = 1;
+    publishedMultiplierRef.current = 1;
+    lastMultiplierPublishAtRef.current = performance.now();
+    sceneClockSyncedRef.current = false;
     setMultiplier(1);
     setCrashPoint(null);
     visualCrashPointRef.current = null;
@@ -620,6 +645,9 @@ export function CrashPage({ config }: Props) {
         clearOptimisticFlight();
         statusRef.current = 'BETTING';
         multiplierRef.current = 1;
+        publishedMultiplierRef.current = 1;
+        lastMultiplierPublishAtRef.current = performance.now();
+        sceneClockSyncedRef.current = false;
         myBetRef.current = null;
         setStatus('BETTING');
         setMultiplier(1);

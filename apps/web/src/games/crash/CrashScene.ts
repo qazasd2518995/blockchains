@@ -134,10 +134,6 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-function easeInOutSine(t: number): number {
-  return -(Math.cos(Math.PI * t) - 1) / 2;
-}
-
 export class CrashScene {
   private app: Application | null = null;
   private width = 0;
@@ -177,10 +173,14 @@ export class CrashScene {
   private crashLimit: number | null = null;
   private preflightMultiplierCap: number | null = null;
   private lastEffectMultiplier = 1.0;
+  private lastCurveRenderMultiplier = 0;
+  private lastCurveCameraX = 0;
+  private lastCurveCameraY = 0;
   private runningStartedAtMs = 0;
   private maxMultiplier = 2.0;
   private phase: 'idle' | 'betting' | 'running' | 'crashed' = 'idle';
   private countdownSeconds = 0;
+  private reducedMotion = false;
 
   // Tickers
   private ambientTicker: ((tk: Ticker) => void) | null = null;
@@ -204,6 +204,7 @@ export class CrashScene {
     this.width = width;
     this.height = height;
     this.variant = variant;
+    this.reducedMotion = prefersReducedMotion();
 
     const app = new Application();
     await app.init({
@@ -696,7 +697,7 @@ export class CrashScene {
       const pos = this.multiplierToPosition(this.currentMultiplier);
       if (this.craft && this.craftContainer) {
         const flightAngle = this.flightTangentAngle(this.currentMultiplier);
-        const intensity = prefersReducedMotion()
+        const intensity = this.reducedMotion
           ? 0
           : 0.7 + Math.min(1.8, Math.max(0, this.currentMultiplier - 1) * 0.18);
         const lateralShake = (Math.sin(tick * 0.58) + Math.sin(tick * 1.07) * 0.45) * intensity;
@@ -708,7 +709,7 @@ export class CrashScene {
         this.craft.rotation = this.getCraftRotation(this.currentMultiplier, tick, true);
         this.animateCraftSprite(tick, true);
         // 更換引擎粒子
-        if (trailTick > 1) {
+        if (trailTick > (this.isCompactStage() ? 2.2 : 1.4)) {
           trailTick = 0;
           this.emitTrail(this.craft.x, this.craft.y, flightAngle);
         }
@@ -722,7 +723,7 @@ export class CrashScene {
 
   /**
    * 把 multiplier 映射到畫布座標。
-   * 不同飛行館使用不同 flight profile，讓視覺節奏不再都從左下飛到右上。
+   * 一般飛行館統一由左下往右上，熱氣球則保持中線垂直上升。
    */
   private multiplierToPosition(m: number): { x: number; y: number } {
     const world = this.multiplierToWorldPosition(m);
@@ -733,67 +734,7 @@ export class CrashScene {
   }
 
   private multiplierToWorldPosition(m: number): FlightPoint {
-    const base = this.positionAtProgress(this.flightProgress(m));
-    return {
-      x: base.x + this.extraForwardTravel(m),
-      y: base.y - this.extraVerticalTravel(m),
-    };
-  }
-
-  private extraForwardTravel(m: number): number {
-    const assetVariant = ASSET_VARIANT[this.variant];
-    const trigger =
-      assetVariant === 'rocket' ||
-      assetVariant === 'fleet' ||
-      assetVariant === 'balloon' ||
-      assetVariant === 'plinko'
-        ? 1.55
-        : 1.18;
-    const excess = Math.max(0, m - trigger);
-    if (excess <= 0) return 0;
-
-    const speedByVariant: Record<Exclude<CrashVariant, 'default'>, number> = {
-      rocket: 0.2,
-      aviator: 0.5,
-      balloon: 0.16,
-      jet: 0.62,
-      fleet: 0.28,
-      jet3: 0.58,
-      double: 0.56,
-      plinko: 0.3,
-    };
-    return this.width * speedByVariant[assetVariant] * Math.log1p(excess);
-  }
-
-  private extraVerticalTravel(m: number): number {
-    const assetVariant = ASSET_VARIANT[this.variant];
-    const triggerByVariant: Record<Exclude<CrashVariant, 'default'>, number> = {
-      rocket: 1.35,
-      aviator: 0,
-      balloon: 1.45,
-      jet: 0,
-      fleet: 1.38,
-      jet3: 0,
-      double: 0,
-      plinko: 1.55,
-    };
-    const trigger = triggerByVariant[assetVariant];
-    if (trigger <= 0) return 0;
-
-    const excess = Math.max(0, m - trigger);
-    if (excess <= 0) return 0;
-
-    const speedByVariant: Record<Exclude<CrashVariant, 'default'>, number> = {
-      rocket: 0.62,
-      aviator: 0,
-      balloon: 0.46,
-      jet: 0,
-      fleet: 0.56,
-      jet3: 0,
-      double: 0,
-      plinko: 0.4,
-    };
-    return this.height * speedByVariant[assetVariant] * Math.log1p(excess);
+    return this.positionAtProgress(this.flightProgress(m));
   }
 
   private updateCameraForMultiplier(m: number, deltaTime: number): void {
@@ -802,9 +743,9 @@ export class CrashScene {
     const followAnchorY = this.height * (this.height < 360 ? 0.36 : 0.32);
     const desiredX = Math.max(0, world.x - followAnchor);
     const desiredY = Math.max(0, followAnchorY - world.y);
-    const easedDesiredX = prefersReducedMotion() ? desiredX * 0.45 : desiredX;
-    const easedDesiredY = prefersReducedMotion() ? desiredY * 0.45 : desiredY;
-    const ease = Math.min(1, (prefersReducedMotion() ? 0.08 : 0.18) * deltaTime);
+    const easedDesiredX = this.reducedMotion ? desiredX * 0.45 : desiredX;
+    const easedDesiredY = this.reducedMotion ? desiredY * 0.45 : desiredY;
+    const ease = Math.min(1, (this.reducedMotion ? 0.08 : 0.18) * deltaTime);
     const nextX = this.cameraOffsetX + (easedDesiredX - this.cameraOffsetX) * ease;
     const nextY = this.cameraOffsetY + (easedDesiredY - this.cameraOffsetY) * ease;
     const cameraDeltaX = nextX - this.cameraOffsetX;
@@ -876,70 +817,21 @@ export class CrashScene {
     const w = this.width;
     const h = this.height;
     const edge = Math.max(42, Math.min(72, w * 0.12));
-    const low = h - Math.max(46, h * 0.16);
+    const low = this.isCompactStage()
+      ? h - Math.max(112, h * 0.27)
+      : h - Math.max(46, h * 0.16);
     const high = Math.max(54, h * 0.16);
 
-    switch (ASSET_VARIANT[this.variant]) {
-      case 'rocket': {
-        // Rocket：成熟 crash 常見的垂直升空，只保留少量風偏。
-        const launchLow = this.isCompactStage() ? h - Math.max(118, h * 0.28) : low;
-        const y = launchLow - (launchLow - high) * Math.pow(t, 1.06);
-        const x = w * 0.5 + Math.sin(t * Math.PI * 0.9) * w * 0.028;
-        return { x, y };
-      }
-      case 'aviator': {
-        // Aviator：跑道滑行後平順拉升，不做折返或大幅蛇行。
-        const takeoff = Math.max(0, (t - 0.14) / 0.86);
-        const climb = Math.pow(takeoff, 1.28);
-        const runway = Math.min(t / 0.14, 1);
-        const x = edge + (w - edge * 2) * easeOutCubic(t);
-        const y = low + h * 0.016 * runway - (low - high) * climb;
-        return { x, y };
-      }
-      case 'fleet': {
-        // Space Fleet：垂直爬升加透視漂移，像編隊從跑道正面升空。
-        const y = low - (low - high) * Math.pow(t, 1.04);
-        const x = w * 0.52 + Math.sin(t * Math.PI * 0.8) * w * 0.04;
-        return { x, y };
-      }
-      case 'jet': {
-        // JetX：高速向前，後段只有可讀的抬升，類似 JetX 市場節奏。
-        const lift = Math.pow(t, 1.75);
-        const x = edge + (w - edge * 2) * t;
-        const y = h * 0.68 - h * 0.07 * t - h * 0.28 * lift;
-        return { x, y };
-      }
-      case 'balloon': {
-        // Balloon：慢速上升、輕微風漂，重點是穩定和膨脹感。
-        const x = w * 0.47 + Math.sin(t * Math.PI * 1.05) * w * 0.075;
-        const y = low - (low - high * 1.08) * Math.pow(t, 0.94);
-        return { x, y };
-      }
-      case 'jet3': {
-        // JetX3：編隊同向爬升，只用小幅隊形擺動，不做大 S 迴轉。
-        const x = edge + (w - edge * 2) * t;
-        const y = low - (low - high) * Math.pow(t, 1.08) + Math.sin(t * Math.PI * 1.5) * h * 0.022;
-        return { x, y };
-      }
-      case 'double': {
-        // Double X：雙線交會的感覺用小波浪呈現，主方向仍清楚往右上。
-        const x = edge + (w - edge * 2) * easeInOutSine(t);
-        const y = h * 0.68 - h * 0.4 * t + Math.sin(t * Math.PI * 2) * h * 0.035;
-        return { x, y };
-      }
-      case 'plinko': {
-        // Plinko X：垂直彈射搭配阻尼彈跳，保留彈珠感但避免亂飛。
-        const bounce = Math.abs(Math.sin(t * Math.PI * 4.4)) * (1 - t * 0.45);
-        const x = w * 0.5 + Math.sin(t * Math.PI * 2.6) * w * 0.055;
-        const y = low - (low - high) * t + bounce * h * 0.032;
-        return { x, y };
-      }
-      default: {
-        const x = edge + (w - edge * 2) * t;
-        const y = low - (low - high) * Math.pow(t, 1.6);
-        return { x, y };
-      }
+    if (ASSET_VARIANT[this.variant] === 'balloon') {
+      return {
+        x: w * 0.5,
+        y: low - (low - high) * Math.pow(t, 0.98),
+      };
     }
+
+    const x = edge + (w - edge * 2) * easeOutCubic(t);
+    const y = low - (low - high) * Math.pow(t, 1.08);
+    return { x, y };
   }
 
   private idlePosition(tick: number): FlightPoint {
@@ -993,14 +885,12 @@ export class CrashScene {
   private getCraftRotation(m: number, tick: number, running: boolean): number {
     const assetVariant = ASSET_VARIANT[this.variant];
     if (assetVariant === 'balloon') {
-      const progress = this.flightProgress(m);
-      const lean = running ? -0.16 - progress * 0.18 : -0.08;
-      return lean + Math.sin(tick * 0.06) * 0.045;
+      return this.reducedMotion ? 0 : Math.sin(tick * 0.045) * (running ? 0.018 : 0.03);
     }
 
     const forwardAngle = this.craftSprite ? CRAFT_SPRITE_FORWARD_ANGLE[assetVariant] : -Math.PI / 2;
     const flightAngle = this.flightTangentAngle(m);
-    const engineWobble = prefersReducedMotion()
+    const engineWobble = this.reducedMotion
       ? 0
       : Math.sin(tick * 0.21) * 0.018 + Math.sin(tick * 0.63) * (running ? 0.026 : 0.012);
     return flightAngle - forwardAngle + engineWobble;
@@ -1009,14 +899,14 @@ export class CrashScene {
   private animateCraftSprite(tick: number, running: boolean): void {
     if (!this.craftSprite) return;
     const throttle = running ? Math.min(1, Math.max(0, this.currentMultiplier - 1) / 4) : 0;
-    const pulse = prefersReducedMotion()
+    const pulse = this.reducedMotion
       ? 1
       : 1 + Math.sin(tick * 0.72) * (running ? 0.018 : 0.01) + throttle * 0.018;
     this.craftSprite.scale.set(this.craftBaseScale * pulse);
-    this.craftSprite.x = prefersReducedMotion()
+    this.craftSprite.x = this.reducedMotion
       ? 0
       : Math.sin(tick * 0.46) * (running ? 1.8 + throttle * 1.5 : 0.7);
-    this.craftSprite.y = prefersReducedMotion()
+    this.craftSprite.y = this.reducedMotion
       ? 0
       : Math.sin(tick * 0.67) * (running ? 1.2 + throttle : 0.6);
   }
@@ -1024,13 +914,27 @@ export class CrashScene {
   private drawCurve(): void {
     if (!this.curveLayer) return;
     const curve = this.curveLayer;
-    curve.clear();
 
-    if (this.currentMultiplier <= 1.0) return;
+    if (this.currentMultiplier <= 1.0) {
+      curve.clear();
+      this.lastCurveRenderMultiplier = 0;
+      this.lastCurveCameraX = this.cameraOffsetX;
+      this.lastCurveCameraY = this.cameraOffsetY;
+      return;
+    }
+
+    const multiplierDelta = Math.abs(this.currentMultiplier - this.lastCurveRenderMultiplier);
+    const cameraDelta =
+      Math.abs(this.cameraOffsetX - this.lastCurveCameraX) +
+      Math.abs(this.cameraOffsetY - this.lastCurveCameraY);
+    const redrawThreshold = this.isCompactStage() ? 0.012 : 0.006;
+    if (this.phase === 'running' && multiplierDelta < redrawThreshold && cameraDelta < 1.2) return;
+
+    curve.clear();
 
     // 收集曲線點
     const points: { x: number; y: number }[] = [];
-    const steps = 40;
+    const steps = this.isCompactStage() ? 22 : 32;
     for (let i = 0; i <= steps; i += 1) {
       const t = i / steps;
       const m = 1 + (this.currentMultiplier - 1) * t;
@@ -1063,6 +967,10 @@ export class CrashScene {
     curve.lineTo(p0.x, this.height - 60);
     curve.closePath();
     curve.fill({ color, alpha: 0.1 });
+
+    this.lastCurveRenderMultiplier = this.currentMultiplier;
+    this.lastCurveCameraX = this.cameraOffsetX;
+    this.lastCurveCameraY = this.cameraOffsetY;
   }
 
   private emitTrail(x: number, y: number, flightAngle: number): void {
@@ -1071,7 +979,8 @@ export class CrashScene {
     const tailX = x - Math.cos(flightAngle) * tailOffset;
     const tailY = y - Math.sin(flightAngle) * tailOffset;
     const perp = flightAngle + Math.PI / 2;
-    for (let i = 0; i < 3; i += 1) {
+    const count = this.isCompactStage() ? 1 : 2;
+    for (let i = 0; i < count; i += 1) {
       const size = 3 + Math.random() * 4;
       const colors = [COLOR_AMBER, COLOR_EMBER, COLOR_WHITE];
       const color = colors[Math.floor(Math.random() * colors.length)]!;
@@ -1133,6 +1042,9 @@ export class CrashScene {
     this.runningStartedAtMs = 0;
     this.curveLayer?.clear();
     this.curvePoints = [];
+    this.lastCurveRenderMultiplier = 0;
+    this.lastCurveCameraX = 0;
+    this.lastCurveCameraY = 0;
     this.resetCamera();
 
     this.clearTrail();
@@ -1215,6 +1127,9 @@ export class CrashScene {
     this.tensionStart = performance.now() / 1000;
     this.curveLayer?.clear();
     this.curvePoints = [];
+    this.lastCurveRenderMultiplier = 0;
+    this.lastCurveCameraX = 0;
+    this.lastCurveCameraY = 0;
     this.resetCamera();
     this.clearTrail();
     this.restoreCraftVisuals();
@@ -1305,7 +1220,7 @@ export class CrashScene {
         }
 
         // 整數倍率穿越時：在 craft 位置噴一個小 glow burst
-        if (this.craft && this.app && !prefersReducedMotion()) {
+        if (this.craft && this.app && !this.reducedMotion) {
           const color = m >= 10 ? COLOR_AMBER : m >= 5 ? COLOR_EMBER : COLOR_TOXIC;
           emitGlowBurst(this.app.stage, this.craft.x, this.craft.y, color, {
             radius: 36 + Math.min(60, m * 1.5),
@@ -1435,7 +1350,7 @@ export class CrashScene {
     }
 
     // 失敗 statusLabel 呼吸提示
-    if (this.statusLabel && !prefersReducedMotion()) {
+    if (this.statusLabel && !this.reducedMotion) {
       gsap.fromTo(
         this.statusLabel,
         { alpha: 0.6 },
