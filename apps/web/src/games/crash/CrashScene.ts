@@ -175,6 +175,7 @@ export class CrashScene {
   private currentMultiplier = 1.0;
   private targetMultiplier = 1.0;
   private crashLimit: number | null = null;
+  private preflightMultiplierCap: number | null = null;
   private lastEffectMultiplier = 1.0;
   private runningStartedAtMs = 0;
   private maxMultiplier = 2.0;
@@ -967,7 +968,11 @@ export class CrashScene {
     if (this.runningStartedAtMs > 0) {
       const elapsedMs = Math.max(0, performance.now() - this.runningStartedAtMs);
       const clockMultiplier = Math.exp(SOLO_SCENE_GROWTH_RATE * elapsedMs);
-      this.targetMultiplier = Math.max(this.targetMultiplier, clockMultiplier);
+      const nextTarget =
+        this.preflightMultiplierCap !== null && this.crashLimit === null
+          ? Math.min(Math.max(this.targetMultiplier, clockMultiplier), this.preflightMultiplierCap)
+          : Math.max(this.targetMultiplier, clockMultiplier);
+      this.targetMultiplier = nextTarget;
     }
 
     const target = this.clampToCrashLimit(Math.max(1, this.targetMultiplier));
@@ -1123,6 +1128,7 @@ export class CrashScene {
     this.currentMultiplier = 1.0;
     this.targetMultiplier = 1.0;
     this.crashLimit = null;
+    this.preflightMultiplierCap = null;
     this.lastEffectMultiplier = 1.0;
     this.runningStartedAtMs = 0;
     this.curveLayer?.clear();
@@ -1196,10 +1202,13 @@ export class CrashScene {
   }
 
   startRunning(): void {
+    if (this.phase === 'running') return;
+
     this.phase = 'running';
     this.currentMultiplier = 1.0;
     this.targetMultiplier = 1.0;
     this.crashLimit = null;
+    this.preflightMultiplierCap = null;
     this.lastEffectMultiplier = 1.0;
     this.runningStartedAtMs = performance.now();
     this.maxMultiplier = 2.0;
@@ -1234,6 +1243,7 @@ export class CrashScene {
 
     if (this.phase === 'running') {
       if (Number.isFinite(elapsedMs)) {
+        this.preflightMultiplierCap = null;
         const serverStartedAt = performance.now() - Math.max(0, elapsedMs ?? 0);
         this.runningStartedAtMs =
           this.runningStartedAtMs > 0
@@ -1255,9 +1265,18 @@ export class CrashScene {
   setCrashLimit(limit: number | null): void {
     this.crashLimit = Number.isFinite(limit) && limit !== null && limit >= 1 ? limit : null;
     if (this.crashLimit === null) return;
+    this.preflightMultiplierCap = null;
     this.targetMultiplier = Math.min(this.targetMultiplier, this.crashLimit);
     this.currentMultiplier = Math.min(this.currentMultiplier, this.crashLimit);
     this.maxMultiplier = Math.max(this.maxMultiplier, this.crashLimit * 1.2, 2);
+  }
+
+  setPreflightMultiplierCap(limit: number | null): void {
+    this.preflightMultiplierCap =
+      Number.isFinite(limit) && limit !== null && limit >= 1 ? limit : null;
+    if (this.preflightMultiplierCap === null) return;
+    this.targetMultiplier = Math.min(this.targetMultiplier, this.preflightMultiplierCap);
+    this.currentMultiplier = Math.min(this.currentMultiplier, this.preflightMultiplierCap);
   }
 
   private clampToCrashLimit(m: number): number {
@@ -1328,6 +1347,7 @@ export class CrashScene {
   crash(finalMultiplier: number): void {
     this.phase = 'crashed';
     this.crashLimit = finalMultiplier;
+    this.preflightMultiplierCap = null;
     this.currentMultiplier = finalMultiplier;
     this.targetMultiplier = finalMultiplier;
     this.maxMultiplier = Math.max(this.maxMultiplier, finalMultiplier * 1.2, 2);
@@ -1571,6 +1591,7 @@ export class CrashScene {
     this.curvePoints = [];
     this.backgroundTileWidth = 0;
     this.cameraOffsetX = 0;
+    this.preflightMultiplierCap = null;
   }
 
   /** L4 共用大獎慶典 — GamePage 在拿到 result 後呼叫一次 */

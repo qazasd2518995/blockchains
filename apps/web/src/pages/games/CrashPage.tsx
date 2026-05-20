@@ -301,6 +301,7 @@ export function CrashPage({ config }: Props) {
         return;
       }
       if (!scene || Math.abs(w - lastWidth) > 3 || Math.abs(h - lastHeight) > 3) {
+        if (scene && statusRef.current === 'RUNNING') return;
         initScene(w, h);
       }
     };
@@ -431,7 +432,8 @@ export function CrashPage({ config }: Props) {
       setStatus('RUNNING');
       setMultiplier(1);
       sceneRef.current?.startRunning();
-      sceneRef.current?.setCrashLimit(1);
+      sceneRef.current?.setCrashLimit(null);
+      sceneRef.current?.setPreflightMultiplierCap(1.04);
     },
     [clearOptimisticFlight],
   );
@@ -455,13 +457,21 @@ export function CrashPage({ config }: Props) {
         visualCrashPoint && state.status === 'RUNNING'
           ? Math.min(state.currentMultiplier, visualCrashPoint)
           : state.currentMultiplier;
-      multiplierRef.current = safeCurrentMultiplier;
+      const displayMultiplier =
+        state.status === 'RUNNING'
+          ? Math.min(
+              visualCrashPoint ?? Number.POSITIVE_INFINITY,
+              Math.max(multiplierRef.current, safeCurrentMultiplier),
+            )
+          : safeCurrentMultiplier;
+      multiplierRef.current = displayMultiplier;
       setStatus(state.status);
       setRoundNumber(state.roundNumber);
-      setMultiplier(safeCurrentMultiplier);
+      setMultiplier(displayMultiplier);
       if (state.status === 'RUNNING') {
+        sceneRef.current?.setPreflightMultiplierCap(null);
         sceneRef.current?.setCrashLimit(visualCrashPoint);
-        sceneRef.current?.setMultiplier(safeCurrentMultiplier, state.elapsedMs);
+        sceneRef.current?.setMultiplier(displayMultiplier, state.elapsedMs);
       }
       if (state.newBalance) setBalance(state.newBalance);
 
@@ -1006,7 +1016,19 @@ export function CrashPage({ config }: Props) {
             )}
 
             <div className="crash-action-stack mt-6 space-y-2">
-              {canShowCurrentBetButton && (
+              {status === 'RUNNING' ? (
+                <button
+                  type="button"
+                  disabled
+                  className="crash-flight-status-button btn-acid w-full py-4"
+                >
+                  <span>
+                    {config.runningLabel ?? t.games.crash.running} ·{' '}
+                    {formatAmount(myBet?.amount ?? amount)}
+                  </span>
+                  <span className="data-num">{formatCrashMultiplier(multiplier)}</span>
+                </button>
+              ) : canShowCurrentBetButton ? (
                 <button
                   type="button"
                   onClick={handlePlaceBet}
@@ -1015,7 +1037,7 @@ export function CrashPage({ config }: Props) {
                 >
                   → {t.games.crash.placeBet} · {formatAmount(amount)}
                 </button>
-              )}
+              ) : null}
               {status === 'CRASHED' && myBet && (
                 <div className="game-result-card game-result-card-loss text-center">
                   <div className="font-display text-xl text-[#FCA5A5]">{t.games.crash.busted}</div>

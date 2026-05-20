@@ -1347,12 +1347,15 @@
       min-height: 34px;
       margin-top: 0 !important;
       align-self: start;
+      width: 100%;
       border-radius: 10px;
       padding: 0.24rem 0.38rem !important;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-action-stack {
       display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: minmax(0, 1fr);
       min-width: 0;
       align-self: start;
       align-content: start;
@@ -1366,6 +1369,15 @@
       border-radius: 10px;
       padding: 0.28rem 0.36rem !important;
       font-size: 10px;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-action-stack .crash-flight-status-button {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      justify-content: stretch;
+      opacity: 0.86;
+      pointer-events: none;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-action-stack .game-stat-card,
