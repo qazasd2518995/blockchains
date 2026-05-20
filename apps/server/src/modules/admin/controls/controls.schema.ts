@@ -16,16 +16,26 @@ const fractionDecimal = decimal.refine((value) => {
   return Number.isFinite(n) && n >= 0 && n <= 1;
 }, 'must be between 0 and 1');
 
-export const winLossControlSchema = z.object({
-  controlMode: z.enum(['NORMAL', 'AGENT_LINE', 'SINGLE_MEMBER', 'AUTO_DETECT']),
-  targetType: z.enum(['agent', 'member']).optional().nullable(),
-  targetId: z.string().optional().nullable(),
-  targetUsername: z.string().optional().nullable(),
-  controlPercentage: positiveRateDecimal.default('50'),
-  winControl: z.boolean().default(false),
-  lossControl: z.boolean().default(false),
-  startPeriod: z.string().optional().nullable(),
-});
+export const winLossControlSchema = z
+  .object({
+    controlMode: z.enum(['NORMAL', 'AGENT_LINE', 'SINGLE_MEMBER', 'AUTO_DETECT']),
+    targetType: z.enum(['agent', 'member']).optional().nullable(),
+    targetId: z.string().optional().nullable(),
+    targetUsername: z.string().optional().nullable(),
+    controlPercentage: positiveRateDecimal.default('50'),
+    winControl: z.boolean().default(false),
+    lossControl: z.boolean().default(false),
+    startPeriod: z.string().optional().nullable(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.winControl === value.lossControl) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '输赢控制必须且只能选择放水或杀分其中一种',
+        path: ['winControl'],
+      });
+    }
+  });
 
 export const winCapControlSchema = z.object({
   memberId: z.string(),

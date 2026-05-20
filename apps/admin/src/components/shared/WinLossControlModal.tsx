@@ -10,14 +10,14 @@ interface Props {
 }
 
 type ControlMode = 'SINGLE_MEMBER' | 'AGENT_LINE';
+type ControlDirection = 'loss' | 'win';
 
 export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Element {
   const [mode, setMode] = useState<ControlMode>('SINGLE_MEMBER');
   const [target, setTarget] = useState<AccountSearchOption | null>(null);
   const [pct, setPct] = useState('70');
   const [startPeriod, setStartPeriod] = useState('');
-  const [winControl, setWinControl] = useState(true);
-  const [lossControl, setLossControl] = useState(false);
+  const [direction, setDirection] = useState<ControlDirection>('loss');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -36,8 +36,8 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
         targetId: target.id,
         targetUsername: target.username,
         controlPercentage: pct,
-        winControl,
-        lossControl,
+        winControl: direction === 'win',
+        lossControl: direction === 'loss',
         startPeriod: startPeriod.trim() || undefined,
       });
       onDone();
@@ -99,22 +99,30 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
           </label>
         </div>
 
-        <div className="flex gap-4">
-          <label className="flex items-center gap-2 text-[12px]">
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex items-center gap-2 rounded-lg border border-[#D7E3EA] bg-white px-3 py-2 text-[12px]">
             <input
-              type="checkbox"
-              checked={winControl}
-              onChange={(e) => setWinControl(e.target.checked)}
+              type="radio"
+              name="win-loss-direction"
+              checked={direction === 'loss'}
+              onChange={() => setDirection('loss')}
             />
-            放水（将输翻成赢）
+            <span>
+              <span className="block font-semibold text-[#8A352F]">杀分</span>
+              <span className="block text-[#667789]">将赢翻成输</span>
+            </span>
           </label>
-          <label className="flex items-center gap-2 text-[12px]">
+          <label className="flex items-center gap-2 rounded-lg border border-[#D7E3EA] bg-white px-3 py-2 text-[12px]">
             <input
-              type="checkbox"
-              checked={lossControl}
-              onChange={(e) => setLossControl(e.target.checked)}
+              type="radio"
+              name="win-loss-direction"
+              checked={direction === 'win'}
+              onChange={() => setDirection('win')}
             />
-            杀分（将赢翻成输）
+            <span>
+              <span className="block font-semibold text-[#0F766E]">放水</span>
+              <span className="block text-[#667789]">将输翻成赢</span>
+            </span>
           </label>
         </div>
 

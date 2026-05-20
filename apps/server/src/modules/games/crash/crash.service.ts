@@ -2,12 +2,10 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { crashPoint } from '@bg/provably-fair';
 import {
   type CrashBetStartResponse,
-  type CrashCashOutResponse,
   type CrashSoloRoundState,
 } from '@bg/shared';
 import {
   SeedHelper,
-  creditAndRecord,
   debitAndRecord,
   lockUserAndCheckFunds,
   runSerializable,
@@ -71,7 +69,7 @@ export class CrashSoloService {
         const activeBet = await this.getLockedOwnBet(tx, userId, active.roundId);
         const resolved = await this.resolveRoundInTx(tx, activeBet);
         if (resolved.bet.round.status === 'RUNNING') {
-          throw new ApiError('ROUND_NOT_ACTIVE', '上一局尚未結束，請先提領或等待爆炸。');
+          throw new ApiError('ROUND_NOT_ACTIVE', '上一局尚未結束，請等待爆炸。');
         }
       }
 
@@ -83,11 +81,9 @@ export class CrashSoloService {
       );
       const roundNumber = await this.nextRoundNumber(tx, input.gameId);
       const naturalCrashPoint = crashPoint(seed.serverSeed, `${input.gameId}:${roundNumber}`);
-      const autoCashOut =
-        input.autoCashOut !== undefined ? Number(input.autoCashOut.toFixed(4)) : undefined;
-      const original = this.predictStartOutcome(amount, naturalCrashPoint, autoCashOut);
+      const original = this.predictStartOutcome(amount);
       const control = await applyControls(tx, userId, input.gameId, original);
-      const tuned = this.tuneCrashPoint(naturalCrashPoint, amount, autoCashOut, control);
+      const tuned = this.tuneCrashPoint(naturalCrashPoint, amount, control);
       const startedAt = new Date();
       const crashesImmediately = tuned.crashPoint <= 1.0;
       const round = await tx.crashRound.create({
@@ -107,8 +103,7 @@ export class CrashSoloService {
           roundId: round.id,
           userId,
           amount,
-          autoCashOut:
-            autoCashOut !== undefined ? new Prisma.Decimal(autoCashOut.toFixed(4)) : null,
+          autoCashOut: null,
           controlOriginal: serializePredicted(original) as unknown as Prisma.InputJsonValue,
           controlOutcome: serializeOutcome(tuned.control) as unknown as Prisma.InputJsonValue,
         },
@@ -146,37 +141,6 @@ export class CrashSoloService {
     });
   }
 
-  async cashout(userId: string, roundId: string): Promise<CrashCashOutResponse> {
-    return runSerializable(this.prisma, async (tx) => {
-      const bet = await this.getLockedOwnBet(tx, userId, roundId);
-      const resolved = await this.resolveRoundInTx(tx, bet);
-      const currentBet = resolved.bet;
-      if (currentBet.cashedOutAt) {
-        const user = await tx.user.findUniqueOrThrow({
-          where: { id: userId },
-          select: { balance: true },
-        });
-        return {
-          multiplier: Number(currentBet.cashedOutAt.toFixed(4)),
-          payout: currentBet.payout.toFixed(2),
-          newBalance: user.balance.toFixed(2),
-        };
-      }
-
-      if (currentBet.round.status !== 'RUNNING') {
-        throw new ApiError('ROUND_NOT_ACTIVE', '本局已爆炸，無法提領。');
-      }
-      if (resolved.currentMultiplier < MIN_CASHOUT_MULTIPLIER) {
-        throw new ApiError(
-          'INVALID_ACTION',
-          `請等倍率到 ${MIN_CASHOUT_MULTIPLIER.toFixed(2)}x 後再提領。`,
-        );
-      }
-      const multiplier = new Prisma.Decimal(resolved.currentMultiplier.toFixed(4));
-      return this.settleCashoutInTx(tx, currentBet, multiplier, 'manual');
-    });
-  }
-
   private async resolveRoundInTx(
     tx: Prisma.TransactionClient,
     bet: CrashBetWithRound,
@@ -197,22 +161,6 @@ export class CrashSoloService {
 
     const elapsedMs = Math.max(0, Date.now() - round.startedAt.getTime());
     const currentMultiplier = multiplierAt(elapsedMs);
-    if (
-      !bet.cashedOutAt &&
-      bet.autoCashOut &&
-      Number(bet.autoCashOut) < Number(round.crashPoint) &&
-      currentMultiplier >= Number(bet.autoCashOut)
-    ) {
-      const settlement = await this.settleCashoutInTx(tx, bet, bet.autoCashOut, 'auto');
-      const updated = await this.getBetWithRound(tx, bet.id);
-      return {
-        bet: updated,
-        currentMultiplier: Math.min(currentMultiplier, Number(round.crashPoint)),
-        elapsedMs,
-        newBalance: settlement.newBalance,
-      };
-    }
-
     if (currentMultiplier >= Number(round.crashPoint)) {
       const crashedAt = new Date(round.startedAt.getTime() + crashElapsedMs(Number(round.crashPoint)));
       const updatedRound = await tx.crashRound.update({
@@ -241,97 +189,6 @@ export class CrashSoloService {
     }
 
     return { bet, currentMultiplier, elapsedMs };
-  }
-
-  private async settleCashoutInTx(
-    tx: Prisma.TransactionClient,
-    bet: CrashBetWithRound,
-    multiplier: Prisma.Decimal,
-    source: 'manual' | 'auto',
-  ): Promise<CrashCashOutResponse> {
-    if (bet.cashedOutAt) {
-      const user = await tx.user.findUniqueOrThrow({
-        where: { id: bet.userId },
-        select: { balance: true },
-      });
-      return {
-        multiplier: Number(bet.cashedOutAt.toFixed(4)),
-        payout: bet.payout.toFixed(2),
-        newBalance: user.balance.toFixed(2),
-      };
-    }
-    if (multiplier.greaterThanOrEqualTo(bet.round.crashPoint)) {
-      throw new ApiError('ROUND_NOT_ACTIVE', '本局已爆炸，無法提領。');
-    }
-    const storedControl = parseOutcome(bet.controlOutcome);
-    if (storedControl?.controlled && !storedControl.won) {
-      throw new ApiError('ROUND_NOT_ACTIVE', '本局已爆炸，無法提領。');
-    }
-
-    const naturalPayout = bet.amount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-    const settledMultiplier =
-      storedControl?.controlled && storedControl.won ? storedControl.multiplier : multiplier;
-    const settledPayout =
-      storedControl?.controlled && storedControl.won ? storedControl.payout : naturalPayout;
-    const claimed = await tx.crashBet.updateMany({
-      where: { id: bet.id, cashedOutAt: null },
-      data: {
-        cashedOutAt: settledMultiplier,
-        payout: settledPayout,
-        controlFinalizedAt: new Date(),
-      },
-    });
-    if (claimed.count !== 1) {
-      throw new ApiError('ROUND_NOT_ACTIVE', '本注單已提領。');
-    }
-    const newBalance = await creditAndRecord(tx, bet.userId, settledPayout, null, 'CASHOUT', {
-      gameId: bet.round.gameId,
-      roundId: bet.round.id,
-      crashBetId: bet.id,
-      multiplier: Number(settledMultiplier.toFixed(4)),
-      source,
-    });
-    const cashoutOriginal = {
-      won: naturalPayout.greaterThan(bet.amount),
-      amount: bet.amount,
-      multiplier,
-      payout: naturalPayout,
-    };
-    const original =
-      storedControl?.controlled ? parsePredicted(bet.controlOriginal, bet.amount) : cashoutOriginal;
-    const outcome = storedControl?.controlled
-      ? storedControl
-      : { ...cashoutOriginal, controlled: false };
-    await finalizeControls(
-      tx,
-      bet.userId,
-      bet.round.gameId,
-      original,
-      {
-        won: settledPayout.greaterThan(bet.amount),
-        amount: bet.amount,
-        multiplier: settledMultiplier,
-        payout: settledPayout,
-      },
-      outcome,
-      bet.id,
-      {
-        source,
-        multiplier: original.multiplier.toFixed(4),
-        payout: original.payout.toFixed(2),
-      },
-      {
-        source,
-        multiplier: settledMultiplier.toFixed(4),
-        payout: settledPayout.toFixed(2),
-      },
-    );
-
-    return {
-      multiplier: Number(settledMultiplier.toFixed(4)),
-      payout: settledPayout.toFixed(2),
-      newBalance: newBalance.toFixed(2),
-    };
   }
 
   private async finalizeLossInTx(
@@ -415,17 +272,9 @@ export class CrashSoloService {
     return (last?.roundNumber ?? 0) + 1;
   }
 
-  private predictStartOutcome(
-    amount: Prisma.Decimal,
-    naturalCrashPoint: number,
-    autoCashOut?: number,
-  ): PredictedResult {
-    const naturalCashout =
-      autoCashOut !== undefined && autoCashOut < naturalCrashPoint ? autoCashOut : null;
-    const multiplier = new Prisma.Decimal((naturalCashout ?? 0).toFixed(4));
-    const payout = naturalCashout
-      ? amount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
-      : new Prisma.Decimal(0);
+  private predictStartOutcome(amount: Prisma.Decimal): PredictedResult {
+    const multiplier = new Prisma.Decimal(0);
+    const payout = new Prisma.Decimal(0);
     return {
       won: payout.greaterThan(amount),
       amount,
@@ -437,7 +286,6 @@ export class CrashSoloService {
   private tuneCrashPoint(
     naturalCrashPoint: number,
     amount: Prisma.Decimal,
-    autoCashOut: number | undefined,
     control: ControlOutcome,
   ): { crashPoint: number; control: ControlOutcome } {
     if (!control.controlled) {
@@ -455,7 +303,7 @@ export class CrashSoloService {
       capFromPayout,
     );
     const minTarget = control.minMultiplier ? Number(control.minMultiplier.toFixed(4)) : 1.01;
-    const target = autoCashOut ?? Math.max(3, minTarget, Number(control.multiplier.toFixed(4)));
+    const target = Math.max(3, minTarget, Number(control.multiplier.toFixed(4)));
 
     if (target > maxTarget || maxTarget <= 1) {
       return {

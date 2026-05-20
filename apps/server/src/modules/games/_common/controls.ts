@@ -156,8 +156,8 @@ async function findControlDecision(
   member: MemberScope,
   predicted: PredictedResult,
 ): Promise<ControlDecision | null> {
-  const memberWinLoss = await findWinLossDecision(tx, member, 'member');
-  if (memberWinLoss) return memberWinLoss;
+  const explicitWinLoss = await findWinLossDecision(tx, member);
+  if (explicitWinLoss) return explicitWinLoss;
 
   const memberCap = await findMemberWinCapDecision(tx, member.id, predicted);
   if (memberCap) return memberCap;
@@ -177,10 +177,7 @@ async function findControlDecision(
   const globalManual = await findManualDetectionDecision(tx, member, 'global');
   if (globalManual) return globalManual;
 
-  const agentLineWinLoss = await findWinLossDecision(tx, member, 'agent_line');
-  if (agentLineWinLoss) return agentLineWinLoss;
-
-  return findWinLossDecision(tx, member, 'global');
+  return null;
 }
 
 type WinLossDecisionScope = 'all' | 'member' | 'agent_line' | 'global';

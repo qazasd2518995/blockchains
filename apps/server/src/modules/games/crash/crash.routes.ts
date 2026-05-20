@@ -1,11 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import {
   crashBetSchema,
-  crashCashoutSchema,
   crashHistoryQuerySchema,
   crashRoundParamsSchema,
 } from './crash.schema.js';
 import { CrashSoloService } from './crash.service.js';
+import { ApiError } from '../../../utils/errors.js';
 
 export async function crashRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new CrashSoloService(fastify.prisma);
@@ -26,8 +26,7 @@ export async function crashRoutes(fastify: FastifyInstance): Promise<void> {
     return service.getRound(req.userId, params.roundId);
   });
 
-  fastify.post('/cashout', async (req) => {
-    const body = crashCashoutSchema.parse(req.body);
-    return service.cashout(req.userId, body.roundId);
+  fastify.post('/cashout', async () => {
+    throw new ApiError('INVALID_ACTION', 'Crash 提領功能已停用，本局會直接飛到爆炸。');
   });
 }

@@ -21,8 +21,8 @@ export function AgentAnalysisPage(): JSX.Element {
       setLoading(true);
       try {
         const params: Record<string, string> = {};
-        if (startDate) params.startDate = new Date(startDate).toISOString();
-        if (endDate) params.endDate = new Date(endDate + 'T23:59:59').toISOString();
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
         if (rootAgentId) params.rootAgentId = rootAgentId;
         const res = await adminApi.get<AgentAnalysisResponse>('/reports/agent-analysis', { params });
         if (!cancel) setData(res.data);
