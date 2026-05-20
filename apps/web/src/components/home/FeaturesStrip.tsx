@@ -21,7 +21,7 @@ export function FeaturesStrip() {
         const Icon = f.icon;
         return (
           <div key={f.title} className="flex flex-col items-center text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#E6F1F4] text-[#186073]">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#FFF7ED] text-[#EA580C]">
               <Icon className="h-6 w-6" />
             </div>
             <div className="text-[15px] font-semibold text-[#0F172A]">{f.title}</div>

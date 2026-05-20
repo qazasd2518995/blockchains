@@ -79,8 +79,8 @@ const WEEKLY_WINDOWS = [
     title: '週一 - 週三',
     subtitle: '衝量預熱',
     description: '適合先把大廳熱度拉起來，累積倍率榜與 VIP 升級量。',
-    accent: 'text-[#186073]',
-    bg: 'bg-[#E7F3F6]',
+    accent: 'text-[#EA580C]',
+    bg: 'bg-[#FFF7ED]',
   },
   {
     title: '週四 - 週五',
@@ -147,9 +147,9 @@ export function PromosPage() {
         </section>
 
         <section className="space-y-2 px-2 py-2">
-          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#D6E5EC] bg-white px-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.06)]">
+          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#FED7AA] bg-white px-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.06)]">
             <div className="flex min-w-0 items-center gap-1.5">
-              <span className="h-4 w-1 rounded-full bg-[#1DA6D2]" />
+              <span className="h-4 w-1 rounded-full bg-[#F97316]" />
               <span className="truncate text-[14px] font-black text-[#12333E]">當前活動重點</span>
             </div>
             <span className="rounded-full bg-[#ECFDF5] px-2 py-1 text-[11px] font-bold text-[#15803D]">
@@ -161,7 +161,7 @@ export function PromosPage() {
             {PROMO_CARDS.map((promo) => (
               <article
                 key={promo.id}
-                className="overflow-hidden rounded-[13px] border border-[#D6E5EC] bg-white shadow-[0_6px_14px_rgba(15,23,42,0.08)]"
+                className="overflow-hidden rounded-[13px] border border-[#FED7AA] bg-white shadow-[0_6px_14px_rgba(15,23,42,0.08)]"
               >
                 <div className="relative min-h-[112px] overflow-hidden">
                   <img
@@ -173,7 +173,7 @@ export function PromosPage() {
                   <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.96)_0%,rgba(255,255,255,0.78)_50%,rgba(255,255,255,0.2)_100%)]" />
                   <div className="relative z-10 flex min-h-[112px] flex-col justify-between p-3">
                     <div>
-                      <span className="inline-flex rounded-[8px] bg-[#E9F8F8] px-2 py-1 text-[10px] font-black text-[#0E7189]">
+                      <span className="inline-flex rounded-[8px] bg-[#FFF7ED] px-2 py-1 text-[10px] font-black text-[#C2410C]">
                         {promo.badge}
                       </span>
                       <h2 className="mt-2 text-[20px] font-black leading-tight text-[#12333E]">
@@ -186,13 +186,13 @@ export function PromosPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-1.5 border-t border-[#E6F0F5] bg-[#F7FCFE] p-2">
+                <div className="grid gap-1.5 border-t border-[#FED7AA]/60 bg-[#FFF7ED] p-2">
                   {promo.stats.map((stat) => (
                     <div
                       key={stat.label}
                       className="flex items-start justify-between gap-3 rounded-[9px] bg-white px-2.5 py-2"
                     >
-                      <span className="shrink-0 text-[11px] font-black text-[#1D6B83]">
+                      <span className="shrink-0 text-[11px] font-black text-[#9A3412]">
                         {stat.label}
                       </span>
                       <span className="min-w-0 text-right text-[12px] font-bold leading-5 text-[#12333E]">
@@ -207,18 +207,18 @@ export function PromosPage() {
         </section>
 
         <section className="space-y-2 px-2 pb-3">
-          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#D6E5EC] bg-white px-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.06)]">
+          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#FED7AA] bg-white px-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.06)]">
             <div className="flex min-w-0 items-center gap-1.5">
               <span className="h-4 w-1 rounded-full bg-[#F7B733]" />
               <span className="truncate text-[14px] font-black text-[#12333E]">活動節奏</span>
             </div>
-            <CalendarDays className="h-4 w-4 text-[#1D6B83]" aria-hidden="true" />
+            <CalendarDays className="h-4 w-4 text-[#9A3412]" aria-hidden="true" />
           </div>
           <div className="grid gap-2">
             {WEEKLY_WINDOWS.map((item) => (
               <article
                 key={item.title}
-                className="rounded-[13px] border border-[#D6E5EC] bg-white p-3 shadow-[0_6px_14px_rgba(15,23,42,0.07)]"
+                className="rounded-[13px] border border-[#FED7AA] bg-white p-3 shadow-[0_6px_14px_rgba(15,23,42,0.07)]"
               >
                 <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#7A8B97]">
                   {item.title}
@@ -318,7 +318,7 @@ export function PromosPage() {
                     <span
                       className={`inline-flex rounded-full px-3 py-1 text-[10px] font-semibold tracking-[0.18em] text-white ${
                         promo.accent === 'teal'
-                          ? 'bg-[#186073]'
+                          ? 'bg-[#EA580C]'
                           : promo.accent === 'ember'
                             ? 'bg-[#B94538]'
                             : promo.accent === 'gold'
@@ -411,7 +411,7 @@ export function PromosPage() {
                   className="rounded-[20px] border border-[#E5E7EB] bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#E7F3F6] text-[#186073]">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED] text-[#EA580C]">
                       <Icon className="h-5 w-5" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
@@ -429,7 +429,7 @@ export function PromosPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-[20px] border border-[#E5E7EB] bg-white px-5 py-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E7F3F6] text-[#186073]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FFF7ED] text-[#EA580C]">
                   <Flame className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <div>

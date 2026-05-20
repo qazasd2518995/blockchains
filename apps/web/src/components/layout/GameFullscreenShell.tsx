@@ -135,12 +135,19 @@ export function GameFullscreenShell() {
             <button
               type="button"
               onClick={handleBalanceRefresh}
-              className="game-shell-balance inline-flex h-10 min-w-0 shrink-0 items-center gap-2 rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338]"
+              className="game-shell-balance inline-flex h-10 min-w-[112px] max-w-[148px] shrink-0 items-center gap-2 rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338]"
               title={t.common.reload}
-              aria-label={`${t.common.reload}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
+              aria-label={`${t.common.reload}，${t.common.account} ${user.username}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
             >
               <WalletCards className="h-4 w-4" aria-hidden="true" />
-              <span className="data-num">{formatAmount(user.balance ?? '0')}</span>
+              <span className="game-shell-balance-copy flex min-w-0 flex-col items-start justify-center leading-none">
+                <span className="game-shell-account max-w-full truncate text-[10px] font-black text-white/60">
+                  {user.username}
+                </span>
+                <span className="data-num mt-1 max-w-full truncate text-[11px] font-black">
+                  {formatAmount(user.balance ?? '0')}
+                </span>
+              </span>
             </button>
           ) : (
             <Link

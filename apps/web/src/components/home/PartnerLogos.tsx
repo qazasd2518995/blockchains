@@ -21,7 +21,7 @@ export function PartnerLogos() {
           key={b.id}
           className="flex min-w-[120px] flex-col items-center text-center opacity-70 transition hover:opacity-100"
         >
-          <div className="text-[15px] font-semibold text-[#186073]">{b.label}</div>
+          <div className="text-[15px] font-semibold text-[#EA580C]">{b.label}</div>
           <div className="mt-0.5 text-[11px] text-[#9CA3AF]">{b.sub}</div>
         </div>
       ))}

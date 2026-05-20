@@ -152,7 +152,7 @@ export function LoginPage() {
                   autoCorrect="off"
                   spellCheck={false}
                   placeholder={t.auth.usernamePlaceholder}
-                  className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25 sm:text-[14px]"
+                  className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#EA580C] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/25 sm:text-[14px]"
                   {...register('username')}
                 />
               </Field>
@@ -162,7 +162,7 @@ export function LoginPage() {
                   type="password"
                   autoComplete="current-password"
                   placeholder={t.auth.passwordPlaceholder}
-                  className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25 sm:text-[14px]"
+                  className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#EA580C] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/25 sm:text-[14px]"
                   {...register('password')}
                 />
               </Field>
@@ -177,7 +177,7 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full rounded-[8px] bg-[#186073] px-4 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#1E7A90] disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-[8px] bg-[#EA580C] px-4 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#F97316] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? t.auth.authenticating : t.auth.authenticate}
               </button>

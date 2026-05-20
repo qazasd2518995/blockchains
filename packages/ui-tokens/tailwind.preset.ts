@@ -2,7 +2,7 @@ import type { Config } from 'tailwindcss';
 
 /**
  * 華人娛樂城風 Tailwind preset
- * 配色：淺灰底 + 白卡片 + 深青強調 + 金色獎金
+ * 配色：淺灰底 + 白卡片 + 八千代橘強調 + 金色獎金
  * 字體：Inter + Noto Sans TC + 等寬數字
  */
 const FULL_OPACITY_SCALE: Record<string, string> = (() => {
@@ -45,27 +45,27 @@ export const tokensPreset: Partial<Config> = {
           muted: '#9CA3AF',
           onDark: '#FFFFFF',
         },
-        // 主題色（深青）
+        // 主題色（八千代橘）
         teal: {
-          50: '#E6F1F4',
-          100: '#C0DCE3',
-          200: '#7BB3C2',
-          300: '#408A9D',
-          400: '#266F85',
-          500: '#186073',   // primary accent
-          600: '#135566',
-          700: '#0E4555',
-          800: '#093040',
-          900: '#051E2B',
+          50: '#FFF7ED',
+          100: '#FFEDD5',
+          200: '#FED7AA',
+          300: '#FDBA74',
+          400: '#F97316',
+          500: '#EA580C', // primary accent
+          600: '#C2410C',
+          700: '#9A3412',
+          800: '#7C2D12',
+          900: '#431407',
         },
         // 金色（VIP / 獎金）
         gold: {
           50: '#FAF2D7',
           100: '#F3E5AE',
-          200: '#E8D48A',   // 贏家榜 Top3 淡金
+          200: '#E8D48A', // 贏家榜 Top3 淡金
           300: '#DEBE66',
           400: '#D0AC4D',
-          500: '#C9A247',   // 獎金 / 中獎跑馬燈字色
+          500: '#C9A247', // 獎金 / 中獎跑馬燈字色
           600: '#AE8B35',
           700: '#876A27',
           800: '#5A471A',
@@ -81,10 +81,10 @@ export const tokensPreset: Partial<Config> = {
           600: '#8F3027',
         },
         neon: {
-          acid: '#186073',
+          acid: '#EA580C',
           ember: '#D4574A',
           toxic: '#09B826',
-          ice: '#266F85',
+          ice: '#F97316',
         },
         // 公告紅
         alert: '#D4574A',
@@ -98,13 +98,27 @@ export const tokensPreset: Partial<Config> = {
         // 邊框
         border: {
           soft: '#E5E7EB',
-          accent: '#186073',
+          accent: '#EA580C',
         },
       },
       fontFamily: {
-        sans: ['Inter', '"Noto Sans TC"', '"PingFang TC"', '"Microsoft JhengHei"', 'system-ui', 'sans-serif'],
+        sans: [
+          'Inter',
+          '"Noto Sans TC"',
+          '"PingFang TC"',
+          '"Microsoft JhengHei"',
+          'system-ui',
+          'sans-serif',
+        ],
         num: ['"Roboto Mono"', '"SF Mono"', 'ui-monospace', 'monospace'],
-        display: ['Inter', '"Noto Sans TC"', '"PingFang TC"', '"Microsoft JhengHei"', 'system-ui', 'sans-serif'],
+        display: [
+          'Inter',
+          '"Noto Sans TC"',
+          '"PingFang TC"',
+          '"Microsoft JhengHei"',
+          'system-ui',
+          'sans-serif',
+        ],
         brand: ['Inter', '"Noto Sans TC"', 'sans-serif'],
       },
       letterSpacing: {
@@ -116,16 +130,16 @@ export const tokensPreset: Partial<Config> = {
       },
       boxShadow: {
         card: '0 2px 8px rgba(15, 23, 42, 0.06)',
-        cardHover: '0 8px 20px rgba(24, 96, 115, 0.18)',
-        'dark': '0 2px 12px rgba(0, 0, 0, 0.3)',
+        cardHover: '0 8px 20px rgba(234, 88, 12, 0.18)',
+        dark: '0 2px 12px rgba(0, 0, 0, 0.3)',
         lift: '0 12px 28px -8px rgba(15, 23, 42, 0.18)',
-        'teal-ring': '0 0 0 3px rgba(24, 96, 115, 0.25)',
-        'acid-glow': '0 0 0 1px rgba(24, 96, 115, 0.25), 0 10px 24px -12px rgba(24, 96, 115, 0.45)',
+        'teal-ring': '0 0 0 3px rgba(234, 88, 12, 0.25)',
+        'acid-glow': '0 0 0 1px rgba(234, 88, 12, 0.25), 0 10px 24px -12px rgba(234, 88, 12, 0.45)',
         'ember-glow': '0 0 0 1px rgba(212, 87, 74, 0.25), 0 10px 24px -12px rgba(212, 87, 74, 0.4)',
         'toxic-glow': '0 0 0 1px rgba(9, 184, 38, 0.22), 0 10px 24px -12px rgba(9, 184, 38, 0.35)',
       },
       backgroundImage: {
-        'grad-win': 'linear-gradient(135deg, rgba(9, 184, 38, 0.18), rgba(24, 96, 115, 0.08))',
+        'grad-win': 'linear-gradient(135deg, rgba(9, 184, 38, 0.18), rgba(234, 88, 12, 0.08))',
         'grad-loss': 'linear-gradient(135deg, rgba(212, 87, 74, 0.18), rgba(26, 37, 48, 0.06))',
       },
       keyframes: {

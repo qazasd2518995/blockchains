@@ -33,10 +33,10 @@ export function GameHeader({
 
   // Map old accent → new palette
   const suffixColor = {
-    acid: 'text-[#186073]',
+    acid: 'text-[#EA580C]',
     ember: 'text-[#D4574A]',
     toxic: 'text-win',
-    ice: 'text-[#266F85]',
+    ice: 'text-[#F97316]',
   }[titleSuffixColor];
 
   // RTP accent on dark hero — always use the gold-on-dark chip for legibility
@@ -66,13 +66,13 @@ export function GameHeader({
             <div className="flex items-center gap-2 text-[12px] text-white/68">
               <Link
                 to={returnTarget.to}
-                className="inline-flex items-center gap-1 transition hover:text-[#8FD0DF]"
+                className="inline-flex items-center gap-1 transition hover:text-[#FDBA74]"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 {returnTarget.label || t.common.lobby}
               </Link>
               <span className="text-white/22">/</span>
-              <span className="text-[#8FD0DF]">{breadcrumb}</span>
+              <span className="text-[#FDBA74]">{breadcrumb}</span>
             </div>
             <span className="tag tag-goldOnDark">{section}</span>
             <span className="tag tag-onDark hidden md:inline-flex">{t.common.liveGame}</span>

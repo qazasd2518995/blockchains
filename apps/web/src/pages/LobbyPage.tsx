@@ -130,7 +130,7 @@ export function LobbyPage() {
             rightSlot={
               <Link
                 to="/hall/tables"
-                className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#186073] transition hover:text-[#0E4555]"
+                className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#EA580C] transition hover:text-[#9A3412]"
               >
                 {t.lobbyStats.enterTables}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -192,7 +192,7 @@ function MobileLobbyOnePage() {
             </span>
           </Link>
 
-          <div className="flex h-8 shrink-0 items-center gap-1 rounded-[8px] bg-[#1479A8] px-2 text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.18)] max-[370px]:px-1.5">
+          <div className="flex h-8 shrink-0 items-center gap-1 rounded-[8px] bg-[#EA580C] px-2 text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.18)] max-[370px]:px-1.5">
             <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span className="shrink-0 text-[11px] font-bold max-[370px]:hidden">
               {t.common.live}
@@ -215,12 +215,12 @@ function MobileLobbyOnePage() {
               <>
                 <AudioMenu
                   variant="light"
-                  className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                  className="h-11 w-11 rounded-[10px] border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
                 />
                 <LanguageSwitcher
                   variant="light"
                   compact
-                  className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                  className="h-11 w-11 rounded-[10px] border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
                 />
                 <Link
                   to="/login?from=%2Flobby&reason=lobby"
@@ -233,23 +233,25 @@ function MobileLobbyOnePage() {
               <>
                 <AudioMenu
                   variant="light"
-                  className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                  className="h-11 w-11 rounded-[10px] border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
                 />
                 <LanguageSwitcher
                   variant="light"
                   compact
-                  className="h-11 w-11 rounded-[10px] border-[#D6E5EC] bg-[#F7FCFE] text-[#17657D]"
+                  className="h-11 w-11 rounded-[10px] border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
                 />
                 <div
-                  className="flex h-10 w-[94px] min-w-0 items-center gap-1 rounded-[9px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12] min-[390px]:h-11 min-[390px]:w-[116px]"
+                  className="flex h-10 w-[94px] min-w-0 items-center gap-1.5 rounded-[9px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12] min-[390px]:h-11 min-[390px]:w-[116px]"
                   aria-label={`${t.common.account} ${user.username}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
                 >
                   <WalletCards className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span className="min-w-0 flex-1 truncate text-[10px] font-black leading-none text-[#5F4A14]">
-                    {user.username}
-                  </span>
-                  <span className="data-num max-w-[50px] shrink-0 truncate text-[11px] font-black min-[390px]:max-w-[58px]">
-                    {formatAmount(user.balance ?? '0')}
+                  <span className="flex min-w-0 flex-1 flex-col justify-center leading-none">
+                    <span className="truncate text-[9px] font-black text-[#7C2D12] min-[390px]:text-[10px]">
+                      {user.username}
+                    </span>
+                    <span className="data-num mt-1 truncate text-[10px] font-black text-[#9A3412] min-[390px]:text-[11px]">
+                      {formatAmount(user.balance ?? '0')}
+                    </span>
                   </span>
                 </div>
               </>
@@ -259,14 +261,14 @@ function MobileLobbyOnePage() {
         <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
           <Link
             to={isGuest ? '/login?from=%2Fhistory&reason=history' : '/history'}
-            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-[#D8E7EE] bg-[#F7FCFE] text-[12px] font-black text-[#17657D] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-[#FED7AA] bg-[#FFF7ED] text-[12px] font-black text-[#9A3412] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
           >
             <History className="h-4 w-4" aria-hidden="true" />
             {t.common.history}
           </Link>
           <Link
             to="/verify"
-            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-[#D8E7EE] bg-[#F7FCFE] text-[12px] font-black text-[#17657D] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-[#FED7AA] bg-[#FFF7ED] text-[12px] font-black text-[#9A3412] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
           >
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
             {t.common.gameGuide}
@@ -307,7 +309,7 @@ function MobileLobbyOnePage() {
       </section>
 
       <section className="flex h-9 overflow-hidden border-b border-[#CFE0E8] bg-white">
-        <div className="flex w-[58px] shrink-0 items-center justify-center gap-1 bg-[#1681B1] text-[14px] font-black text-white">
+        <div className="flex w-[58px] shrink-0 items-center justify-center gap-1 bg-[#EA580C] text-[14px] font-black text-white">
           <Megaphone className="h-4 w-4" aria-hidden="true" />
           {t.announcements.latest}
         </div>
@@ -317,7 +319,7 @@ function MobileLobbyOnePage() {
               (msg, idx) => (
                 <span
                   key={`${msg}-${idx}`}
-                  className="inline-flex text-[13px] font-bold text-[#22718A]"
+                  className="inline-flex text-[13px] font-bold text-[#B45309]"
                 >
                   {msg}
                 </span>
@@ -340,8 +342,8 @@ function MobileLobbyOnePage() {
                 onClick={() => setActiveCategory(category.id)}
                 className={`flex h-[58px] w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border text-[11px] font-black shadow-[0_6px_14px_rgba(15,23,42,0.08)] transition active:scale-[0.98] ${
                   selected
-                    ? 'border-[#0F76A3] bg-[linear-gradient(180deg,#22AADA_0%,#1576A2_100%)] text-white'
-                    : 'border-[#D8E7EE] bg-white text-[#1D6B83]'
+                    ? 'border-[#EA580C] bg-[linear-gradient(180deg,#FB923C_0%,#EA580C_100%)] text-white'
+                    : 'border-[#FED7AA] bg-white text-[#9A3412]'
                 }`}
                 aria-pressed={selected}
               >
@@ -349,7 +351,7 @@ function MobileLobbyOnePage() {
                 <span className="leading-none">{categoryLabel.shortLabel}</span>
                 <span
                   className={`num rounded-full px-1.5 py-0.5 text-[9px] leading-none ${
-                    selected ? 'bg-white/20 text-white' : 'bg-[#E9F5F8] text-[#4D8798]'
+                    selected ? 'bg-white/20 text-white' : 'bg-[#FFF7ED] text-[#C2410C]'
                   }`}
                 >
                   {mobileCategoryCount(category.id)}
@@ -367,9 +369,9 @@ function MobileLobbyOnePage() {
         </aside>
 
         <div className="min-w-0 space-y-2">
-          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#D6E5EC] bg-white px-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.06)]">
+          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#FED7AA] bg-white px-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.06)]">
             <div className="flex min-w-0 items-center gap-1.5">
-              <span className="h-4 w-1 rounded-full bg-[#1DA6D2]" />
+              <span className="h-4 w-1 rounded-full bg-[#F97316]" />
               <span className="truncate text-[14px] font-black text-[#12333E]">
                 {activeCategoryMeta.label}
               </span>
@@ -408,7 +410,7 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
       onFocus={warmAssets}
       onPointerDown={warmAssets}
       onPointerEnter={warmAssets}
-      className="group relative min-h-[116px] overflow-hidden rounded-[13px] border border-[#D6E5EC] bg-[#F7FCFE] shadow-[0_6px_14px_rgba(15,23,42,0.08)] active:scale-[0.99]"
+      className="group relative min-h-[116px] overflow-hidden rounded-[13px] border border-[#FED7AA] bg-[#FFF7ED] shadow-[0_6px_14px_rgba(15,23,42,0.08)] active:scale-[0.99]"
     >
       <ResponsiveImage
         src={cover}
@@ -423,13 +425,13 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
       <div className="relative z-10 flex h-full min-h-[116px] flex-col justify-between p-2.5">
         <div className="min-w-0">
           <h3 className="truncate text-[16px] font-black leading-tight text-[#17343F]">{title}</h3>
-          <span className="mt-1 inline-flex rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black text-[#1681A5] shadow-sm">
+          <span className="mt-1 inline-flex rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black text-[#C2410C] shadow-sm">
             {hallLabel}
           </span>
         </div>
         <div className="flex items-end justify-between gap-1">
           <p className="min-w-0 truncate text-[10px] font-semibold text-[#315967]">{game.name}</p>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0C6386] text-white shadow-[0_6px_12px_rgba(12,99,134,0.24)]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EA580C] text-white shadow-[0_6px_12px_rgba(234,88,12,0.24)]">
             <GameIcon className="h-4 w-4" aria-hidden="true" strokeWidth={2} />
           </span>
         </div>
@@ -442,7 +444,7 @@ function LobbyStatCard({ label, value, detail }: { label: string; value: string;
   return (
     <article className="rounded-[24px] border border-white/[0.65] bg-white/[0.92] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
       <div className="label">{label}</div>
-      <div className="mt-3 data-num text-[30px] font-bold text-[#186073]">{value}</div>
+      <div className="mt-3 data-num text-[30px] font-bold text-[#EA580C]">{value}</div>
       <p className="mt-2 text-[13px] leading-relaxed text-[#4A5568]">{detail}</p>
     </article>
   );

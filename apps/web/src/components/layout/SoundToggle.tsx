@@ -29,7 +29,7 @@ export function SoundToggle({
   const base =
     variant === 'dark'
       ? 'border-white/12 bg-[#162338] text-white/80 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white'
-      : 'border-[#E5E7EB] bg-white text-[#0F172A] hover:border-[#186073]/40';
+      : 'border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412] hover:border-[#EA580C]/45 hover:bg-[#FFEDD5]';
 
   const Icon = muted ? VolumeX : Volume2;
 

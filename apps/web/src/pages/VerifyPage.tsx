@@ -44,7 +44,7 @@ const HALLS: Hall[] = [
     key: 'roulette',
     title: '輪盤館',
     subtitle: 'Roulette Hall',
-    tone: '#186073',
+    tone: '#EA580C',
     intro: '輪盤、轉輪、嘉年華輪盤都歸在輪盤轉輪類，下注區域更直覺。',
     vibe: '押號押色、轉停開獎',
   },
@@ -52,7 +52,7 @@ const HALLS: Hall[] = [
     key: 'classic',
     title: '即開電子館',
     subtitle: 'Instant Hall',
-    tone: '#186073',
+    tone: '#EA580C',
     intro: '骰子、基諾、彈珠這類短局即開玩法，規則直觀，節奏乾淨。',
     vibe: '快速開獎、輕鬆順手',
   },
@@ -633,14 +633,14 @@ export function VerifyPage() {
                   onClick={() => setActiveHall(filter.key)}
                   className={`flex h-11 shrink-0 items-center gap-2 rounded-[10px] border px-3 text-[12px] font-black shadow-[0_4px_10px_rgba(15,23,42,0.06)] transition active:scale-[0.99] ${
                     active
-                      ? 'border-[#0F76A3] bg-[#1576A2] text-white'
-                      : 'border-[#D8E7EE] bg-white text-[#17657D]'
+                      ? 'border-[#EA580C] bg-[#EA580C] text-white'
+                      : 'border-[#FED7AA] bg-white text-[#9A3412]'
                   }`}
                 >
                   <span>{filter.title}</span>
                   <span
                     className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                      active ? 'bg-white/18 text-white' : 'bg-[#EEF7FA] text-[#5D7682]'
+                      active ? 'bg-white/18 text-white' : 'bg-[#FFF7ED] text-[#C2410C]'
                     }`}
                   >
                     {filter.count}
@@ -652,14 +652,14 @@ export function VerifyPage() {
         </section>
 
         <section className="space-y-2 px-2 py-2">
-          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#D6E5EC] bg-white px-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.06)]">
+          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#FED7AA] bg-white px-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.06)]">
             <div className="flex min-w-0 items-center gap-1.5">
-              <span className="h-4 w-1 rounded-full bg-[#1DA6D2]" />
+              <span className="h-4 w-1 rounded-full bg-[#F97316]" />
               <span className="truncate text-[14px] font-black text-[#12333E]">
                 {activeHallMeta ? activeHallMeta.title : '全部遊戲'}
               </span>
             </div>
-            <span className="rounded-full bg-[#E9F8F8] px-2 py-1 text-[11px] font-bold text-[#0E7189]">
+            <span className="rounded-full bg-[#FFF7ED] px-2 py-1 text-[11px] font-bold text-[#C2410C]">
               {filteredGames.length} 款
             </span>
           </div>
@@ -862,7 +862,7 @@ export function VerifyPage() {
 
 function MobileGuideMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[9px] border border-[#D6E5EC] bg-white px-2 py-2 text-center">
+    <div className="rounded-[9px] border border-[#FED7AA] bg-white px-2 py-2 text-center">
       <div className="truncate text-[10px] font-black text-[#7A8B97]">{label}</div>
       <div className="mt-0.5 truncate text-[12px] font-black text-[#12333E]">{value}</div>
     </div>
@@ -871,7 +871,7 @@ function MobileGuideMetric({ label, value }: { label: string; value: string }) {
 
 function MobileGuideGameCard({ game, hall }: { game: Game; hall: Hall }) {
   return (
-    <article className="overflow-hidden rounded-[13px] border border-[#D6E5EC] bg-white shadow-[0_6px_14px_rgba(15,23,42,0.08)]">
+    <article className="overflow-hidden rounded-[13px] border border-[#FED7AA] bg-white shadow-[0_6px_14px_rgba(15,23,42,0.08)]">
       <div className="flex gap-2.5 p-2.5">
         <img
           src={game.cover}
@@ -898,14 +898,14 @@ function MobileGuideGameCard({ game, hall }: { game: Game; hall: Hall }) {
         </div>
       </div>
 
-      <dl className="grid grid-cols-3 gap-1.5 border-y border-[#E6F0F5] bg-[#F7FCFE] px-2 py-2">
+      <dl className="grid grid-cols-3 gap-1.5 border-y border-[#FED7AA]/60 bg-[#FFF7ED] px-2 py-2">
         <MobileGuideMetric label="RTP" value={game.rtp} />
         <MobileGuideMetric label="最高倍率" value={game.maxMultiplier} />
         <MobileGuideMetric label="時長" value={game.duration} />
       </dl>
 
       <div className="space-y-2 p-3">
-        <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#1D6B83]">
+        <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#9A3412]">
           玩法步驟
         </div>
         <ol className="space-y-1.5">
@@ -914,7 +914,7 @@ function MobileGuideGameCard({ game, hall }: { game: Game; hall: Hall }) {
               key={index}
               className="flex gap-2 text-[12px] font-semibold leading-5 text-[#365663]"
             >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E9F8F8] text-[10px] font-black text-[#0E7189]">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FFF7ED] text-[10px] font-black text-[#C2410C]">
                 {index + 1}
               </span>
               <span className="min-w-0 [overflow-wrap:anywhere]">{step}</span>

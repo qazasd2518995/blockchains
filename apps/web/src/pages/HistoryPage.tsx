@@ -11,11 +11,11 @@ import { MobilePageHeader } from '@/components/layout/MobilePageHeader';
 const ICON: Record<TransactionType, { color: string; icon: string }> = {
   SIGNUP_BONUS: { color: 'text-win', icon: '✧' },
   BET_PLACE: { color: 'text-[#D4574A]', icon: '▼' },
-  BET_WIN: { color: 'text-[#186073]', icon: '▲' },
-  CASHOUT: { color: 'text-[#186073]', icon: '⇧' },
-  ADJUSTMENT: { color: 'text-[#186073]', icon: '⟲' },
+  BET_WIN: { color: 'text-[#EA580C]', icon: '▲' },
+  CASHOUT: { color: 'text-[#EA580C]', icon: '⇧' },
+  ADJUSTMENT: { color: 'text-[#EA580C]', icon: '⟲' },
   REBATE: { color: 'text-win', icon: '↻' },
-  TRANSFER_IN: { color: 'text-[#186073]', icon: '⇩' },
+  TRANSFER_IN: { color: 'text-[#EA580C]', icon: '⇩' },
   TRANSFER_OUT: { color: 'text-[#D4574A]', icon: '⇧' },
 };
 
@@ -293,17 +293,17 @@ export function HistoryPage() {
       <div className="space-y-3 px-2 py-2 lg:space-y-10 lg:px-0 lg:py-0">
         <section className="relative z-10 hidden border-b border-[#E5E7EB] pb-4 lg:block lg:pb-6">
           <div className="flex items-center gap-3">
-            <span className="text-[14px] font-semibold text-[#186073]">{t.history.ledger}</span>
+            <span className="text-[14px] font-semibold text-[#EA580C]">{t.history.ledger}</span>
           </div>
           <h1 className="mt-2 text-[30px] font-bold leading-tight text-[#0F172A] sm:mt-3 sm:text-[32px]">
             {t.history.txLog}
           </h1>
         </section>
 
-        <section className="card-base relative z-10 p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
+        <section className="card-base relative z-10 p-3 max-lg:rounded-[13px] max-lg:border-[#FED7AA] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <div className="flex items-center gap-2 text-[13px] font-semibold text-[#186073]">
+              <div className="flex items-center gap-2 text-[13px] font-semibold text-[#EA580C]">
                 <CalendarDays className="h-4 w-4" aria-hidden="true" />
                 {t.history.dateSearch}
               </div>
@@ -321,8 +321,8 @@ export function HistoryPage() {
                   onClick={() => handlePresetClick(preset.id)}
                   className={`h-11 rounded-full border px-1 text-[12px] font-semibold transition sm:h-auto sm:px-3 sm:py-2 ${
                     activePreset === preset.id
-                      ? 'border-[#186073] bg-[#186073] text-white shadow-[0_8px_18px_rgba(24,96,115,0.20)]'
-                      : 'border-[#D9E3EA] bg-white text-[#186073] hover:border-[#186073]/60 hover:bg-[#F2FAFC]'
+                      ? 'border-[#EA580C] bg-[#EA580C] text-white shadow-[0_8px_18px_rgba(234,88,12,0.20)]'
+                      : 'border-[#D9E3EA] bg-white text-[#EA580C] hover:border-[#EA580C]/60 hover:bg-[#F2FAFC]'
                   }`}
                 >
                   {preset.label}
@@ -341,7 +341,7 @@ export function HistoryPage() {
                   setDateRange((prev) => ({ ...prev, from: event.target.value }));
                   setActivePreset(null);
                 }}
-                className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[16px] text-[#0F172A] outline-none transition focus-visible:border-[#186073] focus-visible:ring-2 focus-visible:ring-[#186073]/15 sm:text-[14px]"
+                className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[16px] text-[#0F172A] outline-none transition focus-visible:border-[#EA580C] focus-visible:ring-2 focus-visible:ring-[#EA580C]/15 sm:text-[14px]"
               />
             </label>
             <label className="grid gap-1 text-[12px] font-semibold text-[#4A5568]">
@@ -353,14 +353,14 @@ export function HistoryPage() {
                   setDateRange((prev) => ({ ...prev, to: event.target.value }));
                   setActivePreset(null);
                 }}
-                className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[16px] text-[#0F172A] outline-none transition focus-visible:border-[#186073] focus-visible:ring-2 focus-visible:ring-[#186073]/15 sm:text-[14px]"
+                className="h-11 min-w-0 rounded-[12px] border border-[#D9E3EA] bg-white px-3 font-mono text-[16px] text-[#0F172A] outline-none transition focus-visible:border-[#EA580C] focus-visible:ring-2 focus-visible:ring-[#EA580C]/15 sm:text-[14px]"
               />
             </label>
             <button
               type="button"
               onClick={handleSearch}
               disabled={!dateRange.from || !dateRange.to || loading}
-              className="col-span-2 inline-flex h-11 items-center justify-center gap-2 self-end rounded-[12px] bg-[#186073] px-5 text-[13px] font-semibold text-white shadow-[0_10px_22px_rgba(24,96,115,0.20)] transition hover:bg-[#124D5E] disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-1"
+              className="col-span-2 inline-flex h-11 items-center justify-center gap-2 self-end rounded-[12px] bg-[#EA580C] px-5 text-[13px] font-semibold text-white shadow-[0_10px_22px_rgba(234,88,12,0.20)] transition hover:bg-[#C2410C] disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-1"
             >
               <Search className="h-4 w-4" aria-hidden="true" />
               {t.history.search}
@@ -369,20 +369,20 @@ export function HistoryPage() {
         </section>
 
         <section className="relative z-10 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
-          <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
-            <div className="label text-[#186073]">{t.history.totalIn}</div>
+          <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#FED7AA] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
+            <div className="label text-[#EA580C]">{t.history.totalIn}</div>
             <div className="mt-1 num text-[18px] num-win sm:mt-2 sm:text-4xl">
               +{formatAmount(totalIn)}
             </div>
           </div>
-          <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
-            <div className="label text-[#186073]">{t.history.totalOut}</div>
+          <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#FED7AA] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
+            <div className="label text-[#EA580C]">{t.history.totalOut}</div>
             <div className="mt-1 num text-[18px] num-wine sm:mt-2 sm:text-4xl">
               {formatAmount(totalOut)}
             </div>
           </div>
-          <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
-            <div className="label text-[#186073]">{t.history.net}</div>
+          <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#FED7AA] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
+            <div className="label text-[#EA580C]">{t.history.net}</div>
             <div
               className={`mt-1 num text-[18px] sm:mt-2 sm:text-4xl ${
                 net >= 0 ? 'num text-[#C9A247]' : 'num-wine'
@@ -400,10 +400,10 @@ export function HistoryPage() {
           </div>
         )}
 
-        <section className="card-base relative z-10 overflow-hidden max-lg:rounded-[13px] max-lg:border-[#D6E5EC] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)]">
+        <section className="card-base relative z-10 overflow-hidden max-lg:rounded-[13px] max-lg:border-[#FED7AA] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)]">
           <div className="flex flex-col gap-3 border-b border-[#E5E7EB] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[15px] font-black text-[#186073]">
+              <span className="text-[15px] font-black text-[#EA580C]">
                 顯示 {displayStart} - {displayEnd} / {totalCount} 筆
               </span>
               <span className="text-[12px] font-semibold text-[#718096]">
@@ -415,7 +415,7 @@ export function HistoryPage() {
               <select
                 value={pageSize}
                 onChange={(event) => handlePageSizeChange(Number(event.target.value))}
-                className="h-11 rounded-[12px] border border-[#D9E3EA] bg-white px-3 text-[16px] font-black text-[#0F172A] outline-none transition focus-visible:border-[#186073] focus-visible:ring-2 focus-visible:ring-[#186073]/15 sm:text-[14px]"
+                className="h-11 rounded-[12px] border border-[#D9E3EA] bg-white px-3 text-[16px] font-black text-[#0F172A] outline-none transition focus-visible:border-[#EA580C] focus-visible:ring-2 focus-visible:ring-[#EA580C]/15 sm:text-[14px]"
               >
                 {PAGE_SIZE_OPTIONS.map((size) => (
                   <option key={size} value={size}>
@@ -426,7 +426,7 @@ export function HistoryPage() {
             </label>
           </div>
 
-          <div className="hidden grid-cols-[132px_150px_1fr_minmax(160px,auto)_minmax(120px,auto)] items-baseline gap-4 border-b border-[#E5E7EB] bg-white/60 px-6 py-3 text-[12px] font-black tracking-[0.12em] text-[#186073] md:grid">
+          <div className="hidden grid-cols-[132px_150px_1fr_minmax(160px,auto)_minmax(120px,auto)] items-baseline gap-4 border-b border-[#E5E7EB] bg-white/60 px-6 py-3 text-[12px] font-black tracking-[0.12em] text-[#EA580C] md:grid">
             <span>{t.history.time}</span>
             <span>{t.history.type}</span>
             <span>{t.history.ref}</span>
@@ -487,7 +487,7 @@ export function HistoryPage() {
                           <button
                             type="button"
                             onClick={() => handleOpenDetail(tx.betId!)}
-                            className="mt-1.5 block rounded-full border border-[#186073]/20 bg-white px-2.5 py-1 text-[11px] font-black text-[#186073] md:hidden"
+                            className="mt-1.5 block rounded-full border border-[#EA580C]/20 bg-white px-2.5 py-1 text-[11px] font-black text-[#EA580C] md:hidden"
                           >
                             查看開獎
                           </button>
@@ -518,7 +518,7 @@ export function HistoryPage() {
                         <button
                           type="button"
                           onClick={() => handleOpenDetail(tx.betId!)}
-                          className="mt-2 inline-flex items-center gap-1 rounded-full border border-[#186073]/18 bg-[#F2FAFC] px-2.5 py-1 text-[12px] font-black text-[#186073] transition hover:border-[#186073]/45 hover:bg-white"
+                          className="mt-2 inline-flex items-center gap-1 rounded-full border border-[#EA580C]/18 bg-[#F2FAFC] px-2.5 py-1 text-[12px] font-black text-[#EA580C] transition hover:border-[#EA580C]/45 hover:bg-white"
                         >
                           <ReceiptText className="h-3 w-3" aria-hidden="true" />
                           查看開獎
@@ -565,7 +565,7 @@ export function HistoryPage() {
                   type="button"
                   onClick={handlePrevPage}
                   disabled={pageIndex === 0 || loading}
-                  className="h-11 rounded-[12px] border border-[#D9E3EA] bg-white px-4 text-[13px] font-black text-[#186073] transition hover:border-[#186073]/50 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="h-11 rounded-[12px] border border-[#D9E3EA] bg-white px-4 text-[13px] font-black text-[#EA580C] transition hover:border-[#EA580C]/50 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   上一頁
                 </button>
@@ -573,7 +573,7 @@ export function HistoryPage() {
                   type="button"
                   onClick={handleNextPage}
                   disabled={!nextCursor || loading}
-                  className="h-11 rounded-[12px] border border-[#186073] bg-[#186073] px-4 text-[13px] font-black text-white transition hover:bg-[#124D5E] disabled:cursor-not-allowed disabled:border-[#D9E3EA] disabled:bg-[#EEF2F5] disabled:text-[#9CA3AF]"
+                  className="h-11 rounded-[12px] border border-[#EA580C] bg-[#EA580C] px-4 text-[13px] font-black text-white transition hover:bg-[#C2410C] disabled:cursor-not-allowed disabled:border-[#D9E3EA] disabled:bg-[#EEF2F5] disabled:text-[#9CA3AF]"
                 >
                   下一頁
                 </button>
@@ -623,7 +623,7 @@ function BetDetailModal({
       <div className="max-h-[92svh] w-full overflow-hidden rounded-t-[24px] border border-white/30 bg-white shadow-[0_24px_80px_rgba(7,16,28,0.38)] sm:max-w-3xl sm:rounded-[24px]">
         <div className="flex items-start justify-between gap-4 border-b border-[#E5E7EB] px-5 py-4">
           <div>
-            <div className="text-[12px] font-black uppercase tracking-[0.22em] text-[#186073]">
+            <div className="text-[12px] font-black uppercase tracking-[0.22em] text-[#EA580C]">
               開獎詳情
             </div>
             <h2 className="mt-1 text-[22px] font-black text-[#0F172A]">
@@ -633,7 +633,7 @@ function BetDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#D9E3EA] bg-white text-[#4A5568] transition hover:border-[#186073]/40 hover:text-[#186073]"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#D9E3EA] bg-white text-[#4A5568] transition hover:border-[#EA580C]/40 hover:text-[#EA580C]"
             aria-label="關閉"
           >
             <X className="h-5 w-5" aria-hidden="true" />
@@ -683,7 +683,7 @@ function BetDetailModal({
                         key={item.key}
                         className="grid gap-1 rounded-[12px] border border-white bg-white/80 px-3 py-2 sm:grid-cols-[140px_1fr] sm:items-start"
                       >
-                        <div className="text-[11px] font-black text-[#186073]">{item.label}</div>
+                        <div className="text-[11px] font-black text-[#EA580C]">{item.label}</div>
                         <div className="min-w-0 break-words text-[12px] leading-relaxed text-[#0F172A]">
                           {item.value}
                         </div>
@@ -750,7 +750,7 @@ function DetailMetric({
 function DetailLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1 border-b border-[#EEF2F5] pb-2 last:border-b-0 sm:grid-cols-[150px_1fr]">
-      <span className="font-black text-[#186073]">{label}</span>
+      <span className="font-black text-[#EA580C]">{label}</span>
       <span className="break-all font-mono text-[#0F172A]">{value}</span>
     </div>
   );
@@ -1491,7 +1491,7 @@ function BlackjackHandsView({
           className="rounded-[14px] border border-[#D9E3EA] bg-white px-3 py-3"
         >
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div className="text-[11px] font-black text-[#186073]">手牌 {index + 1}</div>
+            <div className="text-[11px] font-black text-[#EA580C]">手牌 {index + 1}</div>
             <div className="flex flex-wrap gap-2 font-mono text-[10px] text-[#4A5568]">
               {hand.score ? <span>點數 {hand.score}</span> : null}
               {hand.outcome ? <span>{hand.outcome}</span> : null}
@@ -1559,7 +1559,7 @@ function CardGroup({
   return (
     <div className="rounded-[14px] border border-[#D9E3EA] bg-white px-3 py-3">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="text-[11px] font-black text-[#186073]">{title}</div>
+        <div className="text-[11px] font-black text-[#EA580C]">{title}</div>
         {subtitle ? <div className="font-mono text-[10px] text-[#4A5568]">{subtitle}</div> : null}
       </div>
       <CardStrip cards={cards} />
@@ -1867,7 +1867,7 @@ function slotSymbolMeta(symbol: number): { label: string; color: string } {
     { label: '綠寶石', color: '#22C55E' },
     { label: '藍寶石', color: '#38BDF8' },
   ];
-  return symbols[Math.trunc(symbol)] ?? { label: `符號 ${symbol}`, color: '#186073' };
+  return symbols[Math.trunc(symbol)] ?? { label: `符號 ${symbol}`, color: '#EA580C' };
 }
 
 function formatDateTime(value: string): string {

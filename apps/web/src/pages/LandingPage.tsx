@@ -17,7 +17,7 @@ export function LandingPage() {
 
   return (
     <div className="relative flex min-h-[100svh] flex-col overflow-x-hidden bg-[#E9ECEF]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(24,96,115,0.18),transparent_72%)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(234,88,12,0.18),transparent_72%)]" />
 
       <header className="sticky top-0 z-40 border-b border-[#162238] bg-[linear-gradient(180deg,rgba(8,15,27,0.98),rgba(15,23,42,0.96))] pt-[env(safe-area-inset-top)] text-white shadow-[0_18px_40px_rgba(2,6,23,0.34)]">
         <div className="border-b border-white/8">
@@ -66,7 +66,7 @@ export function LandingPage() {
                     className="rounded-[16px] border border-white/[0.65] bg-white/[0.92] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-[22px] sm:p-5"
                   >
                     <div className="label">{item.label}</div>
-                    <div className="mt-3 data-num text-[30px] font-bold text-[#186073]">
+                    <div className="mt-3 data-num text-[30px] font-bold text-[#EA580C]">
                       {item.value}
                     </div>
                     <p className="mt-2 text-[13px] leading-relaxed text-[#4A5568]">{item.detail}</p>
@@ -87,7 +87,7 @@ export function LandingPage() {
               <div className="mt-6 flex flex-col gap-3">
                 <Link
                   to="/login"
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[#E5E7EB] px-4 py-3 text-[13px] font-semibold text-[#0F172A] transition hover:border-[#186073]/30 hover:bg-[#F5F7FA]"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[#E5E7EB] px-4 py-3 text-[13px] font-semibold text-[#0F172A] transition hover:border-[#EA580C]/30 hover:bg-[#F5F7FA]"
                 >
                   {t.landing.alreadyMember}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -99,7 +99,7 @@ export function LandingPage() {
                 <div className="mt-4 space-y-3">
                   {t.landing.accessSteps.map((step, index) => (
                     <div key={step.title} className="flex gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#186073] text-[12px] font-bold text-white">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EA580C] text-[12px] font-bold text-white">
                         {index + 1}
                       </div>
                       <div className="min-w-0">
@@ -123,7 +123,7 @@ export function LandingPage() {
               rightSlot={
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#186073] transition hover:text-[#0E4555]"
+                  className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#EA580C] transition hover:text-[#9A3412]"
                 >
                   {t.landing.memberDirectLogin}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />

@@ -66,7 +66,7 @@ export function TodayWinners() {
         </div>
         <div className="text-right">
           <span className="text-[12px] text-[#9CA3AF]">{t.feed.dailyReset}</span>
-          <div className="num mt-1 text-[11px] font-bold text-[#186073]">
+          <div className="num mt-1 text-[11px] font-bold text-[#EA580C]">
             HOT {String(refresh % 100).padStart(2, '0')}
           </div>
         </div>
@@ -74,7 +74,7 @@ export function TodayWinners() {
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="min-w-[720px] w-full" aria-label={t.feed.todayWinners}>
           <thead>
-            <tr className="bg-[#186073] text-[13px] text-white">
+            <tr className="bg-[#EA580C] text-[13px] text-white">
               <th className="w-16 py-3 text-center font-medium">{t.feed.ranking}</th>
               <th className="py-3 text-left font-medium">{t.feed.player}</th>
               <th className="py-3 text-left font-medium">{t.feed.game}</th>

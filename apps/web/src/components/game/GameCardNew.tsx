@@ -93,7 +93,7 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
       onFocus={warmAssets}
       onPointerDown={warmAssets}
       onPointerEnter={warmAssets}
-      className="group relative flex flex-col overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:border-[#186073] hover:shadow-[0_8px_20px_rgba(24,96,115,0.18)]"
+      className="group relative flex flex-col overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:border-[#EA580C] hover:shadow-[0_8px_20px_rgba(234,88,12,0.18)]"
     >
       {/* Badge */}
       {isNew && (
@@ -103,7 +103,7 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
       )}
 
       {/* 封面 */}
-      <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-[#186073] to-[#0E4555]">
+      <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-[#EA580C] to-[#9A3412]">
         {cover ? (
           <ResponsiveImage
             src={cover}
@@ -121,7 +121,7 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
           </div>
         )}
         {/* Hover 覆蓋 */}
-        <div className="absolute inset-0 flex items-center justify-center bg-[#186073]/80 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+        <div className="absolute inset-0 flex items-center justify-center bg-[#EA580C]/80 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           <span className="rounded-[6px] border-2 border-white bg-transparent px-4 py-1.5 text-[13px] font-semibold text-white">
             {t.bet.start}
           </span>

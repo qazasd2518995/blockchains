@@ -58,15 +58,17 @@ export function MobilePageHeader({
 
         {user ? (
           <div
-            className="flex h-11 w-[118px] min-w-0 items-center gap-1 rounded-[10px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12]"
+            className="flex h-11 w-[118px] min-w-0 items-center gap-1.5 rounded-[10px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12]"
             aria-label={`${t.common.account} ${user.username}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
           >
             <WalletCards className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate text-[10px] font-black leading-none text-[#5F4A14]">
-              {user.username}
-            </span>
-            <span className="data-num max-w-[54px] shrink-0 truncate text-[11px] font-black">
-              {formatAmount(user.balance ?? '0')}
+            <span className="flex min-w-0 flex-1 flex-col justify-center leading-none">
+              <span className="truncate text-[10px] font-black text-[#7C2D12]">
+                {user.username}
+              </span>
+              <span className="data-num mt-1 truncate text-[11px] font-black text-[#9A3412]">
+                {formatAmount(user.balance ?? '0')}
+              </span>
             </span>
           </div>
         ) : (
@@ -90,8 +92,8 @@ export function MobilePageHeader({
               className={({ isActive }) =>
                 `inline-flex h-11 items-center justify-center gap-1 rounded-[10px] border text-[12px] font-black shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99] ${
                   isActive || active === item.key
-                    ? 'border-[#0F76A3] bg-[#1576A2] text-white'
-                    : 'border-[#D8E7EE] bg-[#F7FCFE] text-[#17657D]'
+                    ? 'border-[#EA580C] bg-[#EA580C] text-white'
+                    : 'border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]'
                 }`
               }
             >

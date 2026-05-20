@@ -47,13 +47,13 @@ export function AudioMenu({
   const buttonBase =
     variant === 'dark'
       ? 'border-white/12 bg-[#162338] text-white/80 hover:border-white/24 hover:bg-[#1A2A41] hover:text-white'
-      : 'border-[#E5E7EB] bg-white text-[#0F172A] hover:border-[#186073]/40';
+      : 'border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412] hover:border-[#EA580C]/45 hover:bg-[#FFEDD5]';
   const menuBase =
     variant === 'dark'
       ? 'border-white/12 bg-[#101B2D] text-white shadow-[0_18px_40px_rgba(0,0,0,0.35)]'
-      : 'border-[#D6E5EC] bg-white text-[#0F172A] shadow-[0_18px_36px_rgba(15,23,42,0.16)]';
+      : 'border-[#FED7AA] bg-white text-[#0F172A] shadow-[0_18px_36px_rgba(15,23,42,0.16)]';
   const itemBase =
-    variant === 'dark' ? 'text-white/82 hover:bg-white/8' : 'text-[#0F172A] hover:bg-[#EDF7FA]';
+    variant === 'dark' ? 'text-white/82 hover:bg-white/8' : 'text-[#0F172A] hover:bg-[#FFF7ED]';
 
   const toggleSfx = (): void => {
     Sfx.setMuted(!sfxMuted);

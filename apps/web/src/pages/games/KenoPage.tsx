@@ -176,7 +176,7 @@ export function KenoPage() {
                     'border-[#D4574A]/70 bg-[#D4574A]/16 text-[#FFD7D3] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]';
                 else if (picked)
                   cls =
-                    'border-[#7DD3FC]/80 bg-[#266F85]/18 text-[#BAE6FD] shadow-[0_0_14px_rgba(125,211,252,0.22),inset_0_1px_0_rgba(255,255,255,0.16)]';
+                    'border-[#FDBA74]/80 bg-[#F97316]/18 text-[#FED7AA] shadow-[0_0_14px_rgba(253,186,116,0.22),inset_0_1px_0_rgba(255,255,255,0.16)]';
                 return (
                   <button
                     key={n}
@@ -280,7 +280,7 @@ export function KenoPage() {
             <div className="game-balance-strip mt-3">
               <span>
                 {t.games.keno.selected}{' '}
-                <span className="data-num ml-1 text-[#266F85]">{selected.size}</span>
+                <span className="data-num ml-1 text-[#F97316]">{selected.size}</span>
               </span>
             </div>
           </div>

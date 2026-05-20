@@ -17,7 +17,7 @@ export function LanguageSwitcher({
   const base =
     variant === 'dark'
       ? 'border-white/12 bg-[#162338] text-white/82 hover:border-white/24 hover:bg-[#1A2A41]'
-      : 'border-[#D8E7EE] bg-[#F7FCFE] text-[#17657D] hover:border-[#186073]/40';
+      : 'border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412] hover:border-[#EA580C]/45 hover:bg-[#FFEDD5]';
 
   return (
     <label

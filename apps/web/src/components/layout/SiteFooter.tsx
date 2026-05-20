@@ -43,7 +43,7 @@ export function SiteFooter({ loggedIn = false }: Props): JSX.Element {
           <ul className="mt-4 space-y-2 text-[13px] text-[#4A5568]">
             {quickLinks.map((link) => (
               <li key={link.label}>
-                <Link className="transition hover:text-[#186073]" to={link.to}>
+                <Link className="transition hover:text-[#EA580C]" to={link.to}>
                   {link.label}
                 </Link>
               </li>

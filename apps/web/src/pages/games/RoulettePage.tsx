@@ -470,7 +470,7 @@ function OutsideBtn({
     <button
       type="button"
       onClick={onClick}
-      className={`roulette-outside-btn relative min-h-[42px] rounded-[12px] border border-white/10 ${bg} px-1 py-2 font-mono text-[10px] tracking-[0.08em] ${color === 'black' ? 'text-white' : 'text-white/85'} transition hover:border-[#C9A247] hover:text-[#186073] sm:rounded-[14px] sm:text-[11px] sm:tracking-[0.2em] ${placedAmount > 0 ? 'border-[#F3D67D]/70 text-[#F3D67D]' : ''}`}
+      className={`roulette-outside-btn relative min-h-[42px] rounded-[12px] border border-white/10 ${bg} px-1 py-2 font-mono text-[10px] tracking-[0.08em] ${color === 'black' ? 'text-white' : 'text-white/85'} transition hover:border-[#C9A247] hover:text-[#EA580C] sm:rounded-[14px] sm:text-[11px] sm:tracking-[0.2em] ${placedAmount > 0 ? 'border-[#F3D67D]/70 text-[#F3D67D]' : ''}`}
     >
       <span className="roulette-bet-main">{label}</span>
       <span className="roulette-bet-odds">{odds}</span>

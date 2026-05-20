@@ -438,7 +438,7 @@ export function TowerPage() {
                     className={`flex w-full flex-col items-start justify-between gap-1 rounded-[14px] border p-3 text-left transition sm:flex-row sm:items-center sm:rounded-[16px] ${
                       difficulty === d.id
                         ? 'border-neon-acid/30 bg-neon-acid/8'
-                        : 'border-white/10 bg-white/76 hover:border-[#186073]/28'
+                        : 'border-white/10 bg-white/76 hover:border-[#EA580C]/28'
                     } disabled:opacity-40`}
                   >
                     <span className="font-mono text-[12px] font-semibold tracking-[0.2em] text-white">

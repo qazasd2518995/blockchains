@@ -19,7 +19,7 @@ function GuestHallCard({ hall }: { hall: HallMeta }) {
   return (
     <Link
       to={`/login?from=${encodeURIComponent(`/hall/${hall.id}`)}`}
-      className="group relative flex min-h-[410px] flex-col overflow-hidden rounded-[12px] border border-white/80 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.10)] transition-all duration-300 hover:-translate-y-1 hover:border-[#186073]/40 hover:shadow-[0_22px_46px_rgba(24,96,115,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#186073]/35 focus-visible:ring-offset-2"
+      className="group relative flex min-h-[410px] flex-col overflow-hidden rounded-[12px] border border-white/80 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.10)] transition-all duration-300 hover:-translate-y-1 hover:border-[#EA580C]/40 hover:shadow-[0_22px_46px_rgba(234,88,12,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EA580C]/35 focus-visible:ring-offset-2"
     >
       <div
         className="relative h-[260px] shrink-0 overflow-hidden sm:h-[300px] 2xl:h-[330px]"
@@ -62,7 +62,7 @@ function GuestHallCard({ hall }: { hall: HallMeta }) {
         </div>
         <p className="text-[15px] leading-7 text-[#4A5568]">{tagline}</p>
         <div className="mt-auto flex items-center justify-between pt-2">
-          <span className="inline-flex items-center gap-2 text-[14px] font-bold text-[#186073] transition group-hover:gap-3">
+          <span className="inline-flex items-center gap-2 text-[14px] font-bold text-[#EA580C] transition group-hover:gap-3">
             {t.common.loginToEnter} <ArrowRight className="h-4 w-4" />
           </span>
         </div>

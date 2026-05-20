@@ -128,7 +128,19 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [apiBase, baccaratUrl, bgLobbyUrl, config.gameId, config.provider, config.skin, config.title, iframeKey, user, user?.role, user?.username]);
+  }, [
+    apiBase,
+    baccaratUrl,
+    bgLobbyUrl,
+    config.gameId,
+    config.provider,
+    config.skin,
+    config.title,
+    iframeKey,
+    user,
+    user?.role,
+    user?.username,
+  ]);
 
   const handleReload = () => {
     setIframeKey((k) => k + 1);
@@ -137,7 +149,10 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
   const showLoadingCover = status === 'loading';
 
   return (
-    <main className="fixed inset-0 z-[9999] overflow-hidden text-white" style={{ backgroundColor: config.screenBg }}>
+    <main
+      className="fixed inset-0 z-[9999] overflow-hidden text-white"
+      style={{ backgroundColor: config.screenBg }}
+    >
       {status === 'ready' && launchUrl ? (
         <iframe
           key={iframeKey}
@@ -152,7 +167,10 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
       ) : null}
 
       {showLoadingCover ? (
-        <section className="absolute inset-0 z-10 overflow-hidden" style={{ backgroundColor: config.screenBg }}>
+        <section
+          className="absolute inset-0 z-10 overflow-hidden"
+          style={{ backgroundColor: config.screenBg }}
+        >
           <img
             src={config.background}
             alt=""
@@ -165,7 +183,9 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
 
           <div className="relative z-10 flex min-h-[100svh] items-center px-6 py-8 sm:px-10 lg:px-16">
             <div className="max-w-[520px]">
-              <div className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] ${config.badgeClassName}`}>
+              <div
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] ${config.badgeClassName}`}
+              >
                 {config.eyebrow}
               </div>
               <h1 className="mt-5 text-[38px] font-black leading-tight sm:text-[54px]">
@@ -175,8 +195,13 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
                 {config.description}
               </p>
 
-              <div className={`mt-7 inline-flex items-center gap-3 rounded-[18px] border px-4 py-3 text-[14px] text-white/88 backdrop-blur ${config.panelClassName}`}>
-                <Loader2 className={`h-4 w-4 animate-spin ${config.spinnerClassName}`} aria-hidden="true" />
+              <div
+                className={`mt-7 inline-flex items-center gap-3 rounded-[18px] border px-4 py-3 text-[14px] text-white/88 backdrop-blur ${config.panelClassName}`}
+              >
+                <Loader2
+                  className={`h-4 w-4 animate-spin ${config.spinnerClassName}`}
+                  aria-hidden="true"
+                />
                 <span>{message}</span>
               </div>
 
@@ -203,7 +228,10 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
       ) : null}
 
       {status === 'guest' ? (
-        <section className="absolute inset-0 z-20 overflow-hidden" style={{ backgroundColor: config.screenBg }}>
+        <section
+          className="absolute inset-0 z-20 overflow-hidden"
+          style={{ backgroundColor: config.screenBg }}
+        >
           <img
             src={config.background}
             alt=""
@@ -214,7 +242,9 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
           <div className={`absolute inset-0 ${config.overlayClassName}`} />
           <div className="relative z-10 flex min-h-[100svh] items-center px-6 py-8 sm:px-10 lg:px-16">
             <div className="max-w-[520px]">
-              <div className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] ${config.badgeClassName}`}>
+              <div
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] ${config.badgeClassName}`}
+              >
                 {config.eyebrow}
               </div>
               <h1 className="mt-5 text-[38px] font-black leading-tight sm:text-[54px]">
@@ -253,7 +283,9 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
 
             {diagnostics ? (
               <div className="mt-4 rounded-[18px] border border-[#D9E3EA] bg-[#F8FAFB] px-4 py-4 text-[13px] text-[#334155]">
-                <div className="text-[12px] font-semibold uppercase tracking-[0.24em] text-[#186073]">Launcher Error</div>
+                <div className="text-[12px] font-semibold uppercase tracking-[0.24em] text-[#EA580C]">
+                  Launcher Error
+                </div>
                 <div className="mt-3 grid gap-2 font-mono text-[12px]">
                   <div>currentUser: {diagnostics.currentUser}</div>
                   <div>currentRole: {diagnostics.currentRole}</div>
