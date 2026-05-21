@@ -300,7 +300,7 @@ export function CrashPage({ config }: Props) {
         return;
       }
       if (!scene || Math.abs(w - lastWidth) > 3 || Math.abs(h - lastHeight) > 3) {
-        if (scene && statusRef.current === 'RUNNING') return;
+        if (scene && statusRef.current !== 'BETTING') return;
         initScene(w, h);
       }
     };
