@@ -1159,11 +1159,13 @@ export class CrashScene {
     if (this.phase === 'running') {
       if (Number.isFinite(elapsedMs)) {
         this.preflightMultiplierCap = null;
-        const serverStartedAt = performance.now() - Math.max(0, elapsedMs ?? 0);
-        this.runningStartedAtMs =
-          this.runningStartedAtMs > 0
-            ? this.runningStartedAtMs * 0.85 + serverStartedAt * 0.15
-            : serverStartedAt;
+        const syncedElapsedMs = Math.max(0, elapsedMs ?? 0);
+        const serverStartedAt = performance.now() - syncedElapsedMs;
+        const shouldResetClock =
+          this.runningStartedAtMs <= 0 || this.currentMultiplier <= 1.04 || syncedElapsedMs <= 80;
+        this.runningStartedAtMs = shouldResetClock
+          ? serverStartedAt
+          : this.runningStartedAtMs * 0.85 + serverStartedAt * 0.15;
       }
       this.targetMultiplier = Math.max(this.targetMultiplier, nextMultiplier);
       this.maxMultiplier = Math.max(this.maxMultiplier, nextMultiplier * 1.2, 2);

@@ -47,6 +47,8 @@ const CRASH_PREFLIGHT_MULTIPLIER_CAP = 1.025;
 const CRASH_INITIAL_ROUND_POLL_DELAY_MS = 180;
 const CRASH_MULTIPLIER_PUBLISH_MIN_MS = 320;
 const CRASH_INSTANT_RESULT_REVEAL_MS = 420;
+const CRASH_VISUAL_START_SYNC_MS = 1200;
+const CRASH_VISUAL_START_GROWTH_RATE = 0.00042;
 let simulatedLiveBetSerial = 0;
 
 function formatCrashMultiplier(value: string | number): string {
@@ -194,6 +196,7 @@ export function CrashPage({ config }: Props) {
   const publishedMultiplierRef = useRef(1.0);
   const lastMultiplierPublishAtRef = useRef(0);
   const sceneClockSyncedRef = useRef(false);
+  const visualFlightStartedAtRef = useRef<number | null>(null);
   const userIdRef = useRef<string | null>(user?.id ?? null);
   const autoBetActiveRef = useRef(false);
   const autoBetRemainingRef = useRef<number | null>(null);
@@ -437,6 +440,7 @@ export function CrashPage({ config }: Props) {
       publishedMultiplierRef.current = 1;
       lastMultiplierPublishAtRef.current = performance.now();
       sceneClockSyncedRef.current = false;
+      visualFlightStartedAtRef.current = performance.now();
       crashPointRef.current = null;
       visualCrashPointRef.current = null;
       finalizedRoundRef.current = null;
@@ -485,11 +489,30 @@ export function CrashPage({ config }: Props) {
         visualCrashPoint && state.status === 'RUNNING'
           ? Math.min(state.currentMultiplier, visualCrashPoint)
           : state.currentMultiplier;
+      if (
+        state.status === 'RUNNING' &&
+        !sceneClockSyncedRef.current &&
+        state.elapsedMs <= 80
+      ) {
+        visualFlightStartedAtRef.current = performance.now();
+      }
+      const visualStartedAt = visualFlightStartedAtRef.current;
+      const visualElapsed =
+        state.status === 'RUNNING' && visualStartedAt !== null
+          ? performance.now() - visualStartedAt
+          : null;
+      const startupLimitedMultiplier =
+        visualElapsed !== null && visualElapsed < CRASH_VISUAL_START_SYNC_MS
+          ? Math.min(
+              safeCurrentMultiplier,
+              Math.max(1, Math.exp(CRASH_VISUAL_START_GROWTH_RATE * visualElapsed)),
+            )
+          : safeCurrentMultiplier;
       const displayMultiplier =
         state.status === 'RUNNING'
           ? Math.min(
               visualCrashPoint ?? Number.POSITIVE_INFINITY,
-              Math.max(multiplierRef.current, safeCurrentMultiplier),
+              Math.max(multiplierRef.current, startupLimitedMultiplier),
             )
           : safeCurrentMultiplier;
       multiplierRef.current = displayMultiplier;
@@ -524,6 +547,7 @@ export function CrashPage({ config }: Props) {
 
       if (state.status === 'CRASHED') {
         const finalMultiplier = state.crashPoint ?? state.currentMultiplier;
+        visualFlightStartedAtRef.current = null;
         crashPointRef.current = finalMultiplier;
         visualCrashPointRef.current = finalMultiplier;
         publishedMultiplierRef.current = finalMultiplier;
@@ -597,6 +621,7 @@ export function CrashPage({ config }: Props) {
     publishedMultiplierRef.current = 1;
     lastMultiplierPublishAtRef.current = performance.now();
     sceneClockSyncedRef.current = false;
+    visualFlightStartedAtRef.current = null;
     setMultiplier(1);
     setCrashPoint(null);
     visualCrashPointRef.current = null;
@@ -677,7 +702,11 @@ export function CrashPage({ config }: Props) {
           setSubmitting(false);
           if (res.data.status === 'RUNNING') scheduleRoundPoll(res.data.roundId);
         };
-        if (res.data.status === 'CRASHED' && statusRef.current === 'BETTING') {
+        if (res.data.status === 'RUNNING' && statusRef.current === 'BETTING') {
+          clearOptimisticFlight();
+          beginOptimisticFlight(betAmount);
+          applyStartResponse();
+        } else if (res.data.status === 'CRASHED' && statusRef.current === 'BETTING') {
           clearOptimisticFlight();
           beginOptimisticFlight(betAmount);
           pendingResultRevealRef.current = window.setTimeout(() => {
@@ -697,6 +726,7 @@ export function CrashPage({ config }: Props) {
         publishedMultiplierRef.current = 1;
         lastMultiplierPublishAtRef.current = performance.now();
         sceneClockSyncedRef.current = false;
+        visualFlightStartedAtRef.current = null;
         myBetRef.current = null;
         setStatus('BETTING');
         setMultiplier(1);
