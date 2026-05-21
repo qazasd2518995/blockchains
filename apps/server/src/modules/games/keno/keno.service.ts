@@ -9,7 +9,12 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
+import {
+  applyControls,
+  finalizeControls,
+  multiplierMatchesControlBounds,
+  type ControlOutcome,
+} from '../_common/controls.js';
 import type { KenoBetInput } from './keno.schema.js';
 
 export class KenoService {
@@ -119,19 +124,33 @@ function chooseKenoHitCount(
   pickCount: number,
   wantWin: boolean,
   amount: Prisma.Decimal,
-  controlled: Parameters<typeof multiplierMatchesControlBounds>[2],
+  controlled: Pick<
+    ControlOutcome,
+    'multiplier' | 'minMultiplier' | 'maxMultiplier' | 'maxPayout'
+  >,
 ): number {
   const candidates = Array.from({ length: pickCount + 1 }, (_, hits) => ({
     hits,
     multiplier: kenoMultiplier(risk, pickCount, hits),
-  })).filter((x) =>
-    wantWin
-      ? x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
-      : x.multiplier <= 1,
+  }));
+
+  if (!wantWin) {
+    const losingCandidates = candidates.filter((x) => x.multiplier <= 1);
+    losingCandidates.sort((a, b) => a.multiplier - b.multiplier);
+    return losingCandidates[0]?.hits ?? 0;
+  }
+
+  const boundedWins = candidates.filter(
+    (x) => x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled),
   );
-  const pool = candidates.length > 0 ? candidates : [{ hits: wantWin ? pickCount : 0, multiplier: 0 }];
-  pool.sort((a, b) => (wantWin ? b.multiplier - a.multiplier : a.multiplier - b.multiplier));
-  return pool[0]?.hits ?? 0;
+  if (boundedWins.length === 0) return 0;
+
+  const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
+  boundedWins.sort((a, b) => {
+    const distance = Math.abs(a.multiplier - targetMultiplier) - Math.abs(b.multiplier - targetMultiplier);
+    return distance || a.multiplier - b.multiplier;
+  });
+  return boundedWins[0]?.hits ?? 0;
 }
 
 function drawWithHitCount(selected: number[], hitCount: number): number[] {
