@@ -569,8 +569,7 @@ export class ReportService {
           fallbackRateForGame(gameId, memberElectronicRebatePct, memberBaccaratRebatePct),
         );
 
-        // 報表「上級交收」是本列對上級的交收方向，需和會員輸贏基準反向。
-        // 控制系統的 superiorSettlement 仍維持風控曝險值，不共用這個報表欄位。
+        // 報表與控制系統的「上級交收」都採對上級的交收方向，需和會員輸贏基準反向。
         const uplineSettle = memberWinLoss.add(memberRebateAmt).neg();
 
         return {
@@ -758,7 +757,7 @@ export class ReportService {
     // 本級盈虧結果 = 會員輸贏 + 當層賺水（當層對上級「賺的」也要算進盈虧）
     const profitLossResult = memberWinLoss.add(earnedRebateAmount);
 
-    // 報表「上級交收」= 對上級的交收方向，和本級盈虧/風控曝險方向反向。
+    // 報表「上級交收」= 對上級的交收方向，和本級盈虧方向反向。
     const uplineSettlement = memberWinLoss.add(totalLineRebate).add(earnedRebateAmount).neg();
 
     return {

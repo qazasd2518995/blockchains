@@ -750,7 +750,7 @@ function manualDirectionClass(row: ManualDetectionRow): string {
   const current = Number.parseFloat(row.currentSettlement ?? '0');
   const target = Number.parseFloat(row.targetSettlement ?? '0');
   if (!Number.isFinite(current) || !Number.isFinite(target) || target === current) return 'tag tag-acid';
-  return target > current ? 'tag tag-ember' : 'tag tag-toxic';
+  return target > current ? 'tag tag-toxic' : 'tag tag-ember';
 }
 
 function formatReason(reason: string): string {
