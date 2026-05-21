@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { ArrowLeft, History, Maximize2, RefreshCw, Smartphone, WalletCards, X } from 'lucide-react';
 import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
@@ -56,6 +56,44 @@ export function GameFullscreenShell() {
   const [immersiveNotice, setImmersiveNotice] = useState<'ios' | 'blocked' | null>(null);
   const isMegaSlot = slotLayout === 'mega';
   useLiveBalance();
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    const shell = shellRef.current;
+    if (!shell) return;
+
+    const root = document.documentElement;
+    let rafId = 0;
+
+    const applyViewportHeight = () => {
+      rafId = 0;
+      const viewportHeight = Math.round(window.visualViewport?.height ?? window.innerHeight);
+      const value = `${Math.max(1, viewportHeight)}px`;
+      shell.style.setProperty('--game-shell-height', value);
+      root.style.setProperty('--game-shell-height', value);
+    };
+
+    const scheduleViewportHeight = () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(applyViewportHeight);
+    };
+
+    applyViewportHeight();
+    window.addEventListener('resize', scheduleViewportHeight);
+    window.addEventListener('orientationchange', scheduleViewportHeight);
+    window.visualViewport?.addEventListener('resize', scheduleViewportHeight);
+    window.visualViewport?.addEventListener('scroll', scheduleViewportHeight);
+
+    return () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', scheduleViewportHeight);
+      window.removeEventListener('orientationchange', scheduleViewportHeight);
+      window.visualViewport?.removeEventListener('resize', scheduleViewportHeight);
+      window.visualViewport?.removeEventListener('scroll', scheduleViewportHeight);
+      shell.style.removeProperty('--game-shell-height');
+      root.style.removeProperty('--game-shell-height');
+    };
+  }, []);
 
   useEffect(() => {
     const updateMode = () => {

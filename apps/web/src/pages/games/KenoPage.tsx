@@ -746,7 +746,7 @@ export function KenoPage() {
   ) : null;
 
   return (
-    <div>
+    <div className="keno-game-page">
       {autoDialog}
       <GameHeader
         artwork="/game-art/keno/background.png"
@@ -762,7 +762,7 @@ export function KenoPage() {
 
       <div className="game-play-grid game-play-grid--keno grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="game-main-stack space-y-4">
-          <div className="game-stage-panel scanlines p-4">
+          <div className="keno-stage-panel game-stage-panel scanlines p-4">
             <div className="game-stage-bar -mx-4 -mt-4 mb-4 rounded-t-[22px]">
               <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">基諾</span>
               <span className="ml-2 text-white/40">·</span>
@@ -870,7 +870,7 @@ export function KenoPage() {
 
           {result && (
             <div
-              className={`game-result-card ${result.payout !== '0.00' ? 'game-result-card-win' : 'game-result-card-loss'}`}
+              className={`keno-result-card game-result-card ${result.payout !== '0.00' ? 'game-result-card-win' : 'game-result-card-loss'}`}
             >
               <div className="flex items-baseline justify-between">
                 <div>
@@ -904,8 +904,8 @@ export function KenoPage() {
           )}
         </div>
 
-        <div className="game-control-stack space-y-4">
-          <div className="game-side-card p-5">
+        <div className="keno-control-stack game-control-stack space-y-4">
+          <div className="keno-control-card game-side-card p-5">
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -914,7 +914,7 @@ export function KenoPage() {
               disabled={controlsLocked}
             />
 
-            <div className="mt-6">
+            <div className="keno-risk-control mt-6">
               <div className="label">{t.games.mines.risk}</div>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {(['low', 'medium', 'high'] as KenoRisk[]).map((r) => (
@@ -935,7 +935,7 @@ export function KenoPage() {
               type="button"
               onClick={handleBet}
               disabled={controlsLocked || selectedCount === 0 || (!!user && balance < amount)}
-              className="btn-acid mt-6 w-full py-4"
+              className="keno-draw-button btn-acid mt-6 w-full py-4"
             >
               → {t.games.keno.draw.toUpperCase()} · {formatAmount(amount)}
             </button>

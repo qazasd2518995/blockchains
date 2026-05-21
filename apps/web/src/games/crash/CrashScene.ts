@@ -447,7 +447,7 @@ export class CrashScene {
     if (this.craftTexture) {
       const sprite = new Sprite(this.craftTexture);
       sprite.anchor.set(0.5);
-      const targetSize = Math.min(118, Math.max(74, this.height * 0.26));
+      const targetSize = Math.min(102, Math.max(60, this.height * 0.22));
       const baseSize = Math.max(sprite.texture.width, sprite.texture.height);
       this.craftBaseScale = targetSize / baseSize;
       sprite.scale.set(this.craftBaseScale);

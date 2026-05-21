@@ -629,8 +629,8 @@
       width: 100%;
       height: 100svh;
       min-height: 100svh;
-      height: 100dvh;
-      min-height: 100dvh;
+      height: var(--game-shell-height, 100dvh);
+      min-height: var(--game-shell-height, 100dvh);
       overflow: hidden;
       background: #050a13;
     }
@@ -714,7 +714,7 @@
 
     .game-fullscreen-shell > main {
       height: calc(100svh - 3rem - env(safe-area-inset-top));
-      height: calc(100dvh - 3rem - env(safe-area-inset-top));
+      height: calc(var(--game-shell-height, 100dvh) - 3rem - env(safe-area-inset-top));
       min-height: 0;
       overflow: hidden;
       padding-top: 0.28rem;
@@ -1428,16 +1428,17 @@
     }
 
     .game-fullscreen-shell .crash-control-stack {
-      max-height: max(150px, min(27dvh, 184px));
+      max-height: max(158px, min(28svh, 194px));
     }
 
     .game-fullscreen-shell .crash-control-stack > .crash-control-card:first-child {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(104px, 1fr);
-      align-content: start;
-      align-items: start;
+      grid-template-rows: auto minmax(40px, 1fr);
+      align-content: stretch;
+      align-items: stretch;
       gap: 0.28rem 0.36rem;
-      max-height: max(150px, min(27dvh, 184px));
+      max-height: max(158px, min(28svh, 194px));
       overflow: hidden;
       padding: 0.42rem 0.52rem !important;
     }
@@ -1501,9 +1502,10 @@
     }
 
     .game-fullscreen-shell .crash-control-card .crash-auto-bot-button {
-      min-height: 34px;
+      min-height: 48px;
+      height: 100%;
       margin-top: 0 !important;
-      align-self: start;
+      align-self: stretch;
       width: 100%;
       border-radius: 10px;
       padding: 0.24rem 0.38rem !important;
@@ -1514,15 +1516,15 @@
       grid-column: 1 / -1;
       grid-template-columns: minmax(0, 1fr);
       min-width: 0;
-      align-self: start;
-      align-content: start;
+      align-self: stretch;
+      align-content: stretch;
       gap: 0.22rem;
       margin-top: 0 !important;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-action-stack > .btn-acid,
     .game-fullscreen-shell .crash-control-card .crash-action-stack > .btn-ember {
-      min-height: 34px;
+      min-height: 40px;
       border-radius: 10px;
       padding: 0.28rem 0.36rem !important;
       font-size: 10px;
@@ -1756,6 +1758,47 @@
       .slot-game-page--classic
       .slot-result-profit {
       display: none !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .game-main-stack
+      > .slot-result-card {
+      flex: 0 0 auto;
+      min-height: 86px;
+      overflow: visible !important;
+      padding: 0.48rem 0.75rem 0.5rem !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-result-summary {
+      gap: 0.08rem !important;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-result-summary
+      .mb-1 {
+      margin-bottom: 0.08rem !important;
+      font-size: 10px !important;
+      line-height: 1.05 !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-result-summary
+      .font-display.text-4xl {
+      font-size: 1.55rem !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-result-payout {
+      font-size: 1.16rem !important;
+      line-height: 1.08 !important;
     }
 
     .game-fullscreen-shell .blackjack-control-card-settled {
@@ -2744,11 +2787,603 @@
     .game-fullscreen-shell[data-game-id='dice'] .dice-control-card .game-balance-strip {
       display: none;
     }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-stack,
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-card {
+      max-height: max(188px, min(34svh, 232px)) !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(98px, 0.56fr);
+      align-content: start;
+      align-items: stretch;
+      gap: 0.32rem 0.36rem;
+      overflow-y: auto !important;
+      overscroll-behavior: contain;
+      padding-bottom: max(0.58rem, env(safe-area-inset-bottom)) !important;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-card > .bet-controls,
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-stats,
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-bot-status {
+      grid-column: 1 / -1;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-bet-button,
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-bot-button {
+      min-height: 40px;
+      margin-top: 0 !important;
+      border-radius: 11px;
+      padding: 0.34rem 0.46rem !important;
+      font-size: 11px;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-bot-button {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      justify-items: start;
+      gap: 0.3rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-bot-button strong {
+      justify-self: end;
+      font-size: 10px;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.25rem;
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-stat {
+      border-radius: 9px;
+      padding: 0.28rem 0.3rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-stat span {
+      font-size: 7.5px;
+      letter-spacing: 0.04em;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-stat strong {
+      margin-top: 0.08rem;
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-bot-status {
+      min-height: 28px;
+      margin-top: 0 !important;
+      padding: 0.28rem 0.44rem !important;
+      font-size: 9px;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .game-play-grid--keno {
+      grid-template-rows: minmax(0, 1fr) auto;
+      gap: 0.32rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-stage-panel {
+      padding-bottom: 0.38rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .game-play-grid--keno .game-canvas-keno {
+      flex: 0 0 clamp(126px, 22svh, 176px) !important;
+      min-height: 126px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-number-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+      grid-auto-rows: minmax(33px, 1fr);
+      align-content: stretch;
+      gap: 0.22rem !important;
+      margin-top: 0.32rem !important;
+      padding-right: 0;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-number-grid > button {
+      aspect-ratio: auto !important;
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 0 !important;
+      border-radius: 8px !important;
+      font-size: 12px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-payout-ladder {
+      display: none;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-stage-actions {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 0.32rem !important;
+      margin-top: 0.32rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-stage-actions .game-choice-btn {
+      min-height: 36px;
+      border-radius: 10px;
+      padding: 0.36rem 0.42rem !important;
+      font-size: 10px;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stage-card {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.28rem;
+      margin-top: 0.32rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stage-card > div {
+      border-radius: 9px;
+      padding: 0.32rem 0.36rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stage-card span {
+      font-size: 7.5px;
+      letter-spacing: 0.05em;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stage-card strong {
+      margin-top: 0.08rem;
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-result-card {
+      min-height: 54px;
+      padding: 0.44rem 0.55rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-result-card .font-display {
+      font-size: 1.28rem !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-result-card .num {
+      font-size: 1.25rem !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-stack,
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card {
+      max-height: max(190px, min(34svh, 236px)) !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(112px, 0.58fr);
+      align-content: start;
+      align-items: stretch;
+      gap: 0.32rem 0.36rem;
+      overflow-y: auto !important;
+      overscroll-behavior: contain;
+      padding: 0.42rem 0.58rem max(0.58rem, env(safe-area-inset-bottom)) !important;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card > .bet-controls,
+    .game-fullscreen-shell[data-game-id='keno'] .keno-risk-control,
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stats,
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-bot-status,
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card > .game-balance-strip {
+      grid-column: 1 / -1;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card .bet-controls__entry {
+      grid-template-columns: minmax(0, 1fr) 68px;
+      gap: 0.24rem;
+      padding: 0.18rem !important;
+      border-radius: 10px;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card .bet-controls__input {
+      min-height: 34px !important;
+      padding: 0.1rem 0.34rem !important;
+      font-size: 17px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno']
+      .keno-control-card
+      .bet-controls__adjusters
+      .game-choice-btn {
+      min-height: 34px;
+      border-radius: 8px;
+      font-size: 9px;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-risk-control {
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-risk-control .mt-2 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.24rem !important;
+      margin-top: 0.22rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-risk-control .game-choice-btn {
+      min-height: 30px;
+      border-radius: 9px;
+      padding: 0.22rem 0 !important;
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-draw-button,
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-bot-button {
+      min-height: 40px;
+      margin-top: 0 !important;
+      border-radius: 11px;
+      padding: 0.34rem 0.46rem !important;
+      font-size: 11px;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-bot-button {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      justify-items: start;
+      gap: 0.3rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-bot-button strong {
+      justify-self: end;
+      font-size: 10px;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.25rem;
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stat {
+      border-radius: 9px;
+      padding: 0.28rem 0.3rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stat span {
+      font-size: 7.5px;
+      letter-spacing: 0.04em;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stat strong {
+      margin-top: 0.08rem;
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-bot-status {
+      min-height: 28px;
+      margin-top: 0 !important;
+      padding: 0.28rem 0.44rem !important;
+      font-size: 9px;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card > .game-balance-strip {
+      display: none;
+    }
   }
 
   @media (max-width: 430px), (max-width: 767px) and (max-height: 820px) {
     .game-fullscreen-shell .game-control-stack .bet-controls__presets {
       display: none;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-stack,
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-card {
+      max-height: max(188px, min(34svh, 232px)) !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(98px, 0.56fr);
+      align-content: start;
+      align-items: stretch;
+      gap: 0.32rem 0.36rem;
+      overflow-y: auto !important;
+      overscroll-behavior: contain;
+      padding: 0.42rem 0.58rem max(0.58rem, env(safe-area-inset-bottom)) !important;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-card > .bet-controls,
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-stats,
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-bot-status {
+      grid-column: 1 / -1;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-bet-button {
+      grid-column: 1 / 2;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-bot-button {
+      grid-column: 2 / 3;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-bet-button,
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-bot-button {
+      width: 100% !important;
+      min-height: 40px;
+      margin-top: 0 !important;
+      border-radius: 11px;
+      padding: 0.34rem 0.46rem !important;
+      font-size: 11px;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-bot-button {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      justify-items: start;
+      gap: 0.3rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-bot-button strong {
+      justify-self: end;
+      font-size: 10px;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.25rem;
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-stat {
+      border-radius: 9px;
+      padding: 0.28rem 0.3rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-stat span {
+      font-size: 7.5px;
+      letter-spacing: 0.04em;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-stat strong {
+      margin-top: 0.08rem;
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-auto-bot-status {
+      grid-column: 1 / -1;
+      min-height: 28px;
+      margin-top: 0 !important;
+      padding: 0.28rem 0.44rem !important;
+      font-size: 9px;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-control-card .game-balance-strip {
+      display: none !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .game-play-grid--keno {
+      grid-template-rows: minmax(0, 1fr) auto;
+      gap: 0.32rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-stage-panel {
+      padding-bottom: 0.38rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .game-play-grid--keno .game-canvas-keno {
+      flex: 0 0 clamp(126px, 22svh, 176px) !important;
+      min-height: 126px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-number-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+      grid-auto-rows: minmax(33px, 1fr);
+      align-content: stretch;
+      gap: 0.22rem !important;
+      margin-top: 0.32rem !important;
+      padding-right: 0;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-number-grid > button {
+      aspect-ratio: auto !important;
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 0 !important;
+      border-radius: 8px !important;
+      font-size: 12px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-payout-ladder {
+      display: none;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-stage-actions {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 0.32rem !important;
+      margin-top: 0.32rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-stage-actions .game-choice-btn {
+      min-height: 36px;
+      border-radius: 10px;
+      padding: 0.36rem 0.42rem !important;
+      font-size: 10px;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stage-card {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.28rem;
+      margin-top: 0.32rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stage-card > div {
+      border-radius: 9px;
+      padding: 0.32rem 0.36rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stage-card span {
+      font-size: 7.5px;
+      letter-spacing: 0.05em;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stage-card strong {
+      margin-top: 0.08rem;
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-result-card {
+      min-height: 54px;
+      padding: 0.44rem 0.55rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-result-card .font-display {
+      font-size: 1.28rem !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-result-card .num {
+      font-size: 1.25rem !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-stack,
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card {
+      max-height: max(190px, min(34svh, 236px)) !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(112px, 0.58fr);
+      align-content: start;
+      align-items: stretch;
+      gap: 0.32rem 0.36rem;
+      overflow-y: auto !important;
+      overscroll-behavior: contain;
+      padding: 0.42rem 0.58rem max(0.58rem, env(safe-area-inset-bottom)) !important;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card > .bet-controls,
+    .game-fullscreen-shell[data-game-id='keno'] .keno-risk-control,
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stats,
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-bot-status,
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card > .game-balance-strip {
+      grid-column: 1 / -1;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card .bet-controls__entry {
+      grid-template-columns: minmax(0, 1fr) 68px;
+      gap: 0.24rem;
+      padding: 0.18rem !important;
+      border-radius: 10px;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card .bet-controls__input {
+      min-height: 34px !important;
+      padding: 0.1rem 0.34rem !important;
+      font-size: 17px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno']
+      .keno-control-card
+      .bet-controls__adjusters
+      .game-choice-btn {
+      min-height: 34px;
+      border-radius: 8px;
+      font-size: 9px;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-risk-control {
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-risk-control .mt-2 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.24rem !important;
+      margin-top: 0.22rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-risk-control .game-choice-btn {
+      min-height: 30px;
+      border-radius: 9px;
+      padding: 0.22rem 0 !important;
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-draw-button {
+      grid-column: 1 / 2;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-bot-button {
+      grid-column: 2 / 3;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-draw-button,
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-bot-button {
+      width: 100% !important;
+      min-height: 40px;
+      margin-top: 0 !important;
+      border-radius: 11px;
+      padding: 0.34rem 0.46rem !important;
+      font-size: 11px;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-bot-button {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      justify-items: start;
+      gap: 0.3rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-bot-button strong {
+      justify-self: end;
+      font-size: 10px;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.25rem;
+      margin-top: 0 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stat {
+      border-radius: 9px;
+      padding: 0.28rem 0.3rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stat span {
+      font-size: 7.5px;
+      letter-spacing: 0.04em;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-stat strong {
+      margin-top: 0.08rem;
+      font-size: 10px;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-auto-bot-status {
+      grid-column: 1 / -1;
+      min-height: 28px;
+      margin-top: 0 !important;
+      padding: 0.28rem 0.44rem !important;
+      font-size: 9px;
+    }
+
+    .game-fullscreen-shell[data-game-id='keno'] .keno-control-card > .game-balance-strip {
+      display: none !important;
     }
   }
 
@@ -4830,11 +5465,16 @@
 
 @media (max-width: 640px) {
   .dice-auto-presets {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .dice-auto-adjust-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(82px, 0.42fr);
+    gap: 6px;
+  }
+
+  .dice-auto-modal__panel {
+    max-height: min(86svh, 620px);
   }
 
   .dice-auto-stage-card {
@@ -5016,12 +5656,20 @@
 
 @media (max-width: 640px) {
   .keno-auto-presets {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
-  .keno-auto-adjust-grid,
+  .keno-auto-adjust-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(82px, 0.42fr);
+    gap: 6px;
+  }
+
   .keno-auto-switches {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .keno-auto-modal__panel {
+    max-height: min(86svh, 620px);
   }
 
   .keno-auto-stage-card {
@@ -7051,6 +7699,17 @@
 
   .slot-spin-actions {
     grid-template-columns: minmax(72px, 0.58fr) minmax(82px, 0.64fr) minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .dice-auto-modal .dice-auto-presets,
+  .keno-auto-modal .keno-auto-presets {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .dice-auto-modal .dice-auto-adjust-grid,
+  .keno-auto-modal .keno-auto-adjust-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(82px, 0.42fr);
     gap: 6px;
   }
 
