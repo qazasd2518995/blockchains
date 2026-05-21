@@ -1,8 +1,8 @@
 import { Link, NavLink } from 'react-router-dom';
-import { Gift, History, LayoutGrid, ShieldCheck, WalletCards } from 'lucide-react';
+import { Gift, History, LayoutGrid, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
-import { formatAmount } from '@/lib/utils';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
+import { MobileAccountMenu } from '@/components/layout/MobileAccountMenu';
 import { useTranslation } from '@/i18n/useTranslation';
 
 type MobilePageKey = 'lobby' | 'verify' | 'history' | 'promos';
@@ -57,20 +57,7 @@ export function MobilePageHeader({
         </div>
 
         {user ? (
-          <div
-            className="flex h-11 w-[118px] min-w-0 items-center gap-1.5 rounded-[10px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12]"
-            aria-label={`${t.common.account} ${user.username}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
-          >
-            <WalletCards className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span className="flex min-w-0 flex-1 flex-col justify-center leading-none">
-              <span className="truncate text-[10px] font-black text-[#7C2D12]">
-                {user.username}
-              </span>
-              <span className="data-num mt-1 truncate text-[11px] font-black text-[#9A3412]">
-                {formatAmount(user.balance ?? '0')}
-              </span>
-            </span>
-          </div>
+          <MobileAccountMenu className="h-11 w-[122px]" />
         ) : (
           <Link
             to={`/login?from=${encodeURIComponent(`/${active === 'lobby' ? 'lobby' : active}`)}&reason=${active}`}

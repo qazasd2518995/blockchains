@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   Sparkles,
   Users,
-  WalletCards,
 } from 'lucide-react';
 import { GAMES_REGISTRY, type GameMetadata, type GameIdType } from '@bg/shared';
 import { api } from '@/lib/api';
@@ -21,13 +20,13 @@ import { SectionHeading } from '@/components/layout/SectionHeading';
 import { HALL_LIST, type HallId } from '@/data/halls';
 import { FAKE_TODAY_TOP10, getDriftedOnlineCount } from '@/data/fakeStats';
 import { useAuthStore } from '@/stores/authStore';
-import { formatAmount } from '@/lib/utils';
 import { warmGameAssets } from '@/lib/gameAssetManifest';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 import { ResponsiveImage } from '@/lib/optimizedImages';
 import { getGameIcon, getHallIcon } from '@/lib/platformIcons';
 import { AudioMenu } from '@/components/layout/AudioMenu';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
+import { MobileAccountMenu } from '@/components/layout/MobileAccountMenu';
 import { getLocalizedGameTitle } from '@/i18n/gameLabels';
 import { getLocalizedHallName, getLocalizedHallShort } from '@/i18n/hallLabels';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -173,17 +172,17 @@ function MobileLobbyOnePage() {
   return (
     <div className="min-h-[100svh] bg-[#EDF4F7] pb-[calc(env(safe-area-inset-bottom)+18px)] lg:hidden">
       <section className="sticky top-0 z-30 border-b border-[#C9D9E2] bg-white pt-[env(safe-area-inset-top)] shadow-[0_4px_14px_rgba(15,23,42,0.08)]">
-        <div className="flex h-[58px] items-center gap-1 px-2 min-[380px]:gap-1.5 min-[380px]:px-2.5">
+        <div className="flex h-[52px] items-center gap-1 px-2 min-[380px]:gap-1.5 min-[380px]:px-2.5">
           <Link
             to="/lobby"
-            className="flex min-h-11 shrink-0 items-center gap-1.5"
+            className="flex min-h-10 shrink-0 items-center gap-1.5"
             aria-label={t.common.lobby}
           >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#F59E0B]/30 bg-[#FFF7ED]">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[9px] border border-[#F59E0B]/30 bg-[#FFF7ED]">
               <img
                 src="/brand/yachiyo-emblem.png"
                 alt=""
-                className="h-10 w-10 object-contain"
+                className="h-9 w-9 object-contain"
                 draggable={false}
               />
             </span>
@@ -192,7 +191,7 @@ function MobileLobbyOnePage() {
             </span>
           </Link>
 
-          <div className="flex h-8 shrink-0 items-center gap-1 rounded-[8px] bg-[#EA580C] px-2 text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.18)] max-[370px]:px-1.5">
+          <div className="flex h-9 shrink-0 items-center gap-1 rounded-[9px] bg-[#EA580C] px-2 text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.18)] max-[370px]:px-1.5">
             <Users className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span className="shrink-0 text-[11px] font-bold max-[370px]:hidden">
               {t.common.live}
@@ -215,16 +214,16 @@ function MobileLobbyOnePage() {
               <>
                 <AudioMenu
                   variant="light"
-                  className="h-11 w-11 rounded-[10px] border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
+                  className="h-10 w-10 rounded-[10px] border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
                 />
                 <LanguageSwitcher
                   variant="light"
                   compact
-                  className="h-11 w-11 rounded-[10px] border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
+                  className="h-10 w-10 rounded-[10px] border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
                 />
                 <Link
                   to="/login?from=%2Flobby&reason=lobby"
-                  className="inline-flex h-11 shrink-0 items-center justify-center rounded-[10px] border border-[#D6B75B] bg-[#FFF1B4] px-3 text-[12px] font-black text-[#765709]"
+                  className="inline-flex h-10 shrink-0 items-center justify-center rounded-[10px] border border-[#D6B75B] bg-[#FFF1B4] px-3 text-[12px] font-black text-[#765709]"
                 >
                   {t.common.login}
                 </Link>
@@ -233,42 +232,29 @@ function MobileLobbyOnePage() {
               <>
                 <AudioMenu
                   variant="light"
-                  className="h-11 w-11 rounded-[10px] border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
+                  className="h-10 w-10 rounded-[10px] border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
                 />
                 <LanguageSwitcher
                   variant="light"
                   compact
-                  className="h-11 w-11 rounded-[10px] border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
+                  className="h-10 w-10 rounded-[10px] border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
                 />
-                <div
-                  className="flex h-10 w-[94px] min-w-0 items-center gap-1.5 rounded-[9px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-[#684F12] min-[390px]:h-11 min-[390px]:w-[116px]"
-                  aria-label={`${t.common.account} ${user.username}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
-                >
-                  <WalletCards className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span className="flex min-w-0 flex-1 flex-col justify-center leading-none">
-                    <span className="truncate text-[9px] font-black text-[#7C2D12] min-[390px]:text-[10px]">
-                      {user.username}
-                    </span>
-                    <span className="data-num mt-1 truncate text-[10px] font-black text-[#9A3412] min-[390px]:text-[11px]">
-                      {formatAmount(user.balance ?? '0')}
-                    </span>
-                  </span>
-                </div>
+                <MobileAccountMenu className="h-10 w-[112px] min-[390px]:w-[124px]" />
               </>
             )}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-1.5 px-2 pb-2">
+        <div className="grid grid-cols-2 gap-1.5 px-2 pb-1.5">
           <Link
             to={isGuest ? '/login?from=%2Fhistory&reason=history' : '/history'}
-            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-[#FED7AA] bg-[#FFF7ED] text-[12px] font-black text-[#9A3412] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border border-[#FED7AA] bg-[#FFF7ED] text-[12px] font-black text-[#9A3412] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
           >
             <History className="h-4 w-4" aria-hidden="true" />
             {t.common.history}
           </Link>
           <Link
             to="/verify"
-            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-[#FED7AA] bg-[#FFF7ED] text-[12px] font-black text-[#9A3412] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-[10px] border border-[#FED7AA] bg-[#FFF7ED] text-[12px] font-black text-[#9A3412] shadow-[0_4px_10px_rgba(15,23,42,0.06)] active:scale-[0.99]"
           >
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
             {t.common.gameGuide}
