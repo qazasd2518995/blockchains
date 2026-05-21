@@ -10,7 +10,7 @@ import {
   Sparkles,
   Users,
 } from 'lucide-react';
-import { GAMES_REGISTRY, type GameMetadata, type GameIdType } from '@bg/shared';
+import { GameId, GAMES_REGISTRY, type GameMetadata, type GameIdType } from '@bg/shared';
 import { api } from '@/lib/api';
 import { HeroBanner } from '@/components/home/HeroBanner';
 import { HallEntrances } from '@/components/home/HallEntrances';
@@ -41,6 +41,19 @@ const mobileGameIds = visibleGameIds;
 const mobileGames = mobileGameIds
   .map((id: GameIdType) => GAMES_REGISTRY[id])
   .filter((game): game is NonNullable<typeof game> => Boolean(game?.enabled));
+const MOBILE_HOT_GAME_IDS: GameIdType[] = [
+  GameId.ROCKET,
+  GameId.AVIATOR,
+  GameId.BLACKJACK,
+  GameId.THUNDER_SLOT,
+  GameId.DRAGON_MEGA_SLOT,
+  GameId.WHEEL,
+  GameId.PLINKO_X,
+  GameId.CHICKEN_ROAD,
+];
+const mobileHotGames = MOBILE_HOT_GAME_IDS.map((id) => GAMES_REGISTRY[id]).filter(
+  (game): game is GameMetadata => Boolean(game?.enabled),
+);
 const gameHallMap = new Map<string, HallId>(
   HALL_LIST.flatMap((hall) => hall.gameIds.map((gameId) => [gameId, hall.id] as const)),
 );
@@ -64,7 +77,7 @@ function mobileGamePath(gameId: string): string {
 }
 
 function mobileCategoryCount(categoryId: 'all' | HallId): number {
-  if (categoryId === 'all') return mobileGames.length;
+  if (categoryId === 'all') return mobileHotGames.length;
   return (
     hallMetaMap.get(categoryId)?.gameIds.filter((id) => GAMES_REGISTRY[id]?.enabled).length ?? 0
   );
@@ -165,7 +178,7 @@ function MobileLobbyOnePage() {
   const activeCategoryMeta = getMobileCategoryLabel(activeCategory, locale, t);
 
   const games = useMemo(() => {
-    if (activeCategory === 'all') return mobileGames;
+    if (activeCategory === 'all') return mobileHotGames;
     return mobileGames.filter((game) => gameHallMap.get(game.id) === activeCategory);
   }, [activeCategory]);
 
