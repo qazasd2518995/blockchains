@@ -42,6 +42,11 @@ const SIMULATED_LIVE_MAX = 28;
 const SIMULATED_STAKE_MIN = 20;
 const SIMULATED_STAKE_MAX = 500;
 const SOLO_CLIENT_GROWTH_RATE = 0.00072;
+const CRASH_OPTIMISTIC_START_DELAY_MS = 220;
+const CRASH_PREFLIGHT_MULTIPLIER_CAP = 1.025;
+const CRASH_INITIAL_ROUND_POLL_DELAY_MS = 180;
+const CRASH_MULTIPLIER_PUBLISH_MIN_MS = 320;
+const CRASH_INSTANT_RESULT_REVEAL_MS = 420;
 let simulatedLiveBetSerial = 0;
 
 function formatCrashMultiplier(value: string | number): string {
@@ -84,11 +89,11 @@ function crashElapsedMs(multiplier: number): number {
 
 function nextRoundPollDelay(state: CrashSoloRoundState): number {
   const finalMultiplier = state.visualCrashPoint;
-  if (!Number.isFinite(finalMultiplier) || finalMultiplier === undefined) return 120;
+  if (!Number.isFinite(finalMultiplier) || finalMultiplier === undefined) return 360;
   const remainingMs = crashElapsedMs(finalMultiplier) - state.elapsedMs;
-  if (remainingMs <= 160) return 40;
-  if (remainingMs <= 420) return 70;
-  return Math.min(360, Math.max(120, remainingMs - 320));
+  if (remainingMs <= 180) return 120;
+  if (remainingMs <= 520) return 180;
+  return Math.min(560, Math.max(240, remainingMs - 420));
 }
 
 function createSimulatedCrashBets(gameId: string): SimulatedCrashBet[] {
@@ -157,6 +162,7 @@ export function CrashPage({ config }: Props) {
   const [amount, setAmount] = useState(10);
   const [multiplier, setMultiplier] = useState(1.0);
   const [status, setStatus] = useState<'BETTING' | 'RUNNING' | 'CRASHED'>('BETTING');
+  const [submitting, setSubmitting] = useState(false);
   const [roundNumber, setRoundNumber] = useState<number | null>(null);
   const [crashPoint, setCrashPoint] = useState<number | null>(null);
   const [myBet, setMyBet] = useState<LocalCrashBet | null>(null);
@@ -175,6 +181,7 @@ export function CrashPage({ config }: Props) {
   const [autoBetStopReason, setAutoBetStopReason] = useState('');
   const roundPollRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const optimisticFlightRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const pendingResultRevealRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<CrashScene | null>(null);
@@ -416,9 +423,15 @@ export function CrashPage({ config }: Props) {
     }
   }, []);
 
-  const startOptimisticFlight = useCallback(
+  const clearPendingResultReveal = useCallback(() => {
+    if (pendingResultRevealRef.current) {
+      window.clearTimeout(pendingResultRevealRef.current);
+      pendingResultRevealRef.current = null;
+    }
+  }, []);
+
+  const beginOptimisticFlight = useCallback(
     (betAmount: number) => {
-      clearOptimisticFlight();
       statusRef.current = 'RUNNING';
       multiplierRef.current = 1;
       publishedMultiplierRef.current = 1;
@@ -427,7 +440,8 @@ export function CrashPage({ config }: Props) {
       crashPointRef.current = null;
       visualCrashPointRef.current = null;
       finalizedRoundRef.current = null;
-      const optimisticBet = { amount: betAmount };
+      const optimisticBet =
+        myBetRef.current?.amount === betAmount ? myBetRef.current : { amount: betAmount };
       myBetRef.current = optimisticBet;
       setMyBet(optimisticBet);
       setCrashPoint(null);
@@ -435,9 +449,21 @@ export function CrashPage({ config }: Props) {
       setMultiplier(1);
       sceneRef.current?.startRunning();
       sceneRef.current?.setCrashLimit(null);
-      sceneRef.current?.setPreflightMultiplierCap(1.04);
+      sceneRef.current?.setPreflightMultiplierCap(CRASH_PREFLIGHT_MULTIPLIER_CAP);
     },
-    [clearOptimisticFlight],
+    [],
+  );
+
+  const scheduleOptimisticFlight = useCallback(
+    (betAmount: number) => {
+      clearOptimisticFlight();
+      optimisticFlightRef.current = window.setTimeout(() => {
+        optimisticFlightRef.current = null;
+        if (statusRef.current !== 'BETTING') return;
+        beginOptimisticFlight(betAmount);
+      }, CRASH_OPTIMISTIC_START_DELAY_MS);
+    },
+    [beginOptimisticFlight, clearOptimisticFlight],
   );
 
   const clearRoundPoll = useCallback(() => {
@@ -473,7 +499,10 @@ export function CrashPage({ config }: Props) {
         const roundedChanged =
           Math.round(displayMultiplier * 10) !==
           Math.round(publishedMultiplierRef.current * 10);
-        return roundedChanged || now - lastMultiplierPublishAtRef.current > 220;
+        return (
+          (roundedChanged && now - lastMultiplierPublishAtRef.current > 140) ||
+          now - lastMultiplierPublishAtRef.current > CRASH_MULTIPLIER_PUBLISH_MIN_MS
+        );
       })();
       setStatus(state.status);
       setRoundNumber(state.roundNumber);
@@ -551,7 +580,7 @@ export function CrashPage({ config }: Props) {
           clearRoundPoll();
         }
       };
-      roundPollRef.current = window.setTimeout(tick, 60);
+      roundPollRef.current = window.setTimeout(tick, CRASH_INITIAL_ROUND_POLL_DELAY_MS);
     },
     [clearRoundPoll, handleRoundState],
   );
@@ -560,6 +589,7 @@ export function CrashPage({ config }: Props) {
     finalizedRoundRef.current = null;
     clearRoundPoll();
     clearOptimisticFlight();
+    clearPendingResultReveal();
     setRoundNumber(null);
     setStatus('BETTING');
     statusRef.current = 'BETTING';
@@ -584,13 +614,15 @@ export function CrashPage({ config }: Props) {
     return () => {
       clearRoundPoll();
       clearOptimisticFlight();
+      clearPendingResultReveal();
     };
-  }, [clearOptimisticFlight, clearRoundPoll, config.gameId]);
+  }, [clearOptimisticFlight, clearPendingResultReveal, clearRoundPoll, config.gameId]);
 
   useEffect(() => {
     setSimulatedLiveBets(createSimulatedCrashBets(config.gameId));
     const timer = window.setInterval(
       () => {
+        if (statusRef.current === 'RUNNING') return;
         setSimulatedLiveBets((current) => updateSimulatedCrashBets(config.gameId, current));
       },
       850 + (hashString(config.gameId) % 650),
@@ -621,8 +653,10 @@ export function CrashPage({ config }: Props) {
         return Promise.resolve(false);
       }
       try {
+        setSubmitting(true);
         clearRoundPoll();
-        startOptimisticFlight(betAmount);
+        clearPendingResultReveal();
+        scheduleOptimisticFlight(betAmount);
         const res = await api.post<CrashBetStartResponse>('/games/crash/bet', {
           gameId: config.gameId,
           amount: betAmount,
@@ -637,12 +671,27 @@ export function CrashPage({ config }: Props) {
         finalizedRoundRef.current = null;
         setMyBet(placedBet);
         setError(null);
-        setBalance(res.data.newBalance ?? (currentBalance - betAmount).toFixed(2));
-        handleRoundState(res.data);
-        if (res.data.status === 'RUNNING') scheduleRoundPoll(res.data.roundId);
+        const applyStartResponse = () => {
+          setBalance(res.data.newBalance ?? (currentBalance - betAmount).toFixed(2));
+          handleRoundState(res.data);
+          setSubmitting(false);
+          if (res.data.status === 'RUNNING') scheduleRoundPoll(res.data.roundId);
+        };
+        if (res.data.status === 'CRASHED' && statusRef.current === 'BETTING') {
+          clearOptimisticFlight();
+          beginOptimisticFlight(betAmount);
+          pendingResultRevealRef.current = window.setTimeout(() => {
+            pendingResultRevealRef.current = null;
+            applyStartResponse();
+          }, CRASH_INSTANT_RESULT_REVEAL_MS);
+        } else {
+          applyStartResponse();
+        }
         return true;
       } catch (err) {
+        setSubmitting(false);
         clearOptimisticFlight();
+        clearPendingResultReveal();
         statusRef.current = 'BETTING';
         multiplierRef.current = 1;
         publishedMultiplierRef.current = 1;
@@ -661,12 +710,14 @@ export function CrashPage({ config }: Props) {
     [
       clearRoundPoll,
       clearOptimisticFlight,
+      clearPendingResultReveal,
       config.gameId,
+      beginOptimisticFlight,
       handleRoundState,
       requireLogin,
       scheduleRoundPoll,
+      scheduleOptimisticFlight,
       setBalance,
-      startOptimisticFlight,
       t.bet.insufficientBalance,
       user,
     ],
@@ -795,7 +846,7 @@ export function CrashPage({ config }: Props) {
       ? '∞'
       : `${t.games.crash.autoRemaining} ${autoBetRemaining}`
     : t.games.crash.autoBotSettings;
-  const controlsLocked = autoBetActive || status === 'RUNNING';
+  const controlsLocked = submitting || autoBetActive || status === 'RUNNING';
   const canShowCurrentBetButton = status !== 'RUNNING';
   const stageHistory = history.slice(0, 12);
   const mobileLiveBetRows = simulatedLiveBets.slice(0, 12);
@@ -1060,10 +1111,14 @@ export function CrashPage({ config }: Props) {
                 <button
                   type="button"
                   onClick={handlePlaceBet}
-                  disabled={!!user && balance < amount}
+                  disabled={submitting || (!!user && balance < amount)}
                   className="btn-acid w-full py-4"
                 >
-                  → {t.games.crash.placeBet} · {formatAmount(amount)}
+                  →{' '}
+                  {submitting
+                    ? (config.runningLabel ?? t.games.crash.running)
+                    : t.games.crash.placeBet}{' '}
+                  · {formatAmount(amount)}
                 </button>
               ) : null}
               {status === 'CRASHED' && myBet && (
