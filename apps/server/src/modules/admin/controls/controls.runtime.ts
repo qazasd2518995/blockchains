@@ -422,8 +422,8 @@ async function calculateAllSettlement(db: Db): Promise<SettlementSummary> {
         acc.superiorSettlement.add(current.superiorSettlement).gt(0) ? 'green' : 'red',
       statusText:
         acc.superiorSettlement.add(current.superiorSettlement).gt(0)
-          ? '绿色(平台亏损)'
-          : '红色(平台盈利)',
+          ? '绿色(上级盈利)'
+          : '红色(上级亏损)',
     }),
     emptySummary(window.gameDay),
   );
@@ -507,8 +507,8 @@ async function calculatePlatformDirectMembersSettlement(
         acc.superiorSettlement.add(current.superiorSettlement).gt(0) ? 'green' : 'red',
       statusText:
         acc.superiorSettlement.add(current.superiorSettlement).gt(0)
-          ? '绿色(平台亏损)'
-          : '红色(平台盈利)',
+          ? '绿色(上级盈利)'
+          : '红色(上级亏损)',
     }),
     emptySummary(window.gameDay),
   );
@@ -693,7 +693,7 @@ function emptySummary(gameDay: string): SettlementSummary {
     totalBets: 0,
     totalPlayers: 0,
     status: 'red',
-    statusText: '红色(平台盈利)',
+    statusText: '红色(上级持平)',
   };
 }
 
@@ -702,7 +702,7 @@ function toSummary(
   aggregate: BetAggregate,
   totalRebate: Prisma.Decimal,
 ): SettlementSummary {
-  const superiorSettlement = aggregate.memberWinLoss.add(totalRebate);
+  const superiorSettlement = aggregate.memberWinLoss.add(totalRebate).neg();
   return {
     gameDay,
     totalBet: aggregate.totalBet,
@@ -713,6 +713,6 @@ function toSummary(
     totalBets: aggregate.totalBets,
     totalPlayers: aggregate.totalPlayers,
     status: superiorSettlement.gt(0) ? 'green' : 'red',
-    statusText: superiorSettlement.gt(0) ? '绿色(平台亏损)' : '红色(平台盈利)',
+    statusText: superiorSettlement.gt(0) ? '绿色(上级盈利)' : '红色(上级亏损)',
   };
 }

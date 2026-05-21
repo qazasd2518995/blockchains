@@ -213,7 +213,7 @@ const controlCases = [
       adminPost('/api/admin/controls/manual-detection/activate', {
         scope: 'MEMBER',
         targetMemberUsername: player.username,
-        targetSettlement: '999999999',
+        targetSettlement: '-999999999',
         controlPercentage: 100,
       }),
   },
@@ -230,7 +230,7 @@ const controlCases = [
       adminPost('/api/admin/controls/manual-detection/activate', {
         scope: 'MEMBER',
         targetMemberUsername: player.username,
-        targetSettlement: '-999999999',
+        targetSettlement: '999999999',
         controlPercentage: 100,
       }),
   },

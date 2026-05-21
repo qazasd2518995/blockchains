@@ -160,7 +160,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
           <button type="button" onClick={() => void loadPreview()} disabled={loadingPreview} className="btn-teal-outline text-[11px]">
             {loadingPreview ? '读取中…' : '读取当前交收'}
           </button>
-          <span className="text-[11px] text-ink-500">目标为正数会拉高交收，目标为负数会压低交收。</span>
+          <span className="text-[11px] text-ink-500">正数代表会员输、上级赢；负数代表会员赢、上级付。</span>
         </div>
 
         {preview && (
@@ -173,7 +173,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
               <div>总投注 <span className="ml-2 font-mono text-[#186073]">{preview.totalBet}</span></div>
               <div>总派彩 <span className="ml-2 font-mono text-[#186073]">{preview.totalPayout}</span></div>
               <div>返水影响 <span className="ml-2 font-mono text-[#AE8B35]">{preview.totalRebate}</span></div>
-              <div>当前交收 <span className="ml-2 font-mono font-semibold text-[#0F172A]">{preview.superiorSettlement}</span></div>
+              <div>当前上级交收 <span className="ml-2 font-mono font-semibold text-[#0F172A]">{preview.superiorSettlement}</span></div>
             </div>
           </div>
         )}

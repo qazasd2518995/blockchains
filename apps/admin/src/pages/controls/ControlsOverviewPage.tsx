@@ -131,7 +131,6 @@ export function ControlsOverviewPage(): JSX.Element {
   const { t } = useTranslation();
   const [allSettlement, setAllSettlement] = useState<SettlementSnapshot | null>(null);
   const [manualActive, setManualActive] = useState<ManualDetectionRow[]>([]);
-  const [manualHistory, setManualHistory] = useState<ManualDetectionRow[]>([]);
   const [wl, setWl] = useState<WinLossRow[]>([]);
   const [wc, setWc] = useState<WinCapRow[]>([]);
   const [dc, setDc] = useState<DepositRow[]>([]);
@@ -149,10 +148,9 @@ export function ControlsOverviewPage(): JSX.Element {
 
   const reload = useCallback(async () => {
     try {
-      const [manualStatus, manualHistoryRes, settlement, winLoss, winCap, deposit, agentLine, burst, logRes] =
+      const [manualStatus, settlement, winLoss, winCap, deposit, agentLine, burst, logRes] =
         await Promise.all([
           adminApi.get<{ items: ManualDetectionRow[] }>('/controls/manual-detection/status'),
-          adminApi.get<{ items: ManualDetectionRow[] }>('/controls/manual-detection/history'),
           adminApi.get<SettlementSnapshot>('/controls/manual-detection/settlement', { params: { scope: 'ALL' } }),
           adminApi.get<{ items: WinLossRow[] }>('/controls/win-loss'),
           adminApi.get<{ items: WinCapRow[] }>('/controls/win-cap'),
@@ -162,7 +160,6 @@ export function ControlsOverviewPage(): JSX.Element {
           adminApi.get<{ items: ControlLogRow[] }>('/controls/logs'),
         ]);
       setManualActive(manualStatus.data.items);
-      setManualHistory(manualHistoryRes.data.items);
       setAllSettlement(settlement.data);
       setWl(winLoss.data.items);
       setWc(winCap.data.items);
@@ -217,15 +214,6 @@ export function ControlsOverviewPage(): JSX.Element {
     }
   };
 
-  const reactivateManual = async (id: string): Promise<void> => {
-    try {
-      await adminApi.post(`/controls/manual-detection/${id}/reactivate`);
-      await reload();
-    } catch (e) {
-      setError(extractApiError(e).message);
-    }
-  };
-
   const deleteManual = async (id: string): Promise<void> => {
     if (!window.confirm('确定删除此手动侦测控制？')) return;
     try {
@@ -241,15 +229,20 @@ export function ControlsOverviewPage(): JSX.Element {
     { key: 'target', label: '目标', render: (r) => <span className="font-mono">{formatManualTarget(r)}</span> },
     {
       key: 'current',
-      label: '当前交收',
+      label: '目前上级交收',
       align: 'right',
       render: (r) => <span className={`data-num ${Number(r.currentSettlement) > 0 ? 'text-[#2BAA6A]' : 'text-[#D4574A]'}`}>{signed(r.currentSettlement)}</span>,
     },
     {
       key: 'targetSettlement',
-      label: '目标交收',
+      label: '目标上级交收',
       align: 'right',
       render: (r) => <span className="data-num text-[#AE8B35]">{signed(r.targetSettlement)}</span>,
+    },
+    {
+      key: 'direction',
+      label: '控制方向',
+      render: (r) => <span className={manualDirectionClass(r)}>{manualDirectionText(r)}</span>,
     },
     {
       key: 'rate',
@@ -268,59 +261,9 @@ export function ControlsOverviewPage(): JSX.Element {
       align: 'right',
       render: (r) => (
         <div className="flex justify-end gap-1 text-[10px]">
-          {r.isActive ? (
-            <button type="button" onClick={() => void deactivateManual(r.id)} className="btn-teal-outline px-2 py-1">
-              停用
-            </button>
-          ) : (
-            <button type="button" onClick={() => void reactivateManual(r.id)} className="btn-teal-outline px-2 py-1">
-              重启
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => void deleteManual(r.id)}
-            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
-          >
-            删除
+          <button type="button" onClick={() => void deactivateManual(r.id)} className="btn-teal-outline px-2 py-1">
+            停用
           </button>
-        </div>
-      ),
-    },
-  ];
-
-  const manualHistoryCols: Column<ManualDetectionRow>[] = [
-    { key: 'time', label: '建立时间', render: (r) => <span className="font-mono text-[11px]">{formatTime(r.createdAt)}</span> },
-    { key: 'scope', label: '范围', render: (r) => <span className="tag tag-acid">{formatManualScope(r.scope)}</span> },
-    { key: 'target', label: '目标', render: (r) => <span className="font-mono">{formatManualTarget(r)}</span> },
-    {
-      key: 'start',
-      label: '起始交收',
-      align: 'right',
-      render: (r) => <span className="data-num">{signed(r.startSettlement)}</span>,
-    },
-    {
-      key: 'targetSettlement',
-      label: '目标交收',
-      align: 'right',
-      render: (r) => <span className="data-num text-[#AE8B35]">{signed(r.targetSettlement)}</span>,
-    },
-    {
-      key: 'status',
-      label: '状态',
-      render: (r) => <span className={manualStatusClass(r)}>{manualStatusText(r)}</span>,
-    },
-    {
-      key: 'ops',
-      label: '操作',
-      align: 'right',
-      render: (r) => (
-        <div className="flex justify-end gap-1 text-[10px]">
-          {!r.isActive && (
-            <button type="button" onClick={() => void reactivateManual(r.id)} className="btn-teal-outline px-2 py-1">
-              重启
-            </button>
-          )}
           <button
             type="button"
             onClick={() => void deleteManual(r.id)}
@@ -532,7 +475,7 @@ export function ControlsOverviewPage(): JSX.Element {
         image="/banners/controls-risk-host.png"
         eyebrow="风控中心"
         title="先看哪条控制在线，再决定今天要把交收拉到哪里。"
-        description="手动侦测、输赢控制、会员封顶、代理线封顶、入金控制与爆分控制已统一到同一套实际结算逻辑。这里看到的状态，就是游戏正在执行的状态。"
+        description="手动侦测以上级交收为基准：正数代表会员输、上级赢；负数代表会员赢、上级付。"
         tone="ember"
         imagePosition="object-[74%_30%]"
       />
@@ -540,12 +483,12 @@ export function ControlsOverviewPage(): JSX.Element {
       <div className="mb-4 rounded-[6px] border border-[#AE8B35]/35 bg-[#FFF8E1] px-4 py-3 text-[12px] text-[#5C4B1F]">
         <div className="font-semibold text-[#7A5F15]">控制优先级</div>
         <div className="mt-1">会员赢控制 &gt; 代理线赢控制 &gt; 会员输控制 &gt; 代理线输控制 &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 爆分控制</div>
-        <div className="mt-1 text-[#7A5F15]/80">爆分控制只在前面的硬性控制都没有命中时介入，用机率、净赢范围、本金剩余门槛、每日池与会员上限制造可控爆分；高倍自然结果超过额度时会被压到可控派彩。</div>
+        <div className="mt-1 text-[#7A5F15]/80">手动侦测目标填正数会压会员、拉高上级交收；填负数会放会员、压低上级交收。要让上级盈利 500,000，目标填 +500000。</div>
       </div>
 
       <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <StatCard
-          label="全盘交收"
+          label="全盘上级交收"
           value={signed(allSettlement?.superiorSettlement)}
           hint={allSettlement ? `${allSettlement.statusText} · ${allSettlement.gameDay}` : '—'}
           accent={allSettlement?.status === 'green' ? 'toxic' : 'ember'}
@@ -583,10 +526,6 @@ export function ControlsOverviewPage(): JSX.Element {
               <MetricCard label="返水影响" value={signed(allSettlement?.totalRebate)} accent="amber" />
             </div>
             <DataTable columns={manualCols} rows={manualActive} rowKey={(r) => r.id} empty="当前没有启用中的手动侦测控制" />
-          </Section>
-
-          <Section title="§ 手动侦测历史" subtitle="最近 50 笔控制记录">
-            <DataTable columns={manualHistoryCols} rows={manualHistory} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
 
           <Section
@@ -757,7 +696,7 @@ function formatManualScope(scope: ManualDetectionRow['scope']): string {
 }
 
 function formatManualTarget(row: ManualDetectionRow): string {
-  if (row.scope === 'ALL') return '全盘交收';
+  if (row.scope === 'ALL') return '全盘上级交收';
   if (row.scope === 'AGENT_LINE') return row.targetAgentUsername ?? '—';
   return row.targetMemberUsername ?? '—';
 }
@@ -796,6 +735,22 @@ function manualStatusClass(row: ManualDetectionRow): string {
   if (row.isCompleted) return 'tag tag-acid';
   if (row.isActive) return 'tag tag-toxic';
   return 'tag tag-ember';
+}
+
+function manualDirectionText(row: ManualDetectionRow): string {
+  const current = Number.parseFloat(row.currentSettlement ?? '0');
+  const target = Number.parseFloat(row.targetSettlement ?? '0');
+  if (!Number.isFinite(current) || !Number.isFinite(target)) return '—';
+  if (target > current) return '压会员 / 上级收';
+  if (target < current) return '放会员 / 上级付';
+  return '维持';
+}
+
+function manualDirectionClass(row: ManualDetectionRow): string {
+  const current = Number.parseFloat(row.currentSettlement ?? '0');
+  const target = Number.parseFloat(row.targetSettlement ?? '0');
+  if (!Number.isFinite(current) || !Number.isFinite(target) || target === current) return 'tag tag-acid';
+  return target > current ? 'tag tag-ember' : 'tag tag-toxic';
 }
 
 function formatReason(reason: string): string {

@@ -417,8 +417,8 @@ async function findManualDetectionDecision(
   );
   return {
     desired: settlement.superiorSettlement.lessThan(applicable.control.targetSettlement)
-      ? 'WIN'
-      : 'LOSS',
+      ? 'LOSS'
+      : 'WIN',
     controlId: applicable.control.id,
     reason: 'manual_detection',
   };
