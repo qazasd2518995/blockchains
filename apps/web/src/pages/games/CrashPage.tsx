@@ -42,13 +42,10 @@ const SIMULATED_LIVE_MAX = 28;
 const SIMULATED_STAKE_MIN = 20;
 const SIMULATED_STAKE_MAX = 500;
 const SOLO_CLIENT_GROWTH_RATE = 0.00072;
-const CRASH_OPTIMISTIC_START_DELAY_MS = 220;
-const CRASH_PREFLIGHT_MULTIPLIER_CAP = 1.025;
-const CRASH_INITIAL_ROUND_POLL_DELAY_MS = 180;
+const CRASH_DISPLAY_TICK_MS = 120;
+const CRASH_FINALIZE_POLL_BUFFER_MS = 140;
 const CRASH_MULTIPLIER_PUBLISH_MIN_MS = 320;
 const CRASH_INSTANT_RESULT_REVEAL_MS = 420;
-const CRASH_VISUAL_START_SYNC_MS = 1200;
-const CRASH_VISUAL_START_GROWTH_RATE = 0.00042;
 let simulatedLiveBetSerial = 0;
 
 function formatCrashMultiplier(value: string | number): string {
@@ -89,13 +86,24 @@ function crashElapsedMs(multiplier: number): number {
   return Math.max(0, Math.floor(Math.log(multiplier) / SOLO_CLIENT_GROWTH_RATE));
 }
 
-function nextRoundPollDelay(state: CrashSoloRoundState): number {
-  const finalMultiplier = state.visualCrashPoint;
-  if (!Number.isFinite(finalMultiplier) || finalMultiplier === undefined) return 360;
-  const remainingMs = crashElapsedMs(finalMultiplier) - state.elapsedMs;
-  if (remainingMs <= 180) return 120;
-  if (remainingMs <= 520) return 180;
-  return Math.min(560, Math.max(240, remainingMs - 420));
+function normalizeCrashMultiplier(value: number | null | undefined, fallback = 1): number {
+  return Number.isFinite(value) && value !== null && value !== undefined
+    ? Math.max(1, value)
+    : fallback;
+}
+
+function visualMultiplierAt(elapsedMs: number, crashLimit: number | null): number {
+  const multiplier = Math.max(1, Math.exp(SOLO_CLIENT_GROWTH_RATE * Math.max(0, elapsedMs)));
+  return crashLimit === null ? multiplier : Math.min(multiplier, crashLimit);
+}
+
+function nextRoundPollDelayFromVisual(
+  finalMultiplier: number | null,
+  visualElapsedMs: number,
+): number {
+  if (finalMultiplier === null) return 360;
+  const revealAtMs = Math.max(CRASH_INSTANT_RESULT_REVEAL_MS, crashElapsedMs(finalMultiplier));
+  return Math.max(120, revealAtMs - visualElapsedMs + CRASH_FINALIZE_POLL_BUFFER_MS);
 }
 
 function createSimulatedCrashBets(gameId: string): SimulatedCrashBet[] {
@@ -175,15 +183,14 @@ export function CrashPage({ config }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [myHistory, setMyHistory] = useState<RecentBetRecord[]>([]);
   const [autoBetOpen, setAutoBetOpen] = useState(false);
-  const [autoBetDraft, setAutoBetDraft] = useState<CrashAutoDraft>(() =>
-    createCrashAutoDraft(10),
-  );
+  const [autoBetDraft, setAutoBetDraft] = useState<CrashAutoDraft>(() => createCrashAutoDraft(10));
   const [autoBetActive, setAutoBetActive] = useState(false);
   const [autoBetRemaining, setAutoBetRemaining] = useState<number | null>(null);
   const [autoBetStopReason, setAutoBetStopReason] = useState('');
   const roundPollRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
-  const optimisticFlightRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const displayTickRef = useRef<ReturnType<typeof window.setInterval> | null>(null);
   const pendingResultRevealRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const pendingCrashStateRef = useRef<CrashSoloRoundState | null>(null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<CrashScene | null>(null);
@@ -195,7 +202,6 @@ export function CrashPage({ config }: Props) {
   const multiplierRef = useRef(1.0);
   const publishedMultiplierRef = useRef(1.0);
   const lastMultiplierPublishAtRef = useRef(0);
-  const sceneClockSyncedRef = useRef(false);
   const visualFlightStartedAtRef = useRef<number | null>(null);
   const userIdRef = useRef<string | null>(user?.id ?? null);
   const autoBetActiveRef = useRef(false);
@@ -419,10 +425,10 @@ export function CrashPage({ config }: Props) {
     desc: '',
   };
 
-  const clearOptimisticFlight = useCallback(() => {
-    if (optimisticFlightRef.current) {
-      window.clearTimeout(optimisticFlightRef.current);
-      optimisticFlightRef.current = null;
+  const clearDisplayTick = useCallback(() => {
+    if (displayTickRef.current) {
+      window.clearInterval(displayTickRef.current);
+      displayTickRef.current = null;
     }
   }, []);
 
@@ -431,61 +437,81 @@ export function CrashPage({ config }: Props) {
       window.clearTimeout(pendingResultRevealRef.current);
       pendingResultRevealRef.current = null;
     }
+    pendingCrashStateRef.current = null;
   }, []);
 
-  const resetVisualForNewBet = useCallback((betAmount: number) => {
-    statusRef.current = 'BETTING';
-    multiplierRef.current = 1;
-    publishedMultiplierRef.current = 1;
-    lastMultiplierPublishAtRef.current = performance.now();
-    sceneClockSyncedRef.current = false;
-    visualFlightStartedAtRef.current = null;
-    crashPointRef.current = null;
-    visualCrashPointRef.current = null;
-    finalizedRoundRef.current = null;
-    myBetRef.current = { amount: betAmount };
-    setMyBet({ amount: betAmount });
-    setRoundNumber(null);
-    setCrashPoint(null);
-    setMultiplier(1);
-    setStatus('BETTING');
-    sceneRef.current?.startBetting(0);
+  const publishVisualMultiplier = useCallback((force = false) => {
+    if (statusRef.current !== 'RUNNING') return;
+    const startedAt = visualFlightStartedAtRef.current;
+    if (startedAt === null) return;
+    const now = performance.now();
+    const nextMultiplier = visualMultiplierAt(now - startedAt, visualCrashPointRef.current);
+    multiplierRef.current = nextMultiplier;
+    const roundedChanged =
+      Math.round(nextMultiplier * 10) !== Math.round(publishedMultiplierRef.current * 10);
+    const shouldPublish =
+      force ||
+      (roundedChanged && now - lastMultiplierPublishAtRef.current > 140) ||
+      now - lastMultiplierPublishAtRef.current > CRASH_MULTIPLIER_PUBLISH_MIN_MS;
+    if (!shouldPublish) return;
+    publishedMultiplierRef.current = nextMultiplier;
+    lastMultiplierPublishAtRef.current = now;
+    setMultiplier(nextMultiplier);
   }, []);
 
-  const beginOptimisticFlight = useCallback(
-    (betAmount: number, bet?: LocalCrashBet) => {
-      statusRef.current = 'RUNNING';
+  const startDisplayTick = useCallback(() => {
+    if (displayTickRef.current) return;
+    displayTickRef.current = window.setInterval(() => {
+      publishVisualMultiplier(false);
+    }, CRASH_DISPLAY_TICK_MS);
+    publishVisualMultiplier(true);
+  }, [publishVisualMultiplier]);
+
+  const resetVisualForNewBet = useCallback(
+    (betAmount: number) => {
+      clearDisplayTick();
+      statusRef.current = 'BETTING';
       multiplierRef.current = 1;
       publishedMultiplierRef.current = 1;
       lastMultiplierPublishAtRef.current = performance.now();
-      sceneClockSyncedRef.current = false;
-      visualFlightStartedAtRef.current = performance.now();
+      visualFlightStartedAtRef.current = null;
       crashPointRef.current = null;
       visualCrashPointRef.current = null;
       finalizedRoundRef.current = null;
-      const optimisticBet = bet ?? { amount: betAmount };
-      myBetRef.current = optimisticBet;
-      setMyBet(optimisticBet);
+      myBetRef.current = { amount: betAmount };
+      setMyBet({ amount: betAmount });
+      setRoundNumber(null);
+      setCrashPoint(null);
+      setMultiplier(1);
+      setStatus('BETTING');
+      sceneRef.current?.startBetting(0);
+    },
+    [clearDisplayTick],
+  );
+
+  const beginVisualFlight = useCallback(
+    (betAmount: number, bet?: LocalCrashBet) => {
+      const now = performance.now();
+      clearDisplayTick();
+      statusRef.current = 'RUNNING';
+      multiplierRef.current = 1;
+      publishedMultiplierRef.current = 1;
+      lastMultiplierPublishAtRef.current = now;
+      visualFlightStartedAtRef.current = now;
+      crashPointRef.current = null;
+      visualCrashPointRef.current = null;
+      finalizedRoundRef.current = null;
+      const currentBet = bet ?? { amount: betAmount };
+      myBetRef.current = currentBet;
+      setMyBet(currentBet);
       setCrashPoint(null);
       setStatus('RUNNING');
       setMultiplier(1);
       sceneRef.current?.startRunning();
       sceneRef.current?.setCrashLimit(null);
-      sceneRef.current?.setPreflightMultiplierCap(CRASH_PREFLIGHT_MULTIPLIER_CAP);
+      startDisplayTick();
     },
-    [],
-  );
-
-  const scheduleOptimisticFlight = useCallback(
-    (betAmount: number) => {
-      clearOptimisticFlight();
-      optimisticFlightRef.current = window.setTimeout(() => {
-        optimisticFlightRef.current = null;
-        if (statusRef.current !== 'BETTING') return;
-        beginOptimisticFlight(betAmount);
-      }, CRASH_OPTIMISTIC_START_DELAY_MS);
-    },
-    [beginOptimisticFlight, clearOptimisticFlight],
+    [clearDisplayTick, startDisplayTick],
   );
 
   const clearRoundPoll = useCallback(() => {
@@ -495,127 +521,138 @@ export function CrashPage({ config }: Props) {
     }
   }, []);
 
+  const applyCrashedRoundState = useCallback(
+    (state: CrashSoloRoundState) => {
+      if (pendingResultRevealRef.current) {
+        window.clearTimeout(pendingResultRevealRef.current);
+        pendingResultRevealRef.current = null;
+      }
+      pendingCrashStateRef.current = null;
+      clearRoundPoll();
+      clearDisplayTick();
+      const finalMultiplier = normalizeCrashMultiplier(
+        state.crashPoint ?? state.visualCrashPoint ?? state.currentMultiplier,
+        Math.max(1, multiplierRef.current),
+      );
+      statusRef.current = 'CRASHED';
+      visualFlightStartedAtRef.current = null;
+      crashPointRef.current = finalMultiplier;
+      visualCrashPointRef.current = finalMultiplier;
+      multiplierRef.current = finalMultiplier;
+      publishedMultiplierRef.current = finalMultiplier;
+      lastMultiplierPublishAtRef.current = performance.now();
+      setStatus('CRASHED');
+      setRoundNumber(state.roundNumber);
+      setCrashPoint(finalMultiplier);
+      setMultiplier(finalMultiplier);
+      sceneRef.current?.setCrashLimit(finalMultiplier);
+      if (state.newBalance) setBalance(state.newBalance);
+      if (finalizedRoundRef.current !== state.roundId) {
+        finalizedRoundRef.current = state.roundId;
+        setHistory((h) => [finalMultiplier, ...h].slice(0, 20));
+        const bet = myBetRef.current;
+        if (bet) {
+          setMyHistory((prev) =>
+            [
+              {
+                id: `${Date.now()}-${Math.random()}`,
+                timestamp: Date.now(),
+                betAmount: bet.amount,
+                multiplier: 0,
+                payout: 0,
+                won: false,
+                detail: `Crashed @ ${formatCrashMultiplier(finalMultiplier)}`,
+              },
+              ...prev,
+            ].slice(0, 30),
+          );
+        }
+      }
+    },
+    [clearDisplayTick, clearRoundPoll, setBalance],
+  );
+
   const handleRoundState = useCallback(
     (state: CrashSoloRoundState) => {
-      clearOptimisticFlight();
-      statusRef.current = state.status;
-      const visualCrashPoint = Number.isFinite(state.visualCrashPoint)
-        ? state.visualCrashPoint!
-        : null;
+      const visualCrashPoint = normalizeCrashMultiplier(state.visualCrashPoint, 0) || null;
       visualCrashPointRef.current = visualCrashPoint;
-      const safeCurrentMultiplier =
-        visualCrashPoint && state.status === 'RUNNING'
-          ? Math.min(state.currentMultiplier, visualCrashPoint)
-          : state.currentMultiplier;
-      if (
-        state.status === 'RUNNING' &&
-        !sceneClockSyncedRef.current &&
-        state.elapsedMs <= 80
-      ) {
+
+      if (state.status === 'CRASHED') {
+        const finalMultiplier = normalizeCrashMultiplier(
+          state.crashPoint ?? state.visualCrashPoint ?? state.currentMultiplier,
+          Math.max(1, multiplierRef.current),
+        );
+        const visualStartedAt = visualFlightStartedAtRef.current;
+        const visualElapsed = visualStartedAt === null ? 0 : performance.now() - visualStartedAt;
+        const revealAtMs = Math.max(
+          CRASH_INSTANT_RESULT_REVEAL_MS,
+          crashElapsedMs(finalMultiplier),
+        );
+        if (visualStartedAt !== null && visualElapsed < revealAtMs) {
+          clearPendingResultReveal();
+          pendingCrashStateRef.current = state;
+          pendingResultRevealRef.current = window.setTimeout(
+            () => {
+              pendingResultRevealRef.current = null;
+              const pending = pendingCrashStateRef.current;
+              pendingCrashStateRef.current = null;
+              if (pending) applyCrashedRoundState(pending);
+            },
+            Math.max(60, revealAtMs - visualElapsed),
+          );
+          return;
+        }
+        applyCrashedRoundState(state);
+        return;
+      }
+
+      statusRef.current = 'RUNNING';
+      if (visualFlightStartedAtRef.current === null) {
         visualFlightStartedAtRef.current = performance.now();
       }
       const visualStartedAt = visualFlightStartedAtRef.current;
-      const visualElapsed =
-        state.status === 'RUNNING' && visualStartedAt !== null
-          ? performance.now() - visualStartedAt
-          : null;
-      const startupLimited =
-        visualElapsed !== null && visualElapsed < CRASH_VISUAL_START_SYNC_MS;
-      const startupLimitedMultiplier =
-        startupLimited
-          ? Math.min(
-              safeCurrentMultiplier,
-              Math.max(1, Math.exp(CRASH_VISUAL_START_GROWTH_RATE * visualElapsed)),
-            )
-          : safeCurrentMultiplier;
-      const displayMultiplier =
-        state.status === 'RUNNING'
-          ? Math.min(
-              visualCrashPoint ?? Number.POSITIVE_INFINITY,
-              Math.max(multiplierRef.current, startupLimitedMultiplier),
-            )
-          : safeCurrentMultiplier;
+      const displayMultiplier = visualMultiplierAt(
+        performance.now() - visualStartedAt,
+        visualCrashPoint,
+      );
       multiplierRef.current = displayMultiplier;
-      const publishMultiplier = (() => {
-        if (state.status !== 'RUNNING') return true;
-        const now = performance.now();
-        const roundedChanged =
-          Math.round(displayMultiplier * 10) !==
-          Math.round(publishedMultiplierRef.current * 10);
-        return (
-          (roundedChanged && now - lastMultiplierPublishAtRef.current > 140) ||
-          now - lastMultiplierPublishAtRef.current > CRASH_MULTIPLIER_PUBLISH_MIN_MS
-        );
-      })();
-      setStatus(state.status);
+      setStatus('RUNNING');
       setRoundNumber(state.roundNumber);
-      if (publishMultiplier) {
-        publishedMultiplierRef.current = displayMultiplier;
-        lastMultiplierPublishAtRef.current = performance.now();
-        setMultiplier(displayMultiplier);
-      }
-      if (state.status === 'RUNNING') {
-        sceneRef.current?.setCrashLimit(visualCrashPoint);
-        sceneRef.current?.setPreflightMultiplierCap(startupLimited ? displayMultiplier : null);
-        sceneRef.current?.setMultiplier(
-          displayMultiplier,
-          sceneClockSyncedRef.current || startupLimited ? undefined : state.elapsedMs,
-        );
-        sceneClockSyncedRef.current = true;
-      }
+      publishVisualMultiplier(true);
+      sceneRef.current?.setCrashLimit(visualCrashPoint);
       if (state.newBalance) setBalance(state.newBalance);
-
-      if (state.status === 'CRASHED') {
-        const finalMultiplier = state.crashPoint ?? state.currentMultiplier;
-        visualFlightStartedAtRef.current = null;
-        crashPointRef.current = finalMultiplier;
-        visualCrashPointRef.current = finalMultiplier;
-        publishedMultiplierRef.current = finalMultiplier;
-        lastMultiplierPublishAtRef.current = performance.now();
-        sceneClockSyncedRef.current = false;
-        setCrashPoint(finalMultiplier);
-        setMultiplier(finalMultiplier);
-        sceneRef.current?.setCrashLimit(finalMultiplier);
-        if (finalizedRoundRef.current !== state.roundId) {
-          finalizedRoundRef.current = state.roundId;
-          setHistory((h) => [finalMultiplier, ...h].slice(0, 20));
-          const bet = myBetRef.current;
-          if (bet) {
-            setMyHistory((prev) =>
-              [
-                {
-                  id: `${Date.now()}-${Math.random()}`,
-                  timestamp: Date.now(),
-                  betAmount: bet.amount,
-                  multiplier: 0,
-                  payout: 0,
-                  won: false,
-                  detail: `Crashed @ ${formatCrashMultiplier(finalMultiplier)}`,
-                },
-                ...prev,
-              ].slice(0, 30),
-            );
-          }
-        }
-      } else if (state.status === 'RUNNING') {
-        crashPointRef.current = null;
-        setCrashPoint(null);
-      }
+      crashPointRef.current = null;
+      setCrashPoint(null);
+      if (!displayTickRef.current) startDisplayTick();
     },
-    [clearOptimisticFlight, setBalance],
+    [
+      applyCrashedRoundState,
+      clearPendingResultReveal,
+      publishVisualMultiplier,
+      setBalance,
+      startDisplayTick,
+    ],
   );
 
   const scheduleRoundPoll = useCallback(
-    (roundId: string) => {
+    (roundId: string, finalMultiplier: number | null = visualCrashPointRef.current) => {
       clearRoundPoll();
       const tick = async () => {
+        if (statusRef.current !== 'RUNNING') return;
         try {
           const res = await api.get<CrashSoloRoundState>(
             `/games/crash/round/${encodeURIComponent(roundId)}`,
           );
           handleRoundState(res.data);
           if (res.data.status === 'RUNNING') {
-            roundPollRef.current = window.setTimeout(tick, nextRoundPollDelay(res.data));
+            const startedAt = visualFlightStartedAtRef.current;
+            const visualElapsed = startedAt === null ? 0 : performance.now() - startedAt;
+            const nextVisualCrashPoint =
+              normalizeCrashMultiplier(res.data.visualCrashPoint, 0) || finalMultiplier;
+            roundPollRef.current = window.setTimeout(
+              tick,
+              nextRoundPollDelayFromVisual(nextVisualCrashPoint, visualElapsed),
+            );
           } else {
             clearRoundPoll();
           }
@@ -624,7 +661,12 @@ export function CrashPage({ config }: Props) {
           clearRoundPoll();
         }
       };
-      roundPollRef.current = window.setTimeout(tick, CRASH_INITIAL_ROUND_POLL_DELAY_MS);
+      const startedAt = visualFlightStartedAtRef.current;
+      const visualElapsed = startedAt === null ? 0 : performance.now() - startedAt;
+      roundPollRef.current = window.setTimeout(
+        tick,
+        nextRoundPollDelayFromVisual(finalMultiplier, visualElapsed),
+      );
     },
     [clearRoundPoll, handleRoundState],
   );
@@ -632,7 +674,7 @@ export function CrashPage({ config }: Props) {
   useEffect(() => {
     finalizedRoundRef.current = null;
     clearRoundPoll();
-    clearOptimisticFlight();
+    clearDisplayTick();
     clearPendingResultReveal();
     setRoundNumber(null);
     setStatus('BETTING');
@@ -640,7 +682,6 @@ export function CrashPage({ config }: Props) {
     multiplierRef.current = 1;
     publishedMultiplierRef.current = 1;
     lastMultiplierPublishAtRef.current = performance.now();
-    sceneClockSyncedRef.current = false;
     visualFlightStartedAtRef.current = null;
     setMultiplier(1);
     setCrashPoint(null);
@@ -658,10 +699,10 @@ export function CrashPage({ config }: Props) {
       .catch(() => undefined);
     return () => {
       clearRoundPoll();
-      clearOptimisticFlight();
+      clearDisplayTick();
       clearPendingResultReveal();
     };
-  }, [clearOptimisticFlight, clearPendingResultReveal, clearRoundPoll, config.gameId]);
+  }, [clearDisplayTick, clearPendingResultReveal, clearRoundPoll, config.gameId]);
 
   useEffect(() => {
     setSimulatedLiveBets(createSimulatedCrashBets(config.gameId));
@@ -676,10 +717,7 @@ export function CrashPage({ config }: Props) {
   }, [config.gameId]);
 
   const submitCrashBet = useCallback(
-    async (
-      betAmount: number,
-      options?: { silentAuth?: boolean },
-    ): Promise<boolean> => {
+    async (betAmount: number, options?: { silentAuth?: boolean }): Promise<boolean> => {
       if (!user) {
         if (!options?.silentAuth) requireLogin();
         return Promise.resolve(false);
@@ -700,9 +738,9 @@ export function CrashPage({ config }: Props) {
       try {
         setSubmitting(true);
         clearRoundPoll();
+        clearDisplayTick();
         clearPendingResultReveal();
         resetVisualForNewBet(betAmount);
-        scheduleOptimisticFlight(betAmount);
         const res = await api.post<CrashBetStartResponse>('/games/crash/bet', {
           gameId: config.gameId,
           amount: betAmount,
@@ -719,34 +757,24 @@ export function CrashPage({ config }: Props) {
         setError(null);
         const applyStartResponse = () => {
           setBalance(res.data.newBalance ?? (currentBalance - betAmount).toFixed(2));
+          beginVisualFlight(betAmount, placedBet);
           handleRoundState(res.data);
           setSubmitting(false);
-          if (res.data.status === 'RUNNING') scheduleRoundPoll(res.data.roundId);
+          if (res.data.status === 'RUNNING') {
+            const visualCrashPoint = normalizeCrashMultiplier(res.data.visualCrashPoint, 0) || null;
+            scheduleRoundPoll(res.data.roundId, visualCrashPoint);
+          }
         };
-        if (res.data.status === 'RUNNING' && statusRef.current === 'BETTING') {
-          clearOptimisticFlight();
-          beginOptimisticFlight(betAmount, placedBet);
-          applyStartResponse();
-        } else if (res.data.status === 'CRASHED' && statusRef.current === 'BETTING') {
-          clearOptimisticFlight();
-          beginOptimisticFlight(betAmount, placedBet);
-          pendingResultRevealRef.current = window.setTimeout(() => {
-            pendingResultRevealRef.current = null;
-            applyStartResponse();
-          }, CRASH_INSTANT_RESULT_REVEAL_MS);
-        } else {
-          applyStartResponse();
-        }
+        applyStartResponse();
         return true;
       } catch (err) {
         setSubmitting(false);
-        clearOptimisticFlight();
+        clearDisplayTick();
         clearPendingResultReveal();
         statusRef.current = 'BETTING';
         multiplierRef.current = 1;
         publishedMultiplierRef.current = 1;
         lastMultiplierPublishAtRef.current = performance.now();
-        sceneClockSyncedRef.current = false;
         visualFlightStartedAtRef.current = null;
         myBetRef.current = null;
         setStatus('BETTING');
@@ -760,15 +788,14 @@ export function CrashPage({ config }: Props) {
     },
     [
       clearRoundPoll,
-      clearOptimisticFlight,
+      clearDisplayTick,
       clearPendingResultReveal,
       config.gameId,
-      beginOptimisticFlight,
+      beginVisualFlight,
       handleRoundState,
       requireLogin,
       resetVisualForNewBet,
       scheduleRoundPoll,
-      scheduleOptimisticFlight,
       setBalance,
       t.bet.insufficientBalance,
       user,
@@ -961,9 +988,7 @@ export function CrashPage({ config }: Props) {
         <div className="slot-auto-modal__footer">
           <div className="slot-auto-summary">
             <span>{t.games.crash.autoBotActive}</span>
-            <strong>
-              {autoSettingsPreview ? formatAmount(autoSettingsPreview.amount) : '—'}
-            </strong>
+            <strong>{autoSettingsPreview ? formatAmount(autoSettingsPreview.amount) : '—'}</strong>
           </div>
           <div className="slot-auto-actions">
             <button type="button" onClick={() => setAutoBetOpen(false)}>
@@ -1020,13 +1045,14 @@ export function CrashPage({ config }: Props) {
                 {status === 'CRASHED' && (
                   <span className="text-[#FCA5A5]">{t.games.crash.crashed}</span>
                 )}
-                <span className="hidden text-white/55 md:inline">
-                  #{roundNumber ?? '—'}
-                </span>
+                <span className="hidden text-white/55 md:inline">#{roundNumber ?? '—'}</span>
               </div>
             </div>
 
-            <div ref={canvasShellRef} className="game-canvas-shell game-canvas-wide relative aspect-[16/7] w-full overflow-hidden">
+            <div
+              ref={canvasShellRef}
+              className="game-canvas-shell game-canvas-wide relative aspect-[16/7] w-full overflow-hidden"
+            >
               <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
               {stageHistory.length > 0 && (
                 <div className="crash-history-strip" aria-label={t.games.crash.recentCrashes}>
@@ -1166,11 +1192,8 @@ export function CrashPage({ config }: Props) {
                   disabled={submitting || (!!user && balance < amount)}
                   className="btn-acid w-full py-4"
                 >
-                  →{' '}
-                  {submitting
-                    ? (config.runningLabel ?? t.games.crash.running)
-                    : t.games.crash.placeBet}{' '}
-                  · {formatAmount(amount)}
+                  → {submitting ? t.common.loading : t.games.crash.placeBet} ·{' '}
+                  {formatAmount(amount)}
                 </button>
               ) : null}
               {status === 'CRASHED' && myBet && (
