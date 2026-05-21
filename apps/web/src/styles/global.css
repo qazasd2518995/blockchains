@@ -5478,10 +5478,7 @@
   }
 
   .dice-auto-stage-card {
-    top: auto;
-    bottom: 12px;
-    max-width: calc(100% - 24px);
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: none;
   }
 }
 
