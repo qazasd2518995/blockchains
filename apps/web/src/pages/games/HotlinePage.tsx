@@ -1924,6 +1924,14 @@ function MegaFeatureResultOverlay({
       role="dialog"
       aria-modal="false"
       aria-labelledby="mega-feature-result-title"
+      tabIndex={0}
+      onClick={onClose}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
+          event.preventDefault();
+          onClose();
+        }
+      }}
     >
       <div className="mega-feature-result-stage__burst" aria-hidden="true" />
       <div className="mega-feature-result-stage__panel">
@@ -1957,9 +1965,6 @@ function MegaFeatureResultOverlay({
             <strong>{cascadeCount}</strong>
           </div>
         </div>
-        <button type="button" onClick={onClose}>
-          關閉
-        </button>
       </div>
     </div>
   );

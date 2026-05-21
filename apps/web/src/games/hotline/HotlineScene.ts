@@ -49,6 +49,7 @@ const CLASSIC_RENDER_DPR = 1.6;
 const MEGA_RENDER_DPR = 1.35;
 const CLASSIC_PARTICLE_POOL_SIZE = 180;
 const MEGA_PARTICLE_POOL_SIZE = 120;
+const MEGA_MAX_CELL_ASPECT = 1.26;
 
 function fitSpriteCover(sprite: Sprite, width: number, height: number): void {
   const textureWidth = sprite.texture.width || width;
@@ -229,12 +230,14 @@ export class HotlineScene {
     const padding = isMegaLayout ? Math.max(8, Math.min(16, Math.round(shortSide * 0.035))) : 24;
     this.reelGap = isMegaLayout ? Math.max(4, Math.min(8, Math.round(shortSide * 0.016))) : 8;
 
-    // 計算 reel 尺寸。Mega 盤面使用非正方形 cell，讓 6x5 符號填滿寬版 frame。
+    // 計算 reel 尺寸。Mega 盤面限制寬高比，避免寬螢幕把符號拉成扁格。
     const availableW = width - padding * 2;
     const availableH = height - padding * 2;
     if (isMegaLayout) {
-      this.cellWidth = (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount;
       this.cellSize = availableH / this.rowCount;
+      const naturalCellWidth =
+        (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount;
+      this.cellWidth = Math.min(naturalCellWidth, this.cellSize * MEGA_MAX_CELL_ASPECT);
     } else {
       this.cellSize = Math.min(
         (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount,
@@ -587,29 +590,65 @@ export class HotlineScene {
     if (special.type === 'multiplier') {
       const valueStyle = new TextStyle({
         fontFamily: GAME_FONT_NUM,
-        fontSize: Math.max(14, size * 0.22),
+        fontSize: Math.max(26, size * 0.42),
         fill: 0xffffff,
         fontWeight: '900',
-        stroke: { color: COLOR_INK, width: 4 },
+        stroke: { color: COLOR_INK, width: 6 },
+        dropShadow: {
+          alpha: 0.78,
+          angle: Math.PI / 2,
+          blur: 6,
+          color: COLOR_INK,
+          distance: 2,
+        },
       });
       const value = new Text({ text: `${special.value ?? 2}×`, style: valueStyle });
       value.anchor.set(0.5);
       value.y = size * 0.02;
+      const badge = new Graphics()
+        .roundRect(
+          -value.width / 2 - 9,
+          value.y - value.height / 2 - 5,
+          value.width + 18,
+          value.height + 10,
+          999,
+        )
+        .fill({ color: 0x03131f, alpha: 0.78 })
+        .stroke({ color: COLOR_ICE, width: 2, alpha: 0.72 });
+      c.addChild(badge);
       c.addChild(value);
     }
 
     if (isScatter) {
       const labelStyle = new TextStyle({
         fontFamily: GAME_FONT_NUM,
-        fontSize: Math.max(7, size * 0.1),
+        fontSize: Math.max(14, size * 0.2),
         fill: COLOR_AMBER,
         fontWeight: '900',
-        letterSpacing: 1.5,
-        stroke: { color: COLOR_INK, width: 3 },
+        letterSpacing: 2.4,
+        stroke: { color: COLOR_INK, width: 5 },
+        dropShadow: {
+          alpha: 0.72,
+          angle: Math.PI / 2,
+          blur: 5,
+          color: COLOR_INK,
+          distance: 2,
+        },
       });
       const label = new Text({ text: 'BONUS', style: labelStyle });
       label.anchor.set(0.5);
-      label.y = height * 0.34;
+      label.y = height * 0.31;
+      const plate = new Graphics()
+        .roundRect(
+          -label.width / 2 - 8,
+          label.y - label.height / 2 - 4,
+          label.width + 16,
+          label.height + 8,
+          999,
+        )
+        .fill({ color: 0x2c1608, alpha: 0.72 })
+        .stroke({ color: COLOR_AMBER, width: 1.5, alpha: 0.72 });
+      c.addChild(plate);
       c.addChild(label);
     }
 

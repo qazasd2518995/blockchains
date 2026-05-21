@@ -418,6 +418,7 @@
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.08),
       0 26px 80px rgba(0, 0, 0, 0.54);
+    cursor: pointer;
     animation: slot-bigwin-reveal 560ms cubic-bezier(0.2, 0.84, 0.2, 1) both;
   }
 
@@ -543,18 +544,7 @@
     color: #fca5a5;
   }
 
-  .mega-feature-result-stage button {
-    min-height: 42px;
-    border: 1px solid rgba(125, 211, 252, 0.42);
-    border-radius: 999px;
-    background: rgba(20, 91, 109, 0.82);
-    padding: 0 1.4rem;
-    font-size: 0.78rem;
-    font-weight: 950;
-    color: #e0f8ff;
-  }
-
-  .mega-feature-result-stage button:focus-visible {
+  .mega-feature-result-stage:focus-visible {
     outline: 2px solid rgba(125, 211, 252, 0.92);
     outline-offset: 3px;
   }
@@ -4539,36 +4529,44 @@
   z-index: 3;
   transform: translate(-50%, -50%);
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.62);
-  background: rgba(3, 8, 19, 0.66);
-  padding: 2px 7px;
+  border: 2px solid rgba(125, 211, 252, 0.78);
+  background: rgba(3, 13, 24, 0.82);
+  padding: 4px 11px;
   font-family: var(--font-display, Inter, system-ui, sans-serif);
-  font-size: clamp(13px, 1.8vw, 24px);
+  font-size: clamp(22px, 3.2vw, 44px);
   font-weight: 950;
   line-height: 1;
   color: #fff;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+  text-shadow:
+    0 3px 10px rgba(0, 0, 0, 0.95),
+    0 0 16px rgba(125, 211, 252, 0.72);
+  box-shadow:
+    inset 0 0 12px rgba(125, 211, 252, 0.2),
+    0 0 14px rgba(14, 165, 233, 0.28);
 }
 
 .mega-slot-fallback-symbol__bonus {
   position: absolute;
   left: 50%;
-  bottom: 7%;
+  bottom: 6%;
   z-index: 3;
   transform: translateX(-50%);
   border-radius: 999px;
-  border: 1px solid rgba(255, 244, 190, 0.72);
-  background: rgba(36, 16, 9, 0.72);
-  padding: 2px 7px;
+  border: 2px solid rgba(255, 244, 190, 0.86);
+  background: rgba(36, 16, 9, 0.82);
+  padding: 3px 10px;
   font-family: var(--font-display, Inter, system-ui, sans-serif);
-  font-size: clamp(8px, 0.95vw, 13px);
+  font-size: clamp(13px, 1.75vw, 24px);
   font-weight: 950;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   line-height: 1;
   color: #f3d67d;
   text-shadow:
-    0 2px 7px rgba(0, 0, 0, 0.9),
-    0 0 12px rgba(243, 214, 125, 0.62);
+    0 3px 9px rgba(0, 0, 0, 0.95),
+    0 0 16px rgba(243, 214, 125, 0.78);
+  box-shadow:
+    inset 0 0 12px rgba(243, 214, 125, 0.16),
+    0 0 16px rgba(243, 214, 125, 0.26);
 }
 
 .mega-slot-fallback-symbol span {
