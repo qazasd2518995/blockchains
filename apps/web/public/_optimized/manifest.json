@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-12T14:30:51.618Z",
+  "generatedAt": "2026-05-20T18:50:49.735Z",
   "widths": [
     480,
     960,
@@ -51,6 +51,16 @@
       "480": "/_optimized/banners/hero-welcome@480.webp",
       "960": "/_optimized/banners/hero-welcome@960.webp",
       "1600": "/_optimized/banners/hero-welcome@1600.webp"
+    },
+    "/brand/yachiyo-emblem.png": {
+      "480": "/_optimized/brand/yachiyo-emblem@480.webp",
+      "960": "/_optimized/brand/yachiyo-emblem@960.webp",
+      "1600": "/_optimized/brand/yachiyo-emblem@1600.webp"
+    },
+    "/brand/yachiyo-logo.png": {
+      "480": "/_optimized/brand/yachiyo-logo@480.webp",
+      "960": "/_optimized/brand/yachiyo-logo@960.webp",
+      "1600": "/_optimized/brand/yachiyo-logo@1600.webp"
     },
     "/crash/backgrounds/aviator.jpg": {
       "480": "/_optimized/crash/backgrounds/aviator@480.webp",

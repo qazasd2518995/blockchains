@@ -275,8 +275,8 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
   },
   [GameId.THUNDER_SLOT]: {
     id: GameId.THUNDER_SLOT,
-    name: 'Thunder Hammer Mega',
-    nameZh: '雷神之鎚',
+    name: 'Thor Hammer Mega',
+    nameZh: '索爾神槌',
     category: 'single-step',
     description: '6x5 cluster-count video slot with partial payouts and big win bursts.',
     descriptionZh: '6x5 同符號計數派彩電子老虎機，含部分回本與爆分動畫',

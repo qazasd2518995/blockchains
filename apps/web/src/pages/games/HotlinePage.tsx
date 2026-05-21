@@ -58,6 +58,7 @@ const CLASSIC_SYMBOL_PAYOUTS = HOTLINE_SYMBOLS.map(
 const MINI_SYMBOL_PAYOUTS = HOTLINE_MINI_SYMBOLS.map((symbol) => `3個 ${symbol.payout3}x`);
 const BIG_WIN_MULTIPLIER = 20;
 const MEGA_MAX_TOTAL_MULTIPLIER = 1000;
+const MEGA_BUY_FEATURE_MAX_WIN_MULTIPLIER = 50000;
 const MEGA_FREE_SPIN_INTRO_MS = 1600;
 const MEGA_FREE_SPIN_RETRIGGER_MS = 1300;
 const JACKPOT_KEYS = ['grand', 'major', 'minor', 'mini'] as const;
@@ -214,6 +215,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [autoSpinStopReason, setAutoSpinStopReason] = useState('');
   const [fastSpin, setFastSpin] = useState(false);
   const [dismissedBigWinBetId, setDismissedBigWinBetId] = useState<string | null>(null);
+  const [buyFeatureConfirmOpen, setBuyFeatureConfirmOpen] = useState(false);
+  const [dismissedFeatureResultBetId, setDismissedFeatureResultBetId] = useState<string | null>(
+    null,
+  );
   const [jackpotSnapshot, setJackpotSnapshot] = useState<HotlineJackpotSnapshot | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -387,6 +392,23 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     void spin();
   };
 
+  const openMegaBuyFeatureConfirm = (): void => {
+    if (!isMegaSlot || busy || autoSpinActive) return;
+    if (!requireLogin()) return;
+    const featureCost = roundCurrency(amount * 100);
+    if (featureCost > balance) {
+      setError('餘額不足，無法購買免費遊戲');
+      return;
+    }
+    setError(null);
+    setBuyFeatureConfirmOpen(true);
+  };
+
+  const confirmMegaBuyFeature = async (): Promise<void> => {
+    setBuyFeatureConfirmOpen(false);
+    await spin({ buyFeature: true });
+  };
+
   const spin = async (options: SpinOptions = {}): Promise<HotlineBetResult | null> => {
     if (busy && !options.autoSpin) return null;
     if (!requireLogin()) return null;
@@ -411,6 +433,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setMegaFreeSpinAwaitingClick(false);
     megaFreeSpinContinueRef.current = null;
     setDismissedBigWinBetId(null);
+    setDismissedFeatureResultBetId(null);
+    setBuyFeatureConfirmOpen(false);
     setError(null);
 
     const activeScene = sceneReady && !sceneFallback ? sceneRef.current : null;
@@ -1170,8 +1194,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     : '設定';
   const fastSpinButtonValue = fastSpin ? '開啟' : '一般';
   const isBigWinResult = resultProfit > 0 && resultDisplayMultiplier >= BIG_WIN_MULTIPLIER;
+  const showFeatureResultOverlay = Boolean(
+    result?.buyFeature && !spinning && dismissedFeatureResultBetId !== result.betId,
+  );
   const showBigWinOverlay = Boolean(
-    result && !spinning && isBigWinResult && dismissedBigWinBetId !== result.betId,
+    result &&
+    !spinning &&
+    !showFeatureResultOverlay &&
+    isBigWinResult &&
+    dismissedBigWinBetId !== result.betId,
   );
   const resultTitle = isBigWinResult
     ? '恭喜爆分'
@@ -1180,6 +1211,67 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       : resultPayout > 0
         ? '小中獎派彩'
         : '本局未中';
+  const buyFeatureConfirmDialog = buyFeatureConfirmOpen ? (
+    <div
+      className="slot-auto-modal mega-buy-confirm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mega-buy-confirm-title"
+    >
+      <div className="slot-auto-modal__panel mega-buy-confirm__panel">
+        <div className="slot-auto-modal__header">
+          <div>
+            <span>購買免費遊戲</span>
+            <strong id="mega-buy-confirm-title">{slotTheme.title}</strong>
+          </div>
+          <button type="button" onClick={() => setBuyFeatureConfirmOpen(false)} aria-label="關閉">
+            關閉
+          </button>
+        </div>
+
+        <div className="slot-auto-modal__body">
+          <div className="mega-buy-confirm__hero">
+            <span>最高爆分</span>
+            <strong>{MEGA_BUY_FEATURE_MAX_WIN_MULTIPLIER.toLocaleString('en-US')}×</strong>
+            <small>免費遊戲買入功能</small>
+          </div>
+          <div className="mega-buy-confirm__grid">
+            <div>
+              <span>總下注金額</span>
+              <strong>{formatAmount(megaBuyFeatureCost)}</strong>
+            </div>
+            <div>
+              <span>買入倍率</span>
+              <strong>100×</strong>
+            </div>
+            <div>
+              <span>單注金額</span>
+              <strong>{formatAmount(amount)}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="slot-auto-modal__footer">
+          <div className="slot-auto-summary">
+            <span>確認後會立即下注</span>
+            <strong>{formatAmount(megaBuyFeatureCost)}</strong>
+          </div>
+          <div className="slot-auto-actions">
+            <button type="button" onClick={() => setBuyFeatureConfirmOpen(false)}>
+              取消
+            </button>
+            <button
+              type="button"
+              onClick={() => void confirmMegaBuyFeature()}
+              disabled={busy || autoSpinActive || (!!user && balance < megaBuyFeatureCost)}
+            >
+              確認投注
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null;
   const autoSpinDialog = autoSpinOpen ? (
     <div
       className="slot-auto-modal"
@@ -1463,6 +1555,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   </div>
                 </button>
               )}
+              {result && showFeatureResultOverlay && (
+                <MegaFeatureResultOverlay
+                  result={result}
+                  displayMultiplier={resultDisplayMultiplier}
+                  cascadeCount={cascadeCount}
+                  maxWinMultiplier={MEGA_BUY_FEATURE_MAX_WIN_MULTIPLIER}
+                  onClose={() => setDismissedFeatureResultBetId(result.betId)}
+                />
+              )}
             </section>
 
             <aside className="mega-slot-side mega-slot-side--right" aria-hidden="true">
@@ -1471,9 +1572,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           </div>
 
           <footer className="mega-slot-controls">
-            <div className="mega-slot-control-tile">
-              <span>本局派彩</span>
-              <strong>{formatAmount(megaDisplayPayout)}</strong>
+            <div className="mega-slot-control-tile mega-slot-control-tile--metrics">
+              <div>
+                <span>遊戲餘額</span>
+                <strong>{user ? formatAmount(user.balance ?? '0') : '登入查看'}</strong>
+              </div>
+              <div>
+                <span>本局派彩</span>
+                <strong>{formatAmount(megaDisplayPayout)}</strong>
+              </div>
             </div>
             <div className="mega-slot-betbox">
               <button
@@ -1526,7 +1633,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               </button>
               <button
                 type="button"
-                onClick={() => void spin({ buyFeature: true })}
+                onClick={openMegaBuyFeatureConfirm}
                 disabled={!canBuyMegaFeature}
                 className="mega-slot-buy"
                 aria-label="購買免費遊戲"
@@ -1561,6 +1668,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             </div>
           )}
         </div>
+        {buyFeatureConfirmDialog}
         {autoSpinDialog}
       </div>
     );
@@ -1785,6 +1893,74 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         </div>
       </div>
       {autoSpinDialog}
+    </div>
+  );
+}
+
+function MegaFeatureResultOverlay({
+  result,
+  displayMultiplier,
+  cascadeCount,
+  maxWinMultiplier,
+  onClose,
+}: {
+  result: HotlineBetResult;
+  displayMultiplier: number;
+  cascadeCount: number;
+  maxWinMultiplier: number;
+  onClose: () => void;
+}) {
+  const features = result.features;
+  const stakeAmount = Number.parseFloat(result.stakeAmount ?? result.amount);
+  const payout = Number.parseFloat(result.payout);
+  const profit = Number.parseFloat(result.profit);
+  const freeSpinProgress = features
+    ? `${features.freeSpinsPlayed}/${features.freeSpinsAwarded}`
+    : '0';
+
+  return (
+    <div
+      className="mega-feature-result-stage"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="mega-feature-result-title"
+    >
+      <div className="mega-feature-result-stage__burst" aria-hidden="true" />
+      <div className="mega-feature-result-stage__panel">
+        <div className="mega-feature-result-stage__eyebrow">免費遊戲結算</div>
+        <div id="mega-feature-result-title" className="mega-feature-result-stage__title">
+          爆分金額
+        </div>
+        <div className="mega-feature-result-stage__amount">{formatAmount(payout)}</div>
+        <div className="mega-feature-result-stage__meta">
+          {formatMultiplier(displayMultiplier)} · 最高爆分{' '}
+          {maxWinMultiplier.toLocaleString('en-US')}×
+        </div>
+        <div className="mega-feature-result-stage__grid">
+          <div>
+            <span>總下注金額</span>
+            <strong>{formatAmount(stakeAmount)}</strong>
+          </div>
+          <div>
+            <span>淨利</span>
+            <strong className={profit >= 0 ? 'is-win' : 'is-loss'}>
+              {profit >= 0 ? '+' : ''}
+              {formatAmount(profit)}
+            </strong>
+          </div>
+          <div>
+            <span>免費旋轉</span>
+            <strong>{freeSpinProgress}</strong>
+          </div>
+          <div>
+            <span>連鎖消除</span>
+            <strong>{cascadeCount}</strong>
+          </div>
+        </div>
+        <button type="button" onClick={onClose}>
+          關閉
+        </button>
+      </div>
     </div>
   );
 }

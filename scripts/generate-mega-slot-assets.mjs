@@ -6,7 +6,7 @@ const root = path.resolve('apps/web/public/slots');
 const themes = [
   {
     dir: 'thunder',
-    title: 'THUNDER HAMMER',
+    title: 'THOR HAMMER',
     accent: '#facc15',
     accent2: '#60a5fa',
     dark: '#111827',

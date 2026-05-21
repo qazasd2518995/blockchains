@@ -407,8 +407,8 @@ const GAMES: Game[] = [
   {
     id: 'thunder-slot',
     hall: 'slots',
-    name: '雷神之鎚',
-    english: 'Thunder Hammer Mega',
+    name: '索爾神槌',
+    english: 'Thor Hammer Mega',
     cover: '/slots/thunder/cover.png',
     rtp: '96.5%',
     maxMultiplier: '5,000×+',

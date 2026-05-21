@@ -302,10 +302,11 @@ export class KenoScene {
    * selected: 玩家選的號碼
    * hits: 命中號碼
    */
-  async playDraw(drawn: number[], selected: number[], hits: number[]): Promise<void> {
+  async playDraw(drawn: number[], selected: number[], hits: number[], speed = 1): Promise<void> {
     this.reset();
     const hitSet = new Set(hits);
     const selectedSet = new Set(selected);
+    const animationSpeed = Math.max(1, Math.min(3.5, speed));
 
     if (this.statusLabel) {
       this.setStatus('DRAWING', 'drawing');
@@ -333,6 +334,7 @@ export class KenoScene {
           resolve();
         },
       });
+      tl.timeScale(animationSpeed);
 
       drawn.forEach((n, i) => {
         const row = Math.floor(i / ballsPerRow);

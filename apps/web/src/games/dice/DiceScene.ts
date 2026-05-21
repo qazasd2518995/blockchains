@@ -486,10 +486,11 @@ export class DiceScene {
     }
   }
 
-  async playRoll(roll: number, won: boolean, multiplier = 0): Promise<void> {
+  async playRoll(roll: number, won: boolean, multiplier = 0, speed = 1): Promise<void> {
     if (!this.dice || !this.rollLabel) return;
     const dice = this.dice;
     const label = this.rollLabel;
+    const animationSpeed = Math.max(1, Math.min(3.5, speed));
 
     // 清掉 anticipation 的無限旋轉（若有）+ 暫停 ambient
     this.diceAmbientActive = false;
@@ -516,6 +517,7 @@ export class DiceScene {
           resolve();
         },
       });
+      tl.timeScale(animationSpeed);
 
       tl.to(dice.scale, { x: 0.9, y: 0.9, duration: 0.1, ease: EASE.in }, 0);
       tl.to(
@@ -606,7 +608,7 @@ export class DiceScene {
           const rollObj = { v: 0 };
           gsap.to(rollObj, {
             v: roll,
-            duration: 0.58,
+            duration: 0.58 / animationSpeed,
             ease: 'power3.out',
             onUpdate: () => {
               label.text = rollObj.v.toFixed(2);
@@ -618,7 +620,7 @@ export class DiceScene {
               gsap.fromTo(
                 label.scale,
                 { x: 1.32, y: 1.32 },
-                { x: 1, y: 1, duration: 0.5, ease: 'elastic.out(1, 0.42)' },
+                { x: 1, y: 1, duration: 0.5 / animationSpeed, ease: 'elastic.out(1, 0.42)' },
               );
             },
           });
@@ -645,18 +647,24 @@ export class DiceScene {
               { alpha: 0 },
               {
                 alpha: 1,
-                duration: 0.25,
+                duration: 0.25 / animationSpeed,
                 ease: 'power3.out',
                 onComplete: () => {
-                  gsap.to(glow, { alpha: 0, duration: 1.5, ease: 'power2.inOut' });
+                  gsap.to(glow, {
+                    alpha: 0,
+                    duration: 1.5 / animationSpeed,
+                    ease: 'power2.inOut',
+                  });
                 },
               },
             );
           }
 
           // 震波（贏時雙層、輸時單層弱）
-          this.emitShockwave(dice.x, dice.y, winColor, this.diceSize * 1.2);
-          if (won) this.emitShockwave(dice.x, dice.y, winColor, this.diceSize * 1.8, 0.15);
+          this.emitShockwave(dice.x, dice.y, winColor, this.diceSize * 1.2, 0, animationSpeed);
+          if (won) {
+            this.emitShockwave(dice.x, dice.y, winColor, this.diceSize * 1.8, 0.15, animationSpeed);
+          }
 
           if (won) {
             // 粒子用 pool
@@ -670,7 +678,7 @@ export class DiceScene {
             });
             // Tier 分級 shake（倍率 <10x 不 shake，避免影響 count-up 讀數）
             if (tierCfg.shakeAmp > 0 && this.shaker) {
-              gsap.delayedCall(0.3, () =>
+              gsap.delayedCall(0.3 / animationSpeed, () =>
                 this.shaker?.shake(tierCfg.shakeAmp, tierCfg.shakeDuration),
               );
             }
@@ -702,7 +710,7 @@ export class DiceScene {
             });
           }
 
-          gsap.delayedCall(2.5, () => {
+          gsap.delayedCall(2.5 / animationSpeed, () => {
             if (this.diceFace) this.drawFace(this.diceFace, COLOR_ACID);
           });
         },
@@ -718,16 +726,24 @@ export class DiceScene {
     this.shuffleTicker = null;
   }
 
-  private emitShockwave(x: number, y: number, color: number, maxRadius: number, delay = 0): void {
+  private emitShockwave(
+    x: number,
+    y: number,
+    color: number,
+    maxRadius: number,
+    delay = 0,
+    speed = 1,
+  ): void {
     if (!this.shockwaves) return;
     const ring = new Graphics();
     this.shockwaves.addChild(ring);
     const state = { r: 10, alpha: 0.9 };
+    const animationSpeed = Math.max(1, Math.min(3.5, speed));
     gsap.to(state, {
       r: maxRadius,
       alpha: 0,
-      duration: 0.9,
-      delay,
+      duration: 0.9 / animationSpeed,
+      delay: delay / animationSpeed,
       ease: 'power2.out',
       onUpdate: () => {
         ring.clear().circle(x, y, state.r).stroke({ color, width: 4, alpha: state.alpha });

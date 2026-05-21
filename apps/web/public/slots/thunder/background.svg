@@ -63,5 +63,5 @@
 <path d="M140 700 C400 610 610 640 815 590 C1030 540 1260 560 1480 498" fill="none" stroke="#facc15" stroke-width="4" stroke-opacity="0.2"/>
 <rect x="60" y="72" width="1480" height="740" rx="38" fill="none" stroke="#facc15" stroke-opacity="0.26" stroke-width="4"/>
 <rect x="90" y="102" width="1420" height="680" rx="32" fill="none" stroke="#fff" stroke-opacity="0.08" stroke-width="2"/>
-<text x="800" y="100" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="900" letter-spacing="12" fill="#facc15" opacity="0.42">THUNDER HAMMER</text>
+<text x="800" y="100" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="900" letter-spacing="12" fill="#facc15" opacity="0.42">THOR HAMMER</text>
 </svg>

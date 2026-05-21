@@ -110,7 +110,7 @@ const GAME_POOL: Array<{
     maxWin: 1780000,
   },
   {
-    game: '雷神之鎚',
+    game: '索爾神槌',
     gameId: 'thunder-slot',
     minMult: 25,
     maxMult: 1600,
