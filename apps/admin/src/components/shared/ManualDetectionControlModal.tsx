@@ -160,7 +160,9 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
           <button type="button" onClick={() => void loadPreview()} disabled={loadingPreview} className="btn-teal-outline text-[11px]">
             {loadingPreview ? '读取中…' : '读取当前交收'}
           </button>
-          <span className="text-[11px] text-ink-500">正数代表会员输、上级赢；负数代表会员赢、上级付。</span>
+          <span className="text-[11px] text-ink-500">
+            正数代表会员输、上级赢；负数代表会员赢、上级付；未命中机率时自然开奖。
+          </span>
         </div>
 
         {preview && (

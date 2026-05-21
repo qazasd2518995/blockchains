@@ -196,6 +196,14 @@ function isNetWin(result: PredictedResult | FinalizedControlResult): boolean {
   return result.payout.greaterThan(result.amount);
 }
 
+export function passesControlInterventionRate(controlPercentage: Prisma.Decimal | number): boolean {
+  const percentage =
+    controlPercentage instanceof Prisma.Decimal ? Number(controlPercentage) : controlPercentage;
+  if (!Number.isFinite(percentage)) return false;
+  const rate = Math.min(100, Math.max(0, percentage)) / 100;
+  return Math.random() < rate;
+}
+
 async function findControlDecision(
   tx: Db,
   member: MemberScope,
@@ -285,7 +293,7 @@ async function findWinLossDecision(
 
   const selected = ranked[0];
   if (!selected) return null;
-  if (Math.random() >= Number(selected.control.controlPercentage) / 100) return null;
+  if (!passesControlInterventionRate(selected.control.controlPercentage)) return null;
 
   return {
     desired: selected.desired,
@@ -405,7 +413,7 @@ async function findManualDetectionDecision(
   if (scope === 'targeted' && applicable.control.scope === 'ALL') return null;
   if (scope === 'global' && applicable.control.scope !== 'ALL') return null;
 
-  if (Math.random() * 100 >= applicable.control.controlPercentage) {
+  if (!passesControlInterventionRate(applicable.control.controlPercentage)) {
     return null;
   }
 

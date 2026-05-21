@@ -1,10 +1,30 @@
 import { Prisma } from '@prisma/client';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GameId } from '@bg/shared';
-import { isBurstControlEligible } from './controls.js';
+import { isBurstControlEligible, passesControlInterventionRate } from './controls.js';
 
 const prediction = (multiplier: number) => ({
   multiplier: new Prisma.Decimal(multiplier),
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe('passesControlInterventionRate', () => {
+  it('treats the percentage as an intervention gate, not a forced result rate', () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.49).mockReturnValueOnce(0.5);
+
+    expect(passesControlInterventionRate(50)).toBe(true);
+    expect(passesControlInterventionRate(50)).toBe(false);
+  });
+
+  it('always passes 100 percent and always skips 0 percent', () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.999999).mockReturnValueOnce(0);
+
+    expect(passesControlInterventionRate(new Prisma.Decimal(100))).toBe(true);
+    expect(passesControlInterventionRate(0)).toBe(false);
+  });
 });
 
 describe('isBurstControlEligible', () => {

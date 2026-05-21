@@ -50,7 +50,7 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="新增输赢控制" subtitle="按比例翻转输赢" width="md">
+    <Modal open={open} onClose={onClose} title="新增输赢控制" subtitle="按介入机率翻转输赢" width="md">
       <div className="space-y-4">
         <label className="block">
           <div className="label mb-2">控制模式</div>
@@ -78,7 +78,7 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <div className="label mb-2">控制百分比（%）</div>
+            <div className="label mb-2">介入机率（%）</div>
             <input
               type="text"
               value={pct}
@@ -86,6 +86,9 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
               className="term-input font-mono"
               placeholder="50-100"
             />
+            <div className="mt-1 text-[10px] text-ink-500">
+              例如 50 = 约 50% 局数进入控制判断；未命中时自然开奖。
+            </div>
           </label>
           <label className="block">
             <div className="label mb-2">起始期号（选填）</div>

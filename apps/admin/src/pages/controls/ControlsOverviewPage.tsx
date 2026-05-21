@@ -246,7 +246,7 @@ export function ControlsOverviewPage(): JSX.Element {
     },
     {
       key: 'rate',
-      label: '控制率',
+      label: '介入率',
       align: 'right',
       render: (r) => <span className="data-num">{r.controlPercentage}%</span>,
     },
@@ -279,7 +279,7 @@ export function ControlsOverviewPage(): JSX.Element {
   const wlCols: Column<WinLossRow>[] = [
     { key: 'mode', label: '模式', render: (r) => <span className="tag tag-acid">{formatControlMode(r.controlMode)}</span> },
     { key: 'target', label: '目标账号', render: (r) => <span className="font-mono text-[11px]">{r.targetUsername ?? '—'}</span> },
-    { key: 'pct', label: '比例', align: 'right', render: (r) => <span className="data-num">{r.controlPercentage}%</span> },
+    { key: 'pct', label: '介入率', align: 'right', render: (r) => <span className="data-num">{r.controlPercentage}%</span> },
     {
       key: 'direction',
       label: '控制方向',
