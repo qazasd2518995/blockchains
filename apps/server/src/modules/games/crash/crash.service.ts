@@ -302,8 +302,10 @@ export class CrashSoloService {
       control.maxMultiplier ? Number(control.maxMultiplier.toFixed(4)) : Number.POSITIVE_INFINITY,
       capFromPayout,
     );
-    const minTarget = control.minMultiplier ? Number(control.minMultiplier.toFixed(4)) : 1.01;
-    const target = Math.max(3, minTarget, Number(control.multiplier.toFixed(4)));
+    const minTarget = control.minMultiplier
+      ? Number(control.minMultiplier.toFixed(4))
+      : MIN_CASHOUT_MULTIPLIER;
+    const target = Math.max(MIN_CASHOUT_MULTIPLIER, minTarget, Number(control.multiplier.toFixed(4)));
 
     if (target > maxTarget || maxTarget <= 1) {
       return {

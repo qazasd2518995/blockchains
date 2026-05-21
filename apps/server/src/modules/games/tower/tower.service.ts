@@ -94,10 +94,13 @@ export class TowerService {
         multiplier: rawSafe ? nextMult : new Prisma.Decimal(0),
         payout: predictedPayout,
       });
+      const canForceLoss = round.currentLevel > 0;
       if (controlled.controlled) {
         layout = controlled.won
           ? forceTowerSafe(rawLayout, round.currentLevel, input.col, cfg.cols)
-          : forceTowerTrap(rawLayout, round.currentLevel, input.col, cfg.cols);
+          : canForceLoss
+            ? forceTowerTrap(rawLayout, round.currentLevel, input.col, cfg.cols)
+            : rawLayout;
       }
       const isSafe = (layout[round.currentLevel] ?? []).includes(input.col);
       const effectiveControl = isSafe !== rawSafe

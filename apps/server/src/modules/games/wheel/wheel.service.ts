@@ -13,6 +13,7 @@ import {
   applyControls,
   finalizeControls,
   multiplierMatchesControlBounds,
+  type ControlOutcome,
 } from '../_common/controls.js';
 import type { WheelBetInput } from './wheel.schema.js';
 
@@ -126,7 +127,7 @@ function chooseWheelSegment(
   table: number[],
   wantWin: boolean,
   amount: Prisma.Decimal,
-  controlled: Parameters<typeof multiplierMatchesControlBounds>[2],
+  controlled: Pick<ControlOutcome, 'multiplier' | 'minMultiplier' | 'maxMultiplier' | 'maxPayout'>,
 ): number {
   const candidates = table
     .map((multiplier, segmentIndex) => ({ segmentIndex, multiplier }))
@@ -139,6 +140,14 @@ function chooseWheelSegment(
     candidates.length > 0
       ? candidates
       : table.map((multiplier, segmentIndex) => ({ segmentIndex, multiplier }));
-  pool.sort((a, b) => (wantWin ? b.multiplier - a.multiplier : a.multiplier - b.multiplier));
+  if (wantWin) {
+    const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
+    pool.sort((a, b) => {
+      const distance = Math.abs(a.multiplier - targetMultiplier) - Math.abs(b.multiplier - targetMultiplier);
+      return distance || a.multiplier - b.multiplier || a.segmentIndex - b.segmentIndex;
+    });
+  } else {
+    pool.sort((a, b) => b.multiplier - a.multiplier || a.segmentIndex - b.segmentIndex);
+  }
   return pool[0]?.segmentIndex ?? 0;
 }

@@ -185,6 +185,9 @@ function choosePlinkoBucket(
       const targetDiff =
         Math.abs(a.multiplier - targetMultiplier) - Math.abs(b.multiplier - targetMultiplier);
       if (targetDiff !== 0) return targetDiff;
+    } else {
+      const multiplierDiff = b.multiplier - a.multiplier;
+      if (multiplierDiff !== 0) return multiplierDiff;
     }
     const bucketDiff = Math.abs(a.bucket - originalBucket) - Math.abs(b.bucket - originalBucket);
     if (bucketDiff !== 0) return bucketDiff;

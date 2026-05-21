@@ -135,9 +135,10 @@ export class ChickenRoadService {
       });
 
       const finalPath = rawPath.slice();
+      const canForceLoss = data.currentStep > 0;
       if (controlled.controlled && controlled.won && !rawSafe) {
         finalPath[stepIndex] = true;
-      } else if (controlled.controlled && !controlled.won && rawSafe) {
+      } else if (canForceLoss && controlled.controlled && !controlled.won && rawSafe) {
         finalPath[stepIndex] = false;
       }
       const isSafe = Boolean(finalPath[stepIndex]);

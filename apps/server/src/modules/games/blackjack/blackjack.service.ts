@@ -771,7 +771,7 @@ function applyBlackjackLossControl(
     multiplier: '0.0000',
   }));
   return {
-    dealerHand: makeDealerTwentyOne(dealerHand),
+    dealerHand: makeDealerWinningHand(dealerHand, rawHands),
     hands,
     payout: new Prisma.Decimal(0),
     multiplier: new Prisma.Decimal(0),
@@ -979,6 +979,45 @@ function makeDealerTwentyOne(source: BlackjackCard[]): BlackjackCard[] {
   const middleRank = 11 - cardPoint(upcard);
   const middle = pickCard(middleRank, avoid);
   return [upcard, middle, pickCard(10, [...avoid, middle])];
+}
+
+function makeDealerWinningHand(
+  source: BlackjackCard[],
+  hands: StoredBlackjackHand[],
+): BlackjackCard[] {
+  const highestPlayerTotal = Math.max(
+    0,
+    ...hands.map((hand) => blackjackScore(hand.cards))
+      .filter((score) => !score.isBust && score.total < 21)
+      .map((score) => score.total),
+  );
+  const targetTotal = Math.min(21, Math.max(17, highestPlayerTotal + 1));
+  return makeDealerTotal(source, targetTotal) ?? makeDealerTwentyOne(source);
+}
+
+function makeDealerTotal(source: BlackjackCard[], targetTotal: number): BlackjackCard[] | null {
+  const upcard = source[0] ?? { rank: 10, suit: 0 };
+  const avoid = [upcard];
+  const ranks = Array.from({ length: 13 }, (_, index) => index + 1);
+
+  for (const rank of ranks) {
+    const second = pickCard(rank, avoid);
+    const hand = [upcard, second];
+    const score = blackjackScore(hand);
+    if (!score.isBust && score.total === targetTotal) return hand;
+  }
+
+  for (const firstRank of ranks) {
+    const first = pickCard(firstRank, avoid);
+    for (const secondRank of ranks) {
+      const second = pickCard(secondRank, [...avoid, first]);
+      const hand = [upcard, first, second];
+      const score = blackjackScore(hand);
+      if (!score.isBust && score.total === targetTotal) return hand;
+    }
+  }
+
+  return null;
 }
 
 function makeDealerBust(source: BlackjackCard[]): BlackjackCard[] {

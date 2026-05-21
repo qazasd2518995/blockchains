@@ -100,13 +100,14 @@ export class MinesService {
         multiplier: rawHitMine ? new Prisma.Decimal(0) : safeMultiplier,
         payout: rawHitMine ? new Prisma.Decimal(0) : safePayout,
       });
+      const canForceLoss = round.revealed.length > 0;
       if (controlled.controlled && controlled.won && rawHitMine) {
         const moved = moveMineAway(rawMinePositions, input.cellIndex, newRevealed);
         if (moved) {
           finalMinePositions = moved;
           hitMine = false;
         }
-      } else if (controlled.controlled && !controlled.won && !rawHitMine) {
+      } else if (canForceLoss && controlled.controlled && !controlled.won && !rawHitMine) {
         finalMinePositions = moveMineToCell(rawMinePositions, input.cellIndex);
         hitMine = true;
       }

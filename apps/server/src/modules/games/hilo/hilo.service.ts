@@ -99,9 +99,12 @@ export class HiLoService {
         controlled.controlled &&
         controlled.won &&
         !multiplierMatchesControlBounds(nextMultiplier, round.betAmount, controlled);
+      const canForceLoss = round.cardIndex > 0;
       const effectiveDesiredCorrect = controlled.controlled
         ? controlledWinOutOfBounds
-          ? false
+          ? canForceLoss ? false : rawCorrect
+          : !controlled.won && !canForceLoss
+            ? rawCorrect
           : controlled.won
         : rawCorrect;
       const adjusted = adjustHiLoDraw(current, input.guess, effectiveDesiredCorrect, rawDrawn);

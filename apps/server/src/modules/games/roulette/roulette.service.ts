@@ -9,7 +9,12 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
+import {
+  applyControls,
+  finalizeControls,
+  multiplierMatchesControlBounds,
+  type ControlOutcome,
+} from '../_common/controls.js';
 import type { RouletteBetInput } from './roulette.schema.js';
 
 export class RouletteService {
@@ -119,7 +124,7 @@ function chooseRouletteSlot(
   totalAmount: number,
   wantWin: boolean,
   amount: Prisma.Decimal,
-  controlled: Parameters<typeof multiplierMatchesControlBounds>[2],
+  controlled: Pick<ControlOutcome, 'multiplier' | 'minMultiplier' | 'maxMultiplier' | 'maxPayout'>,
 ): number {
   const candidates = Array.from({ length: ROULETTE_SLOTS }, (_, slot) => {
     const evaluated = rouletteEvaluate(slot, bets);
@@ -138,8 +143,23 @@ function chooseRouletteSlot(
     ? candidates
     : Array.from({ length: ROULETTE_SLOTS }, (_, slot) => {
       const evaluated = rouletteEvaluate(slot, bets);
-      return { slot, profit: evaluated.totalPayout - totalAmount, payout: evaluated.totalPayout };
+      return {
+        slot,
+        profit: evaluated.totalPayout - totalAmount,
+        payout: evaluated.totalPayout,
+        multiplier: totalAmount > 0 ? evaluated.totalPayout / totalAmount : 0,
+      };
     });
-  pool.sort((a, b) => (wantWin ? b.profit - a.profit : a.profit - b.profit));
+  if (wantWin) {
+    const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
+    pool.sort((a, b) => {
+      const distance = Math.abs(a.multiplier - targetMultiplier) - Math.abs(b.multiplier - targetMultiplier);
+      return distance || a.profit - b.profit || a.slot - b.slot;
+    });
+  } else {
+    pool.sort((a, b) => {
+      return b.multiplier - a.multiplier || a.slot - b.slot;
+    });
+  }
   return pool[0]?.slot ?? 0;
 }

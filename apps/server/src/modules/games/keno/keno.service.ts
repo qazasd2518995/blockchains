@@ -136,7 +136,7 @@ function chooseKenoHitCount(
 
   if (!wantWin) {
     const losingCandidates = candidates.filter((x) => x.multiplier <= 1);
-    losingCandidates.sort((a, b) => a.multiplier - b.multiplier);
+    losingCandidates.sort((a, b) => b.multiplier - a.multiplier || a.hits - b.hits);
     return losingCandidates[0]?.hits ?? 0;
   }
 

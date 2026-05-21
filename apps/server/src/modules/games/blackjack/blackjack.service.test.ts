@@ -138,7 +138,7 @@ describe('applyBlackjackControl', () => {
     expect(settled.hands[0]?.cards).toEqual(originalCards);
     expect(settled.hands[0]?.outcome).toBe('LOSE');
     expect(settled.dealerHand[0]).toEqual(c(8, 2));
-    expect(settled.dealerHand).toEqual([c(8, 2), c(3, 0), c(10, 0)]);
+    expect(settled.dealerHand).toEqual([c(8, 2), c(9, 0)]);
   });
 
   it('does not force an impossible loss for a natural blackjack', () => {
