@@ -1199,10 +1199,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   );
   const showBigWinOverlay = Boolean(
     result &&
-    !spinning &&
-    !showFeatureResultOverlay &&
-    isBigWinResult &&
-    dismissedBigWinBetId !== result.betId,
+      !spinning &&
+      !result.buyFeature &&
+      isBigWinResult &&
+      dismissedBigWinBetId !== result.betId,
   );
   const resultTitle = isBigWinResult
     ? '恭喜爆分'
