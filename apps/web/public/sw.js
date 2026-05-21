@@ -1,4 +1,4 @@
-const VERSION = 'yachiyo-assets-v3';
+const VERSION = 'yachiyo-assets-v4';
 const IMAGE_CACHE = `${VERSION}:images`;
 const IMAGE_MAX_ENTRIES = 260;
 const RELOAD_CLIENTS_ON_ACTIVATE = true;
