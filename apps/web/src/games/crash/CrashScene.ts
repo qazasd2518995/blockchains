@@ -860,10 +860,17 @@ export class CrashScene {
     if (this.runningStartedAtMs > 0) {
       const elapsedMs = Math.max(0, performance.now() - this.runningStartedAtMs);
       const clockMultiplier = Math.exp(SOLO_SCENE_GROWTH_RATE * elapsedMs);
+      const cappedClockMultiplier =
+        this.preflightMultiplierCap !== null
+          ? Math.min(clockMultiplier, this.preflightMultiplierCap)
+          : clockMultiplier;
       const nextTarget =
-        this.preflightMultiplierCap !== null && this.crashLimit === null
-          ? Math.min(Math.max(this.targetMultiplier, clockMultiplier), this.preflightMultiplierCap)
-          : Math.max(this.targetMultiplier, clockMultiplier);
+        this.preflightMultiplierCap !== null
+          ? Math.min(
+              Math.max(this.targetMultiplier, cappedClockMultiplier),
+              this.preflightMultiplierCap,
+            )
+          : Math.max(this.targetMultiplier, cappedClockMultiplier);
       this.targetMultiplier = nextTarget;
     }
 
