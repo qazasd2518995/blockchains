@@ -17,6 +17,7 @@ export interface CrashBetRequest {
   gameId?: string;
   amount: number;
   clientSeed?: string;
+  autoCashOut?: number;
 }
 
 export interface CrashCashOutResponse {

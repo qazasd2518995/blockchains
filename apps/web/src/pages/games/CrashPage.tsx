@@ -4,6 +4,7 @@ import {
   MAX_BET_AMOUNT,
   MIN_BET_AMOUNT,
   type CrashBetStartResponse,
+  type CrashCashOutResponse,
   type CrashSoloRoundState,
 } from '@bg/shared';
 import { useAuthStore } from '@/stores/authStore';
@@ -27,9 +28,10 @@ type LocalCrashBet = {
   payout?: string;
   roundId?: string;
   betId?: string;
+  cashedOutAt?: number;
 };
-type CrashAutoSettings = { rounds: number | null; amount: number };
-type CrashAutoDraft = { rounds: string; amount: string };
+type CrashAutoSettings = { rounds: number | null; amount: number; cashOutAt: number };
+type CrashAutoDraft = { rounds: string; amount: string; cashOutAt: string };
 type SimulatedCrashBet = {
   id: string;
   account: string;
@@ -58,6 +60,7 @@ function createCrashAutoDraft(amount: number): CrashAutoDraft {
   return {
     rounds: '∞',
     amount: amount.toFixed(2),
+    cashOutAt: '2.00',
   };
 }
 
@@ -68,11 +71,14 @@ function parseCrashAutoSettings(draft: CrashAutoDraft): CrashAutoSettings | null
       ? null
       : Math.max(1, Math.min(1000, Math.floor(Number.parseFloat(roundsRaw))));
   const amount = roundCurrency(Number.parseFloat(draft.amount));
+  const cashOutAt = Number.parseFloat(draft.cashOutAt);
   if (roundsRaw !== '∞' && !Number.isFinite(rounds)) return null;
   if (!Number.isFinite(amount) || amount < MIN_BET_AMOUNT || amount > MAX_BET_AMOUNT) return null;
+  if (!Number.isFinite(cashOutAt) || cashOutAt < 1.01 || cashOutAt > 1000) return null;
   return {
     rounds,
     amount,
+    cashOutAt: Number(cashOutAt.toFixed(2)),
   };
 }
 
@@ -173,6 +179,7 @@ export function CrashPage({ config }: Props) {
   const [multiplier, setMultiplier] = useState(1.0);
   const [status, setStatus] = useState<'BETTING' | 'RUNNING' | 'CRASHED'>('BETTING');
   const [submitting, setSubmitting] = useState(false);
+  const [cashoutSubmitting, setCashoutSubmitting] = useState(false);
   const [roundNumber, setRoundNumber] = useState<number | null>(null);
   const [crashPoint, setCrashPoint] = useState<number | null>(null);
   const [myBet, setMyBet] = useState<LocalCrashBet | null>(null);
@@ -196,6 +203,7 @@ export function CrashPage({ config }: Props) {
   const sceneRef = useRef<CrashScene | null>(null);
   const myBetRef = useRef<LocalCrashBet | null>(null);
   const finalizedRoundRef = useRef<string | null>(null);
+  const cashoutCelebratedRoundRef = useRef<string | null>(null);
   const statusRef = useRef(status);
   const crashPointRef = useRef(crashPoint);
   const visualCrashPointRef = useRef<number | null>(null);
@@ -478,8 +486,10 @@ export function CrashPage({ config }: Props) {
       crashPointRef.current = null;
       visualCrashPointRef.current = null;
       finalizedRoundRef.current = null;
+      cashoutCelebratedRoundRef.current = null;
       myBetRef.current = { amount: betAmount };
       setMyBet({ amount: betAmount });
+      setCashoutSubmitting(false);
       setRoundNumber(null);
       setCrashPoint(null);
       setMultiplier(1);
@@ -501,9 +511,11 @@ export function CrashPage({ config }: Props) {
       crashPointRef.current = null;
       visualCrashPointRef.current = null;
       finalizedRoundRef.current = null;
+      cashoutCelebratedRoundRef.current = null;
       const currentBet = bet ?? { amount: betAmount };
       myBetRef.current = currentBet;
       setMyBet(currentBet);
+      setCashoutSubmitting(false);
       setCrashPoint(null);
       setStatus('RUNNING');
       setMultiplier(1);
@@ -547,21 +559,41 @@ export function CrashPage({ config }: Props) {
       setMultiplier(finalMultiplier);
       sceneRef.current?.setCrashLimit(finalMultiplier);
       if (state.newBalance) setBalance(state.newBalance);
+      const currentBet = myBetRef.current;
+      const payoutAmount = roundCurrency(
+        Number.parseFloat(state.payout || currentBet?.payout || '0'),
+      );
+      const cashoutAt = state.cashedOutAt ?? currentBet?.cashedOutAt;
+      if (currentBet) {
+        const updatedBet = {
+          ...currentBet,
+          roundId: state.roundId,
+          betId: state.betId,
+          payout: state.payout || currentBet.payout,
+          cashedOutAt: cashoutAt,
+        };
+        myBetRef.current = updatedBet;
+        setMyBet(updatedBet);
+      }
+      setCashoutSubmitting(false);
       if (finalizedRoundRef.current !== state.roundId) {
         finalizedRoundRef.current = state.roundId;
         setHistory((h) => [finalMultiplier, ...h].slice(0, 20));
         const bet = myBetRef.current;
         if (bet) {
+          const won = payoutAmount > 0;
           setMyHistory((prev) =>
             [
               {
                 id: `${Date.now()}-${Math.random()}`,
                 timestamp: Date.now(),
                 betAmount: bet.amount,
-                multiplier: 0,
-                payout: 0,
-                won: false,
-                detail: `Crashed @ ${formatCrashMultiplier(finalMultiplier)}`,
+                multiplier: won ? cashoutAt ?? 0 : 0,
+                payout: payoutAmount,
+                won,
+                detail: won
+                  ? `Cashout @ ${formatCrashMultiplier(cashoutAt ?? finalMultiplier)}`
+                  : `Crashed @ ${formatCrashMultiplier(finalMultiplier)}`,
               },
               ...prev,
             ].slice(0, 30),
@@ -621,6 +653,24 @@ export function CrashPage({ config }: Props) {
       publishVisualMultiplier(true);
       sceneRef.current?.setCrashLimit(visualCrashPoint);
       if (state.newBalance) setBalance(state.newBalance);
+      if (state.cashedOutAt) {
+        const currentBet = myBetRef.current;
+        const updatedBet = {
+          ...(currentBet ?? { amount: roundCurrency(Number.parseFloat(state.amount)) }),
+          roundId: state.roundId,
+          betId: state.betId,
+          payout: state.payout,
+          cashedOutAt: state.cashedOutAt,
+        };
+        myBetRef.current = updatedBet;
+        setMyBet(updatedBet);
+        setCashoutSubmitting(false);
+        if (cashoutCelebratedRoundRef.current !== state.roundId) {
+          cashoutCelebratedRoundRef.current = state.roundId;
+          sceneRef.current?.playWinCashout(state.cashedOutAt);
+          sceneRef.current?.celebrateCashout(state.cashedOutAt);
+        }
+      }
       crashPointRef.current = null;
       setCrashPoint(null);
       if (!displayTickRef.current) startDisplayTick();
@@ -677,6 +727,10 @@ export function CrashPage({ config }: Props) {
     clearDisplayTick();
     clearPendingResultReveal();
     setRoundNumber(null);
+    setMyBet(null);
+    myBetRef.current = null;
+    setCashoutSubmitting(false);
+    cashoutCelebratedRoundRef.current = null;
     setStatus('BETTING');
     statusRef.current = 'BETTING';
     multiplierRef.current = 1;
@@ -717,7 +771,10 @@ export function CrashPage({ config }: Props) {
   }, [config.gameId]);
 
   const submitCrashBet = useCallback(
-    async (betAmount: number, options?: { silentAuth?: boolean }): Promise<boolean> => {
+    async (
+      betAmount: number,
+      options?: { silentAuth?: boolean; autoCashOut?: number },
+    ): Promise<boolean> => {
       if (!user) {
         if (!options?.silentAuth) requireLogin();
         return Promise.resolve(false);
@@ -744,12 +801,14 @@ export function CrashPage({ config }: Props) {
         const res = await api.post<CrashBetStartResponse>('/games/crash/bet', {
           gameId: config.gameId,
           amount: betAmount,
+          autoCashOut: options?.autoCashOut,
         });
         const placedBet = {
           amount: betAmount,
           roundId: res.data.roundId,
           betId: res.data.betId,
           payout: res.data.payout,
+          cashedOutAt: res.data.cashedOutAt,
         };
         myBetRef.current = placedBet;
         finalizedRoundRef.current = null;
@@ -771,6 +830,7 @@ export function CrashPage({ config }: Props) {
         setSubmitting(false);
         clearDisplayTick();
         clearPendingResultReveal();
+        setCashoutSubmitting(false);
         statusRef.current = 'BETTING';
         multiplierRef.current = 1;
         publishedMultiplierRef.current = 1;
@@ -805,6 +865,40 @@ export function CrashPage({ config }: Props) {
   const handlePlaceBet = () => {
     void submitCrashBet(amount);
   };
+
+  const handleCashOut = useCallback(async () => {
+    if (!user) {
+      requireLogin();
+      return;
+    }
+    const activeBet = myBetRef.current;
+    if (!activeBet?.roundId || activeBet.cashedOutAt || cashoutSubmitting) return;
+
+    try {
+      setCashoutSubmitting(true);
+      const res = await api.post<CrashCashOutResponse>('/games/crash/cashout', {
+        roundId: activeBet.roundId,
+      });
+      setBalance(res.data.newBalance);
+      const updatedBet = {
+        ...activeBet,
+        payout: res.data.payout,
+        cashedOutAt: res.data.multiplier,
+      };
+      myBetRef.current = updatedBet;
+      setMyBet(updatedBet);
+      setError(null);
+      if (cashoutCelebratedRoundRef.current !== activeBet.roundId) {
+        cashoutCelebratedRoundRef.current = activeBet.roundId;
+        sceneRef.current?.playWinCashout(res.data.multiplier);
+        sceneRef.current?.celebrateCashout(res.data.multiplier);
+      }
+    } catch (err) {
+      setError(extractApiError(err).message);
+    } finally {
+      setCashoutSubmitting(false);
+    }
+  }, [cashoutSubmitting, requireLogin, setBalance, user]);
 
   const stopAutoBet = useCallback(
     (reason?: string, _cancelQueued = true): void => {
@@ -845,7 +939,10 @@ export function CrashPage({ config }: Props) {
     if (statusRef.current === 'RUNNING') return;
 
     autoBetSubmittingRef.current = true;
-    const ok = await submitCrashBet(settings.amount, { silentAuth: true });
+    const ok = await submitCrashBet(settings.amount, {
+      silentAuth: true,
+      autoCashOut: settings.cashOutAt,
+    });
     autoBetSubmittingRef.current = false;
     if (!autoBetActiveRef.current) return;
     if (!ok) {
@@ -927,6 +1024,10 @@ export function CrashPage({ config }: Props) {
     : t.games.crash.autoBotSettings;
   const controlsLocked = submitting || autoBetActive || status === 'RUNNING';
   const canShowCurrentBetButton = status !== 'RUNNING';
+  const activeBetAmount = myBet?.amount ?? amount;
+  const activeBetPayout = roundCurrency(Number.parseFloat(myBet?.payout ?? '0'));
+  const activeBetCashedOut = Boolean(myBet?.cashedOutAt || activeBetPayout > 0);
+  const liveCashoutPayout = roundCurrency(activeBetAmount * multiplier);
   const stageHistory = history.slice(0, 12);
   const mobileLiveBetRows = simulatedLiveBets.slice(0, 12);
   const autoBetDialog = autoBetOpen ? (
@@ -982,13 +1083,30 @@ export function CrashPage({ config }: Props) {
                 onChange={(event) => updateAutoBetDraft('amount', event.target.value)}
               />
             </label>
+            <label className="slot-auto-field">
+              <span>{t.games.crash.autoCashoutRate}</span>
+              <input
+                type="number"
+                min={1.01}
+                max={1000}
+                step={0.01}
+                value={autoBetDraft.cashOutAt}
+                onChange={(event) => updateAutoBetDraft('cashOutAt', event.target.value)}
+              />
+            </label>
           </div>
         </div>
 
         <div className="slot-auto-modal__footer">
           <div className="slot-auto-summary">
             <span>{t.games.crash.autoBotActive}</span>
-            <strong>{autoSettingsPreview ? formatAmount(autoSettingsPreview.amount) : '—'}</strong>
+            <strong>
+              {autoSettingsPreview
+                ? `${formatAmount(autoSettingsPreview.amount)} @ ${formatCrashMultiplier(
+                    autoSettingsPreview.cashOutAt,
+                  )}`
+                : '—'}
+            </strong>
           </div>
           <div className="slot-auto-actions">
             <button type="button" onClick={() => setAutoBetOpen(false)}>
@@ -1176,14 +1294,20 @@ export function CrashPage({ config }: Props) {
               {status === 'RUNNING' ? (
                 <button
                   type="button"
-                  disabled
+                  onClick={() => void handleCashOut()}
+                  disabled={cashoutSubmitting || activeBetCashedOut}
                   className="crash-flight-status-button btn-acid w-full py-4"
                 >
                   <span>
-                    {config.runningLabel ?? t.games.crash.running} ·{' '}
-                    {formatAmount(myBet?.amount ?? amount)}
+                    {activeBetCashedOut
+                      ? `${t.games.crash.secured} · ${formatAmount(activeBetPayout)}`
+                      : `${
+                          cashoutSubmitting ? t.common.loading : t.bet.cashout
+                        } · ${formatAmount(liveCashoutPayout)}`}
                   </span>
-                  <span className="data-num">{formatCrashMultiplier(multiplier)}</span>
+                  <span className="data-num">
+                    {formatCrashMultiplier(myBet?.cashedOutAt ?? multiplier)}
+                  </span>
                 </button>
               ) : canShowCurrentBetButton ? (
                 <button
@@ -1197,8 +1321,20 @@ export function CrashPage({ config }: Props) {
                 </button>
               ) : null}
               {status === 'CRASHED' && myBet && (
-                <div className="game-result-card game-result-card-loss text-center">
-                  <div className="font-display text-xl text-[#FCA5A5]">{t.games.crash.busted}</div>
+                <div
+                  className={`game-result-card ${
+                    activeBetPayout > 0 ? 'game-result-card-win' : 'game-result-card-loss'
+                  } text-center`}
+                >
+                  <div
+                    className={`font-display text-xl ${
+                      activeBetPayout > 0 ? 'text-[#6EE7B7]' : 'text-[#FCA5A5]'
+                    }`}
+                  >
+                    {activeBetPayout > 0
+                      ? `${t.games.crash.secured} · ${formatAmount(activeBetPayout)}`
+                      : t.games.crash.busted}
+                  </div>
                 </div>
               )}
               <div className="game-balance-strip mt-3">

@@ -1531,6 +1531,14 @@
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
       justify-content: stretch;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .game-fullscreen-shell
+      .crash-control-card
+      .crash-action-stack
+      .crash-flight-status-button:disabled {
       opacity: 0.86;
       pointer-events: none;
     }

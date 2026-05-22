@@ -2,10 +2,12 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { crashPoint } from '@bg/provably-fair';
 import {
   type CrashBetStartResponse,
+  type CrashCashOutResponse,
   type CrashSoloRoundState,
 } from '@bg/shared';
 import {
   SeedHelper,
+  creditAndRecord,
   debitAndRecord,
   lockUserAndCheckFunds,
   runSerializable,
@@ -17,7 +19,7 @@ import {
   type PredictedResult,
 } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
-import type { CrashBetInput } from './crash.schema.js';
+import type { CrashBetInput, CrashCashoutInput } from './crash.schema.js';
 
 const MIN_CASHOUT_MULTIPLIER = 1.01;
 const SOLO_GROWTH_RATE = 0.00072;
@@ -56,6 +58,10 @@ export class CrashSoloService {
 
   async start(userId: string, input: CrashBetInput): Promise<CrashBetStartResponse> {
     const amount = new Prisma.Decimal(input.amount);
+    const autoCashOut =
+      input.autoCashOut !== undefined
+        ? new Prisma.Decimal(input.autoCashOut.toFixed(4))
+        : null;
 
     return runSerializable(this.prisma, async (tx) => {
       const active = await tx.crashBet.findFirst({
@@ -103,7 +109,7 @@ export class CrashSoloService {
           roundId: round.id,
           userId,
           amount,
-          autoCashOut: null,
+          autoCashOut,
           controlOriginal: serializePredicted(original) as unknown as Prisma.InputJsonValue,
           controlOutcome: serializeOutcome(tuned.control) as unknown as Prisma.InputJsonValue,
         },
@@ -125,6 +131,50 @@ export class CrashSoloService {
         0,
         newBalance.toFixed(2),
       ) as CrashBetStartResponse;
+    });
+  }
+
+  async cashout(userId: string, input: CrashCashoutInput): Promise<CrashCashOutResponse> {
+    return runSerializable(this.prisma, async (tx) => {
+      const bet = await this.getLockedOwnBet(tx, userId, input.roundId);
+      const resolved = await this.resolveRoundInTx(tx, bet);
+      const latest = resolved.bet;
+
+      if (latest.cashedOutAt) {
+        const user = await tx.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: { balance: true },
+        });
+        return {
+          multiplier: Number(latest.cashedOutAt.toFixed(4)),
+          payout: latest.payout.toFixed(2),
+          newBalance: user.balance.toFixed(2),
+        };
+      }
+
+      if (latest.round.status !== 'RUNNING') {
+        throw new ApiError('ROUND_NOT_ACTIVE', '本局已爆炸，無法提領。');
+      }
+
+      const multiplier = Math.max(MIN_CASHOUT_MULTIPLIER, resolved.currentMultiplier);
+      if (multiplier >= Number(latest.round.crashPoint)) {
+        throw new ApiError('ROUND_NOT_ACTIVE', '本局已爆炸，無法提領。');
+      }
+
+      const finalized = await this.finalizeCashoutInTx(
+        tx,
+        latest,
+        latest.round,
+        multiplier,
+        parseOutcome(latest.controlOutcome),
+        parsePredicted(latest.controlOriginal, latest.amount),
+      );
+
+      return {
+        multiplier: Number(finalized.bet.cashedOutAt?.toFixed(4) ?? multiplier.toFixed(4)),
+        payout: finalized.payout.toFixed(2),
+        newBalance: finalized.newBalance,
+      };
     });
   }
 
@@ -161,7 +211,30 @@ export class CrashSoloService {
 
     const elapsedMs = Math.max(0, Date.now() - round.startedAt.getTime());
     const currentMultiplier = multiplierAt(elapsedMs);
-    if (currentMultiplier >= Number(round.crashPoint)) {
+    const crashPointNumber = Number(round.crashPoint);
+    let latestBet = bet;
+    let newBalance: string | undefined;
+    const autoCashOut = bet.autoCashOut ? Number(bet.autoCashOut.toFixed(4)) : null;
+
+    if (
+      autoCashOut !== null &&
+      !bet.cashedOutAt &&
+      autoCashOut < crashPointNumber &&
+      currentMultiplier >= autoCashOut
+    ) {
+      const finalized = await this.finalizeCashoutInTx(
+        tx,
+        bet,
+        round,
+        autoCashOut,
+        parseOutcome(bet.controlOutcome),
+        parsePredicted(bet.controlOriginal, bet.amount),
+      );
+      latestBet = finalized.bet;
+      newBalance = finalized.newBalance;
+    }
+
+    if (currentMultiplier >= crashPointNumber) {
       const crashedAt = new Date(round.startedAt.getTime() + crashElapsedMs(Number(round.crashPoint)));
       const updatedRound = await tx.crashRound.update({
         where: { id: round.id },
@@ -170,7 +243,7 @@ export class CrashSoloService {
           crashedAt,
         },
       });
-      const latestBet = await this.getBetWithRound(tx, bet.id);
+      latestBet = await this.getBetWithRound(tx, bet.id);
       if (!latestBet.cashedOutAt) {
         await this.finalizeLossInTx(
           tx,
@@ -185,10 +258,96 @@ export class CrashSoloService {
         bet: finalized,
         currentMultiplier: Number(updatedRound.crashPoint.toFixed(4)),
         elapsedMs,
+        newBalance,
       };
     }
 
-    return { bet, currentMultiplier, elapsedMs };
+    return { bet: latestBet, currentMultiplier, elapsedMs, newBalance };
+  }
+
+  private async finalizeCashoutInTx(
+    tx: Prisma.TransactionClient,
+    bet: CrashBetWithRound,
+    round: { id: string; gameId: string; crashPoint: Prisma.Decimal },
+    multiplier: number,
+    control: ControlOutcome | null,
+    original: PredictedResult,
+  ): Promise<{ bet: CrashBetWithRound; payout: Prisma.Decimal; newBalance: string }> {
+    if (bet.cashedOutAt) {
+      const user = await tx.user.findUniqueOrThrow({
+        where: { id: bet.userId },
+        select: { balance: true },
+      });
+      return { bet, payout: bet.payout, newBalance: user.balance.toFixed(2) };
+    }
+
+    const cashoutMultiplier = new Prisma.Decimal(multiplier.toFixed(4));
+    const payout = bet.amount.mul(cashoutMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+    const claimed = await tx.crashBet.updateMany({
+      where: { id: bet.id, cashedOutAt: null, controlFinalizedAt: null },
+      data: {
+        cashedOutAt: cashoutMultiplier,
+        payout,
+        controlFinalizedAt: new Date(),
+      },
+    });
+    if (claimed.count !== 1) {
+      const current = await this.getBetWithRound(tx, bet.id);
+      const user = await tx.user.findUniqueOrThrow({
+        where: { id: bet.userId },
+        select: { balance: true },
+      });
+      return { bet: current, payout: current.payout, newBalance: user.balance.toFixed(2) };
+    }
+
+    const newBalance = await creditAndRecord(tx, bet.userId, payout, bet.id, 'CASHOUT', {
+      gameId: round.gameId,
+      roundId: round.id,
+      crashBetId: bet.id,
+      multiplier: cashoutMultiplier.toFixed(4),
+    });
+    const finalizedBet = await this.getBetWithRound(tx, bet.id);
+    const final = {
+      won: payout.greaterThan(bet.amount),
+      amount: bet.amount,
+      multiplier: cashoutMultiplier,
+      payout,
+    };
+    const effectiveOutcome =
+      control?.controlled && control.won
+        ? {
+            ...control,
+            multiplier: cashoutMultiplier,
+            payout,
+            won: payout.greaterThan(bet.amount),
+          }
+        : {
+            won: payout.greaterThan(bet.amount),
+            multiplier: cashoutMultiplier,
+            payout,
+            controlled: false,
+          };
+
+    await finalizeControls(
+      tx,
+      bet.userId,
+      round.gameId,
+      original,
+      final,
+      effectiveOutcome,
+      bet.id,
+      {
+        crashPoint: original.multiplier.toFixed(4),
+        payout: original.payout.toFixed(2),
+      },
+      {
+        crashPoint: round.crashPoint.toFixed(4),
+        cashoutAt: cashoutMultiplier.toFixed(4),
+        payout: payout.toFixed(2),
+      },
+    );
+
+    return { bet: finalizedBet, payout, newBalance: newBalance.toFixed(2) };
   }
 
   private async finalizeLossInTx(
