@@ -38,7 +38,7 @@ const COLOR_ICE = 0x266f85;
 const COLOR_AMBER = 0xf3d67d;
 const COLOR_WHITE = 0xffffff;
 const COMPACT_STAGE_WIDTH = 700;
-const SOLO_SCENE_GROWTH_RATE = 0.00072;
+const SOLO_SCENE_GROWTH_RATE = 0.000085;
 
 export type CrashVariant =
   | 'rocket'

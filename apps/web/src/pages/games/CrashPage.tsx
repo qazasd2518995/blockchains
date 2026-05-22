@@ -29,10 +29,23 @@ type LocalCrashBet = {
   roundId?: string;
   betId?: string;
   cashedOutAt?: number;
+  autoCashOut?: number;
 };
 type CrashLocalStatus = 'BETTING' | 'COUNTDOWN' | 'RUNNING' | 'CRASHED';
-type CrashAutoSettings = { rounds: number | null; amount: number; cashOutAt: number };
-type CrashAutoDraft = { rounds: string; amount: string; cashOutAt: string };
+type CrashCashoutInputMode = 'multiplier' | 'payout';
+type CrashAutoSettings = {
+  rounds: number | null;
+  amount: number;
+  cashOutAt: number;
+  cashOutMode: CrashCashoutInputMode;
+  cashOutValue: number;
+};
+type CrashAutoDraft = {
+  rounds: string;
+  amount: string;
+  cashOutAt: string;
+  cashOutMode: CrashCashoutInputMode;
+};
 type QueuedCrashBet = {
   amount: number;
   autoCashOut?: number;
@@ -55,6 +68,8 @@ const CRASH_BETTING_COUNTDOWN_SECONDS = 5;
 const CRASH_FINALIZE_POLL_BUFFER_MS = 140;
 const CRASH_MULTIPLIER_PUBLISH_MIN_MS = 320;
 const CRASH_INSTANT_RESULT_REVEAL_MS = 420;
+const CRASH_ROUND_SYNC_MAX_MS = 1800;
+const CRASH_AUTO_CASHOUT_POLL_BUFFER_MS = 90;
 let simulatedLiveBetSerial = 0;
 
 function formatCrashMultiplier(value: string | number): string {
@@ -68,6 +83,22 @@ function createCrashAutoDraft(amount: number): CrashAutoDraft {
     rounds: '∞',
     amount: amount.toFixed(2),
     cashOutAt: '2.00',
+    cashOutMode: 'multiplier',
+  };
+}
+
+function parseCrashCashoutTarget(
+  raw: string,
+  mode: CrashCashoutInputMode,
+  stakeAmount: number,
+): { multiplier: number; value: number } | null {
+  const value = Number.parseFloat(raw);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  const multiplier = mode === 'payout' ? value / Math.max(stakeAmount, MIN_BET_AMOUNT) : value;
+  if (!Number.isFinite(multiplier) || multiplier < 1.01 || multiplier > 1000) return null;
+  return {
+    multiplier: Number(multiplier.toFixed(2)),
+    value: Number(value.toFixed(2)),
   };
 }
 
@@ -78,14 +109,16 @@ function parseCrashAutoSettings(draft: CrashAutoDraft): CrashAutoSettings | null
       ? null
       : Math.max(1, Math.min(1000, Math.floor(Number.parseFloat(roundsRaw))));
   const amount = roundCurrency(Number.parseFloat(draft.amount));
-  const cashOutAt = Number.parseFloat(draft.cashOutAt);
+  const cashOutTarget = parseCrashCashoutTarget(draft.cashOutAt, draft.cashOutMode, amount);
   if (roundsRaw !== '∞' && !Number.isFinite(rounds)) return null;
   if (!Number.isFinite(amount) || amount < MIN_BET_AMOUNT || amount > MAX_BET_AMOUNT) return null;
-  if (!Number.isFinite(cashOutAt) || cashOutAt < 1.01 || cashOutAt > 1000) return null;
+  if (!cashOutTarget) return null;
   return {
     rounds,
     amount,
-    cashOutAt: Number(cashOutAt.toFixed(2)),
+    cashOutAt: cashOutTarget.multiplier,
+    cashOutMode: draft.cashOutMode,
+    cashOutValue: cashOutTarget.value,
   };
 }
 
@@ -113,10 +146,24 @@ function visualMultiplierAt(elapsedMs: number, crashLimit: number | null): numbe
 function nextRoundPollDelayFromVisual(
   finalMultiplier: number | null,
   visualElapsedMs: number,
+  autoCashOut: number | null = null,
 ): number {
   if (finalMultiplier === null) return 360;
-  const revealAtMs = Math.max(CRASH_INSTANT_RESULT_REVEAL_MS, crashElapsedMs(finalMultiplier));
-  return Math.max(120, revealAtMs - visualElapsedMs + CRASH_FINALIZE_POLL_BUFFER_MS);
+  const currentVisual = visualMultiplierAt(visualElapsedMs, finalMultiplier);
+  const shouldPollAutoCashout =
+    autoCashOut !== null &&
+    Number.isFinite(autoCashOut) &&
+    autoCashOut > currentVisual &&
+    autoCashOut < finalMultiplier;
+  const targetMultiplier = shouldPollAutoCashout ? autoCashOut : finalMultiplier;
+  const revealAtMs = Math.max(
+    CRASH_INSTANT_RESULT_REVEAL_MS,
+    crashElapsedMs(targetMultiplier),
+  );
+  const buffer = shouldPollAutoCashout
+    ? CRASH_AUTO_CASHOUT_POLL_BUFFER_MS
+    : CRASH_FINALIZE_POLL_BUFFER_MS;
+  return Math.max(100, Math.min(CRASH_ROUND_SYNC_MAX_MS, revealAtMs - visualElapsedMs + buffer));
 }
 
 function createSimulatedCrashBets(gameId: string): SimulatedCrashBet[] {
@@ -184,6 +231,8 @@ export function CrashPage({ config }: Props) {
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
   const [manualAutoCashOut, setManualAutoCashOut] = useState('2.00');
+  const [manualAutoCashOutMode, setManualAutoCashOutMode] =
+    useState<CrashCashoutInputMode>('multiplier');
   const [multiplier, setMultiplier] = useState(1.0);
   const [status, setStatus] = useState<CrashLocalStatus>('BETTING');
   const [countdownSeconds, setCountdownSeconds] = useState(0);
@@ -492,9 +541,10 @@ export function CrashPage({ config }: Props) {
     const startedAt = visualFlightStartedAtRef.current;
     if (startedAt === null) return;
     const now = performance.now();
-    const nextMultiplier = visualMultiplierAt(now - startedAt, visualCrashPointRef.current);
+    const visualElapsedMs = now - startedAt;
+    const nextMultiplier = visualMultiplierAt(visualElapsedMs, visualCrashPointRef.current);
     multiplierRef.current = nextMultiplier;
-    sceneRef.current?.setMultiplier(nextMultiplier);
+    sceneRef.current?.setMultiplier(nextMultiplier, visualElapsedMs);
     const roundedChanged =
       Math.round(nextMultiplier * 10) !== Math.round(publishedMultiplierRef.current * 10);
     const shouldPublish =
@@ -617,6 +667,7 @@ export function CrashPage({ config }: Props) {
           betId: state.betId,
           payout: state.payout || currentBet.payout,
           cashedOutAt: cashoutAt,
+          autoCashOut: state.autoCashOut ?? currentBet.autoCashOut,
         };
         myBetRef.current = updatedBet;
         setMyBet(updatedBet);
@@ -685,8 +736,12 @@ export function CrashPage({ config }: Props) {
       }
 
       statusRef.current = 'RUNNING';
+      const serverStartedAt = performance.now() - Math.max(0, state.elapsedMs);
       if (visualFlightStartedAtRef.current === null) {
-        visualFlightStartedAtRef.current = performance.now();
+        visualFlightStartedAtRef.current = serverStartedAt;
+      } else if (Math.abs(visualFlightStartedAtRef.current - serverStartedAt) > 450) {
+        visualFlightStartedAtRef.current =
+          visualFlightStartedAtRef.current * 0.85 + serverStartedAt * 0.15;
       }
       const visualStartedAt = visualFlightStartedAtRef.current;
       const displayMultiplier = visualMultiplierAt(
@@ -707,6 +762,7 @@ export function CrashPage({ config }: Props) {
           betId: state.betId,
           payout: state.payout,
           cashedOutAt: state.cashedOutAt,
+          autoCashOut: state.autoCashOut,
         };
         myBetRef.current = updatedBet;
         setMyBet(updatedBet);
@@ -745,9 +801,13 @@ export function CrashPage({ config }: Props) {
             const visualElapsed = startedAt === null ? 0 : performance.now() - startedAt;
             const nextVisualCrashPoint =
               normalizeCrashMultiplier(res.data.visualCrashPoint, 0) || finalMultiplier;
+            const nextAutoCashOut =
+              !myBetRef.current?.cashedOutAt && myBetRef.current?.autoCashOut
+                ? myBetRef.current.autoCashOut
+                : null;
             roundPollRef.current = window.setTimeout(
               tick,
-              nextRoundPollDelayFromVisual(nextVisualCrashPoint, visualElapsed),
+              nextRoundPollDelayFromVisual(nextVisualCrashPoint, visualElapsed, nextAutoCashOut),
             );
           } else {
             clearRoundPoll();
@@ -759,9 +819,13 @@ export function CrashPage({ config }: Props) {
       };
       const startedAt = visualFlightStartedAtRef.current;
       const visualElapsed = startedAt === null ? 0 : performance.now() - startedAt;
+      const autoCashOut =
+        !myBetRef.current?.cashedOutAt && myBetRef.current?.autoCashOut
+          ? myBetRef.current.autoCashOut
+          : null;
       roundPollRef.current = window.setTimeout(
         tick,
-        nextRoundPollDelayFromVisual(finalMultiplier, visualElapsed),
+        nextRoundPollDelayFromVisual(finalMultiplier, visualElapsed, autoCashOut),
       );
     },
     [clearRoundPoll, handleRoundState],
@@ -882,6 +946,7 @@ export function CrashPage({ config }: Props) {
           betId: res.data.betId,
           payout: res.data.payout,
           cashedOutAt: res.data.cashedOutAt,
+          autoCashOut: res.data.autoCashOut ?? options?.autoCashOut,
         };
         myBetRef.current = placedBet;
         finalizedRoundRef.current = null;
@@ -1011,10 +1076,9 @@ export function CrashPage({ config }: Props) {
   const parseManualAutoCashOut = useCallback((): number | undefined | null => {
     const raw = manualAutoCashOut.trim();
     if (!raw) return undefined;
-    const value = Number.parseFloat(raw);
-    if (!Number.isFinite(value) || value < 1.01 || value > 1000) return null;
-    return Number(value.toFixed(2));
-  }, [manualAutoCashOut]);
+    const target = parseCrashCashoutTarget(raw, manualAutoCashOutMode, amount);
+    return target?.multiplier ?? null;
+  }, [amount, manualAutoCashOut, manualAutoCashOutMode]);
 
   const cancelQueuedBet = useCallback(() => {
     clearCountdownTimer();
@@ -1042,7 +1106,11 @@ export function CrashPage({ config }: Props) {
     }
     const autoCashOut = parseManualAutoCashOut();
     if (autoCashOut === null) {
-      setError('自動提領倍率需介於 1.01x 和 1000x。');
+      setError(
+        manualAutoCashOutMode === 'payout'
+          ? '自動提領金額需至少等於下注金額的 1.01 倍。'
+          : '自動提領倍率需介於 1.01x 和 1000x。',
+      );
       return;
     }
     void submitCrashBet(amount, { autoCashOut });
@@ -1160,8 +1228,42 @@ export function CrashPage({ config }: Props) {
     setAutoBetOpen(true);
   };
 
-  const updateAutoBetDraft = (field: keyof CrashAutoDraft, value: string) => {
+  const switchManualAutoCashOutMode = (mode: CrashCashoutInputMode) => {
+    setManualAutoCashOutMode((current) => {
+      if (current === mode) return current;
+      const value = Number.parseFloat(manualAutoCashOut);
+      if (Number.isFinite(value) && value > 0) {
+        const converted = mode === 'payout' ? value * amount : value / Math.max(amount, 0.01);
+        setManualAutoCashOut(converted.toFixed(2));
+      } else {
+        setManualAutoCashOut(mode === 'payout' ? (amount * 2).toFixed(2) : '2.00');
+      }
+      return mode;
+    });
+  };
+
+  const updateAutoBetDraft = <K extends keyof CrashAutoDraft>(
+    field: K,
+    value: CrashAutoDraft[K],
+  ) => {
     setAutoBetDraft((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const switchAutoBetCashOutMode = (mode: CrashCashoutInputMode) => {
+    setAutoBetDraft((prev) => {
+      if (prev.cashOutMode === mode) return prev;
+      const stakeAmount = roundCurrency(Number.parseFloat(prev.amount));
+      const value = Number.parseFloat(prev.cashOutAt);
+      const cashOutAt =
+        Number.isFinite(value) && value > 0
+          ? mode === 'payout'
+            ? (value * stakeAmount).toFixed(2)
+            : (value / Math.max(stakeAmount, 0.01)).toFixed(2)
+          : mode === 'payout'
+            ? (stakeAmount * 2).toFixed(2)
+            : '2.00';
+      return { ...prev, cashOutMode: mode, cashOutAt };
+    });
   };
 
   const startAutoBet = () => {
@@ -1205,6 +1307,17 @@ export function CrashPage({ config }: Props) {
       ? '∞'
       : `${t.games.crash.autoRemaining} ${autoBetRemaining}`
     : t.games.crash.autoBotSettings;
+  const manualAutoCashOutTarget = parseCrashCashoutTarget(
+    manualAutoCashOut,
+    manualAutoCashOutMode,
+    amount,
+  );
+  const manualAutoCashOutPreview =
+    manualAutoCashOutTarget && manualAutoCashOutMode === 'multiplier'
+      ? formatAmount(amount * manualAutoCashOutTarget.multiplier)
+      : manualAutoCashOutTarget
+        ? formatCrashMultiplier(manualAutoCashOutTarget.multiplier)
+        : '—';
   const controlsLocked = submitting || autoBetActive || status === 'RUNNING' || status === 'COUNTDOWN';
   const canShowCurrentBetButton = status !== 'RUNNING' && status !== 'COUNTDOWN';
   const activeBetAmount = myBet?.amount ?? amount;
@@ -1267,17 +1380,42 @@ export function CrashPage({ config }: Props) {
                 onChange={(event) => updateAutoBetDraft('amount', event.target.value)}
               />
             </label>
-            <label className="slot-auto-field">
-              <span>{t.games.crash.autoCashoutRate}</span>
+            <div className="slot-auto-field">
+              <span>
+                {autoBetDraft.cashOutMode === 'payout'
+                  ? t.games.crash.autoCashoutPayout
+                  : t.games.crash.autoCashoutRate}
+              </span>
+              <div className="crash-auto-mode-toggle" aria-label={t.games.crash.autoCashoutMode}>
+                <button
+                  type="button"
+                  onClick={() => switchAutoBetCashOutMode('multiplier')}
+                  data-active={autoBetDraft.cashOutMode === 'multiplier'}
+                >
+                  {t.games.crash.autoCashoutModeMultiplier}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchAutoBetCashOutMode('payout')}
+                  data-active={autoBetDraft.cashOutMode === 'payout'}
+                >
+                  {t.games.crash.autoCashoutModePayout}
+                </button>
+              </div>
               <input
                 type="number"
-                min={1.01}
-                max={1000}
+                aria-label={
+                  autoBetDraft.cashOutMode === 'payout'
+                    ? t.games.crash.autoCashoutPayout
+                    : t.games.crash.autoCashoutRate
+                }
+                min={autoBetDraft.cashOutMode === 'payout' ? MIN_BET_AMOUNT : 1.01}
+                max={autoBetDraft.cashOutMode === 'payout' ? MAX_BET_AMOUNT * 1000 : 1000}
                 step={0.01}
                 value={autoBetDraft.cashOutAt}
                 onChange={(event) => updateAutoBetDraft('cashOutAt', event.target.value)}
               />
-            </label>
+            </div>
           </div>
         </div>
 
@@ -1288,7 +1426,11 @@ export function CrashPage({ config }: Props) {
               {autoSettingsPreview
                 ? `${formatAmount(autoSettingsPreview.amount)} @ ${formatCrashMultiplier(
                     autoSettingsPreview.cashOutAt,
-                  )}`
+                  )}${
+                    autoSettingsPreview.cashOutMode === 'payout'
+                      ? ` · ${formatAmount(autoSettingsPreview.cashOutValue)}`
+                      : ''
+                  }`
                 : '—'}
             </strong>
           </div>
@@ -1457,23 +1599,59 @@ export function CrashPage({ config }: Props) {
               disabled={controlsLocked}
             />
 
-            <label className="crash-auto-cashout mt-4">
-              <span className="crash-auto-cashout__label">{t.games.crash.autoCashout}</span>
+            <div className="crash-auto-cashout mt-4">
+              <span className="crash-auto-cashout__label">
+                {manualAutoCashOutMode === 'payout'
+                  ? t.games.crash.autoCashoutPayout
+                  : t.games.crash.autoCashout}
+              </span>
+              <span className="crash-auto-cashout__mode" aria-label={t.games.crash.autoCashoutMode}>
+                <button
+                  type="button"
+                  onClick={() => switchManualAutoCashOutMode('multiplier')}
+                  disabled={controlsLocked}
+                  data-active={manualAutoCashOutMode === 'multiplier'}
+                >
+                  {t.games.crash.autoCashoutModeMultiplier}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchManualAutoCashOutMode('payout')}
+                  disabled={controlsLocked}
+                  data-active={manualAutoCashOutMode === 'payout'}
+                >
+                  {t.games.crash.autoCashoutModePayout}
+                </button>
+              </span>
               <span className="crash-auto-cashout__field">
                 <input
                   type="number"
+                  aria-label={
+                    manualAutoCashOutMode === 'payout'
+                      ? t.games.crash.autoCashoutPayout
+                      : t.games.crash.autoCashout
+                  }
                   inputMode="decimal"
-                  min={1.01}
-                  max={1000}
+                  min={manualAutoCashOutMode === 'payout' ? MIN_BET_AMOUNT : 1.01}
+                  max={manualAutoCashOutMode === 'payout' ? MAX_BET_AMOUNT * 1000 : 1000}
                   step={0.01}
                   value={manualAutoCashOut}
                   onChange={(event) => setManualAutoCashOut(event.target.value)}
                   disabled={controlsLocked}
                   className="crash-auto-cashout__input"
-                  placeholder={t.games.crash.autoCashoutPlaceholder}
+                  placeholder={
+                    manualAutoCashOutMode === 'payout'
+                      ? t.games.crash.autoCashoutPayoutPlaceholder
+                      : t.games.crash.autoCashoutPlaceholder
+                  }
                 />
               </span>
-            </label>
+              <span className="crash-auto-cashout__preview">
+                {manualAutoCashOutMode === 'payout'
+                  ? `${t.games.crash.autoCashoutRate} ${manualAutoCashOutPreview}`
+                  : `${t.games.crash.autoCashoutPayout} ${manualAutoCashOutPreview}`}
+              </span>
+            </div>
 
             <button
               type="button"

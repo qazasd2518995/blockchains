@@ -1144,7 +1144,7 @@
 
     .game-fullscreen-shell .crash-auto-cashout {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-columns: auto auto minmax(0, 1fr);
       align-items: center;
       gap: 0.45rem;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -1155,6 +1155,10 @@
       min-width: 4.4rem;
       white-space: nowrap;
       color: rgba(232, 212, 138, 0.9);
+    }
+
+    .game-fullscreen-shell .crash-auto-cashout__mode {
+      min-width: 5.75rem;
     }
 
     .game-fullscreen-shell .crash-auto-cashout__field {
@@ -1424,7 +1428,7 @@
     }
 
     .game-fullscreen-shell .crash-control-stack {
-      max-height: max(158px, min(28svh, 194px));
+      max-height: max(208px, min(31svh, 232px));
     }
 
     .game-fullscreen-shell .crash-control-stack > .crash-control-card:first-child {
@@ -1434,7 +1438,7 @@
       align-content: stretch;
       align-items: stretch;
       gap: 0.28rem 0.36rem;
-      max-height: max(158px, min(28svh, 194px));
+      max-height: max(208px, min(31svh, 232px));
       overflow: hidden;
       padding: 0.42rem 0.52rem !important;
     }
@@ -1481,6 +1485,15 @@
       min-width: 0;
       font-size: 8px;
       line-height: 1;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-auto-cashout__mode {
+      min-width: 0;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-auto-cashout__mode button {
+      min-height: 24px;
+      font-size: 8px;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-auto-cashout__field {
@@ -2627,11 +2640,11 @@
     }
 
     .game-fullscreen-shell .crash-control-stack {
-      max-height: max(146px, min(26dvh, 176px));
+      max-height: max(180px, min(30dvh, 212px));
     }
 
     .game-fullscreen-shell .crash-control-stack > .crash-control-card:first-child {
-      max-height: max(146px, min(26dvh, 176px));
+      max-height: max(180px, min(30dvh, 212px));
     }
 
     .game-fullscreen-shell .game-control-stack .bet-controls__presets {
@@ -5260,7 +5273,7 @@
 
 .crash-auto-cashout {
   display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  grid-template-columns: minmax(0, 0.78fr) auto minmax(0, 1.12fr);
   align-items: center;
   gap: 0.65rem;
   border-radius: 14px;
@@ -5275,6 +5288,44 @@
   font-weight: 900;
   letter-spacing: 0.08em;
   color: rgba(232, 212, 138, 0.88);
+}
+
+.crash-auto-cashout__mode,
+.crash-auto-mode-toggle {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 6.25rem;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.crash-auto-cashout__mode button,
+.crash-auto-mode-toggle button {
+  min-height: 34px;
+  border: 0;
+  background: transparent;
+  padding: 0.2rem 0.45rem;
+  font-size: 10px;
+  font-weight: 900;
+  color: rgba(226, 232, 240, 0.64);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.crash-auto-cashout__mode button[data-active='true'],
+.crash-auto-mode-toggle button[data-active='true'] {
+  background: rgba(125, 211, 252, 0.2);
+  color: #dff7ff;
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.26);
+}
+
+.crash-auto-cashout__mode button:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
 }
 
 .crash-auto-cashout__field {
@@ -5305,6 +5356,22 @@
   border-radius: 10px;
   outline: 2px solid rgba(125, 211, 252, 0.45);
   outline-offset: 1px;
+}
+
+.crash-auto-cashout__preview {
+  grid-column: 1 / -1;
+  min-width: 0;
+  text-align: right;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: rgba(186, 230, 253, 0.82);
+}
+
+.slot-auto-field .crash-auto-mode-toggle {
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 0.45rem;
 }
 
 .tower-win-modal {
