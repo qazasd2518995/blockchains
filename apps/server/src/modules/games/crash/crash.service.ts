@@ -300,7 +300,7 @@ export class CrashSoloService {
       return { bet: current, payout: current.payout, newBalance: user.balance.toFixed(2) };
     }
 
-    const newBalance = await creditAndRecord(tx, bet.userId, payout, bet.id, 'CASHOUT', {
+    const newBalance = await creditAndRecord(tx, bet.userId, payout, null, 'CASHOUT', {
       gameId: round.gameId,
       roundId: round.id,
       crashBetId: bet.id,
