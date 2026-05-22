@@ -179,6 +179,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const canvasAspectClass = isMegaSlot ? 'aspect-[16/10]' : 'aspect-[16/7]';
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
+  const [megaAmountText, setMegaAmountText] = useState('10.00');
+  const [megaAmountEditing, setMegaAmountEditing] = useState(false);
   const [result, setResult] = useState<HotlineBetResult | null>(null);
   const [spinning, setSpinning] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -228,6 +230,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const fastSpinRef = useRef(false);
   const fallbackGrid = useMemo(() => createFallbackGrid(slotTheme), [slotTheme]);
   const fallbackJackpotValues = useMemo(() => createFallbackJackpotValues(), [slotTheme.id]);
+
+  useEffect(() => {
+    if (!megaAmountEditing) setMegaAmountText(amount.toFixed(2));
+  }, [amount, megaAmountEditing]);
 
   useEffect(() => {
     fastSpinRef.current = fastSpin;
@@ -329,10 +335,24 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     };
   }, [slotTheme]);
 
-  const setMegaAmount = (next: number): void => {
+  const setMegaAmount = (next: number, syncText = true): void => {
     const max = user ? Math.max(MIN_BET_AMOUNT, Math.min(balance, MAX_BET_AMOUNT)) : MAX_BET_AMOUNT;
     const clamped = Math.max(MIN_BET_AMOUNT, Math.min(max, next));
-    setAmount(Number.parseFloat(clamped.toFixed(2)));
+    const normalized = Number.parseFloat(clamped.toFixed(2));
+    setAmount(normalized);
+    if (syncText) setMegaAmountText(normalized.toFixed(2));
+  };
+
+  const handleMegaAmountInput = (raw: string): void => {
+    setMegaAmountText(raw);
+    const parsed = Number.parseFloat(raw.replace(/,/g, ''));
+    if (Number.isFinite(parsed)) setMegaAmount(parsed, false);
+  };
+
+  const commitMegaAmountInput = (): void => {
+    setMegaAmountEditing(false);
+    const parsed = Number.parseFloat(megaAmountText.replace(/,/g, ''));
+    setMegaAmount(Number.isFinite(parsed) ? parsed : amount);
   };
 
   const createInitialLiveMegaRound = (grid: number[][] = fallbackGrid): LiveMegaRoundState => ({
@@ -1199,10 +1219,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   );
   const showBigWinOverlay = Boolean(
     result &&
-      !spinning &&
-      !result.buyFeature &&
-      isBigWinResult &&
-      dismissedBigWinBetId !== result.betId,
+    !spinning &&
+    !result.buyFeature &&
+    isBigWinResult &&
+    dismissedBigWinBetId !== result.betId,
   );
   const resultTitle = isBigWinResult
     ? '恭喜爆分'
@@ -1593,12 +1613,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <input
                 type="text"
                 inputMode="decimal"
-                value={amount.toFixed(2)}
+                value={megaAmountText}
                 disabled={controlsLocked}
-                onChange={(event) => {
-                  const next = Number.parseFloat(event.target.value);
-                  if (Number.isFinite(next)) setMegaAmount(next);
-                }}
+                onFocus={() => setMegaAmountEditing(true)}
+                onChange={(event) => handleMegaAmountInput(event.target.value)}
+                onBlur={commitMegaAmountInput}
                 aria-label="下注金額"
               />
               <button
@@ -1937,7 +1956,7 @@ function MegaFeatureResultOverlay({
       <div className="mega-feature-result-stage__panel">
         <div className="mega-feature-result-stage__eyebrow">免費遊戲結算</div>
         <div id="mega-feature-result-title" className="mega-feature-result-stage__title">
-          爆分金額
+          爆分獎金
         </div>
         <div className="mega-feature-result-stage__amount">{formatAmount(payout)}</div>
         <div className="mega-feature-result-stage__meta">
