@@ -1095,7 +1095,7 @@ function towerResultEntries(record: Record<string, unknown>): ResultEntry[] {
   return compactResultEntries([
     {
       key: 'tower-summary',
-      label: '疊塔結果',
+      label: '爬階梯結果',
       value: (
         <SummaryStack
           items={[

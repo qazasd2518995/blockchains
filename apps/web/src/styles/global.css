@@ -2186,8 +2186,8 @@
 
     .game-fullscreen-shell[data-game-id='tower'] .tower-canvas {
       flex: 1 1 clamp(260px, 48svh, 430px) !important;
-      min-height: clamp(240px, 44svh, 410px) !important;
-      width: min(100%, 620px, calc(84svh * 0.75)) !important;
+      min-height: clamp(330px, 50svh, 450px) !important;
+      width: min(100%, 620px, calc(74svh * 0.8)) !important;
       border-radius: 12px !important;
     }
 
@@ -2200,11 +2200,11 @@
     }
 
     .game-fullscreen-shell[data-game-id='tower'] .tower-stage-panel--active .tower-canvas {
-      width: 100% !important;
-      max-width: none !important;
+      width: min(100%, 620px, calc(74svh * 0.8)) !important;
+      max-width: 620px !important;
       height: auto !important;
-      min-height: 0 !important;
-      flex: 1 1 auto !important;
+      min-height: clamp(330px, 50svh, 450px) !important;
+      flex: 0 0 auto !important;
       align-self: stretch;
       margin-top: 0.28rem !important;
     }
@@ -2687,13 +2687,13 @@
     }
 
     .game-fullscreen-shell[data-game-id='tower'] .tower-canvas {
-      flex-basis: 226px !important;
-      min-height: 210px !important;
+      flex-basis: auto !important;
+      min-height: clamp(330px, 50svh, 450px) !important;
     }
 
     .game-fullscreen-shell[data-game-id='tower'] .tower-stage-panel--active .tower-canvas {
       flex-basis: auto !important;
-      min-height: 0 !important;
+      min-height: clamp(330px, 50svh, 450px) !important;
     }
 
     .game-fullscreen-shell[data-game-id='tower'] .tower-control-stack--active,
@@ -5305,6 +5305,78 @@
   border-radius: 10px;
   outline: 2px solid rgba(125, 211, 252, 0.45);
   outline-offset: 1px;
+}
+
+.tower-win-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: rgba(3, 7, 18, 0.52);
+  padding: 1rem;
+  color: inherit;
+  backdrop-filter: blur(3px);
+}
+
+.tower-win-modal__panel {
+  display: grid;
+  width: min(78vw, 360px);
+  place-items: center;
+  border-radius: 18px;
+  border: 2px solid rgba(148, 163, 153, 0.32);
+  background:
+    linear-gradient(180deg, rgba(74, 86, 82, 0.96), rgba(42, 52, 49, 0.98)),
+    #303a38;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  padding: 1.35rem 1.2rem 1.15rem;
+}
+
+.tower-win-modal__sparkles {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.26em;
+  color: #6ee787;
+}
+
+.tower-win-modal__multiplier {
+  margin-top: 0.2rem;
+  font-family: var(--font-display, ui-sans-serif, system-ui, sans-serif);
+  font-size: clamp(2rem, 11vw, 3.3rem);
+  font-weight: 950;
+  line-height: 1;
+  color: #64e780;
+}
+
+.tower-win-modal__title {
+  margin-top: 0.35rem;
+  font-family: var(--font-display, ui-sans-serif, system-ui, sans-serif);
+  font-size: clamp(3.1rem, 18vw, 5rem);
+  font-weight: 950;
+  line-height: 0.84;
+  color: #ffd56a;
+  text-align: center;
+  text-shadow:
+    0 6px 0 #a65b22,
+    0 10px 18px rgba(0, 0, 0, 0.35);
+}
+
+.tower-win-modal__payout {
+  display: flex;
+  width: 100%;
+  min-height: 56px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1.1rem;
+  border-radius: 12px;
+  background: rgba(17, 24, 23, 0.3);
+  font-family: var(--font-display, ui-sans-serif, system-ui, sans-serif);
+  font-size: 1.35rem;
+  font-weight: 950;
+  color: #ffffff;
 }
 
 .crash-auto-presets {

@@ -61,7 +61,7 @@ const HALLS: Hall[] = [
     title: '策略挑戰館',
     subtitle: 'Strategy Hall',
     tone: '#5B8C40',
-    intro: '掃雷、疊塔與小雞過馬路都需要逐步判斷與隨時收手，每一個選擇都影響獎金。',
+    intro: '掃雷、爬階梯與小雞過馬路都需要逐步判斷與隨時收手，每一個選擇都影響獎金。',
     vibe: '腦力對決、越拚越上頭',
   },
 ];
@@ -543,8 +543,8 @@ const GAMES: Game[] = [
   {
     id: 'tower',
     hall: 'strategy',
-    name: '疊塔',
-    english: 'Tower X',
+    name: '爬階梯',
+    english: 'Stairs',
     cover: '/game-art/tower/cover.png',
     rtp: '97%',
     maxMultiplier: '50,000×',

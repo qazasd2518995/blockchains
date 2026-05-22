@@ -33,11 +33,15 @@ export function TowerPage() {
   const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
-  const [difficulty, setDifficulty] = useState<TowerDifficulty>('medium');
+  const [difficulty, setDifficulty] = useState<TowerDifficulty>('easy');
   const [round, setRound] = useState<TowerRoundState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
+  const [winModal, setWinModal] = useState<{
+    multiplier: number;
+    payout: number;
+  } | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<TowerScene | null>(null);
@@ -167,6 +171,7 @@ export function TowerPage() {
     if (amount < MIN_BET_AMOUNT || amount > balance) return;
     setBusy(true);
     setError(null);
+    setWinModal(null);
     hideStageHint();
     try {
       const res = await api.post<TowerRoundState>('/games/tower/start', { amount, difficulty });
@@ -203,6 +208,7 @@ export function TowerPage() {
       roundRef.current = res.data.state;
       if (res.data.newBalance) setBalance(res.data.newBalance);
       if (res.data.hitTrap && res.data.state.revealedLayout) {
+        setWinModal(null);
         sceneRef.current?.revealAll(res.data.state.revealedLayout);
         setHistory((prev) =>
           [
@@ -222,6 +228,8 @@ export function TowerPage() {
         if (res.data.state.revealedLayout)
           sceneRef.current?.revealAll(res.data.state.revealedLayout);
         const cashMult = Number.parseFloat(res.data.state.currentMultiplier);
+        const payout = Number.parseFloat(res.data.state.potentialPayout);
+        setWinModal({ multiplier: cashMult, payout });
         sceneRef.current?.celebrate(cashMult);
         sceneRef.current?.playWinFx(cashMult, true);
         setHistory((prev) =>
@@ -231,7 +239,7 @@ export function TowerPage() {
               timestamp: Date.now(),
               betAmount: amount,
               multiplier: cashMult,
-              payout: amount * cashMult,
+              payout,
               won: cashMult >= 1,
               detail: `通關 · ${res.data.state.difficulty}`,
             },
@@ -264,6 +272,7 @@ export function TowerPage() {
         sceneRef.current?.revealAll(res.data.state.revealedLayout);
       }
       if (res.data.state.status === 'BUSTED') {
+        setWinModal(null);
         setHistory((prev) =>
           [
             {
@@ -282,6 +291,8 @@ export function TowerPage() {
       }
 
       const cashMult = Number.parseFloat(res.data.state.currentMultiplier);
+      const payout = Number.parseFloat(res.data.payout || res.data.state.potentialPayout);
+      setWinModal({ multiplier: cashMult, payout });
       sceneRef.current?.celebrate(cashMult);
       sceneRef.current?.playWinFx(cashMult, true);
       setHistory((prev) =>
@@ -291,7 +302,7 @@ export function TowerPage() {
             timestamp: Date.now(),
             betAmount: amount,
             multiplier: cashMult,
-            payout: amount * cashMult,
+            payout,
             won: true,
             detail: `${res.data.state.picks.length} 層 · ${res.data.state.difficulty}`,
           },
@@ -313,8 +324,8 @@ export function TowerPage() {
         artwork="/game-art/tower/background.png"
         section="§ GAME 09"
         breadcrumb="TOWER_09"
-        title={t.games.tower.title}
-        titleSuffix={t.games.tower.suffix}
+        title="爬階梯"
+        titleSuffix="STAIRS"
         titleSuffixColor="acid"
         description={t.games.tower.description}
         rtpLabel="RTP 97%"
@@ -329,9 +340,9 @@ export function TowerPage() {
             className={`tower-stage-panel game-stage-panel scanlines p-3 ${isActive ? 'tower-stage-panel--active' : ''}`}
           >
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px]">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">疊塔</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">爬階梯</span>
               <span className="ml-2 text-white/40">·</span>
-              <span className="ml-2 text-white/55 uppercase">Tower</span>
+              <span className="ml-2 text-white/55 uppercase">STAIRS</span>
               <GameActivityHeat gameId="tower" />
               <span className="text-white/72">
                 {round
@@ -341,8 +352,8 @@ export function TowerPage() {
             </div>
 
             <div
-              className="tower-canvas game-canvas-shell game-canvas-tall relative mx-auto mt-2 aspect-[3/4] w-full max-w-[620px]"
-              style={{ width: 'min(100%, 620px, calc(78svh * 0.75))', maxHeight: 'none' }}
+              className="tower-canvas game-canvas-shell game-canvas-tall relative mx-auto mt-2 aspect-[4/5] w-full max-w-[620px]"
+              style={{ width: 'min(100%, 620px, calc(74svh * 0.8))', maxHeight: 'none' }}
             >
               <canvas ref={canvasRef} className="h-full w-full" />
               {!isActive ? (
@@ -488,6 +499,23 @@ export function TowerPage() {
           <RecentBetsList records={history} />
         </div>
       </div>
+      {winModal ? (
+        <button
+          type="button"
+          className="tower-win-modal"
+          aria-label="關閉贏分畫面"
+          onClick={() => setWinModal(null)}
+        >
+          <span className="tower-win-modal__panel">
+            <span className="tower-win-modal__sparkles">✦ · ✦</span>
+            <span className="tower-win-modal__multiplier">
+              {formatMultiplier(winModal.multiplier.toFixed(4))}
+            </span>
+            <span className="tower-win-modal__title">YOU WON</span>
+            <span className="tower-win-modal__payout">{formatAmount(winModal.payout)}</span>
+          </span>
+        </button>
+      ) : null}
     </div>
   );
 }
