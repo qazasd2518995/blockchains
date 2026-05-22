@@ -30,6 +30,7 @@ const PLINKO_BALL_PRESETS = [1, 5, 10, 20] as const;
 const PLINKO_MIN_BALLS = 1;
 const PLINKO_MAX_BALLS = 20;
 const MAX_ACTIVE_PLINKO_DROPS = 36;
+const PLINKO_BULK_RELEASE_THRESHOLD = 10;
 const PLINKO_AUTO_ROUND_PRESETS = [10, 25, 50, 75, 100, 500, 1000];
 const PLINKO_AUTO_LOSS_PRESETS = [5, 20, 50] as const;
 const PLINKO_AUTO_PRIZE_PRESETS = [10, 20, 75] as const;
@@ -69,6 +70,16 @@ function clampBallCount(value: number): number {
 function roundCurrency(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Number(Math.max(0, value).toFixed(2));
+}
+
+function waitMs(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function plinkoResultReleaseDelay(index: number, batchSize: number): number {
+  if (batchSize >= PLINKO_BULK_RELEASE_THRESHOLD) return Math.min(260, index * 18);
+  if (batchSize >= 5) return index * 10;
+  return 0;
 }
 
 function readViewportBox() {
@@ -360,13 +371,16 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
 
         await Promise.all(
           dropResults.map(
-            (dropResult, index) =>
-              sceneRef.current?.dropBall(
+            async (dropResult, index) => {
+              const releaseDelay = plinkoResultReleaseDelay(index, balls);
+              if (releaseDelay > 0) await waitMs(releaseDelay);
+              return sceneRef.current?.dropBall(
                 dropResult.path,
                 dropResult.bucket,
                 dropResult.multiplier,
                 anticipationBalls[index],
-              ) ?? Promise.resolve(),
+              ) ?? Promise.resolve();
+            },
           ),
         );
 

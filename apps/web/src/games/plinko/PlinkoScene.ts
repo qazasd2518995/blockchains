@@ -37,6 +37,11 @@ const COLOR_INK = 0x0a0806;
 const COLOR_BUCKET_BG = 0x07131f;
 const COLOR_WHITE = 0xffffff;
 const PLINKO_BACKGROUND_ASSET = '/game-art/plinko/background.png';
+const BULK_DROP_THRESHOLD = 10;
+const LANDING_BURST_WINDOW_MS = 320;
+const BULK_CELEBRATION_COOLDOWN_MS = 520;
+const BULK_SHAKE_COOLDOWN_MS = 720;
+const BULK_BUCKET_PULSE_COOLDOWN_MS = 90;
 
 interface Ball {
   g: Graphics;
@@ -49,6 +54,8 @@ interface Ball {
   path: ('left' | 'right')[]; // 預定路徑
   targetBucket: number;
   multiplier: number;
+  batchIndex: number;
+  batchSize: number;
   resultReady: boolean;
   xStart: number;
   xTarget: number;
@@ -133,6 +140,11 @@ export class PlinkoScene {
   private lastLandSfxAt = 0;
   private lastPegVisualFxAt = 0;
   private lastLandingVisualFxAt = 0;
+  private lastWinCelebrationAt = 0;
+  private lastShakeFxAt = 0;
+  private lastBucketPulseAt = 0;
+  private landingBurstStartedAt = 0;
+  private landingBurstCount = 0;
   private launchSequence = 0;
 
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
@@ -621,6 +633,8 @@ export class PlinkoScene {
       path: provisionalPath,
       targetBucket: Math.floor(this.rows / 2),
       multiplier: 0,
+      batchIndex: localIndex,
+      batchSize: totalBalls,
       resultReady: false,
       xStart: g.x,
       xTarget: this.pathStartX(),
@@ -794,6 +808,8 @@ export class PlinkoScene {
         path,
         targetBucket: bucket,
         multiplier,
+        batchIndex: 0,
+        batchSize: 1,
         resultReady: true,
         xStart: g.x,
         xTarget: g.x,
@@ -810,16 +826,35 @@ export class PlinkoScene {
 
   private onLand(b: Ball): void {
     this.playThrottledLandSfx(b.multiplier);
-    const highLoad = this.isHighLoad();
     const now = this.nowMs();
-    const canPlayLandingVisual = !highLoad || b.multiplier >= 10 || now - this.lastLandingVisualFxAt > 180;
+    const recentLandings = this.registerLanding(now);
+    const highLoad =
+      this.isHighLoad() || b.batchSize >= BULK_DROP_THRESHOLD || recentLandings >= 6;
+    const won = b.multiplier >= 1;
+    const tier = classifyWinTier(b.multiplier, won);
+    const tierCfg = TIER_CONFIG[tier];
+    const premiumLanding = tier === 'big' || tier === 'huge' || tier === 'mega';
+    const canPlayLandingVisual =
+      !highLoad || premiumLanding || now - this.lastLandingVisualFxAt > 220;
     if (canPlayLandingVisual) this.lastLandingVisualFxAt = now;
-    if (b.multiplier > 1 && (!highLoad || b.multiplier >= 3 || canPlayLandingVisual)) {
+    const canCelebrate =
+      b.multiplier > 1 &&
+      (!highLoad || premiumLanding) &&
+      now - this.lastWinCelebrationAt >
+        (highLoad ? BULK_CELEBRATION_COOLDOWN_MS : 180);
+    if (canCelebrate) {
+      this.lastWinCelebrationAt = now;
       this.playWinFx(b.multiplier, true);
     }
+    const canPlayHeavyLandingFx = !highLoad || canCelebrate;
 
     // Bucket 亮起
-    if (this.bucketsContainer && (!highLoad || b.multiplier >= 3 || canPlayLandingVisual)) {
+    const canPulseBucket =
+      !highLoad ||
+      premiumLanding ||
+      now - this.lastBucketPulseAt > BULK_BUCKET_PULSE_COOLDOWN_MS;
+    if (this.bucketsContainer && canPulseBucket) {
+      this.lastBucketPulseAt = now;
       const bucket = this.bucketsContainer.children[b.targetBucket];
       if (bucket) {
         gsap.fromTo(
@@ -846,10 +881,6 @@ export class PlinkoScene {
     const layout = this.bucketLayout();
     const targetX = this.bucketCenterX(b.targetBucket);
     const targetY = layout.y + layout.bucketH * 0.35;
-
-    const won = b.multiplier >= 1;
-    const tier = classifyWinTier(b.multiplier, won);
-    const tierCfg = TIER_CONFIG[tier];
 
     // 震波大小隨 tier
     const shockRadius = tier === 'mega' ? 180 : tier === 'huge' ? 140 : tier === 'big' ? 100 : 70;
@@ -880,17 +911,25 @@ export class PlinkoScene {
       });
     }
 
-    if (won && tierCfg.shakeAmp > 0 && this.shaker && (!highLoad || b.multiplier >= 10)) {
-      this.shaker.shake(tierCfg.shakeAmp, tierCfg.shakeDuration);
+    const shaker = this.shaker;
+    const canShake =
+      won &&
+      tierCfg.shakeAmp > 0 &&
+      shaker &&
+      (!highLoad || premiumLanding) &&
+      now - this.lastShakeFxAt > (highLoad ? BULK_SHAKE_COOLDOWN_MS : 160);
+    if (canShake) {
+      this.lastShakeFxAt = now;
+      shaker.shake(tierCfg.shakeAmp, tierCfg.shakeDuration);
     }
-    if (this.app && won && tierCfg.edgeGlowMs > 0 && (!highLoad || b.multiplier >= 10)) {
+    if (this.app && won && tierCfg.edgeGlowMs > 0 && canPlayHeavyLandingFx) {
       emitEdgeGlow(this.app.stage, this.width, this.height, color, tierCfg.edgeGlowMs / 1000);
     }
-    if (this.app && tierCfg.rayBurst && (!highLoad || b.multiplier >= 10)) {
+    if (this.app && tierCfg.rayBurst && canPlayHeavyLandingFx) {
       emitRayBurst(this.app.stage, this.app, targetX, targetY, color, 1.2);
     }
     // L4 強化：落點 emit glow burst（讓「彈珠落定」感更強烈）
-    if (this.app && won && !prefersReducedMotion() && (!highLoad || b.multiplier >= 10)) {
+    if (this.app && won && !prefersReducedMotion() && canPlayHeavyLandingFx) {
       emitGlowBurst(this.app.stage, targetX, targetY, color, {
         radius: 60 + Math.min(80, b.multiplier * 6),
         peakBlur: 18 + Math.min(10, b.multiplier),
@@ -940,6 +979,15 @@ export class PlinkoScene {
 
   private nowMs(): number {
     return typeof performance !== 'undefined' ? performance.now() : Date.now();
+  }
+
+  private registerLanding(now: number): number {
+    if (now - this.landingBurstStartedAt > LANDING_BURST_WINDOW_MS) {
+      this.landingBurstStartedAt = now;
+      this.landingBurstCount = 0;
+    }
+    this.landingBurstCount += 1;
+    return this.landingBurstCount;
   }
 
   private playThrottledLaunchSfx(): void {
