@@ -22,7 +22,7 @@ import { ApiError } from '../../../utils/errors.js';
 import type { CrashBetInput, CrashCashoutInput } from './crash.schema.js';
 
 const MIN_CASHOUT_MULTIPLIER = 1.01;
-const SOLO_GROWTH_RATE = 0.000085;
+const SOLO_GROWTH_RATE = 0.00012;
 const HISTORY_LIMIT = 20;
 
 type CrashBetWithRound = Prisma.CrashBetGetPayload<{ include: { round: true } }>;
