@@ -5258,6 +5258,55 @@
   margin-top: 8px;
 }
 
+.crash-auto-cashout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  background: rgba(15, 23, 42, 0.52);
+  padding: 0.65rem;
+}
+
+.crash-auto-cashout__label {
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: rgba(232, 212, 138, 0.88);
+}
+
+.crash-auto-cashout__field {
+  display: block;
+  min-width: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.055);
+  padding: 0.2rem;
+}
+
+.crash-auto-cashout__input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0.45rem 0.5rem;
+  text-align: right;
+  font-family: var(--font-display, ui-sans-serif, system-ui, sans-serif);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  outline: none;
+}
+
+.crash-auto-cashout__input:focus {
+  border-radius: 10px;
+  outline: 2px solid rgba(125, 211, 252, 0.45);
+  outline-offset: 1px;
+}
+
 .crash-auto-presets {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }

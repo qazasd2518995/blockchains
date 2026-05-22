@@ -1086,7 +1086,7 @@ export class CrashScene {
       );
     }
     if (this.statusLabel) {
-      this.statusLabel.text = seconds > 0 ? 'BETTING WINDOW' : 'READY';
+      this.statusLabel.text = seconds > 0 ? '下一回合下注' : 'READY';
       this.statusLabel.style.fill = COLOR_ACID;
     }
   }

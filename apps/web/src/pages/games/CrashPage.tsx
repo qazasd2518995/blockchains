@@ -30,8 +30,15 @@ type LocalCrashBet = {
   betId?: string;
   cashedOutAt?: number;
 };
+type CrashLocalStatus = 'BETTING' | 'COUNTDOWN' | 'RUNNING' | 'CRASHED';
 type CrashAutoSettings = { rounds: number | null; amount: number; cashOutAt: number };
 type CrashAutoDraft = { rounds: string; amount: string; cashOutAt: string };
+type QueuedCrashBet = {
+  amount: number;
+  autoCashOut?: number;
+  silentAuth?: boolean;
+  resolve: (ok: boolean) => void;
+};
 type SimulatedCrashBet = {
   id: string;
   account: string;
@@ -43,8 +50,8 @@ const SIMULATED_LIVE_MIN = 10;
 const SIMULATED_LIVE_MAX = 28;
 const SIMULATED_STAKE_MIN = 20;
 const SIMULATED_STAKE_MAX = 500;
-const SOLO_CLIENT_GROWTH_RATE = 0.00072;
-const CRASH_DISPLAY_TICK_MS = 120;
+const SOLO_CLIENT_GROWTH_RATE = 0.000085;
+const CRASH_BETTING_COUNTDOWN_SECONDS = 5;
 const CRASH_FINALIZE_POLL_BUFFER_MS = 140;
 const CRASH_MULTIPLIER_PUBLISH_MIN_MS = 320;
 const CRASH_INSTANT_RESULT_REVEAL_MS = 420;
@@ -176,8 +183,13 @@ export function CrashPage({ config }: Props) {
   const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
+  const [manualAutoCashOut, setManualAutoCashOut] = useState('2.00');
   const [multiplier, setMultiplier] = useState(1.0);
-  const [status, setStatus] = useState<'BETTING' | 'RUNNING' | 'CRASHED'>('BETTING');
+  const [status, setStatus] = useState<CrashLocalStatus>('BETTING');
+  const [countdownSeconds, setCountdownSeconds] = useState(0);
+  const [queuedBet, setQueuedBet] = useState<Pick<QueuedCrashBet, 'amount' | 'autoCashOut'> | null>(
+    null,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [cashoutSubmitting, setCashoutSubmitting] = useState(false);
   const [roundNumber, setRoundNumber] = useState<number | null>(null);
@@ -195,7 +207,8 @@ export function CrashPage({ config }: Props) {
   const [autoBetRemaining, setAutoBetRemaining] = useState<number | null>(null);
   const [autoBetStopReason, setAutoBetStopReason] = useState('');
   const roundPollRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
-  const displayTickRef = useRef<ReturnType<typeof window.setInterval> | null>(null);
+  const displayTickRef = useRef<number | null>(null);
+  const countdownTimerRef = useRef<ReturnType<typeof window.setInterval> | null>(null);
   const pendingResultRevealRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const pendingCrashStateRef = useRef<CrashSoloRoundState | null>(null);
   const canvasShellRef = useRef<HTMLDivElement>(null);
@@ -204,6 +217,8 @@ export function CrashPage({ config }: Props) {
   const myBetRef = useRef<LocalCrashBet | null>(null);
   const finalizedRoundRef = useRef<string | null>(null);
   const cashoutCelebratedRoundRef = useRef<string | null>(null);
+  const queuedBetRef = useRef<QueuedCrashBet | null>(null);
+  const countdownSecondsRef = useRef(0);
   const statusRef = useRef(status);
   const crashPointRef = useRef(crashPoint);
   const visualCrashPointRef = useRef<number | null>(null);
@@ -226,6 +241,10 @@ export function CrashPage({ config }: Props) {
   }, [status]);
 
   useEffect(() => {
+    countdownSecondsRef.current = countdownSeconds;
+  }, [countdownSeconds]);
+
+  useEffect(() => {
     crashPointRef.current = crashPoint;
   }, [crashPoint]);
 
@@ -244,6 +263,11 @@ export function CrashPage({ config }: Props) {
   const applySceneState = useCallback((scene: CrashScene) => {
     if (statusRef.current === 'BETTING') {
       scene.startBetting(0);
+      return;
+    }
+
+    if (statusRef.current === 'COUNTDOWN') {
+      scene.startBetting(countdownSecondsRef.current || CRASH_BETTING_COUNTDOWN_SECONDS);
       return;
     }
 
@@ -364,7 +388,15 @@ export function CrashPage({ config }: Props) {
     if (status === 'BETTING') {
       sceneRef.current.startBetting(0);
     }
+    if (status === 'COUNTDOWN') {
+      sceneRef.current.startBetting(countdownSecondsRef.current || CRASH_BETTING_COUNTDOWN_SECONDS);
+    }
   }, [status]);
+
+  useEffect(() => {
+    if (!sceneRef.current || status !== 'COUNTDOWN') return;
+    sceneRef.current.setCountdown(countdownSeconds);
+  }, [countdownSeconds, status]);
 
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -435,8 +467,15 @@ export function CrashPage({ config }: Props) {
 
   const clearDisplayTick = useCallback(() => {
     if (displayTickRef.current) {
-      window.clearInterval(displayTickRef.current);
+      window.cancelAnimationFrame(displayTickRef.current);
       displayTickRef.current = null;
+    }
+  }, []);
+
+  const clearCountdownTimer = useCallback(() => {
+    if (countdownTimerRef.current) {
+      window.clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
     }
   }, []);
 
@@ -455,6 +494,7 @@ export function CrashPage({ config }: Props) {
     const now = performance.now();
     const nextMultiplier = visualMultiplierAt(now - startedAt, visualCrashPointRef.current);
     multiplierRef.current = nextMultiplier;
+    sceneRef.current?.setMultiplier(nextMultiplier);
     const roundedChanged =
       Math.round(nextMultiplier * 10) !== Math.round(publishedMultiplierRef.current * 10);
     const shouldPublish =
@@ -469,9 +509,15 @@ export function CrashPage({ config }: Props) {
 
   const startDisplayTick = useCallback(() => {
     if (displayTickRef.current) return;
-    displayTickRef.current = window.setInterval(() => {
+    const tick = () => {
       publishVisualMultiplier(false);
-    }, CRASH_DISPLAY_TICK_MS);
+      if (statusRef.current === 'RUNNING') {
+        displayTickRef.current = window.requestAnimationFrame(tick);
+      } else {
+        displayTickRef.current = null;
+      }
+    };
+    displayTickRef.current = window.requestAnimationFrame(tick);
     publishVisualMultiplier(true);
   }, [publishVisualMultiplier]);
 
@@ -725,7 +771,12 @@ export function CrashPage({ config }: Props) {
     finalizedRoundRef.current = null;
     clearRoundPoll();
     clearDisplayTick();
+    clearCountdownTimer();
     clearPendingResultReveal();
+    queuedBetRef.current?.resolve(false);
+    queuedBetRef.current = null;
+    setQueuedBet(null);
+    setCountdownSeconds(0);
     setRoundNumber(null);
     setMyBet(null);
     myBetRef.current = null;
@@ -754,9 +805,18 @@ export function CrashPage({ config }: Props) {
     return () => {
       clearRoundPoll();
       clearDisplayTick();
+      clearCountdownTimer();
       clearPendingResultReveal();
+      queuedBetRef.current?.resolve(false);
+      queuedBetRef.current = null;
     };
-  }, [clearDisplayTick, clearPendingResultReveal, clearRoundPoll, config.gameId]);
+  }, [
+    clearCountdownTimer,
+    clearDisplayTick,
+    clearPendingResultReveal,
+    clearRoundPoll,
+    config.gameId,
+  ]);
 
   useEffect(() => {
     setSimulatedLiveBets(createSimulatedCrashBets(config.gameId));
@@ -770,33 +830,46 @@ export function CrashPage({ config }: Props) {
     return () => window.clearInterval(timer);
   }, [config.gameId]);
 
-  const submitCrashBet = useCallback(
-    async (
-      betAmount: number,
-      options?: { silentAuth?: boolean; autoCashOut?: number },
-    ): Promise<boolean> => {
+  const validateCrashBet = useCallback(
+    (betAmount: number, options?: { silentAuth?: boolean }): number | null => {
       if (!user) {
         if (!options?.silentAuth) requireLogin();
-        return Promise.resolve(false);
+        return null;
       }
       const currentBalance = Number.parseFloat(useAuthStore.getState().user?.balance ?? '0');
       if (betAmount < MIN_BET_AMOUNT) {
         setError(`最低下注為 ${formatAmount(MIN_BET_AMOUNT)}。`);
-        return Promise.resolve(false);
+        return null;
       }
       if (betAmount > MAX_BET_AMOUNT) {
         setError(`單注上限為 ${formatAmount(MAX_BET_AMOUNT)}。`);
-        return Promise.resolve(false);
+        return null;
       }
       if (betAmount > currentBalance) {
         setError(t.bet.insufficientBalance);
-        return Promise.resolve(false);
+        return null;
       }
+      return currentBalance;
+    },
+    [requireLogin, t.bet.insufficientBalance, user],
+  );
+
+  const submitCrashBetNow = useCallback(
+    async (
+      betAmount: number,
+      options?: { silentAuth?: boolean; autoCashOut?: number },
+    ): Promise<boolean> => {
+      const currentBalance = validateCrashBet(betAmount, options);
+      if (currentBalance === null) return false;
       try {
         setSubmitting(true);
         clearRoundPoll();
         clearDisplayTick();
+        clearCountdownTimer();
         clearPendingResultReveal();
+        queuedBetRef.current = null;
+        setQueuedBet(null);
+        setCountdownSeconds(0);
         resetVisualForNewBet(betAmount);
         const res = await api.post<CrashBetStartResponse>('/games/crash/bet', {
           gameId: config.gameId,
@@ -849,21 +922,130 @@ export function CrashPage({ config }: Props) {
     [
       clearRoundPoll,
       clearDisplayTick,
+      clearCountdownTimer,
       clearPendingResultReveal,
       config.gameId,
       beginVisualFlight,
       handleRoundState,
-      requireLogin,
       resetVisualForNewBet,
       scheduleRoundPoll,
       setBalance,
-      t.bet.insufficientBalance,
-      user,
+      validateCrashBet,
     ],
   );
 
+  const startBettingCountdown = useCallback(
+    (betAmount: number, options?: { silentAuth?: boolean; autoCashOut?: number }) =>
+      new Promise<boolean>((resolve) => {
+        clearRoundPoll();
+        clearDisplayTick();
+        clearCountdownTimer();
+        clearPendingResultReveal();
+        queuedBetRef.current?.resolve(false);
+
+        const seconds = CRASH_BETTING_COUNTDOWN_SECONDS;
+        const queued: QueuedCrashBet = {
+          amount: betAmount,
+          autoCashOut: options?.autoCashOut,
+          silentAuth: options?.silentAuth,
+          resolve,
+        };
+        queuedBetRef.current = queued;
+        setQueuedBet({ amount: betAmount, autoCashOut: options?.autoCashOut });
+        countdownSecondsRef.current = seconds;
+        setCountdownSeconds(seconds);
+        resetVisualForNewBet(betAmount);
+        statusRef.current = 'COUNTDOWN';
+        setStatus('COUNTDOWN');
+        setError(null);
+        sceneRef.current?.startBetting(seconds);
+
+        countdownTimerRef.current = window.setInterval(() => {
+          const next = Math.max(0, countdownSecondsRef.current - 1);
+          countdownSecondsRef.current = next;
+          setCountdownSeconds(next);
+          sceneRef.current?.setCountdown(next);
+          if (next > 0) return;
+
+          clearCountdownTimer();
+          const current = queuedBetRef.current;
+          queuedBetRef.current = null;
+          setQueuedBet(null);
+          setCountdownSeconds(0);
+          if (!current) {
+            resolve(false);
+            return;
+          }
+
+          void submitCrashBetNow(current.amount, {
+            silentAuth: current.silentAuth,
+            autoCashOut: current.autoCashOut,
+          }).then(current.resolve);
+        }, 1000);
+      }),
+    [
+      clearCountdownTimer,
+      clearDisplayTick,
+      clearPendingResultReveal,
+      clearRoundPoll,
+      resetVisualForNewBet,
+      submitCrashBetNow,
+    ],
+  );
+
+  const submitCrashBet = useCallback(
+    (
+      betAmount: number,
+      options?: { silentAuth?: boolean; autoCashOut?: number },
+    ): Promise<boolean> => {
+      if (statusRef.current === 'RUNNING' || statusRef.current === 'COUNTDOWN') {
+        return Promise.resolve(false);
+      }
+      const currentBalance = validateCrashBet(betAmount, options);
+      if (currentBalance === null) return Promise.resolve(false);
+      return startBettingCountdown(betAmount, options);
+    },
+    [startBettingCountdown, validateCrashBet],
+  );
+
+  const parseManualAutoCashOut = useCallback((): number | undefined | null => {
+    const raw = manualAutoCashOut.trim();
+    if (!raw) return undefined;
+    const value = Number.parseFloat(raw);
+    if (!Number.isFinite(value) || value < 1.01 || value > 1000) return null;
+    return Number(value.toFixed(2));
+  }, [manualAutoCashOut]);
+
+  const cancelQueuedBet = useCallback(() => {
+    clearCountdownTimer();
+    const queued = queuedBetRef.current;
+    queuedBetRef.current = null;
+    queued?.resolve(false);
+    setQueuedBet(null);
+    setCountdownSeconds(0);
+    countdownSecondsRef.current = 0;
+    myBetRef.current = null;
+    setMyBet(null);
+    setSubmitting(false);
+    setCashoutSubmitting(false);
+    statusRef.current = 'BETTING';
+    setStatus('BETTING');
+    setMultiplier(1);
+    setCrashPoint(null);
+    sceneRef.current?.startBetting(0);
+  }, [clearCountdownTimer]);
+
   const handlePlaceBet = () => {
-    void submitCrashBet(amount);
+    if (statusRef.current === 'COUNTDOWN') {
+      cancelQueuedBet();
+      return;
+    }
+    const autoCashOut = parseManualAutoCashOut();
+    if (autoCashOut === null) {
+      setError('自動提領倍率需介於 1.01x 和 1000x。');
+      return;
+    }
+    void submitCrashBet(amount, { autoCashOut });
   };
 
   const handleCashOut = useCallback(async () => {
@@ -901,14 +1083,15 @@ export function CrashPage({ config }: Props) {
   }, [cashoutSubmitting, requireLogin, setBalance, user]);
 
   const stopAutoBet = useCallback(
-    (reason?: string, _cancelQueued = true): void => {
+    (reason?: string, cancelQueued = true): void => {
       autoBetActiveRef.current = false;
       autoBetSubmittingRef.current = false;
       autoBetSettingsRef.current = null;
+      if (cancelQueued) cancelQueuedBet();
       setAutoBetActive(false);
       setAutoBetStopReason(reason ?? t.games.crash.autoStopped);
     },
-    [t.games.crash.autoStopped],
+    [cancelQueuedBet, t.games.crash.autoStopped],
   );
 
   const finishAutoBetSubmission = useCallback(() => {
@@ -936,7 +1119,7 @@ export function CrashPage({ config }: Props) {
       stopAutoBet(t.games.crash.autoFailed, true);
       return;
     }
-    if (statusRef.current === 'RUNNING') return;
+    if (statusRef.current === 'RUNNING' || statusRef.current === 'COUNTDOWN') return;
 
     autoBetSubmittingRef.current = true;
     const ok = await submitCrashBet(settings.amount, {
@@ -1022,12 +1205,13 @@ export function CrashPage({ config }: Props) {
       ? '∞'
       : `${t.games.crash.autoRemaining} ${autoBetRemaining}`
     : t.games.crash.autoBotSettings;
-  const controlsLocked = submitting || autoBetActive || status === 'RUNNING';
-  const canShowCurrentBetButton = status !== 'RUNNING';
+  const controlsLocked = submitting || autoBetActive || status === 'RUNNING' || status === 'COUNTDOWN';
+  const canShowCurrentBetButton = status !== 'RUNNING' && status !== 'COUNTDOWN';
   const activeBetAmount = myBet?.amount ?? amount;
   const activeBetPayout = roundCurrency(Number.parseFloat(myBet?.payout ?? '0'));
   const activeBetCashedOut = Boolean(myBet?.cashedOutAt || activeBetPayout > 0);
   const liveCashoutPayout = roundCurrency(activeBetAmount * multiplier);
+  const queuedAutoCashOut = queuedBet?.autoCashOut;
   const stageHistory = history.slice(0, 12);
   const mobileLiveBetRows = simulatedLiveBets.slice(0, 12);
   const autoBetDialog = autoBetOpen ? (
@@ -1154,6 +1338,12 @@ export function CrashPage({ config }: Props) {
                     即開
                   </span>
                 )}
+                {status === 'COUNTDOWN' && (
+                  <span className="text-[#F3D67D]">
+                    <span className="dot-online dot-online" />
+                    下一回合 {countdownSeconds}
+                  </span>
+                )}
                 {status === 'RUNNING' && (
                   <span className="text-[#6EE7B7]">
                     <span className="dot-online dot-online" />
@@ -1267,6 +1457,24 @@ export function CrashPage({ config }: Props) {
               disabled={controlsLocked}
             />
 
+            <label className="crash-auto-cashout mt-4">
+              <span className="crash-auto-cashout__label">{t.games.crash.autoCashout}</span>
+              <span className="crash-auto-cashout__field">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={1.01}
+                  max={1000}
+                  step={0.01}
+                  value={manualAutoCashOut}
+                  onChange={(event) => setManualAutoCashOut(event.target.value)}
+                  disabled={controlsLocked}
+                  className="crash-auto-cashout__input"
+                  placeholder={t.games.crash.autoCashoutPlaceholder}
+                />
+              </span>
+            </label>
+
             <button
               type="button"
               onClick={
@@ -1307,6 +1515,17 @@ export function CrashPage({ config }: Props) {
                   </span>
                   <span className="data-num">
                     {formatCrashMultiplier(myBet?.cashedOutAt ?? multiplier)}
+                  </span>
+                </button>
+              ) : status === 'COUNTDOWN' ? (
+                <button
+                  type="button"
+                  onClick={handlePlaceBet}
+                  className="btn-ember w-full py-4"
+                >
+                  <span>
+                    取消 · 下一回合 {countdownSeconds}
+                    {queuedAutoCashOut ? ` · ${formatCrashMultiplier(queuedAutoCashOut)}` : ''}
                   </span>
                 </button>
               ) : canShowCurrentBetButton ? (
