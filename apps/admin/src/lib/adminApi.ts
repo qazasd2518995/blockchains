@@ -12,6 +12,9 @@ export const adminApi = axios.create({
 
 type RetriableRequestConfig = NonNullable<AxiosError['config']> & { _retry?: boolean };
 type DebugRequestConfig = InternalAxiosRequestConfig & { _debugStartedAt?: number };
+type AdminTokenPair = { accessToken: string; refreshToken: string };
+
+const TOKEN_REFRESH_SKEW_MS = 30_000;
 
 function nowMs(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -38,9 +41,62 @@ function debugAdminApi(message: string, payload: Record<string, unknown>): void 
   console.debug(`[admin-api] ${message}`, sanitizeForDebug(payload));
 }
 
-adminApi.interceptors.request.use((config) => {
+let refreshInFlight: Promise<AdminTokenPair> | null = null;
+
+function isPublicAuthRequest(url?: string): boolean {
+  const path = url?.split('?')[0] ?? '';
+  return ['/auth/captcha', '/auth/login', '/auth/refresh', '/auth/logout'].includes(path);
+}
+
+function getJwtExpiresAtMs(token: string | null): number | null {
+  if (!token) return null;
+  const payload = token.split('.')[1];
+  if (!payload) return null;
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+    const decoded = globalThis.atob(padded);
+    const parsed = JSON.parse(decoded) as { exp?: unknown };
+    return typeof parsed.exp === 'number' ? parsed.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+function shouldRefreshBeforeRequest(token: string | null): boolean {
+  const expiresAt = getJwtExpiresAtMs(token);
+  if (!expiresAt) return false;
+  return expiresAt - Date.now() <= TOKEN_REFRESH_SKEW_MS;
+}
+
+async function refreshAdminTokens(refreshToken: string): Promise<AdminTokenPair> {
+  if (!refreshInFlight) {
+    refreshInFlight = axios
+      .post(`${API_BASE}/api/admin/auth/refresh`, { refreshToken })
+      .then((r) => r.data as AdminTokenPair)
+      .finally(() => {
+        setTimeout(() => {
+          refreshInFlight = null;
+        }, 0);
+      });
+  }
+  return refreshInFlight;
+}
+
+adminApi.interceptors.request.use(async (config) => {
   (config as DebugRequestConfig)._debugStartedAt = nowMs();
-  const token = useAdminAuthStore.getState().accessToken;
+  const { accessToken, refreshToken, setTokens, logout } = useAdminAuthStore.getState();
+  let token = accessToken;
+  if (token && refreshToken && !isPublicAuthRequest(config.url) && shouldRefreshBeforeRequest(token)) {
+    try {
+      const data = await refreshAdminTokens(refreshToken);
+      setTokens(data.accessToken, data.refreshToken);
+      token = data.accessToken;
+    } catch (err) {
+      logout();
+      throw err;
+    }
+  }
   if (token) {
     config.headers = config.headers ?? {};
     (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
@@ -53,8 +109,6 @@ adminApi.interceptors.request.use((config) => {
   });
   return config;
 });
-
-let refreshInFlight: Promise<{ accessToken: string; refreshToken: string }> | null = null;
 
 adminApi.interceptors.response.use(
   (res) => {
@@ -74,22 +128,14 @@ adminApi.interceptors.response.use(
       const { refreshToken, setTokens, logout } = useAdminAuthStore.getState();
       if (refreshToken) {
         try {
-          if (!refreshInFlight) {
-            refreshInFlight = axios
-              .post(`${API_BASE}/api/admin/auth/refresh`, { refreshToken })
-              .then((r) => r.data as { accessToken: string; refreshToken: string })
-              .finally(() => {
-                setTimeout(() => (refreshInFlight = null), 0);
-              });
-          }
-          const data = await refreshInFlight;
+          const data = await refreshAdminTokens(refreshToken);
           setTokens(data.accessToken, data.refreshToken);
           if (originalConfig) {
             originalConfig._retry = true;
             originalConfig.headers = originalConfig.headers ?? {};
             (originalConfig.headers as Record<string, string>).Authorization =
               `Bearer ${data.accessToken}`;
-            return axios.request(originalConfig);
+            return adminApi.request(originalConfig);
           }
         } catch {
           logout();
