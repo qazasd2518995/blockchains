@@ -225,6 +225,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
+  const sceneResizeSchedulerRef = useRef<(() => void) | null>(null);
+  const sceneResizeLockedRef = useRef(false);
+  const pendingSceneResizeRef = useRef(false);
   const autoSpinStopRequestedRef = useRef(false);
   const megaFreeSpinContinueRef = useRef<(() => void) | null>(null);
   const fastSpinRef = useRef(false);
@@ -238,6 +241,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   useEffect(() => {
     fastSpinRef.current = fastSpin;
   }, [fastSpin]);
+
+  useEffect(() => {
+    sceneResizeLockedRef.current = busy || spinning;
+    if (!sceneResizeLockedRef.current && pendingSceneResizeRef.current) {
+      pendingSceneResizeRef.current = false;
+      sceneResizeSchedulerRef.current?.();
+    }
+  }, [busy, spinning]);
 
   useEffect(() => {
     return () => {
@@ -281,6 +292,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     let cancelled = false;
     let scene: HotlineScene | null = null;
     let rafId = 0;
+    let resizeTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let initToken = 0;
+    let lastWidth = 0;
+    let lastHeight = 0;
     const handleContextLost = (event: Event) => {
       event.preventDefault();
       if (sceneRef.current === scene) sceneRef.current = null;
@@ -289,47 +305,109 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     };
     canvas.addEventListener('webglcontextlost', handleContextLost, false);
 
-    const tryInit = () => {
+    const fillCanvas = () => {
+      canvas.style.display = 'block';
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+    };
+
+    const readSize = () => {
+      const rect = (canvas.parentElement ?? canvas).getBoundingClientRect();
+      const w = Math.round(rect.width || canvas.clientWidth);
+      const h = Math.round(rect.height || canvas.clientHeight);
+      return { w, h };
+    };
+
+    const initScene = (w: number, h: number) => {
       if (cancelled) return;
-      const w = canvas.parentElement?.clientWidth ?? canvas.clientWidth;
-      const h = canvas.parentElement?.clientHeight ?? canvas.clientHeight;
-      if (w < 10 || h < 10) {
-        rafId = requestAnimationFrame(tryInit);
-        return;
-      }
-      scene = new HotlineScene();
-      sceneRef.current = scene;
-      void scene
+      fillCanvas();
+      lastWidth = w;
+      lastHeight = h;
+      const token = ++initToken;
+      const previous = scene;
+      const nextScene = new HotlineScene();
+      scene = nextScene;
+      sceneRef.current = nextScene;
+      previous?.dispose();
+      setSceneReady(false);
+      setSceneFallback(false);
+      void nextScene
         .init(canvas, w, h, slotTheme)
         .then(() => {
-          if (cancelled) {
-            scene?.dispose();
+          if (cancelled || token !== initToken) {
+            nextScene.dispose();
             return;
           }
           if (isCanvasWebGlContextLost(canvas)) {
-            scene?.dispose();
-            sceneRef.current = null;
+            nextScene.dispose();
+            if (scene === nextScene) scene = null;
+            if (sceneRef.current === nextScene) sceneRef.current = null;
             setSceneReady(false);
             setSceneFallback(true);
             return;
           }
+          fillCanvas();
+          sceneRef.current = nextScene;
           setSceneReady(true);
           setSceneFallback(false);
         })
         .catch((err) => {
           if (cancelled) return;
           console.error(err);
-          scene?.dispose();
-          sceneRef.current = null;
+          nextScene.dispose();
+          if (scene === nextScene) scene = null;
+          if (sceneRef.current === nextScene) sceneRef.current = null;
           setSceneReady(false);
           setSceneFallback(true);
         });
     };
-    tryInit();
+
+    const ensureSceneSize = () => {
+      if (cancelled) return;
+      fillCanvas();
+      const { w, h } = readSize();
+      if (w < 10 || h < 10) {
+        rafId = requestAnimationFrame(ensureSceneSize);
+        return;
+      }
+      if (!scene) {
+        initScene(w, h);
+        return;
+      }
+
+      const widthChanged = Math.abs(w - lastWidth) > 2;
+      const heightChanged = Math.abs(h - lastHeight) > 2;
+      if (!widthChanged && !heightChanged) return;
+
+      if (sceneResizeLockedRef.current) {
+        pendingSceneResizeRef.current = true;
+        return;
+      }
+
+      initScene(w, h);
+    };
+
+    const scheduleEnsureSceneSize = () => {
+      if (resizeTimer) window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        resizeTimer = null;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(ensureSceneSize);
+      }, 120);
+    };
+
+    sceneResizeSchedulerRef.current = scheduleEnsureSceneSize;
+    ensureSceneSize();
+    resizeObserver = new ResizeObserver(scheduleEnsureSceneSize);
+    resizeObserver.observe(canvas.parentElement ?? canvas);
+
     return () => {
       cancelled = true;
+      sceneResizeSchedulerRef.current = null;
+      if (resizeTimer) window.clearTimeout(resizeTimer);
       if (rafId) cancelAnimationFrame(rafId);
       scene?.dispose();
+      resizeObserver?.disconnect();
       canvas.removeEventListener('webglcontextlost', handleContextLost);
       sceneRef.current = null;
     };

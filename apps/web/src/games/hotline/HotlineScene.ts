@@ -46,7 +46,7 @@ const MEGA_ROWS = 5;
 const REEL_STRIP_LEN = 18; // reel 內部轉動用的延伸符號，控制物件量避免手機卡頓
 const FINAL_STOP_ROW = 2;
 const CLASSIC_RENDER_DPR = 1.6;
-const MEGA_RENDER_DPR = 1.35;
+const MEGA_RENDER_DPR = 2;
 const CLASSIC_PARTICLE_POOL_SIZE = 180;
 const MEGA_PARTICLE_POOL_SIZE = 120;
 const MEGA_MAX_CELL_ASPECT = 1.26;
@@ -307,11 +307,11 @@ export class HotlineScene {
       const [symbolTextures, scatterTexture, multiplierTexture] = await Promise.all([
         Promise.all(
           this.theme.symbols.map((_symbol, symbolIdx) =>
-            this.loadTexture(themeSymbolImage(this.theme, symbolIdx), 480),
+            this.loadTexture(themeSymbolImage(this.theme, symbolIdx), 960),
           ),
         ),
-        this.loadTexture(themeSpecialImage(this.theme, 'scatter'), 480),
-        this.loadTexture(themeSpecialImage(this.theme, 'multiplier'), 480),
+        this.loadTexture(themeSpecialImage(this.theme, 'scatter'), 960),
+        this.loadTexture(themeSpecialImage(this.theme, 'multiplier'), 960),
       ]);
       this.symbolTextures = symbolTextures;
       this.scatterTexture = scatterTexture;

@@ -7501,10 +7501,10 @@
   }
 
   .mega-slot-fallback-frame {
-    width: calc(100cqw - 8px);
-    height: calc(100cqh - 8px);
+    width: min(calc(100cqw - 8px), calc((100cqh - 8px) * 1.2));
+    height: min(calc(100cqh - 8px), calc((100cqw - 8px) / 1.2));
     max-height: none;
-    aspect-ratio: auto;
+    aspect-ratio: 6 / 5;
     gap: 4px;
   }
 
@@ -7754,10 +7754,10 @@
   }
 
   .mega-slot-fallback-frame {
-    width: calc(100cqw - 12px);
-    height: calc(100cqh - 12px);
+    width: min(calc(100cqw - 12px), calc((100cqh - 12px) * 1.2));
+    height: min(calc(100cqh - 12px), calc((100cqw - 12px) / 1.2));
     max-height: none;
-    aspect-ratio: auto;
+    aspect-ratio: 6 / 5;
     gap: 4px;
   }
 
