@@ -19,6 +19,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { PlinkoScene } from '@/games/plinko/PlinkoScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 interface PlinkoPageProps {
   variant?: 'classic' | 'x';
@@ -347,6 +348,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
 
       changeActiveDrops(balls);
       pendingStakeRef.current = roundCurrency(pendingStakeRef.current + totalStake);
+      const releaseBalanceRefresh = holdWalletBalanceRefresh();
       setError(null);
       let anticipationBalls: Array<ReturnType<PlinkoScene['startAnticipation']> | undefined> = [];
 
@@ -367,7 +369,6 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
         if (firstResult) {
           sceneRef.current?.setBoard(firstResult.rows, firstResult.multipliers);
         }
-        setBalance(res.data.newBalance);
 
         await Promise.all(
           dropResults.map(
@@ -383,6 +384,9 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
             },
           ),
         );
+
+        // 額度必須等彈珠落袋後才更新，避免下注瞬間就透露本局結算。
+        setBalance(res.data.newBalance);
 
         const newestFirst = [...dropResults].reverse();
         setResults((prev) => [...newestFirst, ...prev].slice(0, 8));
@@ -411,6 +415,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
         setError(extractApiError(err).message);
         return false;
       } finally {
+        releaseBalanceRefresh();
         changeActiveDrops(-balls);
         pendingStakeRef.current = roundCurrency(pendingStakeRef.current - totalStake);
         if (

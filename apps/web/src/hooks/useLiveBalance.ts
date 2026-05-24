@@ -4,8 +4,20 @@ import { useAuthStore } from '@/stores/authStore';
 
 export const WALLET_BALANCE_REFRESH_EVENT = 'bg-wallet-balance-refresh';
 
+let walletBalanceRefreshHoldCount = 0;
+
 export function requestWalletBalanceRefresh(): void {
   window.dispatchEvent(new Event(WALLET_BALANCE_REFRESH_EVENT));
+}
+
+export function holdWalletBalanceRefresh(): () => void {
+  walletBalanceRefreshHoldCount += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    walletBalanceRefreshHoldCount = Math.max(0, walletBalanceRefreshHoldCount - 1);
+  };
 }
 
 export function useLiveBalance(intervalMs = 5_000): void {
@@ -19,11 +31,11 @@ export function useLiveBalance(intervalMs = 5_000): void {
     let active = true;
 
     const refresh = async () => {
-      if (!active || inFlight.current) return;
+      if (!active || inFlight.current || walletBalanceRefreshHoldCount > 0) return;
       inFlight.current = true;
       try {
         const res = await api.get<{ balance: string }>('/wallet/balance');
-        if (active) setBalance(res.data.balance);
+        if (active && walletBalanceRefreshHoldCount === 0) setBalance(res.data.balance);
       } catch {
         // Keep balance refresh silent. Auth interceptor handles expired sessions.
       } finally {
