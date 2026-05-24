@@ -341,6 +341,7 @@ export function CrashPage({ config }: Props) {
     let scene: CrashScene | null = null;
     let rafId = 0;
     let resizeObserver: ResizeObserver | null = null;
+    let resizeTimer: ReturnType<typeof window.setTimeout> | null = null;
     let initToken = 0;
     let lastWidth = 0;
     let lastHeight = 0;
@@ -384,6 +385,7 @@ export function CrashPage({ config }: Props) {
         })
         .catch((err) => {
           if (!cancelled) console.error(err);
+          if (scene === nextScene) scene = null;
           if (sceneRef.current === nextScene) sceneRef.current = null;
         });
     };
@@ -396,15 +398,34 @@ export function CrashPage({ config }: Props) {
         rafId = requestAnimationFrame(ensureSceneSize);
         return;
       }
-      if (!scene || Math.abs(w - lastWidth) > 3 || Math.abs(h - lastHeight) > 3) {
-        if (scene && statusRef.current !== 'BETTING') return;
+      if (!scene) {
         initScene(w, h);
+        return;
       }
+
+      const widthChanged = Math.abs(w - lastWidth) > 3;
+      const heightChanged = Math.abs(h - lastHeight) > 3;
+      if (!widthChanged && !heightChanged) return;
+
+      // Mobile keyboards change visualViewport height while the amount field is edited.
+      // Rebuilding Pixi/WebGL for that height-only change can blank the canvas and stall Safari.
+      lastHeight = h;
+      if (!widthChanged || statusRef.current !== 'BETTING') return;
+
+      initScene(w, h);
+    };
+
+    const queueEnsureSceneSize = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(ensureSceneSize);
     };
 
     const scheduleEnsureSceneSize = () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(ensureSceneSize);
+      if (resizeTimer) window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        resizeTimer = null;
+        queueEnsureSceneSize();
+      }, 120);
     };
 
     const tryInit = () => {
@@ -422,6 +443,7 @@ export function CrashPage({ config }: Props) {
     tryInit();
     return () => {
       cancelled = true;
+      if (resizeTimer) window.clearTimeout(resizeTimer);
       if (rafId) cancelAnimationFrame(rafId);
       resizeObserver?.disconnect();
       if (scene && sceneRef.current === scene) {
