@@ -62,6 +62,13 @@ type PlinkoDropOptions = {
   risk?: PlinkoRisk;
   source?: PlinkoDropSource;
 };
+type PlinkoWinSummary = {
+  balls: number;
+  totalStake: number;
+  totalPayout: number;
+  netProfit: number;
+  bestMultiplier: number;
+};
 
 function clampBallCount(value: number): number {
   if (!Number.isFinite(value)) return PLINKO_MIN_BALLS;
@@ -73,6 +80,11 @@ function roundCurrency(value: number): number {
   return Number(Math.max(0, value).toFixed(2));
 }
 
+function roundSignedCurrency(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Number(value.toFixed(2));
+}
+
 function waitMs(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -81,6 +93,20 @@ function plinkoResultReleaseDelay(index: number, batchSize: number): number {
   if (batchSize >= PLINKO_BULK_RELEASE_THRESHOLD) return Math.min(260, index * 18);
   if (batchSize >= 5) return index * 10;
   return 0;
+}
+
+function summarizePlinkoBatch(results: PlinkoBetResult[], betAmount: number): PlinkoWinSummary {
+  const totalPayout = roundCurrency(
+    results.reduce((sum, result) => sum + Number.parseFloat(result.payout || '0'), 0),
+  );
+  const totalStake = roundCurrency(betAmount * results.length);
+  return {
+    balls: results.length,
+    totalStake,
+    totalPayout,
+    netProfit: roundSignedCurrency(totalPayout - totalStake),
+    bestMultiplier: results.reduce((max, result) => Math.max(max, result.multiplier), 0),
+  };
 }
 
 function readViewportBox() {
@@ -164,6 +190,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   const [autoActive, setAutoActive] = useState(false);
   const [autoRemaining, setAutoRemaining] = useState<number | null>(null);
   const [autoStopReason, setAutoStopReason] = useState('');
+  const [winModal, setWinModal] = useState<PlinkoWinSummary | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<PlinkoScene | null>(null);
@@ -387,6 +414,11 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
 
         // 額度必須等彈珠落袋後才更新，避免下注瞬間就透露本局結算。
         setBalance(res.data.newBalance);
+
+        const winSummary = summarizePlinkoBatch(dropResults, betAmount);
+        if (dropSource === 'manual' && winSummary.totalPayout > 0) {
+          setWinModal(winSummary);
+        }
 
         const newestFirst = [...dropResults].reverse();
         setResults((prev) => [...newestFirst, ...prev].slice(0, 8));
@@ -917,6 +949,40 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
           <RecentBetsList records={history} />
         </div>
       </div>
+      {winModal ? (
+        <button
+          type="button"
+          className="plinko-win-modal"
+          aria-label="關閉彈珠結算畫面"
+          onClick={() => setWinModal(null)}
+        >
+          <span className="plinko-win-modal__panel">
+            <span className="plinko-win-modal__eyebrow">
+              彈珠結算 · {winModal.balls}
+              {t.games.plinko.balls}
+            </span>
+            <span className="plinko-win-modal__title">
+              {winModal.netProfit > 0 ? 'YOU WON' : '本次派彩'}
+            </span>
+            <span className="plinko-win-modal__amount">{formatAmount(winModal.totalPayout)}</span>
+            <span className="plinko-win-modal__meta">
+              <span>
+                下注 <strong>{formatAmount(winModal.totalStake)}</strong>
+              </span>
+              <span>
+                最高 <strong>{formatMultiplier(winModal.bestMultiplier)}</strong>
+              </span>
+              <span className={winModal.netProfit >= 0 ? 'is-win' : 'is-loss'}>
+                淨利{' '}
+                <strong>
+                  {winModal.netProfit >= 0 ? '+' : '-'}
+                  {formatAmount(Math.abs(winModal.netProfit))}
+                </strong>
+              </span>
+            </span>
+          </span>
+        </button>
+      ) : null}
     </div>
   );
 }
