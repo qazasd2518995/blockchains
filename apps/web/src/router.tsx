@@ -49,10 +49,6 @@ const VerifyPage = lazyPage(() => import('@/pages/VerifyPage'), 'VerifyPage');
 const PromosPage = lazyPage(() => import('@/pages/PromosPage'), 'PromosPage');
 const NotFoundPage = lazyPage(() => import('@/pages/NotFoundPage'), 'NotFoundPage');
 const BlackjackPage = lazyPage(() => import('@/pages/games/BlackjackPage'), 'BlackjackPage');
-const ChickenRoadPage = lazyPage(
-  () => import('@/pages/games/ChickenRoadPage'),
-  'ChickenRoadPage',
-);
 const CrashPage = lazyPage(() => import('@/pages/games/CrashPage'), 'CrashPage');
 const DicePage = lazyPage(() => import('@/pages/games/DicePage'), 'DicePage');
 const HiLoPage = lazyPage(() => import('@/pages/games/HiLoPage'), 'HiLoPage');
@@ -180,6 +176,7 @@ export const router = createBrowserRouter([
       { path: '/games/baccarat', element: <Navigate to="/lobby" replace /> },
       { path: '/games/baccarat-nova', element: <Navigate to="/lobby" replace /> },
       { path: '/games/baccarat-imperial', element: <Navigate to="/lobby" replace /> },
+      { path: '/games/chicken-road', element: <Navigate to="/lobby" replace /> },
       {
         element: <GameFullscreenShell />,
         children: [
@@ -213,7 +210,6 @@ export const router = createBrowserRouter([
           gameRoute('/games/jungle-slot', 'jungle-slot', <HotlinePage theme="jungle" />),
           gameRoute('/games/vampire-slot', 'vampire-slot', <HotlinePage theme="vampire" />),
           gameRoute('/games/tower', 'tower', <TowerPage />),
-          gameRoute('/games/chicken-road', 'chicken-road', <ChickenRoadPage />),
           gameRoute('/games/rocket', 'rocket', <CrashPage config={CRASH_CONFIGS.rocket!} />),
           gameRoute('/games/aviator', 'aviator', <CrashPage config={CRASH_CONFIGS.aviator!} />),
           gameRoute(

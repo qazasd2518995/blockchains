@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Lock, ArrowRight } from 'lucide-react';
+import { GAMES_REGISTRY } from '@bg/shared';
 import { HALL_LIST, type HallMeta } from '@/data/halls';
 import { ResponsiveImage } from '@/lib/optimizedImages';
 import { getHallIcon } from '@/lib/platformIcons';
@@ -15,6 +16,7 @@ function GuestHallCard({ hall }: { hall: HallMeta }) {
   const Icon = getHallIcon(hall.iconKey);
   const name = getLocalizedHallName(hall, locale);
   const tagline = getLocalizedHallTagline(hall, locale);
+  const gameCount = hall.gameIds.filter((id) => GAMES_REGISTRY[id]?.enabled).length;
 
   return (
     <Link
@@ -57,7 +59,7 @@ function GuestHallCard({ hall }: { hall: HallMeta }) {
             {name}
           </h3>
           <span className="shrink-0 rounded-full bg-[#EDF4F7] px-3 py-1 text-[12px] font-semibold text-[#557083]">
-            {hall.gameIds.length} {t.common.gamesCountUnit}
+            {gameCount} {t.common.gamesCountUnit}
           </span>
         </div>
         <p className="text-[15px] leading-7 text-[#4A5568]">{tagline}</p>

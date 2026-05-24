@@ -348,7 +348,7 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     descriptionZh: '逐步穿越車道、累積倍率，命中車流前可隨時領取',
     rtp: 0.97,
     icon: 'chicken-road',
-    enabled: true,
+    enabled: false,
   },
   [GameId.ROCKET]: {
     id: GameId.ROCKET,

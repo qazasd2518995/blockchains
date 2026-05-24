@@ -61,7 +61,7 @@ const HALLS: Hall[] = [
     title: '策略挑戰館',
     subtitle: 'Strategy Hall',
     tone: '#5B8C40',
-    intro: '掃雷、爬階梯與小雞過馬路都需要逐步判斷與隨時收手，每一個選擇都影響獎金。',
+    intro: '掃雷與爬階梯都需要逐步判斷與隨時收手，每一個選擇都影響獎金。',
     vibe: '腦力對決、越拚越上頭',
   },
 ];
@@ -593,7 +593,12 @@ const GAMES: Game[] = [
   },
 ];
 
-const HIDDEN_GAME_IDS = new Set(['baccarat', 'baccarat-nova', 'baccarat-imperial']);
+const HIDDEN_GAME_IDS = new Set([
+  'baccarat',
+  'baccarat-nova',
+  'baccarat-imperial',
+  'chicken-road',
+]);
 const VISIBLE_GAMES = GAMES.filter((game) => !HIDDEN_GAME_IDS.has(game.id));
 
 const HALL_FILTERS: Array<{

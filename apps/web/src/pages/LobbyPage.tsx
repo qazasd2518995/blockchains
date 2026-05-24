@@ -49,7 +49,7 @@ const MOBILE_HOT_GAME_IDS: GameIdType[] = [
   GameId.DRAGON_MEGA_SLOT,
   GameId.WHEEL,
   GameId.PLINKO_X,
-  GameId.CHICKEN_ROAD,
+  GameId.TOWER,
 ];
 const mobileHotGames = MOBILE_HOT_GAME_IDS.map((id) => GAMES_REGISTRY[id]).filter(
   (game): game is GameMetadata => Boolean(game?.enabled),

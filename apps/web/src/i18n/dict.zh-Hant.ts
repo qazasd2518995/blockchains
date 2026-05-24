@@ -267,7 +267,7 @@ export const zhHant = {
     crashSubtitle: 'JetX / Aviator / Rocket · 看準時機一鍵收分',
     strategyEyebrow: '策略館',
     strategyTitle: '策略挑戰館 · 讀局勢再放大獎',
-    strategySubtitle: 'Mines / Tower / Chicken Road · 拆選擇、拚高倍、越玩越上頭',
+    strategySubtitle: 'Mines / Tower · 拆選擇、拚高倍、越玩越上頭',
     tablesEyebrow: '牌桌館',
     tablesTitle: '棋牌牌桌館 · 盯牌路，換桌追節奏',
     tablesSubtitle: 'Baccarat / Blackjack / Hi-Lo · 同一套八千代帳號，直接進桌開玩',

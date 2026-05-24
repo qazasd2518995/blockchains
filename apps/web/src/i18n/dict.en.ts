@@ -285,7 +285,7 @@ export const en = {
     crashSubtitle: 'JetX / Aviator / Rocket · Cash out at the right moment',
     strategyEyebrow: 'Strategy Hall',
     strategyTitle: 'Strategy Hall · Read the board, chase bigger payouts',
-    strategySubtitle: 'Mines / Tower / Chicken Road · Pick carefully and push higher',
+    strategySubtitle: 'Mines / Tower · Pick carefully and push higher',
     tablesEyebrow: 'Table Hall',
     tablesTitle: 'Table Hall · Watch the cards and change pace',
     tablesSubtitle: 'Baccarat / Blackjack / Hi-Lo · One Yachiyo account, instant table entry',

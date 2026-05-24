@@ -1,3 +1,5 @@
+import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
+
 export interface WinRecord {
   player: string;
   game: string;
@@ -154,6 +156,10 @@ const GAME_POOL: Array<{
   { game: '骰子', gameId: 'dice', minMult: 2, maxMult: 24, minWin: 6000, maxWin: 160000 },
 ];
 
+const ENABLED_GAME_POOL = GAME_POOL.filter(
+  ({ gameId }) => GAMES_REGISTRY[gameId as GameIdType]?.enabled,
+);
+
 const ACCOUNT_PREFIX = [
   'ak',
   'bc',
@@ -259,7 +265,7 @@ export function createSimulatedWinRecord(existingPlayers: Set<string> = new Set(
     guard += 1;
   }
 
-  const game = randomFrom(GAME_POOL);
+  const game = randomFrom(ENABLED_GAME_POOL.length > 0 ? ENABLED_GAME_POOL : GAME_POOL);
   const spike = Math.random();
   const mult = Number(
     randomBetween(spike > 0.9 ? game.maxMult * 0.55 : game.minMult, game.maxMult).toFixed(2),
