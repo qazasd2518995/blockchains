@@ -111,8 +111,7 @@ export class HotlineService {
         rowCount,
         buyFeature,
       );
-      const naturalRound = softenEmptyHotlineRound(gameId, generatedRound, seed.nonce, buyFeature);
-      const multiplierD = new Prisma.Decimal(naturalRound.totalMultiplier.toFixed(4));
+      const multiplierD = new Prisma.Decimal(generatedRound.totalMultiplier.toFixed(4));
       const payout = baseAmount.mul(multiplierD).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
       const accountingMultiplierD = stakeAmount.greaterThan(0)
         ? payout.div(stakeAmount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN)
@@ -137,10 +136,10 @@ export class HotlineService {
           : undefined,
       );
 
-      let finalGrid = naturalRound.grid;
-      let finalLines = naturalRound.lines;
-      let finalCascades = naturalRound.cascades;
-      let finalFeatures = naturalRound.features;
+      let finalGrid = generatedRound.grid;
+      let finalLines = generatedRound.lines;
+      let finalCascades = generatedRound.cascades;
+      let finalFeatures = generatedRound.features;
       let finalMultiplier = accountingMultiplierD;
       let finalPayout = payout;
       if (controlled.controlled) {
@@ -165,10 +164,10 @@ export class HotlineService {
       const profit = finalPayout.minus(stakeAmount);
 
       const originalResult = {
-        grid: naturalRound.grid,
-        lines: naturalRound.lines,
-        cascades: naturalRound.cascades,
-        ...(naturalRound.features ? { features: naturalRound.features } : {}),
+        grid: generatedRound.grid,
+        lines: generatedRound.lines,
+        cascades: generatedRound.cascades,
+        ...(generatedRound.features ? { features: generatedRound.features } : {}),
         buyFeature,
         baseAmount: baseAmount.toFixed(2),
         stakeAmount: stakeAmount.toFixed(2),
@@ -413,17 +412,6 @@ function buildHotlineRound(
     cascades: [],
     totalMultiplier: evaluated.totalMultiplier,
   };
-}
-
-function softenEmptyHotlineRound(
-  gameId: string,
-  round: HotlineRound,
-  nonce: number,
-  buyFeature: boolean,
-): HotlineRound {
-  if (buyFeature || round.totalMultiplier > 0) return round;
-
-  return softLossHotlineRound(gameId, nonce);
 }
 
 function winningHotlineRound(
