@@ -20,6 +20,8 @@ import { applyControls, finalizeControls } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { TowerStartInput, TowerPickInput, TowerCashoutInput } from './tower.schema.js';
 
+const TOWER_FORCED_LOSS_GRACE_LEVELS = 3;
+
 export class TowerService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -94,7 +96,7 @@ export class TowerService {
         multiplier: rawSafe ? nextMult : new Prisma.Decimal(0),
         payout: predictedPayout,
       });
-      const canForceLoss = round.currentLevel > 0;
+      const canForceLoss = round.currentLevel >= TOWER_FORCED_LOSS_GRACE_LEVELS;
       if (controlled.controlled) {
         layout = controlled.won
           ? forceTowerSafe(rawLayout, round.currentLevel, input.col, cfg.cols)

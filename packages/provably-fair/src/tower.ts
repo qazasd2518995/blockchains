@@ -8,14 +8,21 @@ export const TOWER_HOUSE_EDGE = 0.03;
 // 每個難度：每層有 cols 格，safe 格數 / 陷阱數
 export const TOWER_CONFIG: Record<
   TowerDifficulty,
-  { cols: number; safe: number }
+  { cols: number; safe: number; openingSafe?: number[] }
 > = {
-  easy: { cols: 4, safe: 3 },
-  medium: { cols: 3, safe: 2 },
-  hard: { cols: 2, safe: 1 },
-  expert: { cols: 3, safe: 1 },
-  master: { cols: 4, safe: 1 },
+  easy: { cols: 4, safe: 3, openingSafe: [4] },
+  medium: { cols: 3, safe: 2, openingSafe: [3] },
+  hard: { cols: 2, safe: 1, openingSafe: [2] },
+  expert: { cols: 3, safe: 1, openingSafe: [2, 2] },
+  master: { cols: 4, safe: 1, openingSafe: [3, 3, 2] },
 };
+
+export function towerSafeCountForLevel(difficulty: TowerDifficulty, level: number): number {
+  const cfg = TOWER_CONFIG[difficulty];
+  const openingSafe = cfg.openingSafe?.[level];
+  const safe = openingSafe ?? cfg.safe;
+  return Math.max(1, Math.min(cfg.cols, safe));
+}
 
 /**
  * 為每一層決定哪些 col 是安全格（0-indexed）。
@@ -27,11 +34,12 @@ export function towerLayout(
   nonce: number,
   difficulty: TowerDifficulty,
 ): number[][] {
-  const { cols, safe } = TOWER_CONFIG[difficulty];
+  const { cols } = TOWER_CONFIG[difficulty];
   const stream = hmacIntStream(serverSeed, clientSeed, nonce);
   const layout: number[][] = [];
 
   for (let level = 0; level < TOWER_LEVELS; level += 1) {
+    const safe = towerSafeCountForLevel(difficulty, level);
     const positions = Array.from({ length: cols }, (_, i) => i);
     for (let i = cols - 1; i > 0; i -= 1) {
       const r = stream.next().value as number;
@@ -51,9 +59,12 @@ export function towerMultiplier(
   currentLevel: number,
 ): number {
   if (currentLevel <= 0) return 1;
-  const { cols, safe } = TOWER_CONFIG[difficulty];
-  const single = cols / safe;
-  const raw = Math.pow(single, currentLevel) * (1 - TOWER_HOUSE_EDGE);
+  const { cols } = TOWER_CONFIG[difficulty];
+  let fair = 1;
+  for (let level = 0; level < currentLevel; level += 1) {
+    fair *= cols / towerSafeCountForLevel(difficulty, level);
+  }
+  const raw = fair <= 1 ? 1 : fair * (1 - TOWER_HOUSE_EDGE);
   return Math.floor(raw * 10000) / 10000;
 }
 

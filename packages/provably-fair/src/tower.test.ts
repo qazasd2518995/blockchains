@@ -3,6 +3,7 @@ import {
   towerLayout,
   towerMultiplier,
   towerNextMultiplier,
+  towerSafeCountForLevel,
   TOWER_CONFIG,
   TOWER_LEVELS,
 } from './tower.js';
@@ -13,10 +14,11 @@ describe('towerLayout', () => {
     expect(layout.length).toBe(TOWER_LEVELS);
   });
 
-  it('each level has exactly cfg.safe positions', () => {
+  it('each level has the configured safe count for that level', () => {
     const layout = towerLayout('s', 'c', 1, 'hard');
-    for (const row of layout) {
-      expect(row.length).toBe(TOWER_CONFIG.hard.safe);
+    for (let level = 0; level < layout.length; level += 1) {
+      const row = layout[level] as number[];
+      expect(row.length).toBe(towerSafeCountForLevel('hard', level));
       expect(new Set(row).size).toBe(row.length);
       for (const p of row) {
         expect(p).toBeGreaterThanOrEqual(0);
@@ -27,6 +29,11 @@ describe('towerLayout', () => {
 
   it('is deterministic', () => {
     expect(towerLayout('s', 'c', 1, 'easy')).toEqual(towerLayout('s', 'c', 1, 'easy'));
+  });
+
+  it('softens opening levels on risky modes', () => {
+    expect(towerSafeCountForLevel('master', 0)).toBeGreaterThan(TOWER_CONFIG.master.safe);
+    expect(towerSafeCountForLevel('expert', 1)).toBeGreaterThan(TOWER_CONFIG.expert.safe);
   });
 });
 

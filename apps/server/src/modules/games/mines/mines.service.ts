@@ -18,6 +18,8 @@ import { applyControls, finalizeControls } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { MinesStartInput, MinesRevealInput, MinesCashoutInput } from './mines.schema.js';
 
+const MINES_FORCED_LOSS_GRACE_REVEALS = 3;
+
 export class MinesService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -100,7 +102,7 @@ export class MinesService {
         multiplier: rawHitMine ? new Prisma.Decimal(0) : safeMultiplier,
         payout: rawHitMine ? new Prisma.Decimal(0) : safePayout,
       });
-      const canForceLoss = round.revealed.length > 0;
+      const canForceLoss = round.revealed.length >= MINES_FORCED_LOSS_GRACE_REVEALS;
       if (controlled.controlled && controlled.won && rawHitMine) {
         const moved = moveMineAway(rawMinePositions, input.cellIndex, newRevealed);
         if (moved) {
