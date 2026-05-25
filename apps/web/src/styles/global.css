@@ -4257,18 +4257,50 @@
   color: rgba(255, 255, 255, 0.66);
 }
 
-.mega-slot-mini-pay > div {
+.mega-slot-mini-pay__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+}
+
+.mega-slot-mini-pay__head strong {
+  color: #f3d67d;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.mega-slot-mini-pay__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.mega-slot-mini-pay__grid > div {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
+  border-radius: 999px;
+  background: rgba(5, 10, 19, 0.34);
+  padding: 2px 4px 2px 2px;
 }
 
-.mega-slot-mini-pay span:last-child {
+.mega-slot-mini-pay__grid > div > span:last-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: rgba(248, 250, 252, 0.78);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 9px;
+  font-weight: 900;
 }
 
 .mega-slot-side--right {
@@ -5277,6 +5309,125 @@
   margin-top: 10px;
   border-radius: 12px;
   padding: 9px 12px;
+}
+
+.slot-payout-card {
+  overflow: hidden;
+}
+
+.slot-payout-table {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.slot-payout-table__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.slot-payout-table__header p {
+  margin-top: 4px;
+  color: rgba(226, 232, 240, 0.58);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.slot-payout-table__header > span {
+  flex: 0 0 auto;
+  border: 1px solid rgba(125, 211, 252, 0.24);
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.09);
+  padding: 4px 8px;
+  color: #9ee7ff;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+}
+
+.slot-payout-table__list {
+  display: grid;
+  gap: 6px;
+}
+
+.slot-payout-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.5);
+  padding: 7px 9px;
+}
+
+.slot-payout-row__symbol {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.slot-payout-row__symbol > div {
+  min-width: 0;
+}
+
+.slot-payout-row__symbol > div strong,
+.slot-payout-row__symbol > div span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slot-payout-row__symbol > div strong {
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.slot-payout-row__symbol > div span {
+  margin-top: 2px;
+  color: rgba(226, 232, 240, 0.46);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.slot-payout-row__value {
+  display: grid;
+  min-width: 74px;
+  justify-items: end;
+  gap: 1px;
+  text-align: right;
+}
+
+.slot-payout-row__value span,
+.slot-payout-row__value em {
+  color: rgba(226, 232, 240, 0.55);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
+
+.slot-payout-row__value strong {
+  color: #dbeafe;
+  font-size: 14px;
+}
+
+.slot-payout-row--premium {
+  border-color: rgba(243, 214, 125, 0.2);
+  background:
+    linear-gradient(90deg, rgba(243, 214, 125, 0.08), transparent 54%),
+    rgba(15, 23, 42, 0.5);
+}
+
+.slot-payout-row--premium .slot-payout-row__value strong {
+  color: #f3d67d;
 }
 
 .mega-slot-auto-status strong,

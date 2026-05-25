@@ -41,11 +41,6 @@ interface Props {
 
 const SYMBOL_POSITIONS = ['0% 0%', '50% 0%', '100% 0%', '0% 100%', '50% 100%', '100% 100%'];
 
-const MEGA_SYMBOL_PAYOUTS = HOTLINE_MEGA_SYMBOLS.map((symbol) => `8+個 ${symbol.payout3}x`);
-const CLASSIC_SYMBOL_PAYOUTS = HOTLINE_SYMBOLS.map(
-  (symbol) => `3個 ${symbol.payout3}x · 4個 ${symbol.payout4}x · 5個 ${symbol.payout5}x`,
-);
-const MINI_SYMBOL_PAYOUTS = HOTLINE_MINI_SYMBOLS.map((symbol) => `3個 ${symbol.payout3}x`);
 const BIG_WIN_MULTIPLIER = 20;
 const MEGA_MAX_TOTAL_MULTIPLIER = 1000;
 const MEGA_BUY_FEATURE_MAX_WIN_MULTIPLIER = 50000;
@@ -1580,12 +1575,21 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 </div>
               </div>
               <div className="mega-slot-mini-pay">
-                {slotTheme.symbols.slice(0, 3).map((symbol, index) => (
-                  <div key={symbol.label}>
-                    <SlotSymbolBadge theme={slotTheme} symbol={index} useShortLabel />
-                    <span>{MEGA_SYMBOL_PAYOUTS[index]}</span>
-                  </div>
-                ))}
+                <div className="mega-slot-mini-pay__head">
+                  <span>賠率速覽</span>
+                  <strong>8+ 連線</strong>
+                </div>
+                <div className="mega-slot-mini-pay__grid">
+                  {slotTheme.symbols.map((symbol, index) => {
+                    const payout = getSlotPayoutMeta(slotTheme, index, true);
+                    return (
+                      <div key={symbol.label}>
+                        <SlotSymbolBadge theme={slotTheme} symbol={index} useShortLabel />
+                        <span>{payout.multiplier}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </aside>
 
@@ -1960,21 +1964,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             </div>
           </div>
 
-          <div className="game-side-card p-5">
-            <div className="label">{t.games.hotline.payoutTable}</div>
-            <div className="mt-3 space-y-2 text-[11px]">
-              {slotTheme.symbols.map((symbol, index) => (
-                <div
-                  key={`${slotTheme.id}-${symbol.label}`}
-                  className="flex items-center justify-between gap-3 border-b border-white/10 pb-2 last:border-0 last:pb-0"
-                >
-                  <SlotSymbolBadge theme={slotTheme} symbol={index} showLabel />
-                  <span className="data-num text-right text-white/85">
-                    {getSlotPayoutLabel(slotTheme, index, isMegaSlot)}
-                  </span>
-                </div>
-              ))}
-            </div>
+          <div className="game-side-card slot-payout-card p-5">
+            <SlotPayoutTable slotTheme={slotTheme} isMegaSlot={isMegaSlot} />
           </div>
 
           <RecentBetsList records={history} />
@@ -2101,6 +2092,54 @@ function SlotSymbolBadge({
       />
       {showLabel ? <span className="tracking-[0.18em]">{label}</span> : null}
     </span>
+  );
+}
+
+function SlotPayoutTable({
+  slotTheme,
+  isMegaSlot,
+}: {
+  slotTheme: SlotThemeConfig;
+  isMegaSlot: boolean;
+}) {
+  const subtitle = isMegaSlot ? '8+ 連線觸發派彩' : '連線越多倍率越高';
+
+  return (
+    <div className="slot-payout-table">
+      <div className="slot-payout-table__header">
+        <div>
+          <div className="label">賠率表</div>
+          <p>{subtitle}</p>
+        </div>
+        <span>{slotTheme.symbols.length} 符號</span>
+      </div>
+      <div className="slot-payout-table__list">
+        {slotTheme.symbols.map((symbol, index) => {
+          const payout = getSlotPayoutMeta(slotTheme, index, isMegaSlot);
+          const tone = payout.primaryValue < 1 ? 'soft' : 'premium';
+
+          return (
+            <div
+              key={`${slotTheme.id}-${symbol.label}`}
+              className={`slot-payout-row slot-payout-row--${tone}`}
+            >
+              <div className="slot-payout-row__symbol">
+                <SlotSymbolBadge theme={slotTheme} symbol={index} />
+                <div>
+                  <strong>{symbol.label}</strong>
+                  <span>{tone === 'soft' ? '小派彩' : '高派彩'}</span>
+                </div>
+              </div>
+              <div className="slot-payout-row__value">
+                <span>{payout.condition}</span>
+                <strong className="data-num">{payout.multiplier}</strong>
+                {payout.detail ? <em>{payout.detail}</em> : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -2571,14 +2610,46 @@ function getFinalMegaSpecialSymbols(features?: HotlineMegaFeatureResult): Hotlin
   ];
 }
 
-function getSlotPayoutLabel(
+function getSlotPayoutMeta(
   slotTheme: SlotThemeConfig,
   symbolIndex: number,
   isMegaSlot: boolean,
-): string {
-  if (isMegaSlot) return MEGA_SYMBOL_PAYOUTS[symbolIndex] ?? '';
-  if (slotTheme.reels === 3) return MINI_SYMBOL_PAYOUTS[symbolIndex] ?? '';
-  return CLASSIC_SYMBOL_PAYOUTS[symbolIndex] ?? '';
+): {
+  condition: string;
+  multiplier: string;
+  detail: string;
+  primaryValue: number;
+} {
+  if (isMegaSlot) {
+    const symbol = HOTLINE_MEGA_SYMBOLS[symbolIndex];
+    const value = symbol?.payout3 ?? 0;
+    return {
+      condition: '8+ 連線',
+      multiplier: `${value}×`,
+      detail: '',
+      primaryValue: value,
+    };
+  }
+
+  if (slotTheme.reels === 3) {
+    const symbol = HOTLINE_MINI_SYMBOLS[symbolIndex];
+    const value = symbol?.payout3 ?? 0;
+    return {
+      condition: '3 個',
+      multiplier: `${value}×`,
+      detail: '',
+      primaryValue: value,
+    };
+  }
+
+  const symbol = HOTLINE_SYMBOLS[symbolIndex];
+  const value = symbol?.payout3 ?? 0;
+  return {
+    condition: '3 個',
+    multiplier: `${value}×`,
+    detail: symbol ? `4個 ${symbol.payout4}× · 5個 ${symbol.payout5}×` : '',
+    primaryValue: value,
+  };
 }
 
 function formatMegaFeatureDetail(features?: HotlineMegaFeatureResult, buyFeature = false): string {
