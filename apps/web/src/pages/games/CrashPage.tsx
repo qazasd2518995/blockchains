@@ -78,6 +78,28 @@ function formatCrashMultiplier(value: string | number): string {
   return `${n.toFixed(1)}×`;
 }
 
+function CrashCashoutSummary({
+  label,
+  amount,
+  multiplier,
+}: {
+  label: string;
+  amount: number;
+  multiplier: string | number;
+}): JSX.Element {
+  return (
+    <span className="crash-cashout-summary">
+      <span className="crash-cashout-summary__main">
+        <span className="crash-cashout-summary__label">{label}</span>
+        <span className="crash-cashout-summary__amount">{formatAmount(amount)}</span>
+      </span>
+      <span className="crash-cashout-summary__multiplier data-num">
+        {formatCrashMultiplier(multiplier)}
+      </span>
+    </span>
+  );
+}
+
 function createCrashAutoDraft(amount: number): CrashAutoDraft {
   return {
     rounds: '∞',
@@ -156,10 +178,7 @@ function nextRoundPollDelayFromVisual(
     autoCashOut > currentVisual &&
     autoCashOut < finalMultiplier;
   const targetMultiplier = shouldPollAutoCashout ? autoCashOut : finalMultiplier;
-  const revealAtMs = Math.max(
-    CRASH_INSTANT_RESULT_REVEAL_MS,
-    crashElapsedMs(targetMultiplier),
-  );
+  const revealAtMs = Math.max(CRASH_INSTANT_RESULT_REVEAL_MS, crashElapsedMs(targetMultiplier));
   const buffer = shouldPollAutoCashout
     ? CRASH_AUTO_CASHOUT_POLL_BUFFER_MS
     : CRASH_FINALIZE_POLL_BUFFER_MS;
@@ -707,7 +726,7 @@ export function CrashPage({ config }: Props) {
                 id: `${Date.now()}-${Math.random()}`,
                 timestamp: Date.now(),
                 betAmount: bet.amount,
-                multiplier: won ? cashoutAt ?? 0 : 0,
+                multiplier: won ? (cashoutAt ?? 0) : 0,
                 payout: payoutAmount,
                 won,
                 detail: won
@@ -1340,7 +1359,8 @@ export function CrashPage({ config }: Props) {
       : manualAutoCashOutTarget
         ? formatCrashMultiplier(manualAutoCashOutTarget.multiplier)
         : '—';
-  const controlsLocked = submitting || autoBetActive || status === 'RUNNING' || status === 'COUNTDOWN';
+  const controlsLocked =
+    submitting || autoBetActive || status === 'RUNNING' || status === 'COUNTDOWN';
   const canShowCurrentBetButton = status !== 'RUNNING' && status !== 'COUNTDOWN';
   const activeBetAmount = myBet?.amount ?? amount;
   const activeBetPayout = roundCurrency(Number.parseFloat(myBet?.payout ?? '0'));
@@ -1706,23 +1726,20 @@ export function CrashPage({ config }: Props) {
                   disabled={cashoutSubmitting || activeBetCashedOut}
                   className="crash-flight-status-button btn-acid w-full py-4"
                 >
-                  <span>
-                    {activeBetCashedOut
-                      ? `${t.games.crash.secured} · ${formatAmount(activeBetPayout)}`
-                      : `${
-                          cashoutSubmitting ? t.common.loading : t.bet.cashout
-                        } · ${formatAmount(liveCashoutPayout)}`}
-                  </span>
-                  <span className="data-num">
-                    {formatCrashMultiplier(myBet?.cashedOutAt ?? multiplier)}
-                  </span>
+                  <CrashCashoutSummary
+                    label={
+                      activeBetCashedOut
+                        ? t.games.crash.secured
+                        : cashoutSubmitting
+                          ? t.common.loading
+                          : t.bet.cashout
+                    }
+                    amount={activeBetCashedOut ? activeBetPayout : liveCashoutPayout}
+                    multiplier={myBet?.cashedOutAt ?? multiplier}
+                  />
                 </button>
               ) : status === 'COUNTDOWN' ? (
-                <button
-                  type="button"
-                  onClick={handlePlaceBet}
-                  className="btn-ember w-full py-4"
-                >
+                <button type="button" onClick={handlePlaceBet} className="btn-ember w-full py-4">
                   <span>
                     取消 · 下一回合 {countdownSeconds}
                     {queuedAutoCashOut ? ` · ${formatCrashMultiplier(queuedAutoCashOut)}` : ''}
@@ -1750,9 +1767,15 @@ export function CrashPage({ config }: Props) {
                       activeBetPayout > 0 ? 'text-[#6EE7B7]' : 'text-[#FCA5A5]'
                     }`}
                   >
-                    {activeBetPayout > 0
-                      ? `${t.games.crash.secured} · ${formatAmount(activeBetPayout)}`
-                      : t.games.crash.busted}
+                    {activeBetPayout > 0 ? (
+                      <CrashCashoutSummary
+                        label={t.games.crash.secured}
+                        amount={activeBetPayout}
+                        multiplier={myBet.cashedOutAt ?? multiplier}
+                      />
+                    ) : (
+                      t.games.crash.busted
+                    )}
                   </div>
                 </div>
               )}

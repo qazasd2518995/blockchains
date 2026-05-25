@@ -147,6 +147,61 @@
     color: #f3d67d;
   }
 
+  .crash-cashout-summary {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    line-height: 1;
+  }
+
+  .crash-flight-status-button > .crash-cashout-summary {
+    grid-column: 1 / -1;
+  }
+
+  .crash-cashout-summary__main {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.22rem 0.52rem;
+  }
+
+  .crash-cashout-summary__label {
+    flex: 0 0 auto;
+    font-size: 0.8em;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    opacity: 0.76;
+  }
+
+  .crash-cashout-summary__amount {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-display, ui-sans-serif, system-ui, sans-serif);
+    font-weight: 900;
+    letter-spacing: 0.02em;
+  }
+
+  .crash-cashout-summary__multiplier {
+    display: inline-flex;
+    min-width: 4.3rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid rgba(186, 230, 253, 0.28);
+    background: rgba(7, 16, 28, 0.22);
+    padding: 0.24rem 0.56rem;
+    white-space: nowrap;
+    color: #bae6fd;
+  }
+
   .crash-mobile-live-bets {
     display: none;
   }
@@ -1541,11 +1596,38 @@
 
     .game-fullscreen-shell .crash-control-card .crash-action-stack .crash-flight-status-button {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr);
       align-items: center;
       justify-content: stretch;
       opacity: 1;
       pointer-events: auto;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-cashout-summary {
+      grid-template-columns: minmax(0, 1fr) minmax(3.65rem, auto);
+      gap: 0.42rem;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-cashout-summary__main {
+      justify-content: center;
+      gap: 0.12rem 0.34rem;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-cashout-summary__label {
+      font-size: 10px;
+      letter-spacing: 0.04em;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-cashout-summary__amount {
+      max-width: 100%;
+      font-size: 15px;
+      letter-spacing: 0.01em;
+    }
+
+    .game-fullscreen-shell .crash-control-card .crash-cashout-summary__multiplier {
+      min-width: 3.65rem;
+      padding: 0.18rem 0.38rem;
+      font-size: 13px !important;
     }
 
     .game-fullscreen-shell
@@ -5393,9 +5475,7 @@
   place-items: center;
   border-radius: 18px;
   border: 2px solid rgba(148, 163, 153, 0.32);
-  background:
-    linear-gradient(180deg, rgba(74, 86, 82, 0.96), rgba(42, 52, 49, 0.98)),
-    #303a38;
+  background: linear-gradient(180deg, rgba(74, 86, 82, 0.96), rgba(42, 52, 49, 0.98)), #303a38;
   box-shadow:
     0 24px 80px rgba(0, 0, 0, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
