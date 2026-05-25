@@ -487,13 +487,17 @@ export class HotlineScene {
 
     const symbolTexture = this.symbolTextures[symbolIdx];
     if (symbolTexture) {
+      const render = themeSymbol?.render;
       const sprite = new Sprite(symbolTexture);
       sprite.eventMode = 'none';
       sprite.anchor.set(0.5);
-      const targetW = width - 8;
-      const targetH = height - 8;
+      const fitScale = render?.scale ?? 1;
+      const targetW = (width - 8) * fitScale;
+      const targetH = (height - 8) * fitScale;
       const scale = Math.min(targetW / symbolTexture.width, targetH / symbolTexture.height);
       sprite.scale.set(scale);
+      sprite.x = (render?.offsetX ?? 0) * width;
+      sprite.y = (render?.offsetY ?? 0) * height;
       sprite.alpha = 0.98;
       c.addChild(sprite);
 

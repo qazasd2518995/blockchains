@@ -2192,6 +2192,9 @@ function MegaFallbackGrid({
                           '--mega-slot-reel-index': reelIndex,
                           '--mega-slot-row-index': rowIndex,
                           '--mega-slot-drop-offset': dropOffset ?? -1.15,
+                          '--mega-slot-symbol-offset-x': `${(meta.render?.offsetX ?? 0) * 100}%`,
+                          '--mega-slot-symbol-offset-y': `${(meta.render?.offsetY ?? 0) * 100}%`,
+                          '--mega-slot-symbol-scale': meta.render?.scale ?? 1,
                         } as CSSProperties
                       }
                     >

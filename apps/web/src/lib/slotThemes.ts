@@ -31,6 +31,11 @@ export interface SlotSymbolThemeMeta {
   shortLabel: string;
   accentHex: string;
   accentValue: number;
+  render?: {
+    scale?: number;
+    offsetX?: number;
+    offsetY?: number;
+  };
 }
 
 export interface SlotThemeConfig {
@@ -143,12 +148,22 @@ const SAKURA_SYMBOLS: SlotSymbolThemeMeta[] = [
   { label: 'JADE CHARM', shortLabel: '1.8', accentHex: '#10B981', accentValue: 0x10b981 },
 ];
 
+const THUNDER_SYMBOL_RENDER: Partial<Record<number, NonNullable<SlotSymbolThemeMeta['render']>>> = {
+  0: { offsetX: -0.06 },
+  2: { offsetX: 0.06, offsetY: -0.05 },
+  3: { offsetX: -0.04, offsetY: 0.08 },
+  4: { offsetX: -0.03, offsetY: 0.09 },
+};
+
 const THUNDER_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
   { label: 'HAMMER', shortLabel: '1.2', accentHex: '#FBBF24', accentValue: 0xfbbf24 },
   { label: 'AXE', shortLabel: '1.4', accentHex: '#B8C7D9', accentValue: 0xb8c7d9 },
   { label: 'SHIELD', shortLabel: '1.6', accentHex: '#F0C96A', accentValue: 0xf0c96a },
   { label: 'STORM', shortLabel: '1.8', accentHex: '#60A5FA', accentValue: 0x60a5fa },
-]);
+]).map((symbol, index) => {
+  const render = THUNDER_SYMBOL_RENDER[index];
+  return render ? { ...symbol, render } : symbol;
+});
 
 const DRAGON_MEGA_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
   { label: 'SCALE', shortLabel: '1.2', accentHex: '#22C55E', accentValue: 0x22c55e },

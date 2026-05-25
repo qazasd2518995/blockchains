@@ -4543,7 +4543,10 @@
   height: calc(100% - 8px);
   max-width: 92%;
   max-height: calc(100% - 8px);
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%)
+    translate(var(--mega-slot-symbol-offset-x, 0%), var(--mega-slot-symbol-offset-y, 0%))
+    scale(var(--mega-slot-symbol-scale, 1));
+  transform-origin: center;
   object-fit: contain;
   object-position: center;
   filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.5));
