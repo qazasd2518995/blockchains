@@ -2070,7 +2070,7 @@ function SlotSymbolBadge({
 }) {
   const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
   const label = useShortLabel ? meta.shortLabel : meta.label;
-  const symbolImage = getMegaSlotSymbolImage(theme, symbol);
+  const symbolImage = getSlotSymbolImage(theme, symbol);
   const sheetPosition = theme.rows > 3 ? SYMBOL_POSITIONS[symbol] : undefined;
   const fallbackFill = `radial-gradient(circle at 35% 28%, rgba(255,255,255,0.5), transparent 22%), linear-gradient(135deg, ${meta.accentHex}55, ${meta.accentHex}18)`;
 
@@ -2311,8 +2311,7 @@ function isCanvasWebGlContextLost(canvas: HTMLCanvasElement): boolean {
   }
 }
 
-function getMegaSlotSymbolImage(theme: SlotThemeConfig, symbol: number): string | null {
-  if (theme.rows <= 3) return null;
+function getSlotSymbolImage(theme: SlotThemeConfig, symbol: number): string | null {
   if (!Number.isInteger(symbol) || symbol < 0 || symbol >= theme.symbols.length) return null;
   return theme.symbolSheet.replace(/symbols\.png$/, `symbol-${symbol}.png`);
 }
@@ -2324,7 +2323,7 @@ function getMegaSlotDisplayImage(
 ): string | null {
   if (special?.type === 'scatter') return getMegaSlotScatterImage(theme);
   if (special?.type === 'multiplier') return getMegaSlotMultiplierImage(theme);
-  return getMegaSlotSymbolImage(theme, symbol);
+  return getSlotSymbolImage(theme, symbol);
 }
 
 function getMegaSlotMultiplierImage(theme: SlotThemeConfig): string {

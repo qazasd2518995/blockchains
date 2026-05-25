@@ -296,28 +296,26 @@ export class HotlineScene {
   }
 
   private async preloadThemeAssets(): Promise<void> {
-    const [backgroundTexture, symbolSheetTexture] = await Promise.all([
+    const [backgroundTexture, symbolSheetTexture, symbolTextures] = await Promise.all([
       this.loadTexture(this.theme.background, this.rowCount > ROWS ? 960 : 960),
       this.loadTexture(this.theme.symbolSheet, this.rowCount > ROWS ? 480 : 960),
+      Promise.all(
+        this.theme.symbols.map((_symbol, symbolIdx) =>
+          this.loadTexture(themeSymbolImage(this.theme, symbolIdx), 960),
+        ),
+      ),
     ]);
     this.backgroundTexture = backgroundTexture;
     this.symbolSheetTexture = symbolSheetTexture;
+    this.symbolTextures = symbolTextures;
     if (this.rowCount > ROWS) {
-      const [symbolTextures, scatterTexture, multiplierTexture] = await Promise.all([
-        Promise.all(
-          this.theme.symbols.map((_symbol, symbolIdx) =>
-            this.loadTexture(themeSymbolImage(this.theme, symbolIdx), 960),
-          ),
-        ),
+      const [scatterTexture, multiplierTexture] = await Promise.all([
         this.loadTexture(themeSpecialImage(this.theme, 'scatter'), 960),
         this.loadTexture(themeSpecialImage(this.theme, 'multiplier'), 960),
       ]);
-      this.symbolTextures = symbolTextures;
       this.scatterTexture = scatterTexture;
       this.multiplierTexture = multiplierTexture;
-      return;
     }
-    this.symbolTextures = [];
   }
 
   private async loadTexture(src: string, width: 480 | 960 | 1600): Promise<Texture | null> {
