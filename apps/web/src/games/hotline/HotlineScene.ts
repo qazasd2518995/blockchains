@@ -26,7 +26,7 @@ import {
   GAME_FONT_NUM,
   Sfx,
 } from '@bg/game-engine';
-import { HOTLINE_SYMBOLS, getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
+import { getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
 import { getSlotTheme, type SlotThemeConfig } from '@/lib/slotThemes';
 import { WinCelebration } from '@bg/game-engine';
 
@@ -235,8 +235,7 @@ export class HotlineScene {
     const availableH = height - padding * 2;
     if (isMegaLayout) {
       this.cellSize = availableH / this.rowCount;
-      const naturalCellWidth =
-        (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount;
+      const naturalCellWidth = (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount;
       this.cellWidth = Math.min(naturalCellWidth, this.cellSize * MEGA_MAX_CELL_ASPECT);
     } else {
       this.cellSize = Math.min(
@@ -318,7 +317,7 @@ export class HotlineScene {
       this.multiplierTexture = multiplierTexture;
       return;
     }
-    this.symbolTextures = this.createSymbolTextures(symbolSheetTexture, HOTLINE_SYMBOLS.length);
+    this.symbolTextures = [];
   }
 
   private async loadTexture(src: string, width: 480 | 960 | 1600): Promise<Texture | null> {
@@ -338,9 +337,10 @@ export class HotlineScene {
 
   private createSymbolTextures(sheet: Texture | null, count: number): Texture[] {
     if (!sheet) return [];
+    const frameCount = Math.min(6, count);
     const cellW = sheet.width / 3;
     const cellH = sheet.height / 2;
-    return Array.from({ length: count }, (_, symbolIdx) => {
+    return Array.from({ length: frameCount }, (_, symbolIdx) => {
       const col = symbolIdx % 3;
       const row = Math.floor(symbolIdx / 3);
       return new Texture({
@@ -664,107 +664,71 @@ export class HotlineScene {
     const icon = new Container();
     const u = size;
 
-    if (meta.key === 'cherry') {
-      icon.addChild(
-        new Graphics()
-          .circle(-u * 0.2, u * 0.12, u * 0.16)
-          .fill({ color, alpha: 0.14 })
-          .stroke({ color, width: 2 }),
-      );
-      icon.addChild(
-        new Graphics()
-          .circle(u * 0.18, u * 0.12, u * 0.16)
-          .fill({ color, alpha: 0.14 })
-          .stroke({ color, width: 2 }),
-      );
-      icon.addChild(
-        new Graphics()
-          .moveTo(-u * 0.08, -u * 0.02)
-          .lineTo(u * 0.02, -u * 0.26)
-          .lineTo(u * 0.16, -u * 0.38)
-          .stroke({ color, width: 2 }),
-      );
-      icon.addChild(
-        new Graphics()
-          .moveTo(u * 0.08, -u * 0.02)
-          .lineTo(-u * 0.02, -u * 0.26)
-          .lineTo(-u * 0.16, -u * 0.38)
-          .stroke({ color, width: 2 }),
-      );
-      icon.addChild(
-        new Graphics()
-          .poly([u * 0.06, -u * 0.44, u * 0.27, -u * 0.39, u * 0.2, -u * 0.22, u * 0.02, -u * 0.28])
-          .fill({ color, alpha: 0.14 })
-          .stroke({ color, width: 2 }),
-      );
-      return icon;
-    }
-
-    if (meta.key === 'bell') {
+    if (meta.key.includes('gem') || meta.key === 'diamond') {
       icon.addChild(
         new Graphics()
           .poly([
-            -u * 0.24,
-            -u * 0.08,
-            -u * 0.28,
-            u * 0.16,
-            -u * 0.18,
-            u * 0.34,
-            u * 0.18,
-            u * 0.34,
-            u * 0.28,
-            u * 0.16,
-            u * 0.24,
-            -u * 0.08,
+            0,
+            -u * 0.38,
+            u * 0.32,
+            -u * 0.04,
+            u * 0.2,
+            u * 0.38,
+            -u * 0.2,
+            u * 0.38,
+            -u * 0.32,
+            -u * 0.04,
           ])
-          .fill({ color, alpha: 0.12 })
+          .fill({ color, alpha: 0.14 })
           .stroke({ color, width: 2 }),
       );
       icon.addChild(
         new Graphics()
-          .roundRect(-u * 0.09, -u * 0.34, u * 0.18, u * 0.08, 6)
-          .fill({ color, alpha: 0.12 })
-          .stroke({ color, width: 2 }),
+          .moveTo(-u * 0.32, -u * 0.04)
+          .lineTo(0, u * 0.38)
+          .lineTo(u * 0.32, -u * 0.04)
+          .stroke({ color, width: 1.5, alpha: 0.62 }),
       );
       icon.addChild(
         new Graphics()
-          .circle(0, u * 0.25, u * 0.05)
-          .fill({ color })
-          .stroke({ color, width: 1.5 }),
+          .moveTo(-u * 0.19, -u * 0.04)
+          .lineTo(0, -u * 0.38)
+          .lineTo(u * 0.19, -u * 0.04)
+          .stroke({ color, width: 1.5, alpha: 0.62 }),
       );
       icon.addChild(
         new Graphics()
-          .moveTo(-u * 0.12, u * 0.4)
-          .lineTo(u * 0.12, u * 0.4)
-          .stroke({ color, width: 2 }),
+          .moveTo(-u * 0.32, -u * 0.04)
+          .lineTo(u * 0.32, -u * 0.04)
+          .stroke({ color, width: 1.5, alpha: 0.62 }),
       );
       return icon;
     }
 
-    if (meta.key === 'seven') {
+    if (meta.key === 'star') {
       icon.addChild(
         new Graphics()
           .poly([
-            -u * 0.3,
-            -u * 0.36,
-            u * 0.3,
-            -u * 0.36,
-            u * 0.24,
+            0,
+            -u * 0.4,
+            u * 0.1,
+            -u * 0.12,
+            u * 0.38,
+            -u * 0.12,
+            u * 0.16,
+            u * 0.06,
+            u * 0.25,
+            u * 0.36,
+            0,
+            u * 0.17,
+            -u * 0.25,
+            u * 0.36,
             -u * 0.16,
             u * 0.06,
-            -u * 0.16,
-            -u * 0.08,
-            u * 0.18,
-            u * 0.12,
-            u * 0.18,
-            u * 0.02,
-            u * 0.4,
-            -u * 0.2,
-            u * 0.4,
-            -u * 0.02,
-            -u * 0.04,
-            -u * 0.34,
-            -u * 0.04,
+            -u * 0.38,
+            -u * 0.12,
+            -u * 0.1,
+            -u * 0.12,
           ])
           .fill({ color, alpha: 0.12 })
           .stroke({ color, width: 2 }),
@@ -772,43 +736,61 @@ export class HotlineScene {
       return icon;
     }
 
-    if (meta.key === 'bar') {
+    if (meta.key === 'jackpot') {
       icon.addChild(
         new Graphics()
-          .roundRect(-u * 0.32, -u * 0.26, u * 0.64, u * 0.52, 12)
+          .circle(0, 0, u * 0.34)
           .fill({ color, alpha: 0.12 })
           .stroke({ color, width: 2 }),
       );
-      for (const y of [-u * 0.11, 0, u * 0.11]) {
+      icon.addChild(
+        new Graphics()
+          .circle(0, 0, u * 0.21)
+          .fill({ color, alpha: 0.1 })
+          .stroke({ color, width: 2 }),
+      );
+      for (let i = 0; i < 8; i += 1) {
+        const angle = (Math.PI * 2 * i) / 8;
         icon.addChild(
           new Graphics()
-            .roundRect(-u * 0.18, y - u * 0.025, u * 0.36, u * 0.05, 5)
-            .fill({ color })
-            .stroke({ color, width: 1.2 }),
+            .circle(Math.cos(angle) * u * 0.29, Math.sin(angle) * u * 0.29, u * 0.025)
+            .fill({ color }),
         );
       }
       return icon;
     }
 
-    if (meta.key === 'diamond') {
+    if (meta.key === 'crown') {
       icon.addChild(
         new Graphics()
-          .poly([0, -u * 0.36, u * 0.28, 0, 0, u * 0.36, -u * 0.28, 0])
+          .poly([
+            -u * 0.34,
+            u * 0.26,
+            -u * 0.28,
+            -u * 0.1,
+            -u * 0.12,
+            u * 0.06,
+            0,
+            -u * 0.24,
+            u * 0.12,
+            u * 0.06,
+            u * 0.28,
+            -u * 0.1,
+            u * 0.34,
+            u * 0.26,
+          ])
           .fill({ color, alpha: 0.12 })
           .stroke({ color, width: 2 }),
       );
       icon.addChild(
         new Graphics()
-          .moveTo(0, -u * 0.36)
-          .lineTo(0, u * 0.36)
-          .stroke({ color, width: 1.5, alpha: 0.65 }),
+          .roundRect(-u * 0.34, u * 0.2, u * 0.68, u * 0.1, 6)
+          .fill({ color, alpha: 0.12 })
+          .stroke({ color, width: 2 }),
       );
-      icon.addChild(
-        new Graphics()
-          .moveTo(-u * 0.28, 0)
-          .lineTo(u * 0.28, 0)
-          .stroke({ color, width: 1.5, alpha: 0.65 }),
-      );
+      icon.addChild(new Graphics().circle(-u * 0.28, -u * 0.16, u * 0.04).fill({ color }));
+      icon.addChild(new Graphics().circle(0, -u * 0.32, u * 0.04).fill({ color }));
+      icon.addChild(new Graphics().circle(u * 0.28, -u * 0.16, u * 0.04).fill({ color }));
       return icon;
     }
 

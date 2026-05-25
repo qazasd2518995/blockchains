@@ -58,17 +58,13 @@ describe('hotlineSpin', () => {
     expect(getHotlineReelCount('temple-slot')).toBe(HOTLINE_MINI_REELS);
   });
 
-  it('uses a dedicated 3x3 fixed-line paytable near 97% RTP', () => {
-    const totalWeight = HOTLINE_MINI_SYMBOLS.reduce((sum, symbol) => sum + symbol.weight, 0);
-    const singleLineRtp = HOTLINE_MINI_SYMBOLS.reduce(
-      (sum, symbol) => sum + (symbol.weight / totalWeight) ** 3 * symbol.payout3,
-      0,
-    );
-
-    expect(Number((singleLineRtp * 5).toFixed(4))).toBe(0.9701);
+  it('uses the 8-symbol soft-hit fixed-line paytable', () => {
     expect(HOTLINE_MINI_SYMBOLS.map((symbol) => symbol.payout3)).toEqual([
-      2.1, 3.15, 5.3, 10.6, 22, 125,
+      0.2, 0.4, 0.6, 0.8, 1.2, 1.4, 1.6, 1.8,
     ]);
+    expect(HOTLINE_SYMBOLS.map((symbol) => symbol.payout3)).toEqual(
+      HOTLINE_MINI_SYMBOLS.map((symbol) => symbol.payout3),
+    );
   });
 
   it('supports 6x5 mega slot variants', () => {
@@ -81,24 +77,23 @@ describe('hotlineSpin', () => {
         expect(sym).toBeLessThan(HOTLINE_MEGA_SYMBOLS.length);
       }
     }
-    expect(HOTLINE_MEGA_SYMBOLS.length).toBe(9);
+    expect(HOTLINE_MEGA_SYMBOLS.length).toBe(8);
     expect(getHotlineReelCount('thunder-slot')).toBe(HOTLINE_MEGA_REELS);
     expect(getHotlineRowCount('thunder-slot')).toBe(HOTLINE_MEGA_ROWS);
   });
 
-  it('uses the 9-symbol Power of Thor style mega paytable', () => {
+  it('uses the 8-symbol soft-hit mega paytable', () => {
     expect(
       HOTLINE_MEGA_SYMBOLS.map((symbol) => [symbol.payout3, symbol.payout4, symbol.payout5]),
     ).toEqual([
-      [10, 25, 50],
-      [2.5, 10, 25],
-      [2, 5, 15],
-      [1.5, 2, 12],
-      [1, 1.5, 10],
-      [0.8, 1.2, 8],
-      [0.5, 1, 5],
-      [0.4, 0.9, 4],
-      [0.25, 0.75, 2],
+      [0.2, 0.2, 0.2],
+      [0.4, 0.4, 0.4],
+      [0.6, 0.6, 0.6],
+      [0.8, 0.8, 0.8],
+      [1.2, 1.2, 1.2],
+      [1.4, 1.4, 1.4],
+      [1.6, 1.6, 1.6],
+      [1.8, 1.8, 1.8],
     ]);
   });
 

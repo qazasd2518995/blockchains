@@ -16,38 +16,27 @@ export const HOTLINE_MEGA_GAME_IDS = new Set([
   'jungle-slot',
   'vampire-slot',
 ]);
+const HOTLINE_SOFT_PAYOUTS = [0.2, 0.4, 0.6, 0.8, 1.2, 1.4, 1.6, 1.8] as const;
 
 // 符號池：權重決定出現率（Stake-style 類 slot）
 // 索引 => 名稱
-export const HOTLINE_SYMBOLS = [
-  { name: 'CHERRY', weight: 20, payout3: 2, payout4: 5, payout5: 10 },
-  { name: 'BELL', weight: 15, payout3: 3, payout4: 8, payout5: 20 },
-  { name: 'SEVEN', weight: 10, payout3: 5, payout4: 15, payout5: 50 },
-  { name: 'BAR', weight: 8, payout3: 10, payout4: 30, payout5: 100 },
-  { name: 'DIAMOND', weight: 5, payout3: 20, payout4: 80, payout5: 300 },
-  { name: 'JACKPOT', weight: 2, payout3: 50, payout4: 250, payout5: 1000 },
-] as const;
+export const HOTLINE_SYMBOLS = HOTLINE_SOFT_PAYOUTS.map((payout, index) => ({
+  name: index < 4 ? `SOFT_LOSS_${index + 1}` : `SOFT_WIN_${index - 3}`,
+  weight: index < 4 ? 16 : 10 - (index - 4) * 1.5,
+  payout3: payout,
+  payout4: payout,
+  payout5: payout,
+})) as ReadonlyArray<{
+  name: string;
+  weight: number;
+  payout3: number;
+  payout4: number;
+  payout5: number;
+}>;
 
-export const HOTLINE_MINI_SYMBOLS = [
-  { name: 'CHERRY', weight: 20, payout3: 2.1, payout4: 0, payout5: 0 },
-  { name: 'BELL', weight: 15, payout3: 3.15, payout4: 0, payout5: 0 },
-  { name: 'SEVEN', weight: 10, payout3: 5.3, payout4: 0, payout5: 0 },
-  { name: 'BAR', weight: 8, payout3: 10.6, payout4: 0, payout5: 0 },
-  { name: 'DIAMOND', weight: 5, payout3: 22, payout4: 0, payout5: 0 },
-  { name: 'JACKPOT', weight: 2, payout3: 125, payout4: 0, payout5: 0 },
-] as const;
+export const HOTLINE_MINI_SYMBOLS = HOTLINE_SYMBOLS;
 
-export const HOTLINE_MEGA_SYMBOLS = [
-  { name: 'PREMIUM_A', weight: 4, payout3: 10, payout4: 25, payout5: 50 },
-  { name: 'PREMIUM_B', weight: 5, payout3: 2.5, payout4: 10, payout5: 25 },
-  { name: 'PREMIUM_C', weight: 6, payout3: 2, payout4: 5, payout5: 15 },
-  { name: 'COINS', weight: 7, payout3: 1.5, payout4: 2, payout5: 12 },
-  { name: 'RED_GEM', weight: 9, payout3: 1, payout4: 1.5, payout5: 10 },
-  { name: 'PURPLE_GEM', weight: 10, payout3: 0.8, payout4: 1.2, payout5: 8 },
-  { name: 'YELLOW_GEM', weight: 13, payout3: 0.5, payout4: 1, payout5: 5 },
-  { name: 'GREEN_GEM', weight: 16, payout3: 0.4, payout4: 0.9, payout5: 4 },
-  { name: 'BLUE_GEM', weight: 20, payout3: 0.25, payout4: 0.75, payout5: 2 },
-] as const;
+export const HOTLINE_MEGA_SYMBOLS = HOTLINE_SYMBOLS;
 export const HOTLINE_MEGA_FREE_SPIN_TRIGGER = 4;
 export const HOTLINE_MEGA_FREE_SPIN_RETRIGGER_TRIGGER = 3;
 export const HOTLINE_MEGA_FREE_SPIN_BASE_AWARD = 15;

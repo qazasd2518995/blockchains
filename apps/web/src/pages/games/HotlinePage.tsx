@@ -20,7 +20,7 @@ import {
   MAX_BET_AMOUNT,
   MIN_BET_AMOUNT,
 } from '@bg/shared';
-import { HOTLINE_MINI_SYMBOLS, HOTLINE_SYMBOLS } from '@bg/provably-fair';
+import { HOTLINE_MEGA_SYMBOLS, HOTLINE_MINI_SYMBOLS, HOTLINE_SYMBOLS } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -41,17 +41,7 @@ interface Props {
 
 const SYMBOL_POSITIONS = ['0% 0%', '50% 0%', '100% 0%', '0% 100%', '50% 100%', '100% 100%'];
 
-const MEGA_SYMBOL_PAYOUTS = [
-  '8-9個 10x · 10-11個 25x · 12+個 50x',
-  '8-9個 2.5x · 10-11個 10x · 12+個 25x',
-  '8-9個 2x · 10-11個 5x · 12+個 15x',
-  '8-9個 1.5x · 10-11個 2x · 12+個 12x',
-  '8-9個 1x · 10-11個 1.5x · 12+個 10x',
-  '8-9個 0.8x · 10-11個 1.2x · 12+個 8x',
-  '8-9個 0.5x · 10-11個 1x · 12+個 5x',
-  '8-9個 0.4x · 10-11個 0.9x · 12+個 4x',
-  '8-9個 0.25x · 10-11個 0.75x · 12+個 2x',
-];
+const MEGA_SYMBOL_PAYOUTS = HOTLINE_MEGA_SYMBOLS.map((symbol) => `8+個 ${symbol.payout3}x`);
 const CLASSIC_SYMBOL_PAYOUTS = HOTLINE_SYMBOLS.map(
   (symbol) => `3個 ${symbol.payout3}x · 4個 ${symbol.payout4}x · 5個 ${symbol.payout5}x`,
 );
@@ -2081,6 +2071,8 @@ function SlotSymbolBadge({
   const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
   const label = useShortLabel ? meta.shortLabel : meta.label;
   const symbolImage = getMegaSlotSymbolImage(theme, symbol);
+  const sheetPosition = theme.rows > 3 ? SYMBOL_POSITIONS[symbol] : undefined;
+  const fallbackFill = `radial-gradient(circle at 35% 28%, rgba(255,255,255,0.5), transparent 22%), linear-gradient(135deg, ${meta.accentHex}55, ${meta.accentHex}18)`;
 
   return (
     <span
@@ -2095,9 +2087,13 @@ function SlotSymbolBadge({
         className="block h-7 w-7 shrink-0 rounded-full border bg-cover bg-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.3)]"
         style={{
           borderColor: `${meta.accentHex}40`,
-          backgroundImage: `url(${symbolImage ?? theme.symbolSheet})`,
-          backgroundSize: symbolImage ? 'contain' : '300% 200%',
-          backgroundPosition: symbolImage ? 'center' : (SYMBOL_POSITIONS[symbol] ?? '0% 0%'),
+          backgroundImage: symbolImage
+            ? `url(${symbolImage})`
+            : sheetPosition
+              ? `url(${theme.symbolSheet})`
+              : fallbackFill,
+          backgroundSize: symbolImage ? 'contain' : sheetPosition ? '300% 200%' : '100% 100%',
+          backgroundPosition: symbolImage ? 'center' : (sheetPosition ?? 'center'),
           backgroundRepeat: 'no-repeat',
         }}
         aria-hidden="true"
@@ -2175,6 +2171,7 @@ function MegaFallbackGrid({
                   const special =
                     item.special ?? (spinning ? undefined : specialByCell.get(cellKey));
                   const symbolImage = getMegaSlotDisplayImage(theme, symbol, special);
+                  const sheetPosition = SYMBOL_POSITIONS[symbol];
                   const winning = !spinning && winningKeys.has(cellKey);
                   const specialHighlighted = !spinning && specialWinningKeys.has(cellKey);
                   const removing = !spinning && removedKeys.has(cellKey);
@@ -2188,10 +2185,9 @@ function MegaFallbackGrid({
                         {
                           borderColor: `${meta.accentHex}88`,
                           '--mega-slot-accent': meta.accentHex,
-                          backgroundImage: symbolImage ? undefined : `url(${theme.symbolSheet})`,
-                          backgroundPosition: symbolImage
-                            ? 'center'
-                            : (SYMBOL_POSITIONS[symbol] ?? '0% 0%'),
+                          backgroundImage:
+                            symbolImage || !sheetPosition ? undefined : `url(${theme.symbolSheet})`,
+                          backgroundPosition: symbolImage ? 'center' : (sheetPosition ?? 'center'),
                           '--mega-slot-reel-index': reelIndex,
                           '--mega-slot-row-index': rowIndex,
                           '--mega-slot-drop-offset': dropOffset ?? -1.15,

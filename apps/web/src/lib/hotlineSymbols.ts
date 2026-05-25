@@ -1,4 +1,12 @@
-export type HotlineSymbolKey = 'cherry' | 'bell' | 'seven' | 'bar' | 'diamond' | 'jackpot';
+export type HotlineSymbolKey =
+  | 'red-gem'
+  | 'blue-gem'
+  | 'green-gem'
+  | 'yellow-gem'
+  | 'diamond'
+  | 'crown'
+  | 'star'
+  | 'jackpot';
 
 export interface HotlineSymbolMeta {
   key: HotlineSymbolKey;
@@ -10,50 +18,66 @@ export interface HotlineSymbolMeta {
 
 export const HOTLINE_SYMBOLS: HotlineSymbolMeta[] = [
   {
-    key: 'cherry',
-    label: 'CHERRY',
-    shortLabel: 'CHR',
-    accentHex: '#D43C63',
-    accentValue: 0xD43C63,
+    key: 'red-gem',
+    label: 'RED GEM',
+    shortLabel: '0.2',
+    accentHex: '#EF4444',
+    accentValue: 0xef4444,
   },
   {
-    key: 'bell',
-    label: 'BELL',
-    shortLabel: 'BEL',
-    accentHex: '#D98E26',
-    accentValue: 0xD98E26,
+    key: 'blue-gem',
+    label: 'BLUE GEM',
+    shortLabel: '0.4',
+    accentHex: '#38BDF8',
+    accentValue: 0x38bdf8,
   },
   {
-    key: 'seven',
-    label: 'SEVEN',
-    shortLabel: 'SEV',
-    accentHex: '#C9A24C',
-    accentValue: 0xC9A24C,
+    key: 'green-gem',
+    label: 'GREEN GEM',
+    shortLabel: '0.6',
+    accentHex: '#22C55E',
+    accentValue: 0x22c55e,
   },
   {
-    key: 'bar',
-    label: 'BAR',
-    shortLabel: 'BAR',
-    accentHex: '#2B8CA8',
-    accentValue: 0x2B8CA8,
+    key: 'yellow-gem',
+    label: 'YELLOW GEM',
+    shortLabel: '0.8',
+    accentHex: '#FDE047',
+    accentValue: 0xfde047,
   },
   {
     key: 'diamond',
     label: 'DIAMOND',
-    shortLabel: 'GEM',
-    accentHex: '#1E8E67',
-    accentValue: 0x1E8E67,
+    shortLabel: '1.2',
+    accentHex: '#A78BFA',
+    accentValue: 0xa78bfa,
+  },
+  {
+    key: 'crown',
+    label: 'CROWN',
+    shortLabel: '1.4',
+    accentHex: '#FBBF24',
+    accentValue: 0xfbbf24,
+  },
+  {
+    key: 'star',
+    label: 'STAR',
+    shortLabel: '1.6',
+    accentHex: '#F472B6',
+    accentValue: 0xf472b6,
   },
   {
     key: 'jackpot',
     label: 'JACKPOT',
-    shortLabel: 'JPK',
-    accentHex: '#B52A45',
-    accentValue: 0xB52A45,
+    shortLabel: '1.8',
+    accentHex: '#F97316',
+    accentValue: 0xf97316,
   },
 ];
 
-const HOTLINE_SYMBOLS_BY_KEY = new Map(HOTLINE_SYMBOLS.map((symbol) => [symbol.key, symbol] as const));
+const HOTLINE_SYMBOLS_BY_KEY = new Map(
+  HOTLINE_SYMBOLS.map((symbol) => [symbol.key, symbol] as const),
+);
 
 export function getHotlineSymbolMeta(symbol: number | HotlineSymbolKey): HotlineSymbolMeta {
   if (typeof symbol === 'number') {

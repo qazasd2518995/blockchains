@@ -98,7 +98,7 @@ export class HotlineService {
     return runSerializable(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, stakeAmount);
       const seed = await new SeedHelper(tx).getActiveBundle(userId, gameId, input.clientSeed);
-      const naturalRound = buildHotlineRound(
+      const generatedRound = buildHotlineRound(
         seed.serverSeed,
         seed.clientSeed,
         seed.nonce,
@@ -106,6 +106,7 @@ export class HotlineService {
         rowCount,
         buyFeature,
       );
+      const naturalRound = softenEmptyHotlineRound(gameId, generatedRound, seed.nonce, buyFeature);
       const multiplierD = new Prisma.Decimal(naturalRound.totalMultiplier.toFixed(4));
       const payout = baseAmount.mul(multiplierD).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
       const accountingMultiplierD = stakeAmount.greaterThan(0)
@@ -140,7 +141,7 @@ export class HotlineService {
       if (controlled.controlled) {
         finalGrid = controlled.won
           ? winningHotlineGrid(gameId, stakeAmount, controlled)
-          : losingHotlineGrid(gameId);
+          : softLossHotlineGrid(gameId, seed.nonce);
         const evaluated = hotlineEvaluate(finalGrid);
         finalLines = evaluated.lines;
         finalCascades = [];
@@ -371,6 +372,10 @@ type HotlineRound = Pick<HotlineBetResult, 'grid' | 'lines' | 'cascades'> & {
   features?: HotlineMegaFeatureResult;
 };
 
+const HOTLINE_SOFT_LOSS_SYMBOLS = [0, 1, 2, 3] as const;
+const HOTLINE_SOFT_WIN_SYMBOLS = [4, 5, 6, 7] as const;
+const HOTLINE_SOFT_PAYOUTS = [0.2, 0.4, 0.6, 0.8, 1.2, 1.4, 1.6, 1.8] as const;
+
 function buildHotlineRound(
   serverSeed: string,
   clientSeed: string,
@@ -402,6 +407,26 @@ function buildHotlineRound(
   };
 }
 
+function softenEmptyHotlineRound(
+  gameId: string,
+  round: HotlineRound,
+  nonce: number,
+  buyFeature: boolean,
+): HotlineRound {
+  if (buyFeature || round.totalMultiplier > 0) return round;
+
+  const grid = softLossHotlineGrid(gameId, nonce);
+  const evaluated = hotlineEvaluate(grid);
+  const rowCount = getHotlineRowCount(gameId);
+  return {
+    grid,
+    lines: evaluated.lines,
+    cascades: [],
+    ...(rowCount > 3 ? { features: buildControlledMegaFeature(evaluated.totalMultiplier) } : {}),
+    totalMultiplier: evaluated.totalMultiplier,
+  };
+}
+
 function winningHotlineGrid(
   gameId: string,
   amount: Prisma.Decimal,
@@ -413,15 +438,12 @@ function winningHotlineGrid(
     return winningMegaHotlineGrid(amount, controlled);
   }
 
-  const smallLine = smallWinningHotlineGrid(reelCount);
-  const fullLine = [
-    [0, 1, 2],
-    [0, 2, 3],
-    [0, 3, 4],
-    [0, 4, 5],
-    [0, 5, 1],
-  ].slice(0, reelCount);
-  const pool = [smallLine, fullLine];
+  const pool = [
+    ...HOTLINE_SOFT_WIN_SYMBOLS.map((symbol) => fixedLineHotlineGrid(reelCount, [symbol])),
+    fixedLineHotlineGrid(reelCount, [4, 5]),
+    fixedLineHotlineGrid(reelCount, [5, 6]),
+    fixedLineHotlineGrid(reelCount, [4, 5, 6]),
+  ];
   return (
     pool.find((grid) => {
       const evaluated = hotlineEvaluate(grid);
@@ -429,7 +451,7 @@ function winningHotlineGrid(
         evaluated.totalMultiplier > 1 &&
         multiplierMatchesControlBounds(evaluated.totalMultiplier, amount, controlled)
       );
-    }) ?? fullLine
+    }) ?? pool[0]!
   );
 }
 
@@ -438,38 +460,10 @@ function winningMegaHotlineGrid(
   controlled: Parameters<typeof multiplierMatchesControlBounds>[2],
 ): number[][] {
   const candidates: number[][][] = [
-    [
-      [4, 4, 0, 1, 2],
-      [4, 3, 4, 0, 1],
-      [4, 2, 3, 4, 0],
-      [0, 1, 2, 3, 5],
-      [2, 3, 0, 1, 5],
-      [1, 2, 3, 4, 0],
-    ],
-    [
-      [5, 5, 0, 1, 2],
-      [5, 1, 5, 2, 3],
-      [5, 2, 3, 5, 4],
-      [5, 3, 4, 0, 1],
-      [0, 1, 2, 3, 4],
-      [1, 2, 3, 4, 0],
-    ],
-    [
-      [3, 3, 0, 1, 2],
-      [3, 1, 3, 2, 4],
-      [3, 2, 4, 3, 5],
-      [3, 4, 5, 0, 1],
-      [3, 5, 0, 1, 2],
-      [0, 1, 2, 4, 5],
-    ],
-    [
-      [5, 5, 0, 1, 2],
-      [5, 1, 5, 2, 3],
-      [5, 2, 3, 5, 4],
-      [5, 3, 4, 0, 1],
-      [5, 4, 0, 1, 2],
-      [5, 0, 1, 2, 3],
-    ],
+    ...HOTLINE_SOFT_WIN_SYMBOLS.map((symbol) => megaClusterHotlineGrid([symbol])),
+    megaClusterHotlineGrid([4, 5]),
+    megaClusterHotlineGrid([5, 6]),
+    megaClusterHotlineGrid([4, 5, 6]),
   ];
 
   return (
@@ -479,39 +473,32 @@ function winningMegaHotlineGrid(
         evaluated.totalMultiplier > 1 &&
         multiplierMatchesControlBounds(evaluated.totalMultiplier, amount, controlled)
       );
-    }) ?? candidates[2]!
+    }) ?? candidates[0]!
   );
 }
 
-function smallWinningHotlineGrid(reelCount: number): number[][] {
-  if (reelCount === 3) {
-    return [
-      [0, 1, 2],
-      [0, 2, 3],
-      [0, 3, 4],
-    ];
-  }
-  return [
-    [0, 1, 2],
-    [0, 2, 3],
-    [0, 3, 4],
-    [1, 4, 5],
-    [2, 5, 1],
-  ];
-}
-
-function losingHotlineGrid(gameId: string): number[][] {
+function softLossHotlineGrid(gameId: string, variant = 0): number[][] {
   const reelCount = getHotlineReelCount(gameId);
   const rowCount = getHotlineRowCount(gameId);
   if (rowCount > 3) {
-    return [
-      [0, 1, 2, 3, 4],
-      [5, 0, 1, 2, 3],
-      [4, 5, 0, 1, 2],
-      [3, 4, 5, 0, 1],
-      [2, 3, 4, 5, 0],
-      [1, 2, 3, 4, 5],
-    ];
+    const symbol = HOTLINE_SOFT_LOSS_SYMBOLS[Math.abs(variant) % HOTLINE_SOFT_LOSS_SYMBOLS.length]!;
+    return megaClusterHotlineGrid([symbol]);
+  }
+
+  const symbol = HOTLINE_SOFT_LOSS_SYMBOLS[Math.abs(variant) % HOTLINE_SOFT_LOSS_SYMBOLS.length]!;
+  return fixedLineHotlineGrid(reelCount, [symbol]);
+}
+
+function blankHotlineGrid(gameId: string): number[][] {
+  const reelCount = getHotlineReelCount(gameId);
+  const rowCount = getHotlineRowCount(gameId);
+  if (rowCount > 3) {
+    return Array.from({ length: reelCount }, (_, reel) =>
+      Array.from(
+        { length: rowCount },
+        (_, row) => (reel * rowCount + row) % HOTLINE_SOFT_PAYOUTS.length,
+      ),
+    );
   }
 
   return [
@@ -523,12 +510,59 @@ function losingHotlineGrid(gameId: string): number[][] {
   ].slice(0, reelCount);
 }
 
+function fixedLineHotlineGrid(reelCount: number, symbols: readonly number[]): number[][] {
+  const targetSymbols = symbols.slice(0, 3);
+  const blocked = new Set(targetSymbols);
+  const fillers = HOTLINE_SOFT_PAYOUTS.map((_payout, symbol) => symbol).filter(
+    (symbol) => !blocked.has(symbol),
+  );
+  const grid = Array.from({ length: reelCount }, (_, reel) =>
+    Array.from({ length: 3 }, (_, row) => fillers[(reel * 3 + row) % fillers.length]!),
+  );
+
+  targetSymbols.forEach((symbol, row) => {
+    for (let reel = 0; reel < Math.min(3, reelCount); reel += 1) {
+      grid[reel]![row] = symbol;
+    }
+  });
+  return grid;
+}
+
+function megaClusterHotlineGrid(symbols: readonly number[]): number[][] {
+  const targetSymbols = symbols.slice(0, 3);
+  const blocked = new Set(targetSymbols);
+  const fillers = HOTLINE_SOFT_PAYOUTS.map((_payout, symbol) => symbol).filter(
+    (symbol) => !blocked.has(symbol),
+  );
+  const reelCount = 6;
+  const rowCount = 5;
+  const grid = Array.from({ length: reelCount }, (_, reel) =>
+    Array.from(
+      { length: rowCount },
+      (_, row) => fillers[(reel * rowCount + row) % fillers.length]!,
+    ),
+  );
+  const positions = Array.from({ length: reelCount * rowCount }, (_, index) => ({
+    reel: Math.floor(index / rowCount),
+    row: index % rowCount,
+  }));
+
+  targetSymbols.forEach((symbol, symbolIndex) => {
+    for (let i = 0; i < 8; i += 1) {
+      const position = positions[symbolIndex * 8 + i];
+      if (!position) continue;
+      grid[position.reel]![position.row] = symbol;
+    }
+  });
+  return grid;
+}
+
 function buildControlledMegaFeature(
   totalMultiplier: number,
   buyFeature = false,
 ): HotlineMegaFeatureResult {
   if (buyFeature) {
-    const blankGrid = losingHotlineGrid(GameId.THUNDER_SLOT);
+    const blankGrid = blankHotlineGrid(GameId.THUNDER_SLOT);
     const freeSpinRounds = Array.from({ length: 15 }, (_, index) => ({
       index,
       initialGrid: blankGrid,

@@ -55,128 +55,100 @@ export interface SlotThemeConfig {
   symbols: SlotSymbolThemeMeta[];
 }
 
-const CYBER_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'NEON 7', shortLabel: 'N7', accentHex: '#F45CFF', accentValue: 0xf45cff },
-  { label: 'DIAMOND', shortLabel: 'DIA', accentHex: '#54E8FF', accentValue: 0x54e8ff },
-  { label: 'CHIP', shortLabel: 'CHP', accentHex: '#36C5FF', accentValue: 0x36c5ff },
-  { label: 'ORB', shortLabel: 'ORB', accentHex: '#A855F7', accentValue: 0xa855f7 },
-  { label: 'BAR', shortLabel: 'BAR', accentHex: '#22D3EE', accentValue: 0x22d3ee },
-  { label: 'CROWN', shortLabel: 'CRN', accentHex: '#F4B53F', accentValue: 0xf4b53f },
+const SOFT_LOSS_GEMS: SlotSymbolThemeMeta[] = [
+  { label: 'RED GEM', shortLabel: '0.2', accentHex: '#EF4444', accentValue: 0xef4444 },
+  { label: 'BLUE GEM', shortLabel: '0.4', accentHex: '#38BDF8', accentValue: 0x38bdf8 },
+  { label: 'GREEN GEM', shortLabel: '0.6', accentHex: '#22C55E', accentValue: 0x22c55e },
+  { label: 'YELLOW GEM', shortLabel: '0.8', accentHex: '#FDE047', accentValue: 0xfde047 },
 ];
 
-const FRUIT_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'CHERRY', shortLabel: 'CHR', accentHex: '#D43C63', accentValue: 0xd43c63 },
-  { label: 'LEMON', shortLabel: 'LEM', accentHex: '#E4B431', accentValue: 0xe4b431 },
-  { label: 'MELON', shortLabel: 'MEL', accentHex: '#33A862', accentValue: 0x33a862 },
-  { label: 'BELL', shortLabel: 'BEL', accentHex: '#D9A032', accentValue: 0xd9a032 },
-  { label: 'SEVEN', shortLabel: 'SEV', accentHex: '#D83D36', accentValue: 0xd83d36 },
-  { label: 'BAR', shortLabel: 'BAR', accentHex: '#B88733', accentValue: 0xb88733 },
-];
+function softSlotSymbols(winningSymbols: SlotSymbolThemeMeta[]): SlotSymbolThemeMeta[] {
+  return [...SOFT_LOSS_GEMS, ...winningSymbols.slice(0, 4)];
+}
 
-const FORTUNE_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'TIGER', shortLabel: 'TGR', accentHex: '#D9A032', accentValue: 0xd9a032 },
-  { label: 'DRAGON', shortLabel: 'DRG', accentHex: '#1EA06D', accentValue: 0x1ea06d },
-  { label: 'ENVELOPE', shortLabel: 'ENV', accentHex: '#D94B45', accentValue: 0xd94b45 },
-  { label: 'INGOT', shortLabel: 'ING', accentHex: '#F2C15B', accentValue: 0xf2c15b },
-  { label: 'LOTUS', shortLabel: 'LOT', accentHex: '#46B884', accentValue: 0x46b884 },
-  { label: 'CROWN', shortLabel: 'CRN', accentHex: '#C43D35', accentValue: 0xc43d35 },
-];
+const CYBER_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
+  { label: 'DIAMOND', shortLabel: '1.2', accentHex: '#54E8FF', accentValue: 0x54e8ff },
+  { label: 'NEON 7', shortLabel: '1.4', accentHex: '#F45CFF', accentValue: 0xf45cff },
+  { label: 'CROWN', shortLabel: '1.6', accentHex: '#F4B53F', accentValue: 0xf4b53f },
+  { label: 'JACKPOT', shortLabel: '1.8', accentHex: '#F97316', accentValue: 0xf97316 },
+]);
 
-const OCEAN_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'PEARL', shortLabel: 'PRL', accentHex: '#A5F3FC', accentValue: 0xa5f3fc },
-  { label: 'ANCHOR', shortLabel: 'ANC', accentHex: '#E0B75A', accentValue: 0xe0b75a },
-  { label: 'CHEST', shortLabel: 'CHS', accentHex: '#C9913D', accentValue: 0xc9913d },
-  { label: 'SAPPHIRE', shortLabel: 'SAP', accentHex: '#3B82F6', accentValue: 0x3b82f6 },
-  { label: 'WHEEL', shortLabel: 'WHL', accentHex: '#D6A64A', accentValue: 0xd6a64a },
-  { label: 'TRIDENT', shortLabel: 'TRI', accentHex: '#22D3EE', accentValue: 0x22d3ee },
-];
+const FRUIT_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
+  { label: 'CHERRY', shortLabel: '1.2', accentHex: '#D43C63', accentValue: 0xd43c63 },
+  { label: 'BELL', shortLabel: '1.4', accentHex: '#D9A032', accentValue: 0xd9a032 },
+  { label: 'SEVEN', shortLabel: '1.6', accentHex: '#D83D36', accentValue: 0xd83d36 },
+  { label: 'BAR', shortLabel: '1.8', accentHex: '#B88733', accentValue: 0xb88733 },
+]);
 
-const TEMPLE_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'SCARAB', shortLabel: 'SCR', accentHex: '#D9A032', accentValue: 0xd9a032 },
-  { label: 'MASK', shortLabel: 'MSK', accentHex: '#2DD4BF', accentValue: 0x2dd4bf },
-  { label: 'SUN', shortLabel: 'SUN', accentHex: '#F3D67D', accentValue: 0xf3d67d },
-  { label: 'SERPENT', shortLabel: 'SRP', accentHex: '#1EA06D', accentValue: 0x1ea06d },
-  { label: 'EMERALD', shortLabel: 'EMR', accentHex: '#10B981', accentValue: 0x10b981 },
-  { label: 'CROWN', shortLabel: 'CRN', accentHex: '#F2C15B', accentValue: 0xf2c15b },
-];
+const FORTUNE_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
+  { label: 'TIGER', shortLabel: '1.2', accentHex: '#D9A032', accentValue: 0xd9a032 },
+  { label: 'DRAGON', shortLabel: '1.4', accentHex: '#1EA06D', accentValue: 0x1ea06d },
+  { label: 'INGOT', shortLabel: '1.6', accentHex: '#F2C15B', accentValue: 0xf2c15b },
+  { label: 'CROWN', shortLabel: '1.8', accentHex: '#C43D35', accentValue: 0xc43d35 },
+]);
 
-const CANDY_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'LOLLIPOP', shortLabel: 'POP', accentHex: '#F472B6', accentValue: 0xf472b6 },
-  { label: 'CANDY', shortLabel: 'CND', accentHex: '#38BDF8', accentValue: 0x38bdf8 },
-  { label: 'GUMMY', shortLabel: 'GMY', accentHex: '#A78BFA', accentValue: 0xa78bfa },
-  { label: 'DONUT', shortLabel: 'DNT', accentHex: '#FB7185', accentValue: 0xfb7185 },
-  { label: 'STAR', shortLabel: 'STR', accentHex: '#FBBF24', accentValue: 0xfbbf24 },
-  { label: 'CUPCAKE', shortLabel: 'CAK', accentHex: '#34D399', accentValue: 0x34d399 },
-];
+const OCEAN_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
+  { label: 'PEARL', shortLabel: '1.2', accentHex: '#A5F3FC', accentValue: 0xa5f3fc },
+  { label: 'SAPPHIRE', shortLabel: '1.4', accentHex: '#3B82F6', accentValue: 0x3b82f6 },
+  { label: 'WHEEL', shortLabel: '1.6', accentHex: '#D6A64A', accentValue: 0xd6a64a },
+  { label: 'TRIDENT', shortLabel: '1.8', accentHex: '#22D3EE', accentValue: 0x22d3ee },
+]);
 
-const SAKURA_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'KATANA', shortLabel: 'KTN', accentHex: '#E5E7EB', accentValue: 0xe5e7eb },
-  { label: 'MASK', shortLabel: 'MSK', accentHex: '#EF4444', accentValue: 0xef4444 },
-  { label: 'SAKURA', shortLabel: 'SAK', accentHex: '#F9A8D4', accentValue: 0xf9a8d4 },
-  { label: 'LANTERN', shortLabel: 'LNT', accentHex: '#F97316', accentValue: 0xf97316 },
-  { label: 'FAN', shortLabel: 'FAN', accentHex: '#C084FC', accentValue: 0xc084fc },
-  { label: 'COIN', shortLabel: 'COI', accentHex: '#F2C15B', accentValue: 0xf2c15b },
-];
+const TEMPLE_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
+  { label: 'SCARAB', shortLabel: '1.2', accentHex: '#D9A032', accentValue: 0xd9a032 },
+  { label: 'SUN', shortLabel: '1.4', accentHex: '#F3D67D', accentValue: 0xf3d67d },
+  { label: 'EMERALD', shortLabel: '1.6', accentHex: '#10B981', accentValue: 0x10b981 },
+  { label: 'CROWN', shortLabel: '1.8', accentHex: '#F2C15B', accentValue: 0xf2c15b },
+]);
 
-const THUNDER_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'RUNE', shortLabel: 'RUN', accentHex: '#8DD7FF', accentValue: 0x8dd7ff },
-  { label: 'SHIELD', shortLabel: 'SHD', accentHex: '#F0C96A', accentValue: 0xf0c96a },
-  { label: 'AXE', shortLabel: 'AXE', accentHex: '#B8C7D9', accentValue: 0xb8c7d9 },
-  { label: 'STORM', shortLabel: 'STM', accentHex: '#60A5FA', accentValue: 0x60a5fa },
-  { label: 'HAMMER', shortLabel: 'HAM', accentHex: '#FBBF24', accentValue: 0xfbbf24 },
-  { label: 'RED GEM', shortLabel: 'RED', accentHex: '#EF4444', accentValue: 0xef4444 },
-  { label: 'BLUE GEM', shortLabel: 'BLU', accentHex: '#38BDF8', accentValue: 0x38bdf8 },
-  { label: 'GREEN GEM', shortLabel: 'GRN', accentHex: '#22C55E', accentValue: 0x22c55e },
-  { label: 'YELLOW GEM', shortLabel: 'YEL', accentHex: '#FDE047', accentValue: 0xfde047 },
-];
+const CANDY_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
+  { label: 'LOLLIPOP', shortLabel: '1.2', accentHex: '#F472B6', accentValue: 0xf472b6 },
+  { label: 'GUMMY', shortLabel: '1.4', accentHex: '#A78BFA', accentValue: 0xa78bfa },
+  { label: 'STAR', shortLabel: '1.6', accentHex: '#FBBF24', accentValue: 0xfbbf24 },
+  { label: 'CUPCAKE', shortLabel: '1.8', accentHex: '#34D399', accentValue: 0x34d399 },
+]);
 
-const DRAGON_MEGA_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'RED GEM', shortLabel: 'RED', accentHex: '#EF4444', accentValue: 0xef4444 },
-  { label: 'BLUE GEM', shortLabel: 'BLU', accentHex: '#38BDF8', accentValue: 0x38bdf8 },
-  { label: 'YELLOW GEM', shortLabel: 'YEL', accentHex: '#FDE047', accentValue: 0xfde047 },
-  { label: 'GREEN GEM', shortLabel: 'GRN', accentHex: '#22C55E', accentValue: 0x22c55e },
-  { label: 'SCALE', shortLabel: 'SCL', accentHex: '#22C55E', accentValue: 0x22c55e },
-  { label: 'DRAGON', shortLabel: 'DRG', accentHex: '#F59E0B', accentValue: 0xf59e0b },
-  { label: 'CROWN', shortLabel: 'CRW', accentHex: '#FDE047', accentValue: 0xfde047 },
-  { label: 'FIRE GEM', shortLabel: 'FIG', accentHex: '#F97316', accentValue: 0xf97316 },
-  { label: 'HOARD', shortLabel: 'HRD', accentHex: '#A3E635', accentValue: 0xa3e635 },
-];
+const SAKURA_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
+  { label: 'KATANA', shortLabel: '1.2', accentHex: '#E5E7EB', accentValue: 0xe5e7eb },
+  { label: 'SAKURA', shortLabel: '1.4', accentHex: '#F9A8D4', accentValue: 0xf9a8d4 },
+  { label: 'FAN', shortLabel: '1.6', accentHex: '#C084FC', accentValue: 0xc084fc },
+  { label: 'COIN', shortLabel: '1.8', accentHex: '#F2C15B', accentValue: 0xf2c15b },
+]);
 
-const NEBULA_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'RED GEM', shortLabel: 'RED', accentHex: '#EF4444', accentValue: 0xef4444 },
-  { label: 'BLUE GEM', shortLabel: 'BLU', accentHex: '#38BDF8', accentValue: 0x38bdf8 },
-  { label: 'YELLOW GEM', shortLabel: 'YEL', accentHex: '#FDE047', accentValue: 0xfde047 },
-  { label: 'GREEN GEM', shortLabel: 'GRN', accentHex: '#22C55E', accentValue: 0x22c55e },
-  { label: 'NOVA', shortLabel: 'NVA', accentHex: '#F472B6', accentValue: 0xf472b6 },
-  { label: 'GALAXY', shortLabel: 'GLX', accentHex: '#FDE68A', accentValue: 0xfde68a },
-  { label: 'STAR CORE', shortLabel: 'SRC', accentHex: '#F0ABFC', accentValue: 0xf0abfc },
-  { label: 'ASTEROID', shortLabel: 'AST', accentHex: '#94A3B8', accentValue: 0x94a3b8 },
-  { label: 'QUASAR', shortLabel: 'QSR', accentHex: '#67E8F9', accentValue: 0x67e8f9 },
-];
+const THUNDER_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
+  { label: 'HAMMER', shortLabel: '1.2', accentHex: '#FBBF24', accentValue: 0xfbbf24 },
+  { label: 'AXE', shortLabel: '1.4', accentHex: '#B8C7D9', accentValue: 0xb8c7d9 },
+  { label: 'SHIELD', shortLabel: '1.6', accentHex: '#F0C96A', accentValue: 0xf0c96a },
+  { label: 'STORM', shortLabel: '1.8', accentHex: '#60A5FA', accentValue: 0x60a5fa },
+]);
 
-const JUNGLE_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'RED GEM', shortLabel: 'RED', accentHex: '#EF4444', accentValue: 0xef4444 },
-  { label: 'BLUE GEM', shortLabel: 'BLU', accentHex: '#38BDF8', accentValue: 0x38bdf8 },
-  { label: 'YELLOW GEM', shortLabel: 'YEL', accentHex: '#FDE047', accentValue: 0xfde047 },
-  { label: 'GREEN GEM', shortLabel: 'GRN', accentHex: '#22C55E', accentValue: 0x22c55e },
-  { label: 'EMERALD', shortLabel: 'EMR', accentHex: '#10B981', accentValue: 0x10b981 },
-  { label: 'RELIC', shortLabel: 'RLC', accentHex: '#FACC15', accentValue: 0xfacc15 },
-  { label: 'TOTEM', shortLabel: 'TOT', accentHex: '#D9F99D', accentValue: 0xd9f99d },
-  { label: 'GOLD FRUIT', shortLabel: 'GLF', accentHex: '#FBBF24', accentValue: 0xfbbf24 },
-  { label: 'TEMPLE KEY', shortLabel: 'KEY', accentHex: '#34D399', accentValue: 0x34d399 },
-];
+const DRAGON_MEGA_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
+  { label: 'SCALE', shortLabel: '1.2', accentHex: '#22C55E', accentValue: 0x22c55e },
+  { label: 'DRAGON', shortLabel: '1.4', accentHex: '#F59E0B', accentValue: 0xf59e0b },
+  { label: 'CROWN', shortLabel: '1.6', accentHex: '#FDE047', accentValue: 0xfde047 },
+  { label: 'FIRE GEM', shortLabel: '1.8', accentHex: '#F97316', accentValue: 0xf97316 },
+]);
 
-const VAMPIRE_SYMBOLS: SlotSymbolThemeMeta[] = [
-  { label: 'RED GEM', shortLabel: 'RED', accentHex: '#EF4444', accentValue: 0xef4444 },
-  { label: 'BLUE GEM', shortLabel: 'BLU', accentHex: '#38BDF8', accentValue: 0x38bdf8 },
-  { label: 'YELLOW GEM', shortLabel: 'YEL', accentHex: '#FDE047', accentValue: 0xfde047 },
-  { label: 'GREEN GEM', shortLabel: 'GRN', accentHex: '#22C55E', accentValue: 0x22c55e },
-  { label: 'MOON', shortLabel: 'MON', accentHex: '#CBD5E1', accentValue: 0xcbd5e1 },
-  { label: 'CASTLE', shortLabel: 'CST', accentHex: '#F472B6', accentValue: 0xf472b6 },
-  { label: 'BAT', shortLabel: 'BAT', accentHex: '#A78BFA', accentValue: 0xa78bfa },
-  { label: 'BLOOD GEM', shortLabel: 'BLD', accentHex: '#DC2626', accentValue: 0xdc2626 },
-  { label: 'COFFIN', shortLabel: 'COF', accentHex: '#E879F9', accentValue: 0xe879f9 },
-];
+const NEBULA_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
+  { label: 'NOVA', shortLabel: '1.2', accentHex: '#F472B6', accentValue: 0xf472b6 },
+  { label: 'GALAXY', shortLabel: '1.4', accentHex: '#FDE68A', accentValue: 0xfde68a },
+  { label: 'STAR CORE', shortLabel: '1.6', accentHex: '#F0ABFC', accentValue: 0xf0abfc },
+  { label: 'QUASAR', shortLabel: '1.8', accentHex: '#67E8F9', accentValue: 0x67e8f9 },
+]);
+
+const JUNGLE_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
+  { label: 'EMERALD', shortLabel: '1.2', accentHex: '#10B981', accentValue: 0x10b981 },
+  { label: 'RELIC', shortLabel: '1.4', accentHex: '#FACC15', accentValue: 0xfacc15 },
+  { label: 'TOTEM', shortLabel: '1.6', accentHex: '#D9F99D', accentValue: 0xd9f99d },
+  { label: 'GOLD FRUIT', shortLabel: '1.8', accentHex: '#FBBF24', accentValue: 0xfbbf24 },
+]);
+
+const VAMPIRE_SYMBOLS: SlotSymbolThemeMeta[] = softSlotSymbols([
+  { label: 'MOON', shortLabel: '1.2', accentHex: '#CBD5E1', accentValue: 0xcbd5e1 },
+  { label: 'CASTLE', shortLabel: '1.4', accentHex: '#F472B6', accentValue: 0xf472b6 },
+  { label: 'BAT', shortLabel: '1.6', accentHex: '#A78BFA', accentValue: 0xa78bfa },
+  { label: 'BLOOD GEM', shortLabel: '1.8', accentHex: '#DC2626', accentValue: 0xdc2626 },
+]);
 
 export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
   cyber: {
