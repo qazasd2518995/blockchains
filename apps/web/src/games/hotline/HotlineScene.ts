@@ -115,8 +115,14 @@ interface HotlineCascadeStep {
   removed: HotlineWinPosition[];
 }
 
+interface HotlineCascadeWinPop {
+  amount?: string;
+  label?: string;
+  meta?: string;
+}
+
 interface HotlineCascadePlaybackOptions {
-  onStepWin?: (step: HotlineCascadeStep) => void;
+  onStepWin?: (step: HotlineCascadeStep) => HotlineCascadeWinPop | void;
   fast?: boolean;
   specialSymbols?: HotlineSpecialSymbol[];
   finalSpecialSymbols?: HotlineSpecialSymbol[];
@@ -975,7 +981,7 @@ export class HotlineScene {
       specialSymbols: options.specialSymbols,
       payoutAmount: options.payoutAmount,
     });
-    options.onStepWin?.(first);
+    this.showCascadeStepWinPop(first, options.onStepWin?.(first), options.payoutAmount);
     const specialByCell = this.createSpecialSymbolMap(options.specialSymbols);
     const finalSpecialByCell = this.createSpecialSymbolMap(finalSpecialSymbols);
 
@@ -985,7 +991,7 @@ export class HotlineScene {
       await this.sleep(this.scaleMs(720));
       await this.animateCascadeToGrid(step.grid, previous.removed, specialByCell);
       this.showWinLines(step.lines, options.payoutAmount);
-      options.onStepWin?.(step);
+      this.showCascadeStepWinPop(step, options.onStepWin?.(step), options.payoutAmount);
       previous = step;
     }
 
@@ -1748,6 +1754,99 @@ export class HotlineScene {
         this.scaleMs(160),
       );
     }
+  }
+
+  private showCascadeStepWinPop(
+    step: HotlineCascadeStep,
+    winPop: HotlineCascadeWinPop | void,
+    payoutAmount?: number,
+  ): void {
+    if (!this.winLinesLayer || step.removed.length === 0 || step.multiplier <= 0) return;
+
+    const centroid = step.removed.reduce(
+      (sum, position) => ({
+        reel: sum.reel + position.reel,
+        row: sum.row + position.row,
+      }),
+      { reel: 0, row: 0 },
+    );
+    const reel = centroid.reel / step.removed.length;
+    const row = centroid.row / step.removed.length;
+    const x = this.reelX0 + reel * (this.cellWidth + this.reelGap) + this.cellWidth / 2;
+    const y = this.reelY0 + row * this.cellSize + this.cellSize / 2;
+    const value =
+      typeof payoutAmount === 'number' && Number.isFinite(payoutAmount) && payoutAmount > 0
+        ? step.multiplier * payoutAmount
+        : step.multiplier;
+    const fallbackText =
+      typeof payoutAmount === 'number' && Number.isFinite(payoutAmount) && payoutAmount > 0
+        ? `+${this.formatWinAmount(value)}`
+        : `+${this.formatWinAmount(value)}×`;
+    const text = winPop?.amount ?? fallbackText;
+    const color =
+      this.theme.symbols[step.lines[0]?.symbol ?? 0]?.accentValue ??
+      getHotlineSymbolMeta(step.lines[0]?.symbol ?? 0).accentValue;
+
+    const container = new Container();
+    container.x = Math.max(
+      this.reelX0 + this.cellWidth * 0.45,
+      Math.min(x, this.width - this.cellWidth * 0.7),
+    );
+    container.y = Math.max(
+      this.reelY0 + this.cellSize * 0.45,
+      Math.min(y, this.height - this.cellSize * 0.75),
+    );
+    container.alpha = 0;
+    container.scale.set(0.78);
+
+    const style = new TextStyle({
+      fontFamily: GAME_FONT_NUM,
+      fontSize: Math.max(18, Math.min(42, this.cellSize * 0.34)),
+      fill: COLOR_WHITE,
+      fontWeight: '900',
+      letterSpacing: 0.2,
+      stroke: { color: COLOR_INK, width: 6 },
+      dropShadow: {
+        color,
+        alpha: 0.95,
+        blur: 14,
+        distance: 0,
+      },
+    });
+    const label = new Text({ text, style });
+    label.anchor.set(0.5);
+    const boundsWidth = Math.max(this.cellWidth * 1.6, label.width + this.cellWidth * 0.34);
+    const boundsHeight = Math.max(this.cellSize * 0.46, label.height + this.cellSize * 0.16);
+    const plate = new Graphics()
+      .roundRect(-boundsWidth / 2, -boundsHeight / 2, boundsWidth, boundsHeight, boundsHeight * 0.32)
+      .fill({ color: COLOR_INK, alpha: 0.72 })
+      .stroke({ color, width: 2.4, alpha: 0.72 });
+    container.addChild(plate);
+    container.addChild(label);
+    this.winLinesLayer.addChild(container);
+
+    gsap.to(container, {
+      alpha: 1,
+      duration: this.scaleSec(0.14),
+      ease: 'power2.out',
+    });
+    gsap.to(container.scale, {
+      x: 1,
+      y: 1,
+      duration: this.scaleSec(0.22),
+      ease: 'back.out(1.8)',
+    });
+    gsap.to(container, {
+      y: container.y - this.cellSize * 0.38,
+      alpha: 0,
+      duration: this.scaleSec(0.58),
+      delay: this.scaleSec(0.78),
+      ease: 'power2.in',
+      onComplete: () => {
+        this.winLinesLayer?.removeChild(container);
+        container.destroy({ children: true });
+      },
+    });
   }
 
   private emitWinAmountLabel(
