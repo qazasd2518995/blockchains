@@ -1,5 +1,11 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { kenoDraw, kenoEvaluate, kenoMultiplier, KENO_POOL_SIZE, KENO_DRAW_COUNT } from '@bg/provably-fair';
+import {
+  kenoDraw,
+  kenoEvaluate,
+  kenoMultiplier,
+  KENO_POOL_SIZE,
+  KENO_DRAW_COUNT,
+} from '@bg/provably-fair';
 import { GameId, type KenoBetResult } from '@bg/shared';
 import {
   SeedHelper,
@@ -26,11 +32,7 @@ export class KenoService {
 
     return runSerializable(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
-      const seed = await new SeedHelper(tx).getActiveBundle(
-        userId,
-        'keno',
-        input.clientSeed,
-      );
+      const seed = await new SeedHelper(tx).getActiveBundle(userId, 'keno', input.clientSeed);
 
       const drawn = kenoDraw(seed.serverSeed, seed.clientSeed, seed.nonce);
       const { hits } = kenoEvaluate(drawn, unique);
@@ -49,10 +51,18 @@ export class KenoService {
       let finalMultiplier = multiplierD;
       let finalPayout = payout;
       if (controlled.controlled) {
-        const hitCount = chooseKenoHitCount(input.risk, unique.length, controlled.won, amount, controlled);
-        finalDrawn = drawWithHitCount(unique, hitCount);
+        const hitCount = chooseKenoHitCount(
+          input.risk,
+          unique.length,
+          controlled.won,
+          amount,
+          controlled,
+        );
+        finalDrawn = drawWithHitCount(unique, hitCount, drawn);
         finalHits = kenoEvaluate(finalDrawn, unique).hits;
-        finalMultiplier = new Prisma.Decimal(kenoMultiplier(input.risk, unique.length, finalHits.length).toFixed(4));
+        finalMultiplier = new Prisma.Decimal(
+          kenoMultiplier(input.risk, unique.length, finalHits.length).toFixed(4),
+        );
         finalPayout = amount.mul(finalMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
       }
       const profit = finalPayout.minus(amount);
@@ -83,16 +93,20 @@ export class KenoService {
         },
       });
       await debitAndRecord(tx, userId, amount, bet.id);
-      const newBalance =
-        finalPayout.greaterThan(0)
-          ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
-          : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+      const newBalance = finalPayout.greaterThan(0)
+        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
+        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
       await finalizeControls(
         tx,
         userId,
         GameId.KENO,
         { won: payout.greaterThan(amount), amount, multiplier: multiplierD, payout },
-        { won: finalPayout.greaterThan(amount), amount, multiplier: finalMultiplier, payout: finalPayout },
+        {
+          won: finalPayout.greaterThan(amount),
+          amount,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
+        },
         controlled,
         bet.id,
         originalResult,
@@ -124,10 +138,7 @@ function chooseKenoHitCount(
   pickCount: number,
   wantWin: boolean,
   amount: Prisma.Decimal,
-  controlled: Pick<
-    ControlOutcome,
-    'multiplier' | 'minMultiplier' | 'maxMultiplier' | 'maxPayout'
-  >,
+  controlled: Pick<ControlOutcome, 'multiplier' | 'minMultiplier' | 'maxMultiplier' | 'maxPayout'>,
 ): number {
   const candidates = Array.from({ length: pickCount + 1 }, (_, hits) => ({
     hits,
@@ -147,17 +158,152 @@ function chooseKenoHitCount(
 
   const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
   boundedWins.sort((a, b) => {
-    const distance = Math.abs(a.multiplier - targetMultiplier) - Math.abs(b.multiplier - targetMultiplier);
+    const distance =
+      Math.abs(a.multiplier - targetMultiplier) - Math.abs(b.multiplier - targetMultiplier);
     return distance || a.multiplier - b.multiplier;
   });
   return boundedWins[0]?.hits ?? 0;
 }
 
-function drawWithHitCount(selected: number[], hitCount: number): number[] {
-  const hits = selected.slice(0, hitCount);
-  const selectedSet = new Set(selected);
-  const misses = Array.from({ length: KENO_POOL_SIZE }, (_, index) => index + 1)
-    .filter((n) => !selectedSet.has(n))
-    .slice(0, KENO_DRAW_COUNT - hits.length);
+function drawWithHitCount(
+  selected: number[],
+  hitCount: number,
+  naturalDrawn: number[] = [],
+): number[] {
+  const normalizedSelected = uniqueValidKenoNumbers(selected);
+  const desiredHits = Math.max(0, Math.min(hitCount, normalizedSelected.length, KENO_DRAW_COUNT));
+  const selectedSet = new Set(normalizedSelected);
+  const normalizedNaturalDrawn = uniqueValidKenoNumbers(naturalDrawn);
+  const naturalHits = normalizedNaturalDrawn.filter((n) => selectedSet.has(n));
+  const hitSeed = hashKenoShapeSeed('hit', normalizedSelected, naturalDrawn, desiredHits);
+  const extraHits = seededShuffle(
+    normalizedSelected.filter((n) => !naturalHits.includes(n)),
+    hitSeed,
+  );
+  const hits = [...naturalHits, ...extraHits].slice(0, desiredHits);
+  const missCount = KENO_DRAW_COUNT - hits.length;
+  const misses = chooseNaturalKenoMisses(
+    normalizedSelected,
+    hits,
+    normalizedNaturalDrawn,
+    missCount,
+  );
+
   return [...hits, ...misses].sort((a, b) => a - b);
 }
+
+function chooseNaturalKenoMisses(
+  selected: number[],
+  hits: number[],
+  naturalDrawn: number[],
+  missCount: number,
+): number[] {
+  if (missCount <= 0) return [];
+  const selectedSet = new Set(selected);
+  const naturalMisses = naturalDrawn.filter((n) => !selectedSet.has(n));
+  const remainingMissPool = Array.from({ length: KENO_POOL_SIZE }, (_, index) => index + 1).filter(
+    (n) => !selectedSet.has(n) && !naturalMisses.includes(n),
+  );
+  const baseMissPool = [...naturalMisses, ...remainingMissPool];
+  let best: number[] | null = null;
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (let attempt = 0; attempt < 48; attempt += 1) {
+    const seed = hashKenoShapeSeed(`miss:${attempt}`, selected, naturalDrawn, hits.length);
+    const candidate = seededShuffle(baseMissPool, seed).slice(0, missCount);
+    const draw = [...hits, ...candidate].sort((a, b) => a - b);
+    const score = scoreKenoDrawShape(draw, hits);
+    if (score < bestScore) {
+      best = candidate;
+      bestScore = score;
+      if (score <= 1) break;
+    }
+  }
+
+  return (best ?? baseMissPool.slice(0, missCount)).slice(0, missCount);
+}
+
+function scoreKenoDrawShape(drawn: number[], hits: number[]): number {
+  const sorted = [...drawn].sort((a, b) => a - b);
+  const hitSet = new Set(hits);
+  let longestRun = 1;
+  let currentRun = 1;
+  let adjacentPairs = 0;
+  for (let i = 1; i < sorted.length; i += 1) {
+    if (sorted[i] === sorted[i - 1]! + 1) {
+      currentRun += 1;
+      adjacentPairs += 1;
+      longestRun = Math.max(longestRun, currentRun);
+    } else {
+      currentRun = 1;
+    }
+  }
+
+  const firstNonPrefix = sorted.findIndex((number, index) => number !== index + 1);
+  const lowPrefixRun = firstNonPrefix === -1 ? sorted.length : firstNonPrefix;
+  const hitIndexes = sorted
+    .map((number, index) => (hitSet.has(number) ? index : -1))
+    .filter((index) => index >= 0);
+  const hitOnLastOnly =
+    hitIndexes.length > 0 && hitIndexes.every((index) => index === sorted.length - 1);
+  const hitOnEdgeOnly =
+    hitIndexes.length > 0 &&
+    hitIndexes.every((index) => index === 0 || index === sorted.length - 1);
+  const minHit = Math.min(...hits);
+  const maxHit = Math.max(...hits);
+  const hasHit = hits.length > 0 && Number.isFinite(minHit) && Number.isFinite(maxHit);
+  const hasMissBelowHit = hasHit && sorted.some((n) => n < minHit && !hitSet.has(n));
+  const hasMissAboveHit = hasHit && sorted.some((n) => n > maxHit && !hitSet.has(n));
+  const oneSidedHitContext = hasHit && (!hasMissBelowHit || !hasMissAboveHit);
+
+  return (
+    Math.max(0, longestRun - 3) * 18 +
+    Math.max(0, lowPrefixRun - 2) * 22 +
+    adjacentPairs * 2 +
+    (hitOnLastOnly ? 28 : 0) +
+    (hitOnEdgeOnly ? 8 : 0) +
+    (oneSidedHitContext ? 10 : 0)
+  );
+}
+
+function uniqueValidKenoNumbers(numbers: number[]): number[] {
+  return Array.from(
+    new Set(numbers.filter((n) => Number.isInteger(n) && n >= 1 && n <= KENO_POOL_SIZE)),
+  );
+}
+
+function seededShuffle<T>(items: T[], seed: number): T[] {
+  const next = [...items];
+  let state = seed >>> 0;
+  const random = () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    const a = next[i]!;
+    next[i] = next[j]!;
+    next[j] = a;
+  }
+  return next;
+}
+
+function hashKenoShapeSeed(
+  label: string,
+  selected: number[],
+  drawn: number[],
+  hitCount: number,
+): number {
+  const source = `${label}|${hitCount}|${selected.join(',')}|${drawn.join(',')}`;
+  let hash = 2166136261;
+  for (let i = 0; i < source.length; i += 1) {
+    hash ^= source.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+export const __kenoServiceTestHooks = {
+  drawWithHitCount,
+  scoreKenoDrawShape,
+};
