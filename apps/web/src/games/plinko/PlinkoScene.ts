@@ -54,6 +54,7 @@ interface Ball {
   path: ('left' | 'right')[]; // 預定路徑
   targetBucket: number;
   multiplier: number;
+  payoutAmount?: number;
   batchIndex: number;
   batchSize: number;
   resultReady: boolean;
@@ -85,6 +86,20 @@ function formatPotentialPayout(value: number): string {
   if (rounded >= 1_000) return `${trimFixed(rounded / 1_000)}K`;
   if (rounded >= 100) return rounded.toFixed(0);
   return trimFixed(rounded);
+}
+
+function formatLandingPayout(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '';
+  const rounded = Math.floor(value * 100) / 100;
+  if (rounded >= 1_000_000) return `${trimFixed(rounded / 1_000_000)}M`;
+  if (rounded >= 10_000) return `${trimFixed(rounded / 1_000)}K`;
+  if (rounded >= 100) return rounded.toFixed(0);
+  return rounded.toFixed(2);
+}
+
+function normalizePayoutAmount(value: number | undefined): number | undefined {
+  const payout = Number(value);
+  return Number.isFinite(payout) && payout > 0 ? payout : undefined;
 }
 
 function trimFixed(value: number): string {
@@ -302,6 +317,8 @@ export class PlinkoScene {
   }
 
   private bucketHeight(): number {
+    if (this.width >= 860) return Math.max(46, Math.min(58, this.height * 0.09));
+    if (this.width >= 640) return Math.max(40, Math.min(50, this.height * 0.08));
     return Math.max(30, Math.min(38, this.height * 0.07));
   }
 
@@ -407,7 +424,9 @@ export class PlinkoScene {
       // 倍率文字
       const fmt = formatMultiplierLabel(m);
       const hasPayout = this.betAmount > 0;
-      const autoSize = Math.max(8, Math.min(bucketW * 0.32, hasPayout ? 13 : 15));
+      const multiplierMaxSize = this.width >= 860 ? (hasPayout ? 18 : 20) : hasPayout ? 13 : 15;
+      const multiplierScale = this.width >= 860 ? 0.4 : 0.32;
+      const autoSize = Math.max(8, Math.min(bucketW * multiplierScale, multiplierMaxSize));
       const fillStr = `#${color.toString(16).padStart(6, '0')}`;
       const label = new Text({
         text: `${fmt}×`,
@@ -428,7 +447,9 @@ export class PlinkoScene {
 
       if (hasPayout) {
         const payout = formatPotentialPayout(this.betAmount * m);
-        const payoutSize = Math.max(7, Math.min(bucketW * 0.25, 10));
+        const payoutMaxSize = this.width >= 860 ? 14 : 10;
+        const payoutScale = this.width >= 860 ? 0.31 : 0.25;
+        const payoutSize = Math.max(7, Math.min(bucketW * payoutScale, payoutMaxSize));
         const payoutLabel = new Text({
           text: payout,
           style: new TextStyle({
@@ -633,6 +654,7 @@ export class PlinkoScene {
       path: provisionalPath,
       targetBucket: Math.floor(this.rows / 2),
       multiplier: 0,
+      payoutAmount: undefined,
       batchIndex: localIndex,
       batchSize: totalBalls,
       resultReady: false,
@@ -741,6 +763,7 @@ export class PlinkoScene {
     path: ('left' | 'right')[],
     bucket: number,
     multiplier: number,
+    payoutAmount?: number,
   ): void {
     const maxSteerableRow = Math.max(0, this.rows - 1);
     const currentRow = Math.max(0, Math.min(maxSteerableRow, ball.row));
@@ -762,6 +785,7 @@ export class PlinkoScene {
     ball.path = finalizedPath;
     ball.targetBucket = bucket;
     ball.multiplier = multiplier;
+    ball.payoutAmount = normalizePayoutAmount(payoutAmount);
     ball.resultReady = true;
     if (ball.vy < 1.35) ball.vy = 1.35;
   }
@@ -774,6 +798,7 @@ export class PlinkoScene {
     bucket: number,
     multiplier: number,
     anticipationBall?: Graphics | null,
+    payoutAmount?: number,
   ): Promise<void> {
     if (!this.ballsContainer) return;
 
@@ -782,7 +807,7 @@ export class PlinkoScene {
       const activeBall = claimedBall ? this.balls.find((b) => b.g === claimedBall) : undefined;
       if (activeBall) {
         activeBall.onDone = () => resolve();
-        this.applyFinalResult(activeBall, path, bucket, multiplier);
+        this.applyFinalResult(activeBall, path, bucket, multiplier, payoutAmount);
         return;
       }
 
@@ -808,6 +833,7 @@ export class PlinkoScene {
         path,
         targetBucket: bucket,
         multiplier,
+        payoutAmount: normalizePayoutAmount(payoutAmount),
         batchIndex: 0,
         batchSize: 1,
         resultReady: true,
@@ -881,6 +907,9 @@ export class PlinkoScene {
     const layout = this.bucketLayout();
     const targetX = this.bucketCenterX(b.targetBucket);
     const targetY = layout.y + layout.bucketH * 0.35;
+    if (b.batchSize === 1 && b.payoutAmount && b.payoutAmount > 0) {
+      this.showLandingPayout(targetX, targetY - layout.bucketH * 0.38, b.payoutAmount, color);
+    }
 
     // 震波大小隨 tier
     const shockRadius = tier === 'mega' ? 180 : tier === 'huge' ? 140 : tier === 'big' ? 100 : 70;
@@ -948,6 +977,43 @@ export class PlinkoScene {
         b.onDone(b.targetBucket, b.multiplier);
       },
     });
+  }
+
+  private showLandingPayout(x: number, y: number, payoutAmount: number, color: number): void {
+    if (!this.ballsContainer) return;
+    const text = formatLandingPayout(payoutAmount);
+    if (!text) return;
+    const fillStr = `#${color.toString(16).padStart(6, '0')}`;
+    const label = new Text({
+      text: `+${text}`,
+      style: new TextStyle({
+        fontFamily: GAME_FONT,
+        fontSize: this.width >= 860 ? 22 : 18,
+        fill: fillStr,
+        fontWeight: '900',
+        align: 'center',
+        stroke: { color: COLOR_INK, width: 4 },
+      }),
+      resolution: 2,
+    });
+    label.anchor.set(0.5);
+    label.x = x;
+    label.y = y;
+    label.alpha = 0;
+    label.scale.set(0.78);
+    this.ballsContainer.addChild(label);
+
+    gsap
+      .timeline({
+        onComplete: () => {
+          this.ballsContainer?.removeChild(label);
+          label.destroy();
+        },
+      })
+      .to(label, { alpha: 1, duration: 0.12, ease: 'power2.out' }, 0)
+      .to(label.scale, { x: 1, y: 1, duration: 0.16, ease: 'back.out(1.7)' }, 0)
+      .to(label, { y: y - 24, duration: 0.75, ease: 'power2.out' }, 0.04)
+      .to(label, { alpha: 0, duration: 0.24, ease: 'power2.in' }, 0.58);
   }
 
   private emitPegSparks(x: number, y: number): void {

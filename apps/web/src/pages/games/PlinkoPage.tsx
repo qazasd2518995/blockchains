@@ -407,6 +407,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
                 dropResult.bucket,
                 dropResult.multiplier,
                 anticipationBalls[index],
+                Number.parseFloat(dropResult.payout),
               ) ?? Promise.resolve();
             },
           ),
@@ -416,7 +417,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
         setBalance(res.data.newBalance);
 
         const winSummary = summarizePlinkoBatch(dropResults, betAmount);
-        if (dropSource === 'manual' && winSummary.totalPayout > 0) {
+        if (dropSource === 'manual' && balls > 1 && winSummary.totalPayout > 0) {
           setWinModal(winSummary);
         }
 
