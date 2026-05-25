@@ -1152,6 +1152,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const resultAmount = result ? Number.parseFloat(result.amount) : 0;
   const resultPayout = result ? Number.parseFloat(result.payout) : 0;
   const resultProfit = result ? Number.parseFloat(result.profit) : 0;
+  const resultHasLineWin = Boolean(result && result.lines.length > 0);
   const resultMultiplier = result?.multiplier ?? 0;
   const megaFeatures = result?.features;
   const megaActivatedBaseMultiplier = getActivatedBaseMultiplierTotal(megaFeatures);
@@ -1841,7 +1842,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
           {result && !spinning && (
             <div
-              className={`game-result-card slot-result-card ${isBigWinResult ? 'slot-result-card-bigwin' : ''} ${resultProfit >= 0 ? 'game-result-card-win' : 'game-result-card-loss'}`}
+              className={`game-result-card slot-result-card ${isBigWinResult ? 'slot-result-card-bigwin' : ''} ${resultHasLineWin ? 'game-result-card-win' : 'game-result-card-loss'}`}
             >
               <div className="slot-result-summary flex flex-col items-center justify-center gap-1 text-center">
                 <div>
@@ -1861,8 +1862,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   派彩 {formatAmount(result.payout)}
                 </div>
                 <div className="slot-result-profit num text-3xl text-[#7DD3FC]">
-                  {Number.parseFloat(result.profit) >= 0 ? '+' : ''}
-                  {formatAmount(result.profit)}
+                  {resultHasLineWin ? '+' : resultProfit >= 0 ? '+' : ''}
+                  {formatAmount(resultHasLineWin ? result.payout : result.profit)}
                 </div>
               </div>
               {result.lines.length > 0 && (
