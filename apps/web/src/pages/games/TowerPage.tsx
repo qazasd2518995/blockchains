@@ -446,16 +446,14 @@ export function TowerPage() {
                     type="button"
                     onClick={() => setDifficulty(d.id)}
                     disabled={round?.status === 'ACTIVE' || busy}
-                    className={`flex w-full flex-col items-start justify-between gap-1 rounded-[14px] border p-3 text-left transition sm:flex-row sm:items-center sm:rounded-[16px] ${
-                      difficulty === d.id
-                        ? 'border-neon-acid/30 bg-neon-acid/8'
-                        : 'border-white/10 bg-white/76 hover:border-[#EA580C]/28'
-                    } disabled:opacity-40`}
+                    className={`tower-difficulty-option ${
+                      difficulty === d.id ? 'tower-difficulty-option--active' : ''
+                    }`}
                   >
-                    <span className="font-mono text-[12px] font-semibold tracking-[0.2em] text-white">
+                    <span className="tower-difficulty-option__label">
                       {d.label}
                     </span>
-                    <span className="text-[10px] text-white/55">{d.desc}</span>
+                    <span className="tower-difficulty-option__desc">{d.desc}</span>
                   </button>
                 ))}
               </div>
