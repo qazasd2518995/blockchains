@@ -191,6 +191,8 @@ export class HotlineScene {
   private shaker: ShakeController | null = null;
   private poolTicker: ((tk: Ticker) => void) | null = null;
   private winFx: WinCelebration | null = null;
+  private initializing = false;
+  private disposed = false;
   private lineFxTimers: number[] = [];
   private playbackFast = false;
 
@@ -200,6 +202,8 @@ export class HotlineScene {
     height: number,
     theme: SlotThemeConfig = getSlotTheme('cyber'),
   ): Promise<void> {
+    this.disposed = false;
+    this.initializing = true;
     this.width = width;
     this.height = height;
     this.theme = theme;
@@ -208,26 +212,45 @@ export class HotlineScene {
 
     const app = new Application();
     const rendererResolution = this.getRendererResolution();
-    await app.init({
-      canvas,
-      width,
-      height,
-      backgroundAlpha: 0,
-      resolution: rendererResolution,
-      autoDensity: true,
-      antialias: this.rowCount <= ROWS && rendererResolution <= CLASSIC_RENDER_DPR,
-    });
+    try {
+      await app.init({
+        canvas,
+        width,
+        height,
+        backgroundAlpha: 0,
+        resolution: rendererResolution,
+        autoDensity: true,
+        antialias: this.rowCount <= ROWS && rendererResolution <= CLASSIC_RENDER_DPR,
+        powerPreference: this.isTouchMegaLayout() ? 'low-power' : 'high-performance',
+        preference: 'webgl',
+        preferWebGLVersion: this.isTouchMegaLayout() ? 1 : 2,
+      });
+    } catch (err) {
+      this.initializing = false;
+      this.destroyPixiApp(app);
+      throw err;
+    }
+    this.initializing = false;
+    if (this.disposed) {
+      this.destroyPixiApp(app);
+      throw new Error('Hotline scene disposed during init');
+    }
     this.app = app;
     app.stage.eventMode = 'none';
-    this.winFx = new WinCelebration({
-      app,
-      parent: app.stage,
-      shakeTarget: app.stage,
-      width: this.width,
-      height: this.height,
-    });
+    if (this.canUseShaderEffects()) {
+      this.winFx = new WinCelebration({
+        app,
+        parent: app.stage,
+        shakeTarget: app.stage,
+        width: this.width,
+        height: this.height,
+      });
+    }
 
     await this.preloadThemeAssets();
+    if (this.disposed) {
+      throw new Error('Hotline scene disposed during asset preload');
+    }
     this.createBackground();
 
     // Mega 盤面在手機橫向高度很有限，內距要跟著縮小，否則 6x5 符號會被壓得太小。
@@ -289,7 +312,9 @@ export class HotlineScene {
     this.poolTicker = (tk) => this.particlePool?.update(tk);
     app.ticker.add(this.poolTicker);
 
-    prewarmShaders(app);
+    if (this.canUseShaderEffects()) {
+      prewarmShaders(app);
+    }
     Sfx.preloadSlotMachine();
 
     // 全螢幕閃光（JACKPOT 用）
@@ -336,7 +361,30 @@ export class HotlineScene {
   private getRendererResolution(): number {
     const deviceResolution =
       typeof window === 'undefined' ? 1 : Math.max(1, window.devicePixelRatio || 1);
+    if (this.isTouchMegaLayout()) return 1;
     return Math.min(deviceResolution, this.rowCount > ROWS ? MEGA_RENDER_DPR : CLASSIC_RENDER_DPR);
+  }
+
+  private isTouchMegaLayout(): boolean {
+    if (this.rowCount <= ROWS || typeof window === 'undefined') return false;
+    const shortSide = Math.min(window.innerWidth || this.width, window.innerHeight || this.height);
+    const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+    const compactLandscape =
+      window.matchMedia?.('(orientation: landscape)').matches && shortSide <= 560;
+    return coarsePointer && compactLandscape;
+  }
+
+  private canUseShaderEffects(): boolean {
+    return !this.isTouchMegaLayout();
+  }
+
+  private destroyPixiApp(app: Application | null): void {
+    if (!app) return;
+    try {
+      app.destroy(false, { children: true });
+    } catch (err) {
+      console.warn('Slot Pixi app destroy skipped', err);
+    }
   }
 
   private createSymbolTextures(sheet: Texture | null, count: number): Texture[] {
@@ -377,7 +425,9 @@ export class HotlineScene {
     const glow = new Graphics()
       .circle(this.width / 2, this.height / 2, this.width * 0.4)
       .fill({ color: COLOR_ACID, alpha: 0.08 });
-    glow.filters = [new BlurFilter({ strength: 50 })];
+    if (this.canUseShaderEffects()) {
+      glow.filters = [new BlurFilter({ strength: 50 })];
+    }
     this.app.stage.addChild(glow);
 
     // 頂部/底部光條
@@ -1736,6 +1786,7 @@ export class HotlineScene {
 
   private canPlayHeavyWinFx(): boolean {
     if (prefersReducedMotion()) return false;
+    if (!this.canUseShaderEffects()) return false;
     if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
       return false;
     }
@@ -2120,6 +2171,8 @@ export class HotlineScene {
   }
 
   dispose(): void {
+    this.disposed = true;
+    if (this.initializing && !this.app) return;
     Sfx.slotSpinStop();
     this.stopAnticipation();
     this.resetWinLines();
@@ -2132,7 +2185,7 @@ export class HotlineScene {
     this.particlePool = null;
     this.winFx?.dispose();
     this.winFx = null;
-    this.app?.destroy(false, { children: true });
+    this.destroyPixiApp(this.app);
     this.app = null;
     this.reels = [];
     this.reelsContainer = null;

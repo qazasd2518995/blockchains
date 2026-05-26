@@ -213,6 +213,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const sceneResizeSchedulerRef = useRef<(() => void) | null>(null);
   const sceneResizeLockedRef = useRef(false);
   const pendingSceneResizeRef = useRef(false);
+  const sceneRecoveryAttemptsRef = useRef(0);
   const resultVisibleRef = useRef(false);
   const autoSpinStopRequestedRef = useRef(false);
   const megaFreeSpinContinueRef = useRef<(() => void) | null>(null);
@@ -222,21 +223,25 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
   const setSceneAvailability = useCallback((ready: boolean, _fallback = false): void => {
     sceneReadyRef.current = ready;
+    if (ready) sceneRecoveryAttemptsRef.current = 0;
     setSceneReady(ready);
   }, []);
 
   const scheduleSceneRecovery = useCallback((): void => {
     pendingSceneResizeRef.current = true;
+    const attempt = Math.min(sceneRecoveryAttemptsRef.current + 1, 8);
+    sceneRecoveryAttemptsRef.current = attempt;
+    const delay = Math.min(3200, 360 * attempt);
     window.setTimeout(() => {
       if (sceneResizeLockedRef.current) return;
       pendingSceneResizeRef.current = false;
       sceneResizeSchedulerRef.current?.();
-    }, 360);
+    }, delay);
   }, []);
 
   const markSceneFallback = useCallback(
     (reason?: unknown): void => {
-      if (reason) console.warn('Slot canvas fallback activated', reason);
+      if (reason) console.warn('Slot canvas scene recovery requested', reason);
       try {
         sceneRef.current?.stopAnticipation();
         sceneRef.current?.resetWinLines();
