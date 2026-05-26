@@ -135,6 +135,14 @@ interface ControlLogRow {
   username: string;
   gameId: string;
   flipReason: string;
+  controlSource?: string;
+  controlSourceLabel?: string;
+  controlActionLabel?: string;
+  controlScopeLabel?: string;
+  controlTargetLabel?: string | null;
+  controlDetail?: string;
+  controlDirectionLabel?: string;
+  operatorUsername?: string | null;
   originalResult: { payout?: string; multiplier?: string; won?: boolean };
   finalResult: { payout?: string; multiplier?: string; won?: boolean };
   createdAt: string;
@@ -394,8 +402,8 @@ export function ControlsOverviewPage(): JSX.Element {
           </div>
           {r.lossControl && r.targetLossAmount && (
             <span className="font-mono text-[#A44722]">
-              咬 {Number.parseFloat(r.targetBitePercentage ?? '0').toFixed(0)}% · {fmt(r.currentLossAmount)} /{' '}
-              {fmt(r.targetLossAmount)}
+              咬 {Number.parseFloat(r.targetBitePercentage ?? '0').toFixed(0)}% ·{' '}
+              {fmt(r.currentLossAmount)} / {fmt(r.targetLossAmount)}
             </span>
           )}
         </div>
@@ -740,8 +748,8 @@ export function ControlsOverviewPage(): JSX.Element {
     { key: 'game', label: '游戏', render: (r) => <span className="tag tag-acid">{r.gameId}</span> },
     {
       key: 'reason',
-      label: '原因',
-      render: (r) => <span className="tag tag-ember">{formatReason(r.flipReason)}</span>,
+      label: '控制来源 / 动作',
+      render: renderControlLogReason,
     },
     {
       key: 'before',
@@ -792,8 +800,8 @@ export function ControlsOverviewPage(): JSX.Element {
           <>
             <div className="font-semibold text-[#7A5F15]">控制优先级</div>
             <div className="mt-1">
-              会员输控制 &gt; 代理线输控制 &gt; 全账号 30,000 赢分上限 &gt; 会员赢控制 &gt; 代理线赢控制
-              &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 爆分控制
+              会员输控制 &gt; 代理线输控制 &gt; 全账号 30,000 赢分上限 &gt; 会员赢控制 &gt;
+              代理线赢控制 &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 爆分控制
             </div>
             <div className="mt-1 text-[#7A5F15]/80">
               输控制会自动按 3-4 输后补 1 次小赢，不会每局直线压输。
@@ -1002,7 +1010,10 @@ export function ControlsOverviewPage(): JSX.Element {
                 }
               >
                 <div className="mb-3 grid gap-3 md:grid-cols-4">
-                  <MetricCard label="在线规则" value={bc.filter((x) => x.isActive).length.toString()} />
+                  <MetricCard
+                    label="在线规则"
+                    value={bc.filter((x) => x.isActive).length.toString()}
+                  />
                   <MetricCard
                     label="今日爆分池"
                     value={fmt(sumRows(bc, 'dailyBudget'))}
@@ -1244,6 +1255,87 @@ function manualDirectionClass(row: ManualDetectionRow): string {
   if (!Number.isFinite(current) || !Number.isFinite(target) || target === current)
     return 'tag tag-acid';
   return target > current ? 'tag tag-toxic' : 'tag tag-ember';
+}
+
+function renderControlLogReason(row: ControlLogRow): JSX.Element {
+  const sourceLabel = row.controlSourceLabel ?? formatReason(row.flipReason);
+  const actionLabel = row.controlActionLabel ?? formatReason(row.flipReason);
+  const scopeParts = [row.controlScopeLabel, row.controlTargetLabel].filter(Boolean);
+  const scopeText = scopeParts.length > 0 ? scopeParts.join(' · ') : '歷史規則';
+  const operatorText = row.operatorUsername ? `操作人 ${row.operatorUsername}` : null;
+
+  return (
+    <div className="min-w-[260px] max-w-[420px]">
+      <div className="flex flex-wrap gap-1">
+        <span className={controlLogSourceClass(row.controlSource)}>{sourceLabel}</span>
+        <span className={controlLogActionClass(row)}>{actionLabel}</span>
+      </div>
+      <div className="mt-1 text-[10px] leading-4 text-ink-500">
+        {scopeText}
+        {operatorText ? ` · ${operatorText}` : ''}
+      </div>
+      <div className="mt-1 text-[10px] leading-4 text-[#32505C]">
+        {row.controlDetail ?? '這筆紀錄已套用控制。'}
+      </div>
+      <div className="mt-1 font-mono text-[10px] leading-4 text-[#186073]">
+        {row.controlDirectionLabel ?? formatLogDirection(row)}
+      </div>
+    </div>
+  );
+}
+
+function controlLogSourceClass(source?: string): string {
+  if (source === 'online_reward_next_win') return 'tag tag-toxic';
+  if (source === 'burst_control') return 'tag tag-ember';
+  if (source === 'manual_detection' || source === 'deposit_control') return 'tag tag-acid';
+  if (
+    source === 'member_win_cap' ||
+    source === 'agent_line_cap' ||
+    source === 'global_member_daily_win_cap'
+  )
+    return 'tag tag-ember';
+  return 'tag tag-acid';
+}
+
+function controlLogActionClass(row: ControlLogRow): string {
+  const label = row.controlActionLabel ?? '';
+  if (
+    row.finalResult?.won === false ||
+    label.includes('輸') ||
+    label.includes('输') ||
+    label.includes('壓') ||
+    label.includes('压') ||
+    label.includes('咬')
+  ) {
+    return 'tag tag-ember';
+  }
+  if (
+    row.finalResult?.won === true ||
+    label.includes('贏') ||
+    label.includes('赢') ||
+    label.includes('放') ||
+    label.includes('補') ||
+    label.includes('补')
+  ) {
+    return 'tag tag-toxic';
+  }
+  return 'tag tag-acid';
+}
+
+function formatLogDirection(row: ControlLogRow): string {
+  const from =
+    row.originalResult?.won === true
+      ? '原本贏'
+      : row.originalResult?.won === false
+        ? '原本輸'
+        : '原結果';
+  const to =
+    row.finalResult?.won === true
+      ? '控制後贏'
+      : row.finalResult?.won === false
+        ? '控制後輸'
+        : '控制後結果';
+  return `${from} → ${to}`;
 }
 
 function formatReason(reason: string): string {

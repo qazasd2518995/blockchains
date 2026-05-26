@@ -74,6 +74,38 @@ function serializeBitePlan(plan: Awaited<ReturnType<typeof calculateAutoDetectio
   };
 }
 
+type ControlLogRecord = {
+  id: string;
+  controlId: string;
+  betId: string | null;
+  userId: string;
+  gameId: string;
+  originalResult: Prisma.JsonValue;
+  finalResult: Prisma.JsonValue;
+  flipReason: string;
+  createdAt: Date;
+};
+
+type ControlLogSource =
+  | 'win_loss_control'
+  | 'online_reward_next_win'
+  | 'deposit_control'
+  | 'manual_detection'
+  | 'burst_control'
+  | 'member_win_cap'
+  | 'agent_line_cap'
+  | 'global_member_daily_win_cap'
+  | 'unknown';
+
+type ControlLogMeta = {
+  source: ControlLogSource;
+  sourceLabel: string;
+  scopeLabel: string;
+  targetLabel: string | null;
+  operatorUsername: string | null;
+  detail: string;
+};
+
 async function serializeManualControl(
   fastify: FastifyInstance,
   control: Awaited<ReturnType<FastifyInstance['prisma']['manualDetectionControl']['findFirst']>> & {
@@ -101,6 +133,426 @@ async function serializeManualControl(
     currentSettlement: settlement.superiorSettlement.toFixed(2),
     gameDay: settlement.gameDay,
   };
+}
+
+async function enrichControlLogs(
+  fastify: FastifyInstance,
+  logs: ControlLogRecord[],
+  usernames: Map<string, string>,
+) {
+  const controlIds = Array.from(
+    new Set(
+      logs
+        .map((log) => log.controlId)
+        .filter((controlId) => controlId && controlId !== 'global-member-daily-win-cap'),
+    ),
+  );
+
+  const [
+    winLossControls,
+    depositControls,
+    manualControls,
+    burstControls,
+    memberWinCaps,
+    agentLineCaps,
+  ] = await Promise.all([
+    fastify.prisma.winLossControl.findMany({
+      where: { id: { in: controlIds } },
+      select: {
+        id: true,
+        controlMode: true,
+        targetUsername: true,
+        controlPercentage: true,
+        targetBitePercentage: true,
+        targetLossAmount: true,
+        winControl: true,
+        lossControl: true,
+        operatorUsername: true,
+      },
+    }),
+    fastify.prisma.memberDepositControl.findMany({
+      where: { id: { in: controlIds } },
+      select: {
+        id: true,
+        memberUsername: true,
+        targetProfit: true,
+        controlWinRate: true,
+        notes: true,
+        operatorUsername: true,
+      },
+    }),
+    fastify.prisma.manualDetectionControl.findMany({
+      where: { id: { in: controlIds } },
+      select: {
+        id: true,
+        scope: true,
+        targetAgentUsername: true,
+        targetMemberUsername: true,
+        targetSettlement: true,
+        controlPercentage: true,
+        bitePercentage: true,
+        operatorUsername: true,
+      },
+    }),
+    fastify.prisma.burstControl.findMany({
+      where: { id: { in: controlIds } },
+      select: {
+        id: true,
+        scope: true,
+        targetAgentUsername: true,
+        targetMemberUsername: true,
+        dailyBudget: true,
+        memberDailyCap: true,
+        singlePayoutCap: true,
+        operatorUsername: true,
+      },
+    }),
+    fastify.prisma.memberWinCapControl.findMany({
+      where: { id: { in: controlIds } },
+      select: {
+        id: true,
+        memberUsername: true,
+        winCapAmount: true,
+        controlWinRate: true,
+        operatorUsername: true,
+      },
+    }),
+    fastify.prisma.agentLineWinCap.findMany({
+      where: { id: { in: controlIds } },
+      select: {
+        id: true,
+        agentUsername: true,
+        dailyCap: true,
+        controlWinRate: true,
+        operatorUsername: true,
+      },
+    }),
+  ]);
+
+  const metaMaps = {
+    winLoss: new Map(winLossControls.map((control) => [control.id, control])),
+    deposit: new Map(depositControls.map((control) => [control.id, control])),
+    manual: new Map(manualControls.map((control) => [control.id, control])),
+    burst: new Map(burstControls.map((control) => [control.id, control])),
+    memberWinCap: new Map(memberWinCaps.map((control) => [control.id, control])),
+    agentLineCap: new Map(agentLineCaps.map((control) => [control.id, control])),
+  };
+
+  return logs.map((log) => {
+    const meta = resolveControlLogMeta(log, metaMaps);
+    return {
+      ...log,
+      username: usernames.get(log.userId) ?? log.userId,
+      controlSource: meta.source,
+      controlSourceLabel: meta.sourceLabel,
+      controlActionLabel: resolveControlLogActionLabel(log),
+      controlScopeLabel: meta.scopeLabel,
+      controlTargetLabel: meta.targetLabel,
+      controlDetail: meta.detail,
+      controlDirectionLabel: resolveControlLogDirectionLabel(log),
+      operatorUsername: meta.operatorUsername,
+    };
+  });
+}
+
+function resolveControlLogMeta(
+  log: ControlLogRecord,
+  maps: {
+    winLoss: Map<
+      string,
+      {
+        controlMode: string;
+        targetUsername: string | null;
+        controlPercentage: Prisma.Decimal;
+        targetBitePercentage: Prisma.Decimal | null;
+        targetLossAmount: Prisma.Decimal | null;
+        winControl: boolean;
+        lossControl: boolean;
+        operatorUsername: string | null;
+      }
+    >;
+    deposit: Map<
+      string,
+      {
+        memberUsername: string;
+        targetProfit: Prisma.Decimal;
+        controlWinRate: Prisma.Decimal;
+        notes: string | null;
+        operatorUsername: string | null;
+      }
+    >;
+    manual: Map<
+      string,
+      {
+        scope: ManualDetectionScope;
+        targetAgentUsername: string | null;
+        targetMemberUsername: string | null;
+        targetSettlement: Prisma.Decimal;
+        controlPercentage: number;
+        bitePercentage: Prisma.Decimal | null;
+        operatorUsername: string | null;
+      }
+    >;
+    burst: Map<
+      string,
+      {
+        scope: ManualDetectionScope;
+        targetAgentUsername: string | null;
+        targetMemberUsername: string | null;
+        dailyBudget: Prisma.Decimal;
+        memberDailyCap: Prisma.Decimal;
+        singlePayoutCap: Prisma.Decimal;
+        operatorUsername: string | null;
+      }
+    >;
+    memberWinCap: Map<
+      string,
+      {
+        memberUsername: string;
+        winCapAmount: Prisma.Decimal;
+        controlWinRate: Prisma.Decimal;
+        operatorUsername: string | null;
+      }
+    >;
+    agentLineCap: Map<
+      string,
+      {
+        agentUsername: string;
+        dailyCap: Prisma.Decimal;
+        controlWinRate: Prisma.Decimal;
+        operatorUsername: string | null;
+      }
+    >;
+  },
+): ControlLogMeta {
+  const reasonSource = resolveControlLogSource(log.flipReason);
+
+  if (reasonSource === 'win_loss_control') {
+    const control = maps.winLoss.get(log.controlId);
+    if (control) {
+      const scopeLabel = formatWinLossLogScope(control.controlMode);
+      const targetLabel = formatTargetForLog(scopeLabel, control.targetUsername);
+      const direction = control.winControl
+        ? '放會員 / 上級付'
+        : control.lossControl
+          ? '咬會員 / 上級收'
+          : '依規則介入';
+      const bite =
+        control.targetBitePercentage && control.targetLossAmount
+          ? `，目標咬度 ${control.targetBitePercentage.toFixed(2)}%，目標 ${control.targetLossAmount.toFixed(2)}`
+          : '';
+      return {
+        source: 'win_loss_control',
+        sourceLabel: '輸贏控制',
+        scopeLabel,
+        targetLabel,
+        operatorUsername: control.operatorUsername,
+        detail: `${scopeLabel}${targetLabel ? ` ${targetLabel}` : ''}，控制率 ${control.controlPercentage.toFixed(2)}%，${direction}${bite}`,
+      };
+    }
+  }
+
+  if (reasonSource === 'online_reward_next_win' || reasonSource === 'deposit_control') {
+    const control = maps.deposit.get(log.controlId);
+    if (control) {
+      const isOnlineReward = reasonSource === 'online_reward_next_win';
+      return {
+        source: reasonSource,
+        sourceLabel: isOnlineReward ? '在線均分必贏' : '入金控制',
+        scopeLabel: '會員',
+        targetLabel: control.memberUsername,
+        operatorUsername: control.operatorUsername,
+        detail: isOnlineReward
+          ? `最近活躍玩家均分，設定 ${control.memberUsername} 下一局直接贏，目標淨贏 ${control.targetProfit.toFixed(2)}`
+          : `會員 ${control.memberUsername} 入金控制，目標盈利 ${control.targetProfit.toFixed(2)}，控制勝率 ${formatLogRate(control.controlWinRate)}`,
+      };
+    }
+  }
+
+  if (reasonSource === 'manual_detection') {
+    const control = maps.manual.get(log.controlId);
+    if (control) {
+      const scopeLabel = formatManualLogScope(control.scope);
+      const targetLabel = formatManualLogTarget(control);
+      const bite = control.bitePercentage ? `，咬度 ${control.bitePercentage.toFixed(2)}%` : '';
+      return {
+        source: 'manual_detection',
+        sourceLabel: '手動偵測',
+        scopeLabel,
+        targetLabel,
+        operatorUsername: control.operatorUsername,
+        detail: `${scopeLabel}${targetLabel ? ` ${targetLabel}` : ''}，目標交收 ${control.targetSettlement.toFixed(2)}，控制率 ${control.controlPercentage}%${bite}`,
+      };
+    }
+  }
+
+  if (reasonSource === 'burst_control') {
+    const control = maps.burst.get(log.controlId);
+    if (control) {
+      const scopeLabel = formatManualLogScope(control.scope);
+      const targetLabel = formatManualLogTarget(control);
+      return {
+        source: 'burst_control',
+        sourceLabel: '爆分控制',
+        scopeLabel,
+        targetLabel,
+        operatorUsername: control.operatorUsername,
+        detail: `${scopeLabel}${targetLabel ? ` ${targetLabel}` : ''}，每日池 ${control.dailyBudget.toFixed(2)}，會員上限 ${control.memberDailyCap.toFixed(2)}，單局上限 ${control.singlePayoutCap.toFixed(2)}`,
+      };
+    }
+  }
+
+  if (reasonSource === 'member_win_cap') {
+    const control = maps.memberWinCap.get(log.controlId);
+    if (control) {
+      return {
+        source: 'member_win_cap',
+        sourceLabel: '會員封頂',
+        scopeLabel: '會員',
+        targetLabel: control.memberUsername,
+        operatorUsername: control.operatorUsername,
+        detail: `會員 ${control.memberUsername} 日贏封頂 ${control.winCapAmount.toFixed(2)}，觸發後控制勝率 ${formatLogRate(control.controlWinRate)}`,
+      };
+    }
+  }
+
+  if (reasonSource === 'agent_line_cap') {
+    const control = maps.agentLineCap.get(log.controlId);
+    if (control) {
+      return {
+        source: 'agent_line_cap',
+        sourceLabel: '代理線封頂',
+        scopeLabel: '代理線',
+        targetLabel: control.agentUsername,
+        operatorUsername: control.operatorUsername,
+        detail: `代理線 ${control.agentUsername} 日贏封頂 ${control.dailyCap.toFixed(2)}，觸發後控制勝率 ${formatLogRate(control.controlWinRate)}`,
+      };
+    }
+  }
+
+  if (reasonSource === 'global_member_daily_win_cap') {
+    return {
+      source: 'global_member_daily_win_cap',
+      sourceLabel: '全局日贏封頂',
+      scopeLabel: '全局',
+      targetLabel: null,
+      operatorUsername: null,
+      detail: '會員當日淨贏到達全局上限，後端直接壓輸避免超額。',
+    };
+  }
+
+  return {
+    source: reasonSource,
+    sourceLabel: resolveControlLogSourceLabel(reasonSource),
+    scopeLabel: '歷史規則',
+    targetLabel: null,
+    operatorUsername: null,
+    detail: '這筆紀錄已套用控制，但原控制規則可能已刪除或為舊資料。',
+  };
+}
+
+function resolveControlLogSource(reason: string): ControlLogSource {
+  if (reason === 'online_reward_next_win') return 'online_reward_next_win';
+  if (reason === 'deposit_control') return 'deposit_control';
+  if (reason === 'manual_detection') return 'manual_detection';
+  if (reason.startsWith('burst_')) return 'burst_control';
+  if (reason === 'win_cap' || reason === 'win_cap_rate') return 'member_win_cap';
+  if (reason === 'agent_line_cap' || reason === 'agent_line_cap_rate') return 'agent_line_cap';
+  if (reason === 'global_member_daily_win_cap') return 'global_member_daily_win_cap';
+  if (reason === 'win_control' || reason === 'loss_control' || reason === 'loss_control_release') {
+    return 'win_loss_control';
+  }
+  return 'unknown';
+}
+
+function resolveControlLogSourceLabel(source: ControlLogSource): string {
+  const labels: Record<ControlLogSource, string> = {
+    win_loss_control: '輸贏控制',
+    online_reward_next_win: '在線均分必贏',
+    deposit_control: '入金控制',
+    manual_detection: '手動偵測',
+    burst_control: '爆分控制',
+    member_win_cap: '會員封頂',
+    agent_line_cap: '代理線封頂',
+    global_member_daily_win_cap: '全局日贏封頂',
+    unknown: '未知控制',
+  };
+  return labels[source];
+}
+
+function resolveControlLogActionLabel(log: ControlLogRecord): string {
+  const finalWon = jsonBoolean(log.finalResult, 'won');
+  const finalDirection = finalWon === true ? '控贏' : finalWon === false ? '控輸' : '已介入';
+  const labels: Record<string, string> = {
+    online_reward_next_win: '下一局直接贏',
+    deposit_control: `入金${finalDirection}`,
+    win_control: '放會員贏',
+    loss_control: '咬會員輸',
+    loss_control_release: '殺分補贏',
+    manual_detection: finalWon === true ? '手動拉贏' : finalWon === false ? '手動壓輸' : '手動介入',
+    burst_win: '爆分贏',
+    burst_small_win: '小贏補償',
+    burst_loss: '娛樂壓輸',
+    burst_risk_cap: '高倍壓低',
+    burst_risk_guard: '風險防守壓輸',
+    burst_budget_guard: '爆分池防守壓輸',
+    win_cap: '封頂壓輸',
+    win_cap_rate: `封頂比例${finalDirection}`,
+    agent_line_cap: '代理線封頂壓輸',
+    agent_line_cap_rate: `代理線比例${finalDirection}`,
+    global_member_daily_win_cap: '全局封頂壓輸',
+  };
+  return labels[log.flipReason] ?? finalDirection;
+}
+
+function resolveControlLogDirectionLabel(log: ControlLogRecord): string {
+  const originalWon = jsonBoolean(log.originalResult, 'won');
+  const finalWon = jsonBoolean(log.finalResult, 'won');
+  const from = originalWon === true ? '原本贏' : originalWon === false ? '原本輸' : '原結果';
+  const to = finalWon === true ? '控制後贏' : finalWon === false ? '控制後輸' : '控制後結果';
+  return `${from} → ${to}`;
+}
+
+function formatWinLossLogScope(mode: string): string {
+  if (mode === 'SINGLE_MEMBER') return '會員';
+  if (mode === 'AGENT_LINE') return '代理線';
+  if (mode === 'NORMAL') return '全局';
+  if (mode === 'AUTO_DETECT') return '自動偵測';
+  return mode;
+}
+
+function formatManualLogScope(scope: ManualDetectionScope): string {
+  if (scope === ManualDetectionScope.ALL) return '全盤';
+  if (scope === ManualDetectionScope.AGENT_LINE) return '代理線';
+  return '會員';
+}
+
+function formatManualLogTarget(control: {
+  scope: ManualDetectionScope;
+  targetAgentUsername: string | null;
+  targetMemberUsername: string | null;
+}): string | null {
+  if (control.scope === ManualDetectionScope.ALL) return null;
+  if (control.scope === ManualDetectionScope.AGENT_LINE) return control.targetAgentUsername;
+  return control.targetMemberUsername;
+}
+
+function formatTargetForLog(scopeLabel: string, targetUsername: string | null): string | null {
+  if (targetUsername) return targetUsername;
+  if (scopeLabel === '全局' || scopeLabel === '自動偵測') return null;
+  return '未指定';
+}
+
+function formatLogRate(value: Prisma.Decimal): string {
+  const raw = Number(value);
+  const percent = raw > 1 ? raw : raw * 100;
+  return `${percent.toFixed(1)}%`;
+}
+
+function jsonBoolean(value: Prisma.JsonValue, key: string): boolean | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const item = (value as Record<string, unknown>)[key];
+  return typeof item === 'boolean' ? item : null;
 }
 
 /**
@@ -151,7 +603,10 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     if (body.controlMode !== 'SINGLE_MEMBER' && body.controlMode !== 'AGENT_LINE') {
       reply
         .code(403)
-        .send({ code: 'FORBIDDEN', message: 'Agents can only control their own member or agent line' });
+        .send({
+          code: 'FORBIDDEN',
+          message: 'Agents can only control their own member or agent line',
+        });
       return { ok: false };
     }
 
@@ -174,7 +629,12 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         reply.code(403).send({ code: 'FORBIDDEN', message: 'Cannot control this member' });
         return { ok: false };
       }
-      return { ok: true, targetType: 'member', targetId: member.id, targetUsername: member.username };
+      return {
+        ok: true,
+        targetType: 'member',
+        targetId: member.id,
+        targetUsername: member.username,
+      };
     }
 
     const agent = await fastify.prisma.agent.findUnique({
@@ -236,12 +696,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
       select: { id: true, username: true },
     });
     const usernames = new Map(users.map((user) => [user.id, user.username]));
-    return {
-      items: logs.map((log) => ({
-        ...log,
-        username: usernames.get(log.userId) ?? log.userId,
-      })),
-    };
+    return { items: await enrichControlLogs(fastify, logs, usernames) };
   });
 
   fastify.get('/win-loss', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
@@ -252,71 +707,67 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     return { items };
   });
 
-  fastify.post(
-    '/win-loss',
-    { preHandler: [fastify.authenticateAdmin] },
-    async (req, reply) => {
-      const body = winLossControlSchema.parse(req.body);
-      const target = await resolveWinLossTarget(req, body, reply);
-      if (!target.ok) return;
-      const targetBitePercentage =
-        body.lossControl && body.targetBitePercentage
-          ? decimal(body.targetBitePercentage).toDecimalPlaces(2)
-          : null;
-      let startBalanceAmount: Prisma.Decimal | null = null;
-      let targetLossAmount: Prisma.Decimal | null = null;
-      if (targetBitePercentage && targetBitePercentage.greaterThan(0)) {
-        const scope =
-          body.controlMode === 'SINGLE_MEMBER'
-            ? ManualDetectionScope.MEMBER
-            : body.controlMode === 'AGENT_LINE'
-              ? ManualDetectionScope.AGENT_LINE
-              : ManualDetectionScope.ALL;
-        startBalanceAmount = await calculateControlCapital(
-          fastify.prisma,
-          scope,
-          body.controlMode === 'AGENT_LINE' ? target.targetId : null,
-          body.controlMode === 'SINGLE_MEMBER' ? target.targetUsername : null,
-        );
-        targetLossAmount = startBalanceAmount.mul(targetBitePercentage).div(100).toDecimalPlaces(2);
-      }
-      const created = await fastify.prisma.winLossControl.create({
-        data: {
-          controlMode: body.controlMode,
-          targetType: target.targetType,
-          targetId: target.targetId,
-          targetUsername: target.targetUsername,
-          controlPercentage: new Prisma.Decimal(body.controlPercentage),
-          targetBitePercentage,
-          startBalanceAmount,
-          targetLossAmount,
-          currentLossAmount: new Prisma.Decimal(0),
-          winControl: body.winControl,
-          lossControl: body.lossControl,
-          isActive: true,
-          isCompleted: false,
-          completedAt: null,
-          startPeriod: body.startPeriod ?? null,
-          operatorId: req.admin.id,
-          operatorUsername: req.admin.username,
-        },
-      });
-      await writeAudit(fastify.prisma, {
-        actor: auditActor(req),
-        action: 'control.win_loss.create',
-        targetType: 'control',
-        targetId: created.id,
-        newValues: {
-          controlMode: created.controlMode,
-          targetId: created.targetId,
-          targetBitePercentage: created.targetBitePercentage?.toFixed(2) ?? null,
-          targetLossAmount: created.targetLossAmount?.toFixed(2) ?? null,
-        },
-        req,
-      });
-      reply.code(201).send(created);
-    },
-  );
+  fastify.post('/win-loss', { preHandler: [fastify.authenticateAdmin] }, async (req, reply) => {
+    const body = winLossControlSchema.parse(req.body);
+    const target = await resolveWinLossTarget(req, body, reply);
+    if (!target.ok) return;
+    const targetBitePercentage =
+      body.lossControl && body.targetBitePercentage
+        ? decimal(body.targetBitePercentage).toDecimalPlaces(2)
+        : null;
+    let startBalanceAmount: Prisma.Decimal | null = null;
+    let targetLossAmount: Prisma.Decimal | null = null;
+    if (targetBitePercentage && targetBitePercentage.greaterThan(0)) {
+      const scope =
+        body.controlMode === 'SINGLE_MEMBER'
+          ? ManualDetectionScope.MEMBER
+          : body.controlMode === 'AGENT_LINE'
+            ? ManualDetectionScope.AGENT_LINE
+            : ManualDetectionScope.ALL;
+      startBalanceAmount = await calculateControlCapital(
+        fastify.prisma,
+        scope,
+        body.controlMode === 'AGENT_LINE' ? target.targetId : null,
+        body.controlMode === 'SINGLE_MEMBER' ? target.targetUsername : null,
+      );
+      targetLossAmount = startBalanceAmount.mul(targetBitePercentage).div(100).toDecimalPlaces(2);
+    }
+    const created = await fastify.prisma.winLossControl.create({
+      data: {
+        controlMode: body.controlMode,
+        targetType: target.targetType,
+        targetId: target.targetId,
+        targetUsername: target.targetUsername,
+        controlPercentage: new Prisma.Decimal(body.controlPercentage),
+        targetBitePercentage,
+        startBalanceAmount,
+        targetLossAmount,
+        currentLossAmount: new Prisma.Decimal(0),
+        winControl: body.winControl,
+        lossControl: body.lossControl,
+        isActive: true,
+        isCompleted: false,
+        completedAt: null,
+        startPeriod: body.startPeriod ?? null,
+        operatorId: req.admin.id,
+        operatorUsername: req.admin.username,
+      },
+    });
+    await writeAudit(fastify.prisma, {
+      actor: auditActor(req),
+      action: 'control.win_loss.create',
+      targetType: 'control',
+      targetId: created.id,
+      newValues: {
+        controlMode: created.controlMode,
+        targetId: created.targetId,
+        targetBitePercentage: created.targetBitePercentage?.toFixed(2) ?? null,
+        targetLossAmount: created.targetLossAmount?.toFixed(2) ?? null,
+      },
+      req,
+    });
+    reply.code(201).send(created);
+  });
 
   fastify.patch(
     '/win-loss/:id/toggle',
@@ -359,20 +810,24 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.get('/win-cap', { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] }, async () => {
-    const items = await fastify.prisma.memberWinCapControl.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-    const normalized = await Promise.all(
-      items.map((item) => normalizeMemberWinCapDay(fastify.prisma, item)),
-    );
-    return {
-      items: normalized.map((item) => ({
-        ...item,
-        isCapped: item.todayWinAmount.greaterThanOrEqualTo(item.winCapAmount),
-      })),
-    };
-  });
+  fastify.get(
+    '/win-cap',
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    async () => {
+      const items = await fastify.prisma.memberWinCapControl.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      const normalized = await Promise.all(
+        items.map((item) => normalizeMemberWinCapDay(fastify.prisma, item)),
+      );
+      return {
+        items: normalized.map((item) => ({
+          ...item,
+          isCapped: item.todayWinAmount.greaterThanOrEqualTo(item.winCapAmount),
+        })),
+      };
+    },
+  );
 
   fastify.post(
     '/win-cap',
@@ -457,12 +912,16 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.get('/deposit', { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] }, async () => {
-    const items = await fastify.prisma.memberDepositControl.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-    return { items };
-  });
+  fastify.get(
+    '/deposit',
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    async () => {
+      const items = await fastify.prisma.memberDepositControl.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      return { items };
+    },
+  );
 
   fastify.post(
     '/deposit',
@@ -538,18 +997,24 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.get('/agent-line', { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] }, async () => {
-    const items = await fastify.prisma.agentLineWinCap.findMany({ orderBy: { createdAt: 'desc' } });
-    const normalized = await Promise.all(
-      items.map((item) => normalizeAgentLineCapDay(fastify.prisma, item)),
-    );
-    return {
-      items: normalized.map((item) => ({
-        ...item,
-        isCapped: item.todayWinAmount.greaterThanOrEqualTo(item.dailyCap),
-      })),
-    };
-  });
+  fastify.get(
+    '/agent-line',
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    async () => {
+      const items = await fastify.prisma.agentLineWinCap.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      const normalized = await Promise.all(
+        items.map((item) => normalizeAgentLineCapDay(fastify.prisma, item)),
+      );
+      return {
+        items: normalized.map((item) => ({
+          ...item,
+          isCapped: item.todayWinAmount.greaterThanOrEqualTo(item.dailyCap),
+        })),
+      };
+    },
+  );
 
   fastify.post(
     '/agent-line',
@@ -628,18 +1093,22 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.get('/burst', { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] }, async () => {
-    const items = await fastify.prisma.burstControl.findMany({ orderBy: { createdAt: 'desc' } });
-    const normalized = await Promise.all(
-      items.map((item) => normalizeBurstControlDay(fastify.prisma, item)),
-    );
-    return {
-      items: normalized.map((item) => ({
-        ...item,
-        isBudgetSpent: item.todayBurstAmount.greaterThanOrEqualTo(item.dailyBudget),
-      })),
-    };
-  });
+  fastify.get(
+    '/burst',
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    async () => {
+      const items = await fastify.prisma.burstControl.findMany({ orderBy: { createdAt: 'desc' } });
+      const normalized = await Promise.all(
+        items.map((item) => normalizeBurstControlDay(fastify.prisma, item)),
+      );
+      return {
+        items: normalized.map((item) => ({
+          ...item,
+          isBudgetSpent: item.todayBurstAmount.greaterThanOrEqualTo(item.dailyBudget),
+        })),
+      };
+    },
+  );
 
   fastify.post(
     '/burst',
@@ -798,19 +1267,23 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.get('/manual-detection/status', { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] }, async () => {
-    await checkAndCompleteManualDetectionControls(fastify.prisma);
-    const items = await getAllActiveManualDetectionControls(fastify.prisma);
-    const serialized = await Promise.all(
-      items.map((item) => serializeManualControl(fastify, item)),
-    );
-    return {
-      items: serialized,
-      activeControls: serialized,
-      isActive: serialized.length > 0,
-      totalActive: serialized.length,
-    };
-  });
+  fastify.get(
+    '/manual-detection/status',
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    async () => {
+      await checkAndCompleteManualDetectionControls(fastify.prisma);
+      const items = await getAllActiveManualDetectionControls(fastify.prisma);
+      const serialized = await Promise.all(
+        items.map((item) => serializeManualControl(fastify, item)),
+      );
+      return {
+        items: serialized,
+        activeControls: serialized,
+        isActive: serialized.length > 0,
+        totalActive: serialized.length,
+      };
+    },
+  );
 
   fastify.get(
     '/manual-detection/history',
