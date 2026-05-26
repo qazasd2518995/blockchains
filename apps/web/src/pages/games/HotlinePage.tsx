@@ -172,7 +172,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const [sceneReady, setSceneReady] = useState(false);
-  const [sceneFallback, setSceneFallback] = useState(false);
   const [liveMegaRound, setLiveMegaRound] = useState<LiveMegaRoundState | null>(null);
   const [megaFreeSpinIntro, setMegaFreeSpinIntro] = useState<MegaFreeSpinIntro | null>(null);
   const [megaFallbackSpinning, setMegaFallbackSpinning] = useState(false);
@@ -211,7 +210,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
   const sceneReadyRef = useRef(false);
-  const sceneFallbackRef = useRef(false);
   const sceneResizeSchedulerRef = useRef<(() => void) | null>(null);
   const sceneResizeLockedRef = useRef(false);
   const pendingSceneResizeRef = useRef(false);
@@ -221,11 +219,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const fallbackGrid = useMemo(() => createFallbackGrid(slotTheme), [slotTheme]);
   const fallbackJackpotValues = useMemo(() => createFallbackJackpotValues(), [slotTheme.id]);
 
-  const setSceneAvailability = useCallback((ready: boolean, fallback: boolean): void => {
+  const setSceneAvailability = useCallback((ready: boolean, _fallback = false): void => {
     sceneReadyRef.current = ready;
-    sceneFallbackRef.current = fallback;
     setSceneReady(ready);
-    setSceneFallback(fallback);
   }, []);
 
   const scheduleSceneRecovery = useCallback((): void => {
@@ -248,22 +244,17 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         console.warn('Slot scene dispose failed during fallback', err);
       }
       sceneRef.current = null;
-      setSceneAvailability(false, true);
+      setSceneAvailability(false, false);
       scheduleSceneRecovery();
     },
     [scheduleSceneRecovery, setSceneAvailability],
   );
 
   const getPlayableScene = useCallback((): HotlineScene | null => {
-    const canvas = canvasRef.current;
     const scene = sceneRef.current;
-    if (!canvas || !scene || !sceneReadyRef.current || sceneFallbackRef.current) return null;
-    if (isCanvasRenderSurfaceUnavailable(canvas)) {
-      markSceneFallback('canvas surface unavailable');
-      return null;
-    }
+    if (!scene || !sceneReadyRef.current) return null;
     return scene;
-  }, [markSceneFallback]);
+  }, []);
 
   useEffect(() => {
     if (!megaAmountEditing) setMegaAmountText(amount.toFixed(2));
@@ -337,7 +328,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       }
       if (sceneRef.current === lostScene) sceneRef.current = null;
       scene = null;
-      setSceneAvailability(false, true);
+      setSceneAvailability(false, false);
       scheduleSceneRecovery();
     };
     canvas.addEventListener('webglcontextlost', handleContextLost, false);
@@ -374,13 +365,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             nextScene.dispose();
             return;
           }
-          if (isCanvasRenderSurfaceUnavailable(canvas)) {
-            nextScene.dispose();
-            if (scene === nextScene) scene = null;
-            if (sceneRef.current === nextScene) sceneRef.current = null;
-            setSceneAvailability(false, true);
-            return;
-          }
           fillCanvas();
           sceneRef.current = nextScene;
           setSceneAvailability(true, false);
@@ -391,7 +375,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           nextScene.dispose();
           if (scene === nextScene) scene = null;
           if (sceneRef.current === nextScene) sceneRef.current = null;
-          setSceneAvailability(false, true);
+          setSceneAvailability(false, false);
+          scheduleSceneRecovery();
         });
     };
 
@@ -549,6 +534,12 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const spinFast = options.fastSpin ?? fastSpinRef.current;
     const stakeAmount = buyFeature ? roundCurrency(spinAmount * 100) : spinAmount;
     if (spinAmount < MIN_BET_AMOUNT || stakeAmount > availableBalance) return null;
+    const activeScene = getPlayableScene();
+    if (!activeScene) {
+      setError('遊戲畫面載入中，請稍候');
+      sceneResizeSchedulerRef.current?.();
+      return null;
+    }
     setBusy(true);
     setSpinning(true);
     setResult(null);
@@ -568,11 +559,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setBuyFeatureConfirmOpen(false);
     setError(null);
 
-    const activeScene = getPlayableScene();
-    activeScene?.resetWinLines();
+    activeScene.resetWinLines();
     // 樂觀動畫：轉軸立刻開始滾
-    activeScene?.startAnticipation(spinFast);
-    setMegaFallbackSpinning(isMegaSlot && !activeScene);
+    activeScene.startAnticipation(spinFast);
+    setMegaFallbackSpinning(false);
 
     try {
       const payload: HotlineBetRequest = {
@@ -1304,7 +1294,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             ? `本回合免費 · 剩餘 ${megaDisplayFreeSpinsRemaining}`
             : '已觸發，準備進入免費旋轉'
       : '4 SCATTER 觸發';
-  const megaScenePending = isMegaSlot && !sceneReady && !sceneFallback;
+  const slotScenePending = !sceneReady;
+  const megaScenePending = isMegaSlot && slotScenePending;
   const megaSpinButtonLabel = megaScenePending
     ? '載入中'
     : megaFreeSpinAwaitingClick
@@ -1322,7 +1313,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         ? `剩 ${megaDisplayFreeSpinsRemaining}`
         : formatAmount(amount);
   const megaBuyFeatureCost = Number((amount * 100).toFixed(2));
-  const controlsLocked = busy || autoSpinActive || megaScenePending;
+  const controlsLocked = busy || autoSpinActive || slotScenePending;
   const megaSpinDisabled =
     megaScenePending ||
     autoSpinActive ||
@@ -1662,24 +1653,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 <div className="mega-slot-win-meter__meta">{megaDisplayWinMeterMeta}</div>
               </div>
               <div className="mega-slot-board">
-                <MegaFallbackGrid
-                  theme={slotTheme}
-                  grid={megaDisplayGrid}
-                  spinning={megaFallbackSpinning}
-                  winning={megaFallbackWinning}
-                  specialWinning={megaFallbackSpecialWinning}
-                  removed={megaFallbackRemoved}
-                  dropping={megaFallbackDropping}
-                  dropOffsets={megaFallbackDropOffsets}
-                  winPop={megaFallbackWinPop}
-                  hidden={sceneReady && !sceneFallback}
-                  fast={fastSpin}
-                  specialSymbols={megaDisplaySpecialSymbols}
-                  spinSpecialSymbols={megaFallbackSpinSpecialSymbols}
-                />
                 <canvas
                   ref={canvasRef}
-                  className={`mega-slot-canvas ${sceneReady && !sceneFallback ? 'mega-slot-canvas--ready' : ''}`}
+                  className={`mega-slot-canvas ${sceneReady ? 'mega-slot-canvas--ready' : ''}`}
                 />
                 {megaFreeSpinIntro && <MegaFreeSpinIntroOverlay intro={megaFreeSpinIntro} />}
               </div>
@@ -1874,14 +1850,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             </div>
 
             <div className={`game-canvas-shell game-canvas-wide ${canvasAspectClass} w-full p-2`}>
-              <SlotCanvasFallbackGrid
-                theme={slotTheme}
-                grid={resultDisplayGrid}
-                hidden={sceneReady && !sceneFallback}
-              />
               <canvas
                 ref={canvasRef}
-                className={`slot-canvas h-full w-full ${!sceneReady || sceneFallback ? 'slot-canvas--hidden' : ''}`}
+                className={`slot-canvas h-full w-full ${!sceneReady ? 'slot-canvas--hidden' : ''}`}
               />
             </div>
 
@@ -2211,241 +2182,6 @@ function SlotPayoutTable({
   );
 }
 
-function SlotCanvasFallbackGrid({
-  theme,
-  grid,
-  hidden,
-}: {
-  theme: SlotThemeConfig;
-  grid: number[][];
-  hidden: boolean;
-}) {
-  return (
-    <div
-      className={`slot-canvas-fallback-grid ${hidden ? 'slot-canvas-fallback-grid--hidden' : ''}`}
-      aria-hidden="true"
-    >
-      <div
-        className="slot-canvas-fallback-frame"
-        style={
-          {
-            '--slot-fallback-reels': theme.reels,
-            '--slot-fallback-rows': theme.rows,
-          } as CSSProperties
-        }
-      >
-        {grid.map((reel, reelIndex) => (
-          <div
-            key={`${theme.id}-slot-fallback-reel-${reelIndex}`}
-            className="slot-canvas-fallback-reel"
-          >
-            {reel.map((symbol, rowIndex) => {
-              const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
-              const symbolImage = getSlotSymbolImage(theme, symbol);
-              const sheetPosition = SYMBOL_POSITIONS[symbol];
-              return (
-                <div
-                  key={`${reelIndex}-${rowIndex}-${symbol}`}
-                  className="slot-canvas-fallback-symbol"
-                  style={
-                    {
-                      borderColor: `${meta.accentHex}88`,
-                      '--slot-fallback-accent': meta.accentHex,
-                      backgroundImage:
-                        symbolImage || !sheetPosition ? undefined : `url(${theme.symbolSheet})`,
-                      backgroundPosition: symbolImage ? 'center' : (sheetPosition ?? 'center'),
-                      '--slot-fallback-symbol-offset-x': `${(meta.render?.offsetX ?? 0) * 100}%`,
-                      '--slot-fallback-symbol-offset-y': `${(meta.render?.offsetY ?? 0) * 100}%`,
-                      '--slot-fallback-symbol-scale': meta.render?.scale ?? 1,
-                    } as CSSProperties
-                  }
-                >
-                  {symbolImage ? (
-                    <img
-                      src={symbolImage}
-                      alt=""
-                      draggable={false}
-                      decoding="async"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                  <span>{meta.shortLabel}</span>
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MegaFallbackGrid({
-  theme,
-  grid,
-  spinning,
-  winning,
-  specialWinning,
-  removed,
-  dropping,
-  dropOffsets,
-  winPop,
-  hidden,
-  fast,
-  specialSymbols,
-  spinSpecialSymbols,
-}: {
-  theme: SlotThemeConfig;
-  grid: number[][];
-  spinning: boolean;
-  winning: HotlineWinPosition[];
-  specialWinning: HotlineWinPosition[];
-  removed: HotlineWinPosition[];
-  dropping: boolean;
-  dropOffsets: Record<string, number>;
-  winPop: MegaFallbackWinPop | null;
-  hidden: boolean;
-  fast: boolean;
-  specialSymbols: HotlineSpecialSymbol[];
-  spinSpecialSymbols: HotlineSpecialSymbol[];
-}) {
-  const winningKeys = useMemo(
-    () => new Set(winning.map((position) => `${position.reel}:${position.row}`)),
-    [winning],
-  );
-  const specialWinningKeys = useMemo(
-    () => new Set(specialWinning.map((position) => `${position.reel}:${position.row}`)),
-    [specialWinning],
-  );
-  const removedKeys = useMemo(
-    () => new Set(removed.map((position) => `${position.reel}:${position.row}`)),
-    [removed],
-  );
-  const specialByCell = useMemo(() => createSpecialSymbolMap(specialSymbols), [specialSymbols]);
-
-  return (
-    <div
-      className={`mega-slot-fallback-grid ${spinning ? 'mega-slot-fallback-grid--spinning' : ''} ${dropping ? 'mega-slot-fallback-grid--dropping' : ''} ${hidden ? 'mega-slot-fallback-grid--hidden' : ''} ${fast ? 'mega-slot-fallback-grid--fast' : ''}`}
-      aria-hidden="true"
-    >
-      <div className="mega-slot-fallback-frame">
-        {grid.map((reel, reelIndex) => {
-          const reelStrip: MegaFallbackSpinItem[] = spinning
-            ? createFallbackSpinStrip(theme, reel, reelIndex, spinSpecialSymbols)
-            : reel.map((symbol, row) => ({ symbol, row }));
-          const style = {
-            '--mega-slot-reel-items': reelStrip.length,
-            '--mega-slot-reel-duration': `${(fast ? 0.18 : 0.46) + reelIndex * (fast ? 0.018 : 0.055)}s`,
-          } as CSSProperties;
-          return (
-            <div key={`${theme.id}-fallback-reel-${reelIndex}`} className="mega-slot-fallback-reel">
-              <div className="mega-slot-fallback-reel-track" style={style}>
-                {reelStrip.map((item, rowIndex) => {
-                  const symbol = item.symbol;
-                  const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
-                  const cellRow = item.row ?? rowIndex;
-                  const cellKey = `${reelIndex}:${cellRow}`;
-                  const special =
-                    item.special ?? (spinning ? undefined : specialByCell.get(cellKey));
-                  const symbolImage = getMegaSlotDisplayImage(theme, symbol, special);
-                  const sheetPosition = SYMBOL_POSITIONS[symbol];
-                  const winning = !spinning && winningKeys.has(cellKey);
-                  const specialHighlighted = !spinning && specialWinningKeys.has(cellKey);
-                  const removing = !spinning && removedKeys.has(cellKey);
-                  const dropOffset = dropOffsets[cellKey];
-                  const isDroppingCell = !spinning && dropping && dropOffset !== undefined;
-                  return (
-                    <div
-                      key={`${reelIndex}-${rowIndex}-${symbol}-${specialKey(special)}-${spinning ? 'spin' : 'idle'}`}
-                      className={`mega-slot-fallback-symbol ${special ? `mega-slot-fallback-symbol--${special.type}` : ''} ${winning ? 'mega-slot-fallback-symbol--winning' : ''} ${specialHighlighted ? 'mega-slot-fallback-symbol--special-highlight' : ''} ${removing ? 'mega-slot-fallback-symbol--removing' : ''} ${isDroppingCell ? 'mega-slot-fallback-symbol--dropping-cell' : ''}`}
-                      style={
-                        {
-                          borderColor: `${meta.accentHex}88`,
-                          '--mega-slot-accent': meta.accentHex,
-                          backgroundImage:
-                            symbolImage || !sheetPosition ? undefined : `url(${theme.symbolSheet})`,
-                          backgroundPosition: symbolImage ? 'center' : (sheetPosition ?? 'center'),
-                          '--mega-slot-reel-index': reelIndex,
-                          '--mega-slot-row-index': rowIndex,
-                          '--mega-slot-drop-offset': dropOffset ?? -1.15,
-                          '--mega-slot-symbol-offset-x': `${(meta.render?.offsetX ?? 0) * 100}%`,
-                          '--mega-slot-symbol-offset-y': `${(meta.render?.offsetY ?? 0) * 100}%`,
-                          '--mega-slot-symbol-scale': meta.render?.scale ?? 1,
-                        } as CSSProperties
-                      }
-                    >
-                      {symbolImage && (
-                        <img
-                          src={symbolImage}
-                          alt=""
-                          draggable={false}
-                          decoding="async"
-                          aria-hidden="true"
-                        />
-                      )}
-                      {special?.type === 'multiplier' ? (
-                        <strong className="mega-slot-fallback-symbol__multiplier">
-                          {special.value ?? 2}×
-                        </strong>
-                      ) : null}
-                      {special?.type === 'scatter' ? (
-                        <strong className="mega-slot-fallback-symbol__bonus">BONUS</strong>
-                      ) : null}
-                      <span>
-                        {special ? (special.type === 'scatter' ? 'SC' : '倍') : meta.shortLabel}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {winPop ? (
-        <div className="mega-slot-fallback-win-pop" role="status">
-          <span>{winPop.label ?? '消除贏分'}</span>
-          <strong>{winPop.amount}</strong>
-          <small>{winPop.meta}</small>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-interface MegaFallbackSpinItem {
-  symbol: number;
-  row?: number;
-  special?: HotlineSpecialSymbol;
-}
-
-function createFallbackSpinStrip(
-  theme: SlotThemeConfig,
-  reel: number[],
-  reelIndex: number,
-  specialSymbols: HotlineSpecialSymbol[] = [],
-): MegaFallbackSpinItem[] {
-  const symbolCount = theme.symbols.length || 6;
-  const extraRows = theme.rows * 2;
-  const specialByRow = new Map(
-    specialSymbols
-      .filter((symbol) => symbol.reel === reelIndex)
-      .map((symbol) => [symbol.row, symbol] as const),
-  );
-  const lead = Array.from({ length: extraRows }, (_, index) => ({
-    symbol: (index + reelIndex * 2 + theme.id.length) % symbolCount,
-  }));
-  const final = reel.map((symbol, row) => ({
-    symbol,
-    row,
-    special: specialByRow.get(row),
-  }));
-  const trail = Array.from({ length: extraRows }, (_, index) => ({
-    symbol: (index * 2 + reelIndex + theme.id.length + 3) % symbolCount,
-  }));
-  return [...lead, ...final, ...trail];
-}
-
 function buildMegaFallbackDropOffsets(
   currentGrid: number[][],
   removed: HotlineWinPosition[],
@@ -2482,57 +2218,9 @@ function buildMegaFallbackDropOffsets(
   return offsets;
 }
 
-function isCanvasRenderSurfaceUnavailable(canvas: HTMLCanvasElement): boolean {
-  const rect = canvas.getBoundingClientRect();
-  if (rect.width < 10 || rect.height < 10 || canvas.width < 10 || canvas.height < 10) {
-    return true;
-  }
-
-  try {
-    const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
-    if (!gl) return true;
-    return gl.isContextLost() || gl.drawingBufferWidth < 10 || gl.drawingBufferHeight < 10;
-  } catch {
-    return true;
-  }
-}
-
 function getSlotSymbolImage(theme: SlotThemeConfig, symbol: number): string | null {
   if (!Number.isInteger(symbol) || symbol < 0 || symbol >= theme.symbols.length) return null;
   return theme.symbolSheet.replace(/symbols\.png$/, `symbol-${symbol}.png`);
-}
-
-function getMegaSlotDisplayImage(
-  theme: SlotThemeConfig,
-  symbol: number,
-  special?: HotlineSpecialSymbol,
-): string | null {
-  if (special?.type === 'scatter') return getMegaSlotScatterImage(theme);
-  if (special?.type === 'multiplier') return getMegaSlotMultiplierImage(theme);
-  return getSlotSymbolImage(theme, symbol);
-}
-
-function getMegaSlotMultiplierImage(theme: SlotThemeConfig): string {
-  return theme.symbolSheet.replace(/symbols\.png$/, 'multiplier.png');
-}
-
-function getMegaSlotScatterImage(theme: SlotThemeConfig): string {
-  return theme.symbolSheet.replace(/symbols\.png$/, 'scatter.png');
-}
-
-function createSpecialSymbolMap(
-  symbols: HotlineSpecialSymbol[],
-): Map<string, HotlineSpecialSymbol> {
-  const map = new Map<string, HotlineSpecialSymbol>();
-  for (const symbol of symbols) {
-    map.set(`${symbol.reel}:${symbol.row}`, symbol);
-  }
-  return map;
-}
-
-function specialKey(symbol?: HotlineSpecialSymbol): string {
-  if (!symbol) return '';
-  return `${symbol.type}:${symbol.value ?? ''}`;
 }
 
 function MegaFreeSpinIntroOverlay({ intro }: { intro: MegaFreeSpinIntro }) {
