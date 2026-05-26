@@ -1,3 +1,5 @@
+import { slotDebug } from './slotDebug';
+
 const MODULE_RELOAD_KEY = 'yachiyo:module-reload-attempted-at';
 const MODULE_RELOAD_COOLDOWN_MS = 30_000;
 const MODULE_ERROR_PATTERNS = [
@@ -38,10 +40,21 @@ export function clearRuntimeRecoveryFlag(): void {
 async function clearRuntimeCaches(): Promise<void> {
   if ('caches' in window) {
     const keys = await caches.keys();
+    slotDebug('runtime:clear-caches', { keys }, 'warn');
     await Promise.all(keys.map((key) => caches.delete(key)));
   }
   if ('serviceWorker' in navigator) {
     const registrations = await navigator.serviceWorker.getRegistrations();
+    slotDebug(
+      'runtime:update-service-workers',
+      registrations.map((registration) => ({
+        scope: registration.scope,
+        active: registration.active?.scriptURL ?? null,
+        waiting: registration.waiting?.scriptURL ?? null,
+        installing: registration.installing?.scriptURL ?? null,
+      })),
+      'warn',
+    );
     await Promise.all(registrations.map((registration) => registration.update()));
   }
 }
@@ -65,7 +78,11 @@ function markReloadAttempted(): void {
 
 export function reloadAfterRuntimeFailure(error: unknown): boolean {
   if (!isRecoverableRuntimeError(error)) return false;
-  if (recentlyAttemptedReload()) return false;
+  if (recentlyAttemptedReload()) {
+    slotDebug('runtime:reload-skipped-cooldown', { error: errorMessage(error) }, 'warn');
+    return false;
+  }
+  slotDebug('runtime:reload-after-failure', { error: errorMessage(error) }, 'warn');
   markReloadAttempted();
   void clearRuntimeCaches().finally(() => {
     window.location.reload();

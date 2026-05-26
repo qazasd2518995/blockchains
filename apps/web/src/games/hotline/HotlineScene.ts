@@ -28,6 +28,7 @@ import {
 } from '@bg/game-engine';
 import { getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
 import { getSlotTheme, type SlotThemeConfig } from '@/lib/slotThemes';
+import { describeSlotDebugError, slotDebug, SLOT_DEBUG_BUILD } from '@/lib/slotDebug';
 import { WinCelebration } from '@bg/game-engine';
 
 const COLOR_BG = 0x0f172a;
@@ -211,7 +212,31 @@ export class HotlineScene {
     this.rowCount = theme.rows ?? ROWS;
 
     const app = new Application();
+    const useConstrainedRenderer = this.shouldUseConstrainedMegaRenderer();
     const rendererResolution = this.getRendererResolution();
+    slotDebug('hotline-scene:init:start', {
+      build: SLOT_DEBUG_BUILD,
+      width,
+      height,
+      themeId: theme.id,
+      rowCount: this.rowCount,
+      reelCount: this.reelCount,
+      rendererResolution,
+      useConstrainedRenderer,
+      shaderEffects: !useConstrainedRenderer,
+      devicePixelRatio: typeof window === 'undefined' ? null : window.devicePixelRatio,
+      viewport: {
+        innerWidth: typeof window === 'undefined' ? null : window.innerWidth,
+        innerHeight: typeof window === 'undefined' ? null : window.innerHeight,
+        visualWidth: typeof window === 'undefined' ? null : (window.visualViewport?.width ?? null),
+        visualHeight:
+          typeof window === 'undefined' ? null : (window.visualViewport?.height ?? null),
+        coarsePointer:
+          typeof window === 'undefined'
+            ? null
+            : (window.matchMedia?.('(pointer: coarse)').matches ?? null),
+      },
+    });
     try {
       await app.init({
         canvas,
@@ -220,24 +245,41 @@ export class HotlineScene {
         backgroundAlpha: 0,
         resolution: rendererResolution,
         autoDensity: true,
-        antialias: this.rowCount <= ROWS && rendererResolution <= CLASSIC_RENDER_DPR,
-        powerPreference: this.isTouchMegaLayout() ? 'low-power' : 'high-performance',
+        antialias:
+          !useConstrainedRenderer &&
+          this.rowCount <= ROWS &&
+          rendererResolution <= CLASSIC_RENDER_DPR,
+        powerPreference: useConstrainedRenderer ? 'low-power' : 'high-performance',
         preference: 'webgl',
-        preferWebGLVersion: this.isTouchMegaLayout() ? 1 : 2,
+        preferWebGLVersion: useConstrainedRenderer ? 1 : 2,
       });
     } catch (err) {
+      slotDebug('hotline-scene:init:app-error', describeSlotDebugError(err), 'error');
       this.initializing = false;
       this.destroyPixiApp(app);
       throw err;
     }
+    slotDebug('hotline-scene:init:app-ready', {
+      renderer: app.renderer?.constructor?.name ?? null,
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      canvasClientWidth: canvas.clientWidth,
+      canvasClientHeight: canvas.clientHeight,
+    });
     this.initializing = false;
     if (this.disposed) {
+      slotDebug('hotline-scene:init:disposed-during-init', {
+        width,
+        height,
+        themeId: theme.id,
+      });
       this.destroyPixiApp(app);
       throw new Error('Hotline scene disposed during init');
     }
     this.app = app;
     app.stage.eventMode = 'none';
     if (this.canUseShaderEffects()) {
+      slotDebug('hotline-scene:effects:enabled');
       this.winFx = new WinCelebration({
         app,
         parent: app.stage,
@@ -245,10 +287,34 @@ export class HotlineScene {
         width: this.width,
         height: this.height,
       });
+    } else {
+      slotDebug('hotline-scene:effects:disabled', {
+        rowCount: this.rowCount,
+        constrainedMegaRenderer: this.shouldUseConstrainedMegaRenderer(),
+      });
     }
 
+    slotDebug('hotline-scene:assets:start', {
+      themeId: this.theme.id,
+      background: this.theme.background,
+      symbolSheet: this.theme.symbolSheet,
+      rowCount: this.rowCount,
+    });
     await this.preloadThemeAssets();
+    slotDebug('hotline-scene:assets:ready', {
+      themeId: this.theme.id,
+      backgroundLoaded: Boolean(this.backgroundTexture),
+      symbolSheetLoaded: Boolean(this.symbolSheetTexture),
+      symbolTextureCount: this.symbolTextures.filter(Boolean).length,
+      scatterLoaded: Boolean(this.scatterTexture),
+      multiplierLoaded: Boolean(this.multiplierTexture),
+    });
     if (this.disposed) {
+      slotDebug('hotline-scene:init:disposed-during-assets', {
+        width,
+        height,
+        themeId: theme.id,
+      });
       throw new Error('Hotline scene disposed during asset preload');
     }
     this.createBackground();
@@ -264,7 +330,8 @@ export class HotlineScene {
     const availableH = height - padding * 2;
     if (isMegaLayout) {
       this.cellSize = availableH / this.rowCount;
-      const naturalCellWidth = (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount;
+      const naturalCellWidth =
+        (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount;
       this.cellWidth = Math.min(naturalCellWidth, this.cellSize * MEGA_MAX_CELL_ASPECT);
     } else {
       this.cellSize = Math.min(
@@ -352,37 +419,71 @@ export class HotlineScene {
   private async loadTexture(src: string, width: 480 | 960 | 1600): Promise<Texture | null> {
     const optimizedSrc = optimizedPublicImage(src, width);
     if (optimizedSrc !== src) {
-      const optimized = await Assets.load<Texture>(optimizedSrc).catch(() => null);
+      const optimized = await Assets.load<Texture>(optimizedSrc).catch((err) => {
+        slotDebug(
+          'hotline-scene:texture:optimized-failed',
+          { src: optimizedSrc, fallback: src, error: describeSlotDebugError(err) },
+          'warn',
+        );
+        return null;
+      });
       if (optimized) return optimized;
     }
-    return Assets.load<Texture>(src).catch(() => null);
+    return Assets.load<Texture>(src).catch((err) => {
+      slotDebug(
+        'hotline-scene:texture:failed',
+        { src, error: describeSlotDebugError(err) },
+        'warn',
+      );
+      return null;
+    });
   }
 
   private getRendererResolution(): number {
     const deviceResolution =
       typeof window === 'undefined' ? 1 : Math.max(1, window.devicePixelRatio || 1);
-    if (this.isTouchMegaLayout()) return 1;
-    return Math.min(deviceResolution, this.rowCount > ROWS ? MEGA_RENDER_DPR : CLASSIC_RENDER_DPR);
+    if (this.shouldUseConstrainedMegaRenderer()) return 1;
+    return Math.min(
+      deviceResolution,
+      this.rowCount > ROWS ? MEGA_RENDER_DPR : CLASSIC_RENDER_DPR,
+    );
   }
 
-  private isTouchMegaLayout(): boolean {
+  private shouldUseConstrainedMegaRenderer(): boolean {
     if (this.rowCount <= ROWS || typeof window === 'undefined') return false;
-    const shortSide = Math.min(window.innerWidth || this.width, window.innerHeight || this.height);
+    const viewportWidth = window.visualViewport?.width ?? window.innerWidth ?? this.width;
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight ?? this.height;
+    const shortSide = Math.min(viewportWidth || this.width, viewportHeight || this.height);
+    const narrowViewport = Math.min(viewportWidth || this.width, this.width) <= 767;
+    const compactHeight = Math.min(viewportHeight || this.height, this.height) <= 640;
     const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
-    const compactLandscape =
-      window.matchMedia?.('(orientation: landscape)').matches && shortSide <= 560;
-    return coarsePointer && compactLandscape;
+    return coarsePointer || narrowViewport || compactHeight || shortSide <= 560;
   }
 
   private canUseShaderEffects(): boolean {
-    return !this.isTouchMegaLayout();
+    return !this.shouldUseConstrainedMegaRenderer();
   }
 
   private destroyPixiApp(app: Application | null): void {
     if (!app) return;
+    const maybeApp = app as Application & { _cancelResize?: unknown };
+    const cancelResizeType = typeof maybeApp._cancelResize;
+    const patchedCancelResize = cancelResizeType !== 'function';
+    slotDebug('hotline-scene:destroy:start', {
+      hasApp: Boolean(app),
+      cancelResizeType,
+      patchedCancelResize,
+      disposed: this.disposed,
+      initializing: this.initializing,
+    });
     try {
+      if (patchedCancelResize) {
+        maybeApp._cancelResize = () => undefined;
+      }
       app.destroy(false, { children: true });
+      slotDebug('hotline-scene:destroy:done', { patchedCancelResize });
     } catch (err) {
+      slotDebug('hotline-scene:destroy:error', describeSlotDebugError(err), 'warn');
       console.warn('Slot Pixi app destroy skipped', err);
     }
   }
@@ -2171,6 +2272,13 @@ export class HotlineScene {
   }
 
   dispose(): void {
+    slotDebug('hotline-scene:dispose:start', {
+      hasApp: Boolean(this.app),
+      initializing: this.initializing,
+      rowCount: this.rowCount,
+      width: this.width,
+      height: this.height,
+    });
     this.disposed = true;
     if (this.initializing && !this.app) return;
     Sfx.slotSpinStop();
@@ -2194,6 +2302,7 @@ export class HotlineScene {
     this.shockwaves = null;
     this.flashOverlay = null;
     this.particleList = [];
+    slotDebug('hotline-scene:dispose:done');
   }
 
   /** L4 共用大獎慶典 — GamePage 在拿到 result 後呼叫一次 */

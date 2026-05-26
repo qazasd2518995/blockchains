@@ -1581,43 +1581,51 @@
     }
 
     .game-fullscreen-shell .crash-control-stack {
-      max-height: max(208px, min(31svh, 232px));
+      max-height: max(214px, min(33svh, 244px));
     }
 
     .game-fullscreen-shell .crash-control-stack > .crash-control-card:first-child {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(104px, 1fr);
-      grid-template-rows: auto minmax(40px, 1fr);
+      grid-template-areas:
+        'bet auto'
+        'action bot';
+      grid-template-columns: minmax(0, 1fr) minmax(106px, 0.58fr);
       align-content: stretch;
       align-items: stretch;
-      gap: 0.28rem 0.36rem;
-      max-height: max(208px, min(31svh, 232px));
+      gap: 0.36rem 0.42rem;
+      max-height: max(214px, min(33svh, 244px));
       overflow: hidden;
-      padding: 0.42rem 0.52rem !important;
+      padding: 0.5rem 0.58rem max(0.5rem, env(safe-area-inset-bottom)) !important;
     }
 
     .game-fullscreen-shell .crash-control-card > .bet-controls {
+      grid-area: bet;
       min-width: 0;
-      align-self: start;
+      align-self: stretch;
     }
 
     .game-fullscreen-shell .crash-control-card .bet-controls__entry {
-      grid-template-columns: minmax(0, 1fr) 56px;
-      min-height: 36px;
-      padding: 0.18rem !important;
-      border-radius: 10px;
+      grid-template-columns: minmax(0, 1fr) 82px;
+      min-height: 40px;
+      gap: 0.24rem;
+      padding: 0.2rem !important;
+      border-radius: 11px;
     }
 
     .game-fullscreen-shell .crash-control-card .bet-controls__input {
-      min-height: 32px !important;
-      padding: 0.12rem 0.35rem !important;
-      font-size: 17px !important;
+      min-height: 36px !important;
+      padding: 0.12rem 0.38rem !important;
+      font-size: 18px !important;
+    }
+
+    .game-fullscreen-shell .crash-control-card .bet-controls__adjusters {
+      gap: 0.22rem;
     }
 
     .game-fullscreen-shell .crash-control-card .bet-controls__adjusters .game-choice-btn {
-      min-height: 32px;
-      border-radius: 8px;
-      font-size: 9px;
+      min-height: 36px;
+      border-radius: 9px;
+      font-size: 10px;
     }
 
     .game-fullscreen-shell .crash-control-card .bet-controls__presets {
@@ -1625,35 +1633,44 @@
     }
 
     .game-fullscreen-shell .crash-control-card .crash-auto-cashout {
+      grid-area: auto;
       display: grid;
       grid-template-columns: minmax(0, 1fr);
-      align-self: start;
-      gap: 0.14rem;
+      align-self: stretch;
+      align-content: start;
+      gap: 0.18rem;
+      min-width: 0;
       margin-top: 0 !important;
-      border-top: 0;
-      padding-top: 0;
+      border-radius: 11px;
+      padding: 0.34rem !important;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-auto-cashout__label {
       min-width: 0;
-      font-size: 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 8.5px;
       line-height: 1;
+      letter-spacing: 0.04em;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-auto-cashout__mode {
       min-width: 0;
+      border-radius: 8px;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-auto-cashout__mode button {
-      min-height: 24px;
-      font-size: 8px;
+      min-height: 25px;
+      padding: 0.12rem 0.2rem;
+      font-size: 8.5px;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-auto-cashout__field {
-      align-self: start;
+      align-self: stretch;
       min-height: 36px;
-      border-radius: 10px !important;
-      padding: 0.18rem !important;
+      border-radius: 9px !important;
+      padding: 0.16rem !important;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-auto-cashout__input {
@@ -1663,19 +1680,29 @@
       font-size: 14px !important;
     }
 
+    .game-fullscreen-shell .crash-control-card .crash-auto-cashout__preview {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: center;
+      font-size: 8px;
+      letter-spacing: 0;
+    }
+
     .game-fullscreen-shell .crash-control-card .crash-auto-bot-button {
-      min-height: 48px;
+      grid-area: bot;
+      min-height: 44px;
       height: 100%;
       margin-top: 0 !important;
       align-self: stretch;
       width: 100%;
-      border-radius: 10px;
-      padding: 0.24rem 0.38rem !important;
+      border-radius: 11px;
+      padding: 0.28rem 0.38rem !important;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-action-stack {
       display: grid;
-      grid-column: 1 / -1;
+      grid-area: action;
       grid-template-columns: minmax(0, 1fr);
       min-width: 0;
       align-self: stretch;
@@ -1686,10 +1713,10 @@
 
     .game-fullscreen-shell .crash-control-card .crash-action-stack > .btn-acid,
     .game-fullscreen-shell .crash-control-card .crash-action-stack > .btn-ember {
-      min-height: 40px;
-      border-radius: 10px;
-      padding: 0.28rem 0.36rem !important;
-      font-size: 10px;
+      min-height: 44px;
+      border-radius: 11px;
+      padding: 0.32rem 0.42rem !important;
+      font-size: 10.5px;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-action-stack .crash-flight-status-button {
@@ -1766,6 +1793,7 @@
 
     .game-fullscreen-shell .crash-control-card .crash-auto-bot-status {
       grid-column: 1 / -1;
+      grid-row: 3;
       display: flex;
       min-height: 26px;
       align-items: center;
@@ -2820,11 +2848,11 @@
     }
 
     .game-fullscreen-shell .crash-control-stack {
-      max-height: max(180px, min(30dvh, 212px));
+      max-height: max(198px, min(32dvh, 224px));
     }
 
     .game-fullscreen-shell .crash-control-stack > .crash-control-card:first-child {
-      max-height: max(180px, min(30dvh, 212px));
+      max-height: max(198px, min(32dvh, 224px));
     }
 
     .game-fullscreen-shell .game-control-stack .bet-controls__presets {

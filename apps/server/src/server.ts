@@ -45,6 +45,9 @@ import {
   shouldSkipRequestLog,
 } from './utils/requestLogging.js';
 
+const SLOT_DEBUG_BUILD = 'mega-slot-mobile-debug-20260527-01';
+const SLOT_DEBUG_SW_VERSION = 'yachiyo-assets-v5-mega-slot-20260527';
+
 function formatCurrencyLimit(value: number): string {
   return value.toLocaleString('en-US', {
     maximumFractionDigits: 2,
@@ -252,6 +255,31 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
   server.get('/', async () => ({ ok: true, env: config.NODE_ENV }));
   server.get('/api/health', async () => ({ ok: true, env: config.NODE_ENV }));
+  server.get('/api/debug/client-build', async (request) => {
+    const query = request.query as Record<string, unknown>;
+    const debugRequested =
+      query.slotDebug === '1' ||
+      query['slot-debug'] === '1' ||
+      request.headers['x-slot-debug'] === '1';
+    const payload = {
+      ok: true,
+      slotDebugBuild: SLOT_DEBUG_BUILD,
+      serviceWorkerCacheVersion: SLOT_DEBUG_SW_VERSION,
+      serviceWorkerRegisterVersion: SLOT_DEBUG_BUILD,
+      env: config.NODE_ENV,
+      nodeVersion: process.version,
+      serverTime: new Date().toISOString(),
+      request: {
+        id: request.id,
+        userAgent: request.headers['user-agent'] ?? null,
+        host: request.headers.host ?? null,
+      },
+    };
+    if (debugRequested) {
+      request.log.info({ payload }, '[slot-debug] client build debug requested');
+    }
+    return payload;
+  });
 
   await server.register(authRoutes, { prefix: '/api/auth' });
   await server.register(adminRoutes, { prefix: '/api/admin' });

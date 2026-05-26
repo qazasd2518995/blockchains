@@ -1,4 +1,5 @@
-const VERSION = 'yachiyo-assets-v4';
+const VERSION = 'yachiyo-assets-v5-mega-slot-20260527';
+const DEBUG_VERSION = 'mega-slot-mobile-debug-20260527-01';
 const IMAGE_CACHE = `${VERSION}:images`;
 const IMAGE_MAX_ENTRIES = 260;
 const RELOAD_CLIENTS_ON_ACTIVATE = true;
@@ -7,10 +8,12 @@ const IMAGE_PATH_RE =
 const IMAGE_EXT_RE = /\.(?:avif|gif|jpe?g|png|svg|webp)$/i;
 
 self.addEventListener('install', () => {
+  console.info('[slot-debug] sw:install', { version: VERSION, debugVersion: DEBUG_VERSION });
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
+  console.info('[slot-debug] sw:activate', { version: VERSION, debugVersion: DEBUG_VERSION });
   event.waitUntil(
     Promise.all([
       self.clients.claim(),
@@ -29,6 +32,15 @@ self.addEventListener('activate', (event) => {
         ),
     ]).then(() => reloadClientsOnActivate()),
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'SLOT_DEBUG_PING') return;
+  event.source?.postMessage({
+    type: 'SLOT_DEBUG_PONG',
+    version: VERSION,
+    debugVersion: DEBUG_VERSION,
+  });
 });
 
 async function reloadClientsOnActivate() {
