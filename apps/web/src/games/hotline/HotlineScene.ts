@@ -471,12 +471,17 @@ export class HotlineScene {
     const patchedCancelResize = cancelResizeType !== 'function';
     slotDebug('hotline-scene:destroy:start', {
       hasApp: Boolean(app),
+      hasRenderer: Boolean(app.renderer),
       cancelResizeType,
       patchedCancelResize,
       disposed: this.disposed,
       initializing: this.initializing,
     });
     try {
+      if (!app.renderer) {
+        slotDebug('hotline-scene:destroy:skipped-no-renderer', { patchedCancelResize });
+        return;
+      }
       if (patchedCancelResize) {
         maybeApp._cancelResize = () => undefined;
       }

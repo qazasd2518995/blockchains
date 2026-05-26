@@ -155,6 +155,29 @@ function createAutoSpinInputDraft(settings: AutoSpinSettings): AutoSpinInputDraf
   };
 }
 
+function supportsSlotWebGlRenderer(): boolean {
+  if (typeof document === 'undefined') return true;
+  try {
+    const canvas = document.createElement('canvas');
+    const context =
+      canvas.getContext('webgl2') ||
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl');
+    return Boolean(context);
+  } catch {
+    return false;
+  }
+}
+
+function isWebGlUnavailableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return (
+    message.includes('does not support WebGL') ||
+    message.includes('WebGL is not supported') ||
+    message.includes('webglcontextcreationerror')
+  );
+}
+
 export function HotlinePage({ theme = 'cyber' }: Props) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
@@ -338,6 +361,21 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     });
     setSceneAvailability(false, false);
 
+    if (isMegaSlot && !supportsSlotWebGlRenderer()) {
+      slotDebug(
+        'hotline-page:scene-effect:webgl-unavailable-fallback',
+        {
+          themeId: slotTheme.id,
+          gameId: slotTheme.gameId,
+          userAgent: navigator.userAgent,
+        },
+        'warn',
+      );
+      sceneRef.current = null;
+      sceneResizeSchedulerRef.current = null;
+      return;
+    }
+
     let cancelled = false;
     let scene: HotlineScene | null = null;
     let rafId = 0;
@@ -451,6 +489,20 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           if (scene === nextScene) scene = null;
           if (sceneRef.current === nextScene) sceneRef.current = null;
           setSceneAvailability(false, false);
+          if (isMegaSlot && isWebGlUnavailableError(err)) {
+            slotDebug(
+              'hotline-page:init-scene:webgl-unavailable-fallback',
+              {
+                token,
+                width: w,
+                height: h,
+                themeId: slotTheme.id,
+                gameId: slotTheme.gameId,
+              },
+              'warn',
+            );
+            return;
+          }
           scheduleSceneRecovery();
         });
     };
@@ -659,10 +711,19 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const stakeAmount = buyFeature ? roundCurrency(spinAmount * 100) : spinAmount;
     if (spinAmount < MIN_BET_AMOUNT || stakeAmount > availableBalance) return null;
     const activeScene = getPlayableScene();
-    if (!activeScene) {
+    const useMegaFallbackScene = isMegaSlot && !activeScene;
+    if (!activeScene && !useMegaFallbackScene) {
       setError('遊戲畫面載入中，請稍候');
       sceneResizeSchedulerRef.current?.();
       return null;
+    }
+    if (useMegaFallbackScene) {
+      slotDebug('hotline-page:spin:fallback-scene', {
+        gameId: slotTheme.gameId,
+        sceneReady,
+        amount: spinAmount,
+        buyFeature,
+      });
     }
     setBusy(true);
     setSpinning(true);
@@ -683,10 +744,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setBuyFeatureConfirmOpen(false);
     setError(null);
 
-    activeScene.resetWinLines();
-    // 樂觀動畫：轉軸立刻開始滾
-    activeScene.startAnticipation(spinFast);
-    setMegaFallbackSpinning(false);
+    activeScene?.resetWinLines();
+    // 樂觀動畫：轉軸立刻開始滾；Mega fallback 模式也要立即給手機端回饋。
+    activeScene?.startAnticipation(spinFast);
+    setMegaFallbackSpinning(useMegaFallbackScene);
 
     try {
       const payload: HotlineBetRequest = {
@@ -1438,7 +1499,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             : '已觸發，準備進入免費旋轉'
       : '4 SCATTER 觸發';
   const slotScenePending = !sceneReady;
-  const megaScenePending = isMegaSlot && slotScenePending;
+  const megaFallbackSceneAvailable = isMegaSlot;
+  const megaScenePending = isMegaSlot && slotScenePending && !megaFallbackSceneAvailable;
   const megaSpinButtonLabel = megaScenePending
     ? '載入中'
     : megaFreeSpinAwaitingClick
@@ -1456,7 +1518,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         ? `剩 ${megaDisplayFreeSpinsRemaining}`
         : formatAmount(amount);
   const megaBuyFeatureCost = Number((amount * 100).toFixed(2));
-  const controlsLocked = busy || autoSpinActive || slotScenePending;
+  const controlsLocked = busy || autoSpinActive || (!isMegaSlot && slotScenePending);
   const megaSpinDisabled =
     megaScenePending ||
     autoSpinActive ||
