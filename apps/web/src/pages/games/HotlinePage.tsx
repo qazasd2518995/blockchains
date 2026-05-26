@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, History, RotateCw, Zap } from 'lucide-react';
 import type {
@@ -210,6 +210,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HotlineScene | null>(null);
+  const sceneReadyRef = useRef(false);
+  const sceneFallbackRef = useRef(false);
   const sceneResizeSchedulerRef = useRef<(() => void) | null>(null);
   const sceneResizeLockedRef = useRef(false);
   const pendingSceneResizeRef = useRef(false);
@@ -218,6 +220,50 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const fastSpinRef = useRef(false);
   const fallbackGrid = useMemo(() => createFallbackGrid(slotTheme), [slotTheme]);
   const fallbackJackpotValues = useMemo(() => createFallbackJackpotValues(), [slotTheme.id]);
+
+  const setSceneAvailability = useCallback((ready: boolean, fallback: boolean): void => {
+    sceneReadyRef.current = ready;
+    sceneFallbackRef.current = fallback;
+    setSceneReady(ready);
+    setSceneFallback(fallback);
+  }, []);
+
+  const scheduleSceneRecovery = useCallback((): void => {
+    pendingSceneResizeRef.current = true;
+    window.setTimeout(() => {
+      if (sceneResizeLockedRef.current) return;
+      pendingSceneResizeRef.current = false;
+      sceneResizeSchedulerRef.current?.();
+    }, 360);
+  }, []);
+
+  const markSceneFallback = useCallback(
+    (reason?: unknown): void => {
+      if (reason) console.warn('Slot canvas fallback activated', reason);
+      try {
+        sceneRef.current?.stopAnticipation();
+        sceneRef.current?.resetWinLines();
+        sceneRef.current?.dispose();
+      } catch (err) {
+        console.warn('Slot scene dispose failed during fallback', err);
+      }
+      sceneRef.current = null;
+      setSceneAvailability(false, true);
+      scheduleSceneRecovery();
+    },
+    [scheduleSceneRecovery, setSceneAvailability],
+  );
+
+  const getPlayableScene = useCallback((): HotlineScene | null => {
+    const canvas = canvasRef.current;
+    const scene = sceneRef.current;
+    if (!canvas || !scene || !sceneReadyRef.current || sceneFallbackRef.current) return null;
+    if (isCanvasRenderSurfaceUnavailable(canvas)) {
+      markSceneFallback('canvas surface unavailable');
+      return null;
+    }
+    return scene;
+  }, [markSceneFallback]);
 
   useEffect(() => {
     if (!megaAmountEditing) setMegaAmountText(amount.toFixed(2));
@@ -271,8 +317,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    setSceneReady(false);
-    setSceneFallback(false);
+    setSceneAvailability(false, false);
 
     let cancelled = false;
     let scene: HotlineScene | null = null;
@@ -284,9 +329,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     let lastHeight = 0;
     const handleContextLost = (event: Event) => {
       event.preventDefault();
-      if (sceneRef.current === scene) sceneRef.current = null;
-      setSceneReady(false);
-      setSceneFallback(true);
+      const lostScene = scene;
+      try {
+        lostScene?.dispose();
+      } catch (err) {
+        console.warn('Slot scene dispose failed after context loss', err);
+      }
+      if (sceneRef.current === lostScene) sceneRef.current = null;
+      scene = null;
+      setSceneAvailability(false, true);
+      scheduleSceneRecovery();
     };
     canvas.addEventListener('webglcontextlost', handleContextLost, false);
 
@@ -314,8 +366,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       scene = nextScene;
       sceneRef.current = nextScene;
       previous?.dispose();
-      setSceneReady(false);
-      setSceneFallback(false);
+      setSceneAvailability(false, false);
       void nextScene
         .init(canvas, w, h, slotTheme)
         .then(() => {
@@ -323,18 +374,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             nextScene.dispose();
             return;
           }
-          if (isCanvasWebGlContextLost(canvas)) {
+          if (isCanvasRenderSurfaceUnavailable(canvas)) {
             nextScene.dispose();
             if (scene === nextScene) scene = null;
             if (sceneRef.current === nextScene) sceneRef.current = null;
-            setSceneReady(false);
-            setSceneFallback(true);
+            setSceneAvailability(false, true);
             return;
           }
           fillCanvas();
           sceneRef.current = nextScene;
-          setSceneReady(true);
-          setSceneFallback(false);
+          setSceneAvailability(true, false);
         })
         .catch((err) => {
           if (cancelled) return;
@@ -342,8 +391,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           nextScene.dispose();
           if (scene === nextScene) scene = null;
           if (sceneRef.current === nextScene) sceneRef.current = null;
-          setSceneReady(false);
-          setSceneFallback(true);
+          setSceneAvailability(false, true);
         });
     };
 
@@ -396,7 +444,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       canvas.removeEventListener('webglcontextlost', handleContextLost);
       sceneRef.current = null;
     };
-  }, [slotTheme]);
+  }, [scheduleSceneRecovery, setSceneAvailability, slotTheme]);
 
   const setMegaAmount = (next: number, syncText = true): void => {
     const max = user ? Math.max(MIN_BET_AMOUNT, Math.min(balance, MAX_BET_AMOUNT)) : MAX_BET_AMOUNT;
@@ -520,7 +568,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setBuyFeatureConfirmOpen(false);
     setError(null);
 
-    const activeScene = sceneReady && !sceneFallback ? sceneRef.current : null;
+    const activeScene = getPlayableScene();
     activeScene?.resetWinLines();
     // 樂觀動畫：轉軸立刻開始滾
     activeScene?.startAnticipation(spinFast);
@@ -566,14 +614,20 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         lines: HotlineWinLine[],
         specialSymbols: HotlineSpecialSymbol[] = [],
       ): Promise<void> => {
-        const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
+        const scene = getPlayableScene();
         if (scene) {
-          await scene.playSpin(grid, lines, {
-            fast: spinFast,
-            specialSymbols,
-            payoutAmount: baseBetAmount,
-          });
-          return;
+          try {
+            await scene.playSpin(grid, lines, {
+              fast: spinFast,
+              specialSymbols,
+              payoutAmount: baseBetAmount,
+            });
+            const currentCanvas = canvasRef.current;
+            if (currentCanvas && !isCanvasRenderSurfaceUnavailable(currentCanvas)) return;
+            markSceneFallback('canvas surface unavailable after spin');
+          } catch (err) {
+            markSceneFallback(err);
+          }
         }
         setMegaFallbackRemoved([]);
         setMegaFallbackDropping(false);
@@ -595,10 +649,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       ): Promise<void> => {
         const filtered = symbols.filter((symbol) => symbol.type === type);
         if (filtered.length === 0) return;
-        const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
+        const scene = getPlayableScene();
         if (scene) {
-          await scene.highlightSpecialSymbols(filtered, { fast: spinFast, type, label });
-          return;
+          try {
+            await scene.highlightSpecialSymbols(filtered, { fast: spinFast, type, label });
+            const currentCanvas = canvasRef.current;
+            if (currentCanvas && !isCanvasRenderSurfaceUnavailable(currentCanvas)) return;
+            markSceneFallback('canvas surface unavailable after special highlight');
+          } catch (err) {
+            markSceneFallback(err);
+          }
         }
         setMegaFallbackSpecialWinning(filtered.map(({ reel, row }) => ({ reel, row })));
         if (winPop) setMegaFallbackWinPop(winPop);
@@ -616,25 +676,31 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         multiplierActivation?: MegaMultiplierActivation,
         onMultiplierActivated?: () => void,
       ): Promise<void> => {
-        const scene = sceneReady && !sceneFallback ? sceneRef.current : null;
+        const scene = getPlayableScene();
         if (scene) {
-          await scene.playCascadeSpin(steps, finalGrid, {
-            fast: spinFast,
-            specialSymbols,
-            finalSpecialSymbols,
-            payoutAmount: baseBetAmount,
-            onStepWin: (step) => void onStepWin(step),
-          });
-          if (multiplierActivation) {
-            await scene.highlightSpecialSymbols(multiplierActivation.symbols, {
+          try {
+            await scene.playCascadeSpin(steps, finalGrid, {
               fast: spinFast,
-              type: 'multiplier',
-              label: `倍數啟動 ×${multiplierActivation.total}`,
-              multiplierTotal: multiplierActivation.total,
+              specialSymbols,
+              finalSpecialSymbols,
+              payoutAmount: baseBetAmount,
+              onStepWin: (step) => void onStepWin(step),
             });
-            onMultiplierActivated?.();
+            if (multiplierActivation) {
+              await scene.highlightSpecialSymbols(multiplierActivation.symbols, {
+                fast: spinFast,
+                type: 'multiplier',
+                label: `倍數啟動 ×${multiplierActivation.total}`,
+                multiplierTotal: multiplierActivation.total,
+              });
+              onMultiplierActivated?.();
+            }
+            const currentCanvas = canvasRef.current;
+            if (currentCanvas && !isCanvasRenderSurfaceUnavailable(currentCanvas)) return;
+            markSceneFallback('canvas surface unavailable after cascade');
+          } catch (err) {
+            markSceneFallback(err);
           }
-          return;
         }
 
         const first = steps[0];
@@ -1814,7 +1880,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             </div>
 
             <div className={`game-canvas-shell game-canvas-wide ${canvasAspectClass} w-full p-2`}>
-              <canvas ref={canvasRef} className="h-full w-full" />
+              <SlotCanvasFallbackGrid
+                theme={slotTheme}
+                grid={resultDisplayGrid}
+                hidden={sceneReady && !sceneFallback}
+              />
+              <canvas
+                ref={canvasRef}
+                className={`slot-canvas h-full w-full ${!sceneReady || sceneFallback ? 'slot-canvas--hidden' : ''}`}
+              />
             </div>
 
             {result && showBigWinOverlay && (
@@ -2143,6 +2217,75 @@ function SlotPayoutTable({
   );
 }
 
+function SlotCanvasFallbackGrid({
+  theme,
+  grid,
+  hidden,
+}: {
+  theme: SlotThemeConfig;
+  grid: number[][];
+  hidden: boolean;
+}) {
+  return (
+    <div
+      className={`slot-canvas-fallback-grid ${hidden ? 'slot-canvas-fallback-grid--hidden' : ''}`}
+      aria-hidden="true"
+    >
+      <div
+        className="slot-canvas-fallback-frame"
+        style={
+          {
+            '--slot-fallback-reels': theme.reels,
+            '--slot-fallback-rows': theme.rows,
+          } as CSSProperties
+        }
+      >
+        {grid.map((reel, reelIndex) => (
+          <div
+            key={`${theme.id}-slot-fallback-reel-${reelIndex}`}
+            className="slot-canvas-fallback-reel"
+          >
+            {reel.map((symbol, rowIndex) => {
+              const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
+              const symbolImage = getSlotSymbolImage(theme, symbol);
+              const sheetPosition = SYMBOL_POSITIONS[symbol];
+              return (
+                <div
+                  key={`${reelIndex}-${rowIndex}-${symbol}`}
+                  className="slot-canvas-fallback-symbol"
+                  style={
+                    {
+                      borderColor: `${meta.accentHex}88`,
+                      '--slot-fallback-accent': meta.accentHex,
+                      backgroundImage:
+                        symbolImage || !sheetPosition ? undefined : `url(${theme.symbolSheet})`,
+                      backgroundPosition: symbolImage ? 'center' : (sheetPosition ?? 'center'),
+                      '--slot-fallback-symbol-offset-x': `${(meta.render?.offsetX ?? 0) * 100}%`,
+                      '--slot-fallback-symbol-offset-y': `${(meta.render?.offsetY ?? 0) * 100}%`,
+                      '--slot-fallback-symbol-scale': meta.render?.scale ?? 1,
+                    } as CSSProperties
+                  }
+                >
+                  {symbolImage ? (
+                    <img
+                      src={symbolImage}
+                      alt=""
+                      draggable={false}
+                      decoding="async"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                  <span>{meta.shortLabel}</span>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MegaFallbackGrid({
   theme,
   grid,
@@ -2345,12 +2488,18 @@ function buildMegaFallbackDropOffsets(
   return offsets;
 }
 
-function isCanvasWebGlContextLost(canvas: HTMLCanvasElement): boolean {
+function isCanvasRenderSurfaceUnavailable(canvas: HTMLCanvasElement): boolean {
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width < 10 || rect.height < 10 || canvas.width < 10 || canvas.height < 10) {
+    return true;
+  }
+
   try {
     const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
-    return gl?.isContextLost() ?? false;
+    if (!gl) return true;
+    return gl.isContextLost() || gl.drawingBufferWidth < 10 || gl.drawingBufferHeight < 10;
   } catch {
-    return false;
+    return true;
   }
 }
 
