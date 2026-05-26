@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Prisma } from '@prisma/client';
-import type { BlackjackCard } from '@bg/provably-fair';
+import { blackjackScore, type BlackjackCard } from '@bg/provably-fair';
 import {
   applyBlackjackControl,
   settleBlackjackHands,
@@ -108,9 +108,7 @@ describe('applyBlackjackControl', () => {
     expect(settled.hands[0]?.cards).toEqual(originalCards);
     expect(settled.hands[0]?.outcome).toBe('WIN');
     expect(settled.dealerHand[0]).toEqual(c(10, 2));
-    expect(
-      settled.dealerHand.map((card) => Math.min(card.rank === 1 ? 11 : card.rank, 10)),
-    ).toEqual([10, 6, 10]);
+    expect(blackjackScore(settled.dealerHand).isBust).toBe(true);
   });
 
   it('preserves the visible dealer upcard when forcing a loss', () => {
@@ -138,7 +136,10 @@ describe('applyBlackjackControl', () => {
     expect(settled.hands[0]?.cards).toEqual(originalCards);
     expect(settled.hands[0]?.outcome).toBe('LOSE');
     expect(settled.dealerHand[0]).toEqual(c(8, 2));
-    expect(settled.dealerHand).toEqual([c(8, 2), c(9, 0)]);
+    const playerScore = blackjackScore(originalCards);
+    const dealerScore = blackjackScore(settled.dealerHand);
+    expect(dealerScore.isBust).toBe(false);
+    expect(dealerScore.total).toBeGreaterThan(playerScore.total);
   });
 
   it('does not force an impossible loss for a natural blackjack', () => {

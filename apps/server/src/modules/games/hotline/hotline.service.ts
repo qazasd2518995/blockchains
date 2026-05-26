@@ -35,6 +35,7 @@ import {
   finalizeControls,
   multiplierMatchesControlBounds,
 } from '../_common/controls.js';
+import { pickRandomBest, pickRandomItem } from '../_common/resultSelection.js';
 import type { HotlineBetInput } from './hotline.schema.js';
 
 const HOTLINE_JACKPOT_CONTRIBUTION_RATES = {
@@ -434,13 +435,19 @@ function winningHotlineRound(
     roundFromClassicGrid(fixedLineHotlineGrid(reelCount, [5, 6], variant + 23)),
     roundFromClassicGrid(fixedLineHotlineGrid(reelCount, [4, 5, 6], variant + 37)),
   ];
+  const targetMultiplier = targetControlMultiplier(controlled);
+  const bounded = pool.filter(
+    (candidate) =>
+      candidate.totalMultiplier > 1 &&
+      multiplierMatchesControlBounds(candidate.totalMultiplier, amount, controlled),
+  );
   return (
-    pool.find((candidate) => {
-      return (
-        candidate.totalMultiplier > 1 &&
-        multiplierMatchesControlBounds(candidate.totalMultiplier, amount, controlled)
-      );
-    }) ?? pool[0]!
+    pickRandomBest(bounded, (candidate) => {
+      const distance = Math.abs(candidate.totalMultiplier - targetMultiplier);
+      return distance * 1000 + candidate.totalMultiplier / 1_000_000;
+    }) ??
+    pickRandomItem(pool) ??
+    pool[0]!
   );
 }
 
@@ -459,13 +466,19 @@ function winningMegaHotlineRound(
     roundFromMegaGrid(gameId, megaClusterHotlineGrid([4, 5, 6], variant + 37), variant + 37),
   ];
 
+  const targetMultiplier = targetControlMultiplier(controlled);
+  const bounded = candidates.filter(
+    (candidate) =>
+      candidate.totalMultiplier > 1 &&
+      multiplierMatchesControlBounds(candidate.totalMultiplier, amount, controlled),
+  );
   return (
-    candidates.find((candidate) => {
-      return (
-        candidate.totalMultiplier > 1 &&
-        multiplierMatchesControlBounds(candidate.totalMultiplier, amount, controlled)
-      );
-    }) ?? candidates[0]!
+    pickRandomBest(bounded, (candidate) => {
+      const distance = Math.abs(candidate.totalMultiplier - targetMultiplier);
+      return distance * 1000 + candidate.totalMultiplier / 1_000_000;
+    }) ??
+    pickRandomItem(candidates) ??
+    candidates[0]!
   );
 }
 
@@ -473,12 +486,25 @@ function softLossHotlineRound(gameId: string, variant = 0): HotlineRound {
   const reelCount = getHotlineReelCount(gameId);
   const rowCount = getHotlineRowCount(gameId);
   if (rowCount > 3) {
-    const symbol = HOTLINE_SOFT_LOSS_SYMBOLS[Math.abs(variant) % HOTLINE_SOFT_LOSS_SYMBOLS.length]!;
+    const symbol =
+      pickRandomItem(HOTLINE_SOFT_LOSS_SYMBOLS) ??
+      HOTLINE_SOFT_LOSS_SYMBOLS[Math.abs(variant) % HOTLINE_SOFT_LOSS_SYMBOLS.length]!;
     return roundFromMegaGrid(gameId, megaClusterHotlineGrid([symbol], variant), variant);
   }
 
-  const symbol = HOTLINE_SOFT_LOSS_SYMBOLS[Math.abs(variant) % HOTLINE_SOFT_LOSS_SYMBOLS.length]!;
+  const symbol =
+    pickRandomItem(HOTLINE_SOFT_LOSS_SYMBOLS) ??
+    HOTLINE_SOFT_LOSS_SYMBOLS[Math.abs(variant) % HOTLINE_SOFT_LOSS_SYMBOLS.length]!;
   return roundFromClassicGrid(fixedLineHotlineGrid(reelCount, [symbol], variant));
+}
+
+function targetControlMultiplier(
+  controlled: Parameters<typeof multiplierMatchesControlBounds>[2],
+): number {
+  const min = controlled.minMultiplier?.toNumber();
+  const max = controlled.maxMultiplier?.toNumber();
+  if (min !== undefined && max !== undefined) return (min + max) / 2;
+  return min ?? max ?? 2;
 }
 
 function roundFromClassicGrid(grid: number[][]): HotlineRound {

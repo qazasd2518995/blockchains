@@ -15,6 +15,7 @@ import {
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
 import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
+import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { HiLoStartInput, HiLoGuessInput, HiLoCashoutInput } from './hilo.schema.js';
 
@@ -403,11 +404,11 @@ export function adjustHiLoDraw(
     const correct = isHiLoGuessCorrect(current.rank, rank, guess);
     return correct === wantCorrect;
   });
-  const rank = ranks[((fallback.rank - 1) * 4 + fallback.suit) % ranks.length];
+  const rank = pickRandomItem(ranks);
   if (!rank) {
     return { card: fallback, correct: fallbackCorrect };
   }
-  return { card: { rank, suit: fallback.suit }, correct: wantCorrect };
+  return { card: { rank, suit: Math.floor(Math.random() * 4) }, correct: wantCorrect };
 }
 
 function isHiLoGuessCorrect(

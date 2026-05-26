@@ -17,6 +17,7 @@ import {
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
 import { applyControls, finalizeControls } from '../_common/controls.js';
+import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { TowerStartInput, TowerPickInput, TowerCashoutInput } from './tower.schema.js';
 
@@ -407,7 +408,8 @@ function forceTowerSafe(layout: number[][], level: number, col: number, cols: nu
   const next = layout.map((row) => row.slice());
   const safe = new Set(next[level] ?? []);
   if (!safe.has(col)) {
-    const keep = Array.from(safe).filter((value) => value !== Array.from(safe)[0]);
+    const removed = pickRandomItem(Array.from(safe));
+    const keep = Array.from(safe).filter((value) => value !== removed);
     keep.push(col);
     next[level] = keep.sort((a, b) => a - b);
   }
@@ -419,8 +421,11 @@ function forceTowerTrap(layout: number[][], level: number, col: number, cols: nu
   const safe = new Set(next[level] ?? []);
   if (safe.has(col)) {
     safe.delete(col);
-    const replacement = Array.from({ length: cols }, (_, index) => index)
-      .find((value) => !safe.has(value) && value !== col);
+    const replacement = pickRandomItem(
+      Array.from({ length: cols }, (_, index) => index).filter(
+        (value) => !safe.has(value) && value !== col,
+      ),
+    );
     if (replacement !== undefined) safe.add(replacement);
     next[level] = Array.from(safe).sort((a, b) => a - b);
   }
@@ -429,7 +434,18 @@ function forceTowerTrap(layout: number[][], level: number, col: number, cols: nu
 
 function trimTowerSafeCount(layout: number[][], level: number, safeCount: number, cols: number): number[][] {
   const safe = new Set(layout[level] ?? []);
-  for (let col = 0; safe.size < safeCount && col < cols; col += 1) safe.add(col);
-  layout[level] = Array.from(safe).slice(0, safeCount).sort((a, b) => a - b);
+  while (safe.size < safeCount) {
+    const replacement = pickRandomItem(
+      Array.from({ length: cols }, (_, index) => index).filter((col) => !safe.has(col)),
+    );
+    if (replacement === undefined) break;
+    safe.add(replacement);
+  }
+  while (safe.size > safeCount) {
+    const removed = pickRandomItem(Array.from(safe));
+    if (removed === undefined) break;
+    safe.delete(removed);
+  }
+  layout[level] = Array.from(safe).sort((a, b) => a - b);
   return layout;
 }

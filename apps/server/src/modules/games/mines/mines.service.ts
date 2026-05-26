@@ -15,6 +15,7 @@ import {
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
 import { applyControls, finalizeControls } from '../_common/controls.js';
+import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { MinesStartInput, MinesRevealInput, MinesCashoutInput } from './mines.schema.js';
 
@@ -361,8 +362,11 @@ export class MinesService {
 
 function moveMineAway(minePositions: number[], cellIndex: number, revealed: number[]): number[] | null {
   const blocked = new Set([...minePositions, ...revealed]);
-  const replacement = Array.from({ length: MINES_GRID_SIZE }, (_, index) => index)
-    .find((index) => !blocked.has(index));
+  const replacement = pickRandomItem(
+    Array.from({ length: MINES_GRID_SIZE }, (_, index) => index).filter(
+      (index) => !blocked.has(index),
+    ),
+  );
   if (replacement === undefined) return null;
   return minePositions.map((pos) => (pos === cellIndex ? replacement : pos));
 }
@@ -370,6 +374,7 @@ function moveMineAway(minePositions: number[], cellIndex: number, revealed: numb
 function moveMineToCell(minePositions: number[], cellIndex: number): number[] {
   if (minePositions.includes(cellIndex)) return minePositions;
   const copy = minePositions.slice();
-  copy[0] = cellIndex;
+  const replaceIndex = Math.floor(Math.random() * copy.length);
+  copy[replaceIndex] = cellIndex;
   return Array.from(new Set(copy)).slice(0, minePositions.length);
 }

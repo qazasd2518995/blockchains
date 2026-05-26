@@ -28,6 +28,7 @@ import {
   multiplierMatchesControlBounds,
   type ControlOutcome,
 } from '../_common/controls.js';
+import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { BlackjackActionInput, BlackjackStartInput } from './blackjack.schema.js';
 
@@ -970,7 +971,7 @@ function makeDealerTwentyOne(source: BlackjackCard[]): BlackjackCard[] {
   const upcard = source[0] ?? { rank: 10, suit: 0 };
   const avoid = [upcard];
   if (upcard.rank === 1) {
-    return [upcard, pickCard(10, avoid)];
+    return [upcard, pickCard(pickTenValueRank(), avoid)];
   }
   if (cardPoint(upcard) === 10) {
     return [upcard, pickCard(1, avoid)];
@@ -978,7 +979,7 @@ function makeDealerTwentyOne(source: BlackjackCard[]): BlackjackCard[] {
 
   const middleRank = 11 - cardPoint(upcard);
   const middle = pickCard(middleRank, avoid);
-  return [upcard, middle, pickCard(10, [...avoid, middle])];
+  return [upcard, middle, pickCard(pickTenValueRank(), [...avoid, middle])];
 }
 
 function makeDealerWinningHand(
@@ -999,51 +1000,85 @@ function makeDealerTotal(source: BlackjackCard[], targetTotal: number): Blackjac
   const upcard = source[0] ?? { rank: 10, suit: 0 };
   const avoid = [upcard];
   const ranks = Array.from({ length: 13 }, (_, index) => index + 1);
+  const twoCardCandidates: BlackjackCard[][] = [];
 
   for (const rank of ranks) {
     const second = pickCard(rank, avoid);
     const hand = [upcard, second];
     const score = blackjackScore(hand);
-    if (!score.isBust && score.total === targetTotal) return hand;
+    if (!score.isBust && score.total === targetTotal) twoCardCandidates.push(hand);
   }
 
+  const twoCardHand = pickRandomItem(twoCardCandidates);
+  if (twoCardHand) return twoCardHand;
+
+  const threeCardCandidates: BlackjackCard[][] = [];
   for (const firstRank of ranks) {
     const first = pickCard(firstRank, avoid);
     for (const secondRank of ranks) {
       const second = pickCard(secondRank, [...avoid, first]);
       const hand = [upcard, first, second];
       const score = blackjackScore(hand);
-      if (!score.isBust && score.total === targetTotal) return hand;
+      if (!score.isBust && score.total === targetTotal) threeCardCandidates.push(hand);
     }
   }
 
-  return null;
+  return pickRandomItem(threeCardCandidates) ?? null;
 }
 
 function makeDealerBust(source: BlackjackCard[]): BlackjackCard[] {
   const upcard = source[0] ?? { rank: 10, suit: 0 };
   const avoid = [upcard];
+  const ranks = Array.from({ length: 13 }, (_, index) => index + 1);
+  const candidates: BlackjackCard[][] = [];
+
+  for (const firstRank of ranks) {
+    const first = pickCard(firstRank, avoid);
+    const firstHand = [upcard, first];
+    if (!blackjackDealerShouldHit(firstHand)) continue;
+
+    for (const secondRank of ranks) {
+      const second = pickCard(secondRank, [...avoid, first]);
+      const secondHand = [upcard, first, second];
+      const secondScore = blackjackScore(secondHand);
+      if (secondScore.isBust) {
+        candidates.push(secondHand);
+        continue;
+      }
+      if (!blackjackDealerShouldHit(secondHand)) continue;
+
+      for (const thirdRank of ranks) {
+        const third = pickCard(thirdRank, [...avoid, first, second]);
+        const thirdHand = [upcard, first, second, third];
+        if (blackjackScore(thirdHand).isBust) candidates.push(thirdHand);
+      }
+    }
+  }
+
+  const candidate = pickRandomItem(candidates);
+  if (candidate) return candidate;
+
   const value = cardPoint(upcard);
 
   if (upcard.rank === 1) {
     const first = pickCard(5, avoid);
-    const second = pickCard(10, [...avoid, first]);
-    const third = pickCard(10, [...avoid, first, second]);
+    const second = pickCard(pickTenValueRank(), [...avoid, first]);
+    const third = pickCard(pickTenValueRank(), [...avoid, first, second]);
     return [upcard, first, second, third];
   }
 
   if (value === 10) {
     const middle = pickCard(6, avoid);
-    return [upcard, middle, pickCard(10, [...avoid, middle])];
+    return [upcard, middle, pickCard(pickTenValueRank(), [...avoid, middle])];
   }
 
   if (value >= 7) {
     const middle = pickCard(16 - value, avoid);
-    return [upcard, middle, pickCard(10, [...avoid, middle])];
+    return [upcard, middle, pickCard(pickTenValueRank(), [...avoid, middle])];
   }
 
-  const first = pickCard(10, avoid);
-  return [upcard, first, pickCard(10, [...avoid, first])];
+  const first = pickCard(pickTenValueRank(), avoid);
+  return [upcard, first, pickCard(pickTenValueRank(), [...avoid, first])];
 }
 
 function cardPoint(card: BlackjackCard): number {
@@ -1052,10 +1087,12 @@ function cardPoint(card: BlackjackCard): number {
 }
 
 function pickCard(rank: number, avoid: BlackjackCard[]): BlackjackCard {
-  for (let suit = 0; suit < 4; suit += 1) {
-    if (!avoid.some((card) => card.rank === rank && card.suit === suit)) {
-      return { rank, suit };
-    }
-  }
-  return { rank, suit: 0 };
+  const availableSuits = Array.from({ length: 4 }, (_, suit) => suit).filter(
+    (suit) => !avoid.some((card) => card.rank === rank && card.suit === suit),
+  );
+  return { rank, suit: pickRandomItem(availableSuits) ?? 0 };
+}
+
+function pickTenValueRank(): number {
+  return pickRandomItem([10, 11, 12, 13]) ?? 10;
 }

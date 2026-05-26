@@ -15,6 +15,7 @@ import {
   multiplierMatchesControlBounds,
   type ControlOutcome,
 } from '../_common/controls.js';
+import { pickRandomBest } from '../_common/resultSelection.js';
 import type { WheelBetInput } from './wheel.schema.js';
 
 export class WheelService {
@@ -142,12 +143,13 @@ function chooseWheelSegment(
       : table.map((multiplier, segmentIndex) => ({ segmentIndex, multiplier }));
   if (wantWin) {
     const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
-    pool.sort((a, b) => {
-      const distance = Math.abs(a.multiplier - targetMultiplier) - Math.abs(b.multiplier - targetMultiplier);
-      return distance || a.multiplier - b.multiplier || a.segmentIndex - b.segmentIndex;
+    const picked = pickRandomBest(pool, (x) => {
+      const distance = Math.abs(x.multiplier - targetMultiplier);
+      return distance * 1000 + x.multiplier / 1_000_000;
     });
+    return picked?.segmentIndex ?? pool[0]?.segmentIndex ?? 0;
   } else {
-    pool.sort((a, b) => b.multiplier - a.multiplier || a.segmentIndex - b.segmentIndex);
+    const picked = pickRandomBest(pool, (x) => -x.multiplier);
+    return picked?.segmentIndex ?? pool[0]?.segmentIndex ?? 0;
   }
-  return pool[0]?.segmentIndex ?? 0;
 }

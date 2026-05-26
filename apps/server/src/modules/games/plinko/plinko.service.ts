@@ -14,6 +14,7 @@ import {
   finalizeControls,
   multiplierMatchesControlBounds,
 } from '../_common/controls.js';
+import { pickRandomBest } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { PlinkoBatchBetInput, PlinkoBetInput } from './plinko.schema.js';
 
@@ -180,20 +181,16 @@ function choosePlinkoBucket(
     candidates.length > 0
       ? candidates
       : table.map((multiplier, bucket) => ({ bucket, multiplier }));
-  pool.sort((a, b) => {
+  const picked = pickRandomBest(pool, (x) => {
     if (wantWin) {
-      const targetDiff =
-        Math.abs(a.multiplier - targetMultiplier) - Math.abs(b.multiplier - targetMultiplier);
-      if (targetDiff !== 0) return targetDiff;
-    } else {
-      const multiplierDiff = b.multiplier - a.multiplier;
-      if (multiplierDiff !== 0) return multiplierDiff;
+      const targetDiff = Math.abs(x.multiplier - targetMultiplier);
+      const bucketDiff = Math.abs(x.bucket - originalBucket);
+      return targetDiff * 1000 + bucketDiff / 100;
     }
-    const bucketDiff = Math.abs(a.bucket - originalBucket) - Math.abs(b.bucket - originalBucket);
-    if (bucketDiff !== 0) return bucketDiff;
-    return a.multiplier - b.multiplier;
+    const bucketDiff = Math.abs(x.bucket - originalBucket);
+    return -x.multiplier * 1000 + bucketDiff / 100;
   });
-  return pool[0]?.bucket ?? 0;
+  return picked?.bucket ?? pool[0]?.bucket ?? 0;
 }
 
 function pathForBucket(rows: number, bucket: number): ('left' | 'right')[] {

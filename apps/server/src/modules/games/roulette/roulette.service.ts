@@ -15,6 +15,7 @@ import {
   multiplierMatchesControlBounds,
   type ControlOutcome,
 } from '../_common/controls.js';
+import { pickRandomBest } from '../_common/resultSelection.js';
 import type { RouletteBetInput } from './roulette.schema.js';
 
 export class RouletteService {
@@ -152,14 +153,13 @@ function chooseRouletteSlot(
     });
   if (wantWin) {
     const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
-    pool.sort((a, b) => {
-      const distance = Math.abs(a.multiplier - targetMultiplier) - Math.abs(b.multiplier - targetMultiplier);
-      return distance || a.profit - b.profit || a.slot - b.slot;
+    const picked = pickRandomBest(pool, (x) => {
+      const distance = Math.abs(x.multiplier - targetMultiplier);
+      return distance * 1000 + Math.max(0, x.profit) / 1_000_000;
     });
+    return picked?.slot ?? pool[0]?.slot ?? 0;
   } else {
-    pool.sort((a, b) => {
-      return b.multiplier - a.multiplier || a.slot - b.slot;
-    });
+    const picked = pickRandomBest(pool, (x) => -x.multiplier);
+    return picked?.slot ?? pool[0]?.slot ?? 0;
   }
-  return pool[0]?.slot ?? 0;
 }

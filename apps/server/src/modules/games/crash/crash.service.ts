@@ -480,8 +480,13 @@ export class CrashSoloService {
       };
     }
 
+    const randomCushion = 0.03 + Math.random() * 0.22;
+    const controlledCrashPoint = target + randomCushion;
+    const cappedCrashPoint = Number.isFinite(maxTarget)
+      ? Math.min(Math.max(naturalCrashPoint, controlledCrashPoint), maxTarget + 0.03)
+      : Math.max(naturalCrashPoint, controlledCrashPoint);
     return {
-      crashPoint: Number(Math.max(naturalCrashPoint, target + 0.05).toFixed(4)),
+      crashPoint: Number(cappedCrashPoint.toFixed(4)),
       control,
     };
   }

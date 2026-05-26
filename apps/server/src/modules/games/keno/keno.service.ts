@@ -21,6 +21,7 @@ import {
   multiplierMatchesControlBounds,
   type ControlOutcome,
 } from '../_common/controls.js';
+import { pickRandomBest } from '../_common/resultSelection.js';
 import type { KenoBetInput } from './keno.schema.js';
 
 export class KenoService {
@@ -147,8 +148,8 @@ function chooseKenoHitCount(
 
   if (!wantWin) {
     const losingCandidates = candidates.filter((x) => x.multiplier <= 1);
-    losingCandidates.sort((a, b) => b.multiplier - a.multiplier || a.hits - b.hits);
-    return losingCandidates[0]?.hits ?? 0;
+    const picked = pickRandomBest(losingCandidates, (x) => -x.multiplier);
+    return picked?.hits ?? 0;
   }
 
   const boundedWins = candidates.filter(
@@ -157,12 +158,11 @@ function chooseKenoHitCount(
   if (boundedWins.length === 0) return 0;
 
   const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
-  boundedWins.sort((a, b) => {
-    const distance =
-      Math.abs(a.multiplier - targetMultiplier) - Math.abs(b.multiplier - targetMultiplier);
-    return distance || a.multiplier - b.multiplier;
+  const picked = pickRandomBest(boundedWins, (x) => {
+    const distance = Math.abs(x.multiplier - targetMultiplier);
+    return distance * 1000 + x.multiplier / 1_000_000;
   });
-  return boundedWins[0]?.hits ?? 0;
+  return picked?.hits ?? 0;
 }
 
 function drawWithHitCount(
