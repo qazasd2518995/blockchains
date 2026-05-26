@@ -622,9 +622,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               specialSymbols,
               payoutAmount: baseBetAmount,
             });
-            const currentCanvas = canvasRef.current;
-            if (currentCanvas && !isCanvasRenderSurfaceUnavailable(currentCanvas)) return;
-            markSceneFallback('canvas surface unavailable after spin');
+            return;
           } catch (err) {
             markSceneFallback(err);
           }
@@ -653,9 +651,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         if (scene) {
           try {
             await scene.highlightSpecialSymbols(filtered, { fast: spinFast, type, label });
-            const currentCanvas = canvasRef.current;
-            if (currentCanvas && !isCanvasRenderSurfaceUnavailable(currentCanvas)) return;
-            markSceneFallback('canvas surface unavailable after special highlight');
+            return;
           } catch (err) {
             markSceneFallback(err);
           }
@@ -695,9 +691,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               });
               onMultiplierActivated?.();
             }
-            const currentCanvas = canvasRef.current;
-            if (currentCanvas && !isCanvasRenderSurfaceUnavailable(currentCanvas)) return;
-            markSceneFallback('canvas surface unavailable after cascade');
+            return;
           } catch (err) {
             markSceneFallback(err);
           }
