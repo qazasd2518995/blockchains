@@ -170,6 +170,7 @@ export async function finalizeControls(
   await updateAgentLineCaps(tx, member.agentId, final);
   await completeDepositControlIfReached(tx, member.id, member.balance);
   await updateBurstControlUsage(tx, outcome, final);
+  await updateWinLossBiteProgress(tx, member, final);
 
   if (outcome.controlled && outcome.controlId && outcome.flipReason) {
     await tx.winLossControlLogs.create({
@@ -236,7 +237,7 @@ async function findControlDecision(
   const agentLineCap = await findAgentLineCapDecision(tx, member.agentId, predicted);
   if (agentLineCap) return agentLineCap;
 
-  const deposit = await findDepositDecision(tx, member);
+  const deposit = await findDepositDecision(tx, member, predicted);
   if (deposit) return deposit;
 
   const targetedManual = await findManualDetectionDecision(tx, member, 'targeted');
@@ -259,7 +260,7 @@ async function findWinLossDecision(
   scope: WinLossDecisionScope = 'all',
 ): Promise<ControlDecision | null> {
   const controls = await tx.winLossControl.findMany({
-    where: { isActive: true },
+    where: { isActive: true, isCompleted: false },
     orderBy: { createdAt: 'desc' },
   });
   if (controls.length === 0) return null;
@@ -305,6 +306,17 @@ async function findWinLossDecision(
 
   const selected = ranked[0];
   if (!selected) return null;
+  if (
+    selected.desired === 'LOSS' &&
+    selected.control.targetLossAmount &&
+    selected.control.currentLossAmount.greaterThanOrEqualTo(selected.control.targetLossAmount)
+  ) {
+    await tx.winLossControl.update({
+      where: { id: selected.control.id },
+      data: { isActive: false, isCompleted: true, completedAt: new Date() },
+    });
+    return null;
+  }
   if (!passesControlInterventionRate(selected.control.controlPercentage)) return null;
 
   if (selected.desired === 'LOSS') {
@@ -481,7 +493,11 @@ async function findAgentLineCapDecision(
   return null;
 }
 
-async function findDepositDecision(tx: Db, member: MemberScope): Promise<ControlDecision | null> {
+async function findDepositDecision(
+  tx: Db,
+  member: MemberScope,
+  predicted: PredictedResult,
+): Promise<ControlDecision | null> {
   const control = await tx.memberDepositControl.findFirst({
     where: { memberId: member.id, isActive: true, isCompleted: false },
     orderBy: { createdAt: 'desc' },
@@ -492,10 +508,8 @@ async function findDepositDecision(tx: Db, member: MemberScope): Promise<Control
     where: { id: member.id },
     select: { balance: true },
   });
-  if (
-    currentUser &&
-    currentUser.balance.minus(control.startBalance).greaterThanOrEqualTo(control.targetProfit)
-  ) {
+  const currentProfit = currentUser ? currentUser.balance.minus(control.startBalance) : ZERO;
+  if (currentProfit.greaterThanOrEqualTo(control.targetProfit)) {
     await tx.memberDepositControl.update({
       where: { id: control.id },
       data: { isActive: false, isCompleted: true },
@@ -503,10 +517,16 @@ async function findDepositDecision(tx: Db, member: MemberScope): Promise<Control
     return null;
   }
 
+  const remainingProfit = Prisma.Decimal.max(control.targetProfit.sub(currentProfit), ZERO);
+  const maxPayout = control.notes?.includes('auto_revive')
+    ? predicted.amount.add(remainingProfit).toDecimalPlaces(2)
+    : undefined;
+
   return {
     desired: Math.random() < Number(control.controlWinRate) ? 'WIN' : 'LOSS',
     controlId: control.id,
     reason: 'deposit_control',
+    maxPayout,
   };
 }
 
@@ -929,6 +949,75 @@ async function updateBurstControlUsage(
       todayBurstAmount: { increment: profit },
       todayBurstCount: { increment: outcome.flipReason === 'burst_win' ? 1 : 0 },
     },
+  });
+}
+
+async function updateWinLossBiteProgress(
+  tx: Db,
+  member: MemberScope,
+  final: FinalizedControlResult,
+): Promise<void> {
+  const lossAmount = final.amount.sub(final.payout).toDecimalPlaces(2);
+  if (lossAmount.lessThanOrEqualTo(0)) return;
+
+  const controls = await findApplicableLossTargetControls(tx, member);
+  for (const control of controls) {
+    if (!control.targetLossAmount) continue;
+    const nextLoss = control.currentLossAmount.add(lossAmount).toDecimalPlaces(2);
+    const completed = nextLoss.greaterThanOrEqualTo(control.targetLossAmount);
+    await tx.winLossControl.update({
+      where: { id: control.id },
+      data: {
+        currentLossAmount: nextLoss,
+        isActive: !completed,
+        isCompleted: completed,
+        completedAt: completed ? new Date() : null,
+      },
+    });
+  }
+}
+
+async function findApplicableLossTargetControls(
+  tx: Db,
+  member: MemberScope,
+): Promise<
+  Array<{
+    id: string;
+    controlMode: string;
+    targetId: string | null;
+    targetUsername: string | null;
+    targetLossAmount: Prisma.Decimal | null;
+    currentLossAmount: Prisma.Decimal;
+  }>
+> {
+  const controls = await tx.winLossControl.findMany({
+    where: {
+      isActive: true,
+      isCompleted: false,
+      lossControl: true,
+      targetLossAmount: { not: null },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      controlMode: true,
+      targetId: true,
+      targetUsername: true,
+      targetLossAmount: true,
+      currentLossAmount: true,
+    },
+  });
+  if (controls.length === 0) return [];
+
+  const ancestors = member.agentId ? await getAgentAncestors(tx, member.agentId) : [];
+  return controls.filter((control) => {
+    if (control.controlMode === 'SINGLE_MEMBER') {
+      return control.targetId === member.id || control.targetUsername === member.username;
+    }
+    if (control.controlMode === 'AGENT_LINE') {
+      return Boolean(control.targetId && ancestors.includes(control.targetId));
+    }
+    return control.controlMode === 'AUTO_DETECT' || control.controlMode === 'NORMAL';
   });
 }
 

@@ -16,6 +16,7 @@ import {
 import {
   calculateCurrentSettlement,
   calculateAutoDetectionBitePlan,
+  calculateControlCapital,
   checkAndCompleteManualDetectionControls,
   getAllActiveManualDetectionControls,
   getControlGameDay,
@@ -139,6 +140,27 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
     async (req, reply) => {
       const body = winLossControlSchema.parse(req.body);
+      const targetBitePercentage =
+        body.lossControl && body.targetBitePercentage
+          ? decimal(body.targetBitePercentage).toDecimalPlaces(2)
+          : null;
+      let startBalanceAmount: Prisma.Decimal | null = null;
+      let targetLossAmount: Prisma.Decimal | null = null;
+      if (targetBitePercentage && targetBitePercentage.greaterThan(0)) {
+        const scope =
+          body.controlMode === 'SINGLE_MEMBER'
+            ? ManualDetectionScope.MEMBER
+            : body.controlMode === 'AGENT_LINE'
+              ? ManualDetectionScope.AGENT_LINE
+              : ManualDetectionScope.ALL;
+        startBalanceAmount = await calculateControlCapital(
+          fastify.prisma,
+          scope,
+          body.controlMode === 'AGENT_LINE' ? body.targetId : null,
+          body.controlMode === 'SINGLE_MEMBER' ? body.targetUsername : null,
+        );
+        targetLossAmount = startBalanceAmount.mul(targetBitePercentage).div(100).toDecimalPlaces(2);
+      }
       const created = await fastify.prisma.winLossControl.create({
         data: {
           controlMode: body.controlMode,
@@ -146,9 +168,15 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           targetId: body.targetId ?? null,
           targetUsername: body.targetUsername ?? null,
           controlPercentage: new Prisma.Decimal(body.controlPercentage),
+          targetBitePercentage,
+          startBalanceAmount,
+          targetLossAmount,
+          currentLossAmount: new Prisma.Decimal(0),
           winControl: body.winControl,
           lossControl: body.lossControl,
           isActive: true,
+          isCompleted: false,
+          completedAt: null,
           startPeriod: body.startPeriod ?? null,
           operatorId: req.admin.id,
           operatorUsername: req.admin.username,
@@ -159,7 +187,12 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         action: 'control.win_loss.create',
         targetType: 'control',
         targetId: created.id,
-        newValues: { controlMode: created.controlMode, targetId: created.targetId },
+        newValues: {
+          controlMode: created.controlMode,
+          targetId: created.targetId,
+          targetBitePercentage: created.targetBitePercentage?.toFixed(2) ?? null,
+          targetLossAmount: created.targetLossAmount?.toFixed(2) ?? null,
+        },
         req,
       });
       reply.code(201).send(created);

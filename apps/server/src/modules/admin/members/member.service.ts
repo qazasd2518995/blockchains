@@ -7,6 +7,7 @@ import { canManageAgent, canManageMember, listAgentDescendants, resolveAgentScop
 import { runSerializable } from '../../games/_common/BaseGameService.js';
 import { createPlayerSeeds } from '../../auth/player-seeds.js';
 import { writeAudit } from '../audit/audit.service.js';
+import { maybeCreateAutoRevivalDepositControl } from '../controls/controls.runtime.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import { resolveAdminGameDayRange } from '../gameDay.js';
 import type {
@@ -127,6 +128,17 @@ export class MemberService {
       }
 
       await createPlayerSeeds(tx, created.id);
+
+      if (balanceForMember.greaterThan(0)) {
+        await maybeCreateAutoRevivalDepositControl(tx, {
+          memberId: created.id,
+          memberUsername: created.username,
+          agentId: created.agentId,
+          depositAmount: balanceForMember,
+          balanceAfter: balanceForMember,
+          operatorUsername: operator.username,
+        });
+      }
 
       return { member: created, agentAfter: agentAfterBalance };
     });

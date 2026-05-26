@@ -52,9 +52,14 @@ interface WinLossRow {
   targetType: string | null;
   targetUsername: string | null;
   controlPercentage: string;
+  targetBitePercentage: string | null;
+  startBalanceAmount: string | null;
+  targetLossAmount: string | null;
+  currentLossAmount: string;
   winControl: boolean;
   lossControl: boolean;
   isActive: boolean;
+  isCompleted: boolean;
   operatorUsername: string | null;
   createdAt: string;
 }
@@ -362,9 +367,17 @@ export function ControlsOverviewPage(): JSX.Element {
       key: 'direction',
       label: '控制方向',
       render: (r) => (
-        <div className="flex gap-1 text-[10px]">
-          {r.winControl && <span className="tag tag-toxic">放水</span>}
-          {r.lossControl && <span className="tag tag-ember">杀分</span>}
+        <div className="flex flex-col gap-1 text-[10px]">
+          <div className="flex gap-1">
+            {r.winControl && <span className="tag tag-toxic">放會員 / 上級付</span>}
+            {r.lossControl && <span className="tag tag-ember">咬會員 / 上級收</span>}
+          </div>
+          {r.lossControl && r.targetLossAmount && (
+            <span className="font-mono text-[#A44722]">
+              咬 {Number.parseFloat(r.targetBitePercentage ?? '0').toFixed(0)}% · {fmt(r.currentLossAmount)} /{' '}
+              {fmt(r.targetLossAmount)}
+            </span>
+          )}
         </div>
       ),
     },
@@ -372,7 +385,9 @@ export function ControlsOverviewPage(): JSX.Element {
       key: 'status',
       label: '状态',
       render: (r) =>
-        r.isActive ? (
+        r.isCompleted ? (
+          <span className="tag tag-acid">已完成</span>
+        ) : r.isActive ? (
           <span className="tag tag-toxic">启用中</span>
         ) : (
           <span className="tag tag-ember">停用</span>

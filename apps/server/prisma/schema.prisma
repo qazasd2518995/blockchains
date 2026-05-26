@@ -501,24 +501,31 @@ enum ManualDetectionScope {
 }
 
 model WinLossControl {
-  id                String      @id @default(cuid())
-  controlMode       ControlMode
-  targetType        String?
-  targetId          String?
-  targetUsername    String?
-  controlPercentage Decimal     @default(50) @db.Decimal(5, 2)
-  winControl        Boolean     @default(false)
-  lossControl       Boolean     @default(false)
-  isActive          Boolean     @default(true)
-  startPeriod       String?
-  operatorId        String?
-  operator          Agent?      @relation("WLCOperator", fields: [operatorId], references: [id])
-  operatorUsername  String?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  id                   String    @id @default(cuid())
+  controlMode          ControlMode
+  targetType           String?
+  targetId             String?
+  targetUsername       String?
+  controlPercentage    Decimal   @default(50) @db.Decimal(5, 2)
+  targetBitePercentage Decimal?  @db.Decimal(5, 2)
+  startBalanceAmount   Decimal?  @db.Decimal(20, 2)
+  targetLossAmount     Decimal?  @db.Decimal(20, 2)
+  currentLossAmount    Decimal   @default(0) @db.Decimal(20, 2)
+  winControl           Boolean   @default(false)
+  lossControl          Boolean   @default(false)
+  isActive             Boolean   @default(true)
+  isCompleted          Boolean   @default(false)
+  completedAt          DateTime?
+  startPeriod          String?
+  operatorId           String?
+  operator             Agent?    @relation("WLCOperator", fields: [operatorId], references: [id])
+  operatorUsername     String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@index([isActive, controlMode])
   @@index([targetType, targetId])
+  @@index([isActive, isCompleted])
 }
 
 model MemberWinCapControl {
@@ -637,6 +644,7 @@ model ManualDetectionControl {
   lastCapitalAmount        Decimal?             @db.Decimal(20, 2)
   lastPlatformTake         Decimal?             @db.Decimal(20, 2)
   lastRedistributionAmount Decimal?             @db.Decimal(20, 2)
+  totalDistributedAmount   Decimal              @default(0) @db.Decimal(20, 2)
   startSettlement          Decimal?             @db.Decimal(20, 2)
   isActive                 Boolean              @default(true)
   isCompleted              Boolean              @default(false)

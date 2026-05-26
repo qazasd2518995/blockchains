@@ -1,6 +1,10 @@
 import { Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
-import { calculateAutoDetectionBitePlan, findApplicableBurstControl } from './controls.runtime.js';
+import {
+  calculateAutoDetectionBitePlan,
+  distributeAutoDetectionRedistribution,
+  findApplicableBurstControl,
+} from './controls.runtime.js';
 
 describe('calculateAutoDetectionBitePlan', () => {
   it('turns bite percentage into the next superior-settlement target', async () => {
@@ -25,6 +29,52 @@ describe('calculateAutoDetectionBitePlan', () => {
     expect(plan.platformTake.toFixed(2)).toBe('100.00');
     expect(plan.redistributionAmount.toFixed(2)).toBe('900.00');
     expect(plan.targetSettlement.toFixed(2)).toBe('100.00');
+  });
+});
+
+describe('distributeAutoDetectionRedistribution', () => {
+  it('credits the redistribution pool to funded members only', async () => {
+    const db = {
+      user: {
+        findMany: vi
+          .fn()
+          .mockResolvedValueOnce([{ id: 'u1' }, { id: 'u2' }, { id: 'u3' }])
+          .mockResolvedValueOnce([
+            { id: 'u1', username: 'alice', balance: new Prisma.Decimal(1000) },
+            { id: 'u3', username: 'cindy', balance: new Prisma.Decimal(3000) },
+          ]),
+        update: vi.fn().mockResolvedValue({ balance: new Prisma.Decimal(550) }),
+      },
+      transaction: {
+        findMany: vi.fn().mockResolvedValue([{ userId: 'u1' }, { userId: 'u3' }]),
+        create: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const result = await distributeAutoDetectionRedistribution(
+      db as never,
+      {
+        id: 'control-1',
+        scope: 'ALL',
+        cycleCount: 0,
+      },
+      {
+        gameDay: '2026-05-26',
+        bitePercentage: new Prisma.Decimal(10),
+        houseTakePercentage: new Prisma.Decimal(10),
+        capitalAmount: new Prisma.Decimal(10000),
+        biteAmount: new Prisma.Decimal(1000),
+        platformTake: new Prisma.Decimal(100),
+        redistributionAmount: new Prisma.Decimal(900),
+        currentSettlement: new Prisma.Decimal(0),
+        targetSettlement: new Prisma.Decimal(100),
+      },
+    );
+
+    expect(result.memberCount).toBe(2);
+    expect(result.distributedAmount.toFixed(2)).toBe('900.00');
+    expect(db.user.update).toHaveBeenCalledTimes(4);
+    expect(db.transaction.create).toHaveBeenCalledTimes(4);
   });
 });
 

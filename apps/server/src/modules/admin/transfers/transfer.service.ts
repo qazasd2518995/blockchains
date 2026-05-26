@@ -4,6 +4,7 @@ import { ApiError } from '../../../utils/errors.js';
 import { canManageAgent, canManageMember } from '../../../utils/hierarchy.js';
 import { runSerializable } from '../../games/_common/BaseGameService.js';
 import { writeAudit } from '../audit/audit.service.js';
+import { maybeCreateAutoRevivalDepositControl } from '../controls/controls.runtime.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import type {
   AgentToAgentInput,
@@ -140,6 +141,16 @@ export class TransferService {
           meta: { from: 'agent', agentId: agent.id, operatorId: operator.id },
         },
       });
+      if (isDeposit) {
+        await maybeCreateAutoRevivalDepositControl(tx, {
+          memberId: member.id,
+          memberUsername: member.username,
+          agentId: member.agentId,
+          depositAmount: absAmount,
+          balanceAfter: memberAfter,
+          operatorUsername: operator.username,
+        });
+      }
       return transfer;
     });
 
@@ -234,6 +245,16 @@ export class TransferService {
           meta: { from: 'cs', operatorId: operator.id },
         },
       });
+      if (amount.greaterThan(0)) {
+        await maybeCreateAutoRevivalDepositControl(tx, {
+          memberId: member.id,
+          memberUsername: member.username,
+          agentId: member.agentId,
+          depositAmount: amount,
+          balanceAfter: after,
+          operatorUsername: operator.username,
+        });
+      }
       return transfer;
     });
     await writeAudit(this.prisma, {

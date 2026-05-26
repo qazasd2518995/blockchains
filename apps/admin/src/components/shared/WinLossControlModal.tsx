@@ -16,6 +16,7 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   const [mode, setMode] = useState<ControlMode>('SINGLE_MEMBER');
   const [target, setTarget] = useState<AccountSearchOption | null>(null);
   const [pct, setPct] = useState('70');
+  const [targetBitePct, setTargetBitePct] = useState('50');
   const [startPeriod, setStartPeriod] = useState('');
   const [direction, setDirection] = useState<ControlDirection>('loss');
   const [err, setErr] = useState<string | null>(null);
@@ -36,6 +37,7 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
         targetId: target.id,
         targetUsername: target.username,
         controlPercentage: pct,
+        targetBitePercentage: direction === 'loss' ? targetBitePct : undefined,
         winControl: direction === 'win',
         lossControl: direction === 'loss',
         startPeriod: startPeriod.trim() || undefined,
@@ -50,7 +52,13 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="新增输赢控制" subtitle="按介入机率翻转输赢" width="md">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="新增输赢控制"
+      subtitle="未命中介入率时自然开奖；咬分会按目标金额慢慢停止"
+      width="md"
+    >
       <div className="space-y-4">
         <label className="block">
           <div className="label mb-2">控制模式</div>
@@ -91,6 +99,23 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
             </div>
           </label>
           <label className="block">
+            <div className="label mb-2">目标咬度（%）</div>
+            <input
+              type="text"
+              value={targetBitePct}
+              onChange={(e) => setTargetBitePct(e.target.value)}
+              disabled={direction !== 'loss'}
+              className="term-input font-mono disabled:opacity-50"
+              placeholder="例如 50"
+            />
+            <div className="mt-1 text-[10px] text-ink-500">
+              杀分时启用：50 = 以目标账号当前总余额 50% 为咬分目标。
+            </div>
+          </label>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
             <div className="label mb-2">起始期号（选填）</div>
             <input
               type="text"
@@ -100,6 +125,10 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
               placeholder="例如 20260424001"
             />
           </label>
+          <div className="rounded-lg border border-[#D7E3EA] bg-[#F7FAFC] px-3 py-2 text-[11px] text-[#667789]">
+            <div className="font-semibold text-[#24586A]">咬法节奏</div>
+            <div className="mt-1">系统会按 3 输 1 赢或 4 输 1 赢释放，不会每局强制。</div>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -111,8 +140,8 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
               onChange={() => setDirection('loss')}
             />
             <span>
-              <span className="block font-semibold text-[#8A352F]">杀分</span>
-              <span className="block text-[#667789]">将赢翻成输</span>
+              <span className="block font-semibold text-[#8A352F]">咬会员 / 上级收</span>
+              <span className="block text-[#667789]">慢慢让会员往下</span>
             </span>
           </label>
           <label className="flex items-center gap-2 rounded-lg border border-[#D7E3EA] bg-white px-3 py-2 text-[12px]">
@@ -123,8 +152,8 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
               onChange={() => setDirection('win')}
             />
             <span>
-              <span className="block font-semibold text-[#0F766E]">放水</span>
-              <span className="block text-[#667789]">将输翻成赢</span>
+              <span className="block font-semibold text-[#0F766E]">放会员 / 上级付</span>
+              <span className="block text-[#667789]">慢慢让会员往上</span>
             </span>
           </label>
         </div>

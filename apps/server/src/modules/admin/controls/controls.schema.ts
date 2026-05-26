@@ -27,6 +27,7 @@ export const winLossControlSchema = z
     targetId: z.string().optional().nullable(),
     targetUsername: z.string().optional().nullable(),
     controlPercentage: positiveRateDecimal.default('50'),
+    targetBitePercentage: positiveRateDecimal.optional().nullable(),
     winControl: z.boolean().default(false),
     lossControl: z.boolean().default(false),
     startPeriod: z.string().optional().nullable(),

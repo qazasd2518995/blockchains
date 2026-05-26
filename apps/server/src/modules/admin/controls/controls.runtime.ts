@@ -55,6 +55,16 @@ interface AgentRebateProfile {
   maxBaccaratRebatePercentage: Prisma.Decimal;
 }
 
+interface FundedControlMember {
+  id: string;
+  username: string;
+  balance: Prisma.Decimal;
+}
+
+const AUTO_REVIVAL_NOTE = 'auto_revive';
+const AUTO_REVIVAL_CAPITAL_THRESHOLD = new Prisma.Decimal('0.20');
+const AUTO_REVIVAL_TARGET_PROFIT_RATE = new Prisma.Decimal('0.80');
+
 export function getControlGameDay(now: Date = new Date()): string {
   return getAdminGameDay(now);
 }
@@ -161,6 +171,7 @@ export async function checkAndCompleteManualDetectionControls(
         currentSettlement: settlement.superiorSettlement,
       });
       if (plan.platformTake.greaterThan(0)) {
+        const distribution = await distributeAutoDetectionRedistribution(db, control, plan);
         await db.manualDetectionControl.update({
           where: { id: control.id },
           data: {
@@ -171,7 +182,8 @@ export async function checkAndCompleteManualDetectionControls(
             lastCycleAt: new Date(),
             lastCapitalAmount: plan.capitalAmount,
             lastPlatformTake: plan.platformTake,
-            lastRedistributionAmount: plan.redistributionAmount,
+            lastRedistributionAmount: distribution.distributedAmount,
+            totalDistributedAmount: { increment: distribution.distributedAmount },
             isActive: true,
             isCompleted: false,
             completedAt: null,
@@ -212,6 +224,149 @@ export async function checkAndCompleteManualDetectionControls(
   }
 
   return { completedCount };
+}
+
+export async function distributeAutoDetectionRedistribution(
+  db: Db,
+  control: {
+    id: string;
+    scope: ManualDetectionScope;
+    targetAgentId?: string | null;
+    targetMemberUsername?: string | null;
+    cycleCount: number;
+  },
+  plan: AutoDetectionBitePlan,
+): Promise<{ memberCount: number; shareAmount: Prisma.Decimal; distributedAmount: Prisma.Decimal }> {
+  const amount = plan.redistributionAmount.toDecimalPlaces(2);
+  if (amount.lessThanOrEqualTo(0)) {
+    return { memberCount: 0, shareAmount: ZERO, distributedAmount: ZERO };
+  }
+
+  const members = await listFundedControlMembers(
+    db,
+    control.scope,
+    control.targetAgentId,
+    control.targetMemberUsername,
+  );
+  if (members.length === 0) {
+    return { memberCount: 0, shareAmount: ZERO, distributedAmount: ZERO };
+  }
+
+  const collectedAmount = await collectAutoDetectionRedistributionPool(
+    db,
+    control,
+    plan,
+    members,
+    amount,
+  );
+  if (collectedAmount.lessThanOrEqualTo(0)) {
+    return { memberCount: 0, shareAmount: ZERO, distributedAmount: ZERO };
+  }
+
+  const baseShare = collectedAmount.div(members.length).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const remainder = collectedAmount.sub(baseShare.mul(members.length)).toDecimalPlaces(2);
+  let distributedAmount = ZERO;
+  let creditedMembers = 0;
+
+  for (const [index, member] of members.entries()) {
+    const share = index === 0 ? baseShare.add(remainder) : baseShare;
+    if (share.lessThanOrEqualTo(0)) continue;
+
+    const updated = await db.user.update({
+      where: { id: member.id },
+      data: { balance: { increment: share } },
+      select: { balance: true },
+    });
+    await db.transaction.create({
+      data: {
+        userId: member.id,
+        type: 'ADJUSTMENT',
+        amount: share,
+        balanceAfter: updated.balance,
+        meta: {
+          control: 'auto_detection_redistribution',
+          controlId: control.id,
+          gameDay: plan.gameDay,
+          cycle: control.cycleCount + 1,
+          bitePercentage: plan.bitePercentage.toFixed(2),
+          houseTakePercentage: plan.houseTakePercentage.toFixed(2),
+          biteAmount: plan.biteAmount.toFixed(2),
+          platformTake: plan.platformTake.toFixed(2),
+          redistributionAmount: collectedAmount.toFixed(2),
+        },
+      },
+    });
+    distributedAmount = distributedAmount.add(share);
+    creditedMembers += 1;
+  }
+
+  return {
+    memberCount: creditedMembers,
+    shareAmount: baseShare,
+    distributedAmount: distributedAmount.toDecimalPlaces(2),
+  };
+}
+
+async function collectAutoDetectionRedistributionPool(
+  db: Db,
+  control: {
+    id: string;
+    cycleCount: number;
+  },
+  plan: AutoDetectionBitePlan,
+  members: FundedControlMember[],
+  targetAmount: Prisma.Decimal,
+): Promise<Prisma.Decimal> {
+  const totalBalance = members.reduce(
+    (sum, member) => sum.add(Prisma.Decimal.max(member.balance, ZERO)),
+    ZERO,
+  );
+  if (totalBalance.lessThanOrEqualTo(0)) return ZERO;
+
+  const collectTarget = Prisma.Decimal.min(targetAmount, totalBalance).toDecimalPlaces(2);
+  let collectedAmount = ZERO;
+
+  for (const [index, member] of members.entries()) {
+    const available = Prisma.Decimal.max(member.balance, ZERO);
+    if (available.lessThanOrEqualTo(0)) continue;
+
+    const isLast = index === members.length - 1;
+    const proportional = available.mul(collectTarget).div(totalBalance);
+    let debit = isLast
+      ? collectTarget.sub(collectedAmount)
+      : proportional.toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+    debit = Prisma.Decimal.min(debit, available, collectTarget.sub(collectedAmount)).toDecimalPlaces(2);
+    if (debit.lessThanOrEqualTo(0)) continue;
+
+    const updated = await db.user.update({
+      where: { id: member.id },
+      data: { balance: { decrement: debit } },
+      select: { balance: true },
+    });
+    await db.transaction.create({
+      data: {
+        userId: member.id,
+        type: 'ADJUSTMENT',
+        amount: debit.negated(),
+        balanceAfter: updated.balance,
+        meta: {
+          control: 'auto_detection_redistribution_pool_debit',
+          controlId: control.id,
+          gameDay: plan.gameDay,
+          cycle: control.cycleCount + 1,
+          bitePercentage: plan.bitePercentage.toFixed(2),
+          houseTakePercentage: plan.houseTakePercentage.toFixed(2),
+          biteAmount: plan.biteAmount.toFixed(2),
+          platformTake: plan.platformTake.toFixed(2),
+          redistributionAmount: collectTarget.toFixed(2),
+        },
+      },
+    });
+    collectedAmount = collectedAmount.add(debit).toDecimalPlaces(2);
+    if (collectedAmount.greaterThanOrEqualTo(collectTarget)) break;
+  }
+
+  return collectedAmount;
 }
 
 export async function calculateAutoDetectionBitePlan(
@@ -289,6 +444,68 @@ export async function calculateControlCapital(
   return aggregate._sum.balance ?? ZERO;
 }
 
+export async function maybeCreateAutoRevivalDepositControl(
+  db: Db,
+  input: {
+    memberId: string;
+    memberUsername: string;
+    agentId: string | null;
+    depositAmount: Prisma.Decimal | string | number;
+    balanceAfter: Prisma.Decimal | string | number;
+    operatorUsername?: string | null;
+  },
+): Promise<{ created: boolean; targetProfit: Prisma.Decimal; capitalAmount: Prisma.Decimal }> {
+  const depositAmount = decimal(input.depositAmount).toDecimalPlaces(2);
+  const balanceAfter = decimal(input.balanceAfter).toDecimalPlaces(2);
+  if (!input.agentId || depositAmount.lessThanOrEqualTo(0)) {
+    return { created: false, targetProfit: ZERO, capitalAmount: ZERO };
+  }
+
+  const capitalAmount = await calculateControlCapital(db, ManualDetectionScope.ALL);
+  if (capitalAmount.lessThanOrEqualTo(0)) {
+    return { created: false, targetProfit: ZERO, capitalAmount };
+  }
+
+  const requiredDeposit = capitalAmount.mul(AUTO_REVIVAL_CAPITAL_THRESHOLD).toDecimalPlaces(2);
+  if (depositAmount.lessThan(requiredDeposit)) {
+    return { created: false, targetProfit: ZERO, capitalAmount };
+  }
+
+  const existing = await db.memberDepositControl.findFirst({
+    where: {
+      memberId: input.memberId,
+      isActive: true,
+      isCompleted: false,
+      notes: { contains: AUTO_REVIVAL_NOTE },
+    },
+    select: { id: true, targetProfit: true },
+  });
+  if (existing) {
+    return { created: false, targetProfit: existing.targetProfit, capitalAmount };
+  }
+
+  const targetProfit = depositAmount.mul(AUTO_REVIVAL_TARGET_PROFIT_RATE).toDecimalPlaces(2);
+  if (targetProfit.lessThanOrEqualTo(0)) {
+    return { created: false, targetProfit: ZERO, capitalAmount };
+  }
+
+  await db.memberDepositControl.create({
+    data: {
+      memberId: input.memberId,
+      memberUsername: input.memberUsername,
+      agentId: input.agentId,
+      depositAmount,
+      targetProfit,
+      startBalance: balanceAfter,
+      controlWinRate: new Prisma.Decimal(1),
+      notes: `${AUTO_REVIVAL_NOTE}: deposit ${depositAmount.toFixed(2)} >= 20% capital ${capitalAmount.toFixed(2)}`,
+      operatorUsername: input.operatorUsername ?? 'auto_detection',
+    },
+  });
+
+  return { created: true, targetProfit, capitalAmount };
+}
+
 async function listControlScopeMemberIds(
   db: Db,
   scope: ManualDetectionScope,
@@ -319,6 +536,40 @@ async function listControlScopeMemberIds(
     select: { id: true },
   });
   return members.map((member) => member.id);
+}
+
+async function listFundedControlMembers(
+  db: Db,
+  scope: ManualDetectionScope,
+  targetAgentId?: string | null,
+  targetMemberUsername?: string | null,
+): Promise<FundedControlMember[]> {
+  const memberIds = await listControlScopeMemberIds(db, scope, targetAgentId, targetMemberUsername);
+  if (memberIds.length === 0) return [];
+
+  const window = getControlGameDayWindow();
+  const fundedRows = await db.transaction.findMany({
+    where: {
+      userId: { in: memberIds },
+      createdAt: { gte: window.start, lt: window.end },
+      type: { in: ['SIGNUP_BONUS', 'TRANSFER_IN', 'ADJUSTMENT'] },
+      amount: { gt: 0 },
+    },
+    distinct: ['userId'],
+    select: { userId: true },
+  });
+  const fundedIds = fundedRows.map((row) => row.userId);
+  const targetIds = fundedIds.length > 0 ? fundedIds : memberIds;
+
+  return db.user.findMany({
+    where: {
+      id: { in: targetIds },
+      disabledAt: null,
+      ...(fundedIds.length === 0 ? { balance: { gt: 0 } } : {}),
+    },
+    select: { id: true, username: true, balance: true },
+    orderBy: { username: 'asc' },
+  });
 }
 
 export async function getAgentAncestors(db: Db, agentId: string): Promise<string[]> {
