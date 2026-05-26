@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { ManualDetectionScope, Prisma } from '@prisma/client';
 import {
   winLossControlSchema,
@@ -12,6 +12,7 @@ import {
   deactivateManualDetectionSchema,
   onlineRewardSchema,
   toggleSchema,
+  type WinLossControlInput,
 } from './controls.schema.js';
 import {
   calculateCurrentSettlement,
@@ -25,6 +26,7 @@ import {
   normalizeMemberWinCapDay,
 } from './controls.runtime.js';
 import { writeAudit } from '../audit/audit.service.js';
+import { canManageAgent, canManageMember } from '../../../utils/hierarchy.js';
 
 function decimal(value: Prisma.Decimal | string | number | null | undefined): Prisma.Decimal {
   if (value instanceof Prisma.Decimal) return value;
@@ -102,17 +104,129 @@ async function serializeManualControl(
 }
 
 /**
- * 控制表 CRUD（僅 super-admin 可建立/改）。
+ * 控制表 CRUD。Super Admin 可操作全域控制；代理只能建立/管理自己的下線輸贏控制。
  * 所有 mutation 都寫 AuditLog。
  */
 export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.addHook('preHandler', async (req, reply) => {
     await fastify.authenticateAdmin(req, reply);
-    await fastify.requireSuperAdmin(req, reply);
   });
 
-  fastify.get('/logs', { preHandler: [fastify.authenticateAdmin] }, async () => {
+  const auditActor = (req: { admin: { id: string; role: string; username: string } }) => ({
+    id: req.admin.id,
+    type: req.admin.role === 'SUPER_ADMIN' ? ('super_admin' as const) : ('agent' as const),
+    username: req.admin.username,
+  });
+
+  async function resolveWinLossTarget(
+    req: { admin: { id: string; role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT'; username: string } },
+    body: WinLossControlInput,
+    reply: FastifyReply,
+  ): Promise<
+    | {
+        ok: true;
+        targetType: string | null;
+        targetId: string | null;
+        targetUsername: string | null;
+      }
+    | { ok: false }
+  > {
+    const targetType =
+      body.targetType ??
+      (body.controlMode === 'SINGLE_MEMBER'
+        ? 'member'
+        : body.controlMode === 'AGENT_LINE'
+          ? 'agent'
+          : null);
+
+    if (req.admin.role === 'SUPER_ADMIN') {
+      return {
+        ok: true,
+        targetType,
+        targetId: body.targetId ?? null,
+        targetUsername: body.targetUsername ?? null,
+      };
+    }
+
+    if (body.controlMode !== 'SINGLE_MEMBER' && body.controlMode !== 'AGENT_LINE') {
+      reply
+        .code(403)
+        .send({ code: 'FORBIDDEN', message: 'Agents can only control their own member or agent line' });
+      return { ok: false };
+    }
+
+    if (!body.targetId) {
+      reply.code(400).send({ code: 'INVALID_ACTION', message: 'Missing target account' });
+      return { ok: false };
+    }
+
+    if (body.controlMode === 'SINGLE_MEMBER') {
+      const member = await fastify.prisma.user.findUnique({
+        where: { id: body.targetId },
+        select: { id: true, username: true, role: true },
+      });
+      if (!member || member.role !== 'PLAYER') {
+        reply.code(404).send({ code: 'MEMBER_NOT_FOUND', message: 'Member not found' });
+        return { ok: false };
+      }
+      const ok = await canManageMember(fastify.prisma, req.admin, member.id);
+      if (!ok) {
+        reply.code(403).send({ code: 'FORBIDDEN', message: 'Cannot control this member' });
+        return { ok: false };
+      }
+      return { ok: true, targetType: 'member', targetId: member.id, targetUsername: member.username };
+    }
+
+    const agent = await fastify.prisma.agent.findUnique({
+      where: { id: body.targetId },
+      select: { id: true, username: true, role: true, status: true },
+    });
+    if (!agent || agent.role === 'SUB_ACCOUNT' || agent.status === 'DELETED') {
+      reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
+      return { ok: false };
+    }
+    const ok = await canManageAgent(fastify.prisma, req.admin, agent.id);
+    if (!ok) {
+      reply.code(403).send({ code: 'FORBIDDEN', message: 'Cannot control this agent line' });
+      return { ok: false };
+    }
+    return { ok: true, targetType: 'agent', targetId: agent.id, targetUsername: agent.username };
+  }
+
+  async function ensureOwnWinLossControl(
+    req: { admin: { id: string; role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT' } },
+    reply: FastifyReply,
+    id: string,
+  ): Promise<boolean> {
+    if (req.admin.role === 'SUPER_ADMIN') return true;
+    const control = await fastify.prisma.winLossControl.findUnique({
+      where: { id },
+      select: { operatorId: true },
+    });
+    if (!control) {
+      reply.code(404).send({ code: 'CONTROL_NOT_FOUND', message: 'Control not found' });
+      return false;
+    }
+    if (control.operatorId !== req.admin.id) {
+      reply.code(403).send({ code: 'FORBIDDEN', message: 'Cannot modify this control' });
+      return false;
+    }
+    return true;
+  }
+
+  fastify.get('/logs', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
+    const controlIds =
+      req.admin.role === 'SUPER_ADMIN'
+        ? null
+        : (
+            await fastify.prisma.winLossControl.findMany({
+              where: { operatorId: req.admin.id },
+              select: { id: true },
+            })
+          ).map((control) => control.id);
+    if (controlIds && controlIds.length === 0) return { items: [] };
     const logs = await fastify.prisma.winLossControlLogs.findMany({
+      where: controlIds ? { controlId: { in: controlIds } } : undefined,
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -130,16 +244,21 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     };
   });
 
-  fastify.get('/win-loss', { preHandler: [fastify.authenticateAdmin] }, async () => {
-    const items = await fastify.prisma.winLossControl.findMany({ orderBy: { createdAt: 'desc' } });
+  fastify.get('/win-loss', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
+    const items = await fastify.prisma.winLossControl.findMany({
+      where: req.admin.role === 'SUPER_ADMIN' ? undefined : { operatorId: req.admin.id },
+      orderBy: { createdAt: 'desc' },
+    });
     return { items };
   });
 
   fastify.post(
     '/win-loss',
-    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    { preHandler: [fastify.authenticateAdmin] },
     async (req, reply) => {
       const body = winLossControlSchema.parse(req.body);
+      const target = await resolveWinLossTarget(req, body, reply);
+      if (!target.ok) return;
       const targetBitePercentage =
         body.lossControl && body.targetBitePercentage
           ? decimal(body.targetBitePercentage).toDecimalPlaces(2)
@@ -156,17 +275,17 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         startBalanceAmount = await calculateControlCapital(
           fastify.prisma,
           scope,
-          body.controlMode === 'AGENT_LINE' ? body.targetId : null,
-          body.controlMode === 'SINGLE_MEMBER' ? body.targetUsername : null,
+          body.controlMode === 'AGENT_LINE' ? target.targetId : null,
+          body.controlMode === 'SINGLE_MEMBER' ? target.targetUsername : null,
         );
         targetLossAmount = startBalanceAmount.mul(targetBitePercentage).div(100).toDecimalPlaces(2);
       }
       const created = await fastify.prisma.winLossControl.create({
         data: {
           controlMode: body.controlMode,
-          targetType: body.targetType ?? null,
-          targetId: body.targetId ?? null,
-          targetUsername: body.targetUsername ?? null,
+          targetType: target.targetType,
+          targetId: target.targetId,
+          targetUsername: target.targetUsername,
           controlPercentage: new Prisma.Decimal(body.controlPercentage),
           targetBitePercentage,
           startBalanceAmount,
@@ -183,7 +302,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         },
       });
       await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        actor: auditActor(req),
         action: 'control.win_loss.create',
         targetType: 'control',
         targetId: created.id,
@@ -201,16 +320,17 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.patch(
     '/win-loss/:id/toggle',
-    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
-    async (req) => {
+    { preHandler: [fastify.authenticateAdmin] },
+    async (req, reply) => {
       const { id } = req.params as { id: string };
+      if (!(await ensureOwnWinLossControl(req, reply, id))) return;
       const { isActive } = toggleSchema.parse(req.body);
       const updated = await fastify.prisma.winLossControl.update({
         where: { id },
         data: { isActive },
       });
       await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        actor: auditActor(req),
         action: 'control.win_loss.toggle',
         targetType: 'control',
         targetId: id,
@@ -223,12 +343,13 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.delete(
     '/win-loss/:id',
-    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    { preHandler: [fastify.authenticateAdmin] },
     async (req, reply) => {
       const { id } = req.params as { id: string };
+      if (!(await ensureOwnWinLossControl(req, reply, id))) return;
       await fastify.prisma.winLossControl.delete({ where: { id } });
       await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        actor: auditActor(req),
         action: 'control.win_loss.delete',
         targetType: 'control',
         targetId: id,
@@ -238,7 +359,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.get('/win-cap', { preHandler: [fastify.authenticateAdmin] }, async () => {
+  fastify.get('/win-cap', { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] }, async () => {
     const items = await fastify.prisma.memberWinCapControl.findMany({
       orderBy: { createdAt: 'desc' },
     });
@@ -336,7 +457,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.get('/deposit', { preHandler: [fastify.authenticateAdmin] }, async () => {
+  fastify.get('/deposit', { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] }, async () => {
     const items = await fastify.prisma.memberDepositControl.findMany({
       orderBy: { createdAt: 'desc' },
     });
@@ -417,7 +538,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.get('/agent-line', { preHandler: [fastify.authenticateAdmin] }, async () => {
+  fastify.get('/agent-line', { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] }, async () => {
     const items = await fastify.prisma.agentLineWinCap.findMany({ orderBy: { createdAt: 'desc' } });
     const normalized = await Promise.all(
       items.map((item) => normalizeAgentLineCapDay(fastify.prisma, item)),
@@ -507,7 +628,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.get('/burst', { preHandler: [fastify.authenticateAdmin] }, async () => {
+  fastify.get('/burst', { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] }, async () => {
     const items = await fastify.prisma.burstControl.findMany({ orderBy: { createdAt: 'desc' } });
     const normalized = await Promise.all(
       items.map((item) => normalizeBurstControlDay(fastify.prisma, item)),
@@ -677,7 +798,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     },
   );
 
-  fastify.get('/manual-detection/status', { preHandler: [fastify.authenticateAdmin] }, async () => {
+  fastify.get('/manual-detection/status', { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] }, async () => {
     await checkAndCompleteManualDetectionControls(fastify.prisma);
     const items = await getAllActiveManualDetectionControls(fastify.prisma);
     const serialized = await Promise.all(
@@ -693,7 +814,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.get(
     '/manual-detection/history',
-    { preHandler: [fastify.authenticateAdmin] },
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
     async () => {
       const items = await fastify.prisma.manualDetectionControl.findMany({
         orderBy: { createdAt: 'desc' },
@@ -708,7 +829,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.get(
     '/manual-detection/settlement',
-    { preHandler: [fastify.authenticateAdmin] },
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
     async (req) => {
       const query = manualDetectionQuerySchema.parse(req.query);
       const settlement = await calculateCurrentSettlement(
@@ -723,7 +844,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.get(
     '/manual-detection/bite-preview',
-    { preHandler: [fastify.authenticateAdmin] },
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
     async (req) => {
       const query = manualDetectionBitePreviewQuerySchema.parse(req.query);
       const plan = await calculateAutoDetectionBitePlan(fastify.prisma, {
@@ -843,7 +964,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         : await fastify.prisma.manualDetectionControl.create({ data });
 
       await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        actor: auditActor(req),
         action: existing ? 'control.manual_detection.update' : 'control.manual_detection.create',
         targetType: 'control',
         targetId: record.id,
@@ -1004,8 +1125,8 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
 
       const result = await fastify.prisma.$transaction(async (tx) => {
         const members = await tx.user.findMany({
-          where: { id: { in: userIds }, disabledAt: null },
-          select: { id: true, username: true, balance: true },
+          where: { id: { in: userIds }, disabledAt: null, agentId: { not: null } },
+          select: { id: true, username: true, balance: true, agentId: true },
           orderBy: { username: 'asc' },
         });
         if (members.length === 0)
@@ -1015,37 +1136,33 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           .div(members.length)
           .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
         const remainder = totalAmount.sub(baseShare.mul(members.length)).toDecimalPlaces(2);
-        let credited = new Prisma.Decimal(0);
+        let scheduled = new Prisma.Decimal(0);
+        let scheduledCount = 0;
 
         for (const [index, member] of members.entries()) {
           const amount = index === 0 ? baseShare.add(remainder) : baseShare;
-          if (amount.lessThanOrEqualTo(0)) continue;
-          const updated = await tx.user.update({
-            where: { id: member.id },
-            data: { balance: { increment: amount } },
-            select: { balance: true },
-          });
-          await tx.transaction.create({
+          if (amount.lessThanOrEqualTo(0) || !member.agentId) continue;
+          await tx.memberDepositControl.create({
             data: {
-              userId: member.id,
-              type: 'ADJUSTMENT',
-              amount,
-              balanceAfter: updated.balance,
-              meta: {
-                control: 'online_reward',
-                totalAmount: totalAmount.toFixed(2),
-                recentMinutes: body.recentMinutes,
-                operatorId: req.admin.id,
-              },
+              memberId: member.id,
+              memberUsername: member.username,
+              agentId: member.agentId,
+              depositAmount: amount,
+              targetProfit: amount,
+              startBalance: member.balance,
+              controlWinRate: new Prisma.Decimal(1),
+              notes: `auto_revive:online_reward:total=${totalAmount.toFixed(2)}:minutes=${body.recentMinutes}`,
+              operatorUsername: req.admin.username,
             },
           });
-          credited = credited.add(amount);
+          scheduled = scheduled.add(amount);
+          scheduledCount += 1;
         }
 
         return {
-          memberCount: members.length,
+          memberCount: scheduledCount,
           shareAmount: baseShare.toFixed(2),
-          totalAmount: credited.toFixed(2),
+          totalAmount: scheduled.toFixed(2),
         };
       });
 
@@ -1057,10 +1174,10 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       await writeAudit(fastify.prisma, {
-        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
-        action: 'control.online_reward.create',
+        actor: auditActor(req),
+        action: 'control.online_reward_next_win.create',
         targetType: 'control',
-        newValues: { ...result, recentMinutes: body.recentMinutes },
+        newValues: { ...result, recentMinutes: body.recentMinutes, mode: 'next_round_win' },
         req,
       });
 

@@ -56,7 +56,7 @@ export function WinLossControlModal({ open, onClose, onDone }: Props): JSX.Eleme
       open={open}
       onClose={onClose}
       title="新增输赢控制"
-      subtitle="未命中介入率时自然开奖；咬分会按目标金额慢慢停止"
+      subtitle="可查询单一游戏账号或整条代理线；未命中介入率时自然开奖"
       width="md"
     >
       <div className="space-y-4">

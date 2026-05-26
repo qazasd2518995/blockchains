@@ -223,6 +223,9 @@ async function findControlDecision(
     return findBurstDecision(tx, member, gameId, predicted, options);
   }
 
+  const onlineReward = await findOnlineRewardNextWinDecision(tx, member, predicted);
+  if (onlineReward) return onlineReward;
+
   const explicitWinLoss = await findWinLossDecision(tx, member);
   if (explicitWinLoss?.desired === 'LOSS') return explicitWinLoss;
 
@@ -499,11 +502,62 @@ async function findDepositDecision(
   predicted: PredictedResult,
 ): Promise<ControlDecision | null> {
   const control = await tx.memberDepositControl.findFirst({
-    where: { memberId: member.id, isActive: true, isCompleted: false },
+    where: {
+      memberId: member.id,
+      isActive: true,
+      isCompleted: false,
+      OR: [{ notes: null }, { NOT: { notes: { contains: 'online_reward' } } }],
+    },
     orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      startBalance: true,
+      targetProfit: true,
+      controlWinRate: true,
+      notes: true,
+    },
   });
   if (!control) return null;
+  return buildDepositDecision(tx, member, predicted, control);
+}
 
+async function findOnlineRewardNextWinDecision(
+  tx: Db,
+  member: MemberScope,
+  predicted: PredictedResult,
+): Promise<ControlDecision | null> {
+  const control = await tx.memberDepositControl.findFirst({
+    where: {
+      memberId: member.id,
+      isActive: true,
+      isCompleted: false,
+      notes: { contains: 'online_reward' },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      startBalance: true,
+      targetProfit: true,
+      controlWinRate: true,
+      notes: true,
+    },
+  });
+  if (!control) return null;
+  return buildDepositDecision(tx, member, predicted, control);
+}
+
+async function buildDepositDecision(
+  tx: Db,
+  member: MemberScope,
+  predicted: PredictedResult,
+  control: {
+    id: string;
+    startBalance: Prisma.Decimal;
+    targetProfit: Prisma.Decimal;
+    controlWinRate: Prisma.Decimal;
+    notes: string | null;
+  },
+): Promise<ControlDecision | null> {
   const currentUser = await tx.user.findUnique({
     where: { id: member.id },
     select: { balance: true },
@@ -518,15 +572,22 @@ async function findDepositDecision(
   }
 
   const remainingProfit = Prisma.Decimal.max(control.targetProfit.sub(currentProfit), ZERO);
-  const maxPayout = control.notes?.includes('auto_revive')
-    ? predicted.amount.add(remainingProfit).toDecimalPlaces(2)
-    : undefined;
+  const isAutoRevive = control.notes?.includes('auto_revive') ?? false;
+  const isOnlineRewardNextWin = control.notes?.includes('online_reward') ?? false;
+  const maxPayout = isAutoRevive ? predicted.amount.add(remainingProfit).toDecimalPlaces(2) : undefined;
+  const targetMultiplier =
+    isOnlineRewardNextWin && maxPayout && predicted.amount.greaterThan(0)
+      ? maxPayout.div(predicted.amount).toDecimalPlaces(4)
+      : undefined;
 
   return {
     desired: Math.random() < Number(control.controlWinRate) ? 'WIN' : 'LOSS',
     controlId: control.id,
-    reason: 'deposit_control',
+    reason: isOnlineRewardNextWin ? 'online_reward_next_win' : 'deposit_control',
+    minMultiplier:
+      targetMultiplier && targetMultiplier.greaterThan(1) ? targetMultiplier : undefined,
     maxPayout,
+    forceWinAdjustment: isOnlineRewardNextWin,
   };
 }
 

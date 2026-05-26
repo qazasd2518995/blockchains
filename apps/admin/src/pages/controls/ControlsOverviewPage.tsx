@@ -11,6 +11,7 @@ import { AgentLineControlModal } from '@/components/shared/AgentLineControlModal
 import { BurstControlModal } from '@/components/shared/BurstControlModal';
 import { ManualDetectionControlModal } from '@/components/shared/ManualDetectionControlModal';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useAdminAuthStore } from '@/stores/adminAuthStore';
 
 interface SettlementSnapshot {
   gameDay: string;
@@ -141,6 +142,8 @@ interface ControlLogRow {
 
 export function ControlsOverviewPage(): JSX.Element {
   const { t } = useTranslation();
+  const { agent } = useAdminAuthStore();
+  const isSuperAdmin = agent?.role === 'SUPER_ADMIN';
   const [allSettlement, setAllSettlement] = useState<SettlementSnapshot | null>(null);
   const [manualActive, setManualActive] = useState<ManualDetectionRow[]>([]);
   const [wl, setWl] = useState<WinLossRow[]>([]);
@@ -164,6 +167,23 @@ export function ControlsOverviewPage(): JSX.Element {
 
   const reload = useCallback(async () => {
     try {
+      if (!isSuperAdmin) {
+        const [winLoss, logRes] = await Promise.all([
+          adminApi.get<{ items: WinLossRow[] }>('/controls/win-loss'),
+          adminApi.get<{ items: ControlLogRow[] }>('/controls/logs'),
+        ]);
+        setManualActive([]);
+        setAllSettlement(null);
+        setWl(winLoss.data.items);
+        setWc([]);
+        setDc([]);
+        setAl([]);
+        setBc([]);
+        setLogs(logRes.data.items);
+        setError(null);
+        return;
+      }
+
       const [manualStatus, settlement, winLoss, winCap, deposit, agentLine, burst, logRes] =
         await Promise.all([
           adminApi.get<{ items: ManualDetectionRow[] }>('/controls/manual-detection/status'),
@@ -191,7 +211,7 @@ export function ControlsOverviewPage(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     void reload();
@@ -243,7 +263,7 @@ export function ControlsOverviewPage(): JSX.Element {
   };
 
   const sendOnlineReward = async (): Promise<void> => {
-    if (!window.confirm('确定将金额均分给最近活跃玩家？')) return;
+    if (!window.confirm('确定为最近活跃玩家设置下一局必赢？')) return;
     setRewardBusy(true);
     setError(null);
     setNotice(null);
@@ -257,7 +277,7 @@ export function ControlsOverviewPage(): JSX.Element {
         recentMinutes: Number.parseInt(rewardMinutes, 10),
       });
       setNotice(
-        `已派發 ${fmt(response.data.totalAmount)}，共 ${response.data.memberCount} 位，基礎均分 ${fmt(response.data.shareAmount)}`,
+        `已設定下一局必贏 ${fmt(response.data.totalAmount)}，共 ${response.data.memberCount} 位，基礎目標淨贏 ${fmt(response.data.shareAmount)}`,
       );
       await reload();
     } catch (e) {
@@ -747,71 +767,107 @@ export function ControlsOverviewPage(): JSX.Element {
         title={t.nav.controls}
         titleSuffix="输赢控制"
         titleSuffixColor="ember"
-        description="控制优先级、手动侦测、封顶、简单爆分池与真实介入纪录都集中在这一页。后端会依同一套顺序套用到实际结算。"
+        description={
+          isSuperAdmin
+            ? '控制优先级、手动侦测、封顶、简单爆分池与真实介入纪录都集中在这一页。后端会依同一套顺序套用到实际结算。'
+            : '可查询自己代理线内的游戏账号或下级代理线，并建立对应的输赢控制。'
+        }
       />
 
       <ImageBanner
         image="/banners/controls-risk-host.png"
         eyebrow="风控中心"
         title="先看哪条控制在线，再决定今天要把交收拉到哪里。"
-        description="手动侦测以上级交收为基准：正数代表会员输、上级赢；负数代表会员赢、上级付。"
+        description={
+          isSuperAdmin
+            ? '手动侦测以上级交收为基准：正数代表会员输、上级赢；负数代表会员赢、上级付。'
+            : '代理账号只能看到和管理自己建立的下线控制规则。'
+        }
         tone="ember"
         imagePosition="object-[74%_30%]"
       />
 
       <div className="mb-4 rounded-[6px] border border-[#AE8B35]/35 bg-[#FFF8E1] px-4 py-3 text-[12px] text-[#5C4B1F]">
-        <div className="font-semibold text-[#7A5F15]">控制优先级</div>
-        <div className="mt-1">
-          会员输控制 &gt; 代理线输控制 &gt; 全账号 30,000 赢分上限 &gt; 会员赢控制 &gt; 代理线赢控制
-          &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 爆分控制
-        </div>
-        <div className="mt-1 text-[#7A5F15]/80">
-          输控制会自动按 3-4 输后补 1 次小赢，不会每局直线压输。
-        </div>
-        <div className="mt-1 text-[#7A5F15]/80">
-          手动侦测目标填正数会压会员、拉高上级交收；填负数会放会员、压低上级交收。要让上级盈利
-          500,000，目标填 +500000。
-        </div>
+        {isSuperAdmin ? (
+          <>
+            <div className="font-semibold text-[#7A5F15]">控制优先级</div>
+            <div className="mt-1">
+              会员输控制 &gt; 代理线输控制 &gt; 全账号 30,000 赢分上限 &gt; 会员赢控制 &gt; 代理线赢控制
+              &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 爆分控制
+            </div>
+            <div className="mt-1 text-[#7A5F15]/80">
+              输控制会自动按 3-4 输后补 1 次小赢，不会每局直线压输。
+            </div>
+            <div className="mt-1 text-[#7A5F15]/80">
+              手动侦测目标填正数会压会员、拉高上级交收；填负数会放会员、压低上级交收。要让上级盈利
+              500,000，目标填 +500000。
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="font-semibold text-[#7A5F15]">代理控制范围</div>
+            <div className="mt-1">
+              可搜索自己代理线内的会员游戏账号，或选择自己及下级代理作为整条代理线目标。未命中介入率时自然开奖。
+            </div>
+          </>
+        )}
       </div>
 
-      <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        <StatCard
-          label="全盘上级交收"
-          value={signed(allSettlement?.superiorSettlement)}
-          hint={allSettlement ? `${allSettlement.statusText} · ${allSettlement.gameDay}` : '—'}
-          accent={allSettlement?.status === 'green' ? 'toxic' : 'ember'}
-        />
-        <StatCard
-          label="手动侦测在线"
-          value={manualActive.length.toString()}
-          hint="会员 / 代理线 / 全盘"
-          accent="ice"
-        />
-        <StatCard
-          label="输赢控制在线"
-          value={wl.filter((x) => x.isActive).length.toString()}
-          hint="优先于封顶与入金"
-          accent="ember"
-        />
-        <StatCard
-          label="会员封顶在线"
-          value={wc.filter((x) => x.isActive).length.toString()}
-          hint="单会员日赢额"
-          accent="amber"
-        />
-        <StatCard
-          label="代理线封顶在线"
-          value={al.filter((x) => x.isActive).length.toString()}
-          hint="整条线日赢额"
-          accent="toxic"
-        />
-        <StatCard
-          label="爆分控制在线"
-          value={bc.filter((x) => x.isActive).length.toString()}
-          hint="机率 / 净赢范围"
-          accent="ice"
-        />
-      </div>
+      {isSuperAdmin ? (
+        <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+          <StatCard
+            label="全盘上级交收"
+            value={signed(allSettlement?.superiorSettlement)}
+            hint={allSettlement ? `${allSettlement.statusText} · ${allSettlement.gameDay}` : '—'}
+            accent={allSettlement?.status === 'green' ? 'toxic' : 'ember'}
+          />
+          <StatCard
+            label="手动侦测在线"
+            value={manualActive.length.toString()}
+            hint="会员 / 代理线 / 全盘"
+            accent="ice"
+          />
+          <StatCard
+            label="输赢控制在线"
+            value={wl.filter((x) => x.isActive).length.toString()}
+            hint="优先于封顶与入金"
+            accent="ember"
+          />
+          <StatCard
+            label="会员封顶在线"
+            value={wc.filter((x) => x.isActive).length.toString()}
+            hint="单会员日赢额"
+            accent="amber"
+          />
+          <StatCard
+            label="代理线封顶在线"
+            value={al.filter((x) => x.isActive).length.toString()}
+            hint="整条线日赢额"
+            accent="toxic"
+          />
+          <StatCard
+            label="爆分控制在线"
+            value={bc.filter((x) => x.isActive).length.toString()}
+            hint="机率 / 净赢范围"
+            accent="ice"
+          />
+        </div>
+      ) : (
+        <div className="mb-4 grid gap-4 md:grid-cols-2">
+          <StatCard
+            label="我的控制在线"
+            value={wl.filter((x) => x.isActive).length.toString()}
+            hint="会员 / 代理线"
+            accent="ember"
+          />
+          <StatCard
+            label="介入纪录"
+            value={logs.length.toString()}
+            hint="最近 100 笔"
+            accent="ice"
+          />
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
@@ -829,44 +885,46 @@ export function ControlsOverviewPage(): JSX.Element {
         <div className="crt-panel p-8 text-center text-ink-500">{t.common.loading}…</div>
       ) : (
         <div className="space-y-6">
-          <Section
-            title="§ 手动侦测"
-            subtitle="会员控制 > 代理线控制 > 全盘控制"
-            actions={
-              <button
-                type="button"
-                onClick={() => setManualOpen(true)}
-                className="btn-acid text-[11px]"
-              >
-                + 新增
-              </button>
-            }
-          >
-            <div className="mb-4 grid gap-4 md:grid-cols-4">
-              <MetricCard label="总投注" value={fmt(allSettlement?.totalBet)} />
-              <MetricCard label="总派彩" value={fmt(allSettlement?.totalPayout)} />
-              <MetricCard
-                label="会员输赢"
-                value={signed(allSettlement?.memberWinLoss)}
-                accent={Number(allSettlement?.memberWinLoss ?? 0) > 0 ? 'toxic' : 'ember'}
+          {isSuperAdmin && (
+            <Section
+              title="§ 手动侦测"
+              subtitle="会员控制 > 代理线控制 > 全盘控制"
+              actions={
+                <button
+                  type="button"
+                  onClick={() => setManualOpen(true)}
+                  className="btn-acid text-[11px]"
+                >
+                  + 新增
+                </button>
+              }
+            >
+              <div className="mb-4 grid gap-4 md:grid-cols-4">
+                <MetricCard label="总投注" value={fmt(allSettlement?.totalBet)} />
+                <MetricCard label="总派彩" value={fmt(allSettlement?.totalPayout)} />
+                <MetricCard
+                  label="会员输赢"
+                  value={signed(allSettlement?.memberWinLoss)}
+                  accent={Number(allSettlement?.memberWinLoss ?? 0) > 0 ? 'toxic' : 'ember'}
+                />
+                <MetricCard
+                  label="返水影响"
+                  value={signed(allSettlement?.totalRebate)}
+                  accent="amber"
+                />
+              </div>
+              <DataTable
+                columns={manualCols}
+                rows={manualActive}
+                rowKey={(r) => r.id}
+                empty="当前没有启用中的手动侦测控制"
               />
-              <MetricCard
-                label="返水影响"
-                value={signed(allSettlement?.totalRebate)}
-                accent="amber"
-              />
-            </div>
-            <DataTable
-              columns={manualCols}
-              rows={manualActive}
-              rowKey={(r) => r.id}
-              empty="当前没有启用中的手动侦测控制"
-            />
-          </Section>
+            </Section>
+          )}
 
           <Section
             title="§ 输赢控制"
-            subtitle="按百分比翻转输赢"
+            subtitle="查询游戏账号或整条代理线后按百分比翻转输赢"
             actions={
               <button
                 type="button"
@@ -880,125 +938,129 @@ export function ControlsOverviewPage(): JSX.Element {
             <DataTable columns={wlCols} rows={wl} rowKey={(r) => r.id} empty={t.common.empty} />
           </Section>
 
-          <Section
-            title="§ 入金控制"
-            subtitle="依入金目标自动控制胜率"
-            actions={
-              <button
-                type="button"
-                onClick={() => setDcOpen(true)}
-                className="btn-acid text-[11px]"
+          {isSuperAdmin && (
+            <>
+              <Section
+                title="§ 入金控制"
+                subtitle="依入金目标自动控制胜率"
+                actions={
+                  <button
+                    type="button"
+                    onClick={() => setDcOpen(true)}
+                    className="btn-acid text-[11px]"
+                  >
+                    + 新增
+                  </button>
+                }
               >
-                + 新增
-              </button>
-            }
-          >
-            <DataTable columns={dcCols} rows={dc} rowKey={(r) => r.id} empty={t.common.empty} />
-          </Section>
+                <DataTable columns={dcCols} rows={dc} rowKey={(r) => r.id} empty={t.common.empty} />
+              </Section>
 
-          <Section
-            title="§ 会员封顶"
-            subtitle="会员单日赢额封顶"
-            actions={
-              <button
-                type="button"
-                onClick={() => setWcOpen(true)}
-                className="btn-acid text-[11px]"
+              <Section
+                title="§ 会员封顶"
+                subtitle="会员单日赢额封顶"
+                actions={
+                  <button
+                    type="button"
+                    onClick={() => setWcOpen(true)}
+                    className="btn-acid text-[11px]"
+                  >
+                    + 新增
+                  </button>
+                }
               >
-                + 新增
-              </button>
-            }
-          >
-            <DataTable columns={wcCols} rows={wc} rowKey={(r) => r.id} empty={t.common.empty} />
-          </Section>
+                <DataTable columns={wcCols} rows={wc} rowKey={(r) => r.id} empty={t.common.empty} />
+              </Section>
 
-          <Section
-            title="§ 代理线封顶"
-            subtitle="代理线单日赢额封顶"
-            actions={
-              <button
-                type="button"
-                onClick={() => setAlOpen(true)}
-                className="btn-acid text-[11px]"
+              <Section
+                title="§ 代理线封顶"
+                subtitle="代理线单日赢额封顶"
+                actions={
+                  <button
+                    type="button"
+                    onClick={() => setAlOpen(true)}
+                    className="btn-acid text-[11px]"
+                  >
+                    + 新增
+                  </button>
+                }
               >
-                + 新增
-              </button>
-            }
-          >
-            <DataTable columns={alCols} rows={al} rowKey={(r) => r.id} empty={t.common.empty} />
-          </Section>
+                <DataTable columns={alCols} rows={al} rowKey={(r) => r.id} empty={t.common.empty} />
+              </Section>
 
-          <Section
-            title="§ 爆分控制"
-            subtitle="机率、净赢范围与每日池"
-            actions={
-              <button
-                type="button"
-                onClick={() => setBcOpen(true)}
-                className="btn-acid text-[11px]"
+              <Section
+                title="§ 爆分控制"
+                subtitle="机率、净赢范围与每日池"
+                actions={
+                  <button
+                    type="button"
+                    onClick={() => setBcOpen(true)}
+                    className="btn-acid text-[11px]"
+                  >
+                    + 新增
+                  </button>
+                }
               >
-                + 新增
-              </button>
-            }
-          >
-            <div className="mb-3 grid gap-3 md:grid-cols-4">
-              <MetricCard label="在线规则" value={bc.filter((x) => x.isActive).length.toString()} />
-              <MetricCard
-                label="今日爆分池"
-                value={fmt(sumRows(bc, 'dailyBudget'))}
-                accent="amber"
-              />
-              <MetricCard
-                label="今日已用"
-                value={fmt(sumRows(bc, 'todayBurstAmount'))}
-                accent="toxic"
-              />
-              <MetricCard
-                label="爆分次数"
-                value={bc.reduce((sum, row) => sum + row.todayBurstCount, 0).toString()}
-                accent="ice"
-              />
-            </div>
-            <div className="mb-3 rounded-[6px] border border-[#186073]/20 bg-[#EFF8FB] px-4 py-3 text-[12px] text-[#32505C]">
-              <div className="font-semibold text-[#186073]">运行说明</div>
-              <div className="mt-1">
-                后端会把单次派彩限制在净赢范围内，并用本金剩余门槛、每日池、会员每日上限、8
-                局冷却与风险线自动防守。额度不足时会停止爆分，高倍自然结果会被压到可控小赢或输局。
-              </div>
-            </div>
-            <DataTable columns={bcCols} rows={bc} rowKey={(r) => r.id} empty={t.common.empty} />
-          </Section>
+                <div className="mb-3 grid gap-3 md:grid-cols-4">
+                  <MetricCard label="在线规则" value={bc.filter((x) => x.isActive).length.toString()} />
+                  <MetricCard
+                    label="今日爆分池"
+                    value={fmt(sumRows(bc, 'dailyBudget'))}
+                    accent="amber"
+                  />
+                  <MetricCard
+                    label="今日已用"
+                    value={fmt(sumRows(bc, 'todayBurstAmount'))}
+                    accent="toxic"
+                  />
+                  <MetricCard
+                    label="爆分次数"
+                    value={bc.reduce((sum, row) => sum + row.todayBurstCount, 0).toString()}
+                    accent="ice"
+                  />
+                </div>
+                <div className="mb-3 rounded-[6px] border border-[#186073]/20 bg-[#EFF8FB] px-4 py-3 text-[12px] text-[#32505C]">
+                  <div className="font-semibold text-[#186073]">运行说明</div>
+                  <div className="mt-1">
+                    后端会把单次派彩限制在净赢范围内，并用本金剩余门槛、每日池、会员每日上限、8
+                    局冷却与风险线自动防守。额度不足时会停止爆分，高倍自然结果会被压到可控小赢或输局。
+                  </div>
+                </div>
+                <DataTable columns={bcCols} rows={bc} rowKey={(r) => r.id} empty={t.common.empty} />
+              </Section>
 
-          <Section title="§ 在線均分派發" subtitle="最近活躍玩家平均入帳">
-            <div className="card-base grid gap-3 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-              <label className="block">
-                <div className="label mb-2">派發總金額</div>
-                <input
-                  type="text"
-                  value={rewardAmount}
-                  onChange={(e) => setRewardAmount(e.target.value)}
-                  className="term-input font-mono"
-                />
-              </label>
-              <label className="block">
-                <div className="label mb-2">活躍時間窗（分鐘）</div>
-                <input
-                  type="text"
-                  value={rewardMinutes}
-                  onChange={(e) => setRewardMinutes(e.target.value)}
-                  className="term-input font-mono"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => void sendOnlineReward()}
-                disabled={rewardBusy}
-                className="btn-acid whitespace-nowrap text-[11px]"
-              >
-                → 一鍵派發
-              </button>
-            </div>
-          </Section>
+              <Section title="§ 在線均分必贏" subtitle="最近活躍玩家平均設定下一局目標淨贏">
+                <div className="card-base grid gap-3 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                  <label className="block">
+                    <div className="label mb-2">目標總淨贏</div>
+                    <input
+                      type="text"
+                      value={rewardAmount}
+                      onChange={(e) => setRewardAmount(e.target.value)}
+                      className="term-input font-mono"
+                    />
+                  </label>
+                  <label className="block">
+                    <div className="label mb-2">活躍時間窗（分鐘）</div>
+                    <input
+                      type="text"
+                      value={rewardMinutes}
+                      onChange={(e) => setRewardMinutes(e.target.value)}
+                      className="term-input font-mono"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void sendOnlineReward()}
+                    disabled={rewardBusy}
+                    className="btn-acid whitespace-nowrap text-[11px]"
+                  >
+                    → 設定必贏
+                  </button>
+                </div>
+              </Section>
+            </>
+          )}
 
           <Section title="§ 控制介入纪录" subtitle="最近 100 笔真实套用结果">
             <DataTable columns={logCols} rows={logs} rowKey={(r) => r.id} empty={t.common.empty} />
@@ -1187,6 +1249,7 @@ function manualDirectionClass(row: ManualDetectionRow): string {
 function formatReason(reason: string): string {
   const map: Record<string, string> = {
     deposit_control: '入金控制',
+    online_reward_next_win: '在线均分必赢',
     win_cap: '会员封顶',
     win_cap_rate: '会员封顶比例',
     agent_line_cap: '代理线封顶',
