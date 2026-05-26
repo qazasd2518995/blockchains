@@ -3,10 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { BACCARAT_GAME_IDS } from '@bg/shared';
 import { listAgentDescendants } from '../../../utils/hierarchy.js';
 import { getAdminGameDay, getAdminGameDayWindow } from '../gameDay.js';
-import {
-  calculateRebateAmountByCategory,
-  effectiveDownlineRebate,
-} from '../rebate.js';
+import { calculateRebateAmountByCategory, effectiveDownlineRebate } from '../rebate.js';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -23,6 +20,18 @@ export interface SettlementSummary {
   totalPlayers: number;
   status: 'green' | 'red';
   statusText: string;
+}
+
+export interface AutoDetectionBitePlan {
+  gameDay: string;
+  bitePercentage: Prisma.Decimal;
+  houseTakePercentage: Prisma.Decimal;
+  capitalAmount: Prisma.Decimal;
+  biteAmount: Prisma.Decimal;
+  platformTake: Prisma.Decimal;
+  redistributionAmount: Prisma.Decimal;
+  currentSettlement: Prisma.Decimal;
+  targetSettlement: Prisma.Decimal;
 }
 
 interface BetAggregate {
@@ -94,9 +103,7 @@ export async function findApplicableManualDetectionControl(
   if (controls.length === 0) return null;
 
   const memberControl = controls.find(
-    (control) =>
-      control.scope === 'MEMBER' &&
-      control.targetMemberUsername === member.username,
+    (control) => control.scope === 'MEMBER' && control.targetMemberUsername === member.username,
   );
   if (memberControl) {
     return { control: memberControl, depth: -1 };
@@ -114,7 +121,9 @@ export async function findApplicableManualDetectionControl(
       control,
       depth: ancestors.indexOf(control.targetAgentId as string),
     }))
-    .sort((a, b) => a.depth - b.depth || b.control.createdAt.getTime() - a.control.createdAt.getTime());
+    .sort(
+      (a, b) => a.depth - b.depth || b.control.createdAt.getTime() - a.control.createdAt.getTime(),
+    );
   if (lineCandidates.length > 0) return lineCandidates[0];
 
   const allControl = controls.find((control) => control.scope === 'ALL');
@@ -129,8 +138,6 @@ export async function checkAndCompleteManualDetectionControls(
   let completedCount = 0;
 
   for (const control of activeControls) {
-    if (control.scope === 'ALL') continue;
-
     const settlement = await calculateCurrentSettlement(
       db,
       control.scope,
@@ -143,6 +150,40 @@ export async function checkAndCompleteManualDetectionControls(
       control.startSettlement,
     );
     if (!reached) continue;
+
+    if (control.bitePercentage && control.bitePercentage.greaterThan(0)) {
+      const plan = await calculateAutoDetectionBitePlan(db, {
+        scope: control.scope,
+        targetAgentId: control.targetAgentId,
+        targetMemberUsername: control.targetMemberUsername,
+        bitePercentage: control.bitePercentage,
+        houseTakePercentage: control.houseTakePercentage,
+        currentSettlement: settlement.superiorSettlement,
+      });
+      if (plan.platformTake.greaterThan(0)) {
+        await db.manualDetectionControl.update({
+          where: { id: control.id },
+          data: {
+            targetSettlement: plan.targetSettlement,
+            startSettlement: settlement.superiorSettlement,
+            cycleCount: { increment: 1 },
+            lastCycleSettlement: settlement.superiorSettlement,
+            lastCycleAt: new Date(),
+            lastCapitalAmount: plan.capitalAmount,
+            lastPlatformTake: plan.platformTake,
+            lastRedistributionAmount: plan.redistributionAmount,
+            isActive: true,
+            isCompleted: false,
+            completedAt: null,
+            completionSettlement: null,
+          },
+        });
+        completedCount += 1;
+      }
+      continue;
+    }
+
+    if (control.scope === 'ALL') continue;
 
     if (control.scope === 'MEMBER') {
       if (control.isCompleted) continue;
@@ -171,6 +212,113 @@ export async function checkAndCompleteManualDetectionControls(
   }
 
   return { completedCount };
+}
+
+export async function calculateAutoDetectionBitePlan(
+  db: Db,
+  input: {
+    scope: ManualDetectionScope;
+    targetAgentId?: string | null;
+    targetMemberUsername?: string | null;
+    bitePercentage: Prisma.Decimal | string | number;
+    houseTakePercentage?: Prisma.Decimal | string | number | null;
+    currentSettlement?: Prisma.Decimal | string | number | null;
+  },
+): Promise<AutoDetectionBitePlan> {
+  const window = getControlGameDayWindow();
+  const bitePercentage = clampPercent(
+    decimal(input.bitePercentage),
+    new Prisma.Decimal(10),
+    new Prisma.Decimal(70),
+  );
+  const houseTakePercentage = clampPercent(
+    decimal(input.houseTakePercentage ?? 10),
+    ZERO,
+    new Prisma.Decimal(100),
+  );
+  const currentSettlement =
+    input.currentSettlement === undefined || input.currentSettlement === null
+      ? (
+          await calculateCurrentSettlement(
+            db,
+            input.scope,
+            input.targetAgentId,
+            input.targetMemberUsername,
+          )
+        ).superiorSettlement
+      : decimal(input.currentSettlement);
+  const capitalAmount = await calculateControlCapital(
+    db,
+    input.scope,
+    input.targetAgentId,
+    input.targetMemberUsername,
+  );
+  const biteAmount = capitalAmount.mul(bitePercentage).div(100).toDecimalPlaces(2);
+  const platformTake = biteAmount.mul(houseTakePercentage).div(100).toDecimalPlaces(2);
+  const redistributionAmount = biteAmount.sub(platformTake).toDecimalPlaces(2);
+
+  return {
+    gameDay: window.gameDay,
+    bitePercentage,
+    houseTakePercentage,
+    capitalAmount,
+    biteAmount,
+    platformTake,
+    redistributionAmount,
+    currentSettlement,
+    targetSettlement: currentSettlement.add(platformTake).toDecimalPlaces(2),
+  };
+}
+
+export async function calculateControlCapital(
+  db: Db,
+  scope: ManualDetectionScope,
+  targetAgentId?: string | null,
+  targetMemberUsername?: string | null,
+): Promise<Prisma.Decimal> {
+  const memberIds = await listControlScopeMemberIds(db, scope, targetAgentId, targetMemberUsername);
+  if (memberIds.length === 0) return ZERO;
+  const aggregate = await db.user.aggregate({
+    where: {
+      id: { in: memberIds },
+      disabledAt: null,
+      balance: { gt: 0 },
+    },
+    _sum: { balance: true },
+  });
+  return aggregate._sum.balance ?? ZERO;
+}
+
+async function listControlScopeMemberIds(
+  db: Db,
+  scope: ManualDetectionScope,
+  targetAgentId?: string | null,
+  targetMemberUsername?: string | null,
+): Promise<string[]> {
+  if (scope === 'MEMBER') {
+    if (!targetMemberUsername) return [];
+    const member = await db.user.findUnique({
+      where: { username: targetMemberUsername },
+      select: { id: true },
+    });
+    return member ? [member.id] : [];
+  }
+
+  if (scope === 'AGENT_LINE') {
+    if (!targetAgentId) return [];
+    const agentIds = await listAgentDescendants(db, targetAgentId);
+    const members = await db.user.findMany({
+      where: { agentId: { in: agentIds } },
+      select: { id: true },
+    });
+    return members.map((member) => member.id);
+  }
+
+  const members = await db.user.findMany({
+    where: { disabledAt: null },
+    select: { id: true },
+  });
+  return members.map((member) => member.id);
 }
 
 export async function getAgentAncestors(db: Db, agentId: string): Promise<string[]> {
@@ -253,14 +401,15 @@ export async function getAllActiveBurstControls(db: Db) {
 export async function findApplicableBurstControl(
   db: Db,
   member: { username: string; agentId: string | null },
+  gameId?: string,
 ) {
-  const controls = await getAllActiveBurstControls(db);
+  const controls = (await getAllActiveBurstControls(db)).filter(
+    (control) => !gameId || control.gameIds.length === 0 || control.gameIds.includes(gameId),
+  );
   if (controls.length === 0) return null;
 
   const memberControl = controls.find(
-    (control) =>
-      control.scope === 'MEMBER' &&
-      control.targetMemberUsername === member.username,
+    (control) => control.scope === 'MEMBER' && control.targetMemberUsername === member.username,
   );
   if (memberControl) {
     return { control: memberControl, depth: -1 };
@@ -278,7 +427,9 @@ export async function findApplicableBurstControl(
       control,
       depth: ancestors.indexOf(control.targetAgentId as string),
     }))
-    .sort((a, b) => a.depth - b.depth || b.control.createdAt.getTime() - a.control.createdAt.getTime());
+    .sort(
+      (a, b) => a.depth - b.depth || b.control.createdAt.getTime() - a.control.createdAt.getTime(),
+    );
   if (lineCandidates.length > 0) return lineCandidates[0];
 
   const allControl = controls.find((control) => control.scope === 'ALL');
@@ -290,6 +441,22 @@ function manualScopeRank(scope: ManualDetectionScope): number {
   if (scope === 'MEMBER') return 0;
   if (scope === 'AGENT_LINE') return 1;
   return 2;
+}
+
+function decimal(value: Prisma.Decimal | string | number | null | undefined): Prisma.Decimal {
+  if (value instanceof Prisma.Decimal) return value;
+  if (typeof value === 'string' || typeof value === 'number') return new Prisma.Decimal(value);
+  return ZERO;
+}
+
+function clampPercent(
+  value: Prisma.Decimal,
+  min: Prisma.Decimal,
+  max: Prisma.Decimal,
+): Prisma.Decimal {
+  if (value.lessThan(min)) return min;
+  if (value.greaterThan(max)) return max;
+  return value;
 }
 
 function isTargetReached(
@@ -404,7 +571,11 @@ async function calculateAllSettlement(db: Db): Promise<SettlementSummary> {
   const summaries = await Promise.all(
     roots.map((root) => calculateAgentSubtreeSettlement(db, root.id, window)),
   );
-  const directMemberSummary = await calculatePlatformDirectMembersSettlement(db, window, superAdmins);
+  const directMemberSummary = await calculatePlatformDirectMembersSettlement(
+    db,
+    window,
+    superAdmins,
+  );
   const allSummaries = [...summaries, directMemberSummary].filter((item) => item.totalBets > 0);
   if (allSummaries.length === 0) return emptySummary(window.gameDay);
 
@@ -418,12 +589,10 @@ async function calculateAllSettlement(db: Db): Promise<SettlementSummary> {
       superiorSettlement: acc.superiorSettlement.add(current.superiorSettlement),
       totalBets: acc.totalBets + current.totalBets,
       totalPlayers: acc.totalPlayers + current.totalPlayers,
-      status:
-        acc.superiorSettlement.add(current.superiorSettlement).gt(0) ? 'green' : 'red',
-      statusText:
-        acc.superiorSettlement.add(current.superiorSettlement).gt(0)
-          ? '绿色(上级盈利)'
-          : '红色(上级亏损)',
+      status: acc.superiorSettlement.add(current.superiorSettlement).gt(0) ? 'green' : 'red',
+      statusText: acc.superiorSettlement.add(current.superiorSettlement).gt(0)
+        ? '绿色(上级盈利)'
+        : '红色(上级亏损)',
     }),
     emptySummary(window.gameDay),
   );
@@ -478,19 +647,21 @@ async function calculatePlatformDirectMembersSettlement(
     const aggregate = await queryBetAggregate(db, window, {
       userIds: directMembers.map((member) => member.id),
     });
-    summaries.push(toSummary(
-      window.gameDay,
-      aggregate,
-      calculateRebateAmountByCategory(
-        {
-          betAmount: aggregate.totalBet,
-          electronicBetAmount: aggregate.electronicBetAmount,
-          baccaratBetAmount: aggregate.baccaratBetAmount,
-        },
-        effectiveDownlineRebate(admin, 'electronic'),
-        effectiveDownlineRebate(admin, 'baccarat'),
+    summaries.push(
+      toSummary(
+        window.gameDay,
+        aggregate,
+        calculateRebateAmountByCategory(
+          {
+            betAmount: aggregate.totalBet,
+            electronicBetAmount: aggregate.electronicBetAmount,
+            baccaratBetAmount: aggregate.baccaratBetAmount,
+          },
+          effectiveDownlineRebate(admin, 'electronic'),
+          effectiveDownlineRebate(admin, 'baccarat'),
+        ),
       ),
-    ));
+    );
   }
 
   return summaries.reduce(
@@ -503,12 +674,10 @@ async function calculatePlatformDirectMembersSettlement(
       superiorSettlement: acc.superiorSettlement.add(current.superiorSettlement),
       totalBets: acc.totalBets + current.totalBets,
       totalPlayers: acc.totalPlayers + current.totalPlayers,
-      status:
-        acc.superiorSettlement.add(current.superiorSettlement).gt(0) ? 'green' : 'red',
-      statusText:
-        acc.superiorSettlement.add(current.superiorSettlement).gt(0)
-          ? '绿色(上级盈利)'
-          : '红色(上级亏损)',
+      status: acc.superiorSettlement.add(current.superiorSettlement).gt(0) ? 'green' : 'red',
+      statusText: acc.superiorSettlement.add(current.superiorSettlement).gt(0)
+        ? '绿色(上级盈利)'
+        : '红色(上级亏损)',
     }),
     emptySummary(window.gameDay),
   );
@@ -541,7 +710,9 @@ async function calculateAgentSubtreeSettlement(
   });
   if (members.length === 0) return emptySummary(window.gameDay);
 
-  const aggregate = await queryBetAggregate(db, window, { userIds: members.map((member) => member.id) });
+  const aggregate = await queryBetAggregate(db, window, {
+    userIds: members.map((member) => member.id),
+  });
   const parent = agent.parentId
     ? await db.agent.findUnique({
         where: { id: agent.parentId },
@@ -646,7 +817,11 @@ async function countDistinctPlayers(
 ): Promise<number> {
   if (filter.userIds && filter.userIds.length === 0) return 0;
 
-  const userWhere = filter.userId ? filter.userId : filter.userIds ? { in: filter.userIds } : undefined;
+  const userWhere = filter.userId
+    ? filter.userId
+    : filter.userIds
+      ? { in: filter.userIds }
+      : undefined;
   const [betPlayers, crashPlayers] = await Promise.all([
     db.bet.findMany({
       where: {
@@ -667,7 +842,8 @@ async function countDistinctPlayers(
       distinct: ['userId'],
     }),
   ]);
-  return new Set([...betPlayers.map((row) => row.userId), ...crashPlayers.map((row) => row.userId)]).size;
+  return new Set([...betPlayers.map((row) => row.userId), ...crashPlayers.map((row) => row.userId)])
+    .size;
 }
 
 function emptyAggregate(): BetAggregate {

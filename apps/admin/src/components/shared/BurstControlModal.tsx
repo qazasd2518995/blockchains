@@ -17,6 +17,8 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
   const [burstRate, setBurstRate] = useState('2');
   const [minBurstProfit, setMinBurstProfit] = useState('200');
   const [maxBurstProfit, setMaxBurstProfit] = useState('3000');
+  const [singleMultiplierCap, setSingleMultiplierCap] = useState('100');
+  const [gameIds, setGameIds] = useState('');
   const [dailyBudget, setDailyBudget] = useState('30000');
   const [memberDailyCap, setMemberDailyCap] = useState('5000');
   const [capitalRetentionRatio, setCapitalRetentionRatio] = useState('30');
@@ -32,6 +34,8 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
       setBurstRate('2');
       setMinBurstProfit('200');
       setMaxBurstProfit('3000');
+      setSingleMultiplierCap('100');
+      setGameIds('');
       setDailyBudget('30000');
       setMemberDailyCap('5000');
       setCapitalRetentionRatio('30');
@@ -68,6 +72,11 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
         burstRate,
         minBurstProfit,
         maxBurstProfit,
+        singleMultiplierCap,
+        gameIds: gameIds
+          .split(',')
+          .map((gameId) => gameId.trim())
+          .filter(Boolean),
         dailyBudget,
         memberDailyCap,
         capitalRetentionRatio,
@@ -87,7 +96,8 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
     <Modal open={open} onClose={onClose} title="新增爆分控制" subtitle="简单爆分池" width="lg">
       <div className="space-y-4">
         <div className="rounded-[6px] border border-[#186073]/20 bg-[#186073]/5 p-3 text-[12px] text-[#334155]">
-          只需要设定爆分机率、单次净赢范围与每日池。系统会自动套用会员上限、本金剩余门槛、剩余池检查、8 局冷却与风险防守，避免连续爆分或单次派彩失控。
+          只需要设定爆分机率、单次净赢范围与每日池。系统会自动套用会员上限、本金剩余门槛、剩余池检查、8
+          局冷却与风险防守，避免连续爆分或单次派彩失控。
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -119,14 +129,46 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <Field label="爆分机率（%）" value={burstRate} onChange={setBurstRate} hint="例如 2 = 2%，也可输入 0.02" />
-          <Field label="每日爆分总池" value={dailyBudget} onChange={setDailyBudget} hint="今日所有爆分净赢合计不可超过此金额" />
+          <Field
+            label="爆分机率（%）"
+            value={burstRate}
+            onChange={setBurstRate}
+            hint="例如 2 = 2%，也可输入 0.02"
+          />
+          <Field
+            label="每日爆分总池"
+            value={dailyBudget}
+            onChange={setDailyBudget}
+            hint="今日所有爆分净赢合计不可超过此金额"
+          />
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="单次最小净赢" value={minBurstProfit} onChange={setMinBurstProfit} />
           <Field label="单次最大净赢" value={maxBurstProfit} onChange={setMaxBurstProfit} />
           <Field label="单会员每日上限" value={memberDailyCap} onChange={setMemberDailyCap} />
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field
+            label="单次最高倍数"
+            value={singleMultiplierCap}
+            onChange={setSingleMultiplierCap}
+            hint="测试账号做单可调高，例如 10000；仍会受每日净赢上限保护"
+          />
+          <label className="block">
+            <div className="label mb-2">限定游戏 ID（选填）</div>
+            <input
+              type="text"
+              value={gameIds}
+              onChange={(e) => setGameIds(e.target.value)}
+              className="term-input font-mono"
+              placeholder="例如 thor_mega_slot,rocket"
+            />
+            <div className="mt-1 text-[10px] text-ink-500">
+              留空代表所有可爆分游戏；多个游戏用逗号分隔。
+            </div>
+          </label>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">

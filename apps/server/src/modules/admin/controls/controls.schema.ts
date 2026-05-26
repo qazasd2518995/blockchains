@@ -7,6 +7,10 @@ const rateDecimal = decimal.refine((value) => {
   const n = Number.parseFloat(value);
   return Number.isFinite(n) && n >= 0 && n <= 100;
 }, 'must be between 0 and 100');
+const biteRateDecimal = decimal.refine((value) => {
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) && n >= 10 && n <= 70;
+}, 'must be between 10 and 70');
 const positiveRateDecimal = decimal.refine((value) => {
   const n = Number.parseFloat(value);
   return Number.isFinite(n) && n > 0 && n <= 100;
@@ -88,6 +92,7 @@ export const burstControlSchema = z
     minEligibilityLoss: decimal.default('0'),
     riskWinLimit: decimal.optional(),
     cooldownRounds: z.coerce.number().int().min(0).max(200).default(8),
+    gameIds: z.array(z.string().min(1)).default([]),
     notes: z.string().max(500).optional(),
   })
   .superRefine((value, ctx) => {
@@ -155,7 +160,11 @@ export const burstControlSchema = z
         path: ['burstRate'],
       });
     }
-    if (!Number.isFinite(capitalRetentionRatio) || capitalRetentionRatio < 0 || capitalRetentionRatio >= 100) {
+    if (
+      !Number.isFinite(capitalRetentionRatio) ||
+      capitalRetentionRatio < 0 ||
+      capitalRetentionRatio >= 100
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: '本金剩余比例必须介于 0 到 99.99',
@@ -178,8 +187,10 @@ export const manualDetectionControlSchema = z
     targetAgentUsername: z.string().optional().nullable(),
     targetMemberId: z.string().optional().nullable(),
     targetMemberUsername: z.string().optional().nullable(),
-    targetSettlement: signedDecimal,
+    targetSettlement: signedDecimal.default('0'),
     controlPercentage: z.coerce.number().int().min(1).max(100).default(50),
+    bitePercentage: biteRateDecimal.optional().nullable(),
+    houseTakePercentage: rateDecimal.default('10'),
   })
   .superRefine((value, ctx) => {
     if (value.scope === 'AGENT_LINE' && !value.targetAgentId) {
@@ -221,8 +232,38 @@ export const manualDetectionQuerySchema = z
     }
   });
 
+export const manualDetectionBitePreviewQuerySchema = z
+  .object({
+    scope: z.enum(['ALL', 'AGENT_LINE', 'MEMBER']),
+    agentId: z.string().optional(),
+    memberUsername: z.string().optional(),
+    bitePercentage: biteRateDecimal,
+    houseTakePercentage: rateDecimal.default('10'),
+  })
+  .superRefine((value, ctx) => {
+    if (value.scope === 'AGENT_LINE' && !value.agentId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '代理线控制必须指定目标代理',
+        path: ['agentId'],
+      });
+    }
+    if (value.scope === 'MEMBER' && !value.memberUsername) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '会员控制必须指定目标会员',
+        path: ['memberUsername'],
+      });
+    }
+  });
+
 export const deactivateManualDetectionSchema = z.object({
   id: z.string().optional(),
+});
+
+export const onlineRewardSchema = z.object({
+  totalAmount: positiveDecimal,
+  recentMinutes: z.coerce.number().int().min(1).max(1440).default(15),
 });
 
 export const toggleSchema = z.object({

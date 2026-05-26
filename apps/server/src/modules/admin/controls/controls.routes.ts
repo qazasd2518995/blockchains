@@ -6,13 +6,16 @@ import {
   depositControlSchema,
   agentLineControlSchema,
   burstControlSchema,
+  manualDetectionBitePreviewQuerySchema,
   manualDetectionControlSchema,
   manualDetectionQuerySchema,
   deactivateManualDetectionSchema,
+  onlineRewardSchema,
   toggleSchema,
 } from './controls.schema.js';
 import {
   calculateCurrentSettlement,
+  calculateAutoDetectionBitePlan,
   checkAndCompleteManualDetectionControls,
   getAllActiveManualDetectionControls,
   getControlGameDay,
@@ -33,6 +36,12 @@ function normalizeRate(value: Prisma.Decimal | string | number | null | undefine
   return rate.greaterThan(1) ? rate.div(100) : rate;
 }
 
+function normalizeGameIds(gameIds: string[] | undefined): string[] {
+  return Array.from(
+    new Set((gameIds ?? []).map((gameId) => gameId.trim()).filter((gameId) => gameId.length > 0)),
+  );
+}
+
 function serializeSettlement(summary: Awaited<ReturnType<typeof calculateCurrentSettlement>>) {
   return {
     gameDay: summary.gameDay,
@@ -48,9 +57,25 @@ function serializeSettlement(summary: Awaited<ReturnType<typeof calculateCurrent
   };
 }
 
+function serializeBitePlan(plan: Awaited<ReturnType<typeof calculateAutoDetectionBitePlan>>) {
+  return {
+    gameDay: plan.gameDay,
+    bitePercentage: plan.bitePercentage.toFixed(2),
+    houseTakePercentage: plan.houseTakePercentage.toFixed(2),
+    capitalAmount: plan.capitalAmount.toFixed(2),
+    biteAmount: plan.biteAmount.toFixed(2),
+    platformTake: plan.platformTake.toFixed(2),
+    redistributionAmount: plan.redistributionAmount.toFixed(2),
+    currentSettlement: plan.currentSettlement.toFixed(2),
+    targetSettlement: plan.targetSettlement.toFixed(2),
+  };
+}
+
 async function serializeManualControl(
   fastify: FastifyInstance,
-  control: Awaited<ReturnType<FastifyInstance['prisma']['manualDetectionControl']['findFirst']>> & { id: string },
+  control: Awaited<ReturnType<FastifyInstance['prisma']['manualDetectionControl']['findFirst']>> & {
+    id: string;
+  },
 ) {
   const settlement = await calculateCurrentSettlement(
     fastify.prisma,
@@ -62,6 +87,13 @@ async function serializeManualControl(
     ...control,
     targetSettlement: control.targetSettlement.toFixed(2),
     startSettlement: control.startSettlement?.toFixed(2) ?? null,
+    bitePercentage: control.bitePercentage?.toFixed(2) ?? null,
+    houseTakePercentage: control.houseTakePercentage.toFixed(2),
+    cycleCount: control.cycleCount,
+    lastCycleSettlement: control.lastCycleSettlement?.toFixed(2) ?? null,
+    lastCapitalAmount: control.lastCapitalAmount?.toFixed(2) ?? null,
+    lastPlatformTake: control.lastPlatformTake?.toFixed(2) ?? null,
+    lastRedistributionAmount: control.lastRedistributionAmount?.toFixed(2) ?? null,
     completionSettlement: control.completionSettlement?.toFixed(2) ?? null,
     currentSettlement: settlement.superiorSettlement.toFixed(2),
     gameDay: settlement.gameDay,
@@ -140,7 +172,10 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req) => {
       const { id } = req.params as { id: string };
       const { isActive } = toggleSchema.parse(req.body);
-      const updated = await fastify.prisma.winLossControl.update({ where: { id }, data: { isActive } });
+      const updated = await fastify.prisma.winLossControl.update({
+        where: { id },
+        data: { isActive },
+      });
       await writeAudit(fastify.prisma, {
         actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
         action: 'control.win_loss.toggle',
@@ -171,8 +206,12 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
   );
 
   fastify.get('/win-cap', { preHandler: [fastify.authenticateAdmin] }, async () => {
-    const items = await fastify.prisma.memberWinCapControl.findMany({ orderBy: { createdAt: 'desc' } });
-    const normalized = await Promise.all(items.map((item) => normalizeMemberWinCapDay(fastify.prisma, item)));
+    const items = await fastify.prisma.memberWinCapControl.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    const normalized = await Promise.all(
+      items.map((item) => normalizeMemberWinCapDay(fastify.prisma, item)),
+    );
     return {
       items: normalized.map((item) => ({
         ...item,
@@ -231,7 +270,10 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req) => {
       const { id } = req.params as { id: string };
       const { isActive } = toggleSchema.parse(req.body);
-      const updated = await fastify.prisma.memberWinCapControl.update({ where: { id }, data: { isActive } });
+      const updated = await fastify.prisma.memberWinCapControl.update({
+        where: { id },
+        data: { isActive },
+      });
       await writeAudit(fastify.prisma, {
         actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
         action: 'control.win_cap.toggle',
@@ -262,7 +304,9 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
   );
 
   fastify.get('/deposit', { preHandler: [fastify.authenticateAdmin] }, async () => {
-    const items = await fastify.prisma.memberDepositControl.findMany({ orderBy: { createdAt: 'desc' } });
+    const items = await fastify.prisma.memberDepositControl.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
     return { items };
   });
 
@@ -307,7 +351,10 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req) => {
       const { id } = req.params as { id: string };
       const { isActive } = toggleSchema.parse(req.body);
-      const updated = await fastify.prisma.memberDepositControl.update({ where: { id }, data: { isActive } });
+      const updated = await fastify.prisma.memberDepositControl.update({
+        where: { id },
+        data: { isActive },
+      });
       await writeAudit(fastify.prisma, {
         actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
         action: 'control.deposit.toggle',
@@ -339,7 +386,9 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/agent-line', { preHandler: [fastify.authenticateAdmin] }, async () => {
     const items = await fastify.prisma.agentLineWinCap.findMany({ orderBy: { createdAt: 'desc' } });
-    const normalized = await Promise.all(items.map((item) => normalizeAgentLineCapDay(fastify.prisma, item)));
+    const normalized = await Promise.all(
+      items.map((item) => normalizeAgentLineCapDay(fastify.prisma, item)),
+    );
     return {
       items: normalized.map((item) => ({
         ...item,
@@ -392,7 +441,10 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req) => {
       const { id } = req.params as { id: string };
       const { isActive } = toggleSchema.parse(req.body);
-      const updated = await fastify.prisma.agentLineWinCap.update({ where: { id }, data: { isActive } });
+      const updated = await fastify.prisma.agentLineWinCap.update({
+        where: { id },
+        data: { isActive },
+      });
       await writeAudit(fastify.prisma, {
         actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
         action: 'control.agent_line.toggle',
@@ -424,7 +476,9 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/burst', { preHandler: [fastify.authenticateAdmin] }, async () => {
     const items = await fastify.prisma.burstControl.findMany({ orderBy: { createdAt: 'desc' } });
-    const normalized = await Promise.all(items.map((item) => normalizeBurstControlDay(fastify.prisma, item)));
+    const normalized = await Promise.all(
+      items.map((item) => normalizeBurstControlDay(fastify.prisma, item)),
+    );
     return {
       items: normalized.map((item) => ({
         ...item,
@@ -487,8 +541,12 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
 
       const dailyBudget = decimal(body.dailyBudget).toDecimalPlaces(2);
       const memberDailyCap = decimal(body.memberDailyCap).toDecimalPlaces(2);
-      const minBurstProfit = decimal(body.minBurstProfit ?? body.minBurstMultiplier ?? '200').toDecimalPlaces(2);
-      const maxBurstProfit = decimal(body.maxBurstProfit ?? body.singlePayoutCap ?? '3000').toDecimalPlaces(2);
+      const minBurstProfit = decimal(
+        body.minBurstProfit ?? body.minBurstMultiplier ?? '200',
+      ).toDecimalPlaces(2);
+      const maxBurstProfit = decimal(
+        body.maxBurstProfit ?? body.singlePayoutCap ?? '3000',
+      ).toDecimalPlaces(2);
       const riskWinLimit = decimal(body.riskWinLimit ?? body.memberDailyCap).toDecimalPlaces(2);
 
       const data = {
@@ -497,6 +555,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         targetAgentUsername,
         targetMemberId,
         targetMemberUsername,
+        gameIds: normalizeGameIds(body.gameIds),
         dailyBudget,
         memberDailyCap,
         singlePayoutCap: maxBurstProfit,
@@ -534,6 +593,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           scope: record.scope,
           targetAgentId: record.targetAgentId,
           targetMemberUsername: record.targetMemberUsername,
+          gameIds: record.gameIds,
           dailyBudget: record.dailyBudget.toFixed(2),
           singlePayoutCap: record.singlePayoutCap.toFixed(2),
           capitalRetentionRatio: record.capitalRetentionRatio.toFixed(4),
@@ -551,7 +611,10 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req) => {
       const { id } = req.params as { id: string };
       const { isActive } = toggleSchema.parse(req.body);
-      const updated = await fastify.prisma.burstControl.update({ where: { id }, data: { isActive } });
+      const updated = await fastify.prisma.burstControl.update({
+        where: { id },
+        data: { isActive },
+      });
       await writeAudit(fastify.prisma, {
         actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
         action: 'control.burst.toggle',
@@ -584,7 +647,9 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/manual-detection/status', { preHandler: [fastify.authenticateAdmin] }, async () => {
     await checkAndCompleteManualDetectionControls(fastify.prisma);
     const items = await getAllActiveManualDetectionControls(fastify.prisma);
-    const serialized = await Promise.all(items.map((item) => serializeManualControl(fastify, item)));
+    const serialized = await Promise.all(
+      items.map((item) => serializeManualControl(fastify, item)),
+    );
     return {
       items: serialized,
       activeControls: serialized,
@@ -593,25 +658,51 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     };
   });
 
-  fastify.get('/manual-detection/history', { preHandler: [fastify.authenticateAdmin] }, async () => {
-    const items = await fastify.prisma.manualDetectionControl.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
-    const serialized = await Promise.all(items.map((item) => serializeManualControl(fastify, item)));
-    return { items: serialized, total: serialized.length };
-  });
+  fastify.get(
+    '/manual-detection/history',
+    { preHandler: [fastify.authenticateAdmin] },
+    async () => {
+      const items = await fastify.prisma.manualDetectionControl.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+      const serialized = await Promise.all(
+        items.map((item) => serializeManualControl(fastify, item)),
+      );
+      return { items: serialized, total: serialized.length };
+    },
+  );
 
-  fastify.get('/manual-detection/settlement', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
-    const query = manualDetectionQuerySchema.parse(req.query);
-    const settlement = await calculateCurrentSettlement(
-      fastify.prisma,
-      query.scope as ManualDetectionScope,
-      query.agentId,
-      query.memberUsername,
-    );
-    return serializeSettlement(settlement);
-  });
+  fastify.get(
+    '/manual-detection/settlement',
+    { preHandler: [fastify.authenticateAdmin] },
+    async (req) => {
+      const query = manualDetectionQuerySchema.parse(req.query);
+      const settlement = await calculateCurrentSettlement(
+        fastify.prisma,
+        query.scope as ManualDetectionScope,
+        query.agentId,
+        query.memberUsername,
+      );
+      return serializeSettlement(settlement);
+    },
+  );
+
+  fastify.get(
+    '/manual-detection/bite-preview',
+    { preHandler: [fastify.authenticateAdmin] },
+    async (req) => {
+      const query = manualDetectionBitePreviewQuerySchema.parse(req.query);
+      const plan = await calculateAutoDetectionBitePlan(fastify.prisma, {
+        scope: query.scope as ManualDetectionScope,
+        targetAgentId: query.agentId,
+        targetMemberUsername: query.memberUsername,
+        bitePercentage: query.bitePercentage,
+        houseTakePercentage: query.houseTakePercentage,
+      });
+      return serializeBitePlan(plan);
+    },
+  );
 
   fastify.post(
     '/manual-detection/activate',
@@ -661,6 +752,16 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         targetAgentId,
         targetMemberUsername,
       );
+      const bitePlan = body.bitePercentage
+        ? await calculateAutoDetectionBitePlan(fastify.prisma, {
+            scope: body.scope as ManualDetectionScope,
+            targetAgentId,
+            targetMemberUsername,
+            bitePercentage: body.bitePercentage,
+            houseTakePercentage: body.houseTakePercentage,
+            currentSettlement: settlement.superiorSettlement,
+          })
+        : null;
 
       const existing = await fastify.prisma.manualDetectionControl.findFirst({
         where:
@@ -678,8 +779,20 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         targetAgentUsername,
         targetMemberId,
         targetMemberUsername,
-        targetSettlement: decimal(body.targetSettlement).toDecimalPlaces(2),
+        targetSettlement: (
+          bitePlan?.targetSettlement ?? decimal(body.targetSettlement)
+        ).toDecimalPlaces(2),
         controlPercentage: body.controlPercentage,
+        bitePercentage: body.bitePercentage
+          ? decimal(body.bitePercentage).toDecimalPlaces(2)
+          : null,
+        houseTakePercentage: decimal(body.houseTakePercentage).toDecimalPlaces(2),
+        cycleCount: 0,
+        lastCycleSettlement: null,
+        lastCycleAt: null,
+        lastCapitalAmount: bitePlan?.capitalAmount.toDecimalPlaces(2) ?? null,
+        lastPlatformTake: bitePlan?.platformTake.toDecimalPlaces(2) ?? null,
+        lastRedistributionAmount: bitePlan?.redistributionAmount.toDecimalPlaces(2) ?? null,
         startSettlement: settlement.superiorSettlement.toDecimalPlaces(2),
         isActive: true,
         isCompleted: false,
@@ -707,6 +820,8 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           targetMemberUsername: record.targetMemberUsername,
           targetSettlement: record.targetSettlement.toFixed(2),
           controlPercentage: record.controlPercentage,
+          bitePercentage: record.bitePercentage?.toFixed(2) ?? null,
+          houseTakePercentage: record.houseTakePercentage.toFixed(2),
           startSettlement: record.startSettlement?.toFixed(2) ?? null,
         },
         req,
@@ -766,11 +881,23 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           record.scope === 'ALL'
             ? { id: { not: id }, scope: 'ALL', isActive: true }
             : record.scope === 'AGENT_LINE'
-              ? { id: { not: id }, scope: 'AGENT_LINE', targetAgentId: record.targetAgentId, isActive: true }
-              : { id: { not: id }, scope: 'MEMBER', targetMemberUsername: record.targetMemberUsername, isActive: true },
+              ? {
+                  id: { not: id },
+                  scope: 'AGENT_LINE',
+                  targetAgentId: record.targetAgentId,
+                  isActive: true,
+                }
+              : {
+                  id: { not: id },
+                  scope: 'MEMBER',
+                  targetMemberUsername: record.targetMemberUsername,
+                  isActive: true,
+                },
       });
       if (conflict) {
-        reply.code(400).send({ code: 'CONTROL_CONFLICT', message: 'Same-scope control is already active' });
+        reply
+          .code(400)
+          .send({ code: 'CONTROL_CONFLICT', message: 'Same-scope control is already active' });
         return;
       }
 
@@ -808,6 +935,103 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         req,
       });
       reply.code(204).send();
+    },
+  );
+
+  fastify.post(
+    '/reward/online',
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    async (req, reply) => {
+      const body = onlineRewardSchema.parse(req.body);
+      const totalAmount = decimal(body.totalAmount).toDecimalPlaces(2);
+      const since = new Date(Date.now() - body.recentMinutes * 60_000);
+
+      const [betUsers, crashUsers] = await Promise.all([
+        fastify.prisma.bet.findMany({
+          where: { createdAt: { gte: since }, status: 'SETTLED' },
+          select: { userId: true },
+          distinct: ['userId'],
+        }),
+        fastify.prisma.crashBet.findMany({
+          where: { createdAt: { gte: since } },
+          select: { userId: true },
+          distinct: ['userId'],
+        }),
+      ]);
+      const userIds = Array.from(
+        new Set([...betUsers.map((row) => row.userId), ...crashUsers.map((row) => row.userId)]),
+      );
+
+      if (userIds.length === 0) {
+        reply
+          .code(400)
+          .send({ code: 'NO_ACTIVE_MEMBERS', message: 'No active members in this window' });
+        return;
+      }
+
+      const result = await fastify.prisma.$transaction(async (tx) => {
+        const members = await tx.user.findMany({
+          where: { id: { in: userIds }, disabledAt: null },
+          select: { id: true, username: true, balance: true },
+          orderBy: { username: 'asc' },
+        });
+        if (members.length === 0)
+          return { memberCount: 0, shareAmount: '0.00', totalAmount: '0.00' };
+
+        const baseShare = totalAmount
+          .div(members.length)
+          .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+        const remainder = totalAmount.sub(baseShare.mul(members.length)).toDecimalPlaces(2);
+        let credited = new Prisma.Decimal(0);
+
+        for (const [index, member] of members.entries()) {
+          const amount = index === 0 ? baseShare.add(remainder) : baseShare;
+          if (amount.lessThanOrEqualTo(0)) continue;
+          const updated = await tx.user.update({
+            where: { id: member.id },
+            data: { balance: { increment: amount } },
+            select: { balance: true },
+          });
+          await tx.transaction.create({
+            data: {
+              userId: member.id,
+              type: 'ADJUSTMENT',
+              amount,
+              balanceAfter: updated.balance,
+              meta: {
+                control: 'online_reward',
+                totalAmount: totalAmount.toFixed(2),
+                recentMinutes: body.recentMinutes,
+                operatorId: req.admin.id,
+              },
+            },
+          });
+          credited = credited.add(amount);
+        }
+
+        return {
+          memberCount: members.length,
+          shareAmount: baseShare.toFixed(2),
+          totalAmount: credited.toFixed(2),
+        };
+      });
+
+      if (result.memberCount === 0) {
+        reply
+          .code(400)
+          .send({ code: 'NO_ACTIVE_MEMBERS', message: 'No active members in this window' });
+        return;
+      }
+
+      await writeAudit(fastify.prisma, {
+        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        action: 'control.online_reward.create',
+        targetType: 'control',
+        newValues: { ...result, recentMinutes: body.recentMinutes },
+        req,
+      });
+
+      return result;
     },
   );
 }

@@ -46,6 +46,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   'control.burst.update': '更新爆分控制',
   'control.burst.toggle': '切换爆分控制',
   'control.burst.delete': '删除爆分控制',
+  'control.online_reward.create': '在线玩家均分派发',
 
   'announcement.create': '新增公告',
   'announcement.update': '更新公告',

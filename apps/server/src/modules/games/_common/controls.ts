@@ -86,6 +86,7 @@ interface BurstEligibility {
 }
 
 const BURST_CONTROL_MIN_POTENTIAL_MULTIPLIER = new Prisma.Decimal(20);
+export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(30000);
 const BURST_ALWAYS_ELIGIBLE_GAME_IDS = new Set<string>([
   GameId.MINES,
   GameId.HILO,
@@ -127,21 +128,25 @@ export async function applyControls(
 
   const decision = await findControlDecision(tx, member, gameId, predicted, options);
   if (!decision) return { ...predicted, controlled: false };
+  const cappedDecision =
+    decision.desired === 'WIN'
+      ? await withGlobalMemberWinCapBounds(tx, member.id, predicted, decision)
+      : decision;
 
   const predictedNetWin = isNetWin(predicted);
-  if (decision.desired === 'LOSS') {
+  if (cappedDecision.desired === 'LOSS') {
     if (!predictedNetWin) return { ...predicted, controlled: false };
-    return flipToLoss(predicted, decision.reason, decision.controlId);
+    return flipToLoss(predicted, cappedDecision.reason, cappedDecision.controlId);
   }
 
   if (
     predictedNetWin &&
-    !decision.forceWinAdjustment &&
-    isWithinDecisionBounds(predicted, decision)
+    !cappedDecision.forceWinAdjustment &&
+    isWithinDecisionBounds(predicted, cappedDecision)
   ) {
     return { ...predicted, controlled: false };
   }
-  return flipToWin(predicted, decision);
+  return flipToWin(predicted, cappedDecision);
 }
 
 export async function finalizeControls(
@@ -212,10 +217,17 @@ async function findControlDecision(
   options: ControlOptions,
 ): Promise<ControlDecision | null> {
   if (options.burstGuardOnly) {
+    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
+    if (globalWinCap) return globalWinCap;
     return findBurstDecision(tx, member, gameId, predicted, options);
   }
 
   const explicitWinLoss = await findWinLossDecision(tx, member);
+  if (explicitWinLoss?.desired === 'LOSS') return explicitWinLoss;
+
+  const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
+  if (globalWinCap) return globalWinCap;
+
   if (explicitWinLoss) return explicitWinLoss;
 
   const memberCap = await findMemberWinCapDecision(tx, member.id, predicted);
@@ -295,11 +307,59 @@ async function findWinLossDecision(
   if (!selected) return null;
   if (!passesControlInterventionRate(selected.control.controlPercentage)) return null;
 
+  if (selected.desired === 'LOSS') {
+    const release = await shouldReleaseLossControlCycle(
+      tx,
+      selected.control.id,
+      member.id,
+      selected.control.controlPercentage,
+    );
+    if (release) {
+      return {
+        desired: 'WIN',
+        controlId: selected.control.id,
+        reason: 'loss_control_release',
+        minMultiplier: new Prisma.Decimal('1.01'),
+        maxMultiplier: new Prisma.Decimal(2),
+        forceWinAdjustment: true,
+      };
+    }
+  }
+
   return {
     desired: selected.desired,
     controlId: selected.control.id,
     reason: selected.desired === 'WIN' ? 'win_control' : 'loss_control',
   };
+}
+
+async function shouldReleaseLossControlCycle(
+  tx: Db,
+  controlId: string,
+  userId: string,
+  controlPercentage: Prisma.Decimal,
+): Promise<boolean> {
+  const window = getControlGameDayWindow();
+  const logs = await tx.winLossControlLogs.findMany({
+    where: {
+      controlId,
+      userId,
+      createdAt: { gte: window.start, lt: window.end },
+      flipReason: { in: ['loss_control', 'loss_control_release'] },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    select: { flipReason: true },
+  });
+
+  let consecutiveLosses = 0;
+  for (const log of logs) {
+    if (log.flipReason === 'loss_control_release') break;
+    if (log.flipReason === 'loss_control') consecutiveLosses += 1;
+  }
+
+  const requiredLosses = Number(controlPercentage) >= 60 ? 4 : 3;
+  return consecutiveLosses >= requiredLosses;
 }
 
 async function findMemberWinCapDecision(
@@ -332,6 +392,54 @@ async function findMemberWinCapDecision(
   }
 
   return null;
+}
+
+async function findGlobalMemberWinCapDecision(
+  tx: Db,
+  memberId: string,
+  predicted: PredictedResult,
+): Promise<ControlDecision | null> {
+  const predictedProfit = predicted.payout.sub(predicted.amount);
+  if (!predictedProfit.greaterThan(0)) return null;
+
+  const stats = await getMemberTodayStats(tx, memberId);
+  const projected = stats.net.add(predictedProfit);
+  if (
+    stats.net.greaterThanOrEqualTo(GLOBAL_MEMBER_DAILY_WIN_CAP) ||
+    projected.greaterThan(GLOBAL_MEMBER_DAILY_WIN_CAP)
+  ) {
+    return {
+      desired: 'LOSS',
+      controlId: 'global-member-daily-win-cap',
+      reason: 'global_member_daily_win_cap',
+    };
+  }
+  return null;
+}
+
+async function withGlobalMemberWinCapBounds(
+  tx: Db,
+  memberId: string,
+  predicted: PredictedResult,
+  decision: ControlDecision,
+): Promise<ControlDecision> {
+  if (decision.desired !== 'WIN') return decision;
+
+  const stats = await getMemberTodayStats(tx, memberId);
+  const remainingProfit = GLOBAL_MEMBER_DAILY_WIN_CAP.sub(stats.net);
+  if (remainingProfit.lessThanOrEqualTo(0)) {
+    return {
+      desired: 'LOSS',
+      controlId: decision.controlId,
+      reason: 'global_member_daily_win_cap',
+    };
+  }
+
+  const capPayout = predicted.amount.add(remainingProfit).toDecimalPlaces(2);
+  return {
+    ...decision,
+    maxPayout: decision.maxPayout ? minDecimal([decision.maxPayout, capPayout]) : capPayout,
+  };
 }
 
 async function findAgentLineCapDecision(
@@ -441,7 +549,7 @@ async function findBurstDecision(
 ): Promise<ControlDecision | null> {
   if (!isBurstControlEligible(gameId, predicted, options)) return null;
 
-  const applicable = await findApplicableBurstControl(tx, member);
+  const applicable = await findApplicableBurstControl(tx, member, gameId);
   if (!applicable) return null;
 
   const control = await normalizeBurstControlDay(tx, applicable.control);

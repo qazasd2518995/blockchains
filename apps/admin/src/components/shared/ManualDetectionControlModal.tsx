@@ -19,23 +19,43 @@ interface SettlementPreview {
   superiorSettlement: string;
 }
 
+interface BitePreview {
+  gameDay: string;
+  bitePercentage: string;
+  houseTakePercentage: string;
+  capitalAmount: string;
+  biteAmount: string;
+  platformTake: string;
+  redistributionAmount: string;
+  currentSettlement: string;
+  targetSettlement: string;
+}
+
+type Mode = 'target' | 'bite';
+
 export function ManualDetectionControlModal({ open, onClose, onDone }: Props): JSX.Element {
+  const [mode, setMode] = useState<Mode>('target');
   const [scope, setScope] = useState<Scope>('ALL');
   const [target, setTarget] = useState<AccountSearchOption | null>(null);
   const [targetSettlement, setTargetSettlement] = useState('0');
+  const [bitePercentage, setBitePercentage] = useState('10');
   const [controlPercentage, setControlPercentage] = useState('50');
   const [preview, setPreview] = useState<SettlementPreview | null>(null);
+  const [bitePreview, setBitePreview] = useState<BitePreview | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
 
   useEffect(() => {
     if (!open) {
+      setMode('target');
       setScope('ALL');
       setTarget(null);
       setTargetSettlement('0');
+      setBitePercentage('10');
       setControlPercentage('50');
       setPreview(null);
+      setBitePreview(null);
       setErr(null);
       setBusy(false);
       setLoadingPreview(false);
@@ -62,16 +82,39 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
     setErr(null);
     try {
       const target = await resolveTarget();
-      const response = await adminApi.get<SettlementPreview>('/controls/manual-detection/settlement', {
-        params: {
-          scope,
-          agentId: target.agentId,
-          memberUsername: target.memberUsername,
-        },
-      });
-      setPreview(response.data);
+      if (mode === 'bite') {
+        const response = await adminApi.get<BitePreview>(
+          '/controls/manual-detection/bite-preview',
+          {
+            params: {
+              scope,
+              agentId: target.agentId,
+              memberUsername: target.memberUsername,
+              bitePercentage,
+              houseTakePercentage: '10',
+            },
+          },
+        );
+        setBitePreview(response.data);
+        setTargetSettlement(response.data.targetSettlement);
+        setPreview(null);
+      } else {
+        const response = await adminApi.get<SettlementPreview>(
+          '/controls/manual-detection/settlement',
+          {
+            params: {
+              scope,
+              agentId: target.agentId,
+              memberUsername: target.memberUsername,
+            },
+          },
+        );
+        setPreview(response.data);
+        setBitePreview(null);
+      }
     } catch (e) {
       setPreview(null);
+      setBitePreview(null);
       setErr(e instanceof Error ? e.message : extractApiError(e).message);
     } finally {
       setLoadingPreview(false);
@@ -91,6 +134,8 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
         targetMemberUsername: target.memberUsername,
         targetSettlement,
         controlPercentage: Number.parseInt(controlPercentage, 10),
+        bitePercentage: mode === 'bite' ? bitePercentage : undefined,
+        houseTakePercentage: mode === 'bite' ? '10' : undefined,
       });
       onDone();
       onClose();
@@ -104,6 +149,37 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
   return (
     <Modal open={open} onClose={onClose} title="新增手动侦测" subtitle="交收目标控制" width="md">
       <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('target');
+              setBitePreview(null);
+            }}
+            className={`rounded-[6px] border px-3 py-2 text-[12px] font-semibold ${
+              mode === 'target'
+                ? 'border-[#186073] bg-[#186073] text-white'
+                : 'border-[#D7E3EA] bg-white text-[#334155]'
+            }`}
+          >
+            目標上級交收
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('bite');
+              setPreview(null);
+            }}
+            className={`rounded-[6px] border px-3 py-2 text-[12px] font-semibold ${
+              mode === 'bite'
+                ? 'border-[#E4612A] bg-[#E4612A] text-white'
+                : 'border-[#D7E3EA] bg-white text-[#334155]'
+            }`}
+          >
+            自動偵測咬度
+          </button>
+        </div>
+
         <label className="block">
           <div className="label mb-2">控制范围</div>
           <select
@@ -112,6 +188,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
               setScope(e.target.value as Scope);
               setTarget(null);
               setPreview(null);
+              setBitePreview(null);
             }}
             className="term-input"
           >
@@ -143,6 +220,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
               value={targetSettlement}
               onChange={(e) => setTargetSettlement(e.target.value)}
               className="term-input font-mono"
+              readOnly={mode === 'bite'}
             />
           </label>
           <label className="block">
@@ -156,9 +234,35 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
           </label>
         </div>
 
+        {mode === 'bite' && (
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <div className="label mb-2">咬度（10-70%）</div>
+              <input
+                type="text"
+                value={bitePercentage}
+                onChange={(e) => {
+                  setBitePercentage(e.target.value);
+                  setBitePreview(null);
+                }}
+                className="term-input font-mono"
+              />
+            </label>
+            <div className="rounded-[6px] border border-[#E4612A]/25 bg-[#FFF4ED] p-3 text-[11px] text-[#7A321A]">
+              平台留存固定為咬度池的 10%。例：餘額 10,000、咬度 10%，本輪上級交收目標增加 100，其餘
+              900 透過自然派發體感回到玩家。
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => void loadPreview()} disabled={loadingPreview} className="btn-teal-outline text-[11px]">
-            {loadingPreview ? '读取中…' : '读取当前交收'}
+          <button
+            type="button"
+            onClick={() => void loadPreview()}
+            disabled={loadingPreview}
+            className="btn-teal-outline text-[11px]"
+          >
+            {loadingPreview ? '读取中…' : mode === 'bite' ? '計算咬度目標' : '读取当前交收'}
           </button>
           <span className="text-[11px] text-ink-500">
             正数代表会员输、上级赢；负数代表会员赢、上级付；未命中机率时自然开奖。
@@ -169,13 +273,69 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
           <div className="rounded-[6px] border border-[#186073]/20 bg-[#186073]/5 p-3 text-[12px]">
             <div className="mb-2 flex items-center justify-between">
               <span className="label text-[#186073]">当前交收快照</span>
-              <span className="font-mono text-[10px] tracking-[0.2em] text-[#4A5568]">{preview.gameDay}</span>
+              <span className="font-mono text-[10px] tracking-[0.2em] text-[#4A5568]">
+                {preview.gameDay}
+              </span>
             </div>
             <div className="grid gap-2 md:grid-cols-2">
-              <div>总投注 <span className="ml-2 font-mono text-[#186073]">{preview.totalBet}</span></div>
-              <div>总派彩 <span className="ml-2 font-mono text-[#186073]">{preview.totalPayout}</span></div>
-              <div>返水影响 <span className="ml-2 font-mono text-[#AE8B35]">{preview.totalRebate}</span></div>
-              <div>当前上级交收 <span className="ml-2 font-mono font-semibold text-[#0F172A]">{preview.superiorSettlement}</span></div>
+              <div>
+                总投注 <span className="ml-2 font-mono text-[#186073]">{preview.totalBet}</span>
+              </div>
+              <div>
+                总派彩 <span className="ml-2 font-mono text-[#186073]">{preview.totalPayout}</span>
+              </div>
+              <div>
+                返水影响{' '}
+                <span className="ml-2 font-mono text-[#AE8B35]">{preview.totalRebate}</span>
+              </div>
+              <div>
+                当前上级交收{' '}
+                <span className="ml-2 font-mono font-semibold text-[#0F172A]">
+                  {preview.superiorSettlement}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {bitePreview && (
+          <div className="rounded-[6px] border border-[#E4612A]/25 bg-[#FFF4ED] p-3 text-[12px]">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="label text-[#A44722]">咬度計算</span>
+              <span className="font-mono text-[10px] tracking-[0.2em] text-[#7A321A]">
+                {bitePreview.gameDay}
+              </span>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              <div>
+                總餘額{' '}
+                <span className="ml-2 font-mono text-[#186073]">{bitePreview.capitalAmount}</span>
+              </div>
+              <div>
+                咬度池{' '}
+                <span className="ml-2 font-mono text-[#AE8B35]">{bitePreview.biteAmount}</span>
+              </div>
+              <div>
+                上級留存{' '}
+                <span className="ml-2 font-mono font-semibold text-[#2BAA6A]">
+                  +{bitePreview.platformTake}
+                </span>
+              </div>
+              <div>
+                體感派發{' '}
+                <span className="ml-2 font-mono text-[#186073]">
+                  {bitePreview.redistributionAmount}
+                </span>
+              </div>
+              <div>
+                目前上級交收 <span className="ml-2 font-mono">{bitePreview.currentSettlement}</span>
+              </div>
+              <div>
+                本輪目標{' '}
+                <span className="ml-2 font-mono font-semibold text-[#A44722]">
+                  {bitePreview.targetSettlement}
+                </span>
+              </div>
             </div>
           </div>
         )}

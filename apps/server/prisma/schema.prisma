@@ -25,47 +25,47 @@ enum MarketType {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
+  id           String  @id @default(cuid())
+  username     String  @unique
   passwordHash String
   displayName  String?
-  balance      Decimal  @default(1000) @db.Decimal(20, 2)
-  role         Role     @default(PLAYER)
+  balance      Decimal @default(1000) @db.Decimal(20, 2)
+  role         Role    @default(PLAYER)
 
   // 代理後台歸屬
-  agentId      String?
-  agent        Agent?     @relation(fields: [agentId], references: [id])
-  marketType   MarketType @default(D)
-  bettingLimitLevel String @default("level3")
-  frozenAt     DateTime?
-  disabledAt   DateTime?
-  notes        String?
+  agentId           String?
+  agent             Agent?     @relation(fields: [agentId], references: [id])
+  marketType        MarketType @default(D)
+  bettingLimitLevel String     @default("level3")
+  frozenAt          DateTime?
+  disabledAt        DateTime?
+  notes             String?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  bets          Bet[]
-  transactions  Transaction[]
-  serverSeeds   ServerSeed[]
-  clientSeeds   ClientSeed[]
-  minesRounds   MinesRound[]
-  hiloRounds    HiLoRound[]
-  towerRounds   TowerRound[]
+  bets            Bet[]
+  transactions    Transaction[]
+  serverSeeds     ServerSeed[]
+  clientSeeds     ClientSeed[]
+  minesRounds     MinesRound[]
+  hiloRounds      HiLoRound[]
+  towerRounds     TowerRound[]
   blackjackRounds BlackjackRound[]
-  refreshTokens RefreshToken[]
+  refreshTokens   RefreshToken[]
 
   @@index([username])
   @@index([agentId])
 }
 
 model RefreshToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([tokenHash])
@@ -118,7 +118,7 @@ model ServerSeed {
   revealedAt   DateTime?
   createdAt    DateTime  @default(now())
 
-  bets         Bet[]
+  bets Bet[]
 
   @@index([userId, gameCategory, isActive])
 }
@@ -162,15 +162,15 @@ model Bet {
   createdAt      DateTime   @default(now())
   settledAt      DateTime   @default(now())
 
-  transactions   Transaction[]
-  minesRound     MinesRound? @relation(fields: [minesRoundId], references: [id])
-  minesRoundId   String?     @unique
-  hiloRound      HiLoRound?  @relation(fields: [hiloRoundId], references: [id])
-  hiloRoundId    String?     @unique
-  towerRound     TowerRound? @relation(fields: [towerRoundId], references: [id])
-  towerRoundId   String?     @unique
-  blackjackRound BlackjackRound? @relation(fields: [blackjackRoundId], references: [id])
-  blackjackRoundId String?    @unique
+  transactions     Transaction[]
+  minesRound       MinesRound?     @relation(fields: [minesRoundId], references: [id])
+  minesRoundId     String?         @unique
+  hiloRound        HiLoRound?      @relation(fields: [hiloRoundId], references: [id])
+  hiloRoundId      String?         @unique
+  towerRound       TowerRound?     @relation(fields: [towerRoundId], references: [id])
+  towerRoundId     String?         @unique
+  blackjackRound   BlackjackRound? @relation(fields: [blackjackRoundId], references: [id])
+  blackjackRoundId String?         @unique
 
   @@index([userId, createdAt])
   @@index([gameId, createdAt])
@@ -212,7 +212,7 @@ model MinesRound {
   createdAt         DateTime    @default(now())
   finishedAt        DateTime?
 
-  bet               Bet?
+  bet Bet?
 
   @@index([userId, status])
 }
@@ -227,7 +227,7 @@ model HiLoRound {
   user              User        @relation(fields: [userId], references: [id])
   betAmount         Decimal     @db.Decimal(20, 2)
   cardIndex         Int         @default(0)
-  history           Json        // [{ rank, suit }, ...]
+  history           Json // [{ rank, suit }, ...]
   currentMultiplier Decimal     @default(1) @db.Decimal(20, 4)
   skipsUsed         Int         @default(0)
   status            RoundStatus @default(ACTIVE)
@@ -237,7 +237,7 @@ model HiLoRound {
   createdAt         DateTime    @default(now())
   finishedAt        DateTime?
 
-  bet               Bet?
+  bet Bet?
 
   @@index([userId, status])
 }
@@ -252,7 +252,7 @@ model TowerRound {
   user              User        @relation(fields: [userId], references: [id])
   betAmount         Decimal     @db.Decimal(20, 2)
   difficulty        String
-  safeLayout        Json        // number[][] layer of safe col indices
+  safeLayout        Json // number[][] layer of safe col indices
   picks             Int[]       @default([])
   currentLevel      Int         @default(0)
   currentMultiplier Decimal     @default(1) @db.Decimal(20, 4)
@@ -263,7 +263,7 @@ model TowerRound {
   createdAt         DateTime    @default(now())
   finishedAt        DateTime?
 
-  bet               Bet?
+  bet Bet?
 
   @@index([userId, status])
 }
@@ -291,7 +291,7 @@ model BlackjackRound {
   createdAt         DateTime    @default(now())
   finishedAt        DateTime?
 
-  bet               Bet?
+  bet Bet?
 
   @@index([userId, status])
 }
@@ -319,25 +319,25 @@ model CrashRound {
   crashedAt      DateTime?
   createdAt      DateTime    @default(now())
 
-  bets           CrashBet[]
+  bets CrashBet[]
 
   @@unique([gameId, roundNumber])
   @@index([gameId, createdAt])
 }
 
 model CrashBet {
-  id          String     @id @default(cuid())
-  roundId     String
-  round       CrashRound @relation(fields: [roundId], references: [id])
-  userId      String
-  amount      Decimal    @db.Decimal(20, 2)
-  autoCashOut Decimal?   @db.Decimal(10, 4)
-  cashedOutAt Decimal?   @db.Decimal(10, 4)
-  payout      Decimal    @default(0) @db.Decimal(20, 2)
-  controlOriginal Json?
-  controlOutcome Json?
+  id                 String     @id @default(cuid())
+  roundId            String
+  round              CrashRound @relation(fields: [roundId], references: [id])
+  userId             String
+  amount             Decimal    @db.Decimal(20, 2)
+  autoCashOut        Decimal?   @db.Decimal(10, 4)
+  cashedOutAt        Decimal?   @db.Decimal(10, 4)
+  payout             Decimal    @default(0) @db.Decimal(20, 2)
+  controlOriginal    Json?
+  controlOutcome     Json?
   controlFinalizedAt DateTime?
-  createdAt   DateTime   @default(now())
+  createdAt          DateTime   @default(now())
 
   @@unique([roundId, userId])
   @@index([userId, createdAt])
@@ -345,29 +345,29 @@ model CrashBet {
 }
 
 model BaccaratIntegrationLedger {
-  id           String    @id @default(cuid())
-  providerTxId String    @unique
+  id           String   @id @default(cuid())
+  providerTxId String   @unique
   action       String
-  status       String    @default("COMPLETED")
+  status       String   @default("COMPLETED")
   userId       String?
-  amount       Decimal?  @db.Decimal(20, 2)
-  payout       Decimal?  @db.Decimal(20, 2)
+  amount       Decimal? @db.Decimal(20, 2)
+  payout       Decimal? @db.Decimal(20, 2)
   betId        String?
   response     Json?
   meta         Json?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([userId, createdAt])
   @@index([action, createdAt])
 }
 
 model CrashRoomLease {
-  gameId           String   @id
-  ownerInstanceId  String
-  expiresAt        DateTime
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  gameId          String   @id
+  ownerInstanceId String
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([expiresAt])
 }
@@ -396,38 +396,38 @@ enum AdminRole {
 }
 
 model Agent {
-  id                   String      @id @default(cuid())
-  username             String      @unique
-  passwordHash         String
-  displayName          String?
-  parentId             String?
-  parent               Agent?      @relation("AgentTree", fields: [parentId], references: [id])
-  children             Agent[]     @relation("AgentTree")
-  level                Int
-  marketType           MarketType  @default(D)
-  balance              Decimal     @default(0) @db.Decimal(20, 2)
-  commissionBalance    Decimal     @default(0) @db.Decimal(20, 2)
-  commissionRate       Decimal     @default(0) @db.Decimal(5, 4)
-  rebateMode           RebateMode  @default(PERCENTAGE)
-  rebatePercentage     Decimal     @default(0.025) @db.Decimal(5, 4)
-  maxRebatePercentage  Decimal     @default(0.025) @db.Decimal(5, 4)
-  baccaratRebateMode           RebateMode  @default(PERCENTAGE)
-  baccaratRebatePercentage     Decimal     @default(0.010) @db.Decimal(5, 4)
-  maxBaccaratRebatePercentage  Decimal     @default(0.010) @db.Decimal(5, 4)
-  bettingLimitLevel    String      @default("level3")
-  status               AgentStatus @default(ACTIVE)
-  role                 AdminRole   @default(AGENT)
-  notes                String?
-  lastLoginAt          DateTime?
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
+  id                          String      @id @default(cuid())
+  username                    String      @unique
+  passwordHash                String
+  displayName                 String?
+  parentId                    String?
+  parent                      Agent?      @relation("AgentTree", fields: [parentId], references: [id])
+  children                    Agent[]     @relation("AgentTree")
+  level                       Int
+  marketType                  MarketType  @default(D)
+  balance                     Decimal     @default(0) @db.Decimal(20, 2)
+  commissionBalance           Decimal     @default(0) @db.Decimal(20, 2)
+  commissionRate              Decimal     @default(0) @db.Decimal(5, 4)
+  rebateMode                  RebateMode  @default(PERCENTAGE)
+  rebatePercentage            Decimal     @default(0.025) @db.Decimal(5, 4)
+  maxRebatePercentage         Decimal     @default(0.025) @db.Decimal(5, 4)
+  baccaratRebateMode          RebateMode  @default(PERCENTAGE)
+  baccaratRebatePercentage    Decimal     @default(0.010) @db.Decimal(5, 4)
+  maxBaccaratRebatePercentage Decimal     @default(0.010) @db.Decimal(5, 4)
+  bettingLimitLevel           String      @default("level3")
+  status                      AgentStatus @default(ACTIVE)
+  role                        AdminRole   @default(AGENT)
+  notes                       String?
+  lastLoginAt                 DateTime?
+  createdAt                   DateTime    @default(now())
+  updatedAt                   DateTime    @updatedAt
 
-  members              User[]
-  refreshTokens        AgentRefreshToken[]
-  auditLogs            AuditLog[]  @relation("AuditActor")
-  winLossControls      WinLossControl[] @relation("WLCOperator")
-  memberWinCaps        MemberWinCapControl[] @relation("CapCreatedBy")
-  memberDeposits       MemberDepositControl[] @relation("DepositCreatedBy")
+  members         User[]
+  refreshTokens   AgentRefreshToken[]
+  auditLogs       AuditLog[]             @relation("AuditActor")
+  winLossControls WinLossControl[]       @relation("WLCOperator")
+  memberWinCaps   MemberWinCapControl[]  @relation("CapCreatedBy")
+  memberDeposits  MemberDepositControl[] @relation("DepositCreatedBy")
 
   @@index([parentId])
   @@index([username])
@@ -588,30 +588,31 @@ model BurstControl {
   targetAgentUsername  String?
   targetMemberId       String?
   targetMemberUsername String?
+  gameIds              String[]             @default([])
 
-  dailyBudget          Decimal              @db.Decimal(20, 2)
-  todayBurstAmount     Decimal              @default(0) @db.Decimal(20, 2)
-  todayBurstCount      Int                  @default(0)
-  memberDailyCap       Decimal              @db.Decimal(20, 2)
-  singlePayoutCap      Decimal              @db.Decimal(20, 2)
-  singleMultiplierCap  Decimal              @default(100) @db.Decimal(20, 4)
-  minBurstMultiplier   Decimal              @default(8) @db.Decimal(20, 4)
-  smallWinMultiplier   Decimal              @default(1.5) @db.Decimal(20, 4)
-  burstRate            Decimal              @default(0.03) @db.Decimal(5, 4)
-  smallWinRate         Decimal              @default(0.35) @db.Decimal(5, 4)
-  lossRate             Decimal              @default(0.45) @db.Decimal(5, 4)
-  compensationLoss     Decimal              @default(500) @db.Decimal(20, 2)
-  capitalRetentionRatio Decimal             @default(0.30) @db.Decimal(5, 4)
-  minEligibilityLoss   Decimal              @default(0) @db.Decimal(20, 2)
-  riskWinLimit         Decimal              @default(1000) @db.Decimal(20, 2)
-  cooldownRounds       Int                  @default(8)
-  currentGameDay       String
-  isActive             Boolean              @default(true)
-  notes                String?
-  operatorId           String?
-  operatorUsername     String?
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
+  dailyBudget           Decimal  @db.Decimal(20, 2)
+  todayBurstAmount      Decimal  @default(0) @db.Decimal(20, 2)
+  todayBurstCount       Int      @default(0)
+  memberDailyCap        Decimal  @db.Decimal(20, 2)
+  singlePayoutCap       Decimal  @db.Decimal(20, 2)
+  singleMultiplierCap   Decimal  @default(100) @db.Decimal(20, 4)
+  minBurstMultiplier    Decimal  @default(8) @db.Decimal(20, 4)
+  smallWinMultiplier    Decimal  @default(1.5) @db.Decimal(20, 4)
+  burstRate             Decimal  @default(0.03) @db.Decimal(5, 4)
+  smallWinRate          Decimal  @default(0.35) @db.Decimal(5, 4)
+  lossRate              Decimal  @default(0.45) @db.Decimal(5, 4)
+  compensationLoss      Decimal  @default(500) @db.Decimal(20, 2)
+  capitalRetentionRatio Decimal  @default(0.30) @db.Decimal(5, 4)
+  minEligibilityLoss    Decimal  @default(0) @db.Decimal(20, 2)
+  riskWinLimit          Decimal  @default(1000) @db.Decimal(20, 2)
+  cooldownRounds        Int      @default(8)
+  currentGameDay        String
+  isActive              Boolean  @default(true)
+  notes                 String?
+  operatorId            String?
+  operatorUsername      String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@index([isActive, scope])
   @@index([targetAgentId, isActive])
@@ -620,23 +621,31 @@ model BurstControl {
 }
 
 model ManualDetectionControl {
-  id                   String               @id @default(cuid())
-  scope                ManualDetectionScope
-  targetAgentId        String?
-  targetAgentUsername  String?
-  targetMemberId       String?
-  targetMemberUsername String?
-  targetSettlement     Decimal              @db.Decimal(20, 2)
-  controlPercentage    Int                  @default(50)
-  startSettlement      Decimal?             @db.Decimal(20, 2)
-  isActive             Boolean              @default(true)
-  isCompleted          Boolean              @default(false)
-  completedAt          DateTime?
-  completionSettlement Decimal?             @db.Decimal(20, 2)
-  operatorId           String?
-  operatorUsername     String?
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
+  id                       String               @id @default(cuid())
+  scope                    ManualDetectionScope
+  targetAgentId            String?
+  targetAgentUsername      String?
+  targetMemberId           String?
+  targetMemberUsername     String?
+  targetSettlement         Decimal              @db.Decimal(20, 2)
+  controlPercentage        Int                  @default(50)
+  bitePercentage           Decimal?             @db.Decimal(5, 2)
+  houseTakePercentage      Decimal              @default(10) @db.Decimal(5, 2)
+  cycleCount               Int                  @default(0)
+  lastCycleSettlement      Decimal?             @db.Decimal(20, 2)
+  lastCycleAt              DateTime?
+  lastCapitalAmount        Decimal?             @db.Decimal(20, 2)
+  lastPlatformTake         Decimal?             @db.Decimal(20, 2)
+  lastRedistributionAmount Decimal?             @db.Decimal(20, 2)
+  startSettlement          Decimal?             @db.Decimal(20, 2)
+  isActive                 Boolean              @default(true)
+  isCompleted              Boolean              @default(false)
+  completedAt              DateTime?
+  completionSettlement     Decimal?             @db.Decimal(20, 2)
+  operatorId               String?
+  operatorUsername         String?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
 
   @@index([isActive, scope])
   @@index([targetAgentId, isActive])
