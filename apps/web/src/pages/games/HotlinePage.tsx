@@ -213,6 +213,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const sceneResizeSchedulerRef = useRef<(() => void) | null>(null);
   const sceneResizeLockedRef = useRef(false);
   const pendingSceneResizeRef = useRef(false);
+  const resultVisibleRef = useRef(false);
   const autoSpinStopRequestedRef = useRef(false);
   const megaFreeSpinContinueRef = useRef<(() => void) | null>(null);
   const fastSpinRef = useRef(false);
@@ -263,6 +264,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   useEffect(() => {
     fastSpinRef.current = fastSpin;
   }, [fastSpin]);
+
+  useEffect(() => {
+    resultVisibleRef.current = Boolean(result);
+  }, [result]);
 
   useEffect(() => {
     sceneResizeLockedRef.current = busy || spinning;
@@ -396,6 +401,18 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       const widthChanged = Math.abs(w - lastWidth) > 2;
       const heightChanged = Math.abs(h - lastHeight) > 2;
       if (!widthChanged && !heightChanged) return;
+
+      const isMobileResultLayout =
+        resultVisibleRef.current &&
+        !widthChanged &&
+        heightChanged &&
+        typeof window !== 'undefined' &&
+        window.matchMedia('(max-width: 767px)').matches;
+      if (isMobileResultLayout) {
+        lastWidth = w;
+        lastHeight = h;
+        return;
+      }
 
       if (sceneResizeLockedRef.current) {
         pendingSceneResizeRef.current = true;
@@ -614,7 +631,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             });
             return;
           } catch (err) {
-            markSceneFallback(err);
+            if (recoverSceneFrame(scene, grid, lines, specialSymbols, err)) return;
           }
         }
         setMegaFallbackRemoved([]);
@@ -643,7 +660,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             await scene.highlightSpecialSymbols(filtered, { fast: spinFast, type, label });
             return;
           } catch (err) {
-            markSceneFallback(err);
+            console.warn('Slot special highlight skipped after scene error', err);
+            return;
           }
         }
         setMegaFallbackSpecialWinning(filtered.map(({ reel, row }) => ({ reel, row })));
@@ -683,7 +701,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             }
             return;
           } catch (err) {
-            markSceneFallback(err);
+            if (recoverSceneFrame(scene, finalGrid, [], finalSpecialSymbols, err)) return;
           }
         }
 
@@ -754,6 +772,24 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         setMegaFallbackWinPop(winPop);
         await delay(scaleSpinDelay(980, spinFast));
         setMegaFallbackWinPop(null);
+      };
+
+      const recoverSceneFrame = (
+        scene: HotlineScene,
+        grid: number[][],
+        lines: HotlineWinLine[],
+        specialSymbols: HotlineSpecialSymbol[],
+        cause: unknown,
+      ): boolean => {
+        console.warn('Slot scene animation recovered without canvas fallback', cause);
+        try {
+          scene.snapToGrid(grid, specialSymbols);
+          scene.showResultLines(lines, baseBetAmount);
+          return true;
+        } catch (err) {
+          markSceneFallback(err);
+          return false;
+        }
       };
 
       const revealCascadeStep = (

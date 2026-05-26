@@ -963,6 +963,25 @@ export class HotlineScene {
     }
   }
 
+  snapToGrid(finalGrid: number[][], specialSymbols: HotlineSpecialSymbol[] = []): void {
+    this.stopAnticipation(false, false);
+    this.resetWinLines();
+    const specialByCell = this.createSpecialSymbolMap(specialSymbols);
+    for (let reelIdx = 0; reelIdx < this.reels.length; reelIdx += 1) {
+      const reel = this.reels[reelIdx];
+      if (!reel) continue;
+      this.snapReelToFinal(
+        reel,
+        finalGrid[reelIdx] ?? [],
+        this.getSpecialColumn(specialByCell, reelIdx),
+      );
+    }
+  }
+
+  showResultLines(lines: HotlineLine[], payoutAmount?: number): void {
+    this.showWinLines(lines, payoutAmount);
+  }
+
   async playCascadeSpin(
     cascades: HotlineCascadeStep[],
     finalGrid: number[][],
@@ -1555,141 +1574,179 @@ export class HotlineScene {
     const jackpot = lines.find((l) => l.count === 5);
     Sfx.slotWin(jackpot ? 'big' : lines.length >= 2 ? 'medium' : 'small');
     for (const line of lines) {
-      if (line.positions && line.positions.length > 0) {
-        this.showClusterWin(line, payoutAmount);
-        continue;
-      }
-      const path = this.normalizeLinePath(line);
-      const startReel = this.clampLineStart(line.startReel);
-      const visibleCount = Math.min(
-        Math.max(line.count, 0),
-        this.reelCount - startReel,
-        path.length - startReel,
-      );
-      if (visibleCount < 3) continue;
-
-      const points = Array.from({ length: visibleCount }, (_, offset) => {
-        const reelIdx = startReel + offset;
-        return {
-          reelIdx,
-          x: this.reelX0 + reelIdx * (this.cellWidth + this.reelGap) + this.cellWidth / 2,
-          y: this.reelY0 + path[reelIdx]! * this.cellSize + this.cellSize / 2,
-        };
-      });
-      const color =
-        this.theme.symbols[line.symbol]?.accentValue ??
-        getHotlineSymbolMeta(line.symbol).accentValue;
-
-      // 發光連線（3 層）
-      const g = new Graphics();
-      for (const stroke of [
-        { width: 18, alpha: 0.2 },
-        { width: 8, alpha: 0.4 },
-        { width: 3, alpha: 0.9 },
-      ]) {
-        g.moveTo(points[0]!.x, points[0]!.y);
-        for (let i = 1; i < points.length; i += 1) {
-          g.lineTo(points[i]!.x, points[i]!.y);
+      try {
+        if (line.positions && line.positions.length > 0) {
+          this.showClusterWin(line, payoutAmount);
+          continue;
         }
-        g.stroke({ color, width: stroke.width, alpha: stroke.alpha });
-      }
-      g.alpha = 0;
-      this.winLinesLayer.addChild(g);
+        const path = this.normalizeLinePath(line);
+        const startReel = this.clampLineStart(line.startReel);
+        const visibleCount = Math.min(
+          Math.max(line.count, 0),
+          this.reelCount - startReel,
+          path.length - startReel,
+        );
+        if (visibleCount < 3) continue;
 
-      gsap.fromTo(g, { alpha: 0 }, { alpha: 1, duration: this.scaleSec(0.3), ease: 'power2.out' });
-
-      // 每個中獎符號脈動 + 粒子
-      for (let offset = 0; offset < visibleCount; offset += 1) {
-        const reelIdx = startReel + offset;
-        const reel = this.reels[reelIdx];
-        if (!reel) continue;
-        const row = path[reelIdx]!;
-        const sym = reel.symbols[row];
-        if (!sym) continue;
-
-        gsap.to(sym.scale, {
-          x: 1.2,
-          y: 1.2,
-          duration: this.scaleSec(0.25),
-          ease: 'power2.out',
-          yoyo: true,
-          repeat: 3,
-          delay: this.scaleSec(offset * 0.1),
+        const points = Array.from({ length: visibleCount }, (_unused, offset) => {
+          const reelIdx = startReel + offset;
+          return {
+            reelIdx,
+            x: this.reelX0 + reelIdx * (this.cellWidth + this.reelGap) + this.cellWidth / 2,
+            y: this.reelY0 + path[reelIdx]! * this.cellSize + this.cellSize / 2,
+          };
         });
+        const color =
+          this.theme.symbols[line.symbol]?.accentValue ??
+          getHotlineSymbolMeta(line.symbol).accentValue;
 
-        const { x: wx, y: wy } = points[offset]!;
-        const timer = window.setTimeout(
-          () => {
-            this.emitShockwave(wx, wy, color, this.cellSize * 0.8);
-            this.particlePool?.emit({
-              x: wx,
-              y: wy,
-              count: 15,
-              colors: [color, 0xffffff],
-              speedMin: 2,
-              speedMax: 6,
-            });
-            if (this.app && !prefersReducedMotion()) {
-              emitGlowBurst(this.app.stage, wx, wy, color, {
-                radius: this.cellSize * 0.55,
-                peakBlur: 14,
-                durationSec: 0.45,
-              });
-            }
+        const g = new Graphics();
+        for (const stroke of [
+          { width: 18, alpha: 0.2 },
+          { width: 8, alpha: 0.4 },
+          { width: 3, alpha: 0.9 },
+        ]) {
+          g.moveTo(points[0]!.x, points[0]!.y);
+          for (let i = 1; i < points.length; i += 1) {
+            g.lineTo(points[i]!.x, points[i]!.y);
+          }
+          g.stroke({ color, width: stroke.width, alpha: stroke.alpha });
+        }
+        g.alpha = 0;
+        this.winLinesLayer.addChild(g);
+
+        gsap.fromTo(
+          g,
+          {
+            alpha: 0,
           },
-          this.scaleMs(offset * 100),
+          {
+            alpha: 1,
+            duration: this.scaleSec(0.3),
+            ease: 'power2.out',
+          },
         );
-        this.lineFxTimers.push(timer);
-      }
 
-      const payoutPoint = points[Math.floor(points.length / 2)] ?? points[0];
-      if (payoutPoint) {
-        this.emitWinAmountLabel(
-          payoutPoint.x + this.cellSize * 0.16,
-          payoutPoint.y - this.cellSize * 0.18,
-          line.payout,
-          payoutAmount,
-          color,
-          this.scaleMs(180),
-        );
+        for (let offset = 0; offset < visibleCount; offset += 1) {
+          const reelIdx = startReel + offset;
+          const reel = this.reels[reelIdx];
+          if (!reel) continue;
+          const row = path[reelIdx]!;
+          const sym = reel.symbols[row];
+          if (!sym) continue;
+
+          gsap.to(sym.scale, {
+            x: 1.2,
+            y: 1.2,
+            duration: this.scaleSec(0.25),
+            ease: 'power2.out',
+            yoyo: true,
+            repeat: 3,
+            delay: this.scaleSec(offset * 0.1),
+          });
+
+          const { x: wx, y: wy } = points[offset]!;
+          const timer = window.setTimeout(
+            () =>
+              this.runOptionalFx('line-particle-burst', () => {
+                this.emitShockwave(wx, wy, color, this.cellSize * 0.8);
+                this.particlePool?.emit({
+                  x: wx,
+                  y: wy,
+                  count: 15,
+                  colors: [color, 0xffffff],
+                  speedMin: 2,
+                  speedMax: 6,
+                });
+                if (this.app && this.canPlayHeavyWinFx()) {
+                  emitGlowBurst(this.app.stage, wx, wy, color, {
+                    radius: this.cellSize * 0.55,
+                    peakBlur: 14,
+                    durationSec: 0.45,
+                  });
+                }
+              }),
+            this.scaleMs(offset * 100),
+          );
+          this.lineFxTimers.push(timer);
+        }
+
+        const payoutPoint = points[Math.floor(points.length / 2)] ?? points[0];
+        if (payoutPoint) {
+          this.emitWinAmountLabel(
+            payoutPoint.x + this.cellSize * 0.16,
+            payoutPoint.y - this.cellSize * 0.18,
+            line.payout,
+            payoutAmount,
+            color,
+            this.scaleMs(180),
+          );
+        }
+      } catch (err) {
+        console.warn('Slot win line effect skipped', err);
       }
     }
 
     if (jackpot) {
       const timer = window.setTimeout(() => {
-        if (this.flashOverlay) {
-          gsap.fromTo(
-            this.flashOverlay,
-            { alpha: 0.4 },
-            { alpha: 0, duration: this.scaleSec(0.8), ease: 'power2.out' },
-          );
-        }
-        const cx = this.width / 2;
-        const cy = this.height / 2;
-        this.emitShockwave(cx, cy, COLOR_AMBER, this.width * 0.4);
-        this.emitShockwave(cx, cy, COLOR_EMBER, this.width * 0.5, this.scaleSec(0.15));
-        // L4 mega tier
-        const cfg = TIER_CONFIG.mega;
-        this.particlePool?.emit({
-          x: cx,
-          y: cy,
-          count: cfg.particles,
-          colors: [COLOR_AMBER, COLOR_EMBER, COLOR_VIOLET, 0xffffff],
-          speedMin: 3,
-          speedMax: 12,
+        this.runOptionalFx('jackpot-win-line-fx', () => {
+          if (this.flashOverlay) {
+            gsap.fromTo(
+              this.flashOverlay,
+              { alpha: 0.4 },
+              { alpha: 0, duration: this.scaleSec(0.8), ease: 'power2.out' },
+            );
+          }
+          const cx = this.width / 2;
+          const cy = this.height / 2;
+          this.emitShockwave(cx, cy, COLOR_AMBER, this.width * 0.4);
+          this.emitShockwave(cx, cy, COLOR_EMBER, this.width * 0.5, this.scaleSec(0.15));
+          const cfg = TIER_CONFIG.mega;
+          this.particlePool?.emit({
+            x: cx,
+            y: cy,
+            count: cfg.particles,
+            colors: [COLOR_AMBER, COLOR_EMBER, COLOR_VIOLET, 0xffffff],
+            speedMin: 3,
+            speedMax: 12,
+          });
+          this.shaker?.shake(cfg.shakeAmp, cfg.shakeDuration);
+          if (this.app && this.canPlayHeavyWinFx()) {
+            emitEdgeGlow(
+              this.app.stage,
+              this.width,
+              this.height,
+              COLOR_AMBER,
+              cfg.edgeGlowMs / 1000,
+            );
+            emitRayBurst(this.app.stage, this.app, cx, cy, COLOR_AMBER, 1.5);
+          }
         });
-        this.shaker?.shake(cfg.shakeAmp, cfg.shakeDuration);
-        if (this.app)
-          emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_AMBER, cfg.edgeGlowMs / 1000);
-        if (this.app) emitRayBurst(this.app.stage, this.app, cx, cy, COLOR_AMBER, 1.5);
       }, this.scaleMs(500));
       this.lineFxTimers.push(timer);
     } else if (lines.length >= 2) {
       const timer = window.setTimeout(
-        () => this.shaker?.shake(5, this.scaleSec(0.35)),
+        () =>
+          this.runOptionalFx('multi-line-shake', () => this.shaker?.shake(5, this.scaleSec(0.35))),
         this.scaleMs(300),
       );
       this.lineFxTimers.push(timer);
+    }
+  }
+
+  private canPlayHeavyWinFx(): boolean {
+    if (prefersReducedMotion()) return false;
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+      return false;
+    }
+    return this.width >= 640 && this.height >= 320;
+  }
+
+  private runOptionalFx(label: string, run: () => void): void {
+    try {
+      run();
+    } catch (err) {
+      console.warn(`Slot optional effect skipped: ${label}`, err);
     }
   }
 
@@ -1822,7 +1879,13 @@ export class HotlineScene {
     const boundsWidth = Math.max(this.cellWidth * 1.6, label.width + this.cellWidth * 0.34);
     const boundsHeight = Math.max(this.cellSize * 0.46, label.height + this.cellSize * 0.16);
     const plate = new Graphics()
-      .roundRect(-boundsWidth / 2, -boundsHeight / 2, boundsWidth, boundsHeight, boundsHeight * 0.32)
+      .roundRect(
+        -boundsWidth / 2,
+        -boundsHeight / 2,
+        boundsWidth,
+        boundsHeight,
+        boundsHeight * 0.32,
+      )
       .fill({ color: COLOR_INK, alpha: 0.72 })
       .stroke({ color, width: 2.4, alpha: 0.72 });
     container.addChild(plate);
