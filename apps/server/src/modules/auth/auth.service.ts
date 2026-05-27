@@ -1,24 +1,33 @@
 import bcrypt from 'bcrypt';
 import { PrismaClient, Prisma } from '@prisma/client';
-import type { UserPublic } from '@bg/shared';
+import type { CaptchaResponse, UserPublic } from '@bg/shared';
 import { ApiError } from '../../utils/errors.js';
 import { config } from '../../config.js';
 import { randomBytes, createHash } from 'node:crypto';
 import type { LoginInput } from './auth.schema.js';
+import { CaptchaService } from '../../utils/captcha.js';
 
 export interface JwtSigner {
   sign(payload: { sub: string; role: string }): string;
 }
 
 export class AuthService {
+  private readonly captcha = new CaptchaService();
+
   constructor(
     private readonly prisma: PrismaClient,
     private readonly jwt: JwtSigner,
   ) {}
 
+  issueCaptcha(): CaptchaResponse {
+    return this.captcha.issue();
+  }
+
   async login(
     input: LoginInput,
   ): Promise<{ user: UserPublic; accessToken: string; refreshToken: string }> {
+    this.captcha.verify(input.captchaCode, input.captchaToken);
+
     const user = await this.prisma.user.findUnique({ where: { username: input.username } });
     if (!user) throw new ApiError('INVALID_CREDENTIALS', 'Invalid username or password');
     if (user.disabledAt) throw new ApiError('MEMBER_FROZEN', 'Member account is disabled');
@@ -111,7 +120,6 @@ function parseDuration(d: string): number {
   if (!match) return 7 * 24 * 3600 * 1000;
   const value = Number.parseInt(match[1] ?? '0', 10);
   const unit = match[2];
-  const multiplier =
-    unit === 's' ? 1000 : unit === 'm' ? 60000 : unit === 'h' ? 3600000 : 86400000;
+  const multiplier = unit === 's' ? 1000 : unit === 'm' ? 60000 : unit === 'h' ? 3600000 : 86400000;
   return value * multiplier;
 }

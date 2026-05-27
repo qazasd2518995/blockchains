@@ -870,6 +870,15 @@
       padding-bottom: max(0.22rem, env(safe-area-inset-bottom));
     }
 
+    .game-fullscreen-shell:has(.crash-control-stack) {
+      --crash-control-height: max(176px, min(29svh, 204px));
+    }
+
+    .game-fullscreen-shell:has(.crash-control-stack) > main {
+      padding-top: 0.2rem;
+      padding-bottom: max(0.12rem, calc(env(safe-area-inset-bottom) - 0.75rem));
+    }
+
     .game-fullscreen-shell[data-game-id='plinko'] > main,
     .game-fullscreen-shell[data-game-id='plinko-x'] > main {
       height: calc(var(--plinko-shell-height, 100svh) - 3rem - env(safe-area-inset-top)) !important;
@@ -889,6 +898,10 @@
       min-height: 0;
       gap: 0.4rem !important;
       overflow: hidden;
+    }
+
+    .game-fullscreen-shell:has(.crash-control-stack) .game-play-grid {
+      gap: 0.26rem !important;
     }
 
     .game-fullscreen-shell .game-main-stack,
@@ -1581,7 +1594,7 @@
     }
 
     .game-fullscreen-shell .crash-control-stack {
-      max-height: max(214px, min(33svh, 244px));
+      max-height: var(--crash-control-height);
     }
 
     .game-fullscreen-shell .crash-control-stack > .crash-control-card:first-child {
@@ -1590,42 +1603,49 @@
         'bet auto'
         'action bot';
       grid-template-columns: minmax(0, 1fr) minmax(106px, 0.58fr);
-      align-content: stretch;
-      align-items: stretch;
-      gap: 0.36rem 0.42rem;
-      max-height: max(214px, min(33svh, 244px));
+      grid-template-rows: minmax(0, auto) minmax(44px, auto);
+      align-content: end;
+      align-items: end;
+      gap: 0.24rem 0.36rem;
+      max-height: var(--crash-control-height);
       overflow: hidden;
-      padding: 0.5rem 0.58rem max(0.5rem, env(safe-area-inset-bottom)) !important;
+      padding: 0.38rem 0.56rem 0.32rem !important;
     }
 
     .game-fullscreen-shell .crash-control-card > .bet-controls {
       grid-area: bet;
       min-width: 0;
-      align-self: stretch;
+      align-self: end;
     }
 
     .game-fullscreen-shell .crash-control-card .bet-controls__entry {
-      grid-template-columns: minmax(0, 1fr) 82px;
-      min-height: 40px;
-      gap: 0.24rem;
-      padding: 0.2rem !important;
+      grid-template-columns: minmax(0, 1fr) 78px;
+      min-height: 38px;
+      gap: 0.2rem;
+      padding: 0.18rem !important;
       border-radius: 11px;
     }
 
     .game-fullscreen-shell .crash-control-card .bet-controls__input {
-      min-height: 36px !important;
+      min-height: 34px !important;
       padding: 0.12rem 0.38rem !important;
       font-size: 18px !important;
     }
 
     .game-fullscreen-shell .crash-control-card .bet-controls__adjusters {
-      gap: 0.22rem;
+      gap: 0.18rem;
     }
 
     .game-fullscreen-shell .crash-control-card .bet-controls__adjusters .game-choice-btn {
-      min-height: 36px;
+      min-height: 34px;
       border-radius: 9px;
       font-size: 10px;
+    }
+
+    .game-fullscreen-shell .crash-control-card .bet-controls__limit-hint {
+      min-height: 0.65rem;
+      margin-top: 0.14rem;
+      line-height: 1.05;
     }
 
     .game-fullscreen-shell .crash-control-card .bet-controls__presets {
@@ -1638,11 +1658,11 @@
       grid-template-columns: minmax(0, 1fr);
       align-self: stretch;
       align-content: start;
-      gap: 0.18rem;
+      gap: 0.14rem;
       min-width: 0;
       margin-top: 0 !important;
       border-radius: 11px;
-      padding: 0.34rem !important;
+      padding: 0.28rem !important;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-auto-cashout__label {
@@ -1661,20 +1681,20 @@
     }
 
     .game-fullscreen-shell .crash-control-card .crash-auto-cashout__mode button {
-      min-height: 25px;
+      min-height: 24px;
       padding: 0.12rem 0.2rem;
       font-size: 8.5px;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-auto-cashout__field {
       align-self: stretch;
-      min-height: 36px;
+      min-height: 32px;
       border-radius: 9px !important;
-      padding: 0.16rem !important;
+      padding: 0.12rem !important;
     }
 
     .game-fullscreen-shell .crash-control-card .crash-auto-cashout__input {
-      min-height: 32px !important;
+      min-height: 28px !important;
       padding: 0.1rem 0.32rem !important;
       text-align: center !important;
       font-size: 14px !important;
@@ -1692,9 +1712,9 @@
     .game-fullscreen-shell .crash-control-card .crash-auto-bot-button {
       grid-area: bot;
       min-height: 44px;
-      height: 100%;
+      height: auto;
       margin-top: 0 !important;
-      align-self: stretch;
+      align-self: end;
       width: 100%;
       border-radius: 11px;
       padding: 0.28rem 0.38rem !important;
@@ -1705,9 +1725,9 @@
       grid-area: action;
       grid-template-columns: minmax(0, 1fr);
       min-width: 0;
-      align-self: stretch;
-      align-content: stretch;
-      gap: 0.22rem;
+      align-self: end;
+      align-content: end;
+      gap: 0.18rem;
       margin-top: 0 !important;
     }
 
@@ -2847,12 +2867,18 @@
       max-height: max(196px, min(35dvh, 270px));
     }
 
+    .game-fullscreen-shell:has(.crash-control-stack) {
+      --crash-control-height: max(166px, min(28svh, 190px));
+    }
+
     .game-fullscreen-shell .crash-control-stack {
-      max-height: max(198px, min(32dvh, 224px));
+      max-height: var(--crash-control-height);
     }
 
     .game-fullscreen-shell .crash-control-stack > .crash-control-card:first-child {
-      max-height: max(198px, min(32dvh, 224px));
+      max-height: var(--crash-control-height);
+      padding-top: 0.34rem !important;
+      padding-bottom: 0.28rem !important;
     }
 
     .game-fullscreen-shell .game-control-stack .bet-controls__presets {
@@ -5597,8 +5623,7 @@
 .slot-payout-row--premium {
   border-color: rgba(243, 214, 125, 0.2);
   background:
-    linear-gradient(90deg, rgba(243, 214, 125, 0.08), transparent 54%),
-    rgba(15, 23, 42, 0.5);
+    linear-gradient(90deg, rgba(243, 214, 125, 0.08), transparent 54%), rgba(15, 23, 42, 0.5);
 }
 
 .slot-payout-row--premium .slot-payout-row__value strong {
@@ -5871,8 +5896,7 @@
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 14px;
   background:
-    linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.94)),
-    rgba(15, 23, 42, 0.9);
+    linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.94)), rgba(15, 23, 42, 0.9);
   padding: 0.72rem 0.82rem;
   color: rgba(248, 250, 252, 0.86);
   text-align: left;
@@ -5888,8 +5912,7 @@
 .tower-difficulty-option:hover:not(:disabled) {
   border-color: rgba(251, 146, 60, 0.42);
   background:
-    linear-gradient(135deg, rgba(45, 52, 70, 0.94), rgba(20, 31, 50, 0.96)),
-    rgba(20, 31, 50, 0.92);
+    linear-gradient(135deg, rgba(45, 52, 70, 0.94), rgba(20, 31, 50, 0.96)), rgba(20, 31, 50, 0.92);
   transform: translateY(-1px);
 }
 

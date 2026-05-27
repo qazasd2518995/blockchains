@@ -18,7 +18,13 @@ let refreshInFlight: Promise<TokenPair> | null = null;
 
 function isPublicAuthRequest(url?: string): boolean {
   const path = url?.split('?')[0] ?? '';
-  return ['/auth/login', '/auth/refresh', '/auth/logout', '/auth/register'].includes(path);
+  return [
+    '/auth/captcha',
+    '/auth/login',
+    '/auth/refresh',
+    '/auth/logout',
+    '/auth/register',
+  ].includes(path);
 }
 
 function getJwtExpiresAtMs(token: string | null): number | null {
@@ -119,6 +125,7 @@ const DEFAULT_ERRORS: Record<string, string> = {
   UNAUTHORIZED: '身份未授权,请重新登录',
   NETWORK_ERROR: '連線異常，請稍後再試',
   INVALID_CREDENTIALS: '账号或密码错误',
+  INVALID_CAPTCHA: '驗證碼錯誤，請重新輸入',
   EMAIL_TAKEN: '此邮箱已被使用',
   USER_NOT_FOUND: '找不到该用户',
   INSUFFICIENT_FUNDS: '余额不足',

@@ -37,6 +37,10 @@ function signBaccaratLaunchToken(payload: Record<string, unknown>): string {
 export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new AuthService(fastify.prisma, fastify.jwt);
 
+  fastify.get('/captcha', async () => {
+    return service.issueCaptcha();
+  });
+
   // 公開註冊已停用：會員帳號僅能由代理後台建立
   fastify.post('/register', async (req, reply) => {
     await fastify.prisma.auditLog
@@ -81,7 +85,14 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
     const body = baccaratLaunchBodySchema.parse(req.body ?? {});
     const user = await fastify.prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, username: true, role: true, balance: true, displayName: true, disabledAt: true },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        balance: true,
+        displayName: true,
+        disabledAt: true,
+      },
     });
     if (!user || user.disabledAt) {
       throw new ApiError('UNAUTHORIZED', 'Authentication required');

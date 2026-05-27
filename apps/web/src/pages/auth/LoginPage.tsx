@@ -2,9 +2,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
-import type { AuthResponse } from '@bg/shared';
+import type { AuthResponse, CaptchaResponse } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -16,6 +16,7 @@ const schema = z.object({
     .max(40, { message: 'INVALID_USERNAME' })
     .regex(/^[a-zA-Z0-9._-]+$/, { message: 'INVALID_USERNAME' }),
   password: z.string().min(1, { message: 'PASSWORD_REQUIRED' }),
+  captchaCode: z.string().regex(/^\d{4}$/, { message: 'CAPTCHA_DIGITS' }),
 });
 
 type FormInput = z.infer<typeof schema>;
@@ -34,29 +35,61 @@ export function LoginPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const { t } = useTranslation();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [captcha, setCaptcha] = useState<CaptchaResponse | null>(null);
+  const [captchaLoading, setCaptchaLoading] = useState(false);
   const reason = params.get('reason');
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormInput>({ resolver: zodResolver(schema) });
+
+  const refreshCaptcha = useCallback(async (): Promise<void> => {
+    setCaptchaLoading(true);
+    try {
+      const res = await api.get<CaptchaResponse>('/auth/captcha');
+      setCaptcha(res.data);
+      setValue('captchaCode', '');
+    } catch {
+      setCaptcha(null);
+      setServerError(t.auth.captchaLoadFailed);
+    } finally {
+      setCaptchaLoading(false);
+    }
+  }, [setValue, t.auth.captchaLoadFailed]);
+
+  useEffect(() => {
+    void refreshCaptcha();
+  }, [refreshCaptcha]);
 
   const errMap = (k?: string): string | undefined => {
     if (k === 'INVALID_USERNAME') return t.auth.invalidUsername;
     if (k === 'PASSWORD_REQUIRED') return t.auth.pwdRequired;
+    if (k === 'CAPTCHA_DIGITS') return t.auth.captchaDigits;
     return k;
   };
 
   const onSubmit = async (data: FormInput) => {
     setServerError(null);
+    if (!captcha) {
+      setServerError(t.auth.captchaRequired);
+      await refreshCaptcha();
+      return;
+    }
+
     try {
-      const res = await api.post<AuthResponse>('/auth/login', data);
+      const res = await api.post<AuthResponse>('/auth/login', {
+        ...data,
+        captchaToken: captcha.captchaToken,
+      });
       setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
       const target = safeRedirectPath(params.get('from'));
       navigate(target);
     } catch (err) {
       setServerError(extractApiError(err).message);
+      await refreshCaptcha();
     }
   };
 
@@ -165,6 +198,34 @@ export function LoginPage() {
                   className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#EA580C] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/25 sm:text-[14px]"
                   {...register('password')}
                 />
+              </Field>
+
+              <Field label={t.auth.captcha} error={errMap(errors.captchaCode?.message)}>
+                <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder={t.auth.captchaPlaceholder}
+                    maxLength={4}
+                    className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#EA580C] focus:outline-none focus:ring-2 focus:ring-[#EA580C]/25 sm:text-[14px]"
+                    {...register('captchaCode')}
+                    onInput={(event) => {
+                      const next = event.currentTarget.value.replace(/\D/g, '').slice(0, 4);
+                      event.currentTarget.value = next;
+                      setValue('captchaCode', next, { shouldValidate: true });
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void refreshCaptcha()}
+                    disabled={captchaLoading}
+                    className="rounded-[8px] border border-[#EA580C]/30 bg-[#FFF7ED] px-3 py-2.5 font-mono text-[18px] font-black tracking-[0.18em] text-[#EA580C] transition hover:bg-[#FFEDD5] disabled:cursor-wait disabled:opacity-60"
+                    aria-label={t.auth.captchaReload}
+                  >
+                    {captchaLoading ? '----' : (captcha?.captchaCode ?? '----')}
+                  </button>
+                </div>
               </Field>
 
               {serverError && (
