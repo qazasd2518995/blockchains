@@ -194,6 +194,7 @@ export class HotlineScene {
   private winFx: WinCelebration | null = null;
   private initializing = false;
   private disposed = false;
+  private rendererKind: 'webgl' | 'canvas' | 'webgpu' | 'unknown' = 'unknown';
   private lineFxTimers: number[] = [];
   private playbackFast = false;
 
@@ -222,6 +223,7 @@ export class HotlineScene {
       rowCount: this.rowCount,
       reelCount: this.reelCount,
       rendererResolution,
+      rendererPreference: ['webgl', 'canvas'],
       useConstrainedRenderer,
       shaderEffects: !useConstrainedRenderer,
       devicePixelRatio: typeof window === 'undefined' ? null : window.devicePixelRatio,
@@ -250,7 +252,7 @@ export class HotlineScene {
           this.rowCount <= ROWS &&
           rendererResolution <= CLASSIC_RENDER_DPR,
         powerPreference: useConstrainedRenderer ? 'low-power' : 'high-performance',
-        preference: 'webgl',
+        preference: ['webgl', 'canvas'],
         preferWebGLVersion: useConstrainedRenderer ? 1 : 2,
       });
     } catch (err) {
@@ -259,8 +261,10 @@ export class HotlineScene {
       this.destroyPixiApp(app);
       throw err;
     }
+    this.rendererKind = this.getPixiRendererKind(app);
     slotDebug('hotline-scene:init:app-ready', {
       renderer: app.renderer?.constructor?.name ?? null,
+      rendererKind: this.rendererKind,
       canvasWidth: canvas.width,
       canvasHeight: canvas.height,
       canvasClientWidth: canvas.clientWidth,
@@ -460,8 +464,16 @@ export class HotlineScene {
     return coarsePointer || narrowViewport || compactHeight || shortSide <= 560;
   }
 
+  private getPixiRendererKind(app: Application): 'webgl' | 'canvas' | 'webgpu' | 'unknown' {
+    const rendererName = app.renderer?.constructor?.name?.toLowerCase() ?? '';
+    if (rendererName.includes('canvas')) return 'canvas';
+    if (rendererName.includes('webgpu')) return 'webgpu';
+    if (rendererName.includes('webgl')) return 'webgl';
+    return 'unknown';
+  }
+
   private canUseShaderEffects(): boolean {
-    return !this.shouldUseConstrainedMegaRenderer();
+    return !this.shouldUseConstrainedMegaRenderer() && this.rendererKind !== 'canvas';
   }
 
   private destroyPixiApp(app: Application | null): void {
@@ -2307,6 +2319,7 @@ export class HotlineScene {
     this.shockwaves = null;
     this.flashOverlay = null;
     this.particleList = [];
+    this.rendererKind = 'unknown';
     slotDebug('hotline-scene:dispose:done');
   }
 

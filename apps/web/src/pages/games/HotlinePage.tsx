@@ -155,25 +155,13 @@ function createAutoSpinInputDraft(settings: AutoSpinSettings): AutoSpinInputDraf
   };
 }
 
-function supportsSlotWebGlRenderer(): boolean {
-  if (typeof document === 'undefined') return true;
-  try {
-    const canvas = document.createElement('canvas');
-    const context =
-      canvas.getContext('webgl2') ||
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl');
-    return Boolean(context);
-  } catch {
-    return false;
-  }
-}
-
-function isWebGlUnavailableError(error: unknown): boolean {
+function isPixiRendererUnavailableError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error ?? '');
   return (
     message.includes('does not support WebGL') ||
     message.includes('WebGL is not supported') ||
+    message.includes('No available renderer') ||
+    message.includes('Unable to auto-detect a suitable renderer') ||
     message.includes('webglcontextcreationerror')
   );
 }
@@ -361,21 +349,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     });
     setSceneAvailability(false, false);
 
-    if (isMegaSlot && !supportsSlotWebGlRenderer()) {
-      slotDebug(
-        'hotline-page:scene-effect:webgl-unavailable-fallback',
-        {
-          themeId: slotTheme.id,
-          gameId: slotTheme.gameId,
-          userAgent: navigator.userAgent,
-        },
-        'warn',
-      );
-      sceneRef.current = null;
-      sceneResizeSchedulerRef.current = null;
-      return;
-    }
-
     let cancelled = false;
     let scene: HotlineScene | null = null;
     let rafId = 0;
@@ -489,9 +462,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           if (scene === nextScene) scene = null;
           if (sceneRef.current === nextScene) sceneRef.current = null;
           setSceneAvailability(false, false);
-          if (isMegaSlot && isWebGlUnavailableError(err)) {
+          if (isMegaSlot && isPixiRendererUnavailableError(err)) {
             slotDebug(
-              'hotline-page:init-scene:webgl-unavailable-fallback',
+              'hotline-page:init-scene:renderer-unavailable-fallback',
               {
                 token,
                 width: w,
