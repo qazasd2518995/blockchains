@@ -60,7 +60,8 @@ services:
         sync: false
       - key: SUPER_ADMIN_PASSWORD
         sync: false
-      # ── CORS：填你實際兩個前端網址（含 https://） ──
+      # ── CORS：填前端網址（含 https://）。目前正式網域：
+      # 代理後台 yachiyo168.com / yachiyo188.com；遊戲前台 yachiyo666.com / yachiyo777.com
       - key: CORS_ORIGIN
         sync: false
 
