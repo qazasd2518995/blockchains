@@ -18,6 +18,13 @@ import { pickRandomBest } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { PlinkoBatchBetInput, PlinkoBetInput } from './plinko.schema.js';
 
+interface PlinkoBatchShapeContext {
+  totalStake: Prisma.Decimal;
+  totalPayout: Prisma.Decimal;
+  settledBalls: number;
+  totalBalls: number;
+}
+
 export class PlinkoService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -45,9 +52,17 @@ export class PlinkoService {
         input.balls,
         input.clientSeed,
       );
+      const batchShapeContext: PlinkoBatchShapeContext = {
+        totalStake,
+        totalPayout: new Prisma.Decimal(0),
+        settledBalls: 0,
+        totalBalls: input.balls,
+      };
       const results: PlinkoBetResult[] = [];
       for (let index = 0; index < input.balls; index += 1) {
-        results.push(await this.settleOne(tx, userId, input, amount, seedBundles[index]));
+        results.push(
+          await this.settleOne(tx, userId, input, amount, seedBundles[index], batchShapeContext),
+        );
       }
       const newBalance =
         results.at(-1)?.newBalance ??
@@ -62,6 +77,7 @@ export class PlinkoService {
     input: PlinkoBetInput | PlinkoBatchBetInput,
     amount: Prisma.Decimal,
     seedBundle?: ActiveSeedBundle,
+    batchShapeContext?: PlinkoBatchShapeContext,
   ): Promise<PlinkoBetResult> {
     const seed =
       seedBundle ?? (await new SeedHelper(tx).getActiveBundle(userId, 'plinko', input.clientSeed));
@@ -89,10 +105,15 @@ export class PlinkoService {
         controlled,
         bucket,
         Number(controlled.multiplier.toFixed(4)),
+        batchShapeContext,
       );
       finalPath = pathForBucket(input.rows, finalBucket);
       finalMultiplier = new Prisma.Decimal((multipliers[finalBucket] ?? 0).toFixed(4));
       finalPayout = amount.mul(finalMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+    }
+    if (batchShapeContext) {
+      batchShapeContext.totalPayout = batchShapeContext.totalPayout.add(finalPayout);
+      batchShapeContext.settledBalls += 1;
     }
     const profit = finalPayout.minus(amount);
 
@@ -169,28 +190,104 @@ function choosePlinkoBucket(
   controlled: Parameters<typeof multiplierMatchesControlBounds>[2],
   originalBucket: number,
   targetMultiplier: number,
+  batchShapeContext?: PlinkoBatchShapeContext,
 ): number {
+  if (!wantWin) {
+    return chooseControlledLossBucket(table, amount, originalBucket, batchShapeContext);
+  }
+
   const candidates = table
     .map((multiplier, bucket) => ({ bucket, multiplier }))
-    .filter((x) =>
-      wantWin
-        ? x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
-        : x.multiplier <= 1,
+    .filter(
+      (x) => x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled),
     );
   const losingFallback = table
     .map((multiplier, bucket) => ({ bucket, multiplier }))
     .filter((x) => x.multiplier <= 1);
   const pool = candidates.length > 0 ? candidates : losingFallback;
   const picked = pickRandomBest(pool, (x) => {
-    if (wantWin) {
-      const targetDiff = Math.abs(x.multiplier - targetMultiplier);
-      const bucketDiff = Math.abs(x.bucket - originalBucket);
-      return targetDiff * 1000 + bucketDiff / 100;
-    }
+    const targetDiff = Math.abs(x.multiplier - targetMultiplier);
     const bucketDiff = Math.abs(x.bucket - originalBucket);
-    return -x.multiplier * 1000 + bucketDiff / 100;
+    return targetDiff * 1000 + bucketDiff / 100;
   });
   return picked?.bucket ?? pool[0]?.bucket ?? 0;
+}
+
+function chooseControlledLossBucket(
+  table: number[],
+  amount: Prisma.Decimal,
+  originalBucket: number,
+  batchShapeContext?: PlinkoBatchShapeContext,
+): number {
+  const options = table.map((multiplier, bucket) => ({ bucket, multiplier }));
+  const batchLossBudget = batchShapeContext?.totalStake.mul(0.96);
+  const pool = options
+    .map((option) => {
+      const isSingleBall = !batchShapeContext || batchShapeContext.totalBalls <= 1;
+      if (isSingleBall && option.multiplier > 1) return null;
+      if (!isSingleBall && option.multiplier > 1.25) return null;
+      if (
+        batchShapeContext &&
+        batchLossBudget &&
+        !fitsBatchLossBudget(option.multiplier, amount, batchShapeContext, batchLossBudget)
+      ) {
+        return null;
+      }
+      const bucketDistance = Math.abs(option.bucket - originalBucket);
+      const naturalBucketBias = 1 / (1 + bucketDistance * 0.2);
+      let multiplierWeight = 1;
+      if (option.multiplier > 1) {
+        multiplierWeight = 0.45;
+      } else if (option.multiplier >= 0.85) {
+        multiplierWeight = 2.2;
+      } else if (option.multiplier >= 0.45) {
+        multiplierWeight = 1.4;
+      } else {
+        multiplierWeight = 0.75;
+      }
+      return {
+        ...option,
+        weight: multiplierWeight * naturalBucketBias,
+      };
+    })
+    .filter((option): option is { bucket: number; multiplier: number; weight: number } =>
+      Boolean(option),
+    );
+
+  const fallback = options.filter((option) => option.multiplier <= 1);
+  return (
+    pickWeightedBucket(pool)?.bucket ??
+    pickRandomBest(fallback, (x) => Math.abs(x.bucket - originalBucket))?.bucket ??
+    0
+  );
+}
+
+function fitsBatchLossBudget(
+  multiplier: number,
+  amount: Prisma.Decimal,
+  batchShapeContext: PlinkoBatchShapeContext,
+  batchLossBudget: Prisma.Decimal,
+): boolean {
+  const remainingBallsAfterThis = Math.max(
+    0,
+    batchShapeContext.totalBalls - batchShapeContext.settledBalls - 1,
+  );
+  const reserveForRemainingBalls = amount.mul(0.45).mul(remainingBallsAfterThis);
+  const projectedPayout = batchShapeContext.totalPayout
+    .add(amount.mul(multiplier))
+    .add(reserveForRemainingBalls);
+  return projectedPayout.lessThanOrEqualTo(batchLossBudget);
+}
+
+function pickWeightedBucket<T extends { weight: number }>(items: readonly T[]): T | undefined {
+  const totalWeight = items.reduce((sum, item) => sum + Math.max(0, item.weight), 0);
+  if (totalWeight <= 0) return undefined;
+  let roll = Math.random() * totalWeight;
+  for (const item of items) {
+    roll -= Math.max(0, item.weight);
+    if (roll <= 0) return item;
+  }
+  return items.at(-1);
 }
 
 function pathForBucket(rows: number, bucket: number): ('left' | 'right')[] {
@@ -201,3 +298,7 @@ function pathForBucket(rows: number, bucket: number): ('left' | 'right')[] {
     return after > before ? 'right' : 'left';
   });
 }
+
+export const __plinkoServiceTestHooks = {
+  chooseControlledLossBucket,
+};
