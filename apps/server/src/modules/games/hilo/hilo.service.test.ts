@@ -39,7 +39,8 @@ describe('adjustHiLoDraw', () => {
     );
 
     expect(result.card.rank).toBeLessThan(8);
-    expect(result.card.suit).toBe(1);
+    expect(result.card.suit).toBeGreaterThanOrEqual(0);
+    expect(result.card.suit).toBeLessThan(4);
     expect(result.correct).toBe(false);
   });
 

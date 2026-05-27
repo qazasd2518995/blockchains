@@ -60,7 +60,7 @@ describe('hotlineSpin', () => {
 
   it('uses separate 8-symbol paytables for fixed-line variants', () => {
     expect(HOTLINE_MINI_SYMBOLS.map((symbol) => symbol.payout3)).toEqual([
-      0.6, 0.9, 1.3, 1.8, 13950, 41850, 121500, 373500,
+      3, 3.3, 3.6, 4, 4.2, 4.5, 4.8, 5,
     ]);
     expect(HOTLINE_SYMBOLS.map((symbol) => [symbol.payout3, symbol.payout4, symbol.payout5]))
       .toEqual([

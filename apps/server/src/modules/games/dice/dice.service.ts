@@ -8,7 +8,11 @@ import {
   creditAndRecord,
   runSerializable,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls } from '../_common/controls.js';
+import {
+  applyControls,
+  finalizeControls,
+  multiplierMatchesControlBounds,
+} from '../_common/controls.js';
 import type { DiceBetInput } from './dice.schema.js';
 
 export class DiceService {
@@ -41,9 +45,31 @@ export class DiceService {
         multiplier: predictedMultiplier,
         payout: predictedPayout,
       });
-      const finalMultiplier = controlled.multiplier;
-      const finalPayout = controlled.payout;
-      const finalWon = controlled.won;
+      const controlledWinFitsRules =
+        controlled.controlled &&
+        controlled.won &&
+        multiplierMatchesControlBounds(predictedMultiplier, amount, controlled);
+      const finalWon = controlled.controlled
+        ? controlled.won && controlledWinFitsRules
+        : outcome.won;
+      const finalMultiplier = finalWon ? predictedMultiplier : new Prisma.Decimal(0);
+      const finalPayout = finalWon
+        ? amount.mul(finalMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
+        : new Prisma.Decimal(0);
+      const effectiveControl =
+        controlled.controlled && controlled.won && !controlledWinFitsRules
+          ? {
+              won: false,
+              multiplier: new Prisma.Decimal(0),
+              payout: new Prisma.Decimal(0),
+              controlled: true,
+              flipReason:
+                controlled.flipReason === 'burst_risk_cap'
+                  ? 'burst_risk_guard'
+                  : 'burst_budget_guard',
+              controlId: controlled.controlId,
+            }
+          : controlled;
       const profit = finalPayout.minus(amount);
 
       // 若控制翻轉了 won 結果，重新生成一個符合 won 的 roll，避免畫面顯示與結算矛盾
@@ -80,8 +106,8 @@ export class DiceService {
         winChance: outcome.winChance,
         rawWon: outcome.won,
         finalWon,
-        controlled: controlled.controlled,
-        flipReason: controlled.flipReason ?? null,
+        controlled: effectiveControl.controlled,
+        flipReason: effectiveControl.flipReason ?? null,
       };
 
       const bet = await tx.bet.create({
@@ -114,7 +140,7 @@ export class DiceService {
           multiplier: finalMultiplier,
           payout: finalPayout,
         },
-        controlled,
+        effectiveControl,
         bet.id,
         originalResult,
         finalResult,
