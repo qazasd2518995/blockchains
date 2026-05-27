@@ -50,6 +50,7 @@ const MEGA_FREE_SPIN_RETRIGGER_MS = 1300;
 const SCENE_RESIZE_DEBOUNCE_MS = 160;
 const ORIENTATION_SCENE_RESIZE_DEBOUNCE_MS = 520;
 const MEGA_RENDERER_RETRY_MS = 900;
+const MEGA_SCENE_INIT_TIMEOUT_MS = 8500;
 const JACKPOT_KEYS = ['grand', 'major', 'minor', 'mini'] as const;
 type JackpotKey = (typeof JACKPOT_KEYS)[number];
 const JACKPOT_LABELS: Record<JackpotKey, string> = {
@@ -188,6 +189,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const [sceneReady, setSceneReady] = useState(false);
   const [sceneLoadingProgress, setSceneLoadingProgress] = useState(0);
+  const [sceneLoadingMessage, setSceneLoadingMessage] = useState('正在準備高畫質遊戲畫面');
   const [sceneCanvasKey, setSceneCanvasKey] = useState(0);
   const [liveMegaRound, setLiveMegaRound] = useState<LiveMegaRoundState | null>(null);
   const [megaFreeSpinIntro, setMegaFreeSpinIntro] = useState<MegaFreeSpinIntro | null>(null);
@@ -230,6 +232,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const sceneResizeSchedulerRef = useRef<(() => void) | null>(null);
   const sceneResizeLockedRef = useRef(false);
   const pendingSceneResizeRef = useRef(false);
+  const megaOrientationPendingRef = useRef(false);
   const sceneRecoveryAttemptsRef = useRef(0);
   const resultVisibleRef = useRef(false);
   const autoSpinStopRequestedRef = useRef(false);
@@ -249,6 +252,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       if (ready) {
         sceneRecoveryAttemptsRef.current = 0;
         setSceneLoadingProgress(100);
+        setSceneLoadingMessage('正在準備高畫質遊戲畫面');
         setError((prev) => (prev === '遊戲畫面載入中，請稍候' ? null : prev));
       } else if (isMegaSlot) {
         setSceneLoadingProgress(8);
@@ -390,6 +394,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     let lastWidth = 0;
     let lastHeight = 0;
     let forceNextRebuild = false;
+    const initTimeouts = new Set<ReturnType<typeof window.setTimeout>>();
     const handleContextLost = (event: Event) => {
       event.preventDefault();
       slotDebug('hotline-page:webgl-context-lost', {
@@ -433,6 +438,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       const token = ++initToken;
       const previous = scene;
       const nextScene = new HotlineScene();
+      let initTimeout: ReturnType<typeof window.setTimeout> | null = null;
+      const clearInitTimeout = () => {
+        if (!initTimeout) return;
+        window.clearTimeout(initTimeout);
+        initTimeouts.delete(initTimeout);
+        initTimeout = null;
+      };
       slotDebug('hotline-page:init-scene:request', {
         token,
         canvasKey: sceneCanvasKey,
@@ -447,9 +459,35 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       sceneRef.current = nextScene;
       previous?.dispose();
       setSceneAvailability(false, false);
+      if (isMegaSlot) {
+        initTimeout = window.setTimeout(() => {
+          clearInitTimeout();
+          if (cancelled || token !== initToken || sceneReadyRef.current) return;
+          slotDebug('hotline-page:init-scene:timeout-remount', {
+            token,
+            canvasKey: sceneCanvasKey,
+            width: w,
+            height: h,
+            timeout: MEGA_SCENE_INIT_TIMEOUT_MS,
+          }, 'warn');
+          try {
+            nextScene.dispose();
+          } catch (err) {
+            console.warn('Slot scene dispose failed after init timeout', err);
+          }
+          if (scene === nextScene) scene = null;
+          if (sceneRef.current === nextScene) sceneRef.current = null;
+          pendingSceneResizeRef.current = true;
+          setSceneLoadingMessage('正在重新建立高畫質遊戲畫面');
+          setSceneAvailability(false, false);
+          setSceneCanvasKey((key) => key + 1);
+        }, MEGA_SCENE_INIT_TIMEOUT_MS);
+        initTimeouts.add(initTimeout);
+      }
       void nextScene
         .init(canvas, w, h, slotTheme)
         .then(() => {
+          clearInitTimeout();
           if (cancelled || token !== initToken) {
             slotDebug('hotline-page:init-scene:stale-ready', {
               token,
@@ -476,6 +514,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           }
         })
         .catch((err) => {
+          clearInitTimeout();
           if (cancelled || token !== initToken) {
             slotDebug('hotline-page:init-scene:stale-error', {
               token,
@@ -519,6 +558,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 width: w,
                 height: h,
               }, 'warn');
+              setSceneLoadingMessage('正在重新建立高畫質遊戲畫面');
               setSceneCanvasKey((key) => key + 1);
             }, MEGA_RENDERER_RETRY_MS);
             return;
@@ -608,6 +648,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     };
 
     const scheduleEnsureSceneSize = () => {
+      if (isMegaSlot && megaOrientationPendingRef.current) {
+        pendingSceneResizeRef.current = true;
+        slotDebug('hotline-page:schedule-size:orientation-pending', {
+          canvasKey: sceneCanvasKey,
+        });
+        return;
+      }
       if (resizeTimer) window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
         resizeTimer = null;
@@ -622,10 +669,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         return;
       }
       pendingSceneResizeRef.current = true;
+      megaOrientationPendingRef.current = true;
       forceNextRebuild = true;
+      setSceneLoadingMessage('正在配合螢幕方向重新建立遊戲畫面');
       if (resizeTimer) window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
         resizeTimer = null;
+        megaOrientationPendingRef.current = false;
         if (sceneResizeLockedRef.current) {
           if (rafId) cancelAnimationFrame(rafId);
           rafId = requestAnimationFrame(ensureSceneSize);
@@ -647,9 +697,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     ensureSceneSize();
     resizeObserver = new ResizeObserver(scheduleEnsureSceneSize);
     resizeObserver.observe(canvas.parentElement ?? canvas);
+    window.screen.orientation?.addEventListener('change', scheduleOrientationEnsureSceneSize);
     window.addEventListener('orientationchange', scheduleOrientationEnsureSceneSize);
-    window.addEventListener('resize', scheduleOrientationEnsureSceneSize);
-    window.visualViewport?.addEventListener('resize', scheduleOrientationEnsureSceneSize);
+    window.addEventListener('resize', scheduleEnsureSceneSize);
+    window.visualViewport?.addEventListener('resize', scheduleEnsureSceneSize);
 
     return () => {
       slotDebug('hotline-page:scene-effect:cleanup', {
@@ -659,15 +710,19 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         initToken,
       });
       cancelled = true;
+      megaOrientationPendingRef.current = false;
       sceneResizeSchedulerRef.current = null;
       if (resizeTimer) window.clearTimeout(resizeTimer);
+      initTimeouts.forEach((timeout) => window.clearTimeout(timeout));
+      initTimeouts.clear();
       if (rafId) cancelAnimationFrame(rafId);
       scene?.dispose();
       resizeObserver?.disconnect();
       canvas.removeEventListener('webglcontextlost', handleContextLost);
+      window.screen.orientation?.removeEventListener('change', scheduleOrientationEnsureSceneSize);
       window.removeEventListener('orientationchange', scheduleOrientationEnsureSceneSize);
-      window.removeEventListener('resize', scheduleOrientationEnsureSceneSize);
-      window.visualViewport?.removeEventListener('resize', scheduleOrientationEnsureSceneSize);
+      window.removeEventListener('resize', scheduleEnsureSceneSize);
+      window.visualViewport?.removeEventListener('resize', scheduleEnsureSceneSize);
       sceneRef.current = null;
     };
   }, [isMegaSlot, scheduleSceneRecovery, sceneCanvasKey, setSceneAvailability, slotTheme]);
@@ -1943,7 +1998,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                       <div className="mega-slot-loading__bar" aria-hidden="true">
                         <span style={{ width: megaLoadingProgressLabel }} />
                       </div>
-                      <div className="mega-slot-loading__meta">正在準備高畫質遊戲畫面</div>
+                      <div className="mega-slot-loading__meta">{sceneLoadingMessage}</div>
                     </div>
                   </div>
                 )}
