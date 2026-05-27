@@ -17,14 +17,14 @@ export const HOTLINE_MEGA_GAME_IDS = new Set([
   'vampire-slot',
 ]);
 const HOTLINE_5X3_PAYTABLE = [
-  { weight: 32, payout3: 0.4, payout4: 4, payout5: 22.4 },
-  { weight: 31, payout3: 0.64, payout4: 5.6, payout5: 33.6 },
-  { weight: 29, payout3: 0.96, payout4: 8.8, payout5: 51.2 },
-  { weight: 27, payout3: 1.28, payout4: 12.8, payout5: 76.8 },
-  { weight: 10, payout3: 2.4, payout4: 24, payout5: 176 },
-  { weight: 7, payout3: 4.4, payout4: 48, payout5: 400 },
-  { weight: 5, payout3: 8, payout4: 105.6, payout5: 920 },
-  { weight: 3, payout3: 13.6, payout4: 230.4, payout5: 2304 },
+  { weight: 32, payout3: 1.3, payout4: 3.3, payout5: 10 },
+  { weight: 31, payout3: 1.6, payout4: 5, payout5: 13 },
+  { weight: 29, payout3: 2, payout4: 6.5, payout5: 20 },
+  { weight: 27, payout3: 2.5, payout4: 8, payout5: 26 },
+  { weight: 10, payout3: 3.3, payout4: 13, payout5: 50 },
+  { weight: 7, payout3: 5, payout4: 20, payout5: 85 },
+  { weight: 5, payout3: 8, payout4: 35, payout5: 135 },
+  { weight: 3, payout3: 13, payout4: 65, payout5: 250 },
 ] as const;
 const HOTLINE_3X3_PAYTABLE = [
   { weight: 60, payout3: 3, payout4: 3, payout5: 3 },
