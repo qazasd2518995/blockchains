@@ -33,6 +33,22 @@ interface BitePreview {
 
 type Mode = 'target' | 'bite';
 
+function playerSettlementNumber(superiorSettlement?: string | null): number {
+  const n = Number.parseFloat(superiorSettlement ?? '0');
+  if (!Number.isFinite(n)) return 0;
+  return -n;
+}
+
+function playerSettlementInput(superiorSettlement?: string | null): string {
+  return playerSettlementNumber(superiorSettlement).toFixed(2);
+}
+
+function superiorSettlementInput(playerSettlement?: string | null): string {
+  const n = Number.parseFloat(playerSettlement ?? '0');
+  if (!Number.isFinite(n)) return '0';
+  return String(-n);
+}
+
 export function ManualDetectionControlModal({ open, onClose, onDone }: Props): JSX.Element {
   const [mode, setMode] = useState<Mode>('target');
   const [scope, setScope] = useState<Scope>('ALL');
@@ -96,7 +112,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
           },
         );
         setBitePreview(response.data);
-        setTargetSettlement(response.data.targetSettlement);
+        setTargetSettlement(playerSettlementInput(response.data.targetSettlement));
         setPreview(null);
       } else {
         const response = await adminApi.get<SettlementPreview>(
@@ -132,7 +148,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
         targetAgentUsername: target.agentUsername,
         targetMemberId: target.memberId,
         targetMemberUsername: target.memberUsername,
-        targetSettlement,
+        targetSettlement: superiorSettlementInput(targetSettlement),
         controlPercentage: Number.parseInt(controlPercentage, 10),
         bitePercentage: mode === 'bite' ? bitePercentage : undefined,
         houseTakePercentage: mode === 'bite' ? '10' : undefined,
@@ -162,7 +178,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
                 : 'border-[#D7E3EA] bg-white text-[#334155]'
             }`}
           >
-            目標上級交收
+            目標玩家交收
           </button>
           <button
             type="button"
@@ -214,7 +230,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <div className="label mb-2">目标上级交收</div>
+            <div className="label mb-2">目标玩家交收</div>
             <input
               type="text"
               value={targetSettlement}
@@ -249,7 +265,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
               />
             </label>
             <div className="rounded-[6px] border border-[#E4612A]/25 bg-[#FFF4ED] p-3 text-[11px] text-[#7A321A]">
-              平台留存固定為咬度池的 10%。例：餘額 10,000、咬度 10%，本輪上級交收目標增加 100，其餘
+              平台留存固定為咬度池的 10%。例：餘額 10,000、咬度 10%，本輪玩家交收目標減少 100，其餘
               900 透過自然派發體感回到玩家。
             </div>
           </div>
@@ -265,7 +281,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
             {loadingPreview ? '读取中…' : mode === 'bite' ? '計算咬度目標' : '读取当前交收'}
           </button>
           <span className="text-[11px] text-ink-500">
-            正数代表会员输、上级赢；负数代表会员赢、上级付；未命中机率时自然开奖。
+            正数代表玩家赢，负数代表玩家输；未命中机率时自然开奖。
           </span>
         </div>
 
@@ -289,9 +305,11 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
                 <span className="ml-2 font-mono text-[#AE8B35]">{preview.totalRebate}</span>
               </div>
               <div>
-                当前上级交收{' '}
-                <span className="ml-2 font-mono font-semibold text-[#0F172A]">
-                  {preview.superiorSettlement}
+                当前玩家交收{' '}
+                <span
+                  className={`ml-2 font-mono font-semibold ${playerSettlementNumber(preview.superiorSettlement) > 0 ? 'text-[#2BAA6A]' : 'text-[#D4574A]'}`}
+                >
+                  {playerSettlementInput(preview.superiorSettlement)}
                 </span>
               </div>
             </div>
@@ -328,12 +346,15 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
                 </span>
               </div>
               <div>
-                目前上級交收 <span className="ml-2 font-mono">{bitePreview.currentSettlement}</span>
+                目前玩家交收{' '}
+                <span className="ml-2 font-mono">
+                  {playerSettlementInput(bitePreview.currentSettlement)}
+                </span>
               </div>
               <div>
                 本輪目標{' '}
                 <span className="ml-2 font-mono font-semibold text-[#A44722]">
-                  {bitePreview.targetSettlement}
+                  {playerSettlementInput(bitePreview.targetSettlement)}
                 </span>
               </div>
             </div>

@@ -344,21 +344,25 @@ export function ControlsOverviewPage(): JSX.Element {
     },
     {
       key: 'current',
-      label: '目前上级交收',
+      label: '目前玩家交收',
       align: 'right',
       render: (r) => (
         <span
-          className={`data-num ${Number(r.currentSettlement) > 0 ? 'text-[#2BAA6A]' : 'text-[#D4574A]'}`}
+          className={`data-num ${playerSettlementNumber(r.currentSettlement) > 0 ? 'text-[#2BAA6A]' : 'text-[#D4574A]'}`}
         >
-          {signed(r.currentSettlement)}
+          {playerSettlementSigned(r.currentSettlement)}
         </span>
       ),
     },
     {
       key: 'targetSettlement',
-      label: '目标上级交收',
+      label: '目标玩家交收',
       align: 'right',
-      render: (r) => <span className="data-num text-[#AE8B35]">{signed(r.targetSettlement)}</span>,
+      render: (r) => (
+        <span className="data-num text-[#AE8B35]">
+          {playerSettlementSigned(r.targetSettlement)}
+        </span>
+      ),
     },
     {
       key: 'direction',
@@ -900,7 +904,7 @@ export function ControlsOverviewPage(): JSX.Element {
         title="先看哪条控制在线，再决定今天要把交收拉到哪里。"
         description={
           isSuperAdmin
-            ? '手动侦测以上级交收为基准：正数代表会员输、上级赢；负数代表会员赢、上级付。'
+            ? '手动侦测画面统一用玩家视角：绿字代表玩家赢，红字代表玩家输。'
             : '代理账号只能看到和管理自己建立的下线控制规则。'
         }
         tone="ember"
@@ -919,8 +923,7 @@ export function ControlsOverviewPage(): JSX.Element {
               输控制会自动按 3-4 输后补 1 次小赢，不会每局直线压输。
             </div>
             <div className="mt-1 text-[#7A5F15]/80">
-              手动侦测目标填正数会压会员、拉高上级交收；填负数会放会员、压低上级交收。要让上级盈利
-              500,000，目标填 +500000。
+              手动侦测目标以玩家交收显示：目标填正数代表让玩家赢到该数字；目标填负数代表让玩家输到该数字。
             </div>
           </>
         ) : (
@@ -936,10 +939,16 @@ export function ControlsOverviewPage(): JSX.Element {
       {isSuperAdmin ? (
         <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <StatCard
-            label="全盘上级交收"
-            value={signed(allSettlement?.superiorSettlement)}
-            hint={allSettlement ? `${allSettlement.statusText} · ${allSettlement.gameDay}` : '—'}
-            accent={allSettlement?.status === 'green' ? 'toxic' : 'ember'}
+            label="全盘玩家交收"
+            value={playerSettlementSigned(allSettlement?.superiorSettlement)}
+            hint={
+              allSettlement
+                ? `${playerSettlementStatusText(allSettlement.superiorSettlement)} · ${allSettlement.gameDay}`
+                : '—'
+            }
+            accent={
+              playerSettlementNumber(allSettlement?.superiorSettlement) > 0 ? 'toxic' : 'ember'
+            }
           />
           <StatCard
             label="手动侦测在线"
@@ -1342,6 +1351,23 @@ function signed(value?: string | null): string {
   return `${n > 0 ? '+' : n < 0 ? '-' : ''}${formatted}`;
 }
 
+function playerSettlementNumber(superiorSettlement?: string | null): number {
+  const n = Number.parseFloat(superiorSettlement ?? '0');
+  if (!Number.isFinite(n)) return 0;
+  return -n;
+}
+
+function playerSettlementSigned(superiorSettlement?: string | null): string {
+  return signed(String(playerSettlementNumber(superiorSettlement)));
+}
+
+function playerSettlementStatusText(superiorSettlement?: string | null): string {
+  const playerSettlement = playerSettlementNumber(superiorSettlement);
+  if (playerSettlement > 0) return '绿色(玩家盈利)';
+  if (playerSettlement < 0) return '红色(玩家亏损)';
+  return '持平';
+}
+
 function formatControlMode(mode: string): string {
   if (mode === 'SINGLE_MEMBER') return '单一会员';
   if (mode === 'AGENT_LINE') return '整条代理线';
@@ -1357,7 +1383,7 @@ function formatManualScope(scope: ManualDetectionRow['scope']): string {
 }
 
 function formatManualTarget(row: ManualDetectionRow): string {
-  if (row.scope === 'ALL') return '全盘上级交收';
+  if (row.scope === 'ALL') return '全盘玩家交收';
   if (row.scope === 'AGENT_LINE') return row.targetAgentUsername ?? '—';
   return row.targetMemberUsername ?? '—';
 }
@@ -1417,17 +1443,17 @@ function manualStatusClass(row: ManualDetectionRow): string {
 }
 
 function manualDirectionText(row: ManualDetectionRow): string {
-  const current = Number.parseFloat(row.currentSettlement ?? '0');
-  const target = Number.parseFloat(row.targetSettlement ?? '0');
+  const current = playerSettlementNumber(row.currentSettlement);
+  const target = playerSettlementNumber(row.targetSettlement);
   if (!Number.isFinite(current) || !Number.isFinite(target)) return '—';
-  if (target > current) return '压会员 / 上级收';
-  if (target < current) return '放会员 / 上级付';
+  if (target > current) return '放会员 / 玩家赢';
+  if (target < current) return '压会员 / 玩家输';
   return '维持';
 }
 
 function manualDirectionClass(row: ManualDetectionRow): string {
-  const current = Number.parseFloat(row.currentSettlement ?? '0');
-  const target = Number.parseFloat(row.targetSettlement ?? '0');
+  const current = playerSettlementNumber(row.currentSettlement);
+  const target = playerSettlementNumber(row.targetSettlement);
   if (!Number.isFinite(current) || !Number.isFinite(target) || target === current)
     return 'tag tag-acid';
   return target > current ? 'tag tag-toxic' : 'tag tag-ember';
