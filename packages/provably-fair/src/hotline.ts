@@ -37,14 +37,14 @@ const HOTLINE_3X3_PAYTABLE = [
   { weight: 1, payout3: 5, payout4: 5, payout5: 5 },
 ] as const;
 const HOTLINE_MEGA_PAYTABLE = [
-  { weight: 16, payout3: 0.2, payout4: 0.2, payout5: 0.2 },
-  { weight: 16, payout3: 0.4, payout4: 0.4, payout5: 0.4 },
-  { weight: 16, payout3: 0.6, payout4: 0.6, payout5: 0.6 },
-  { weight: 16, payout3: 0.8, payout4: 0.8, payout5: 0.8 },
-  { weight: 10, payout3: 1.2, payout4: 1.2, payout5: 1.2 },
-  { weight: 8.5, payout3: 1.4, payout4: 1.4, payout5: 1.4 },
-  { weight: 7, payout3: 1.6, payout4: 1.6, payout5: 1.6 },
-  { weight: 5.5, payout3: 1.8, payout4: 1.8, payout5: 1.8 },
+  { weight: 16, payout3: 0.224, payout4: 0.224, payout5: 0.224 },
+  { weight: 16, payout3: 0.448, payout4: 0.448, payout5: 0.448 },
+  { weight: 16, payout3: 0.672, payout4: 0.672, payout5: 0.672 },
+  { weight: 16, payout3: 0.896, payout4: 0.896, payout5: 0.896 },
+  { weight: 10, payout3: 1.344, payout4: 1.344, payout5: 1.344 },
+  { weight: 8.5, payout3: 1.568, payout4: 1.568, payout5: 1.568 },
+  { weight: 7, payout3: 1.792, payout4: 1.792, payout5: 1.792 },
+  { weight: 5.5, payout3: 2.016, payout4: 2.016, payout5: 2.016 },
 ] as const;
 
 // 符號池：權重決定出現率（Stake-style 類 slot）
