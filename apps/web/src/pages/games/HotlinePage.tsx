@@ -47,6 +47,9 @@ const MEGA_MAX_TOTAL_MULTIPLIER = 1000;
 const MEGA_BUY_FEATURE_MAX_WIN_MULTIPLIER = 50000;
 const MEGA_FREE_SPIN_INTRO_MS = 1600;
 const MEGA_FREE_SPIN_RETRIGGER_MS = 1300;
+const SCENE_RESIZE_DEBOUNCE_MS = 160;
+const ORIENTATION_SCENE_RESIZE_DEBOUNCE_MS = 520;
+const MEGA_RENDERER_RETRY_MS = 900;
 const JACKPOT_KEYS = ['grand', 'major', 'minor', 'mini'] as const;
 type JackpotKey = (typeof JACKPOT_KEYS)[number];
 const JACKPOT_LABELS: Record<JackpotKey, string> = {
@@ -184,6 +187,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const [sceneReady, setSceneReady] = useState(false);
+  const [sceneLoadingProgress, setSceneLoadingProgress] = useState(0);
   const [liveMegaRound, setLiveMegaRound] = useState<LiveMegaRoundState | null>(null);
   const [megaFreeSpinIntro, setMegaFreeSpinIntro] = useState<MegaFreeSpinIntro | null>(null);
   const [megaFallbackSpinning, setMegaFallbackSpinning] = useState(false);
@@ -238,11 +242,20 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     megaFallbackSpinSpecialSymbols,
   );
 
-  const setSceneAvailability = useCallback((ready: boolean, _fallback = false): void => {
-    sceneReadyRef.current = ready;
-    if (ready) sceneRecoveryAttemptsRef.current = 0;
-    setSceneReady(ready);
-  }, []);
+  const setSceneAvailability = useCallback(
+    (ready: boolean, _fallback = false): void => {
+      sceneReadyRef.current = ready;
+      if (ready) {
+        sceneRecoveryAttemptsRef.current = 0;
+        setSceneLoadingProgress(100);
+        setError((prev) => (prev === '遊戲畫面載入中，請稍候' ? null : prev));
+      } else if (isMegaSlot) {
+        setSceneLoadingProgress(8);
+      }
+      setSceneReady(ready);
+    },
+    [isMegaSlot],
+  );
 
   const scheduleSceneRecovery = useCallback((): void => {
     pendingSceneResizeRef.current = true;
@@ -296,6 +309,23 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   useEffect(() => {
     resultVisibleRef.current = Boolean(result);
   }, [result]);
+
+  useEffect(() => {
+    if (!isMegaSlot) return;
+    if (sceneReady) {
+      setSceneLoadingProgress(100);
+      return;
+    }
+    setSceneLoadingProgress(8);
+    const timer = window.setInterval(() => {
+      setSceneLoadingProgress((prev) => {
+        if (sceneReadyRef.current) return 100;
+        const increment = prev < 42 ? 7 : prev < 72 ? 4 : prev < 88 ? 2 : 1;
+        return Math.min(94, prev + increment);
+      });
+    }, 260);
+    return () => window.clearInterval(timer);
+  }, [isMegaSlot, sceneReady, slotTheme.id]);
 
   useEffect(() => {
     sceneResizeLockedRef.current = busy || spinning;
@@ -357,6 +387,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     let initToken = 0;
     let lastWidth = 0;
     let lastHeight = 0;
+    let forceNextRebuild = false;
     const handleContextLost = (event: Event) => {
       event.preventDefault();
       slotDebug('hotline-page:webgl-context-lost', {
@@ -393,6 +424,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
     const initScene = (w: number, h: number) => {
       if (cancelled) return;
+      forceNextRebuild = false;
       fillCanvas();
       lastWidth = w;
       lastHeight = h;
@@ -474,6 +506,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               },
               'warn',
             );
+            pendingSceneResizeRef.current = true;
+            resizeTimer = window.setTimeout(() => {
+              resizeTimer = null;
+              if (cancelled) return;
+              forceNextRebuild = true;
+              if (rafId) cancelAnimationFrame(rafId);
+              rafId = requestAnimationFrame(ensureSceneSize);
+            }, MEGA_RENDERER_RETRY_MS);
             return;
           }
           scheduleSceneRecovery();
@@ -491,6 +531,17 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       }
       if (!scene) {
         slotDebug('hotline-page:ensure-size:no-scene', { width: w, height: h });
+        initScene(w, h);
+        return;
+      }
+
+      if (forceNextRebuild && !sceneResizeLockedRef.current) {
+        slotDebug('hotline-page:ensure-size:forced-rebuild', {
+          width: w,
+          height: h,
+          lastWidth,
+          lastHeight,
+        });
         initScene(w, h);
         return;
       }
@@ -555,13 +606,31 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         resizeTimer = null;
         if (rafId) cancelAnimationFrame(rafId);
         rafId = requestAnimationFrame(ensureSceneSize);
-      }, 120);
+      }, SCENE_RESIZE_DEBOUNCE_MS);
+    };
+
+    const scheduleOrientationEnsureSceneSize = () => {
+      if (!isMegaSlot) {
+        scheduleEnsureSceneSize();
+        return;
+      }
+      pendingSceneResizeRef.current = true;
+      forceNextRebuild = true;
+      if (resizeTimer) window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        resizeTimer = null;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(ensureSceneSize);
+      }, ORIENTATION_SCENE_RESIZE_DEBOUNCE_MS);
     };
 
     sceneResizeSchedulerRef.current = scheduleEnsureSceneSize;
     ensureSceneSize();
     resizeObserver = new ResizeObserver(scheduleEnsureSceneSize);
     resizeObserver.observe(canvas.parentElement ?? canvas);
+    window.addEventListener('orientationchange', scheduleOrientationEnsureSceneSize);
+    window.addEventListener('resize', scheduleOrientationEnsureSceneSize);
+    window.visualViewport?.addEventListener('resize', scheduleOrientationEnsureSceneSize);
 
     return () => {
       slotDebug('hotline-page:scene-effect:cleanup', {
@@ -576,6 +645,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       scene?.dispose();
       resizeObserver?.disconnect();
       canvas.removeEventListener('webglcontextlost', handleContextLost);
+      window.removeEventListener('orientationchange', scheduleOrientationEnsureSceneSize);
+      window.removeEventListener('resize', scheduleOrientationEnsureSceneSize);
+      window.visualViewport?.removeEventListener('resize', scheduleOrientationEnsureSceneSize);
       sceneRef.current = null;
     };
   }, [isMegaSlot, scheduleSceneRecovery, setSceneAvailability, slotTheme]);
@@ -684,19 +756,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const stakeAmount = buyFeature ? roundCurrency(spinAmount * 100) : spinAmount;
     if (spinAmount < MIN_BET_AMOUNT || stakeAmount > availableBalance) return null;
     const activeScene = getPlayableScene();
-    const useMegaFallbackScene = isMegaSlot && !activeScene;
-    if (!activeScene && !useMegaFallbackScene) {
+    if (!activeScene) {
       setError('遊戲畫面載入中，請稍候');
       sceneResizeSchedulerRef.current?.();
       return null;
-    }
-    if (useMegaFallbackScene) {
-      slotDebug('hotline-page:spin:fallback-scene', {
-        gameId: slotTheme.gameId,
-        sceneReady,
-        amount: spinAmount,
-        buyFeature,
-      });
     }
     setBusy(true);
     setSpinning(true);
@@ -718,9 +781,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setError(null);
 
     activeScene?.resetWinLines();
-    // 樂觀動畫：轉軸立刻開始滾；Mega fallback 模式也要立即給手機端回饋。
+    // 樂觀動畫：轉軸立刻開始滾。
     activeScene?.startAnticipation(spinFast);
-    setMegaFallbackSpinning(useMegaFallbackScene);
+    setMegaFallbackSpinning(false);
 
     try {
       const payload: HotlineBetRequest = {
@@ -1472,8 +1535,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             : '已觸發，準備進入免費旋轉'
       : '4 SCATTER 觸發';
   const slotScenePending = !sceneReady;
-  const megaFallbackSceneAvailable = isMegaSlot;
-  const megaScenePending = isMegaSlot && slotScenePending && !megaFallbackSceneAvailable;
+  const megaScenePending = isMegaSlot && slotScenePending;
+  const megaLoadingProgressLabel = `${Math.round(sceneLoadingProgress)}%`;
   const megaSpinButtonLabel = megaScenePending
     ? '載入中'
     : megaFreeSpinAwaitingClick
@@ -1491,7 +1554,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         ? `剩 ${megaDisplayFreeSpinsRemaining}`
         : formatAmount(amount);
   const megaBuyFeatureCost = Number((amount * 100).toFixed(2));
-  const controlsLocked = busy || autoSpinActive || (!isMegaSlot && slotScenePending);
+  const controlsLocked = busy || autoSpinActive || slotScenePending;
   const megaSpinDisabled =
     megaScenePending ||
     autoSpinActive ||
@@ -1834,7 +1897,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 <MegaFallbackGrid
                   theme={slotTheme}
                   grid={megaFallbackDisplayGrid}
-                  hidden={sceneReady}
+                  hidden
                   spinning={megaFallbackSpinning}
                   fast={fastSpin}
                   dropping={megaFallbackDropping}
@@ -1849,6 +1912,20 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   ref={canvasRef}
                   className={`mega-slot-canvas ${sceneReady ? 'mega-slot-canvas--ready' : ''}`}
                 />
+                {!sceneReady && (
+                  <div className="mega-slot-loading" role="status" aria-live="polite">
+                    <div className="mega-slot-loading__panel">
+                      <div className="mega-slot-loading__head">
+                        <span>載入盤面</span>
+                        <strong>{megaLoadingProgressLabel}</strong>
+                      </div>
+                      <div className="mega-slot-loading__bar" aria-hidden="true">
+                        <span style={{ width: megaLoadingProgressLabel }} />
+                      </div>
+                      <div className="mega-slot-loading__meta">正在準備高畫質遊戲畫面</div>
+                    </div>
+                  </div>
+                )}
                 {megaFreeSpinIntro && <MegaFreeSpinIntroOverlay intro={megaFreeSpinIntro} />}
               </div>
               {result && showBigWinOverlay && (
