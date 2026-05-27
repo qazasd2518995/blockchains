@@ -140,9 +140,7 @@ function chooseRouletteSlot(
       ? x.profit > 0 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
       : x.profit < 0,
   );
-  const pool = candidates.length > 0
-    ? candidates
-    : Array.from({ length: ROULETTE_SLOTS }, (_, slot) => {
+  const losingFallback = Array.from({ length: ROULETTE_SLOTS }, (_, slot) => {
       const evaluated = rouletteEvaluate(slot, bets);
       return {
         slot,
@@ -150,7 +148,8 @@ function chooseRouletteSlot(
         payout: evaluated.totalPayout,
         multiplier: totalAmount > 0 ? evaluated.totalPayout / totalAmount : 0,
       };
-    });
+    }).filter((x) => x.profit < 0);
+  const pool = candidates.length > 0 ? candidates : losingFallback;
   if (wantWin) {
     const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
     const picked = pickRandomBest(pool, (x) => {

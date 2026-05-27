@@ -137,10 +137,10 @@ function chooseWheelSegment(
         ? x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
         : x.multiplier <= 1,
     );
-  const pool =
-    candidates.length > 0
-      ? candidates
-      : table.map((multiplier, segmentIndex) => ({ segmentIndex, multiplier }));
+  const losingFallback = table
+    .map((multiplier, segmentIndex) => ({ segmentIndex, multiplier }))
+    .filter((x) => x.multiplier <= 1);
+  const pool = candidates.length > 0 ? candidates : losingFallback;
   if (wantWin) {
     const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
     const picked = pickRandomBest(pool, (x) => {

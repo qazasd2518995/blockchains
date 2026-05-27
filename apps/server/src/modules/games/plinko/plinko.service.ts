@@ -177,10 +177,10 @@ function choosePlinkoBucket(
         ? x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
         : x.multiplier <= 1,
     );
-  const pool =
-    candidates.length > 0
-      ? candidates
-      : table.map((multiplier, bucket) => ({ bucket, multiplier }));
+  const losingFallback = table
+    .map((multiplier, bucket) => ({ bucket, multiplier }))
+    .filter((x) => x.multiplier <= 1);
+  const pool = candidates.length > 0 ? candidates : losingFallback;
   const picked = pickRandomBest(pool, (x) => {
     if (wantWin) {
       const targetDiff = Math.abs(x.multiplier - targetMultiplier);

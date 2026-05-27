@@ -130,7 +130,7 @@ export async function applyControls(
   if (!decision) return { ...predicted, controlled: false };
   const cappedDecision =
     decision.desired === 'WIN'
-      ? await withGlobalMemberWinCapBounds(tx, member.id, predicted, decision)
+      ? await withWinCapBounds(tx, member, predicted, decision)
       : decision;
 
   const predictedNetWin = isNetWin(predicted);
@@ -432,29 +432,94 @@ async function findGlobalMemberWinCapDecision(
   return null;
 }
 
-async function withGlobalMemberWinCapBounds(
+async function withWinCapBounds(
   tx: Db,
-  memberId: string,
+  member: MemberScope,
   predicted: PredictedResult,
   decision: ControlDecision,
 ): Promise<ControlDecision> {
   if (decision.desired !== 'WIN') return decision;
 
-  const stats = await getMemberTodayStats(tx, memberId);
-  const remainingProfit = GLOBAL_MEMBER_DAILY_WIN_CAP.sub(stats.net);
-  if (remainingProfit.lessThanOrEqualTo(0)) {
+  const maxPayouts: Prisma.Decimal[] = [];
+  const globalBound = await getGlobalMemberWinCapPayoutBound(tx, member.id, predicted.amount);
+  if (globalBound === null) {
     return {
       desired: 'LOSS',
       controlId: decision.controlId,
       reason: 'global_member_daily_win_cap',
     };
   }
+  maxPayouts.push(globalBound);
 
-  const capPayout = predicted.amount.add(remainingProfit).toDecimalPlaces(2);
+  const memberBound = await getMemberWinCapPayoutBound(tx, member.id, predicted.amount);
+  if (memberBound === null) {
+    return { desired: 'LOSS', controlId: decision.controlId, reason: 'win_cap' };
+  }
+  if (memberBound) maxPayouts.push(memberBound);
+
+  const agentBound = await getAgentLineCapPayoutBound(tx, member.agentId, predicted.amount);
+  if (agentBound === null) {
+    return { desired: 'LOSS', controlId: decision.controlId, reason: 'agent_line_cap' };
+  }
+  if (agentBound) maxPayouts.push(agentBound);
+
+  const capPayout = minDecimal(maxPayouts);
   return {
     ...decision,
     maxPayout: decision.maxPayout ? minDecimal([decision.maxPayout, capPayout]) : capPayout,
   };
+}
+
+async function getGlobalMemberWinCapPayoutBound(
+  tx: Db,
+  memberId: string,
+  amount: Prisma.Decimal,
+): Promise<Prisma.Decimal | null> {
+  const stats = await getMemberTodayStats(tx, memberId);
+  const remainingProfit = GLOBAL_MEMBER_DAILY_WIN_CAP.sub(stats.net);
+  if (remainingProfit.lessThanOrEqualTo(0)) return null;
+  return amount.add(remainingProfit).toDecimalPlaces(2);
+}
+
+async function getMemberWinCapPayoutBound(
+  tx: Db,
+  memberId: string,
+  amount: Prisma.Decimal,
+): Promise<Prisma.Decimal | null | undefined> {
+  const control = await tx.memberWinCapControl.findFirst({
+    where: { memberId, isActive: true },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!control) return undefined;
+
+  const normalized = await normalizeMemberWinCapDay(tx, control);
+  const remainingProfit = normalized.winCapAmount.sub(normalized.todayWinAmount);
+  if (remainingProfit.lessThanOrEqualTo(0)) return null;
+  return amount.add(remainingProfit).toDecimalPlaces(2);
+}
+
+async function getAgentLineCapPayoutBound(
+  tx: Db,
+  agentId: string | null,
+  amount: Prisma.Decimal,
+): Promise<Prisma.Decimal | null | undefined> {
+  if (!agentId) return undefined;
+  const ancestors = await getAgentAncestors(tx, agentId);
+  if (ancestors.length === 0) return undefined;
+
+  const controls = await tx.agentLineWinCap.findMany({
+    where: { agentId: { in: ancestors }, isActive: true },
+  });
+  if (controls.length === 0) return undefined;
+
+  const bounds: Prisma.Decimal[] = [];
+  for (const control of controls) {
+    const normalized = await normalizeAgentLineCapDay(tx, control);
+    const remainingProfit = normalized.dailyCap.sub(normalized.todayWinAmount);
+    if (remainingProfit.lessThanOrEqualTo(0)) return null;
+    bounds.push(amount.add(remainingProfit).toDecimalPlaces(2));
+  }
+  return minDecimal(bounds);
 }
 
 async function findAgentLineCapDecision(
