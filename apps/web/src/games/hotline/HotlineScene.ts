@@ -10,6 +10,7 @@ import {
   Texture,
   Ticker,
   BlurFilter,
+  type ApplicationOptions,
 } from 'pixi.js';
 import { gsap } from 'gsap';
 import {
@@ -48,6 +49,8 @@ const REEL_STRIP_LEN = 18; // reel 內部轉動用的延伸符號，控制物件
 const FINAL_STOP_ROW = 2;
 const CLASSIC_RENDER_DPR = 1.6;
 const MEGA_RENDER_DPR = 2;
+const MEGA_CONSTRAINED_RENDER_DPR = 2;
+const MEGA_CONSTRAINED_PIXEL_BUDGET = 4_000_000;
 const CLASSIC_PARTICLE_POOL_SIZE = 180;
 const MEGA_PARTICLE_POOL_SIZE = 120;
 const MEGA_MAX_CELL_ASPECT = 1.26;
@@ -212,9 +215,25 @@ export class HotlineScene {
     this.reelCount = theme.reels;
     this.rowCount = theme.rows ?? ROWS;
 
-    const app = new Application();
+    let app = new Application();
     const useConstrainedRenderer = this.shouldUseConstrainedMegaRenderer();
     const rendererResolution = this.getRendererResolution();
+    const preferWebGLVersion: 1 | 2 = useConstrainedRenderer ? 1 : 2;
+    const initOptions: Partial<ApplicationOptions> = {
+      canvas,
+      width,
+      height,
+      backgroundAlpha: 0,
+      resolution: rendererResolution,
+      autoDensity: true,
+      antialias:
+        !useConstrainedRenderer &&
+        this.rowCount <= ROWS &&
+        rendererResolution <= CLASSIC_RENDER_DPR,
+      powerPreference: useConstrainedRenderer ? 'low-power' : 'high-performance',
+      preference: ['webgl', 'canvas'],
+      preferWebGLVersion,
+    };
     slotDebug('hotline-scene:init:start', {
       build: SLOT_DEBUG_BUILD,
       width,
@@ -240,26 +259,38 @@ export class HotlineScene {
       },
     });
     try {
-      await app.init({
-        canvas,
-        width,
-        height,
-        backgroundAlpha: 0,
-        resolution: rendererResolution,
-        autoDensity: true,
-        antialias:
-          !useConstrainedRenderer &&
-          this.rowCount <= ROWS &&
-          rendererResolution <= CLASSIC_RENDER_DPR,
-        powerPreference: useConstrainedRenderer ? 'low-power' : 'high-performance',
-        preference: ['webgl', 'canvas'],
-        preferWebGLVersion: useConstrainedRenderer ? 1 : 2,
-      });
+      await app.init(initOptions);
     } catch (err) {
-      slotDebug('hotline-scene:init:app-error', describeSlotDebugError(err), 'error');
-      this.initializing = false;
-      this.destroyPixiApp(app);
-      throw err;
+      if (this.rowCount > ROWS) {
+        slotDebug('hotline-scene:init:retry-canvas', describeSlotDebugError(err), 'warn');
+        this.destroyPixiApp(app);
+        app = new Application();
+        try {
+          await app.init({
+            ...initOptions,
+            antialias: false,
+            powerPreference: 'low-power',
+            preference: 'canvas',
+          });
+        } catch (canvasErr) {
+          slotDebug(
+            'hotline-scene:init:canvas-error',
+            {
+              webglError: describeSlotDebugError(err),
+              canvasError: describeSlotDebugError(canvasErr),
+            },
+            'error',
+          );
+          this.initializing = false;
+          this.destroyPixiApp(app);
+          throw canvasErr;
+        }
+      } else {
+        slotDebug('hotline-scene:init:app-error', describeSlotDebugError(err), 'error');
+        this.initializing = false;
+        this.destroyPixiApp(app);
+        throw err;
+      }
     }
     this.rendererKind = this.getPixiRendererKind(app);
     slotDebug('hotline-scene:init:app-ready', {
@@ -446,11 +477,19 @@ export class HotlineScene {
   private getRendererResolution(): number {
     const deviceResolution =
       typeof window === 'undefined' ? 1 : Math.max(1, window.devicePixelRatio || 1);
-    if (this.shouldUseConstrainedMegaRenderer()) return 1;
-    return Math.min(
-      deviceResolution,
-      this.rowCount > ROWS ? MEGA_RENDER_DPR : CLASSIC_RENDER_DPR,
-    );
+    const maxResolution = this.rowCount > ROWS
+      ? this.shouldUseConstrainedMegaRenderer()
+        ? MEGA_CONSTRAINED_RENDER_DPR
+        : MEGA_RENDER_DPR
+      : CLASSIC_RENDER_DPR;
+    const targetResolution = Math.min(deviceResolution, maxResolution);
+    if (this.rowCount <= ROWS || !this.shouldUseConstrainedMegaRenderer()) {
+      return targetResolution;
+    }
+
+    const cssPixels = Math.max(1, this.width) * Math.max(1, this.height);
+    const maxBudgetResolution = Math.sqrt(MEGA_CONSTRAINED_PIXEL_BUDGET / cssPixels);
+    return Math.max(1, Math.min(targetResolution, Number(maxBudgetResolution.toFixed(2))));
   }
 
   private shouldUseConstrainedMegaRenderer(): boolean {
