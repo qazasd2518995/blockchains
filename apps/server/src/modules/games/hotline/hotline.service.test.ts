@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Prisma } from '@prisma/client';
 import { GameId } from '@bg/shared';
 import { hotlineEvaluate } from '@bg/provably-fair';
 import { __hotlineServiceTestHooks } from './hotline.service.js';
@@ -37,5 +38,22 @@ describe('hotline controlled round shaping', () => {
       }),
     );
     expect(removalSignatures.size).toBeGreaterThan(1);
+  });
+
+  it('does not fall back to uncapped jackpot symbols when burst bounds are unreachable', () => {
+    const amount = new Prisma.Decimal(10);
+    const maxPayout = new Prisma.Decimal(3010);
+    const round = __hotlineServiceTestHooks.winningHotlineRound(
+      GameId.SAKURA_SLOT,
+      amount,
+      {
+        minMultiplier: new Prisma.Decimal(21),
+        maxMultiplier: new Prisma.Decimal(301),
+        maxPayout,
+      },
+      42,
+    );
+
+    expect(amount.mul(round.totalMultiplier).lessThanOrEqualTo(maxPayout)).toBe(true);
   });
 });

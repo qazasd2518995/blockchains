@@ -444,12 +444,21 @@ function winningHotlineRound(
       candidate.totalMultiplier > 1 &&
       multiplierMatchesControlBounds(candidate.totalMultiplier, amount, controlled),
   );
+  const underCap = pool.filter(
+    (candidate) =>
+      candidate.totalMultiplier > 1 &&
+      multiplierMatchesControlBounds(candidate.totalMultiplier, amount, {
+        maxMultiplier: controlled.maxMultiplier,
+        maxPayout: controlled.maxPayout,
+      }),
+  );
   return (
     pickRandomBest(bounded, (candidate) => {
       const distance = Math.abs(candidate.totalMultiplier - targetMultiplier);
       return distance * 1000 + candidate.totalMultiplier / 1_000_000;
     }) ??
-    pickRandomItem(pool) ??
+    pickRandomBest(underCap, (candidate) => -candidate.totalMultiplier) ??
+    softLossHotlineRound(gameId, variant) ??
     pool[0]!
   );
 }
@@ -475,12 +484,21 @@ function winningMegaHotlineRound(
       candidate.totalMultiplier > 1 &&
       multiplierMatchesControlBounds(candidate.totalMultiplier, amount, controlled),
   );
+  const underCap = candidates.filter(
+    (candidate) =>
+      candidate.totalMultiplier > 1 &&
+      multiplierMatchesControlBounds(candidate.totalMultiplier, amount, {
+        maxMultiplier: controlled.maxMultiplier,
+        maxPayout: controlled.maxPayout,
+      }),
+  );
   return (
     pickRandomBest(bounded, (candidate) => {
       const distance = Math.abs(candidate.totalMultiplier - targetMultiplier);
       return distance * 1000 + candidate.totalMultiplier / 1_000_000;
     }) ??
-    pickRandomItem(candidates) ??
+    pickRandomBest(underCap, (candidate) => -candidate.totalMultiplier) ??
+    softLossHotlineRound(gameId, variant) ??
     candidates[0]!
   );
 }
