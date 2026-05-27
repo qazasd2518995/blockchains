@@ -7,6 +7,7 @@ import {
   HOTLINE_ROWS,
   HOTLINE_MEGA_REELS,
   HOTLINE_MEGA_ROWS,
+  HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER,
   HOTLINE_SYMBOLS,
   HOTLINE_MINI_SYMBOLS,
   HOTLINE_MEGA_SYMBOLS,
@@ -62,17 +63,18 @@ describe('hotlineSpin', () => {
     expect(HOTLINE_MINI_SYMBOLS.map((symbol) => symbol.payout3)).toEqual([
       3, 3.3, 3.6, 4, 4.2, 4.5, 4.8, 5,
     ]);
-    expect(HOTLINE_SYMBOLS.map((symbol) => [symbol.payout3, symbol.payout4, symbol.payout5]))
-      .toEqual([
-        [1.3, 3.3, 10],
-        [1.6, 5, 13],
-        [2, 6.5, 20],
-        [2.5, 8, 26],
-        [3.3, 13, 50],
-        [5, 20, 85],
-        [8, 35, 135],
-        [13, 65, 250],
-      ]);
+    expect(
+      HOTLINE_SYMBOLS.map((symbol) => [symbol.payout3, symbol.payout4, symbol.payout5]),
+    ).toEqual([
+      [1.3, 3.3, 10],
+      [1.6, 5, 13],
+      [2, 6.5, 20],
+      [2.5, 8, 26],
+      [3.3, 13, 50],
+      [5, 20, 85],
+      [8, 35, 135],
+      [13, 65, 250],
+    ]);
   });
 
   it('supports 6x5 mega slot variants', () => {
@@ -94,14 +96,14 @@ describe('hotlineSpin', () => {
     expect(
       HOTLINE_MEGA_SYMBOLS.map((symbol) => [symbol.payout3, symbol.payout4, symbol.payout5]),
     ).toEqual([
-      [0.224, 0.224, 0.224],
-      [0.448, 0.448, 0.448],
-      [0.672, 0.672, 0.672],
-      [0.896, 0.896, 0.896],
-      [1.344, 1.344, 1.344],
-      [1.568, 1.568, 1.568],
-      [1.792, 1.792, 1.792],
-      [2.016, 2.016, 2.016],
+      [0.112, 0.224, 0.448],
+      [0.168, 0.336, 0.56],
+      [0.224, 0.448, 0.728],
+      [0.28, 0.56, 0.896],
+      [0.392, 0.784, 1.344],
+      [0.504, 1.008, 1.568],
+      [0.616, 1.232, 1.792],
+      [0.728, 1.456, 2.016],
     ]);
   });
 
@@ -254,6 +256,27 @@ describe('hotlineSpin', () => {
     expect(result.features!.freeSpinsAwarded).toBeLessThanOrEqual(100);
     expect(result.features!.freeSpinsPlayed).toBe(result.features!.freeSpinRounds.length);
     expect(result.totalMultiplier).toBe(result.features!.totalMultiplier);
+    expect(result.totalMultiplier).toBeLessThanOrEqual(
+      HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER,
+    );
+  });
+
+  it('produces varied mega buy-feature payouts across 30 rounds', () => {
+    const baseAmount = 20;
+    const stakeAmount = baseAmount * 100;
+    const payouts = Array.from({ length: 30 }, (_, nonce) => {
+      const result = hotlineBuyFreeSpins(
+        'variation-server',
+        'variation-client',
+        nonce,
+        HOTLINE_MEGA_REELS,
+        HOTLINE_MEGA_ROWS,
+      );
+      return Number((baseAmount * result.totalMultiplier).toFixed(2));
+    });
+
+    expect(new Set(payouts).size).toBe(30);
+    expect(Math.max(...payouts)).toBeLessThanOrEqual(stakeAmount * 2);
   });
 });
 

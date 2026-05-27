@@ -37,14 +37,14 @@ const HOTLINE_3X3_PAYTABLE = [
   { weight: 1, payout3: 5, payout4: 5, payout5: 5 },
 ] as const;
 const HOTLINE_MEGA_PAYTABLE = [
-  { weight: 16, payout3: 0.224, payout4: 0.224, payout5: 0.224 },
-  { weight: 16, payout3: 0.448, payout4: 0.448, payout5: 0.448 },
-  { weight: 16, payout3: 0.672, payout4: 0.672, payout5: 0.672 },
-  { weight: 16, payout3: 0.896, payout4: 0.896, payout5: 0.896 },
-  { weight: 10, payout3: 1.344, payout4: 1.344, payout5: 1.344 },
-  { weight: 8.5, payout3: 1.568, payout4: 1.568, payout5: 1.568 },
-  { weight: 7, payout3: 1.792, payout4: 1.792, payout5: 1.792 },
-  { weight: 5.5, payout3: 2.016, payout4: 2.016, payout5: 2.016 },
+  { weight: 16, payout3: 0.112, payout4: 0.224, payout5: 0.448 },
+  { weight: 16, payout3: 0.168, payout4: 0.336, payout5: 0.56 },
+  { weight: 16, payout3: 0.224, payout4: 0.448, payout5: 0.728 },
+  { weight: 16, payout3: 0.28, payout4: 0.56, payout5: 0.896 },
+  { weight: 10, payout3: 0.392, payout4: 0.784, payout5: 1.344 },
+  { weight: 8.5, payout3: 0.504, payout4: 1.008, payout5: 1.568 },
+  { weight: 7, payout3: 0.616, payout4: 1.232, payout5: 1.792 },
+  { weight: 5.5, payout3: 0.728, payout4: 1.456, payout5: 2.016 },
 ] as const;
 
 // 符號池：權重決定出現率（Stake-style 類 slot）
@@ -76,6 +76,9 @@ export const HOTLINE_MEGA_FREE_SPIN_RETRIGGER_TRIGGER = 3;
 export const HOTLINE_MEGA_FREE_SPIN_BASE_AWARD = 15;
 export const HOTLINE_MEGA_FREE_SPIN_RETRIGGER_AWARD = 5;
 export const HOTLINE_MEGA_MAX_FREE_SPINS = 100;
+export const HOTLINE_MEGA_BUY_FEATURE_COST_MULTIPLIER = 100;
+export const HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER =
+  HOTLINE_MEGA_BUY_FEATURE_COST_MULTIPLIER * 2;
 export const HOTLINE_MEGA_MULTIPLIER_VALUES = [
   2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50, 100, 250, 500, 1000,
 ] as const;
@@ -264,20 +267,21 @@ export function hotlineBuyFreeSpins(
     maxCascades,
     HOTLINE_MEGA_FREE_SPIN_BASE_AWARD,
   );
+  const cappedFreeSpins = capBuyFeatureFreeSpins(freeSpins);
   const features: HotlineMegaFeatureResult = {
     scatterSymbols,
     scatterCount: scatterSymbols.length,
-    freeSpinsAwarded: freeSpins.freeSpinsAwarded,
-    freeSpinsPlayed: freeSpins.freeSpinRounds.length,
+    freeSpinsAwarded: cappedFreeSpins.freeSpinsAwarded,
+    freeSpinsPlayed: cappedFreeSpins.freeSpinRounds.length,
     baseWinMultiplier: 0,
     baseMultiplierSymbols: [],
     baseMultiplierTotal: 0,
     baseAppliedMultiplier: 1,
     baseTotalMultiplier: 0,
-    freeSpinRounds: freeSpins.freeSpinRounds,
-    freeSpinMultiplierBank: freeSpins.freeSpinMultiplierBank,
-    freeSpinWinMultiplier: freeSpins.freeSpinWinMultiplier,
-    totalMultiplier: capMegaMultiplier(freeSpins.freeSpinWinMultiplier),
+    freeSpinRounds: cappedFreeSpins.freeSpinRounds,
+    freeSpinMultiplierBank: cappedFreeSpins.freeSpinMultiplierBank,
+    freeSpinWinMultiplier: cappedFreeSpins.freeSpinWinMultiplier,
+    totalMultiplier: cappedFreeSpins.freeSpinWinMultiplier,
   };
 
   return {
@@ -465,6 +469,52 @@ function runMegaFreeSpinRounds(
     freeSpinRounds,
     freeSpinMultiplierBank,
     freeSpinWinMultiplier,
+  };
+}
+
+function capBuyFeatureFreeSpins(freeSpins: {
+  freeSpinsAwarded: number;
+  freeSpinRounds: HotlineFreeSpinRound[];
+  freeSpinMultiplierBank: number;
+  freeSpinWinMultiplier: number;
+}): {
+  freeSpinsAwarded: number;
+  freeSpinRounds: HotlineFreeSpinRound[];
+  freeSpinMultiplierBank: number;
+  freeSpinWinMultiplier: number;
+} {
+  if (freeSpins.freeSpinWinMultiplier <= HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER) {
+    return freeSpins;
+  }
+
+  const ratio = HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER / freeSpins.freeSpinWinMultiplier;
+  return {
+    freeSpinsAwarded: freeSpins.freeSpinsAwarded,
+    freeSpinRounds: freeSpins.freeSpinRounds.map((round) => scaleFreeSpinRound(round, ratio)),
+    freeSpinMultiplierBank: roundMultiplier(freeSpins.freeSpinMultiplierBank * ratio),
+    freeSpinWinMultiplier: HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER,
+  };
+}
+
+function scaleFreeSpinRound(round: HotlineFreeSpinRound, ratio: number): HotlineFreeSpinRound {
+  return {
+    ...round,
+    cascades: round.cascades.map((step) => ({
+      ...step,
+      multiplier: roundMultiplier(step.multiplier * ratio),
+      lines: step.lines.map((line) => ({
+        ...line,
+        payout: roundMultiplier(line.payout * ratio),
+      })),
+    })),
+    lines: round.lines.map((line) => ({
+      ...line,
+      payout: roundMultiplier(line.payout * ratio),
+    })),
+    baseMultiplier: roundMultiplier(round.baseMultiplier * ratio),
+    multiplierTotal: roundMultiplier(round.multiplierTotal * ratio),
+    appliedMultiplier: roundMultiplier(round.appliedMultiplier * ratio),
+    totalMultiplier: roundMultiplier(round.totalMultiplier * ratio),
   };
 }
 

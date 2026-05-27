@@ -160,10 +160,34 @@ export class HotlineService {
         finalFeatures =
           rowCount > 3
             ? buyFeature
-              ? buildControlledMegaFeature(Number(finalMultiplier.toFixed(4)), true)
+              ? buildControlledMegaFeature(
+                  baseAmount.greaterThan(0)
+                    ? Number(
+                        finalPayout
+                          .div(baseAmount)
+                          .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN)
+                          .toFixed(4),
+                      )
+                    : Number(finalMultiplier.toFixed(4)),
+                  true,
+                )
               : (controlledRound.features ??
                 buildControlledMegaFeature(Number(finalMultiplier.toFixed(4))))
             : undefined;
+      }
+
+      if (buyFeature && rowCount > 3 && finalFeatures && finalFeatures.freeSpinsAwarded > 0) {
+        const capped = capMegaFreeGameSettlement(
+          finalFeatures,
+          buyFeature,
+          baseAmount,
+          stakeAmount,
+          finalPayout,
+          finalMultiplier,
+        );
+        finalFeatures = capped.features;
+        finalPayout = capped.payout;
+        finalMultiplier = capped.multiplier;
       }
       const profit = finalPayout.minus(stakeAmount);
 
@@ -386,6 +410,104 @@ type HotlineRound = Pick<HotlineBetResult, 'grid' | 'lines' | 'cascades'> & {
 const HOTLINE_SOFT_LOSS_SYMBOLS = [0, 1] as const;
 const HOTLINE_SOFT_WIN_SYMBOLS = [2, 3, 4, 5, 6, 7] as const;
 const HOTLINE_SYMBOL_INDEXES = [0, 1, 2, 3, 4, 5, 6, 7] as const;
+const MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER = new Prisma.Decimal(2);
+
+function capMegaFreeGameSettlement(
+  features: HotlineMegaFeatureResult,
+  buyFeature: boolean,
+  baseAmount: Prisma.Decimal,
+  stakeAmount: Prisma.Decimal,
+  payout: Prisma.Decimal,
+  multiplier: Prisma.Decimal,
+): {
+  features: HotlineMegaFeatureResult;
+  payout: Prisma.Decimal;
+  multiplier: Prisma.Decimal;
+} {
+  const maxPayout = stakeAmount
+    .mul(MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER)
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  if (payout.lessThanOrEqualTo(maxPayout)) {
+    return { features, payout, multiplier };
+  }
+
+  const cappedMultiplier = stakeAmount.greaterThan(0)
+    ? maxPayout.div(stakeAmount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN)
+    : new Prisma.Decimal(0);
+  const featureDisplayMultiplier = baseAmount.greaterThan(0)
+    ? maxPayout.div(baseAmount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN).toNumber()
+    : cappedMultiplier.toNumber();
+
+  return {
+    features: scaleMegaFeatureResult(features, featureDisplayMultiplier, buyFeature),
+    payout: maxPayout,
+    multiplier: cappedMultiplier,
+  };
+}
+
+function scaleMegaFeatureResult(
+  features: HotlineMegaFeatureResult,
+  targetTotalMultiplier: number,
+  buyFeature: boolean,
+): HotlineMegaFeatureResult {
+  const target = roundFeatureMultiplier(targetTotalMultiplier);
+  const current = Math.max(0, features.totalMultiplier);
+  if (current <= target || current <= 0) {
+    return features;
+  }
+
+  const ratio = target / current;
+  const baseTotalMultiplier = buyFeature
+    ? 0
+    : roundFeatureMultiplier(features.baseTotalMultiplier * ratio);
+  const baseWinMultiplier = buyFeature
+    ? 0
+    : roundFeatureMultiplier(features.baseWinMultiplier * ratio);
+  const freeSpinRounds = features.freeSpinRounds.map((round) =>
+    scaleMegaFreeSpinRound(round, ratio),
+  );
+  const freeSpinWinMultiplier = buyFeature
+    ? target
+    : roundFeatureMultiplier(Math.max(0, target - baseTotalMultiplier));
+
+  return {
+    ...features,
+    baseWinMultiplier,
+    baseTotalMultiplier,
+    freeSpinRounds,
+    freeSpinWinMultiplier,
+    totalMultiplier: target,
+  };
+}
+
+function scaleMegaFreeSpinRound(
+  round: HotlineMegaFeatureResult['freeSpinRounds'][number],
+  ratio: number,
+): HotlineMegaFeatureResult['freeSpinRounds'][number] {
+  const cascades = round.cascades.map((step) => ({
+    ...step,
+    multiplier: roundFeatureMultiplier(step.multiplier * ratio),
+    lines: step.lines.map((line) => ({
+      ...line,
+      payout: roundFeatureMultiplier(line.payout * ratio),
+    })),
+  }));
+  return {
+    ...round,
+    cascades,
+    lines: round.lines.map((line) => ({
+      ...line,
+      payout: roundFeatureMultiplier(line.payout * ratio),
+    })),
+    baseMultiplier: roundFeatureMultiplier(round.baseMultiplier * ratio),
+    totalMultiplier: roundFeatureMultiplier(round.totalMultiplier * ratio),
+  };
+}
+
+function roundFeatureMultiplier(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Number(Math.max(0, value).toFixed(4));
+}
 
 function buildHotlineRound(
   serverSeed: string,
@@ -637,9 +759,7 @@ function makeClassicNoWinGrid(
       Array.from(
         { length: 3 },
         (_, row) =>
-          fillers[
-            (variant + attempt * 5 + reel * 7 + row * 3 + reel * row * 2) % fillers.length
-          ]!,
+          fillers[(variant + attempt * 5 + reel * 7 + row * 3 + reel * row * 2) % fillers.length]!,
       ),
     );
     if (hotlineEvaluate(grid).lines.length === 0) return grid;
@@ -702,10 +822,7 @@ function megaClusterHotlineGrid(symbols: readonly number[], variant = 0): number
   return grid;
 }
 
-function rankedMegaPositions(
-  positions: HotlineWinPosition[],
-  salt: number,
-): HotlineWinPosition[] {
+function rankedMegaPositions(positions: HotlineWinPosition[], salt: number): HotlineWinPosition[] {
   return [...positions].sort((a, b) => megaPositionScore(a, salt) - megaPositionScore(b, salt));
 }
 
