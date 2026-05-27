@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { getGameMeta } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { ImageBanner } from '@/components/shared/ImageBanner';
@@ -776,7 +777,19 @@ export function ControlsOverviewPage(): JSX.Element {
       label: '会员',
       render: (r) => <span className="font-mono">{r.username}</span>,
     },
-    { key: 'game', label: '游戏', render: (r) => <span className="tag tag-acid">{r.gameId}</span> },
+    {
+      key: 'game',
+      label: '游戏',
+      render: (r) => {
+        const game = getGameMeta(r.gameId);
+        return (
+          <span className="tag tag-acid flex-col items-start gap-0 leading-tight">
+            <span>{game?.nameZh ?? r.gameId}</span>
+            {game && <span className="font-mono text-[9px] opacity-60">{r.gameId}</span>}
+          </span>
+        );
+      },
+    },
     {
       key: 'reason',
       label: '控制来源 / 动作',
