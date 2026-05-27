@@ -86,7 +86,7 @@ interface BurstEligibility {
 }
 
 const BURST_CONTROL_MIN_POTENTIAL_MULTIPLIER = new Prisma.Decimal(20);
-export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(30000);
+export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(50000);
 const BURST_ALWAYS_ELIGIBLE_GAME_IDS = new Set<string>([
   GameId.MINES,
   GameId.HILO,

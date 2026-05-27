@@ -916,7 +916,7 @@ export function ControlsOverviewPage(): JSX.Element {
           <>
             <div className="font-semibold text-[#7A5F15]">控制优先级</div>
             <div className="mt-1">
-              会员输控制 &gt; 代理线输控制 &gt; 全账号 30,000 赢分上限 &gt; 会员赢控制 &gt;
+              会员输控制 &gt; 代理线输控制 &gt; 全账号 50,000 赢分上限 &gt; 会员赢控制 &gt;
               代理线赢控制 &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 爆分控制
             </div>
             <div className="mt-1 text-[#7A5F15]/80">
