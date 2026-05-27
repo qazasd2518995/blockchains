@@ -70,6 +70,7 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
         scope,
         ...target,
         burstRate,
+        lossRate: '0',
         minBurstProfit,
         maxBurstProfit,
         singleMultiplierCap,

@@ -87,7 +87,7 @@ export const burstControlSchema = z
     smallWinMultiplier: decimal.default('1.5'),
     burstRate: rateDecimal.default('0.03'),
     smallWinRate: rateDecimal.default('0.35'),
-    lossRate: rateDecimal.default('0.45'),
+    lossRate: rateDecimal.default('0'),
     compensationLoss: decimal.default('500'),
     capitalRetentionRatio: rateDecimal.default('0.30'),
     minEligibilityLoss: decimal.default('0'),

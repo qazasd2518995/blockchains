@@ -710,7 +710,7 @@ async function findBurstDecision(
 
   const burstRate = canBurst && eligibility.eligible ? clampRate(control.burstRate) : 0;
   const smallWinRate = eligibility.eligible ? clampRate(control.smallWinRate) : 0;
-  const lossRate = clampRate(control.lossRate);
+  const lossRate = eligibility.eligible ? clampRate(control.lossRate) : 0;
   const roll = Math.random();
 
   if (roll < burstRate) {
