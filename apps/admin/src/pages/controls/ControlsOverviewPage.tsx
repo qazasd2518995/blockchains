@@ -10,6 +10,10 @@ import { DepositControlModal } from '@/components/shared/DepositControlModal';
 import { AgentLineControlModal } from '@/components/shared/AgentLineControlModal';
 import { BurstControlModal } from '@/components/shared/BurstControlModal';
 import { ManualDetectionControlModal } from '@/components/shared/ManualDetectionControlModal';
+import {
+  AccountSearchSelect,
+  type AccountSearchOption,
+} from '@/components/shared/AccountSearchSelect';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 
@@ -148,6 +152,8 @@ interface ControlLogRow {
   createdAt: string;
 }
 
+type RewardScope = 'ALL' | 'AGENT_LINE' | 'MEMBER';
+
 export function ControlsOverviewPage(): JSX.Element {
   const { t } = useTranslation();
   const { agent } = useAdminAuthStore();
@@ -169,6 +175,8 @@ export function ControlsOverviewPage(): JSX.Element {
   const [dcOpen, setDcOpen] = useState(false);
   const [alOpen, setAlOpen] = useState(false);
   const [bcOpen, setBcOpen] = useState(false);
+  const [rewardScope, setRewardScope] = useState<RewardScope>('ALL');
+  const [rewardTarget, setRewardTarget] = useState<AccountSearchOption | null>(null);
   const [rewardAmount, setRewardAmount] = useState('1000');
   const [rewardMinutes, setRewardMinutes] = useState('15');
   const [rewardBusy, setRewardBusy] = useState(false);
@@ -271,7 +279,17 @@ export function ControlsOverviewPage(): JSX.Element {
   };
 
   const sendOnlineReward = async (): Promise<void> => {
-    if (!window.confirm('确定为最近活跃玩家设置下一局必赢？')) return;
+    if (rewardScope !== 'ALL' && !rewardTarget) {
+      setError(rewardScope === 'AGENT_LINE' ? '请先选择代理线账号' : '请先选择玩家账号');
+      return;
+    }
+    const targetText =
+      rewardScope === 'ALL'
+        ? '最近活跃玩家'
+        : rewardScope === 'AGENT_LINE'
+          ? `代理线 ${rewardTarget?.username}`
+          : `玩家 ${rewardTarget?.username}`;
+    if (!window.confirm(`确定为${targetText}设置下一局必赢？`)) return;
     setRewardBusy(true);
     setError(null);
     setNotice(null);
@@ -280,12 +298,25 @@ export function ControlsOverviewPage(): JSX.Element {
         memberCount: number;
         shareAmount: string;
         totalAmount: string;
+        scope: RewardScope;
+        targetUsername: string | null;
       }>('/controls/reward/online', {
+        scope: rewardScope,
+        targetAgentId: rewardScope === 'AGENT_LINE' ? rewardTarget?.id : undefined,
+        targetAgentUsername: rewardScope === 'AGENT_LINE' ? rewardTarget?.username : undefined,
+        targetMemberId: rewardScope === 'MEMBER' ? rewardTarget?.id : undefined,
+        targetMemberUsername: rewardScope === 'MEMBER' ? rewardTarget?.username : undefined,
         totalAmount: rewardAmount,
         recentMinutes: Number.parseInt(rewardMinutes, 10),
       });
+      const scopeText =
+        response.data.scope === 'ALL'
+          ? '全盤'
+          : response.data.scope === 'AGENT_LINE'
+            ? `代理線 ${response.data.targetUsername ?? ''}`
+            : `玩家 ${response.data.targetUsername ?? ''}`;
       setNotice(
-        `已設定下一局必贏 ${fmt(response.data.totalAmount)}，共 ${response.data.memberCount} 位，基礎目標淨贏 ${fmt(response.data.shareAmount)}`,
+        `已設定${scopeText}下一局必贏 ${fmt(response.data.totalAmount)}，共 ${response.data.memberCount} 位，基礎目標淨贏 ${fmt(response.data.shareAmount)}`,
       );
       await reload();
     } catch (e) {
@@ -1041,7 +1072,44 @@ export function ControlsOverviewPage(): JSX.Element {
               </Section>
 
               <Section title="§ 在線均分必贏" subtitle="最近活躍玩家平均設定下一局目標淨贏">
-                <div className="card-base grid gap-3 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                <div className="card-base grid gap-3 p-4 md:grid-cols-2 lg:grid-cols-[0.9fr_1.35fr_1fr_1fr_auto] lg:items-end">
+                  <label className="block">
+                    <div className="label mb-2">控制範圍</div>
+                    <select
+                      value={rewardScope}
+                      onChange={(e) => {
+                        setRewardScope(e.target.value as RewardScope);
+                        setRewardTarget(null);
+                      }}
+                      className="term-input"
+                    >
+                      <option value="ALL">全盤活躍玩家</option>
+                      <option value="AGENT_LINE">指定代理線</option>
+                      <option value="MEMBER">指定玩家</option>
+                    </select>
+                  </label>
+                  {rewardScope === 'ALL' ? (
+                    <label className="block">
+                      <div className="label mb-2">目標帳號</div>
+                      <input
+                        type="text"
+                        value="全盤最近活躍玩家"
+                        readOnly
+                        className="term-input text-ink-500"
+                      />
+                    </label>
+                  ) : (
+                    <AccountSearchSelect
+                      key={rewardScope}
+                      kind={rewardScope === 'AGENT_LINE' ? 'agent' : 'member'}
+                      label={rewardScope === 'AGENT_LINE' ? '代理線帳號' : '玩家帳號'}
+                      value={rewardTarget}
+                      onChange={setRewardTarget}
+                      placeholder={
+                        rewardScope === 'AGENT_LINE' ? '輸入代理帳號或全名' : '輸入玩家帳號或全名'
+                      }
+                    />
+                  )}
                   <label className="block">
                     <div className="label mb-2">目標總淨贏</div>
                     <input
@@ -1063,7 +1131,7 @@ export function ControlsOverviewPage(): JSX.Element {
                   <button
                     type="button"
                     onClick={() => void sendOnlineReward()}
-                    disabled={rewardBusy}
+                    disabled={rewardBusy || (rewardScope !== 'ALL' && !rewardTarget)}
                     className="btn-acid whitespace-nowrap text-[11px]"
                   >
                     → 設定必贏

@@ -262,10 +262,32 @@ export const deactivateManualDetectionSchema = z.object({
   id: z.string().optional(),
 });
 
-export const onlineRewardSchema = z.object({
-  totalAmount: positiveDecimal,
-  recentMinutes: z.coerce.number().int().min(1).max(1440).default(15),
-});
+export const onlineRewardSchema = z
+  .object({
+    scope: z.enum(['ALL', 'AGENT_LINE', 'MEMBER']).default('ALL'),
+    targetAgentId: z.string().optional().nullable(),
+    targetAgentUsername: z.string().optional().nullable(),
+    targetMemberId: z.string().optional().nullable(),
+    targetMemberUsername: z.string().optional().nullable(),
+    totalAmount: positiveDecimal,
+    recentMinutes: z.coerce.number().int().min(1).max(1440).default(15),
+  })
+  .superRefine((value, ctx) => {
+    if (value.scope === 'AGENT_LINE' && !value.targetAgentId && !value.targetAgentUsername) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '在线均分必赢必须指定目标代理线',
+        path: ['targetAgentId'],
+      });
+    }
+    if (value.scope === 'MEMBER' && !value.targetMemberId && !value.targetMemberUsername) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '在线均分必赢必须指定目标玩家',
+        path: ['targetMemberId'],
+      });
+    }
+  });
 
 export const toggleSchema = z.object({
   isActive: z.boolean(),

@@ -26,7 +26,7 @@ import {
   normalizeMemberWinCapDay,
 } from './controls.runtime.js';
 import { writeAudit } from '../audit/audit.service.js';
-import { canManageAgent, canManageMember } from '../../../utils/hierarchy.js';
+import { canManageAgent, canManageMember, listAgentDescendants } from '../../../utils/hierarchy.js';
 
 function decimal(value: Prisma.Decimal | string | number | null | undefined): Prisma.Decimal {
   if (value instanceof Prisma.Decimal) return value;
@@ -1572,6 +1572,59 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
       const body = onlineRewardSchema.parse(req.body);
       const totalAmount = decimal(body.totalAmount).toDecimalPlaces(2);
       const since = new Date(Date.now() - body.recentMinutes * 60_000);
+      let scopedAgentIds: string[] | null = null;
+      let targetMemberId: string | null = null;
+      let targetUsername: string | null = null;
+
+      if (body.scope === 'AGENT_LINE') {
+        const agent = body.targetAgentId
+          ? await fastify.prisma.agent.findUnique({
+              where: { id: body.targetAgentId },
+              select: { id: true, username: true, role: true, status: true },
+            })
+          : body.targetAgentUsername
+            ? await fastify.prisma.agent.findUnique({
+                where: { username: body.targetAgentUsername },
+                select: { id: true, username: true, role: true, status: true },
+              })
+            : null;
+        if (!agent || agent.role === 'SUB_ACCOUNT' || agent.status === 'DELETED') {
+          reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
+          return;
+        }
+        const canManage = await canManageAgent(fastify.prisma, req.admin, agent.id);
+        if (!canManage) {
+          reply.code(403).send({ code: 'FORBIDDEN', message: 'Cannot control this agent line' });
+          return;
+        }
+        scopedAgentIds = await listAgentDescendants(fastify.prisma, agent.id);
+        targetUsername = agent.username;
+      }
+
+      if (body.scope === 'MEMBER') {
+        const member = body.targetMemberId
+          ? await fastify.prisma.user.findUnique({
+              where: { id: body.targetMemberId },
+              select: { id: true, username: true, role: true, disabledAt: true },
+            })
+          : body.targetMemberUsername
+            ? await fastify.prisma.user.findUnique({
+                where: { username: body.targetMemberUsername },
+                select: { id: true, username: true, role: true, disabledAt: true },
+              })
+            : null;
+        if (!member || member.role !== 'PLAYER' || member.disabledAt) {
+          reply.code(404).send({ code: 'MEMBER_NOT_FOUND', message: 'Member not found' });
+          return;
+        }
+        const canManage = await canManageMember(fastify.prisma, req.admin, member.id);
+        if (!canManage) {
+          reply.code(403).send({ code: 'FORBIDDEN', message: 'Cannot control this member' });
+          return;
+        }
+        targetMemberId = member.id;
+        targetUsername = member.username;
+      }
 
       const [betUsers, crashUsers] = await Promise.all([
         fastify.prisma.bet.findMany({
@@ -1597,13 +1650,28 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
       }
 
       const result = await fastify.prisma.$transaction(async (tx) => {
+        const memberFilters: Prisma.UserWhereInput[] = [{ id: { in: userIds } }];
+        if (scopedAgentIds) memberFilters.push({ agentId: { in: scopedAgentIds } });
+        if (targetMemberId) memberFilters.push({ id: targetMemberId });
+
         const members = await tx.user.findMany({
-          where: { id: { in: userIds }, disabledAt: null, agentId: { not: null } },
+          where: {
+            role: 'PLAYER',
+            disabledAt: null,
+            agentId: { not: null },
+            AND: memberFilters,
+          },
           select: { id: true, username: true, balance: true, agentId: true },
           orderBy: { username: 'asc' },
         });
         if (members.length === 0)
-          return { memberCount: 0, shareAmount: '0.00', totalAmount: '0.00' };
+          return {
+            memberCount: 0,
+            shareAmount: '0.00',
+            totalAmount: '0.00',
+            scope: body.scope,
+            targetUsername,
+          };
 
         const baseShare = totalAmount
           .div(members.length)
@@ -1624,7 +1692,14 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
               targetProfit: amount,
               startBalance: member.balance,
               controlWinRate: new Prisma.Decimal(1),
-              notes: `auto_revive:online_reward:total=${totalAmount.toFixed(2)}:minutes=${body.recentMinutes}`,
+              notes: [
+                `auto_revive:online_reward:total=${totalAmount.toFixed(2)}`,
+                `minutes=${body.recentMinutes}`,
+                `scope=${body.scope}`,
+                targetUsername ? `target=${targetUsername}` : null,
+              ]
+                .filter(Boolean)
+                .join(':'),
               operatorUsername: req.admin.username,
             },
           });
@@ -1636,13 +1711,16 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           memberCount: scheduledCount,
           shareAmount: baseShare.toFixed(2),
           totalAmount: scheduled.toFixed(2),
+          scope: body.scope,
+          targetUsername,
         };
       });
 
       if (result.memberCount === 0) {
-        reply
-          .code(400)
-          .send({ code: 'NO_ACTIVE_MEMBERS', message: 'No active members in this window' });
+        reply.code(400).send({
+          code: 'NO_ACTIVE_MEMBERS',
+          message: 'No active members in this scope and window',
+        });
         return;
       }
 
