@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { getGameMeta } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -90,6 +90,8 @@ interface DepositRow {
   controlWinRate: string;
   isActive: boolean;
   isCompleted: boolean;
+  notes: string | null;
+  operatorUsername: string | null;
   createdAt: string;
 }
 
@@ -181,6 +183,8 @@ export function ControlsOverviewPage(): JSX.Element {
   const [rewardAmount, setRewardAmount] = useState('1000');
   const [rewardMinutes, setRewardMinutes] = useState('15');
   const [rewardBusy, setRewardBusy] = useState(false);
+  const onlineRewardControls = useMemo(() => dc.filter(isOnlineRewardControl), [dc]);
+  const depositControls = useMemo(() => dc.filter((row) => !isOnlineRewardControl(row)), [dc]);
 
   const reload = useCallback(async () => {
     try {
@@ -510,6 +514,70 @@ export function ControlsOverviewPage(): JSX.Element {
           <span className="tag tag-acid">已完成</span>
         ) : r.isActive ? (
           <span className="tag tag-toxic">启用中</span>
+        ) : (
+          <span className="tag tag-ember">停用</span>
+        ),
+    },
+    {
+      key: 'ops',
+      label: '操作',
+      align: 'right',
+      render: (r) => (
+        <div className="flex justify-end gap-1 text-[10px]">
+          <button
+            type="button"
+            onClick={() => void toggleRow('deposit', r.id, r.isActive)}
+            className="btn-teal-outline px-2 py-1"
+          >
+            {r.isActive ? '停用' : '启用'}
+          </button>
+          <button
+            type="button"
+            onClick={() => void deleteRow('deposit', r.id)}
+            className="btn-teal-outline border-[#D4574A]/40 px-2 py-1 text-[#D4574A]"
+          >
+            删除
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  const onlineRewardCols: Column<DepositRow>[] = [
+    {
+      key: 'time',
+      label: '設定時間',
+      render: (r) => <span className="font-mono text-[11px]">{formatTime(r.createdAt)}</span>,
+    },
+    {
+      key: 'member',
+      label: '被控制會員',
+      render: (r) => <span className="font-mono">{r.memberUsername}</span>,
+    },
+    {
+      key: 'target',
+      label: '目標淨贏',
+      align: 'right',
+      render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.targetProfit)}</span>,
+    },
+    {
+      key: 'scope',
+      label: '來源範圍',
+      render: (r) => <span className="font-mono text-[11px]">{formatOnlineRewardScope(r)}</span>,
+    },
+    {
+      key: 'operator',
+      label: '操作人',
+      render: (r) => <span className="font-mono text-[11px]">{r.operatorUsername ?? '—'}</span>,
+    },
+    {
+      key: 'status',
+      label: '狀態',
+      render: (r) =>
+        r.isCompleted ? (
+          <span className="tag tag-acid">已套用完成</span>
+        ) : r.isActive ? (
+          <span className="tag tag-toxic">等待下一局</span>
         ) : (
           <span className="tag tag-ember">停用</span>
         ),
@@ -1005,7 +1073,12 @@ export function ControlsOverviewPage(): JSX.Element {
                   </button>
                 }
               >
-                <DataTable columns={dcCols} rows={dc} rowKey={(r) => r.id} empty={t.common.empty} />
+                <DataTable
+                  columns={dcCols}
+                  rows={depositControls}
+                  rowKey={(r) => r.id}
+                  empty={t.common.empty}
+                />
               </Section>
 
               <Section
@@ -1149,6 +1222,14 @@ export function ControlsOverviewPage(): JSX.Element {
                   >
                     → 設定必贏
                   </button>
+                </div>
+                <div className="mt-3">
+                  <DataTable
+                    columns={onlineRewardCols}
+                    rows={onlineRewardControls}
+                    rowKey={(r) => r.id}
+                    empty="目前沒有待執行的在線均分必贏"
+                  />
                 </div>
               </Section>
             </>
@@ -1301,6 +1382,20 @@ function formatBurstEligibility(row: BurstRow): string {
     parts.push(`剩 ${pct(row.capitalRetentionRatio)}`);
   if (Number.isFinite(minLoss) && minLoss > 0) parts.push(`亏 ${fmt(row.minEligibilityLoss)}`);
   return parts.join(' / ');
+}
+
+function isOnlineRewardControl(row: DepositRow): boolean {
+  return row.notes?.includes('auto_revive:online_reward') ?? false;
+}
+
+function formatOnlineRewardScope(row: DepositRow): string {
+  const notes = row.notes ?? '';
+  const scope = notes.match(/(?:^|:)scope=([^:]+)/)?.[1];
+  const target = notes.match(/(?:^|:)target=([^:]+)/)?.[1];
+  if (scope === 'ALL') return '全盤活躍玩家';
+  if (scope === 'AGENT_LINE') return target ? `代理線 ${target}` : '指定代理線';
+  if (scope === 'MEMBER') return target ? `玩家 ${target}` : '指定玩家';
+  return '在線均分';
 }
 
 function sumRows(rows: BurstRow[], key: 'dailyBudget' | 'todayBurstAmount'): string {

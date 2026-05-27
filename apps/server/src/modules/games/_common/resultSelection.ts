@@ -17,3 +17,21 @@ export function pickRandomBest<T>(
   const poolSize = Math.max(1, Math.min(maxPoolSize, ranked.length));
   return pickRandomItem(ranked.slice(0, poolSize).map((entry) => entry.item));
 }
+
+export function pickWeightedRandom<T>(
+  items: readonly T[],
+  weight: (item: T) => number,
+): T | undefined {
+  const weighted = items
+    .map((item) => ({ item, weight: Math.max(0, weight(item)) }))
+    .filter((entry) => Number.isFinite(entry.weight) && entry.weight > 0);
+  const totalWeight = weighted.reduce((sum, entry) => sum + entry.weight, 0);
+  if (totalWeight <= 0) return pickRandomItem(items);
+
+  let roll = Math.random() * totalWeight;
+  for (const entry of weighted) {
+    roll -= entry.weight;
+    if (roll <= 0) return entry.item;
+  }
+  return weighted.at(-1)?.item ?? pickRandomItem(items);
+}

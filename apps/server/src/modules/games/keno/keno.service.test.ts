@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { Prisma } from '@prisma/client';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { kenoEvaluate } from '@bg/provably-fair';
 import { __kenoServiceTestHooks } from './keno.service.js';
 
@@ -18,6 +19,10 @@ function longestRun(numbers: number[]): number {
 }
 
 describe('keno controlled draw shaping', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('does not fill controlled single-hit draws with 1..9 before the hit', () => {
     const drawn = __kenoServiceTestHooks.drawWithHitCount(
       [13],
@@ -50,5 +55,22 @@ describe('keno controlled draw shaping', () => {
     expect(hits).toHaveLength(2);
     expect(longestRun(drawn)).toBeLessThanOrEqual(3);
     expect(hitIndexes.some((index) => index > 0 && index < drawn.length - 1)).toBe(true);
+  });
+
+  it('varies controlled loss hit counts instead of always choosing the softest loss', () => {
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.01)
+      .mockReturnValueOnce(0.99)
+      .mockReturnValueOnce(0.45);
+
+    const picks = new Set(
+      Array.from({ length: 3 }, () =>
+        __kenoServiceTestHooks.chooseKenoHitCount('low', 10, false, new Prisma.Decimal(10), {
+          multiplier: new Prisma.Decimal(0),
+        }),
+      ),
+    );
+
+    expect(picks.size).toBeGreaterThan(1);
   });
 });

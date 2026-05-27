@@ -38,7 +38,7 @@ import {
   finalizeControls,
   multiplierMatchesControlBounds,
 } from '../_common/controls.js';
-import { pickRandomBest, pickRandomItem } from '../_common/resultSelection.js';
+import { pickRandomBest, pickRandomItem, pickWeightedRandom } from '../_common/resultSelection.js';
 import type { HotlineBetInput } from './hotline.schema.js';
 
 const HOTLINE_JACKPOT_CONTRIBUTION_RATES = {
@@ -457,7 +457,9 @@ function winningHotlineRound(
       const distance = Math.abs(candidate.totalMultiplier - targetMultiplier);
       return distance * 1000 + candidate.totalMultiplier / 1_000_000;
     }) ??
-    pickRandomBest(underCap, (candidate) => -candidate.totalMultiplier) ??
+    pickWeightedRandom(underCap, (candidate) =>
+      controlTargetWeight(candidate.totalMultiplier, targetMultiplier),
+    ) ??
     softLossHotlineRound(gameId, variant) ??
     pool[0]!
   );
@@ -497,10 +499,17 @@ function winningMegaHotlineRound(
       const distance = Math.abs(candidate.totalMultiplier - targetMultiplier);
       return distance * 1000 + candidate.totalMultiplier / 1_000_000;
     }) ??
-    pickRandomBest(underCap, (candidate) => -candidate.totalMultiplier) ??
+    pickWeightedRandom(underCap, (candidate) =>
+      controlTargetWeight(candidate.totalMultiplier, targetMultiplier),
+    ) ??
     softLossHotlineRound(gameId, variant) ??
     candidates[0]!
   );
+}
+
+function controlTargetWeight(multiplier: number, targetMultiplier: number): number {
+  const distance = Math.abs(multiplier - targetMultiplier);
+  return 1 / (1 + distance * 3);
 }
 
 function softLossHotlineRound(gameId: string, variant = 0): HotlineRound {

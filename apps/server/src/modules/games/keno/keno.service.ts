@@ -21,7 +21,7 @@ import {
   multiplierMatchesControlBounds,
   type ControlOutcome,
 } from '../_common/controls.js';
-import { pickRandomBest } from '../_common/resultSelection.js';
+import { pickWeightedRandom } from '../_common/resultSelection.js';
 import type { KenoBetInput } from './keno.schema.js';
 
 export class KenoService {
@@ -148,7 +148,9 @@ function chooseKenoHitCount(
 
   if (!wantWin) {
     const losingCandidates = candidates.filter((x) => x.multiplier <= 1);
-    const picked = pickRandomBest(losingCandidates, (x) => -x.multiplier);
+    const picked = pickWeightedRandom(losingCandidates, (x) =>
+      controlledLossWeight(x.multiplier),
+    );
     return picked?.hits ?? 0;
   }
 
@@ -158,11 +160,21 @@ function chooseKenoHitCount(
   if (boundedWins.length === 0) return 0;
 
   const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
-  const picked = pickRandomBest(boundedWins, (x) => {
-    const distance = Math.abs(x.multiplier - targetMultiplier);
-    return distance * 1000 + x.multiplier / 1_000_000;
-  });
+  const picked = pickWeightedRandom(boundedWins, (x) =>
+    controlTargetWeight(x.multiplier, targetMultiplier),
+  );
   return picked?.hits ?? 0;
+}
+
+function controlTargetWeight(multiplier: number, targetMultiplier: number): number {
+  const distance = Math.abs(multiplier - targetMultiplier);
+  return 1 / (1 + distance * 3);
+}
+
+function controlledLossWeight(multiplier: number): number {
+  if (multiplier >= 0.75 && multiplier <= 1) return 2.4;
+  if (multiplier > 0 && multiplier < 0.75) return 1.4;
+  return 1;
 }
 
 function drawWithHitCount(
@@ -304,6 +316,7 @@ function hashKenoShapeSeed(
 }
 
 export const __kenoServiceTestHooks = {
+  chooseKenoHitCount,
   drawWithHitCount,
   scoreKenoDrawShape,
 };

@@ -15,7 +15,7 @@ import {
   multiplierMatchesControlBounds,
   type ControlOutcome,
 } from '../_common/controls.js';
-import { pickRandomBest } from '../_common/resultSelection.js';
+import { pickWeightedRandom } from '../_common/resultSelection.js';
 import type { WheelBetInput } from './wheel.schema.js';
 
 export class WheelService {
@@ -143,13 +143,24 @@ function chooseWheelSegment(
   const pool = candidates.length > 0 ? candidates : losingFallback;
   if (wantWin) {
     const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
-    const picked = pickRandomBest(pool, (x) => {
-      const distance = Math.abs(x.multiplier - targetMultiplier);
-      return distance * 1000 + x.multiplier / 1_000_000;
-    });
-    return picked?.segmentIndex ?? pool[0]?.segmentIndex ?? 0;
-  } else {
-    const picked = pickRandomBest(pool, (x) => -x.multiplier);
+    const picked = pickWeightedRandom(pool, (x) => controlTargetWeight(x.multiplier, targetMultiplier));
     return picked?.segmentIndex ?? pool[0]?.segmentIndex ?? 0;
   }
+  const picked = pickWeightedRandom(pool, (x) => controlledLossWeight(x.multiplier));
+  return picked?.segmentIndex ?? pool[0]?.segmentIndex ?? 0;
 }
+
+function controlTargetWeight(multiplier: number, targetMultiplier: number): number {
+  const distance = Math.abs(multiplier - targetMultiplier);
+  return 1 / (1 + distance * 3);
+}
+
+function controlledLossWeight(multiplier: number): number {
+  if (multiplier >= 0.85 && multiplier <= 1) return 2.4;
+  if (multiplier > 0 && multiplier < 0.85) return 1.4;
+  return 1;
+}
+
+export const __wheelServiceTestHooks = {
+  chooseWheelSegment,
+};
