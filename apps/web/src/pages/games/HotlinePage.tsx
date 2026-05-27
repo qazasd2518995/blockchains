@@ -238,6 +238,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const autoSpinStopRequestedRef = useRef(false);
   const megaFreeSpinContinueRef = useRef<(() => void) | null>(null);
   const fastSpinRef = useRef(false);
+  const megaAmountEditingRef = useRef(false);
+  const megaInputResizeIgnoreUntilRef = useRef(0);
   const fallbackGrid = useMemo(() => createFallbackGrid(slotTheme), [slotTheme]);
   const fallbackJackpotValues = useMemo(() => createFallbackJackpotValues(), [slotTheme.id]);
   const megaFallbackDisplayGrid = liveMegaRound?.grid ?? fallbackGrid;
@@ -305,6 +307,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
   useEffect(() => {
     if (!megaAmountEditing) setMegaAmountText(amount.toFixed(2));
+    megaAmountEditingRef.current = megaAmountEditing;
   }, [amount, megaAmountEditing]);
 
   useEffect(() => {
@@ -608,6 +611,22 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       const heightChanged = Math.abs(h - lastHeight) > 2;
       if (!widthChanged && !heightChanged) return;
 
+      const isInputResizeWindow =
+        isMegaSlot &&
+        !widthChanged &&
+        heightChanged &&
+        (megaAmountEditingRef.current || Date.now() < megaInputResizeIgnoreUntilRef.current);
+      if (isInputResizeWindow) {
+        slotDebug('hotline-page:ensure-size:ignore-input-keyboard-resize', {
+          width: w,
+          height: h,
+          lastWidth,
+          lastHeight,
+        });
+        lastHeight = h;
+        return;
+      }
+
       const isMobileResultLayout =
         resultVisibleRef.current &&
         !widthChanged &&
@@ -741,7 +760,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     if (Number.isFinite(parsed)) setMegaAmount(parsed, false);
   };
 
+  const beginMegaAmountInput = (): void => {
+    megaAmountEditingRef.current = true;
+    megaInputResizeIgnoreUntilRef.current = Date.now() + 1200;
+    setMegaAmountEditing(true);
+  };
+
   const commitMegaAmountInput = (): void => {
+    megaAmountEditingRef.current = false;
+    megaInputResizeIgnoreUntilRef.current = Date.now() + 1200;
     setMegaAmountEditing(false);
     const parsed = Number.parseFloat(megaAmountText.replace(/,/g, ''));
     setMegaAmount(Number.isFinite(parsed) ? parsed : amount);
@@ -2080,7 +2107,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 inputMode="decimal"
                 value={megaAmountText}
                 disabled={controlsLocked}
-                onFocus={() => setMegaAmountEditing(true)}
+                onFocus={beginMegaAmountInput}
                 onChange={(event) => handleMegaAmountInput(event.target.value)}
                 onBlur={commitMegaAmountInput}
                 aria-label="下注金額"
