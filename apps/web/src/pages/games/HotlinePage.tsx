@@ -188,6 +188,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const [sceneReady, setSceneReady] = useState(false);
   const [sceneLoadingProgress, setSceneLoadingProgress] = useState(0);
+  const [sceneCanvasKey, setSceneCanvasKey] = useState(0);
   const [liveMegaRound, setLiveMegaRound] = useState<LiveMegaRoundState | null>(null);
   const [megaFreeSpinIntro, setMegaFreeSpinIntro] = useState<MegaFreeSpinIntro | null>(null);
   const [megaFallbackSpinning, setMegaFallbackSpinning] = useState(false);
@@ -373,6 +374,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     if (!canvas) return;
     slotDebug('hotline-page:scene-effect:start', {
       build: SLOT_DEBUG_BUILD,
+      canvasKey: sceneCanvasKey,
       themeId: slotTheme.id,
       gameId: slotTheme.gameId,
       isMegaSlot,
@@ -433,6 +435,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       const nextScene = new HotlineScene();
       slotDebug('hotline-page:init-scene:request', {
         token,
+        canvasKey: sceneCanvasKey,
         width: w,
         height: h,
         hadPreviousScene: Boolean(previous),
@@ -510,9 +513,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             resizeTimer = window.setTimeout(() => {
               resizeTimer = null;
               if (cancelled) return;
-              forceNextRebuild = true;
-              if (rafId) cancelAnimationFrame(rafId);
-              rafId = requestAnimationFrame(ensureSceneSize);
+              slotDebug('hotline-page:init-scene:renderer-unavailable-remount', {
+                token,
+                canvasKey: sceneCanvasKey,
+                width: w,
+                height: h,
+              }, 'warn');
+              setSceneCanvasKey((key) => key + 1);
             }, MEGA_RENDERER_RETRY_MS);
             return;
           }
@@ -619,8 +626,20 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       if (resizeTimer) window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
         resizeTimer = null;
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(ensureSceneSize);
+        if (sceneResizeLockedRef.current) {
+          if (rafId) cancelAnimationFrame(rafId);
+          rafId = requestAnimationFrame(ensureSceneSize);
+          return;
+        }
+        slotDebug('hotline-page:orientation-remount-canvas', {
+          canvasKey: sceneCanvasKey,
+          width: window.innerWidth,
+          height: window.innerHeight,
+          viewportWidth: window.visualViewport?.width,
+          viewportHeight: window.visualViewport?.height,
+        });
+        setSceneAvailability(false, false);
+        setSceneCanvasKey((key) => key + 1);
       }, ORIENTATION_SCENE_RESIZE_DEBOUNCE_MS);
     };
 
@@ -634,6 +653,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
     return () => {
       slotDebug('hotline-page:scene-effect:cleanup', {
+        canvasKey: sceneCanvasKey,
         themeId: slotTheme.id,
         gameId: slotTheme.gameId,
         initToken,
@@ -650,7 +670,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       window.visualViewport?.removeEventListener('resize', scheduleOrientationEnsureSceneSize);
       sceneRef.current = null;
     };
-  }, [isMegaSlot, scheduleSceneRecovery, setSceneAvailability, slotTheme]);
+  }, [isMegaSlot, scheduleSceneRecovery, sceneCanvasKey, setSceneAvailability, slotTheme]);
 
   const setMegaAmount = (next: number, syncText = true): void => {
     const max = user ? Math.max(MIN_BET_AMOUNT, Math.min(balance, MAX_BET_AMOUNT)) : MAX_BET_AMOUNT;
@@ -1909,6 +1929,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   winPop={megaFallbackWinPop}
                 />
                 <canvas
+                  key={sceneCanvasKey}
                   ref={canvasRef}
                   className={`mega-slot-canvas ${sceneReady ? 'mega-slot-canvas--ready' : ''}`}
                 />
