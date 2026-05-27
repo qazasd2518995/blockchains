@@ -400,12 +400,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const initTimeouts = new Set<ReturnType<typeof window.setTimeout>>();
     const handleContextLost = (event: Event) => {
       event.preventDefault();
-      slotDebug('hotline-page:webgl-context-lost', {
-        themeId: slotTheme.id,
-        gameId: slotTheme.gameId,
-        lastWidth,
-        lastHeight,
-      }, 'warn');
+      slotDebug(
+        'hotline-page:webgl-context-lost',
+        {
+          themeId: slotTheme.id,
+          gameId: slotTheme.gameId,
+          lastWidth,
+          lastHeight,
+        },
+        'warn',
+      );
       const lostScene = scene;
       try {
         lostScene?.dispose();
@@ -466,13 +470,17 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         initTimeout = window.setTimeout(() => {
           clearInitTimeout();
           if (cancelled || token !== initToken || sceneReadyRef.current) return;
-          slotDebug('hotline-page:init-scene:timeout-remount', {
-            token,
-            canvasKey: sceneCanvasKey,
-            width: w,
-            height: h,
-            timeout: MEGA_SCENE_INIT_TIMEOUT_MS,
-          }, 'warn');
+          slotDebug(
+            'hotline-page:init-scene:timeout-remount',
+            {
+              token,
+              canvasKey: sceneCanvasKey,
+              width: w,
+              height: h,
+              timeout: MEGA_SCENE_INIT_TIMEOUT_MS,
+            },
+            'warn',
+          );
           try {
             nextScene.dispose();
           } catch (err) {
@@ -519,21 +527,29 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         .catch((err) => {
           clearInitTimeout();
           if (cancelled || token !== initToken) {
-            slotDebug('hotline-page:init-scene:stale-error', {
-              token,
-              activeToken: initToken,
-              cancelled,
-              error: describeSlotDebugError(err),
-            }, 'warn');
+            slotDebug(
+              'hotline-page:init-scene:stale-error',
+              {
+                token,
+                activeToken: initToken,
+                cancelled,
+                error: describeSlotDebugError(err),
+              },
+              'warn',
+            );
             nextScene.dispose();
             return;
           }
-          slotDebug('hotline-page:init-scene:error', {
-            token,
-            width: w,
-            height: h,
-            error: describeSlotDebugError(err),
-          }, 'error');
+          slotDebug(
+            'hotline-page:init-scene:error',
+            {
+              token,
+              width: w,
+              height: h,
+              error: describeSlotDebugError(err),
+            },
+            'error',
+          );
           console.error(err);
           nextScene.dispose();
           if (scene === nextScene) scene = null;
@@ -555,12 +571,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             resizeTimer = window.setTimeout(() => {
               resizeTimer = null;
               if (cancelled) return;
-              slotDebug('hotline-page:init-scene:renderer-unavailable-remount', {
-                token,
-                canvasKey: sceneCanvasKey,
-                width: w,
-                height: h,
-              }, 'warn');
+              slotDebug(
+                'hotline-page:init-scene:renderer-unavailable-remount',
+                {
+                  token,
+                  canvasKey: sceneCanvasKey,
+                  width: w,
+                  height: h,
+                },
+                'warn',
+              );
               setSceneLoadingMessage('正在重新建立高畫質遊戲畫面');
               setSceneCanvasKey((key) => key + 1);
             }, MEGA_RENDERER_RETRY_MS);
@@ -2185,6 +2205,58 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     );
   }
 
+  const slotResultCard =
+    result && !spinning ? (
+      <div
+        className={`game-result-card slot-result-card ${isBigWinResult ? 'slot-result-card-bigwin' : ''} ${resultHasLineWin ? 'game-result-card-win' : 'game-result-card-loss'}`}
+      >
+        <div className="slot-result-summary flex flex-col items-center justify-center gap-1 text-center">
+          <div>
+            <div className="mb-1 text-[12px] font-black tracking-[0.22em] text-[#F3D67D]">
+              {resultTitle}
+            </div>
+            <div className="font-display text-4xl text-white">
+              {result.lines.length}{' '}
+              {result.lines.length !== 1 ? t.games.hotline.lines : t.games.hotline.line}
+            </div>
+            <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
+              {t.games.hotline.totalMult} {formatMultiplier(resultDisplayMultiplier)}
+              {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
+            </div>
+          </div>
+          <div className="slot-result-payout num text-2xl text-[#F3D67D]">
+            派彩 {formatAmount(result.payout)}
+          </div>
+          <div className="slot-result-profit num text-3xl text-[#7DD3FC]">
+            {resultHasLineWin ? '+' : resultProfit >= 0 ? '+' : ''}
+            {formatAmount(resultHasLineWin ? result.payout : result.profit)}
+          </div>
+        </div>
+        {result.lines.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {result.lines.map((l, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px]"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="font-mono text-white/85">
+                    {l.ways
+                      ? l.lineId?.startsWith('cluster-')
+                        ? `組合 ${i + 1} · ${l.count} 個`
+                        : `方式 ${i + 1} · ${l.count} 軸 · ${l.ways} 組`
+                      : `${l.lineId ? `${t.games.hotline.line} ${i + 1}` : `${t.games.hotline.row} ${l.row + 1}`} · ${l.count}×`}
+                  </span>
+                  <SlotSymbolBadge theme={slotTheme} symbol={l.symbol} showLabel useShortLabel />
+                </div>
+                <span className="data-num text-[#7DD3FC]">{l.payout}×</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    ) : null;
+
   return (
     <div
       className={`slot-game-page ${isMegaSlot ? 'slot-game-page--mega' : 'slot-game-page--classic'} ${fastSpin ? 'slot-game-page--fast' : ''}`}
@@ -2264,63 +2336,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 </div>
               </button>
             )}
-          </div>
 
-          {result && !spinning && (
-            <div
-              className={`game-result-card slot-result-card ${isBigWinResult ? 'slot-result-card-bigwin' : ''} ${resultHasLineWin ? 'game-result-card-win' : 'game-result-card-loss'}`}
-            >
-              <div className="slot-result-summary flex flex-col items-center justify-center gap-1 text-center">
-                <div>
-                  <div className="mb-1 text-[12px] font-black tracking-[0.22em] text-[#F3D67D]">
-                    {resultTitle}
-                  </div>
-                  <div className="font-display text-4xl text-white">
-                    {result.lines.length}{' '}
-                    {result.lines.length !== 1 ? t.games.hotline.lines : t.games.hotline.line}
-                  </div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
-                    {t.games.hotline.totalMult} {formatMultiplier(resultDisplayMultiplier)}
-                    {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
-                  </div>
-                </div>
-                <div className="slot-result-payout num text-2xl text-[#F3D67D]">
-                  派彩 {formatAmount(result.payout)}
-                </div>
-                <div className="slot-result-profit num text-3xl text-[#7DD3FC]">
-                  {resultHasLineWin ? '+' : resultProfit >= 0 ? '+' : ''}
-                  {formatAmount(resultHasLineWin ? result.payout : result.profit)}
-                </div>
-              </div>
-              {result.lines.length > 0 && (
-                <div className="mt-3 space-y-1">
-                  {result.lines.map((l, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between gap-3 rounded-[16px] border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px]"
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="font-mono text-white/85">
-                          {l.ways
-                            ? l.lineId?.startsWith('cluster-')
-                              ? `組合 ${i + 1} · ${l.count} 個`
-                              : `方式 ${i + 1} · ${l.count} 軸 · ${l.ways} 組`
-                            : `${l.lineId ? `${t.games.hotline.line} ${i + 1}` : `${t.games.hotline.row} ${l.row + 1}`} · ${l.count}×`}
-                        </span>
-                        <SlotSymbolBadge
-                          theme={slotTheme}
-                          symbol={l.symbol}
-                          showLabel
-                          useShortLabel
-                        />
-                      </div>
-                      <span className="data-num text-[#7DD3FC]">{l.payout}×</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            {slotResultCard}
+          </div>
 
           {error && (
             <div className="game-alert text-[12px]">
@@ -2635,9 +2653,7 @@ function MegaFallbackGrid({
                   removedKeys.has(key) ? 'mega-slot-fallback-symbol--removing' : '',
                   dropping ? 'mega-slot-fallback-symbol--dropping-cell' : '',
                   special ? `mega-slot-fallback-symbol--${special.type}` : '',
-                  specialWinningKeys.has(key)
-                    ? 'mega-slot-fallback-symbol--special-highlight'
-                    : '',
+                  specialWinningKeys.has(key) ? 'mega-slot-fallback-symbol--special-highlight' : '',
                 ]
                   .filter(Boolean)
                   .join(' ');
@@ -2723,10 +2739,7 @@ function getSlotSymbolImage(theme: SlotThemeConfig, symbol: number): string | nu
   return theme.symbolSheet.replace(/symbols\.png$/, `symbol-${symbol}.png`);
 }
 
-function getSlotSpecialImage(
-  theme: SlotThemeConfig,
-  type: HotlineSpecialSymbol['type'],
-): string {
+function getSlotSpecialImage(theme: SlotThemeConfig, type: HotlineSpecialSymbol['type']): string {
   return theme.symbolSheet.replace(/symbols\.png$/, `${type}.png`);
 }
 
