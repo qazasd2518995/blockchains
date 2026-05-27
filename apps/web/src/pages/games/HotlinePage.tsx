@@ -1445,68 +1445,79 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const startBalance = balance;
     let stopReason = '';
 
-    for (let index = 0; index < config.rounds; index += 1) {
-      if (autoSpinStopRequestedRef.current) {
-        stopReason = '手動停止';
-        break;
-      }
-      if (runningBalance < config.amount) {
-        stopReason = '餘額不足';
-        break;
-      }
+    try {
+      for (let index = 0; index < config.rounds; index += 1) {
+        if (autoSpinStopRequestedRef.current) {
+          stopReason = '手動停止';
+          break;
+        }
+        if (runningBalance < config.amount) {
+          stopReason = '餘額不足';
+          break;
+        }
 
-      setAutoSpinRemaining(config.rounds - index);
-      const roundResult = await spin({
-        amountOverride: config.amount,
-        balanceOverride: runningBalance,
-        autoSpin: true,
-        fastSpin: fastSpinRef.current,
-      });
+        setAutoSpinRemaining(config.rounds - index);
+        const roundResult = await spin({
+          amountOverride: config.amount,
+          balanceOverride: runningBalance,
+          autoSpin: true,
+          fastSpin: fastSpinRef.current,
+        });
 
-      if (!roundResult) {
-        stopReason = '自動轉動中斷';
-        break;
-      }
-      if (autoSpinStopRequestedRef.current) {
-        stopReason = '手動停止';
-        break;
-      }
+        if (!roundResult) {
+          stopReason = '自動轉動中斷';
+          break;
+        }
+        if (autoSpinStopRequestedRef.current) {
+          stopReason = '手動停止';
+          break;
+        }
 
-      runningBalance = Number.parseFloat(roundResult.newBalance);
-      const payout = Number.parseFloat(roundResult.payout);
-      const cumulativeProfit = Math.max(0, runningBalance - startBalance);
-      const cumulativeLoss = Math.max(0, startBalance - runningBalance);
+        const nextBalance = Number.parseFloat(roundResult.newBalance);
+        const payout = Number.parseFloat(roundResult.payout);
+        if (!Number.isFinite(nextBalance) || !Number.isFinite(payout)) {
+          stopReason = '自動轉動中斷';
+          break;
+        }
+        runningBalance = nextBalance;
+        const cumulativeProfit = Math.max(0, runningBalance - startBalance);
+        const cumulativeLoss = Math.max(0, startBalance - runningBalance);
 
-      if (config.stopOnAnyWin && payout > 0) {
-        stopReason = '任意中獎';
-        break;
-      }
-      if (config.stopOnFreeSpins && (roundResult.features?.freeSpinsAwarded ?? 0) > 0) {
-        stopReason = '免費遊戲';
-        break;
-      }
-      if (config.singleWinLimit > 0 && payout >= config.singleWinLimit) {
-        stopReason = '單局派彩達標';
-        break;
-      }
-      if (config.profitTarget > 0 && cumulativeProfit >= config.profitTarget) {
-        stopReason = '停利達標';
-        break;
-      }
-      if (config.lossLimit > 0 && cumulativeLoss >= config.lossLimit) {
-        stopReason = '停損達標';
-        break;
-      }
+        if (config.stopOnAnyWin && payout > 0) {
+          stopReason = '任意中獎';
+          break;
+        }
+        if (config.stopOnFreeSpins && (roundResult.features?.freeSpinsAwarded ?? 0) > 0) {
+          stopReason = '免費遊戲';
+          break;
+        }
+        if (config.singleWinLimit > 0 && payout >= config.singleWinLimit) {
+          stopReason = '單局派彩達標';
+          break;
+        }
+        if (config.profitTarget > 0 && cumulativeProfit >= config.profitTarget) {
+          stopReason = '停利達標';
+          break;
+        }
+        if (config.lossLimit > 0 && cumulativeLoss >= config.lossLimit) {
+          stopReason = '停損達標';
+          break;
+        }
 
-      if (index < config.rounds - 1) {
-        await delay(scaleSpinDelay(isMegaSlot ? 420 : 240, fastSpinRef.current));
+        if (index < config.rounds - 1) {
+          await delay(scaleSpinDelay(isMegaSlot ? 420 : 240, fastSpinRef.current));
+        }
       }
+    } catch (err) {
+      console.warn('Hotline auto spin stopped after unexpected error', err);
+      setError(extractApiError(err).message || '自動轉動中斷');
+      stopReason = '自動轉動中斷';
+    } finally {
+      setAutoSpinRemaining(0);
+      setAutoSpinActive(false);
+      autoSpinStopRequestedRef.current = false;
+      setAutoSpinStopReason(stopReason || '自動轉動完成');
     }
-
-    setAutoSpinRemaining(0);
-    setAutoSpinActive(false);
-    autoSpinStopRequestedRef.current = false;
-    setAutoSpinStopReason(stopReason || '自動轉動完成');
   };
 
   const resultAmount = result ? Number.parseFloat(result.amount) : 0;
@@ -2869,10 +2880,12 @@ function normalizeAutoSpinSettings(settings: AutoSpinSettings): AutoSpinSettings
 }
 
 function roundMegaMultiplier(value: number): number {
-  return Math.min(MEGA_MAX_TOTAL_MULTIPLIER, Number(value.toFixed(4)));
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(MEGA_MAX_TOTAL_MULTIPLIER, Number(Math.max(0, value).toFixed(4)));
 }
 
 function roundMegaPayout(amount: number, multiplier: number): number {
+  if (!Number.isFinite(amount) || !Number.isFinite(multiplier)) return 0;
   return Number((amount * multiplier).toFixed(2));
 }
 
