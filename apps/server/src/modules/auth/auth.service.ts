@@ -7,6 +7,8 @@ import { randomBytes, createHash } from 'node:crypto';
 import type { LoginInput } from './auth.schema.js';
 import { CaptchaService } from '../../utils/captcha.js';
 
+const BCRYPT_ROUNDS = 12;
+
 export interface JwtSigner {
   sign(payload: { sub: string; role: string }): string;
 }
@@ -42,6 +44,24 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ApiError('USER_NOT_FOUND', 'User not found');
     return this.toPublic(user);
+  }
+
+  async changePassword(
+    userId: string,
+    input: { currentPassword: string; newPassword: string },
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new ApiError('USER_NOT_FOUND', 'User not found');
+    if (user.disabledAt) throw new ApiError('MEMBER_FROZEN', 'Member account is disabled');
+
+    const ok = await bcrypt.compare(input.currentPassword, user.passwordHash);
+    if (!ok) throw new ApiError('INVALID_CREDENTIALS', 'Invalid current password');
+    if (input.currentPassword === input.newPassword) {
+      throw new ApiError('INVALID_CREDENTIALS', 'New password must be different');
+    }
+
+    const passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
   }
 
   async refresh(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {

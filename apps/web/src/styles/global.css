@@ -814,6 +814,21 @@
       min-width: 2.75rem !important;
     }
 
+    .game-fullscreen-shell > header .game-account-menu-backdrop {
+      inset: 0 !important;
+      height: auto !important;
+      min-height: 0 !important;
+      width: auto !important;
+      min-width: 0 !important;
+    }
+
+    .game-fullscreen-shell > header .game-account-menu button {
+      height: 2.75rem !important;
+      min-height: 2.75rem !important;
+      width: 100% !important;
+      min-width: 0 !important;
+    }
+
     .game-fullscreen-shell > header .game-shell-balance {
       width: auto !important;
       min-width: 0 !important;

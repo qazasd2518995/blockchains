@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { BACCARAT_GAME_IDS } from '@bg/shared';
-import { loginSchema, refreshSchema } from './auth.schema.js';
+import { changePasswordSchema, loginSchema, refreshSchema } from './auth.schema.js';
 import { AuthService } from './auth.service.js';
 import { ApiError } from '../../utils/errors.js';
 import { config } from '../../config.js';
@@ -79,6 +79,12 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/me', { preHandler: [fastify.authenticate] }, async (req) => {
     return service.getMe(req.userId);
+  });
+
+  fastify.post('/change-password', { preHandler: [fastify.authenticate] }, async (req, reply) => {
+    const body = changePasswordSchema.parse(req.body);
+    await service.changePassword(req.userId, body);
+    reply.code(204).send();
   });
 
   fastify.post('/baccarat-launch', { preHandler: [fastify.authenticate] }, async (req) => {

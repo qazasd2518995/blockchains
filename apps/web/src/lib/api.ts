@@ -148,6 +148,8 @@ function translateMessage(code: string, rawMessage: string): string {
   const msg = (rawMessage ?? '').toLowerCase();
   if (msg.includes('invalid username or password')) return '账号或密码错误';
   if (msg.includes('invalid email or password')) return '账号或密码错误';
+  if (msg.includes('invalid current password')) return '目前密碼錯誤';
+  if (msg.includes('new password must be different')) return '新密碼不能與目前密碼相同';
   if (msg.includes('user not found')) return '找不到该用户';
   if (msg.includes('round not accepting bets')) return '本局已不接受下注';
   if (msg.includes('insufficient')) return '余额不足';

@@ -1,6 +1,16 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { ArrowLeft, History, Maximize2, RefreshCw, Smartphone, WalletCards, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ChevronDown,
+  History,
+  KeyRound,
+  Maximize2,
+  RefreshCw,
+  Smartphone,
+  WalletCards,
+  X,
+} from 'lucide-react';
 import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { AudioMenu } from '@/components/layout/AudioMenu';
@@ -12,6 +22,7 @@ import { buildLoginPath } from '@/hooks/useRequireLogin';
 import { useLiveBalance } from '@/hooks/useLiveBalance';
 import { getLocalizedGameTitle } from '@/i18n/gameLabels';
 import { useTranslation } from '@/i18n/useTranslation';
+import { ChangePasswordModal } from '@/components/layout/ChangePasswordModal';
 
 const MEGA_SLOT_GAME_IDS = new Set([
   'thunder-slot',
@@ -54,6 +65,8 @@ export function GameFullscreenShell() {
   const shellRef = useRef<HTMLDivElement>(null);
   const [standaloneMode, setStandaloneMode] = useState(false);
   const [immersiveNotice, setImmersiveNotice] = useState<'ios' | 'blocked' | null>(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const isMegaSlot = slotLayout === 'mega';
   useLiveBalance();
 
@@ -73,9 +86,17 @@ export function GameFullscreenShell() {
       const active = document.activeElement;
       if (active instanceof HTMLTextAreaElement) return true;
       if (!(active instanceof HTMLInputElement)) return false;
-      return !['button', 'checkbox', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'].includes(
-        active.type,
-      );
+      return ![
+        'button',
+        'checkbox',
+        'file',
+        'hidden',
+        'image',
+        'radio',
+        'range',
+        'reset',
+        'submit',
+      ].includes(active.type);
     };
 
     const applyViewportHeight = () => {
@@ -172,6 +193,7 @@ export function GameFullscreenShell() {
       data-game-id={game.id}
       data-slot-layout={slotLayout}
     >
+      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
       <div className="pointer-events-none fixed inset-0">
         <img
           src="/backgrounds/casino-atmosphere.png"
@@ -202,23 +224,63 @@ export function GameFullscreenShell() {
           </div>
 
           {user ? (
-            <button
-              type="button"
-              onClick={handleBalanceRefresh}
-              className="game-shell-balance inline-flex h-10 min-w-[112px] max-w-[148px] shrink-0 items-center gap-2 rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338]"
-              title={t.common.reload}
-              aria-label={`${t.common.reload}，${t.common.account} ${user.username}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
-            >
-              <WalletCards className="h-4 w-4" aria-hidden="true" />
-              <span className="game-shell-balance-copy flex min-w-0 flex-col items-start justify-center leading-none">
-                <span className="game-shell-account max-w-full truncate text-[10px] font-black text-white/60">
-                  {user.username}
+            <div className="relative shrink-0">
+              {accountMenuOpen && (
+                <button
+                  type="button"
+                  className="game-account-menu-backdrop fixed inset-0 z-40 cursor-default bg-transparent"
+                  aria-label="關閉帳號選單"
+                  onClick={() => setAccountMenuOpen(false)}
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => setAccountMenuOpen((value) => !value)}
+                className="game-shell-balance relative z-50 inline-flex h-10 min-w-[112px] max-w-[148px] shrink-0 items-center gap-2 rounded-full border border-[#C9A247]/35 bg-[#101B2D] px-3 text-[12px] font-bold text-[#E8D48A] transition hover:border-[#C9A247]/65 hover:bg-[#162338]"
+                aria-expanded={accountMenuOpen}
+                aria-label={`${t.common.account} ${user.username}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
+              >
+                <WalletCards className="h-4 w-4" aria-hidden="true" />
+                <span className="game-shell-balance-copy flex min-w-0 flex-col items-start justify-center leading-none">
+                  <span className="game-shell-account max-w-full truncate text-[10px] font-black text-white/60">
+                    {user.username}
+                  </span>
+                  <span className="data-num mt-1 max-w-full truncate text-[11px] font-black">
+                    {formatAmount(user.balance ?? '0')}
+                  </span>
                 </span>
-                <span className="data-num mt-1 max-w-full truncate text-[11px] font-black">
-                  {formatAmount(user.balance ?? '0')}
-                </span>
-              </span>
-            </button>
+                <ChevronDown
+                  className={`h-3 w-3 shrink-0 text-[#E8D48A]/70 transition ${accountMenuOpen ? 'rotate-180' : ''}`}
+                  aria-hidden="true"
+                />
+              </button>
+              {accountMenuOpen && (
+                <div className="game-account-menu absolute right-0 top-[calc(100%+8px)] z-50 w-[168px] overflow-hidden rounded-[12px] border border-white/12 bg-[#0F172A] py-1 shadow-[0_18px_42px_rgba(0,0,0,0.5)]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountMenuOpen(false);
+                      setPasswordOpen(true);
+                    }}
+                    className="flex h-11 w-full items-center gap-2 px-3 text-left text-[13px] font-bold text-white/86 transition hover:bg-white/[0.07]"
+                  >
+                    <KeyRound className="h-4 w-4 text-[#E8D48A]" aria-hidden="true" />
+                    修改密碼
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountMenuOpen(false);
+                      void handleBalanceRefresh();
+                    }}
+                    className="flex h-11 w-full items-center gap-2 px-3 text-left text-[13px] font-bold text-white/76 transition hover:bg-white/[0.07]"
+                  >
+                    <RefreshCw className="h-4 w-4 text-white/58" aria-hidden="true" />
+                    {t.common.reload}
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <Link
               to={loginPath}

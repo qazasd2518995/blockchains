@@ -1,6 +1,15 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Gift, History, LayoutGrid, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
+import {
+  ChevronDown,
+  Gift,
+  History,
+  KeyRound,
+  LayoutGrid,
+  LogOut,
+  RefreshCw,
+  ShieldCheck,
+} from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
 import { api, extractApiError } from '@/lib/api';
@@ -9,6 +18,7 @@ import { BrandMark } from '@/components/layout/BrandMark';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { AudioMenu } from '@/components/layout/AudioMenu';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
+import { ChangePasswordModal } from '@/components/layout/ChangePasswordModal';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useLiveBalance } from '@/hooks/useLiveBalance';
 
@@ -31,6 +41,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const useMobileWhiteChrome = MOBILE_WHITE_ROUTES.has(location.pathname);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   useLiveBalance();
 
   const handleLogout = async () => {
@@ -42,6 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       }
     }
     logout();
+    setAccountMenuOpen(false);
     navigate('/');
   };
 
@@ -56,6 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative flex min-h-[100svh] flex-col overflow-x-hidden bg-[#E9ECEF]">
+      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
       <div className="pointer-events-none fixed inset-0">
         <img
           src="/backgrounds/casino-atmosphere.png"
@@ -128,26 +142,65 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {user ? (
             <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end">
-              <button
-                type="button"
-                onClick={handleBalanceRefresh}
-                className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-full border border-[#C9A247]/40 bg-[#162338] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition hover:border-[#C9A247] hover:bg-[#1B2940] sm:px-4"
-                title={t.common.reload}
-                aria-label={t.common.reload}
-              >
-                <span className="flex min-w-0 flex-col items-start leading-none">
-                  <span className="max-w-[132px] truncate text-[11px] font-semibold text-white/72">
-                    {t.common.account} {user.username}
-                  </span>
-                  <span className="mt-1 flex items-center gap-1.5">
-                    <span className="label !text-white/60">{t.common.balance}</span>
-                    <span className="data-num text-[14px] font-semibold text-[#E8D48A]">
-                      {formatAmount(user.balance ?? '0')}
+              <div className="relative">
+                {accountMenuOpen && (
+                  <button
+                    type="button"
+                    className="fixed inset-0 z-40 cursor-default bg-transparent"
+                    aria-label="關閉帳號選單"
+                    onClick={() => setAccountMenuOpen(false)}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setAccountMenuOpen((value) => !value)}
+                  className="relative z-50 inline-flex min-h-11 min-w-0 items-center gap-2 rounded-full border border-[#C9A247]/40 bg-[#162338] px-3 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition hover:border-[#C9A247] hover:bg-[#1B2940] sm:px-4"
+                  aria-expanded={accountMenuOpen}
+                  aria-label={`${t.common.account} ${user.username}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
+                >
+                  <span className="flex min-w-0 flex-col items-start leading-none">
+                    <span className="max-w-[132px] truncate text-[11px] font-semibold text-white/72">
+                      {t.common.account} {user.username}
+                    </span>
+                    <span className="mt-1 flex items-center gap-1.5">
+                      <span className="label !text-white/60">{t.common.balance}</span>
+                      <span className="data-num text-[14px] font-semibold text-[#E8D48A]">
+                        {formatAmount(user.balance ?? '0')}
+                      </span>
                     </span>
                   </span>
-                </span>
-                <RefreshCw className="h-3.5 w-3.5 text-white/60" />
-              </button>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 text-white/60 transition ${accountMenuOpen ? 'rotate-180' : ''}`}
+                    aria-hidden="true"
+                  />
+                </button>
+                {accountMenuOpen && (
+                  <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-[172px] overflow-hidden rounded-[12px] border border-white/12 bg-[#0F172A] py-1 text-white shadow-[0_18px_42px_rgba(2,6,23,0.42)]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAccountMenuOpen(false);
+                        setPasswordOpen(true);
+                      }}
+                      className="flex h-11 w-full items-center gap-2 px-3 text-left text-[13px] font-bold text-white/86 transition hover:bg-white/[0.07]"
+                    >
+                      <KeyRound className="h-4 w-4 text-[#E8D48A]" aria-hidden="true" />
+                      修改密碼
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAccountMenuOpen(false);
+                        void handleBalanceRefresh();
+                      }}
+                      className="flex h-11 w-full items-center gap-2 px-3 text-left text-[13px] font-bold text-white/76 transition hover:bg-white/[0.07]"
+                    >
+                      <RefreshCw className="h-4 w-4 text-white/58" aria-hidden="true" />
+                      {t.common.reload}
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <AudioMenu
                 variant="dark"

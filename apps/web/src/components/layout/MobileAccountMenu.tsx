@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, WalletCards } from 'lucide-react';
+import { ChevronDown, KeyRound, LogOut, WalletCards } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatAmount } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { useTranslation } from '@/i18n/useTranslation';
+import { ChangePasswordModal } from '@/components/layout/ChangePasswordModal';
 
 interface MobileAccountMenuProps {
   className?: string;
@@ -15,6 +16,7 @@ export function MobileAccountMenu({ className = '' }: MobileAccountMenuProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   if (!user) return null;
 
@@ -33,6 +35,7 @@ export function MobileAccountMenu({ className = '' }: MobileAccountMenuProps) {
 
   return (
     <div className={`relative z-50 shrink-0 ${className}`}>
+      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
       {open && (
         <button
           type="button"
@@ -61,7 +64,18 @@ export function MobileAccountMenu({ className = '' }: MobileAccountMenuProps) {
         />
       </button>
       {open && (
-        <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-[138px] overflow-hidden rounded-[12px] border border-[#FED7AA] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.18)]">
+        <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-[148px] overflow-hidden rounded-[12px] border border-[#FED7AA] bg-white shadow-[0_14px_30px_rgba(15,23,42,0.18)]">
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setPasswordOpen(true);
+            }}
+            className="flex h-11 w-full items-center justify-center gap-2 border-b border-[#FED7AA]/70 px-3 text-[13px] font-black text-[#7C2D12] active:bg-[#FFF7ED]"
+          >
+            <KeyRound className="h-4 w-4" aria-hidden="true" />
+            修改密碼
+          </button>
           <button
             type="button"
             onClick={handleLogout}

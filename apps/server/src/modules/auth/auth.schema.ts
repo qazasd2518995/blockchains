@@ -15,5 +15,16 @@ export const refreshSchema = z.object({
   refreshToken: z.string().min(10),
 });
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: z
+    .string()
+    .min(8)
+    .max(128)
+    .regex(/[A-Za-z]/)
+    .regex(/\d/),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
