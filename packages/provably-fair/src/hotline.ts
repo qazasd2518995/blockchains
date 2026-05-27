@@ -16,27 +16,61 @@ export const HOTLINE_MEGA_GAME_IDS = new Set([
   'jungle-slot',
   'vampire-slot',
 ]);
-const HOTLINE_SOFT_PAYOUTS = [0.2, 0.4, 0.6, 0.8, 1.2, 1.4, 1.6, 1.8] as const;
+const HOTLINE_5X3_PAYTABLE = [
+  { weight: 32, payout3: 0.4, payout4: 4, payout5: 22.4 },
+  { weight: 31, payout3: 0.64, payout4: 5.6, payout5: 33.6 },
+  { weight: 29, payout3: 0.96, payout4: 8.8, payout5: 51.2 },
+  { weight: 27, payout3: 1.28, payout4: 12.8, payout5: 76.8 },
+  { weight: 10, payout3: 2.4, payout4: 24, payout5: 176 },
+  { weight: 7, payout3: 4.4, payout4: 48, payout5: 400 },
+  { weight: 5, payout3: 8, payout4: 105.6, payout5: 920 },
+  { weight: 3, payout3: 13.6, payout4: 230.4, payout5: 2304 },
+] as const;
+const HOTLINE_3X3_PAYTABLE = [
+  { weight: 60, payout3: 0.6, payout4: 0.6, payout5: 0.6 },
+  { weight: 56, payout3: 0.9, payout4: 0.9, payout5: 0.9 },
+  { weight: 52, payout3: 1.3, payout4: 1.3, payout5: 1.3 },
+  { weight: 48, payout3: 1.8, payout4: 1.8, payout5: 1.8 },
+  { weight: 3, payout3: 13950, payout4: 13950, payout5: 13950 },
+  { weight: 2, payout3: 41850, payout4: 41850, payout5: 41850 },
+  { weight: 1.5, payout3: 121500, payout4: 121500, payout5: 121500 },
+  { weight: 1, payout3: 373500, payout4: 373500, payout5: 373500 },
+] as const;
+const HOTLINE_MEGA_PAYTABLE = [
+  { weight: 16, payout3: 0.2, payout4: 0.2, payout5: 0.2 },
+  { weight: 16, payout3: 0.4, payout4: 0.4, payout5: 0.4 },
+  { weight: 16, payout3: 0.6, payout4: 0.6, payout5: 0.6 },
+  { weight: 16, payout3: 0.8, payout4: 0.8, payout5: 0.8 },
+  { weight: 10, payout3: 1.2, payout4: 1.2, payout5: 1.2 },
+  { weight: 8.5, payout3: 1.4, payout4: 1.4, payout5: 1.4 },
+  { weight: 7, payout3: 1.6, payout4: 1.6, payout5: 1.6 },
+  { weight: 5.5, payout3: 1.8, payout4: 1.8, payout5: 1.8 },
+] as const;
 
 // 符號池：權重決定出現率（Stake-style 類 slot）
 // 索引 => 名稱
-export const HOTLINE_SYMBOLS = HOTLINE_SOFT_PAYOUTS.map((payout, index) => ({
-  name: index < 4 ? `SOFT_LOSS_${index + 1}` : `SOFT_WIN_${index - 3}`,
-  weight: index < 4 ? 16 : 10 - (index - 4) * 1.5,
-  payout3: payout,
-  payout4: payout,
-  payout5: payout,
-})) as ReadonlyArray<{
+type HotlineSymbolDefinition = {
   name: string;
   weight: number;
   payout3: number;
   payout4: number;
   payout5: number;
-}>;
+};
 
-export const HOTLINE_MINI_SYMBOLS = HOTLINE_SYMBOLS;
+function makeHotlineSymbols(
+  paytable: readonly Omit<HotlineSymbolDefinition, 'name'>[],
+): ReadonlyArray<HotlineSymbolDefinition> {
+  return paytable.map((entry, index) => ({
+    name: index < 4 ? `SOFT_LOSS_${index + 1}` : `SOFT_WIN_${index - 3}`,
+    ...entry,
+  }));
+}
 
-export const HOTLINE_MEGA_SYMBOLS = HOTLINE_SYMBOLS;
+export const HOTLINE_SYMBOLS = makeHotlineSymbols(HOTLINE_5X3_PAYTABLE);
+
+export const HOTLINE_MINI_SYMBOLS = makeHotlineSymbols(HOTLINE_3X3_PAYTABLE);
+
+export const HOTLINE_MEGA_SYMBOLS = makeHotlineSymbols(HOTLINE_MEGA_PAYTABLE);
 export const HOTLINE_MEGA_FREE_SPIN_TRIGGER = 4;
 export const HOTLINE_MEGA_FREE_SPIN_RETRIGGER_TRIGGER = 3;
 export const HOTLINE_MEGA_FREE_SPIN_BASE_AWARD = 15;

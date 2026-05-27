@@ -58,13 +58,21 @@ describe('hotlineSpin', () => {
     expect(getHotlineReelCount('temple-slot')).toBe(HOTLINE_MINI_REELS);
   });
 
-  it('uses the 8-symbol soft-hit fixed-line paytable', () => {
+  it('uses separate 8-symbol paytables for fixed-line variants', () => {
     expect(HOTLINE_MINI_SYMBOLS.map((symbol) => symbol.payout3)).toEqual([
-      0.2, 0.4, 0.6, 0.8, 1.2, 1.4, 1.6, 1.8,
+      0.6, 0.9, 1.3, 1.8, 13950, 41850, 121500, 373500,
     ]);
-    expect(HOTLINE_SYMBOLS.map((symbol) => symbol.payout3)).toEqual(
-      HOTLINE_MINI_SYMBOLS.map((symbol) => symbol.payout3),
-    );
+    expect(HOTLINE_SYMBOLS.map((symbol) => [symbol.payout3, symbol.payout4, symbol.payout5]))
+      .toEqual([
+        [0.4, 4, 22.4],
+        [0.64, 5.6, 33.6],
+        [0.96, 8.8, 51.2],
+        [1.28, 12.8, 76.8],
+        [2.4, 24, 176],
+        [4.4, 48, 400],
+        [8, 105.6, 920],
+        [13.6, 230.4, 2304],
+      ]);
   });
 
   it('supports 6x5 mega slot variants', () => {

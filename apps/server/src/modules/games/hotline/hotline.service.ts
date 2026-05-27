@@ -1,7 +1,10 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import {
+  HOTLINE_MEGA_SYMBOLS,
+  HOTLINE_MINI_SYMBOLS,
   HOTLINE_PAYLINES_3X3,
   HOTLINE_PAYLINES_5X3,
+  HOTLINE_SYMBOLS,
   getHotlineReelCount,
   getHotlineRowCount,
   hotlineSpin,
@@ -380,9 +383,9 @@ type HotlineRound = Pick<HotlineBetResult, 'grid' | 'lines' | 'cascades'> & {
   features?: HotlineMegaFeatureResult;
 };
 
-const HOTLINE_SOFT_LOSS_SYMBOLS = [0, 1, 2, 3] as const;
-const HOTLINE_SOFT_WIN_SYMBOLS = [4, 5, 6, 7] as const;
-const HOTLINE_SOFT_PAYOUTS = [0.2, 0.4, 0.6, 0.8, 1.2, 1.4, 1.6, 1.8] as const;
+const HOTLINE_SOFT_LOSS_SYMBOLS = [0, 1] as const;
+const HOTLINE_SOFT_WIN_SYMBOLS = [2, 3, 4, 5, 6, 7] as const;
+const HOTLINE_SYMBOL_INDEXES = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 
 function buildHotlineRound(
   serverSeed: string,
@@ -550,7 +553,7 @@ function blankHotlineGrid(gameId: string, variant = 0): number[][] {
     return Array.from({ length: reelCount }, (_, reel) =>
       Array.from(
         { length: rowCount },
-        (_, row) => (variant + reel * rowCount + row) % HOTLINE_SOFT_PAYOUTS.length,
+        (_, row) => (variant + reel * rowCount + row) % HOTLINE_SYMBOL_INDEXES.length,
       ),
     );
   }
@@ -571,8 +574,9 @@ function fixedLineHotlineGrid(
 ): number[][] {
   const targetSymbols = symbols.slice(0, 3);
   const normalizedVariant = Math.abs(variant);
+  const symbolsForGrid = reelCount === 3 ? HOTLINE_MINI_SYMBOLS : HOTLINE_SYMBOLS;
   const expectedMultiplier = targetSymbols.reduce(
-    (sum, symbol) => sum + (HOTLINE_SOFT_PAYOUTS[symbol] ?? 0),
+    (sum, symbol) => sum + (symbolsForGrid[symbol]?.payout3 ?? 0),
     0,
   );
 
@@ -600,9 +604,7 @@ function makeClassicNoWinGrid(
   variant = 0,
 ): number[][] {
   const blocked = new Set(blockedSymbols);
-  const fillers = HOTLINE_SOFT_PAYOUTS.map((_payout, symbol) => symbol).filter(
-    (symbol) => !blocked.has(symbol),
-  );
+  const fillers = HOTLINE_SYMBOL_INDEXES.filter((symbol) => !blocked.has(symbol));
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const grid = Array.from({ length: reelCount }, (_, reel) =>
       Array.from(
@@ -644,7 +646,7 @@ function applyFixedLineTargets(grid: number[][], symbols: readonly number[], var
 function megaClusterHotlineGrid(symbols: readonly number[], variant = 0): number[][] {
   const targetSymbols = symbols.slice(0, 3);
   const blocked = new Set(targetSymbols);
-  const fillers = HOTLINE_SOFT_PAYOUTS.map((_payout, symbol) => symbol).filter(
+  const fillers = HOTLINE_MEGA_SYMBOLS.map((_symbol, symbol) => symbol).filter(
     (symbol) => !blocked.has(symbol),
   );
   const reelCount = 6;
