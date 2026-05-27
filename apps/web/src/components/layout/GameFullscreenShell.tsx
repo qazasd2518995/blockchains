@@ -64,11 +64,25 @@ export function GameFullscreenShell() {
 
     const root = document.documentElement;
     let rafId = 0;
+    let keyboardLockedHeight: number | null = null;
+
+    const readViewportHeight = () =>
+      Math.max(1, Math.round(window.visualViewport?.height ?? window.innerHeight));
+
+    const isTextInputActive = () => {
+      const active = document.activeElement;
+      if (active instanceof HTMLTextAreaElement) return true;
+      if (!(active instanceof HTMLInputElement)) return false;
+      return !['button', 'checkbox', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'].includes(
+        active.type,
+      );
+    };
 
     const applyViewportHeight = () => {
       rafId = 0;
-      const viewportHeight = Math.round(window.visualViewport?.height ?? window.innerHeight);
-      const value = `${Math.max(1, viewportHeight)}px`;
+      const viewportHeight = readViewportHeight();
+      const height = keyboardLockedHeight ?? viewportHeight;
+      const value = `${height}px`;
       shell.style.setProperty('--game-shell-height', value);
       root.style.setProperty('--game-shell-height', value);
     };
@@ -78,9 +92,25 @@ export function GameFullscreenShell() {
       rafId = window.requestAnimationFrame(applyViewportHeight);
     };
 
+    const lockViewportForKeyboard = () => {
+      if (!isTextInputActive()) return;
+      keyboardLockedHeight = readViewportHeight();
+      scheduleViewportHeight();
+    };
+
+    const unlockViewportAfterKeyboard = () => {
+      window.setTimeout(() => {
+        if (isTextInputActive()) return;
+        keyboardLockedHeight = null;
+        scheduleViewportHeight();
+      }, 180);
+    };
+
     applyViewportHeight();
     window.addEventListener('resize', scheduleViewportHeight);
     window.addEventListener('orientationchange', scheduleViewportHeight);
+    window.addEventListener('focusin', lockViewportForKeyboard);
+    window.addEventListener('focusout', unlockViewportAfterKeyboard);
     window.visualViewport?.addEventListener('resize', scheduleViewportHeight);
     window.visualViewport?.addEventListener('scroll', scheduleViewportHeight);
 
@@ -88,6 +118,8 @@ export function GameFullscreenShell() {
       if (rafId) window.cancelAnimationFrame(rafId);
       window.removeEventListener('resize', scheduleViewportHeight);
       window.removeEventListener('orientationchange', scheduleViewportHeight);
+      window.removeEventListener('focusin', lockViewportForKeyboard);
+      window.removeEventListener('focusout', unlockViewportAfterKeyboard);
       window.visualViewport?.removeEventListener('resize', scheduleViewportHeight);
       window.visualViewport?.removeEventListener('scroll', scheduleViewportHeight);
       shell.style.removeProperty('--game-shell-height');
