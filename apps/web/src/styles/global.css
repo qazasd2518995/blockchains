@@ -1958,10 +1958,24 @@
       .slot-game-page--classic
       .game-main-stack
       > .slot-result-card {
+      position: absolute;
+      left: 50%;
+      bottom: 0.45rem;
+      z-index: 12;
       display: grid !important;
       place-items: center !important;
+      width: min(88%, 360px) !important;
+      max-height: 86px;
+      transform: translateX(-50%);
+      margin: 0 !important;
+      border-radius: 16px !important;
+      background: rgba(7, 16, 28, 0.84);
       padding-right: 0.75rem !important;
       padding-left: 0.75rem !important;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 16px 34px rgba(0, 0, 0, 0.34);
+      backdrop-filter: blur(12px);
     }
 
     .game-fullscreen-shell[data-slot-layout='standard']
@@ -2009,7 +2023,6 @@
       .slot-game-page--classic
       .game-main-stack
       > .slot-result-card {
-      flex: 0 0 auto;
       min-height: 86px;
       overflow: visible !important;
       padding: 0.48rem 0.75rem 0.5rem !important;
