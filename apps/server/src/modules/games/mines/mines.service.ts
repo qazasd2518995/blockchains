@@ -11,8 +11,7 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
-  runSerializable,
-  serializableTxOpts,
+  runLockedTransaction,
 } from '../_common/BaseGameService.js';
 import {
   applyControls,
@@ -31,7 +30,8 @@ export class MinesService {
   async start(userId: string, input: MinesStartInput): Promise<MinesRoundState> {
     const amount = new Prisma.Decimal(input.amount);
 
-    return runSerializable(this.prisma, async (tx) => {
+    return runLockedTransaction(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
       const active = await tx.minesRound.findFirst({
         where: { userId, status: 'ACTIVE' },
       });
@@ -75,9 +75,17 @@ export class MinesService {
   }
 
   async reveal(userId: string, input: MinesRevealInput): Promise<MinesRevealResult> {
-    return runSerializable(this.prisma, async (tx) => {
-      const round = await tx.minesRound.findFirst({
-        where: { id: input.roundId, userId },
+    return runLockedTransaction(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+      const [lockedRound] = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "MinesRound"
+        WHERE id = ${input.roundId} AND "userId" = ${userId}
+        FOR UPDATE
+      `;
+      if (!lockedRound) throw new ApiError('ROUND_NOT_FOUND', 'Round not found');
+
+      const round = await tx.minesRound.findUnique({
+        where: { id: lockedRound.id },
       });
       if (!round) throw new ApiError('ROUND_NOT_FOUND', 'Round not found');
       if (round.status !== 'ACTIVE') {
@@ -232,9 +240,17 @@ export class MinesService {
   }
 
   async cashout(userId: string, input: MinesCashoutInput): Promise<MinesCashoutResult> {
-    return runSerializable(this.prisma, async (tx) => {
-      const round = await tx.minesRound.findFirst({
-        where: { id: input.roundId, userId },
+    return runLockedTransaction(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+      const [lockedRound] = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "MinesRound"
+        WHERE id = ${input.roundId} AND "userId" = ${userId}
+        FOR UPDATE
+      `;
+      if (!lockedRound) throw new ApiError('ROUND_NOT_FOUND', 'Round not found');
+
+      const round = await tx.minesRound.findUnique({
+        where: { id: lockedRound.id },
       });
       if (!round) throw new ApiError('ROUND_NOT_FOUND', 'Round not found');
       if (round.status !== 'ACTIVE') {

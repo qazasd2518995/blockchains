@@ -35,6 +35,8 @@ export function MinesPage() {
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const stageHintRef = useRef<HTMLDivElement | null>(null);
   const stageHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const busyRef = useRef(false);
+  const pendingCellsRef = useRef<Set<number>>(new Set());
 
   const hideStageHintElement = (hint: HTMLElement | null) => {
     if (!hint) return;
@@ -125,7 +127,7 @@ export function MinesPage() {
   }, []);
 
   const handleStart = async () => {
-    if (busy) return;
+    if (busyRef.current) return;
     if (!requireLogin()) return;
     if (amount < MIN_BET_AMOUNT || amount > balance) {
       setError(t.bet.insufficientBalance);
@@ -133,6 +135,7 @@ export function MinesPage() {
     }
     hideStageHint();
     setError(null);
+    busyRef.current = true;
     setBusy(true);
     try {
       sceneRef.current?.reset();
@@ -146,6 +149,7 @@ export function MinesPage() {
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -156,8 +160,17 @@ export function MinesPage() {
       showStageHint();
       return;
     }
-    if (busy) return;
+    if (
+      busyRef.current ||
+      pendingCellsRef.current.has(cellIndex) ||
+      current.revealed.includes(cellIndex)
+    ) {
+      return;
+    }
+    busyRef.current = true;
+    pendingCellsRef.current.add(cellIndex);
     setBusy(true);
+    sceneRef.current?.setClickable(false);
     // 樂觀動畫：立刻標記此格為「準備中」脈動
     sceneRef.current?.markPending(cellIndex);
     try {
@@ -188,12 +201,16 @@ export function MinesPage() {
         );
       } else {
         sceneRef.current?.revealGem(cellIndex);
+        sceneRef.current?.setClickable(true);
       }
       setRound(state);
       roundRef.current = state;
     } catch (err) {
       setError(extractApiError(err).message);
+      if (roundRef.current?.status === 'ACTIVE') sceneRef.current?.setClickable(true);
     } finally {
+      pendingCellsRef.current.delete(cellIndex);
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -201,7 +218,10 @@ export function MinesPage() {
   const handleCashout = async () => {
     const current = roundRef.current;
     if (!current || current.status !== 'ACTIVE' || current.revealed.length === 0) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
+    sceneRef.current?.setClickable(false);
     try {
       const res = await api.post<MinesCashoutResult>('/games/mines/cashout', {
         roundId: current.roundId,
@@ -249,7 +269,9 @@ export function MinesPage() {
       );
     } catch (err) {
       setError(extractApiError(err).message);
+      if (roundRef.current?.status === 'ACTIVE') sceneRef.current?.setClickable(true);
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -257,6 +279,9 @@ export function MinesPage() {
   const handleReset = () => {
     setRound(null);
     roundRef.current = null;
+    pendingCellsRef.current.clear();
+    busyRef.current = false;
+    setBusy(false);
     sceneRef.current?.reset();
   };
 
