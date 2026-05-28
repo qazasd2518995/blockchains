@@ -182,8 +182,7 @@ export class HotlineService {
           buyFeature,
           baseAmount,
           stakeAmount,
-          finalPayout,
-          finalMultiplier,
+          seed.nonce,
         );
         finalFeatures = capped.features;
         finalPayout = capped.payout;
@@ -410,39 +409,62 @@ type HotlineRound = Pick<HotlineBetResult, 'grid' | 'lines' | 'cascades'> & {
 const HOTLINE_SOFT_LOSS_SYMBOLS = [0, 1] as const;
 const HOTLINE_SOFT_WIN_SYMBOLS = [2, 3, 4, 5, 6, 7] as const;
 const HOTLINE_SYMBOL_INDEXES = [0, 1, 2, 3, 4, 5, 6, 7] as const;
-const MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER = new Prisma.Decimal(2);
+const MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER = new Prisma.Decimal('2.5');
+const MEGA_FREE_GAME_LOW_TARGET_MIN = 0.35;
+const MEGA_FREE_GAME_LOW_TARGET_MAX = 0.98;
+const MEGA_FREE_GAME_HIGH_TARGET_MIN = 1.1;
+const MEGA_FREE_GAME_HIGH_TARGET_MAX = 2.5;
 
 function capMegaFreeGameSettlement(
   features: HotlineMegaFeatureResult,
   buyFeature: boolean,
   baseAmount: Prisma.Decimal,
   stakeAmount: Prisma.Decimal,
-  payout: Prisma.Decimal,
-  multiplier: Prisma.Decimal,
+  nonce: number,
 ): {
   features: HotlineMegaFeatureResult;
   payout: Prisma.Decimal;
   multiplier: Prisma.Decimal;
 } {
+  const targetAccountingMultiplier = chooseMegaFreeGameAccountingMultiplier(nonce);
+  const targetPayout = stakeAmount
+    .mul(targetAccountingMultiplier)
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
   const maxPayout = stakeAmount
     .mul(MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-  if (payout.lessThanOrEqualTo(maxPayout)) {
-    return { features, payout, multiplier };
-  }
+  const cappedPayout = Prisma.Decimal.min(targetPayout, maxPayout);
 
   const cappedMultiplier = stakeAmount.greaterThan(0)
-    ? maxPayout.div(stakeAmount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN)
+    ? cappedPayout.div(stakeAmount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN)
     : new Prisma.Decimal(0);
   const featureDisplayMultiplier = baseAmount.greaterThan(0)
-    ? maxPayout.div(baseAmount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN).toNumber()
+    ? cappedPayout.div(baseAmount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN).toNumber()
     : cappedMultiplier.toNumber();
 
   return {
     features: scaleMegaFeatureResult(features, featureDisplayMultiplier, buyFeature),
-    payout: maxPayout,
+    payout: cappedPayout,
     multiplier: cappedMultiplier,
   };
+}
+
+function chooseMegaFreeGameAccountingMultiplier(nonce: number): number {
+  const bucket = Math.abs(Math.trunc(nonce)) % 3;
+  const rand = deterministicFraction(nonce, 17);
+  const target =
+    bucket === 2
+      ? MEGA_FREE_GAME_HIGH_TARGET_MIN +
+        rand * (MEGA_FREE_GAME_HIGH_TARGET_MAX - MEGA_FREE_GAME_HIGH_TARGET_MIN)
+      : MEGA_FREE_GAME_LOW_TARGET_MIN +
+        rand * (MEGA_FREE_GAME_LOW_TARGET_MAX - MEGA_FREE_GAME_LOW_TARGET_MIN);
+  const max = MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER.toNumber();
+  return roundFeatureMultiplier(Math.min(target, max));
+}
+
+function deterministicFraction(seed: number, salt: number): number {
+  const x = Math.sin((seed + 1) * 12.9898 + salt * 78.233) * 43758.5453;
+  return x - Math.floor(x);
 }
 
 function scaleMegaFeatureResult(
@@ -452,9 +474,10 @@ function scaleMegaFeatureResult(
 ): HotlineMegaFeatureResult {
   const target = roundFeatureMultiplier(targetTotalMultiplier);
   const current = Math.max(0, features.totalMultiplier);
-  if (current <= target || current <= 0) {
+  if (current === target) {
     return features;
   }
+  if (current <= 0) return buildControlledMegaFeature(target, buyFeature);
 
   const ratio = target / current;
   const baseTotalMultiplier = buyFeature
@@ -923,6 +946,8 @@ function buildControlledMegaFeature(
 }
 
 export const __hotlineServiceTestHooks = {
+  capMegaFreeGameSettlement,
+  chooseMegaFreeGameAccountingMultiplier,
   fixedLineHotlineGrid,
   softLossHotlineRound,
   winningHotlineRound,

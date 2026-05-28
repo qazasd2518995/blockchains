@@ -56,4 +56,50 @@ describe('hotline controlled round shaping', () => {
 
     expect(amount.mul(round.totalMultiplier).lessThanOrEqualTo(maxPayout)).toBe(true);
   });
+
+  it('shapes mega buy-feature accounting into two low results and one capped high result', () => {
+    const picks = [0, 1, 2].map((nonce) =>
+      __hotlineServiceTestHooks.chooseMegaFreeGameAccountingMultiplier(nonce),
+    );
+
+    expect(picks[0]).toBeGreaterThanOrEqual(0.35);
+    expect(picks[0]).toBeLessThan(1);
+    expect(picks[1]).toBeGreaterThanOrEqual(0.35);
+    expect(picks[1]).toBeLessThan(1);
+    expect(picks[2]).toBeGreaterThanOrEqual(1.1);
+    expect(picks[2]).toBeLessThanOrEqual(2.5);
+  });
+
+  it('keeps mega buy-feature payout and displayed free-game total capped at 2.5x stake', () => {
+    const baseAmount = new Prisma.Decimal(10);
+    const stakeAmount = baseAmount.mul(100);
+    const features = {
+      scatterSymbols: [],
+      scatterCount: 4,
+      freeSpinsAwarded: 15,
+      freeSpinsPlayed: 1,
+      baseWinMultiplier: 0,
+      baseMultiplierSymbols: [],
+      baseMultiplierTotal: 0,
+      baseAppliedMultiplier: 1,
+      baseTotalMultiplier: 0,
+      freeSpinRounds: [],
+      freeSpinMultiplierBank: 0,
+      freeSpinWinMultiplier: 400,
+      totalMultiplier: 400,
+    };
+
+    const capped = __hotlineServiceTestHooks.capMegaFreeGameSettlement(
+      features,
+      true,
+      baseAmount,
+      stakeAmount,
+      2,
+    );
+
+    expect(capped.payout.lessThanOrEqualTo(stakeAmount.mul(2.5))).toBe(true);
+    expect(capped.multiplier.lessThanOrEqualTo(2.5)).toBe(true);
+    expect(capped.features.totalMultiplier).toBeLessThanOrEqual(250);
+    expect(capped.features.freeSpinWinMultiplier).toBe(capped.features.totalMultiplier);
+  });
 });
