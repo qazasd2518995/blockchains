@@ -727,12 +727,89 @@
     left: 50%;
     bottom: clamp(1rem, 4%, 2rem);
     z-index: 18;
+    display: grid;
+    place-items: center;
     width: min(88%, 560px);
     max-height: min(52%, 360px);
     margin: 0;
     overflow: auto;
     transform: translateX(-50%);
     box-shadow: 0 18px 46px rgba(0, 0, 0, 0.42);
+  }
+
+  .slot-result-card > .slot-result-summary {
+    display: grid;
+    place-items: center;
+    justify-content: center;
+    align-content: center;
+    gap: 0.35rem;
+    width: 100%;
+    text-align: center;
+  }
+
+  .slot-result-main {
+    display: grid;
+    justify-items: center;
+    gap: 0.12rem;
+    width: 100%;
+    text-align: center;
+  }
+
+  .slot-result-title {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: 0.22em;
+    color: #f3d67d;
+    text-align: center;
+  }
+
+  .slot-result-lines {
+    font-size: 2.25rem;
+    line-height: 1;
+    color: #ffffff;
+    text-align: center;
+  }
+
+  .slot-result-meta {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.1;
+    letter-spacing: 0.25em;
+    color: rgba(255, 255, 255, 0.75);
+    text-align: center;
+  }
+
+  .slot-result-payout {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.35em;
+    width: 100%;
+    margin: 0;
+    color: #f3d67d;
+    font-size: 1.5rem;
+    line-height: 1.05;
+    text-align: center;
+  }
+
+  .slot-result-payout > span,
+  .slot-result-payout > strong {
+    display: inline-block;
+    font: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    text-align: center;
+  }
+
+  .slot-result-profit {
+    width: 100%;
+    margin: 0;
+    color: #7dd3fc;
+    font-size: 1.875rem;
+    line-height: 1.05;
+    text-align: center;
   }
 
   .slot-landscape-gate {

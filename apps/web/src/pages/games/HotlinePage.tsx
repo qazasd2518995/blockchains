@@ -2210,24 +2210,23 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       <div
         className={`game-result-card slot-result-card ${isBigWinResult ? 'slot-result-card-bigwin' : ''} ${resultHasLineWin ? 'game-result-card-win' : 'game-result-card-loss'}`}
       >
-        <div className="slot-result-summary flex flex-col items-center justify-center gap-1 text-center">
-          <div>
-            <div className="mb-1 text-[12px] font-black tracking-[0.22em] text-[#F3D67D]">
-              {resultTitle}
-            </div>
-            <div className="font-display text-4xl text-white">
+        <div className="slot-result-summary">
+          <div className="slot-result-main">
+            <div className="slot-result-title">{resultTitle}</div>
+            <div className="slot-result-lines font-display">
               {result.lines.length}{' '}
               {result.lines.length !== 1 ? t.games.hotline.lines : t.games.hotline.line}
             </div>
-            <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
+            <div className="slot-result-meta">
               {t.games.hotline.totalMult} {formatMultiplier(resultDisplayMultiplier)}
               {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
             </div>
           </div>
-          <div className="slot-result-payout num text-2xl text-[#F3D67D]">
-            派彩 {formatAmount(result.payout)}
+          <div className="slot-result-payout num">
+            <span>派彩</span>
+            <strong>{formatAmount(result.payout)}</strong>
           </div>
-          <div className="slot-result-profit num text-3xl text-[#7DD3FC]">
+          <div className="slot-result-profit num">
             {resultHasLineWin ? '+' : resultProfit >= 0 ? '+' : ''}
             {formatAmount(resultHasLineWin ? result.payout : result.profit)}
           </div>
