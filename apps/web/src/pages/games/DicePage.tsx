@@ -671,7 +671,7 @@ export function DicePage() {
         titleSuffix={t.games.dice.suffix}
         titleSuffixColor="acid"
         description={t.games.dice.description}
-        rtpLabel="RTP 96.5%"
+        rtpLabel="RTP 97%"
         rtpAccent="acid"
       />
 

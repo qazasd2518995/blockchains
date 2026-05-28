@@ -116,7 +116,7 @@ export const en = {
       f1Title: 'Stable and Smooth',
       f1Desc: 'A refined game engine keeps every round responsive.',
       f2Title: '96.5-97% RTP',
-      f2Desc: 'Dice 96.5%, Plinko 96.5%, Mines 97%, with a long-term house edge around 3%.',
+      f2Desc: 'Dice 97%, Plinko 96.5%, Mines 97%, with a long-term house edge around 3%.',
       f3Title: '5-30s Rounds',
       f3Desc: 'Fast short rounds with multipliers up to 1,000,000x.',
       f4Title: 'Classic Games',

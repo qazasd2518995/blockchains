@@ -126,7 +126,7 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     category: 'single-step',
     description: 'Classic crypto dice. Choose over/under and roll.',
     descriptionZh: '经典加密骰子，选高低后掷骰',
-    rtp: 0.965,
+    rtp: 0.97,
     icon: 'dice',
     enabled: true,
   },
