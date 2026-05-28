@@ -64,6 +64,8 @@ interface FundedControlMember {
 const AUTO_REVIVAL_NOTE = 'auto_revive';
 const AUTO_REVIVAL_CAPITAL_THRESHOLD = new Prisma.Decimal('0.20');
 const AUTO_REVIVAL_TARGET_PROFIT_RATE = new Prisma.Decimal('0.80');
+export const STARTER_CONFIDENCE_OPERATOR = 'auto_starter_confidence';
+export const STARTER_CONFIDENCE_PLAYER_WIN_TARGET = new Prisma.Decimal(2000);
 
 export function getControlGameDay(now: Date = new Date()): string {
   return getAdminGameDay(now);
@@ -199,9 +201,11 @@ export async function checkAndCompleteManualDetectionControls(
 
     if (control.scope === 'MEMBER') {
       if (control.isCompleted) continue;
+      const shouldDeactivate = isStarterConfidenceControl(control);
       await db.manualDetectionControl.update({
         where: { id: control.id },
         data: {
+          isActive: !shouldDeactivate,
           isCompleted: true,
           completedAt: new Date(),
           completionSettlement: settlement.superiorSettlement,
@@ -506,6 +510,66 @@ export async function maybeCreateAutoRevivalDepositControl(
   return { created: true, targetProfit, capitalAmount };
 }
 
+export async function maybeCreateStarterConfidenceManualDetectionControl(
+  db: Db,
+  input: {
+    memberId: string;
+    memberUsername: string;
+    operatorId?: string | null;
+  },
+): Promise<{ created: boolean; targetPlayerWin: Prisma.Decimal; targetSettlement: Prisma.Decimal }> {
+  const existing = await db.manualDetectionControl.findFirst({
+    where: {
+      scope: ManualDetectionScope.MEMBER,
+      targetMemberUsername: input.memberUsername,
+      operatorUsername: STARTER_CONFIDENCE_OPERATOR,
+    },
+    select: { id: true, targetSettlement: true },
+  });
+  if (existing) {
+    return {
+      created: false,
+      targetPlayerWin: STARTER_CONFIDENCE_PLAYER_WIN_TARGET,
+      targetSettlement: existing.targetSettlement,
+    };
+  }
+
+  const settlement = await calculateCurrentSettlement(
+    db,
+    ManualDetectionScope.MEMBER,
+    null,
+    input.memberUsername,
+  );
+  const targetSettlement = settlement.superiorSettlement
+    .sub(STARTER_CONFIDENCE_PLAYER_WIN_TARGET)
+    .toDecimalPlaces(2);
+
+  await db.manualDetectionControl.create({
+    data: {
+      scope: ManualDetectionScope.MEMBER,
+      targetMemberId: input.memberId,
+      targetMemberUsername: input.memberUsername,
+      targetSettlement,
+      controlPercentage: 100,
+      bitePercentage: null,
+      houseTakePercentage: new Prisma.Decimal(10),
+      startSettlement: settlement.superiorSettlement.toDecimalPlaces(2),
+      isActive: true,
+      isCompleted: false,
+      completedAt: null,
+      completionSettlement: null,
+      operatorId: input.operatorId ?? null,
+      operatorUsername: STARTER_CONFIDENCE_OPERATOR,
+    },
+  });
+
+  return {
+    created: true,
+    targetPlayerWin: STARTER_CONFIDENCE_PLAYER_WIN_TARGET,
+    targetSettlement,
+  };
+}
+
 async function listControlScopeMemberIds(
   db: Db,
   scope: ManualDetectionScope,
@@ -705,6 +769,14 @@ function isTargetReached(
   return targetSettlement.gte(0)
     ? currentSettlement.gte(targetSettlement)
     : currentSettlement.lte(targetSettlement);
+}
+
+function isStarterConfidenceControl(control: {
+  operatorUsername?: string | null;
+  targetSettlement: Prisma.Decimal;
+  startSettlement?: Prisma.Decimal | null;
+}): boolean {
+  return control.operatorUsername === STARTER_CONFIDENCE_OPERATOR;
 }
 
 async function calculateMemberSettlement(

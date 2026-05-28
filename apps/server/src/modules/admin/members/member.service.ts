@@ -17,7 +17,10 @@ import {
 import { runSerializable } from '../../games/_common/BaseGameService.js';
 import { createPlayerSeeds } from '../../auth/player-seeds.js';
 import { writeAudit } from '../audit/audit.service.js';
-import { maybeCreateAutoRevivalDepositControl } from '../controls/controls.runtime.js';
+import {
+  maybeCreateAutoRevivalDepositControl,
+  maybeCreateStarterConfidenceManualDetectionControl,
+} from '../controls/controls.runtime.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import { resolveAdminGameDayRange } from '../gameDay.js';
 import type {
@@ -159,6 +162,12 @@ export class MemberService {
       }
 
       await createPlayerSeeds(tx, created.id);
+
+      await maybeCreateStarterConfidenceManualDetectionControl(tx, {
+        memberId: created.id,
+        memberUsername: created.username,
+        operatorId: operator.id,
+      });
 
       if (balanceForMember.greaterThan(0)) {
         await maybeCreateAutoRevivalDepositControl(tx, {

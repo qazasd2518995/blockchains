@@ -2,8 +2,11 @@ import { Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 import {
   calculateAutoDetectionBitePlan,
+  checkAndCompleteManualDetectionControls,
   distributeAutoDetectionRedistribution,
   findApplicableBurstControl,
+  maybeCreateStarterConfidenceManualDetectionControl,
+  STARTER_CONFIDENCE_OPERATOR,
 } from './controls.runtime.js';
 
 describe('calculateAutoDetectionBitePlan', () => {
@@ -75,6 +78,110 @@ describe('distributeAutoDetectionRedistribution', () => {
     expect(result.distributedAmount.toFixed(2)).toBe('900.00');
     expect(db.user.update).toHaveBeenCalledTimes(4);
     expect(db.transaction.create).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('maybeCreateStarterConfidenceManualDetectionControl', () => {
+  it('creates a member manual-detection win target 2000 points below current superior settlement', async () => {
+    const db = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'u1', agentId: null }),
+      },
+      manualDetectionControl: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({ id: 'control-1' }),
+      },
+    };
+
+    const result = await maybeCreateStarterConfidenceManualDetectionControl(db as never, {
+      memberId: 'u1',
+      memberUsername: 'newbie',
+      operatorId: 'admin-1',
+    });
+
+    expect(result.created).toBe(true);
+    expect(result.targetPlayerWin.toFixed(2)).toBe('2000.00');
+    expect(result.targetSettlement.toFixed(2)).toBe('-2000.00');
+    expect(db.manualDetectionControl.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        scope: 'MEMBER',
+        targetMemberId: 'u1',
+        targetMemberUsername: 'newbie',
+        targetSettlement: new Prisma.Decimal(-2000),
+        controlPercentage: 100,
+        startSettlement: new Prisma.Decimal(0),
+        operatorUsername: STARTER_CONFIDENCE_OPERATOR,
+      }),
+    });
+  });
+
+  it('deactivates starter confidence controls after the 2000 point target is reached', async () => {
+    const starter = {
+      id: 'starter-1',
+      scope: 'MEMBER',
+      targetAgentId: null,
+      targetMemberUsername: 'newbie',
+      targetSettlement: new Prisma.Decimal(-2000),
+      startSettlement: new Prisma.Decimal(0),
+      bitePercentage: null,
+      isCompleted: false,
+      operatorUsername: STARTER_CONFIDENCE_OPERATOR,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+    const agentProfile = {
+      id: 'a1',
+      parentId: null,
+      rebateMode: 'PERCENTAGE',
+      rebatePercentage: new Prisma.Decimal(0),
+      maxRebatePercentage: new Prisma.Decimal(0),
+      baccaratRebateMode: 'PERCENTAGE',
+      baccaratRebatePercentage: new Prisma.Decimal(0),
+      maxBaccaratRebatePercentage: new Prisma.Decimal(0),
+    };
+    const db = {
+      manualDetectionControl: {
+        findMany: vi.fn().mockResolvedValue([starter]),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'u1', agentId: 'a1' }),
+      },
+      agent: {
+        findUnique: vi.fn().mockResolvedValue(agentProfile),
+      },
+      bet: {
+        aggregate: vi
+          .fn()
+          .mockResolvedValueOnce({
+            _count: { _all: 1 },
+            _sum: {
+              amount: new Prisma.Decimal(10),
+              payout: new Prisma.Decimal(2510),
+              profit: new Prisma.Decimal(2500),
+            },
+          })
+          .mockResolvedValueOnce({ _sum: { amount: new Prisma.Decimal(0) } }),
+        findMany: vi.fn().mockResolvedValue([{ userId: 'u1' }]),
+      },
+      crashBet: {
+        aggregate: vi
+          .fn()
+          .mockResolvedValue({ _count: { _all: 0 }, _sum: { amount: null, payout: null } }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    const result = await checkAndCompleteManualDetectionControls(db as never);
+
+    expect(result.completedCount).toBe(1);
+    expect(db.manualDetectionControl.update).toHaveBeenCalledWith({
+      where: { id: 'starter-1' },
+      data: expect.objectContaining({
+        isActive: false,
+        isCompleted: true,
+        completionSettlement: new Prisma.Decimal(-2500),
+      }),
+    });
   });
 });
 
