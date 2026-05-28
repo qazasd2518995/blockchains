@@ -1124,7 +1124,7 @@ export function ControlsOverviewPage(): JSX.Element {
 
               <Section
                 title="§ 爆分控制"
-                subtitle="机率、净赢范围与每日池"
+                subtitle="指定玩家账号与爆分金额"
                 actions={
                   <button
                     type="button"
@@ -1159,8 +1159,7 @@ export function ControlsOverviewPage(): JSX.Element {
                 <div className="mb-3 rounded-[6px] border border-[#186073]/20 bg-[#EFF8FB] px-4 py-3 text-[12px] text-[#32505C]">
                   <div className="font-semibold text-[#186073]">运行说明</div>
                   <div className="mt-1">
-                    后端会把单次派彩限制在净赢范围内，并用本金剩余门槛、每日池、会员每日上限、8
-                    局冷却与风险线自动防守。额度不足时会停止爆分，高倍自然结果会被压到可控小赢或输局。
+                    爆分只接受后台指定单一玩家与指定金额。全盘、代理线与系统自动爆分已停用；未指定的自然高倍结果会被限制在单局净赢 30,000 内。
                   </div>
                 </div>
                 <DataTable columns={bcCols} rows={bc} rowKey={(r) => r.id} empty={t.common.empty} />
@@ -1558,6 +1557,7 @@ function formatReason(reason: string): string {
     burst_risk_cap: '高倍压低',
     burst_risk_guard: '风险防守',
     burst_budget_guard: '爆分池防守',
+    global_accidental_burst_cap: '意外爆分上限',
     global_member_daily_win_cap: '全局赢分上限',
   };
   return map[reason] ?? reason;

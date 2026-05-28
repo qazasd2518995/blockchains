@@ -79,6 +79,39 @@ describe('distributeAutoDetectionRedistribution', () => {
 });
 
 describe('findApplicableBurstControl', () => {
+  it('ignores global and agent-line burst controls', async () => {
+    const db = {
+      burstControl: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'global',
+            scope: 'ALL',
+            targetMemberUsername: null,
+            targetAgentId: null,
+            gameIds: [],
+            createdAt: new Date('2026-01-03T00:00:00.000Z'),
+          },
+          {
+            id: 'line',
+            scope: 'AGENT_LINE',
+            targetMemberUsername: null,
+            targetAgentId: 'a1',
+            gameIds: [],
+            createdAt: new Date('2026-01-04T00:00:00.000Z'),
+          },
+        ]),
+      },
+    };
+
+    const applicable = await findApplicableBurstControl(
+      db as never,
+      { username: 'demo', agentId: 'a1' },
+      'rocket',
+    );
+
+    expect(applicable).toBeNull();
+  });
+
   it('skips burst controls that are scoped to a different game id', async () => {
     const matchingControl = {
       id: 'matching',

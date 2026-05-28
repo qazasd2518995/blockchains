@@ -95,6 +95,7 @@ type ControlLogSource =
   | 'member_win_cap'
   | 'agent_line_cap'
   | 'global_member_daily_win_cap'
+  | 'global_accidental_burst_cap'
   | 'unknown';
 
 type ControlLogMeta = {
@@ -459,6 +460,7 @@ function resolveControlLogSource(reason: string): ControlLogSource {
   if (reason === 'win_cap' || reason === 'win_cap_rate') return 'member_win_cap';
   if (reason === 'agent_line_cap' || reason === 'agent_line_cap_rate') return 'agent_line_cap';
   if (reason === 'global_member_daily_win_cap') return 'global_member_daily_win_cap';
+  if (reason === 'global_accidental_burst_cap') return 'global_accidental_burst_cap';
   if (reason === 'win_control' || reason === 'loss_control' || reason === 'loss_control_release') {
     return 'win_loss_control';
   }
@@ -475,6 +477,7 @@ function resolveControlLogSourceLabel(source: ControlLogSource): string {
     member_win_cap: '會員封頂',
     agent_line_cap: '代理線封頂',
     global_member_daily_win_cap: '全局日贏封頂',
+    global_accidental_burst_cap: '意外爆分上限',
     unknown: '未知控制',
   };
   return labels[source];
@@ -501,6 +504,7 @@ function resolveControlLogActionLabel(log: ControlLogRecord): string {
     agent_line_cap: '代理線封頂壓輸',
     agent_line_cap_rate: `代理線比例${finalDirection}`,
     global_member_daily_win_cap: '全局封頂壓輸',
+    global_accidental_burst_cap: '意外爆分壓低',
   };
   return labels[log.flipReason] ?? finalDirection;
 }
@@ -1115,50 +1119,32 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
     async (req, reply) => {
       const body = burstControlSchema.parse(req.body);
+      if (body.scope !== 'MEMBER') {
+        reply.code(400).send({ code: 'INVALID_BURST_SCOPE', message: 'Burst control requires a member target' });
+        return;
+      }
 
-      let targetAgentId = body.targetAgentId ?? null;
-      let targetAgentUsername = body.targetAgentUsername ?? null;
       let targetMemberId = body.targetMemberId ?? null;
       let targetMemberUsername = body.targetMemberUsername ?? null;
 
-      if (body.scope === 'AGENT_LINE') {
-        const agent = await fastify.prisma.agent.findUnique({
-          where: { id: targetAgentId ?? undefined },
-          select: { id: true, username: true },
-        });
-        if (!agent) {
-          reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
-          return;
-        }
-        targetAgentId = agent.id;
-        targetAgentUsername = agent.username;
+      const member = targetMemberId
+        ? await fastify.prisma.user.findUnique({
+            where: { id: targetMemberId },
+            select: { id: true, username: true },
+          })
+        : await fastify.prisma.user.findUnique({
+            where: { username: targetMemberUsername ?? undefined },
+            select: { id: true, username: true },
+          });
+      if (!member) {
+        reply.code(404).send({ code: 'MEMBER_NOT_FOUND', message: 'Member not found' });
+        return;
       }
-
-      if (body.scope === 'MEMBER') {
-        const member = targetMemberId
-          ? await fastify.prisma.user.findUnique({
-              where: { id: targetMemberId },
-              select: { id: true, username: true },
-            })
-          : await fastify.prisma.user.findUnique({
-              where: { username: targetMemberUsername ?? undefined },
-              select: { id: true, username: true },
-            });
-        if (!member) {
-          reply.code(404).send({ code: 'MEMBER_NOT_FOUND', message: 'Member not found' });
-          return;
-        }
-        targetMemberId = member.id;
-        targetMemberUsername = member.username;
-      }
+      targetMemberId = member.id;
+      targetMemberUsername = member.username;
 
       const existing = await fastify.prisma.burstControl.findFirst({
-        where:
-          body.scope === 'ALL'
-            ? { scope: 'ALL', isActive: true }
-            : body.scope === 'AGENT_LINE'
-              ? { scope: 'AGENT_LINE', targetAgentId, isActive: true }
-              : { scope: 'MEMBER', targetMemberUsername, isActive: true },
+        where: { scope: 'MEMBER', targetMemberUsername, isActive: true },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -1174,8 +1160,8 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
 
       const data = {
         scope: body.scope as ManualDetectionScope,
-        targetAgentId,
-        targetAgentUsername,
+        targetAgentId: null,
+        targetAgentUsername: null,
         targetMemberId,
         targetMemberUsername,
         gameIds: normalizeGameIds(body.gameIds),

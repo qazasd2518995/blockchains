@@ -655,7 +655,9 @@ export async function findApplicableBurstControl(
   gameId?: string,
 ) {
   const controls = (await getAllActiveBurstControls(db)).filter(
-    (control) => !gameId || control.gameIds.length === 0 || control.gameIds.includes(gameId),
+    (control) =>
+      control.scope === 'MEMBER' &&
+      (!gameId || control.gameIds.length === 0 || control.gameIds.includes(gameId)),
   );
   if (controls.length === 0) return null;
 
@@ -665,27 +667,7 @@ export async function findApplicableBurstControl(
   if (memberControl) {
     return { control: memberControl, depth: -1 };
   }
-
-  const ancestors = member.agentId ? await getAgentAncestors(db, member.agentId) : [];
-  const lineCandidates = controls
-    .filter(
-      (control) =>
-        control.scope === 'AGENT_LINE' &&
-        control.targetAgentId &&
-        ancestors.includes(control.targetAgentId),
-    )
-    .map((control) => ({
-      control,
-      depth: ancestors.indexOf(control.targetAgentId as string),
-    }))
-    .sort(
-      (a, b) => a.depth - b.depth || b.control.createdAt.getTime() - a.control.createdAt.getTime(),
-    );
-  if (lineCandidates.length > 0) return lineCandidates[0];
-
-  const allControl = controls.find((control) => control.scope === 'ALL');
-  if (!allControl) return null;
-  return { control: allControl, depth: Number.POSITIVE_INFINITY };
+  return null;
 }
 
 function manualScopeRank(scope: ManualDetectionScope): number {

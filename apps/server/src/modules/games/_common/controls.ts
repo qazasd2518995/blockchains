@@ -86,6 +86,7 @@ interface BurstEligibility {
 }
 
 const BURST_CONTROL_MIN_POTENTIAL_MULTIPLIER = new Prisma.Decimal(20);
+const GLOBAL_ACCIDENTAL_BURST_PROFIT_CAP = new Prisma.Decimal(30000);
 export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(50000);
 const BURST_ALWAYS_ELIGIBLE_GAME_IDS = new Set<string>([
   GameId.MINES,
@@ -218,6 +219,8 @@ async function findControlDecision(
   if (options.burstGuardOnly) {
     const burst = await findBurstDecision(tx, member, gameId, predicted, options);
     if (burst) return burst;
+    const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
+    if (accidentalBurstCap) return accidentalBurstCap;
     const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
     if (globalWinCap) return globalWinCap;
     return null;
@@ -245,6 +248,9 @@ async function findControlDecision(
 
   const burst = await findBurstDecision(tx, member, gameId, predicted, options);
   if (burst) return burst;
+
+  const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
+  if (accidentalBurstCap) return accidentalBurstCap;
 
   const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
   if (globalWinCap) return globalWinCap;
@@ -430,6 +436,20 @@ async function findGlobalMemberWinCapDecision(
     };
   }
   return null;
+}
+
+function findAccidentalBurstCapDecision(predicted: PredictedResult): ControlDecision | null {
+  const predictedProfit = predicted.payout.sub(predicted.amount);
+  if (!predictedProfit.greaterThan(GLOBAL_ACCIDENTAL_BURST_PROFIT_CAP)) return null;
+
+  return {
+    desired: 'WIN',
+    controlId: 'global-accidental-burst-cap',
+    reason: 'global_accidental_burst_cap',
+    minMultiplier: new Prisma.Decimal('1.01'),
+    maxPayout: predicted.amount.add(GLOBAL_ACCIDENTAL_BURST_PROFIT_CAP).toDecimalPlaces(2),
+    forceWinAdjustment: true,
+  };
 }
 
 async function withWinCapBounds(

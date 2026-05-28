@@ -97,6 +97,13 @@ export const burstControlSchema = z
     notes: z.string().max(500).optional(),
   })
   .superRefine((value, ctx) => {
+    if (value.scope !== 'MEMBER') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '爆分控制只能指定單一會員',
+        path: ['scope'],
+      });
+    }
     if (value.scope === 'AGENT_LINE' && !value.targetAgentId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
