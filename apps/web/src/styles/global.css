@@ -6085,6 +6085,72 @@
   color: #bae6fd;
 }
 
+.mines-result-toast,
+.mines-error-toast {
+  pointer-events: none;
+  position: absolute;
+  left: 0.75rem;
+  z-index: 26;
+  display: inline-flex;
+  max-width: min(66%, 340px);
+  min-height: 34px;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 999px;
+  padding: 0.38rem 0.68rem;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0.74;
+  box-shadow: 0 10px 26px rgba(2, 6, 23, 0.3);
+  backdrop-filter: blur(7px);
+}
+
+.mines-result-toast {
+  top: 0.75rem;
+}
+
+.mines-error-toast {
+  top: 3.4rem;
+  border: 1px solid rgba(252, 165, 165, 0.38);
+  background: rgba(61, 16, 20, 0.48);
+  color: #fecaca;
+}
+
+.mines-result-toast span,
+.mines-result-toast strong,
+.mines-error-toast span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mines-result-toast span {
+  font-family: var(--font-display, ui-sans-serif, system-ui, sans-serif);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
+.mines-result-toast strong,
+.mines-error-toast span {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.mines-result-toast--loss {
+  border: 1px solid rgba(252, 165, 165, 0.42);
+  background: rgba(61, 16, 20, 0.46);
+  color: #fecaca;
+}
+
+.mines-result-toast--win {
+  border: 1px solid rgba(125, 211, 252, 0.42);
+  background: rgba(8, 47, 73, 0.46);
+  color: #bae6fd;
+}
+
 .tower-difficulty-options {
   display: grid;
   gap: 0.35rem;

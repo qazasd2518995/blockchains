@@ -362,55 +362,33 @@ export function MinesPage() {
               >
                 請先下注並開始本局，再點擊方塊。
               </div>
+              {isBusted && (
+                <div className="mines-result-toast mines-result-toast--loss">
+                  <span>{t.games.mines.busted}</span>
+                  <strong>
+                    {t.games.mines.loss} -{formatAmount(round.amount)}
+                  </strong>
+                </div>
+              )}
+              {isCashedOut && (
+                <div className="mines-result-toast mines-result-toast--win">
+                  <span>{t.games.mines.cashedOut}</span>
+                  <strong>
+                    {t.games.dice.payout} +{formatAmount(round.potentialPayout)}
+                  </strong>
+                </div>
+              )}
+              {error && (
+                <div className="mines-error-toast">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span>
+                    {t.common.error.toUpperCase()}: {error.toUpperCase()}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          {isBusted && (
-            <div className="game-result-card game-result-card-loss">
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <div className="font-display text-5xl text-[#FCA5A5]">{t.games.mines.busted}</div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
-                    {t.games.mines.mineDetonated}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] text-white/55">{t.games.mines.loss}</div>
-                  <div className="num text-3xl text-[#FCA5A5]">-{formatAmount(round.amount)}</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {isCashedOut && (
-            <div className="game-result-card game-result-card-win">
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <div className="font-display text-5xl text-[#7DD3FC]">
-                    {t.games.mines.cashedOut}
-                  </div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
-                    {t.games.mines.secured}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] text-white/55">{t.games.dice.payout}</div>
-                  <div className="num text-3xl text-[#7DD3FC]">
-                    +{formatAmount(round.potentialPayout)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="game-alert text-[12px]">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="leading-relaxed">
-                {t.common.error.toUpperCase()}: {error.toUpperCase()}
-              </span>
-            </div>
-          )}
         </div>
 
         <div className="game-control-stack space-y-4">
