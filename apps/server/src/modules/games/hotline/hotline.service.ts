@@ -31,7 +31,7 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
-  runSerializable,
+  runLockedTransaction,
 } from '../_common/BaseGameService.js';
 import {
   applyControls,
@@ -104,7 +104,7 @@ export class HotlineService {
     }
     const stakeAmount = buyFeature ? baseAmount.mul(100) : baseAmount;
 
-    return runSerializable(this.prisma, async (tx) => {
+    return runLockedTransaction(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, stakeAmount);
       const seed = await new SeedHelper(tx).getActiveBundle(userId, gameId, input.clientSeed);
       const generatedRound = buildHotlineRound(

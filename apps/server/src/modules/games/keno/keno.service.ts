@@ -12,8 +12,7 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
-  runSerializable,
-  serializableTxOpts,
+  runLockedTransaction,
 } from '../_common/BaseGameService.js';
 import {
   applyControls,
@@ -31,7 +30,7 @@ export class KenoService {
     const amount = new Prisma.Decimal(input.amount);
     const unique = Array.from(new Set(input.selected));
 
-    return runSerializable(this.prisma, async (tx) => {
+    return runLockedTransaction(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
       const seed = await new SeedHelper(tx).getActiveBundle(userId, 'keno', input.clientSeed);
 

@@ -6,7 +6,7 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
-  runSerializable,
+  runLockedTransaction,
 } from '../_common/BaseGameService.js';
 import {
   applyControls,
@@ -21,7 +21,7 @@ export class DiceService {
   async bet(userId: string, input: DiceBetInput): Promise<DiceBetResult> {
     const amount = new Prisma.Decimal(input.amount);
 
-    return runSerializable(this.prisma, async (tx) => {
+    return runLockedTransaction(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
       const seed = await new SeedHelper(tx).getActiveBundle(userId, 'dice', input.clientSeed);
 

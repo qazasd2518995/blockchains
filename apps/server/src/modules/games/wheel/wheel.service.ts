@@ -6,8 +6,7 @@ import {
   lockUserAndCheckFunds,
   debitAndRecord,
   creditAndRecord,
-  runSerializable,
-  serializableTxOpts,
+  runLockedTransaction,
 } from '../_common/BaseGameService.js';
 import {
   applyControls,
@@ -24,7 +23,7 @@ export class WheelService {
   async bet(userId: string, input: WheelBetInput): Promise<WheelBetResult> {
     const amount = new Prisma.Decimal(input.amount);
 
-    return runSerializable(this.prisma, async (tx) => {
+    return runLockedTransaction(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, amount);
       const seed = await new SeedHelper(tx).getActiveBundle(userId, 'wheel', input.clientSeed);
       const segments = input.segments as WheelSegmentCount;
