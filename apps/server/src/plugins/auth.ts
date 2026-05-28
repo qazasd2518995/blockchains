@@ -13,8 +13,8 @@ declare module 'fastify' {
 
 declare module '@fastify/jwt' {
   interface FastifyJWT {
-    payload: { sub: string; role: string };
-    user: { sub: string; role: string };
+    payload: { sub: string; role: string; sid?: string };
+    user: { sub: string; role: string; sid?: string };
   }
 }
 
@@ -22,13 +22,19 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
   fastify.decorate('authenticate', async (req: FastifyRequest, _reply: FastifyReply) => {
     try {
       await req.jwtVerify();
-      const tokenUser = (req as unknown as { user: { sub?: string } }).user;
+      const tokenUser = (req as unknown as { user: { sub?: string; sid?: string } }).user;
       if (!tokenUser?.sub) throw new Error('missing sub');
       const user = await fastify.prisma.user.findUnique({
         where: { id: tokenUser.sub },
-        select: { id: true, frozenAt: true, disabledAt: true },
+        select: { id: true, frozenAt: true, disabledAt: true, activeSessionId: true },
       });
       if (!user || user.disabledAt) throw new Error('user disabled');
+      if (user.activeSessionId && user.activeSessionId !== tokenUser.sid) {
+        throw new ApiError(
+          'SESSION_REPLACED',
+          'Logged out because this account signed in on another device',
+        );
+      }
       if (
         user.frozenAt &&
         req.method !== 'GET' &&

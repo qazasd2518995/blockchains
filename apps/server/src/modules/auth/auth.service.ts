@@ -10,7 +10,7 @@ import { CaptchaService } from '../../utils/captcha.js';
 const BCRYPT_ROUNDS = 12;
 
 export interface JwtSigner {
-  sign(payload: { sub: string; role: string }): string;
+  sign(payload: { sub: string; role: string; sid: string }): string;
 }
 
 export class AuthService {
@@ -36,8 +36,18 @@ export class AuthService {
     const ok = await bcrypt.compare(input.password, user.passwordHash);
     if (!ok) throw new ApiError('INVALID_CREDENTIALS', 'Invalid username or password');
 
-    const tokens = await this.issueTokens(user.id, user.role);
-    return { user: this.toPublic(user), ...tokens };
+    const sessionId = randomBytes(24).toString('hex');
+    const { publicUser, tokens } = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: user.id },
+        data: { activeSessionId: sessionId, activeSessionAt: new Date() },
+      });
+      return {
+        publicUser: this.toPublic(updated),
+        tokens: await this.issueTokens(updated.id, updated.role, sessionId, tx),
+      };
+    });
+    return { user: publicUser, ...tokens };
   }
 
   async getMe(userId: string): Promise<UserPublic> {
@@ -78,34 +88,50 @@ export class AuthService {
       if (revoked.count !== 1) throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
       const user = await tx.user.findUniqueOrThrow({ where: { id: record.userId } });
       if (user.disabledAt) throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
-      return this.issueTokens(user.id, user.role, tx);
+      if (!record.sessionId || user.activeSessionId !== record.sessionId) {
+        throw new ApiError(
+          'SESSION_REPLACED',
+          'Logged out because this account signed in on another device',
+        );
+      }
+      return this.issueTokens(user.id, user.role, record.sessionId, tx);
     });
   }
 
   async logout(refreshToken: string): Promise<void> {
     const tokenHash = hashRefresh(refreshToken);
-    await this.prisma.refreshToken
-      .updateMany({
-        where: { tokenHash, revokedAt: null },
-        data: { revokedAt: new Date() },
+    await this.prisma
+      .$transaction(async (tx) => {
+        const record = await tx.refreshToken.findUnique({ where: { tokenHash } });
+        if (!record) return;
+        await tx.refreshToken.updateMany({
+          where: { id: record.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        if (record.sessionId) {
+          await tx.user.updateMany({
+            where: { id: record.userId, activeSessionId: record.sessionId },
+            data: { activeSessionId: null, activeSessionAt: null },
+          });
+        }
       })
-      .catch(() => {
-        // ignore
-      });
+      .catch(() => undefined);
   }
 
   private async issueTokens(
     userId: string,
     role: string,
+    sessionId: string,
     db: PrismaClient | Prisma.TransactionClient = this.prisma,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const accessToken = this.jwt.sign({ sub: userId, role });
+    const accessToken = this.jwt.sign({ sub: userId, role, sid: sessionId });
     const refreshToken = randomBytes(48).toString('hex');
     const ttlMs = parseDuration(config.JWT_REFRESH_TTL);
     await db.refreshToken.create({
       data: {
         userId,
         tokenHash: hashRefresh(refreshToken),
+        sessionId,
         expiresAt: new Date(Date.now() + ttlMs),
       },
     });

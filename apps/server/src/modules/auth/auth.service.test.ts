@@ -9,6 +9,7 @@ describe('AuthService.refresh', () => {
         findUnique: vi.fn().mockResolvedValue({
           id: 'rt1',
           userId: 'u1',
+          sessionId: 's1',
           revokedAt: null,
           expiresAt: new Date(Date.now() + 60_000),
         }),
@@ -36,6 +37,7 @@ describe('AuthService.refresh', () => {
         findUnique: vi.fn().mockResolvedValue({
           id: 'rt1',
           userId: 'u1',
+          sessionId: 's1',
           revokedAt: null,
           expiresAt: new Date(Date.now() + 60_000),
         }),
@@ -47,6 +49,7 @@ describe('AuthService.refresh', () => {
           id: 'u1',
           role: 'PLAYER',
           disabledAt: null,
+          activeSessionId: 's1',
         }),
       },
     };
@@ -65,5 +68,39 @@ describe('AuthService.refresh', () => {
       data: { revokedAt: expect.any(Date) },
     });
     expect(tx.refreshToken.create).toHaveBeenCalledOnce();
+    expect(signer.sign).toHaveBeenCalledWith({ sub: 'u1', role: 'PLAYER', sid: 's1' });
+  });
+
+  it('rejects refresh tokens from a replaced device session', async () => {
+    const tx = {
+      refreshToken: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'rt1',
+          userId: 'u1',
+          sessionId: 'old-session',
+          revokedAt: null,
+          expiresAt: new Date(Date.now() + 60_000),
+        }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        create: vi.fn(),
+      },
+      user: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: 'u1',
+          role: 'PLAYER',
+          disabledAt: null,
+          activeSessionId: 'new-session',
+        }),
+      },
+    };
+    const prisma = {
+      $transaction: vi.fn((fn) => fn(tx)),
+    };
+    const service = new AuthService(prisma as never, { sign: vi.fn(() => 'access') });
+
+    await expect(service.refresh('refresh-token')).rejects.toMatchObject({
+      code: 'SESSION_REPLACED',
+    } satisfies Partial<ApiError>);
+    expect(tx.refreshToken.create).not.toHaveBeenCalled();
   });
 });

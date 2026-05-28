@@ -40,6 +40,8 @@ model User {
   frozenAt          DateTime?
   disabledAt        DateTime?
   notes             String?
+  activeSessionId   String?
+  activeSessionAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -63,6 +65,7 @@ model RefreshToken {
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash String    @unique
+  sessionId String?
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
@@ -419,6 +422,8 @@ model Agent {
   role                        AdminRole   @default(AGENT)
   notes                       String?
   lastLoginAt                 DateTime?
+  activeSessionId             String?
+  activeSessionAt             DateTime?
   createdAt                   DateTime    @default(now())
   updatedAt                   DateTime    @updatedAt
 
@@ -439,6 +444,7 @@ model AgentRefreshToken {
   agentId   String
   agent     Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
   tokenHash String    @unique
+  sessionId String?
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())

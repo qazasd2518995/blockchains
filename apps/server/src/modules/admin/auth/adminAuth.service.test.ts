@@ -9,6 +9,7 @@ describe('AdminAuthService.refresh', () => {
         findUnique: vi.fn().mockResolvedValue({
           id: 'rt1',
           agentId: 'a1',
+          sessionId: 's1',
           revokedAt: null,
           expiresAt: new Date(Date.now() + 60_000),
         }),
@@ -26,6 +27,41 @@ describe('AdminAuthService.refresh', () => {
 
     await expect(service.refresh('refresh-token')).rejects.toMatchObject({
       code: 'UNAUTHORIZED',
+    } satisfies Partial<ApiError>);
+    expect(tx.agentRefreshToken.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects refresh tokens from a replaced device session', async () => {
+    const tx = {
+      agentRefreshToken: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'rt1',
+          agentId: 'a1',
+          sessionId: 'old-session',
+          revokedAt: null,
+          expiresAt: new Date(Date.now() + 60_000),
+        }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        create: vi.fn(),
+      },
+      agent: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: 'a1',
+          username: 'agent',
+          role: 'AGENT',
+          level: 1,
+          status: 'ACTIVE',
+          activeSessionId: 'new-session',
+        }),
+      },
+    };
+    const prisma = {
+      $transaction: vi.fn((fn) => fn(tx)),
+    };
+    const service = new AdminAuthService(prisma as never, { sign: vi.fn(() => 'access') });
+
+    await expect(service.refresh('refresh-token')).rejects.toMatchObject({
+      code: 'SESSION_REPLACED',
     } satisfies Partial<ApiError>);
     expect(tx.agentRefreshToken.create).not.toHaveBeenCalled();
   });

@@ -8,6 +8,7 @@ export interface AdminJwtPayload {
   role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
   level: number;
   aud: 'admin';
+  sid?: string;
 }
 
 export interface AdminCurrent {
@@ -43,10 +44,16 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
     // 驗證 agent 仍 active
     const agent = await fastify.prisma.agent.findUnique({
       where: { id: raw.sub },
-      select: { id: true, username: true, role: true, level: true, status: true },
+      select: { id: true, username: true, role: true, level: true, status: true, activeSessionId: true },
     });
     if (!agent || agent.status === 'DISABLED' || agent.status === 'DELETED') {
       throw new ApiError('AGENT_FROZEN', 'Agent account is not active');
+    }
+    if (agent.activeSessionId && agent.activeSessionId !== raw.sid) {
+      throw new ApiError(
+        'SESSION_REPLACED',
+        'Logged out because this account signed in on another device',
+      );
     }
     (req as unknown as { admin: AdminCurrent }).admin = {
       id: agent.id,

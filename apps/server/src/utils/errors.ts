@@ -16,6 +16,7 @@ export function errorCodeToStatus(code: ErrorCodeType): number {
   switch (code) {
     case 'UNAUTHORIZED':
     case 'INVALID_CREDENTIALS':
+    case 'SESSION_REPLACED':
       return 401;
     case 'FORBIDDEN':
       return 403;

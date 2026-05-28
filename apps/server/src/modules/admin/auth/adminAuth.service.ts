@@ -36,13 +36,25 @@ export class AdminAuthService {
     const ok = await bcrypt.compare(input.password, agent.passwordHash);
     if (!ok) throw new ApiError('INVALID_CREDENTIALS', 'Invalid username or password');
 
-    await this.prisma.agent.update({
-      where: { id: agent.id },
-      data: { lastLoginAt: new Date() },
+    const sessionId = randomBytes(24).toString('hex');
+    const { publicAgent, tokens } = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.agent.update({
+        where: { id: agent.id },
+        data: { lastLoginAt: new Date(), activeSessionId: sessionId, activeSessionAt: new Date() },
+      });
+      return {
+        publicAgent: this.toPublic(updated),
+        tokens: await this.issueTokens(
+          updated.id,
+          updated.username,
+          updated.role,
+          updated.level,
+          sessionId,
+          tx,
+        ),
+      };
     });
-
-    const tokens = await this.issueTokens(agent.id, agent.username, agent.role, agent.level);
-    return { agent: this.toPublic(agent), ...tokens };
+    return { agent: publicAgent, ...tokens };
   }
 
   async getMe(agentId: string): Promise<AgentPublic> {
@@ -67,16 +79,39 @@ export class AdminAuthService {
       if (agent.status === 'DISABLED' || agent.status === 'DELETED') {
         throw new ApiError('UNAUTHORIZED', 'Invalid refresh token');
       }
-      return this.issueTokens(agent.id, agent.username, agent.role, agent.level, tx);
+      if (!record.sessionId || agent.activeSessionId !== record.sessionId) {
+        throw new ApiError(
+          'SESSION_REPLACED',
+          'Logged out because this account signed in on another device',
+        );
+      }
+      return this.issueTokens(
+        agent.id,
+        agent.username,
+        agent.role,
+        agent.level,
+        record.sessionId,
+        tx,
+      );
     });
   }
 
   async logout(refreshToken: string): Promise<void> {
     const tokenHash = hashRefresh(refreshToken);
-    await this.prisma.agentRefreshToken
-      .updateMany({
-        where: { tokenHash, revokedAt: null },
-        data: { revokedAt: new Date() },
+    await this.prisma
+      .$transaction(async (tx) => {
+        const record = await tx.agentRefreshToken.findUnique({ where: { tokenHash } });
+        if (!record) return;
+        await tx.agentRefreshToken.updateMany({
+          where: { id: record.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        if (record.sessionId) {
+          await tx.agent.updateMany({
+            where: { id: record.agentId, activeSessionId: record.sessionId },
+            data: { activeSessionId: null, activeSessionAt: null },
+          });
+        }
       })
       .catch(() => undefined);
   }
@@ -86,6 +121,7 @@ export class AdminAuthService {
     username: string,
     role: string,
     level: number,
+    sessionId: string,
     db: PrismaClient | Prisma.TransactionClient = this.prisma,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const accessToken = this.jwt.sign({
@@ -94,6 +130,7 @@ export class AdminAuthService {
       role,
       level,
       aud: 'admin',
+      sid: sessionId,
     });
     const refreshToken = randomBytes(48).toString('hex');
     const ttlMs = parseDuration(config.JWT_REFRESH_TTL);
@@ -101,6 +138,7 @@ export class AdminAuthService {
       data: {
         agentId,
         tokenHash: hashRefresh(refreshToken),
+        sessionId,
         expiresAt: new Date(Date.now() + ttlMs),
       },
     });

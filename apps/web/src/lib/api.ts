@@ -15,6 +15,7 @@ type TokenPair = { accessToken: string; refreshToken: string };
 const TOKEN_REFRESH_SKEW_MS = 30_000;
 
 let refreshInFlight: Promise<TokenPair> | null = null;
+let sessionReplacedNotified = false;
 
 function isPublicAuthRequest(url?: string): boolean {
   const path = url?.split('?')[0] ?? '';
@@ -62,6 +63,20 @@ async function refreshUserTokens(refreshToken: string): Promise<TokenPair> {
   return refreshInFlight;
 }
 
+function getApiErrorCode(error: unknown): string | null {
+  if (!axios.isAxiosError(error)) return null;
+  const body = error.response?.data as ApiErrorBody | undefined;
+  return body && typeof body === 'object' && 'code' in body ? body.code : null;
+}
+
+function handleSessionReplaced(): void {
+  if (!sessionReplacedNotified) {
+    sessionReplacedNotified = true;
+    window.alert('您的帳號已在其他裝置登入，本裝置已被登出。');
+  }
+  useAuthStore.getState().logout();
+}
+
 api.interceptors.request.use(async (config) => {
   const { accessToken, refreshToken, setTokens, logout } = useAuthStore.getState();
   let token = accessToken;
@@ -76,6 +91,10 @@ api.interceptors.request.use(async (config) => {
       setTokens(data.accessToken, data.refreshToken);
       token = data.accessToken;
     } catch (err) {
+      if (getApiErrorCode(err) === 'SESSION_REPLACED') {
+        handleSessionReplaced();
+        throw err;
+      }
       logout();
       throw err;
     }
@@ -91,6 +110,11 @@ api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
     const originalConfig = error.config as RetriableRequestConfig | undefined;
+    const code = getApiErrorCode(error);
+    if (error.response?.status === 401 && code === 'SESSION_REPLACED') {
+      handleSessionReplaced();
+      throw error;
+    }
     if (error.response?.status === 401 && !originalConfig?._retry) {
       const { refreshToken, setTokens, logout } = useAuthStore.getState();
       if (refreshToken) {
@@ -123,6 +147,7 @@ export interface ApiErrorBody {
 
 const DEFAULT_ERRORS: Record<string, string> = {
   UNAUTHORIZED: '身份未授权,请重新登录',
+  SESSION_REPLACED: '您的帳號已在其他裝置登入，本裝置已被登出',
   NETWORK_ERROR: '連線異常，請稍後再試',
   INVALID_CREDENTIALS: '账号或密码错误',
   INVALID_CAPTCHA: '驗證碼錯誤，請重新輸入',

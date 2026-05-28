@@ -42,6 +42,7 @@ function debugAdminApi(message: string, payload: Record<string, unknown>): void 
 }
 
 let refreshInFlight: Promise<AdminTokenPair> | null = null;
+let sessionReplacedNotified = false;
 
 function isPublicAuthRequest(url?: string): boolean {
   const path = url?.split('?')[0] ?? '';
@@ -83,6 +84,20 @@ async function refreshAdminTokens(refreshToken: string): Promise<AdminTokenPair>
   return refreshInFlight;
 }
 
+function getApiErrorCode(error: unknown): string | null {
+  if (!axios.isAxiosError(error)) return null;
+  const body = error.response?.data as ApiErrorBody | undefined;
+  return body && typeof body === 'object' && 'code' in body ? body.code : null;
+}
+
+function handleSessionReplaced(): void {
+  if (!sessionReplacedNotified) {
+    sessionReplacedNotified = true;
+    window.alert('此代理帳號已在其他裝置登入，本裝置已被登出。');
+  }
+  useAdminAuthStore.getState().logout();
+}
+
 adminApi.interceptors.request.use(async (config) => {
   (config as DebugRequestConfig)._debugStartedAt = nowMs();
   const { accessToken, refreshToken, setTokens, logout } = useAdminAuthStore.getState();
@@ -93,6 +108,10 @@ adminApi.interceptors.request.use(async (config) => {
       setTokens(data.accessToken, data.refreshToken);
       token = data.accessToken;
     } catch (err) {
+      if (getApiErrorCode(err) === 'SESSION_REPLACED') {
+        handleSessionReplaced();
+        throw err;
+      }
       logout();
       throw err;
     }
@@ -124,6 +143,11 @@ adminApi.interceptors.response.use(
   },
   async (error: AxiosError) => {
     const originalConfig = error.config as RetriableRequestConfig | undefined;
+    const code = getApiErrorCode(error);
+    if (error.response?.status === 401 && code === 'SESSION_REPLACED') {
+      handleSessionReplaced();
+      throw error;
+    }
     if (error.response?.status === 401 && !originalConfig?._retry) {
       const { refreshToken, setTokens, logout } = useAdminAuthStore.getState();
       if (refreshToken) {
@@ -167,6 +191,7 @@ export interface ApiErrorBody {
 /** 預設（簡體中文）錯誤碼字典,extractApiError 內建翻譯用 */
 const DEFAULT_ERRORS: Record<string, string> = {
   UNAUTHORIZED: '身份未授权,请重新登录',
+  SESSION_REPLACED: '此代理帳號已在其他裝置登入，本裝置已被登出',
   INVALID_CREDENTIALS: '账号或密码错误',
   INVALID_CAPTCHA: '验证码错误或已过期',
   EMAIL_TAKEN: '此邮箱已被使用',
