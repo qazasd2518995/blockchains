@@ -9,80 +9,51 @@ interface Props {
   onDone: () => void;
 }
 
-type Scope = 'ALL' | 'AGENT_LINE' | 'MEMBER';
-
 export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element {
-  const [scope, setScope] = useState<Scope>('ALL');
-  const [target, setTarget] = useState<AccountSearchOption | null>(null);
-  const [burstRate, setBurstRate] = useState('2');
-  const [minBurstProfit, setMinBurstProfit] = useState('200');
-  const [maxBurstProfit, setMaxBurstProfit] = useState('3000');
-  const [singleMultiplierCap, setSingleMultiplierCap] = useState('100');
-  const [gameIds, setGameIds] = useState('');
-  const [dailyBudget, setDailyBudget] = useState('30000');
-  const [memberDailyCap, setMemberDailyCap] = useState('5000');
-  const [capitalRetentionRatio, setCapitalRetentionRatio] = useState('30');
-  const [minEligibilityLoss, setMinEligibilityLoss] = useState('0');
-  const [notes, setNotes] = useState('');
+  const [member, setMember] = useState<AccountSearchOption | null>(null);
+  const [burstAmount, setBurstAmount] = useState('10000');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!open) {
-      setScope('ALL');
-      setTarget(null);
-      setBurstRate('2');
-      setMinBurstProfit('200');
-      setMaxBurstProfit('3000');
-      setSingleMultiplierCap('100');
-      setGameIds('');
-      setDailyBudget('30000');
-      setMemberDailyCap('5000');
-      setCapitalRetentionRatio('30');
-      setMinEligibilityLoss('0');
-      setNotes('');
+      setMember(null);
+      setBurstAmount('10000');
       setErr(null);
       setBusy(false);
     }
   }, [open]);
 
-  const resolveTarget = async (): Promise<{
-    targetAgentId?: string;
-    targetAgentUsername?: string;
-    targetMemberId?: string;
-    targetMemberUsername?: string;
-  }> => {
-    if (scope === 'ALL') return {};
-    if (!target) {
-      throw new Error(scope === 'AGENT_LINE' ? '请先选择目标代理账号' : '请先选择目标会员账号');
-    }
-    return scope === 'AGENT_LINE'
-      ? { targetAgentId: target.id, targetAgentUsername: target.username }
-      : { targetMemberId: target.id, targetMemberUsername: target.username };
-  };
-
   const submit = async (): Promise<void> => {
+    if (!member) {
+      setErr('请先选择玩家账号');
+      return;
+    }
+    const amount = Number.parseFloat(burstAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setErr('爆分金额必须大于 0');
+      return;
+    }
+    const normalizedAmount = amount.toFixed(2);
     setBusy(true);
     setErr(null);
     try {
-      const target = await resolveTarget();
       await adminApi.post('/controls/burst', {
-        scope,
-        ...target,
-        burstRate,
+        scope: 'MEMBER',
+        targetMemberId: member.id,
+        targetMemberUsername: member.username,
+        burstRate: '100',
         lossRate: '0',
-        minBurstProfit,
-        maxBurstProfit,
-        singleMultiplierCap,
-        gameIds: gameIds
-          .split(',')
-          .map((gameId) => gameId.trim())
-          .filter(Boolean),
-        dailyBudget,
-        memberDailyCap,
-        capitalRetentionRatio,
-        minEligibilityLoss,
-        notes: notes || undefined,
+        smallWinRate: '0',
+        minBurstProfit: normalizedAmount,
+        maxBurstProfit: normalizedAmount,
+        singleMultiplierCap: '50000',
+        gameIds: [],
+        dailyBudget: normalizedAmount,
+        memberDailyCap: normalizedAmount,
+        capitalRetentionRatio: '0',
+        minEligibilityLoss: '0',
+        cooldownRounds: 0,
       });
       onDone();
       onClose();
@@ -94,115 +65,26 @@ export function BurstControlModal({ open, onClose, onDone }: Props): JSX.Element
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="新增爆分控制" subtitle="简单爆分池" width="lg">
+    <Modal open={open} onClose={onClose} title="新增爆分控制" subtitle="指定玩家爆分金额" width="md">
       <div className="space-y-4">
         <div className="rounded-[6px] border border-[#186073]/20 bg-[#186073]/5 p-3 text-[12px] text-[#334155]">
-          只需要设定爆分机率、单次净赢范围与每日池。系统会自动套用会员上限、本金剩余门槛、剩余池检查、8
-          局冷却与风险防守，避免连续爆分或单次派彩失控。
+          选择玩家并输入爆分金额即可。系统会把该金额作为本次单一玩家的爆分池与单次目标净赢，并仍依各游戏可用结果与派彩规则结算。
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="block">
-            <div className="label mb-2">控制范围</div>
-            <select
-              value={scope}
-              onChange={(e) => {
-                setScope(e.target.value as Scope);
-                setTarget(null);
-              }}
-              className="term-input"
-            >
-              <option value="ALL">全盘</option>
-              <option value="AGENT_LINE">代理线</option>
-              <option value="MEMBER">单一会员</option>
-            </select>
-          </label>
-          {scope !== 'ALL' && (
-            <AccountSearchSelect
-              key={scope}
-              kind={scope === 'AGENT_LINE' ? 'agent' : 'member'}
-              label={scope === 'AGENT_LINE' ? '目标代理账号' : '目标会员账号'}
-              value={target}
-              onChange={setTarget}
-              placeholder={scope === 'AGENT_LINE' ? '输入代理账号或全名' : '输入会员账号或全名'}
-            />
-          )}
-        </div>
+        <AccountSearchSelect
+          kind="member"
+          label="玩家账号"
+          value={member}
+          onChange={setMember}
+          placeholder="输入玩家账号或全名"
+        />
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field
-            label="爆分机率（%）"
-            value={burstRate}
-            onChange={setBurstRate}
-            hint="例如 2 = 2%，也可输入 0.02"
-          />
-          <Field
-            label="每日爆分总池"
-            value={dailyBudget}
-            onChange={setDailyBudget}
-            hint="今日所有爆分净赢合计不可超过此金额"
-          />
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <Field label="单次最小净赢" value={minBurstProfit} onChange={setMinBurstProfit} />
-          <Field label="单次最大净赢" value={maxBurstProfit} onChange={setMaxBurstProfit} />
-          <Field label="单会员每日上限" value={memberDailyCap} onChange={setMemberDailyCap} />
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field
-            label="单次最高倍数"
-            value={singleMultiplierCap}
-            onChange={setSingleMultiplierCap}
-            hint="测试账号做单可调高，例如 10000；仍会受每日净赢上限保护"
-          />
-          <label className="block">
-            <div className="label mb-2">限定游戏 ID（选填）</div>
-            <input
-              type="text"
-              value={gameIds}
-              onChange={(e) => setGameIds(e.target.value)}
-              className="term-input font-mono"
-              placeholder="例如 thor_mega_slot,rocket"
-            />
-            <div className="mt-1 text-[10px] text-ink-500">
-              留空代表所有可爆分游戏；多个游戏用逗号分隔。
-            </div>
-          </label>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field
-            label="本金剩余才爆分（%）"
-            value={capitalRetentionRatio}
-            onChange={setCapitalRetentionRatio}
-            hint="30 = 玩家今日本金约剩 30% 时才进爆分池；0 = 不限制"
-          />
-          <Field
-            label="最低累亏金额"
-            value={minEligibilityLoss}
-            onChange={setMinEligibilityLoss}
-            hint="可避免小本金太快进爆分池；0 = 只看本金比例"
-          />
-        </div>
-
-        <div className="rounded-[6px] border border-[#D4AF37]/30 bg-[#FFF8DA] p-3 text-[12px] text-[#6D5716]">
-          <div className="font-semibold">自动护栏</div>
-          <div className="mt-1">
-            单次爆分会被限制在净赢范围内；本金未触发前只跳过爆分池正向介入。若每日池或会员上限不足，会自动停止爆分。会员达到上限后，高倍自然结果会被压到可控小赢或输局。
-          </div>
-        </div>
-
-        <label className="block">
-          <div className="label mb-2">备注</div>
-          <input
-            type="text"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="term-input"
-          />
-        </label>
+        <Field
+          label="爆分金额"
+          value={burstAmount}
+          onChange={setBurstAmount}
+          hint="例如 10000。玩家下注 10 元时，系统会尝试匹配约 1000 倍的合法派彩结果。"
+        />
 
         {err && (
           <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
