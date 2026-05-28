@@ -389,6 +389,22 @@ export function TowerPage() {
               >
                 請先下注並開始本局，再點擊塔格。
               </div>
+              {round?.status === 'BUSTED' && (
+                <div className="tower-result-toast tower-result-toast--loss">
+                  <span>{t.games.tower.trapTriggered}</span>
+                  <strong>
+                    {t.games.mines.loss} -{formatAmount(round.amount)}
+                  </strong>
+                </div>
+              )}
+              {round?.status === 'CASHED_OUT' && (
+                <div className="tower-result-toast tower-result-toast--win">
+                  <span>{t.games.tower.secured}</span>
+                  <strong>
+                    {t.games.tower.payout} +{formatAmount(round.potentialPayout)}
+                  </strong>
+                </div>
+              )}
             </div>
           </div>
 
@@ -407,24 +423,6 @@ export function TowerPage() {
             </div>
           )}
 
-          {round?.status === 'BUSTED' && (
-            <div className="game-result-card game-result-card-loss">
-              <div className="font-display text-4xl text-[#FCA5A5]">
-                {t.games.tower.trapTriggered}
-              </div>
-              <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
-                {t.games.mines.loss} -{formatAmount(round.amount)}
-              </div>
-            </div>
-          )}
-          {round?.status === 'CASHED_OUT' && (
-            <div className="game-result-card game-result-card-win">
-              <div className="font-display text-4xl text-[#7DD3FC]">{t.games.tower.secured}</div>
-              <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
-                {t.games.tower.payout} +{formatAmount(round.potentialPayout)}
-              </div>
-            </div>
-          )}
           {error && (
             <div className="game-alert text-[12px]">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
