@@ -14,7 +14,11 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls } from '../_common/controls.js';
+import {
+  applyControls,
+  finalizeControls,
+  multiplierMatchesControlBounds,
+} from '../_common/controls.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { MinesStartInput, MinesRevealInput, MinesCashoutInput } from './mines.schema.js';
@@ -103,20 +107,36 @@ export class MinesService {
         multiplier: rawHitMine ? new Prisma.Decimal(0) : safeMultiplier,
         payout: rawHitMine ? new Prisma.Decimal(0) : safePayout,
       });
+      const controlledWinFitsMinesPayout =
+        !controlled.controlled ||
+        !controlled.won ||
+        multiplierMatchesControlBounds(safeMultiplier, round.betAmount, controlled);
+      const shapedControl =
+        controlled.controlled && controlled.won && !controlledWinFitsMinesPayout
+          ? {
+              ...controlled,
+              won: false,
+              multiplier: new Prisma.Decimal(0),
+              payout: new Prisma.Decimal(0),
+              flipReason: controlled.flipReason?.startsWith('burst_')
+                ? 'burst_risk_guard'
+                : controlled.flipReason,
+            }
+          : controlled;
       const canForceLoss = round.revealed.length >= MINES_FORCED_LOSS_GRACE_REVEALS;
-      if (controlled.controlled && controlled.won && rawHitMine) {
+      if (shapedControl.controlled && shapedControl.won && rawHitMine) {
         const moved = moveMineAway(rawMinePositions, input.cellIndex, newRevealed);
         if (moved) {
           finalMinePositions = moved;
           hitMine = false;
         }
-      } else if (canForceLoss && controlled.controlled && !controlled.won && !rawHitMine) {
+      } else if (canForceLoss && shapedControl.controlled && !shapedControl.won && !rawHitMine) {
         finalMinePositions = moveMineToCell(rawMinePositions, input.cellIndex);
         hitMine = true;
       }
       const effectiveControl = hitMine !== rawHitMine
-        ? controlled
-        : { ...controlled, controlled: false, flipReason: undefined, controlId: undefined };
+        ? shapedControl
+        : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
 
       if (hitMine) {
         const originalResult = {

@@ -19,7 +19,11 @@ import {
   lockUserAndCheckFunds,
   runSerializable,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls } from '../_common/controls.js';
+import {
+  applyControls,
+  finalizeControls,
+  multiplierMatchesControlBounds,
+} from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
 import type {
   ChickenRoadCashoutInput,
@@ -133,18 +137,34 @@ export class ChickenRoadService {
         multiplier: rawSafe ? nextMult : new Prisma.Decimal(0),
         payout: predictedPayout,
       });
+      const controlledWinFitsChickenRoadPayout =
+        !controlled.controlled ||
+        !controlled.won ||
+        multiplierMatchesControlBounds(nextMult, bet.amount, controlled);
+      const shapedControl =
+        controlled.controlled && controlled.won && !controlledWinFitsChickenRoadPayout
+          ? {
+              ...controlled,
+              won: false,
+              multiplier: new Prisma.Decimal(0),
+              payout: new Prisma.Decimal(0),
+              flipReason: controlled.flipReason?.startsWith('burst_')
+                ? 'burst_risk_guard'
+                : controlled.flipReason,
+            }
+          : controlled;
 
       const finalPath = rawPath.slice();
       const canForceLoss = data.currentStep > 0;
-      if (controlled.controlled && controlled.won && !rawSafe) {
+      if (shapedControl.controlled && shapedControl.won && !rawSafe) {
         finalPath[stepIndex] = true;
-      } else if (canForceLoss && controlled.controlled && !controlled.won && rawSafe) {
+      } else if (canForceLoss && shapedControl.controlled && !shapedControl.won && rawSafe) {
         finalPath[stepIndex] = false;
       }
       const isSafe = Boolean(finalPath[stepIndex]);
       const effectiveControl = isSafe !== rawSafe
-        ? controlled
-        : { ...controlled, controlled: false, flipReason: undefined, controlId: undefined };
+        ? shapedControl
+        : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
 
       if (!isSafe) {
         const originalResult = {
