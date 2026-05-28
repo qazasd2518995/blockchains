@@ -12,7 +12,7 @@ interface Props {
 export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Element {
   const [member, setMember] = useState<AccountSearchOption | null>(null);
   const [depositAmount, setDepositAmount] = useState('1000');
-  const [controlWinRate, setControlWinRate] = useState('0.70');
+  const [controlWinRatePercent, setControlWinRatePercent] = useState('70');
   const [notes, setNotes] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -21,7 +21,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
     if (!open) {
       setMember(null);
       setDepositAmount('1000');
-      setControlWinRate('0.70');
+      setControlWinRatePercent('70');
       setNotes('');
       setErr(null);
     }
@@ -38,6 +38,11 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
       setErr('请先从搜索选单选择会员');
       return;
     }
+    const ratePercent = Number.parseFloat(controlWinRatePercent);
+    if (!Number.isFinite(ratePercent) || ratePercent < 10 || ratePercent > 100) {
+      setErr('触发后控制胜率请输入 10-100');
+      return;
+    }
     setBusy(true);
     setErr(null);
     try {
@@ -47,7 +52,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
         depositAmount,
         targetProfit: targetProfitNum.toFixed(2),
         startBalance: member.balance,
-        controlWinRate,
+        controlWinRate: (ratePercent / 100).toFixed(4),
         notes: notes || undefined,
       });
       onDone();
@@ -93,13 +98,13 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
         </div>
 
         <label className="block">
-          <div className="label mb-2">触发后控制胜率（0-1）</div>
+          <div className="label mb-2">触发后控制胜率（10-100%）</div>
           <input
             type="text"
-            value={controlWinRate}
-            onChange={(e) => setControlWinRate(e.target.value)}
+            value={controlWinRatePercent}
+            onChange={(e) => setControlWinRatePercent(e.target.value)}
             className="term-input font-mono"
-            placeholder="0.70"
+            placeholder="70"
           />
         </label>
 
