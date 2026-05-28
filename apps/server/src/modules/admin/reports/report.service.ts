@@ -569,8 +569,8 @@ export class ReportService {
           fallbackRateForGame(gameId, memberElectronicRebatePct, memberBaccaratRebatePct),
         );
 
-        // 報表與控制系統的「上級交收」都採對上級的交收方向，需和會員輸贏基準反向。
-        const uplineSettle = memberWinLoss.add(memberRebateAmt).neg();
+        // 舊代理端與控制面板都以玩家角度顯示交收：玩家贏為正、上級交收顯示綠色。
+        const uplineSettle = memberWinLoss.add(memberRebateAmt);
 
         return {
           kind: 'member' as const,
@@ -679,8 +679,8 @@ export class ReportService {
    *   - 下級實際退水率 = rebateMode='ALL' 時 0；rebateMode='NONE' 時 maxRebatePercentage；否則 rebatePercentage
    *   - 賺水率    = parent.rebate - self.實際rebate（當層代理從此子樹賺到的退水差）
    *   - 整條線退水 = validAmount × 下級實際退水率
-   *   - 上級交收  = -(整條線輸贏 + 整條線退水 + 當層賺水)
-   *                  報表欄位代表「本列對上級」的交收方向，和本級盈虧反向。
+   *   - 上級交收  = 整條線輸贏 + 整條線退水 + 當層賺水
+   *                  與舊代理端一致：玩家贏為正，前端顯示綠色。
    *   - 應收下線  = 整條線輸贏（-memberWinLoss）
    */
   private async aggregateAgentSubtree(
@@ -757,8 +757,8 @@ export class ReportService {
     // 本級盈虧結果 = 會員輸贏 + 當層賺水（當層對上級「賺的」也要算進盈虧）
     const profitLossResult = memberWinLoss.add(earnedRebateAmount);
 
-    // 報表「上級交收」= 對上級的交收方向，和本級盈虧方向反向。
-    const uplineSettlement = memberWinLoss.add(totalLineRebate).add(earnedRebateAmount).neg();
+    // 報表「上級交收」沿用舊代理端與控制面板的玩家交收方向：玩家贏為正。
+    const uplineSettlement = memberWinLoss.add(totalLineRebate).add(earnedRebateAmount);
 
     return {
       betCount: agg.betCount,
