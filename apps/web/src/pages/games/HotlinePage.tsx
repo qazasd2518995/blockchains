@@ -918,6 +918,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       const features = res.data.features;
       const baseBetAmount = Number.parseFloat(res.data.baseAmount ?? String(spinAmount));
       const settledStakeAmount = Number.parseFloat(res.data.stakeAmount ?? res.data.amount);
+      const payoutValue = Number.parseFloat(res.data.payout);
       const displayMultiplier =
         res.data.buyFeature && features ? features.totalMultiplier : (res.data.multiplier ?? 0);
       const freeSpinRounds = features?.freeSpinRounds ?? [];
@@ -941,6 +942,17 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       const baseCascadeDisplayMultiplier = baseMultiplierActivation
         ? 1
         : (features?.baseAppliedMultiplier ?? 1);
+      const baseCascadeDisplayTotal = roundMegaMultiplier(
+        sumCascadeMultipliers(cascades) * baseCascadeDisplayMultiplier,
+      );
+      const baseVisualPayoutAmount =
+        isMegaSlot &&
+        !buyFeature &&
+        (features?.freeSpinsAwarded ?? 0) === 0 &&
+        baseCascadeDisplayTotal > 0 &&
+        Number.isFinite(payoutValue)
+          ? payoutValue / baseCascadeDisplayTotal
+          : baseBetAmount;
 
       const playSpinOrFallback = async (
         grid: number[][],
@@ -953,7 +965,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             await scene.playSpin(grid, lines, {
               fast: spinFast,
               specialSymbols,
-              payoutAmount: baseBetAmount,
+              payoutAmount: baseVisualPayoutAmount,
             });
             return;
           } catch (err) {
@@ -1013,7 +1025,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               fast: spinFast,
               specialSymbols,
               finalSpecialSymbols,
-              payoutAmount: baseBetAmount,
+              payoutAmount: baseVisualPayoutAmount,
               onStepWin: (step) => void onStepWin(step),
             });
             if (multiplierActivation) {
@@ -1110,7 +1122,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         console.warn('Slot scene animation recovered without canvas fallback', cause);
         try {
           scene.snapToGrid(grid, specialSymbols);
-          scene.showResultLines(lines, baseBetAmount);
+          scene.showResultLines(lines, baseVisualPayoutAmount);
           return true;
         } catch (err) {
           markSceneFallback(err);
@@ -1133,10 +1145,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           grid: step.grid,
           cascadeCount: revealedCascadeCount,
           multiplier: revealedMultiplier,
-          payout: roundMegaPayout(baseBetAmount, revealedMultiplier),
+          payout: roundMegaPayout(baseVisualPayoutAmount, revealedMultiplier),
         });
         return {
-          amount: `+${formatAmount(roundMegaPayout(baseBetAmount, appliedStepMultiplier))}`,
+          amount: `+${formatAmount(roundMegaPayout(baseVisualPayoutAmount, appliedStepMultiplier))}`,
           meta: [
             `${step.removed.length} 個符號`,
             formatMultiplier(step.multiplier),
@@ -1168,7 +1180,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         updateLiveMegaRound({
           ...patch,
           multiplier: revealedMultiplier,
-          payout: roundMegaPayout(baseBetAmount, revealedMultiplier),
+          payout: roundMegaPayout(baseVisualPayoutAmount, revealedMultiplier),
         });
       };
 
@@ -1357,7 +1369,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       }
       const mult = res.data.multiplier ?? 0;
       const profitValue = Number.parseFloat(res.data.profit);
-      const payoutValue = Number.parseFloat(res.data.payout);
       const featureDetail = formatMegaFeatureDetail(res.data.features, res.data.buyFeature);
       const totalCascadeCount =
         cascades.length + freeSpinRounds.reduce((sum, round) => sum + round.cascades.length, 0);
