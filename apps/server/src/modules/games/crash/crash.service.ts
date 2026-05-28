@@ -22,6 +22,11 @@ import { ApiError } from '../../../utils/errors.js';
 import type { CrashBetInput, CrashCashoutInput } from './crash.schema.js';
 
 const MIN_CASHOUT_MULTIPLIER = 1.01;
+const CONTROLLED_LOSS_CRASH_MIN = 1.1;
+const CONTROLLED_LOSS_CRASH_MAX = 1.8;
+const CONTROLLED_RELIEF_AFTER_LOSSES = 3;
+const CONTROLLED_RELIEF_CRASH_MIN = 2.02;
+const CONTROLLED_RELIEF_CRASH_MAX = 2.18;
 const SOLO_GROWTH_RATE = 0.00012;
 const HISTORY_LIMIT = 20;
 
@@ -59,9 +64,7 @@ export class CrashSoloService {
   async start(userId: string, input: CrashBetInput): Promise<CrashBetStartResponse> {
     const amount = new Prisma.Decimal(input.amount);
     const autoCashOut =
-      input.autoCashOut !== undefined
-        ? new Prisma.Decimal(input.autoCashOut.toFixed(4))
-        : null;
+      input.autoCashOut !== undefined ? new Prisma.Decimal(input.autoCashOut.toFixed(4)) : null;
 
     return runSerializable(this.prisma, async (tx) => {
       const active = await tx.crashBet.findFirst({
@@ -89,7 +92,10 @@ export class CrashSoloService {
       const naturalCrashPoint = crashPoint(seed.serverSeed, `${input.gameId}:${roundNumber}`);
       const original = this.predictStartOutcome(amount);
       const control = await applyControls(tx, userId, input.gameId, original);
-      const tuned = this.tuneCrashPoint(naturalCrashPoint, amount, control);
+      const recentControlledLosses = control.controlled
+        ? await this.countRecentControlledCrashLosses(tx, userId, input.gameId)
+        : 0;
+      const tuned = this.tuneCrashPoint(naturalCrashPoint, amount, control, recentControlledLosses);
       const startedAt = new Date();
       const crashesImmediately = tuned.crashPoint <= 1.0;
       const round = await tx.crashRound.create({
@@ -235,7 +241,9 @@ export class CrashSoloService {
     }
 
     if (currentMultiplier >= crashPointNumber) {
-      const crashedAt = new Date(round.startedAt.getTime() + crashElapsedMs(Number(round.crashPoint)));
+      const crashedAt = new Date(
+        round.startedAt.getTime() + crashElapsedMs(Number(round.crashPoint)),
+      );
       const updatedRound = await tx.crashRound.update({
         where: { id: round.id },
         data: {
@@ -431,6 +439,40 @@ export class CrashSoloService {
     return (last?.roundNumber ?? 0) + 1;
   }
 
+  private async countRecentControlledCrashLosses(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    gameId: string,
+  ): Promise<number> {
+    const recent = await tx.crashBet.findMany({
+      where: {
+        userId,
+        controlFinalizedAt: { not: null },
+        round: { gameId },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: CONTROLLED_RELIEF_AFTER_LOSSES,
+      select: {
+        controlOutcome: true,
+        round: { select: { crashPoint: true } },
+      },
+    });
+
+    let streak = 0;
+    for (const bet of recent) {
+      const outcome = parseOutcome(bet.controlOutcome);
+      const crash = Number(bet.round.crashPoint.toFixed(4));
+      const controlledLoss =
+        outcome?.controlled === true &&
+        outcome.won === false &&
+        crash >= CONTROLLED_LOSS_CRASH_MIN &&
+        crash <= CONTROLLED_LOSS_CRASH_MAX;
+      if (!controlledLoss) break;
+      streak += 1;
+    }
+    return streak;
+  }
+
   private predictStartOutcome(amount: Prisma.Decimal): PredictedResult {
     const multiplier = new Prisma.Decimal(0);
     const payout = new Prisma.Decimal(0);
@@ -446,12 +488,33 @@ export class CrashSoloService {
     naturalCrashPoint: number,
     amount: Prisma.Decimal,
     control: ControlOutcome,
+    recentControlledLosses = 0,
   ): { crashPoint: number; control: ControlOutcome } {
     if (!control.controlled) {
       return { crashPoint: Number(naturalCrashPoint.toFixed(4)), control };
     }
     if (!control.won) {
-      return { crashPoint: MIN_CASHOUT_MULTIPLIER, control };
+      if (recentControlledLosses >= CONTROLLED_RELIEF_AFTER_LOSSES) {
+        const crashPoint = randomCrashPoint(
+          CONTROLLED_RELIEF_CRASH_MIN,
+          CONTROLLED_RELIEF_CRASH_MAX,
+        );
+        return {
+          crashPoint,
+          control: {
+            ...control,
+            won: true,
+            multiplier: new Prisma.Decimal('2.0000'),
+            payout: amount.mul(2).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
+            flipReason: control.flipReason ?? 'controlled_crash_relief_win',
+          },
+        };
+      }
+
+      return {
+        crashPoint: randomCrashPoint(CONTROLLED_LOSS_CRASH_MIN, CONTROLLED_LOSS_CRASH_MAX),
+        control,
+      };
     }
 
     const capFromPayout = control.maxPayout
@@ -464,7 +527,11 @@ export class CrashSoloService {
     const minTarget = control.minMultiplier
       ? Number(control.minMultiplier.toFixed(4))
       : MIN_CASHOUT_MULTIPLIER;
-    const target = Math.max(MIN_CASHOUT_MULTIPLIER, minTarget, Number(control.multiplier.toFixed(4)));
+    const target = Math.max(
+      MIN_CASHOUT_MULTIPLIER,
+      minTarget,
+      Number(control.multiplier.toFixed(4)),
+    );
 
     if (target > maxTarget || maxTarget <= 1) {
       return {
@@ -499,6 +566,10 @@ function multiplierAt(elapsedMs: number): number {
 function crashElapsedMs(multiplier: number): number {
   if (multiplier <= 1) return 0;
   return Math.max(0, Math.floor(Math.log(multiplier) / SOLO_GROWTH_RATE));
+}
+
+function randomCrashPoint(min: number, max: number): number {
+  return Number((min + Math.random() * (max - min)).toFixed(4));
 }
 
 function toRoundState(
