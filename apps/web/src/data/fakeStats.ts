@@ -310,9 +310,31 @@ export const FAKE_WIN_TICKER: WinRecord[] = createSimulatedWinFeed(36);
 export const FAKE_TODAY_TOP10: RankedWinRecord[] = createSimulatedTopWinners(10);
 
 export const FAKE_ONLINE_BASE = 1247;
+export const FLOATING_ONLINE_MIN = 5000;
+export const FLOATING_ONLINE_MAX = 9000;
 
 export function getDriftedOnlineCount(): number {
   return FAKE_ONLINE_BASE + Math.floor(Math.random() * 100 - 50);
+}
+
+export function getFloatingOnlineCount(now = new Date()): number {
+  const dayProgress = (now.getHours() * 60 + now.getMinutes()) / 1440;
+  const dailyWave = Math.sin((dayProgress - 0.18) * Math.PI * 2);
+  const shortWave = Math.sin(now.getTime() / 1000 / 47);
+  const noise = Math.floor(Math.random() * 360) - 180;
+  return clampFloatingOnlineCount(Math.round(6900 + dailyWave * 950 + shortWave * 420 + noise));
+}
+
+export function getNextFloatingOnlineCount(current: number): number {
+  const distanceFromCenter = current - 7000;
+  const bias = distanceFromCenter > 1200 ? -1 : distanceFromCenter < -1200 ? 1 : 0;
+  const naturalStep = Math.floor(Math.random() * 181) - 90;
+  const occasionalWave = Math.random() < 0.18 ? Math.floor(Math.random() * 421) - 210 : 0;
+  return clampFloatingOnlineCount(current + naturalStep + occasionalWave + bias * 120);
+}
+
+function clampFloatingOnlineCount(value: number): number {
+  return Math.max(FLOATING_ONLINE_MIN, Math.min(FLOATING_ONLINE_MAX, value));
 }
 
 export function reshuffleTop10(current: RankedWinRecord[]): RankedWinRecord[] {

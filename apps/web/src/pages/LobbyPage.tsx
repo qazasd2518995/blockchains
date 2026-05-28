@@ -9,7 +9,11 @@ import { TodayWinners } from '@/components/home/TodayWinners';
 import { WinTicker } from '@/components/home/WinTicker';
 import { SectionHeading } from '@/components/layout/SectionHeading';
 import { HALL_LIST, type HallId } from '@/data/halls';
-import { FAKE_TODAY_TOP10, getDriftedOnlineCount } from '@/data/fakeStats';
+import {
+  FAKE_TODAY_TOP10,
+  getFloatingOnlineCount,
+  getNextFloatingOnlineCount,
+} from '@/data/fakeStats';
 import { useAuthStore } from '@/stores/authStore';
 import { warmGameAssets } from '@/lib/gameAssetManifest';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
@@ -149,9 +153,16 @@ function MobileLobbyOnePage() {
   const { t, locale } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const isGuest = !user;
-  const [onlineCount] = useState(() => getDriftedOnlineCount() + 5200);
+  const [onlineCount, setOnlineCount] = useState(() => getFloatingOnlineCount());
   const [activeCategory, setActiveCategory] = useState<'all' | HallId>('all');
   const activeCategoryMeta = getMobileCategoryLabel(activeCategory, locale, t);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setOnlineCount((current) => getNextFloatingOnlineCount(current));
+    }, 4200);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const games = useMemo(() => {
     if (activeCategory === 'all') return mobileGames;
