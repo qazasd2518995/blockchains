@@ -7,7 +7,12 @@ import {
   TOWER_LEVELS,
   type TowerDifficulty,
 } from '@bg/provably-fair';
-import { GameId, type TowerRoundState, type TowerPickResult, type TowerCashoutResult } from '@bg/shared';
+import {
+  GameId,
+  type TowerRoundState,
+  type TowerPickResult,
+  type TowerCashoutResult,
+} from '@bg/shared';
 import {
   SeedHelper,
   lockUserAndCheckFunds,
@@ -71,6 +76,9 @@ export class TowerService {
       });
       if (!round) throw new ApiError('ROUND_NOT_FOUND', 'Round not found');
       if (round.status !== 'ACTIVE') throw new ApiError('ROUND_NOT_ACTIVE', 'Round is not active');
+      if (input.level !== undefined && input.level !== round.currentLevel) {
+        throw new ApiError('INVALID_ACTION', 'Selected tower level is no longer active');
+      }
 
       const difficulty = round.difficulty as TowerDifficulty;
       const cfg = TOWER_CONFIG[difficulty];
@@ -106,9 +114,10 @@ export class TowerService {
             : rawLayout;
       }
       const isSafe = (layout[round.currentLevel] ?? []).includes(input.col);
-      const effectiveControl = isSafe !== rawSafe
-        ? controlled
-        : { ...controlled, controlled: false, flipReason: undefined, controlId: undefined };
+      const effectiveControl =
+        isSafe !== rawSafe
+          ? controlled
+          : { ...controlled, controlled: false, flipReason: undefined, controlId: undefined };
 
       if (!isSafe) {
         const originalResult = {
@@ -336,7 +345,12 @@ export class TowerService {
         userId,
         GameId.TOWER,
         { won: payout.greaterThan(round.betAmount), amount: round.betAmount, multiplier, payout },
-        { won: finalPayout.greaterThan(round.betAmount), amount: round.betAmount, multiplier: finalMultiplier, payout: finalPayout },
+        {
+          won: finalPayout.greaterThan(round.betAmount),
+          amount: round.betAmount,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
+        },
         controlOutcome,
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,
@@ -432,7 +446,12 @@ function forceTowerTrap(layout: number[][], level: number, col: number, cols: nu
   return trimTowerSafeCount(next, level, layout[level]?.length ?? 1, cols);
 }
 
-function trimTowerSafeCount(layout: number[][], level: number, safeCount: number, cols: number): number[][] {
+function trimTowerSafeCount(
+  layout: number[][],
+  level: number,
+  safeCount: number,
+  cols: number,
+): number[][] {
   const safe = new Set(layout[level] ?? []);
   while (safe.size < safeCount) {
     const replacement = pickRandomItem(

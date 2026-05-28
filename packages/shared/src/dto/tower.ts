@@ -9,6 +9,7 @@ export interface TowerStartRequest {
 
 export interface TowerPickRequest {
   roundId: string;
+  level?: number;
   col: number;
 }
 

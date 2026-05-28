@@ -9,6 +9,7 @@ export const towerStartSchema = z.object({
 
 export const towerPickSchema = z.object({
   roundId: z.string().min(1),
+  level: z.number().int().min(0).max(8).optional(),
   col: z.number().int().min(0).max(3),
 });
 

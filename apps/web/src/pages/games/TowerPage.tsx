@@ -46,6 +46,7 @@ export function TowerPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<TowerScene | null>(null);
   const roundRef = useRef<TowerRoundState | null>(null);
+  const pickLockRef = useRef(false);
   const stageHintRef = useRef<HTMLDivElement | null>(null);
   const stageHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -179,6 +180,7 @@ export function TowerPage() {
       roundRef.current = res.data;
       setBalance((balance - amount).toFixed(2));
       sceneRef.current?.setup(res.data.totalLevels, res.data.cols);
+      sceneRef.current?.setInputLocked(false);
       sceneRef.current?.focusOnLevel(0, true);
       sceneRef.current?.setMultiplier('1.00');
     } catch (err) {
@@ -189,18 +191,22 @@ export function TowerPage() {
   };
 
   const pickInternal = async (level: number, col: number) => {
+    if (pickLockRef.current) return;
     const current = roundRef.current;
     if (!current || current.status !== 'ACTIVE') {
       showStageHint();
       return;
     }
     if (level !== current.currentLevel) return;
+    pickLockRef.current = true;
+    sceneRef.current?.setInputLocked(true);
     // 樂觀動畫：確認有進行中局之後，才脈動該格。
     sceneRef.current?.markPending(level, col);
     setBusy(true);
     try {
       const res = await api.post<TowerPickResult>('/games/tower/pick', {
         roundId: current.roundId,
+        level,
         col,
       });
       sceneRef.current?.pick(level, col, !res.data.hitTrap);
@@ -255,6 +261,10 @@ export function TowerPage() {
       setError(extractApiError(err).message);
     } finally {
       setBusy(false);
+      window.setTimeout(() => {
+        pickLockRef.current = false;
+        sceneRef.current?.setInputLocked(false);
+      }, 420);
     }
   };
 
@@ -450,9 +460,7 @@ export function TowerPage() {
                       difficulty === d.id ? 'tower-difficulty-option--active' : ''
                     }`}
                   >
-                    <span className="tower-difficulty-option__label">
-                      {d.label}
-                    </span>
+                    <span className="tower-difficulty-option__label">{d.label}</span>
                     <span className="tower-difficulty-option__desc">{d.desc}</span>
                   </button>
                 ))}

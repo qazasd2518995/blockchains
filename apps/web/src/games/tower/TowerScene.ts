@@ -6,6 +6,7 @@ import {
   TextStyle,
   Ticker,
   BlurFilter,
+  Rectangle,
   type Texture,
 } from 'pixi.js';
 import { gsap } from 'gsap';
@@ -90,6 +91,7 @@ export class TowerScene {
   private levelHeight = 58;
   private baseLevelY = 0;
   private onClick: TowerCellClick | null = null;
+  private inputLocked = false;
   private winFx: WinCelebration | null = null;
 
   async init(
@@ -191,12 +193,8 @@ export class TowerScene {
       .roundRect(headX - 58, headY - 26, 116, 54, 24)
       .fill({ color: 0x2d3632, alpha: 0.86 })
       .stroke({ color: 0x56625e, width: 2, alpha: 0.42 });
-    beast
-      .roundRect(headX - 120, headY + 14, 74, 18, 9)
-      .fill({ color: 0x313b38, alpha: 0.82 });
-    beast
-      .roundRect(headX + 46, headY + 14, 74, 18, 9)
-      .fill({ color: 0x313b38, alpha: 0.82 });
+    beast.roundRect(headX - 120, headY + 14, 74, 18, 9).fill({ color: 0x313b38, alpha: 0.82 });
+    beast.roundRect(headX + 46, headY + 14, 74, 18, 9).fill({ color: 0x313b38, alpha: 0.82 });
     beast.circle(headX - 19, headY - 4, 4).fill({ color: 0x0d1211, alpha: 0.9 });
     beast.circle(headX + 19, headY - 4, 4).fill({ color: 0x0d1211, alpha: 0.9 });
     beast
@@ -390,6 +388,7 @@ export class TowerScene {
     const c = new Container();
     c.eventMode = 'static';
     c.cursor = 'default';
+    c.hitArea = new Rectangle(-w / 2 - 6, -h / 2 - 8, w + 12, h + 16);
 
     const tile = new Graphics();
     this.drawCellTile(tile, w, h, 'hidden');
@@ -417,12 +416,14 @@ export class TowerScene {
     };
 
     c.on('pointertap', () => {
+      if (this.inputLocked) return;
       if (handle.state !== 'hidden') return;
       if (level !== this.currentLevel) return;
+      this.inputLocked = true;
       this.onClick?.(level, col);
     });
     c.on('pointerover', () => {
-      if (handle.state === 'hidden' && level === this.currentLevel) {
+      if (!this.inputLocked && handle.state === 'hidden' && level === this.currentLevel) {
         gsap.to(c.scale, { x: 1.06, y: 1.06, duration: 0.2, ease: 'power2.out' });
       }
     });
@@ -546,6 +547,10 @@ export class TowerScene {
     }
   }
 
+  setInputLocked(locked: boolean): void {
+    this.inputLocked = locked;
+  }
+
   setMultiplier(mult: string): void {
     if (!this.multiplierLabel) return;
     this.multiplierLabel.text = `${mult}×`;
@@ -627,6 +632,7 @@ export class TowerScene {
         const pastCell = this.cells.get(`${level}:${c}`);
         if (!pastCell) continue;
         if (pastCell === cell) continue;
+        pastCell.state = 'safe';
         this.drawCellTile(pastCell.tile, dims.w, dims.h, 'past');
         pastCell.label.text = '●';
         pastCell.label.alpha = 0.12;
