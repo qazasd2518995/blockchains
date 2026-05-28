@@ -35,6 +35,7 @@ import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBe
 import { getSlotTheme, type SlotThemeConfig, type SlotThemeId } from '@/lib/slotThemes';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
+import { getMegaSlotMaxWinMultiplier } from '@/lib/gamePromos';
 
 interface Props {
   theme?: SlotThemeId;
@@ -44,7 +45,6 @@ const SYMBOL_POSITIONS = ['0% 0%', '50% 0%', '100% 0%', '0% 100%', '50% 100%', '
 
 const BIG_WIN_MULTIPLIER = 20;
 const MEGA_MAX_TOTAL_MULTIPLIER = 1000;
-const MEGA_BUY_FEATURE_MAX_WIN_MULTIPLIER = 50000;
 const MEGA_FREE_SPIN_INTRO_MS = 1600;
 const MEGA_FREE_SPIN_RETRIGGER_MS = 1300;
 const SCENE_RESIZE_DEBOUNCE_MS = 160;
@@ -177,6 +177,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const returnTarget = useGameReturnTarget();
   const slotTheme = getSlotTheme(theme);
   const isMegaSlot = slotTheme.rows > 3;
+  const megaBuyFeatureMaxWinMultiplier = getMegaSlotMaxWinMultiplier(slotTheme.gameId);
   const canvasAspectClass = isMegaSlot ? 'aspect-[16/10]' : 'aspect-[16/7]';
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
@@ -1752,7 +1753,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         <div className="slot-auto-modal__body">
           <div className="mega-buy-confirm__hero">
             <span>最高爆分</span>
-            <strong>{MEGA_BUY_FEATURE_MAX_WIN_MULTIPLIER.toLocaleString('en-US')}×</strong>
+            <strong>{megaBuyFeatureMaxWinMultiplier.toLocaleString('en-US')}×</strong>
             <small>免費遊戲買入功能</small>
           </div>
           <div className="mega-buy-confirm__grid">
@@ -2103,7 +2104,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   result={result}
                   displayMultiplier={resultDisplayMultiplier}
                   cascadeCount={cascadeCount}
-                  maxWinMultiplier={MEGA_BUY_FEATURE_MAX_WIN_MULTIPLIER}
+                  maxWinMultiplier={megaBuyFeatureMaxWinMultiplier}
                   onClose={() => setDismissedFeatureResultBetId(result.betId)}
                 />
               )}

@@ -25,6 +25,7 @@ import { MobileAccountMenu } from '@/components/layout/MobileAccountMenu';
 import { getLocalizedGameTitle } from '@/i18n/gameLabels';
 import { getLocalizedHallName, getLocalizedHallShort } from '@/i18n/hallLabels';
 import { useTranslation } from '@/i18n/useTranslation';
+import { getGamePromoMultiplierLabel, isGamePromoHot } from '@/lib/gamePromos';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
 const visibleGameIds = Array.from(
@@ -388,6 +389,8 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
   const routeState = { returnTo: '/lobby', returnLabel: t.common.lobby };
   const warmAssets = () => warmGameAssets(game.id);
   const title = getLocalizedGameTitle(game.id, locale, game.nameZh);
+  const multiplierLabel = getGamePromoMultiplierLabel(game.id);
+  const isHot = isGamePromoHot(game.id);
 
   return (
     <Link
@@ -406,10 +409,18 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
         className="absolute inset-0 h-full w-full object-cover object-center opacity-[0.84] transition duration-300 group-active:scale-[1.03]"
         loading="lazy"
       />
+      {isHot && (
+        <span className="absolute left-2 top-2 z-20 rounded-full bg-[#EC0E69] px-2 py-1 text-[10px] font-black leading-none text-white shadow-[0_3px_8px_rgba(236,14,105,0.35)]">
+          熱門
+        </span>
+      )}
+      <span className="absolute right-2 top-2 z-20 rounded-[5px] bg-[linear-gradient(180deg,#FFE27A_0%,#F59E0B_100%)] px-2 py-1 text-[11px] font-black leading-none text-[#4B2600] shadow-[0_3px_8px_rgba(0,0,0,0.22)]">
+        {multiplierLabel}
+      </span>
       <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.94)_0%,rgba(255,255,255,0.76)_42%,rgba(255,255,255,0.2)_100%)]" />
       <div className="absolute inset-x-0 bottom-0 h-12 bg-[linear-gradient(0deg,rgba(4,28,42,0.46),transparent)]" />
       <div className="relative z-10 flex h-full min-h-[116px] flex-col justify-between p-2.5">
-        <div className="min-w-0">
+        <div className="min-w-0 pt-6">
           <h3 className="truncate text-[16px] font-black leading-tight text-[#17343F]">{title}</h3>
           <span className="mt-1 inline-flex rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black text-[#C2410C] shadow-sm">
             {hallLabel}

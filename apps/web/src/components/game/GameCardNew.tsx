@@ -6,6 +6,7 @@ import { ResponsiveImage } from '@/lib/optimizedImages';
 import { getGameIcon } from '@/lib/platformIcons';
 import { getLocalizedGameTitle } from '@/i18n/gameLabels';
 import { useTranslation } from '@/i18n/useTranslation';
+import { getGamePromoMultiplierLabel, isGamePromoHot } from '@/lib/gamePromos';
 
 // 與 LobbyPage 現有的資料一致
 const HAS_COVER = new Set<string>([
@@ -45,28 +46,6 @@ const HAS_COVER = new Set<string>([
   'carnival',
 ]);
 
-const NEW_GAMES = new Set([
-  'baccarat-nova',
-  'baccarat-imperial',
-  'blackjack',
-  'carnival',
-  'plinko-x',
-  'jetx3',
-  'double-x',
-  'fruit-slot',
-  'fortune-slot',
-  'ocean-slot',
-  'temple-slot',
-  'candy-slot',
-  'sakura-slot',
-  'thunder-slot',
-  'dragon-mega-slot',
-  'nebula-slot',
-  'jungle-slot',
-  'vampire-slot',
-  'chicken-road',
-]);
-
 function gamePath(id: string): string {
   return `/games/${id}`;
 }
@@ -81,7 +60,8 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
   const { locale, t } = useTranslation();
   const cover = HAS_COVER.has(game.id) ? getLobbyGameCover(game.id) : null;
   const GameIcon = getGameIcon(game.id);
-  const isNew = NEW_GAMES.has(game.id);
+  const isHot = isGamePromoHot(game.id);
+  const multiplierLabel = getGamePromoMultiplierLabel(game.id);
   const routeState = returnTo ? { returnTo, returnLabel } : undefined;
   const warmAssets = () => warmGameAssets(game.id);
   const title = getLocalizedGameTitle(game.id, locale, game.nameZh);
@@ -95,15 +75,17 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
       onPointerEnter={warmAssets}
       className="group relative flex flex-col overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:border-[#EA580C] hover:shadow-[0_8px_20px_rgba(234,88,12,0.18)]"
     >
-      {/* Badge */}
-      {isNew && (
-        <span className="absolute right-2 top-2 z-10 rounded-[4px] bg-[#C9A247] px-2 py-0.5 text-[10px] font-bold uppercase text-white">
-          NEW
+      {isHot && (
+        <span className="absolute left-2 top-2 z-10 rounded-full bg-[#EC0E69] px-2 py-1 text-[10px] font-black uppercase text-white shadow-[0_3px_8px_rgba(236,14,105,0.35)]">
+          熱門
         </span>
       )}
 
       {/* 封面 */}
       <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-[#EA580C] to-[#9A3412]">
+        <span className="absolute right-2 top-2 z-10 rounded-[5px] bg-[linear-gradient(180deg,#FFE27A_0%,#F59E0B_100%)] px-2 py-1 text-[11px] font-black leading-none text-[#4B2600] shadow-[0_3px_8px_rgba(0,0,0,0.28)]">
+          {multiplierLabel}
+        </span>
         {cover ? (
           <ResponsiveImage
             src={cover}
