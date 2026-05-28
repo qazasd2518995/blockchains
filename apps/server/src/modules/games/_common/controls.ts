@@ -216,9 +216,11 @@ async function findControlDecision(
   options: ControlOptions,
 ): Promise<ControlDecision | null> {
   if (options.burstGuardOnly) {
+    const burst = await findBurstDecision(tx, member, gameId, predicted, options);
+    if (burst) return burst;
     const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
     if (globalWinCap) return globalWinCap;
-    return findBurstDecision(tx, member, gameId, predicted, options);
+    return null;
   }
 
   const onlineReward = await findOnlineRewardNextWinDecision(tx, member, predicted);
@@ -226,9 +228,6 @@ async function findControlDecision(
 
   const explicitWinLoss = await findWinLossDecision(tx, member);
   if (explicitWinLoss?.desired === 'LOSS') return explicitWinLoss;
-
-  const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
-  if (globalWinCap) return globalWinCap;
 
   if (explicitWinLoss) return explicitWinLoss;
 
@@ -246,6 +245,9 @@ async function findControlDecision(
 
   const burst = await findBurstDecision(tx, member, gameId, predicted, options);
   if (burst) return burst;
+
+  const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
+  if (globalWinCap) return globalWinCap;
 
   const globalManual = await findManualDetectionDecision(tx, member, 'global');
   if (globalManual) return globalManual;
@@ -736,7 +738,7 @@ async function findBurstDecision(
       predicted.multiplier.greaterThan(control.singleMultiplierCap) ||
       projectedNet.greaterThan(control.riskWinLimit))
   ) {
-    if (guardOnly || !eligibility.eligible) {
+    if (!eligibility.eligible) {
       return { desired: 'LOSS', controlId: control.id, reason: 'burst_risk_guard' };
     }
     const cappedSmall = minDecimal([
