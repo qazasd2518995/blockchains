@@ -129,9 +129,7 @@ export async function applyControls(
   const decision = await findControlDecision(tx, member, gameId, predicted, options);
   if (!decision) return { ...predicted, controlled: false };
   const cappedDecision =
-    decision.desired === 'WIN'
-      ? await withWinCapBounds(tx, member, predicted, decision)
-      : decision;
+    decision.desired === 'WIN' ? await withWinCapBounds(tx, member, predicted, decision) : decision;
 
   const predictedNetWin = isNetWin(predicted);
   if (cappedDecision.desired === 'LOSS') {
@@ -639,7 +637,9 @@ async function buildDepositDecision(
   const remainingProfit = Prisma.Decimal.max(control.targetProfit.sub(currentProfit), ZERO);
   const isAutoRevive = control.notes?.includes('auto_revive') ?? false;
   const isOnlineRewardNextWin = control.notes?.includes('online_reward') ?? false;
-  const maxPayout = isAutoRevive ? predicted.amount.add(remainingProfit).toDecimalPlaces(2) : undefined;
+  const maxPayout = isAutoRevive
+    ? predicted.amount.add(remainingProfit).toDecimalPlaces(2)
+    : undefined;
   const targetMultiplier =
     isOnlineRewardNextWin && maxPayout && predicted.amount.greaterThan(0)
       ? maxPayout.div(predicted.amount).toDecimalPlaces(4)
@@ -683,6 +683,7 @@ async function findManualDetectionDecision(
       : 'WIN',
     controlId: applicable.control.id,
     reason: 'manual_detection',
+    minMultiplier: new Prisma.Decimal('1.01'),
   };
 }
 

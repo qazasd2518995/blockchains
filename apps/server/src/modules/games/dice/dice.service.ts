@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { diceDetermine } from '@bg/provably-fair';
+import { diceDetermine, diceMultiplier } from '@bg/provably-fair';
 import { GameId, type DiceBetResult } from '@bg/shared';
 import {
   SeedHelper,
@@ -33,7 +33,8 @@ export class DiceService {
         input.direction,
       );
 
-      const predictedMultiplier = new Prisma.Decimal(outcome.multiplier.toFixed(4));
+      const oddsMultiplier = new Prisma.Decimal(diceMultiplier(outcome.winChance).toFixed(4));
+      const predictedMultiplier = outcome.won ? oddsMultiplier : new Prisma.Decimal(0);
       const predictedPayout = outcome.won
         ? amount.mul(predictedMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
         : new Prisma.Decimal(0);
@@ -48,11 +49,11 @@ export class DiceService {
       const controlledWinFitsRules =
         controlled.controlled &&
         controlled.won &&
-        multiplierMatchesControlBounds(predictedMultiplier, amount, controlled);
+        multiplierMatchesControlBounds(oddsMultiplier, amount, controlled);
       const finalWon = controlled.controlled
         ? controlled.won && controlledWinFitsRules
         : outcome.won;
-      const finalMultiplier = finalWon ? predictedMultiplier : new Prisma.Decimal(0);
+      const finalMultiplier = finalWon ? oddsMultiplier : new Prisma.Decimal(0);
       const finalPayout = finalWon
         ? amount.mul(finalMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
         : new Prisma.Decimal(0);
