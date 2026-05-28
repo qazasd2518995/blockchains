@@ -197,6 +197,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   const activeDropsRef = useRef(0);
   const pendingStakeRef = useRef(0);
   const autoActiveRef = useRef(false);
+  const autoLaunchingRef = useRef(false);
   const autoRemainingRef = useRef<number | null>(null);
   const autoSettingsRef = useRef<PlinkoAutoSettings | null>(null);
   const autoNetProfitRef = useRef(0);
@@ -255,6 +256,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
 
   const stopAutoDrop = useCallback((reason: string, showReason = true) => {
     autoActiveRef.current = false;
+    autoLaunchingRef.current = false;
     autoSettingsRef.current = null;
     autoRemainingRef.current = null;
     setAutoActive(false);
@@ -351,6 +353,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   useEffect(() => {
     return () => {
       autoActiveRef.current = false;
+      autoLaunchingRef.current = false;
     };
   }, []);
 
@@ -398,19 +401,19 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
         }
 
         await Promise.all(
-          dropResults.map(
-            async (dropResult, index) => {
-              const releaseDelay = plinkoResultReleaseDelay(index, balls);
-              if (releaseDelay > 0) await waitMs(releaseDelay);
-              return sceneRef.current?.dropBall(
+          dropResults.map(async (dropResult, index) => {
+            const releaseDelay = plinkoResultReleaseDelay(index, balls);
+            if (releaseDelay > 0) await waitMs(releaseDelay);
+            return (
+              sceneRef.current?.dropBall(
                 dropResult.path,
                 dropResult.bucket,
                 dropResult.multiplier,
                 anticipationBalls[index],
                 Number.parseFloat(dropResult.payout),
-              ) ?? Promise.resolve();
-            },
-          ),
+              ) ?? Promise.resolve()
+            );
+          }),
         );
 
         // 額度必須等彈珠落袋後才更新，避免下注瞬間就透露本局結算。
@@ -485,25 +488,47 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   const launchAutoDrop = useCallback(async () => {
     const settings = autoSettingsRef.current;
     if (!settings || !autoActiveRef.current) return;
-    if (!sceneReady || activeDropsRef.current + settings.balls > MAX_ACTIVE_PLINKO_DROPS) {
+    if (!sceneReady || autoLaunchingRef.current || activeDropsRef.current > 0) {
+      return;
+    }
+    if (settings.balls > MAX_ACTIVE_PLINKO_DROPS) {
       return;
     }
     const remaining = autoRemainingRef.current;
     if (remaining !== null) {
       if (remaining <= 0) return;
-      autoRemainingRef.current = remaining - 1;
-      setAutoRemaining(remaining - 1);
     }
-    const started = await startPlinkoDrops(settings.balls, {
-      amount: settings.amount,
-      rows: settings.rows,
-      risk: settings.risk,
-      source: 'auto',
-    });
-    if (!started && autoActiveRef.current) {
-      stopAutoDrop(t.games.plinko.autoFailed);
+    autoLaunchingRef.current = true;
+    try {
+      const started = await startPlinkoDrops(settings.balls, {
+        amount: settings.amount,
+        rows: settings.rows,
+        risk: settings.risk,
+        source: 'auto',
+      });
+      if (!started && autoActiveRef.current) {
+        stopAutoDrop(t.games.plinko.autoFailed);
+        return;
+      }
+      if (started && autoActiveRef.current && remaining !== null) {
+        const nextRemaining = Math.max(0, remaining - 1);
+        autoLaunchingRef.current = false;
+        autoRemainingRef.current = nextRemaining;
+        setAutoRemaining(nextRemaining);
+        if (nextRemaining === 0 && activeDropsRef.current === 0) {
+          stopAutoDrop(t.games.plinko.autoFinished);
+        }
+      }
+    } finally {
+      autoLaunchingRef.current = false;
     }
-  }, [sceneReady, startPlinkoDrops, stopAutoDrop, t.games.plinko.autoFailed]);
+  }, [
+    sceneReady,
+    startPlinkoDrops,
+    stopAutoDrop,
+    t.games.plinko.autoFailed,
+    t.games.plinko.autoFinished,
+  ]);
 
   useEffect(() => {
     if (!autoActive) return;
@@ -513,7 +538,8 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
       if (activeDrops === 0) stopAutoDrop(t.games.plinko.autoFinished);
       return;
     }
-    if (activeDrops + settings.balls > MAX_ACTIVE_PLINKO_DROPS) return;
+    if (activeDrops > 0 || autoLaunchingRef.current) return;
+    if (settings.balls > MAX_ACTIVE_PLINKO_DROPS) return;
     const timer = window.setTimeout(() => {
       void launchAutoDrop();
     }, 360);
