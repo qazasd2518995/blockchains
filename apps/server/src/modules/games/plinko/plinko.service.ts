@@ -32,7 +32,7 @@ export class PlinkoService {
     const amount = new Prisma.Decimal(input.amount);
 
     return runLockedTransaction(this.prisma, async (tx) => {
-      await lockUserAndCheckFunds(tx, userId, amount);
+      await lockUserAndCheckFunds(tx, userId, amount, GameId.PLINKO);
       return this.settleOne(tx, userId, input, amount);
     });
   }
@@ -42,7 +42,7 @@ export class PlinkoService {
     const totalStake = amount.mul(input.balls);
 
     return runLockedTransaction(this.prisma, async (tx) => {
-      const user = await lockUserAndCheckFunds(tx, userId, amount);
+      const user = await lockUserAndCheckFunds(tx, userId, amount, GameId.PLINKO);
       if (user.balance.lessThan(totalStake)) {
         throw new ApiError('INSUFFICIENT_FUNDS', 'Insufficient balance');
       }

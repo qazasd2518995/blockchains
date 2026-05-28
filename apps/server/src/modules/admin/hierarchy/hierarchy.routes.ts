@@ -3,9 +3,10 @@ import { z } from 'zod';
 import { canManageAgent, resolveAgentScopeRootId } from '../../../utils/hierarchy.js';
 import type { Prisma } from '@prisma/client';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
+import { normalizeBettingLimitsByGame } from '@bg/shared';
 
 const querySchema = z.object({
-  parentId: z.string().optional(),   // 目標代理；不填 = 自己
+  parentId: z.string().optional(), // 目標代理；不填 = 自己
   keyword: z.string().optional(),
   status: z.enum(['ACTIVE', 'FROZEN', 'DISABLED']).optional(),
 });
@@ -20,7 +21,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
     const isPlatformRoot = req.admin.role === 'SUPER_ADMIN' && !q.parentId;
     const parentId = q.parentId ?? req.admin.id;
 
-    const ok = isPlatformRoot || await canManageAgent(fastify.prisma, req.admin, parentId);
+    const ok = isPlatformRoot || (await canManageAgent(fastify.prisma, req.admin, parentId));
     if (!ok) {
       return { parent: null, items: [], stats: { agentCount: 0, memberCount: 0 } };
     }
@@ -41,6 +42,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         baccaratRebateMode: true,
         baccaratRebatePercentage: true,
         bettingLimitLevel: true,
+        bettingLimits: true,
         role: true,
         status: true,
         parentId: true,
@@ -134,20 +136,22 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
     ]);
 
     // 聚合每個 agent 的 child / member 數量
-    const childCountsRaw = agents.length > 0
-      ? await fastify.prisma.agent.groupBy({
-          by: ['parentId'],
-          where: { parentId: { in: agents.map((a) => a.id) }, role: { not: 'SUB_ACCOUNT' } },
-          _count: { _all: true },
-        })
-      : [];
-    const memberCountsRaw = agents.length > 0
-      ? await fastify.prisma.user.groupBy({
-          by: ['agentId'],
-          where: { agentId: { in: agents.map((a) => a.id) } },
-          _count: { _all: true },
-        })
-      : [];
+    const childCountsRaw =
+      agents.length > 0
+        ? await fastify.prisma.agent.groupBy({
+            by: ['parentId'],
+            where: { parentId: { in: agents.map((a) => a.id) }, role: { not: 'SUB_ACCOUNT' } },
+            _count: { _all: true },
+          })
+        : [];
+    const memberCountsRaw =
+      agents.length > 0
+        ? await fastify.prisma.user.groupBy({
+            by: ['agentId'],
+            where: { agentId: { in: agents.map((a) => a.id) } },
+            _count: { _all: true },
+          })
+        : [];
     const childCountMap = new Map<string, number>(
       childCountsRaw.map((x) => [x.parentId ?? '', x._count._all]),
     );
@@ -167,6 +171,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           rebatePercentage: string;
           baccaratRebatePercentage?: string;
           bettingLimitLevel: string;
+          bettingLimits: Record<string, string>;
           status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
           role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
           createdAt: string;
@@ -183,6 +188,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           marketType: 'D' | 'A';
           balance: string;
           bettingLimitLevel: string;
+          bettingLimits: Record<string, string>;
           status: 'ACTIVE' | 'FROZEN' | 'DISABLED';
           frozenAt: string | null;
           disabledAt: string | null;
@@ -191,39 +197,45 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         };
 
     const items: MixedRow[] = [
-      ...agents.map((a): MixedRow => ({
-        kind: 'agent',
-        id: a.id,
-        username: a.username,
-        displayName: a.displayName,
-        level: a.level,
-        marketType: a.marketType,
-        balance: a.balance.toFixed(2),
-        rebatePercentage: a.rebatePercentage.toFixed(4),
-        baccaratRebatePercentage: a.baccaratRebatePercentage.toFixed(4),
-        bettingLimitLevel: a.bettingLimitLevel,
-        status: a.status,
-        role: a.role,
-        createdAt: a.createdAt.toISOString(),
-        childCount: childCountMap.get(a.id) ?? 0,
-        memberCount: memberCountMap.get(a.id) ?? 0,
-        notes: a.notes,
-      })),
-      ...members.map((m): MixedRow => ({
-        kind: 'member',
-        id: m.id,
-        username: m.username,
-        displayName: m.displayName,
-        level: null,
-        marketType: m.marketType,
-        balance: m.balance.toFixed(2),
-        bettingLimitLevel: m.bettingLimitLevel,
-        status: m.disabledAt ? 'DISABLED' : m.frozenAt ? 'FROZEN' : 'ACTIVE',
-        frozenAt: m.frozenAt?.toISOString() ?? null,
-        disabledAt: m.disabledAt?.toISOString() ?? null,
-        notes: m.notes,
-        createdAt: m.createdAt.toISOString(),
-      })),
+      ...agents.map(
+        (a): MixedRow => ({
+          kind: 'agent',
+          id: a.id,
+          username: a.username,
+          displayName: a.displayName,
+          level: a.level,
+          marketType: a.marketType,
+          balance: a.balance.toFixed(2),
+          rebatePercentage: a.rebatePercentage.toFixed(4),
+          baccaratRebatePercentage: a.baccaratRebatePercentage.toFixed(4),
+          bettingLimitLevel: a.bettingLimitLevel,
+          bettingLimits: normalizeBettingLimitsByGame(a.bettingLimits),
+          status: a.status,
+          role: a.role,
+          createdAt: a.createdAt.toISOString(),
+          childCount: childCountMap.get(a.id) ?? 0,
+          memberCount: memberCountMap.get(a.id) ?? 0,
+          notes: a.notes,
+        }),
+      ),
+      ...members.map(
+        (m): MixedRow => ({
+          kind: 'member',
+          id: m.id,
+          username: m.username,
+          displayName: m.displayName,
+          level: null,
+          marketType: m.marketType,
+          balance: m.balance.toFixed(2),
+          bettingLimitLevel: m.bettingLimitLevel,
+          bettingLimits: normalizeBettingLimitsByGame(m.bettingLimits),
+          status: m.disabledAt ? 'DISABLED' : m.frozenAt ? 'FROZEN' : 'ACTIVE',
+          frozenAt: m.frozenAt?.toISOString() ?? null,
+          disabledAt: m.disabledAt?.toISOString() ?? null,
+          notes: m.notes,
+          createdAt: m.createdAt.toISOString(),
+        }),
+      ),
     ];
 
     return {
@@ -241,6 +253,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         maxBaccaratRebatePercentage: parent.maxBaccaratRebatePercentage.toFixed(4),
         baccaratRebateMode: parent.baccaratRebateMode,
         bettingLimitLevel: parent.bettingLimitLevel,
+        bettingLimits: normalizeBettingLimitsByGame(parent.bettingLimits),
         role: parent.role,
         status: parent.status,
         parentId: parent.parentId,

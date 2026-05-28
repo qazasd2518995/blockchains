@@ -1,5 +1,10 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { rouletteSpin, rouletteEvaluate, ROULETTE_SLOTS, type RouletteBet } from '@bg/provably-fair';
+import {
+  rouletteSpin,
+  rouletteEvaluate,
+  ROULETTE_SLOTS,
+  type RouletteBet,
+} from '@bg/provably-fair';
 import { GameId, type RouletteBetResult } from '@bg/shared';
 import {
   SeedHelper,
@@ -18,19 +23,18 @@ import { pickWeightedRandom } from '../_common/resultSelection.js';
 import type { RouletteBetInput } from './roulette.schema.js';
 
 export class RouletteService {
-  constructor(private readonly prisma: PrismaClient, private readonly gameId: string = GameId.MINI_ROULETTE) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly gameId: string = GameId.MINI_ROULETTE,
+  ) {}
 
   async bet(userId: string, input: RouletteBetInput): Promise<RouletteBetResult> {
     const totalAmount = input.bets.reduce((s, b) => s + b.amount, 0);
     const amountD = new Prisma.Decimal(totalAmount);
 
     return runLockedTransaction(this.prisma, async (tx) => {
-      await lockUserAndCheckFunds(tx, userId, amountD);
-      const seed = await new SeedHelper(tx).getActiveBundle(
-        userId,
-        'roulette',
-        input.clientSeed,
-      );
+      await lockUserAndCheckFunds(tx, userId, amountD, this.gameId);
+      const seed = await new SeedHelper(tx).getActiveBundle(userId, 'roulette', input.clientSeed);
       const { slot } = rouletteSpin(seed.serverSeed, seed.clientSeed, seed.nonce);
       const { totalPayout, wins } = rouletteEvaluate(slot, input.bets as RouletteBet[]);
       const payoutD = new Prisma.Decimal(totalPayout.toFixed(2));
@@ -48,7 +52,13 @@ export class RouletteService {
       let finalSlot = slot;
       let finalEval = { totalPayout, wins };
       if (controlled.controlled) {
-        finalSlot = chooseRouletteSlot(input.bets as RouletteBet[], totalAmount, controlled.won, amountD, controlled);
+        finalSlot = chooseRouletteSlot(
+          input.bets as RouletteBet[],
+          totalAmount,
+          controlled.won,
+          amountD,
+          controlled,
+        );
         finalEval = rouletteEvaluate(finalSlot, input.bets as RouletteBet[]);
       }
       const finalPayoutD = new Prisma.Decimal(finalEval.totalPayout.toFixed(2));
@@ -83,16 +93,25 @@ export class RouletteService {
         },
       });
       await debitAndRecord(tx, userId, amountD, bet.id);
-      const newBalance =
-        finalPayoutD.greaterThan(0)
-          ? await creditAndRecord(tx, userId, finalPayoutD, bet.id, 'BET_WIN')
-          : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+      const newBalance = finalPayoutD.greaterThan(0)
+        ? await creditAndRecord(tx, userId, finalPayoutD, bet.id, 'BET_WIN')
+        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
       await finalizeControls(
         tx,
         userId,
         this.gameId,
-        { won: payoutD.greaterThan(amountD), amount: amountD, multiplier: multiplierD, payout: payoutD },
-        { won: finalPayoutD.greaterThan(amountD), amount: amountD, multiplier: finalMultiplierD, payout: finalPayoutD },
+        {
+          won: payoutD.greaterThan(amountD),
+          amount: amountD,
+          multiplier: multiplierD,
+          payout: payoutD,
+        },
+        {
+          won: finalPayoutD.greaterThan(amountD),
+          amount: amountD,
+          multiplier: finalMultiplierD,
+          payout: finalPayoutD,
+        },
         controlled,
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,
@@ -140,14 +159,14 @@ function chooseRouletteSlot(
       : x.profit < 0,
   );
   const losingFallback = Array.from({ length: ROULETTE_SLOTS }, (_, slot) => {
-      const evaluated = rouletteEvaluate(slot, bets);
-      return {
-        slot,
-        profit: evaluated.totalPayout - totalAmount,
-        payout: evaluated.totalPayout,
-        multiplier: totalAmount > 0 ? evaluated.totalPayout / totalAmount : 0,
-      };
-    }).filter((x) => x.profit < 0);
+    const evaluated = rouletteEvaluate(slot, bets);
+    return {
+      slot,
+      profit: evaluated.totalPayout - totalAmount,
+      payout: evaluated.totalPayout,
+      multiplier: totalAmount > 0 ? evaluated.totalPayout / totalAmount : 0,
+    };
+  }).filter((x) => x.profit < 0);
   const pool = candidates.length > 0 ? candidates : losingFallback;
   if (wantWin) {
     const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);

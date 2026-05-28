@@ -1,6 +1,10 @@
 import bcrypt from 'bcrypt';
 import { PrismaClient, Prisma } from '@prisma/client';
-import type { AdminCaptchaResponse, AgentPublic } from '@bg/shared';
+import {
+  normalizeBettingLimitsByGame,
+  type AdminCaptchaResponse,
+  type AgentPublic,
+} from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
 import { config } from '../../../config.js';
 import { randomBytes, createHash } from 'node:crypto';
@@ -162,6 +166,7 @@ export class AdminAuthService {
     baccaratRebatePercentage: Prisma.Decimal;
     maxBaccaratRebatePercentage: Prisma.Decimal;
     bettingLimitLevel: string;
+    bettingLimits?: Prisma.JsonValue;
     status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
     role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
     notes: string | null;
@@ -185,6 +190,7 @@ export class AdminAuthService {
       baccaratRebatePercentage: agent.baccaratRebatePercentage.toFixed(4),
       maxBaccaratRebatePercentage: agent.maxBaccaratRebatePercentage.toFixed(4),
       bettingLimitLevel: agent.bettingLimitLevel,
+      bettingLimits: normalizeBettingLimitsByGame(agent.bettingLimits),
       status: agent.status,
       role: agent.role,
       notes: agent.notes,

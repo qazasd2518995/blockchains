@@ -5,7 +5,13 @@ import {
   hiloProbLowerOrEqual,
   hiloMultiplier,
 } from '@bg/provably-fair';
-import { GameId, type HiLoCard, type HiLoRoundState, type HiLoGuessResult, type HiLoCashoutResult } from '@bg/shared';
+import {
+  GameId,
+  type HiLoCard,
+  type HiLoRoundState,
+  type HiLoGuessResult,
+  type HiLoCashoutResult,
+} from '@bg/shared';
 import {
   SeedHelper,
   lockUserAndCheckFunds,
@@ -14,7 +20,11 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls, multiplierMatchesControlBounds } from '../_common/controls.js';
+import {
+  applyControls,
+  finalizeControls,
+  multiplierMatchesControlBounds,
+} from '../_common/controls.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { HiLoStartInput, HiLoGuessInput, HiLoCashoutInput } from './hilo.schema.js';
@@ -31,7 +41,7 @@ export class HiLoService {
       const active = await tx.hiLoRound.findFirst({ where: { userId, status: 'ACTIVE' } });
       if (active) throw new ApiError('INVALID_ACTION', 'You have an active Hi-Lo round');
 
-      await lockUserAndCheckFunds(tx, userId, amount);
+      await lockUserAndCheckFunds(tx, userId, amount, GameId.HILO);
       const seed = await new SeedHelper(tx).getActiveBundle(userId, 'hilo', input.clientSeed);
 
       const firstCard = hiloDraw(seed.serverSeed, seed.clientSeed, seed.nonce, 0);
@@ -74,7 +84,12 @@ export class HiLoService {
       });
 
       const nextIndex = round.cardIndex + 1;
-      const rawDrawn = hiloDraw(serverSeedRecord.seed, round.clientSeedUsed, round.nonce, nextIndex);
+      const rawDrawn = hiloDraw(
+        serverSeedRecord.seed,
+        round.clientSeedUsed,
+        round.nonce,
+        nextIndex,
+      );
 
       const winChance =
         input.guess === 'higher'
@@ -103,26 +118,32 @@ export class HiLoService {
       const canForceLoss = round.cardIndex > 0;
       const effectiveDesiredCorrect = controlled.controlled
         ? controlledWinOutOfBounds
-          ? canForceLoss ? false : rawCorrect
+          ? canForceLoss
+            ? false
+            : rawCorrect
           : !controlled.won && !canForceLoss
             ? rawCorrect
-          : controlled.won
+            : controlled.won
         : rawCorrect;
       const adjusted = adjustHiLoDraw(current, input.guess, effectiveDesiredCorrect, rawDrawn);
       const drawn = adjusted.card;
       const correct = adjusted.correct;
-      const effectiveControl = adjusted.correct !== rawCorrect
-        ? controlledWinOutOfBounds
-          ? {
-              won: false,
-              multiplier: new Prisma.Decimal(0),
-              payout: new Prisma.Decimal(0),
-              controlled: true,
-              flipReason: controlled.flipReason === 'burst_risk_cap' ? 'burst_risk_guard' : 'burst_budget_guard',
-              controlId: controlled.controlId,
-            }
-          : controlled
-        : { ...controlled, controlled: false, flipReason: undefined, controlId: undefined };
+      const effectiveControl =
+        adjusted.correct !== rawCorrect
+          ? controlledWinOutOfBounds
+            ? {
+                won: false,
+                multiplier: new Prisma.Decimal(0),
+                payout: new Prisma.Decimal(0),
+                controlled: true,
+                flipReason:
+                  controlled.flipReason === 'burst_risk_cap'
+                    ? 'burst_risk_guard'
+                    : 'burst_budget_guard',
+                controlId: controlled.controlId,
+              }
+            : controlled
+          : { ...controlled, controlled: false, flipReason: undefined, controlId: undefined };
 
       const newHistory = [...history, drawn];
 
@@ -262,9 +283,7 @@ export class HiLoService {
       if (!current) throw new ApiError('INTERNAL', 'No current card');
 
       const multiplier = round.currentMultiplier;
-      const payout = round.betAmount
-        .mul(multiplier)
-        .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+      const payout = round.betAmount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
       const controlOutcome = {
         won: payout.greaterThan(round.betAmount),
         amount: round.betAmount,
@@ -313,7 +332,12 @@ export class HiLoService {
         userId,
         GameId.HILO,
         { won: payout.greaterThan(round.betAmount), amount: round.betAmount, multiplier, payout },
-        { won: finalPayout.greaterThan(round.betAmount), amount: round.betAmount, multiplier: finalMultiplier, payout: finalPayout },
+        {
+          won: finalPayout.greaterThan(round.betAmount),
+          amount: round.betAmount,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
+        },
         controlOutcome,
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,

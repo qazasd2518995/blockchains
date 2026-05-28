@@ -22,6 +22,11 @@ import type {
   UpdateBettingLimitInput,
 } from './agent.schema.js';
 import type { FastifyRequest } from 'fastify';
+import {
+  assertBettingLimitsWithinParent,
+  normalizeStoredBettingLimits,
+  resolveRequestedBettingLimits,
+} from '../bettingLimits.js';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -39,7 +44,8 @@ export class AgentService {
   async getById(operator: AdminCurrent, id: string): Promise<AgentPublic> {
     const agent = await this.prisma.agent.findUnique({ where: { id } });
     if (!agent) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
-    if (agent.role === 'SUB_ACCOUNT') throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
+    if (agent.role === 'SUB_ACCOUNT')
+      throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot access this agent');
     return toPublic(agent);
@@ -116,6 +122,20 @@ export class AgentService {
     if (existing) throw new ApiError('USERNAME_TAKEN', 'Username taken');
 
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+    const bettingLimits = resolveRequestedBettingLimits(
+      input.bettingLimits,
+      input.bettingLimitLevel,
+      parent.bettingLimits,
+      parent.bettingLimitLevel,
+    );
+    if (parent.role !== 'SUPER_ADMIN') {
+      assertBettingLimitsWithinParent(
+        bettingLimits,
+        input.bettingLimitLevel,
+        parent.bettingLimits,
+        parent.bettingLimitLevel,
+      );
+    }
 
     const created = await this.prisma.agent.create({
       data: {
@@ -133,6 +153,7 @@ export class AgentService {
         baccaratRebatePercentage: baccaratRebatePct,
         maxBaccaratRebatePercentage: baccaratMaxAllowed,
         bettingLimitLevel: input.bettingLimitLevel ?? parent.bettingLimitLevel,
+        bettingLimits,
         notes: input.notes ?? null,
         role: 'AGENT',
         status: 'ACTIVE',
@@ -140,7 +161,11 @@ export class AgentService {
     });
 
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: 'agent.create',
       targetType: 'agent',
       targetId: created.id,
@@ -159,7 +184,8 @@ export class AgentService {
   ): Promise<AgentPublic> {
     const existing = await this.prisma.agent.findUnique({ where: { id } });
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
-    if (existing.role === 'SUB_ACCOUNT') throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
+    if (existing.role === 'SUB_ACCOUNT')
+      throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot update this agent');
 
@@ -172,7 +198,11 @@ export class AgentService {
     });
 
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: 'agent.update',
       targetType: 'agent',
       targetId: id,
@@ -189,9 +219,13 @@ export class AgentService {
     input: UpdateAgentRebateInput,
     req?: FastifyRequest,
   ): Promise<AgentPublic> {
-    const existing = await this.prisma.agent.findUnique({ where: { id }, include: { parent: true } });
+    const existing = await this.prisma.agent.findUnique({
+      where: { id },
+      include: { parent: true },
+    });
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
-    if (existing.role === 'SUB_ACCOUNT') throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
+    if (existing.role === 'SUB_ACCOUNT')
+      throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot modify rebate');
     const nextElectronicMode = input.rebateMode ?? existing.rebateMode;
@@ -269,7 +303,11 @@ export class AgentService {
       },
     });
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: 'agent.rebate.update',
       targetType: 'agent',
       targetId: id,
@@ -298,7 +336,8 @@ export class AgentService {
   ): Promise<AgentPublic> {
     const existing = await this.prisma.agent.findUnique({ where: { id } });
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
-    if (existing.role === 'SUB_ACCOUNT') throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
+    if (existing.role === 'SUB_ACCOUNT')
+      throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot change status');
     if (existing.role === 'SUPER_ADMIN' && input.status !== 'ACTIVE') {
@@ -315,7 +354,11 @@ export class AgentService {
       });
     }
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: 'agent.status.update',
       targetType: 'agent',
       targetId: id,
@@ -332,22 +375,83 @@ export class AgentService {
     input: UpdateBettingLimitInput,
     req?: FastifyRequest,
   ): Promise<AgentPublic> {
-    const existing = await this.prisma.agent.findUnique({ where: { id } });
+    const existing = await this.prisma.agent.findUnique({
+      where: { id },
+      include: { parent: true },
+    });
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
-    if (existing.role === 'SUB_ACCOUNT') throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
+    if (existing.role === 'SUB_ACCOUNT')
+      throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot modify betting limit');
+    const nextLevel = input.bettingLimitLevel ?? existing.bettingLimitLevel;
+    const nextLimits = resolveRequestedBettingLimits(
+      input.bettingLimits,
+      input.bettingLimitLevel,
+      existing.bettingLimits,
+      existing.bettingLimitLevel,
+    );
+    if (existing.parent && existing.parent.role !== 'SUPER_ADMIN') {
+      assertBettingLimitsWithinParent(
+        nextLimits,
+        nextLevel,
+        existing.parent.bettingLimits,
+        existing.parent.bettingLimitLevel,
+      );
+    }
+    const children = await this.prisma.agent.findMany({
+      where: { parentId: id, status: { not: 'DELETED' } },
+      select: { id: true, username: true, bettingLimitLevel: true, bettingLimits: true },
+    });
+    const members = await this.prisma.user.findMany({
+      where: { agentId: id },
+      select: { username: true, bettingLimitLevel: true, bettingLimits: true },
+    });
+    for (const child of children) {
+      try {
+        assertBettingLimitsWithinParent(
+          child.bettingLimits,
+          child.bettingLimitLevel,
+          nextLimits,
+          nextLevel,
+        );
+      } catch {
+        throw new ApiError('HIERARCHY_VIOLATION', `下級代理 ${child.username} 的限紅高於新設定。`);
+      }
+    }
+    for (const member of members) {
+      try {
+        assertBettingLimitsWithinParent(
+          member.bettingLimits,
+          member.bettingLimitLevel,
+          nextLimits,
+          nextLevel,
+        );
+      } catch {
+        throw new ApiError('HIERARCHY_VIOLATION', `會員 ${member.username} 的限紅高於新設定。`);
+      }
+    }
     const updated = await this.prisma.agent.update({
       where: { id },
-      data: { bettingLimitLevel: input.bettingLimitLevel },
+      data: { bettingLimitLevel: nextLevel, bettingLimits: nextLimits },
     });
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: 'agent.betting_limit.update',
       targetType: 'agent',
       targetId: id,
-      oldValues: { bettingLimitLevel: existing.bettingLimitLevel },
-      newValues: { bettingLimitLevel: updated.bettingLimitLevel },
+      oldValues: {
+        bettingLimitLevel: existing.bettingLimitLevel,
+        bettingLimits: existing.bettingLimits,
+      },
+      newValues: {
+        bettingLimitLevel: updated.bettingLimitLevel,
+        bettingLimits: updated.bettingLimits,
+      },
       req,
     });
     return toPublic(updated);
@@ -361,7 +465,8 @@ export class AgentService {
   ): Promise<void> {
     const existing = await this.prisma.agent.findUnique({ where: { id } });
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
-    if (existing.role === 'SUB_ACCOUNT') throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
+    if (existing.role === 'SUB_ACCOUNT')
+      throw new ApiError('INVALID_ACTION', 'Use sub-account endpoint');
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot reset password');
     const passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);
@@ -372,7 +477,11 @@ export class AgentService {
       data: { revokedAt: new Date() },
     });
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: 'agent.password.reset',
       targetType: 'agent',
       targetId: id,
@@ -388,7 +497,10 @@ export class AgentService {
     try {
       assertRebateWithinBounds(rebatePct, maxAllowed, category);
     } catch (error) {
-      throw new ApiError('REBATE_VIOLATION', error instanceof Error ? error.message : 'Invalid rebate');
+      throw new ApiError(
+        'REBATE_VIOLATION',
+        error instanceof Error ? error.message : 'Invalid rebate',
+      );
     }
   }
 }
@@ -410,6 +522,7 @@ export function toPublic(agent: {
   baccaratRebatePercentage: Prisma.Decimal;
   maxBaccaratRebatePercentage: Prisma.Decimal;
   bettingLimitLevel: string;
+  bettingLimits?: Prisma.JsonValue;
   status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
   role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
   notes: string | null;
@@ -433,6 +546,7 @@ export function toPublic(agent: {
     baccaratRebatePercentage: agent.baccaratRebatePercentage.toFixed(4),
     maxBaccaratRebatePercentage: agent.maxBaccaratRebatePercentage.toFixed(4),
     bettingLimitLevel: agent.bettingLimitLevel,
+    bettingLimits: normalizeStoredBettingLimits(agent.bettingLimits, agent.bettingLimitLevel),
     status: agent.status,
     role: agent.role,
     notes: agent.notes,

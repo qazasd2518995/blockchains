@@ -37,6 +37,7 @@ model User {
   agent             Agent?     @relation(fields: [agentId], references: [id])
   marketType        MarketType @default(D)
   bettingLimitLevel String     @default("level3")
+  bettingLimits     Json       @default("{}")
   frozenAt          DateTime?
   disabledAt        DateTime?
   notes             String?
@@ -418,6 +419,7 @@ model Agent {
   baccaratRebatePercentage    Decimal     @default(0.010) @db.Decimal(5, 4)
   maxBaccaratRebatePercentage Decimal     @default(0.010) @db.Decimal(5, 4)
   bettingLimitLevel           String      @default("level3")
+  bettingLimits                Json        @default("{}")
   status                      AgentStatus @default(ACTIVE)
   role                        AdminRole   @default(AGENT)
   notes                       String?

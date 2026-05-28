@@ -7,6 +7,7 @@ export interface MemberPublic {
   balance: string;
   marketType: 'D' | 'A';
   bettingLimitLevel: string;
+  bettingLimits: Record<string, string>;
   status: 'ACTIVE' | 'FROZEN' | 'DISABLED';
   frozenAt: string | null;
   disabledAt: string | null;
@@ -16,12 +17,13 @@ export interface MemberPublic {
 }
 
 export interface CreateMemberRequest {
-  agentId: string;              // 目標代理（操作者必須能 manage）
+  agentId: string; // 目標代理（操作者必須能 manage）
   username: string;
   password: string;
   displayName?: string;
-  initialBalance?: string;      // 若設，從代理 balance 扣除轉到 member
+  initialBalance?: string; // 若設，從代理 balance 扣除轉到 member
   bettingLimitLevel?: string;
+  bettingLimits?: Record<string, string>;
   notes?: string;
 }
 
@@ -34,7 +36,7 @@ export interface UpdateMemberStatusRequest {
 }
 
 export interface AdjustMemberBalanceRequest {
-  delta: string;                // 正=加、負=扣（不透過 agent balance，純系統調整）
+  delta: string; // 正=加、負=扣（不透過 agent balance，純系統調整）
   description?: string;
 }
 

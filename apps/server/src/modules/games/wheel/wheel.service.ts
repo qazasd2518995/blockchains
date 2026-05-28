@@ -24,7 +24,7 @@ export class WheelService {
     const amount = new Prisma.Decimal(input.amount);
 
     return runLockedTransaction(this.prisma, async (tx) => {
-      await lockUserAndCheckFunds(tx, userId, amount);
+      await lockUserAndCheckFunds(tx, userId, amount, GameId.WHEEL);
       const seed = await new SeedHelper(tx).getActiveBundle(userId, 'wheel', input.clientSeed);
       const segments = input.segments as WheelSegmentCount;
       const { segmentIndex } = wheelSpin(seed.serverSeed, seed.clientSeed, seed.nonce, segments);
@@ -142,7 +142,9 @@ function chooseWheelSegment(
   const pool = candidates.length > 0 ? candidates : losingFallback;
   if (wantWin) {
     const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
-    const picked = pickWeightedRandom(pool, (x) => controlTargetWeight(x.multiplier, targetMultiplier));
+    const picked = pickWeightedRandom(pool, (x) =>
+      controlTargetWeight(x.multiplier, targetMultiplier),
+    );
     return picked?.segmentIndex ?? pool[0]?.segmentIndex ?? 0;
   }
   const picked = pickWeightedRandom(pool, (x) => controlledLossWeight(x.multiplier));

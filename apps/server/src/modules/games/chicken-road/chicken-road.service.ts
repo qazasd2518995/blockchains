@@ -59,7 +59,7 @@ export class ChickenRoadService {
       });
       if (active) throw new ApiError('INVALID_ACTION', 'You have an active Chicken Road round');
 
-      await lockUserAndCheckFunds(tx, userId, amount);
+      await lockUserAndCheckFunds(tx, userId, amount, GameId.CHICKEN_ROAD);
       const seed = await new SeedHelper(tx).getActiveBundle(
         userId,
         GameId.CHICKEN_ROAD,
@@ -111,12 +111,7 @@ export class ChickenRoadService {
       const serverSeed = await tx.serverSeed.findUniqueOrThrow({
         where: { id: bet.serverSeedId },
       });
-      const data = normalizeRoundData(
-        parsedData,
-        serverSeed.seed,
-        bet.clientSeedUsed,
-        bet.nonce,
-      );
+      const data = normalizeRoundData(parsedData, serverSeed.seed, bet.clientSeedUsed, bet.nonce);
       if (data.currentStep >= data.totalSteps) {
         throw new ApiError('INVALID_ACTION', 'Chicken Road safety limit reached');
       }
@@ -162,9 +157,10 @@ export class ChickenRoadService {
         finalPath[stepIndex] = false;
       }
       const isSafe = Boolean(finalPath[stepIndex]);
-      const effectiveControl = isSafe !== rawSafe
-        ? shapedControl
-        : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
+      const effectiveControl =
+        isSafe !== rawSafe
+          ? shapedControl
+          : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
 
       if (!isSafe) {
         const originalResult = {
@@ -227,7 +223,9 @@ export class ChickenRoadService {
       }
 
       const currentMult = nextMult;
-      const currentPayout = bet.amount.mul(currentMult).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+      const currentPayout = bet.amount
+        .mul(currentMult)
+        .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
       const crossedData: ChickenRoadStoredData = {
         ...data,
         path: finalPath,
@@ -259,8 +257,18 @@ export class ChickenRoadService {
           tx,
           userId,
           GameId.CHICKEN_ROAD,
-          { won: predictedPayout.greaterThan(bet.amount), amount: bet.amount, multiplier: nextMult, payout: predictedPayout },
-          { won: currentPayout.greaterThan(bet.amount), amount: bet.amount, multiplier: currentMult, payout: currentPayout },
+          {
+            won: predictedPayout.greaterThan(bet.amount),
+            amount: bet.amount,
+            multiplier: nextMult,
+            payout: predictedPayout,
+          },
+          {
+            won: currentPayout.greaterThan(bet.amount),
+            amount: bet.amount,
+            multiplier: currentMult,
+            payout: currentPayout,
+          },
           effectiveControl,
           settled.id,
           {
@@ -302,12 +310,7 @@ export class ChickenRoadService {
       const serverSeed = await tx.serverSeed.findUniqueOrThrow({
         where: { id: bet.serverSeedId },
       });
-      const data = normalizeRoundData(
-        parsedData,
-        serverSeed.seed,
-        bet.clientSeedUsed,
-        bet.nonce,
-      );
+      const data = normalizeRoundData(parsedData, serverSeed.seed, bet.clientSeedUsed, bet.nonce);
       if (data.currentStep <= 0) {
         throw new ApiError('INVALID_ACTION', 'Cross at least one lane before cashing out');
       }
@@ -355,7 +358,12 @@ export class ChickenRoadService {
         userId,
         GameId.CHICKEN_ROAD,
         { won: payout.greaterThan(bet.amount), amount: bet.amount, multiplier, payout },
-        { won: finalPayout.greaterThan(bet.amount), amount: bet.amount, multiplier: finalMultiplier, payout: finalPayout },
+        {
+          won: finalPayout.greaterThan(bet.amount),
+          amount: bet.amount,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
+        },
         controlOutcome,
         settled.id,
         {
@@ -392,11 +400,7 @@ export class ChickenRoadService {
     return this.toState(bet, data, serverSeed.seedHash);
   }
 
-  private async findActiveBet(
-    tx: Prisma.TransactionClient,
-    userId: string,
-    roundId: string,
-  ) {
+  private async findActiveBet(tx: Prisma.TransactionClient, userId: string, roundId: string) {
     const bet = await tx.bet.findFirst({
       where: { id: roundId, userId, gameId: GameId.CHICKEN_ROAD },
     });
@@ -417,12 +421,11 @@ export class ChickenRoadService {
     exposePath = false,
   ): ChickenRoadRoundState {
     const active = data.status === 'ACTIVE';
-    const currentMultiplier = active || data.status === 'CASHED_OUT'
-      ? chickenRoadMultiplier(data.difficulty, data.currentStep)
-      : 0;
-    const nextMult = active
-      ? chickenRoadNextMultiplier(data.difficulty, data.currentStep)
-      : null;
+    const currentMultiplier =
+      active || data.status === 'CASHED_OUT'
+        ? chickenRoadMultiplier(data.difficulty, data.currentStep)
+        : 0;
+    const nextMult = active ? chickenRoadNextMultiplier(data.difficulty, data.currentStep) : null;
     const potentialPayout = bet.amount
       .mul(new Prisma.Decimal(currentMultiplier.toFixed(4)))
       .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);

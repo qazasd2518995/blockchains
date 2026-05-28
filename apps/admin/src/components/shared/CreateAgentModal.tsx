@@ -5,11 +5,7 @@ import { useEffect, useState } from 'react';
 import type { AgentPublic } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { Modal } from './Modal';
-import {
-  type RebateMode,
-  getEffectiveParentRebatePct,
-  rebateFractionForMode,
-} from '@/lib/rebate';
+import { type RebateMode, getEffectiveParentRebatePct, rebateFractionForMode } from '@/lib/rebate';
 
 const schema = z.object({
   parentId: z.string().min(1, '请选择上级代理'),
@@ -27,7 +23,7 @@ const schema = z.object({
   displayName: z.string().max(40).optional(),
   rebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']),
   rebatePercentageDisplay: z.string().regex(/^\d+(\.\d+)?$/, '请填写有效百分比'),
-  bettingLimitLevel: z.enum(['level1', 'level2', 'level3', 'level4', 'level5', 'unlimited']),
+  bettingLimitLevel: z.string().min(1),
   notes: z.string().max(500).optional(),
 });
 
@@ -57,7 +53,13 @@ interface Props {
   lockedParent?: LockedParentAgent;
 }
 
-export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lockedParent }: Props): JSX.Element {
+export function CreateAgentModal({
+  open,
+  onClose,
+  onCreated,
+  defaultParentId,
+  lockedParent,
+}: Props): JSX.Element {
   const [parents, setParents] = useState<AgentPublic[]>([]);
   const [selectedParent, setSelectedParent] = useState<LockedParentAgent | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
       parentId: resolvedParentId,
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
-      bettingLimitLevel: 'level3',
+      bettingLimitLevel: 'range_100_2000',
     },
   });
 
@@ -93,7 +95,7 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
       displayName: '',
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
-      bettingLimitLevel: normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? 'level3',
+      bettingLimitLevel: normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? 'range_100_2000',
       notes: '',
     });
     if (lockedParent) {
@@ -211,9 +213,13 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
             <div className="label mb-1">上级代理</div>
             <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-ink-900">
               <span className="font-mono">{lockedParent.username}</span>
-              {lockedParentLevel !== undefined && <span className="tag tag-acid">L{lockedParentLevel}</span>}
+              {lockedParentLevel !== undefined && (
+                <span className="tag tag-acid">L{lockedParentLevel}</span>
+              )}
               {nextLevel !== null && <span className="tag tag-gold">新代理 L{nextLevel}</span>}
-              <span className="text-[11px] font-normal text-ink-500">本代理会建立在当前层级下面</span>
+              <span className="text-[11px] font-normal text-ink-500">
+                本代理会建立在当前层级下面
+              </span>
             </div>
           </div>
         ) : (
@@ -245,12 +251,22 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
             />
           </Field>
           <Field label="密码" code="03" error={errors.password?.message}>
-            <input type="password" {...register('password')} className="term-input" placeholder="至少 8 位，含英数" />
+            <input
+              type="password"
+              {...register('password')}
+              className="term-input"
+              placeholder="至少 8 位，含英数"
+            />
           </Field>
         </div>
 
         <Field label="显示名称" code="04" error={errors.displayName?.message}>
-          <input type="text" {...register('displayName')} className="term-input" placeholder="选填" />
+          <input
+            type="text"
+            {...register('displayName')}
+            className="term-input"
+            placeholder="选填"
+          />
         </Field>
 
         <RebateEditor
@@ -271,21 +287,28 @@ export function CreateAgentModal({ open, onClose, onCreated, defaultParentId, lo
 
         <Field label="限红等级" code="07" error={errors.bettingLimitLevel?.message}>
           <select {...register('bettingLimitLevel')} className="term-input">
-            <option value="level1">新手（单注 100）</option>
-            <option value="level2">一般（单注 500）</option>
-            <option value="level3">标准（单注 2,000）</option>
-            <option value="level4">进阶（单注 10,000）</option>
-            <option value="level5">VIP（单注 50,000）</option>
-            <option value="unlimited">不限</option>
+            <option value="range_1_500">1-500</option>
+            <option value="range_50_1000">50-1000</option>
+            <option value="range_100_2000">100-2000</option>
+            <option value="range_500_5000">500-5000</option>
+            <option value="range_1000_10000">1000-10000</option>
+            <option value="range_5000_50000">5000-50000</option>
           </select>
         </Field>
 
         <Field label="备注" code="08" error={errors.notes?.message}>
-          <textarea rows={2} {...register('notes')} className="term-input resize-none" placeholder="备注说明（选填）" />
+          <textarea
+            rows={2}
+            {...register('notes')}
+            className="term-input resize-none"
+            placeholder="备注说明（选填）"
+          />
         </Field>
 
         {err && (
-          <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">⚠ {err}</div>
+          <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
+            ⚠ {err}
+          </div>
         )}
 
         <div className="flex items-center gap-2 pt-2">
@@ -371,14 +394,25 @@ function RebateEditor({
   );
 }
 
-function normalizeBettingLimit(value: string | null | undefined): FormInput['bettingLimitLevel'] | null {
+function normalizeBettingLimit(
+  value: string | null | undefined,
+): FormInput['bettingLimitLevel'] | null {
+  const legacy: Record<string, string> = {
+    level1: 'range_1_500',
+    level2: 'range_50_1000',
+    level3: 'range_100_2000',
+    level4: 'range_1000_10000',
+    level5: 'range_5000_50000',
+    unlimited: 'range_5000_50000',
+  };
+  if (value && legacy[value]) return legacy[value];
   if (
-    value === 'level1' ||
-    value === 'level2' ||
-    value === 'level3' ||
-    value === 'level4' ||
-    value === 'level5' ||
-    value === 'unlimited'
+    value === 'range_1_500' ||
+    value === 'range_50_1000' ||
+    value === 'range_100_2000' ||
+    value === 'range_500_5000' ||
+    value === 'range_1000_10000' ||
+    value === 'range_5000_50000'
   ) {
     return value;
   }

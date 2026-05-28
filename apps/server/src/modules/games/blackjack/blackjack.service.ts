@@ -82,7 +82,7 @@ export class BlackjackService {
       const active = await tx.blackjackRound.findFirst({ where: { userId, status: 'ACTIVE' } });
       if (active) throw new ApiError('INVALID_ACTION', 'You have an active Blackjack round');
 
-      await lockUserAndCheckFunds(tx, userId, amount);
+      await lockUserAndCheckFunds(tx, userId, amount, GameId.BLACKJACK);
       const seed = await new SeedHelper(tx).getActiveBundle(
         userId,
         GameId.BLACKJACK,
@@ -307,7 +307,7 @@ export class BlackjackService {
         throw new ApiError('INVALID_ACTION', 'You can double only on a fresh two-card hand');
 
       const extraBet = new Prisma.Decimal(active.bet);
-      await lockUserAndCheckFunds(tx, userId, extraBet);
+      await lockUserAndCheckFunds(tx, userId, extraBet, GameId.BLACKJACK);
       let newBalance = await debitAndRecord(tx, userId, extraBet);
 
       const { card, nextIndex } = drawCard(deck, round.deckIndex);
@@ -364,7 +364,7 @@ export class BlackjackService {
       }
 
       const extraBet = new Prisma.Decimal(active.bet);
-      await lockUserAndCheckFunds(tx, userId, extraBet);
+      await lockUserAndCheckFunds(tx, userId, extraBet, GameId.BLACKJACK);
       let newBalance = await debitAndRecord(tx, userId, extraBet);
 
       const firstDraw = drawCard(deck, round.deckIndex);
@@ -988,7 +988,8 @@ function makeDealerWinningHand(
 ): BlackjackCard[] {
   const highestPlayerTotal = Math.max(
     0,
-    ...hands.map((hand) => blackjackScore(hand.cards))
+    ...hands
+      .map((hand) => blackjackScore(hand.cards))
       .filter((score) => !score.isBust && score.total < 21)
       .map((score) => score.total),
   );

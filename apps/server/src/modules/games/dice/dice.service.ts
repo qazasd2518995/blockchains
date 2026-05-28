@@ -22,7 +22,7 @@ export class DiceService {
     const amount = new Prisma.Decimal(input.amount);
 
     return runLockedTransaction(this.prisma, async (tx) => {
-      await lockUserAndCheckFunds(tx, userId, amount);
+      await lockUserAndCheckFunds(tx, userId, amount, GameId.DICE);
       const seed = await new SeedHelper(tx).getActiveBundle(userId, 'dice', input.clientSeed);
 
       const outcome = diceDetermine(

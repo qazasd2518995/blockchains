@@ -42,7 +42,7 @@ export class TowerService {
       const active = await tx.towerRound.findFirst({ where: { userId, status: 'ACTIVE' } });
       if (active) throw new ApiError('INVALID_ACTION', 'You have an active Tower round');
 
-      await lockUserAndCheckFunds(tx, userId, amount);
+      await lockUserAndCheckFunds(tx, userId, amount, GameId.TOWER);
       const seed = await new SeedHelper(tx).getActiveBundle(userId, 'tower', input.clientSeed);
       const layout = towerLayout(
         seed.serverSeed,

@@ -1,4 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  BETTING_LIMIT_RANGE_OPTIONS,
+  GAMES_REGISTRY,
+  normalizeBettingLimitRangeKey,
+  normalizeBettingLimitsByGame,
+  resolveBettingLimitRange,
+  type BettingLimitsByGame,
+} from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { Modal } from './Modal';
 
@@ -9,60 +17,20 @@ interface Props {
   targetId: string;
   targetUsername: string;
   currentLevel: string;
+  currentLimits?: Record<string, string>;
+  parentLevel?: string;
+  parentLimits?: Record<string, string>;
   onDone: () => void;
 }
 
-type LimitLevel = 'level1' | 'level2' | 'level3' | 'level4' | 'level5' | 'unlimited';
+const ENABLED_GAMES = Object.values(GAMES_REGISTRY).filter((game) => game.enabled);
 
-interface LevelConfig {
-  value: LimitLevel;
-  label: string;
-  perBet: string;
-  description: string;
-}
-
-const LEVELS: LevelConfig[] = [
-  {
-    value: 'level1',
-    label: '新手',
-    perBet: '100',
-    description: '单注上限 100。适合刚注册的新玩家练习。',
-  },
-  {
-    value: 'level2',
-    label: '一般',
-    perBet: '500',
-    description: '单注上限 500。适合一般休閒玩家。',
-  },
-  {
-    value: 'level3',
-    label: '标准',
-    perBet: '2,000',
-    description: '单注上限 2,000。预设标准等级。',
-  },
-  {
-    value: 'level4',
-    label: '进阶',
-    perBet: '10,000',
-    description: '单注上限 10,000。适合活跃玩家。',
-  },
-  {
-    value: 'level5',
-    label: 'VIP',
-    perBet: '50,000',
-    description: '单注上限 50,000。适合高额玩家。',
-  },
-  {
-    value: 'unlimited',
-    label: '不限',
-    perBet: '∞',
-    description: '无额度限制。仅代理/会员具备信任关系时才开放。',
-  },
-];
-
-function normaliseLevel(raw: string): LimitLevel {
-  const match = LEVELS.find((l) => l.value === raw);
-  return (match?.value ?? 'level3') as LimitLevel;
+function buildLimits(limits: unknown, fallbackLevel: unknown): BettingLimitsByGame {
+  const normalized = normalizeBettingLimitsByGame(limits);
+  const fallback = normalizeBettingLimitRangeKey(fallbackLevel);
+  return Object.fromEntries(
+    ENABLED_GAMES.map((game) => [game.id, normalized[game.id] ?? fallback]),
+  );
 }
 
 export function BettingLimitModal({
@@ -72,26 +40,36 @@ export function BettingLimitModal({
   targetId,
   targetUsername,
   currentLevel,
+  currentLimits,
+  parentLevel,
+  parentLimits,
   onDone,
 }: Props): JSX.Element {
-  const [selected, setSelected] = useState<LimitLevel>(normaliseLevel(currentLevel));
+  const parentResolved = useMemo(
+    () => buildLimits(parentLimits, parentLevel ?? 'range_5000_50000'),
+    [parentLimits, parentLevel],
+  );
+  const [selected, setSelected] = useState<BettingLimitsByGame>(() =>
+    buildLimits(currentLimits, currentLevel),
+  );
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setSelected(normaliseLevel(currentLevel));
+    setSelected(buildLimits(currentLimits, currentLevel));
     setErr(null);
-  }, [open, currentLevel]);
+  }, [open, currentLimits, currentLevel]);
 
   const submit = async (): Promise<void> => {
     setBusy(true);
     setErr(null);
     try {
-      const path = targetType === 'agent'
-        ? `/agents/${targetId}/betting-limit`
-        : `/members/${targetId}/betting-limit`;
-      await adminApi.patch(path, { bettingLimitLevel: selected });
+      const path =
+        targetType === 'agent'
+          ? `/agents/${targetId}/betting-limit`
+          : `/members/${targetId}/betting-limit`;
+      await adminApi.patch(path, { bettingLimits: selected });
       onDone();
       onClose();
     } catch (e) {
@@ -101,78 +79,72 @@ export function BettingLimitModal({
     }
   };
 
-  const currentConfig = LEVELS.find((l) => l.value === normaliseLevel(currentLevel));
-
   return (
     <Modal
       open={open}
       onClose={onClose}
       title="限红设定"
-      subtitle={`${targetType === 'agent' ? 'Agent' : 'Member'} · ${targetUsername}`}
-      width="md"
+      subtitle={`${targetType === 'agent' ? '代理' : '会员'} · ${targetUsername}`}
+      width="xl"
     >
-      <div className="mb-4 border border-ink-200 bg-ink-100/40 p-3 text-[11px]">
-        <div className="flex items-baseline justify-between">
-          <span className="text-ink-500">当前等级</span>
-          <span className="font-mono text-[#186073]">
-            {currentConfig ? `${currentConfig.label} · ${currentConfig.value}` : currentLevel}
-          </span>
-        </div>
-        {currentConfig && (
-          <div className="mt-1 flex items-baseline justify-between">
-            <span className="text-ink-500">单注上限</span>
-            <span className="font-mono text-ink-700">
-              {currentConfig.perBet}
-            </span>
-          </div>
-        )}
+      <div className="mb-4 border border-[#D7B963]/50 bg-[#FFF8DF] p-3 text-[12px] leading-relaxed text-[#6D5520]">
+        每个游戏独立选择限红范围；下级代理或会员只能设定为上级同等级或以下，超过上级的选项会被锁定。
       </div>
 
-      <div className="space-y-2">
-        <div className="label mb-1">选择限红等级</div>
-        {LEVELS.map((lvl) => {
-          const active = selected === lvl.value;
+      <div className="max-h-[62vh] space-y-2 overflow-y-auto pr-1">
+        {ENABLED_GAMES.map((game) => {
+          const parentRank = resolveBettingLimitRange(parentResolved[game.id]).rank;
+          const selectedKey = normalizeBettingLimitRangeKey(selected[game.id]);
           return (
-            <label
-              key={lvl.value}
-              className={`block cursor-pointer border p-3 transition ${
-                active
-                  ? 'border-[#186073] bg-[#E6F2F4]'
-                  : 'border-ink-200 bg-white hover:border-ink-400'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <input
-                  type="radio"
-                  name="betting-limit-level"
-                  value={lvl.value}
-                  checked={active}
-                  onChange={() => setSelected(lvl.value)}
-                  className="mt-0.5"
-                />
-                <div className="flex-1">
-                  <div className="flex items-baseline justify-between">
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-display text-[13px] text-ink-900">{lvl.label}</span>
-                      <span className="font-mono text-[10px] text-ink-500">{lvl.value}</span>
-                    </div>
-                    <span className="font-mono text-[11px] text-[#186073]">
-                      单注 {lvl.perBet}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-[11px] leading-relaxed text-ink-500">
-                    {lvl.description}
+            <div key={game.id} className="border border-ink-200 bg-white p-3">
+              <div className="mb-2 flex items-baseline justify-between gap-3">
+                <div>
+                  <div className="font-display text-[13px] text-ink-900">{game.nameZh}</div>
+                  <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-500">
+                    {game.id}
                   </div>
                 </div>
+                <div className="font-mono text-[11px] text-[#186073]">
+                  {resolveBettingLimitRange(selectedKey).label}
+                </div>
               </div>
-            </label>
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                {BETTING_LIMIT_RANGE_OPTIONS.map((option) => {
+                  const disabled = option.rank > parentRank;
+                  const active = selectedKey === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() =>
+                        setSelected((prev) => ({
+                          ...prev,
+                          [game.id]: option.key,
+                        }))
+                      }
+                      className={`border px-2 py-2 text-left text-[12px] transition ${
+                        active
+                          ? 'border-[#186073] bg-[#E6F2F4] text-[#186073]'
+                          : disabled
+                            ? 'cursor-not-allowed border-ink-200 bg-ink-100 text-ink-400'
+                            : 'border-ink-200 bg-white text-ink-700 hover:border-ink-400'
+                      }`}
+                    >
+                      <span className="mr-2 font-mono">{active ? '✓' : '□'}</span>
+                      <span className="font-mono">{option.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </div>
 
       {err && (
         <div className="mt-4 border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
-          ⚠ {err}
+          {err}
         </div>
       )}
 

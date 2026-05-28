@@ -1,13 +1,21 @@
 import { z } from 'zod';
 
-const decimalString = z
-  .string()
-  .regex(/^-?\d+(\.\d+)?$/, 'invalid decimal');
+const decimalString = z.string().regex(/^-?\d+(\.\d+)?$/, 'invalid decimal');
+const bettingLimitsSchema = z.record(z.string(), z.string()).optional();
 
 export const createAgentSchema = z.object({
   parentId: z.string().min(1),
-  username: z.string().min(3).max(64).regex(/^[a-zA-Z0-9_.-]+$/),
-  password: z.string().min(8).max(128).regex(/[A-Za-z]/).regex(/\d/),
+  username: z
+    .string()
+    .min(3)
+    .max(64)
+    .regex(/^[a-zA-Z0-9_.-]+$/),
+  password: z
+    .string()
+    .min(8)
+    .max(128)
+    .regex(/[A-Za-z]/)
+    .regex(/\d/),
   displayName: z.string().min(1).max(40).optional(),
   level: z.number().int().min(1).max(15),
   marketType: z.enum(['D', 'A']).optional(),
@@ -17,6 +25,7 @@ export const createAgentSchema = z.object({
   baccaratRebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']).optional(),
   baccaratRebatePercentage: decimalString.optional(),
   bettingLimitLevel: z.string().optional(),
+  bettingLimits: bettingLimitsSchema,
   notes: z.string().max(500).optional(),
 });
 
@@ -37,12 +46,22 @@ export const updateAgentStatusSchema = z.object({
 });
 
 export const resetPasswordSchema = z.object({
-  newPassword: z.string().min(8).max(128).regex(/[A-Za-z]/).regex(/\d/),
+  newPassword: z
+    .string()
+    .min(8)
+    .max(128)
+    .regex(/[A-Za-z]/)
+    .regex(/\d/),
 });
 
-export const updateBettingLimitSchema = z.object({
-  bettingLimitLevel: z.enum(['level1', 'level2', 'level3', 'level4', 'level5', 'unlimited']),
-});
+export const updateBettingLimitSchema = z
+  .object({
+    bettingLimitLevel: z.string().optional(),
+    bettingLimits: bettingLimitsSchema,
+  })
+  .refine((value) => value.bettingLimitLevel !== undefined || value.bettingLimits !== undefined, {
+    message: 'betting limit is required',
+  });
 
 export type CreateAgentInput = z.infer<typeof createAgentSchema>;
 export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;

@@ -1,6 +1,6 @@
 import { PrismaClient, Prisma, type ServerSeed } from '@prisma/client';
 import { sha256, generateServerSeed, generateClientSeed } from '@bg/provably-fair';
-import { MIN_BET_AMOUNT } from '@bg/shared';
+import { getBettingLimitForGame, MIN_BET_AMOUNT } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
 import { config } from '../../../config.js';
 
@@ -114,17 +114,28 @@ export async function lockUserAndCheckFunds(
   tx: Prisma.TransactionClient,
   userId: string,
   amount: Prisma.Decimal,
+  gameId?: string,
 ): Promise<{ id: string; balance: Prisma.Decimal; displayName: string | null }> {
   await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
   const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+  const configuredLimit = getBettingLimitForGame(
+    user.bettingLimits,
+    gameId,
+    user.bettingLimitLevel,
+  );
+  const minBet = Math.max(MIN_BET_AMOUNT, configuredLimit.min);
+  const maxBet = Math.min(config.MAX_SINGLE_BET, configuredLimit.max);
   if (amount.lessThanOrEqualTo(0)) {
-    throw new ApiError('BET_OUT_OF_RANGE', `最低下注為 ${formatBetLimit(MIN_BET_AMOUNT)}。`);
+    throw new ApiError('BET_OUT_OF_RANGE', `最低下注為 ${formatBetLimit(minBet)}。`);
   }
-  if (amount.lessThan(MIN_BET_AMOUNT)) {
-    throw new ApiError('BET_OUT_OF_RANGE', `最低下注為 ${formatBetLimit(MIN_BET_AMOUNT)}。`);
+  if (amount.lessThan(minBet)) {
+    throw new ApiError('BET_OUT_OF_RANGE', `最低下注為 ${formatBetLimit(minBet)}。`);
   }
-  if (amount.greaterThan(config.MAX_SINGLE_BET)) {
-    throw new ApiError('BET_OUT_OF_RANGE', `單注上限為 ${formatBetLimit(config.MAX_SINGLE_BET)}。`);
+  if (amount.greaterThan(maxBet)) {
+    throw new ApiError(
+      'BET_OUT_OF_RANGE',
+      `本遊戲限紅為 ${formatBetLimit(minBet)}-${formatBetLimit(maxBet)}。`,
+    );
   }
   if (user.balance.lessThan(amount)) {
     throw new ApiError('INSUFFICIENT_FUNDS', 'Insufficient balance');

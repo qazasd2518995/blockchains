@@ -8,27 +8,33 @@ import { Modal } from './Modal';
 import { useTranslation } from '@/i18n/useTranslation';
 import { requestAdminLiveRefresh } from '@/lib/adminRefreshEvents';
 
-const schema = z.object({
-  agentId: z.string().min(1),
-  username: z
-    .string()
-    .min(3, '账号至少 3 位')
-    .max(40, '账号至多 40 位')
-    .regex(/^[a-zA-Z0-9._-]+$/, '账号仅限字母、数字、. _ -'),
-  password: z.string().min(8, '密码至少 8 位').regex(/[A-Za-z]/, '需包含字母').regex(/\d/, '需包含数字'),
-  confirmPassword: z.string().min(8, '请再次输入密码'),
-  displayName: z.string().optional(),
-  initialBalance: z
-    .string()
-    .regex(/^\d+(\.\d{1,2})?$/, 'must be a positive decimal')
-    .optional()
-    .or(z.literal('')),
-  bettingLimitLevel: z.enum(['level1', 'level2', 'level3', 'level4', 'level5', 'unlimited']),
-  notes: z.string().max(500).optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  path: ['confirmPassword'],
-  message: '两次输入的密码不一致',
-});
+const schema = z
+  .object({
+    agentId: z.string().min(1),
+    username: z
+      .string()
+      .min(3, '账号至少 3 位')
+      .max(40, '账号至多 40 位')
+      .regex(/^[a-zA-Z0-9._-]+$/, '账号仅限字母、数字、. _ -'),
+    password: z
+      .string()
+      .min(8, '密码至少 8 位')
+      .regex(/[A-Za-z]/, '需包含字母')
+      .regex(/\d/, '需包含数字'),
+    confirmPassword: z.string().min(8, '请再次输入密码'),
+    displayName: z.string().optional(),
+    initialBalance: z
+      .string()
+      .regex(/^\d+(\.\d{1,2})?$/, 'must be a positive decimal')
+      .optional()
+      .or(z.literal('')),
+    bettingLimitLevel: z.string().min(1),
+    notes: z.string().max(500).optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ['confirmPassword'],
+    message: '两次输入的密码不一致',
+  });
 
 type FormInput = z.infer<typeof schema>;
 
@@ -41,10 +47,17 @@ interface Props {
     id: string;
     username: string;
     level: number;
+    bettingLimitLevel?: string;
   };
 }
 
-export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId, lockedAgent }: Props): JSX.Element {
+export function CreateMemberModal({
+  open,
+  onClose,
+  onCreated,
+  defaultAgentId,
+  lockedAgent,
+}: Props): JSX.Element {
   const { t } = useTranslation();
   const [agents, setAgents] = useState<AgentPublic[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -54,7 +67,10 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId, lo
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormInput>({ resolver: zodResolver(schema), defaultValues: { agentId: resolvedAgentId, bettingLimitLevel: 'level3' } });
+  } = useForm<FormInput>({
+    resolver: zodResolver(schema),
+    defaultValues: { agentId: resolvedAgentId, bettingLimitLevel: 'range_100_2000' },
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -66,7 +82,7 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId, lo
       confirmPassword: '',
       displayName: '',
       initialBalance: '',
-      bettingLimitLevel: 'level3',
+      bettingLimitLevel: lockedAgent?.bettingLimitLevel ?? 'range_100_2000',
       notes: '',
     });
     if (lockedAgent) {
@@ -125,7 +141,9 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId, lo
             <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-ink-900">
               <span className="font-mono">{lockedAgent.username}</span>
               <span className="tag tag-acid">L{lockedAgent.level}</span>
-              <span className="text-[11px] font-normal text-ink-500">本会员会建立在当前层级下面</span>
+              <span className="text-[11px] font-normal text-ink-500">
+                本会员会建立在当前层级下面
+              </span>
             </div>
           </div>
         ) : (
@@ -157,34 +175,60 @@ export function CreateMemberModal({ open, onClose, onCreated, defaultAgentId, lo
         </Field>
 
         <Field label={t.members.password} code="03" error={errors.password?.message}>
-          <input type="password" {...register('password')} className="term-input" placeholder="至少 8 位，含英数" />
+          <input
+            type="password"
+            {...register('password')}
+            className="term-input"
+            placeholder="至少 8 位，含英数"
+          />
         </Field>
 
         <Field label="确认密码" code="04" error={errors.confirmPassword?.message}>
-          <input type="password" {...register('confirmPassword')} className="term-input" placeholder="请再次输入密码" />
+          <input
+            type="password"
+            {...register('confirmPassword')}
+            className="term-input"
+            placeholder="请再次输入密码"
+          />
         </Field>
 
         <Field label={t.members.displayName} code="05" error={errors.displayName?.message}>
-          <input type="text" {...register('displayName')} className="term-input" placeholder="选填" />
+          <input
+            type="text"
+            {...register('displayName')}
+            className="term-input"
+            placeholder="选填"
+          />
         </Field>
 
         <Field label={t.members.initialBalance} code="06" error={errors.initialBalance?.message}>
-          <input type="text" inputMode="decimal" {...register('initialBalance')} className="term-input" placeholder="0.00 (选填)" />
+          <input
+            type="text"
+            inputMode="decimal"
+            {...register('initialBalance')}
+            className="term-input"
+            placeholder="0.00 (选填)"
+          />
         </Field>
 
         <Field label="限红等级" code="07" error={errors.bettingLimitLevel?.message}>
           <select {...register('bettingLimitLevel')} className="term-input">
-            <option value="level1">新手（单注 100）</option>
-            <option value="level2">一般（单注 500）</option>
-            <option value="level3">标准（单注 2,000）</option>
-            <option value="level4">进阶（单注 10,000）</option>
-            <option value="level5">VIP（单注 50,000）</option>
-            <option value="unlimited">不限</option>
+            <option value="range_1_500">1-500</option>
+            <option value="range_50_1000">50-1000</option>
+            <option value="range_100_2000">100-2000</option>
+            <option value="range_500_5000">500-5000</option>
+            <option value="range_1000_10000">1000-10000</option>
+            <option value="range_5000_50000">5000-50000</option>
           </select>
         </Field>
 
         <Field label={t.members.notes} code="08" error={errors.notes?.message}>
-          <textarea rows={2} {...register('notes')} className="term-input resize-none" placeholder="备注说明（选填）" />
+          <textarea
+            rows={2}
+            {...register('notes')}
+            className="term-input resize-none"
+            placeholder="备注说明（选填）"
+          />
         </Field>
 
         {err && (

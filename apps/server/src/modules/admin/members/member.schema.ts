@@ -9,6 +9,7 @@ const adminDateInputSchema = z.string().refine((value) => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return true;
   return Number.isFinite(new Date(value).getTime());
 }, 'Invalid date');
+const bettingLimitsSchema = z.record(z.string(), z.string()).optional();
 
 export const createMemberSchema = z.object({
   agentId: z.string().min(1),
@@ -17,10 +18,16 @@ export const createMemberSchema = z.object({
     .min(3, 'Username must be at least 3 chars')
     .max(40, 'Username must be at most 40 chars')
     .regex(/^[a-zA-Z0-9._-]+$/, 'Username may only contain letters, digits, and . _ -'),
-  password: z.string().min(8).max(128).regex(/[A-Za-z]/).regex(/\d/),
+  password: z
+    .string()
+    .min(8)
+    .max(128)
+    .regex(/[A-Za-z]/)
+    .regex(/\d/),
   displayName: z.string().min(1).max(40).optional(),
   initialBalance: nonNegativeMoneyString.optional(),
   bettingLimitLevel: z.string().optional(),
+  bettingLimits: bettingLimitsSchema,
   notes: z.string().max(500).optional(),
 });
 
@@ -38,12 +45,22 @@ export const adjustMemberBalanceSchema = z.object({
 });
 
 export const resetMemberPasswordSchema = z.object({
-  newPassword: z.string().min(8).max(128).regex(/[A-Za-z]/).regex(/\d/),
+  newPassword: z
+    .string()
+    .min(8)
+    .max(128)
+    .regex(/[A-Za-z]/)
+    .regex(/\d/),
 });
 
-export const updateMemberBettingLimitSchema = z.object({
-  bettingLimitLevel: z.enum(['level1', 'level2', 'level3', 'level4', 'level5', 'unlimited']),
-});
+export const updateMemberBettingLimitSchema = z
+  .object({
+    bettingLimitLevel: z.string().optional(),
+    bettingLimits: bettingLimitsSchema,
+  })
+  .refine((value) => value.bettingLimitLevel !== undefined || value.bettingLimits !== undefined, {
+    message: 'betting limit is required',
+  });
 
 export const memberListQuerySchema = z.object({
   agentId: z.string().optional(),

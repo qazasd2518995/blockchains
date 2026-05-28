@@ -50,6 +50,7 @@ export function AgentHierarchyPage(): JSX.Element {
     id: string;
     username: string;
     currentLevel: string;
+    currentLimits?: Record<string, string>;
   } | null>(null);
   const [agentTransferFor, setAgentTransferFor] = useState<{
     id: string;
@@ -143,6 +144,7 @@ export function AgentHierarchyPage(): JSX.Element {
       balance: row.balance,
       marketType: row.marketType,
       bettingLimitLevel: row.bettingLimitLevel,
+      bettingLimits: row.bettingLimits,
       status: row.status,
       frozenAt: row.frozenAt,
       disabledAt: row.disabledAt,
@@ -166,6 +168,7 @@ export function AgentHierarchyPage(): JSX.Element {
         baccaratRebatePercentage: currentLayerAgent.baccaratRebatePercentage,
         maxBaccaratRebatePercentage: currentLayerAgent.maxBaccaratRebatePercentage,
         bettingLimitLevel: currentLayerAgent.bettingLimitLevel,
+        bettingLimits: currentLayerAgent.bettingLimits,
       }
     : undefined;
   const canCreateSubAgent = currentLayerAgent ? currentLayerAgent.level < 15 : false;
@@ -381,6 +384,7 @@ export function AgentHierarchyPage(): JSX.Element {
                           id: row.id,
                           username: row.username,
                           currentLevel: row.bettingLimitLevel,
+                          currentLimits: row.bettingLimits,
                         })
                       }
                       className="btn-chip"
@@ -437,6 +441,7 @@ export function AgentHierarchyPage(): JSX.Element {
                           id: row.id,
                           username: row.username,
                           currentLevel: row.bettingLimitLevel,
+                          currentLimits: row.bettingLimits,
                         });
                       }}
                       className="btn-chip"
@@ -521,6 +526,15 @@ export function AgentHierarchyPage(): JSX.Element {
           targetId={bettingLimitFor.id}
           targetUsername={bettingLimitFor.username}
           currentLevel={bettingLimitFor.currentLevel}
+          currentLimits={bettingLimitFor.currentLimits}
+          parentLevel={
+            data?.parent?.role === 'SUPER_ADMIN'
+              ? 'range_5000_50000'
+              : data?.parent?.bettingLimitLevel
+          }
+          parentLimits={
+            data?.parent?.role === 'SUPER_ADMIN' ? undefined : data?.parent?.bettingLimits
+          }
           onDone={() => setReloadKey((k) => k + 1)}
         />
       )}

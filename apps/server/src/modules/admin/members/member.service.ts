@@ -1,9 +1,19 @@
 import bcrypt from 'bcrypt';
 import { PrismaClient, Prisma } from '@prisma/client';
-import type { BetDetailResponse, MemberPublic, MemberBetEntry, MemberBetListResponse } from '@bg/shared';
+import type {
+  BetDetailResponse,
+  MemberPublic,
+  MemberBetEntry,
+  MemberBetListResponse,
+} from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
 import { config } from '../../../config.js';
-import { canManageAgent, canManageMember, listAgentDescendants, resolveAgentScopeRootId } from '../../../utils/hierarchy.js';
+import {
+  canManageAgent,
+  canManageMember,
+  listAgentDescendants,
+  resolveAgentScopeRootId,
+} from '../../../utils/hierarchy.js';
 import { runSerializable } from '../../games/_common/BaseGameService.js';
 import { createPlayerSeeds } from '../../auth/player-seeds.js';
 import { writeAudit } from '../audit/audit.service.js';
@@ -21,6 +31,11 @@ import type {
   MemberBetQuery,
 } from './member.schema.js';
 import type { FastifyRequest } from 'fastify';
+import {
+  assertBettingLimitsWithinParent,
+  normalizeStoredBettingLimits,
+  resolveRequestedBettingLimits,
+} from '../bettingLimits.js';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -72,6 +87,21 @@ export class MemberService {
         balanceForMember = new Prisma.Decimal(config.SIGNUP_BONUS);
       }
 
+      const bettingLimits = resolveRequestedBettingLimits(
+        input.bettingLimits,
+        input.bettingLimitLevel,
+        targetAgent.bettingLimits,
+        targetAgent.bettingLimitLevel,
+      );
+      if (targetAgent.role !== 'SUPER_ADMIN') {
+        assertBettingLimitsWithinParent(
+          bettingLimits,
+          input.bettingLimitLevel,
+          targetAgent.bettingLimits,
+          targetAgent.bettingLimitLevel,
+        );
+      }
+
       const created = await tx.user.create({
         data: {
           username: input.username,
@@ -82,6 +112,7 @@ export class MemberService {
           agentId: targetAgent.id,
           marketType: targetAgent.marketType,
           bettingLimitLevel: input.bettingLimitLevel ?? targetAgent.bettingLimitLevel,
+          bettingLimits,
           notes: input.notes ?? null,
         },
       });
@@ -165,16 +196,19 @@ export class MemberService {
     return toMemberPublic(member, targetAgent.username);
   }
 
-  async list(operator: AdminCurrent, query: MemberListQuery): Promise<{ items: MemberPublic[]; nextCursor: string | null }> {
+  async list(
+    operator: AdminCurrent,
+    query: MemberListQuery,
+  ): Promise<{ items: MemberPublic[]; nextCursor: string | null }> {
     const limit = query.limit ?? 50;
-    const scopeRootId = operator.role === 'SUPER_ADMIN'
-      ? null
-      : await resolveAgentScopeRootId(this.prisma, operator);
-    const scopedAgentIds = operator.role === 'SUPER_ADMIN'
-      ? null
-      : scopeRootId
-        ? await listAgentDescendants(this.prisma, scopeRootId)
-        : [];
+    const scopeRootId =
+      operator.role === 'SUPER_ADMIN' ? null : await resolveAgentScopeRootId(this.prisma, operator);
+    const scopedAgentIds =
+      operator.role === 'SUPER_ADMIN'
+        ? null
+        : scopeRootId
+          ? await listAgentDescendants(this.prisma, scopeRootId)
+          : [];
 
     const where: Prisma.UserWhereInput = {};
     if (query.agentId) {
@@ -243,7 +277,11 @@ export class MemberService {
       include: { agent: { select: { username: true } } },
     });
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: 'member.notes.update',
       targetType: 'member',
       targetId: id,
@@ -283,7 +321,11 @@ export class MemberService {
       });
     }
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: `member.status.${input.status.toLowerCase()}`,
       targetType: 'member',
       targetId: id,
@@ -347,7 +389,8 @@ export class MemberService {
       const current = await tx.user.findUnique({ where: { id }, select: { balance: true } });
       if (!current) throw new ApiError('MEMBER_NOT_FOUND', 'Member not found');
       const next = current.balance.add(delta);
-      if (next.isNegative()) throw new ApiError('INSUFFICIENT_FUNDS', 'Adjustment would go negative');
+      if (next.isNegative())
+        throw new ApiError('INSUFFICIENT_FUNDS', 'Adjustment would go negative');
       const updated = await tx.user.update({
         where: { id },
         data: { balance: next },
@@ -366,7 +409,11 @@ export class MemberService {
     });
 
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: 'member.balance.adjust',
       targetType: 'member',
       targetId: id,
@@ -392,7 +439,11 @@ export class MemberService {
       data: { revokedAt: new Date() },
     });
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: 'member.password.reset',
       targetType: 'member',
       targetId: id,
@@ -408,20 +459,58 @@ export class MemberService {
   ): Promise<MemberPublic> {
     const ok = await canManageMember(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot modify betting limit');
-    const existing = await this.prisma.user.findUnique({ where: { id } });
+    const existing = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        agent: {
+          select: { username: true, role: true, bettingLimitLevel: true, bettingLimits: true },
+        },
+      },
+    });
     if (!existing) throw new ApiError('MEMBER_NOT_FOUND', 'Member not found');
+    if (existing.agent && existing.agent.role !== 'SUPER_ADMIN') {
+      const nextLimits = resolveRequestedBettingLimits(
+        input.bettingLimits,
+        input.bettingLimitLevel,
+        existing.bettingLimits,
+        existing.bettingLimitLevel,
+      );
+      assertBettingLimitsWithinParent(
+        nextLimits,
+        input.bettingLimitLevel ?? existing.bettingLimitLevel,
+        existing.agent.bettingLimits,
+        existing.agent.bettingLimitLevel,
+      );
+    }
+    const nextLevel = input.bettingLimitLevel ?? existing.bettingLimitLevel;
+    const nextLimits = resolveRequestedBettingLimits(
+      input.bettingLimits,
+      input.bettingLimitLevel,
+      existing.bettingLimits,
+      existing.bettingLimitLevel,
+    );
     const updated = await this.prisma.user.update({
       where: { id },
-      data: { bettingLimitLevel: input.bettingLimitLevel },
+      data: { bettingLimitLevel: nextLevel, bettingLimits: nextLimits },
       include: { agent: { select: { username: true } } },
     });
     await writeAudit(this.prisma, {
-      actor: { id: operator.id, type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent', username: operator.username },
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
       action: 'member.betting_limit.update',
       targetType: 'member',
       targetId: id,
-      oldValues: { bettingLimitLevel: existing.bettingLimitLevel },
-      newValues: { bettingLimitLevel: updated.bettingLimitLevel },
+      oldValues: {
+        bettingLimitLevel: existing.bettingLimitLevel,
+        bettingLimits: existing.bettingLimits,
+      },
+      newValues: {
+        bettingLimitLevel: updated.bettingLimitLevel,
+        bettingLimits: updated.bettingLimits,
+      },
       req,
     });
     return toMemberPublic(updated, updated.agent?.username ?? null);
@@ -449,12 +538,14 @@ export class MemberService {
     if (query.settlementStatus === 'unsettled') betWhere.status = 'PENDING';
 
     const crashWhere: Prisma.CrashBetWhereInput = { userId: id };
-    if (range.start) crashWhere.createdAt = { ...(crashWhere.createdAt as object), gte: range.start };
+    if (range.start)
+      crashWhere.createdAt = { ...(crashWhere.createdAt as object), gte: range.start };
     if (range.end) crashWhere.createdAt = { ...(crashWhere.createdAt as object), lte: range.end };
     const crashRoundWhere: Prisma.CrashRoundWhereInput = {};
     if (query.gameId) crashRoundWhere.gameId = query.gameId;
     if (query.settlementStatus === 'settled') crashRoundWhere.status = 'CRASHED';
-    if (query.settlementStatus === 'unsettled') crashRoundWhere.status = { in: ['BETTING', 'RUNNING'] };
+    if (query.settlementStatus === 'unsettled')
+      crashRoundWhere.status = { in: ['BETTING', 'RUNNING'] };
     if (Object.keys(crashRoundWhere).length > 0) crashWhere.round = crashRoundWhere;
 
     const [totalBets, totalCrashBets, rows, crashRows] = await Promise.all([
@@ -545,11 +636,7 @@ export class MemberService {
         clientSeed: bet.clientSeedUsed,
         serverSeedHash: bet.serverSeed.seedHash,
         roundId:
-          bet.minesRoundId ??
-          bet.hiloRoundId ??
-          bet.towerRoundId ??
-          bet.blackjackRoundId ??
-          null,
+          bet.minesRoundId ?? bet.hiloRoundId ?? bet.towerRoundId ?? bet.blackjackRoundId ?? null,
         roundNumber: null,
         resultData: sanitizePublicResult(bet.resultData),
       };
@@ -687,6 +774,7 @@ function toMemberPublic(
     balance: Prisma.Decimal;
     marketType: 'D' | 'A';
     bettingLimitLevel: string;
+    bettingLimits?: Prisma.JsonValue;
     frozenAt: Date | null;
     disabledAt: Date | null;
     notes: string | null;
@@ -703,6 +791,7 @@ function toMemberPublic(
     balance: user.balance.toFixed(2),
     marketType: user.marketType,
     bettingLimitLevel: user.bettingLimitLevel,
+    bettingLimits: normalizeStoredBettingLimits(user.bettingLimits, user.bettingLimitLevel),
     status: user.disabledAt ? 'DISABLED' : user.frozenAt ? 'FROZEN' : 'ACTIVE',
     frozenAt: user.frozenAt?.toISOString() ?? null,
     disabledAt: user.disabledAt?.toISOString() ?? null,

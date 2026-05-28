@@ -5,7 +5,12 @@ import {
   minesNextMultiplier,
   MINES_GRID_SIZE,
 } from '@bg/provably-fair';
-import { GameId, type MinesRoundState, type MinesRevealResult, type MinesCashoutResult } from '@bg/shared';
+import {
+  GameId,
+  type MinesRoundState,
+  type MinesRevealResult,
+  type MinesCashoutResult,
+} from '@bg/shared';
 import {
   SeedHelper,
   lockUserAndCheckFunds,
@@ -39,13 +44,9 @@ export class MinesService {
         throw new ApiError('INVALID_ACTION', 'You have an active mines round already');
       }
 
-      await lockUserAndCheckFunds(tx, userId, amount);
+      await lockUserAndCheckFunds(tx, userId, amount, GameId.MINES);
 
-      const seed = await new SeedHelper(tx).getActiveBundle(
-        userId,
-        'mines',
-        input.clientSeed,
-      );
+      const seed = await new SeedHelper(tx).getActiveBundle(userId, 'mines', input.clientSeed);
       const positions = minesPositions(
         seed.serverSeed,
         seed.clientSeed,
@@ -108,7 +109,9 @@ export class MinesService {
       const safeMultiplier = new Prisma.Decimal(
         minesMultiplier(round.mineCount, newRevealed.length).toFixed(4),
       );
-      const safePayout = round.betAmount.mul(safeMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+      const safePayout = round.betAmount
+        .mul(safeMultiplier)
+        .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
       const controlled = await applyControls(tx, userId, GameId.MINES, {
         won: !rawHitMine && safePayout.greaterThan(round.betAmount),
         amount: round.betAmount,
@@ -142,9 +145,10 @@ export class MinesService {
         finalMinePositions = moveMineToCell(rawMinePositions, input.cellIndex);
         hitMine = true;
       }
-      const effectiveControl = hitMine !== rawHitMine
-        ? shapedControl
-        : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
+      const effectiveControl =
+        hitMine !== rawHitMine
+          ? shapedControl
+          : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
 
       if (hitMine) {
         const originalResult = {
@@ -328,7 +332,12 @@ export class MinesService {
         userId,
         GameId.MINES,
         { won: payout.greaterThan(round.betAmount), amount: round.betAmount, multiplier, payout },
-        { won: finalPayout.greaterThan(round.betAmount), amount: round.betAmount, multiplier: finalMultiplier, payout: finalPayout },
+        {
+          won: finalPayout.greaterThan(round.betAmount),
+          amount: round.betAmount,
+          multiplier: finalMultiplier,
+          payout: finalPayout,
+        },
         controlOutcome,
         bet.id,
         originalResult,
@@ -371,9 +380,7 @@ export class MinesService {
     _betId?: string,
   ): MinesRoundState {
     const gems = round.revealed.length;
-    const nextMult = round.status === 'ACTIVE'
-      ? minesNextMultiplier(round.mineCount, gems)
-      : null;
+    const nextMult = round.status === 'ACTIVE' ? minesNextMultiplier(round.mineCount, gems) : null;
     const potentialPayout = round.betAmount
       .mul(round.currentMultiplier)
       .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
@@ -396,7 +403,11 @@ export class MinesService {
   }
 }
 
-function moveMineAway(minePositions: number[], cellIndex: number, revealed: number[]): number[] | null {
+function moveMineAway(
+  minePositions: number[],
+  cellIndex: number,
+  revealed: number[],
+): number[] | null {
   const blocked = new Set([...minePositions, ...revealed]);
   const replacement = pickRandomItem(
     Array.from({ length: MINES_GRID_SIZE }, (_, index) => index).filter(

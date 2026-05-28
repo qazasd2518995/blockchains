@@ -105,7 +105,7 @@ export class HotlineService {
     const stakeAmount = buyFeature ? baseAmount.mul(100) : baseAmount;
 
     return runLockedTransaction(this.prisma, async (tx) => {
-      await lockUserAndCheckFunds(tx, userId, stakeAmount);
+      await lockUserAndCheckFunds(tx, userId, stakeAmount, gameId);
       const seed = await new SeedHelper(tx).getActiveBundle(userId, gameId, input.clientSeed);
       const generatedRound = buildHotlineRound(
         seed.serverSeed,

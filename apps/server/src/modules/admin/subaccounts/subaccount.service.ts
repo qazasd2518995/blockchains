@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 import type { AgentPublic } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
 import { canManageAgent } from '../../../utils/hierarchy.js';
@@ -34,7 +34,20 @@ export class SubAccountService {
   private async resolveParent(
     operator: AdminCurrent,
     requestedParentId: string | undefined,
-  ): Promise<{ id: string; username: string; level: number; rebatePercentage: import('@prisma/client').Prisma.Decimal; maxRebatePercentage: import('@prisma/client').Prisma.Decimal; baccaratRebatePercentage: import('@prisma/client').Prisma.Decimal; maxBaccaratRebatePercentage: import('@prisma/client').Prisma.Decimal; marketType: 'D' | 'A'; bettingLimitLevel: string; role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT'; status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED' }> {
+  ): Promise<{
+    id: string;
+    username: string;
+    level: number;
+    rebatePercentage: Prisma.Decimal;
+    maxRebatePercentage: Prisma.Decimal;
+    baccaratRebatePercentage: Prisma.Decimal;
+    maxBaccaratRebatePercentage: Prisma.Decimal;
+    marketType: 'D' | 'A';
+    bettingLimitLevel: string;
+    bettingLimits: Prisma.JsonValue;
+    role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
+    status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
+  }> {
     if (operator.role === 'SUB_ACCOUNT') {
       throw new ApiError('FORBIDDEN', 'Sub-account cannot manage sub-accounts');
     }
@@ -67,6 +80,7 @@ export class SubAccountService {
       maxBaccaratRebatePercentage: parent.maxBaccaratRebatePercentage,
       marketType: parent.marketType,
       bettingLimitLevel: parent.bettingLimitLevel,
+      bettingLimits: parent.bettingLimits,
       role: parent.role,
       status: parent.status,
     };
@@ -162,6 +176,7 @@ export class SubAccountService {
         baccaratRebatePercentage: '0',
         maxBaccaratRebatePercentage: parent.maxBaccaratRebatePercentage,
         bettingLimitLevel: parent.bettingLimitLevel,
+        bettingLimits: parent.bettingLimits ?? {},
         notes: input.notes ?? null,
         role: 'SUB_ACCOUNT',
         status: 'ACTIVE',
@@ -275,11 +290,7 @@ export class SubAccountService {
   /**
    * 軟刪除子帳號 — username 加前綴、status=DELETED、frozenAt 借由 refresh token 撤銷。
    */
-  async softDelete(
-    operator: AdminCurrent,
-    id: string,
-    req?: FastifyRequest,
-  ): Promise<void> {
+  async softDelete(operator: AdminCurrent, id: string, req?: FastifyRequest): Promise<void> {
     const existing = await this.prisma.agent.findUnique({ where: { id } });
     if (!existing) throw new ApiError('AGENT_NOT_FOUND', 'Sub-account not found');
     if (existing.role !== 'SUB_ACCOUNT') {

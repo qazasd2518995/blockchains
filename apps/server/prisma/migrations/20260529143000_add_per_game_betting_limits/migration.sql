@@ -1,0 +1,2 @@
+ALTER TABLE "User" ADD COLUMN "bettingLimits" JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE "Agent" ADD COLUMN "bettingLimits" JSONB NOT NULL DEFAULT '{}';

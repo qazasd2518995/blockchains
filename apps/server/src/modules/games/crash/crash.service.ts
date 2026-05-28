@@ -82,7 +82,7 @@ export class CrashSoloService {
         }
       }
 
-      await lockUserAndCheckFunds(tx, userId, amount);
+      await lockUserAndCheckFunds(tx, userId, amount, input.gameId);
       const seed = await new SeedHelper(tx).getActiveBundle(
         userId,
         `crash:${input.gameId}`,

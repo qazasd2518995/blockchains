@@ -31,7 +31,7 @@ export class KenoService {
     const unique = Array.from(new Set(input.selected));
 
     return runLockedTransaction(this.prisma, async (tx) => {
-      await lockUserAndCheckFunds(tx, userId, amount);
+      await lockUserAndCheckFunds(tx, userId, amount, GameId.KENO);
       const seed = await new SeedHelper(tx).getActiveBundle(userId, 'keno', input.clientSeed);
 
       const drawn = kenoDraw(seed.serverSeed, seed.clientSeed, seed.nonce);
@@ -147,9 +147,7 @@ function chooseKenoHitCount(
 
   if (!wantWin) {
     const losingCandidates = candidates.filter((x) => x.multiplier <= 1);
-    const picked = pickWeightedRandom(losingCandidates, (x) =>
-      controlledLossWeight(x.multiplier),
-    );
+    const picked = pickWeightedRandom(losingCandidates, (x) => controlledLossWeight(x.multiplier));
     return picked?.hits ?? 0;
   }
 
