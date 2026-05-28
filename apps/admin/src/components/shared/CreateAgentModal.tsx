@@ -1,11 +1,20 @@
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useEffect, useState } from 'react';
-import type { AgentPublic } from '@bg/shared';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  normalizeBettingLimitRangeKey,
+  type AgentPublic,
+  type BettingLimitsByGame,
+} from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { Modal } from './Modal';
 import { type RebateMode, getEffectiveParentRebatePct, rebateFractionForMode } from '@/lib/rebate';
+import {
+  BettingLimitsInlineEditor,
+  buildBettingLimitsSelection,
+  summarizeBettingLimits,
+} from './BettingLimitModal';
 
 const schema = z.object({
   parentId: z.string().min(1, '请选择上级代理'),
@@ -41,6 +50,8 @@ type LockedParentAgent = Pick<
   | 'baccaratRebatePercentage'
   | 'maxBaccaratRebatePercentage'
   | 'marketType'
+  | 'role'
+  | 'bettingLimits'
 > & {
   bettingLimitLevel?: string | null;
 };
@@ -62,6 +73,10 @@ export function CreateAgentModal({
 }: Props): JSX.Element {
   const [parents, setParents] = useState<AgentPublic[]>([]);
   const [selectedParent, setSelectedParent] = useState<LockedParentAgent | null>(null);
+  const [customLimitOpen, setCustomLimitOpen] = useState(false);
+  const [bettingLimits, setBettingLimits] = useState<BettingLimitsByGame>(() =>
+    buildBettingLimitsSelection(null, 'range_100_2000'),
+  );
   const [err, setErr] = useState<string | null>(null);
   const resolvedParentId = lockedParent?.id ?? defaultParentId ?? '';
 
@@ -84,10 +99,18 @@ export function CreateAgentModal({
 
   const watchedParentId = watch('parentId');
   const watchedRebateMode = watch('rebateMode');
+  const watchedBettingLimitLevel = watch('bettingLimitLevel');
 
   useEffect(() => {
     if (!open) return;
     setErr(null);
+    setCustomLimitOpen(false);
+    setBettingLimits(
+      buildBettingLimitsSelection(
+        lockedParent?.bettingLimits,
+        normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? 'range_100_2000',
+      ),
+    );
     reset({
       parentId: resolvedParentId,
       username: '',
@@ -108,6 +131,7 @@ export function CreateAgentModal({
           setValue('parentId', detail.data.id);
           const inheritedLimit = normalizeBettingLimit(detail.data.bettingLimitLevel);
           if (inheritedLimit) setValue('bettingLimitLevel', inheritedLimit);
+          setBettingLimits(buildBettingLimitsSelection(detail.data.bettingLimits, inheritedLimit));
         } catch {
           setSelectedParent(lockedParent);
         }
@@ -142,6 +166,23 @@ export function CreateAgentModal({
   const electronicParentMaxPct = selectedParent
     ? getEffectiveParentRebatePct(selectedParent, 'electronic')
     : null;
+  const parentLimitLevel =
+    selectedParent?.role === 'SUPER_ADMIN'
+      ? 'range_5000_50000'
+      : (normalizeBettingLimit(selectedParent?.bettingLimitLevel) ?? 'range_5000_50000');
+  const parentLimits = useMemo(
+    () =>
+      buildBettingLimitsSelection(
+        selectedParent?.role === 'SUPER_ADMIN' ? null : selectedParent?.bettingLimits,
+        parentLimitLevel,
+      ),
+    [parentLimitLevel, selectedParent?.bettingLimits, selectedParent?.role],
+  );
+
+  useEffect(() => {
+    if (!open || customLimitOpen) return;
+    setBettingLimits(buildBettingLimitsSelection(null, watchedBettingLimitLevel));
+  }, [customLimitOpen, open, watchedBettingLimitLevel]);
 
   useEffect(() => {
     if (!open || electronicParentMaxPct === null) return;
@@ -191,6 +232,7 @@ export function CreateAgentModal({
         baccaratRebateMode: 'PERCENTAGE',
         baccaratRebatePercentage: '0.0000',
         bettingLimitLevel: data.bettingLimitLevel,
+        bettingLimits,
         notes: data.notes || undefined,
       });
       onCreated(res.data);
@@ -285,16 +327,43 @@ export function CreateAgentModal({
           parentMaxPct={electronicParentMaxPct}
         />
 
-        <Field label="限红等级" code="07" error={errors.bettingLimitLevel?.message}>
-          <select {...register('bettingLimitLevel')} className="term-input">
-            <option value="range_1_500">1-500</option>
-            <option value="range_50_1000">50-1000</option>
-            <option value="range_100_2000">100-2000</option>
-            <option value="range_500_5000">500-5000</option>
-            <option value="range_1000_10000">1000-10000</option>
-            <option value="range_5000_50000">5000-50000</option>
-          </select>
-        </Field>
+        <div className="rounded-md border border-ink-200 bg-ink-100/30 p-4">
+          <Field label="限红预设" code="07" error={errors.bettingLimitLevel?.message}>
+            <select {...register('bettingLimitLevel')} className="term-input">
+              <option value="range_1_500">1-500</option>
+              <option value="range_50_1000">50-1000</option>
+              <option value="range_100_2000">100-2000</option>
+              <option value="range_500_5000">500-5000</option>
+              <option value="range_1000_10000">1000-10000</option>
+              <option value="range_5000_50000">5000-50000</option>
+            </select>
+          </Field>
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-ink-200 bg-white px-3 py-2">
+            <div>
+              <div className="text-[11px] font-semibold tracking-[0.16em] text-ink-700">
+                每游戏限红
+              </div>
+              <div className="mt-1 text-[11px] text-ink-500">
+                目前 {summarizeBettingLimits(bettingLimits)}，可展开逐款调整。
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCustomLimitOpen((value) => !value)}
+              className="btn-chip shrink-0"
+            >
+              {customLimitOpen ? '收起' : '逐款设定'}
+            </button>
+          </div>
+          {customLimitOpen && (
+            <BettingLimitsInlineEditor
+              value={bettingLimits}
+              parentLimits={parentLimits}
+              onChange={setBettingLimits}
+              className="mt-3 max-h-[360px] overflow-y-auto pr-1"
+            />
+          )}
+        </div>
 
         <Field label="备注" code="08" error={errors.notes?.message}>
           <textarea

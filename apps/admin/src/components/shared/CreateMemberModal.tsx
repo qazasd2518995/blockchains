@@ -1,12 +1,22 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useEffect, useState } from 'react';
-import type { AgentPublic, MemberPublic } from '@bg/shared';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  normalizeBettingLimitRangeKey,
+  type AgentPublic,
+  type BettingLimitsByGame,
+  type MemberPublic,
+} from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { Modal } from './Modal';
 import { useTranslation } from '@/i18n/useTranslation';
 import { requestAdminLiveRefresh } from '@/lib/adminRefreshEvents';
+import {
+  BettingLimitsInlineEditor,
+  buildBettingLimitsSelection,
+  summarizeBettingLimits,
+} from './BettingLimitModal';
 
 const schema = z
   .object({
@@ -47,7 +57,9 @@ interface Props {
     id: string;
     username: string;
     level: number;
+    role?: AgentPublic['role'];
     bettingLimitLevel?: string;
+    bettingLimits?: Record<string, string>;
   };
 }
 
@@ -60,12 +72,17 @@ export function CreateMemberModal({
 }: Props): JSX.Element {
   const { t } = useTranslation();
   const [agents, setAgents] = useState<AgentPublic[]>([]);
+  const [customLimitOpen, setCustomLimitOpen] = useState(false);
+  const [bettingLimits, setBettingLimits] = useState<BettingLimitsByGame>(() =>
+    buildBettingLimitsSelection(null, 'range_100_2000'),
+  );
   const [err, setErr] = useState<string | null>(null);
   const resolvedAgentId = lockedAgent?.id ?? defaultAgentId ?? '';
   const {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormInput>({
     resolver: zodResolver(schema),
@@ -75,6 +92,11 @@ export function CreateMemberModal({
   useEffect(() => {
     if (!open) return;
     setErr(null);
+    setCustomLimitOpen(false);
+    const inheritedLevel = normalizeBettingLimitRangeKey(
+      lockedAgent?.bettingLimitLevel ?? 'range_100_2000',
+    );
+    setBettingLimits(buildBettingLimitsSelection(lockedAgent?.bettingLimits, inheritedLevel));
     reset({
       agentId: resolvedAgentId,
       username: '',
@@ -82,7 +104,7 @@ export function CreateMemberModal({
       confirmPassword: '',
       displayName: '',
       initialBalance: '',
-      bettingLimitLevel: lockedAgent?.bettingLimitLevel ?? 'range_100_2000',
+      bettingLimitLevel: inheritedLevel,
       notes: '',
     });
     if (lockedAgent) {
@@ -109,6 +131,27 @@ export function CreateMemberModal({
     })();
   }, [open, resolvedAgentId, lockedAgent, reset]);
 
+  const watchedAgentId = watch('agentId');
+  const watchedBettingLimitLevel = watch('bettingLimitLevel');
+  const selectedAgent = lockedAgent ?? agents.find((agent) => agent.id === watchedAgentId) ?? null;
+  const parentLimitLevel =
+    selectedAgent?.role === 'SUPER_ADMIN'
+      ? 'range_5000_50000'
+      : normalizeBettingLimitRangeKey(selectedAgent?.bettingLimitLevel ?? 'range_5000_50000');
+  const parentLimits = useMemo(
+    () =>
+      buildBettingLimitsSelection(
+        selectedAgent?.role === 'SUPER_ADMIN' ? null : selectedAgent?.bettingLimits,
+        parentLimitLevel,
+      ),
+    [parentLimitLevel, selectedAgent?.bettingLimits, selectedAgent?.role],
+  );
+
+  useEffect(() => {
+    if (!open || customLimitOpen) return;
+    setBettingLimits(buildBettingLimitsSelection(null, watchedBettingLimitLevel));
+  }, [customLimitOpen, open, watchedBettingLimitLevel]);
+
   const onSubmit = async (data: FormInput) => {
     setErr(null);
     try {
@@ -119,6 +162,7 @@ export function CreateMemberModal({
         displayName: data.displayName || undefined,
         initialBalance: data.initialBalance || undefined,
         bettingLimitLevel: data.bettingLimitLevel,
+        bettingLimits,
         notes: data.notes || undefined,
       });
       requestAdminLiveRefresh();
@@ -211,16 +255,43 @@ export function CreateMemberModal({
           />
         </Field>
 
-        <Field label="限红等级" code="07" error={errors.bettingLimitLevel?.message}>
-          <select {...register('bettingLimitLevel')} className="term-input">
-            <option value="range_1_500">1-500</option>
-            <option value="range_50_1000">50-1000</option>
-            <option value="range_100_2000">100-2000</option>
-            <option value="range_500_5000">500-5000</option>
-            <option value="range_1000_10000">1000-10000</option>
-            <option value="range_5000_50000">5000-50000</option>
-          </select>
-        </Field>
+        <div className="rounded-md border border-ink-200 bg-ink-100/30 p-4">
+          <Field label="限红预设" code="07" error={errors.bettingLimitLevel?.message}>
+            <select {...register('bettingLimitLevel')} className="term-input">
+              <option value="range_1_500">1-500</option>
+              <option value="range_50_1000">50-1000</option>
+              <option value="range_100_2000">100-2000</option>
+              <option value="range_500_5000">500-5000</option>
+              <option value="range_1000_10000">1000-10000</option>
+              <option value="range_5000_50000">5000-50000</option>
+            </select>
+          </Field>
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-ink-200 bg-white px-3 py-2">
+            <div>
+              <div className="text-[11px] font-semibold tracking-[0.16em] text-ink-700">
+                每游戏限红
+              </div>
+              <div className="mt-1 text-[11px] text-ink-500">
+                目前 {summarizeBettingLimits(bettingLimits)}，可展开逐款调整。
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCustomLimitOpen((value) => !value)}
+              className="btn-chip shrink-0"
+            >
+              {customLimitOpen ? '收起' : '逐款设定'}
+            </button>
+          </div>
+          {customLimitOpen && (
+            <BettingLimitsInlineEditor
+              value={bettingLimits}
+              parentLimits={parentLimits}
+              onChange={setBettingLimits}
+              className="mt-3 max-h-[360px] overflow-y-auto pr-1"
+            />
+          )}
+        </div>
 
         <Field label={t.members.notes} code="08" error={errors.notes?.message}>
           <textarea

@@ -167,6 +167,7 @@ export function AgentHierarchyPage(): JSX.Element {
         baccaratRebateMode: currentLayerAgent.baccaratRebateMode,
         baccaratRebatePercentage: currentLayerAgent.baccaratRebatePercentage,
         maxBaccaratRebatePercentage: currentLayerAgent.maxBaccaratRebatePercentage,
+        role: currentLayerAgent.role,
         bettingLimitLevel: currentLayerAgent.bettingLimitLevel,
         bettingLimits: currentLayerAgent.bettingLimits,
       }
@@ -490,7 +491,14 @@ export function AgentHierarchyPage(): JSX.Element {
         defaultAgentId={createTarget?.id ?? currentParent}
         lockedAgent={
           createTarget
-            ? { id: createTarget.id, username: createTarget.username, level: createTarget.level }
+            ? {
+                id: createTarget.id,
+                username: createTarget.username,
+                level: createTarget.level,
+                role: createTarget.role,
+                bettingLimitLevel: createTarget.bettingLimitLevel,
+                bettingLimits: createTarget.bettingLimits,
+              }
             : undefined
         }
       />
