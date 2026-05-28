@@ -21,7 +21,11 @@ import {
   runSerializable,
   serializableTxOpts,
 } from '../_common/BaseGameService.js';
-import { applyControls, finalizeControls } from '../_common/controls.js';
+import {
+  applyControls,
+  finalizeControls,
+  multiplierMatchesControlBounds,
+} from '../_common/controls.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { TowerStartInput, TowerPickInput, TowerCashoutInput } from './tower.schema.js';
@@ -105,9 +109,25 @@ export class TowerService {
         multiplier: rawSafe ? nextMult : new Prisma.Decimal(0),
         payout: predictedPayout,
       });
+      const controlledWinFitsTowerPayout =
+        !controlled.controlled ||
+        !controlled.won ||
+        multiplierMatchesControlBounds(nextMult, round.betAmount, controlled);
+      const shapedControl =
+        controlled.controlled && controlled.won && !controlledWinFitsTowerPayout
+          ? {
+              ...controlled,
+              won: false,
+              multiplier: new Prisma.Decimal(0),
+              payout: new Prisma.Decimal(0),
+              flipReason: controlled.flipReason?.startsWith('burst_')
+                ? 'burst_risk_guard'
+                : controlled.flipReason,
+            }
+          : controlled;
       const canForceLoss = round.currentLevel >= TOWER_FORCED_LOSS_GRACE_LEVELS;
-      if (controlled.controlled) {
-        layout = controlled.won
+      if (shapedControl.controlled) {
+        layout = shapedControl.won
           ? forceTowerSafe(rawLayout, round.currentLevel, input.col, cfg.cols)
           : canForceLoss
             ? forceTowerTrap(rawLayout, round.currentLevel, input.col, cfg.cols)
@@ -116,8 +136,8 @@ export class TowerService {
       const isSafe = (layout[round.currentLevel] ?? []).includes(input.col);
       const effectiveControl =
         isSafe !== rawSafe
-          ? controlled
-          : { ...controlled, controlled: false, flipReason: undefined, controlId: undefined };
+          ? shapedControl
+          : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
 
       if (!isSafe) {
         const originalResult = {
