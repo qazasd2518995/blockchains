@@ -12,9 +12,9 @@ export const TOWER_CONFIG: Record<
 > = {
   easy: { cols: 4, safe: 3, openingSafe: [4] },
   medium: { cols: 3, safe: 2, openingSafe: [3] },
-  hard: { cols: 2, safe: 1, openingSafe: [2] },
-  expert: { cols: 3, safe: 1, openingSafe: [2, 2] },
-  master: { cols: 4, safe: 1, openingSafe: [3, 3, 2] },
+  hard: { cols: 4, safe: 2, openingSafe: [3] },
+  expert: { cols: 5, safe: 2, openingSafe: [4, 3] },
+  master: { cols: 6, safe: 2, openingSafe: [4, 3, 3] },
 };
 
 export function towerSafeCountForLevel(difficulty: TowerDifficulty, level: number): number {

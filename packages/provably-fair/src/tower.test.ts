@@ -35,6 +35,16 @@ describe('towerLayout', () => {
     expect(towerSafeCountForLevel('master', 0)).toBeGreaterThan(TOWER_CONFIG.master.safe);
     expect(towerSafeCountForLevel('expert', 1)).toBeGreaterThan(TOWER_CONFIG.expert.safe);
   });
+
+  it('uses lower safe ratios as the difficulty increases', () => {
+    const ratio = (difficulty: keyof typeof TOWER_CONFIG) =>
+      TOWER_CONFIG[difficulty].safe / TOWER_CONFIG[difficulty].cols;
+
+    expect(ratio('medium')).toBeLessThan(ratio('easy'));
+    expect(ratio('hard')).toBeLessThan(ratio('medium'));
+    expect(ratio('expert')).toBeLessThan(ratio('hard'));
+    expect(ratio('master')).toBeLessThan(ratio('expert'));
+  });
 });
 
 describe('towerMultiplier', () => {

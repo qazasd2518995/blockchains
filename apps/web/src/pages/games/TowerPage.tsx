@@ -22,9 +22,9 @@ const TOWER_TOTAL_LEVELS = 9;
 const TOWER_PREVIEW_COLS: Record<TowerDifficulty, number> = {
   easy: 4,
   medium: 3,
-  hard: 2,
-  expert: 3,
-  master: 4,
+  hard: 4,
+  expert: 5,
+  master: 6,
 };
 
 export function TowerPage() {
