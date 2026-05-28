@@ -247,14 +247,14 @@ export const en = {
   },
   lobbyStats: {
     hotHalls: 'Popular Halls',
-    hotHallsDetail: 'Switch between flight, table, slots, roulette, instant and strategy halls.',
+    hotHallsDetail: 'Switch between flight, slots, roulette and instant halls.',
     playableGames: 'Playable Games',
     playableGamesDetail: 'Crash, slots and more are ready for tonight.',
     topWin: 'Top Win Today',
     topWinDetail: 'See who is hot today, then pick a hall and jump in.',
     hallTitle: 'Which hall first tonight?',
     hallDescription:
-      'Games are grouped by rhythm: Crash in Flight, Blackjack and Hi-Lo in Tables, slots in Slots, roulette in Roulette, Dice/Keno/Plinko in Instant, and Mines/Tower in Strategy.',
+      'Games are grouped by rhythm: Crash in Flight, slots in Slots, roulette in Roulette, and tables, instant games and strategy games in Instant.',
     enterTables: 'Enter Table Hall',
     liveBoardTitle: 'Who is winning today',
     liveBoardDescription: 'Live win feeds keep refreshing so you can see which hall is active now.',
@@ -262,8 +262,8 @@ export const en = {
     promoEyebrow: 'Ad · Intro · Event',
     promoTitle: 'Full-bet rewards for returning players',
     promoDescription: 'Popular games, limited missions and member rewards in one place.',
-    mobileAllGames: 'Popular Games',
-    mobileAllShort: 'Hot',
+    mobileAllGames: 'All Games',
+    mobileAllShort: 'All',
   },
   feed: {
     instantBoard: 'Live Wins',

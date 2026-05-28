@@ -229,14 +229,14 @@ export const zhHant = {
   },
   lobbyStats: {
     hotHalls: '熱門館別',
-    hotHallsDetail: '六種館別任你切，飛行、牌桌、拉霸、輪盤、即開、策略都能直接進場。',
+    hotHallsDetail: '館別任你切，飛行、拉霸、輪盤、即開都能直接進場。',
     playableGames: '可玩遊戲',
     playableGamesDetail: '從 Crash 到老虎機，今晚主場一次排開。',
     topWin: '今日最高爆分',
     topWinDetail: '看看今天誰最火，再挑一館跟著開衝。',
     hallTitle: '今晚先衝哪一館？',
     hallDescription:
-      '玩法已重新分館：Crash 進飛行館，21 點、比大小進棋牌牌桌館，老虎機進拉霸館，輪盤轉輪獨立，骰子、基諾、彈珠放即開電子館，掃雷與爬階梯放策略館。',
+      '玩法已重新分館：Crash 進飛行館，老虎機進拉霸館，輪盤轉輪獨立，牌桌、骰子、基諾、彈珠與策略玩法合併放即開電子館。',
     enterTables: '先進棋牌牌桌館',
     liveBoardTitle: '今天誰在爆分',
     liveBoardDescription: '熱門戰報持續刷新，看看哪個館別現在最熱，手感到了就直接跟上。',
@@ -244,8 +244,8 @@ export const zhHant = {
     promoEyebrow: '廣告 · 介紹 · 活動',
     promoTitle: '老玩家投注滿額送',
     promoDescription: '熱門玩法、限時任務、會員優惠集中展示。',
-    mobileAllGames: '熱門遊戲',
-    mobileAllShort: '熱門',
+    mobileAllGames: '所有遊戲',
+    mobileAllShort: '全部',
   },
   feed: {
     instantBoard: '即時戰報',

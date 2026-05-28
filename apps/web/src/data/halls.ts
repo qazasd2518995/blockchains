@@ -78,7 +78,17 @@ export const HALLS: Record<HallId, HallMeta> = {
     tagline: '骰子、基諾、彈珠這類短局即開玩法集中在這裡',
     gradient: 'linear-gradient(135deg, #EA580C 0%, #F97316 50%, #408A9D 100%)',
     artwork: '/halls/classic-card.png',
-    gameIds: [GameId.DICE, GameId.KENO, GameId.PLINKO, GameId.PLINKO_X],
+    gameIds: [
+      GameId.BLACKJACK,
+      GameId.HILO,
+      GameId.DICE,
+      GameId.KENO,
+      GameId.PLINKO,
+      GameId.PLINKO_X,
+      GameId.MINES,
+      GameId.TOWER,
+      GameId.CHICKEN_ROAD,
+    ],
   },
   strategy: {
     id: 'strategy',
@@ -91,14 +101,7 @@ export const HALLS: Record<HallId, HallMeta> = {
   },
 };
 
-export const HALL_LIST: HallMeta[] = [
-  HALLS.crash,
-  HALLS.tables,
-  HALLS.slots,
-  HALLS.roulette,
-  HALLS.classic,
-  HALLS.strategy,
-];
+export const HALL_LIST: HallMeta[] = [HALLS.crash, HALLS.slots, HALLS.roulette, HALLS.classic];
 
 export function getHallByGameId(gameId: string): HallMeta | undefined {
   return HALL_LIST.find((h) => h.gameIds.includes(gameId as GameIdType));

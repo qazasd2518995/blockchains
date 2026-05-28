@@ -1,16 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowRight,
-  Flame,
-  Gift,
-  History,
-  Megaphone,
-  ShieldCheck,
-  Sparkles,
-  Users,
-} from 'lucide-react';
-import { GameId, GAMES_REGISTRY, type GameMetadata, type GameIdType } from '@bg/shared';
+import { ArrowRight, Flame, Gift, History, Megaphone, ShieldCheck, Users } from 'lucide-react';
+import { GAMES_REGISTRY, type GameMetadata, type GameIdType } from '@bg/shared';
 import { api } from '@/lib/api';
 import { HeroBanner } from '@/components/home/HeroBanner';
 import { HallEntrances } from '@/components/home/HallEntrances';
@@ -41,19 +32,6 @@ const mobileGameIds = visibleGameIds;
 const mobileGames = mobileGameIds
   .map((id: GameIdType) => GAMES_REGISTRY[id])
   .filter((game): game is NonNullable<typeof game> => Boolean(game?.enabled));
-const MOBILE_HOT_GAME_IDS: GameIdType[] = [
-  GameId.ROCKET,
-  GameId.AVIATOR,
-  GameId.BLACKJACK,
-  GameId.THUNDER_SLOT,
-  GameId.DRAGON_MEGA_SLOT,
-  GameId.WHEEL,
-  GameId.PLINKO_X,
-  GameId.TOWER,
-];
-const mobileHotGames = MOBILE_HOT_GAME_IDS.map((id) => GAMES_REGISTRY[id]).filter(
-  (game): game is GameMetadata => Boolean(game?.enabled),
-);
 const gameHallMap = new Map<string, HallId>(
   HALL_LIST.flatMap((hall) => hall.gameIds.map((gameId) => [gameId, hall.id] as const)),
 );
@@ -65,11 +43,9 @@ const MOBILE_CATEGORIES: Array<{
 }> = [
   { id: 'all' },
   { id: 'crash', iconKey: 'crash' },
-  { id: 'tables', iconKey: 'tables' },
   { id: 'slots', iconKey: 'slots' },
   { id: 'roulette', iconKey: 'roulette' },
   { id: 'classic', iconKey: 'classic' },
-  { id: 'strategy', iconKey: 'strategy' },
 ];
 
 function mobileGamePath(gameId: string): string {
@@ -77,7 +53,7 @@ function mobileGamePath(gameId: string): string {
 }
 
 function mobileCategoryCount(categoryId: 'all' | HallId): number {
-  if (categoryId === 'all') return mobileHotGames.length;
+  if (categoryId === 'all') return mobileGames.length;
   return (
     hallMetaMap.get(categoryId)?.gameIds.filter((id) => GAMES_REGISTRY[id]?.enabled).length ?? 0
   );
@@ -178,7 +154,7 @@ function MobileLobbyOnePage() {
   const activeCategoryMeta = getMobileCategoryLabel(activeCategory, locale, t);
 
   const games = useMemo(() => {
-    if (activeCategory === 'all') return mobileHotGames;
+    if (activeCategory === 'all') return mobileGames;
     return mobileGames.filter((game) => gameHallMap.get(game.id) === activeCategory);
   }, [activeCategory]);
 
@@ -331,7 +307,7 @@ function MobileLobbyOnePage() {
       <section className="grid grid-cols-[66px_minmax(0,1fr)] gap-2 px-2 py-2">
         <aside className="sticky top-[calc(env(safe-area-inset-top)+58px)] self-start space-y-1.5">
           {MOBILE_CATEGORIES.map((category) => {
-            const Icon = category.iconKey ? getHallIcon(category.iconKey) : Sparkles;
+            const Icon = getHallIcon(category.iconKey ?? 'classic');
             const selected = activeCategory === category.id;
             const categoryLabel = getMobileCategoryLabel(category.id, locale, t);
             return (
