@@ -699,14 +699,62 @@ async function findManualDetectionDecision(
     applicable.control.targetAgentId,
     applicable.control.targetMemberUsername,
   );
+  const desired = settlement.superiorSettlement.lessThan(applicable.control.targetSettlement)
+    ? 'LOSS'
+    : 'WIN';
+  if (desired === 'LOSS') {
+    const release = await shouldReleaseManualDetectionCycle(
+      tx,
+      applicable.control.id,
+      member.id,
+      applicable.control.controlPercentage,
+    );
+    if (release) {
+      return {
+        desired: 'WIN',
+        controlId: applicable.control.id,
+        reason: 'manual_detection_release',
+        minMultiplier: new Prisma.Decimal('1.01'),
+        maxMultiplier: new Prisma.Decimal(2),
+        forceWinAdjustment: true,
+      };
+    }
+  }
   return {
-    desired: settlement.superiorSettlement.lessThan(applicable.control.targetSettlement)
-      ? 'LOSS'
-      : 'WIN',
+    desired,
     controlId: applicable.control.id,
     reason: 'manual_detection',
     minMultiplier: new Prisma.Decimal('1.01'),
   };
+}
+
+async function shouldReleaseManualDetectionCycle(
+  tx: Db,
+  controlId: string,
+  userId: string,
+  controlPercentage: number,
+): Promise<boolean> {
+  const window = getControlGameDayWindow();
+  const logs = await tx.winLossControlLogs.findMany({
+    where: {
+      controlId,
+      userId,
+      createdAt: { gte: window.start, lt: window.end },
+      flipReason: { in: ['manual_detection', 'manual_detection_release'] },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    select: { flipReason: true },
+  });
+
+  let consecutiveLosses = 0;
+  for (const log of logs) {
+    if (log.flipReason === 'manual_detection_release') break;
+    if (log.flipReason === 'manual_detection') consecutiveLosses += 1;
+  }
+
+  const requiredLosses = controlPercentage >= 60 ? 4 : 3;
+  return consecutiveLosses >= requiredLosses;
 }
 
 async function findBurstDecision(

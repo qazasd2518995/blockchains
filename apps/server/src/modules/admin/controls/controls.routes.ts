@@ -455,7 +455,9 @@ function resolveControlLogMeta(
 function resolveControlLogSource(reason: string): ControlLogSource {
   if (reason === 'online_reward_next_win') return 'online_reward_next_win';
   if (reason === 'deposit_control') return 'deposit_control';
-  if (reason === 'manual_detection') return 'manual_detection';
+  if (reason === 'manual_detection' || reason === 'manual_detection_release') {
+    return 'manual_detection';
+  }
   if (reason.startsWith('burst_')) return 'burst_control';
   if (reason === 'win_cap' || reason === 'win_cap_rate') return 'member_win_cap';
   if (reason === 'agent_line_cap' || reason === 'agent_line_cap_rate') return 'agent_line_cap';
@@ -493,6 +495,7 @@ function resolveControlLogActionLabel(log: ControlLogRecord): string {
     loss_control: '咬會員輸',
     loss_control_release: '殺分補贏',
     manual_detection: finalWon === true ? '手動拉贏' : finalWon === false ? '手動壓輸' : '手動介入',
+    manual_detection_release: '手動補贏',
     burst_win: '爆分贏',
     burst_small_win: '小贏補償',
     burst_loss: '娛樂壓輸',

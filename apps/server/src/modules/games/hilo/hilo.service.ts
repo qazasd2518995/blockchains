@@ -29,7 +29,7 @@ import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { HiLoStartInput, HiLoGuessInput, HiLoCashoutInput } from './hilo.schema.js';
 
-const MAX_SKIPS = 3;
+const MAX_SKIPS = 5;
 
 export class HiLoService {
   constructor(private readonly prisma: PrismaClient) {}
