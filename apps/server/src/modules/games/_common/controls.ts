@@ -804,6 +804,12 @@ async function findBurstDecision(
   const maxPayout = predicted.amount.add(maxBurstProfit);
   const predictedProfit = predicted.payout.sub(predicted.amount);
   const predictedNetWin = isNetWin(predicted);
+  const potentialMultiplier = parseBurstPotentialMultiplier(options.burstPotentialMultiplier);
+  const potentialPayout = potentialMultiplier
+    ? predicted.amount.mul(potentialMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
+    : predicted.payout;
+  const potentialProfit = potentialPayout.sub(predicted.amount);
+  const potentialNetWin = potentialPayout.greaterThan(predicted.amount);
   const eligibility = await getBurstEligibility(tx, member.id, stats.net, control);
   const guardOnly = options.burstGuardOnly === true;
 
@@ -820,17 +826,21 @@ async function findBurstDecision(
   }
 
   const projectedNet = stats.net.add(predictedProfit);
+  const projectedPotentialNet = stats.net.add(potentialProfit);
   if (stats.net.greaterThanOrEqualTo(control.riskWinLimit)) {
-    return predictedNetWin
+    return predictedNetWin || potentialNetWin
       ? { desired: 'LOSS', controlId: control.id, reason: 'burst_risk_guard' }
       : null;
   }
 
   if (
-    predictedNetWin &&
+    (predictedNetWin || potentialNetWin) &&
     (predicted.payout.greaterThan(maxPayout) ||
+      potentialPayout.greaterThan(maxPayout) ||
       predicted.multiplier.greaterThan(control.singleMultiplierCap) ||
-      projectedNet.greaterThan(control.riskWinLimit))
+      (potentialMultiplier?.greaterThan(control.singleMultiplierCap) ?? false) ||
+      projectedNet.greaterThan(control.riskWinLimit) ||
+      projectedPotentialNet.greaterThan(control.riskWinLimit))
   ) {
     if (!eligibility.eligible) {
       return { desired: 'LOSS', controlId: control.id, reason: 'burst_risk_guard' };
@@ -1115,10 +1125,7 @@ async function sumMemberBurstProfit(
   }, new Prisma.Decimal(0));
 }
 
-async function isBurstCooldownActive(
-  tx: Db,
-  userId: string,
-): Promise<boolean> {
+async function isBurstCooldownActive(tx: Db, userId: string): Promise<boolean> {
   const latest = await tx.winLossControlLogs.findFirst({
     where: {
       userId,
@@ -1152,11 +1159,7 @@ function getStoredBurstCooldownRounds(value: Prisma.JsonValue): number {
   const record = value && typeof value === 'object' && !Array.isArray(value) ? value : null;
   const raw = record && 'burstCooldownRounds' in record ? record.burstCooldownRounds : undefined;
   const parsed =
-    typeof raw === 'number'
-      ? raw
-      : typeof raw === 'string'
-        ? Number.parseInt(raw, 10)
-        : Number.NaN;
+    typeof raw === 'number' ? raw : typeof raw === 'string' ? Number.parseInt(raw, 10) : Number.NaN;
   if (!Number.isFinite(parsed)) return BURST_COOLDOWN_MIN_ROUNDS;
   return Math.max(
     BURST_COOLDOWN_MIN_ROUNDS,
@@ -1284,6 +1287,18 @@ function clampRate(value: Prisma.Decimal): number {
   const n = Number(value);
   if (!Number.isFinite(n)) return 0;
   return Math.min(1, Math.max(0, n));
+}
+
+function parseBurstPotentialMultiplier(
+  value: Prisma.Decimal | number | string | undefined,
+): Prisma.Decimal | null {
+  if (value === undefined || value === null) return null;
+  try {
+    const decimal = value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value);
+    return decimal.greaterThan(0) ? decimal : null;
+  } catch {
+    return null;
+  }
 }
 
 function clampDecimal(

@@ -227,6 +227,28 @@ describe('hotline controlled round shaping', () => {
     expect(capped.features.freeSpinWinMultiplier).toBe(capped.features.totalMultiplier);
   });
 
+  it('does not let controlled mega buy-feature settlement exceed burst max payout', () => {
+    const baseAmount = new Prisma.Decimal(200);
+    const stakeAmount = baseAmount.mul(100);
+    const maxPayout = new Prisma.Decimal(25000);
+
+    const capped = __hotlineServiceTestHooks.capMegaFreeGameSettlement(
+      __hotlineServiceTestHooks.buildControlledMegaFeature(500, true, 2),
+      true,
+      baseAmount,
+      stakeAmount,
+      2,
+      maxPayout,
+    );
+
+    expect(capped.payout.lessThanOrEqualTo(maxPayout)).toBe(true);
+    expect(capped.multiplier.lessThanOrEqualTo(maxPayout.div(stakeAmount))).toBe(true);
+    expect(capped.features.totalMultiplier).toBeLessThanOrEqual(
+      maxPayout.div(baseAmount).toNumber(),
+    );
+    expect(capped.features.freeSpinWinMultiplier).toBe(capped.features.totalMultiplier);
+  });
+
   it('keeps controlled mega buy-feature rounds visually populated after capping', () => {
     const capped = __hotlineServiceTestHooks.capMegaFreeGameSettlement(
       __hotlineServiceTestHooks.buildControlledMegaFeature(180, true, 12),

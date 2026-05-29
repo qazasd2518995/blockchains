@@ -144,7 +144,7 @@ export class HotlineService {
           ? {
               burstEligible: true,
               burstGuardOnly: true,
-              burstPotentialMultiplier: accountingMultiplierD,
+              burstPotentialMultiplier: MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER,
             }
           : undefined,
       );
@@ -198,6 +198,7 @@ export class HotlineService {
           baseAmount,
           stakeAmount,
           seed.nonce,
+          controlled.maxPayout,
         );
         finalFeatures = capped.features;
         finalPayout = capped.payout;
@@ -436,6 +437,7 @@ function capMegaFreeGameSettlement(
   baseAmount: Prisma.Decimal,
   stakeAmount: Prisma.Decimal,
   nonce: number,
+  controlMaxPayout?: Prisma.Decimal,
 ): {
   features: HotlineMegaFeatureResult;
   payout: Prisma.Decimal;
@@ -448,7 +450,10 @@ function capMegaFreeGameSettlement(
   const maxPayout = stakeAmount
     .mul(MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-  const cappedPayout = Prisma.Decimal.min(targetPayout, maxPayout);
+  const hardMaxPayout = controlMaxPayout
+    ? Prisma.Decimal.min(maxPayout, controlMaxPayout)
+    : maxPayout;
+  const cappedPayout = Prisma.Decimal.min(targetPayout, hardMaxPayout);
 
   const cappedMultiplier = stakeAmount.greaterThan(0)
     ? cappedPayout.div(stakeAmount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN)
