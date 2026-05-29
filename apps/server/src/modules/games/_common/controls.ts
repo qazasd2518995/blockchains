@@ -252,6 +252,69 @@ async function findControlDecision(
 
 type WinLossDecisionScope = 'all' | 'member' | 'agent_line' | 'global';
 
+interface RankableWinLossControl {
+  controlMode: string;
+  targetId: string | null;
+  winControl: boolean;
+  lossControl: boolean;
+  createdAt: Date;
+}
+
+/**
+ * 純函式：依「指定範圍精確度」排出控制優先序並回傳最高者。
+ * 會員級(1-2) > 代理線級(10-29) > 全域(40-41)；同精確度 WIN 優先於 LOSS。
+ * 關鍵不變式：針對單一會員的控制(含 LOSS)永遠蓋過代理線控制(含 WIN)，
+ * 下級代理不能用代理線控制覆寫上級對特定會員的指令。同優先序時取較新建立者。
+ */
+export function rankWinLossControls<T extends RankableWinLossControl>(
+  controls: T[],
+  memberId: string,
+  ancestors: string[],
+  scope: WinLossDecisionScope = 'all',
+): { control: T; priority: number; desired: 'WIN' | 'LOSS' } | null {
+  const ranked = controls
+    .map((control) => {
+      if (
+        (scope === 'all' || scope === 'member') &&
+        control.controlMode === 'SINGLE_MEMBER' &&
+        control.targetId === memberId
+      ) {
+        if (control.winControl) return { control, priority: 1, desired: 'WIN' as const };
+        if (control.lossControl) return { control, priority: 2, desired: 'LOSS' as const };
+      }
+
+      if (
+        (scope === 'all' || scope === 'agent_line') &&
+        control.controlMode === 'AGENT_LINE' &&
+        control.targetId &&
+        ancestors.includes(control.targetId)
+      ) {
+        // 帶寬 30 完整涵蓋 getAgentAncestors 的最深 20 層，保留「較近上線優先」的
+        // 精確排序;WIN(10-40)/LOSS(40-70) 兩子帶不重疊。depth 防禦性夾在 0-29。
+        const depth = Math.min(ancestors.indexOf(control.targetId), 29);
+        if (control.winControl) return { control, priority: 10 + depth, desired: 'WIN' as const };
+        if (control.lossControl) return { control, priority: 40 + depth, desired: 'LOSS' as const };
+      }
+
+      if (
+        (scope === 'all' || scope === 'global') &&
+        (control.controlMode === 'AUTO_DETECT' || control.controlMode === 'NORMAL')
+      ) {
+        if (control.winControl) return { control, priority: 80, desired: 'WIN' as const };
+        if (control.lossControl) return { control, priority: 81, desired: 'LOSS' as const };
+      }
+
+      return null;
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .sort(
+      (a, b) =>
+        a.priority - b.priority || b.control.createdAt.getTime() - a.control.createdAt.getTime(),
+    );
+
+  return ranked[0] ?? null;
+}
+
 async function findWinLossDecision(
   tx: Db,
   member: MemberScope,
@@ -264,45 +327,7 @@ async function findWinLossDecision(
   if (controls.length === 0) return null;
 
   const ancestors = member.agentId ? await getAgentAncestors(tx, member.agentId) : [];
-  const ranked = controls
-    .map((control) => {
-      if (
-        (scope === 'all' || scope === 'member') &&
-        control.controlMode === 'SINGLE_MEMBER' &&
-        control.targetId === member.id
-      ) {
-        if (control.winControl) return { control, priority: 1, desired: 'WIN' as const };
-        if (control.lossControl) return { control, priority: 4, desired: 'LOSS' as const };
-      }
-
-      if (
-        (scope === 'all' || scope === 'agent_line') &&
-        control.controlMode === 'AGENT_LINE' &&
-        control.targetId &&
-        ancestors.includes(control.targetId)
-      ) {
-        const depth = ancestors.indexOf(control.targetId);
-        if (control.winControl) return { control, priority: 2 + depth, desired: 'WIN' as const };
-        if (control.lossControl) return { control, priority: 20 + depth, desired: 'LOSS' as const };
-      }
-
-      if (
-        (scope === 'all' || scope === 'global') &&
-        (control.controlMode === 'AUTO_DETECT' || control.controlMode === 'NORMAL')
-      ) {
-        if (control.winControl) return { control, priority: 40, desired: 'WIN' as const };
-        if (control.lossControl) return { control, priority: 41, desired: 'LOSS' as const };
-      }
-
-      return null;
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null)
-    .sort(
-      (a, b) =>
-        a.priority - b.priority || b.control.createdAt.getTime() - a.control.createdAt.getTime(),
-    );
-
-  const selected = ranked[0];
+  const selected = rankWinLossControls(controls, member.id, ancestors, scope);
   if (!selected) return null;
   if (
     selected.desired === 'LOSS' &&
@@ -450,27 +475,29 @@ async function withWinCapBounds(
   if (decision.desired !== 'WIN') return decision;
 
   const maxPayouts: Prisma.Decimal[] = [];
+  // 各 cap 翻成 LOSS 時，須回報「實際綁住的那個 cap 的 controlId」與對應 reason，
+  // 否則審計日誌會把虧損歸因到原始 WIN 控制(controlId 與 flipReason 不一致)。
   const globalBound = await getGlobalMemberWinCapPayoutBound(tx, member.id, predicted.amount);
-  if (globalBound === null) {
+  if (globalBound.exhausted) {
     return {
       desired: 'LOSS',
-      controlId: decision.controlId,
+      controlId: globalBound.controlId,
       reason: 'global_member_daily_win_cap',
     };
   }
-  maxPayouts.push(globalBound);
+  maxPayouts.push(globalBound.bound);
 
   const memberBound = await getMemberWinCapPayoutBound(tx, member.id, predicted.amount);
-  if (memberBound === null) {
-    return { desired: 'LOSS', controlId: decision.controlId, reason: 'win_cap' };
+  if (memberBound?.exhausted) {
+    return { desired: 'LOSS', controlId: memberBound.controlId, reason: 'win_cap' };
   }
-  if (memberBound) maxPayouts.push(memberBound);
+  if (memberBound?.bound) maxPayouts.push(memberBound.bound);
 
   const agentBound = await getAgentLineCapPayoutBound(tx, member.agentId, predicted.amount);
-  if (agentBound === null) {
-    return { desired: 'LOSS', controlId: decision.controlId, reason: 'agent_line_cap' };
+  if (agentBound?.exhausted) {
+    return { desired: 'LOSS', controlId: agentBound.controlId, reason: 'agent_line_cap' };
   }
-  if (agentBound) maxPayouts.push(agentBound);
+  if (agentBound?.bound) maxPayouts.push(agentBound.bound);
 
   const capPayout = minDecimal(maxPayouts);
   return {
@@ -479,22 +506,28 @@ async function withWinCapBounds(
   };
 }
 
+type CapPayoutBound =
+  | { exhausted: true; controlId: string }
+  | { exhausted: false; bound: Prisma.Decimal };
+
 async function getGlobalMemberWinCapPayoutBound(
   tx: Db,
   memberId: string,
   amount: Prisma.Decimal,
-): Promise<Prisma.Decimal | null> {
+): Promise<CapPayoutBound> {
   const stats = await getMemberTodayStats(tx, memberId);
   const remainingProfit = GLOBAL_MEMBER_DAILY_WIN_CAP.sub(stats.net);
-  if (remainingProfit.lessThanOrEqualTo(0)) return null;
-  return amount.add(remainingProfit).toDecimalPlaces(2);
+  if (remainingProfit.lessThanOrEqualTo(0)) {
+    return { exhausted: true, controlId: 'global-member-daily-win-cap' };
+  }
+  return { exhausted: false, bound: amount.add(remainingProfit).toDecimalPlaces(2) };
 }
 
 async function getMemberWinCapPayoutBound(
   tx: Db,
   memberId: string,
   amount: Prisma.Decimal,
-): Promise<Prisma.Decimal | null | undefined> {
+): Promise<CapPayoutBound | undefined> {
   const control = await tx.memberWinCapControl.findFirst({
     where: { memberId, isActive: true },
     orderBy: { createdAt: 'desc' },
@@ -503,15 +536,17 @@ async function getMemberWinCapPayoutBound(
 
   const normalized = await normalizeMemberWinCapDay(tx, control);
   const remainingProfit = normalized.winCapAmount.sub(normalized.todayWinAmount);
-  if (remainingProfit.lessThanOrEqualTo(0)) return null;
-  return amount.add(remainingProfit).toDecimalPlaces(2);
+  if (remainingProfit.lessThanOrEqualTo(0)) {
+    return { exhausted: true, controlId: normalized.id };
+  }
+  return { exhausted: false, bound: amount.add(remainingProfit).toDecimalPlaces(2) };
 }
 
 async function getAgentLineCapPayoutBound(
   tx: Db,
   agentId: string | null,
   amount: Prisma.Decimal,
-): Promise<Prisma.Decimal | null | undefined> {
+): Promise<CapPayoutBound | undefined> {
   if (!agentId) return undefined;
   const ancestors = await getAgentAncestors(tx, agentId);
   if (ancestors.length === 0) return undefined;
@@ -525,10 +560,12 @@ async function getAgentLineCapPayoutBound(
   for (const control of controls) {
     const normalized = await normalizeAgentLineCapDay(tx, control);
     const remainingProfit = normalized.dailyCap.sub(normalized.todayWinAmount);
-    if (remainingProfit.lessThanOrEqualTo(0)) return null;
+    if (remainingProfit.lessThanOrEqualTo(0)) {
+      return { exhausted: true, controlId: normalized.id };
+    }
     bounds.push(amount.add(remainingProfit).toDecimalPlaces(2));
   }
-  return minDecimal(bounds);
+  return { exhausted: false, bound: minDecimal(bounds) };
 }
 
 async function findAgentLineCapDecision(
@@ -1330,4 +1367,5 @@ export function multiplierMatchesControlBounds(
 export const __controlsTestHooks = {
   getStoredBurstCooldownRounds,
   randomBurstCooldownRounds,
+  rankWinLossControls,
 };

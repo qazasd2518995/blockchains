@@ -26,7 +26,7 @@ import {
   normalizeMemberWinCapDay,
 } from './controls.runtime.js';
 import { writeAudit } from '../audit/audit.service.js';
-import { canManageAgent, canManageMember, listAgentDescendants } from '../../../utils/hierarchy.js';
+import { listAgentDescendants } from '../../../utils/hierarchy.js';
 
 function decimal(value: Prisma.Decimal | string | number | null | undefined): Prisma.Decimal {
   if (value instanceof Prisma.Decimal) return value;
@@ -563,33 +563,26 @@ function jsonBoolean(value: Prisma.JsonValue, key: string): boolean | null {
 }
 
 /**
- * 控制表 CRUD。Super Admin 可操作全域控制；代理只能建立/管理自己的下線輸贏控制。
+ * 控制表 CRUD。整個模組僅限 Super Admin —— 任何代理皆無法檢視或操作控制。
  * 所有 mutation 都寫 AuditLog。
  */
 export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.addHook('preHandler', async (req, reply) => {
     await fastify.authenticateAdmin(req, reply);
+    await fastify.requireSuperAdmin(req, reply);
   });
 
-  const auditActor = (req: { admin: { id: string; role: string; username: string } }) => ({
+  const auditActor = (req: { admin: { id: string; username: string } }) => ({
     id: req.admin.id,
-    type: req.admin.role === 'SUPER_ADMIN' ? ('super_admin' as const) : ('agent' as const),
+    type: 'super_admin' as const,
     username: req.admin.username,
   });
 
-  async function resolveWinLossTarget(
-    req: { admin: { id: string; role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT'; username: string } },
-    body: WinLossControlInput,
-    reply: FastifyReply,
-  ): Promise<
-    | {
-        ok: true;
-        targetType: string | null;
-        targetId: string | null;
-        targetUsername: string | null;
-      }
-    | { ok: false }
-  > {
+  function resolveWinLossTarget(body: WinLossControlInput): {
+    targetType: string | null;
+    targetId: string | null;
+    targetUsername: string | null;
+  } {
     const targetType =
       body.targetType ??
       (body.controlMode === 'SINGLE_MEMBER'
@@ -598,102 +591,15 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           ? 'agent'
           : null);
 
-    if (req.admin.role === 'SUPER_ADMIN') {
-      return {
-        ok: true,
-        targetType,
-        targetId: body.targetId ?? null,
-        targetUsername: body.targetUsername ?? null,
-      };
-    }
-
-    if (body.controlMode !== 'SINGLE_MEMBER' && body.controlMode !== 'AGENT_LINE') {
-      reply
-        .code(403)
-        .send({
-          code: 'FORBIDDEN',
-          message: 'Agents can only control their own member or agent line',
-        });
-      return { ok: false };
-    }
-
-    if (!body.targetId) {
-      reply.code(400).send({ code: 'INVALID_ACTION', message: 'Missing target account' });
-      return { ok: false };
-    }
-
-    if (body.controlMode === 'SINGLE_MEMBER') {
-      const member = await fastify.prisma.user.findUnique({
-        where: { id: body.targetId },
-        select: { id: true, username: true, role: true },
-      });
-      if (!member || member.role !== 'PLAYER') {
-        reply.code(404).send({ code: 'MEMBER_NOT_FOUND', message: 'Member not found' });
-        return { ok: false };
-      }
-      const ok = await canManageMember(fastify.prisma, req.admin, member.id);
-      if (!ok) {
-        reply.code(403).send({ code: 'FORBIDDEN', message: 'Cannot control this member' });
-        return { ok: false };
-      }
-      return {
-        ok: true,
-        targetType: 'member',
-        targetId: member.id,
-        targetUsername: member.username,
-      };
-    }
-
-    const agent = await fastify.prisma.agent.findUnique({
-      where: { id: body.targetId },
-      select: { id: true, username: true, role: true, status: true },
-    });
-    if (!agent || agent.role === 'SUB_ACCOUNT' || agent.status === 'DELETED') {
-      reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
-      return { ok: false };
-    }
-    const ok = await canManageAgent(fastify.prisma, req.admin, agent.id);
-    if (!ok) {
-      reply.code(403).send({ code: 'FORBIDDEN', message: 'Cannot control this agent line' });
-      return { ok: false };
-    }
-    return { ok: true, targetType: 'agent', targetId: agent.id, targetUsername: agent.username };
+    return {
+      targetType,
+      targetId: body.targetId ?? null,
+      targetUsername: body.targetUsername ?? null,
+    };
   }
 
-  async function ensureOwnWinLossControl(
-    req: { admin: { id: string; role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT' } },
-    reply: FastifyReply,
-    id: string,
-  ): Promise<boolean> {
-    if (req.admin.role === 'SUPER_ADMIN') return true;
-    const control = await fastify.prisma.winLossControl.findUnique({
-      where: { id },
-      select: { operatorId: true },
-    });
-    if (!control) {
-      reply.code(404).send({ code: 'CONTROL_NOT_FOUND', message: 'Control not found' });
-      return false;
-    }
-    if (control.operatorId !== req.admin.id) {
-      reply.code(403).send({ code: 'FORBIDDEN', message: 'Cannot modify this control' });
-      return false;
-    }
-    return true;
-  }
-
-  fastify.get('/logs', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
-    const controlIds =
-      req.admin.role === 'SUPER_ADMIN'
-        ? null
-        : (
-            await fastify.prisma.winLossControl.findMany({
-              where: { operatorId: req.admin.id },
-              select: { id: true },
-            })
-          ).map((control) => control.id);
-    if (controlIds && controlIds.length === 0) return { items: [] };
+  fastify.get('/logs', async () => {
     const logs = await fastify.prisma.winLossControlLogs.findMany({
-      where: controlIds ? { controlId: { in: controlIds } } : undefined,
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -706,18 +612,16 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     return { items: await enrichControlLogs(fastify, logs, usernames) };
   });
 
-  fastify.get('/win-loss', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
+  fastify.get('/win-loss', async () => {
     const items = await fastify.prisma.winLossControl.findMany({
-      where: req.admin.role === 'SUPER_ADMIN' ? undefined : { operatorId: req.admin.id },
       orderBy: { createdAt: 'desc' },
     });
     return { items };
   });
 
-  fastify.post('/win-loss', { preHandler: [fastify.authenticateAdmin] }, async (req, reply) => {
+  fastify.post('/win-loss', async (req, reply) => {
     const body = winLossControlSchema.parse(req.body);
-    const target = await resolveWinLossTarget(req, body, reply);
-    if (!target.ok) return;
+    const target = resolveWinLossTarget(body);
     const targetBitePercentage =
       body.lossControl && body.targetBitePercentage
         ? decimal(body.targetBitePercentage).toDecimalPlaces(2)
@@ -776,46 +680,36 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     reply.code(201).send(created);
   });
 
-  fastify.patch(
-    '/win-loss/:id/toggle',
-    { preHandler: [fastify.authenticateAdmin] },
-    async (req, reply) => {
-      const { id } = req.params as { id: string };
-      if (!(await ensureOwnWinLossControl(req, reply, id))) return;
-      const { isActive } = toggleSchema.parse(req.body);
-      const updated = await fastify.prisma.winLossControl.update({
-        where: { id },
-        data: { isActive },
-      });
-      await writeAudit(fastify.prisma, {
-        actor: auditActor(req),
-        action: 'control.win_loss.toggle',
-        targetType: 'control',
-        targetId: id,
-        newValues: { isActive },
-        req,
-      });
-      return updated;
-    },
-  );
+  fastify.patch('/win-loss/:id/toggle', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { isActive } = toggleSchema.parse(req.body);
+    const updated = await fastify.prisma.winLossControl.update({
+      where: { id },
+      data: { isActive },
+    });
+    await writeAudit(fastify.prisma, {
+      actor: auditActor(req),
+      action: 'control.win_loss.toggle',
+      targetType: 'control',
+      targetId: id,
+      newValues: { isActive },
+      req,
+    });
+    return updated;
+  });
 
-  fastify.delete(
-    '/win-loss/:id',
-    { preHandler: [fastify.authenticateAdmin] },
-    async (req, reply) => {
-      const { id } = req.params as { id: string };
-      if (!(await ensureOwnWinLossControl(req, reply, id))) return;
-      await fastify.prisma.winLossControl.delete({ where: { id } });
-      await writeAudit(fastify.prisma, {
-        actor: auditActor(req),
-        action: 'control.win_loss.delete',
-        targetType: 'control',
-        targetId: id,
-        req,
-      });
-      reply.code(204).send();
-    },
-  );
+  fastify.delete('/win-loss/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    await fastify.prisma.winLossControl.delete({ where: { id } });
+    await writeAudit(fastify.prisma, {
+      actor: auditActor(req),
+      action: 'control.win_loss.delete',
+      targetType: 'control',
+      targetId: id,
+      req,
+    });
+    reply.code(204).send();
+  });
 
   fastify.get(
     '/win-cap',
@@ -1581,11 +1475,6 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
           return;
         }
-        const canManage = await canManageAgent(fastify.prisma, req.admin, agent.id);
-        if (!canManage) {
-          reply.code(403).send({ code: 'FORBIDDEN', message: 'Cannot control this agent line' });
-          return;
-        }
         scopedAgentIds = await listAgentDescendants(fastify.prisma, agent.id);
         targetUsername = agent.username;
       }
@@ -1604,11 +1493,6 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
             : null;
         if (!member || member.role !== 'PLAYER' || member.disabledAt) {
           reply.code(404).send({ code: 'MEMBER_NOT_FOUND', message: 'Member not found' });
-          return;
-        }
-        const canManage = await canManageMember(fastify.prisma, req.admin, member.id);
-        if (!canManage) {
-          reply.code(403).send({ code: 'FORBIDDEN', message: 'Cannot control this member' });
           return;
         }
         targetMemberId = member.id;

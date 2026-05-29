@@ -67,7 +67,7 @@ export const router = createBrowserRouter([
       { path: '/admin/members/:id/bets', element: suspended(<MemberBetRecordsPage />) },
       { path: '/admin/transfers', element: suspended(<TransfersPage />) },
       { path: '/admin/reports', element: suspended(<ReportsPage />) },
-      { path: '/admin/controls', element: suspended(<ControlsOverviewPage />) },
+      { path: '/admin/controls', element: suspended(<SuperAdminOnly><ControlsOverviewPage /></SuperAdminOnly>) },
       { path: '/admin/audit', element: suspended(<AuditLogPage />) },
       { path: '/admin/subaccounts', element: suspended(<SubAccountsPage />) },
       { path: '/admin/announcements', element: suspended(<SuperAdminOnly><AnnouncementsPage /></SuperAdminOnly>) },
