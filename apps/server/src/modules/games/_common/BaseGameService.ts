@@ -115,6 +115,7 @@ export async function lockUserAndCheckFunds(
   userId: string,
   amount: Prisma.Decimal,
   gameId?: string,
+  options: { limitAmounts?: Prisma.Decimal[] } = {},
 ): Promise<{ id: string; balance: Prisma.Decimal; displayName: string | null }> {
   await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
   const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
@@ -125,13 +126,18 @@ export async function lockUserAndCheckFunds(
   );
   const minBet = Math.max(MIN_BET_AMOUNT, configuredLimit.min);
   const maxBet = Math.min(config.MAX_SINGLE_BET, configuredLimit.max);
-  if (amount.lessThanOrEqualTo(0)) {
+  const limitAmounts =
+    options.limitAmounts && options.limitAmounts.length > 0 ? options.limitAmounts : [amount];
+  const invalidAmount = limitAmounts.find((limitAmount) => limitAmount.lessThanOrEqualTo(0));
+  if (invalidAmount) {
     throw new ApiError('BET_OUT_OF_RANGE', `最低下注為 ${formatBetLimit(minBet)}。`);
   }
-  if (amount.lessThan(minBet)) {
+  const belowMinAmount = limitAmounts.find((limitAmount) => limitAmount.lessThan(minBet));
+  if (belowMinAmount) {
     throw new ApiError('BET_OUT_OF_RANGE', `最低下注為 ${formatBetLimit(minBet)}。`);
   }
-  if (amount.greaterThan(maxBet)) {
+  const aboveMaxAmount = limitAmounts.find((limitAmount) => limitAmount.greaterThan(maxBet));
+  if (aboveMaxAmount) {
     throw new ApiError(
       'BET_OUT_OF_RANGE',
       `本遊戲限紅為 ${formatBetLimit(minBet)}-${formatBetLimit(maxBet)}。`,

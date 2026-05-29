@@ -19,6 +19,7 @@ import {
   HOTLINE_JACKPOT_SIMULATION_EPOCH,
   MAX_BET_AMOUNT,
   MIN_BET_AMOUNT,
+  getBettingLimitForGame,
 } from '@bg/shared';
 import { HOTLINE_MEGA_SYMBOLS, HOTLINE_MINI_SYMBOLS, HOTLINE_SYMBOLS } from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
@@ -178,6 +179,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const slotTheme = getSlotTheme(theme);
   const isMegaSlot = slotTheme.rows > 3;
   const megaBuyFeatureMaxWinMultiplier = getMegaSlotMaxWinMultiplier(slotTheme.gameId);
+  const configuredBettingLimit = user
+    ? getBettingLimitForGame(user.bettingLimits, slotTheme.gameId, user.bettingLimitLevel)
+    : null;
+  const minBetLimit = Math.max(MIN_BET_AMOUNT, configuredBettingLimit?.min ?? MIN_BET_AMOUNT);
+  const maxBetLimit = Math.min(MAX_BET_AMOUNT, configuredBettingLimit?.max ?? MAX_BET_AMOUNT);
   const canvasAspectClass = isMegaSlot ? 'aspect-[16/10]' : 'aspect-[16/7]';
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
@@ -768,8 +774,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   }, [isMegaSlot, scheduleSceneRecovery, sceneCanvasKey, setSceneAvailability, slotTheme]);
 
   const setMegaAmount = (next: number, syncText = true): void => {
-    const max = user ? Math.max(MIN_BET_AMOUNT, Math.min(balance, MAX_BET_AMOUNT)) : MAX_BET_AMOUNT;
-    const clamped = Math.max(MIN_BET_AMOUNT, Math.min(max, next));
+    const max = user ? Math.max(minBetLimit, Math.min(balance, maxBetLimit)) : maxBetLimit;
+    const clamped = Math.max(minBetLimit, Math.min(max, next));
     const normalized = Number.parseFloat(clamped.toFixed(2));
     setAmount(normalized);
     if (syncText) setMegaAmountText(normalized.toFixed(2));
@@ -877,7 +883,18 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const buyFeature = Boolean(options.buyFeature && isMegaSlot);
     const spinFast = options.fastSpin ?? fastSpinRef.current;
     const stakeAmount = buyFeature ? roundCurrency(spinAmount * 100) : spinAmount;
-    if (spinAmount < MIN_BET_AMOUNT || stakeAmount > availableBalance) return null;
+    if (spinAmount < minBetLimit) {
+      setError(`最低下注為 ${formatAmount(minBetLimit)}。`);
+      return null;
+    }
+    if (spinAmount > maxBetLimit) {
+      setError(`單注上限為 ${formatAmount(maxBetLimit)}。`);
+      return null;
+    }
+    if (stakeAmount > availableBalance) {
+      setError('餘額不足');
+      return null;
+    }
     const activeScene = getPlayableScene();
     if (!activeScene) {
       setError('遊戲畫面載入中，請稍候');
@@ -1492,12 +1509,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     if (busy || autoSpinActive) return;
     if (!requireLogin()) return;
 
-    if (autoSpinSettings.amount > MAX_BET_AMOUNT) {
-      setError(`單注上限為 ${formatAmount(MAX_BET_AMOUNT)}。`);
+    if (autoSpinSettings.amount > maxBetLimit) {
+      setError(`單注上限為 ${formatAmount(maxBetLimit)}。`);
       return;
     }
     const config = normalizeAutoSpinSettings(autoSpinSettings);
-    if (config.rounds <= 0 || config.amount < MIN_BET_AMOUNT) return;
+    if (config.rounds <= 0) return;
+    if (config.amount < minBetLimit) {
+      setError(`最低下注為 ${formatAmount(minBetLimit)}。`);
+      return;
+    }
     if (balance < config.amount) {
       setError('餘額不足，無法啟動自動轉動');
       return;
@@ -1716,7 +1737,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     (busy && !megaFreeSpinAwaitingClick) ||
     (!megaFreeSpinAwaitingClick && !!user && balance < amount);
   const canBuyMegaFeature =
-    isMegaSlot && !controlsLocked && (!user || balance >= megaBuyFeatureCost);
+    isMegaSlot &&
+    !controlsLocked &&
+    amount >= minBetLimit &&
+    amount <= maxBetLimit &&
+    (!user || balance >= megaBuyFeatureCost);
   const autoSpinButtonLabel = autoSpinActive ? '停止' : 'AUTO';
   const autoSpinButtonValue = autoSpinActive
     ? autoSpinRemaining > 0
@@ -1929,8 +1954,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               onClick={() => void startAutoSpin()}
               disabled={
                 autoSpinSettings.rounds <= 0 ||
-                autoSpinSettings.amount < MIN_BET_AMOUNT ||
-                autoSpinSettings.amount > MAX_BET_AMOUNT ||
+                autoSpinSettings.amount < minBetLimit ||
+                autoSpinSettings.amount > maxBetLimit ||
                 (!!user && balance < autoSpinSettings.amount)
               }
             >

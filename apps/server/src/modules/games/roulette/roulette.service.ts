@@ -33,7 +33,9 @@ export class RouletteService {
     const amountD = new Prisma.Decimal(totalAmount);
 
     return runLockedTransaction(this.prisma, async (tx) => {
-      await lockUserAndCheckFunds(tx, userId, amountD, this.gameId);
+      await lockUserAndCheckFunds(tx, userId, amountD, this.gameId, {
+        limitAmounts: input.bets.map((bet) => new Prisma.Decimal(bet.amount)),
+      });
       const seed = await new SeedHelper(tx).getActiveBundle(userId, 'roulette', input.clientSeed);
       const { slot } = rouletteSpin(seed.serverSeed, seed.clientSeed, seed.nonce);
       const { totalPayout, wins } = rouletteEvaluate(slot, input.bets as RouletteBet[]);
