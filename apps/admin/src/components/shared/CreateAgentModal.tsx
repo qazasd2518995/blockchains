@@ -3,6 +3,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  BETTING_LIMIT_RANGE_OPTIONS,
+  DEFAULT_BETTING_LIMIT_RANGE,
   normalizeBettingLimitRangeKey,
   type AgentPublic,
   type BettingLimitsByGame,
@@ -75,7 +77,7 @@ export function CreateAgentModal({
   const [selectedParent, setSelectedParent] = useState<LockedParentAgent | null>(null);
   const [customLimitOpen, setCustomLimitOpen] = useState(false);
   const [bettingLimits, setBettingLimits] = useState<BettingLimitsByGame>(() =>
-    buildBettingLimitsSelection(null, 'range_100_2000'),
+    buildBettingLimitsSelection(null, DEFAULT_BETTING_LIMIT_RANGE),
   );
   const [err, setErr] = useState<string | null>(null);
   const resolvedParentId = lockedParent?.id ?? defaultParentId ?? '';
@@ -93,7 +95,7 @@ export function CreateAgentModal({
       parentId: resolvedParentId,
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
-      bettingLimitLevel: 'range_100_2000',
+      bettingLimitLevel: DEFAULT_BETTING_LIMIT_RANGE,
     },
   });
 
@@ -108,7 +110,7 @@ export function CreateAgentModal({
     setBettingLimits(
       buildBettingLimitsSelection(
         lockedParent?.bettingLimits,
-        normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? 'range_100_2000',
+        normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? DEFAULT_BETTING_LIMIT_RANGE,
       ),
     );
     reset({
@@ -118,7 +120,8 @@ export function CreateAgentModal({
       displayName: '',
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
-      bettingLimitLevel: normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? 'range_100_2000',
+      bettingLimitLevel:
+        normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? DEFAULT_BETTING_LIMIT_RANGE,
       notes: '',
     });
     if (lockedParent) {
@@ -330,12 +333,12 @@ export function CreateAgentModal({
         <div className="rounded-md border border-ink-200 bg-ink-100/30 p-4">
           <Field label="限红预设" code="07" error={errors.bettingLimitLevel?.message}>
             <select {...register('bettingLimitLevel')} className="term-input">
-              <option value="range_1_500">1-500</option>
-              <option value="range_50_1000">50-1000</option>
-              <option value="range_100_2000">100-2000</option>
-              <option value="range_500_5000">500-5000</option>
-              <option value="range_1000_10000">1000-10000</option>
-              <option value="range_5000_50000">5000-50000</option>
+              {BETTING_LIMIT_RANGE_OPTIONS.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                  {option.key === DEFAULT_BETTING_LIMIT_RANGE ? '（預設）' : ''}
+                </option>
+              ))}
             </select>
           </Field>
           <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-ink-200 bg-white px-3 py-2">
@@ -479,6 +482,7 @@ function normalizeBettingLimit(
     value === 'range_1_500' ||
     value === 'range_50_1000' ||
     value === 'range_100_2000' ||
+    value === 'range_10_5000' ||
     value === 'range_500_5000' ||
     value === 'range_1000_10000' ||
     value === 'range_5000_50000'

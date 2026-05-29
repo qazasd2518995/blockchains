@@ -3,6 +3,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  BETTING_LIMIT_RANGE_OPTIONS,
+  DEFAULT_BETTING_LIMIT_RANGE,
   normalizeBettingLimitRangeKey,
   type AgentPublic,
   type BettingLimitsByGame,
@@ -74,7 +76,7 @@ export function CreateMemberModal({
   const [agents, setAgents] = useState<AgentPublic[]>([]);
   const [customLimitOpen, setCustomLimitOpen] = useState(false);
   const [bettingLimits, setBettingLimits] = useState<BettingLimitsByGame>(() =>
-    buildBettingLimitsSelection(null, 'range_100_2000'),
+    buildBettingLimitsSelection(null, DEFAULT_BETTING_LIMIT_RANGE),
   );
   const [err, setErr] = useState<string | null>(null);
   const resolvedAgentId = lockedAgent?.id ?? defaultAgentId ?? '';
@@ -86,7 +88,7 @@ export function CreateMemberModal({
     formState: { errors, isSubmitting },
   } = useForm<FormInput>({
     resolver: zodResolver(schema),
-    defaultValues: { agentId: resolvedAgentId, bettingLimitLevel: 'range_100_2000' },
+    defaultValues: { agentId: resolvedAgentId, bettingLimitLevel: DEFAULT_BETTING_LIMIT_RANGE },
   });
 
   useEffect(() => {
@@ -94,7 +96,7 @@ export function CreateMemberModal({
     setErr(null);
     setCustomLimitOpen(false);
     const inheritedLevel = normalizeBettingLimitRangeKey(
-      lockedAgent?.bettingLimitLevel ?? 'range_100_2000',
+      lockedAgent?.bettingLimitLevel ?? DEFAULT_BETTING_LIMIT_RANGE,
     );
     setBettingLimits(buildBettingLimitsSelection(lockedAgent?.bettingLimits, inheritedLevel));
     reset({
@@ -258,12 +260,12 @@ export function CreateMemberModal({
         <div className="rounded-md border border-ink-200 bg-ink-100/30 p-4">
           <Field label="限红预设" code="07" error={errors.bettingLimitLevel?.message}>
             <select {...register('bettingLimitLevel')} className="term-input">
-              <option value="range_1_500">1-500</option>
-              <option value="range_50_1000">50-1000</option>
-              <option value="range_100_2000">100-2000</option>
-              <option value="range_500_5000">500-5000</option>
-              <option value="range_1000_10000">1000-10000</option>
-              <option value="range_5000_50000">5000-50000</option>
+              {BETTING_LIMIT_RANGE_OPTIONS.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                  {option.key === DEFAULT_BETTING_LIMIT_RANGE ? '（預設）' : ''}
+                </option>
+              ))}
             </select>
           </Field>
           <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-ink-200 bg-white px-3 py-2">

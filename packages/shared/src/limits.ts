@@ -7,6 +7,7 @@ export const BETTING_LIMIT_RANGE_OPTIONS = [
   { key: 'range_1_500', label: '1-500', min: 1, max: 500, rank: 0 },
   { key: 'range_50_1000', label: '50-1000', min: 50, max: 1000, rank: 1 },
   { key: 'range_100_2000', label: '100-2000', min: 100, max: 2000, rank: 2 },
+  { key: 'range_10_5000', label: '基本款 10-5000', min: 10, max: 5000, rank: 3 },
   { key: 'range_500_5000', label: '500-5000', min: 500, max: 5000, rank: 3 },
   { key: 'range_1000_10000', label: '1000-10000', min: 1000, max: 10000, rank: 4 },
   { key: 'range_5000_50000', label: '5000-50000', min: 5000, max: 50000, rank: 5 },
@@ -15,7 +16,7 @@ export const BETTING_LIMIT_RANGE_OPTIONS = [
 export type BettingLimitRangeKey = (typeof BETTING_LIMIT_RANGE_OPTIONS)[number]['key'];
 export type BettingLimitsByGame = Record<string, BettingLimitRangeKey>;
 
-export const DEFAULT_BETTING_LIMIT_RANGE: BettingLimitRangeKey = 'range_100_2000';
+export const DEFAULT_BETTING_LIMIT_RANGE: BettingLimitRangeKey = 'range_10_5000';
 
 const RANGE_BY_KEY = new Map<BettingLimitRangeKey, (typeof BETTING_LIMIT_RANGE_OPTIONS)[number]>(
   BETTING_LIMIT_RANGE_OPTIONS.map((option) => [option.key, option]),
