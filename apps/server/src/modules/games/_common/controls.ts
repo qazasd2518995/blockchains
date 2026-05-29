@@ -11,6 +11,7 @@ import {
   normalizeBurstControlDay,
   normalizeMemberWinCapDay,
 } from '../../admin/controls/controls.runtime.js';
+import { isMemberInControlExcludedLine } from '../../../utils/hierarchy.js';
 
 type Db = Prisma.TransactionClient;
 
@@ -58,6 +59,7 @@ interface ControlDecision {
   maxMultiplier?: Prisma.Decimal;
   maxPayout?: Prisma.Decimal;
   forceWinAdjustment?: boolean;
+  ignoreWinCapBounds?: boolean;
   burstCooldownRounds?: number;
 }
 
@@ -116,7 +118,9 @@ export async function applyControls(
   const decision = await findControlDecision(tx, member, gameId, predicted, options);
   if (!decision) return { ...predicted, controlled: false };
   const cappedDecision =
-    decision.desired === 'WIN' ? await withWinCapBounds(tx, member, predicted, decision) : decision;
+    decision.desired === 'WIN' && !decision.ignoreWinCapBounds
+      ? await withWinCapBounds(tx, member, predicted, decision)
+      : decision;
 
   const predictedNetWin = isNetWin(predicted);
   if (cappedDecision.desired === 'LOSS') {
@@ -210,15 +214,27 @@ async function findControlDecision(
     if (burst) return burst;
     const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
     if (accidentalBurstCap) return accidentalBurstCap;
-    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
-    if (globalWinCap) return globalWinCap;
+    if (!(await isMemberInControlExcludedLine(tx, member))) {
+      const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
+      if (globalWinCap) return globalWinCap;
+    }
     return null;
   }
+
+  const isControlExcludedLine = await isMemberInControlExcludedLine(tx, member);
+  const protectedLineWin = isControlExcludedLine
+    ? await findProtectedAgentLineWinDecision(tx, member)
+    : null;
+  if (protectedLineWin) return protectedLineWin;
 
   const onlineReward = await findOnlineRewardNextWinDecision(tx, member, predicted);
   if (onlineReward) return onlineReward;
 
-  const explicitWinLoss = await findWinLossDecision(tx, member);
+  const explicitWinLoss = await findWinLossDecision(
+    tx,
+    member,
+    isControlExcludedLine ? 'targeted' : 'all',
+  );
   if (explicitWinLoss?.desired === 'LOSS') return explicitWinLoss;
 
   if (explicitWinLoss) return explicitWinLoss;
@@ -241,8 +257,10 @@ async function findControlDecision(
   const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
   if (accidentalBurstCap) return accidentalBurstCap;
 
-  const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
-  if (globalWinCap) return globalWinCap;
+  if (!isControlExcludedLine) {
+    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
+    if (globalWinCap) return globalWinCap;
+  }
 
   const globalManual = await findManualDetectionDecision(tx, member, 'global');
   if (globalManual) return globalManual;
@@ -250,7 +268,7 @@ async function findControlDecision(
   return null;
 }
 
-type WinLossDecisionScope = 'all' | 'member' | 'agent_line' | 'global';
+type WinLossDecisionScope = 'all' | 'member' | 'agent_line' | 'targeted' | 'global';
 
 interface RankableWinLossControl {
   controlMode: string;
@@ -275,7 +293,7 @@ export function rankWinLossControls<T extends RankableWinLossControl>(
   const ranked = controls
     .map((control) => {
       if (
-        (scope === 'all' || scope === 'member') &&
+        (scope === 'all' || scope === 'member' || scope === 'targeted') &&
         control.controlMode === 'SINGLE_MEMBER' &&
         control.targetId === memberId
       ) {
@@ -284,7 +302,7 @@ export function rankWinLossControls<T extends RankableWinLossControl>(
       }
 
       if (
-        (scope === 'all' || scope === 'agent_line') &&
+        (scope === 'all' || scope === 'agent_line' || scope === 'targeted') &&
         control.controlMode === 'AGENT_LINE' &&
         control.targetId &&
         ancestors.includes(control.targetId)
@@ -313,6 +331,35 @@ export function rankWinLossControls<T extends RankableWinLossControl>(
     );
 
   return ranked[0] ?? null;
+}
+
+async function findProtectedAgentLineWinDecision(
+  tx: Db,
+  member: MemberScope,
+): Promise<ControlDecision | null> {
+  if (!member.agentId) return null;
+  const controls = await tx.winLossControl.findMany({
+    where: {
+      isActive: true,
+      isCompleted: false,
+      controlMode: 'AGENT_LINE',
+      winControl: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (controls.length === 0) return null;
+
+  const ancestors = await getAgentAncestors(tx, member.agentId);
+  const selected = rankWinLossControls(controls, member.id, ancestors, 'agent_line');
+  if (!selected || selected.desired !== 'WIN') return null;
+  if (!passesControlInterventionRate(selected.control.controlPercentage)) return null;
+
+  return {
+    desired: 'WIN',
+    controlId: selected.control.id,
+    reason: 'win_control',
+    ignoreWinCapBounds: true,
+  };
 }
 
 async function findWinLossDecision(

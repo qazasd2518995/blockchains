@@ -5,6 +5,7 @@ import {
   checkAndCompleteManualDetectionControls,
   distributeAutoDetectionRedistribution,
   findApplicableBurstControl,
+  findApplicableManualDetectionControl,
   maybeCreateStarterConfidenceManualDetectionControl,
   STARTER_CONFIDENCE_OPERATOR,
 } from './controls.runtime.js';
@@ -12,6 +13,7 @@ import {
 describe('calculateAutoDetectionBitePlan', () => {
   it('turns bite percentage into the next superior-settlement target', async () => {
     const db = {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 'a1' }]),
       user: {
         findMany: vi.fn().mockResolvedValue([{ id: 'u1' }, { id: 'u2' }]),
         aggregate: vi.fn().mockResolvedValue({
@@ -38,6 +40,7 @@ describe('calculateAutoDetectionBitePlan', () => {
 describe('distributeAutoDetectionRedistribution', () => {
   it('credits the redistribution pool to funded members only', async () => {
     const db = {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 'a1' }]),
       user: {
         findMany: vi
           .fn()
@@ -78,6 +81,67 @@ describe('distributeAutoDetectionRedistribution', () => {
     expect(result.distributedAmount.toFixed(2)).toBe('900.00');
     expect(db.user.update).toHaveBeenCalledTimes(4);
     expect(db.transaction.create).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('findApplicableManualDetectionControl no-count lines', () => {
+  it('does not apply global manual detection to a control-excluded agent line', async () => {
+    const db = {
+      manualDetectionControl: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'global',
+            scope: 'ALL',
+            targetAgentId: null,
+            targetMemberUsername: null,
+            createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          },
+        ]),
+      },
+      $queryRaw: vi.fn().mockResolvedValue([{ exists: true }]),
+    };
+
+    const applicable = await findApplicableManualDetectionControl(db as never, {
+      username: 'demo',
+      agentId: 'test111-agent',
+    });
+
+    expect(applicable).toBeNull();
+  });
+
+  it('still applies manual detection when the excluded line is directly targeted', async () => {
+    const lineControl = {
+      id: 'line',
+      scope: 'AGENT_LINE',
+      targetAgentId: 'test111-agent',
+      targetMemberUsername: null,
+      createdAt: new Date('2026-01-02T00:00:00.000Z'),
+    };
+    const db = {
+      manualDetectionControl: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'global',
+            scope: 'ALL',
+            targetAgentId: null,
+            targetMemberUsername: null,
+            createdAt: new Date('2026-01-03T00:00:00.000Z'),
+          },
+          lineControl,
+        ]),
+      },
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValueOnce([{ id: 'test111-agent', depth: 0 }]),
+    };
+
+    const applicable = await findApplicableManualDetectionControl(db as never, {
+      username: 'demo',
+      agentId: 'test111-agent',
+    });
+
+    expect(applicable?.control.id).toBe('line');
+    expect(applicable?.depth).toBe(0);
   });
 });
 

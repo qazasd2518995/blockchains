@@ -1,7 +1,12 @@
 import { ManualDetectionScope, Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { BACCARAT_GAME_IDS } from '@bg/shared';
-import { listAgentDescendants } from '../../../utils/hierarchy.js';
+import {
+  isMemberInControlExcludedLine,
+  listAgentDescendants,
+  listControlIncludedAgentIds,
+  listControlIncludedAgentDescendants,
+} from '../../../utils/hierarchy.js';
 import { getAdminGameDay, getAdminGameDayWindow } from '../gameDay.js';
 import { calculateRebateAmountByCategory, effectiveDownlineRebate } from '../rebate.js';
 
@@ -137,6 +142,8 @@ export async function findApplicableManualDetectionControl(
       (a, b) => a.depth - b.depth || b.control.createdAt.getTime() - a.control.createdAt.getTime(),
     );
   if (lineCandidates.length > 0) return lineCandidates[0];
+
+  if (await isMemberInControlExcludedLine(db, member)) return null;
 
   const allControl = controls.find((control) => control.scope === 'ALL');
   if (!allControl) return null;
@@ -596,7 +603,10 @@ async function listControlScopeMemberIds(
   }
 
   const members = await db.user.findMany({
-    where: { disabledAt: null },
+    where: {
+      disabledAt: null,
+      OR: [{ agentId: null }, { agentId: { in: await listControlIncludedAgentIds(db) } }],
+    },
     select: { id: true },
   });
   return members.map((member) => member.id);
@@ -850,7 +860,9 @@ async function calculateAgentLineSettlement(
 ): Promise<SettlementSummary> {
   const window = getControlGameDayWindow();
   if (!targetAgentId) return emptySummary(window.gameDay);
-  return calculateAgentSubtreeSettlement(db, targetAgentId, window);
+  return calculateAgentSubtreeSettlement(db, targetAgentId, window, {
+    excludeControlExcludedLines: false,
+  });
 }
 
 async function calculateAllSettlement(db: Db): Promise<SettlementSummary> {
@@ -992,6 +1004,7 @@ async function calculateAgentSubtreeSettlement(
   db: Db,
   agentId: string,
   window: ReturnType<typeof getControlGameDayWindow>,
+  options: { excludeControlExcludedLines?: boolean } = {},
 ): Promise<SettlementSummary> {
   const agent = await db.agent.findUnique({
     where: { id: agentId },
@@ -1008,9 +1021,12 @@ async function calculateAgentSubtreeSettlement(
   });
   if (!agent) return emptySummary(window.gameDay);
 
-  const agentIds = await listAgentDescendants(db, agent.id);
+  const includedAgentIds =
+    options.excludeControlExcludedLines === false
+      ? await listAgentDescendants(db, agent.id)
+      : await listControlIncludedAgentDescendants(db, agent.id);
   const members = await db.user.findMany({
-    where: { agentId: { in: agentIds } },
+    where: { agentId: { in: includedAgentIds } },
     select: { id: true },
   });
   if (members.length === 0) return emptySummary(window.gameDay);

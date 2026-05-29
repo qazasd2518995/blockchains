@@ -20,6 +20,85 @@ export async function listAgentDescendants(db: Db, agentId: string): Promise<str
 }
 
 /**
+ * 回傳 agentId 自己 + 所有下級代理，但排除被標記為控制排除線的整條樹。
+ * 這讓帶牌線保留報表可見性，但不納入控制交收與全盤控制判斷。
+ */
+export async function listControlIncludedAgentDescendants(
+  db: Db,
+  agentId: string,
+): Promise<string[]> {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    WITH RECURSIVE
+      excluded_tree AS (
+        SELECT id FROM "Agent"
+        WHERE "excludeFromControlSettlement" = true
+        UNION ALL
+        SELECT a.id FROM "Agent" a
+        JOIN excluded_tree e ON a."parentId" = e.id
+      ),
+      tree AS (
+        SELECT id FROM "Agent"
+        WHERE id = ${agentId}
+          AND id NOT IN (SELECT id FROM excluded_tree)
+        UNION ALL
+        SELECT a.id FROM "Agent" a
+        JOIN tree t ON a."parentId" = t.id
+        WHERE a.id NOT IN (SELECT id FROM excluded_tree)
+      )
+    SELECT id FROM tree
+  `;
+  return rows.map((r) => r.id);
+}
+
+export async function listControlIncludedAgentIds(db: Db): Promise<string[]> {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    WITH RECURSIVE excluded_tree AS (
+      SELECT id FROM "Agent"
+      WHERE "excludeFromControlSettlement" = true
+      UNION ALL
+      SELECT a.id FROM "Agent" a
+      JOIN excluded_tree e ON a."parentId" = e.id
+    )
+    SELECT id
+    FROM "Agent"
+    WHERE id NOT IN (SELECT id FROM excluded_tree)
+  `;
+  return rows.map((r) => r.id);
+}
+
+export async function isAgentInControlExcludedLine(db: Db, agentId: string): Promise<boolean> {
+  const rows = await db.$queryRaw<{ exists: boolean }[]>`
+    WITH RECURSIVE excluded_tree AS (
+      SELECT id FROM "Agent"
+      WHERE "excludeFromControlSettlement" = true
+      UNION ALL
+      SELECT a.id FROM "Agent" a
+      JOIN excluded_tree e ON a."parentId" = e.id
+    )
+    SELECT EXISTS (
+      SELECT 1 FROM excluded_tree WHERE id = ${agentId}
+    ) AS "exists"
+  `;
+  return rows[0]?.exists === true;
+}
+
+export async function isMemberInControlExcludedLine(
+  db: Db,
+  member: { username?: string | null; agentId?: string | null },
+): Promise<boolean> {
+  let agentId = member.agentId ?? null;
+  if (!agentId && member.username) {
+    const row = await db.user.findUnique({
+      where: { username: member.username },
+      select: { agentId: true },
+    });
+    agentId = row?.agentId ?? null;
+  }
+  if (!agentId) return false;
+  return isAgentInControlExcludedLine(db, agentId);
+}
+
+/**
  * 檢查 operator 是否可管理 target（operator 為 target 的祖先，或 SUPER_ADMIN）。
  */
 export async function canManageAgent(

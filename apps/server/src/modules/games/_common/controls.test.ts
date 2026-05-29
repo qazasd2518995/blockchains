@@ -219,6 +219,25 @@ describe('rankWinLossControls priority', () => {
     });
     expect(rankWinLossControls([unrelated], MEMBER, ancestors)).toBeNull();
   });
+
+  it('targeted scope ignores global controls for no-count agent lines', () => {
+    const globalLoss = winLossControl({
+      id: 'global-loss',
+      controlMode: 'NORMAL',
+      targetId: null,
+      lossControl: true,
+    });
+    const agentWin = winLossControl({
+      id: 'line-win',
+      controlMode: 'AGENT_LINE',
+      targetId: PARENT,
+      winControl: true,
+    });
+
+    const selected = rankWinLossControls([globalLoss, agentWin], MEMBER, ancestors, 'targeted');
+    expect(selected?.control.id).toBe('line-win');
+    expect(selected?.desired).toBe('WIN');
+  });
 });
 
 describe('burst cooldown', () => {

@@ -400,39 +400,40 @@ enum AdminRole {
 }
 
 model Agent {
-  id                          String      @id @default(cuid())
-  username                    String      @unique
-  passwordHash                String
-  displayName                 String?
-  parentId                    String?
-  parent                      Agent?      @relation("AgentTree", fields: [parentId], references: [id])
-  children                    Agent[]     @relation("AgentTree")
-  level                       Int
-  marketType                  MarketType  @default(D)
-  balance                     Decimal     @default(0) @db.Decimal(20, 2)
-  commissionBalance           Decimal     @default(0) @db.Decimal(20, 2)
-  commissionRate              Decimal     @default(0) @db.Decimal(5, 4)
-  rebateMode                  RebateMode  @default(PERCENTAGE)
-  rebatePercentage            Decimal     @default(0.025) @db.Decimal(5, 4)
-  maxRebatePercentage         Decimal     @default(0.025) @db.Decimal(5, 4)
-  baccaratRebateMode          RebateMode  @default(PERCENTAGE)
-  baccaratRebatePercentage    Decimal     @default(0.010) @db.Decimal(5, 4)
-  maxBaccaratRebatePercentage Decimal     @default(0.010) @db.Decimal(5, 4)
-  bettingLimitLevel           String      @default("range_10_5000")
-  bettingLimits               Json        @default("{}")
-  status                      AgentStatus @default(ACTIVE)
-  role                        AdminRole   @default(AGENT)
-  notes                       String?
-  lastLoginAt                 DateTime?
-  activeSessionId             String?
-  activeSessionAt             DateTime?
-  twoFactorRequired           Boolean     @default(false)
-  twoFactorEnabled            Boolean     @default(false)
-  twoFactorSecret             String?
-  twoFactorLastUsedStep       BigInt?
-  twoFactorLastUsedAt         DateTime?
-  createdAt                   DateTime    @default(now())
-  updatedAt                   DateTime    @updatedAt
+  id                           String      @id @default(cuid())
+  username                     String      @unique
+  passwordHash                 String
+  displayName                  String?
+  parentId                     String?
+  parent                       Agent?      @relation("AgentTree", fields: [parentId], references: [id])
+  children                     Agent[]     @relation("AgentTree")
+  level                        Int
+  marketType                   MarketType  @default(D)
+  balance                      Decimal     @default(0) @db.Decimal(20, 2)
+  commissionBalance            Decimal     @default(0) @db.Decimal(20, 2)
+  commissionRate               Decimal     @default(0) @db.Decimal(5, 4)
+  rebateMode                   RebateMode  @default(PERCENTAGE)
+  rebatePercentage             Decimal     @default(0.025) @db.Decimal(5, 4)
+  maxRebatePercentage          Decimal     @default(0.025) @db.Decimal(5, 4)
+  baccaratRebateMode           RebateMode  @default(PERCENTAGE)
+  baccaratRebatePercentage     Decimal     @default(0.010) @db.Decimal(5, 4)
+  maxBaccaratRebatePercentage  Decimal     @default(0.010) @db.Decimal(5, 4)
+  bettingLimitLevel            String      @default("range_10_5000")
+  bettingLimits                Json        @default("{}")
+  excludeFromControlSettlement Boolean     @default(false)
+  status                       AgentStatus @default(ACTIVE)
+  role                         AdminRole   @default(AGENT)
+  notes                        String?
+  lastLoginAt                  DateTime?
+  activeSessionId              String?
+  activeSessionAt              DateTime?
+  twoFactorRequired            Boolean     @default(false)
+  twoFactorEnabled             Boolean     @default(false)
+  twoFactorSecret              String?
+  twoFactorLastUsedStep        BigInt?
+  twoFactorLastUsedAt          DateTime?
+  createdAt                    DateTime    @default(now())
+  updatedAt                    DateTime    @updatedAt
 
   members         User[]
   refreshTokens   AgentRefreshToken[]
