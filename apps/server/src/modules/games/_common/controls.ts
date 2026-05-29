@@ -34,6 +34,7 @@ export interface ControlOutcome {
   minMultiplier?: Prisma.Decimal;
   maxMultiplier?: Prisma.Decimal;
   maxPayout?: Prisma.Decimal;
+  burstCooldownRounds?: number;
 }
 
 export interface FinalizedControlResult {
@@ -57,6 +58,7 @@ interface ControlDecision {
   maxMultiplier?: Prisma.Decimal;
   maxPayout?: Prisma.Decimal;
   forceWinAdjustment?: boolean;
+  burstCooldownRounds?: number;
 }
 
 export interface ControlOptions {
@@ -87,6 +89,8 @@ interface BurstEligibility {
 
 const GLOBAL_ACCIDENTAL_BURST_PROFIT_CAP = new Prisma.Decimal(30000);
 export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(50000);
+const BURST_COOLDOWN_MIN_ROUNDS = 10;
+const BURST_COOLDOWN_MAX_ROUNDS = 20;
 const BURST_ELIGIBLE_GAME_IDS = new Set<string>(SLOT_GAME_IDS);
 
 /**
@@ -171,6 +175,9 @@ export async function finalizeControls(
           amount: final.amount.toFixed(2),
           multiplier: final.multiplier.toFixed(4),
           payout: final.payout.toFixed(2),
+          ...(outcome.burstCooldownRounds
+            ? { burstCooldownRounds: outcome.burstCooldownRounds }
+            : {}),
           result: finalResult,
         },
         flipReason: outcome.flipReason,
@@ -812,7 +819,7 @@ async function findBurstDecision(
 
   if (guardOnly) return null;
 
-  const inCooldown = await isBurstCooldownActive(tx, control.id, member.id, control.cooldownRounds);
+  const inCooldown = await isBurstCooldownActive(tx, member.id);
   const canBurst = !inCooldown && remainingBudget.greaterThan(0) && memberRemaining.greaterThan(0);
 
   if (eligibility.eligible && stats.net.lessThanOrEqualTo(control.compensationLoss.negated())) {
@@ -849,6 +856,7 @@ async function findBurstDecision(
         maxMultiplier,
         maxPayout,
         forceWinAdjustment: true,
+        burstCooldownRounds: randomBurstCooldownRounds(),
       };
     }
   }
@@ -1072,34 +1080,51 @@ async function sumMemberBurstProfit(
 
 async function isBurstCooldownActive(
   tx: Db,
-  controlId: string,
   userId: string,
-  cooldownRounds: number,
 ): Promise<boolean> {
-  if (cooldownRounds <= 0) return false;
   const latest = await tx.winLossControlLogs.findFirst({
-    where: { controlId, userId, flipReason: 'burst_win' },
+    where: {
+      userId,
+      gameId: { in: [...BURST_ELIGIBLE_GAME_IDS] },
+      flipReason: 'burst_win',
+    },
     orderBy: { createdAt: 'desc' },
-    select: { createdAt: true },
+    select: { createdAt: true, finalResult: true },
   });
   if (!latest) return false;
-  const [standardCount, crashCount] = await Promise.all([
-    tx.bet.count({
-      where: {
-        userId,
-        status: 'SETTLED',
-        createdAt: { gt: latest.createdAt },
-      },
-    }),
-    tx.crashBet.count({
-      where: {
-        userId,
-        createdAt: { gt: latest.createdAt },
-        round: { status: 'CRASHED' },
-      },
-    }),
-  ]);
-  return standardCount + crashCount < cooldownRounds;
+  const cooldownRounds = getStoredBurstCooldownRounds(latest.finalResult);
+  const slotSpinCount = await tx.bet.count({
+    where: {
+      userId,
+      gameId: { in: [...BURST_ELIGIBLE_GAME_IDS] },
+      status: 'SETTLED',
+      createdAt: { gt: latest.createdAt },
+    },
+  });
+  return slotSpinCount < cooldownRounds;
+}
+
+function randomBurstCooldownRounds(): number {
+  return (
+    BURST_COOLDOWN_MIN_ROUNDS +
+    Math.floor(Math.random() * (BURST_COOLDOWN_MAX_ROUNDS - BURST_COOLDOWN_MIN_ROUNDS + 1))
+  );
+}
+
+function getStoredBurstCooldownRounds(value: Prisma.JsonValue): number {
+  const record = value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+  const raw = record && 'burstCooldownRounds' in record ? record.burstCooldownRounds : undefined;
+  const parsed =
+    typeof raw === 'number'
+      ? raw
+      : typeof raw === 'string'
+        ? Number.parseInt(raw, 10)
+        : Number.NaN;
+  if (!Number.isFinite(parsed)) return BURST_COOLDOWN_MIN_ROUNDS;
+  return Math.max(
+    BURST_COOLDOWN_MIN_ROUNDS,
+    Math.min(BURST_COOLDOWN_MAX_ROUNDS, Math.trunc(parsed)),
+  );
 }
 
 async function updateBurstControlUsage(
@@ -1286,6 +1311,7 @@ function flipToWin(p: PredictedResult, decision: ControlDecision): ControlOutcom
     minMultiplier: decision.minMultiplier,
     maxMultiplier: decision.maxMultiplier,
     maxPayout: decision.maxPayout,
+    burstCooldownRounds: decision.burstCooldownRounds,
   };
 }
 
@@ -1300,3 +1326,8 @@ export function multiplierMatchesControlBounds(
   if (control.maxPayout && amount.mul(m).greaterThan(control.maxPayout)) return false;
   return true;
 }
+
+export const __controlsTestHooks = {
+  getStoredBurstCooldownRounds,
+  randomBurstCooldownRounds,
+};

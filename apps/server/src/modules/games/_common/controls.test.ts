@@ -1,7 +1,11 @@
 import { Prisma } from '@prisma/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GameId } from '@bg/shared';
-import { isBurstControlEligible, passesControlInterventionRate } from './controls.js';
+import {
+  __controlsTestHooks,
+  isBurstControlEligible,
+  passesControlInterventionRate,
+} from './controls.js';
 
 const prediction = (multiplier: number) => ({
   multiplier: new Prisma.Decimal(multiplier),
@@ -54,5 +58,22 @@ describe('isBurstControlEligible', () => {
     expect(isBurstControlEligible(GameId.HOTLINE, prediction(100), { burstEligible: false })).toBe(
       false,
     );
+  });
+});
+
+describe('burst cooldown', () => {
+  it('stores cooldown rounds in the hard 10-20 range', () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0).mockReturnValueOnce(0.999999);
+
+    expect(__controlsTestHooks.randomBurstCooldownRounds()).toBe(10);
+    expect(__controlsTestHooks.randomBurstCooldownRounds()).toBe(20);
+  });
+
+  it('falls back old burst logs to at least 10 cooldown rounds', () => {
+    expect(__controlsTestHooks.getStoredBurstCooldownRounds({})).toBe(10);
+    expect(__controlsTestHooks.getStoredBurstCooldownRounds({ burstCooldownRounds: 0 })).toBe(10);
+    expect(__controlsTestHooks.getStoredBurstCooldownRounds({ burstCooldownRounds: 8 })).toBe(10);
+    expect(__controlsTestHooks.getStoredBurstCooldownRounds({ burstCooldownRounds: 16 })).toBe(16);
+    expect(__controlsTestHooks.getStoredBurstCooldownRounds({ burstCooldownRounds: 99 })).toBe(20);
   });
 });
