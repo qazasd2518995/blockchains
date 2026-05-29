@@ -197,6 +197,7 @@ export function WheelPage() {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
+              gameId="wheel"
               disabled={busy}
             />
             {result && (

@@ -442,6 +442,7 @@ export function TowerPage() {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
+              gameId="tower"
               disabled={round?.status === 'ACTIVE' || busy}
             />
 

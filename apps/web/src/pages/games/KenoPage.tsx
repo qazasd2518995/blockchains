@@ -911,6 +911,7 @@ export function KenoPage() {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
+              gameId="keno"
               disabled={controlsLocked}
             />
 

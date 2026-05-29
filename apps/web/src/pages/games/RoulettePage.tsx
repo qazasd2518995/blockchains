@@ -351,6 +351,7 @@ export function RoulettePage({ variant }: Props) {
                 onAmountChange={setChip}
                 maxBalance={balance}
                 guestMode={!user}
+                gameId={variant}
                 disabled={busy}
                 label={t.games.roulette.chipSize}
                 max={MAX_BET_AMOUNT}

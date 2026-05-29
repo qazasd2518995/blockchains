@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { UserPublic } from '@bg/shared';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -22,13 +23,29 @@ export function holdWalletBalanceRefresh(): () => void {
 
 export function useLiveBalance(intervalMs = 5_000): void {
   const userId = useAuthStore((s) => s.user?.id);
+  const hasBettingLimits = useAuthStore((s) => Boolean(s.user?.bettingLimits));
   const accessToken = useAuthStore((s) => s.accessToken);
+  const setUser = useAuthStore((s) => s.setUser);
   const setBalance = useAuthStore((s) => s.setBalance);
   const inFlight = useRef(false);
+  const profileRefreshInFlight = useRef(false);
 
   useEffect(() => {
     if (!userId || !accessToken) return;
     let active = true;
+
+    const refreshProfileIfNeeded = async () => {
+      if (hasBettingLimits || profileRefreshInFlight.current) return;
+      profileRefreshInFlight.current = true;
+      try {
+        const res = await api.get<UserPublic>('/auth/me');
+        if (active) setUser(res.data);
+      } catch {
+        // Keep profile hydration silent. Auth interceptor handles expired sessions.
+      } finally {
+        profileRefreshInFlight.current = false;
+      }
+    };
 
     const refresh = async () => {
       if (!active || inFlight.current || walletBalanceRefreshHoldCount > 0) return;
@@ -46,6 +63,7 @@ export function useLiveBalance(intervalMs = 5_000): void {
       if (document.visibilityState === 'visible') void refresh();
     };
 
+    void refreshProfileIfNeeded();
     void refresh();
     const timer = window.setInterval(refresh, intervalMs);
     window.addEventListener('focus', refresh);
@@ -58,5 +76,5 @@ export function useLiveBalance(intervalMs = 5_000): void {
       window.removeEventListener(WALLET_BALANCE_REFRESH_EVENT, refresh);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
-  }, [accessToken, intervalMs, setBalance, userId]);
+  }, [accessToken, hasBettingLimits, intervalMs, setBalance, setUser, userId]);
 }

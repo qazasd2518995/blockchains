@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Sfx } from '@bg/game-engine';
-import { MAX_BET_AMOUNT, MIN_BET_AMOUNT } from '@bg/shared';
+import { getBettingLimitForGame, MAX_BET_AMOUNT, MIN_BET_AMOUNT } from '@bg/shared';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useAuthStore } from '@/stores/authStore';
 
 interface BetControlsProps {
   amount: number;
@@ -11,6 +12,7 @@ interface BetControlsProps {
   min?: number;
   max?: number;
   guestMode?: boolean;
+  gameId?: string;
   label?: string;
   limitLabel?: string;
   showPresets?: boolean;
@@ -24,11 +26,19 @@ export function BetControls({
   min = MIN_BET_AMOUNT,
   max = MAX_BET_AMOUNT,
   guestMode = false,
+  gameId,
   label,
   limitLabel,
   showPresets = true,
 }: BetControlsProps) {
   const { t } = useTranslation();
+  const user = useAuthStore((s) => s.user);
+  const configuredLimit =
+    user && gameId
+      ? getBettingLimitForGame(user.bettingLimits, gameId, user.bettingLimitLevel)
+      : null;
+  const minLimit = Math.max(min, configuredLimit?.min ?? min);
+  const maxLimit = Math.min(max, configuredLimit?.max ?? max);
   const [text, setText] = useState(amount.toFixed(2));
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -39,14 +49,16 @@ export function BetControls({
     });
 
   const availableBalance = Number.isFinite(maxBalance) ? Math.max(0, maxBalance) : 0;
-  const stakeMax = Math.max(min, max);
-  const effectiveMax = guestMode ? stakeMax : Math.min(stakeMax, Math.max(min, availableBalance));
+  const stakeMax = Math.max(minLimit, maxLimit);
+  const effectiveMax = guestMode
+    ? stakeMax
+    : Math.min(stakeMax, Math.max(minLimit, availableBalance));
 
   const validateAmount = (raw: string): string | null => {
     if (!raw.trim()) return null;
     const v = Number(raw);
     if (!Number.isFinite(v)) return '請輸入有效下注金額。';
-    if (v < min) return `最低下注為 ${formatLimit(min)}。`;
+    if (v < minLimit) return `最低下注為 ${formatLimit(minLimit)}。`;
     if (v > stakeMax) return `單注上限為 ${formatLimit(stakeMax)}。`;
     if (!guestMode && v > availableBalance) {
       return `餘額不足，目前可用 ${formatLimit(availableBalance)}。`;
@@ -57,7 +69,18 @@ export function BetControls({
   useEffect(() => {
     setText(amount.toFixed(2));
     setLocalError(validateAmount(amount.toFixed(2)));
-  }, [amount, maxBalance, max]);
+  }, [amount, maxBalance, maxLimit, minLimit]);
+
+  useEffect(() => {
+    if (disabled) return;
+    if (amount < minLimit) {
+      onAmountChange(minLimit);
+      return;
+    }
+    if (amount > effectiveMax) {
+      onAmountChange(effectiveMax);
+    }
+  }, [amount, disabled, effectiveMax, minLimit, onAmountChange]);
 
   const syncText = (v: number) => {
     onAmountChange(v);
@@ -66,7 +89,7 @@ export function BetControls({
     Sfx.tick();
   };
 
-  const clamp = (v: number) => Math.max(min, Math.min(effectiveMax, v));
+  const clamp = (v: number) => Math.max(minLimit, Math.min(effectiveMax, v));
 
   return (
     <div className="bet-controls rounded-[16px] border border-white/10 bg-white/[0.04] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:rounded-[20px] sm:p-4">

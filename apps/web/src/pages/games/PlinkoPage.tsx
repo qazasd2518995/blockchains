@@ -872,6 +872,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
+              gameId={variant === 'x' ? 'plinko-x' : 'plinko'}
               disabled={autoActive}
             />
 

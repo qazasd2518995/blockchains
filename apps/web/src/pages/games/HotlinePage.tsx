@@ -1417,7 +1417,17 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     } catch (err) {
       sceneRef.current?.stopAnticipation();
       sceneRef.current?.resetWinLines();
-      setLiveMegaRound(null);
+      try {
+        sceneRef.current?.snapToGrid(
+          result?.grid ?? (isMegaSlot ? megaDisplayGrid : fallbackGrid),
+          isMegaSlot ? megaDisplaySpecialSymbols : [],
+        );
+      } catch (snapErr) {
+        console.warn('Slot scene could not restore a visible grid after bet error', snapErr);
+      }
+      if (isMegaSlot) {
+        setLiveMegaRound((prev) => prev ?? createInitialLiveMegaRound(megaDisplayGrid));
+      }
       setMegaFreeSpinIntro(null);
       setMegaFallbackSpinning(false);
       setMegaFallbackWinning([]);
@@ -2366,6 +2376,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
+              gameId={slotTheme.gameId}
               disabled={controlsLocked}
             />
 

@@ -396,6 +396,7 @@ export function BlackjackPage() {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
+              gameId="blackjack"
               disabled={Boolean(round && round.status === 'ACTIVE') || busy}
             />
 

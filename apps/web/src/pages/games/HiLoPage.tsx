@@ -332,6 +332,7 @@ export function HiLoPage() {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
+              gameId="hilo"
               disabled={isActive || busy}
             />
             <div className="hilo-action-panel mt-6 space-y-2">

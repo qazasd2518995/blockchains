@@ -144,6 +144,8 @@ export class AuthService {
     displayName: string | null;
     balance: Prisma.Decimal;
     role: string;
+    bettingLimitLevel?: string | null;
+    bettingLimits?: Prisma.JsonValue | null;
     createdAt: Date;
   }): UserPublic {
     return {
@@ -152,6 +154,11 @@ export class AuthService {
       displayName: user.displayName,
       balance: user.balance.toFixed(2),
       role: user.role as UserPublic['role'],
+      bettingLimitLevel: user.bettingLimitLevel ?? null,
+      bettingLimits:
+        user.bettingLimits && typeof user.bettingLimits === 'object' && !Array.isArray(user.bettingLimits)
+          ? (user.bettingLimits as Record<string, string>)
+          : {},
       createdAt: user.createdAt.toISOString(),
     };
   }

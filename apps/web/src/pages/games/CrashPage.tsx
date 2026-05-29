@@ -1638,6 +1638,7 @@ export function CrashPage({ config }: Props) {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
+              gameId={config.gameId}
               disabled={controlsLocked}
             />
 

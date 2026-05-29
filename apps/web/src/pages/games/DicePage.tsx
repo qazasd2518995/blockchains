@@ -843,6 +843,7 @@ export function DicePage() {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
+              gameId="dice"
               disabled={controlsLocked}
             />
 

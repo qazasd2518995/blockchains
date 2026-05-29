@@ -423,6 +423,7 @@ export function MinesPage() {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
+              gameId="mines"
               disabled={isActive || busy}
             />
 

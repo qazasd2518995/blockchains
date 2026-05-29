@@ -281,6 +281,7 @@ export function ChickenRoadPage() {
               onAmountChange={setAmount}
               maxBalance={balance}
               guestMode={!user}
+              gameId="chicken-road"
               disabled={isActive || busy}
             />
 

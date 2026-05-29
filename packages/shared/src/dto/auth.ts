@@ -23,6 +23,8 @@ export interface UserPublic {
   displayName: string | null;
   balance: string;
   role: 'PLAYER' | 'ADMIN';
+  bettingLimitLevel?: string | null;
+  bettingLimits?: Record<string, string>;
   createdAt: string;
 }
 
