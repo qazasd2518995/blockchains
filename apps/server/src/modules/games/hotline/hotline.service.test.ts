@@ -120,6 +120,58 @@ describe('hotline controlled round shaping', () => {
     expect(round.features?.totalMultiplier).toBe(round.totalMultiplier);
   });
 
+  it('varies mega-slot burst symbols, cascades, and feature multipliers across nonces', () => {
+    const amount = new Prisma.Decimal(100);
+    const rounds = Array.from({ length: 6 }, (_, nonce) =>
+      __hotlineServiceTestHooks.winningHotlineRound(
+        GameId.DRAGON_MEGA_SLOT,
+        amount,
+        {
+          flipReason: 'burst_win',
+          minMultiplier: new Prisma.Decimal(250),
+          maxMultiplier: new Prisma.Decimal(500),
+          maxPayout: new Prisma.Decimal(50000),
+        },
+        nonce,
+      ),
+    );
+
+    const cascadeSignatures = new Set(
+      rounds.map((round) =>
+        (round.cascades ?? [])
+          .flatMap((step) => step.removed.map((position) => `${position.reel}:${position.row}`))
+          .join('|'),
+      ),
+    );
+    const featureSignatures = new Set(
+      rounds.map((round) =>
+        [
+          round.features?.baseMultiplierSymbols.map((symbol) => symbol.value).join('+') ?? '',
+          round.features?.freeSpinRounds
+            .filter((freeRound) => freeRound.totalMultiplier > 0)
+            .map(
+              (freeRound) =>
+                `${freeRound.index}:${freeRound.totalMultiplier}:${freeRound.multiplierTotal}`,
+            )
+            .join('|') ?? '',
+        ].join('/'),
+      ),
+    );
+
+    expect(cascadeSignatures.size).toBeGreaterThan(1);
+    expect(featureSignatures.size).toBeGreaterThan(1);
+    for (const round of rounds) {
+      expect(round.features?.freeSpinsAwarded).toBeGreaterThan(0);
+      expect(
+        round.features?.freeSpinRounds.some((freeRound) => freeRound.cascades.length > 0),
+      ).toBe(true);
+      expect(
+        round.features?.freeSpinRounds.some((freeRound) => freeRound.multiplierSymbols.length > 0),
+      ).toBe(true);
+      expect(round.features?.totalMultiplier).toBeCloseTo(round.totalMultiplier, 4);
+    }
+  });
+
   it('shapes mega buy-feature accounting into two low results and one capped high result', () => {
     const picks = [0, 1, 2].map((nonce) =>
       __hotlineServiceTestHooks.chooseMegaFreeGameAccountingMultiplier(nonce),
@@ -162,6 +214,31 @@ describe('hotline controlled round shaping', () => {
 
     expect(capped.payout.lessThanOrEqualTo(stakeAmount.mul(2.5))).toBe(true);
     expect(capped.multiplier.lessThanOrEqualTo(2.5)).toBe(true);
+    expect(capped.features.totalMultiplier).toBeLessThanOrEqual(250);
+    expect(capped.features.freeSpinWinMultiplier).toBe(capped.features.totalMultiplier);
+  });
+
+  it('keeps controlled mega buy-feature rounds visually populated after capping', () => {
+    const capped = __hotlineServiceTestHooks.capMegaFreeGameSettlement(
+      __hotlineServiceTestHooks.buildControlledMegaFeature(180, true, 12),
+      true,
+      new Prisma.Decimal(10),
+      new Prisma.Decimal(1000),
+      2,
+    );
+
+    const winningRounds = capped.features.freeSpinRounds.filter(
+      (round) => round.totalMultiplier > 0,
+    );
+    const multiplierSignatures = new Set(
+      winningRounds.map((round) => round.multiplierSymbols.map((symbol) => symbol.value).join('+')),
+    );
+
+    expect(capped.features.freeSpinsAwarded).toBe(15);
+    expect(capped.features.freeSpinRounds).toHaveLength(15);
+    expect(winningRounds.length).toBeGreaterThanOrEqual(4);
+    expect(winningRounds.some((round) => round.cascades.length > 0)).toBe(true);
+    expect(multiplierSignatures.size).toBeGreaterThan(1);
     expect(capped.features.totalMultiplier).toBeLessThanOrEqual(250);
     expect(capped.features.freeSpinWinMultiplier).toBe(capped.features.totalMultiplier);
   });

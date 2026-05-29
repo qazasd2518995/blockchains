@@ -24,6 +24,7 @@ import {
   type HotlineCascadeStep,
   type HotlineJackpotSnapshot,
   type HotlineMegaFeatureResult,
+  type HotlineSpecialSymbol,
   type HotlineWinLine,
   type HotlineWinPosition,
 } from '@bg/shared';
@@ -178,9 +179,15 @@ export class HotlineService {
                       )
                     : Number(finalMultiplier.toFixed(4)),
                   true,
+                  seed.nonce,
                 )
               : (controlledRound.features ??
-                buildControlledMegaFeature(Number(finalMultiplier.toFixed(4))))
+                buildControlledMegaFeature(
+                  Number(finalMultiplier.toFixed(4)),
+                  false,
+                  seed.nonce,
+                  controlledRound,
+                ))
             : undefined;
       }
 
@@ -643,11 +650,8 @@ function winningMegaHotlineRound(
   );
   if (controlled.flipReason === 'burst_win') {
     const picked = pickHighestMultiplier(bounded) ?? pickHighestMultiplier(underCap);
-    if (picked) return shapeMegaBurstRound(picked, amount, controlled);
-    return (
-      softLossHotlineRound(gameId, variant) ??
-      candidates[0]!
-    );
+    if (picked) return shapeMegaBurstRound(picked, amount, controlled, variant);
+    return softLossHotlineRound(gameId, variant) ?? candidates[0]!;
   }
   return (
     pickRandomBest(bounded, (candidate) => {
@@ -664,8 +668,7 @@ function winningMegaHotlineRound(
 
 function classicWinCandidateRounds(gameId: string, variant = 0): HotlineRound[] {
   const reelCount = getHotlineReelCount(gameId);
-  const runLengths =
-    reelCount >= 5 ? ([3, 4, 5] as const) : ([3] as const);
+  const runLengths = reelCount >= 5 ? ([3, 4, 5] as const) : ([3] as const);
   const rounds: HotlineRound[] = [];
 
   for (const runLength of runLengths) {
@@ -737,15 +740,19 @@ function shapeMegaBurstRound(
   round: HotlineRound,
   amount: Prisma.Decimal,
   controlled: HotlineControlBounds,
+  variant = 0,
 ): HotlineRound {
   const targetMultiplier = Math.max(
     round.totalMultiplier,
-    Math.min(targetControlMultiplier(controlled), maxAllowedMegaBurstMultiplier(amount, controlled)),
+    Math.min(
+      targetControlMultiplier(controlled),
+      maxAllowedMegaBurstMultiplier(amount, controlled),
+    ),
   );
   const shapedMultiplier = roundFeatureMultiplier(targetMultiplier);
   return {
     ...round,
-    features: buildControlledMegaFeature(shapedMultiplier),
+    features: buildControlledMegaFeature(shapedMultiplier, false, variant, round),
     totalMultiplier: shapedMultiplier,
   };
 }
@@ -795,9 +802,7 @@ function softLossHotlineRound(gameId: string, variant = 0): HotlineRound {
   return roundFromClassicGrid(fixedLineHotlineGrid(reelCount, [symbol], variant));
 }
 
-function targetControlMultiplier(
-  controlled: HotlineControlBounds,
-): number {
+function targetControlMultiplier(controlled: HotlineControlBounds): number {
   const min = controlled.minMultiplier?.toNumber();
   const max = controlled.maxMultiplier?.toNumber();
   if (min !== undefined && max !== undefined) return (min + max) / 2;
@@ -814,7 +819,12 @@ function roundFromClassicGrid(grid: number[][]): HotlineRound {
   };
 }
 
-function roundFromMegaGrid(gameId: string, initialGrid: number[][], variant = 0): HotlineRound {
+function roundFromMegaGrid(
+  gameId: string,
+  initialGrid: number[][],
+  variant = 0,
+  includeFeatures = true,
+): HotlineRound {
   const evaluated = hotlineEvaluate(initialGrid);
   const removed = collectHotlineRoundWinPositions(initialGrid, evaluated.lines);
   const finalGrid = blankHotlineGrid(gameId, variant + 97);
@@ -835,7 +845,7 @@ function roundFromMegaGrid(gameId: string, initialGrid: number[][], variant = 0)
     grid: finalGrid,
     lines: evaluated.lines,
     cascades,
-    features: buildControlledMegaFeature(evaluated.totalMultiplier),
+    ...(includeFeatures ? { features: buildControlledMegaFeature(evaluated.totalMultiplier) } : {}),
     totalMultiplier: evaluated.totalMultiplier,
   };
 }
@@ -871,14 +881,11 @@ function fixedLineHotlineGrid(
   const normalizedVariant = Math.abs(variant);
   const symbolsForGrid = reelCount === 3 ? HOTLINE_MINI_SYMBOLS : HOTLINE_SYMBOLS;
   const runLength = Math.max(3, Math.min(runLengthOverride ?? 3, reelCount));
-  const expectedMultiplier = targetSymbols.reduce(
-    (sum, symbol) => {
-      const meta = symbolsForGrid[symbol];
-      if (!meta) return sum;
-      return sum + (runLength >= 5 ? meta.payout5 : runLength === 4 ? meta.payout4 : meta.payout3);
-    },
-    0,
-  );
+  const expectedMultiplier = targetSymbols.reduce((sum, symbol) => {
+    const meta = symbolsForGrid[symbol];
+    if (!meta) return sum;
+    return sum + (runLength >= 5 ? meta.payout5 : runLength === 4 ? meta.payout4 : meta.payout3);
+  }, 0);
 
   for (let attempt = 0; attempt < 160; attempt += 1) {
     const grid = makeClassicNoWinGrid(reelCount, targetSymbols, normalizedVariant + attempt);
@@ -1039,64 +1046,349 @@ function collectHotlineRoundWinPositions(
 function buildControlledMegaFeature(
   totalMultiplier: number,
   buyFeature = false,
+  variant = 0,
+  baseRound?: HotlineRound,
 ): HotlineMegaFeatureResult {
+  const target = roundFeatureMultiplier(totalMultiplier);
+  const scatterSymbols = buildControlledScatterSymbols(variant);
+
   if (buyFeature) {
-    const blankGrid = blankHotlineGrid(GameId.THUNDER_SLOT);
-    const freeSpinRounds = Array.from({ length: 15 }, (_, index) => ({
-      index,
-      initialGrid: blankGrid,
-      finalGrid: blankGrid,
-      cascades: [],
-      lines: [],
-      baseMultiplier: 0,
-      scatterSymbols: [],
-      multiplierSymbols: [],
-      multiplierTotal: 0,
-      appliedMultiplier: 1,
-      totalMultiplier: 0,
-      extraFreeSpinsAwarded: 0,
-    }));
+    const freeSpinData = buildControlledMegaFreeSpins(target, variant + 1700);
     return {
-      scatterSymbols: [
-        { reel: 0, row: 0, type: 'scatter' },
-        { reel: 1, row: 1, type: 'scatter' },
-        { reel: 2, row: 2, type: 'scatter' },
-        { reel: 3, row: 3, type: 'scatter' },
-      ],
-      scatterCount: 4,
-      freeSpinsAwarded: 15,
-      freeSpinsPlayed: freeSpinRounds.length,
+      scatterSymbols,
+      scatterCount: scatterSymbols.length,
+      freeSpinsAwarded: freeSpinData.freeSpinsAwarded,
+      freeSpinsPlayed: freeSpinData.freeSpinRounds.length,
       baseWinMultiplier: 0,
       baseMultiplierSymbols: [],
       baseMultiplierTotal: 0,
       baseAppliedMultiplier: 1,
       baseTotalMultiplier: 0,
-      freeSpinRounds,
-      freeSpinMultiplierBank: 0,
-      freeSpinWinMultiplier: totalMultiplier,
-      totalMultiplier,
+      freeSpinRounds: freeSpinData.freeSpinRounds,
+      freeSpinMultiplierBank: freeSpinData.freeSpinMultiplierBank,
+      freeSpinWinMultiplier: freeSpinData.freeSpinWinMultiplier,
+      totalMultiplier: freeSpinData.freeSpinWinMultiplier,
     };
   }
 
+  const baseWinMultiplier = roundFeatureMultiplier(
+    Math.max(0, baseRound?.totalMultiplier ?? Math.min(target, 1.2)),
+  );
+  const baseShare = 0.18 + deterministicFraction(variant, 41) * 0.24;
+  const preferredBaseTotal = roundFeatureMultiplier(Math.min(target, target * baseShare));
+  const baseTotalMultiplier = roundFeatureMultiplier(
+    Math.min(target, Math.max(baseWinMultiplier, preferredBaseTotal)),
+  );
+  const baseAppliedMultiplier =
+    baseWinMultiplier > 0
+      ? roundFeatureMultiplier(Math.max(1, baseTotalMultiplier / baseWinMultiplier))
+      : 1;
+  const baseMultiplierTotal = baseAppliedMultiplier > 1 ? baseAppliedMultiplier : 0;
+  const freeSpinWinTarget = roundFeatureMultiplier(Math.max(0, target - baseTotalMultiplier));
+  const freeSpinData =
+    freeSpinWinTarget > 0.0001
+      ? buildControlledMegaFreeSpins(freeSpinWinTarget, variant + 3100)
+      : {
+          freeSpinsAwarded: 0,
+          freeSpinRounds: [],
+          freeSpinMultiplierBank: 0,
+          freeSpinWinMultiplier: 0,
+        };
+
   return {
-    scatterSymbols: [],
-    scatterCount: 0,
-    freeSpinsAwarded: 0,
-    freeSpinsPlayed: 0,
-    baseWinMultiplier: totalMultiplier,
-    baseMultiplierSymbols: [],
-    baseMultiplierTotal: 0,
-    baseAppliedMultiplier: 1,
-    baseTotalMultiplier: totalMultiplier,
-    freeSpinRounds: [],
-    freeSpinMultiplierBank: 0,
-    freeSpinWinMultiplier: 0,
-    totalMultiplier,
+    scatterSymbols: freeSpinData.freeSpinsAwarded > 0 ? scatterSymbols : [],
+    scatterCount: freeSpinData.freeSpinsAwarded > 0 ? scatterSymbols.length : 0,
+    freeSpinsAwarded: freeSpinData.freeSpinsAwarded,
+    freeSpinsPlayed: freeSpinData.freeSpinRounds.length,
+    baseWinMultiplier,
+    baseMultiplierSymbols:
+      baseMultiplierTotal > 0 ? buildControlledMultiplierSymbols(baseMultiplierTotal, variant) : [],
+    baseMultiplierTotal,
+    baseAppliedMultiplier,
+    baseTotalMultiplier,
+    freeSpinRounds: freeSpinData.freeSpinRounds,
+    freeSpinMultiplierBank: freeSpinData.freeSpinMultiplierBank,
+    freeSpinWinMultiplier: freeSpinData.freeSpinWinMultiplier,
+    totalMultiplier: roundFeatureMultiplier(
+      baseTotalMultiplier + freeSpinData.freeSpinWinMultiplier,
+    ),
   };
+}
+
+function buildControlledMegaFreeSpins(
+  totalMultiplier: number,
+  variant = 0,
+): {
+  freeSpinsAwarded: number;
+  freeSpinRounds: HotlineMegaFeatureResult['freeSpinRounds'];
+  freeSpinMultiplierBank: number;
+  freeSpinWinMultiplier: number;
+} {
+  const freeSpinsAwarded = 15;
+  const target = roundFeatureMultiplier(totalMultiplier);
+  const blankGrid = blankHotlineGrid(GameId.THUNDER_SLOT, variant + 900);
+  if (target <= 0) {
+    return {
+      freeSpinsAwarded,
+      freeSpinRounds: Array.from({ length: freeSpinsAwarded }, (_, index) =>
+        blankControlledFreeSpinRound(index, blankGrid),
+      ),
+      freeSpinMultiplierBank: 0,
+      freeSpinWinMultiplier: 0,
+    };
+  }
+
+  const winningRoundCount = Math.min(9, Math.max(4, 5 + (Math.abs(variant) % 5)));
+  const winningIndexes = pickControlledFreeSpinWinIndexes(
+    freeSpinsAwarded,
+    winningRoundCount,
+    variant,
+  );
+  const portions = distributeControlledMultiplier(target, winningRoundCount, variant);
+  const freeSpinRounds: HotlineMegaFeatureResult['freeSpinRounds'] = [];
+  let portionIndex = 0;
+  let multiplierBank = 0;
+  let freeSpinWinMultiplier = 0;
+
+  for (let index = 0; index < freeSpinsAwarded; index += 1) {
+    if (!winningIndexes.has(index)) {
+      freeSpinRounds.push(blankControlledFreeSpinRound(index, blankGrid));
+      continue;
+    }
+
+    const desiredTotal = portions[portionIndex] ?? 0;
+    const symbolSeed = variant + index * 37 + portionIndex * 101;
+    const symbols = controlledMegaSymbolSet(symbolSeed);
+    const clusterCount = 8 + (symbolSeed % 3) * 2;
+    const sourceRound = roundFromMegaGrid(
+      GameId.THUNDER_SLOT,
+      megaClusterHotlineGrid(symbols, symbolSeed, clusterCount),
+      symbolSeed,
+      false,
+    );
+    const nextBank = roundFeatureMultiplier(
+      Math.max(
+        multiplierBank + 0.5,
+        1 + (portionIndex + 1) * (1.2 + deterministicFraction(variant, index + 9) * 2.4),
+      ),
+    );
+    const baseMultiplier = roundFeatureMultiplier(
+      Math.max(0.01, desiredTotal / Math.max(1, nextBank)),
+    );
+    const scaled = scaleMegaRoundToBaseMultiplier(sourceRound, baseMultiplier);
+    const multiplierTotal = roundFeatureMultiplier(Math.max(0, nextBank - multiplierBank));
+    const multiplierSymbols =
+      multiplierTotal > 0
+        ? buildControlledMultiplierSymbols(multiplierTotal, variant + index * 19)
+        : [];
+    const scatterSymbols =
+      index === 0 && deterministicFraction(variant, 211) > 0.62
+        ? buildControlledScatterSymbols(variant + index * 13).slice(0, 1)
+        : [];
+    const totalForRound = roundFeatureMultiplier(baseMultiplier * Math.max(1, nextBank));
+
+    freeSpinRounds.push({
+      index,
+      initialGrid: scaled.initialGrid,
+      finalGrid: scaled.finalGrid,
+      cascades: scaled.cascades,
+      lines: scaled.lines,
+      baseMultiplier,
+      scatterSymbols,
+      multiplierSymbols,
+      multiplierTotal,
+      appliedMultiplier: nextBank,
+      totalMultiplier: totalForRound,
+      extraFreeSpinsAwarded: 0,
+    });
+
+    multiplierBank = nextBank;
+    freeSpinWinMultiplier = roundFeatureMultiplier(freeSpinWinMultiplier + totalForRound);
+    portionIndex += 1;
+  }
+
+  const delta = roundFeatureMultiplier(target - freeSpinWinMultiplier);
+  if (Math.abs(delta) > 0.0001) {
+    const lastWinIndex = [...winningIndexes].pop() ?? freeSpinRounds.length - 1;
+    const lastRound = freeSpinRounds[lastWinIndex]!;
+    const adjustedTotal = roundFeatureMultiplier(Math.max(0, lastRound.totalMultiplier + delta));
+    const adjustedBase = roundFeatureMultiplier(
+      adjustedTotal / Math.max(1, lastRound.appliedMultiplier),
+    );
+    const adjusted = scaleMegaFreeSpinRound(
+      {
+        ...lastRound,
+        baseMultiplier: lastRound.baseMultiplier || 1,
+        totalMultiplier: lastRound.baseMultiplier || 1,
+      },
+      lastRound.baseMultiplier > 0 ? adjustedBase / lastRound.baseMultiplier : 1,
+    );
+    freeSpinRounds[lastWinIndex] = {
+      ...lastRound,
+      cascades: adjusted.cascades,
+      lines: adjusted.lines,
+      baseMultiplier: adjustedBase,
+      totalMultiplier: adjustedTotal,
+    };
+    freeSpinWinMultiplier = target;
+  }
+
+  return {
+    freeSpinsAwarded,
+    freeSpinRounds,
+    freeSpinMultiplierBank: multiplierBank,
+    freeSpinWinMultiplier: target,
+  };
+}
+
+function blankControlledFreeSpinRound(
+  index: number,
+  blankGrid: number[][],
+): HotlineMegaFeatureResult['freeSpinRounds'][number] {
+  return {
+    index,
+    initialGrid: blankGrid,
+    finalGrid: blankGrid,
+    cascades: [],
+    lines: [],
+    baseMultiplier: 0,
+    scatterSymbols: [],
+    multiplierSymbols: [],
+    multiplierTotal: 0,
+    appliedMultiplier: 1,
+    totalMultiplier: 0,
+    extraFreeSpinsAwarded: 0,
+  };
+}
+
+function pickControlledFreeSpinWinIndexes(
+  totalSpins: number,
+  winningRoundCount: number,
+  variant: number,
+): Set<number> {
+  const indexes = Array.from({ length: totalSpins }, (_, index) => index);
+  indexes.sort(
+    (a, b) =>
+      deterministicFraction(variant + a * 17, 503) - deterministicFraction(variant + b * 17, 503),
+  );
+  return new Set(indexes.slice(0, winningRoundCount).sort((a, b) => a - b));
+}
+
+function distributeControlledMultiplier(
+  totalMultiplier: number,
+  count: number,
+  variant: number,
+): number[] {
+  if (count <= 0) return [];
+  const weights = Array.from({ length: count }, (_, index) => {
+    const spike = index === count - 1 ? 1.8 : 1;
+    return spike * (0.65 + deterministicFraction(variant, 700 + index * 31) * 1.7);
+  });
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  let used = 0;
+  return weights.map((weight, index) => {
+    if (index === count - 1) return roundFeatureMultiplier(Math.max(0, totalMultiplier - used));
+    const portion = roundFeatureMultiplier((totalMultiplier * weight) / totalWeight);
+    used = roundFeatureMultiplier(used + portion);
+    return portion;
+  });
+}
+
+function controlledMegaSymbolSet(variant: number): readonly number[] {
+  const highSymbols = [4, 5, 6, 7] as const;
+  const first = highSymbols[Math.abs(variant) % highSymbols.length]!;
+  const mode = Math.abs(Math.floor(variant / 7)) % 4;
+  if (mode === 0) return [first];
+  const second = highSymbols[(Math.abs(variant) + 1) % highSymbols.length]!;
+  if (mode === 1) return [first, second];
+  const third = highSymbols[(Math.abs(variant) + 2) % highSymbols.length]!;
+  return [first, second, third];
+}
+
+function scaleMegaRoundToBaseMultiplier(
+  round: HotlineRound,
+  targetBaseMultiplier: number,
+): Pick<
+  HotlineMegaFeatureResult['freeSpinRounds'][number],
+  'initialGrid' | 'finalGrid' | 'cascades' | 'lines'
+> {
+  const current = Math.max(0.0001, round.totalMultiplier);
+  const ratio = targetBaseMultiplier / current;
+  const cascades = (round.cascades ?? []).map((step) => ({
+    ...step,
+    multiplier: roundFeatureMultiplier(step.multiplier * ratio),
+    lines: step.lines.map((line) => ({
+      ...line,
+      payout: roundFeatureMultiplier(line.payout * ratio),
+    })),
+  }));
+  const lines = round.lines.map((line) => ({
+    ...line,
+    payout: roundFeatureMultiplier(line.payout * ratio),
+  }));
+  return {
+    initialGrid: cascades[0]?.grid ?? round.grid,
+    finalGrid: round.grid,
+    cascades,
+    lines,
+  };
+}
+
+function buildControlledMultiplierSymbols(
+  totalValue: number,
+  variant: number,
+): HotlineSpecialSymbol[] {
+  const total = roundFeatureMultiplier(totalValue);
+  if (total <= 0) return [];
+  const count = total >= 12 ? 3 : total >= 4 ? 2 : 1;
+  const positions = rankedMegaPositions(
+    Array.from({ length: 30 }, (_, index) => ({
+      reel: Math.floor(index / 5),
+      row: index % 5,
+    })),
+    variant + 811,
+  );
+  const pieces = splitMultiplierValue(total, count, variant);
+  return pieces.map((value, index) => ({
+    ...positions[index]!,
+    type: 'multiplier' as const,
+    value,
+  }));
+}
+
+function splitMultiplierValue(total: number, count: number, variant: number): number[] {
+  if (count <= 1) return [roundFeatureMultiplier(total)];
+  const weights = Array.from(
+    { length: count },
+    (_, index) => 0.7 + deterministicFraction(variant, 900 + index * 23) * 1.4,
+  );
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  let used = 0;
+  return weights.map((weight, index) => {
+    if (index === count - 1) return roundFeatureMultiplier(Math.max(0, total - used));
+    const value = roundFeatureMultiplier((total * weight) / totalWeight);
+    used = roundFeatureMultiplier(used + value);
+    return value;
+  });
+}
+
+function buildControlledScatterSymbols(variant: number): HotlineSpecialSymbol[] {
+  const positions = rankedMegaPositions(
+    Array.from({ length: 30 }, (_, index) => ({
+      reel: Math.floor(index / 5),
+      row: index % 5,
+    })),
+    variant + 613,
+  );
+  return positions.slice(0, 4).map((position) => ({
+    ...position,
+    type: 'scatter' as const,
+  }));
 }
 
 export const __hotlineServiceTestHooks = {
   capMegaFreeGameSettlement,
+  buildControlledMegaFeature,
   chooseMegaFreeGameAccountingMultiplier,
   fixedLineHotlineGrid,
   softLossHotlineRound,
