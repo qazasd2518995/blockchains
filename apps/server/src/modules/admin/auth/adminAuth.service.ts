@@ -10,6 +10,13 @@ import { config } from '../../../config.js';
 import { randomBytes, createHash } from 'node:crypto';
 import type { AdminLoginInput } from './adminAuth.schema.js';
 import { CaptchaService } from '../../../utils/captcha.js';
+import {
+  createOtpAuthUrl,
+  decryptTotpSecret,
+  encryptTotpSecret,
+  generateTotpSecret,
+  verifyTotp,
+} from './totp.js';
 
 export interface AdminJwtSigner {
   sign(payload: Record<string, unknown>): string;
@@ -27,9 +34,16 @@ export class AdminAuthService {
     return this.captcha.issue();
   }
 
-  async login(
-    input: AdminLoginInput,
-  ): Promise<{ agent: AgentPublic; accessToken: string; refreshToken: string }> {
+  async login(input: AdminLoginInput): Promise<
+    | { agent: AgentPublic; accessToken: string; refreshToken: string }
+    | {
+        requiresTwoFactor: true;
+        setupRequired: boolean;
+        manualKey: string | null;
+        otpauthUrl: string | null;
+        message: string;
+      }
+  > {
     this.captcha.verify(input.captchaCode, input.captchaToken);
 
     const agent = await this.prisma.agent.findUnique({ where: { username: input.username } });
@@ -39,6 +53,17 @@ export class AdminAuthService {
     }
     const ok = await bcrypt.compare(input.password, agent.passwordHash);
     if (!ok) throw new ApiError('INVALID_CREDENTIALS', 'Invalid username or password');
+
+    const twoFactor = await this.verifyTwoFactor(agent, input.twoFactorCode);
+    if (!twoFactor.verified) {
+      return {
+        requiresTwoFactor: true,
+        setupRequired: twoFactor.setupRequired,
+        manualKey: twoFactor.manualKey,
+        otpauthUrl: twoFactor.otpauthUrl,
+        message: twoFactor.message,
+      };
+    }
 
     const sessionId = randomBytes(24).toString('hex');
     const { publicAgent, tokens } = await this.prisma.$transaction(async (tx) => {
@@ -197,6 +222,111 @@ export class AdminAuthService {
       lastLoginAt: agent.lastLoginAt?.toISOString() ?? null,
       createdAt: agent.createdAt.toISOString(),
     };
+  }
+
+  private async verifyTwoFactor(
+    agent: {
+      id: string;
+      username: string;
+      twoFactorRequired: boolean;
+      twoFactorEnabled: boolean;
+      twoFactorSecret: string | null;
+      twoFactorLastUsedStep: bigint | null;
+    },
+    token: string | undefined,
+  ): Promise<{
+    verified: boolean;
+    setupRequired: boolean;
+    manualKey: string | null;
+    otpauthUrl: string | null;
+    message: string;
+  }> {
+    if (!agent.twoFactorRequired) {
+      return {
+        verified: true,
+        setupRequired: false,
+        manualKey: null,
+        otpauthUrl: null,
+        message: '',
+      };
+    }
+
+    const secret = await this.getOrCreateTwoFactorSecret(agent);
+    const setupRequired = !agent.twoFactorEnabled;
+    const setupPayload = setupRequired
+      ? {
+          manualKey: secret,
+          otpauthUrl: createOtpAuthUrl(agent.username, secret),
+        }
+      : {
+          manualKey: null,
+          otpauthUrl: null,
+        };
+
+    if (!token) {
+      return {
+        verified: false,
+        setupRequired,
+        ...setupPayload,
+        message: setupRequired
+          ? '此帳號需要綁定 Google Authenticator，請輸入 App 中顯示的 6 位驗證碼'
+          : '請輸入 Google Authenticator 6 位驗證碼',
+      };
+    }
+
+    const result = verifyTotp(secret, token, agent.twoFactorLastUsedStep);
+    if (!result.valid || !result.step) {
+      return {
+        verified: false,
+        setupRequired,
+        ...setupPayload,
+        message: result.replayed
+          ? '驗證碼已使用，請等待下一組驗證碼'
+          : 'Google Authenticator 驗證碼錯誤',
+      };
+    }
+
+    await this.prisma.agent.update({
+      where: { id: agent.id },
+      data: {
+        twoFactorEnabled: true,
+        twoFactorLastUsedAt: new Date(),
+        twoFactorLastUsedStep: result.step,
+      },
+    });
+
+    return {
+      verified: true,
+      setupRequired: false,
+      manualKey: null,
+      otpauthUrl: null,
+      message: '',
+    };
+  }
+
+  private async getOrCreateTwoFactorSecret(agent: {
+    id: string;
+    twoFactorSecret: string | null;
+  }): Promise<string> {
+    if (agent.twoFactorSecret) {
+      try {
+        return decryptTotpSecret(agent.twoFactorSecret);
+      } catch {
+        // Rotate a broken or undecryptable secret and force a fresh setup.
+      }
+    }
+
+    const secret = generateTotpSecret();
+    await this.prisma.agent.update({
+      where: { id: agent.id },
+      data: {
+        twoFactorSecret: encryptTotpSecret(secret),
+        twoFactorEnabled: false,
+        twoFactorLastUsedStep: null,
+        twoFactorLastUsedAt: null,
+      },
+    });
+    return secret;
   }
 }
 

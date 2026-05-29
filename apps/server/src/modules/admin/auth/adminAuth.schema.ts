@@ -5,6 +5,10 @@ export const adminLoginSchema = z.object({
   password: z.string().min(1).max(128),
   captchaCode: z.string().regex(/^\d{4}$/),
   captchaToken: z.string().min(20).max(512),
+  twoFactorCode: z
+    .string()
+    .regex(/^\d{6}$/)
+    .optional(),
 });
 
 export const adminRefreshSchema = z.object({

@@ -426,6 +426,11 @@ model Agent {
   lastLoginAt                 DateTime?
   activeSessionId             String?
   activeSessionAt             DateTime?
+  twoFactorRequired           Boolean     @default(false)
+  twoFactorEnabled            Boolean     @default(false)
+  twoFactorSecret             String?
+  twoFactorLastUsedStep       BigInt?
+  twoFactorLastUsedAt         DateTime?
   createdAt                   DateTime    @default(now())
   updatedAt                   DateTime    @updatedAt
 

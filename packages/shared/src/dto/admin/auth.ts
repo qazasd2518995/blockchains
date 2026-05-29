@@ -3,6 +3,7 @@ export interface AdminLoginRequest {
   password: string;
   captchaCode: string;
   captchaToken: string;
+  twoFactorCode?: string;
 }
 
 export interface AdminCaptchaResponse {
@@ -47,6 +48,16 @@ export interface AdminAuthResponse {
   accessToken: string;
   refreshToken: string;
 }
+
+export interface AdminTwoFactorChallengeResponse {
+  requiresTwoFactor: true;
+  setupRequired: boolean;
+  manualKey: string | null;
+  otpauthUrl: string | null;
+  message: string;
+}
+
+export type AdminLoginResponse = AdminAuthResponse | AdminTwoFactorChallengeResponse;
 
 export interface AdminRefreshRequest {
   refreshToken: string;

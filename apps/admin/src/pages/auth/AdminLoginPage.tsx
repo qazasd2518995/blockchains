@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
-import type { AdminAuthResponse, AdminCaptchaResponse } from '@bg/shared';
+import type { AdminCaptchaResponse, AdminLoginResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -13,6 +13,7 @@ const schema = z.object({
   username: z.string().min(1, { message: 'REQUIRED' }),
   password: z.string().min(1, { message: 'REQUIRED' }),
   captchaCode: z.string().regex(/^\d{4}$/, { message: 'CAPTCHA_DIGITS' }),
+  twoFactorCode: z.string().optional(),
 });
 
 type FormInput = z.infer<typeof schema>;
@@ -25,6 +26,9 @@ export function AdminLoginPage(): JSX.Element {
   const [serverError, setServerError] = useState<string | null>(null);
   const [captcha, setCaptcha] = useState<AdminCaptchaResponse | null>(null);
   const [captchaLoading, setCaptchaLoading] = useState(false);
+  const [twoFactorChallenge, setTwoFactorChallenge] = useState<AdminTwoFactorChallenge | null>(
+    null,
+  );
 
   const {
     register,
@@ -60,10 +64,19 @@ export function AdminLoginPage(): JSX.Element {
     }
 
     try {
-      const res = await adminApi.post<AdminAuthResponse>('/auth/login', {
+      const res = await adminApi.post<AdminLoginResponse>('/auth/login', {
         ...data,
+        twoFactorCode: twoFactorChallenge ? data.twoFactorCode : undefined,
         captchaToken: captcha.captchaToken,
       });
+      if (isTwoFactorChallenge(res.data)) {
+        setTwoFactorChallenge(res.data);
+        setServerError(res.data.message);
+        setValue('twoFactorCode', '');
+        return;
+      }
+
+      setTwoFactorChallenge(null);
       setAuth(res.data.agent, res.data.accessToken, res.data.refreshToken);
       const from = params.get('from');
       navigate(from ? decodeURIComponent(from) : '/admin/dashboard');
@@ -77,6 +90,7 @@ export function AdminLoginPage(): JSX.Element {
     if (!message) return undefined;
     if (message === 'REQUIRED') return t.auth.required;
     if (message === 'CAPTCHA_DIGITS') return t.auth.captchaDigits;
+    if (message === 'TOTP_DIGITS') return '請輸入 6 位 Google Authenticator 驗證碼';
     return message;
   };
 
@@ -208,6 +222,55 @@ export function AdminLoginPage(): JSX.Element {
                 </div>
               </Field>
 
+              {twoFactorChallenge && (
+                <Field
+                  label="Google Authenticator"
+                  error={fieldError(errors.twoFactorCode?.message)}
+                >
+                  <div className="space-y-3 rounded-[10px] border border-[#C9A247]/35 bg-[#FFF8DF] p-3">
+                    {twoFactorChallenge.setupRequired && twoFactorChallenge.manualKey ? (
+                      <div className="space-y-2 text-[12px] text-[#765709]">
+                        <div className="font-semibold">
+                          第一次登入需要綁定 Google Authenticator。請在 App 中選擇「輸入設定密鑰」。
+                        </div>
+                        <div className="rounded-[8px] border border-[#C9A247]/30 bg-white px-3 py-2 font-mono text-[13px] font-black tracking-[0.08em] text-[#0F172A]">
+                          {twoFactorChallenge.manualKey}
+                        </div>
+                        {twoFactorChallenge.otpauthUrl ? (
+                          <a
+                            href={twoFactorChallenge.otpauthUrl}
+                            className="inline-flex rounded-[8px] border border-[#C9A247]/40 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#765709] hover:bg-[#FFF3C4]"
+                          >
+                            在驗證器 App 中開啟
+                          </a>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="text-[12px] font-semibold text-[#765709]">
+                        請輸入 Google Authenticator 顯示的 6 位驗證碼。
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="6 位驗證碼"
+                      maxLength={6}
+                      className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25 sm:text-[14px]"
+                      {...register('twoFactorCode', {
+                        validate: (value) =>
+                          !twoFactorChallenge || /^\d{6}$/.test(value ?? '') || 'TOTP_DIGITS',
+                      })}
+                      onInput={(event) => {
+                        const next = event.currentTarget.value.replace(/\D/g, '').slice(0, 6);
+                        event.currentTarget.value = next;
+                        setValue('twoFactorCode', next, { shouldValidate: true });
+                      }}
+                    />
+                  </div>
+                </Field>
+              )}
+
               {serverError && (
                 <div className="rounded-[8px] border border-[#D4574A]/40 bg-[#FDF0EE] px-3 py-2.5 text-[12px] text-[#B94538]">
                   ⚠ {serverError}
@@ -219,7 +282,11 @@ export function AdminLoginPage(): JSX.Element {
                 disabled={isSubmitting}
                 className="w-full rounded-[8px] bg-[#186073] px-4 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#1E7A90] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSubmitting ? t.auth.authenticating : t.auth.authenticate}
+                {isSubmitting
+                  ? t.auth.authenticating
+                  : twoFactorChallenge
+                    ? '驗證並進入後台'
+                    : t.auth.authenticate}
               </button>
             </form>
 
@@ -231,6 +298,12 @@ export function AdminLoginPage(): JSX.Element {
       </main>
     </div>
   );
+}
+
+type AdminTwoFactorChallenge = Extract<AdminLoginResponse, { requiresTwoFactor: true }>;
+
+function isTwoFactorChallenge(value: AdminLoginResponse): value is AdminTwoFactorChallenge {
+  return 'requiresTwoFactor' in value && value.requiresTwoFactor === true;
 }
 
 function Field({
