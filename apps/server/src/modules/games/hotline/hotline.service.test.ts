@@ -57,6 +57,69 @@ describe('hotline controlled round shaping', () => {
     expect(amount.mul(round.totalMultiplier).lessThanOrEqualTo(maxPayout)).toBe(true);
   });
 
+  it('uses the highest legal 5x3 slot payout for burst wins instead of repeated small wins', () => {
+    const amount = new Prisma.Decimal(100);
+    const maxPayout = new Prisma.Decimal(50000);
+    const round = __hotlineServiceTestHooks.winningHotlineRound(
+      GameId.FRUIT_SLOT,
+      amount,
+      {
+        flipReason: 'burst_win',
+        minMultiplier: new Prisma.Decimal(250),
+        maxMultiplier: new Prisma.Decimal(500),
+        maxPayout,
+      },
+      88,
+    );
+
+    expect(round.totalMultiplier).toBeGreaterThanOrEqual(250);
+    expect(round.totalMultiplier).toBeLessThanOrEqual(500);
+    expect(amount.mul(round.totalMultiplier).lessThanOrEqualTo(maxPayout)).toBe(true);
+    expect(hotlineEvaluate(round.grid).totalMultiplier).toBeCloseTo(round.totalMultiplier, 4);
+  });
+
+  it('keeps 3x3 burst wins inside the mini-slot paytable', () => {
+    const amount = new Prisma.Decimal(100);
+    const maxPayout = new Prisma.Decimal(3000);
+    const round = __hotlineServiceTestHooks.winningHotlineRound(
+      GameId.SAKURA_SLOT,
+      amount,
+      {
+        flipReason: 'burst_win',
+        minMultiplier: new Prisma.Decimal(20),
+        maxMultiplier: new Prisma.Decimal(30),
+        maxPayout,
+      },
+      99,
+    );
+
+    expect(round.totalMultiplier).toBeGreaterThanOrEqual(20);
+    expect(round.totalMultiplier).toBeLessThanOrEqual(30);
+    expect(amount.mul(round.totalMultiplier).lessThanOrEqualTo(maxPayout)).toBe(true);
+    expect(hotlineEvaluate(round.grid).totalMultiplier).toBeCloseTo(round.totalMultiplier, 4);
+  });
+
+  it('shapes normal mega-slot burst wins toward the configured cap while respecting max payout', () => {
+    const amount = new Prisma.Decimal(100);
+    const maxPayout = new Prisma.Decimal(50000);
+    const round = __hotlineServiceTestHooks.winningHotlineRound(
+      GameId.DRAGON_MEGA_SLOT,
+      amount,
+      {
+        flipReason: 'burst_win',
+        minMultiplier: new Prisma.Decimal(250),
+        maxMultiplier: new Prisma.Decimal(500),
+        maxPayout,
+      },
+      111,
+    );
+
+    expect(round.totalMultiplier).toBeGreaterThanOrEqual(250);
+    expect(round.totalMultiplier).toBeLessThanOrEqual(500);
+    expect(amount.mul(round.totalMultiplier).lessThanOrEqualTo(maxPayout)).toBe(true);
+    expect(round.features?.totalMultiplier).toBe(round.totalMultiplier);
+  });
+
   it('shapes mega buy-feature accounting into two low results and one capped high result', () => {
     const picks = [0, 1, 2].map((nonce) =>
       __hotlineServiceTestHooks.chooseMegaFreeGameAccountingMultiplier(nonce),
