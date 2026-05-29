@@ -650,7 +650,7 @@ function winningMegaHotlineRound(
   );
   if (controlled.flipReason === 'burst_win') {
     const picked = pickHighestMultiplier(bounded) ?? pickHighestMultiplier(underCap);
-    if (picked) return shapeMegaBurstRound(picked, amount, controlled, variant);
+    if (picked) return shapeMegaBurstRound(gameId, picked, amount, controlled, variant);
     return softLossHotlineRound(gameId, variant) ?? candidates[0]!;
   }
   return (
@@ -737,6 +737,7 @@ function pickHighestMultiplier(rounds: HotlineRound[]): HotlineRound | undefined
 }
 
 function shapeMegaBurstRound(
+  gameId: string,
   round: HotlineRound,
   amount: Prisma.Decimal,
   controlled: HotlineControlBounds,
@@ -751,8 +752,10 @@ function shapeMegaBurstRound(
   );
   const shapedMultiplier = roundFeatureMultiplier(targetMultiplier);
   return {
-    ...round,
-    features: buildControlledMegaFeature(shapedMultiplier, false, variant, round),
+    grid: blankHotlineGrid(gameId, variant + 404),
+    lines: [],
+    cascades: [],
+    features: buildTriggeredControlledMegaFeature(shapedMultiplier, variant),
     totalMultiplier: shapedMultiplier,
   };
 }
@@ -1112,6 +1115,30 @@ function buildControlledMegaFeature(
     totalMultiplier: roundFeatureMultiplier(
       baseTotalMultiplier + freeSpinData.freeSpinWinMultiplier,
     ),
+  };
+}
+
+function buildTriggeredControlledMegaFeature(
+  totalMultiplier: number,
+  variant = 0,
+): HotlineMegaFeatureResult {
+  const target = roundFeatureMultiplier(totalMultiplier);
+  const freeSpinData = buildControlledMegaFreeSpins(target, variant + 3100);
+  const scatterSymbols = buildControlledScatterSymbols(variant);
+  return {
+    scatterSymbols,
+    scatterCount: scatterSymbols.length,
+    freeSpinsAwarded: freeSpinData.freeSpinsAwarded,
+    freeSpinsPlayed: freeSpinData.freeSpinRounds.length,
+    baseWinMultiplier: 0,
+    baseMultiplierSymbols: [],
+    baseMultiplierTotal: 0,
+    baseAppliedMultiplier: 1,
+    baseTotalMultiplier: 0,
+    freeSpinRounds: freeSpinData.freeSpinRounds,
+    freeSpinMultiplierBank: freeSpinData.freeSpinMultiplierBank,
+    freeSpinWinMultiplier: freeSpinData.freeSpinWinMultiplier,
+    totalMultiplier: freeSpinData.freeSpinWinMultiplier,
   };
 }
 

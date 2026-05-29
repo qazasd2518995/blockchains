@@ -117,10 +117,16 @@ describe('hotline controlled round shaping', () => {
     expect(round.totalMultiplier).toBeGreaterThanOrEqual(250);
     expect(round.totalMultiplier).toBeLessThanOrEqual(500);
     expect(amount.mul(round.totalMultiplier).lessThanOrEqualTo(maxPayout)).toBe(true);
+    expect(round.lines).toHaveLength(0);
+    expect(round.cascades).toHaveLength(0);
+    expect(round.features?.scatterCount).toBe(4);
+    expect(round.features?.baseTotalMultiplier).toBe(0);
+    expect(round.features?.freeSpinsAwarded).toBe(15);
+    expect(round.features?.freeSpinWinMultiplier).toBe(round.totalMultiplier);
     expect(round.features?.totalMultiplier).toBe(round.totalMultiplier);
   });
 
-  it('varies mega-slot burst symbols, cascades, and feature multipliers across nonces', () => {
+  it('routes mega-slot bursts through varied scatter-triggered free games', () => {
     const amount = new Prisma.Decimal(100);
     const rounds = Array.from({ length: 6 }, (_, nonce) =>
       __hotlineServiceTestHooks.winningHotlineRound(
@@ -136,17 +142,16 @@ describe('hotline controlled round shaping', () => {
       ),
     );
 
-    const cascadeSignatures = new Set(
+    const scatterSignatures = new Set(
       rounds.map((round) =>
-        (round.cascades ?? [])
-          .flatMap((step) => step.removed.map((position) => `${position.reel}:${position.row}`))
+        round.features?.scatterSymbols
+          .map((position) => `${position.reel}:${position.row}`)
           .join('|'),
       ),
     );
     const featureSignatures = new Set(
       rounds.map((round) =>
         [
-          round.features?.baseMultiplierSymbols.map((symbol) => symbol.value).join('+') ?? '',
           round.features?.freeSpinRounds
             .filter((freeRound) => freeRound.totalMultiplier > 0)
             .map(
@@ -158,10 +163,14 @@ describe('hotline controlled round shaping', () => {
       ),
     );
 
-    expect(cascadeSignatures.size).toBeGreaterThan(1);
+    expect(scatterSignatures.size).toBeGreaterThan(1);
     expect(featureSignatures.size).toBeGreaterThan(1);
     for (const round of rounds) {
-      expect(round.features?.freeSpinsAwarded).toBeGreaterThan(0);
+      expect(round.lines).toHaveLength(0);
+      expect(round.cascades).toHaveLength(0);
+      expect(round.features?.scatterCount).toBe(4);
+      expect(round.features?.baseTotalMultiplier).toBe(0);
+      expect(round.features?.freeSpinsAwarded).toBe(15);
       expect(
         round.features?.freeSpinRounds.some((freeRound) => freeRound.cascades.length > 0),
       ).toBe(true);
