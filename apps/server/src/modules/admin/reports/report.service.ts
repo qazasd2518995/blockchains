@@ -1,6 +1,12 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { ApiError } from '../../../utils/errors.js';
-import { listAgentDescendants, canManageAgent, resolveAgentScopeRootId } from '../../../utils/hierarchy.js';
+import {
+  listAgentDescendants,
+  canManageAgent,
+  listPlatformSuperAdminIds,
+  resolveAgentScopeRootId,
+  resolvePlatformRootAgentId,
+} from '../../../utils/hierarchy.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import type { ReportQuery, AgentAnalysisQuery } from './report.schema.js';
 import { BACCARAT_GAME_IDS, type DashboardSummaryResponse } from '@bg/shared';
@@ -252,7 +258,9 @@ export class ReportService {
           cursor,
         }),
         include: {
-          user: { select: { username: true, agentId: true, agent: { select: { username: true } } } },
+          user: {
+            select: { username: true, agentId: true, agent: { select: { username: true } } },
+          },
         },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: limit + 1,
@@ -280,12 +288,13 @@ export class ReportService {
     ]);
 
     const crashUserIds = Array.from(new Set(crashRows.map((row) => row.userId)));
-    const crashUsers = crashUserIds.length > 0
-      ? await this.prisma.user.findMany({
-          where: { id: { in: crashUserIds } },
-          select: { id: true, username: true, agent: { select: { username: true } } },
-        })
-      : [];
+    const crashUsers =
+      crashUserIds.length > 0
+        ? await this.prisma.user.findMany({
+            where: { id: { in: crashUserIds } },
+            select: { id: true, username: true, agent: { select: { username: true } } },
+          })
+        : [];
     const crashUserMap = new Map(crashUsers.map((user) => [user.id, user]));
 
     const merged = [
@@ -423,8 +432,11 @@ export class ReportService {
     };
   }> {
     const isPlatformRoot = operator.role === 'SUPER_ADMIN' && !query.parentId;
-    const parentId = query.parentId ?? operator.id;
-    const ok = isPlatformRoot || await canManageAgent(this.prisma, operator, parentId);
+    const platformRootId = isPlatformRoot
+      ? await resolvePlatformRootAgentId(this.prisma, operator.id)
+      : null;
+    const parentId = query.parentId ?? platformRootId ?? operator.id;
+    const ok = isPlatformRoot || (await canManageAgent(this.prisma, operator, parentId));
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot view this subtree');
 
     const parent = await this.prisma.agent.findUnique({
@@ -489,16 +501,19 @@ export class ReportService {
         }
       : undefined;
 
+    const platformSuperAdminIds = isPlatformRoot
+      ? await listPlatformSuperAdminIds(this.prisma)
+      : [];
     const childAgentBaseWhere: Prisma.AgentWhereInput = isPlatformRoot
       ? {
-          OR: [{ parentId: null }, { parentId: operator.id }],
-          id: { not: operator.id },
+          OR: [{ parentId: null }, { parentId: { in: platformSuperAdminIds } }],
+          id: { notIn: platformSuperAdminIds },
           role: { not: 'SUPER_ADMIN' },
           status: { not: 'DELETED' },
         }
       : { parentId, status: { not: 'DELETED' } };
     const directMemberBaseWhere: Prisma.UserWhereInput = isPlatformRoot
-      ? { OR: [{ agentId: null }, { agentId: operator.id }] }
+      ? { OR: [{ agentId: null }, { agentId: { in: platformSuperAdminIds } }] }
       : { agentId: parentId };
     const childAgentWhere: Prisma.AgentWhereInput = agentAccountSearchWhere
       ? { AND: [childAgentBaseWhere, agentAccountSearchWhere] }
@@ -613,11 +628,17 @@ export class ReportService {
         acc.validAmount = acc.validAmount.add(new Prisma.Decimal(r.validAmount));
         acc.memberWinLoss = acc.memberWinLoss.add(new Prisma.Decimal(r.memberWinLoss));
         acc.totalRebateAmount = acc.totalRebateAmount.add(new Prisma.Decimal(r.totalRebateAmount));
-        acc.memberProfitLossResult = acc.memberProfitLossResult.add(new Prisma.Decimal(r.memberProfitLossResult));
-        acc.receivableFromDownline = acc.receivableFromDownline.add(new Prisma.Decimal(r.receivableFromDownline));
+        acc.memberProfitLossResult = acc.memberProfitLossResult.add(
+          new Prisma.Decimal(r.memberProfitLossResult),
+        );
+        acc.receivableFromDownline = acc.receivableFromDownline.add(
+          new Prisma.Decimal(r.receivableFromDownline),
+        );
         acc.commissionAmount = acc.commissionAmount.add(new Prisma.Decimal(r.commissionAmount));
         acc.commissionResult = acc.commissionResult.add(new Prisma.Decimal(r.commissionResult));
-        acc.earnedRebateAmount = acc.earnedRebateAmount.add(new Prisma.Decimal(r.earnedRebateAmount));
+        acc.earnedRebateAmount = acc.earnedRebateAmount.add(
+          new Prisma.Decimal(r.earnedRebateAmount),
+        );
         acc.profitLossResult = acc.profitLossResult.add(new Prisma.Decimal(r.profitLossResult));
         acc.volumeRemitted = acc.volumeRemitted.add(new Prisma.Decimal(r.volumeRemitted));
         acc.uplineSettlement = acc.uplineSettlement.add(new Prisma.Decimal(r.uplineSettlement));

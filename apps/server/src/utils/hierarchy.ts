@@ -67,3 +67,22 @@ export async function resolveAgentScopeRootId(
   });
   return subAccount?.parentId ?? null;
 }
+
+export async function listPlatformSuperAdminIds(db: Db): Promise<string[]> {
+  const admins = await db.agent.findMany({
+    where: { role: 'SUPER_ADMIN', status: { not: 'DELETED' } },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  return admins.map((admin) => admin.id);
+}
+
+export async function resolvePlatformRootAgentId(db: Db, fallbackId: string): Promise<string> {
+  const [root] = await db.agent.findMany({
+    where: { role: 'SUPER_ADMIN', status: { not: 'DELETED' } },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+    take: 1,
+  });
+  return root?.id ?? fallbackId;
+}

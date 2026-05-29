@@ -1,6 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { canManageAgent, resolveAgentScopeRootId } from '../../../utils/hierarchy.js';
+import {
+  canManageAgent,
+  listPlatformSuperAdminIds,
+  resolveAgentScopeRootId,
+  resolvePlatformRootAgentId,
+} from '../../../utils/hierarchy.js';
 import type { Prisma } from '@prisma/client';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import { normalizeBettingLimitsByGame } from '@bg/shared';
@@ -19,7 +24,10 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
     const q = querySchema.parse(req.query);
     const isPlatformRoot = req.admin.role === 'SUPER_ADMIN' && !q.parentId;
-    const parentId = q.parentId ?? req.admin.id;
+    const platformRootId = isPlatformRoot
+      ? await resolvePlatformRootAgentId(fastify.prisma, req.admin.id)
+      : null;
+    const parentId = q.parentId ?? platformRootId ?? req.admin.id;
 
     const ok = isPlatformRoot || (await canManageAgent(fastify.prisma, req.admin, parentId));
     if (!ok) {
@@ -78,16 +86,19 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
     }
     breadcrumb = await trimBreadcrumbToAdminScope(fastify.prisma, req.admin, breadcrumb);
 
+    const platformSuperAdminIds = isPlatformRoot
+      ? await listPlatformSuperAdminIds(fastify.prisma)
+      : [];
     const agentBaseWhere: Prisma.AgentWhereInput = isPlatformRoot
       ? {
-          OR: [{ parentId: null }, { parentId: req.admin.id }],
-          id: { not: req.admin.id },
+          OR: [{ parentId: null }, { parentId: { in: platformSuperAdminIds } }],
+          id: { notIn: platformSuperAdminIds },
           role: { notIn: ['SUPER_ADMIN', 'SUB_ACCOUNT'] },
           status: { not: 'DELETED' },
         }
       : { parentId, role: { not: 'SUB_ACCOUNT' }, status: { not: 'DELETED' } };
     const memberBaseWhere: Prisma.UserWhereInput = isPlatformRoot
-      ? { OR: [{ agentId: null }, { agentId: req.admin.id }] }
+      ? { OR: [{ agentId: null }, { agentId: { in: platformSuperAdminIds } }] }
       : { agentId: parentId };
     if (q.status === 'FROZEN') {
       agentBaseWhere.status = 'FROZEN';
