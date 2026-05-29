@@ -81,7 +81,7 @@ describe('rankWinLossControls priority', () => {
   const PARENT = 'agent-parent';
   const ancestors = [PARENT, 'agent-grandparent'];
 
-  it('lets a member-level LOSS override an agent-line WIN (下級代理不能覆寫上級對特定會員的指令)', () => {
+  it('lets an agent-line WIN override a member-level LOSS like the legacy priority system', () => {
     const memberLoss = winLossControl({
       id: 'm-loss',
       controlMode: 'SINGLE_MEMBER',
@@ -96,8 +96,8 @@ describe('rankWinLossControls priority', () => {
     });
 
     const selected = rankWinLossControls([agentWin, memberLoss], MEMBER, ancestors);
-    expect(selected?.control.id).toBe('m-loss');
-    expect(selected?.desired).toBe('LOSS');
+    expect(selected?.control.id).toBe('a-win');
+    expect(selected?.desired).toBe('WIN');
   });
 
   it('still favors WIN over LOSS at the same specificity (member level)', () => {
@@ -157,10 +157,29 @@ describe('rankWinLossControls priority', () => {
       winControl: true,
     });
 
-    // 即使 deep WIN 在很深的層級，它的 priority(10-19) 仍應低於 shallow LOSS(20)，
+    // 即使 deep WIN 在很深的層級，它的 priority(10-39) 仍應高於 shallow LOSS(60)，
     // 故 deep WIN 勝出——WIN 帶永遠在 LOSS 帶之前，不因 depth 交錯。
     const selected = rankWinLossControls([shallowLoss, deepWin], MEMBER, deepAncestors);
     expect(selected?.control.id).toBe('deep-win');
+  });
+
+  it('keeps member-level LOSS above agent-line LOSS', () => {
+    const memberLoss = winLossControl({
+      id: 'member-loss',
+      controlMode: 'SINGLE_MEMBER',
+      targetId: MEMBER,
+      lossControl: true,
+    });
+    const agentLoss = winLossControl({
+      id: 'agent-loss',
+      controlMode: 'AGENT_LINE',
+      targetId: PARENT,
+      lossControl: true,
+    });
+
+    const selected = rankWinLossControls([agentLoss, memberLoss], MEMBER, ancestors);
+    expect(selected?.control.id).toBe('member-loss');
+    expect(selected?.desired).toBe('LOSS');
   });
 
   it('keeps nearer-ancestor-wins precise even past depth 10 (no band collapse)', () => {

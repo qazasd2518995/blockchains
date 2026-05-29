@@ -248,14 +248,14 @@ async function findControlDecision(
   const deposit = await findDepositDecision(tx, member, predicted);
   if (deposit) return deposit;
 
-  const targetedManual = await findManualDetectionDecision(tx, member, 'targeted');
-  if (targetedManual) return targetedManual;
-
   const burst = await findBurstDecision(tx, member, gameId, predicted, options);
   if (burst) return burst;
 
   const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
   if (accidentalBurstCap) return accidentalBurstCap;
+
+  const targetedManual = await findManualDetectionDecision(tx, member, 'targeted');
+  if (targetedManual) return targetedManual;
 
   if (!isControlExcludedLine) {
     const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
@@ -280,9 +280,9 @@ interface RankableWinLossControl {
 
 /**
  * 純函式：依「指定範圍精確度」排出控制優先序並回傳最高者。
- * 會員級(1-2) > 代理線級(10-29) > 全域(40-41)；同精確度 WIN 優先於 LOSS。
- * 關鍵不變式：針對單一會員的控制(含 LOSS)永遠蓋過代理線控制(含 WIN)，
- * 下級代理不能用代理線控制覆寫上級對特定會員的指令。同優先序時取較新建立者。
+ * 舊版控制主線：會員贏 > 代理線贏 > 會員輸 > 代理線輸 > 全域。
+ * 關鍵不變式：優先級 1-2 的贏控制不被後面的輸控制/封頂/入金/手動偵測破壞；
+ * 同優先序時取較新建立者。
  */
 export function rankWinLossControls<T extends RankableWinLossControl>(
   controls: T[],
@@ -298,7 +298,7 @@ export function rankWinLossControls<T extends RankableWinLossControl>(
         control.targetId === memberId
       ) {
         if (control.winControl) return { control, priority: 1, desired: 'WIN' as const };
-        if (control.lossControl) return { control, priority: 2, desired: 'LOSS' as const };
+        if (control.lossControl) return { control, priority: 50, desired: 'LOSS' as const };
       }
 
       if (
@@ -308,10 +308,10 @@ export function rankWinLossControls<T extends RankableWinLossControl>(
         ancestors.includes(control.targetId)
       ) {
         // 帶寬 30 完整涵蓋 getAgentAncestors 的最深 20 層，保留「較近上線優先」的
-        // 精確排序;WIN(10-40)/LOSS(40-70) 兩子帶不重疊。depth 防禦性夾在 0-29。
+        // 精確排序；AGENT_WIN(10-39) 永遠高於 MEMBER_LOSS(50)，符合舊版帶牌邏輯。
         const depth = Math.min(ancestors.indexOf(control.targetId), 29);
         if (control.winControl) return { control, priority: 10 + depth, desired: 'WIN' as const };
-        if (control.lossControl) return { control, priority: 40 + depth, desired: 'LOSS' as const };
+        if (control.lossControl) return { control, priority: 60 + depth, desired: 'LOSS' as const };
       }
 
       if (
@@ -412,6 +412,10 @@ async function findWinLossDecision(
     desired: selected.desired,
     controlId: selected.control.id,
     reason: selected.desired === 'WIN' ? 'win_control' : 'loss_control',
+    ignoreWinCapBounds:
+      selected.desired === 'WIN' &&
+      (selected.control.controlMode === 'SINGLE_MEMBER' ||
+        selected.control.controlMode === 'AGENT_LINE'),
   };
 }
 
