@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   BETTING_LIMIT_RANGE_OPTIONS,
+  GameId,
   GAMES_REGISTRY,
+  SLOT_GAME_IDS,
   normalizeBettingLimitRangeKey,
   normalizeBettingLimitsByGame,
   resolveBettingLimitRange,
+  type BettingLimitRangeKey,
   type BettingLimitsByGame,
 } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
@@ -27,6 +30,45 @@ export const BETTING_LIMIT_ENABLED_GAMES = Object.values(GAMES_REGISTRY).filter(
   (game) => game.enabled,
 );
 
+const CRASH_LIMIT_GAME_IDS = [
+  GameId.ROCKET,
+  GameId.AVIATOR,
+  GameId.SPACE_FLEET,
+  GameId.JETX,
+  GameId.BALLOON,
+  GameId.JETX3,
+  GameId.DOUBLE_X,
+] as const;
+
+const SLOT_LIMIT_GAME_IDS = SLOT_GAME_IDS;
+
+const INSTANT_LIMIT_GAME_IDS = BETTING_LIMIT_ENABLED_GAMES.map((game) => game.id).filter(
+  (gameId) =>
+    !(CRASH_LIMIT_GAME_IDS as readonly string[]).includes(gameId) &&
+    !(SLOT_LIMIT_GAME_IDS as readonly string[]).includes(gameId),
+);
+
+const BETTING_LIMIT_GROUPS = [
+  {
+    key: 'crash',
+    label: '飛行類',
+    description: '火箭、飛機、太空艦隊等倍率飛行遊戲',
+    gameIds: [...CRASH_LIMIT_GAME_IDS],
+  },
+  {
+    key: 'slots',
+    label: '拉霸類',
+    description: '9 輪、15 輪、30 輪與 Mega 拉霸',
+    gameIds: [...SLOT_LIMIT_GAME_IDS],
+  },
+  {
+    key: 'instant',
+    label: '電子即開類',
+    description: '骰子、踩地雷、彈珠、輪盤、爬階梯等電子即開遊戲',
+    gameIds: INSTANT_LIMIT_GAME_IDS,
+  },
+] as const;
+
 export function buildBettingLimitsSelection(
   limits: unknown,
   fallbackLevel: unknown,
@@ -39,10 +81,38 @@ export function buildBettingLimitsSelection(
 }
 
 export function summarizeBettingLimits(limits: Record<string, string>): string {
-  const labels = new Set(
-    Object.values(limits).map((value) => resolveBettingLimitRange(value).label),
+  const labels = BETTING_LIMIT_GROUPS.map((group) => {
+    const groupLabels = new Set(
+      group.gameIds.map((gameId) => resolveBettingLimitRange(limits[gameId]).label),
+    );
+    return groupLabels.size === 1 ? Array.from(groupLabels)[0]! : '混合';
+  });
+  const uniqueLabels = new Set(labels);
+  return uniqueLabels.size === 1
+    ? Array.from(uniqueLabels)[0]!
+    : BETTING_LIMIT_GROUPS.map((group, index) => `${group.label} ${labels[index]}`).join(' / ');
+}
+
+function groupSelectedKey(limits: BettingLimitsByGame, gameIds: readonly string[]): string {
+  const keys = new Set(gameIds.map((gameId) => normalizeBettingLimitRangeKey(limits[gameId])));
+  return keys.size === 1 ? Array.from(keys)[0]! : 'mixed';
+}
+
+function groupParentRank(parentLimits: BettingLimitsByGame, gameIds: readonly string[]): number {
+  return Math.min(
+    ...gameIds.map((gameId) => resolveBettingLimitRange(parentLimits[gameId]).rank),
   );
-  return labels.size === 1 ? Array.from(labels)[0]! : `${labels.size} 種範圍`;
+}
+
+function applyGroupLimit(
+  limits: BettingLimitsByGame,
+  gameIds: readonly string[],
+  rangeKey: BettingLimitRangeKey,
+): BettingLimitsByGame {
+  return {
+    ...limits,
+    ...Object.fromEntries(gameIds.map((gameId) => [gameId, rangeKey])),
+  };
 }
 
 export function BettingLimitModal({
@@ -100,7 +170,7 @@ export function BettingLimitModal({
       width="xl"
     >
       <div className="mb-4 border border-[#D7B963]/50 bg-[#FFF8DF] p-3 text-[12px] leading-relaxed text-[#6D5520]">
-        每个游戏独立选择限红范围；下级代理或会员只能设定为上级同等级或以下，超过上级的选项会被锁定。
+        依遊戲大類選擇限紅範圍；下級代理或會員只能設為上級同等級或以下，超過上級的選項會被鎖定。
       </div>
 
       <BettingLimitsInlineEditor
@@ -141,20 +211,18 @@ export function BettingLimitsInlineEditor({
 }): JSX.Element {
   return (
     <div className={`space-y-2 ${className}`}>
-      {BETTING_LIMIT_ENABLED_GAMES.map((game) => {
-        const parentRank = resolveBettingLimitRange(parentLimits[game.id]).rank;
-        const selectedKey = normalizeBettingLimitRangeKey(value[game.id]);
+      {BETTING_LIMIT_GROUPS.map((group) => {
+        const parentRank = groupParentRank(parentLimits, group.gameIds);
+        const selectedKey = groupSelectedKey(value, group.gameIds);
         return (
-          <div key={game.id} className="border border-ink-200 bg-white p-3">
+          <div key={group.key} className="border border-ink-200 bg-white p-3">
             <div className="mb-2 flex items-baseline justify-between gap-3">
               <div>
-                <div className="font-display text-[13px] text-ink-900">{game.nameZh}</div>
-                <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-500">
-                  {game.id}
-                </div>
+                <div className="font-display text-[13px] text-ink-900">{group.label}</div>
+                <div className="mt-1 text-[11px] text-ink-500">{group.description}</div>
               </div>
               <div className="font-mono text-[11px] text-[#186073]">
-                {resolveBettingLimitRange(selectedKey).label}
+                {selectedKey === 'mixed' ? '混合' : resolveBettingLimitRange(selectedKey).label}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
@@ -167,10 +235,7 @@ export function BettingLimitsInlineEditor({
                     type="button"
                     disabled={disabled}
                     onClick={() =>
-                      onChange({
-                        ...value,
-                        [game.id]: option.key,
-                      })
+                      onChange(applyGroupLimit(value, group.gameIds, option.key))
                     }
                     className={`border px-2 py-2 text-left text-[12px] transition ${
                       active

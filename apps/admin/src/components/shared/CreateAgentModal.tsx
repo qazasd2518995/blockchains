@@ -341,10 +341,10 @@ export function CreateAgentModal({
           <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-ink-200 bg-white px-3 py-2">
             <div>
               <div className="text-[11px] font-semibold tracking-[0.16em] text-ink-700">
-                每游戏限红
+                分類限紅
               </div>
               <div className="mt-1 text-[11px] text-ink-500">
-                目前 {summarizeBettingLimits(bettingLimits)}，可展开逐款调整。
+                目前 {summarizeBettingLimits(bettingLimits)}，可展开調整飛行、拉霸、電子即開。
               </div>
             </div>
             <button
@@ -352,7 +352,7 @@ export function CreateAgentModal({
               onClick={() => setCustomLimitOpen((value) => !value)}
               className="btn-chip shrink-0"
             >
-              {customLimitOpen ? '收起' : '逐款设定'}
+              {customLimitOpen ? '收起' : '分類設定'}
             </button>
           </div>
           {customLimitOpen && (
