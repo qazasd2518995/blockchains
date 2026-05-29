@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { GameId, SLOT_GAME_IDS } from '@bg/shared';
+import { SLOT_GAME_IDS } from '@bg/shared';
 import {
   calculateCurrentSettlement,
   checkAndCompleteManualDetectionControls,
@@ -85,27 +85,9 @@ interface BurstEligibility {
   requiredLoss: Prisma.Decimal;
 }
 
-const BURST_CONTROL_MIN_POTENTIAL_MULTIPLIER = new Prisma.Decimal(20);
 const GLOBAL_ACCIDENTAL_BURST_PROFIT_CAP = new Prisma.Decimal(30000);
 export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(50000);
-const BURST_ALWAYS_ELIGIBLE_GAME_IDS = new Set<string>([
-  GameId.MINES,
-  GameId.HILO,
-  GameId.KENO,
-  GameId.PLINKO,
-  GameId.PLINKO_X,
-  GameId.TOWER,
-  GameId.CHICKEN_ROAD,
-  GameId.ROCKET,
-  GameId.AVIATOR,
-  GameId.SPACE_FLEET,
-  GameId.JETX,
-  GameId.BALLOON,
-  GameId.JETX3,
-  GameId.DOUBLE_X,
-  ...SLOT_GAME_IDS,
-]);
-const BURST_CONDITIONAL_GAME_IDS = new Set<string>([GameId.DICE, GameId.WHEEL]);
+const BURST_ELIGIBLE_GAME_IDS = new Set<string>(SLOT_GAME_IDS);
 
 /**
  * 控制 hook：只決定本局是否需要由後台規則翻轉輸贏。
@@ -889,20 +871,12 @@ async function findBurstDecision(
 
 export function isBurstControlEligible(
   gameId: string,
-  predicted: Pick<PredictedResult, 'multiplier'>,
+  _predicted: Pick<PredictedResult, 'multiplier'>,
   options: ControlOptions = {},
 ): boolean {
+  if (!BURST_ELIGIBLE_GAME_IDS.has(gameId)) return false;
   if (options.burstEligible === false) return false;
-  if (options.burstEligible === true) return true;
-  if (BURST_ALWAYS_ELIGIBLE_GAME_IDS.has(gameId)) return true;
-  if (!BURST_CONDITIONAL_GAME_IDS.has(gameId)) return false;
-
-  const configuredPotential = toDecimalOrNull(options.burstPotentialMultiplier);
-  const potential =
-    configuredPotential && configuredPotential.greaterThan(predicted.multiplier)
-      ? configuredPotential
-      : predicted.multiplier;
-  return potential.greaterThanOrEqualTo(BURST_CONTROL_MIN_POTENTIAL_MULTIPLIER);
+  return true;
 }
 
 async function getBurstEligibility(
@@ -1258,17 +1232,6 @@ function clampDecimal(
   if (value.lessThan(min)) return min;
   if (value.greaterThan(max)) return max;
   return value;
-}
-
-function toDecimalOrNull(
-  value: Prisma.Decimal | number | string | undefined,
-): Prisma.Decimal | null {
-  if (value === undefined || value === null) return null;
-  try {
-    return value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value);
-  } catch {
-    return null;
-  }
 }
 
 function isWithinDecisionBounds(result: PredictedResult, decision: ControlDecision): boolean {

@@ -28,35 +28,30 @@ describe('passesControlInterventionRate', () => {
 });
 
 describe('isBurstControlEligible', () => {
-  it('keeps burst control enabled for high-volatility games', () => {
-    expect(isBurstControlEligible(GameId.PLINKO, prediction(0))).toBe(true);
-    expect(isBurstControlEligible(GameId.ROCKET, prediction(1))).toBe(true);
+  it('keeps burst control enabled only for slot games', () => {
     expect(isBurstControlEligible(GameId.DRAGON_MEGA_SLOT, prediction(0))).toBe(true);
-    expect(isBurstControlEligible(GameId.MINES, prediction(0))).toBe(true);
+    expect(isBurstControlEligible(GameId.HOTLINE, prediction(0))).toBe(true);
+    expect(isBurstControlEligible(GameId.FRUIT_SLOT, prediction(0))).toBe(true);
   });
 
-  it('does not apply burst control to table and anti-wash roulette games', () => {
+  it('does not apply burst control to non-slot games', () => {
     expect(isBurstControlEligible(GameId.BLACKJACK, prediction(2.5))).toBe(false);
     expect(isBurstControlEligible(GameId.MINI_ROULETTE, prediction(12))).toBe(false);
     expect(isBurstControlEligible(GameId.CARNIVAL, prediction(12))).toBe(false);
-  });
-
-  it('only applies burst control to configurable games when the potential payout is high', () => {
-    expect(isBurstControlEligible(GameId.DICE, prediction(10))).toBe(false);
-    expect(isBurstControlEligible(GameId.DICE, prediction(24.125))).toBe(true);
+    expect(isBurstControlEligible(GameId.DICE, prediction(24.125))).toBe(false);
     expect(
-      isBurstControlEligible(GameId.WHEEL, prediction(0), { burstPotentialMultiplier: 19.3 }),
+      isBurstControlEligible(GameId.WHEEL, prediction(0), { burstPotentialMultiplier: 80 }),
     ).toBe(false);
-    expect(
-      isBurstControlEligible(GameId.WHEEL, prediction(0), { burstPotentialMultiplier: 48.25 }),
-    ).toBe(true);
+    expect(isBurstControlEligible(GameId.PLINKO, prediction(100))).toBe(false);
+    expect(isBurstControlEligible(GameId.MINES, prediction(0))).toBe(false);
+    expect(isBurstControlEligible(GameId.ROCKET, prediction(1))).toBe(false);
   });
 
-  it('allows individual game paths to explicitly opt in or out', () => {
+  it('does not let non-slot paths opt in explicitly', () => {
     expect(
       isBurstControlEligible(GameId.MINI_ROULETTE, prediction(1), { burstEligible: true }),
-    ).toBe(true);
-    expect(isBurstControlEligible(GameId.PLINKO, prediction(100), { burstEligible: false })).toBe(
+    ).toBe(false);
+    expect(isBurstControlEligible(GameId.HOTLINE, prediction(100), { burstEligible: false })).toBe(
       false,
     );
   });
