@@ -23,6 +23,7 @@ import { useLiveBalance } from '@/hooks/useLiveBalance';
 import { getLocalizedGameTitle } from '@/i18n/gameLabels';
 import { useTranslation } from '@/i18n/useTranslation';
 import { ChangePasswordModal } from '@/components/layout/ChangePasswordModal';
+import { BettingLimitBadge } from '@/components/game/BettingLimitBadge';
 
 const MEGA_SLOT_GAME_IDS = new Set([
   'thunder-slot',
@@ -325,6 +326,8 @@ export function GameFullscreenShell() {
           </button>
         </div>
       </header>
+
+      <BettingLimitBadge gameId={game.id} className="game-shell-limit-float" />
 
       <main className="relative z-10 mx-auto w-full max-w-[1920px] px-0 py-2 sm:px-4 sm:py-3 xl:px-5">
         <Outlet />
