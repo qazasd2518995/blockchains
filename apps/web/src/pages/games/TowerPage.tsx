@@ -17,6 +17,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { TowerScene } from '@/games/tower/TowerScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 const TOWER_TOTAL_LEVELS = 9;
 const TOWER_PREVIEW_COLS: Record<TowerDifficulty, number> = {
@@ -174,6 +175,7 @@ export function TowerPage() {
     setError(null);
     setWinModal(null);
     hideStageHint();
+    const releaseBalanceRefresh = holdWalletBalanceRefresh();
     try {
       const res = await api.post<TowerRoundState>('/games/tower/start', { amount, difficulty });
       setRound(res.data);
@@ -186,6 +188,7 @@ export function TowerPage() {
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
+      releaseBalanceRefresh();
       setBusy(false);
     }
   };

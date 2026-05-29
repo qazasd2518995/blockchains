@@ -18,6 +18,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { KenoScene } from '@/games/keno/KenoScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 const POOL_SIZE = 40;
 const MAX_PICKS = 10;
@@ -324,6 +325,7 @@ export function KenoPage() {
       busyRef.current = true;
       setError(null);
       clearRoundResult();
+      const releaseBalanceRefresh = holdWalletBalanceRefresh();
 
       try {
         const payload: KenoBetRequest = {
@@ -364,6 +366,7 @@ export function KenoPage() {
         setError(extractApiError(err).message);
         return null;
       } finally {
+        releaseBalanceRefresh();
         busyRef.current = false;
         setBusy(false);
       }

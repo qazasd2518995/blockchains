@@ -17,6 +17,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { GameHeader } from '@/components/game/GameHeader';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 const DICE_AUTO_ROUND_PRESETS = [10, 25, 50, 100] as const;
 const DICE_AUTO_MAX_ROUNDS = 500;
@@ -272,6 +273,7 @@ export function DicePage() {
       rollingRef.current = true;
       // 樂觀動畫：立刻啟動骰子旋轉，不等 API
       sceneRef.current?.startAnticipation();
+      const releaseBalanceRefresh = holdWalletBalanceRefresh();
 
       try {
         const payload: DiceBetRequest = { amount: stake, target, direction };
@@ -310,6 +312,7 @@ export function DicePage() {
         setError(extractApiError(err).message);
         return null;
       } finally {
+        releaseBalanceRefresh();
         rollingRef.current = false;
         setRolling(false);
       }

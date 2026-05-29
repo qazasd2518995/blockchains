@@ -2316,11 +2316,13 @@ export class HotlineScene {
       duration,
       ease: 'power2.out',
       onUpdate: () => {
+        if (!this.app) return;
         const decay = 1 - state.t;
         stage.x = origX + (Math.random() - 0.5) * intensity * 2 * decay;
         stage.y = origY + (Math.random() - 0.5) * intensity * 2 * decay;
       },
       onComplete: () => {
+        if (!this.app) return;
         stage.x = origX;
         stage.y = origY;
       },
@@ -2349,6 +2351,8 @@ export class HotlineScene {
     this.particlePool = null;
     this.winFx?.dispose();
     this.winFx = null;
+    if (this.reelsContainer) gsap.killTweensOf(this.reelsContainer);
+    if (this.flashOverlay) gsap.killTweensOf(this.flashOverlay);
     this.destroyPixiApp(this.app);
     this.app = null;
     this.reels = [];

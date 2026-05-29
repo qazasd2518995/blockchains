@@ -17,6 +17,7 @@ import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { GameHeader } from '@/components/game/GameHeader';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 export function MinesPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -137,6 +138,7 @@ export function MinesPage() {
     setError(null);
     busyRef.current = true;
     setBusy(true);
+    const releaseBalanceRefresh = holdWalletBalanceRefresh();
     try {
       sceneRef.current?.reset();
       const payload: MinesStartRequest = { amount, mineCount };
@@ -149,6 +151,7 @@ export function MinesPage() {
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
+      releaseBalanceRefresh();
       busyRef.current = false;
       setBusy(false);
     }

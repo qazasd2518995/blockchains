@@ -74,6 +74,7 @@ function persistUrlFlag(): void {
 }
 
 export function isSlotDebugEnabled(): boolean {
+  if (!import.meta.env.DEV) return false;
   if (!isBrowser()) return false;
   return readUrlFlag() || readStorageFlag();
 }
@@ -119,6 +120,7 @@ export function getSlotDebugSnapshot(label?: string): SlotDebugSnapshot {
 }
 
 export function installSlotDebugProbe(label: string): void {
+  if (!import.meta.env.DEV) return;
   if (!isBrowser()) return;
   persistUrlFlag();
   window.__slotDebugBuild = SLOT_DEBUG_BUILD;

@@ -579,11 +579,13 @@ export class HiLoScene {
       duration,
       ease: 'power2.out',
       onUpdate: () => {
+        if (!this.app) return;
         const decay = 1 - state.t;
         stage.x = origX + (Math.random() - 0.5) * intensity * 2 * decay;
         stage.y = origY + (Math.random() - 0.5) * intensity * 2 * decay;
       },
       onComplete: () => {
+        if (!this.app) return;
         stage.x = origX;
         stage.y = origY;
       },
@@ -629,6 +631,8 @@ export class HiLoScene {
     this.particlePool = null;
     this.winFx?.dispose();
     this.winFx = null;
+    if (this.mainCard) gsap.killTweensOf(this.mainCard);
+    if (this.mainCard) gsap.killTweensOf(this.mainCard.scale);
     this.app?.destroy(true, { children: true });
     this.app = null;
     this.cardContainer = null;

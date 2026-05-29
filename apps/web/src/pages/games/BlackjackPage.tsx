@@ -103,7 +103,7 @@ export function BlackjackPage() {
   );
   const playerScoreLabel = formatBlackjackScore(displayActiveHand?.score ?? null);
   const settled = round && round.status !== 'ACTIVE' && !animating;
-  const resultSummary = useMemo(() => summarizeRound(round), [round]);
+  const resultSummary = useMemo(() => summarizeRound(round, t.games.blackjack), [round, t.games.blackjack]);
   const settledProfit = settled ? blackjackRoundProfit(round) : 0;
   const enteringCardKeys = useMemo(
     () => new Set(animationMeta.enteringCards),
@@ -153,7 +153,7 @@ export function BlackjackPage() {
             multiplier: totalBet > 0 ? payout / totalBet : 0,
             payout,
             won: payout > totalBet,
-            detail: resultSummaryLabel(result.state),
+            detail: resultSummaryLabel(result.state, t.games.blackjack),
           },
           ...prev,
         ].slice(0, 30),
@@ -336,7 +336,7 @@ export function BlackjackPage() {
                                 hand.outcome === 'LOSE' ? 'text-[#FCA5A5]' : 'text-white/52'
                               }
                             >
-                              {hand.outcome ? outcomeLabel(hand.outcome) : hand.status}
+                              {hand.outcome ? outcomeLabel(hand.outcome, t.games.blackjack) : hand.status}
                             </span>
                             <span className="data-num text-[#6EE7B7]">
                               {hand.payout ? formatAmount(hand.payout) : '--'}
@@ -1072,39 +1072,47 @@ function suitLabel(suit: number): string {
   return CARD_FILE_SUITS[suit] ?? 'spades';
 }
 
-function outcomeLabel(outcome: string): string {
+type BlackjackDict = ReturnType<typeof import('@/i18n/useTranslation').useTranslation>['t']['games']['blackjack'];
+
+function outcomeLabel(outcome: string, tBj: BlackjackDict): string {
   switch (outcome) {
     case 'BLACKJACK':
-      return '黑傑克';
+      return tBj.blackjackOutcome;
     case 'WIN':
-      return '勝';
+      return tBj.win;
     case 'PUSH':
-      return '平手';
+      return tBj.push;
     default:
-      return '負';
+      return tBj.loss;
   }
 }
 
-function summarizeRound(round: BlackjackRoundState | null): { title: string; detail: string } {
+function summarizeRound(
+  round: BlackjackRoundState | null,
+  tBj: BlackjackDict,
+): { title: string; detail: string } {
   if (!round) return { title: '--', detail: '' };
   const totalBet = Number.parseFloat(round.totalBetAmount);
   const payout = Number.parseFloat(round.potentialPayout);
   const profit = blackjackRoundProfit(round);
   if (payout > totalBet) {
     return {
-      title: '玩家勝',
-      detail: `淨贏 +${formatAmount(profit)} · ${resultSummaryLabel(round)}`,
+      title: tBj.playerWin,
+      detail: `${tBj.netWinPrefix}${formatAmount(profit)} · ${resultSummaryLabel(round, tBj)}`,
     };
   }
   if (payout === totalBet) {
-    return { title: '平手', detail: `退回本金 · ${resultSummaryLabel(round)}` };
+    return { title: tBj.push, detail: `${tBj.pushRefund} · ${resultSummaryLabel(round, tBj)}` };
   }
-  return { title: '莊家勝', detail: `淨輸 ${formatAmount(profit)} · ${resultSummaryLabel(round)}` };
+  return {
+    title: tBj.dealerWin,
+    detail: `${tBj.netLossPrefix}${formatAmount(profit)} · ${resultSummaryLabel(round, tBj)}`,
+  };
 }
 
-function resultSummaryLabel(round: BlackjackRoundState): string {
+function resultSummaryLabel(round: BlackjackRoundState, tBj: BlackjackDict): string {
   return round.playerHands
-    .map((hand, index) => `手牌 ${index + 1}：${blackjackHandStateLabel(hand)}`)
+    .map((hand, index) => `${tBj.handPrefix}${index + 1}：${blackjackHandStateLabel(hand, tBj)}`)
     .join(' · ');
 }
 
@@ -1112,17 +1120,17 @@ function blackjackRoundProfit(round: BlackjackRoundState): number {
   return Number.parseFloat(round.potentialPayout) - Number.parseFloat(round.totalBetAmount);
 }
 
-function blackjackHandStateLabel(hand: BlackjackPlayerHand): string {
-  if (hand.outcome) return outcomeLabel(hand.outcome);
+function blackjackHandStateLabel(hand: BlackjackPlayerHand, tBj: BlackjackDict): string {
+  if (hand.outcome) return outcomeLabel(hand.outcome, tBj);
   switch (hand.status) {
     case 'PLAYING':
-      return '進行中';
+      return tBj.handPlaying;
     case 'STANDING':
-      return '停牌';
+      return tBj.handStanding;
     case 'BUSTED':
-      return '爆牌';
+      return tBj.handBusted;
     case 'RESOLVED':
-      return '已結算';
+      return tBj.handResolved;
     default:
       return hand.status;
   }

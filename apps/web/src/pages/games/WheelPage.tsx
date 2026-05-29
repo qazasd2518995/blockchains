@@ -18,6 +18,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { WheelScene } from '@/games/wheel/WheelScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 export function WheelPage() {
   const { user, setBalance } = useAuthStore();
@@ -85,6 +86,7 @@ export function WheelPage() {
     setResult(null);
     // 樂觀動畫：輪盤立刻開始高速旋轉
     sceneRef.current?.startAnticipation();
+    const releaseBalanceRefresh = holdWalletBalanceRefresh();
     try {
       const payload: WheelBetRequest = { amount, risk, segments };
       const res = await api.post<WheelBetResult>('/games/wheel/bet', payload);
@@ -110,6 +112,7 @@ export function WheelPage() {
       sceneRef.current?.stopAnticipation();
       setError(extractApiError(err).message);
     } finally {
+      releaseBalanceRefresh();
       setBusy(false);
     }
   };

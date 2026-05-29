@@ -16,6 +16,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { HiLoScene } from '@/games/hilo/HiLoScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 export function HiLoPage() {
   const { user, setBalance } = useAuthStore();
@@ -76,6 +77,7 @@ export function HiLoPage() {
     if (amount < MIN_BET_AMOUNT || amount > balance) return;
     setBusy(true);
     setError(null);
+    const releaseBalanceRefresh = holdWalletBalanceRefresh();
     try {
       sceneRef.current?.reset();
       const res = await api.post<HiLoRoundState>('/games/hilo/start', { amount });
@@ -85,6 +87,7 @@ export function HiLoPage() {
     } catch (err) {
       setError(extractApiError(err).message);
     } finally {
+      releaseBalanceRefresh();
       setBusy(false);
     }
   };

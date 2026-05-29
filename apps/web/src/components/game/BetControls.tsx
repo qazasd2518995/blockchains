@@ -57,11 +57,11 @@ export function BetControls({
   const validateAmount = (raw: string): string | null => {
     if (!raw.trim()) return null;
     const v = Number(raw);
-    if (!Number.isFinite(v)) return '請輸入有效下注金額。';
-    if (v < minLimit) return `最低下注為 ${formatLimit(minLimit)}。`;
-    if (v > stakeMax) return `單注上限為 ${formatLimit(stakeMax)}。`;
+    if (!Number.isFinite(v)) return t.bet.invalidAmount;
+    if (v < minLimit) return `${t.bet.minBetPrefix}${formatLimit(minLimit)}。`;
+    if (v > stakeMax) return `${t.bet.maxBetPrefix}${formatLimit(stakeMax)}。`;
     if (!guestMode && v > availableBalance) {
-      return `餘額不足，目前可用 ${formatLimit(availableBalance)}。`;
+      return `${t.bet.insufficientAvailablePrefix}${formatLimit(availableBalance)}。`;
     }
     return null;
   };
@@ -101,7 +101,7 @@ export function BetControls({
           </span>
         </div>
         <span className="data-num text-[10px] text-white/55">
-          {guestMode ? t.bet.loginToBet : `${limitLabel ?? '單注上限'} ${formatLimit(stakeMax)}`}
+          {guestMode ? t.bet.loginToBet : `${limitLabel ?? t.bet.stakeLimit} ${formatLimit(stakeMax)}`}
         </span>
       </div>
 
@@ -152,7 +152,7 @@ export function BetControls({
           localError ? 'bet-controls__limit-hint--error' : ''
         }`}
       >
-        {localError ?? `${limitLabel ?? '單注上限'} ${formatLimit(stakeMax)}`}
+        {localError ?? `${limitLabel ?? t.bet.stakeLimit} ${formatLimit(stakeMax)}`}
       </div>
 
       {showPresets ? (
