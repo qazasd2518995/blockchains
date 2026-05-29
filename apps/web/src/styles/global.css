@@ -374,6 +374,31 @@
     pointer-events: none;
   }
 
+  @media (max-width: 640px) {
+    .game-shell-limit-float {
+      top: calc(env(safe-area-inset-top) + 4.05rem);
+      right: auto;
+      left: max(0.55rem, env(safe-area-inset-left));
+      z-index: 33;
+    }
+
+    .game-shell-limit-float.betting-limit-badge {
+      gap: 0.28rem;
+      max-width: min(42vw, 156px);
+      padding: 0.26rem 0.48rem;
+      border-color: rgba(201, 162, 71, 0.46);
+      background: rgba(7, 16, 28, 0.9);
+      font-size: 0.58rem;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+    }
+
+    .game-shell-limit-float.betting-limit-badge strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 0.64rem;
+    }
+  }
+
   .dice-mobile-result-pill {
     pointer-events: none;
     position: absolute;
