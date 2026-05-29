@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import QRCode from 'qrcode';
 import type { AdminCaptchaResponse, AdminLoginResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
@@ -335,32 +336,15 @@ function renderAuthenticatorQrCode(canvas: HTMLCanvasElement | null, text: strin
   context.clearRect(0, 0, canvas.width, canvas.height);
   if (!text) return;
 
-  try {
-    const matrix = createAuthenticatorQrMatrix(text);
-    const quietZone = 4;
-    const moduleCount = matrix.length + quietZone * 2;
-    const moduleSize = Math.floor(Math.min(canvas.width, canvas.height) / moduleCount);
-    const qrSize = moduleSize * moduleCount;
-    const offsetX = Math.floor((canvas.width - qrSize) / 2);
-    const offsetY = Math.floor((canvas.height - qrSize) / 2);
-
-    context.fillStyle = '#FFFFFF';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = '#0F172A';
-
-    for (let y = 0; y < matrix.length; y += 1) {
-      for (let x = 0; x < matrix.length; x += 1) {
-        if (matrix[y]?.[x]) {
-          context.fillRect(
-            offsetX + (x + quietZone) * moduleSize,
-            offsetY + (y + quietZone) * moduleSize,
-            moduleSize,
-            moduleSize,
-          );
-        }
-      }
-    }
-  } catch {
+  void QRCode.toCanvas(canvas, text, {
+    errorCorrectionLevel: 'M',
+    margin: 4,
+    width: 244,
+    color: {
+      dark: '#0F172AFF',
+      light: '#FFFFFFFF',
+    },
+  }).catch(() => {
     context.fillStyle = '#FFFFFF';
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = '#B94538';
@@ -368,226 +352,7 @@ function renderAuthenticatorQrCode(canvas: HTMLCanvasElement | null, text: strin
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillText('QR Code 無法產生', canvas.width / 2, canvas.height / 2);
-  }
-}
-
-function createAuthenticatorQrMatrix(text: string): boolean[][] {
-  const version = 10;
-  const size = 17 + version * 4;
-  const dataCodewordCount = 274;
-  const errorCorrectionCodewordCount = 18;
-  const blockLengths = [68, 68, 69, 69];
-  const data = new TextEncoder().encode(text);
-  if (data.length > 190) {
-    throw new Error('QR payload is too large');
-  }
-
-  const bits: number[] = [];
-  appendQrBits(bits, 0b0100, 4);
-  appendQrBits(bits, data.length, 16);
-  data.forEach((byte) => appendQrBits(bits, byte, 8));
-  appendQrBits(bits, 0, Math.min(4, dataCodewordCount * 8 - bits.length));
-  while (bits.length % 8 !== 0) bits.push(0);
-
-  const dataCodewords: number[] = [];
-  for (let index = 0; index < bits.length; index += 8) {
-    dataCodewords.push(Number.parseInt(bits.slice(index, index + 8).join(''), 2));
-  }
-  for (let pad = 0; dataCodewords.length < dataCodewordCount; pad += 1) {
-    dataCodewords.push(pad % 2 === 0 ? 0xec : 0x11);
-  }
-
-  const blocks: number[][] = [];
-  let cursor = 0;
-  for (const length of blockLengths) {
-    const block = dataCodewords.slice(cursor, cursor + length);
-    cursor += length;
-    blocks.push([...block, ...createQrErrorCorrection(block, errorCorrectionCodewordCount)]);
-  }
-
-  const interleaved: number[] = [];
-  for (let index = 0; index < Math.max(...blockLengths); index += 1) {
-    for (const blockIndex of [0, 1, 2, 3]) {
-      const blockLength = blockLengths[blockIndex] ?? 0;
-      const block = blocks[blockIndex];
-      if (block && index < blockLength) interleaved.push(block[index] ?? 0);
-    }
-  }
-  for (let index = 0; index < errorCorrectionCodewordCount; index += 1) {
-    for (const block of blocks)
-      interleaved.push(block[block.length - errorCorrectionCodewordCount + index] ?? 0);
-  }
-
-  const matrix = Array.from({ length: size }, () => Array<boolean>(size).fill(false));
-  const reserved = Array.from({ length: size }, () => Array<boolean>(size).fill(false));
-  const setModule = (x: number, y: number, value: boolean, isReserved = true) => {
-    if (x < 0 || y < 0 || x >= size || y >= size) return;
-    matrix[y]![x] = value;
-    if (isReserved) reserved[y]![x] = true;
-  };
-  const reserveModule = (x: number, y: number) => {
-    if (x < 0 || y < 0 || x >= size || y >= size) return;
-    reserved[y]![x] = true;
-  };
-
-  const addFinder = (left: number, top: number) => {
-    for (let y = -1; y <= 7; y += 1) {
-      for (let x = -1; x <= 7; x += 1) {
-        const xx = left + x;
-        const yy = top + y;
-        if (xx < 0 || yy < 0 || xx >= size || yy >= size) continue;
-        const dark =
-          x >= 0 &&
-          x <= 6 &&
-          y >= 0 &&
-          y <= 6 &&
-          (x === 0 || x === 6 || y === 0 || y === 6 || (x >= 2 && x <= 4 && y >= 2 && y <= 4));
-        setModule(xx, yy, dark);
-      }
-    }
-  };
-
-  addFinder(0, 0);
-  addFinder(size - 7, 0);
-  addFinder(0, size - 7);
-
-  for (let index = 8; index < size - 8; index += 1) {
-    setModule(index, 6, index % 2 === 0);
-    setModule(6, index, index % 2 === 0);
-  }
-
-  const addAlignment = (centerX: number, centerY: number) => {
-    for (let y = -2; y <= 2; y += 1) {
-      for (let x = -2; x <= 2; x += 1) {
-        const dark = Math.max(Math.abs(x), Math.abs(y)) !== 1;
-        setModule(centerX + x, centerY + y, dark);
-      }
-    }
-  };
-  for (const y of [6, 28, 50]) {
-    for (const x of [6, 28, 50]) {
-      if ((x === 6 && y === 6) || (x === 50 && y === 6) || (x === 6 && y === 50)) continue;
-      addAlignment(x, y);
-    }
-  }
-
-  setModule(8, size - 8, true);
-  for (let i = 0; i < 9; i += 1) {
-    reserveModule(8, i);
-    reserveModule(i, 8);
-    reserveModule(size - 1 - i, 8);
-    reserveModule(8, size - 1 - i);
-  }
-  for (let i = 0; i < 18; i += 1) {
-    const bit = ((getQrVersionBits(version) >> i) & 1) === 1;
-    setModule(size - 11 + (i % 3), Math.floor(i / 3), bit);
-    setModule(Math.floor(i / 3), size - 11 + (i % 3), bit);
-  }
-
-  const dataBits = interleaved.flatMap((byte) =>
-    Array.from({ length: 8 }, (_, bit) => ((byte >> (7 - bit)) & 1) === 1),
-  );
-  let bitIndex = 0;
-  let upward = true;
-  for (let x = size - 1; x > 0; x -= 2) {
-    if (x === 6) x -= 1;
-    for (let row = 0; row < size; row += 1) {
-      const y = upward ? size - 1 - row : row;
-      for (let dx = 0; dx < 2; dx += 1) {
-        const xx = x - dx;
-        if (reserved[y]![xx]) continue;
-        const mask = (xx + y) % 2 === 0;
-        matrix[y]![xx] = (dataBits[bitIndex] ?? false) !== mask;
-        bitIndex += 1;
-      }
-    }
-    upward = !upward;
-  }
-
-  const formatBits = getQrFormatBits(0);
-  for (let i = 0; i < 15; i += 1) {
-    const bit = ((formatBits >> i) & 1) === 1;
-    const first =
-      i < 6 ? ([8, i] as const) : i < 8 ? ([8, i + 1] as const) : ([14 - i, 8] as const);
-    const second = i < 8 ? ([size - 1 - i, 8] as const) : ([8, size - 15 + i] as const);
-    setModule(first[0], first[1], bit);
-    setModule(second[0], second[1], bit);
-  }
-
-  return matrix;
-}
-
-function appendQrBits(bits: number[], value: number, length: number): void {
-  for (let index = length - 1; index >= 0; index -= 1) {
-    bits.push((value >> index) & 1);
-  }
-}
-
-function createQrGaloisTables(): { exp: number[]; log: number[] } {
-  const exp = Array<number>(512).fill(0);
-  const log = Array<number>(256).fill(0);
-  let value = 1;
-  for (let index = 0; index < 255; index += 1) {
-    exp[index] = value;
-    log[value] = index;
-    value <<= 1;
-    if (value & 0x100) value ^= 0x11d;
-  }
-  for (let index = 255; index < 512; index += 1) exp[index] = exp[index - 255] ?? 0;
-  return { exp, log };
-}
-
-const qrGalois = createQrGaloisTables();
-
-function qrGaloisMultiply(left: number, right: number): number {
-  if (left === 0 || right === 0) return 0;
-  return qrGalois.exp[(qrGalois.log[left] ?? 0) + (qrGalois.log[right] ?? 0)] ?? 0;
-}
-
-function createQrGeneratorPolynomial(degree: number): number[] {
-  let polynomial = [1];
-  for (let step = 0; step < degree; step += 1) {
-    const next = Array<number>(polynomial.length + 1).fill(0);
-    polynomial.forEach((coefficient, index) => {
-      next[index] = (next[index] ?? 0) ^ qrGaloisMultiply(coefficient, qrGalois.exp[step] ?? 0);
-      next[index + 1] = (next[index + 1] ?? 0) ^ coefficient;
-    });
-    polynomial = next;
-  }
-  return polynomial;
-}
-
-function createQrErrorCorrection(data: number[], degree: number): number[] {
-  const generator = createQrGeneratorPolynomial(degree);
-  const result = [...data, ...Array<number>(degree).fill(0)];
-  for (let index = 0; index < data.length; index += 1) {
-    const coefficient = result[index];
-    if (coefficient === 0) continue;
-    generator.forEach((generatorCoefficient, offset) => {
-      result[index + offset] =
-        (result[index + offset] ?? 0) ^ qrGaloisMultiply(generatorCoefficient, coefficient ?? 0);
-    });
-  }
-  return result.slice(-degree);
-}
-
-function getQrFormatBits(mask: number): number {
-  let data = (1 << 3) | mask;
-  let bits = data << 10;
-  const generator = 0b10100110111;
-  for (let index = 14; index >= 10; index -= 1) {
-    if (((bits >> index) & 1) === 1) bits ^= generator << (index - 10);
-  }
-  return ((data << 10) | bits) ^ 0b101010000010010;
-}
-
-function getQrVersionBits(version: number): number {
-  let bits = version << 12;
-  const generator = 0b1111100100101;
-  for (let index = 17; index >= 12; index -= 1) {
-    if (((bits >> index) & 1) === 1) bits ^= generator << (index - 12);
-  }
-  return (version << 12) | bits;
+  });
 }
 
 function Field({
