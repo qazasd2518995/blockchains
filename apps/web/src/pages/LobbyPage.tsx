@@ -414,8 +414,14 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
           熱門
         </span>
       )}
-      <span className="absolute right-2 top-2 z-20 rounded-[5px] bg-[linear-gradient(180deg,#FFE27A_0%,#F59E0B_100%)] px-2 py-1 text-[11px] font-black leading-none text-[#4B2600] shadow-[0_3px_8px_rgba(0,0,0,0.22)]">
-        {multiplierLabel}
+      <span
+        className="absolute right-2 top-2 z-20 inline-flex min-w-[58px] flex-col items-center rounded-[6px] bg-[linear-gradient(180deg,#FFE27A_0%,#F59E0B_100%)] px-2 py-1 text-center text-[#4B2600] shadow-[0_3px_8px_rgba(0,0,0,0.22)]"
+        aria-label={`最高爆分 ${multiplierLabel}`}
+      >
+        <strong className="num text-[11px] font-black leading-none">{multiplierLabel}</strong>
+        <small className="mt-0.5 text-[8px] font-black leading-none tracking-[0.08em]">
+          最高爆分
+        </small>
       </span>
       <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.94)_0%,rgba(255,255,255,0.76)_42%,rgba(255,255,255,0.2)_100%)]" />
       <div className="absolute inset-x-0 bottom-0 h-12 bg-[linear-gradient(0deg,rgba(4,28,42,0.46),transparent)]" />
