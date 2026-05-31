@@ -204,8 +204,6 @@ export async function checkAndCompleteManualDetectionControls(
       continue;
     }
 
-    if (control.scope === 'ALL') continue;
-
     if (control.scope === 'MEMBER') {
       if (control.isCompleted) continue;
       const shouldDeactivate = isStarterConfidenceControl(control);
@@ -247,7 +245,11 @@ export async function distributeAutoDetectionRedistribution(
     cycleCount: number;
   },
   plan: AutoDetectionBitePlan,
-): Promise<{ memberCount: number; shareAmount: Prisma.Decimal; distributedAmount: Prisma.Decimal }> {
+): Promise<{
+  memberCount: number;
+  shareAmount: Prisma.Decimal;
+  distributedAmount: Prisma.Decimal;
+}> {
   const amount = plan.redistributionAmount.toDecimalPlaces(2);
   if (amount.lessThanOrEqualTo(0)) {
     return { memberCount: 0, shareAmount: ZERO, distributedAmount: ZERO };
@@ -274,7 +276,9 @@ export async function distributeAutoDetectionRedistribution(
     return { memberCount: 0, shareAmount: ZERO, distributedAmount: ZERO };
   }
 
-  const baseShare = collectedAmount.div(members.length).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const baseShare = collectedAmount
+    .div(members.length)
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
   const remainder = collectedAmount.sub(baseShare.mul(members.length)).toDecimalPlaces(2);
   let distributedAmount = ZERO;
   let creditedMembers = 0;
@@ -346,7 +350,11 @@ async function collectAutoDetectionRedistributionPool(
     let debit = isLast
       ? collectTarget.sub(collectedAmount)
       : proportional.toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-    debit = Prisma.Decimal.min(debit, available, collectTarget.sub(collectedAmount)).toDecimalPlaces(2);
+    debit = Prisma.Decimal.min(
+      debit,
+      available,
+      collectTarget.sub(collectedAmount),
+    ).toDecimalPlaces(2);
     if (debit.lessThanOrEqualTo(0)) continue;
 
     const updated = await db.user.update({
@@ -525,7 +533,11 @@ export async function maybeCreateStarterConfidenceManualDetectionControl(
     depositAmount: Prisma.Decimal | string | number;
     operatorId?: string | null;
   },
-): Promise<{ created: boolean; targetPlayerWin: Prisma.Decimal; targetSettlement: Prisma.Decimal }> {
+): Promise<{
+  created: boolean;
+  targetPlayerWin: Prisma.Decimal;
+  targetSettlement: Prisma.Decimal;
+}> {
   const targetPlayerWin = decimal(input.depositAmount)
     .mul(STARTER_CONFIDENCE_TARGET_PROFIT_RATE)
     .toDecimalPlaces(2);
@@ -555,9 +567,7 @@ export async function maybeCreateStarterConfidenceManualDetectionControl(
     null,
     input.memberUsername,
   );
-  const targetSettlement = settlement.superiorSettlement
-    .sub(targetPlayerWin)
-    .toDecimalPlaces(2);
+  const targetSettlement = settlement.superiorSettlement.sub(targetPlayerWin).toDecimalPlaces(2);
 
   await db.manualDetectionControl.create({
     data: {

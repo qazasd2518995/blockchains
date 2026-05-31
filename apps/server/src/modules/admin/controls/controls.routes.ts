@@ -488,13 +488,14 @@ function resolveControlLogSourceLabel(source: ControlLogSource): string {
 function resolveControlLogActionLabel(log: ControlLogRecord): string {
   const finalWon = jsonBoolean(log.finalResult, 'won');
   const finalDirection = finalWon === true ? '控贏' : finalWon === false ? '控輸' : '已介入';
+  const manualDetectionAction = resolveManualDetectionActionLabel(log);
   const labels: Record<string, string> = {
     online_reward_next_win: '下一局直接贏',
     deposit_control: `入金${finalDirection}`,
     win_control: '放會員贏',
     loss_control: '咬會員輸',
     loss_control_release: '殺分補贏',
-    manual_detection: finalWon === true ? '手動拉贏' : finalWon === false ? '手動壓輸' : '手動介入',
+    manual_detection: manualDetectionAction,
     manual_detection_release: '手動補贏',
     burst_win: '爆分贏',
     burst_small_win: '小贏補償',
@@ -510,6 +511,20 @@ function resolveControlLogActionLabel(log: ControlLogRecord): string {
     global_accidental_burst_cap: '意外爆分壓低',
   };
   return labels[log.flipReason] ?? finalDirection;
+}
+
+function resolveManualDetectionActionLabel(log: ControlLogRecord): string {
+  const finalWon = jsonBoolean(log.finalResult, 'won');
+  if (finalWon === false) return '手動壓輸';
+
+  const originalPayout = jsonDecimalNumber(log.originalResult, 'payout');
+  const finalPayout = jsonDecimalNumber(log.finalResult, 'payout');
+  if (originalPayout !== null && finalPayout !== null && finalPayout < originalPayout) {
+    return '手動壓低';
+  }
+
+  if (finalWon === true) return '手動拉贏';
+  return '手動介入';
 }
 
 function resolveControlLogDirectionLabel(log: ControlLogRecord): string {
@@ -560,6 +575,14 @@ function jsonBoolean(value: Prisma.JsonValue, key: string): boolean | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const item = (value as Record<string, unknown>)[key];
   return typeof item === 'boolean' ? item : null;
+}
+
+function jsonDecimalNumber(value: Prisma.JsonValue, key: string): number | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const item = (value as Record<string, unknown>)[key];
+  const parsed =
+    typeof item === 'number' ? item : typeof item === 'string' ? Number.parseFloat(item) : NaN;
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 /**
@@ -1017,7 +1040,9 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async (req, reply) => {
       const body = burstControlSchema.parse(req.body);
       if (body.scope !== 'MEMBER') {
-        reply.code(400).send({ code: 'INVALID_BURST_SCOPE', message: 'Burst control requires a member target' });
+        reply
+          .code(400)
+          .send({ code: 'INVALID_BURST_SCOPE', message: 'Burst control requires a member target' });
         return;
       }
 

@@ -776,9 +776,11 @@ async function findManualDetectionDecision(
     applicable.control.targetAgentId,
     applicable.control.targetMemberUsername,
   );
-  const desired = settlement.superiorSettlement.lessThan(applicable.control.targetSettlement)
-    ? 'LOSS'
-    : 'WIN';
+  const desired = resolveManualDetectionDesired(
+    settlement.superiorSettlement,
+    applicable.control.targetSettlement,
+    applicable.control.startSettlement,
+  );
   if (desired === 'LOSS') {
     const release = await shouldReleaseManualDetectionCycle(
       tx,
@@ -821,17 +823,39 @@ async function shouldReleaseManualDetectionCycle(
     },
     orderBy: { createdAt: 'desc' },
     take: 5,
-    select: { flipReason: true },
+    select: { flipReason: true, finalResult: true },
   });
 
   let consecutiveLosses = 0;
   for (const log of logs) {
     if (log.flipReason === 'manual_detection_release') break;
-    if (log.flipReason === 'manual_detection') consecutiveLosses += 1;
+    if (log.flipReason !== 'manual_detection') continue;
+    if (jsonResultWon(log.finalResult) === false) {
+      consecutiveLosses += 1;
+      continue;
+    }
+    break;
   }
 
   const requiredLosses = controlPercentage >= 60 ? 4 : 3;
   return consecutiveLosses >= requiredLosses;
+}
+
+function resolveManualDetectionDesired(
+  currentSettlement: Prisma.Decimal,
+  targetSettlement: Prisma.Decimal,
+  startSettlement?: Prisma.Decimal | null,
+): 'WIN' | 'LOSS' {
+  if (startSettlement && !startSettlement.eq(targetSettlement)) {
+    return targetSettlement.greaterThan(startSettlement) ? 'LOSS' : 'WIN';
+  }
+  return currentSettlement.lessThan(targetSettlement) ? 'LOSS' : 'WIN';
+}
+
+function jsonResultWon(value: Prisma.JsonValue): boolean | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const won = (value as Record<string, unknown>).won;
+  return typeof won === 'boolean' ? won : null;
 }
 
 async function findBurstDecision(
@@ -1434,4 +1458,5 @@ export const __controlsTestHooks = {
   getStoredBurstCooldownRounds,
   randomBurstCooldownRounds,
   rankWinLossControls,
+  resolveManualDetectionDesired,
 };

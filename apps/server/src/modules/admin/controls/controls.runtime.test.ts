@@ -9,6 +9,7 @@ import {
   maybeCreateStarterConfidenceManualDetectionControl,
   STARTER_CONFIDENCE_OPERATOR,
 } from './controls.runtime.js';
+import { __controlsTestHooks } from '../../games/_common/controls.js';
 
 describe('calculateAutoDetectionBitePlan', () => {
   it('turns bite percentage into the next superior-settlement target', async () => {
@@ -130,9 +131,7 @@ describe('findApplicableManualDetectionControl no-count lines', () => {
           lineControl,
         ]),
       },
-      $queryRaw: vi
-        .fn()
-        .mockResolvedValueOnce([{ id: 'test111-agent', depth: 0 }]),
+      $queryRaw: vi.fn().mockResolvedValueOnce([{ id: 'test111-agent', depth: 0 }]),
     };
 
     const applicable = await findApplicableManualDetectionControl(db as never, {
@@ -142,6 +141,28 @@ describe('findApplicableManualDetectionControl no-count lines', () => {
 
     expect(applicable?.control.id).toBe('line');
     expect(applicable?.depth).toBe(0);
+  });
+});
+
+describe('manual detection direction', () => {
+  it('keeps the original target direction from start settlement to target settlement', () => {
+    const { resolveManualDetectionDesired } = __controlsTestHooks;
+
+    expect(
+      resolveManualDetectionDesired(
+        new Prisma.Decimal(2_000_000),
+        new Prisma.Decimal(950_000),
+        new Prisma.Decimal(-50_000),
+      ),
+    ).toBe('LOSS');
+
+    expect(
+      resolveManualDetectionDesired(
+        new Prisma.Decimal(-2_000_000),
+        new Prisma.Decimal(-950_000),
+        new Prisma.Decimal(50_000),
+      ),
+    ).toBe('WIN');
   });
 });
 
