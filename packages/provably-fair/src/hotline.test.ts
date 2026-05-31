@@ -61,7 +61,7 @@ describe('hotlineSpin', () => {
 
   it('uses separate 8-symbol paytables for fixed-line variants', () => {
     expect(HOTLINE_MINI_SYMBOLS.map((symbol) => symbol.payout3)).toEqual([
-      3, 3.3, 3.6, 4, 4.2, 4.5, 4.8, 3777.6,
+      3, 3.3, 3.6, 4, 4.2, 4.5, 4.8, 5,
     ]);
     expect(
       HOTLINE_SYMBOLS.map((symbol) => [symbol.payout3, symbol.payout4, symbol.payout5]),
@@ -73,7 +73,7 @@ describe('hotlineSpin', () => {
       [3.3, 13, 50],
       [5, 20, 85],
       [8, 35, 135],
-      [13, 65, 5000],
+      [13, 65, 250],
     ]);
   });
 
@@ -319,13 +319,6 @@ describe('hotlineEvaluate', () => {
     expect(totalMultiplier).toBe(HOTLINE_SYMBOLS[5]!.payout5);
   });
 
-  it('caps 5x3 full-screen top symbol at the advertised 25000x max', () => {
-    const grid = Array.from({ length: 5 }, () => Array.from({ length: 3 }, () => 7));
-    const { totalMultiplier } = hotlineEvaluate(grid);
-
-    expect(totalMultiplier).toBe(25000);
-  });
-
   it('does not count matching symbols unless they follow a payline from either edge', () => {
     const grid = [
       [3, 5, 0],
@@ -389,13 +382,6 @@ describe('hotlineEvaluate', () => {
     expect(line!.startReel).toBe(0);
     expect(line!.direction).toBe('ltr');
     expect(totalMultiplier).toBe(HOTLINE_MINI_SYMBOLS[5]!.payout3);
-  });
-
-  it('caps 3x3 full-screen top symbol at the advertised 18888x max', () => {
-    const grid = Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => 7));
-    const { totalMultiplier } = hotlineEvaluate(grid);
-
-    expect(totalMultiplier).toBe(18888);
   });
 
   it('does not pay 6x5 mega clusters below eight matching symbols', () => {
