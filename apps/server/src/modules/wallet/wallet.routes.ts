@@ -48,7 +48,11 @@ export async function walletRoutes(fastify: FastifyInstance): Promise<void> {
         ...(Object.keys(createdAt).length > 0 ? { createdAt } : {}),
       };
 
-      const [items, totalIn, totalOut, totalCount] = await Promise.all([
+      const betCreatedAt: Prisma.DateTimeFilter = {};
+      if (from) betCreatedAt.gte = from;
+      if (to) betCreatedAt.lte = to;
+
+      const [items, totalIn, totalOut, totalCount, standardValid, crashValid] = await Promise.all([
         fastify.prisma.transaction.findMany({
           where,
           include: {
@@ -74,11 +78,26 @@ export async function walletRoutes(fastify: FastifyInstance): Promise<void> {
           _sum: { amount: true },
         }),
         fastify.prisma.transaction.count({ where }),
+        fastify.prisma.bet.aggregate({
+          where: {
+            userId: req.userId,
+            ...(Object.keys(betCreatedAt).length > 0 ? { createdAt: betCreatedAt } : {}),
+          },
+          _sum: { amount: true },
+        }),
+        fastify.prisma.crashBet.aggregate({
+          where: {
+            userId: req.userId,
+            ...(Object.keys(betCreatedAt).length > 0 ? { createdAt: betCreatedAt } : {}),
+          },
+          _sum: { amount: true },
+        }),
       ]);
 
       const nextCursor = items.length > q.limit ? (items.pop()?.id ?? null) : null;
       const totalInAmount = totalIn._sum.amount ?? ZERO;
       const totalOutAmount = totalOut._sum.amount ?? ZERO;
+      const validAmount = (standardValid._sum.amount ?? ZERO).add(crashValid._sum.amount ?? ZERO);
       return {
         items: items.map((tx) => ({
           id: tx.id,
@@ -96,6 +115,7 @@ export async function walletRoutes(fastify: FastifyInstance): Promise<void> {
         summary: {
           totalIn: totalInAmount.toFixed(2),
           totalOut: totalOutAmount.toFixed(2),
+          validAmount: validAmount.toFixed(2),
           net: totalInAmount.add(totalOutAmount).toFixed(2),
           totalCount,
         },

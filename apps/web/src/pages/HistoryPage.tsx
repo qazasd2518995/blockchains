@@ -147,6 +147,10 @@ function summarizeItems(
   return {
     totalIn: totalIn.toFixed(2),
     totalOut: totalOut.toFixed(2),
+    validAmount: items
+      .filter((tx) => tx.betAmount !== null)
+      .reduce((sum, tx) => sum + Number.parseFloat(tx.betAmount ?? '0'), 0)
+      .toFixed(2),
     net: (totalIn + totalOut).toFixed(2),
     totalCount: items.length,
   };
@@ -210,6 +214,7 @@ export function HistoryPage() {
   const summary = useMemo(() => reportSummary ?? summarizeItems(items), [items, reportSummary]);
   const totalIn = Number.parseFloat(summary.totalIn);
   const totalOut = Number.parseFloat(summary.totalOut);
+  const validAmount = Number.parseFloat(summary.validAmount);
   const net = Number.parseFloat(summary.net);
   const totalCount = summary.totalCount;
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -368,7 +373,7 @@ export function HistoryPage() {
           </div>
         </section>
 
-        <section className="relative z-10 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
+        <section className="relative z-10 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
           <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#FED7AA] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
             <div className="label text-[#EA580C]">{t.history.totalIn}</div>
             <div className="mt-1 num text-[18px] num-win sm:mt-2 sm:text-4xl">
@@ -379,6 +384,12 @@ export function HistoryPage() {
             <div className="label text-[#EA580C]">{t.history.totalOut}</div>
             <div className="mt-1 num text-[18px] num-wine sm:mt-2 sm:text-4xl">
               {formatAmount(totalOut)}
+            </div>
+          </div>
+          <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#FED7AA] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">
+            <div className="label text-[#EA580C]">{t.history.validAmount}</div>
+            <div className="mt-1 num text-[18px] text-[#0F172A] sm:mt-2 sm:text-4xl">
+              {formatAmount(validAmount)}
             </div>
           </div>
           <div className="card-base p-3 max-lg:rounded-[13px] max-lg:border-[#FED7AA] max-lg:bg-white max-lg:shadow-[0_6px_14px_rgba(15,23,42,0.08)] sm:p-5">

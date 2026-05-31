@@ -215,6 +215,7 @@ export const zhHant = {
     settlement: '結算',
     totalIn: '總收入',
     totalOut: '總支出',
+    validAmount: '有效金額',
     net: '淨額',
     tx: {
       SIGNUP_BONUS: '註冊獎勵',

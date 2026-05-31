@@ -50,6 +50,7 @@ export interface TransactionListResponse {
   summary: {
     totalIn: string;
     totalOut: string;
+    validAmount: string;
     net: string;
     totalCount: number;
   };

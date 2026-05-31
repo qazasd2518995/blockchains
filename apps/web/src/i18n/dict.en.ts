@@ -233,6 +233,7 @@ export const en = {
     settlement: 'Settlement',
     totalIn: 'Total In',
     totalOut: 'Total Out',
+    validAmount: 'Valid Amount',
     net: 'Net',
     tx: {
       SIGNUP_BONUS: 'Signup Bonus',
