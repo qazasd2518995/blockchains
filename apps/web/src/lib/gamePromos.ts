@@ -68,7 +68,7 @@ export function getGamePromoMultiplier(gameId: string): number {
 
 export function getGamePromoMultiplierLabel(gameId: string): string {
   if (gameId === GameId.HILO) return '無上限';
-  return `${getGamePromoMultiplier(gameId).toLocaleString('en-US')}X`;
+  return `${getGamePromoMultiplier(gameId)}X`;
 }
 
 export function isGamePromoHot(gameId: string): boolean {

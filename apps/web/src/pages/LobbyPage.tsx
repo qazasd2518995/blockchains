@@ -415,10 +415,12 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
         </span>
       )}
       <span
-        className="absolute right-2 top-2 z-20 inline-flex min-w-[58px] flex-col items-center rounded-[6px] bg-[linear-gradient(180deg,#FFE27A_0%,#F59E0B_100%)] px-2 py-1 text-center text-[#4B2600] shadow-[0_3px_8px_rgba(0,0,0,0.22)]"
+        className="absolute right-1.5 top-1.5 z-20 inline-flex min-w-[52px] max-w-[78px] flex-col items-center rounded-[6px] bg-[linear-gradient(180deg,#FFE27A_0%,#F59E0B_100%)] px-1.5 py-1 text-center text-[#4B2600] shadow-[0_3px_8px_rgba(0,0,0,0.22)]"
         aria-label={`最高爆分 ${multiplierLabel}`}
       >
-        <strong className="num text-[11px] font-black leading-none">{multiplierLabel}</strong>
+        <strong className="num max-w-full truncate text-[10px] font-black leading-none">
+          {multiplierLabel}
+        </strong>
         <small className="mt-0.5 text-[8px] font-black leading-none tracking-[0.08em]">
           最高爆分
         </small>
@@ -426,7 +428,7 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
       <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.94)_0%,rgba(255,255,255,0.76)_42%,rgba(255,255,255,0.2)_100%)]" />
       <div className="absolute inset-x-0 bottom-0 h-12 bg-[linear-gradient(0deg,rgba(4,28,42,0.46),transparent)]" />
       <div className="relative z-10 flex h-full min-h-[116px] flex-col justify-between p-2.5">
-        <div className="min-w-0 pt-6">
+        <div className="min-w-0 pt-10">
           <h3 className="truncate text-[16px] font-black leading-tight text-[#17343F]">{title}</h3>
           <span className="mt-1 inline-flex rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black text-[#C2410C] shadow-sm">
             {hallLabel}
