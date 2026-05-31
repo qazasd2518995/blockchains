@@ -24,7 +24,7 @@ const HOTLINE_5X3_PAYTABLE = [
   { weight: 10, payout3: 3.3, payout4: 13, payout5: 50 },
   { weight: 7, payout3: 5, payout4: 20, payout5: 85 },
   { weight: 5, payout3: 8, payout4: 35, payout5: 135 },
-  { weight: 3, payout3: 13, payout4: 65, payout5: 250 },
+  { weight: 3, payout3: 13, payout4: 65, payout5: 5000 },
 ] as const;
 const HOTLINE_3X3_PAYTABLE = [
   { weight: 60, payout3: 3, payout4: 3, payout5: 3 },
@@ -34,7 +34,7 @@ const HOTLINE_3X3_PAYTABLE = [
   { weight: 3, payout3: 4.2, payout4: 4.2, payout5: 4.2 },
   { weight: 2, payout3: 4.5, payout4: 4.5, payout5: 4.5 },
   { weight: 1.5, payout3: 4.8, payout4: 4.8, payout5: 4.8 },
-  { weight: 1, payout3: 5, payout4: 5, payout5: 5 },
+  { weight: 1, payout3: 3777.6, payout4: 3777.6, payout5: 3777.6 },
 ] as const;
 const HOTLINE_MEGA_PAYTABLE = [
   { weight: 16, payout3: 0.112, payout4: 0.224, payout5: 0.448 },

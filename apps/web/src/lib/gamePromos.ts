@@ -1,13 +1,13 @@
 import { GameId, SLOT_GAME_IDS, type GameIdType } from '@bg/shared';
 
 const SLOT_MAX_MULTIPLIERS: Partial<Record<GameIdType, number>> = {
-  [GameId.HOTLINE]: 1250,
-  [GameId.FRUIT_SLOT]: 1250,
-  [GameId.FORTUNE_SLOT]: 1250,
-  [GameId.OCEAN_SLOT]: 1250,
-  [GameId.TEMPLE_SLOT]: 25,
-  [GameId.CANDY_SLOT]: 25,
-  [GameId.SAKURA_SLOT]: 25,
+  [GameId.HOTLINE]: 25000,
+  [GameId.FRUIT_SLOT]: 25000,
+  [GameId.FORTUNE_SLOT]: 25000,
+  [GameId.OCEAN_SLOT]: 25000,
+  [GameId.TEMPLE_SLOT]: 18888,
+  [GameId.CANDY_SLOT]: 18888,
+  [GameId.SAKURA_SLOT]: 18888,
   [GameId.THUNDER_SLOT]: 50000,
   [GameId.DRAGON_MEGA_SLOT]: 81000,
   [GameId.NEBULA_SLOT]: 81000,
