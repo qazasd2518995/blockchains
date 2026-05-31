@@ -1,6 +1,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ApiError } from '../utils/errors.js';
+import { config } from '../config.js';
 
 export interface AdminJwtPayload {
   sub: string;
@@ -44,7 +45,15 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
     // 驗證 agent 仍 active
     const agent = await fastify.prisma.agent.findUnique({
       where: { id: raw.sub },
-      select: { id: true, username: true, role: true, level: true, status: true, activeSessionId: true },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        level: true,
+        status: true,
+        activeSessionId: true,
+        activeSessionAt: true,
+      },
     });
     if (!agent || agent.status === 'DISABLED' || agent.status === 'DELETED') {
       throw new ApiError('AGENT_FROZEN', 'Agent account is not active');
@@ -54,6 +63,13 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
         'SESSION_REPLACED',
         'Logged out because this account signed in on another device',
       );
+    }
+    if (agent.activeSessionAt && Date.now() - agent.activeSessionAt.getTime() > adminSessionTtlMs()) {
+      await fastify.prisma.agent.updateMany({
+        where: { id: agent.id, activeSessionId: raw.sid },
+        data: { activeSessionId: null, activeSessionAt: null },
+      });
+      throw new ApiError('SESSION_EXPIRED', 'Admin session expired after 10 hours');
     }
     (req as unknown as { admin: AdminCurrent }).admin = {
       id: agent.id,
@@ -72,3 +88,12 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
 }
 
 export const adminAuthPlugin = fp(pluginFn, { name: 'adminAuth', dependencies: ['prisma'] });
+
+function adminSessionTtlMs(): number {
+  const match = /^(\d+)([smhd])$/.exec(config.ADMIN_SESSION_TTL);
+  if (!match) return 10 * 3600000;
+  const value = Number.parseInt(match[1] ?? '10', 10);
+  const unit = match[2];
+  const multiplier = unit === 's' ? 1000 : unit === 'm' ? 60000 : unit === 'h' ? 3600000 : 86400000;
+  return value * multiplier;
+}

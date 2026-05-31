@@ -148,6 +148,7 @@ export interface ApiErrorBody {
 const DEFAULT_ERRORS: Record<string, string> = {
   UNAUTHORIZED: '身份未授权,请重新登录',
   SESSION_REPLACED: '您的帳號已在其他裝置登入，本裝置已被登出',
+  SESSION_EXPIRED: '登入已超過 10 小時，請重新登入',
   NETWORK_ERROR: '連線異常，請稍後再試',
   INVALID_CREDENTIALS: '账号或密码错误',
   INVALID_CAPTCHA: '驗證碼錯誤，請重新輸入',

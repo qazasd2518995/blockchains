@@ -98,6 +98,11 @@ function handleSessionReplaced(): void {
   useAdminAuthStore.getState().logout();
 }
 
+function handleSessionExpired(): void {
+  window.alert('總後台登入已超過 10 小時，請重新登入。');
+  useAdminAuthStore.getState().logout();
+}
+
 adminApi.interceptors.request.use(async (config) => {
   (config as DebugRequestConfig)._debugStartedAt = nowMs();
   const { accessToken, refreshToken, setTokens, logout } = useAdminAuthStore.getState();
@@ -110,6 +115,10 @@ adminApi.interceptors.request.use(async (config) => {
     } catch (err) {
       if (getApiErrorCode(err) === 'SESSION_REPLACED') {
         handleSessionReplaced();
+        throw err;
+      }
+      if (getApiErrorCode(err) === 'SESSION_EXPIRED') {
+        handleSessionExpired();
         throw err;
       }
       logout();
@@ -146,6 +155,10 @@ adminApi.interceptors.response.use(
     const code = getApiErrorCode(error);
     if (error.response?.status === 401 && code === 'SESSION_REPLACED') {
       handleSessionReplaced();
+      throw error;
+    }
+    if (error.response?.status === 401 && code === 'SESSION_EXPIRED') {
+      handleSessionExpired();
       throw error;
     }
     if (error.response?.status === 401 && !originalConfig?._retry) {

@@ -1,6 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { crashPoint } from '@bg/provably-fair';
 import {
+  GameId,
   type CrashBetStartResponse,
   type CrashCashOutResponse,
   type CrashSoloRoundState,
@@ -27,8 +28,22 @@ const CONTROLLED_LOSS_CRASH_MAX = 1.8;
 const CONTROLLED_RELIEF_AFTER_LOSSES = 3;
 const CONTROLLED_RELIEF_CRASH_MIN = 2.02;
 const CONTROLLED_RELIEF_CRASH_MAX = 2.18;
+const CONTROLLED_WIN_BASE_MIN = 2.05;
+const CONTROLLED_WIN_BASE_MAX = 6.8;
+const CONTROLLED_WIN_HIGH_MIN = 7.2;
+const CONTROLLED_WIN_HIGH_MAX = 15;
+const CONTROLLED_WIN_HIGH_RATE = 0.18;
 const SOLO_GROWTH_RATE = 0.00012;
 const HISTORY_LIMIT = 20;
+const CRASH_CONTROL_GAME_IDS = [
+  GameId.ROCKET,
+  GameId.AVIATOR,
+  GameId.SPACE_FLEET,
+  GameId.JETX,
+  GameId.BALLOON,
+  GameId.JETX3,
+  GameId.DOUBLE_X,
+] as const;
 
 type CrashBetWithRound = Prisma.CrashBetGetPayload<{ include: { round: true } }>;
 
@@ -93,7 +108,7 @@ export class CrashSoloService {
       const original = this.predictStartOutcome(amount);
       const control = await applyControls(tx, userId, input.gameId, original);
       const recentControlledLosses = control.controlled
-        ? await this.countRecentControlledCrashLosses(tx, userId, input.gameId)
+        ? await this.countRecentControlledCrashLosses(tx, userId)
         : 0;
       const tuned = this.tuneCrashPoint(naturalCrashPoint, amount, control, recentControlledLosses);
       const startedAt = new Date();
@@ -442,13 +457,12 @@ export class CrashSoloService {
   private async countRecentControlledCrashLosses(
     tx: Prisma.TransactionClient,
     userId: string,
-    gameId: string,
   ): Promise<number> {
     const recent = await tx.crashBet.findMany({
       where: {
         userId,
         controlFinalizedAt: { not: null },
-        round: { gameId },
+        round: { gameId: { in: [...CRASH_CONTROL_GAME_IDS] } },
       },
       orderBy: { createdAt: 'desc' },
       take: CONTROLLED_RELIEF_AFTER_LOSSES,
@@ -527,13 +541,13 @@ export class CrashSoloService {
     const minTarget = control.minMultiplier
       ? Number(control.minMultiplier.toFixed(4))
       : MIN_CASHOUT_MULTIPLIER;
-    const target = Math.max(
+    const requestedTarget = Math.max(
       MIN_CASHOUT_MULTIPLIER,
       minTarget,
       Number(control.multiplier.toFixed(4)),
     );
 
-    if (target > maxTarget || maxTarget <= 1) {
+    if (requestedTarget > maxTarget || maxTarget <= 1) {
       return {
         crashPoint: MIN_CASHOUT_MULTIPLIER,
         control: {
@@ -547,6 +561,7 @@ export class CrashSoloService {
       };
     }
 
+    const target = chooseControlledWinCrashTarget(requestedTarget, maxTarget);
     const randomCushion = 0.03 + Math.random() * 0.22;
     const controlledCrashPoint = target + randomCushion;
     const cappedCrashPoint = Number.isFinite(maxTarget)
@@ -570,6 +585,30 @@ function crashElapsedMs(multiplier: number): number {
 
 function randomCrashPoint(min: number, max: number): number {
   return Number((min + Math.random() * (max - min)).toFixed(4));
+}
+
+function chooseControlledWinCrashTarget(requestedTarget: number, maxTarget: number): number {
+  if (!Number.isFinite(maxTarget)) {
+    const high = Math.random() < CONTROLLED_WIN_HIGH_RATE;
+    const sampled = high
+      ? randomCrashPoint(CONTROLLED_WIN_HIGH_MIN, CONTROLLED_WIN_HIGH_MAX)
+      : randomCrashPoint(CONTROLLED_WIN_BASE_MIN, CONTROLLED_WIN_BASE_MAX);
+    return Math.max(requestedTarget, sampled);
+  }
+
+  if (maxTarget >= CONTROLLED_WIN_HIGH_MIN && Math.random() < CONTROLLED_WIN_HIGH_RATE) {
+    return randomCrashPoint(
+      Math.max(requestedTarget, CONTROLLED_WIN_HIGH_MIN),
+      Math.min(maxTarget, CONTROLLED_WIN_HIGH_MAX),
+    );
+  }
+
+  const upper = maxTarget;
+  const baseUpper = Math.min(upper, CONTROLLED_WIN_BASE_MAX);
+  if (baseUpper > requestedTarget) {
+    return randomCrashPoint(requestedTarget, baseUpper);
+  }
+  return Number(requestedTarget.toFixed(4));
 }
 
 function toRoundState(

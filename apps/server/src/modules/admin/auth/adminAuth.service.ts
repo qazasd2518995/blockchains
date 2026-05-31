@@ -162,7 +162,7 @@ export class AdminAuthService {
       sid: sessionId,
     });
     const refreshToken = randomBytes(48).toString('hex');
-    const ttlMs = parseDuration(config.JWT_REFRESH_TTL);
+    const ttlMs = parseDuration(config.ADMIN_SESSION_TTL);
     await db.agentRefreshToken.create({
       data: {
         agentId,
