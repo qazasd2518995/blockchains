@@ -26,6 +26,7 @@ import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBe
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 const CARD_FILE_RANKS = [
   'ace',
@@ -181,12 +182,16 @@ export function BlackjackPage() {
     if (amount < MIN_BET_AMOUNT || amount > balance) return;
     setBusy(true);
     setError(null);
+    const releaseBalanceRefresh = holdWalletBalanceRefresh();
+    const previousBalance = useAuthStore.getState().debitBalance(amount);
     try {
       const res = await api.post<BlackjackRoundResult>('/games/blackjack/start', { amount });
       applyResult(res.data, amount);
     } catch (err) {
+      if (previousBalance) setBalance(previousBalance);
       setError(extractApiError(err).message);
     } finally {
+      releaseBalanceRefresh();
       setBusy(false);
     }
   };

@@ -176,16 +176,17 @@ export function TowerPage() {
     setWinModal(null);
     hideStageHint();
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
+    const previousBalance = useAuthStore.getState().debitBalance(amount);
     try {
       const res = await api.post<TowerRoundState>('/games/tower/start', { amount, difficulty });
       setRound(res.data);
       roundRef.current = res.data;
-      setBalance((balance - amount).toFixed(2));
       sceneRef.current?.setup(res.data.totalLevels, res.data.cols);
       sceneRef.current?.setInputLocked(false);
       sceneRef.current?.focusOnLevel(0, true);
       sceneRef.current?.setMultiplier('1.00');
     } catch (err) {
+      if (previousBalance) setBalance(previousBalance);
       setError(extractApiError(err).message);
     } finally {
       releaseBalanceRefresh();

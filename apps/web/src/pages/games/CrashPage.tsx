@@ -17,6 +17,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { CrashScene } from '@/games/crash/CrashScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 import type { CrashGameConfig } from './crashConfigs';
 
 interface Props {
@@ -966,6 +967,8 @@ export function CrashPage({ config }: Props) {
     ): Promise<boolean> => {
       const currentBalance = validateCrashBet(betAmount, options);
       if (currentBalance === null) return false;
+      let previousBalance: string | null = null;
+      let releaseBalanceRefresh: (() => void) | null = null;
       try {
         setSubmitting(true);
         clearRoundPoll();
@@ -976,6 +979,8 @@ export function CrashPage({ config }: Props) {
         setQueuedBet(null);
         setCountdownSeconds(0);
         resetVisualForNewBet(betAmount);
+        releaseBalanceRefresh = holdWalletBalanceRefresh();
+        previousBalance = useAuthStore.getState().debitBalance(betAmount);
         const res = await api.post<CrashBetStartResponse>('/games/crash/bet', {
           gameId: config.gameId,
           amount: betAmount,
@@ -994,10 +999,12 @@ export function CrashPage({ config }: Props) {
         setMyBet(placedBet);
         setError(null);
         const applyStartResponse = () => {
-          setBalance(res.data.newBalance ?? (currentBalance - betAmount).toFixed(2));
+          if (res.data.newBalance) setBalance(res.data.newBalance);
           beginVisualFlight(betAmount, placedBet);
           handleRoundState(res.data);
           setSubmitting(false);
+          releaseBalanceRefresh?.();
+          releaseBalanceRefresh = null;
           if (res.data.status === 'RUNNING') {
             const visualCrashPoint = normalizeCrashMultiplier(res.data.visualCrashPoint, 0) || null;
             scheduleRoundPoll(res.data.roundId, visualCrashPoint);
@@ -1006,6 +1013,8 @@ export function CrashPage({ config }: Props) {
         applyStartResponse();
         return true;
       } catch (err) {
+        if (previousBalance) setBalance(previousBalance);
+        releaseBalanceRefresh?.();
         setSubmitting(false);
         clearDisplayTick();
         clearPendingResultReveal();

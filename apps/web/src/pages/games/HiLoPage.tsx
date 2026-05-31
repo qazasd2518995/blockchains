@@ -78,13 +78,14 @@ export function HiLoPage() {
     setBusy(true);
     setError(null);
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
+    const previousBalance = useAuthStore.getState().debitBalance(amount);
     try {
       sceneRef.current?.reset();
       const res = await api.post<HiLoRoundState>('/games/hilo/start', { amount });
       setRound(res.data);
-      setBalance((balance - amount).toFixed(2));
       sceneRef.current?.setCurrentCard(res.data.currentCard);
     } catch (err) {
+      if (previousBalance) setBalance(previousBalance);
       setError(extractApiError(err).message);
     } finally {
       releaseBalanceRefresh();

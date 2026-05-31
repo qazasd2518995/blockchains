@@ -274,6 +274,11 @@ export function DicePage() {
       // 樂觀動畫：立刻啟動骰子旋轉，不等 API
       sceneRef.current?.startAnticipation();
       const releaseBalanceRefresh = holdWalletBalanceRefresh();
+      const previousBalance = useAuthStore.getState().debitBalance(stake);
+      if (previousBalance) {
+        const optimisticBalance = Number.parseFloat(previousBalance) - stake;
+        if (Number.isFinite(optimisticBalance)) balanceRef.current = optimisticBalance;
+      }
 
       try {
         const payload: DiceBetRequest = { amount: stake, target, direction };
@@ -308,6 +313,11 @@ export function DicePage() {
         setBalance(result.newBalance);
         return result;
       } catch (err) {
+        if (previousBalance) {
+          setBalance(previousBalance);
+          const restored = Number.parseFloat(previousBalance);
+          if (Number.isFinite(restored)) balanceRef.current = restored;
+        }
         sceneRef.current?.stopAnticipation();
         setError(extractApiError(err).message);
         return null;

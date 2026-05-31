@@ -379,6 +379,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
       changeActiveDrops(balls);
       pendingStakeRef.current = roundCurrency(pendingStakeRef.current + totalStake);
       const releaseBalanceRefresh = holdWalletBalanceRefresh();
+      const previousBalance = useAuthStore.getState().debitBalance(totalStake);
       setError(null);
       let anticipationBalls: Array<ReturnType<PlinkoScene['startAnticipation']> | undefined> = [];
 
@@ -445,6 +446,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
         }
         return dropResults.length > 0;
       } catch (err) {
+        if (previousBalance) setBalance(previousBalance);
         for (const anticipationBall of anticipationBalls) {
           sceneRef.current?.cancelAnticipation(anticipationBall);
         }

@@ -139,6 +139,7 @@ export function MinesPage() {
     busyRef.current = true;
     setBusy(true);
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
+    const previousBalance = useAuthStore.getState().debitBalance(amount);
     try {
       sceneRef.current?.reset();
       const payload: MinesStartRequest = { amount, mineCount };
@@ -146,9 +147,9 @@ export function MinesPage() {
       const state = res.data;
       setRound(state);
       roundRef.current = state;
-      setBalance((balance - amount).toFixed(2));
       sceneRef.current?.setClickable(true);
     } catch (err) {
+      if (previousBalance) setBalance(previousBalance);
       setError(extractApiError(err).message);
     } finally {
       releaseBalanceRefresh();

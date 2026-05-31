@@ -87,6 +87,7 @@ export function WheelPage() {
     // 樂觀動畫：輪盤立刻開始高速旋轉
     sceneRef.current?.startAnticipation();
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
+    const previousBalance = useAuthStore.getState().debitBalance(amount);
     try {
       const payload: WheelBetRequest = { amount, risk, segments };
       const res = await api.post<WheelBetResult>('/games/wheel/bet', payload);
@@ -109,6 +110,7 @@ export function WheelPage() {
         ].slice(0, 30),
       );
     } catch (err) {
+      if (previousBalance) setBalance(previousBalance);
       sceneRef.current?.stopAnticipation();
       setError(extractApiError(err).message);
     } finally {

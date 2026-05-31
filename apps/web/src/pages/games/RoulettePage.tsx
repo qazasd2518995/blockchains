@@ -18,6 +18,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { RouletteScene } from '@/games/roulette/RouletteScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 const RED = new Set([1, 3, 5, 7, 9, 12]);
 const BLACK = new Set([2, 4, 6, 8, 10, 11]);
@@ -151,6 +152,8 @@ export function RoulettePage({ variant }: Props) {
     sceneRef.current?.reset();
     // 樂觀動畫
     sceneRef.current?.startAnticipation();
+    const releaseBalanceRefresh = holdWalletBalanceRefresh();
+    const previousBalance = useAuthStore.getState().debitBalance(totalBet);
     try {
       const payload: RouletteBetRequest = { bets };
       const endpoint =
@@ -180,8 +183,10 @@ export function RoulettePage({ variant }: Props) {
         ].slice(0, 30),
       );
     } catch (err) {
+      if (previousBalance) setBalance(previousBalance);
       setError(extractApiError(err).message);
     } finally {
+      releaseBalanceRefresh();
       setBusy(false);
     }
   };

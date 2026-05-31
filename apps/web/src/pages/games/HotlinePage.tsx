@@ -37,6 +37,7 @@ import { getSlotTheme, type SlotThemeConfig, type SlotThemeId } from '@/lib/slot
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 import { getMegaSlotMaxWinMultiplier } from '@/lib/gamePromos';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 interface Props {
   theme?: SlotThemeId;
@@ -924,6 +925,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     // 樂觀動畫：轉軸立刻開始滾。
     activeScene?.startAnticipation(spinFast);
     setMegaFallbackSpinning(false);
+    const releaseBalanceRefresh = holdWalletBalanceRefresh();
+    const previousBalance = useAuthStore.getState().debitBalance(stakeAmount);
 
     try {
       const payload: HotlineBetRequest = {
@@ -1432,6 +1435,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       );
       return res.data;
     } catch (err) {
+      if (previousBalance) setBalance(previousBalance);
       sceneRef.current?.stopAnticipation();
       sceneRef.current?.resetWinLines();
       try {
@@ -1458,6 +1462,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       setError(extractApiError(err).message);
       return null;
     } finally {
+      releaseBalanceRefresh();
       setSpinning(false);
       setBusy(false);
       setMegaFallbackSpinning(false);

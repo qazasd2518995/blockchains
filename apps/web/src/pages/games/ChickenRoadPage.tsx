@@ -17,6 +17,7 @@ import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBe
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
 const DESKTOP_VISIBLE_STEP_COUNT = 12;
 const CHICKEN_ROAD_MIN_AHEAD_STEPS = 2;
@@ -175,14 +176,17 @@ export function ChickenRoadPage() {
     }
     setBusy(true);
     setError(null);
+    const releaseBalanceRefresh = holdWalletBalanceRefresh();
+    const previousBalance = useAuthStore.getState().debitBalance(amount);
     try {
       const payload: ChickenRoadStartRequest = { amount, difficulty };
       const res = await api.post<ChickenRoadRoundState>('/games/chicken-road/start', payload);
       setRound(res.data);
-      setBalance((balance - amount).toFixed(2));
     } catch (err) {
+      if (previousBalance) setBalance(previousBalance);
       setError(extractApiError(err).message);
     } finally {
+      releaseBalanceRefresh();
       setBusy(false);
     }
   };

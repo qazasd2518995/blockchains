@@ -326,6 +326,11 @@ export function KenoPage() {
       setError(null);
       clearRoundResult();
       const releaseBalanceRefresh = holdWalletBalanceRefresh();
+      const previousBalance = useAuthStore.getState().debitBalance(stake);
+      if (previousBalance) {
+        const optimisticBalance = Number.parseFloat(previousBalance) - stake;
+        if (Number.isFinite(optimisticBalance)) balanceRef.current = optimisticBalance;
+      }
 
       try {
         const payload: KenoBetRequest = {
@@ -363,6 +368,11 @@ export function KenoPage() {
         );
         return res.data;
       } catch (err) {
+        if (previousBalance) {
+          setBalance(previousBalance);
+          const restored = Number.parseFloat(previousBalance);
+          if (Number.isFinite(restored)) balanceRef.current = restored;
+        }
         setError(extractApiError(err).message);
         return null;
       } finally {
