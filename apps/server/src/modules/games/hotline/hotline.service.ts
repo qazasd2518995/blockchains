@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import {
+  HOTLINE_MEGA_BUY_FEATURE_COST_MULTIPLIER,
   HOTLINE_MEGA_SYMBOLS,
   HOTLINE_MEGA_MAX_TOTAL_MULTIPLIER,
   HOTLINE_MINI_SYMBOLS,
@@ -109,7 +110,7 @@ export class HotlineService {
     if (buyFeature && rowCount <= 3) {
       throw new Error('BUY_FEATURE_ONLY_AVAILABLE_FOR_MEGA_SLOT');
     }
-    const stakeAmount = buyFeature ? baseAmount.mul(100) : baseAmount;
+    const stakeAmount = buyFeature ? megaBuyFeatureStakeAmount(baseAmount) : baseAmount;
 
     return runLockedTransaction(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, stakeAmount, gameId, {
@@ -425,11 +426,19 @@ type HotlineRound = Pick<HotlineBetResult, 'grid' | 'lines' | 'cascades'> & {
 const HOTLINE_SOFT_LOSS_SYMBOLS = [0, 1] as const;
 const HOTLINE_SOFT_WIN_SYMBOLS = [2, 3, 4, 5, 6, 7] as const;
 const HOTLINE_SYMBOL_INDEXES = [0, 1, 2, 3, 4, 5, 6, 7] as const;
-const MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER = new Prisma.Decimal('2.5');
+const MEGA_BUY_FEATURE_MAX_STAKE = new Prisma.Decimal(30000);
+const MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER = new Prisma.Decimal(2);
 const MEGA_FREE_GAME_LOW_TARGET_MIN = 0.35;
 const MEGA_FREE_GAME_LOW_TARGET_MAX = 0.98;
 const MEGA_FREE_GAME_HIGH_TARGET_MIN = 1.1;
-const MEGA_FREE_GAME_HIGH_TARGET_MAX = 2.5;
+const MEGA_FREE_GAME_HIGH_TARGET_MAX = 2;
+
+function megaBuyFeatureStakeAmount(baseAmount: Prisma.Decimal): Prisma.Decimal {
+  return Prisma.Decimal.min(
+    baseAmount.mul(HOTLINE_MEGA_BUY_FEATURE_COST_MULTIPLIER),
+    MEGA_BUY_FEATURE_MAX_STAKE,
+  ).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+}
 
 function capMegaFreeGameSettlement(
   features: HotlineMegaFeatureResult,
@@ -1422,6 +1431,7 @@ export const __hotlineServiceTestHooks = {
   capMegaFreeGameSettlement,
   buildControlledMegaFeature,
   chooseMegaFreeGameAccountingMultiplier,
+  megaBuyFeatureStakeAmount,
   fixedLineHotlineGrid,
   softLossHotlineRound,
   winningHotlineRound,

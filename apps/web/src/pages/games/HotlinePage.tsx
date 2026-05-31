@@ -21,7 +21,12 @@ import {
   MIN_BET_AMOUNT,
   getBettingLimitForGame,
 } from '@bg/shared';
-import { HOTLINE_MEGA_SYMBOLS, HOTLINE_MINI_SYMBOLS, HOTLINE_SYMBOLS } from '@bg/provably-fair';
+import {
+  HOTLINE_MEGA_BUY_FEATURE_COST_MULTIPLIER,
+  HOTLINE_MEGA_SYMBOLS,
+  HOTLINE_MINI_SYMBOLS,
+  HOTLINE_SYMBOLS,
+} from '@bg/provably-fair';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -47,6 +52,7 @@ const SYMBOL_POSITIONS = ['0% 0%', '50% 0%', '100% 0%', '0% 100%', '50% 100%', '
 
 const BIG_WIN_MULTIPLIER = 20;
 const MEGA_MAX_TOTAL_MULTIPLIER = 1000;
+const MEGA_BUY_FEATURE_MAX_STAKE = 30000;
 const MEGA_FREE_SPIN_INTRO_MS = 1600;
 const MEGA_FREE_SPIN_RETRIGGER_MS = 1300;
 const SCENE_RESIZE_DEBOUNCE_MS = 160;
@@ -81,6 +87,15 @@ const JACKPOT_RESET_OFFSET_MS: Record<JackpotKey, number> = {
   minor: Number.parseInt(HOTLINE_JACKPOT_RESET_OFFSET_SECONDS.minor, 10) * 1000,
   mini: Number.parseInt(HOTLINE_JACKPOT_RESET_OFFSET_SECONDS.mini, 10) * 1000,
 };
+
+function getMegaBuyFeatureCost(baseAmount: number): number {
+  return roundCurrency(
+    Math.min(
+      roundCurrency(baseAmount * HOTLINE_MEGA_BUY_FEATURE_COST_MULTIPLIER),
+      MEGA_BUY_FEATURE_MAX_STAKE,
+    ),
+  );
+}
 type JackpotDisplayValue = { label: string; key: JackpotKey; value: number };
 interface LiveMegaRoundState {
   payout: number;
@@ -862,7 +877,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const openMegaBuyFeatureConfirm = (): void => {
     if (!isMegaSlot || busy || autoSpinActive) return;
     if (!requireLogin()) return;
-    const featureCost = roundCurrency(amount * 100);
+    const featureCost = getMegaBuyFeatureCost(amount);
     if (featureCost > balance) {
       setError('餘額不足，無法購買免費遊戲');
       return;
@@ -883,7 +898,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const availableBalance = options.balanceOverride ?? balance;
     const buyFeature = Boolean(options.buyFeature && isMegaSlot);
     const spinFast = options.fastSpin ?? fastSpinRef.current;
-    const stakeAmount = buyFeature ? roundCurrency(spinAmount * 100) : spinAmount;
+    const stakeAmount = buyFeature ? getMegaBuyFeatureCost(spinAmount) : spinAmount;
     if (spinAmount < minBetLimit) {
       setError(`最低下注為 ${formatAmount(minBetLimit)}。`);
       return null;
@@ -1734,7 +1749,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       : busy && megaDisplayFreeSpinMode
         ? `剩 ${megaDisplayFreeSpinsRemaining}`
         : formatAmount(amount);
-  const megaBuyFeatureCost = Number((amount * 100).toFixed(2));
+  const megaBuyFeatureCost = getMegaBuyFeatureCost(amount);
   const controlsLocked = busy || autoSpinActive || slotScenePending;
   const megaSpinDisabled =
     megaScenePending ||
@@ -1803,7 +1818,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             </div>
             <div>
               <span>買入倍率</span>
-              <strong>100×</strong>
+              <strong>
+                {HOTLINE_MEGA_BUY_FEATURE_COST_MULTIPLIER}×
+                {megaBuyFeatureCost >= MEGA_BUY_FEATURE_MAX_STAKE ? ' 封頂' : ''}
+              </strong>
             </div>
             <div>
               <span>單注金額</span>
@@ -2222,7 +2240,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 aria-label="購買免費遊戲"
               >
                 <span>購買免費</span>
-                <strong>100× · {formatAmount(megaBuyFeatureCost)}</strong>
+                <strong>
+                  {HOTLINE_MEGA_BUY_FEATURE_COST_MULTIPLIER}× · {formatAmount(megaBuyFeatureCost)}
+                </strong>
               </button>
               <button
                 type="button"
