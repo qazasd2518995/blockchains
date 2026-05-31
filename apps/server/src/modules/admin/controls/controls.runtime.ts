@@ -67,10 +67,10 @@ interface FundedControlMember {
 }
 
 const AUTO_REVIVAL_NOTE = 'auto_revive';
-const AUTO_REVIVAL_CAPITAL_THRESHOLD = new Prisma.Decimal('0.20');
+const AUTO_REVIVAL_CAPITAL_THRESHOLD = new Prisma.Decimal('0.30');
 const AUTO_REVIVAL_TARGET_PROFIT_RATE = new Prisma.Decimal('0.80');
 export const STARTER_CONFIDENCE_OPERATOR = 'auto_starter_confidence';
-export const STARTER_CONFIDENCE_PLAYER_WIN_TARGET = new Prisma.Decimal(2000);
+export const STARTER_CONFIDENCE_TARGET_PROFIT_RATE = new Prisma.Decimal('0.80');
 
 export function getControlGameDay(now: Date = new Date()): string {
   return getAdminGameDay(now);
@@ -509,7 +509,7 @@ export async function maybeCreateAutoRevivalDepositControl(
       targetProfit,
       startBalance: balanceAfter,
       controlWinRate: new Prisma.Decimal(1),
-      notes: `${AUTO_REVIVAL_NOTE}: deposit ${depositAmount.toFixed(2)} >= 20% capital ${capitalAmount.toFixed(2)}`,
+      notes: `${AUTO_REVIVAL_NOTE}: deposit ${depositAmount.toFixed(2)} >= 30% capital ${capitalAmount.toFixed(2)}`,
       operatorUsername: input.operatorUsername ?? 'auto_detection',
     },
   });
@@ -522,9 +522,17 @@ export async function maybeCreateStarterConfidenceManualDetectionControl(
   input: {
     memberId: string;
     memberUsername: string;
+    depositAmount: Prisma.Decimal | string | number;
     operatorId?: string | null;
   },
 ): Promise<{ created: boolean; targetPlayerWin: Prisma.Decimal; targetSettlement: Prisma.Decimal }> {
+  const targetPlayerWin = decimal(input.depositAmount)
+    .mul(STARTER_CONFIDENCE_TARGET_PROFIT_RATE)
+    .toDecimalPlaces(2);
+  if (targetPlayerWin.lessThanOrEqualTo(0)) {
+    return { created: false, targetPlayerWin: ZERO, targetSettlement: ZERO };
+  }
+
   const existing = await db.manualDetectionControl.findFirst({
     where: {
       scope: ManualDetectionScope.MEMBER,
@@ -536,7 +544,7 @@ export async function maybeCreateStarterConfidenceManualDetectionControl(
   if (existing) {
     return {
       created: false,
-      targetPlayerWin: STARTER_CONFIDENCE_PLAYER_WIN_TARGET,
+      targetPlayerWin,
       targetSettlement: existing.targetSettlement,
     };
   }
@@ -548,7 +556,7 @@ export async function maybeCreateStarterConfidenceManualDetectionControl(
     input.memberUsername,
   );
   const targetSettlement = settlement.superiorSettlement
-    .sub(STARTER_CONFIDENCE_PLAYER_WIN_TARGET)
+    .sub(targetPlayerWin)
     .toDecimalPlaces(2);
 
   await db.manualDetectionControl.create({
@@ -572,7 +580,7 @@ export async function maybeCreateStarterConfidenceManualDetectionControl(
 
   return {
     created: true,
-    targetPlayerWin: STARTER_CONFIDENCE_PLAYER_WIN_TARGET,
+    targetPlayerWin,
     targetSettlement,
   };
 }

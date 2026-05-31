@@ -166,6 +166,7 @@ export class MemberService {
       await maybeCreateStarterConfidenceManualDetectionControl(tx, {
         memberId: created.id,
         memberUsername: created.username,
+        depositAmount: balanceForMember,
         operatorId: operator.id,
       });
 

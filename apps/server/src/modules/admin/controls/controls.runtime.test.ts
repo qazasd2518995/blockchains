@@ -146,7 +146,7 @@ describe('findApplicableManualDetectionControl no-count lines', () => {
 });
 
 describe('maybeCreateStarterConfidenceManualDetectionControl', () => {
-  it('creates a member manual-detection win target 2000 points below current superior settlement', async () => {
+  it('creates a member manual-detection win target at 80% of the entry amount', async () => {
     const db = {
       user: {
         findUnique: vi.fn().mockResolvedValue({ id: 'u1', agentId: null }),
@@ -160,18 +160,19 @@ describe('maybeCreateStarterConfidenceManualDetectionControl', () => {
     const result = await maybeCreateStarterConfidenceManualDetectionControl(db as never, {
       memberId: 'u1',
       memberUsername: 'newbie',
+      depositAmount: new Prisma.Decimal(5000),
       operatorId: 'admin-1',
     });
 
     expect(result.created).toBe(true);
-    expect(result.targetPlayerWin.toFixed(2)).toBe('2000.00');
-    expect(result.targetSettlement.toFixed(2)).toBe('-2000.00');
+    expect(result.targetPlayerWin.toFixed(2)).toBe('4000.00');
+    expect(result.targetSettlement.toFixed(2)).toBe('-4000.00');
     expect(db.manualDetectionControl.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         scope: 'MEMBER',
         targetMemberId: 'u1',
         targetMemberUsername: 'newbie',
-        targetSettlement: new Prisma.Decimal(-2000),
+        targetSettlement: new Prisma.Decimal(-4000),
         controlPercentage: 100,
         startSettlement: new Prisma.Decimal(0),
         operatorUsername: STARTER_CONFIDENCE_OPERATOR,
@@ -179,7 +180,7 @@ describe('maybeCreateStarterConfidenceManualDetectionControl', () => {
     });
   });
 
-  it('deactivates starter confidence controls after the 2000 point target is reached', async () => {
+  it('deactivates starter confidence controls after the target is reached', async () => {
     const starter = {
       id: 'starter-1',
       scope: 'MEMBER',
