@@ -79,6 +79,7 @@ export function AdminLoginPage(): JSX.Element {
         setTwoFactorChallenge(res.data);
         setServerError(res.data.message);
         setValue('twoFactorCode', '');
+        await refreshCaptcha();
         return;
       }
 
@@ -186,7 +187,9 @@ export function AdminLoginPage(): JSX.Element {
                   spellCheck={false}
                   placeholder={t.auth.usernamePlaceholder}
                   className="w-full rounded-[8px] border border-[#E5E7EB] bg-white px-3 py-2.5 text-[16px] text-[#0F172A] transition focus:border-[#186073] focus:outline-none focus:ring-2 focus:ring-[#186073]/25 sm:text-[14px]"
-                  {...register('username')}
+                  {...register('username', {
+                    setValueAs: (value) => (typeof value === 'string' ? value.trim() : value),
+                  })}
                 />
               </Field>
 
