@@ -216,7 +216,7 @@ export const zhHant = {
     totalIn: '總收入',
     totalOut: '總支出',
     validAmount: '有效金額',
-    net: '淨額',
+    net: '總輸贏',
     tx: {
       SIGNUP_BONUS: '註冊獎勵',
       BET_PLACE: '下注',

@@ -234,7 +234,7 @@ export const en = {
     totalIn: 'Total In',
     totalOut: 'Total Out',
     validAmount: 'Valid Amount',
-    net: 'Net',
+    net: 'Total Win/Loss',
     tx: {
       SIGNUP_BONUS: 'Signup Bonus',
       BET_PLACE: 'Bet',
