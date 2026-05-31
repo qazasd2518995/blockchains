@@ -1,13 +1,13 @@
 import { GameId, SLOT_GAME_IDS, type GameIdType } from '@bg/shared';
 
 const SLOT_MAX_MULTIPLIERS: Partial<Record<GameIdType, number>> = {
-  [GameId.HOTLINE]: 2500,
-  [GameId.FRUIT_SLOT]: 2500,
-  [GameId.FORTUNE_SLOT]: 2500,
-  [GameId.OCEAN_SLOT]: 2500,
-  [GameId.TEMPLE_SLOT]: 50,
-  [GameId.CANDY_SLOT]: 50,
-  [GameId.SAKURA_SLOT]: 50,
+  [GameId.HOTLINE]: 1250,
+  [GameId.FRUIT_SLOT]: 1250,
+  [GameId.FORTUNE_SLOT]: 1250,
+  [GameId.OCEAN_SLOT]: 1250,
+  [GameId.TEMPLE_SLOT]: 25,
+  [GameId.CANDY_SLOT]: 25,
+  [GameId.SAKURA_SLOT]: 25,
   [GameId.THUNDER_SLOT]: 50000,
   [GameId.DRAGON_MEGA_SLOT]: 81000,
   [GameId.NEBULA_SLOT]: 81000,
@@ -67,6 +67,7 @@ export function getGamePromoMultiplier(gameId: string): number {
 }
 
 export function getGamePromoMultiplierLabel(gameId: string): string {
+  if (gameId === GameId.HILO) return '無上限';
   return `${getGamePromoMultiplier(gameId).toLocaleString('en-US')}X`;
 }
 
