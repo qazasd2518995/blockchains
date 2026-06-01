@@ -67,10 +67,10 @@ interface FundedControlMember {
 }
 
 const AUTO_REVIVAL_NOTE = 'auto_revive';
-const AUTO_REVIVAL_CAPITAL_THRESHOLD = new Prisma.Decimal('0.30');
-const AUTO_REVIVAL_TARGET_PROFIT_RATE = new Prisma.Decimal('0.80');
 export const STARTER_CONFIDENCE_OPERATOR = 'auto_starter_confidence';
-export const STARTER_CONFIDENCE_TARGET_PROFIT_RATE = new Prisma.Decimal('0.80');
+export const AUTO_BALANCE_OPERATOR = 'auto_balance_model';
+const AUTO_BALANCE_BITE_RATE = new Prisma.Decimal('0.30');
+const AUTO_BALANCE_REVIVE_RATE = new Prisma.Decimal('0.70');
 
 export function getControlGameDay(now: Date = new Date()): string {
   return getAdminGameDay(now);
@@ -101,7 +101,10 @@ export async function calculateCurrentSettlement(
 
 export async function getAllActiveManualDetectionControls(db: Db) {
   const items = await db.manualDetectionControl.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      OR: [{ operatorUsername: null }, { operatorUsername: { not: STARTER_CONFIDENCE_OPERATOR } }],
+    },
     orderBy: { createdAt: 'desc' },
   });
   return [...items].sort((a, b) => {
@@ -109,6 +112,121 @@ export async function getAllActiveManualDetectionControls(db: Db) {
     const rankB = manualScopeRank(b.scope);
     if (rankA !== rankB) return rankA - rankB;
     return b.createdAt.getTime() - a.createdAt.getTime();
+  });
+}
+
+export async function resetMemberAutoBalanceControl(
+  db: Db,
+  input: {
+    memberId: string;
+    memberUsername: string;
+    agentId: string | null;
+    balanceAfter: Prisma.Decimal | string | number;
+    reason: string;
+    operatorUsername?: string | null;
+  },
+) {
+  const baselineBalance = decimal(input.balanceAfter).toDecimalPlaces(2);
+  const biteTargetBalance = baselineBalance
+    .mul(AUTO_BALANCE_BITE_RATE)
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const reviveTargetBalance = baselineBalance
+    .mul(AUTO_BALANCE_REVIVE_RATE)
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const isActive = baselineBalance.greaterThan(0);
+
+  await deactivateLegacyAutomaticControls(db, input.memberId, input.memberUsername);
+
+  return db.memberAutoBalanceControl.upsert({
+    where: { memberId: input.memberId },
+    create: {
+      memberId: input.memberId,
+      memberUsername: input.memberUsername,
+      agentId: input.agentId,
+      baselineBalance,
+      biteTargetBalance,
+      reviveTargetBalance,
+      phase: 'BITE_TO_30',
+      isActive,
+      resetReason: input.reason,
+      operatorUsername: input.operatorUsername ?? AUTO_BALANCE_OPERATOR,
+    },
+    update: {
+      memberUsername: input.memberUsername,
+      agentId: input.agentId,
+      baselineBalance,
+      biteTargetBalance,
+      reviveTargetBalance,
+      phase: 'BITE_TO_30',
+      isActive,
+      resetReason: input.reason,
+      operatorUsername: input.operatorUsername ?? AUTO_BALANCE_OPERATOR,
+    },
+  });
+}
+
+export async function getOrCreateMemberAutoBalanceControl(
+  db: Db,
+  member: {
+    id: string;
+    username: string;
+    agentId: string | null;
+    balance: Prisma.Decimal;
+  },
+) {
+  const existing = await db.memberAutoBalanceControl.findUnique({
+    where: { memberId: member.id },
+  });
+  if (existing) return existing;
+
+  if (member.balance.lessThanOrEqualTo(0)) return null;
+  return resetMemberAutoBalanceControl(db, {
+    memberId: member.id,
+    memberUsername: member.username,
+    agentId: member.agentId,
+    balanceAfter: member.balance,
+    reason: 'lazy_current_balance',
+    operatorUsername: AUTO_BALANCE_OPERATOR,
+  });
+}
+
+export async function setMemberAutoBalancePhase(
+  db: Db,
+  controlId: string,
+  phase: 'BITE_TO_30' | 'REVIVE_TO_70' | 'DRAIN_TO_ZERO',
+) {
+  return db.memberAutoBalanceControl.update({
+    where: { id: controlId },
+    data: { phase },
+  });
+}
+
+async function deactivateLegacyAutomaticControls(
+  db: Db,
+  memberId: string,
+  memberUsername: string,
+): Promise<void> {
+  await db.memberDepositControl.updateMany({
+    where: {
+      memberId,
+      isActive: true,
+      isCompleted: false,
+      AND: [
+        { notes: { contains: AUTO_REVIVAL_NOTE } },
+        { NOT: { notes: { contains: 'online_reward' } } },
+      ],
+    },
+    data: { isActive: false, isCompleted: true },
+  });
+  await db.manualDetectionControl.updateMany({
+    where: {
+      scope: ManualDetectionScope.MEMBER,
+      targetMemberUsername: memberUsername,
+      isActive: true,
+      isCompleted: false,
+      operatorUsername: STARTER_CONFIDENCE_OPERATOR,
+    },
+    data: { isActive: false, isCompleted: true, completedAt: new Date() },
   });
 }
 
@@ -461,138 +579,6 @@ export async function calculateControlCapital(
     _sum: { balance: true },
   });
   return aggregate._sum.balance ?? ZERO;
-}
-
-export async function maybeCreateAutoRevivalDepositControl(
-  db: Db,
-  input: {
-    memberId: string;
-    memberUsername: string;
-    agentId: string | null;
-    depositAmount: Prisma.Decimal | string | number;
-    balanceAfter: Prisma.Decimal | string | number;
-    operatorUsername?: string | null;
-  },
-): Promise<{ created: boolean; targetProfit: Prisma.Decimal; capitalAmount: Prisma.Decimal }> {
-  const depositAmount = decimal(input.depositAmount).toDecimalPlaces(2);
-  const balanceAfter = decimal(input.balanceAfter).toDecimalPlaces(2);
-  if (!input.agentId || depositAmount.lessThanOrEqualTo(0)) {
-    return { created: false, targetProfit: ZERO, capitalAmount: ZERO };
-  }
-
-  const capitalAmount = await calculateControlCapital(db, ManualDetectionScope.ALL);
-  if (capitalAmount.lessThanOrEqualTo(0)) {
-    return { created: false, targetProfit: ZERO, capitalAmount };
-  }
-
-  const requiredDeposit = capitalAmount.mul(AUTO_REVIVAL_CAPITAL_THRESHOLD).toDecimalPlaces(2);
-  if (depositAmount.lessThan(requiredDeposit)) {
-    return { created: false, targetProfit: ZERO, capitalAmount };
-  }
-
-  const existing = await db.memberDepositControl.findFirst({
-    where: {
-      memberId: input.memberId,
-      isActive: true,
-      isCompleted: false,
-      notes: { contains: AUTO_REVIVAL_NOTE },
-    },
-    select: { id: true, targetProfit: true },
-  });
-  if (existing) {
-    return { created: false, targetProfit: existing.targetProfit, capitalAmount };
-  }
-
-  const targetProfit = depositAmount.mul(AUTO_REVIVAL_TARGET_PROFIT_RATE).toDecimalPlaces(2);
-  if (targetProfit.lessThanOrEqualTo(0)) {
-    return { created: false, targetProfit: ZERO, capitalAmount };
-  }
-
-  await db.memberDepositControl.create({
-    data: {
-      memberId: input.memberId,
-      memberUsername: input.memberUsername,
-      agentId: input.agentId,
-      depositAmount,
-      targetProfit,
-      startBalance: balanceAfter,
-      controlWinRate: new Prisma.Decimal(1),
-      notes: `${AUTO_REVIVAL_NOTE}: deposit ${depositAmount.toFixed(2)} >= 30% capital ${capitalAmount.toFixed(2)}`,
-      operatorUsername: input.operatorUsername ?? 'auto_detection',
-    },
-  });
-
-  return { created: true, targetProfit, capitalAmount };
-}
-
-export async function maybeCreateStarterConfidenceManualDetectionControl(
-  db: Db,
-  input: {
-    memberId: string;
-    memberUsername: string;
-    depositAmount: Prisma.Decimal | string | number;
-    operatorId?: string | null;
-  },
-): Promise<{
-  created: boolean;
-  targetPlayerWin: Prisma.Decimal;
-  targetSettlement: Prisma.Decimal;
-}> {
-  const targetPlayerWin = decimal(input.depositAmount)
-    .mul(STARTER_CONFIDENCE_TARGET_PROFIT_RATE)
-    .toDecimalPlaces(2);
-  if (targetPlayerWin.lessThanOrEqualTo(0)) {
-    return { created: false, targetPlayerWin: ZERO, targetSettlement: ZERO };
-  }
-
-  const existing = await db.manualDetectionControl.findFirst({
-    where: {
-      scope: ManualDetectionScope.MEMBER,
-      targetMemberUsername: input.memberUsername,
-      operatorUsername: STARTER_CONFIDENCE_OPERATOR,
-    },
-    select: { id: true, targetSettlement: true },
-  });
-  if (existing) {
-    return {
-      created: false,
-      targetPlayerWin,
-      targetSettlement: existing.targetSettlement,
-    };
-  }
-
-  const settlement = await calculateCurrentSettlement(
-    db,
-    ManualDetectionScope.MEMBER,
-    null,
-    input.memberUsername,
-  );
-  const targetSettlement = settlement.superiorSettlement.sub(targetPlayerWin).toDecimalPlaces(2);
-
-  await db.manualDetectionControl.create({
-    data: {
-      scope: ManualDetectionScope.MEMBER,
-      targetMemberId: input.memberId,
-      targetMemberUsername: input.memberUsername,
-      targetSettlement,
-      controlPercentage: 100,
-      bitePercentage: null,
-      houseTakePercentage: new Prisma.Decimal(10),
-      startSettlement: settlement.superiorSettlement.toDecimalPlaces(2),
-      isActive: true,
-      isCompleted: false,
-      completedAt: null,
-      completionSettlement: null,
-      operatorId: input.operatorId ?? null,
-      operatorUsername: STARTER_CONFIDENCE_OPERATOR,
-    },
-  });
-
-  return {
-    created: true,
-    targetPlayerWin,
-    targetSettlement,
-  };
 }
 
 async function listControlScopeMemberIds(

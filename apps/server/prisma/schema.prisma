@@ -514,6 +514,12 @@ enum ManualDetectionScope {
   MEMBER
 }
 
+enum AutoBalancePhase {
+  BITE_TO_30
+  REVIVE_TO_70
+  DRAIN_TO_ZERO
+}
+
 model WinLossControl {
   id                   String      @id @default(cuid())
   controlMode          ControlMode
@@ -583,6 +589,25 @@ model MemberDepositControl {
   updatedAt        DateTime @updatedAt
 
   @@index([memberUsername, isActive])
+}
+
+model MemberAutoBalanceControl {
+  id                  String           @id @default(cuid())
+  memberId            String           @unique
+  memberUsername      String
+  agentId             String?
+  baselineBalance     Decimal          @db.Decimal(20, 2)
+  biteTargetBalance   Decimal          @db.Decimal(20, 2)
+  reviveTargetBalance Decimal          @db.Decimal(20, 2)
+  phase               AutoBalancePhase @default(BITE_TO_30)
+  isActive            Boolean          @default(true)
+  resetReason         String?
+  operatorUsername    String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@index([memberUsername, isActive])
+  @@index([isActive, phase])
 }
 
 model AgentLineWinCap {

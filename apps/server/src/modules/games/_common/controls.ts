@@ -7,9 +7,11 @@ import {
   findApplicableManualDetectionControl,
   getAgentAncestors,
   getControlGameDayWindow,
+  getOrCreateMemberAutoBalanceControl,
   normalizeAgentLineCapDay,
   normalizeBurstControlDay,
   normalizeMemberWinCapDay,
+  setMemberAutoBalancePhase,
 } from '../../admin/controls/controls.runtime.js';
 import { isMemberInControlExcludedLine } from '../../../utils/hierarchy.js';
 
@@ -59,7 +61,6 @@ interface ControlDecision {
   maxMultiplier?: Prisma.Decimal;
   maxPayout?: Prisma.Decimal;
   forceWinAdjustment?: boolean;
-  ignoreWinCapBounds?: boolean;
   burstCooldownRounds?: number;
 }
 
@@ -90,10 +91,11 @@ interface BurstEligibility {
 }
 
 const GLOBAL_ACCIDENTAL_BURST_PROFIT_CAP = new Prisma.Decimal(30000);
-export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(50000);
+export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(30000);
 const BURST_COOLDOWN_MIN_ROUNDS = 10;
 const BURST_COOLDOWN_MAX_ROUNDS = 20;
 const BURST_ELIGIBLE_GAME_IDS = new Set<string>(SLOT_GAME_IDS);
+const AUTO_BALANCE_REVIVE_WIN_RATE = 0.7;
 
 /**
  * 控制 hook：只決定本局是否需要由後台規則翻轉輸贏。
@@ -118,9 +120,7 @@ export async function applyControls(
   const decision = await findControlDecision(tx, member, gameId, predicted, options);
   if (!decision) return { ...predicted, controlled: false };
   const cappedDecision =
-    decision.desired === 'WIN' && !decision.ignoreWinCapBounds
-      ? await withWinCapBounds(tx, member, predicted, decision)
-      : decision;
+    decision.desired === 'WIN' ? await withWinCapBounds(tx, member, predicted, decision) : decision;
 
   const predictedNetWin = isNetWin(predicted);
   if (cappedDecision.desired === 'LOSS') {
@@ -222,21 +222,25 @@ async function findControlDecision(
   }
 
   const isControlExcludedLine = await isMemberInControlExcludedLine(tx, member);
-  const protectedLineWin = isControlExcludedLine
-    ? await findProtectedAgentLineWinDecision(tx, member)
-    : null;
-  if (protectedLineWin) return protectedLineWin;
+
+  const burst = await findBurstDecision(tx, member, gameId, predicted, options);
+  if (burst) return burst;
+
+  if (!isControlExcludedLine) {
+    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
+    if (globalWinCap) return globalWinCap;
+  }
 
   const onlineReward = await findOnlineRewardNextWinDecision(tx, member, predicted);
   if (onlineReward) return onlineReward;
 
-  const explicitWinLoss = await findWinLossDecision(
-    tx,
-    member,
-    isControlExcludedLine ? 'targeted' : 'all',
-  );
-  if (explicitWinLoss?.desired === 'LOSS') return explicitWinLoss;
+  const targetedWinLoss = await findWinLossDecision(tx, member, 'targeted');
+  if (targetedWinLoss?.desired === 'WIN' && targetedWinLoss.reason === 'win_control') {
+    return targetedWinLoss;
+  }
 
+  const explicitWinLoss =
+    targetedWinLoss ?? (await findWinLossDecision(tx, member, isControlExcludedLine ? 'targeted' : 'all'));
   if (explicitWinLoss) return explicitWinLoss;
 
   const memberCap = await findMemberWinCapDecision(tx, member.id, predicted);
@@ -245,25 +249,17 @@ async function findControlDecision(
   const agentLineCap = await findAgentLineCapDecision(tx, member.agentId, predicted);
   if (agentLineCap) return agentLineCap;
 
-  const deposit = await findDepositDecision(tx, member, predicted);
-  if (deposit) return deposit;
-
-  const burst = await findBurstDecision(tx, member, gameId, predicted, options);
-  if (burst) return burst;
-
   const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
   if (accidentalBurstCap) return accidentalBurstCap;
 
   const targetedManual = await findManualDetectionDecision(tx, member, 'targeted');
   if (targetedManual) return targetedManual;
 
-  if (!isControlExcludedLine) {
-    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
-    if (globalWinCap) return globalWinCap;
-  }
-
   const globalManual = await findManualDetectionDecision(tx, member, 'global');
   if (globalManual) return globalManual;
+
+  const autoBalance = await findAutoBalanceDecision(tx, member, predicted);
+  if (autoBalance) return autoBalance;
 
   return null;
 }
@@ -333,35 +329,6 @@ export function rankWinLossControls<T extends RankableWinLossControl>(
   return ranked[0] ?? null;
 }
 
-async function findProtectedAgentLineWinDecision(
-  tx: Db,
-  member: MemberScope,
-): Promise<ControlDecision | null> {
-  if (!member.agentId) return null;
-  const controls = await tx.winLossControl.findMany({
-    where: {
-      isActive: true,
-      isCompleted: false,
-      controlMode: 'AGENT_LINE',
-      winControl: true,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-  if (controls.length === 0) return null;
-
-  const ancestors = await getAgentAncestors(tx, member.agentId);
-  const selected = rankWinLossControls(controls, member.id, ancestors, 'agent_line');
-  if (!selected || selected.desired !== 'WIN') return null;
-  if (!passesControlInterventionRate(selected.control.controlPercentage)) return null;
-
-  return {
-    desired: 'WIN',
-    controlId: selected.control.id,
-    reason: 'win_control',
-    ignoreWinCapBounds: true,
-  };
-}
-
 async function findWinLossDecision(
   tx: Db,
   member: MemberScope,
@@ -412,11 +379,109 @@ async function findWinLossDecision(
     desired: selected.desired,
     controlId: selected.control.id,
     reason: selected.desired === 'WIN' ? 'win_control' : 'loss_control',
-    ignoreWinCapBounds:
-      selected.desired === 'WIN' &&
-      (selected.control.controlMode === 'SINGLE_MEMBER' ||
-        selected.control.controlMode === 'AGENT_LINE'),
   };
+}
+
+async function findAutoBalanceDecision(
+  tx: Db,
+  member: MemberScope,
+  predicted: PredictedResult,
+): Promise<ControlDecision | null> {
+  const currentUser = await tx.user.findUnique({
+    where: { id: member.id },
+    select: { id: true, username: true, agentId: true, balance: true },
+  });
+  if (!currentUser || currentUser.balance.lessThanOrEqualTo(0)) return null;
+
+  let control = await getOrCreateMemberAutoBalanceControl(tx, currentUser);
+  if (!control || !control.isActive) return null;
+
+  if (currentUser.balance.lessThanOrEqualTo(control.biteTargetBalance)) {
+    if (control.phase !== 'REVIVE_TO_70') {
+      control = await setMemberAutoBalancePhase(tx, control.id, 'REVIVE_TO_70');
+    }
+  } else if (
+    control.phase === 'REVIVE_TO_70' &&
+    currentUser.balance.greaterThanOrEqualTo(control.reviveTargetBalance)
+  ) {
+    control = await setMemberAutoBalancePhase(tx, control.id, 'DRAIN_TO_ZERO');
+  }
+
+  if (control.phase === 'REVIVE_TO_70') {
+    const remaining = control.reviveTargetBalance.sub(currentUser.balance).toDecimalPlaces(2);
+    if (remaining.lessThanOrEqualTo(0)) {
+      await setMemberAutoBalancePhase(tx, control.id, 'DRAIN_TO_ZERO');
+      return autoBalanceLossDecision(tx, control.id, member.id, 'auto_balance_drain');
+    }
+
+    return {
+      desired: Math.random() < AUTO_BALANCE_REVIVE_WIN_RATE ? 'WIN' : 'LOSS',
+      controlId: control.id,
+      reason: 'auto_balance_revive',
+      minMultiplier: new Prisma.Decimal('1.01'),
+      maxPayout: predicted.amount.add(remaining).toDecimalPlaces(2),
+      forceWinAdjustment: true,
+    };
+  }
+
+  return autoBalanceLossDecision(
+    tx,
+    control.id,
+    member.id,
+    control.phase === 'DRAIN_TO_ZERO' ? 'auto_balance_drain' : 'auto_balance_bite',
+  );
+}
+
+async function autoBalanceLossDecision(
+  tx: Db,
+  controlId: string,
+  userId: string,
+  reason: 'auto_balance_bite' | 'auto_balance_drain',
+): Promise<ControlDecision> {
+  const release = await shouldReleaseAutoBalanceCycle(tx, controlId, userId);
+  if (release) {
+    return {
+      desired: 'WIN',
+      controlId,
+      reason: 'auto_balance_release',
+      minMultiplier: new Prisma.Decimal('1.01'),
+      maxMultiplier: new Prisma.Decimal(2),
+      forceWinAdjustment: true,
+    };
+  }
+  return { desired: 'LOSS', controlId, reason };
+}
+
+async function shouldReleaseAutoBalanceCycle(
+  tx: Db,
+  controlId: string,
+  userId: string,
+): Promise<boolean> {
+  const window = getControlGameDayWindow();
+  const logs = await tx.winLossControlLogs.findMany({
+    where: {
+      controlId,
+      userId,
+      createdAt: { gte: window.start, lt: window.end },
+      flipReason: { in: ['auto_balance_bite', 'auto_balance_drain', 'auto_balance_release'] },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    select: { flipReason: true, finalResult: true },
+  });
+
+  let consecutiveLosses = 0;
+  for (const log of logs) {
+    if (log.flipReason === 'auto_balance_release') break;
+    if (log.flipReason !== 'auto_balance_bite' && log.flipReason !== 'auto_balance_drain') continue;
+    if (jsonResultWon(log.finalResult) === false) {
+      consecutiveLosses += 1;
+      continue;
+    }
+    break;
+  }
+
+  return consecutiveLosses >= 3;
 }
 
 async function shouldReleaseLossControlCycle(
@@ -528,15 +593,19 @@ async function withWinCapBounds(
   const maxPayouts: Prisma.Decimal[] = [];
   // 各 cap 翻成 LOSS 時，須回報「實際綁住的那個 cap 的 controlId」與對應 reason，
   // 否則審計日誌會把虧損歸因到原始 WIN 控制(controlId 與 flipReason 不一致)。
-  const globalBound = await getGlobalMemberWinCapPayoutBound(tx, member.id, predicted.amount);
-  if (globalBound.exhausted) {
-    return {
-      desired: 'LOSS',
-      controlId: globalBound.controlId,
-      reason: 'global_member_daily_win_cap',
-    };
+  const bypassGlobalWinCap =
+    isBurstControlReason(decision.reason) || (await isMemberInControlExcludedLine(tx, member));
+  if (!bypassGlobalWinCap) {
+    const globalBound = await getGlobalMemberWinCapPayoutBound(tx, member.id, predicted.amount);
+    if (globalBound.exhausted) {
+      return {
+        desired: 'LOSS',
+        controlId: globalBound.controlId,
+        reason: 'global_member_daily_win_cap',
+      };
+    }
+    maxPayouts.push(globalBound.bound);
   }
-  maxPayouts.push(globalBound.bound);
 
   const memberBound = await getMemberWinCapPayoutBound(tx, member.id, predicted.amount);
   if (memberBound?.exhausted) {
@@ -550,11 +619,16 @@ async function withWinCapBounds(
   }
   if (agentBound?.bound) maxPayouts.push(agentBound.bound);
 
+  if (maxPayouts.length === 0) return decision;
   const capPayout = minDecimal(maxPayouts);
   return {
     ...decision,
     maxPayout: decision.maxPayout ? minDecimal([decision.maxPayout, capPayout]) : capPayout,
   };
+}
+
+function isBurstControlReason(reason: string): boolean {
+  return reason.startsWith('burst_');
 }
 
 type CapPayoutBound =
@@ -658,31 +732,6 @@ async function findAgentLineCapDecision(
   return null;
 }
 
-async function findDepositDecision(
-  tx: Db,
-  member: MemberScope,
-  predicted: PredictedResult,
-): Promise<ControlDecision | null> {
-  const control = await tx.memberDepositControl.findFirst({
-    where: {
-      memberId: member.id,
-      isActive: true,
-      isCompleted: false,
-      OR: [{ notes: null }, { NOT: { notes: { contains: 'online_reward' } } }],
-    },
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      startBalance: true,
-      targetProfit: true,
-      controlWinRate: true,
-      notes: true,
-    },
-  });
-  if (!control) return null;
-  return buildDepositDecision(tx, member, predicted, control);
-}
-
 async function findOnlineRewardNextWinDecision(
   tx: Db,
   member: MemberScope,
@@ -736,7 +785,7 @@ async function buildDepositDecision(
   const remainingProfit = Prisma.Decimal.max(control.targetProfit.sub(currentProfit), ZERO);
   const isAutoRevive = control.notes?.includes('auto_revive') ?? false;
   const isOnlineRewardNextWin = control.notes?.includes('online_reward') ?? false;
-  const maxPayout = isAutoRevive
+  const maxPayout = isAutoRevive || isOnlineRewardNextWin
     ? predicted.amount.add(remainingProfit).toDecimalPlaces(2)
     : undefined;
   const targetMultiplier =

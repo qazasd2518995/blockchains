@@ -17,10 +17,7 @@ import {
 import { runSerializable } from '../../games/_common/BaseGameService.js';
 import { createPlayerSeeds } from '../../auth/player-seeds.js';
 import { writeAudit } from '../audit/audit.service.js';
-import {
-  maybeCreateAutoRevivalDepositControl,
-  maybeCreateStarterConfidenceManualDetectionControl,
-} from '../controls/controls.runtime.js';
+import { resetMemberAutoBalanceControl } from '../controls/controls.runtime.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import { resolveAdminGameDayRange } from '../gameDay.js';
 import type {
@@ -163,23 +160,14 @@ export class MemberService {
 
       await createPlayerSeeds(tx, created.id);
 
-      await maybeCreateStarterConfidenceManualDetectionControl(tx, {
+      await resetMemberAutoBalanceControl(tx, {
         memberId: created.id,
         memberUsername: created.username,
-        depositAmount: balanceForMember,
-        operatorId: operator.id,
+        agentId: created.agentId,
+        balanceAfter: balanceForMember,
+        reason: 'member_create',
+        operatorUsername: operator.username,
       });
-
-      if (balanceForMember.greaterThan(0)) {
-        await maybeCreateAutoRevivalDepositControl(tx, {
-          memberId: created.id,
-          memberUsername: created.username,
-          agentId: created.agentId,
-          depositAmount: balanceForMember,
-          balanceAfter: balanceForMember,
-          operatorUsername: operator.username,
-        });
-      }
 
       return { member: created, agentAfter: agentAfterBalance };
     });
@@ -396,7 +384,10 @@ export class MemberService {
     if (delta.isZero()) throw new ApiError('INVALID_TRANSFER', 'delta cannot be zero');
 
     const result = await runSerializable(this.prisma, async (tx) => {
-      const current = await tx.user.findUnique({ where: { id }, select: { balance: true } });
+      const current = await tx.user.findUnique({
+        where: { id },
+        select: { balance: true, username: true, agentId: true },
+      });
       if (!current) throw new ApiError('MEMBER_NOT_FOUND', 'Member not found');
       const next = current.balance.add(delta);
       if (next.isNegative())
@@ -414,6 +405,14 @@ export class MemberService {
           balanceAfter: next,
           meta: { operatorId: operator.id, description: input.description ?? null },
         },
+      });
+      await resetMemberAutoBalanceControl(tx, {
+        memberId: id,
+        memberUsername: updated.username,
+        agentId: updated.agentId,
+        balanceAfter: next,
+        reason: delta.greaterThan(0) ? 'member_adjust_in' : 'member_adjust_out',
+        operatorUsername: operator.username,
       });
       return updated;
     });

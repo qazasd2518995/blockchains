@@ -90,6 +90,7 @@ type ControlLogSource =
   | 'win_loss_control'
   | 'online_reward_next_win'
   | 'deposit_control'
+  | 'auto_balance'
   | 'manual_detection'
   | 'burst_control'
   | 'member_win_cap'
@@ -156,6 +157,7 @@ async function enrichControlLogs(
     burstControls,
     memberWinCaps,
     agentLineCaps,
+    autoBalanceControls,
   ] = await Promise.all([
     fastify.prisma.winLossControl.findMany({
       where: { id: { in: controlIds } },
@@ -228,6 +230,18 @@ async function enrichControlLogs(
         operatorUsername: true,
       },
     }),
+    fastify.prisma.memberAutoBalanceControl.findMany({
+      where: { id: { in: controlIds } },
+      select: {
+        id: true,
+        memberUsername: true,
+        baselineBalance: true,
+        biteTargetBalance: true,
+        reviveTargetBalance: true,
+        phase: true,
+        operatorUsername: true,
+      },
+    }),
   ]);
 
   const metaMaps = {
@@ -237,6 +251,7 @@ async function enrichControlLogs(
     burst: new Map(burstControls.map((control) => [control.id, control])),
     memberWinCap: new Map(memberWinCaps.map((control) => [control.id, control])),
     agentLineCap: new Map(agentLineCaps.map((control) => [control.id, control])),
+    autoBalance: new Map(autoBalanceControls.map((control) => [control.id, control])),
   };
 
   return logs.map((log) => {
@@ -324,6 +339,17 @@ function resolveControlLogMeta(
         operatorUsername: string | null;
       }
     >;
+    autoBalance: Map<
+      string,
+      {
+        memberUsername: string;
+        baselineBalance: Prisma.Decimal;
+        biteTargetBalance: Prisma.Decimal;
+        reviveTargetBalance: Prisma.Decimal;
+        phase: string;
+        operatorUsername: string | null;
+      }
+    >;
   },
 ): ControlLogMeta {
   const reasonSource = resolveControlLogSource(log.flipReason);
@@ -366,6 +392,20 @@ function resolveControlLogMeta(
         detail: isOnlineReward
           ? `最近活躍玩家均分，設定 ${control.memberUsername} 下一局直接贏，目標淨贏 ${control.targetProfit.toFixed(2)}`
           : `會員 ${control.memberUsername} 入金控制，目標盈利 ${control.targetProfit.toFixed(2)}，控制勝率 ${formatLogRate(control.controlWinRate)}`,
+      };
+    }
+  }
+
+  if (reasonSource === 'auto_balance') {
+    const control = maps.autoBalance.get(log.controlId);
+    if (control) {
+      return {
+        source: 'auto_balance',
+        sourceLabel: '自動模型',
+        scopeLabel: '會員',
+        targetLabel: control.memberUsername,
+        operatorUsername: control.operatorUsername,
+        detail: `會員 ${control.memberUsername}，基準 ${control.baselineBalance.toFixed(2)}，咬到 ${control.biteTargetBalance.toFixed(2)}，回到 ${control.reviveTargetBalance.toFixed(2)}，階段 ${formatAutoBalancePhase(control.phase)}`,
       };
     }
   }
@@ -455,6 +495,7 @@ function resolveControlLogMeta(
 function resolveControlLogSource(reason: string): ControlLogSource {
   if (reason === 'online_reward_next_win') return 'online_reward_next_win';
   if (reason === 'deposit_control') return 'deposit_control';
+  if (reason.startsWith('auto_balance_')) return 'auto_balance';
   if (reason === 'manual_detection' || reason === 'manual_detection_release') {
     return 'manual_detection';
   }
@@ -474,6 +515,7 @@ function resolveControlLogSourceLabel(source: ControlLogSource): string {
     win_loss_control: '輸贏控制',
     online_reward_next_win: '在線均分必贏',
     deposit_control: '入金控制',
+    auto_balance: '自動模型',
     manual_detection: '手動偵測',
     burst_control: '爆分控制',
     member_win_cap: '會員封頂',
@@ -485,6 +527,13 @@ function resolveControlLogSourceLabel(source: ControlLogSource): string {
   return labels[source];
 }
 
+function formatAutoBalancePhase(phase: string): string {
+  if (phase === 'BITE_TO_30') return '咬到30%';
+  if (phase === 'REVIVE_TO_70') return '回到70%';
+  if (phase === 'DRAIN_TO_ZERO') return '咬光';
+  return phase;
+}
+
 function resolveControlLogActionLabel(log: ControlLogRecord): string {
   const finalWon = jsonBoolean(log.finalResult, 'won');
   const finalDirection = finalWon === true ? '控贏' : finalWon === false ? '控輸' : '已介入';
@@ -492,6 +541,10 @@ function resolveControlLogActionLabel(log: ControlLogRecord): string {
   const labels: Record<string, string> = {
     online_reward_next_win: '下一局直接贏',
     deposit_control: `入金${finalDirection}`,
+    auto_balance_bite: '自動咬到30%',
+    auto_balance_revive: '自動回到70%',
+    auto_balance_drain: '自動咬光',
+    auto_balance_release: '自動補贏',
     win_control: '放會員贏',
     loss_control: '咬會員輸',
     loss_control_release: '殺分補贏',
@@ -1591,7 +1644,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
               startBalance: member.balance,
               controlWinRate: new Prisma.Decimal(1),
               notes: [
-                `auto_revive:online_reward:total=${totalAmount.toFixed(2)}`,
+                `online_reward:total=${totalAmount.toFixed(2)}`,
                 `minutes=${body.recentMinutes}`,
                 `scope=${body.scope}`,
                 targetUsername ? `target=${targetUsername}` : null,
