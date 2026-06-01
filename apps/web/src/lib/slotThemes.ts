@@ -352,7 +352,7 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
     cover: '/slots/thunder/cover.png',
     background: '/slots/thunder/background.png',
     symbolSheet: '/slots/thunder/symbols.png',
-    bigWin: '/slots/thunder/big-win.png',
+    bigWin: '/_optimized/slots/thunder/big-win@1600.webp',
     symbols: THUNDER_SYMBOLS,
   },
   dragonMega: {
@@ -373,7 +373,7 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
     cover: '/slots/dragon-mega/cover.png',
     background: '/slots/dragon-mega/background.png',
     symbolSheet: '/slots/dragon-mega/symbols.png',
-    bigWin: '/slots/dragon-mega/big-win.png',
+    bigWin: '/_optimized/slots/dragon-mega/big-win@1600.webp',
     symbols: DRAGON_MEGA_SYMBOLS,
   },
   nebula: {
@@ -394,7 +394,7 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
     cover: '/slots/nebula/cover.png',
     background: '/slots/nebula/background.png',
     symbolSheet: '/slots/nebula/symbols.png',
-    bigWin: '/slots/nebula/big-win.png',
+    bigWin: '/_optimized/slots/nebula/big-win@1600.webp',
     symbols: NEBULA_SYMBOLS,
   },
   jungle: {
@@ -415,7 +415,7 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
     cover: '/slots/jungle/cover.png',
     background: '/slots/jungle/background.png',
     symbolSheet: '/slots/jungle/symbols.png',
-    bigWin: '/slots/jungle/big-win.png',
+    bigWin: '/_optimized/slots/jungle/big-win@1600.webp',
     symbols: JUNGLE_SYMBOLS,
   },
   vampire: {
@@ -436,7 +436,7 @@ export const SLOT_THEMES: Record<SlotThemeId, SlotThemeConfig> = {
     cover: '/slots/vampire/cover.png',
     background: '/slots/vampire/background.png',
     symbolSheet: '/slots/vampire/symbols.png',
-    bigWin: '/slots/vampire/big-win.png',
+    bigWin: '/_optimized/slots/vampire/big-win@1600.webp',
     symbols: VAMPIRE_SYMBOLS,
   },
 };
