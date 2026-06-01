@@ -366,40 +366,28 @@
     letter-spacing: 0;
   }
 
-  .game-shell-limit-float {
-    position: fixed;
-    top: calc(env(safe-area-inset-top) + 3.4rem);
-    right: max(0.75rem, env(safe-area-inset-right));
-    z-index: 32;
+  .game-shell-header-limit {
+    flex: 0 1 auto;
+    max-width: 10.5rem;
     pointer-events: none;
   }
 
   @media (max-width: 640px) {
-    .game-shell-limit-float {
-      position: absolute;
-      top: calc(env(safe-area-inset-top) + 3rem);
-      right: auto;
-      left: max(0.62rem, env(safe-area-inset-left));
-      z-index: 34;
-      margin: 0;
-      transform: translateY(-50%);
-      width: fit-content;
-    }
-
-    .game-shell-limit-float.betting-limit-badge {
-      gap: 0.28rem;
-      max-width: min(8.6rem, calc(100vw - 1rem));
-      padding: 0.22rem 0.5rem;
+    .game-shell-header-limit.betting-limit-badge {
+      gap: 0.24rem;
+      max-width: 7.8rem;
+      padding: 0.24rem 0.46rem;
       border-color: rgba(201, 162, 71, 0.46);
       background: rgba(7, 16, 28, 0.94);
-      font-size: 0.6rem;
-      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+      font-size: 0.58rem;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
     }
 
-    .game-shell-limit-float.betting-limit-badge strong {
+    .game-shell-header-limit.betting-limit-badge strong {
+      min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
-      font-size: 0.68rem;
+      font-size: 0.66rem;
     }
 
     .game-fullscreen-shell:has(.crash-control-stack) .game-stage-panel {
@@ -3943,7 +3931,6 @@
     }
 
     .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-back,
-    .game-fullscreen-shell[data-slot-layout='mega'] .game-shell-reload,
     .game-fullscreen-shell[data-slot-layout='mega'] > header button {
       height: 40px !important;
       min-height: 40px !important;

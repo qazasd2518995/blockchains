@@ -14,7 +14,6 @@ import {
 import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { AudioMenu } from '@/components/layout/AudioMenu';
-import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { useAuthStore } from '@/stores/authStore';
 import { formatAmount } from '@/lib/utils';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
@@ -300,7 +299,7 @@ export function GameFullscreenShell() {
           </Link>
 
           <AudioMenu variant="dark" />
-          <LanguageSwitcher variant="dark" compact />
+          <BettingLimitBadge gameId={game.id} className="game-shell-header-limit" />
 
           {isMegaSlot && !standaloneMode && (
             <button
@@ -314,20 +313,8 @@ export function GameFullscreenShell() {
               <span>{t.common.fullscreen}</span>
             </button>
           )}
-
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="game-shell-reload inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/72 transition hover:border-white/24 hover:bg-white/[0.1] hover:text-white"
-            aria-label={t.common.reload}
-            title={t.common.reload}
-          >
-            <RefreshCw className="h-4 w-4" aria-hidden="true" />
-          </button>
         </div>
       </header>
-
-      <BettingLimitBadge gameId={game.id} className="game-shell-limit-float" />
 
       <main className="relative z-10 mx-auto w-full max-w-[1920px] px-0 py-2 sm:px-4 sm:py-3 xl:px-5">
         <Outlet />
