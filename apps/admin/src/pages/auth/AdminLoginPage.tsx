@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import type { AdminCaptchaResponse, AdminLoginResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
@@ -30,7 +30,8 @@ export function AdminLoginPage(): JSX.Element {
   const [twoFactorChallenge, setTwoFactorChallenge] = useState<AdminTwoFactorChallenge | null>(
     null,
   );
-  const twoFactorQrCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [twoFactorQrDataUrl, setTwoFactorQrDataUrl] = useState<string | null>(null);
+  const [twoFactorQrError, setTwoFactorQrError] = useState<string | null>(null);
 
   const {
     register,
@@ -58,7 +59,34 @@ export function AdminLoginPage(): JSX.Element {
   }, [refreshCaptcha]);
 
   useEffect(() => {
-    renderAuthenticatorQrCode(twoFactorQrCanvasRef.current, twoFactorChallenge?.otpauthUrl ?? '');
+    let cancelled = false;
+    const otpauthUrl = twoFactorChallenge?.otpauthUrl ?? '';
+    setTwoFactorQrDataUrl(null);
+    setTwoFactorQrError(null);
+    if (!otpauthUrl) return;
+
+    QRCode.toString(otpauthUrl, {
+      type: 'svg',
+      errorCorrectionLevel: 'M',
+      margin: 4,
+      width: 244,
+      color: {
+        dark: '#0F172A',
+        light: '#FFFFFF',
+      },
+    })
+      .then((svg) => {
+        if (cancelled) return;
+        setTwoFactorQrDataUrl(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setTwoFactorQrError('QR Code 無法產生，請使用備用密鑰手動綁定。');
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [twoFactorChallenge?.otpauthUrl]);
 
   const onSubmit = async (data: FormInput) => {
@@ -242,15 +270,25 @@ export function AdminLoginPage(): JSX.Element {
                         <div className="font-semibold">
                           第一次登入需要綁定 Google Authenticator。請用 App 掃描 QR Code。
                         </div>
-                        <div className="mx-auto flex w-fit rounded-[12px] border border-[#C9A247]/35 bg-white p-3 shadow-sm">
-                          <canvas
-                            ref={twoFactorQrCanvasRef}
-                            width={244}
-                            height={244}
-                            aria-label="Google Authenticator QR Code"
-                            className="h-[244px] w-[244px]"
-                          />
+                        <div className="mx-auto flex min-h-[268px] w-fit min-w-[268px] items-center justify-center rounded-[12px] border border-[#C9A247]/35 bg-white p-3 shadow-sm">
+                          {twoFactorQrDataUrl ? (
+                            <img
+                              src={twoFactorQrDataUrl}
+                              alt="Google Authenticator QR Code"
+                              className="h-[244px] w-[244px]"
+                              draggable={false}
+                            />
+                          ) : (
+                            <div className="flex h-[244px] w-[244px] items-center justify-center rounded-[8px] bg-[#F8FAFC] px-4 text-center text-[12px] font-semibold text-[#765709]">
+                              {twoFactorQrError ?? 'QR Code 產生中...'}
+                            </div>
+                          )}
                         </div>
+                        {twoFactorQrError ? (
+                          <div className="rounded-[8px] border border-[#D4574A]/35 bg-[#FDF0EE] px-3 py-2 text-[11px] font-semibold text-[#B94538]">
+                            {twoFactorQrError}
+                          </div>
+                        ) : null}
                         {twoFactorChallenge.otpauthUrl ? (
                           <a
                             href={twoFactorChallenge.otpauthUrl}
@@ -329,33 +367,6 @@ type AdminTwoFactorChallenge = Extract<AdminLoginResponse, { requiresTwoFactor: 
 
 function isTwoFactorChallenge(value: AdminLoginResponse): value is AdminTwoFactorChallenge {
   return 'requiresTwoFactor' in value && value.requiresTwoFactor === true;
-}
-
-function renderAuthenticatorQrCode(canvas: HTMLCanvasElement | null, text: string): void {
-  if (!canvas) return;
-  const context = canvas.getContext('2d');
-  if (!context) return;
-
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  if (!text) return;
-
-  void QRCode.toCanvas(canvas, text, {
-    errorCorrectionLevel: 'M',
-    margin: 4,
-    width: 244,
-    color: {
-      dark: '#0F172AFF',
-      light: '#FFFFFFFF',
-    },
-  }).catch(() => {
-    context.fillStyle = '#FFFFFF';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = '#B94538';
-    context.font = '600 14px sans-serif';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText('QR Code 無法產生', canvas.width / 2, canvas.height / 2);
-  });
 }
 
 function Field({
