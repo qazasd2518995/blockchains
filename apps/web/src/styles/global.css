@@ -2255,9 +2255,9 @@
       .slot-game-page--classic
       .game-main-stack
       > .slot-result-card {
-      min-height: 112px;
+      min-height: 76px;
       overflow: visible !important;
-      padding: 0.58rem 0.75rem 0.62rem !important;
+      padding: 0.44rem 0.75rem 0.48rem !important;
     }
 
     .game-fullscreen-shell[data-slot-layout='standard']
@@ -2293,16 +2293,30 @@
 
     .game-fullscreen-shell[data-slot-layout='standard']
       .slot-game-page--classic
-      .slot-result-summary
-      .font-display.text-4xl {
-      font-size: 1.72rem !important;
-      line-height: 1 !important;
+      .slot-result-lines {
+      display: none !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-result-title {
+      font-size: 10px !important;
+      line-height: 1.05 !important;
+      letter-spacing: 0.16em !important;
+    }
+
+    .game-fullscreen-shell[data-slot-layout='standard']
+      .slot-game-page--classic
+      .slot-result-meta {
+      font-size: 10px !important;
+      line-height: 1.05 !important;
+      letter-spacing: 0.1em !important;
     }
 
     .game-fullscreen-shell[data-slot-layout='standard']
       .slot-game-page--classic
       .slot-result-payout {
-      font-size: 1.2rem !important;
+      font-size: 1.08rem !important;
       line-height: 1.14 !important;
     }
 
