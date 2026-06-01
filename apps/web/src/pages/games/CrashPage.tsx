@@ -908,6 +908,31 @@ export function CrashPage({ config }: Props) {
         setHistory(multipliers.slice(0, 20));
       })
       .catch(() => undefined);
+    api
+      .get<{ state: CrashSoloRoundState | null }>('/games/crash/active', {
+        params: { gameId: config.gameId },
+      })
+      .then((res) => {
+        const state = res.data.state;
+        if (!state) return;
+        const restoredBet: LocalCrashBet = {
+          amount: roundCurrency(Number.parseFloat(state.amount)),
+          roundId: state.roundId,
+          betId: state.betId,
+          payout: state.payout,
+          cashedOutAt: state.cashedOutAt,
+          autoCashOut: state.autoCashOut,
+        };
+        beginVisualFlight(restoredBet.amount, restoredBet);
+        handleRoundState(state);
+        if (state.status === 'RUNNING') {
+          scheduleRoundPoll(
+            state.roundId,
+            normalizeCrashMultiplier(state.visualCrashPoint, 0) || null,
+          );
+        }
+      })
+      .catch(() => undefined);
     return () => {
       clearRoundPoll();
       clearDisplayTick();
@@ -922,6 +947,9 @@ export function CrashPage({ config }: Props) {
     clearPendingResultReveal,
     clearRoundPoll,
     config.gameId,
+    beginVisualFlight,
+    handleRoundState,
+    scheduleRoundPoll,
   ]);
 
   useEffect(() => {

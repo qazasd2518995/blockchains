@@ -31,6 +31,7 @@ export function HiLoPage() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<HiLoScene | null>(null);
+  const roundRef = useRef<HiLoRoundState | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -48,7 +49,11 @@ export function HiLoPage() {
       }
       scene = new HiLoScene();
       sceneRef.current = scene;
-      void scene.init(canvas, w, h);
+      void scene.init(canvas, w, h).then(() => {
+        if (cancelled) return;
+        const active = roundRef.current;
+        if (active) scene?.setCurrentCard(active.currentCard);
+      });
     };
     tryInit();
     return () => {
@@ -64,6 +69,7 @@ export function HiLoPage() {
       .get<{ state: HiLoRoundState | null }>('/games/hilo/active')
       .then((res) => {
         setRound(res.data.state);
+        roundRef.current = res.data.state;
         if (res.data.state && sceneRef.current) {
           sceneRef.current.setCurrentCard(res.data.state.currentCard);
         }
@@ -83,6 +89,7 @@ export function HiLoPage() {
       sceneRef.current?.reset();
       const res = await api.post<HiLoRoundState>('/games/hilo/start', { amount });
       setRound(res.data);
+      roundRef.current = res.data;
       sceneRef.current?.setCurrentCard(res.data.currentCard);
     } catch (err) {
       if (previousBalance) setBalance(previousBalance);
@@ -103,6 +110,7 @@ export function HiLoPage() {
       });
       await sceneRef.current?.playDraw(res.data.drawn, res.data.correct);
       setRound(res.data.state);
+      roundRef.current = res.data.state;
       if (res.data.newBalance) setBalance(res.data.newBalance);
       // 答錯 → 一局結束（BUSTED），記錄輸局
       if (res.data.state.status === 'BUSTED') {
@@ -134,6 +142,7 @@ export function HiLoPage() {
     try {
       const res = await api.post<HiLoRoundState>('/games/hilo/skip', { roundId: round.roundId });
       setRound(res.data);
+      roundRef.current = res.data;
       sceneRef.current?.setCurrentCard(res.data.currentCard);
     } catch (err) {
       setError(extractApiError(err).message);
@@ -150,6 +159,7 @@ export function HiLoPage() {
         roundId: round.roundId,
       });
       setRound(res.data.state);
+      roundRef.current = res.data.state;
       setBalance(res.data.newBalance);
       if (res.data.state.status === 'BUSTED') {
         setHistory((prev) =>
@@ -193,7 +203,10 @@ export function HiLoPage() {
     }
   };
 
-  const handleReset = () => setRound(null);
+  const handleReset = () => {
+    setRound(null);
+    roundRef.current = null;
+  };
 
   const isActive = round?.status === 'ACTIVE';
 

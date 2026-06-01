@@ -212,6 +212,28 @@ export class CrashSoloService {
     });
   }
 
+  async active(userId: string, gameId: string): Promise<CrashSoloRoundState | null> {
+    return runSerializable(this.prisma, async (tx) => {
+      const bet = await tx.crashBet.findFirst({
+        where: {
+          userId,
+          round: { gameId, status: 'RUNNING' },
+        },
+        include: { round: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!bet) return null;
+      const locked = await this.getLockedOwnBet(tx, userId, bet.roundId);
+      const resolved = await this.resolveRoundInTx(tx, locked);
+      return toRoundState(
+        resolved.bet,
+        resolved.currentMultiplier,
+        resolved.elapsedMs,
+        resolved.newBalance,
+      );
+    });
+  }
+
   private async resolveRoundInTx(
     tx: Prisma.TransactionClient,
     bet: CrashBetWithRound,

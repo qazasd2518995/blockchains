@@ -16,6 +16,11 @@ export async function crashRoutes(fastify: FastifyInstance): Promise<void> {
     return service.history(query.gameId);
   });
 
+  fastify.get('/active', async (req) => {
+    const query = crashHistoryQuerySchema.parse(req.query);
+    return { state: await service.active(req.userId, query.gameId) };
+  });
+
   fastify.post('/bet', async (req) => {
     const body = crashBetSchema.parse(req.body);
     return service.start(req.userId, body);

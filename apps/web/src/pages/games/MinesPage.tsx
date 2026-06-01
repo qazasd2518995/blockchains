@@ -99,7 +99,16 @@ export function MinesPage() {
           void handleReveal(index);
         },
         showStageHint,
-      );
+      ).then(() => {
+        if (cancelled) return;
+        const active = roundRef.current;
+        if (!active) return;
+        scene?.setClickable(active.status === 'ACTIVE');
+        for (const idx of active.revealed) scene?.revealGem(idx);
+        if (active.status === 'BUSTED' && active.minePositions) {
+          scene?.revealAllMines(active.minePositions);
+        }
+      });
     };
     tryInit();
     return () => {
@@ -117,6 +126,7 @@ export function MinesPage() {
       .then((res) => {
         if (res.data.state) {
           const state = res.data.state;
+          setMineCount(state.mineCount);
           setRound(state);
           roundRef.current = state;
           hideStageHint();
