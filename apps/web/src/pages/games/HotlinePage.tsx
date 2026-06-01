@@ -917,7 +917,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const completedFreeMultiplier = roundMegaMultiplier(
       completedRounds.reduce((sum, round) => sum + round.totalMultiplier, 0),
     );
-    const revealedMultiplier = roundMegaMultiplier(features.baseTotalMultiplier + completedFreeMultiplier);
+    const revealedMultiplier = roundMegaMultiplier(
+      features.baseTotalMultiplier + completedFreeMultiplier,
+    );
     const lastCompletedRound = completedRounds[completedRounds.length - 1];
     const grid = lastCompletedRound?.finalGrid ?? roundResult.grid ?? fallbackGrid;
     const freeSpinMultiplierBank = roundMegaMultiplier(
@@ -1114,11 +1116,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       const payoutValue = Number.parseFloat(roundResult.payout);
       const profitValue = Number.parseFloat(roundResult.profit);
       const displayMultiplier =
-        roundResult.buyFeature && features ? features.totalMultiplier : (roundResult.multiplier ?? 0);
+        roundResult.buyFeature && features
+          ? features.totalMultiplier
+          : (roundResult.multiplier ?? 0);
       const totalCascadeCount =
         (roundResult.cascades?.length ?? 0) +
         rounds.reduce((sum, round) => sum + round.cascades.length, 0);
-      sceneRef.current?.playWinFx(displayMultiplier, profitValue >= 0);
+      sceneRef.current?.playWinFx(displayMultiplier, profitValue >= 0, payoutValue);
       updateLiveMegaRound({
         payout: payoutValue,
         multiplier: displayMultiplier,
@@ -1734,7 +1738,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       const featureDetail = formatMegaFeatureDetail(res.data.features, res.data.buyFeature);
       const totalCascadeCount =
         cascades.length + freeSpinRounds.reduce((sum, round) => sum + round.cascades.length, 0);
-      sceneRef.current?.playWinFx(displayMultiplier, profitValue >= 0);
+      sceneRef.current?.playWinFx(displayMultiplier, profitValue >= 0, payoutValue);
       const finalBaseActivatedMultiplierTotal = getActivatedBaseMultiplierTotal(features);
       updateLiveMegaRound({
         payout: payoutValue,

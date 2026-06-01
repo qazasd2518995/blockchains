@@ -54,6 +54,19 @@ const MEGA_CONSTRAINED_PIXEL_BUDGET = 4_000_000;
 const CLASSIC_PARTICLE_POOL_SIZE = 180;
 const MEGA_PARTICLE_POOL_SIZE = 120;
 const MEGA_MAX_CELL_ASPECT = 1.26;
+const MEGA_WIN_MEDIUM_THRESHOLD = 6;
+const MEGA_WIN_BIG_THRESHOLD = 20;
+
+type MegaWinPresentationTier = 'medium' | 'big';
+
+interface MegaWinPalette {
+  primary: number;
+  secondary: number;
+  tertiary: number;
+  deep: number;
+  mediumTitle: string;
+  bigTitle: string;
+}
 
 function fitSpriteCover(sprite: Sprite, width: number, height: number): void {
   const textureWidth = sprite.texture.width || width;
@@ -172,6 +185,7 @@ export class HotlineScene {
   private symbolTextures: Array<Texture | null> = [];
   private scatterTexture: Texture | null = null;
   private multiplierTexture: Texture | null = null;
+  private bigWinTexture: Texture | null = null;
 
   private reels: ReelData[] = [];
   private reelsContainer: Container | null = null;
@@ -343,6 +357,7 @@ export class HotlineScene {
       symbolTextureCount: this.symbolTextures.filter(Boolean).length,
       scatterLoaded: Boolean(this.scatterTexture),
       multiplierLoaded: Boolean(this.multiplierTexture),
+      bigWinLoaded: Boolean(this.bigWinTexture),
     });
     if (this.disposed) {
       slotDebug('hotline-scene:init:disposed-during-assets', {
@@ -365,8 +380,7 @@ export class HotlineScene {
     const availableH = height - padding * 2;
     if (isMegaLayout) {
       this.cellSize = availableH / this.rowCount;
-      const naturalCellWidth =
-        (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount;
+      const naturalCellWidth = (availableW - this.reelGap * (this.reelCount - 1)) / this.reelCount;
       this.cellWidth = Math.min(naturalCellWidth, this.cellSize * MEGA_MAX_CELL_ASPECT);
     } else {
       this.cellSize = Math.min(
@@ -429,18 +443,21 @@ export class HotlineScene {
   }
 
   private async preloadThemeAssets(): Promise<void> {
-    const [backgroundTexture, symbolSheetTexture, symbolTextures] = await Promise.all([
-      this.loadTexture(this.theme.background, this.rowCount > ROWS ? 960 : 960),
-      this.loadTexture(this.theme.symbolSheet, this.rowCount > ROWS ? 480 : 960),
-      Promise.all(
-        this.theme.symbols.map((_symbol, symbolIdx) =>
-          this.loadTexture(themeSymbolImage(this.theme, symbolIdx), 960),
+    const [backgroundTexture, symbolSheetTexture, symbolTextures, bigWinTexture] =
+      await Promise.all([
+        this.loadTexture(this.theme.background, this.rowCount > ROWS ? 960 : 960),
+        this.loadTexture(this.theme.symbolSheet, this.rowCount > ROWS ? 480 : 960),
+        Promise.all(
+          this.theme.symbols.map((_symbol, symbolIdx) =>
+            this.loadTexture(themeSymbolImage(this.theme, symbolIdx), 960),
+          ),
         ),
-      ),
-    ]);
+        this.rowCount > ROWS && this.theme.bigWin ? this.loadTexture(this.theme.bigWin, 960) : null,
+      ]);
     this.backgroundTexture = backgroundTexture;
     this.symbolSheetTexture = symbolSheetTexture;
     this.symbolTextures = symbolTextures;
+    this.bigWinTexture = bigWinTexture;
     if (this.rowCount > ROWS) {
       const [scatterTexture, multiplierTexture] = await Promise.all([
         this.loadTexture(themeSpecialImage(this.theme, 'scatter'), 960),
@@ -477,11 +494,12 @@ export class HotlineScene {
   private getRendererResolution(): number {
     const deviceResolution =
       typeof window === 'undefined' ? 1 : Math.max(1, window.devicePixelRatio || 1);
-    const maxResolution = this.rowCount > ROWS
-      ? this.shouldUseConstrainedMegaRenderer()
-        ? MEGA_CONSTRAINED_RENDER_DPR
-        : MEGA_RENDER_DPR
-      : CLASSIC_RENDER_DPR;
+    const maxResolution =
+      this.rowCount > ROWS
+        ? this.shouldUseConstrainedMegaRenderer()
+          ? MEGA_CONSTRAINED_RENDER_DPR
+          : MEGA_RENDER_DPR
+        : CLASSIC_RENDER_DPR;
     const targetResolution = Math.min(deviceResolution, maxResolution);
     if (this.rowCount <= ROWS || !this.shouldUseConstrainedMegaRenderer()) {
       return targetResolution;
@@ -1950,6 +1968,370 @@ export class HotlineScene {
     return this.width >= 640 && this.height >= 320;
   }
 
+  private getMegaWinPalette(): MegaWinPalette {
+    switch (this.theme.id) {
+      case 'thunder':
+        return {
+          primary: 0xf8d86b,
+          secondary: 0x6bd8ff,
+          tertiary: 0xffffff,
+          deep: 0x10162f,
+          mediumTitle: '雷霆中獎',
+          bigTitle: '雷霆大獎',
+        };
+      case 'dragonMega':
+        return {
+          primary: 0xffd36b,
+          secondary: 0xff5a35,
+          tertiary: 0x42f0a4,
+          deep: 0x1c0905,
+          mediumTitle: '龍焰中獎',
+          bigTitle: '龍焰大獎',
+        };
+      case 'nebula':
+        return {
+          primary: 0x8ee7ff,
+          secondary: 0xb06bff,
+          tertiary: 0xff72d2,
+          deep: 0x080b22,
+          mediumTitle: '星河中獎',
+          bigTitle: '星河大獎',
+        };
+      case 'jungle':
+        return {
+          primary: 0xb8ff7a,
+          secondary: 0x19d38a,
+          tertiary: 0xffd36b,
+          deep: 0x06180f,
+          mediumTitle: '秘境中獎',
+          bigTitle: '秘境大獎',
+        };
+      case 'vampire':
+        return {
+          primary: 0xffd0a8,
+          secondary: 0xd83d6b,
+          tertiary: 0xa979ff,
+          deep: 0x17060d,
+          mediumTitle: '暗夜中獎',
+          bigTitle: '暗夜大獎',
+        };
+      default:
+        return {
+          primary: COLOR_AMBER,
+          secondary: COLOR_ICE,
+          tertiary: COLOR_VIOLET,
+          deep: COLOR_INK,
+          mediumTitle: '中獎',
+          bigTitle: '超級大獎',
+        };
+    }
+  }
+
+  private showMegaWinPresentation(multiplier: number, payoutAmount?: number): void {
+    if (!this.app || !this.winLinesLayer || this.rowCount <= ROWS) return;
+    if (!Number.isFinite(multiplier) || multiplier < MEGA_WIN_MEDIUM_THRESHOLD) return;
+
+    const tier: MegaWinPresentationTier = multiplier > MEGA_WIN_BIG_THRESHOLD ? 'big' : 'medium';
+    const palette = this.getMegaWinPalette();
+    const isBig = tier === 'big';
+    const shouldReduceMotion = prefersReducedMotion();
+    const panelW = Math.max(220, Math.min(this.width - 24, this.width * (isBig ? 0.8 : 0.66)));
+    const panelH = Math.max(150, Math.min(this.height - 24, this.height * (isBig ? 0.8 : 0.54)));
+    const radius = Math.max(18, Math.min(34, panelH * 0.12));
+    const cx = this.width / 2;
+    const cy = this.height / 2;
+    const titleSize = Math.max(18, Math.min(isBig ? 48 : 34, panelH * 0.115));
+    const multiplierSize = Math.max(36, Math.min(isBig ? 108 : 76, panelH * 0.27, panelW * 0.18));
+    const payoutSize = Math.max(18, Math.min(isBig ? 42 : 32, panelH * 0.105));
+    const labelSize = Math.max(12, Math.min(isBig ? 20 : 16, panelH * 0.052));
+
+    if (isBig) {
+      Sfx.winMega();
+      this.shaker?.shake(9, 0.95, 34);
+    } else {
+      Sfx.winBig();
+      this.shaker?.shake(4.8, 0.46, 30);
+    }
+
+    const scrim = new Graphics()
+      .rect(0, 0, this.width, this.height)
+      .fill({ color: 0x01040d, alpha: isBig ? 0.42 : 0.24 });
+    scrim.alpha = 0;
+    this.winLinesLayer.addChild(scrim);
+
+    const group = new Container();
+    group.x = cx;
+    group.y = cy;
+    group.alpha = 0;
+    group.scale.set(shouldReduceMotion ? 1 : isBig ? 0.68 : 0.76);
+    this.winLinesLayer.addChild(group);
+
+    const glow = new Graphics()
+      .roundRect(-panelW * 0.58, -panelH * 0.58, panelW * 1.16, panelH * 1.16, radius * 1.5)
+      .fill({ color: palette.primary, alpha: isBig ? 0.2 : 0.13 });
+    if (this.canUseShaderEffects()) {
+      glow.filters = [new BlurFilter({ strength: isBig ? 34 : 24 })];
+    }
+    group.addChild(glow);
+
+    const rays = new Container();
+    const rayCount = isBig ? 18 : 10;
+    for (let i = 0; i < rayCount; i += 1) {
+      const color =
+        i % 3 === 0 ? palette.tertiary : i % 2 === 0 ? palette.secondary : palette.primary;
+      const ray = new Graphics()
+        .rect(-panelW * 0.012, -panelH * 0.78, panelW * 0.024, panelH * 1.56)
+        .fill({ color, alpha: isBig ? 0.16 : 0.1 });
+      ray.rotation = (Math.PI * 2 * i) / rayCount;
+      rays.addChild(ray);
+    }
+    group.addChild(rays);
+
+    const panel = new Graphics()
+      .roundRect(-panelW / 2, -panelH / 2, panelW, panelH, radius)
+      .fill({ color: palette.deep, alpha: 0.88 })
+      .stroke({ color: palette.primary, width: isBig ? 3.2 : 2.2, alpha: 0.8 });
+    group.addChild(panel);
+
+    const texture = this.bigWinTexture ?? this.backgroundTexture;
+    if (texture) {
+      const image = new Sprite(texture);
+      fitSpriteCover(image, panelW, panelH);
+      image.x -= panelW / 2;
+      image.y -= panelH / 2;
+      image.alpha = isBig ? 0.66 : 0.48;
+      const mask = new Graphics()
+        .roundRect(-panelW / 2, -panelH / 2, panelW, panelH, radius)
+        .fill({ color: COLOR_WHITE });
+      mask.renderable = false;
+      image.mask = mask;
+      group.addChild(mask, image);
+    }
+
+    const shade = new Graphics()
+      .roundRect(-panelW / 2, -panelH / 2, panelW, panelH, radius)
+      .fill({ color: 0x020817, alpha: isBig ? 0.35 : 0.46 });
+    group.addChild(shade);
+
+    const scanLight = new Graphics()
+      .roundRect(-panelW * 0.18, -panelH / 2, panelW * 0.16, panelH, radius)
+      .fill({ color: COLOR_WHITE, alpha: isBig ? 0.14 : 0.1 });
+    scanLight.rotation = -0.18;
+    group.addChild(scanLight);
+
+    const borderGlow = new Graphics()
+      .roundRect(-panelW / 2, -panelH / 2, panelW, panelH, radius)
+      .stroke({ color: palette.tertiary, width: isBig ? 6 : 4, alpha: 0.42 });
+    group.addChild(borderGlow);
+
+    const title = new Text({
+      text: isBig ? palette.bigTitle : palette.mediumTitle,
+      style: new TextStyle({
+        fontFamily: GAME_FONT_NUM,
+        fontSize: titleSize,
+        fontWeight: '900',
+        fill: palette.primary,
+        letterSpacing: 0,
+        stroke: { color: 0x180a04, width: Math.max(3, titleSize * 0.1) },
+        dropShadow: { color: palette.secondary, blur: 16, distance: 0, alpha: 0.7 },
+      }),
+    });
+    title.anchor.set(0.5);
+    title.y = -panelH * 0.24;
+
+    const winLabel = new Text({
+      text: isBig ? 'BIG WIN' : 'WIN',
+      style: new TextStyle({
+        fontFamily: GAME_FONT_NUM,
+        fontSize: labelSize,
+        fontWeight: '800',
+        fill: COLOR_WHITE,
+        letterSpacing: 0,
+        stroke: { color: COLOR_INK, width: 2 },
+      }),
+    });
+    winLabel.anchor.set(0.5);
+    winLabel.y = title.y - titleSize * 0.78;
+    winLabel.alpha = 0.82;
+
+    const multiplierText = new Text({
+      text: `${this.formatWinAmount(multiplier)}×`,
+      style: new TextStyle({
+        fontFamily: GAME_FONT_NUM,
+        fontSize: multiplierSize,
+        fontWeight: '900',
+        fill: COLOR_WHITE,
+        letterSpacing: 0,
+        stroke: { color: palette.deep, width: Math.max(5, multiplierSize * 0.08) },
+        dropShadow: { color: palette.primary, blur: isBig ? 24 : 16, distance: 0, alpha: 0.9 },
+      }),
+    });
+    multiplierText.anchor.set(0.5);
+    multiplierText.y = panelH * 0.01;
+
+    const payout =
+      typeof payoutAmount === 'number' && Number.isFinite(payoutAmount) && payoutAmount > 0
+        ? `派彩 ${this.formatWinAmount(payoutAmount)}`
+        : '派彩結算';
+    const payoutText = new Text({
+      text: payout,
+      style: new TextStyle({
+        fontFamily: GAME_FONT_NUM,
+        fontSize: payoutSize,
+        fontWeight: '900',
+        fill: palette.primary,
+        letterSpacing: 0,
+        stroke: { color: palette.deep, width: Math.max(3, payoutSize * 0.1) },
+        dropShadow: { color: palette.secondary, blur: 14, distance: 0, alpha: 0.7 },
+      }),
+    });
+    payoutText.anchor.set(0.5);
+    payoutText.y = panelH * 0.27;
+
+    group.addChild(winLabel, title, multiplierText, payoutText);
+
+    const holdSec = isBig ? 4 : 2.25;
+    const fadeOutSec = 0.42;
+
+    if (this.flashOverlay && isBig) {
+      gsap.fromTo(
+        this.flashOverlay,
+        { alpha: 0.5 },
+        { alpha: 0, duration: 0.9, ease: 'power2.out' },
+      );
+    }
+
+    if (!shouldReduceMotion) {
+      gsap.to(rays, {
+        rotation: isBig ? Math.PI * 0.45 : Math.PI * 0.25,
+        duration: holdSec + 0.4,
+        ease: 'none',
+      });
+      gsap.fromTo(
+        scanLight,
+        { x: -panelW * 0.58 },
+        {
+          x: panelW * 0.72,
+          duration: isBig ? 1.25 : 1.05,
+          repeat: isBig ? 2 : 1,
+          ease: 'power2.inOut',
+        },
+      );
+      gsap.to(borderGlow, {
+        alpha: isBig ? 0.92 : 0.68,
+        duration: 0.42,
+        yoyo: true,
+        repeat: isBig ? 7 : 4,
+        ease: 'sine.inOut',
+      });
+      gsap.to(multiplierText.scale, {
+        x: 1.07,
+        y: 1.07,
+        duration: 0.5,
+        yoyo: true,
+        repeat: isBig ? 5 : 2,
+        ease: 'sine.inOut',
+      });
+    }
+
+    gsap.to(scrim, { alpha: 1, duration: shouldReduceMotion ? 0.1 : 0.2, ease: 'power2.out' });
+    gsap.to(group, { alpha: 1, duration: shouldReduceMotion ? 0.1 : 0.22, ease: 'power2.out' });
+    gsap.to(group.scale, {
+      x: 1,
+      y: 1,
+      duration: shouldReduceMotion ? 0.1 : isBig ? 0.58 : 0.42,
+      ease: 'back.out(1.6)',
+    });
+
+    this.emitMegaWinBursts(cx, cy, panelW, panelH, tier, palette);
+
+    gsap.to([group, scrim], {
+      alpha: 0,
+      duration: fadeOutSec,
+      delay: holdSec,
+      ease: 'power2.in',
+      onComplete: () => {
+        if (group.parent) group.parent.removeChild(group);
+        if (scrim.parent) scrim.parent.removeChild(scrim);
+        group.destroy({ children: true });
+        scrim.destroy();
+      },
+    });
+  }
+
+  private emitMegaWinBursts(
+    cx: number,
+    cy: number,
+    panelW: number,
+    panelH: number,
+    tier: MegaWinPresentationTier,
+    palette: MegaWinPalette,
+  ): void {
+    const isBig = tier === 'big';
+    const colors = [palette.primary, palette.secondary, palette.tertiary, COLOR_WHITE];
+    this.emitShockwave(cx, cy, palette.primary, Math.max(panelW, panelH) * (isBig ? 0.68 : 0.52));
+    this.emitShockwave(
+      cx,
+      cy,
+      palette.secondary,
+      Math.max(panelW, panelH) * (isBig ? 0.9 : 0.66),
+      0.16,
+    );
+    this.particlePool?.emit({
+      x: cx,
+      y: cy,
+      count: isBig ? 90 : 42,
+      colors,
+      speedMin: isBig ? 4 : 2.5,
+      speedMax: isBig ? 14 : 8,
+      sizeMin: 3,
+      sizeMax: isBig ? 10 : 7,
+      lifeMin: 46,
+      lifeMax: isBig ? 120 : 82,
+      gravity: 0.12,
+      spreadRad: Math.PI * 2,
+      shape: 'mixed',
+    });
+
+    const pulseCount = isBig ? 5 : 3;
+    for (let i = 0; i < pulseCount; i += 1) {
+      const timer = window.setTimeout(
+        () => {
+          const side = i % 4;
+          const x = side === 0 ? cx - panelW / 2 : side === 1 ? cx + panelW / 2 : cx;
+          const y = side === 2 ? cy - panelH / 2 : side === 3 ? cy + panelH / 2 : cy;
+          this.particlePool?.emit({
+            x,
+            y,
+            count: isBig ? 34 : 18,
+            colors,
+            speedMin: 2,
+            speedMax: isBig ? 10 : 6,
+            sizeMin: 2,
+            sizeMax: isBig ? 8 : 5,
+            lifeMin: 36,
+            lifeMax: isBig ? 92 : 68,
+            gravity: 0.1,
+            spreadRad: Math.PI * 2,
+            shape: 'mixed',
+          });
+        },
+        220 + i * (isBig ? 360 : 300),
+      );
+      this.lineFxTimers.push(timer);
+    }
+
+    if (this.app && this.canUseShaderEffects()) {
+      emitGlowBurst(this.app.stage, cx, cy, palette.primary, {
+        radius: Math.max(panelW, panelH) * (isBig ? 0.36 : 0.24),
+        peakBlur: isBig ? 34 : 22,
+        durationSec: isBig ? 1.15 : 0.72,
+      });
+      emitEdgeGlow(this.app.stage, this.width, this.height, palette.primary, isBig ? 1.55 : 0.9);
+      emitRayBurst(this.app.stage, this.app, cx, cy, palette.primary, isBig ? 1.55 : 1);
+    }
+  }
+
   private runOptionalFx(label: string, run: () => void): void {
     try {
       run();
@@ -2367,7 +2749,12 @@ export class HotlineScene {
   }
 
   /** L4 共用大獎慶典 — GamePage 在拿到 result 後呼叫一次 */
-  playWinFx(multiplier: number, won: boolean): void {
+  playWinFx(multiplier: number, won: boolean, payoutAmount?: number): void {
+    if (!won) return;
+    if (this.rowCount > ROWS && multiplier >= MEGA_WIN_MEDIUM_THRESHOLD) {
+      this.showMegaWinPresentation(multiplier, payoutAmount);
+      return;
+    }
     this.winFx?.celebrate(multiplier, won);
   }
 }
