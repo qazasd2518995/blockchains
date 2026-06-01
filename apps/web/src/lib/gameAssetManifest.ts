@@ -1,5 +1,6 @@
 import { SLOT_THEMES, type SlotThemeConfig, type SlotThemeId } from '@/lib/slotThemes';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
+import { SLOT_BIG_WIN_TIER_ASSETS } from '@/lib/slotWinTiers';
 
 export type GameAssetKind =
   | 'background'
@@ -208,6 +209,9 @@ function slotGame(theme: SlotThemeConfig): GameAssetManifest {
   ];
 
   if (theme.bigWin) assets.push(asset(theme.bigWin, 'big-win'));
+  if (theme.reels === 6 && theme.rows === 5) {
+    assets.push(...SLOT_BIG_WIN_TIER_ASSETS.map((src) => asset(src, 'big-win')));
+  }
 
   if (SLOT_GAMES_WITH_INDIVIDUAL_SYMBOLS.has(theme.id)) {
     assets.push(

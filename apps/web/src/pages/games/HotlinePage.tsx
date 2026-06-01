@@ -39,6 +39,11 @@ import { HotlineScene } from '@/games/hotline/HotlineScene';
 import { describeSlotDebugError, slotDebug, SLOT_DEBUG_BUILD } from '@/lib/slotDebug';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { getSlotTheme, type SlotThemeConfig, type SlotThemeId } from '@/lib/slotThemes';
+import {
+  SLOT_BIG_WIN_TIER_META,
+  getSlotBigWinTier,
+  type SlotBigWinTier,
+} from '@/lib/slotWinTiers';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 import { getMegaSlotMaxWinMultiplier } from '@/lib/gamePromos';
@@ -50,7 +55,6 @@ interface Props {
 
 const SYMBOL_POSITIONS = ['0% 0%', '50% 0%', '100% 0%', '0% 100%', '50% 100%', '100% 100%'];
 
-const BIG_WIN_MULTIPLIER = 20;
 const MEGA_MAX_TOTAL_MULTIPLIER = 1000;
 const MEGA_BUY_FEATURE_MAX_STAKE = 30000;
 const MEGA_FREE_SPIN_INTRO_MS = 1600;
@@ -2100,7 +2104,24 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       : '停止中'
     : '設定';
   const fastSpinButtonValue = fastSpin ? '開啟' : '一般';
-  const isBigWinResult = resultProfit > 0 && resultDisplayMultiplier >= BIG_WIN_MULTIPLIER;
+  const bigWinTier = getSlotBigWinTier(resultDisplayMultiplier, resultProfit > 0);
+  const bigWinMeta = bigWinTier ? SLOT_BIG_WIN_TIER_META[bigWinTier] : null;
+  const activeBigWinTier = bigWinTier ?? 'big';
+  const activeBigWinMeta = bigWinMeta ?? SLOT_BIG_WIN_TIER_META.big;
+  const slotBigWinStyle =
+    slotTheme.bigWin || bigWinMeta
+      ? ({
+          '--slot-bigwin-theme-art': slotTheme.bigWin
+            ? `url(${slotTheme.bigWin})`
+            : 'linear-gradient(transparent, transparent)',
+          '--slot-bigwin-tier-art': bigWinMeta
+            ? `url(${bigWinMeta.asset})`
+            : 'linear-gradient(transparent, transparent)',
+        } as CSSProperties)
+      : undefined;
+  const featureResultTier =
+    getSlotBigWinTier(resultDisplayMultiplier, resultPayout > 0, 8) ?? 'big';
+  const isBigWinResult = Boolean(bigWinTier);
   const showFeatureResultOverlay = Boolean(
     result?.buyFeature && !spinning && dismissedFeatureResultBetId !== result.betId,
   );
@@ -2466,24 +2487,27 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               {result && showBigWinOverlay && (
                 <button
                   type="button"
-                  className="slot-bigwin-stage"
+                  className={`slot-bigwin-stage slot-bigwin-stage--${activeBigWinTier}`}
+                  data-tier={activeBigWinTier}
                   aria-label="關閉大獎畫面"
                   onClick={() => setDismissedBigWinBetId(result.betId)}
-                  style={
-                    slotTheme.bigWin
-                      ? {
-                          backgroundImage: `linear-gradient(90deg, rgba(5, 10, 19, 0.72), rgba(5, 10, 19, 0.32)), url(${slotTheme.bigWin})`,
-                        }
-                      : undefined
-                  }
+                  style={slotBigWinStyle}
                 >
+                  <span className="slot-bigwin-stage__flare" aria-hidden="true" />
                   <div className="slot-bigwin-stage__content">
-                    <div className="slot-bigwin-stage__eyebrow">連鎖消除</div>
-                    <div className="slot-bigwin-stage__title">恭喜爆分</div>
+                    <div className="slot-bigwin-stage__badge">{activeBigWinMeta.badge}</div>
+                    <div className="slot-bigwin-stage__eyebrow">{activeBigWinMeta.eyebrow}</div>
+                    <div className="slot-bigwin-stage__title">{activeBigWinMeta.title}</div>
                     <div className="slot-bigwin-stage__amount">{formatAmount(result.payout)}</div>
-                    <div className="slot-bigwin-stage__meta">
-                      {formatMultiplier(resultDisplayMultiplier)}
-                      {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
+                    <div className="slot-bigwin-stage__stats">
+                      <span>
+                        <strong>{formatMultiplier(resultDisplayMultiplier)}</strong>
+                        <small>倍率</small>
+                      </span>
+                      <span>
+                        <strong>{cascadeCount}</strong>
+                        <small>消除</small>
+                      </span>
                     </div>
                   </div>
                 </button>
@@ -2494,6 +2518,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   displayMultiplier={resultDisplayMultiplier}
                   cascadeCount={cascadeCount}
                   maxWinMultiplier={megaBuyFeatureMaxWinMultiplier}
+                  tier={featureResultTier}
                   onClose={() => setDismissedFeatureResultBetId(result.betId)}
                 />
               )}
@@ -2716,24 +2741,27 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             {result && showBigWinOverlay && (
               <button
                 type="button"
-                className="slot-bigwin-stage"
+                className={`slot-bigwin-stage slot-bigwin-stage--${activeBigWinTier}`}
+                data-tier={activeBigWinTier}
                 aria-label="關閉大獎畫面"
                 onClick={() => setDismissedBigWinBetId(result.betId)}
-                style={
-                  slotTheme.bigWin
-                    ? {
-                        backgroundImage: `linear-gradient(90deg, rgba(5, 10, 19, 0.72), rgba(5, 10, 19, 0.32)), url(${slotTheme.bigWin})`,
-                      }
-                    : undefined
-                }
+                style={slotBigWinStyle}
               >
+                <span className="slot-bigwin-stage__flare" aria-hidden="true" />
                 <div className="slot-bigwin-stage__content">
-                  <div className="slot-bigwin-stage__eyebrow">連鎖消除</div>
-                  <div className="slot-bigwin-stage__title">恭喜爆分</div>
+                  <div className="slot-bigwin-stage__badge">{activeBigWinMeta.badge}</div>
+                  <div className="slot-bigwin-stage__eyebrow">{activeBigWinMeta.eyebrow}</div>
+                  <div className="slot-bigwin-stage__title">{activeBigWinMeta.title}</div>
                   <div className="slot-bigwin-stage__amount">{formatAmount(result.payout)}</div>
-                  <div className="slot-bigwin-stage__meta">
-                    {formatMultiplier(resultDisplayMultiplier)}
-                    {cascadeCount > 0 ? ` · ${cascadeCount} 次消除` : ''}
+                  <div className="slot-bigwin-stage__stats">
+                    <span>
+                      <strong>{formatMultiplier(resultDisplayMultiplier)}</strong>
+                      <small>倍率</small>
+                    </span>
+                    <span>
+                      <strong>{cascadeCount}</strong>
+                      <small>消除</small>
+                    </span>
                   </div>
                 </div>
               </button>
@@ -2824,29 +2852,36 @@ function MegaFeatureResultOverlay({
   displayMultiplier,
   cascadeCount,
   maxWinMultiplier,
+  tier,
   onClose,
 }: {
   result: HotlineBetResult;
   displayMultiplier: number;
   cascadeCount: number;
   maxWinMultiplier: number;
+  tier: SlotBigWinTier;
   onClose: () => void;
 }) {
   const features = result.features;
+  const tierMeta = SLOT_BIG_WIN_TIER_META[tier];
   const stakeAmount = Number.parseFloat(result.stakeAmount ?? result.amount);
   const payout = Number.parseFloat(result.payout);
   const profit = Number.parseFloat(result.profit);
   const freeSpinProgress = features
     ? `${features.freeSpinsPlayed}/${features.freeSpinsAwarded}`
     : '0';
+  const stageStyle = {
+    '--mega-feature-tier-art': `url(${tierMeta.asset})`,
+  } as CSSProperties;
 
   return (
     <div
-      className="mega-feature-result-stage"
+      className={`mega-feature-result-stage mega-feature-result-stage--${tier}`}
       role="dialog"
       aria-modal="false"
       aria-labelledby="mega-feature-result-title"
       tabIndex={0}
+      style={stageStyle}
       onClick={onClose}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
@@ -2857,9 +2892,10 @@ function MegaFeatureResultOverlay({
     >
       <div className="mega-feature-result-stage__burst" aria-hidden="true" />
       <div className="mega-feature-result-stage__panel">
-        <div className="mega-feature-result-stage__eyebrow">免費遊戲結算</div>
+        <div className="mega-feature-result-stage__badge">{tierMeta.badge}</div>
+        <div className="mega-feature-result-stage__eyebrow">{tierMeta.featureEyebrow}</div>
         <div id="mega-feature-result-title" className="mega-feature-result-stage__title">
-          爆分獎金
+          {tierMeta.featureTitle}
         </div>
         <div className="mega-feature-result-stage__amount">{formatAmount(payout)}</div>
         <div className="mega-feature-result-stage__meta">
