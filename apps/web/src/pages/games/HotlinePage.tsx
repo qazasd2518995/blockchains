@@ -42,6 +42,7 @@ import { getSlotTheme, type SlotThemeConfig, type SlotThemeId } from '@/lib/slot
 import {
   SLOT_BIG_WIN_TIER_META,
   getSlotBigWinTier,
+  preloadSlotBigWinTierAssets,
   type SlotBigWinTier,
 } from '@/lib/slotWinTiers';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
@@ -407,6 +408,10 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   useEffect(() => {
     resultVisibleRef.current = Boolean(result);
   }, [result]);
+
+  useEffect(() => {
+    if (isMegaSlot) preloadSlotBigWinTierAssets();
+  }, [isMegaSlot]);
 
   useEffect(() => {
     if (!isMegaSlot) return;

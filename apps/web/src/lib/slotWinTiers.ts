@@ -42,6 +42,20 @@ export const SLOT_BIG_WIN_TIER_ASSETS = Object.values(SLOT_BIG_WIN_TIER_META).ma
   (meta) => meta.asset,
 );
 
+const preloadedAssets = new Set<string>();
+
+export function preloadSlotBigWinTierAssets(): void {
+  if (typeof window === 'undefined') return;
+
+  for (const src of SLOT_BIG_WIN_TIER_ASSETS) {
+    if (preloadedAssets.has(src)) continue;
+    preloadedAssets.add(src);
+    preloadImage(src).catch(() => {
+      preloadedAssets.delete(src);
+    });
+  }
+}
+
 export function getSlotBigWinTier(
   multiplier: number,
   won: boolean,
@@ -52,4 +66,20 @@ export function getSlotBigWinTier(
   if (multiplier >= 500) return 'mega';
   if (multiplier >= 50) return 'huge';
   return 'big';
+}
+
+function preloadImage(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = 'async';
+    image.onload = () => {
+      if ('decode' in image) {
+        image.decode().then(resolve).catch(resolve);
+      } else {
+        resolve();
+      }
+    };
+    image.onerror = () => reject(new Error(`Failed to preload ${src}`));
+    image.src = src;
+  });
 }
