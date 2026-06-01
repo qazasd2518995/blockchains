@@ -21,6 +21,7 @@ const ICON: Record<TransactionType, { color: string; icon: string }> = {
 
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
+const GAME_DAY_START_HOUR = 7;
 
 type DatePreset = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth';
 
@@ -59,12 +60,6 @@ function startOfLocalDay(value: string): Date {
   return date;
 }
 
-function endOfLocalDay(value: string): Date {
-  const date = parseDateInput(value);
-  date.setHours(23, 59, 59, 999);
-  return date;
-}
-
 function startOfWeek(date: Date): Date {
   const next = new Date(date);
   next.setHours(0, 0, 0, 0);
@@ -75,7 +70,7 @@ function startOfWeek(date: Date): Date {
 
 function getPresetRange(preset: DatePreset): DateRange {
   const now = new Date();
-  const today = startOfLocalDay(toDateInputValue(now));
+  const today = getCurrentGameDayDate();
 
   if (preset === 'yesterday') {
     const yesterday = new Date(today);
@@ -113,9 +108,40 @@ function normalizeRange(range: DateRange): DateRange {
 
 function buildDateParams(range: DateRange): { from?: string; to?: string } {
   return {
-    ...(range.from ? { from: startOfLocalDay(range.from).toISOString() } : {}),
-    ...(range.to ? { to: endOfLocalDay(range.to).toISOString() } : {}),
+    ...(range.from ? { from: startOfGameDay(range.from).toISOString() } : {}),
+    ...(range.to ? { to: endOfGameDay(range.to).toISOString() } : {}),
   };
+}
+
+function getCurrentGameDayDate(): Date {
+  const now = new Date();
+  const gameDay = startOfLocalDay(toDateInputValue(now));
+  if (now.getHours() < GAME_DAY_START_HOUR) {
+    gameDay.setDate(gameDay.getDate() - 1);
+  }
+  return gameDay;
+}
+
+function startOfGameDay(value: string): Date {
+  const date = parseDateInput(value);
+  date.setHours(GAME_DAY_START_HOUR, 0, 0, 0);
+  return date;
+}
+
+function endOfGameDay(value: string): Date {
+  const date = startOfGameDay(value);
+  date.setDate(date.getDate() + 1);
+  date.setMilliseconds(date.getMilliseconds() - 1);
+  return date;
+}
+
+function formatGameDayRangeText(range: DateRange): string {
+  if (!range.from || !range.to) return '';
+  const start = startOfGameDay(range.from);
+  const end = endOfGameDay(range.to);
+  const startDate = toDateInputValue(start).replaceAll('-', '/');
+  const endDate = toDateInputValue(end).replaceAll('-', '/');
+  return `${startDate} 07:00 ~ ${endDate} 06:59`;
 }
 
 function padDatePart(value: number): string {
@@ -218,10 +244,7 @@ export function HistoryPage() {
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
   const displayStart = totalCount === 0 ? 0 : pageIndex * pageSize + 1;
   const displayEnd = Math.min(totalCount, pageIndex * pageSize + items.length);
-  const appliedRangeText =
-    appliedRange.from === appliedRange.to
-      ? appliedRange.from
-      : `${appliedRange.from} ~ ${appliedRange.to}`;
+  const appliedRangeText = formatGameDayRangeText(appliedRange);
 
   const resetPagination = () => {
     setPageIndex(0);
