@@ -55,6 +55,7 @@ const MEGA_MAX_TOTAL_MULTIPLIER = 1000;
 const MEGA_BUY_FEATURE_MAX_STAKE = 30000;
 const MEGA_FREE_SPIN_INTRO_MS = 1600;
 const MEGA_FREE_SPIN_RETRIGGER_MS = 1300;
+const MEGA_FREE_SPIN_SESSION_TTL_MS = 45 * 60 * 1000;
 const SCENE_RESIZE_DEBOUNCE_MS = 160;
 const ORIENTATION_SCENE_RESIZE_DEBOUNCE_MS = 520;
 const MEGA_RENDERER_RETRY_MS = 900;
@@ -129,6 +130,16 @@ interface MegaMultiplierActivation {
   total: number;
 }
 
+interface PersistedMegaFreeSpinSession {
+  version: 1;
+  userId: string;
+  gameId: string;
+  result: HotlineBetResult;
+  nextFreeSpinIndex: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
 interface SpinOptions {
   amountOverride?: number;
   balanceOverride?: number;
@@ -174,6 +185,56 @@ function createAutoSpinInputDraft(settings: AutoSpinSettings): AutoSpinInputDraf
     profitTarget: String(settings.profitTarget),
     singleWinLimit: String(settings.singleWinLimit),
   };
+}
+
+function getMegaFreeSpinSessionKey(userId: string, gameId: string): string {
+  return `bg:hotline:mega-free-spin:${userId}:${gameId}`;
+}
+
+function readMegaFreeSpinSession(
+  userId: string,
+  gameId: string,
+): PersistedMegaFreeSpinSession | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(getMegaFreeSpinSessionKey(userId, gameId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedMegaFreeSpinSession;
+    const rounds = parsed.result?.features?.freeSpinRounds ?? [];
+    const expired = Date.now() - parsed.updatedAt > MEGA_FREE_SPIN_SESSION_TTL_MS;
+    const invalid =
+      parsed.version !== 1 ||
+      parsed.userId !== userId ||
+      parsed.gameId !== gameId ||
+      rounds.length === 0 ||
+      parsed.nextFreeSpinIndex >= rounds.length ||
+      expired;
+    if (invalid) {
+      window.sessionStorage.removeItem(getMegaFreeSpinSessionKey(userId, gameId));
+      return null;
+    }
+    return parsed;
+  } catch {
+    window.sessionStorage.removeItem(getMegaFreeSpinSessionKey(userId, gameId));
+    return null;
+  }
+}
+
+function writeMegaFreeSpinSession(session: PersistedMegaFreeSpinSession): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(
+      getMegaFreeSpinSessionKey(session.userId, session.gameId),
+      JSON.stringify({ ...session, updatedAt: Date.now() }),
+    );
+  } catch {
+    // If storage is unavailable, the current in-memory animation can still finish normally.
+  }
+}
+
+function clearMegaFreeSpinSession(userId: string | undefined, gameId: string): void {
+  if (!userId || typeof window === 'undefined') return;
+  window.sessionStorage.removeItem(getMegaFreeSpinSessionKey(userId, gameId));
 }
 
 function isPixiRendererUnavailableError(error: unknown): boolean {
@@ -260,6 +321,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const resultVisibleRef = useRef(false);
   const autoSpinStopRequestedRef = useRef(false);
   const megaFreeSpinContinueRef = useRef<(() => void) | null>(null);
+  const megaFreeSpinResumeStartedRef = useRef(false);
+  const pageActiveRef = useRef(true);
   const fastSpinRef = useRef(false);
   const megaAmountEditingRef = useRef(false);
   const megaInputResizeIgnoreUntilRef = useRef(0);
@@ -368,6 +431,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
   useEffect(() => {
     return () => {
+      pageActiveRef.current = false;
       autoSpinStopRequestedRef.current = true;
       megaFreeSpinContinueRef.current = null;
     };
@@ -831,6 +895,57 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     grid,
   });
 
+  const buildMegaResumeLiveRound = (
+    roundResult: HotlineBetResult,
+    nextFreeSpinIndex: number,
+  ): LiveMegaRoundState => {
+    const features = roundResult.features;
+    if (!features) return createInitialLiveMegaRound(roundResult.grid ?? fallbackGrid);
+    const rounds = features.freeSpinRounds ?? [];
+    const completedRounds = rounds.slice(0, Math.max(0, nextFreeSpinIndex));
+    const completedExtraSpins = completedRounds.reduce(
+      (sum, round) => sum + round.extraFreeSpinsAwarded,
+      0,
+    );
+    const totalExtraFreeSpins = rounds.reduce((sum, round) => sum + round.extraFreeSpinsAwarded, 0);
+    const initialAwarded = Math.max(0, features.freeSpinsAwarded - totalExtraFreeSpins);
+    const revealedFreeSpinsAwarded = Math.min(
+      features.freeSpinsAwarded,
+      initialAwarded + completedExtraSpins,
+    );
+    const baseAmount = Number.parseFloat(roundResult.baseAmount ?? roundResult.amount);
+    const completedFreeMultiplier = roundMegaMultiplier(
+      completedRounds.reduce((sum, round) => sum + round.totalMultiplier, 0),
+    );
+    const revealedMultiplier = roundMegaMultiplier(features.baseTotalMultiplier + completedFreeMultiplier);
+    const lastCompletedRound = completedRounds[completedRounds.length - 1];
+    const grid = lastCompletedRound?.finalGrid ?? roundResult.grid ?? fallbackGrid;
+    const freeSpinMultiplierBank = roundMegaMultiplier(
+      completedRounds.reduce((sum, round) => {
+        return sum + (hasCascadeSymbolClear(round.cascades) ? round.multiplierTotal : 0);
+      }, 0),
+    );
+    const specialSymbols = lastCompletedRound
+      ? [...lastCompletedRound.scatterSymbols, ...lastCompletedRound.multiplierSymbols]
+      : [...features.scatterSymbols, ...features.baseMultiplierSymbols];
+
+    return {
+      payout: roundMegaPayout(baseAmount, revealedMultiplier),
+      multiplier: revealedMultiplier,
+      cascadeCount:
+        (roundResult.cascades?.length ?? 0) +
+        completedRounds.reduce((sum, round) => sum + round.cascades.length, 0),
+      freeSpinsPlayed: nextFreeSpinIndex,
+      freeSpinsAwarded: revealedFreeSpinsAwarded,
+      freeSpinMode: nextFreeSpinIndex < rounds.length,
+      activeMultiplier: Math.max(1, freeSpinMultiplierBank),
+      baseMultiplierTotal: getActivatedBaseMultiplierTotal(features),
+      scatterCount: lastCompletedRound?.scatterSymbols.length ?? features.scatterCount,
+      specialSymbols,
+      grid,
+    };
+  };
+
   const updateLiveMegaRound = (patch: Partial<LiveMegaRoundState>): void => {
     if (!isMegaSlot) return;
     setLiveMegaRound((prev) => ({
@@ -838,6 +953,27 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       ...prev,
       ...patch,
     }));
+  };
+
+  const persistMegaFreeSpinProgress = (
+    roundResult: HotlineBetResult,
+    nextFreeSpinIndex: number,
+  ): void => {
+    if (!isMegaSlot || !user?.id) return;
+    const rounds = roundResult.features?.freeSpinRounds ?? [];
+    if (rounds.length === 0 || nextFreeSpinIndex >= rounds.length) {
+      clearMegaFreeSpinSession(user.id, slotTheme.gameId);
+      return;
+    }
+    writeMegaFreeSpinSession({
+      version: 1,
+      userId: user.id,
+      gameId: slotTheme.gameId,
+      result: roundResult,
+      nextFreeSpinIndex,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
   };
 
   const showMegaFreeSpinIntro = async (
@@ -865,6 +1001,188 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       megaFreeSpinContinueRef.current = resolve;
     });
   };
+
+  const resumeMegaFreeSpinSession = async (
+    session: PersistedMegaFreeSpinSession,
+  ): Promise<void> => {
+    if (!isMegaSlot || busy || !user?.id) return;
+    const roundResult = session.result;
+    const features = roundResult.features;
+    const rounds = features?.freeSpinRounds ?? [];
+    if (!features || rounds.length === 0) {
+      clearMegaFreeSpinSession(user.id, slotTheme.gameId);
+      return;
+    }
+
+    setBusy(true);
+    setSpinning(true);
+    setResult(null);
+    setError(null);
+    setMegaFreeSpinIntro(null);
+    setMegaFallbackWinning([]);
+    setMegaFallbackSpecialWinning([]);
+    setMegaFallbackRemoved([]);
+    setMegaFallbackDropping(false);
+    setMegaFallbackDropOffsets({});
+    setMegaFallbackWinPop(null);
+    setMegaFallbackSpinSpecialSymbols([]);
+    setMegaFreeSpinAwaitingClick(false);
+    megaFreeSpinContinueRef.current = null;
+
+    try {
+      const baseBetAmount = Number.parseFloat(roundResult.baseAmount ?? roundResult.amount);
+      const resumeIndex = Math.max(0, Math.min(session.nextFreeSpinIndex, rounds.length - 1));
+      let liveRound = buildMegaResumeLiveRound(roundResult, resumeIndex);
+      setLiveMegaRound(liveRound);
+      try {
+        sceneRef.current?.stopAnticipation();
+        sceneRef.current?.resetWinLines();
+        sceneRef.current?.snapToGrid(liveRound.grid, liveRound.specialSymbols);
+      } catch (err) {
+        console.warn('Mega free spin resume snap skipped', err);
+      }
+      await delay(scaleSpinDelay(420, fastSpinRef.current));
+      if (!pageActiveRef.current) return;
+
+      for (let index = resumeIndex; index < rounds.length; index += 1) {
+        const round = rounds[index]!;
+        persistMegaFreeSpinProgress(roundResult, index);
+        const activeMultiplier = liveRound.activeMultiplier;
+        updateLiveMegaRound({
+          freeSpinMode: true,
+          freeSpinsPlayed: index,
+          freeSpinsAwarded: liveRound.freeSpinsAwarded,
+          activeMultiplier,
+          scatterCount: 0,
+          specialSymbols: [],
+          grid: round.initialGrid,
+        });
+        await delay(scaleSpinDelay(260, fastSpinRef.current));
+        if (!pageActiveRef.current) return;
+
+        const roundSpecialSymbols = [...round.scatterSymbols, ...round.multiplierSymbols];
+        const scene = getPlayableScene();
+        if (scene) {
+          try {
+            if (round.cascades.length > 0) {
+              await scene.playCascadeSpin(round.cascades, round.finalGrid, {
+                fast: fastSpinRef.current,
+                specialSymbols: [],
+                finalSpecialSymbols: roundSpecialSymbols,
+                payoutAmount: baseBetAmount,
+              });
+            } else {
+              await scene.playSpin(round.finalGrid, round.lines, {
+                fast: fastSpinRef.current,
+                specialSymbols: roundSpecialSymbols,
+                payoutAmount: baseBetAmount,
+              });
+            }
+          } catch (err) {
+            console.warn('Mega free spin resume animation recovered', err);
+            scene.snapToGrid(round.finalGrid, roundSpecialSymbols);
+          }
+        } else {
+          setMegaFallbackSpinSpecialSymbols(roundSpecialSymbols);
+          setMegaFallbackSpinning(true);
+          await delay(scaleSpinDelay(round.lines.length > 0 ? 820 : 620, fastSpinRef.current));
+          setMegaFallbackSpinning(false);
+          setMegaFallbackSpinSpecialSymbols([]);
+        }
+
+        liveRound = buildMegaResumeLiveRound(roundResult, index + 1);
+        setLiveMegaRound(liveRound);
+        persistMegaFreeSpinProgress(roundResult, index + 1);
+        if (!pageActiveRef.current) return;
+
+        if (round.extraFreeSpinsAwarded > 0) {
+          await showMegaFreeSpinIntro(
+            {
+              kind: 'retrigger',
+              spins: round.extraFreeSpinsAwarded,
+              totalSpins: liveRound.freeSpinsAwarded,
+              scatterCount: round.scatterSymbols.length,
+            },
+            scaleSpinDelay(MEGA_FREE_SPIN_RETRIGGER_MS, fastSpinRef.current),
+          );
+        } else {
+          await delay(scaleSpinDelay(240, fastSpinRef.current));
+        }
+        if (!pageActiveRef.current) return;
+      }
+
+      const payoutValue = Number.parseFloat(roundResult.payout);
+      const profitValue = Number.parseFloat(roundResult.profit);
+      const displayMultiplier =
+        roundResult.buyFeature && features ? features.totalMultiplier : (roundResult.multiplier ?? 0);
+      const totalCascadeCount =
+        (roundResult.cascades?.length ?? 0) +
+        rounds.reduce((sum, round) => sum + round.cascades.length, 0);
+      sceneRef.current?.playWinFx(displayMultiplier, profitValue >= 0);
+      updateLiveMegaRound({
+        payout: payoutValue,
+        multiplier: displayMultiplier,
+        cascadeCount: totalCascadeCount,
+        freeSpinsPlayed: features.freeSpinsPlayed,
+        freeSpinsAwarded: features.freeSpinsAwarded,
+        freeSpinMode: false,
+        activeMultiplier: Math.max(
+          1,
+          features.freeSpinMultiplierBank,
+          getActivatedBaseMultiplierTotal(features),
+        ),
+        baseMultiplierTotal: getActivatedBaseMultiplierTotal(features),
+        scatterCount: features.scatterCount,
+        specialSymbols: getFinalMegaSpecialSymbols(features),
+        grid: getFinalMegaGrid(roundResult, fallbackGrid),
+      });
+      setResult(roundResult);
+      if (roundResult.jackpot) setJackpotSnapshot(roundResult.jackpot);
+      setBalance(roundResult.newBalance);
+      setHistory((prev) =>
+        [
+          {
+            id: roundResult.betId,
+            timestamp: Date.now(),
+            betAmount: Number.parseFloat(roundResult.stakeAmount ?? roundResult.amount),
+            multiplier: roundResult.multiplier,
+            payout: payoutValue,
+            won: profitValue >= 0,
+            detail: `免費遊戲恢復完成 · ${totalCascadeCount} 次消除`,
+          },
+          ...prev.filter((item) => item.id !== roundResult.betId),
+        ].slice(0, 30),
+      );
+      clearMegaFreeSpinSession(user.id, slotTheme.gameId);
+    } catch (err) {
+      console.warn('Mega free spin resume failed', err);
+      setError('免費遊戲恢復失敗，請重新整理後再試');
+    } finally {
+      setSpinning(false);
+      setBusy(false);
+      setMegaFallbackSpinning(false);
+      setMegaFallbackWinning([]);
+      setMegaFallbackSpecialWinning([]);
+      setMegaFallbackRemoved([]);
+      setMegaFallbackDropping(false);
+      setMegaFallbackWinPop(null);
+      setMegaFallbackSpinSpecialSymbols([]);
+      setMegaFreeSpinAwaitingClick(false);
+      megaFreeSpinContinueRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    megaFreeSpinResumeStartedRef.current = false;
+  }, [slotTheme.gameId, user?.id]);
+
+  useEffect(() => {
+    if (!isMegaSlot || !user?.id || !sceneReady || megaFreeSpinResumeStartedRef.current) return;
+    const session = readMegaFreeSpinSession(user.id, slotTheme.gameId);
+    if (!session) return;
+    megaFreeSpinResumeStartedRef.current = true;
+    void resumeMegaFreeSpinSession(session);
+  }, [isMegaSlot, sceneReady, slotTheme.gameId, user?.id]);
 
   const handleMegaSpinClick = (): void => {
     if (megaFreeSpinAwaitingClick) {
@@ -935,6 +1253,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     setDismissedFeatureResultBetId(null);
     setBuyFeatureConfirmOpen(false);
     setError(null);
+    if (isMegaSlot) clearMegaFreeSpinSession(user?.id, slotTheme.gameId);
 
     activeScene?.resetWinLines();
     // 樂觀動畫：轉軸立刻開始滾。
@@ -1288,6 +1607,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         revealBaseState(res.data.grid);
       }
       if (features && revealedFreeSpinsAwarded > 0 && freeSpinRounds.length > 0) {
+        persistMegaFreeSpinProgress(res.data, 0);
         await playSpecialHighlightOrFallback(
           features.scatterSymbols,
           'scatter',
@@ -1309,9 +1629,13 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           scaleSpinDelay(MEGA_FREE_SPIN_INTRO_MS, spinFast),
         );
       }
+      if (!pageActiveRef.current) return res.data;
       for (const round of freeSpinRounds) {
+        persistMegaFreeSpinProgress(res.data, round.index);
         await waitForMegaFreeSpinClick(Boolean(options.autoSpin));
+        if (!pageActiveRef.current) return res.data;
         await delay(scaleSpinDelay(360, spinFast));
+        if (!pageActiveRef.current) return res.data;
         const previousFreeMultiplierBank = revealedFreeMultiplierBank;
         const roundHasSymbolClear = hasCascadeSymbolClear(round.cascades);
         const nextFreeMultiplierBank = roundMegaMultiplier(
@@ -1402,6 +1726,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             scaleSpinDelay(MEGA_FREE_SPIN_RETRIGGER_MS, spinFast),
           );
         }
+        persistMegaFreeSpinProgress(res.data, round.index + 1);
+        if (!pageActiveRef.current) return res.data;
       }
       const mult = res.data.multiplier ?? 0;
       const profitValue = Number.parseFloat(res.data.profit);
@@ -1428,6 +1754,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         grid: getFinalMegaGrid(res.data, fallbackGrid),
       });
       setResult(res.data);
+      if (isMegaSlot) clearMegaFreeSpinSession(user?.id, slotTheme.gameId);
       if (res.data.jackpot) setJackpotSnapshot(res.data.jackpot);
       setBalance(res.data.newBalance);
       setHistory((prev) =>
