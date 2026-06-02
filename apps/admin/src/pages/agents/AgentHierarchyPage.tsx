@@ -618,6 +618,9 @@ function resolveHierarchyTransferSource(
       balance: currentParent?.id === me.parentId ? currentParent.balance : me.balance,
     };
   }
+  if (me?.role === 'SUPER_ADMIN' && me.level > 0) {
+    return { id: me.id, username: me.username, balance: me.balance };
+  }
   const rootCrumb = data?.breadcrumb.find((item) => item.id && item.level > 0);
   if (me?.role === 'SUPER_ADMIN' && rootCrumb) {
     return {

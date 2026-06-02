@@ -63,8 +63,11 @@ export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Pr
     setErr(null);
     setTransferAgent(null);
     logTransferDebug('agent-to-member modal open', {
+      storedAgentSummary: agentSummary(useAdminAuthStore.getState().agent),
       storedAgent: agentForDebug(useAdminAuthStore.getState().agent),
+      overrideSourceSummary: transferAgentSummary(sourceAgent),
       overrideSource: transferAgentForDebug(sourceAgent),
+      memberSummary: memberSummary(member),
       member: memberForDebug(member),
     });
     void (async () => {
@@ -74,8 +77,11 @@ export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Pr
         if (!active) return;
         operator = auth.data;
         logTransferDebug('agent-to-member /auth/me resolved', {
+          authAgentSummary: agentSummary(operator),
           authAgent: agentForDebug(operator),
+          overrideSourceSummary: transferAgentSummary(sourceAgent),
           overrideSource: transferAgentForDebug(sourceAgent),
+          memberSummary: memberSummary(member),
           member: memberForDebug(member),
         });
         setAgent(auth.data);
@@ -92,8 +98,11 @@ export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Pr
       const fallbackAgent = resolveTransferAgentFallback(operator, member, agentId, sourceAgent);
       logTransferDebug('agent-to-member source resolved', {
         agentId,
+        overrideSourceSummary: transferAgentSummary(sourceAgent),
         overrideSource: transferAgentForDebug(sourceAgent),
+        fallbackAgentSummary: transferAgentSummary(fallbackAgent),
         fallbackAgent: transferAgentForDebug(fallbackAgent),
+        memberSummary: memberSummary(member),
         member: memberForDebug(member),
       });
       if (!active) return;
@@ -105,6 +114,7 @@ export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Pr
         const res = await adminApi.get<TransferAgent>(`/agents/${agentId}`);
         if (!active) return;
         logTransferDebug('agent-to-member balance fetch success', {
+          agentSummary: transferAgentSummary(res.data),
           agent: transferAgentForDebug(res.data),
         });
         setTransferAgent({
@@ -117,6 +127,7 @@ export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Pr
           warnTransferDebug('agent-to-member balance fetch failed', {
             agentId,
             error: extractApiError(e),
+            fallbackAgentSummary: transferAgentSummary(fallbackAgent),
             fallbackAgent: transferAgentForDebug(fallbackAgent),
           });
           setTransferAgent(fallbackAgent);
@@ -125,7 +136,9 @@ export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Pr
     })();
     return () => {
       logTransferDebug('agent-to-member effect cleanup', {
+        overrideSourceSummary: transferAgentSummary(sourceAgent),
         overrideSource: transferAgentForDebug(sourceAgent),
+        memberSummary: memberSummary(member),
         member: memberForDebug(member),
       });
       active = false;
@@ -146,8 +159,11 @@ export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Pr
   useEffect(() => {
     if (!open) return;
     logTransferDebug('agent-to-member state changed', {
+      transferAgentSummary: transferAgentSummary(transferAgent),
       transferAgent: transferAgentForDebug(transferAgent),
+      overrideSourceSummary: transferAgentSummary(sourceAgent),
       overrideSource: transferAgentForDebug(sourceAgent),
+      memberSummary: memberSummary(member),
       member: memberForDebug(member),
       err,
     });
@@ -185,7 +201,9 @@ export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Pr
         agentId: transferAgent.id,
         memberId: member.id,
         amount: signed,
+        transferAgentSummary: transferAgentSummary(transferAgent),
         transferAgent: transferAgentForDebug(transferAgent),
+        memberSummary: memberSummary(member),
         member: memberForDebug(member),
       });
       await adminApi.post<TransferEntry>('/transfers/agent-to-member', {
@@ -489,6 +507,11 @@ function agentForDebug(agent: AgentPublic | null | undefined): Record<string, un
   };
 }
 
+function agentSummary(agent: AgentPublic | null | undefined): string | null {
+  if (!agent) return null;
+  return `${agent.username} role=${agent.role} level=${agent.level} id=${agent.id} parent=${agent.parentId ?? '-'}`;
+}
+
 function transferAgentForDebug(
   agent: TransferAgent | null | undefined,
 ): Record<string, unknown> | null {
@@ -498,6 +521,11 @@ function transferAgentForDebug(
     username: agent.username,
     balance: agent.balance,
   };
+}
+
+function transferAgentSummary(agent: TransferAgent | null | undefined): string | null {
+  if (!agent) return null;
+  return `${agent.username} id=${agent.id} balance=${agent.balance}`;
 }
 
 function memberForDebug(member: MemberPublic | null | undefined): Record<string, unknown> | null {
@@ -510,6 +538,11 @@ function memberForDebug(member: MemberPublic | null | undefined): Record<string,
     agentUsername: member.agentUsername,
     balance: member.balance,
   };
+}
+
+function memberSummary(member: MemberPublic | null | undefined): string | null {
+  if (!member) return null;
+  return `${member.username} id=${member.id} agent=${member.agentUsername ?? '-'} agentId=${member.agentId ?? '-'} balance=${member.balance}`;
 }
 
 function SectionHeading({ index, title }: { index: string; title: string }): JSX.Element {

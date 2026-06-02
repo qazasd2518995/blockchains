@@ -66,8 +66,11 @@ export function AgentTransferModal({
     let active = true;
     setLoadingBalances(true);
     logTransferDebug('agent-to-agent modal open', {
+      storedAgentSummary: agentSummary(useAdminAuthStore.getState().agent),
       storedAgent: agentForDebug(useAdminAuthStore.getState().agent),
+      fallbackSourceSummary: partySummary(sourceAgent),
       fallbackSource: partyForDebug(sourceAgent),
+      targetSummary: partySummary(targetAgent),
       target: partyForDebug(targetAgent),
     });
     void (async () => {
@@ -76,7 +79,9 @@ export function AgentTransferModal({
         const auth = await adminApi.get<AgentPublic>('/auth/me');
         if (!active) return;
         logTransferDebug('agent-to-agent /auth/me resolved', {
+          authAgentSummary: agentSummary(auth.data),
           authAgent: agentForDebug(auth.data),
+          fallbackSourceSummary: partySummary(sourceAgent),
           fallbackSource: partyForDebug(sourceAgent),
         });
         setAgent(auth.data);
@@ -84,7 +89,9 @@ export function AgentTransferModal({
         sourceId = resolvedSource?.id ?? null;
         logTransferDebug('agent-to-agent source resolved', {
           sourceId,
+          resolvedSourceSummary: partySummary(resolvedSource),
           resolvedSource: partyForDebug(resolvedSource),
+          targetSummary: partySummary(targetAgent),
           target: partyForDebug(targetAgent),
         });
         if (resolvedSource) {
@@ -103,8 +110,11 @@ export function AgentTransferModal({
       if (!sourceId) {
         if (active) {
           warnTransferDebug('agent-to-agent source missing', {
+            authAgentSummary: agentSummary(useAdminAuthStore.getState().agent),
             authAgent: agentForDebug(useAdminAuthStore.getState().agent),
+            fallbackSourceSummary: partySummary(sourceAgent),
             fallbackSource: partyForDebug(sourceAgent),
+            targetSummary: partySummary(targetAgent),
             target: partyForDebug(targetAgent),
           });
           setErr('找不到操作代理');
@@ -126,11 +136,19 @@ export function AgentTransferModal({
       logTransferDebug('agent-to-agent balance fetch settled', {
         source:
           sourceResult.status === 'fulfilled'
-            ? { status: sourceResult.status, data: partyForDebug(sourceResult.value.data) }
+            ? {
+                status: sourceResult.status,
+                summary: partySummary(sourceResult.value.data),
+                data: partyForDebug(sourceResult.value.data),
+              }
             : { status: sourceResult.status, error: extractApiError(sourceResult.reason) },
         target:
           targetResult.status === 'fulfilled'
-            ? { status: targetResult.status, data: partyForDebug(targetResult.value.data) }
+            ? {
+                status: targetResult.status,
+                summary: partySummary(targetResult.value.data),
+                data: partyForDebug(targetResult.value.data),
+              }
             : { status: targetResult.status, error: extractApiError(targetResult.reason) },
       });
       if (sourceResult.status === 'fulfilled') {
@@ -146,7 +164,9 @@ export function AgentTransferModal({
 
     return () => {
       logTransferDebug('agent-to-agent effect cleanup', {
+        fallbackSourceSummary: partySummary(sourceAgent),
         fallbackSource: partyForDebug(sourceAgent),
+        targetSummary: partySummary(targetAgent),
         target: partyForDebug(targetAgent),
       });
       active = false;
@@ -165,7 +185,9 @@ export function AgentTransferModal({
   useEffect(() => {
     if (!open) return;
     logTransferDebug('agent-to-agent state changed', {
+      sourcePartySummary: partySummary(sourceParty),
       sourceParty: partyForDebug(sourceParty),
+      targetPartySummary: partySummary(targetParty),
       targetParty: partyForDebug(targetParty),
       sourceBalance,
       targetBalance,
@@ -213,7 +235,9 @@ export function AgentTransferModal({
         fromId,
         toId,
         amount,
+        sourcePartySummary: partySummary(sourceParty),
         sourceParty: partyForDebug(sourceParty),
+        targetPartySummary: partySummary(targetParty),
         targetParty: partyForDebug(targetParty),
       });
       await adminApi.post('/transfers/agent-to-agent', {
@@ -483,6 +507,11 @@ function agentForDebug(agent: AgentPublic | null | undefined): Record<string, un
   };
 }
 
+function agentSummary(agent: AgentPublic | null | undefined): string | null {
+  if (!agent) return null;
+  return `${agent.username} role=${agent.role} level=${agent.level} id=${agent.id} parent=${agent.parentId ?? '-'}`;
+}
+
 function partyForDebug(
   party: AgentTransferParty | null | undefined,
 ): Record<string, unknown> | null {
@@ -492,6 +521,11 @@ function partyForDebug(
     username: party.username,
     balance: party.balance,
   };
+}
+
+function partySummary(party: AgentTransferParty | null | undefined): string | null {
+  if (!party) return null;
+  return `${party.username} id=${party.id} balance=${party.balance}`;
 }
 
 function SectionHeading({ index, title }: { index: string; title: string }): JSX.Element {
