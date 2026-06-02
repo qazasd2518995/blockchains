@@ -34,7 +34,6 @@ const schema = z
       .regex(/[A-Za-z]/, '需包含字母')
       .regex(/\d/, '需包含数字'),
     confirmPassword: z.string().min(8, '请再次输入密码'),
-    displayName: z.string().optional(),
     initialBalance: z
       .string()
       .regex(/^\d+(\.\d{1,2})?$/, 'must be a positive decimal')
@@ -104,7 +103,6 @@ export function CreateMemberModal({
       username: '',
       password: '',
       confirmPassword: '',
-      displayName: '',
       initialBalance: '',
       bettingLimitLevel: inheritedLevel,
       notes: '',
@@ -161,7 +159,6 @@ export function CreateMemberModal({
         agentId: data.agentId,
         username: data.username,
         password: data.password,
-        displayName: data.displayName || undefined,
         initialBalance: data.initialBalance || undefined,
         bettingLimitLevel: data.bettingLimitLevel,
         bettingLimits,
@@ -238,12 +235,12 @@ export function CreateMemberModal({
           />
         </Field>
 
-        <Field label={t.members.displayName} code="05" error={errors.displayName?.message}>
-          <input
-            type="text"
-            {...register('displayName')}
-            className="term-input"
-            placeholder="选填"
+        <Field label="名称 / 备注" code="05" error={errors.notes?.message}>
+          <textarea
+            rows={2}
+            {...register('notes')}
+            className="term-input resize-none"
+            placeholder="保存后显示在账号下方（选填）"
           />
         </Field>
 
@@ -294,15 +291,6 @@ export function CreateMemberModal({
             />
           )}
         </div>
-
-        <Field label={t.members.notes} code="08" error={errors.notes?.message}>
-          <textarea
-            rows={2}
-            {...register('notes')}
-            className="term-input resize-none"
-            placeholder="备注说明（选填）"
-          />
-        </Field>
 
         {err && (
           <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">

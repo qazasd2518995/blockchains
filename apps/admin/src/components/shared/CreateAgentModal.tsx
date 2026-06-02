@@ -31,7 +31,6 @@ const schema = z.object({
     .max(128, '密码最长 128')
     .regex(/[A-Za-z]/, '需包含字母')
     .regex(/\d/, '需包含数字'),
-  displayName: z.string().max(40).optional(),
   rebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']),
   rebatePercentageDisplay: z.string().regex(/^\d+(\.\d+)?$/, '请填写有效百分比'),
   bettingLimitLevel: z.string().min(1),
@@ -117,7 +116,6 @@ export function CreateAgentModal({
       parentId: resolvedParentId,
       username: '',
       password: '',
-      displayName: '',
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
       bettingLimitLevel:
@@ -228,7 +226,6 @@ export function CreateAgentModal({
         parentId: data.parentId,
         username: data.username,
         password: data.password,
-        displayName: data.displayName || undefined,
         level: parent.level + 1,
         rebateMode: data.rebateMode,
         rebatePercentage: electronicRebateFraction,
@@ -305,12 +302,12 @@ export function CreateAgentModal({
           </Field>
         </div>
 
-        <Field label="显示名称" code="04" error={errors.displayName?.message}>
-          <input
-            type="text"
-            {...register('displayName')}
-            className="term-input"
-            placeholder="选填"
+        <Field label="名称 / 备注" code="04" error={errors.notes?.message}>
+          <textarea
+            rows={2}
+            {...register('notes')}
+            className="term-input resize-none"
+            placeholder="保存后显示在账号下方（选填）"
           />
         </Field>
 
@@ -367,15 +364,6 @@ export function CreateAgentModal({
             />
           )}
         </div>
-
-        <Field label="备注" code="08" error={errors.notes?.message}>
-          <textarea
-            rows={2}
-            {...register('notes')}
-            className="term-input resize-none"
-            placeholder="备注说明（选填）"
-          />
-        </Field>
 
         {err && (
           <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">

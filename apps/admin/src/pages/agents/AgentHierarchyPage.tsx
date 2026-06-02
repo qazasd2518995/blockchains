@@ -295,192 +295,211 @@ export function AgentHierarchyPage(): JSX.Element {
             <span className="text-center">{t.common.status}</span>
             <span className="text-left">{t.common.actions}</span>
           </div>
-          {data?.items.map((row) => (
-            <div
-              key={`${row.kind}-${row.id}`}
-              onClick={() => onRowClick(row)}
-              className={`account-hierarchy-row grid min-w-[960px] items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition ${
-                row.kind === 'agent' ? 'cursor-pointer hover:bg-[#FAF2D7]/60' : 'cursor-default'
-              }`}
-              style={ACCOUNT_TABLE_GRID_STYLE}
-            >
-              {row.kind === 'agent' ? (
-                <span className="tag tag-acid">{t.agents.typeAgent}</span>
-              ) : (
-                <span className="tag tag-toxic">{t.agents.typeMember}</span>
-              )}
+          {data?.items.map((row) => {
+            const rowNote = row.notes?.trim();
+            return (
+              <div
+                key={`${row.kind}-${row.id}`}
+                onClick={() => onRowClick(row)}
+                className={`account-hierarchy-row grid min-w-[960px] items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition ${
+                  row.kind === 'agent'
+                    ? 'cursor-pointer hover:bg-[#FAF2D7]/60'
+                    : 'cursor-default'
+                }`}
+                style={ACCOUNT_TABLE_GRID_STYLE}
+              >
+                {row.kind === 'agent' ? (
+                  <span className="tag tag-acid">{t.agents.typeAgent}</span>
+                ) : (
+                  <span className="tag tag-toxic">{t.agents.typeMember}</span>
+                )}
 
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 font-mono text-ink-900">
-                  <span className="truncate">{row.username}</span>
-                  {row.kind === 'agent' && row.role === 'SUPER_ADMIN' && (
-                    <span className="tag tag-gold">{t.shell.super}</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 font-mono text-ink-900">
+                    <span className="truncate">{row.username}</span>
+                    {row.kind === 'agent' && row.role === 'SUPER_ADMIN' && (
+                      <span className="tag tag-gold">{t.shell.super}</span>
+                    )}
+                  </div>
+                  {(rowNote || row.kind === 'agent') && (
+                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-semibold leading-5 text-ink-600">
+                      {rowNote && (
+                        <span className="min-w-0 max-w-[320px] truncate text-[13px] font-bold text-ink-800">
+                          {rowNote}
+                        </span>
+                      )}
+                      {row.kind === 'agent' && (
+                        <>
+                          <span>
+                            {t.agents.subAgents}{' '}
+                            <span className="data-num text-ink-800">{row.childCount}</span>
+                          </span>
+                          <span>
+                            {t.agents.membersLabel}{' '}
+                            <span className="data-num text-ink-800">{row.memberCount}</span>
+                          </span>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
-                <div className="mt-0.5 flex gap-3 text-[10px] text-ink-500">
-                  {row.displayName && <span>{row.displayName}</span>}
-                  {row.kind === 'agent' && (
+
+                <span className="text-center data-num text-ink-700">
+                  {row.kind === 'agent' ? `L${row.level}` : '—'}
+                </span>
+                <span className="text-right data-num text-[#186073]">{fmt(row.balance)}</span>
+                <span className="text-center">
+                  {row.status === 'DISABLED' ? (
+                    <span className="tag tag-ember">{t.agent.status.DISABLED}</span>
+                  ) : row.status === 'FROZEN' ? (
+                    <span className="tag tag-ember">{t.agent.status.FROZEN}</span>
+                  ) : (
+                    <span className="tag tag-toxic">
+                      <span className="dot-online dot-online" />
+                      {t.agent.status.ACTIVE}
+                    </span>
+                  )}
+                </span>
+
+                <div
+                  className="account-hierarchy-actions flex flex-wrap items-center justify-start gap-1.5"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {row.kind === 'agent' ? (
                     <>
-                      <span>
-                        {t.agents.subAgents}{' '}
-                        <span className="data-num text-ink-700">{row.childCount}</span>
-                      </span>
-                      <span>
-                        {t.agents.membersLabel}{' '}
-                        <span className="data-num text-ink-700">{row.memberCount}</span>
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAgentTransferFor({
+                            id: row.id,
+                            username: row.username,
+                            balance: row.balance,
+                          })
+                        }
+                        className="btn-chip"
+                      >
+                        {t.agents.pointTransfer}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRebateFor({ id: row.id, username: row.username })}
+                        className="btn-chip"
+                      >
+                        {t.agents.rebateSetup}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setBettingLimitFor({
+                            targetType: 'agent',
+                            id: row.id,
+                            username: row.username,
+                            currentLevel: row.bettingLimitLevel,
+                            currentLimits: row.bettingLimits,
+                          })
+                        }
+                        className="btn-chip"
+                      >
+                        限红
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setResetPasswordFor({
+                            kind: 'agent',
+                            id: row.id,
+                            username: row.username,
+                          })
+                        }
+                        className="btn-chip"
+                      >
+                        {t.agents.resetPassword}
+                      </button>
+                      <StatusDropdown
+                        current={row.status === 'DELETED' ? 'DISABLED' : row.status}
+                        onChange={(next) => handleAgentStatus(row.id, row.username, next)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNotesFor({
+                            kind: 'agent',
+                            id: row.id,
+                            username: row.username,
+                            notes: row.notes,
+                          })
+                        }
+                        className="btn-chip"
+                      >
+                        {t.agents.notesBtn}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const m = asMemberForModal(row);
+                          if (m) setTransferFor(m);
+                        }}
+                        className="btn-chip"
+                      >
+                        {t.agents.pointTransfer}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setBettingLimitFor({
+                            targetType: 'member',
+                            id: row.id,
+                            username: row.username,
+                            currentLevel: row.bettingLimitLevel,
+                            currentLimits: row.bettingLimits,
+                          });
+                        }}
+                        className="btn-chip"
+                      >
+                        限红
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setResetPasswordFor({
+                            kind: 'member',
+                            id: row.id,
+                            username: row.username,
+                          })
+                        }
+                        className="btn-chip"
+                      >
+                        {t.agents.resetPassword}
+                      </button>
+                      <StatusDropdown
+                        current={row.status}
+                        onChange={(next) => handleMemberStatus(row.id, next)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNotesFor({
+                            kind: 'member',
+                            id: row.id,
+                            username: row.username,
+                            notes: row.notes,
+                          })
+                        }
+                        className="btn-chip"
+                      >
+                        {t.agents.notesBtn}
+                      </button>
                     </>
                   )}
                 </div>
               </div>
-
-              <span className="text-center data-num text-ink-700">
-                {row.kind === 'agent' ? `L${row.level}` : '—'}
-              </span>
-              <span className="text-right data-num text-[#186073]">{fmt(row.balance)}</span>
-              <span className="text-center">
-                {row.status === 'DISABLED' ? (
-                  <span className="tag tag-ember">{t.agent.status.DISABLED}</span>
-                ) : row.status === 'FROZEN' ? (
-                  <span className="tag tag-ember">{t.agent.status.FROZEN}</span>
-                ) : (
-                  <span className="tag tag-toxic">
-                    <span className="dot-online dot-online" />
-                    {t.agent.status.ACTIVE}
-                  </span>
-                )}
-              </span>
-
-              <div
-                className="account-hierarchy-actions flex flex-wrap items-center justify-start gap-1.5"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {row.kind === 'agent' ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAgentTransferFor({
-                          id: row.id,
-                          username: row.username,
-                          balance: row.balance,
-                        })
-                      }
-                      className="btn-chip"
-                    >
-                      {t.agents.pointTransfer}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRebateFor({ id: row.id, username: row.username })}
-                      className="btn-chip"
-                    >
-                      {t.agents.rebateSetup}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setBettingLimitFor({
-                          targetType: 'agent',
-                          id: row.id,
-                          username: row.username,
-                          currentLevel: row.bettingLimitLevel,
-                          currentLimits: row.bettingLimits,
-                        })
-                      }
-                      className="btn-chip"
-                    >
-                      限红
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setResetPasswordFor({ kind: 'agent', id: row.id, username: row.username })
-                      }
-                      className="btn-chip"
-                    >
-                      {t.agents.resetPassword}
-                    </button>
-                    <StatusDropdown
-                      current={row.status === 'DELETED' ? 'DISABLED' : row.status}
-                      onChange={(next) => handleAgentStatus(row.id, row.username, next)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setNotesFor({
-                          kind: 'agent',
-                          id: row.id,
-                          username: row.username,
-                          notes: row.notes,
-                        })
-                      }
-                      className="btn-chip"
-                    >
-                      {t.agents.notesBtn}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const m = asMemberForModal(row);
-                        if (m) setTransferFor(m);
-                      }}
-                      className="btn-chip"
-                    >
-                      {t.agents.pointTransfer}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setBettingLimitFor({
-                          targetType: 'member',
-                          id: row.id,
-                          username: row.username,
-                          currentLevel: row.bettingLimitLevel,
-                          currentLimits: row.bettingLimits,
-                        });
-                      }}
-                      className="btn-chip"
-                    >
-                      限红
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setResetPasswordFor({ kind: 'member', id: row.id, username: row.username })
-                      }
-                      className="btn-chip"
-                    >
-                      {t.agents.resetPassword}
-                    </button>
-                    <StatusDropdown
-                      current={row.status}
-                      onChange={(next) => handleMemberStatus(row.id, next)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setNotesFor({
-                          kind: 'member',
-                          id: row.id,
-                          username: row.username,
-                          notes: row.notes,
-                        })
-                      }
-                      className="btn-chip"
-                    >
-                      {t.agents.notesBtn}
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -604,10 +623,11 @@ function NotesModal({
     event.preventDefault();
     setBusy(true);
     try {
+      const nextNotes = notes.trim() || null;
       if (target.kind === 'agent') {
-        await adminApi.put(`/agents/${target.id}`, { notes: notes.trim() || null });
+        await adminApi.put(`/agents/${target.id}`, { notes: nextNotes });
       } else {
-        await adminApi.put(`/members/${target.id}/notes`, { notes: notes.trim() || null });
+        await adminApi.put(`/members/${target.id}/notes`, { notes: nextNotes });
       }
       onDone();
     } catch (e) {
@@ -627,12 +647,12 @@ function NotesModal({
     >
       <form onSubmit={submit} className="space-y-4">
         <div>
-          <div className="label mb-2">备注内容</div>
+          <div className="label mb-2">名称 / 备注</div>
           <textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value.slice(0, 500))}
             className="term-input min-h-[150px] resize-y"
-            placeholder="输入内部备注，最多 500 字"
+            placeholder="保存后会显示在账号下方，最多 500 字"
           />
           <div className="mt-2 text-right text-[10px] tracking-[0.16em] text-ink-400">
             {notes.length}/500

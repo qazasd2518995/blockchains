@@ -137,11 +137,12 @@ export class AgentService {
       );
     }
 
+    const accountNote = input.notes ?? input.displayName ?? null;
     const created = await this.prisma.agent.create({
       data: {
         username: input.username,
         passwordHash,
-        displayName: input.displayName ?? null,
+        displayName: accountNote,
         parentId: parent.id,
         level: input.level,
         marketType: input.marketType ?? parent.marketType,
@@ -154,7 +155,7 @@ export class AgentService {
         maxBaccaratRebatePercentage: baccaratMaxAllowed,
         bettingLimitLevel: input.bettingLimitLevel ?? parent.bettingLimitLevel,
         bettingLimits,
-        notes: input.notes ?? null,
+        notes: accountNote,
         role: 'AGENT',
         status: 'ACTIVE',
       },
@@ -189,11 +190,16 @@ export class AgentService {
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot update this agent');
 
+    const accountNote =
+      input.notes !== undefined
+        ? input.notes
+        : input.displayName !== undefined
+          ? input.displayName
+          : undefined;
     const updated = await this.prisma.agent.update({
       where: { id },
       data: {
-        ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
-        ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        ...(accountNote !== undefined ? { displayName: accountNote, notes: accountNote } : {}),
       },
     });
 

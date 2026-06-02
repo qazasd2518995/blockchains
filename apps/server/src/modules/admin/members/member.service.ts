@@ -102,18 +102,19 @@ export class MemberService {
         );
       }
 
+      const accountNote = input.notes ?? input.displayName ?? null;
       const created = await tx.user.create({
         data: {
           username: input.username,
           passwordHash,
-          displayName: input.displayName ?? null,
+          displayName: accountNote,
           balance: balanceForMember,
           role: 'PLAYER',
           agentId: targetAgent.id,
           marketType: targetAgent.marketType,
           bettingLimitLevel: input.bettingLimitLevel ?? targetAgent.bettingLimitLevel,
           bettingLimits,
-          notes: input.notes ?? null,
+          notes: accountNote,
         },
       });
 
@@ -271,7 +272,7 @@ export class MemberService {
     if (!existing) throw new ApiError('MEMBER_NOT_FOUND', 'Member not found');
     const updated = await this.prisma.user.update({
       where: { id },
-      data: { notes: input.notes },
+      data: { displayName: input.notes, notes: input.notes },
       include: { agent: { select: { username: true } } },
     });
     await writeAudit(this.prisma, {
@@ -283,8 +284,8 @@ export class MemberService {
       action: 'member.notes.update',
       targetType: 'member',
       targetId: id,
-      oldValues: { notes: existing.notes },
-      newValues: { notes: updated.notes },
+      oldValues: { displayName: existing.displayName, notes: existing.notes },
+      newValues: { displayName: updated.displayName, notes: updated.notes },
       req,
     });
     return toMemberPublic(updated, updated.agent?.username ?? null);

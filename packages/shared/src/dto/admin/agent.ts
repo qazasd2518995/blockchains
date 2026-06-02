@@ -18,8 +18,8 @@ export interface CreateAgentRequest {
 }
 
 export interface UpdateAgentRequest {
-  displayName?: string;
-  notes?: string;
+  displayName?: string | null;
+  notes?: string | null;
 }
 
 export interface UpdateAgentRebateRequest {

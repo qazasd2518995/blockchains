@@ -30,7 +30,7 @@ export const createAgentSchema = z.object({
 });
 
 export const updateAgentSchema = z.object({
-  displayName: z.string().min(1).max(40).optional(),
+  displayName: z.string().max(500).nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
 });
 
