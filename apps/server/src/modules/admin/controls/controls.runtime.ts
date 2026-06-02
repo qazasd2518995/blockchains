@@ -103,6 +103,7 @@ export async function getAllActiveManualDetectionControls(db: Db) {
   const items = await db.manualDetectionControl.findMany({
     where: {
       isActive: true,
+      isCompleted: false,
       OR: [{ operatorUsername: null }, { operatorUsername: { not: STARTER_CONFIDENCE_OPERATOR } }],
     },
     orderBy: { createdAt: 'desc' },
@@ -324,11 +325,10 @@ export async function checkAndCompleteManualDetectionControls(
 
     if (control.scope === 'MEMBER') {
       if (control.isCompleted) continue;
-      const shouldDeactivate = isStarterConfidenceControl(control);
       await db.manualDetectionControl.update({
         where: { id: control.id },
         data: {
-          isActive: !shouldDeactivate,
+          isActive: false,
           isCompleted: true,
           completedAt: new Date(),
           completionSettlement: settlement.superiorSettlement,
@@ -783,14 +783,6 @@ function isTargetReached(
   return targetSettlement.gte(0)
     ? currentSettlement.gte(targetSettlement)
     : currentSettlement.lte(targetSettlement);
-}
-
-function isStarterConfidenceControl(control: {
-  operatorUsername?: string | null;
-  targetSettlement: Prisma.Decimal;
-  startSettlement?: Prisma.Decimal | null;
-}): boolean {
-  return control.operatorUsername === STARTER_CONFIDENCE_OPERATOR;
 }
 
 async function calculateMemberSettlement(

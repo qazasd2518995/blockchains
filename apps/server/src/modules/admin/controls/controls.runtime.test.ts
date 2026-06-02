@@ -142,6 +142,81 @@ describe('findApplicableManualDetectionControl no-count lines', () => {
   });
 });
 
+describe('findApplicableManualDetectionControl priority fallback', () => {
+  const activeControls = [
+    {
+      id: 'member-done',
+      scope: 'MEMBER',
+      targetAgentId: null,
+      targetMemberUsername: 'demo',
+      isCompleted: true,
+      createdAt: new Date('2026-01-04T00:00:00.000Z'),
+    },
+    {
+      id: 'line-active',
+      scope: 'AGENT_LINE',
+      targetAgentId: 'line-a',
+      targetMemberUsername: null,
+      isCompleted: false,
+      createdAt: new Date('2026-01-03T00:00:00.000Z'),
+    },
+    {
+      id: 'global-active',
+      scope: 'ALL',
+      targetAgentId: null,
+      targetMemberUsername: null,
+      isCompleted: false,
+      createdAt: new Date('2026-01-02T00:00:00.000Z'),
+    },
+  ];
+
+  it('falls back from completed member control to agent-line control', async () => {
+    const findMany = vi.fn(({ where }) =>
+      Promise.resolve(activeControls.filter((control) => control.isCompleted === where.isCompleted)),
+    );
+    const db = {
+      manualDetectionControl: { findMany },
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 'member-agent', depth: 0 }, { id: 'line-a', depth: 1 }]),
+    };
+
+    const applicable = await findApplicableManualDetectionControl(db as never, {
+      username: 'demo',
+      agentId: 'member-agent',
+    });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ isActive: true, isCompleted: false }),
+      }),
+    );
+    expect(applicable?.control.id).toBe('line-active');
+  });
+
+  it('falls back from completed member and line controls to global control', async () => {
+    const controls = activeControls.map((control) =>
+      control.id === 'line-active' ? { ...control, isCompleted: true } : control,
+    );
+    const db = {
+      manualDetectionControl: {
+        findMany: vi.fn(({ where }) =>
+          Promise.resolve(controls.filter((control) => control.isCompleted === where.isCompleted)),
+        ),
+      },
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValueOnce([{ id: 'member-agent', depth: 0 }, { id: 'line-a', depth: 1 }])
+        .mockResolvedValueOnce([{ exists: false }]),
+    };
+
+    const applicable = await findApplicableManualDetectionControl(db as never, {
+      username: 'demo',
+      agentId: 'member-agent',
+    });
+
+    expect(applicable?.control.id).toBe('global-active');
+  });
+});
+
 describe('manual detection direction', () => {
   it('keeps the original target direction from start settlement to target settlement', () => {
     const { resolveManualDetectionDesired } = __controlsTestHooks;
