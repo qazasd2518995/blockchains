@@ -95,6 +95,7 @@ export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(30000);
 const BURST_COOLDOWN_MIN_ROUNDS = 10;
 const BURST_COOLDOWN_MAX_ROUNDS = 20;
 const BURST_ELIGIBLE_GAME_IDS = new Set<string>(SLOT_GAME_IDS);
+const AUTO_BALANCE_BITE_INTERVENTION_RATE = 0.6;
 const AUTO_BALANCE_REVIVE_WIN_RATE = 0.7;
 
 /**
@@ -437,7 +438,11 @@ async function autoBalanceLossDecision(
   controlId: string,
   userId: string,
   reason: 'auto_balance_bite' | 'auto_balance_drain',
-): Promise<ControlDecision> {
+): Promise<ControlDecision | null> {
+  if (reason === 'auto_balance_bite' && !passesAutoBalanceBiteInterventionRate()) {
+    return null;
+  }
+
   const release = await shouldReleaseAutoBalanceCycle(tx, controlId, userId);
   if (release) {
     return {
@@ -450,6 +455,10 @@ async function autoBalanceLossDecision(
     };
   }
   return { desired: 'LOSS', controlId, reason };
+}
+
+function passesAutoBalanceBiteInterventionRate(): boolean {
+  return Math.random() < AUTO_BALANCE_BITE_INTERVENTION_RATE;
 }
 
 async function shouldReleaseAutoBalanceCycle(
@@ -1505,6 +1514,7 @@ export function multiplierMatchesControlBounds(
 
 export const __controlsTestHooks = {
   getStoredBurstCooldownRounds,
+  passesAutoBalanceBiteInterventionRate,
   randomBurstCooldownRounds,
   rankWinLossControls,
   resolveManualDetectionDesired,

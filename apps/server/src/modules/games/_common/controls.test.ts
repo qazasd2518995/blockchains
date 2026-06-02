@@ -44,6 +44,13 @@ describe('passesControlInterventionRate', () => {
     expect(passesControlInterventionRate(new Prisma.Decimal(100))).toBe(true);
     expect(passesControlInterventionRate(0)).toBe(false);
   });
+
+  it('applies auto-balance bite intervention about 60 percent of the time', () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.59).mockReturnValueOnce(0.6);
+
+    expect(__controlsTestHooks.passesAutoBalanceBiteInterventionRate()).toBe(true);
+    expect(__controlsTestHooks.passesAutoBalanceBiteInterventionRate()).toBe(false);
+  });
 });
 
 describe('isBurstControlEligible', () => {
