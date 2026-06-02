@@ -39,6 +39,8 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
   const [description, setDescription] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sourceParty, setSourceParty] = useState<AgentTransferParty>(sourceAgent);
+  const [targetParty, setTargetParty] = useState<AgentTransferParty>(targetAgent);
   const [sourceBalance, setSourceBalance] = useState(sourceAgent.balance);
   const [targetBalance, setTargetBalance] = useState(targetAgent.balance);
   const [loadingBalances, setLoadingBalances] = useState(false);
@@ -48,34 +50,55 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
     setAmount('');
     setDescription('');
     setErr(null);
-    setSourceBalance(sourceAgent.balance);
+    let resolvedSource = sourceAgent;
+    setSourceParty(resolvedSource);
+    setTargetParty(targetAgent);
+    setSourceBalance(resolvedSource.balance);
     setTargetBalance(targetAgent.balance);
 
     if (!open) return;
     let active = true;
     setLoadingBalances(true);
-    void Promise.allSettled([
-      adminApi.get<AgentTransferParty>(`/agents/${sourceAgent.id}`),
-      adminApi.get<AgentTransferParty>(`/agents/${targetAgent.id}`),
-    ]).then((results) => {
+    void (async () => {
+      try {
+        const auth = await adminApi.get<AgentPublic>('/auth/me');
+        if (!active) return;
+        setAgent(auth.data);
+        resolvedSource = resolveAuthenticatedAgentTransferSource(auth.data, sourceAgent);
+        setSourceParty(resolvedSource);
+        setSourceBalance(resolvedSource.balance);
+      } catch {
+        resolvedSource = sourceAgent;
+      }
+
+      const results = await Promise.allSettled([
+        adminApi.get<AgentTransferParty>(`/agents/${resolvedSource.id}`),
+        adminApi.get<AgentTransferParty>(`/agents/${targetAgent.id}`),
+      ]);
       if (!active) return;
       const [sourceResult, targetResult] = results;
-      if (sourceResult.status === 'fulfilled') setSourceBalance(sourceResult.value.data.balance);
-      if (targetResult.status === 'fulfilled') setTargetBalance(targetResult.value.data.balance);
+      if (sourceResult.status === 'fulfilled') {
+        setSourceParty(sourceResult.value.data);
+        setSourceBalance(sourceResult.value.data.balance);
+      }
+      if (targetResult.status === 'fulfilled') {
+        setTargetParty(targetResult.value.data);
+        setTargetBalance(targetResult.value.data.balance);
+      }
       setLoadingBalances(false);
-    });
+    })();
 
     return () => {
       active = false;
     };
-  }, [open, sourceAgent.id, sourceAgent.balance, targetAgent.id, targetAgent.balance]);
+  }, [open, sourceAgent, targetAgent, setAgent]);
 
   const fillMax = (): void => {
     setAmount(direction === 'DEPOSIT' ? sourceBalance : targetBalance);
   };
 
   const submit = async (): Promise<void> => {
-    if (sourceAgent.id === targetAgent.id) {
+    if (sourceParty.id === targetParty.id) {
       setErr('不能轉給同一個代理');
       return;
     }
@@ -87,15 +110,15 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
     setBusy(true);
     setErr(null);
     try {
-      const fromId = direction === 'DEPOSIT' ? sourceAgent.id : targetAgent.id;
-      const toId = direction === 'DEPOSIT' ? targetAgent.id : sourceAgent.id;
+      const fromId = direction === 'DEPOSIT' ? sourceParty.id : targetParty.id;
+      const toId = direction === 'DEPOSIT' ? targetParty.id : sourceParty.id;
       await adminApi.post('/transfers/agent-to-agent', {
         fromId,
         toId,
         amount,
         description: description || undefined,
       });
-      if (me && (me.id === sourceAgent.id || me.id === targetAgent.id)) {
+      if (me && (me.id === sourceParty.id || me.id === targetParty.id)) {
         const res = await adminApi.get<AgentPublic>('/auth/me');
         setAgent(res.data);
       }
@@ -123,16 +146,16 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
   };
 
   const fromPays = direction === 'DEPOSIT';
-  const payerName = fromPays ? sourceAgent.username : targetAgent.username;
+  const payerName = fromPays ? sourceParty.username : targetParty.username;
   const payerBalance = fromPays ? sourceBalance : targetBalance;
   const payerAfter = predict(payerBalance, true);
-  const receiverName = fromPays ? targetAgent.username : sourceAgent.username;
+  const receiverName = fromPays ? targetParty.username : sourceParty.username;
   const receiverBalance = fromPays ? targetBalance : sourceBalance;
   const receiverAfter = predict(receiverBalance, false);
   const amountReady = Number.parseFloat(amount) > 0;
 
   return (
-    <Modal open={open} onClose={onClose} title="代理間轉帳" subtitle={`目標代理 · ${targetAgent.username}`} width="lg">
+    <Modal open={open} onClose={onClose} title="代理間轉帳" subtitle={`目標代理 · ${targetParty.username}`} width="lg">
       <div className="-mx-4 -mt-4 sm:-mx-6 sm:-mt-5">
         <div className="border-b border-[#134A54]/50 bg-[#0F2D35] px-4 py-4 text-white sm:px-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -149,8 +172,8 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 md:min-w-[280px]">
-              <BalanceTile label="操作代理" username={sourceAgent.username} balance={fmt(sourceBalance)} tone="light" />
-              <BalanceTile label="目標代理" username={targetAgent.username} balance={fmt(targetBalance)} tone="muted" />
+              <BalanceTile label="操作代理" username={sourceParty.username} balance={fmt(sourceBalance)} tone="light" />
+              <BalanceTile label="目標代理" username={targetParty.username} balance={fmt(targetBalance)} tone="muted" />
             </div>
           </div>
         </div>
@@ -187,7 +210,7 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-[10px] font-semibold tracking-[0.18em] text-ink-400">已鎖定目標</div>
-                    <div className="mt-1 truncate font-mono text-[15px] font-black text-ink-900">{targetAgent.username}</div>
+                    <div className="mt-1 truncate font-mono text-[15px] font-black text-ink-900">{targetParty.username}</div>
                     <div className="mt-1 data-num text-[12px] text-[#186073]">目前 {fmt(targetBalance)}</div>
                   </div>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#186073]/25 bg-[#EFF8FB] px-2.5 py-1 text-[10px] font-bold text-[#186073]">
@@ -272,6 +295,23 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
       </div>
     </Modal>
   );
+}
+
+function resolveAuthenticatedAgentTransferSource(
+  agent: AgentPublic,
+  fallback: AgentTransferParty,
+): AgentTransferParty {
+  if (agent.role === 'AGENT') {
+    return { id: agent.id, username: agent.username, balance: agent.balance };
+  }
+  if (agent.role === 'SUB_ACCOUNT' && agent.parentId) {
+    return {
+      id: agent.parentId,
+      username: fallback.id === agent.parentId ? fallback.username : (agent.displayName ?? agent.username),
+      balance: fallback.id === agent.parentId ? fallback.balance : agent.balance,
+    };
+  }
+  return fallback;
 }
 
 function SectionHeading({ index, title }: { index: string; title: string }): JSX.Element {

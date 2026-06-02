@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import type { HierarchyResponse, HierarchyItem, MemberPublic } from '@bg/shared';
+import type { AgentPublic, HierarchyResponse, HierarchyItem, MemberPublic } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { HierarchyBreadcrumb } from '@/components/shared/HierarchyBreadcrumb';
@@ -175,6 +175,7 @@ export function AgentHierarchyPage(): JSX.Element {
   const canCreateSubAgent = currentLayerAgent ? currentLayerAgent.level < 15 : false;
   const previousCrumb =
     data && data.breadcrumb.length > 1 ? data.breadcrumb[data.breadcrumb.length - 2] : null;
+  const agentTransferSource = resolveAgentTransferSource(me, data?.parent ?? null);
 
   return (
     <div>
@@ -565,15 +566,11 @@ export function AgentHierarchyPage(): JSX.Element {
           onDone={() => setReloadKey((k) => k + 1)}
         />
       )}
-      {agentTransferFor && data?.parent && (
+      {agentTransferFor && agentTransferSource && (
         <AgentTransferModal
           open
           onClose={() => setAgentTransferFor(null)}
-          sourceAgent={{
-            id: data.parent.id,
-            username: data.parent.username,
-            balance: data.parent.balance,
-          }}
+          sourceAgent={agentTransferSource}
           targetAgent={agentTransferFor}
           onDone={() => setReloadKey((k) => k + 1)}
         />
@@ -602,6 +599,25 @@ export function AgentHierarchyPage(): JSX.Element {
       )}
     </div>
   );
+}
+
+function resolveAgentTransferSource(
+  me: AgentPublic | null,
+  currentParent: HierarchyResponse['parent'],
+): { id: string; username: string; balance: string } | null {
+  if (me?.role === 'AGENT') {
+    return { id: me.id, username: me.username, balance: me.balance };
+  }
+  if (me?.role === 'SUB_ACCOUNT' && me.parentId) {
+    return {
+      id: me.parentId,
+      username: currentParent?.id === me.parentId ? currentParent.username : (me.displayName ?? me.username),
+      balance: currentParent?.id === me.parentId ? currentParent.balance : me.balance,
+    };
+  }
+  return currentParent
+    ? { id: currentParent.id, username: currentParent.username, balance: currentParent.balance }
+    : null;
 }
 
 function NotesModal({

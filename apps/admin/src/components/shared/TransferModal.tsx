@@ -57,22 +57,40 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
 
   useEffect(() => {
     if (!open) return;
-    const agentId = resolveTransferAgentId(me, member);
-    setTransferAgent(resolveTransferAgentFallback(me, member, agentId));
-    if (!agentId) return;
+    let active = true;
+    setTransferAgent(null);
     void (async () => {
+      let operator = me;
+      try {
+        const auth = await adminApi.get<AgentPublic>('/auth/me');
+        if (!active) return;
+        operator = auth.data;
+        setAgent(auth.data);
+      } catch {
+        // Keep the current store value as a fallback for offline/stale auth refresh cases.
+      }
+
+      const agentId = resolveTransferAgentId(operator, member);
+      if (!active) return;
+      setTransferAgent(resolveTransferAgentFallback(operator, member, agentId));
+      if (!agentId) return;
+
       try {
         const res = await adminApi.get<TransferAgent>(`/agents/${agentId}`);
+        if (!active) return;
         setTransferAgent({
           id: res.data.id,
           username: res.data.username,
           balance: res.data.balance,
         });
       } catch {
-        setTransferAgent(resolveTransferAgentFallback(me, member, agentId));
+        if (active) setTransferAgent(resolveTransferAgentFallback(operator, member, agentId));
       }
     })();
-  }, [open, member, me]);
+    return () => {
+      active = false;
+    };
+  }, [open, member, me, setAgent]);
 
   const fillMax = (): void => {
     // direction = DEPOSIT（代理→會員）→ 用代理餘額
@@ -296,13 +314,6 @@ function resolveTransferAgentFallback(
 ): TransferAgent | null {
   if (agent && agent.id === agentId) {
     return { id: agent.id, username: agent.username, balance: agent.balance };
-  }
-  if (agent?.role === 'SUB_ACCOUNT' && agent.parentId && agent.parentId === agentId) {
-    return {
-      id: agent.parentId,
-      username: member.agentUsername ?? '母代理',
-      balance: agent.balance,
-    };
   }
   return null;
 }
