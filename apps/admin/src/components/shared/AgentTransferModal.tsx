@@ -39,9 +39,9 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
   const [description, setDescription] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [sourceParty, setSourceParty] = useState<AgentTransferParty>(sourceAgent);
+  const [sourceParty, setSourceParty] = useState<AgentTransferParty | null>(null);
   const [targetParty, setTargetParty] = useState<AgentTransferParty>(targetAgent);
-  const [sourceBalance, setSourceBalance] = useState(sourceAgent.balance);
+  const [sourceBalance, setSourceBalance] = useState<string | null>(null);
   const [targetBalance, setTargetBalance] = useState(targetAgent.balance);
   const [loadingBalances, setLoadingBalances] = useState(false);
 
@@ -50,29 +50,43 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
     setAmount('');
     setDescription('');
     setErr(null);
-    let resolvedSource = sourceAgent;
-    setSourceParty(resolvedSource);
+    setSourceParty(null);
     setTargetParty(targetAgent);
-    setSourceBalance(resolvedSource.balance);
+    setSourceBalance(null);
     setTargetBalance(targetAgent.balance);
 
     if (!open) return;
     let active = true;
     setLoadingBalances(true);
     void (async () => {
+      let sourceId: string | null = null;
       try {
         const auth = await adminApi.get<AgentPublic>('/auth/me');
         if (!active) return;
         setAgent(auth.data);
-        resolvedSource = resolveAuthenticatedAgentTransferSource(auth.data, sourceAgent);
-        setSourceParty(resolvedSource);
-        setSourceBalance(resolvedSource.balance);
-      } catch {
-        resolvedSource = sourceAgent;
+        const resolvedSource = resolveAuthenticatedAgentTransferSource(auth.data, sourceAgent);
+        sourceId = resolvedSource?.id ?? null;
+        if (resolvedSource) {
+          setSourceParty(resolvedSource);
+          setSourceBalance(resolvedSource.balance);
+        }
+      } catch (e) {
+        if (active) {
+          setErr(extractApiError(e).message || '無法確認操作代理');
+          setLoadingBalances(false);
+        }
+        return;
+      }
+      if (!sourceId) {
+        if (active) {
+          setErr('找不到操作代理');
+          setLoadingBalances(false);
+        }
+        return;
       }
 
       const results = await Promise.allSettled([
-        adminApi.get<AgentTransferParty>(`/agents/${resolvedSource.id}`),
+        adminApi.get<AgentTransferParty>(`/agents/${sourceId}`),
         adminApi.get<AgentTransferParty>(`/agents/${targetAgent.id}`),
       ]);
       if (!active) return;
@@ -94,10 +108,15 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
   }, [open, sourceAgent, targetAgent, setAgent]);
 
   const fillMax = (): void => {
-    setAmount(direction === 'DEPOSIT' ? sourceBalance : targetBalance);
+    const source = direction === 'DEPOSIT' ? sourceBalance : targetBalance;
+    if (source) setAmount(source);
   };
 
   const submit = async (): Promise<void> => {
+    if (!sourceParty) {
+      setErr('正在同步操作代理，請稍候');
+      return;
+    }
     if (sourceParty.id === targetParty.id) {
       setErr('不能轉給同一個代理');
       return;
@@ -146,12 +165,12 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
   };
 
   const fromPays = direction === 'DEPOSIT';
-  const payerName = fromPays ? sourceParty.username : targetParty.username;
+  const payerName = fromPays ? (sourceParty?.username ?? '同步中') : targetParty.username;
   const payerBalance = fromPays ? sourceBalance : targetBalance;
-  const payerAfter = predict(payerBalance, true);
-  const receiverName = fromPays ? targetParty.username : sourceParty.username;
+  const payerAfter = payerBalance ? predict(payerBalance, true) : '—';
+  const receiverName = fromPays ? targetParty.username : (sourceParty?.username ?? '同步中');
   const receiverBalance = fromPays ? targetBalance : sourceBalance;
-  const receiverAfter = predict(receiverBalance, false);
+  const receiverAfter = receiverBalance ? predict(receiverBalance, false) : '—';
   const amountReady = Number.parseFloat(amount) > 0;
 
   return (
@@ -172,7 +191,7 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 md:min-w-[280px]">
-              <BalanceTile label="操作代理" username={sourceParty.username} balance={fmt(sourceBalance)} tone="light" />
+              <BalanceTile label="操作代理" username={sourceParty?.username ?? '同步中'} balance={sourceBalance ? fmt(sourceBalance) : '—'} tone="light" />
               <BalanceTile label="目標代理" username={targetParty.username} balance={fmt(targetBalance)} tone="muted" />
             </div>
           </div>
@@ -262,13 +281,13 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
         <aside className="rounded-[8px] border border-[#186073]/25 bg-[#F2F8FA] p-3 shadow-[0_12px_30px_rgba(15,23,42,0.06)] sm:p-4">
           <SectionHeading index="03" title="轉帳預覽" />
           <div className="mt-3 space-y-3">
-            <PreviewAccount label="扣款方" username={payerName} before={fmt(payerBalance)} after={amountReady ? payerAfter : '—'} tone="danger" />
+            <PreviewAccount label="扣款方" username={payerName} before={payerBalance ? fmt(payerBalance) : '—'} after={amountReady ? payerAfter : '—'} tone="danger" />
             <div className="flex justify-center">
               <div className="grid h-9 w-9 place-items-center rounded-full border border-[#186073]/25 bg-white text-[#186073]">
                 <ArrowRightLeft className="h-4 w-4" aria-hidden="true" />
               </div>
             </div>
-            <PreviewAccount label="收款方" username={receiverName} before={fmt(receiverBalance)} after={amountReady ? receiverAfter : '—'} tone="success" />
+            <PreviewAccount label="收款方" username={receiverName} before={receiverBalance ? fmt(receiverBalance) : '—'} after={amountReady ? receiverAfter : '—'} tone="success" />
           </div>
 
           <div className="mt-4 rounded-[8px] border border-[#D4AF37]/35 bg-[#FFF8DA] p-3 text-[11px] leading-relaxed text-[#6D5716]">
@@ -288,7 +307,12 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
           <X className="h-4 w-4" aria-hidden="true" />
           取消
         </button>
-        <button type="button" onClick={submit} disabled={busy} className="btn-acid inline-flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={submit}
+          disabled={busy || loadingBalances || !sourceParty}
+          className="btn-acid inline-flex items-center justify-center gap-2"
+        >
           <SendHorizontal className="h-4 w-4" aria-hidden="true" />
           {busy ? '處理中' : '確認轉帳'}
         </button>

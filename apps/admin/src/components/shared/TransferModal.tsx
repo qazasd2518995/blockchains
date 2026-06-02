@@ -60,14 +60,15 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
     let active = true;
     setTransferAgent(null);
     void (async () => {
-      let operator = me;
+      let operator: AgentPublic;
       try {
         const auth = await adminApi.get<AgentPublic>('/auth/me');
         if (!active) return;
         operator = auth.data;
         setAgent(auth.data);
-      } catch {
-        // Keep the current store value as a fallback for offline/stale auth refresh cases.
+      } catch (e) {
+        if (active) setErr(extractApiError(e).message || '無法確認操作代理');
+        return;
       }
 
       const agentId = resolveTransferAgentId(operator, member);
@@ -100,21 +101,20 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
   };
 
   const onSubmit = async (data: FormInput) => {
-    const agentId = transferAgent?.id ?? resolveTransferAgentId(me, member);
-    if (!agentId) {
-      setErr('找不到操作代理');
+    if (!transferAgent) {
+      setErr('正在同步操作代理，請稍候');
       return;
     }
     setErr(null);
     try {
       const signed = data.direction === 'DEPOSIT' ? data.amount : `-${data.amount}`;
       await adminApi.post<TransferEntry>('/transfers/agent-to-member', {
-        agentId,
+        agentId: transferAgent.id,
         memberId: member.id,
         amount: signed,
         description: data.description || undefined,
       });
-      if (me && agentId === me.id) {
+      if (me && transferAgent.id === me.id) {
         const res = await adminApi.get<AgentPublic>('/auth/me');
         setAgent(res.data);
       }
@@ -278,7 +278,11 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
             <X className="h-4 w-4" aria-hidden="true" />
             取消
           </button>
-          <button type="submit" disabled={isSubmitting} className="btn-acid inline-flex items-center justify-center gap-2">
+          <button
+            type="submit"
+            disabled={isSubmitting || !transferAgent}
+            className="btn-acid inline-flex items-center justify-center gap-2"
+          >
             <SendHorizontal className="h-4 w-4" aria-hidden="true" />
             {isSubmitting ? '處理中' : '確認轉帳'}
           </button>
