@@ -175,7 +175,7 @@ export function AgentHierarchyPage(): JSX.Element {
   const canCreateSubAgent = currentLayerAgent ? currentLayerAgent.level < 15 : false;
   const previousCrumb =
     data && data.breadcrumb.length > 1 ? data.breadcrumb[data.breadcrumb.length - 2] : null;
-  const agentTransferSource = resolveAgentTransferSource(me, data?.parent ?? null);
+  const agentTransferSource = resolveHierarchyTransferSource(me, data);
 
   return (
     <div>
@@ -303,9 +303,7 @@ export function AgentHierarchyPage(): JSX.Element {
                 key={`${row.kind}-${row.id}`}
                 onClick={() => onRowClick(row)}
                 className={`account-hierarchy-row grid min-w-[960px] items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition ${
-                  row.kind === 'agent'
-                    ? 'cursor-pointer hover:bg-[#FAF2D7]/60'
-                    : 'cursor-default'
+                  row.kind === 'agent' ? 'cursor-pointer hover:bg-[#FAF2D7]/60' : 'cursor-default'
                 }`}
                 style={ACCOUNT_TABLE_GRID_STYLE}
               >
@@ -534,6 +532,7 @@ export function AgentHierarchyPage(): JSX.Element {
           open
           onClose={() => setTransferFor(null)}
           member={transferFor}
+          sourceAgent={agentTransferSource}
           onDone={() => setReloadKey((k) => k + 1)}
         />
       )}
@@ -601,18 +600,30 @@ export function AgentHierarchyPage(): JSX.Element {
   );
 }
 
-function resolveAgentTransferSource(
+function resolveHierarchyTransferSource(
   me: AgentPublic | null,
-  currentParent: HierarchyResponse['parent'],
+  data: HierarchyResponse | null,
 ): { id: string; username: string; balance: string } | null {
+  const currentParent = data?.parent ?? null;
   if (me?.role === 'AGENT') {
     return { id: me.id, username: me.username, balance: me.balance };
   }
   if (me?.role === 'SUB_ACCOUNT' && me.parentId) {
     return {
       id: me.parentId,
-      username: currentParent?.id === me.parentId ? currentParent.username : (me.displayName ?? me.username),
+      username:
+        currentParent?.id === me.parentId
+          ? currentParent.username
+          : (me.displayName ?? me.username),
       balance: currentParent?.id === me.parentId ? currentParent.balance : me.balance,
+    };
+  }
+  const rootCrumb = data?.breadcrumb.find((item) => item.id && item.level > 0);
+  if (me?.role === 'SUPER_ADMIN' && rootCrumb) {
+    return {
+      id: rootCrumb.id,
+      username: rootCrumb.username,
+      balance: currentParent?.id === rootCrumb.id ? currentParent.balance : '0.00',
     };
   }
   return currentParent

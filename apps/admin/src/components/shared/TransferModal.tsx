@@ -34,10 +34,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   member: MemberPublic;
+  sourceAgent?: TransferAgent | null;
   onDone: () => void;
 }
 
-export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Element {
+export function TransferModal({ open, onClose, member, sourceAgent, onDone }: Props): JSX.Element {
   const [err, setErr] = useState<string | null>(null);
   const { agent: me, setAgent } = useAdminAuthStore();
   /** 實際扣款/收款代理 — 跨層級時使用登入代理，不使用會員直屬代理。 */
@@ -63,6 +64,7 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
     setTransferAgent(null);
     logTransferDebug('agent-to-member modal open', {
       storedAgent: agentForDebug(useAdminAuthStore.getState().agent),
+      overrideSource: transferAgentForDebug(sourceAgent),
       member: memberForDebug(member),
     });
     void (async () => {
@@ -73,6 +75,7 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
         operator = auth.data;
         logTransferDebug('agent-to-member /auth/me resolved', {
           authAgent: agentForDebug(operator),
+          overrideSource: transferAgentForDebug(sourceAgent),
           member: memberForDebug(member),
         });
         setAgent(auth.data);
@@ -85,10 +88,11 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
         return;
       }
 
-      const agentId = resolveTransferAgentId(operator, member);
-      const fallbackAgent = resolveTransferAgentFallback(operator, member, agentId);
+      const agentId = resolveTransferAgentId(operator, member, sourceAgent);
+      const fallbackAgent = resolveTransferAgentFallback(operator, member, agentId, sourceAgent);
       logTransferDebug('agent-to-member source resolved', {
         agentId,
+        overrideSource: transferAgentForDebug(sourceAgent),
         fallbackAgent: transferAgentForDebug(fallbackAgent),
         member: memberForDebug(member),
       });
@@ -121,6 +125,7 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
     })();
     return () => {
       logTransferDebug('agent-to-member effect cleanup', {
+        overrideSource: transferAgentForDebug(sourceAgent),
         member: memberForDebug(member),
       });
       active = false;
@@ -132,6 +137,9 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
     member.agentUsername,
     member.username,
     member.balance,
+    sourceAgent?.id,
+    sourceAgent?.username,
+    sourceAgent?.balance,
     setAgent,
   ]);
 
@@ -139,6 +147,7 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
     if (!open) return;
     logTransferDebug('agent-to-member state changed', {
       transferAgent: transferAgentForDebug(transferAgent),
+      overrideSource: transferAgentForDebug(sourceAgent),
       member: memberForDebug(member),
       err,
     });
@@ -150,6 +159,9 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
     member.id,
     member.username,
     member.balance,
+    sourceAgent?.id,
+    sourceAgent?.username,
+    sourceAgent?.balance,
     err,
   ]);
 
@@ -438,9 +450,14 @@ function estimate(balanceStr: string, amountStr: string, dir: 'DEPOSIT' | 'WITHD
   return fmt(next.toString());
 }
 
-function resolveTransferAgentId(agent: AgentPublic | null, member: MemberPublic): string | null {
+function resolveTransferAgentId(
+  agent: AgentPublic | null,
+  member: MemberPublic,
+  sourceAgent: TransferAgent | null | undefined,
+): string | null {
   if (agent?.role === 'AGENT') return agent.id;
   if (agent?.role === 'SUB_ACCOUNT') return agent.parentId ?? member.agentId;
+  if (sourceAgent?.id) return sourceAgent.id;
   return member.agentId;
 }
 
@@ -448,9 +465,13 @@ function resolveTransferAgentFallback(
   agent: AgentPublic | null,
   member: MemberPublic,
   agentId: string | null,
+  sourceAgent: TransferAgent | null | undefined,
 ): TransferAgent | null {
   if (agent && agent.id === agentId) {
     return { id: agent.id, username: agent.username, balance: agent.balance };
+  }
+  if (sourceAgent && sourceAgent.id === agentId) {
+    return sourceAgent;
   }
   return null;
 }
