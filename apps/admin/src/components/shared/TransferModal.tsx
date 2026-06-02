@@ -58,6 +58,7 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
   useEffect(() => {
     if (!open) return;
     let active = true;
+    setErr(null);
     setTransferAgent(null);
     void (async () => {
       let operator: AgentPublic;
@@ -91,7 +92,15 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
     return () => {
       active = false;
     };
-  }, [open, member, me, setAgent]);
+  }, [
+    open,
+    member.id,
+    member.agentId,
+    member.agentUsername,
+    member.username,
+    member.balance,
+    setAgent,
+  ]);
 
   const fillMax = (): void => {
     // direction = DEPOSIT（代理→會員）→ 用代理餘額

@@ -105,7 +105,16 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
     return () => {
       active = false;
     };
-  }, [open, sourceAgent, targetAgent, setAgent]);
+  }, [
+    open,
+    sourceAgent.id,
+    sourceAgent.username,
+    sourceAgent.balance,
+    targetAgent.id,
+    targetAgent.username,
+    targetAgent.balance,
+    setAgent,
+  ]);
 
   const fillMax = (): void => {
     const source = direction === 'DEPOSIT' ? sourceBalance : targetBalance;
