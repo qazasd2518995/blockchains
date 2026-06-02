@@ -605,7 +605,7 @@ function resolveHierarchyTransferSource(
   data: HierarchyResponse | null,
 ): { id: string; username: string; balance: string } | null {
   const currentParent = data?.parent ?? null;
-  if (me?.role === 'AGENT') {
+  if (me?.role === 'AGENT' || me?.role === 'SUPER_ADMIN') {
     return { id: me.id, username: me.username, balance: me.balance };
   }
   if (me?.role === 'SUB_ACCOUNT' && me.parentId) {
@@ -616,17 +616,6 @@ function resolveHierarchyTransferSource(
           ? currentParent.username
           : (me.displayName ?? me.username),
       balance: currentParent?.id === me.parentId ? currentParent.balance : me.balance,
-    };
-  }
-  if (me?.role === 'SUPER_ADMIN' && me.level > 0) {
-    return { id: me.id, username: me.username, balance: me.balance };
-  }
-  const rootCrumb = data?.breadcrumb.find((item) => item.id && item.level > 0);
-  if (me?.role === 'SUPER_ADMIN' && rootCrumb) {
-    return {
-      id: rootCrumb.id,
-      username: rootCrumb.username,
-      balance: currentParent?.id === rootCrumb.id ? currentParent.balance : '0.00',
     };
   }
   return currentParent
