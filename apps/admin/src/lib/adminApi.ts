@@ -251,6 +251,9 @@ function translateMessage(code: string, rawMessage: string): string {
   if (msg.includes('cannot reset this member')) return '无权重设该会员密码';
   if (msg.includes('cannot view bets of this member')) return '无权查看该会员下注纪录';
   if (msg.includes('cannot list members of this agent')) return '无权查看该代理的会员';
+  if (msg.includes('member does not belong to this agent line'))
+    return '会员不在此代理线下，无法转账';
+  if (msg.includes('cannot transfer between these accounts')) return '无法在这两个账号间转账';
   if (msg.includes('cannot modify rebate')) return '无权修改退水';
   if (msg.includes('cannot change status')) return '无权变更状态';
   if (msg.includes('cannot reset password')) return '无权重设密码';

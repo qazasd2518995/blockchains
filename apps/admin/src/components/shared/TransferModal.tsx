@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useState, useEffect, type ReactNode } from 'react';
-import type { MemberPublic, TransferEntry } from '@bg/shared';
+import type { AgentPublic, MemberPublic, TransferEntry } from '@bg/shared';
 import {
   ArrowDownToLine,
   ArrowRightLeft,
@@ -27,6 +27,7 @@ const schema = z.object({
   description: z.string().max(200).optional(),
 });
 type FormInput = z.infer<typeof schema>;
+type TransferAgent = Pick<AgentPublic, 'id' | 'username' | 'balance'>;
 
 interface Props {
   open: boolean;
@@ -37,9 +38,9 @@ interface Props {
 
 export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Element {
   const [err, setErr] = useState<string | null>(null);
-  const { agent: me } = useAdminAuthStore();
-  /** 代理（自己）當前餘額 — 從 /agents/:id 拿最新值，避免用 store 裡過期資料 */
-  const [myBalance, setMyBalance] = useState<string | null>(null);
+  const { agent: me, setAgent } = useAdminAuthStore();
+  /** 實際扣款/收款代理 — 跨層級時使用登入代理，不使用會員直屬代理。 */
+  const [transferAgent, setTransferAgent] = useState<TransferAgent | null>(null);
   const {
     register,
     handleSubmit,
@@ -56,39 +57,49 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
 
   useEffect(() => {
     if (!open) return;
-    setMyBalance(me?.balance ?? null);
-    if (!member.agentId) return;
+    const agentId = resolveTransferAgentId(me, member);
+    setTransferAgent(resolveTransferAgentFallback(me, member, agentId));
+    if (!agentId) return;
     void (async () => {
       try {
-        const res = await adminApi.get<{ id: string; balance: string }>(`/agents/${member.agentId}`);
-        setMyBalance(res.data.balance);
+        const res = await adminApi.get<TransferAgent>(`/agents/${agentId}`);
+        setTransferAgent({
+          id: res.data.id,
+          username: res.data.username,
+          balance: res.data.balance,
+        });
       } catch {
-        setMyBalance(me?.balance ?? null);
+        setTransferAgent(resolveTransferAgentFallback(me, member, agentId));
       }
     })();
-  }, [open, member.agentId, me]);
+  }, [open, member, me]);
 
   const fillMax = (): void => {
     // direction = DEPOSIT（代理→會員）→ 用代理餘額
     // direction = WITHDRAW（會員→代理）→ 用會員餘額
-    const source = direction === 'DEPOSIT' ? (myBalance ?? me?.balance) : member.balance;
+    const source = direction === 'DEPOSIT' ? transferAgent?.balance : member.balance;
     if (source) setValue('amount', source, { shouldDirty: true, shouldValidate: true });
   };
 
   const onSubmit = async (data: FormInput) => {
-    if (!member.agentId) {
-      setErr('Member has no agent');
+    const agentId = transferAgent?.id ?? resolveTransferAgentId(me, member);
+    if (!agentId) {
+      setErr('找不到操作代理');
       return;
     }
     setErr(null);
     try {
       const signed = data.direction === 'DEPOSIT' ? data.amount : `-${data.amount}`;
       await adminApi.post<TransferEntry>('/transfers/agent-to-member', {
-        agentId: member.agentId,
+        agentId,
         memberId: member.id,
         amount: signed,
         description: data.description || undefined,
       });
+      if (me && agentId === me.id) {
+        const res = await adminApi.get<AgentPublic>('/auth/me');
+        setAgent(res.data);
+      }
       requestAdminLiveRefresh();
       reset();
       onDone();
@@ -98,8 +109,8 @@ export function TransferModal({ open, onClose, member, onDone }: Props): JSX.Ele
     }
   };
 
-  const agentName = me?.username ?? member.agentUsername ?? '代理';
-  const agentBalance = myBalance ?? me?.balance ?? null;
+  const agentName = transferAgent?.username ?? '代理';
+  const agentBalance = transferAgent?.balance ?? null;
   const fromPays = direction === 'DEPOSIT';
   const payerName = fromPays ? agentName : member.username;
   const payerBalance = fromPays ? agentBalance : member.balance;
@@ -270,6 +281,30 @@ function estimate(balanceStr: string, amountStr: string, dir: 'DEPOSIT' | 'WITHD
   if (Number.isNaN(b) || Number.isNaN(a)) return fmt(balanceStr);
   const next = dir === 'DEPOSIT' ? b + a : b - a;
   return fmt(next.toString());
+}
+
+function resolveTransferAgentId(agent: AgentPublic | null, member: MemberPublic): string | null {
+  if (agent?.role === 'AGENT') return agent.id;
+  if (agent?.role === 'SUB_ACCOUNT') return agent.parentId ?? member.agentId;
+  return member.agentId;
+}
+
+function resolveTransferAgentFallback(
+  agent: AgentPublic | null,
+  member: MemberPublic,
+  agentId: string | null,
+): TransferAgent | null {
+  if (agent && agent.id === agentId) {
+    return { id: agent.id, username: agent.username, balance: agent.balance };
+  }
+  if (agent?.role === 'SUB_ACCOUNT' && agent.parentId && agent.parentId === agentId) {
+    return {
+      id: agent.parentId,
+      username: member.agentUsername ?? '母代理',
+      balance: agent.balance,
+    };
+  }
+  return null;
 }
 
 function SectionHeading({ index, title }: { index: string; title: string }): JSX.Element {

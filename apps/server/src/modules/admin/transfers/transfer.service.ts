@@ -1,7 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import type { TransferEntry } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
-import { canManageAgent, canManageMember } from '../../../utils/hierarchy.js';
+import { canManageAgent, canManageMember, listAgentDescendants } from '../../../utils/hierarchy.js';
 import { runSerializable } from '../../games/_common/BaseGameService.js';
 import { writeAudit } from '../audit/audit.service.js';
 import { resetMemberAutoBalanceControl } from '../controls/controls.runtime.js';
@@ -95,7 +95,14 @@ export class TransferService {
       const agent = await tx.agent.findUnique({ where: { id: input.agentId } });
       const member = await tx.user.findUnique({ where: { id: input.memberId } });
       if (!agent || !member) throw new ApiError('AGENT_NOT_FOUND', 'Agent or member not found');
-      if (member.agentId !== agent.id) throw new ApiError('FORBIDDEN', 'Member does not belong to this agent');
+      if (agent.role === 'SUB_ACCOUNT') {
+        throw new ApiError('INVALID_TRANSFER', 'Sub-account cannot transfer points');
+      }
+      if (!member.agentId) throw new ApiError('FORBIDDEN', 'Member has no agent');
+      const managedAgentIds = await listAgentDescendants(tx, agent.id);
+      if (!managedAgentIds.includes(member.agentId)) {
+        throw new ApiError('FORBIDDEN', 'Member does not belong to this agent line');
+      }
 
       const isDeposit = amount.greaterThan(0);    // 代理→會員
       const absAmount = amount.abs();
