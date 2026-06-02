@@ -14,6 +14,7 @@ import { adminApi, extractApiError } from '@/lib/adminApi';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { Modal } from './Modal';
 import { requestAdminLiveRefresh } from '@/lib/adminRefreshEvents';
+import { logTransferDebug, warnTransferDebug } from '@/lib/transferDebug';
 
 type AgentTransferParty = { id: string; username: string; balance: string };
 
@@ -32,7 +33,13 @@ type Direction = 'DEPOSIT' | 'WITHDRAW';
  *   DEPOSIT：操作代理 → 被點擊的目標代理（從操作代理扣）
  *   WITHDRAW：被點擊的目標代理 → 操作代理（從目標代理扣）
  */
-export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, onDone }: Props): JSX.Element {
+export function AgentTransferModal({
+  open,
+  onClose,
+  sourceAgent,
+  targetAgent,
+  onDone,
+}: Props): JSX.Element {
   const { agent: me, setAgent } = useAdminAuthStore();
   const [direction, setDirection] = useState<Direction>('DEPOSIT');
   const [amount, setAmount] = useState('');
@@ -58,39 +65,74 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
     if (!open) return;
     let active = true;
     setLoadingBalances(true);
+    logTransferDebug('agent-to-agent modal open', {
+      storedAgent: agentForDebug(useAdminAuthStore.getState().agent),
+      fallbackSource: partyForDebug(sourceAgent),
+      target: partyForDebug(targetAgent),
+    });
     void (async () => {
       let sourceId: string | null = null;
       try {
         const auth = await adminApi.get<AgentPublic>('/auth/me');
         if (!active) return;
+        logTransferDebug('agent-to-agent /auth/me resolved', {
+          authAgent: agentForDebug(auth.data),
+          fallbackSource: partyForDebug(sourceAgent),
+        });
         setAgent(auth.data);
         const resolvedSource = resolveAuthenticatedAgentTransferSource(auth.data, sourceAgent);
         sourceId = resolvedSource?.id ?? null;
+        logTransferDebug('agent-to-agent source resolved', {
+          sourceId,
+          resolvedSource: partyForDebug(resolvedSource),
+          target: partyForDebug(targetAgent),
+        });
         if (resolvedSource) {
           setSourceParty(resolvedSource);
           setSourceBalance(resolvedSource.balance);
         }
       } catch (e) {
         if (active) {
-          setErr(extractApiError(e).message || '無法確認操作代理');
+          const apiError = extractApiError(e);
+          warnTransferDebug('agent-to-agent /auth/me failed', apiError);
+          setErr(apiError.message || '無法確認操作代理');
           setLoadingBalances(false);
         }
         return;
       }
       if (!sourceId) {
         if (active) {
+          warnTransferDebug('agent-to-agent source missing', {
+            authAgent: agentForDebug(useAdminAuthStore.getState().agent),
+            fallbackSource: partyForDebug(sourceAgent),
+            target: partyForDebug(targetAgent),
+          });
           setErr('找不到操作代理');
           setLoadingBalances(false);
         }
         return;
       }
 
+      logTransferDebug('agent-to-agent balance fetch start', {
+        sourceId,
+        targetId: targetAgent.id,
+      });
       const results = await Promise.allSettled([
         adminApi.get<AgentTransferParty>(`/agents/${sourceId}`),
         adminApi.get<AgentTransferParty>(`/agents/${targetAgent.id}`),
       ]);
       if (!active) return;
       const [sourceResult, targetResult] = results;
+      logTransferDebug('agent-to-agent balance fetch settled', {
+        source:
+          sourceResult.status === 'fulfilled'
+            ? { status: sourceResult.status, data: partyForDebug(sourceResult.value.data) }
+            : { status: sourceResult.status, error: extractApiError(sourceResult.reason) },
+        target:
+          targetResult.status === 'fulfilled'
+            ? { status: targetResult.status, data: partyForDebug(targetResult.value.data) }
+            : { status: targetResult.status, error: extractApiError(targetResult.reason) },
+      });
       if (sourceResult.status === 'fulfilled') {
         setSourceParty(sourceResult.value.data);
         setSourceBalance(sourceResult.value.data.balance);
@@ -103,6 +145,10 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
     })();
 
     return () => {
+      logTransferDebug('agent-to-agent effect cleanup', {
+        fallbackSource: partyForDebug(sourceAgent),
+        target: partyForDebug(targetAgent),
+      });
       active = false;
     };
   }, [
@@ -114,6 +160,28 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
     targetAgent.username,
     targetAgent.balance,
     setAgent,
+  ]);
+
+  useEffect(() => {
+    if (!open) return;
+    logTransferDebug('agent-to-agent state changed', {
+      sourceParty: partyForDebug(sourceParty),
+      targetParty: partyForDebug(targetParty),
+      sourceBalance,
+      targetBalance,
+      loadingBalances,
+      err,
+    });
+  }, [
+    open,
+    sourceParty?.id,
+    sourceParty?.username,
+    sourceBalance,
+    targetParty.id,
+    targetParty.username,
+    targetBalance,
+    loadingBalances,
+    err,
   ]);
 
   const fillMax = (): void => {
@@ -140,6 +208,14 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
     try {
       const fromId = direction === 'DEPOSIT' ? sourceParty.id : targetParty.id;
       const toId = direction === 'DEPOSIT' ? targetParty.id : sourceParty.id;
+      logTransferDebug('agent-to-agent submit start', {
+        direction,
+        fromId,
+        toId,
+        amount,
+        sourceParty: partyForDebug(sourceParty),
+        targetParty: partyForDebug(targetParty),
+      });
       await adminApi.post('/transfers/agent-to-agent', {
         fromId,
         toId,
@@ -151,10 +227,13 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
         setAgent(res.data);
       }
       requestAdminLiveRefresh();
+      logTransferDebug('agent-to-agent submit success', { direction, fromId, toId, amount });
       onDone();
       onClose();
     } catch (e) {
-      setErr(extractApiError(e).message);
+      const apiError = extractApiError(e);
+      warnTransferDebug('agent-to-agent submit failed', apiError);
+      setErr(apiError.message);
     } finally {
       setBusy(false);
     }
@@ -183,7 +262,13 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
   const amountReady = Number.parseFloat(amount) > 0;
 
   return (
-    <Modal open={open} onClose={onClose} title="代理間轉帳" subtitle={`目標代理 · ${targetParty.username}`} width="lg">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="代理間轉帳"
+      subtitle={`目標代理 · ${targetParty.username}`}
+      width="lg"
+    >
       <div className="-mx-4 -mt-4 sm:-mx-6 sm:-mt-5">
         <div className="border-b border-[#134A54]/50 bg-[#0F2D35] px-4 py-4 text-white sm:px-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -200,8 +285,18 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 md:min-w-[280px]">
-              <BalanceTile label="操作代理" username={sourceParty?.username ?? '同步中'} balance={sourceBalance ? fmt(sourceBalance) : '—'} tone="light" />
-              <BalanceTile label="目標代理" username={targetParty.username} balance={fmt(targetBalance)} tone="muted" />
+              <BalanceTile
+                label="操作代理"
+                username={sourceParty?.username ?? '同步中'}
+                balance={sourceBalance ? fmt(sourceBalance) : '—'}
+                tone="light"
+              />
+              <BalanceTile
+                label="目標代理"
+                username={targetParty.username}
+                balance={fmt(targetBalance)}
+                tone="muted"
+              />
             </div>
           </div>
         </div>
@@ -237,9 +332,15 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
               <div className="rounded-[8px] border border-[#186073]/25 bg-white p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-[10px] font-semibold tracking-[0.18em] text-ink-400">已鎖定目標</div>
-                    <div className="mt-1 truncate font-mono text-[15px] font-black text-ink-900">{targetParty.username}</div>
-                    <div className="mt-1 data-num text-[12px] text-[#186073]">目前 {fmt(targetBalance)}</div>
+                    <div className="text-[10px] font-semibold tracking-[0.18em] text-ink-400">
+                      已鎖定目標
+                    </div>
+                    <div className="mt-1 truncate font-mono text-[15px] font-black text-ink-900">
+                      {targetParty.username}
+                    </div>
+                    <div className="mt-1 data-num text-[12px] text-[#186073]">
+                      目前 {fmt(targetBalance)}
+                    </div>
                   </div>
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#186073]/25 bg-[#EFF8FB] px-2.5 py-1 text-[10px] font-bold text-[#186073]">
                     <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
@@ -261,7 +362,10 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
                   </button>
                 </div>
                 <div className="relative">
-                  <BadgeDollarSign className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#186073]" aria-hidden="true" />
+                  <BadgeDollarSign
+                    className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#186073]"
+                    aria-hidden="true"
+                  />
                   <input
                     type="text"
                     inputMode="decimal"
@@ -290,17 +394,31 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
         <aside className="rounded-[8px] border border-[#186073]/25 bg-[#F2F8FA] p-3 shadow-[0_12px_30px_rgba(15,23,42,0.06)] sm:p-4">
           <SectionHeading index="03" title="轉帳預覽" />
           <div className="mt-3 space-y-3">
-            <PreviewAccount label="扣款方" username={payerName} before={payerBalance ? fmt(payerBalance) : '—'} after={amountReady ? payerAfter : '—'} tone="danger" />
+            <PreviewAccount
+              label="扣款方"
+              username={payerName}
+              before={payerBalance ? fmt(payerBalance) : '—'}
+              after={amountReady ? payerAfter : '—'}
+              tone="danger"
+            />
             <div className="flex justify-center">
               <div className="grid h-9 w-9 place-items-center rounded-full border border-[#186073]/25 bg-white text-[#186073]">
                 <ArrowRightLeft className="h-4 w-4" aria-hidden="true" />
               </div>
             </div>
-            <PreviewAccount label="收款方" username={receiverName} before={receiverBalance ? fmt(receiverBalance) : '—'} after={amountReady ? receiverAfter : '—'} tone="success" />
+            <PreviewAccount
+              label="收款方"
+              username={receiverName}
+              before={receiverBalance ? fmt(receiverBalance) : '—'}
+              after={amountReady ? receiverAfter : '—'}
+              tone="success"
+            />
           </div>
 
           <div className="mt-4 rounded-[8px] border border-[#D4AF37]/35 bg-[#FFF8DA] p-3 text-[11px] leading-relaxed text-[#6D5716]">
-            {loadingBalances ? '正在同步最新餘額，仍可先輸入金額。' : '提交後會直接寫入代理轉帳紀錄，並同步更新雙方餘額。'}
+            {loadingBalances
+              ? '正在同步最新餘額，仍可先輸入金額。'
+              : '提交後會直接寫入代理轉帳紀錄，並同步更新雙方餘額。'}
           </div>
         </aside>
       </div>
@@ -312,7 +430,11 @@ export function AgentTransferModal({ open, onClose, sourceAgent, targetAgent, on
       )}
 
       <div className="mt-5 flex flex-col-reverse gap-2 border-t border-[#E5E7EB] pt-4 sm:flex-row sm:items-center sm:justify-end">
-        <button type="button" onClick={onClose} className="btn-teal-outline inline-flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="btn-teal-outline inline-flex items-center justify-center gap-2"
+        >
           <X className="h-4 w-4" aria-hidden="true" />
           取消
         </button>
@@ -340,11 +462,36 @@ function resolveAuthenticatedAgentTransferSource(
   if (agent.role === 'SUB_ACCOUNT' && agent.parentId) {
     return {
       id: agent.parentId,
-      username: fallback.id === agent.parentId ? fallback.username : (agent.displayName ?? agent.username),
+      username:
+        fallback.id === agent.parentId ? fallback.username : (agent.displayName ?? agent.username),
       balance: fallback.id === agent.parentId ? fallback.balance : agent.balance,
     };
   }
   return fallback;
+}
+
+function agentForDebug(agent: AgentPublic | null | undefined): Record<string, unknown> | null {
+  if (!agent) return null;
+  return {
+    id: agent.id,
+    username: agent.username,
+    displayName: agent.displayName,
+    role: agent.role,
+    parentId: agent.parentId,
+    level: agent.level,
+    balance: agent.balance,
+  };
+}
+
+function partyForDebug(
+  party: AgentTransferParty | null | undefined,
+): Record<string, unknown> | null {
+  if (!party) return null;
+  return {
+    id: party.id,
+    username: party.username,
+    balance: party.balance,
+  };
 }
 
 function SectionHeading({ index, title }: { index: string; title: string }): JSX.Element {
@@ -373,15 +520,18 @@ function DirectionOption({
   tone: 'deposit' | 'withdraw';
   onChange: () => void;
 }): JSX.Element {
-  const activeClass = tone === 'deposit'
-    ? 'border-[#2BAA6A] bg-[#EFFAF4] text-[#15663E]'
-    : 'border-[#D4574A] bg-[#FDF0EE] text-[#9D3028]';
+  const activeClass =
+    tone === 'deposit'
+      ? 'border-[#2BAA6A] bg-[#EFFAF4] text-[#15663E]'
+      : 'border-[#D4574A] bg-[#FDF0EE] text-[#9D3028]';
   return (
     <label
       className={`flex cursor-pointer items-start gap-3 rounded-[8px] border bg-white p-3 transition ${checked ? activeClass : 'border-[#D6DEE4] text-ink-700 hover:border-[#186073]/45'}`}
     >
       <input type="radio" checked={checked} onChange={onChange} className="sr-only" />
-      <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-[8px] ${checked ? 'bg-white/85' : 'bg-[#EEF3F5]'}`}>
+      <span
+        className={`grid h-10 w-10 shrink-0 place-items-center rounded-[8px] ${checked ? 'bg-white/85' : 'bg-[#EEF3F5]'}`}
+      >
         {icon}
       </span>
       <span className="min-w-0">
@@ -404,7 +554,9 @@ function BalanceTile({
   tone: 'light' | 'muted';
 }): JSX.Element {
   return (
-    <div className={`rounded-[8px] border px-3 py-2 ${tone === 'light' ? 'border-white/25 bg-white/12' : 'border-white/15 bg-white/6'}`}>
+    <div
+      className={`rounded-[8px] border px-3 py-2 ${tone === 'light' ? 'border-white/25 bg-white/12' : 'border-white/15 bg-white/6'}`}
+    >
       <div className="text-[10px] font-semibold tracking-[0.18em] text-white/55">{label}</div>
       <div className="mt-1 truncate text-[12px] font-bold text-white">{username}</div>
       <div className="data-num mt-1 text-[16px] font-black text-[#E5C76C]">{balance}</div>
@@ -430,9 +582,13 @@ function PreviewAccount({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[10px] font-semibold tracking-[0.16em] text-ink-400">{label}</div>
-          <div className="mt-1 truncate font-mono text-[13px] font-black text-ink-900">{username}</div>
+          <div className="mt-1 truncate font-mono text-[13px] font-black text-ink-900">
+            {username}
+          </div>
         </div>
-        <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${tone === 'danger' ? 'bg-[#FDF0EE] text-[#D4574A]' : 'bg-[#EFFAF4] text-[#2BAA6A]'}`}>
+        <span
+          className={`rounded-full px-2 py-1 text-[10px] font-bold ${tone === 'danger' ? 'bg-[#FDF0EE] text-[#D4574A]' : 'bg-[#EFFAF4] text-[#2BAA6A]'}`}
+        >
           {tone === 'danger' ? '扣款' : '入帳'}
         </span>
       </div>
@@ -443,7 +599,11 @@ function PreviewAccount({
         </div>
         <div className="text-right">
           <div className="text-ink-400">轉後</div>
-          <div className={`data-num mt-1 font-black ${tone === 'danger' ? 'text-[#D4574A]' : 'text-[#2BAA6A]'}`}>{after}</div>
+          <div
+            className={`data-num mt-1 font-black ${tone === 'danger' ? 'text-[#D4574A]' : 'text-[#2BAA6A]'}`}
+          >
+            {after}
+          </div>
         </div>
       </div>
     </div>
