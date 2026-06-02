@@ -2498,11 +2498,17 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   onClick={() => setDismissedBigWinBetId(result.betId)}
                   style={slotBigWinStyle}
                 >
+                  <span className="slot-bigwin-stage__tier-art" aria-hidden="true" />
                   <span className="slot-bigwin-stage__flare" aria-hidden="true" />
                   <div className="slot-bigwin-stage__content">
                     <div className="slot-bigwin-stage__badge">{activeBigWinMeta.badge}</div>
                     <div className="slot-bigwin-stage__eyebrow">{activeBigWinMeta.eyebrow}</div>
-                    <div className="slot-bigwin-stage__title">{activeBigWinMeta.title}</div>
+                    <div className="slot-bigwin-stage__title">
+                      <span className="slot-bigwin-stage__title-desktop">
+                        {activeBigWinMeta.title}
+                      </span>
+                      <span className="slot-bigwin-stage__title-mobile">爆分獎金</span>
+                    </div>
                     <div className="slot-bigwin-stage__amount">{formatAmount(result.payout)}</div>
                     <div className="slot-bigwin-stage__stats">
                       <span>
@@ -2524,6 +2530,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                   cascadeCount={cascadeCount}
                   maxWinMultiplier={megaBuyFeatureMaxWinMultiplier}
                   tier={featureResultTier}
+                  themeArt={slotTheme.bigWin}
                   onClose={() => setDismissedFeatureResultBetId(result.betId)}
                 />
               )}
@@ -2752,11 +2759,17 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 onClick={() => setDismissedBigWinBetId(result.betId)}
                 style={slotBigWinStyle}
               >
+                <span className="slot-bigwin-stage__tier-art" aria-hidden="true" />
                 <span className="slot-bigwin-stage__flare" aria-hidden="true" />
                 <div className="slot-bigwin-stage__content">
                   <div className="slot-bigwin-stage__badge">{activeBigWinMeta.badge}</div>
                   <div className="slot-bigwin-stage__eyebrow">{activeBigWinMeta.eyebrow}</div>
-                  <div className="slot-bigwin-stage__title">{activeBigWinMeta.title}</div>
+                  <div className="slot-bigwin-stage__title">
+                    <span className="slot-bigwin-stage__title-desktop">
+                      {activeBigWinMeta.title}
+                    </span>
+                    <span className="slot-bigwin-stage__title-mobile">爆分獎金</span>
+                  </div>
                   <div className="slot-bigwin-stage__amount">{formatAmount(result.payout)}</div>
                   <div className="slot-bigwin-stage__stats">
                     <span>
@@ -2858,6 +2871,7 @@ function MegaFeatureResultOverlay({
   cascadeCount,
   maxWinMultiplier,
   tier,
+  themeArt,
   onClose,
 }: {
   result: HotlineBetResult;
@@ -2865,6 +2879,7 @@ function MegaFeatureResultOverlay({
   cascadeCount: number;
   maxWinMultiplier: number;
   tier: SlotBigWinTier;
+  themeArt?: string;
   onClose: () => void;
 }) {
   const features = result.features;
@@ -2876,6 +2891,9 @@ function MegaFeatureResultOverlay({
     ? `${features.freeSpinsPlayed}/${features.freeSpinsAwarded}`
     : '0';
   const stageStyle = {
+    '--mega-feature-theme-art': themeArt
+      ? `url(${themeArt})`
+      : 'linear-gradient(transparent, transparent)',
     '--mega-feature-tier-art': `url(${tierMeta.asset})`,
   } as CSSProperties;
 
@@ -2895,12 +2913,16 @@ function MegaFeatureResultOverlay({
         }
       }}
     >
+      <div className="mega-feature-result-stage__tier-art" aria-hidden="true" />
       <div className="mega-feature-result-stage__burst" aria-hidden="true" />
       <div className="mega-feature-result-stage__panel">
         <div className="mega-feature-result-stage__badge">{tierMeta.badge}</div>
         <div className="mega-feature-result-stage__eyebrow">{tierMeta.featureEyebrow}</div>
         <div id="mega-feature-result-title" className="mega-feature-result-stage__title">
-          {tierMeta.featureTitle}
+          <span className="mega-feature-result-stage__title-desktop">
+            {tierMeta.featureTitle}
+          </span>
+          <span className="mega-feature-result-stage__title-mobile">爆分獎金</span>
         </div>
         <div className="mega-feature-result-stage__amount">{formatAmount(payout)}</div>
         <div className="mega-feature-result-stage__meta">

@@ -529,6 +529,7 @@
     --slot-bigwin-accent: #f3d67d;
     --slot-bigwin-secondary: #7dd3fc;
     --slot-bigwin-deep: #160908;
+    --slot-bigwin-tier-opacity: 0.38;
     --slot-bigwin-tier-art: linear-gradient(transparent, transparent);
     --slot-bigwin-theme-art: linear-gradient(transparent, transparent);
     pointer-events: auto;
@@ -539,15 +540,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    isolation: isolate;
     overflow: hidden;
     border-radius: 18px;
     border: 1px solid color-mix(in srgb, var(--slot-bigwin-accent) 48%, rgba(255, 255, 255, 0.18));
     background-color: rgba(5, 10, 19, 0.9);
     background-image:
-      radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--slot-bigwin-accent) 26%, transparent), transparent 36%),
-      linear-gradient(90deg, rgba(5, 10, 19, 0.86), rgba(5, 10, 19, 0.24), rgba(5, 10, 19, 0.86)),
-      var(--slot-bigwin-tier-art),
-      linear-gradient(90deg, rgba(5, 10, 19, 0.84), rgba(5, 10, 19, 0.42)),
+      radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--slot-bigwin-accent) 20%, transparent), transparent 34%),
+      linear-gradient(90deg, rgba(5, 10, 19, 0.72), rgba(5, 10, 19, 0.16), rgba(5, 10, 19, 0.72)),
+      linear-gradient(180deg, rgba(5, 10, 19, 0.16), rgba(5, 10, 19, 0.44)),
       var(--slot-bigwin-theme-art);
     background-position: center;
     background-size: cover;
@@ -571,6 +572,7 @@
     content: '';
     position: absolute;
     inset: -18%;
+    z-index: 1;
     background:
       conic-gradient(
         from -22deg at 50% 50%,
@@ -591,15 +593,31 @@
     content: '';
     position: absolute;
     inset: 0;
+    z-index: 1;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.13), transparent 26%, rgba(0, 0, 0, 0.42)),
       radial-gradient(ellipse at 50% 52%, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.66) 78%);
     pointer-events: none;
   }
 
+  .slot-bigwin-stage__tier-art {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-image: var(--slot-bigwin-tier-art);
+    background-position: center;
+    background-size: cover;
+    filter: saturate(1.16) contrast(1.06);
+    mix-blend-mode: screen;
+    opacity: var(--slot-bigwin-tier-opacity);
+    pointer-events: none;
+    transform: scale(1.012);
+  }
+
   .slot-bigwin-stage__flare {
     position: absolute;
     inset: auto 8% 5%;
+    z-index: 2;
     height: 34%;
     border-radius: 999px;
     background:
@@ -613,7 +631,7 @@
 
   .slot-bigwin-stage__content {
     position: relative;
-    z-index: 2;
+    z-index: 3;
     display: grid;
     justify-items: center;
     gap: 0.3rem;
@@ -674,6 +692,11 @@
       0 12px 32px rgba(0, 0, 0, 0.78);
   }
 
+  .slot-bigwin-stage__title-mobile,
+  .mega-feature-result-stage__title-mobile {
+    display: none;
+  }
+
   .slot-bigwin-stage__amount {
     font-family: var(--font-display, 'Inter', system-ui, sans-serif);
     font-size: clamp(1.45rem, 4.2vw, 3.6rem);
@@ -729,12 +752,14 @@
     --slot-bigwin-accent: #f3d67d;
     --slot-bigwin-secondary: #67e8f9;
     --slot-bigwin-deep: #2b1305;
+    --slot-bigwin-tier-opacity: 0.28;
   }
 
   .slot-bigwin-stage--huge {
     --slot-bigwin-accent: #34d399;
     --slot-bigwin-secondary: #7dd3fc;
     --slot-bigwin-deep: #052318;
+    --slot-bigwin-tier-opacity: 0.34;
     animation-name: slot-hugewin-reveal;
   }
 
@@ -751,6 +776,7 @@
     --slot-bigwin-accent: #f97316;
     --slot-bigwin-secondary: #facc15;
     --slot-bigwin-deep: #310908;
+    --slot-bigwin-tier-opacity: 0.42;
     border-width: 2px;
     animation-name: slot-megawin-reveal;
   }
@@ -781,6 +807,8 @@
   .mega-feature-result-stage {
     --slot-bigwin-accent: #f3d67d;
     --slot-bigwin-secondary: #7dd3fc;
+    --mega-feature-tier-opacity: 0.38;
+    --mega-feature-theme-art: linear-gradient(transparent, transparent);
     --mega-feature-tier-art: linear-gradient(transparent, transparent);
     pointer-events: auto;
     position: absolute;
@@ -788,15 +816,16 @@
     z-index: 9;
     display: grid;
     place-items: center;
+    isolation: isolate;
     overflow: hidden;
     border-radius: 18px;
     border: 1px solid color-mix(in srgb, var(--slot-bigwin-accent) 46%, rgba(255, 255, 255, 0.18));
     background-color: rgba(3, 8, 19, 0.94);
     background-image:
-      radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--slot-bigwin-accent) 24%, transparent), transparent 42%),
-      linear-gradient(90deg, rgba(3, 8, 19, 0.88), rgba(3, 8, 19, 0.34), rgba(3, 8, 19, 0.88)),
-      var(--mega-feature-tier-art),
-      linear-gradient(180deg, rgba(7, 16, 30, 0.94), rgba(3, 8, 19, 0.96));
+      radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--slot-bigwin-accent) 19%, transparent), transparent 42%),
+      linear-gradient(90deg, rgba(3, 8, 19, 0.76), rgba(3, 8, 19, 0.24), rgba(3, 8, 19, 0.76)),
+      linear-gradient(180deg, rgba(7, 16, 30, 0.32), rgba(3, 8, 19, 0.62)),
+      var(--mega-feature-theme-art);
     background-position: center;
     background-size: cover;
     box-shadow:
@@ -811,6 +840,7 @@
   .mega-feature-result-stage__burst {
     position: absolute;
     inset: -18%;
+    z-index: 1;
     background:
       radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--slot-bigwin-accent) 28%, rgba(255, 255, 255, 0.12)), transparent 24%),
       conic-gradient(
@@ -828,9 +858,23 @@
     animation: slot-bigwin-rays 10s linear infinite;
   }
 
+  .mega-feature-result-stage__tier-art {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-image: var(--mega-feature-tier-art);
+    background-position: center;
+    background-size: cover;
+    filter: saturate(1.16) contrast(1.06);
+    mix-blend-mode: screen;
+    opacity: var(--mega-feature-tier-opacity);
+    pointer-events: none;
+    transform: scale(1.012);
+  }
+
   .mega-feature-result-stage__panel {
     position: relative;
-    z-index: 1;
+    z-index: 2;
     display: grid;
     justify-items: center;
     gap: 0.55rem;
@@ -955,11 +999,13 @@
   .mega-feature-result-stage--big {
     --slot-bigwin-accent: #f3d67d;
     --slot-bigwin-secondary: #67e8f9;
+    --mega-feature-tier-opacity: 0.28;
   }
 
   .mega-feature-result-stage--huge {
     --slot-bigwin-accent: #34d399;
     --slot-bigwin-secondary: #7dd3fc;
+    --mega-feature-tier-opacity: 0.34;
     animation-name: slot-hugewin-reveal;
   }
 
@@ -971,6 +1017,7 @@
   .mega-feature-result-stage--mega {
     --slot-bigwin-accent: #f97316;
     --slot-bigwin-secondary: #facc15;
+    --mega-feature-tier-opacity: 0.42;
     border-width: 2px;
     animation-name: slot-megawin-reveal;
   }
@@ -7454,12 +7501,104 @@
 .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage {
   display: flex;
   inset: 54px 8px 8px;
+  border: 0;
   border-radius: 10px;
+  background-color: #050a13;
+  background-image:
+    radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--slot-bigwin-accent) 12%, transparent), transparent 38%),
+    linear-gradient(90deg, rgba(5, 10, 19, 0.5), rgba(5, 10, 19, 0.06), rgba(5, 10, 19, 0.5)),
+    linear-gradient(180deg, rgba(5, 10, 19, 0.04), rgba(5, 10, 19, 0.28)),
+    var(--slot-bigwin-theme-art);
+  box-shadow: none;
 }
 
 .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage {
   inset: 54px 8px 8px;
+  border: 0;
   border-radius: 10px;
+  background-color: #050a13;
+  background-image:
+    radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--slot-bigwin-accent) 12%, transparent), transparent 38%),
+    linear-gradient(90deg, rgba(5, 10, 19, 0.5), rgba(5, 10, 19, 0.06), rgba(5, 10, 19, 0.5)),
+    linear-gradient(180deg, rgba(5, 10, 19, 0.04), rgba(5, 10, 19, 0.28)),
+    var(--mega-feature-theme-art);
+  box-shadow: none;
+}
+
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage::before,
+.game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__burst {
+  opacity: 0.46;
+}
+
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 24%, rgba(0, 0, 0, 0.28)),
+    radial-gradient(ellipse at 50% 52%, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.36) 82%);
+}
+
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__tier-art,
+.game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__tier-art {
+  opacity: 0.2;
+}
+
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__badge,
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__eyebrow,
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__stats,
+.game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__badge,
+.game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__eyebrow,
+.game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__meta,
+.game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__grid {
+  display: none;
+}
+
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__title-desktop,
+.game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__title-desktop {
+  display: none;
+}
+
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__title-mobile,
+.game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__title-mobile {
+  display: inline;
+}
+
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__content,
+.game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__panel {
+  width: min(760px, calc(100% - 24px));
+  max-height: none;
+  gap: 0.12rem;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  text-shadow:
+    0 3px 12px rgba(0, 0, 0, 0.9),
+    0 12px 30px rgba(0, 0, 0, 0.74);
+}
+
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__title,
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage--huge .slot-bigwin-stage__title,
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage--mega .slot-bigwin-stage__title,
+.game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__title {
+  font-size: clamp(36px, 5.4vw, 78px);
+  line-height: 1;
+  letter-spacing: 0.08em;
+  -webkit-text-stroke: 0;
+  text-shadow:
+    0 2px 0 rgba(82, 45, 7, 0.8),
+    0 0 18px color-mix(in srgb, var(--slot-bigwin-accent) 54%, transparent),
+    0 10px 28px rgba(0, 0, 0, 0.92);
+}
+
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__amount,
+.game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage--mega .slot-bigwin-stage__amount,
+.game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__amount {
+  font-size: clamp(48px, 7vw, 108px);
+  line-height: 1;
+  text-shadow:
+    0 0 18px color-mix(in srgb, var(--slot-bigwin-secondary) 64%, transparent),
+    0 8px 26px rgba(0, 0, 0, 0.9);
 }
 
 .chicken-road-page {
@@ -8935,10 +9074,104 @@
 
   .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage {
     inset: 38px 5px 5px;
+    border: 0;
+    border-radius: 8px;
+    background-color: #050a13;
+    background-image:
+      radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--slot-bigwin-accent) 12%, transparent), transparent 38%),
+      linear-gradient(90deg, rgba(5, 10, 19, 0.5), rgba(5, 10, 19, 0.06), rgba(5, 10, 19, 0.5)),
+      linear-gradient(180deg, rgba(5, 10, 19, 0.04), rgba(5, 10, 19, 0.28)),
+      var(--slot-bigwin-theme-art);
+    box-shadow: none;
   }
 
   .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage {
     inset: 38px 5px 5px;
+    border: 0;
+    border-radius: 8px;
+    background-color: #050a13;
+    background-image:
+      radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--slot-bigwin-accent) 12%, transparent), transparent 38%),
+      linear-gradient(90deg, rgba(5, 10, 19, 0.5), rgba(5, 10, 19, 0.06), rgba(5, 10, 19, 0.5)),
+      linear-gradient(180deg, rgba(5, 10, 19, 0.04), rgba(5, 10, 19, 0.28)),
+      var(--mega-feature-theme-art);
+    box-shadow: none;
+  }
+
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage::before,
+  .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__burst {
+    opacity: 0.46;
+  }
+
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage::after {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 24%, rgba(0, 0, 0, 0.28)),
+      radial-gradient(ellipse at 50% 52%, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.36) 82%);
+  }
+
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__tier-art,
+  .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__tier-art {
+    opacity: 0.2;
+  }
+
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__badge,
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__eyebrow,
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__stats,
+  .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__badge,
+  .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__eyebrow,
+  .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__meta,
+  .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__grid {
+    display: none;
+  }
+
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__title-desktop,
+  .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__title-desktop {
+    display: none;
+  }
+
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__title-mobile,
+  .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__title-mobile {
+    display: inline;
+  }
+
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__content,
+  .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__panel {
+    width: min(560px, calc(100% - 16px));
+    max-height: none;
+    gap: 0.08rem;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+    text-shadow:
+      0 3px 12px rgba(0, 0, 0, 0.9),
+      0 12px 30px rgba(0, 0, 0, 0.74);
+  }
+
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__title,
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage--huge .slot-bigwin-stage__title,
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage--mega .slot-bigwin-stage__title,
+  .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__title {
+    font-size: clamp(28px, 6.4vw, 48px);
+    line-height: 1;
+    letter-spacing: 0.08em;
+    -webkit-text-stroke: 0;
+    text-shadow:
+      0 2px 0 rgba(82, 45, 7, 0.8),
+      0 0 18px color-mix(in srgb, var(--slot-bigwin-accent) 54%, transparent),
+      0 10px 28px rgba(0, 0, 0, 0.92);
+  }
+
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage__amount,
+  .game-fullscreen-shell[data-slot-layout='mega'] .slot-bigwin-stage--mega .slot-bigwin-stage__amount,
+  .game-fullscreen-shell[data-slot-layout='mega'] .mega-feature-result-stage__amount {
+    font-size: clamp(34px, 7.2vw, 60px);
+    line-height: 1;
+    text-shadow:
+      0 0 18px color-mix(in srgb, var(--slot-bigwin-secondary) 64%, transparent),
+      0 8px 26px rgba(0, 0, 0, 0.9);
   }
 
   .mega-slot-machine .mega-feature-result-stage {
