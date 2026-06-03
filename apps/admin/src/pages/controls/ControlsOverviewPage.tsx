@@ -40,6 +40,8 @@ interface ManualDetectionRow {
   controlPercentage: number;
   bitePercentage: string | null;
   houseTakePercentage: string;
+  completionBehavior: string;
+  targetBand: string;
   cycleCount: number;
   lastCapitalAmount: string | null;
   lastPlatformTake: string | null;
@@ -373,6 +375,11 @@ export function ControlsOverviewPage(): JSX.Element {
           {r.bitePercentage && (
             <span className="font-mono text-[10px] text-[#A44722]">
               咬 {Number.parseFloat(r.bitePercentage).toFixed(0)}% · 第 {r.cycleCount + 1} 輪
+            </span>
+          )}
+          {isHoldTargetManual(r) && (
+            <span className="font-mono text-[10px] text-[#186073]">
+              鎖定 ±{fmt(r.targetBand)}
             </span>
           )}
         </div>
@@ -1428,6 +1435,9 @@ function sumRows(rows: BurstRow[], key: 'dailyBudget' | 'todayBurstAmount'): str
 }
 
 function manualStatusText(row: ManualDetectionRow): string {
+  if (row.isActive && isHoldTargetManual(row)) {
+    return isManualWithinTargetBand(row) ? '锁定区间' : '锁定拉回';
+  }
   if (row.isActive && row.isCompleted && row.scope === 'MEMBER') return '达标维持中';
   if (row.isCompleted) return '已达标';
   if (row.isActive) return '进行中';
@@ -1435,6 +1445,9 @@ function manualStatusText(row: ManualDetectionRow): string {
 }
 
 function manualStatusClass(row: ManualDetectionRow): string {
+  if (row.isActive && isHoldTargetManual(row)) {
+    return isManualWithinTargetBand(row) ? 'tag tag-acid' : 'tag tag-toxic';
+  }
   if (row.isActive && row.isCompleted && row.scope === 'MEMBER') return 'tag tag-acid';
   if (row.isCompleted) return 'tag tag-acid';
   if (row.isActive) return 'tag tag-toxic';
@@ -1456,6 +1469,22 @@ function manualDirectionClass(row: ManualDetectionRow): string {
   if (!Number.isFinite(current) || !Number.isFinite(target) || target === current)
     return 'tag tag-acid';
   return target > current ? 'tag tag-toxic' : 'tag tag-ember';
+}
+
+function isHoldTargetManual(row: ManualDetectionRow): boolean {
+  return (
+    row.completionBehavior === 'hold_target' ||
+    (!row.completionBehavior && row.scope === 'AGENT_LINE' && !row.bitePercentage)
+  );
+}
+
+function isManualWithinTargetBand(row: ManualDetectionRow): boolean {
+  const current = Number.parseFloat(row.currentSettlement);
+  const target = Number.parseFloat(row.targetSettlement);
+  const band = Number.parseFloat(row.targetBand);
+  if (!Number.isFinite(current) || !Number.isFinite(target)) return false;
+  if (current === target) return true;
+  return Number.isFinite(band) && band > 0 && Math.abs(current - target) <= band;
 }
 
 function renderControlLogReason(row: ControlLogRow): JSX.Element {

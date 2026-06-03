@@ -5,9 +5,11 @@ import {
   checkAndCompleteManualDetectionControls,
   findApplicableBurstControl,
   findApplicableManualDetectionControl,
+  getManualControlTargetBand,
   getAgentAncestors,
   getControlGameDayWindow,
   getOrCreateMemberAutoBalanceControl,
+  isHoldTargetManualControl,
   normalizeAgentLineCapDay,
   normalizeBurstControlDay,
   normalizeMemberWinCapDay,
@@ -824,21 +826,31 @@ async function findManualDetectionDecision(
   if (scope === 'targeted' && applicable.control.scope === 'ALL') return null;
   if (scope === 'global' && applicable.control.scope !== 'ALL') return null;
 
-  if (!passesControlInterventionRate(applicable.control.controlPercentage)) {
-    return null;
-  }
-
   const settlement = await calculateCurrentSettlement(
     tx,
     applicable.control.scope,
     applicable.control.targetAgentId,
     applicable.control.targetMemberUsername,
   );
-  const desired = resolveManualDetectionDesired(
-    settlement.superiorSettlement,
-    applicable.control.targetSettlement,
-    applicable.control.startSettlement,
-  );
+  const holdTarget = isHoldTargetManualControl(applicable.control);
+  if (holdTarget && isWithinManualTargetBand(settlement.superiorSettlement, applicable.control)) {
+    return null;
+  }
+
+  if (!passesControlInterventionRate(applicable.control.controlPercentage)) {
+    return null;
+  }
+
+  const desired = holdTarget
+    ? resolveHoldTargetManualDetectionDesired(
+        settlement.superiorSettlement,
+        applicable.control.targetSettlement,
+      )
+    : resolveManualDetectionDesired(
+        settlement.superiorSettlement,
+        applicable.control.targetSettlement,
+        applicable.control.startSettlement,
+      );
   if (desired === 'LOSS') {
     const release = await shouldReleaseManualDetectionCycle(
       tx,
@@ -908,6 +920,30 @@ function resolveManualDetectionDesired(
     return targetSettlement.greaterThan(startSettlement) ? 'LOSS' : 'WIN';
   }
   return currentSettlement.lessThan(targetSettlement) ? 'LOSS' : 'WIN';
+}
+
+function resolveHoldTargetManualDetectionDesired(
+  currentSettlement: Prisma.Decimal,
+  targetSettlement: Prisma.Decimal,
+): 'WIN' | 'LOSS' {
+  return currentSettlement.lessThan(targetSettlement) ? 'LOSS' : 'WIN';
+}
+
+function isWithinManualTargetBand(
+  currentSettlement: Prisma.Decimal,
+  control: {
+    scope: Parameters<typeof isHoldTargetManualControl>[0]['scope'];
+    targetSettlement: Prisma.Decimal;
+    completionBehavior?: string | null;
+    targetBand?: Prisma.Decimal | null;
+    bitePercentage?: Prisma.Decimal | null;
+  },
+): boolean {
+  if (currentSettlement.eq(control.targetSettlement)) return true;
+  const targetBand = getManualControlTargetBand(control);
+  return (
+    targetBand.greaterThan(0) && currentSettlement.sub(control.targetSettlement).abs().lte(targetBand)
+  );
 }
 
 function jsonResultWon(value: Prisma.JsonValue): boolean | null {
@@ -1517,5 +1553,7 @@ export const __controlsTestHooks = {
   passesAutoBalanceBiteInterventionRate,
   randomBurstCooldownRounds,
   rankWinLossControls,
+  resolveHoldTargetManualDetectionDesired,
   resolveManualDetectionDesired,
+  isWithinManualTargetBand,
 };

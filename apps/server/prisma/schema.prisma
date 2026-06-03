@@ -677,6 +677,8 @@ model ManualDetectionControl {
   controlPercentage        Int                  @default(50)
   bitePercentage           Decimal?             @db.Decimal(5, 2)
   houseTakePercentage      Decimal              @default(10) @db.Decimal(5, 2)
+  completionBehavior       String               @default("stop_on_target")
+  targetBand               Decimal              @default(0) @db.Decimal(20, 2)
   cycleCount               Int                  @default(0)
   lastCycleSettlement      Decimal?             @db.Decimal(20, 2)
   lastCycleAt              DateTime?
@@ -697,6 +699,7 @@ model ManualDetectionControl {
   @@index([isActive, scope])
   @@index([targetAgentId, isActive])
   @@index([targetMemberUsername, isActive])
+  @@index([isActive, isCompleted, completionBehavior])
   @@index([createdAt])
 }
 

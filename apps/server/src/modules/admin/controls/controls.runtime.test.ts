@@ -1,11 +1,13 @@
 import { Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  calculateDefaultManualTargetBand,
   calculateAutoDetectionBitePlan,
   checkAndCompleteManualDetectionControls,
   distributeAutoDetectionRedistribution,
   findApplicableBurstControl,
   findApplicableManualDetectionControl,
+  getDefaultManualDetectionCompletionBehavior,
 } from './controls.runtime.js';
 import { __controlsTestHooks } from '../../games/_common/controls.js';
 
@@ -80,6 +82,86 @@ describe('distributeAutoDetectionRedistribution', () => {
     expect(result.distributedAmount.toFixed(2)).toBe('900.00');
     expect(db.user.update).toHaveBeenCalledTimes(4);
     expect(db.transaction.create).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('manual detection hold target behavior', () => {
+  it('defaults agent-line target controls to hold around the target', () => {
+    const behavior = getDefaultManualDetectionCompletionBehavior('AGENT_LINE');
+
+    expect(behavior).toBe('hold_target');
+    expect(calculateDefaultManualTargetBand('AGENT_LINE', '10000', behavior).toFixed(2)).toBe(
+      '1000.00',
+    );
+    expect(calculateDefaultManualTargetBand('AGENT_LINE', '-300000', behavior).toFixed(2)).toBe(
+      '10000.00',
+    );
+  });
+
+  it('keeps hold-target agent-line controls active after reaching the target', async () => {
+    const control = {
+      id: 'line-hold',
+      scope: 'AGENT_LINE',
+      targetAgentId: 'line-a',
+      targetMemberUsername: null,
+      targetSettlement: new Prisma.Decimal(10000),
+      startSettlement: new Prisma.Decimal(0),
+      bitePercentage: null,
+      completionBehavior: 'hold_target',
+      targetBand: new Prisma.Decimal(1000),
+      createdAt: new Date('2026-01-05T00:00:00.000Z'),
+    };
+    const update = vi.fn();
+    const db = {
+      manualDetectionControl: {
+        findMany: vi.fn().mockResolvedValue([control]),
+        update,
+      },
+      agent: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'line-a',
+          parentId: null,
+          rebateMode: 'NONE',
+          rebatePercentage: new Prisma.Decimal(0),
+          maxRebatePercentage: new Prisma.Decimal(0),
+          baccaratRebateMode: 'NONE',
+          baccaratRebatePercentage: new Prisma.Decimal(0),
+          maxBaccaratRebatePercentage: new Prisma.Decimal(0),
+        }),
+      },
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 'line-a' }]),
+      user: {
+        findMany: vi.fn().mockResolvedValue([{ id: 'u1' }]),
+      },
+      bet: {
+        aggregate: vi
+          .fn()
+          .mockResolvedValueOnce({
+            _count: { _all: 1 },
+            _sum: {
+              amount: new Prisma.Decimal(10000),
+              payout: new Prisma.Decimal(0),
+              profit: new Prisma.Decimal(-10000),
+            },
+          })
+          .mockResolvedValueOnce({
+            _sum: { amount: new Prisma.Decimal(0) },
+          }),
+        findMany: vi.fn().mockResolvedValue([{ userId: 'u1' }]),
+      },
+      crashBet: {
+        aggregate: vi.fn().mockResolvedValue({
+          _count: { _all: 0 },
+          _sum: { amount: null, payout: null },
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    const result = await checkAndCompleteManualDetectionControls(db as never);
+
+    expect(result.completedCount).toBe(0);
+    expect(update).not.toHaveBeenCalled();
   });
 });
 
@@ -236,6 +318,32 @@ describe('manual detection direction', () => {
         new Prisma.Decimal(50_000),
       ),
     ).toBe('WIN');
+  });
+
+  it('uses current settlement to pull hold-target controls back toward target', () => {
+    const { resolveHoldTargetManualDetectionDesired, isWithinManualTargetBand } =
+      __controlsTestHooks;
+
+    expect(
+      resolveHoldTargetManualDetectionDesired(
+        new Prisma.Decimal(8000),
+        new Prisma.Decimal(10000),
+      ),
+    ).toBe('LOSS');
+    expect(
+      resolveHoldTargetManualDetectionDesired(
+        new Prisma.Decimal(12000),
+        new Prisma.Decimal(10000),
+      ),
+    ).toBe('WIN');
+    expect(
+      isWithinManualTargetBand(new Prisma.Decimal(10500), {
+        scope: 'AGENT_LINE',
+        targetSettlement: new Prisma.Decimal(10000),
+        completionBehavior: 'hold_target',
+        targetBand: new Prisma.Decimal(1000),
+      }),
+    ).toBe(true);
   });
 });
 

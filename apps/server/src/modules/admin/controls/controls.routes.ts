@@ -17,8 +17,10 @@ import {
 import {
   calculateCurrentSettlement,
   calculateAutoDetectionBitePlan,
+  calculateDefaultManualTargetBand,
   calculateControlCapital,
   checkAndCompleteManualDetectionControls,
+  getDefaultManualDetectionCompletionBehavior,
   getAllActiveManualDetectionControls,
   getControlGameDay,
   normalizeAgentLineCapDay,
@@ -126,6 +128,8 @@ async function serializeManualControl(
     startSettlement: control.startSettlement?.toFixed(2) ?? null,
     bitePercentage: control.bitePercentage?.toFixed(2) ?? null,
     houseTakePercentage: control.houseTakePercentage.toFixed(2),
+    completionBehavior: control.completionBehavior,
+    targetBand: control.targetBand.toFixed(2),
     cycleCount: control.cycleCount,
     lastCycleSettlement: control.lastCycleSettlement?.toFixed(2) ?? null,
     lastCapitalAmount: control.lastCapitalAmount?.toFixed(2) ?? null,
@@ -1361,20 +1365,33 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         orderBy: { createdAt: 'desc' },
       });
 
+      const targetSettlement = (
+        bitePlan?.targetSettlement ?? decimal(body.targetSettlement)
+      ).toDecimalPlaces(2);
+      const completionBehavior = getDefaultManualDetectionCompletionBehavior(
+        body.scope as ManualDetectionScope,
+        body.bitePercentage,
+      );
+      const targetBand = calculateDefaultManualTargetBand(
+        body.scope as ManualDetectionScope,
+        targetSettlement,
+        completionBehavior,
+      );
+
       const data = {
         scope: body.scope as ManualDetectionScope,
         targetAgentId,
         targetAgentUsername,
         targetMemberId,
         targetMemberUsername,
-        targetSettlement: (
-          bitePlan?.targetSettlement ?? decimal(body.targetSettlement)
-        ).toDecimalPlaces(2),
+        targetSettlement,
         controlPercentage: body.controlPercentage,
         bitePercentage: body.bitePercentage
           ? decimal(body.bitePercentage).toDecimalPlaces(2)
           : null,
         houseTakePercentage: decimal(body.houseTakePercentage).toDecimalPlaces(2),
+        completionBehavior,
+        targetBand,
         cycleCount: 0,
         lastCycleSettlement: null,
         lastCycleAt: null,
@@ -1410,6 +1427,8 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           controlPercentage: record.controlPercentage,
           bitePercentage: record.bitePercentage?.toFixed(2) ?? null,
           houseTakePercentage: record.houseTakePercentage.toFixed(2),
+          completionBehavior: record.completionBehavior,
+          targetBand: record.targetBand.toFixed(2),
           startSettlement: record.startSettlement?.toFixed(2) ?? null,
         },
         req,

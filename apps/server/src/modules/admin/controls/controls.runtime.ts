@@ -13,6 +13,11 @@ import { calculateRebateAmountByCategory, effectiveDownlineRebate } from '../reb
 type Db = PrismaClient | Prisma.TransactionClient;
 
 const ZERO = new Prisma.Decimal(0);
+const MANUAL_HOLD_TARGET_BEHAVIOR = 'hold_target';
+const MANUAL_STOP_ON_TARGET_BEHAVIOR = 'stop_on_target';
+const MANUAL_TARGET_BAND_RATE = new Prisma.Decimal('0.05');
+const MANUAL_TARGET_BAND_MIN = new Prisma.Decimal(1000);
+const MANUAL_TARGET_BAND_MAX = new Prisma.Decimal(10000);
 
 export interface SettlementSummary {
   gameDay: string;
@@ -288,6 +293,10 @@ export async function checkAndCompleteManualDetectionControls(
       control.startSettlement,
     );
     if (!reached) continue;
+
+    if (isHoldTargetManualControl(control)) {
+      continue;
+    }
 
     if (control.bitePercentage && control.bitePercentage.greaterThan(0)) {
       const plan = await calculateAutoDetectionBitePlan(db, {
@@ -758,6 +767,66 @@ function decimal(value: Prisma.Decimal | string | number | null | undefined): Pr
   if (value instanceof Prisma.Decimal) return value;
   if (typeof value === 'string' || typeof value === 'number') return new Prisma.Decimal(value);
   return ZERO;
+}
+
+export type ManualDetectionCompletionBehavior =
+  | typeof MANUAL_HOLD_TARGET_BEHAVIOR
+  | typeof MANUAL_STOP_ON_TARGET_BEHAVIOR;
+
+export function getDefaultManualDetectionCompletionBehavior(
+  scope: ManualDetectionScope,
+  bitePercentage?: Prisma.Decimal | string | number | null,
+): ManualDetectionCompletionBehavior {
+  return scope === ManualDetectionScope.AGENT_LINE && decimal(bitePercentage).lessThanOrEqualTo(0)
+    ? MANUAL_HOLD_TARGET_BEHAVIOR
+    : MANUAL_STOP_ON_TARGET_BEHAVIOR;
+}
+
+export function calculateDefaultManualTargetBand(
+  scope: ManualDetectionScope,
+  targetSettlement: Prisma.Decimal | string | number | null | undefined,
+  completionBehavior: ManualDetectionCompletionBehavior = getDefaultManualDetectionCompletionBehavior(
+    scope,
+  ),
+): Prisma.Decimal {
+  const target = decimal(targetSettlement).abs();
+  if (completionBehavior !== MANUAL_HOLD_TARGET_BEHAVIOR || target.lessThanOrEqualTo(0)) {
+    return ZERO;
+  }
+  return Prisma.Decimal.max(
+    MANUAL_TARGET_BAND_MIN,
+    Prisma.Decimal.min(target.mul(MANUAL_TARGET_BAND_RATE), MANUAL_TARGET_BAND_MAX),
+  ).toDecimalPlaces(2);
+}
+
+export function isHoldTargetManualControl(control: {
+  scope: ManualDetectionScope;
+  completionBehavior?: string | null;
+  bitePercentage?: Prisma.Decimal | null;
+}): boolean {
+  const behavior = control.completionBehavior?.trim().toLowerCase();
+  if (behavior) return behavior === MANUAL_HOLD_TARGET_BEHAVIOR;
+  return getDefaultManualDetectionCompletionBehavior(
+    control.scope,
+    control.bitePercentage,
+  ) === MANUAL_HOLD_TARGET_BEHAVIOR;
+}
+
+export function getManualControlTargetBand(control: {
+  scope: ManualDetectionScope;
+  targetSettlement: Prisma.Decimal;
+  completionBehavior?: string | null;
+  targetBand?: Prisma.Decimal | null;
+  bitePercentage?: Prisma.Decimal | null;
+}): Prisma.Decimal {
+  const configured = control.targetBand ? decimal(control.targetBand) : ZERO;
+  if (configured.greaterThan(0)) return configured.toDecimalPlaces(2);
+  if (!isHoldTargetManualControl(control)) return ZERO;
+  return calculateDefaultManualTargetBand(
+    control.scope,
+    control.targetSettlement,
+    MANUAL_HOLD_TARGET_BEHAVIOR,
+  );
 }
 
 function clampPercent(
