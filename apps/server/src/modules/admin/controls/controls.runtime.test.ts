@@ -246,6 +246,67 @@ describe('manual detection hold target behavior', () => {
     expect(result.completedCount).toBe(0);
     expect(update).not.toHaveBeenCalled();
   });
+
+  it('keeps stop-on-target member controls visible when created at the target', async () => {
+    const control = {
+      id: 'member-stop-at-target',
+      scope: 'MEMBER',
+      targetAgentId: null,
+      targetMemberUsername: 'demo',
+      targetSettlement: new Prisma.Decimal(0),
+      startSettlement: new Prisma.Decimal(0),
+      bitePercentage: null,
+      completionBehavior: 'stop_on_target',
+      targetBand: new Prisma.Decimal(0),
+      createdAt: new Date('2026-01-05T00:00:00.000Z'),
+    };
+    const update = vi.fn();
+    const db = {
+      manualDetectionControl: {
+        findMany: vi.fn().mockResolvedValue([control]),
+        update,
+      },
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'u1', agentId: 'agent-a' }),
+      },
+      agent: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'agent-a',
+          parentId: null,
+          rebateMode: 'NONE',
+          rebatePercentage: new Prisma.Decimal(0),
+          maxRebatePercentage: new Prisma.Decimal(0),
+          baccaratRebateMode: 'NONE',
+          baccaratRebatePercentage: new Prisma.Decimal(0),
+          maxBaccaratRebatePercentage: new Prisma.Decimal(0),
+        }),
+      },
+      bet: {
+        aggregate: vi
+          .fn()
+          .mockResolvedValueOnce({
+            _count: { _all: 0 },
+            _sum: { amount: null, payout: null, profit: null },
+          })
+          .mockResolvedValueOnce({
+            _sum: { amount: null },
+          }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      crashBet: {
+        aggregate: vi.fn().mockResolvedValue({
+          _count: { _all: 0 },
+          _sum: { amount: null, payout: null },
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    const result = await checkAndCompleteManualDetectionControls(db as never);
+
+    expect(result.completedCount).toBe(0);
+    expect(update).not.toHaveBeenCalled();
+  });
 });
 
 describe('findApplicableManualDetectionControl no-count lines', () => {

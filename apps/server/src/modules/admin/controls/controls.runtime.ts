@@ -860,10 +860,11 @@ function isTargetReached(
   targetSettlement: Prisma.Decimal,
   startSettlement: Prisma.Decimal | null,
 ): boolean {
-  if (targetSettlement.eq(0) && startSettlement) {
-    if (startSettlement.gt(0)) return currentSettlement.lte(0);
-    if (startSettlement.lt(0)) return currentSettlement.gte(0);
-    return true;
+  if (startSettlement) {
+    if (targetSettlement.eq(startSettlement)) return false;
+    return targetSettlement.greaterThan(startSettlement)
+      ? currentSettlement.greaterThanOrEqualTo(targetSettlement)
+      : currentSettlement.lessThanOrEqualTo(targetSettlement);
   }
   return targetSettlement.gte(0)
     ? currentSettlement.gte(targetSettlement)
