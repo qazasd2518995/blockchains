@@ -199,6 +199,7 @@ export const manualDetectionControlSchema = z
     controlPercentage: z.coerce.number().int().min(1).max(100).default(50),
     bitePercentage: biteRateDecimal.optional().nullable(),
     houseTakePercentage: rateDecimal.default('10'),
+    completionBehavior: z.enum(['hold_target', 'stop_on_target']).optional().nullable(),
   })
   .superRefine((value, ctx) => {
     if (value.scope === 'AGENT_LINE' && !value.targetAgentId) {

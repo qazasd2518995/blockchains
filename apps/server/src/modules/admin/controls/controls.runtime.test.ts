@@ -8,6 +8,7 @@ import {
   findApplicableBurstControl,
   findApplicableManualDetectionControl,
   getDefaultManualDetectionCompletionBehavior,
+  normalizeManualDetectionCompletionBehavior,
 } from './controls.runtime.js';
 import { __controlsTestHooks } from '../../games/_common/controls.js';
 
@@ -86,15 +87,36 @@ describe('distributeAutoDetectionRedistribution', () => {
 });
 
 describe('manual detection hold target behavior', () => {
-  it('defaults agent-line target controls to hold around the target', () => {
-    const behavior = getDefaultManualDetectionCompletionBehavior('AGENT_LINE');
+  it('defaults to returning to the parent scope unless hold target is selected', () => {
+    const defaultBehavior = getDefaultManualDetectionCompletionBehavior('AGENT_LINE');
+    const holdBehavior = normalizeManualDetectionCompletionBehavior(
+      'AGENT_LINE',
+      null,
+      'hold_target',
+    );
+    const memberHoldBehavior = normalizeManualDetectionCompletionBehavior(
+      'MEMBER',
+      null,
+      'hold_target',
+    );
 
-    expect(behavior).toBe('hold_target');
-    expect(calculateDefaultManualTargetBand('AGENT_LINE', '10000', behavior).toFixed(2)).toBe(
+    expect(defaultBehavior).toBe('stop_on_target');
+    expect(holdBehavior).toBe('hold_target');
+    expect(memberHoldBehavior).toBe('hold_target');
+    expect(
+      normalizeManualDetectionCompletionBehavior('ALL', null, 'hold_target'),
+    ).toBe('stop_on_target');
+    expect(calculateDefaultManualTargetBand('AGENT_LINE', '10000', holdBehavior).toFixed(2)).toBe(
       '1000.00',
     );
-    expect(calculateDefaultManualTargetBand('AGENT_LINE', '-300000', behavior).toFixed(2)).toBe(
+    expect(calculateDefaultManualTargetBand('MEMBER', '20000', memberHoldBehavior).toFixed(2)).toBe(
+      '1000.00',
+    );
+    expect(calculateDefaultManualTargetBand('AGENT_LINE', '-300000', holdBehavior).toFixed(2)).toBe(
       '10000.00',
+    );
+    expect(calculateDefaultManualTargetBand('AGENT_LINE', '10000', defaultBehavior).toFixed(2)).toBe(
+      '0.00',
     );
   });
 
@@ -148,6 +170,67 @@ describe('manual detection hold target behavior', () => {
             _sum: { amount: new Prisma.Decimal(0) },
           }),
         findMany: vi.fn().mockResolvedValue([{ userId: 'u1' }]),
+      },
+      crashBet: {
+        aggregate: vi.fn().mockResolvedValue({
+          _count: { _all: 0 },
+          _sum: { amount: null, payout: null },
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    const result = await checkAndCompleteManualDetectionControls(db as never);
+
+    expect(result.completedCount).toBe(0);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('keeps hold-target member controls visible when current settlement equals target', async () => {
+    const control = {
+      id: 'member-hold',
+      scope: 'MEMBER',
+      targetAgentId: null,
+      targetMemberUsername: 'demo',
+      targetSettlement: new Prisma.Decimal(0),
+      startSettlement: new Prisma.Decimal(0),
+      bitePercentage: null,
+      completionBehavior: 'hold_target',
+      targetBand: new Prisma.Decimal(0),
+      createdAt: new Date('2026-01-05T00:00:00.000Z'),
+    };
+    const update = vi.fn();
+    const db = {
+      manualDetectionControl: {
+        findMany: vi.fn().mockResolvedValue([control]),
+        update,
+      },
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'u1', agentId: 'agent-a' }),
+      },
+      agent: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'agent-a',
+          parentId: null,
+          rebateMode: 'NONE',
+          rebatePercentage: new Prisma.Decimal(0),
+          maxRebatePercentage: new Prisma.Decimal(0),
+          baccaratRebateMode: 'NONE',
+          baccaratRebatePercentage: new Prisma.Decimal(0),
+          maxBaccaratRebatePercentage: new Prisma.Decimal(0),
+        }),
+      },
+      bet: {
+        aggregate: vi
+          .fn()
+          .mockResolvedValueOnce({
+            _count: { _all: 0 },
+            _sum: { amount: null, payout: null, profit: null },
+          })
+          .mockResolvedValueOnce({
+            _sum: { amount: null },
+          }),
+        findMany: vi.fn().mockResolvedValue([]),
       },
       crashBet: {
         aggregate: vi.fn().mockResolvedValue({

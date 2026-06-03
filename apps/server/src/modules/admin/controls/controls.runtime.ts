@@ -777,7 +777,23 @@ export function getDefaultManualDetectionCompletionBehavior(
   scope: ManualDetectionScope,
   bitePercentage?: Prisma.Decimal | string | number | null,
 ): ManualDetectionCompletionBehavior {
-  return scope === ManualDetectionScope.AGENT_LINE && decimal(bitePercentage).lessThanOrEqualTo(0)
+  void scope;
+  void bitePercentage;
+  return MANUAL_STOP_ON_TARGET_BEHAVIOR;
+}
+
+export function normalizeManualDetectionCompletionBehavior(
+  scope: ManualDetectionScope,
+  bitePercentage?: Prisma.Decimal | string | number | null,
+  requestedBehavior?: string | null,
+): ManualDetectionCompletionBehavior {
+  if (
+    decimal(bitePercentage).greaterThan(0) ||
+    (scope !== ManualDetectionScope.AGENT_LINE && scope !== ManualDetectionScope.MEMBER)
+  ) {
+    return MANUAL_STOP_ON_TARGET_BEHAVIOR;
+  }
+  return requestedBehavior === MANUAL_HOLD_TARGET_BEHAVIOR
     ? MANUAL_HOLD_TARGET_BEHAVIOR
     : MANUAL_STOP_ON_TARGET_BEHAVIOR;
 }

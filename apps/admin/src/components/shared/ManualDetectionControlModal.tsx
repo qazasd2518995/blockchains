@@ -32,6 +32,7 @@ interface BitePreview {
 }
 
 type Mode = 'target' | 'bite';
+type CompletionBehavior = 'stop_on_target' | 'hold_target';
 
 function playerSettlementNumber(superiorSettlement?: string | null): number {
   const n = Number.parseFloat(superiorSettlement ?? '0');
@@ -56,6 +57,8 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
   const [targetSettlement, setTargetSettlement] = useState('0');
   const [bitePercentage, setBitePercentage] = useState('10');
   const [controlPercentage, setControlPercentage] = useState('50');
+  const [completionBehavior, setCompletionBehavior] =
+    useState<CompletionBehavior>('stop_on_target');
   const [preview, setPreview] = useState<SettlementPreview | null>(null);
   const [bitePreview, setBitePreview] = useState<BitePreview | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -70,6 +73,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
       setTargetSettlement('0');
       setBitePercentage('10');
       setControlPercentage('50');
+      setCompletionBehavior('stop_on_target');
       setPreview(null);
       setBitePreview(null);
       setErr(null);
@@ -152,6 +156,8 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
         controlPercentage: Number.parseInt(controlPercentage, 10),
         bitePercentage: mode === 'bite' ? bitePercentage : undefined,
         houseTakePercentage: mode === 'bite' ? '10' : undefined,
+        completionBehavior:
+          mode === 'target' && scope !== 'ALL' ? completionBehavior : 'stop_on_target',
       });
       onDone();
       onClose();
@@ -185,6 +191,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
             onClick={() => {
               setMode('bite');
               setPreview(null);
+              setCompletionBehavior('stop_on_target');
             }}
             className={`rounded-[6px] border px-3 py-2 text-[12px] font-semibold ${
               mode === 'bite'
@@ -205,6 +212,7 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
               setTarget(null);
               setPreview(null);
               setBitePreview(null);
+              if (e.target.value === 'ALL') setCompletionBehavior('stop_on_target');
             }}
             className="term-input"
           >
@@ -249,6 +257,36 @@ export function ManualDetectionControlModal({ open, onClose, onDone }: Props): J
             />
           </label>
         </div>
+
+        {mode === 'target' && scope !== 'ALL' && (
+          <div>
+            <div className="label mb-2">達標後行為</div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setCompletionBehavior('stop_on_target')}
+                className={`rounded-[6px] border px-3 py-2 text-[12px] font-semibold ${
+                  completionBehavior === 'stop_on_target'
+                    ? 'border-[#186073] bg-[#186073] text-white'
+                    : 'border-[#D7E3EA] bg-white text-[#334155]'
+                }`}
+              >
+                達標回大盤
+              </button>
+              <button
+                type="button"
+                onClick={() => setCompletionBehavior('hold_target')}
+                className={`rounded-[6px] border px-3 py-2 text-[12px] font-semibold ${
+                  completionBehavior === 'hold_target'
+                    ? 'border-[#E4612A] bg-[#E4612A] text-white'
+                    : 'border-[#D7E3EA] bg-white text-[#334155]'
+                }`}
+              >
+                鎖定目標
+              </button>
+            </div>
+          </div>
+        )}
 
         {mode === 'bite' && (
           <div className="grid grid-cols-2 gap-3">

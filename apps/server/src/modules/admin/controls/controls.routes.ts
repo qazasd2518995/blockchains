@@ -20,9 +20,9 @@ import {
   calculateDefaultManualTargetBand,
   calculateControlCapital,
   checkAndCompleteManualDetectionControls,
-  getDefaultManualDetectionCompletionBehavior,
   getAllActiveManualDetectionControls,
   getControlGameDay,
+  normalizeManualDetectionCompletionBehavior,
   normalizeAgentLineCapDay,
   normalizeBurstControlDay,
   normalizeMemberWinCapDay,
@@ -1368,9 +1368,10 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
       const targetSettlement = (
         bitePlan?.targetSettlement ?? decimal(body.targetSettlement)
       ).toDecimalPlaces(2);
-      const completionBehavior = getDefaultManualDetectionCompletionBehavior(
+      const completionBehavior = normalizeManualDetectionCompletionBehavior(
         body.scope as ManualDetectionScope,
         body.bitePercentage,
+        body.completionBehavior,
       );
       const targetBand = calculateDefaultManualTargetBand(
         body.scope as ManualDetectionScope,

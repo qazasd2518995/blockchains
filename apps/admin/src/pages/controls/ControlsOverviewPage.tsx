@@ -1472,10 +1472,7 @@ function manualDirectionClass(row: ManualDetectionRow): string {
 }
 
 function isHoldTargetManual(row: ManualDetectionRow): boolean {
-  return (
-    row.completionBehavior === 'hold_target' ||
-    (!row.completionBehavior && row.scope === 'AGENT_LINE' && !row.bitePercentage)
-  );
+  return row.completionBehavior === 'hold_target';
 }
 
 function isManualWithinTargetBand(row: ManualDetectionRow): boolean {
