@@ -89,9 +89,15 @@ interface DepositRow {
   memberUsername: string;
   depositAmount: string;
   targetProfit: string;
+  targetBalance?: string;
+  startBalance?: string;
+  currentBalance?: string;
+  currentProfit?: string;
+  progressPercent?: string;
   controlWinRate: string;
   isActive: boolean;
   isCompleted: boolean;
+  isTargetReached?: boolean;
   notes: string | null;
   operatorUsername: string | null;
   createdAt: string;
@@ -510,6 +516,35 @@ export function ControlsOverviewPage(): JSX.Element {
       label: '目标盈利',
       align: 'right',
       render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.targetProfit)}</span>,
+    },
+    {
+      key: 'progress',
+      label: '目前额 / 进度',
+      render: (r) => {
+        const progress = depositProgressPercent(r);
+        return (
+          <div className="min-w-[150px]">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="data-num text-[12px] text-[#186073]">
+                {signed(r.currentProfit ?? '0')}
+              </span>
+              <span className="font-mono text-[10px] text-ink-500">
+                {progress.toFixed(0)}%
+              </span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ink-100">
+              <div
+                className="h-full rounded-full bg-[#2BAA6A]"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-ink-400">
+              <span>余额 {fmt(r.currentBalance)}</span>
+              <span>目标 {fmt(r.targetBalance)}</span>
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: 'rate',
@@ -1348,6 +1383,18 @@ function fmt(value?: string | null): string {
 
 function pct(s: string): string {
   return `${(Number.parseFloat(s) * 100).toFixed(1)}%`;
+}
+
+function depositProgressPercent(row: DepositRow): number {
+  const fromServer = Number.parseFloat(row.progressPercent ?? '');
+  if (Number.isFinite(fromServer)) return Math.max(0, Math.min(100, fromServer));
+
+  const currentProfit = Number.parseFloat(row.currentProfit ?? '0');
+  const targetProfit = Number.parseFloat(row.targetProfit ?? '0');
+  if (!Number.isFinite(currentProfit) || !Number.isFinite(targetProfit) || targetProfit <= 0) {
+    return 0;
+  }
+  return Math.max(0, Math.min(100, (currentProfit / targetProfit) * 100));
 }
 
 function signed(value?: string | null): string {

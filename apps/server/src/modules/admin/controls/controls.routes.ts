@@ -900,7 +900,32 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
       const items = await fastify.prisma.memberDepositControl.findMany({
         orderBy: { createdAt: 'desc' },
       });
-      return { items };
+      const members = await fastify.prisma.user.findMany({
+        where: { id: { in: Array.from(new Set(items.map((item) => item.memberId))) } },
+        select: { id: true, balance: true },
+      });
+      const balanceByMemberId = new Map(members.map((member) => [member.id, member.balance]));
+      return {
+        items: items.map((item) => {
+          const currentBalance = balanceByMemberId.get(item.memberId) ?? item.startBalance;
+          const currentProfit = currentBalance.sub(item.startBalance);
+          const progressPercent = item.targetProfit.greaterThan(0)
+            ? Math.max(0, Math.min(100, currentProfit.div(item.targetProfit).mul(100).toNumber()))
+            : 0;
+          return {
+            ...item,
+            depositAmount: item.depositAmount.toFixed(2),
+            targetProfit: item.targetProfit.toFixed(2),
+            targetBalance: item.startBalance.add(item.targetProfit).toFixed(2),
+            startBalance: item.startBalance.toFixed(2),
+            currentBalance: currentBalance.toFixed(2),
+            currentProfit: currentProfit.toFixed(2),
+            progressPercent: progressPercent.toFixed(2),
+            controlWinRate: item.controlWinRate.toFixed(4),
+            isTargetReached: currentProfit.greaterThanOrEqualTo(item.targetProfit),
+          };
+        }),
+      };
     },
   );
 

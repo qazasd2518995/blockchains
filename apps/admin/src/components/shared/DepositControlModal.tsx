@@ -32,6 +32,9 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
     const n = Number.parseFloat(depositAmount);
     return Number.isFinite(n) ? n * 1.5 : 0;
   })();
+  const memberBalanceNum = Number.parseFloat(member?.balance ?? '0');
+  const startBalanceNum = Number.isFinite(memberBalanceNum) ? memberBalanceNum : 0;
+  const targetBalanceNum = startBalanceNum + targetProfitNum;
 
   const submit = async (): Promise<void> => {
     if (!member?.balance) {
@@ -74,6 +77,13 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
           onChange={setMember}
           placeholder="输入会员账号或全名"
         />
+
+        <div className="grid grid-cols-2 gap-3 rounded-md border border-[#D7B963]/45 bg-[#FFF8DF] p-3 md:grid-cols-4">
+          <AmountPreview label="目前余额" value={member ? fmtAmount(startBalanceNum) : '—'} />
+          <AmountPreview label="目标赢额" value={fmtAmount(targetProfitNum)} accent="gold" />
+          <AmountPreview label="目标余额" value={member ? fmtAmount(targetBalanceNum) : '—'} />
+          <AmountPreview label="控制胜率" value={`${controlWinRatePercent || '0'}%`} accent="green" />
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
@@ -135,4 +145,28 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
       </div>
     </Modal>
   );
+}
+
+function AmountPreview({
+  label,
+  value,
+  accent = 'ink',
+}: {
+  label: string;
+  value: string;
+  accent?: 'ink' | 'gold' | 'green';
+}) {
+  const valueClass =
+    accent === 'gold' ? 'text-[#AE8B35]' : accent === 'green' ? 'text-[#12813A]' : 'text-ink-900';
+  return (
+    <div>
+      <div className="label text-[10px] text-ink-500">{label}</div>
+      <div className={`mt-1 truncate font-mono text-[15px] font-bold ${valueClass}`}>{value}</div>
+    </div>
+  );
+}
+
+function fmtAmount(value: number): string {
+  if (!Number.isFinite(value)) return '0.00';
+  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
