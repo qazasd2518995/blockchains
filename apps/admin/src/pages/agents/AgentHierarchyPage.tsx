@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import type { AgentPublic, HierarchyResponse, HierarchyItem, MemberPublic } from '@bg/shared';
@@ -155,23 +155,27 @@ export function AgentHierarchyPage(): JSX.Element {
   };
 
   const currentLayerAgent = data?.parent ?? null;
-  const createTarget = currentLayerAgent
-    ? {
-        id: currentLayerAgent.id,
-        username: currentLayerAgent.username,
-        level: currentLayerAgent.level,
-        marketType: currentLayerAgent.marketType,
-        rebateMode: currentLayerAgent.rebateMode,
-        rebatePercentage: currentLayerAgent.rebatePercentage,
-        maxRebatePercentage: currentLayerAgent.maxRebatePercentage,
-        baccaratRebateMode: currentLayerAgent.baccaratRebateMode,
-        baccaratRebatePercentage: currentLayerAgent.baccaratRebatePercentage,
-        maxBaccaratRebatePercentage: currentLayerAgent.maxBaccaratRebatePercentage,
-        role: currentLayerAgent.role,
-        bettingLimitLevel: currentLayerAgent.bettingLimitLevel,
-        bettingLimits: currentLayerAgent.bettingLimits,
-      }
-    : undefined;
+  const createTarget = useMemo(
+    () =>
+      currentLayerAgent
+        ? {
+            id: currentLayerAgent.id,
+            username: currentLayerAgent.username,
+            level: currentLayerAgent.level,
+            marketType: currentLayerAgent.marketType,
+            rebateMode: currentLayerAgent.rebateMode,
+            rebatePercentage: currentLayerAgent.rebatePercentage,
+            maxRebatePercentage: currentLayerAgent.maxRebatePercentage,
+            baccaratRebateMode: currentLayerAgent.baccaratRebateMode,
+            baccaratRebatePercentage: currentLayerAgent.baccaratRebatePercentage,
+            maxBaccaratRebatePercentage: currentLayerAgent.maxBaccaratRebatePercentage,
+            role: currentLayerAgent.role,
+            bettingLimitLevel: currentLayerAgent.bettingLimitLevel,
+            bettingLimits: currentLayerAgent.bettingLimits,
+          }
+        : undefined,
+    [currentLayerAgent],
+  );
   const canCreateSubAgent = currentLayerAgent ? currentLayerAgent.level < 15 : false;
   const previousCrumb =
     data && data.breadcrumb.length > 1 ? data.breadcrumb[data.breadcrumb.length - 2] : null;

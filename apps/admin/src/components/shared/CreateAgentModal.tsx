@@ -1,7 +1,7 @@
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BETTING_LIMIT_RANGE_OPTIONS,
   DEFAULT_BETTING_LIMIT_RANGE,
@@ -80,6 +80,8 @@ export function CreateAgentModal({
   );
   const [err, setErr] = useState<string | null>(null);
   const resolvedParentId = lockedParent?.id ?? defaultParentId ?? '';
+  const resetKey = open ? `${resolvedParentId}:${lockedParent?.id ?? 'select'}` : 'closed';
+  const lastResetKeyRef = useRef<string | null>(null);
 
   const {
     register,
@@ -103,7 +105,12 @@ export function CreateAgentModal({
   const watchedBettingLimitLevel = watch('bettingLimitLevel');
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      lastResetKeyRef.current = null;
+      return;
+    }
+    if (lastResetKeyRef.current === resetKey) return;
+    lastResetKeyRef.current = resetKey;
     setErr(null);
     setCustomLimitOpen(false);
     setBettingLimits(
@@ -156,7 +163,7 @@ export function CreateAgentModal({
         setParents([]);
       }
     })();
-  }, [open, resolvedParentId, lockedParent, reset, setValue]);
+  }, [open, reset, resetKey, resolvedParentId, setValue]);
 
   useEffect(() => {
     if (lockedParent) return;

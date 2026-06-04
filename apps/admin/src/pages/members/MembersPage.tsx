@@ -7,11 +7,13 @@ import { CreateMemberModal } from '@/components/shared/CreateMemberModal';
 import { TransferModal } from '@/components/shared/TransferModal';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
+import { useAdminAuthStore } from '@/stores/adminAuthStore';
 
 type AccountStatus = 'ACTIVE' | 'FROZEN' | 'DISABLED';
 
 export function MembersPage(): JSX.Element {
   const { t } = useTranslation();
+  const { agent: me } = useAdminAuthStore();
   const [items, setItems] = useState<MemberPublic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -139,6 +141,12 @@ export function MembersPage(): JSX.Element {
       ),
     },
   ];
+  const defaultCreateAgentId =
+    me?.role === 'AGENT'
+      ? me.id
+      : me?.role === 'SUB_ACCOUNT'
+        ? (me.parentId ?? undefined)
+        : undefined;
 
   return (
     <div>
@@ -191,6 +199,7 @@ export function MembersPage(): JSX.Element {
         open={openCreate}
         onClose={() => setOpenCreate(false)}
         onCreated={() => setReloadKey((k) => k + 1)}
+        defaultAgentId={defaultCreateAgentId}
       />
       {transferFor && (
         <TransferModal
