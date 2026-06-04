@@ -871,12 +871,7 @@ function blankHotlineGrid(gameId: string, variant = 0): number[][] {
   const reelCount = getHotlineReelCount(gameId);
   const rowCount = getHotlineRowCount(gameId);
   if (rowCount > 3) {
-    return Array.from({ length: reelCount }, (_, reel) =>
-      Array.from(
-        { length: rowCount },
-        (_, row) => (variant + reel * rowCount + row) % HOTLINE_SYMBOL_INDEXES.length,
-      ),
-    );
+    return noWinMegaGrid(variant, reelCount, rowCount);
   }
 
   return [
@@ -886,6 +881,31 @@ function blankHotlineGrid(gameId: string, variant = 0): number[][] {
     [0, 4, 0],
     [5, 0, 3],
   ].slice(0, reelCount);
+}
+
+function noWinMegaGrid(variant: number, reelCount = 6, rowCount = 5): number[][] {
+  const grid = Array.from({ length: reelCount }, () => Array.from({ length: rowCount }, () => 0));
+  const positions = rankedMegaPositions(
+    Array.from({ length: reelCount * rowCount }, (_, index) => ({
+      reel: Math.floor(index / rowCount),
+      row: index % rowCount,
+    })),
+    variant + 1201,
+  );
+  const symbols = shuffledMegaSymbols(variant + 1709);
+
+  positions.forEach((position, index) => {
+    grid[position.reel]![position.row] = symbols[index % symbols.length]!;
+  });
+  return grid;
+}
+
+function shuffledMegaSymbols(variant: number): number[] {
+  return [...HOTLINE_SYMBOL_INDEXES].sort(
+    (a, b) =>
+      deterministicFraction(variant + a * 31, 1301) -
+      deterministicFraction(variant + b * 31, 1301),
+  );
 }
 
 function fixedLineHotlineGrid(
@@ -1167,12 +1187,14 @@ function buildControlledMegaFreeSpins(
 } {
   const freeSpinsAwarded = 15;
   const target = roundFeatureMultiplier(totalMultiplier);
-  const blankGrid = blankHotlineGrid(GameId.THUNDER_SLOT, variant + 900);
   if (target <= 0) {
     return {
       freeSpinsAwarded,
       freeSpinRounds: Array.from({ length: freeSpinsAwarded }, (_, index) =>
-        blankControlledFreeSpinRound(index, blankGrid),
+        blankControlledFreeSpinRound(
+          index,
+          blankHotlineGrid(GameId.THUNDER_SLOT, variant + 900 + index * 53),
+        ),
       ),
       freeSpinMultiplierBank: 0,
       freeSpinWinMultiplier: 0,
@@ -1193,7 +1215,12 @@ function buildControlledMegaFreeSpins(
 
   for (let index = 0; index < freeSpinsAwarded; index += 1) {
     if (!winningIndexes.has(index)) {
-      freeSpinRounds.push(blankControlledFreeSpinRound(index, blankGrid));
+      freeSpinRounds.push(
+        blankControlledFreeSpinRound(
+          index,
+          blankHotlineGrid(GameId.THUNDER_SLOT, variant + 900 + index * 53),
+        ),
+      );
       continue;
     }
 

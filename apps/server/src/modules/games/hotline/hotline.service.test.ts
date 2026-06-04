@@ -206,6 +206,32 @@ describe('hotline controlled round shaping', () => {
     ).toBe(30000);
   });
 
+  it('varies controlled mega free-spin blank boards without accidental wins', () => {
+    const feature = __hotlineServiceTestHooks.buildControlledMegaFeature(0, true, 12);
+    const signatures = new Set(
+      feature.freeSpinRounds.map((round) => JSON.stringify(round.initialGrid)),
+    );
+
+    expect(feature.freeSpinRounds).toHaveLength(15);
+    expect(signatures.size).toBeGreaterThan(10);
+    for (const round of feature.freeSpinRounds) {
+      expect(round.initialGrid).toEqual(round.finalGrid);
+      expect(hotlineEvaluate(round.initialGrid).lines).toHaveLength(0);
+    }
+  });
+
+  it('varies non-winning boards inside controlled mega free games', () => {
+    const feature = __hotlineServiceTestHooks.buildControlledMegaFeature(180, true, 12);
+    const blankRounds = feature.freeSpinRounds.filter((round) => round.totalMultiplier === 0);
+    const signatures = new Set(blankRounds.map((round) => JSON.stringify(round.initialGrid)));
+
+    expect(blankRounds.length).toBeGreaterThan(0);
+    expect(signatures.size).toBe(blankRounds.length);
+    for (const round of blankRounds) {
+      expect(hotlineEvaluate(round.initialGrid).lines).toHaveLength(0);
+    }
+  });
+
   it('keeps mega buy-feature payout and displayed free-game total capped at 2x stake', () => {
     const baseAmount = new Prisma.Decimal(10);
     const stakeAmount = __hotlineServiceTestHooks.megaBuyFeatureStakeAmount(baseAmount);
