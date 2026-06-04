@@ -222,6 +222,115 @@ describe('hotline controlled round shaping', () => {
     }
   });
 
+  it('varies controlled opening grids across slot sizes and control reasons', () => {
+    const amount = new Prisma.Decimal(100);
+    const normalControl = {
+      minMultiplier: new Prisma.Decimal(2),
+      maxMultiplier: new Prisma.Decimal(30),
+      maxPayout: new Prisma.Decimal(50000),
+    };
+    const burstControl = {
+      flipReason: 'burst_win',
+      minMultiplier: new Prisma.Decimal(20),
+      maxMultiplier: new Prisma.Decimal(500),
+      maxPayout: new Prisma.Decimal(50000),
+    };
+    const openingSignature = (round: ReturnType<typeof __hotlineServiceTestHooks.winningHotlineRound>) =>
+      JSON.stringify(round.cascades?.[0]?.grid ?? round.grid);
+    const cases = [
+      {
+        minUnique: 4,
+        rounds: Array.from({ length: 24 }, (_, nonce) =>
+          __hotlineServiceTestHooks.softLossHotlineRound(GameId.CANDY_SLOT, nonce),
+        ),
+      },
+      {
+        minUnique: 4,
+        rounds: Array.from({ length: 24 }, (_, nonce) =>
+          __hotlineServiceTestHooks.winningHotlineRound(
+            GameId.CANDY_SLOT,
+            amount,
+            normalControl,
+            nonce,
+          ),
+        ),
+      },
+      {
+        minUnique: 4,
+        rounds: Array.from({ length: 24 }, (_, nonce) =>
+          __hotlineServiceTestHooks.winningHotlineRound(
+            GameId.CANDY_SLOT,
+            amount,
+            burstControl,
+            nonce,
+          ),
+        ),
+      },
+      {
+        minUnique: 8,
+        rounds: Array.from({ length: 24 }, (_, nonce) =>
+          __hotlineServiceTestHooks.softLossHotlineRound(GameId.FRUIT_SLOT, nonce),
+        ),
+      },
+      {
+        minUnique: 8,
+        rounds: Array.from({ length: 24 }, (_, nonce) =>
+          __hotlineServiceTestHooks.winningHotlineRound(
+            GameId.FRUIT_SLOT,
+            amount,
+            normalControl,
+            nonce,
+          ),
+        ),
+      },
+      {
+        minUnique: 8,
+        rounds: Array.from({ length: 24 }, (_, nonce) =>
+          __hotlineServiceTestHooks.winningHotlineRound(
+            GameId.FRUIT_SLOT,
+            amount,
+            burstControl,
+            nonce,
+          ),
+        ),
+      },
+      {
+        minUnique: 12,
+        rounds: Array.from({ length: 24 }, (_, nonce) =>
+          __hotlineServiceTestHooks.softLossHotlineRound(GameId.DRAGON_MEGA_SLOT, nonce),
+        ),
+      },
+      {
+        minUnique: 12,
+        rounds: Array.from({ length: 24 }, (_, nonce) =>
+          __hotlineServiceTestHooks.winningHotlineRound(
+            GameId.DRAGON_MEGA_SLOT,
+            amount,
+            normalControl,
+            nonce,
+          ),
+        ),
+      },
+      {
+        minUnique: 12,
+        rounds: Array.from({ length: 24 }, (_, nonce) =>
+          __hotlineServiceTestHooks.winningHotlineRound(
+            GameId.DRAGON_MEGA_SLOT,
+            amount,
+            burstControl,
+            nonce,
+          ),
+        ),
+      },
+    ];
+
+    for (const controlledCase of cases) {
+      expect(new Set(controlledCase.rounds.map(openingSignature)).size).toBeGreaterThan(
+        controlledCase.minUnique,
+      );
+    }
+  });
+
   it('shapes mega buy-feature accounting into two low results and one capped high result', () => {
     const picks = [0, 1, 2].map((nonce) =>
       __hotlineServiceTestHooks.chooseMegaFreeGameAccountingMultiplier(nonce),
