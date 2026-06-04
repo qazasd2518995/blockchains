@@ -862,7 +862,9 @@ function roundFromMegaGrid(
     grid: finalGrid,
     lines: evaluated.lines,
     cascades,
-    ...(includeFeatures ? { features: buildControlledMegaFeature(evaluated.totalMultiplier) } : {}),
+    ...(includeFeatures
+      ? { features: buildControlledMegaFeature(evaluated.totalMultiplier, false, variant) }
+      : {}),
     totalMultiplier: evaluated.totalMultiplier,
   };
 }
@@ -1460,6 +1462,7 @@ export const __hotlineServiceTestHooks = {
   chooseMegaFreeGameAccountingMultiplier,
   megaBuyFeatureStakeAmount,
   fixedLineHotlineGrid,
+  roundFromMegaGrid,
   softLossHotlineRound,
   winningHotlineRound,
   megaClusterHotlineGrid,

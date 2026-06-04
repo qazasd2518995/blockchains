@@ -162,9 +162,17 @@ describe('hotline controlled round shaping', () => {
         ].join('/'),
       ),
     );
+    const winningBoardSignatures = new Set(
+      rounds.flatMap((round) =>
+        (round.features?.freeSpinRounds ?? [])
+          .filter((freeRound) => freeRound.totalMultiplier > 0)
+          .map((freeRound) => JSON.stringify(freeRound.initialGrid)),
+      ),
+    );
 
     expect(scatterSignatures.size).toBeGreaterThan(1);
     expect(featureSignatures.size).toBeGreaterThan(1);
+    expect(winningBoardSignatures.size).toBeGreaterThan(4);
     for (const round of rounds) {
       expect(round.lines).toHaveLength(0);
       expect(round.cascades).toHaveLength(0);
@@ -178,6 +186,39 @@ describe('hotline controlled round shaping', () => {
         round.features?.freeSpinRounds.some((freeRound) => freeRound.multiplierSymbols.length > 0),
       ).toBe(true);
       expect(round.features?.totalMultiplier).toBeCloseTo(round.totalMultiplier, 4);
+    }
+  });
+
+  it('varies controlled normal mega win cascades and feature rounds across variants', () => {
+    const rounds = Array.from({ length: 8 }, (_, variant) =>
+      __hotlineServiceTestHooks.roundFromMegaGrid(
+        GameId.DRAGON_MEGA_SLOT,
+        __hotlineServiceTestHooks.megaClusterHotlineGrid([4, 5], variant * 41, 10),
+        variant * 41,
+      ),
+    );
+    const cascadeSignatures = new Set(
+      rounds.map((round) => JSON.stringify((round.cascades ?? [])[0]?.grid ?? round.grid)),
+    );
+    const finalGridSignatures = new Set(rounds.map((round) => JSON.stringify(round.grid)));
+    const featureSignatures = new Set(
+      rounds.map((round) =>
+        JSON.stringify(
+          (round.features?.freeSpinRounds ?? []).map((freeRound) => ({
+            index: freeRound.index,
+            grid: freeRound.initialGrid,
+            total: freeRound.totalMultiplier,
+          })),
+        ),
+      ),
+    );
+
+    expect(cascadeSignatures.size).toBeGreaterThan(4);
+    expect(finalGridSignatures.size).toBeGreaterThan(4);
+    expect(featureSignatures.size).toBeGreaterThan(4);
+    for (const round of rounds) {
+      expect(round.cascades?.length ?? 0).toBeGreaterThan(0);
+      expect(hotlineEvaluate(round.grid).lines).toHaveLength(0);
     }
   });
 
@@ -326,6 +367,9 @@ describe('hotline controlled round shaping', () => {
     expect(winningRounds.length).toBeGreaterThanOrEqual(4);
     expect(winningRounds.some((round) => round.cascades.length > 0)).toBe(true);
     expect(multiplierSignatures.size).toBeGreaterThan(1);
+    expect(
+      new Set(winningRounds.map((round) => JSON.stringify(round.initialGrid))).size,
+    ).toBeGreaterThan(1);
     expect(capped.features.totalMultiplier).toBeLessThanOrEqual(200);
     expect(capped.features.freeSpinWinMultiplier).toBe(capped.features.totalMultiplier);
   });
