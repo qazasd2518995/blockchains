@@ -263,16 +263,44 @@ describe('rankWinLossControls priority', () => {
 });
 
 describe('control decision priority', () => {
+  const depositControl = {
+    id: 'deposit-1',
+    startBalance: new Prisma.Decimal(100),
+    targetProfit: new Prisma.Decimal(200),
+    controlWinRate: new Prisma.Decimal(0.7),
+    notes: null,
+  };
+
+  const createDepositTx = () => ({
+    user: {
+      findUnique: vi.fn(async () => ({ balance: new Prisma.Decimal(110) })),
+    },
+    memberDepositControl: {
+      findFirst: vi.fn(async () => depositControl),
+      update: vi.fn(),
+    },
+  });
+
+  it('lets regular deposit controls fall back to the natural result when the rate misses', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.8);
+
+    const decision = await __controlsTestHooks.findDepositControlDecision(
+      createDepositTx() as never,
+      { id: 'member-1', username: 'vip0666', agentId: null },
+      {
+        won: true,
+        amount: new Prisma.Decimal(100),
+        multiplier: new Prisma.Decimal(2),
+        payout: new Prisma.Decimal(200),
+      },
+    );
+
+    expect(decision).toBeNull();
+  });
+
   it('applies regular deposit controls before manual detection and auto balance', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.2);
 
-    const depositControl = {
-      id: 'deposit-1',
-      startBalance: new Prisma.Decimal(100),
-      targetProfit: new Prisma.Decimal(200),
-      controlWinRate: new Prisma.Decimal(0.7),
-      notes: null,
-    };
     const userFindUnique = vi.fn(async (args: { select?: Record<string, boolean> }) => {
       if (args.select?.agentId) return { agentId: null };
       if (args.select?.balance) return { balance: new Prisma.Decimal(110) };

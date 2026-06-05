@@ -43,7 +43,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
     }
     const ratePercent = Number.parseFloat(controlWinRatePercent);
     if (!Number.isFinite(ratePercent) || ratePercent < 10 || ratePercent > 100) {
-      setErr('触发后控制胜率请输入 10-100');
+      setErr('介入率请输入 10-100');
       return;
     }
     setBusy(true);
@@ -68,7 +68,13 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="新增入金控制" subtitle="依入金目标控制胜率" width="md">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="新增入金控制"
+      subtitle="命中介入率时控制会员赢，未命中自然开奖"
+      width="md"
+    >
       <div className="space-y-4">
         <AccountSearchSelect
           kind="member"
@@ -82,7 +88,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
           <AmountPreview label="目前余额" value={member ? fmtAmount(startBalanceNum) : '—'} />
           <AmountPreview label="目标赢额" value={fmtAmount(targetProfitNum)} accent="gold" />
           <AmountPreview label="目标余额" value={member ? fmtAmount(targetBalanceNum) : '—'} />
-          <AmountPreview label="控制胜率" value={`${controlWinRatePercent || '0'}%`} accent="green" />
+          <AmountPreview label="介入率" value={`${controlWinRatePercent || '0'}%`} accent="green" />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -108,7 +114,7 @@ export function DepositControlModal({ open, onClose, onDone }: Props): JSX.Eleme
         </div>
 
         <label className="block">
-          <div className="label mb-2">触发后控制胜率（10-100%）</div>
+          <div className="label mb-2">介入率（10-100%）</div>
           <input
             type="text"
             value={controlWinRatePercent}

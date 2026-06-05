@@ -548,7 +548,7 @@ export function ControlsOverviewPage(): JSX.Element {
     },
     {
       key: 'rate',
-      label: '控制胜率',
+      label: '介入率',
       align: 'right',
       render: (r) => <span className="data-num">{pct(r.controlWinRate)}</span>,
     },
@@ -1113,7 +1113,7 @@ export function ControlsOverviewPage(): JSX.Element {
             <>
               <Section
                 title="§ 入金控制"
-                subtitle="依入金目标自动控制胜率"
+                subtitle="命中介入率时控制会员赢，未命中自然开奖"
                 actions={
                   <button
                     type="button"

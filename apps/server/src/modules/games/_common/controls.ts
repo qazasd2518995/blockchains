@@ -825,6 +825,13 @@ async function buildDepositDecision(
   const remainingProfit = Prisma.Decimal.max(control.targetProfit.sub(currentProfit), ZERO);
   const isAutoRevive = control.notes?.includes('auto_revive') ?? false;
   const isOnlineRewardNextWin = control.notes?.includes('online_reward') ?? false;
+  const rate = clampRate(control.controlWinRate);
+  const roll = Math.random();
+  const isRegularDepositControl = !isAutoRevive && !isOnlineRewardNextWin;
+  if (isRegularDepositControl && roll >= rate) {
+    return null;
+  }
+  const desired = isRegularDepositControl || roll < rate ? 'WIN' : 'LOSS';
   const maxPayout =
     isAutoRevive || isOnlineRewardNextWin
       ? predicted.amount.add(remainingProfit).toDecimalPlaces(2)
@@ -835,7 +842,7 @@ async function buildDepositDecision(
       : undefined;
 
   return {
-    desired: Math.random() < Number(control.controlWinRate) ? 'WIN' : 'LOSS',
+    desired,
     controlId: control.id,
     reason: isOnlineRewardNextWin ? 'online_reward_next_win' : 'deposit_control',
     minMultiplier:

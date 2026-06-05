@@ -395,7 +395,7 @@ function resolveControlLogMeta(
         operatorUsername: control.operatorUsername,
         detail: isOnlineReward
           ? `最近活躍玩家均分，設定 ${control.memberUsername} 下一局直接贏，目標淨贏 ${control.targetProfit.toFixed(2)}`
-          : `會員 ${control.memberUsername} 入金控制，目標盈利 ${control.targetProfit.toFixed(2)}，控制勝率 ${formatLogRate(control.controlWinRate)}`,
+          : `會員 ${control.memberUsername} 入金控制，目標盈利 ${control.targetProfit.toFixed(2)}，介入率 ${formatLogRate(control.controlWinRate)}`,
       };
     }
   }
