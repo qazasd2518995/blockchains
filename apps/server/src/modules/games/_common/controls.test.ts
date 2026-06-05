@@ -208,11 +208,7 @@ describe('rankWinLossControls priority', () => {
       createdAt: new Date('2026-03-01T00:00:00Z'),
     });
 
-    const selected = rankWinLossControls(
-      [fartherButNewer, nearerButOlder],
-      MEMBER,
-      deepAncestors,
-    );
+    const selected = rankWinLossControls([fartherButNewer, nearerButOlder], MEMBER, deepAncestors);
     expect(selected?.control.id).toBe('nearer');
   });
 
@@ -263,6 +259,66 @@ describe('rankWinLossControls priority', () => {
     const selected = rankWinLossControls([globalLoss, agentWin], MEMBER, ancestors, 'targeted');
     expect(selected?.control.id).toBe('line-win');
     expect(selected?.desired).toBe('WIN');
+  });
+});
+
+describe('control decision priority', () => {
+  it('applies regular deposit controls before manual detection and auto balance', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.2);
+
+    const depositControl = {
+      id: 'deposit-1',
+      startBalance: new Prisma.Decimal(100),
+      targetProfit: new Prisma.Decimal(200),
+      controlWinRate: new Prisma.Decimal(0.7),
+      notes: null,
+    };
+    const userFindUnique = vi.fn(async (args: { select?: Record<string, boolean> }) => {
+      if (args.select?.agentId) return { agentId: null };
+      if (args.select?.balance) return { balance: new Prisma.Decimal(110) };
+      return null;
+    });
+    const manualFindMany = vi.fn(async () => {
+      throw new Error('manual detection should not run after a matching deposit control');
+    });
+    const tx = {
+      user: { findUnique: userFindUnique },
+      winLossControl: { findMany: vi.fn(async () => []) },
+      memberWinCapControl: { findFirst: vi.fn(async () => null) },
+      agentLineWinCap: { findMany: vi.fn(async () => []) },
+      memberDepositControl: {
+        findFirst: vi.fn(async (args: { where?: Record<string, unknown> }) => {
+          const where = args.where as {
+            notes?: { contains?: string };
+            NOT?: { notes?: { contains?: string } };
+            OR?: unknown[];
+          };
+          if (where.notes?.contains === 'online_reward') return null;
+          if (where.OR) return depositControl;
+          if (where.NOT?.notes?.contains === 'online_reward') return depositControl;
+          return null;
+        }),
+        update: vi.fn(),
+      },
+      manualDetectionControl: { findMany: manualFindMany },
+    };
+
+    const decision = await __controlsTestHooks.findControlDecision(
+      tx as never,
+      { id: 'member-1', username: 'vip0666', agentId: null },
+      GameId.DICE,
+      {
+        won: false,
+        amount: new Prisma.Decimal(100),
+        multiplier: new Prisma.Decimal(0),
+        payout: new Prisma.Decimal(0),
+      },
+      {},
+    );
+
+    expect(decision?.reason).toBe('deposit_control');
+    expect(decision?.controlId).toBe('deposit-1');
+    expect(manualFindMany).not.toHaveBeenCalled();
   });
 });
 

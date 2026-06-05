@@ -243,7 +243,8 @@ async function findControlDecision(
   }
 
   const explicitWinLoss =
-    targetedWinLoss ?? (await findWinLossDecision(tx, member, isControlExcludedLine ? 'targeted' : 'all'));
+    targetedWinLoss ??
+    (await findWinLossDecision(tx, member, isControlExcludedLine ? 'targeted' : 'all'));
   if (explicitWinLoss) return explicitWinLoss;
 
   const memberCap = await findMemberWinCapDecision(tx, member.id, predicted);
@@ -254,6 +255,9 @@ async function findControlDecision(
 
   const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
   if (accidentalBurstCap) return accidentalBurstCap;
+
+  const depositControl = await findDepositControlDecision(tx, member, predicted);
+  if (depositControl) return depositControl;
 
   const targetedManual = await findManualDetectionDecision(tx, member, 'targeted');
   if (targetedManual) return targetedManual;
@@ -768,6 +772,31 @@ async function findOnlineRewardNextWinDecision(
   return buildDepositDecision(tx, member, predicted, control);
 }
 
+async function findDepositControlDecision(
+  tx: Db,
+  member: MemberScope,
+  predicted: PredictedResult,
+): Promise<ControlDecision | null> {
+  const control = await tx.memberDepositControl.findFirst({
+    where: {
+      memberId: member.id,
+      isActive: true,
+      isCompleted: false,
+      OR: [{ notes: null }, { NOT: { notes: { contains: 'online_reward' } } }],
+    },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      startBalance: true,
+      targetProfit: true,
+      controlWinRate: true,
+      notes: true,
+    },
+  });
+  if (!control) return null;
+  return buildDepositDecision(tx, member, predicted, control);
+}
+
 async function buildDepositDecision(
   tx: Db,
   member: MemberScope,
@@ -796,9 +825,10 @@ async function buildDepositDecision(
   const remainingProfit = Prisma.Decimal.max(control.targetProfit.sub(currentProfit), ZERO);
   const isAutoRevive = control.notes?.includes('auto_revive') ?? false;
   const isOnlineRewardNextWin = control.notes?.includes('online_reward') ?? false;
-  const maxPayout = isAutoRevive || isOnlineRewardNextWin
-    ? predicted.amount.add(remainingProfit).toDecimalPlaces(2)
-    : undefined;
+  const maxPayout =
+    isAutoRevive || isOnlineRewardNextWin
+      ? predicted.amount.add(remainingProfit).toDecimalPlaces(2)
+      : undefined;
   const targetMultiplier =
     isOnlineRewardNextWin && maxPayout && predicted.amount.greaterThan(0)
       ? maxPayout.div(predicted.amount).toDecimalPlaces(4)
@@ -942,7 +972,8 @@ function isWithinManualTargetBand(
   if (currentSettlement.eq(control.targetSettlement)) return true;
   const targetBand = getManualControlTargetBand(control);
   return (
-    targetBand.greaterThan(0) && currentSettlement.sub(control.targetSettlement).abs().lte(targetBand)
+    targetBand.greaterThan(0) &&
+    currentSettlement.sub(control.targetSettlement).abs().lte(targetBand)
   );
 }
 
@@ -1549,6 +1580,8 @@ export function multiplierMatchesControlBounds(
 }
 
 export const __controlsTestHooks = {
+  findControlDecision,
+  findDepositControlDecision,
   getStoredBurstCooldownRounds,
   passesAutoBalanceBiteInterventionRate,
   randomBurstCooldownRounds,
