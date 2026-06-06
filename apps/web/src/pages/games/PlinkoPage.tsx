@@ -32,6 +32,7 @@ const PLINKO_MIN_BALLS = 1;
 const PLINKO_MAX_BALLS = 20;
 const MAX_ACTIVE_PLINKO_DROPS = 36;
 const PLINKO_BULK_RELEASE_THRESHOLD = 10;
+const PLINKO_MANUAL_DROP_DEBOUNCE_MS = 180;
 const PLINKO_AUTO_ROUND_PRESETS = [10, 25, 50, 75, 100, 500, 1000];
 const PLINKO_AUTO_LOSS_PRESETS = [5, 20, 50] as const;
 const PLINKO_AUTO_PRIZE_PRESETS = [10, 20, 75] as const;
@@ -191,11 +192,14 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
   const [autoRemaining, setAutoRemaining] = useState<number | null>(null);
   const [autoStopReason, setAutoStopReason] = useState('');
   const [winModal, setWinModal] = useState<PlinkoWinSummary | null>(null);
+  const [manualDropQueued, setManualDropQueued] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<PlinkoScene | null>(null);
   const activeDropsRef = useRef(0);
   const pendingStakeRef = useRef(0);
+  const manualDropTimerRef = useRef<number | null>(null);
+  const manualDropRunningRef = useRef(false);
   const autoActiveRef = useRef(false);
   const autoLaunchingRef = useRef(false);
   const autoRemainingRef = useRef<number | null>(null);
@@ -354,6 +358,11 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
     return () => {
       autoActiveRef.current = false;
       autoLaunchingRef.current = false;
+      if (manualDropTimerRef.current !== null) {
+        window.clearTimeout(manualDropTimerRef.current);
+        manualDropTimerRef.current = null;
+      }
+      manualDropRunningRef.current = false;
     };
   }, []);
 
@@ -482,10 +491,35 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
     ],
   );
 
-  const drop = async () => {
-    if (autoActive) return;
-    await startPlinkoDrops(ballCount);
-  };
+  const runManualDrop = useCallback(
+    async (balls: number) => {
+      if (autoActiveRef.current || manualDropRunningRef.current || activeDropsRef.current > 0) {
+        setManualDropQueued(false);
+        return;
+      }
+      manualDropRunningRef.current = true;
+      try {
+        await startPlinkoDrops(balls, { source: 'manual' });
+      } finally {
+        manualDropRunningRef.current = false;
+        setManualDropQueued(false);
+      }
+    },
+    [startPlinkoDrops],
+  );
+
+  const drop = useCallback(() => {
+    if (autoActiveRef.current || manualDropRunningRef.current || activeDropsRef.current > 0) return;
+    if (manualDropTimerRef.current !== null) {
+      window.clearTimeout(manualDropTimerRef.current);
+    }
+    setManualDropQueued(true);
+    const balls = ballCount;
+    manualDropTimerRef.current = window.setTimeout(() => {
+      manualDropTimerRef.current = null;
+      void runManualDrop(balls);
+    }, PLINKO_MANUAL_DROP_DEBOUNCE_MS);
+  }, [ballCount, runManualDrop]);
 
   const launchAutoDrop = useCallback(async () => {
     const settings = autoSettingsRef.current;
@@ -613,6 +647,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
       : `${t.games.plinko.autoRemaining} ${autoRemaining}`
     : t.games.plinko.autoSettings;
   const boardControlsLocked = autoActive || activeDrops > 0;
+  const manualDropLocked = manualDropQueued || activeDrops > 0;
   const selectedBallCount = clampBallCount(ballCount);
   const selectedTotalStake = roundCurrency(amount * selectedBallCount);
   const dropLimitReached = activeDrops + selectedBallCount > MAX_ACTIVE_PLINKO_DROPS;
@@ -944,6 +979,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
               onClick={drop}
               disabled={
                 autoActive ||
+                manualDropLocked ||
                 !sceneReady ||
                 dropLimitReached ||
                 (!!user && balance < selectedTotalStake)
