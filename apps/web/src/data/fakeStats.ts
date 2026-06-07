@@ -34,8 +34,8 @@ const GAME_POOL: Array<{
     minWin: 12000,
     maxWin: 480000,
   },
-  { game: '踩地雷', gameId: 'mines', minMult: 8, maxMult: 160, minWin: 24000, maxWin: 920000 },
-  { game: '爬階梯', gameId: 'tower', minMult: 4, maxMult: 80, minWin: 12000, maxWin: 360000 },
+  { game: '踩地雷', gameId: 'mines', minMult: 2, maxMult: 22, minWin: 8000, maxWin: 160000 },
+  { game: '爬階梯', gameId: 'tower', minMult: 2, maxMult: 18, minWin: 8000, maxWin: 150000 },
   {
     game: '小雞過馬路',
     gameId: 'chicken-road',

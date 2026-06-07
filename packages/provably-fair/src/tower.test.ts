@@ -31,9 +31,19 @@ describe('towerLayout', () => {
     expect(towerLayout('s', 'c', 1, 'easy')).toEqual(towerLayout('s', 'c', 1, 'easy'));
   });
 
-  it('softens opening levels on risky modes', () => {
-    expect(towerSafeCountForLevel('master', 0)).toBeGreaterThan(TOWER_CONFIG.master.safe);
-    expect(towerSafeCountForLevel('expert', 1)).toBeGreaterThan(TOWER_CONFIG.expert.safe);
+  it('uses configured per-level safe counts for controlled risk modes', () => {
+    expect([0, 1, 2, 3, 4, 5].map((level) => towerSafeCountForLevel('medium', level))).toEqual([
+      2, 2, 2, 2, 1, 1,
+    ]);
+    expect([0, 1, 2, 3, 4, 5].map((level) => towerSafeCountForLevel('hard', level))).toEqual([
+      3, 3, 3, 2, 1, 1,
+    ]);
+    expect([0, 1, 2, 3, 4, 5].map((level) => towerSafeCountForLevel('expert', level))).toEqual([
+      3, 3, 2, 2, 2, 1,
+    ]);
+    expect([0, 1, 2, 3].map((level) => towerSafeCountForLevel('master', level))).toEqual([
+      3, 2, 2, 1,
+    ]);
   });
 
   it('uses lower safe ratios as the difficulty increases', () => {
@@ -58,8 +68,29 @@ describe('towerMultiplier', () => {
     expect(m5).toBeGreaterThan(m1);
   });
 
-  it('master is riskier than easy', () => {
-    expect(towerMultiplier('master', 3)).toBeGreaterThan(towerMultiplier('easy', 3));
+  it('delays profitable cashouts on medium and hard', () => {
+    expect(towerMultiplier('medium', 3)).toBeLessThan(1);
+    expect(towerMultiplier('medium', 4)).toBeGreaterThan(1);
+    expect(towerMultiplier('hard', 2)).toBeLessThan(1);
+    expect(towerMultiplier('hard', 3)).toBeGreaterThan(1);
+  });
+
+  it('uses the configured conservative payout table for medium and hard', () => {
+    expect([1, 2, 3, 4, 5, 6].map((level) => towerMultiplier('medium', level))).toEqual([
+      0.2, 0.4, 0.8, 1.4, 2.5, 5.1,
+    ]);
+    expect([1, 2, 3, 4, 5, 6].map((level) => towerMultiplier('hard', level))).toEqual([
+      0.3, 0.5, 1.1, 1.7, 3.5, 5.8,
+    ]);
+  });
+
+  it('keeps expert and master available with capped payout tables', () => {
+    expect([1, 2, 3, 4, 5, 6].map((level) => towerMultiplier('expert', level))).toEqual([
+      0.5, 0.9, 1.8, 3.1, 5.8, 9.5,
+    ]);
+    expect([1, 2, 3, 4].map((level) => towerMultiplier('master', level))).toEqual([
+      0.6, 1.6, 2.7, 4.6,
+    ]);
   });
 });
 

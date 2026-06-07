@@ -342,7 +342,7 @@ export function TowerPage() {
         titleSuffix="STAIRS"
         titleSuffixColor="acid"
         description={t.games.tower.description}
-        rtpLabel="RTP 97%"
+        rtpLabel="RTP 90%"
         rtpAccent="acid"
       />
 

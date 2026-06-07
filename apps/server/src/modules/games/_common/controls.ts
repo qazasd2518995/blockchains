@@ -98,6 +98,9 @@ const BURST_COOLDOWN_MIN_ROUNDS = 10;
 const BURST_COOLDOWN_MAX_ROUNDS = 20;
 const BURST_ELIGIBLE_GAME_IDS = new Set<string>(SLOT_GAME_IDS);
 const AUTO_BALANCE_BITE_INTERVENTION_RATE = 0.6;
+const AUTO_BALANCE_RELEASE_LOSS_STREAK = 4;
+const LOSS_CONTROL_RELEASE_LOSS_STREAK = 4;
+const CONTROL_RELEASE_MAX_MULTIPLIER = new Prisma.Decimal(3);
 const AUTO_BALANCE_REVIVE_WIN_RATE = 0.7;
 
 /**
@@ -139,6 +142,22 @@ export async function applyControls(
     return { ...predicted, controlled: false };
   }
   return flipToWin(predicted, cappedDecision);
+}
+
+export async function applyGlobalMemberDailyWinCap(
+  tx: Db,
+  userId: string,
+  predicted: PredictedResult,
+): Promise<ControlOutcome | null> {
+  const member = await tx.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  if (!member) return null;
+
+  const decision = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
+  if (!decision) return null;
+  return flipToLoss(predicted, decision.reason, decision.controlId);
 }
 
 export async function finalizeControls(
@@ -217,10 +236,8 @@ async function findControlDecision(
     if (burst) return burst;
     const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
     if (accidentalBurstCap) return accidentalBurstCap;
-    if (!(await isMemberInControlExcludedLine(tx, member))) {
-      const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
-      if (globalWinCap) return globalWinCap;
-    }
+    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
+    if (globalWinCap) return globalWinCap;
     return null;
   }
 
@@ -229,10 +246,8 @@ async function findControlDecision(
   const burst = await findBurstDecision(tx, member, gameId, predicted, options);
   if (burst) return burst;
 
-  if (!isControlExcludedLine) {
-    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
-    if (globalWinCap) return globalWinCap;
-  }
+  const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
+  if (globalWinCap) return globalWinCap;
 
   const onlineReward = await findOnlineRewardNextWinDecision(tx, member, predicted);
   if (onlineReward) return onlineReward;
@@ -376,7 +391,7 @@ async function findWinLossDecision(
         controlId: selected.control.id,
         reason: 'loss_control_release',
         minMultiplier: new Prisma.Decimal('1.01'),
-        maxMultiplier: new Prisma.Decimal(2),
+        maxMultiplier: CONTROL_RELEASE_MAX_MULTIPLIER,
         forceWinAdjustment: true,
       };
     }
@@ -456,7 +471,7 @@ async function autoBalanceLossDecision(
       controlId,
       reason: 'auto_balance_release',
       minMultiplier: new Prisma.Decimal('1.01'),
-      maxMultiplier: new Prisma.Decimal(2),
+      maxMultiplier: CONTROL_RELEASE_MAX_MULTIPLIER,
       forceWinAdjustment: true,
     };
   }
@@ -496,7 +511,7 @@ async function shouldReleaseAutoBalanceCycle(
     break;
   }
 
-  return consecutiveLosses >= 3;
+  return consecutiveLosses >= AUTO_BALANCE_RELEASE_LOSS_STREAK;
 }
 
 async function shouldReleaseLossControlCycle(
@@ -524,7 +539,7 @@ async function shouldReleaseLossControlCycle(
     if (log.flipReason === 'loss_control') consecutiveLosses += 1;
   }
 
-  const requiredLosses = Number(controlPercentage) >= 60 ? 4 : 3;
+  const requiredLosses = Number(controlPercentage) >= 60 ? 5 : LOSS_CONTROL_RELEASE_LOSS_STREAK;
   return consecutiveLosses >= requiredLosses;
 }
 
@@ -608,19 +623,15 @@ async function withWinCapBounds(
   const maxPayouts: Prisma.Decimal[] = [];
   // 各 cap 翻成 LOSS 時，須回報「實際綁住的那個 cap 的 controlId」與對應 reason，
   // 否則審計日誌會把虧損歸因到原始 WIN 控制(controlId 與 flipReason 不一致)。
-  const bypassGlobalWinCap =
-    isBurstControlReason(decision.reason) || (await isMemberInControlExcludedLine(tx, member));
-  if (!bypassGlobalWinCap) {
-    const globalBound = await getGlobalMemberWinCapPayoutBound(tx, member.id, predicted.amount);
-    if (globalBound.exhausted) {
-      return {
-        desired: 'LOSS',
-        controlId: globalBound.controlId,
-        reason: 'global_member_daily_win_cap',
-      };
-    }
-    maxPayouts.push(globalBound.bound);
+  const globalBound = await getGlobalMemberWinCapPayoutBound(tx, member.id, predicted.amount);
+  if (globalBound.exhausted) {
+    return {
+      desired: 'LOSS',
+      controlId: globalBound.controlId,
+      reason: 'global_member_daily_win_cap',
+    };
   }
+  maxPayouts.push(globalBound.bound);
 
   const memberBound = await getMemberWinCapPayoutBound(tx, member.id, predicted.amount);
   if (memberBound?.exhausted) {
@@ -640,10 +651,6 @@ async function withWinCapBounds(
     ...decision,
     maxPayout: decision.maxPayout ? minDecimal([decision.maxPayout, capPayout]) : capPayout,
   };
-}
-
-function isBurstControlReason(reason: string): boolean {
-  return reason.startsWith('burst_');
 }
 
 type CapPayoutBound =
@@ -1587,6 +1594,7 @@ export function multiplierMatchesControlBounds(
 }
 
 export const __controlsTestHooks = {
+  applyGlobalMemberDailyWinCap,
   findControlDecision,
   findDepositControlDecision,
   getStoredBurstCooldownRounds,

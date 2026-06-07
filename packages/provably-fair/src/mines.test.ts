@@ -6,6 +6,8 @@ import {
   MINES_GRID_SIZE,
   MINES_MIN_COUNT,
   MINES_MAX_COUNT,
+  MINES_HOUSE_EDGE,
+  MINES_MIN_SAFE_MULTIPLIER,
 } from './mines.js';
 
 describe('minesPositions', () => {
@@ -74,10 +76,32 @@ describe('minesMultiplier', () => {
     expect(m10).toBeGreaterThan(m3);
   });
 
-  it('matches expected value for 5 mines, 3 gems (≈ 1.83x)', () => {
+  it('matches expected value for 5 mines, 3 gems at the target RTP', () => {
     // C(25,3) / C(20,3) = 2300 / 1140 ≈ 2.0175
-    // With 3% house edge: 2.0175 * 0.97 ≈ 1.9569
-    expect(minesMultiplier(5, 3)).toBeCloseTo(1.9569, 2);
+    // With 10% house edge: 2.0175 * 0.90 ≈ 1.8158
+    expect(minesMultiplier(5, 3)).toBeCloseTo(1.8157, 2);
+  });
+
+  it('keeps a safe reveal cashout above the original stake', () => {
+    expect(minesMultiplier(1, 1)).toBe(MINES_MIN_SAFE_MULTIPLIER);
+  });
+
+  it('keeps standard mine-count cashouts near the target RTP', () => {
+    const mineCount = 5;
+    const gems = 3;
+    const successProbability =
+      ((MINES_GRID_SIZE - mineCount) / MINES_GRID_SIZE) *
+      ((MINES_GRID_SIZE - mineCount - 1) / (MINES_GRID_SIZE - 1)) *
+      ((MINES_GRID_SIZE - mineCount - 2) / (MINES_GRID_SIZE - 2));
+    const rtp = successProbability * minesMultiplier(mineCount, gems);
+    expect(rtp).toBeLessThanOrEqual(1 - MINES_HOUSE_EDGE);
+    expect(rtp).toBeGreaterThan(1 - MINES_HOUSE_EDGE - 0.0002);
+  });
+
+  it('dampens high mine-count payouts so 20 mines starts near 2.1x', () => {
+    expect(minesMultiplier(20, 1)).toBeCloseTo(2.1, 1);
+    expect(minesMultiplier(20, 2)).toBeLessThan(6);
+    expect(minesMultiplier(20, 3)).toBeLessThan(9);
   });
 
   it('rejects impossible (gems > safe cells)', () => {

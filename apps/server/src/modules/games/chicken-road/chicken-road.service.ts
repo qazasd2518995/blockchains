@@ -319,24 +319,32 @@ export class ChickenRoadService {
         chickenRoadMultiplier(data.difficulty, data.currentStep).toFixed(4),
       );
       const payout = bet.amount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const controlOutcome = {
+      const predicted = {
         won: payout.greaterThan(bet.amount),
         amount: bet.amount,
         multiplier,
         payout,
-        controlled: false,
       };
-      const finalMultiplier = multiplier;
-      const finalPayout = payout;
-      const finalStatus: ChickenRoadStoredStatus = 'CASHED_OUT';
+      const controlOutcome = await applyControls(tx, userId, GameId.CHICKEN_ROAD, predicted);
+      const finalMultiplier = controlOutcome.controlled ? controlOutcome.multiplier : multiplier;
+      const finalPayout = controlOutcome.controlled ? controlOutcome.payout : payout;
+      const bustedByCashoutControl = controlOutcome.controlled && !controlOutcome.won;
+      const finalStatus: ChickenRoadStoredStatus = bustedByCashoutControl ? 'BUSTED' : 'CASHED_OUT';
       const finalResult: ChickenRoadStoredData = {
         ...data,
         status: finalStatus,
-        hitStep: null,
-        cashedOut: true,
-        controlled: false,
-        flipReason: null,
-        raw: null,
+        hitStep: bustedByCashoutControl ? data.currentStep : null,
+        cashedOut: !bustedByCashoutControl,
+        controlled: controlOutcome.controlled,
+        flipReason: controlOutcome.flipReason ?? null,
+        raw: controlOutcome.controlled
+          ? {
+              difficulty: data.difficulty,
+              path: data.path,
+              currentStep: data.currentStep,
+              cashedOut: true,
+            }
+          : null,
       };
       const profit = finalPayout.minus(bet.amount);
       const settled = await tx.bet.update({
@@ -357,7 +365,7 @@ export class ChickenRoadService {
         tx,
         userId,
         GameId.CHICKEN_ROAD,
-        { won: payout.greaterThan(bet.amount), amount: bet.amount, multiplier, payout },
+        predicted,
         {
           won: finalPayout.greaterThan(bet.amount),
           amount: bet.amount,
@@ -366,12 +374,12 @@ export class ChickenRoadService {
         },
         controlOutcome,
         settled.id,
-        {
+        (finalResult.raw ?? {
           difficulty: data.difficulty,
           path: data.path,
           currentStep: data.currentStep,
           cashedOut: true,
-        } as unknown as Prisma.InputJsonValue,
+        }) as unknown as Prisma.InputJsonValue,
         finalResult as unknown as Prisma.InputJsonValue,
       );
 

@@ -284,25 +284,26 @@ export class HiLoService {
 
       const multiplier = round.currentMultiplier;
       const payout = round.betAmount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const controlOutcome = {
+      const predicted = {
         won: payout.greaterThan(round.betAmount),
         amount: round.betAmount,
         multiplier,
         payout,
-        controlled: false,
       };
-      const finalMultiplier = multiplier;
-      const finalPayout = payout;
+      const controlOutcome = await applyControls(tx, userId, GameId.HILO, predicted);
+      const finalMultiplier = controlOutcome.controlled ? controlOutcome.multiplier : multiplier;
+      const finalPayout = controlOutcome.controlled ? controlOutcome.payout : payout;
       const profit = finalPayout.minus(round.betAmount);
-      const finalStatus = 'CASHED_OUT';
+      const bustedByCashoutControl = controlOutcome.controlled && !controlOutcome.won;
+      const finalStatus = bustedByCashoutControl ? 'BUSTED' : 'CASHED_OUT';
       const originalResult = { history, cashedOut: true };
       const finalResult = {
         history,
-        cashedOut: true,
-        bustedByCashoutControl: false,
-        controlled: false,
-        flipReason: null,
-        raw: null,
+        cashedOut: !bustedByCashoutControl,
+        bustedByCashoutControl,
+        controlled: controlOutcome.controlled,
+        flipReason: controlOutcome.flipReason ?? null,
+        raw: controlOutcome.controlled ? originalResult : null,
       };
 
       const bet = await tx.bet.create({
@@ -331,7 +332,7 @@ export class HiLoService {
         tx,
         userId,
         GameId.HILO,
-        { won: payout.greaterThan(round.betAmount), amount: round.betAmount, multiplier, payout },
+        predicted,
         {
           won: finalPayout.greaterThan(round.betAmount),
           amount: round.betAmount,

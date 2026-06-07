@@ -322,7 +322,7 @@ export function MinesPage() {
         titleSuffix={t.games.mines.suffix}
         titleSuffixColor="ember"
         description={t.games.mines.description}
-        rtpLabel="RTP 97%"
+        rtpLabel="RTP 90%"
         rtpAccent="ember"
       />
 

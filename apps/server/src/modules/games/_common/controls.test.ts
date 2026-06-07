@@ -12,6 +12,17 @@ const prediction = (multiplier: number) => ({
   multiplier: new Prisma.Decimal(multiplier),
 });
 
+const predictedResult = (amount: string | number, payout: string | number, multiplier = 1) => {
+  const amountDecimal = new Prisma.Decimal(amount);
+  const payoutDecimal = new Prisma.Decimal(payout);
+  return {
+    won: payoutDecimal.greaterThan(amountDecimal),
+    amount: amountDecimal,
+    multiplier: new Prisma.Decimal(multiplier),
+    payout: payoutDecimal,
+  };
+};
+
 const winLossControl = (over: {
   id: string;
   controlMode: string;
@@ -347,6 +358,87 @@ describe('control decision priority', () => {
     expect(decision?.reason).toBe('deposit_control');
     expect(decision?.controlId).toBe('deposit-1');
     expect(manualFindMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('global member daily win cap', () => {
+  const createGlobalCapTx = (
+    standardProfit: string | number,
+    crashAmount: string | number = 0,
+    crashPayout: string | number = 0,
+  ) => ({
+    user: {
+      findUnique: vi.fn(async () => ({ id: 'bbb' })),
+    },
+    bet: {
+      aggregate: vi.fn(async () => ({
+        _count: { _all: 1 },
+        _sum: { profit: new Prisma.Decimal(standardProfit) },
+      })),
+    },
+    crashBet: {
+      aggregate: vi.fn(async () => ({
+        _count: { _all: 1 },
+        _sum: {
+          amount: new Prisma.Decimal(crashAmount),
+          payout: new Prisma.Decimal(crashPayout),
+        },
+      })),
+    },
+  });
+
+  it('forces bbb-style members that are already above 30000 daily net win to lose every next win', async () => {
+    const tx = createGlobalCapTx('49415.66');
+
+    const outcome = await __controlsTestHooks.applyGlobalMemberDailyWinCap(
+      tx as never,
+      'bbb',
+      predictedResult(100, 101, 1.01),
+    );
+
+    expect(outcome?.controlled).toBe(true);
+    expect(outcome?.won).toBe(false);
+    expect(outcome?.payout.toFixed(2)).toBe('0.00');
+    expect(outcome?.flipReason).toBe('global_member_daily_win_cap');
+  });
+
+  it('blocks a winning result that would push any member over the 30000 daily cap', async () => {
+    const tx = createGlobalCapTx('29950');
+
+    const outcome = await __controlsTestHooks.applyGlobalMemberDailyWinCap(
+      tx as never,
+      'member-1',
+      predictedResult(100, 200, 2),
+    );
+
+    expect(outcome?.controlled).toBe(true);
+    expect(outcome?.payout.toFixed(2)).toBe('0.00');
+    expect(outcome?.controlId).toBe('global-member-daily-win-cap');
+  });
+
+  it('includes crash cashouts in the same daily cap calculation', async () => {
+    const tx = createGlobalCapTx('25000', 1000, 5950);
+
+    const outcome = await __controlsTestHooks.applyGlobalMemberDailyWinCap(
+      tx as never,
+      'member-1',
+      predictedResult(100, 200, 2),
+    );
+
+    expect(outcome?.controlled).toBe(true);
+    expect(outcome?.flipReason).toBe('global_member_daily_win_cap');
+  });
+
+  it('does not add extra control when the predicted result is already a loss', async () => {
+    const tx = createGlobalCapTx('50000');
+
+    const outcome = await __controlsTestHooks.applyGlobalMemberDailyWinCap(
+      tx as never,
+      'member-1',
+      predictedResult(100, 0, 0),
+    );
+
+    expect(outcome).toBeNull();
   });
 });
 

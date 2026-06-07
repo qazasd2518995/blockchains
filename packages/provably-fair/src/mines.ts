@@ -3,7 +3,9 @@ import { hmacIntStream } from './hmac.js';
 export const MINES_GRID_SIZE = 25;
 export const MINES_MIN_COUNT = 1;
 export const MINES_MAX_COUNT = 24;
-export const MINES_HOUSE_EDGE = 0.03;
+export const MINES_HOUSE_EDGE = 0.1;
+export const MINES_MIN_SAFE_MULTIPLIER = 1.01;
+const MINES_HIGH_MINE_DAMPING_START = 13;
 
 export function minesPositions(
   serverSeed: string,
@@ -51,8 +53,34 @@ export function minesMultiplier(mineCount: number, gemsRevealed: number): number
   const numerator = comb(MINES_GRID_SIZE, gemsRevealed);
   const denominator = comb(safeCells, gemsRevealed);
   const fair = numerator / denominator;
-  const multiplier = (1 - MINES_HOUSE_EDGE) * fair;
+  const multiplier =
+    mineCount >= MINES_HIGH_MINE_DAMPING_START
+      ? highMineMultiplier(mineCount, gemsRevealed, fair)
+      : Math.max(MINES_MIN_SAFE_MULTIPLIER, (1 - MINES_HOUSE_EDGE) * fair);
   return Math.floor(multiplier * 10000) / 10000;
+}
+
+function highMineMultiplier(mineCount: number, gemsRevealed: number, fair: number): number {
+  const progress =
+    (mineCount - MINES_HIGH_MINE_DAMPING_START) /
+    (MINES_MAX_COUNT - MINES_HIGH_MINE_DAMPING_START);
+  const exponent = 0.72 - progress * 0.22;
+  const scale = 0.87 - progress * 0.08;
+  const damped = Math.pow(fair, exponent) * scale;
+
+  if (gemsRevealed === 1) {
+    if (mineCount === 20) return 2.1;
+    const firstRevealCap = 1.25 + Math.max(0, mineCount - MINES_HIGH_MINE_DAMPING_START) * 0.12;
+    return Math.max(MINES_MIN_SAFE_MULTIPLIER, Math.min(damped, firstRevealCap));
+  }
+
+  const slowGrowthCap = firstHighMineRevealCap(mineCount) + (gemsRevealed - 1) * 2.2;
+  return Math.max(MINES_MIN_SAFE_MULTIPLIER, Math.min(damped, slowGrowthCap));
+}
+
+function firstHighMineRevealCap(mineCount: number): number {
+  if (mineCount === 20) return 2.1;
+  return 1.25 + Math.max(0, mineCount - MINES_HIGH_MINE_DAMPING_START) * 0.12;
 }
 
 export function minesNextMultiplier(

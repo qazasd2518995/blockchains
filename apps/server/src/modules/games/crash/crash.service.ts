@@ -15,6 +15,7 @@ import {
 } from '../_common/BaseGameService.js';
 import {
   applyControls,
+  applyGlobalMemberDailyWinCap,
   finalizeControls,
   type ControlOutcome,
   type PredictedResult,
@@ -327,12 +328,29 @@ export class CrashSoloService {
     }
 
     const cashoutMultiplier = new Prisma.Decimal(multiplier.toFixed(4));
-    const payout = bet.amount.mul(cashoutMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+    const naturalPayout = bet.amount
+      .mul(cashoutMultiplier)
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+    const cashoutPrediction = {
+      won: naturalPayout.greaterThan(bet.amount),
+      amount: bet.amount,
+      multiplier: cashoutMultiplier,
+      payout: naturalPayout,
+    };
+    const globalCapOutcome = await applyGlobalMemberDailyWinCap(
+      tx,
+      bet.userId,
+      cashoutPrediction,
+    );
+    const finalPayout = globalCapOutcome?.controlled ? globalCapOutcome.payout : naturalPayout;
+    const finalMultiplier = globalCapOutcome?.controlled
+      ? globalCapOutcome.multiplier
+      : cashoutMultiplier;
     const claimed = await tx.crashBet.updateMany({
       where: { id: bet.id, cashedOutAt: null, controlFinalizedAt: null },
       data: {
         cashedOutAt: cashoutMultiplier,
-        payout,
+        payout: finalPayout,
         controlFinalizedAt: new Date(),
       },
     });
@@ -345,54 +363,70 @@ export class CrashSoloService {
       return { bet: current, payout: current.payout, newBalance: user.balance.toFixed(2) };
     }
 
-    const newBalance = await creditAndRecord(tx, bet.userId, payout, null, 'CASHOUT', {
+    const newBalance = await creditAndRecord(tx, bet.userId, finalPayout, null, 'CASHOUT', {
       gameId: round.gameId,
       roundId: round.id,
       crashBetId: bet.id,
-      multiplier: cashoutMultiplier.toFixed(4),
+      multiplier: finalMultiplier.toFixed(4),
+      ...(globalCapOutcome?.controlled
+        ? {
+            attemptedCashoutAt: cashoutMultiplier.toFixed(4),
+            controlReason: globalCapOutcome.flipReason,
+          }
+        : {}),
     });
     const finalizedBet = await this.getBetWithRound(tx, bet.id);
     const final = {
-      won: payout.greaterThan(bet.amount),
+      won: finalPayout.greaterThan(bet.amount),
       amount: bet.amount,
-      multiplier: cashoutMultiplier,
-      payout,
+      multiplier: finalMultiplier,
+      payout: finalPayout,
     };
-    const effectiveOutcome =
-      control?.controlled && control.won
-        ? {
-            ...control,
-            multiplier: cashoutMultiplier,
-            payout,
-            won: payout.greaterThan(bet.amount),
-          }
-        : {
-            won: payout.greaterThan(bet.amount),
-            multiplier: cashoutMultiplier,
-            payout,
-            controlled: false,
-          };
+    let effectiveOutcome: ControlOutcome;
+    if (globalCapOutcome?.controlled) {
+      effectiveOutcome = globalCapOutcome;
+    } else if (control?.controlled && control.won) {
+      effectiveOutcome = {
+        ...control,
+        multiplier: finalMultiplier,
+        payout: finalPayout,
+        won: finalPayout.greaterThan(bet.amount),
+      };
+    } else {
+      effectiveOutcome = {
+        won: finalPayout.greaterThan(bet.amount),
+        multiplier: finalMultiplier,
+        payout: finalPayout,
+        controlled: false,
+      };
+    }
 
     await finalizeControls(
       tx,
       bet.userId,
       round.gameId,
-      original,
+      globalCapOutcome?.controlled ? cashoutPrediction : original,
       final,
       effectiveOutcome,
       bet.id,
-      {
-        crashPoint: original.multiplier.toFixed(4),
-        payout: original.payout.toFixed(2),
-      },
+      globalCapOutcome?.controlled
+        ? {
+            cashoutAt: cashoutMultiplier.toFixed(4),
+            payout: naturalPayout.toFixed(2),
+          }
+        : {
+            crashPoint: original.multiplier.toFixed(4),
+            payout: original.payout.toFixed(2),
+          },
       {
         crashPoint: round.crashPoint.toFixed(4),
         cashoutAt: cashoutMultiplier.toFixed(4),
-        payout: payout.toFixed(2),
+        multiplier: finalMultiplier.toFixed(4),
+        payout: finalPayout.toFixed(2),
       },
     );
 
-    return { bet: finalizedBet, payout, newBalance: newBalance.toFixed(2) };
+    return { bet: finalizedBet, payout: finalPayout, newBalance: newBalance.toFixed(2) };
   }
 
   private async finalizeLossInTx(

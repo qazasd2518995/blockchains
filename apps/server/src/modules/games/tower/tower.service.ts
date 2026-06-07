@@ -84,7 +84,7 @@ export class TowerService {
         throw new ApiError('INVALID_ACTION', 'Selected tower level is no longer active');
       }
 
-      const difficulty = round.difficulty as TowerDifficulty;
+      const difficulty = normalizeTowerDifficulty(round.difficulty);
       const cfg = TOWER_CONFIG[difficulty];
       if (input.col < 0 || input.col >= cfg.cols) {
         throw new ApiError('INVALID_ACTION', 'Col out of range');
@@ -309,17 +309,18 @@ export class TowerService {
 
       const multiplier = round.currentMultiplier;
       const payout = round.betAmount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const controlOutcome = {
+      const predicted = {
         won: payout.greaterThan(round.betAmount),
         amount: round.betAmount,
         multiplier,
         payout,
-        controlled: false,
       };
-      const finalMultiplier = multiplier;
-      const finalPayout = payout;
+      const controlOutcome = await applyControls(tx, userId, GameId.TOWER, predicted);
+      const finalMultiplier = controlOutcome.controlled ? controlOutcome.multiplier : multiplier;
+      const finalPayout = controlOutcome.controlled ? controlOutcome.payout : payout;
       const profit = finalPayout.minus(round.betAmount);
-      const finalStatus = 'CASHED_OUT';
+      const bustedByCashoutControl = controlOutcome.controlled && !controlOutcome.won;
+      const finalStatus = bustedByCashoutControl ? 'BUSTED' : 'CASHED_OUT';
 
       const originalResult = {
         difficulty: round.difficulty,
@@ -331,11 +332,11 @@ export class TowerService {
         difficulty: round.difficulty,
         layout: round.safeLayout,
         picks: round.picks,
-        cashedOut: true,
-        bustedByCashoutControl: false,
-        controlled: false,
-        flipReason: null,
-        raw: null,
+        cashedOut: !bustedByCashoutControl,
+        bustedByCashoutControl,
+        controlled: controlOutcome.controlled,
+        flipReason: controlOutcome.flipReason ?? null,
+        raw: controlOutcome.controlled ? originalResult : null,
       };
 
       const bet = await tx.bet.create({
@@ -364,7 +365,7 @@ export class TowerService {
         tx,
         userId,
         GameId.TOWER,
-        { won: payout.greaterThan(round.betAmount), amount: round.betAmount, multiplier, payout },
+        predicted,
         {
           won: finalPayout.greaterThan(round.betAmount),
           amount: round.betAmount,
@@ -411,7 +412,7 @@ export class TowerService {
     _betId?: string,
     exposeLayout = false,
   ): TowerRoundState {
-    const difficulty = round.difficulty as TowerDifficulty;
+    const difficulty = normalizeTowerDifficulty(round.difficulty);
     const cfg = TOWER_CONFIG[difficulty];
     const nextMult = towerNextMultiplier(difficulty, round.currentLevel);
     const potentialPayout = round.betAmount
@@ -448,6 +449,19 @@ function forceTowerSafe(layout: number[][], level: number, col: number, cols: nu
     next[level] = keep.sort((a, b) => a - b);
   }
   return trimTowerSafeCount(next, level, layout[level]?.length ?? 1, cols);
+}
+
+function normalizeTowerDifficulty(difficulty: string): TowerDifficulty {
+  if (
+    difficulty === 'easy' ||
+    difficulty === 'medium' ||
+    difficulty === 'hard' ||
+    difficulty === 'expert' ||
+    difficulty === 'master'
+  ) {
+    return difficulty;
+  }
+  return 'hard';
 }
 
 function forceTowerTrap(layout: number[][], level: number, col: number, cols: number): number[][] {
