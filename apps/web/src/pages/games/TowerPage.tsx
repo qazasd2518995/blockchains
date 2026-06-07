@@ -19,7 +19,13 @@ import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBe
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 
-const TOWER_TOTAL_LEVELS = 9;
+const TOWER_PREVIEW_LEVELS: Record<TowerDifficulty, number> = {
+  easy: 9,
+  medium: 9,
+  hard: 9,
+  expert: 5,
+  master: 4,
+};
 const TOWER_PREVIEW_COLS: Record<TowerDifficulty, number> = {
   easy: 4,
   medium: 3,
@@ -153,7 +159,7 @@ export function TowerPage() {
   }, [difficulty]);
 
   function renderTowerPreview(mode: TowerDifficulty) {
-    sceneRef.current?.setup(TOWER_TOTAL_LEVELS, TOWER_PREVIEW_COLS[mode]);
+    sceneRef.current?.setup(TOWER_PREVIEW_LEVELS[mode], TOWER_PREVIEW_COLS[mode]);
     sceneRef.current?.setMultiplier('1.00');
   }
 

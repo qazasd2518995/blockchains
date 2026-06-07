@@ -56,7 +56,7 @@ export function getGamePromoMultiplier(gameId: string): number {
   if (CRASH_GAME_IDS.has(id)) return HIGH_CRASH_MULTIPLIER_IDS.has(id) ? 4000 : 2800;
   if (id === GameId.PLINKO || id === GameId.PLINKO_X) return 165;
   if (id === GameId.MINES) return 22.5;
-  if (id === GameId.TOWER) return 18;
+  if (id === GameId.TOWER) return 12.5;
   if (id === GameId.DICE) return 32.33;
   if (id === GameId.KENO) return 1000;
   if (id === GameId.WHEEL) return 48.25;

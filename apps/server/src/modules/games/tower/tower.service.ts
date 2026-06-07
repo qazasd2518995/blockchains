@@ -3,8 +3,8 @@ import {
   towerLayout,
   towerMultiplier,
   towerNextMultiplier,
+  towerLevelCount,
   TOWER_CONFIG,
-  TOWER_LEVELS,
   type TowerDifficulty,
 } from '@bg/provably-fair';
 import {
@@ -86,6 +86,10 @@ export class TowerService {
 
       const difficulty = normalizeTowerDifficulty(round.difficulty);
       const cfg = TOWER_CONFIG[difficulty];
+      const totalLevels = towerLevelCount(difficulty);
+      if (round.currentLevel >= totalLevels) {
+        throw new ApiError('INVALID_ACTION', 'Tower is already complete');
+      }
       if (input.col < 0 || input.col >= cfg.cols) {
         throw new ApiError('INVALID_ACTION', 'Col out of range');
       }
@@ -215,7 +219,7 @@ export class TowerService {
       const newLevel = nextLevel;
       const newMult = nextMult;
       const nextPicks = [...round.picks, input.col];
-      const autoCashout = newLevel >= TOWER_LEVELS;
+      const autoCashout = newLevel >= totalLevels;
       const updated = await tx.towerRound.update({
         where: { id: round.id },
         data: {
@@ -415,6 +419,7 @@ export class TowerService {
     const difficulty = normalizeTowerDifficulty(round.difficulty);
     const cfg = TOWER_CONFIG[difficulty];
     const nextMult = towerNextMultiplier(difficulty, round.currentLevel);
+    const totalLevels = towerLevelCount(difficulty);
     const potentialPayout = round.betAmount
       .mul(round.currentMultiplier)
       .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
@@ -423,7 +428,7 @@ export class TowerService {
       status: round.status,
       difficulty,
       cols: cfg.cols,
-      totalLevels: TOWER_LEVELS,
+      totalLevels,
       currentLevel: round.currentLevel,
       picks: round.picks,
       currentMultiplier: round.currentMultiplier.toFixed(4),

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   towerLayout,
+  towerLevelCount,
   towerMultiplier,
   towerNextMultiplier,
   towerSafeCountForLevel,
@@ -12,6 +13,16 @@ describe('towerLayout', () => {
   it('produces TOWER_LEVELS rows', () => {
     const layout = towerLayout('s', 'c', 1, 'medium');
     expect(layout.length).toBe(TOWER_LEVELS);
+  });
+
+  it('locks expert at level 5 and master at level 4', () => {
+    expect(towerLevelCount('expert')).toBe(5);
+    expect(towerLayout('s', 'c', 1, 'expert').length).toBe(5);
+    expect(towerNextMultiplier('expert', 5)).toBeNull();
+
+    expect(towerLevelCount('master')).toBe(4);
+    expect(towerLayout('s', 'c', 1, 'master').length).toBe(4);
+    expect(towerNextMultiplier('master', 4)).toBeNull();
   });
 
   it('each level has the configured safe count for that level', () => {
@@ -85,8 +96,8 @@ describe('towerMultiplier', () => {
   });
 
   it('keeps expert and master available with capped payout tables', () => {
-    expect([1, 2, 3, 4, 5, 6].map((level) => towerMultiplier('expert', level))).toEqual([
-      0.5, 0.9, 1.8, 3.1, 5.8, 9.5,
+    expect([1, 2, 3, 4, 5].map((level) => towerMultiplier('expert', level))).toEqual([
+      0.5, 0.9, 1.8, 3.1, 5.8,
     ]);
     expect([1, 2, 3, 4].map((level) => towerMultiplier('master', level))).toEqual([
       0.6, 1.6, 2.7, 4.6,

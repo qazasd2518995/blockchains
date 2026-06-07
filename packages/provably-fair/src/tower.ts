@@ -3,6 +3,13 @@ import { hmacIntStream } from './hmac.js';
 export type TowerDifficulty = 'easy' | 'medium' | 'hard' | 'expert' | 'master';
 
 export const TOWER_LEVELS = 9;
+export const TOWER_LEVELS_BY_DIFFICULTY: Record<TowerDifficulty, number> = {
+  easy: 9,
+  medium: 9,
+  hard: 9,
+  expert: 5,
+  master: 4,
+};
 export const TOWER_HOUSE_EDGE = 0.1;
 
 // 每個難度：每層有 cols 格，safe 格數 / 陷阱數
@@ -44,6 +51,10 @@ export function towerSafeCountForLevel(difficulty: TowerDifficulty, level: numbe
   return Math.max(1, Math.min(cfg.cols, safe));
 }
 
+export function towerLevelCount(difficulty: TowerDifficulty): number {
+  return TOWER_LEVELS_BY_DIFFICULTY[difficulty] ?? TOWER_LEVELS;
+}
+
 /**
  * 為每一層決定哪些 col 是安全格（0-indexed）。
  * 使用 HMAC 打亂 col 順序，取前 safe 個為安全。
@@ -58,7 +69,8 @@ export function towerLayout(
   const stream = hmacIntStream(serverSeed, clientSeed, nonce);
   const layout: number[][] = [];
 
-  for (let level = 0; level < TOWER_LEVELS; level += 1) {
+  const totalLevels = towerLevelCount(difficulty);
+  for (let level = 0; level < totalLevels; level += 1) {
     const safe = towerSafeCountForLevel(difficulty, level);
     const positions = Array.from({ length: cols }, (_, i) => i);
     for (let i = cols - 1; i > 0; i -= 1) {
@@ -95,6 +107,6 @@ export function towerNextMultiplier(
   difficulty: TowerDifficulty,
   currentLevel: number,
 ): number | null {
-  if (currentLevel >= TOWER_LEVELS) return null;
+  if (currentLevel >= towerLevelCount(difficulty)) return null;
   return towerMultiplier(difficulty, currentLevel + 1);
 }
