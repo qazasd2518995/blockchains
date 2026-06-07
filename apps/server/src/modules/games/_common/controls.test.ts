@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GameId } from '@bg/shared';
 import {
   __controlsTestHooks,
+  applyControls,
   isBurstControlEligible,
   passesControlInterventionRate,
   rankWinLossControls,
@@ -29,10 +30,16 @@ const winLossControl = (over: {
   targetId: string | null;
   winControl?: boolean;
   lossControl?: boolean;
+  controlPercentage?: Prisma.Decimal;
+  targetLossAmount?: Prisma.Decimal | null;
+  currentLossAmount?: Prisma.Decimal;
   createdAt?: Date;
 }) => ({
   winControl: false,
   lossControl: false,
+  controlPercentage: new Prisma.Decimal(100),
+  targetLossAmount: null,
+  currentLossAmount: new Prisma.Decimal(0),
   createdAt: new Date('2026-01-01T00:00:00Z'),
   ...over,
 });
@@ -359,6 +366,108 @@ describe('control decision priority', () => {
     expect(decision?.controlId).toBe('deposit-1');
     expect(manualFindMany).not.toHaveBeenCalled();
   });
+
+  it('lets crash-style probes force an active loss control at game start', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.01);
+    const tx = {
+      user: {
+        findUnique: vi.fn(async () => ({
+          id: 'member-1',
+          username: 'bbb',
+          agentId: null,
+        })),
+      },
+      bet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { profit: new Prisma.Decimal(0) },
+        })),
+      },
+      crashBet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { amount: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
+        })),
+      },
+      winLossControl: {
+        findMany: vi.fn(async () => [
+          winLossControl({
+            id: 'loss-1',
+            controlMode: 'NORMAL',
+            targetId: null,
+            lossControl: true,
+          }),
+        ]),
+      },
+      memberDepositControl: { findFirst: vi.fn(async () => null) },
+      memberWinCapControl: { findFirst: vi.fn(async () => null) },
+      agentLineWinCap: { findMany: vi.fn(async () => []) },
+      winLossControlLogs: { findMany: vi.fn(async () => []) },
+    };
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.ROCKET,
+      predictedResult(100, 200, 2),
+      { forceControlOnMatch: true },
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('loss_control');
+  });
+
+  it('lets crash-style probes force an active win control even when the probe is already winning', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.01);
+    const tx = {
+      user: {
+        findUnique: vi.fn(async () => ({
+          id: 'member-1',
+          username: 'bbb',
+          agentId: null,
+        })),
+      },
+      bet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { profit: new Prisma.Decimal(0) },
+        })),
+      },
+      crashBet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { amount: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
+        })),
+      },
+      winLossControl: {
+        findMany: vi.fn(async () => [
+          winLossControl({
+            id: 'win-1',
+            controlMode: 'NORMAL',
+            targetId: null,
+            winControl: true,
+          }),
+        ]),
+      },
+      memberDepositControl: { findFirst: vi.fn(async () => null) },
+      memberWinCapControl: { findFirst: vi.fn(async () => null) },
+      agentLineWinCap: { findMany: vi.fn(async () => []) },
+      winLossControlLogs: { findMany: vi.fn(async () => []) },
+    };
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.ROCKET,
+      predictedResult(100, 200, 2),
+      { forceControlOnMatch: true },
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(true);
+    expect(outcome.flipReason).toBe('win_control');
+  });
 });
 
 describe('global member daily win cap', () => {
@@ -439,6 +548,20 @@ describe('global member daily win cap', () => {
     );
 
     expect(outcome).toBeNull();
+  });
+
+  it('returns the remaining payout and multiplier guard for crash-style game starts', async () => {
+    const tx = createGlobalCapTx('29950');
+
+    const guard = await __controlsTestHooks.getGlobalMemberDailyWinCapGuard(
+      tx as never,
+      'member-1',
+      new Prisma.Decimal(100),
+    );
+
+    expect(guard?.exhausted).toBe(false);
+    expect(guard?.maxPayout.toFixed(2)).toBe('150.00');
+    expect(guard?.maxMultiplier.toFixed(4)).toBe('1.5000');
   });
 });
 

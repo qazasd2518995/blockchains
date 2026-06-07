@@ -17,7 +17,9 @@ import {
   applyControls,
   applyGlobalMemberDailyWinCap,
   finalizeControls,
+  getGlobalMemberDailyWinCapGuard,
   type ControlOutcome,
+  type GlobalMemberDailyWinCapGuard,
   type PredictedResult,
 } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
@@ -34,6 +36,7 @@ const CONTROLLED_WIN_BASE_MAX = 6.8;
 const CONTROLLED_WIN_HIGH_MIN = 7.2;
 const CONTROLLED_WIN_HIGH_MAX = 15;
 const CONTROLLED_WIN_HIGH_RATE = 0.18;
+const CRASH_CONTROL_PROBE_MULTIPLIER = new Prisma.Decimal(2);
 const SOLO_GROWTH_RATE = 0.00012;
 const HISTORY_LIMIT = 20;
 const CRASH_CONTROL_GAME_IDS = [
@@ -106,12 +109,25 @@ export class CrashSoloService {
       );
       const roundNumber = await this.nextRoundNumber(tx, input.gameId);
       const naturalCrashPoint = crashPoint(seed.serverSeed, `${input.gameId}:${roundNumber}`);
-      const original = this.predictStartOutcome(amount);
-      const control = await applyControls(tx, userId, input.gameId, original);
+      const controlProbe = this.predictStartControlOutcome(amount);
+      const globalCapGuard = await getGlobalMemberDailyWinCapGuard(tx, userId, amount);
+      const startCapLoss = shouldCrashImmediatelyForGlobalCap(globalCapGuard, amount)
+        ? globalCapLossOutcome(globalCapGuard)
+        : null;
+      const control =
+        startCapLoss ??
+        (await applyControls(tx, userId, input.gameId, controlProbe, {
+          forceControlOnMatch: true,
+        }));
       const recentControlledLosses = control.controlled
         ? await this.countRecentControlledCrashLosses(tx, userId)
         : 0;
-      const tuned = this.tuneCrashPoint(naturalCrashPoint, amount, control, recentControlledLosses);
+      const tuned = startCapLoss
+        ? { crashPoint: 1, control: startCapLoss }
+        : capCrashPointForGlobalWinCap(
+            this.tuneCrashPoint(naturalCrashPoint, amount, control, recentControlledLosses),
+            globalCapGuard,
+          );
       const startedAt = new Date();
       const crashesImmediately = tuned.crashPoint <= 1.0;
       const round = await tx.crashRound.create({
@@ -132,7 +148,7 @@ export class CrashSoloService {
           userId,
           amount,
           autoCashOut,
-          controlOriginal: serializePredicted(original) as unknown as Prisma.InputJsonValue,
+          controlOriginal: serializePredicted(controlProbe) as unknown as Prisma.InputJsonValue,
           controlOutcome: serializeOutcome(tuned.control) as unknown as Prisma.InputJsonValue,
         },
         include: { round: true },
@@ -144,7 +160,7 @@ export class CrashSoloService {
       });
 
       if (crashesImmediately) {
-        await this.finalizeLossInTx(tx, { ...bet, round }, round, tuned.control, original);
+        await this.finalizeLossInTx(tx, { ...bet, round }, round, tuned.control, controlProbe);
       }
 
       return toRoundState(
@@ -543,9 +559,9 @@ export class CrashSoloService {
     return streak;
   }
 
-  private predictStartOutcome(amount: Prisma.Decimal): PredictedResult {
-    const multiplier = new Prisma.Decimal(0);
-    const payout = new Prisma.Decimal(0);
+  private predictStartControlOutcome(amount: Prisma.Decimal): PredictedResult {
+    const multiplier = CRASH_CONTROL_PROBE_MULTIPLIER;
+    const payout = amount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
     return {
       won: payout.greaterThan(amount),
       amount,
@@ -667,6 +683,47 @@ function chooseControlledWinCrashTarget(requestedTarget: number, maxTarget: numb
   return Number(requestedTarget.toFixed(4));
 }
 
+function shouldCrashImmediatelyForGlobalCap(
+  guard: GlobalMemberDailyWinCapGuard | null,
+  amount: Prisma.Decimal,
+): guard is GlobalMemberDailyWinCapGuard {
+  if (!guard) return false;
+  if (guard.exhausted) return true;
+  const minCashoutPayout = amount
+    .mul(MIN_CASHOUT_MULTIPLIER)
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  return guard.maxPayout.lessThan(minCashoutPayout);
+}
+
+function globalCapLossOutcome(guard: GlobalMemberDailyWinCapGuard): ControlOutcome {
+  return {
+    won: false,
+    multiplier: new Prisma.Decimal(0),
+    payout: new Prisma.Decimal(0),
+    controlled: true,
+    flipReason: guard.reason,
+    controlId: guard.controlId,
+  };
+}
+
+function capCrashPointForGlobalWinCap(
+  tuned: { crashPoint: number; control: ControlOutcome },
+  guard: GlobalMemberDailyWinCapGuard | null,
+): { crashPoint: number; control: ControlOutcome } {
+  if (!guard || guard.exhausted) return tuned;
+  const maxCashoutMultiplier = Number(guard.maxMultiplier.toFixed(4));
+  if (!Number.isFinite(maxCashoutMultiplier) || maxCashoutMultiplier < MIN_CASHOUT_MULTIPLIER) {
+    return { crashPoint: 1, control: globalCapLossOutcome(guard) };
+  }
+
+  // The cashout check only allows multipliers strictly below the crash point.
+  // Add one tick so an exact in-cap auto-cashout can still settle, but anything
+  // above the global daily win cap crashes before it can be claimed.
+  const cappedCrashPoint = Number((maxCashoutMultiplier + 0.0001).toFixed(4));
+  if (tuned.crashPoint <= cappedCrashPoint) return tuned;
+  return { crashPoint: cappedCrashPoint, control: globalCapLossOutcome(guard) };
+}
+
 function toRoundState(
   bet: CrashBetWithRound,
   currentMultiplier: number,
@@ -761,3 +818,8 @@ function decimalFrom(value: unknown, fallback: string): Prisma.Decimal {
   const raw = typeof value === 'string' || typeof value === 'number' ? value : fallback;
   return new Prisma.Decimal(raw);
 }
+
+export const __crashServiceTestHooks = {
+  capCrashPointForGlobalWinCap,
+  shouldCrashImmediatelyForGlobalCap,
+};

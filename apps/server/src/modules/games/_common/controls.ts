@@ -83,6 +83,21 @@ export interface ControlOptions {
    * an artificial positive result would create a suspicious visual replay.
    */
   burstGuardOnly?: boolean;
+  /**
+   * Crash-style games decide the visual outcome after start, so they use a
+   * winning probe to ask whether controls want WIN or LOSS. In that path a
+   * matched WIN must still tune the crash point instead of being treated as an
+   * already acceptable natural win.
+   */
+  forceControlOnMatch?: boolean;
+}
+
+export interface GlobalMemberDailyWinCapGuard {
+  exhausted: boolean;
+  controlId: string;
+  reason: string;
+  maxPayout: Prisma.Decimal;
+  maxMultiplier: Prisma.Decimal;
 }
 
 interface BurstEligibility {
@@ -136,6 +151,7 @@ export async function applyControls(
 
   if (
     predictedNetWin &&
+    !options.forceControlOnMatch &&
     !cappedDecision.forceWinAdjustment &&
     isWithinDecisionBounds(predicted, cappedDecision)
   ) {
@@ -158,6 +174,38 @@ export async function applyGlobalMemberDailyWinCap(
   const decision = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
   if (!decision) return null;
   return flipToLoss(predicted, decision.reason, decision.controlId);
+}
+
+export async function getGlobalMemberDailyWinCapGuard(
+  tx: Db,
+  userId: string,
+  amount: Prisma.Decimal,
+): Promise<GlobalMemberDailyWinCapGuard | null> {
+  const member = await tx.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  if (!member || amount.lessThanOrEqualTo(0)) return null;
+
+  const bound = await getGlobalMemberWinCapPayoutBound(tx, member.id, amount);
+  const controlId = 'global-member-daily-win-cap';
+  const reason = 'global_member_daily_win_cap';
+  if (bound.exhausted) {
+    return {
+      exhausted: true,
+      controlId,
+      reason,
+      maxPayout: new Prisma.Decimal(0),
+      maxMultiplier: new Prisma.Decimal(0),
+    };
+  }
+  return {
+    exhausted: false,
+    controlId,
+    reason,
+    maxPayout: bound.bound,
+    maxMultiplier: bound.bound.div(amount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN),
+  };
 }
 
 export async function finalizeControls(
@@ -1597,6 +1645,7 @@ export const __controlsTestHooks = {
   applyGlobalMemberDailyWinCap,
   findControlDecision,
   findDepositControlDecision,
+  getGlobalMemberDailyWinCapGuard,
   getStoredBurstCooldownRounds,
   passesAutoBalanceBiteInterventionRate,
   randomBurstCooldownRounds,

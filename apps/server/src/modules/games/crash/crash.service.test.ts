@@ -1,11 +1,53 @@
 import { Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 import { GameId } from '@bg/shared';
-import { CrashSoloService } from './crash.service.js';
+import { __crashServiceTestHooks, CrashSoloService } from './crash.service.js';
+import type { GlobalMemberDailyWinCapGuard } from '../_common/controls.js';
 
 const decimal = (value: string | number) => new Prisma.Decimal(value);
 
 describe('CrashSoloService global member win cap', () => {
+  const guard = (overrides: {
+    exhausted?: boolean;
+    maxPayout?: string | number;
+    maxMultiplier?: string | number;
+  }): GlobalMemberDailyWinCapGuard => ({
+    exhausted: overrides.exhausted ?? false,
+    controlId: 'global-member-daily-win-cap',
+    reason: 'global_member_daily_win_cap',
+    maxPayout: decimal(overrides.maxPayout ?? 30000),
+    maxMultiplier: decimal(overrides.maxMultiplier ?? 300),
+  });
+
+  it('crashes immediately when even the minimum crash cashout would exceed the 30000 cap', () => {
+    const capGuard = guard({ maxPayout: '100.50', maxMultiplier: '1.0050' });
+
+    expect(
+      __crashServiceTestHooks.shouldCrashImmediatelyForGlobalCap(capGuard, decimal(100)),
+    ).toBe(true);
+  });
+
+  it('caps crash points before a cashout can exceed the remaining global win cap', () => {
+    const capGuard = guard({ maxPayout: '150.00', maxMultiplier: '1.5000' });
+
+    const tuned = __crashServiceTestHooks.capCrashPointForGlobalWinCap(
+      {
+        crashPoint: 10,
+        control: {
+          won: false,
+          multiplier: decimal(0),
+          payout: decimal(0),
+          controlled: false,
+        },
+      },
+      capGuard,
+    );
+
+    expect(tuned.crashPoint).toBe(1.5001);
+    expect(tuned.control.controlled).toBe(true);
+    expect(tuned.control.flipReason).toBe('global_member_daily_win_cap');
+  });
+
   it('forces a bbb-style over-cap cashout to zero before crediting balance', async () => {
     const round = {
       id: 'round-1',
