@@ -23,7 +23,6 @@ import {
   applyControls,
   finalizeControls,
   multiplierExceedsControlCeiling,
-  type ControlOutcome,
 } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
 import type {
@@ -320,11 +319,13 @@ export class ChickenRoadService {
         multiplier,
         payout,
       };
-      const controlOutcome: ControlOutcome = { ...predicted, controlled: false };
-      const finalMultiplier = multiplier;
-      const finalPayout = payout;
-      const bustedByCashoutControl = false;
-      const finalStatus: ChickenRoadStoredStatus = 'CASHED_OUT';
+      const controlOutcome = await applyControls(tx, userId, GameId.CHICKEN_ROAD, predicted);
+      const finalMultiplier = controlOutcome.controlled ? controlOutcome.multiplier : multiplier;
+      const finalPayout = controlOutcome.controlled ? controlOutcome.payout : payout;
+      const bustedByCashoutControl = controlOutcome.controlled && !controlOutcome.won;
+      const finalStatus: ChickenRoadStoredStatus = bustedByCashoutControl
+        ? 'BUSTED'
+        : 'CASHED_OUT';
       const finalResult: ChickenRoadStoredData = {
         ...data,
         status: finalStatus,

@@ -329,12 +329,12 @@ export class TowerService {
         multiplier,
         payout,
       };
-      const controlOutcome: ControlOutcome = { ...predicted, controlled: false };
-      const finalMultiplier = multiplier;
-      const finalPayout = payout;
+      const controlOutcome = await applyControls(tx, userId, GameId.TOWER, predicted);
+      const finalMultiplier = controlOutcome.controlled ? controlOutcome.multiplier : multiplier;
+      const finalPayout = controlOutcome.controlled ? controlOutcome.payout : payout;
       const profit = finalPayout.minus(round.betAmount);
-      const bustedByCashoutControl = false;
-      const finalStatus = 'CASHED_OUT';
+      const bustedByCashoutControl = controlOutcome.controlled && !controlOutcome.won;
+      const finalStatus = bustedByCashoutControl ? 'BUSTED' : 'CASHED_OUT';
 
       const originalResult = {
         difficulty: round.difficulty,
