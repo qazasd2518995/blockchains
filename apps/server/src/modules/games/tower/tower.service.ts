@@ -2,8 +2,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import {
   towerLayout,
   towerMultiplier,
-  towerNextMultiplier,
-  towerLevelCount,
+  towerSafeCountForLevel,
   TOWER_CONFIG,
   type TowerDifficulty,
 } from '@bg/provably-fair';
@@ -32,6 +31,7 @@ import { ApiError } from '../../../utils/errors.js';
 import type { TowerStartInput, TowerPickInput, TowerCashoutInput } from './tower.schema.js';
 
 const TOWER_FORCED_LOSS_GRACE_LEVELS = 0;
+const TOWER_VISIBLE_LEVELS = 9;
 const TOWER_LATE_LEVEL_FORCED_LOSS_START: Partial<Record<TowerDifficulty, number>> = {
   // 0-indexed currentLevel: expert level 6, master level 5.
   expert: 5,
@@ -50,11 +50,11 @@ export class TowerService {
 
       await lockUserAndCheckFunds(tx, userId, amount, GameId.TOWER);
       const seed = await new SeedHelper(tx).getActiveBundle(userId, 'tower', input.clientSeed);
-      const layout = towerLayout(
-        seed.serverSeed,
-        seed.clientSeed,
+      const difficulty = input.difficulty as TowerDifficulty;
+      const layout = ensureTowerVisibleLayout(
+        towerLayout(seed.serverSeed, seed.clientSeed, seed.nonce, difficulty),
+        difficulty,
         seed.nonce,
-        input.difficulty as TowerDifficulty,
       );
 
       await debitAndRecord(tx, userId, amount);
@@ -63,7 +63,7 @@ export class TowerService {
         data: {
           userId,
           betAmount: amount,
-          difficulty: input.difficulty,
+          difficulty,
           safeLayout: layout as unknown as Prisma.InputJsonValue,
           picks: [],
           currentLevel: 0,
@@ -92,7 +92,7 @@ export class TowerService {
 
       const difficulty = normalizeTowerDifficulty(round.difficulty);
       const cfg = TOWER_CONFIG[difficulty];
-      const totalLevels = towerLevelCount(difficulty);
+      const totalLevels = towerVisibleLevelCount();
       if (round.currentLevel >= totalLevels) {
         throw new ApiError('INVALID_ACTION', 'Tower is already complete');
       }
@@ -100,7 +100,11 @@ export class TowerService {
         throw new ApiError('INVALID_ACTION', 'Col out of range');
       }
 
-      const rawLayout = round.safeLayout as unknown as number[][];
+      const rawLayout = ensureTowerVisibleLayout(
+        round.safeLayout as unknown as number[][],
+        difficulty,
+        round.nonce,
+      );
       let layout = rawLayout;
       const safeCols = rawLayout[round.currentLevel] ?? [];
       const rawSafe = safeCols.includes(input.col);
@@ -424,11 +428,16 @@ export class TowerService {
   ): TowerRoundState {
     const difficulty = normalizeTowerDifficulty(round.difficulty);
     const cfg = TOWER_CONFIG[difficulty];
-    const nextMult = towerNextMultiplier(difficulty, round.currentLevel);
-    const totalLevels = towerLevelCount(difficulty);
+    const nextMult = towerNextVisibleMultiplier(difficulty, round.currentLevel);
+    const totalLevels = towerVisibleLevelCount();
     const potentialPayout = round.betAmount
       .mul(round.currentMultiplier)
       .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+    const visibleLayout = ensureTowerVisibleLayout(
+      round.safeLayout as unknown as number[][],
+      difficulty,
+      round.nonce,
+    );
     return {
       roundId: round.id,
       status: round.status,
@@ -442,7 +451,7 @@ export class TowerService {
       amount: round.betAmount.toFixed(2),
       potentialPayout: potentialPayout.toFixed(2),
       ...(exposeLayout || round.status !== 'ACTIVE'
-        ? { revealedLayout: round.safeLayout as unknown as number[][] }
+        ? { revealedLayout: visibleLayout }
         : {}),
       serverSeedHash,
       nonce: round.nonce,
@@ -452,6 +461,18 @@ export class TowerService {
 
 function canForceTowerLossAtLevel(level: number): boolean {
   return level >= TOWER_FORCED_LOSS_GRACE_LEVELS;
+}
+
+function towerVisibleLevelCount(): number {
+  return TOWER_VISIBLE_LEVELS;
+}
+
+function towerNextVisibleMultiplier(
+  difficulty: TowerDifficulty,
+  currentLevel: number,
+): number | null {
+  if (currentLevel >= towerVisibleLevelCount()) return null;
+  return towerMultiplier(difficulty, currentLevel + 1);
 }
 
 function mustForceTowerLateLevelLoss(difficulty: TowerDifficulty, level: number): boolean {
@@ -471,6 +492,56 @@ function resolveTowerEffectiveControl(
   return context.isSafe !== context.rawSafe
     ? shapedControl
     : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
+}
+
+function ensureTowerVisibleLayout(
+  layout: number[][],
+  difficulty: TowerDifficulty,
+  nonce: number,
+): number[][] {
+  const cfg = TOWER_CONFIG[difficulty];
+  const next = Array.from({ length: towerVisibleLevelCount() }, (_, level) => {
+    const safeCount = towerSafeCountForLevel(difficulty, level);
+    const row = normalizeTowerSafeRow(layout[level], cfg.cols, safeCount);
+    return row ?? deterministicTowerSafeRow(difficulty, level, nonce, cfg.cols, safeCount);
+  });
+  return next;
+}
+
+function normalizeTowerSafeRow(
+  row: number[] | undefined,
+  cols: number,
+  safeCount: number,
+): number[] | null {
+  if (!Array.isArray(row)) return null;
+  const safe = Array.from(
+    new Set(row.filter((col) => Number.isInteger(col) && col >= 0 && col < cols)),
+  ).sort((a, b) => a - b);
+  if (safe.length !== safeCount) return null;
+  return safe;
+}
+
+function deterministicTowerSafeRow(
+  difficulty: TowerDifficulty,
+  level: number,
+  nonce: number,
+  cols: number,
+  safeCount: number,
+): number[] {
+  const positions = Array.from({ length: cols }, (_, index) => index);
+  let state =
+    (Math.imul(nonce + 1, 1664525) ^
+      Math.imul(level + 1, 1013904223) ^
+      Math.imul(difficulty.length + 1, 265443576)) >>>
+    0;
+  for (let index = cols - 1; index > 0; index -= 1) {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    const swapIndex = state % (index + 1);
+    const current = positions[index]!;
+    positions[index] = positions[swapIndex]!;
+    positions[swapIndex] = current;
+  }
+  return positions.slice(0, safeCount).sort((a, b) => a - b);
 }
 
 function forceTowerSafe(layout: number[][], level: number, col: number, cols: number): number[][] {
@@ -539,6 +610,9 @@ function trimTowerSafeCount(
 
 export const __towerServiceTestHooks = {
   canForceTowerLossAtLevel,
+  towerVisibleLevelCount,
+  towerNextVisibleMultiplier,
   mustForceTowerLateLevelLoss,
   resolveTowerEffectiveControl,
+  ensureTowerVisibleLayout,
 };
