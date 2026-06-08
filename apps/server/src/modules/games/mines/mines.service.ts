@@ -21,13 +21,13 @@ import {
 import {
   applyControls,
   finalizeControls,
-  multiplierMatchesControlBounds,
+  multiplierExceedsControlCeiling,
 } from '../_common/controls.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { MinesStartInput, MinesRevealInput, MinesCashoutInput } from './mines.schema.js';
 
-const MINES_FORCED_LOSS_GRACE_REVEALS = 3;
+const MINES_FORCED_LOSS_GRACE_REVEALS = 0;
 
 export class MinesService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -112,18 +112,21 @@ export class MinesService {
       const safePayout = round.betAmount
         .mul(safeMultiplier)
         .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-      const controlled = await applyControls(tx, userId, GameId.MINES, {
-        won: !rawHitMine && safePayout.greaterThan(round.betAmount),
+      const predictedProgress = {
+        won: !rawHitMine,
         amount: round.betAmount,
         multiplier: rawHitMine ? new Prisma.Decimal(0) : safeMultiplier,
         payout: rawHitMine ? new Prisma.Decimal(0) : safePayout,
+      };
+      const controlled = await applyControls(tx, userId, GameId.MINES, predictedProgress, {
+        forceLossOnProgress: true,
       });
-      const controlledWinFitsMinesPayout =
-        !controlled.controlled ||
-        !controlled.won ||
-        multiplierMatchesControlBounds(safeMultiplier, round.betAmount, controlled);
+      const controlledWinExceedsMinesCeiling =
+        controlled.controlled &&
+        controlled.won &&
+        multiplierExceedsControlCeiling(safeMultiplier, round.betAmount, controlled);
       const shapedControl =
-        controlled.controlled && controlled.won && !controlledWinFitsMinesPayout
+        controlledWinExceedsMinesCeiling
           ? {
               ...controlled,
               won: false,
@@ -132,9 +135,9 @@ export class MinesService {
               flipReason: controlled.flipReason?.startsWith('burst_')
                 ? 'burst_risk_guard'
                 : controlled.flipReason,
-            }
+          }
           : controlled;
-      const canForceLoss = round.revealed.length >= MINES_FORCED_LOSS_GRACE_REVEALS;
+      const canForceLoss = canForceMinesLossAfterRevealCount(round.revealed.length);
       if (shapedControl.controlled && shapedControl.won && rawHitMine) {
         const moved = moveMineAway(rawMinePositions, input.cellIndex, newRevealed);
         if (moved) {
@@ -196,12 +199,7 @@ export class MinesService {
           tx,
           userId,
           GameId.MINES,
-          {
-            won: !rawHitMine && safePayout.greaterThan(round.betAmount),
-            amount: round.betAmount,
-            multiplier: rawHitMine ? new Prisma.Decimal(0) : safeMultiplier,
-            payout: rawHitMine ? new Prisma.Decimal(0) : safePayout,
-          },
+          predictedProgress,
           {
             won: false,
             amount: round.betAmount,
@@ -405,6 +403,10 @@ export class MinesService {
   }
 }
 
+function canForceMinesLossAfterRevealCount(revealedCount: number): boolean {
+  return revealedCount >= MINES_FORCED_LOSS_GRACE_REVEALS;
+}
+
 function moveMineAway(
   minePositions: number[],
   cellIndex: number,
@@ -427,3 +429,7 @@ function moveMineToCell(minePositions: number[], cellIndex: number): number[] {
   copy[replaceIndex] = cellIndex;
   return Array.from(new Set(copy)).slice(0, minePositions.length);
 }
+
+export const __minesServiceTestHooks = {
+  canForceMinesLossAfterRevealCount,
+};

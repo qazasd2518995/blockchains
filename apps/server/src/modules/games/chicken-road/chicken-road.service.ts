@@ -22,7 +22,7 @@ import {
 import {
   applyControls,
   finalizeControls,
-  multiplierMatchesControlBounds,
+  multiplierExceedsControlCeiling,
 } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
 import type {
@@ -32,6 +32,7 @@ import type {
 } from './chicken-road.schema.js';
 
 type ChickenRoadStoredStatus = 'ACTIVE' | 'BUSTED' | 'CASHED_OUT';
+const CHICKEN_ROAD_FORCED_LOSS_GRACE_STEPS = 0;
 
 interface ChickenRoadStoredData {
   kind: 'chicken-road';
@@ -126,18 +127,21 @@ export class ChickenRoadService {
       const predictedPayout = rawSafe
         ? bet.amount.mul(nextMult).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
         : new Prisma.Decimal(0);
-      const controlled = await applyControls(tx, userId, GameId.CHICKEN_ROAD, {
-        won: rawSafe && predictedPayout.greaterThan(bet.amount),
+      const predictedProgress = {
+        won: rawSafe,
         amount: bet.amount,
         multiplier: rawSafe ? nextMult : new Prisma.Decimal(0),
         payout: predictedPayout,
+      };
+      const controlled = await applyControls(tx, userId, GameId.CHICKEN_ROAD, predictedProgress, {
+        forceLossOnProgress: true,
       });
-      const controlledWinFitsChickenRoadPayout =
-        !controlled.controlled ||
-        !controlled.won ||
-        multiplierMatchesControlBounds(nextMult, bet.amount, controlled);
+      const controlledWinExceedsChickenRoadCeiling =
+        controlled.controlled &&
+        controlled.won &&
+        multiplierExceedsControlCeiling(nextMult, bet.amount, controlled);
       const shapedControl =
-        controlled.controlled && controlled.won && !controlledWinFitsChickenRoadPayout
+        controlledWinExceedsChickenRoadCeiling
           ? {
               ...controlled,
               won: false,
@@ -150,7 +154,7 @@ export class ChickenRoadService {
           : controlled;
 
       const finalPath = rawPath.slice();
-      const canForceLoss = data.currentStep > 0;
+      const canForceLoss = canForceChickenRoadLossAtStep(data.currentStep);
       if (shapedControl.controlled && shapedControl.won && !rawSafe) {
         finalPath[stepIndex] = true;
       } else if (canForceLoss && shapedControl.controlled && !shapedControl.won && rawSafe) {
@@ -194,12 +198,7 @@ export class ChickenRoadService {
           tx,
           userId,
           GameId.CHICKEN_ROAD,
-          {
-            won: rawSafe && predictedPayout.greaterThan(bet.amount),
-            amount: bet.amount,
-            multiplier: rawSafe ? nextMult : new Prisma.Decimal(0),
-            payout: predictedPayout,
-          },
+          predictedProgress,
           {
             won: false,
             amount: bet.amount,
@@ -257,12 +256,7 @@ export class ChickenRoadService {
           tx,
           userId,
           GameId.CHICKEN_ROAD,
-          {
-            won: predictedPayout.greaterThan(bet.amount),
-            amount: bet.amount,
-            multiplier: nextMult,
-            payout: predictedPayout,
-          },
+          predictedProgress,
           {
             won: currentPayout.greaterThan(bet.amount),
             amount: bet.amount,
@@ -457,6 +451,10 @@ export class ChickenRoadService {
   }
 }
 
+function canForceChickenRoadLossAtStep(currentStep: number): boolean {
+  return currentStep >= CHICKEN_ROAD_FORCED_LOSS_GRACE_STEPS;
+}
+
 function parseRoundData(value: Prisma.JsonValue): ChickenRoadStoredData {
   const data = value as Partial<ChickenRoadStoredData>;
   if (
@@ -501,3 +499,7 @@ function normalizeRoundData(
     path: mergedPath,
   };
 }
+
+export const __chickenRoadServiceTestHooks = {
+  canForceChickenRoadLossAtStep,
+};

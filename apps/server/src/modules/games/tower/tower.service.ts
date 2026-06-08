@@ -24,7 +24,7 @@ import {
 import {
   applyControls,
   finalizeControls,
-  type ControlOutcome,
+  multiplierExceedsControlCeiling,
 } from '../_common/controls.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
@@ -119,7 +119,7 @@ export class TowerService {
       const controlledWinExceedsTowerCeiling =
         controlled.controlled &&
         controlled.won &&
-        multiplierExceedsTowerControlCeiling(nextMult, round.betAmount, controlled);
+        multiplierExceedsControlCeiling(nextMult, round.betAmount, controlled);
       const shapedControl =
         controlledWinExceedsTowerCeiling
           ? {
@@ -441,16 +441,6 @@ function canForceTowerLossAtLevel(level: number): boolean {
   return level >= TOWER_FORCED_LOSS_GRACE_LEVELS;
 }
 
-function multiplierExceedsTowerControlCeiling(
-  multiplier: Prisma.Decimal,
-  amount: Prisma.Decimal,
-  control: Pick<ControlOutcome, 'maxMultiplier' | 'maxPayout'>,
-): boolean {
-  if (control.maxMultiplier && multiplier.greaterThan(control.maxMultiplier)) return true;
-  if (control.maxPayout && amount.mul(multiplier).greaterThan(control.maxPayout)) return true;
-  return false;
-}
-
 function forceTowerSafe(layout: number[][], level: number, col: number, cols: number): number[][] {
   const next = layout.map((row) => row.slice());
   const safe = new Set(next[level] ?? []);
@@ -517,5 +507,4 @@ function trimTowerSafeCount(
 
 export const __towerServiceTestHooks = {
   canForceTowerLossAtLevel,
-  multiplierExceedsTowerControlCeiling,
 };

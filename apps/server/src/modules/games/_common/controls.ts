@@ -1662,6 +1662,17 @@ export function multiplierMatchesControlBounds(
   return true;
 }
 
+export function multiplierExceedsControlCeiling(
+  multiplier: number | Prisma.Decimal,
+  amount: Prisma.Decimal,
+  control: Pick<ControlOutcome, 'maxMultiplier' | 'maxPayout'>,
+): boolean {
+  const m = multiplier instanceof Prisma.Decimal ? multiplier : new Prisma.Decimal(multiplier);
+  if (control.maxMultiplier && m.greaterThan(control.maxMultiplier)) return true;
+  if (control.maxPayout && amount.mul(m).greaterThan(control.maxPayout)) return true;
+  return false;
+}
+
 export const __controlsTestHooks = {
   applyGlobalMemberDailyWinCap,
   findControlDecision,

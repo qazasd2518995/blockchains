@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { adjustHiLoDraw } from './hilo.service.js';
+import { __hiLoServiceTestHooks, adjustHiLoDraw } from './hilo.service.js';
+
+describe('HiLo control helpers', () => {
+  it('allows forced loss from the first guess when the requested loss is possible', () => {
+    expect(__hiLoServiceTestHooks.canForceHiLoLossAtCardIndex(0)).toBe(true);
+    expect(__hiLoServiceTestHooks.canForceHiLoLossAtCardIndex(1)).toBe(true);
+  });
+});
 
 describe('adjustHiLoDraw', () => {
   it('keeps the raw drawn card when it already matches the expected result', () => {

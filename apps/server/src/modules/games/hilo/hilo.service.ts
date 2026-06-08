@@ -23,13 +23,14 @@ import {
 import {
   applyControls,
   finalizeControls,
-  multiplierMatchesControlBounds,
+  multiplierExceedsControlCeiling,
 } from '../_common/controls.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { HiLoStartInput, HiLoGuessInput, HiLoCashoutInput } from './hilo.schema.js';
 
 const MAX_SKIPS = 5;
+const HILO_FORCED_LOSS_GRACE_GUESSES = 0;
 
 export class HiLoService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -105,45 +106,44 @@ export class HiLoService {
       const predictedPayout = rawCorrect
         ? round.betAmount.mul(nextMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
         : new Prisma.Decimal(0);
-      const controlled = await applyControls(tx, userId, GameId.HILO, {
-        won: rawCorrect && predictedPayout.greaterThan(round.betAmount),
+      const predictedProgress = {
+        won: rawCorrect,
         amount: round.betAmount,
         multiplier: rawCorrect ? nextMultiplier : new Prisma.Decimal(0),
         payout: predictedPayout,
+      };
+      const controlled = await applyControls(tx, userId, GameId.HILO, predictedProgress, {
+        forceLossOnProgress: true,
       });
-      const controlledWinOutOfBounds =
+      const controlledWinExceedsHiLoCeiling =
         controlled.controlled &&
         controlled.won &&
-        !multiplierMatchesControlBounds(nextMultiplier, round.betAmount, controlled);
-      const canForceLoss = round.cardIndex > 0;
-      const effectiveDesiredCorrect = controlled.controlled
-        ? controlledWinOutOfBounds
-          ? canForceLoss
-            ? false
-            : rawCorrect
-          : !controlled.won && !canForceLoss
-            ? rawCorrect
-            : controlled.won
+        multiplierExceedsControlCeiling(nextMultiplier, round.betAmount, controlled);
+      const shapedControl =
+        controlledWinExceedsHiLoCeiling
+          ? {
+              ...controlled,
+              won: false,
+              multiplier: new Prisma.Decimal(0),
+              payout: new Prisma.Decimal(0),
+              flipReason: controlled.flipReason?.startsWith('burst_')
+                ? 'burst_risk_guard'
+                : controlled.flipReason,
+            }
+          : controlled;
+      const canForceLoss = canForceHiLoLossAtCardIndex(round.cardIndex);
+      const effectiveDesiredCorrect = shapedControl.controlled
+        ? !shapedControl.won && !canForceLoss
+          ? rawCorrect
+          : shapedControl.won
         : rawCorrect;
       const adjusted = adjustHiLoDraw(current, input.guess, effectiveDesiredCorrect, rawDrawn);
       const drawn = adjusted.card;
       const correct = adjusted.correct;
       const effectiveControl =
         adjusted.correct !== rawCorrect
-          ? controlledWinOutOfBounds
-            ? {
-                won: false,
-                multiplier: new Prisma.Decimal(0),
-                payout: new Prisma.Decimal(0),
-                controlled: true,
-                flipReason:
-                  controlled.flipReason === 'burst_risk_cap'
-                    ? 'burst_risk_guard'
-                    : 'burst_budget_guard',
-                controlId: controlled.controlId,
-              }
-            : controlled
-          : { ...controlled, controlled: false, flipReason: undefined, controlId: undefined };
+          ? shapedControl
+          : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
 
       const newHistory = [...history, drawn];
 
@@ -189,12 +189,7 @@ export class HiLoService {
           tx,
           userId,
           GameId.HILO,
-          {
-            won: rawCorrect && predictedPayout.greaterThan(round.betAmount),
-            amount: round.betAmount,
-            multiplier: rawCorrect ? nextMultiplier : new Prisma.Decimal(0),
-            payout: predictedPayout,
-          },
+          predictedProgress,
           {
             won: false,
             amount: round.betAmount,
@@ -413,6 +408,10 @@ export class HiLoService {
   }
 }
 
+function canForceHiLoLossAtCardIndex(cardIndex: number): boolean {
+  return cardIndex >= HILO_FORCED_LOSS_GRACE_GUESSES;
+}
+
 export function adjustHiLoDraw(
   current: HiLoCard,
   guess: HiLoGuessInput['guess'],
@@ -443,3 +442,7 @@ function isHiLoGuessCorrect(
 ): boolean {
   return guess === 'higher' ? drawnRank >= currentRank : drawnRank <= currentRank;
 }
+
+export const __hiLoServiceTestHooks = {
+  canForceHiLoLossAtCardIndex,
+};

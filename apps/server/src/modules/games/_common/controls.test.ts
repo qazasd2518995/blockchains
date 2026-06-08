@@ -5,6 +5,7 @@ import {
   __controlsTestHooks,
   applyControls,
   isBurstControlEligible,
+  multiplierExceedsControlCeiling,
   passesControlInterventionRate,
   rankWinLossControls,
 } from './controls.js';
@@ -98,6 +99,33 @@ describe('isBurstControlEligible', () => {
     expect(isBurstControlEligible(GameId.HOTLINE, prediction(100), { burstEligible: false })).toBe(
       false,
     );
+  });
+});
+
+describe('multiplierExceedsControlCeiling', () => {
+  it('ignores lower-bound win preferences and only checks hard ceilings', () => {
+    const amount = new Prisma.Decimal(100);
+
+    expect(
+      multiplierExceedsControlCeiling(new Prisma.Decimal('0.5'), amount, {
+        maxMultiplier: new Prisma.Decimal(2),
+      }),
+    ).toBe(false);
+    expect(
+      multiplierExceedsControlCeiling(new Prisma.Decimal('1.4'), amount, {
+        maxPayout: new Prisma.Decimal(150),
+      }),
+    ).toBe(false);
+    expect(
+      multiplierExceedsControlCeiling(new Prisma.Decimal(2), amount, {
+        maxPayout: new Prisma.Decimal(150),
+      }),
+    ).toBe(true);
+    expect(
+      multiplierExceedsControlCeiling(new Prisma.Decimal(3), amount, {
+        maxMultiplier: new Prisma.Decimal(2),
+      }),
+    ).toBe(true);
   });
 });
 
