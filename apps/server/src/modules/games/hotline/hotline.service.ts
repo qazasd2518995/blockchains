@@ -863,7 +863,7 @@ function roundFromMegaGrid(
     lines: evaluated.lines,
     cascades,
     ...(includeFeatures
-      ? { features: buildControlledMegaFeature(evaluated.totalMultiplier, false, variant) }
+      ? { features: buildControlledMegaBaseFeature(evaluated.totalMultiplier, variant) }
       : {}),
     totalMultiplier: evaluated.totalMultiplier,
   };
@@ -905,8 +905,7 @@ function noWinMegaGrid(variant: number, reelCount = 6, rowCount = 5): number[][]
 function shuffledMegaSymbols(variant: number): number[] {
   return [...HOTLINE_SYMBOL_INDEXES].sort(
     (a, b) =>
-      deterministicFraction(variant + a * 31, 1301) -
-      deterministicFraction(variant + b * 31, 1301),
+      deterministicFraction(variant + a * 31, 1301) - deterministicFraction(variant + b * 31, 1301),
   );
 }
 
@@ -1151,6 +1150,37 @@ function buildControlledMegaFeature(
     totalMultiplier: roundFeatureMultiplier(
       baseTotalMultiplier + freeSpinData.freeSpinWinMultiplier,
     ),
+  };
+}
+
+function buildControlledMegaBaseFeature(
+  totalMultiplier: number,
+  variant = 0,
+  baseRound?: HotlineRound,
+): HotlineMegaFeatureResult {
+  const target = roundFeatureMultiplier(totalMultiplier);
+  const baseWinMultiplier = roundFeatureMultiplier(
+    Math.max(0, baseRound?.totalMultiplier ?? target),
+  );
+  const baseAppliedMultiplier =
+    baseWinMultiplier > 0 ? roundFeatureMultiplier(Math.max(1, target / baseWinMultiplier)) : 1;
+  const baseMultiplierTotal = baseAppliedMultiplier > 1 ? baseAppliedMultiplier : 0;
+
+  return {
+    scatterSymbols: [],
+    scatterCount: 0,
+    freeSpinsAwarded: 0,
+    freeSpinsPlayed: 0,
+    baseWinMultiplier,
+    baseMultiplierSymbols:
+      baseMultiplierTotal > 0 ? buildControlledMultiplierSymbols(baseMultiplierTotal, variant) : [],
+    baseMultiplierTotal,
+    baseAppliedMultiplier,
+    baseTotalMultiplier: target,
+    freeSpinRounds: [],
+    freeSpinMultiplierBank: 0,
+    freeSpinWinMultiplier: 0,
+    totalMultiplier: target,
   };
 }
 

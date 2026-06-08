@@ -189,7 +189,7 @@ describe('hotline controlled round shaping', () => {
     }
   });
 
-  it('varies controlled normal mega win cascades and feature rounds across variants', () => {
+  it('keeps controlled normal mega wins out of free games while varying cascades', () => {
     const rounds = Array.from({ length: 8 }, (_, variant) =>
       __hotlineServiceTestHooks.roundFromMegaGrid(
         GameId.DRAGON_MEGA_SLOT,
@@ -201,23 +201,16 @@ describe('hotline controlled round shaping', () => {
       rounds.map((round) => JSON.stringify((round.cascades ?? [])[0]?.grid ?? round.grid)),
     );
     const finalGridSignatures = new Set(rounds.map((round) => JSON.stringify(round.grid)));
-    const featureSignatures = new Set(
-      rounds.map((round) =>
-        JSON.stringify(
-          (round.features?.freeSpinRounds ?? []).map((freeRound) => ({
-            index: freeRound.index,
-            grid: freeRound.initialGrid,
-            total: freeRound.totalMultiplier,
-          })),
-        ),
-      ),
-    );
 
     expect(cascadeSignatures.size).toBeGreaterThan(4);
     expect(finalGridSignatures.size).toBeGreaterThan(4);
-    expect(featureSignatures.size).toBeGreaterThan(4);
     for (const round of rounds) {
       expect(round.cascades?.length ?? 0).toBeGreaterThan(0);
+      expect(round.features?.scatterCount).toBe(0);
+      expect(round.features?.freeSpinsAwarded).toBe(0);
+      expect(round.features?.freeSpinRounds).toHaveLength(0);
+      expect(round.features?.baseTotalMultiplier).toBeCloseTo(round.totalMultiplier, 4);
+      expect(round.features?.totalMultiplier).toBeCloseTo(round.totalMultiplier, 4);
       expect(hotlineEvaluate(round.grid).lines).toHaveLength(0);
     }
   });
@@ -235,8 +228,9 @@ describe('hotline controlled round shaping', () => {
       maxMultiplier: new Prisma.Decimal(500),
       maxPayout: new Prisma.Decimal(50000),
     };
-    const openingSignature = (round: ReturnType<typeof __hotlineServiceTestHooks.winningHotlineRound>) =>
-      JSON.stringify(round.cascades?.[0]?.grid ?? round.grid);
+    const openingSignature = (
+      round: ReturnType<typeof __hotlineServiceTestHooks.winningHotlineRound>,
+    ) => JSON.stringify(round.cascades?.[0]?.grid ?? round.grid);
     const cases = [
       {
         minUnique: 4,
