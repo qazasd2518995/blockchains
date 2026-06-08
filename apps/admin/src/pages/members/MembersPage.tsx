@@ -5,6 +5,10 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { CreateMemberModal } from '@/components/shared/CreateMemberModal';
 import { TransferModal } from '@/components/shared/TransferModal';
+import {
+  AccountCreationShareModal,
+  type CreatedAccountShareInfo,
+} from '@/components/shared/AccountCreationShareModal';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
@@ -21,6 +25,8 @@ export function MembersPage(): JSX.Element {
   const [status, setStatus] = useState<'' | AccountStatus>('');
   const [openCreate, setOpenCreate] = useState(false);
   const [transferFor, setTransferFor] = useState<MemberPublic | null>(null);
+  const [promotionPasswords, setPromotionPasswords] = useState<Record<string, string>>({});
+  const [promotionFor, setPromotionFor] = useState<CreatedAccountShareInfo | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   useAdminLiveRefresh(() => setReloadKey((k) => k + 1));
 
@@ -56,6 +62,20 @@ export function MembersPage(): JSX.Element {
     } catch (e) {
       setError(extractApiError(e).message);
     }
+  };
+
+  const rememberPromotionPassword = (memberId: string, password: string | null | undefined) => {
+    if (!password) return;
+    setPromotionPasswords((current) => ({ ...current, [`member:${memberId}`]: password }));
+  };
+
+  const openPromotion = (member: MemberPublic) => {
+    setPromotionFor({
+      kind: 'member',
+      username: member.username,
+      password: promotionPasswords[`member:${member.id}`] ?? null,
+      bettingLimitLevel: member.bettingLimitLevel,
+    });
   };
 
   const columns: Column<MemberPublic>[] = [
@@ -112,6 +132,9 @@ export function MembersPage(): JSX.Element {
         <div className="flex items-center justify-end gap-1 text-[10px]">
           <button type="button" onClick={() => setTransferFor(m)} className="btn-teal-outline">
             [转帐]
+          </button>
+          <button type="button" onClick={() => openPromotion(m)} className="btn-teal-outline">
+            [推廣]
           </button>
           <button
             type="button"
@@ -198,7 +221,10 @@ export function MembersPage(): JSX.Element {
       <CreateMemberModal
         open={openCreate}
         onClose={() => setOpenCreate(false)}
-        onCreated={() => setReloadKey((k) => k + 1)}
+        onCreated={(member, shareInfo) => {
+          rememberPromotionPassword(member.id, shareInfo.password);
+          setReloadKey((k) => k + 1);
+        }}
         defaultAgentId={defaultCreateAgentId}
       />
       {transferFor && (
@@ -209,6 +235,7 @@ export function MembersPage(): JSX.Element {
           onDone={() => setReloadKey((k) => k + 1)}
         />
       )}
+      <AccountCreationShareModal info={promotionFor} onClose={() => setPromotionFor(null)} />
     </div>
   );
 }

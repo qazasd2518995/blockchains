@@ -19,6 +19,10 @@ import {
   buildBettingLimitsSelection,
   summarizeBettingLimits,
 } from './BettingLimitModal';
+import {
+  AccountCreationShareModal,
+  type CreatedAccountShareInfo,
+} from './AccountCreationShareModal';
 
 const schema = z
   .object({
@@ -36,7 +40,7 @@ const schema = z
     confirmPassword: z.string().min(8, '请再次输入密码'),
     initialBalance: z
       .string()
-      .regex(/^\d+(\.\d{1,2})?$/, 'must be a positive decimal')
+      .regex(/^\d+(\.\d{1,2})?$/, '請輸入有效金額，最多 2 位小數')
       .optional()
       .or(z.literal('')),
     bettingLimitLevel: z.string().min(1),
@@ -52,7 +56,7 @@ type FormInput = z.infer<typeof schema>;
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreated: (m: MemberPublic) => void;
+  onCreated: (m: MemberPublic, shareInfo: CreatedAccountShareInfo) => void;
   defaultAgentId?: string;
   lockedAgent?: {
     id: string;
@@ -78,6 +82,7 @@ export function CreateMemberModal({
     buildBettingLimitsSelection(null, DEFAULT_BETTING_LIMIT_RANGE),
   );
   const [err, setErr] = useState<string | null>(null);
+  const [shareInfo, setShareInfo] = useState<CreatedAccountShareInfo | null>(null);
   const resolvedAgentId = lockedAgent?.id ?? defaultAgentId ?? '';
   const resetKey = open ? `${resolvedAgentId}:${lockedAgent?.id ?? 'select'}` : 'closed';
   const lastResetKeyRef = useRef<string | null>(null);
@@ -172,8 +177,15 @@ export function CreateMemberModal({
         notes: data.notes || undefined,
       });
       requestAdminLiveRefresh();
-      onCreated(res.data);
+      const nextShareInfo: CreatedAccountShareInfo = {
+        kind: 'member',
+        username: res.data.username,
+        password: data.password,
+        bettingLimitLevel: res.data.bettingLimitLevel,
+      };
+      onCreated(res.data, nextShareInfo);
       onClose();
+      setShareInfo(nextShareInfo);
     } catch (e) {
       setErr(extractApiError(e).message);
     }
@@ -182,7 +194,8 @@ export function CreateMemberModal({
   const modalTitle = lockedAgent ? `为 ${lockedAgent.username} 新增会员` : '新增会员';
 
   return (
-    <Modal open={open} onClose={onClose} title={modalTitle} subtitle="新增下线会员" width="md">
+    <>
+      <Modal open={open} onClose={onClose} title={modalTitle} subtitle="新增下线会员" width="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {lockedAgent ? (
           <div className="rounded-md border border-[#C9A247]/35 bg-[#FFF8DA] px-4 py-3">
@@ -314,7 +327,9 @@ export function CreateMemberModal({
           </button>
         </div>
       </form>
-    </Modal>
+      </Modal>
+      <AccountCreationShareModal info={shareInfo} onClose={() => setShareInfo(null)} />
+    </>
   );
 }
 

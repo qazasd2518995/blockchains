@@ -22,6 +22,7 @@ import {
   applyControls,
   finalizeControls,
   multiplierExceedsControlCeiling,
+  type ControlOutcome,
 } from '../_common/controls.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
@@ -135,7 +136,7 @@ export class MinesService {
               flipReason: controlled.flipReason?.startsWith('burst_')
                 ? 'burst_risk_guard'
                 : controlled.flipReason,
-          }
+            }
           : controlled;
       const canForceLoss = canForceMinesLossAfterRevealCount(round.revealed.length);
       if (shapedControl.controlled && shapedControl.won && rawHitMine) {
@@ -274,12 +275,12 @@ export class MinesService {
         multiplier,
         payout,
       };
-      const controlOutcome = await applyControls(tx, userId, GameId.MINES, predicted);
-      const finalMultiplier = controlOutcome.controlled ? controlOutcome.multiplier : multiplier;
-      const finalPayout = controlOutcome.controlled ? controlOutcome.payout : payout;
+      const controlOutcome: ControlOutcome = { ...predicted, controlled: false };
+      const finalMultiplier = multiplier;
+      const finalPayout = payout;
       const profit = finalPayout.minus(round.betAmount);
-      const bustedByCashoutControl = controlOutcome.controlled && !controlOutcome.won;
-      const finalStatus = bustedByCashoutControl ? 'BUSTED' : 'CASHED_OUT';
+      const bustedByCashoutControl = false;
+      const finalStatus = 'CASHED_OUT';
 
       const originalResult = {
         mineCount: round.mineCount,

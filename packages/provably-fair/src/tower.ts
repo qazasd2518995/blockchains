@@ -7,8 +7,8 @@ export const TOWER_LEVELS_BY_DIFFICULTY: Record<TowerDifficulty, number> = {
   easy: 9,
   medium: 9,
   hard: 9,
-  expert: 5,
-  master: 4,
+  expert: 9,
+  master: 9,
 };
 export const TOWER_HOUSE_EDGE = 0.1;
 

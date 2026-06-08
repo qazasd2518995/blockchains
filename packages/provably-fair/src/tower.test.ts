@@ -15,14 +15,14 @@ describe('towerLayout', () => {
     expect(layout.length).toBe(TOWER_LEVELS);
   });
 
-  it('locks expert at level 5 and master at level 4', () => {
-    expect(towerLevelCount('expert')).toBe(5);
-    expect(towerLayout('s', 'c', 1, 'expert').length).toBe(5);
-    expect(towerNextMultiplier('expert', 5)).toBeNull();
+  it('keeps expert and master visually playable through all levels', () => {
+    expect(towerLevelCount('expert')).toBe(TOWER_LEVELS);
+    expect(towerLayout('s', 'c', 1, 'expert').length).toBe(TOWER_LEVELS);
+    expect(towerNextMultiplier('expert', TOWER_LEVELS)).toBeNull();
 
-    expect(towerLevelCount('master')).toBe(4);
-    expect(towerLayout('s', 'c', 1, 'master').length).toBe(4);
-    expect(towerNextMultiplier('master', 4)).toBeNull();
+    expect(towerLevelCount('master')).toBe(TOWER_LEVELS);
+    expect(towerLayout('s', 'c', 1, 'master').length).toBe(TOWER_LEVELS);
+    expect(towerNextMultiplier('master', TOWER_LEVELS)).toBeNull();
   });
 
   it('each level has the configured safe count for that level', () => {

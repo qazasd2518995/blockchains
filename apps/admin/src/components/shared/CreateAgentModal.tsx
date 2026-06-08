@@ -17,6 +17,10 @@ import {
   buildBettingLimitsSelection,
   summarizeBettingLimits,
 } from './BettingLimitModal';
+import {
+  AccountCreationShareModal,
+  type CreatedAccountShareInfo,
+} from './AccountCreationShareModal';
 
 const schema = z.object({
   parentId: z.string().min(1, '请选择上级代理'),
@@ -31,6 +35,11 @@ const schema = z.object({
     .max(128, '密码最长 128')
     .regex(/[A-Za-z]/, '需包含字母')
     .regex(/\d/, '需包含数字'),
+  initialBalance: z
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/, '請輸入有效金額，最多 2 位小數')
+    .optional()
+    .or(z.literal('')),
   rebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']),
   rebatePercentageDisplay: z.string().regex(/^\d+(\.\d+)?$/, '请填写有效百分比'),
   bettingLimitLevel: z.string().min(1),
@@ -60,7 +69,7 @@ type LockedParentAgent = Pick<
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreated: (a: AgentPublic) => void;
+  onCreated: (a: AgentPublic, shareInfo: CreatedAccountShareInfo) => void;
   defaultParentId?: string;
   lockedParent?: LockedParentAgent;
 }
@@ -79,6 +88,7 @@ export function CreateAgentModal({
     buildBettingLimitsSelection(null, DEFAULT_BETTING_LIMIT_RANGE),
   );
   const [err, setErr] = useState<string | null>(null);
+  const [shareInfo, setShareInfo] = useState<CreatedAccountShareInfo | null>(null);
   const resolvedParentId = lockedParent?.id ?? defaultParentId ?? '';
   const resetKey = open ? `${resolvedParentId}:${lockedParent?.id ?? 'select'}` : 'closed';
   const lastResetKeyRef = useRef<string | null>(null);
@@ -94,6 +104,7 @@ export function CreateAgentModal({
     resolver: zodResolver(schema),
     defaultValues: {
       parentId: resolvedParentId,
+      initialBalance: '',
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
       bettingLimitLevel: DEFAULT_BETTING_LIMIT_RANGE,
@@ -123,6 +134,7 @@ export function CreateAgentModal({
       parentId: resolvedParentId,
       username: '',
       password: '',
+      initialBalance: '',
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
       bettingLimitLevel:
@@ -233,6 +245,7 @@ export function CreateAgentModal({
         parentId: data.parentId,
         username: data.username,
         password: data.password,
+        initialBalance: data.initialBalance || undefined,
         level: parent.level + 1,
         rebateMode: data.rebateMode,
         rebatePercentage: electronicRebateFraction,
@@ -242,8 +255,15 @@ export function CreateAgentModal({
         bettingLimits,
         notes: data.notes || undefined,
       });
-      onCreated(res.data);
+      const nextShareInfo: CreatedAccountShareInfo = {
+        kind: 'agent',
+        username: res.data.username,
+        password: data.password,
+        bettingLimitLevel: res.data.bettingLimitLevel,
+      };
+      onCreated(res.data, nextShareInfo);
       onClose();
+      setShareInfo(nextShareInfo);
     } catch (e) {
       setErr(extractApiError(e).message);
     }
@@ -254,7 +274,8 @@ export function CreateAgentModal({
   const lockedParentLevel = lockedParent?.level ?? selectedParent?.level;
 
   return (
-    <Modal open={open} onClose={onClose} title={modalTitle} subtitle="新增下级代理" width="md">
+    <>
+      <Modal open={open} onClose={onClose} title={modalTitle} subtitle="新增下级代理" width="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {lockedParent ? (
           <div className="rounded-md border border-[#C9A247]/35 bg-[#FFF8DA] px-4 py-3">
@@ -318,9 +339,19 @@ export function CreateAgentModal({
           />
         </Field>
 
+        <Field label="初始餘額" code="05" error={errors.initialBalance?.message}>
+          <input
+            type="text"
+            inputMode="decimal"
+            {...register('initialBalance')}
+            className="term-input"
+            placeholder="0.00（選填）"
+          />
+        </Field>
+
         <RebateEditor
           title="电子退水"
-          codePrefix="05"
+          codePrefix="06"
           description={
             electronicParentMaxPct === null
               ? '读取当前层级可分配退水中。'
@@ -335,7 +366,7 @@ export function CreateAgentModal({
         />
 
         <div className="rounded-md border border-ink-200 bg-ink-100/30 p-4">
-          <Field label="限红预设" code="07" error={errors.bettingLimitLevel?.message}>
+          <Field label="限红预设" code="08" error={errors.bettingLimitLevel?.message}>
             <select {...register('bettingLimitLevel')} className="term-input">
               {BETTING_LIMIT_RANGE_OPTIONS.map((option) => (
                 <option key={option.key} value={option.key}>
@@ -387,7 +418,9 @@ export function CreateAgentModal({
           </button>
         </div>
       </form>
-    </Modal>
+      </Modal>
+      <AccountCreationShareModal info={shareInfo} onClose={() => setShareInfo(null)} />
+    </>
   );
 }
 

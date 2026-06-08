@@ -11,6 +11,10 @@ import { TransferModal } from '@/components/shared/TransferModal';
 import { RebateSettingModal } from '@/components/shared/RebateSettingModal';
 import { BettingLimitModal } from '@/components/shared/BettingLimitModal';
 import { AgentTransferModal } from '@/components/shared/AgentTransferModal';
+import {
+  AccountCreationShareModal,
+  type CreatedAccountShareInfo,
+} from '@/components/shared/AccountCreationShareModal';
 import { Modal } from '@/components/shared/Modal';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -40,6 +44,8 @@ export function AgentHierarchyPage(): JSX.Element {
   const [keyword, setKeyword] = useState('');
   const [status, setStatus] = useState<'' | AccountStatus>('');
   const [reloadKey, setReloadKey] = useState(0);
+  const [promotionPasswords, setPromotionPasswords] = useState<Record<string, string>>({});
+  const [promotionFor, setPromotionFor] = useState<CreatedAccountShareInfo | null>(null);
 
   const [openCreateMember, setOpenCreateMember] = useState(false);
   const [openCreateAgent, setOpenCreateAgent] = useState(false);
@@ -152,6 +158,24 @@ export function AgentHierarchyPage(): JSX.Element {
       lastLoginAt: null,
       createdAt: row.createdAt,
     };
+  };
+
+  const rememberPromotionPassword = (
+    kind: CreatedAccountShareInfo['kind'],
+    id: string,
+    password: string | null | undefined,
+  ) => {
+    if (!password) return;
+    setPromotionPasswords((current) => ({ ...current, [`${kind}:${id}`]: password }));
+  };
+
+  const openPromotion = (row: HierarchyItem) => {
+    setPromotionFor({
+      kind: row.kind,
+      username: row.username,
+      password: promotionPasswords[`${row.kind}:${row.id}`] ?? null,
+      bettingLimitLevel: row.bettingLimitLevel,
+    });
   };
 
   const currentLayerAgent = data?.parent ?? null;
@@ -383,6 +407,9 @@ export function AgentHierarchyPage(): JSX.Element {
                       >
                         {t.agents.pointTransfer}
                       </button>
+                      <button type="button" onClick={() => openPromotion(row)} className="btn-chip">
+                        推廣
+                      </button>
                       <button
                         type="button"
                         onClick={() => setRebateFor({ id: row.id, username: row.username })}
@@ -450,6 +477,9 @@ export function AgentHierarchyPage(): JSX.Element {
                       >
                         {t.agents.pointTransfer}
                       </button>
+                      <button type="button" onClick={() => openPromotion(row)} className="btn-chip">
+                        推廣
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -509,7 +539,10 @@ export function AgentHierarchyPage(): JSX.Element {
       <CreateMemberModal
         open={openCreateMember}
         onClose={() => setOpenCreateMember(false)}
-        onCreated={() => setReloadKey((k) => k + 1)}
+        onCreated={(member, shareInfo) => {
+          rememberPromotionPassword('member', member.id, shareInfo.password);
+          setReloadKey((k) => k + 1);
+        }}
         defaultAgentId={createTarget?.id ?? currentParent}
         lockedAgent={
           createTarget
@@ -527,7 +560,10 @@ export function AgentHierarchyPage(): JSX.Element {
       <CreateAgentModal
         open={openCreateAgent}
         onClose={() => setOpenCreateAgent(false)}
-        onCreated={() => setReloadKey((k) => k + 1)}
+        onCreated={(agent, shareInfo) => {
+          rememberPromotionPassword('agent', agent.id, shareInfo.password);
+          setReloadKey((k) => k + 1);
+        }}
         defaultParentId={createTarget?.id ?? currentParent}
         lockedParent={createTarget}
       />
@@ -593,13 +629,15 @@ export function AgentHierarchyPage(): JSX.Element {
         <ResetPasswordModal
           target={resetPasswordFor}
           onClose={() => setResetPasswordFor(null)}
-          onDone={() => {
+          onDone={(newPassword) => {
+            rememberPromotionPassword(resetPasswordFor.kind, resetPasswordFor.id, newPassword);
             setResetPasswordFor(null);
             setReloadKey((k) => k + 1);
           }}
           onError={setError}
         />
       )}
+      <AccountCreationShareModal info={promotionFor} onClose={() => setPromotionFor(null)} />
     </div>
   );
 }
@@ -702,7 +740,7 @@ function ResetPasswordModal({
 }: {
   target: { kind: 'agent' | 'member'; id: string; username: string };
   onClose: () => void;
-  onDone: () => void;
+  onDone: (newPassword: string) => void;
   onError: (msg: string) => void;
 }): JSX.Element {
   const { t } = useTranslation();
@@ -729,7 +767,7 @@ function ResetPasswordModal({
           ? `/agents/${target.id}/reset-password`
           : `/members/${target.id}/reset-password`;
       await adminApi.post(path, { newPassword: password });
-      onDone();
+      onDone(password);
     } catch (e) {
       onError(extractApiError(e).message);
     } finally {

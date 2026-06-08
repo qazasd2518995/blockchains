@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
 const decimalString = z.string().regex(/^-?\d+(\.\d+)?$/, 'invalid decimal');
+const nonNegativeMoneyString = z
+  .string()
+  .regex(/^\d+(\.\d{1,2})?$/)
+  .refine((value) => Number.parseFloat(value) >= 0, 'must be >= 0');
 const bettingLimitsSchema = z.record(z.string(), z.string()).optional();
 
 export const createAgentSchema = z.object({
@@ -16,6 +20,7 @@ export const createAgentSchema = z.object({
     .max(128)
     .regex(/[A-Za-z]/)
     .regex(/\d/),
+  initialBalance: nonNegativeMoneyString.optional(),
   displayName: z.string().min(1).max(40).optional(),
   level: z.number().int().min(1).max(15),
   marketType: z.enum(['D', 'A']).optional(),

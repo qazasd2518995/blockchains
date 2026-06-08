@@ -2,7 +2,8 @@ import bcrypt from 'bcrypt';
 import { PrismaClient, Prisma } from '@prisma/client';
 import type { AgentPublic, AgentTreeNode } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
-import { canManageAgent } from '../../../utils/hierarchy.js';
+import { canManageAgent, resolveAgentScopeRootId } from '../../../utils/hierarchy.js';
+import { runSerializable } from '../../games/_common/BaseGameService.js';
 import { writeAudit } from '../audit/audit.service.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import {
@@ -138,27 +139,84 @@ export class AgentService {
     }
 
     const accountNote = input.notes ?? input.displayName ?? null;
-    const created = await this.prisma.agent.create({
-      data: {
-        username: input.username,
-        passwordHash,
-        displayName: accountNote,
-        parentId: parent.id,
-        level: input.level,
-        marketType: input.marketType ?? parent.marketType,
-        commissionRate,
-        rebateMode,
-        rebatePercentage: rebatePct,
-        maxRebatePercentage: maxAllowed,
-        baccaratRebateMode,
-        baccaratRebatePercentage: baccaratRebatePct,
-        maxBaccaratRebatePercentage: baccaratMaxAllowed,
-        bettingLimitLevel: input.bettingLimitLevel ?? parent.bettingLimitLevel,
-        bettingLimits,
-        notes: accountNote,
-        role: 'AGENT',
-        status: 'ACTIVE',
-      },
+    const initialBalance = input.initialBalance
+      ? new Prisma.Decimal(input.initialBalance)
+      : new Prisma.Decimal(0);
+
+    const { created, fundingAgentId } = await runSerializable(this.prisma, async (tx) => {
+      let sourceAgent:
+        | {
+            id: string;
+            balance: Prisma.Decimal;
+          }
+        | null = null;
+      let sourceAfterBalance = new Prisma.Decimal(0);
+
+      if (initialBalance.greaterThan(0)) {
+        const sourceAgentId = await resolveAgentScopeRootId(tx, operator);
+        if (!sourceAgentId) {
+          throw new ApiError('FORBIDDEN', 'Cannot resolve funding agent');
+        }
+        sourceAgent = await tx.agent.findUnique({
+          where: { id: sourceAgentId },
+          select: { id: true, balance: true },
+        });
+        if (!sourceAgent || sourceAgent.balance.lessThan(initialBalance)) {
+          throw new ApiError('INSUFFICIENT_FUNDS', 'Agent balance insufficient');
+        }
+        sourceAfterBalance = sourceAgent.balance.sub(initialBalance);
+        await tx.agent.update({
+          where: { id: sourceAgent.id },
+          data: { balance: sourceAfterBalance },
+        });
+      }
+
+      const createdAgent = await tx.agent.create({
+        data: {
+          username: input.username,
+          passwordHash,
+          displayName: accountNote,
+          parentId: parent.id,
+          level: input.level,
+          marketType: input.marketType ?? parent.marketType,
+          balance: initialBalance,
+          commissionRate,
+          rebateMode,
+          rebatePercentage: rebatePct,
+          maxRebatePercentage: maxAllowed,
+          baccaratRebateMode,
+          baccaratRebatePercentage: baccaratRebatePct,
+          maxBaccaratRebatePercentage: baccaratMaxAllowed,
+          bettingLimitLevel: input.bettingLimitLevel ?? parent.bettingLimitLevel,
+          bettingLimits,
+          notes: accountNote,
+          role: 'AGENT',
+          status: 'ACTIVE',
+        },
+      });
+
+      if (sourceAgent && initialBalance.greaterThan(0)) {
+        await tx.pointTransfer.create({
+          data: {
+            type: 'AGENT_TO_AGENT',
+            fromType: 'agent',
+            fromId: sourceAgent.id,
+            toType: 'agent',
+            toId: createdAgent.id,
+            amount: initialBalance,
+            fromBeforeBalance: sourceAgent.balance,
+            fromAfterBalance: sourceAfterBalance,
+            toBeforeBalance: new Prisma.Decimal(0),
+            toAfterBalance: initialBalance,
+            description: 'Initial balance on agent create',
+            operatorId: operator.id,
+            operatorType: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+            ipAddress: req?.ip ?? null,
+          },
+        });
+      }
+
+      return { created: createdAgent, fundingAgentId: sourceAgent?.id ?? null };
     });
 
     await writeAudit(this.prisma, {
@@ -170,7 +228,13 @@ export class AgentService {
       action: 'agent.create',
       targetType: 'agent',
       targetId: created.id,
-      newValues: { username: created.username, level: created.level, parentId: created.parentId },
+      newValues: {
+        username: created.username,
+        level: created.level,
+        parentId: created.parentId,
+        initialBalance: initialBalance.toFixed(2),
+        fundingAgentId,
+      },
       req,
     });
 

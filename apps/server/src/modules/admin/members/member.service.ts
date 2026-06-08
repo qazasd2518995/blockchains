@@ -63,25 +63,31 @@ export class MemberService {
       ? new Prisma.Decimal(input.initialBalance)
       : new Prisma.Decimal(0);
 
-    const { member, agentAfter } = await runSerializable(this.prisma, async (tx) => {
+    const { member, fundingAgentId } = await runSerializable(this.prisma, async (tx) => {
       let balanceForMember = new Prisma.Decimal(0);
-      let agentAfterBalance = targetAgent.balance;
+      let initialFundingAgentId: string | null = null;
 
-      // 若需從代理餘額扣款
+      // 初始入點來源使用操作代理，而不是會員直屬代理。
+      // 這和後續「點數轉移」一致，避免跨層建立會員時因直屬代理餘額為 0 而失敗。
       if (initialBalance.greaterThan(0)) {
-        const locked = await tx.agent.findUnique({
-          where: { id: targetAgent.id },
-          select: { balance: true },
+        const sourceAgentId = await resolveAgentScopeRootId(tx, operator);
+        if (!sourceAgentId) {
+          throw new ApiError('FORBIDDEN', 'Cannot resolve funding agent');
+        }
+        const sourceAgent = await tx.agent.findUnique({
+          where: { id: sourceAgentId },
+          select: { id: true, balance: true },
         });
-        if (!locked || locked.balance.lessThan(initialBalance)) {
+        if (!sourceAgent || sourceAgent.balance.lessThan(initialBalance)) {
           throw new ApiError('INSUFFICIENT_FUNDS', 'Agent balance insufficient');
         }
-        agentAfterBalance = locked.balance.sub(initialBalance);
+        const sourceAfterBalance = sourceAgent.balance.sub(initialBalance);
         await tx.agent.update({
-          where: { id: targetAgent.id },
-          data: { balance: agentAfterBalance },
+          where: { id: sourceAgent.id },
+          data: { balance: sourceAfterBalance },
         });
         balanceForMember = initialBalance;
+        initialFundingAgentId = sourceAgent.id;
       } else if (targetAgent.role === 'SUPER_ADMIN') {
         // super admin 建會員不扣代理餘額，改用 SIGNUP_BONUS 直接給會員
         balanceForMember = new Prisma.Decimal(config.SIGNUP_BONUS);
@@ -120,19 +126,30 @@ export class MemberService {
 
       // 初始點數來源：若來自代理，寫 PointTransfer；若來自 SIGNUP_BONUS，寫 Transaction SIGNUP_BONUS
       if (initialBalance.greaterThan(0)) {
+        const sourceAgentId = initialFundingAgentId;
+        const sourceAgent = sourceAgentId
+          ? await tx.agent.findUnique({
+              where: { id: sourceAgentId },
+              select: { id: true, balance: true },
+            })
+          : null;
+        if (!sourceAgent) {
+          throw new ApiError('AGENT_NOT_FOUND', 'Funding agent not found');
+        }
+        const sourceBeforeBalance = sourceAgent.balance.add(initialBalance);
         await tx.pointTransfer.create({
           data: {
             type: 'AGENT_TO_MEMBER',
             fromType: 'agent',
-            fromId: targetAgent.id,
+            fromId: sourceAgent.id,
             toType: 'member',
             toId: created.id,
             amount: initialBalance,
-            fromBeforeBalance: targetAgent.balance,
-            fromAfterBalance: agentAfterBalance,
+            fromBeforeBalance: sourceBeforeBalance,
+            fromAfterBalance: sourceAgent.balance,
             toBeforeBalance: new Prisma.Decimal(0),
             toAfterBalance: balanceForMember,
-            description: 'Initial balance from agent',
+            description: 'Initial balance on member create',
             operatorId: operator.id,
             operatorType: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
             ipAddress: req?.ip ?? null,
@@ -144,7 +161,12 @@ export class MemberService {
             type: 'TRANSFER_IN',
             amount: initialBalance,
             balanceAfter: balanceForMember,
-            meta: { from: 'agent', agentId: targetAgent.id, reason: 'Initial balance' },
+            meta: {
+              from: 'agent',
+              agentId: sourceAgent.id,
+              targetAgentId: targetAgent.id,
+              reason: 'Initial balance',
+            },
           },
         });
       } else if (balanceForMember.greaterThan(0)) {
@@ -170,10 +192,8 @@ export class MemberService {
         operatorUsername: operator.username,
       });
 
-      return { member: created, agentAfter: agentAfterBalance };
+      return { member: created, fundingAgentId: initialFundingAgentId };
     });
-
-    void agentAfter;
 
     await writeAudit(this.prisma, {
       actor: {
@@ -188,6 +208,7 @@ export class MemberService {
         username: member.username,
         agentId: member.agentId,
         initialBalance: initialBalance.toFixed(2),
+        fundingAgentId,
       },
       req,
     });

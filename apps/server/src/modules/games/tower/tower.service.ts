@@ -25,12 +25,18 @@ import {
   applyControls,
   finalizeControls,
   multiplierExceedsControlCeiling,
+  type ControlOutcome,
 } from '../_common/controls.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { TowerStartInput, TowerPickInput, TowerCashoutInput } from './tower.schema.js';
 
 const TOWER_FORCED_LOSS_GRACE_LEVELS = 0;
+const TOWER_LATE_LEVEL_FORCED_LOSS_START: Partial<Record<TowerDifficulty, number>> = {
+  // 0-indexed currentLevel: expert level 6, master level 5.
+  expert: 5,
+  master: 4,
+};
 
 export class TowerService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -132,6 +138,7 @@ export class TowerService {
                 : controlled.flipReason,
             }
           : controlled;
+      const lateLevelForcedLoss = mustForceTowerLateLevelLoss(difficulty, round.currentLevel);
       const canForceLoss = canForceTowerLossAtLevel(round.currentLevel);
       if (shapedControl.controlled) {
         layout = shapedControl.won
@@ -140,11 +147,15 @@ export class TowerService {
             ? forceTowerTrap(rawLayout, round.currentLevel, input.col, cfg.cols)
             : rawLayout;
       }
+      if (lateLevelForcedLoss) {
+        layout = forceTowerTrap(layout, round.currentLevel, input.col, cfg.cols);
+      }
       const isSafe = (layout[round.currentLevel] ?? []).includes(input.col);
-      const effectiveControl =
-        isSafe !== rawSafe
-          ? shapedControl
-          : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
+      const effectiveControl = resolveTowerEffectiveControl(shapedControl, {
+        rawSafe,
+        isSafe,
+        lateLevelForcedLoss,
+      });
 
       if (!isSafe) {
         const originalResult = {
@@ -153,6 +164,7 @@ export class TowerService {
           picks: [...round.picks, input.col],
           bustedLevel: round.currentLevel,
           safe: rawSafe,
+          forcedByTowerRiskLimit: false,
         };
         const finalResult = {
           difficulty,
@@ -160,6 +172,7 @@ export class TowerService {
           picks: [...round.picks, input.col],
           bustedLevel: round.currentLevel,
           controlled: effectiveControl.controlled,
+          forcedByTowerRiskLimit: lateLevelForcedLoss,
           flipReason: effectiveControl.flipReason ?? null,
           raw: effectiveControl.controlled ? originalResult : null,
         };
@@ -312,12 +325,12 @@ export class TowerService {
         multiplier,
         payout,
       };
-      const controlOutcome = await applyControls(tx, userId, GameId.TOWER, predicted);
-      const finalMultiplier = controlOutcome.controlled ? controlOutcome.multiplier : multiplier;
-      const finalPayout = controlOutcome.controlled ? controlOutcome.payout : payout;
+      const controlOutcome: ControlOutcome = { ...predicted, controlled: false };
+      const finalMultiplier = multiplier;
+      const finalPayout = payout;
       const profit = finalPayout.minus(round.betAmount);
-      const bustedByCashoutControl = controlOutcome.controlled && !controlOutcome.won;
-      const finalStatus = bustedByCashoutControl ? 'BUSTED' : 'CASHED_OUT';
+      const bustedByCashoutControl = false;
+      const finalStatus = 'CASHED_OUT';
 
       const originalResult = {
         difficulty: round.difficulty,
@@ -441,6 +454,25 @@ function canForceTowerLossAtLevel(level: number): boolean {
   return level >= TOWER_FORCED_LOSS_GRACE_LEVELS;
 }
 
+function mustForceTowerLateLevelLoss(difficulty: TowerDifficulty, level: number): boolean {
+  const forcedLossStart = TOWER_LATE_LEVEL_FORCED_LOSS_START[difficulty];
+  return forcedLossStart !== undefined && level >= forcedLossStart;
+}
+
+function resolveTowerEffectiveControl(
+  shapedControl: ControlOutcome,
+  context: { rawSafe: boolean; isSafe: boolean; lateLevelForcedLoss: boolean },
+): ControlOutcome {
+  if (context.lateLevelForcedLoss) {
+    return shapedControl.controlled && !shapedControl.won
+      ? shapedControl
+      : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
+  }
+  return context.isSafe !== context.rawSafe
+    ? shapedControl
+    : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
+}
+
 function forceTowerSafe(layout: number[][], level: number, col: number, cols: number): number[][] {
   const next = layout.map((row) => row.slice());
   const safe = new Set(next[level] ?? []);
@@ -507,4 +539,6 @@ function trimTowerSafeCount(
 
 export const __towerServiceTestHooks = {
   canForceTowerLossAtLevel,
+  mustForceTowerLateLevelLoss,
+  resolveTowerEffectiveControl,
 };
