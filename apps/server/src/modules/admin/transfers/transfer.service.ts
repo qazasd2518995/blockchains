@@ -148,14 +148,16 @@ export class TransferService {
           meta: { from: 'agent', agentId: agent.id, operatorId: operator.id },
         },
       });
-      await resetMemberAutoBalanceControl(tx, {
-        memberId: member.id,
-        memberUsername: member.username,
-        agentId: member.agentId,
-        balanceAfter: memberAfter,
-        reason: isDeposit ? 'agent_to_member' : 'member_to_agent',
-        operatorUsername: operator.username,
-      });
+      if (isDeposit) {
+        await resetMemberAutoBalanceControl(tx, {
+          memberId: member.id,
+          memberUsername: member.username,
+          agentId: member.agentId,
+          balanceAfter: memberAfter,
+          reason: 'agent_to_member',
+          operatorUsername: operator.username,
+        });
+      }
       return transfer;
     });
 
@@ -250,14 +252,16 @@ export class TransferService {
           meta: { from: 'cs', operatorId: operator.id },
         },
       });
-      await resetMemberAutoBalanceControl(tx, {
-        memberId: member.id,
-        memberUsername: member.username,
-        agentId: member.agentId,
-        balanceAfter: after,
-        reason: amount.greaterThan(0) ? 'cs_member_in' : 'cs_member_out',
-        operatorUsername: operator.username,
-      });
+      if (amount.greaterThan(0)) {
+        await resetMemberAutoBalanceControl(tx, {
+          memberId: member.id,
+          memberUsername: member.username,
+          agentId: member.agentId,
+          balanceAfter: after,
+          reason: 'cs_member_in',
+          operatorUsername: operator.username,
+        });
+      }
       return transfer;
     });
     await writeAudit(this.prisma, {
@@ -293,6 +297,105 @@ export class TransferService {
     const page = hasMore ? rows.slice(0, limit) : rows;
     return { items: page.map(toEntry), nextCursor: hasMore ? page[page.length - 1]!.id : null };
   }
+
+  async myLogs(
+    operator: AdminCurrent,
+    query: TransferListQuery,
+  ): Promise<{ items: OperatorTransferLogEntry[]; nextCursor: string | null }> {
+    const limit = query.limit ?? 50;
+    const where: Prisma.PointTransferWhereInput = { operatorId: operator.id };
+    if (query.type) where.type = query.type as Prisma.PointTransferWhereInput['type'];
+
+    const rows = await this.prisma.pointTransfer.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+    });
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const { agentMap, memberMap } = await this.loadTransferAccountMaps(page, operator);
+
+    return {
+      items: page.map((row) => toOperatorLogEntry(row, operator, agentMap, memberMap)),
+      nextCursor: hasMore ? page[page.length - 1]!.id : null,
+    };
+  }
+
+  private async loadTransferAccountMaps(
+    rows: Array<{
+      fromType: string;
+      fromId: string;
+      toType: string;
+      toId: string;
+      operatorId: string | null;
+    }>,
+    operator: AdminCurrent,
+  ): Promise<{
+    agentMap: Map<string, AccountLookup>;
+    memberMap: Map<string, AccountLookup>;
+  }> {
+    const agentIds = new Set<string>([operator.id]);
+    const memberIds = new Set<string>();
+    for (const row of rows) {
+      collectPartyId(row.fromType, row.fromId, agentIds, memberIds);
+      collectPartyId(row.toType, row.toId, agentIds, memberIds);
+      if (row.operatorId) agentIds.add(row.operatorId);
+    }
+
+    const [agents, members] = await Promise.all([
+      agentIds.size > 0
+        ? this.prisma.agent.findMany({
+            where: { id: { in: [...agentIds] } },
+            select: { id: true, username: true, displayName: true },
+          })
+        : Promise.resolve([]),
+      memberIds.size > 0
+        ? this.prisma.user.findMany({
+            where: { id: { in: [...memberIds] } },
+            select: { id: true, username: true, displayName: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    return {
+      agentMap: new Map(agents.map((agent) => [agent.id, agent])),
+      memberMap: new Map(members.map((member) => [member.id, member])),
+    };
+  }
+}
+
+interface AccountLookup {
+  id: string;
+  username: string;
+  displayName: string | null;
+}
+
+interface TransferLogParty {
+  type: string;
+  id: string;
+  username: string | null;
+  displayName: string | null;
+  label: string;
+}
+
+interface OperatorTransferLogEntry extends TransferEntry {
+  action:
+    | 'AGENT_TRANSFER_OUT'
+    | 'AGENT_TRANSFER_IN'
+    | 'AGENT_TRANSFER'
+    | 'MEMBER_DEPOSIT'
+    | 'MEMBER_WITHDRAW'
+    | 'CS_AGENT_ADJUST'
+    | 'CS_MEMBER_ADJUST'
+    | 'REBATE_PAYOUT'
+    | 'UNKNOWN';
+  operatorUsername: string;
+  from: TransferLogParty;
+  to: TransferLogParty;
+  signedAmount: string;
+  operatorBalanceBefore: string | null;
+  operatorBalanceAfter: string | null;
 }
 
 function toEntry(t: {
@@ -329,4 +432,99 @@ function toEntry(t: {
     operatorType: t.operatorType,
     createdAt: t.createdAt.toISOString(),
   };
+}
+
+function toOperatorLogEntry(
+  t: Parameters<typeof toEntry>[0],
+  operator: AdminCurrent,
+  agentMap: Map<string, AccountLookup>,
+  memberMap: Map<string, AccountLookup>,
+): OperatorTransferLogEntry {
+  const base = toEntry(t);
+  const operatorAccount = agentMap.get(operator.id);
+  const operatorBalance = getOperatorBalance(t, operator.id);
+
+  return {
+    ...base,
+    action: resolveOperatorTransferAction(t, operator.id),
+    operatorUsername: operatorAccount?.username ?? operator.username,
+    from: resolveParty(t.fromType, t.fromId, agentMap, memberMap),
+    to: resolveParty(t.toType, t.toId, agentMap, memberMap),
+    signedAmount: resolveSignedAmount(t, operator.id).toFixed(2),
+    operatorBalanceBefore: operatorBalance.before?.toFixed(2) ?? null,
+    operatorBalanceAfter: operatorBalance.after?.toFixed(2) ?? null,
+  };
+}
+
+function collectPartyId(
+  type: string,
+  id: string,
+  agentIds: Set<string>,
+  memberIds: Set<string>,
+): void {
+  if (type === 'agent' || type === 'cs') {
+    agentIds.add(id);
+    return;
+  }
+  if (type === 'member') {
+    memberIds.add(id);
+  }
+}
+
+function resolveParty(
+  type: string,
+  id: string,
+  agentMap: Map<string, AccountLookup>,
+  memberMap: Map<string, AccountLookup>,
+): TransferLogParty {
+  const account =
+    type === 'agent' || type === 'cs'
+      ? agentMap.get(id)
+      : type === 'member'
+        ? memberMap.get(id)
+        : undefined;
+  const username = account?.username ?? null;
+  const displayName = account?.displayName ?? null;
+  const fallback = type === 'cs' ? '客服' : `${type}:${id.slice(-8)}`;
+  const label = username ? `${username}${displayName ? ` · ${displayName}` : ''}` : fallback;
+  return { type, id, username, displayName, label };
+}
+
+function resolveOperatorTransferAction(
+  t: Parameters<typeof toEntry>[0],
+  operatorId: string,
+): OperatorTransferLogEntry['action'] {
+  if (t.type === 'AGENT_TO_MEMBER') return 'MEMBER_DEPOSIT';
+  if (t.type === 'MEMBER_TO_AGENT') return 'MEMBER_WITHDRAW';
+  if (t.type === 'CS_AGENT_TRANSFER') return 'CS_AGENT_ADJUST';
+  if (t.type === 'CS_MEMBER_TRANSFER') return 'CS_MEMBER_ADJUST';
+  if (t.type === 'REBATE_PAYOUT') return 'REBATE_PAYOUT';
+  if (t.type === 'AGENT_TO_AGENT') {
+    if (t.fromType === 'agent' && t.fromId === operatorId) return 'AGENT_TRANSFER_OUT';
+    if (t.toType === 'agent' && t.toId === operatorId) return 'AGENT_TRANSFER_IN';
+    return 'AGENT_TRANSFER';
+  }
+  return 'UNKNOWN';
+}
+
+function resolveSignedAmount(t: Parameters<typeof toEntry>[0], operatorId: string): Prisma.Decimal {
+  if (t.fromType === 'agent' && t.fromId === operatorId) return t.amount.negated();
+  if (t.toType === 'agent' && t.toId === operatorId) return t.amount;
+  if (t.type === 'CS_AGENT_TRANSFER' || t.type === 'CS_MEMBER_TRANSFER') {
+    return t.toAfterBalance.sub(t.toBeforeBalance);
+  }
+  return t.amount;
+}
+
+function getOperatorBalance(
+  t: Parameters<typeof toEntry>[0],
+  operatorId: string,
+): { before: Prisma.Decimal | null; after: Prisma.Decimal | null } {
+  if (t.fromType === 'agent' && t.fromId === operatorId) {
+    return { before: t.fromBeforeBalance, after: t.fromAfterBalance };
+  }
+  if (t.toType === 'agent' && t.toId === operatorId) {
+    return { before: t.toBeforeBalance, after: t.toAfterBalance };
+  }
+  return { before: null, after: null };
 }

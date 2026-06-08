@@ -534,7 +534,7 @@ function resolveControlLogSourceLabel(source: ControlLogSource): string {
 function formatAutoBalancePhase(phase: string): string {
   if (phase === 'BITE_TO_30') return '咬到30%';
   if (phase === 'REVIVE_TO_70') return '回到70%';
-  if (phase === 'DRAIN_TO_ZERO') return '咬光';
+  if (phase === 'DRAIN_TO_ZERO') return '回70後控輸';
   return phase;
 }
 
@@ -547,7 +547,7 @@ function resolveControlLogActionLabel(log: ControlLogRecord): string {
     deposit_control: `入金${finalDirection}`,
     auto_balance_bite: '自動咬到30%',
     auto_balance_revive: '自動回到70%',
-    auto_balance_drain: '自動咬光',
+    auto_balance_drain: '自動回70後控輸',
     auto_balance_release: '自動補贏',
     win_control: '放會員贏',
     loss_control: '咬會員輸',

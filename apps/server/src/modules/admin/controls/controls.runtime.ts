@@ -76,6 +76,7 @@ export const STARTER_CONFIDENCE_OPERATOR = 'auto_starter_confidence';
 export const AUTO_BALANCE_OPERATOR = 'auto_balance_model';
 const AUTO_BALANCE_BITE_RATE = new Prisma.Decimal('0.30');
 const AUTO_BALANCE_REVIVE_RATE = new Prisma.Decimal('0.70');
+const AUTO_BALANCE_EXCLUDED_AGENT_USERNAME = '8000DG';
 
 export function getControlGameDay(now: Date = new Date()): string {
   return getAdminGameDay(now);
@@ -139,7 +140,9 @@ export async function resetMemberAutoBalanceControl(
   const reviveTargetBalance = baselineBalance
     .mul(AUTO_BALANCE_REVIVE_RATE)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-  const isActive = baselineBalance.greaterThan(0);
+  const excludedLine = await isAutoBalanceExcludedAgentLine(db, input.agentId);
+  const isActive = baselineBalance.greaterThan(0) && !excludedLine;
+  const resetReason = excludedLine ? `${input.reason}:auto_balance_excluded` : input.reason;
 
   await deactivateLegacyAutomaticControls(db, input.memberId, input.memberUsername);
 
@@ -154,7 +157,7 @@ export async function resetMemberAutoBalanceControl(
       reviveTargetBalance,
       phase: 'BITE_TO_30',
       isActive,
-      resetReason: input.reason,
+      resetReason,
       operatorUsername: input.operatorUsername ?? AUTO_BALANCE_OPERATOR,
     },
     update: {
@@ -165,7 +168,7 @@ export async function resetMemberAutoBalanceControl(
       reviveTargetBalance,
       phase: 'BITE_TO_30',
       isActive,
-      resetReason: input.reason,
+      resetReason,
       operatorUsername: input.operatorUsername ?? AUTO_BALANCE_OPERATOR,
     },
   });
@@ -183,6 +186,16 @@ export async function getOrCreateMemberAutoBalanceControl(
   const existing = await db.memberAutoBalanceControl.findUnique({
     where: { memberId: member.id },
   });
+  const excludedLine = await isAutoBalanceExcludedAgentLine(db, member.agentId);
+  if (excludedLine) {
+    if (existing?.isActive) {
+      await db.memberAutoBalanceControl.update({
+        where: { id: existing.id },
+        data: { isActive: false, resetReason: 'auto_balance_excluded' },
+      });
+    }
+    return null;
+  }
   if (existing) return existing;
 
   if (member.balance.lessThanOrEqualTo(0)) return null;
@@ -205,6 +218,29 @@ export async function setMemberAutoBalancePhase(
     where: { id: controlId },
     data: { phase },
   });
+}
+
+export async function isAutoBalanceExcludedAgentLine(
+  db: Db,
+  agentId: string | null,
+): Promise<boolean> {
+  if (!agentId) return false;
+  const rows = await db.$queryRaw<{ exists: boolean }[]>`
+    WITH RECURSIVE path AS (
+      SELECT id, username, "parentId", 0 AS depth
+      FROM "Agent"
+      WHERE id = ${agentId}
+      UNION ALL
+      SELECT a.id, a.username, a."parentId", path.depth + 1 AS depth
+      FROM "Agent" a
+      JOIN path ON a.id = path."parentId"
+      WHERE path.depth < 20
+    )
+    SELECT EXISTS (
+      SELECT 1 FROM path WHERE username = ${AUTO_BALANCE_EXCLUDED_AGENT_USERNAME}
+    ) AS "exists"
+  `;
+  return rows[0]?.exists === true;
 }
 
 async function deactivateLegacyAutomaticControls(

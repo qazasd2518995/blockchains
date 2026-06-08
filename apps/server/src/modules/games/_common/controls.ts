@@ -9,6 +9,7 @@ import {
   getAgentAncestors,
   getControlGameDayWindow,
   getOrCreateMemberAutoBalanceControl,
+  isAutoBalanceExcludedAgentLine,
   isHoldTargetManualControl,
   normalizeAgentLineCapDay,
   normalizeBurstControlDay,
@@ -146,7 +147,6 @@ const CONTROL_RELEASE_TOTAL_LOSS_PROFIT_RATIO = new Prisma.Decimal('0.25');
 const CONTROL_RELEASE_AVG_STAKE_PROFIT_RATIO = new Prisma.Decimal('0.35');
 const CONTROL_RELEASE_CURRENT_STAKE_PROFIT_RATIO = new Prisma.Decimal('0.35');
 const CONTROL_RELEASE_MAX_MULTIPLIER = new Prisma.Decimal('1.35');
-const AUTO_BALANCE_REVIVE_WIN_RATE = 0.7;
 const LOSS_CONTROL_RELEASE_CONFIG: ControlReleaseConfig = {
   minLosses: 2,
   baseChance: 0.1,
@@ -155,14 +155,7 @@ const LOSS_CONTROL_RELEASE_CONFIG: ControlReleaseConfig = {
   highControlDampening: 0.75,
   maxMultiplier: CONTROL_RELEASE_MAX_MULTIPLIER,
 };
-const AUTO_BALANCE_RELEASE_CONFIG: ControlReleaseConfig = {
-  minLosses: 2,
-  baseChance: 0.08,
-  chanceStep: 0.035,
-  maxChance: 0.22,
-  highControlDampening: 0.8,
-  maxMultiplier: CONTROL_RELEASE_MAX_MULTIPLIER,
-};
+const AUTO_BALANCE_REVIVE_INTERVENTION_RATE = 0.7;
 const MANUAL_DETECTION_RELEASE_CONFIG: ControlReleaseConfig = {
   minLosses: 2,
   baseChance: 0.1,
@@ -384,14 +377,15 @@ async function findControlDecision(
   const depositControl = await findDepositControlDecision(tx, member, predicted);
   if (depositControl) return depositControl;
 
+  const autoBalance = await findAutoBalanceDecisionInternal(tx, member, predicted, 'any');
+  if (autoBalance.decision) return autoBalance.decision;
+  if (autoBalance.inActiveCycle) return null;
+
   const targetedManual = await findManualDetectionDecision(tx, member, predicted, 'targeted');
   if (targetedManual) return targetedManual;
 
   const globalManual = await findManualDetectionDecision(tx, member, predicted, 'global');
   if (globalManual) return globalManual;
-
-  const autoBalance = await findAutoBalanceDecision(tx, member, predicted);
-  if (autoBalance) return autoBalance;
 
   return null;
 }
@@ -517,113 +511,115 @@ async function findWinLossDecision(
   };
 }
 
+interface AutoBalanceDecisionResult {
+  decision: ControlDecision | null;
+  inActiveCycle: boolean;
+}
+
 async function findAutoBalanceDecision(
   tx: Db,
   member: MemberScope,
   predicted: PredictedResult,
 ): Promise<ControlDecision | null> {
+  return (await findAutoBalanceDecisionInternal(tx, member, predicted, 'any')).decision;
+}
+
+async function findAutoBalanceReviveDecision(
+  tx: Db,
+  member: MemberScope,
+  predicted: PredictedResult,
+): Promise<AutoBalanceDecisionResult> {
+  return findAutoBalanceDecisionInternal(tx, member, predicted, 'reviveOnly');
+}
+
+async function findAutoBalanceDecisionInternal(
+  tx: Db,
+  member: MemberScope,
+  predicted: PredictedResult,
+  mode: 'any' | 'reviveOnly',
+): Promise<AutoBalanceDecisionResult> {
   const currentUser = await tx.user.findUnique({
     where: { id: member.id },
     select: { id: true, username: true, agentId: true, balance: true },
   });
-  if (!currentUser || currentUser.balance.lessThanOrEqualTo(0)) return null;
+  if (!currentUser || currentUser.balance.lessThanOrEqualTo(0)) {
+    return { decision: null, inActiveCycle: false };
+  }
 
-  let control = await getOrCreateMemberAutoBalanceControl(tx, currentUser);
-  if (!control || !control.isActive) return null;
+  if (await isAutoBalanceExcludedAgentLine(tx, currentUser.agentId)) {
+    await tx.memberAutoBalanceControl.updateMany({
+      where: { memberId: currentUser.id, isActive: true },
+      data: { isActive: false, resetReason: 'auto_balance_excluded' },
+    });
+    return { decision: null, inActiveCycle: false };
+  }
+
+  let control =
+    mode === 'reviveOnly'
+      ? await tx.memberAutoBalanceControl.findUnique({ where: { memberId: currentUser.id } })
+      : await getOrCreateMemberAutoBalanceControl(tx, currentUser);
+  if (!control || !control.isActive) return { decision: null, inActiveCycle: false };
 
   if (currentUser.balance.lessThanOrEqualTo(control.biteTargetBalance)) {
     if (control.phase !== 'REVIVE_TO_70') {
       control = await setMemberAutoBalancePhase(tx, control.id, 'REVIVE_TO_70');
     }
-  } else if (
-    control.phase === 'REVIVE_TO_70' &&
-    currentUser.balance.greaterThanOrEqualTo(control.reviveTargetBalance)
-  ) {
-    control = await setMemberAutoBalancePhase(tx, control.id, 'DRAIN_TO_ZERO');
+  }
+
+  if (control.phase === 'DRAIN_TO_ZERO') {
+    return {
+      decision: autoBalanceLossDecision(control.id, 'auto_balance_drain'),
+      inActiveCycle: true,
+    };
   }
 
   if (control.phase === 'REVIVE_TO_70') {
     const remaining = control.reviveTargetBalance.sub(currentUser.balance).toDecimalPlaces(2);
     if (remaining.lessThanOrEqualTo(0)) {
-      await setMemberAutoBalancePhase(tx, control.id, 'DRAIN_TO_ZERO');
-      return autoBalanceLossDecision(tx, control.id, member.id, predicted, 'auto_balance_drain');
+      control = await setMemberAutoBalancePhase(tx, control.id, 'DRAIN_TO_ZERO');
+      return {
+        decision: autoBalanceLossDecision(control.id, 'auto_balance_drain'),
+        inActiveCycle: true,
+      };
+    }
+
+    if (Math.random() >= AUTO_BALANCE_REVIVE_INTERVENTION_RATE) {
+      return { decision: null, inActiveCycle: true };
     }
 
     return {
-      desired: Math.random() < AUTO_BALANCE_REVIVE_WIN_RATE ? 'WIN' : 'LOSS',
-      controlId: control.id,
-      reason: 'auto_balance_revive',
-      minMultiplier: new Prisma.Decimal('1.01'),
-      maxPayout: predicted.amount.add(remaining).toDecimalPlaces(2),
-      forceWinAdjustment: true,
+      decision: {
+        desired: 'WIN',
+        controlId: control.id,
+        reason: 'auto_balance_revive',
+        minMultiplier: new Prisma.Decimal('1.01'),
+        maxPayout: predicted.amount.add(remaining).toDecimalPlaces(2),
+        forceWinAdjustment: true,
+      },
+      inActiveCycle: true,
     };
   }
 
-  return autoBalanceLossDecision(
-    tx,
-    control.id,
-    member.id,
-    predicted,
-    control.phase === 'DRAIN_TO_ZERO' ? 'auto_balance_drain' : 'auto_balance_bite',
-  );
+  if (mode === 'reviveOnly') return { decision: null, inActiveCycle: false };
+  return {
+    decision: autoBalanceLossDecision(control.id),
+    inActiveCycle: true,
+  };
 }
 
-async function autoBalanceLossDecision(
-  tx: Db,
+function autoBalanceLossDecision(
   controlId: string,
-  userId: string,
-  predicted: PredictedResult,
-  reason: 'auto_balance_bite' | 'auto_balance_drain',
-): Promise<ControlDecision | null> {
-  if (reason === 'auto_balance_bite' && !passesAutoBalanceBiteInterventionRate()) {
+  reason: 'auto_balance_bite' | 'auto_balance_drain' = 'auto_balance_bite',
+): ControlDecision | null {
+  if (!passesAutoBalanceBiteInterventionRate()) {
     return null;
   }
 
-  const release = await getAutoBalanceReleasePlan(tx, controlId, userId, predicted);
-  if (release) {
-    return {
-      desired: 'WIN',
-      controlId,
-      reason: 'auto_balance_release',
-      minMultiplier: new Prisma.Decimal('1.01'),
-      maxMultiplier: release.maxMultiplier,
-      maxPayout: release.maxPayout,
-      forceWinAdjustment: true,
-    };
-  }
   return { desired: 'LOSS', controlId, reason };
 }
 
 function passesAutoBalanceBiteInterventionRate(): boolean {
   return Math.random() < AUTO_BALANCE_BITE_INTERVENTION_RATE;
-}
-
-async function getAutoBalanceReleasePlan(
-  tx: Db,
-  controlId: string,
-  userId: string,
-  predicted: PredictedResult,
-): Promise<ControlReleasePlan | null> {
-  const window = getControlGameDayWindow();
-  const logs = await tx.winLossControlLogs.findMany({
-    where: {
-      controlId,
-      userId,
-      createdAt: { gte: window.start, lt: window.end },
-      flipReason: { in: ['auto_balance_bite', 'auto_balance_drain', 'auto_balance_release'] },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: CONTROL_RELEASE_LOG_WINDOW,
-    select: { flipReason: true, finalResult: true },
-  });
-
-  return resolveControlReleasePlan(
-    logs,
-    predicted,
-    AUTO_BALANCE_RELEASE_CONFIG,
-    'auto_balance_release',
-    ['auto_balance_bite', 'auto_balance_drain'],
-  );
 }
 
 async function getLossControlReleasePlan(
@@ -1812,6 +1808,8 @@ export function multiplierExceedsControlCeiling(
 export const __controlsTestHooks = {
   applyGlobalMemberDailyWinCap,
   findControlDecision,
+  findAutoBalanceDecision,
+  findAutoBalanceReviveDecision,
   findDepositControlDecision,
   getGlobalMemberDailyWinCapGuard,
   getStoredBurstCooldownRounds,

@@ -42,4 +42,9 @@ export async function transferRoutes(fastify: FastifyInstance): Promise<void> {
     const query = transferListQuerySchema.parse(req.query);
     return service.list(req.admin, query);
   });
+
+  fastify.get('/my-logs', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
+    const query = transferListQuerySchema.parse(req.query);
+    return service.myLogs(req.admin, query);
+  });
 }

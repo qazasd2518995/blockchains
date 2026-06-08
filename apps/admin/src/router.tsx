@@ -22,6 +22,9 @@ const MemberBetRecordsPage = lazyRoute(() =>
 const TransfersPage = lazyRoute(() =>
   import('@/pages/transfers/TransfersPage').then((m) => ({ default: m.TransfersPage })),
 );
+const AgentLogsPage = lazyRoute(() =>
+  import('@/pages/logs/AgentLogsPage').then((m) => ({ default: m.AgentLogsPage })),
+);
 const ReportsPage = lazyRoute(() =>
   import('@/pages/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
@@ -167,6 +170,7 @@ export const router = createBrowserRouter([
       { path: '/admin/accounts', element: suspended(<AgentHierarchyPage />) },
       { path: '/admin/members/:id/bets', element: suspended(<MemberBetRecordsPage />) },
       { path: '/admin/transfers', element: suspended(<TransfersPage />) },
+      { path: '/admin/logs', element: suspended(<AgentLogsPage />) },
       { path: '/admin/reports', element: suspended(<ReportsPage />) },
       {
         path: '/admin/controls',

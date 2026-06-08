@@ -428,14 +428,16 @@ export class MemberService {
           meta: { operatorId: operator.id, description: input.description ?? null },
         },
       });
-      await resetMemberAutoBalanceControl(tx, {
-        memberId: id,
-        memberUsername: updated.username,
-        agentId: updated.agentId,
-        balanceAfter: next,
-        reason: delta.greaterThan(0) ? 'member_adjust_in' : 'member_adjust_out',
-        operatorUsername: operator.username,
-      });
+      if (delta.greaterThan(0)) {
+        await resetMemberAutoBalanceControl(tx, {
+          memberId: id,
+          memberUsername: updated.username,
+          agentId: updated.agentId,
+          balanceAfter: next,
+          reason: 'member_adjust_in',
+          operatorUsername: operator.username,
+        });
+      }
       return updated;
     });
 
