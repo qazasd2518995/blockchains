@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import { PrismaClient, Prisma } from '@prisma/client';
+import type { FastifyRequest } from 'fastify';
 import {
   normalizeBettingLimitsByGame,
   type AdminCaptchaResponse,
@@ -8,8 +9,10 @@ import {
 import { ApiError } from '../../../utils/errors.js';
 import { config } from '../../../config.js';
 import { randomBytes, createHash } from 'node:crypto';
-import type { AdminLoginInput } from './adminAuth.schema.js';
+import type { AdminChangePasswordInput, AdminLoginInput } from './adminAuth.schema.js';
 import { CaptchaService } from '../../../utils/captcha.js';
+import type { AdminCurrent } from '../../../plugins/adminAuth.js';
+import { writeAudit } from '../audit/audit.service.js';
 import {
   createOtpAuthUrl,
   decryptTotpSecret,
@@ -17,6 +20,8 @@ import {
   generateTotpSecret,
   verifyTotp,
 } from './totp.js';
+
+const BCRYPT_ROUNDS = 12;
 
 export interface AdminJwtSigner {
   sign(payload: Record<string, unknown>): string;
@@ -90,6 +95,38 @@ export class AdminAuthService {
     const agent = await this.prisma.agent.findUnique({ where: { id: agentId } });
     if (!agent) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
     return this.toPublic(agent);
+  }
+
+  async changePassword(
+    operator: AdminCurrent,
+    input: AdminChangePasswordInput,
+    req?: FastifyRequest,
+  ): Promise<void> {
+    const agent = await this.prisma.agent.findUnique({ where: { id: operator.id } });
+    if (!agent) throw new ApiError('AGENT_NOT_FOUND', 'Agent not found');
+    if (agent.status === 'DISABLED' || agent.status === 'DELETED') {
+      throw new ApiError('AGENT_FROZEN', 'Agent account is not active');
+    }
+
+    const ok = await bcrypt.compare(input.currentPassword, agent.passwordHash);
+    if (!ok) throw new ApiError('INVALID_CREDENTIALS', '目前密碼錯誤');
+    if (input.currentPassword === input.newPassword) {
+      throw new ApiError('INVALID_ACTION', '新密碼不能與目前密碼相同');
+    }
+
+    const passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);
+    await this.prisma.agent.update({ where: { id: operator.id }, data: { passwordHash } });
+    await writeAudit(this.prisma, {
+      actor: {
+        id: operator.id,
+        type: operator.role === 'SUPER_ADMIN' ? 'super_admin' : 'agent',
+        username: operator.username,
+      },
+      action: 'auth.password.change',
+      targetType: 'agent',
+      targetId: operator.id,
+      req,
+    });
   }
 
   async refresh(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {

@@ -272,6 +272,8 @@ function translateMessage(code: string, rawMessage: string): string {
   if (msg.includes('super admin permission required')) return '需要超级管理员权限';
   if (msg.includes('authentication required')) return '请先登录';
   if (msg.includes('invalid refresh token')) return 'Session 已过期,请重新登录';
+  if (msg.includes('invalid current password')) return '目前密碼錯誤';
+  if (msg.includes('new password must be different')) return '新密碼不能與目前密碼相同';
   if (msg.includes('invalid username or password')) return '账号或密码错误';
   if (msg.includes('agent account is not active')) return '此代理账号未启用';
   if (msg.includes('member account is disabled')) return '此会员账号已停用';
