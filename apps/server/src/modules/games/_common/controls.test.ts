@@ -468,6 +468,98 @@ describe('control decision priority', () => {
     expect(outcome.won).toBe(true);
     expect(outcome.flipReason).toBe('win_control');
   });
+
+  it('forces loss controls on multi-step progress even before the step is a net win', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.01);
+    const tx = {
+      user: {
+        findUnique: vi.fn(async () => ({
+          id: 'member-1',
+          username: 'bbb',
+          agentId: null,
+        })),
+      },
+      bet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { profit: new Prisma.Decimal(0) },
+        })),
+      },
+      crashBet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { amount: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
+        })),
+      },
+      winLossControl: {
+        findMany: vi.fn(async () => [
+          winLossControl({
+            id: 'loss-1',
+            controlMode: 'NORMAL',
+            targetId: null,
+            lossControl: true,
+          }),
+        ]),
+      },
+      memberDepositControl: { findFirst: vi.fn(async () => null) },
+      memberWinCapControl: { findFirst: vi.fn(async () => null) },
+      agentLineWinCap: { findMany: vi.fn(async () => []) },
+      winLossControlLogs: { findMany: vi.fn(async () => []) },
+    };
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.TOWER,
+      { ...predictedResult(100, 50, 0.5), won: true },
+      { forceLossOnProgress: true },
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('loss_control');
+  });
+
+  it('forces the global 30000 cap on multi-step progress once the member is already over cap', async () => {
+    const tx = {
+      user: {
+        findUnique: vi.fn(async () => ({
+          id: 'member-1',
+          username: 'bbb',
+          agentId: null,
+        })),
+      },
+      bet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 1 },
+          _sum: { profit: new Prisma.Decimal(30000) },
+        })),
+      },
+      crashBet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { amount: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
+        })),
+      },
+      winLossControl: { findMany: vi.fn(async () => []) },
+      memberDepositControl: { findFirst: vi.fn(async () => null) },
+      memberWinCapControl: { findFirst: vi.fn(async () => null) },
+      agentLineWinCap: { findMany: vi.fn(async () => []) },
+      winLossControlLogs: { findMany: vi.fn(async () => []) },
+    };
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.TOWER,
+      { ...predictedResult(100, 50, 0.5), won: true },
+      { forceLossOnProgress: true },
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('global_member_daily_win_cap');
+  });
 });
 
 describe('global member daily win cap', () => {

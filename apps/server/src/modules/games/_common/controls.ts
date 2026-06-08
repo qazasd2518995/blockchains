@@ -90,6 +90,12 @@ export interface ControlOptions {
    * already acceptable natural win.
    */
   forceControlOnMatch?: boolean;
+  /**
+   * Multi-step games can have safe/progressing steps before the accumulated
+   * payout is above the original bet. When a control wants LOSS, this prevents
+   * those steps from advancing toward a later cashout.
+   */
+  forceLossOnProgress?: boolean;
 }
 
 export interface GlobalMemberDailyWinCapGuard {
@@ -144,8 +150,11 @@ export async function applyControls(
     decision.desired === 'WIN' ? await withWinCapBounds(tx, member, predicted, decision) : decision;
 
   const predictedNetWin = isNetWin(predicted);
+  const shouldForceProgressLoss = options.forceLossOnProgress === true && predicted.won;
   if (cappedDecision.desired === 'LOSS') {
-    if (!predictedNetWin) return { ...predicted, controlled: false };
+    if (!predictedNetWin && !shouldForceProgressLoss) {
+      return { ...predicted, controlled: false };
+    }
     return flipToLoss(predicted, cappedDecision.reason, cappedDecision.controlId);
   }
 
@@ -284,7 +293,7 @@ async function findControlDecision(
     if (burst) return burst;
     const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
     if (accidentalBurstCap) return accidentalBurstCap;
-    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
+    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
     if (globalWinCap) return globalWinCap;
     return null;
   }
@@ -294,7 +303,7 @@ async function findControlDecision(
   const burst = await findBurstDecision(tx, member, gameId, predicted, options);
   if (burst) return burst;
 
-  const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
+  const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
   if (globalWinCap) return globalWinCap;
 
   const onlineReward = await findOnlineRewardNextWinDecision(tx, member, predicted);
@@ -627,9 +636,21 @@ async function findGlobalMemberWinCapDecision(
   tx: Db,
   memberId: string,
   predicted: PredictedResult,
+  options: ControlOptions = {},
 ): Promise<ControlDecision | null> {
   const predictedProfit = predicted.payout.sub(predicted.amount);
-  if (!predictedProfit.greaterThan(0)) return null;
+  if (!predictedProfit.greaterThan(0)) {
+    if (!options.forceLossOnProgress || !predicted.won) return null;
+
+    const stats = await getMemberTodayStats(tx, memberId);
+    return stats.net.greaterThanOrEqualTo(GLOBAL_MEMBER_DAILY_WIN_CAP)
+      ? {
+          desired: 'LOSS',
+          controlId: 'global-member-daily-win-cap',
+          reason: 'global_member_daily_win_cap',
+        }
+      : null;
+  }
 
   const stats = await getMemberTodayStats(tx, memberId);
   const projected = stats.net.add(predictedProfit);

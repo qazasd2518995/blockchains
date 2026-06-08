@@ -24,13 +24,13 @@ import {
 import {
   applyControls,
   finalizeControls,
-  multiplierMatchesControlBounds,
+  type ControlOutcome,
 } from '../_common/controls.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { TowerStartInput, TowerPickInput, TowerCashoutInput } from './tower.schema.js';
 
-const TOWER_FORCED_LOSS_GRACE_LEVELS = 3;
+const TOWER_FORCED_LOSS_GRACE_LEVELS = 0;
 
 export class TowerService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -107,18 +107,21 @@ export class TowerService {
       const predictedPayout = rawSafe
         ? round.betAmount.mul(nextMult).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
         : new Prisma.Decimal(0);
-      const controlled = await applyControls(tx, userId, GameId.TOWER, {
-        won: rawSafe && predictedPayout.greaterThan(round.betAmount),
+      const predictedProgress = {
+        won: rawSafe,
         amount: round.betAmount,
         multiplier: rawSafe ? nextMult : new Prisma.Decimal(0),
         payout: predictedPayout,
+      };
+      const controlled = await applyControls(tx, userId, GameId.TOWER, predictedProgress, {
+        forceLossOnProgress: true,
       });
-      const controlledWinFitsTowerPayout =
-        !controlled.controlled ||
-        !controlled.won ||
-        multiplierMatchesControlBounds(nextMult, round.betAmount, controlled);
+      const controlledWinExceedsTowerCeiling =
+        controlled.controlled &&
+        controlled.won &&
+        multiplierExceedsTowerControlCeiling(nextMult, round.betAmount, controlled);
       const shapedControl =
-        controlled.controlled && controlled.won && !controlledWinFitsTowerPayout
+        controlledWinExceedsTowerCeiling
           ? {
               ...controlled,
               won: false,
@@ -129,7 +132,7 @@ export class TowerService {
                 : controlled.flipReason,
             }
           : controlled;
-      const canForceLoss = round.currentLevel >= TOWER_FORCED_LOSS_GRACE_LEVELS;
+      const canForceLoss = canForceTowerLossAtLevel(round.currentLevel);
       if (shapedControl.controlled) {
         layout = shapedControl.won
           ? forceTowerSafe(rawLayout, round.currentLevel, input.col, cfg.cols)
@@ -188,12 +191,7 @@ export class TowerService {
           tx,
           userId,
           GameId.TOWER,
-          {
-            won: rawSafe && predictedPayout.greaterThan(round.betAmount),
-            amount: round.betAmount,
-            multiplier: rawSafe ? nextMult : new Prisma.Decimal(0),
-            payout: predictedPayout,
-          },
+          predictedProgress,
           {
             won: false,
             amount: round.betAmount,
@@ -272,12 +270,7 @@ export class TowerService {
           tx,
           userId,
           GameId.TOWER,
-          {
-            won: rawSafe && predictedPayout.greaterThan(round.betAmount),
-            amount: round.betAmount,
-            multiplier: rawSafe ? nextMult : new Prisma.Decimal(0),
-            payout: predictedPayout,
-          },
+          predictedProgress,
           {
             won: payout.greaterThan(round.betAmount),
             amount: round.betAmount,
@@ -444,6 +437,20 @@ export class TowerService {
   }
 }
 
+function canForceTowerLossAtLevel(level: number): boolean {
+  return level >= TOWER_FORCED_LOSS_GRACE_LEVELS;
+}
+
+function multiplierExceedsTowerControlCeiling(
+  multiplier: Prisma.Decimal,
+  amount: Prisma.Decimal,
+  control: Pick<ControlOutcome, 'maxMultiplier' | 'maxPayout'>,
+): boolean {
+  if (control.maxMultiplier && multiplier.greaterThan(control.maxMultiplier)) return true;
+  if (control.maxPayout && amount.mul(multiplier).greaterThan(control.maxPayout)) return true;
+  return false;
+}
+
 function forceTowerSafe(layout: number[][], level: number, col: number, cols: number): number[][] {
   const next = layout.map((row) => row.slice());
   const safe = new Set(next[level] ?? []);
@@ -507,3 +514,8 @@ function trimTowerSafeCount(
   layout[level] = Array.from(safe).sort((a, b) => a - b);
   return layout;
 }
+
+export const __towerServiceTestHooks = {
+  canForceTowerLossAtLevel,
+  multiplierExceedsTowerControlCeiling,
+};
