@@ -23,8 +23,8 @@ const TOWER_PREVIEW_LEVELS: Record<TowerDifficulty, number> = {
   easy: 9,
   medium: 9,
   hard: 9,
-  expert: 5,
-  master: 4,
+  expert: 9,
+  master: 9,
 };
 const TOWER_PREVIEW_COLS: Record<TowerDifficulty, number> = {
   easy: 4,
