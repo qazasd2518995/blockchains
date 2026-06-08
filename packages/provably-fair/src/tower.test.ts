@@ -95,6 +95,12 @@ describe('towerMultiplier', () => {
     ]);
   });
 
+  it('uses a low-risk low-return payout table for easy', () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => towerMultiplier('easy', level))).toEqual([
+      0.1, 0.2, 0.35, 0.55, 0.8, 1.1, 1.45, 1.9, 2.5,
+    ]);
+  });
+
   it('keeps expert and master available with capped payout tables', () => {
     expect([1, 2, 3, 4, 5].map((level) => towerMultiplier('expert', level))).toEqual([
       0.5, 0.9, 1.8, 3.1, 5.8,

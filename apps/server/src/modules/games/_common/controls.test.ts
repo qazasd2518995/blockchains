@@ -25,6 +25,20 @@ const predictedResult = (amount: string | number, payout: string | number, multi
   };
 };
 
+const controlledLossLog = (
+  amount: string | number,
+  reason = 'loss_control',
+  payout: string | number = 0,
+) => ({
+  flipReason: reason,
+  finalResult: {
+    won: false,
+    amount: new Prisma.Decimal(amount).toFixed(2),
+    multiplier: '0.0000',
+    payout: new Prisma.Decimal(payout).toFixed(2),
+  },
+});
+
 const winLossControl = (over: {
   id: string;
   controlMode: string;
@@ -327,6 +341,44 @@ describe('control decision priority', () => {
     },
   });
 
+  const createLossReleaseTx = (
+    logs: Array<{ flipReason: string; finalResult: Record<string, unknown> }>,
+  ) => ({
+    user: {
+      findUnique: vi.fn(async () => ({
+        id: 'member-1',
+        username: 'bbb',
+        agentId: null,
+      })),
+    },
+    bet: {
+      aggregate: vi.fn(async () => ({
+        _count: { _all: 0 },
+        _sum: { profit: new Prisma.Decimal(0) },
+      })),
+    },
+    crashBet: {
+      aggregate: vi.fn(async () => ({
+        _count: { _all: 0 },
+        _sum: { amount: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
+      })),
+    },
+    winLossControl: {
+      findMany: vi.fn(async () => [
+        winLossControl({
+          id: 'loss-1',
+          controlMode: 'NORMAL',
+          targetId: null,
+          lossControl: true,
+        }),
+      ]),
+    },
+    memberDepositControl: { findFirst: vi.fn(async () => null) },
+    memberWinCapControl: { findFirst: vi.fn(async () => null) },
+    agentLineWinCap: { findMany: vi.fn(async () => []) },
+    winLossControlLogs: { findMany: vi.fn(async () => logs) },
+  });
+
   it('lets regular deposit controls fall back to the natural result when the rate misses', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.8);
 
@@ -548,7 +600,71 @@ describe('control decision priority', () => {
     expect(outcome.flipReason).toBe('loss_control');
   });
 
-  it('forces the global 30000 cap on multi-step progress once the member is already over cap', async () => {
+  it('does not release on a fixed count when the randomized release roll misses', async () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValueOnce(0.99);
+    const tx = createLossReleaseTx([
+      controlledLossLog(100),
+      controlledLossLog(100),
+      controlledLossLog(100),
+      controlledLossLog(100),
+    ]);
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.DICE,
+      predictedResult(100, 200, 2),
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('loss_control');
+  });
+
+  it('does not let a progression bet trigger the anti-loss release', async () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValueOnce(0);
+    const tx = createLossReleaseTx([
+      controlledLossLog(100),
+      controlledLossLog(100),
+      controlledLossLog(100),
+      controlledLossLog(100),
+    ]);
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.DICE,
+      predictedResult(1000, 2000, 2),
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('loss_control');
+  });
+
+  it('caps anti-loss release profit by recent controlled losses instead of the natural payout', async () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.01).mockReturnValueOnce(0);
+    const tx = createLossReleaseTx([
+      controlledLossLog(1000),
+      controlledLossLog(1000),
+      controlledLossLog(1000),
+      controlledLossLog(1000),
+    ]);
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.DICE,
+      predictedResult(1000, 9000, 9),
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(true);
+    expect(outcome.flipReason).toBe('loss_control_release');
+    expect(outcome.payout.toFixed(2)).toBe('1350.00');
+  });
+
+  it('forces the global 10000 cap on multi-step progress once the member is already over cap', async () => {
     const tx = {
       user: {
         findUnique: vi.fn(async () => ({
@@ -560,7 +676,7 @@ describe('control decision priority', () => {
       bet: {
         aggregate: vi.fn(async () => ({
           _count: { _all: 1 },
-          _sum: { profit: new Prisma.Decimal(30000) },
+          _sum: { profit: new Prisma.Decimal(10000) },
         })),
       },
       crashBet: {
@@ -616,8 +732,8 @@ describe('global member daily win cap', () => {
     },
   });
 
-  it('forces bbb-style members that are already above 30000 daily net win to lose every next win', async () => {
-    const tx = createGlobalCapTx('49415.66');
+  it('forces bbb-style members that are already above 10000 daily net win to lose every next win', async () => {
+    const tx = createGlobalCapTx('19415.66');
 
     const outcome = await __controlsTestHooks.applyGlobalMemberDailyWinCap(
       tx as never,
@@ -631,8 +747,8 @@ describe('global member daily win cap', () => {
     expect(outcome?.flipReason).toBe('global_member_daily_win_cap');
   });
 
-  it('blocks a winning result that would push any member over the 30000 daily cap', async () => {
-    const tx = createGlobalCapTx('29950');
+  it('blocks a winning result that would push any member over the 10000 daily cap', async () => {
+    const tx = createGlobalCapTx('9950');
 
     const outcome = await __controlsTestHooks.applyGlobalMemberDailyWinCap(
       tx as never,
@@ -646,7 +762,7 @@ describe('global member daily win cap', () => {
   });
 
   it('includes crash cashouts in the same daily cap calculation', async () => {
-    const tx = createGlobalCapTx('25000', 1000, 5950);
+    const tx = createGlobalCapTx('5000', 1000, 5950);
 
     const outcome = await __controlsTestHooks.applyGlobalMemberDailyWinCap(
       tx as never,
@@ -659,7 +775,7 @@ describe('global member daily win cap', () => {
   });
 
   it('does not add extra control when the predicted result is already a loss', async () => {
-    const tx = createGlobalCapTx('50000');
+    const tx = createGlobalCapTx('20000');
 
     const outcome = await __controlsTestHooks.applyGlobalMemberDailyWinCap(
       tx as never,
@@ -671,7 +787,7 @@ describe('global member daily win cap', () => {
   });
 
   it('returns the remaining payout and multiplier guard for crash-style game starts', async () => {
-    const tx = createGlobalCapTx('29950');
+    const tx = createGlobalCapTx('9950');
 
     const guard = await __controlsTestHooks.getGlobalMemberDailyWinCapGuard(
       tx as never,

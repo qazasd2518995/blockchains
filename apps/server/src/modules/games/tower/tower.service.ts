@@ -32,6 +32,7 @@ import type { TowerStartInput, TowerPickInput, TowerCashoutInput } from './tower
 
 const TOWER_FORCED_LOSS_GRACE_LEVELS = 0;
 const TOWER_VISIBLE_LEVELS = 9;
+const TOWER_REPEAT_COLUMN_FORCED_LOSS_STREAK = 3;
 const TOWER_LATE_LEVEL_FORCED_LOSS_START: Partial<Record<TowerDifficulty, number>> = {
   // 0-indexed currentLevel: expert level 6, master level 5.
   expert: 5,
@@ -143,6 +144,7 @@ export class TowerService {
             }
           : controlled;
       const lateLevelForcedLoss = mustForceTowerLateLevelLoss(difficulty, round.currentLevel);
+      const repeatedColumnForcedLoss = mustForceTowerRepeatedColumnLoss(round.picks, input.col);
       const canForceLoss = canForceTowerLossAtLevel(round.currentLevel);
       if (shapedControl.controlled) {
         layout = shapedControl.won
@@ -151,7 +153,7 @@ export class TowerService {
             ? forceTowerTrap(rawLayout, round.currentLevel, input.col, cfg.cols)
             : rawLayout;
       }
-      if (lateLevelForcedLoss) {
+      if (lateLevelForcedLoss || repeatedColumnForcedLoss) {
         layout = forceTowerTrap(layout, round.currentLevel, input.col, cfg.cols);
       }
       const isSafe = (layout[round.currentLevel] ?? []).includes(input.col);
@@ -159,6 +161,7 @@ export class TowerService {
         rawSafe,
         isSafe,
         lateLevelForcedLoss,
+        repeatedColumnForcedLoss,
       });
 
       if (!isSafe) {
@@ -169,6 +172,7 @@ export class TowerService {
           bustedLevel: round.currentLevel,
           safe: rawSafe,
           forcedByTowerRiskLimit: false,
+          forcedByRepeatedColumnRisk: false,
         };
         const finalResult = {
           difficulty,
@@ -177,6 +181,7 @@ export class TowerService {
           bustedLevel: round.currentLevel,
           controlled: effectiveControl.controlled,
           forcedByTowerRiskLimit: lateLevelForcedLoss,
+          forcedByRepeatedColumnRisk: repeatedColumnForcedLoss,
           flipReason: effectiveControl.flipReason ?? null,
           raw: effectiveControl.controlled ? originalResult : null,
         };
@@ -480,11 +485,22 @@ function mustForceTowerLateLevelLoss(difficulty: TowerDifficulty, level: number)
   return forcedLossStart !== undefined && level >= forcedLossStart;
 }
 
+function mustForceTowerRepeatedColumnLoss(picks: number[], col: number): boolean {
+  if (picks.length < TOWER_REPEAT_COLUMN_FORCED_LOSS_STREAK - 1) return false;
+  const recent = picks.slice(-(TOWER_REPEAT_COLUMN_FORCED_LOSS_STREAK - 1));
+  return recent.every((pick) => pick === col);
+}
+
 function resolveTowerEffectiveControl(
   shapedControl: ControlOutcome,
-  context: { rawSafe: boolean; isSafe: boolean; lateLevelForcedLoss: boolean },
+  context: {
+    rawSafe: boolean;
+    isSafe: boolean;
+    lateLevelForcedLoss: boolean;
+    repeatedColumnForcedLoss?: boolean;
+  },
 ): ControlOutcome {
-  if (context.lateLevelForcedLoss) {
+  if (context.lateLevelForcedLoss || context.repeatedColumnForcedLoss) {
     return shapedControl.controlled && !shapedControl.won
       ? shapedControl
       : { ...shapedControl, controlled: false, flipReason: undefined, controlId: undefined };
@@ -613,6 +629,7 @@ export const __towerServiceTestHooks = {
   towerVisibleLevelCount,
   towerNextVisibleMultiplier,
   mustForceTowerLateLevelLoss,
+  mustForceTowerRepeatedColumnLoss,
   resolveTowerEffectiveControl,
   ensureTowerVisibleLayout,
 };

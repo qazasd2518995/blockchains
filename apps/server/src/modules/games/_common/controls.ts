@@ -113,16 +113,64 @@ interface BurstEligibility {
   requiredLoss: Prisma.Decimal;
 }
 
-const GLOBAL_ACCIDENTAL_BURST_PROFIT_CAP = new Prisma.Decimal(30000);
-export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(30000);
+interface ControlReleaseConfig {
+  minLosses: number;
+  baseChance: number;
+  chanceStep: number;
+  maxChance: number;
+  highControlDampening: number;
+  maxMultiplier: Prisma.Decimal;
+}
+
+interface ControlReleaseProfile {
+  consecutiveLosses: number;
+  totalAmount: Prisma.Decimal;
+  totalLoss: Prisma.Decimal;
+  maxAmount: Prisma.Decimal;
+}
+
+interface ControlReleasePlan {
+  maxMultiplier: Prisma.Decimal;
+  maxPayout: Prisma.Decimal;
+}
+
+const GLOBAL_ACCIDENTAL_BURST_PROFIT_CAP = new Prisma.Decimal(10000);
+export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(10000);
 const BURST_COOLDOWN_MIN_ROUNDS = 10;
 const BURST_COOLDOWN_MAX_ROUNDS = 20;
 const BURST_ELIGIBLE_GAME_IDS = new Set<string>(SLOT_GAME_IDS);
 const AUTO_BALANCE_BITE_INTERVENTION_RATE = 0.6;
-const AUTO_BALANCE_RELEASE_LOSS_STREAK = 4;
-const LOSS_CONTROL_RELEASE_LOSS_STREAK = 4;
-const CONTROL_RELEASE_MAX_MULTIPLIER = new Prisma.Decimal(3);
+const CONTROL_RELEASE_LOG_WINDOW = 8;
+const CONTROL_RELEASE_STAKE_JUMP_RATIO = new Prisma.Decimal('1.5');
+const CONTROL_RELEASE_TOTAL_LOSS_PROFIT_RATIO = new Prisma.Decimal('0.25');
+const CONTROL_RELEASE_AVG_STAKE_PROFIT_RATIO = new Prisma.Decimal('0.35');
+const CONTROL_RELEASE_CURRENT_STAKE_PROFIT_RATIO = new Prisma.Decimal('0.35');
+const CONTROL_RELEASE_MAX_MULTIPLIER = new Prisma.Decimal('1.35');
 const AUTO_BALANCE_REVIVE_WIN_RATE = 0.7;
+const LOSS_CONTROL_RELEASE_CONFIG: ControlReleaseConfig = {
+  minLosses: 2,
+  baseChance: 0.1,
+  chanceStep: 0.04,
+  maxChance: 0.26,
+  highControlDampening: 0.75,
+  maxMultiplier: CONTROL_RELEASE_MAX_MULTIPLIER,
+};
+const AUTO_BALANCE_RELEASE_CONFIG: ControlReleaseConfig = {
+  minLosses: 2,
+  baseChance: 0.08,
+  chanceStep: 0.035,
+  maxChance: 0.22,
+  highControlDampening: 0.8,
+  maxMultiplier: CONTROL_RELEASE_MAX_MULTIPLIER,
+};
+const MANUAL_DETECTION_RELEASE_CONFIG: ControlReleaseConfig = {
+  minLosses: 2,
+  baseChance: 0.1,
+  chanceStep: 0.05,
+  maxChance: 0.28,
+  highControlDampening: 0.75,
+  maxMultiplier: CONTROL_RELEASE_MAX_MULTIPLIER,
+};
 
 /**
  * 控制 hook：只決定本局是否需要由後台規則翻轉輸贏。
@@ -309,14 +357,19 @@ async function findControlDecision(
   const onlineReward = await findOnlineRewardNextWinDecision(tx, member, predicted);
   if (onlineReward) return onlineReward;
 
-  const targetedWinLoss = await findWinLossDecision(tx, member, 'targeted');
+  const targetedWinLoss = await findWinLossDecision(tx, member, predicted, 'targeted');
   if (targetedWinLoss?.desired === 'WIN' && targetedWinLoss.reason === 'win_control') {
     return targetedWinLoss;
   }
 
   const explicitWinLoss =
     targetedWinLoss ??
-    (await findWinLossDecision(tx, member, isControlExcludedLine ? 'targeted' : 'all'));
+    (await findWinLossDecision(
+      tx,
+      member,
+      predicted,
+      isControlExcludedLine ? 'targeted' : 'all',
+    ));
   if (explicitWinLoss) return explicitWinLoss;
 
   const memberCap = await findMemberWinCapDecision(tx, member.id, predicted);
@@ -331,10 +384,10 @@ async function findControlDecision(
   const depositControl = await findDepositControlDecision(tx, member, predicted);
   if (depositControl) return depositControl;
 
-  const targetedManual = await findManualDetectionDecision(tx, member, 'targeted');
+  const targetedManual = await findManualDetectionDecision(tx, member, predicted, 'targeted');
   if (targetedManual) return targetedManual;
 
-  const globalManual = await findManualDetectionDecision(tx, member, 'global');
+  const globalManual = await findManualDetectionDecision(tx, member, predicted, 'global');
   if (globalManual) return globalManual;
 
   const autoBalance = await findAutoBalanceDecision(tx, member, predicted);
@@ -411,6 +464,7 @@ export function rankWinLossControls<T extends RankableWinLossControl>(
 async function findWinLossDecision(
   tx: Db,
   member: MemberScope,
+  predicted: PredictedResult,
   scope: WinLossDecisionScope = 'all',
 ): Promise<ControlDecision | null> {
   const controls = await tx.winLossControl.findMany({
@@ -436,10 +490,11 @@ async function findWinLossDecision(
   if (!passesControlInterventionRate(selected.control.controlPercentage)) return null;
 
   if (selected.desired === 'LOSS') {
-    const release = await shouldReleaseLossControlCycle(
+    const release = await getLossControlReleasePlan(
       tx,
       selected.control.id,
       member.id,
+      predicted,
       selected.control.controlPercentage,
     );
     if (release) {
@@ -448,7 +503,8 @@ async function findWinLossDecision(
         controlId: selected.control.id,
         reason: 'loss_control_release',
         minMultiplier: new Prisma.Decimal('1.01'),
-        maxMultiplier: CONTROL_RELEASE_MAX_MULTIPLIER,
+        maxMultiplier: release.maxMultiplier,
+        maxPayout: release.maxPayout,
         forceWinAdjustment: true,
       };
     }
@@ -490,7 +546,7 @@ async function findAutoBalanceDecision(
     const remaining = control.reviveTargetBalance.sub(currentUser.balance).toDecimalPlaces(2);
     if (remaining.lessThanOrEqualTo(0)) {
       await setMemberAutoBalancePhase(tx, control.id, 'DRAIN_TO_ZERO');
-      return autoBalanceLossDecision(tx, control.id, member.id, 'auto_balance_drain');
+      return autoBalanceLossDecision(tx, control.id, member.id, predicted, 'auto_balance_drain');
     }
 
     return {
@@ -507,6 +563,7 @@ async function findAutoBalanceDecision(
     tx,
     control.id,
     member.id,
+    predicted,
     control.phase === 'DRAIN_TO_ZERO' ? 'auto_balance_drain' : 'auto_balance_bite',
   );
 }
@@ -515,20 +572,22 @@ async function autoBalanceLossDecision(
   tx: Db,
   controlId: string,
   userId: string,
+  predicted: PredictedResult,
   reason: 'auto_balance_bite' | 'auto_balance_drain',
 ): Promise<ControlDecision | null> {
   if (reason === 'auto_balance_bite' && !passesAutoBalanceBiteInterventionRate()) {
     return null;
   }
 
-  const release = await shouldReleaseAutoBalanceCycle(tx, controlId, userId);
+  const release = await getAutoBalanceReleasePlan(tx, controlId, userId, predicted);
   if (release) {
     return {
       desired: 'WIN',
       controlId,
       reason: 'auto_balance_release',
       minMultiplier: new Prisma.Decimal('1.01'),
-      maxMultiplier: CONTROL_RELEASE_MAX_MULTIPLIER,
+      maxMultiplier: release.maxMultiplier,
+      maxPayout: release.maxPayout,
       forceWinAdjustment: true,
     };
   }
@@ -539,11 +598,12 @@ function passesAutoBalanceBiteInterventionRate(): boolean {
   return Math.random() < AUTO_BALANCE_BITE_INTERVENTION_RATE;
 }
 
-async function shouldReleaseAutoBalanceCycle(
+async function getAutoBalanceReleasePlan(
   tx: Db,
   controlId: string,
   userId: string,
-): Promise<boolean> {
+  predicted: PredictedResult,
+): Promise<ControlReleasePlan | null> {
   const window = getControlGameDayWindow();
   const logs = await tx.winLossControlLogs.findMany({
     where: {
@@ -553,30 +613,26 @@ async function shouldReleaseAutoBalanceCycle(
       flipReason: { in: ['auto_balance_bite', 'auto_balance_drain', 'auto_balance_release'] },
     },
     orderBy: { createdAt: 'desc' },
-    take: 5,
+    take: CONTROL_RELEASE_LOG_WINDOW,
     select: { flipReason: true, finalResult: true },
   });
 
-  let consecutiveLosses = 0;
-  for (const log of logs) {
-    if (log.flipReason === 'auto_balance_release') break;
-    if (log.flipReason !== 'auto_balance_bite' && log.flipReason !== 'auto_balance_drain') continue;
-    if (jsonResultWon(log.finalResult) === false) {
-      consecutiveLosses += 1;
-      continue;
-    }
-    break;
-  }
-
-  return consecutiveLosses >= AUTO_BALANCE_RELEASE_LOSS_STREAK;
+  return resolveControlReleasePlan(
+    logs,
+    predicted,
+    AUTO_BALANCE_RELEASE_CONFIG,
+    'auto_balance_release',
+    ['auto_balance_bite', 'auto_balance_drain'],
+  );
 }
 
-async function shouldReleaseLossControlCycle(
+async function getLossControlReleasePlan(
   tx: Db,
   controlId: string,
   userId: string,
+  predicted: PredictedResult,
   controlPercentage: Prisma.Decimal,
-): Promise<boolean> {
+): Promise<ControlReleasePlan | null> {
   const window = getControlGameDayWindow();
   const logs = await tx.winLossControlLogs.findMany({
     where: {
@@ -586,18 +642,18 @@ async function shouldReleaseLossControlCycle(
       flipReason: { in: ['loss_control', 'loss_control_release'] },
     },
     orderBy: { createdAt: 'desc' },
-    take: 5,
-    select: { flipReason: true },
+    take: CONTROL_RELEASE_LOG_WINDOW,
+    select: { flipReason: true, finalResult: true },
   });
 
-  let consecutiveLosses = 0;
-  for (const log of logs) {
-    if (log.flipReason === 'loss_control_release') break;
-    if (log.flipReason === 'loss_control') consecutiveLosses += 1;
-  }
-
-  const requiredLosses = Number(controlPercentage) >= 60 ? 5 : LOSS_CONTROL_RELEASE_LOSS_STREAK;
-  return consecutiveLosses >= requiredLosses;
+  return resolveControlReleasePlan(
+    logs,
+    predicted,
+    LOSS_CONTROL_RELEASE_CONFIG,
+    'loss_control_release',
+    ['loss_control'],
+    controlPercentage,
+  );
 }
 
 async function findMemberWinCapDecision(
@@ -931,6 +987,7 @@ async function buildDepositDecision(
 async function findManualDetectionDecision(
   tx: Db,
   member: MemberScope,
+  predicted: PredictedResult,
   scope: 'all' | 'targeted' | 'global' = 'all',
 ): Promise<ControlDecision | null> {
   await checkAndCompleteManualDetectionControls(tx);
@@ -965,10 +1022,11 @@ async function findManualDetectionDecision(
         applicable.control.startSettlement,
       );
   if (desired === 'LOSS') {
-    const release = await shouldReleaseManualDetectionCycle(
+    const release = await getManualDetectionReleasePlan(
       tx,
       applicable.control.id,
       member.id,
+      predicted,
       applicable.control.controlPercentage,
     );
     if (release) {
@@ -977,7 +1035,8 @@ async function findManualDetectionDecision(
         controlId: applicable.control.id,
         reason: 'manual_detection_release',
         minMultiplier: new Prisma.Decimal('1.01'),
-        maxMultiplier: new Prisma.Decimal(2),
+        maxMultiplier: release.maxMultiplier,
+        maxPayout: release.maxPayout,
         forceWinAdjustment: true,
       };
     }
@@ -990,12 +1049,13 @@ async function findManualDetectionDecision(
   };
 }
 
-async function shouldReleaseManualDetectionCycle(
+async function getManualDetectionReleasePlan(
   tx: Db,
   controlId: string,
   userId: string,
+  predicted: PredictedResult,
   controlPercentage: number,
-): Promise<boolean> {
+): Promise<ControlReleasePlan | null> {
   const window = getControlGameDayWindow();
   const logs = await tx.winLossControlLogs.findMany({
     where: {
@@ -1005,23 +1065,18 @@ async function shouldReleaseManualDetectionCycle(
       flipReason: { in: ['manual_detection', 'manual_detection_release'] },
     },
     orderBy: { createdAt: 'desc' },
-    take: 5,
+    take: CONTROL_RELEASE_LOG_WINDOW,
     select: { flipReason: true, finalResult: true },
   });
 
-  let consecutiveLosses = 0;
-  for (const log of logs) {
-    if (log.flipReason === 'manual_detection_release') break;
-    if (log.flipReason !== 'manual_detection') continue;
-    if (jsonResultWon(log.finalResult) === false) {
-      consecutiveLosses += 1;
-      continue;
-    }
-    break;
-  }
-
-  const requiredLosses = controlPercentage >= 60 ? 4 : 3;
-  return consecutiveLosses >= requiredLosses;
+  return resolveControlReleasePlan(
+    logs,
+    predicted,
+    MANUAL_DETECTION_RELEASE_CONFIG,
+    'manual_detection_release',
+    ['manual_detection'],
+    new Prisma.Decimal(controlPercentage),
+  );
 }
 
 function resolveManualDetectionDesired(
@@ -1064,6 +1119,87 @@ function jsonResultWon(value: Prisma.JsonValue): boolean | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const won = (value as Record<string, unknown>).won;
   return typeof won === 'boolean' ? won : null;
+}
+
+function jsonResultAmountPayout(
+  value: Prisma.JsonValue,
+): { amount: Prisma.Decimal; payout: Prisma.Decimal; won: boolean } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const result = value as Record<string, unknown>;
+  try {
+    const amount = new Prisma.Decimal(String(result.amount ?? 0));
+    const payout = new Prisma.Decimal(String(result.payout ?? 0));
+    if (amount.lessThanOrEqualTo(0) || payout.lessThan(0)) return null;
+    const won = typeof result.won === 'boolean' ? result.won : payout.greaterThan(amount);
+    return { amount, payout, won };
+  } catch {
+    return null;
+  }
+}
+
+function resolveControlReleasePlan(
+  logs: Array<{ flipReason: string; finalResult: Prisma.JsonValue }>,
+  predicted: PredictedResult,
+  config: ControlReleaseConfig,
+  releaseReason: string,
+  lossReasons: string[],
+  controlPercentage?: Prisma.Decimal,
+): ControlReleasePlan | null {
+  const profile = buildControlReleaseProfile(logs, releaseReason, lossReasons);
+  if (!profile || profile.consecutiveLosses < config.minLosses) return null;
+  if (predicted.amount.greaterThan(profile.maxAmount.mul(CONTROL_RELEASE_STAKE_JUMP_RATIO))) {
+    return null;
+  }
+
+  let chance = Math.min(
+    config.maxChance,
+    config.baseChance + (profile.consecutiveLosses - config.minLosses) * config.chanceStep,
+  );
+  if (controlPercentage && Number(controlPercentage) >= 60) {
+    chance *= config.highControlDampening;
+  }
+  if (Math.random() >= chance) return null;
+
+  const avgAmount = profile.totalAmount.div(profile.consecutiveLosses);
+  const maxProfit = minDecimal([
+    profile.totalLoss.mul(CONTROL_RELEASE_TOTAL_LOSS_PROFIT_RATIO),
+    avgAmount.mul(CONTROL_RELEASE_AVG_STAKE_PROFIT_RATIO),
+    predicted.amount.mul(CONTROL_RELEASE_CURRENT_STAKE_PROFIT_RATIO),
+  ]).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  if (maxProfit.lessThanOrEqualTo(0)) return null;
+
+  return {
+    maxMultiplier: config.maxMultiplier,
+    maxPayout: predicted.amount.add(maxProfit).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
+  };
+}
+
+function buildControlReleaseProfile(
+  logs: Array<{ flipReason: string; finalResult: Prisma.JsonValue }>,
+  releaseReason: string,
+  lossReasons: string[],
+): ControlReleaseProfile | null {
+  let consecutiveLosses = 0;
+  let totalAmount = new Prisma.Decimal(0);
+  let totalLoss = new Prisma.Decimal(0);
+  let maxAmount = new Prisma.Decimal(0);
+
+  for (const log of logs) {
+    if (log.flipReason === releaseReason) break;
+    if (!lossReasons.includes(log.flipReason)) continue;
+    const result = jsonResultAmountPayout(log.finalResult);
+    if (!result || result.won) break;
+
+    const loss = result.amount.sub(result.payout);
+    if (loss.lessThanOrEqualTo(0)) break;
+    consecutiveLosses += 1;
+    totalAmount = totalAmount.add(result.amount);
+    totalLoss = totalLoss.add(loss);
+    if (result.amount.greaterThan(maxAmount)) maxAmount = result.amount;
+  }
+
+  if (consecutiveLosses === 0) return null;
+  return { consecutiveLosses, totalAmount, totalLoss, maxAmount };
 }
 
 async function findBurstDecision(

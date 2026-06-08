@@ -15,11 +15,11 @@ describe('CrashSoloService global member win cap', () => {
     exhausted: overrides.exhausted ?? false,
     controlId: 'global-member-daily-win-cap',
     reason: 'global_member_daily_win_cap',
-    maxPayout: decimal(overrides.maxPayout ?? 30000),
-    maxMultiplier: decimal(overrides.maxMultiplier ?? 300),
+    maxPayout: decimal(overrides.maxPayout ?? 10000),
+    maxMultiplier: decimal(overrides.maxMultiplier ?? 100),
   });
 
-  it('crashes immediately when even the minimum crash cashout would exceed the 30000 cap', () => {
+  it('crashes immediately when even the minimum crash cashout would exceed the 10000 cap', () => {
     const capGuard = guard({ maxPayout: '100.50', maxMultiplier: '1.0050' });
 
     expect(

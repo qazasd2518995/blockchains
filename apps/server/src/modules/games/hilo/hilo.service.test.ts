@@ -1,10 +1,63 @@
 import { describe, expect, it } from 'vitest';
+import type { HiLoCard } from '@bg/shared';
 import { __hiLoServiceTestHooks, adjustHiLoDraw } from './hilo.service.js';
 
 describe('HiLo control helpers', () => {
   it('allows forced loss from the first guess when the requested loss is possible', () => {
     expect(__hiLoServiceTestHooks.canForceHiLoLossAtCardIndex(0)).toBe(true);
     expect(__hiLoServiceTestHooks.canForceHiLoLossAtCardIndex(1)).toBe(true);
+  });
+});
+
+describe('selectMiddleHiLoSkipDraw', () => {
+  const drawAt = (cards: Record<number, HiLoCard>) => (index: number) =>
+    cards[index] ?? { rank: 13, suit: 0 };
+
+  it('uses the first strict middle card for skip replacement', () => {
+    const selected = __hiLoServiceTestHooks.selectMiddleHiLoSkipDraw(
+      drawAt({
+        1: { rank: 13, suit: 0 },
+        2: { rank: 2, suit: 1 },
+        3: { rank: 8, suit: 2 },
+        4: { rank: 7, suit: 3 },
+      }),
+      1,
+    );
+
+    expect(selected).toEqual({ card: { rank: 8, suit: 2 }, cardIndex: 3 });
+  });
+
+  it('falls back to acceptable middle cards when no strict middle appears soon', () => {
+    const selected = __hiLoServiceTestHooks.selectMiddleHiLoSkipDraw(
+      drawAt({
+        1: { rank: 13, suit: 0 },
+        2: { rank: 1, suit: 1 },
+        3: { rank: 2, suit: 2 },
+        4: { rank: 3, suit: 3 },
+        5: { rank: 10, suit: 0 },
+        6: { rank: 11, suit: 1 },
+        7: { rank: 12, suit: 2 },
+        8: { rank: 13, suit: 3 },
+        9: { rank: 5, suit: 1 },
+      }),
+      1,
+    );
+
+    expect(selected).toEqual({ card: { rank: 5, suit: 1 }, cardIndex: 9 });
+  });
+
+  it('keeps the raw next card when no middle replacement is available', () => {
+    const selected = __hiLoServiceTestHooks.selectMiddleHiLoSkipDraw(
+      drawAt({
+        1: { rank: 13, suit: 0 },
+        2: { rank: 1, suit: 1 },
+        3: { rank: 2, suit: 2 },
+        4: { rank: 3, suit: 3 },
+      }),
+      1,
+    );
+
+    expect(selected).toEqual({ card: { rank: 13, suit: 0 }, cardIndex: 1 });
   });
 });
 

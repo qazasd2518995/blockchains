@@ -31,6 +31,10 @@ import type { HiLoStartInput, HiLoGuessInput, HiLoCashoutInput } from './hilo.sc
 
 const MAX_SKIPS = 5;
 const HILO_FORCED_LOSS_GRACE_GUESSES = 0;
+const HILO_SKIP_STRICT_MIDDLE_LOOKAHEAD = 8;
+const HILO_SKIP_ACCEPTABLE_MIDDLE_LOOKAHEAD = 12;
+const HILO_SKIP_STRICT_MIDDLE_RANKS = new Set([6, 7, 8]);
+const HILO_SKIP_ACCEPTABLE_MIDDLE_RANKS = new Set([5, 6, 7, 8, 9]);
 
 export class HiLoService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -244,13 +248,18 @@ export class HiLoService {
       });
       const history = round.history as unknown as HiLoCard[];
       const nextIndex = round.cardIndex + 1;
-      const drawn = hiloDraw(serverSeedRecord.seed, round.clientSeedUsed, round.nonce, nextIndex);
+      const skipDraw = selectMiddleHiLoSkipDraw(
+        (cardIndex) =>
+          hiloDraw(serverSeedRecord.seed, round.clientSeedUsed, round.nonce, cardIndex),
+        nextIndex,
+      );
+      const drawn = skipDraw.card;
       const newHistory = [...history.slice(0, -1), drawn];
 
       const updated = await tx.hiLoRound.update({
         where: { id: round.id },
         data: {
-          cardIndex: nextIndex,
+          cardIndex: skipDraw.cardIndex,
           history: newHistory as unknown as Prisma.InputJsonValue,
           skipsUsed: { increment: 1 },
         },
@@ -412,6 +421,42 @@ function canForceHiLoLossAtCardIndex(cardIndex: number): boolean {
   return cardIndex >= HILO_FORCED_LOSS_GRACE_GUESSES;
 }
 
+export function selectMiddleHiLoSkipDraw(
+  drawAt: (cardIndex: number) => HiLoCard,
+  startIndex: number,
+): { card: HiLoCard; cardIndex: number } {
+  const raw = drawAt(startIndex);
+  const strict = findFirstHiLoSkipRank(
+    drawAt,
+    startIndex,
+    HILO_SKIP_STRICT_MIDDLE_LOOKAHEAD,
+    HILO_SKIP_STRICT_MIDDLE_RANKS,
+  );
+  if (strict) return strict;
+
+  const acceptable = findFirstHiLoSkipRank(
+    drawAt,
+    startIndex,
+    HILO_SKIP_ACCEPTABLE_MIDDLE_LOOKAHEAD,
+    HILO_SKIP_ACCEPTABLE_MIDDLE_RANKS,
+  );
+  return acceptable ?? { card: raw, cardIndex: startIndex };
+}
+
+function findFirstHiLoSkipRank(
+  drawAt: (cardIndex: number) => HiLoCard,
+  startIndex: number,
+  lookahead: number,
+  ranks: Set<number>,
+): { card: HiLoCard; cardIndex: number } | null {
+  for (let offset = 0; offset < lookahead; offset += 1) {
+    const cardIndex = startIndex + offset;
+    const card = drawAt(cardIndex);
+    if (ranks.has(card.rank)) return { card, cardIndex };
+  }
+  return null;
+}
+
 export function adjustHiLoDraw(
   current: HiLoCard,
   guess: HiLoGuessInput['guess'],
@@ -445,4 +490,5 @@ function isHiLoGuessCorrect(
 
 export const __hiLoServiceTestHooks = {
   canForceHiLoLossAtCardIndex,
+  selectMiddleHiLoSkipDraw,
 };

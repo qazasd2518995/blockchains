@@ -17,7 +17,12 @@ export const TOWER_CONFIG: Record<
   TowerDifficulty,
   { cols: number; safe: number; openingSafe?: number[]; multipliers?: number[] }
 > = {
-  easy: { cols: 4, safe: 3, openingSafe: [4] },
+  easy: {
+    cols: 4,
+    safe: 3,
+    openingSafe: [4],
+    multipliers: [0.1, 0.2, 0.35, 0.55, 0.8, 1.1, 1.45, 1.9, 2.5],
+  },
   medium: {
     cols: 3,
     safe: 2,

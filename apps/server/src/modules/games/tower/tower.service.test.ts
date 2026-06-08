@@ -17,6 +17,14 @@ describe('Tower control helpers', () => {
     expect(__towerServiceTestHooks.mustForceTowerLateLevelLoss('hard', 8)).toBe(false);
   });
 
+  it('forces loss when a player keeps picking the same column path', () => {
+    expect(__towerServiceTestHooks.mustForceTowerRepeatedColumnLoss([], 0)).toBe(false);
+    expect(__towerServiceTestHooks.mustForceTowerRepeatedColumnLoss([0], 0)).toBe(false);
+    expect(__towerServiceTestHooks.mustForceTowerRepeatedColumnLoss([0, 0], 0)).toBe(true);
+    expect(__towerServiceTestHooks.mustForceTowerRepeatedColumnLoss([0, 1], 1)).toBe(false);
+    expect(__towerServiceTestHooks.mustForceTowerRepeatedColumnLoss([2, 2], 1)).toBe(false);
+  });
+
   it('pads stale expert/master layouts back to nine visual levels', () => {
     const staleExpertLayout = [
       [0, 1, 2],
@@ -45,6 +53,26 @@ describe('Tower control helpers', () => {
       rawSafe: true,
       isSafe: false,
       lateLevelForcedLoss: true,
+    });
+    expect(result.controlled).toBe(false);
+    expect(result.flipReason).toBeUndefined();
+    expect(result.controlId).toBeUndefined();
+  });
+
+  it('does not record overridden win controls when repeated-column risk forces loss', () => {
+    const shapedControl = {
+      won: true,
+      multiplier: new Prisma.Decimal(1.8),
+      payout: new Prisma.Decimal(180),
+      controlled: true,
+      flipReason: 'win_control',
+      controlId: 'control-1',
+    };
+    const result = __towerServiceTestHooks.resolveTowerEffectiveControl(shapedControl, {
+      rawSafe: true,
+      isSafe: false,
+      lateLevelForcedLoss: false,
+      repeatedColumnForcedLoss: true,
     });
     expect(result.controlled).toBe(false);
     expect(result.flipReason).toBeUndefined();

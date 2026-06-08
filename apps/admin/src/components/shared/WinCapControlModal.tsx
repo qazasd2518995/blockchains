@@ -11,7 +11,7 @@ interface Props {
 
 export function WinCapControlModal({ open, onClose, onDone }: Props): JSX.Element {
   const [member, setMember] = useState<AccountSearchOption | null>(null);
-  const [winCapAmount, setWinCapAmount] = useState('30000');
+  const [winCapAmount, setWinCapAmount] = useState('10000');
   const [controlWinRate, setControlWinRate] = useState('0.30');
   const [triggerThreshold, setTriggerThreshold] = useState('0.80');
   const [notes, setNotes] = useState('');
@@ -67,7 +67,7 @@ export function WinCapControlModal({ open, onClose, onDone }: Props): JSX.Elemen
               value={winCapAmount}
               onChange={(e) => setWinCapAmount(e.target.value)}
               className="term-input font-mono"
-              placeholder="30000"
+              placeholder="10000"
             />
           </label>
           <label className="block">
