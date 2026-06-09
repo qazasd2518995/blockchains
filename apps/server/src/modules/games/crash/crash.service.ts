@@ -25,8 +25,8 @@ import { ApiError } from '../../../utils/errors.js';
 import type { CrashBetInput, CrashCashoutInput } from './crash.schema.js';
 
 const MIN_CASHOUT_MULTIPLIER = 1.01;
-const CONTROLLED_LOSS_CRASH_MIN = 1.1;
-const CONTROLLED_LOSS_CRASH_MAX = 1.8;
+const CONTROLLED_LOSS_CRASH_MIN = 1.0001;
+const CONTROLLED_LOSS_CRASH_MAX = 1.0099;
 const CONTROLLED_WIN_BASE_MIN = 2.05;
 const CONTROLLED_WIN_BASE_MAX = 6.8;
 const CONTROLLED_WIN_HIGH_MIN = 7.2;
