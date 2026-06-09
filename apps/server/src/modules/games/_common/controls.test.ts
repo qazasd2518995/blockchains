@@ -600,6 +600,29 @@ describe('control decision priority', () => {
     expect(natural.won).toBe(true);
   });
 
+  it('does not restart revive after post-70 drain falls below the 30 percent target', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.59);
+    const tx = createAutoReviveTx(vi.fn(async () => []), {
+      balance: new Prisma.Decimal(10000),
+      phase: 'DRAIN_TO_ZERO',
+    });
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.DICE,
+      predictedResult(10, 20, 2),
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('auto_balance_drain');
+    expect(tx.memberAutoBalanceControl.update).not.toHaveBeenCalledWith({
+      where: { id: 'auto-1' },
+      data: { phase: 'REVIVE_TO_70' },
+    });
+  });
+
   it('disables auto-balance for the excluded 8000DG credit line', async () => {
     const tx = createAutoReviveTx(vi.fn(async () => []), {
       agentId: 'agent-under-8000dg',

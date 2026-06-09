@@ -560,17 +560,17 @@ async function findAutoBalanceDecisionInternal(
       : await getOrCreateMemberAutoBalanceControl(tx, currentUser);
   if (!control || !control.isActive) return { decision: null, inActiveCycle: false };
 
-  if (currentUser.balance.lessThanOrEqualTo(control.biteTargetBalance)) {
-    if (control.phase !== 'REVIVE_TO_70') {
-      control = await setMemberAutoBalancePhase(tx, control.id, 'REVIVE_TO_70');
-    }
-  }
-
   if (control.phase === 'DRAIN_TO_ZERO') {
     return {
       decision: autoBalanceLossDecision(control.id, 'auto_balance_drain'),
       inActiveCycle: true,
     };
+  }
+
+  if (currentUser.balance.lessThanOrEqualTo(control.biteTargetBalance)) {
+    if (control.phase !== 'REVIVE_TO_70') {
+      control = await setMemberAutoBalancePhase(tx, control.id, 'REVIVE_TO_70');
+    }
   }
 
   if (control.phase === 'REVIVE_TO_70') {

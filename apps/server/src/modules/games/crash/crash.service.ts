@@ -1,7 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { crashPoint } from '@bg/provably-fair';
 import {
-  GameId,
   type CrashBetStartResponse,
   type CrashCashOutResponse,
   type CrashSoloRoundState,
@@ -28,9 +27,6 @@ import type { CrashBetInput, CrashCashoutInput } from './crash.schema.js';
 const MIN_CASHOUT_MULTIPLIER = 1.01;
 const CONTROLLED_LOSS_CRASH_MIN = 1.1;
 const CONTROLLED_LOSS_CRASH_MAX = 1.8;
-const CONTROLLED_RELIEF_AFTER_LOSSES = 3;
-const CONTROLLED_RELIEF_CRASH_MIN = 2.02;
-const CONTROLLED_RELIEF_CRASH_MAX = 2.18;
 const CONTROLLED_WIN_BASE_MIN = 2.05;
 const CONTROLLED_WIN_BASE_MAX = 6.8;
 const CONTROLLED_WIN_HIGH_MIN = 7.2;
@@ -39,16 +35,6 @@ const CONTROLLED_WIN_HIGH_RATE = 0.18;
 const CRASH_CONTROL_PROBE_MULTIPLIER = new Prisma.Decimal(2);
 const SOLO_GROWTH_RATE = 0.00012;
 const HISTORY_LIMIT = 20;
-const CRASH_CONTROL_GAME_IDS = [
-  GameId.ROCKET,
-  GameId.AVIATOR,
-  GameId.SPACE_FLEET,
-  GameId.JETX,
-  GameId.BALLOON,
-  GameId.JETX3,
-  GameId.DOUBLE_X,
-] as const;
-
 type CrashBetWithRound = Prisma.CrashBetGetPayload<{ include: { round: true } }>;
 
 interface StoredPredictedResult {
@@ -119,13 +105,10 @@ export class CrashSoloService {
         (await applyControls(tx, userId, input.gameId, controlProbe, {
           forceControlOnMatch: true,
         }));
-      const recentControlledLosses = control.controlled
-        ? await this.countRecentControlledCrashLosses(tx, userId)
-        : 0;
       const tuned = startCapLoss
         ? { crashPoint: 1, control: startCapLoss }
         : capCrashPointForGlobalWinCap(
-            this.tuneCrashPoint(naturalCrashPoint, amount, control, recentControlledLosses),
+            this.tuneCrashPoint(naturalCrashPoint, amount, control),
             globalCapGuard,
           );
       const startedAt = new Date();
@@ -526,39 +509,6 @@ export class CrashSoloService {
     return (last?.roundNumber ?? 0) + 1;
   }
 
-  private async countRecentControlledCrashLosses(
-    tx: Prisma.TransactionClient,
-    userId: string,
-  ): Promise<number> {
-    const recent = await tx.crashBet.findMany({
-      where: {
-        userId,
-        controlFinalizedAt: { not: null },
-        round: { gameId: { in: [...CRASH_CONTROL_GAME_IDS] } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: CONTROLLED_RELIEF_AFTER_LOSSES,
-      select: {
-        controlOutcome: true,
-        round: { select: { crashPoint: true } },
-      },
-    });
-
-    let streak = 0;
-    for (const bet of recent) {
-      const outcome = parseOutcome(bet.controlOutcome);
-      const crash = Number(bet.round.crashPoint.toFixed(4));
-      const controlledLoss =
-        outcome?.controlled === true &&
-        outcome.won === false &&
-        crash >= CONTROLLED_LOSS_CRASH_MIN &&
-        crash <= CONTROLLED_LOSS_CRASH_MAX;
-      if (!controlledLoss) break;
-      streak += 1;
-    }
-    return streak;
-  }
-
   private predictStartControlOutcome(amount: Prisma.Decimal): PredictedResult {
     const multiplier = CRASH_CONTROL_PROBE_MULTIPLIER;
     const payout = amount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
@@ -574,29 +524,12 @@ export class CrashSoloService {
     naturalCrashPoint: number,
     amount: Prisma.Decimal,
     control: ControlOutcome,
-    recentControlledLosses = 0,
+    _recentControlledLosses = 0,
   ): { crashPoint: number; control: ControlOutcome } {
     if (!control.controlled) {
       return { crashPoint: Number(naturalCrashPoint.toFixed(4)), control };
     }
     if (!control.won) {
-      if (recentControlledLosses >= CONTROLLED_RELIEF_AFTER_LOSSES) {
-        const crashPoint = randomCrashPoint(
-          CONTROLLED_RELIEF_CRASH_MIN,
-          CONTROLLED_RELIEF_CRASH_MAX,
-        );
-        return {
-          crashPoint,
-          control: {
-            ...control,
-            won: true,
-            multiplier: new Prisma.Decimal('2.0000'),
-            payout: amount.mul(2).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
-            flipReason: control.flipReason ?? 'controlled_crash_relief_win',
-          },
-        };
-      }
-
       return {
         crashPoint: randomCrashPoint(CONTROLLED_LOSS_CRASH_MIN, CONTROLLED_LOSS_CRASH_MAX),
         control,

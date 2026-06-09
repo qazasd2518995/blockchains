@@ -159,7 +159,7 @@ export class HotlineService {
       if (controlled.controlled) {
         const controlledRound = controlled.won
           ? winningHotlineRound(gameId, stakeAmount, controlled, seed.nonce)
-          : softLossHotlineRound(gameId, seed.nonce);
+          : lossHotlineRound(gameId, stakeAmount, seed.nonce);
         finalGrid = controlledRound.grid;
         finalLines = controlledRound.lines;
         finalCascades = controlledRound.cascades;
@@ -817,6 +817,24 @@ function softLossHotlineRound(gameId: string, variant = 0): HotlineRound {
     pickRandomItem(HOTLINE_SOFT_LOSS_SYMBOLS) ??
     HOTLINE_SOFT_LOSS_SYMBOLS[Math.abs(variant) % HOTLINE_SOFT_LOSS_SYMBOLS.length]!;
   return roundFromClassicGrid(fixedLineHotlineGrid(reelCount, [symbol], variant));
+}
+
+function lossHotlineRound(
+  gameId: string,
+  stakeAmount: Prisma.Decimal,
+  variant = 0,
+): HotlineRound {
+  const softRound = softLossHotlineRound(gameId, variant);
+  const softPayout = stakeAmount.mul(softRound.totalMultiplier).toDecimalPlaces(2);
+  if (softPayout.lessThan(stakeAmount)) return softRound;
+  return hardLossHotlineRound(gameId, variant);
+}
+
+function hardLossHotlineRound(gameId: string, variant = 0): HotlineRound {
+  const grid = blankHotlineGrid(gameId, variant);
+  return getHotlineRowCount(gameId) > 3
+    ? roundFromMegaGrid(gameId, grid, variant)
+    : roundFromClassicGrid(grid);
 }
 
 function targetControlMultiplier(controlled: HotlineControlBounds): number {
@@ -1493,6 +1511,7 @@ export const __hotlineServiceTestHooks = {
   megaBuyFeatureStakeAmount,
   fixedLineHotlineGrid,
   roundFromMegaGrid,
+  lossHotlineRound,
   softLossHotlineRound,
   winningHotlineRound,
   megaClusterHotlineGrid,

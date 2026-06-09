@@ -2,9 +2,39 @@ import { Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 import { GameId } from '@bg/shared';
 import { __crashServiceTestHooks, CrashSoloService } from './crash.service.js';
-import type { GlobalMemberDailyWinCapGuard } from '../_common/controls.js';
+import type { ControlOutcome, GlobalMemberDailyWinCapGuard } from '../_common/controls.js';
 
 const decimal = (value: string | number) => new Prisma.Decimal(value);
+
+describe('CrashSoloService controlled losses', () => {
+  it('does not turn auto-balance drain losses into fixed relief wins', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const service = new CrashSoloService({} as never) as unknown as {
+      tuneCrashPoint: (
+        naturalCrashPoint: number,
+        amount: Prisma.Decimal,
+        control: ControlOutcome,
+        recentControlledLosses: number,
+      ) => { crashPoint: number; control: ControlOutcome };
+    };
+    const control: ControlOutcome = {
+      won: false,
+      multiplier: decimal(0),
+      payout: decimal(0),
+      controlled: true,
+      flipReason: 'auto_balance_drain',
+      controlId: 'auto-1',
+    };
+
+    const tuned = service.tuneCrashPoint(10, decimal(5000), control, 10);
+
+    expect(tuned.control.won).toBe(false);
+    expect(tuned.control.flipReason).toBe('auto_balance_drain');
+    expect(tuned.control.payout.toFixed(2)).toBe('0.00');
+    expect(tuned.crashPoint).toBeGreaterThanOrEqual(1.1);
+    expect(tuned.crashPoint).toBeLessThanOrEqual(1.8);
+  });
+});
 
 describe('CrashSoloService global member win cap', () => {
   const guard = (overrides: {

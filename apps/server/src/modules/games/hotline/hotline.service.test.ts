@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { GameId } from '@bg/shared';
+import { GameId, SLOT_GAME_IDS } from '@bg/shared';
 import { hotlineEvaluate } from '@bg/provably-fair';
 import { __hotlineServiceTestHooks } from './hotline.service.js';
 
@@ -322,6 +322,17 @@ describe('hotline controlled round shaping', () => {
       expect(new Set(controlledCase.rounds.map(openingSignature)).size).toBeGreaterThan(
         controlledCase.minUnique,
       );
+    }
+  });
+
+  it('keeps controlled loss slot rounds below the stake across slot sizes', () => {
+    const stake = new Prisma.Decimal(5000);
+    for (const gameId of SLOT_GAME_IDS) {
+      for (let nonce = 0; nonce < 12; nonce += 1) {
+        const round = __hotlineServiceTestHooks.lossHotlineRound(gameId, stake, nonce);
+        const payout = stake.mul(round.totalMultiplier).toDecimalPlaces(2);
+        expect(payout.lessThan(stake)).toBe(true);
+      }
     }
   });
 
