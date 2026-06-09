@@ -2,8 +2,10 @@ import {
   GAMES_REGISTRY,
   normalizeBettingLimitRangeKey,
   normalizeBettingLimitsByGame,
+  resolveDefaultChildBettingLimitRange,
   isBettingLimitWithinParent,
   type BettingLimitsByGame,
+  type BettingLimitRangeKey,
 } from '@bg/shared';
 import { ApiError } from '../../utils/errors.js';
 
@@ -18,6 +20,10 @@ export function normalizeStoredBettingLimits(
   const normalized = normalizeBettingLimitsByGame(limits);
   const fallback = normalizeBettingLimitRangeKey(fallbackLevel);
   return Object.fromEntries(GAME_IDS.map((gameId) => [gameId, normalized[gameId] ?? fallback]));
+}
+
+export function resolveDefaultChildBettingLimitLevel(parentLevel: unknown): BettingLimitRangeKey {
+  return resolveDefaultChildBettingLimitRange(parentLevel);
 }
 
 export function resolveRequestedBettingLimits(

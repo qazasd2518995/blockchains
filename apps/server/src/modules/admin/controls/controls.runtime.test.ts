@@ -9,6 +9,7 @@ import {
   findApplicableManualDetectionControl,
   getDefaultManualDetectionCompletionBehavior,
   normalizeManualDetectionCompletionBehavior,
+  resetMemberAutoBalanceControl,
 } from './controls.runtime.js';
 import { __controlsTestHooks } from '../../games/_common/controls.js';
 
@@ -36,6 +37,33 @@ describe('calculateAutoDetectionBitePlan', () => {
     expect(plan.platformTake.toFixed(2)).toBe('100.00');
     expect(plan.redistributionAmount.toFixed(2)).toBe('900.00');
     expect(plan.targetSettlement.toFixed(2)).toBe('100.00');
+  });
+});
+
+describe('resetMemberAutoBalanceControl', () => {
+  it('uses 20 percent bite target and 40 percent revive target for each new balance cycle', async () => {
+    const upsert = vi.fn().mockResolvedValue({});
+    const db = {
+      $queryRaw: vi.fn().mockResolvedValue([{ exists: false }]),
+      memberDepositControl: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      manualDetectionControl: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      memberAutoBalanceControl: { upsert },
+    };
+
+    await resetMemberAutoBalanceControl(db as never, {
+      memberId: 'member-1',
+      memberUsername: 'top3666',
+      agentId: 'agent-1',
+      balanceAfter: new Prisma.Decimal(50000),
+      reason: 'test_deposit',
+    });
+
+    const create = upsert.mock.calls[0]?.[0]?.create;
+    expect(create.baselineBalance.toFixed(2)).toBe('50000.00');
+    expect(create.biteTargetBalance.toFixed(2)).toBe('10000.00');
+    expect(create.reviveTargetBalance.toFixed(2)).toBe('20000.00');
+    expect(create.phase).toBe('BITE_TO_30');
+    expect(create.isActive).toBe(true);
   });
 });
 

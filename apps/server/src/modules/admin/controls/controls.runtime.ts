@@ -74,8 +74,8 @@ interface FundedControlMember {
 const AUTO_REVIVAL_NOTE = 'auto_revive';
 export const STARTER_CONFIDENCE_OPERATOR = 'auto_starter_confidence';
 export const AUTO_BALANCE_OPERATOR = 'auto_balance_model';
-const AUTO_BALANCE_BITE_RATE = new Prisma.Decimal('0.30');
-const AUTO_BALANCE_REVIVE_RATE = new Prisma.Decimal('0.70');
+const AUTO_BALANCE_BITE_RATE = new Prisma.Decimal('0.20');
+const AUTO_BALANCE_REVIVE_RATE = new Prisma.Decimal('0.40');
 const AUTO_BALANCE_EXCLUDED_AGENT_USERNAME = '8000DG';
 
 export function getControlGameDay(now: Date = new Date()): string {

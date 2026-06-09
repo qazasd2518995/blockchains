@@ -26,6 +26,7 @@ import type { FastifyRequest } from 'fastify';
 import {
   assertBettingLimitsWithinParent,
   normalizeStoredBettingLimits,
+  resolveDefaultChildBettingLimitLevel,
   resolveRequestedBettingLimits,
 } from '../bettingLimits.js';
 
@@ -123,9 +124,11 @@ export class AgentService {
     if (existing) throw new ApiError('USERNAME_TAKEN', 'Username taken');
 
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+    const requestedBettingLimitLevel =
+      input.bettingLimitLevel ?? resolveDefaultChildBettingLimitLevel(parent.bettingLimitLevel);
     const bettingLimits = resolveRequestedBettingLimits(
       input.bettingLimits,
-      input.bettingLimitLevel,
+      requestedBettingLimitLevel,
       parent.bettingLimits,
       parent.bettingLimitLevel,
     );
@@ -187,7 +190,7 @@ export class AgentService {
           baccaratRebateMode,
           baccaratRebatePercentage: baccaratRebatePct,
           maxBaccaratRebatePercentage: baccaratMaxAllowed,
-          bettingLimitLevel: input.bettingLimitLevel ?? parent.bettingLimitLevel,
+          bettingLimitLevel: requestedBettingLimitLevel,
           bettingLimits,
           notes: accountNote,
           role: 'AGENT',

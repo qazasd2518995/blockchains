@@ -61,20 +61,71 @@ describe('hotlineSpin', () => {
 
   it('uses separate 8-symbol paytables for fixed-line variants', () => {
     expect(HOTLINE_MINI_SYMBOLS.map((symbol) => symbol.payout3)).toEqual([
-      3, 3.3, 3.6, 4, 4.2, 4.5, 4.8, 5,
+      0.6, 0.9, 1.4, 1.8, 2.2, 2.8, 3.2, 3.8,
     ]);
     expect(
       HOTLINE_SYMBOLS.map((symbol) => [symbol.payout3, symbol.payout4, symbol.payout5]),
     ).toEqual([
-      [1.3, 3.3, 10],
-      [1.6, 5, 13],
-      [2, 6.5, 20],
-      [2.5, 8, 26],
-      [3.3, 13, 50],
-      [5, 20, 85],
-      [8, 35, 135],
-      [13, 65, 250],
+      [0.77, 1.26, 2.1],
+      [0.98, 1.61, 2.94],
+      [1.26, 2.24, 4.48],
+      [1.68, 3.22, 7],
+      [2.24, 5.6, 14],
+      [3.08, 9.8, 28],
+      [4.48, 16.8, 56],
+      [7, 33.6, 112],
     ]);
+  });
+
+  it('keeps 5x3 slot variants on a small-hit profile', () => {
+    const total = 20_000;
+    let payout = 0;
+    let hit = 0;
+    let netWin = 0;
+    let smallHit = 0;
+    let highHit = 0;
+
+    for (let nonce = 0; nonce < total; nonce += 1) {
+      const grid = hotlineSpin('classic-regression', 'client', nonce, HOTLINE_REELS);
+      const multiplier = hotlineEvaluate(grid).totalMultiplier;
+      payout += multiplier;
+      if (multiplier > 0) hit += 1;
+      if (multiplier > 1) netWin += 1;
+      if (multiplier > 0 && multiplier <= 1.4) smallHit += 1;
+      if (multiplier >= 3) highHit += 1;
+    }
+
+    expect(payout / total).toBeGreaterThan(0.5);
+    expect(payout / total).toBeLessThan(0.72);
+    expect(hit / total).toBeGreaterThan(0.35);
+    expect(netWin / total).toBeLessThan(0.3);
+    expect(smallHit / total).toBeGreaterThan(0.2);
+    expect(highHit / total).toBeLessThan(0.04);
+  });
+
+  it('keeps 3x3 slot variants on a small-hit profile', () => {
+    const total = 20_000;
+    let payout = 0;
+    let hit = 0;
+    let netWin = 0;
+    let smallHit = 0;
+    let highHit = 0;
+
+    for (let nonce = 0; nonce < total; nonce += 1) {
+      const grid = hotlineSpin('mini-regression', 'client', nonce, HOTLINE_MINI_REELS);
+      const multiplier = hotlineEvaluate(grid).totalMultiplier;
+      payout += multiplier;
+      if (multiplier > 0) hit += 1;
+      if (multiplier > 1) netWin += 1;
+      if (multiplier > 0 && multiplier <= 1.4) smallHit += 1;
+      if (multiplier >= 3) highHit += 1;
+    }
+
+    expect(payout / total).toBeLessThan(0.7);
+    expect(hit / total).toBeGreaterThan(0.5);
+    expect(netWin / total).toBeLessThan(0.35);
+    expect(smallHit / total).toBeGreaterThan(0.4);
+    expect(highHit / total).toBeLessThan(0.02);
   });
 
   it('supports 6x5 mega slot variants', () => {

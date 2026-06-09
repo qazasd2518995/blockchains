@@ -6,6 +6,7 @@ import {
   BETTING_LIMIT_RANGE_OPTIONS,
   DEFAULT_BETTING_LIMIT_RANGE,
   normalizeBettingLimitRangeKey,
+  resolveDefaultChildBettingLimitRange,
   type AgentPublic,
   type BettingLimitsByGame,
   type MemberPublic,
@@ -106,10 +107,10 @@ export function CreateMemberModal({
     lastResetKeyRef.current = resetKey;
     setErr(null);
     setCustomLimitOpen(false);
-    const inheritedLevel = normalizeBettingLimitRangeKey(
+    const inheritedLevel = resolveDefaultChildBettingLimitRange(
       lockedAgent?.bettingLimitLevel ?? DEFAULT_BETTING_LIMIT_RANGE,
     );
-    setBettingLimits(buildBettingLimitsSelection(lockedAgent?.bettingLimits, inheritedLevel));
+    setBettingLimits(buildBettingLimitsSelection(null, inheritedLevel));
     reset({
       agentId: resolvedAgentId,
       username: '',

@@ -532,9 +532,9 @@ function resolveControlLogSourceLabel(source: ControlLogSource): string {
 }
 
 function formatAutoBalancePhase(phase: string): string {
-  if (phase === 'BITE_TO_30') return '咬到30%';
-  if (phase === 'REVIVE_TO_70') return '回到70%';
-  if (phase === 'DRAIN_TO_ZERO') return '回70後控輸';
+  if (phase === 'BITE_TO_30') return '咬到20%';
+  if (phase === 'REVIVE_TO_70') return '回到40%';
+  if (phase === 'DRAIN_TO_ZERO') return '回40後控輸';
   return phase;
 }
 
@@ -545,9 +545,9 @@ function resolveControlLogActionLabel(log: ControlLogRecord): string {
   const labels: Record<string, string> = {
     online_reward_next_win: '下一局直接贏',
     deposit_control: `入金${finalDirection}`,
-    auto_balance_bite: '自動咬到30%',
-    auto_balance_revive: '自動回到70%',
-    auto_balance_drain: '自動回70後控輸',
+    auto_balance_bite: '自動咬到20%',
+    auto_balance_revive: '自動回到40%',
+    auto_balance_drain: '自動回40後控輸',
     auto_balance_release: '自動補贏',
     win_control: '放會員贏',
     loss_control: '咬會員輸',

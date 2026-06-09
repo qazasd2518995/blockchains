@@ -6,6 +6,7 @@ import {
   BETTING_LIMIT_RANGE_OPTIONS,
   DEFAULT_BETTING_LIMIT_RANGE,
   normalizeBettingLimitRangeKey,
+  resolveDefaultChildBettingLimitRange,
   type AgentPublic,
   type BettingLimitsByGame,
 } from '@bg/shared';
@@ -124,12 +125,10 @@ export function CreateAgentModal({
     lastResetKeyRef.current = resetKey;
     setErr(null);
     setCustomLimitOpen(false);
-    setBettingLimits(
-      buildBettingLimitsSelection(
-        lockedParent?.bettingLimits,
-        normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? DEFAULT_BETTING_LIMIT_RANGE,
-      ),
+    const defaultLimit = resolveDefaultChildBettingLimitRange(
+      normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? DEFAULT_BETTING_LIMIT_RANGE,
     );
+    setBettingLimits(buildBettingLimitsSelection(null, defaultLimit));
     reset({
       parentId: resolvedParentId,
       username: '',
@@ -137,8 +136,7 @@ export function CreateAgentModal({
       initialBalance: '',
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
-      bettingLimitLevel:
-        normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? DEFAULT_BETTING_LIMIT_RANGE,
+      bettingLimitLevel: defaultLimit,
       notes: '',
     });
     if (lockedParent) {
@@ -149,9 +147,12 @@ export function CreateAgentModal({
           const detail = await adminApi.get<AgentPublic>(`/agents/${lockedParent.id}`);
           setSelectedParent(detail.data);
           setValue('parentId', detail.data.id);
-          const inheritedLimit = normalizeBettingLimit(detail.data.bettingLimitLevel);
-          if (inheritedLimit) setValue('bettingLimitLevel', inheritedLimit);
-          setBettingLimits(buildBettingLimitsSelection(detail.data.bettingLimits, inheritedLimit));
+          const parentLimit = normalizeBettingLimit(detail.data.bettingLimitLevel);
+          const childDefaultLimit = resolveDefaultChildBettingLimitRange(
+            parentLimit ?? DEFAULT_BETTING_LIMIT_RANGE,
+          );
+          setValue('bettingLimitLevel', childDefaultLimit);
+          setBettingLimits(buildBettingLimitsSelection(null, childDefaultLimit));
         } catch {
           setSelectedParent(lockedParent);
         }
@@ -510,6 +511,7 @@ function normalizeBettingLimit(
     value === 'range_1_500' ||
     value === 'range_50_1000' ||
     value === 'range_100_2000' ||
+    value === 'range_10_3000' ||
     value === 'range_10_5000' ||
     value === 'range_500_5000' ||
     value === 'range_1000_10000' ||

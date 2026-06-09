@@ -420,8 +420,8 @@ describe('control decision priority', () => {
         memberUsername: 'top3666',
         agentId: null,
         baselineBalance: new Prisma.Decimal(50000),
-        biteTargetBalance: new Prisma.Decimal(15000),
-        reviveTargetBalance: new Prisma.Decimal(35000),
+        biteTargetBalance: new Prisma.Decimal(10000),
+        reviveTargetBalance: new Prisma.Decimal(20000),
         phase: over.phase ?? 'REVIVE_TO_70',
         isActive: true,
       })),
@@ -431,8 +431,8 @@ describe('control decision priority', () => {
         memberUsername: 'top3666',
         agentId: over.agentId ?? null,
         baselineBalance: new Prisma.Decimal(50000),
-        biteTargetBalance: new Prisma.Decimal(15000),
-        reviveTargetBalance: new Prisma.Decimal(35000),
+        biteTargetBalance: new Prisma.Decimal(10000),
+        reviveTargetBalance: new Prisma.Decimal(20000),
         phase: args.data?.phase ?? over.phase ?? 'REVIVE_TO_70',
         isActive: true,
       })),
@@ -551,10 +551,10 @@ describe('control decision priority', () => {
     expect(manualFindMany).not.toHaveBeenCalled();
   });
 
-  it('switches auto-balance to post-70 loss control after the member returns to 70 percent', async () => {
+  it('switches auto-balance to post-40 loss control after the member returns to 40 percent', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.59);
     const tx = createAutoReviveTx(vi.fn(async () => []), {
-      balance: new Prisma.Decimal(35000),
+      balance: new Prisma.Decimal(20000),
     });
 
     const outcome = await applyControls(
@@ -573,10 +573,10 @@ describe('control decision priority', () => {
     });
   });
 
-  it('keeps post-70 auto-balance drain at the same 60 percent intervention rate', async () => {
+  it('keeps post-40 auto-balance drain at the same 60 percent intervention rate', async () => {
     vi.spyOn(Math, 'random').mockReturnValueOnce(0.59).mockReturnValueOnce(0.6);
     const tx = createAutoReviveTx(vi.fn(async () => []), {
-      balance: new Prisma.Decimal(36000),
+      balance: new Prisma.Decimal(21000),
       phase: 'DRAIN_TO_ZERO',
     });
 
@@ -600,7 +600,7 @@ describe('control decision priority', () => {
     expect(natural.won).toBe(true);
   });
 
-  it('does not restart revive after post-70 drain falls below the 30 percent target', async () => {
+  it('does not restart revive after post-40 drain falls below the 20 percent target', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.59);
     const tx = createAutoReviveTx(vi.fn(async () => []), {
       balance: new Prisma.Decimal(10000),

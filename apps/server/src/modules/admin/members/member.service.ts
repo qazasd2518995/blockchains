@@ -34,6 +34,7 @@ import type { FastifyRequest } from 'fastify';
 import {
   assertBettingLimitsWithinParent,
   normalizeStoredBettingLimits,
+  resolveDefaultChildBettingLimitLevel,
   resolveRequestedBettingLimits,
 } from '../bettingLimits.js';
 
@@ -93,9 +94,12 @@ export class MemberService {
         balanceForMember = new Prisma.Decimal(config.SIGNUP_BONUS);
       }
 
+      const requestedBettingLimitLevel =
+        input.bettingLimitLevel ??
+        resolveDefaultChildBettingLimitLevel(targetAgent.bettingLimitLevel);
       const bettingLimits = resolveRequestedBettingLimits(
         input.bettingLimits,
-        input.bettingLimitLevel,
+        requestedBettingLimitLevel,
         targetAgent.bettingLimits,
         targetAgent.bettingLimitLevel,
       );
@@ -118,7 +122,7 @@ export class MemberService {
           role: 'PLAYER',
           agentId: targetAgent.id,
           marketType: targetAgent.marketType,
-          bettingLimitLevel: input.bettingLimitLevel ?? targetAgent.bettingLimitLevel,
+          bettingLimitLevel: requestedBettingLimitLevel,
           bettingLimits,
           notes: accountNote,
         },

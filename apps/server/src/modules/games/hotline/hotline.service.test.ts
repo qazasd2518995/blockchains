@@ -78,7 +78,7 @@ describe('hotline controlled round shaping', () => {
     expect(hotlineEvaluate(round.grid).totalMultiplier).toBeCloseTo(round.totalMultiplier, 4);
   });
 
-  it('keeps 3x3 burst wins inside the mini-slot paytable', () => {
+  it('keeps 3x3 burst wins inside the softened mini-slot paytable', () => {
     const amount = new Prisma.Decimal(100);
     const maxPayout = new Prisma.Decimal(3000);
     const round = __hotlineServiceTestHooks.winningHotlineRound(
@@ -93,8 +93,8 @@ describe('hotline controlled round shaping', () => {
       99,
     );
 
-    expect(round.totalMultiplier).toBeGreaterThanOrEqual(20);
-    expect(round.totalMultiplier).toBeLessThanOrEqual(30);
+    expect(round.totalMultiplier).toBeGreaterThan(1);
+    expect(round.totalMultiplier).toBeLessThanOrEqual(19);
     expect(amount.mul(round.totalMultiplier).lessThanOrEqualTo(maxPayout)).toBe(true);
     expect(hotlineEvaluate(round.grid).totalMultiplier).toBeCloseTo(round.totalMultiplier, 4);
   });
