@@ -909,7 +909,10 @@ describe('global member daily win cap', () => {
     crashPayout: string | number = 0,
   ) => ({
     user: {
-      findUnique: vi.fn(async () => ({ id: 'bbb' })),
+      findUnique: vi.fn(async (args?: { select?: Record<string, boolean> }) => {
+        if (args?.select?.balance) return { balance: new Prisma.Decimal(1000) };
+        return { id: 'bbb', username: 'bbb', agentId: null };
+      }),
     },
     bet: {
       aggregate: vi.fn(async () => ({
@@ -927,6 +930,14 @@ describe('global member daily win cap', () => {
       })),
     },
   });
+
+  const activeDepositControl = {
+    id: 'deposit-1',
+    startBalance: new Prisma.Decimal(100),
+    targetProfit: new Prisma.Decimal(2000),
+    controlWinRate: new Prisma.Decimal(1),
+    notes: null,
+  };
 
   it('forces bbb-style members that are already above 10000 daily net win to lose every next win', async () => {
     const tx = createGlobalCapTx('19415.66');
@@ -994,6 +1005,152 @@ describe('global member daily win cap', () => {
     expect(guard?.exhausted).toBe(false);
     expect(guard?.maxPayout.toFixed(2)).toBe('150.00');
     expect(guard?.maxMultiplier.toFixed(4)).toBe('1.5000');
+  });
+
+  it('lets active deposit control bypass the global 10000 daily cap', async () => {
+    const tx = {
+      ...createGlobalCapTx('20000'),
+      memberDepositControl: {
+        findFirst: vi.fn(async () => activeDepositControl),
+        update: vi.fn(),
+      },
+    };
+
+    const outcome = await __controlsTestHooks.applyGlobalMemberDailyWinCap(
+      tx as never,
+      'member-1',
+      predictedResult(100, 200, 2),
+      GameId.DICE,
+    );
+
+    expect(outcome).toBeNull();
+    expect(tx.memberDepositControl.update).not.toHaveBeenCalled();
+  });
+
+  it('restores the global daily cap after a deposit control reaches its target', async () => {
+    const tx = {
+      ...createGlobalCapTx('20000'),
+      user: {
+        findUnique: vi.fn(async (args?: { select?: Record<string, boolean> }) => {
+          if (args?.select?.balance) return { balance: new Prisma.Decimal(2200) };
+          return { id: 'member-1', username: 'vip0666', agentId: null };
+        }),
+      },
+      memberDepositControl: {
+        findFirst: vi.fn(async () => activeDepositControl),
+        update: vi.fn(),
+      },
+    };
+
+    const outcome = await __controlsTestHooks.applyGlobalMemberDailyWinCap(
+      tx as never,
+      'member-1',
+      predictedResult(100, 200, 2),
+      GameId.DICE,
+    );
+
+    expect(tx.memberDepositControl.update).toHaveBeenCalledWith({
+      where: { id: 'deposit-1' },
+      data: { isActive: false, isCompleted: true },
+    });
+    expect(outcome?.controlled).toBe(true);
+    expect(outcome?.flipReason).toBe('global_member_daily_win_cap');
+  });
+
+  it('lets active burst control bypass the global 10000 daily cap while it still has budget', async () => {
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
+    const burstControl = {
+      id: 'burst-1',
+      scope: 'MEMBER',
+      targetAgentId: null,
+      targetAgentUsername: null,
+      targetMemberId: 'member-1',
+      targetMemberUsername: 'bbb',
+      gameIds: [],
+      dailyBudget: new Prisma.Decimal(30000),
+      todayBurstAmount: new Prisma.Decimal(0),
+      todayBurstCount: 0,
+      memberDailyCap: new Prisma.Decimal(30000),
+      singlePayoutCap: new Prisma.Decimal(30000),
+      singleMultiplierCap: new Prisma.Decimal(100),
+      minBurstMultiplier: new Prisma.Decimal(8),
+      smallWinMultiplier: new Prisma.Decimal('1.5'),
+      burstRate: new Prisma.Decimal(1),
+      smallWinRate: new Prisma.Decimal(0),
+      lossRate: new Prisma.Decimal(0),
+      compensationLoss: new Prisma.Decimal(0),
+      capitalRetentionRatio: new Prisma.Decimal(0),
+      minEligibilityLoss: new Prisma.Decimal(0),
+      riskWinLimit: new Prisma.Decimal(999999),
+      cooldownRounds: 10,
+      currentGameDay: today,
+      isActive: true,
+      notes: null,
+      operatorId: null,
+      operatorUsername: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const tx = {
+      ...createGlobalCapTx('20000'),
+      user: {
+        findUnique: vi.fn(async () => ({ id: 'member-1', username: 'bbb', agentId: null })),
+      },
+      memberDepositControl: { findFirst: vi.fn(async () => null) },
+      memberWinCapControl: { findFirst: vi.fn(async () => null) },
+      agentLineWinCap: { findMany: vi.fn(async () => []) },
+      burstControl: {
+        findMany: vi.fn(async () => [burstControl]),
+        update: vi.fn(async () => burstControl),
+      },
+      winLossControlLogs: {
+        findMany: vi.fn(async () => []),
+        findFirst: vi.fn(async () => null),
+      },
+      bet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 1 },
+          _sum: { profit: new Prisma.Decimal(20000) },
+        })),
+        count: vi.fn(async () => 0),
+      },
+    };
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.HOTLINE,
+      predictedResult(100, 0, 0),
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(true);
+    expect(outcome.flipReason).toBe('burst_win');
+  });
+
+  it('restores the global daily cap when burst control is paused', async () => {
+    const tx = {
+      ...createGlobalCapTx('20000'),
+      user: {
+        findUnique: vi.fn(async () => ({ id: 'member-1', username: 'bbb', agentId: null })),
+      },
+      memberDepositControl: { findFirst: vi.fn(async () => null) },
+      memberWinCapControl: { findFirst: vi.fn(async () => null) },
+      agentLineWinCap: { findMany: vi.fn(async () => []) },
+      burstControl: { findMany: vi.fn(async () => []) },
+    };
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.HOTLINE,
+      predictedResult(100, 200, 2),
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('global_member_daily_win_cap');
   });
 });
 

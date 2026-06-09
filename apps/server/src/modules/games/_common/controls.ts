@@ -188,7 +188,9 @@ export async function applyControls(
   const decision = await findControlDecision(tx, member, gameId, predicted, options);
   if (!decision) return { ...predicted, controlled: false };
   const cappedDecision =
-    decision.desired === 'WIN' ? await withWinCapBounds(tx, member, predicted, decision) : decision;
+    decision.desired === 'WIN'
+      ? await withWinCapBounds(tx, member, predicted, decision, gameId)
+      : decision;
 
   const predictedNetWin = isNetWin(predicted);
   const shouldForceProgressLoss = options.forceLossOnProgress === true && predicted.won;
@@ -214,12 +216,14 @@ export async function applyGlobalMemberDailyWinCap(
   tx: Db,
   userId: string,
   predicted: PredictedResult,
+  gameId?: string,
 ): Promise<ControlOutcome | null> {
   const member = await tx.user.findUnique({
     where: { id: userId },
-    select: { id: true },
+    select: { id: true, username: true, agentId: true },
   });
   if (!member) return null;
+  if (await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId)) return null;
 
   const decision = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
   if (!decision) return null;
@@ -230,12 +234,14 @@ export async function getGlobalMemberDailyWinCapGuard(
   tx: Db,
   userId: string,
   amount: Prisma.Decimal,
+  gameId?: string,
 ): Promise<GlobalMemberDailyWinCapGuard | null> {
   const member = await tx.user.findUnique({
     where: { id: userId },
-    select: { id: true },
+    select: { id: true, username: true, agentId: true },
   });
   if (!member || amount.lessThanOrEqualTo(0)) return null;
+  if (await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId)) return null;
 
   const bound = await getGlobalMemberWinCapPayoutBound(tx, member.id, amount);
   const controlId = 'global-member-daily-win-cap';
@@ -334,8 +340,10 @@ async function findControlDecision(
     if (burst) return burst;
     const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
     if (accidentalBurstCap) return accidentalBurstCap;
-    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
-    if (globalWinCap) return globalWinCap;
+    if (!(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))) {
+      const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
+      if (globalWinCap) return globalWinCap;
+    }
     return null;
   }
 
@@ -344,8 +352,10 @@ async function findControlDecision(
   const burst = await findBurstDecision(tx, member, gameId, predicted, options);
   if (burst) return burst;
 
-  const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
-  if (globalWinCap) return globalWinCap;
+  if (!(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))) {
+    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
+    if (globalWinCap) return globalWinCap;
+  }
 
   const onlineReward = await findOnlineRewardNextWinDecision(tx, member, predicted);
   if (onlineReward) return onlineReward;
@@ -719,6 +729,93 @@ async function findGlobalMemberWinCapDecision(
   return null;
 }
 
+async function shouldBypassGlobalMemberDailyWinCap(
+  tx: Db,
+  member: MemberScope,
+  gameId?: string,
+): Promise<boolean> {
+  if (await hasActiveDepositControlForGlobalCapBypass(tx, member.id)) return true;
+  if (gameId && (await hasActiveBurstControlForGlobalCapBypass(tx, member, gameId))) return true;
+  return false;
+}
+
+async function hasActiveDepositControlForGlobalCapBypass(
+  tx: Db,
+  memberId: string,
+): Promise<boolean> {
+  const db = tx as unknown as {
+    memberDepositControl?: {
+      findFirst?: (args: unknown) => Promise<{
+        id: string;
+        startBalance: Prisma.Decimal;
+        targetProfit: Prisma.Decimal;
+      } | null>;
+      update?: (args: unknown) => Promise<unknown>;
+    };
+    user?: {
+      findUnique?: (args: unknown) => Promise<{ balance?: Prisma.Decimal } | null>;
+    };
+  };
+  if (!db.memberDepositControl?.findFirst) return false;
+
+  const control = await db.memberDepositControl.findFirst({
+    where: {
+      memberId,
+      isActive: true,
+      isCompleted: false,
+      AND: [
+        { OR: [{ notes: null }, { NOT: { notes: { contains: 'online_reward' } } }] },
+        { OR: [{ notes: null }, { NOT: { notes: { contains: 'auto_revive' } } }] },
+      ],
+    },
+    select: { id: true, startBalance: true, targetProfit: true },
+  });
+  if (!control) return false;
+
+  const currentUser = db.user?.findUnique
+    ? await db.user.findUnique({ where: { id: memberId }, select: { balance: true } })
+    : null;
+  const currentProfit = currentUser?.balance
+    ? currentUser.balance.sub(control.startBalance)
+    : new Prisma.Decimal(0);
+  if (currentProfit.greaterThanOrEqualTo(control.targetProfit)) {
+    if (db.memberDepositControl.update) {
+      await db.memberDepositControl.update({
+        where: { id: control.id },
+        data: { isActive: false, isCompleted: true },
+      });
+    }
+    return false;
+  }
+  return true;
+}
+
+async function hasActiveBurstControlForGlobalCapBypass(
+  tx: Db,
+  member: MemberScope,
+  gameId: string,
+): Promise<boolean> {
+  const db = tx as unknown as {
+    burstControl?: {
+      findMany?: (args: unknown) => Promise<unknown[]>;
+      update?: (args: unknown) => Promise<unknown>;
+    };
+    winLossControlLogs?: {
+      findMany?: (args: unknown) => Promise<unknown[]>;
+    };
+  };
+  if (!BURST_ELIGIBLE_GAME_IDS.has(gameId) || !db.burstControl?.findMany) return false;
+
+  const applicable = await findApplicableBurstControl(tx, member, gameId);
+  if (!applicable) return false;
+  const control = await normalizeBurstControlDay(tx, applicable.control);
+  const memberBurstProfit = await sumMemberBurstProfit(tx, control.id, member.id);
+  return (
+    control.dailyBudget.sub(control.todayBurstAmount).greaterThan(0) &&
+    control.memberDailyCap.sub(memberBurstProfit).greaterThan(0)
+  );
+}
+
 function findAccidentalBurstCapDecision(predicted: PredictedResult): ControlDecision | null {
   const predictedProfit = predicted.payout.sub(predicted.amount);
   if (!predictedProfit.greaterThan(GLOBAL_ACCIDENTAL_BURST_PROFIT_CAP)) return null;
@@ -738,21 +835,24 @@ async function withWinCapBounds(
   member: MemberScope,
   predicted: PredictedResult,
   decision: ControlDecision,
+  gameId?: string,
 ): Promise<ControlDecision> {
   if (decision.desired !== 'WIN') return decision;
 
   const maxPayouts: Prisma.Decimal[] = [];
   // 各 cap 翻成 LOSS 時，須回報「實際綁住的那個 cap 的 controlId」與對應 reason，
   // 否則審計日誌會把虧損歸因到原始 WIN 控制(controlId 與 flipReason 不一致)。
-  const globalBound = await getGlobalMemberWinCapPayoutBound(tx, member.id, predicted.amount);
-  if (globalBound.exhausted) {
-    return {
-      desired: 'LOSS',
-      controlId: globalBound.controlId,
-      reason: 'global_member_daily_win_cap',
-    };
+  if (!(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))) {
+    const globalBound = await getGlobalMemberWinCapPayoutBound(tx, member.id, predicted.amount);
+    if (globalBound.exhausted) {
+      return {
+        desired: 'LOSS',
+        controlId: globalBound.controlId,
+        reason: 'global_member_daily_win_cap',
+      };
+    }
+    maxPayouts.push(globalBound.bound);
   }
-  maxPayouts.push(globalBound.bound);
 
   const memberBound = await getMemberWinCapPayoutBound(tx, member.id, predicted.amount);
   if (memberBound?.exhausted) {

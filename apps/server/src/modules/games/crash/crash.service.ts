@@ -96,7 +96,12 @@ export class CrashSoloService {
       const roundNumber = await this.nextRoundNumber(tx, input.gameId);
       const naturalCrashPoint = crashPoint(seed.serverSeed, `${input.gameId}:${roundNumber}`);
       const controlProbe = this.predictStartControlOutcome(amount);
-      const globalCapGuard = await getGlobalMemberDailyWinCapGuard(tx, userId, amount);
+      const globalCapGuard = await getGlobalMemberDailyWinCapGuard(
+        tx,
+        userId,
+        amount,
+        input.gameId,
+      );
       const startCapLoss = shouldCrashImmediatelyForGlobalCap(globalCapGuard, amount)
         ? globalCapLossOutcome(globalCapGuard)
         : null;
@@ -340,6 +345,7 @@ export class CrashSoloService {
       tx,
       bet.userId,
       cashoutPrediction,
+      bet.round.gameId,
     );
     const finalPayout = globalCapOutcome?.controlled ? globalCapOutcome.payout : naturalPayout;
     const finalMultiplier = globalCapOutcome?.controlled
