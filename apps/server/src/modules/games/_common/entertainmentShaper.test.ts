@@ -137,7 +137,7 @@ describe('Entertainment Shaper', () => {
       shouldAllowEntertainmentSafeProgress({
         outcome,
         amount: new Prisma.Decimal(100),
-        nextMultiplier: new Prisma.Decimal('0.8'),
+        nextMultiplier: new Prisma.Decimal('1.8'),
         gameKind: 'tower',
         progressIndex: 1,
       }),
@@ -146,7 +146,7 @@ describe('Entertainment Shaper', () => {
       shouldAllowEntertainmentSafeProgress({
         outcome,
         amount: new Prisma.Decimal(100),
-        nextMultiplier: new Prisma.Decimal('1.4'),
+        nextMultiplier: new Prisma.Decimal('2.2'),
         gameKind: 'tower',
         progressIndex: 1,
       }),

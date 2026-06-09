@@ -382,4 +382,11 @@ ENTERTAINMENT_SHAPER_SOURCES=auto_balance
 - 地雷 / 爬樓梯 cashout：自動模型控輸時可包裝成低倍結算，派彩仍低於下注額。
 - 控制日誌 `resultData.entertainment` 會記錄原倍率、包裝倍率、envelope 階段和是否被上限裁切。
 
-地雷若未來要允許 `1.00x` 以上的「先點中幾顆」，必須先在 round 狀態寫入控輸鎖定 metadata，讓後續 cashout 必定套同一個 envelope；否則玩家可能利用點中後立刻結算套利。
+目前已放寬 mines / tower 的前段娛樂進度：
+
+- 自動模型控輸時，前段 `<= 2.00x` 的進度可優先放過，避免玩家一開始就死亡。
+- `> 2.00x` 不放過，避免高倍段變成套利。
+- `DRAIN_TO_ZERO` 階段可放過的步數比前兩階段更短。
+- cashout 仍會重新套控制、娛樂 envelope 和全局 10,000 日贏封頂。
+
+若未來要讓 mines / tower 在 `2.00x` 以上仍有娛樂進度，必須先在 round 狀態寫入控輸鎖定 metadata，讓後續 cashout 必定套同一個 envelope；否則玩家可能利用點中後立刻結算套利。

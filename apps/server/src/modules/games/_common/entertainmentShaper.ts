@@ -157,16 +157,13 @@ export function shouldAllowEntertainmentSafeProgress(input: {
     input.gameKind === 'tower'
       ? envelope.phase === 'DRAIN_TO_ZERO'
         ? 2
-        : 3
+        : 4
       : envelope.phase === 'DRAIN_TO_ZERO'
-        ? 1
-        : 2;
+        ? 2
+        : 3;
   if (input.progressIndex >= maxProgressIndex) return false;
 
-  const hardProgressMax =
-    input.gameKind === 'tower'
-      ? new Prisma.Decimal('1.00')
-      : new Prisma.Decimal('1.00');
+  const hardProgressMax = new Prisma.Decimal('2.00');
   return input.nextMultiplier.lessThanOrEqualTo(hardProgressMax);
 }
 
