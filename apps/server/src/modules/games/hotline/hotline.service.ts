@@ -152,7 +152,7 @@ export class HotlineService {
           ? {
               burstEligible: true,
               burstGuardOnly: true,
-              burstPotentialMultiplier: MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER,
+              burstPotentialMultiplier: MEGA_FREE_GAME_CONTROL_MAX_ACCOUNTING_MULTIPLIER,
             }
           : undefined,
       );
@@ -215,7 +215,8 @@ export class HotlineService {
             : undefined;
       }
 
-      if (buyFeature && rowCount > 3 && finalFeatures && finalFeatures.freeSpinsAwarded > 0) {
+      if (rowCount > 3 && finalFeatures && finalFeatures.freeSpinsAwarded > 0) {
+        const allowFreeGameAboveOne = canMegaFreeGameExceedOne(controlled);
         const capped = capMegaFreeGameSettlement(
           finalFeatures,
           buyFeature,
@@ -223,6 +224,7 @@ export class HotlineService {
           stakeAmount,
           seed.nonce,
           controlled.maxPayout,
+          allowFreeGameAboveOne,
         );
         finalFeatures = capped.features;
         finalPayout = capped.payout;
@@ -451,7 +453,8 @@ const HOTLINE_SOFT_LOSS_SYMBOLS = [0, 1] as const;
 const HOTLINE_SOFT_WIN_SYMBOLS = [2, 3, 4, 5, 6, 7] as const;
 const HOTLINE_SYMBOL_INDEXES = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 const MEGA_BUY_FEATURE_MAX_STAKE = new Prisma.Decimal(30000);
-const MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER = new Prisma.Decimal(2);
+const MEGA_FREE_GAME_NORMAL_MAX_ACCOUNTING_MULTIPLIER = new Prisma.Decimal(1);
+const MEGA_FREE_GAME_CONTROL_MAX_ACCOUNTING_MULTIPLIER = new Prisma.Decimal(2);
 const MEGA_FREE_GAME_LOW_TARGET_MIN = 0.35;
 const MEGA_FREE_GAME_LOW_TARGET_MAX = 0.98;
 const MEGA_FREE_GAME_HIGH_TARGET_MIN = 1.1;
@@ -471,17 +474,24 @@ function capMegaFreeGameSettlement(
   stakeAmount: Prisma.Decimal,
   nonce: number,
   controlMaxPayout?: Prisma.Decimal,
+  allowAboveOne = false,
 ): {
   features: HotlineMegaFeatureResult;
   payout: Prisma.Decimal;
   multiplier: Prisma.Decimal;
 } {
-  const targetAccountingMultiplier = chooseMegaFreeGameAccountingMultiplier(nonce);
+  const maxAccountingMultiplier = allowAboveOne
+    ? MEGA_FREE_GAME_CONTROL_MAX_ACCOUNTING_MULTIPLIER
+    : MEGA_FREE_GAME_NORMAL_MAX_ACCOUNTING_MULTIPLIER;
+  const targetAccountingMultiplier = chooseMegaFreeGameAccountingMultiplier(
+    nonce,
+    maxAccountingMultiplier,
+  );
   const targetPayout = stakeAmount
     .mul(targetAccountingMultiplier)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
   const maxPayout = stakeAmount
-    .mul(MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER)
+    .mul(maxAccountingMultiplier)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
   const hardMaxPayout = controlMaxPayout
     ? Prisma.Decimal.min(maxPayout, controlMaxPayout)
@@ -502,17 +512,38 @@ function capMegaFreeGameSettlement(
   };
 }
 
-function chooseMegaFreeGameAccountingMultiplier(nonce: number): number {
+function chooseMegaFreeGameAccountingMultiplier(
+  nonce: number,
+  maxAccountingMultiplier = MEGA_FREE_GAME_NORMAL_MAX_ACCOUNTING_MULTIPLIER,
+): number {
   const bucket = Math.abs(Math.trunc(nonce)) % 3;
   const rand = deterministicFraction(nonce, 17);
   const target =
-    bucket === 2
+    bucket === 2 && maxAccountingMultiplier.greaterThan(1)
       ? MEGA_FREE_GAME_HIGH_TARGET_MIN +
         rand * (MEGA_FREE_GAME_HIGH_TARGET_MAX - MEGA_FREE_GAME_HIGH_TARGET_MIN)
       : MEGA_FREE_GAME_LOW_TARGET_MIN +
         rand * (MEGA_FREE_GAME_LOW_TARGET_MAX - MEGA_FREE_GAME_LOW_TARGET_MIN);
-  const max = MEGA_FREE_GAME_MAX_ACCOUNTING_MULTIPLIER.toNumber();
+  const max = maxAccountingMultiplier.toNumber();
   return roundFeatureMultiplier(Math.min(target, max));
+}
+
+function canMegaFreeGameExceedOne(
+  control: Pick<ControlOutcome, 'controlled' | 'won' | 'flipReason'>,
+): boolean {
+  if (!control.controlled || !control.won) return false;
+  return (
+    control.flipReason === 'win_control' ||
+    control.flipReason === 'loss_control_release' ||
+    control.flipReason === 'deposit_control' ||
+    control.flipReason === 'online_reward_next_win' ||
+    control.flipReason === 'manual_detection' ||
+    control.flipReason === 'manual_detection_release' ||
+    control.flipReason === 'auto_balance_revive' ||
+    control.flipReason === 'burst_win' ||
+    control.flipReason === 'burst_small_win' ||
+    control.flipReason === 'burst_risk_cap'
+  );
 }
 
 function deterministicFraction(seed: number, salt: number): number {

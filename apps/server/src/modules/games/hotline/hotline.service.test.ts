@@ -355,9 +355,23 @@ describe('hotline controlled round shaping', () => {
     }
   });
 
-  it('shapes mega buy-feature accounting into two low results and one capped high result', () => {
+  it('shapes normal mega buy-feature accounting under 1x', () => {
     const picks = [0, 1, 2].map((nonce) =>
       __hotlineServiceTestHooks.chooseMegaFreeGameAccountingMultiplier(nonce),
+    );
+
+    for (const pick of picks) {
+      expect(pick).toBeGreaterThanOrEqual(0.35);
+      expect(pick).toBeLessThan(1);
+    }
+  });
+
+  it('allows controlled mega buy-feature accounting to reach the capped high band', () => {
+    const picks = [0, 1, 2].map((nonce) =>
+      __hotlineServiceTestHooks.chooseMegaFreeGameAccountingMultiplier(
+        nonce,
+        new Prisma.Decimal(2),
+      ),
     );
 
     expect(picks[0]).toBeGreaterThanOrEqual(0.35);
@@ -406,7 +420,7 @@ describe('hotline controlled round shaping', () => {
     }
   });
 
-  it('keeps mega buy-feature payout and displayed free-game total capped at 2x stake', () => {
+  it('keeps normal mega buy-feature payout and displayed free-game total capped at 1x stake', () => {
     const baseAmount = new Prisma.Decimal(10);
     const stakeAmount = __hotlineServiceTestHooks.megaBuyFeatureStakeAmount(baseAmount);
     const features = {
@@ -433,10 +447,29 @@ describe('hotline controlled round shaping', () => {
       2,
     );
 
+    expect(capped.payout.lessThanOrEqualTo(stakeAmount)).toBe(true);
+    expect(capped.multiplier.lessThanOrEqualTo(1)).toBe(true);
+    expect(capped.features.totalMultiplier).toBeLessThanOrEqual(100);
+    expect(capped.features.freeSpinWinMultiplier).toBe(capped.features.totalMultiplier);
+  });
+
+  it('allows controlled winning mega free games to exceed 1x while staying capped at 2x stake', () => {
+    const baseAmount = new Prisma.Decimal(10);
+    const stakeAmount = __hotlineServiceTestHooks.megaBuyFeatureStakeAmount(baseAmount);
+    const capped = __hotlineServiceTestHooks.capMegaFreeGameSettlement(
+      __hotlineServiceTestHooks.buildControlledMegaFeature(400, true, 2),
+      true,
+      baseAmount,
+      stakeAmount,
+      2,
+      undefined,
+      true,
+    );
+
     expect(capped.payout.lessThanOrEqualTo(stakeAmount.mul(2))).toBe(true);
     expect(capped.multiplier.lessThanOrEqualTo(2)).toBe(true);
     expect(capped.features.totalMultiplier).toBeLessThanOrEqual(200);
-    expect(capped.features.freeSpinWinMultiplier).toBe(capped.features.totalMultiplier);
+    expect(capped.features.totalMultiplier).toBeGreaterThan(100);
   });
 
   it('caps mega buy-feature payout from capped stake for high base bets', () => {
@@ -452,9 +485,9 @@ describe('hotline controlled round shaping', () => {
     );
 
     expect(stakeAmount.toNumber()).toBe(30000);
-    expect(capped.payout.lessThanOrEqualTo(60000)).toBe(true);
-    expect(capped.multiplier.lessThanOrEqualTo(2)).toBe(true);
-    expect(capped.features.totalMultiplier).toBeLessThanOrEqual(120);
+    expect(capped.payout.lessThanOrEqualTo(30000)).toBe(true);
+    expect(capped.multiplier.lessThanOrEqualTo(1)).toBe(true);
+    expect(capped.features.totalMultiplier).toBeLessThanOrEqual(60);
   });
 
   it('does not let controlled mega buy-feature settlement exceed burst max payout', () => {
@@ -469,6 +502,7 @@ describe('hotline controlled round shaping', () => {
       stakeAmount,
       2,
       maxPayout,
+      true,
     );
 
     expect(capped.payout.lessThanOrEqualTo(maxPayout)).toBe(true);
@@ -486,6 +520,8 @@ describe('hotline controlled round shaping', () => {
       new Prisma.Decimal(10),
       new Prisma.Decimal(1000),
       2,
+      undefined,
+      true,
     );
 
     const winningRounds = capped.features.freeSpinRounds.filter(
