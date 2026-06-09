@@ -78,6 +78,52 @@ describe('Entertainment Shaper', () => {
     expect(shaped!.meta.presentationProfile).toBe('controlled_drain');
   });
 
+  it('does not force a revive win above the upstream payout envelope', () => {
+    vi.stubEnv('ENTERTAINMENT_SHAPER_ENABLED', 'true');
+
+    const amount = new Prisma.Decimal(5000);
+    const shaped = shapeControlOutcomeForEntertainment(
+      {
+        controlled: true,
+        won: true,
+        flipReason: 'auto_balance_revive',
+        controlId: 'auto-tight-cap',
+        multiplier: new Prisma.Decimal(2),
+        payout: new Prisma.Decimal(10000),
+        maxPayout: new Prisma.Decimal(4990),
+        maxMultiplier: new Prisma.Decimal('0.9980'),
+      },
+      amount,
+      'tower',
+      4,
+    );
+
+    expect(shaped).not.toBeNull();
+    expect(shaped!.outcome.payout.lessThanOrEqualTo(4990)).toBe(true);
+    expect(shaped!.outcome.multiplier.lessThanOrEqualTo('0.9980')).toBe(true);
+    expect(shaped!.outcome.won).toBe(false);
+  });
+
+  it('does not shape non-auto-balance control reasons', () => {
+    vi.stubEnv('ENTERTAINMENT_SHAPER_ENABLED', 'true');
+
+    const result = shapeControlOutcomeForEntertainment(
+      {
+        controlled: true,
+        won: false,
+        flipReason: 'manual_detection',
+        controlId: 'manual-1',
+        multiplier: new Prisma.Decimal(0),
+        payout: new Prisma.Decimal(0),
+      },
+      new Prisma.Decimal(100),
+      'slot',
+      1,
+    );
+
+    expect(result).toBeNull();
+  });
+
   it('allows only early low-multiplier safe progress for auto-balance losses', () => {
     vi.stubEnv('ENTERTAINMENT_SHAPER_ENABLED', 'true');
 

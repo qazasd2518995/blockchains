@@ -249,7 +249,7 @@ function normalizeEntertainmentMultiplier(
 ): Prisma.Decimal {
   const rounded = value.toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
   if (desired === 'LOSS') return Prisma.Decimal.min(rounded, new Prisma.Decimal('0.98'));
-  return rounded.greaterThan(1) ? rounded : new Prisma.Decimal('1.01');
+  return rounded;
 }
 
 function isEntertainmentShaperRuntimeEnabled(
