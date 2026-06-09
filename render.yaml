@@ -48,6 +48,12 @@ services:
         value: 1000
       - key: MAX_SINGLE_BET
         value: 100000
+      - key: ENTERTAINMENT_SHAPER_ENABLED
+        value: "false"
+      - key: ENTERTAINMENT_SHAPER_GAMES
+        value: slot,mines,tower
+      - key: ENTERTAINMENT_SHAPER_SOURCES
+        value: auto_balance
       # ── 下面需要在 Dashboard 手動設為 Secret ──
       - key: DATABASE_URL
         sync: false

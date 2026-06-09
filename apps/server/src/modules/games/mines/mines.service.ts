@@ -23,6 +23,12 @@ import {
   finalizeControls,
   multiplierExceedsControlCeiling,
 } from '../_common/controls.js';
+import {
+  buildEntertainmentShapeMeta,
+  shapeControlOutcomeForEntertainment,
+  shouldAllowEntertainmentSafeProgress,
+  type EntertainmentShapeMeta,
+} from '../_common/entertainmentShaper.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { MinesStartInput, MinesRevealInput, MinesCashoutInput } from './mines.schema.js';
@@ -137,6 +143,13 @@ export class MinesService {
                 : controlled.flipReason,
             }
           : controlled;
+      const entertainmentSafeProgress = shouldAllowEntertainmentSafeProgress({
+        outcome: shapedControl,
+        amount: round.betAmount,
+        nextMultiplier: safeMultiplier,
+        gameKind: 'mines',
+        progressIndex: round.revealed.length,
+      });
       const canForceLoss = canForceMinesLossAfterRevealCount(round.revealed.length);
       if (shapedControl.controlled && shapedControl.won && rawHitMine) {
         const moved = moveMineAway(rawMinePositions, input.cellIndex, newRevealed);
@@ -144,7 +157,13 @@ export class MinesService {
           finalMinePositions = moved;
           hitMine = false;
         }
-      } else if (canForceLoss && shapedControl.controlled && !shapedControl.won && !rawHitMine) {
+      } else if (
+        canForceLoss &&
+        shapedControl.controlled &&
+        !shapedControl.won &&
+        !rawHitMine &&
+        !entertainmentSafeProgress
+      ) {
         finalMinePositions = moveMineToCell(rawMinePositions, input.cellIndex);
         hitMine = true;
       }
@@ -275,10 +294,26 @@ export class MinesService {
         payout,
       };
       const controlOutcome = await applyControls(tx, userId, GameId.MINES, predicted);
-      const finalMultiplier = controlOutcome.controlled ? controlOutcome.multiplier : multiplier;
-      const finalPayout = controlOutcome.controlled ? controlOutcome.payout : payout;
+      const entertainmentShape = shapeControlOutcomeForEntertainment(
+        controlOutcome,
+        round.betAmount,
+        'mines',
+        round.revealed.length + round.nonce,
+      );
+      const effectiveControl = entertainmentShape?.outcome ?? controlOutcome;
+      const finalMultiplier = effectiveControl.controlled ? effectiveControl.multiplier : multiplier;
+      const finalPayout = effectiveControl.controlled ? effectiveControl.payout : payout;
       const profit = finalPayout.minus(round.betAmount);
-      const bustedByCashoutControl = controlOutcome.controlled && !controlOutcome.won;
+      const entertainmentMeta: EntertainmentShapeMeta | undefined = entertainmentShape
+        ? buildEntertainmentShapeMeta(
+            entertainmentShape.envelope,
+            controlOutcome.multiplier,
+            finalMultiplier,
+            finalPayout,
+          )
+        : undefined;
+      const bustedByCashoutControl =
+        effectiveControl.controlled && !effectiveControl.won && finalPayout.lessThanOrEqualTo(0);
       const finalStatus = bustedByCashoutControl ? 'BUSTED' : 'CASHED_OUT';
 
       const originalResult = {
@@ -295,9 +330,10 @@ export class MinesService {
         hitMine: bustedByCashoutControl,
         cashedOut: !bustedByCashoutControl,
         bustedByCashoutControl,
-        controlled: controlOutcome.controlled,
-        flipReason: controlOutcome.flipReason ?? null,
-        raw: controlOutcome.controlled ? originalResult : null,
+        controlled: effectiveControl.controlled,
+        flipReason: effectiveControl.flipReason ?? null,
+        ...(entertainmentMeta ? { entertainment: entertainmentMeta } : {}),
+        raw: effectiveControl.controlled ? originalResult : null,
       };
 
       const bet = await tx.bet.create({
@@ -311,7 +347,7 @@ export class MinesService {
           nonce: round.nonce,
           clientSeedUsed: round.clientSeedUsed,
           serverSeedId: round.serverSeedId,
-          resultData: finalResult,
+          resultData: finalResult as unknown as Prisma.InputJsonValue,
           minesRoundId: round.id,
         },
       });
@@ -338,10 +374,10 @@ export class MinesService {
           multiplier: finalMultiplier,
           payout: finalPayout,
         },
-        controlOutcome,
+        effectiveControl,
         bet.id,
         originalResult,
-        finalResult,
+        finalResult as unknown as Prisma.InputJsonValue,
       );
 
       return {

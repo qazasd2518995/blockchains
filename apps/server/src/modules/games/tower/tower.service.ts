@@ -26,6 +26,12 @@ import {
   multiplierExceedsControlCeiling,
   type ControlOutcome,
 } from '../_common/controls.js';
+import {
+  buildEntertainmentShapeMeta,
+  shapeControlOutcomeForEntertainment,
+  shouldAllowEntertainmentSafeProgress,
+  type EntertainmentShapeMeta,
+} from '../_common/entertainmentShaper.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { TowerStartInput, TowerPickInput, TowerCashoutInput } from './tower.schema.js';
@@ -145,11 +151,18 @@ export class TowerService {
           : controlled;
       const lateLevelForcedLoss = mustForceTowerLateLevelLoss(difficulty, round.currentLevel);
       const repeatedColumnForcedLoss = mustForceTowerRepeatedColumnLoss(round.picks, input.col);
+      const entertainmentSafeProgress = shouldAllowEntertainmentSafeProgress({
+        outcome: shapedControl,
+        amount: round.betAmount,
+        nextMultiplier: nextMult,
+        gameKind: 'tower',
+        progressIndex: round.currentLevel,
+      });
       const canForceLoss = canForceTowerLossAtLevel(round.currentLevel);
       if (shapedControl.controlled) {
         layout = shapedControl.won
           ? forceTowerSafe(rawLayout, round.currentLevel, input.col, cfg.cols)
-          : canForceLoss
+          : canForceLoss && !entertainmentSafeProgress
             ? forceTowerTrap(rawLayout, round.currentLevel, input.col, cfg.cols)
             : rawLayout;
       }
@@ -335,10 +348,26 @@ export class TowerService {
         payout,
       };
       const controlOutcome = await applyControls(tx, userId, GameId.TOWER, predicted);
-      const finalMultiplier = controlOutcome.controlled ? controlOutcome.multiplier : multiplier;
-      const finalPayout = controlOutcome.controlled ? controlOutcome.payout : payout;
+      const entertainmentShape = shapeControlOutcomeForEntertainment(
+        controlOutcome,
+        round.betAmount,
+        'tower',
+        round.currentLevel + round.nonce,
+      );
+      const effectiveControl = entertainmentShape?.outcome ?? controlOutcome;
+      const finalMultiplier = effectiveControl.controlled ? effectiveControl.multiplier : multiplier;
+      const finalPayout = effectiveControl.controlled ? effectiveControl.payout : payout;
       const profit = finalPayout.minus(round.betAmount);
-      const bustedByCashoutControl = controlOutcome.controlled && !controlOutcome.won;
+      const entertainmentMeta: EntertainmentShapeMeta | undefined = entertainmentShape
+        ? buildEntertainmentShapeMeta(
+            entertainmentShape.envelope,
+            controlOutcome.multiplier,
+            finalMultiplier,
+            finalPayout,
+          )
+        : undefined;
+      const bustedByCashoutControl =
+        effectiveControl.controlled && !effectiveControl.won && finalPayout.lessThanOrEqualTo(0);
       const finalStatus = bustedByCashoutControl ? 'BUSTED' : 'CASHED_OUT';
 
       const originalResult = {
@@ -353,9 +382,10 @@ export class TowerService {
         picks: round.picks,
         cashedOut: !bustedByCashoutControl,
         bustedByCashoutControl,
-        controlled: controlOutcome.controlled,
-        flipReason: controlOutcome.flipReason ?? null,
-        raw: controlOutcome.controlled ? originalResult : null,
+        controlled: effectiveControl.controlled,
+        flipReason: effectiveControl.flipReason ?? null,
+        ...(entertainmentMeta ? { entertainment: entertainmentMeta } : {}),
+        raw: effectiveControl.controlled ? originalResult : null,
       };
 
       const bet = await tx.bet.create({
@@ -391,7 +421,7 @@ export class TowerService {
           multiplier: finalMultiplier,
           payout: finalPayout,
         },
-        controlOutcome,
+        effectiveControl,
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,
         finalResult as unknown as Prisma.InputJsonValue,

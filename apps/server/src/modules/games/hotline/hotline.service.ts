@@ -6,6 +6,7 @@ import {
   HOTLINE_MINI_SYMBOLS,
   HOTLINE_PAYLINES_3X3,
   HOTLINE_PAYLINES_5X3,
+  HOTLINE_ROWS,
   HOTLINE_SYMBOLS,
   getHotlineReelCount,
   getHotlineRowCount,
@@ -42,6 +43,12 @@ import {
   multiplierMatchesControlBounds,
   type ControlOutcome,
 } from '../_common/controls.js';
+import {
+  buildEntertainmentShapeMeta,
+  getActiveEntertainmentEnvelope,
+  shapeControlOutcomeForEntertainment,
+  type EntertainmentShapeMeta,
+} from '../_common/entertainmentShaper.js';
 import { pickRandomBest, pickRandomItem, pickWeightedRandom } from '../_common/resultSelection.js';
 import type { HotlineBetInput } from './hotline.schema.js';
 
@@ -156,10 +163,18 @@ export class HotlineService {
       let finalFeatures = generatedRound.features;
       let finalMultiplier = accountingMultiplierD;
       let finalPayout = payout;
+      let entertainmentMeta: EntertainmentShapeMeta | undefined;
       if (controlled.controlled) {
-        const controlledRound = controlled.won
-          ? winningHotlineRound(gameId, stakeAmount, controlled, seed.nonce)
-          : lossHotlineRound(gameId, stakeAmount, seed.nonce);
+        const entertainmentShape = shapeControlOutcomeForEntertainment(
+          controlled,
+          stakeAmount,
+          'slot',
+          seed.nonce,
+        );
+        const visualControl = entertainmentShape?.outcome ?? controlled;
+        const controlledRound = visualControl.won
+          ? winningHotlineRound(gameId, stakeAmount, visualControl, seed.nonce)
+          : lossHotlineRound(gameId, stakeAmount, seed.nonce, visualControl);
         finalGrid = controlledRound.grid;
         finalLines = controlledRound.lines;
         finalCascades = controlledRound.cascades;
@@ -167,6 +182,14 @@ export class HotlineService {
         finalPayout = stakeAmount
           .mul(finalMultiplier)
           .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+        if (entertainmentShape) {
+          entertainmentMeta = buildEntertainmentShapeMeta(
+            entertainmentShape.envelope,
+            controlled.multiplier,
+            finalMultiplier,
+            finalPayout,
+          );
+        }
         finalFeatures =
           rowCount > 3
             ? buyFeature
@@ -226,6 +249,7 @@ export class HotlineService {
         stakeAmount: stakeAmount.toFixed(2),
         controlled: controlled.controlled,
         flipReason: controlled.flipReason ?? null,
+        ...(entertainmentMeta ? { entertainment: entertainmentMeta } : {}),
         raw: controlled.controlled ? originalResult : null,
       };
 
@@ -823,11 +847,101 @@ function lossHotlineRound(
   gameId: string,
   stakeAmount: Prisma.Decimal,
   variant = 0,
+  controlled?: Pick<ControlOutcome, 'flipReason' | 'multiplier' | 'maxMultiplier' | 'maxPayout'>,
 ): HotlineRound {
+  const entertainment = controlled
+    ? entertainmentLossHotlineRound(gameId, stakeAmount, controlled, variant)
+    : null;
+  if (entertainment) return entertainment;
+
   const softRound = softLossHotlineRound(gameId, variant);
   const softPayout = stakeAmount.mul(softRound.totalMultiplier).toDecimalPlaces(2);
   if (softPayout.lessThan(stakeAmount)) return softRound;
   return hardLossHotlineRound(gameId, variant);
+}
+
+function entertainmentLossHotlineRound(
+  gameId: string,
+  stakeAmount: Prisma.Decimal,
+  controlled: Pick<ControlOutcome, 'flipReason' | 'multiplier' | 'maxMultiplier' | 'maxPayout'>,
+  variant = 0,
+): HotlineRound | null {
+  const envelope = getActiveEntertainmentEnvelope(
+    {
+      controlled: true,
+      won: false,
+      flipReason: controlled.flipReason,
+      maxMultiplier: controlled.maxMultiplier,
+      maxPayout: controlled.maxPayout,
+    },
+    stakeAmount,
+    'slot',
+  );
+  if (!envelope || envelope.desired !== 'LOSS') return null;
+
+  const pool = [
+    ...classicSoftLossCandidateRounds(gameId, variant),
+    ...Array.from({ length: 16 }, (_, index) =>
+      softLossHotlineRound(gameId, variant + index * 19),
+    ),
+    ...(getHotlineRowCount(gameId) > 3
+      ? megaWinCandidateRounds(gameId, variant)
+      : classicWinCandidateRounds(gameId, variant)),
+  ];
+  const targetMultiplier = controlled.multiplier.toNumber();
+  const candidates = pool.filter((round) => {
+    if (round.totalMultiplier <= 0) return false;
+    const multiplier = new Prisma.Decimal(round.totalMultiplier.toFixed(4));
+    if (multiplier.greaterThanOrEqualTo(1)) return false;
+    if (multiplier.greaterThan(envelope.hardMultiplierMax)) return false;
+    return stakeAmount.mul(multiplier).lessThanOrEqualTo(envelope.maxPayout);
+  });
+  return (
+    pickRandomBest(candidates, (round) => Math.abs(round.totalMultiplier - targetMultiplier)) ??
+    null
+  );
+}
+
+function classicSoftLossCandidateRounds(gameId: string, variant = 0): HotlineRound[] {
+  if (getHotlineRowCount(gameId) > 3) return [];
+  const reelCount = getHotlineReelCount(gameId);
+  return HOTLINE_SOFT_LOSS_SYMBOLS.map((symbol, index) =>
+    roundFromClassicGrid(
+      singleSoftLineClassicGrid(reelCount, symbol, variant + index * 23),
+    ),
+  );
+}
+
+function singleSoftLineClassicGrid(reelCount: number, symbol: number, variant = 0): number[][] {
+  const paylines = reelCount === 3 ? HOTLINE_PAYLINES_3X3 : HOTLINE_PAYLINES_5X3;
+  const fillers: number[] = HOTLINE_SYMBOL_INDEXES.filter((value) => value !== symbol);
+
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const line = paylines[Math.abs(variant + attempt) % Math.min(3, paylines.length)]!;
+    const grid: number[][] = Array.from({ length: reelCount }, (_, reel) =>
+      Array.from(
+        { length: HOTLINE_ROWS },
+        (_, row) => fillers[(variant + attempt * 11 + reel * 5 + row * 3) % fillers.length]!,
+      ),
+    );
+    for (let reel = 0; reel < Math.min(3, reelCount); reel += 1) {
+      const row = line.path[reel]!;
+      grid[reel]![row] = symbol;
+    }
+    const evaluated = hotlineEvaluate(grid);
+    if (evaluated.totalMultiplier > 0 && evaluated.totalMultiplier < 1) return grid;
+  }
+
+  const grid: number[][] = Array.from({ length: reelCount }, (_, reel) =>
+    Array.from(
+      { length: HOTLINE_ROWS },
+      (_, row) => fillers[(reel * 3 + row) % fillers.length]!,
+    ),
+  );
+  for (let reel = 0; reel < Math.min(3, reelCount); reel += 1) {
+    grid[reel]![0] = symbol;
+  }
+  return grid;
 }
 
 function hardLossHotlineRound(gameId: string, variant = 0): HotlineRound {

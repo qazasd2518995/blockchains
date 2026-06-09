@@ -1,10 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { GameId, SLOT_GAME_IDS } from '@bg/shared';
 import { hotlineEvaluate } from '@bg/provably-fair';
 import { __hotlineServiceTestHooks } from './hotline.service.js';
 
 describe('hotline controlled round shaping', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('varies fixed-line soft-hit placement across nonces', () => {
     const signatures = new Set(
       Array.from({ length: 12 }, (_, nonce) => {
@@ -333,6 +337,21 @@ describe('hotline controlled round shaping', () => {
         const payout = stake.mul(round.totalMultiplier).toDecimalPlaces(2);
         expect(payout.lessThan(stake)).toBe(true);
       }
+    }
+  });
+
+  it('uses low-multiplier small-hit rounds for auto-balance slot losses when enabled', () => {
+    vi.stubEnv('ENTERTAINMENT_SHAPER_ENABLED', 'true');
+    const stake = new Prisma.Decimal(1000);
+
+    for (const gameId of SLOT_GAME_IDS) {
+      const round = __hotlineServiceTestHooks.lossHotlineRound(gameId, stake, 17, {
+        flipReason: 'auto_balance_bite',
+        multiplier: new Prisma.Decimal('0.72'),
+      });
+      const payout = stake.mul(round.totalMultiplier).toDecimalPlaces(2);
+      expect(round.totalMultiplier, gameId).toBeGreaterThan(0);
+      expect(payout.lessThan(stake), gameId).toBe(true);
     }
   });
 
