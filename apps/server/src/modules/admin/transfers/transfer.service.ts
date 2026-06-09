@@ -1,7 +1,12 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import type { TransferEntry } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
-import { canManageAgent, canManageMember, listAgentDescendants } from '../../../utils/hierarchy.js';
+import {
+  canManageAgent,
+  canManageMember,
+  isAgentInSharedSuperAdminLine,
+  listAgentDescendants,
+} from '../../../utils/hierarchy.js';
 import { runSerializable } from '../../games/_common/BaseGameService.js';
 import { writeAudit } from '../audit/audit.service.js';
 import { resetMemberAutoBalanceControl } from '../controls/controls.runtime.js';
@@ -99,8 +104,11 @@ export class TransferService {
         throw new ApiError('INVALID_TRANSFER', 'Sub-account cannot transfer points');
       }
       if (!member.agentId) throw new ApiError('FORBIDDEN', 'Member has no agent');
-      const managedAgentIds = await listAgentDescendants(tx, agent.id);
-      if (!managedAgentIds.includes(member.agentId)) {
+      const memberBelongsToFundingLine =
+        agent.role === 'SUPER_ADMIN'
+          ? await isAgentInSharedSuperAdminLine(tx, member.agentId)
+          : (await listAgentDescendants(tx, agent.id)).includes(member.agentId);
+      if (!memberBelongsToFundingLine) {
         throw new ApiError('FORBIDDEN', 'Member does not belong to this agent line');
       }
 

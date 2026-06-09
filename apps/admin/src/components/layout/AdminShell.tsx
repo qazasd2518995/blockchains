@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import type { AgentPublic } from '@bg/shared';
+import { ChevronDown, KeyRound, LogOut, UserRound } from 'lucide-react';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -164,40 +165,44 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
                 onClick={() => setMenuOpen((v) => !v)}
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
-                className="flex items-center gap-2 rounded-sm border border-[#186073]/60 bg-[#1A2530]/50 px-3 py-1.5 font-semibold text-[11px] uppercase tracking-[0.16em] text-[#E8D48A] transition hover:border-[#186073] hover:bg-[#0E4555] hover:text-white"
+                className="flex min-h-11 items-center gap-2 rounded-sm border border-[#186073]/60 bg-[#1A2530]/50 px-3 py-1.5 font-semibold text-[11px] uppercase tracking-[0.16em] text-[#E8D48A] transition hover:border-[#186073] hover:bg-[#0E4555] hover:text-white"
               >
-                <span aria-hidden="true">👤</span>
-                <span className="normal-case tracking-normal text-[12px]">
+                <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="max-w-[112px] truncate normal-case tracking-normal text-[12px] sm:max-w-[160px]">
                   {agent?.username ?? '—'}
                 </span>
-                <span
+                <ChevronDown
                   aria-hidden="true"
-                  className={`text-[10px] transition-transform ${menuOpen ? 'rotate-180' : ''}`}
-                >
-                  ▾
-                </span>
+                  className={`h-3.5 w-3.5 shrink-0 transition-transform ${menuOpen ? 'rotate-180' : ''}`}
+                />
               </button>
               {menuOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-full z-[60] mt-2 w-48 overflow-hidden rounded-sm border border-[#186073] bg-[#0E1B24] shadow-[0_8px_24px_-6px_rgba(0,0,0,0.5)]"
+                  className="absolute right-0 top-full z-[60] mt-2 w-56 overflow-hidden rounded-sm border border-[#186073] bg-[#0E1B24] shadow-[0_8px_24px_-6px_rgba(0,0,0,0.5)]"
                 >
                   <button
                     type="button"
                     role="menuitem"
                     onClick={openProfile}
-                    className="flex w-full items-center justify-between px-3 py-2 text-left text-[12px] text-[#E8D48A] transition hover:bg-[#0E4555]/70 hover:text-white"
+                    className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-[12px] text-[#E8D48A] transition hover:bg-[#0E4555]/70 hover:text-white"
                   >
-                    <span>{t.shell.profile}</span>
+                    <span className="inline-flex items-center gap-2">
+                      <UserRound className="h-4 w-4" aria-hidden="true" />
+                      {t.shell.profile}
+                    </span>
                     <span className="text-[#D0AC4D]">→</span>
                   </button>
                   <button
                     type="button"
                     role="menuitem"
                     onClick={openChangePassword}
-                    className="flex w-full items-center justify-between border-t border-[#186073]/40 px-3 py-2 text-left text-[12px] text-[#E8D48A] transition hover:bg-[#0E4555]/70 hover:text-white"
+                    className="flex min-h-11 w-full items-center justify-between gap-3 border-t border-[#186073]/40 px-3 py-2 text-left text-[12px] text-[#E8D48A] transition hover:bg-[#0E4555]/70 hover:text-white"
                   >
-                    <span>{t.shell.changePassword}</span>
+                    <span className="inline-flex items-center gap-2">
+                      <KeyRound className="h-4 w-4" aria-hidden="true" />
+                      {t.shell.changePassword}
+                    </span>
                     <span className="text-[#D0AC4D]">→</span>
                   </button>
                   <button
@@ -207,10 +212,13 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
                       setMenuOpen(false);
                       void handleLogout();
                     }}
-                    className="flex w-full items-center justify-between border-t border-[#186073]/40 px-3 py-2 text-left text-[12px] text-[#E8D48A] transition hover:bg-[#0E4555]/70 hover:text-white"
+                    className="flex min-h-12 w-full items-center justify-between gap-3 border-t border-[#D4574A]/35 bg-[#2A1215]/45 px-3 py-2 text-left text-[12px] font-bold text-[#FFC4B8] transition hover:bg-[#7F1D1D]/45 hover:text-white"
                   >
-                    <span>{t.common.logoutBtn}</span>
-                    <span className="text-[#D0AC4D]">→</span>
+                    <span className="inline-flex items-center gap-2">
+                      <LogOut className="h-4 w-4" aria-hidden="true" />
+                      {t.common.logoutBtn}
+                    </span>
+                    <span className="text-[#FCA5A5]">→</span>
                   </button>
                 </div>
               )}
@@ -220,7 +228,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
       </div>
 
       <main className="admin-layout-main relative z-10 flex w-full flex-col gap-4 px-3 py-4 sm:px-6 lg:flex-row lg:gap-6 lg:px-8 lg:py-8 xl:px-10">
-        <Sidebar />
+        <Sidebar onLogout={() => void handleLogout()} />
         <div className="min-w-0 flex-1">{children}</div>
       </main>
 

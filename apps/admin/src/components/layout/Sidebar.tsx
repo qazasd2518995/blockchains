@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 
@@ -16,7 +17,11 @@ const items: {
   { to: '/admin/announcements', key: 'announcements', superAdminOnly: true },
 ];
 
-export function Sidebar(): JSX.Element {
+interface SidebarProps {
+  onLogout: () => void;
+}
+
+export function Sidebar({ onLogout }: SidebarProps): JSX.Element {
   const { t } = useTranslation();
   const { agent } = useAdminAuthStore();
   const visibleItems = items.filter(
@@ -24,7 +29,7 @@ export function Sidebar(): JSX.Element {
   );
 
   return (
-    <aside className="admin-nav-panel panel-felt w-full shrink-0 overflow-hidden p-3 lg:sticky lg:top-[132px] lg:h-[calc(100vh-164px)] lg:w-60 lg:p-4">
+    <aside className="admin-nav-panel panel-felt w-full shrink-0 overflow-hidden p-3 lg:sticky lg:top-[132px] lg:flex lg:h-[calc(100vh-164px)] lg:w-60 lg:flex-col lg:p-4">
       <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
         <span className="admin-nav-title font-semibold text-base text-[#DEBE66]">
           {t.shell.navigation}
@@ -48,8 +53,21 @@ export function Sidebar(): JSX.Element {
           </NavLink>
         ))}
       </nav>
-      <div className="hidden border-t border-[#E5E7EB] pt-3 text-center font-semibold text-[12px] text-[#DEBE66] lg:absolute lg:bottom-4 lg:left-4 lg:right-4 lg:block">
-        v0.1 · {t.shell.brandShort}
+      <div className="mt-auto hidden border-t border-[#E5E7EB] pt-3 lg:block">
+        <button
+          type="button"
+          onClick={onLogout}
+          className="flex min-h-11 w-full items-center justify-between rounded-sm border border-[#D4574A]/35 bg-[#2A1215]/45 px-3 py-2 text-left text-[12px] font-bold text-[#FFC4B8] transition hover:bg-[#7F1D1D]/45 hover:text-white"
+        >
+          <span className="inline-flex items-center gap-2">
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+            {t.common.logoutBtn}
+          </span>
+          <span className="text-[#FCA5A5]">→</span>
+        </button>
+        <div className="mt-3 text-center font-semibold text-[12px] text-[#DEBE66]">
+          v0.1 · {t.shell.brandShort}
+        </div>
       </div>
     </aside>
   );

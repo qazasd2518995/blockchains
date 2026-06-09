@@ -20,6 +20,30 @@ export async function listAgentDescendants(db: Db, agentId: string): Promise<str
 }
 
 /**
+ * YA / YB / YC 這類總代理共享同一條平台線。
+ * 回傳 targetAgentId 是否落在任一個啟用中的 SUPER_ADMIN 樹內。
+ */
+export async function isAgentInSharedSuperAdminLine(
+  db: Db,
+  targetAgentId: string,
+): Promise<boolean> {
+  const rows = await db.$queryRaw<{ exists: boolean }[]>`
+    WITH RECURSIVE shared_tree AS (
+      SELECT id FROM "Agent"
+      WHERE role = 'SUPER_ADMIN'
+        AND status <> 'DELETED'
+      UNION ALL
+      SELECT a.id FROM "Agent" a
+      JOIN shared_tree t ON a."parentId" = t.id
+    )
+    SELECT EXISTS (
+      SELECT 1 FROM shared_tree WHERE id = ${targetAgentId}
+    ) AS "exists"
+  `;
+  return rows[0]?.exists === true;
+}
+
+/**
  * 回傳 agentId 自己 + 所有下級代理，但排除被標記為控制排除線的整條樹。
  * 這讓帶牌線保留報表可見性，但不納入控制交收與全盤控制判斷。
  */
