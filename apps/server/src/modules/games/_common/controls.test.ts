@@ -516,8 +516,11 @@ describe('control decision priority', () => {
       {},
     );
 
-    expect(decision?.reason).toBe('deposit_control');
-    expect(decision?.controlId).toBe('deposit-1');
+    expect(decision).toBeTruthy();
+    expect(typeof decision).toBe('object');
+    if (!decision || typeof decision !== 'object') throw new Error('expected control decision');
+    expect(decision.reason).toBe('deposit_control');
+    expect(decision.controlId).toBe('deposit-1');
     expect(manualFindMany).not.toHaveBeenCalled();
   });
 
@@ -1126,7 +1129,8 @@ describe('control decision priority', () => {
     expect(outcome.payout.toFixed(2)).toBe('1350.00');
   });
 
-  it('forces the global 10000 cap on multi-step progress once the member is already over cap', async () => {
+  it('soft-drains multi-step progress once the member is already over cap', async () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.39);
     const tx = {
       user: {
         findUnique: vi.fn(async () => ({
@@ -1205,7 +1209,8 @@ describe('global member daily win cap', () => {
     notes: null,
   };
 
-  it('forces bbb-style members that are already above 10000 daily net win to lose every next win', async () => {
+  it('soft-drains members that are already above 10000 daily net win at the drain rate', async () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.39);
     const tx = createGlobalCapTx('19415.66');
 
     const outcome = await __controlsTestHooks.applyGlobalMemberDailyWinCap(
@@ -1218,6 +1223,42 @@ describe('global member daily win cap', () => {
     expect(outcome?.won).toBe(false);
     expect(outcome?.payout.toFixed(2)).toBe('0.00');
     expect(outcome?.flipReason).toBe('global_member_daily_win_cap');
+  });
+
+  it('lets an already over-cap member continue naturally when the soft drain misses', async () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.4);
+    const tx = createGlobalCapTx('19415.66');
+
+    const outcome = await __controlsTestHooks.applyGlobalMemberDailyWinCap(
+      tx as never,
+      'bbb',
+      predictedResult(100, 101, 1.01),
+    );
+
+    expect(outcome).toBeNull();
+  });
+
+  it('does not stack auto-balance after an over-cap soft drain miss', async () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.4);
+    const memberAutoBalanceFindUnique = vi.fn(async () => {
+      throw new Error('auto balance should not run after a global cap soft-drain miss');
+    });
+    const tx = {
+      ...createGlobalCapTx('19415.66'),
+      memberAutoBalanceControl: { findUnique: memberAutoBalanceFindUnique },
+    };
+
+    const outcome = await applyControls(
+      tx as never,
+      'bbb',
+      GameId.DICE,
+      predictedResult(100, 200, 2),
+    );
+
+    expect(outcome.controlled).toBe(false);
+    expect(outcome.won).toBe(true);
+    expect(outcome.payout.toFixed(2)).toBe('200.00');
+    expect(memberAutoBalanceFindUnique).not.toHaveBeenCalled();
   });
 
   it('marks an overflow natural win as game-matched cap-bound instead of a raw natural result', async () => {
@@ -1277,6 +1318,18 @@ describe('global member daily win cap', () => {
     expect(guard?.maxMultiplier.toFixed(4)).toBe('1.5000');
   });
 
+  it('does not return a hard crash-start guard after the global daily cap is already exhausted', async () => {
+    const tx = createGlobalCapTx('20000');
+
+    const guard = await __controlsTestHooks.getGlobalMemberDailyWinCapGuard(
+      tx as never,
+      'member-1',
+      new Prisma.Decimal(100),
+    );
+
+    expect(guard).toBeNull();
+  });
+
   it('lets active deposit control bypass the global 10000 daily cap', async () => {
     const tx = {
       ...createGlobalCapTx('20000'),
@@ -1298,6 +1351,7 @@ describe('global member daily win cap', () => {
   });
 
   it('restores the global daily cap after a deposit control reaches its target', async () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.39);
     const tx = {
       ...createGlobalCapTx('20000'),
       user: {
@@ -1400,6 +1454,7 @@ describe('global member daily win cap', () => {
   });
 
   it('restores the global daily cap when burst control is paused', async () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.39);
     const tx = {
       ...createGlobalCapTx('20000'),
       user: {

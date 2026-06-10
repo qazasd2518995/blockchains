@@ -82,6 +82,14 @@ describe('CrashSoloService global member win cap', () => {
     ).toBe(true);
   });
 
+  it('does not use the start guard as a hard loss after the daily cap is already exhausted', () => {
+    const capGuard = guard({ exhausted: true, maxPayout: 0, maxMultiplier: 0 });
+
+    expect(
+      __crashServiceTestHooks.shouldCrashImmediatelyForGlobalCap(capGuard, decimal(100)),
+    ).toBe(false);
+  });
+
   it('caps crash points before a cashout can exceed the remaining global win cap', () => {
     const capGuard = guard({ maxPayout: '150.00', maxMultiplier: '1.5000' });
 
@@ -103,7 +111,8 @@ describe('CrashSoloService global member win cap', () => {
     expect(tuned.control.flipReason).toBe('global_member_daily_win_cap');
   });
 
-  it('forces a bbb-style over-cap cashout to zero before crediting balance', async () => {
+  it('soft-drains a bbb-style over-cap cashout to zero when the drain gate hits', async () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.39);
     const round = {
       id: 'round-1',
       gameId: GameId.ROCKET,
@@ -219,6 +228,7 @@ describe('CrashSoloService global member win cap', () => {
   });
 
   it('does not synthesize a partial cap payout when cashout multiplier is not under the cap', async () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.39);
     const round = {
       id: 'round-2',
       gameId: GameId.ROCKET,

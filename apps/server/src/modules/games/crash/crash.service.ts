@@ -634,7 +634,7 @@ function shouldCrashImmediatelyForGlobalCap(
   amount: Prisma.Decimal,
 ): guard is GlobalMemberDailyWinCapGuard {
   if (!guard) return false;
-  if (guard.exhausted) return true;
+  if (guard.exhausted) return false;
   const minCashoutPayout = amount
     .mul(MIN_CASHOUT_MULTIPLIER)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);

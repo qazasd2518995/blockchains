@@ -153,6 +153,7 @@ const BURST_COOLDOWN_MAX_ROUNDS = 20;
 const BURST_ELIGIBLE_GAME_IDS = new Set<string>(SLOT_GAME_IDS);
 const AUTO_BALANCE_BITE_INTERVENTION_RATE = 0.3;
 const AUTO_BALANCE_DRAIN_INTERVENTION_RATE = 0.4;
+const GLOBAL_MEMBER_DAILY_WIN_CAP_DRAIN_INTERVENTION_RATE = AUTO_BALANCE_DRAIN_INTERVENTION_RATE;
 const CONTROL_RELEASE_LOG_WINDOW = 8;
 const CONTROL_RELEASE_STAKE_JUMP_RATIO = new Prisma.Decimal('1.5');
 const CONTROL_RELEASE_TOTAL_LOSS_PROFIT_RATIO = new Prisma.Decimal('0.25');
@@ -198,6 +199,9 @@ export async function applyControls(
   if (!member) return { ...predicted, controlled: false };
 
   const decision = await findControlDecision(tx, member, gameId, predicted, options);
+  if (isControlInterventionMiss(decision)) {
+    return { ...predicted, controlled: false };
+  }
   if (!decision) {
     return enforceNaturalGlobalMemberDailyWinCap(tx, member, predicted, options);
   }
@@ -205,7 +209,9 @@ export async function applyControls(
     decision.desired === 'WIN'
       ? await withWinCapBounds(tx, member, predicted, decision, gameId)
       : decision;
-
+  if (!cappedDecision || isControlInterventionMiss(cappedDecision)) {
+    return { ...predicted, controlled: false };
+  }
   const predictedNetWin = isNetWin(predicted);
   const shouldForceProgressLoss = options.forceLossOnProgress === true && predicted.won;
   if (cappedDecision.desired === 'LOSS') {
@@ -240,6 +246,7 @@ export async function applyGlobalMemberDailyWinCap(
   if (await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId)) return null;
 
   const decision = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
+  if (isControlInterventionMiss(decision)) return null;
   if (!decision) return null;
   return decision.desired === 'LOSS'
     ? flipToLoss(predicted, decision.reason, decision.controlId)
@@ -263,13 +270,7 @@ export async function getGlobalMemberDailyWinCapGuard(
   const controlId = 'global-member-daily-win-cap';
   const reason = 'global_member_daily_win_cap';
   if (bound.exhausted) {
-    return {
-      exhausted: true,
-      controlId,
-      reason,
-      maxPayout: new Prisma.Decimal(0),
-      maxMultiplier: new Prisma.Decimal(0),
-    };
+    return null;
   }
   return {
     exhausted: false,
@@ -350,7 +351,7 @@ async function findControlDecision(
   gameId: string,
   predicted: PredictedResult,
   options: ControlOptions,
-): Promise<ControlDecision | null> {
+): Promise<ControlDecisionLookup> {
   if (options.burstGuardOnly) {
     const burst = await findBurstDecision(tx, member, gameId, predicted, options);
     if (isControlInterventionMiss(burst)) return null;
@@ -359,6 +360,7 @@ async function findControlDecision(
     if (accidentalBurstCap) return accidentalBurstCap;
     if (!(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))) {
       const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
+      if (isControlInterventionMiss(globalWinCap)) return CONTROL_INTERVENTION_MISS;
       if (globalWinCap) return globalWinCap;
     }
     return null;
@@ -372,6 +374,7 @@ async function findControlDecision(
 
   if (!(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))) {
     const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
+    if (isControlInterventionMiss(globalWinCap)) return CONTROL_INTERVENTION_MISS;
     if (globalWinCap) return globalWinCap;
   }
 
@@ -731,18 +734,14 @@ async function findGlobalMemberWinCapDecision(
   memberId: string,
   predicted: PredictedResult,
   options: ControlOptions = {},
-): Promise<ControlDecision | null> {
+): Promise<ControlDecisionLookup> {
   const predictedProfit = predicted.payout.sub(predicted.amount);
   if (!predictedProfit.greaterThan(0)) {
     if (!options.forceLossOnProgress || !predicted.won) return null;
 
     const stats = await getMemberTodayStats(tx, memberId);
     return stats.net.greaterThanOrEqualTo(GLOBAL_MEMBER_DAILY_WIN_CAP)
-      ? {
-          desired: 'LOSS',
-          controlId: 'global-member-daily-win-cap',
-          reason: 'global_member_daily_win_cap',
-        }
+      ? globalMemberDailyWinCapDrainDecision()
       : null;
   }
 
@@ -753,11 +752,7 @@ async function findGlobalMemberWinCapDecision(
     stats.net.greaterThanOrEqualTo(GLOBAL_MEMBER_DAILY_WIN_CAP) ||
     remainingProfit.lessThanOrEqualTo(0)
   ) {
-    return {
-      desired: 'LOSS',
-      controlId: 'global-member-daily-win-cap',
-      reason: 'global_member_daily_win_cap',
-    };
+    return globalMemberDailyWinCapDrainDecision();
   }
   if (projected.greaterThan(GLOBAL_MEMBER_DAILY_WIN_CAP)) {
     return {
@@ -773,6 +768,18 @@ async function findGlobalMemberWinCapDecision(
   return null;
 }
 
+function globalMemberDailyWinCapDrainDecision(): ControlDecisionLookup {
+  if (Math.random() >= GLOBAL_MEMBER_DAILY_WIN_CAP_DRAIN_INTERVENTION_RATE) {
+    return CONTROL_INTERVENTION_MISS;
+  }
+
+  return {
+    desired: 'LOSS',
+    controlId: 'global-member-daily-win-cap',
+    reason: 'global_member_daily_win_cap',
+  };
+}
+
 async function enforceNaturalGlobalMemberDailyWinCap(
   tx: Db,
   member: MemberScope,
@@ -780,6 +787,7 @@ async function enforceNaturalGlobalMemberDailyWinCap(
   options: ControlOptions,
 ): Promise<ControlOutcome> {
   const decision = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
+  if (isControlInterventionMiss(decision)) return { ...predicted, controlled: false };
   if (!decision) return { ...predicted, controlled: false };
 
   const predictedNetWin = isNetWin(predicted);
@@ -900,7 +908,7 @@ async function withWinCapBounds(
   predicted: PredictedResult,
   decision: ControlDecision,
   gameId?: string,
-): Promise<ControlDecision> {
+): Promise<ControlDecisionLookup> {
   if (decision.desired !== 'WIN') return decision;
 
   const maxPayouts: Prisma.Decimal[] = [];
@@ -909,11 +917,7 @@ async function withWinCapBounds(
   if (!(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))) {
     const globalBound = await getGlobalMemberWinCapPayoutBound(tx, member.id, predicted.amount);
     if (globalBound.exhausted) {
-      return {
-        desired: 'LOSS',
-        controlId: globalBound.controlId,
-        reason: 'global_member_daily_win_cap',
-      };
+      return globalMemberDailyWinCapDrainDecision();
     }
     maxPayouts.push(globalBound.bound);
   }
