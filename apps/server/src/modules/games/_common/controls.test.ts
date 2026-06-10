@@ -88,12 +88,12 @@ describe('passesControlInterventionRate', () => {
   it('keeps auto-balance drain intervention at 40 percent', () => {
     vi.spyOn(Math, 'random').mockReturnValueOnce(0.39).mockReturnValueOnce(0.4);
 
-    expect(
-      __controlsTestHooks.passesAutoBalanceLossInterventionRate('auto_balance_drain'),
-    ).toBe(true);
-    expect(
-      __controlsTestHooks.passesAutoBalanceLossInterventionRate('auto_balance_drain'),
-    ).toBe(false);
+    expect(__controlsTestHooks.passesAutoBalanceLossInterventionRate('auto_balance_drain')).toBe(
+      true,
+    );
+    expect(__controlsTestHooks.passesAutoBalanceLossInterventionRate('auto_balance_drain')).toBe(
+      false,
+    );
   });
 });
 
@@ -392,7 +392,12 @@ describe('control decision priority', () => {
 
   const createAutoReviveTx = (
     manualFindMany = vi.fn(async () => []),
-    over: { balance?: Prisma.Decimal; phase?: string; agentId?: string | null; excluded?: boolean } = {},
+    over: {
+      balance?: Prisma.Decimal;
+      phase?: string;
+      agentId?: string | null;
+      excluded?: boolean;
+    } = {},
   ) => ({
     $queryRaw: vi.fn(async () => [{ exists: over.excluded === true }]),
     user: {
@@ -780,9 +785,7 @@ describe('control decision priority', () => {
 
   it('does not turn auto-balance revive intervention misses into forced losses', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.99);
-    const manualFindMany = vi.fn(async () => {
-      throw new Error('manual detection should not run during auto-balance revive');
-    });
+    const manualFindMany = vi.fn(async () => []);
     const tx = createAutoReviveTx(manualFindMany);
 
     const outcome = await applyControls(
@@ -795,14 +798,12 @@ describe('control decision priority', () => {
 
     expect(outcome.controlled).toBe(false);
     expect(outcome.flipReason).toBeUndefined();
-    expect(manualFindMany).not.toHaveBeenCalled();
+    expect(manualFindMany).toHaveBeenCalled();
   });
 
-  it('prioritizes auto-balance revive wins over manual detection without filling the full gap', async () => {
+  it('uses auto-balance revive wins when no manual detection applies', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.59);
-    const manualFindMany = vi.fn(async () => {
-      throw new Error('manual detection should not run during auto-balance revive');
-    });
+    const manualFindMany = vi.fn(async () => []);
     const tx = createAutoReviveTx(manualFindMany);
 
     const outcome = await applyControls(
@@ -817,14 +818,97 @@ describe('control decision priority', () => {
     expect(outcome.won).toBe(true);
     expect(outcome.flipReason).toBe('auto_balance_revive');
     expect(outcome.payout.toFixed(2)).toBe('10000.00');
-    expect(manualFindMany).not.toHaveBeenCalled();
+    expect(manualFindMany).toHaveBeenCalled();
+  });
+
+  it('prioritizes global manual detection over active auto-balance cycles', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.01);
+    const autoFindUnique = vi.fn(async () => {
+      throw new Error('auto balance should not run before global manual detection');
+    });
+    const manualFindMany = vi.fn(async () => [
+      {
+        id: 'manual-all-1',
+        scope: 'ALL',
+        targetAgentId: null,
+        targetAgentUsername: null,
+        targetMemberUsername: null,
+        targetSettlement: new Prisma.Decimal(1000),
+        startSettlement: new Prisma.Decimal(0),
+        controlPercentage: new Prisma.Decimal(100),
+        bitePercentage: null,
+        houseTakePercentage: null,
+        completionBehavior: 'stop_on_target',
+        targetBand: new Prisma.Decimal(0),
+        isActive: true,
+        isCompleted: false,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      },
+    ]);
+    const tx = {
+      $queryRaw: vi.fn(async () => [{ exists: false }]),
+      user: {
+        findUnique: vi.fn(async () => ({
+          id: 'member-1',
+          username: 'top3666',
+          agentId: null,
+        })),
+        findMany: vi.fn(async () => []),
+      },
+      agent: {
+        findMany: vi.fn(async () => []),
+        findUnique: vi.fn(async () => null),
+      },
+      bet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: {
+            amount: new Prisma.Decimal(0),
+            payout: new Prisma.Decimal(0),
+            profit: new Prisma.Decimal(0),
+          },
+        })),
+        findMany: vi.fn(async () => []),
+      },
+      crashBet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { amount: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
+        })),
+        findMany: vi.fn(async () => []),
+      },
+      winLossControl: { findMany: vi.fn(async () => []) },
+      burstControl: { findMany: vi.fn(async () => []) },
+      memberDepositControl: { findFirst: vi.fn(async () => null) },
+      memberWinCapControl: { findFirst: vi.fn(async () => null) },
+      agentLineWinCap: { findMany: vi.fn(async () => []) },
+      winLossControlLogs: { findMany: vi.fn(async () => []) },
+      manualDetectionControl: { findMany: manualFindMany },
+      memberAutoBalanceControl: { findUnique: autoFindUnique },
+    };
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.DICE,
+      predictedResult(100, 200, 2),
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('manual_detection');
+    expect(manualFindMany).toHaveBeenCalled();
+    expect(autoFindUnique).not.toHaveBeenCalled();
   });
 
   it('switches auto-balance to post-40 loss control after the member returns to 40 percent', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.39);
-    const tx = createAutoReviveTx(vi.fn(async () => []), {
-      balance: new Prisma.Decimal(20000),
-    });
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(20000),
+      },
+    );
 
     const outcome = await applyControls(
       tx as never,
@@ -844,10 +928,13 @@ describe('control decision priority', () => {
 
   it('keeps post-40 auto-balance drain at the same 40 percent intervention rate', async () => {
     vi.spyOn(Math, 'random').mockReturnValueOnce(0.39).mockReturnValueOnce(0.4);
-    const tx = createAutoReviveTx(vi.fn(async () => []), {
-      balance: new Prisma.Decimal(21000),
-      phase: 'DRAIN_TO_ZERO',
-    });
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(21000),
+        phase: 'DRAIN_TO_ZERO',
+      },
+    );
 
     const controlled = await applyControls(
       tx as never,
@@ -871,10 +958,13 @@ describe('control decision priority', () => {
 
   it('does not restart revive after post-40 drain falls below the 20 percent target', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.39);
-    const tx = createAutoReviveTx(vi.fn(async () => []), {
-      balance: new Prisma.Decimal(10000),
-      phase: 'DRAIN_TO_ZERO',
-    });
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(10000),
+        phase: 'DRAIN_TO_ZERO',
+      },
+    );
 
     const outcome = await applyControls(
       tx as never,
@@ -893,10 +983,13 @@ describe('control decision priority', () => {
   });
 
   it('disables auto-balance for the excluded 8000DG credit line', async () => {
-    const tx = createAutoReviveTx(vi.fn(async () => []), {
-      agentId: 'agent-under-8000dg',
-      excluded: true,
-    });
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        agentId: 'agent-under-8000dg',
+        excluded: true,
+      },
+    );
 
     const outcome = await applyControls(
       tx as never,

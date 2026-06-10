@@ -390,12 +390,7 @@ async function findControlDecision(
 
   const explicitWinLoss =
     targetedWinLoss ??
-    (await findWinLossDecision(
-      tx,
-      member,
-      predicted,
-      isControlExcludedLine ? 'targeted' : 'all',
-    ));
+    (await findWinLossDecision(tx, member, predicted, isControlExcludedLine ? 'targeted' : 'all'));
   if (isControlInterventionMiss(explicitWinLoss)) return null;
   if (explicitWinLoss) return explicitWinLoss;
 
@@ -412,10 +407,6 @@ async function findControlDecision(
   if (isControlInterventionMiss(depositControl)) return null;
   if (depositControl) return depositControl;
 
-  const autoBalance = await findAutoBalanceDecisionInternal(tx, member, predicted, 'any');
-  if (autoBalance.decision) return autoBalance.decision;
-  if (autoBalance.inActiveCycle) return null;
-
   const targetedManual = await findManualDetectionDecision(tx, member, predicted, 'targeted');
   if (isControlInterventionMiss(targetedManual)) return null;
   if (targetedManual) return targetedManual;
@@ -423,6 +414,10 @@ async function findControlDecision(
   const globalManual = await findManualDetectionDecision(tx, member, predicted, 'global');
   if (isControlInterventionMiss(globalManual)) return null;
   if (globalManual) return globalManual;
+
+  const autoBalance = await findAutoBalanceDecisionInternal(tx, member, predicted, 'any');
+  if (autoBalance.decision) return autoBalance.decision;
+  if (autoBalance.inActiveCycle) return null;
 
   return null;
 }
@@ -1970,9 +1965,9 @@ export function shouldForceLossForGameMatchedPayoutOnly(
 ): boolean {
   return Boolean(
     control.controlled &&
-      control.won &&
-      control.gameMatchedPayoutOnly &&
-      multiplierExceedsControlCeiling(multiplier, amount, control),
+    control.won &&
+    control.gameMatchedPayoutOnly &&
+    multiplierExceedsControlCeiling(multiplier, amount, control),
   );
 }
 
