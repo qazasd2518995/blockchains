@@ -179,7 +179,12 @@ export function HiLoPage() {
         return;
       }
 
-      const cashMult = Number.parseFloat(res.data.state.currentMultiplier);
+      const payout = Number.parseFloat(res.data.payout || res.data.state.potentialPayout);
+      const settledAmount = Number.parseFloat(res.data.state.amount);
+      const cashMult =
+        payout > 0 && settledAmount > 0
+          ? payout / settledAmount
+          : Number.parseFloat(res.data.state.currentMultiplier);
       sceneRef.current?.celebrateCashout(cashMult);
       sceneRef.current?.playWinFx(cashMult, true);
       setHistory((prev) =>
@@ -189,7 +194,7 @@ export function HiLoPage() {
             timestamp: Date.now(),
             betAmount: amount,
             multiplier: cashMult,
-            payout: amount * cashMult,
+            payout,
             won: true,
             detail: `${res.data.state.history.length} 連對`,
           },

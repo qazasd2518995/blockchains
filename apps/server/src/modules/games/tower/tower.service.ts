@@ -417,7 +417,11 @@ export class TowerService {
         : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
       const updated = await tx.towerRound.update({
         where: { id: round.id },
-        data: { status: finalStatus, finishedAt: new Date() },
+        data: {
+          status: finalStatus,
+          currentMultiplier: finalMultiplier,
+          finishedAt: new Date(),
+        },
       });
       await finalizeControls(
         tx,

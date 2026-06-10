@@ -310,8 +310,12 @@ export function TowerPage() {
         return;
       }
 
-      const cashMult = Number.parseFloat(res.data.state.currentMultiplier);
       const payout = Number.parseFloat(res.data.payout || res.data.state.potentialPayout);
+      const settledAmount = Number.parseFloat(res.data.state.amount);
+      const cashMult =
+        payout > 0 && settledAmount > 0
+          ? payout / settledAmount
+          : Number.parseFloat(res.data.state.currentMultiplier);
       setWinModal({ multiplier: cashMult, payout });
       sceneRef.current?.celebrate(cashMult);
       sceneRef.current?.playWinFx(cashMult, true);

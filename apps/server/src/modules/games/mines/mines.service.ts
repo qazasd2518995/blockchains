@@ -369,6 +369,7 @@ export class MinesService {
         where: { id: round.id },
         data: {
           status: finalStatus,
+          currentMultiplier: finalMultiplier,
           finishedAt: new Date(),
         },
       });

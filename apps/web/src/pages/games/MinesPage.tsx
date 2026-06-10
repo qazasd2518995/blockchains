@@ -264,7 +264,12 @@ export function MinesPage() {
         return;
       }
 
-      const cashMult = Number.parseFloat(state.currentMultiplier);
+      const payout = Number.parseFloat(res.data.payout || state.potentialPayout);
+      const settledAmount = Number.parseFloat(state.amount);
+      const cashMult =
+        payout > 0 && settledAmount > 0
+          ? payout / settledAmount
+          : Number.parseFloat(state.currentMultiplier);
       sceneRef.current?.celebrateCashout(cashMult);
       sceneRef.current?.playWinFx(cashMult, true);
       setHistory((prev) =>
@@ -274,7 +279,7 @@ export function MinesPage() {
             timestamp: Date.now(),
             betAmount: amount,
             multiplier: cashMult,
-            payout: amount * cashMult,
+            payout,
             won: true,
             detail: `${state.revealed.length} 安全 · ${state.mineCount} 雷`,
           },
