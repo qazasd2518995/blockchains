@@ -21,7 +21,9 @@ import {
 import {
   applyControls,
   finalizeControls,
+  forceControlOutcomeToLoss,
   multiplierExceedsControlCeiling,
+  shouldForceLossForGameMatchedPayoutOnly,
 } from '../_common/controls.js';
 import {
   buildEntertainmentShapeMeta,
@@ -294,13 +296,20 @@ export class MinesService {
         payout,
       };
       const controlOutcome = await applyControls(tx, userId, GameId.MINES, predicted);
-      const entertainmentShape = shapeControlOutcomeForEntertainment(
+      const gameMatchedControl = shouldForceLossForGameMatchedPayoutOnly(
+        multiplier,
+        round.betAmount,
         controlOutcome,
+      )
+        ? forceControlOutcomeToLoss(controlOutcome)
+        : controlOutcome;
+      const entertainmentShape = shapeControlOutcomeForEntertainment(
+        gameMatchedControl,
         round.betAmount,
         'mines',
         round.revealed.length + round.nonce,
       );
-      const effectiveControl = entertainmentShape?.outcome ?? controlOutcome;
+      const effectiveControl = entertainmentShape?.outcome ?? gameMatchedControl;
       const finalMultiplier = effectiveControl.controlled ? effectiveControl.multiplier : multiplier;
       const finalPayout = effectiveControl.controlled ? effectiveControl.payout : payout;
       const profit = finalPayout.minus(round.betAmount);

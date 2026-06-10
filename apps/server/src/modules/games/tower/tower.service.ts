@@ -23,7 +23,9 @@ import {
 import {
   applyControls,
   finalizeControls,
+  forceControlOutcomeToLoss,
   multiplierExceedsControlCeiling,
+  shouldForceLossForGameMatchedPayoutOnly,
   type ControlOutcome,
 } from '../_common/controls.js';
 import {
@@ -348,13 +350,20 @@ export class TowerService {
         payout,
       };
       const controlOutcome = await applyControls(tx, userId, GameId.TOWER, predicted);
-      const entertainmentShape = shapeControlOutcomeForEntertainment(
+      const gameMatchedControl = shouldForceLossForGameMatchedPayoutOnly(
+        multiplier,
+        round.betAmount,
         controlOutcome,
+      )
+        ? forceControlOutcomeToLoss(controlOutcome)
+        : controlOutcome;
+      const entertainmentShape = shapeControlOutcomeForEntertainment(
+        gameMatchedControl,
         round.betAmount,
         'tower',
         round.currentLevel + round.nonce,
       );
-      const effectiveControl = entertainmentShape?.outcome ?? controlOutcome;
+      const effectiveControl = entertainmentShape?.outcome ?? gameMatchedControl;
       const finalMultiplier = effectiveControl.controlled ? effectiveControl.multiplier : multiplier;
       const finalPayout = effectiveControl.controlled ? effectiveControl.payout : payout;
       const profit = finalPayout.minus(round.betAmount);

@@ -1,5 +1,5 @@
 import { ManualDetectionScope, Prisma } from '@prisma/client';
-import type { PrismaClient } from '@prisma/client';
+import type { MemberAutoBalanceControl, PrismaClient } from '@prisma/client';
 import { BACCARAT_GAME_IDS } from '@bg/shared';
 import {
   isMemberInControlExcludedLine,
@@ -196,7 +196,9 @@ export async function getOrCreateMemberAutoBalanceControl(
     }
     return null;
   }
-  if (existing) return existing;
+  if (existing) {
+    return syncExistingMemberAutoBalanceTargets(db, existing, member);
+  }
 
   if (member.balance.lessThanOrEqualTo(0)) return null;
   return resetMemberAutoBalanceControl(db, {
@@ -206,6 +208,44 @@ export async function getOrCreateMemberAutoBalanceControl(
     balanceAfter: member.balance,
     reason: 'lazy_current_balance',
     operatorUsername: AUTO_BALANCE_OPERATOR,
+  });
+}
+
+function autoBalanceTargetsForBaseline(baselineBalance: Prisma.Decimal): {
+  biteTargetBalance: Prisma.Decimal;
+  reviveTargetBalance: Prisma.Decimal;
+} {
+  return {
+    biteTargetBalance: baselineBalance
+      .mul(AUTO_BALANCE_BITE_RATE)
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
+    reviveTargetBalance: baselineBalance
+      .mul(AUTO_BALANCE_REVIVE_RATE)
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN),
+  };
+}
+
+async function syncExistingMemberAutoBalanceTargets(
+  db: Db,
+  control: MemberAutoBalanceControl,
+  member: { username: string; agentId: string | null },
+): Promise<MemberAutoBalanceControl> {
+  const expected = autoBalanceTargetsForBaseline(control.baselineBalance);
+  const needsUpdate =
+    !control.biteTargetBalance.equals(expected.biteTargetBalance) ||
+    !control.reviveTargetBalance.equals(expected.reviveTargetBalance) ||
+    control.memberUsername !== member.username ||
+    control.agentId !== member.agentId;
+  if (!needsUpdate) return control;
+
+  return db.memberAutoBalanceControl.update({
+    where: { id: control.id },
+    data: {
+      memberUsername: member.username,
+      agentId: member.agentId,
+      biteTargetBalance: expected.biteTargetBalance,
+      reviveTargetBalance: expected.reviveTargetBalance,
+    },
   });
 }
 

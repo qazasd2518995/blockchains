@@ -23,7 +23,9 @@ import {
 import {
   applyControls,
   finalizeControls,
+  forceControlOutcomeToLoss,
   multiplierExceedsControlCeiling,
+  shouldForceLossForGameMatchedPayoutOnly,
 } from '../_common/controls.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
@@ -295,19 +297,26 @@ export class HiLoService {
         payout,
       };
       const controlOutcome = await applyControls(tx, userId, GameId.HILO, predicted);
-      const finalMultiplier = controlOutcome.controlled ? controlOutcome.multiplier : multiplier;
-      const finalPayout = controlOutcome.controlled ? controlOutcome.payout : payout;
+      const effectiveControl = shouldForceLossForGameMatchedPayoutOnly(
+        multiplier,
+        round.betAmount,
+        controlOutcome,
+      )
+        ? forceControlOutcomeToLoss(controlOutcome)
+        : controlOutcome;
+      const finalMultiplier = effectiveControl.controlled ? effectiveControl.multiplier : multiplier;
+      const finalPayout = effectiveControl.controlled ? effectiveControl.payout : payout;
       const profit = finalPayout.minus(round.betAmount);
-      const bustedByCashoutControl = controlOutcome.controlled && !controlOutcome.won;
+      const bustedByCashoutControl = effectiveControl.controlled && !effectiveControl.won;
       const finalStatus = bustedByCashoutControl ? 'BUSTED' : 'CASHED_OUT';
       const originalResult = { history, cashedOut: true };
       const finalResult = {
         history,
         cashedOut: !bustedByCashoutControl,
         bustedByCashoutControl,
-        controlled: controlOutcome.controlled,
-        flipReason: controlOutcome.flipReason ?? null,
-        raw: controlOutcome.controlled ? originalResult : null,
+        controlled: effectiveControl.controlled,
+        flipReason: effectiveControl.flipReason ?? null,
+        raw: effectiveControl.controlled ? originalResult : null,
       };
 
       const bet = await tx.bet.create({
@@ -343,7 +352,7 @@ export class HiLoService {
           multiplier: finalMultiplier,
           payout: finalPayout,
         },
-        controlOutcome,
+        effectiveControl,
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,
         finalResult as unknown as Prisma.InputJsonValue,

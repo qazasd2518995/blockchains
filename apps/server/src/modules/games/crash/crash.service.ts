@@ -16,7 +16,9 @@ import {
   applyControls,
   applyGlobalMemberDailyWinCap,
   finalizeControls,
+  forceControlOutcomeToLoss,
   getGlobalMemberDailyWinCapGuard,
+  shouldForceLossForGameMatchedPayoutOnly,
   type ControlOutcome,
   type GlobalMemberDailyWinCapGuard,
   type PredictedResult,
@@ -341,12 +343,17 @@ export class CrashSoloService {
       multiplier: cashoutMultiplier,
       payout: naturalPayout,
     };
-    const globalCapOutcome = await applyGlobalMemberDailyWinCap(
+    const rawGlobalCapOutcome = await applyGlobalMemberDailyWinCap(
       tx,
       bet.userId,
       cashoutPrediction,
       bet.round.gameId,
     );
+    const globalCapOutcome =
+      rawGlobalCapOutcome &&
+      shouldForceLossForGameMatchedPayoutOnly(cashoutMultiplier, bet.amount, rawGlobalCapOutcome)
+        ? forceControlOutcomeToLoss(rawGlobalCapOutcome)
+        : rawGlobalCapOutcome;
     const finalPayout = globalCapOutcome?.controlled ? globalCapOutcome.payout : naturalPayout;
     const finalMultiplier = globalCapOutcome?.controlled
       ? globalCapOutcome.multiplier

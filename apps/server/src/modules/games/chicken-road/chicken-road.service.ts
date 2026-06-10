@@ -22,7 +22,9 @@ import {
 import {
   applyControls,
   finalizeControls,
+  forceControlOutcomeToLoss,
   multiplierExceedsControlCeiling,
+  shouldForceLossForGameMatchedPayoutOnly,
 } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
 import type {
@@ -320,9 +322,16 @@ export class ChickenRoadService {
         payout,
       };
       const controlOutcome = await applyControls(tx, userId, GameId.CHICKEN_ROAD, predicted);
-      const finalMultiplier = controlOutcome.controlled ? controlOutcome.multiplier : multiplier;
-      const finalPayout = controlOutcome.controlled ? controlOutcome.payout : payout;
-      const bustedByCashoutControl = controlOutcome.controlled && !controlOutcome.won;
+      const effectiveControl = shouldForceLossForGameMatchedPayoutOnly(
+        multiplier,
+        bet.amount,
+        controlOutcome,
+      )
+        ? forceControlOutcomeToLoss(controlOutcome)
+        : controlOutcome;
+      const finalMultiplier = effectiveControl.controlled ? effectiveControl.multiplier : multiplier;
+      const finalPayout = effectiveControl.controlled ? effectiveControl.payout : payout;
+      const bustedByCashoutControl = effectiveControl.controlled && !effectiveControl.won;
       const finalStatus: ChickenRoadStoredStatus = bustedByCashoutControl
         ? 'BUSTED'
         : 'CASHED_OUT';
@@ -331,9 +340,9 @@ export class ChickenRoadService {
         status: finalStatus,
         hitStep: bustedByCashoutControl ? data.currentStep : null,
         cashedOut: !bustedByCashoutControl,
-        controlled: controlOutcome.controlled,
-        flipReason: controlOutcome.flipReason ?? null,
-        raw: controlOutcome.controlled
+        controlled: effectiveControl.controlled,
+        flipReason: effectiveControl.flipReason ?? null,
+        raw: effectiveControl.controlled
           ? {
               difficulty: data.difficulty,
               path: data.path,
@@ -368,7 +377,7 @@ export class ChickenRoadService {
           multiplier: finalMultiplier,
           payout: finalPayout,
         },
-        controlOutcome,
+        effectiveControl,
         settled.id,
         (finalResult.raw ?? {
           difficulty: data.difficulty,

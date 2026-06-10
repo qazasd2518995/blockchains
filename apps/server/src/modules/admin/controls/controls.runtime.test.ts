@@ -8,6 +8,7 @@ import {
   findApplicableBurstControl,
   findApplicableManualDetectionControl,
   getDefaultManualDetectionCompletionBehavior,
+  getOrCreateMemberAutoBalanceControl,
   normalizeManualDetectionCompletionBehavior,
   resetMemberAutoBalanceControl,
 } from './controls.runtime.js';
@@ -64,6 +65,53 @@ describe('resetMemberAutoBalanceControl', () => {
     expect(create.reviveTargetBalance.toFixed(2)).toBe('20000.00');
     expect(create.phase).toBe('BITE_TO_30');
     expect(create.isActive).toBe(true);
+  });
+});
+
+describe('getOrCreateMemberAutoBalanceControl', () => {
+  it('recalibrates legacy 30/70 targets to the current 20/40 model', async () => {
+    const existing = {
+      id: 'auto-1',
+      memberId: 'member-1',
+      memberUsername: 'vip1666',
+      agentId: 'agent-1',
+      baselineBalance: new Prisma.Decimal(50000),
+      biteTargetBalance: new Prisma.Decimal(15000),
+      reviveTargetBalance: new Prisma.Decimal(35000),
+      phase: 'BITE_TO_30',
+      isActive: true,
+      resetReason: 'agent_to_member',
+      operatorUsername: 'auto_balance_model',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const update = vi.fn(async (args) => ({ ...existing, ...args.data }));
+    const db = {
+      $queryRaw: vi.fn().mockResolvedValue([{ exists: false }]),
+      memberAutoBalanceControl: {
+        findUnique: vi.fn().mockResolvedValue(existing),
+        update,
+      },
+    };
+
+    const control = await getOrCreateMemberAutoBalanceControl(db as never, {
+      id: 'member-1',
+      username: 'vip1666',
+      agentId: 'agent-1',
+      balance: new Prisma.Decimal(50000),
+    });
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'auto-1' },
+      data: {
+        memberUsername: 'vip1666',
+        agentId: 'agent-1',
+        biteTargetBalance: new Prisma.Decimal(10000),
+        reviveTargetBalance: new Prisma.Decimal(20000),
+      },
+    });
+    expect(control?.biteTargetBalance.toFixed(2)).toBe('10000.00');
+    expect(control?.reviveTargetBalance.toFixed(2)).toBe('20000.00');
   });
 });
 
