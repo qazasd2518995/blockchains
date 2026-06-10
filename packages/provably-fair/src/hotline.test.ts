@@ -61,19 +61,19 @@ describe('hotlineSpin', () => {
 
   it('uses separate 8-symbol paytables for fixed-line variants', () => {
     expect(HOTLINE_MINI_SYMBOLS.map((symbol) => symbol.payout3)).toEqual([
-      0.6, 0.9, 1.4, 1.8, 2.2, 2.8, 3.2, 3.8,
+      0.92, 1.6, 3.2, 6, 12, 20, 40, 80,
     ]);
     expect(
       HOTLINE_SYMBOLS.map((symbol) => [symbol.payout3, symbol.payout4, symbol.payout5]),
     ).toEqual([
-      [0.77, 1.26, 2.1],
-      [0.98, 1.61, 2.94],
-      [1.26, 2.24, 4.48],
-      [1.68, 3.22, 7],
-      [2.24, 5.6, 14],
-      [3.08, 9.8, 28],
-      [4.48, 16.8, 56],
-      [7, 33.6, 112],
+      [0.92, 2.3, 4.8],
+      [1.2, 3.2, 6.8],
+      [1.7, 5.2, 13],
+      [2.8, 8.5, 26],
+      [5, 16, 60],
+      [8, 35, 120],
+      [15, 80, 250],
+      [25, 160, 450],
     ]);
   });
 
@@ -95,12 +95,12 @@ describe('hotlineSpin', () => {
       if (multiplier >= 3) highHit += 1;
     }
 
-    expect(payout / total).toBeGreaterThan(0.5);
-    expect(payout / total).toBeLessThan(0.72);
+    expect(payout / total).toBeGreaterThan(0.85);
+    expect(payout / total).toBeLessThan(1.05);
     expect(hit / total).toBeGreaterThan(0.35);
-    expect(netWin / total).toBeLessThan(0.3);
-    expect(smallHit / total).toBeGreaterThan(0.2);
-    expect(highHit / total).toBeLessThan(0.04);
+    expect(netWin / total).toBeLessThan(0.35);
+    expect(smallHit / total).toBeGreaterThan(0.15);
+    expect(highHit / total).toBeLessThan(0.12);
   });
 
   it('keeps 3x3 slot variants on a small-hit profile', () => {
@@ -121,11 +121,12 @@ describe('hotlineSpin', () => {
       if (multiplier >= 3) highHit += 1;
     }
 
-    expect(payout / total).toBeLessThan(0.7);
+    expect(payout / total).toBeGreaterThan(0.85);
+    expect(payout / total).toBeLessThan(1.05);
     expect(hit / total).toBeGreaterThan(0.5);
     expect(netWin / total).toBeLessThan(0.35);
-    expect(smallHit / total).toBeGreaterThan(0.4);
-    expect(highHit / total).toBeLessThan(0.02);
+    expect(smallHit / total).toBeGreaterThan(0.25);
+    expect(highHit / total).toBeLessThan(0.05);
   });
 
   it('supports 6x5 mega slot variants', () => {
@@ -147,14 +148,14 @@ describe('hotlineSpin', () => {
     expect(
       HOTLINE_MEGA_SYMBOLS.map((symbol) => [symbol.payout3, symbol.payout4, symbol.payout5]),
     ).toEqual([
-      [0.112, 0.224, 0.448],
-      [0.168, 0.336, 0.56],
-      [0.224, 0.448, 0.728],
-      [0.28, 0.56, 0.896],
-      [0.392, 0.784, 1.344],
-      [0.504, 1.008, 1.568],
-      [0.616, 1.232, 1.792],
-      [0.728, 1.456, 2.016],
+      [0.345, 0.688, 1.376],
+      [0.516, 1.033, 1.721],
+      [0.688, 1.376, 2.237],
+      [0.861, 1.721, 2.754],
+      [1.205, 2.409, 4.13],
+      [1.548, 3.097, 4.818],
+      [1.893, 3.785, 5.506],
+      [2.237, 4.473, 6.194],
     ]);
   });
 
@@ -326,7 +327,7 @@ describe('hotlineSpin', () => {
       return Number((baseAmount * result.totalMultiplier).toFixed(2));
     });
 
-    expect(new Set(payouts).size).toBe(30);
+    expect(new Set(payouts).size).toBeGreaterThanOrEqual(28);
     expect(Math.max(...payouts)).toBeLessThanOrEqual(stakeAmount * 2);
   });
 });

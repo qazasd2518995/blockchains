@@ -151,7 +151,8 @@ export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(10000);
 const BURST_COOLDOWN_MIN_ROUNDS = 10;
 const BURST_COOLDOWN_MAX_ROUNDS = 20;
 const BURST_ELIGIBLE_GAME_IDS = new Set<string>(SLOT_GAME_IDS);
-const AUTO_BALANCE_BITE_INTERVENTION_RATE = 0.4;
+const AUTO_BALANCE_BITE_INTERVENTION_RATE = 0.3;
+const AUTO_BALANCE_DRAIN_INTERVENTION_RATE = 0.4;
 const CONTROL_RELEASE_LOG_WINDOW = 8;
 const CONTROL_RELEASE_STAKE_JUMP_RATIO = new Prisma.Decimal('1.5');
 const CONTROL_RELEASE_TOTAL_LOSS_PROFIT_RATIO = new Prisma.Decimal('0.25');
@@ -637,7 +638,7 @@ async function findAutoBalanceDecisionInternal(
 
   if (mode === 'reviveOnly') return { decision: null, inActiveCycle: false };
   return {
-    decision: autoBalanceLossDecision(control.id),
+    decision: autoBalanceLossDecision(control.id, 'auto_balance_bite'),
     inActiveCycle: true,
   };
 }
@@ -646,15 +647,21 @@ function autoBalanceLossDecision(
   controlId: string,
   reason: 'auto_balance_bite' | 'auto_balance_drain' = 'auto_balance_bite',
 ): ControlDecision | null {
-  if (!passesAutoBalanceBiteInterventionRate()) {
+  if (!passesAutoBalanceLossInterventionRate(reason)) {
     return null;
   }
 
   return { desired: 'LOSS', controlId, reason };
 }
 
-function passesAutoBalanceBiteInterventionRate(): boolean {
-  return Math.random() < AUTO_BALANCE_BITE_INTERVENTION_RATE;
+function passesAutoBalanceLossInterventionRate(
+  reason: 'auto_balance_bite' | 'auto_balance_drain' = 'auto_balance_bite',
+): boolean {
+  const rate =
+    reason === 'auto_balance_drain'
+      ? AUTO_BALANCE_DRAIN_INTERVENTION_RATE
+      : AUTO_BALANCE_BITE_INTERVENTION_RATE;
+  return Math.random() < rate;
 }
 
 async function getLossControlReleasePlan(
@@ -2006,7 +2013,7 @@ export const __controlsTestHooks = {
   findDepositControlDecision,
   getGlobalMemberDailyWinCapGuard,
   getStoredBurstCooldownRounds,
-  passesAutoBalanceBiteInterventionRate,
+  passesAutoBalanceLossInterventionRate,
   randomBurstCooldownRounds,
   rankWinLossControls,
   resolveHoldTargetManualDetectionDesired,

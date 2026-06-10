@@ -49,7 +49,7 @@ services:
       - key: MAX_SINGLE_BET
         value: 100000
       - key: ENTERTAINMENT_SHAPER_ENABLED
-        value: "false"
+        value: "true"
       - key: ENTERTAINMENT_SHAPER_GAMES
         value: slot,mines,tower
       - key: ENTERTAINMENT_SHAPER_SOURCES

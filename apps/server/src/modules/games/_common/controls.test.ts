@@ -78,11 +78,22 @@ describe('passesControlInterventionRate', () => {
     expect(passesControlInterventionRate(0)).toBe(false);
   });
 
-  it('applies auto-balance bite intervention about 40 percent of the time', () => {
+  it('applies auto-balance bite intervention about 30 percent of the time', () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.29).mockReturnValueOnce(0.3);
+
+    expect(__controlsTestHooks.passesAutoBalanceLossInterventionRate()).toBe(true);
+    expect(__controlsTestHooks.passesAutoBalanceLossInterventionRate()).toBe(false);
+  });
+
+  it('keeps auto-balance drain intervention at 40 percent', () => {
     vi.spyOn(Math, 'random').mockReturnValueOnce(0.39).mockReturnValueOnce(0.4);
 
-    expect(__controlsTestHooks.passesAutoBalanceBiteInterventionRate()).toBe(true);
-    expect(__controlsTestHooks.passesAutoBalanceBiteInterventionRate()).toBe(false);
+    expect(
+      __controlsTestHooks.passesAutoBalanceLossInterventionRate('auto_balance_drain'),
+    ).toBe(true);
+    expect(
+      __controlsTestHooks.passesAutoBalanceLossInterventionRate('auto_balance_drain'),
+    ).toBe(false);
   });
 });
 
@@ -410,6 +421,7 @@ describe('control decision priority', () => {
       })),
     },
     winLossControl: { findMany: vi.fn(async () => []) },
+    burstControl: { findMany: vi.fn(async () => []) },
     memberDepositControl: { findFirst: vi.fn(async () => null) },
     memberWinCapControl: { findFirst: vi.fn(async () => null) },
     agentLineWinCap: { findMany: vi.fn(async () => []) },
