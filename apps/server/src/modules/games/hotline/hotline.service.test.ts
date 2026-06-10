@@ -98,7 +98,7 @@ describe('hotline controlled round shaping', () => {
     );
 
     expect(round.totalMultiplier).toBeGreaterThan(1);
-    expect(round.totalMultiplier).toBeLessThanOrEqual(19);
+    expect(round.totalMultiplier).toBeLessThanOrEqual(30);
     expect(amount.mul(round.totalMultiplier).lessThanOrEqualTo(maxPayout)).toBe(true);
     expect(hotlineEvaluate(round.grid).totalMultiplier).toBeCloseTo(round.totalMultiplier, 4);
   });
@@ -510,6 +510,29 @@ describe('hotline controlled round shaping', () => {
     expect(capped.features.totalMultiplier).toBeLessThanOrEqual(
       maxPayout.div(baseAmount).toNumber(),
     );
+    expect(capped.features.freeSpinWinMultiplier).toBe(capped.features.totalMultiplier);
+  });
+
+  it('preserves burst-controlled mega buy-feature targets up to the configured max payout', () => {
+    const baseAmount = new Prisma.Decimal(200);
+    const stakeAmount = __hotlineServiceTestHooks.megaBuyFeatureStakeAmount(baseAmount);
+    const maxPayout = new Prisma.Decimal(100000);
+
+    const capped = __hotlineServiceTestHooks.capMegaFreeGameSettlement(
+      __hotlineServiceTestHooks.buildControlledMegaFeature(500, true, 2),
+      true,
+      baseAmount,
+      stakeAmount,
+      2,
+      maxPayout,
+      true,
+      true,
+    );
+
+    expect(stakeAmount.toFixed(2)).toBe('20000.00');
+    expect(capped.payout.toFixed(2)).toBe('100000.00');
+    expect(capped.multiplier.toFixed(4)).toBe('5.0000');
+    expect(capped.features.totalMultiplier).toBe(500);
     expect(capped.features.freeSpinWinMultiplier).toBe(capped.features.totalMultiplier);
   });
 

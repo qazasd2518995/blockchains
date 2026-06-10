@@ -151,7 +151,6 @@ export class HotlineService {
         buyFeature
           ? {
               burstEligible: true,
-              burstGuardOnly: true,
               burstPotentialMultiplier: MEGA_FREE_GAME_CONTROL_MAX_ACCOUNTING_MULTIPLIER,
             }
           : undefined,
@@ -217,6 +216,7 @@ export class HotlineService {
 
       if (rowCount > 3 && finalFeatures && finalFeatures.freeSpinsAwarded > 0) {
         const allowFreeGameAboveOne = canMegaFreeGameExceedOne(controlled);
+        const preserveControlledTarget = shouldPreserveControlledMegaFreeGameTarget(controlled);
         const capped = capMegaFreeGameSettlement(
           finalFeatures,
           buyFeature,
@@ -225,6 +225,7 @@ export class HotlineService {
           seed.nonce,
           controlled.maxPayout,
           allowFreeGameAboveOne,
+          preserveControlledTarget,
         );
         finalFeatures = capped.features;
         finalPayout = capped.payout;
@@ -475,21 +476,23 @@ function capMegaFreeGameSettlement(
   nonce: number,
   controlMaxPayout?: Prisma.Decimal,
   allowAboveOne = false,
+  preserveControlledTarget = false,
 ): {
   features: HotlineMegaFeatureResult;
   payout: Prisma.Decimal;
   multiplier: Prisma.Decimal;
 } {
-  const maxAccountingMultiplier = allowAboveOne
-    ? MEGA_FREE_GAME_CONTROL_MAX_ACCOUNTING_MULTIPLIER
-    : MEGA_FREE_GAME_NORMAL_MAX_ACCOUNTING_MULTIPLIER;
-  const targetAccountingMultiplier = chooseMegaFreeGameAccountingMultiplier(
-    nonce,
-    maxAccountingMultiplier,
-  );
-  const targetPayout = stakeAmount
-    .mul(targetAccountingMultiplier)
-    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const maxAccountingMultiplier =
+    preserveControlledTarget && controlMaxPayout && stakeAmount.greaterThan(0)
+      ? controlMaxPayout.div(stakeAmount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN)
+      : allowAboveOne
+        ? MEGA_FREE_GAME_CONTROL_MAX_ACCOUNTING_MULTIPLIER
+        : MEGA_FREE_GAME_NORMAL_MAX_ACCOUNTING_MULTIPLIER;
+  const targetPayout = preserveControlledTarget
+    ? baseAmount.mul(features.totalMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
+    : stakeAmount
+        .mul(chooseMegaFreeGameAccountingMultiplier(nonce, maxAccountingMultiplier))
+        .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
   const maxPayout = stakeAmount
     .mul(maxAccountingMultiplier)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
@@ -540,6 +543,17 @@ function canMegaFreeGameExceedOne(
     control.flipReason === 'manual_detection' ||
     control.flipReason === 'manual_detection_release' ||
     control.flipReason === 'auto_balance_revive' ||
+    control.flipReason === 'burst_win' ||
+    control.flipReason === 'burst_small_win' ||
+    control.flipReason === 'burst_risk_cap'
+  );
+}
+
+function shouldPreserveControlledMegaFreeGameTarget(
+  control: Pick<ControlOutcome, 'controlled' | 'won' | 'flipReason'>,
+): boolean {
+  if (!control.controlled || !control.won) return false;
+  return (
     control.flipReason === 'burst_win' ||
     control.flipReason === 'burst_small_win' ||
     control.flipReason === 'burst_risk_cap'
