@@ -51,15 +51,61 @@ export const winCapControlSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
-export const depositControlSchema = z.object({
-  memberId: z.string(),
-  memberUsername: z.string(),
-  depositAmount: positiveDecimal,
-  targetProfit: positiveDecimal,
-  startBalance: decimal,
-  controlWinRate: fractionDecimal.default('0.70'),
-  notes: z.string().max(500).optional(),
-});
+export const depositControlSchema = z
+  .object({
+    scope: z.enum(['MEMBER', 'AGENT_LINE']).default('MEMBER'),
+    memberId: z.string().optional().nullable(),
+    memberUsername: z.string().optional().nullable(),
+    targetAgentId: z.string().optional().nullable(),
+    targetAgentUsername: z.string().optional().nullable(),
+    depositAmount: decimal.optional(),
+    targetProfit: decimal.optional(),
+    startBalance: decimal.optional(),
+    controlWinRate: fractionDecimal.default('0.50'),
+    lifecycleSteps: z.array(z.coerce.number().min(0).max(1000)).min(1).max(20).optional(),
+    notes: z.string().max(500).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.scope === 'MEMBER' && (!value.memberId || !value.memberUsername)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '入金控制必须指定会员账号',
+        path: ['memberId'],
+      });
+    }
+    if (value.scope === 'AGENT_LINE' && (!value.targetAgentId || !value.targetAgentUsername)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '代理线入金控制必须指定代理账号',
+        path: ['targetAgentId'],
+      });
+    }
+    if (value.lifecycleSteps) {
+      const hasInvalid = value.lifecycleSteps.some((step) => !Number.isFinite(step));
+      if (hasInvalid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '生命周期阶段必须是数字',
+          path: ['lifecycleSteps'],
+        });
+      }
+    } else {
+      if (!value.depositAmount || Number.parseFloat(value.depositAmount) <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '旧版入金控制必须输入入金金额',
+          path: ['depositAmount'],
+        });
+      }
+      if (!value.targetProfit || Number.parseFloat(value.targetProfit) <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '旧版入金控制必须输入目标盈利',
+          path: ['targetProfit'],
+        });
+      }
+    }
+  });
 
 export const agentLineControlSchema = z.object({
   agentId: z.string(),

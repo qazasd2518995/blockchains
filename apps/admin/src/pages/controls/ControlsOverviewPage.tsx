@@ -86,7 +86,11 @@ interface WinCapRow {
 
 interface DepositRow {
   id: string;
-  memberUsername: string;
+  scope?: 'MEMBER' | 'AGENT_LINE';
+  memberId?: string | null;
+  memberUsername: string | null;
+  targetAgentId?: string | null;
+  targetAgentUsername?: string | null;
   depositAmount: string;
   targetProfit: string;
   targetBalance?: string;
@@ -95,12 +99,29 @@ interface DepositRow {
   currentProfit?: string;
   progressPercent?: string;
   controlWinRate: string;
+  lifecycleSteps?: number[];
+  lifecycleState?: DepositLifecycleState | null;
+  lifecycleStates?: DepositLifecycleState[];
+  lifecycleStateCount?: number;
   isActive: boolean;
   isCompleted: boolean;
   isTargetReached?: boolean;
   notes: string | null;
   operatorUsername: string | null;
   createdAt: string;
+}
+
+interface DepositLifecycleState {
+  memberUsername: string;
+  startBalance: string;
+  currentBalance: string;
+  currentPercent: string;
+  currentStageIndex: number;
+  targetPercent: number | null;
+  targetBalance: string | null;
+  direction: 'WIN' | 'LOSS' | 'HOLD' | 'DONE';
+  progressPercent: string;
+  isCompleted: boolean;
 }
 
 interface AgentLineRow {
@@ -384,9 +405,7 @@ export function ControlsOverviewPage(): JSX.Element {
             </span>
           )}
           {isHoldTargetManual(r) && (
-            <span className="font-mono text-[10px] text-[#186073]">
-              鎖定 ±{fmt(r.targetBand)}
-            </span>
+            <span className="font-mono text-[10px] text-[#186073]">鎖定 ±{fmt(r.targetBand)}</span>
           )}
         </div>
       ),
@@ -501,46 +520,97 @@ export function ControlsOverviewPage(): JSX.Element {
 
   const dcCols: Column<DepositRow>[] = [
     {
-      key: 'member',
-      label: '会员账号',
-      render: (r) => <span className="font-mono">{r.memberUsername}</span>,
-    },
-    {
-      key: 'deposit',
-      label: '入金金额',
-      align: 'right',
-      render: (r) => <span className="data-num">{fmt(r.depositAmount)}</span>,
-    },
-    {
       key: 'target',
-      label: '目标盈利',
-      align: 'right',
-      render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.targetProfit)}</span>,
+      label: '控制目标',
+      render: (r) => (
+        <div className="flex flex-col gap-1">
+          <span className="tag tag-acid">{r.scope === 'AGENT_LINE' ? '代理线' : '会员'}</span>
+          <span className="font-mono text-[11px]">
+            {r.scope === 'AGENT_LINE' ? (r.targetAgentUsername ?? '—') : (r.memberUsername ?? '—')}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'path',
+      label: '本金路径',
+      render: (r) => (
+        <span className="font-mono text-[11px]">
+          {r.lifecycleSteps && r.lifecycleSteps.length > 0
+            ? r.lifecycleSteps.map((step) => `${step}%`).join(' » ')
+            : `旧版 +${fmt(r.targetProfit)}`}
+        </span>
+      ),
+    },
+    {
+      key: 'principal',
+      label: '本金 / 目前',
+      render: (r) => {
+        const state = r.lifecycleState;
+        if (state) {
+          return (
+            <div className="flex flex-col gap-1">
+              <span className="data-num text-[12px]">{fmt(state.startBalance)}</span>
+              <span className="font-mono text-[10px] text-[#186073]">
+                {fmt(state.currentBalance)} · {Number.parseFloat(state.currentPercent).toFixed(0)}%
+              </span>
+            </div>
+          );
+        }
+        if (r.scope === 'AGENT_LINE') {
+          return (
+            <span className="font-mono text-[11px] text-ink-500">
+              {r.lifecycleStateCount ?? 0} 位已进入
+            </span>
+          );
+        }
+        return <span className="data-num">{fmt(r.startBalance)}</span>;
+      },
     },
     {
       key: 'progress',
-      label: '目前额 / 进度',
+      label: '目前阶段',
       render: (r) => {
-        const progress = depositProgressPercent(r);
+        const state = r.lifecycleState;
+        const progress = state
+          ? Number.parseFloat(state.progressPercent)
+          : depositProgressPercent(r);
         return (
           <div className="min-w-[150px]">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="data-num text-[12px] text-[#186073]">
-                {signed(r.currentProfit ?? '0')}
-              </span>
+              {state ? (
+                <span className={depositLifecycleDirectionClass(state)}>
+                  {depositLifecycleDirectionText(state)}
+                </span>
+              ) : (
+                <span className="data-num text-[12px] text-[#186073]">
+                  {signed(r.currentProfit ?? '0')}
+                </span>
+              )}
               <span className="font-mono text-[10px] text-ink-500">
-                {progress.toFixed(0)}%
+                {Number.isFinite(progress) ? progress.toFixed(0) : '0'}%
               </span>
             </div>
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ink-100">
               <div
                 className="h-full rounded-full bg-[#2BAA6A]"
-                style={{ width: `${progress}%` }}
+                style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
               />
             </div>
             <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-ink-400">
-              <span>余额 {fmt(r.currentBalance)}</span>
-              <span>目标 {fmt(r.targetBalance)}</span>
+              {state ? (
+                <>
+                  <span>第 {state.currentStageIndex + 1} 阶</span>
+                  <span>
+                    目标 {state.targetPercent ?? '—'}% · {fmt(state.targetBalance)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>余额 {fmt(r.currentBalance)}</span>
+                  <span>目标 {fmt(r.targetBalance)}</span>
+                </>
+              )}
             </div>
           </div>
         );
@@ -959,7 +1029,7 @@ export function ControlsOverviewPage(): JSX.Element {
             <div className="font-semibold text-[#7A5F15]">控制优先级</div>
             <div className="mt-1">
               会员输控制 &gt; 代理线输控制 &gt; 全账号 50,000 赢分上限 &gt; 会员赢控制 &gt;
-              代理线赢控制 &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 爆分控制
+              代理线赢控制 &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 自動模型
             </div>
             <div className="mt-1 text-[#7A5F15]/80">
               输控制会自动按 3-4 输后补 1 次小赢，不会每局直线压输。
@@ -1113,7 +1183,7 @@ export function ControlsOverviewPage(): JSX.Element {
             <>
               <Section
                 title="§ 入金控制"
-                subtitle="命中介入率时控制会员赢，未命中自然开奖"
+                subtitle="按本金百分比建立会员或代理线生命周期"
                 actions={
                   <button
                     type="button"
@@ -1201,7 +1271,8 @@ export function ControlsOverviewPage(): JSX.Element {
                 <div className="mb-3 rounded-[6px] border border-[#186073]/20 bg-[#EFF8FB] px-4 py-3 text-[12px] text-[#32505C]">
                   <div className="font-semibold text-[#186073]">运行说明</div>
                   <div className="mt-1">
-                    爆分只接受后台指定单一玩家与指定金额。全盘、代理线与系统自动爆分已停用；未指定的自然高倍结果会被限制在单局净赢 30,000 内。
+                    爆分只接受后台指定单一玩家与指定金额。全盘、代理线与系统自动爆分已停用；未指定的自然高倍结果会被限制在单局净赢
+                    30,000 内。
                   </div>
                 </div>
                 <DataTable columns={bcCols} rows={bc} rowKey={(r) => r.id} empty={t.common.empty} />
@@ -1395,6 +1466,20 @@ function depositProgressPercent(row: DepositRow): number {
     return 0;
   }
   return Math.max(0, Math.min(100, (currentProfit / targetProfit) * 100));
+}
+
+function depositLifecycleDirectionText(state: DepositLifecycleState): string {
+  if (state.isCompleted || state.direction === 'DONE') return '已完成';
+  if (state.direction === 'WIN') return `控贏到 ${state.targetPercent ?? '—'}%`;
+  if (state.direction === 'LOSS') return `控輸到 ${state.targetPercent ?? '—'}%`;
+  return `維持 ${state.targetPercent ?? '—'}%`;
+}
+
+function depositLifecycleDirectionClass(state: DepositLifecycleState): string {
+  if (state.isCompleted || state.direction === 'DONE') return 'tag tag-acid';
+  if (state.direction === 'WIN') return 'tag tag-toxic';
+  if (state.direction === 'LOSS') return 'tag tag-ember';
+  return 'tag tag-acid';
 }
 
 function signed(value?: string | null): string {

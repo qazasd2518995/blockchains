@@ -571,24 +571,50 @@ model MemberWinCapControl {
 }
 
 model MemberDepositControl {
-  id               String   @id @default(cuid())
-  memberId         String
-  memberUsername   String
-  agentId          String
-  creator          Agent    @relation("DepositCreatedBy", fields: [agentId], references: [id])
-  depositAmount    Decimal  @db.Decimal(20, 2)
-  targetProfit     Decimal  @db.Decimal(20, 2)
-  startBalance     Decimal  @db.Decimal(20, 2)
-  controlWinRate   Decimal  @default(0.70) @db.Decimal(5, 4)
-  isActive         Boolean  @default(true)
-  isCompleted      Boolean  @default(false)
-  startPeriod      String?
-  notes            String?
-  operatorUsername String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                  String                        @id @default(cuid())
+  scope               String                        @default("MEMBER")
+  memberId            String?
+  memberUsername      String?
+  targetAgentId       String?
+  targetAgentUsername String?
+  agentId             String
+  creator             Agent                         @relation("DepositCreatedBy", fields: [agentId], references: [id])
+  depositAmount       Decimal                       @db.Decimal(20, 2)
+  targetProfit        Decimal                       @db.Decimal(20, 2)
+  startBalance        Decimal                       @db.Decimal(20, 2)
+  controlWinRate      Decimal                       @default(0.70) @db.Decimal(5, 4)
+  lifecycleSteps      Json?
+  isActive            Boolean                       @default(true)
+  isCompleted         Boolean                       @default(false)
+  startPeriod         String?
+  notes               String?
+  operatorUsername    String?
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+  lifecycleStates     MemberDepositLifecycleState[]
 
   @@index([memberUsername, isActive])
+  @@index([scope, isActive, isCompleted])
+  @@index([targetAgentId, isActive])
+}
+
+model MemberDepositLifecycleState {
+  id                String               @id @default(cuid())
+  controlId         String
+  control           MemberDepositControl @relation(fields: [controlId], references: [id], onDelete: Cascade)
+  memberId          String
+  memberUsername    String
+  startBalance      Decimal              @db.Decimal(20, 2)
+  currentStageIndex Int                  @default(0)
+  isCompleted       Boolean              @default(false)
+  completedAt       DateTime?
+  lastBalance       Decimal?             @db.Decimal(20, 2)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@unique([controlId, memberId])
+  @@index([memberId, isCompleted])
+  @@index([controlId, isCompleted])
 }
 
 model MemberAutoBalanceControl {

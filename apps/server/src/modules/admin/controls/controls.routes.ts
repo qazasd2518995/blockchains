@@ -47,6 +47,72 @@ function normalizeGameIds(gameIds: string[] | undefined): string[] {
   );
 }
 
+function normalizeLifecycleSteps(steps: number[] | undefined): number[] | null {
+  if (!steps || steps.length === 0) return null;
+  return steps.map((step) => Number(step.toFixed(2)));
+}
+
+function parseLifecycleSteps(value: Prisma.JsonValue | null): number[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === 'number' ? item : Number.parseFloat(String(item))))
+    .filter((item) => Number.isFinite(item) && item >= 0);
+}
+
+function lifecycleTargetBalance(startBalance: Prisma.Decimal, percent: number): Prisma.Decimal {
+  return startBalance.mul(percent).div(100).toDecimalPlaces(2);
+}
+
+function lifecycleDirection(fromPercent: number, targetPercent: number): 'WIN' | 'LOSS' | 'HOLD' {
+  if (targetPercent > fromPercent) return 'WIN';
+  if (targetPercent < fromPercent) return 'LOSS';
+  return 'HOLD';
+}
+
+function serializeDepositLifecycleState(
+  state: {
+    memberUsername: string;
+    startBalance: Prisma.Decimal;
+    currentStageIndex: number;
+    isCompleted: boolean;
+    lastBalance: Prisma.Decimal | null;
+  },
+  currentBalance: Prisma.Decimal | undefined,
+  steps: number[],
+) {
+  const current = currentBalance ?? state.lastBalance ?? state.startBalance;
+  const currentPercent = state.startBalance.greaterThan(0)
+    ? current.div(state.startBalance).mul(100).toDecimalPlaces(2).toNumber()
+    : 0;
+  const targetPercent = steps[state.currentStageIndex] ?? null;
+  const fromPercent =
+    state.currentStageIndex === 0 ? 100 : (steps[state.currentStageIndex - 1] ?? 100);
+  const targetBalance =
+    targetPercent === null ? null : lifecycleTargetBalance(state.startBalance, targetPercent);
+  const direction =
+    targetPercent === null ? 'DONE' : lifecycleDirection(fromPercent, targetPercent);
+  const progressPercent =
+    targetPercent === null || targetPercent === fromPercent
+      ? 100
+      : Math.max(
+          0,
+          Math.min(100, ((currentPercent - fromPercent) / (targetPercent - fromPercent)) * 100),
+        );
+
+  return {
+    memberUsername: state.memberUsername,
+    startBalance: state.startBalance.toFixed(2),
+    currentBalance: current.toFixed(2),
+    currentPercent: currentPercent.toFixed(2),
+    currentStageIndex: state.currentStageIndex,
+    targetPercent,
+    targetBalance: targetBalance?.toFixed(2) ?? null,
+    direction,
+    progressPercent: progressPercent.toFixed(2),
+    isCompleted: state.isCompleted,
+  };
+}
+
 function serializeSettlement(summary: Awaited<ReturnType<typeof calculateCurrentSettlement>>) {
   return {
     gameDay: summary.gameDay,
@@ -181,7 +247,9 @@ async function enrichControlLogs(
       where: { id: { in: controlIds } },
       select: {
         id: true,
+        scope: true,
         memberUsername: true,
+        targetAgentUsername: true,
         targetProfit: true,
         controlWinRate: true,
         notes: true,
@@ -294,7 +362,9 @@ function resolveControlLogMeta(
     deposit: Map<
       string,
       {
-        memberUsername: string;
+        scope: string;
+        memberUsername: string | null;
+        targetAgentUsername: string | null;
         targetProfit: Prisma.Decimal;
         controlWinRate: Prisma.Decimal;
         notes: string | null;
@@ -387,15 +457,20 @@ function resolveControlLogMeta(
     const control = maps.deposit.get(log.controlId);
     if (control) {
       const isOnlineReward = reasonSource === 'online_reward_next_win';
+      const scopeLabel = control.scope === 'AGENT_LINE' ? '代理線' : '會員';
+      const targetLabel =
+        control.scope === 'AGENT_LINE'
+          ? (control.targetAgentUsername ?? '—')
+          : (control.memberUsername ?? '—');
       return {
         source: reasonSource,
         sourceLabel: isOnlineReward ? '在線均分必贏' : '入金控制',
-        scopeLabel: '會員',
-        targetLabel: control.memberUsername,
+        scopeLabel,
+        targetLabel,
         operatorUsername: control.operatorUsername,
         detail: isOnlineReward
-          ? `最近活躍玩家均分，設定 ${control.memberUsername} 下一局直接贏，目標淨贏 ${control.targetProfit.toFixed(2)}`
-          : `會員 ${control.memberUsername} 入金控制，目標盈利 ${control.targetProfit.toFixed(2)}，介入率 ${formatLogRate(control.controlWinRate)}`,
+          ? `最近活躍玩家均分，設定 ${targetLabel} 下一局直接贏，目標淨贏 ${control.targetProfit.toFixed(2)}`
+          : `${scopeLabel} ${targetLabel} 入金控制，目標盈利 ${control.targetProfit.toFixed(2)}，介入率 ${formatLogRate(control.controlWinRate)}`,
       };
     }
   }
@@ -899,30 +974,80 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     async () => {
       const items = await fastify.prisma.memberDepositControl.findMany({
         orderBy: { createdAt: 'desc' },
+        include: {
+          lifecycleStates: {
+            orderBy: { updatedAt: 'desc' },
+            take: 5,
+          },
+          _count: { select: { lifecycleStates: true } },
+        },
       });
+      const stateMemberIds = items.flatMap((item) =>
+        item.lifecycleStates.map((state) => state.memberId),
+      );
       const members = await fastify.prisma.user.findMany({
-        where: { id: { in: Array.from(new Set(items.map((item) => item.memberId))) } },
+        where: {
+          id: {
+            in: Array.from(
+              new Set([
+                ...items.map((item) => item.memberId).filter((id): id is string => Boolean(id)),
+                ...stateMemberIds,
+              ]),
+            ),
+          },
+        },
         select: { id: true, balance: true },
       });
       const balanceByMemberId = new Map(members.map((member) => [member.id, member.balance]));
       return {
         items: items.map((item) => {
-          const currentBalance = balanceByMemberId.get(item.memberId) ?? item.startBalance;
+          const steps = parseLifecycleSteps(item.lifecycleSteps);
+          const primaryState =
+            item.scope === 'MEMBER'
+              ? (item.lifecycleStates.find((state) => state.memberId === item.memberId) ??
+                item.lifecycleStates[0])
+              : item.lifecycleStates[0];
+          const currentBalance =
+            (primaryState
+              ? balanceByMemberId.get(primaryState.memberId)
+              : item.memberId
+                ? balanceByMemberId.get(item.memberId)
+                : undefined) ?? item.startBalance;
+          const startBalance = primaryState?.startBalance ?? item.startBalance;
           const currentProfit = currentBalance.sub(item.startBalance);
           const progressPercent = item.targetProfit.greaterThan(0)
             ? Math.max(0, Math.min(100, currentProfit.div(item.targetProfit).mul(100).toNumber()))
             : 0;
+          const lifecycleState = primaryState
+            ? serializeDepositLifecycleState(primaryState, currentBalance, steps)
+            : null;
           return {
-            ...item,
+            id: item.id,
+            scope: item.scope,
+            memberId: item.memberId,
+            memberUsername: item.memberUsername,
+            targetAgentId: item.targetAgentId,
+            targetAgentUsername: item.targetAgentUsername,
             depositAmount: item.depositAmount.toFixed(2),
             targetProfit: item.targetProfit.toFixed(2),
             targetBalance: item.startBalance.add(item.targetProfit).toFixed(2),
-            startBalance: item.startBalance.toFixed(2),
+            startBalance: startBalance.toFixed(2),
             currentBalance: currentBalance.toFixed(2),
             currentProfit: currentProfit.toFixed(2),
             progressPercent: progressPercent.toFixed(2),
             controlWinRate: item.controlWinRate.toFixed(4),
+            lifecycleSteps: steps,
+            lifecycleState,
+            lifecycleStateCount: item._count.lifecycleStates,
+            lifecycleStates: item.lifecycleStates.map((state) =>
+              serializeDepositLifecycleState(state, balanceByMemberId.get(state.memberId), steps),
+            ),
             isTargetReached: currentProfit.greaterThanOrEqualTo(item.targetProfit),
+            isActive: item.isActive,
+            isCompleted: item.isCompleted,
+            notes: item.notes,
+            operatorUsername: item.operatorUsername,
+            createdAt: item.createdAt,
           };
         }),
       };
@@ -934,24 +1059,86 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
     async (req, reply) => {
       const body = depositControlSchema.parse(req.body);
-      const member = await fastify.prisma.user.findUnique({ where: { id: body.memberId } });
-      if (!member?.agentId) {
-        reply.code(400).send({ code: 'INVALID_ACTION', message: 'Member has no agent' });
-        return;
+      const lifecycleSteps = normalizeLifecycleSteps(body.lifecycleSteps);
+      const controlWinRate = new Prisma.Decimal(body.controlWinRate);
+
+      let created: Awaited<ReturnType<typeof fastify.prisma.memberDepositControl.create>>;
+      if (body.scope === 'AGENT_LINE') {
+        const agent = await fastify.prisma.agent.findUnique({
+          where: { id: body.targetAgentId ?? '' },
+          select: { id: true, username: true, status: true },
+        });
+        if (!agent || agent.status === 'DELETED') {
+          reply.code(404).send({ code: 'AGENT_NOT_FOUND', message: 'Agent not found' });
+          return;
+        }
+        created = await fastify.prisma.memberDepositControl.create({
+          data: {
+            scope: 'AGENT_LINE',
+            memberId: null,
+            memberUsername: null,
+            targetAgentId: agent.id,
+            targetAgentUsername: agent.username,
+            agentId: agent.id,
+            depositAmount: new Prisma.Decimal(body.depositAmount ?? 0),
+            targetProfit: new Prisma.Decimal(body.targetProfit ?? 0),
+            startBalance: new Prisma.Decimal(body.startBalance ?? 0),
+            controlWinRate,
+            lifecycleSteps: lifecycleSteps
+              ? (lifecycleSteps as unknown as Prisma.InputJsonValue)
+              : undefined,
+            notes: body.notes ?? null,
+            operatorUsername: req.admin.username,
+          },
+        });
+      } else {
+        const member = await fastify.prisma.user.findUnique({
+          where: { id: body.memberId ?? '' },
+          select: {
+            id: true,
+            username: true,
+            role: true,
+            disabledAt: true,
+            agentId: true,
+            balance: true,
+          },
+        });
+        if (!member || member.role !== 'PLAYER' || member.disabledAt || !member.agentId) {
+          reply.code(400).send({ code: 'INVALID_ACTION', message: 'Member has no agent' });
+          return;
+        }
+        const startBalance = new Prisma.Decimal(body.startBalance ?? member.balance);
+        created = await fastify.prisma.memberDepositControl.create({
+          data: {
+            scope: 'MEMBER',
+            memberId: member.id,
+            memberUsername: member.username,
+            targetAgentId: null,
+            targetAgentUsername: null,
+            agentId: member.agentId,
+            depositAmount: new Prisma.Decimal(body.depositAmount ?? startBalance),
+            targetProfit: new Prisma.Decimal(body.targetProfit ?? 0),
+            startBalance,
+            controlWinRate,
+            lifecycleSteps: lifecycleSteps
+              ? (lifecycleSteps as unknown as Prisma.InputJsonValue)
+              : undefined,
+            notes: body.notes ?? null,
+            operatorUsername: req.admin.username,
+            lifecycleStates: lifecycleSteps
+              ? {
+                  create: {
+                    memberId: member.id,
+                    memberUsername: member.username,
+                    startBalance,
+                    currentStageIndex: 0,
+                    lastBalance: member.balance,
+                  },
+                }
+              : undefined,
+          },
+        });
       }
-      const created = await fastify.prisma.memberDepositControl.create({
-        data: {
-          memberId: body.memberId,
-          memberUsername: body.memberUsername,
-          agentId: member.agentId,
-          depositAmount: new Prisma.Decimal(body.depositAmount),
-          targetProfit: new Prisma.Decimal(body.targetProfit),
-          startBalance: new Prisma.Decimal(body.startBalance),
-          controlWinRate: new Prisma.Decimal(body.controlWinRate),
-          notes: body.notes ?? null,
-          operatorUsername: req.admin.username,
-        },
-      });
       await writeAudit(fastify.prisma, {
         actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
         action: 'control.deposit.create',

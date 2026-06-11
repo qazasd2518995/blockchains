@@ -72,6 +72,31 @@ interface ControlDecision {
 const CONTROL_INTERVENTION_MISS = Symbol('control_intervention_miss');
 type ControlDecisionLookup = ControlDecision | typeof CONTROL_INTERVENTION_MISS | null;
 
+type DepositControlRecord = {
+  id: string;
+  scope: string;
+  memberId: string | null;
+  memberUsername: string | null;
+  targetAgentId: string | null;
+  startBalance: Prisma.Decimal;
+  targetProfit: Prisma.Decimal;
+  controlWinRate: Prisma.Decimal;
+  lifecycleSteps: Prisma.JsonValue | null;
+  notes: string | null;
+  createdAt: Date;
+};
+
+type DepositLifecycleStateRecord = {
+  id: string;
+  controlId: string;
+  memberId: string;
+  memberUsername: string;
+  startBalance: Prisma.Decimal;
+  currentStageIndex: number;
+  isCompleted: boolean;
+  lastBalance: Prisma.Decimal | null;
+};
+
 function isControlInterventionMiss(
   decision: ControlDecisionLookup,
 ): decision is typeof CONTROL_INTERVENTION_MISS {
@@ -810,48 +835,35 @@ async function hasActiveDepositControlForGlobalCapBypass(
   tx: Db,
   memberId: string,
 ): Promise<boolean> {
-  const db = tx as unknown as {
-    memberDepositControl?: {
-      findFirst?: (args: unknown) => Promise<{
-        id: string;
-        startBalance: Prisma.Decimal;
-        targetProfit: Prisma.Decimal;
-      } | null>;
-      update?: (args: unknown) => Promise<unknown>;
-    };
-    user?: {
-      findUnique?: (args: unknown) => Promise<{ balance?: Prisma.Decimal } | null>;
-    };
-  };
-  if (!db.memberDepositControl?.findFirst) return false;
-
-  const control = await db.memberDepositControl.findFirst({
-    where: {
-      memberId,
-      isActive: true,
-      isCompleted: false,
-      AND: [
-        { OR: [{ notes: null }, { NOT: { notes: { contains: 'online_reward' } } }] },
-        { OR: [{ notes: null }, { NOT: { notes: { contains: 'auto_revive' } } }] },
-      ],
-    },
-    select: { id: true, startBalance: true, targetProfit: true },
+  const member = await tx.user.findUnique({
+    where: { id: memberId },
+    select: { id: true, username: true, agentId: true, balance: true },
   });
+  if (!member || !(member as { balance?: Prisma.Decimal }).balance) return false;
+
+  const control = await findApplicableDepositControl(tx, member);
   if (!control) return false;
 
-  const currentUser = db.user?.findUnique
-    ? await db.user.findUnique({ where: { id: memberId }, select: { balance: true } })
-    : null;
-  const currentProfit = currentUser?.balance
-    ? currentUser.balance.sub(control.startBalance)
-    : new Prisma.Decimal(0);
+  const steps = parseDepositLifecycleSteps(control.lifecycleSteps);
+  if (steps.length > 0) {
+    const state = await getOrCreateDepositLifecycleState(tx, control, member, member.balance);
+    if (!state) return false;
+    const resolved = await advanceDepositLifecycleStateIfReached(
+      tx,
+      control,
+      state,
+      member.balance,
+      steps,
+    );
+    return !resolved.completed;
+  }
+
+  const currentProfit = member.balance.sub(control.startBalance);
   if (currentProfit.greaterThanOrEqualTo(control.targetProfit)) {
-    if (db.memberDepositControl.update) {
-      await db.memberDepositControl.update({
-        where: { id: control.id },
-        data: { isActive: false, isCompleted: true },
-      });
-    }
+    await tx.memberDepositControl.update({
+      where: { id: control.id },
+      data: { isActive: false, isCompleted: true },
+    });
     return false;
   }
   return true;
@@ -1077,24 +1089,101 @@ async function findDepositControlDecisionLookup(
   member: MemberScope,
   predicted: PredictedResult,
 ): Promise<ControlDecisionLookup> {
-  const control = await tx.memberDepositControl.findFirst({
+  const control = await findApplicableDepositControl(tx, member);
+  if (!control) return null;
+  const steps = parseDepositLifecycleSteps(control.lifecycleSteps);
+  if (steps.length > 0) return buildDepositLifecycleDecision(tx, member, predicted, control, steps);
+  return buildDepositDecision(tx, member, predicted, control);
+}
+
+async function findApplicableDepositControl(
+  tx: Db,
+  member: MemberScope,
+): Promise<DepositControlRecord | null> {
+  const delegate = (tx as unknown as { memberDepositControl?: unknown }).memberDepositControl as
+    | {
+        findMany?: (args: unknown) => Promise<DepositControlRecord[]>;
+        findFirst?: (args: unknown) => Promise<DepositControlRecord | null>;
+      }
+    | undefined;
+  if (!delegate) return null;
+  const select = {
+    id: true,
+    scope: true,
+    memberId: true,
+    memberUsername: true,
+    targetAgentId: true,
+    startBalance: true,
+    targetProfit: true,
+    controlWinRate: true,
+    lifecycleSteps: true,
+    notes: true,
+    createdAt: true,
+  };
+
+  if (!delegate.findMany) {
+    const legacy = await delegate.findFirst?.({
+      where: {
+        memberId: member.id,
+        isActive: true,
+        isCompleted: false,
+        OR: [{ notes: null }, { NOT: { notes: { contains: 'online_reward' } } }],
+      },
+      orderBy: { createdAt: 'desc' },
+      select,
+    });
+    return legacy
+      ? {
+          ...legacy,
+          scope: legacy.scope ?? 'MEMBER',
+          memberId: legacy.memberId ?? member.id,
+          memberUsername: legacy.memberUsername ?? member.username,
+          targetAgentId: legacy.targetAgentId ?? null,
+          lifecycleSteps: legacy.lifecycleSteps ?? null,
+          createdAt: legacy.createdAt ?? new Date(0),
+        }
+      : null;
+  }
+
+  const controls = await delegate.findMany({
     where: {
-      memberId: member.id,
       isActive: true,
       isCompleted: false,
-      OR: [{ notes: null }, { NOT: { notes: { contains: 'online_reward' } } }],
+      AND: [
+        { OR: [{ notes: null }, { NOT: { notes: { contains: 'online_reward' } } }] },
+        { OR: [{ notes: null }, { NOT: { notes: { contains: 'auto_revive' } } }] },
+      ],
+      OR: [
+        { scope: 'MEMBER', memberId: member.id },
+        { scope: 'AGENT_LINE', targetAgentId: { not: null } },
+      ],
     },
     orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      startBalance: true,
-      targetProfit: true,
-      controlWinRate: true,
-      notes: true,
-    },
+    select,
   });
-  if (!control) return null;
-  return buildDepositDecision(tx, member, predicted, control);
+  if (controls.length === 0) return null;
+
+  const memberControl = controls.find((control) => control.scope === 'MEMBER');
+  if (memberControl) return memberControl;
+
+  const ancestors = member.agentId ? await getAgentAncestors(tx, member.agentId) : [];
+  return (
+    controls
+      .filter(
+        (control) =>
+          control.scope === 'AGENT_LINE' &&
+          control.targetAgentId &&
+          ancestors.includes(control.targetAgentId),
+      )
+      .map((control) => ({
+        control,
+        depth: ancestors.indexOf(control.targetAgentId as string),
+      }))
+      .sort(
+        (a, b) =>
+          a.depth - b.depth || b.control.createdAt.getTime() - a.control.createdAt.getTime(),
+      )[0]?.control ?? null
+  );
 }
 
 async function buildDepositDecision(
@@ -1150,6 +1239,173 @@ async function buildDepositDecision(
     maxPayout,
     forceWinAdjustment: isOnlineRewardNextWin,
   };
+}
+
+async function buildDepositLifecycleDecision(
+  tx: Db,
+  member: MemberScope,
+  predicted: PredictedResult,
+  control: DepositControlRecord,
+  steps: number[],
+): Promise<ControlDecisionLookup> {
+  const currentUser = await tx.user.findUnique({
+    where: { id: member.id },
+    select: { id: true, username: true, agentId: true, balance: true },
+  });
+  if (!currentUser || currentUser.balance.lessThanOrEqualTo(0)) return null;
+
+  const state = await getOrCreateDepositLifecycleState(
+    tx,
+    control,
+    currentUser,
+    currentUser.balance,
+  );
+  if (!state) return null;
+
+  const resolved = await advanceDepositLifecycleStateIfReached(
+    tx,
+    control,
+    state,
+    currentUser.balance,
+    steps,
+  );
+  if (resolved.completed || resolved.targetPercent === null) return null;
+  if (Math.random() >= clampRate(control.controlWinRate)) return CONTROL_INTERVENTION_MISS;
+
+  if (resolved.direction === 'LOSS') {
+    return { desired: 'LOSS', controlId: control.id, reason: 'deposit_control' };
+  }
+
+  if (resolved.direction !== 'WIN') return null;
+
+  const remaining = Prisma.Decimal.max(resolved.targetBalance.sub(currentUser.balance), ZERO);
+  if (remaining.lessThanOrEqualTo(0)) return null;
+  return {
+    desired: 'WIN',
+    controlId: control.id,
+    reason: 'deposit_control',
+    minMultiplier: new Prisma.Decimal('1.01'),
+    maxPayout: predicted.amount.add(remaining).toDecimalPlaces(2),
+    forceWinAdjustment: true,
+  };
+}
+
+async function getOrCreateDepositLifecycleState(
+  tx: Db,
+  control: DepositControlRecord,
+  member: { id: string; username: string; balance: Prisma.Decimal },
+  currentBalance: Prisma.Decimal,
+): Promise<DepositLifecycleStateRecord | null> {
+  const existing = await tx.memberDepositLifecycleState.findUnique({
+    where: { controlId_memberId: { controlId: control.id, memberId: member.id } },
+  });
+  if (existing) return existing;
+
+  const startBalance = control.scope === 'MEMBER' ? control.startBalance : currentBalance;
+  if (startBalance.lessThanOrEqualTo(0)) return null;
+  return tx.memberDepositLifecycleState.create({
+    data: {
+      controlId: control.id,
+      memberId: member.id,
+      memberUsername: member.username,
+      startBalance,
+      currentStageIndex: 0,
+      lastBalance: currentBalance,
+    },
+  });
+}
+
+async function advanceDepositLifecycleStateIfReached(
+  tx: Db,
+  control: Pick<DepositControlRecord, 'id' | 'scope'>,
+  state: DepositLifecycleStateRecord,
+  currentBalance: Prisma.Decimal,
+  steps: number[],
+): Promise<{
+  state: DepositLifecycleStateRecord;
+  completed: boolean;
+  direction: 'WIN' | 'LOSS' | 'HOLD';
+  fromPercent: number;
+  targetPercent: number | null;
+  targetBalance: Prisma.Decimal;
+}> {
+  let stageIndex = state.currentStageIndex;
+  let fromPercent = stageIndex === 0 ? 100 : (steps[stageIndex - 1] ?? 100);
+  let targetPercent = steps[stageIndex] ?? null;
+  let direction = resolveLifecycleDirection(fromPercent, targetPercent);
+  let targetBalance =
+    targetPercent === null
+      ? currentBalance
+      : lifecycleBalanceForPercent(state.startBalance, targetPercent);
+
+  while (
+    targetPercent !== null &&
+    isLifecycleStageReached(currentBalance, targetBalance, direction)
+  ) {
+    stageIndex += 1;
+    fromPercent = stageIndex === 0 ? 100 : (steps[stageIndex - 1] ?? 100);
+    targetPercent = steps[stageIndex] ?? null;
+    direction = resolveLifecycleDirection(fromPercent, targetPercent);
+    targetBalance =
+      targetPercent === null
+        ? currentBalance
+        : lifecycleBalanceForPercent(state.startBalance, targetPercent);
+  }
+
+  const completed = targetPercent === null;
+  if (
+    stageIndex !== state.currentStageIndex ||
+    completed !== state.isCompleted ||
+    !currentBalance.equals(state.lastBalance ?? ZERO)
+  ) {
+    const updated = await tx.memberDepositLifecycleState.update({
+      where: { id: state.id },
+      data: {
+        currentStageIndex: stageIndex,
+        isCompleted: completed,
+        completedAt: completed ? new Date() : null,
+        lastBalance: currentBalance,
+      },
+    });
+    state = updated;
+    if (completed && control.scope === 'MEMBER') {
+      await tx.memberDepositControl.update({
+        where: { id: control.id },
+        data: { isActive: false, isCompleted: true },
+      });
+    }
+  }
+
+  return { state, completed, direction, fromPercent, targetPercent, targetBalance };
+}
+
+function parseDepositLifecycleSteps(value: Prisma.JsonValue | null): number[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === 'number' ? item : Number.parseFloat(String(item))))
+    .filter((item) => Number.isFinite(item) && item >= 0);
+}
+
+function lifecycleBalanceForPercent(startBalance: Prisma.Decimal, percent: number): Prisma.Decimal {
+  return startBalance.mul(percent).div(100).toDecimalPlaces(2);
+}
+
+function resolveLifecycleDirection(
+  fromPercent: number,
+  targetPercent: number | null,
+): 'WIN' | 'LOSS' | 'HOLD' {
+  if (targetPercent === null || targetPercent === fromPercent) return 'HOLD';
+  return targetPercent > fromPercent ? 'WIN' : 'LOSS';
+}
+
+function isLifecycleStageReached(
+  currentBalance: Prisma.Decimal,
+  targetBalance: Prisma.Decimal,
+  direction: 'WIN' | 'LOSS' | 'HOLD',
+): boolean {
+  if (direction === 'WIN') return currentBalance.greaterThanOrEqualTo(targetBalance);
+  if (direction === 'LOSS') return currentBalance.lessThanOrEqualTo(targetBalance);
+  return true;
 }
 
 async function findManualDetectionDecision(
@@ -1640,8 +1896,29 @@ async function completeDepositControlIfReached(
   memberId: string,
   currentBalance: Prisma.Decimal,
 ): Promise<void> {
+  if (tx.memberDepositLifecycleState?.findMany) {
+    const lifecycleStates = await tx.memberDepositLifecycleState.findMany({
+      where: {
+        memberId,
+        isCompleted: false,
+        control: { isActive: true, isCompleted: false },
+      },
+      include: { control: true },
+    });
+    for (const state of lifecycleStates) {
+      const steps = parseDepositLifecycleSteps(state.control.lifecycleSteps);
+      if (steps.length === 0) continue;
+      await advanceDepositLifecycleStateIfReached(tx, state.control, state, currentBalance, steps);
+    }
+  }
+
   const controls = await tx.memberDepositControl.findMany({
-    where: { memberId, isActive: true, isCompleted: false },
+    where: {
+      memberId,
+      isActive: true,
+      isCompleted: false,
+      lifecycleSteps: { equals: Prisma.DbNull },
+    },
   });
   for (const control of controls) {
     const currentProfit = currentBalance.minus(control.startBalance);

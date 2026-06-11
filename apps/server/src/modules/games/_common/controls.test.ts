@@ -475,6 +475,129 @@ describe('control decision priority', () => {
     expect(decision).toBeNull();
   });
 
+  it('drives member deposit lifecycle toward the next principal target', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.49);
+    const state = {
+      id: 'state-1',
+      controlId: 'deposit-life-1',
+      memberId: 'member-1',
+      memberUsername: 'vip0666',
+      startBalance: new Prisma.Decimal(1000),
+      currentStageIndex: 0,
+      isCompleted: false,
+      lastBalance: new Prisma.Decimal(1000),
+    };
+    const tx = {
+      user: {
+        findUnique: vi.fn(async () => ({
+          id: 'member-1',
+          username: 'vip0666',
+          agentId: 'agent-1',
+          balance: new Prisma.Decimal(1000),
+        })),
+      },
+      memberDepositControl: {
+        findMany: vi.fn(async () => [
+          {
+            id: 'deposit-life-1',
+            scope: 'MEMBER',
+            memberId: 'member-1',
+            memberUsername: 'vip0666',
+            targetAgentId: null,
+            startBalance: new Prisma.Decimal(1000),
+            targetProfit: new Prisma.Decimal(0),
+            controlWinRate: new Prisma.Decimal('0.5'),
+            lifecycleSteps: [120, 80],
+            notes: null,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+          },
+        ]),
+      },
+      memberDepositLifecycleState: {
+        findUnique: vi.fn(async () => null),
+        create: vi.fn(async () => state),
+        update: vi.fn(async (args: { data: { currentStageIndex: number } }) => ({
+          ...state,
+          currentStageIndex: args.data.currentStageIndex,
+        })),
+      },
+    };
+
+    const decision = await __controlsTestHooks.findDepositControlDecision(
+      tx as never,
+      { id: 'member-1', username: 'vip0666', agentId: 'agent-1' },
+      predictedResult(100, 0, 0),
+    );
+
+    expect(decision).toBeTruthy();
+    expect(decision?.desired).toBe('WIN');
+    expect(decision?.reason).toBe('deposit_control');
+    expect(decision?.maxPayout?.toFixed(2)).toBe('300.00');
+  });
+
+  it('applies agent-line deposit lifecycle to downline members', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    const state = {
+      id: 'state-1',
+      controlId: 'deposit-line-1',
+      memberId: 'member-1',
+      memberUsername: 'vip0666',
+      startBalance: new Prisma.Decimal(1000),
+      currentStageIndex: 0,
+      isCompleted: false,
+      lastBalance: new Prisma.Decimal(1000),
+    };
+    const tx = {
+      $queryRaw: vi.fn(async () => [
+        { id: 'agent-child', depth: 0 },
+        { id: 'agent-line', depth: 1 },
+      ]),
+      user: {
+        findUnique: vi.fn(async () => ({
+          id: 'member-1',
+          username: 'vip0666',
+          agentId: 'agent-child',
+          balance: new Prisma.Decimal(1000),
+        })),
+      },
+      memberDepositControl: {
+        findMany: vi.fn(async () => [
+          {
+            id: 'deposit-line-1',
+            scope: 'AGENT_LINE',
+            memberId: null,
+            memberUsername: null,
+            targetAgentId: 'agent-line',
+            startBalance: new Prisma.Decimal(0),
+            targetProfit: new Prisma.Decimal(0),
+            controlWinRate: new Prisma.Decimal('0.5'),
+            lifecycleSteps: [80, 100],
+            notes: null,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+          },
+        ]),
+      },
+      memberDepositLifecycleState: {
+        findUnique: vi.fn(async () => null),
+        create: vi.fn(async () => state),
+        update: vi.fn(async (args: { data: { currentStageIndex: number } }) => ({
+          ...state,
+          currentStageIndex: args.data.currentStageIndex,
+        })),
+      },
+    };
+
+    const decision = await __controlsTestHooks.findDepositControlDecision(
+      tx as never,
+      { id: 'member-1', username: 'vip0666', agentId: 'agent-child' },
+      predictedResult(100, 200, 2),
+    );
+
+    expect(decision).toBeTruthy();
+    expect(decision?.desired).toBe('LOSS');
+    expect(decision?.reason).toBe('deposit_control');
+  });
+
   it('applies regular deposit controls before manual detection and auto balance', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.2);
 
