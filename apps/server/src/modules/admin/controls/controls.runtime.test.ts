@@ -103,12 +103,16 @@ describe('getOrCreateMemberAutoBalanceControl', () => {
 
     expect(update).toHaveBeenCalledWith({
       where: { id: 'auto-1' },
-      data: {
+      data: expect.objectContaining({
         memberUsername: 'vip1666',
         agentId: 'agent-1',
         biteTargetBalance: new Prisma.Decimal(10000),
         reviveTargetBalance: new Prisma.Decimal(20000),
-      },
+        templateKey: 'SEVEN_NO_RECOVERY',
+        lifecycleSteps: [80, 90, 20, 70, 10, 80, 0],
+        secondLineAmount: new Prisma.Decimal(50000),
+        lastBalance: new Prisma.Decimal(50000),
+      }),
     });
     expect(control?.biteTargetBalance.toFixed(2)).toBe('10000.00');
     expect(control?.reviveTargetBalance.toFixed(2)).toBe('20000.00');

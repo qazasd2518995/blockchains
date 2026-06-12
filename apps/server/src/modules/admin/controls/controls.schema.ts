@@ -343,6 +343,12 @@ export const onlineRewardSchema = z
     }
   });
 
+export const autoBalanceConfigSchema = z.object({
+  isEnabled: z.boolean().default(true),
+  templateKey: z.string().min(1),
+  secondLineAmount: decimal.default('50000'),
+});
+
 export const toggleSchema = z.object({
   isActive: z.boolean(),
 });

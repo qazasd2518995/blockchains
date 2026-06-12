@@ -156,16 +156,14 @@ export class TransferService {
           meta: { from: 'agent', agentId: agent.id, operatorId: operator.id },
         },
       });
-      if (isDeposit) {
-        await resetMemberAutoBalanceControl(tx, {
-          memberId: member.id,
-          memberUsername: member.username,
-          agentId: member.agentId,
-          balanceAfter: memberAfter,
-          reason: 'agent_to_member',
-          operatorUsername: operator.username,
-        });
-      }
+      await resetMemberAutoBalanceControl(tx, {
+        memberId: member.id,
+        memberUsername: member.username,
+        agentId: member.agentId,
+        balanceAfter: memberAfter,
+        reason: isDeposit ? 'agent_to_member' : 'member_to_agent',
+        operatorUsername: operator.username,
+      });
       return transfer;
     });
 
@@ -260,16 +258,14 @@ export class TransferService {
           meta: { from: 'cs', operatorId: operator.id },
         },
       });
-      if (amount.greaterThan(0)) {
-        await resetMemberAutoBalanceControl(tx, {
-          memberId: member.id,
-          memberUsername: member.username,
-          agentId: member.agentId,
-          balanceAfter: after,
-          reason: 'cs_member_in',
-          operatorUsername: operator.username,
-        });
-      }
+      await resetMemberAutoBalanceControl(tx, {
+        memberId: member.id,
+        memberUsername: member.username,
+        agentId: member.agentId,
+        balanceAfter: after,
+        reason: amount.greaterThan(0) ? 'cs_member_in' : 'cs_member_out',
+        operatorUsername: operator.username,
+      });
       return transfer;
     });
     await writeAudit(this.prisma, {

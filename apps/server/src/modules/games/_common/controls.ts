@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { AutoBalancePhase, Prisma } from '@prisma/client';
 import { SLOT_GAME_IDS } from '@bg/shared';
 import {
   calculateCurrentSettlement,
@@ -14,6 +14,7 @@ import {
   normalizeAgentLineCapDay,
   normalizeBurstControlDay,
   normalizeMemberWinCapDay,
+  resetMemberAutoBalanceControl,
   setMemberAutoBalancePhase,
 } from '../../admin/controls/controls.runtime.js';
 import { isMemberInControlExcludedLine } from '../../../utils/hierarchy.js';
@@ -95,6 +96,24 @@ type DepositLifecycleStateRecord = {
   currentStageIndex: number;
   isCompleted: boolean;
   lastBalance: Prisma.Decimal | null;
+};
+
+type AutoBalanceControlRecord = {
+  id: string;
+  memberId: string;
+  memberUsername: string;
+  agentId: string | null;
+  baselineBalance: Prisma.Decimal;
+  biteTargetBalance: Prisma.Decimal;
+  reviveTargetBalance: Prisma.Decimal;
+  phase: AutoBalancePhase;
+  templateKey?: string | null;
+  lifecycleSteps?: Prisma.JsonValue | null;
+  currentStageIndex?: number | null;
+  lifecycleCompletedAt?: Date | null;
+  lastBalance?: Prisma.Decimal | null;
+  secondLineAmount?: Prisma.Decimal | null;
+  isActive: boolean;
 };
 
 function isControlInterventionMiss(
@@ -325,9 +344,22 @@ export async function finalizeControls(
 
   await updateMemberWinCap(tx, member.id, final);
   await updateAgentLineCaps(tx, member.agentId, final);
-  await completeDepositControlIfReached(tx, member.id, member.balance);
+  await completeDepositControlIfReached(tx, member, member.balance);
   await updateBurstControlUsage(tx, outcome, final);
   await updateWinLossBiteProgress(tx, member, final);
+  if (shouldResetAutoBalanceAfterFinal(outcome, final)) {
+    await resetMemberAutoBalanceControl(tx, {
+      memberId: member.id,
+      memberUsername: member.username,
+      agentId: member.agentId,
+      balanceAfter: member.balance,
+      reason: 'burst_result',
+      operatorUsername: 'auto_balance_model',
+    });
+  } else {
+    await completeAutoBalanceControlIfReached(tx, member.id, member.balance);
+  }
+  await enforceAutoBalanceBankerGuard(tx, member);
 
   if (outcome.controlled && outcome.controlId && outcome.flipReason) {
     await tx.winLossControlLogs.create({
@@ -356,6 +388,17 @@ export async function finalizeControls(
       },
     });
   }
+}
+
+function shouldResetAutoBalanceAfterFinal(
+  outcome: ControlOutcome,
+  final: FinalizedControlResult,
+): boolean {
+  return Boolean(
+    outcome.controlled &&
+      outcome.flipReason?.startsWith('burst_') &&
+      final.payout.greaterThan(final.amount),
+  );
 }
 
 function isNetWin(result: PredictedResult | FinalizedControlResult): boolean {
@@ -618,6 +661,19 @@ async function findAutoBalanceDecisionInternal(
       ? await tx.memberAutoBalanceControl.findUnique({ where: { memberId: currentUser.id } })
       : await getOrCreateMemberAutoBalanceControl(tx, currentUser);
   if (!control || !control.isActive) return { decision: null, inActiveCycle: false };
+  const lifecycleSteps = parseDepositLifecycleSteps(
+    (control as AutoBalanceControlRecord).lifecycleSteps ?? null,
+  );
+  if (lifecycleSteps.length > 0) {
+    return buildAutoBalanceLifecycleDecision(
+      tx,
+      currentUser,
+      predicted,
+      control as AutoBalanceControlRecord,
+      lifecycleSteps,
+      mode,
+    );
+  }
 
   if (control.phase === 'DRAIN_TO_ZERO') {
     return {
@@ -663,6 +719,127 @@ async function findAutoBalanceDecisionInternal(
   return {
     decision: autoBalanceLossDecision(control.id, 'auto_balance_bite'),
     inActiveCycle: true,
+  };
+}
+
+async function buildAutoBalanceLifecycleDecision(
+  tx: Db,
+  currentUser: { id: string; username: string; agentId: string | null; balance: Prisma.Decimal },
+  predicted: PredictedResult,
+  control: AutoBalanceControlRecord,
+  steps: number[],
+  mode: 'any' | 'reviveOnly',
+): Promise<AutoBalanceDecisionResult> {
+  const resolved = await advanceAutoBalanceLifecycleIfReached(
+    tx,
+    control,
+    currentUser.balance,
+    steps,
+  );
+  if (resolved.completed || resolved.targetPercent === null) {
+    return { decision: null, inActiveCycle: false };
+  }
+  if (resolved.direction !== 'WIN' && mode === 'reviveOnly') {
+    return { decision: null, inActiveCycle: false };
+  }
+  if (resolved.direction === 'LOSS') {
+    const reason = resolved.currentStageIndex <= 0 ? 'auto_balance_bite' : 'auto_balance_drain';
+    return {
+      decision: autoBalanceLossDecision(resolved.control.id, reason),
+      inActiveCycle: true,
+    };
+  }
+  if (resolved.direction !== 'WIN') {
+    return { decision: null, inActiveCycle: true };
+  }
+  const remaining = Prisma.Decimal.max(resolved.targetBalance.sub(currentUser.balance), ZERO);
+  if (remaining.lessThanOrEqualTo(0)) return { decision: null, inActiveCycle: true };
+  if (Math.random() >= AUTO_BALANCE_REVIVE_INTERVENTION_RATE) {
+    return { decision: null, inActiveCycle: true };
+  }
+  return {
+    decision: {
+      desired: 'WIN',
+      controlId: resolved.control.id,
+      reason: 'auto_balance_revive',
+      minMultiplier: new Prisma.Decimal('1.01'),
+      maxPayout: predicted.amount.add(remaining).toDecimalPlaces(2),
+      forceWinAdjustment: true,
+    },
+    inActiveCycle: true,
+  };
+}
+
+async function advanceAutoBalanceLifecycleIfReached(
+  tx: Db,
+  control: AutoBalanceControlRecord,
+  currentBalance: Prisma.Decimal,
+  steps: number[],
+): Promise<{
+  control: AutoBalanceControlRecord;
+  completed: boolean;
+  direction: 'WIN' | 'LOSS' | 'HOLD';
+  fromPercent: number;
+  targetPercent: number | null;
+  targetBalance: Prisma.Decimal;
+  currentStageIndex: number;
+}> {
+  let stageIndex = Math.max(0, control.currentStageIndex ?? 0);
+  let fromPercent = stageIndex === 0 ? 100 : (steps[stageIndex - 1] ?? 100);
+  let targetPercent = steps[stageIndex] ?? null;
+  let direction = resolveLifecycleDirection(fromPercent, targetPercent);
+  let targetBalance =
+    targetPercent === null
+      ? currentBalance
+      : lifecycleBalanceForPercent(control.baselineBalance, targetPercent);
+
+  while (
+    targetPercent !== null &&
+    isLifecycleStageReached(currentBalance, targetBalance, direction)
+  ) {
+    stageIndex += 1;
+    fromPercent = stageIndex === 0 ? 100 : (steps[stageIndex - 1] ?? 100);
+    targetPercent = steps[stageIndex] ?? null;
+    direction = resolveLifecycleDirection(fromPercent, targetPercent);
+    targetBalance =
+      targetPercent === null
+        ? currentBalance
+        : lifecycleBalanceForPercent(control.baselineBalance, targetPercent);
+  }
+
+  const completed = targetPercent === null;
+  const lastBalance = control.lastBalance ?? ZERO;
+  if (
+    stageIndex !== (control.currentStageIndex ?? 0) ||
+    !currentBalance.equals(lastBalance) ||
+    (completed && !control.lifecycleCompletedAt)
+  ) {
+    const updated = await tx.memberAutoBalanceControl.update({
+      where: { id: control.id },
+      data: {
+        currentStageIndex: stageIndex,
+        lifecycleCompletedAt: completed ? new Date() : null,
+        lastBalance: currentBalance,
+        isActive: completed ? false : control.isActive,
+        phase:
+          completed || direction === 'LOSS'
+            ? AutoBalancePhase.DRAIN_TO_ZERO
+            : direction === 'WIN'
+              ? AutoBalancePhase.REVIVE_TO_70
+              : control.phase,
+      },
+    });
+    control = updated as AutoBalanceControlRecord;
+  }
+
+  return {
+    control,
+    completed,
+    direction,
+    fromPercent,
+    targetPercent,
+    targetBalance,
+    currentStageIndex: stageIndex,
   };
 }
 
@@ -1893,13 +2070,14 @@ async function updateAgentLineCaps(
 
 async function completeDepositControlIfReached(
   tx: Db,
-  memberId: string,
+  member: { id: string; username: string; agentId: string | null },
   currentBalance: Prisma.Decimal,
 ): Promise<void> {
+  let completedAny = false;
   if (tx.memberDepositLifecycleState?.findMany) {
     const lifecycleStates = await tx.memberDepositLifecycleState.findMany({
       where: {
-        memberId,
+        memberId: member.id,
         isCompleted: false,
         control: { isActive: true, isCompleted: false },
       },
@@ -1908,13 +2086,20 @@ async function completeDepositControlIfReached(
     for (const state of lifecycleStates) {
       const steps = parseDepositLifecycleSteps(state.control.lifecycleSteps);
       if (steps.length === 0) continue;
-      await advanceDepositLifecycleStateIfReached(tx, state.control, state, currentBalance, steps);
+      const resolved = await advanceDepositLifecycleStateIfReached(
+        tx,
+        state.control,
+        state,
+        currentBalance,
+        steps,
+      );
+      if (resolved.completed) completedAny = true;
     }
   }
 
   const controls = await tx.memberDepositControl.findMany({
     where: {
-      memberId,
+      memberId: member.id,
       isActive: true,
       isCompleted: false,
       lifecycleSteps: { equals: Prisma.DbNull },
@@ -1927,7 +2112,59 @@ async function completeDepositControlIfReached(
         where: { id: control.id },
         data: { isActive: false, isCompleted: true },
       });
+      completedAny = true;
     }
+  }
+  if (completedAny && currentBalance.greaterThan(0)) {
+    await resetMemberAutoBalanceControl(tx, {
+      memberId: member.id,
+      memberUsername: member.username,
+      agentId: member.agentId,
+      balanceAfter: currentBalance,
+      reason: 'deposit_lifecycle_completed',
+      operatorUsername: 'auto_balance_model',
+    });
+  }
+}
+
+async function completeAutoBalanceControlIfReached(
+  tx: Db,
+  memberId: string,
+  currentBalance: Prisma.Decimal,
+): Promise<void> {
+  const control = (await tx.memberAutoBalanceControl.findUnique({
+    where: { memberId },
+  })) as AutoBalanceControlRecord | null;
+  if (!control?.isActive) return;
+  const steps = parseDepositLifecycleSteps(control.lifecycleSteps ?? null);
+  if (steps.length === 0) return;
+  await advanceAutoBalanceLifecycleIfReached(tx, control, currentBalance, steps);
+}
+
+async function enforceAutoBalanceBankerGuard(
+  tx: Db,
+  member: { id: string; agentId: string | null },
+): Promise<void> {
+  const control = (await tx.memberAutoBalanceControl.findUnique({
+    where: { memberId: member.id },
+    select: { secondLineAmount: true },
+  })) as { secondLineAmount: Prisma.Decimal | null } | null;
+  const guardAmount = control?.secondLineAmount ?? new Prisma.Decimal(50000);
+  if (guardAmount.lessThanOrEqualTo(0)) return;
+
+  const stats = await getMemberTodayStats(tx, member.id);
+  if (stats.net.lessThan(guardAmount)) return;
+
+  const now = new Date();
+  await tx.user.updateMany({
+    where: { id: member.id, disabledAt: null, frozenAt: null },
+    data: { frozenAt: now },
+  });
+  if (member.agentId) {
+    await tx.agent.updateMany({
+      where: { id: member.agentId, status: 'ACTIVE', role: { not: 'SUPER_ADMIN' } },
+      data: { status: 'FROZEN' },
+    });
   }
 }
 

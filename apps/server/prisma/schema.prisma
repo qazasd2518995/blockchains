@@ -618,22 +618,39 @@ model MemberDepositLifecycleState {
 }
 
 model MemberAutoBalanceControl {
-  id                  String           @id @default(cuid())
-  memberId            String           @unique
-  memberUsername      String
-  agentId             String?
-  baselineBalance     Decimal          @db.Decimal(20, 2)
-  biteTargetBalance   Decimal          @db.Decimal(20, 2)
-  reviveTargetBalance Decimal          @db.Decimal(20, 2)
-  phase               AutoBalancePhase @default(BITE_TO_30)
-  isActive            Boolean          @default(true)
-  resetReason         String?
-  operatorUsername    String?
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  id                   String           @id @default(cuid())
+  memberId             String           @unique
+  memberUsername       String
+  agentId              String?
+  baselineBalance      Decimal          @db.Decimal(20, 2)
+  biteTargetBalance    Decimal          @db.Decimal(20, 2)
+  reviveTargetBalance  Decimal          @db.Decimal(20, 2)
+  phase                AutoBalancePhase @default(BITE_TO_30)
+  templateKey          String?
+  lifecycleSteps       Json?
+  currentStageIndex    Int              @default(0)
+  lifecycleCompletedAt DateTime?
+  lastBalance          Decimal?         @db.Decimal(20, 2)
+  secondLineAmount     Decimal?         @db.Decimal(20, 2)
+  isActive             Boolean          @default(true)
+  resetReason          String?
+  operatorUsername     String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   @@index([memberUsername, isActive])
   @@index([isActive, phase])
+  @@index([templateKey, isActive])
+}
+
+model AutoBalanceConfig {
+  id               String   @id @default("default")
+  isEnabled        Boolean  @default(true)
+  templateKey      String   @default("SEVEN_NO_RECOVERY")
+  secondLineAmount Decimal  @default(50000) @db.Decimal(20, 2)
+  operatorUsername String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model AgentLineWinCap {

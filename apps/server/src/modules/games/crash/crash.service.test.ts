@@ -180,6 +180,9 @@ describe('CrashSoloService global member win cap', () => {
       memberDepositControl: {
         findMany: vi.fn(async () => []),
       },
+      memberAutoBalanceControl: {
+        findUnique: vi.fn(async () => null),
+      },
       winLossControl: {
         findMany: vi.fn(async () => []),
       },
@@ -295,6 +298,9 @@ describe('CrashSoloService global member win cap', () => {
       },
       memberDepositControl: {
         findMany: vi.fn(async () => []),
+      },
+      memberAutoBalanceControl: {
+        findUnique: vi.fn(async () => null),
       },
       winLossControl: {
         findMany: vi.fn(async () => []),

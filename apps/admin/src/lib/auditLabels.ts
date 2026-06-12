@@ -46,6 +46,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   'control.burst.update': '更新爆分控制',
   'control.burst.toggle': '切换爆分控制',
   'control.burst.delete': '删除爆分控制',
+  'control.auto_balance.config.update': '更新自動大盤設定',
   'control.manual_detection.create': '新增手动侦测',
   'control.manual_detection.update': '更新手动侦测',
   'control.manual_detection.deactivate': '停用手动侦测',

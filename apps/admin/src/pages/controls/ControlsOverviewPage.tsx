@@ -184,6 +184,24 @@ interface ControlLogRow {
   createdAt: string;
 }
 
+interface AutoBalanceTemplate {
+  key: string;
+  label: string;
+  steps: number[];
+}
+
+interface AutoBalanceConfig {
+  id: string;
+  isEnabled: boolean;
+  templateKey: string;
+  templateLabel: string;
+  lifecycleSteps: number[];
+  secondLineAmount: string;
+  templates: AutoBalanceTemplate[];
+  operatorUsername: string | null;
+  updatedAt: string | null;
+}
+
 type RewardScope = 'ALL' | 'AGENT_LINE' | 'MEMBER';
 
 export function ControlsOverviewPage(): JSX.Element {
@@ -207,6 +225,11 @@ export function ControlsOverviewPage(): JSX.Element {
   const [dcOpen, setDcOpen] = useState(false);
   const [alOpen, setAlOpen] = useState(false);
   const [bcOpen, setBcOpen] = useState(false);
+  const [autoBalanceConfig, setAutoBalanceConfig] = useState<AutoBalanceConfig | null>(null);
+  const [autoBalanceEnabled, setAutoBalanceEnabled] = useState(true);
+  const [autoBalanceTemplateKey, setAutoBalanceTemplateKey] = useState('');
+  const [autoBalanceSecondLineAmount, setAutoBalanceSecondLineAmount] = useState('50000');
+  const [autoBalanceBusy, setAutoBalanceBusy] = useState(false);
   const [rewardScope, setRewardScope] = useState<RewardScope>('ALL');
   const [rewardTarget, setRewardTarget] = useState<AccountSearchOption | null>(null);
   const [rewardAmount, setRewardAmount] = useState('1000');
@@ -234,7 +257,17 @@ export function ControlsOverviewPage(): JSX.Element {
         return;
       }
 
-      const [manualStatus, settlement, winLoss, winCap, deposit, agentLine, burst, logRes] =
+      const [
+        manualStatus,
+        settlement,
+        winLoss,
+        winCap,
+        deposit,
+        agentLine,
+        burst,
+        autoBalance,
+        logRes,
+      ] =
         await Promise.all([
           adminApi.get<{ items: ManualDetectionRow[] }>('/controls/manual-detection/status'),
           adminApi.get<SettlementSnapshot>('/controls/manual-detection/settlement', {
@@ -245,6 +278,7 @@ export function ControlsOverviewPage(): JSX.Element {
           adminApi.get<{ items: DepositRow[] }>('/controls/deposit'),
           adminApi.get<{ items: AgentLineRow[] }>('/controls/agent-line'),
           adminApi.get<{ items: BurstRow[] }>('/controls/burst'),
+          adminApi.get<AutoBalanceConfig>('/controls/auto-balance/config'),
           adminApi.get<{ items: ControlLogRow[] }>('/controls/logs'),
         ]);
       setManualActive(manualStatus.data.items);
@@ -254,6 +288,10 @@ export function ControlsOverviewPage(): JSX.Element {
       setDc(deposit.data.items);
       setAl(agentLine.data.items);
       setBc(burst.data.items);
+      setAutoBalanceConfig(autoBalance.data);
+      setAutoBalanceEnabled(autoBalance.data.isEnabled);
+      setAutoBalanceTemplateKey(autoBalance.data.templateKey);
+      setAutoBalanceSecondLineAmount(autoBalance.data.secondLineAmount);
       setLogs(logRes.data.items);
       setError(null);
     } catch (e) {
@@ -309,6 +347,28 @@ export function ControlsOverviewPage(): JSX.Element {
       await reload();
     } catch (e) {
       setError(extractApiError(e).message);
+    }
+  };
+
+  const saveAutoBalanceConfig = async (): Promise<void> => {
+    setAutoBalanceBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await adminApi.patch<AutoBalanceConfig>('/controls/auto-balance/config', {
+        isEnabled: autoBalanceEnabled,
+        templateKey: autoBalanceTemplateKey,
+        secondLineAmount: autoBalanceSecondLineAmount,
+      });
+      setAutoBalanceConfig(response.data);
+      setAutoBalanceEnabled(response.data.isEnabled);
+      setAutoBalanceTemplateKey(response.data.templateKey);
+      setAutoBalanceSecondLineAmount(response.data.secondLineAmount);
+      setNotice(`自動大盤已更新：${response.data.templateLabel}`);
+    } catch (e) {
+      setError(extractApiError(e).message);
+    } finally {
+      setAutoBalanceBusy(false);
     }
   };
 
@@ -1028,8 +1088,8 @@ export function ControlsOverviewPage(): JSX.Element {
           <>
             <div className="font-semibold text-[#7A5F15]">控制优先级</div>
             <div className="mt-1">
-              会员输控制 &gt; 代理线输控制 &gt; 全账号 50,000 赢分上限 &gt; 会员赢控制 &gt;
-              代理线赢控制 &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 自動模型
+              爆分控制 &gt; 全账号 10,000 赢分上限（入金/爆分执行中例外） &gt; 输赢控制
+              &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 自動大盤
             </div>
             <div className="mt-1 text-[#7A5F15]/80">
               输控制会自动按 3-4 输后补 1 次小赢，不会每局直线压输。
@@ -1126,6 +1186,77 @@ export function ControlsOverviewPage(): JSX.Element {
         <div className="crt-panel p-8 text-center text-ink-500">{t.common.loading}…</div>
       ) : (
         <div className="space-y-6">
+          {isSuperAdmin && autoBalanceConfig && (
+            <Section title="§ 自動大盤" subtitle="會員餘額變動後依本金%路徑重新起跑">
+              <div className="card-base grid gap-4 p-4 lg:grid-cols-[0.85fr_1.15fr_1fr_auto] lg:items-end">
+                <label className="flex items-center gap-3 rounded-[6px] border border-[#186073]/20 bg-[#EFF8FB] px-3 py-3">
+                  <input
+                    type="checkbox"
+                    checked={autoBalanceEnabled}
+                    onChange={(e) => setAutoBalanceEnabled(e.target.checked)}
+                    className="h-4 w-4 accent-[#186073]"
+                  />
+                  <span>
+                    <span className="block text-[12px] font-semibold text-[#173247]">啟用自動大盤</span>
+                    <span className="mt-1 block text-[10px] text-ink-500">
+                      停用後新週期不會自動套用本金路徑
+                    </span>
+                  </span>
+                </label>
+
+                <label className="block">
+                  <div className="label mb-2">自動模組路徑</div>
+                  <select
+                    value={autoBalanceTemplateKey}
+                    onChange={(e) => setAutoBalanceTemplateKey(e.target.value)}
+                    className="term-input"
+                  >
+                    {autoBalanceConfig.templates.map((template) => (
+                      <option key={template.key} value={template.key}>
+                        {template.label} · {template.steps.join('/')}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <div className="label mb-2">第二防線金額</div>
+                  <input
+                    type="text"
+                    value={autoBalanceSecondLineAmount}
+                    onChange={(e) => setAutoBalanceSecondLineAmount(e.target.value)}
+                    className="term-input font-mono"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => void saveAutoBalanceConfig()}
+                  disabled={autoBalanceBusy || !autoBalanceTemplateKey}
+                  className="btn-acid whitespace-nowrap text-[11px]"
+                >
+                  → 保存設定
+                </button>
+
+                <div className="lg:col-span-4 rounded-[6px] border border-[#AE8B35]/25 bg-[#FFF8E1] px-4 py-3 text-[11px] text-[#5C4B1F]">
+                  <div className="font-semibold text-[#7A5F15]">
+                    目前：{autoBalanceConfig.templateLabel} ·{' '}
+                    {autoBalanceConfig.isEnabled ? '啟用中' : '已停用'}
+                  </div>
+                  <div className="mt-1 font-mono">
+                    路徑 {autoBalanceConfig.lifecycleSteps.map((step) => `${step}%`).join(' » ')}
+                  </div>
+                  <div className="mt-1 text-[#7A5F15]/80">
+                    抽點、入點、爆分、手動入金週期完成後，會以改變後餘額作為新本金重新跑路徑；第二防線達標會凍結會員下注。
+                    {autoBalanceConfig.operatorUsername
+                      ? ` 上次操作：${autoBalanceConfig.operatorUsername}`
+                      : ''}
+                  </div>
+                </div>
+              </div>
+            </Section>
+          )}
+
           {isSuperAdmin && (
             <Section
               title="§ 手动侦测"
@@ -1717,6 +1848,9 @@ function formatReason(reason: string): string {
     burst_budget_guard: '爆分池防守',
     global_accidental_burst_cap: '意外爆分上限',
     global_member_daily_win_cap: '全局赢分上限',
+    auto_balance_bite: '自動大盤控輸',
+    auto_balance_revive: '自動大盤控贏',
+    auto_balance_drain: '自動大盤控輸',
   };
   return map[reason] ?? reason;
 }

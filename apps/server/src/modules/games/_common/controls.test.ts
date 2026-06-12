@@ -397,6 +397,10 @@ describe('control decision priority', () => {
       phase?: string;
       agentId?: string | null;
       excluded?: boolean;
+      baselineBalance?: Prisma.Decimal;
+      lifecycleSteps?: number[] | null;
+      currentStageIndex?: number;
+      lastBalance?: Prisma.Decimal | null;
     } = {},
   ) => ({
     $queryRaw: vi.fn(async () => [{ exists: over.excluded === true }]),
@@ -436,22 +440,35 @@ describe('control decision priority', () => {
         memberId: 'member-1',
         memberUsername: 'top3666',
         agentId: null,
-        baselineBalance: new Prisma.Decimal(50000),
+        baselineBalance: over.baselineBalance ?? new Prisma.Decimal(50000),
         biteTargetBalance: new Prisma.Decimal(10000),
         reviveTargetBalance: new Prisma.Decimal(20000),
         phase: over.phase ?? 'REVIVE_TO_70',
+        lifecycleSteps: over.lifecycleSteps,
+        currentStageIndex: over.currentStageIndex ?? 0,
+        lifecycleCompletedAt: null,
+        lastBalance: over.lastBalance ?? null,
+        secondLineAmount: new Prisma.Decimal(50000),
         isActive: true,
       })),
-      update: vi.fn(async (args: { data?: { phase?: string } }) => ({
+      update: vi.fn(async (args: { data?: Record<string, unknown> }) => ({
         id: 'auto-1',
         memberId: 'member-1',
         memberUsername: 'top3666',
         agentId: over.agentId ?? null,
-        baselineBalance: new Prisma.Decimal(50000),
+        baselineBalance: over.baselineBalance ?? new Prisma.Decimal(50000),
         biteTargetBalance: new Prisma.Decimal(10000),
         reviveTargetBalance: new Prisma.Decimal(20000),
-        phase: args.data?.phase ?? over.phase ?? 'REVIVE_TO_70',
-        isActive: true,
+        phase: String(args.data?.phase ?? over.phase ?? 'REVIVE_TO_70'),
+        lifecycleSteps: over.lifecycleSteps,
+        currentStageIndex:
+          typeof args.data?.currentStageIndex === 'number'
+            ? args.data.currentStageIndex
+            : (over.currentStageIndex ?? 0),
+        lifecycleCompletedAt: (args.data?.lifecycleCompletedAt as Date | null | undefined) ?? null,
+        lastBalance: (args.data?.lastBalance as Prisma.Decimal | null | undefined) ?? over.lastBalance ?? null,
+        secondLineAmount: new Prisma.Decimal(50000),
+        isActive: typeof args.data?.isActive === 'boolean' ? args.data.isActive : true,
       })),
       updateMany: vi.fn(),
     },
@@ -844,8 +861,8 @@ describe('control decision priority', () => {
         })),
       },
       burstControl: {
-        findMany: vi.fn(async () => [
-          {
+        findMany: vi.fn(async () => {
+          const control = {
             id: 'burst-1',
             scope: 'MEMBER',
             targetMemberUsername: 'vip0666',
@@ -867,9 +884,33 @@ describe('control decision priority', () => {
             riskWinLimit: new Prisma.Decimal(999999),
             currentGameDay: today,
             createdAt: new Date(),
-          },
-        ]),
-        update: vi.fn(),
+          };
+          return [control];
+        }),
+        update: vi.fn(async (args: { data?: Record<string, unknown> }) => ({
+          id: 'burst-1',
+          scope: 'MEMBER',
+          targetMemberUsername: 'vip0666',
+          targetAgentId: null,
+          gameIds: [],
+          dailyBudget: new Prisma.Decimal(30000),
+          todayBurstAmount: new Prisma.Decimal(0),
+          memberDailyCap: new Prisma.Decimal(30000),
+          singlePayoutCap: new Prisma.Decimal(30000),
+          singleMultiplierCap: new Prisma.Decimal(100),
+          minBurstMultiplier: new Prisma.Decimal(8),
+          smallWinMultiplier: new Prisma.Decimal('1.5'),
+          burstRate: new Prisma.Decimal(0),
+          smallWinRate: new Prisma.Decimal(0),
+          lossRate: new Prisma.Decimal(0),
+          compensationLoss: new Prisma.Decimal(0),
+          capitalRetentionRatio: new Prisma.Decimal(0),
+          minEligibilityLoss: new Prisma.Decimal(0),
+          riskWinLimit: new Prisma.Decimal(999999),
+          currentGameDay: String(args.data?.currentGameDay ?? today),
+          todayBurstCount: Number(args.data?.todayBurstCount ?? 0),
+          createdAt: new Date(),
+        })),
       },
       bet: {
         aggregate: vi.fn(async () => ({
@@ -942,6 +983,62 @@ describe('control decision priority', () => {
     expect(outcome.flipReason).toBe('auto_balance_revive');
     expect(outcome.payout.toFixed(2)).toBe('10000.00');
     expect(manualFindMany).toHaveBeenCalled();
+  });
+
+  it('uses auto-balance principal lifecycle stages instead of the legacy fixed targets', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.29);
+    const tx = createAutoReviveTx(vi.fn(async () => []), {
+      balance: new Prisma.Decimal(50000),
+      baselineBalance: new Prisma.Decimal(50000),
+      lifecycleSteps: [80, 90],
+      currentStageIndex: 0,
+      lastBalance: new Prisma.Decimal(50000),
+    });
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.DICE,
+      predictedResult(100, 200, 2),
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('auto_balance_bite');
+    expect(tx.memberAutoBalanceControl.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currentStageIndex: 1 }),
+      }),
+    );
+  });
+
+  it('advances auto-balance lifecycle to the next principal target when reached', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.59);
+    const tx = createAutoReviveTx(vi.fn(async () => []), {
+      balance: new Prisma.Decimal(40000),
+      baselineBalance: new Prisma.Decimal(50000),
+      lifecycleSteps: [80, 90],
+      currentStageIndex: 0,
+      lastBalance: new Prisma.Decimal(50000),
+    });
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.DICE,
+      predictedResult(100, 200, 2),
+    );
+
+    expect(tx.memberAutoBalanceControl.update).toHaveBeenCalledWith({
+      where: { id: 'auto-1' },
+      data: expect.objectContaining({
+        currentStageIndex: 1,
+        lastBalance: new Prisma.Decimal(40000),
+      }),
+    });
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(true);
+    expect(outcome.flipReason).toBe('auto_balance_revive');
   });
 
   it('prioritizes global manual detection over active auto-balance cycles', async () => {

@@ -10,6 +10,7 @@ import {
   manualDetectionControlSchema,
   manualDetectionQuerySchema,
   deactivateManualDetectionSchema,
+  autoBalanceConfigSchema,
   onlineRewardSchema,
   toggleSchema,
   type WinLossControlInput,
@@ -21,11 +22,14 @@ import {
   calculateControlCapital,
   checkAndCompleteManualDetectionControls,
   getAllActiveManualDetectionControls,
+  getAutoBalanceRuntimeConfig,
   getControlGameDay,
+  listAutoBalanceTemplates,
   normalizeManualDetectionCompletionBehavior,
   normalizeAgentLineCapDay,
   normalizeBurstControlDay,
   normalizeMemberWinCapDay,
+  updateAutoBalanceRuntimeConfig,
 } from './controls.runtime.js';
 import { writeAudit } from '../audit/audit.service.js';
 import { listAgentDescendants } from '../../../utils/hierarchy.js';
@@ -139,6 +143,22 @@ function serializeBitePlan(plan: Awaited<ReturnType<typeof calculateAutoDetectio
     redistributionAmount: plan.redistributionAmount.toFixed(2),
     currentSettlement: plan.currentSettlement.toFixed(2),
     targetSettlement: plan.targetSettlement.toFixed(2),
+  };
+}
+
+function serializeAutoBalanceConfig(
+  config: Awaited<ReturnType<typeof getAutoBalanceRuntimeConfig>>,
+) {
+  return {
+    id: config.id,
+    isEnabled: config.isEnabled,
+    templateKey: config.templateKey,
+    templateLabel: config.templateLabel,
+    lifecycleSteps: config.lifecycleSteps,
+    secondLineAmount: config.secondLineAmount.toFixed(2),
+    templates: listAutoBalanceTemplates(),
+    operatorUsername: config.operatorUsername,
+    updatedAt: config.updatedAt?.toISOString() ?? null,
   };
 }
 
@@ -302,18 +322,24 @@ async function enrichControlLogs(
         operatorUsername: true,
       },
     }),
-    fastify.prisma.memberAutoBalanceControl.findMany({
-      where: { id: { in: controlIds } },
-      select: {
-        id: true,
-        memberUsername: true,
-        baselineBalance: true,
-        biteTargetBalance: true,
-        reviveTargetBalance: true,
-        phase: true,
-        operatorUsername: true,
-      },
-    }),
+	    fastify.prisma.memberAutoBalanceControl.findMany({
+	      where: { id: { in: controlIds } },
+	      select: {
+	        id: true,
+	        memberUsername: true,
+	        baselineBalance: true,
+	        biteTargetBalance: true,
+	        reviveTargetBalance: true,
+	        phase: true,
+	        templateKey: true,
+	        lifecycleSteps: true,
+	        currentStageIndex: true,
+	        lifecycleCompletedAt: true,
+	        lastBalance: true,
+	        secondLineAmount: true,
+	        operatorUsername: true,
+	      },
+	    }),
   ]);
 
   const metaMaps = {
@@ -413,17 +439,23 @@ function resolveControlLogMeta(
         operatorUsername: string | null;
       }
     >;
-    autoBalance: Map<
-      string,
-      {
-        memberUsername: string;
-        baselineBalance: Prisma.Decimal;
-        biteTargetBalance: Prisma.Decimal;
-        reviveTargetBalance: Prisma.Decimal;
-        phase: string;
-        operatorUsername: string | null;
-      }
-    >;
+	    autoBalance: Map<
+	      string,
+	      {
+	        memberUsername: string;
+	        baselineBalance: Prisma.Decimal;
+	        biteTargetBalance: Prisma.Decimal;
+	        reviveTargetBalance: Prisma.Decimal;
+	        phase: string;
+	        templateKey: string | null;
+	        lifecycleSteps: Prisma.JsonValue | null;
+	        currentStageIndex: number;
+	        lifecycleCompletedAt: Date | null;
+	        lastBalance: Prisma.Decimal | null;
+	        secondLineAmount: Prisma.Decimal | null;
+	        operatorUsername: string | null;
+	      }
+	    >;
   },
 ): ControlLogMeta {
   const reasonSource = resolveControlLogSource(log.flipReason);
@@ -480,14 +512,14 @@ function resolveControlLogMeta(
     if (control) {
       return {
         source: 'auto_balance',
-        sourceLabel: '自動模型',
-        scopeLabel: '會員',
-        targetLabel: control.memberUsername,
-        operatorUsername: control.operatorUsername,
-        detail: `會員 ${control.memberUsername}，基準 ${control.baselineBalance.toFixed(2)}，咬到 ${control.biteTargetBalance.toFixed(2)}，回到 ${control.reviveTargetBalance.toFixed(2)}，階段 ${formatAutoBalancePhase(control.phase)}`,
-      };
-    }
-  }
+	        sourceLabel: '自動大盤',
+	        scopeLabel: '會員',
+	        targetLabel: control.memberUsername,
+	        operatorUsername: control.operatorUsername,
+	        detail: formatAutoBalanceLogDetail(control),
+	      };
+	    }
+	  }
 
   if (reasonSource === 'manual_detection') {
     const control = maps.manual.get(log.controlId);
@@ -594,7 +626,7 @@ function resolveControlLogSourceLabel(source: ControlLogSource): string {
     win_loss_control: '輸贏控制',
     online_reward_next_win: '在線均分必贏',
     deposit_control: '入金控制',
-    auto_balance: '自動模型',
+	    auto_balance: '自動大盤',
     manual_detection: '手動偵測',
     burst_control: '爆分控制',
     member_win_cap: '會員封頂',
@@ -613,6 +645,40 @@ function formatAutoBalancePhase(phase: string): string {
   return phase;
 }
 
+function formatAutoBalanceLogDetail(control: {
+  memberUsername: string;
+  baselineBalance: Prisma.Decimal;
+  biteTargetBalance: Prisma.Decimal;
+  reviveTargetBalance: Prisma.Decimal;
+  phase: string;
+  templateKey: string | null;
+  lifecycleSteps: Prisma.JsonValue | null;
+  currentStageIndex: number;
+  lifecycleCompletedAt: Date | null;
+  lastBalance: Prisma.Decimal | null;
+  secondLineAmount: Prisma.Decimal | null;
+}): string {
+  const steps = parseLifecycleSteps(control.lifecycleSteps);
+  if (steps.length === 0) {
+    return `會員 ${control.memberUsername}，基準 ${control.baselineBalance.toFixed(2)}，咬到 ${control.biteTargetBalance.toFixed(2)}，回到 ${control.reviveTargetBalance.toFixed(2)}，階段 ${formatAutoBalancePhase(control.phase)}`;
+  }
+  const stage = control.currentStageIndex;
+  const fromPercent = stage === 0 ? 100 : (steps[stage - 1] ?? 100);
+  const targetPercent = steps[stage] ?? null;
+  const direction =
+    targetPercent === null
+      ? '已完成'
+      : targetPercent > fromPercent
+        ? `控贏到 ${targetPercent}%`
+        : targetPercent < fromPercent
+          ? `控輸到 ${targetPercent}%`
+          : `維持 ${targetPercent}%`;
+  const path = steps.map((step) => `${step}%`).join(' » ');
+  const current = control.lastBalance?.toFixed(2) ?? '—';
+  const guard = control.secondLineAmount?.toFixed(2) ?? '—';
+  return `會員 ${control.memberUsername}，自動大盤 ${control.templateKey ?? '預設'}，本金 ${control.baselineBalance.toFixed(2)}，目前 ${current}，第 ${stage + 1} 階 ${direction}，路徑 ${path}，第二防線 ${guard}`;
+}
+
 function resolveControlLogActionLabel(log: ControlLogRecord): string {
   const finalWon = jsonBoolean(log.finalResult, 'won');
   const finalDirection = finalWon === true ? '控贏' : finalWon === false ? '控輸' : '已介入';
@@ -620,9 +686,9 @@ function resolveControlLogActionLabel(log: ControlLogRecord): string {
   const labels: Record<string, string> = {
     online_reward_next_win: '下一局直接贏',
     deposit_control: `入金${finalDirection}`,
-    auto_balance_bite: '自動咬到20%',
-    auto_balance_revive: '自動回到40%',
-    auto_balance_drain: '自動回40後控輸',
+	    auto_balance_bite: '自動大盤控輸',
+	    auto_balance_revive: '自動大盤控贏',
+	    auto_balance_drain: '自動大盤控輸',
     auto_balance_release: '自動補贏',
     win_control: '放會員贏',
     loss_control: '咬會員輸',
@@ -752,6 +818,30 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
       targetUsername: body.targetUsername ?? null,
     };
   }
+
+  fastify.get('/auto-balance/config', async () => {
+    const config = await getAutoBalanceRuntimeConfig(fastify.prisma);
+    return serializeAutoBalanceConfig(config);
+  });
+
+  fastify.patch('/auto-balance/config', async (req) => {
+    const body = autoBalanceConfigSchema.parse(req.body);
+    const config = await updateAutoBalanceRuntimeConfig(fastify.prisma, {
+      isEnabled: body.isEnabled,
+      templateKey: body.templateKey,
+      secondLineAmount: body.secondLineAmount,
+      operatorUsername: req.admin.username,
+    });
+    await writeAudit(fastify.prisma, {
+      actor: auditActor(req),
+      action: 'control.auto_balance.config.update',
+      targetType: 'control',
+      targetId: 'auto-balance-config',
+      newValues: body,
+      req,
+    });
+    return serializeAutoBalanceConfig(config);
+  });
 
   fastify.get('/logs', async () => {
     const logs = await fastify.prisma.winLossControlLogs.findMany({

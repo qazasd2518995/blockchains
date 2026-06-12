@@ -77,6 +77,70 @@ export const AUTO_BALANCE_OPERATOR = 'auto_balance_model';
 const AUTO_BALANCE_BITE_RATE = new Prisma.Decimal('0.20');
 const AUTO_BALANCE_REVIVE_RATE = new Prisma.Decimal('0.40');
 const AUTO_BALANCE_EXCLUDED_AGENT_USERNAME = '8000DG';
+const AUTO_BALANCE_CONFIG_ID = 'default';
+export const AUTO_BALANCE_DEFAULT_SECOND_LINE_AMOUNT = new Prisma.Decimal(50000);
+
+export const AUTO_BALANCE_LIFECYCLE_TEMPLATES = [
+  {
+    key: 'SEVEN_NO_RECOVERY',
+    label: '7關 不回正',
+    steps: [80, 90, 20, 70, 10, 80, 0],
+  },
+  {
+    key: 'SEVEN_RECOVER_ONCE',
+    label: '7關 回正1次',
+    steps: [70, 90, 40, 100, 20, 70, 0],
+  },
+  {
+    key: 'NINE_RECOVER_ONCE',
+    label: '9關 回正1次',
+    steps: [80, 90, 40, 100, 20, 80, 30, 40, 0],
+  },
+  {
+    key: 'NINE_RECOVER_TWICE',
+    label: '9關 回正2次',
+    steps: [90, 100, 40, 100, 30, 70, 20, 60, 0],
+  },
+  {
+    key: 'ELEVEN_RECOVER_TWICE',
+    label: '11關 回正2次',
+    steps: [60, 100, 40, 80, 20, 100, 60, 20, 70, 30, 0],
+  },
+  {
+    key: 'ELEVEN_RECOVER_THREE',
+    label: '11關 回正3次',
+    steps: [80, 100, 80, 100, 60, 80, 10, 100, 20, 50, 0],
+  },
+] as const;
+
+export type AutoBalanceTemplateKey = (typeof AUTO_BALANCE_LIFECYCLE_TEMPLATES)[number]['key'];
+
+export interface AutoBalanceRuntimeConfig {
+  id: string;
+  isEnabled: boolean;
+  templateKey: AutoBalanceTemplateKey;
+  templateLabel: string;
+  lifecycleSteps: number[];
+  secondLineAmount: Prisma.Decimal;
+  operatorUsername: string | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+export function resolveAutoBalanceTemplate(key: string | null | undefined) {
+  return (
+    AUTO_BALANCE_LIFECYCLE_TEMPLATES.find((template) => template.key === key) ??
+    AUTO_BALANCE_LIFECYCLE_TEMPLATES[0]
+  );
+}
+
+export function listAutoBalanceTemplates() {
+  return AUTO_BALANCE_LIFECYCLE_TEMPLATES.map((template) => ({
+    key: template.key,
+    label: template.label,
+    steps: [...template.steps],
+  }));
+}
 
 export function getControlGameDay(now: Date = new Date()): string {
   return getAdminGameDay(now);
@@ -122,6 +186,109 @@ export async function getAllActiveManualDetectionControls(db: Db) {
   });
 }
 
+export async function getAutoBalanceRuntimeConfig(db: Db): Promise<AutoBalanceRuntimeConfig> {
+  const delegate = (db as unknown as {
+    autoBalanceConfig?: {
+      findUnique?: (args: unknown) => Promise<{
+        id: string;
+        isEnabled: boolean;
+        templateKey: string;
+        secondLineAmount: Prisma.Decimal;
+        operatorUsername: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+      } | null>;
+      create?: (args: unknown) => Promise<{
+        id: string;
+        isEnabled: boolean;
+        templateKey: string;
+        secondLineAmount: Prisma.Decimal;
+        operatorUsername: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+      }>;
+    };
+  }).autoBalanceConfig;
+
+  const fallback = resolveAutoBalanceTemplate(null);
+  if (!delegate?.findUnique || !delegate.create) {
+    return {
+      id: AUTO_BALANCE_CONFIG_ID,
+      isEnabled: true,
+      templateKey: fallback.key,
+      templateLabel: fallback.label,
+      lifecycleSteps: [...fallback.steps],
+      secondLineAmount: AUTO_BALANCE_DEFAULT_SECOND_LINE_AMOUNT,
+      operatorUsername: null,
+      createdAt: null,
+      updatedAt: null,
+    };
+  }
+
+  const existing =
+    (await delegate.findUnique({ where: { id: AUTO_BALANCE_CONFIG_ID } })) ??
+    (await delegate.create({
+      data: {
+        id: AUTO_BALANCE_CONFIG_ID,
+        isEnabled: true,
+        templateKey: fallback.key,
+        secondLineAmount: AUTO_BALANCE_DEFAULT_SECOND_LINE_AMOUNT,
+      },
+    }));
+  const template = resolveAutoBalanceTemplate(existing.templateKey);
+  return {
+    id: existing.id,
+    isEnabled: existing.isEnabled,
+    templateKey: template.key,
+    templateLabel: template.label,
+    lifecycleSteps: [...template.steps],
+    secondLineAmount: decimal(existing.secondLineAmount).toDecimalPlaces(2),
+    operatorUsername: existing.operatorUsername,
+    createdAt: existing.createdAt,
+    updatedAt: existing.updatedAt,
+  };
+}
+
+export async function updateAutoBalanceRuntimeConfig(
+  db: Db,
+  input: {
+    isEnabled: boolean;
+    templateKey: string;
+    secondLineAmount: Prisma.Decimal | string | number;
+    operatorUsername?: string | null;
+  },
+): Promise<AutoBalanceRuntimeConfig> {
+  const template = resolveAutoBalanceTemplate(input.templateKey);
+  const secondLineAmount = decimal(input.secondLineAmount).toDecimalPlaces(2);
+  const saved = await db.autoBalanceConfig.upsert({
+    where: { id: AUTO_BALANCE_CONFIG_ID },
+    create: {
+      id: AUTO_BALANCE_CONFIG_ID,
+      isEnabled: input.isEnabled,
+      templateKey: template.key,
+      secondLineAmount,
+      operatorUsername: input.operatorUsername ?? null,
+    },
+    update: {
+      isEnabled: input.isEnabled,
+      templateKey: template.key,
+      secondLineAmount,
+      operatorUsername: input.operatorUsername ?? null,
+    },
+  });
+  return {
+    id: saved.id,
+    isEnabled: saved.isEnabled,
+    templateKey: template.key,
+    templateLabel: template.label,
+    lifecycleSteps: [...template.steps],
+    secondLineAmount: saved.secondLineAmount,
+    operatorUsername: saved.operatorUsername,
+    createdAt: saved.createdAt,
+    updatedAt: saved.updatedAt,
+  };
+}
+
 export async function resetMemberAutoBalanceControl(
   db: Db,
   input: {
@@ -134,6 +301,8 @@ export async function resetMemberAutoBalanceControl(
   },
 ) {
   const baselineBalance = decimal(input.balanceAfter).toDecimalPlaces(2);
+  const runtimeConfig = await getAutoBalanceRuntimeConfig(db);
+  const template = resolveAutoBalanceTemplate(runtimeConfig.templateKey);
   const biteTargetBalance = baselineBalance
     .mul(AUTO_BALANCE_BITE_RATE)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
@@ -141,8 +310,12 @@ export async function resetMemberAutoBalanceControl(
     .mul(AUTO_BALANCE_REVIVE_RATE)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
   const excludedLine = await isAutoBalanceExcludedAgentLine(db, input.agentId);
-  const isActive = baselineBalance.greaterThan(0) && !excludedLine;
-  const resetReason = excludedLine ? `${input.reason}:auto_balance_excluded` : input.reason;
+  const isActive = baselineBalance.greaterThan(0) && !excludedLine && runtimeConfig.isEnabled;
+  const resetReason = excludedLine
+    ? `${input.reason}:auto_balance_excluded`
+    : runtimeConfig.isEnabled
+      ? input.reason
+      : `${input.reason}:auto_balance_disabled`;
 
   await deactivateLegacyAutomaticControls(db, input.memberId, input.memberUsername);
 
@@ -156,6 +329,12 @@ export async function resetMemberAutoBalanceControl(
       biteTargetBalance,
       reviveTargetBalance,
       phase: 'BITE_TO_30',
+      templateKey: template.key,
+      lifecycleSteps: template.steps as unknown as Prisma.InputJsonValue,
+      currentStageIndex: 0,
+      lifecycleCompletedAt: null,
+      lastBalance: baselineBalance,
+      secondLineAmount: runtimeConfig.secondLineAmount,
       isActive,
       resetReason,
       operatorUsername: input.operatorUsername ?? AUTO_BALANCE_OPERATOR,
@@ -167,6 +346,12 @@ export async function resetMemberAutoBalanceControl(
       biteTargetBalance,
       reviveTargetBalance,
       phase: 'BITE_TO_30',
+      templateKey: template.key,
+      lifecycleSteps: template.steps as unknown as Prisma.InputJsonValue,
+      currentStageIndex: 0,
+      lifecycleCompletedAt: null,
+      lastBalance: baselineBalance,
+      secondLineAmount: runtimeConfig.secondLineAmount,
       isActive,
       resetReason,
       operatorUsername: input.operatorUsername ?? AUTO_BALANCE_OPERATOR,
@@ -192,6 +377,16 @@ export async function getOrCreateMemberAutoBalanceControl(
       await db.memberAutoBalanceControl.update({
         where: { id: existing.id },
         data: { isActive: false, resetReason: 'auto_balance_excluded' },
+      });
+    }
+    return null;
+  }
+  const runtimeConfig = await getAutoBalanceRuntimeConfig(db);
+  if (!runtimeConfig.isEnabled) {
+    if (existing?.isActive) {
+      await db.memberAutoBalanceControl.update({
+        where: { id: existing.id },
+        data: { isActive: false, resetReason: 'auto_balance_disabled' },
       });
     }
     return null;
@@ -230,10 +425,15 @@ async function syncExistingMemberAutoBalanceTargets(
   control: MemberAutoBalanceControl,
   member: { username: string; agentId: string | null },
 ): Promise<MemberAutoBalanceControl> {
+  const runtimeConfig = await getAutoBalanceRuntimeConfig(db);
+  const template = resolveAutoBalanceTemplate(control.templateKey ?? runtimeConfig.templateKey);
   const expected = autoBalanceTargetsForBaseline(control.baselineBalance);
   const needsUpdate =
     !control.biteTargetBalance.equals(expected.biteTargetBalance) ||
     !control.reviveTargetBalance.equals(expected.reviveTargetBalance) ||
+    !control.templateKey ||
+    !control.lifecycleSteps ||
+    !control.secondLineAmount ||
     control.memberUsername !== member.username ||
     control.agentId !== member.agentId;
   if (!needsUpdate) return control;
@@ -245,6 +445,10 @@ async function syncExistingMemberAutoBalanceTargets(
       agentId: member.agentId,
       biteTargetBalance: expected.biteTargetBalance,
       reviveTargetBalance: expected.reviveTargetBalance,
+      templateKey: template.key,
+      lifecycleSteps: control.lifecycleSteps ?? (template.steps as unknown as Prisma.InputJsonValue),
+      secondLineAmount: control.secondLineAmount ?? runtimeConfig.secondLineAmount,
+      lastBalance: control.lastBalance ?? control.baselineBalance,
     },
   });
 }

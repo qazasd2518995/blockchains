@@ -119,6 +119,9 @@ export async function lockUserAndCheckFunds(
 ): Promise<{ id: string; balance: Prisma.Decimal; displayName: string | null }> {
   await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
   const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+  if (user.disabledAt || user.frozenAt) {
+    throw new ApiError('MEMBER_FROZEN', 'Member account is frozen');
+  }
   const configuredLimit = getBettingLimitForGame(
     user.bettingLimits,
     gameId,
