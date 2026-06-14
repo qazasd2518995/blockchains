@@ -953,7 +953,7 @@ describe('control decision priority', () => {
     expect(tx.memberDepositControl.update).not.toHaveBeenCalled();
   });
 
-  it('still exposes the daily cap bound after an active deposit control misses intervention', async () => {
+  it('lets an active deposit control miss stay natural instead of falling through to the daily cap', async () => {
     const missedDepositControl = {
       ...depositControl,
       controlWinRate: new Prisma.Decimal(0),
@@ -1005,10 +1005,9 @@ describe('control decision priority', () => {
       predictedResult(100, 200, 2),
     );
 
-    expect(outcome.controlled).toBe(true);
-    expect(outcome.flipReason).toBe('global_member_daily_win_cap');
-    expect(outcome.gameMatchedPayoutOnly).toBe(true);
-    expect(outcome.maxPayout?.toFixed(2)).toBe('150.00');
+    expect(outcome.controlled).toBe(false);
+    expect(outcome.won).toBe(true);
+    expect(outcome.payout.toFixed(2)).toBe('200.00');
   });
 
   it('stops at natural result when an applicable burst control misses all intervention rolls', async () => {
@@ -1648,6 +1647,7 @@ describe('control decision priority', () => {
       memberDepositControl: { findFirst: vi.fn(async () => null) },
       memberWinCapControl: { findFirst: vi.fn(async () => null) },
       agentLineWinCap: { findMany: vi.fn(async () => []) },
+      manualDetectionControl: { findMany: vi.fn(async () => []) },
       winLossControlLogs: { findMany: vi.fn(async () => []) },
     };
 
@@ -1692,6 +1692,14 @@ describe('global member daily win cap', () => {
         },
       })),
     },
+    winLossControl: { findMany: vi.fn(async () => []) },
+    memberDepositControl: { findFirst: vi.fn(async () => null) },
+    memberWinCapControl: { findFirst: vi.fn(async () => null) },
+    agentLineWinCap: { findMany: vi.fn(async () => []) },
+    manualDetectionControl: { findMany: vi.fn(async () => []) },
+    memberAutoBalanceControl: { findUnique: vi.fn(async () => null) },
+    burstControl: { findMany: vi.fn(async () => []) },
+    winLossControlLogs: { findMany: vi.fn(async () => []) },
   });
 
   const activeDepositControl = {

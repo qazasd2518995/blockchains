@@ -460,13 +460,6 @@ async function findControlDecision(
   if (isControlInterventionMiss(burst)) return null;
   if (burst) return burst;
 
-  if (!(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))) {
-    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
-    if (isControlInterventionMiss(globalWinCap)) return CONTROL_INTERVENTION_MISS;
-    if (isControlPathNatural(globalWinCap)) return CONTROL_PATH_NATURAL;
-    if (globalWinCap) return globalWinCap;
-  }
-
   const onlineReward = await findOnlineRewardNextWinDecision(tx, member, predicted);
   if (isControlInterventionMiss(onlineReward)) return null;
   if (isControlPathNatural(onlineReward)) return CONTROL_PATH_NATURAL;
@@ -492,27 +485,38 @@ async function findControlDecision(
   const agentLineCap = await findAgentLineCapDecision(tx, member.agentId, predicted);
   if (agentLineCap) return agentLineCap;
 
+  let stopAfterDepositMiss = false;
   const depositControl = await findDepositControlDecisionLookup(tx, member, predicted);
   if (isControlPathNatural(depositControl)) return CONTROL_PATH_NATURAL;
   if (isControlInterventionMiss(depositControl)) {
     const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
     if (accidentalBurstCap) return accidentalBurstCap;
-    return null;
+    stopAfterDepositMiss = true;
   }
   if (depositControl) return depositControl;
 
-  const targetedManual = await findManualDetectionDecision(tx, member, predicted, 'targeted');
-  if (isControlInterventionMiss(targetedManual)) return null;
-  if (targetedManual) return targetedManual;
+  if (!stopAfterDepositMiss) {
+    const targetedManual = await findManualDetectionDecision(tx, member, predicted, 'targeted');
+    if (isControlInterventionMiss(targetedManual)) return null;
+    if (targetedManual) return targetedManual;
 
-  const globalManual = await findManualDetectionDecision(tx, member, predicted, 'global');
-  if (isControlInterventionMiss(globalManual)) return null;
-  if (globalManual) return globalManual;
+    const globalManual = await findManualDetectionDecision(tx, member, predicted, 'global');
+    if (isControlInterventionMiss(globalManual)) return null;
+    if (globalManual) return globalManual;
+  } else {
+    return CONTROL_PATH_NATURAL;
+  }
+
+  if (!(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))) {
+    const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
+    if (isControlInterventionMiss(globalWinCap)) return CONTROL_INTERVENTION_MISS;
+    if (isControlPathNatural(globalWinCap)) return CONTROL_PATH_NATURAL;
+    if (globalWinCap) return globalWinCap;
+  }
 
   const autoBalance = await findAutoBalanceDecisionInternal(tx, member, predicted, 'any');
   if (autoBalance.decision) return autoBalance.decision;
-  if (autoBalance.pathNatural) return CONTROL_PATH_NATURAL;
-  if (autoBalance.inActiveCycle) return null;
+  if (autoBalance.pathNatural || autoBalance.inActiveCycle) return CONTROL_PATH_NATURAL;
 
   const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
   if (accidentalBurstCap) return accidentalBurstCap;
