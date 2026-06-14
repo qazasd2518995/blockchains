@@ -456,7 +456,12 @@ export async function getOrCreateMemberAutoBalanceControl(
     }
     return null;
   }
-  if (existing && pathControl && !existing.isActive) {
+  if (
+    existing &&
+    pathControl &&
+    !existing.isActive &&
+    existing.resetReason !== 'banker_guard_frozen'
+  ) {
     return resetMemberAutoBalanceControl(db, {
       memberId: member.id,
       memberUsername: member.username,

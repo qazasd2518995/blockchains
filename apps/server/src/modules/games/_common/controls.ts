@@ -2382,8 +2382,8 @@ async function enforceAutoBalanceBankerGuard(
 
   const control = (await tx.memberAutoBalanceControl.findUnique({
     where: { memberId: member.id },
-    select: { secondLineAmount: true },
-  })) as { secondLineAmount: Prisma.Decimal | null } | null;
+    select: { id: true, secondLineAmount: true },
+  })) as { id: string; secondLineAmount: Prisma.Decimal | null } | null;
   const guardAmount = control?.secondLineAmount ?? new Prisma.Decimal(50000);
   if (guardAmount.lessThanOrEqualTo(0)) return;
 
@@ -2402,6 +2402,16 @@ async function enforceAutoBalanceBankerGuard(
       where: { id: member.id, disabledAt: null, frozenAt: null },
       data: { frozenAt: now },
     });
+    if (control) {
+      await tx.memberAutoBalanceControl.update({
+        where: { id: control.id },
+        data: {
+          isActive: false,
+          resetReason: 'banker_guard_frozen',
+          lifecycleCompletedAt: now,
+        },
+      });
+    }
     return;
   }
 
@@ -2414,6 +2424,16 @@ async function enforceAutoBalanceBankerGuard(
     where: { id: { in: agentIds }, status: 'ACTIVE', role: { not: 'SUPER_ADMIN' } },
     data: { status: 'FROZEN' },
   });
+  if (control) {
+    await tx.memberAutoBalanceControl.update({
+      where: { id: control.id },
+      data: {
+        isActive: false,
+        resetReason: 'banker_guard_frozen',
+        lifecycleCompletedAt: now,
+      },
+    });
+  }
 }
 
 function isBankerGuardExemptOutcome(outcome: ControlOutcome): boolean {
@@ -2778,6 +2798,7 @@ export function multiplierExceedsControlCeiling(
 
 export const __controlsTestHooks = {
   applyGlobalMemberDailyWinCap,
+  enforceAutoBalanceBankerGuard,
   findControlDecision,
   findAutoBalanceDecision,
   findAutoBalanceReviveDecision,

@@ -133,6 +133,51 @@ describe('resetMemberAutoBalanceControl', () => {
     expect(create.resetReason).toBe('deposit:manual_path:manual-path-1');
     expect(create.isActive).toBe(true);
   });
+
+  it('restarts a frozen path from stage zero on explicit point-in or point-out reset', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.25);
+    const upsert = vi.fn().mockResolvedValue({});
+    const db = {
+      $queryRaw: vi.fn().mockResolvedValue([{ exists: false }]),
+      memberDepositControl: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      manualDetectionControl: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'manual-path-1',
+            scope: 'MEMBER',
+            controlMode: 'lifecycle_path',
+            targetMemberUsername: 'path_member',
+            targetAgentId: null,
+            lifecycleTemplateKeys: ['SEVEN_NO_RECOVERY'],
+            lineFreezeThreshold: new Prisma.Decimal(50000),
+            controlPercentage: new Prisma.Decimal(50),
+            isActive: true,
+            isCompleted: false,
+            operatorUsername: 'admin',
+            createdAt: new Date('2026-06-14T12:00:00Z'),
+          },
+        ]),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      memberAutoBalanceControl: { upsert },
+    };
+
+    await resetMemberAutoBalanceControl(db as never, {
+      memberId: 'member-path-1',
+      memberUsername: 'path_member',
+      agentId: 'agent-1',
+      balanceAfter: new Prisma.Decimal(10000),
+      reason: 'agent_to_member',
+    });
+
+    const update = upsert.mock.calls[0]?.[0]?.update;
+    expect(update.baselineBalance.toFixed(2)).toBe('10000.00');
+    expect(update.lifecycleSteps).toEqual([80, 90, 20, 70, 10, 80, 0]);
+    expect(update.currentStageIndex).toBe(0);
+    expect(update.lifecycleCompletedAt).toBeNull();
+    expect(update.isActive).toBe(true);
+    expect(update.resetReason).toBe('agent_to_member:manual_path:manual-path-1');
+  });
 });
 
 describe('getOrCreateMemberAutoBalanceControl', () => {
@@ -183,6 +228,70 @@ describe('getOrCreateMemberAutoBalanceControl', () => {
     });
     expect(control?.biteTargetBalance.toFixed(2)).toBe('10000.00');
     expect(control?.reviveTargetBalance.toFixed(2)).toBe('20000.00');
+  });
+
+  it('does not restart a banker-guard-frozen path until an explicit balance reset happens', async () => {
+    const existing = {
+      id: 'auto-guard-1',
+      memberId: 'member-1',
+      memberUsername: 'top3666',
+      agentId: 'agent-1',
+      baselineBalance: new Prisma.Decimal(10000),
+      biteTargetBalance: new Prisma.Decimal(2000),
+      reviveTargetBalance: new Prisma.Decimal(4000),
+      phase: 'DRAIN_TO_ZERO',
+      templateKey: 'SEVEN_NO_RECOVERY',
+      lifecycleSteps: [80, 90, 20, 70, 10, 80, 0],
+      currentStageIndex: 4,
+      lifecycleCompletedAt: new Date('2026-06-15T12:00:00Z'),
+      lastBalance: new Prisma.Decimal(12000),
+      secondLineAmount: new Prisma.Decimal(50000),
+      controlPercentage: new Prisma.Decimal(50),
+      isActive: false,
+      resetReason: 'banker_guard_frozen',
+      operatorUsername: 'auto_balance_model',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const update = vi.fn();
+    const upsert = vi.fn();
+    const db = {
+      $queryRaw: vi.fn().mockResolvedValue([{ exists: false }]),
+      manualDetectionControl: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'manual-path-1',
+            scope: 'MEMBER',
+            controlMode: 'lifecycle_path',
+            targetMemberUsername: 'top3666',
+            targetAgentId: null,
+            lifecycleTemplateKeys: ['SEVEN_NO_RECOVERY'],
+            lineFreezeThreshold: new Prisma.Decimal(50000),
+            controlPercentage: new Prisma.Decimal(50),
+            isActive: true,
+            isCompleted: false,
+            operatorUsername: 'admin',
+            createdAt: new Date('2026-06-14T12:00:00Z'),
+          },
+        ]),
+      },
+      memberAutoBalanceControl: {
+        findUnique: vi.fn().mockResolvedValue(existing),
+        update,
+        upsert,
+      },
+    };
+
+    const control = await getOrCreateMemberAutoBalanceControl(db as never, {
+      id: 'member-1',
+      username: 'top3666',
+      agentId: 'agent-1',
+      balance: new Prisma.Decimal(12000),
+    });
+
+    expect(control).toBe(existing);
+    expect(update).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
   });
 });
 

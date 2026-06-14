@@ -1532,6 +1532,92 @@ describe('control decision priority', () => {
     });
   });
 
+  it('freezes the triggering member line and pauses its path guard after banker guard trips', async () => {
+    const autoBalanceUpdate = vi.fn();
+    const memberUpdateMany = vi.fn();
+    const agentUpdateMany = vi.fn();
+    const tx = {
+      $queryRaw: vi.fn(async () => [{ id: 'agent-1' }, { id: 'agent-child-1' }]),
+      user: {
+        findUnique: vi.fn(async () => ({ id: 'member-1', agentId: 'agent-1' })),
+        updateMany: memberUpdateMany,
+      },
+      agent: {
+        findUnique: vi.fn(async () => ({
+          id: 'agent-1',
+          parentId: null,
+          rebateMode: 'NONE',
+          rebatePercentage: new Prisma.Decimal(0),
+          maxRebatePercentage: new Prisma.Decimal(0),
+          baccaratRebateMode: 'NONE',
+          baccaratRebatePercentage: new Prisma.Decimal(0),
+          maxBaccaratRebatePercentage: new Prisma.Decimal(0),
+        })),
+        updateMany: agentUpdateMany,
+      },
+      bet: {
+        aggregate: vi.fn(async (args?: { where?: { gameId?: unknown } }) => ({
+          _count: { _all: args?.where?.gameId ? 0 : 12 },
+          _sum: args?.where?.gameId
+            ? { amount: new Prisma.Decimal(0), payout: null, profit: null }
+            : {
+                amount: new Prisma.Decimal(10000),
+                payout: new Prisma.Decimal(70000),
+                profit: new Prisma.Decimal(60000),
+              },
+        })),
+        findMany: vi.fn(async () => [{ userId: 'member-1' }]),
+      },
+      crashBet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { amount: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
+        })),
+        findMany: vi.fn(async () => []),
+      },
+      memberAutoBalanceControl: {
+        findUnique: vi.fn(async () => ({
+          id: 'auto-guard-1',
+          secondLineAmount: new Prisma.Decimal(50000),
+        })),
+        update: autoBalanceUpdate,
+      },
+    };
+
+    await __controlsTestHooks.enforceAutoBalanceBankerGuard(
+      tx as never,
+      { id: 'member-1', username: 'top3666', agentId: 'agent-1' },
+      {
+        won: false,
+        multiplier: new Prisma.Decimal(0),
+        payout: new Prisma.Decimal(0),
+        controlled: true,
+        flipReason: 'auto_balance_drain',
+      },
+    );
+
+    expect(memberUpdateMany).toHaveBeenCalledWith({
+      where: { agentId: { in: ['agent-1', 'agent-child-1'] }, disabledAt: null, frozenAt: null },
+      data: { frozenAt: expect.any(Date) },
+    });
+    expect(agentUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ['agent-1', 'agent-child-1'] },
+        status: 'ACTIVE',
+        role: { not: 'SUPER_ADMIN' },
+      },
+      data: { status: 'FROZEN' },
+    });
+    expect(autoBalanceUpdate).toHaveBeenCalledWith({
+      where: { id: 'auto-guard-1' },
+      data: expect.objectContaining({
+        isActive: false,
+        resetReason: 'banker_guard_frozen',
+        lifecycleCompletedAt: expect.any(Date),
+      }),
+    });
+  });
+
   it('lets crash-style probes force an active loss control at game start', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.01);
     const tx = {
