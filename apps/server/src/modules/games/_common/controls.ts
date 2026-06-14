@@ -211,6 +211,7 @@ const AUTO_BALANCE_BITE_INTERVENTION_RATE = 0.3;
 const AUTO_BALANCE_DRAIN_INTERVENTION_RATE = 0.4;
 const GLOBAL_MEMBER_DAILY_WIN_CAP_DRAIN_INTERVENTION_RATE = AUTO_BALANCE_DRAIN_INTERVENTION_RATE;
 const LIFECYCLE_PATH_TARGET_BAND_RATE = new Prisma.Decimal('0.05');
+const LIFECYCLE_PATH_STAGE_BAND_PERCENT = 10;
 const CONTROL_RELEASE_LOG_WINDOW = 8;
 const CONTROL_RELEASE_STAKE_JUMP_RATIO = new Prisma.Decimal('1.5');
 const CONTROL_RELEASE_TOTAL_LOSS_PROFIT_RATIO = new Prisma.Decimal('0.25');
@@ -880,7 +881,13 @@ async function advanceAutoBalanceLifecycleIfReached(
 
   while (
     targetPercent !== null &&
-    isLifecycleStageReached(currentBalance, targetBalance, direction)
+    isLifecycleStageReached(
+      control.baselineBalance,
+      currentBalance,
+      fromPercent,
+      targetPercent,
+      direction,
+    )
   ) {
     stageIndex += 1;
     fromPercent = stageIndex === 0 ? 100 : (steps[stageIndex - 1] ?? 100);
@@ -1642,7 +1649,13 @@ async function advanceDepositLifecycleStateIfReached(
 
   while (
     targetPercent !== null &&
-    isLifecycleStageReached(currentBalance, targetBalance, direction)
+    isLifecycleStageReached(
+      state.startBalance,
+      currentBalance,
+      fromPercent,
+      targetPercent,
+      direction,
+    )
   ) {
     stageIndex += 1;
     fromPercent = stageIndex === 0 ? 100 : (steps[stageIndex - 1] ?? 100);
@@ -1701,12 +1714,29 @@ function resolveLifecycleDirection(
 }
 
 function isLifecycleStageReached(
+  startBalance: Prisma.Decimal,
   currentBalance: Prisma.Decimal,
-  targetBalance: Prisma.Decimal,
+  fromPercent: number,
+  targetPercent: number | null,
   direction: 'WIN' | 'LOSS' | 'HOLD',
 ): boolean {
-  if (direction === 'WIN') return currentBalance.greaterThanOrEqualTo(targetBalance);
-  if (direction === 'LOSS') return currentBalance.lessThanOrEqualTo(targetBalance);
+  if (targetPercent === null) return true;
+  if (startBalance.lessThanOrEqualTo(0)) return false;
+  if (direction === 'WIN') {
+    const thresholdPercent = Math.max(0, targetPercent - LIFECYCLE_PATH_STAGE_BAND_PERCENT);
+    return currentBalance.greaterThanOrEqualTo(
+      lifecycleBalanceForPercent(startBalance, thresholdPercent),
+    );
+  }
+  if (direction === 'LOSS') {
+    const thresholdPercent = Math.min(
+      Math.max(0, fromPercent - LIFECYCLE_PATH_STAGE_BAND_PERCENT),
+      Math.max(0, targetPercent + LIFECYCLE_PATH_STAGE_BAND_PERCENT),
+    );
+    return currentBalance.lessThanOrEqualTo(
+      lifecycleBalanceForPercent(startBalance, thresholdPercent),
+    );
+  }
   return true;
 }
 

@@ -403,81 +403,95 @@ describe('control decision priority', () => {
       lastBalance?: Prisma.Decimal | null;
       controlPercentage?: number | null;
     } = {},
-  ) => ({
-    $queryRaw: vi.fn(async () => [{ exists: over.excluded === true }]),
-    user: {
-      findUnique: vi.fn(async (args: { select?: Record<string, boolean> }) => {
-        if (args.select?.balance) {
-          return {
-            id: 'member-1',
-            username: 'top3666',
-            agentId: over.agentId ?? null,
-            balance: over.balance ?? new Prisma.Decimal(100),
-          };
-        }
-        return { id: 'member-1', username: 'top3666', agentId: over.agentId ?? null };
-      }),
-    },
-    bet: {
-      aggregate: vi.fn(async () => ({
-        _count: { _all: 0 },
-        _sum: { profit: new Prisma.Decimal(0) },
-      })),
-    },
-    crashBet: {
-      aggregate: vi.fn(async () => ({
-        _count: { _all: 0 },
-        _sum: { amount: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
-      })),
-    },
-    winLossControl: { findMany: vi.fn(async () => []) },
-    burstControl: { findMany: vi.fn(async () => []) },
-    memberDepositControl: { findFirst: vi.fn(async () => null) },
-    memberWinCapControl: { findFirst: vi.fn(async () => null) },
-    agentLineWinCap: { findMany: vi.fn(async () => []) },
-    memberAutoBalanceControl: {
-      findUnique: vi.fn(async () => ({
-        id: 'auto-1',
-        memberId: 'member-1',
-        memberUsername: 'top3666',
-        agentId: null,
-        baselineBalance: over.baselineBalance ?? new Prisma.Decimal(50000),
-        biteTargetBalance: new Prisma.Decimal(10000),
-        reviveTargetBalance: new Prisma.Decimal(20000),
-        phase: over.phase ?? 'REVIVE_TO_70',
-        lifecycleSteps: over.lifecycleSteps,
-        currentStageIndex: over.currentStageIndex ?? 0,
-        lifecycleCompletedAt: null,
-        lastBalance: over.lastBalance ?? null,
-        secondLineAmount: new Prisma.Decimal(50000),
-        controlPercentage: over.controlPercentage ?? null,
-        isActive: true,
-      })),
-      update: vi.fn(async (args: { data?: Record<string, unknown> }) => ({
-        id: 'auto-1',
-        memberId: 'member-1',
-        memberUsername: 'top3666',
-        agentId: over.agentId ?? null,
-        baselineBalance: over.baselineBalance ?? new Prisma.Decimal(50000),
-        biteTargetBalance: new Prisma.Decimal(10000),
-        reviveTargetBalance: new Prisma.Decimal(20000),
-        phase: String(args.data?.phase ?? over.phase ?? 'REVIVE_TO_70'),
-        lifecycleSteps: over.lifecycleSteps,
-        currentStageIndex:
-          typeof args.data?.currentStageIndex === 'number'
-            ? args.data.currentStageIndex
-            : (over.currentStageIndex ?? 0),
-        lifecycleCompletedAt: (args.data?.lifecycleCompletedAt as Date | null | undefined) ?? null,
-        lastBalance:
-          (args.data?.lastBalance as Prisma.Decimal | null | undefined) ?? over.lastBalance ?? null,
-        secondLineAmount: new Prisma.Decimal(50000),
-        controlPercentage: over.controlPercentage ?? null,
-        isActive: typeof args.data?.isActive === 'boolean' ? args.data.isActive : true,
-      })),
-      updateMany: vi.fn(),
-    },
-    manualDetectionControl: { findMany: manualFindMany },
-  });
+  ) => {
+    const baselineBalance = over.baselineBalance ?? new Prisma.Decimal(50000);
+    const biteTargetBalance = baselineBalance
+      .mul('0.20')
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+    const reviveTargetBalance = baselineBalance
+      .mul('0.40')
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+    return {
+      $queryRaw: vi.fn(async () => [{ exists: over.excluded === true }]),
+      user: {
+        findUnique: vi.fn(async (args: { select?: Record<string, boolean> }) => {
+          if (args.select?.balance) {
+            return {
+              id: 'member-1',
+              username: 'top3666',
+              agentId: over.agentId ?? null,
+              balance: over.balance ?? new Prisma.Decimal(100),
+            };
+          }
+          return { id: 'member-1', username: 'top3666', agentId: over.agentId ?? null };
+        }),
+      },
+      bet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { profit: new Prisma.Decimal(0) },
+        })),
+      },
+      crashBet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { amount: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
+        })),
+      },
+      winLossControl: { findMany: vi.fn(async () => []) },
+      burstControl: { findMany: vi.fn(async () => []) },
+      memberDepositControl: { findFirst: vi.fn(async () => null) },
+      memberWinCapControl: { findFirst: vi.fn(async () => null) },
+      agentLineWinCap: { findMany: vi.fn(async () => []) },
+      memberAutoBalanceControl: {
+        findUnique: vi.fn(async () => ({
+          id: 'auto-1',
+          memberId: 'member-1',
+          memberUsername: 'top3666',
+          agentId: null,
+          baselineBalance,
+          biteTargetBalance,
+          reviveTargetBalance,
+          phase: over.phase ?? 'REVIVE_TO_70',
+          templateKey: 'SEVEN_NO_RECOVERY',
+          lifecycleSteps: over.lifecycleSteps,
+          currentStageIndex: over.currentStageIndex ?? 0,
+          lifecycleCompletedAt: null,
+          lastBalance: over.lastBalance ?? null,
+          secondLineAmount: new Prisma.Decimal(50000),
+          controlPercentage: over.controlPercentage ?? null,
+          isActive: true,
+        })),
+        update: vi.fn(async (args: { data?: Record<string, unknown> }) => ({
+          id: 'auto-1',
+          memberId: 'member-1',
+          memberUsername: 'top3666',
+          agentId: over.agentId ?? null,
+          baselineBalance,
+          biteTargetBalance,
+          reviveTargetBalance,
+          phase: String(args.data?.phase ?? over.phase ?? 'REVIVE_TO_70'),
+          templateKey: 'SEVEN_NO_RECOVERY',
+          lifecycleSteps: over.lifecycleSteps,
+          currentStageIndex:
+            typeof args.data?.currentStageIndex === 'number'
+              ? args.data.currentStageIndex
+              : (over.currentStageIndex ?? 0),
+          lifecycleCompletedAt:
+            (args.data?.lifecycleCompletedAt as Date | null | undefined) ?? null,
+          lastBalance:
+            (args.data?.lastBalance as Prisma.Decimal | null | undefined) ??
+            over.lastBalance ??
+            null,
+          secondLineAmount: new Prisma.Decimal(50000),
+          controlPercentage: over.controlPercentage ?? null,
+          isActive: typeof args.data?.isActive === 'boolean' ? args.data.isActive : true,
+        })),
+        updateMany: vi.fn(),
+      },
+      manualDetectionControl: { findMany: manualFindMany },
+    };
+  };
 
   it('lets regular deposit controls fall back to the natural result when the rate misses', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.8);
@@ -1184,7 +1198,7 @@ describe('control decision priority', () => {
       {
         balance: new Prisma.Decimal(40000),
         baselineBalance: new Prisma.Decimal(50000),
-        lifecycleSteps: [80, 90],
+        lifecycleSteps: [80, 100],
         currentStageIndex: 0,
         lastBalance: new Prisma.Decimal(50000),
       },
@@ -1207,6 +1221,57 @@ describe('control decision priority', () => {
     expect(outcome.controlled).toBe(true);
     expect(outcome.won).toBe(true);
     expect(outcome.flipReason).toBe('auto_balance_revive');
+  });
+
+  it('advances high recovery targets once the balance enters the target band', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(8890),
+        baselineBalance: new Prisma.Decimal(10000),
+        lifecycleSteps: [80, 90, 10, 30, 0],
+        currentStageIndex: 1,
+        lastBalance: new Prisma.Decimal(8000),
+        controlPercentage: 50,
+      },
+    );
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.DICE,
+      predictedResult(100, 120, 1.2),
+    );
+
+    expect(tx.memberAutoBalanceControl.update).toHaveBeenCalledWith({
+      where: { id: 'auto-1' },
+      data: expect.objectContaining({
+        currentStageIndex: 2,
+        lastBalance: new Prisma.Decimal(8890),
+      }),
+    });
+    expect(outcome.controlled).toBe(false);
+    expect(outcome.payout.toFixed(2)).toBe('120.00');
+  });
+
+  it('does not skip an initial 100 to 90 loss stage just because 100 is near the target band', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(10000),
+        baselineBalance: new Prisma.Decimal(10000),
+        lifecycleSteps: [90, 20, 0],
+        currentStageIndex: 0,
+        lastBalance: new Prisma.Decimal(10000),
+        controlPercentage: 50,
+      },
+    );
+
+    await applyControls(tx as never, 'member-1', GameId.DICE, predictedResult(100, 120, 1.2));
+
+    expect(tx.memberAutoBalanceControl.update).not.toHaveBeenCalled();
   });
 
   it('caps auto-balance lifecycle natural burst wins at the active path band when revive misses', async () => {

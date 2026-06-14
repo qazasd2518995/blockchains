@@ -80,8 +80,19 @@ const AUTO_BALANCE_REVIVE_RATE = new Prisma.Decimal('0.40');
 const AUTO_BALANCE_EXCLUDED_AGENT_USERNAME = '8000DG';
 const AUTO_BALANCE_CONFIG_ID = 'default';
 export const AUTO_BALANCE_DEFAULT_SECOND_LINE_AMOUNT = new Prisma.Decimal(50000);
+const AUTO_BALANCE_DEFAULT_TEMPLATE_KEY = 'SEVEN_NO_RECOVERY';
 
 export const AUTO_BALANCE_LIFECYCLE_TEMPLATES = [
+  {
+    key: 'FIVE_NO_RECOVERY',
+    label: '5關 不回正',
+    steps: [60, 90, 10, 30, 0],
+  },
+  {
+    key: 'FIVE_RECOVER_ONCE',
+    label: '5關 回正1次',
+    steps: [80, 20, 90, 50, 0],
+  },
   {
     key: 'SEVEN_NO_RECOVERY',
     label: '7關 不回正',
@@ -131,6 +142,9 @@ export interface AutoBalanceRuntimeConfig {
 export function resolveAutoBalanceTemplate(key: string | null | undefined) {
   return (
     AUTO_BALANCE_LIFECYCLE_TEMPLATES.find((template) => template.key === key) ??
+    AUTO_BALANCE_LIFECYCLE_TEMPLATES.find(
+      (template) => template.key === AUTO_BALANCE_DEFAULT_TEMPLATE_KEY,
+    ) ??
     AUTO_BALANCE_LIFECYCLE_TEMPLATES[0]
   );
 }

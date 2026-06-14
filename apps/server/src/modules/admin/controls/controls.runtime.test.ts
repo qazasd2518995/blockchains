@@ -8,6 +8,7 @@ import {
   findApplicableBurstControl,
   findApplicableManualDetectionControl,
   getDefaultManualDetectionCompletionBehavior,
+  listAutoBalanceTemplates,
   getOrCreateMemberAutoBalanceControl,
   normalizeManualDetectionCompletionBehavior,
   resetMemberAutoBalanceControl,
@@ -38,6 +39,27 @@ describe('calculateAutoDetectionBitePlan', () => {
     expect(plan.platformTake.toFixed(2)).toBe('100.00');
     expect(plan.redistributionAmount.toFixed(2)).toBe('900.00');
     expect(plan.targetSettlement.toFixed(2)).toBe('100.00');
+  });
+});
+
+describe('listAutoBalanceTemplates', () => {
+  it('includes the short five-stage board paths', () => {
+    const templates = listAutoBalanceTemplates();
+
+    expect(templates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'FIVE_NO_RECOVERY',
+          label: '5關 不回正',
+          steps: [60, 90, 10, 30, 0],
+        }),
+        expect.objectContaining({
+          key: 'FIVE_RECOVER_ONCE',
+          label: '5關 回正1次',
+          steps: [80, 20, 90, 50, 0],
+        }),
+      ]),
+    );
   });
 });
 

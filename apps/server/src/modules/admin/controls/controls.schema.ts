@@ -247,7 +247,7 @@ export const manualDetectionControlSchema = z
     bitePercentage: biteRateDecimal.optional().nullable(),
     houseTakePercentage: rateDecimal.default('10'),
     completionBehavior: z.enum(['hold_target', 'stop_on_target']).optional().nullable(),
-    lifecycleTemplateKeys: z.array(z.string().min(1)).min(1).max(6).optional().nullable(),
+    lifecycleTemplateKeys: z.array(z.string().min(1)).min(1).max(8).optional().nullable(),
     lineFreezeThreshold: decimal.default('50000'),
   })
   .superRefine((value, ctx) => {
