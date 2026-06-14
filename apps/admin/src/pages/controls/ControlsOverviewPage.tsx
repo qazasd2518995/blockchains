@@ -1840,6 +1840,7 @@ function formatReason(reason: string): string {
     loss_control: '杀分',
     loss_control_release: '杀分补赢',
     manual_detection: '手动侦测',
+    deposit_lifecycle_path_guard: '入金路徑守門',
     burst_win: '爆分',
     burst_small_win: '小赢补偿',
     burst_loss: '娱乐压输',
@@ -1851,6 +1852,7 @@ function formatReason(reason: string): string {
     auto_balance_bite: '自動大盤控輸',
     auto_balance_revive: '自動大盤控贏',
     auto_balance_drain: '自動大盤控輸',
+    auto_balance_path_guard: '自動大盤路徑守門',
   };
   return map[reason] ?? reason;
 }

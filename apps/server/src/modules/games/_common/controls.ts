@@ -71,7 +71,12 @@ interface ControlDecision {
 }
 
 const CONTROL_INTERVENTION_MISS = Symbol('control_intervention_miss');
-type ControlDecisionLookup = ControlDecision | typeof CONTROL_INTERVENTION_MISS | null;
+const CONTROL_PATH_NATURAL = Symbol('control_path_natural');
+type ControlDecisionLookup =
+  | ControlDecision
+  | typeof CONTROL_INTERVENTION_MISS
+  | typeof CONTROL_PATH_NATURAL
+  | null;
 
 type DepositControlRecord = {
   id: string;
@@ -120,6 +125,12 @@ function isControlInterventionMiss(
   decision: ControlDecisionLookup,
 ): decision is typeof CONTROL_INTERVENTION_MISS {
   return decision === CONTROL_INTERVENTION_MISS;
+}
+
+function isControlPathNatural(
+  decision: ControlDecisionLookup,
+): decision is typeof CONTROL_PATH_NATURAL {
+  return decision === CONTROL_PATH_NATURAL;
 }
 
 export interface ControlOptions {
@@ -198,6 +209,7 @@ const BURST_ELIGIBLE_GAME_IDS = new Set<string>(SLOT_GAME_IDS);
 const AUTO_BALANCE_BITE_INTERVENTION_RATE = 0.3;
 const AUTO_BALANCE_DRAIN_INTERVENTION_RATE = 0.4;
 const GLOBAL_MEMBER_DAILY_WIN_CAP_DRAIN_INTERVENTION_RATE = AUTO_BALANCE_DRAIN_INTERVENTION_RATE;
+const LIFECYCLE_PATH_TARGET_BAND_RATE = new Prisma.Decimal('0.05');
 const CONTROL_RELEASE_LOG_WINDOW = 8;
 const CONTROL_RELEASE_STAKE_JUMP_RATIO = new Prisma.Decimal('1.5');
 const CONTROL_RELEASE_TOTAL_LOSS_PROFIT_RATIO = new Prisma.Decimal('0.25');
@@ -246,6 +258,9 @@ export async function applyControls(
   if (isControlInterventionMiss(decision)) {
     return { ...predicted, controlled: false };
   }
+  if (isControlPathNatural(decision)) {
+    return { ...predicted, controlled: false };
+  }
   if (!decision) {
     return enforceNaturalGlobalMemberDailyWinCap(tx, member, predicted, options);
   }
@@ -253,7 +268,11 @@ export async function applyControls(
     decision.desired === 'WIN'
       ? await withWinCapBounds(tx, member, predicted, decision, gameId)
       : decision;
-  if (!cappedDecision || isControlInterventionMiss(cappedDecision)) {
+  if (
+    !cappedDecision ||
+    isControlInterventionMiss(cappedDecision) ||
+    isControlPathNatural(cappedDecision)
+  ) {
     return { ...predicted, controlled: false };
   }
   const predictedNetWin = isNetWin(predicted);
@@ -291,6 +310,7 @@ export async function applyGlobalMemberDailyWinCap(
 
   const decision = await findGlobalMemberWinCapDecision(tx, member.id, predicted);
   if (isControlInterventionMiss(decision)) return null;
+  if (isControlPathNatural(decision)) return null;
   if (!decision) return null;
   return decision.desired === 'LOSS'
     ? flipToLoss(predicted, decision.reason, decision.controlId)
@@ -443,15 +463,18 @@ async function findControlDecision(
   if (!(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))) {
     const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
     if (isControlInterventionMiss(globalWinCap)) return CONTROL_INTERVENTION_MISS;
+    if (isControlPathNatural(globalWinCap)) return CONTROL_PATH_NATURAL;
     if (globalWinCap) return globalWinCap;
   }
 
   const onlineReward = await findOnlineRewardNextWinDecision(tx, member, predicted);
   if (isControlInterventionMiss(onlineReward)) return null;
+  if (isControlPathNatural(onlineReward)) return CONTROL_PATH_NATURAL;
   if (onlineReward) return onlineReward;
 
   const targetedWinLoss = await findWinLossDecision(tx, member, predicted, 'targeted');
   if (isControlInterventionMiss(targetedWinLoss)) return null;
+  if (isControlPathNatural(targetedWinLoss)) return CONTROL_PATH_NATURAL;
   if (targetedWinLoss?.desired === 'WIN' && targetedWinLoss.reason === 'win_control') {
     return targetedWinLoss;
   }
@@ -460,6 +483,7 @@ async function findControlDecision(
     targetedWinLoss ??
     (await findWinLossDecision(tx, member, predicted, isControlExcludedLine ? 'targeted' : 'all'));
   if (isControlInterventionMiss(explicitWinLoss)) return null;
+  if (isControlPathNatural(explicitWinLoss)) return CONTROL_PATH_NATURAL;
   if (explicitWinLoss) return explicitWinLoss;
 
   const memberCap = await findMemberWinCapDecision(tx, member.id, predicted);
@@ -468,11 +492,13 @@ async function findControlDecision(
   const agentLineCap = await findAgentLineCapDecision(tx, member.agentId, predicted);
   if (agentLineCap) return agentLineCap;
 
-  const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
-  if (accidentalBurstCap) return accidentalBurstCap;
-
   const depositControl = await findDepositControlDecisionLookup(tx, member, predicted);
-  if (isControlInterventionMiss(depositControl)) return null;
+  if (isControlPathNatural(depositControl)) return CONTROL_PATH_NATURAL;
+  if (isControlInterventionMiss(depositControl)) {
+    const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
+    if (accidentalBurstCap) return accidentalBurstCap;
+    return null;
+  }
   if (depositControl) return depositControl;
 
   const targetedManual = await findManualDetectionDecision(tx, member, predicted, 'targeted');
@@ -485,7 +511,11 @@ async function findControlDecision(
 
   const autoBalance = await findAutoBalanceDecisionInternal(tx, member, predicted, 'any');
   if (autoBalance.decision) return autoBalance.decision;
+  if (autoBalance.pathNatural) return CONTROL_PATH_NATURAL;
   if (autoBalance.inActiveCycle) return null;
+
+  const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
+  if (accidentalBurstCap) return accidentalBurstCap;
 
   return null;
 }
@@ -616,6 +646,7 @@ async function findWinLossDecision(
 interface AutoBalanceDecisionResult {
   decision: ControlDecision | null;
   inActiveCycle: boolean;
+  pathNatural?: boolean;
 }
 
 async function findAutoBalanceDecision(
@@ -676,9 +707,12 @@ async function findAutoBalanceDecisionInternal(
   }
 
   if (control.phase === 'DRAIN_TO_ZERO') {
+    const lossDecision = autoBalanceLossDecision(control.id, 'auto_balance_drain');
+    const pathGuard = legacyAutoBalancePathGuardDecision(control, currentUser.balance, predicted);
     return {
-      decision: autoBalanceLossDecision(control.id, 'auto_balance_drain'),
+      decision: lossDecision ?? pathGuard,
       inActiveCycle: true,
+      pathNatural: !lossDecision && !pathGuard,
     };
   }
 
@@ -692,14 +726,18 @@ async function findAutoBalanceDecisionInternal(
     const remaining = control.reviveTargetBalance.sub(currentUser.balance).toDecimalPlaces(2);
     if (remaining.lessThanOrEqualTo(0)) {
       control = await setMemberAutoBalancePhase(tx, control.id, 'DRAIN_TO_ZERO');
+      const lossDecision = autoBalanceLossDecision(control.id, 'auto_balance_drain');
+      const pathGuard = legacyAutoBalancePathGuardDecision(control, currentUser.balance, predicted);
       return {
-        decision: autoBalanceLossDecision(control.id, 'auto_balance_drain'),
+        decision: lossDecision ?? pathGuard,
         inActiveCycle: true,
+        pathNatural: !lossDecision && !pathGuard,
       };
     }
 
+    const pathGuard = legacyAutoBalancePathGuardDecision(control, currentUser.balance, predicted);
     if (Math.random() >= AUTO_BALANCE_REVIVE_INTERVENTION_RATE) {
-      return { decision: null, inActiveCycle: true };
+      return { decision: pathGuard, inActiveCycle: true, pathNatural: !pathGuard };
     }
 
     return {
@@ -716,9 +754,12 @@ async function findAutoBalanceDecisionInternal(
   }
 
   if (mode === 'reviveOnly') return { decision: null, inActiveCycle: false };
+  const lossDecision = autoBalanceLossDecision(control.id, 'auto_balance_bite');
+  const pathGuard = legacyAutoBalancePathGuardDecision(control, currentUser.balance, predicted);
   return {
-    decision: autoBalanceLossDecision(control.id, 'auto_balance_bite'),
+    decision: lossDecision ?? pathGuard,
     inActiveCycle: true,
+    pathNatural: !lossDecision && !pathGuard,
   };
 }
 
@@ -744,9 +785,20 @@ async function buildAutoBalanceLifecycleDecision(
   }
   if (resolved.direction === 'LOSS') {
     const reason = resolved.currentStageIndex <= 0 ? 'auto_balance_bite' : 'auto_balance_drain';
+    const pathGuard = lifecyclePathGuardDecision({
+      controlId: resolved.control.id,
+      reason: 'auto_balance_path_guard',
+      startBalance: resolved.control.baselineBalance,
+      currentBalance: currentUser.balance,
+      fromPercent: resolved.fromPercent,
+      targetPercent: resolved.targetPercent,
+      predicted,
+    });
+    const lossDecision = autoBalanceLossDecision(resolved.control.id, reason);
     return {
-      decision: autoBalanceLossDecision(resolved.control.id, reason),
+      decision: lossDecision ?? pathGuard,
       inActiveCycle: true,
+      pathNatural: !lossDecision && !pathGuard,
     };
   }
   if (resolved.direction !== 'WIN') {
@@ -754,8 +806,17 @@ async function buildAutoBalanceLifecycleDecision(
   }
   const remaining = Prisma.Decimal.max(resolved.targetBalance.sub(currentUser.balance), ZERO);
   if (remaining.lessThanOrEqualTo(0)) return { decision: null, inActiveCycle: true };
+  const pathGuard = lifecyclePathGuardDecision({
+    controlId: resolved.control.id,
+    reason: 'auto_balance_path_guard',
+    startBalance: resolved.control.baselineBalance,
+    currentBalance: currentUser.balance,
+    fromPercent: resolved.fromPercent,
+    targetPercent: resolved.targetPercent,
+    predicted,
+  });
   if (Math.random() >= AUTO_BALANCE_REVIVE_INTERVENTION_RATE) {
-    return { decision: null, inActiveCycle: true };
+    return { decision: pathGuard, inActiveCycle: true, pathNatural: !pathGuard };
   }
   return {
     decision: {
@@ -985,6 +1046,7 @@ async function enforceNaturalGlobalMemberDailyWinCap(
 ): Promise<ControlOutcome> {
   const decision = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
   if (isControlInterventionMiss(decision)) return { ...predicted, controlled: false };
+  if (isControlPathNatural(decision)) return { ...predicted, controlled: false };
   if (!decision) return { ...predicted, controlled: false };
 
   const predictedNetWin = isNetWin(predicted);
@@ -1005,6 +1067,7 @@ async function shouldBypassGlobalMemberDailyWinCap(
 ): Promise<boolean> {
   if (await hasActiveDepositControlForGlobalCapBypass(tx, member.id)) return true;
   if (gameId && (await hasActiveBurstControlForGlobalCapBypass(tx, member, gameId))) return true;
+  if (await hasActiveAutoBalanceControlForGlobalCapBypass(tx, member.id)) return true;
   return false;
 }
 
@@ -1070,6 +1133,21 @@ async function hasActiveBurstControlForGlobalCapBypass(
     control.dailyBudget.sub(control.todayBurstAmount).greaterThan(0) &&
     control.memberDailyCap.sub(memberBurstProfit).greaterThan(0)
   );
+}
+
+async function hasActiveAutoBalanceControlForGlobalCapBypass(
+  tx: Db,
+  memberId: string,
+): Promise<boolean> {
+  const delegate = (tx as unknown as { memberAutoBalanceControl?: unknown })
+    .memberAutoBalanceControl as
+    | {
+        findUnique?: (args: unknown) => Promise<AutoBalanceControlRecord | null>;
+      }
+    | undefined;
+  if (!delegate?.findUnique) return false;
+  const control = await delegate.findUnique({ where: { memberId } });
+  return Boolean(control?.isActive && !control.lifecycleCompletedAt);
 }
 
 function findAccidentalBurstCapDecision(predicted: PredictedResult): ControlDecision | null {
@@ -1258,7 +1336,7 @@ async function findDepositControlDecision(
   predicted: PredictedResult,
 ): Promise<ControlDecision | null> {
   const result = await findDepositControlDecisionLookup(tx, member, predicted);
-  return isControlInterventionMiss(result) ? null : result;
+  return isControlInterventionMiss(result) || isControlPathNatural(result) ? null : result;
 }
 
 async function findDepositControlDecisionLookup(
@@ -1447,7 +1525,18 @@ async function buildDepositLifecycleDecision(
     steps,
   );
   if (resolved.completed || resolved.targetPercent === null) return null;
-  if (Math.random() >= clampRate(control.controlWinRate)) return CONTROL_INTERVENTION_MISS;
+  const pathGuard = lifecyclePathGuardDecision({
+    controlId: control.id,
+    reason: 'deposit_lifecycle_path_guard',
+    startBalance: resolved.state.startBalance,
+    currentBalance: currentUser.balance,
+    fromPercent: resolved.fromPercent,
+    targetPercent: resolved.targetPercent,
+    predicted,
+  });
+  if (Math.random() >= clampRate(control.controlWinRate)) {
+    return pathGuard ?? CONTROL_PATH_NATURAL;
+  }
 
   if (resolved.direction === 'LOSS') {
     return { desired: 'LOSS', controlId: control.id, reason: 'deposit_control' };
@@ -1583,6 +1672,83 @@ function isLifecycleStageReached(
   if (direction === 'WIN') return currentBalance.greaterThanOrEqualTo(targetBalance);
   if (direction === 'LOSS') return currentBalance.lessThanOrEqualTo(targetBalance);
   return true;
+}
+
+function legacyAutoBalancePathGuardDecision(
+  control: AutoBalanceControlRecord,
+  currentBalance: Prisma.Decimal,
+  predicted: PredictedResult,
+): ControlDecision | null {
+  if (control.baselineBalance.lessThanOrEqualTo(0)) return null;
+
+  const toPercent = (balance: Prisma.Decimal) =>
+    balance.div(control.baselineBalance).mul(100).toNumber();
+  const bitePercent = toPercent(control.biteTargetBalance);
+  const revivePercent = toPercent(control.reviveTargetBalance);
+  const fromPercent =
+    control.phase === 'REVIVE_TO_70'
+      ? bitePercent
+      : control.phase === 'DRAIN_TO_ZERO'
+        ? revivePercent
+        : 100;
+  const targetPercent =
+    control.phase === 'REVIVE_TO_70'
+      ? revivePercent
+      : control.phase === 'DRAIN_TO_ZERO'
+        ? 0
+        : bitePercent;
+
+  return lifecyclePathGuardDecision({
+    controlId: control.id,
+    reason: 'auto_balance_path_guard',
+    startBalance: control.baselineBalance,
+    currentBalance,
+    fromPercent,
+    targetPercent,
+    predicted,
+  });
+}
+
+function lifecyclePathGuardDecision(input: {
+  controlId: string;
+  reason: 'deposit_lifecycle_path_guard' | 'auto_balance_path_guard';
+  startBalance: Prisma.Decimal;
+  currentBalance: Prisma.Decimal;
+  fromPercent: number;
+  targetPercent: number | null;
+  predicted: PredictedResult;
+}): ControlDecision | null {
+  if (input.targetPercent === null || input.startBalance.lessThanOrEqualTo(0)) return null;
+
+  const predictedProfit = input.predicted.payout.sub(input.predicted.amount);
+  if (!predictedProfit.greaterThan(0)) return null;
+
+  const upperPercent = Math.max(input.fromPercent, input.targetPercent);
+  const upperBalance = lifecycleBalanceForPercent(input.startBalance, upperPercent).add(
+    input.startBalance.mul(LIFECYCLE_PATH_TARGET_BAND_RATE),
+  );
+  const projectedBalance = input.currentBalance.add(predictedProfit);
+  if (projectedBalance.lessThanOrEqualTo(upperBalance)) return null;
+
+  const maxProfit = upperBalance.sub(input.currentBalance).toDecimalPlaces(2);
+  if (maxProfit.lessThanOrEqualTo(0)) {
+    return { desired: 'LOSS', controlId: input.controlId, reason: input.reason };
+  }
+
+  const maxPayout = input.predicted.amount.add(maxProfit).toDecimalPlaces(2);
+  if (maxPayout.lessThanOrEqualTo(input.predicted.amount.mul('1.0001'))) {
+    return { desired: 'LOSS', controlId: input.controlId, reason: input.reason };
+  }
+
+  return {
+    desired: 'WIN',
+    controlId: input.controlId,
+    reason: input.reason,
+    minMultiplier: new Prisma.Decimal('1.0001'),
+    maxPayout,
+    forceWinAdjustment: true,
+    gameMatchedPayoutOnly: true,
+  };
 }
 
 async function findManualDetectionDecision(

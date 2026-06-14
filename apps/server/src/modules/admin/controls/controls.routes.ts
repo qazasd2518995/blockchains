@@ -605,7 +605,9 @@ function resolveControlLogMeta(
 
 function resolveControlLogSource(reason: string): ControlLogSource {
   if (reason === 'online_reward_next_win') return 'online_reward_next_win';
-  if (reason === 'deposit_control') return 'deposit_control';
+  if (reason === 'deposit_control' || reason === 'deposit_lifecycle_path_guard') {
+    return 'deposit_control';
+  }
   if (reason.startsWith('auto_balance_')) return 'auto_balance';
   if (reason === 'manual_detection' || reason === 'manual_detection_release') {
     return 'manual_detection';
@@ -686,9 +688,11 @@ function resolveControlLogActionLabel(log: ControlLogRecord): string {
   const labels: Record<string, string> = {
     online_reward_next_win: '下一局直接贏',
     deposit_control: `入金${finalDirection}`,
-	    auto_balance_bite: '自動大盤控輸',
-	    auto_balance_revive: '自動大盤控贏',
-	    auto_balance_drain: '自動大盤控輸',
+    deposit_lifecycle_path_guard: '入金路徑守門',
+    auto_balance_bite: '自動大盤控輸',
+    auto_balance_revive: '自動大盤控贏',
+    auto_balance_drain: '自動大盤控輸',
+    auto_balance_path_guard: '自動大盤路徑守門',
     auto_balance_release: '自動補贏',
     win_control: '放會員贏',
     loss_control: '咬會員輸',

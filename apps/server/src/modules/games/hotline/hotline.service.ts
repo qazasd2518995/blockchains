@@ -539,10 +539,12 @@ function canMegaFreeGameExceedOne(
     control.flipReason === 'win_control' ||
     control.flipReason === 'loss_control_release' ||
     control.flipReason === 'deposit_control' ||
+    control.flipReason === 'deposit_lifecycle_path_guard' ||
     control.flipReason === 'online_reward_next_win' ||
     control.flipReason === 'manual_detection' ||
     control.flipReason === 'manual_detection_release' ||
     control.flipReason === 'auto_balance_revive' ||
+    control.flipReason === 'auto_balance_path_guard' ||
     control.flipReason === 'burst_win' ||
     control.flipReason === 'burst_small_win' ||
     control.flipReason === 'burst_risk_cap'

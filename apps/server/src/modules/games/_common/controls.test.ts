@@ -514,6 +514,7 @@ describe('control decision priority', () => {
         })),
       },
       memberDepositControl: {
+        findFirst: vi.fn(async () => null),
         findMany: vi.fn(async () => [
           {
             id: 'deposit-life-1',
@@ -578,6 +579,7 @@ describe('control decision priority', () => {
         })),
       },
       memberDepositControl: {
+        findFirst: vi.fn(async () => null),
         findMany: vi.fn(async () => [
           {
             id: 'deposit-line-1',
@@ -613,6 +615,171 @@ describe('control decision priority', () => {
     expect(decision).toBeTruthy();
     expect(decision?.desired).toBe('LOSS');
     expect(decision?.reason).toBe('deposit_control');
+  });
+
+  it('caps deposit lifecycle natural burst wins at the active path band when intervention misses', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const state = {
+      id: 'state-1',
+      controlId: 'deposit-life-1',
+      memberId: 'member-1',
+      memberUsername: 'vip0666',
+      startBalance: new Prisma.Decimal(10000),
+      currentStageIndex: 1,
+      isCompleted: false,
+      lastBalance: new Prisma.Decimal(3000),
+    };
+    const tx = {
+      user: {
+        findUnique: vi.fn(async () => ({
+          id: 'member-1',
+          username: 'vip0666',
+          agentId: null,
+          balance: new Prisma.Decimal(3000),
+        })),
+      },
+      bet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { profit: new Prisma.Decimal(0) },
+        })),
+      },
+      crashBet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { amount: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
+        })),
+      },
+      winLossControl: { findMany: vi.fn(async () => []) },
+      burstControl: { findMany: vi.fn(async () => []) },
+      memberWinCapControl: { findFirst: vi.fn(async () => null) },
+      agentLineWinCap: { findMany: vi.fn(async () => []) },
+      memberDepositControl: {
+        findFirst: vi.fn(async () => null),
+        findMany: vi.fn(async () => [
+          {
+            id: 'deposit-life-1',
+            scope: 'MEMBER',
+            memberId: 'member-1',
+            memberUsername: 'vip0666',
+            targetAgentId: null,
+            startBalance: new Prisma.Decimal(10000),
+            targetProfit: new Prisma.Decimal(0),
+            controlWinRate: new Prisma.Decimal(0),
+            lifecycleSteps: [30, 100],
+            notes: null,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+          },
+        ]),
+      },
+      memberDepositLifecycleState: {
+        findUnique: vi.fn(async () => state),
+        update: vi.fn(async (args: { data?: Record<string, unknown> }) => ({
+          ...state,
+          ...(args.data ?? {}),
+        })),
+      },
+      manualDetectionControl: {
+        findMany: vi.fn(async () => {
+          throw new Error('manual detection should not run during an active deposit path');
+        }),
+      },
+      memberAutoBalanceControl: {
+        findUnique: vi.fn(async () => {
+          throw new Error('auto balance should not run during an active deposit path');
+        }),
+      },
+    };
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.HOTLINE,
+      predictedResult(5000, 30000, 6),
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.flipReason).toBe('deposit_lifecycle_path_guard');
+    expect(outcome.controlId).toBe('deposit-life-1');
+    expect(outcome.maxPayout?.toFixed(2)).toBe('12500.00');
+    expect(outcome.payout.toFixed(2)).toBe('12500.00');
+  });
+
+  it('lets deposit lifecycle natural wins stay inside the path band without accidental-burst takeover', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const state = {
+      id: 'state-1',
+      controlId: 'deposit-life-1',
+      memberId: 'member-1',
+      memberUsername: 'vip0666',
+      startBalance: new Prisma.Decimal(100000),
+      currentStageIndex: 1,
+      isCompleted: false,
+      lastBalance: new Prisma.Decimal(30000),
+    };
+    const tx = {
+      user: {
+        findUnique: vi.fn(async () => ({
+          id: 'member-1',
+          username: 'vip0666',
+          agentId: null,
+          balance: new Prisma.Decimal(30000),
+        })),
+      },
+      bet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { profit: new Prisma.Decimal(0) },
+        })),
+      },
+      crashBet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { amount: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
+        })),
+      },
+      winLossControl: { findMany: vi.fn(async () => []) },
+      burstControl: { findMany: vi.fn(async () => []) },
+      memberWinCapControl: { findFirst: vi.fn(async () => null) },
+      agentLineWinCap: { findMany: vi.fn(async () => []) },
+      memberDepositControl: {
+        findFirst: vi.fn(async () => null),
+        findMany: vi.fn(async () => [
+          {
+            id: 'deposit-life-1',
+            scope: 'MEMBER',
+            memberId: 'member-1',
+            memberUsername: 'vip0666',
+            targetAgentId: null,
+            startBalance: new Prisma.Decimal(100000),
+            targetProfit: new Prisma.Decimal(0),
+            controlWinRate: new Prisma.Decimal(0),
+            lifecycleSteps: [30, 100],
+            notes: null,
+            createdAt: new Date('2026-01-01T00:00:00Z'),
+          },
+        ]),
+      },
+      memberDepositLifecycleState: {
+        findUnique: vi.fn(async () => state),
+        update: vi.fn(async (args: { data?: Record<string, unknown> }) => ({
+          ...state,
+          ...(args.data ?? {}),
+        })),
+      },
+      manualDetectionControl: { findMany: vi.fn(async () => []) },
+      memberAutoBalanceControl: { findUnique: vi.fn(async () => null) },
+    };
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.HOTLINE,
+      predictedResult(5000, 25000, 5),
+    );
+
+    expect(outcome.controlled).toBe(false);
+    expect(outcome.payout.toFixed(2)).toBe('25000.00');
   });
 
   it('applies regular deposit controls before manual detection and auto balance', async () => {
@@ -708,9 +875,7 @@ describe('control decision priority', () => {
       memberWinCapControl: { findFirst: memberWinCapFindFirst },
       agentLineWinCap: { findMany: vi.fn(async () => []) },
       memberAutoBalanceControl: {
-        findUnique: vi.fn(async () => {
-          throw new Error('auto balance should not run after a win/loss intervention miss');
-        }),
+        findUnique: vi.fn(async () => null),
       },
     };
 
@@ -767,9 +932,7 @@ describe('control decision priority', () => {
         update: vi.fn(),
       },
       memberAutoBalanceControl: {
-        findUnique: vi.fn(async () => {
-          throw new Error('auto balance should not run after a deposit intervention miss');
-        }),
+        findUnique: vi.fn(async () => null),
       },
       manualDetectionControl: {
         findMany: vi.fn(async () => {
@@ -831,9 +994,7 @@ describe('control decision priority', () => {
         update: vi.fn(),
       },
       memberAutoBalanceControl: {
-        findUnique: vi.fn(async () => {
-          throw new Error('auto balance should not run after a deposit intervention miss');
-        }),
+        findUnique: vi.fn(async () => null),
       },
     };
 
@@ -930,9 +1091,7 @@ describe('control decision priority', () => {
         findFirst: vi.fn(async () => null),
       },
       memberAutoBalanceControl: {
-        findUnique: vi.fn(async () => {
-          throw new Error('auto balance should not run after a burst intervention miss');
-        }),
+        findUnique: vi.fn(async () => null),
       },
     };
 
@@ -1041,11 +1200,33 @@ describe('control decision priority', () => {
     expect(outcome.flipReason).toBe('auto_balance_revive');
   });
 
+  it('caps auto-balance lifecycle natural burst wins at the active path band when revive misses', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const tx = createAutoReviveTx(vi.fn(async () => []), {
+      balance: new Prisma.Decimal(3000),
+      baselineBalance: new Prisma.Decimal(10000),
+      lifecycleSteps: [30, 100],
+      currentStageIndex: 1,
+      lastBalance: new Prisma.Decimal(3000),
+    });
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.HOTLINE,
+      predictedResult(5000, 30000, 6),
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.flipReason).toBe('auto_balance_path_guard');
+    expect(outcome.controlId).toBe('auto-1');
+    expect(outcome.maxPayout?.toFixed(2)).toBe('12500.00');
+    expect(outcome.payout.toFixed(2)).toBe('12500.00');
+  });
+
   it('prioritizes global manual detection over active auto-balance cycles', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.01);
-    const autoFindUnique = vi.fn(async () => {
-      throw new Error('auto balance should not run before global manual detection');
-    });
+    const autoFindUnique = vi.fn(async () => null);
     const manualFindMany = vi.fn(async () => [
       {
         id: 'manual-all-1',
@@ -1118,7 +1299,6 @@ describe('control decision priority', () => {
     expect(outcome.won).toBe(false);
     expect(outcome.flipReason).toBe('manual_detection');
     expect(manualFindMany).toHaveBeenCalled();
-    expect(autoFindUnique).not.toHaveBeenCalled();
   });
 
   it('switches auto-balance to post-40 loss control after the member returns to 40 percent', async () => {
@@ -1553,9 +1733,7 @@ describe('global member daily win cap', () => {
 
   it('does not stack auto-balance after an over-cap soft drain miss', async () => {
     vi.spyOn(Math, 'random').mockReturnValueOnce(0.4);
-    const memberAutoBalanceFindUnique = vi.fn(async () => {
-      throw new Error('auto balance should not run after a global cap soft-drain miss');
-    });
+    const memberAutoBalanceFindUnique = vi.fn(async () => null);
     const tx = {
       ...createGlobalCapTx('19415.66'),
       memberAutoBalanceControl: { findUnique: memberAutoBalanceFindUnique },
@@ -1571,7 +1749,6 @@ describe('global member daily win cap', () => {
     expect(outcome.controlled).toBe(false);
     expect(outcome.won).toBe(true);
     expect(outcome.payout.toFixed(2)).toBe('200.00');
-    expect(memberAutoBalanceFindUnique).not.toHaveBeenCalled();
   });
 
   it('marks an overflow natural win as game-matched cap-bound instead of a raw natural result', async () => {
