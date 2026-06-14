@@ -13,6 +13,7 @@ import { calculateRebateAmountByCategory, effectiveDownlineRebate } from '../reb
 type Db = PrismaClient | Prisma.TransactionClient;
 
 const ZERO = new Prisma.Decimal(0);
+export const MANUAL_LIFECYCLE_PATH_MODE = 'lifecycle_path';
 const MANUAL_HOLD_TARGET_BEHAVIOR = 'hold_target';
 const MANUAL_STOP_ON_TARGET_BEHAVIOR = 'stop_on_target';
 const MANUAL_TARGET_BAND_RATE = new Prisma.Decimal('0.05');
@@ -142,6 +143,24 @@ export function listAutoBalanceTemplates() {
   }));
 }
 
+export function normalizeAutoBalanceTemplateKeys(
+  value: Prisma.JsonValue | string[] | null | undefined,
+): AutoBalanceTemplateKey[] {
+  const raw = Array.isArray(value) ? value : [];
+  const keys = raw
+    .map((item) => String(item))
+    .filter((key): key is AutoBalanceTemplateKey =>
+      AUTO_BALANCE_LIFECYCLE_TEMPLATES.some((template) => template.key === key),
+    );
+  return Array.from(new Set(keys));
+}
+
+function pickRandomAutoBalanceTemplate(keys: AutoBalanceTemplateKey[]) {
+  if (keys.length === 0) return resolveAutoBalanceTemplate(null);
+  const index = Math.floor(Math.random() * keys.length);
+  return resolveAutoBalanceTemplate(keys[Math.max(0, Math.min(index, keys.length - 1))]);
+}
+
 export function getControlGameDay(now: Date = new Date()): string {
   return getAdminGameDay(now);
 }
@@ -170,7 +189,20 @@ export async function calculateCurrentSettlement(
 }
 
 export async function getAllActiveManualDetectionControls(db: Db) {
-  const items = await db.manualDetectionControl.findMany({
+  const delegate = (
+    db as unknown as {
+      manualDetectionControl?: {
+        findMany?: (
+          args: unknown,
+        ) => Promise<
+          Array<Awaited<ReturnType<PrismaClient['manualDetectionControl']['findMany']>>[number]>
+        >;
+      };
+    }
+  ).manualDetectionControl;
+  if (!delegate?.findMany) return [];
+
+  const items = await delegate.findMany({
     where: {
       isActive: true,
       isCompleted: false,
@@ -187,28 +219,30 @@ export async function getAllActiveManualDetectionControls(db: Db) {
 }
 
 export async function getAutoBalanceRuntimeConfig(db: Db): Promise<AutoBalanceRuntimeConfig> {
-  const delegate = (db as unknown as {
-    autoBalanceConfig?: {
-      findUnique?: (args: unknown) => Promise<{
-        id: string;
-        isEnabled: boolean;
-        templateKey: string;
-        secondLineAmount: Prisma.Decimal;
-        operatorUsername: string | null;
-        createdAt: Date;
-        updatedAt: Date;
-      } | null>;
-      create?: (args: unknown) => Promise<{
-        id: string;
-        isEnabled: boolean;
-        templateKey: string;
-        secondLineAmount: Prisma.Decimal;
-        operatorUsername: string | null;
-        createdAt: Date;
-        updatedAt: Date;
-      }>;
-    };
-  }).autoBalanceConfig;
+  const delegate = (
+    db as unknown as {
+      autoBalanceConfig?: {
+        findUnique?: (args: unknown) => Promise<{
+          id: string;
+          isEnabled: boolean;
+          templateKey: string;
+          secondLineAmount: Prisma.Decimal;
+          operatorUsername: string | null;
+          createdAt: Date;
+          updatedAt: Date;
+        } | null>;
+        create?: (args: unknown) => Promise<{
+          id: string;
+          isEnabled: boolean;
+          templateKey: string;
+          secondLineAmount: Prisma.Decimal;
+          operatorUsername: string | null;
+          createdAt: Date;
+          updatedAt: Date;
+        }>;
+      };
+    }
+  ).autoBalanceConfig;
 
   const fallback = resolveAutoBalanceTemplate(null);
   if (!delegate?.findUnique || !delegate.create) {
@@ -302,7 +336,18 @@ export async function resetMemberAutoBalanceControl(
 ) {
   const baselineBalance = decimal(input.balanceAfter).toDecimalPlaces(2);
   const runtimeConfig = await getAutoBalanceRuntimeConfig(db);
-  const template = resolveAutoBalanceTemplate(runtimeConfig.templateKey);
+  const pathControl = await findApplicableManualLifecyclePathControl(db, {
+    username: input.memberUsername,
+    agentId: input.agentId,
+  });
+  const template = pathControl
+    ? pickRandomAutoBalanceTemplate(
+        normalizeAutoBalanceTemplateKeys(pathControl.control.lifecycleTemplateKeys),
+      )
+    : resolveAutoBalanceTemplate(runtimeConfig.templateKey);
+  const secondLineAmount =
+    pathControl?.control.lineFreezeThreshold ?? runtimeConfig.secondLineAmount;
+  const controlPercentage = pathControl?.control.controlPercentage ?? null;
   const biteTargetBalance = baselineBalance
     .mul(AUTO_BALANCE_BITE_RATE)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
@@ -310,11 +355,14 @@ export async function resetMemberAutoBalanceControl(
     .mul(AUTO_BALANCE_REVIVE_RATE)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
   const excludedLine = await isAutoBalanceExcludedAgentLine(db, input.agentId);
-  const isActive = baselineBalance.greaterThan(0) && !excludedLine && runtimeConfig.isEnabled;
+  const isActive =
+    baselineBalance.greaterThan(0) && !excludedLine && (runtimeConfig.isEnabled || !!pathControl);
   const resetReason = excludedLine
     ? `${input.reason}:auto_balance_excluded`
-    : runtimeConfig.isEnabled
-      ? input.reason
+    : runtimeConfig.isEnabled || pathControl
+      ? pathControl
+        ? `${input.reason}:manual_path:${pathControl.control.id}`
+        : input.reason
       : `${input.reason}:auto_balance_disabled`;
 
   await deactivateLegacyAutomaticControls(db, input.memberId, input.memberUsername);
@@ -334,7 +382,8 @@ export async function resetMemberAutoBalanceControl(
       currentStageIndex: 0,
       lifecycleCompletedAt: null,
       lastBalance: baselineBalance,
-      secondLineAmount: runtimeConfig.secondLineAmount,
+      secondLineAmount,
+      controlPercentage,
       isActive,
       resetReason,
       operatorUsername: input.operatorUsername ?? AUTO_BALANCE_OPERATOR,
@@ -351,7 +400,8 @@ export async function resetMemberAutoBalanceControl(
       currentStageIndex: 0,
       lifecycleCompletedAt: null,
       lastBalance: baselineBalance,
-      secondLineAmount: runtimeConfig.secondLineAmount,
+      secondLineAmount,
+      controlPercentage,
       isActive,
       resetReason,
       operatorUsername: input.operatorUsername ?? AUTO_BALANCE_OPERATOR,
@@ -382,7 +432,8 @@ export async function getOrCreateMemberAutoBalanceControl(
     return null;
   }
   const runtimeConfig = await getAutoBalanceRuntimeConfig(db);
-  if (!runtimeConfig.isEnabled) {
+  const pathControl = await findApplicableManualLifecyclePathControl(db, member);
+  if (!runtimeConfig.isEnabled && !pathControl) {
     if (existing?.isActive) {
       await db.memberAutoBalanceControl.update({
         where: { id: existing.id },
@@ -390,6 +441,16 @@ export async function getOrCreateMemberAutoBalanceControl(
       });
     }
     return null;
+  }
+  if (existing && pathControl && !existing.isActive) {
+    return resetMemberAutoBalanceControl(db, {
+      memberId: member.id,
+      memberUsername: member.username,
+      agentId: member.agentId,
+      balanceAfter: member.balance,
+      reason: 'lazy_manual_path',
+      operatorUsername: AUTO_BALANCE_OPERATOR,
+    });
   }
   if (existing) {
     return syncExistingMemberAutoBalanceTargets(db, existing, member);
@@ -446,7 +507,8 @@ async function syncExistingMemberAutoBalanceTargets(
       biteTargetBalance: expected.biteTargetBalance,
       reviveTargetBalance: expected.reviveTargetBalance,
       templateKey: template.key,
-      lifecycleSteps: control.lifecycleSteps ?? (template.steps as unknown as Prisma.InputJsonValue),
+      lifecycleSteps:
+        control.lifecycleSteps ?? (template.steps as unknown as Prisma.InputJsonValue),
       secondLineAmount: control.secondLineAmount ?? runtimeConfig.secondLineAmount,
       lastBalance: control.lastBalance ?? control.baselineBalance,
     },
@@ -520,7 +582,50 @@ export async function findApplicableManualDetectionControl(
   db: Db,
   member: { username: string; agentId: string | null },
 ) {
-  const controls = await getAllActiveManualDetectionControls(db);
+  const controls = (await getAllActiveManualDetectionControls(db)).filter(
+    (control) => (control.controlMode ?? 'settlement') === 'settlement',
+  );
+  if (controls.length === 0) return null;
+
+  const memberControl = controls.find(
+    (control) => control.scope === 'MEMBER' && control.targetMemberUsername === member.username,
+  );
+  if (memberControl) {
+    return { control: memberControl, depth: -1 };
+  }
+
+  const ancestors = member.agentId ? await getAgentAncestors(db, member.agentId) : [];
+  const lineCandidates = controls
+    .filter(
+      (control) =>
+        control.scope === 'AGENT_LINE' &&
+        control.targetAgentId &&
+        ancestors.includes(control.targetAgentId),
+    )
+    .map((control) => ({
+      control,
+      depth: ancestors.indexOf(control.targetAgentId as string),
+    }))
+    .sort(
+      (a, b) => a.depth - b.depth || b.control.createdAt.getTime() - a.control.createdAt.getTime(),
+    );
+  if (lineCandidates.length > 0) return lineCandidates[0];
+
+  if (await isMemberInControlExcludedLine(db, member)) return null;
+
+  const allControl = controls.find((control) => control.scope === 'ALL');
+  if (!allControl) return null;
+  return { control: allControl, depth: Number.POSITIVE_INFINITY };
+}
+
+export async function findApplicableManualLifecyclePathControl(
+  db: Db,
+  member: { username: string; agentId: string | null },
+) {
+  const controls = (await getAllActiveManualDetectionControls(db)).filter((control) => {
+    if ((control.controlMode ?? 'settlement') !== MANUAL_LIFECYCLE_PATH_MODE) return false;
+    return normalizeAutoBalanceTemplateKeys(control.lifecycleTemplateKeys).length > 0;
+  });
   if (controls.length === 0) return null;
 
   const memberControl = controls.find(
@@ -561,6 +666,9 @@ export async function checkAndCompleteManualDetectionControls(
   let completedCount = 0;
 
   for (const control of activeControls) {
+    if ((control.controlMode ?? 'settlement') === MANUAL_LIFECYCLE_PATH_MODE) {
+      continue;
+    }
     const settlement = await calculateCurrentSettlement(
       db,
       control.scope,
@@ -1102,10 +1210,10 @@ export function isHoldTargetManualControl(control: {
 }): boolean {
   const behavior = control.completionBehavior?.trim().toLowerCase();
   if (behavior) return behavior === MANUAL_HOLD_TARGET_BEHAVIOR;
-  return getDefaultManualDetectionCompletionBehavior(
-    control.scope,
-    control.bitePercentage,
-  ) === MANUAL_HOLD_TARGET_BEHAVIOR;
+  return (
+    getDefaultManualDetectionCompletionBehavior(control.scope, control.bitePercentage) ===
+    MANUAL_HOLD_TARGET_BEHAVIOR
+  );
 }
 
 export function getManualControlTargetBand(control: {

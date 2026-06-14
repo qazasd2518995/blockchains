@@ -66,6 +66,51 @@ describe('resetMemberAutoBalanceControl', () => {
     expect(create.phase).toBe('BITE_TO_30');
     expect(create.isActive).toBe(true);
   });
+
+  it('uses applicable lifecycle-path manual controls when a new balance cycle starts', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.75);
+    const upsert = vi.fn().mockResolvedValue({});
+    const db = {
+      $queryRaw: vi.fn().mockResolvedValue([{ exists: false }]),
+      memberDepositControl: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      manualDetectionControl: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'manual-path-1',
+            scope: 'MEMBER',
+            controlMode: 'lifecycle_path',
+            targetMemberUsername: 'path_member',
+            targetAgentId: null,
+            lifecycleTemplateKeys: ['SEVEN_NO_RECOVERY', 'NINE_RECOVER_TWICE'],
+            lineFreezeThreshold: new Prisma.Decimal(88000),
+            controlPercentage: new Prisma.Decimal(55),
+            isActive: true,
+            isCompleted: false,
+            operatorUsername: 'admin',
+            createdAt: new Date('2026-06-14T12:00:00Z'),
+          },
+        ]),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      memberAutoBalanceControl: { upsert },
+    };
+
+    await resetMemberAutoBalanceControl(db as never, {
+      memberId: 'member-path-1',
+      memberUsername: 'path_member',
+      agentId: 'agent-1',
+      balanceAfter: new Prisma.Decimal(10000),
+      reason: 'deposit',
+    });
+
+    const create = upsert.mock.calls[0]?.[0]?.create;
+    expect(create.templateKey).toBe('NINE_RECOVER_TWICE');
+    expect(create.lifecycleSteps).toEqual([90, 100, 40, 100, 30, 70, 20, 60, 0]);
+    expect(create.secondLineAmount.toFixed(2)).toBe('88000.00');
+    expect(create.controlPercentage.toFixed(2)).toBe('55.00');
+    expect(create.resetReason).toBe('deposit:manual_path:manual-path-1');
+    expect(create.isActive).toBe(true);
+  });
 });
 
 describe('getOrCreateMemberAutoBalanceControl', () => {
@@ -183,9 +228,9 @@ describe('manual detection hold target behavior', () => {
     expect(defaultBehavior).toBe('stop_on_target');
     expect(holdBehavior).toBe('hold_target');
     expect(memberHoldBehavior).toBe('hold_target');
-    expect(
-      normalizeManualDetectionCompletionBehavior('ALL', null, 'hold_target'),
-    ).toBe('stop_on_target');
+    expect(normalizeManualDetectionCompletionBehavior('ALL', null, 'hold_target')).toBe(
+      'stop_on_target',
+    );
     expect(calculateDefaultManualTargetBand('AGENT_LINE', '10000', holdBehavior).toFixed(2)).toBe(
       '1000.00',
     );
@@ -195,9 +240,9 @@ describe('manual detection hold target behavior', () => {
     expect(calculateDefaultManualTargetBand('AGENT_LINE', '-300000', holdBehavior).toFixed(2)).toBe(
       '10000.00',
     );
-    expect(calculateDefaultManualTargetBand('AGENT_LINE', '10000', defaultBehavior).toFixed(2)).toBe(
-      '0.00',
-    );
+    expect(
+      calculateDefaultManualTargetBand('AGENT_LINE', '10000', defaultBehavior).toFixed(2),
+    ).toBe('0.00');
   });
 
   it('keeps hold-target agent-line controls active after reaching the target', async () => {
@@ -478,11 +523,16 @@ describe('findApplicableManualDetectionControl priority fallback', () => {
 
   it('falls back from completed member control to agent-line control', async () => {
     const findMany = vi.fn(({ where }) =>
-      Promise.resolve(activeControls.filter((control) => control.isCompleted === where.isCompleted)),
+      Promise.resolve(
+        activeControls.filter((control) => control.isCompleted === where.isCompleted),
+      ),
     );
     const db = {
       manualDetectionControl: { findMany },
-      $queryRaw: vi.fn().mockResolvedValue([{ id: 'member-agent', depth: 0 }, { id: 'line-a', depth: 1 }]),
+      $queryRaw: vi.fn().mockResolvedValue([
+        { id: 'member-agent', depth: 0 },
+        { id: 'line-a', depth: 1 },
+      ]),
     };
 
     const applicable = await findApplicableManualDetectionControl(db as never, {
@@ -510,7 +560,10 @@ describe('findApplicableManualDetectionControl priority fallback', () => {
       },
       $queryRaw: vi
         .fn()
-        .mockResolvedValueOnce([{ id: 'member-agent', depth: 0 }, { id: 'line-a', depth: 1 }])
+        .mockResolvedValueOnce([
+          { id: 'member-agent', depth: 0 },
+          { id: 'line-a', depth: 1 },
+        ])
         .mockResolvedValueOnce([{ exists: false }]),
     };
 
@@ -549,16 +602,10 @@ describe('manual detection direction', () => {
       __controlsTestHooks;
 
     expect(
-      resolveHoldTargetManualDetectionDesired(
-        new Prisma.Decimal(8000),
-        new Prisma.Decimal(10000),
-      ),
+      resolveHoldTargetManualDetectionDesired(new Prisma.Decimal(8000), new Prisma.Decimal(10000)),
     ).toBe('LOSS');
     expect(
-      resolveHoldTargetManualDetectionDesired(
-        new Prisma.Decimal(12000),
-        new Prisma.Decimal(10000),
-      ),
+      resolveHoldTargetManualDetectionDesired(new Prisma.Decimal(12000), new Prisma.Decimal(10000)),
     ).toBe('WIN');
     expect(
       isWithinManualTargetBand(new Prisma.Decimal(10500), {

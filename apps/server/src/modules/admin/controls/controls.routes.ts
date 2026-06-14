@@ -25,6 +25,8 @@ import {
   getAutoBalanceRuntimeConfig,
   getControlGameDay,
   listAutoBalanceTemplates,
+  MANUAL_LIFECYCLE_PATH_MODE,
+  normalizeAutoBalanceTemplateKeys,
   normalizeManualDetectionCompletionBehavior,
   normalizeAgentLineCapDay,
   normalizeBurstControlDay,
@@ -33,6 +35,8 @@ import {
 } from './controls.runtime.js';
 import { writeAudit } from '../audit/audit.service.js';
 import { listAgentDescendants } from '../../../utils/hierarchy.js';
+
+const ZERO = new Prisma.Decimal(0);
 
 function decimal(value: Prisma.Decimal | string | number | null | undefined): Prisma.Decimal {
   if (value instanceof Prisma.Decimal) return value;
@@ -208,8 +212,20 @@ async function serializeManualControl(
     control.targetAgentId,
     control.targetMemberUsername,
   );
+  const lifecycleTemplateKeys = normalizeAutoBalanceTemplateKeys(control.lifecycleTemplateKeys);
+  const templatesByKey = new Map(
+    listAutoBalanceTemplates().map((template) => [template.key, template]),
+  );
+  const lifecycleTemplates = lifecycleTemplateKeys
+    .map((key) => templatesByKey.get(key))
+    .filter((template): template is NonNullable<typeof template> => Boolean(template));
+
   return {
     ...control,
+    controlMode: control.controlMode ?? 'settlement',
+    lifecycleTemplateKeys,
+    lifecycleTemplates,
+    lineFreezeThreshold: control.lineFreezeThreshold?.toFixed(2) ?? null,
     targetSettlement: control.targetSettlement.toFixed(2),
     startSettlement: control.startSettlement?.toFixed(2) ?? null,
     bitePercentage: control.bitePercentage?.toFixed(2) ?? null,
@@ -283,6 +299,9 @@ async function enrichControlLogs(
         scope: true,
         targetAgentUsername: true,
         targetMemberUsername: true,
+        controlMode: true,
+        lifecycleTemplateKeys: true,
+        lineFreezeThreshold: true,
         targetSettlement: true,
         controlPercentage: true,
         bitePercentage: true,
@@ -322,24 +341,24 @@ async function enrichControlLogs(
         operatorUsername: true,
       },
     }),
-	    fastify.prisma.memberAutoBalanceControl.findMany({
-	      where: { id: { in: controlIds } },
-	      select: {
-	        id: true,
-	        memberUsername: true,
-	        baselineBalance: true,
-	        biteTargetBalance: true,
-	        reviveTargetBalance: true,
-	        phase: true,
-	        templateKey: true,
-	        lifecycleSteps: true,
-	        currentStageIndex: true,
-	        lifecycleCompletedAt: true,
-	        lastBalance: true,
-	        secondLineAmount: true,
-	        operatorUsername: true,
-	      },
-	    }),
+    fastify.prisma.memberAutoBalanceControl.findMany({
+      where: { id: { in: controlIds } },
+      select: {
+        id: true,
+        memberUsername: true,
+        baselineBalance: true,
+        biteTargetBalance: true,
+        reviveTargetBalance: true,
+        phase: true,
+        templateKey: true,
+        lifecycleSteps: true,
+        currentStageIndex: true,
+        lifecycleCompletedAt: true,
+        lastBalance: true,
+        secondLineAmount: true,
+        operatorUsername: true,
+      },
+    }),
   ]);
 
   const metaMaps = {
@@ -403,6 +422,9 @@ function resolveControlLogMeta(
         scope: ManualDetectionScope;
         targetAgentUsername: string | null;
         targetMemberUsername: string | null;
+        controlMode: string | null;
+        lifecycleTemplateKeys: Prisma.JsonValue | null;
+        lineFreezeThreshold: Prisma.Decimal | null;
         targetSettlement: Prisma.Decimal;
         controlPercentage: number;
         bitePercentage: Prisma.Decimal | null;
@@ -439,23 +461,23 @@ function resolveControlLogMeta(
         operatorUsername: string | null;
       }
     >;
-	    autoBalance: Map<
-	      string,
-	      {
-	        memberUsername: string;
-	        baselineBalance: Prisma.Decimal;
-	        biteTargetBalance: Prisma.Decimal;
-	        reviveTargetBalance: Prisma.Decimal;
-	        phase: string;
-	        templateKey: string | null;
-	        lifecycleSteps: Prisma.JsonValue | null;
-	        currentStageIndex: number;
-	        lifecycleCompletedAt: Date | null;
-	        lastBalance: Prisma.Decimal | null;
-	        secondLineAmount: Prisma.Decimal | null;
-	        operatorUsername: string | null;
-	      }
-	    >;
+    autoBalance: Map<
+      string,
+      {
+        memberUsername: string;
+        baselineBalance: Prisma.Decimal;
+        biteTargetBalance: Prisma.Decimal;
+        reviveTargetBalance: Prisma.Decimal;
+        phase: string;
+        templateKey: string | null;
+        lifecycleSteps: Prisma.JsonValue | null;
+        currentStageIndex: number;
+        lifecycleCompletedAt: Date | null;
+        lastBalance: Prisma.Decimal | null;
+        secondLineAmount: Prisma.Decimal | null;
+        operatorUsername: string | null;
+      }
+    >;
   },
 ): ControlLogMeta {
   const reasonSource = resolveControlLogSource(log.flipReason);
@@ -512,20 +534,34 @@ function resolveControlLogMeta(
     if (control) {
       return {
         source: 'auto_balance',
-	        sourceLabel: '自動大盤',
-	        scopeLabel: '會員',
-	        targetLabel: control.memberUsername,
-	        operatorUsername: control.operatorUsername,
-	        detail: formatAutoBalanceLogDetail(control),
-	      };
-	    }
-	  }
+        sourceLabel: '自動大盤',
+        scopeLabel: '會員',
+        targetLabel: control.memberUsername,
+        operatorUsername: control.operatorUsername,
+        detail: formatAutoBalanceLogDetail(control),
+      };
+    }
+  }
 
   if (reasonSource === 'manual_detection') {
     const control = maps.manual.get(log.controlId);
     if (control) {
       const scopeLabel = formatManualLogScope(control.scope);
       const targetLabel = formatManualLogTarget(control);
+      if (control.controlMode === MANUAL_LIFECYCLE_PATH_MODE) {
+        const templateText = normalizeAutoBalanceTemplateKeys(control.lifecycleTemplateKeys).join(
+          ', ',
+        );
+        const guard = control.lineFreezeThreshold?.toFixed(2) ?? '—';
+        return {
+          source: 'manual_detection',
+          sourceLabel: '本金路徑',
+          scopeLabel,
+          targetLabel,
+          operatorUsername: control.operatorUsername,
+          detail: `${scopeLabel}${targetLabel ? ` ${targetLabel}` : ''}，路徑 ${templateText || '—'}，介入率 ${control.controlPercentage}%，整線凍結 ${guard}`,
+        };
+      }
       const bite = control.bitePercentage ? `，咬度 ${control.bitePercentage.toFixed(2)}%` : '';
       return {
         source: 'manual_detection',
@@ -628,7 +664,7 @@ function resolveControlLogSourceLabel(source: ControlLogSource): string {
     win_loss_control: '輸贏控制',
     online_reward_next_win: '在線均分必贏',
     deposit_control: '入金控制',
-	    auto_balance: '自動大盤',
+    auto_balance: '自動大盤',
     manual_detection: '手動偵測',
     burst_control: '爆分控制',
     member_win_cap: '會員封頂',
@@ -1650,16 +1686,29 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         targetAgentId,
         targetMemberUsername,
       );
-      const bitePlan = body.bitePercentage
-        ? await calculateAutoDetectionBitePlan(fastify.prisma, {
-            scope: body.scope as ManualDetectionScope,
-            targetAgentId,
-            targetMemberUsername,
-            bitePercentage: body.bitePercentage,
-            houseTakePercentage: body.houseTakePercentage,
-            currentSettlement: settlement.superiorSettlement,
-          })
-        : null;
+      const isLifecyclePath = body.controlMode === MANUAL_LIFECYCLE_PATH_MODE;
+      const lifecycleTemplateKeys = isLifecyclePath
+        ? normalizeAutoBalanceTemplateKeys(body.lifecycleTemplateKeys)
+        : [];
+      if (isLifecyclePath && lifecycleTemplateKeys.length === 0) {
+        reply.code(400).send({
+          code: 'INVALID_LIFECYCLE_TEMPLATES',
+          message: 'Lifecycle path control requires at least one valid template',
+        });
+        return;
+      }
+
+      const bitePlan =
+        !isLifecyclePath && body.bitePercentage
+          ? await calculateAutoDetectionBitePlan(fastify.prisma, {
+              scope: body.scope as ManualDetectionScope,
+              targetAgentId,
+              targetMemberUsername,
+              bitePercentage: body.bitePercentage,
+              houseTakePercentage: body.houseTakePercentage,
+              currentSettlement: settlement.superiorSettlement,
+            })
+          : null;
 
       const existing = await fastify.prisma.manualDetectionControl.findFirst({
         where:
@@ -1671,19 +1720,26 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         orderBy: { createdAt: 'desc' },
       });
 
-      const targetSettlement = (
-        bitePlan?.targetSettlement ?? decimal(body.targetSettlement)
-      ).toDecimalPlaces(2);
-      const completionBehavior = normalizeManualDetectionCompletionBehavior(
-        body.scope as ManualDetectionScope,
-        body.bitePercentage,
-        body.completionBehavior,
-      );
-      const targetBand = calculateDefaultManualTargetBand(
-        body.scope as ManualDetectionScope,
-        targetSettlement,
-        completionBehavior,
-      );
+      const targetSettlement = isLifecyclePath
+        ? ZERO
+        : (bitePlan?.targetSettlement ?? decimal(body.targetSettlement)).toDecimalPlaces(2);
+      const completionBehavior = isLifecyclePath
+        ? 'stop_on_target'
+        : normalizeManualDetectionCompletionBehavior(
+            body.scope as ManualDetectionScope,
+            body.bitePercentage,
+            body.completionBehavior,
+          );
+      const targetBand = isLifecyclePath
+        ? ZERO
+        : calculateDefaultManualTargetBand(
+            body.scope as ManualDetectionScope,
+            targetSettlement,
+            completionBehavior,
+          );
+      const lineFreezeThreshold = isLifecyclePath
+        ? decimal(body.lineFreezeThreshold).toDecimalPlaces(2)
+        : null;
 
       const data = {
         scope: body.scope as ManualDetectionScope,
@@ -1691,12 +1747,20 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         targetAgentUsername,
         targetMemberId,
         targetMemberUsername,
+        controlMode: isLifecyclePath ? MANUAL_LIFECYCLE_PATH_MODE : 'settlement',
+        lifecycleTemplateKeys: isLifecyclePath
+          ? (lifecycleTemplateKeys as unknown as Prisma.InputJsonValue)
+          : Prisma.DbNull,
+        lineFreezeThreshold,
         targetSettlement,
         controlPercentage: body.controlPercentage,
-        bitePercentage: body.bitePercentage
-          ? decimal(body.bitePercentage).toDecimalPlaces(2)
-          : null,
-        houseTakePercentage: decimal(body.houseTakePercentage).toDecimalPlaces(2),
+        bitePercentage:
+          !isLifecyclePath && body.bitePercentage
+            ? decimal(body.bitePercentage).toDecimalPlaces(2)
+            : null,
+        houseTakePercentage: isLifecyclePath
+          ? ZERO
+          : decimal(body.houseTakePercentage).toDecimalPlaces(2),
         completionBehavior,
         targetBand,
         cycleCount: 0,
@@ -1730,6 +1794,9 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           scope: record.scope,
           targetAgentId: record.targetAgentId,
           targetMemberUsername: record.targetMemberUsername,
+          controlMode: record.controlMode,
+          lifecycleTemplateKeys,
+          lineFreezeThreshold: record.lineFreezeThreshold?.toFixed(2) ?? null,
           targetSettlement: record.targetSettlement.toFixed(2),
           controlPercentage: record.controlPercentage,
           bitePercentage: record.bitePercentage?.toFixed(2) ?? null,

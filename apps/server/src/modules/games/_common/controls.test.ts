@@ -401,6 +401,7 @@ describe('control decision priority', () => {
       lifecycleSteps?: number[] | null;
       currentStageIndex?: number;
       lastBalance?: Prisma.Decimal | null;
+      controlPercentage?: number | null;
     } = {},
   ) => ({
     $queryRaw: vi.fn(async () => [{ exists: over.excluded === true }]),
@@ -449,6 +450,7 @@ describe('control decision priority', () => {
         lifecycleCompletedAt: null,
         lastBalance: over.lastBalance ?? null,
         secondLineAmount: new Prisma.Decimal(50000),
+        controlPercentage: over.controlPercentage ?? null,
         isActive: true,
       })),
       update: vi.fn(async (args: { data?: Record<string, unknown> }) => ({
@@ -466,8 +468,10 @@ describe('control decision priority', () => {
             ? args.data.currentStageIndex
             : (over.currentStageIndex ?? 0),
         lifecycleCompletedAt: (args.data?.lifecycleCompletedAt as Date | null | undefined) ?? null,
-        lastBalance: (args.data?.lastBalance as Prisma.Decimal | null | undefined) ?? over.lastBalance ?? null,
+        lastBalance:
+          (args.data?.lastBalance as Prisma.Decimal | null | undefined) ?? over.lastBalance ?? null,
         secondLineAmount: new Prisma.Decimal(50000),
+        controlPercentage: over.controlPercentage ?? null,
         isActive: typeof args.data?.isActive === 'boolean' ? args.data.isActive : true,
       })),
       updateMany: vi.fn(),
@@ -1145,13 +1149,16 @@ describe('control decision priority', () => {
 
   it('uses auto-balance principal lifecycle stages instead of the legacy fixed targets', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.29);
-    const tx = createAutoReviveTx(vi.fn(async () => []), {
-      balance: new Prisma.Decimal(50000),
-      baselineBalance: new Prisma.Decimal(50000),
-      lifecycleSteps: [80, 90],
-      currentStageIndex: 0,
-      lastBalance: new Prisma.Decimal(50000),
-    });
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(50000),
+        baselineBalance: new Prisma.Decimal(50000),
+        lifecycleSteps: [80, 90],
+        currentStageIndex: 0,
+        lastBalance: new Prisma.Decimal(50000),
+      },
+    );
 
     const outcome = await applyControls(
       tx as never,
@@ -1172,13 +1179,16 @@ describe('control decision priority', () => {
 
   it('advances auto-balance lifecycle to the next principal target when reached', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.59);
-    const tx = createAutoReviveTx(vi.fn(async () => []), {
-      balance: new Prisma.Decimal(40000),
-      baselineBalance: new Prisma.Decimal(50000),
-      lifecycleSteps: [80, 90],
-      currentStageIndex: 0,
-      lastBalance: new Prisma.Decimal(50000),
-    });
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(40000),
+        baselineBalance: new Prisma.Decimal(50000),
+        lifecycleSteps: [80, 90],
+        currentStageIndex: 0,
+        lastBalance: new Prisma.Decimal(50000),
+      },
+    );
 
     const outcome = await applyControls(
       tx as never,
@@ -1201,13 +1211,16 @@ describe('control decision priority', () => {
 
   it('caps auto-balance lifecycle natural burst wins at the active path band when revive misses', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.99);
-    const tx = createAutoReviveTx(vi.fn(async () => []), {
-      balance: new Prisma.Decimal(3000),
-      baselineBalance: new Prisma.Decimal(10000),
-      lifecycleSteps: [30, 100],
-      currentStageIndex: 1,
-      lastBalance: new Prisma.Decimal(3000),
-    });
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(3000),
+        baselineBalance: new Prisma.Decimal(10000),
+        lifecycleSteps: [30, 100],
+        currentStageIndex: 1,
+        lastBalance: new Prisma.Decimal(3000),
+      },
+    );
 
     const outcome = await applyControls(
       tx as never,
@@ -1221,6 +1234,56 @@ describe('control decision priority', () => {
     expect(outcome.controlId).toBe('auto-1');
     expect(outcome.maxPayout?.toFixed(2)).toBe('12500.00');
     expect(outcome.payout.toFixed(2)).toBe('12500.00');
+  });
+
+  it('simulates lifecycle-path control rate, natural misses, and path guard caps', async () => {
+    vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.49)
+      .mockReturnValueOnce(0.5)
+      .mockReturnValueOnce(0.5);
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(10000),
+        baselineBalance: new Prisma.Decimal(10000),
+        lifecycleSteps: [80, 100, 0],
+        currentStageIndex: 0,
+        lastBalance: new Prisma.Decimal(10000),
+        controlPercentage: 50,
+      },
+    );
+
+    const controlledLoss = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.DICE,
+      predictedResult(100, 120, 1.2),
+    );
+    const naturalSmallWin = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.DICE,
+      predictedResult(100, 120, 1.2),
+    );
+    const cappedNaturalBurst = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.HOTLINE,
+      predictedResult(1000, 3000, 3),
+    );
+
+    expect(controlledLoss.controlled).toBe(true);
+    expect(controlledLoss.won).toBe(false);
+    expect(controlledLoss.flipReason).toBe('auto_balance_bite');
+
+    expect(naturalSmallWin.controlled).toBe(false);
+    expect(naturalSmallWin.won).toBe(true);
+    expect(naturalSmallWin.payout.toFixed(2)).toBe('120.00');
+
+    expect(cappedNaturalBurst.controlled).toBe(true);
+    expect(cappedNaturalBurst.flipReason).toBe('auto_balance_path_guard');
+    expect(cappedNaturalBurst.maxPayout?.toFixed(2)).toBe('1500.00');
+    expect(cappedNaturalBurst.payout.toFixed(2)).toBe('1500.00');
   });
 
   it('prioritizes global manual detection over active auto-balance cycles', async () => {

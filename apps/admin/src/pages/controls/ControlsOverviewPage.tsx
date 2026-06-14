@@ -5,10 +5,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { ImageBanner } from '@/components/shared/ImageBanner';
 import { StatCard } from '@/components/shared/StatCard';
 import { DataTable, type Column } from '@/components/shared/DataTable';
-import { WinLossControlModal } from '@/components/shared/WinLossControlModal';
-import { WinCapControlModal } from '@/components/shared/WinCapControlModal';
 import { DepositControlModal } from '@/components/shared/DepositControlModal';
-import { AgentLineControlModal } from '@/components/shared/AgentLineControlModal';
 import { BurstControlModal } from '@/components/shared/BurstControlModal';
 import { ManualDetectionControlModal } from '@/components/shared/ManualDetectionControlModal';
 import {
@@ -36,6 +33,10 @@ interface ManualDetectionRow {
   scope: 'ALL' | 'AGENT_LINE' | 'MEMBER';
   targetAgentUsername: string | null;
   targetMemberUsername: string | null;
+  controlMode: 'settlement' | 'lifecycle_path';
+  lifecycleTemplateKeys: string[];
+  lifecycleTemplates: AutoBalanceTemplate[];
+  lineFreezeThreshold: string | null;
   targetSettlement: string;
   controlPercentage: number;
   bitePercentage: string | null;
@@ -237,6 +238,10 @@ export function ControlsOverviewPage(): JSX.Element {
   const [rewardBusy, setRewardBusy] = useState(false);
   const onlineRewardControls = useMemo(() => dc.filter(isOnlineRewardControl), [dc]);
   const depositControls = useMemo(() => dc.filter((row) => !isOnlineRewardControl(row)), [dc]);
+  const manualPathActive = useMemo(
+    () => manualActive.filter((row) => row.controlMode === 'lifecycle_path'),
+    [manualActive],
+  );
 
   const reload = useCallback(async () => {
     try {
@@ -267,20 +272,19 @@ export function ControlsOverviewPage(): JSX.Element {
         burst,
         autoBalance,
         logRes,
-      ] =
-        await Promise.all([
-          adminApi.get<{ items: ManualDetectionRow[] }>('/controls/manual-detection/status'),
-          adminApi.get<SettlementSnapshot>('/controls/manual-detection/settlement', {
-            params: { scope: 'ALL' },
-          }),
-          adminApi.get<{ items: WinLossRow[] }>('/controls/win-loss'),
-          adminApi.get<{ items: WinCapRow[] }>('/controls/win-cap'),
-          adminApi.get<{ items: DepositRow[] }>('/controls/deposit'),
-          adminApi.get<{ items: AgentLineRow[] }>('/controls/agent-line'),
-          adminApi.get<{ items: BurstRow[] }>('/controls/burst'),
-          adminApi.get<AutoBalanceConfig>('/controls/auto-balance/config'),
-          adminApi.get<{ items: ControlLogRow[] }>('/controls/logs'),
-        ]);
+      ] = await Promise.all([
+        adminApi.get<{ items: ManualDetectionRow[] }>('/controls/manual-detection/status'),
+        adminApi.get<SettlementSnapshot>('/controls/manual-detection/settlement', {
+          params: { scope: 'ALL' },
+        }),
+        adminApi.get<{ items: WinLossRow[] }>('/controls/win-loss'),
+        adminApi.get<{ items: WinCapRow[] }>('/controls/win-cap'),
+        adminApi.get<{ items: DepositRow[] }>('/controls/deposit'),
+        adminApi.get<{ items: AgentLineRow[] }>('/controls/agent-line'),
+        adminApi.get<{ items: BurstRow[] }>('/controls/burst'),
+        adminApi.get<AutoBalanceConfig>('/controls/auto-balance/config'),
+        adminApi.get<{ items: ControlLogRow[] }>('/controls/logs'),
+      ]);
       setManualActive(manualStatus.data.items);
       setAllSettlement(settlement.data);
       setWl(winLoss.data.items);
@@ -432,43 +436,23 @@ export function ControlsOverviewPage(): JSX.Element {
       render: (r) => <span className="font-mono">{formatManualTarget(r)}</span>,
     },
     {
-      key: 'current',
-      label: '目前玩家交收',
-      align: 'right',
+      key: 'paths',
+      label: '路徑方案',
       render: (r) => (
-        <span
-          className={`data-num ${playerSettlementNumber(r.currentSettlement) > 0 ? 'text-[#2BAA6A]' : 'text-[#D4574A]'}`}
-        >
-          {playerSettlementSigned(r.currentSettlement)}
-        </span>
-      ),
-    },
-    {
-      key: 'targetSettlement',
-      label: '目标玩家交收',
-      align: 'right',
-      render: (r) => (
-        <span className="data-num text-[#AE8B35]">
-          {playerSettlementSigned(r.targetSettlement)}
-        </span>
-      ),
-    },
-    {
-      key: 'direction',
-      label: '控制方向',
-      render: (r) => (
-        <div className="flex flex-col gap-1">
-          <span className={manualDirectionClass(r)}>{manualDirectionText(r)}</span>
-          {r.bitePercentage && (
-            <span className="font-mono text-[10px] text-[#A44722]">
-              咬 {Number.parseFloat(r.bitePercentage).toFixed(0)}% · 第 {r.cycleCount + 1} 輪
+        <div className="flex min-w-[240px] flex-col gap-1">
+          {manualPathTemplates(r).map((template) => (
+            <span key={template.key} className="font-mono text-[10px] text-[#186073]">
+              {template.label} · {template.steps.join('/')}
             </span>
-          )}
-          {isHoldTargetManual(r) && (
-            <span className="font-mono text-[10px] text-[#186073]">鎖定 ±{fmt(r.targetBand)}</span>
-          )}
+          ))}
         </div>
       ),
+    },
+    {
+      key: 'freeze',
+      label: '整線凍結',
+      align: 'right',
+      render: (r) => <span className="data-num text-[#AE8B35]">{fmt(r.lineFreezeThreshold)}</span>,
     },
     {
       key: 'rate',
@@ -1061,11 +1045,11 @@ export function ControlsOverviewPage(): JSX.Element {
         section="§ 风控 06"
         breadcrumb={`${t.nav.controls} / 总览`}
         title={t.nav.controls}
-        titleSuffix="输赢控制"
+        titleSuffix="本金路徑"
         titleSuffixColor="ember"
         description={
           isSuperAdmin
-            ? '控制优先级、手动侦测、封顶、简单爆分池与真实介入纪录都集中在这一页。后端会依同一套顺序套用到实际结算。'
+            ? '以本金百分比路徑作為主要風控入口，搭配入金、爆分與真實介入紀錄檢查。'
             : '可查询自己代理线内的游戏账号或下级代理线，并建立对应的输赢控制。'
         }
       />
@@ -1073,10 +1057,10 @@ export function ControlsOverviewPage(): JSX.Element {
       <ImageBanner
         image="/banners/controls-risk-host.png"
         eyebrow="风控中心"
-        title="先看哪条控制在线，再决定今天要把交收拉到哪里。"
+        title="用本金路徑控制會員週期，降低交收目標式控盤的可預測性。"
         description={
           isSuperAdmin
-            ? '手动侦测画面统一用玩家视角：绿字代表玩家赢，红字代表玩家输。'
+            ? '每次入點或重置週期會依範圍匹配路徑，並以介入率決定控輸或控贏。'
             : '代理账号只能看到和管理自己建立的下线控制规则。'
         }
         tone="ember"
@@ -1088,14 +1072,10 @@ export function ControlsOverviewPage(): JSX.Element {
           <>
             <div className="font-semibold text-[#7A5F15]">控制优先级</div>
             <div className="mt-1">
-              爆分控制 &gt; 全账号 10,000 赢分上限（入金/爆分执行中例外） &gt; 输赢控制
-              &gt; 封顶控制 &gt; 入金控制 &gt; 手动侦测 &gt; 自動大盤
+              爆分控制 &gt; 入金控制 &gt; 本金路徑控制 &gt; 莊家守衛整線凍結
             </div>
             <div className="mt-1 text-[#7A5F15]/80">
-              输控制会自动按 3-4 输后补 1 次小赢，不会每局直线压输。
-            </div>
-            <div className="mt-1 text-[#7A5F15]/80">
-              手动侦测目标以玩家交收显示：目标填正数代表让玩家赢到该数字；目标填负数代表让玩家输到该数字。
+              舊交收目標、會員封頂、代理封頂已不作為主要設定入口；入金與爆分超過時不觸發整線凍結。
             </div>
           </>
         ) : (
@@ -1109,7 +1089,7 @@ export function ControlsOverviewPage(): JSX.Element {
       </div>
 
       {isSuperAdmin ? (
-        <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <div className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <StatCard
             label="全盘玩家交收"
             value={playerSettlementSigned(allSettlement?.superiorSettlement)}
@@ -1123,34 +1103,28 @@ export function ControlsOverviewPage(): JSX.Element {
             }
           />
           <StatCard
-            label="手动侦测在线"
-            value={manualActive.length.toString()}
-            hint="会员 / 代理线 / 全盘"
+            label="本金路徑在線"
+            value={manualPathActive.length.toString()}
+            hint="會員 / 代理線 / 全盤"
             accent="ice"
           />
           <StatCard
-            label="输赢控制在线"
-            value={wl.filter((x) => x.isActive).length.toString()}
-            hint="优先于封顶与入金"
+            label="入金控制在線"
+            value={depositControls.filter((x) => x.isActive).length.toString()}
+            hint="指定會員或代理線"
             accent="ember"
           />
           <StatCard
-            label="会员封顶在线"
-            value={wc.filter((x) => x.isActive).length.toString()}
-            hint="单会员日赢额"
+            label="爆分控制在線"
+            value={bc.filter((x) => x.isActive).length.toString()}
+            hint="指定會員爆分池"
             accent="amber"
           />
           <StatCard
-            label="代理线封顶在线"
-            value={al.filter((x) => x.isActive).length.toString()}
-            hint="整条线日赢额"
+            label="介入紀錄"
+            value={logs.length.toString()}
+            hint="最近 100 筆"
             accent="toxic"
-          />
-          <StatCard
-            label="爆分控制在线"
-            value={bc.filter((x) => x.isActive).length.toString()}
-            hint="机率 / 净赢范围"
-            accent="ice"
           />
         </div>
       ) : (
@@ -1186,81 +1160,10 @@ export function ControlsOverviewPage(): JSX.Element {
         <div className="crt-panel p-8 text-center text-ink-500">{t.common.loading}…</div>
       ) : (
         <div className="space-y-6">
-          {isSuperAdmin && autoBalanceConfig && (
-            <Section title="§ 自動大盤" subtitle="會員餘額變動後依本金%路徑重新起跑">
-              <div className="card-base grid gap-4 p-4 lg:grid-cols-[0.85fr_1.15fr_1fr_auto] lg:items-end">
-                <label className="flex items-center gap-3 rounded-[6px] border border-[#186073]/20 bg-[#EFF8FB] px-3 py-3">
-                  <input
-                    type="checkbox"
-                    checked={autoBalanceEnabled}
-                    onChange={(e) => setAutoBalanceEnabled(e.target.checked)}
-                    className="h-4 w-4 accent-[#186073]"
-                  />
-                  <span>
-                    <span className="block text-[12px] font-semibold text-[#173247]">啟用自動大盤</span>
-                    <span className="mt-1 block text-[10px] text-ink-500">
-                      停用後新週期不會自動套用本金路徑
-                    </span>
-                  </span>
-                </label>
-
-                <label className="block">
-                  <div className="label mb-2">自動模組路徑</div>
-                  <select
-                    value={autoBalanceTemplateKey}
-                    onChange={(e) => setAutoBalanceTemplateKey(e.target.value)}
-                    className="term-input"
-                  >
-                    {autoBalanceConfig.templates.map((template) => (
-                      <option key={template.key} value={template.key}>
-                        {template.label} · {template.steps.join('/')}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="block">
-                  <div className="label mb-2">第二防線金額</div>
-                  <input
-                    type="text"
-                    value={autoBalanceSecondLineAmount}
-                    onChange={(e) => setAutoBalanceSecondLineAmount(e.target.value)}
-                    className="term-input font-mono"
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => void saveAutoBalanceConfig()}
-                  disabled={autoBalanceBusy || !autoBalanceTemplateKey}
-                  className="btn-acid whitespace-nowrap text-[11px]"
-                >
-                  → 保存設定
-                </button>
-
-                <div className="lg:col-span-4 rounded-[6px] border border-[#AE8B35]/25 bg-[#FFF8E1] px-4 py-3 text-[11px] text-[#5C4B1F]">
-                  <div className="font-semibold text-[#7A5F15]">
-                    目前：{autoBalanceConfig.templateLabel} ·{' '}
-                    {autoBalanceConfig.isEnabled ? '啟用中' : '已停用'}
-                  </div>
-                  <div className="mt-1 font-mono">
-                    路徑 {autoBalanceConfig.lifecycleSteps.map((step) => `${step}%`).join(' » ')}
-                  </div>
-                  <div className="mt-1 text-[#7A5F15]/80">
-                    抽點、入點、爆分、手動入金週期完成後，會以改變後餘額作為新本金重新跑路徑；第二防線達標會凍結會員下注。
-                    {autoBalanceConfig.operatorUsername
-                      ? ` 上次操作：${autoBalanceConfig.operatorUsername}`
-                      : ''}
-                  </div>
-                </div>
-              </div>
-            </Section>
-          )}
-
           {isSuperAdmin && (
             <Section
-              title="§ 手动侦测"
-              subtitle="会员控制 > 代理线控制 > 全盘控制"
+              title="§ 本金路徑控制"
+              subtitle="會員路徑 > 代理線路徑 > 全盤路徑"
               actions={
                 <button
                   type="button"
@@ -1287,28 +1190,12 @@ export function ControlsOverviewPage(): JSX.Element {
               </div>
               <DataTable
                 columns={manualCols}
-                rows={manualActive}
+                rows={manualPathActive}
                 rowKey={(r) => r.id}
-                empty="当前没有启用中的手动侦测控制"
+                empty="目前沒有啟用中的本金路徑控制"
               />
             </Section>
           )}
-
-          <Section
-            title="§ 输赢控制"
-            subtitle="查询游戏账号或整条代理线后按百分比翻转输赢"
-            actions={
-              <button
-                type="button"
-                onClick={() => setWlOpen(true)}
-                className="btn-acid text-[11px]"
-              >
-                + 新增
-              </button>
-            }
-          >
-            <DataTable columns={wlCols} rows={wl} rowKey={(r) => r.id} empty={t.common.empty} />
-          </Section>
 
           {isSuperAdmin && (
             <>
@@ -1331,38 +1218,6 @@ export function ControlsOverviewPage(): JSX.Element {
                   rowKey={(r) => r.id}
                   empty={t.common.empty}
                 />
-              </Section>
-
-              <Section
-                title="§ 会员封顶"
-                subtitle="会员单日赢额封顶"
-                actions={
-                  <button
-                    type="button"
-                    onClick={() => setWcOpen(true)}
-                    className="btn-acid text-[11px]"
-                  >
-                    + 新增
-                  </button>
-                }
-              >
-                <DataTable columns={wcCols} rows={wc} rowKey={(r) => r.id} empty={t.common.empty} />
-              </Section>
-
-              <Section
-                title="§ 代理线封顶"
-                subtitle="代理线单日赢额封顶"
-                actions={
-                  <button
-                    type="button"
-                    onClick={() => setAlOpen(true)}
-                    className="btn-acid text-[11px]"
-                  >
-                    + 新增
-                  </button>
-                }
-              >
-                <DataTable columns={alCols} rows={al} rowKey={(r) => r.id} empty={t.common.empty} />
               </Section>
 
               <Section
@@ -1497,25 +1352,11 @@ export function ControlsOverviewPage(): JSX.Element {
         open={manualOpen}
         onClose={() => setManualOpen(false)}
         onDone={() => void reload()}
-      />
-      <WinLossControlModal
-        open={wlOpen}
-        onClose={() => setWlOpen(false)}
-        onDone={() => void reload()}
-      />
-      <WinCapControlModal
-        open={wcOpen}
-        onClose={() => setWcOpen(false)}
-        onDone={() => void reload()}
+        templates={autoBalanceConfig?.templates ?? []}
       />
       <DepositControlModal
         open={dcOpen}
         onClose={() => setDcOpen(false)}
-        onDone={() => void reload()}
-      />
-      <AgentLineControlModal
-        open={alOpen}
-        onClose={() => setAlOpen(false)}
         onDone={() => void reload()}
       />
       <BurstControlModal
@@ -1657,6 +1498,11 @@ function formatManualTarget(row: ManualDetectionRow): string {
   return row.targetMemberUsername ?? '—';
 }
 
+function manualPathTemplates(row: ManualDetectionRow): AutoBalanceTemplate[] {
+  if (row.lifecycleTemplates.length > 0) return row.lifecycleTemplates;
+  return row.lifecycleTemplateKeys.map((key) => ({ key, label: key, steps: [] }));
+}
+
 function formatBurstTarget(row: BurstRow): string {
   if (row.scope === 'ALL') return '全盘';
   if (row.scope === 'AGENT_LINE') return row.targetAgentUsername ?? '—';
@@ -1698,53 +1544,15 @@ function sumRows(rows: BurstRow[], key: 'dailyBudget' | 'todayBurstAmount'): str
 }
 
 function manualStatusText(row: ManualDetectionRow): string {
-  if (row.isActive && isHoldTargetManual(row)) {
-    return isManualWithinTargetBand(row) ? '锁定区间' : '锁定拉回';
-  }
-  if (row.isActive && row.isCompleted && row.scope === 'MEMBER') return '达标维持中';
-  if (row.isCompleted) return '已达标';
-  if (row.isActive) return '进行中';
+  if (row.isActive) return '路徑啟用';
+  if (row.isCompleted) return '已完成';
   return '停用';
 }
 
 function manualStatusClass(row: ManualDetectionRow): string {
-  if (row.isActive && isHoldTargetManual(row)) {
-    return isManualWithinTargetBand(row) ? 'tag tag-acid' : 'tag tag-toxic';
-  }
-  if (row.isActive && row.isCompleted && row.scope === 'MEMBER') return 'tag tag-acid';
-  if (row.isCompleted) return 'tag tag-acid';
   if (row.isActive) return 'tag tag-toxic';
+  if (row.isCompleted) return 'tag tag-acid';
   return 'tag tag-ember';
-}
-
-function manualDirectionText(row: ManualDetectionRow): string {
-  const current = playerSettlementNumber(row.currentSettlement);
-  const target = playerSettlementNumber(row.targetSettlement);
-  if (!Number.isFinite(current) || !Number.isFinite(target)) return '—';
-  if (target > current) return '放会员 / 玩家赢';
-  if (target < current) return '压会员 / 玩家输';
-  return '维持';
-}
-
-function manualDirectionClass(row: ManualDetectionRow): string {
-  const current = playerSettlementNumber(row.currentSettlement);
-  const target = playerSettlementNumber(row.targetSettlement);
-  if (!Number.isFinite(current) || !Number.isFinite(target) || target === current)
-    return 'tag tag-acid';
-  return target > current ? 'tag tag-toxic' : 'tag tag-ember';
-}
-
-function isHoldTargetManual(row: ManualDetectionRow): boolean {
-  return row.completionBehavior === 'hold_target';
-}
-
-function isManualWithinTargetBand(row: ManualDetectionRow): boolean {
-  const current = Number.parseFloat(row.currentSettlement);
-  const target = Number.parseFloat(row.targetSettlement);
-  const band = Number.parseFloat(row.targetBand);
-  if (!Number.isFinite(current) || !Number.isFinite(target)) return false;
-  if (current === target) return true;
-  return Number.isFinite(band) && band > 0 && Math.abs(current - target) <= band;
 }
 
 function renderControlLogReason(row: ControlLogRow): JSX.Element {

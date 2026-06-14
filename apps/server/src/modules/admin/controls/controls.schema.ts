@@ -241,11 +241,14 @@ export const manualDetectionControlSchema = z
     targetAgentUsername: z.string().optional().nullable(),
     targetMemberId: z.string().optional().nullable(),
     targetMemberUsername: z.string().optional().nullable(),
+    controlMode: z.enum(['settlement', 'lifecycle_path']).default('lifecycle_path'),
     targetSettlement: signedDecimal.default('0'),
     controlPercentage: z.coerce.number().int().min(1).max(100).default(50),
     bitePercentage: biteRateDecimal.optional().nullable(),
     houseTakePercentage: rateDecimal.default('10'),
     completionBehavior: z.enum(['hold_target', 'stop_on_target']).optional().nullable(),
+    lifecycleTemplateKeys: z.array(z.string().min(1)).min(1).max(6).optional().nullable(),
+    lineFreezeThreshold: decimal.default('50000'),
   })
   .superRefine((value, ctx) => {
     if (value.scope === 'AGENT_LINE' && !value.targetAgentId) {
@@ -260,6 +263,13 @@ export const manualDetectionControlSchema = z
         code: z.ZodIssueCode.custom,
         message: '会员控制必须指定目标会员',
         path: ['targetMemberUsername'],
+      });
+    }
+    if (value.controlMode === 'lifecycle_path' && !value.lifecycleTemplateKeys?.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '本金路径控制必须至少选择一组路径',
+        path: ['lifecycleTemplateKeys'],
       });
     }
   });

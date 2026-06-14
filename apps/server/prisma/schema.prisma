@@ -632,6 +632,7 @@ model MemberAutoBalanceControl {
   lifecycleCompletedAt DateTime?
   lastBalance          Decimal?         @db.Decimal(20, 2)
   secondLineAmount     Decimal?         @db.Decimal(20, 2)
+  controlPercentage    Int?
   isActive             Boolean          @default(true)
   resetReason          String?
   operatorUsername     String?
@@ -716,8 +717,11 @@ model ManualDetectionControl {
   targetAgentUsername      String?
   targetMemberId           String?
   targetMemberUsername     String?
+  controlMode              String               @default("settlement")
   targetSettlement         Decimal              @db.Decimal(20, 2)
   controlPercentage        Int                  @default(50)
+  lifecycleTemplateKeys    Json?
+  lineFreezeThreshold      Decimal?             @db.Decimal(20, 2)
   bitePercentage           Decimal?             @db.Decimal(5, 2)
   houseTakePercentage      Decimal              @default(10) @db.Decimal(5, 2)
   completionBehavior       String               @default("stop_on_target")

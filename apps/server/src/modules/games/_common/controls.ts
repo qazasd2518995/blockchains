@@ -1,4 +1,4 @@
-import { AutoBalancePhase, Prisma } from '@prisma/client';
+import { AutoBalancePhase, ManualDetectionScope, Prisma } from '@prisma/client';
 import { SLOT_GAME_IDS } from '@bg/shared';
 import {
   calculateCurrentSettlement,
@@ -17,7 +17,7 @@ import {
   resetMemberAutoBalanceControl,
   setMemberAutoBalancePhase,
 } from '../../admin/controls/controls.runtime.js';
-import { isMemberInControlExcludedLine } from '../../../utils/hierarchy.js';
+import { isMemberInControlExcludedLine, listAgentDescendants } from '../../../utils/hierarchy.js';
 
 type Db = Prisma.TransactionClient;
 
@@ -118,6 +118,7 @@ type AutoBalanceControlRecord = {
   lifecycleCompletedAt?: Date | null;
   lastBalance?: Prisma.Decimal | null;
   secondLineAmount?: Prisma.Decimal | null;
+  controlPercentage?: number | null;
   isActive: boolean;
 };
 
@@ -379,7 +380,7 @@ export async function finalizeControls(
   } else {
     await completeAutoBalanceControlIfReached(tx, member.id, member.balance);
   }
-  await enforceAutoBalanceBankerGuard(tx, member);
+  await enforceAutoBalanceBankerGuard(tx, member, outcome);
 
   if (outcome.controlled && outcome.controlId && outcome.flipReason) {
     await tx.winLossControlLogs.create({
@@ -416,8 +417,8 @@ function shouldResetAutoBalanceAfterFinal(
 ): boolean {
   return Boolean(
     outcome.controlled &&
-      outcome.flipReason?.startsWith('burst_') &&
-      final.payout.greaterThan(final.amount),
+    outcome.flipReason?.startsWith('burst_') &&
+    final.payout.greaterThan(final.amount),
   );
 }
 
@@ -711,7 +712,11 @@ async function findAutoBalanceDecisionInternal(
   }
 
   if (control.phase === 'DRAIN_TO_ZERO') {
-    const lossDecision = autoBalanceLossDecision(control.id, 'auto_balance_drain');
+    const lossDecision = autoBalanceLossDecision(
+      control.id,
+      'auto_balance_drain',
+      (control as AutoBalanceControlRecord).controlPercentage,
+    );
     const pathGuard = legacyAutoBalancePathGuardDecision(control, currentUser.balance, predicted);
     return {
       decision: lossDecision ?? pathGuard,
@@ -730,7 +735,11 @@ async function findAutoBalanceDecisionInternal(
     const remaining = control.reviveTargetBalance.sub(currentUser.balance).toDecimalPlaces(2);
     if (remaining.lessThanOrEqualTo(0)) {
       control = await setMemberAutoBalancePhase(tx, control.id, 'DRAIN_TO_ZERO');
-      const lossDecision = autoBalanceLossDecision(control.id, 'auto_balance_drain');
+      const lossDecision = autoBalanceLossDecision(
+        control.id,
+        'auto_balance_drain',
+        (control as AutoBalanceControlRecord).controlPercentage,
+      );
       const pathGuard = legacyAutoBalancePathGuardDecision(control, currentUser.balance, predicted);
       return {
         decision: lossDecision ?? pathGuard,
@@ -740,7 +749,10 @@ async function findAutoBalanceDecisionInternal(
     }
 
     const pathGuard = legacyAutoBalancePathGuardDecision(control, currentUser.balance, predicted);
-    if (Math.random() >= AUTO_BALANCE_REVIVE_INTERVENTION_RATE) {
+    if (
+      Math.random() >=
+      autoBalanceInterventionRate((control as AutoBalanceControlRecord).controlPercentage, 'WIN')
+    ) {
       return { decision: pathGuard, inActiveCycle: true, pathNatural: !pathGuard };
     }
 
@@ -758,7 +770,11 @@ async function findAutoBalanceDecisionInternal(
   }
 
   if (mode === 'reviveOnly') return { decision: null, inActiveCycle: false };
-  const lossDecision = autoBalanceLossDecision(control.id, 'auto_balance_bite');
+  const lossDecision = autoBalanceLossDecision(
+    control.id,
+    'auto_balance_bite',
+    (control as AutoBalanceControlRecord).controlPercentage,
+  );
   const pathGuard = legacyAutoBalancePathGuardDecision(control, currentUser.balance, predicted);
   return {
     decision: lossDecision ?? pathGuard,
@@ -798,7 +814,11 @@ async function buildAutoBalanceLifecycleDecision(
       targetPercent: resolved.targetPercent,
       predicted,
     });
-    const lossDecision = autoBalanceLossDecision(resolved.control.id, reason);
+    const lossDecision = autoBalanceLossDecision(
+      resolved.control.id,
+      reason,
+      resolved.control.controlPercentage,
+    );
     return {
       decision: lossDecision ?? pathGuard,
       inActiveCycle: true,
@@ -819,7 +839,7 @@ async function buildAutoBalanceLifecycleDecision(
     targetPercent: resolved.targetPercent,
     predicted,
   });
-  if (Math.random() >= AUTO_BALANCE_REVIVE_INTERVENTION_RATE) {
+  if (Math.random() >= autoBalanceInterventionRate(resolved.control.controlPercentage, 'WIN')) {
     return { decision: pathGuard, inActiveCycle: true, pathNatural: !pathGuard };
   }
   return {
@@ -911,8 +931,9 @@ async function advanceAutoBalanceLifecycleIfReached(
 function autoBalanceLossDecision(
   controlId: string,
   reason: 'auto_balance_bite' | 'auto_balance_drain' = 'auto_balance_bite',
+  controlPercentage?: number | null,
 ): ControlDecision | null {
-  if (!passesAutoBalanceLossInterventionRate(reason)) {
+  if (!passesAutoBalanceLossInterventionRate(reason, controlPercentage)) {
     return null;
   }
 
@@ -921,12 +942,23 @@ function autoBalanceLossDecision(
 
 function passesAutoBalanceLossInterventionRate(
   reason: 'auto_balance_bite' | 'auto_balance_drain' = 'auto_balance_bite',
+  controlPercentage?: number | null,
 ): boolean {
-  const rate =
-    reason === 'auto_balance_drain'
-      ? AUTO_BALANCE_DRAIN_INTERVENTION_RATE
-      : AUTO_BALANCE_BITE_INTERVENTION_RATE;
-  return Math.random() < rate;
+  return Math.random() < autoBalanceInterventionRate(controlPercentage, 'LOSS', reason);
+}
+
+function autoBalanceInterventionRate(
+  controlPercentage: number | null | undefined,
+  direction: 'WIN' | 'LOSS',
+  reason: 'auto_balance_bite' | 'auto_balance_drain' = 'auto_balance_bite',
+): number {
+  if (typeof controlPercentage === 'number' && Number.isFinite(controlPercentage)) {
+    return Math.min(100, Math.max(1, controlPercentage)) / 100;
+  }
+  if (direction === 'WIN') return AUTO_BALANCE_REVIVE_INTERVENTION_RATE;
+  return reason === 'auto_balance_drain'
+    ? AUTO_BALANCE_DRAIN_INTERVENTION_RATE
+    : AUTO_BALANCE_BITE_INTERVENTION_RATE;
 }
 
 async function getLossControlReleasePlan(
@@ -2313,8 +2345,11 @@ async function completeAutoBalanceControlIfReached(
 
 async function enforceAutoBalanceBankerGuard(
   tx: Db,
-  member: { id: string; agentId: string | null },
+  member: { id: string; username: string; agentId: string | null },
+  outcome: ControlOutcome,
 ): Promise<void> {
+  if (isBankerGuardExemptOutcome(outcome)) return;
+
   const control = (await tx.memberAutoBalanceControl.findUnique({
     where: { memberId: member.id },
     select: { secondLineAmount: true },
@@ -2322,20 +2357,43 @@ async function enforceAutoBalanceBankerGuard(
   const guardAmount = control?.secondLineAmount ?? new Prisma.Decimal(50000);
   if (guardAmount.lessThanOrEqualTo(0)) return;
 
-  const stats = await getMemberTodayStats(tx, member.id);
-  if (stats.net.lessThan(guardAmount)) return;
+  const settlement = await calculateCurrentSettlement(
+    tx,
+    ManualDetectionScope.MEMBER,
+    null,
+    member.username,
+  );
+  const guardNet = settlement.memberWinLoss.add(settlement.totalRebate);
+  if (guardNet.lessThan(guardAmount)) return;
 
   const now = new Date();
+  if (!member.agentId) {
+    await tx.user.updateMany({
+      where: { id: member.id, disabledAt: null, frozenAt: null },
+      data: { frozenAt: now },
+    });
+    return;
+  }
+
+  const agentIds = await listAgentDescendants(tx, member.agentId);
   await tx.user.updateMany({
-    where: { id: member.id, disabledAt: null, frozenAt: null },
+    where: { agentId: { in: agentIds }, disabledAt: null, frozenAt: null },
     data: { frozenAt: now },
   });
-  if (member.agentId) {
-    await tx.agent.updateMany({
-      where: { id: member.agentId, status: 'ACTIVE', role: { not: 'SUPER_ADMIN' } },
-      data: { status: 'FROZEN' },
-    });
-  }
+  await tx.agent.updateMany({
+    where: { id: { in: agentIds }, status: 'ACTIVE', role: { not: 'SUPER_ADMIN' } },
+    data: { status: 'FROZEN' },
+  });
+}
+
+function isBankerGuardExemptOutcome(outcome: ControlOutcome): boolean {
+  const reason = outcome.flipReason ?? '';
+  return (
+    reason === 'deposit_control' ||
+    reason === 'deposit_lifecycle_path_guard' ||
+    reason === 'online_reward_next_win' ||
+    reason.startsWith('burst_')
+  );
 }
 
 async function getMemberTodayStats(
