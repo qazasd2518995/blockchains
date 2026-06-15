@@ -1,4 +1,14 @@
-import { Application, Container, Graphics, Sprite, Text, TextStyle, Ticker, BlurFilter, type Texture } from 'pixi.js';
+import {
+  Application,
+  Container,
+  Graphics,
+  Sprite,
+  Text,
+  TextStyle,
+  Ticker,
+  BlurFilter,
+  type Texture,
+} from 'pixi.js';
 import { gsap } from 'gsap';
 import { addCoverSprite, createGridTextures, loadTextureOrNull } from '../shared/pixiAssets';
 import {
@@ -16,16 +26,16 @@ import {
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG = 0x0F172A;
-const COLOR_TILE = 0xFFFFFF;
-const COLOR_TILE_STROKE = 0xC9A247;
-const COLOR_ACID = 0xF3D67D;
-const COLOR_VIOLET = 0xE8D48A;
-const COLOR_EMBER = 0xD4574A;
-const COLOR_TOXIC = 0x1E7A4F;
-const COLOR_ICE = 0x266F85;
-const COLOR_AMBER = 0xF3D67D;
-const COLOR_INK = 0x0A0806;
+const COLOR_BG = 0x0f172a;
+const COLOR_TILE = 0xffffff;
+const COLOR_TILE_STROKE = 0xc9a247;
+const COLOR_ACID = 0xf3d67d;
+const COLOR_VIOLET = 0xe8d48a;
+const COLOR_EMBER = 0xd4574a;
+const COLOR_TOXIC = 0x1e7a4f;
+const COLOR_ICE = 0x266f85;
+const COLOR_AMBER = 0xf3d67d;
+const COLOR_INK = 0x0a0806;
 const MINES_BACKGROUND_ASSET = '/game-art/mines/background.png';
 const MINES_SPRITES_ASSET = '/game-art/mines/sprites.png';
 
@@ -68,7 +78,6 @@ export class MinesScene {
   private shaker: ShakeController | null = null;
   private poolTicker: ((tk: Ticker) => void) | null = null;
   private winFx: WinCelebration | null = null;
-
 
   async init(
     canvas: HTMLCanvasElement,
@@ -118,8 +127,10 @@ export class MinesScene {
       const row = Math.floor(i / 5);
       const col = i % 5;
       const cell = new MinesCell(i, cellSize, this.cellTextures);
-      cell.container.x = col * (cellSize + gap) + cellSize / 2;
-      cell.container.y = row * (cellSize + gap) + cellSize / 2;
+      cell.setBasePosition(
+        col * (cellSize + gap) + cellSize / 2,
+        row * (cellSize + gap) + cellSize / 2,
+      );
       cell.container.eventMode = 'static';
       cell.container.cursor = 'pointer';
       cell.container.on('pointertap', () => {
@@ -172,12 +183,22 @@ export class MinesScene {
 
   private createBackground(): void {
     if (!this.app) return;
-    const bg = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 1 });
+    const bg = new Graphics()
+      .rect(0, 0, this.width, this.height)
+      .fill({ color: COLOR_BG, alpha: 1 });
     this.app.stage.addChild(bg);
 
-    const artwork = addCoverSprite(this.app.stage, this.backgroundTexture, this.width, this.height, 0.9);
+    const artwork = addCoverSprite(
+      this.app.stage,
+      this.backgroundTexture,
+      this.width,
+      this.height,
+      0.9,
+    );
     if (artwork) {
-      const veil = new Graphics().rect(0, 0, this.width, this.height).fill({ color: COLOR_BG, alpha: 0.5 });
+      const veil = new Graphics()
+        .rect(0, 0, this.width, this.height)
+        .fill({ color: COLOR_BG, alpha: 0.5 });
       this.app.stage.addChild(veil);
     }
 
@@ -204,7 +225,7 @@ export class MinesScene {
       tick += tk.deltaTime;
       // 隱藏格子微微呼吸
       for (const cell of this.cells) {
-        if (cell.state === 'hidden' && !cell.hovered) {
+        if (cell.state === 'hidden' && !cell.hovered && !cell.pending) {
           const breath = Math.sin(tick * 0.03 + cell.index * 0.3) * 0.015;
           cell.container.scale.set(1 + breath);
         }
@@ -327,7 +348,8 @@ export class MinesScene {
       });
     }
     if (tierCfg.shakeAmp > 0) this.shaker?.shake(tierCfg.shakeAmp, tierCfg.shakeDuration);
-    if (tierCfg.edgeGlowMs > 0) emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_TOXIC, tierCfg.edgeGlowMs / 1000);
+    if (tierCfg.edgeGlowMs > 0)
+      emitEdgeGlow(this.app.stage, this.width, this.height, COLOR_TOXIC, tierCfg.edgeGlowMs / 1000);
     if (tierCfg.rayBurst) emitRayBurst(this.app.stage, this.app, cx, cy, COLOR_TOXIC, 1.2);
   }
 
@@ -510,11 +532,14 @@ export class MinesScene {
 class MinesCell {
   public state: MinesCellState = 'hidden';
   public hovered = false;
+  public pending = false;
   public readonly container: Container;
   private readonly tile: Graphics;
   private readonly content: Container;
   private readonly glow: Graphics;
   private readonly artSprite: Sprite | null = null;
+  private baseX = 0;
+  private baseY = 0;
 
   constructor(
     public readonly index: number,
@@ -542,6 +567,12 @@ class MinesCell {
 
     this.content = new Container();
     this.container.addChild(this.content);
+  }
+
+  setBasePosition(x: number, y: number): void {
+    this.baseX = x;
+    this.baseY = y;
+    this.container.position.set(x, y);
   }
 
   private drawHidden(): void {
@@ -580,9 +611,11 @@ class MinesCell {
   }
 
   onHoverIn(): void {
+    if (this.state !== 'hidden' || this.pending) return;
     this.hovered = true;
+    gsap.killTweensOf(this.container, 'y');
     gsap.to(this.container.scale, { x: 1.06, y: 1.06, duration: 0.2, ease: 'power2.out' });
-    gsap.to(this.container, { y: this.container.y - 2, duration: 0.2, ease: 'power2.out' });
+    gsap.to(this.container, { y: this.baseY - 2, duration: 0.2, ease: 'power2.out' });
     // glow
     const s = this.size;
     this.glow
@@ -595,29 +628,48 @@ class MinesCell {
 
   /** 樂觀動畫：點格後立刻顯示「準備中」金色脈動，至 reveal 時停止 */
   startPendingPulse(): void {
+    if (this.state !== 'hidden') return;
+    this.pending = true;
+    this.hovered = false;
+    gsap.killTweensOf(this.container, 'y');
+    this.container.y = this.baseY;
     const s = this.size;
     this.glow
       .clear()
       .roundRect(-s / 2 - 4, -s / 2 - 4, s + 8, s + 8, 16)
-      .fill({ color: 0xC9A24C, alpha: 0.35 });
+      .fill({ color: 0xc9a24c, alpha: 0.35 });
     this.glow.filters = [new BlurFilter({ strength: 10 })];
     gsap.killTweensOf(this.glow);
-    gsap.fromTo(this.glow, { alpha: 0.2 }, { alpha: 0.9, duration: 0.3, ease: 'sine.inOut', yoyo: true, repeat: -1 });
-    gsap.to(this.container.scale, { x: 1.03, y: 1.03, duration: 0.3, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+    gsap.fromTo(
+      this.glow,
+      { alpha: 0.2 },
+      { alpha: 0.9, duration: 0.3, ease: 'sine.inOut', yoyo: true, repeat: -1 },
+    );
+    gsap.to(this.container.scale, {
+      x: 1.03,
+      y: 1.03,
+      duration: 0.3,
+      ease: 'sine.inOut',
+      yoyo: true,
+      repeat: -1,
+    });
   }
 
   stopPendingPulse(): void {
+    this.pending = false;
     gsap.killTweensOf(this.glow);
     gsap.killTweensOf(this.container.scale);
+    gsap.killTweensOf(this.container, 'y');
     this.glow.clear();
     this.container.scale.set(1);
+    this.container.y = this.baseY;
   }
 
   onHoverOut(): void {
     this.hovered = false;
+    gsap.killTweensOf(this.container, 'y');
     gsap.to(this.container.scale, { x: 1, y: 1, duration: 0.25, ease: 'power2.out' });
-    const origY = this.container.y + 2;
-    gsap.to(this.container, { y: origY - 2, duration: 0.25, ease: 'power2.out' });
+    gsap.to(this.container, { y: this.baseY, duration: 0.25, ease: 'power2.out' });
     gsap.to(this.glow, {
       alpha: 0,
       duration: 0.25,
@@ -628,8 +680,11 @@ class MinesCell {
   flipToGem(): void {
     if (this.state !== 'hidden') return;
     this.state = 'gem';
+    this.pending = false;
     this.container.eventMode = 'none';
     this.container.cursor = 'default';
+    gsap.killTweensOf(this.container, 'y');
+    this.container.y = this.baseY;
     this.glow.clear();
     this.hovered = false;
 
@@ -670,8 +725,11 @@ class MinesCell {
   flipToMine(big: boolean): void {
     if (this.state !== 'hidden') return;
     this.state = 'mine';
+    this.pending = false;
     this.container.eventMode = 'none';
     this.container.cursor = 'default';
+    gsap.killTweensOf(this.container, 'y');
+    this.container.y = this.baseY;
     this.glow.clear();
     this.hovered = false;
 
@@ -780,22 +838,26 @@ class MinesCell {
       .lineTo(-m, m)
       .stroke({ color: COLOR_EMBER, width: big ? 5 : 3 });
     // 中心核
-    const core = new Graphics()
-      .circle(0, 0, s * 0.08)
-      .fill({ color: COLOR_AMBER });
+    const core = new Graphics().circle(0, 0, s * 0.08).fill({ color: COLOR_AMBER });
 
     this.content.addChild(x);
     this.content.addChild(core);
   }
 
   reset(): void {
+    gsap.killTweensOf(this.container);
+    gsap.killTweensOf(this.container.scale);
+    gsap.killTweensOf(this.glow);
+    gsap.killTweensOf(this.content);
     this.state = 'hidden';
     this.hovered = false;
+    this.pending = false;
     this.content.removeChildren();
     this.glow.clear();
     this.drawHidden();
     this.container.eventMode = 'static';
     this.container.cursor = 'pointer';
+    this.container.position.set(this.baseX, this.baseY);
     this.container.scale.set(1);
     this.content.rotation = 0;
   }
