@@ -7,6 +7,7 @@ import {
   chickenRoadMultiplier,
   chickenRoadPath,
   diceDetermine,
+  diceMultiplier,
   getHotlineReelCount,
   getHotlineRowCount,
   hiloDraw,
@@ -26,6 +27,7 @@ import {
   rouletteEvaluate,
   rouletteSpin,
   sha256,
+  TOWER_CONFIG,
   towerLayout,
   towerMultiplier,
   wheelMultiplier,
@@ -34,7 +36,7 @@ import {
 import { GameId, SLOT_GAME_IDS } from '@bg/shared';
 
 const prisma = new PrismaClient();
-const amount = 10;
+const amount = 100;
 const password = 'ControlApiTest123!';
 const runId = `ctrl_api_${new Date()
   .toISOString()
@@ -212,6 +214,7 @@ const controlCases = [
     create: () =>
       adminPost('/api/admin/controls/manual-detection/activate', {
         scope: 'MEMBER',
+        controlMode: 'settlement',
         targetMemberUsername: player.username,
         targetSettlement: '-999999999',
         controlPercentage: 100,
@@ -229,6 +232,7 @@ const controlCases = [
     create: () =>
       adminPost('/api/admin/controls/manual-detection/activate', {
         scope: 'MEMBER',
+        controlMode: 'settlement',
         targetMemberUsername: player.username,
         targetSettlement: '999999999',
         controlPercentage: 100,
@@ -376,7 +380,7 @@ function acceptsBurstLossPlan(plan) {
     Number.isFinite(payout) &&
     multiplier > 1 &&
     multiplier <= 3 &&
-    payout <= amount + 20 &&
+    payout <= amount * 3 &&
     plan.controlSafeLoss !== false
   );
 }
@@ -468,9 +472,12 @@ async function loginAdmin() {
 }
 
 async function loginPlayer() {
+  const captcha = await request('GET', '/api/auth/captcha');
   const userLogin = await request('POST', '/api/auth/login', null, {
     username: player.username,
     password,
+    captchaCode: captcha.body.captchaCode,
+    captchaToken: captcha.body.captchaToken,
   });
   playerToken = userLogin.body.accessToken;
 }
@@ -641,10 +648,11 @@ function makeDiceGame() {
     maxSearch: 500,
     plan: (seed, c, nonce) => {
       const outcome = diceDetermine(seed, c, nonce, payload.target, payload.direction);
-      const payout = outcome.multiplier * amount;
+      const multiplier = diceMultiplier(outcome.winChance);
+      const payout = outcome.won ? multiplier * amount : 0;
       return {
         rawWin: outcome.won && payout > amount,
-        multiplier: outcome.multiplier,
+        multiplier,
         payout,
         payload,
       };
@@ -877,7 +885,8 @@ function makeHiloGame() {
 }
 
 function makeTowerGame() {
-  const startPayload = { amount, difficulty: 'easy', clientSeed };
+  const startPayload = { amount, difficulty: 'medium', clientSeed };
+  const winLevels = 4;
   return {
     id: GameId.TOWER,
     seedCategory: 'tower',
@@ -887,21 +896,48 @@ function makeTowerGame() {
       const layout = towerLayout(seed, c, nonce, startPayload.difficulty);
       const safeCols = layout[0] ?? [];
       const safeCol = safeCols[0];
-      const trapCol = firstIndex((n) => !safeCols.includes(n), 4);
-      const multiplier = towerMultiplier(startPayload.difficulty, 1);
+      const trapCol = firstIndex(
+        (n) => !safeCols.includes(n),
+        TOWER_CONFIG[startPayload.difficulty].cols,
+      );
+      const safePicks = [];
+      for (let level = 0; level < winLevels; level += 1) {
+        const levelSafeCols = layout[level] ?? [];
+        const pick =
+          levelSafeCols.find((col) => !(safePicks.at(-1) === col && safePicks.at(-2) === col)) ??
+          levelSafeCols[0];
+        if (typeof pick !== 'number') break;
+        safePicks.push(pick);
+      }
+      const multiplier =
+        raw === 'win'
+          ? towerMultiplier(startPayload.difficulty, safePicks.length)
+          : towerMultiplier(startPayload.difficulty, 1);
       return {
         rawWin: raw === 'win',
         multiplier,
         payout: multiplier * amount,
         startPayload,
-        winAction: { col: safeCol },
+        winActions: safePicks.map((col, level) => ({ col, level })),
         lossAction: { col: trapCol },
         winPays: multiplier * amount > amount,
       };
     },
     run: async (plan) => {
       const start = await playerPost('/api/games/tower/start', plan.startPayload);
-      const action = plan.rawWin ? plan.winAction : plan.lossAction;
+      if (plan.rawWin) {
+        let last;
+        for (const action of plan.winActions) {
+          last = await playerPost('/api/games/tower/pick', {
+            roundId: start.body.roundId,
+            level: action.level,
+            col: action.col,
+          });
+          if (last.body.hitTrap) break;
+        }
+        return { effect: last?.body.hitTrap ? 'LOSS' : 'WIN', body: last?.body ?? start.body };
+      }
+      const action = plan.lossAction;
       const pick = await playerPost('/api/games/tower/pick', {
         roundId: start.body.roundId,
         col: action.col,

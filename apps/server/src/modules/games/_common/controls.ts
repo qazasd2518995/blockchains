@@ -2773,6 +2773,34 @@ export function forceControlOutcomeToLoss(outcome: ControlOutcome): ControlOutco
   };
 }
 
+export function resolveGameMatchedCashoutControl(
+  multiplier: number | Prisma.Decimal,
+  amount: Prisma.Decimal,
+  control: ControlOutcome,
+): ControlOutcome {
+  const gameMultiplier =
+    multiplier instanceof Prisma.Decimal ? multiplier : new Prisma.Decimal(multiplier);
+  const gamePayout = amount.mul(gameMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const gameOutcome: ControlOutcome = {
+    won: gamePayout.greaterThan(amount),
+    multiplier: gameMultiplier,
+    payout: gamePayout,
+    controlled: false,
+  };
+
+  if (!control.controlled) return gameOutcome;
+  if (control.won && multiplierMatchesControlBounds(gameMultiplier, amount, control)) {
+    return {
+      ...control,
+      won: gamePayout.greaterThan(amount),
+      multiplier: gameMultiplier,
+      payout: gamePayout,
+    };
+  }
+
+  return gameOutcome;
+}
+
 export function multiplierMatchesControlBounds(
   multiplier: number | Prisma.Decimal,
   amount: Prisma.Decimal,

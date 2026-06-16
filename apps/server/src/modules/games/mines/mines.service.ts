@@ -23,14 +23,9 @@ import {
   finalizeControls,
   forceControlOutcomeToLoss,
   multiplierExceedsControlCeiling,
-  shouldForceLossForGameMatchedPayoutOnly,
+  resolveGameMatchedCashoutControl,
 } from '../_common/controls.js';
-import {
-  buildEntertainmentShapeMeta,
-  shapeControlOutcomeForEntertainment,
-  shouldAllowEntertainmentSafeProgress,
-  type EntertainmentShapeMeta,
-} from '../_common/entertainmentShaper.js';
+import { shouldAllowEntertainmentSafeProgress } from '../_common/entertainmentShaper.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { MinesStartInput, MinesRevealInput, MinesCashoutInput } from './mines.schema.js';
@@ -133,18 +128,17 @@ export class MinesService {
         controlled.controlled &&
         controlled.won &&
         multiplierExceedsControlCeiling(safeMultiplier, round.betAmount, controlled);
-      const shapedControl =
-        controlledWinExceedsMinesCeiling
-          ? {
-              ...controlled,
-              won: false,
-              multiplier: new Prisma.Decimal(0),
-              payout: new Prisma.Decimal(0),
-              flipReason: controlled.flipReason?.startsWith('burst_')
-                ? 'burst_risk_guard'
-                : controlled.flipReason,
-            }
-          : controlled;
+      const shapedControl = controlledWinExceedsMinesCeiling
+        ? {
+            ...controlled,
+            won: false,
+            multiplier: new Prisma.Decimal(0),
+            payout: new Prisma.Decimal(0),
+            flipReason: controlled.flipReason?.startsWith('burst_')
+              ? 'burst_risk_guard'
+              : controlled.flipReason,
+          }
+        : controlled;
       const entertainmentSafeProgress = shouldAllowEntertainmentSafeProgress({
         outcome: shapedControl,
         amount: round.betAmount,
@@ -296,31 +290,16 @@ export class MinesService {
         payout,
       };
       const controlOutcome = await applyControls(tx, userId, GameId.MINES, predicted);
-      const gameMatchedControl = shouldForceLossForGameMatchedPayoutOnly(
+      const effectiveControl = resolveGameMatchedCashoutControl(
         multiplier,
         round.betAmount,
         controlOutcome,
-      )
-        ? forceControlOutcomeToLoss(controlOutcome)
-        : controlOutcome;
-      const entertainmentShape = shapeControlOutcomeForEntertainment(
-        gameMatchedControl,
-        round.betAmount,
-        'mines',
-        round.revealed.length + round.nonce,
       );
-      const effectiveControl = entertainmentShape?.outcome ?? gameMatchedControl;
-      const finalMultiplier = effectiveControl.controlled ? effectiveControl.multiplier : multiplier;
+      const finalMultiplier = effectiveControl.controlled
+        ? effectiveControl.multiplier
+        : multiplier;
       const finalPayout = effectiveControl.controlled ? effectiveControl.payout : payout;
       const profit = finalPayout.minus(round.betAmount);
-      const entertainmentMeta: EntertainmentShapeMeta | undefined = entertainmentShape
-        ? buildEntertainmentShapeMeta(
-            entertainmentShape.envelope,
-            controlOutcome.multiplier,
-            finalMultiplier,
-            finalPayout,
-          )
-        : undefined;
       const bustedByCashoutControl =
         effectiveControl.controlled && !effectiveControl.won && finalPayout.lessThanOrEqualTo(0);
       const finalStatus = bustedByCashoutControl ? 'BUSTED' : 'CASHED_OUT';
@@ -341,7 +320,6 @@ export class MinesService {
         bustedByCashoutControl,
         controlled: effectiveControl.controlled,
         flipReason: effectiveControl.flipReason ?? null,
-        ...(entertainmentMeta ? { entertainment: entertainmentMeta } : {}),
         raw: effectiveControl.controlled ? originalResult : null,
       };
 

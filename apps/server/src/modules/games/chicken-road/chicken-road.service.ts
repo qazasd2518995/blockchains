@@ -22,9 +22,8 @@ import {
 import {
   applyControls,
   finalizeControls,
-  forceControlOutcomeToLoss,
   multiplierExceedsControlCeiling,
-  shouldForceLossForGameMatchedPayoutOnly,
+  resolveGameMatchedCashoutControl,
 } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
 import type {
@@ -142,18 +141,17 @@ export class ChickenRoadService {
         controlled.controlled &&
         controlled.won &&
         multiplierExceedsControlCeiling(nextMult, bet.amount, controlled);
-      const shapedControl =
-        controlledWinExceedsChickenRoadCeiling
-          ? {
-              ...controlled,
-              won: false,
-              multiplier: new Prisma.Decimal(0),
-              payout: new Prisma.Decimal(0),
-              flipReason: controlled.flipReason?.startsWith('burst_')
-                ? 'burst_risk_guard'
-                : controlled.flipReason,
-            }
-          : controlled;
+      const shapedControl = controlledWinExceedsChickenRoadCeiling
+        ? {
+            ...controlled,
+            won: false,
+            multiplier: new Prisma.Decimal(0),
+            payout: new Prisma.Decimal(0),
+            flipReason: controlled.flipReason?.startsWith('burst_')
+              ? 'burst_risk_guard'
+              : controlled.flipReason,
+          }
+        : controlled;
 
       const finalPath = rawPath.slice();
       const canForceLoss = canForceChickenRoadLossAtStep(data.currentStep);
@@ -322,19 +320,17 @@ export class ChickenRoadService {
         payout,
       };
       const controlOutcome = await applyControls(tx, userId, GameId.CHICKEN_ROAD, predicted);
-      const effectiveControl = shouldForceLossForGameMatchedPayoutOnly(
+      const effectiveControl = resolveGameMatchedCashoutControl(
         multiplier,
         bet.amount,
         controlOutcome,
-      )
-        ? forceControlOutcomeToLoss(controlOutcome)
-        : controlOutcome;
-      const finalMultiplier = effectiveControl.controlled ? effectiveControl.multiplier : multiplier;
+      );
+      const finalMultiplier = effectiveControl.controlled
+        ? effectiveControl.multiplier
+        : multiplier;
       const finalPayout = effectiveControl.controlled ? effectiveControl.payout : payout;
       const bustedByCashoutControl = effectiveControl.controlled && !effectiveControl.won;
-      const finalStatus: ChickenRoadStoredStatus = bustedByCashoutControl
-        ? 'BUSTED'
-        : 'CASHED_OUT';
+      const finalStatus: ChickenRoadStoredStatus = bustedByCashoutControl ? 'BUSTED' : 'CASHED_OUT';
       const finalResult: ChickenRoadStoredData = {
         ...data,
         status: finalStatus,

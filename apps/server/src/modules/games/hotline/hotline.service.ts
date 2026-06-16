@@ -162,6 +162,7 @@ export class HotlineService {
       let finalFeatures = generatedRound.features;
       let finalMultiplier = accountingMultiplierD;
       let finalPayout = payout;
+      let effectiveControl = controlled;
       let entertainmentMeta: EntertainmentShapeMeta | undefined;
       if (controlled.controlled) {
         const entertainmentShape = shapeControlOutcomeForEntertainment(
@@ -172,58 +173,68 @@ export class HotlineService {
         );
         const visualControl = entertainmentShape?.outcome ?? controlled;
         const controlledRound = visualControl.won
-          ? winningHotlineRound(gameId, stakeAmount, visualControl, seed.nonce)
+          ? strictWinningHotlineRound(gameId, stakeAmount, visualControl, seed.nonce)
           : lossHotlineRound(gameId, stakeAmount, seed.nonce, visualControl);
-        finalGrid = controlledRound.grid;
-        finalLines = controlledRound.lines;
-        finalCascades = controlledRound.cascades;
-        finalMultiplier = new Prisma.Decimal(controlledRound.totalMultiplier.toFixed(4));
-        finalPayout = stakeAmount
-          .mul(finalMultiplier)
-          .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-        if (entertainmentShape) {
-          entertainmentMeta = buildEntertainmentShapeMeta(
-            entertainmentShape.envelope,
-            controlled.multiplier,
-            finalMultiplier,
-            finalPayout,
-          );
+        if (controlledRound) {
+          finalGrid = controlledRound.grid;
+          finalLines = controlledRound.lines;
+          finalCascades = controlledRound.cascades;
+          finalMultiplier = new Prisma.Decimal(controlledRound.totalMultiplier.toFixed(4));
+          finalPayout = stakeAmount
+            .mul(finalMultiplier)
+            .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+          if (entertainmentShape) {
+            entertainmentMeta = buildEntertainmentShapeMeta(
+              entertainmentShape.envelope,
+              controlled.multiplier,
+              finalMultiplier,
+              finalPayout,
+            );
+          }
+          finalFeatures =
+            rowCount > 3
+              ? buyFeature
+                ? buildControlledMegaFeature(
+                    baseAmount.greaterThan(0)
+                      ? Number(
+                          finalPayout
+                            .div(baseAmount)
+                            .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN)
+                            .toFixed(4),
+                        )
+                      : Number(finalMultiplier.toFixed(4)),
+                    true,
+                    seed.nonce,
+                  )
+                : (controlledRound.features ??
+                  buildControlledMegaFeature(
+                    Number(finalMultiplier.toFixed(4)),
+                    false,
+                    seed.nonce,
+                    controlledRound,
+                  ))
+              : undefined;
+        } else {
+          effectiveControl = {
+            ...controlled,
+            controlled: false,
+            controlId: undefined,
+            flipReason: undefined,
+          };
         }
-        finalFeatures =
-          rowCount > 3
-            ? buyFeature
-              ? buildControlledMegaFeature(
-                  baseAmount.greaterThan(0)
-                    ? Number(
-                        finalPayout
-                          .div(baseAmount)
-                          .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN)
-                          .toFixed(4),
-                      )
-                    : Number(finalMultiplier.toFixed(4)),
-                  true,
-                  seed.nonce,
-                )
-              : (controlledRound.features ??
-                buildControlledMegaFeature(
-                  Number(finalMultiplier.toFixed(4)),
-                  false,
-                  seed.nonce,
-                  controlledRound,
-                ))
-            : undefined;
       }
 
       if (rowCount > 3 && finalFeatures && finalFeatures.freeSpinsAwarded > 0) {
-        const allowFreeGameAboveOne = canMegaFreeGameExceedOne(controlled);
-        const preserveControlledTarget = shouldPreserveControlledMegaFreeGameTarget(controlled);
+        const allowFreeGameAboveOne = canMegaFreeGameExceedOne(effectiveControl);
+        const preserveControlledTarget =
+          shouldPreserveControlledMegaFreeGameTarget(effectiveControl);
         const capped = capMegaFreeGameSettlement(
           finalFeatures,
           buyFeature,
           baseAmount,
           stakeAmount,
           seed.nonce,
-          controlled.maxPayout,
+          effectiveControl.maxPayout,
           allowFreeGameAboveOne,
           preserveControlledTarget,
         );
@@ -250,10 +261,10 @@ export class HotlineService {
         buyFeature,
         baseAmount: baseAmount.toFixed(2),
         stakeAmount: stakeAmount.toFixed(2),
-        controlled: controlled.controlled,
-        flipReason: controlled.flipReason ?? null,
+        controlled: effectiveControl.controlled,
+        flipReason: effectiveControl.flipReason ?? null,
         ...(entertainmentMeta ? { entertainment: entertainmentMeta } : {}),
-        raw: controlled.controlled ? originalResult : null,
+        raw: effectiveControl.controlled ? originalResult : null,
       };
 
       const bet = await tx.bet.create({
@@ -285,7 +296,7 @@ export class HotlineService {
           multiplier: finalMultiplier,
           payout: finalPayout,
         },
-        controlled,
+        effectiveControl,
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,
         finalResult as unknown as Prisma.InputJsonValue,
@@ -451,7 +462,7 @@ type HotlineRound = Pick<HotlineBetResult, 'grid' | 'lines' | 'cascades'> & {
 };
 
 const HOTLINE_SOFT_LOSS_SYMBOLS = [0, 1] as const;
-const HOTLINE_SOFT_WIN_SYMBOLS = [2, 3, 4, 5, 6, 7] as const;
+const HOTLINE_SOFT_WIN_SYMBOLS = [1, 2, 3, 4, 5, 6, 7] as const;
 const HOTLINE_SYMBOL_INDEXES = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 const MEGA_BUY_FEATURE_MAX_STAKE = new Prisma.Decimal(30000);
 const MEGA_FREE_GAME_NORMAL_MAX_ACCOUNTING_MULTIPLIER = new Prisma.Decimal(1);
@@ -669,6 +680,18 @@ function winningHotlineRound(
   controlled: HotlineControlBounds,
   variant = 0,
 ): HotlineRound {
+  return (
+    strictWinningHotlineRound(gameId, amount, controlled, variant) ??
+    softLossHotlineRound(gameId, variant)
+  );
+}
+
+function strictWinningHotlineRound(
+  gameId: string,
+  amount: Prisma.Decimal,
+  controlled: HotlineControlBounds,
+  variant = 0,
+): HotlineRound | null {
   const reelCount = getHotlineReelCount(gameId);
   const rowCount = getHotlineRowCount(gameId);
   if (rowCount > 3) {
@@ -691,12 +714,7 @@ function winningHotlineRound(
       }),
   );
   if (controlled.flipReason === 'burst_win') {
-    return (
-      pickHighestMultiplier(bounded) ??
-      pickHighestMultiplier(underCap) ??
-      softLossHotlineRound(gameId, variant) ??
-      pool[0]!
-    );
+    return pickHighestMultiplier(bounded) ?? pickHighestMultiplier(underCap) ?? null;
   }
   return (
     pickRandomBest(bounded, (candidate) => {
@@ -706,8 +724,7 @@ function winningHotlineRound(
     pickWeightedRandom(underCap, (candidate) =>
       controlTargetWeight(candidate.totalMultiplier, targetMultiplier),
     ) ??
-    softLossHotlineRound(gameId, variant) ??
-    pool[0]!
+    null
   );
 }
 
@@ -716,7 +733,7 @@ function winningMegaHotlineRound(
   amount: Prisma.Decimal,
   controlled: HotlineControlBounds,
   variant = 0,
-): HotlineRound {
+): HotlineRound | null {
   const candidates = megaWinCandidateRounds(gameId, variant);
 
   const targetMultiplier = targetControlMultiplier(controlled);
@@ -736,7 +753,7 @@ function winningMegaHotlineRound(
   if (controlled.flipReason === 'burst_win') {
     const picked = pickHighestMultiplier(bounded) ?? pickHighestMultiplier(underCap);
     if (picked) return shapeMegaBurstRound(gameId, picked, amount, controlled, variant);
-    return softLossHotlineRound(gameId, variant) ?? candidates[0]!;
+    return null;
   }
   return (
     pickRandomBest(bounded, (candidate) => {
@@ -746,8 +763,7 @@ function winningMegaHotlineRound(
     pickWeightedRandom(underCap, (candidate) =>
       controlTargetWeight(candidate.totalMultiplier, targetMultiplier),
     ) ??
-    softLossHotlineRound(gameId, variant) ??
-    candidates[0]!
+    null
   );
 }
 
@@ -928,9 +944,7 @@ function entertainmentLossHotlineRound(
 
   const pool = [
     ...classicSoftLossCandidateRounds(gameId, variant),
-    ...Array.from({ length: 16 }, (_, index) =>
-      softLossHotlineRound(gameId, variant + index * 19),
-    ),
+    ...Array.from({ length: 16 }, (_, index) => softLossHotlineRound(gameId, variant + index * 19)),
     ...(getHotlineRowCount(gameId) > 3
       ? megaWinCandidateRounds(gameId, variant)
       : classicWinCandidateRounds(gameId, variant)),
@@ -953,9 +967,7 @@ function classicSoftLossCandidateRounds(gameId: string, variant = 0): HotlineRou
   if (getHotlineRowCount(gameId) > 3) return [];
   const reelCount = getHotlineReelCount(gameId);
   return HOTLINE_SOFT_LOSS_SYMBOLS.map((symbol, index) =>
-    roundFromClassicGrid(
-      singleSoftLineClassicGrid(reelCount, symbol, variant + index * 23),
-    ),
+    roundFromClassicGrid(singleSoftLineClassicGrid(reelCount, symbol, variant + index * 23)),
   );
 }
 
@@ -980,10 +992,7 @@ function singleSoftLineClassicGrid(reelCount: number, symbol: number, variant = 
   }
 
   const grid: number[][] = Array.from({ length: reelCount }, (_, reel) =>
-    Array.from(
-      { length: HOTLINE_ROWS },
-      (_, row) => fillers[(reel * 3 + row) % fillers.length]!,
-    ),
+    Array.from({ length: HOTLINE_ROWS }, (_, row) => fillers[(reel * 3 + row) % fillers.length]!),
   );
   for (let reel = 0; reel < Math.min(3, reelCount); reel += 1) {
     grid[reel]![0] = symbol;
@@ -1675,5 +1684,6 @@ export const __hotlineServiceTestHooks = {
   lossHotlineRound,
   softLossHotlineRound,
   winningHotlineRound,
+  strictWinningHotlineRound,
   megaClusterHotlineGrid,
 };

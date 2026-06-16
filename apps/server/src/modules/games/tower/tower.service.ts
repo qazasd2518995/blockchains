@@ -25,15 +25,10 @@ import {
   finalizeControls,
   forceControlOutcomeToLoss,
   multiplierExceedsControlCeiling,
-  shouldForceLossForGameMatchedPayoutOnly,
+  resolveGameMatchedCashoutControl,
   type ControlOutcome,
 } from '../_common/controls.js';
-import {
-  buildEntertainmentShapeMeta,
-  shapeControlOutcomeForEntertainment,
-  shouldAllowEntertainmentSafeProgress,
-  type EntertainmentShapeMeta,
-} from '../_common/entertainmentShaper.js';
+import { shouldAllowEntertainmentSafeProgress } from '../_common/entertainmentShaper.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { TowerStartInput, TowerPickInput, TowerCashoutInput } from './tower.schema.js';
@@ -139,18 +134,17 @@ export class TowerService {
         controlled.controlled &&
         controlled.won &&
         multiplierExceedsControlCeiling(nextMult, round.betAmount, controlled);
-      const shapedControl =
-        controlledWinExceedsTowerCeiling
-          ? {
-              ...controlled,
-              won: false,
-              multiplier: new Prisma.Decimal(0),
-              payout: new Prisma.Decimal(0),
-              flipReason: controlled.flipReason?.startsWith('burst_')
-                ? 'burst_risk_guard'
-                : controlled.flipReason,
-            }
-          : controlled;
+      const shapedControl = controlledWinExceedsTowerCeiling
+        ? {
+            ...controlled,
+            won: false,
+            multiplier: new Prisma.Decimal(0),
+            payout: new Prisma.Decimal(0),
+            flipReason: controlled.flipReason?.startsWith('burst_')
+              ? 'burst_risk_guard'
+              : controlled.flipReason,
+          }
+        : controlled;
       const lateLevelForcedLoss = mustForceTowerLateLevelLoss(difficulty, round.currentLevel);
       const repeatedColumnForcedLoss = mustForceTowerRepeatedColumnLoss(round.picks, input.col);
       const entertainmentSafeProgress = shouldAllowEntertainmentSafeProgress({
@@ -350,31 +344,16 @@ export class TowerService {
         payout,
       };
       const controlOutcome = await applyControls(tx, userId, GameId.TOWER, predicted);
-      const gameMatchedControl = shouldForceLossForGameMatchedPayoutOnly(
+      const effectiveControl = resolveGameMatchedCashoutControl(
         multiplier,
         round.betAmount,
         controlOutcome,
-      )
-        ? forceControlOutcomeToLoss(controlOutcome)
-        : controlOutcome;
-      const entertainmentShape = shapeControlOutcomeForEntertainment(
-        gameMatchedControl,
-        round.betAmount,
-        'tower',
-        round.currentLevel + round.nonce,
       );
-      const effectiveControl = entertainmentShape?.outcome ?? gameMatchedControl;
-      const finalMultiplier = effectiveControl.controlled ? effectiveControl.multiplier : multiplier;
+      const finalMultiplier = effectiveControl.controlled
+        ? effectiveControl.multiplier
+        : multiplier;
       const finalPayout = effectiveControl.controlled ? effectiveControl.payout : payout;
       const profit = finalPayout.minus(round.betAmount);
-      const entertainmentMeta: EntertainmentShapeMeta | undefined = entertainmentShape
-        ? buildEntertainmentShapeMeta(
-            entertainmentShape.envelope,
-            controlOutcome.multiplier,
-            finalMultiplier,
-            finalPayout,
-          )
-        : undefined;
       const bustedByCashoutControl =
         effectiveControl.controlled && !effectiveControl.won && finalPayout.lessThanOrEqualTo(0);
       const finalStatus = bustedByCashoutControl ? 'BUSTED' : 'CASHED_OUT';
@@ -393,7 +372,6 @@ export class TowerService {
         bustedByCashoutControl,
         controlled: effectiveControl.controlled,
         flipReason: effectiveControl.flipReason ?? null,
-        ...(entertainmentMeta ? { entertainment: entertainmentMeta } : {}),
         raw: effectiveControl.controlled ? originalResult : null,
       };
 
@@ -498,9 +476,7 @@ export class TowerService {
       nextMultiplier: nextMult !== null ? nextMult.toFixed(4) : null,
       amount: round.betAmount.toFixed(2),
       potentialPayout: potentialPayout.toFixed(2),
-      ...(exposeLayout || round.status !== 'ACTIVE'
-        ? { revealedLayout: visibleLayout }
-        : {}),
+      ...(exposeLayout || round.status !== 'ACTIVE' ? { revealedLayout: visibleLayout } : {}),
       serverSeedHash,
       nonce: round.nonce,
     };

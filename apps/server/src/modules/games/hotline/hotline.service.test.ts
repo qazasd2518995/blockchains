@@ -103,6 +103,53 @@ describe('hotline controlled round shaping', () => {
     expect(hotlineEvaluate(round.grid).totalMultiplier).toBeCloseTo(round.totalMultiplier, 4);
   });
 
+  it('does not synthesize a burst win when no legal slot payout fits the cap', () => {
+    const amount = new Prisma.Decimal(100);
+    const round = __hotlineServiceTestHooks.strictWinningHotlineRound(
+      GameId.SAKURA_SLOT,
+      amount,
+      {
+        flipReason: 'burst_win',
+        minMultiplier: new Prisma.Decimal('1.01'),
+        maxMultiplier: new Prisma.Decimal('1.20'),
+        maxPayout: new Prisma.Decimal(120),
+      },
+      7,
+    );
+
+    expect(round).toBeNull();
+  });
+
+  it('uses true low-profit burst wins when the slot paytable can represent them', () => {
+    const amount = new Prisma.Decimal(100);
+    const controls = {
+      flipReason: 'burst_win',
+      minMultiplier: new Prisma.Decimal('1.01'),
+      maxMultiplier: new Prisma.Decimal('1.20'),
+      maxPayout: new Prisma.Decimal(120),
+    };
+
+    const classic = __hotlineServiceTestHooks.strictWinningHotlineRound(
+      GameId.FRUIT_SLOT,
+      amount,
+      controls,
+      7,
+    );
+    const mega = __hotlineServiceTestHooks.strictWinningHotlineRound(
+      GameId.DRAGON_MEGA_SLOT,
+      amount,
+      controls,
+      7,
+    );
+
+    for (const round of [classic, mega]) {
+      expect(round).not.toBeNull();
+      expect(round!.totalMultiplier).toBeGreaterThan(1);
+      expect(round!.totalMultiplier).toBeLessThanOrEqual(1.2);
+      expect(amount.mul(round!.totalMultiplier).lessThanOrEqualTo(120)).toBe(true);
+    }
+  });
+
   it('shapes normal mega-slot burst wins toward the configured cap while respecting max payout', () => {
     const amount = new Prisma.Decimal(100);
     const maxPayout = new Prisma.Decimal(50000);

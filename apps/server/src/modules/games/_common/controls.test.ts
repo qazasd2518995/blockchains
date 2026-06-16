@@ -8,6 +8,7 @@ import {
   multiplierExceedsControlCeiling,
   passesControlInterventionRate,
   rankWinLossControls,
+  resolveGameMatchedCashoutControl,
 } from './controls.js';
 
 const prediction = (multiplier: number) => ({
@@ -330,6 +331,70 @@ describe('rankWinLossControls priority', () => {
     const selected = rankWinLossControls([globalLoss, agentWin], MEMBER, ancestors, 'targeted');
     expect(selected?.control.id).toBe('line-win');
     expect(selected?.desired).toBe('WIN');
+  });
+});
+
+describe('resolveGameMatchedCashoutControl', () => {
+  it('falls back to the actual game multiplier when a controlled loss cannot be represented by cashout state', () => {
+    const resolved = resolveGameMatchedCashoutControl(
+      new Prisma.Decimal('1.35'),
+      new Prisma.Decimal(200),
+      {
+        won: false,
+        multiplier: new Prisma.Decimal('0.33'),
+        payout: new Prisma.Decimal(66),
+        controlled: true,
+        flipReason: 'auto_balance_drain',
+        controlId: 'auto-1',
+      },
+    );
+
+    expect(resolved.controlled).toBe(false);
+    expect(resolved.won).toBe(true);
+    expect(resolved.multiplier.toFixed(4)).toBe('1.3500');
+    expect(resolved.payout.toFixed(2)).toBe('270.00');
+    expect(resolved.flipReason).toBeUndefined();
+  });
+
+  it('uses the actual game multiplier when a controlled win is still inside the control bounds', () => {
+    const resolved = resolveGameMatchedCashoutControl(
+      new Prisma.Decimal('1.35'),
+      new Prisma.Decimal(200),
+      {
+        won: true,
+        multiplier: new Prisma.Decimal('1.01'),
+        payout: new Prisma.Decimal(202),
+        controlled: true,
+        flipReason: 'auto_balance_revive',
+        controlId: 'auto-1',
+        maxPayout: new Prisma.Decimal(300),
+      },
+    );
+
+    expect(resolved.won).toBe(true);
+    expect(resolved.multiplier.toFixed(4)).toBe('1.3500');
+    expect(resolved.payout.toFixed(2)).toBe('270.00');
+  });
+
+  it('falls back to the actual game multiplier when a controlled win ceiling cannot be represented', () => {
+    const resolved = resolveGameMatchedCashoutControl(
+      new Prisma.Decimal('1.35'),
+      new Prisma.Decimal(200),
+      {
+        won: true,
+        multiplier: new Prisma.Decimal('1.01'),
+        payout: new Prisma.Decimal(202),
+        controlled: true,
+        flipReason: 'global_member_daily_win_cap',
+        controlId: 'global-member-daily-win-cap',
+        maxPayout: new Prisma.Decimal(250),
+      },
+    );
+
+    expect(resolved.controlled).toBe(false);
+    expect(resolved.won).toBe(true);
+    expect(resolved.multiplier.toFixed(4)).toBe('1.3500');
+    expect(resolved.payout.toFixed(2)).toBe('270.00');
   });
 });
 

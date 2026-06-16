@@ -25,7 +25,7 @@ import {
   finalizeControls,
   forceControlOutcomeToLoss,
   multiplierExceedsControlCeiling,
-  shouldForceLossForGameMatchedPayoutOnly,
+  resolveGameMatchedCashoutControl,
 } from '../_common/controls.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
@@ -125,18 +125,17 @@ export class HiLoService {
         controlled.controlled &&
         controlled.won &&
         multiplierExceedsControlCeiling(nextMultiplier, round.betAmount, controlled);
-      const shapedControl =
-        controlledWinExceedsHiLoCeiling
-          ? {
-              ...controlled,
-              won: false,
-              multiplier: new Prisma.Decimal(0),
-              payout: new Prisma.Decimal(0),
-              flipReason: controlled.flipReason?.startsWith('burst_')
-                ? 'burst_risk_guard'
-                : controlled.flipReason,
-            }
-          : controlled;
+      const shapedControl = controlledWinExceedsHiLoCeiling
+        ? {
+            ...controlled,
+            won: false,
+            multiplier: new Prisma.Decimal(0),
+            payout: new Prisma.Decimal(0),
+            flipReason: controlled.flipReason?.startsWith('burst_')
+              ? 'burst_risk_guard'
+              : controlled.flipReason,
+          }
+        : controlled;
       const canForceLoss = canForceHiLoLossAtCardIndex(round.cardIndex);
       const effectiveDesiredCorrect = shapedControl.controlled
         ? !shapedControl.won && !canForceLoss
@@ -297,14 +296,14 @@ export class HiLoService {
         payout,
       };
       const controlOutcome = await applyControls(tx, userId, GameId.HILO, predicted);
-      const effectiveControl = shouldForceLossForGameMatchedPayoutOnly(
+      const effectiveControl = resolveGameMatchedCashoutControl(
         multiplier,
         round.betAmount,
         controlOutcome,
-      )
-        ? forceControlOutcomeToLoss(controlOutcome)
-        : controlOutcome;
-      const finalMultiplier = effectiveControl.controlled ? effectiveControl.multiplier : multiplier;
+      );
+      const finalMultiplier = effectiveControl.controlled
+        ? effectiveControl.multiplier
+        : multiplier;
       const finalPayout = effectiveControl.controlled ? effectiveControl.payout : payout;
       const profit = finalPayout.minus(round.betAmount);
       const bustedByCashoutControl = effectiveControl.controlled && !effectiveControl.won;
