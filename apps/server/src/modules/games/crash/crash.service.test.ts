@@ -77,17 +77,17 @@ describe('CrashSoloService global member win cap', () => {
   it('crashes immediately when even the minimum crash cashout would exceed the 10000 cap', () => {
     const capGuard = guard({ maxPayout: '100.50', maxMultiplier: '1.0050' });
 
-    expect(
-      __crashServiceTestHooks.shouldCrashImmediatelyForGlobalCap(capGuard, decimal(100)),
-    ).toBe(true);
+    expect(__crashServiceTestHooks.shouldCrashImmediatelyForGlobalCap(capGuard, decimal(100))).toBe(
+      true,
+    );
   });
 
   it('does not use the start guard as a hard loss after the daily cap is already exhausted', () => {
     const capGuard = guard({ exhausted: true, maxPayout: 0, maxMultiplier: 0 });
 
-    expect(
-      __crashServiceTestHooks.shouldCrashImmediatelyForGlobalCap(capGuard, decimal(100)),
-    ).toBe(false);
+    expect(__crashServiceTestHooks.shouldCrashImmediatelyForGlobalCap(capGuard, decimal(100))).toBe(
+      false,
+    );
   });
 
   it('caps crash points before a cashout can exceed the remaining global win cap', () => {
@@ -174,6 +174,13 @@ describe('CrashSoloService global member win cap', () => {
         }),
         findUniqueOrThrow: vi.fn(async () => storedBet),
       },
+      crashRound: {
+        update: vi.fn(async ({ data }: { data: Partial<Round> }) => {
+          Object.assign(round, data);
+          storedBet = { ...storedBet, round };
+          return round;
+        }),
+      },
       memberWinCapControl: {
         findFirst: vi.fn(async () => null),
       },
@@ -216,7 +223,9 @@ describe('CrashSoloService global member win cap', () => {
 
     expect(result.payout.toFixed(2)).toBe('0.00');
     expect(storedBet.payout.toFixed(2)).toBe('0.00');
-    expect(storedBet.cashedOutAt?.toFixed(4)).toBe('3.0000');
+    expect(storedBet.cashedOutAt).toBeNull();
+    expect(storedBet.round.status).toBe('CRASHED');
+    expect(storedBet.round.crashPoint.toFixed(4)).toBe('3.0000');
     expect(tx.user.update).not.toHaveBeenCalled();
     expect(tx.winLossControlLogs.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -293,6 +302,13 @@ describe('CrashSoloService global member win cap', () => {
         }),
         findUniqueOrThrow: vi.fn(async () => storedBet),
       },
+      crashRound: {
+        update: vi.fn(async ({ data }: { data: Partial<Round> }) => {
+          Object.assign(round, data);
+          storedBet = { ...storedBet, round };
+          return round;
+        }),
+      },
       memberWinCapControl: {
         findFirst: vi.fn(async () => null),
       },
@@ -335,6 +351,9 @@ describe('CrashSoloService global member win cap', () => {
 
     expect(result.payout.toFixed(2)).toBe('0.00');
     expect(storedBet.payout.toFixed(2)).toBe('0.00');
+    expect(storedBet.cashedOutAt).toBeNull();
+    expect(storedBet.round.status).toBe('CRASHED');
+    expect(storedBet.round.crashPoint.toFixed(4)).toBe('3.0000');
     expect(tx.user.update).not.toHaveBeenCalled();
     expect(tx.winLossControlLogs.create).toHaveBeenCalledWith(
       expect.objectContaining({
