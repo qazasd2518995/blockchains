@@ -19,9 +19,51 @@ import { GameFullscreenShell } from '@/components/layout/GameFullscreenShell';
 import { GuestGuard } from '@/components/layout/GuestGuard';
 import { preloadGameAssets } from '@/lib/gameAssetManifest';
 import { useTranslation } from '@/i18n/useTranslation';
+import type { Locale } from '@/i18n/types';
 import { PlatformBgm } from '@/lib/platformBgm';
 import { errorMessage, reloadAfterRuntimeFailure } from '@/lib/runtimeRecovery';
 import { CRASH_CONFIGS } from '@/pages/games/crashConfigs';
+
+const RUNTIME_ERROR_COPY: Record<
+  Locale,
+  { eyebrow: string; title: string; compact: string; full: string; reload: string }
+> = {
+  'zh-Hant': {
+    eyebrow: '頁面更新中',
+    title: '請重新載入遊戲',
+    compact: '遊戲檔案正在更新，系統會自動重新整理。',
+    full: '偵測到頁面檔案已更新，重新載入後即可繼續遊玩。',
+    reload: '重新載入',
+  },
+  'zh-Hans': {
+    eyebrow: '页面更新中',
+    title: '请重新载入游戏',
+    compact: '游戏文件正在更新，系统会自动重新整理。',
+    full: '侦测到页面文件已更新，重新载入后即可继续游玩。',
+    reload: '重新载入',
+  },
+  en: {
+    eyebrow: 'Page Updating',
+    title: 'Reload the game',
+    compact: 'Game files are updating. The system will refresh automatically.',
+    full: 'New page files were detected. Reload to continue playing.',
+    reload: 'Reload',
+  },
+  th: {
+    eyebrow: 'กำลังอัปเดตหน้า',
+    title: 'โปรดโหลดเกมใหม่',
+    compact: 'ไฟล์เกมกำลังอัปเดต ระบบจะรีเฟรชให้อัตโนมัติ',
+    full: 'ตรวจพบไฟล์หน้าใหม่ โหลดใหม่แล้วจะเล่นต่อได้',
+    reload: 'โหลดใหม่',
+  },
+  vi: {
+    eyebrow: 'Đang cập nhật trang',
+    title: 'Vui lòng tải lại game',
+    compact: 'Tệp game đang được cập nhật. Hệ thống sẽ tự làm mới.',
+    full: 'Phát hiện tệp trang mới. Tải lại để tiếp tục chơi.',
+    reload: 'Tải lại',
+  },
+};
 
 function lazyPage(loader: () => Promise<unknown>, exportName: string) {
   return lazy(async (): Promise<{ default: ComponentType<any> }> => {
@@ -89,6 +131,9 @@ function RuntimeErrorScreen({
   error: unknown;
   compact?: boolean;
 }): JSX.Element {
+  const { locale } = useTranslation();
+  const copy = RUNTIME_ERROR_COPY[locale];
+
   useEffect(() => {
     reloadAfterRuntimeFailure(error);
   }, [error]);
@@ -97,18 +142,18 @@ function RuntimeErrorScreen({
     <div className="grid min-h-[100svh] place-items-center bg-[#050A13] px-5 text-white">
       <div className="w-full max-w-[360px] rounded-[18px] border border-[#FED7AA]/28 bg-[#101B2D] p-5 text-center shadow-[0_24px_60px_rgba(0,0,0,0.38)]">
         <div className="text-[12px] font-black tracking-[0.22em] text-[#F3D67D]">
-          頁面更新中
+          {copy.eyebrow}
         </div>
-        <h1 className="mt-3 text-[22px] font-black text-white">請重新載入遊戲</h1>
+        <h1 className="mt-3 text-[22px] font-black text-white">{copy.title}</h1>
         <p className="mt-2 text-[13px] leading-6 text-white/68">
-          {compact ? '遊戲檔案正在更新，系統會自動重新整理。' : '偵測到頁面檔案已更新，重新載入後即可繼續遊玩。'}
+          {compact ? copy.compact : copy.full}
         </p>
         <button
           type="button"
           onClick={() => window.location.reload()}
           className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-[12px] bg-[#EA580C] text-[14px] font-black text-white"
         >
-          重新載入
+          {copy.reload}
         </button>
         {import.meta.env.DEV && (
           <pre className="mt-4 max-h-28 overflow-auto rounded-[10px] bg-black/30 p-3 text-left text-[10px] text-white/60">

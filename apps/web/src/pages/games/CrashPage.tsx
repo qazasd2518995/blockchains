@@ -14,6 +14,7 @@ import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount } from '@/lib/utils';
 import { api, extractApiError } from '@/lib/api';
 import { useTranslation } from '@/i18n/useTranslation';
+import { getSceneLabels } from '@/i18n/sceneLabels';
 import { CrashScene } from '@/games/crash/CrashScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
@@ -246,7 +247,8 @@ function hashString(value: string): number {
 
 export function CrashPage({ config }: Props) {
   const { user, setBalance } = useAuthStore();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const sceneLabels = getSceneLabels(locale).crash;
   const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
@@ -388,7 +390,7 @@ export function CrashPage({ config }: Props) {
       lastHeight = h;
       const token = ++initToken;
       const previous = scene;
-      const nextScene = new CrashScene();
+      const nextScene = new CrashScene(sceneLabels);
       scene = nextScene;
       sceneRef.current = nextScene;
       previous?.dispose();
@@ -471,7 +473,7 @@ export function CrashPage({ config }: Props) {
         sceneRef.current = null;
       }
     };
-  }, [applySceneState, config.variant]);
+  }, [applySceneState, config.variant, sceneLabels]);
 
   // Sync state to Pixi scene
   useEffect(() => {

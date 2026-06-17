@@ -15,6 +15,7 @@ import { GameActivityHeat } from '@/components/game/GameActivityHeat';
 import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
+import { getSceneLabels } from '@/i18n/sceneLabels';
 import { KenoScene } from '@/games/keno/KenoScene';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
@@ -195,7 +196,8 @@ function wait(ms: number): Promise<void> {
 
 export function KenoPage() {
   const { user, setBalance } = useAuthStore();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const sceneLabels = getSceneLabels(locale).keno;
   const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
   const [amount, setAmount] = useState(10);
@@ -243,7 +245,7 @@ export function KenoPage() {
         rafId = requestAnimationFrame(tryInit);
         return;
       }
-      scene = new KenoScene();
+      scene = new KenoScene(sceneLabels);
       sceneRef.current = scene;
       void scene.init(canvas, w, h);
     };
@@ -254,7 +256,7 @@ export function KenoPage() {
       scene?.dispose();
       sceneRef.current = null;
     };
-  }, []);
+  }, [sceneLabels]);
 
   const clearRoundResult = useCallback(() => {
     setResult(null);

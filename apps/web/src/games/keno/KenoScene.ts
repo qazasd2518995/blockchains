@@ -25,6 +25,7 @@ import {
   GAME_FONT_NUM,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
+import { SCENE_LABELS, type SceneLabels } from '@/i18n/sceneLabels';
 
 const COLOR_BG = 0x0F172A;
 const COLOR_ACID = 0xF3D67D;
@@ -53,6 +54,7 @@ interface Particle {
 }
 
 export class KenoScene {
+  private labels: SceneLabels['keno'];
   private app: Application | null = null;
   private width = 0;
   private height = 0;
@@ -75,6 +77,9 @@ export class KenoScene {
   private poolTicker: ((tk: Ticker) => void) | null = null;
   private winFx: WinCelebration | null = null;
 
+  constructor(labels: SceneLabels['keno'] = SCENE_LABELS['zh-Hant'].keno) {
+    this.labels = labels;
+  }
 
   async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
     this.width = width;
@@ -177,14 +182,14 @@ export class KenoScene {
       fontWeight: '800',
       letterSpacing: 2,
     });
-    const label = new Text({ text: 'READY · 按下開始開獎', style });
+    const label = new Text({ text: this.labels.readyPrompt, style });
     label.anchor.set(0.5);
     label.x = this.width / 2;
     label.y = Math.max(30, this.height * 0.14);
     label.alpha = 1;
     this.statusLabel = label;
     this.app.stage.addChild(label);
-    this.setStatus('READY', 'idle');
+    this.setStatus(this.labels.ready, 'idle');
   }
 
   private startTickers(): void {
@@ -309,7 +314,7 @@ export class KenoScene {
     const animationSpeed = Math.max(1, Math.min(3.5, speed));
 
     if (this.statusLabel) {
-      this.setStatus('DRAWING', 'drawing');
+      this.setStatus(this.labels.drawing, 'drawing');
     }
 
     const ballsPerRow = 5;
@@ -326,9 +331,9 @@ export class KenoScene {
           if (this.statusLabel) {
             const count = hits.length;
             if (count > 0) {
-              this.setStatus(`命中 ${count} / ${selected.length}`, 'hit');
+              this.setStatus(this.labels.hit(count, selected.length), 'hit');
             } else {
-              this.setStatus('未命中', 'miss');
+              this.setStatus(this.labels.miss, 'miss');
             }
           }
           resolve();

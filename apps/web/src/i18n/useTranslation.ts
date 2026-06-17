@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from 'react';
 import { en } from './dict.en';
+import { th } from './dict.th';
+import { vi } from './dict.vi';
 import { zhHans } from './dict.zh-Hans';
 import { zhHant } from './dict.zh-Hant';
 import {
@@ -28,6 +30,8 @@ const dictionaries: Record<Locale, Dict> = {
   'zh-Hant': zhHant,
   'zh-Hans': zhHans,
   en,
+  th,
+  vi,
 };
 
 export interface LocaleOption {

@@ -88,6 +88,70 @@ const HALL_LABELS: Record<Locale, Record<HallId, HallLabel>> = {
       tagline: 'Choose step by step and cash out when the risk feels right',
     },
   },
+  th: {
+    crash: {
+      name: 'ห้องบิน Crash',
+      short: 'บิน',
+      tagline: 'ดูตัวคูณไต่ขึ้นและรับรางวัลให้ทันเวลา',
+    },
+    tables: {
+      name: 'ห้องโต๊ะไพ่',
+      short: 'โต๊ะ',
+      tagline: 'ไพ่ แต้ม และจังหวะโต๊ะที่ต้องใช้สมาธิ',
+    },
+    slots: {
+      name: 'ห้องสล็อต',
+      short: 'สล็อต',
+      tagline: 'ธีม วงล้อ ไลน์ และจังหวะชนะใหญ่ในที่เดียว',
+    },
+    roulette: {
+      name: 'ห้องรูเล็ต',
+      short: 'รูเล็ต',
+      tagline: 'วงล้อ สี และโซนเดิมพันที่เข้าใจง่าย',
+    },
+    classic: {
+      name: 'ห้องเกมทันใจ',
+      short: 'ทันใจ',
+      tagline: 'รอบสั้นอย่าง Dice, Keno และ Plinko',
+    },
+    strategy: {
+      name: 'ห้องกลยุทธ์',
+      short: 'กลยุทธ์',
+      tagline: 'เลือกทีละก้าวและรับรางวัลเมื่อความเสี่ยงพอดี',
+    },
+  },
+  vi: {
+    crash: {
+      name: 'Phòng bay Crash',
+      short: 'Bay',
+      tagline: 'Theo dõi hệ số tăng và rút thưởng đúng lúc',
+    },
+    tables: {
+      name: 'Phòng bàn chơi',
+      short: 'Bàn',
+      tagline: 'Bài, điểm số và nhịp bàn cần tập trung',
+    },
+    slots: {
+      name: 'Phòng Slot',
+      short: 'Slot',
+      tagline: 'Chủ đề, vòng quay, dòng thắng và nhịp thắng lớn trong một nơi',
+    },
+    roulette: {
+      name: 'Phòng Roulette',
+      short: 'Roulette',
+      tagline: 'Vòng quay, màu sắc và vùng cược trực quan',
+    },
+    classic: {
+      name: 'Phòng game tức thì',
+      short: 'Tức thì',
+      tagline: 'Các ván ngắn như Dice, Keno và Plinko',
+    },
+    strategy: {
+      name: 'Phòng chiến thuật',
+      short: 'Chiến thuật',
+      tagline: 'Chọn từng bước và rút thưởng khi rủi ro vừa ý',
+    },
+  },
 };
 
 export function getLocalizedHallName(hall: HallMeta, locale: Locale): string {

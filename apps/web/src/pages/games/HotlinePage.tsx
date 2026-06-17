@@ -35,6 +35,7 @@ import { GameHeader } from '@/components/game/GameHeader';
 import { AudioMenu } from '@/components/layout/AudioMenu';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
+import { getSceneLabels } from '@/i18n/sceneLabels';
 import { HotlineScene } from '@/games/hotline/HotlineScene';
 import { describeSlotDebugError, slotDebug, SLOT_DEBUG_BUILD } from '@/lib/slotDebug';
 import { RecentBetsList, type RecentBetRecord } from '@/components/game/RecentBetsList';
@@ -255,7 +256,8 @@ function isPixiRendererUnavailableError(error: unknown): boolean {
 
 export function HotlinePage({ theme = 'cyber' }: Props) {
   const { user, setBalance } = useAuthStore();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const sceneLabels = getSceneLabels(locale).hotline;
   const requireLogin = useRequireLogin();
   const returnTarget = useGameReturnTarget();
   const slotTheme = getSlotTheme(theme);
@@ -540,7 +542,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       lastHeight = h;
       const token = ++initToken;
       const previous = scene;
-      const nextScene = new HotlineScene();
+      const nextScene = new HotlineScene(sceneLabels);
       let initTimeout: ReturnType<typeof window.setTimeout> | null = null;
       const clearInitTimeout = () => {
         if (!initTimeout) return;
@@ -860,7 +862,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       window.visualViewport?.removeEventListener('resize', scheduleEnsureSceneSize);
       sceneRef.current = null;
     };
-  }, [isMegaSlot, scheduleSceneRecovery, sceneCanvasKey, setSceneAvailability, slotTheme]);
+  }, [
+    isMegaSlot,
+    scheduleSceneRecovery,
+    sceneCanvasKey,
+    sceneLabels,
+    setSceneAvailability,
+    slotTheme,
+  ]);
 
   const setMegaAmount = (next: number, syncText = true): void => {
     const max = user ? Math.max(minBetLimit, Math.min(balance, maxBetLimit)) : maxBetLimit;

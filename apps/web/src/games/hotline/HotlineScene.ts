@@ -31,6 +31,7 @@ import { getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
 import { getSlotTheme, type SlotThemeConfig } from '@/lib/slotThemes';
 import { describeSlotDebugError, slotDebug, SLOT_DEBUG_BUILD } from '@/lib/slotDebug';
 import { WinCelebration } from '@bg/game-engine';
+import { SCENE_LABELS, type SceneLabels } from '@/i18n/sceneLabels';
 
 const COLOR_BG = 0x0f172a;
 const COLOR_TILE_STROKE = 0xc9a247;
@@ -174,6 +175,7 @@ interface ReelData {
 }
 
 export class HotlineScene {
+  private labels: SceneLabels['hotline'];
   private app: Application | null = null;
   private width = 0;
   private height = 0;
@@ -214,6 +216,10 @@ export class HotlineScene {
   private rendererKind: 'webgl' | 'canvas' | 'webgpu' | 'unknown' = 'unknown';
   private lineFxTimers: number[] = [];
   private playbackFast = false;
+
+  constructor(labels: SceneLabels['hotline'] = SCENE_LABELS['zh-Hant'].hotline) {
+    this.labels = labels;
+  }
 
   async init(
     canvas: HTMLCanvasElement,
@@ -1263,7 +1269,8 @@ export class HotlineScene {
 
     const kind = options.type ?? filtered[0]?.type ?? 'scatter';
     const color = kind === 'scatter' ? COLOR_AMBER : COLOR_ICE;
-    const label = options.label ?? (kind === 'scatter' ? 'BONUS SCATTER' : '倍數啟動');
+    const label =
+      options.label ?? (kind === 'scatter' ? 'BONUS SCATTER' : this.labels.multiplierActivated);
     Sfx.slotWin(kind === 'scatter' || filtered.length >= 3 ? 'medium' : 'small');
 
     const bannerPromise = this.showSpecialBanner(label, color);
@@ -1976,8 +1983,8 @@ export class HotlineScene {
           secondary: 0x6bd8ff,
           tertiary: 0xffffff,
           deep: 0x10162f,
-          mediumTitle: '雷霆中獎',
-          bigTitle: '雷霆大獎',
+          mediumTitle: this.labels.megaWinTitles.thunder.medium,
+          bigTitle: this.labels.megaWinTitles.thunder.big,
         };
       case 'dragonMega':
         return {
@@ -1985,8 +1992,8 @@ export class HotlineScene {
           secondary: 0xff5a35,
           tertiary: 0x42f0a4,
           deep: 0x1c0905,
-          mediumTitle: '龍焰中獎',
-          bigTitle: '龍焰大獎',
+          mediumTitle: this.labels.megaWinTitles.dragonMega.medium,
+          bigTitle: this.labels.megaWinTitles.dragonMega.big,
         };
       case 'nebula':
         return {
@@ -1994,8 +2001,8 @@ export class HotlineScene {
           secondary: 0xb06bff,
           tertiary: 0xff72d2,
           deep: 0x080b22,
-          mediumTitle: '星河中獎',
-          bigTitle: '星河大獎',
+          mediumTitle: this.labels.megaWinTitles.nebula.medium,
+          bigTitle: this.labels.megaWinTitles.nebula.big,
         };
       case 'jungle':
         return {
@@ -2003,8 +2010,8 @@ export class HotlineScene {
           secondary: 0x19d38a,
           tertiary: 0xffd36b,
           deep: 0x06180f,
-          mediumTitle: '秘境中獎',
-          bigTitle: '秘境大獎',
+          mediumTitle: this.labels.megaWinTitles.jungle.medium,
+          bigTitle: this.labels.megaWinTitles.jungle.big,
         };
       case 'vampire':
         return {
@@ -2012,8 +2019,8 @@ export class HotlineScene {
           secondary: 0xd83d6b,
           tertiary: 0xa979ff,
           deep: 0x17060d,
-          mediumTitle: '暗夜中獎',
-          bigTitle: '暗夜大獎',
+          mediumTitle: this.labels.megaWinTitles.vampire.medium,
+          bigTitle: this.labels.megaWinTitles.vampire.big,
         };
       default:
         return {
@@ -2021,8 +2028,8 @@ export class HotlineScene {
           secondary: COLOR_ICE,
           tertiary: COLOR_VIOLET,
           deep: COLOR_INK,
-          mediumTitle: '中獎',
-          bigTitle: '超級大獎',
+          mediumTitle: this.labels.megaWinTitles.default.medium,
+          bigTitle: this.labels.megaWinTitles.default.big,
         };
     }
   }
@@ -2171,8 +2178,8 @@ export class HotlineScene {
 
     const payout =
       typeof payoutAmount === 'number' && Number.isFinite(payoutAmount) && payoutAmount > 0
-        ? `派彩 ${this.formatWinAmount(payoutAmount)}`
-        : '派彩結算';
+        ? `${this.labels.payoutPrefix} ${this.formatWinAmount(payoutAmount)}`
+        : this.labels.payoutSettled;
     const payoutText = new Text({
       text: payout,
       style: new TextStyle({

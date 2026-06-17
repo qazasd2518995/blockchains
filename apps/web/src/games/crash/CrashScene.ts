@@ -27,6 +27,7 @@ import {
   GAME_FONT_NUM,
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
+import { SCENE_LABELS, type SceneLabels } from '@/i18n/sceneLabels';
 
 const COLOR_BG_A = 0x111c2e;
 const COLOR_BG_B = 0x0b1322;
@@ -135,6 +136,7 @@ function easeOutCubic(t: number): number {
 }
 
 export class CrashScene {
+  private labels: SceneLabels['crash'];
   private app: Application | null = null;
   private width = 0;
   private height = 0;
@@ -194,6 +196,10 @@ export class CrashScene {
   private vignette: Graphics | null = null;
   private tensionStart = 0;
   private winFx: WinCelebration | null = null;
+
+  constructor(labels: SceneLabels['crash'] = SCENE_LABELS['zh-Hant'].crash) {
+    this.labels = labels;
+  }
 
   async init(
     canvas: HTMLCanvasElement,
@@ -611,7 +617,7 @@ export class CrashScene {
       align: 'center',
       letterSpacing: 6,
     });
-    const statusLabel = new Text({ text: 'WAITING…', style: statusStyle });
+    const statusLabel = new Text({ text: this.labels.waiting, style: statusStyle });
     statusLabel.anchor.set(0.5);
     statusLabel.x = this.width / 2;
     statusLabel.y = this.height * 0.82;
@@ -1086,7 +1092,7 @@ export class CrashScene {
       );
     }
     if (this.statusLabel) {
-      this.statusLabel.text = seconds > 0 ? '下一回合下注' : 'READY';
+      this.statusLabel.text = seconds > 0 ? this.labels.nextRoundBet : this.labels.ready;
       this.statusLabel.style.fill = COLOR_ACID;
     }
   }
@@ -1305,7 +1311,7 @@ export class CrashScene {
     }
 
     if (this.statusLabel) {
-      this.statusLabel.text = `CRASHED @ ${formatCrashMultiplier(finalMultiplier)}`;
+      this.statusLabel.text = this.labels.crashedAt(formatCrashMultiplier(finalMultiplier));
       this.statusLabel.style.fill = COLOR_EMBER;
     }
 
