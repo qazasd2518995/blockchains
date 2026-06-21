@@ -398,7 +398,7 @@ export const zhHant = {
     blackjack: {
       title: '21點',
       suffix: 'BLACKJACK',
-      description: '正式 21 點牌桌 · Blackjack 1:1 · 莊家軟 17 補牌',
+      description: '正式 21 點牌桌 · Blackjack 1:1 · 莊家 17 點停牌',
       dealer: '莊家',
       player: '玩家',
       hand: '手牌',
@@ -411,7 +411,7 @@ export const zhHant = {
       split: '分牌',
       rules: '牌桌規則',
       ruleBlackjack: '自然 Blackjack 與一般勝局皆按 1:1 派彩，平局退回本金。',
-      ruleDealer: '莊家 16 點以下補牌，硬 17 停牌，軟 17 仍會補牌。',
+      ruleDealer: '莊家 16 點含以下補牌，17 點含以上停牌。',
       ruleDoubleSplit: '兩張起手牌可加倍；同點數可分牌，A 分牌後每手只補一張。',
       holeHidden: '暗牌未開',
       placeBetToDeal: '下注後發牌',

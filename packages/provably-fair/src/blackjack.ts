@@ -16,7 +16,7 @@ export const BLACKJACK_HOUSE_RULES = {
   blackjackPayout: 2.5,
   regularWinPayout: 2,
   pushPayout: 1,
-  dealerStandsSoft17: false,
+  dealerStandsSoft17: true,
 } as const;
 
 export function blackjackDeck(

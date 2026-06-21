@@ -416,7 +416,7 @@ export const en = {
     blackjack: {
       title: 'Blackjack',
       suffix: 'BLACKJACK',
-      description: 'Blackjack table · 1:1 blackjack · Dealer hits soft 17',
+      description: 'Blackjack table · 1:1 blackjack · Dealer stands on all 17s',
       dealer: 'Dealer',
       player: 'Player',
       hand: 'Hand',
@@ -429,7 +429,7 @@ export const en = {
       split: 'Split',
       rules: 'Table Rules',
       ruleBlackjack: 'Natural blackjack and normal wins both pay 1:1. Push returns stake.',
-      ruleDealer: 'Dealer hits below 17, stands on hard 17, and hits soft 17.',
+      ruleDealer: 'Dealer hits 16 or less and stands on 17 or higher.',
       ruleDoubleSplit: 'You may double after the first two cards. Equal ranks may be split.',
       holeHidden: 'Hole card hidden',
       placeBetToDeal: 'Bet to deal',

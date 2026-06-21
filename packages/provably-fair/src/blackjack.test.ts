@@ -48,12 +48,13 @@ describe('blackjackScore', () => {
 describe('blackjackDealerShouldHit', () => {
   it('uses the house rules tuned for fixed rebate', () => {
     expect(BLACKJACK_HOUSE_RULES.blackjackPayout).toBe(2.5);
-    expect(BLACKJACK_HOUSE_RULES.dealerStandsSoft17).toBe(false);
+    expect(BLACKJACK_HOUSE_RULES.dealerStandsSoft17).toBe(true);
   });
 
-  it('hits soft 17 and stands on hard 17', () => {
+  it('hits 16 or less and stands on any 17', () => {
     expect(blackjackDealerShouldHit([c(10), c(6)])).toBe(true);
+    expect(blackjackDealerShouldHit([c(1), c(5)])).toBe(true);
     expect(blackjackDealerShouldHit([c(10), c(7)])).toBe(false);
-    expect(blackjackDealerShouldHit([c(1), c(6)])).toBe(true);
+    expect(blackjackDealerShouldHit([c(1), c(6)])).toBe(false);
   });
 });

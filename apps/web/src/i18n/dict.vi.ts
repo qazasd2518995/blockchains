@@ -416,7 +416,7 @@ export const vi = {
     blackjack: {
       title: 'Blackjack',
       suffix: 'BLACKJACK',
-      description: 'Bàn Blackjack · Blackjack 1:1 · Nhà cái rút soft 17',
+      description: 'Bàn Blackjack · Blackjack 1:1 · Nhà cái dừng mọi 17',
       dealer: 'Nhà cái',
       player: 'Người chơi',
       hand: 'Tay bài',
@@ -429,7 +429,7 @@ export const vi = {
       split: 'Tách',
       rules: 'Luật bàn',
       ruleBlackjack: 'Blackjack tự nhiên và thắng thường đều trả 1:1. Hòa hoàn cược.',
-      ruleDealer: 'Nhà cái rút dưới 17, dừng ở hard 17 và rút ở soft 17.',
+      ruleDealer: 'Nhà cái rút ở 16 điểm trở xuống và dừng ở 17 điểm trở lên.',
       ruleDoubleSplit: 'Có thể gấp đôi sau hai lá đầu. Các lá cùng hạng có thể tách.',
       holeHidden: 'Lá úp đang ẩn',
       placeBetToDeal: 'Cược để chia bài',

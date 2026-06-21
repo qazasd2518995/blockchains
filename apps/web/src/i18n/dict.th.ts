@@ -416,7 +416,7 @@ export const th = {
     blackjack: {
       title: 'Blackjack',
       suffix: 'BLACKJACK',
-      description: 'โต๊ะ Blackjack · blackjack จ่าย 1:1 · เจ้ามือจั่ว soft 17',
+      description: 'โต๊ะ Blackjack · blackjack จ่าย 1:1 · เจ้ามือหยุดที่ 17 ทุกแบบ',
       dealer: 'เจ้ามือ',
       player: 'ผู้เล่น',
       hand: 'มือ',
@@ -429,7 +429,7 @@ export const th = {
       split: 'แยก',
       rules: 'กติกาโต๊ะ',
       ruleBlackjack: 'Blackjack ธรรมชาติและชนะปกติจ่าย 1:1 เสมอคืนเดิมพัน',
-      ruleDealer: 'เจ้ามือจั่วต่ำกว่า 17, หยุดที่ hard 17 และจั่วที่ soft 17',
+      ruleDealer: 'เจ้ามือจั่วเมื่อมี 16 หรือต่ำกว่า และหยุดที่ 17 หรือสูงกว่า',
       ruleDoubleSplit: 'ดับเบิลได้หลังไพ่สองใบแรก ไพ่แต้มเท่ากันสามารถแยกได้',
       holeHidden: 'ไพ่คว่ำซ่อนอยู่',
       placeBetToDeal: 'เดิมพันเพื่อแจก',
