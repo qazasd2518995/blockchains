@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T08:56:54.767Z",
+  "generatedAt": "2026-06-21T10:52:07.348Z",
   "widths": [
     480,
     960,
@@ -141,6 +141,11 @@
       "480": "/_optimized/crash/craft/rocket@480.webp",
       "960": "/_optimized/crash/craft/rocket@960.webp",
       "1600": "/_optimized/crash/craft/rocket@1600.webp"
+    },
+    "/favicon.png": {
+      "480": "/_optimized/favicon@480.webp",
+      "960": "/_optimized/favicon@960.webp",
+      "1600": "/_optimized/favicon@1600.webp"
     },
     "/game-art/baccarat/background.png": {
       "480": "/_optimized/game-art/baccarat/background@480.webp",
