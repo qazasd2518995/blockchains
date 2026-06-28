@@ -1256,6 +1256,36 @@ describe('control decision priority', () => {
     );
   });
 
+  it('prioritizes active principal path bite controls over the global daily win cap', async () => {
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(120000),
+        baselineBalance: new Prisma.Decimal(100000),
+        lifecycleSteps: [80],
+        currentStageIndex: 0,
+        lastBalance: new Prisma.Decimal(100000),
+        controlPercentage: 100,
+      },
+    );
+    tx.bet.aggregate = vi.fn(async () => ({
+      _count: { _all: 1 },
+      _sum: { profit: new Prisma.Decimal(10000) },
+    }));
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.AVIATOR,
+      predictedResult(3000, '27077.10', 9.0257),
+      { forceControlOnMatch: true },
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('auto_balance_bite');
+  });
+
   it('advances auto-balance lifecycle to the next principal target when reached', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.59);
     const tx = createAutoReviveTx(

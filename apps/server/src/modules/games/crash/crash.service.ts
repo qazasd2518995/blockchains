@@ -14,11 +14,8 @@ import {
 } from '../_common/BaseGameService.js';
 import {
   applyControls,
-  applyGlobalMemberDailyWinCap,
   finalizeControls,
-  forceControlOutcomeToLoss,
   getGlobalMemberDailyWinCapGuard,
-  shouldForceLossForGameMatchedPayoutOnly,
   type ControlOutcome,
   type GlobalMemberDailyWinCapGuard,
   type PredictedResult,
@@ -97,7 +94,10 @@ export class CrashSoloService {
       );
       const roundNumber = await this.nextRoundNumber(tx, input.gameId);
       const naturalCrashPoint = crashPoint(seed.serverSeed, `${input.gameId}:${roundNumber}`);
-      const controlProbe = this.predictStartControlOutcome(amount);
+      const controlProbe = this.predictStartControlOutcome(
+        amount,
+        this.startControlProbeMultiplier(naturalCrashPoint, autoCashOut),
+      );
       const globalCapGuard = await getGlobalMemberDailyWinCapGuard(
         tx,
         userId,
@@ -343,19 +343,17 @@ export class CrashSoloService {
       multiplier: cashoutMultiplier,
       payout: naturalPayout,
     };
-    const rawGlobalCapOutcome = await applyGlobalMemberDailyWinCap(
-      tx,
-      bet.userId,
-      cashoutPrediction,
-      bet.round.gameId,
-    );
-    const globalCapOutcome =
-      rawGlobalCapOutcome &&
-      shouldForceLossForGameMatchedPayoutOnly(cashoutMultiplier, bet.amount, rawGlobalCapOutcome)
-        ? forceControlOutcomeToLoss(rawGlobalCapOutcome)
-        : rawGlobalCapOutcome;
+    const cashoutOutcome: ControlOutcome =
+      control?.controlled && !control.won
+        ? control
+        : {
+            won: cashoutPrediction.won,
+            multiplier: cashoutMultiplier,
+            payout: naturalPayout,
+            controlled: false,
+          };
 
-    if (globalCapOutcome?.controlled && !globalCapOutcome.won) {
+    if (cashoutOutcome.controlled && !cashoutOutcome.won) {
       const lossCrashPoint = cashoutMultiplier;
       await tx.crashRound.update({
         where: { id: round.id },
@@ -398,7 +396,7 @@ export class CrashSoloService {
           multiplier: new Prisma.Decimal(0),
           payout: zeroPayout,
         },
-        globalCapOutcome,
+        cashoutOutcome,
         bet.id,
         {
           cashoutAt: cashoutMultiplier.toFixed(4),
@@ -413,10 +411,8 @@ export class CrashSoloService {
       return { bet: finalizedBet, payout: zeroPayout, newBalance: user.balance.toFixed(2) };
     }
 
-    const finalPayout = globalCapOutcome?.controlled ? globalCapOutcome.payout : naturalPayout;
-    const finalMultiplier = globalCapOutcome?.controlled
-      ? globalCapOutcome.multiplier
-      : cashoutMultiplier;
+    const finalPayout = naturalPayout;
+    const finalMultiplier = cashoutMultiplier;
     const claimed = await tx.crashBet.updateMany({
       where: { id: bet.id, cashedOutAt: null, controlFinalizedAt: null },
       data: {
@@ -439,12 +435,6 @@ export class CrashSoloService {
       roundId: round.id,
       crashBetId: bet.id,
       multiplier: finalMultiplier.toFixed(4),
-      ...(globalCapOutcome?.controlled
-        ? {
-            attemptedCashoutAt: cashoutMultiplier.toFixed(4),
-            controlReason: globalCapOutcome.flipReason,
-          }
-        : {}),
     });
     const finalizedBet = await this.getBetWithRound(tx, bet.id);
     const final = {
@@ -454,8 +444,8 @@ export class CrashSoloService {
       payout: finalPayout,
     };
     let effectiveOutcome: ControlOutcome;
-    if (globalCapOutcome?.controlled) {
-      effectiveOutcome = globalCapOutcome;
+    if (cashoutOutcome.controlled) {
+      effectiveOutcome = cashoutOutcome;
     } else if (control?.controlled && control.won) {
       effectiveOutcome = {
         ...control,
@@ -476,11 +466,11 @@ export class CrashSoloService {
       tx,
       bet.userId,
       round.gameId,
-      globalCapOutcome?.controlled ? cashoutPrediction : original,
+      cashoutOutcome.controlled ? cashoutPrediction : original,
       final,
       effectiveOutcome,
       bet.id,
-      globalCapOutcome?.controlled
+      cashoutOutcome.controlled
         ? {
             cashoutAt: cashoutMultiplier.toFixed(4),
             payout: naturalPayout.toFixed(2),
@@ -581,8 +571,19 @@ export class CrashSoloService {
     return (last?.roundNumber ?? 0) + 1;
   }
 
-  private predictStartControlOutcome(amount: Prisma.Decimal): PredictedResult {
-    const multiplier = CRASH_CONTROL_PROBE_MULTIPLIER;
+  private startControlProbeMultiplier(
+    naturalCrashPoint: number,
+    autoCashOut: Prisma.Decimal | null,
+  ): Prisma.Decimal {
+    const naturalMultiplier = new Prisma.Decimal(naturalCrashPoint.toFixed(4));
+    if (autoCashOut && autoCashOut.lessThan(naturalMultiplier)) return autoCashOut;
+    return naturalMultiplier.greaterThan(0) ? naturalMultiplier : CRASH_CONTROL_PROBE_MULTIPLIER;
+  }
+
+  private predictStartControlOutcome(
+    amount: Prisma.Decimal,
+    multiplier = CRASH_CONTROL_PROBE_MULTIPLIER,
+  ): PredictedResult {
     const payout = amount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
     return {
       won: payout.greaterThan(amount),
@@ -635,6 +636,17 @@ export class CrashSoloService {
           flipReason: 'burst_budget_guard',
           controlId: control.controlId,
         },
+      };
+    }
+
+    if (control.gameMatchedPayoutOnly && Number.isFinite(maxTarget)) {
+      const cappedCrashPoint = Math.min(
+        Math.max(naturalCrashPoint, requestedTarget),
+        maxTarget + 0.0001,
+      );
+      return {
+        crashPoint: Number(cappedCrashPoint.toFixed(4)),
+        control,
       };
     }
 

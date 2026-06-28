@@ -509,16 +509,20 @@ async function findControlDecision(
     return CONTROL_PATH_NATURAL;
   }
 
+  const existingAutoBalance = await findAutoBalanceDecisionInternal(tx, member, predicted, 'any', {
+    existingOnly: true,
+  });
+  if (existingAutoBalance.decision) return existingAutoBalance.decision;
+  if (existingAutoBalance.pathNatural || existingAutoBalance.inActiveCycle) {
+    return CONTROL_PATH_NATURAL;
+  }
+
   if (!(await shouldBypassGlobalMemberDailyWinCap(tx, member, gameId))) {
     const globalWinCap = await findGlobalMemberWinCapDecision(tx, member.id, predicted, options);
     if (isControlInterventionMiss(globalWinCap)) return CONTROL_INTERVENTION_MISS;
     if (isControlPathNatural(globalWinCap)) return CONTROL_PATH_NATURAL;
     if (globalWinCap) return globalWinCap;
   }
-
-  const autoBalance = await findAutoBalanceDecisionInternal(tx, member, predicted, 'any');
-  if (autoBalance.decision) return autoBalance.decision;
-  if (autoBalance.pathNatural || autoBalance.inActiveCycle) return CONTROL_PATH_NATURAL;
 
   const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
   if (accidentalBurstCap) return accidentalBurstCap;
@@ -676,12 +680,24 @@ async function findAutoBalanceDecisionInternal(
   member: MemberScope,
   predicted: PredictedResult,
   mode: 'any' | 'reviveOnly',
+  options: { existingOnly?: boolean } = {},
 ): Promise<AutoBalanceDecisionResult> {
+  const autoBalanceDelegate = (
+    tx as unknown as {
+      memberAutoBalanceControl?: {
+        findUnique?: (args: unknown) => Promise<AutoBalanceControlRecord | null>;
+      };
+    }
+  ).memberAutoBalanceControl;
+  if (options.existingOnly && !autoBalanceDelegate?.findUnique) {
+    return { decision: null, inActiveCycle: false };
+  }
+
   const currentUser = await tx.user.findUnique({
     where: { id: member.id },
     select: { id: true, username: true, agentId: true, balance: true },
   });
-  if (!currentUser || currentUser.balance.lessThanOrEqualTo(0)) {
+  if (!currentUser || !currentUser.balance || currentUser.balance.lessThanOrEqualTo(0)) {
     return { decision: null, inActiveCycle: false };
   }
 
@@ -694,7 +710,7 @@ async function findAutoBalanceDecisionInternal(
   }
 
   let control =
-    mode === 'reviveOnly'
+    options.existingOnly || mode === 'reviveOnly'
       ? await tx.memberAutoBalanceControl.findUnique({ where: { memberId: currentUser.id } })
       : await getOrCreateMemberAutoBalanceControl(tx, currentUser);
   if (!control || !control.isActive) return { decision: null, inActiveCycle: false };

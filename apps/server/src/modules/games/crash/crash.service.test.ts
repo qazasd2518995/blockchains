@@ -1,6 +1,5 @@
 import { Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
-import { GameId } from '@bg/shared';
 import { __crashServiceTestHooks, CrashSoloService } from './crash.service.js';
 import type { ControlOutcome, GlobalMemberDailyWinCapGuard } from '../_common/controls.js';
 
@@ -111,259 +110,40 @@ describe('CrashSoloService global member win cap', () => {
     expect(tuned.control.flipReason).toBe('global_member_daily_win_cap');
   });
 
-  it('soft-drains a bbb-style over-cap cashout to zero when the drain gate hits', async () => {
-    vi.spyOn(Math, 'random').mockReturnValueOnce(0.39);
-    const round = {
-      id: 'round-1',
-      gameId: GameId.ROCKET,
-      roundNumber: 1,
-      serverSeedHash: 'hash',
-      serverSeed: 'seed',
-      crashPoint: decimal(10),
-      status: 'RUNNING',
-      bettingEndsAt: null,
-      startedAt: new Date('2026-06-08T01:00:00Z'),
-      crashedAt: null,
-      createdAt: new Date('2026-06-08T01:00:00Z'),
-    };
-    type Round = typeof round;
-    let storedBet = {
-      id: 'crash-bet-1',
-      roundId: round.id,
-      round,
-      userId: 'bbb',
-      amount: decimal(100),
-      autoCashOut: null,
-      cashedOutAt: null as Prisma.Decimal | null,
-      payout: decimal(0),
-      controlOriginal: null,
-      controlOutcome: null,
-      controlFinalizedAt: null as Date | null,
-      createdAt: new Date('2026-06-08T01:00:01Z'),
-    };
-    type StoredBet = typeof storedBet;
-    const user = {
-      id: 'bbb',
-      username: 'bbb',
-      agentId: null,
-      balance: decimal(100000),
-    };
-    const tx = {
-      user: {
-        findUnique: vi.fn(async () => user),
-        findUniqueOrThrow: vi.fn(async () => user),
-        update: vi.fn(),
-      },
-      bet: {
-        aggregate: vi.fn(async () => ({
-          _count: { _all: 1 },
-          _sum: { profit: decimal('49415.66') },
-        })),
-      },
-      crashBet: {
-        aggregate: vi.fn(async () => ({
-          _count: { _all: 0 },
-          _sum: { amount: decimal(0), payout: decimal(0) },
-        })),
-        updateMany: vi.fn(async ({ data }: { data: Partial<StoredBet> }) => {
-          storedBet = {
-            ...storedBet,
-            ...data,
-          };
-          return { count: 1 };
-        }),
-        findUniqueOrThrow: vi.fn(async () => storedBet),
-      },
-      crashRound: {
-        update: vi.fn(async ({ data }: { data: Partial<Round> }) => {
-          Object.assign(round, data);
-          storedBet = { ...storedBet, round };
-          return round;
-        }),
-      },
-      memberWinCapControl: {
-        findFirst: vi.fn(async () => null),
-      },
-      memberDepositControl: {
-        findMany: vi.fn(async () => []),
-      },
-      memberAutoBalanceControl: {
-        findUnique: vi.fn(async () => null),
-      },
-      winLossControl: {
-        findMany: vi.fn(async () => []),
-      },
-      winLossControlLogs: {
-        create: vi.fn(),
-      },
-    };
-    type FakeTx = typeof tx;
+  it('uses the reachable crash multiplier for start-time control probes', () => {
     const service = new CrashSoloService({} as never) as unknown as {
-      finalizeCashoutInTx: (
-        tx: FakeTx,
-        bet: StoredBet,
-        round: Round,
-        multiplier: number,
-        control: null,
-        original: {
-          won: boolean;
-          amount: Prisma.Decimal;
-          multiplier: Prisma.Decimal;
-          payout: Prisma.Decimal;
-        },
-      ) => Promise<{ bet: StoredBet; payout: Prisma.Decimal; newBalance: string }>;
+      startControlProbeMultiplier: (
+        naturalCrashPoint: number,
+        autoCashOut: Prisma.Decimal | null,
+      ) => Prisma.Decimal;
     };
 
-    const result = await service.finalizeCashoutInTx(tx, storedBet, round, 3, null, {
-      won: false,
-      amount: decimal(100),
-      multiplier: decimal(0),
-      payout: decimal(0),
-    });
-
-    expect(result.payout.toFixed(2)).toBe('0.00');
-    expect(storedBet.payout.toFixed(2)).toBe('0.00');
-    expect(storedBet.cashedOutAt).toBeNull();
-    expect(storedBet.round.status).toBe('CRASHED');
-    expect(storedBet.round.crashPoint.toFixed(4)).toBe('3.0000');
-    expect(tx.user.update).not.toHaveBeenCalled();
-    expect(tx.winLossControlLogs.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          controlId: 'global-member-daily-win-cap',
-          userId: 'bbb',
-          gameId: GameId.ROCKET,
-          flipReason: 'global_member_daily_win_cap',
-        }),
-      }),
-    );
+    expect(service.startControlProbeMultiplier(18.7984, decimal(20)).toFixed(4)).toBe('18.7984');
+    expect(service.startControlProbeMultiplier(30, decimal(20)).toFixed(4)).toBe('20.0000');
   });
 
-  it('does not synthesize a partial cap payout when cashout multiplier is not under the cap', async () => {
-    vi.spyOn(Math, 'random').mockReturnValueOnce(0.39);
-    const round = {
-      id: 'round-2',
-      gameId: GameId.ROCKET,
-      roundNumber: 2,
-      serverSeedHash: 'hash',
-      serverSeed: 'seed',
-      crashPoint: decimal(10),
-      status: 'RUNNING',
-      bettingEndsAt: null,
-      startedAt: new Date('2026-06-08T02:00:00Z'),
-      crashedAt: null,
-      createdAt: new Date('2026-06-08T02:00:00Z'),
-    };
-    type Round = typeof round;
-    let storedBet = {
-      id: 'crash-bet-2',
-      roundId: round.id,
-      round,
-      userId: 'near-cap',
-      amount: decimal(100),
-      autoCashOut: null,
-      cashedOutAt: null as Prisma.Decimal | null,
-      payout: decimal(0),
-      controlOriginal: null,
-      controlOutcome: null,
-      controlFinalizedAt: null as Date | null,
-      createdAt: new Date('2026-06-08T02:00:01Z'),
-    };
-    type StoredBet = typeof storedBet;
-    const user = {
-      id: 'near-cap',
-      username: 'near-cap',
-      agentId: null,
-      balance: decimal(100000),
-    };
-    const tx = {
-      user: {
-        findUnique: vi.fn(async () => user),
-        findUniqueOrThrow: vi.fn(async () => user),
-        update: vi.fn(),
-      },
-      bet: {
-        aggregate: vi.fn(async () => ({
-          _count: { _all: 1 },
-          _sum: { profit: decimal('9950') },
-        })),
-      },
-      crashBet: {
-        aggregate: vi.fn(async () => ({
-          _count: { _all: 0 },
-          _sum: { amount: decimal(0), payout: decimal(0) },
-        })),
-        updateMany: vi.fn(async ({ data }: { data: Partial<StoredBet> }) => {
-          storedBet = {
-            ...storedBet,
-            ...data,
-          };
-          return { count: 1 };
-        }),
-        findUniqueOrThrow: vi.fn(async () => storedBet),
-      },
-      crashRound: {
-        update: vi.fn(async ({ data }: { data: Partial<Round> }) => {
-          Object.assign(round, data);
-          storedBet = { ...storedBet, round };
-          return round;
-        }),
-      },
-      memberWinCapControl: {
-        findFirst: vi.fn(async () => null),
-      },
-      memberDepositControl: {
-        findMany: vi.fn(async () => []),
-      },
-      memberAutoBalanceControl: {
-        findUnique: vi.fn(async () => null),
-      },
-      winLossControl: {
-        findMany: vi.fn(async () => []),
-      },
-      winLossControlLogs: {
-        create: vi.fn(),
-      },
-    };
-    type FakeTx = typeof tx;
+  it('caps game-matched crash controls at the next tick instead of leaving cashout room', () => {
     const service = new CrashSoloService({} as never) as unknown as {
-      finalizeCashoutInTx: (
-        tx: FakeTx,
-        bet: StoredBet,
-        round: Round,
-        multiplier: number,
-        control: null,
-        original: {
-          won: boolean;
-          amount: Prisma.Decimal;
-          multiplier: Prisma.Decimal;
-          payout: Prisma.Decimal;
-        },
-      ) => Promise<{ bet: StoredBet; payout: Prisma.Decimal; newBalance: string }>;
+      tuneCrashPoint: (
+        naturalCrashPoint: number,
+        amount: Prisma.Decimal,
+        control: ControlOutcome,
+        recentControlledLosses: number,
+      ) => { crashPoint: number; control: ControlOutcome };
+    };
+    const control: ControlOutcome = {
+      won: true,
+      multiplier: decimal(8),
+      payout: decimal(24000),
+      controlled: true,
+      flipReason: 'auto_balance_path_guard',
+      controlId: 'auto-path-1',
+      maxPayout: decimal(24000),
+      gameMatchedPayoutOnly: true,
     };
 
-    const result = await service.finalizeCashoutInTx(tx, storedBet, round, 3, null, {
-      won: false,
-      amount: decimal(100),
-      multiplier: decimal(0),
-      payout: decimal(0),
-    });
+    const tuned = service.tuneCrashPoint(20, decimal(3000), control, 0);
 
-    expect(result.payout.toFixed(2)).toBe('0.00');
-    expect(storedBet.payout.toFixed(2)).toBe('0.00');
-    expect(storedBet.cashedOutAt).toBeNull();
-    expect(storedBet.round.status).toBe('CRASHED');
-    expect(storedBet.round.crashPoint.toFixed(4)).toBe('3.0000');
-    expect(tx.user.update).not.toHaveBeenCalled();
-    expect(tx.winLossControlLogs.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          controlId: 'global-member-daily-win-cap',
-          userId: 'near-cap',
-          gameId: GameId.ROCKET,
-          flipReason: 'global_member_daily_win_cap',
-        }),
-      }),
-    );
+    expect(tuned.crashPoint).toBe(8.0001);
   });
 });
