@@ -26,11 +26,6 @@ import type { CrashBetInput, CrashCashoutInput } from './crash.schema.js';
 const MIN_CASHOUT_MULTIPLIER = 1.01;
 const CONTROLLED_LOSS_INSTANT_MIN = 1.0001;
 const CONTROLLED_LOSS_INSTANT_MAX = 1.0099;
-const CONTROLLED_LOSS_SPREAD_MIN = MIN_CASHOUT_MULTIPLIER;
-const CONTROLLED_LOSS_SPREAD_LOW_MAX = 1.2;
-const CONTROLLED_LOSS_SPREAD_MID_MAX = 1.55;
-const CONTROLLED_LOSS_SPREAD_MAX = 1.95;
-const CONTROLLED_LOSS_AUTO_CASHOUT_GAP = 0.0001;
 const CONTROLLED_WIN_BASE_MIN = 2.05;
 const CONTROLLED_WIN_BASE_MAX = 6.8;
 const CONTROLLED_WIN_HIGH_MIN = 7.2;
@@ -555,6 +550,19 @@ export class CrashSoloService {
         control,
       };
     }
+    if (isCrashPathGuardWin(control)) {
+      return {
+        crashPoint: chooseControlledLossCrashPoint(naturalCrashPoint, autoCashOut),
+        control: {
+          ...control,
+          won: false,
+          multiplier: new Prisma.Decimal(0),
+          payout: new Prisma.Decimal(0),
+          maxPayout: undefined,
+          maxMultiplier: undefined,
+        },
+      };
+    }
 
     const capFromPayout = control.maxPayout
       ? Number(control.maxPayout.div(amount).toFixed(4))
@@ -626,52 +634,22 @@ function randomCrashPoint(min: number, max: number): number {
 
 function chooseControlledLossCrashPoint(
   naturalCrashPoint: number,
-  autoCashOut: Prisma.Decimal | null,
+  _autoCashOut: Prisma.Decimal | null,
 ): number {
   const natural = Number(Math.max(1, naturalCrashPoint).toFixed(4));
-  if (!autoCashOut) {
-    return Math.min(
-      natural,
-      randomCrashPoint(CONTROLLED_LOSS_INSTANT_MIN, CONTROLLED_LOSS_INSTANT_MAX),
-    );
-  }
-
-  const autoCashOutNumber = Number(autoCashOut.toFixed(4));
-  const maxBeforeAutoCashOut = Number(
-    (autoCashOutNumber - CONTROLLED_LOSS_AUTO_CASHOUT_GAP).toFixed(4),
+  return Math.min(
+    natural,
+    randomCrashPoint(CONTROLLED_LOSS_INSTANT_MIN, CONTROLLED_LOSS_INSTANT_MAX),
   );
-  const maxCrashPoint = Math.min(CONTROLLED_LOSS_SPREAD_MAX, maxBeforeAutoCashOut);
-  if (maxCrashPoint <= CONTROLLED_LOSS_SPREAD_MIN) {
-    return Math.min(
-      natural,
-      randomCrashPoint(CONTROLLED_LOSS_INSTANT_MIN, CONTROLLED_LOSS_INSTANT_MAX),
-    );
-  }
-
-  const sampled = sampleControlledLossCrashPoint(maxCrashPoint);
-  return Number(Math.min(natural, sampled).toFixed(4));
 }
 
-function sampleControlledLossCrashPoint(maxCrashPoint: number): number {
-  const max = Number(maxCrashPoint.toFixed(4));
-  if (max <= CONTROLLED_LOSS_SPREAD_LOW_MAX) {
-    return randomCrashPoint(CONTROLLED_LOSS_SPREAD_MIN, max);
-  }
-
-  const roll = Math.random();
-  if (roll < 0.45) {
-    return randomCrashPoint(
-      CONTROLLED_LOSS_SPREAD_MIN,
-      Math.min(max, CONTROLLED_LOSS_SPREAD_LOW_MAX),
-    );
-  }
-  if (roll < 0.8 || max <= CONTROLLED_LOSS_SPREAD_MID_MAX) {
-    return randomCrashPoint(
-      CONTROLLED_LOSS_SPREAD_LOW_MAX,
-      Math.min(max, CONTROLLED_LOSS_SPREAD_MID_MAX),
-    );
-  }
-  return randomCrashPoint(CONTROLLED_LOSS_SPREAD_MID_MAX, max);
+function isCrashPathGuardWin(control: ControlOutcome): boolean {
+  return Boolean(
+    control.controlled &&
+      control.won &&
+      control.flipReason === 'auto_balance_path_guard' &&
+      control.gameMatchedPayoutOnly,
+  );
 }
 
 function chooseControlledWinCrashTarget(requestedTarget: number, maxTarget: number): number {

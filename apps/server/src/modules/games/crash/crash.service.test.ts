@@ -30,8 +30,8 @@ describe('CrashSoloService controlled losses', () => {
     expect(tuned.control.won).toBe(false);
     expect(tuned.control.flipReason).toBe('auto_balance_drain');
     expect(tuned.control.payout.toFixed(2)).toBe('0.00');
-    expect(tuned.crashPoint).toBeGreaterThanOrEqual(1.01);
-    expect(tuned.crashPoint).toBeLessThan(2);
+    expect(tuned.crashPoint).toBeGreaterThanOrEqual(1.0001);
+    expect(tuned.crashPoint).toBeLessThan(1.01);
   });
 
   it('puts controlled losses before a 1.1x auto-cashout can settle', () => {
@@ -55,8 +55,8 @@ describe('CrashSoloService controlled losses', () => {
 
     const tuned = service.tuneCrashPoint(20, decimal(5000), control, decimal(1.1));
 
-    expect(tuned.crashPoint).toBeGreaterThanOrEqual(1.01);
-    expect(tuned.crashPoint).toBeLessThan(1.1);
+    expect(tuned.crashPoint).toBeGreaterThanOrEqual(1.0001);
+    expect(tuned.crashPoint).toBeLessThan(1.01);
     expect(1.1 < tuned.crashPoint).toBe(false);
   });
 
@@ -68,11 +68,12 @@ describe('CrashSoloService controlled losses', () => {
     expect(tuned).toBeLessThan(1.01);
   });
 
-  it('does not extend naturally low crash points while shaping controlled losses', () => {
+  it('keeps controlled losses below the first cashout point even when natural crash is higher', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.9999);
     const tuned = __crashServiceTestHooks.chooseControlledLossCrashPoint(1.05, decimal(2));
 
-    expect(tuned).toBe(1.05);
+    expect(tuned).toBeGreaterThanOrEqual(1.0001);
+    expect(tuned).toBeLessThan(1.01);
   });
 });
 
@@ -138,7 +139,8 @@ describe('CrashSoloService global member win cap', () => {
     expect(service.startControlProbeMultiplier(30, decimal(20)).toFixed(4)).toBe('20.0000');
   });
 
-  it('caps game-matched crash controls at the next tick instead of leaving cashout room', () => {
+  it('turns game-matched path guards into crash losses instead of leaving cashout room', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9999);
     const service = new CrashSoloService({} as never) as unknown as {
       tuneCrashPoint: (
         naturalCrashPoint: number,
@@ -158,8 +160,11 @@ describe('CrashSoloService global member win cap', () => {
       gameMatchedPayoutOnly: true,
     };
 
-    const tuned = service.tuneCrashPoint(20, decimal(3000), control, null);
+    const tuned = service.tuneCrashPoint(20, decimal(3000), control, decimal(20));
 
-    expect(tuned.crashPoint).toBe(8.0001);
+    expect(tuned.crashPoint).toBeGreaterThanOrEqual(1.0001);
+    expect(tuned.crashPoint).toBeLessThan(1.01);
+    expect(tuned.control.won).toBe(false);
+    expect(tuned.control.flipReason).toBe('auto_balance_path_guard');
   });
 });
