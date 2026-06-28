@@ -120,6 +120,7 @@ type AutoBalanceControlRecord = {
   secondLineAmount?: Prisma.Decimal | null;
   controlPercentage?: number | null;
   isActive: boolean;
+  resetReason?: string | null;
 };
 
 function isControlInterventionMiss(
@@ -210,6 +211,7 @@ const BURST_ELIGIBLE_GAME_IDS = new Set<string>(SLOT_GAME_IDS);
 const AUTO_BALANCE_BITE_INTERVENTION_RATE = 0.3;
 const AUTO_BALANCE_DRAIN_INTERVENTION_RATE = 0.4;
 const GLOBAL_MEMBER_DAILY_WIN_CAP_DRAIN_INTERVENTION_RATE = AUTO_BALANCE_DRAIN_INTERVENTION_RATE;
+const AUTO_BALANCE_EXCLUDED_LINE_OVERRIDE_REASON = 'manual_excluded_line_override';
 const LIFECYCLE_PATH_TARGET_BAND_RATE = new Prisma.Decimal('0.05');
 const LIFECYCLE_PATH_STAGE_BAND_PERCENT = 10;
 const CONTROL_RELEASE_LOG_WINDOW = 8;
@@ -701,17 +703,31 @@ async function findAutoBalanceDecisionInternal(
     return { decision: null, inActiveCycle: false };
   }
 
+  let existingControl: AutoBalanceControlRecord | null | undefined;
+  const loadExistingControl = async (): Promise<AutoBalanceControlRecord | null> => {
+    if (existingControl !== undefined) return existingControl;
+    existingControl = (await tx.memberAutoBalanceControl.findUnique({
+      where: { memberId: currentUser.id },
+    })) as AutoBalanceControlRecord | null;
+    return existingControl;
+  };
+
   if (await isAutoBalanceExcludedAgentLine(tx, currentUser.agentId)) {
-    await tx.memberAutoBalanceControl.updateMany({
-      where: { memberId: currentUser.id, isActive: true },
-      data: { isActive: false, resetReason: 'auto_balance_excluded' },
-    });
-    return { decision: null, inActiveCycle: false };
+    const overrideControl = await loadExistingControl();
+    if (!isExcludedLineAutoBalanceOverride(overrideControl)) {
+      await tx.memberAutoBalanceControl.updateMany({
+        where: { memberId: currentUser.id, isActive: true },
+        data: { isActive: false, resetReason: 'auto_balance_excluded' },
+      });
+      return { decision: null, inActiveCycle: false };
+    }
   }
 
   let control =
     options.existingOnly || mode === 'reviveOnly'
-      ? await tx.memberAutoBalanceControl.findUnique({ where: { memberId: currentUser.id } })
+      ? await loadExistingControl()
+      : isExcludedLineAutoBalanceOverride(existingControl)
+        ? existingControl
       : await getOrCreateMemberAutoBalanceControl(tx, currentUser);
   if (!control || !control.isActive) return { decision: null, inActiveCycle: false };
   const lifecycleSteps = parseDepositLifecycleSteps(
@@ -798,6 +814,16 @@ async function findAutoBalanceDecisionInternal(
     inActiveCycle: true,
     pathNatural: !lossDecision && !pathGuard,
   };
+}
+
+function isExcludedLineAutoBalanceOverride(
+  control: AutoBalanceControlRecord | null | undefined,
+): boolean {
+  return Boolean(
+    control?.isActive &&
+      typeof control.resetReason === 'string' &&
+      control.resetReason.startsWith(AUTO_BALANCE_EXCLUDED_LINE_OVERRIDE_REASON),
+  );
 }
 
 async function buildAutoBalanceLifecycleDecision(

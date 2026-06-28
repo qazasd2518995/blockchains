@@ -467,6 +467,7 @@ describe('control decision priority', () => {
       currentStageIndex?: number;
       lastBalance?: Prisma.Decimal | null;
       controlPercentage?: number | null;
+      resetReason?: string | null;
     } = {},
   ) => {
     const baselineBalance = over.baselineBalance ?? new Prisma.Decimal(50000);
@@ -526,6 +527,7 @@ describe('control decision priority', () => {
           secondLineAmount: new Prisma.Decimal(50000),
           controlPercentage: over.controlPercentage ?? null,
           isActive: true,
+          resetReason: over.resetReason ?? null,
         })),
         update: vi.fn(async (args: { data?: Record<string, unknown> }) => ({
           id: 'auto-1',
@@ -551,6 +553,8 @@ describe('control decision priority', () => {
           secondLineAmount: new Prisma.Decimal(50000),
           controlPercentage: over.controlPercentage ?? null,
           isActive: typeof args.data?.isActive === 'boolean' ? args.data.isActive : true,
+          resetReason:
+            (args.data?.resetReason as string | null | undefined) ?? over.resetReason ?? null,
         })),
         updateMany: vi.fn(),
       },
@@ -1622,6 +1626,35 @@ describe('control decision priority', () => {
 
     expect(outcome.controlled).toBe(false);
     expect(tx.memberAutoBalanceControl.updateMany).toHaveBeenCalledWith({
+      where: { memberId: 'member-1', isActive: true },
+      data: { isActive: false, resetReason: 'auto_balance_excluded' },
+    });
+  });
+
+  it('honors explicit member auto-balance override on the excluded 8000DG credit line', async () => {
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        agentId: 'agent-under-8000dg',
+        excluded: true,
+        balance: new Prisma.Decimal(50000),
+        phase: 'BITE_TO_30',
+        controlPercentage: 100,
+        resetReason: 'manual_excluded_line_override:manual_reenable_after_unfreeze',
+      },
+    );
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.DICE,
+      predictedResult(10, 20, 2),
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('auto_balance_bite');
+    expect(tx.memberAutoBalanceControl.updateMany).not.toHaveBeenCalledWith({
       where: { memberId: 'member-1', isActive: true },
       data: { isActive: false, resetReason: 'auto_balance_excluded' },
     });
