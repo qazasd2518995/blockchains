@@ -13,7 +13,7 @@ describe('CrashSoloService controlled losses', () => {
         naturalCrashPoint: number,
         amount: Prisma.Decimal,
         control: ControlOutcome,
-        recentControlledLosses: number,
+        autoCashOut: Prisma.Decimal | null,
       ) => { crashPoint: number; control: ControlOutcome };
     };
     const control: ControlOutcome = {
@@ -25,13 +25,13 @@ describe('CrashSoloService controlled losses', () => {
       controlId: 'auto-1',
     };
 
-    const tuned = service.tuneCrashPoint(10, decimal(5000), control, 10);
+    const tuned = service.tuneCrashPoint(10, decimal(5000), control, decimal(2));
 
     expect(tuned.control.won).toBe(false);
     expect(tuned.control.flipReason).toBe('auto_balance_drain');
     expect(tuned.control.payout.toFixed(2)).toBe('0.00');
-    expect(tuned.crashPoint).toBeGreaterThanOrEqual(1.0001);
-    expect(tuned.crashPoint).toBeLessThan(1.01);
+    expect(tuned.crashPoint).toBeGreaterThanOrEqual(1.01);
+    expect(tuned.crashPoint).toBeLessThan(2);
   });
 
   it('puts controlled losses before a 1.1x auto-cashout can settle', () => {
@@ -41,7 +41,7 @@ describe('CrashSoloService controlled losses', () => {
         naturalCrashPoint: number,
         amount: Prisma.Decimal,
         control: ControlOutcome,
-        recentControlledLosses: number,
+        autoCashOut: Prisma.Decimal | null,
       ) => { crashPoint: number; control: ControlOutcome };
     };
     const control: ControlOutcome = {
@@ -53,10 +53,26 @@ describe('CrashSoloService controlled losses', () => {
       controlId: 'loss-1',
     };
 
-    const tuned = service.tuneCrashPoint(20, decimal(5000), control, 0);
+    const tuned = service.tuneCrashPoint(20, decimal(5000), control, decimal(1.1));
 
-    expect(tuned.crashPoint).toBeLessThan(1.01);
+    expect(tuned.crashPoint).toBeGreaterThanOrEqual(1.01);
+    expect(tuned.crashPoint).toBeLessThan(1.1);
     expect(1.1 < tuned.crashPoint).toBe(false);
+  });
+
+  it('keeps no-auto-cashout controlled losses before manual cashout can settle', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9999);
+    const tuned = __crashServiceTestHooks.chooseControlledLossCrashPoint(20, null);
+
+    expect(tuned).toBeGreaterThanOrEqual(1.0001);
+    expect(tuned).toBeLessThan(1.01);
+  });
+
+  it('does not extend naturally low crash points while shaping controlled losses', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9999);
+    const tuned = __crashServiceTestHooks.chooseControlledLossCrashPoint(1.05, decimal(2));
+
+    expect(tuned).toBe(1.05);
   });
 });
 
@@ -128,7 +144,7 @@ describe('CrashSoloService global member win cap', () => {
         naturalCrashPoint: number,
         amount: Prisma.Decimal,
         control: ControlOutcome,
-        recentControlledLosses: number,
+        autoCashOut: Prisma.Decimal | null,
       ) => { crashPoint: number; control: ControlOutcome };
     };
     const control: ControlOutcome = {
@@ -142,7 +158,7 @@ describe('CrashSoloService global member win cap', () => {
       gameMatchedPayoutOnly: true,
     };
 
-    const tuned = service.tuneCrashPoint(20, decimal(3000), control, 0);
+    const tuned = service.tuneCrashPoint(20, decimal(3000), control, null);
 
     expect(tuned.crashPoint).toBe(8.0001);
   });

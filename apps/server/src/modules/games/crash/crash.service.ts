@@ -24,8 +24,13 @@ import { ApiError } from '../../../utils/errors.js';
 import type { CrashBetInput, CrashCashoutInput } from './crash.schema.js';
 
 const MIN_CASHOUT_MULTIPLIER = 1.01;
-const CONTROLLED_LOSS_CRASH_MIN = 1.0001;
-const CONTROLLED_LOSS_CRASH_MAX = 1.0099;
+const CONTROLLED_LOSS_INSTANT_MIN = 1.0001;
+const CONTROLLED_LOSS_INSTANT_MAX = 1.0099;
+const CONTROLLED_LOSS_SPREAD_MIN = MIN_CASHOUT_MULTIPLIER;
+const CONTROLLED_LOSS_SPREAD_LOW_MAX = 1.2;
+const CONTROLLED_LOSS_SPREAD_MID_MAX = 1.55;
+const CONTROLLED_LOSS_SPREAD_MAX = 1.95;
+const CONTROLLED_LOSS_AUTO_CASHOUT_GAP = 0.0001;
 const CONTROLLED_WIN_BASE_MIN = 2.05;
 const CONTROLLED_WIN_BASE_MAX = 6.8;
 const CONTROLLED_WIN_HIGH_MIN = 7.2;
@@ -115,7 +120,7 @@ export class CrashSoloService {
       const tuned = startCapLoss
         ? { crashPoint: 1, control: startCapLoss }
         : capCrashPointForGlobalWinCap(
-            this.tuneCrashPoint(naturalCrashPoint, amount, control),
+            this.tuneCrashPoint(naturalCrashPoint, amount, control, autoCashOut),
             globalCapGuard,
           );
       const startedAt = new Date();
@@ -343,73 +348,14 @@ export class CrashSoloService {
       multiplier: cashoutMultiplier,
       payout: naturalPayout,
     };
-    const cashoutOutcome: ControlOutcome =
-      control?.controlled && !control.won
-        ? control
-        : {
-            won: cashoutPrediction.won,
-            multiplier: cashoutMultiplier,
-            payout: naturalPayout,
-            controlled: false,
-          };
-
-    if (cashoutOutcome.controlled && !cashoutOutcome.won) {
-      const lossCrashPoint = cashoutMultiplier;
-      await tx.crashRound.update({
-        where: { id: round.id },
-        data: {
-          status: 'CRASHED',
-          crashPoint: lossCrashPoint,
-          crashedAt: new Date(),
-        },
-      });
-      const claimed = await tx.crashBet.updateMany({
-        where: { id: bet.id, cashedOutAt: null, controlFinalizedAt: null },
-        data: {
-          payout: new Prisma.Decimal(0),
-          controlFinalizedAt: new Date(),
-        },
-      });
-      if (claimed.count !== 1) {
-        const current = await this.getBetWithRound(tx, bet.id);
-        const user = await tx.user.findUniqueOrThrow({
-          where: { id: bet.userId },
-          select: { balance: true },
-        });
-        return { bet: current, payout: current.payout, newBalance: user.balance.toFixed(2) };
-      }
-
-      const user = await tx.user.findUniqueOrThrow({
-        where: { id: bet.userId },
-        select: { balance: true },
-      });
-      const finalizedBet = await this.getBetWithRound(tx, bet.id);
-      const zeroPayout = new Prisma.Decimal(0);
-      await finalizeControls(
-        tx,
-        bet.userId,
-        round.gameId,
-        cashoutPrediction,
-        {
-          won: false,
-          amount: bet.amount,
-          multiplier: new Prisma.Decimal(0),
-          payout: zeroPayout,
-        },
-        cashoutOutcome,
-        bet.id,
-        {
-          cashoutAt: cashoutMultiplier.toFixed(4),
-          payout: naturalPayout.toFixed(2),
-        },
-        {
-          crashPoint: lossCrashPoint.toFixed(4),
-          payout: '0.00',
-        },
-      );
-
-      return { bet: finalizedBet, payout: zeroPayout, newBalance: user.balance.toFixed(2) };
-    }
+    // Loss controls are represented by the start-time crash point; an early cashout
+    // settles naturally instead of retroactively changing the round at claim time.
+    const cashoutOutcome: ControlOutcome = {
+      won: cashoutPrediction.won,
+      multiplier: cashoutMultiplier,
+      payout: naturalPayout,
+      controlled: false,
+    };
 
     const finalPayout = naturalPayout;
     const finalMultiplier = cashoutMultiplier;
@@ -597,6 +543,7 @@ export class CrashSoloService {
     naturalCrashPoint: number,
     amount: Prisma.Decimal,
     control: ControlOutcome,
+    autoCashOut: Prisma.Decimal | null = null,
     _recentControlledLosses = 0,
   ): { crashPoint: number; control: ControlOutcome } {
     if (!control.controlled) {
@@ -604,7 +551,7 @@ export class CrashSoloService {
     }
     if (!control.won) {
       return {
-        crashPoint: randomCrashPoint(CONTROLLED_LOSS_CRASH_MIN, CONTROLLED_LOSS_CRASH_MAX),
+        crashPoint: chooseControlledLossCrashPoint(naturalCrashPoint, autoCashOut),
         control,
       };
     }
@@ -673,7 +620,58 @@ function crashElapsedMs(multiplier: number): number {
 }
 
 function randomCrashPoint(min: number, max: number): number {
+  if (max <= min) return Number(min.toFixed(4));
   return Number((min + Math.random() * (max - min)).toFixed(4));
+}
+
+function chooseControlledLossCrashPoint(
+  naturalCrashPoint: number,
+  autoCashOut: Prisma.Decimal | null,
+): number {
+  const natural = Number(Math.max(1, naturalCrashPoint).toFixed(4));
+  if (!autoCashOut) {
+    return Math.min(
+      natural,
+      randomCrashPoint(CONTROLLED_LOSS_INSTANT_MIN, CONTROLLED_LOSS_INSTANT_MAX),
+    );
+  }
+
+  const autoCashOutNumber = Number(autoCashOut.toFixed(4));
+  const maxBeforeAutoCashOut = Number(
+    (autoCashOutNumber - CONTROLLED_LOSS_AUTO_CASHOUT_GAP).toFixed(4),
+  );
+  const maxCrashPoint = Math.min(CONTROLLED_LOSS_SPREAD_MAX, maxBeforeAutoCashOut);
+  if (maxCrashPoint <= CONTROLLED_LOSS_SPREAD_MIN) {
+    return Math.min(
+      natural,
+      randomCrashPoint(CONTROLLED_LOSS_INSTANT_MIN, CONTROLLED_LOSS_INSTANT_MAX),
+    );
+  }
+
+  const sampled = sampleControlledLossCrashPoint(maxCrashPoint);
+  return Number(Math.min(natural, sampled).toFixed(4));
+}
+
+function sampleControlledLossCrashPoint(maxCrashPoint: number): number {
+  const max = Number(maxCrashPoint.toFixed(4));
+  if (max <= CONTROLLED_LOSS_SPREAD_LOW_MAX) {
+    return randomCrashPoint(CONTROLLED_LOSS_SPREAD_MIN, max);
+  }
+
+  const roll = Math.random();
+  if (roll < 0.45) {
+    return randomCrashPoint(
+      CONTROLLED_LOSS_SPREAD_MIN,
+      Math.min(max, CONTROLLED_LOSS_SPREAD_LOW_MAX),
+    );
+  }
+  if (roll < 0.8 || max <= CONTROLLED_LOSS_SPREAD_MID_MAX) {
+    return randomCrashPoint(
+      CONTROLLED_LOSS_SPREAD_LOW_MAX,
+      Math.min(max, CONTROLLED_LOSS_SPREAD_MID_MAX),
+    );
+  }
+  return randomCrashPoint(CONTROLLED_LOSS_SPREAD_MID_MAX, max);
 }
 
 function chooseControlledWinCrashTarget(requestedTarget: number, maxTarget: number): number {
@@ -838,5 +836,6 @@ function decimalFrom(value: unknown, fallback: string): Prisma.Decimal {
 
 export const __crashServiceTestHooks = {
   capCrashPointForGlobalWinCap,
+  chooseControlledLossCrashPoint,
   shouldCrashImmediatelyForGlobalCap,
 };
