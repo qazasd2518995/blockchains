@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { BalanceResponse, BetDetailResponse, TransactionListResponse } from '@bg/shared';
 import { ApiError } from '../../utils/errors.js';
@@ -16,6 +17,32 @@ const listQuerySchema = z.object({
 const betParamSchema = z.object({
   betId: z.string().min(1),
 });
+
+type LedgerCursor = {
+  createdAt: Date;
+  id: string;
+};
+
+type StandardLedgerBet = Prisma.BetGetPayload<{
+  include: {
+    transactions: {
+      select: {
+        balanceAfter: true;
+        createdAt: true;
+      };
+    };
+  };
+}>;
+
+type CrashLedgerBet = Prisma.CrashBetGetPayload<{
+  include: {
+    round: {
+      select: {
+        gameId: true;
+      };
+    };
+  };
+}>;
 
 export async function walletRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get(
@@ -39,84 +66,106 @@ export async function walletRoutes(fastify: FastifyInstance): Promise<void> {
         throw new ApiError('INVALID_BET', 'from must be before to');
       }
 
-      const createdAt: Prisma.DateTimeFilter = {};
-      if (from) createdAt.gte = from;
-      if (to) createdAt.lte = to;
-
-      const where: Prisma.TransactionWhereInput = {
-        userId: req.userId,
-        ...(Object.keys(createdAt).length > 0 ? { createdAt } : {}),
-      };
-
       const betCreatedAt: Prisma.DateTimeFilter = {};
       if (from) betCreatedAt.gte = from;
       if (to) betCreatedAt.lte = to;
 
-      const [items, totalIn, totalOut, totalCount, standardValid, crashValid] = await Promise.all([
-        fastify.prisma.transaction.findMany({
-          where,
+      const cursor = parseLedgerCursor(q.cursor);
+      const standardWhere: Prisma.BetWhereInput = {
+        userId: req.userId,
+        ...(Object.keys(betCreatedAt).length > 0 ? { createdAt: betCreatedAt } : {}),
+      };
+      const crashWhere: Prisma.CrashBetWhereInput = {
+        userId: req.userId,
+        round: { status: 'CRASHED' },
+        ...(Object.keys(betCreatedAt).length > 0 ? { createdAt: betCreatedAt } : {}),
+      };
+
+      const [
+        standardRows,
+        crashRows,
+        standardCount,
+        crashCount,
+        standardAgg,
+        crashAgg,
+        fallbackUser,
+      ] = await Promise.all([
+        fastify.prisma.bet.findMany({
+          where: withLedgerCursor(standardWhere, cursor),
           include: {
-            bet: {
+            transactions: {
+              select: {
+                balanceAfter: true,
+                createdAt: true,
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: q.limit + 1,
+        }),
+        fastify.prisma.crashBet.findMany({
+          where: withLedgerCursor(crashWhere, cursor),
+          include: {
+            round: {
               select: {
                 gameId: true,
-                amount: true,
-                payout: true,
-                profit: true,
               },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           take: q.limit + 1,
-          ...(q.cursor ? { cursor: { id: q.cursor }, skip: 1 } : {}),
         }),
-        fastify.prisma.transaction.aggregate({
-          where: { ...where, amount: { gt: ZERO } },
-          _sum: { amount: true },
-        }),
-        fastify.prisma.transaction.aggregate({
-          where: { ...where, amount: { lt: ZERO } },
-          _sum: { amount: true },
-        }),
-        fastify.prisma.transaction.count({ where }),
+        fastify.prisma.bet.count({ where: standardWhere }),
+        fastify.prisma.crashBet.count({ where: crashWhere }),
         fastify.prisma.bet.aggregate({
-          where: {
-            userId: req.userId,
-            ...(Object.keys(betCreatedAt).length > 0 ? { createdAt: betCreatedAt } : {}),
-          },
-          _sum: { amount: true },
+          where: standardWhere,
+          _sum: { amount: true, profit: true },
         }),
         fastify.prisma.crashBet.aggregate({
-          where: {
-            userId: req.userId,
-            ...(Object.keys(betCreatedAt).length > 0 ? { createdAt: betCreatedAt } : {}),
-          },
-          _sum: { amount: true },
+          where: crashWhere,
+          _sum: { amount: true, payout: true },
+        }),
+        fastify.prisma.user.findUnique({
+          where: { id: req.userId },
+          select: { balance: true },
         }),
       ]);
 
-      const nextCursor = items.length > q.limit ? (items.pop()?.id ?? null) : null;
-      const totalInAmount = totalIn._sum.amount ?? ZERO;
-      const totalOutAmount = totalOut._sum.amount ?? ZERO;
-      const validAmount = (standardValid._sum.amount ?? ZERO).add(crashValid._sum.amount ?? ZERO);
+      if (!fallbackUser) throw new ApiError('USER_NOT_FOUND', 'User not found');
+
+      const crashBalanceAfterByBetId = await loadCrashBalanceAfterByBetId(
+        fastify.prisma,
+        req.userId,
+        crashRows.map((row) => row.id),
+      );
+
+      const mergedItems = [
+        ...standardRows.map((bet) => toStandardLedgerEntry(bet, fallbackUser.balance)),
+        ...crashRows.map((bet) =>
+          toCrashLedgerEntry(bet, fallbackUser.balance, crashBalanceAfterByBetId),
+        ),
+      ].sort(compareLedgerEntries);
+
+      const hasMore = mergedItems.length > q.limit;
+      const pageItems = mergedItems.slice(0, q.limit);
+      const nextCursor = hasMore ? buildLedgerCursor(pageItems[pageItems.length - 1]!) : null;
+      const standardProfit = standardAgg._sum.profit ?? ZERO;
+      const crashAmount = crashAgg._sum.amount ?? ZERO;
+      const crashPayout = crashAgg._sum.payout ?? ZERO;
+      const crashProfit = crashPayout.sub(crashAmount);
+      const net = standardProfit.add(crashProfit);
+      const validAmount = (standardAgg._sum.amount ?? ZERO).add(crashAmount);
+      const totalCount = standardCount + crashCount;
       return {
-        items: items.map((tx) => ({
-          id: tx.id,
-          type: tx.type,
-          amount: tx.amount.toFixed(2),
-          balanceAfter: tx.balanceAfter.toFixed(2),
-          betId: tx.betId ?? resolveTransactionBetId(tx.meta),
-          gameId: resolveTransactionGameId(tx.bet?.gameId ?? null, tx.meta),
-          betAmount: tx.bet?.amount.toFixed(2) ?? null,
-          payout: tx.bet?.payout.toFixed(2) ?? null,
-          profit: tx.bet?.profit.toFixed(2) ?? null,
-          createdAt: tx.createdAt.toISOString(),
-        })),
+        items: pageItems,
         nextCursor,
         summary: {
-          totalIn: totalInAmount.toFixed(2),
-          totalOut: totalOutAmount.toFixed(2),
+          totalIn: net.greaterThan(0) ? net.toFixed(2) : ZERO.toFixed(2),
+          totalOut: net.lessThan(0) ? net.toFixed(2) : ZERO.toFixed(2),
           validAmount: validAmount.toFixed(2),
-          net: totalInAmount.add(totalOutAmount).toFixed(2),
+          net: net.toFixed(2),
           totalCount,
         },
       };
@@ -222,47 +271,114 @@ function parseDateParam(value: string | undefined, field: string): Date | undefi
   return date;
 }
 
-function resolveTransactionGameId(
-  betGameId: string | null,
-  meta: unknown,
-): string | null {
-  if (betGameId) return betGameId;
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null;
-
-  const record = meta as Record<string, unknown>;
-  if (typeof record.gameId === 'string' && record.gameId) {
-    return record.gameId;
-  }
-
-  const payload = record.payload;
-  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-    const payloadRecord = payload as Record<string, unknown>;
-    if (typeof payloadRecord.gameId === 'string' && payloadRecord.gameId) {
-      return payloadRecord.gameId;
-    }
-  }
-
-  if (
-    record.source === 'baccarat_bet' ||
-    record.source === 'baccarat_refund' ||
-    record.source === 'baccarat_settle'
-  ) {
-    return 'baccarat';
-  }
-
-  return null;
+function parseLedgerCursor(value: string | undefined): LedgerCursor | undefined {
+  if (!value) return undefined;
+  const [createdAtRaw = '', id = ''] = value.split('__');
+  if (!id) return undefined;
+  const createdAt = new Date(createdAtRaw);
+  if (!Number.isFinite(createdAt.getTime())) return undefined;
+  return { createdAt, id };
 }
 
-function resolveTransactionBetId(meta: unknown): string | null {
-  const record = asRecord(meta);
-  if (!record) return null;
+function buildLedgerCursor(item: TransactionListResponse['items'][number]): string {
+  return `${item.createdAt}__${item.id}`;
+}
 
-  const direct = getStringField(record, 'crashBetId') ?? getStringField(record, 'betId');
-  if (direct) return direct;
+function withLedgerCursor<T extends Prisma.BetWhereInput | Prisma.CrashBetWhereInput>(
+  where: T,
+  cursor: LedgerCursor | undefined,
+): T {
+  if (!cursor) return where;
+  return {
+    AND: [
+      where,
+      {
+        OR: [
+          { createdAt: { lt: cursor.createdAt } },
+          { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+        ],
+      },
+    ],
+  } as T;
+}
 
-  const payload = asRecord(record.payload);
-  if (!payload) return null;
-  return getStringField(payload, 'crashBetId') ?? getStringField(payload, 'betId');
+function compareLedgerEntries(
+  a: TransactionListResponse['items'][number],
+  b: TransactionListResponse['items'][number],
+): number {
+  const byDate = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  if (byDate !== 0) return byDate;
+  return b.id.localeCompare(a.id);
+}
+
+function toStandardLedgerEntry(
+  bet: StandardLedgerBet,
+  fallbackBalance: Prisma.Decimal,
+): TransactionListResponse['items'][number] {
+  return {
+    id: bet.id,
+    type: 'BET_WIN',
+    amount: bet.profit.toFixed(2),
+    balanceAfter: (bet.transactions[0]?.balanceAfter ?? fallbackBalance).toFixed(2),
+    betId: bet.id,
+    gameId: bet.gameId,
+    betAmount: bet.amount.toFixed(2),
+    payout: bet.payout.toFixed(2),
+    profit: bet.profit.toFixed(2),
+    createdAt: bet.createdAt.toISOString(),
+  };
+}
+
+function toCrashLedgerEntry(
+  bet: CrashLedgerBet,
+  fallbackBalance: Prisma.Decimal,
+  balanceAfterByBetId: Map<string, Prisma.Decimal>,
+): TransactionListResponse['items'][number] {
+  const profit = bet.payout.sub(bet.amount);
+  return {
+    id: bet.id,
+    type: 'CASHOUT',
+    amount: profit.toFixed(2),
+    balanceAfter: (balanceAfterByBetId.get(bet.id) ?? fallbackBalance).toFixed(2),
+    betId: bet.id,
+    gameId: bet.round.gameId,
+    betAmount: bet.amount.toFixed(2),
+    payout: bet.payout.toFixed(2),
+    profit: profit.toFixed(2),
+    createdAt: bet.createdAt.toISOString(),
+  };
+}
+
+async function loadCrashBalanceAfterByBetId(
+  prisma: Prisma.TransactionClient | PrismaClient,
+  userId: string,
+  crashBetIds: string[],
+): Promise<Map<string, Prisma.Decimal>> {
+  if (crashBetIds.length === 0) return new Map();
+
+  const rows = await prisma.$queryRaw<
+    Array<{
+      crashBetId: string;
+      balanceAfter: Prisma.Decimal;
+    }>
+  >`
+    SELECT DISTINCT ON ("crashBetId")
+      "crashBetId",
+      "balanceAfter"
+    FROM (
+      SELECT
+        COALESCE(meta->>'crashBetId', meta#>>'{payload,crashBetId}') AS "crashBetId",
+        "balanceAfter",
+        "createdAt"
+      FROM "Transaction"
+      WHERE "userId" = ${userId}
+        AND COALESCE(meta->>'crashBetId', meta#>>'{payload,crashBetId}') IN (${Prisma.join(crashBetIds)})
+    ) tx
+    WHERE "crashBetId" IS NOT NULL
+    ORDER BY "crashBetId", "createdAt" DESC
+  `;
+
+  return new Map(rows.map((row) => [row.crashBetId, row.balanceAfter]));
 }
 
 function sanitizePublicResult(value: unknown): unknown {
@@ -293,9 +409,4 @@ function sanitizePublicResult(value: unknown): unknown {
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
-}
-
-function getStringField(record: Record<string, unknown>, key: string): string | null {
-  const value = record[key];
-  return typeof value === 'string' && value.length > 0 ? value : null;
 }
