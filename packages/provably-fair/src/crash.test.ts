@@ -33,4 +33,24 @@ describe('crashPoint', () => {
     expect(ratio).toBeGreaterThan(0.015);
     expect(ratio).toBeLessThan(0.06);
   });
+
+  it('compresses high crash tails versus the classic crash distribution', () => {
+    const total = 20000;
+    let ge2 = 0;
+    let ge5 = 0;
+    let ge10 = 0;
+    let ge20 = 0;
+    for (let i = 0; i < total; i += 1) {
+      const point = crashPoint('seed', `tail-${i}`);
+      if (point >= 2) ge2 += 1;
+      if (point >= 5) ge5 += 1;
+      if (point >= 10) ge10 += 1;
+      if (point >= 20) ge20 += 1;
+    }
+
+    expect(ge2 / total).toBeLessThan(0.4);
+    expect(ge5 / total).toBeLessThan(0.12);
+    expect(ge10 / total).toBeLessThan(0.05);
+    expect(ge20 / total).toBeLessThan(0.025);
+  });
 });
