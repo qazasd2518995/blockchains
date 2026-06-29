@@ -461,7 +461,6 @@ describe('control decision priority', () => {
       balance?: Prisma.Decimal;
       phase?: string;
       agentId?: string | null;
-      excluded?: boolean;
       baselineBalance?: Prisma.Decimal;
       lifecycleSteps?: number[] | null;
       currentStageIndex?: number;
@@ -478,7 +477,7 @@ describe('control decision priority', () => {
       .mul('0.40')
       .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
     return {
-      $queryRaw: vi.fn(async () => [{ exists: over.excluded === true }]),
+      $queryRaw: vi.fn(async () => [{ exists: false }]),
       user: {
         findUnique: vi.fn(async (args: { select?: Record<string, boolean> }) => {
           if (args.select?.balance) {
@@ -1608,39 +1607,14 @@ describe('control decision priority', () => {
     });
   });
 
-  it('disables auto-balance for the excluded 8000DG credit line', async () => {
+  it('keeps auto-balance active for the former 8000DG credit line', async () => {
     const tx = createAutoReviveTx(
       vi.fn(async () => []),
       {
         agentId: 'agent-under-8000dg',
-        excluded: true,
-      },
-    );
-
-    const outcome = await applyControls(
-      tx as never,
-      'member-1',
-      GameId.DICE,
-      predictedResult(10, 20, 2),
-    );
-
-    expect(outcome.controlled).toBe(false);
-    expect(tx.memberAutoBalanceControl.updateMany).toHaveBeenCalledWith({
-      where: { memberId: 'member-1', isActive: true },
-      data: { isActive: false, resetReason: 'auto_balance_excluded' },
-    });
-  });
-
-  it('honors explicit member auto-balance override on the excluded 8000DG credit line', async () => {
-    const tx = createAutoReviveTx(
-      vi.fn(async () => []),
-      {
-        agentId: 'agent-under-8000dg',
-        excluded: true,
         balance: new Prisma.Decimal(50000),
         phase: 'BITE_TO_30',
         controlPercentage: 100,
-        resetReason: 'manual_excluded_line_override:manual_reenable_after_unfreeze',
       },
     );
 
@@ -1654,10 +1628,7 @@ describe('control decision priority', () => {
     expect(outcome.controlled).toBe(true);
     expect(outcome.won).toBe(false);
     expect(outcome.flipReason).toBe('auto_balance_bite');
-    expect(tx.memberAutoBalanceControl.updateMany).not.toHaveBeenCalledWith({
-      where: { memberId: 'member-1', isActive: true },
-      data: { isActive: false, resetReason: 'auto_balance_excluded' },
-    });
+    expect(tx.memberAutoBalanceControl.updateMany).not.toHaveBeenCalled();
   });
 
   it('freezes the triggering member line and pauses its path guard after banker guard trips', async () => {

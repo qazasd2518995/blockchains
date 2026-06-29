@@ -77,7 +77,6 @@ export const STARTER_CONFIDENCE_OPERATOR = 'auto_starter_confidence';
 export const AUTO_BALANCE_OPERATOR = 'auto_balance_model';
 const AUTO_BALANCE_BITE_RATE = new Prisma.Decimal('0.20');
 const AUTO_BALANCE_REVIVE_RATE = new Prisma.Decimal('0.40');
-const AUTO_BALANCE_EXCLUDED_AGENT_USERNAME = '8000DG';
 const AUTO_BALANCE_CONFIG_ID = 'default';
 export const AUTO_BALANCE_DEFAULT_SECOND_LINE_AMOUNT = new Prisma.Decimal(50000);
 const AUTO_BALANCE_DEFAULT_TEMPLATE_KEY = 'SEVEN_NO_RECOVERY';
@@ -368,12 +367,10 @@ export async function resetMemberAutoBalanceControl(
   const reviveTargetBalance = baselineBalance
     .mul(AUTO_BALANCE_REVIVE_RATE)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-  const excludedLine = await isAutoBalanceExcludedAgentLine(db, input.agentId);
   const isActive =
-    baselineBalance.greaterThan(0) && !excludedLine && (runtimeConfig.isEnabled || !!pathControl);
-  const resetReason = excludedLine
-    ? `${input.reason}:auto_balance_excluded`
-    : runtimeConfig.isEnabled || pathControl
+    baselineBalance.greaterThan(0) && (runtimeConfig.isEnabled || !!pathControl);
+  const resetReason =
+    runtimeConfig.isEnabled || pathControl
       ? pathControl
         ? `${input.reason}:manual_path:${pathControl.control.id}`
         : input.reason
@@ -435,16 +432,6 @@ export async function getOrCreateMemberAutoBalanceControl(
   const existing = await db.memberAutoBalanceControl.findUnique({
     where: { memberId: member.id },
   });
-  const excludedLine = await isAutoBalanceExcludedAgentLine(db, member.agentId);
-  if (excludedLine) {
-    if (existing?.isActive) {
-      await db.memberAutoBalanceControl.update({
-        where: { id: existing.id },
-        data: { isActive: false, resetReason: 'auto_balance_excluded' },
-      });
-    }
-    return null;
-  }
   const runtimeConfig = await getAutoBalanceRuntimeConfig(db);
   const pathControl = await findApplicableManualLifecyclePathControl(db, member);
   if (!runtimeConfig.isEnabled && !pathControl) {
@@ -543,29 +530,6 @@ export async function setMemberAutoBalancePhase(
     where: { id: controlId },
     data: { phase },
   });
-}
-
-export async function isAutoBalanceExcludedAgentLine(
-  db: Db,
-  agentId: string | null,
-): Promise<boolean> {
-  if (!agentId) return false;
-  const rows = await db.$queryRaw<{ exists: boolean }[]>`
-    WITH RECURSIVE path AS (
-      SELECT id, username, "parentId", 0 AS depth
-      FROM "Agent"
-      WHERE id = ${agentId}
-      UNION ALL
-      SELECT a.id, a.username, a."parentId", path.depth + 1 AS depth
-      FROM "Agent" a
-      JOIN path ON a.id = path."parentId"
-      WHERE path.depth < 20
-    )
-    SELECT EXISTS (
-      SELECT 1 FROM path WHERE username = ${AUTO_BALANCE_EXCLUDED_AGENT_USERNAME}
-    ) AS "exists"
-  `;
-  return rows[0]?.exists === true;
 }
 
 async function deactivateLegacyAutomaticControls(
