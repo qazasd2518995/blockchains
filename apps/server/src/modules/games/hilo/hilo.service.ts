@@ -27,6 +27,7 @@ import {
   multiplierExceedsControlCeiling,
   resolveGameMatchedCashoutControl,
 } from '../_common/controls.js';
+import { shouldAllowEntertainmentSafeProgress } from '../_common/entertainmentShaper.js';
 import { pickRandomItem } from '../_common/resultSelection.js';
 import { ApiError } from '../../../utils/errors.js';
 import type { HiLoStartInput, HiLoGuessInput, HiLoCashoutInput } from './hilo.schema.js';
@@ -120,6 +121,7 @@ export class HiLoService {
       };
       const controlled = await applyControls(tx, userId, GameId.HILO, predictedProgress, {
         forceLossOnProgress: true,
+        pathGuardBalanceImpact: 'payout',
       });
       const controlledWinExceedsHiLoCeiling =
         controlled.controlled &&
@@ -136,9 +138,16 @@ export class HiLoService {
               : controlled.flipReason,
           }
         : controlled;
+      const entertainmentSafeProgress = shouldAllowEntertainmentSafeProgress({
+        outcome: shapedControl,
+        amount: round.betAmount,
+        nextMultiplier,
+        gameKind: 'hilo',
+        progressIndex: round.cardIndex,
+      });
       const canForceLoss = canForceHiLoLossAtCardIndex(round.cardIndex);
       const effectiveDesiredCorrect = shapedControl.controlled
-        ? !shapedControl.won && !canForceLoss
+        ? !shapedControl.won && (!canForceLoss || entertainmentSafeProgress)
           ? rawCorrect
           : shapedControl.won
         : rawCorrect;

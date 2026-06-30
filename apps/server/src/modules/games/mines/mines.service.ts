@@ -123,6 +123,7 @@ export class MinesService {
       };
       const controlled = await applyControls(tx, userId, GameId.MINES, predictedProgress, {
         forceLossOnProgress: true,
+        pathGuardBalanceImpact: 'payout',
       });
       const controlledWinExceedsMinesCeiling =
         controlled.controlled &&

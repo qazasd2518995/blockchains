@@ -164,6 +164,12 @@ export interface ControlOptions {
    * those steps from advancing toward a later cashout.
    */
   forceLossOnProgress?: boolean;
+  /**
+   * Progressive games debit the stake at round start and later credit only the
+   * cashout payout. Path guards for those steps must project balance with
+   * `payout`; one-shot games keep using net profit (`payout - amount`).
+   */
+  pathGuardBalanceImpact?: 'netProfit' | 'payout';
 }
 
 export interface GlobalMemberDailyWinCapGuard {
@@ -196,6 +202,8 @@ interface ControlReleaseProfile {
   totalLoss: Prisma.Decimal;
   maxAmount: Prisma.Decimal;
 }
+
+type PathGuardBalanceImpact = NonNullable<ControlOptions['pathGuardBalanceImpact']>;
 
 interface ControlReleasePlan {
   maxMultiplier: Prisma.Decimal;
@@ -488,7 +496,7 @@ async function findControlDecision(
   if (agentLineCap) return agentLineCap;
 
   let stopAfterDepositMiss = false;
-  const depositControl = await findDepositControlDecisionLookup(tx, member, predicted);
+  const depositControl = await findDepositControlDecisionLookup(tx, member, predicted, options);
   if (isControlPathNatural(depositControl)) return CONTROL_PATH_NATURAL;
   if (isControlInterventionMiss(depositControl)) {
     const accidentalBurstCap = findAccidentalBurstCapDecision(predicted);
@@ -509,9 +517,16 @@ async function findControlDecision(
     return CONTROL_PATH_NATURAL;
   }
 
-  const existingAutoBalance = await findAutoBalanceDecisionInternal(tx, member, predicted, 'any', {
-    existingOnly: true,
-  });
+  const existingAutoBalance = await findAutoBalanceDecisionInternal(
+    tx,
+    member,
+    predicted,
+    'any',
+    {
+      existingOnly: true,
+      pathGuardBalanceImpact: options.pathGuardBalanceImpact,
+    },
+  );
   if (existingAutoBalance.decision) return existingAutoBalance.decision;
   if (existingAutoBalance.pathNatural || existingAutoBalance.inActiveCycle) {
     return CONTROL_PATH_NATURAL;
@@ -680,7 +695,7 @@ async function findAutoBalanceDecisionInternal(
   member: MemberScope,
   predicted: PredictedResult,
   mode: 'any' | 'reviveOnly',
-  options: { existingOnly?: boolean } = {},
+  options: { existingOnly?: boolean; pathGuardBalanceImpact?: PathGuardBalanceImpact } = {},
 ): Promise<AutoBalanceDecisionResult> {
   const autoBalanceDelegate = (
     tx as unknown as {
@@ -723,6 +738,7 @@ async function findAutoBalanceDecisionInternal(
       control as AutoBalanceControlRecord,
       lifecycleSteps,
       mode,
+      options.pathGuardBalanceImpact ?? 'netProfit',
     );
   }
 
@@ -732,7 +748,12 @@ async function findAutoBalanceDecisionInternal(
       'auto_balance_drain',
       (control as AutoBalanceControlRecord).controlPercentage,
     );
-    const pathGuard = legacyAutoBalancePathGuardDecision(control, currentUser.balance, predicted);
+    const pathGuard = legacyAutoBalancePathGuardDecision(
+      control,
+      currentUser.balance,
+      predicted,
+      options.pathGuardBalanceImpact ?? 'netProfit',
+    );
     return {
       decision: lossDecision ?? pathGuard,
       inActiveCycle: true,
@@ -755,7 +776,12 @@ async function findAutoBalanceDecisionInternal(
         'auto_balance_drain',
         (control as AutoBalanceControlRecord).controlPercentage,
       );
-      const pathGuard = legacyAutoBalancePathGuardDecision(control, currentUser.balance, predicted);
+      const pathGuard = legacyAutoBalancePathGuardDecision(
+        control,
+        currentUser.balance,
+        predicted,
+        options.pathGuardBalanceImpact ?? 'netProfit',
+      );
       return {
         decision: lossDecision ?? pathGuard,
         inActiveCycle: true,
@@ -763,7 +789,12 @@ async function findAutoBalanceDecisionInternal(
       };
     }
 
-    const pathGuard = legacyAutoBalancePathGuardDecision(control, currentUser.balance, predicted);
+    const pathGuard = legacyAutoBalancePathGuardDecision(
+      control,
+      currentUser.balance,
+      predicted,
+      options.pathGuardBalanceImpact ?? 'netProfit',
+    );
     if (
       Math.random() >=
       autoBalanceInterventionRate((control as AutoBalanceControlRecord).controlPercentage, 'WIN')
@@ -777,7 +808,11 @@ async function findAutoBalanceDecisionInternal(
         controlId: control.id,
         reason: 'auto_balance_revive',
         minMultiplier: new Prisma.Decimal('1.01'),
-        maxPayout: predicted.amount.add(remaining).toDecimalPlaces(2),
+        maxPayout: maxPayoutForBalanceGain(
+          predicted.amount,
+          remaining,
+          options.pathGuardBalanceImpact ?? 'netProfit',
+        ),
         forceWinAdjustment: true,
       },
       inActiveCycle: true,
@@ -790,7 +825,12 @@ async function findAutoBalanceDecisionInternal(
     'auto_balance_bite',
     (control as AutoBalanceControlRecord).controlPercentage,
   );
-  const pathGuard = legacyAutoBalancePathGuardDecision(control, currentUser.balance, predicted);
+  const pathGuard = legacyAutoBalancePathGuardDecision(
+    control,
+    currentUser.balance,
+    predicted,
+    options.pathGuardBalanceImpact ?? 'netProfit',
+  );
   return {
     decision: lossDecision ?? pathGuard,
     inActiveCycle: true,
@@ -805,6 +845,7 @@ async function buildAutoBalanceLifecycleDecision(
   control: AutoBalanceControlRecord,
   steps: number[],
   mode: 'any' | 'reviveOnly',
+  pathGuardBalanceImpact: PathGuardBalanceImpact,
 ): Promise<AutoBalanceDecisionResult> {
   const resolved = await advanceAutoBalanceLifecycleIfReached(
     tx,
@@ -828,6 +869,7 @@ async function buildAutoBalanceLifecycleDecision(
       fromPercent: resolved.fromPercent,
       targetPercent: resolved.targetPercent,
       predicted,
+      balanceImpact: pathGuardBalanceImpact,
     });
     const lossDecision = autoBalanceLossDecision(
       resolved.control.id,
@@ -853,6 +895,7 @@ async function buildAutoBalanceLifecycleDecision(
     fromPercent: resolved.fromPercent,
     targetPercent: resolved.targetPercent,
     predicted,
+    balanceImpact: pathGuardBalanceImpact,
   });
   if (Math.random() >= autoBalanceInterventionRate(resolved.control.controlPercentage, 'WIN')) {
     return { decision: pathGuard, inActiveCycle: true, pathNatural: !pathGuard };
@@ -863,7 +906,7 @@ async function buildAutoBalanceLifecycleDecision(
       controlId: resolved.control.id,
       reason: 'auto_balance_revive',
       minMultiplier: new Prisma.Decimal('1.01'),
-      maxPayout: predicted.amount.add(remaining).toDecimalPlaces(2),
+      maxPayout: maxPayoutForBalanceGain(predicted.amount, remaining, pathGuardBalanceImpact),
       forceWinAdjustment: true,
     },
     inActiveCycle: true,
@@ -1400,12 +1443,21 @@ async function findDepositControlDecisionLookup(
   tx: Db,
   member: MemberScope,
   predicted: PredictedResult,
+  options: ControlOptions = {},
 ): Promise<ControlDecisionLookup> {
   const control = await findApplicableDepositControl(tx, member);
   if (!control) return null;
   const steps = parseDepositLifecycleSteps(control.lifecycleSteps);
-  if (steps.length > 0) return buildDepositLifecycleDecision(tx, member, predicted, control, steps);
-  return buildDepositDecision(tx, member, predicted, control);
+  if (steps.length > 0) {
+    return buildDepositLifecycleDecision(tx, member, predicted, control, steps, options);
+  }
+  return buildDepositDecision(
+    tx,
+    member,
+    predicted,
+    control,
+    options.pathGuardBalanceImpact ?? 'netProfit',
+  );
 }
 
 async function findApplicableDepositControl(
@@ -1509,6 +1561,7 @@ async function buildDepositDecision(
     controlWinRate: Prisma.Decimal;
     notes: string | null;
   },
+  balanceImpact: PathGuardBalanceImpact = 'netProfit',
 ): Promise<ControlDecisionLookup> {
   const currentUser = await tx.user.findUnique({
     where: { id: member.id },
@@ -1535,7 +1588,7 @@ async function buildDepositDecision(
   const desired = isRegularDepositControl || roll < rate ? 'WIN' : 'LOSS';
   const maxPayout =
     isAutoRevive || isOnlineRewardNextWin
-      ? predicted.amount.add(remainingProfit).toDecimalPlaces(2)
+      ? maxPayoutForBalanceGain(predicted.amount, remainingProfit, balanceImpact)
       : undefined;
   const targetMultiplier =
     isOnlineRewardNextWin && maxPayout && predicted.amount.greaterThan(0)
@@ -1559,6 +1612,7 @@ async function buildDepositLifecycleDecision(
   predicted: PredictedResult,
   control: DepositControlRecord,
   steps: number[],
+  options: ControlOptions = {},
 ): Promise<ControlDecisionLookup> {
   const currentUser = await tx.user.findUnique({
     where: { id: member.id },
@@ -1590,6 +1644,7 @@ async function buildDepositLifecycleDecision(
     fromPercent: resolved.fromPercent,
     targetPercent: resolved.targetPercent,
     predicted,
+    balanceImpact: options.pathGuardBalanceImpact ?? 'netProfit',
   });
   if (Math.random() >= clampRate(control.controlWinRate)) {
     return pathGuard ?? CONTROL_PATH_NATURAL;
@@ -1608,7 +1663,11 @@ async function buildDepositLifecycleDecision(
     controlId: control.id,
     reason: 'deposit_control',
     minMultiplier: new Prisma.Decimal('1.01'),
-    maxPayout: predicted.amount.add(remaining).toDecimalPlaces(2),
+    maxPayout: maxPayoutForBalanceGain(
+      predicted.amount,
+      remaining,
+      options.pathGuardBalanceImpact ?? 'netProfit',
+    ),
     forceWinAdjustment: true,
   };
 }
@@ -1758,6 +1817,7 @@ function legacyAutoBalancePathGuardDecision(
   control: AutoBalanceControlRecord,
   currentBalance: Prisma.Decimal,
   predicted: PredictedResult,
+  balanceImpact: PathGuardBalanceImpact = 'netProfit',
 ): ControlDecision | null {
   if (control.baselineBalance.lessThanOrEqualTo(0)) return null;
 
@@ -1786,6 +1846,7 @@ function legacyAutoBalancePathGuardDecision(
     fromPercent,
     targetPercent,
     predicted,
+    balanceImpact,
   });
 }
 
@@ -1797,25 +1858,27 @@ function lifecyclePathGuardDecision(input: {
   fromPercent: number;
   targetPercent: number | null;
   predicted: PredictedResult;
+  balanceImpact?: PathGuardBalanceImpact;
 }): ControlDecision | null {
   if (input.targetPercent === null || input.startBalance.lessThanOrEqualTo(0)) return null;
 
-  const predictedProfit = input.predicted.payout.sub(input.predicted.amount);
-  if (!predictedProfit.greaterThan(0)) return null;
+  const balanceImpact = input.balanceImpact ?? 'netProfit';
+  const projectedGain = projectedBalanceGain(input.predicted, balanceImpact);
+  if (!projectedGain.greaterThan(0)) return null;
 
   const upperPercent = Math.max(input.fromPercent, input.targetPercent);
   const upperBalance = lifecycleBalanceForPercent(input.startBalance, upperPercent).add(
     input.startBalance.mul(LIFECYCLE_PATH_TARGET_BAND_RATE),
   );
-  const projectedBalance = input.currentBalance.add(predictedProfit);
+  const projectedBalance = input.currentBalance.add(projectedGain);
   if (projectedBalance.lessThanOrEqualTo(upperBalance)) return null;
 
-  const maxProfit = upperBalance.sub(input.currentBalance).toDecimalPlaces(2);
-  if (maxProfit.lessThanOrEqualTo(0)) {
+  const maxGain = upperBalance.sub(input.currentBalance).toDecimalPlaces(2);
+  if (maxGain.lessThanOrEqualTo(0)) {
     return { desired: 'LOSS', controlId: input.controlId, reason: input.reason };
   }
 
-  const maxPayout = input.predicted.amount.add(maxProfit).toDecimalPlaces(2);
+  const maxPayout = maxPayoutForBalanceGain(input.predicted.amount, maxGain, balanceImpact);
   if (maxPayout.lessThanOrEqualTo(input.predicted.amount.mul('1.0001'))) {
     return { desired: 'LOSS', controlId: input.controlId, reason: input.reason };
   }
@@ -1829,6 +1892,23 @@ function lifecyclePathGuardDecision(input: {
     forceWinAdjustment: true,
     gameMatchedPayoutOnly: true,
   };
+}
+
+function projectedBalanceGain(
+  predicted: PredictedResult,
+  balanceImpact: PathGuardBalanceImpact,
+): Prisma.Decimal {
+  return (
+    balanceImpact === 'payout' ? predicted.payout : predicted.payout.sub(predicted.amount)
+  ).toDecimalPlaces(2);
+}
+
+function maxPayoutForBalanceGain(
+  amount: Prisma.Decimal,
+  gain: Prisma.Decimal,
+  balanceImpact: PathGuardBalanceImpact,
+): Prisma.Decimal {
+  return (balanceImpact === 'payout' ? gain : amount.add(gain)).toDecimalPlaces(2);
 }
 
 async function findManualDetectionDecision(

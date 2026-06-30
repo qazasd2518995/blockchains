@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { ControlOutcome } from './controls.js';
 
-export type EntertainmentGameKind = 'slot' | 'mines' | 'tower';
+export type EntertainmentGameKind = 'slot' | 'mines' | 'tower' | 'hilo';
 export type EntertainmentSource = 'auto_balance';
 export type EntertainmentPhase = 'BITE_TO_20' | 'REVIVE_TO_40' | 'DRAIN_TO_ZERO';
 export type EntertainmentPresentationProfile =
@@ -40,7 +40,7 @@ type EntertainmentControlInput = Pick<
   'controlled' | 'won' | 'flipReason' | 'maxPayout' | 'maxMultiplier'
 >;
 
-const DEFAULT_ENABLED_GAMES = new Set<EntertainmentGameKind>(['slot', 'mines', 'tower']);
+const DEFAULT_ENABLED_GAMES = new Set<EntertainmentGameKind>(['slot', 'mines', 'tower', 'hilo']);
 const DEFAULT_ENABLED_SOURCES = new Set<EntertainmentSource>(['auto_balance']);
 
 export function getActiveEntertainmentEnvelope(
@@ -147,18 +147,29 @@ export function shouldAllowEntertainmentSafeProgress(input: {
   outcome: Pick<ControlOutcome, 'controlled' | 'won' | 'flipReason'>;
   amount: Prisma.Decimal;
   nextMultiplier: Prisma.Decimal;
-  gameKind: 'mines' | 'tower';
+  gameKind: 'mines' | 'tower' | 'hilo';
   progressIndex: number;
 }): boolean {
-  const envelope = getActiveEntertainmentEnvelope(input.outcome, input.amount, input.gameKind);
-  if (!envelope || envelope.desired !== 'LOSS') return false;
+  if (!input.outcome.controlled || input.outcome.won || input.amount.lessThanOrEqualTo(0)) {
+    return false;
+  }
+  if (!isAutoBalanceSafeProgressReason(input.outcome.flipReason)) return false;
+
+  const phase =
+    input.outcome.flipReason === 'auto_balance_path_guard'
+      ? 'DRAIN_TO_ZERO'
+      : autoBalancePhaseFromReason(input.outcome.flipReason);
 
   const maxProgressIndex =
     input.gameKind === 'tower'
-      ? envelope.phase === 'DRAIN_TO_ZERO'
+      ? phase === 'DRAIN_TO_ZERO'
         ? 2
         : 4
-      : envelope.phase === 'DRAIN_TO_ZERO'
+      : input.gameKind === 'hilo'
+        ? phase === 'DRAIN_TO_ZERO'
+          ? 2
+          : 3
+      : phase === 'DRAIN_TO_ZERO'
         ? 2
         : 3;
   if (input.progressIndex >= maxProgressIndex) return false;
@@ -191,6 +202,10 @@ export function isAutoBalanceControlReason(reason?: string): boolean {
     reason === 'auto_balance_revive' ||
     reason === 'auto_balance_drain'
   );
+}
+
+function isAutoBalanceSafeProgressReason(reason?: string): boolean {
+  return isAutoBalanceControlReason(reason) || reason === 'auto_balance_path_guard';
 }
 
 function autoBalancePhaseFromReason(reason?: string): EntertainmentPhase {
@@ -277,7 +292,8 @@ function envSet<T extends string>(name: string, fallback: Set<T>): Set<T> {
 function phaseSalt(phase: EntertainmentPhase, gameKind: EntertainmentGameKind): number {
   const phaseValue =
     phase === 'BITE_TO_20' ? 101 : phase === 'REVIVE_TO_40' ? 211 : 307;
-  const gameValue = gameKind === 'slot' ? 17 : gameKind === 'mines' ? 29 : 41;
+  const gameValue =
+    gameKind === 'slot' ? 17 : gameKind === 'mines' ? 29 : gameKind === 'tower' ? 41 : 53;
   return phaseValue + gameValue;
 }
 

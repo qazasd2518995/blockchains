@@ -125,8 +125,6 @@ describe('Entertainment Shaper', () => {
   });
 
   it('allows only early low-multiplier safe progress for auto-balance losses', () => {
-    vi.stubEnv('ENTERTAINMENT_SHAPER_ENABLED', 'true');
-
     const outcome = {
       controlled: true,
       won: false,
@@ -160,6 +158,36 @@ describe('Entertainment Shaper', () => {
         progressIndex: 3,
       }),
     ).toBe(false);
+  });
+
+  it('allows early low-multiplier safe progress for HiLo and path guards', () => {
+    expect(
+      shouldAllowEntertainmentSafeProgress({
+        outcome: {
+          controlled: true,
+          won: false,
+          flipReason: 'auto_balance_bite',
+        },
+        amount: new Prisma.Decimal(100),
+        nextMultiplier: new Prisma.Decimal('1.7'),
+        gameKind: 'hilo',
+        progressIndex: 1,
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldAllowEntertainmentSafeProgress({
+        outcome: {
+          controlled: true,
+          won: false,
+          flipReason: 'auto_balance_path_guard',
+        },
+        amount: new Prisma.Decimal(100),
+        nextMultiplier: new Prisma.Decimal('1.9'),
+        gameKind: 'mines',
+        progressIndex: 0,
+      }),
+    ).toBe(true);
   });
 
   it('chooses deterministic multipliers inside the envelope range', () => {

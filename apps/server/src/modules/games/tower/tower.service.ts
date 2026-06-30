@@ -129,6 +129,7 @@ export class TowerService {
       };
       const controlled = await applyControls(tx, userId, GameId.TOWER, predictedProgress, {
         forceLossOnProgress: true,
+        pathGuardBalanceImpact: 'payout',
       });
       const controlledWinExceedsTowerCeiling =
         controlled.controlled &&

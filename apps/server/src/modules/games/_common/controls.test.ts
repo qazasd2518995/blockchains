@@ -1399,6 +1399,59 @@ describe('control decision priority', () => {
     expect(outcome.payout.toFixed(2)).toBe('12500.00');
   });
 
+  it('uses payout balance impact for progressive auto-balance path guards after stake debit', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(3000),
+        baselineBalance: new Prisma.Decimal(10000),
+        lifecycleSteps: [30, 100],
+        currentStageIndex: 1,
+        lastBalance: new Prisma.Decimal(3000),
+      },
+    );
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.MINES,
+      predictedResult(5000, 11000, 2.2),
+      { forceLossOnProgress: true, pathGuardBalanceImpact: 'payout' },
+    );
+
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.flipReason).toBe('auto_balance_path_guard');
+    expect(outcome.maxPayout?.toFixed(2)).toBe('7500.00');
+    expect(outcome.payout.toFixed(2)).toBe('7500.00');
+    expect(outcome.multiplier.toFixed(4)).toBe('1.5000');
+  });
+
+  it('keeps net-profit balance impact for one-shot path guard projections', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(3000),
+        baselineBalance: new Prisma.Decimal(10000),
+        lifecycleSteps: [30, 100],
+        currentStageIndex: 1,
+        lastBalance: new Prisma.Decimal(3000),
+      },
+    );
+
+    const outcome = await applyControls(
+      tx as never,
+      'member-1',
+      GameId.MINES,
+      predictedResult(5000, 11000, 2.2),
+      { forceLossOnProgress: true },
+    );
+
+    expect(outcome.controlled).toBe(false);
+    expect(outcome.payout.toFixed(2)).toBe('11000.00');
+  });
+
   it('simulates lifecycle-path control rate, natural misses, and path guard caps', async () => {
     vi.spyOn(Math, 'random')
       .mockReturnValueOnce(0.49)
