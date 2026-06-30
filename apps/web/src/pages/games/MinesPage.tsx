@@ -307,6 +307,9 @@ export function MinesPage() {
   const isActive = round?.status === 'ACTIVE';
   const isBusted = round?.status === 'BUSTED';
   const isCashedOut = round?.status === 'CASHED_OUT';
+  const displayCurrentMultiplier = isBusted ? '0' : round?.currentMultiplier;
+  const displayNextMultiplier = isActive ? round?.nextMultiplier : undefined;
+  const displayPotentialPayout = isBusted ? '0' : round?.potentialPayout;
 
   const riskLabel =
     mineCount <= 3
@@ -381,19 +384,19 @@ export function MinesPage() {
                   <div>
                     {t.games.mines.current.toUpperCase()}{' '}
                     <span className="data-num ml-1 text-[#7DD3FC]">
-                      {formatMultiplier(round.currentMultiplier)}
+                      {formatMultiplier(displayCurrentMultiplier ?? 0)}
                     </span>
                   </div>
                   <div>
                     NEXT{' '}
                     <span className="data-num ml-1 text-white">
-                      {round.nextMultiplier ? formatMultiplier(round.nextMultiplier) : '—'}
+                      {displayNextMultiplier ? formatMultiplier(displayNextMultiplier) : '—'}
                     </span>
                   </div>
                   <div>
                     PAYOUT{' '}
                     <span className="data-num ml-1 text-[#6EE7B7]">
-                      {formatAmount(round.potentialPayout)}
+                      {formatAmount(displayPotentialPayout ?? 0)}
                     </span>
                   </div>
                 </div>

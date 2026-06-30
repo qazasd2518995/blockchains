@@ -214,6 +214,9 @@ export function HiLoPage() {
   };
 
   const isActive = round?.status === 'ACTIVE';
+  const isBusted = round?.status === 'BUSTED';
+  const displayCurrentMultiplier = isBusted ? '0' : round?.currentMultiplier;
+  const displayPotentialPayout = isBusted ? '0' : round?.potentialPayout;
 
   return (
     <div>
@@ -308,10 +311,10 @@ export function HiLoPage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Stat
                 k={t.games.mines.current}
-                v={formatMultiplier(round.currentMultiplier)}
+                v={formatMultiplier(displayCurrentMultiplier ?? 0)}
                 accent="acid"
               />
-              <Stat k={t.bet.potentialPayout} v={formatAmount(round.potentialPayout)} />
+              <Stat k={t.bet.potentialPayout} v={formatAmount(displayPotentialPayout ?? 0)} />
               <Stat
                 k={t.games.hilo.card.replace(/#|CARD /, '').trim() || 'CARD'}
                 v={`#${round.cardIndex + 1}`}
@@ -398,7 +401,7 @@ export function HiLoPage() {
                 <span>
                   {t.games.mines.current}{' '}
                   <span className="data-num ml-1 text-[#6EE7B7]">
-                    {round ? formatMultiplier(round.currentMultiplier) : '—'}
+                    {round ? formatMultiplier(displayCurrentMultiplier ?? 0) : '—'}
                   </span>
                 </span>
               </div>

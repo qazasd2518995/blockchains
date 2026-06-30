@@ -223,9 +223,12 @@ export function TowerPage() {
       setRound(res.data.state);
       roundRef.current = res.data.state;
       if (res.data.newBalance) setBalance(res.data.newBalance);
-      if (res.data.hitTrap && res.data.state.revealedLayout) {
+      if (res.data.hitTrap) {
         setWinModal(null);
-        sceneRef.current?.revealAll(res.data.state.revealedLayout);
+        sceneRef.current?.setMultiplier('0.00');
+        if (res.data.state.revealedLayout) {
+          sceneRef.current?.revealAll(res.data.state.revealedLayout);
+        }
         setHistory((prev) =>
           [
             {
@@ -293,6 +296,7 @@ export function TowerPage() {
       }
       if (res.data.state.status === 'BUSTED') {
         setWinModal(null);
+        sceneRef.current?.setMultiplier('0.00');
         setHistory((prev) =>
           [
             {
@@ -341,6 +345,10 @@ export function TowerPage() {
   };
 
   const isActive = round?.status === 'ACTIVE';
+  const isBusted = round?.status === 'BUSTED';
+  const displayCurrentMultiplier = isBusted ? '0' : round?.currentMultiplier;
+  const displayNextMultiplier = isActive ? round?.nextMultiplier : undefined;
+  const displayPotentialPayout = isBusted ? '0' : round?.potentialPayout;
 
   return (
     <div>
@@ -426,14 +434,14 @@ export function TowerPage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Stat
                 k={t.games.tower.current}
-                v={formatMultiplier(round.currentMultiplier)}
+                v={formatMultiplier(displayCurrentMultiplier ?? 0)}
                 accent="acid"
               />
               <Stat
                 k={t.games.tower.next}
-                v={round.nextMultiplier ? formatMultiplier(round.nextMultiplier) : '—'}
+                v={displayNextMultiplier ? formatMultiplier(displayNextMultiplier) : '—'}
               />
-              <Stat k={t.games.tower.payout} v={formatAmount(round.potentialPayout)} />
+              <Stat k={t.games.tower.payout} v={formatAmount(displayPotentialPayout ?? 0)} />
             </div>
           )}
 
@@ -508,7 +516,7 @@ export function TowerPage() {
                 <span>
                   {t.games.tower.current}{' '}
                   <span className="data-num ml-1 text-[#7DD3FC]">
-                    {round ? formatMultiplier(round.currentMultiplier) : '—'}
+                    {round ? formatMultiplier(displayCurrentMultiplier ?? 0) : '—'}
                   </span>
                 </span>
               </div>
