@@ -259,15 +259,13 @@ export function hotlineBuyFreeSpins(
     reelCount,
     rowCount,
   ).map((position) => ({ ...position, type: 'scatter' as const }));
-  const freeSpins = runMegaFreeSpinRounds(
+  const cappedFreeSpins = buildBuyFeatureFreeSpinsWithinCap(
     nextRandom01,
     nextSymbol,
     reelCount,
     rowCount,
     maxCascades,
-    HOTLINE_MEGA_FREE_SPIN_BASE_AWARD,
   );
-  const cappedFreeSpins = capBuyFeatureFreeSpins(freeSpins);
   const features: HotlineMegaFeatureResult = {
     scatterSymbols,
     scatterCount: scatterSymbols.length,
@@ -472,50 +470,48 @@ function runMegaFreeSpinRounds(
   };
 }
 
-function capBuyFeatureFreeSpins(freeSpins: {
-  freeSpinsAwarded: number;
-  freeSpinRounds: HotlineFreeSpinRound[];
-  freeSpinMultiplierBank: number;
-  freeSpinWinMultiplier: number;
-}): {
+function buildBuyFeatureFreeSpinsWithinCap(
+  nextRandom01: () => number,
+  nextSymbol: () => number,
+  reelCount: number,
+  rowCount: number,
+  maxCascades: number,
+): {
   freeSpinsAwarded: number;
   freeSpinRounds: HotlineFreeSpinRound[];
   freeSpinMultiplierBank: number;
   freeSpinWinMultiplier: number;
 } {
-  if (freeSpins.freeSpinWinMultiplier <= HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER) {
-    return freeSpins;
+  let best = runMegaFreeSpinRounds(
+    nextRandom01,
+    nextSymbol,
+    reelCount,
+    rowCount,
+    maxCascades,
+    HOTLINE_MEGA_FREE_SPIN_BASE_AWARD,
+  );
+  if (best.freeSpinWinMultiplier <= HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER) {
+    return best;
   }
 
-  const ratio = HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER / freeSpins.freeSpinWinMultiplier;
-  return {
-    freeSpinsAwarded: freeSpins.freeSpinsAwarded,
-    freeSpinRounds: freeSpins.freeSpinRounds.map((round) => scaleFreeSpinRound(round, ratio)),
-    freeSpinMultiplierBank: roundMultiplier(freeSpins.freeSpinMultiplierBank * ratio),
-    freeSpinWinMultiplier: HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER,
-  };
-}
+  for (let attempt = 0; attempt < 64; attempt += 1) {
+    const candidate = runMegaFreeSpinRounds(
+      nextRandom01,
+      nextSymbol,
+      reelCount,
+      rowCount,
+      maxCascades,
+      HOTLINE_MEGA_FREE_SPIN_BASE_AWARD,
+    );
+    if (candidate.freeSpinWinMultiplier < best.freeSpinWinMultiplier) {
+      best = candidate;
+    }
+    if (candidate.freeSpinWinMultiplier <= HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER) {
+      return candidate;
+    }
+  }
 
-function scaleFreeSpinRound(round: HotlineFreeSpinRound, ratio: number): HotlineFreeSpinRound {
-  return {
-    ...round,
-    cascades: round.cascades.map((step) => ({
-      ...step,
-      multiplier: roundMultiplier(step.multiplier * ratio),
-      lines: step.lines.map((line) => ({
-        ...line,
-        payout: roundMultiplier(line.payout * ratio),
-      })),
-    })),
-    lines: round.lines.map((line) => ({
-      ...line,
-      payout: roundMultiplier(line.payout * ratio),
-    })),
-    baseMultiplier: roundMultiplier(round.baseMultiplier * ratio),
-    multiplierTotal: roundMultiplier(round.multiplierTotal * ratio),
-    appliedMultiplier: roundMultiplier(round.appliedMultiplier * ratio),
-    totalMultiplier: roundMultiplier(round.totalMultiplier * ratio),
-  };
+  return best;
 }
 
 function drawMegaScatterSymbols(

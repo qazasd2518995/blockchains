@@ -28,6 +28,42 @@ function positionKey(position: { reel: number; row: number }): string {
   return `${position.reel}:${position.row}`;
 }
 
+function expectMegaFeatureUsesPaytable(
+  features: NonNullable<ReturnType<typeof hotlineBuyFreeSpins>['features']>,
+): void {
+  let freeSpinWinMultiplier = 0;
+  for (const round of features.freeSpinRounds) {
+    const expectedLines = round.cascades.flatMap((step) => step.lines);
+    expect(round.lines).toEqual(expectedLines);
+    let symbolWinMultiplier = 0;
+
+    for (const step of round.cascades) {
+      const evaluated = hotlineEvaluate(step.grid);
+      expect(step.lines).toEqual(evaluated.lines);
+      expect(step.multiplier).toBeCloseTo(evaluated.totalMultiplier, 4);
+      symbolWinMultiplier = roundTestMultiplier(symbolWinMultiplier + step.multiplier);
+    }
+
+    const scatterMultiplier = megaScatterPayout(round.scatterSymbols.length);
+    expect(round.baseMultiplier).toBeCloseTo(
+      roundTestMultiplier(symbolWinMultiplier + scatterMultiplier),
+      4,
+    );
+    expect(round.totalMultiplier).toBeCloseTo(
+      roundTestMultiplier(
+        scatterMultiplier + symbolWinMultiplier * Math.max(1, round.appliedMultiplier),
+      ),
+      4,
+    );
+    freeSpinWinMultiplier = roundTestMultiplier(freeSpinWinMultiplier + round.totalMultiplier);
+  }
+  expect(features.freeSpinWinMultiplier).toBeCloseTo(freeSpinWinMultiplier, 3);
+}
+
+function roundTestMultiplier(value: number): number {
+  return Number(value.toFixed(4));
+}
+
 describe('hotlineSpin', () => {
   it('returns grid of HOTLINE_REELS cols × HOTLINE_ROWS rows', () => {
     const grid = hotlineSpin('s', 'c', 1);
@@ -329,6 +365,23 @@ describe('hotlineSpin', () => {
 
     expect(new Set(payouts).size).toBeGreaterThanOrEqual(28);
     expect(Math.max(...payouts)).toBeLessThanOrEqual(stakeAmount * 2);
+  });
+
+  it('keeps mega buy-feature free-spin line payouts on the paytable', () => {
+    for (let nonce = 0; nonce < 40; nonce += 1) {
+      const result = hotlineBuyFreeSpins(
+        'paytable-server',
+        'paytable-client',
+        nonce,
+        HOTLINE_MEGA_REELS,
+        HOTLINE_MEGA_ROWS,
+      );
+
+      expect(result.totalMultiplier).toBeLessThanOrEqual(
+        HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER,
+      );
+      expectMegaFeatureUsesPaytable(result.features!);
+    }
   });
 });
 

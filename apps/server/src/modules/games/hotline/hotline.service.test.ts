@@ -467,6 +467,26 @@ describe('hotline controlled round shaping', () => {
     }
   });
 
+  it('does not cap naturally-triggered mega free games without a control hit', () => {
+    const features = __hotlineServiceTestHooks.buildControlledMegaFeature(120, false, 12);
+
+    expect(
+      __hotlineServiceTestHooks.shouldApplyMegaFreeGameSettlementCap(5, features, false, {
+        controlled: false,
+      }),
+    ).toBe(false);
+    expect(
+      __hotlineServiceTestHooks.shouldApplyMegaFreeGameSettlementCap(5, features, true, {
+        controlled: false,
+      }),
+    ).toBe(true);
+    expect(
+      __hotlineServiceTestHooks.shouldApplyMegaFreeGameSettlementCap(5, features, false, {
+        controlled: true,
+      }),
+    ).toBe(true);
+  });
+
   it('keeps normal mega buy-feature payout and displayed free-game total capped at 1x stake', () => {
     const baseAmount = new Prisma.Decimal(10);
     const stakeAmount = __hotlineServiceTestHooks.megaBuyFeatureStakeAmount(baseAmount);
@@ -612,4 +632,64 @@ describe('hotline controlled round shaping', () => {
     expect(capped.features.totalMultiplier).toBeLessThanOrEqual(200);
     expect(capped.features.freeSpinWinMultiplier).toBe(capped.features.totalMultiplier);
   });
+
+  it('keeps capped mega free-game line payouts on the paytable', () => {
+    const baseAmount = new Prisma.Decimal(10);
+    const stakeAmount = __hotlineServiceTestHooks.megaBuyFeatureStakeAmount(baseAmount);
+    const capped = __hotlineServiceTestHooks.capMegaFreeGameSettlement(
+      __hotlineServiceTestHooks.buildControlledMegaFeature(400, true, 2),
+      true,
+      baseAmount,
+      stakeAmount,
+      2,
+    );
+
+    expectMegaFeatureUsesPaytable(capped.features);
+    expect(capped.payout.toFixed(2)).toBe(
+      baseAmount.mul(capped.features.totalMultiplier).toDecimalPlaces(2).toFixed(2),
+    );
+  });
 });
+
+function expectMegaFeatureUsesPaytable(
+  features: ReturnType<typeof __hotlineServiceTestHooks.buildControlledMegaFeature>,
+): void {
+  let freeSpinWinMultiplier = 0;
+  for (const round of features.freeSpinRounds) {
+    const expectedLines = round.cascades.flatMap((step) => step.lines);
+    expect(round.lines).toEqual(expectedLines);
+    let symbolWinMultiplier = 0;
+
+    for (const step of round.cascades) {
+      const evaluated = hotlineEvaluate(step.grid);
+      expect(step.lines).toEqual(evaluated.lines);
+      expect(step.multiplier).toBeCloseTo(evaluated.totalMultiplier, 4);
+      symbolWinMultiplier = roundTestMultiplier(symbolWinMultiplier + step.multiplier);
+    }
+
+    const scatterMultiplier = megaScatterPayout(round.scatterSymbols.length);
+    expect(round.baseMultiplier).toBeCloseTo(
+      roundTestMultiplier(symbolWinMultiplier + scatterMultiplier),
+      4,
+    );
+    expect(round.totalMultiplier).toBeCloseTo(
+      roundTestMultiplier(
+        scatterMultiplier + symbolWinMultiplier * Math.max(1, round.appliedMultiplier),
+      ),
+      4,
+    );
+    freeSpinWinMultiplier = roundTestMultiplier(freeSpinWinMultiplier + round.totalMultiplier);
+  }
+  expect(features.freeSpinWinMultiplier).toBeCloseTo(freeSpinWinMultiplier, 3);
+}
+
+function roundTestMultiplier(value: number): number {
+  return Number(value.toFixed(4));
+}
+
+function megaScatterPayout(count: number): number {
+  if (count >= 6) return 100;
+  if (count === 5) return 5;
+  if (count === 4) return 3;
+  return 0;
+}
