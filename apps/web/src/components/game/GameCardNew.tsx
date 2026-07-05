@@ -45,6 +45,8 @@ const HAS_COVER = new Set<string>([
   'chicken-road',
   'carnival',
 ]);
+const COVER_CLIP_PATH =
+  'polygon(5% 0, 90% 0, 100% 7%, 100% 68%, 105% 82%, 94% 100%, 7% 100%, -4% 90%, 0 8%)';
 
 function gamePath(id: string): string {
   return `/games/${id}`;
@@ -73,24 +75,26 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
       onFocus={warmAssets}
       onPointerDown={warmAssets}
       onPointerEnter={warmAssets}
-      className="group relative flex flex-col overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:border-[#EA580C] hover:shadow-[0_8px_20px_rgba(234,88,12,0.18)]"
+      className="group relative block overflow-visible rounded-[14px] transition-all duration-300 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EA580C]/45 focus-visible:ring-offset-2"
     >
       {isHot && (
-        <span className="absolute left-2 top-2 z-10 rounded-full bg-[#EC0E69] px-2 py-1 text-[10px] font-black uppercase text-white shadow-[0_3px_8px_rgba(236,14,105,0.35)]">
+        <span className="absolute left-3 top-3 z-30 rounded-full bg-[#EC0E69] px-2.5 py-1 text-[10px] font-black uppercase text-white shadow-[0_3px_8px_rgba(236,14,105,0.35)]">
           熱門
         </span>
       )}
 
-      {/* 封面 */}
-      <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-[#EA580C] to-[#9A3412]">
+      <div
+        className="relative aspect-[3/4] bg-gradient-to-br from-[#EA580C] to-[#9A3412] shadow-[0_14px_28px_rgba(15,23,42,0.18)] transition duration-300 [filter:drop-shadow(0_12px_18px_rgba(15,23,42,0.18))] group-hover:[filter:drop-shadow(0_18px_28px_rgba(234,88,12,0.28))]"
+        style={{ clipPath: COVER_CLIP_PATH }}
+      >
         <span
-          className="absolute right-1.5 top-1.5 z-10 inline-flex min-w-[52px] max-w-[82px] flex-col items-center rounded-[6px] bg-[linear-gradient(180deg,#FFE27A_0%,#F59E0B_100%)] px-1.5 py-1 text-center text-[#4B2600] shadow-[0_3px_8px_rgba(0,0,0,0.28)]"
+          className="absolute right-2 top-2 z-20 inline-flex min-w-[58px] max-w-[88px] flex-col items-center rounded-[8px] bg-[linear-gradient(180deg,#FFE27A_0%,#F59E0B_100%)] px-1.5 py-1.5 text-center text-[#4B2600] shadow-[0_3px_8px_rgba(0,0,0,0.28)]"
           aria-label={`最高爆分 ${multiplierLabel}`}
         >
-          <strong className="num max-w-full truncate text-[10px] font-black leading-none">
+          <strong className="num max-w-full truncate text-[11px] font-black leading-none">
             {multiplierLabel}
           </strong>
-          <small className="mt-0.5 text-[8px] font-black leading-none tracking-[0.08em]">
+          <small className="mt-0.5 text-[8px] font-black leading-none">
             最高爆分
           </small>
         </span>
@@ -100,7 +104,7 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
             alt={title}
             preset="lobby-card"
             sizes="(min-width: 1280px) 190px, (min-width: 768px) 22vw, 46vw"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.045]"
             loading="lazy"
           />
         ) : (
@@ -110,18 +114,19 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
             </div>
           </div>
         )}
-        {/* Hover 覆蓋 */}
-        <div className="absolute inset-0 flex items-center justify-center bg-[#EA580C]/80 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          <span className="rounded-[6px] border-2 border-white bg-transparent px-4 py-1.5 text-[13px] font-semibold text-white">
+        <div className="absolute inset-x-5 bottom-[8.5%] z-20 min-w-0 text-center">
+          <h3 className="truncate text-[19px] font-black leading-tight text-[#FFE8A3] [text-shadow:0_2px_0_#4A1D05,0_4px_10px_rgba(0,0,0,0.92)]">
+            {title}
+          </h3>
+          <p className="mt-0.5 truncate text-[10px] font-black uppercase text-white/78 [text-shadow:0_2px_6px_rgba(0,0,0,0.88)]">
+            {game.name}
+          </p>
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/42 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          <span className="rounded-[7px] border-2 border-white bg-[#EA580C] px-4 py-1.5 text-[13px] font-black text-white shadow-[0_8px_18px_rgba(0,0,0,0.28)]">
             {t.bet.start}
           </span>
         </div>
-      </div>
-
-      {/* 資訊 */}
-      <div className="flex flex-col gap-1 p-3">
-        <div className="text-[14px] font-semibold text-[#0F172A]">{title}</div>
-        <div className="text-[11px] text-[#9CA3AF]">{game.name}</div>
       </div>
     </Link>
   );

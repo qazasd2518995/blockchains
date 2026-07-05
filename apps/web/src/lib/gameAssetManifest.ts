@@ -68,7 +68,7 @@ export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
   blackjack: {
     gameId: 'blackjack',
     assets: [
-      criticalAsset('/game-art/blackjack/cover.png', 'cover'),
+      criticalAsset('/game-art/blackjack/cover-v2.png', 'cover'),
       criticalAsset('/game-art/blackjack/background.png', 'background'),
       ...CARD_SUITS.flatMap((suit) =>
         CARD_RANKS.map((rank) => asset(`/cards/${rank}_of_${suit}.svg`, 'card')),
@@ -88,11 +88,11 @@ export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
     ],
   },
   plinko: simplePixiGame('plinko'),
-  'plinko-x': simplePixiGame('plinko', 'plinko-x'),
+  'plinko-x': simplePixiGame('plinko', 'plinko-x', getLobbyGameCover('plinko-x')),
   tower: {
     gameId: 'tower',
     assets: [
-      criticalAsset('/game-art/tower/cover.png', 'cover'),
+      criticalAsset('/game-art/tower/cover-v2.png', 'cover'),
       criticalPixiAsset('/game-art/tower/background.png', 'background'),
       criticalPixiAsset('/game-art/tower/stage-background.png', 'background'),
       criticalPixiAsset('/game-art/tower/sprites.png', 'sprite'),
@@ -101,14 +101,14 @@ export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
   'mini-roulette': {
     gameId: 'mini-roulette',
     assets: [
-      criticalAsset('/game-art/mini-roulette/cover.png', 'cover'),
+      criticalAsset('/game-art/mini-roulette/cover-v2.png', 'cover'),
       criticalPixiAsset('/game-art/mini-roulette/background-v2.png', 'background'),
     ],
   },
   carnival: {
     gameId: 'carnival',
     assets: [
-      criticalAsset('/game-art/carnival/cover.png', 'cover'),
+      criticalAsset('/game-art/carnival/cover-v2.png', 'cover'),
       criticalPixiAsset('/game-art/carnival/background-v2.png', 'background'),
     ],
   },
@@ -177,11 +177,15 @@ function warmRemainingGameAssets(gameId: string, options: PreloadGameAssetsOptio
   }
 }
 
-function simplePixiGame(folder: string, gameId = folder): GameAssetManifest {
+function simplePixiGame(
+  folder: string,
+  gameId = folder,
+  cover = `/game-art/${folder}/cover-v2.png`,
+): GameAssetManifest {
   return {
     gameId,
     assets: [
-      criticalAsset(`/game-art/${folder}/cover.png`, 'cover'),
+      criticalAsset(cover, 'cover'),
       criticalPixiAsset(`/game-art/${folder}/background.png`, 'background'),
       criticalPixiAsset(`/game-art/${folder}/sprites.png`, 'sprite'),
     ],

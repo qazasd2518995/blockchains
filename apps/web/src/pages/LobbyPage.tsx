@@ -52,6 +52,13 @@ const MOBILE_CATEGORIES: Array<{
   { id: 'roulette', iconKey: 'roulette' },
   { id: 'classic', iconKey: 'classic' },
 ];
+type MobileCardVariant = 'hero' | 'standard' | 'angled' | 'tall';
+const MOBILE_COVER_CLIP_PATHS: Record<MobileCardVariant, string> = {
+  hero: 'polygon(3% 0, 92% 0, 100% 9%, 100% 71%, 96% 100%, 6% 100%, 0 90%, 0 8%)',
+  standard: 'polygon(5% 0, 90% 0, 100% 7%, 100% 70%, 94% 100%, 7% 100%, 0 90%, 0 8%)',
+  angled: 'polygon(0 0, 94% 0, 100% 10%, 100% 100%, 12% 100%, 0 88%)',
+  tall: 'polygon(8% 0, 100% 0, 100% 88%, 92% 100%, 0 100%, 0 10%)',
+};
 
 function mobileGamePath(gameId: string): string {
   return `/games/${gameId}`;
@@ -77,6 +84,13 @@ function getMobileCategoryLabel(
     label: hall ? getLocalizedHallName(hall, locale) : categoryId,
     shortLabel: getLocalizedHallShort(categoryId, locale),
   };
+}
+
+function getMobileCardVariant(index: number): MobileCardVariant {
+  if (index === 0) return 'hero';
+  if (index % 6 === 3) return 'tall';
+  if (index % 4 === 2) return 'angled';
+  return 'standard';
 }
 
 export function LobbyPage() {
@@ -370,8 +384,12 @@ function MobileLobbyOnePage() {
           </div>
 
           <div className="grid grid-cols-2 gap-1.5">
-            {games.map((game) => (
-              <MobileGameCard key={game.id} game={game} />
+            {games.map((game, index) => (
+              <MobileGameCard
+                key={game.id}
+                game={game}
+                variant={getMobileCardVariant(index)}
+              />
             ))}
           </div>
         </div>
@@ -380,7 +398,13 @@ function MobileLobbyOnePage() {
   );
 }
 
-function MobileGameCard({ game }: { game: GameMetadata }) {
+function MobileGameCard({
+  game,
+  variant = 'standard',
+}: {
+  game: GameMetadata;
+  variant?: MobileCardVariant;
+}) {
   const { locale, t } = useTranslation();
   const GameIcon = getGameIcon(game.id);
   const cover = getLobbyGameCover(game.id);
@@ -391,6 +415,9 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
   const title = getLocalizedGameTitle(game.id, locale, game.nameZh);
   const multiplierLabel = getGamePromoMultiplierLabel(game.id);
   const isHot = isGamePromoHot(game.id);
+  const featured = variant === 'hero';
+  const tall = variant === 'tall';
+  const clipPath = MOBILE_COVER_CLIP_PATHS[variant];
 
   return (
     <Link
@@ -399,16 +426,23 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
       onFocus={warmAssets}
       onPointerDown={warmAssets}
       onPointerEnter={warmAssets}
-      className="group relative min-h-[116px] overflow-hidden rounded-[13px] border border-[#FED7AA] bg-[#FFF7ED] shadow-[0_6px_14px_rgba(15,23,42,0.08)] active:scale-[0.99]"
+      className={`group relative overflow-visible rounded-[13px] bg-transparent shadow-[0_8px_16px_rgba(15,23,42,0.12)] active:scale-[0.99] ${
+        featured ? 'col-span-2 min-h-[190px]' : tall ? 'min-h-[150px]' : 'min-h-[132px]'
+      }`}
+      style={{ clipPath }}
     >
+      <div className="absolute inset-0 bg-[#1B1307]" />
       <ResponsiveImage
         src={cover}
         alt={title}
         preset="lobby-card"
-        sizes="50vw"
-        className="absolute inset-0 h-full w-full object-cover object-center opacity-[0.84] transition duration-300 group-active:scale-[1.03]"
+        sizes={featured ? '100vw' : '50vw'}
+        className="absolute inset-0 h-full w-full object-cover object-center opacity-100 transition duration-300 group-active:scale-[1.03]"
         loading="lazy"
       />
+      {featured && (
+        <div className="absolute inset-x-0 top-0 z-10 h-14 bg-[linear-gradient(180deg,rgba(0,0,0,0.46),rgba(0,0,0,0))]" />
+      )}
       {isHot && (
         <span className="absolute left-2 top-2 z-20 rounded-full bg-[#EC0E69] px-2 py-1 text-[10px] font-black leading-none text-white shadow-[0_3px_8px_rgba(236,14,105,0.35)]">
           熱門
@@ -425,18 +459,32 @@ function MobileGameCard({ game }: { game: GameMetadata }) {
           最高爆分
         </small>
       </span>
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.94)_0%,rgba(255,255,255,0.76)_42%,rgba(255,255,255,0.2)_100%)]" />
-      <div className="absolute inset-x-0 bottom-0 h-12 bg-[linear-gradient(0deg,rgba(4,28,42,0.46),transparent)]" />
-      <div className="relative z-10 flex h-full min-h-[116px] flex-col justify-between p-2.5">
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.02)_0%,rgba(0,0,0,0)_42%,rgba(16,7,2,0.76)_100%)]" />
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-[linear-gradient(0deg,rgba(0,0,0,0.86),rgba(0,0,0,0))]" />
+      <div
+        className={`relative z-10 flex h-full flex-col justify-between p-2.5 ${
+          featured ? 'min-h-[190px]' : tall ? 'min-h-[150px]' : 'min-h-[132px]'
+        }`}
+      >
         <div className="min-w-0 pt-10">
-          <h3 className="truncate text-[16px] font-black leading-tight text-[#17343F]">{title}</h3>
-          <span className="mt-1 inline-flex rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black text-[#C2410C] shadow-sm">
+          <span className="inline-flex rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-black text-[#FFE27A] shadow-[0_2px_8px_rgba(0,0,0,0.24)] backdrop-blur-[2px]">
             {hallLabel}
           </span>
         </div>
         <div className="flex items-end justify-between gap-1">
-          <p className="min-w-0 truncate text-[10px] font-semibold text-[#315967]">{game.name}</p>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EA580C] text-white shadow-[0_6px_12px_rgba(234,88,12,0.24)]">
+          <div className="min-w-0">
+            <h3
+              className={`truncate font-black leading-tight text-[#FFE8A3] [text-shadow:0_2px_0_#4A1D05,0_3px_8px_rgba(0,0,0,0.86)] ${
+                featured ? 'text-[24px]' : 'text-[16px]'
+              }`}
+            >
+              {title}
+            </h3>
+            <p className="min-w-0 truncate text-[10px] font-semibold uppercase text-white/82">
+              {game.name}
+            </p>
+          </div>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#FFE27A]/70 bg-[#EA580C] text-white shadow-[0_6px_12px_rgba(234,88,12,0.34)]">
             <GameIcon className="h-4 w-4" aria-hidden="true" strokeWidth={2} />
           </span>
         </div>

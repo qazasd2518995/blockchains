@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T10:52:07.348Z",
+  "generatedAt": "2026-07-05T05:21:52.223Z",
   "widths": [
     480,
     960,
@@ -162,6 +162,11 @@
       "960": "/_optimized/game-art/blackjack/background@960.webp",
       "1600": "/_optimized/game-art/blackjack/background@1600.webp"
     },
+    "/game-art/blackjack/cover-v2.png": {
+      "480": "/_optimized/game-art/blackjack/cover-v2@480.webp",
+      "960": "/_optimized/game-art/blackjack/cover-v2@960.webp",
+      "1600": "/_optimized/game-art/blackjack/cover-v2@1600.webp"
+    },
     "/game-art/blackjack/cover.png": {
       "480": "/_optimized/game-art/blackjack/cover@480.webp",
       "960": "/_optimized/game-art/blackjack/cover@960.webp",
@@ -176,6 +181,11 @@
       "480": "/_optimized/game-art/carnival/background@480.webp",
       "960": "/_optimized/game-art/carnival/background@960.webp",
       "1600": "/_optimized/game-art/carnival/background@1600.webp"
+    },
+    "/game-art/carnival/cover-v2.png": {
+      "480": "/_optimized/game-art/carnival/cover-v2@480.webp",
+      "960": "/_optimized/game-art/carnival/cover-v2@960.webp",
+      "1600": "/_optimized/game-art/carnival/cover-v2@1600.webp"
     },
     "/game-art/carnival/cover.png": {
       "480": "/_optimized/game-art/carnival/cover@480.webp",
@@ -212,6 +222,11 @@
       "960": "/_optimized/game-art/dice/background@960.webp",
       "1600": "/_optimized/game-art/dice/background@1600.webp"
     },
+    "/game-art/dice/cover-v2.png": {
+      "480": "/_optimized/game-art/dice/cover-v2@480.webp",
+      "960": "/_optimized/game-art/dice/cover-v2@960.webp",
+      "1600": "/_optimized/game-art/dice/cover-v2@1600.webp"
+    },
     "/game-art/dice/cover.png": {
       "480": "/_optimized/game-art/dice/cover@480.webp",
       "960": "/_optimized/game-art/dice/cover@960.webp",
@@ -226,6 +241,11 @@
       "480": "/_optimized/game-art/hilo/background@480.webp",
       "960": "/_optimized/game-art/hilo/background@960.webp",
       "1600": "/_optimized/game-art/hilo/background@1600.webp"
+    },
+    "/game-art/hilo/cover-v2.png": {
+      "480": "/_optimized/game-art/hilo/cover-v2@480.webp",
+      "960": "/_optimized/game-art/hilo/cover-v2@960.webp",
+      "1600": "/_optimized/game-art/hilo/cover-v2@1600.webp"
     },
     "/game-art/hilo/cover.png": {
       "480": "/_optimized/game-art/hilo/cover@480.webp",
@@ -242,6 +262,11 @@
       "960": "/_optimized/game-art/keno/background@960.webp",
       "1600": "/_optimized/game-art/keno/background@1600.webp"
     },
+    "/game-art/keno/cover-v2.png": {
+      "480": "/_optimized/game-art/keno/cover-v2@480.webp",
+      "960": "/_optimized/game-art/keno/cover-v2@960.webp",
+      "1600": "/_optimized/game-art/keno/cover-v2@1600.webp"
+    },
     "/game-art/keno/cover.png": {
       "480": "/_optimized/game-art/keno/cover@480.webp",
       "960": "/_optimized/game-art/keno/cover@960.webp",
@@ -256,6 +281,11 @@
       "480": "/_optimized/game-art/mines/background@480.webp",
       "960": "/_optimized/game-art/mines/background@960.webp",
       "1600": "/_optimized/game-art/mines/background@1600.webp"
+    },
+    "/game-art/mines/cover-v2.png": {
+      "480": "/_optimized/game-art/mines/cover-v2@480.webp",
+      "960": "/_optimized/game-art/mines/cover-v2@960.webp",
+      "1600": "/_optimized/game-art/mines/cover-v2@1600.webp"
     },
     "/game-art/mines/cover.png": {
       "480": "/_optimized/game-art/mines/cover@480.webp",
@@ -277,6 +307,11 @@
       "960": "/_optimized/game-art/mini-roulette/background@960.webp",
       "1600": "/_optimized/game-art/mini-roulette/background@1600.webp"
     },
+    "/game-art/mini-roulette/cover-v2.png": {
+      "480": "/_optimized/game-art/mini-roulette/cover-v2@480.webp",
+      "960": "/_optimized/game-art/mini-roulette/cover-v2@960.webp",
+      "1600": "/_optimized/game-art/mini-roulette/cover-v2@1600.webp"
+    },
     "/game-art/mini-roulette/cover.png": {
       "480": "/_optimized/game-art/mini-roulette/cover@480.webp",
       "960": "/_optimized/game-art/mini-roulette/cover@960.webp",
@@ -286,6 +321,11 @@
       "480": "/_optimized/game-art/plinko/background@480.webp",
       "960": "/_optimized/game-art/plinko/background@960.webp",
       "1600": "/_optimized/game-art/plinko/background@1600.webp"
+    },
+    "/game-art/plinko/cover-v2.png": {
+      "480": "/_optimized/game-art/plinko/cover-v2@480.webp",
+      "960": "/_optimized/game-art/plinko/cover-v2@960.webp",
+      "1600": "/_optimized/game-art/plinko/cover-v2@1600.webp"
     },
     "/game-art/plinko/cover.png": {
       "480": "/_optimized/game-art/plinko/cover@480.webp",
@@ -301,6 +341,11 @@
       "480": "/_optimized/game-art/tower/background@480.webp",
       "960": "/_optimized/game-art/tower/background@960.webp",
       "1600": "/_optimized/game-art/tower/background@1600.webp"
+    },
+    "/game-art/tower/cover-v2.png": {
+      "480": "/_optimized/game-art/tower/cover-v2@480.webp",
+      "960": "/_optimized/game-art/tower/cover-v2@960.webp",
+      "1600": "/_optimized/game-art/tower/cover-v2@1600.webp"
     },
     "/game-art/tower/cover.png": {
       "480": "/_optimized/game-art/tower/cover@480.webp",
@@ -326,6 +371,11 @@
       "480": "/_optimized/game-art/wheel/background@480.webp",
       "960": "/_optimized/game-art/wheel/background@960.webp",
       "1600": "/_optimized/game-art/wheel/background@1600.webp"
+    },
+    "/game-art/wheel/cover-v2.png": {
+      "480": "/_optimized/game-art/wheel/cover-v2@480.webp",
+      "960": "/_optimized/game-art/wheel/cover-v2@960.webp",
+      "1600": "/_optimized/game-art/wheel/cover-v2@1600.webp"
     },
     "/game-art/wheel/cover.png": {
       "480": "/_optimized/game-art/wheel/cover@480.webp",
@@ -392,40 +442,80 @@
       "960": "/_optimized/games/keno@960.webp",
       "1600": "/_optimized/games/keno@1600.webp"
     },
+    "/games/lobby/aviator-v2.png": {
+      "480": "/_optimized/games/lobby/aviator-v2@480.webp",
+      "960": "/_optimized/games/lobby/aviator-v2@960.webp",
+      "1600": "/_optimized/games/lobby/aviator-v2@1600.webp"
+    },
     "/games/lobby/aviator.jpg": {
       "480": "/_optimized/games/lobby/aviator@480.webp",
       "960": "/_optimized/games/lobby/aviator@960.webp",
       "1600": "/_optimized/games/lobby/aviator@1600.webp"
+    },
+    "/games/lobby/balloon-v2.png": {
+      "480": "/_optimized/games/lobby/balloon-v2@480.webp",
+      "960": "/_optimized/games/lobby/balloon-v2@960.webp",
+      "1600": "/_optimized/games/lobby/balloon-v2@1600.webp"
     },
     "/games/lobby/balloon.jpg": {
       "480": "/_optimized/games/lobby/balloon@480.webp",
       "960": "/_optimized/games/lobby/balloon@960.webp",
       "1600": "/_optimized/games/lobby/balloon@1600.webp"
     },
+    "/games/lobby/double-x-v2.png": {
+      "480": "/_optimized/games/lobby/double-x-v2@480.webp",
+      "960": "/_optimized/games/lobby/double-x-v2@960.webp",
+      "1600": "/_optimized/games/lobby/double-x-v2@1600.webp"
+    },
     "/games/lobby/double-x.jpg": {
       "480": "/_optimized/games/lobby/double-x@480.webp",
       "960": "/_optimized/games/lobby/double-x@960.webp",
       "1600": "/_optimized/games/lobby/double-x@1600.webp"
+    },
+    "/games/lobby/jetx-v2.png": {
+      "480": "/_optimized/games/lobby/jetx-v2@480.webp",
+      "960": "/_optimized/games/lobby/jetx-v2@960.webp",
+      "1600": "/_optimized/games/lobby/jetx-v2@1600.webp"
     },
     "/games/lobby/jetx.jpg": {
       "480": "/_optimized/games/lobby/jetx@480.webp",
       "960": "/_optimized/games/lobby/jetx@960.webp",
       "1600": "/_optimized/games/lobby/jetx@1600.webp"
     },
+    "/games/lobby/jetx3-v2.png": {
+      "480": "/_optimized/games/lobby/jetx3-v2@480.webp",
+      "960": "/_optimized/games/lobby/jetx3-v2@960.webp",
+      "1600": "/_optimized/games/lobby/jetx3-v2@1600.webp"
+    },
     "/games/lobby/jetx3.jpg": {
       "480": "/_optimized/games/lobby/jetx3@480.webp",
       "960": "/_optimized/games/lobby/jetx3@960.webp",
       "1600": "/_optimized/games/lobby/jetx3@1600.webp"
+    },
+    "/games/lobby/plinko-x-v2.png": {
+      "480": "/_optimized/games/lobby/plinko-x-v2@480.webp",
+      "960": "/_optimized/games/lobby/plinko-x-v2@960.webp",
+      "1600": "/_optimized/games/lobby/plinko-x-v2@1600.webp"
     },
     "/games/lobby/plinko-x.jpg": {
       "480": "/_optimized/games/lobby/plinko-x@480.webp",
       "960": "/_optimized/games/lobby/plinko-x@960.webp",
       "1600": "/_optimized/games/lobby/plinko-x@1600.webp"
     },
+    "/games/lobby/rocket-v2.png": {
+      "480": "/_optimized/games/lobby/rocket-v2@480.webp",
+      "960": "/_optimized/games/lobby/rocket-v2@960.webp",
+      "1600": "/_optimized/games/lobby/rocket-v2@1600.webp"
+    },
     "/games/lobby/rocket.jpg": {
       "480": "/_optimized/games/lobby/rocket@480.webp",
       "960": "/_optimized/games/lobby/rocket@960.webp",
       "1600": "/_optimized/games/lobby/rocket@1600.webp"
+    },
+    "/games/lobby/space-fleet-v2.png": {
+      "480": "/_optimized/games/lobby/space-fleet-v2@480.webp",
+      "960": "/_optimized/games/lobby/space-fleet-v2@960.webp",
+      "1600": "/_optimized/games/lobby/space-fleet-v2@1600.webp"
     },
     "/games/lobby/space-fleet.jpg": {
       "480": "/_optimized/games/lobby/space-fleet@480.webp",
@@ -517,6 +607,11 @@
       "960": "/_optimized/slots/candy/background@960.webp",
       "1600": "/_optimized/slots/candy/background@1600.webp"
     },
+    "/slots/candy/cover-v2.png": {
+      "480": "/_optimized/slots/candy/cover-v2@480.webp",
+      "960": "/_optimized/slots/candy/cover-v2@960.webp",
+      "1600": "/_optimized/slots/candy/cover-v2@1600.webp"
+    },
     "/slots/candy/cover.png": {
       "480": "/_optimized/slots/candy/cover@480.webp",
       "960": "/_optimized/slots/candy/cover@960.webp",
@@ -576,6 +671,11 @@
       "480": "/_optimized/slots/cyber/background@480.webp",
       "960": "/_optimized/slots/cyber/background@960.webp",
       "1600": "/_optimized/slots/cyber/background@1600.webp"
+    },
+    "/slots/cyber/cover-v2.png": {
+      "480": "/_optimized/slots/cyber/cover-v2@480.webp",
+      "960": "/_optimized/slots/cyber/cover-v2@960.webp",
+      "1600": "/_optimized/slots/cyber/cover-v2@1600.webp"
     },
     "/slots/cyber/cover.png": {
       "480": "/_optimized/slots/cyber/cover@480.webp",
@@ -641,6 +741,11 @@
       "480": "/_optimized/slots/dragon-mega/big-win@480.webp",
       "960": "/_optimized/slots/dragon-mega/big-win@960.webp",
       "1600": "/_optimized/slots/dragon-mega/big-win@1600.webp"
+    },
+    "/slots/dragon-mega/cover-v2.png": {
+      "480": "/_optimized/slots/dragon-mega/cover-v2@480.webp",
+      "960": "/_optimized/slots/dragon-mega/cover-v2@960.webp",
+      "1600": "/_optimized/slots/dragon-mega/cover-v2@1600.webp"
     },
     "/slots/dragon-mega/cover.png": {
       "480": "/_optimized/slots/dragon-mega/cover@480.webp",
@@ -712,6 +817,11 @@
       "960": "/_optimized/slots/fortune/background@960.webp",
       "1600": "/_optimized/slots/fortune/background@1600.webp"
     },
+    "/slots/fortune/cover-v2.png": {
+      "480": "/_optimized/slots/fortune/cover-v2@480.webp",
+      "960": "/_optimized/slots/fortune/cover-v2@960.webp",
+      "1600": "/_optimized/slots/fortune/cover-v2@1600.webp"
+    },
     "/slots/fortune/cover.png": {
       "480": "/_optimized/slots/fortune/cover@480.webp",
       "960": "/_optimized/slots/fortune/cover@960.webp",
@@ -771,6 +881,11 @@
       "480": "/_optimized/slots/fruit/background@480.webp",
       "960": "/_optimized/slots/fruit/background@960.webp",
       "1600": "/_optimized/slots/fruit/background@1600.webp"
+    },
+    "/slots/fruit/cover-v2.png": {
+      "480": "/_optimized/slots/fruit/cover-v2@480.webp",
+      "960": "/_optimized/slots/fruit/cover-v2@960.webp",
+      "1600": "/_optimized/slots/fruit/cover-v2@1600.webp"
     },
     "/slots/fruit/cover.png": {
       "480": "/_optimized/slots/fruit/cover@480.webp",
@@ -836,6 +951,11 @@
       "480": "/_optimized/slots/jungle/big-win@480.webp",
       "960": "/_optimized/slots/jungle/big-win@960.webp",
       "1600": "/_optimized/slots/jungle/big-win@1600.webp"
+    },
+    "/slots/jungle/cover-v2.png": {
+      "480": "/_optimized/slots/jungle/cover-v2@480.webp",
+      "960": "/_optimized/slots/jungle/cover-v2@960.webp",
+      "1600": "/_optimized/slots/jungle/cover-v2@1600.webp"
     },
     "/slots/jungle/cover.png": {
       "480": "/_optimized/slots/jungle/cover@480.webp",
@@ -912,6 +1032,11 @@
       "960": "/_optimized/slots/nebula/big-win@960.webp",
       "1600": "/_optimized/slots/nebula/big-win@1600.webp"
     },
+    "/slots/nebula/cover-v2.png": {
+      "480": "/_optimized/slots/nebula/cover-v2@480.webp",
+      "960": "/_optimized/slots/nebula/cover-v2@960.webp",
+      "1600": "/_optimized/slots/nebula/cover-v2@1600.webp"
+    },
     "/slots/nebula/cover.png": {
       "480": "/_optimized/slots/nebula/cover@480.webp",
       "960": "/_optimized/slots/nebula/cover@960.webp",
@@ -982,6 +1107,11 @@
       "960": "/_optimized/slots/ocean/background@960.webp",
       "1600": "/_optimized/slots/ocean/background@1600.webp"
     },
+    "/slots/ocean/cover-v2.png": {
+      "480": "/_optimized/slots/ocean/cover-v2@480.webp",
+      "960": "/_optimized/slots/ocean/cover-v2@960.webp",
+      "1600": "/_optimized/slots/ocean/cover-v2@1600.webp"
+    },
     "/slots/ocean/cover.png": {
       "480": "/_optimized/slots/ocean/cover@480.webp",
       "960": "/_optimized/slots/ocean/cover@960.webp",
@@ -1042,6 +1172,11 @@
       "960": "/_optimized/slots/sakura/background@960.webp",
       "1600": "/_optimized/slots/sakura/background@1600.webp"
     },
+    "/slots/sakura/cover-v2.png": {
+      "480": "/_optimized/slots/sakura/cover-v2@480.webp",
+      "960": "/_optimized/slots/sakura/cover-v2@960.webp",
+      "1600": "/_optimized/slots/sakura/cover-v2@1600.webp"
+    },
     "/slots/sakura/cover.png": {
       "480": "/_optimized/slots/sakura/cover@480.webp",
       "960": "/_optimized/slots/sakura/cover@960.webp",
@@ -1101,6 +1236,11 @@
       "480": "/_optimized/slots/temple/background@480.webp",
       "960": "/_optimized/slots/temple/background@960.webp",
       "1600": "/_optimized/slots/temple/background@1600.webp"
+    },
+    "/slots/temple/cover-v2.png": {
+      "480": "/_optimized/slots/temple/cover-v2@480.webp",
+      "960": "/_optimized/slots/temple/cover-v2@960.webp",
+      "1600": "/_optimized/slots/temple/cover-v2@1600.webp"
     },
     "/slots/temple/cover.png": {
       "480": "/_optimized/slots/temple/cover@480.webp",
@@ -1166,6 +1306,11 @@
       "480": "/_optimized/slots/thunder/big-win@480.webp",
       "960": "/_optimized/slots/thunder/big-win@960.webp",
       "1600": "/_optimized/slots/thunder/big-win@1600.webp"
+    },
+    "/slots/thunder/cover-v2.png": {
+      "480": "/_optimized/slots/thunder/cover-v2@480.webp",
+      "960": "/_optimized/slots/thunder/cover-v2@960.webp",
+      "1600": "/_optimized/slots/thunder/cover-v2@1600.webp"
     },
     "/slots/thunder/cover.png": {
       "480": "/_optimized/slots/thunder/cover@480.webp",
@@ -1241,6 +1386,11 @@
       "480": "/_optimized/slots/vampire/big-win@480.webp",
       "960": "/_optimized/slots/vampire/big-win@960.webp",
       "1600": "/_optimized/slots/vampire/big-win@1600.webp"
+    },
+    "/slots/vampire/cover-v2.png": {
+      "480": "/_optimized/slots/vampire/cover-v2@480.webp",
+      "960": "/_optimized/slots/vampire/cover-v2@960.webp",
+      "1600": "/_optimized/slots/vampire/cover-v2@1600.webp"
     },
     "/slots/vampire/cover.png": {
       "480": "/_optimized/slots/vampire/cover@480.webp",
