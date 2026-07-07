@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-06T13:40:33.456Z",
+  "generatedAt": "2026-07-07T11:32:23.666Z",
   "widths": [
     480,
     960,
@@ -316,6 +316,76 @@
       "480": "/_optimized/game-art/local-table/stages/card-war-stage@480.webp",
       "960": "/_optimized/game-art/local-table/stages/card-war-stage@960.webp",
       "1600": "/_optimized/game-art/local-table/stages/card-war-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/black-dot-gold-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/black-dot-gold-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/black-dot-gold-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/black-dot-gold-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/black-dot-royal-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/black-dot-royal-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/black-dot-royal-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/black-dot-royal-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/black-dot-shadow-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/black-dot-shadow-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/black-dot-shadow-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/black-dot-shadow-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/black-dot-street-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/black-dot-street-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/black-dot-street-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/black-dot-street-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/black-dot-tianjiu-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/black-dot-tianjiu-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/black-dot-tianjiu-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/black-dot-tianjiu-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/card-war-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/card-war-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/card-war-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/card-war-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/ten-half-bunny-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/ten-half-bunny-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/ten-half-bunny-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/ten-half-bunny-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/ten-half-doll-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/ten-half-doll-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/ten-half-doll-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/ten-half-doll-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/ten-half-star-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/ten-half-star-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/ten-half-star-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/ten-half-star-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/tui-tongzi-dragon-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-dragon-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-dragon-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-dragon-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/tui-tongzi-gold-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-gold-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-gold-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-gold-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/tui-tongzi-jade-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-jade-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-jade-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-jade-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/tui-tongzi-lion-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-lion-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-lion-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-lion-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/rooms/tui-tongzi-neon-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-neon-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-neon-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/rooms/tui-tongzi-neon-stage@1600.webp"
     },
     "/game-art/local-table/stages/ten-half-stage.webp": {
       "480": "/_optimized/game-art/local-table/stages/ten-half-stage@480.webp",

@@ -261,9 +261,24 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
         : profitValue < 0
           ? 'local-table-stage-panel--loss'
           : 'local-table-stage-panel--push'
-      : '';
+        : '';
+  const tableKindClass = isTwentyOneHalf
+    ? 'local-table-stage-panel--ten-half'
+    : isTuiTongzi
+      ? 'local-table-stage-panel--tui-tongzi'
+      : isBlackDot
+        ? 'local-table-stage-panel--black-dot'
+        : 'local-table-stage-panel--card-war';
   const isTenHalfBankerTurn =
     isTwentyOneHalf && tenHalfState?.status === 'ACTIVE' && tenHalfState.phase === 'BANKER_TURN';
+  const blackDotSplitOptions =
+    isBlackDot &&
+    stagedState?.status === 'ACTIVE' &&
+    stagedState.canSplit &&
+    stagedState.splitOptions?.length
+      ? stagedState.splitOptions
+      : [];
+  const showInlineBlackDotSplit = blackDotSplitOptions.length > 0;
   const statusLabel = busy
     ? isTwentyOneHalf || isStagedTable
       ? '處理中'
@@ -494,7 +509,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
       <div className="game-play-grid game-play-grid--local-table grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(320px,0.82fr)]">
         <div className="game-main-stack space-y-4">
           <section
-            className={`local-table-stage-panel game-stage-panel scanlines relative overflow-hidden rounded-[22px] border border-white/10 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.24)] ${stageToneClass} ${isBlackDot ? 'local-table-stage-panel--black-dot' : ''}`}
+            className={`local-table-stage-panel game-stage-panel scanlines relative overflow-hidden rounded-[22px] border border-white/10 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.24)] ${stageToneClass} ${tableKindClass}`}
             style={localTableStageStyle(theme)}
           >
             <ResponsiveImage
@@ -507,9 +522,9 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
               fetchPriority="high"
               width={941}
               height={1672}
-              className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-85"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-95"
             />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(5,10,19,0.18)_0%,rgba(5,10,19,0.42)_42%,rgba(5,10,19,0.82)_100%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(5,10,19,0.10)_0%,rgba(5,10,19,0.30)_42%,rgba(5,10,19,0.68)_100%)]" />
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.12),transparent_30%),radial-gradient(circle_at_20%_12%,rgba(253,230,138,0.22),transparent_30%)]" />
             <div className="local-table-ambient-light" aria-hidden="true" />
             <div className="local-table-result-burst" aria-hidden="true" />
@@ -522,13 +537,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                 <div className="local-table-deal-chip local-table-deal-chip--two" />
               </div>
             ) : null}
-            <div
-              className="pointer-events-none absolute -right-8 -top-10 flex h-44 w-44 items-center justify-center rounded-full border border-white/10 text-[96px] font-black text-white/12"
-              aria-hidden="true"
-            >
-              {theme.mascot}
-            </div>
-            <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+            <div className="local-table-stage-header relative z-10 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
               <div>
                 <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/50">
                   <Sparkles className="h-4 w-4" style={{ color: theme.glow }} />
@@ -574,7 +583,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                 )}
               </div>
             ) : (
-              <div className="relative z-10 mt-3 grid gap-3 sm:mt-4 sm:gap-4">
+              <div className="local-table-hand-grid relative z-10 mt-3 grid gap-3 sm:mt-4 sm:gap-4">
                 {displayRound ? (
                   <>
                     <HandPanel hand={displayRound.banker} tone="banker" active={tableActive} />
@@ -628,6 +637,14 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                 </div>
               </div>
             </div>
+
+            {showInlineBlackDotSplit ? (
+              <BlackDotSplitOptions
+                options={blackDotSplitOptions}
+                busy={busy}
+                onSelect={(splitId) => void handleStagedSplit(splitId)}
+              />
+            ) : null}
           </section>
 
           {error && (
@@ -661,7 +678,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
               gameId={gameId}
             />
             {isTwentyOneHalf && tenHalfState?.status === 'ACTIVE' ? (
-              <div className="mt-4 rounded-[16px] border border-[#FDE68A]/30 bg-[#FDE68A]/10 p-3">
+              <div className="local-table-action-panel mt-4 rounded-[16px] border border-[#FDE68A]/30 bg-[#FDE68A]/10 p-3">
                 <div className="text-[12px] font-bold leading-relaxed text-[#FDE68A]">
                   {tenHalfActionHint(tenHalfState)}
                 </div>
@@ -696,8 +713,8 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                 )}
               </div>
             ) : null}
-            {isStagedTable && !isTuiTongzi && stagedState?.status === 'ACTIVE' ? (
-              <div className="mt-4 rounded-[16px] border border-[#93C5FD]/30 bg-[#93C5FD]/10 p-3">
+            {isStagedTable && !isTuiTongzi && !showInlineBlackDotSplit && stagedState?.status === 'ACTIVE' ? (
+              <div className="local-table-action-panel mt-4 rounded-[16px] border border-[#93C5FD]/30 bg-[#93C5FD]/10 p-3">
                 <div className="text-[12px] font-bold leading-relaxed text-[#BFDBFE]">
                   {stagedActionHint(stagedState)}
                 </div>
@@ -1032,20 +1049,13 @@ function BlackDotBoard({
     >
       <div className="black-dot-table__halo" aria-hidden="true" />
       <div className="black-dot-table__scorebar">
-        <BlackDotScorePill label="閒家" hand={round.player} tone="player" />
-        <div className="black-dot-table__versus" aria-hidden="true">VS</div>
         <BlackDotScorePill label="莊家" hand={round.banker} tone="banker" />
+        <div className="black-dot-table__versus" aria-hidden="true">VS</div>
+        <BlackDotScorePill label="閒家" hand={round.player} tone="player" />
       </div>
 
       {hasSplitHands ? (
         <div className="black-dot-table__seats">
-          <BlackDotSeat
-            label="閒家"
-            summary={round.player.detail ?? '玩家擺牌'}
-            high={pairs.playerHigh}
-            low={pairs.playerLow}
-            tone="player"
-          />
           <BlackDotSeat
             label="莊家"
             summary={round.banker.detail ?? '莊家最佳擺牌'}
@@ -1053,16 +1063,16 @@ function BlackDotBoard({
             low={pairs.bankerLow}
             tone="banker"
           />
+          <BlackDotSeat
+            label="閒家"
+            summary={round.player.detail ?? '玩家擺牌'}
+            high={pairs.playerHigh}
+            low={pairs.playerLow}
+            tone="player"
+          />
         </div>
       ) : (
         <div className="black-dot-table__pending">
-          <BlackDotRack
-            title="閒家四張"
-            subtitle={round.player.rankLabel}
-            hand={round.player}
-            tone="player"
-            active={active}
-          />
           <BlackDotRack
             title="莊家暗牌"
             subtitle={round.banker.rankLabel}
@@ -1070,6 +1080,13 @@ function BlackDotBoard({
             tone="banker"
             active={busy}
             hidden={!round.banker.pieces.length}
+          />
+          <BlackDotRack
+            title="閒家四張"
+            subtitle={round.player.rankLabel}
+            hand={round.player}
+            tone="player"
+            active={active}
           />
         </div>
       )}
@@ -1082,19 +1099,55 @@ function BlackDotEmptyBoard({ busy }: { busy: boolean }) {
     <div className={`black-dot-table black-dot-table--empty ${busy ? 'black-dot-table--active' : ''}`}>
       <div className="black-dot-table__halo" aria-hidden="true" />
       <div className="black-dot-table__scorebar">
-        <div className="black-dot-score-pill black-dot-score-pill--player">
-          <span>閒家</span>
-          <strong>等待入局</strong>
-        </div>
-        <div className="black-dot-table__versus" aria-hidden="true">VS</div>
         <div className="black-dot-score-pill black-dot-score-pill--banker">
           <span>莊家</span>
           <strong>暗牌待開</strong>
         </div>
+        <div className="black-dot-table__versus" aria-hidden="true">VS</div>
+        <div className="black-dot-score-pill black-dot-score-pill--player">
+          <span>閒家</span>
+          <strong>等待入局</strong>
+        </div>
       </div>
       <div className="black-dot-table__pending">
-        <BlackDotRack title="閒家四張" subtitle="下注後發牌" hand={null} tone="player" active={busy} />
         <BlackDotRack title="莊家暗牌" subtitle="擺牌後開牌" hand={null} tone="banker" active={busy} hidden />
+        <BlackDotRack title="閒家四張" subtitle="下注後發牌" hand={null} tone="player" active={busy} />
+      </div>
+    </div>
+  );
+}
+
+function BlackDotSplitOptions({
+  options,
+  busy,
+  onSelect,
+}: {
+  options: NonNullable<LocalTableRoundState['splitOptions']>;
+  busy: boolean;
+  onSelect: (splitId: string) => void;
+}) {
+  return (
+    <div className="local-table-inline-split relative z-10 mt-3 rounded-[18px] border border-[#93C5FD]/25 bg-[#0F2744]/45 p-3 shadow-[0_14px_30px_rgba(0,0,0,0.18)] backdrop-blur-sm">
+      <div className="text-[12px] font-bold leading-relaxed text-[#BFDBFE]">
+        請選擇閒家高低兩墩，擺牌後莊家開牌比墩。
+      </div>
+      <div className="local-table-inline-split__options mt-2 grid gap-2">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onSelect(option.id)}
+            disabled={busy}
+            className="local-table-split-option rounded-[14px] border border-white/12 bg-white/10 p-3 text-left text-white transition hover:bg-white/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD]/70 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <div className="text-[14px] font-black text-[#FDE68A]">
+              {option.label}
+            </div>
+            <div className="mt-1 text-[11px] font-semibold leading-relaxed text-white/60">
+              低墩：{option.low.rankLabel} · 高墩：{option.high.rankLabel}
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -1245,6 +1298,8 @@ function HandPanel({
   compact?: boolean;
   active?: boolean;
 }) {
+  const isCardHand =
+    hand.pieces.length > 0 && hand.pieces.every((piece) => piece.kind === 'card');
   const pieceColumns = compact
     ? 'grid-cols-2'
     : hand.pieces.length >= 4
@@ -1254,6 +1309,9 @@ function HandPanel({
         : hand.pieces.length === 1
           ? 'grid-cols-1'
           : 'grid-cols-2';
+  const pieceLayoutClass = isCardHand
+    ? 'local-table-card-hand mt-3 flex flex-wrap justify-center gap-2 sm:mt-4 sm:justify-start sm:gap-3'
+    : `mt-3 grid gap-2 sm:mt-4 ${pieceColumns}`;
   return (
     <div className={`local-table-hand-panel local-table-hand-panel--${tone} ${active ? 'local-table-hand-panel--active' : ''} rounded-[18px] border p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm sm:p-4`}>
       <div className="flex items-start justify-between gap-3">
@@ -1270,7 +1328,7 @@ function HandPanel({
         </div>
       </div>
 
-      <div className={`mt-3 grid gap-2 sm:mt-4 ${pieceColumns}`}>
+      <div className={pieceLayoutClass}>
         {hand.pieces.length ? (
           hand.pieces.map((piece, index) => (
             <PieceView key={pieceKey(piece, index)} piece={piece} index={index} tone={tone} />
@@ -1346,7 +1404,7 @@ function pieceKey(piece: LocalTablePiece, index: number): string {
 function CardPiece({ card }: { card: LocalTableCard }) {
   const red = card.suit === 'hearts' || card.suit === 'diamonds';
   return (
-    <div className="local-table-card-piece relative flex h-20 min-w-0 flex-col justify-between overflow-hidden rounded-[14px] border p-2 shadow-[0_14px_30px_rgba(0,0,0,0.32)] sm:h-32 sm:p-3">
+    <div className="local-table-card-piece relative flex aspect-[5/7] w-full min-w-0 flex-col justify-between overflow-hidden rounded-[14px] border p-2 shadow-[0_14px_30px_rgba(0,0,0,0.32)] sm:p-3">
       <div className="local-table-card-piece__rim pointer-events-none absolute inset-0 rounded-[14px] border" />
       <div className={`text-[18px] font-black sm:text-[20px] ${red ? 'text-[#DC2626]' : 'text-[#0F172A]'}`}>
         {card.rank}

@@ -73,6 +73,18 @@
     border-color: color-mix(in srgb, var(--local-table-glow) 44%, transparent);
   }
 
+  .local-table-card-hand .local-table-piece-shell {
+    flex: 0 0 clamp(70px, 20vw, 92px);
+    max-width: clamp(70px, 20vw, 92px);
+  }
+
+  @media (min-width: 640px) {
+    .local-table-card-hand .local-table-piece-shell {
+      flex-basis: clamp(92px, 10vw, 124px);
+      max-width: clamp(92px, 10vw, 124px);
+    }
+  }
+
   .local-table-stage-panel::before {
     pointer-events: none;
     content: '';
@@ -737,7 +749,7 @@
 
   .black-dot-table__seats {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: clamp(8px, 1.7vw, 12px);
     margin-top: clamp(9px, 2vw, 14px);
   }
@@ -791,6 +803,7 @@
 
   .black-dot-seat__mounds {
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     padding: 9px;
   }
@@ -855,12 +868,16 @@
 
   .black-dot-table__pending {
     display: grid;
-    grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.82fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: clamp(8px, 1.7vw, 12px);
     margin-top: clamp(9px, 2vw, 14px);
   }
 
   .black-dot-rack {
+    display: grid;
+    grid-template-columns: minmax(86px, 0.32fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
     padding: 10px;
   }
 
@@ -883,7 +900,6 @@
 
   .black-dot-rack__tiles {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    margin-top: 8px;
     padding: 0;
   }
 
@@ -958,11 +974,28 @@
 
   @media (max-width: 480px) {
     .local-table-stage-panel--black-dot {
-      padding: 12px;
+      padding: 10px;
+    }
+
+    .game-fullscreen-shell .local-table-stage-panel--black-dot {
+      overflow: hidden !important;
+    }
+
+    .local-table-stage-panel--black-dot .local-table-result-card {
+      padding: 10px !important;
+    }
+
+    .local-table-stage-panel--black-dot .local-table-result-card .text-\[16px\] {
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .local-table-stage-panel--black-dot .local-table-profit {
+      font-size: 21px;
     }
 
     .black-dot-score-pill {
-      padding: 8px 8px;
+      padding: 7px 8px;
     }
 
     .black-dot-table__versus {
@@ -973,6 +1006,17 @@
     .black-dot-table__seats,
     .black-dot-table__pending {
       gap: 7px;
+    }
+
+    .black-dot-table__scorebar {
+      gap: 5px;
+    }
+
+    .black-dot-rack {
+      grid-template-columns: minmax(70px, 0.32fr) minmax(0, 1fr);
+      gap: 7px;
+      padding: 7px;
+      border-radius: 14px;
     }
 
     .black-dot-seat__header,
@@ -1000,6 +1044,59 @@
       padding-left: 6px;
       padding-right: 6px;
       padding-bottom: 6px;
+    }
+
+    .black-dot-rack__tiles {
+      padding: 0;
+    }
+
+    .black-dot-table .local-table-domino-piece,
+    .black-dot-tile-back {
+      height: clamp(58px, 14vw, 74px);
+      border-radius: 11px;
+    }
+
+    .local-table-domino-label {
+      display: none;
+    }
+
+    .local-table-inline-split {
+      margin-top: 8px;
+      padding: 8px !important;
+      border-radius: 14px;
+    }
+
+    .local-table-inline-split > .text-\[12px\] {
+      font-size: 11px;
+      line-height: 1.3;
+    }
+
+    .local-table-inline-split__options {
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+
+    .local-table-inline-split .local-table-split-option {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      column-gap: 8px;
+      align-items: baseline;
+      min-height: 44px;
+      padding: 8px 10px !important;
+    }
+
+    .local-table-inline-split .local-table-split-option > div:first-child {
+      font-size: 13px;
+      line-height: 1.1;
+    }
+
+    .local-table-inline-split .local-table-split-option > div:nth-child(2) {
+      margin-top: 0;
+      overflow: hidden;
+      font-size: 10px;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 
@@ -1046,6 +1143,17 @@
   .local-table-split-option {
     animation: local-table-option-rise 360ms cubic-bezier(0.18, 0.82, 0.2, 1) both;
     will-change: transform, opacity;
+  }
+
+  .local-table-inline-split {
+    border-color: color-mix(in srgb, var(--local-table-glow) 22%, rgba(147, 197, 253, 0.25));
+    background:
+      radial-gradient(circle at 14% 10%, color-mix(in srgb, var(--local-table-glow) 14%, transparent), transparent 36%),
+      linear-gradient(135deg, rgba(15, 39, 68, 0.62), rgba(5, 12, 24, 0.58));
+  }
+
+  .local-table-inline-split__options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .local-table-split-option:nth-child(2) {
@@ -2742,6 +2850,99 @@
       height: 0;
     }
 
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .game-play-grid--local-table {
+      gap: 0.28rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-stage-panel {
+      overflow: hidden !important;
+      padding: 0.5rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-stage-header {
+      gap: 0.45rem !important;
+      padding-bottom: 0.42rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-stage-header > div:first-child {
+      min-width: 0;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-status-label {
+      margin-top: 0.18rem !important;
+      font-size: 22px !important;
+      line-height: 1.05 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-stage-header > div:last-child {
+      border-radius: 12px !important;
+      padding: 0.32rem 0.56rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-stage-header .data-num {
+      font-size: 19px !important;
+      line-height: 1.05 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-hand-grid {
+      gap: 0.42rem !important;
+      margin-top: 0.42rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-hand-panel {
+      border-radius: 14px !important;
+      padding: 0.58rem 0.68rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-hand-panel .text-\[26px\] {
+      margin-top: 0.16rem !important;
+      font-size: 22px !important;
+      line-height: 1.05 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-card-hand {
+      justify-content: flex-start !important;
+      gap: 0.42rem !important;
+      margin-top: 0.42rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half']
+      .local-table-card-hand
+      .local-table-piece-shell {
+      flex-basis: clamp(54px, 15vw, 76px);
+      max-width: clamp(54px, 15vw, 76px);
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-card-piece {
+      border-radius: 12px !important;
+      padding: 0.42rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-card-piece__rim {
+      border-radius: 12px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-card-piece .text-\[18px\] {
+      font-size: 16px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-result-card {
+      margin-top: 0.42rem !important;
+      border-radius: 14px !important;
+      padding: 0.6rem 0.7rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-result-card .text-\[16px\] {
+      font-size: 13px !important;
+      line-height: 1.25 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-profit {
+      font-size: 22px !important;
+      line-height: 1 !important;
+    }
+
     .game-fullscreen-shell .game-stage-panel > .game-stage-bar {
       min-height: 40px;
       flex: 0 0 auto;
@@ -3133,6 +3334,99 @@
       margin-top: 0.26rem;
       font-size: 9px;
       letter-spacing: 0.02em;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .game-control-stack {
+      max-height: none;
+      overflow: visible;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half']
+      .game-control-stack
+      > .game-side-card:first-child {
+      max-height: none;
+      overflow: hidden;
+      padding: 0.44rem 0.58rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half']
+      .game-control-stack
+      .bet-controls__entry {
+      grid-template-columns: minmax(0, 1fr) 72px;
+      gap: 0.28rem;
+      padding: 0.25rem !important;
+      border-radius: 11px;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half']
+      .game-control-stack
+      .bet-controls__input {
+      min-height: 38px !important;
+      padding: 0.15rem 0.4rem !important;
+      font-size: 18px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half']
+      .game-control-stack
+      .bet-controls__adjusters
+      .game-choice-btn {
+      min-height: 38px;
+      border-radius: 9px;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half']
+      .game-control-stack
+      .bet-controls__presets {
+      gap: 0.28rem !important;
+      margin-top: 0.28rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half']
+      .game-control-stack
+      .bet-controls__presets
+      .game-choice-btn {
+      min-height: 39px;
+      border-radius: 9px;
+      padding-top: 0.22rem !important;
+      padding-bottom: 0.22rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half']
+      .game-control-stack
+      .bet-controls__limit-hint {
+      min-height: 0.64rem;
+      margin-top: 0.18rem;
+      font-size: 8.5px;
+      line-height: 1.15;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-action-panel {
+      margin-top: 0.32rem !important;
+      border-radius: 12px !important;
+      padding: 0.44rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-action-panel > .text-\[12px\] {
+      font-size: 10.5px !important;
+      line-height: 1.2 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-action-panel .grid {
+      gap: 0.32rem !important;
+      margin-top: 0.36rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-action-button {
+      height: 40px !important;
+      border-radius: 11px !important;
+      font-size: 13px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-main-button {
+      height: 46px !important;
+      margin-top: 0.36rem !important;
+      border-radius: 12px !important;
+      font-size: 15px !important;
     }
 
     .game-fullscreen-shell .crash-auto-cashout {
