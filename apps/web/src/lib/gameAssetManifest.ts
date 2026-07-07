@@ -89,9 +89,32 @@ const BLACK_DOT_GAME_IDS = new Set([
   'black-dot-gold',
 ]);
 const MAHJONG_TILE_ASSETS = [
-  '/game-art/mahjong/Haku.svg',
+  '/game-art/mahjong/WhiteDragon.svg',
   ...Array.from({ length: 9 }, (_, index) => `/game-art/mahjong/Pin${index + 1}.svg`),
 ];
+const PAI_GOW_TILE_ASSETS = [
+  '1+2',
+  '2+4',
+  '6+6',
+  '1+1',
+  '4+4',
+  '1+3',
+  '5+5',
+  '3+3',
+  '2+2',
+  '5+6',
+  '4+6',
+  '1+6',
+  '1+5',
+  '4+5',
+  '3+6',
+  '2+6',
+  '3+5',
+  '2+5',
+  '3+4',
+  '1+4',
+  '2+3',
+].map((pair) => `/game-art/pai-gow/Domino-${pair}.svg`);
 const SLOT_GAMES_WITH_INDIVIDUAL_SYMBOLS = new Set<SlotThemeId>([
   'thunder',
   'dragonMega',
@@ -245,6 +268,7 @@ function localTableGame(gameId: string): GameAssetManifest {
       criticalAsset(getLobbyGameCover(gameId), 'cover'),
       criticalAsset(localTableStageArt(gameId), 'background'),
       ...(TUI_TONGZI_GAME_IDS.has(gameId) ? MAHJONG_TILE_ASSETS.map((src) => asset(src, 'card')) : []),
+      ...(BLACK_DOT_GAME_IDS.has(gameId) ? PAI_GOW_TILE_ASSETS.map((src) => asset(src, 'card')) : []),
     ],
   };
 }

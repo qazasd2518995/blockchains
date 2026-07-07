@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { AlertCircle, Sparkles } from 'lucide-react';
 import {
   BLACK_DOT_GAME_IDS,
@@ -237,6 +237,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
   const [stagedState, setStagedState] = useState<LocalTableRoundState | null>(null);
   const isTwentyOneHalf = TWENTY_ONE_HALF_PAGE_IDS.has(gameId);
   const isStagedTable = STAGED_TABLE_PAGE_IDS.has(gameId);
+  const isTuiTongzi = TUI_TONGZI_GAME_IDS.includes(gameId as (typeof TUI_TONGZI_GAME_IDS)[number]);
   const isBlackDot = BLACK_DOT_GAME_IDS.includes(gameId as (typeof BLACK_DOT_GAME_IDS)[number]);
   const displayRound = isTwentyOneHalf ? tenHalfState : isStagedTable ? stagedState : result;
   const extraHands =
@@ -261,12 +262,16 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
           ? 'local-table-stage-panel--loss'
           : 'local-table-stage-panel--push'
       : '';
+  const isTenHalfBankerTurn =
+    isTwentyOneHalf && tenHalfState?.status === 'ACTIVE' && tenHalfState.phase === 'BANKER_TURN';
   const statusLabel = busy
     ? isTwentyOneHalf || isStagedTable
       ? '處理中'
       : '開牌中'
     : isTenHalfActive
-      ? '玩家回合'
+      ? isTenHalfBankerTurn
+        ? '莊家補牌'
+        : '玩家回合'
       : isStagedActive && stagedState
         ? stagedStatusLabel(stagedState)
       : displayRound
@@ -385,7 +390,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
     }
   };
 
-  const handleStagedReveal = async () => {
+  const handleStagedReveal = async (revealIndex?: number) => {
     if (busy || !stagedState || stagedState.status !== 'ACTIVE' || !stagedState.canReveal) return;
     setBusy(true);
     setError(null);
@@ -393,6 +398,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
     try {
       const res = await api.post<LocalTableRoundState>('/games/table-games/round/reveal', {
         roundId: stagedState.roundId,
+        ...(typeof revealIndex === 'number' ? { revealIndex } : {}),
       });
       setStagedState(res.data);
       if (res.data.newBalance) setBalance(res.data.newBalance);
@@ -424,7 +430,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
     }
   };
 
-  const handleTenHalfAction = async (action: 'hit' | 'stand') => {
+  const handleTenHalfAction = async (action: 'hit' | 'stand' | 'banker-draw') => {
     if (busy || !tenHalfState || tenHalfState.status !== 'ACTIVE') return;
     setBusy(true);
     setError(null);
@@ -443,6 +449,33 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (
+      !isTwentyOneHalf ||
+      busy ||
+      !tenHalfState ||
+      tenHalfState.status !== 'ACTIVE' ||
+      tenHalfState.phase !== 'BANKER_TURN' ||
+      !tenHalfState.canBankerDraw
+    ) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void handleTenHalfAction('banker-draw');
+    }, 850);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    busy,
+    isTwentyOneHalf,
+    tenHalfState?.banker.pieces.length,
+    tenHalfState?.canBankerDraw,
+    tenHalfState?.phase,
+    tenHalfState?.roundId,
+    tenHalfState?.status,
+  ]);
 
   return (
     <div>
@@ -527,6 +560,19 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                   />
                 ) : (
                   <BlackDotEmptyBoard busy={busy} />
+                )}
+              </div>
+            ) : isTuiTongzi ? (
+              <div className="relative z-10 mt-3 sm:mt-4">
+                {displayRound ? (
+                  <TuiTongziBoard
+                    round={displayRound as LocalTableRoundState}
+                    busy={busy}
+                    active={tableActive}
+                    onReveal={(index) => void handleStagedReveal(index)}
+                  />
+                ) : (
+                  <TuiTongziEmptyBoard busy={busy} />
                 )}
               </div>
             ) : (
@@ -621,27 +667,38 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                 <div className="text-[12px] font-bold leading-relaxed text-[#FDE68A]">
                   {tenHalfActionHint(tenHalfState)}
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                {tenHalfState.phase === 'BANKER_TURN' ? (
                   <button
                     type="button"
-                    onClick={() => void handleTenHalfAction('hit')}
-                    disabled={busy || !tenHalfState.canHit}
-                    className="local-table-action-button h-12 rounded-[14px] border border-white/12 bg-white/10 text-[15px] font-black text-white transition hover:bg-white/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/70 disabled:cursor-not-allowed disabled:opacity-40"
+                    onClick={() => void handleTenHalfAction('banker-draw')}
+                    disabled={busy || !tenHalfState.canBankerDraw}
+                    className="local-table-action-button mt-3 h-12 w-full rounded-[14px] border border-[#F59E0B]/45 bg-[#78350F]/55 text-[15px] font-black text-[#FDE68A] transition hover:bg-[#92400E]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/70 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    補牌
+                    莊家補牌
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleTenHalfAction('stand')}
-                    disabled={busy || !tenHalfState.canStand}
-                    className="local-table-action-button h-12 rounded-[14px] border border-[#F59E0B]/45 bg-[#78350F]/55 text-[15px] font-black text-[#FDE68A] transition hover:bg-[#92400E]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/70 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    停牌
-                  </button>
-                </div>
+                ) : (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleTenHalfAction('hit')}
+                      disabled={busy || !tenHalfState.canHit}
+                      className="local-table-action-button h-12 rounded-[14px] border border-white/12 bg-white/10 text-[15px] font-black text-white transition hover:bg-white/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/70 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      補牌
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleTenHalfAction('stand')}
+                      disabled={busy || !tenHalfState.canStand}
+                      className="local-table-action-button h-12 rounded-[14px] border border-[#F59E0B]/45 bg-[#78350F]/55 text-[15px] font-black text-[#FDE68A] transition hover:bg-[#92400E]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/70 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      停牌
+                    </button>
+                  </div>
+                )}
               </div>
             ) : null}
-            {isStagedTable && stagedState?.status === 'ACTIVE' ? (
+            {isStagedTable && !isTuiTongzi && stagedState?.status === 'ACTIVE' ? (
               <div className="mt-4 rounded-[16px] border border-[#93C5FD]/30 bg-[#93C5FD]/10 p-3">
                 <div className="text-[12px] font-bold leading-relaxed text-[#BFDBFE]">
                   {stagedActionHint(stagedState)}
@@ -708,14 +765,17 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
 }
 
 function tenHalfActionHint(state: TwentyOneHalfRoundState): string {
+  if (state.phase === 'BANKER_TURN') return '玩家已停牌，莊家會依規則一張一張補牌，補完後才結算。';
   if (state.forcedAction === 'hit') return '4 點以下必須補牌，補到可停牌區間後才能停牌。';
-  if (state.forcedAction === 'stand') return '8 點以上必須停牌，系統會立即進入莊家補牌。';
+  if (state.forcedAction === 'stand') return '8 點以上必須停牌，接著進入莊家補牌。';
   return '可選擇補牌或停牌；超過 10 點半爆牌，平點莊家勝。';
 }
 
 function stagedStatusLabel(state: LocalTableRoundState): string {
   if (state.stage === 'AWAIT_SPLIT') return '玩家擺牌';
-  if (state.stage === 'AWAIT_FIRST_REVEAL') return '等待開第一張';
+  if (state.kind === 'tui-tongzi' && state.stage === 'AWAIT_FIRST_REVEAL') return '翻閒家第一張';
+  if (state.kind === 'tui-tongzi' && state.stage === 'AWAIT_FINAL_REVEAL') return '翻閒家第二張';
+  if (state.stage === 'AWAIT_FIRST_REVEAL') return '等待翻牌';
   if (state.stage === 'AWAIT_FINAL_REVEAL') return '等待開第二張';
   if (state.stage === 'AWAIT_PLAYER_REVEAL') return '等待開閒家牌';
   if (state.stage === 'AWAIT_BANKER_REVEAL') return '等待開莊家牌';
@@ -724,7 +784,9 @@ function stagedStatusLabel(state: LocalTableRoundState): string {
 
 function stagedActionHint(state: LocalTableRoundState): string {
   if (state.stage === 'AWAIT_SPLIT') return '請選一組高低墩；高低兩墩都大於莊家才算勝。';
-  if (state.stage === 'AWAIT_FIRST_REVEAL') return '先開莊閒第一張筒子，第二張會保留到下一步比牌。';
+  if (state.kind === 'tui-tongzi' && state.stage === 'AWAIT_FIRST_REVEAL') return '莊家已亮牌，請點閒家任一張蓋牌。';
+  if (state.kind === 'tui-tongzi' && state.stage === 'AWAIT_FINAL_REVEAL') return '第一張已開，請點另一張蓋牌比牌。';
+  if (state.stage === 'AWAIT_FIRST_REVEAL') return '請依序翻牌。';
   if (state.stage === 'AWAIT_FINAL_REVEAL') return '開第二張後立即依牌型與點數結算。';
   if (state.stage === 'AWAIT_PLAYER_REVEAL') return '先開閒家牌，再開莊家牌比大小。';
   if (state.stage === 'AWAIT_BANKER_REVEAL') return '閒家牌已開，開莊家牌後立即結算。';
@@ -733,7 +795,7 @@ function stagedActionHint(state: LocalTableRoundState): string {
 
 function stagedEmptySummary(gameId: LocalTableGameIdType): string {
   if (TUI_TONGZI_GAME_IDS.includes(gameId as (typeof TUI_TONGZI_GAME_IDS)[number])) {
-    return '下注後先開第一張筒子，再開第二張比牌。';
+    return '下注後莊家兩張先亮，閒家兩張蓋牌由玩家點選翻開。';
   }
   if (BLACK_DOT_GAME_IDS.includes(gameId as (typeof BLACK_DOT_GAME_IDS)[number])) {
     return '下注後取得四張天九牌，請自行選擇高低兩墩。';
@@ -765,6 +827,182 @@ function roomTheme(
     mascotLabel,
     stageArt,
   };
+}
+
+function TuiTongziBoard({
+  round,
+  busy,
+  active,
+  onReveal,
+}: {
+  round: LocalTableRoundState;
+  busy: boolean;
+  active: boolean;
+  onReveal: (index: number) => void;
+}) {
+  const settled = round.status === 'SETTLED';
+  const revealedIndexes = settled ? [0, 1] : normalizeRevealIndexes(round.revealedPlayerIndexes);
+  const revealableIndexes = new Set(
+    round.revealablePlayerIndexes ?? [0, 1].filter((index) => !revealedIndexes.includes(index)),
+  );
+  const playerPiecesBySlot = new Map<number, LocalTablePiece>();
+
+  if (settled) {
+    round.player.pieces.forEach((piece, index) => playerPiecesBySlot.set(index, piece));
+  } else {
+    revealedIndexes.forEach((slotIndex, visibleIndex) => {
+      const piece = round.player.pieces[visibleIndex];
+      if (piece) playerPiecesBySlot.set(slotIndex, piece);
+    });
+  }
+
+  return (
+    <div className="tui-tongzi-board">
+      <div className="tui-tongzi-board__felt" aria-hidden="true" />
+      <TuiTongziLane
+        label="莊家"
+        scoreLabel={round.banker.scoreLabel}
+        rankLabel={round.banker.rankLabel}
+        detail={round.banker.detail}
+        tone="banker"
+      >
+        {round.banker.pieces.length ? (
+          round.banker.pieces.map((piece, index) => (
+            <div key={pieceKey(piece, index)} className="tui-tongzi-tile-slot">
+              <PieceView piece={piece} index={index} tone="banker" />
+            </div>
+          ))
+        ) : (
+          <>
+            <TuiTongziHiddenTile label="莊家第 1 張" disabled />
+            <TuiTongziHiddenTile label="莊家第 2 張" disabled />
+          </>
+        )}
+      </TuiTongziLane>
+
+      <div className="tui-tongzi-board__versus" aria-hidden="true">
+        VS
+      </div>
+
+      <TuiTongziLane
+        label="閒家"
+        scoreLabel={round.player.scoreLabel}
+        rankLabel={round.player.rankLabel}
+        detail={round.player.detail}
+        tone="player"
+        active={active}
+      >
+        {[0, 1].map((slotIndex) => {
+          const piece = playerPiecesBySlot.get(slotIndex);
+          if (piece) {
+            return (
+              <div key={`player-${slotIndex}`} className="tui-tongzi-tile-slot">
+                <PieceView piece={piece} index={slotIndex} tone="player" />
+              </div>
+            );
+          }
+
+          return (
+            <TuiTongziHiddenTile
+              key={`player-hidden-${slotIndex}`}
+              label={`翻閒家第 ${slotIndex + 1} 張`}
+              disabled={busy || !round.canReveal || !revealableIndexes.has(slotIndex)}
+              onClick={() => onReveal(slotIndex)}
+              active={active}
+            />
+          );
+        })}
+      </TuiTongziLane>
+    </div>
+  );
+}
+
+function TuiTongziEmptyBoard({ busy }: { busy: boolean }) {
+  return (
+    <div className="tui-tongzi-board tui-tongzi-board--empty">
+      <div className="tui-tongzi-board__felt" aria-hidden="true" />
+      <TuiTongziLane label="莊家" scoreLabel="待入局" rankLabel="下注後先亮牌" tone="banker">
+        <TuiTongziHiddenTile label="莊家第 1 張" disabled active={busy} />
+        <TuiTongziHiddenTile label="莊家第 2 張" disabled active={busy} />
+      </TuiTongziLane>
+      <div className="tui-tongzi-board__versus" aria-hidden="true">
+        VS
+      </div>
+      <TuiTongziLane label="閒家" scoreLabel="待翻牌" rankLabel="玩家點牌翻開" tone="player">
+        <TuiTongziHiddenTile label="閒家第 1 張" disabled active={busy} />
+        <TuiTongziHiddenTile label="閒家第 2 張" disabled active={busy} />
+      </TuiTongziLane>
+    </div>
+  );
+}
+
+function TuiTongziLane({
+  label,
+  scoreLabel,
+  rankLabel,
+  detail,
+  tone,
+  active,
+  children,
+}: {
+  label: string;
+  scoreLabel: string;
+  rankLabel: string;
+  detail?: string;
+  tone: 'player' | 'banker';
+  active?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <section className={`tui-tongzi-lane tui-tongzi-lane--${tone} ${active ? 'tui-tongzi-lane--active' : ''}`}>
+      <div className="tui-tongzi-lane__header">
+        <div>
+          <div className="tui-tongzi-lane__label">{label}</div>
+          <div className="tui-tongzi-lane__score">{scoreLabel}</div>
+        </div>
+        <div className="tui-tongzi-lane__rank">{rankLabel}</div>
+      </div>
+      <div className="tui-tongzi-lane__tiles">{children}</div>
+      {detail ? <div className="tui-tongzi-lane__detail">{detail}</div> : null}
+    </section>
+  );
+}
+
+function TuiTongziHiddenTile({
+  label,
+  disabled,
+  active,
+  onClick,
+}: {
+  label: string;
+  disabled?: boolean;
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`tui-tongzi-hidden-tile ${active ? 'tui-tongzi-hidden-tile--active' : ''}`}
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={label}
+    >
+      <span className="tui-tongzi-hidden-tile__shine" aria-hidden="true" />
+      <span className="tui-tongzi-hidden-tile__mark">筒</span>
+      <span className="tui-tongzi-hidden-tile__label">{disabled ? '待翻' : '點擊翻牌'}</span>
+    </button>
+  );
+}
+
+function normalizeRevealIndexes(value?: number[]): number[] {
+  if (!value?.length) return [];
+  const indexes: number[] = [];
+  value.forEach((index) => {
+    if ((index === 0 || index === 1) && !indexes.includes(index)) {
+      indexes.push(index);
+    }
+  });
+  return indexes;
 }
 
 function BlackDotBoard({
@@ -1124,26 +1362,20 @@ function CardPiece({ card }: { card: LocalTableCard }) {
 }
 
 function TubePiece({ tile }: { tile: LocalTableTubeTile }) {
-  const imageSrc = `/game-art/mahjong/Pin${tile.value}.svg`;
+  const imageSrc = tile.isWhite
+    ? '/game-art/mahjong/WhiteDragon.svg'
+    : `/game-art/mahjong/Pin${tile.value}.svg`;
   return (
     <div className={`local-table-tube-piece ${tile.isWhite ? 'local-table-tube-piece--white' : ''} relative flex h-20 min-w-0 items-center justify-center overflow-hidden rounded-[14px] border border-[#FDE68A]/55 bg-[linear-gradient(145deg,#FFFBEA_0%,#F7E2A0_44%,#D6A83F_100%)] p-1.5 text-[#422006] shadow-[0_14px_30px_rgba(0,0,0,0.32)] sm:h-32 sm:p-2`}>
       <div className="absolute inset-1 rounded-[12px] border border-[#7C2D12]/10 bg-white/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]" />
-      {tile.isWhite ? (
-        <div className="local-table-white-tile-mark" aria-label={tile.label}>
-          <span className="local-table-white-tile-mark__corner">白</span>
-          <span className="local-table-white-tile-mark__frame" aria-hidden="true" />
-          <span className="local-table-white-tile-mark__label">白板</span>
-        </div>
-      ) : (
-        <img
-          src={imageSrc}
-          alt={tile.label}
-          width={96}
-          height={120}
-          decoding="async"
-          className="relative z-10 h-[88%] w-[88%] object-contain drop-shadow-[0_2px_2px_rgba(0,0,0,0.16)]"
-        />
-      )}
+      <img
+        src={imageSrc}
+        alt={tile.label}
+        width={tile.isWhite ? 512 : 96}
+        height={tile.isWhite ? 622 : 120}
+        decoding="async"
+        className={`local-table-mahjong-image ${tile.isWhite ? 'local-table-mahjong-image--white' : ''}`}
+      />
       <div className="absolute bottom-1 right-2 z-10 data-num text-[10px] font-black text-[#7C2D12]/70">
         {tile.isWhite ? '白' : tile.value}
       </div>
@@ -1152,46 +1384,21 @@ function TubePiece({ tile }: { tile: LocalTableTubeTile }) {
 }
 
 function DominoPiece({ tile }: { tile: LocalTableDominoTile }) {
+  const imageSrc = `/game-art/pai-gow/Domino-${tile.pips[0]}+${tile.pips[1]}.svg`;
+
   return (
-    <div className="local-table-domino-piece flex h-20 min-w-0 flex-col overflow-hidden rounded-[14px] border border-white/12 bg-[#101827] shadow-[0_12px_24px_rgba(0,0,0,0.22)] sm:h-32">
-      <div className="flex flex-1 items-center justify-center border-b border-white/10">
-        <DotGrid count={tile.pips[0]} />
-      </div>
-      <div className="flex flex-1 items-center justify-center">
-        <DotGrid count={tile.pips[1]} />
-      </div>
-      <div className="truncate bg-black/30 px-1.5 py-1 text-center text-[10px] font-black text-[#FDE68A]">
+    <div className="local-table-domino-piece relative flex h-20 min-w-0 items-center justify-center overflow-hidden rounded-[14px] border border-white/12 bg-[#101827] p-1.5 shadow-[0_12px_24px_rgba(0,0,0,0.22)] sm:h-32 sm:p-2">
+      <img
+        src={imageSrc}
+        alt={tile.name}
+        width={95}
+        height={190}
+        decoding="async"
+        className="local-table-domino-image"
+      />
+      <div className="local-table-domino-label">
         {tile.name}
       </div>
-    </div>
-  );
-}
-
-const DOMINO_DOT_POSITIONS: Record<number, number[]> = {
-  1: [4],
-  2: [0, 8],
-  3: [0, 4, 8],
-  4: [0, 2, 6, 8],
-  5: [0, 2, 4, 6, 8],
-  6: [0, 2, 3, 5, 6, 8],
-};
-
-function DotGrid({ count }: { count: number }) {
-  const visibleDots = new Set(DOMINO_DOT_POSITIONS[count] ?? DOMINO_DOT_POSITIONS[1]);
-
-  return (
-    <div className="local-table-domino-dot-grid">
-      {Array.from({ length: 9 }, (_, index) => {
-        const visible = visibleDots.has(index);
-        const red = visible && (count === 1 || count === 4);
-
-        return (
-        <span
-          key={index}
-            className={`local-table-domino-pip ${visible ? 'local-table-domino-pip--visible' : ''} ${red ? 'local-table-domino-pip--red' : ''}`}
-        />
-        );
-      })}
     </div>
   );
 }

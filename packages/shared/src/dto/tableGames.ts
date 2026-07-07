@@ -104,6 +104,8 @@ export interface LocalTableRoundState {
   ruleSummary: string[];
   canReveal: boolean;
   revealLabel?: string | null;
+  revealedPlayerIndexes?: number[];
+  revealablePlayerIndexes?: number[];
   canSplit: boolean;
   splitOptions?: LocalTableSplitOption[];
   controlled?: boolean;
@@ -115,6 +117,7 @@ export interface LocalTableRoundState {
 }
 
 export type TwentyOneHalfRoundStatus = 'ACTIVE' | 'SETTLED';
+export type TwentyOneHalfRoundPhase = 'PLAYER_TURN' | 'BANKER_TURN';
 export type TwentyOneHalfForcedAction = 'hit' | 'stand' | null;
 
 export interface TwentyOneHalfRoundState {
@@ -123,6 +126,7 @@ export interface TwentyOneHalfRoundState {
   kind: 'twenty-one-half';
   roomName: string;
   status: TwentyOneHalfRoundStatus;
+  phase: TwentyOneHalfRoundPhase;
   amount: string;
   payout: string;
   profit: string;
@@ -135,6 +139,7 @@ export interface TwentyOneHalfRoundState {
   ruleSummary: string[];
   canHit: boolean;
   canStand: boolean;
+  canBankerDraw: boolean;
   forcedAction: TwentyOneHalfForcedAction;
   controlled?: boolean;
   flipReason?: string | null;

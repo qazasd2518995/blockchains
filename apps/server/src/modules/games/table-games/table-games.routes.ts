@@ -62,6 +62,11 @@ export async function tableGamesRoutes(fastify: FastifyInstance): Promise<void> 
     return service.standTwentyOneHalf(req.userId, body);
   });
 
+  fastify.post('/twenty-one-half/banker-draw', async (req) => {
+    const body = twentyOneHalfActionSchema.parse(req.body);
+    return service.drawTwentyOneHalfBanker(req.userId, body);
+  });
+
   fastify.get('/twenty-one-half/active', async (req) => {
     const query = twentyOneHalfActiveQuerySchema.parse(req.query);
     const state = await service.getActiveTwentyOneHalf(req.userId, query.gameId);

@@ -7,12 +7,15 @@ const {
   buildRound,
   buildTwentyOneHalfRoundFromState,
   half21Score,
+  prepareTwentyOneHalfBankerTurnData,
   rankDominoPair,
   rankTubeHand,
+  settleTwentyOneHalfBanker,
   shapeBlackDotRoundForControl,
   shapeRoundForControl,
   shapeTwentyOneHalfBankerForControl,
   shapeTwentyOneHalfHitForControl,
+  shouldTwentyOneHalfBankerDraw,
 } = __localTableServiceTestHooks;
 
 const card = (rank: string, rankValue: number, suit: 'spades' | 'hearts' | 'diamonds' | 'clubs' = 'spades') => ({
@@ -211,6 +214,52 @@ describe('local table game rules', () => {
     if (shaped?.kind !== 'progress') throw new Error('expected progress shape');
     expect(half21Score(shaped.data.player)).toBe(8);
     expect(shaped.data.player).toHaveLength(2);
+  });
+
+  it('stages Ten-and-a-Half banker draws one card at a time after player stands', () => {
+    const amount = new Prisma.Decimal(100);
+    const data = {
+      kind: 'twenty-one-half' as const,
+      status: 'ACTIVE' as const,
+      phase: 'PLAYER_TURN' as const,
+      gameId: GameId.TWENTY_ONE_HALF_DOLL,
+      roomName: '萌娃十點半',
+      player: [card('7', 7)],
+      banker: [card('K', 13, 'hearts')],
+      deck: [card('2', 2), card('4', 4), card('3', 3)],
+      deckIndex: 0,
+      summary: '測試',
+    };
+    const resolved = settleTwentyOneHalfBanker(data);
+    const naturalRound = buildTwentyOneHalfRoundFromState(resolved, amount);
+    const bankerTurn = prepareTwentyOneHalfBankerTurnData(
+      data,
+      resolved,
+      naturalRound,
+      {
+        won: naturalRound.profit.greaterThan(0),
+        multiplier: naturalRound.multiplier,
+        payout: naturalRound.payout,
+        controlled: false,
+      },
+      false,
+    );
+
+    expect(resolved.banker).toHaveLength(4);
+    expect(bankerTurn.phase).toBe('BANKER_TURN');
+    expect(bankerTurn.banker).toHaveLength(1);
+    expect(bankerTurn.deckIndex).toBe(0);
+    expect(shouldTwentyOneHalfBankerDraw(bankerTurn)).toBe(true);
+
+    const afterOneDraw = {
+      ...bankerTurn,
+      banker: [...bankerTurn.banker, bankerTurn.deck[bankerTurn.deckIndex]!],
+      deckIndex: bankerTurn.deckIndex + 1,
+    };
+
+    expect(afterOneDraw.banker).toHaveLength(2);
+    expect(half21Score(afterOneDraw.banker)).toBe(2.5);
+    expect(shouldTwentyOneHalfBankerDraw(afterOneDraw)).toBe(true);
   });
 
   it('guards Ten-and-a-Half stand wins that cannot fit a payout ceiling', () => {

@@ -60,6 +60,7 @@ export const stagedTableStartSchema = z.object({
 
 export const stagedTableActionSchema = z.object({
   roundId: z.string().min(1),
+  revealIndex: z.number().int().min(0).max(1).optional(),
 });
 
 export const stagedTableSplitSchema = z.object({

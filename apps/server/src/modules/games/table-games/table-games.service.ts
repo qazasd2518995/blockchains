@@ -75,12 +75,14 @@ interface RoundDraft {
 }
 
 type TwentyOneHalfStoredStatus = 'ACTIVE' | 'SETTLED';
+type TwentyOneHalfStoredPhase = 'PLAYER_TURN' | 'BANKER_TURN';
 type StagedLocalTableKind = Exclude<LocalTableKind, 'twenty-one-half'>;
 type StagedLocalTableStatus = 'ACTIVE' | 'SETTLED';
 
 interface TwentyOneHalfStoredData {
   kind: 'twenty-one-half';
   status: TwentyOneHalfStoredStatus;
+  phase?: TwentyOneHalfStoredPhase;
   gameId: LocalTableGameIdType;
   roomName: string;
   player: CardInternal[];
@@ -95,6 +97,9 @@ interface TwentyOneHalfStoredData {
   summary?: string | null;
   controlled?: boolean;
   flipReason?: string | null;
+  natural?: StoredRoundResult | null;
+  control?: StoredControlOutcome | null;
+  runControls?: boolean;
   raw?: unknown;
 }
 
@@ -143,6 +148,7 @@ interface StagedLocalTableStoredData {
   deck?: DominoTileInternal[];
   deckIndex?: number;
   playerSplitId?: string | null;
+  revealedPlayerIndexes?: number[];
   summary?: string | null;
 }
 
@@ -426,6 +432,7 @@ export class LocalTableService {
       const data: TwentyOneHalfStoredData = {
         kind: 'twenty-one-half',
         status: 'ACTIVE',
+        phase: 'PLAYER_TURN',
         gameId: input.gameId,
         roomName: config.roomName,
         player: [deck[0]!],
@@ -475,6 +482,9 @@ export class LocalTableService {
       const bet = await findActiveTwentyOneHalfBet(tx, userId, input.roundId);
       const serverSeed = await tx.serverSeed.findUniqueOrThrow({ where: { id: bet.serverSeedId } });
       const data = parseTwentyOneHalfData(bet.resultData);
+      if (getTwentyOneHalfPhase(data) !== 'PLAYER_TURN') {
+        throw new ApiError('INVALID_ACTION', '目前是莊家補牌階段。');
+      }
       const action = getTwentyOneHalfAvailableAction(data.player);
       if (!action.canHit) {
         throw new ApiError(
@@ -563,6 +573,9 @@ export class LocalTableService {
       const bet = await findActiveTwentyOneHalfBet(tx, userId, input.roundId);
       const serverSeed = await tx.serverSeed.findUniqueOrThrow({ where: { id: bet.serverSeedId } });
       const data = parseTwentyOneHalfData(bet.resultData);
+      if (getTwentyOneHalfPhase(data) !== 'PLAYER_TURN') {
+        throw new ApiError('INVALID_ACTION', '目前已停牌，請讓莊家補牌。');
+      }
       const action = getTwentyOneHalfAvailableAction(data.player);
       if (!action.canStand) {
         throw new ApiError(
@@ -612,6 +625,17 @@ export class LocalTableService {
         }
       }
 
+      const bankerTurnData = prepareTwentyOneHalfBankerTurnData(
+        data,
+        finalData,
+        naturalRound,
+        effectiveControl,
+        runControls,
+      );
+      if (shouldTwentyOneHalfBankerDraw(bankerTurnData)) {
+        return this.updateTwentyOneHalfProgress(tx, bet, bankerTurnData, serverSeed.seedHash);
+      }
+
       return settleTwentyOneHalfBet(
         tx,
         userId,
@@ -621,6 +645,56 @@ export class LocalTableService {
         finalRound,
         effectiveControl,
         runControls,
+        serverSeed.seedHash,
+      );
+    });
+  }
+
+  async drawTwentyOneHalfBanker(
+    userId: string,
+    input: TwentyOneHalfActionInput,
+  ): Promise<TwentyOneHalfRoundState> {
+    return runLockedTransaction(this.prisma, async (tx) => {
+      const bet = await findActiveTwentyOneHalfBet(tx, userId, input.roundId);
+      const serverSeed = await tx.serverSeed.findUniqueOrThrow({ where: { id: bet.serverSeedId } });
+      const data = parseTwentyOneHalfData(bet.resultData);
+      if (getTwentyOneHalfPhase(data) !== 'BANKER_TURN') {
+        throw new ApiError('INVALID_ACTION', '目前不是莊家補牌階段。');
+      }
+      if (!shouldTwentyOneHalfBankerDraw(data)) {
+        const finalRound = buildTwentyOneHalfRoundFromState(data, bet.amount);
+        return settleTwentyOneHalfBet(
+          tx,
+          userId,
+          bet,
+          data,
+          data.natural ? roundFromStored(data.natural) : finalRound,
+          finalRound,
+          data.control ? controlFromStored(data.control) : controlFromRound(finalRound),
+          data.runControls ?? false,
+          serverSeed.seedHash,
+        );
+      }
+      if (data.deckIndex >= data.deck.length) throw new ApiError('INTERNAL', 'Deck exhausted');
+
+      const nextData = cloneTwentyOneHalfData(data);
+      nextData.banker.push(nextData.deck[nextData.deckIndex]!);
+      nextData.deckIndex += 1;
+
+      if (shouldTwentyOneHalfBankerDraw(nextData)) {
+        return this.updateTwentyOneHalfProgress(tx, bet, nextData, serverSeed.seedHash);
+      }
+
+      const finalRound = buildTwentyOneHalfRoundFromState(nextData, bet.amount);
+      return settleTwentyOneHalfBet(
+        tx,
+        userId,
+        bet,
+        nextData,
+        data.natural ? roundFromStored(data.natural) : finalRound,
+        finalRound,
+        data.control ? controlFromStored(data.control) : controlFromRound(finalRound),
+        data.runControls ?? false,
         serverSeed.seedHash,
       );
     });
@@ -708,9 +782,10 @@ export class LocalTableService {
           final: storeRound(finalRound),
           control: storeControlOutcome(effectiveControl),
           runControls,
+          revealedPlayerIndexes: config.kind === 'tui-tongzi' ? [] : undefined,
           summary:
             config.kind === 'tui-tongzi'
-              ? '下注完成，請先開第一張筒子。'
+              ? '莊家已開，請翻閒家任一張筒子。'
               : '下注完成，請先開閒家牌。',
         };
       }
@@ -759,13 +834,55 @@ export class LocalTableService {
         throw new ApiError('INVALID_ACTION', '黑粒仔請先選擇高低墩。');
       }
 
-      if (data.stage === 'AWAIT_FIRST_REVEAL') {
-        const next = { ...data, stage: 'AWAIT_FINAL_REVEAL' as const, summary: '第一張已開，請開第二張比牌。' };
-        const updated = await tx.bet.update({
-          where: { id: bet.id },
-          data: { resultData: next as unknown as Prisma.InputJsonValue },
-        });
-        return this.toStagedTableState(tx, updated, next, serverSeed.seedHash);
+      if (data.kind === 'tui-tongzi') {
+        if (data.stage !== 'AWAIT_FIRST_REVEAL' && data.stage !== 'AWAIT_FINAL_REVEAL') {
+          throw new ApiError('INVALID_ACTION', '目前不能翻牌。');
+        }
+
+        const revealed = normalizeTuiRevealIndexes(data.revealedPlayerIndexes);
+        const revealIndex = input.revealIndex ?? firstUnrevealedTuiIndex(revealed);
+        if (revealIndex == null || revealIndex < 0 || revealIndex > 1) {
+          throw new ApiError('INVALID_ACTION', '無效的翻牌位置。');
+        }
+        if (revealed.includes(revealIndex)) {
+          throw new ApiError('INVALID_ACTION', '這張牌已經翻開。');
+        }
+
+        const nextRevealed = [...revealed, revealIndex];
+        if (nextRevealed.length < 2) {
+          const next = {
+            ...data,
+            stage: 'AWAIT_FINAL_REVEAL' as const,
+            revealedPlayerIndexes: nextRevealed,
+            summary: '第一張已開，請翻另一張筒子比牌。',
+          };
+          const updated = await tx.bet.update({
+            where: { id: bet.id },
+            data: { resultData: next as unknown as Prisma.InputJsonValue },
+          });
+          return this.toStagedTableState(tx, updated, next, serverSeed.seedHash);
+        }
+
+        const natural = roundFromStored(data.natural);
+        const finalRound = roundFromStored(data.final);
+        const control = controlFromStored(data.control);
+        return settleStagedTableBet(
+          tx,
+          userId,
+          bet,
+          {
+            ...data,
+            status: 'SETTLED',
+            stage: 'SETTLED',
+            revealedPlayerIndexes: [0, 1],
+            summary: finalRound.summary,
+          },
+          natural,
+          finalRound,
+          control,
+          data.runControls === true,
+          serverSeed.seedHash,
+        );
       }
 
       if (data.stage === 'AWAIT_PLAYER_REVEAL') {
@@ -900,7 +1017,7 @@ export class LocalTableService {
   ): Promise<TwentyOneHalfRoundState> {
     const stored = {
       ...data,
-      summary: activeTwentyOneHalfSummary(data.player),
+      summary: activeTwentyOneHalfSummary(data),
     };
     const updated = await tx.bet.update({
       where: { id: bet.id },
@@ -1047,6 +1164,7 @@ function parseTwentyOneHalfData(value: Prisma.JsonValue): TwentyOneHalfStoredDat
   return {
     kind: 'twenty-one-half',
     status: data.status,
+    phase: data.phase ?? 'PLAYER_TURN',
     gameId: data.gameId,
     roomName: data.roomName,
     player: data.player as CardInternal[],
@@ -1061,6 +1179,9 @@ function parseTwentyOneHalfData(value: Prisma.JsonValue): TwentyOneHalfStoredDat
     summary: data.summary ?? null,
     controlled: data.controlled ?? false,
     flipReason: data.flipReason ?? null,
+    natural: data.natural ?? null,
+    control: data.control ?? null,
+    runControls: data.runControls ?? false,
     raw: data.raw ?? null,
   };
 }
@@ -1071,7 +1192,14 @@ function cloneTwentyOneHalfData(data: TwentyOneHalfStoredData): TwentyOneHalfSto
     player: data.player.map((card) => ({ ...card })),
     banker: data.banker.map((card) => ({ ...card })),
     deck: data.deck.map((card) => ({ ...card })),
+    natural: data.natural ?? null,
+    control: data.control ?? null,
+    runControls: data.runControls ?? false,
   };
+}
+
+function getTwentyOneHalfPhase(data: TwentyOneHalfStoredData): TwentyOneHalfStoredPhase {
+  return data.phase ?? 'PLAYER_TURN';
 }
 
 function getTwentyOneHalfAvailableAction(player: CardInternal[]): {
@@ -1099,24 +1227,37 @@ function isTwentyOneHalfFinalPlayerHand(player: CardInternal[]): boolean {
   return half21Score(player) > TEN_HALF_LIMIT || isTwentyOneHalfSpecial(player);
 }
 
-function activeTwentyOneHalfSummary(player: CardInternal[]): string {
-  const score = half21Score(player);
-  const action = getTwentyOneHalfAvailableAction(player);
+function activeTwentyOneHalfSummary(data: TwentyOneHalfStoredData): string {
+  if (getTwentyOneHalfPhase(data) === 'BANKER_TURN') {
+    const playerScore = half21Score(data.player);
+    const bankerScore = half21Score(data.banker);
+    if (shouldTwentyOneHalfBankerDraw(data)) {
+      return `閒家 ${formatHalfPoint(playerScore)} 停牌，莊家 ${formatHalfPoint(bankerScore)}，請補莊家下一張。`;
+    }
+    return `閒家 ${formatHalfPoint(playerScore)} 停牌，莊家 ${formatHalfPoint(bankerScore)}，準備結算。`;
+  }
+
+  const score = half21Score(data.player);
+  const action = getTwentyOneHalfAvailableAction(data.player);
   if (action.forcedAction === 'hit') return `閒家 ${formatHalfPoint(score)}，4點以下必須補牌。`;
   if (action.forcedAction === 'stand') return `閒家 ${formatHalfPoint(score)}，8點以上必須停牌。`;
   return `閒家 ${formatHalfPoint(score)}，請選擇補牌或停牌。`;
 }
 
+function shouldTwentyOneHalfBankerDraw(data: TwentyOneHalfStoredData): boolean {
+  const playerScore = half21Score(data.player);
+  return (
+    half21Score(data.banker) <= playerScore &&
+    half21Score(data.banker) <= TEN_HALF_LIMIT &&
+    !isTwentyOneHalfSpecial(data.banker) &&
+    data.banker.length < 5 &&
+    data.deckIndex < data.deck.length
+  );
+}
+
 function settleTwentyOneHalfBanker(data: TwentyOneHalfStoredData): TwentyOneHalfStoredData {
   const settled = cloneTwentyOneHalfData(data);
-  const playerScore = half21Score(settled.player);
-  while (
-    half21Score(settled.banker) <= playerScore &&
-    half21Score(settled.banker) <= TEN_HALF_LIMIT &&
-    !isTwentyOneHalfSpecial(settled.banker) &&
-    settled.banker.length < 5 &&
-    settled.deckIndex < settled.deck.length
-  ) {
+  while (shouldTwentyOneHalfBankerDraw(settled)) {
     settled.banker.push(settled.deck[settled.deckIndex]!);
     settled.deckIndex += 1;
   }
@@ -1299,6 +1440,25 @@ function shapeTwentyOneHalfBankerForControl(
   return null;
 }
 
+function prepareTwentyOneHalfBankerTurnData(
+  current: TwentyOneHalfStoredData,
+  resolved: TwentyOneHalfStoredData,
+  naturalRound: RoundDraft,
+  control: ControlOutcome,
+  runControls: boolean,
+): TwentyOneHalfStoredData {
+  return {
+    ...cloneTwentyOneHalfData(current),
+    phase: 'BANKER_TURN',
+    deck: resolved.deck.map((card) => ({ ...card })),
+    deckIndex: current.deckIndex,
+    natural: storeRound(naturalRound),
+    control: storeControlOutcome(control),
+    runControls,
+    summary: null,
+  };
+}
+
 function controlAsForcedLoss(control: ControlOutcome): ControlOutcome {
   return {
     ...control,
@@ -1308,6 +1468,15 @@ function controlAsForcedLoss(control: ControlOutcome): ControlOutcome {
     flipReason: control.flipReason?.startsWith('burst_')
       ? 'burst_risk_guard'
       : 'control_bounds_guard',
+  };
+}
+
+function controlFromRound(round: RoundDraft): ControlOutcome {
+  return {
+    won: round.profit.greaterThan(0),
+    multiplier: round.multiplier,
+    payout: round.payout,
+    controlled: false,
   };
 }
 
@@ -1445,9 +1614,12 @@ function toTwentyOneHalfState(
   newBalance?: Prisma.Decimal,
 ): TwentyOneHalfRoundState {
   const active = data.status === 'ACTIVE';
-  const action = active
+  const phase = getTwentyOneHalfPhase(data);
+  const playerTurn = active && phase === 'PLAYER_TURN';
+  const action = playerTurn
     ? getTwentyOneHalfAvailableAction(data.player)
     : { canHit: false, canStand: false, forcedAction: null as null };
+  const canBankerDraw = active && phase === 'BANKER_TURN' && shouldTwentyOneHalfBankerDraw(data);
   const round = active ? null : buildTwentyOneHalfRoundFromState(data, bet.amount);
   return {
     roundId: bet.id,
@@ -1455,6 +1627,7 @@ function toTwentyOneHalfState(
     kind: 'twenty-one-half',
     roomName: data.roomName,
     status: data.status,
+    phase,
     amount: bet.amount.toFixed(2),
     payout: active ? '0.00' : bet.payout.toFixed(2),
     profit: active ? '0.00' : bet.profit.toFixed(2),
@@ -1467,10 +1640,11 @@ function toTwentyOneHalfState(
       : (round?.banker ?? toTwentyOneHalfHand('莊家', data.banker, false)),
     outcome: data.outcome ?? null,
     outcomeLabel: data.outcomeLabel ?? null,
-    summary: active ? activeTwentyOneHalfSummary(data.player) : (data.summary ?? round?.summary ?? ''),
+    summary: active ? activeTwentyOneHalfSummary(data) : (data.summary ?? round?.summary ?? ''),
     ruleSummary: ROOM_CONFIGS[bet.gameId as LocalTableGameIdType].ruleSummary,
     canHit: action.canHit,
     canStand: action.canStand,
+    canBankerDraw,
     forcedAction: action.forcedAction,
     controlled: data.controlled ?? false,
     flipReason: data.flipReason ?? null,
@@ -1527,8 +1701,26 @@ function parseStagedTableData(value: Prisma.JsonValue): StagedLocalTableStoredDa
     deck: (data.deck ?? []) as DominoTileInternal[],
     deckIndex: data.deckIndex ?? 0,
     playerSplitId: data.playerSplitId ?? null,
+    revealedPlayerIndexes: normalizeTuiRevealIndexes(data.revealedPlayerIndexes),
     summary: data.summary ?? null,
   };
+}
+
+function normalizeTuiRevealIndexes(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  const indexes: number[] = [];
+  for (const item of value) {
+    if ((item === 0 || item === 1) && !indexes.includes(item)) {
+      indexes.push(item);
+    }
+  }
+  return indexes;
+}
+
+function firstUnrevealedTuiIndex(revealed: number[]): number | null {
+  if (!revealed.includes(0)) return 0;
+  if (!revealed.includes(1)) return 1;
+  return null;
 }
 
 function storeRound(round: RoundDraft): StoredRoundResult {
@@ -1637,6 +1829,9 @@ function toStagedTableState(
         summary: settledRound?.summary ?? data.summary ?? '',
         canReveal: false,
         revealLabel: null,
+        revealedPlayerIndexes:
+          data.kind === 'tui-tongzi' && settledRound ? [0, 1] : undefined,
+        revealablePlayerIndexes: undefined,
         canSplit: false,
         splitOptions: undefined,
       };
@@ -1661,6 +1856,8 @@ function toStagedTableState(
     ruleSummary: ROOM_CONFIGS[bet.gameId as LocalTableGameIdType].ruleSummary,
     canReveal: view.canReveal,
     revealLabel: view.revealLabel,
+    revealedPlayerIndexes: view.revealedPlayerIndexes,
+    revealablePlayerIndexes: view.revealablePlayerIndexes,
     canSplit: view.canSplit,
     splitOptions: view.splitOptions,
     controlled: control?.controlled ?? false,
@@ -1679,29 +1876,36 @@ function stagedActiveView(data: StagedLocalTableStoredData): {
   summary: string;
   canReveal: boolean;
   revealLabel: string | null;
+  revealedPlayerIndexes?: number[];
+  revealablePlayerIndexes?: number[];
   canSplit: boolean;
   splitOptions?: LocalTableSplitOption[];
 } {
   if (data.kind === 'tui-tongzi') {
     const finalRound = roundFromStored(data.final);
     const playerPieces = finalRound.player.pieces;
-    const bankerPieces = finalRound.banker.pieces;
-    if (data.stage === 'AWAIT_FIRST_REVEAL') {
-      return {
-        player: emptyHand('閒家', '待開第一張'),
-        banker: emptyHand('莊家', '待開第一張'),
-        summary: data.summary ?? '下注完成，請先開第一張筒子。',
-        canReveal: true,
-        revealLabel: '開第一張',
-        canSplit: false,
-      };
-    }
+    const revealedPlayerIndexes = normalizeTuiRevealIndexes(data.revealedPlayerIndexes);
+    const revealablePlayerIndexes = [0, 1].filter((index) => !revealedPlayerIndexes.includes(index));
+    const revealedPieces = revealedPlayerIndexes
+      .map((index) => playerPieces[index])
+      .filter((piece): piece is LocalTablePiece => Boolean(piece));
     return {
-      player: partialHand('閒家', [playerPieces[0]!], '第一張已開', '等待第二張'),
-      banker: partialHand('莊家', [bankerPieces[0]!], '第一張已開', '等待第二張'),
-      summary: data.summary ?? '第一張已開，請開第二張比牌。',
+      player: partialHand(
+        '閒家',
+        revealedPieces,
+        revealedPieces.length ? `${revealedPieces.length} 張已開` : '待翻牌',
+        revealedPieces.length ? '等待下一張' : '兩張蓋牌',
+      ),
+      banker: finalRound.banker,
+      summary:
+        data.summary ??
+        (revealedPieces.length
+          ? '第一張已開，請翻另一張筒子比牌。'
+          : '莊家已開，請翻閒家任一張筒子。'),
       canReveal: true,
-      revealLabel: '開第二張比牌',
+      revealLabel: revealedPieces.length ? '翻第二張' : '翻閒家牌',
+      revealedPlayerIndexes,
+      revealablePlayerIndexes,
       canSplit: false,
     };
   }
@@ -2805,10 +3009,13 @@ export const __localTableServiceTestHooks = {
   compareRankedHands,
   controlAsForcedLoss,
   half21Score,
+  prepareTwentyOneHalfBankerTurnData,
   rankDominoPair,
   rankTubeHand,
+  settleTwentyOneHalfBanker,
   shapeBlackDotRoundForControl,
   shapeRoundForControl,
   shapeTwentyOneHalfBankerForControl,
   shapeTwentyOneHalfHitForControl,
+  shouldTwentyOneHalfBankerDraw,
 };

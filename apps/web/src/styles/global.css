@@ -266,92 +266,273 @@
   }
 
   .local-table-tube-piece--white {
-    border-color: rgba(245, 158, 11, 0.98);
+    border-color: rgba(253, 230, 138, 0.78);
     background:
-      radial-gradient(circle at 42% 18%, rgba(255, 255, 255, 0.82), transparent 22%),
-      linear-gradient(145deg, #f59e0b 0%, #fff3b0 40%, #b45309 72%, #5f2408 100%);
+      radial-gradient(circle at 48% 18%, rgba(255, 255, 255, 0.88), transparent 24%),
+      linear-gradient(145deg, #fff7d6 0%, #f6d77c 45%, #b7791f 100%);
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.36),
-      inset 0 0 0 4px rgba(120, 53, 15, 0.2),
+      inset 0 0 0 4px rgba(120, 53, 15, 0.12),
       0 14px 30px rgba(0, 0, 0, 0.34);
   }
 
-  .local-table-white-tile-mark {
+  .local-table-mahjong-image {
     position: relative;
     z-index: 10;
+    height: 88%;
+    width: 88%;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.16));
+  }
+
+  .local-table-mahjong-image--white {
+    height: 94%;
+    width: 76%;
+    filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.22));
+  }
+
+  .tui-tongzi-board {
+    position: relative;
+    isolation: isolate;
     display: grid;
-    width: 78%;
-    height: 84%;
-    place-items: center;
+    gap: clamp(10px, 1.8vw, 16px);
     overflow: hidden;
-    border-radius: 10px;
-    border: 4px solid #14532d;
+    border-radius: 22px;
+    border: 1px solid rgba(253, 230, 138, 0.2);
+    padding: clamp(12px, 2vw, 18px);
     background:
-      linear-gradient(90deg, rgba(185, 28, 28, 0.18), transparent 12% 88%, rgba(185, 28, 28, 0.16)),
-      linear-gradient(0deg, rgba(20, 83, 45, 0.15), transparent 13% 86%, rgba(20, 83, 45, 0.18)),
-      radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.98), transparent 24%),
-      linear-gradient(145deg, #fffef7 0%, #fff7d6 48%, #e4bf66 100%);
+      radial-gradient(circle at 50% 36%, rgba(253, 230, 138, 0.16), transparent 30%),
+      radial-gradient(circle at 14% 80%, rgba(16, 185, 129, 0.18), transparent 28%),
+      linear-gradient(160deg, rgba(3, 22, 18, 0.74), rgba(5, 10, 18, 0.86));
     box-shadow:
-      inset 0 0 0 2px rgba(255, 255, 255, 0.82),
-      inset 0 0 0 5px rgba(239, 68, 68, 0.46),
-      inset 0 0 0 9px rgba(250, 204, 21, 0.36),
-      inset 0 -12px 20px rgba(124, 45, 18, 0.14),
-      0 0 0 1px rgba(253, 230, 138, 0.88),
-      0 5px 11px rgba(0, 0, 0, 0.24);
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -18px 42px rgba(0, 0, 0, 0.22),
+      0 18px 38px rgba(0, 0, 0, 0.22);
   }
 
-  .local-table-white-tile-mark::before {
-    content: '';
+  .tui-tongzi-board__felt {
+    pointer-events: none;
     position: absolute;
-    inset: 9px;
-    border-radius: 7px;
-    border: 2px solid rgba(20, 83, 45, 0.7);
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.72),
-      0 0 0 2px rgba(185, 28, 28, 0.2),
-      0 0 0 4px rgba(253, 230, 138, 0.32);
-  }
-
-  .local-table-white-tile-mark::after {
-    content: '';
-    position: absolute;
-    inset: 22% 20%;
-    border-radius: 6px;
-    border: 2px dashed rgba(185, 28, 28, 0.42);
+    inset: 10px;
+    z-index: -1;
+    border-radius: 19px;
+    border: 1px solid rgba(253, 230, 138, 0.12);
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(253, 230, 138, 0.2));
+      linear-gradient(90deg, transparent, rgba(253, 230, 138, 0.08), transparent),
+      repeating-linear-gradient(
+        115deg,
+        rgba(255, 255, 255, 0.025) 0 1px,
+        transparent 1px 18px
+      );
   }
 
-  .local-table-white-tile-mark__corner {
-    position: absolute;
-    left: 8px;
-    top: 6px;
-    z-index: 1;
-    color: rgba(124, 45, 18, 0.82);
-    font-size: 11px;
+  .tui-tongzi-board__versus {
+    justify-self: center;
+    display: grid;
+    min-height: 30px;
+    min-width: 54px;
+    place-items: center;
+    border-radius: 999px;
+    border: 1px solid rgba(253, 230, 138, 0.34);
+    background: rgba(0, 0, 0, 0.32);
+    color: rgba(253, 230, 138, 0.94);
+    font-size: 12px;
+    font-weight: 1000;
+    letter-spacing: 0.18em;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .tui-tongzi-lane {
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: clamp(12px, 2vw, 18px);
+    background:
+      radial-gradient(circle at 50% 0%, rgba(253, 230, 138, 0.12), transparent 32%),
+      rgba(0, 0, 0, 0.24);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 14px 30px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(8px);
+  }
+
+  .tui-tongzi-lane--banker {
+    border-color: rgba(147, 197, 253, 0.24);
+    background:
+      radial-gradient(circle at 15% 15%, rgba(147, 197, 253, 0.16), transparent 28%),
+      linear-gradient(135deg, rgba(5, 20, 31, 0.66), rgba(0, 0, 0, 0.24));
+  }
+
+  .tui-tongzi-lane--player {
+    border-color: rgba(253, 230, 138, 0.28);
+    background:
+      radial-gradient(circle at 82% 16%, rgba(253, 230, 138, 0.18), transparent 28%),
+      linear-gradient(135deg, rgba(62, 37, 8, 0.54), rgba(0, 0, 0, 0.22));
+  }
+
+  .tui-tongzi-lane--active {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 0 0 1px rgba(253, 230, 138, 0.18),
+      0 18px 38px rgba(0, 0, 0, 0.22);
+  }
+
+  .tui-tongzi-lane__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .tui-tongzi-lane__label {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 12px;
+    font-weight: 1000;
+    letter-spacing: 0.14em;
+  }
+
+  .tui-tongzi-lane__score {
+    margin-top: 4px;
+    color: white;
+    font-size: clamp(24px, 4vw, 34px);
     font-weight: 1000;
     line-height: 1;
+    text-shadow: 0 3px 12px rgba(0, 0, 0, 0.36);
   }
 
-  .local-table-white-tile-mark__frame {
-    position: absolute;
-    inset: 16px 13px;
-    z-index: 1;
-    border-radius: 6px;
-    border: 3px double rgba(180, 83, 9, 0.45);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(253, 230, 138, 0.2));
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.62);
-  }
-
-  .local-table-white-tile-mark__label {
-    position: relative;
-    z-index: 2;
-    color: #78350f;
-    font-size: clamp(12px, 3vw, 18px);
+  .tui-tongzi-lane__rank {
+    max-width: 44%;
+    border-radius: 12px;
+    border: 1px solid rgba(253, 230, 138, 0.22);
+    background: rgba(0, 0, 0, 0.28);
+    padding: 7px 10px;
+    color: #fde68a;
+    font-size: 13px;
     font-weight: 1000;
-    letter-spacing: 0.06em;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
-    writing-mode: vertical-rl;
+    line-height: 1.15;
+    text-align: right;
+    word-break: keep-all;
+  }
+
+  .tui-tongzi-lane__tiles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(10px, 2vw, 14px);
+    margin-top: 14px;
+    align-items: stretch;
+  }
+
+  .tui-tongzi-lane__detail {
+    margin-top: 10px;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .tui-tongzi-tile-slot {
+    min-width: 0;
+  }
+
+  .tui-tongzi-tile-slot .local-table-piece-flipper,
+  .tui-tongzi-tile-slot .local-table-piece-face {
+    height: 100%;
+  }
+
+  .tui-tongzi-hidden-tile {
+    position: relative;
+    display: grid;
+    height: 80px;
+    min-width: 0;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid rgba(253, 230, 138, 0.5);
+    background:
+      radial-gradient(circle at 50% 42%, rgba(253, 230, 138, 0.2), transparent 34%),
+      repeating-linear-gradient(
+        135deg,
+        rgba(253, 230, 138, 0.16) 0 7px,
+        rgba(120, 53, 15, 0.28) 7px 14px
+      ),
+      linear-gradient(145deg, #7c2d12, #111827 58%, #07111f);
+    color: #fde68a;
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 255, 255, 0.08),
+      inset 0 0 0 6px rgba(0, 0, 0, 0.12),
+      0 14px 30px rgba(0, 0, 0, 0.28);
+    transition:
+      transform 160ms ease,
+      border-color 160ms ease,
+      box-shadow 160ms ease,
+      filter 160ms ease;
+  }
+
+  .tui-tongzi-hidden-tile:not(:disabled):hover {
+    transform: translateY(-2px);
+    border-color: rgba(253, 230, 138, 0.92);
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 255, 255, 0.1),
+      inset 0 0 0 6px rgba(0, 0, 0, 0.1),
+      0 0 0 1px rgba(253, 230, 138, 0.24),
+      0 18px 34px rgba(0, 0, 0, 0.34);
+    filter: brightness(1.08);
+  }
+
+  .tui-tongzi-hidden-tile:disabled {
+    cursor: default;
+  }
+
+  .tui-tongzi-hidden-tile--active:not(:disabled) {
+    animation: tui-tongzi-hidden-pulse 980ms ease-in-out infinite alternate;
+  }
+
+  .tui-tongzi-hidden-tile__shine {
+    pointer-events: none;
+    position: absolute;
+    inset: 7px;
+    border-radius: 10px;
+    border: 1px solid rgba(253, 230, 138, 0.2);
+    background:
+      linear-gradient(115deg, transparent 0 38%, rgba(255, 255, 255, 0.2) 45%, transparent 52%),
+      radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.18), transparent 28%);
+  }
+
+  .tui-tongzi-hidden-tile__mark {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    height: 34px;
+    width: 34px;
+    place-items: center;
+    border-radius: 999px;
+    border: 2px solid rgba(253, 230, 138, 0.78);
+    background: rgba(0, 0, 0, 0.28);
+    font-size: 17px;
+    font-weight: 1000;
+    line-height: 1;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.42);
+  }
+
+  .tui-tongzi-hidden-tile__label {
+    position: relative;
+    z-index: 1;
+    margin-top: -8px;
+    font-size: 12px;
+    font-weight: 1000;
+    letter-spacing: 0.08em;
+  }
+
+  @media (min-width: 640px) {
+    .tui-tongzi-hidden-tile {
+      height: 128px;
+    }
+
+    .tui-tongzi-hidden-tile__mark {
+      height: 44px;
+      width: 44px;
+      font-size: 21px;
+    }
   }
 
   .local-table-stage-panel--black-dot {
@@ -670,54 +851,34 @@
       0 10px 18px rgba(0, 0, 0, 0.36);
   }
 
-  .black-dot-table .local-table-domino-piece > div:first-child,
-  .black-dot-table .local-table-domino-piece > div:nth-child(2) {
-    border-color: rgba(253, 230, 138, 0.1);
-    background:
-      radial-gradient(circle at 50% 50%, rgba(253, 230, 138, 0.06), transparent 60%),
-      rgba(0, 0, 0, 0.08);
+  .local-table-domino-image {
+    position: relative;
+    z-index: 1;
+    height: calc(100% - 14px);
+    width: auto;
+    max-width: 74%;
+    object-fit: contain;
+    filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.34));
   }
 
-  .black-dot-table .local-table-domino-piece > div:last-child {
-    border-top: 1px solid rgba(253, 230, 138, 0.09);
-    background: rgba(0, 0, 0, 0.36);
-    color: rgba(253, 230, 138, 0.88);
-    font-size: 9px;
-    letter-spacing: 0.04em;
-  }
-
-  .local-table-domino-dot-grid {
-    display: grid;
-    width: clamp(32px, 8vw, 46px);
-    aspect-ratio: 1.08;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: clamp(2px, 0.7vw, 4px);
-    align-items: center;
-    justify-items: center;
-  }
-
-  .local-table-domino-pip {
-    width: clamp(5px, 1.6vw, 8px);
-    aspect-ratio: 1;
+  .local-table-domino-label {
+    position: absolute;
+    right: 5px;
+    bottom: 5px;
+    z-index: 2;
+    max-width: calc(100% - 10px);
+    overflow: hidden;
     border-radius: 999px;
-    opacity: 0;
-  }
-
-  .local-table-domino-pip--visible {
-    opacity: 1;
-    background:
-      radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.96), rgba(253, 230, 138, 0.92) 44%, #d6a83f 100%);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.8),
-      0 0 7px rgba(253, 230, 138, 0.52);
-  }
-
-  .local-table-domino-pip--red {
-    background:
-      radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.92), rgba(248, 113, 113, 0.96) 38%, #b91c1c 100%);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.6),
-      0 0 7px rgba(248, 113, 113, 0.42);
+    border: 1px solid rgba(253, 230, 138, 0.18);
+    background: rgba(0, 0, 0, 0.5);
+    padding: 2px 5px;
+    color: rgba(253, 230, 138, 0.9);
+    font-size: 9px;
+    font-weight: 1000;
+    letter-spacing: 0.03em;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .black-dot-tile-back {
@@ -1460,6 +1621,25 @@
   100% {
     opacity: 0;
     transform: translate3d(110%, 0, 0);
+  }
+}
+
+@keyframes tui-tongzi-hidden-pulse {
+  0% {
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 255, 255, 0.08),
+      inset 0 0 0 6px rgba(0, 0, 0, 0.12),
+      0 14px 30px rgba(0, 0, 0, 0.28);
+    filter: brightness(1);
+  }
+
+  100% {
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 255, 255, 0.12),
+      inset 0 0 0 6px rgba(0, 0, 0, 0.08),
+      0 0 0 1px rgba(253, 230, 138, 0.32),
+      0 18px 36px rgba(253, 230, 138, 0.14);
+    filter: brightness(1.1);
   }
 }
 
