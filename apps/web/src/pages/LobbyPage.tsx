@@ -239,8 +239,8 @@ function MobileLobbyOnePage() {
   }, [activeCategory]);
 
   return (
-    <div className="min-h-[100svh] bg-[#EDF4F7] pb-[calc(env(safe-area-inset-bottom)+18px)] lg:hidden">
-      <section className="sticky top-0 z-30 border-b border-[#C9D9E2] bg-white pt-[env(safe-area-inset-top)] shadow-[0_4px_14px_rgba(15,23,42,0.08)]">
+    <div className="mobile-lobby-surface min-h-[100svh] pb-[calc(env(safe-area-inset-bottom)+18px)] lg:hidden">
+      <section className="sticky top-0 z-30 border-b border-[#E9CFA7] bg-[#FFF8EA]/95 pt-[env(safe-area-inset-top)] shadow-[0_4px_14px_rgba(120,79,18,0.10)] backdrop-blur">
         <div className="flex h-[52px] items-center gap-1 px-2 min-[380px]:gap-1.5 min-[380px]:px-2.5">
           <Link
             to="/lobby"
@@ -336,7 +336,7 @@ function MobileLobbyOnePage() {
         </div>
       </section>
 
-      <section className="border-b border-[#D1E0E7] bg-white">
+      <section className="border-b border-[#EBD4B0] bg-[#FFF3E0]/88">
         <Link
           to="/promos"
           className="relative block min-h-[118px] overflow-hidden bg-[#1B2030] active:opacity-95"
@@ -368,7 +368,7 @@ function MobileLobbyOnePage() {
         </Link>
       </section>
 
-      <section className="flex h-9 overflow-hidden border-b border-[#CFE0E8] bg-white">
+      <section className="flex h-9 overflow-hidden border-b border-[#EBD4B0] bg-[#FFF9EE]/92">
         <div className="flex w-[58px] shrink-0 items-center justify-center gap-1 bg-[#EA580C] text-[14px] font-black text-white">
           <Megaphone className="h-4 w-4" aria-hidden="true" />
           {t.announcements.latest}
@@ -403,7 +403,7 @@ function MobileLobbyOnePage() {
                 className={`flex h-[58px] w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border text-[11px] font-black shadow-[0_6px_14px_rgba(15,23,42,0.08)] transition active:scale-[0.98] ${
                   selected
                     ? 'border-[#EA580C] bg-[linear-gradient(180deg,#FB923C_0%,#EA580C_100%)] text-white'
-                    : 'border-[#FED7AA] bg-white text-[#9A3412]'
+                    : 'border-[#FED7AA] bg-[#FFFDF4]/92 text-[#9A3412]'
                 }`}
                 aria-pressed={selected}
               >
@@ -429,7 +429,7 @@ function MobileLobbyOnePage() {
         </aside>
 
         <div className="min-w-0 space-y-2">
-          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#FED7AA] bg-white px-2.5 shadow-[0_6px_14px_rgba(15,23,42,0.06)]">
+          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#FED7AA] bg-[#FFFDF4]/92 px-2.5 shadow-[0_6px_14px_rgba(120,79,18,0.08)] backdrop-blur">
             <div className="flex min-w-0 items-center gap-1.5">
               <span className="h-4 w-1 rounded-full bg-[#F97316]" />
               <span className="truncate text-[14px] font-black text-[#12333E]">
@@ -563,7 +563,7 @@ function MobileGameCard({
 
 function LobbyStatCard({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <article className="rounded-[24px] border border-white/[0.65] bg-white/[0.92] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur">
+    <article className="rounded-[24px] border border-[#F0D5B5]/80 bg-[#FFF8EA]/88 p-5 shadow-[0_12px_30px_rgba(120,79,18,0.10)] backdrop-blur">
       <div className="label">{label}</div>
       <div className="mt-3 data-num text-[30px] font-bold text-[#EA580C]">{value}</div>
       <p className="mt-2 text-[13px] leading-relaxed text-[#4A5568]">{detail}</p>

@@ -52,8 +52,8 @@ export function TodayWinners() {
   }, []);
 
   return (
-    <section className="flex h-[var(--live-board-height)] min-w-0 flex-col overflow-hidden rounded-[10px] border border-[#E5E7EB] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)]">
-      <header className="flex items-baseline justify-between border-b border-[#E5E7EB] px-5 py-4">
+    <section className="flex h-[var(--live-board-height)] min-w-0 flex-col overflow-hidden rounded-[10px] border border-[#F0D5B5]/80 bg-[#FFF8EA]/88 shadow-[0_8px_24px_rgba(120,79,18,0.10)] backdrop-blur">
+      <header className="flex items-baseline justify-between border-b border-[#F0D5B5]/80 px-5 py-4">
         <div>
           <h2 className="flex items-center gap-2 text-[20px] font-semibold text-[#0F172A]">
             <Trophy className="h-5 w-5 text-[#C9A247]" />
@@ -87,7 +87,7 @@ export function TodayWinners() {
               <tr
                 key={`${row.rank}-${row.player}-${row.gameId}-${row.win}`}
                 className={`border-b border-[#E5E7EB] transition-colors duration-500 last:border-0 ${
-                  row.rank <= 3 ? rankStyle(row.rank) : idx % 2 === 0 ? 'bg-white' : 'bg-[#F5F7FA]'
+                  row.rank <= 3 ? rankStyle(row.rank) : idx % 2 === 0 ? 'bg-[#FFFDF4]/88' : 'bg-[#F1FAE8]/72'
                 } ${row.tier === 'jackpot' ? 'shadow-[inset_4px_0_0_#C9A247]' : row.tier === 'mega' ? 'shadow-[inset_4px_0_0_#38BDF8]' : ''}`}
               >
                 <td className="py-3 text-center text-[18px] font-bold">{rankIcon(row.rank)}</td>

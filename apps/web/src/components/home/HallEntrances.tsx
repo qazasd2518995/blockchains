@@ -25,7 +25,7 @@ function HallCard({ hall, priority = false }: { hall: HallMeta; priority?: boole
   return (
     <Link
       to={`/hall/${hall.id}`}
-      className="group relative flex min-h-[410px] flex-col overflow-hidden rounded-[12px] border border-white/80 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.10)] transition-all duration-300 hover:-translate-y-1 hover:border-[#EA580C]/40 hover:shadow-[0_22px_46px_rgba(234,88,12,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EA580C]/35 focus-visible:ring-offset-2"
+      className="group relative flex min-h-[410px] flex-col overflow-hidden rounded-[12px] border border-[#F0D5B5]/80 bg-[#FFF8EA]/90 shadow-[0_14px_34px_rgba(120,79,18,0.12)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-[#EA580C]/40 hover:shadow-[0_22px_46px_rgba(234,88,12,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EA580C]/35 focus-visible:ring-offset-2"
     >
       <div
         className="relative h-[260px] shrink-0 overflow-hidden sm:h-[300px] 2xl:h-[330px]"
@@ -59,7 +59,7 @@ function HallCard({ hall, priority = false }: { hall: HallMeta; priority?: boole
           <h3 className="text-pretty text-[26px] font-black leading-tight text-[#0F172A]">
             {name}
           </h3>
-          <span className="shrink-0 rounded-full bg-[#EDF4F7] px-3 py-1 text-[12px] font-semibold text-[#557083]">
+          <span className="shrink-0 rounded-full bg-[#F1FAE8] px-3 py-1 text-[12px] font-semibold text-[#557241]">
             {gameCount} {t.common.gamesCountUnit}
           </span>
         </div>
