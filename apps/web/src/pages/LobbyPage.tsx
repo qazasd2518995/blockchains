@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Flame, Gift, History, Megaphone, ShieldCheck, Users } from 'lucide-react';
 import { GAMES_REGISTRY, type GameMetadata, type GameIdType } from '@bg/shared';
 import { api } from '@/lib/api';
@@ -8,7 +8,7 @@ import { HallEntrances } from '@/components/home/HallEntrances';
 import { TodayWinners } from '@/components/home/TodayWinners';
 import { WinTicker } from '@/components/home/WinTicker';
 import { SectionHeading } from '@/components/layout/SectionHeading';
-import { HALL_LIST, type HallId } from '@/data/halls';
+import { getVisibleHallsForUsername, type HallId, type HallMeta } from '@/data/halls';
 import {
   FAKE_TODAY_TOP10,
   getFloatingOnlineCount,
@@ -28,21 +28,9 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { getGamePromoMultiplierLabel, isGamePromoHot } from '@/lib/gamePromos';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
-const visibleGameIds = Array.from(
-  new Set(HALL_LIST.flatMap((hall) => hall.gameIds).filter((id) => GAMES_REGISTRY[id]?.enabled)),
-);
-const totalGames = visibleGameIds.length;
 const topBoardWin = Math.max(...FAKE_TODAY_TOP10.map((row) => row.win));
-const mobileGameIds = visibleGameIds;
-const mobileGames = mobileGameIds
-  .map((id: GameIdType) => GAMES_REGISTRY[id])
-  .filter((game): game is NonNullable<typeof game> => Boolean(game?.enabled));
-const gameHallMap = new Map<string, HallId>(
-  HALL_LIST.flatMap((hall) => hall.gameIds.map((gameId) => [gameId, hall.id] as const)),
-);
-const hallMetaMap = new Map(HALL_LIST.map((hall) => [hall.id, hall]));
 
-const MOBILE_CATEGORIES: Array<{
+const BASE_MOBILE_CATEGORIES: Array<{
   id: 'all' | HallId;
   iconKey?: string;
 }> = [
@@ -50,6 +38,7 @@ const MOBILE_CATEGORIES: Array<{
   { id: 'crash', iconKey: 'crash' },
   { id: 'slots', iconKey: 'slots' },
   { id: 'roulette', iconKey: 'roulette' },
+  { id: 'tables', iconKey: 'tables' },
   { id: 'classic', iconKey: 'classic' },
 ];
 type MobileCardVariant = 'hero' | 'standard' | 'angled' | 'tall';
@@ -64,17 +53,40 @@ function mobileGamePath(gameId: string): string {
   return `/games/${gameId}`;
 }
 
-function mobileCategoryCount(categoryId: 'all' | HallId): number {
-  if (categoryId === 'all') return mobileGames.length;
-  return (
-    hallMetaMap.get(categoryId)?.gameIds.filter((id) => GAMES_REGISTRY[id]?.enabled).length ?? 0
+function buildVisibleGameIds(halls: readonly HallMeta[]): GameIdType[] {
+  return Array.from(
+    new Set(halls.flatMap((hall) => hall.gameIds).filter((id) => GAMES_REGISTRY[id]?.enabled)),
   );
+}
+
+function buildGameHallMap(halls: readonly HallMeta[]): Map<string, HallId> {
+  return new Map(halls.flatMap((hall) => hall.gameIds.map((gameId) => [gameId, hall.id] as const)));
+}
+
+function buildHallMetaMap(halls: readonly HallMeta[]): Map<HallId, HallMeta> {
+  return new Map(halls.map((hall) => [hall.id, hall]));
+}
+
+function getMobileCategories(hallMetaMap: Map<HallId, HallMeta>) {
+  return BASE_MOBILE_CATEGORIES.filter(
+    (category) => category.id === 'all' || hallMetaMap.has(category.id),
+  );
+}
+
+function mobileCategoryCount(
+  categoryId: 'all' | HallId,
+  mobileGames: GameMetadata[],
+  gameHallMap: Map<string, HallId>,
+): number {
+  if (categoryId === 'all') return mobileGames.length;
+  return mobileGames.filter((game) => gameHallMap.get(game.id) === categoryId).length;
 }
 
 function getMobileCategoryLabel(
   categoryId: 'all' | HallId,
   locale: ReturnType<typeof useTranslation>['locale'],
   t: ReturnType<typeof useTranslation>['t'],
+  hallMetaMap: Map<HallId, HallMeta>,
 ): { label: string; shortLabel: string } {
   if (categoryId === 'all') {
     return { label: t.lobbyStats.mobileAllGames, shortLabel: t.lobbyStats.mobileAllShort };
@@ -93,8 +105,28 @@ function getMobileCardVariant(index: number): MobileCardVariant {
   return 'standard';
 }
 
+function getMobileCategoryFromSearch(
+  searchParams: URLSearchParams,
+  hallMetaMap: Map<HallId, HallMeta>,
+  mobileCategories: Array<{ id: 'all' | HallId; iconKey?: string }>,
+): 'all' | HallId {
+  const hallParam = searchParams.get('hall');
+  if (
+    hallParam &&
+    hallMetaMap.has(hallParam as HallId) &&
+    mobileCategories.some((category) => category.id === hallParam)
+  ) {
+    return hallParam as HallId;
+  }
+  return 'all';
+}
+
 export function LobbyPage() {
   const { t } = useTranslation();
+  const username = useAuthStore((state) => state.user?.username ?? null);
+  const visibleHalls = useMemo(() => getVisibleHallsForUsername(username), [username]);
+  const visibleGameIds = useMemo(() => buildVisibleGameIds(visibleHalls), [visibleHalls]);
+  const canEnterTables = visibleHalls.some((hall) => hall.id === 'tables');
 
   useEffect(() => {
     void api.get('/health').catch(() => undefined);
@@ -113,12 +145,12 @@ export function LobbyPage() {
           <aside className="grid gap-4 sm:grid-cols-3 xl:col-span-4 xl:grid-cols-1 2xl:col-span-3">
             <LobbyStatCard
               label={t.lobbyStats.hotHalls}
-              value={String(HALL_LIST.length)}
+              value={String(visibleHalls.length)}
               detail={t.lobbyStats.hotHallsDetail}
             />
             <LobbyStatCard
               label={t.lobbyStats.playableGames}
-              value={String(totalGames)}
+              value={String(visibleGameIds.length)}
               detail={t.lobbyStats.playableGamesDetail}
             />
             <LobbyStatCard
@@ -135,13 +167,15 @@ export function LobbyPage() {
             title={t.lobbyStats.hallTitle}
             description={t.lobbyStats.hallDescription}
             rightSlot={
-              <Link
-                to="/hall/tables"
-                className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#EA580C] transition hover:text-[#9A3412]"
-              >
-                {t.lobbyStats.enterTables}
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+              canEnterTables ? (
+                <Link
+                  to="/hall/tables"
+                  className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#EA580C] transition hover:text-[#9A3412]"
+                >
+                  {t.lobbyStats.enterTables}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              ) : null
             }
           />
           <HallEntrances />
@@ -166,11 +200,27 @@ export function LobbyPage() {
 
 function MobileLobbyOnePage() {
   const { t, locale } = useTranslation();
+  const [searchParams] = useSearchParams();
   const user = useAuthStore((state) => state.user);
+  const username = user?.username ?? null;
   const isGuest = !user;
+  const visibleHalls = useMemo(() => getVisibleHallsForUsername(username), [username]);
+  const visibleGameIds = useMemo(() => buildVisibleGameIds(visibleHalls), [visibleHalls]);
+  const mobileGames = useMemo(
+    () =>
+      visibleGameIds
+        .map((id: GameIdType) => GAMES_REGISTRY[id])
+        .filter((game): game is NonNullable<typeof game> => Boolean(game?.enabled)),
+    [visibleGameIds],
+  );
+  const gameHallMap = useMemo(() => buildGameHallMap(visibleHalls), [visibleHalls]);
+  const hallMetaMap = useMemo(() => buildHallMetaMap(visibleHalls), [visibleHalls]);
+  const mobileCategories = useMemo(() => getMobileCategories(hallMetaMap), [hallMetaMap]);
   const [onlineCount, setOnlineCount] = useState(() => getFloatingOnlineCount());
-  const [activeCategory, setActiveCategory] = useState<'all' | HallId>('all');
-  const activeCategoryMeta = getMobileCategoryLabel(activeCategory, locale, t);
+  const [activeCategory, setActiveCategory] = useState<'all' | HallId>(() =>
+    getMobileCategoryFromSearch(searchParams, hallMetaMap, mobileCategories),
+  );
+  const activeCategoryMeta = getMobileCategoryLabel(activeCategory, locale, t, hallMetaMap);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -178,6 +228,10 @@ function MobileLobbyOnePage() {
     }, 4200);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    setActiveCategory(getMobileCategoryFromSearch(searchParams, hallMetaMap, mobileCategories));
+  }, [hallMetaMap, mobileCategories, searchParams]);
 
   const games = useMemo(() => {
     if (activeCategory === 'all') return mobileGames;
@@ -194,9 +248,14 @@ function MobileLobbyOnePage() {
             aria-label={t.common.lobby}
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[9px] border border-[#F59E0B]/30 bg-[#FFF7ED]">
-              <img
+              <ResponsiveImage
                 src="/brand/yachiyo-emblem.png"
                 alt=""
+                preset="lobby-card"
+                sizes="40px"
+                loading="eager"
+                width={824}
+                height={824}
                 className="h-9 w-9 object-contain"
                 draggable={false}
               />
@@ -332,10 +391,10 @@ function MobileLobbyOnePage() {
 
       <section className="grid grid-cols-[66px_minmax(0,1fr)] gap-2 px-2 py-2">
         <aside className="sticky top-[calc(env(safe-area-inset-top)+58px)] self-start space-y-1.5">
-          {MOBILE_CATEGORIES.map((category) => {
+          {mobileCategories.map((category) => {
             const Icon = getHallIcon(category.iconKey ?? 'classic');
             const selected = activeCategory === category.id;
-            const categoryLabel = getMobileCategoryLabel(category.id, locale, t);
+            const categoryLabel = getMobileCategoryLabel(category.id, locale, t, hallMetaMap);
             return (
               <button
                 key={category.id}
@@ -355,7 +414,7 @@ function MobileLobbyOnePage() {
                     selected ? 'bg-white/20 text-white' : 'bg-[#FFF7ED] text-[#C2410C]'
                   }`}
                 >
-                  {mobileCategoryCount(category.id)}
+                  {mobileCategoryCount(category.id, mobileGames, gameHallMap)}
                 </span>
               </button>
             );
@@ -388,6 +447,7 @@ function MobileLobbyOnePage() {
               <MobileGameCard
                 key={game.id}
                 game={game}
+                hallId={gameHallMap.get(game.id)}
                 variant={getMobileCardVariant(index)}
               />
             ))}
@@ -400,16 +460,17 @@ function MobileLobbyOnePage() {
 
 function MobileGameCard({
   game,
+  hallId,
   variant = 'standard',
 }: {
   game: GameMetadata;
+  hallId?: HallId;
   variant?: MobileCardVariant;
 }) {
   const { locale, t } = useTranslation();
   const GameIcon = getGameIcon(game.id);
   const cover = getLobbyGameCover(game.id);
-  const hall = gameHallMap.get(game.id);
-  const hallLabel = hall ? getLocalizedHallShort(hall, locale) : t.lobbyStats.mobileAllShort;
+  const hallLabel = hallId ? getLocalizedHallShort(hallId, locale) : t.lobbyStats.mobileAllShort;
   const routeState = { returnTo: '/lobby', returnLabel: t.common.lobby };
   const warmAssets = () => warmGameAssets(game.id);
   const title = getLocalizedGameTitle(game.id, locale, game.nameZh);
@@ -438,7 +499,10 @@ function MobileGameCard({
         preset="lobby-card"
         sizes={featured ? '100vw' : '50vw'}
         className="absolute inset-0 h-full w-full object-cover object-center opacity-100 transition duration-300 group-active:scale-[1.03]"
-        loading="lazy"
+        loading={featured ? 'eager' : 'lazy'}
+        fetchPriority={featured ? 'high' : 'auto'}
+        width={1086}
+        height={1448}
       />
       {featured && (
         <div className="absolute inset-x-0 top-0 z-10 h-14 bg-[linear-gradient(180deg,rgba(0,0,0,0.46),rgba(0,0,0,0))]" />
@@ -460,7 +524,7 @@ function MobileGameCard({
         </small>
       </span>
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.02)_0%,rgba(0,0,0,0)_42%,rgba(16,7,2,0.76)_100%)]" />
-      <div className="absolute inset-x-0 bottom-0 h-16 bg-[linear-gradient(0deg,rgba(0,0,0,0.86),rgba(0,0,0,0))]" />
+      <div className="absolute inset-x-0 bottom-0 h-20 bg-[linear-gradient(0deg,rgba(0,0,0,0.94),rgba(0,0,0,0.6)_44%,rgba(0,0,0,0))]" />
       <div
         className={`relative z-10 flex h-full flex-col justify-between p-2.5 ${
           featured ? 'min-h-[190px]' : tall ? 'min-h-[150px]' : 'min-h-[132px]'
@@ -474,13 +538,17 @@ function MobileGameCard({
         <div className="flex items-end justify-between gap-1">
           <div className="min-w-0">
             <h3
-              className={`truncate font-black leading-tight text-[#FFE8A3] [text-shadow:0_2px_0_#4A1D05,0_3px_8px_rgba(0,0,0,0.86)] ${
-                featured ? 'text-[24px]' : 'text-[16px]'
+              className={`truncate font-black leading-none text-[#FFF0A6] [text-shadow:0_2px_0_#5A1F05,0_4px_0_rgba(0,0,0,0.35),0_6px_12px_rgba(0,0,0,0.95)] ${
+                featured ? 'text-[31px]' : 'text-[20px]'
               }`}
             >
               {title}
             </h3>
-            <p className="min-w-0 truncate text-[10px] font-semibold uppercase text-white/82">
+            <p
+              className={`min-w-0 truncate font-black uppercase text-white/84 [text-shadow:0_2px_7px_rgba(0,0,0,0.9)] ${
+                featured ? 'mt-1 text-[12px]' : 'mt-0.5 text-[10px]'
+              }`}
+            >
               {game.name}
             </p>
           </div>

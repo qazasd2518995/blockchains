@@ -1,6 +1,10 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { getGameMeta } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import {
+  getAdminGameIdListLabel,
+  getAdminGameSubtitle,
+  getAdminGameTitle,
+} from '@/lib/gameDisplay';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { ImageBanner } from '@/components/shared/ImageBanner';
 import { StatCard } from '@/components/shared/StatCard';
@@ -914,7 +918,9 @@ export function ControlsOverviewPage(): JSX.Element {
         <div className="flex flex-col gap-1">
           <span className="font-mono text-[11px]">{formatBurstTarget(r)}</span>
           {r.gameIds.length > 0 && (
-            <span className="font-mono text-[10px] text-[#186073]">{r.gameIds.join(', ')}</span>
+            <span className="text-[10px] font-semibold text-[#186073]">
+              {getAdminGameIdListLabel(r.gameIds)}
+            </span>
           )}
         </div>
       ),
@@ -1009,11 +1015,11 @@ export function ControlsOverviewPage(): JSX.Element {
       key: 'game',
       label: '游戏',
       render: (r) => {
-        const game = getGameMeta(r.gameId);
+        const subtitle = getAdminGameSubtitle(r.gameId);
         return (
           <span className="tag tag-acid flex-col items-start gap-0 leading-tight">
-            <span>{game?.nameZh ?? r.gameId}</span>
-            {game && <span className="font-mono text-[9px] opacity-60">{r.gameId}</span>}
+            <span>{getAdminGameTitle(r.gameId)}</span>
+            {subtitle && <span className="text-[9px] opacity-60">{subtitle}</span>}
           </span>
         );
       },

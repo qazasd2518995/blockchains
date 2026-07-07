@@ -1,6 +1,10 @@
 import { SLOT_THEMES, type SlotThemeConfig, type SlotThemeId } from '@/lib/slotThemes';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 import { SLOT_BIG_WIN_TIER_ASSETS } from '@/lib/slotWinTiers';
+import {
+  getOptimizedImageSrcSet,
+  type ResponsivePreset,
+} from '@/lib/optimizedImages';
 
 export type GameAssetKind =
   | 'background'
@@ -54,6 +58,40 @@ const CRASH_VARIANTS: Record<string, string> = {
   jetx3: 'jet3',
   'double-x': 'double',
 };
+const LOCAL_TABLE_GAME_IDS = [
+  'twenty-one-half-doll',
+  'twenty-one-half-bunny',
+  'twenty-one-half-star',
+  'tui-tongzi-dragon',
+  'tui-tongzi-lion',
+  'tui-tongzi-jade',
+  'tui-tongzi-neon',
+  'tui-tongzi-gold',
+  'black-dot-tianjiu',
+  'black-dot-royal',
+  'black-dot-street',
+  'black-dot-shadow',
+  'black-dot-gold',
+  'card-war',
+] as const;
+const TUI_TONGZI_GAME_IDS = new Set([
+  'tui-tongzi-dragon',
+  'tui-tongzi-lion',
+  'tui-tongzi-jade',
+  'tui-tongzi-neon',
+  'tui-tongzi-gold',
+]);
+const BLACK_DOT_GAME_IDS = new Set([
+  'black-dot-tianjiu',
+  'black-dot-royal',
+  'black-dot-street',
+  'black-dot-shadow',
+  'black-dot-gold',
+]);
+const MAHJONG_TILE_ASSETS = [
+  '/game-art/mahjong/Haku.svg',
+  ...Array.from({ length: 9 }, (_, index) => `/game-art/mahjong/Pin${index + 1}.svg`),
+];
 const SLOT_GAMES_WITH_INDIVIDUAL_SYMBOLS = new Set<SlotThemeId>([
   'thunder',
   'dragonMega',
@@ -122,6 +160,7 @@ export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
       criticalAsset('/game-art/chicken-road/vehicles.png', 'sprite'),
     ],
   },
+  ...Object.fromEntries(LOCAL_TABLE_GAME_IDS.map((gameId) => [gameId, localTableGame(gameId)])),
   ...Object.fromEntries(Object.keys(CRASH_VARIANTS).map((gameId) => [gameId, crashGame(gameId)])),
   ...Object.fromEntries(
     Object.values(SLOT_THEMES).map((theme) => [theme.gameId, slotGame(theme)] as const),
@@ -192,6 +231,31 @@ function simplePixiGame(
   };
 }
 
+function coverOnlyGame(gameId: string): GameAssetManifest {
+  return {
+    gameId,
+    assets: [criticalAsset(getLobbyGameCover(gameId), 'cover')],
+  };
+}
+
+function localTableGame(gameId: string): GameAssetManifest {
+  return {
+    gameId,
+    assets: [
+      criticalAsset(getLobbyGameCover(gameId), 'cover'),
+      criticalAsset(localTableStageArt(gameId), 'background'),
+      ...(TUI_TONGZI_GAME_IDS.has(gameId) ? MAHJONG_TILE_ASSETS.map((src) => asset(src, 'card')) : []),
+    ],
+  };
+}
+
+function localTableStageArt(gameId: string): string {
+  if (TUI_TONGZI_GAME_IDS.has(gameId)) return '/game-art/local-table/stages/tui-tongzi-stage.webp';
+  if (BLACK_DOT_GAME_IDS.has(gameId)) return '/game-art/local-table/stages/black-dot-stage.webp';
+  if (gameId === 'card-war') return '/game-art/local-table/stages/card-war-stage.webp';
+  return '/game-art/local-table/stages/ten-half-stage.webp';
+}
+
 function crashGame(gameId: string): GameAssetManifest {
   const variant = CRASH_VARIANTS[gameId] ?? gameId;
   return {
@@ -252,16 +316,29 @@ async function preloadAsset(
 ): Promise<void> {
   void entry.pixi;
   void options.usePixi;
-  await preloadBrowserImage(entry.src);
+  await preloadBrowserImage(entry);
 }
 
-function preloadBrowserImage(src: string): Promise<void> {
+function preloadBrowserImage(entry: GameAssetEntry): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
+  const src = entry.src;
   if (!/\.(avif|jpe?g|png|svg|webp)$/i.test(src)) return Promise.resolve();
 
   return new Promise((resolve) => {
     const image = new Image();
     image.decoding = 'async';
+    image.loading = entry.critical ? 'eager' : 'lazy';
+    if ('fetchPriority' in image && entry.critical) {
+      image.fetchPriority = 'high';
+    }
+    if (!entry.pixi) {
+      const preset = preloadPresetFor(entry);
+      const srcSet = getOptimizedImageSrcSet(src, preset);
+      if (srcSet) {
+        image.srcset = srcSet;
+        image.sizes = preloadSizesFor(entry, preset);
+      }
+    }
     image.onload = () => {
       if ('decode' in image) {
         image.decode().then(resolve).catch(resolve);
@@ -272,4 +349,17 @@ function preloadBrowserImage(src: string): Promise<void> {
     image.onerror = () => resolve();
     image.src = src;
   });
+}
+
+function preloadPresetFor(entry: GameAssetEntry): ResponsivePreset {
+  if (entry.kind === 'cover') return 'hero';
+  if (entry.kind === 'background') return 'game-stage';
+  return 'lobby-card';
+}
+
+function preloadSizesFor(entry: GameAssetEntry, preset: ResponsivePreset): string {
+  if (preset === 'game-stage') return '(min-width: 1024px) 70vw, 100vw';
+  if (preset === 'hero') return '100vw';
+  if (entry.kind === 'cover') return '(min-width: 1280px) 360px, (min-width: 768px) 42vw, 92vw';
+  return '50vw';
 }

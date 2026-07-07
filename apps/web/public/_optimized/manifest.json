@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-05T05:21:52.223Z",
+  "generatedAt": "2026-07-06T13:40:33.456Z",
   "widths": [
     480,
     960,
@@ -276,6 +276,96 @@
       "480": "/_optimized/game-art/keno/sprites@480.webp",
       "960": "/_optimized/game-art/keno/sprites@960.webp",
       "1600": "/_optimized/game-art/keno/sprites@1600.webp"
+    },
+    "/game-art/local-table/black-dot-gold-cover.webp": {
+      "480": "/_optimized/game-art/local-table/black-dot-gold-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/black-dot-gold-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/black-dot-gold-cover@1600.webp"
+    },
+    "/game-art/local-table/black-dot-royal-cover.webp": {
+      "480": "/_optimized/game-art/local-table/black-dot-royal-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/black-dot-royal-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/black-dot-royal-cover@1600.webp"
+    },
+    "/game-art/local-table/black-dot-shadow-cover.webp": {
+      "480": "/_optimized/game-art/local-table/black-dot-shadow-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/black-dot-shadow-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/black-dot-shadow-cover@1600.webp"
+    },
+    "/game-art/local-table/black-dot-street-cover.webp": {
+      "480": "/_optimized/game-art/local-table/black-dot-street-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/black-dot-street-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/black-dot-street-cover@1600.webp"
+    },
+    "/game-art/local-table/black-dot-tianjiu-cover.webp": {
+      "480": "/_optimized/game-art/local-table/black-dot-tianjiu-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/black-dot-tianjiu-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/black-dot-tianjiu-cover@1600.webp"
+    },
+    "/game-art/local-table/card-war-cover.webp": {
+      "480": "/_optimized/game-art/local-table/card-war-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/card-war-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/card-war-cover@1600.webp"
+    },
+    "/game-art/local-table/stages/black-dot-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/black-dot-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/black-dot-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/black-dot-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/card-war-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/card-war-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/card-war-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/card-war-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/ten-half-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/ten-half-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/ten-half-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/ten-half-stage@1600.webp"
+    },
+    "/game-art/local-table/stages/tui-tongzi-stage.webp": {
+      "480": "/_optimized/game-art/local-table/stages/tui-tongzi-stage@480.webp",
+      "960": "/_optimized/game-art/local-table/stages/tui-tongzi-stage@960.webp",
+      "1600": "/_optimized/game-art/local-table/stages/tui-tongzi-stage@1600.webp"
+    },
+    "/game-art/local-table/ten-half-bunny-cover.webp": {
+      "480": "/_optimized/game-art/local-table/ten-half-bunny-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/ten-half-bunny-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/ten-half-bunny-cover@1600.webp"
+    },
+    "/game-art/local-table/ten-half-doll-cover.webp": {
+      "480": "/_optimized/game-art/local-table/ten-half-doll-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/ten-half-doll-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/ten-half-doll-cover@1600.webp"
+    },
+    "/game-art/local-table/ten-half-star-cover.webp": {
+      "480": "/_optimized/game-art/local-table/ten-half-star-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/ten-half-star-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/ten-half-star-cover@1600.webp"
+    },
+    "/game-art/local-table/tui-tongzi-dragon-cover.webp": {
+      "480": "/_optimized/game-art/local-table/tui-tongzi-dragon-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/tui-tongzi-dragon-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/tui-tongzi-dragon-cover@1600.webp"
+    },
+    "/game-art/local-table/tui-tongzi-gold-cover.webp": {
+      "480": "/_optimized/game-art/local-table/tui-tongzi-gold-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/tui-tongzi-gold-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/tui-tongzi-gold-cover@1600.webp"
+    },
+    "/game-art/local-table/tui-tongzi-jade-cover.webp": {
+      "480": "/_optimized/game-art/local-table/tui-tongzi-jade-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/tui-tongzi-jade-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/tui-tongzi-jade-cover@1600.webp"
+    },
+    "/game-art/local-table/tui-tongzi-lion-cover.webp": {
+      "480": "/_optimized/game-art/local-table/tui-tongzi-lion-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/tui-tongzi-lion-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/tui-tongzi-lion-cover@1600.webp"
+    },
+    "/game-art/local-table/tui-tongzi-neon-cover.webp": {
+      "480": "/_optimized/game-art/local-table/tui-tongzi-neon-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/tui-tongzi-neon-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/tui-tongzi-neon-cover@1600.webp"
     },
     "/game-art/mines/background.png": {
       "480": "/_optimized/game-art/mines/background@480.webp",
@@ -1456,6 +1546,21 @@
       "480": "/_optimized/slots/vampire/symbols@480.webp",
       "960": "/_optimized/slots/vampire/symbols@960.webp",
       "1600": "/_optimized/slots/vampire/symbols@1600.webp"
+    },
+    "/slots/win-tiers/big.webp": {
+      "480": "/_optimized/slots/win-tiers/big@480.webp",
+      "960": "/_optimized/slots/win-tiers/big@960.webp",
+      "1600": "/_optimized/slots/win-tiers/big@1600.webp"
+    },
+    "/slots/win-tiers/huge.webp": {
+      "480": "/_optimized/slots/win-tiers/huge@480.webp",
+      "960": "/_optimized/slots/win-tiers/huge@960.webp",
+      "1600": "/_optimized/slots/win-tiers/huge@1600.webp"
+    },
+    "/slots/win-tiers/mega.webp": {
+      "480": "/_optimized/slots/win-tiers/mega@480.webp",
+      "960": "/_optimized/slots/win-tiers/mega@960.webp",
+      "1600": "/_optimized/slots/win-tiers/mega@1600.webp"
     }
   }
 }

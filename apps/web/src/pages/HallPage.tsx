@@ -2,7 +2,10 @@ import { useLayoutEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
-import { HALLS, type HallId } from '@/data/halls';
+import {
+  getVisibleGameIdsForUsername,
+  getVisibleHallById,
+} from '@/data/halls';
 import { FAKE_WIN_TICKER } from '@/data/fakeStats';
 import { GameCardNew } from '@/components/game/GameCardNew';
 import { SectionHeading } from '@/components/layout/SectionHeading';
@@ -10,6 +13,7 @@ import { getHallIcon } from '@/lib/platformIcons';
 import { isMobileLobbyViewport } from '@/lib/mobileViewport';
 import { getLocalizedHallName, getLocalizedHallTagline } from '@/i18n/hallLabels';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useAuthStore } from '@/stores/authStore';
 
 const numberFormatter = new Intl.NumberFormat('zh-Hant-TW');
 
@@ -17,13 +21,14 @@ export function HallPage() {
   const { locale, t } = useTranslation();
   const { hallId } = useParams<{ hallId: string }>();
   const navigate = useNavigate();
-  const hall = hallId && hallId in HALLS ? HALLS[hallId as HallId] : undefined;
+  const username = useAuthStore((state) => state.user?.username ?? null);
+  const hall = getVisibleHallById(hallId, username);
 
   useLayoutEffect(() => {
     if (isMobileLobbyViewport()) {
-      navigate('/lobby', { replace: true });
+      navigate(hall ? `/lobby?hall=${hall.id}` : '/lobby', { replace: true });
     }
-  }, [navigate]);
+  }, [hall, navigate]);
 
   if (!hall) {
     return (
@@ -40,7 +45,7 @@ export function HallPage() {
 
   const hallName = getLocalizedHallName(hall, locale);
   const hallTagline = getLocalizedHallTagline(hall, locale);
-  const games = hall.gameIds
+  const games = getVisibleGameIdsForUsername(hall.gameIds, username)
     .map((id: GameIdType) => GAMES_REGISTRY[id])
     .filter((game): game is NonNullable<typeof game> => Boolean(game?.enabled));
   const HallIcon = getHallIcon(hall.iconKey);

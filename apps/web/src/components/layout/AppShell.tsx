@@ -18,6 +18,7 @@ import { BrandMark } from '@/components/layout/BrandMark';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { AudioMenu } from '@/components/layout/AudioMenu';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
+import { ResponsiveImage } from '@/lib/optimizedImages';
 import { ChangePasswordModal } from '@/components/layout/ChangePasswordModal';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useLiveBalance } from '@/hooks/useLiveBalance';
@@ -71,10 +72,16 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="relative flex min-h-[100svh] flex-col overflow-x-hidden bg-[#E9ECEF]">
       <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
       <div className="pointer-events-none fixed inset-0">
-        <img
+        <ResponsiveImage
           src="/backgrounds/casino-atmosphere.png"
           alt=""
           aria-hidden="true"
+          preset="hero"
+          sizes="100vw"
+          loading="eager"
+          fetchPriority="high"
+          width={1717}
+          height={916}
           className="h-full w-full object-cover opacity-[0.16]"
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(233,236,239,0.72)_0%,rgba(233,236,239,0.9)_30%,rgba(233,236,239,0.96)_100%)]" />

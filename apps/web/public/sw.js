@@ -1,7 +1,7 @@
-const VERSION = 'yachiyo-assets-v5-mega-slot-20260527';
-const DEBUG_VERSION = 'mega-slot-mobile-debug-20260527-01';
+const VERSION = 'yachiyo-assets-v6-responsive-images-20260706';
+const DEBUG_VERSION = 'responsive-image-preload-20260706-01';
 const IMAGE_CACHE = `${VERSION}:images`;
-const IMAGE_MAX_ENTRIES = 260;
+const IMAGE_MAX_ENTRIES = 420;
 const RELOAD_CLIENTS_ON_ACTIVATE = true;
 const IMAGE_PATH_RE =
   /^\/(?:_optimized|backgrounds|banners|cards|crash|game-art|games|halls|promos|slots)\//;

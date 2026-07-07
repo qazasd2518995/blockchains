@@ -46,6 +46,10 @@ const HOT_GAME_IDS = new Set<GameIdType>([
   GameId.WHEEL,
   GameId.CARNIVAL,
   GameId.BLACKJACK,
+  GameId.TWENTY_ONE_HALF_DOLL,
+  GameId.TUI_TONGZI_DRAGON,
+  GameId.BLACK_DOT_TIANJIU,
+  GameId.CARD_WAR,
 ]);
 
 export function getGamePromoMultiplier(gameId: string): number {
@@ -62,6 +66,32 @@ export function getGamePromoMultiplier(gameId: string): number {
   if (id === GameId.WHEEL) return 48.25;
   if (id === GameId.MINI_ROULETTE || id === GameId.CARNIVAL) return 12;
   if (id === GameId.BLACKJACK) return 2.5;
+  if (
+    id === GameId.TWENTY_ONE_HALF_DOLL ||
+    id === GameId.TWENTY_ONE_HALF_BUNNY ||
+    id === GameId.TWENTY_ONE_HALF_STAR
+  ) {
+    return 2.4;
+  }
+  if (
+    id === GameId.TUI_TONGZI_DRAGON ||
+    id === GameId.TUI_TONGZI_LION ||
+    id === GameId.TUI_TONGZI_JADE ||
+    id === GameId.TUI_TONGZI_NEON ||
+    id === GameId.TUI_TONGZI_GOLD
+  ) {
+    return 3;
+  }
+  if (
+    id === GameId.BLACK_DOT_TIANJIU ||
+    id === GameId.BLACK_DOT_ROYAL ||
+    id === GameId.BLACK_DOT_STREET ||
+    id === GameId.BLACK_DOT_SHADOW ||
+    id === GameId.BLACK_DOT_GOLD ||
+    id === GameId.CARD_WAR
+  ) {
+    return 1.96;
+  }
   if (id === GameId.HILO) return 999;
   return 1000;
 }

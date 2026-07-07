@@ -1917,11 +1917,11 @@ async function findManualDetectionDecision(
   predicted: PredictedResult,
   scope: 'all' | 'targeted' | 'global' = 'all',
 ): Promise<ControlDecisionLookup> {
-  await checkAndCompleteManualDetectionControls(tx);
   const applicable = await findApplicableManualDetectionControl(tx, member);
   if (!applicable) return null;
   if (scope === 'targeted' && applicable.control.scope === 'ALL') return null;
   if (scope === 'global' && applicable.control.scope !== 'ALL') return null;
+  await checkAndCompleteManualDetectionControls(tx);
 
   const settlement = await calculateCurrentSettlement(
     tx,

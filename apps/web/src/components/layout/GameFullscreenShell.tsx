@@ -23,6 +23,7 @@ import { getLocalizedGameTitle } from '@/i18n/gameLabels';
 import { useTranslation } from '@/i18n/useTranslation';
 import { ChangePasswordModal } from '@/components/layout/ChangePasswordModal';
 import { BettingLimitBadge } from '@/components/game/BettingLimitBadge';
+import { ResponsiveImage } from '@/lib/optimizedImages';
 
 const MEGA_SLOT_GAME_IDS = new Set([
   'thunder-slot',
@@ -195,10 +196,16 @@ export function GameFullscreenShell() {
     >
       <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
       <div className="pointer-events-none fixed inset-0">
-        <img
+        <ResponsiveImage
           src="/backgrounds/casino-atmosphere.png"
           alt=""
           aria-hidden="true"
+          preset="hero"
+          sizes="100vw"
+          loading="eager"
+          fetchPriority="high"
+          width={1717}
+          height={916}
           className="h-full w-full object-cover opacity-[0.18]"
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,10,19,0.92)_0%,rgba(5,10,19,0.97)_58%,rgba(5,10,19,1)_100%)]" />

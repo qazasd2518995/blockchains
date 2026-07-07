@@ -23,6 +23,8 @@ import type { Locale } from '@/i18n/types';
 import { PlatformBgm } from '@/lib/platformBgm';
 import { errorMessage, reloadAfterRuntimeFailure } from '@/lib/runtimeRecovery';
 import { CRASH_CONFIGS } from '@/pages/games/crashConfigs';
+import { canAccessLocalTableBeta, LOCAL_TABLE_GAME_IDS, type LocalTableGameIdType } from '@bg/shared';
+import { useAuthStore } from '@/stores/authStore';
 
 const RUNTIME_ERROR_COPY: Record<
   Locale,
@@ -96,6 +98,7 @@ const DicePage = lazyPage(() => import('@/pages/games/DicePage'), 'DicePage');
 const HiLoPage = lazyPage(() => import('@/pages/games/HiLoPage'), 'HiLoPage');
 const HotlinePage = lazyPage(() => import('@/pages/games/HotlinePage'), 'HotlinePage');
 const KenoPage = lazyPage(() => import('@/pages/games/KenoPage'), 'KenoPage');
+const LocalTablePage = lazyPage(() => import('@/pages/games/LocalTablePage'), 'LocalTablePage');
 const MinesPage = lazyPage(() => import('@/pages/games/MinesPage'), 'MinesPage');
 const PlinkoPage = lazyPage(() => import('@/pages/games/PlinkoPage'), 'PlinkoPage');
 const RoulettePage = lazyPage(() => import('@/pages/games/RoulettePage'), 'RoulettePage');
@@ -176,6 +179,12 @@ function gameRoute(path: string, gameId: string, element: ReactNode) {
   };
 }
 
+function LocalTableBetaRoute({ gameId }: { gameId: LocalTableGameIdType }) {
+  const username = useAuthStore((state) => state.user?.username ?? null);
+  if (!canAccessLocalTableBeta(username)) return <Navigate to="/lobby" replace />;
+  return <LocalTablePage gameId={gameId} />;
+}
+
 function RouteViewportReset() {
   const { pathname } = useLocation();
 
@@ -226,6 +235,9 @@ export const router = createBrowserRouter([
         element: <GameFullscreenShell />,
         children: [
           gameRoute('/games/dice', 'dice', <DicePage />),
+          ...LOCAL_TABLE_GAME_IDS.map((gameId) =>
+            gameRoute(`/games/${gameId}`, gameId, <LocalTableBetaRoute gameId={gameId} />),
+          ),
           gameRoute('/games/mines', 'mines', <MinesPage />),
           gameRoute('/games/hilo', 'hilo', <HiLoPage />),
           gameRoute('/games/blackjack', 'blackjack', <BlackjackPage />),

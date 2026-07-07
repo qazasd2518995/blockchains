@@ -1,16 +1,24 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { GAMES_REGISTRY } from '@bg/shared';
-import { HALL_LIST, type HallMeta } from '@/data/halls';
+import {
+  getVisibleGameIdsForUsername,
+  getVisibleHallsForUsername,
+  type HallMeta,
+} from '@/data/halls';
 import { ResponsiveImage } from '@/lib/optimizedImages';
 import { getHallIcon } from '@/lib/platformIcons';
 import { getLocalizedHallName, getLocalizedHallTagline } from '@/i18n/hallLabels';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useAuthStore } from '@/stores/authStore';
 
-function HallCard({ hall }: { hall: HallMeta }) {
+function HallCard({ hall, priority = false }: { hall: HallMeta; priority?: boolean }) {
   const { locale, t } = useTranslation();
+  const username = useAuthStore((state) => state.user?.username ?? null);
   const Icon = getHallIcon(hall.iconKey);
-  const gameCount = hall.gameIds.filter((id) => GAMES_REGISTRY[id]?.enabled).length;
+  const gameCount = getVisibleGameIdsForUsername(hall.gameIds, username).filter(
+    (id) => GAMES_REGISTRY[id]?.enabled,
+  ).length;
   const name = getLocalizedHallName(hall, locale);
   const tagline = getLocalizedHallTagline(hall, locale);
 
@@ -30,7 +38,10 @@ function HallCard({ hall }: { hall: HallMeta }) {
           preset="hall-card"
           sizes="(min-width: 768px) 50vw, 100vw"
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
+          width={1600}
+          height={900}
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,30,43,0.08),rgba(5,30,43,0.12)_44%,rgba(5,30,43,0.72))]" />
         <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(5,16,28,0.56),transparent)]" />
@@ -64,10 +75,13 @@ function HallCard({ hall }: { hall: HallMeta }) {
 }
 
 export function HallEntrances() {
+  const username = useAuthStore((state) => state.user?.username ?? null);
+  const halls = getVisibleHallsForUsername(username);
+
   return (
     <section className="grid grid-cols-1 gap-7 md:grid-cols-2">
-      {HALL_LIST.map((hall) => (
-        <HallCard key={hall.id} hall={hall} />
+      {halls.map((hall, index) => (
+        <HallCard key={hall.id} hall={hall} priority={index < 2} />
       ))}
     </section>
   );

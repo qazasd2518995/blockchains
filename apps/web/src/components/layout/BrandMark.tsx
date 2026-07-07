@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { ResponsiveImage } from '@/lib/optimizedImages';
 import { useTranslation } from '@/i18n/useTranslation';
 
 interface Props {
@@ -22,9 +23,14 @@ export function BrandMark({ to, subtitle, tone = 'dark', className = '' }: Props
       <span
         className={`inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border ${badgeClass}`}
       >
-        <img
+        <ResponsiveImage
           src="/brand/yachiyo-emblem.png"
           alt=""
+          preset="lobby-card"
+          sizes="44px"
+          loading="eager"
+          width={824}
+          height={824}
           className="h-10 w-10 object-contain"
           draggable={false}
         />

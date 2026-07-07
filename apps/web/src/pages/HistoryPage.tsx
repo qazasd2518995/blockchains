@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { getGameMeta } from '@bg/shared';
+import { getGameMeta, isLocalTableGameId } from '@bg/shared';
 import type { BetDetailResponse, TransactionListResponse, TransactionType } from '@bg/shared';
 import { CalendarDays, ReceiptText, Search, X } from 'lucide-react';
 import { api, extractApiError } from '@/lib/api';
@@ -863,6 +863,9 @@ const RESULT_LABELS: Record<string, string> = {
 };
 
 function friendlyResultEntries(gameId: string, record: Record<string, unknown>): ResultEntry[] {
+  if (isLocalTableGameId(gameId) || isLocalTableResult(record)) {
+    return localTableResultEntries(gameId, record);
+  }
   if (gameId === 'dice') return diceResultEntries(record);
   if (gameId === 'wheel') return wheelResultEntries(record);
   if (gameId === 'plinko') return plinkoResultEntries(record);
@@ -1183,6 +1186,305 @@ function rouletteResultEntries(record: Record<string, unknown>): ResultEntry[] {
       ),
     },
   ];
+}
+
+function localTableResultEntries(gameId: string, record: Record<string, unknown>): ResultEntry[] {
+  const kind = getStringScalar(record.kind);
+  const roomName = getStringScalar(record.roomName);
+  const outcome = getStringScalar(record.outcome);
+  const outcomeLabel = getStringScalar(record.outcomeLabel);
+  const summary = getStringScalar(record.summary);
+  const multiplier = getNumber(record.multiplier);
+  const payout = getNumber(record.payout);
+  const player = getLocalTableHand(record.player);
+  const banker = getLocalTableHand(record.banker);
+  const extraHands = getLocalTableHands(record.extraHands);
+  const rules = getStringArray(record.ruleSummary);
+
+  return compactResultEntries([
+    {
+      key: 'local-table-summary',
+      label: '本局結果',
+      value: (
+        <SummaryStack
+          items={[
+            roomName ? `房間：${roomName}` : (getGameMeta(gameId)?.nameZh ?? gameId),
+            kind ? `玩法：${localTableKindLabel(kind)}` : null,
+            outcomeLabel ?? (outcome ? `結果：${localTableOutcomeLabel(outcome)}` : null),
+            summary ?? null,
+            multiplier !== undefined ? `倍率 ${formatMultiplierValue(multiplier)}` : null,
+            payout !== undefined ? `派彩 ${formatAmount(String(payout))}` : null,
+          ]}
+        />
+      ),
+    },
+    player || banker || extraHands.length > 0
+      ? {
+          key: 'local-table-hands',
+          label: '牌局內容',
+          value: <LocalTableHandsView player={player} banker={banker} extraHands={extraHands} />,
+        }
+      : null,
+    rules.length > 0
+      ? {
+          key: 'local-table-rules',
+          label: '規則摘要',
+          value: <PathStrip path={rules} />,
+        }
+      : null,
+  ]);
+}
+
+type LocalTablePieceView =
+  | {
+      kind: 'card';
+      label: string;
+      valueLabel?: string;
+      card: DisplayCard | null;
+    }
+  | {
+      kind: 'tube';
+      label: string;
+      value?: number;
+      isWhite: boolean;
+    }
+  | {
+      kind: 'domino';
+      label: string;
+      pips: [number, number] | null;
+    };
+
+type LocalTableHandView = {
+  title: string;
+  pieces: LocalTablePieceView[];
+  scoreLabel?: string;
+  rankLabel?: string;
+  detail?: string;
+};
+
+function LocalTableHandsView({
+  player,
+  banker,
+  extraHands,
+}: {
+  player: LocalTableHandView | null;
+  banker: LocalTableHandView | null;
+  extraHands: LocalTableHandView[];
+}) {
+  return (
+    <div className="grid gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {player ? <LocalTableHandCard hand={player} tone="player" /> : null}
+        {banker ? <LocalTableHandCard hand={banker} tone="banker" /> : null}
+      </div>
+      {extraHands.length > 0 ? (
+        <div className="grid gap-2">
+          {extraHands.map((hand, index) => (
+            <LocalTableHandCard key={`${hand.title}-${index}`} hand={hand} tone="extra" />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function LocalTableHandCard({
+  hand,
+  tone,
+}: {
+  hand: LocalTableHandView;
+  tone: 'player' | 'banker' | 'extra';
+}) {
+  const toneClass =
+    tone === 'player'
+      ? 'border-[#17A34A]/25 bg-[#ECFDF3]'
+      : tone === 'banker'
+        ? 'border-[#D4574A]/25 bg-[#FDF0EE]'
+        : 'border-[#C9A247]/30 bg-[#FFF8DF]';
+  return (
+    <section className={`rounded-[14px] border px-3 py-3 ${toneClass}`}>
+      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="text-[12px] font-black text-[#0F172A]">{hand.title}</div>
+          {hand.detail ? (
+            <div className="mt-0.5 text-[11px] font-bold text-[#4A5568]">{hand.detail}</div>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {hand.rankLabel ? (
+            <span className="rounded-full border border-[#0F172A]/10 bg-white px-2 py-1 text-[11px] font-black text-[#0F172A]">
+              {hand.rankLabel}
+            </span>
+          ) : null}
+          {hand.scoreLabel ? (
+            <span className="rounded-full border border-[#0F172A]/10 bg-white px-2 py-1 text-[11px] font-bold text-[#4A5568]">
+              {hand.scoreLabel}
+            </span>
+          ) : null}
+        </div>
+      </div>
+      <LocalTablePieceStrip pieces={hand.pieces} />
+    </section>
+  );
+}
+
+function LocalTablePieceStrip({ pieces }: { pieces: LocalTablePieceView[] }) {
+  if (pieces.length === 0) {
+    return <div className="text-[12px] font-bold text-[#718096]">尚無牌面資料</div>;
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {pieces.map((piece, index) => (
+        <LocalTablePieceChip key={`${piece.kind}-${piece.label}-${index}`} piece={piece} />
+      ))}
+    </div>
+  );
+}
+
+function LocalTablePieceChip({ piece }: { piece: LocalTablePieceView }) {
+  if (piece.kind === 'card') {
+    return piece.card ? (
+      <div className="grid gap-1">
+        <PlayingCardSvg card={piece.card} />
+        {piece.valueLabel ? (
+          <span className="text-center text-[10px] font-black text-[#4A5568]">{piece.valueLabel}</span>
+        ) : null}
+      </div>
+    ) : (
+      <span className="inline-flex h-[78px] min-w-[56px] items-center justify-center rounded-[8px] border border-[#D9E3EA] bg-white px-2 text-[14px] font-black text-[#0F172A]">
+        {piece.label}
+      </span>
+    );
+  }
+
+  if (piece.kind === 'tube') {
+    return (
+      <span
+        className={`inline-flex h-[68px] min-w-[58px] flex-col items-center justify-center rounded-[12px] border-2 px-2 text-center shadow-sm ${
+          piece.isWhite
+            ? 'border-[#C9A247] bg-[linear-gradient(145deg,#fff,#F3F0E8)] text-[#8A6412]'
+            : 'border-[#1D4ED8]/25 bg-[#EFF6FF] text-[#0F3E8A]'
+        }`}
+      >
+        <strong className="text-[15px] leading-none">{piece.label}</strong>
+        {piece.value !== undefined ? (
+          <em className="mt-1 text-[10px] not-italic opacity-70">{piece.value} 點</em>
+        ) : null}
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-grid h-[76px] w-[48px] overflow-hidden rounded-[10px] border-2 border-[#0F172A]/20 bg-[#FFF7E5] shadow-sm">
+      <span className="grid place-items-center border-b border-[#0F172A]/15">
+        <DominoPips count={piece.pips?.[0] ?? 0} />
+      </span>
+      <span className="grid place-items-center">
+        <DominoPips count={piece.pips?.[1] ?? 0} />
+      </span>
+      <span className="sr-only">{piece.label}</span>
+    </span>
+  );
+}
+
+function DominoPips({ count }: { count: number }) {
+  const normalized = Math.max(0, Math.min(6, Math.trunc(count)));
+  return (
+    <span className="grid grid-cols-3 gap-[2px] px-1">
+      {Array.from({ length: 6 }, (_, index) => (
+        <span
+          key={index}
+          className={`h-1.5 w-1.5 rounded-full ${index < normalized ? 'bg-[#0F172A]' : 'bg-transparent'}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+function getLocalTableHand(value: unknown): LocalTableHandView | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  const pieces = Array.isArray(record.pieces)
+    ? record.pieces
+        .map(getLocalTablePiece)
+        .filter((piece): piece is LocalTablePieceView => piece !== null)
+    : [];
+  const title = getStringScalar(record.title) ?? '牌組';
+  const scoreLabel = getStringScalar(record.scoreLabel);
+  const rankLabel = getStringScalar(record.rankLabel);
+  const detail = getStringScalar(record.detail);
+  if (pieces.length === 0 && !scoreLabel && !rankLabel && !detail) return null;
+  return { title, pieces, scoreLabel, rankLabel, detail };
+}
+
+function getLocalTableHands(value: unknown): LocalTableHandView[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(getLocalTableHand).filter((hand): hand is LocalTableHandView => hand !== null);
+}
+
+function getLocalTablePiece(value: unknown): LocalTablePieceView | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  const kind = getStringScalar(record.kind);
+  if (kind === 'card') {
+    const card = normalizeCard(record);
+    return {
+      kind: 'card',
+      label: getStringScalar(record.label) ?? (card ? cardLabel(card) : '牌'),
+      valueLabel: getStringScalar(record.valueLabel),
+      card,
+    };
+  }
+  if (kind === 'tube') {
+    return {
+      kind: 'tube',
+      label: getStringScalar(record.label) ?? (record.isWhite === true ? '白板' : '筒子'),
+      value: getNumber(record.value),
+      isWhite: record.isWhite === true,
+    };
+  }
+  if (kind === 'domino') {
+    return {
+      kind: 'domino',
+      label: getStringScalar(record.name ?? record.label) ?? '天九牌',
+      pips: getDominoPips(record.pips),
+    };
+  }
+  return null;
+}
+
+function getDominoPips(value: unknown): [number, number] | null {
+  if (!Array.isArray(value) || value.length < 2) return null;
+  const first = getNumber(value[0]);
+  const second = getNumber(value[1]);
+  return first !== undefined && second !== undefined
+    ? [Math.trunc(first), Math.trunc(second)]
+    : null;
+}
+
+function isLocalTableResult(record: Record<string, unknown>): boolean {
+  const kind = getStringScalar(record.kind);
+  return (
+    kind === 'twenty-one-half' ||
+    kind === 'tui-tongzi' ||
+    kind === 'black-dot' ||
+    kind === 'card-war'
+  );
+}
+
+function localTableKindLabel(kind: string): string {
+  if (kind === 'twenty-one-half') return '十點半';
+  if (kind === 'tui-tongzi') return '推筒子';
+  if (kind === 'black-dot') return '黑粒仔';
+  if (kind === 'card-war') return '比大小';
+  return kind;
+}
+
+function localTableOutcomeLabel(outcome: string): string {
+  if (outcome === 'WIN') return '閒家勝';
+  if (outcome === 'LOSE') return '莊家勝';
+  if (outcome === 'PUSH') return '和局';
+  return outcome;
 }
 
 function SummaryStack({ items }: { items: Array<string | null | undefined> }) {

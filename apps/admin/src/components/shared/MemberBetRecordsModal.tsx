@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getGameMeta } from '@bg/shared';
 import type { BetDetailResponse, MemberBetEntry, MemberBetListResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { getAdminGameSubtitle, getAdminGameTitle } from '@/lib/gameDisplay';
 import { Modal } from './Modal';
 import { BetResultDetailModal } from './BetResultDetailModal';
 
@@ -106,7 +106,7 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
 
   const pageRange = useMemo(() => getPageRange(pagination.page, pagination.totalPages), [pagination.page, pagination.totalPages]);
   const dateLabel = startDate || endDate ? `${startDate || '不限'} 至 ${endDate || '不限'}` : '全部日期';
-  const gameLabel = gameId ? (getGameMeta(gameId)?.nameZh ?? gameId) : '全部游戏';
+  const gameLabel = gameId ? getAdminGameTitle(gameId) : '全部游戏';
 
   const openDetail = (betId: string) => {
     setDetailBetId(betId);
@@ -258,13 +258,17 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
 
 function BetRow({ item, onOpenDetail }: { item: MemberBetEntry; onOpenDetail: (betId: string) => void }): JSX.Element {
   const profit = Number.parseFloat(item.profit);
+  const gameTitle = getAdminGameTitle(item.gameId);
+  const gameSubtitle = getAdminGameSubtitle(item.gameId);
   return (
     <tr className="border-b border-ink-100 transition hover:bg-[#FAF2D7]/50">
       <td className="px-3 py-2 font-mono text-[10px] text-ink-500">{shortId(item.id)}</td>
       <td className="px-3 py-2 data-num text-[11px] text-ink-600">{formatTime(item.createdAt)}</td>
       <td className="px-3 py-2 font-semibold text-ink-900">
-        {getGameMeta(item.gameId)?.nameZh ?? item.gameId}
-        <div className="font-mono text-[10px] font-normal text-ink-400">{item.gameId}</div>
+        {gameTitle}
+        {gameSubtitle ? (
+          <div className="text-[10px] font-semibold text-ink-400">{gameSubtitle}</div>
+        ) : null}
       </td>
       <td className="px-3 py-2 text-right data-num">{formatAmount(item.amount)}</td>
       <td className="px-3 py-2 text-right data-num">{formatMultiplier(item.multiplier)}x</td>

@@ -1,7 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Lock, ArrowRight } from 'lucide-react';
 import { GAMES_REGISTRY } from '@bg/shared';
-import { HALL_LIST, type HallMeta } from '@/data/halls';
+import {
+  getVisibleGameIdsForUsername,
+  getVisibleHallsForUsername,
+  type HallMeta,
+} from '@/data/halls';
 import { ResponsiveImage } from '@/lib/optimizedImages';
 import { getHallIcon } from '@/lib/platformIcons';
 import { getLocalizedHallName, getLocalizedHallTagline } from '@/i18n/hallLabels';
@@ -11,12 +15,14 @@ interface Props {
   showHeading?: boolean;
 }
 
-function GuestHallCard({ hall }: { hall: HallMeta }) {
+function GuestHallCard({ hall, priority = false }: { hall: HallMeta; priority?: boolean }) {
   const { locale, t } = useTranslation();
   const Icon = getHallIcon(hall.iconKey);
   const name = getLocalizedHallName(hall, locale);
   const tagline = getLocalizedHallTagline(hall, locale);
-  const gameCount = hall.gameIds.filter((id) => GAMES_REGISTRY[id]?.enabled).length;
+  const gameCount = getVisibleGameIdsForUsername(hall.gameIds, null).filter(
+    (id) => GAMES_REGISTRY[id]?.enabled,
+  ).length;
 
   return (
     <Link
@@ -34,7 +40,10 @@ function GuestHallCard({ hall }: { hall: HallMeta }) {
           preset="hall-card"
           sizes="(min-width: 768px) 50vw, 100vw"
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
+          width={1600}
+          height={900}
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,30,43,0.08),rgba(5,30,43,0.12)_44%,rgba(5,30,43,0.72))]" />
         <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(5,16,28,0.56),transparent)]" />
@@ -75,6 +84,8 @@ function GuestHallCard({ hall }: { hall: HallMeta }) {
 
 export function GuestHallEntrances({ showHeading = true }: Props) {
   const { t } = useTranslation();
+  const halls = getVisibleHallsForUsername(null);
+
   return (
     <section className="space-y-4">
       {showHeading ? (
@@ -84,8 +95,8 @@ export function GuestHallEntrances({ showHeading = true }: Props) {
         </header>
       ) : null}
       <div className="grid grid-cols-1 gap-7 md:grid-cols-2">
-        {HALL_LIST.map((hall) => (
-          <GuestHallCard key={hall.id} hall={hall} />
+        {halls.map((hall, index) => (
+          <GuestHallCard key={hall.id} hall={hall} priority={index < 2} />
         ))}
       </div>
     </section>

@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { canAccessLocalTableBeta } from '@bg/shared';
 import { ResponsiveImage } from '@/lib/optimizedImages';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useAuthStore } from '@/stores/authStore';
 
 interface Slide {
   id: string;
@@ -14,41 +16,54 @@ interface Slide {
 
 export function HeroBanner() {
   const { t } = useTranslation();
+  const username = useAuthStore((state) => state.user?.username ?? null);
+  const canSeeLocalTables = canAccessLocalTableBeta(username);
   const [idx, setIdx] = useState(0);
-  const slides: Slide[] = [
-    {
-      id: 'welcome',
-      eyebrow: t.hero.welcomeEyebrow,
-      title: t.hero.welcomeTitle,
-      subtitle: t.hero.welcomeSubtitle,
-      image: '/banners/hero-welcome-dealer.png',
-      imagePosition: 'object-[74%_center]',
-    },
-    {
-      id: 'crash',
-      eyebrow: t.hero.crashEyebrow,
-      title: t.hero.crashTitle,
-      subtitle: t.hero.crashSubtitle,
-      image: '/banners/hero-crash-dealer.png',
-      imagePosition: 'object-[72%_center]',
-    },
-    {
-      id: 'strategy',
-      eyebrow: t.hero.strategyEyebrow,
-      title: t.hero.strategyTitle,
-      subtitle: t.hero.strategySubtitle,
-      image: '/banners/hero-strategy-dealer.png',
-      imagePosition: 'object-[72%_center]',
-    },
-    {
-      id: 'tables',
-      eyebrow: t.hero.tablesEyebrow,
-      title: t.hero.tablesTitle,
-      subtitle: t.hero.tablesSubtitle,
-      image: '/halls/tables-card.png',
-      imagePosition: 'object-[78%_center]',
-    },
-  ];
+  const slides: Slide[] = useMemo(
+    () => [
+      {
+        id: 'welcome',
+        eyebrow: t.hero.welcomeEyebrow,
+        title: t.hero.welcomeTitle,
+        subtitle: t.hero.welcomeSubtitle,
+        image: '/banners/hero-welcome-dealer.png',
+        imagePosition: 'object-[74%_center]',
+      },
+      {
+        id: 'crash',
+        eyebrow: t.hero.crashEyebrow,
+        title: t.hero.crashTitle,
+        subtitle: t.hero.crashSubtitle,
+        image: '/banners/hero-crash-dealer.png',
+        imagePosition: 'object-[72%_center]',
+      },
+      {
+        id: 'strategy',
+        eyebrow: t.hero.strategyEyebrow,
+        title: t.hero.strategyTitle,
+        subtitle: t.hero.strategySubtitle,
+        image: '/banners/hero-strategy-dealer.png',
+        imagePosition: 'object-[72%_center]',
+      },
+      ...(canSeeLocalTables
+        ? [
+            {
+              id: 'tables',
+              eyebrow: t.hero.tablesEyebrow,
+              title: t.hero.tablesTitle,
+              subtitle: t.hero.tablesSubtitle,
+              image: '/halls/tables-card.png',
+              imagePosition: 'object-[78%_center]',
+            },
+          ]
+        : []),
+    ],
+    [canSeeLocalTables, t.hero],
+  );
+
+  useEffect(() => {
+    if (idx >= slides.length) setIdx(0);
+  }, [idx, slides.length]);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');

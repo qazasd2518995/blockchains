@@ -8,6 +8,7 @@ import type { AuthResponse, CaptchaResponse } from '@bg/shared';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useTranslation } from '@/i18n/useTranslation';
+import { ResponsiveImage } from '@/lib/optimizedImages';
 
 const schema = z.object({
   username: z
@@ -117,7 +118,16 @@ export function LoginPage() {
           </Link>
           <div className="flex items-center gap-2 text-[22px] font-extrabold tracking-[0.05em]">
             <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[8px] border border-[#F59E0B]/35 bg-[#130C07]/72 shadow-[0_10px_24px_rgba(245,158,11,0.22)]">
-              <img src="/brand/yachiyo-emblem.png" alt="" className="h-9 w-9 object-contain" />
+              <ResponsiveImage
+                src="/brand/yachiyo-emblem.png"
+                alt=""
+                preset="lobby-card"
+                sizes="40px"
+                loading="eager"
+                width={824}
+                height={824}
+                className="h-9 w-9 object-contain"
+              />
             </span>
             <span className="hidden text-[16px] font-bold text-white/90 sm:inline">
               {t.landing.brandName}
@@ -156,9 +166,14 @@ export function LoginPage() {
           <div className="w-full max-w-[440px] justify-self-center rounded-[14px] border border-white/12 bg-white/92 p-5 shadow-[0_30px_80px_rgba(2,6,23,0.32)] backdrop-blur-md sm:rounded-[18px] sm:p-8">
             <div className="mb-6 text-center">
               <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-[16px] border border-[#F59E0B]/30 bg-[#130C07]/92 shadow-[0_14px_34px_rgba(245,158,11,0.24)]">
-                <img
+                <ResponsiveImage
                   src="/brand/yachiyo-emblem.png"
                   alt=""
+                  preset="lobby-card"
+                  sizes="80px"
+                  loading="eager"
+                  width={824}
+                  height={824}
                   className="h-[72px] w-[72px] object-contain"
                   draggable={false}
                 />

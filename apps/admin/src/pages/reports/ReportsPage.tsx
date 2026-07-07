@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { HierarchyReportResponse, HierarchyReportItem } from '@bg/shared';
-import { BACCARAT_GAME_IDS, GAMES_REGISTRY, GameId } from '@bg/shared';
+import { BACCARAT_GAME_IDS, GameId } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { getAdminGameOptionLabel } from '@/lib/gameDisplay';
 import { getCurrentGameDay, shiftGameDay, startOfGameWeek } from '@/lib/gameDay';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { HierarchyBreadcrumb } from '@/components/shared/HierarchyBreadcrumb';
@@ -157,7 +158,7 @@ export function ReportsPage(): JSX.Element {
               <option value="">全部</option>
               {REPORT_GAME_OPTIONS.map((id) => (
                 <option key={id} value={id}>
-                  {GAMES_REGISTRY[id]?.nameZh ?? id}
+                  {getAdminGameOptionLabel(id)}
                 </option>
               ))}
             </select>

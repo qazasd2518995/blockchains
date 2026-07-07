@@ -3,6 +3,20 @@ export const GameId = {
   BACCARAT_NOVA: 'baccarat-nova',
   BACCARAT_IMPERIAL: 'baccarat-imperial',
   BLACKJACK: 'blackjack',
+  TWENTY_ONE_HALF_DOLL: 'twenty-one-half-doll',
+  TWENTY_ONE_HALF_BUNNY: 'twenty-one-half-bunny',
+  TWENTY_ONE_HALF_STAR: 'twenty-one-half-star',
+  TUI_TONGZI_DRAGON: 'tui-tongzi-dragon',
+  TUI_TONGZI_LION: 'tui-tongzi-lion',
+  TUI_TONGZI_JADE: 'tui-tongzi-jade',
+  TUI_TONGZI_NEON: 'tui-tongzi-neon',
+  TUI_TONGZI_GOLD: 'tui-tongzi-gold',
+  BLACK_DOT_TIANJIU: 'black-dot-tianjiu',
+  BLACK_DOT_ROYAL: 'black-dot-royal',
+  BLACK_DOT_STREET: 'black-dot-street',
+  BLACK_DOT_SHADOW: 'black-dot-shadow',
+  BLACK_DOT_GOLD: 'black-dot-gold',
+  CARD_WAR: 'card-war',
   DICE: 'dice',
   MINES: 'mines',
   HILO: 'hilo',
@@ -42,6 +56,62 @@ export const BACCARAT_GAME_IDS = [
   GameId.BACCARAT_IMPERIAL,
 ] as const;
 export type BaccaratGameIdType = (typeof BACCARAT_GAME_IDS)[number];
+
+export const TWENTY_ONE_HALF_GAME_IDS = [
+  GameId.TWENTY_ONE_HALF_DOLL,
+  GameId.TWENTY_ONE_HALF_BUNNY,
+  GameId.TWENTY_ONE_HALF_STAR,
+] as const;
+export type TwentyOneHalfGameIdType = (typeof TWENTY_ONE_HALF_GAME_IDS)[number];
+
+export const TUI_TONGZI_GAME_IDS = [
+  GameId.TUI_TONGZI_DRAGON,
+  GameId.TUI_TONGZI_LION,
+  GameId.TUI_TONGZI_JADE,
+  GameId.TUI_TONGZI_NEON,
+  GameId.TUI_TONGZI_GOLD,
+] as const;
+export type TuiTongziGameIdType = (typeof TUI_TONGZI_GAME_IDS)[number];
+
+export const BLACK_DOT_GAME_IDS = [
+  GameId.BLACK_DOT_TIANJIU,
+  GameId.BLACK_DOT_ROYAL,
+  GameId.BLACK_DOT_STREET,
+  GameId.BLACK_DOT_SHADOW,
+  GameId.BLACK_DOT_GOLD,
+] as const;
+export type BlackDotGameIdType = (typeof BLACK_DOT_GAME_IDS)[number];
+
+export const LOCAL_TABLE_GAME_IDS = [
+  ...TWENTY_ONE_HALF_GAME_IDS,
+  ...TUI_TONGZI_GAME_IDS,
+  ...BLACK_DOT_GAME_IDS,
+  GameId.CARD_WAR,
+] as const;
+export type LocalTableGameIdType = (typeof LOCAL_TABLE_GAME_IDS)[number];
+
+const LOCAL_TABLE_GAME_ID_SET = new Set<string>(LOCAL_TABLE_GAME_IDS);
+
+export const LOCAL_TABLE_BETA_ALLOWED_USERNAMES = ['testplayer'] as const;
+
+const LOCAL_TABLE_BETA_ALLOWED_USERNAME_SET = new Set<string>(
+  LOCAL_TABLE_BETA_ALLOWED_USERNAMES,
+);
+
+export function isLocalTableGameId(gameId: string): gameId is LocalTableGameIdType {
+  return LOCAL_TABLE_GAME_ID_SET.has(gameId);
+}
+
+export function canAccessLocalTableBeta(username?: string | null): boolean {
+  return LOCAL_TABLE_BETA_ALLOWED_USERNAME_SET.has(username?.trim().toLowerCase() ?? '');
+}
+
+export function isGameVisibleForUsername(
+  gameId: string,
+  username?: string | null,
+): boolean {
+  return !isLocalTableGameId(gameId) || canAccessLocalTableBeta(username);
+}
 
 export const SLOT_GAME_IDS = [
   GameId.HOTLINE,
@@ -116,6 +186,160 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     description: 'Classic blackjack with dealer standing on all 17s.',
     descriptionZh: '正式 21 点规则，庄家 17 点及以上停牌',
     rtp: 0.97,
+    icon: 'cards',
+    enabled: true,
+  },
+  [GameId.TWENTY_ONE_HALF_DOLL]: {
+    id: GameId.TWENTY_ONE_HALF_DOLL,
+    name: 'Dolly 10.5',
+    nameZh: '萌娃十點半',
+    category: 'table',
+    description: 'Cute doll themed 10.5 half-point table.',
+    descriptionZh: '可愛娃娃主題十點半，JQK 算半點',
+    rtp: 0.965,
+    icon: 'cards',
+    enabled: true,
+  },
+  [GameId.TWENTY_ONE_HALF_BUNNY]: {
+    id: GameId.TWENTY_ONE_HALF_BUNNY,
+    name: 'Bunny 10.5',
+    nameZh: '兔糖十點半',
+    category: 'table',
+    description: 'Candy doll themed 10.5 half-point table.',
+    descriptionZh: '糖果娃娃主題十點半，半點牌型即開',
+    rtp: 0.965,
+    icon: 'cards',
+    enabled: true,
+  },
+  [GameId.TWENTY_ONE_HALF_STAR]: {
+    id: GameId.TWENTY_ONE_HALF_STAR,
+    name: 'Starlit 10.5',
+    nameZh: '星願十點半',
+    category: 'table',
+    description: 'Starlit doll themed 10.5 half-point table.',
+    descriptionZh: '星光娃娃主題十點半，滿點不爆即勝',
+    rtp: 0.965,
+    icon: 'cards',
+    enabled: true,
+  },
+  [GameId.TUI_TONGZI_DRAGON]: {
+    id: GameId.TUI_TONGZI_DRAGON,
+    name: 'Dragon Tongzi',
+    nameZh: '龍門推筒',
+    category: 'table',
+    description: 'Tongzi tile showdown with dragon-gate styling.',
+    descriptionZh: '筒子牌型比點，對子、二八槓、點數依序比牌',
+    rtp: 0.955,
+    icon: 'tiles',
+    enabled: true,
+  },
+  [GameId.TUI_TONGZI_LION]: {
+    id: GameId.TUI_TONGZI_LION,
+    name: 'Lion Tongzi',
+    nameZh: '醒獅推筒',
+    category: 'table',
+    description: 'Lion dance themed Tongzi tile showdown.',
+    descriptionZh: '醒獅主題推筒子，莊閒各兩張比牌型',
+    rtp: 0.955,
+    icon: 'tiles',
+    enabled: true,
+  },
+  [GameId.TUI_TONGZI_JADE]: {
+    id: GameId.TUI_TONGZI_JADE,
+    name: 'Jade Tongzi',
+    nameZh: '玉兔推筒',
+    category: 'table',
+    description: 'Jade fantasy themed Tongzi tile showdown.',
+    descriptionZh: '玉石主題推筒子，白板、九筒至一筒比大小',
+    rtp: 0.955,
+    icon: 'tiles',
+    enabled: true,
+  },
+  [GameId.TUI_TONGZI_NEON]: {
+    id: GameId.TUI_TONGZI_NEON,
+    name: 'Neon Tongzi',
+    nameZh: '霓虹推筒',
+    category: 'table',
+    description: 'Neon night-market Tongzi tile showdown.',
+    descriptionZh: '夜市霓虹風格推筒子，即開比點',
+    rtp: 0.955,
+    icon: 'tiles',
+    enabled: true,
+  },
+  [GameId.TUI_TONGZI_GOLD]: {
+    id: GameId.TUI_TONGZI_GOLD,
+    name: 'Golden Tongzi',
+    nameZh: '金殿推筒',
+    category: 'table',
+    description: 'Gold palace Tongzi tile showdown.',
+    descriptionZh: '金殿主題推筒子，特殊牌型高亮展示',
+    rtp: 0.955,
+    icon: 'tiles',
+    enabled: true,
+  },
+  [GameId.BLACK_DOT_TIANJIU]: {
+    id: GameId.BLACK_DOT_TIANJIU,
+    name: 'Tin Kau Black Dot',
+    nameZh: '天九黑粒',
+    category: 'table',
+    description: 'Four-domino Black Dot table using Pai Gow style two hands.',
+    descriptionZh: '天九牌黑粒仔，四張分兩墩，雙墩皆勝才贏',
+    rtp: 0.95,
+    icon: 'tiles',
+    enabled: true,
+  },
+  [GameId.BLACK_DOT_ROYAL]: {
+    id: GameId.BLACK_DOT_ROYAL,
+    name: 'Royal Black Dot',
+    nameZh: '御殿黑粒',
+    category: 'table',
+    description: 'Royal Black Dot domino showdown.',
+    descriptionZh: '御殿風格黑粒仔，公牌兩墩比大小',
+    rtp: 0.95,
+    icon: 'tiles',
+    enabled: true,
+  },
+  [GameId.BLACK_DOT_STREET]: {
+    id: GameId.BLACK_DOT_STREET,
+    name: 'Street Black Dot',
+    nameZh: '街頭黑粒',
+    category: 'table',
+    description: 'Street style Black Dot domino showdown.',
+    descriptionZh: '街頭風格黑粒仔，天九牌點數與對子排序',
+    rtp: 0.95,
+    icon: 'tiles',
+    enabled: true,
+  },
+  [GameId.BLACK_DOT_SHADOW]: {
+    id: GameId.BLACK_DOT_SHADOW,
+    name: 'Shadow Black Dot',
+    nameZh: '影武黑粒',
+    category: 'table',
+    description: 'Shadow warrior Black Dot domino showdown.',
+    descriptionZh: '影武主題黑粒仔，雙墩公比即開',
+    rtp: 0.95,
+    icon: 'tiles',
+    enabled: true,
+  },
+  [GameId.BLACK_DOT_GOLD]: {
+    id: GameId.BLACK_DOT_GOLD,
+    name: 'Golden Black Dot',
+    nameZh: '金礦黑粒',
+    category: 'table',
+    description: 'Golden mine Black Dot domino showdown.',
+    descriptionZh: '金礦風格黑粒仔，四張天九牌比牌型',
+    rtp: 0.95,
+    icon: 'tiles',
+    enabled: true,
+  },
+  [GameId.CARD_WAR]: {
+    id: GameId.CARD_WAR,
+    name: 'Card War',
+    nameZh: '王牌比大小',
+    category: 'table',
+    description: 'Single-card high card showdown against the banker.',
+    descriptionZh: '撲克牌單張比大小，A 最大，平手退回本金',
+    rtp: 0.96,
     icon: 'cards',
     enabled: true,
   },

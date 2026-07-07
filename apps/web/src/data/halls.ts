@@ -1,5 +1,5 @@
 import type { GameIdType } from '@bg/shared';
-import { GameId } from '@bg/shared';
+import { canAccessLocalTableBeta, GameId, isGameVisibleForUsername } from '@bg/shared';
 
 export type HallId = 'crash' | 'tables' | 'slots' | 'roulette' | 'classic' | 'strategy';
 
@@ -38,7 +38,24 @@ export const HALLS: Record<HallId, HallMeta> = {
     tagline: '拚手牌、算點數，專注每一局牌桌節奏',
     gradient: 'linear-gradient(135deg, #1B2030 0%, #225B66 46%, #C9A247 100%)',
     artwork: '/halls/tables-card.png',
-    gameIds: [GameId.BLACKJACK, GameId.HILO],
+    gameIds: [
+      GameId.BLACKJACK,
+      GameId.TWENTY_ONE_HALF_DOLL,
+      GameId.TWENTY_ONE_HALF_BUNNY,
+      GameId.TWENTY_ONE_HALF_STAR,
+      GameId.TUI_TONGZI_DRAGON,
+      GameId.TUI_TONGZI_LION,
+      GameId.TUI_TONGZI_JADE,
+      GameId.TUI_TONGZI_NEON,
+      GameId.TUI_TONGZI_GOLD,
+      GameId.BLACK_DOT_TIANJIU,
+      GameId.BLACK_DOT_ROYAL,
+      GameId.BLACK_DOT_STREET,
+      GameId.BLACK_DOT_SHADOW,
+      GameId.BLACK_DOT_GOLD,
+      GameId.CARD_WAR,
+      GameId.HILO,
+    ],
   },
   slots: {
     id: 'slots',
@@ -101,8 +118,42 @@ export const HALLS: Record<HallId, HallMeta> = {
   },
 };
 
-export const HALL_LIST: HallMeta[] = [HALLS.crash, HALLS.slots, HALLS.roulette, HALLS.classic];
+export const HALL_LIST: HallMeta[] = [
+  HALLS.crash,
+  HALLS.slots,
+  HALLS.roulette,
+  HALLS.tables,
+  HALLS.classic,
+];
 
-export function getHallByGameId(gameId: string): HallMeta | undefined {
-  return HALL_LIST.find((h) => h.gameIds.includes(gameId as GameIdType));
+export function getVisibleGameIdsForUsername(
+  gameIds: readonly GameIdType[],
+  username?: string | null,
+): GameIdType[] {
+  return gameIds.filter((gameId) => isGameVisibleForUsername(gameId, username));
+}
+
+export function getVisibleHallsForUsername(username?: string | null): HallMeta[] {
+  const canSeeLocalTables = canAccessLocalTableBeta(username);
+  return HALL_LIST.filter((hall) => hall.id !== 'tables' || canSeeLocalTables);
+}
+
+export function getVisibleHallById(
+  hallId: string | undefined,
+  username?: string | null,
+): HallMeta | undefined {
+  if (!hallId || !(hallId in HALLS)) return undefined;
+  const hall = HALLS[hallId as HallId];
+  return getVisibleHallsForUsername(username).some((visibleHall) => visibleHall.id === hall.id)
+    ? hall
+    : undefined;
+}
+
+export function getHallByGameId(
+  gameId: string,
+  username?: string | null,
+): HallMeta | undefined {
+  return getVisibleHallsForUsername(username).find((hall) =>
+    hall.gameIds.includes(gameId as GameIdType),
+  );
 }

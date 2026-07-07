@@ -116,9 +116,43 @@ export async function lockUserAndCheckFunds(
   amount: Prisma.Decimal,
   gameId?: string,
   options: { limitAmounts?: Prisma.Decimal[] } = {},
-): Promise<{ id: string; balance: Prisma.Decimal; displayName: string | null }> {
-  await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
-  const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+): Promise<{
+  id: string;
+  username: string;
+  agentId: string | null;
+  balance: Prisma.Decimal;
+  displayName: string | null;
+}> {
+  const [user] = await tx.$queryRaw<
+    Array<{
+      id: string;
+      username: string;
+      agentId: string | null;
+      balance: Prisma.Decimal;
+      displayName: string | null;
+      disabledAt: Date | null;
+      frozenAt: Date | null;
+      bettingLimits: Prisma.JsonValue;
+      bettingLimitLevel: string;
+    }>
+  >`
+    SELECT
+      id,
+      username,
+      "agentId",
+      balance,
+      "displayName",
+      "disabledAt",
+      "frozenAt",
+      "bettingLimits",
+      "bettingLimitLevel"
+    FROM "User"
+    WHERE id = ${userId}
+    FOR UPDATE
+  `;
+  if (!user) {
+    throw new ApiError('UNAUTHORIZED', 'Authentication required');
+  }
   if (user.disabledAt || user.frozenAt) {
     throw new ApiError('MEMBER_FROZEN', 'Member account is frozen');
   }

@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen } from 'lucide-react';
+import { canAccessLocalTableBeta } from '@bg/shared';
 import { SectionHeading } from '@/components/layout/SectionHeading';
 import { MobilePageHeader } from '@/components/layout/MobilePageHeader';
 import { getLocalizedGameTitle } from '@/i18n/gameLabels';
 import { toSimplified } from '@/i18n/dict.zh-Hans';
 import type { Locale } from '@/i18n/types';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useAuthStore } from '@/stores/authStore';
 
 type HallKey = 'crash' | 'tables' | 'slots' | 'roulette' | 'classic' | 'strategy';
 
@@ -604,6 +606,7 @@ const HIDDEN_GAME_IDS = new Set([
   'chicken-road',
 ]);
 const VISIBLE_GAMES = GAMES.filter((game) => !HIDDEN_GAME_IDS.has(game.id));
+const LEGACY_TABLE_GUIDE_GAME_IDS = new Set(['blackjack', 'hilo']);
 
 type GuideTextLocale = 'en' | 'th' | 'vi';
 type LocalizedGuideCopy = Pick<Game, 'intro' | 'howToPlay' | 'tips'>;
@@ -741,6 +744,16 @@ const VERIFY_COPY: Record<Locale, VerifyPageCopy> = {
     stepsTitle: 'Cách chơi',
     tipPrefix: 'Mẹo: ',
   },
+};
+
+const NON_TABLE_HERO_DESCRIPTION: Record<Locale, string> = {
+  'zh-Hant':
+    '飛行、拉霸、輪盤、即開電子、策略挑戰五大主題館，從快節奏 Crash 到骰子、基諾、彈珠與策略玩法，都附上玩法步驟、RTP 與最高倍率，幫你快速上手。',
+  'zh-Hans':
+    '飞行、拉霸、轮盘、即开电子、策略挑战五大主题馆，从快节奏 Crash 到骰子、基诺、弹珠与策略玩法，都附上玩法步骤、RTP 与最高倍率，帮你快速上手。',
+  en: 'Flight, slots, roulette, instant games and strategy challenges are grouped into clear halls. Each card explains how to bet, what to watch and the maximum multiplier so you can start quickly.',
+  th: 'ห้องบิน สล็อต รูเล็ต เกมทันใจ และเกมกลยุทธ์ถูกจัดเป็นหมวดชัดเจน การ์ดแต่ละเกมบอกวิธีเดิมพัน จุดที่ต้องดู และตัวคูณสูงสุดเพื่อให้เริ่มเล่นได้ทันที',
+  vi: 'Flight, slot, roulette, game nhanh và thử thách chiến lược được chia thành các sảnh rõ ràng. Mỗi thẻ giải thích cách cược, điểm cần chú ý và hệ số tối đa để bắt đầu nhanh.',
 };
 
 const HALL_TEXT: Record<GuideTextLocale, Record<HallKey, Pick<Hall, 'title' | 'subtitle' | 'intro' | 'vibe'>>> = {
@@ -1398,13 +1411,44 @@ function getVietnameseGuideCopy(game: Game, name: string): LocalizedGuideCopy {
 
 export function VerifyPage() {
   const { locale } = useTranslation();
+  const username = useAuthStore((state) => state.user?.username ?? null);
+  const canSeeLocalTables = canAccessLocalTableBeta(username);
   const [activeHall, setActiveHall] = useState<HallKey | 'all'>('all');
-  const copy = VERIFY_COPY[locale];
-  const halls = useMemo(() => localizeGuideHalls(locale), [locale]);
-  const visibleGames = useMemo(
-    () => VISIBLE_GAMES.map((game) => localizeGuideGame(game, locale)),
-    [locale],
+  const baseCopy = VERIFY_COPY[locale];
+  const copy = useMemo(
+    () =>
+      canSeeLocalTables
+        ? baseCopy
+        : { ...baseCopy, heroDescription: NON_TABLE_HERO_DESCRIPTION[locale] },
+    [baseCopy, canSeeLocalTables, locale],
   );
+  const halls = useMemo(
+    () => localizeGuideHalls(locale).filter((hall) => canSeeLocalTables || hall.key !== 'tables'),
+    [canSeeLocalTables, locale],
+  );
+  const visibleGames = useMemo(
+    () =>
+      VISIBLE_GAMES.filter(
+        (game) =>
+          canSeeLocalTables ||
+          game.hall !== 'tables' ||
+          LEGACY_TABLE_GUIDE_GAME_IDS.has(game.id),
+      ).map((game) =>
+        localizeGuideGame(
+          !canSeeLocalTables && game.hall === 'tables'
+            ? { ...game, hall: 'classic' }
+            : game,
+          locale,
+        ),
+      ),
+    [canSeeLocalTables, locale],
+  );
+
+  useEffect(() => {
+    if (activeHall !== 'all' && !halls.some((hall) => hall.key === activeHall)) {
+      setActiveHall('all');
+    }
+  }, [activeHall, halls]);
   const hallFilters = useMemo<Array<{ key: HallKey | 'all'; title: string; count: number }>>(
     () => [
       { key: 'all', title: copy.allPlays, count: visibleGames.length },

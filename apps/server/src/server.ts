@@ -33,6 +33,7 @@ import { towerRoutes } from './modules/games/tower/tower.routes.js';
 import { blackjackRoutes } from './modules/games/blackjack/blackjack.routes.js';
 import { chickenRoadRoutes } from './modules/games/chicken-road/chicken-road.routes.js';
 import { crashRoutes } from './modules/games/crash/crash.routes.js';
+import { tableGamesRoutes } from './modules/games/table-games/table-games.routes.js';
 import { ApiError, errorCodeToStatus } from './utils/errors.js';
 import {
   getRequestLogContext,
@@ -301,6 +302,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(blackjackRoutes, { prefix: '/api/games/blackjack' });
   await server.register(chickenRoadRoutes, { prefix: '/api/games/chicken-road' });
   await server.register(crashRoutes, { prefix: '/api/games/crash' });
+  await server.register(tableGamesRoutes, { prefix: '/api/games/table-games' });
   server.log.info('[crash] Solo crash API enabled; shared countdown rooms disabled');
 
   return server;

@@ -14,6 +14,20 @@ const HAS_COVER = new Set<string>([
   'baccarat-nova',
   'baccarat-imperial',
   'blackjack',
+  'twenty-one-half-doll',
+  'twenty-one-half-bunny',
+  'twenty-one-half-star',
+  'tui-tongzi-dragon',
+  'tui-tongzi-lion',
+  'tui-tongzi-jade',
+  'tui-tongzi-neon',
+  'tui-tongzi-gold',
+  'black-dot-tianjiu',
+  'black-dot-royal',
+  'black-dot-street',
+  'black-dot-shadow',
+  'black-dot-gold',
+  'card-war',
   'dice',
   'mines',
   'hilo',
@@ -106,6 +120,8 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
             sizes="(min-width: 1280px) 190px, (min-width: 768px) 22vw, 46vw"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.045]"
             loading="lazy"
+            width={1086}
+            height={1448}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
@@ -114,11 +130,11 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
             </div>
           </div>
         )}
-        <div className="absolute inset-x-5 bottom-[8.5%] z-20 min-w-0 text-center">
-          <h3 className="truncate text-[19px] font-black leading-tight text-[#FFE8A3] [text-shadow:0_2px_0_#4A1D05,0_4px_10px_rgba(0,0,0,0.92)]">
+        <div className="absolute inset-x-3 bottom-[7.2%] z-20 min-w-0 rounded-[10px] bg-[linear-gradient(180deg,rgba(45,20,3,0)_0%,rgba(29,10,2,0.58)_100%)] px-2 py-1.5 text-center">
+          <h3 className="truncate text-[25px] font-black leading-none text-[#FFF0A6] [text-shadow:0_2px_0_#5A1F05,0_4px_0_rgba(0,0,0,0.35),0_6px_14px_rgba(0,0,0,0.95)]">
             {title}
           </h3>
-          <p className="mt-0.5 truncate text-[10px] font-black uppercase text-white/78 [text-shadow:0_2px_6px_rgba(0,0,0,0.88)]">
+          <p className="mt-1 truncate text-[11px] font-black uppercase text-white/86 [text-shadow:0_2px_7px_rgba(0,0,0,0.92)]">
             {game.name}
           </p>
         </div>

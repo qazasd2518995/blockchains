@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
 import { MobileAccountMenu } from '@/components/layout/MobileAccountMenu';
 import { useTranslation } from '@/i18n/useTranslation';
+import { ResponsiveImage } from '@/lib/optimizedImages';
 
 type MobilePageKey = 'lobby' | 'verify' | 'history' | 'promos';
 
@@ -40,9 +41,14 @@ export function MobilePageHeader({
           aria-label={t.common.lobby}
         >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#F59E0B]/30 bg-[#FFF7ED]">
-            <img
+            <ResponsiveImage
               src="/brand/yachiyo-emblem.png"
               alt=""
+              preset="lobby-card"
+              sizes="44px"
+              loading="eager"
+              width={824}
+              height={824}
               className="h-10 w-10 object-contain"
               draggable={false}
             />

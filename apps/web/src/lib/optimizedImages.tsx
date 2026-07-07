@@ -1,6 +1,6 @@
 import type { ImgHTMLAttributes } from 'react';
 
-type ResponsivePreset = 'lobby-card' | 'hall-card' | 'hero' | 'game-stage';
+export type ResponsivePreset = 'lobby-card' | 'hall-card' | 'hero' | 'game-stage';
 
 const LOCAL_WIDTHS: Record<ResponsivePreset, number[]> = {
   'lobby-card': [480, 960],
@@ -47,10 +47,14 @@ export function getOptimizedImageSrcSet(src: string, preset: ResponsivePreset): 
     .join(', ');
 }
 
-export interface ResponsiveImageProps extends ImgHTMLAttributes<HTMLImageElement> {
+type ImageFetchPriority = 'high' | 'low' | 'auto';
+
+export interface ResponsiveImageProps
+  extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'fetchPriority'> {
   src: string;
   preset?: ResponsivePreset;
   sizes: string;
+  fetchPriority?: ImageFetchPriority;
 }
 
 export function ResponsiveImage({
@@ -59,12 +63,24 @@ export function ResponsiveImage({
   sizes,
   loading = 'lazy',
   decoding = 'async',
+  fetchPriority,
   ...imgProps
 }: ResponsiveImageProps): JSX.Element {
   const srcSet = getOptimizedImageSrcSet(src, preset);
+  const priorityProps = fetchPriority
+    ? ({ fetchpriority: fetchPriority } as Record<'fetchpriority', ImageFetchPriority>)
+    : {};
 
   if (!srcSet) {
-    return <img src={src} loading={loading} decoding={decoding} {...imgProps} />;
+    return (
+      <img
+        src={src}
+        loading={loading}
+        decoding={decoding}
+        {...priorityProps}
+        {...imgProps}
+      />
+    );
   }
 
   return (
@@ -74,7 +90,13 @@ export function ResponsiveImage({
         sizes={sizes}
         type={IMAGE_PROVIDER === 'cloudflare' ? undefined : 'image/webp'}
       />
-      <img src={src} loading={loading} decoding={decoding} {...imgProps} />
+      <img
+        src={src}
+        loading={loading}
+        decoding={decoding}
+        {...priorityProps}
+        {...imgProps}
+      />
     </picture>
   );
 }

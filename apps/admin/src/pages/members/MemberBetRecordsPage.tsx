@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getGameMeta } from '@bg/shared';
 import type { BetDetailResponse, MemberPublic, MemberBetListResponse, MemberBetEntry } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
+import { getAdminGameSubtitle, getAdminGameTitle } from '@/lib/gameDisplay';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -104,8 +104,13 @@ export function MemberBetRecordsPage(): JSX.Element {
       key: 'game',
       label: t.bets.game,
       render: (r) => (
-        <span className="font-mono text-ink-900">
-          {getGameMeta(r.gameId)?.nameZh ?? r.gameId}
+        <span className="flex flex-col gap-0.5 text-ink-900">
+          <span className="font-semibold">{getAdminGameTitle(r.gameId)}</span>
+          {getAdminGameSubtitle(r.gameId) ? (
+            <span className="text-[10px] font-semibold text-ink-400">
+              {getAdminGameSubtitle(r.gameId)}
+            </span>
+          ) : null}
         </span>
       ),
     },

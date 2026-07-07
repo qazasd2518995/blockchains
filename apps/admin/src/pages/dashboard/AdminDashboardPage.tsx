@@ -6,7 +6,8 @@ import { ImageBanner } from '@/components/shared/ImageBanner';
 import { StatCard } from '@/components/shared/StatCard';
 import { useTranslation } from '@/i18n/useTranslation';
 import { formatAuditAction } from '@/lib/auditLabels';
-import { getGameMeta, type AuditListResponse, type DashboardSummaryResponse } from '@bg/shared';
+import { getAdminGameOptionLabel } from '@/lib/gameDisplay';
+import type { AuditListResponse, DashboardSummaryResponse } from '@bg/shared';
 import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
 
 const EMPTY_TREND: DashboardSummaryResponse['trend'] = [];
@@ -364,8 +365,7 @@ function EmptyChart({ label }: { label: string }): JSX.Element {
 }
 
 function gameLabel(gameId: string): string {
-  const meta = getGameMeta(gameId);
-  return meta ? `${meta.nameZh} · ${meta.name}` : gameId;
+  return getAdminGameOptionLabel(gameId);
 }
 
 function formatDec(s: string): string {

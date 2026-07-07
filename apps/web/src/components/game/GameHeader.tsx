@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { ResponsiveImage } from '@/lib/optimizedImages';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 
@@ -50,10 +51,16 @@ export function GameHeader({
 
   return (
     <div className="game-header relative mb-4 overflow-hidden rounded-[16px] border border-[#16324A]/16 bg-[#091725] p-4 shadow-[0_24px_60px_rgba(15,23,42,0.16)] sm:mb-6 sm:rounded-[20px] sm:p-6">
-      <img
+      <ResponsiveImage
         src={backdrop}
         alt=""
         aria-hidden="true"
+        preset="hero"
+        sizes="100vw"
+        loading="eager"
+        fetchPriority="high"
+        width={1600}
+        height={700}
         className={`pointer-events-none absolute inset-0 h-full w-full object-cover ${artworkPosition} ${backdropOpacity}`}
       />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(4,12,22,0.96)_0%,rgba(6,16,30,0.88)_30%,rgba(6,16,30,0.58)_60%,rgba(6,16,30,0.2)_100%)]" />
