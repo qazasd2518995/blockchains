@@ -1012,7 +1012,6 @@ function TuiTongziHiddenTile({
       aria-label={label}
     >
       <span className="tui-tongzi-hidden-tile__shine" aria-hidden="true" />
-      <span className="tui-tongzi-hidden-tile__mark">筒</span>
       <span className="tui-tongzi-hidden-tile__label">{disabled ? '待翻' : '點擊翻牌'}</span>
     </button>
   );
