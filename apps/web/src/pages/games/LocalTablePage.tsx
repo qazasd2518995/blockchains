@@ -523,10 +523,10 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
               fetchPriority="high"
               width={941}
               height={1672}
-              className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-95"
+              className="local-table-stage-art pointer-events-none absolute inset-0 h-full w-full object-cover opacity-95"
             />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(5,10,19,0.10)_0%,rgba(5,10,19,0.30)_42%,rgba(5,10,19,0.68)_100%)]" />
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.12),transparent_30%),radial-gradient(circle_at_20%_12%,rgba(253,230,138,0.22),transparent_30%)]" />
+            <div className="local-table-stage-wash pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,248,234,0.10)_0%,rgba(241,250,232,0.18)_42%,rgba(243,237,255,0.28)_100%)]" />
+            <div className="local-table-stage-glow pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.18),transparent_30%),radial-gradient(circle_at_20%_12%,rgba(253,230,138,0.25),transparent_30%)]" />
             <div className="local-table-ambient-light" aria-hidden="true" />
             <div className="local-table-result-burst" aria-hidden="true" />
             {busy ? (
@@ -1298,8 +1298,8 @@ function BlackDotSplitOptions({
 }) {
   return (
     <div className="local-table-inline-split relative z-10 mt-3 rounded-[18px] border border-[#93C5FD]/25 bg-[#0F2744]/45 p-3 shadow-[0_14px_30px_rgba(0,0,0,0.18)] backdrop-blur-sm">
-      <div className="text-[12px] font-bold leading-relaxed text-[#BFDBFE]">
-        請選擇閒家高低兩墩，擺牌後莊家開牌比墩。
+      <div className="local-table-inline-split__hint text-[12px] font-bold leading-relaxed text-[#BFDBFE]">
+        點選一組擺牌：上排高墩、下排低墩，莊家開牌後比兩墩。
       </div>
       <div className="local-table-inline-split__options mt-2 grid gap-2">
         {options.map((option) => (
@@ -1308,18 +1308,49 @@ function BlackDotSplitOptions({
             type="button"
             onClick={() => onSelect(option.id)}
             disabled={busy}
-            className="local-table-split-option rounded-[14px] border border-white/12 bg-white/10 p-3 text-left text-white transition hover:bg-white/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD]/70 disabled:cursor-not-allowed disabled:opacity-40"
+            className="local-table-split-option black-dot-split-option rounded-[14px] border border-white/12 bg-white/10 p-3 text-left text-white transition hover:bg-white/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD]/70 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={`選擇高墩 ${option.high.rankLabel} ${option.high.scoreLabel}，低墩 ${option.low.rankLabel} ${option.low.scoreLabel}`}
           >
-            <div className="text-[14px] font-black text-[#FDE68A]">
-              {option.label}
+            <div className="black-dot-split-option__title">
+              <span>高 {option.high.scoreLabel}</span>
+              <span>低 {option.low.scoreLabel}</span>
             </div>
-            <div className="mt-1 text-[11px] font-semibold leading-relaxed text-white/60">
-              低墩：{option.low.rankLabel} · 高墩：{option.high.rankLabel}
+            <div className="black-dot-split-option__stacks" aria-hidden="true">
+              <BlackDotSplitMiniMound title="高墩" hand={option.high} />
+              <BlackDotSplitMiniMound title="低墩" hand={option.low} />
+            </div>
+            <div className="black-dot-split-option__rank">
+              <span>高墩：{option.high.rankLabel}</span>
+              <span>低墩：{option.low.rankLabel}</span>
             </div>
           </button>
         ))}
       </div>
     </div>
+  );
+}
+
+function BlackDotSplitMiniMound({ title, hand }: { title: string; hand: LocalTableHand }) {
+  return (
+    <div className="black-dot-split-mini-mound">
+      <span>{title}</span>
+      <div>
+        {hand.pieces.map((piece, index) => (
+          <BlackDotSplitTile key={pieceKey(piece, index)} piece={piece} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BlackDotSplitTile({ piece }: { piece: LocalTablePiece }) {
+  if (piece.kind !== 'domino') return null;
+  const imageSrc = `/game-art/pai-gow/Domino-${piece.pips[0]}+${piece.pips[1]}.svg`;
+
+  return (
+    <span className="black-dot-split-tile">
+      <img src={imageSrc} alt="" width={95} height={190} decoding="async" />
+    </span>
   );
 }
 

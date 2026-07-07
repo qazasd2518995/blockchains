@@ -50,7 +50,7 @@ export function GameHeader({
   const backdropOpacity = artwork ? 'opacity-[0.92]' : 'opacity-30';
 
   return (
-    <div className="game-header relative mb-4 overflow-hidden rounded-[16px] border border-[#16324A]/16 bg-[#091725] p-4 shadow-[0_24px_60px_rgba(15,23,42,0.16)] sm:mb-6 sm:rounded-[20px] sm:p-6">
+    <div className="game-header relative mb-4 overflow-hidden rounded-[16px] border border-[#E8C96B]/24 bg-[#FFF8EA] p-4 shadow-[0_22px_52px_rgba(154,52,18,0.12)] sm:mb-6 sm:rounded-[20px] sm:p-6">
       <ResponsiveImage
         src={backdrop}
         alt=""
@@ -61,11 +61,11 @@ export function GameHeader({
         fetchPriority="high"
         width={1600}
         height={700}
-        className={`pointer-events-none absolute inset-0 h-full w-full object-cover ${artworkPosition} ${backdropOpacity}`}
+        className={`game-header__art pointer-events-none absolute inset-0 h-full w-full object-cover ${artworkPosition} ${backdropOpacity}`}
       />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(4,12,22,0.96)_0%,rgba(6,16,30,0.88)_30%,rgba(6,16,30,0.58)_60%,rgba(6,16,30,0.2)_100%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_42%,rgba(201,162,71,0.12),transparent_22%)]" />
-      <div className="pointer-events-none absolute inset-x-6 bottom-0 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0.02),rgba(143,208,223,0.35),rgba(255,255,255,0.02))]" />
+      <div className="game-header__shade pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,248,234,0.96)_0%,rgba(255,241,218,0.86)_34%,rgba(240,250,229,0.58)_66%,rgba(243,237,255,0.34)_100%)]" />
+      <div className="game-header__glow pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_42%,rgba(232,201,107,0.22),transparent_24%)]" />
+      <div className="game-header__rule pointer-events-none absolute inset-x-6 bottom-0 h-px bg-[linear-gradient(90deg,rgba(232,201,107,0.02),rgba(234,88,12,0.28),rgba(232,201,107,0.02))]" />
 
       <div className="relative flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
         <div className="min-w-0">

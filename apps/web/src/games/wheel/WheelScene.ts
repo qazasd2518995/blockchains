@@ -26,7 +26,7 @@ import {
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG = 0x0F172A;
+const COLOR_BG = 0xFFF7E8;
 const COLOR_EMBER = 0xD4574A;
 const COLOR_TOXIC = 0x1E7A4F;
 const COLOR_AMBER = 0xF3D67D;
@@ -38,7 +38,7 @@ const WHEEL_BACKGROUND_ASSET = '/game-art/wheel/background-v2.png';
 const TAU = Math.PI * 2;
 
 const WHEEL_THEME = {
-  veilAlpha: 0.34,
+  veilAlpha: 0.2,
   glow: 0x39D5E8,
   rim: 0xF3D67D,
   rimDark: 0x07131F,

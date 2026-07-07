@@ -8,7 +8,6 @@ import {
   TextStyle,
   Texture,
   Ticker,
-  BlurFilter,
 } from 'pixi.js';
 import { gsap } from 'gsap';
 import {
@@ -31,6 +30,10 @@ import { SCENE_LABELS, type SceneLabels } from '@/i18n/sceneLabels';
 
 const COLOR_BG_A = 0x111c2e;
 const COLOR_BG_B = 0x0b1322;
+const COLOR_STAGE_CREAM = 0xfff1d9;
+const COLOR_STAGE_MINT = 0xe8f6d8;
+const COLOR_STAGE_ROSE = 0xffdeda;
+const COLOR_STAGE_LILAC = 0xece4ff;
 const COLOR_ACID = 0xf3d67d;
 const COLOR_VIOLET = 0xe8d48a;
 const COLOR_EMBER = 0xd4574a;
@@ -291,10 +294,25 @@ export class CrashScene {
     if (!this.app) return;
 
     const base = new Graphics().rect(0, 0, this.width, this.height).fill({
-      color: COLOR_BG_B,
+      color: COLOR_STAGE_CREAM,
       alpha: 0.96,
     });
     this.app.stage.addChild(base);
+
+    const mintBloom = new Graphics()
+      .ellipse(this.width * 0.18, this.height * 0.18, this.width * 0.28, this.height * 0.24)
+      .fill({ color: COLOR_STAGE_MINT, alpha: 0.24 });
+    this.app.stage.addChild(mintBloom);
+
+    const roseBloom = new Graphics()
+      .ellipse(this.width * 0.82, this.height * 0.72, this.width * 0.32, this.height * 0.3)
+      .fill({ color: COLOR_STAGE_ROSE, alpha: 0.2 });
+    this.app.stage.addChild(roseBloom);
+
+    const lilacBloom = new Graphics()
+      .ellipse(this.width * 0.78, this.height * 0.2, this.width * 0.24, this.height * 0.22)
+      .fill({ color: COLOR_STAGE_LILAC, alpha: 0.18 });
+    this.app.stage.addChild(lilacBloom);
 
     const backgroundLayer = new Container();
     this.backgroundLayer = backgroundLayer;
@@ -303,7 +321,7 @@ export class CrashScene {
     if (this.backgroundTexture) {
       const bgSprite = new Sprite(this.backgroundTexture);
       fitSpriteCover(bgSprite, this.width, this.height);
-      bgSprite.alpha = 0.92;
+      bgSprite.alpha = 0.74;
       const tileWidth = Math.max(this.width, bgSprite.width || this.width);
       const tileHeight = Math.max(this.height, bgSprite.height || this.height);
       this.backgroundTileWidth = tileWidth;
@@ -312,7 +330,7 @@ export class CrashScene {
         for (let yIndex = -1; yIndex <= 2; yIndex += 1) {
           const tile = xIndex === 0 && yIndex === 0 ? bgSprite : new Sprite(this.backgroundTexture);
           if (xIndex !== 0 || yIndex !== 0) fitSpriteCover(tile, this.width, this.height);
-          tile.alpha = 0.92;
+          tile.alpha = 0.74;
           tile.x += xIndex * tileWidth;
           tile.y += yIndex * tileHeight;
           backgroundLayer.addChild(tile);
@@ -337,19 +355,22 @@ export class CrashScene {
 
     const shade = new Graphics()
       .rect(0, 0, this.width, this.height)
-      .fill({ color: 0x020817, alpha: 0.3 });
+      .fill({ color: 0x5c2a16, alpha: 0.1 });
     this.app.stage.addChild(shade);
 
     const centerReadability = new Graphics()
       .ellipse(this.width * 0.5, this.height * 0.5, this.width * 0.32, this.height * 0.28)
-      .fill({ color: 0x020817, alpha: 0.36 });
-    centerReadability.filters = [new BlurFilter({ strength: 46 })];
+      .fill({ color: 0x243041, alpha: 0.16 });
     this.app.stage.addChild(centerReadability);
+
+    const warmWash = new Graphics()
+      .rect(0, 0, this.width, this.height)
+      .fill({ color: COLOR_STAGE_CREAM, alpha: 0.08 });
+    this.app.stage.addChild(warmWash);
 
     const glow = new Graphics()
       .circle(this.width * 0.5, this.height * 0.5, this.width * 0.45)
-      .fill({ color: COLOR_ACID, alpha: 0.08 });
-    glow.filters = [new BlurFilter({ strength: 60 })];
+      .fill({ color: COLOR_ACID, alpha: 0.06 });
     this.app.stage.addChild(glow);
 
     // 底部光帶

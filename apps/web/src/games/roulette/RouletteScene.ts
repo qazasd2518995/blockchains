@@ -26,7 +26,7 @@ import {
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG = 0x0F172A;
+const COLOR_BG = 0xFFF7E8;
 const COLOR_ACID = 0xF3D67D;
 const COLOR_TOXIC = 0x1E7A4F;
 const COLOR_AMBER = 0xF3D67D;
@@ -62,7 +62,7 @@ const ROULETTE_THEMES: Record<
   }
 > = {
   'mini-roulette': {
-    veilAlpha: 0.35,
+    veilAlpha: 0.2,
     glow: 0xF3D67D,
     rim: 0xEBCB74,
     rimDark: 0x100A05,
@@ -76,7 +76,7 @@ const ROULETTE_THEMES: Record<
     pointer: 0xF3D67D,
   },
   carnival: {
-    veilAlpha: 0.28,
+    veilAlpha: 0.18,
     glow: 0xB84CFF,
     rim: 0xFFD66B,
     rimDark: 0x170516,

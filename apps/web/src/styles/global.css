@@ -1833,6 +1833,493 @@
   }
 }
 
+@layer components {
+  .game-warm-shell {
+    --game-warm-ink: #243041;
+    --game-warm-muted: rgba(73, 82, 99, 0.72);
+    --game-warm-soft: rgba(255, 255, 255, 0.72);
+    --game-warm-panel: rgba(255, 251, 241, 0.82);
+    --game-warm-panel-strong: rgba(255, 249, 235, 0.94);
+    --game-warm-line: rgba(212, 162, 74, 0.34);
+    --game-warm-shadow: rgba(154, 52, 18, 0.13);
+    --game-warm-rose: rgba(255, 222, 218, 0.74);
+    --game-warm-mint: rgba(229, 248, 211, 0.78);
+    --game-warm-lilac: rgba(238, 231, 255, 0.78);
+    background:
+      radial-gradient(circle at 10% 8%, rgba(255, 230, 153, 0.68), transparent 28%),
+      radial-gradient(circle at 88% 14%, rgba(221, 246, 202, 0.72), transparent 30%),
+      radial-gradient(circle at 14% 76%, rgba(255, 219, 213, 0.68), transparent 34%),
+      radial-gradient(circle at 88% 86%, rgba(234, 222, 255, 0.72), transparent 36%),
+      linear-gradient(150deg, #fff7e8 0%, #f1fae8 36%, #ffece7 68%, #f3edff 100%) !important;
+  }
+
+  .game-warm-shell .game-shell-backdrop-image {
+    opacity: 0.1 !important;
+    filter: saturate(1.05) brightness(1.08);
+  }
+
+  .game-warm-shell .game-shell-backdrop-tint {
+    background:
+      linear-gradient(180deg, rgba(255, 248, 234, 0.76) 0%, rgba(241, 250, 232, 0.84) 42%, rgba(255, 236, 231, 0.9) 68%, rgba(243, 237, 255, 0.96) 100%),
+      repeating-linear-gradient(112deg, rgba(154, 52, 18, 0.025) 0 1px, transparent 1px 16px) !important;
+  }
+
+  .game-warm-shell .game-shell-header {
+    border-bottom-color: rgba(212, 162, 74, 0.28) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 252, 244, 0.94), rgba(255, 246, 229, 0.82)),
+      radial-gradient(circle at 14% 0%, rgba(255, 230, 153, 0.34), transparent 34%),
+      radial-gradient(circle at 88% 10%, rgba(234, 222, 255, 0.36), transparent 30%) !important;
+    box-shadow: 0 12px 28px rgba(154, 52, 18, 0.1) !important;
+    color: var(--game-warm-ink) !important;
+  }
+
+  .game-warm-shell .game-shell-title {
+    color: #1f2937 !important;
+  }
+
+  .game-warm-shell .game-shell-subtitle,
+  .game-warm-shell .game-shell-account {
+    color: rgba(36, 48, 65, 0.56) !important;
+  }
+
+  .game-warm-shell .game-shell-back,
+  .game-warm-shell .game-shell-history,
+  .game-warm-shell .game-shell-audio {
+    border-color: rgba(212, 162, 74, 0.32) !important;
+    background: rgba(255, 251, 241, 0.78) !important;
+    color: rgba(36, 48, 65, 0.84) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      0 8px 20px rgba(154, 52, 18, 0.1) !important;
+  }
+
+  .game-warm-shell .game-shell-back:hover,
+  .game-warm-shell .game-shell-history:hover,
+  .game-warm-shell .game-shell-audio:hover {
+    border-color: rgba(234, 88, 12, 0.34) !important;
+    background: rgba(255, 237, 213, 0.9) !important;
+    color: #9a3412 !important;
+  }
+
+  .game-warm-shell .game-shell-balance,
+  .game-warm-shell .betting-limit-badge,
+  .game-warm-shell .game-shell-immersive {
+    border-color: rgba(212, 162, 74, 0.42) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 244, 219, 0.82)),
+      radial-gradient(circle at 12% 0%, rgba(255, 230, 153, 0.36), transparent 42%) !important;
+    color: rgba(73, 52, 22, 0.84) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      0 10px 22px rgba(154, 52, 18, 0.12) !important;
+  }
+
+  .game-warm-shell .game-shell-balance .data-num,
+  .game-warm-shell .betting-limit-badge strong {
+    color: #9a6a14 !important;
+  }
+
+  .game-warm-shell .game-account-menu {
+    border-color: rgba(212, 162, 74, 0.28) !important;
+    background: rgba(255, 251, 241, 0.98) !important;
+    box-shadow: 0 18px 40px rgba(154, 52, 18, 0.16) !important;
+  }
+
+  .game-warm-shell .game-account-menu button {
+    color: rgba(36, 48, 65, 0.88) !important;
+  }
+
+  .game-warm-shell .game-account-menu button:hover {
+    background: rgba(255, 237, 213, 0.74) !important;
+  }
+
+  .game-warm-shell .game-header {
+    border-color: rgba(212, 162, 74, 0.28) !important;
+    background:
+      linear-gradient(135deg, rgba(255, 251, 241, 0.9), rgba(239, 248, 231, 0.8) 48%, rgba(243, 237, 255, 0.78)),
+      radial-gradient(circle at 12% 20%, rgba(255, 230, 153, 0.4), transparent 36%) !important;
+    box-shadow: 0 22px 52px rgba(154, 52, 18, 0.12) !important;
+    color: var(--game-warm-ink) !important;
+  }
+
+  .game-warm-shell .game-header__art {
+    opacity: 0.62 !important;
+    filter: saturate(1.18) brightness(1.12);
+  }
+
+  .game-warm-shell .game-header__shade {
+    background:
+      linear-gradient(90deg, rgba(255, 248, 234, 0.96) 0%, rgba(255, 244, 224, 0.88) 34%, rgba(239, 248, 231, 0.68) 68%, rgba(243, 237, 255, 0.5) 100%) !important;
+  }
+
+  .game-warm-shell .game-header__glow {
+    background:
+      radial-gradient(circle at 82% 42%, rgba(234, 222, 255, 0.36), transparent 26%),
+      radial-gradient(circle at 18% 20%, rgba(255, 230, 153, 0.32), transparent 30%) !important;
+  }
+
+  .game-warm-shell .game-header h1 span:first-child,
+  .game-warm-shell .game-header p,
+  .game-warm-shell .game-header a,
+  .game-warm-shell .game-header .text-white,
+  .game-warm-shell .game-header .text-white\/68,
+  .game-warm-shell .game-header .text-white\/72 {
+    color: var(--game-warm-ink) !important;
+  }
+
+  .game-warm-shell .game-header .text-white\/22 {
+    color: rgba(73, 82, 99, 0.34) !important;
+  }
+
+  .game-warm-shell .game-header .tag,
+  .game-warm-shell .game-header .tag-onDark,
+  .game-warm-shell .game-header .tag-goldOnDark {
+    border-color: rgba(212, 162, 74, 0.36) !important;
+    background: rgba(255, 251, 241, 0.72) !important;
+    color: #7c4a03 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+  }
+
+  .game-warm-shell .game-stage-panel,
+  .game-warm-shell .game-side-card {
+    border-color: var(--game-warm-line) !important;
+    background:
+      radial-gradient(circle at 10% 6%, rgba(255, 230, 153, 0.38), transparent 32%),
+      radial-gradient(circle at 88% 12%, rgba(221, 246, 202, 0.4), transparent 34%),
+      radial-gradient(circle at 18% 88%, rgba(255, 219, 213, 0.34), transparent 34%),
+      linear-gradient(145deg, rgba(255, 251, 241, 0.82), rgba(240, 250, 229, 0.72) 44%, rgba(243, 237, 255, 0.74)) !important;
+    color: var(--game-warm-ink) !important;
+    box-shadow:
+      0 22px 50px rgba(154, 52, 18, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.36) !important;
+  }
+
+  .game-warm-shell .game-stage-bar {
+    border-bottom-color: rgba(212, 162, 74, 0.26) !important;
+    background:
+      linear-gradient(90deg, rgba(255, 250, 239, 0.9), rgba(236, 248, 226, 0.82) 52%, rgba(243, 237, 255, 0.76)) !important;
+    color: rgba(73, 52, 22, 0.82) !important;
+  }
+
+  .game-warm-shell .game-stage-bar .text-white\/40,
+  .game-warm-shell .game-stage-bar .text-white\/55,
+  .game-warm-shell .game-stage-bar .text-white\/72,
+  .game-warm-shell .game-stage-bar .uppercase {
+    color: rgba(73, 82, 99, 0.64) !important;
+  }
+
+  .game-warm-shell .game-canvas-shell {
+    isolation: isolate;
+    border-color: rgba(212, 162, 74, 0.3) !important;
+    background:
+      radial-gradient(circle at 16% 12%, rgba(255, 230, 153, 0.5), transparent 32%),
+      radial-gradient(circle at 86% 18%, rgba(221, 246, 202, 0.54), transparent 34%),
+      radial-gradient(circle at 22% 86%, rgba(255, 219, 213, 0.44), transparent 32%),
+      linear-gradient(155deg, rgba(255, 251, 241, 0.86), rgba(239, 248, 231, 0.78) 48%, rgba(238, 231, 255, 0.8)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      0 18px 34px rgba(154, 52, 18, 0.1) !important;
+  }
+
+  .game-warm-shell .game-canvas-shell::after {
+    pointer-events: none;
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    border-radius: inherit;
+    background:
+      radial-gradient(circle at 16% 10%, rgba(255, 230, 153, 0.18), transparent 34%),
+      radial-gradient(circle at 86% 16%, rgba(221, 246, 202, 0.16), transparent 36%),
+      radial-gradient(circle at 22% 86%, rgba(255, 219, 213, 0.12), transparent 34%),
+      linear-gradient(160deg, rgba(255, 248, 234, 0.1), rgba(243, 237, 255, 0.12));
+    mix-blend-mode: screen;
+  }
+
+  .game-warm-shell .game-side-card .text-white,
+  .game-warm-shell .game-stage-panel .text-white,
+  .game-warm-shell .game-side-card .text-white\/85,
+  .game-warm-shell .game-side-card .text-white\/86,
+  .game-warm-shell .game-stage-panel .text-white\/85,
+  .game-warm-shell .game-stage-panel .text-white\/86 {
+    color: var(--game-warm-ink) !important;
+  }
+
+  .game-warm-shell .game-side-card .text-white\/40,
+  .game-warm-shell .game-side-card .text-white\/45,
+  .game-warm-shell .game-side-card .text-white\/50,
+  .game-warm-shell .game-side-card .text-white\/55,
+  .game-warm-shell .game-side-card .text-white\/60,
+  .game-warm-shell .game-side-card .text-white\/62,
+  .game-warm-shell .game-side-card .text-white\/65,
+  .game-warm-shell .game-side-card .text-white\/70,
+  .game-warm-shell .game-side-card .text-white\/72,
+  .game-warm-shell .game-stage-panel .text-white\/40,
+  .game-warm-shell .game-stage-panel .text-white\/45,
+  .game-warm-shell .game-stage-panel .text-white\/50,
+  .game-warm-shell .game-stage-panel .text-white\/55,
+  .game-warm-shell .game-stage-panel .text-white\/60,
+  .game-warm-shell .game-stage-panel .text-white\/62,
+  .game-warm-shell .game-stage-panel .text-white\/65,
+  .game-warm-shell .game-stage-panel .text-white\/70,
+  .game-warm-shell .game-stage-panel .text-white\/72 {
+    color: var(--game-warm-muted) !important;
+  }
+
+  .game-warm-shell .bet-controls {
+    border-color: rgba(212, 162, 74, 0.26) !important;
+    background: rgba(255, 251, 241, 0.62) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+  }
+
+  .game-warm-shell .bet-controls__header {
+    border-bottom-color: rgba(212, 162, 74, 0.22) !important;
+  }
+
+  .game-warm-shell .bet-controls__entry,
+  .game-warm-shell .crash-auto-cashout__field,
+  .game-warm-shell .slot-auto-field input,
+  .game-warm-shell .dice-auto-modal input,
+  .game-warm-shell .keno-auto-modal input {
+    border-color: rgba(212, 162, 74, 0.28) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 247, 230, 0.76)),
+      radial-gradient(circle at 88% 12%, rgba(234, 222, 255, 0.3), transparent 38%) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
+  }
+
+  .game-warm-shell .bet-controls__input,
+  .game-warm-shell .crash-auto-cashout__input {
+    color: var(--game-warm-ink) !important;
+  }
+
+  .game-warm-shell .bet-controls__input::placeholder,
+  .game-warm-shell .crash-auto-cashout__input::placeholder {
+    color: rgba(73, 82, 99, 0.42) !important;
+  }
+
+  .game-warm-shell .bet-controls__limit-hint,
+  .game-warm-shell .game-balance-strip {
+    border-color: rgba(212, 162, 74, 0.2) !important;
+    color: rgba(73, 82, 99, 0.64) !important;
+  }
+
+  .game-warm-shell .game-choice-btn,
+  .game-warm-shell .crash-auto-cashout__mode button {
+    border-color: rgba(212, 162, 74, 0.28) !important;
+    background: rgba(255, 251, 241, 0.66) !important;
+    color: rgba(36, 48, 65, 0.76) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76) !important;
+  }
+
+  .game-warm-shell .game-choice-btn:hover,
+  .game-warm-shell .crash-auto-cashout__mode button:hover {
+    border-color: rgba(234, 88, 12, 0.36) !important;
+    background: rgba(255, 237, 213, 0.78) !important;
+    color: #9a3412 !important;
+  }
+
+  .game-warm-shell .game-choice-btn-acid,
+  .game-warm-shell .game-choice-btn-ember,
+  .game-warm-shell .game-choice-btn-ice,
+  .game-warm-shell .game-choice-btn-toxic,
+  .game-warm-shell .crash-auto-cashout__mode button[data-active='true'] {
+    border-color: rgba(234, 88, 12, 0.52) !important;
+    background: linear-gradient(180deg, rgba(255, 218, 185, 0.92), rgba(255, 205, 165, 0.76)) !important;
+    color: #7c2d12 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.76),
+      0 8px 18px rgba(234, 88, 12, 0.12) !important;
+  }
+
+  .game-warm-shell .btn-acid,
+  .game-warm-shell .btn-ember,
+  .game-warm-shell .local-table-main-button {
+    border-color: rgba(234, 88, 12, 0.58) !important;
+    background: linear-gradient(135deg, #ff7a2f, #f45105) !important;
+    color: #ffffff !important;
+    box-shadow:
+      0 12px 26px rgba(234, 88, 12, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.26) !important;
+  }
+
+  .game-warm-shell .btn-ember {
+    background: linear-gradient(135deg, #ff8a7a, #d4574a) !important;
+  }
+
+  .game-warm-shell .game-result-card,
+  .game-warm-shell .game-stat-card,
+  .game-warm-shell .game-alert {
+    border-color: rgba(212, 162, 74, 0.28) !important;
+    background: rgba(255, 251, 241, 0.82) !important;
+    color: var(--game-warm-ink) !important;
+    box-shadow: 0 18px 36px rgba(154, 52, 18, 0.12) !important;
+  }
+
+  .game-warm-shell .game-result-card-win {
+    background:
+      radial-gradient(circle at 12% 10%, rgba(221, 246, 202, 0.68), transparent 42%),
+      rgba(255, 251, 241, 0.88) !important;
+    border-color: rgba(34, 197, 94, 0.34) !important;
+  }
+
+  .game-warm-shell .game-result-card-loss,
+  .game-warm-shell .game-alert {
+    background:
+      radial-gradient(circle at 12% 10%, rgba(255, 219, 213, 0.68), transparent 42%),
+      rgba(255, 251, 241, 0.88) !important;
+    border-color: rgba(212, 87, 74, 0.34) !important;
+  }
+
+  .game-warm-shell .blackjack-table-stage {
+    border-color: rgba(212, 162, 74, 0.28) !important;
+    background:
+      radial-gradient(circle at 50% 16%, rgba(255, 230, 153, 0.48), transparent 34%),
+      linear-gradient(180deg, rgba(255, 251, 241, 0.76), rgba(239, 248, 231, 0.72) 52%, rgba(238, 231, 255, 0.76)) !important;
+  }
+
+  .game-warm-shell .blackjack-table-art {
+    opacity: 0.56 !important;
+    filter: saturate(1.08) brightness(1.18);
+  }
+
+  .game-warm-shell .blackjack-table-wash {
+    background:
+      radial-gradient(circle at 50% 36%, rgba(255, 230, 153, 0.32), transparent 36%),
+      linear-gradient(180deg, rgba(255, 248, 234, 0.28), rgba(241, 250, 232, 0.42) 54%, rgba(243, 237, 255, 0.5)) !important;
+  }
+
+  .game-warm-shell .blackjack-table-label,
+  .game-warm-shell .blackjack-scoreboard,
+  .game-warm-shell .blackjack-score-tile,
+  .game-warm-shell .blackjack-player-hand,
+  .game-warm-shell .blackjack-empty-seat {
+    border-color: rgba(212, 162, 74, 0.26) !important;
+    background: rgba(255, 251, 241, 0.68) !important;
+    color: var(--game-warm-ink) !important;
+  }
+
+  .game-warm-shell .local-table-stage-panel {
+    background:
+      radial-gradient(circle at 16% 8%, rgba(255, 230, 153, 0.42), transparent 32%),
+      radial-gradient(circle at 88% 18%, rgba(221, 246, 202, 0.42), transparent 34%),
+      linear-gradient(160deg, rgba(255, 251, 241, 0.82), rgba(239, 248, 231, 0.72) 46%, rgba(238, 231, 255, 0.78)) !important;
+  }
+
+  .game-warm-shell .local-table-stage-art {
+    opacity: 0.68 !important;
+    filter: saturate(1.16) brightness(1.18);
+  }
+
+  .game-warm-shell .local-table-stage-wash {
+    background:
+      linear-gradient(180deg, rgba(255, 248, 234, 0.22), rgba(241, 250, 232, 0.34) 42%, rgba(243, 237, 255, 0.44) 100%) !important;
+  }
+
+  .game-warm-shell .local-table-stage-glow {
+    background:
+      radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.24), transparent 30%),
+      radial-gradient(circle at 20% 12%, rgba(253, 230, 138, 0.3), transparent 30%),
+      radial-gradient(circle at 86% 18%, rgba(234, 222, 255, 0.26), transparent 28%) !important;
+  }
+
+  .game-warm-shell .local-table-stage-header {
+    border-bottom-color: rgba(212, 162, 74, 0.22) !important;
+  }
+
+  .game-warm-shell .local-table-stage-header > div:last-child,
+  .game-warm-shell .local-table-result-card,
+  .game-warm-shell .local-table-action-panel,
+  .game-warm-shell .local-table-inline-split,
+  .game-warm-shell .local-table-hand-panel,
+  .game-warm-shell .tui-tongzi-lane,
+  .game-warm-shell .card-war-seat,
+  .game-warm-shell .black-dot-player-combo,
+  .game-warm-shell .black-dot-bank-combo {
+    border-color: rgba(212, 162, 74, 0.28) !important;
+    background: rgba(255, 251, 241, 0.66) !important;
+    color: var(--game-warm-ink) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.62),
+      0 12px 26px rgba(154, 52, 18, 0.1) !important;
+  }
+
+  .game-warm-shell .local-table-action-panel > .text-\[12px\],
+  .game-warm-shell .local-table-split-option,
+  .game-warm-shell .local-table-inline-split .local-table-split-option {
+    color: var(--game-warm-ink) !important;
+  }
+
+  .game-warm-shell .local-table-action-button,
+  .game-warm-shell .local-table-split-option {
+    border-color: rgba(212, 162, 74, 0.28) !important;
+    background: rgba(255, 251, 241, 0.72) !important;
+    color: var(--game-warm-ink) !important;
+  }
+
+  .game-warm-shell .local-table-action-button:last-child,
+  .game-warm-shell .local-table-action-button.mt-3 {
+    border-color: rgba(234, 88, 12, 0.48) !important;
+    background: rgba(255, 218, 185, 0.7) !important;
+    color: #7c2d12 !important;
+  }
+
+  .game-warm-shell .crash-mobile-live-bets,
+  .game-warm-shell .wheel-control-result,
+  .game-warm-shell .roulette-active-bets,
+  .game-warm-shell .slot-auto-status,
+  .game-warm-shell .dice-auto-stat,
+  .game-warm-shell .plinko-auto-bot-status,
+  .game-warm-shell .crash-auto-bot-status {
+    border-color: rgba(212, 162, 74, 0.28) !important;
+    background: rgba(255, 251, 241, 0.76) !important;
+    color: var(--game-warm-ink) !important;
+    box-shadow: 0 10px 22px rgba(154, 52, 18, 0.1) !important;
+  }
+
+  .game-warm-shell .crash-mobile-live-bets__head,
+  .game-warm-shell .crash-mobile-live-bets__empty,
+  .game-warm-shell .crash-mobile-live-bets__row > span,
+  .game-warm-shell .crash-auto-cashout__label,
+  .game-warm-shell .crash-auto-cashout__preview {
+    color: rgba(36, 48, 65, 0.7) !important;
+  }
+
+  .game-warm-shell .crash-history-chip {
+    background: rgba(255, 251, 241, 0.78) !important;
+    box-shadow: 0 6px 14px rgba(154, 52, 18, 0.08) !important;
+  }
+
+  .game-warm-shell .slot-game-page--classic .game-main-stack > .slot-result-card {
+    background: rgba(255, 251, 241, 0.88) !important;
+    color: var(--game-warm-ink) !important;
+  }
+
+  @media (max-width: 640px) {
+    .game-warm-shell .game-control-stack > .game-side-card:first-child {
+      background:
+        linear-gradient(180deg, rgba(255, 251, 241, 0.96), rgba(255, 246, 229, 0.92)),
+        radial-gradient(circle at 10% 0%, rgba(255, 230, 153, 0.32), transparent 42%) !important;
+      border-color: rgba(212, 162, 74, 0.34) !important;
+      box-shadow:
+        0 -14px 30px rgba(154, 52, 18, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+    }
+
+    .game-warm-shell .game-shell-header-limit.betting-limit-badge {
+      background: rgba(255, 251, 241, 0.9) !important;
+      color: rgba(73, 52, 22, 0.8) !important;
+      box-shadow: 0 8px 18px rgba(154, 52, 18, 0.1) !important;
+    }
+
+    .game-warm-shell .crash-mobile-live-bets {
+      background: rgba(255, 251, 241, 0.82) !important;
+    }
+  }
+}
+
 @keyframes blackjack-card-deal {
   0% {
     opacity: 0;
@@ -11616,6 +12103,472 @@
 
     .slot-auto-summary span {
       display: none;
+    }
+  }
+}
+
+@layer components {
+  .game-warm-shell {
+    background:
+      radial-gradient(circle at 10% 8%, rgba(255, 230, 153, 0.68), transparent 28%),
+      radial-gradient(circle at 88% 14%, rgba(221, 246, 202, 0.72), transparent 30%),
+      radial-gradient(circle at 14% 76%, rgba(255, 219, 213, 0.68), transparent 34%),
+      radial-gradient(circle at 88% 86%, rgba(234, 222, 255, 0.72), transparent 36%),
+      linear-gradient(150deg, #fff7e8 0%, #f1fae8 36%, #ffece7 68%, #f3edff 100%) !important;
+  }
+
+  .game-warm-shell .game-shell-header,
+  .game-warm-shell .game-header,
+  .game-warm-shell .game-stage-panel,
+  .game-warm-shell .game-side-card,
+  .game-warm-shell .game-control-stack > .game-side-card:first-child {
+    border-color: rgba(212, 162, 74, 0.32) !important;
+    background:
+      radial-gradient(circle at 10% 6%, rgba(255, 230, 153, 0.38), transparent 32%),
+      radial-gradient(circle at 88% 12%, rgba(221, 246, 202, 0.4), transparent 34%),
+      radial-gradient(circle at 18% 88%, rgba(255, 219, 213, 0.34), transparent 34%),
+      linear-gradient(145deg, rgba(255, 251, 241, 0.9), rgba(240, 250, 229, 0.78) 44%, rgba(243, 237, 255, 0.8)) !important;
+    box-shadow:
+      0 22px 50px rgba(154, 52, 18, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+    color: #243041 !important;
+  }
+
+  .game-warm-shell .game-stage-bar,
+  .game-warm-shell .bet-controls,
+  .game-warm-shell .bet-controls__entry,
+  .game-warm-shell .game-canvas-shell,
+  .game-warm-shell .game-result-card,
+  .game-warm-shell .game-stat-card,
+  .game-warm-shell .crash-mobile-live-bets,
+  .game-warm-shell .local-table-result-card,
+  .game-warm-shell .local-table-action-panel,
+  .game-warm-shell .local-table-hand-panel,
+  .game-warm-shell .local-table-stage-header > div:last-child,
+  .game-warm-shell .blackjack-table-label,
+  .game-warm-shell .blackjack-scoreboard,
+  .game-warm-shell .blackjack-score-tile,
+  .game-warm-shell .blackjack-player-hand,
+  .game-warm-shell .blackjack-empty-seat {
+    border-color: rgba(212, 162, 74, 0.28) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 247, 230, 0.74)),
+      radial-gradient(circle at 86% 10%, rgba(234, 222, 255, 0.28), transparent 38%),
+      radial-gradient(circle at 10% 88%, rgba(221, 246, 202, 0.32), transparent 36%) !important;
+    color: #243041 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.82),
+      0 12px 26px rgba(154, 52, 18, 0.1) !important;
+  }
+
+  .game-warm-shell .game-canvas-shell::after {
+    pointer-events: none;
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    border-radius: inherit;
+    background:
+      radial-gradient(circle at 16% 10%, rgba(255, 230, 153, 0.18), transparent 34%),
+      radial-gradient(circle at 86% 16%, rgba(221, 246, 202, 0.16), transparent 36%),
+      radial-gradient(circle at 22% 86%, rgba(255, 219, 213, 0.12), transparent 34%),
+      linear-gradient(160deg, rgba(255, 248, 234, 0.1), rgba(243, 237, 255, 0.12));
+    mix-blend-mode: screen;
+  }
+
+  .game-warm-shell .game-shell-back,
+  .game-warm-shell .game-shell-history,
+  .game-warm-shell .game-shell-audio,
+  .game-warm-shell .game-shell-balance,
+  .game-warm-shell .betting-limit-badge {
+    border-color: rgba(212, 162, 74, 0.38) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 244, 219, 0.82)) !important;
+    color: rgba(36, 48, 65, 0.86) !important;
+    box-shadow: 0 8px 20px rgba(154, 52, 18, 0.11) !important;
+  }
+
+  .game-warm-shell .game-shell-title,
+  .game-warm-shell .game-header h1 span:first-child,
+  .game-warm-shell .game-header p,
+  .game-warm-shell .game-header a,
+  .game-warm-shell .game-stage-panel .text-white,
+  .game-warm-shell .game-side-card .text-white,
+  .game-warm-shell .game-stage-panel .text-white\/85,
+  .game-warm-shell .game-side-card .text-white\/85 {
+    color: #243041 !important;
+  }
+
+  .game-warm-shell .game-shell-subtitle,
+  .game-warm-shell .game-shell-account,
+  .game-warm-shell .game-stage-panel .text-white\/40,
+  .game-warm-shell .game-stage-panel .text-white\/45,
+  .game-warm-shell .game-stage-panel .text-white\/50,
+  .game-warm-shell .game-stage-panel .text-white\/55,
+  .game-warm-shell .game-stage-panel .text-white\/60,
+  .game-warm-shell .game-stage-panel .text-white\/62,
+  .game-warm-shell .game-stage-panel .text-white\/65,
+  .game-warm-shell .game-stage-panel .text-white\/70,
+  .game-warm-shell .game-stage-panel .text-white\/72,
+  .game-warm-shell .game-side-card .text-white\/40,
+  .game-warm-shell .game-side-card .text-white\/45,
+  .game-warm-shell .game-side-card .text-white\/50,
+  .game-warm-shell .game-side-card .text-white\/55,
+  .game-warm-shell .game-side-card .text-white\/60,
+  .game-warm-shell .game-side-card .text-white\/62,
+  .game-warm-shell .game-side-card .text-white\/65,
+  .game-warm-shell .game-side-card .text-white\/70,
+  .game-warm-shell .game-side-card .text-white\/72 {
+    color: rgba(73, 82, 99, 0.68) !important;
+  }
+
+  .game-warm-shell .bet-controls__input,
+  .game-warm-shell .crash-auto-cashout__input {
+    color: #243041 !important;
+  }
+
+  .game-warm-shell .btn-acid,
+  .game-warm-shell .btn-ember,
+  .game-warm-shell .local-table-main-button {
+    border-color: rgba(234, 88, 12, 0.58) !important;
+    background: linear-gradient(135deg, #ff7a2f, #f45105) !important;
+    color: #ffffff !important;
+    box-shadow:
+      0 12px 26px rgba(234, 88, 12, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.26) !important;
+  }
+
+  .game-warm-shell .game-choice-btn,
+  .game-warm-shell .crash-auto-cashout__mode button,
+  .game-warm-shell .local-table-action-button,
+  .game-warm-shell .local-table-split-option {
+    border-color: rgba(212, 162, 74, 0.28) !important;
+    background: rgba(255, 251, 241, 0.72) !important;
+    color: #243041 !important;
+  }
+
+  .game-warm-shell .game-choice-btn-acid,
+  .game-warm-shell .game-choice-btn-ember,
+  .game-warm-shell .game-choice-btn-ice,
+  .game-warm-shell .game-choice-btn-toxic,
+  .game-warm-shell .crash-auto-cashout__mode button[data-active='true'] {
+    border-color: rgba(234, 88, 12, 0.5) !important;
+    background: linear-gradient(180deg, rgba(255, 218, 185, 0.94), rgba(255, 205, 165, 0.78)) !important;
+    color: #7c2d12 !important;
+  }
+
+  .game-warm-shell .game-header__art,
+  .game-warm-shell .blackjack-table-art,
+  .game-warm-shell .local-table-stage-art {
+    opacity: 0.62 !important;
+    filter: saturate(1.16) brightness(1.16);
+  }
+
+  .game-warm-shell .blackjack-table-stage,
+  .game-warm-shell .local-table-stage-panel {
+    background:
+      radial-gradient(circle at 16% 8%, rgba(255, 230, 153, 0.46), transparent 32%),
+      radial-gradient(circle at 88% 18%, rgba(221, 246, 202, 0.46), transparent 34%),
+      linear-gradient(160deg, rgba(255, 251, 241, 0.86), rgba(239, 248, 231, 0.76) 46%, rgba(238, 231, 255, 0.82)) !important;
+  }
+
+  .game-warm-shell .blackjack-table-wash,
+  .game-warm-shell .local-table-stage-wash {
+    background:
+      radial-gradient(circle at 50% 36%, rgba(255, 230, 153, 0.28), transparent 34%),
+      linear-gradient(180deg, rgba(255, 248, 234, 0.28), rgba(241, 250, 232, 0.4) 54%, rgba(243, 237, 255, 0.48)) !important;
+  }
+}
+
+@layer components {
+  .game-warm-shell .game-shell-header-limit.betting-limit-badge,
+  .game-warm-shell .game-shell-balance,
+  .game-warm-shell .game-account-menu,
+  .game-warm-shell .game-balance-strip,
+  .game-warm-shell .wheel-balance-strip,
+  .game-warm-shell .roulette-control-card,
+  .game-warm-shell .roulette-chip-panel,
+  .game-warm-shell .roulette-active-bets,
+  .game-warm-shell .wheel-control-card,
+  .game-warm-shell .wheel-control-card > .bet-controls,
+  .game-warm-shell .wheel-control-result,
+  .game-warm-shell .crash-control-card,
+  .game-warm-shell .crash-control-card > .bet-controls,
+  .game-warm-shell .crash-auto-cashout,
+  .game-warm-shell .crash-cashout-summary,
+  .game-warm-shell .dice-control-card,
+  .game-warm-shell .keno-control-card,
+  .game-warm-shell .plinko-control-card,
+  .game-warm-shell .tower-control-card,
+  .game-warm-shell .hilo-control-card {
+    border-color: rgba(212, 162, 74, 0.3) !important;
+    background:
+      radial-gradient(circle at 12% 8%, rgba(255, 230, 153, 0.42), transparent 34%),
+      radial-gradient(circle at 86% 14%, rgba(221, 246, 202, 0.38), transparent 36%),
+      radial-gradient(circle at 18% 86%, rgba(255, 219, 213, 0.34), transparent 34%),
+      radial-gradient(circle at 90% 84%, rgba(234, 222, 255, 0.36), transparent 36%),
+      linear-gradient(145deg, rgba(255, 253, 246, 0.9), rgba(241, 250, 232, 0.78) 44%, rgba(255, 236, 231, 0.72) 72%, rgba(243, 237, 255, 0.78)) !important;
+    color: #243041 !important;
+    box-shadow:
+      0 16px 34px rgba(154, 52, 18, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
+  }
+
+  .game-warm-shell .game-canvas-shell {
+    background:
+      radial-gradient(circle at 12% 10%, rgba(255, 230, 153, 0.58), transparent 34%),
+      radial-gradient(circle at 86% 18%, rgba(221, 246, 202, 0.5), transparent 36%),
+      radial-gradient(circle at 20% 86%, rgba(255, 219, 213, 0.46), transparent 34%),
+      radial-gradient(circle at 88% 84%, rgba(234, 222, 255, 0.52), transparent 38%),
+      linear-gradient(160deg, #fff7e8 0%, #f1fae8 38%, #ffece7 68%, #f3edff 100%) !important;
+  }
+
+  .game-warm-shell .game-canvas-shell canvas {
+    filter: none;
+  }
+
+  .game-warm-shell .game-canvas-shell::after {
+    background:
+      radial-gradient(circle at 14% 10%, rgba(255, 230, 153, 0.12), transparent 34%),
+      radial-gradient(circle at 86% 16%, rgba(221, 246, 202, 0.1), transparent 36%),
+      radial-gradient(circle at 22% 86%, rgba(255, 219, 213, 0.1), transparent 34%),
+      radial-gradient(circle at 90% 86%, rgba(234, 222, 255, 0.1), transparent 38%),
+      linear-gradient(160deg, rgba(255, 248, 234, 0.06), rgba(241, 250, 232, 0.05) 46%, rgba(243, 237, 255, 0.06)) !important;
+    mix-blend-mode: screen;
+  }
+
+  .game-warm-shell .game-stage-bar,
+  .game-warm-shell .game-header,
+  .game-warm-shell .game-shell-header {
+    background:
+      radial-gradient(circle at 10% 8%, rgba(255, 230, 153, 0.44), transparent 34%),
+      radial-gradient(circle at 88% 12%, rgba(221, 246, 202, 0.38), transparent 36%),
+      linear-gradient(145deg, rgba(255, 251, 241, 0.9), rgba(255, 236, 231, 0.72) 56%, rgba(243, 237, 255, 0.76)) !important;
+  }
+
+  .game-warm-shell .game-shell-balance svg,
+  .game-warm-shell .game-shell-audio svg,
+  .game-warm-shell .game-shell-back svg,
+  .game-warm-shell .game-shell-history svg {
+    color: rgba(124, 45, 18, 0.72) !important;
+  }
+
+  .game-warm-shell .game-shell-balance .data-num,
+  .game-warm-shell .game-balance-strip .data-num,
+  .game-warm-shell .betting-limit-badge strong,
+  .game-warm-shell .wheel-control-result .data-num,
+  .game-warm-shell .crash-auto-cashout__input,
+  .game-warm-shell .crash-cashout-summary__amount,
+  .game-warm-shell .crash-cashout-summary__multiplier {
+    color: #7c2d12 !important;
+  }
+
+  .game-warm-shell .roulette-chip-title,
+  .game-warm-shell .crash-auto-cashout__label,
+  .game-warm-shell .crash-auto-cashout__preview,
+  .game-warm-shell .game-balance-strip,
+  .game-warm-shell .game-balance-strip span,
+  .game-warm-shell .wheel-control-result,
+  .game-warm-shell .roulette-active-bets,
+  .game-warm-shell .roulette-active-bets span {
+    color: rgba(73, 82, 99, 0.78) !important;
+  }
+}
+
+@layer components {
+  .local-table-inline-split__hint {
+    color: color-mix(in srgb, var(--local-table-glow) 78%, white 22%);
+  }
+
+  .local-table-inline-split__options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .black-dot-split-option {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .black-dot-split-option__title {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 3px 6px;
+    color: #fde68a;
+    font-size: 12px;
+    font-weight: 1000;
+    line-height: 1.08;
+  }
+
+  .black-dot-split-option__title span {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .black-dot-split-option__stacks {
+    display: grid;
+    gap: 4px;
+  }
+
+  .black-dot-split-mini-mound {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 14%, transparent);
+    background:
+      radial-gradient(circle at 20% 18%, color-mix(in srgb, var(--local-table-glow) 12%, transparent), transparent 34%),
+      rgba(2, 8, 18, 0.2);
+    padding: 3px 4px;
+  }
+
+  .black-dot-split-mini-mound > span {
+    color: color-mix(in srgb, var(--local-table-glow) 82%, white 18%);
+    font-size: 9px;
+    font-weight: 1000;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    writing-mode: vertical-rl;
+  }
+
+  .black-dot-split-mini-mound > div {
+    display: flex;
+    min-width: 0;
+    justify-content: center;
+    gap: 3px;
+  }
+
+  .black-dot-split-tile {
+    display: grid;
+    width: 23px;
+    height: 34px;
+    min-width: 0;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 7px;
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 18%, transparent);
+    background:
+      radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.16), transparent 28%),
+      linear-gradient(145deg, color-mix(in srgb, var(--local-table-accent) 20%, #182235), #050914 62%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 4px 8px rgba(0, 0, 0, 0.22);
+  }
+
+  .black-dot-split-tile img {
+    display: block;
+    width: auto;
+    height: 29px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.32));
+  }
+
+  .black-dot-split-option__rank {
+    display: grid;
+    gap: 1px;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 9.5px;
+    font-weight: 850;
+    line-height: 1.18;
+  }
+
+  .black-dot-split-option__rank span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .game-warm-shell .black-dot-split-option__rank {
+    color: rgba(73, 82, 99, 0.8) !important;
+  }
+
+  .game-warm-shell .black-dot-split-mini-mound {
+    background:
+      radial-gradient(circle at 20% 18%, rgba(255, 230, 153, 0.22), transparent 34%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 247, 230, 0.48)) !important;
+  }
+
+  .game-warm-shell .black-dot-split-tile {
+    border-color: rgba(212, 162, 74, 0.22) !important;
+    background:
+      radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.24), transparent 28%),
+      linear-gradient(145deg, rgba(255, 244, 219, 0.78), rgba(243, 237, 255, 0.58)) !important;
+  }
+
+  @media (max-width: 480px) {
+    .local-table-inline-split {
+      padding: 8px !important;
+    }
+
+    .local-table-inline-split__hint {
+      font-size: 11px;
+      line-height: 1.28;
+    }
+
+    .local-table-inline-split__options {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .local-table-inline-split .black-dot-split-option {
+      display: flex;
+      min-height: 0;
+      padding: 7px 5px !important;
+      row-gap: 5px;
+    }
+
+    .local-table-inline-split .black-dot-split-option > div:first-child,
+    .local-table-inline-split .black-dot-split-option > div:nth-child(2),
+    .local-table-inline-split .black-dot-split-option > div:nth-child(3) {
+      margin-top: 0;
+      overflow: visible;
+      font-size: inherit;
+      line-height: normal;
+      text-overflow: clip;
+      white-space: normal;
+    }
+
+    .black-dot-split-option__title {
+      justify-content: center;
+      gap: 2px 5px;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .black-dot-split-mini-mound {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      gap: 2px;
+      padding: 3px;
+    }
+
+    .black-dot-split-mini-mound > span {
+      font-size: 8px;
+      letter-spacing: 0.02em;
+      writing-mode: horizontal-tb;
+    }
+
+    .black-dot-split-tile {
+      width: 20px;
+      height: 29px;
+      border-radius: 6px;
+    }
+
+    .black-dot-split-tile img {
+      height: 25px;
+    }
+
+    .black-dot-split-option__rank {
+      font-size: 8.5px;
+      line-height: 1.12;
+      text-align: center;
     }
   }
 }
