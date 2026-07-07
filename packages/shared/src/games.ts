@@ -677,6 +677,16 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
 
 export const ENABLED_GAMES = Object.values(GAMES_REGISTRY).filter((g) => g.enabled);
 
+export const BETTING_LIMIT_MANAGED_GAME_IDS = ENABLED_GAMES.map((game) => game.id).filter(
+  (gameId) => !isLocalTableGameId(gameId),
+);
+
+const BETTING_LIMIT_MANAGED_GAME_ID_SET = new Set<string>(BETTING_LIMIT_MANAGED_GAME_IDS);
+
+export function isBettingLimitManagedGameId(gameId: string): gameId is GameIdType {
+  return BETTING_LIMIT_MANAGED_GAME_ID_SET.has(gameId);
+}
+
 export function getGameMeta(id: string): GameMetadata | undefined {
   return GAMES_REGISTRY[id as GameIdType];
 }

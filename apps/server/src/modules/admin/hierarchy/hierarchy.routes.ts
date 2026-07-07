@@ -8,7 +8,7 @@ import {
 } from '../../../utils/hierarchy.js';
 import type { Prisma } from '@prisma/client';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
-import { normalizeBettingLimitsByGame } from '@bg/shared';
+import { normalizeStoredBettingLimits } from '../bettingLimits.js';
 
 const querySchema = z.object({
   parentId: z.string().optional(), // 目標代理；不填 = 自己
@@ -220,7 +220,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           rebatePercentage: a.rebatePercentage.toFixed(4),
           baccaratRebatePercentage: a.baccaratRebatePercentage.toFixed(4),
           bettingLimitLevel: a.bettingLimitLevel,
-          bettingLimits: normalizeBettingLimitsByGame(a.bettingLimits),
+          bettingLimits: normalizeStoredBettingLimits(a.bettingLimits, a.bettingLimitLevel),
           status: a.status,
           role: a.role,
           createdAt: a.createdAt.toISOString(),
@@ -239,7 +239,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           marketType: m.marketType,
           balance: m.balance.toFixed(2),
           bettingLimitLevel: m.bettingLimitLevel,
-          bettingLimits: normalizeBettingLimitsByGame(m.bettingLimits),
+          bettingLimits: normalizeStoredBettingLimits(m.bettingLimits, m.bettingLimitLevel),
           status: m.disabledAt ? 'DISABLED' : m.frozenAt ? 'FROZEN' : 'ACTIVE',
           frozenAt: m.frozenAt?.toISOString() ?? null,
           disabledAt: m.disabledAt?.toISOString() ?? null,
@@ -264,7 +264,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         maxBaccaratRebatePercentage: parent.maxBaccaratRebatePercentage.toFixed(4),
         baccaratRebateMode: parent.baccaratRebateMode,
         bettingLimitLevel: parent.bettingLimitLevel,
-        bettingLimits: normalizeBettingLimitsByGame(parent.bettingLimits),
+        bettingLimits: normalizeStoredBettingLimits(parent.bettingLimits, parent.bettingLimitLevel),
         role: parent.role,
         status: parent.status,
         parentId: parent.parentId,

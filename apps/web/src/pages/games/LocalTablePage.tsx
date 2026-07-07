@@ -54,7 +54,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#5B153E',
     '娃',
     '甜心娃娃',
-    '/game-art/local-table/stages/ten-half-stage.webp',
+    '/game-art/local-table/stages/rooms/ten-half-doll-stage.webp',
   ),
   [GameId.TWENTY_ONE_HALF_BUNNY]: roomTheme(
     '兔糖十點半',
@@ -66,7 +66,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#4A1D2F',
     '兔',
     '糖心娃娃',
-    '/game-art/local-table/stages/ten-half-stage.webp',
+    '/game-art/local-table/stages/rooms/ten-half-bunny-stage.webp',
   ),
   [GameId.TWENTY_ONE_HALF_STAR]: roomTheme(
     '星願十點半',
@@ -78,7 +78,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#25134A',
     '星',
     '星願娃娃',
-    '/game-art/local-table/stages/ten-half-stage.webp',
+    '/game-art/local-table/stages/rooms/ten-half-star-stage.webp',
   ),
   [GameId.TUI_TONGZI_DRAGON]: roomTheme(
     '龍門推筒',
@@ -90,7 +90,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#3B1606',
     '龍',
     '龍門牌官',
-    '/game-art/local-table/stages/tui-tongzi-stage.webp',
+    '/game-art/local-table/stages/rooms/tui-tongzi-dragon-stage.webp',
   ),
   [GameId.TUI_TONGZI_LION]: roomTheme(
     '醒獅推筒',
@@ -102,7 +102,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#4B1010',
     '獅',
     '醒獅牌官',
-    '/game-art/local-table/stages/tui-tongzi-stage.webp',
+    '/game-art/local-table/stages/rooms/tui-tongzi-lion-stage.webp',
   ),
   [GameId.TUI_TONGZI_JADE]: roomTheme(
     '玉兔推筒',
@@ -114,7 +114,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#073B2B',
     '玉',
     '玉兔牌官',
-    '/game-art/local-table/stages/tui-tongzi-stage.webp',
+    '/game-art/local-table/stages/rooms/tui-tongzi-jade-stage.webp',
   ),
   [GameId.TUI_TONGZI_NEON]: roomTheme(
     '霓虹推筒',
@@ -126,7 +126,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#092B3A',
     '霓',
     '霓虹牌官',
-    '/game-art/local-table/stages/tui-tongzi-stage.webp',
+    '/game-art/local-table/stages/rooms/tui-tongzi-neon-stage.webp',
   ),
   [GameId.TUI_TONGZI_GOLD]: roomTheme(
     '金殿推筒',
@@ -138,7 +138,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#3A2604',
     '金',
     '金殿牌官',
-    '/game-art/local-table/stages/tui-tongzi-stage.webp',
+    '/game-art/local-table/stages/rooms/tui-tongzi-gold-stage.webp',
   ),
   [GameId.BLACK_DOT_TIANJIU]: roomTheme(
     '天九黑粒',
@@ -150,7 +150,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#071F35',
     '九',
     '天九牌官',
-    '/game-art/local-table/stages/black-dot-stage.webp',
+    '/game-art/local-table/stages/rooms/black-dot-tianjiu-stage.webp',
   ),
   [GameId.BLACK_DOT_ROYAL]: roomTheme(
     '御殿黑粒',
@@ -162,7 +162,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#26113D',
     '御',
     '御殿牌官',
-    '/game-art/local-table/stages/black-dot-stage.webp',
+    '/game-art/local-table/stages/rooms/black-dot-royal-stage.webp',
   ),
   [GameId.BLACK_DOT_STREET]: roomTheme(
     '街頭黑粒',
@@ -174,7 +174,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#33101A',
     '街',
     '街頭牌官',
-    '/game-art/local-table/stages/black-dot-stage.webp',
+    '/game-art/local-table/stages/rooms/black-dot-street-stage.webp',
   ),
   [GameId.BLACK_DOT_SHADOW]: roomTheme(
     '影武黑粒',
@@ -186,7 +186,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#141735',
     '影',
     '影武牌官',
-    '/game-art/local-table/stages/black-dot-stage.webp',
+    '/game-art/local-table/stages/rooms/black-dot-shadow-stage.webp',
   ),
   [GameId.BLACK_DOT_GOLD]: roomTheme(
     '金礦黑粒',
@@ -198,7 +198,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#3A2205',
     '礦',
     '金礦牌官',
-    '/game-art/local-table/stages/black-dot-stage.webp',
+    '/game-art/local-table/stages/rooms/black-dot-gold-stage.webp',
   ),
   [GameId.CARD_WAR]: roomTheme(
     '王牌比大小',
@@ -210,7 +210,7 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '#111827',
     'A',
     '王牌荷官',
-    '/game-art/local-table/stages/card-war-stage.webp',
+    '/game-art/local-table/stages/rooms/card-war-stage.webp',
   ),
 };
 
@@ -495,9 +495,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
         <div className="game-main-stack space-y-4">
           <section
             className={`local-table-stage-panel game-stage-panel scanlines relative overflow-hidden rounded-[22px] border border-white/10 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.24)] ${stageToneClass} ${isBlackDot ? 'local-table-stage-panel--black-dot' : ''}`}
-            style={{
-              background: `radial-gradient(circle at 18% 10%, ${theme.glow}55, transparent 30%), linear-gradient(135deg, ${theme.felt} 0%, #060B12 100%)`,
-            }}
+            style={localTableStageStyle(theme)}
           >
             <ResponsiveImage
               src={theme.stageArt}
@@ -827,6 +825,15 @@ function roomTheme(
     mascotLabel,
     stageArt,
   };
+}
+
+function localTableStageStyle(theme: RoomTheme): CSSProperties {
+  return {
+    '--local-table-accent': theme.accent,
+    '--local-table-glow': theme.glow,
+    '--local-table-felt': theme.felt,
+    background: `radial-gradient(circle at 18% 10%, ${theme.glow}55, transparent 30%), linear-gradient(135deg, ${theme.felt} 0%, #060B12 100%)`,
+  } as CSSProperties;
 }
 
 function TuiTongziBoard({
@@ -1247,15 +1254,8 @@ function HandPanel({
         : hand.pieces.length === 1
           ? 'grid-cols-1'
           : 'grid-cols-2';
-  const border =
-    tone === 'player'
-      ? 'border-[#FDE68A]/35 bg-[#FDE68A]/[0.08]'
-      : tone === 'banker'
-        ? 'border-[#93C5FD]/25 bg-[#93C5FD]/[0.06]'
-        : 'border-white/10 bg-white/[0.045]';
-
   return (
-    <div className={`local-table-hand-panel ${active ? 'local-table-hand-panel--active' : ''} rounded-[18px] border ${border} bg-black/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm sm:p-4`}>
+    <div className={`local-table-hand-panel local-table-hand-panel--${tone} ${active ? 'local-table-hand-panel--active' : ''} rounded-[18px] border p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm sm:p-4`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[12px] font-black uppercase tracking-[0.16em] text-white/55">
@@ -1289,7 +1289,7 @@ function HandPanel({
 
 function EmptyHand({ title, busy }: { title: string; busy: boolean }) {
   return (
-    <div className="rounded-[18px] border border-white/12 bg-black/24 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_34px_rgba(0,0,0,0.2)] backdrop-blur-sm sm:p-4">
+    <div className="local-table-hand-panel local-table-hand-panel--neutral rounded-[18px] border p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_34px_rgba(0,0,0,0.2)] backdrop-blur-sm sm:p-4">
       <div className="text-[12px] font-black uppercase tracking-[0.16em] text-white/55">
         {title}
       </div>
@@ -1346,8 +1346,8 @@ function pieceKey(piece: LocalTablePiece, index: number): string {
 function CardPiece({ card }: { card: LocalTableCard }) {
   const red = card.suit === 'hearts' || card.suit === 'diamonds';
   return (
-    <div className="relative flex h-20 min-w-0 flex-col justify-between overflow-hidden rounded-[14px] border border-white/90 bg-[linear-gradient(145deg,#FFFFFF_0%,#FFF7E6_100%)] p-2 shadow-[0_14px_30px_rgba(0,0,0,0.32)] sm:h-32 sm:p-3">
-      <div className="pointer-events-none absolute inset-0 rounded-[14px] border border-[#F8D57B]/40" />
+    <div className="local-table-card-piece relative flex h-20 min-w-0 flex-col justify-between overflow-hidden rounded-[14px] border p-2 shadow-[0_14px_30px_rgba(0,0,0,0.32)] sm:h-32 sm:p-3">
+      <div className="local-table-card-piece__rim pointer-events-none absolute inset-0 rounded-[14px] border" />
       <div className={`text-[18px] font-black sm:text-[20px] ${red ? 'text-[#DC2626]' : 'text-[#0F172A]'}`}>
         {card.rank}
       </div>
@@ -1366,7 +1366,7 @@ function TubePiece({ tile }: { tile: LocalTableTubeTile }) {
     ? '/game-art/mahjong/WhiteDragon.svg'
     : `/game-art/mahjong/Pin${tile.value}.svg`;
   return (
-    <div className={`local-table-tube-piece ${tile.isWhite ? 'local-table-tube-piece--white' : ''} relative flex h-20 min-w-0 items-center justify-center overflow-hidden rounded-[14px] border border-[#FDE68A]/55 bg-[linear-gradient(145deg,#FFFBEA_0%,#F7E2A0_44%,#D6A83F_100%)] p-1.5 text-[#422006] shadow-[0_14px_30px_rgba(0,0,0,0.32)] sm:h-32 sm:p-2`}>
+    <div className={`local-table-tube-piece ${tile.isWhite ? 'local-table-tube-piece--white' : ''} relative flex h-20 min-w-0 items-center justify-center overflow-hidden rounded-[14px] border p-1.5 text-[#422006] shadow-[0_14px_30px_rgba(0,0,0,0.32)] sm:h-32 sm:p-2`}>
       <div className="absolute inset-1 rounded-[12px] border border-[#7C2D12]/10 bg-white/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]" />
       <img
         src={imageSrc}
@@ -1387,7 +1387,7 @@ function DominoPiece({ tile }: { tile: LocalTableDominoTile }) {
   const imageSrc = `/game-art/pai-gow/Domino-${tile.pips[0]}+${tile.pips[1]}.svg`;
 
   return (
-    <div className="local-table-domino-piece relative flex h-20 min-w-0 items-center justify-center overflow-hidden rounded-[14px] border border-white/12 bg-[#101827] p-1.5 shadow-[0_12px_24px_rgba(0,0,0,0.22)] sm:h-32 sm:p-2">
+    <div className="local-table-domino-piece relative flex h-20 min-w-0 items-center justify-center overflow-hidden rounded-[14px] border p-1.5 shadow-[0_12px_24px_rgba(0,0,0,0.22)] sm:h-32 sm:p-2">
       <img
         src={imageSrc}
         alt={tile.name}

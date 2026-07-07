@@ -29,7 +29,48 @@
   }
 
   .local-table-stage-panel {
+    --local-table-accent: #f97316;
+    --local-table-glow: #fde68a;
+    --local-table-felt: #111827;
     isolation: isolate;
+  }
+
+  .local-table-hand-panel {
+    position: relative;
+    overflow: hidden;
+    border-color: color-mix(in srgb, var(--local-table-glow) 18%, rgba(255, 255, 255, 0.12));
+    background:
+      radial-gradient(circle at 72% 0%, color-mix(in srgb, var(--local-table-glow) 12%, transparent), transparent 30%),
+      linear-gradient(135deg, color-mix(in srgb, var(--local-table-felt) 42%, rgba(0, 0, 0, 0.36)), rgba(0, 0, 0, 0.24));
+  }
+
+  .local-table-hand-panel--player {
+    border-color: color-mix(in srgb, var(--local-table-glow) 34%, rgba(255, 255, 255, 0.12));
+    background:
+      radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--local-table-glow) 16%, transparent), transparent 34%),
+      linear-gradient(135deg, color-mix(in srgb, var(--local-table-glow) 10%, rgba(0, 0, 0, 0.38)), rgba(0, 0, 0, 0.24));
+  }
+
+  .local-table-hand-panel--banker {
+    border-color: color-mix(in srgb, var(--local-table-accent) 30%, rgba(255, 255, 255, 0.12));
+    background:
+      radial-gradient(circle at 82% 12%, color-mix(in srgb, var(--local-table-accent) 18%, transparent), transparent 34%),
+      linear-gradient(135deg, color-mix(in srgb, var(--local-table-accent) 12%, rgba(0, 0, 0, 0.38)), rgba(0, 0, 0, 0.24));
+  }
+
+  .local-table-card-piece {
+    border-color: color-mix(in srgb, var(--local-table-glow) 46%, rgba(255, 255, 255, 0.72));
+    background:
+      radial-gradient(circle at 82% 12%, color-mix(in srgb, var(--local-table-glow) 18%, transparent), transparent 34%),
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, #ffffff 90%, var(--local-table-glow) 10%) 0%,
+        color-mix(in srgb, #fff7e6 78%, var(--local-table-accent) 22%) 100%
+      );
+  }
+
+  .local-table-card-piece__rim {
+    border-color: color-mix(in srgb, var(--local-table-glow) 44%, transparent);
   }
 
   .local-table-stage-panel::before {
@@ -246,10 +287,10 @@
     inset: 0;
     z-index: 2;
     border-radius: 14px;
-    border: 1px solid rgba(253, 230, 138, 0.72);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 70%, rgba(255, 255, 255, 0.18));
     background:
-      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.18), transparent 28%),
-      linear-gradient(135deg, #7c2d12, #111827 54%, #0f172a);
+      radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--local-table-glow) 22%, transparent), transparent 28%),
+      linear-gradient(135deg, color-mix(in srgb, var(--local-table-accent) 62%, #111827), #111827 54%, color-mix(in srgb, var(--local-table-felt) 72%, #020617));
     box-shadow:
       inset 0 0 0 2px rgba(255, 255, 255, 0.08),
       0 14px 30px rgba(0, 0, 0, 0.32);
@@ -261,15 +302,32 @@
     position: absolute;
     inset: 15%;
     border-radius: 10px;
-    border: 1px solid rgba(253, 230, 138, 0.48);
-    background: radial-gradient(circle, rgba(253, 230, 138, 0.24), transparent 54%);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 48%, transparent);
+    background: radial-gradient(circle, color-mix(in srgb, var(--local-table-glow) 24%, transparent), transparent 54%);
+  }
+
+  .local-table-tube-piece {
+    border-color: color-mix(in srgb, var(--local-table-glow) 55%, rgba(255, 255, 255, 0.2));
+    background:
+      radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.52), transparent 25%),
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, #fffbea 82%, var(--local-table-glow) 18%) 0%,
+        color-mix(in srgb, #f7e2a0 70%, var(--local-table-accent) 30%) 44%,
+        color-mix(in srgb, #d6a83f 54%, var(--local-table-felt) 46%) 100%
+      );
   }
 
   .local-table-tube-piece--white {
-    border-color: rgba(253, 230, 138, 0.78);
+    border-color: color-mix(in srgb, var(--local-table-glow) 78%, rgba(255, 255, 255, 0.18));
     background:
       radial-gradient(circle at 48% 18%, rgba(255, 255, 255, 0.88), transparent 24%),
-      linear-gradient(145deg, #fff7d6 0%, #f6d77c 45%, #b7791f 100%);
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, #fff7d6 84%, var(--local-table-glow) 16%) 0%,
+        color-mix(in srgb, #f6d77c 70%, var(--local-table-accent) 30%) 45%,
+        color-mix(in srgb, #b7791f 64%, var(--local-table-felt) 36%) 100%
+      );
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.36),
       inset 0 0 0 4px rgba(120, 53, 15, 0.12),
@@ -298,12 +356,12 @@
     gap: clamp(10px, 1.8vw, 16px);
     overflow: hidden;
     border-radius: 22px;
-    border: 1px solid rgba(253, 230, 138, 0.2);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 22%, transparent);
     padding: clamp(12px, 2vw, 18px);
     background:
-      radial-gradient(circle at 50% 36%, rgba(253, 230, 138, 0.16), transparent 30%),
-      radial-gradient(circle at 14% 80%, rgba(16, 185, 129, 0.18), transparent 28%),
-      linear-gradient(160deg, rgba(3, 22, 18, 0.74), rgba(5, 10, 18, 0.86));
+      radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--local-table-glow) 16%, transparent), transparent 30%),
+      radial-gradient(circle at 14% 80%, color-mix(in srgb, var(--local-table-accent) 18%, transparent), transparent 28%),
+      linear-gradient(160deg, color-mix(in srgb, var(--local-table-felt) 70%, rgba(0, 0, 0, 0.28)), rgba(5, 10, 18, 0.86));
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
       inset 0 -18px 42px rgba(0, 0, 0, 0.22),
@@ -316,9 +374,9 @@
     inset: 10px;
     z-index: -1;
     border-radius: 19px;
-    border: 1px solid rgba(253, 230, 138, 0.12);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 12%, transparent);
     background:
-      linear-gradient(90deg, transparent, rgba(253, 230, 138, 0.08), transparent),
+      linear-gradient(90deg, transparent, color-mix(in srgb, var(--local-table-glow) 8%, transparent), transparent),
       repeating-linear-gradient(
         115deg,
         rgba(255, 255, 255, 0.025) 0 1px,
@@ -333,9 +391,9 @@
     min-width: 54px;
     place-items: center;
     border-radius: 999px;
-    border: 1px solid rgba(253, 230, 138, 0.34);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 34%, transparent);
     background: rgba(0, 0, 0, 0.32);
-    color: rgba(253, 230, 138, 0.94);
+    color: color-mix(in srgb, var(--local-table-glow) 94%, white 6%);
     font-size: 12px;
     font-weight: 1000;
     letter-spacing: 0.18em;
@@ -358,23 +416,23 @@
   }
 
   .tui-tongzi-lane--banker {
-    border-color: rgba(147, 197, 253, 0.24);
+    border-color: color-mix(in srgb, var(--local-table-accent) 24%, rgba(255, 255, 255, 0.1));
     background:
-      radial-gradient(circle at 15% 15%, rgba(147, 197, 253, 0.16), transparent 28%),
+      radial-gradient(circle at 15% 15%, color-mix(in srgb, var(--local-table-accent) 16%, transparent), transparent 28%),
       linear-gradient(135deg, rgba(5, 20, 31, 0.66), rgba(0, 0, 0, 0.24));
   }
 
   .tui-tongzi-lane--player {
-    border-color: rgba(253, 230, 138, 0.28);
+    border-color: color-mix(in srgb, var(--local-table-glow) 28%, rgba(255, 255, 255, 0.1));
     background:
-      radial-gradient(circle at 82% 16%, rgba(253, 230, 138, 0.18), transparent 28%),
+      radial-gradient(circle at 82% 16%, color-mix(in srgb, var(--local-table-glow) 18%, transparent), transparent 28%),
       linear-gradient(135deg, rgba(62, 37, 8, 0.54), rgba(0, 0, 0, 0.22));
   }
 
   .tui-tongzi-lane--active {
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      0 0 0 1px rgba(253, 230, 138, 0.18),
+      0 0 0 1px color-mix(in srgb, var(--local-table-glow) 18%, transparent),
       0 18px 38px rgba(0, 0, 0, 0.22);
   }
 
@@ -404,10 +462,10 @@
   .tui-tongzi-lane__rank {
     max-width: 44%;
     border-radius: 12px;
-    border: 1px solid rgba(253, 230, 138, 0.22);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 22%, transparent);
     background: rgba(0, 0, 0, 0.28);
     padding: 7px 10px;
-    color: #fde68a;
+    color: var(--local-table-glow);
     font-size: 13px;
     font-weight: 1000;
     line-height: 1.15;
@@ -447,16 +505,16 @@
     place-items: center;
     overflow: hidden;
     border-radius: 14px;
-    border: 1px solid rgba(253, 230, 138, 0.5);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 50%, transparent);
     background:
-      radial-gradient(circle at 50% 42%, rgba(253, 230, 138, 0.2), transparent 34%),
+      radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--local-table-glow) 20%, transparent), transparent 34%),
       repeating-linear-gradient(
         135deg,
-        rgba(253, 230, 138, 0.16) 0 7px,
-        rgba(120, 53, 15, 0.28) 7px 14px
+        color-mix(in srgb, var(--local-table-glow) 16%, transparent) 0 7px,
+        color-mix(in srgb, var(--local-table-accent) 28%, rgba(0, 0, 0, 0.28)) 7px 14px
       ),
-      linear-gradient(145deg, #7c2d12, #111827 58%, #07111f);
-    color: #fde68a;
+      linear-gradient(145deg, color-mix(in srgb, var(--local-table-accent) 64%, #111827), #111827 58%, color-mix(in srgb, var(--local-table-felt) 72%, #07111f));
+    color: var(--local-table-glow);
     box-shadow:
       inset 0 0 0 2px rgba(255, 255, 255, 0.08),
       inset 0 0 0 6px rgba(0, 0, 0, 0.12),
@@ -470,11 +528,11 @@
 
   .tui-tongzi-hidden-tile:not(:disabled):hover {
     transform: translateY(-2px);
-    border-color: rgba(253, 230, 138, 0.92);
+    border-color: color-mix(in srgb, var(--local-table-glow) 92%, rgba(255, 255, 255, 0.18));
     box-shadow:
       inset 0 0 0 2px rgba(255, 255, 255, 0.1),
       inset 0 0 0 6px rgba(0, 0, 0, 0.1),
-      0 0 0 1px rgba(253, 230, 138, 0.24),
+      0 0 0 1px color-mix(in srgb, var(--local-table-glow) 24%, transparent),
       0 18px 34px rgba(0, 0, 0, 0.34);
     filter: brightness(1.08);
   }
@@ -492,7 +550,7 @@
     position: absolute;
     inset: 7px;
     border-radius: 10px;
-    border: 1px solid rgba(253, 230, 138, 0.2);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 20%, transparent);
     background:
       linear-gradient(115deg, transparent 0 38%, rgba(255, 255, 255, 0.2) 45%, transparent 52%),
       radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.18), transparent 28%);
@@ -506,7 +564,7 @@
     width: 34px;
     place-items: center;
     border-radius: 999px;
-    border: 2px solid rgba(253, 230, 138, 0.78);
+    border: 2px solid color-mix(in srgb, var(--local-table-glow) 78%, rgba(255, 255, 255, 0.12));
     background: rgba(0, 0, 0, 0.28);
     font-size: 17px;
     font-weight: 1000;
@@ -545,8 +603,8 @@
   }
 
   .local-table-stage-panel--black-dot .local-table-result-card {
-    border-color: rgba(253, 230, 138, 0.22);
-    background: linear-gradient(135deg, rgba(6, 12, 24, 0.82), rgba(12, 9, 19, 0.76));
+    border-color: color-mix(in srgb, var(--local-table-glow) 22%, transparent);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--local-table-felt) 60%, rgba(6, 12, 24, 0.82)), rgba(12, 9, 19, 0.76));
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
       0 14px 28px rgba(0, 0, 0, 0.18);
@@ -557,15 +615,15 @@
     isolation: isolate;
     overflow: hidden;
     border-radius: 20px;
-    border: 1px solid rgba(253, 230, 138, 0.22);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 22%, transparent);
     padding: clamp(9px, 2.2vw, 14px);
     background:
-      radial-gradient(circle at 50% 6%, rgba(253, 230, 138, 0.2), transparent 24%),
-      radial-gradient(circle at 14% 34%, rgba(56, 189, 248, 0.14), transparent 32%),
-      linear-gradient(150deg, rgba(4, 10, 22, 0.9), rgba(9, 16, 31, 0.84) 52%, rgba(4, 7, 15, 0.92));
+      radial-gradient(circle at 50% 6%, color-mix(in srgb, var(--local-table-glow) 20%, transparent), transparent 24%),
+      radial-gradient(circle at 14% 34%, color-mix(in srgb, var(--local-table-accent) 14%, transparent), transparent 32%),
+      linear-gradient(150deg, color-mix(in srgb, var(--local-table-felt) 72%, rgba(4, 10, 22, 0.9)), rgba(9, 16, 31, 0.84) 52%, rgba(4, 7, 15, 0.92));
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-      inset 0 24px 60px rgba(253, 230, 138, 0.05),
+      inset 0 24px 60px color-mix(in srgb, var(--local-table-glow) 5%, transparent),
       0 18px 40px rgba(0, 0, 0, 0.24);
   }
 
@@ -576,9 +634,9 @@
     inset: 8px;
     z-index: -1;
     border-radius: 18px;
-    border: 1px solid rgba(253, 230, 138, 0.18);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 18%, transparent);
     background:
-      linear-gradient(90deg, transparent, rgba(253, 230, 138, 0.08), transparent),
+      linear-gradient(90deg, transparent, color-mix(in srgb, var(--local-table-glow) 8%, transparent), transparent),
       repeating-linear-gradient(
         90deg,
         rgba(255, 255, 255, 0.025) 0 1px,
@@ -594,8 +652,8 @@
     z-index: -1;
     height: 52%;
     background:
-      radial-gradient(circle at 50% 50%, rgba(253, 230, 138, 0.22), transparent 42%),
-      radial-gradient(circle at 30% 55%, rgba(147, 197, 253, 0.12), transparent 34%);
+      radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--local-table-glow) 22%, transparent), transparent 42%),
+      radial-gradient(circle at 30% 55%, color-mix(in srgb, var(--local-table-accent) 12%, transparent), transparent 34%);
     opacity: 0.84;
     transform: rotate(-2deg);
   }
@@ -612,11 +670,11 @@
     min-width: 42px;
     place-items: center;
     border-radius: 999px;
-    border: 1px solid rgba(253, 230, 138, 0.32);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 32%, transparent);
     background:
-      radial-gradient(circle, rgba(253, 230, 138, 0.18), transparent 60%),
+      radial-gradient(circle, color-mix(in srgb, var(--local-table-glow) 18%, transparent), transparent 60%),
       rgba(0, 0, 0, 0.28);
-    color: rgba(253, 230, 138, 0.92);
+    color: color-mix(in srgb, var(--local-table-glow) 92%, white 8%);
     font-size: 12px;
     font-weight: 1000;
     letter-spacing: 0.12em;
@@ -632,13 +690,13 @@
   }
 
   .black-dot-score-pill--player {
-    border-color: rgba(253, 230, 138, 0.26);
-    background: linear-gradient(135deg, rgba(253, 230, 138, 0.1), rgba(0, 0, 0, 0.26));
+    border-color: color-mix(in srgb, var(--local-table-glow) 26%, transparent);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--local-table-glow) 10%, transparent), rgba(0, 0, 0, 0.26));
   }
 
   .black-dot-score-pill--banker {
-    border-color: rgba(147, 197, 253, 0.22);
-    background: linear-gradient(135deg, rgba(147, 197, 253, 0.09), rgba(0, 0, 0, 0.26));
+    border-color: color-mix(in srgb, var(--local-table-accent) 22%, transparent);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--local-table-accent) 9%, transparent), rgba(0, 0, 0, 0.26));
   }
 
   .black-dot-score-pill span,
@@ -669,7 +727,7 @@
     min-width: 0;
     margin-top: 2px;
     overflow: hidden;
-    color: rgba(253, 230, 138, 0.86);
+    color: color-mix(in srgb, var(--local-table-glow) 86%, white 14%);
     font-size: 11px;
     font-style: normal;
     font-weight: 900;
@@ -692,7 +750,7 @@
     border-radius: 18px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background:
-      radial-gradient(circle at 70% 0%, rgba(253, 230, 138, 0.1), transparent 34%),
+      radial-gradient(circle at 70% 0%, color-mix(in srgb, var(--local-table-glow) 10%, transparent), transparent 34%),
       rgba(2, 8, 18, 0.66);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.07),
@@ -702,12 +760,12 @@
 
   .black-dot-seat--player,
   .black-dot-rack--player {
-    border-color: rgba(253, 230, 138, 0.25);
+    border-color: color-mix(in srgb, var(--local-table-glow) 25%, transparent);
   }
 
   .black-dot-seat--banker,
   .black-dot-rack--banker {
-    border-color: rgba(147, 197, 253, 0.2);
+    border-color: color-mix(in srgb, var(--local-table-accent) 20%, transparent);
   }
 
   .black-dot-seat__header {
@@ -756,7 +814,7 @@
   }
 
   .black-dot-mound__header span {
-    color: rgba(253, 230, 138, 0.82);
+    color: color-mix(in srgb, var(--local-table-glow) 82%, white 18%);
     letter-spacing: 0.08em;
   }
 
@@ -815,7 +873,7 @@
     min-width: 0;
     margin-top: 3px;
     overflow: hidden;
-    color: rgba(253, 230, 138, 0.82);
+    color: color-mix(in srgb, var(--local-table-glow) 82%, white 18%);
     font-size: 11px;
     font-style: normal;
     font-weight: 900;
@@ -839,12 +897,12 @@
 
   .black-dot-table .local-table-domino-piece {
     height: clamp(78px, 16vw, 112px);
-    border-color: rgba(253, 230, 138, 0.2);
+    border-color: color-mix(in srgb, var(--local-table-glow) 20%, transparent);
     border-radius: 13px;
     background:
       radial-gradient(circle at 32% 20%, rgba(255, 255, 255, 0.12), transparent 18%),
-      radial-gradient(circle at 78% 74%, rgba(56, 189, 248, 0.1), transparent 22%),
-      linear-gradient(150deg, #182235 0%, #060b12 54%, #111827 100%);
+      radial-gradient(circle at 78% 74%, color-mix(in srgb, var(--local-table-accent) 10%, transparent), transparent 22%),
+      linear-gradient(150deg, color-mix(in srgb, var(--local-table-accent) 24%, #182235) 0%, #060b12 54%, color-mix(in srgb, var(--local-table-felt) 66%, #111827) 100%);
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.045),
       inset 0 10px 20px rgba(255, 255, 255, 0.035),
@@ -869,10 +927,10 @@
     max-width: calc(100% - 10px);
     overflow: hidden;
     border-radius: 999px;
-    border: 1px solid rgba(253, 230, 138, 0.18);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 18%, transparent);
     background: rgba(0, 0, 0, 0.5);
     padding: 2px 5px;
-    color: rgba(253, 230, 138, 0.9);
+    color: color-mix(in srgb, var(--local-table-glow) 90%, white 10%);
     font-size: 9px;
     font-weight: 1000;
     letter-spacing: 0.03em;
@@ -885,10 +943,10 @@
     min-width: 0;
     height: clamp(78px, 16vw, 112px);
     border-radius: 13px;
-    border: 1px solid rgba(253, 230, 138, 0.22);
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 22%, transparent);
     background:
-      radial-gradient(circle at 50% 45%, rgba(253, 230, 138, 0.22), transparent 24%),
-      linear-gradient(135deg, rgba(120, 53, 15, 0.92), rgba(8, 13, 24, 0.98) 58%, rgba(15, 23, 42, 0.96));
+      radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--local-table-glow) 22%, transparent), transparent 24%),
+      linear-gradient(135deg, color-mix(in srgb, var(--local-table-accent) 58%, rgba(8, 13, 24, 0.98)), rgba(8, 13, 24, 0.98) 58%, color-mix(in srgb, var(--local-table-felt) 62%, rgba(15, 23, 42, 0.96)));
     box-shadow:
       inset 0 0 0 2px rgba(255, 255, 255, 0.05),
       0 10px 18px rgba(0, 0, 0, 0.32);

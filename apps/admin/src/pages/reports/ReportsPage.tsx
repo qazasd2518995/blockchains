@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { HierarchyReportResponse, HierarchyReportItem } from '@bg/shared';
-import { BACCARAT_GAME_IDS, GameId } from '@bg/shared';
+import { BACCARAT_GAME_IDS, GameId, LOCAL_TABLE_GAME_IDS } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { getAdminGameOptionLabel } from '@/lib/gameDisplay';
 import { getCurrentGameDay, shiftGameDay, startOfGameWeek } from '@/lib/gameDay';
@@ -15,7 +15,10 @@ import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
 /**
  * 報表統計（18 欄混合階層下鑽）— 對齊 Bet/agent 原版
  */
-const HIDDEN_ADMIN_GAME_IDS = new Set<string>(BACCARAT_GAME_IDS);
+const HIDDEN_ADMIN_GAME_IDS = new Set<string>([
+  ...BACCARAT_GAME_IDS,
+  ...LOCAL_TABLE_GAME_IDS,
+]);
 const REPORT_GAME_OPTIONS = Object.values(GameId).filter((id) => !HIDDEN_ADMIN_GAME_IDS.has(id));
 
 export function ReportsPage(): JSX.Element {

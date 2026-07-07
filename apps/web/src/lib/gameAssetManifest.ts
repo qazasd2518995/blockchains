@@ -88,6 +88,22 @@ const BLACK_DOT_GAME_IDS = new Set([
   'black-dot-shadow',
   'black-dot-gold',
 ]);
+const LOCAL_TABLE_STAGE_ART: Partial<Record<string, string>> = {
+  'twenty-one-half-doll': '/game-art/local-table/stages/rooms/ten-half-doll-stage.webp',
+  'twenty-one-half-bunny': '/game-art/local-table/stages/rooms/ten-half-bunny-stage.webp',
+  'twenty-one-half-star': '/game-art/local-table/stages/rooms/ten-half-star-stage.webp',
+  'tui-tongzi-dragon': '/game-art/local-table/stages/rooms/tui-tongzi-dragon-stage.webp',
+  'tui-tongzi-lion': '/game-art/local-table/stages/rooms/tui-tongzi-lion-stage.webp',
+  'tui-tongzi-jade': '/game-art/local-table/stages/rooms/tui-tongzi-jade-stage.webp',
+  'tui-tongzi-neon': '/game-art/local-table/stages/rooms/tui-tongzi-neon-stage.webp',
+  'tui-tongzi-gold': '/game-art/local-table/stages/rooms/tui-tongzi-gold-stage.webp',
+  'black-dot-tianjiu': '/game-art/local-table/stages/rooms/black-dot-tianjiu-stage.webp',
+  'black-dot-royal': '/game-art/local-table/stages/rooms/black-dot-royal-stage.webp',
+  'black-dot-street': '/game-art/local-table/stages/rooms/black-dot-street-stage.webp',
+  'black-dot-shadow': '/game-art/local-table/stages/rooms/black-dot-shadow-stage.webp',
+  'black-dot-gold': '/game-art/local-table/stages/rooms/black-dot-gold-stage.webp',
+  'card-war': '/game-art/local-table/stages/rooms/card-war-stage.webp',
+};
 const MAHJONG_TILE_ASSETS = [
   '/game-art/mahjong/WhiteDragon.svg',
   ...Array.from({ length: 9 }, (_, index) => `/game-art/mahjong/Pin${index + 1}.svg`),
@@ -274,6 +290,8 @@ function localTableGame(gameId: string): GameAssetManifest {
 }
 
 function localTableStageArt(gameId: string): string {
+  const roomStage = LOCAL_TABLE_STAGE_ART[gameId];
+  if (roomStage) return roomStage;
   if (TUI_TONGZI_GAME_IDS.has(gameId)) return '/game-art/local-table/stages/tui-tongzi-stage.webp';
   if (BLACK_DOT_GAME_IDS.has(gameId)) return '/game-art/local-table/stages/black-dot-stage.webp';
   if (gameId === 'card-war') return '/game-art/local-table/stages/card-war-stage.webp';

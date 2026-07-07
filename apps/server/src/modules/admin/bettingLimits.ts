@@ -1,4 +1,5 @@
 import {
+  BETTING_LIMIT_MANAGED_GAME_IDS,
   GAMES_REGISTRY,
   normalizeBettingLimitRangeKey,
   normalizeBettingLimitsByGame,
@@ -9,9 +10,7 @@ import {
 } from '@bg/shared';
 import { ApiError } from '../../utils/errors.js';
 
-const GAME_IDS = Object.values(GAMES_REGISTRY)
-  .filter((game) => game.enabled)
-  .map((game) => game.id);
+const GAME_IDS = [...BETTING_LIMIT_MANAGED_GAME_IDS];
 
 export function normalizeStoredBettingLimits(
   limits: unknown,

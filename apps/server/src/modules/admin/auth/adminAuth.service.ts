@@ -1,11 +1,7 @@
 import bcrypt from 'bcrypt';
 import { PrismaClient, Prisma } from '@prisma/client';
 import type { FastifyRequest } from 'fastify';
-import {
-  normalizeBettingLimitsByGame,
-  type AdminCaptchaResponse,
-  type AgentPublic,
-} from '@bg/shared';
+import { type AdminCaptchaResponse, type AgentPublic } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
 import { config } from '../../../config.js';
 import { randomBytes, createHash } from 'node:crypto';
@@ -20,6 +16,7 @@ import {
   generateTotpSecret,
   verifyTotp,
 } from './totp.js';
+import { normalizeStoredBettingLimits } from '../bettingLimits.js';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -252,7 +249,7 @@ export class AdminAuthService {
       baccaratRebatePercentage: agent.baccaratRebatePercentage.toFixed(4),
       maxBaccaratRebatePercentage: agent.maxBaccaratRebatePercentage.toFixed(4),
       bettingLimitLevel: agent.bettingLimitLevel,
-      bettingLimits: normalizeBettingLimitsByGame(agent.bettingLimits),
+      bettingLimits: normalizeStoredBettingLimits(agent.bettingLimits, agent.bettingLimitLevel),
       status: agent.status,
       role: agent.role,
       notes: agent.notes,

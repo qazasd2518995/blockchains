@@ -4,6 +4,7 @@ import {
   GameId,
   GAMES_REGISTRY,
   SLOT_GAME_IDS,
+  isBettingLimitManagedGameId,
   normalizeBettingLimitRangeKey,
   normalizeBettingLimitsByGame,
   resolveBettingLimitRange,
@@ -27,7 +28,7 @@ interface Props {
 }
 
 export const BETTING_LIMIT_ENABLED_GAMES = Object.values(GAMES_REGISTRY).filter(
-  (game) => game.enabled,
+  (game) => isBettingLimitManagedGameId(game.id),
 );
 
 const CRASH_LIMIT_GAME_IDS = [

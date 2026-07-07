@@ -56,5 +56,7 @@ export function isAdminLocalTableGame(gameId: string): boolean {
 }
 
 export function getEnabledAdminGames() {
-  return Object.values(GAMES_REGISTRY).filter((game) => game.enabled);
+  return Object.values(GAMES_REGISTRY).filter(
+    (game) => game.enabled && !isAdminLocalTableGame(game.id),
+  );
 }
