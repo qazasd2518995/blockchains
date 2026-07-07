@@ -576,17 +576,17 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                 )}
               </div>
             ) : (
-              <div className="relative z-10 mt-3 grid gap-3 sm:mt-4 sm:gap-4 xl:grid-cols-2">
+              <div className="relative z-10 mt-3 grid gap-3 sm:mt-4 sm:gap-4">
                 {displayRound ? (
-                <>
-                  <HandPanel hand={displayRound.player} tone="player" active={tableActive} />
-                  <HandPanel hand={displayRound.banker} tone="banker" active={tableActive} />
-                </>
+                  <>
+                    <HandPanel hand={displayRound.banker} tone="banker" active={tableActive} />
+                    <HandPanel hand={displayRound.player} tone="player" active={tableActive} />
+                  </>
                 ) : (
-                <>
-                  <EmptyHand title="閒家" busy={busy} />
-                  <EmptyHand title="莊家" busy={busy} />
-                </>
+                  <>
+                    <EmptyHand title="莊家" busy={busy} />
+                    <EmptyHand title="閒家" busy={busy} />
+                  </>
                 )}
               </div>
             )}
