@@ -361,6 +361,218 @@
     filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.22));
   }
 
+  .card-war-board {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    gap: clamp(10px, 1.8vw, 16px);
+    overflow: hidden;
+    border-radius: 22px;
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 22%, transparent);
+    padding: clamp(12px, 2vw, 18px);
+    background:
+      radial-gradient(circle at 50% 44%, color-mix(in srgb, var(--local-table-glow) 10%, transparent), transparent 34%),
+      radial-gradient(circle at 15% 18%, color-mix(in srgb, var(--local-table-accent) 10%, transparent), transparent 28%),
+      linear-gradient(160deg, rgba(5, 10, 18, 0.3), rgba(5, 10, 18, 0.48));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -18px 42px rgba(0, 0, 0, 0.22),
+      0 18px 38px rgba(0, 0, 0, 0.22);
+  }
+
+  .card-war-board__felt {
+    pointer-events: none;
+    position: absolute;
+    inset: 8px;
+    z-index: -1;
+    border-radius: 18px;
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 12%, transparent);
+    background:
+      linear-gradient(90deg, transparent, color-mix(in srgb, var(--local-table-glow) 7%, transparent), transparent),
+      repeating-linear-gradient(
+        108deg,
+        rgba(255, 255, 255, 0.035) 0 1px,
+        transparent 1px 11px
+      );
+    opacity: 0.62;
+  }
+
+  .card-war-board__versus {
+    justify-self: center;
+    display: inline-flex;
+    min-height: 34px;
+    min-width: 62px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 34%, transparent);
+    background: rgba(2, 6, 23, 0.56);
+    color: color-mix(in srgb, var(--local-table-glow) 94%, white 6%);
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: 0.18em;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .card-war-seat {
+    position: relative;
+    display: grid;
+    min-height: clamp(132px, 20vw, 190px);
+    grid-template-columns: minmax(0, 1fr) minmax(92px, clamp(112px, 15vw, 146px));
+    align-items: center;
+    gap: clamp(12px, 2vw, 18px);
+    overflow: hidden;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: clamp(12px, 2vw, 18px);
+    background:
+      radial-gradient(circle at 80% 50%, color-mix(in srgb, var(--local-table-glow) 12%, transparent), transparent 28%),
+      linear-gradient(135deg, rgba(8, 14, 27, 0.72), rgba(8, 14, 27, 0.48));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 14px 30px rgba(0, 0, 0, 0.2);
+  }
+
+  .card-war-seat--banker {
+    border-color: color-mix(in srgb, var(--local-table-accent) 24%, rgba(255, 255, 255, 0.1));
+    background:
+      radial-gradient(circle at 85% 50%, color-mix(in srgb, var(--local-table-accent) 14%, transparent), transparent 32%),
+      linear-gradient(135deg, rgba(25, 13, 10, 0.56), rgba(8, 14, 27, 0.5));
+  }
+
+  .card-war-seat--player {
+    border-color: color-mix(in srgb, var(--local-table-glow) 28%, rgba(255, 255, 255, 0.1));
+    background:
+      radial-gradient(circle at 82% 50%, color-mix(in srgb, var(--local-table-glow) 12%, transparent), transparent 32%),
+      linear-gradient(135deg, rgba(10, 25, 38, 0.58), rgba(8, 14, 27, 0.5));
+  }
+
+  .card-war-seat--active {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 0 0 1px color-mix(in srgb, var(--local-table-glow) 14%, transparent),
+      0 16px 34px rgba(0, 0, 0, 0.24);
+  }
+
+  .card-war-seat__copy {
+    min-width: 0;
+  }
+
+  .card-war-seat__eyebrow {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: 0.14em;
+  }
+
+  .card-war-seat__score {
+    margin-top: 0.28rem;
+    color: #fff;
+    font-size: clamp(24px, 3.6vw, 40px);
+    font-weight: 950;
+    line-height: 1;
+    text-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
+  }
+
+  .card-war-seat__hint {
+    margin-top: 0.48rem;
+    color: color-mix(in srgb, var(--local-table-glow) 88%, white 12%);
+    font-size: 13px;
+    font-weight: 850;
+    line-height: 1.25;
+  }
+
+  .card-war-seat__card {
+    display: flex;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+
+  .card-war-seat__card .local-table-piece-shell {
+    width: clamp(92px, 15vw, 136px);
+    max-width: clamp(92px, 15vw, 136px);
+  }
+
+  .card-war-seat__card .local-table-piece-flipper,
+  .card-war-seat__card .local-table-piece-face {
+    width: 100%;
+  }
+
+  .card-war-hidden-card {
+    position: relative;
+    display: grid;
+    width: clamp(92px, 15vw, 136px);
+    aspect-ratio: 5 / 7;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 60%, rgba(255, 255, 255, 0.18));
+    background:
+      radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--local-table-glow) 24%, transparent), transparent 34%),
+      repeating-linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--local-table-accent) 32%, rgba(0, 0, 0, 0.22)) 0 8px,
+        color-mix(in srgb, var(--local-table-felt) 66%, rgba(0, 0, 0, 0.62)) 8px 16px
+      ),
+      linear-gradient(145deg, color-mix(in srgb, var(--local-table-accent) 62%, #111827), #111827 58%, color-mix(in srgb, var(--local-table-felt) 72%, #07111f));
+    color: var(--local-table-glow);
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 255, 255, 0.08),
+      0 14px 30px rgba(0, 0, 0, 0.32);
+    transform-origin: center;
+  }
+
+  .card-war-hidden-card:not(:disabled) {
+    cursor: pointer;
+  }
+
+  .card-war-hidden-card:not(:disabled):hover {
+    transform: translateY(-2px) scale(1.02);
+    border-color: color-mix(in srgb, var(--local-table-glow) 86%, rgba(255, 255, 255, 0.2));
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 255, 255, 0.1),
+      0 0 0 1px color-mix(in srgb, var(--local-table-glow) 22%, transparent),
+      0 18px 34px rgba(0, 0, 0, 0.34);
+  }
+
+  .card-war-hidden-card:disabled {
+    cursor: default;
+    opacity: 0.82;
+  }
+
+  .card-war-hidden-card--active:not(:disabled) {
+    animation: tui-tongzi-hidden-pulse 980ms ease-in-out infinite alternate;
+  }
+
+  .card-war-hidden-card__shine {
+    position: absolute;
+    inset: 9px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 22%, transparent);
+    background: linear-gradient(118deg, rgba(255, 255, 255, 0.2), transparent 38%, rgba(255, 255, 255, 0.08));
+  }
+
+  .card-war-hidden-card__mark {
+    position: relative;
+    z-index: 1;
+    font-size: clamp(28px, 5vw, 44px);
+    font-weight: 950;
+    line-height: 1;
+    text-shadow: 0 0 18px color-mix(in srgb, var(--local-table-glow) 50%, transparent);
+  }
+
+  .card-war-hidden-card__label {
+    position: absolute;
+    right: 0.65rem;
+    bottom: 0.55rem;
+    left: 0.65rem;
+    z-index: 1;
+    font-size: 10px;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-align: center;
+  }
+
   .tui-tongzi-board {
     position: relative;
     isolation: isolate;
@@ -2971,6 +3183,158 @@
     }
 
     .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-profit {
+      font-size: 22px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .game-play-grid--local-table {
+      gap: 0.24rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-stage-panel {
+      overflow: hidden !important;
+      padding: 0.4rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-stage-header {
+      gap: 0.35rem !important;
+      padding-bottom: 0.34rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-stage-header > div:first-child {
+      min-width: 0;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-stage-header .text-\[11px\] {
+      font-size: 9px !important;
+      letter-spacing: 0.1em !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-status-label {
+      margin-top: 0.12rem !important;
+      font-size: 22px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-stage-header > div:last-child {
+      border-radius: 11px !important;
+      padding: 0.26rem 0.5rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-stage-header .data-num {
+      font-size: 18px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-board {
+      gap: 0.28rem;
+      margin-top: 0.34rem !important;
+      border-radius: 15px;
+      padding: 0.36rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-board__felt {
+      inset: 5px;
+      border-radius: 12px;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-board__versus {
+      min-height: 22px;
+      min-width: 42px;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-seat {
+      min-height: 0;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.48rem;
+      border-radius: 14px;
+      padding: 0.5rem 0.58rem;
+      backdrop-filter: blur(5px);
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-seat__eyebrow {
+      font-size: 9.5px;
+      letter-spacing: 0.1em;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-seat__score {
+      margin-top: 0.16rem;
+      font-size: 23px;
+      line-height: 1;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-seat__hint {
+      margin-top: 0.2rem;
+      font-size: 10px;
+      line-height: 1.12;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-seat__card {
+      justify-content: flex-end;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-seat__card .local-table-piece-shell,
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-hidden-card {
+      width: clamp(56px, 17vw, 74px);
+      max-width: clamp(56px, 17vw, 74px);
+      border-radius: 11px;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-hidden-card__shine {
+      inset: 5px;
+      border-radius: 8px;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-hidden-card__mark {
+      font-size: 24px;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .card-war-hidden-card__label {
+      right: 0.35rem;
+      bottom: 0.34rem;
+      left: 0.35rem;
+      font-size: 8.5px;
+      letter-spacing: 0.03em;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-card-piece {
+      border-radius: 11px !important;
+      padding: 0.38rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-card-piece__rim {
+      border-radius: 11px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-card-piece .text-\[18px\] {
+      font-size: 15px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-card-piece .text-\[24px\] {
+      font-size: 22px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-result-card {
+      margin-top: 0.34rem !important;
+      border-radius: 13px !important;
+      padding: 0.52rem 0.62rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-result-card .text-\[11px\] {
+      font-size: 9px !important;
+      letter-spacing: 0.14em !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-result-card .text-\[16px\] {
+      font-size: 13px !important;
+      line-height: 1.18 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='card-war'] .local-table-profit {
       font-size: 22px !important;
       line-height: 1 !important;
     }

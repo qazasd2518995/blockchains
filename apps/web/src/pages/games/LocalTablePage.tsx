@@ -239,6 +239,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
   const isStagedTable = STAGED_TABLE_PAGE_IDS.has(gameId);
   const isTuiTongzi = TUI_TONGZI_GAME_IDS.includes(gameId as (typeof TUI_TONGZI_GAME_IDS)[number]);
   const isBlackDot = BLACK_DOT_GAME_IDS.includes(gameId as (typeof BLACK_DOT_GAME_IDS)[number]);
+  const isCardWar = gameId === GameId.CARD_WAR;
   const displayRound = isTwentyOneHalf ? tenHalfState : isStagedTable ? stagedState : result;
   const extraHands =
     displayRound && 'extraHands' in displayRound ? displayRound.extraHands : undefined;
@@ -582,6 +583,19 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                   <TuiTongziEmptyBoard busy={busy} />
                 )}
               </div>
+            ) : isCardWar ? (
+              <div className="relative z-10 mt-3 sm:mt-4">
+                {displayRound ? (
+                  <CardWarBoard
+                    round={displayRound as LocalTableRoundState}
+                    busy={busy}
+                    active={tableActive}
+                    onReveal={() => void handleStagedReveal()}
+                  />
+                ) : (
+                  <CardWarEmptyBoard busy={busy} />
+                )}
+              </div>
             ) : (
               <div className="local-table-hand-grid relative z-10 mt-3 grid gap-3 sm:mt-4 sm:gap-4">
                 {displayRound ? (
@@ -713,7 +727,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                 )}
               </div>
             ) : null}
-            {isStagedTable && !isTuiTongzi && !showInlineBlackDotSplit && stagedState?.status === 'ACTIVE' ? (
+            {isStagedTable && !isTuiTongzi && !isCardWar && !showInlineBlackDotSplit && stagedState?.status === 'ACTIVE' ? (
               <div className="local-table-action-panel mt-4 rounded-[16px] border border-[#93C5FD]/30 bg-[#93C5FD]/10 p-3">
                 <div className="text-[12px] font-bold leading-relaxed text-[#BFDBFE]">
                   {stagedActionHint(stagedState)}
@@ -851,6 +865,163 @@ function localTableStageStyle(theme: RoomTheme): CSSProperties {
     '--local-table-felt': theme.felt,
     background: `radial-gradient(circle at 18% 10%, ${theme.glow}55, transparent 30%), linear-gradient(135deg, ${theme.felt} 0%, #060B12 100%)`,
   } as CSSProperties;
+}
+
+function CardWarBoard({
+  round,
+  busy,
+  active,
+  onReveal,
+}: {
+  round: LocalTableRoundState;
+  busy: boolean;
+  active: boolean;
+  onReveal: () => void;
+}) {
+  const playerCanReveal =
+    round.status === 'ACTIVE' &&
+    round.stage === 'AWAIT_PLAYER_REVEAL' &&
+    round.canReveal &&
+    !busy;
+  const bankerCanReveal =
+    round.status === 'ACTIVE' &&
+    round.stage === 'AWAIT_BANKER_REVEAL' &&
+    round.canReveal &&
+    !busy;
+
+  return (
+    <div className={`card-war-board ${active ? 'card-war-board--active' : ''}`}>
+      <div className="card-war-board__felt" aria-hidden="true" />
+      <CardWarSeat
+        hand={round.banker}
+        tone="banker"
+        hiddenLabel="莊家蓋牌"
+        revealLabel="點莊家牌開牌"
+        revealable={bankerCanReveal}
+        active={active}
+        onReveal={bankerCanReveal ? onReveal : undefined}
+      />
+
+      <div className="card-war-board__versus" aria-hidden="true">
+        VS
+      </div>
+
+      <CardWarSeat
+        hand={round.player}
+        tone="player"
+        hiddenLabel="閒家蓋牌"
+        revealLabel="點閒家牌開牌"
+        revealable={playerCanReveal}
+        active={active}
+        onReveal={playerCanReveal ? onReveal : undefined}
+      />
+    </div>
+  );
+}
+
+function CardWarEmptyBoard({ busy }: { busy: boolean }) {
+  return (
+    <div className={`card-war-board card-war-board--empty ${busy ? 'card-war-board--active' : ''}`}>
+      <div className="card-war-board__felt" aria-hidden="true" />
+      <CardWarSeat
+        hand={emptyCardWarHand('莊家', '待入局')}
+        tone="banker"
+        hiddenLabel="莊家蓋牌"
+        revealLabel="等待入局"
+        active={busy}
+      />
+      <div className="card-war-board__versus" aria-hidden="true">
+        VS
+      </div>
+      <CardWarSeat
+        hand={emptyCardWarHand('閒家', '下注後可翻牌')}
+        tone="player"
+        hiddenLabel="閒家蓋牌"
+        revealLabel="下注後點牌"
+        active={busy}
+      />
+    </div>
+  );
+}
+
+function emptyCardWarHand(title: string, rankLabel: string): LocalTableHand {
+  return {
+    title,
+    pieces: [],
+    scoreLabel: '待入局',
+    rankLabel,
+  };
+}
+
+function CardWarSeat({
+  hand,
+  tone,
+  hiddenLabel,
+  revealLabel,
+  revealable = false,
+  active = false,
+  onReveal,
+}: {
+  hand: LocalTableHand;
+  tone: 'player' | 'banker';
+  hiddenLabel: string;
+  revealLabel: string;
+  revealable?: boolean;
+  active?: boolean;
+  onReveal?: () => void;
+}) {
+  const card = hand.pieces.find((piece): piece is LocalTableCard => piece.kind === 'card');
+  const visible = Boolean(card);
+
+  return (
+    <section className={`card-war-seat card-war-seat--${tone} ${active ? 'card-war-seat--active' : ''}`}>
+      <div className="card-war-seat__copy">
+        <div className="card-war-seat__eyebrow">{tone === 'banker' ? '莊家' : '閒家'}</div>
+        <div className="card-war-seat__score">{visible ? hand.scoreLabel : hiddenLabel}</div>
+        <div className="card-war-seat__hint">
+          {visible ? hand.rankLabel : revealLabel}
+        </div>
+      </div>
+      <div className="card-war-seat__card">
+        {card ? (
+          <PieceView piece={card} index={0} tone={tone} />
+        ) : (
+          <CardWarHiddenCard
+            label={revealLabel}
+            disabled={!revealable}
+            active={active && revealable}
+            onReveal={onReveal}
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function CardWarHiddenCard({
+  label,
+  disabled,
+  active,
+  onReveal,
+}: {
+  label: string;
+  disabled?: boolean;
+  active?: boolean;
+  onReveal?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`card-war-hidden-card ${active ? 'card-war-hidden-card--active' : ''}`}
+      disabled={disabled}
+      onClick={onReveal}
+      aria-label={label}
+    >
+      <span className="card-war-hidden-card__shine" aria-hidden="true" />
+      <span className="card-war-hidden-card__mark" aria-hidden="true">A</span>
+      <span className="card-war-hidden-card__label">{disabled ? '待翻' : '點擊翻牌'}</span>
+    </button>
+  );
 }
 
 function TuiTongziBoard({
