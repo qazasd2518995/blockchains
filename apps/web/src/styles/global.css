@@ -2830,6 +2830,151 @@
       height: 0;
     }
 
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .game-play-grid--local-table {
+      gap: 0.24rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-stage-panel {
+      overflow: hidden !important;
+      padding: 0.38rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-stage-header {
+      gap: 0.35rem !important;
+      padding-bottom: 0.34rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-stage-header > div:first-child {
+      min-width: 0;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-stage-header .text-\[11px\] {
+      font-size: 9px !important;
+      letter-spacing: 0.11em !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-status-label {
+      margin-top: 0.12rem !important;
+      font-size: 22px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-stage-header > div:last-child {
+      border-radius: 11px !important;
+      padding: 0.26rem 0.5rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-stage-header .data-num {
+      font-size: 18px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-board {
+      gap: 0.28rem;
+      margin-top: 0.34rem !important;
+      border-radius: 15px;
+      padding: 0.36rem;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-board__felt {
+      inset: 5px;
+      border-radius: 12px;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-board__versus {
+      min-height: 22px;
+      min-width: 42px;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-lane {
+      border-radius: 14px;
+      padding: 0.48rem 0.58rem;
+      backdrop-filter: blur(5px);
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-lane__header {
+      align-items: center;
+      gap: 0.42rem;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-lane__label {
+      font-size: 9.5px;
+      letter-spacing: 0.1em;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-lane__score {
+      margin-top: 0.16rem;
+      font-size: 22px;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-lane__rank {
+      max-width: 48%;
+      border-radius: 10px;
+      padding: 0.32rem 0.48rem;
+      font-size: 11px;
+      line-height: 1.05;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-lane__tiles {
+      gap: 0.38rem;
+      margin-top: 0.38rem;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-lane__detail {
+      margin-top: 0.32rem;
+      font-size: 10px;
+      line-height: 1.15;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-hidden-tile,
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-tile-slot .local-table-tube-piece {
+      height: clamp(54px, 14.6vw, 66px);
+      border-radius: 11px;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-mahjong-image {
+      height: 90%;
+      width: 90%;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-mahjong-image--white {
+      height: 94%;
+      width: 78%;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-hidden-tile__shine {
+      inset: 5px;
+      border-radius: 8px;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-hidden-tile__label {
+      font-size: 10px;
+      letter-spacing: 0.04em;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-result-card {
+      margin-top: 0.34rem !important;
+      border-radius: 13px !important;
+      padding: 0.52rem 0.62rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-result-card .text-\[11px\] {
+      font-size: 9px !important;
+      letter-spacing: 0.14em !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-result-card .text-\[16px\] {
+      font-size: 13px !important;
+      line-height: 1.18 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-profit {
+      font-size: 22px !important;
+      line-height: 1 !important;
+    }
+
     .game-fullscreen-shell[data-game-id^='twenty-one-half'] .game-play-grid--local-table {
       gap: 0.28rem !important;
     }
