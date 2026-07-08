@@ -94,9 +94,7 @@ const LOCAL_TABLE_GAME_ID_SET = new Set<string>(LOCAL_TABLE_GAME_IDS);
 
 export const LOCAL_TABLE_BETA_ALLOWED_USERNAMES = ['testplayer'] as const;
 
-const LOCAL_TABLE_BETA_ALLOWED_USERNAME_SET = new Set<string>(
-  LOCAL_TABLE_BETA_ALLOWED_USERNAMES,
-);
+const LOCAL_TABLE_BETA_ALLOWED_USERNAME_SET = new Set<string>(LOCAL_TABLE_BETA_ALLOWED_USERNAMES);
 
 export function isLocalTableGameId(gameId: string): gameId is LocalTableGameIdType {
   return LOCAL_TABLE_GAME_ID_SET.has(gameId);
@@ -106,10 +104,7 @@ export function canAccessLocalTableBeta(username?: string | null): boolean {
   return LOCAL_TABLE_BETA_ALLOWED_USERNAME_SET.has(username?.trim().toLowerCase() ?? '');
 }
 
-export function isGameVisibleForUsername(
-  gameId: string,
-  username?: string | null,
-): boolean {
+export function isGameVisibleForUsername(gameId: string, username?: string | null): boolean {
   return !isLocalTableGameId(gameId) || canAccessLocalTableBeta(username);
 }
 
@@ -246,33 +241,33 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
   },
   [GameId.TUI_TONGZI_JADE]: {
     id: GameId.TUI_TONGZI_JADE,
-    name: 'Jade Tongzi',
-    nameZh: '玉兔推筒',
+    name: 'Jade Suozi',
+    nameZh: '玉兔推索',
     category: 'table',
-    description: 'Jade fantasy themed Tongzi tile showdown.',
-    descriptionZh: '玉石主題推筒子，白板、九筒至一筒比大小',
+    description: 'Jade fantasy themed bamboo tile showdown.',
+    descriptionZh: '玉石主題推索子，白板、九索至一索比大小',
     rtp: 0.955,
     icon: 'tiles',
     enabled: true,
   },
   [GameId.TUI_TONGZI_NEON]: {
     id: GameId.TUI_TONGZI_NEON,
-    name: 'Neon Tongzi',
-    nameZh: '霓虹推筒',
+    name: 'Neon Suozi',
+    nameZh: '霓虹推索',
     category: 'table',
-    description: 'Neon night-market Tongzi tile showdown.',
-    descriptionZh: '夜市霓虹風格推筒子，即開比點',
+    description: 'Neon night-market bamboo tile showdown.',
+    descriptionZh: '夜市霓虹風格推索子，即開比點',
     rtp: 0.955,
     icon: 'tiles',
     enabled: true,
   },
   [GameId.TUI_TONGZI_GOLD]: {
     id: GameId.TUI_TONGZI_GOLD,
-    name: 'Golden Tongzi',
-    nameZh: '金殿推筒',
+    name: 'Golden Wanzi',
+    nameZh: '金殿推萬',
     category: 'table',
-    description: 'Gold palace Tongzi tile showdown.',
-    descriptionZh: '金殿主題推筒子，特殊牌型高亮展示',
+    description: 'Gold palace character tile showdown.',
+    descriptionZh: '金殿主題推萬子，特殊牌型高亮展示',
     rtp: 0.955,
     icon: 'tiles',
     enabled: true,

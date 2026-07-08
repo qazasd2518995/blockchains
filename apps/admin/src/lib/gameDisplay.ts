@@ -13,9 +13,9 @@ const LOCAL_TABLE_TITLE_FALLBACK: Record<string, string> = {
   'twenty-one-half-star': '星願十點半',
   'tui-tongzi-dragon': '龍門推筒',
   'tui-tongzi-lion': '醒獅推筒',
-  'tui-tongzi-jade': '玉兔推筒',
-  'tui-tongzi-neon': '霓虹推筒',
-  'tui-tongzi-gold': '金殿推筒',
+  'tui-tongzi-jade': '玉兔推索',
+  'tui-tongzi-neon': '霓虹推索',
+  'tui-tongzi-gold': '金殿推萬',
   'black-dot-tianjiu': '天九黑粒',
   'black-dot-royal': '御殿黑粒',
   'black-dot-street': '街頭黑粒',
@@ -35,6 +35,8 @@ export function getAdminGameTitle(gameId: string): string {
 
 export function getAdminGameSubtitle(gameId: string): string | null {
   if (TWENTY_ONE_HALF_GAME_ID_SET.has(gameId)) return '牌桌遊戲 · 十點半';
+  if (gameId === 'tui-tongzi-jade' || gameId === 'tui-tongzi-neon') return '牌桌遊戲 · 推索子';
+  if (gameId === 'tui-tongzi-gold') return '牌桌遊戲 · 推萬子';
   if (TUI_TONGZI_GAME_ID_SET.has(gameId)) return '牌桌遊戲 · 推筒子';
   if (BLACK_DOT_GAME_ID_SET.has(gameId)) return '牌桌遊戲 · 黑粒仔';
   if (gameId === 'card-war') return '牌桌遊戲 · 比大小';

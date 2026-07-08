@@ -63,7 +63,7 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
   };
 
   return (
-    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/62 px-4 py-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[1200] flex min-h-[100svh] items-start justify-center overflow-y-auto bg-black/62 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-[calc(env(safe-area-inset-top)+16px)] backdrop-blur-sm sm:items-center sm:py-6">
       <button
         type="button"
         className="absolute inset-0 cursor-default"
@@ -72,14 +72,19 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
       />
       <form
         onSubmit={handleSubmit}
-        className="relative z-10 w-full max-w-[420px] rounded-[14px] border border-white/12 bg-[#0F172A] p-5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.46)]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="change-password-title"
+        className="relative z-10 my-auto w-full max-w-[420px] rounded-[14px] border border-white/12 bg-[#0F172A] p-5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.46)] max-sm:my-0 max-sm:max-h-[calc(100svh-32px)] max-sm:overflow-y-auto"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#C9A247]/35 bg-[#1A2538] text-[#E8D48A]">
               <KeyRound className="h-4 w-4" aria-hidden="true" />
             </span>
-            <h2 className="truncate text-[18px] font-black">修改密碼</h2>
+            <h2 id="change-password-title" className="truncate text-[18px] font-black">
+              修改密碼
+            </h2>
           </div>
           <button
             type="button"

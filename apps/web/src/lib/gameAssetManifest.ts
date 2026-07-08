@@ -1,10 +1,7 @@
 import { SLOT_THEMES, type SlotThemeConfig, type SlotThemeId } from '@/lib/slotThemes';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 import { SLOT_BIG_WIN_TIER_ASSETS } from '@/lib/slotWinTiers';
-import {
-  getOptimizedImageSrcSet,
-  type ResponsivePreset,
-} from '@/lib/optimizedImages';
+import { getOptimizedImageSrcSet, type ResponsivePreset } from '@/lib/optimizedImages';
 
 export type GameAssetKind =
   | 'background'
@@ -106,7 +103,9 @@ const LOCAL_TABLE_STAGE_ART: Partial<Record<string, string>> = {
 };
 const MAHJONG_TILE_ASSETS = [
   '/game-art/mahjong/WhiteDragon.svg',
-  ...Array.from({ length: 9 }, (_, index) => `/game-art/mahjong/Pin${index + 1}.svg`),
+  ...['Pin', 'Sou', 'Man'].flatMap((suit) =>
+    Array.from({ length: 9 }, (_, index) => `/game-art/mahjong/${suit}${index + 1}.svg`),
+  ),
 ];
 const PAI_GOW_TILE_ASSETS = [
   '1+2',
@@ -282,8 +281,12 @@ function localTableGame(gameId: string): GameAssetManifest {
     gameId,
     assets: [
       criticalAsset(localTableStageArt(gameId), 'background'),
-      ...(TUI_TONGZI_GAME_IDS.has(gameId) ? MAHJONG_TILE_ASSETS.map((src) => asset(src, 'card')) : []),
-      ...(BLACK_DOT_GAME_IDS.has(gameId) ? PAI_GOW_TILE_ASSETS.map((src) => asset(src, 'card')) : []),
+      ...(TUI_TONGZI_GAME_IDS.has(gameId)
+        ? MAHJONG_TILE_ASSETS.map((src) => asset(src, 'card'))
+        : []),
+      ...(BLACK_DOT_GAME_IDS.has(gameId)
+        ? PAI_GOW_TILE_ASSETS.map((src) => asset(src, 'card'))
+        : []),
     ],
   };
 }

@@ -17,6 +17,7 @@ import {
   type LocalTableRoundStage,
   type LocalTableRoundState,
   type LocalTableSplitOption,
+  type LocalTableTileSuit,
   type LocalTableTubeTile,
   type TwentyOneHalfRoundState,
 } from '@bg/shared';
@@ -55,6 +56,7 @@ interface RoomConfig {
   kind: LocalTableKind;
   roomName: string;
   ruleSummary: string[];
+  tileSuit?: LocalTableTileSuit;
 }
 
 interface RoundDraft {
@@ -185,6 +187,12 @@ const STAGED_LOCAL_TABLE_GAME_IDS = [
 ] as const;
 const STAGED_LOCAL_TABLE_ID_SET = new Set<string>(STAGED_LOCAL_TABLE_GAME_IDS);
 
+const TUI_TONGZI_TILE_SUITS: Record<LocalTableTileSuit, { suffix: string; family: string }> = {
+  pin: { suffix: '筒', family: '筒子' },
+  sou: { suffix: '索', family: '索子' },
+  man: { suffix: '萬', family: '萬子' },
+};
+
 const ROOM_CONFIGS: Record<LocalTableGameIdType, RoomConfig> = {
   [GameId.TWENTY_ONE_HALF_DOLL]: {
     gameId: GameId.TWENTY_ONE_HALF_DOLL,
@@ -218,9 +226,9 @@ const ROOM_CONFIGS: Record<LocalTableGameIdType, RoomConfig> = {
   },
   [GameId.TUI_TONGZI_DRAGON]: tuiTongziRoom(GameId.TUI_TONGZI_DRAGON, '龍門推筒'),
   [GameId.TUI_TONGZI_LION]: tuiTongziRoom(GameId.TUI_TONGZI_LION, '醒獅推筒'),
-  [GameId.TUI_TONGZI_JADE]: tuiTongziRoom(GameId.TUI_TONGZI_JADE, '玉兔推筒'),
-  [GameId.TUI_TONGZI_NEON]: tuiTongziRoom(GameId.TUI_TONGZI_NEON, '霓虹推筒'),
-  [GameId.TUI_TONGZI_GOLD]: tuiTongziRoom(GameId.TUI_TONGZI_GOLD, '金殿推筒'),
+  [GameId.TUI_TONGZI_JADE]: tuiTongziRoom(GameId.TUI_TONGZI_JADE, '玉兔推索', 'sou'),
+  [GameId.TUI_TONGZI_NEON]: tuiTongziRoom(GameId.TUI_TONGZI_NEON, '霓虹推索', 'sou'),
+  [GameId.TUI_TONGZI_GOLD]: tuiTongziRoom(GameId.TUI_TONGZI_GOLD, '金殿推萬', 'man'),
   [GameId.BLACK_DOT_TIANJIU]: blackDotRoom(GameId.BLACK_DOT_TIANJIU, '天九黑粒'),
   [GameId.BLACK_DOT_ROYAL]: blackDotRoom(GameId.BLACK_DOT_ROYAL, '御殿黑粒'),
   [GameId.BLACK_DOT_STREET]: blackDotRoom(GameId.BLACK_DOT_STREET, '街頭黑粒'),
@@ -271,14 +279,70 @@ const DOMINO_TILE_TYPES: Array<{
   { key: 'partition', name: '紅頭', pips: [4, 6], copies: 2, pairKey: 'partition', pairRank: 7 },
   { key: 'leg', name: '長腳', pips: [1, 6], copies: 2, pairKey: 'leg', pairRank: 6 },
   { key: 'head', name: '大頭', pips: [1, 5], copies: 2, pairKey: 'head', pairRank: 5 },
-  { key: 'mixed-nine-a', name: '雜九', pips: [4, 5], copies: 1, pairKey: 'mixed-nine', pairRank: 4 },
-  { key: 'mixed-nine-b', name: '雜九', pips: [3, 6], copies: 1, pairKey: 'mixed-nine', pairRank: 4 },
-  { key: 'mixed-eight-a', name: '雜八', pips: [2, 6], copies: 1, pairKey: 'mixed-eight', pairRank: 3 },
-  { key: 'mixed-eight-b', name: '雜八', pips: [3, 5], copies: 1, pairKey: 'mixed-eight', pairRank: 3 },
-  { key: 'mixed-seven-a', name: '雜七', pips: [2, 5], copies: 1, pairKey: 'mixed-seven', pairRank: 2 },
-  { key: 'mixed-seven-b', name: '雜七', pips: [3, 4], copies: 1, pairKey: 'mixed-seven', pairRank: 2 },
-  { key: 'mixed-five-a', name: '雜五', pips: [1, 4], copies: 1, pairKey: 'mixed-five', pairRank: 1 },
-  { key: 'mixed-five-b', name: '雜五', pips: [2, 3], copies: 1, pairKey: 'mixed-five', pairRank: 1 },
+  {
+    key: 'mixed-nine-a',
+    name: '雜九',
+    pips: [4, 5],
+    copies: 1,
+    pairKey: 'mixed-nine',
+    pairRank: 4,
+  },
+  {
+    key: 'mixed-nine-b',
+    name: '雜九',
+    pips: [3, 6],
+    copies: 1,
+    pairKey: 'mixed-nine',
+    pairRank: 4,
+  },
+  {
+    key: 'mixed-eight-a',
+    name: '雜八',
+    pips: [2, 6],
+    copies: 1,
+    pairKey: 'mixed-eight',
+    pairRank: 3,
+  },
+  {
+    key: 'mixed-eight-b',
+    name: '雜八',
+    pips: [3, 5],
+    copies: 1,
+    pairKey: 'mixed-eight',
+    pairRank: 3,
+  },
+  {
+    key: 'mixed-seven-a',
+    name: '雜七',
+    pips: [2, 5],
+    copies: 1,
+    pairKey: 'mixed-seven',
+    pairRank: 2,
+  },
+  {
+    key: 'mixed-seven-b',
+    name: '雜七',
+    pips: [3, 4],
+    copies: 1,
+    pairKey: 'mixed-seven',
+    pairRank: 2,
+  },
+  {
+    key: 'mixed-five-a',
+    name: '雜五',
+    pips: [1, 4],
+    copies: 1,
+    pairKey: 'mixed-five',
+    pairRank: 1,
+  },
+  {
+    key: 'mixed-five-b',
+    name: '雜五',
+    pips: [2, 3],
+    copies: 1,
+    pairKey: 'mixed-five',
+    pairRank: 1,
+  },
 ];
 
 export class LocalTableService {
@@ -531,12 +595,7 @@ export class LocalTableService {
         });
         effectiveControl = controlled;
         if (controlled.controlled) {
-          const shaped = shapeTwentyOneHalfHitForControl(
-            rawData,
-            bet.amount,
-            controlled,
-            rawRound,
-          );
+          const shaped = shapeTwentyOneHalfHitForControl(rawData, bet.amount, controlled, rawRound);
           if (shaped?.kind === 'progress') {
             return this.updateTwentyOneHalfProgress(tx, bet, shaped.data, serverSeed.seedHash);
           }
@@ -785,7 +844,7 @@ export class LocalTableService {
           revealedPlayerIndexes: config.kind === 'tui-tongzi' ? [] : undefined,
           summary:
             config.kind === 'tui-tongzi'
-              ? '莊家已開，請翻閒家任一張筒子。'
+              ? tuiTongziRevealSummary(input.gameId, 0)
               : '下注完成，請先開閒家牌。',
         };
       }
@@ -854,7 +913,7 @@ export class LocalTableService {
             ...data,
             stage: 'AWAIT_FINAL_REVEAL' as const,
             revealedPlayerIndexes: nextRevealed,
-            summary: '第一張已開，請翻另一張筒子比牌。',
+            summary: tuiTongziRevealSummary(data.gameId, 1),
           };
           const updated = await tx.bet.update({
             where: { id: bet.id },
@@ -886,7 +945,11 @@ export class LocalTableService {
       }
 
       if (data.stage === 'AWAIT_PLAYER_REVEAL') {
-        const next = { ...data, stage: 'AWAIT_BANKER_REVEAL' as const, summary: '閒家牌已開，請開莊家牌比大小。' };
+        const next = {
+          ...data,
+          stage: 'AWAIT_BANKER_REVEAL' as const,
+          summary: '閒家牌已開，請開莊家牌比大小。',
+        };
         const updated = await tx.bet.update({
           where: { id: bet.id },
           data: { resultData: next as unknown as Prisma.InputJsonValue },
@@ -943,12 +1006,7 @@ export class LocalTableService {
         where: { id: userId },
         select: { id: true, username: true, agentId: true },
       });
-      const runControls = await shouldRunControlPipeline(
-        tx,
-        member,
-        data.gameId,
-        natural,
-      );
+      const runControls = await shouldRunControlPipeline(tx, member, data.gameId, natural);
       const predicted = {
         won: natural.profit.greaterThan(0),
         amount: bet.amount,
@@ -1324,15 +1382,25 @@ function toTwentyOneHalfHand(
     title,
     pieces: cards,
     scoreLabel: formatHalfPoint(score),
-    rankLabel: busted ? '爆牌' : special ? (cards.length >= 5 ? '五龍' : '十點半') : isPlayer ? '閒家牌' : '莊家牌',
+    rankLabel: busted
+      ? '爆牌'
+      : special
+        ? cards.length >= 5
+          ? '五龍'
+          : '十點半'
+        : isPlayer
+          ? '閒家牌'
+          : '莊家牌',
     detail: `${cards.length} 張`,
   };
 }
 
 function forceTwentyOneHalfHitSafe(data: TwentyOneHalfStoredData): TwentyOneHalfStoredData | null {
   const base = cloneTwentyOneHalfData(data);
-  const index = findDeckCardIndex(base, base.deckIndex, (card) =>
-    half21Score([...base.player, card]) <= TEN_HALF_LIMIT,
+  const index = findDeckCardIndex(
+    base,
+    base.deckIndex,
+    (card) => half21Score([...base.player, card]) <= TEN_HALF_LIMIT,
   );
   if (index < 0) return null;
   swapDeckCards(base.deck, base.deckIndex, index);
@@ -1433,7 +1501,11 @@ function shapeTwentyOneHalfBankerForControl(
   }
 
   if (control.won) {
-    const forcedLoss = shapeTwentyOneHalfBankerForControl(data, amount, controlAsForcedLoss(control));
+    const forcedLoss = shapeTwentyOneHalfBankerForControl(
+      data,
+      amount,
+      controlAsForcedLoss(control),
+    );
     if (forcedLoss) return forcedLoss;
   }
 
@@ -1538,10 +1610,7 @@ async function settleTwentyOneHalfBet(
       profit: finalRound.profit,
       status: 'SETTLED',
       settledAt: new Date(),
-      resultData: toResultData(
-        { ...finalRound, raw: stored.raw },
-        control,
-      ),
+      resultData: toResultData({ ...finalRound, raw: stored.raw }, control),
     },
   });
 
@@ -1678,13 +1747,7 @@ async function findActiveStagedTableBet(
 
 function parseStagedTableData(value: Prisma.JsonValue): StagedLocalTableStoredData {
   const data = value as Partial<StagedLocalTableStoredData>;
-  if (
-    !data.kind ||
-    !data.status ||
-    !data.stage ||
-    !data.gameId ||
-    !data.roomName
-  ) {
+  if (!data.kind || !data.status || !data.stage || !data.gameId || !data.roomName) {
     throw new ApiError('INVALID_ACTION', 'Invalid table round data');
   }
   return {
@@ -1829,8 +1892,7 @@ function toStagedTableState(
         summary: settledRound?.summary ?? data.summary ?? '',
         canReveal: false,
         revealLabel: null,
-        revealedPlayerIndexes:
-          data.kind === 'tui-tongzi' && settledRound ? [0, 1] : undefined,
+        revealedPlayerIndexes: data.kind === 'tui-tongzi' && settledRound ? [0, 1] : undefined,
         revealablePlayerIndexes: undefined,
         canSplit: false,
         splitOptions: undefined,
@@ -1885,7 +1947,9 @@ function stagedActiveView(data: StagedLocalTableStoredData): {
     const finalRound = roundFromStored(data.final);
     const playerPieces = finalRound.player.pieces;
     const revealedPlayerIndexes = normalizeTuiRevealIndexes(data.revealedPlayerIndexes);
-    const revealablePlayerIndexes = [0, 1].filter((index) => !revealedPlayerIndexes.includes(index));
+    const revealablePlayerIndexes = [0, 1].filter(
+      (index) => !revealedPlayerIndexes.includes(index),
+    );
     const revealedPieces = revealedPlayerIndexes
       .map((index) => playerPieces[index])
       .filter((piece): piece is LocalTablePiece => Boolean(piece));
@@ -1900,8 +1964,8 @@ function stagedActiveView(data: StagedLocalTableStoredData): {
       summary:
         data.summary ??
         (revealedPieces.length
-          ? '第一張已開，請翻另一張筒子比牌。'
-          : '莊家已開，請翻閒家任一張筒子。'),
+          ? tuiTongziRevealSummary(data.gameId, 1)
+          : tuiTongziRevealSummary(data.gameId, 0)),
       canReveal: true,
       revealLabel: revealedPieces.length ? '翻第二張' : '翻閒家牌',
       revealedPlayerIndexes,
@@ -2155,17 +2219,30 @@ async function shouldRunControlPipeline(
   return true;
 }
 
-function tuiTongziRoom(gameId: LocalTableGameIdType, roomName: string): RoomConfig {
+function tuiTongziRoom(
+  gameId: LocalTableGameIdType,
+  roomName: string,
+  tileSuit: LocalTableTileSuit = 'pin',
+): RoomConfig {
+  const { suffix } = TUI_TONGZI_TILE_SUITS[tileSuit];
   return {
     gameId,
     kind: 'tui-tongzi',
     roomName,
+    tileSuit,
     ruleSummary: [
-      '一筒至九筒與白板各四張，莊閒各兩張。',
+      `一${suffix}至九${suffix}與白板各四張，莊閒各兩張。`,
       '牌型序：白板對、對子、二八槓、點數、鱉十。',
       '同牌型同點數由莊家吃平點。',
     ],
   };
+}
+
+function tuiTongziRevealSummary(gameId: LocalTableGameIdType, revealedCount: number): string {
+  const family = TUI_TONGZI_TILE_SUITS[ROOM_CONFIGS[gameId].tileSuit ?? 'pin'].family;
+  return revealedCount > 0
+    ? `第一張已開，請翻另一張${family}比牌。`
+    : `莊家已開，請翻閒家任一張${family}。`;
 }
 
 function blackDotRoom(gameId: LocalTableGameIdType, roomName: string): RoomConfig {
@@ -2198,7 +2275,8 @@ function buildRound(
     throw new Error(`Unsupported local table game: ${gameId}`);
   }
   const config = ROOM_CONFIGS[gameId];
-  if (config.kind === 'twenty-one-half') return buildTwentyOneHalfRound(config, amount, seed, streamOffset);
+  if (config.kind === 'twenty-one-half')
+    return buildTwentyOneHalfRound(config, amount, seed, streamOffset);
   if (config.kind === 'tui-tongzi') return buildTuiTongziRound(config, amount, seed, streamOffset);
   if (config.kind === 'black-dot') return buildBlackDotRound(config, amount, seed, streamOffset);
   return buildCardWarRound(config, amount, seed, streamOffset);
@@ -2336,7 +2414,7 @@ function buildTuiTongziRound(
   streamOffset: number,
 ): RoundDraft {
   const stream = makeStream(seed, streamOffset);
-  const tiles = drawTubeTiles(stream, 4);
+  const tiles = drawTubeTiles(stream, 4, config.tileSuit ?? 'pin');
   const playerTiles = tiles.slice(0, 2);
   const bankerTiles = tiles.slice(2, 4);
   const playerRank = rankTubeHand(playerTiles);
@@ -2552,7 +2630,10 @@ function findBlackDotBankerRoundForOutcome(
             splitId,
           );
           if (round.outcome !== desired) continue;
-          if (desired === 'WIN' && !multiplierMatchesControlBounds(round.multiplier, amount, control)) {
+          if (
+            desired === 'WIN' &&
+            !multiplierMatchesControlBounds(round.multiplier, amount, control)
+          ) {
             continue;
           }
           return round;
@@ -2577,7 +2658,11 @@ function buildCardWarRound(
   const outcome: LocalTableOutcome =
     playerRank > bankerRank ? 'WIN' : playerRank === bankerRank ? 'PUSH' : 'LOSE';
   const multiplier =
-    outcome === 'WIN' ? TABLE_WIN_MULTIPLIER : outcome === 'PUSH' ? new Prisma.Decimal(1) : new Prisma.Decimal(0);
+    outcome === 'WIN'
+      ? TABLE_WIN_MULTIPLIER
+      : outcome === 'PUSH'
+        ? new Prisma.Decimal(1)
+        : new Prisma.Decimal(0);
   const payout = amount.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
   const profit = payout.minus(amount);
 
@@ -2640,15 +2725,21 @@ function drawCards(stream: IntStream, count: number): CardInternal[] {
   return drawUnique(stream, deck, count);
 }
 
-function drawTubeTiles(stream: IntStream, count: number): TubeTileInternal[] {
+function drawTubeTiles(
+  stream: IntStream,
+  count: number,
+  suit: LocalTableTileSuit = 'pin',
+): TubeTileInternal[] {
   const tiles: TubeTileInternal[] = [];
+  const { suffix } = TUI_TONGZI_TILE_SUITS[suit];
   for (const value of TUBE_VALUES) {
     for (let copy = 0; copy < 4; copy += 1) {
       tiles.push({
         kind: 'tube',
-        id: `${value}-${copy}`,
-        label: value === 0 ? '白板' : `${value}筒`,
+        id: `${suit}-${value}-${copy}`,
+        label: value === 0 ? '白板' : `${value}${suffix}`,
         value,
+        suit,
         rankValue: value,
         isWhite: value === 0,
       });
@@ -2712,11 +2803,12 @@ function rankTubeHand(tiles: TubeTileInternal[]): RankedHand {
   }
   if (values[0] === values[1]) {
     const rank = values[0] === 0 ? 10 : values[0]!;
+    const pairLabel = values[0] === 0 ? '白板' : (tiles[0]?.label ?? `${rank}筒`);
     return {
       category: 4,
       rank,
       label: `${tiles[0]!.label}對`,
-      scoreLabel: `${rank === 10 ? '白板' : `${rank}筒`}對`,
+      scoreLabel: `${pairLabel}對`,
     };
   }
   if (values.includes(2) && values.includes(8)) {
@@ -2814,9 +2906,7 @@ function hasHeavenOrEarth(first: DominoTileInternal, second: DominoTileInternal)
 }
 
 function isPointTile(tile: DominoTileInternal, point: 8 | 9): boolean {
-  return point === 9
-    ? tile.pairKey === 'mixed-nine'
-    : tile.pairKey === 'mixed-eight';
+  return point === 9 ? tile.pairKey === 'mixed-nine' : tile.pairKey === 'mixed-eight';
 }
 
 function dominoPointValues(tile: DominoTileInternal): number[] {
@@ -2858,9 +2948,7 @@ function bestDominoSplit(tiles: DominoTileInternal[]): {
     const rankA = rankDominoPair(a);
     const rankB = rankDominoPair(b);
     const [lowTiles, lowRank, highTiles, highRank] =
-      compareRankedHands(rankA, rankB) <= 0
-        ? [a, rankA, b, rankB]
-        : [b, rankB, a, rankA];
+      compareRankedHands(rankA, rankB) <= 0 ? [a, rankA, b, rankB] : [b, rankB, a, rankA];
     return {
       low: { tiles: lowTiles, rank: lowRank },
       high: { tiles: highTiles, rank: highRank },
@@ -2888,17 +2976,15 @@ function buildBlackDotSplitOptions(tiles: DominoTileInternal[]): LocalTableSplit
 function getBlackDotSplitOption(
   tiles: DominoTileInternal[],
   splitId: string,
-):
-  | {
-      id: string;
-      lowIndexes: number[];
-      highIndexes: number[];
-      lowTiles: DominoTileInternal[];
-      highTiles: DominoTileInternal[];
-      lowRank: RankedHand;
-      highRank: RankedHand;
-    }
-  | null {
+): {
+  id: string;
+  lowIndexes: number[];
+  highIndexes: number[];
+  lowTiles: DominoTileInternal[];
+  highTiles: DominoTileInternal[];
+  lowRank: RankedHand;
+  highRank: RankedHand;
+} | null {
   return listBlackDotSplitChoices(tiles).find((choice) => choice.id === splitId) ?? null;
 }
 

@@ -11,11 +11,14 @@ export interface LocalTableCard {
   valueLabel: string;
 }
 
+export type LocalTableTileSuit = 'pin' | 'sou' | 'man';
+
 export interface LocalTableTubeTile {
   kind: 'tube';
   id: string;
   label: string;
   value: number;
+  suit?: LocalTableTileSuit;
   isWhite?: boolean;
 }
 

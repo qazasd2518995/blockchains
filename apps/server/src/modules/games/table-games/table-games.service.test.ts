@@ -18,7 +18,11 @@ const {
   shouldTwentyOneHalfBankerDraw,
 } = __localTableServiceTestHooks;
 
-const card = (rank: string, rankValue: number, suit: 'spades' | 'hearts' | 'diamonds' | 'clubs' = 'spades') => ({
+const card = (
+  rank: string,
+  rankValue: number,
+  suit: 'spades' | 'hearts' | 'diamonds' | 'clubs' = 'spades',
+) => ({
   kind: 'card' as const,
   rank,
   suit,
@@ -96,6 +100,29 @@ describe('local table game rules', () => {
     expect(whitePair.category).toBeGreaterThan(erba.category);
     expect(erba.category).toBeGreaterThan(ninePoint.category);
     expect(ninePoint.category).toBeGreaterThan(bieshi.category);
+  });
+
+  it('deals bamboo and character tiles for themed push-tile rooms', () => {
+    const seed = { serverSeed: 'server-seed', clientSeed: 'client-seed', nonce: 7 };
+    const jadeRound = buildRound(GameId.TUI_TONGZI_JADE, new Prisma.Decimal(100), seed, 0);
+    const goldRound = buildRound(GameId.TUI_TONGZI_GOLD, new Prisma.Decimal(100), seed, 0);
+
+    const jadeTiles = [...jadeRound.player.pieces, ...jadeRound.banker.pieces];
+    const goldTiles = [...goldRound.player.pieces, ...goldRound.banker.pieces];
+
+    expect(jadeRound.roomName).toBe('玉兔推索');
+    expect(jadeRound.ruleSummary[0]).toContain('一索至九索');
+    expect(jadeTiles.every((tile) => tile.kind === 'tube' && tile.suit === 'sou')).toBe(true);
+    expect(
+      jadeTiles.every((tile) => tile.kind !== 'tube' || tile.isWhite || tile.label.endsWith('索')),
+    ).toBe(true);
+
+    expect(goldRound.roomName).toBe('金殿推萬');
+    expect(goldRound.ruleSummary[0]).toContain('一萬至九萬');
+    expect(goldTiles.every((tile) => tile.kind === 'tube' && tile.suit === 'man')).toBe(true);
+    expect(
+      goldTiles.every((tile) => tile.kind !== 'tube' || tile.isWhite || tile.label.endsWith('萬')),
+    ).toBe(true);
   });
 
   it('ranks Black Dot Pai Gow pairs and wong/gong combinations above normal points', () => {
@@ -201,14 +228,19 @@ describe('local table game rules', () => {
       deckIndex: 1,
     };
     const naturalRound = buildTwentyOneHalfRoundFromState(naturalBust, amount);
-    const shaped = shapeTwentyOneHalfHitForControl(data, amount, {
-      won: true,
-      multiplier: new Prisma.Decimal('1.96'),
-      payout: new Prisma.Decimal('196.00'),
-      controlled: true,
-      flipReason: 'win_control',
-      controlId: 'win-control-1',
-    }, naturalRound);
+    const shaped = shapeTwentyOneHalfHitForControl(
+      data,
+      amount,
+      {
+        won: true,
+        multiplier: new Prisma.Decimal('1.96'),
+        payout: new Prisma.Decimal('196.00'),
+        controlled: true,
+        flipReason: 'win_control',
+        controlId: 'win-control-1',
+      },
+      naturalRound,
+    );
 
     expect(shaped?.kind).toBe('progress');
     if (shaped?.kind !== 'progress') throw new Error('expected progress shape');

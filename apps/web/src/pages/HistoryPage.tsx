@@ -1347,7 +1347,9 @@ function LocalTablePieceChip({ piece }: { piece: LocalTablePieceView }) {
       <div className="grid gap-1">
         <PlayingCardSvg card={piece.card} />
         {piece.valueLabel ? (
-          <span className="text-center text-[10px] font-black text-[#4A5568]">{piece.valueLabel}</span>
+          <span className="text-center text-[10px] font-black text-[#4A5568]">
+            {piece.valueLabel}
+          </span>
         ) : null}
       </div>
     ) : (
@@ -1438,7 +1440,7 @@ function getLocalTablePiece(value: unknown): LocalTablePieceView | null {
   if (kind === 'tube') {
     return {
       kind: 'tube',
-      label: getStringScalar(record.label) ?? (record.isWhite === true ? '白板' : '筒子'),
+      label: getStringScalar(record.label) ?? (record.isWhite === true ? '白板' : '牌'),
       value: getNumber(record.value),
       isWhite: record.isWhite === true,
     };
@@ -1474,7 +1476,7 @@ function isLocalTableResult(record: Record<string, unknown>): boolean {
 
 function localTableKindLabel(kind: string): string {
   if (kind === 'twenty-one-half') return '十點半';
-  if (kind === 'tui-tongzi') return '推筒子';
+  if (kind === 'tui-tongzi') return '推牌';
   if (kind === 'black-dot') return '黑粒仔';
   if (kind === 'card-war') return '比大小';
   return kind;
