@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Flame, Gift, History, Megaphone, ShieldCheck, Users } from 'lucide-react';
 import { GAMES_REGISTRY, type GameMetadata, type GameIdType } from '@bg/shared';
@@ -51,6 +51,10 @@ const MOBILE_COVER_CLIP_PATHS: Record<MobileCardVariant, string> = {
 
 function mobileGamePath(gameId: string): string {
   return `/games/${gameId}`;
+}
+
+function mobileLobbyPathForCategory(categoryId: 'all' | HallId): string {
+  return categoryId === 'all' ? '/lobby' : `/lobby?hall=${encodeURIComponent(categoryId)}`;
 }
 
 function buildVisibleGameIds(halls: readonly HallMeta[]): GameIdType[] {
@@ -200,7 +204,7 @@ export function LobbyPage() {
 
 function MobileLobbyOnePage() {
   const { t, locale } = useTranslation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const username = user?.username ?? null;
   const isGuest = !user;
@@ -232,6 +236,25 @@ function MobileLobbyOnePage() {
   useEffect(() => {
     setActiveCategory(getMobileCategoryFromSearch(searchParams, hallMetaMap, mobileCategories));
   }, [hallMetaMap, mobileCategories, searchParams]);
+
+  const handleCategorySelect = useCallback(
+    (categoryId: 'all' | HallId) => {
+      setActiveCategory(categoryId);
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          if (categoryId === 'all') {
+            next.delete('hall');
+          } else {
+            next.set('hall', categoryId);
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const games = useMemo(() => {
     if (activeCategory === 'all') return mobileGames;
@@ -399,7 +422,7 @@ function MobileLobbyOnePage() {
               <button
                 key={category.id}
                 type="button"
-                onClick={() => setActiveCategory(category.id)}
+                onClick={() => handleCategorySelect(category.id)}
                 className={`mobile-lobby-category-button flex h-[58px] w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border text-[11px] font-black shadow-[0_6px_14px_rgba(15,23,42,0.08)] transition active:scale-[0.98] ${
                   selected
                     ? 'mobile-lobby-category-button--active border-[#EA580C] text-white'
@@ -448,6 +471,7 @@ function MobileLobbyOnePage() {
                 key={game.id}
                 game={game}
                 hallId={gameHallMap.get(game.id)}
+                returnTo={mobileLobbyPathForCategory(activeCategory)}
                 variant={getMobileCardVariant(index)}
               />
             ))}
@@ -461,17 +485,19 @@ function MobileLobbyOnePage() {
 function MobileGameCard({
   game,
   hallId,
+  returnTo,
   variant = 'standard',
 }: {
   game: GameMetadata;
   hallId?: HallId;
+  returnTo: string;
   variant?: MobileCardVariant;
 }) {
   const { locale, t } = useTranslation();
   const GameIcon = getGameIcon(game.id);
   const cover = getLobbyGameCover(game.id);
   const hallLabel = hallId ? getLocalizedHallShort(hallId, locale) : t.lobbyStats.mobileAllShort;
-  const routeState = { returnTo: '/lobby', returnLabel: t.common.lobby };
+  const routeState = { returnTo, returnLabel: t.common.lobby };
   const warmAssets = () => warmGameAssets(game.id);
   const title = getLocalizedGameTitle(game.id, locale, game.nameZh);
   const multiplierLabel = getGamePromoMultiplierLabel(game.id);

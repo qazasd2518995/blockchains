@@ -27,10 +27,6 @@ export function useGameReturnTarget(): { to: string; label: string } {
   const username = useAuthStore((state) => state.user?.username ?? null);
 
   return useMemo(() => {
-    if (isMobileLobbyViewport()) {
-      return { to: '/lobby', label: t.common.lobby };
-    }
-
     const state = (location.state ?? null) as GameRouteState | null;
     const stateReturnTo = internalPath(state?.returnTo);
     if (stateReturnTo) {
@@ -38,6 +34,10 @@ export function useGameReturnTarget(): { to: string; label: string } {
         to: stateReturnTo,
         label: typeof state?.returnLabel === 'string' ? state.returnLabel : t.common.hall,
       };
+    }
+
+    if (isMobileLobbyViewport()) {
+      return { to: '/lobby', label: t.common.lobby };
     }
 
     const hall = getHallByGameId(currentGameId(location.pathname), username);
