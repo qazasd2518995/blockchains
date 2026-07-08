@@ -6,7 +6,7 @@ const LOCAL_WIDTHS: Record<ResponsivePreset, number[]> = {
   'lobby-card': [480, 960],
   'hall-card': [720, 1600],
   hero: [960, 1600],
-  'game-stage': [960, 1600],
+  'game-stage': [480, 720, 960, 1600],
 };
 
 const LOCAL_QUALITY: Record<ResponsivePreset, number> = {

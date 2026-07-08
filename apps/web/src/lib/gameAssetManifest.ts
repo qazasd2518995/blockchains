@@ -281,7 +281,6 @@ function localTableGame(gameId: string): GameAssetManifest {
   return {
     gameId,
     assets: [
-      criticalAsset(getLobbyGameCover(gameId), 'cover'),
       criticalAsset(localTableStageArt(gameId), 'background'),
       ...(TUI_TONGZI_GAME_IDS.has(gameId) ? MAHJONG_TILE_ASSETS.map((src) => asset(src, 'card')) : []),
       ...(BLACK_DOT_GAME_IDS.has(gameId) ? PAI_GOW_TILE_ASSETS.map((src) => asset(src, 'card')) : []),
@@ -400,6 +399,9 @@ function preloadPresetFor(entry: GameAssetEntry): ResponsivePreset {
 }
 
 function preloadSizesFor(entry: GameAssetEntry, preset: ResponsivePreset): string {
+  if (preset === 'game-stage' && entry.src.includes('/game-art/local-table/stages/')) {
+    return '(max-width: 480px) 240px, (min-width: 1024px) 70vw, 100vw';
+  }
   if (preset === 'game-stage') return '(min-width: 1024px) 70vw, 100vw';
   if (preset === 'hero') return '100vw';
   if (entry.kind === 'cover') return '(min-width: 1280px) 360px, (min-width: 768px) 42vw, 92vw';

@@ -30,7 +30,7 @@ import { SCENE_LABELS, type SceneLabels } from '@/i18n/sceneLabels';
 
 const COLOR_BG_A = 0x111c2e;
 const COLOR_BG_B = 0x0b1322;
-const COLOR_STAGE_CREAM = 0xfff1d9;
+const COLOR_STAGE_CREAM = 0xf4eeff;
 const COLOR_STAGE_MINT = 0xe8f6d8;
 const COLOR_STAGE_ROSE = 0xffdeda;
 const COLOR_STAGE_LILAC = 0xece4ff;
@@ -355,7 +355,7 @@ export class CrashScene {
 
     const shade = new Graphics()
       .rect(0, 0, this.width, this.height)
-      .fill({ color: 0x5c2a16, alpha: 0.1 });
+      .fill({ color: 0x3b1d5c, alpha: 0.08 });
     this.app.stage.addChild(shade);
 
     const centerReadability = new Graphics()

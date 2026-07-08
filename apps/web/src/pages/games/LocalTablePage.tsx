@@ -23,7 +23,6 @@ import { GameHeader } from '@/components/game/GameHeader';
 import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
-import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 import { ResponsiveImage } from '@/lib/optimizedImages';
 
 interface LocalTablePageProps {
@@ -280,6 +279,12 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
       ? stagedState.splitOptions
       : [];
   const showInlineBlackDotSplit = blackDotSplitOptions.length > 0;
+  const stagePhaseClass = showInlineBlackDotSplit
+    ? 'local-table-stage-panel--black-dot-splitting'
+    : '';
+  const stageImageSizes = isBlackDot
+    ? '(max-width: 480px) 240px, (min-width: 1024px) 70vw, 100vw'
+    : '(min-width: 1024px) 70vw, 100vw';
   const statusLabel = busy
     ? isTwentyOneHalf || isStagedTable
       ? '處理中'
@@ -496,7 +501,6 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
   return (
     <div>
       <GameHeader
-        artwork={getLobbyGameCover(gameId)}
         section="§ TABLE"
         breadcrumb={theme.breadcrumb}
         title={theme.title}
@@ -505,12 +509,15 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
         description={theme.description}
         rtpLabel="RTP 95%+"
         rtpAccent="ember"
+        artwork={theme.stageArt}
+        artworkPreset="game-stage"
+        artworkSizes={stageImageSizes}
       />
 
       <div className="game-play-grid game-play-grid--local-table grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(320px,0.82fr)]">
         <div className="game-main-stack space-y-4">
           <section
-            className={`local-table-stage-panel game-stage-panel scanlines relative overflow-hidden rounded-[22px] border border-white/10 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.24)] ${stageToneClass} ${tableKindClass}`}
+            className={`local-table-stage-panel game-stage-panel scanlines relative overflow-hidden rounded-[22px] border border-white/10 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.24)] ${stageToneClass} ${tableKindClass} ${stagePhaseClass}`}
             style={localTableStageStyle(theme)}
           >
             <ResponsiveImage
@@ -518,14 +525,14 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
               alt=""
               aria-hidden="true"
               preset="game-stage"
-              sizes="(min-width: 1024px) 70vw, 100vw"
+              sizes={stageImageSizes}
               loading="eager"
               fetchPriority="high"
               width={941}
               height={1672}
               className="local-table-stage-art pointer-events-none absolute inset-0 h-full w-full object-cover opacity-95"
             />
-            <div className="local-table-stage-wash pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,248,234,0.10)_0%,rgba(241,250,232,0.18)_42%,rgba(243,237,255,0.28)_100%)]" />
+            <div className="local-table-stage-wash pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(250,245,255,0.14)_0%,rgba(255,228,236,0.18)_42%,rgba(237,233,254,0.3)_100%)]" />
             <div className="local-table-stage-glow pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.18),transparent_30%),radial-gradient(circle_at_20%_12%,rgba(253,230,138,0.25),transparent_30%)]" />
             <div className="local-table-ambient-light" aria-hidden="true" />
             <div className="local-table-result-burst" aria-hidden="true" />
@@ -668,7 +675,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
             </div>
           )}
 
-          <section className="grid gap-3 md:grid-cols-3">
+          <section className={`local-table-rule-cards grid gap-3 md:grid-cols-3 ${isBlackDot ? 'hidden sm:grid' : ''}`}>
             {(displayRound?.ruleSummary ?? ROOM_THEMES[gameId].description.split(' · ')).map(
               (rule, index) => (
                 <div
@@ -1345,11 +1352,10 @@ function BlackDotSplitMiniMound({ title, hand }: { title: string; hand: LocalTab
 
 function BlackDotSplitTile({ piece }: { piece: LocalTablePiece }) {
   if (piece.kind !== 'domino') return null;
-  const imageSrc = `/game-art/pai-gow/Domino-${piece.pips[0]}+${piece.pips[1]}.svg`;
 
   return (
     <span className="black-dot-split-tile">
-      <img src={imageSrc} alt="" width={95} height={190} decoding="async" />
+      <img src={dominoImageSrc(piece)} alt="" width={95} height={190} decoding="async" />
     </span>
   );
 }
@@ -1643,12 +1649,10 @@ function TubePiece({ tile }: { tile: LocalTableTubeTile }) {
 }
 
 function DominoPiece({ tile }: { tile: LocalTableDominoTile }) {
-  const imageSrc = `/game-art/pai-gow/Domino-${tile.pips[0]}+${tile.pips[1]}.svg`;
-
   return (
     <div className="local-table-domino-piece relative flex h-20 min-w-0 items-center justify-center overflow-hidden rounded-[14px] border p-1.5 shadow-[0_12px_24px_rgba(0,0,0,0.22)] sm:h-32 sm:p-2">
       <img
-        src={imageSrc}
+        src={dominoImageSrc(tile)}
         alt={tile.name}
         width={95}
         height={190}
@@ -1660,6 +1664,11 @@ function DominoPiece({ tile }: { tile: LocalTableDominoTile }) {
       </div>
     </div>
   );
+}
+
+function dominoImageSrc(tile: LocalTableDominoTile): string {
+  const [low, high] = [...tile.pips].sort((a, b) => a - b);
+  return `/game-art/pai-gow/Domino-${low}+${high}.svg`;
 }
 
 function suitSymbol(suit: LocalTableCard['suit']): string {

@@ -240,14 +240,14 @@ function MobileLobbyOnePage() {
 
   return (
     <div className="mobile-lobby-surface min-h-[100svh] pb-[calc(env(safe-area-inset-bottom)+18px)] lg:hidden">
-      <section className="sticky top-0 z-30 border-b border-[#E9CFA7] bg-[#FFF8EA]/95 pt-[env(safe-area-inset-top)] shadow-[0_4px_14px_rgba(120,79,18,0.10)] backdrop-blur">
+      <section className="sticky top-0 z-30 border-b border-[#C4B5FD]/60 bg-[#F7F2FF]/95 pt-[env(safe-area-inset-top)] shadow-[0_4px_14px_rgba(88,28,135,0.10)] backdrop-blur">
         <div className="flex h-[52px] items-center gap-1 px-2 min-[380px]:gap-1.5 min-[380px]:px-2.5">
           <Link
             to="/lobby"
             className="flex min-h-10 shrink-0 items-center gap-1.5"
             aria-label={t.common.lobby}
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[9px] border border-[#F59E0B]/30 bg-[#FFF7ED]">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[9px] border border-[#C084FC]/34 bg-[#F5F0FF]">
               <ResponsiveImage
                 src="/brand/yachiyo-emblem.png"
                 alt=""
@@ -390,7 +390,7 @@ function MobileLobbyOnePage() {
       </section>
 
       <section className="grid grid-cols-[66px_minmax(0,1fr)] gap-2 px-2 py-2">
-        <aside className="sticky top-[calc(env(safe-area-inset-top)+58px)] self-start space-y-1.5">
+        <aside className="mobile-lobby-category-rail sticky top-[calc(env(safe-area-inset-top)+58px)] self-start space-y-1.5">
           {mobileCategories.map((category) => {
             const Icon = getHallIcon(category.iconKey ?? 'classic');
             const selected = activeCategory === category.id;
@@ -400,10 +400,10 @@ function MobileLobbyOnePage() {
                 key={category.id}
                 type="button"
                 onClick={() => setActiveCategory(category.id)}
-                className={`flex h-[58px] w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border text-[11px] font-black shadow-[0_6px_14px_rgba(15,23,42,0.08)] transition active:scale-[0.98] ${
+                className={`mobile-lobby-category-button flex h-[58px] w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border text-[11px] font-black shadow-[0_6px_14px_rgba(15,23,42,0.08)] transition active:scale-[0.98] ${
                   selected
-                    ? 'border-[#EA580C] bg-[linear-gradient(180deg,#FB923C_0%,#EA580C_100%)] text-white'
-                    : 'border-[#FED7AA] bg-[#FFFDF4]/92 text-[#9A3412]'
+                    ? 'mobile-lobby-category-button--active border-[#EA580C] text-white'
+                    : 'border-[#D8C6FF]/90 text-[#6B3E95]'
                 }`}
                 aria-pressed={selected}
               >
@@ -411,7 +411,7 @@ function MobileLobbyOnePage() {
                 <span className="leading-none">{categoryLabel.shortLabel}</span>
                 <span
                   className={`num rounded-full px-1.5 py-0.5 text-[9px] leading-none ${
-                    selected ? 'bg-white/20 text-white' : 'bg-[#FFF7ED] text-[#C2410C]'
+                    selected ? 'bg-white/20 text-white' : 'bg-white/70 text-[#6D28D9]'
                   }`}
                 >
                   {mobileCategoryCount(category.id, mobileGames, gameHallMap)}
@@ -421,7 +421,7 @@ function MobileLobbyOnePage() {
           })}
           <Link
             to="/promos"
-            className="flex h-[58px] w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border border-[#D5B75E] bg-[#FFF1B4] text-[11px] font-black text-[#765709] shadow-[0_6px_14px_rgba(15,23,42,0.08)] active:scale-[0.98]"
+            className="mobile-lobby-promo-button flex h-[58px] w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border text-[11px] font-black shadow-[0_6px_14px_rgba(15,23,42,0.08)] active:scale-[0.98]"
           >
             <Gift className="h-5 w-5" aria-hidden="true" />
             {t.common.promos}
@@ -429,7 +429,7 @@ function MobileLobbyOnePage() {
         </aside>
 
         <div className="min-w-0 space-y-2">
-          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#FED7AA] bg-[#FFFDF4]/92 px-2.5 shadow-[0_6px_14px_rgba(120,79,18,0.08)] backdrop-blur">
+          <div className="flex h-9 items-center justify-between rounded-[10px] border border-[#DDD6FE] bg-[#FBF7FF]/92 px-2.5 shadow-[0_6px_14px_rgba(88,28,135,0.08)] backdrop-blur">
             <div className="flex min-w-0 items-center gap-1.5">
               <span className="h-4 w-1 rounded-full bg-[#F97316]" />
               <span className="truncate text-[14px] font-black text-[#12333E]">
@@ -563,7 +563,7 @@ function MobileGameCard({
 
 function LobbyStatCard({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <article className="rounded-[24px] border border-[#F0D5B5]/80 bg-[#FFF8EA]/88 p-5 shadow-[0_12px_30px_rgba(120,79,18,0.10)] backdrop-blur">
+    <article className="rounded-[24px] border border-[#DDD6FE]/80 bg-[#FBF7FF]/88 p-5 shadow-[0_12px_30px_rgba(88,28,135,0.10)] backdrop-blur">
       <div className="label">{label}</div>
       <div className="mt-3 data-num text-[30px] font-bold text-[#EA580C]">{value}</div>
       <p className="mt-2 text-[13px] leading-relaxed text-[#4A5568]">{detail}</p>

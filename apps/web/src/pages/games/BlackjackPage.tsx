@@ -244,7 +244,7 @@ export function BlackjackPage() {
                 aria-hidden="true"
                 className="blackjack-table-art absolute inset-0 h-full w-full object-cover opacity-70"
               />
-              <div className="blackjack-table-wash absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,230,153,0.2),transparent_34%),linear-gradient(180deg,rgba(255,248,234,0.18)_0%,rgba(255,236,231,0.28)_55%,rgba(243,237,255,0.34)_100%)]" />
+              <div className="blackjack-table-wash absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(221,214,254,0.22),transparent_34%),linear-gradient(180deg,rgba(250,245,255,0.2)_0%,rgba(255,228,236,0.28)_55%,rgba(237,233,254,0.36)_100%)]" />
 
               <div className="blackjack-table-body relative z-10 flex min-h-[580px] flex-col justify-between gap-5 p-3 sm:min-h-[620px] sm:p-5">
                 <section>

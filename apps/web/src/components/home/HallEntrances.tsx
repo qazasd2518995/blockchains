@@ -25,7 +25,7 @@ function HallCard({ hall, priority = false }: { hall: HallMeta; priority?: boole
   return (
     <Link
       to={`/hall/${hall.id}`}
-      className="group relative flex min-h-[410px] flex-col overflow-hidden rounded-[12px] border border-[#F0D5B5]/80 bg-[#FFF8EA]/90 shadow-[0_14px_34px_rgba(120,79,18,0.12)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-[#EA580C]/40 hover:shadow-[0_22px_46px_rgba(234,88,12,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EA580C]/35 focus-visible:ring-offset-2"
+      className="group relative flex min-h-[410px] flex-col overflow-hidden rounded-[12px] border border-[#DDD6FE]/80 bg-[#FBF7FF]/90 shadow-[0_14px_34px_rgba(88,28,135,0.12)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-[#A855F7]/40 hover:shadow-[0_22px_46px_rgba(168,85,247,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A855F7]/35 focus-visible:ring-offset-2"
     >
       <div
         className="relative h-[260px] shrink-0 overflow-hidden sm:h-[300px] 2xl:h-[330px]"

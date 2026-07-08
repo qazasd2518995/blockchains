@@ -52,8 +52,8 @@ export function TodayWinners() {
   }, []);
 
   return (
-    <section className="flex h-[var(--live-board-height)] min-w-0 flex-col overflow-hidden rounded-[10px] border border-[#F0D5B5]/80 bg-[#FFF8EA]/88 shadow-[0_8px_24px_rgba(120,79,18,0.10)] backdrop-blur">
-      <header className="flex items-baseline justify-between border-b border-[#F0D5B5]/80 px-5 py-4">
+    <section className="flex h-[var(--live-board-height)] min-w-0 flex-col overflow-hidden rounded-[10px] border border-[#DDD6FE]/80 bg-[#FBF7FF]/88 shadow-[0_8px_24px_rgba(88,28,135,0.10)] backdrop-blur">
+      <header className="flex items-baseline justify-between border-b border-[#DDD6FE]/80 px-5 py-4">
         <div>
           <h2 className="flex items-center gap-2 text-[20px] font-semibold text-[#0F172A]">
             <Trophy className="h-5 w-5 text-[#C9A247]" />

@@ -26,7 +26,7 @@ import {
 } from '@bg/game-engine';
 import { WinCelebration } from '@bg/game-engine';
 
-const COLOR_BG = 0xFFF7E8;
+const COLOR_BG = 0xF4EEFF;
 const COLOR_ACID = 0xF3D67D;
 const COLOR_TOXIC = 0x1E7A4F;
 const COLOR_AMBER = 0xF3D67D;

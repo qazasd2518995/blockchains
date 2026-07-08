@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { ResponsiveImage } from '@/lib/optimizedImages';
+import { ResponsiveImage, type ResponsivePreset } from '@/lib/optimizedImages';
 import { useTranslation } from '@/i18n/useTranslation';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 
 interface Props {
   artwork?: string;
+  artworkPreset?: ResponsivePreset;
+  artworkSizes?: string;
   artworkPosition?: string;
   section: string;
   title: string;
@@ -19,6 +21,8 @@ interface Props {
 
 export function GameHeader({
   artwork,
+  artworkPreset,
+  artworkSizes,
   artworkPosition = 'object-[78%_center]',
   section,
   title,
@@ -47,23 +51,27 @@ export function GameHeader({
   const hasSuffix = titleSuffix.trim().length > 0;
   const separator = '';
   const backdrop = artwork ?? '/backgrounds/casino-atmosphere.png';
+  const backdropPreset = artworkPreset ?? (artwork ? 'lobby-card' : 'hero');
+  const backdropSizes =
+    artworkSizes ??
+    (artwork ? '(max-width: 480px) 320px, (min-width: 1280px) 960px, 100vw' : '100vw');
   const backdropOpacity = artwork ? 'opacity-[0.92]' : 'opacity-30';
 
   return (
-    <div className="game-header relative mb-4 overflow-hidden rounded-[16px] border border-[#E8C96B]/24 bg-[#FFF8EA] p-4 shadow-[0_22px_52px_rgba(154,52,18,0.12)] sm:mb-6 sm:rounded-[20px] sm:p-6">
+    <div className="game-header relative mb-4 overflow-hidden rounded-[16px] border border-[#C4B5FD]/34 bg-[#F6F0FF] p-4 shadow-[0_22px_52px_rgba(88,28,135,0.12)] sm:mb-6 sm:rounded-[20px] sm:p-6">
       <ResponsiveImage
         src={backdrop}
         alt=""
         aria-hidden="true"
-        preset="hero"
-        sizes="100vw"
+        preset={backdropPreset}
+        sizes={backdropSizes}
         loading="eager"
         fetchPriority="high"
         width={1600}
         height={700}
         className={`game-header__art pointer-events-none absolute inset-0 h-full w-full object-cover ${artworkPosition} ${backdropOpacity}`}
       />
-      <div className="game-header__shade pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,248,234,0.96)_0%,rgba(255,241,218,0.86)_34%,rgba(240,250,229,0.58)_66%,rgba(243,237,255,0.34)_100%)]" />
+      <div className="game-header__shade pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(250,245,255,0.96)_0%,rgba(245,243,255,0.88)_34%,rgba(255,228,236,0.58)_66%,rgba(237,233,254,0.42)_100%)]" />
       <div className="game-header__glow pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_42%,rgba(232,201,107,0.22),transparent_24%)]" />
       <div className="game-header__rule pointer-events-none absolute inset-x-6 bottom-0 h-px bg-[linear-gradient(90deg,rgba(232,201,107,0.02),rgba(234,88,12,0.28),rgba(232,201,107,0.02))]" />
 

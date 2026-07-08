@@ -46,7 +46,7 @@ export function MobileAccountMenu({ className = '' }: MobileAccountMenuProps) {
       )}
       <button
         type="button"
-        className="relative z-50 flex h-full min-w-0 items-center gap-1.5 rounded-[10px] border border-[#D6B75B] bg-[#FFF8DF] px-1.5 text-left text-[#684F12] shadow-[0_3px_8px_rgba(120,79,18,0.08)] active:scale-[0.99]"
+        className="relative z-50 flex h-full min-w-0 items-center gap-1.5 rounded-[10px] border border-[#C4B5FD] bg-[#F7F2FF] px-1.5 text-left text-[#5B21B6] shadow-[0_3px_8px_rgba(88,28,135,0.08)] active:scale-[0.99]"
         aria-expanded={open}
         aria-label={`${t.common.account} ${user.username}，${t.common.balance} ${formatAmount(user.balance ?? '0')}`}
         onClick={() => setOpen((value) => !value)}

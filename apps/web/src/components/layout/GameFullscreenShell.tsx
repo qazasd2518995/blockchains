@@ -190,7 +190,7 @@ export function GameFullscreenShell() {
   return (
     <div
       ref={shellRef}
-      className="game-fullscreen-shell game-warm-shell relative min-h-[100svh] overflow-x-hidden bg-[#FFF7E8] text-white"
+      className="game-fullscreen-shell game-warm-shell relative min-h-[100svh] overflow-x-hidden bg-[#F6F0FF] text-white"
       data-game-id={game.id}
       data-slot-layout={slotLayout}
     >
@@ -201,17 +201,17 @@ export function GameFullscreenShell() {
           alt=""
           aria-hidden="true"
           preset="hero"
-          sizes="100vw"
+          sizes="(max-width: 480px) 320px, 100vw"
           loading="eager"
           fetchPriority="high"
           width={1717}
           height={916}
           className="game-shell-backdrop-image h-full w-full object-cover opacity-[0.16]"
         />
-        <div className="game-shell-backdrop-tint absolute inset-0 bg-[linear-gradient(180deg,rgba(255,248,234,0.78)_0%,rgba(241,250,232,0.84)_42%,rgba(255,236,231,0.9)_68%,rgba(243,237,255,0.94)_100%)]" />
+        <div className="game-shell-backdrop-tint absolute inset-0 bg-[linear-gradient(180deg,rgba(250,245,255,0.8)_0%,rgba(245,243,255,0.86)_42%,rgba(255,228,236,0.88)_68%,rgba(237,233,254,0.96)_100%)]" />
       </div>
 
-      <header className="game-shell-header sticky top-0 z-40 border-b border-[#E8C96B]/28 bg-[#FFF7E8]/86 pt-[env(safe-area-inset-top)] shadow-[0_14px_36px_rgba(154,52,18,0.12)] backdrop-blur">
+      <header className="game-shell-header sticky top-0 z-40 border-b border-[#C4B5FD]/34 bg-[#F6F0FF]/86 pt-[env(safe-area-inset-top)] shadow-[0_14px_36px_rgba(88,28,135,0.12)] backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-[1920px] items-center gap-2 px-2 sm:px-4 xl:px-5">
           <Link
             to={returnTarget.to}

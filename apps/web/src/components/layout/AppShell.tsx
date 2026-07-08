@@ -92,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div
           className={
             isLobbyRoute
-              ? 'absolute inset-0 bg-[linear-gradient(180deg,rgba(255,248,234,0.58)_0%,rgba(245,249,229,0.74)_34%,rgba(247,237,255,0.82)_100%)]'
+              ? 'absolute inset-0 bg-[linear-gradient(180deg,rgba(250,245,255,0.62)_0%,rgba(245,243,255,0.76)_36%,rgba(255,240,246,0.84)_100%)]'
               : 'absolute inset-0 bg-[linear-gradient(180deg,rgba(233,236,239,0.72)_0%,rgba(233,236,239,0.9)_30%,rgba(233,236,239,0.96)_100%)]'
           }
         />
@@ -100,7 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div
         className={
           isLobbyRoute
-            ? 'pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.14),transparent_70%)]'
+            ? 'pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.16),transparent_70%)]'
             : 'pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(234,88,12,0.18),transparent_72%)]'
         }
       />
