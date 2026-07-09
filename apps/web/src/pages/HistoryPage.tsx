@@ -1246,6 +1246,7 @@ type LocalTablePieceView =
       kind: 'tube';
       label: string;
       value?: number;
+      suit?: string | null;
       isWhite: boolean;
     }
   | {
@@ -1360,7 +1361,25 @@ function LocalTablePieceChip({ piece }: { piece: LocalTablePieceView }) {
   }
 
   if (piece.kind === 'tube') {
-    return (
+    const imageSrc = tubeImageSrc(piece);
+    return imageSrc ? (
+      <span className="grid gap-1">
+        <span className="inline-flex h-[78px] w-[56px] items-center justify-center overflow-hidden rounded-[10px] border border-[#D9E3EA] bg-white p-1.5 shadow-[0_8px_18px_rgba(15,23,42,0.18)]">
+          <img
+            src={imageSrc}
+            alt={piece.label}
+            className="h-full w-full object-contain"
+            draggable={false}
+            loading="lazy"
+          />
+        </span>
+        {piece.value !== undefined ? (
+          <em className="text-center text-[10px] font-black not-italic text-[#4A5568]">
+            {piece.isWhite ? '白板' : piece.value}
+          </em>
+        ) : null}
+      </span>
+    ) : (
       <span
         className={`inline-flex h-[68px] min-w-[58px] flex-col items-center justify-center rounded-[12px] border-2 px-2 text-center shadow-sm ${
           piece.isWhite
@@ -1376,7 +1395,23 @@ function LocalTablePieceChip({ piece }: { piece: LocalTablePieceView }) {
     );
   }
 
-  return (
+  const imageSrc = dominoImageSrc(piece);
+  return imageSrc ? (
+    <span className="grid gap-1">
+      <span className="inline-flex h-[82px] w-[42px] items-center justify-center overflow-hidden rounded-[8px] border border-[#D9E3EA] bg-white p-0.5 shadow-[0_8px_18px_rgba(15,23,42,0.18)]">
+        <img
+          src={imageSrc}
+          alt={piece.label}
+          className="h-full w-full object-contain"
+          draggable={false}
+          loading="lazy"
+        />
+      </span>
+      <em className="max-w-[54px] truncate text-center text-[10px] font-black not-italic text-[#4A5568]">
+        {piece.label}
+      </em>
+    </span>
+  ) : (
     <span className="inline-grid h-[76px] w-[48px] overflow-hidden rounded-[10px] border-2 border-[#0F172A]/20 bg-[#FFF7E5] shadow-sm">
       <span className="grid place-items-center border-b border-[#0F172A]/15">
         <DominoPips count={piece.pips?.[0] ?? 0} />
@@ -1401,6 +1436,72 @@ function DominoPips({ count }: { count: number }) {
       ))}
     </span>
   );
+}
+
+function tubeImageSrc(piece: Extract<LocalTablePieceView, { kind: 'tube' }>): string | null {
+  if (piece.isWhite || piece.label.includes('白板')) return '/game-art/mahjong/WhiteDragon.svg';
+  const value = normalizeTileValue(piece.value, piece.label);
+  if (value === null) return null;
+  const suitPrefix = normalizeTubeSuit(piece.suit, piece.label);
+  return `/game-art/mahjong/${suitPrefix}${value}.svg`;
+}
+
+function normalizeTubeSuit(value: string | null | undefined, label: string): 'Pin' | 'Sou' | 'Man' {
+  const normalized = value?.trim().toLowerCase();
+  if (
+    normalized === 'sou' ||
+    normalized === 'suo' ||
+    normalized === 'bamboo' ||
+    normalized === 'bams' ||
+    label.includes('索')
+  ) {
+    return 'Sou';
+  }
+  if (
+    normalized === 'man' ||
+    normalized === 'wan' ||
+    normalized === 'character' ||
+    normalized === 'characters' ||
+    label.includes('萬') ||
+    label.includes('万')
+  ) {
+    return 'Man';
+  }
+  return 'Pin';
+}
+
+function normalizeTileValue(value: number | undefined, label: string): number | null {
+  if (value !== undefined) {
+    const normalized = Math.trunc(value);
+    if (normalized >= 1 && normalized <= 9) return normalized;
+  }
+  const numeric = label.match(/[1-9]/)?.[0];
+  if (numeric) return Number.parseInt(numeric, 10);
+  const chineseDigits: Record<string, number> = {
+    一: 1,
+    二: 2,
+    三: 3,
+    四: 4,
+    五: 5,
+    六: 6,
+    七: 7,
+    八: 8,
+    九: 9,
+  };
+  for (const [digit, parsedValue] of Object.entries(chineseDigits)) {
+    if (label.includes(digit)) return parsedValue;
+  }
+  return null;
+}
+
+function dominoImageSrc(piece: Extract<LocalTablePieceView, { kind: 'domino' }>): string | null {
+  if (!piece.pips) return null;
+  const first = Math.trunc(piece.pips[0]);
+  const second = Math.trunc(piece.pips[1]);
+  if (first < 1 || first > 6 || second < 1 || second > 6) return null;
+  const low = Math.min(first, second);
+  const high = Math.max(first, second);
+  return `/game-art/pai-gow/Domino-${low}+${high}.svg`;
 }
 
 function getLocalTableHand(value: unknown): LocalTableHandView | null {
@@ -1442,6 +1543,7 @@ function getLocalTablePiece(value: unknown): LocalTablePieceView | null {
       kind: 'tube',
       label: getStringScalar(record.label) ?? (record.isWhite === true ? '白板' : '牌'),
       value: getNumber(record.value),
+      suit: getStringScalar(record.suit),
       isWhite: record.isWhite === true,
     };
   }
