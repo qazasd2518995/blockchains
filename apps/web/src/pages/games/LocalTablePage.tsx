@@ -559,7 +559,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                 <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">
                   派彩倍率
                 </div>
-                <div className="data-num text-[22px] font-black text-[#FDE68A]">
+                <div className="local-table-multiplier-value data-num text-[22px] font-black">
                   {formatMultiplier(displayRound?.multiplier ?? 0)}
                 </div>
               </div>
@@ -647,10 +647,10 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                   <div
                     className={`local-table-profit data-num text-[24px] font-black ${
                       profitValue > 0
-                        ? 'text-[#86EFAC]'
+                        ? 'local-table-profit--win'
                         : profitValue < 0
-                          ? 'text-[#FCA5A5]'
-                          : 'text-white/70'
+                          ? 'local-table-profit--loss'
+                          : 'local-table-profit--push'
                     }`}
                   >
                     {displayRound ? formatAmount(displayRound.profit) : '0.00'}

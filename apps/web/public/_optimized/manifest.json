@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-07T11:32:23.666Z",
+  "generatedAt": "2026-07-09T11:53:07.963Z",
   "widths": [
     480,
     960,
@@ -412,6 +412,16 @@
       "960": "/_optimized/game-art/local-table/ten-half-star-cover@960.webp",
       "1600": "/_optimized/game-art/local-table/ten-half-star-cover@1600.webp"
     },
+    "/game-art/local-table/tui-suozi-jade-cover.webp": {
+      "480": "/_optimized/game-art/local-table/tui-suozi-jade-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/tui-suozi-jade-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/tui-suozi-jade-cover@1600.webp"
+    },
+    "/game-art/local-table/tui-suozi-neon-cover.webp": {
+      "480": "/_optimized/game-art/local-table/tui-suozi-neon-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/tui-suozi-neon-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/tui-suozi-neon-cover@1600.webp"
+    },
     "/game-art/local-table/tui-tongzi-dragon-cover.webp": {
       "480": "/_optimized/game-art/local-table/tui-tongzi-dragon-cover@480.webp",
       "960": "/_optimized/game-art/local-table/tui-tongzi-dragon-cover@960.webp",
@@ -436,6 +446,11 @@
       "480": "/_optimized/game-art/local-table/tui-tongzi-neon-cover@480.webp",
       "960": "/_optimized/game-art/local-table/tui-tongzi-neon-cover@960.webp",
       "1600": "/_optimized/game-art/local-table/tui-tongzi-neon-cover@1600.webp"
+    },
+    "/game-art/local-table/tui-wanzi-gold-cover.webp": {
+      "480": "/_optimized/game-art/local-table/tui-wanzi-gold-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/tui-wanzi-gold-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/tui-wanzi-gold-cover@1600.webp"
     },
     "/game-art/mines/background.png": {
       "480": "/_optimized/game-art/mines/background@480.webp",

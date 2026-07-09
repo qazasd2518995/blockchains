@@ -13048,3 +13048,122 @@
     }
   }
 }
+
+@layer components {
+  .local-table-multiplier-value {
+    color: #fde68a;
+    text-shadow:
+      0 1px 0 rgba(0, 0, 0, 0.42),
+      0 8px 18px rgba(0, 0, 0, 0.28);
+  }
+
+  .local-table-profit--win {
+    color: #86efac;
+    text-shadow:
+      0 1px 0 rgba(0, 0, 0, 0.34),
+      0 8px 18px rgba(0, 0, 0, 0.24);
+  }
+
+  .local-table-profit--loss {
+    color: #fca5a5;
+    text-shadow:
+      0 1px 0 rgba(0, 0, 0, 0.34),
+      0 8px 18px rgba(0, 0, 0, 0.24);
+  }
+
+  .local-table-profit--push {
+    color: rgba(255, 255, 255, 0.72);
+    text-shadow:
+      0 1px 0 rgba(0, 0, 0, 0.34),
+      0 8px 18px rgba(0, 0, 0, 0.2);
+  }
+
+  .game-warm-shell .local-table-stage-header > div:last-child .text-white\/45,
+  .game-warm-shell .local-table-result-card .text-white\/45,
+  .game-warm-shell .local-table-result-card .text-white\/50,
+  .game-warm-shell .local-table-hand-panel .text-white\/50,
+  .game-warm-shell .local-table-hand-panel .text-white\/55,
+  .game-warm-shell .card-war-seat__eyebrow,
+  .game-warm-shell .tui-tongzi-lane__label,
+  .game-warm-shell .tui-tongzi-lane__detail,
+  .game-warm-shell .black-dot-score-pill span,
+  .game-warm-shell .black-dot-rack__copy span,
+  .game-warm-shell .black-dot-seat__header span,
+  .game-warm-shell .black-dot-mound__header em {
+    color: rgba(36, 48, 65, 0.68) !important;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.7),
+      0 0 1px rgba(36, 48, 65, 0.18) !important;
+  }
+
+  .game-warm-shell .local-table-status-label,
+  .game-warm-shell .local-table-result-card .text-white,
+  .game-warm-shell .local-table-hand-panel .text-white,
+  .game-warm-shell .card-war-seat__score,
+  .game-warm-shell .tui-tongzi-lane__score,
+  .game-warm-shell .black-dot-score-pill strong,
+  .game-warm-shell .black-dot-seat__header strong,
+  .game-warm-shell .black-dot-rack__copy strong,
+  .game-warm-shell .black-dot-mound__header strong {
+    color: #243041 !important;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.8),
+      0 0 1px rgba(36, 48, 65, 0.34) !important;
+  }
+
+  .game-warm-shell .local-table-multiplier-value,
+  .game-warm-shell .local-table-hand-panel .text-\[\#FDE68A\],
+  .game-warm-shell .game-result-card .text-\[\#F3D67D\],
+  .game-warm-shell .game-result-card .text-\[\#FDE68A\],
+  .game-warm-shell .slot-result-payout {
+    color: #8a4b08 !important;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.84),
+      0 0 1px rgba(72, 48, 16, 0.45) !important;
+  }
+
+  .game-warm-shell .card-war-seat__hint,
+  .game-warm-shell .tui-tongzi-lane__rank,
+  .game-warm-shell .local-table-inline-split__hint,
+  .game-warm-shell .black-dot-score-pill em,
+  .game-warm-shell .black-dot-mound__header span,
+  .game-warm-shell .black-dot-rack__copy em {
+    color: #0369a1 !important;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.78),
+      0 0 1px rgba(7, 89, 133, 0.36) !important;
+  }
+
+  .game-warm-shell .local-table-profit--win,
+  .game-warm-shell .game-result-card .num-win,
+  .game-warm-shell .game-result-card .text-\[\#7DD3FC\],
+  .game-warm-shell .game-result-card .text-\[\#86EFAC\],
+  .game-warm-shell .game-result-card .text-\[\#6EE7B7\],
+  .game-warm-shell .slot-result-profit {
+    color: #047857 !important;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.82),
+      0 0 1px rgba(6, 78, 59, 0.42) !important;
+  }
+
+  .game-warm-shell .local-table-profit--loss,
+  .game-warm-shell .game-result-card .text-\[\#FCA5A5\] {
+    color: #b42318 !important;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.8),
+      0 0 1px rgba(127, 29, 29, 0.42) !important;
+  }
+
+  .game-warm-shell .local-table-profit--push {
+    color: rgba(36, 48, 65, 0.78) !important;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.78),
+      0 0 1px rgba(36, 48, 65, 0.24) !important;
+  }
+
+  .game-warm-shell .tui-tongzi-lane__rank,
+  .game-warm-shell .local-table-hand-panel .rounded-\[10px\] {
+    border-color: rgba(168, 85, 247, 0.2) !important;
+    background: rgba(255, 255, 255, 0.58) !important;
+  }
+}
