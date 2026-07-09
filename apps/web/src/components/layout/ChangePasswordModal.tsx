@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { KeyRound, X } from 'lucide-react';
 import { api, extractApiError } from '@/lib/api';
 
@@ -9,6 +10,24 @@ interface ChangePasswordModalProps {
 
 const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).{8,128}$/;
 
+interface ModalViewport {
+  height: number;
+  offsetTop: number;
+}
+
+function readModalViewport(): ModalViewport | null {
+  if (typeof window === 'undefined') return null;
+
+  const visualViewport = window.visualViewport;
+  const height = visualViewport?.height ?? window.innerHeight;
+  if (!Number.isFinite(height)) return null;
+
+  return {
+    height: Math.max(320, Math.round(height)),
+    offsetTop: Math.max(0, Math.round(visualViewport?.offsetTop ?? 0)),
+  };
+}
+
 export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -16,6 +35,7 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [viewport, setViewport] = useState<ModalViewport | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -27,7 +47,37 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
     setSubmitting(false);
   }, [open]);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open || typeof window === 'undefined') return;
+
+    const updateViewport = () => setViewport(readModalViewport());
+    updateViewport();
+
+    const visualViewport = window.visualViewport;
+    window.addEventListener('resize', updateViewport);
+    visualViewport?.addEventListener('resize', updateViewport);
+    visualViewport?.addEventListener('scroll', updateViewport);
+
+    return () => {
+      window.removeEventListener('resize', updateViewport);
+      visualViewport?.removeEventListener('resize', updateViewport);
+      visualViewport?.removeEventListener('scroll', updateViewport);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || typeof document === 'undefined') return;
+
+    const previousOverflow = document.body.style.overflow;
+    const previousOverscrollBehavior = document.body.style.overscrollBehavior;
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'contain';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.overscrollBehavior = previousOverscrollBehavior;
+    };
+  }, [open]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -62,15 +112,23 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[1200] overflow-y-auto bg-black/62 px-4 backdrop-blur-sm">
+  if (!open) return null;
+
+  const modal = (
+    <div
+      className="fixed inset-x-0 top-0 z-[1200] overflow-y-auto bg-black/62 px-4 backdrop-blur-sm"
+      style={{
+        height: viewport ? `${viewport.height}px` : '100dvh',
+        transform: viewport?.offsetTop ? `translateY(${viewport.offsetTop}px)` : undefined,
+      }}
+    >
       <button
         type="button"
-        className="absolute inset-0 cursor-default"
+        className="fixed inset-0 cursor-default"
         aria-label="關閉修改密碼"
         onClick={onClose}
       />
-      <div className="relative z-10 flex min-h-[100svh] items-center justify-center py-[calc(env(safe-area-inset-top)+16px)] pb-[calc(env(safe-area-inset-bottom)+16px)] sm:py-6">
+      <div className="relative z-10 flex min-h-full items-center justify-center py-[calc(env(safe-area-inset-top)+16px)] pb-[calc(env(safe-area-inset-bottom)+16px)] sm:py-6">
         <form
           onSubmit={handleSubmit}
           role="dialog"
@@ -78,8 +136,9 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
           aria-labelledby="change-password-title"
           className="w-full max-w-[420px] overflow-y-auto rounded-[14px] border border-white/12 bg-[#0F172A] p-5 text-white shadow-[0_24px_70px_rgba(0,0,0,0.46)]"
           style={{
-            maxHeight:
-              'calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px)',
+            maxHeight: viewport
+              ? `${Math.max(320, viewport.height - 32)}px`
+              : 'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px)',
           }}
         >
           <div className="flex items-center justify-between gap-3">
@@ -158,4 +217,7 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return modal;
+  return createPortal(modal, document.body);
 }
