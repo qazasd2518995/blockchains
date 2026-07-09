@@ -2576,6 +2576,22 @@ function buildBlackDotRoundFromSplit(
   };
 }
 
+function buildBlackDotRoundFromSplitForGame(
+  gameId: LocalTableGameIdType,
+  amount: Prisma.Decimal,
+  playerTiles: DominoTileInternal[],
+  bankerTiles: DominoTileInternal[],
+  splitId: string,
+): RoundDraft {
+  return buildBlackDotRoundFromSplit(
+    ROOM_CONFIGS[gameId],
+    amount,
+    playerTiles,
+    bankerTiles,
+    splitId,
+  );
+}
+
 function shapeBlackDotRoundForControl(
   data: StagedLocalTableStoredData,
   amount: Prisma.Decimal,
@@ -3089,12 +3105,17 @@ function toResultData(round: RoundDraft, control: ControlOutcome): Prisma.InputJ
 
 export const __localTableServiceTestHooks = {
   buildRound,
+  buildBlackDotRoundFromSplit,
+  buildBlackDotRoundFromSplitForGame,
+  buildBlackDotSplitOptions,
   buildTwentyOneHalfRoundFromState,
   bestDominoSplit,
   cardWarRank,
   compareRankedHands,
   controlAsForcedLoss,
+  drawDominoTiles,
   half21Score,
+  makeStream,
   prepareTwentyOneHalfBankerTurnData,
   rankDominoPair,
   rankTubeHand,

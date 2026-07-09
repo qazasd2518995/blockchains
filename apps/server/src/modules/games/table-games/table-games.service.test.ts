@@ -1,12 +1,24 @@
 import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
-import { canAccessLocalTableBeta, GameId, isGameVisibleForUsername } from '@bg/shared';
+import {
+  BLACK_DOT_GAME_IDS,
+  LOCAL_TABLE_GAME_IDS,
+  TUI_TONGZI_GAME_IDS,
+  TWENTY_ONE_HALF_GAME_IDS,
+  canAccessLocalTableBeta,
+  GameId,
+  isGameVisibleForUsername,
+} from '@bg/shared';
 import { __localTableServiceTestHooks } from './table-games.service.js';
 
 const {
+  buildBlackDotRoundFromSplitForGame,
+  buildBlackDotSplitOptions,
   buildRound,
   buildTwentyOneHalfRoundFromState,
+  drawDominoTiles,
   half21Score,
+  makeStream,
   prepareTwentyOneHalfBankerTurnData,
   rankDominoPair,
   rankTubeHand,
@@ -161,6 +173,23 @@ describe('local table game rules', () => {
     expect(first.banker.pieces).toEqual(second.banker.pieces);
   });
 
+  it('keeps every generated local-table result aligned with payout accounting', () => {
+    const amount = new Prisma.Decimal(100);
+
+    for (const gameId of LOCAL_TABLE_GAME_IDS) {
+      for (let nonce = 1; nonce <= 30; nonce += 1) {
+        const round = buildRound(
+          gameId,
+          amount,
+          { serverSeed: `accounting-${gameId}`, clientSeed: 'client', nonce },
+          0,
+        );
+
+        expectRoundAccounting(round, amount);
+      }
+    }
+  });
+
   it('shapes controlled losses into visible losing rounds', () => {
     const amount = new Prisma.Decimal(100);
     const seed = { serverSeed: 'control-loss-server', clientSeed: 'client', nonce: 3 };
@@ -176,6 +205,68 @@ describe('local table game rules', () => {
     expect(round.outcome).toBe('LOSE');
     expect(round.payout.toNumber()).toBe(0);
     expect(round.profit.toNumber()).toBe(-100);
+    expectRoundAccounting(round, amount);
+  });
+
+  it('keeps controlled local-table finals visually aligned with payout accounting', () => {
+    const amount = new Prisma.Decimal(100);
+    const controlledWin = {
+      won: true,
+      multiplier: new Prisma.Decimal('1.96'),
+      payout: new Prisma.Decimal('196.00'),
+      controlled: true,
+      flipReason: 'test_force_win',
+      controlId: 'test-win',
+    };
+    const controlledLoss = {
+      won: false,
+      multiplier: new Prisma.Decimal(0),
+      payout: new Prisma.Decimal(0),
+      controlled: true,
+      flipReason: 'test_force_loss',
+      controlId: 'test-loss',
+    };
+
+    for (const gameId of [...TWENTY_ONE_HALF_GAME_IDS, ...TUI_TONGZI_GAME_IDS, GameId.CARD_WAR]) {
+      const seed = { serverSeed: `controlled-${gameId}`, clientSeed: 'client', nonce: 17 };
+      const natural = buildRound(gameId, amount, seed, 0);
+
+      const controlledWinRound = shapeRoundForControl(gameId, amount, seed, natural, controlledWin);
+      expect(controlledWinRound.round.outcome).toBe('WIN');
+      expect(controlledWinRound.round.profit.greaterThan(0)).toBe(true);
+      expect(controlledWinRound.control.won).toBe(true);
+      expectRoundAccounting(controlledWinRound.round, amount);
+
+      const controlledLossRound = shapeRoundForControl(
+        gameId,
+        amount,
+        seed,
+        natural,
+        controlledLoss,
+      );
+      expect(controlledLossRound.round.outcome).toBe('LOSE');
+      expect(controlledLossRound.round.profit.equals(amount.negated())).toBe(true);
+      expect(controlledLossRound.control.won).toBe(false);
+      expectRoundAccounting(controlledLossRound.round, amount);
+    }
+  });
+
+  it('keeps Black Dot split-controlled finals visually aligned with payout accounting', () => {
+    const amount = new Prisma.Decimal(100);
+
+    for (const gameId of BLACK_DOT_GAME_IDS) {
+      const winShape = findBlackDotControlledShape(gameId, true, amount);
+      expect(winShape.round.outcome).toBe('WIN');
+      expect(winShape.round.profit.greaterThan(0)).toBe(true);
+      expect(winShape.control.won).toBe(true);
+      expectRoundAccounting(winShape.round, amount);
+
+      const lossShape = findBlackDotControlledShape(gameId, false, amount);
+      expect(lossShape.round.outcome).toBe('LOSE');
+      expect(lossShape.round.profit.equals(amount.negated())).toBe(true);
+      expect(lossShape.control.won).toBe(false);
+      expectRoundAccounting(lossShape.round, amount);
+    }
   });
 
   it('turns impossible capped wins into visible losses for pre-shaped table rounds', () => {
@@ -206,6 +297,7 @@ describe('local table game rules', () => {
       expect(round.payout.toFixed(2)).toBe('0.00');
       expect(effectiveControl.won).toBe(false);
       expect(effectiveControl.flipReason).toBe('control_bounds_guard');
+      expectRoundAccounting(round, amount);
     }
   });
 
@@ -325,6 +417,7 @@ describe('local table game rules', () => {
     expect(shaped?.round.payout.toFixed(2)).toBe('0.00');
     expect(shaped?.control.won).toBe(false);
     expect(shaped?.control.flipReason).toBe('control_bounds_guard');
+    if (shaped) expectRoundAccounting(shaped.round, amount);
   });
 
   it('guards Black Dot controlled wins that cannot fit a payout ceiling', () => {
@@ -373,5 +466,87 @@ describe('local table game rules', () => {
     expect(shaped.round.payout.toFixed(2)).toBe('0.00');
     expect(shaped.control.won).toBe(false);
     expect(shaped.control.flipReason).toBe('control_bounds_guard');
+    expectRoundAccounting(shaped.round, amount);
   });
 });
+
+type TestRound = ReturnType<typeof buildRound>;
+
+function expectRoundAccounting(round: TestRound, amount: Prisma.Decimal): void {
+  expect(round.profit.toFixed(2)).toBe(round.payout.minus(amount).toFixed(2));
+
+  if (round.outcome === 'WIN') {
+    expect(round.multiplier.greaterThan(1)).toBe(true);
+    expect(round.payout.greaterThan(amount)).toBe(true);
+    expect(round.profit.greaterThan(0)).toBe(true);
+    return;
+  }
+
+  if (round.outcome === 'PUSH') {
+    expect(round.multiplier.toFixed(4)).toBe('1.0000');
+    expect(round.payout.toFixed(2)).toBe(amount.toFixed(2));
+    expect(round.profit.toFixed(2)).toBe('0.00');
+    return;
+  }
+
+  expect(round.outcome).toBe('LOSE');
+  expect(round.multiplier.toFixed(4)).toBe('0.0000');
+  expect(round.payout.toFixed(2)).toBe('0.00');
+  expect(round.profit.toFixed(2)).toBe(amount.negated().toFixed(2));
+}
+
+function findBlackDotControlledShape(
+  gameId: (typeof BLACK_DOT_GAME_IDS)[number],
+  won: boolean,
+  amount: Prisma.Decimal,
+): ReturnType<typeof shapeBlackDotRoundForControl> {
+  const control = {
+    won,
+    multiplier: won ? new Prisma.Decimal('1.96') : new Prisma.Decimal(0),
+    payout: won ? new Prisma.Decimal('196.00') : new Prisma.Decimal(0),
+    controlled: true,
+    flipReason: won ? 'test_force_win' : 'test_force_loss',
+    controlId: won ? 'test-win' : 'test-loss',
+  };
+
+  for (let nonce = 1; nonce <= 80; nonce += 1) {
+    const seed = { serverSeed: `black-dot-controlled-${gameId}`, clientSeed: 'client', nonce };
+    const deck = drawDominoTiles(makeStream(seed, 0), 32);
+    const playerTiles = deck.slice(0, 4);
+    const naturalBanker = deck.slice(4, 8);
+    const options = buildBlackDotSplitOptions(playerTiles);
+
+    for (const option of options) {
+      const natural = buildBlackDotRoundFromSplitForGame(
+        gameId,
+        amount,
+        playerTiles,
+        naturalBanker,
+        option.id,
+      );
+      const shaped = shapeBlackDotRoundForControl(
+        {
+          kind: 'black-dot',
+          status: 'ACTIVE',
+          stage: 'AWAIT_SPLIT',
+          gameId,
+          roomName: gameId,
+          playerTiles,
+          deck,
+          deckIndex: 4,
+          summary: '測試',
+        },
+        amount,
+        option.id,
+        natural,
+        control,
+      );
+
+      if (shaped.control.controlled && shaped.round.outcome === (won ? 'WIN' : 'LOSE')) {
+        return shaped;
+      }
+    }
+  }
+
+  throw new Error(`cannot find Black Dot controlled ${won ? 'win' : 'loss'} shape for ${gameId}`);
+}
