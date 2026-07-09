@@ -122,6 +122,66 @@ export const AUTO_BALANCE_LIFECYCLE_TEMPLATES = [
     label: '11關 回正3次',
     steps: [80, 100, 80, 100, 60, 80, 10, 100, 20, 50, 0],
   },
+  {
+    key: 'BOARD_MODE_01',
+    label: '模式一',
+    steps: [90, 95, 75, 100, 80, 85, 60, 65, 40, 55, 25, 30, 10, 15, 0],
+  },
+  {
+    key: 'BOARD_MODE_02',
+    label: '模式二',
+    steps: [85, 90, 75, 95, 60, 75, 55, 100, 80, 85, 60, 65, 40, 45, 15, 20, 0],
+  },
+  {
+    key: 'BOARD_MODE_03',
+    label: '模式三',
+    steps: [85, 95, 75, 80, 60, 65, 45, 55, 35, 65, 40, 45, 20, 25, 5, 15, 0],
+  },
+  {
+    key: 'BOARD_MODE_04',
+    label: '模式四',
+    steps: [90, 95, 75, 90, 65, 70, 55, 65, 40, 75, 45, 50, 20, 25, 5, 10, 0],
+  },
+  {
+    key: 'BOARD_MODE_05',
+    label: '模式五',
+    steps: [85, 95, 75, 95, 60, 65, 50, 85, 50, 55, 30, 35, 5, 15, 0],
+  },
+  {
+    key: 'BOARD_MODE_06',
+    label: '模式六',
+    steps: [85, 95, 75, 95, 60, 70, 45, 55, 30, 40, 20, 55, 35, 45, 15, 20, 0],
+  },
+  {
+    key: 'BOARD_MODE_07',
+    label: '模式七',
+    steps: [90, 95, 80, 85, 65, 90, 65, 70, 50, 90, 65, 70, 35, 40, 15, 20, 0],
+  },
+  {
+    key: 'BOARD_MODE_08',
+    label: '模式八',
+    steps: [85, 90, 70, 75, 60, 75, 45, 50, 30, 45, 25, 55, 30, 35, 10, 15, 0],
+  },
+  {
+    key: 'BOARD_MODE_09',
+    label: '模式九',
+    steps: [85, 95, 70, 85, 60, 75, 45, 55, 30, 40, 15, 65, 40, 45, 15, 20, 0],
+  },
+  {
+    key: 'BOARD_MODE_10',
+    label: '模式十',
+    steps: [90, 95, 75, 85, 60, 85, 60, 65, 35, 45, 20, 55, 30, 35, 5, 15, 0],
+  },
+  {
+    key: 'BOARD_MODE_11',
+    label: '模式十一',
+    steps: [85, 100, 75, 95, 60, 70, 45, 55, 45, 55, 25, 40, 15, 20, 5, 10, 0],
+  },
+  {
+    key: 'BOARD_MODE_12',
+    label: '模式十二',
+    steps: [85, 95, 70, 100, 80, 85, 55, 60, 40, 45, 20, 65, 35, 40, 15, 20, 0],
+  },
 ] as const;
 
 export type AutoBalanceTemplateKey = (typeof AUTO_BALANCE_LIFECYCLE_TEMPLATES)[number]['key'];
@@ -367,8 +427,7 @@ export async function resetMemberAutoBalanceControl(
   const reviveTargetBalance = baselineBalance
     .mul(AUTO_BALANCE_REVIVE_RATE)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-  const isActive =
-    baselineBalance.greaterThan(0) && (runtimeConfig.isEnabled || !!pathControl);
+  const isActive = baselineBalance.greaterThan(0) && (runtimeConfig.isEnabled || !!pathControl);
   const resetReason =
     runtimeConfig.isEnabled || pathControl
       ? pathControl

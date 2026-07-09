@@ -10,8 +10,10 @@ import {
   getDefaultManualDetectionCompletionBehavior,
   listAutoBalanceTemplates,
   getOrCreateMemberAutoBalanceControl,
+  normalizeAutoBalanceTemplateKeys,
   normalizeManualDetectionCompletionBehavior,
   resetMemberAutoBalanceControl,
+  resolveAutoBalanceTemplate,
 } from './controls.runtime.js';
 import { __controlsTestHooks } from '../../games/_common/controls.js';
 
@@ -59,6 +61,36 @@ describe('listAutoBalanceTemplates', () => {
           steps: [80, 20, 90, 50, 0],
         }),
       ]),
+    );
+  });
+
+  it('includes the twelve board mode paths', () => {
+    const templates = listAutoBalanceTemplates();
+    const boardModes = templates.filter((template) => template.key.startsWith('BOARD_MODE_'));
+
+    expect(boardModes).toHaveLength(12);
+    expect(boardModes).toEqual(
+      expect.arrayContaining([
+        {
+          key: 'BOARD_MODE_01',
+          label: '模式一',
+          steps: [90, 95, 75, 100, 80, 85, 60, 65, 40, 55, 25, 30, 10, 15, 0],
+        },
+        {
+          key: 'BOARD_MODE_12',
+          label: '模式十二',
+          steps: [85, 95, 70, 100, 80, 85, 55, 60, 40, 45, 20, 65, 35, 40, 15, 20, 0],
+        },
+      ]),
+    );
+  });
+
+  it('resolves and normalizes board mode template keys', () => {
+    expect(resolveAutoBalanceTemplate('BOARD_MODE_07').steps).toEqual([
+      90, 95, 80, 85, 65, 90, 65, 70, 50, 90, 65, 70, 35, 40, 15, 20, 0,
+    ]);
+    expect(normalizeAutoBalanceTemplateKeys(['BOARD_MODE_01', 'BAD_KEY', 'BOARD_MODE_01'])).toEqual(
+      ['BOARD_MODE_01'],
     );
   });
 });
