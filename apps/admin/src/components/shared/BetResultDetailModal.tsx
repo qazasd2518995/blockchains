@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { SLOT_GAME_IDS } from '@bg/shared';
 import type { BetDetailResponse } from '@bg/shared';
 import { getAdminGameSubtitle, getAdminGameTitle, isAdminLocalTableGame } from '@/lib/gameDisplay';
+import { useTranslation } from '@/i18n/useTranslation';
+import type { Locale } from '@/i18n/types';
 import { Modal } from './Modal';
 
 type DisplayCard = {
@@ -30,9 +32,10 @@ export function BetResultDetailModal({
   loading,
   onClose,
 }: Props): JSX.Element | null {
-  const gameName = detail ? getAdminGameTitle(detail.gameId) : '载入中';
-  const resultItems = detail ? resultEntries(detail.gameId, detail.resultData) : [];
-  const gameSubtitle = detail ? getAdminGameSubtitle(detail.gameId) : null;
+  const { locale } = useTranslation();
+  const gameName = detail ? getAdminGameTitle(detail.gameId, locale) : '载入中';
+  const resultItems = detail ? resultEntries(detail.gameId, detail.resultData, locale) : [];
+  const gameSubtitle = detail ? getAdminGameSubtitle(detail.gameId, locale) : null;
 
   return (
     <Modal
@@ -156,7 +159,7 @@ function Line({ label, value }: { label: string; value: string }): JSX.Element {
   );
 }
 
-function resultEntries(gameId: string, value: unknown): ResultEntry[] {
+function resultEntries(gameId: string, value: unknown, locale: Locale): ResultEntry[] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return value === null || value === undefined
       ? []
@@ -164,7 +167,7 @@ function resultEntries(gameId: string, value: unknown): ResultEntry[] {
   }
 
   const record = value as Record<string, unknown>;
-  const friendly = friendlyResultEntries(gameId, record);
+  const friendly = friendlyResultEntries(gameId, record, locale);
   if (friendly.length > 0) return friendly;
 
   return Object.entries(record)
@@ -240,9 +243,13 @@ const RESULT_LABELS: Record<string, string> = {
   status: '狀態',
 };
 
-function friendlyResultEntries(gameId: string, record: Record<string, unknown>): ResultEntry[] {
+function friendlyResultEntries(
+  gameId: string,
+  record: Record<string, unknown>,
+  locale: Locale,
+): ResultEntry[] {
   if (isAdminLocalTableGame(gameId) || isLocalTableResult(record)) {
-    return localTableResultEntries(gameId, record);
+    return localTableResultEntries(gameId, record, locale);
   }
   if (isSlotGame(gameId)) return slotResultEntries(record);
   if (gameId === 'dice') return diceResultEntries(record);
@@ -255,7 +262,11 @@ function friendlyResultEntries(gameId: string, record: Record<string, unknown>):
   return [];
 }
 
-function localTableResultEntries(gameId: string, record: Record<string, unknown>): ResultEntry[] {
+function localTableResultEntries(
+  gameId: string,
+  record: Record<string, unknown>,
+  locale: Locale,
+): ResultEntry[] {
   const kind = getStringScalar(record.kind);
   const roomName = getStringScalar(record.roomName);
   const outcome = getStringScalar(record.outcome);
@@ -275,7 +286,7 @@ function localTableResultEntries(gameId: string, record: Record<string, unknown>
       value: (
         <SummaryStack
           items={[
-            roomName ? `房間：${roomName}` : getAdminGameTitle(gameId),
+            roomName ? `房間：${roomName}` : getAdminGameTitle(gameId, locale),
             kind ? `玩法：${localTableKindLabel(kind)}` : null,
             outcomeLabel ?? (outcome ? `結果：${localTableOutcomeLabel(outcome)}` : null),
             summary ?? null,

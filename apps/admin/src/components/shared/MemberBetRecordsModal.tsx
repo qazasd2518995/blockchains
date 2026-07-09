@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { BetDetailResponse, MemberBetEntry, MemberBetListResponse } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { getAdminGameSubtitle, getAdminGameTitle } from '@/lib/gameDisplay';
+import { useTranslation } from '@/i18n/useTranslation';
+import type { Locale } from '@/i18n/types';
 import { Modal } from './Modal';
 import { BetResultDetailModal } from './BetResultDetailModal';
 
@@ -32,6 +34,7 @@ interface PaginationState {
 const PAGE_LIMIT_OPTIONS = [25, 50, 100, 200];
 
 export function MemberBetRecordsModal({ open, onClose, member, filters }: Props): JSX.Element {
+  const { locale } = useTranslation();
   const [items, setItems] = useState<MemberBetEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,15 +82,19 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
       setError(null);
       setItems([]);
       try {
-        const res = await adminApi.get<MemberBetListResponse>(`/members/${member.id}/bets`, { params });
+        const res = await adminApi.get<MemberBetListResponse>(`/members/${member.id}/bets`, {
+          params,
+        });
         if (cancel) return;
         setItems(res.data.items);
-        setPagination(res.data.pagination ?? {
-          page,
-          limit,
-          total: res.data.items.length,
-          totalPages: res.data.items.length > 0 ? 1 : 0,
-        });
+        setPagination(
+          res.data.pagination ?? {
+            page,
+            limit,
+            total: res.data.items.length,
+            totalPages: res.data.items.length > 0 ? 1 : 0,
+          },
+        );
       } catch (e) {
         if (!cancel) {
           setItems([]);
@@ -104,9 +111,13 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
     };
   }, [limit, member.id, open, page, params, reloadKey]);
 
-  const pageRange = useMemo(() => getPageRange(pagination.page, pagination.totalPages), [pagination.page, pagination.totalPages]);
-  const dateLabel = startDate || endDate ? `${startDate || '不限'} 至 ${endDate || '不限'}` : '全部日期';
-  const gameLabel = gameId ? getAdminGameTitle(gameId) : '全部游戏';
+  const pageRange = useMemo(
+    () => getPageRange(pagination.page, pagination.totalPages),
+    [pagination.page, pagination.totalPages],
+  );
+  const dateLabel =
+    startDate || endDate ? `${startDate || '不限'} 至 ${endDate || '不限'}` : '全部日期';
+  const gameLabel = gameId ? getAdminGameTitle(gameId, locale) : '全部游戏';
 
   const openDetail = (betId: string) => {
     setDetailBetId(betId);
@@ -143,10 +154,14 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
               <span className="tag tag-acid">{dateLabel}</span>
               <span className="tag tag-toxic">{gameLabel}</span>
               {settlementStatus && (
-                <span className="tag tag-gold">{settlementStatus === 'settled' ? '已结算' : '未结算'}</span>
+                <span className="tag tag-gold">
+                  {settlementStatus === 'settled' ? '已结算' : '未结算'}
+                </span>
               )}
               <span>
-                共 <span className="data-num text-ink-900">{pagination.total.toLocaleString()}</span> 笔
+                共{' '}
+                <span className="data-num text-ink-900">{pagination.total.toLocaleString()}</span>{' '}
+                笔
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -167,81 +182,93 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
                   ))}
                 </select>
               </label>
-              <button type="button" onClick={() => setReloadKey((key) => key + 1)} className="btn-teal-outline text-[11px]">
+              <button
+                type="button"
+                onClick={() => setReloadKey((key) => key + 1)}
+                className="btn-teal-outline text-[11px]"
+              >
                 [刷新]
               </button>
             </div>
           </div>
 
-        {error && (
-          <div className="border border-[#D4574A]/40 bg-[#FDF0EE] px-3 py-2 text-[12px] text-[#D4574A]">
-            ⚠ {error}
-          </div>
-        )}
+          {error && (
+            <div className="border border-[#D4574A]/40 bg-[#FDF0EE] px-3 py-2 text-[12px] text-[#D4574A]">
+              ⚠ {error}
+            </div>
+          )}
 
-        <div className="max-h-[62svh] overflow-auto border border-ink-200 bg-white">
-          <table className="w-full min-w-[980px] text-[12px]">
-            <thead className="sticky top-0 z-[1] bg-[#0F172A] text-[10px] uppercase tracking-[0.16em] text-white">
-              <tr>
-                <th className="px-3 py-2 text-left font-semibold">单号</th>
-                <th className="px-3 py-2 text-left font-semibold">投注时间</th>
-                <th className="px-3 py-2 text-left font-semibold">游戏</th>
-                <th className="px-3 py-2 text-right font-semibold">下注</th>
-                <th className="px-3 py-2 text-right font-semibold">倍率</th>
-                <th className="px-3 py-2 text-right font-semibold">派彩</th>
-                <th className="px-3 py-2 text-right font-semibold">盈亏</th>
-                <th className="px-3 py-2 text-right font-semibold">开奖</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+          <div className="max-h-[62svh] overflow-auto border border-ink-200 bg-white">
+            <table className="w-full min-w-[980px] text-[12px]">
+              <thead className="sticky top-0 z-[1] bg-[#0F172A] text-[10px] uppercase tracking-[0.16em] text-white">
                 <tr>
-                  <td colSpan={8} className="px-3 py-10 text-center text-ink-500">
-                    载入中…
-                  </td>
+                  <th className="px-3 py-2 text-left font-semibold">单号</th>
+                  <th className="px-3 py-2 text-left font-semibold">投注时间</th>
+                  <th className="px-3 py-2 text-left font-semibold">游戏</th>
+                  <th className="px-3 py-2 text-right font-semibold">下注</th>
+                  <th className="px-3 py-2 text-right font-semibold">倍率</th>
+                  <th className="px-3 py-2 text-right font-semibold">派彩</th>
+                  <th className="px-3 py-2 text-right font-semibold">盈亏</th>
+                  <th className="px-3 py-2 text-right font-semibold">开奖</th>
                 </tr>
-              ) : items.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-3 py-10 text-center text-ink-400">
-                    — 查询期间内无下注记录 —
-                  </td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <BetRow key={`${item.createdAt}-${item.id}`} item={item} onOpenDetail={openDetail} />
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200 pt-3">
-          <div className="text-[11px] text-ink-500">
-            第 <span className="data-num text-ink-900">{pagination.page}</span> /{' '}
-            <span className="data-num text-ink-900">{Math.max(pagination.totalPages, 1)}</span> 页
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="px-3 py-10 text-center text-ink-500">
+                      载入中…
+                    </td>
+                  </tr>
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-3 py-10 text-center text-ink-400">
+                      — 查询期间内无下注记录 —
+                    </td>
+                  </tr>
+                ) : (
+                  items.map((item) => (
+                    <BetRow
+                      key={`${item.createdAt}-${item.id}`}
+                      item={item}
+                      locale={locale}
+                      onOpenDetail={openDetail}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-          <div className="flex flex-wrap items-center gap-1">
-            <PageButton disabled={page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>
-              上一页
-            </PageButton>
-            {pageRange.map((pageNumber) => (
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200 pt-3">
+            <div className="text-[11px] text-ink-500">
+              第 <span className="data-num text-ink-900">{pagination.page}</span> /{' '}
+              <span className="data-num text-ink-900">{Math.max(pagination.totalPages, 1)}</span> 页
+            </div>
+            <div className="flex flex-wrap items-center gap-1">
               <PageButton
-                key={pageNumber}
-                active={pageNumber === pagination.page}
-                disabled={loading}
-                onClick={() => setPage(pageNumber)}
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
               >
-                {pageNumber}
+                上一页
               </PageButton>
-            ))}
-            <PageButton
-              disabled={loading || pagination.totalPages === 0 || page >= pagination.totalPages}
-              onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}
-            >
-              下一页
-            </PageButton>
+              {pageRange.map((pageNumber) => (
+                <PageButton
+                  key={pageNumber}
+                  active={pageNumber === pagination.page}
+                  disabled={loading}
+                  onClick={() => setPage(pageNumber)}
+                >
+                  {pageNumber}
+                </PageButton>
+              ))}
+              <PageButton
+                disabled={loading || pagination.totalPages === 0 || page >= pagination.totalPages}
+                onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}
+              >
+                下一页
+              </PageButton>
+            </div>
           </div>
-        </div>
         </div>
       </Modal>
 
@@ -256,10 +283,18 @@ export function MemberBetRecordsModal({ open, onClose, member, filters }: Props)
   );
 }
 
-function BetRow({ item, onOpenDetail }: { item: MemberBetEntry; onOpenDetail: (betId: string) => void }): JSX.Element {
+function BetRow({
+  item,
+  locale,
+  onOpenDetail,
+}: {
+  item: MemberBetEntry;
+  locale: Locale;
+  onOpenDetail: (betId: string) => void;
+}): JSX.Element {
   const profit = Number.parseFloat(item.profit);
-  const gameTitle = getAdminGameTitle(item.gameId);
-  const gameSubtitle = getAdminGameSubtitle(item.gameId);
+  const gameTitle = getAdminGameTitle(item.gameId, locale);
+  const gameSubtitle = getAdminGameSubtitle(item.gameId, locale);
   return (
     <tr className="border-b border-ink-100 transition hover:bg-[#FAF2D7]/50">
       <td className="px-3 py-2 font-mono text-[10px] text-ink-500">{shortId(item.id)}</td>
@@ -273,7 +308,9 @@ function BetRow({ item, onOpenDetail }: { item: MemberBetEntry; onOpenDetail: (b
       <td className="px-3 py-2 text-right data-num">{formatAmount(item.amount)}</td>
       <td className="px-3 py-2 text-right data-num">{formatMultiplier(item.multiplier)}x</td>
       <td className="px-3 py-2 text-right data-num">{formatAmount(item.payout)}</td>
-      <td className={`px-3 py-2 text-right data-num font-bold ${profit >= 0 ? 'text-win' : 'text-[#D4574A]'}`}>
+      <td
+        className={`px-3 py-2 text-right data-num font-bold ${profit >= 0 ? 'text-win' : 'text-[#D4574A]'}`}
+      >
         {profit >= 0 ? '+' : ''}
         {formatAmount(item.profit)}
       </td>

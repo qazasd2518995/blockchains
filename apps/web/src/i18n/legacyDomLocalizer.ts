@@ -99,12 +99,134 @@ const LEGACY_THAI_TEXT: Record<string, string> = {
   確認新密碼: 'ยืนยันรหัสผ่านใหม่',
   '更新中...': 'กำลังอัปเดต...',
   更新密碼: 'อัปเดตรหัสผ่าน',
-  '新密碼需為 8-128 碼，且包含英文與數字': 'รหัสผ่านใหม่ต้องมี 8-128 ตัวอักษร และมีตัวอักษรกับตัวเลข',
+  '新密碼需為 8-128 碼，且包含英文與數字':
+    'รหัสผ่านใหม่ต้องมี 8-128 ตัวอักษร และมีตัวอักษรกับตัวเลข',
   兩次輸入的新密碼不一致: 'รหัสผ่านใหม่สองครั้งไม่ตรงกัน',
   新密碼不能與目前密碼相同: 'รหัสผ่านใหม่ต้องต่างจากรหัสผ่านปัจจุบัน',
   密碼已更新: 'อัปเดตรหัสผ่านแล้ว',
   本遊戲單注限紅: 'ขีดจำกัดเดิมพันเดี่ยวของเกมนี้',
   限紅: 'ขีดจำกัด',
+  萌娃十點半: 'Dolly 10.5',
+  兔糖十點半: 'Bunny 10.5',
+  星願十點半: 'Starlit 10.5',
+  龍門推筒: 'Dragon Tongzi',
+  醒獅推筒: 'Lion Tongzi',
+  玉兔推索: 'Jade Suozi',
+  霓虹推索: 'Neon Suozi',
+  金殿推萬: 'Golden Wanzi',
+  天九黑粒: 'Tin Kau Black Dot',
+  御殿黑粒: 'Royal Black Dot',
+  街頭黑粒: 'Street Black Dot',
+  影武黑粒: 'Shadow Black Dot',
+  金礦黑粒: 'Golden Black Dot',
+  王牌比大小: 'Card War',
+  '可愛娃娃牌桌 · JQK 半點 · 接近 10.5 不爆即勝':
+    'โต๊ะ Dolly · JQK ครึ่งแต้ม · ใกล้ 10.5 โดยไม่เกินจึงชนะ',
+  '糖果系半點牌桌 · 滿點與五張未爆特別高亮': 'โต๊ะลูกกวาด 10.5 · ไฮไลต์แต้มเต็มและไพ่ 5 ใบไม่บัสต์',
+  '星光娃娃半點牌桌 · 莊家補到大於閒家或爆牌':
+    'โต๊ะ Starlit 10.5 · เจ้ามือจั่วจนมากกว่าผู้เล่นหรือบัสต์',
+  '筒子牌型比點 · 白板對、對子、二八槓、點數': 'เทียบแต้มไพ่ Tongzi · คู่ขาว คู่ เอ้อปากัง และแต้ม',
+  '醒獅金鼓風格 · 莊閒各兩張，即開比牌':
+    'ธีมเชิดสิงโต · เจ้ามือและผู้เล่นได้ฝ่ายละ 2 ใบ เปิดแล้วเทียบทันที',
+  '玉石仙境風格 · 索子與白板牌型高亮': 'ธีมหยกแฟนตาซี · ไฮไลต์ Suozi และไพ่ขาว',
+  '夜市霓虹風格 · 快速翻索比點': 'ธีมตลาดกลางคืนนีออน · พลิก Suozi เทียบแต้มเร็ว',
+  '金殿萬子牌桌 · 特殊牌型加強展示': 'โต๊ะ Wanzi วังทอง · แสดงไพ่พิเศษเด่นขึ้น',
+  '天九牌四張兩墩 · 高低兩墩皆勝才贏': 'ไพ่ Tin Kau 4 ใบ แยก 2 กอง · ต้องชนะทั้งกองสูงและกองต่ำ',
+  '御殿風格黑粒仔 · 對子大於點數': 'Black Dot ธีมวัง · คู่ใหญ่กว่าแต้ม',
+  '街頭風格天九牌 · 平點莊吃': 'Tin Kau สไตล์สตรีท · แต้มเสมอเจ้ามือกิน',
+  '影武主題黑粒仔 · 四張分墩公比': 'Black Dot ธีมนินจา · แยก 4 ใบเป็นกองเพื่อเทียบ',
+  '金礦風格天九牌 · 至尊寶最大對': 'Tin Kau ธีมเหมืองทอง · Gee Joon เป็นคู่สูงสุด',
+  '撲克牌單張比大小 · A 最大 · 平手退回本金':
+    'ไพ่ใบเดียวเทียบสูงต่ำ · A สูงสุด · เสมอคืนเงินเดิมพัน',
+  甜心娃娃: 'ดีลเลอร์ Dolly',
+  糖心娃娃: 'ดีลเลอร์ Bunny',
+  星願娃娃: 'ดีลเลอร์ Starlit',
+  龍門牌官: 'ดีลเลอร์ Dragon',
+  醒獅牌官: 'ดีลเลอร์ Lion',
+  玉兔牌官: 'ดีลเลอร์ Jade',
+  霓虹牌官: 'ดีลเลอร์ Neon',
+  金殿牌官: 'ดีลเลอร์ Golden',
+  天九牌官: 'ดีลเลอร์ Tin Kau',
+  御殿牌官: 'ดีลเลอร์ Royal',
+  街頭牌官: 'ดีลเลอร์ Street',
+  影武牌官: 'ดีลเลอร์ Shadow',
+  金礦牌官: 'ดีลเลอร์ Gold Mine',
+  王牌荷官: 'ดีลเลอร์ Card War',
+  處理中: 'กำลังดำเนินการ',
+  開牌中: 'กำลังเปิดไพ่',
+  玩家回合: 'ตาผู้เล่น',
+  已結算: 'สรุปผลแล้ว',
+  等待發牌: 'รอแจกไพ่',
+  等待入局: 'รอเข้าเกม',
+  等待開牌: 'รอเปิดไพ่',
+  派彩倍率: 'ตัวคูณรางวัล',
+  本局盈虧: 'กำไร/ขาดทุนรอบนี้',
+  '下注後先發一張牌，請選擇補牌或停牌。': 'หลังเดิมพันจะแจกไพ่หนึ่งใบ เลือกจั่วหรือหยุด',
+  '下注後立即開牌，結果會顯示在這裡。': 'หลังเดิมพันจะเปิดไพ่ทันที ผลจะแสดงที่นี่',
+  補牌: 'จั่วไพ่',
+  停牌: 'หยุดไพ่',
+  開牌: 'เปิดไพ่',
+  牌局進行中: 'กำลังเล่น',
+  下一局發牌: 'แจกไพ่รอบถัดไป',
+  下注發牌: 'เดิมพันและแจกไพ่',
+  下一局入局: 'เข้ารอบถัดไป',
+  下注入局: 'เดิมพันเข้าเกม',
+  下注開牌: 'เดิมพันเปิดไพ่',
+  '玩家已停牌，莊家會依規則一張一張補牌，補完後才結算。':
+    'ผู้เล่นหยุดแล้ว เจ้ามือจะจั่วตามกติกาทีละใบแล้วค่อยสรุปผล',
+  '4 點以下必須補牌，補到可停牌區間後才能停牌。':
+    'ต่ำกว่า 4 แต้มต้องจั่ว จั่วจนถึงช่วงที่หยุดได้ก่อน',
+  '8 點以上必須停牌，接著進入莊家補牌。': '8 แต้มขึ้นไปต้องหยุด จากนั้นเข้าเจ้ามือจั่ว',
+  '可選擇補牌或停牌；超過 10 點半爆牌，平點莊家勝。':
+    'เลือกจั่วหรือหยุดได้ เกิน 10.5 คือบัสต์ แต้มเสมอเจ้ามือชนะ',
+  玩家擺牌: 'ผู้เล่นจัดไพ่',
+  翻閒家第一張: 'เปิดใบแรกของผู้เล่น',
+  翻閒家第二張: 'เปิดใบที่สองของผู้เล่น',
+  等待翻牌: 'รอพลิกไพ่',
+  等待開第二張: 'รอเปิดใบที่สอง',
+  等待開閒家牌: 'รอเปิดไพ่ผู้เล่น',
+  等待開莊家牌: 'รอเปิดไพ่เจ้ามือ',
+  '請選一組高低墩；高低兩墩都大於莊家才算勝。': 'เลือกชุดกองสูง/ต่ำ ต้องชนะเจ้ามือทั้งสองกองจึงชนะ',
+  '莊家已亮牌，請點閒家任一張蓋牌。': 'เจ้ามือเปิดแล้ว โปรดแตะไพ่คว่ำของผู้เล่นหนึ่งใบ',
+  '第一張已開，請點另一張蓋牌比牌。': 'เปิดใบแรกแล้ว โปรดแตะไพ่อีกใบเพื่อเทียบ',
+  請依序翻牌: 'โปรดพลิกไพ่ตามลำดับ',
+  '開第二張後立即依牌型與點數結算。': 'เปิดใบที่สองแล้วสรุปตามรูปไพ่และแต้มทันที',
+  '先開閒家牌，再開莊家牌比大小。': 'เปิดไพ่ผู้เล่นก่อน แล้วเปิดไพ่เจ้ามือเพื่อเทียบ',
+  '閒家牌已開，開莊家牌後立即結算。': 'ไพ่ผู้เล่นเปิดแล้ว เปิดไพ่เจ้ามือแล้วสรุปทันที',
+  牌局已結算: 'รอบไพ่สรุปผลแล้ว',
+  '下注後莊家兩張先亮，閒家兩張蓋牌由玩家點選翻開。':
+    'หลังเดิมพัน เจ้ามือเปิด 2 ใบก่อน ผู้เล่นแตะเปิดไพ่คว่ำ 2 ใบ',
+  '下注後取得四張天九牌，請自行選擇高低兩墩。':
+    'หลังเดิมพันจะได้ไพ่ Tin Kau 4 ใบ โปรดเลือกกองสูงและกองต่ำ',
+  '下注後先開閒家牌，再開莊家牌比大小。':
+    'หลังเดิมพันเปิดไพ่ผู้เล่นก่อน แล้วเปิดเจ้ามือเพื่อเทียบสูงต่ำ',
+  莊家蓋牌: 'ไพ่คว่ำเจ้ามือ',
+  點莊家牌開牌: 'แตะไพ่เจ้ามือเพื่อเปิด',
+  閒家蓋牌: 'ไพ่คว่ำผู้เล่น',
+  點閒家牌開牌: 'แตะไพ่ผู้เล่นเพื่อเปิด',
+  下注後可翻牌: 'เดิมพันแล้วเปิดไพ่ได้',
+  下注後點牌: 'เดิมพันแล้วแตะไพ่',
+  點擊翻牌: 'แตะเพื่อเปิด',
+  待翻: 'รอเปิด',
+  待翻牌: 'รอเปิดไพ่',
+  下注後先亮牌: 'เดิมพันแล้วเปิดไพ่ก่อน',
+  玩家點牌翻開: 'ผู้เล่นแตะไพ่เพื่อเปิด',
+  暗牌待開: 'ไพ่คว่ำรอเปิด',
+  莊家暗牌: 'ไพ่คว่ำเจ้ามือ',
+  閒家四張: 'ผู้เล่น 4 ใบ',
+  莊家最佳擺牌: 'เจ้ามือจัดไพ่ดีที่สุด',
+  擺牌後開牌: 'จัดไพ่แล้วเปิด',
+  下注後發牌: 'เดิมพันแล้วแจกไพ่',
+  '點選一組擺牌：上排高墩、下排低墩，莊家開牌後比兩墩。':
+    'แตะเลือกชุดจัดไพ่: แถวบนกองสูง แถวล่างกองต่ำ แล้วเทียบสองกองหลังเจ้ามือเปิด',
+  高墩: 'กองสูง',
+  低墩: 'กองต่ำ',
+  待開: 'รอเปิด',
+  單張高牌: 'ไพ่สูงใบเดียว',
+  半點牌: 'ไพ่ครึ่งแต้ม',
+  莊家牌: 'ไพ่เจ้ามือ',
+  特別勝型: 'รูปแบบชนะพิเศษ',
+  爆牌: 'บัสต์',
   莊家點數: 'แต้มเจ้ามือ',
   玩家點數: 'แต้มผู้เล่น',
   請先下注: 'โปรดเดิมพันก่อน',
@@ -419,6 +541,130 @@ const LEGACY_VIETNAMESE_TEXT: Record<string, string> = {
   密碼已更新: 'Mật khẩu đã được cập nhật',
   本遊戲單注限紅: 'Giới hạn cược đơn của game này',
   限紅: 'Giới hạn',
+  萌娃十點半: 'Dolly 10.5',
+  兔糖十點半: 'Bunny 10.5',
+  星願十點半: 'Starlit 10.5',
+  龍門推筒: 'Dragon Tongzi',
+  醒獅推筒: 'Lion Tongzi',
+  玉兔推索: 'Jade Suozi',
+  霓虹推索: 'Neon Suozi',
+  金殿推萬: 'Golden Wanzi',
+  天九黑粒: 'Tin Kau Black Dot',
+  御殿黑粒: 'Royal Black Dot',
+  街頭黑粒: 'Street Black Dot',
+  影武黑粒: 'Shadow Black Dot',
+  金礦黑粒: 'Golden Black Dot',
+  王牌比大小: 'Card War',
+  '可愛娃娃牌桌 · JQK 半點 · 接近 10.5 不爆即勝':
+    'Bàn Dolly · JQK tính nửa điểm · gần 10.5 mà không quá là thắng',
+  '糖果系半點牌桌 · 滿點與五張未爆特別高亮': 'Bàn kẹo 10.5 · nổi bật đủ điểm và 5 lá không bể',
+  '星光娃娃半點牌桌 · 莊家補到大於閒家或爆牌':
+    'Bàn Starlit 10.5 · nhà cái rút đến khi lớn hơn người chơi hoặc bể',
+  '筒子牌型比點 · 白板對、對子、二八槓、點數':
+    'So điểm Tongzi · đôi trắng, đôi, nhị bát cống và điểm',
+  '醒獅金鼓風格 · 莊閒各兩張，即開比牌':
+    'Phong cách lân vàng · nhà cái và người chơi mỗi bên 2 lá, mở là so ngay',
+  '玉石仙境風格 · 索子與白板牌型高亮': 'Phong cách tiên cảnh ngọc · nổi bật Suozi và bài trắng',
+  '夜市霓虹風格 · 快速翻索比點': 'Phong cách chợ đêm neon · mở Suozi so điểm nhanh',
+  '金殿萬子牌桌 · 特殊牌型加強展示': 'Bàn Wanzi cung vàng · hiển thị mạnh bài đặc biệt',
+  '天九牌四張兩墩 · 高低兩墩皆勝才贏':
+    'Tin Kau 4 quân chia 2 chi · phải thắng cả chi cao và chi thấp',
+  '御殿風格黑粒仔 · 對子大於點數': 'Black Dot phong cách hoàng điện · đôi lớn hơn điểm',
+  '街頭風格天九牌 · 平點莊吃': 'Tin Kau phong cách đường phố · đồng điểm nhà cái ăn',
+  '影武主題黑粒仔 · 四張分墩公比': 'Black Dot chủ đề bóng đêm · 4 quân chia chi để so',
+  '金礦風格天九牌 · 至尊寶最大對': 'Tin Kau mỏ vàng · Gee Joon là đôi lớn nhất',
+  '撲克牌單張比大小 · A 最大 · 平手退回本金':
+    'So lớn nhỏ một lá bài · A lớn nhất · hòa trả lại tiền cược',
+  甜心娃娃: 'Dealer Dolly',
+  糖心娃娃: 'Dealer Bunny',
+  星願娃娃: 'Dealer Starlit',
+  龍門牌官: 'Dealer Dragon',
+  醒獅牌官: 'Dealer Lion',
+  玉兔牌官: 'Dealer Jade',
+  霓虹牌官: 'Dealer Neon',
+  金殿牌官: 'Dealer Golden',
+  天九牌官: 'Dealer Tin Kau',
+  御殿牌官: 'Dealer Royal',
+  街頭牌官: 'Dealer Street',
+  影武牌官: 'Dealer Shadow',
+  金礦牌官: 'Dealer Gold Mine',
+  王牌荷官: 'Dealer Card War',
+  處理中: 'Đang xử lý',
+  開牌中: 'Đang mở bài',
+  玩家回合: 'Lượt người chơi',
+  已結算: 'Đã kết toán',
+  等待發牌: 'Chờ chia bài',
+  等待入局: 'Chờ vào ván',
+  等待開牌: 'Chờ mở bài',
+  派彩倍率: 'Hệ số trả thưởng',
+  本局盈虧: 'Lãi/lỗ ván này',
+  '下注後先發一張牌，請選擇補牌或停牌。': 'Sau khi cược sẽ chia một lá, hãy chọn rút hoặc dừng.',
+  '下注後立即開牌，結果會顯示在這裡。': 'Sau khi cược sẽ mở bài ngay, kết quả hiển thị tại đây.',
+  補牌: 'Rút bài',
+  停牌: 'Dừng bài',
+  開牌: 'Mở bài',
+  牌局進行中: 'Ván đang diễn ra',
+  下一局發牌: 'Chia bài ván sau',
+  下注發牌: 'Cược và chia bài',
+  下一局入局: 'Vào ván sau',
+  下注入局: 'Cược vào ván',
+  下注開牌: 'Cược mở bài',
+  '玩家已停牌，莊家會依規則一張一張補牌，補完後才結算。':
+    'Người chơi đã dừng, nhà cái sẽ rút từng lá theo luật rồi mới kết toán.',
+  '4 點以下必須補牌，補到可停牌區間後才能停牌。':
+    'Dưới 4 điểm bắt buộc rút, đến vùng có thể dừng mới được dừng.',
+  '8 點以上必須停牌，接著進入莊家補牌。': 'Từ 8 điểm trở lên phải dừng, sau đó nhà cái rút bài.',
+  '可選擇補牌或停牌；超過 10 點半爆牌，平點莊家勝。':
+    'Có thể rút hoặc dừng; quá 10.5 là bể, đồng điểm nhà cái thắng.',
+  玩家擺牌: 'Người chơi xếp bài',
+  翻閒家第一張: 'Mở lá đầu của người chơi',
+  翻閒家第二張: 'Mở lá thứ hai của người chơi',
+  等待翻牌: 'Chờ lật bài',
+  等待開第二張: 'Chờ mở lá thứ hai',
+  等待開閒家牌: 'Chờ mở bài người chơi',
+  等待開莊家牌: 'Chờ mở bài nhà cái',
+  '請選一組高低墩；高低兩墩都大於莊家才算勝。':
+    'Chọn một bộ chi cao/thấp; cả hai chi đều lớn hơn nhà cái mới thắng.',
+  '莊家已亮牌，請點閒家任一張蓋牌。': 'Nhà cái đã mở, hãy chạm một lá úp của người chơi.',
+  '第一張已開，請點另一張蓋牌比牌。': 'Lá đầu đã mở, hãy chạm lá úp còn lại để so bài.',
+  請依序翻牌: 'Vui lòng lật bài theo thứ tự',
+  '開第二張後立即依牌型與點數結算。': 'Mở lá thứ hai rồi kết toán ngay theo kiểu bài và điểm.',
+  '先開閒家牌，再開莊家牌比大小。': 'Mở bài người chơi trước, rồi mở bài nhà cái để so lớn nhỏ.',
+  '閒家牌已開，開莊家牌後立即結算。': 'Bài người chơi đã mở, mở bài nhà cái rồi kết toán ngay.',
+  牌局已結算: 'Ván bài đã kết toán',
+  '下注後莊家兩張先亮，閒家兩張蓋牌由玩家點選翻開。':
+    'Sau cược, nhà cái mở 2 lá trước; người chơi chạm để mở 2 lá úp.',
+  '下注後取得四張天九牌，請自行選擇高低兩墩。':
+    'Sau cược nhận 4 quân Tin Kau, hãy tự chọn chi cao và chi thấp.',
+  '下注後先開閒家牌，再開莊家牌比大小。':
+    'Sau cược mở bài người chơi trước, rồi mở bài nhà cái để so lớn nhỏ.',
+  莊家蓋牌: 'Bài úp nhà cái',
+  點莊家牌開牌: 'Chạm bài nhà cái để mở',
+  閒家蓋牌: 'Bài úp người chơi',
+  點閒家牌開牌: 'Chạm bài người chơi để mở',
+  下注後可翻牌: 'Cược xong có thể lật bài',
+  下注後點牌: 'Cược xong chạm bài',
+  點擊翻牌: 'Chạm để lật',
+  待翻: 'Chờ lật',
+  待翻牌: 'Chờ lật bài',
+  下注後先亮牌: 'Cược xong mở bài trước',
+  玩家點牌翻開: 'Người chơi chạm bài để mở',
+  暗牌待開: 'Bài úp chờ mở',
+  莊家暗牌: 'Bài úp nhà cái',
+  閒家四張: 'Người chơi 4 quân',
+  莊家最佳擺牌: 'Nhà cái xếp bài tối ưu',
+  擺牌後開牌: 'Xếp bài rồi mở',
+  下注後發牌: 'Cược xong chia bài',
+  '點選一組擺牌：上排高墩、下排低墩，莊家開牌後比兩墩。':
+    'Chạm một bộ xếp bài: hàng trên là chi cao, hàng dưới là chi thấp; nhà cái mở rồi so hai chi.',
+  高墩: 'Chi cao',
+  低墩: 'Chi thấp',
+  待開: 'Chờ mở',
+  單張高牌: 'Một lá bài cao',
+  半點牌: 'Bài nửa điểm',
+  莊家牌: 'Bài nhà cái',
+  特別勝型: 'Kiểu thắng đặc biệt',
+  爆牌: 'Bể bài',
   莊家點數: 'Điểm nhà cái',
   玩家點數: 'Điểm người chơi',
   請先下注: 'Vui lòng cược trước',
@@ -458,7 +704,8 @@ const LEGACY_VIETNAMESE_TEXT: Record<string, string> = {
   正在準備高畫質遊戲畫面: 'Đang chuẩn bị màn hình game chất lượng cao',
   正在重新建立高畫質遊戲畫面: 'Đang tạo lại màn hình game chất lượng cao',
   正在配合螢幕方向重新建立遊戲畫面: 'Đang tạo lại màn hình game theo hướng màn hình',
-  '免費遊戲恢復失敗，請重新整理後再試': 'Khôi phục free game thất bại, vui lòng làm mới rồi thử lại',
+  '免費遊戲恢復失敗，請重新整理後再試':
+    'Khôi phục free game thất bại, vui lòng làm mới rồi thử lại',
   '餘額不足，無法購買免費遊戲': 'Số dư không đủ, không thể mua free game',
   '遊戲畫面載入中，請稍候': 'Màn hình game đang tải, vui lòng chờ',
   '餘額不足，無法啟動自動轉動': 'Số dư không đủ, không thể bắt đầu quay tự động',
@@ -758,39 +1005,139 @@ function localizeTemplate(core: string, locale: Locale): string | null {
 
   if (locale === 'th') {
     return (
+      replace(
+        core,
+        /^(.+)\s+(\d+(?:\.\d+)?)點$/,
+        (label, score) => `${localizeInline(locale, label)} ${score} แต้ม`,
+      ) ??
+      replace(
+        core,
+        /^(.+)\s+(\d+(?:\.\d+)?)點\s+勝(.+)\s+(\d+(?:\.\d+)?)點$/,
+        (winner, winnerScore, loser, loserScore) =>
+          `${localizeInline(locale, winner)} ${winnerScore} แต้ม ชนะ ${localizeInline(locale, loser)} ${loserScore} แต้ม`,
+      ) ??
+      replace(
+        core,
+        /^(.+)\s+同點，退回本金$/,
+        (label) => `${localizeInline(locale, label)} แต้มเสมอ คืนเงินเดิมพัน`,
+      ) ??
+      replace(
+        core,
+        /^高墩\s+(.+)\s+\/\s+低墩\s+(.+)$/,
+        (high, low) =>
+          `กองสูง ${localizeInline(locale, high)} / กองต่ำ ${localizeInline(locale, low)}`,
+      ) ??
+      replace(core, /^高墩：(.+)$/, (value) => `กองสูง: ${localizeInline(locale, value)}`) ??
+      replace(core, /^低墩：(.+)$/, (value) => `กองต่ำ: ${localizeInline(locale, value)}`) ??
+      replace(
+        core,
+        /^低墩：(.+)\s+·\s+高墩：(.+)$/,
+        (low, high) =>
+          `กองต่ำ: ${localizeInline(locale, low)} · กองสูง: ${localizeInline(locale, high)}`,
+      ) ??
+      replace(core, /^高\s+(.+)$/, (value) => `สูง ${localizeInline(locale, value)}`) ??
+      replace(core, /^低\s+(.+)$/, (value) => `ต่ำ ${localizeInline(locale, value)}`) ??
+      replace(core, /^翻閒家第\s+(.+)\s+張$/, (index) => `เปิดไพ่ผู้เล่นใบที่ ${index}`) ??
+      replace(core, /^莊家第\s+(.+)\s+張$/, (index) => `ไพ่เจ้ามือใบที่ ${index}`) ??
+      replace(core, /^閒家第\s+(.+)\s+張$/, (index) => `ไพ่ผู้เล่นใบที่ ${index}`) ??
+      replace(core, /^(.+)\s+張$/, (count) => `${count} ใบ`) ??
+      replace(
+        core,
+        /^選擇高墩\s+(.+)\s+(.+)，低墩\s+(.+)\s+(.+)$/,
+        (highRank, highScore, lowRank, lowScore) =>
+          `เลือกกองสูง ${localizeInline(locale, highRank)} ${localizeInline(locale, highScore)} กองต่ำ ${localizeInline(locale, lowRank)} ${localizeInline(locale, lowScore)}`,
+      ) ??
       replace(core, /^最高爆分\s+(.+)$/, (value) => `ชนะสูงสุด ${value}`) ??
       replace(core, /^剩\s+(.+)$/, (value) => `เหลือ ${value}`) ??
       replace(core, /^最低下注為\s+(.+)。$/, (value) => `เดิมพันขั้นต่ำคือ ${value}`) ??
       replace(core, /^單注上限為\s+(.+)。$/, (value) => `เดิมพันสูงสุดต่อครั้งคือ ${value}`) ??
       replace(core, /^(\d+)\/(\d+)\s+命中$/, (hits, total) => `ถูก ${hits}/${total}`) ??
-      replace(core, /^(.+)\s+次\s+·\s+(.+)\s+\/\s+注\s+·\s+上限\s+(.+)$/, (rounds, amount, max) =>
-        `${rounds} ครั้ง · ${amount} / เดิมพัน · สูงสุด ${max}`,
+      replace(
+        core,
+        /^(.+)\s+次\s+·\s+(.+)\s+\/\s+注\s+·\s+上限\s+(.+)$/,
+        (rounds, amount, max) => `${rounds} ครั้ง · ${amount} / เดิมพัน · สูงสุด ${max}`,
       ) ??
-      replace(core, /^(.+)\s+局\s+·\s+(.+)\s+號\s+·\s+(.+)$/, (rounds, count, amount) =>
-        `${rounds} รอบ · ${count} หมายเลข · ${amount}`,
+      replace(
+        core,
+        /^(.+)\s+局\s+·\s+(.+)\s+號\s+·\s+(.+)$/,
+        (rounds, count, amount) => `${rounds} รอบ · ${count} หมายเลข · ${amount}`,
       ) ??
       replace(core, /^第\s+(.+)\s+格$/, (step) => `ช่องที่ ${step}`) ??
       replace(core, /^(.+)\s+格$/, (step) => `${step} ช่อง`) ??
-      replace(core, /^(.+)\s+層\s+·\s+(.+)$/, (level, difficulty) => `${level} ชั้น · ${difficulty}`) ??
+      replace(
+        core,
+        /^(.+)\s+層\s+·\s+(.+)$/,
+        (level, difficulty) => `${level} ชั้น · ${difficulty}`,
+      ) ??
       replace(core, /^通關\s+·\s+(.+)$/, (difficulty) => `ผ่านด่าน · ${difficulty}`)
     );
   }
   if (locale === 'vi') {
     return (
+      replace(
+        core,
+        /^(.+)\s+(\d+(?:\.\d+)?)點$/,
+        (label, score) => `${localizeInline(locale, label)} ${score} điểm`,
+      ) ??
+      replace(
+        core,
+        /^(.+)\s+(\d+(?:\.\d+)?)點\s+勝(.+)\s+(\d+(?:\.\d+)?)點$/,
+        (winner, winnerScore, loser, loserScore) =>
+          `${localizeInline(locale, winner)} ${winnerScore} điểm thắng ${localizeInline(locale, loser)} ${loserScore} điểm`,
+      ) ??
+      replace(
+        core,
+        /^(.+)\s+同點，退回本金$/,
+        (label) => `${localizeInline(locale, label)} đồng điểm, hoàn tiền cược`,
+      ) ??
+      replace(
+        core,
+        /^高墩\s+(.+)\s+\/\s+低墩\s+(.+)$/,
+        (high, low) =>
+          `Chi cao ${localizeInline(locale, high)} / chi thấp ${localizeInline(locale, low)}`,
+      ) ??
+      replace(core, /^高墩：(.+)$/, (value) => `Chi cao: ${localizeInline(locale, value)}`) ??
+      replace(core, /^低墩：(.+)$/, (value) => `Chi thấp: ${localizeInline(locale, value)}`) ??
+      replace(
+        core,
+        /^低墩：(.+)\s+·\s+高墩：(.+)$/,
+        (low, high) =>
+          `Chi thấp: ${localizeInline(locale, low)} · chi cao: ${localizeInline(locale, high)}`,
+      ) ??
+      replace(core, /^高\s+(.+)$/, (value) => `Cao ${localizeInline(locale, value)}`) ??
+      replace(core, /^低\s+(.+)$/, (value) => `Thấp ${localizeInline(locale, value)}`) ??
+      replace(core, /^翻閒家第\s+(.+)\s+張$/, (index) => `Mở lá người chơi thứ ${index}`) ??
+      replace(core, /^莊家第\s+(.+)\s+張$/, (index) => `Lá nhà cái thứ ${index}`) ??
+      replace(core, /^閒家第\s+(.+)\s+張$/, (index) => `Lá người chơi thứ ${index}`) ??
+      replace(core, /^(.+)\s+張$/, (count) => `${count} lá`) ??
+      replace(
+        core,
+        /^選擇高墩\s+(.+)\s+(.+)，低墩\s+(.+)\s+(.+)$/,
+        (highRank, highScore, lowRank, lowScore) =>
+          `Chọn chi cao ${localizeInline(locale, highRank)} ${localizeInline(locale, highScore)}, chi thấp ${localizeInline(locale, lowRank)} ${localizeInline(locale, lowScore)}`,
+      ) ??
       replace(core, /^最高爆分\s+(.+)$/, (value) => `Thắng cao nhất ${value}`) ??
       replace(core, /^剩\s+(.+)$/, (value) => `Còn ${value}`) ??
       replace(core, /^最低下注為\s+(.+)。$/, (value) => `Cược tối thiểu là ${value}`) ??
       replace(core, /^單注上限為\s+(.+)。$/, (value) => `Giới hạn cược đơn là ${value}`) ??
       replace(core, /^(\d+)\/(\d+)\s+命中$/, (hits, total) => `Trúng ${hits}/${total}`) ??
-      replace(core, /^(.+)\s+次\s+·\s+(.+)\s+\/\s+注\s+·\s+上限\s+(.+)$/, (rounds, amount, max) =>
-        `${rounds} lượt · ${amount} / cược · tối đa ${max}`,
+      replace(
+        core,
+        /^(.+)\s+次\s+·\s+(.+)\s+\/\s+注\s+·\s+上限\s+(.+)$/,
+        (rounds, amount, max) => `${rounds} lượt · ${amount} / cược · tối đa ${max}`,
       ) ??
-      replace(core, /^(.+)\s+局\s+·\s+(.+)\s+號\s+·\s+(.+)$/, (rounds, count, amount) =>
-        `${rounds} ván · ${count} số · ${amount}`,
+      replace(
+        core,
+        /^(.+)\s+局\s+·\s+(.+)\s+號\s+·\s+(.+)$/,
+        (rounds, count, amount) => `${rounds} ván · ${count} số · ${amount}`,
       ) ??
       replace(core, /^第\s+(.+)\s+格$/, (step) => `Ô ${step}`) ??
       replace(core, /^(.+)\s+格$/, (step) => `${step} ô`) ??
-      replace(core, /^(.+)\s+層\s+·\s+(.+)$/, (level, difficulty) => `${level} tầng · ${difficulty}`) ??
+      replace(
+        core,
+        /^(.+)\s+層\s+·\s+(.+)$/,
+        (level, difficulty) => `${level} tầng · ${difficulty}`,
+      ) ??
       replace(core, /^通關\s+·\s+(.+)$/, (difficulty) => `Qua màn · ${difficulty}`)
     );
   }
@@ -803,7 +1150,11 @@ function localizeTemplate(core: string, locale: Locale): string | null {
       replace(core, /^(\d+)\/(\d+)\s+命中$/, (hits, total) => `${hits}/${total} hits`) ??
       replace(core, /^第\s+(.+)\s+格$/, (step) => `Step ${step}`) ??
       replace(core, /^(.+)\s+格$/, (step) => `${step} tiles`) ??
-      replace(core, /^(.+)\s+層\s+·\s+(.+)$/, (level, difficulty) => `${level} levels · ${difficulty}`) ??
+      replace(
+        core,
+        /^(.+)\s+層\s+·\s+(.+)$/,
+        (level, difficulty) => `${level} levels · ${difficulty}`,
+      ) ??
       replace(core, /^通關\s+·\s+(.+)$/, (difficulty) => `Cleared · ${difficulty}`)
     );
   }
@@ -813,13 +1164,17 @@ function localizeTemplate(core: string, locale: Locale): string | null {
 function localizeHistoryTemplate(core: string, locale: Locale): string | null {
   if (locale === 'th') {
     return (
-      replace(core, /^顯示\s+(.+)\s+-\s+(.+)\s+\/\s+(.+)\s+筆$/, (start, end, total) =>
-        `แสดง ${start} - ${end} / ${total} รายการ`,
+      replace(
+        core,
+        /^顯示\s+(.+)\s+-\s+(.+)\s+\/\s+(.+)\s+筆$/,
+        (start, end, total) => `แสดง ${start} - ${end} / ${total} รายการ`,
       ) ??
       replace(core, /^第\s+(.+)\s+\/\s+(.+)\s+頁$/, (page, total) => `หน้า ${page} / ${total}`) ??
       replace(core, /^(.+)\s+筆$/, (count) => `${count} รายการ`) ??
-      replace(core, /^投注\s+(.+)\s+(.+)\s+點$/, (direction, target) =>
-        `เดิมพัน ${localizeInline(locale, direction)} ${target} แต้ม`,
+      replace(
+        core,
+        /^投注\s+(.+)\s+(.+)\s+點$/,
+        (direction, target) => `เดิมพัน ${localizeInline(locale, direction)} ${target} แต้ม`,
       ) ??
       replace(core, /^開出\s+(.+)\s+點$/, (value) => `ออก ${value} แต้ม`) ??
       replace(core, /^結果：(.+)$/, (result) => `ผลลัพธ์: ${localizeInline(locale, result)}`) ??
@@ -831,42 +1186,59 @@ function localizeHistoryTemplate(core: string, locale: Locale): string | null {
       replace(core, /^(.+)\s+列釘盤$/, (rows) => `กระดานหมุด ${rows} แถว`) ??
       replace(core, /^落在從左數第\s+(.+)\s+格$/, (bucket) => `ตกที่ช่อง ${bucket} จากซ้าย`) ??
       replace(core, /^消除\s+(.+)\s+次$/, (count) => `ลบ ${count} ครั้ง`) ??
-      replace(core, /^免費遊戲\s+(.+)\s+\/\s+(.+)\s+次$/, (played, total) =>
-        `ฟรีเกม ${played} / ${total} ครั้ง`,
+      replace(
+        core,
+        /^免費遊戲\s+(.+)\s+\/\s+(.+)\s+次$/,
+        (played, total) => `ฟรีเกม ${played} / ${total} ครั้ง`,
       ) ??
       replace(core, /^本局倍數\s+(.+)×$/, (value) => `ตัวคูณรอบนี้ ${value}×`) ??
       replace(core, /^免費遊戲累積倍數\s+(.+)×$/, (value) => `ตัวคูณสะสมฟรีเกม ${value}×`) ??
       replace(core, /^總倍率\s+(.+)×$/, (value) => `ตัวคูณรวม ${value}×`) ??
-      replace(core, /^命中\s+(.+)\s+\/\s+(.+)\s+個號碼$/, (hits, total) =>
-        `ถูก ${hits} / ${total} หมายเลข`,
+      replace(
+        core,
+        /^命中\s+(.+)\s+\/\s+(.+)\s+個號碼$/,
+        (hits, total) => `ถูก ${hits} / ${total} หมายเลข`,
       ) ??
       replace(core, /^本局共有\s+(.+)\s+顆地雷$/, (count) => `รอบนี้มีระเบิด ${count} ลูก`) ??
       replace(core, /^已翻開\s+(.+)\s+格$/, (count) => `เปิดแล้ว ${count} ช่อง`) ??
       replace(core, /^踩到第\s+(.+)\s+格地雷$/, (cell) => `โดนระเบิดที่ช่อง ${cell}`) ??
       replace(core, /^已選擇\s+(.+)\s+層$/, (count) => `เลือกแล้ว ${count} ชั้น`) ??
       replace(core, /^第\s+(.+)\s+層踩到陷阱$/, (level) => `เจอกับดักที่ชั้น ${level}`) ??
-      replace(core, /^已通過\s+(.+)\s+\/\s+(.+)\s+條車道$/, (current, total) =>
-        `ผ่านแล้ว ${current} / ${total} เลน`,
+      replace(
+        core,
+        /^已通過\s+(.+)\s+\/\s+(.+)\s+條車道$/,
+        (current, total) => `ผ่านแล้ว ${current} / ${total} เลน`,
       ) ??
       replace(core, /^第\s+(.+)\s+條車道未通過$/, (step) => `ไม่ผ่านเลนที่ ${step}`) ??
       replace(core, /^開出\s+(.+)\s+號$/, (slot) => `ออกหมายเลข ${slot}`) ??
       replace(core, /^共有\s+(.+)\s+筆下注中獎$/, (count) => `มีเดิมพันชนะ ${count} รายการ`) ??
-      replace(core, /^第\s+(.+)\s+段\s+·\s+(.+)$/, (segment, multiplier) =>
-        `ช่อง ${segment} · ${multiplier}`,
+      replace(
+        core,
+        /^第\s+(.+)\s+段\s+·\s+(.+)$/,
+        (segment, multiplier) => `ช่อง ${segment} · ${multiplier}`,
       ) ??
-      replace(core, /^共\s+(.+)\s+條中獎線，合計\s+(.+)$/, (count, total) =>
-        `ไลน์ชนะ ${count} ไลน์ รวม ${total}`,
+      replace(
+        core,
+        /^共\s+(.+)\s+條中獎線，合計\s+(.+)$/,
+        (count, total) => `ไลน์ชนะ ${count} ไลน์ รวม ${total}`,
       ) ??
       replace(core, /^(.+)\s+符號$/, (count) => `${count} สัญลักษณ์`) ??
-      replace(core, /^(.+)個\s+(.+)×\s+·\s+(.+)個\s+(.+)×$/, (countA, valueA, countB, valueB) =>
-        `${countA} อัน ${valueA}× · ${countB} อัน ${valueB}×`,
+      replace(
+        core,
+        /^(.+)個\s+(.+)×\s+·\s+(.+)個\s+(.+)×$/,
+        (countA, valueA, countB, valueB) => `${countA} อัน ${valueA}× · ${countB} อัน ${valueB}×`,
       ) ??
       replace(core, /^(.+)個\s+(.+)×$/, (count, value) => `${count} อัน ${value}×`) ??
-      replace(core, /^(.+)\s+·\s+(.+)$/, (label, direction) =>
-        `${localizeInline(locale, label)} · ${localizeInline(locale, direction)}`,
+      replace(
+        core,
+        /^(.+)\s+·\s+(.+)$/,
+        (label, direction) =>
+          `${localizeInline(locale, label)} · ${localizeInline(locale, direction)}`,
       ) ??
-      replace(core, /^連續\s+(.+)\s+個相同符號中獎$/, (count) =>
-        `ชนะด้วยสัญลักษณ์เหมือนกันต่อเนื่อง ${count} อัน`,
+      replace(
+        core,
+        /^連續\s+(.+)\s+個相同符號中獎$/,
+        (count) => `ชนะด้วยสัญลักษณ์เหมือนกันต่อเนื่อง ${count} อัน`,
       ) ??
       replace(core, /^手牌\s+(.+)$/, (index) => `มือ ${index}`) ??
       replace(core, /^點數\s+(.+)$/, (score) => `แต้ม ${score}`) ??
@@ -880,13 +1252,17 @@ function localizeHistoryTemplate(core: string, locale: Locale): string | null {
 
   if (locale === 'vi') {
     return (
-      replace(core, /^顯示\s+(.+)\s+-\s+(.+)\s+\/\s+(.+)\s+筆$/, (start, end, total) =>
-        `Hiển thị ${start} - ${end} / ${total} mục`,
+      replace(
+        core,
+        /^顯示\s+(.+)\s+-\s+(.+)\s+\/\s+(.+)\s+筆$/,
+        (start, end, total) => `Hiển thị ${start} - ${end} / ${total} mục`,
       ) ??
       replace(core, /^第\s+(.+)\s+\/\s+(.+)\s+頁$/, (page, total) => `Trang ${page} / ${total}`) ??
       replace(core, /^(.+)\s+筆$/, (count) => `${count} mục`) ??
-      replace(core, /^投注\s+(.+)\s+(.+)\s+點$/, (direction, target) =>
-        `Cược ${localizeInline(locale, direction)} ${target} điểm`,
+      replace(
+        core,
+        /^投注\s+(.+)\s+(.+)\s+點$/,
+        (direction, target) => `Cược ${localizeInline(locale, direction)} ${target} điểm`,
       ) ??
       replace(core, /^開出\s+(.+)\s+點$/, (value) => `Mở ra ${value} điểm`) ??
       replace(core, /^結果：(.+)$/, (result) => `Kết quả: ${localizeInline(locale, result)}`) ??
@@ -898,42 +1274,64 @@ function localizeHistoryTemplate(core: string, locale: Locale): string | null {
       replace(core, /^(.+)\s+列釘盤$/, (rows) => `Bảng chốt ${rows} hàng`) ??
       replace(core, /^落在從左數第\s+(.+)\s+格$/, (bucket) => `Rơi vào ô ${bucket} từ trái`) ??
       replace(core, /^消除\s+(.+)\s+次$/, (count) => `Xóa ${count} lần`) ??
-      replace(core, /^免費遊戲\s+(.+)\s+\/\s+(.+)\s+次$/, (played, total) =>
-        `Free game ${played} / ${total} lượt`,
+      replace(
+        core,
+        /^免費遊戲\s+(.+)\s+\/\s+(.+)\s+次$/,
+        (played, total) => `Free game ${played} / ${total} lượt`,
       ) ??
       replace(core, /^本局倍數\s+(.+)×$/, (value) => `Hệ số ván này ${value}×`) ??
-      replace(core, /^免費遊戲累積倍數\s+(.+)×$/, (value) => `Hệ số tích lũy free game ${value}×`) ??
+      replace(
+        core,
+        /^免費遊戲累積倍數\s+(.+)×$/,
+        (value) => `Hệ số tích lũy free game ${value}×`,
+      ) ??
       replace(core, /^總倍率\s+(.+)×$/, (value) => `Tổng hệ số ${value}×`) ??
-      replace(core, /^命中\s+(.+)\s+\/\s+(.+)\s+個號碼$/, (hits, total) =>
-        `Trúng ${hits} / ${total} số`,
+      replace(
+        core,
+        /^命中\s+(.+)\s+\/\s+(.+)\s+個號碼$/,
+        (hits, total) => `Trúng ${hits} / ${total} số`,
       ) ??
       replace(core, /^本局共有\s+(.+)\s+顆地雷$/, (count) => `Ván này có ${count} mìn`) ??
       replace(core, /^已翻開\s+(.+)\s+格$/, (count) => `Đã mở ${count} ô`) ??
       replace(core, /^踩到第\s+(.+)\s+格地雷$/, (cell) => `Trúng mìn ở ô ${cell}`) ??
       replace(core, /^已選擇\s+(.+)\s+層$/, (count) => `Đã chọn ${count} tầng`) ??
       replace(core, /^第\s+(.+)\s+層踩到陷阱$/, (level) => `Trúng bẫy ở tầng ${level}`) ??
-      replace(core, /^已通過\s+(.+)\s+\/\s+(.+)\s+條車道$/, (current, total) =>
-        `Đã vượt ${current} / ${total} làn`,
+      replace(
+        core,
+        /^已通過\s+(.+)\s+\/\s+(.+)\s+條車道$/,
+        (current, total) => `Đã vượt ${current} / ${total} làn`,
       ) ??
       replace(core, /^第\s+(.+)\s+條車道未通過$/, (step) => `Không vượt qua làn ${step}`) ??
       replace(core, /^開出\s+(.+)\s+號$/, (slot) => `Mở ra số ${slot}`) ??
       replace(core, /^共有\s+(.+)\s+筆下注中獎$/, (count) => `Có ${count} cược trúng`) ??
-      replace(core, /^第\s+(.+)\s+段\s+·\s+(.+)$/, (segment, multiplier) =>
-        `Ô ${segment} · ${multiplier}`,
+      replace(
+        core,
+        /^第\s+(.+)\s+段\s+·\s+(.+)$/,
+        (segment, multiplier) => `Ô ${segment} · ${multiplier}`,
       ) ??
-      replace(core, /^共\s+(.+)\s+條中獎線，合計\s+(.+)$/, (count, total) =>
-        `${count} dòng thắng, tổng ${total}`,
+      replace(
+        core,
+        /^共\s+(.+)\s+條中獎線，合計\s+(.+)$/,
+        (count, total) => `${count} dòng thắng, tổng ${total}`,
       ) ??
       replace(core, /^(.+)\s+符號$/, (count) => `${count} biểu tượng`) ??
-      replace(core, /^(.+)個\s+(.+)×\s+·\s+(.+)個\s+(.+)×$/, (countA, valueA, countB, valueB) =>
-        `${countA} biểu tượng ${valueA}× · ${countB} biểu tượng ${valueB}×`,
+      replace(
+        core,
+        /^(.+)個\s+(.+)×\s+·\s+(.+)個\s+(.+)×$/,
+        (countA, valueA, countB, valueB) =>
+          `${countA} biểu tượng ${valueA}× · ${countB} biểu tượng ${valueB}×`,
       ) ??
       replace(core, /^(.+)個\s+(.+)×$/, (count, value) => `${count} biểu tượng ${value}×`) ??
-      replace(core, /^(.+)\s+·\s+(.+)$/, (label, direction) =>
-        `${localizeInline(locale, label)} · ${localizeInline(locale, direction)}`,
+      replace(
+        core,
+        /^(.+)\s+·\s+(.+)$/,
+        (label, direction) =>
+          `${localizeInline(locale, label)} · ${localizeInline(locale, direction)}`,
       ) ??
-      replace(core, /^連續\s+(.+)\s+個相同符號中獎$/, (count) =>
-        `Thắng với ${count} biểu tượng giống nhau liên tiếp`,
+      replace(
+        core,
+        /^連續\s+(.+)\s+個相同符號中獎$/,
+        (count) => `Thắng với ${count} biểu tượng giống nhau liên tiếp`,
       ) ??
       replace(core, /^手牌\s+(.+)$/, (index) => `Tay bài ${index}`) ??
       replace(core, /^點數\s+(.+)$/, (score) => `Điểm ${score}`) ??
@@ -947,14 +1345,19 @@ function localizeHistoryTemplate(core: string, locale: Locale): string | null {
 
   if (locale === 'en') {
     return (
-      replace(core, /^顯示\s+(.+)\s+-\s+(.+)\s+\/\s+(.+)\s+筆$/, (start, end, total) =>
-        `Showing ${start} - ${end} / ${total} entries`,
+      replace(
+        core,
+        /^顯示\s+(.+)\s+-\s+(.+)\s+\/\s+(.+)\s+筆$/,
+        (start, end, total) => `Showing ${start} - ${end} / ${total} entries`,
       ) ??
       replace(core, /^第\s+(.+)\s+\/\s+(.+)\s+頁$/, (page, total) => `Page ${page} / ${total}`) ??
       replace(core, /^(.+)\s+筆$/, (count) => `${count} entries`) ??
       replace(core, /^(.+)\s+符號$/, (count) => `${count} symbols`) ??
-      replace(core, /^(.+)個\s+(.+)×\s+·\s+(.+)個\s+(.+)×$/, (countA, valueA, countB, valueB) =>
-        `${countA} symbols ${valueA}× · ${countB} symbols ${valueB}×`,
+      replace(
+        core,
+        /^(.+)個\s+(.+)×\s+·\s+(.+)個\s+(.+)×$/,
+        (countA, valueA, countB, valueB) =>
+          `${countA} symbols ${valueA}× · ${countB} symbols ${valueB}×`,
       )
     );
   }

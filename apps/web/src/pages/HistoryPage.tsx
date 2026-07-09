@@ -6,6 +6,8 @@ import { CalendarDays, ReceiptText, Search, X } from 'lucide-react';
 import { api, extractApiError } from '@/lib/api';
 import { formatAmount } from '@/lib/utils';
 import { useTranslation } from '@/i18n/useTranslation';
+import { getLocalizedGameTitle } from '@/i18n/gameLabels';
+import type { Locale } from '@/i18n/types';
 import { MobilePageHeader } from '@/components/layout/MobilePageHeader';
 
 const ICON: Record<TransactionType, { color: string; icon: string }> = {
@@ -183,7 +185,7 @@ function summarizeItems(
 }
 
 export function HistoryPage() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [items, setItems] = useState<TransactionListResponse['items']>([]);
   const [reportSummary, setReportSummary] = useState<TransactionListResponse['summary'] | null>(
     null,
@@ -513,7 +515,7 @@ export function HistoryPage() {
                           </button>
                         ) : null}
                         <div className="mt-1 truncate text-[11px] font-semibold tracking-normal text-[#4A5568] md:hidden">
-                          {renderReference(tx.gameId, tx.betId)}
+                          {renderReference(tx.gameId, tx.betId, locale)}
                         </div>
                         {hasWinLoss && tx.betAmount && tx.payout ? (
                           <div className="mt-0.5 truncate text-[11px] font-semibold tracking-normal text-[#718096] md:hidden">
@@ -527,7 +529,7 @@ export function HistoryPage() {
                       </div>
                     </div>
                     <div className="hidden truncate text-[13px] font-semibold leading-relaxed text-[#4A5568] md:block">
-                      <div>{renderReference(tx.gameId, tx.betId)}</div>
+                      <div>{renderReference(tx.gameId, tx.betId, locale)}</div>
                       {hasWinLoss && tx.betAmount && tx.payout ? (
                         <div className="mt-1 truncate text-[12px] tracking-normal text-[#9CA3AF]">
                           {t.history.stake} {formatAmount(tx.betAmount)} · {t.history.payout}{' '}
@@ -615,8 +617,10 @@ export function HistoryPage() {
   );
 }
 
-function renderReference(gameId: string | null, betId: string | null): string {
-  const gameName = gameId ? (getGameMeta(gameId)?.nameZh ?? gameId) : null;
+function renderReference(gameId: string | null, betId: string | null, locale: Locale): string {
+  const gameName = gameId
+    ? getLocalizedGameTitle(gameId, locale, getGameMeta(gameId)?.nameZh ?? gameId)
+    : null;
   const betRef = betId ? `BET · ${betId.slice(-6).toUpperCase()}` : null;
   if (gameName && betRef) return `${gameName} · ${betRef}`;
   if (gameName) return gameName;
@@ -635,8 +639,15 @@ function BetDetailModal({
   loading: boolean;
   onClose: () => void;
 }) {
-  const gameName = detail ? (getGameMeta(detail.gameId)?.nameZh ?? detail.gameId) : '';
-  const resultItems = detail ? resultEntries(detail.gameId, detail.resultData) : [];
+  const { locale } = useTranslation();
+  const gameName = detail
+    ? getLocalizedGameTitle(
+        detail.gameId,
+        locale,
+        getGameMeta(detail.gameId)?.nameZh ?? detail.gameId,
+      )
+    : '';
+  const resultItems = detail ? resultEntries(detail.gameId, detail.resultData, locale) : [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-[#07101C]/70 p-0 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6">
@@ -783,7 +794,7 @@ type DisplayCard = {
 
 type ResultEntry = { key: string; label: string; value: ReactNode };
 
-function resultEntries(gameId: string, value: unknown): ResultEntry[] {
+function resultEntries(gameId: string, value: unknown, locale: Locale): ResultEntry[] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return value === null || value === undefined
       ? []
@@ -791,7 +802,7 @@ function resultEntries(gameId: string, value: unknown): ResultEntry[] {
   }
 
   const record = value as Record<string, unknown>;
-  const friendly = friendlyResultEntries(gameId, record);
+  const friendly = friendlyResultEntries(gameId, record, locale);
   if (friendly.length > 0) return friendly;
 
   return Object.entries(value as Record<string, unknown>)
@@ -862,9 +873,13 @@ const RESULT_LABELS: Record<string, string> = {
   status: '狀態',
 };
 
-function friendlyResultEntries(gameId: string, record: Record<string, unknown>): ResultEntry[] {
+function friendlyResultEntries(
+  gameId: string,
+  record: Record<string, unknown>,
+  locale: Locale,
+): ResultEntry[] {
   if (isLocalTableGameId(gameId) || isLocalTableResult(record)) {
-    return localTableResultEntries(gameId, record);
+    return localTableResultEntries(gameId, record, locale);
   }
   if (gameId === 'dice') return diceResultEntries(record);
   if (gameId === 'wheel') return wheelResultEntries(record);
@@ -1188,7 +1203,11 @@ function rouletteResultEntries(record: Record<string, unknown>): ResultEntry[] {
   ];
 }
 
-function localTableResultEntries(gameId: string, record: Record<string, unknown>): ResultEntry[] {
+function localTableResultEntries(
+  gameId: string,
+  record: Record<string, unknown>,
+  locale: Locale,
+): ResultEntry[] {
   const kind = getStringScalar(record.kind);
   const roomName = getStringScalar(record.roomName);
   const outcome = getStringScalar(record.outcome);
@@ -1208,7 +1227,9 @@ function localTableResultEntries(gameId: string, record: Record<string, unknown>
       value: (
         <SummaryStack
           items={[
-            roomName ? `房間：${roomName}` : (getGameMeta(gameId)?.nameZh ?? gameId),
+            roomName
+              ? `房間：${roomName}`
+              : getLocalizedGameTitle(gameId, locale, getGameMeta(gameId)?.nameZh ?? gameId),
             kind ? `玩法：${localTableKindLabel(kind)}` : null,
             outcomeLabel ?? (outcome ? `結果：${localTableOutcomeLabel(outcome)}` : null),
             summary ?? null,

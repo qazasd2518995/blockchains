@@ -15,7 +15,7 @@ const EMPTY_GAMES: DashboardSummaryResponse['gameBreakdown'] = [];
 
 export function AdminDashboardPage(): JSX.Element {
   const { agent } = useAdminAuthStore();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
   const [recentAudit, setRecentAudit] = useState<AuditListResponse['items']>([]);
   const [error, setError] = useState<string | null>(null);
@@ -104,8 +104,14 @@ export function AdminDashboardPage(): JSX.Element {
               </h2>
             </div>
             <div className="grid min-w-[260px] grid-cols-2 gap-2 text-right text-[11px]">
-              <MiniMetric label="平均注額" value={totals ? formatDec(totals.avgBetAmount7d) : '--'} />
-              <MiniMetric label="7日派彩" value={totals ? formatMoneyShort(totals.payout7d) : '--'} />
+              <MiniMetric
+                label="平均注額"
+                value={totals ? formatDec(totals.avgBetAmount7d) : '--'}
+              />
+              <MiniMetric
+                label="7日派彩"
+                value={totals ? formatMoneyShort(totals.payout7d) : '--'}
+              />
             </div>
           </div>
           <BetTrendChart points={summary?.trend ?? EMPTY_TREND} />
@@ -131,7 +137,9 @@ export function AdminDashboardPage(): JSX.Element {
               </div>
               <div className="min-w-[130px] text-right text-[11px] text-ink-500">
                 <div>活躍會員 {totals?.activeMembers7d.toLocaleString('en-US') ?? '--'}</div>
-                <div className="mt-1">新增會員 {totals?.newMembers7d.toLocaleString('en-US') ?? '--'}</div>
+                <div className="mt-1">
+                  新增會員 {totals?.newMembers7d.toLocaleString('en-US') ?? '--'}
+                </div>
               </div>
             </div>
             <div className="mt-5 h-3 overflow-hidden border border-[#186073]/20 bg-white">
@@ -148,14 +156,12 @@ export function AdminDashboardPage(): JSX.Element {
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(360px,0.95fr)_minmax(0,1.35fr)]">
         <section className="crt-panel overflow-hidden">
           <div className="border-b border-ink-200 px-5 py-4">
-            <div className="text-[10px] uppercase tracking-[0.28em] text-[#8B5CF6]">
-              Game Mix
-            </div>
+            <div className="text-[10px] uppercase tracking-[0.28em] text-[#8B5CF6]">Game Mix</div>
             <h2 className="mt-2 text-[22px] font-black tracking-[0.03em] text-ink-900">
               熱門遊戲跑量排行
             </h2>
           </div>
-          <GameBreakdownChart games={summary?.gameBreakdown ?? EMPTY_GAMES} />
+          <GameBreakdownChart games={summary?.gameBreakdown ?? EMPTY_GAMES} locale={locale} />
         </section>
 
         <section className="crt-panel overflow-hidden">
@@ -240,7 +246,9 @@ function BetTrendChart({ points }: { points: DashboardSummaryResponse['trend'] }
   });
   const first = coords[0];
   const last = coords[coords.length - 1];
-  const linePath = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
+  const linePath = coords
+    .map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)
+    .join(' ');
   const areaPath =
     first && last
       ? `${linePath} L ${last.x.toFixed(1)} ${height - bottom} L ${first.x.toFixed(1)} ${height - bottom} Z`
@@ -262,10 +270,26 @@ function BetTrendChart({ points }: { points: DashboardSummaryResponse['trend'] }
         </defs>
         {[0, 1, 2, 3].map((line) => {
           const y = top + (plotHeight / 3) * line;
-          return <line key={line} x1={left} x2={width - right} y1={y} y2={y} stroke="#DFE5EA" strokeWidth="1" />;
+          return (
+            <line
+              key={line}
+              x1={left}
+              x2={width - right}
+              y1={y}
+              y2={y}
+              stroke="#DFE5EA"
+              strokeWidth="1"
+            />
+          );
         })}
         <path d={areaPath} fill="url(#handleArea)" />
-        <path d={linePath} fill="none" stroke="url(#handleLine)" strokeLinecap="round" strokeWidth="4" />
+        <path
+          d={linePath}
+          fill="none"
+          stroke="url(#handleLine)"
+          strokeLinecap="round"
+          strokeWidth="4"
+        />
         {coords.map(({ x, y, point }) => (
           <g key={point.date}>
             <circle cx={x} cy={y} r="5" fill="#F8FBFC" stroke="#186073" strokeWidth="3" />
@@ -315,8 +339,10 @@ function ActiveMemberBars({ points }: { points: DashboardSummaryResponse['trend'
 
 function GameBreakdownChart({
   games,
+  locale,
 }: {
   games: DashboardSummaryResponse['gameBreakdown'];
+  locale: ReturnType<typeof useTranslation>['locale'];
 }): JSX.Element {
   if (games.length === 0) {
     return <EmptyChart label="暫無遊戲跑量資料" />;
@@ -333,7 +359,7 @@ function GameBreakdownChart({
             <div className="mb-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="truncate text-[13px] font-black text-ink-900">
-                  {index + 1}. {gameLabel(game.gameId)}
+                  {index + 1}. {gameLabel(game.gameId, locale)}
                 </div>
                 <div className="data-num text-[10px] text-ink-500">
                   {game.betCount.toLocaleString('en-US')} bets
@@ -364,8 +390,8 @@ function EmptyChart({ label }: { label: string }): JSX.Element {
   );
 }
 
-function gameLabel(gameId: string): string {
-  return getAdminGameOptionLabel(gameId);
+function gameLabel(gameId: string, locale: ReturnType<typeof useTranslation>['locale']): string {
+  return getAdminGameOptionLabel(gameId, locale);
 }
 
 function formatDec(s: string): string {

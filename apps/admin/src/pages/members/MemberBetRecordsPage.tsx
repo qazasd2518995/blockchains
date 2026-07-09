@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import type { BetDetailResponse, MemberPublic, MemberBetListResponse, MemberBetEntry } from '@bg/shared';
+import type {
+  BetDetailResponse,
+  MemberPublic,
+  MemberBetListResponse,
+  MemberBetEntry,
+} from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { getAdminGameSubtitle, getAdminGameTitle } from '@/lib/gameDisplay';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -10,7 +15,7 @@ import { BetResultDetailModal } from '@/components/shared/BetResultDetailModal';
 
 export function MemberBetRecordsPage(): JSX.Element {
   const { id = '' } = useParams();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [member, setMember] = useState<MemberPublic | null>(null);
   const [items, setItems] = useState<MemberBetEntry[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -34,7 +39,9 @@ export function MemberBetRecordsPage(): JSX.Element {
       try {
         const [mRes, bRes] = await Promise.all([
           adminApi.get<MemberPublic>(`/members/${id}`),
-          adminApi.get<MemberBetListResponse>(`/members/${id}/bets`, { params: buildParams(gameFilter) }),
+          adminApi.get<MemberBetListResponse>(`/members/${id}/bets`, {
+            params: buildParams(gameFilter),
+          }),
         ]);
         if (!cancel) {
           setMember(mRes.data);
@@ -103,20 +110,36 @@ export function MemberBetRecordsPage(): JSX.Element {
     {
       key: 'game',
       label: t.bets.game,
-      render: (r) => (
-        <span className="flex flex-col gap-0.5 text-ink-900">
-          <span className="font-semibold">{getAdminGameTitle(r.gameId)}</span>
-          {getAdminGameSubtitle(r.gameId) ? (
-            <span className="text-[10px] font-semibold text-ink-400">
-              {getAdminGameSubtitle(r.gameId)}
-            </span>
-          ) : null}
-        </span>
-      ),
+      render: (r) => {
+        const subtitle = getAdminGameSubtitle(r.gameId, locale);
+        return (
+          <span className="flex flex-col gap-0.5 text-ink-900">
+            <span className="font-semibold">{getAdminGameTitle(r.gameId, locale)}</span>
+            {subtitle ? (
+              <span className="text-[10px] font-semibold text-ink-400">{subtitle}</span>
+            ) : null}
+          </span>
+        );
+      },
     },
-    { key: 'amt', label: t.bets.amount, align: 'right', render: (r) => <span className="data-num">{fmt(r.amount)}</span> },
-    { key: 'mult', label: t.bets.multiplier, align: 'right', render: (r) => <span className="data-num">{r.multiplier}x</span> },
-    { key: 'payout', label: t.bets.payout, align: 'right', render: (r) => <span className="data-num">{fmt(r.payout)}</span> },
+    {
+      key: 'amt',
+      label: t.bets.amount,
+      align: 'right',
+      render: (r) => <span className="data-num">{fmt(r.amount)}</span>,
+    },
+    {
+      key: 'mult',
+      label: t.bets.multiplier,
+      align: 'right',
+      render: (r) => <span className="data-num">{r.multiplier}x</span>,
+    },
+    {
+      key: 'payout',
+      label: t.bets.payout,
+      align: 'right',
+      render: (r) => <span className="data-num">{fmt(r.payout)}</span>,
+    },
     {
       key: 'profit',
       label: t.bets.profit,

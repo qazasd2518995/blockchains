@@ -210,7 +210,7 @@ interface AutoBalanceConfig {
 type RewardScope = 'ALL' | 'AGENT_LINE' | 'MEMBER';
 
 export function ControlsOverviewPage(): JSX.Element {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { agent } = useAdminAuthStore();
   const isSuperAdmin = agent?.role === 'SUPER_ADMIN';
   const [allSettlement, setAllSettlement] = useState<SettlementSnapshot | null>(null);
@@ -919,7 +919,7 @@ export function ControlsOverviewPage(): JSX.Element {
           <span className="font-mono text-[11px]">{formatBurstTarget(r)}</span>
           {r.gameIds.length > 0 && (
             <span className="text-[10px] font-semibold text-[#186073]">
-              {getAdminGameIdListLabel(r.gameIds)}
+              {getAdminGameIdListLabel(r.gameIds, locale)}
             </span>
           )}
         </div>
@@ -1015,10 +1015,10 @@ export function ControlsOverviewPage(): JSX.Element {
       key: 'game',
       label: '游戏',
       render: (r) => {
-        const subtitle = getAdminGameSubtitle(r.gameId);
+        const subtitle = getAdminGameSubtitle(r.gameId, locale);
         return (
           <span className="tag tag-acid flex-col items-start gap-0 leading-tight">
-            <span>{getAdminGameTitle(r.gameId)}</span>
+            <span>{getAdminGameTitle(r.gameId, locale)}</span>
             {subtitle && <span className="text-[9px] opacity-60">{subtitle}</span>}
           </span>
         );

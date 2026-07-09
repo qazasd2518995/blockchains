@@ -8,23 +8,25 @@ import { getCurrentGameDay, shiftGameDay, startOfGameWeek } from '@/lib/gameDay'
 import { PageHeader } from '@/components/shared/PageHeader';
 import { HierarchyBreadcrumb } from '@/components/shared/HierarchyBreadcrumb';
 import { MemberBetRecordsModal } from '@/components/shared/MemberBetRecordsModal';
-import { AccountSearchSelect, type AccountSearchOption } from '@/components/shared/AccountSearchSelect';
+import {
+  AccountSearchSelect,
+  type AccountSearchOption,
+} from '@/components/shared/AccountSearchSelect';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
+import { useTranslation } from '@/i18n/useTranslation';
 
 /**
  * 報表統計（18 欄混合階層下鑽）— 對齊 Bet/agent 原版
  */
-const HIDDEN_ADMIN_GAME_IDS = new Set<string>([
-  ...BACCARAT_GAME_IDS,
-  ...LOCAL_TABLE_GAME_IDS,
-]);
+const HIDDEN_ADMIN_GAME_IDS = new Set<string>([...BACCARAT_GAME_IDS, ...LOCAL_TABLE_GAME_IDS]);
 const REPORT_GAME_OPTIONS = Object.values(GameId).filter((id) => !HIDDEN_ADMIN_GAME_IDS.has(id));
 
 export function ReportsPage(): JSX.Element {
   const { agent: me } = useAdminAuthStore();
+  const { locale } = useTranslation();
   const [params, setParams] = useSearchParams();
-  const currentParent = params.get('parent') ?? (me?.role === 'SUPER_ADMIN' ? '' : me?.id ?? '');
+  const currentParent = params.get('parent') ?? (me?.role === 'SUPER_ADMIN' ? '' : (me?.id ?? ''));
 
   const [startDate, setStartDate] = useState(() => params.get('startDate') || getCurrentGameDay());
   const [endDate, setEndDate] = useState(() => params.get('endDate') || getCurrentGameDay());
@@ -32,7 +34,9 @@ export function ReportsPage(): JSX.Element {
   const [username, setUsername] = useState(params.get('username') ?? '');
   const [selectedAccount, setSelectedAccount] = useState<AccountSearchOption | null>(() => {
     const initialUsername = params.get('username');
-    return initialUsername ? { id: initialUsername, username: initialUsername, displayName: null } : null;
+    return initialUsername
+      ? { id: initialUsername, username: initialUsername, displayName: null }
+      : null;
   });
   const [settlementStatus, setSettlementStatus] = useState(params.get('settlementStatus') ?? '');
 
@@ -63,7 +67,9 @@ export function ReportsPage(): JSX.Element {
       setLoading(true);
       setError(null);
       try {
-        const res = await adminApi.get<HierarchyReportResponse>('/reports/hierarchy', { params: reportParams });
+        const res = await adminApi.get<HierarchyReportResponse>('/reports/hierarchy', {
+          params: reportParams,
+        });
         if (!cancel) setData(res.data);
       } catch (e) {
         if (!cancel) {
@@ -138,30 +144,39 @@ export function ReportsPage(): JSX.Element {
         description="18 栏完整聚合报表。点击代理行下钻，点击会员行开启注单明细。"
       />
 
-      {data && (
-        <HierarchyBreadcrumb
-          items={data.breadcrumb}
-          onSelect={selectParent}
-        />
-      )}
+      {data && <HierarchyBreadcrumb items={data.breadcrumb} onSelect={selectParent} />}
 
       <div className="admin-report-filter mb-4 crt-panel p-4">
         <div className="admin-report-filter-row admin-mobile-stack flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2">
             <span className="label">起始日</span>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="term-input" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="term-input"
+            />
           </label>
           <label className="flex items-center gap-2">
             <span className="label">结束日</span>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="term-input" />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="term-input"
+            />
           </label>
           <label className="flex items-center gap-2">
             <span className="label">游戏</span>
-            <select value={gameId} onChange={(e) => setGameId(e.target.value)} className="term-input max-w-[180px]">
+            <select
+              value={gameId}
+              onChange={(e) => setGameId(e.target.value)}
+              className="term-input max-w-[180px]"
+            >
               <option value="">全部</option>
               {REPORT_GAME_OPTIONS.map((id) => (
                 <option key={id} value={id}>
-                  {getAdminGameOptionLabel(id)}
+                  {getAdminGameOptionLabel(id, locale)}
                 </option>
               ))}
             </select>
@@ -203,11 +218,37 @@ export function ReportsPage(): JSX.Element {
             </button>
           )}
           <div className="admin-report-presets grid grid-cols-2 gap-1 text-[10px] sm:flex sm:items-center">
-            <button type="button" onClick={() => quickPreset('today')} className="btn-teal-outline">[今日]</button>
-            <button type="button" onClick={() => quickPreset('yesterday')} className="btn-teal-outline">[昨日]</button>
-            <button type="button" onClick={() => quickPreset('lastWeek')} className="btn-teal-outline">[上周]</button>
-            <button type="button" onClick={() => quickPreset('thisWeek')} className="btn-teal-outline">[本周]</button>
-            <button type="button" onClick={() => quickPreset('thisMonth')} className="btn-teal-outline">[本月]</button>
+            <button type="button" onClick={() => quickPreset('today')} className="btn-teal-outline">
+              [今日]
+            </button>
+            <button
+              type="button"
+              onClick={() => quickPreset('yesterday')}
+              className="btn-teal-outline"
+            >
+              [昨日]
+            </button>
+            <button
+              type="button"
+              onClick={() => quickPreset('lastWeek')}
+              className="btn-teal-outline"
+            >
+              [上周]
+            </button>
+            <button
+              type="button"
+              onClick={() => quickPreset('thisWeek')}
+              className="btn-teal-outline"
+            >
+              [本周]
+            </button>
+            <button
+              type="button"
+              onClick={() => quickPreset('thisMonth')}
+              className="btn-teal-outline"
+            >
+              [本月]
+            </button>
           </div>
         </div>
       </div>
@@ -251,32 +292,50 @@ function ReportTable({
         <table className="w-full min-w-[1800px] text-[11px]">
           <thead>
             <tr className="border-b border-ink-200 bg-ink-100/60 text-[9px] uppercase tracking-[0.2em] text-ink-600">
-              <th colSpan={4} className="border-r border-ink-200 py-2 text-center">基础信息</th>
-              <th colSpan={3} className="border-r border-ink-200 py-2 text-center">注单</th>
-              <th colSpan={3} className="border-r border-ink-200 py-2 text-center text-[#D4574A]">会员输赢</th>
-              <th colSpan={6} className="border-r border-ink-200 py-2 text-center text-[#186073]">本级占成</th>
-              <th colSpan={2} className="py-2 text-center text-[#AE8B35]">最终交收</th>
+              <th colSpan={4} className="border-r border-ink-200 py-2 text-center">
+                基础信息
+              </th>
+              <th colSpan={3} className="border-r border-ink-200 py-2 text-center">
+                注单
+              </th>
+              <th colSpan={3} className="border-r border-ink-200 py-2 text-center text-[#D4574A]">
+                会员输赢
+              </th>
+              <th colSpan={6} className="border-r border-ink-200 py-2 text-center text-[#186073]">
+                本级占成
+              </th>
+              <th colSpan={2} className="py-2 text-center text-[#AE8B35]">
+                最终交收
+              </th>
             </tr>
             <tr className="border-b border-ink-200 bg-ink-100/40 text-[9px] uppercase tracking-[0.15em] text-ink-500">
               <Th>级别</Th>
               <Th>用户名</Th>
               <Th>备注</Th>
-              <Th className="border-r border-ink-200" right>余额</Th>
+              <Th className="border-r border-ink-200" right>
+                余额
+              </Th>
 
               <Th right>笔数</Th>
               <Th right>下注金额</Th>
-              <Th className="border-r border-ink-200" right>有效金额</Th>
+              <Th className="border-r border-ink-200" right>
+                有效金额
+              </Th>
 
               <Th right>输赢</Th>
               <Th right>退水</Th>
-              <Th className="border-r border-ink-200" right>盈亏结果</Th>
+              <Th className="border-r border-ink-200" right>
+                盈亏结果
+              </Th>
 
               <Th right>应收下线</Th>
               <Th right>占成%</Th>
               <Th right>占成金额</Th>
               <Th right>占成结果</Th>
               <Th right>赚水</Th>
-              <Th className="border-r border-ink-200" right>盈亏结果</Th>
+              <Th className="border-r border-ink-200" right>
+                盈亏结果
+              </Th>
 
               <Th right>上交货量</Th>
               <Th right>上级交收</Th>
@@ -288,20 +347,33 @@ function ReportTable({
             ))}
             {/* 合計列 */}
             <tr className="bg-ink-100/60 font-bold">
-              <td colSpan={4} className="border-r border-ink-200 px-3 py-3 text-[11px] tracking-[0.2em] text-ink-700">
+              <td
+                colSpan={4}
+                className="border-r border-ink-200 px-3 py-3 text-[11px] tracking-[0.2em] text-ink-700"
+              >
                 § 合计
               </td>
-              <td className="px-3 py-3 text-right data-num">{data.totals.betCount.toLocaleString()}</td>
+              <td className="px-3 py-3 text-right data-num">
+                {data.totals.betCount.toLocaleString()}
+              </td>
               <td className="px-3 py-3 text-right data-num">{fmt(data.totals.betAmount)}</td>
-              <td className="border-r border-ink-200 px-3 py-3 text-right data-num">{fmt(data.totals.validAmount)}</td>
+              <td className="border-r border-ink-200 px-3 py-3 text-right data-num">
+                {fmt(data.totals.validAmount)}
+              </td>
               <WlTd v={data.totals.memberWinLoss} />
-              <td className="px-3 py-3 text-right data-num text-win">{fmt(data.totals.totalRebateAmount)}</td>
+              <td className="px-3 py-3 text-right data-num text-win">
+                {fmt(data.totals.totalRebateAmount)}
+              </td>
               <WlTd v={data.totals.memberProfitLossResult} borderRight />
-              <td className="px-3 py-3 text-right data-num">{fmt(data.totals.receivableFromDownline)}</td>
+              <td className="px-3 py-3 text-right data-num">
+                {fmt(data.totals.receivableFromDownline)}
+              </td>
               <td className="px-3 py-3 text-right data-num text-ink-500">—</td>
               <WlTd v={data.totals.commissionAmount} />
               <WlTd v={data.totals.commissionResult} />
-              <td className="px-3 py-3 text-right data-num text-win">{fmt(data.totals.earnedRebateAmount)}</td>
+              <td className="px-3 py-3 text-right data-num text-win">
+                {fmt(data.totals.earnedRebateAmount)}
+              </td>
               <WlTd v={data.totals.profitLossResult} borderRight />
               <td className="px-3 py-3 text-right data-num">{fmt(data.totals.volumeRemitted)}</td>
               <WlTd v={data.totals.uplineSettlement} bold />
@@ -338,7 +410,9 @@ function Row({ row, onClick }: { row: HierarchyReportItem; onClick: () => void }
 
       <td className="px-3 py-2.5 text-right data-num">{row.betCount.toLocaleString()}</td>
       <td className="px-3 py-2.5 text-right data-num">{fmt(row.betAmount)}</td>
-      <td className="border-r border-ink-200 px-3 py-2.5 text-right data-num">{fmt(row.validAmount)}</td>
+      <td className="border-r border-ink-200 px-3 py-2.5 text-right data-num">
+        {fmt(row.validAmount)}
+      </td>
 
       <WlTd v={row.memberWinLoss} />
       <td className="px-3 py-2.5 text-right data-num text-win">{fmt(row.totalRebateAmount)}</td>
@@ -386,7 +460,9 @@ function WlTd({
   const color = n > 0 ? 'text-win' : n < 0 ? 'text-[#D4574A]' : 'text-ink-600';
   const weight = bold ? 'font-bold' : '';
   return (
-    <td className={`px-3 py-2.5 text-right data-num ${color} ${weight} ${borderRight ? 'border-r border-ink-200' : ''}`}>
+    <td
+      className={`px-3 py-2.5 text-right data-num ${color} ${weight} ${borderRight ? 'border-r border-ink-200' : ''}`}
+    >
       {n > 0 ? '+' : ''}
       {fmt(v)}
     </td>
