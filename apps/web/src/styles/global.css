@@ -13871,3 +13871,138 @@
     }
   }
 }
+
+@layer components {
+  @media (max-width: 480px) {
+    .game-fullscreen-shell[data-game-id^='black-dot'] .local-table-stage-panel--black-dot {
+      min-height: auto !important;
+      padding: 0.5rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot']
+      .local-table-stage-panel--black-dot-splitting {
+      min-height: auto !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot']
+      .local-table-stage-panel--black-dot
+      .local-table-stage-header {
+      gap: 0.25rem !important;
+      padding-bottom: 0.38rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot']
+      .local-table-stage-panel--black-dot
+      .local-table-status-label {
+      font-size: 21px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-table {
+      padding: 0.36rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-table__scorebar {
+      grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr) !important;
+      gap: 0.28rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-score-pill {
+      padding: 0.34rem 0.42rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-score-pill strong {
+      font-size: 15px !important;
+      line-height: 1.08 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-score-pill em {
+      font-size: 10px !important;
+      line-height: 1.1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-table__versus {
+      min-width: 28px !important;
+      font-size: 9px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-table__seats,
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-table__pending {
+      gap: 0.36rem !important;
+      margin-top: 0.36rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-seat__header {
+      padding: 0.36rem 0.46rem 0 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-seat__header strong,
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-rack__copy strong {
+      font-size: 18px !important;
+      line-height: 1.04 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-seat__mounds {
+      gap: 0.32rem !important;
+      padding: 0.34rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-mound__header {
+      padding: 0.3rem 0.34rem 0.14rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-mound__header span,
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-mound__header em {
+      font-size: 9px !important;
+      line-height: 1.05 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-mound__header strong {
+      font-size: 16px !important;
+      line-height: 1 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-mound__tiles,
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-rack__tiles {
+      gap: 0.25rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-table .local-table-domino-piece,
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-tile-back {
+      height: 50px !important;
+      border-radius: 10px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot'] .black-dot-table .local-table-domino-image {
+      height: calc(100% - 5px) !important;
+      max-width: 84% !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot']
+      .local-table-stage-panel--black-dot
+      .local-table-result-card {
+      margin-top: 0.46rem !important;
+      padding: 0.5rem 0.62rem !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot']
+      .local-table-stage-panel--black-dot
+      .local-table-result-card
+      .text-\[16px\] {
+      font-size: 13.5px !important;
+      line-height: 1.22 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot']
+      .local-table-stage-panel--black-dot
+      .local-table-profit {
+      font-size: 21px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id^='black-dot']
+      .local-table-inline-split
+      .black-dot-split-option {
+      min-height: 140px !important;
+    }
+  }
+}

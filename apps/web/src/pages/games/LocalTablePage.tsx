@@ -1241,13 +1241,15 @@ function BlackDotBoard({
       className={`black-dot-table ${hasSplitHands ? 'black-dot-table--split' : 'black-dot-table--pending'} ${active ? 'black-dot-table--active' : ''}`}
     >
       <div className="black-dot-table__halo" aria-hidden="true" />
-      <div className="black-dot-table__scorebar">
-        <BlackDotScorePill label="莊家" hand={round.banker} tone="banker" />
-        <div className="black-dot-table__versus" aria-hidden="true">
-          VS
+      {!hasSplitHands ? (
+        <div className="black-dot-table__scorebar">
+          <BlackDotScorePill label="莊家" hand={round.banker} tone="banker" />
+          <div className="black-dot-table__versus" aria-hidden="true">
+            VS
+          </div>
+          <BlackDotScorePill label="閒家" hand={round.player} tone="player" />
         </div>
-        <BlackDotScorePill label="閒家" hand={round.player} tone="player" />
-      </div>
+      ) : null}
 
       {hasSplitHands ? (
         <div className="black-dot-table__seats">
