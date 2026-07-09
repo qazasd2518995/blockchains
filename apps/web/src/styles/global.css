@@ -171,8 +171,12 @@
       );
   }
 
-  .local-table-card-piece__rim {
-    border-color: color-mix(in srgb, var(--local-table-glow) 44%, transparent);
+  .local-table-card-piece img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    user-select: none;
   }
 
   .local-table-card-hand .local-table-piece-shell {
@@ -3890,21 +3894,7 @@
 
     .game-fullscreen-shell[data-game-id='card-war'] .local-table-card-piece {
       border-radius: 11px !important;
-      padding: 0.38rem !important;
-    }
-
-    .game-fullscreen-shell[data-game-id='card-war'] .local-table-card-piece__rim {
-      border-radius: 11px !important;
-    }
-
-    .game-fullscreen-shell[data-game-id='card-war'] .local-table-card-piece .text-\[18px\] {
-      font-size: 15px !important;
-      line-height: 1 !important;
-    }
-
-    .game-fullscreen-shell[data-game-id='card-war'] .local-table-card-piece .text-\[24px\] {
-      font-size: 22px !important;
-      line-height: 1 !important;
+      padding: 0 !important;
     }
 
     .game-fullscreen-shell[data-game-id='card-war'] .local-table-result-card {
@@ -3993,16 +3983,7 @@
 
     .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-card-piece {
       border-radius: 12px !important;
-      padding: 0.42rem !important;
-    }
-
-    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-card-piece__rim {
-      border-radius: 12px !important;
-    }
-
-    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-card-piece .text-\[18px\] {
-      font-size: 16px !important;
-      line-height: 1 !important;
+      padding: 0 !important;
     }
 
     .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-result-card {

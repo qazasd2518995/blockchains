@@ -46,6 +46,9 @@ const CARD_RANKS = [
 ] as const;
 
 const CARD_SUITS = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
+const POKER_CARD_ASSETS = CARD_SUITS.flatMap((suit) =>
+  CARD_RANKS.map((rank) => `/cards/${rank}_of_${suit}.svg`),
+);
 const CRASH_VARIANTS: Record<string, string> = {
   rocket: 'rocket',
   aviator: 'aviator',
@@ -84,6 +87,12 @@ const BLACK_DOT_GAME_IDS = new Set([
   'black-dot-street',
   'black-dot-shadow',
   'black-dot-gold',
+]);
+const POKER_LOCAL_TABLE_GAME_IDS = new Set([
+  'twenty-one-half-doll',
+  'twenty-one-half-bunny',
+  'twenty-one-half-star',
+  'card-war',
 ]);
 const LOCAL_TABLE_STAGE_ART: Partial<Record<string, string>> = {
   'twenty-one-half-doll': '/game-art/local-table/stages/rooms/ten-half-doll-stage.webp',
@@ -146,9 +155,7 @@ export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
     assets: [
       criticalAsset('/game-art/blackjack/cover-v2.png', 'cover'),
       criticalAsset('/game-art/blackjack/background.png', 'background'),
-      ...CARD_SUITS.flatMap((suit) =>
-        CARD_RANKS.map((rank) => asset(`/cards/${rank}_of_${suit}.svg`, 'card')),
-      ),
+      ...POKER_CARD_ASSETS.map((src) => asset(src, 'card')),
     ],
   },
   dice: simplePixiGame('dice'),
@@ -281,6 +288,9 @@ function localTableGame(gameId: string): GameAssetManifest {
     gameId,
     assets: [
       criticalAsset(localTableStageArt(gameId), 'background'),
+      ...(POKER_LOCAL_TABLE_GAME_IDS.has(gameId)
+        ? POKER_CARD_ASSETS.map((src) => asset(src, 'card'))
+        : []),
       ...(TUI_TONGZI_GAME_IDS.has(gameId)
         ? MAHJONG_TILE_ASSETS.map((src) => asset(src, 'card'))
         : []),

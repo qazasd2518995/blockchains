@@ -1641,25 +1641,31 @@ function pieceKey(piece: LocalTablePiece, index: number): string {
 }
 
 function CardPiece({ card }: { card: LocalTableCard }) {
-  const red = card.suit === 'hearts' || card.suit === 'diamonds';
+  const imageSrc = cardImageSrc(card);
   return (
-    <div className="local-table-card-piece relative flex aspect-[5/7] w-full min-w-0 flex-col justify-between overflow-hidden rounded-[14px] border p-2 shadow-[0_14px_30px_rgba(0,0,0,0.32)] sm:p-3">
-      <div className="local-table-card-piece__rim pointer-events-none absolute inset-0 rounded-[14px] border" />
-      <div
-        className={`text-[18px] font-black sm:text-[20px] ${red ? 'text-[#DC2626]' : 'text-[#0F172A]'}`}
-      >
-        {card.rank}
-      </div>
-      <div
-        className={`self-center text-[24px] sm:text-[34px] ${red ? 'text-[#DC2626]' : 'text-[#0F172A]'}`}
-      >
-        {suitSymbol(card.suit)}
-      </div>
-      <div className="data-num text-right text-[11px] font-black text-[#64748B]">
-        {card.valueLabel}
-      </div>
+    <div className="local-table-card-piece relative block aspect-[167/243] w-full min-w-0 overflow-hidden rounded-[14px] border shadow-[0_14px_30px_rgba(0,0,0,0.32)]">
+      <img
+        src={imageSrc}
+        alt={card.label}
+        width={167}
+        height={243}
+        decoding="async"
+        draggable={false}
+      />
     </div>
   );
+}
+
+function cardImageSrc(card: LocalTableCard): string {
+  return `/cards/${cardAssetRank(card.rank)}_of_${card.suit}.svg`;
+}
+
+function cardAssetRank(rank: string): string {
+  if (rank === 'A') return 'ace';
+  if (rank === 'J') return 'jack';
+  if (rank === 'Q') return 'queen';
+  if (rank === 'K') return 'king';
+  return rank.toLowerCase();
 }
 
 function TubePiece({ tile }: { tile: LocalTableTubeTile }) {
@@ -1706,11 +1712,4 @@ function DominoPiece({ tile }: { tile: LocalTableDominoTile }) {
 function dominoImageSrc(tile: LocalTableDominoTile): string {
   const [low, high] = [...tile.pips].sort((a, b) => a - b);
   return `/game-art/pai-gow/Domino-${low}+${high}.svg`;
-}
-
-function suitSymbol(suit: LocalTableCard['suit']): string {
-  if (suit === 'spades') return '♠';
-  if (suit === 'hearts') return '♥';
-  if (suit === 'diamonds') return '♦';
-  return '♣';
 }
