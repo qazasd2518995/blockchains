@@ -212,8 +212,9 @@ interface ControlReleasePlan {
 
 const GLOBAL_ACCIDENTAL_BURST_PROFIT_CAP = new Prisma.Decimal(10000);
 export const GLOBAL_MEMBER_DAILY_WIN_CAP = new Prisma.Decimal(10000);
-const BURST_COOLDOWN_MIN_ROUNDS = 10;
-const BURST_COOLDOWN_MAX_ROUNDS = 20;
+const BURST_COOLDOWN_RANDOM_MIN_ROUNDS = 10;
+const BURST_COOLDOWN_RANDOM_MAX_ROUNDS = 20;
+const BURST_COOLDOWN_CONFIG_MAX_ROUNDS = 200;
 const BURST_ELIGIBLE_GAME_IDS = new Set<string>(SLOT_GAME_IDS);
 const AUTO_BALANCE_BITE_INTERVENTION_RATE = 0.3;
 const AUTO_BALANCE_DRAIN_INTERVENTION_RATE = 0.4;
@@ -409,7 +410,7 @@ export async function finalizeControls(
           amount: final.amount.toFixed(2),
           multiplier: final.multiplier.toFixed(4),
           payout: final.payout.toFixed(2),
-          ...(outcome.burstCooldownRounds
+          ...(outcome.burstCooldownRounds !== undefined
             ? { burstCooldownRounds: outcome.burstCooldownRounds }
             : {}),
           result: finalResult,
@@ -517,16 +518,10 @@ async function findControlDecision(
     return CONTROL_PATH_NATURAL;
   }
 
-  const existingAutoBalance = await findAutoBalanceDecisionInternal(
-    tx,
-    member,
-    predicted,
-    'any',
-    {
-      existingOnly: true,
-      pathGuardBalanceImpact: options.pathGuardBalanceImpact,
-    },
-  );
+  const existingAutoBalance = await findAutoBalanceDecisionInternal(tx, member, predicted, 'any', {
+    existingOnly: true,
+    pathGuardBalanceImpact: options.pathGuardBalanceImpact,
+  });
   if (existingAutoBalance.decision) return existingAutoBalance.decision;
   if (existingAutoBalance.pathNatural || existingAutoBalance.inActiveCycle) {
     return CONTROL_PATH_NATURAL;
@@ -1581,11 +1576,7 @@ async function buildDepositDecision(
   const isOnlineRewardNextWin = control.notes?.includes('online_reward') ?? false;
   const rate = clampRate(control.controlWinRate);
   const roll = Math.random();
-  const isRegularDepositControl = !isAutoRevive && !isOnlineRewardNextWin;
-  if (isRegularDepositControl && roll >= rate) {
-    return CONTROL_INTERVENTION_MISS;
-  }
-  const desired = isRegularDepositControl || roll < rate ? 'WIN' : 'LOSS';
+  const desired = roll < rate ? 'WIN' : 'LOSS';
   const maxPayout =
     isAutoRevive || isOnlineRewardNextWin
       ? maxPayoutForBalanceGain(predicted.amount, remainingProfit, balanceImpact)
@@ -2249,7 +2240,7 @@ async function findBurstDecision(
         maxMultiplier,
         maxPayout,
         forceWinAdjustment: true,
-        burstCooldownRounds: randomBurstCooldownRounds(),
+        burstCooldownRounds: normalizeConfiguredBurstCooldownRounds(control.cooldownRounds),
       };
     }
   }
@@ -2623,9 +2614,22 @@ async function isBurstCooldownActive(tx: Db, userId: string): Promise<boolean> {
 
 function randomBurstCooldownRounds(): number {
   return (
-    BURST_COOLDOWN_MIN_ROUNDS +
-    Math.floor(Math.random() * (BURST_COOLDOWN_MAX_ROUNDS - BURST_COOLDOWN_MIN_ROUNDS + 1))
+    BURST_COOLDOWN_RANDOM_MIN_ROUNDS +
+    Math.floor(
+      Math.random() * (BURST_COOLDOWN_RANDOM_MAX_ROUNDS - BURST_COOLDOWN_RANDOM_MIN_ROUNDS + 1),
+    )
   );
+}
+
+function normalizeConfiguredBurstCooldownRounds(value: number | string | null | undefined): number {
+  const parsed =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Number.parseInt(value, 10)
+        : Number.NaN;
+  if (!Number.isFinite(parsed)) return randomBurstCooldownRounds();
+  return Math.max(0, Math.min(BURST_COOLDOWN_CONFIG_MAX_ROUNDS, Math.trunc(parsed)));
 }
 
 function getStoredBurstCooldownRounds(value: Prisma.JsonValue): number {
@@ -2633,11 +2637,8 @@ function getStoredBurstCooldownRounds(value: Prisma.JsonValue): number {
   const raw = record && 'burstCooldownRounds' in record ? record.burstCooldownRounds : undefined;
   const parsed =
     typeof raw === 'number' ? raw : typeof raw === 'string' ? Number.parseInt(raw, 10) : Number.NaN;
-  if (!Number.isFinite(parsed)) return BURST_COOLDOWN_MIN_ROUNDS;
-  return Math.max(
-    BURST_COOLDOWN_MIN_ROUNDS,
-    Math.min(BURST_COOLDOWN_MAX_ROUNDS, Math.trunc(parsed)),
-  );
+  if (!Number.isFinite(parsed)) return BURST_COOLDOWN_RANDOM_MIN_ROUNDS;
+  return Math.max(0, Math.min(BURST_COOLDOWN_CONFIG_MAX_ROUNDS, Math.trunc(parsed)));
 }
 
 async function updateBurstControlUsage(

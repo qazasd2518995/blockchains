@@ -561,7 +561,7 @@ describe('control decision priority', () => {
     };
   };
 
-  it('lets regular deposit controls fall back to the natural result when the rate misses', async () => {
+  it('uses regular deposit controlWinRate as the win/loss selector', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.8);
 
     const decision = await __controlsTestHooks.findDepositControlDecision(
@@ -575,7 +575,11 @@ describe('control decision priority', () => {
       },
     );
 
-    expect(decision).toBeNull();
+    expect(decision).toMatchObject({
+      desired: 'LOSS',
+      controlId: 'deposit-1',
+      reason: 'deposit_control',
+    });
   });
 
   it('drives member deposit lifecycle toward the next principal target', async () => {
@@ -977,8 +981,8 @@ describe('control decision priority', () => {
     expect(memberWinCapFindFirst).not.toHaveBeenCalled();
   });
 
-  it('stops at natural result when a regular deposit control misses its intervention roll', async () => {
-    const missedDepositControl = {
+  it('forces loss when a regular deposit control has a zero win rate', async () => {
+    const forceLossDepositControl = {
       ...depositControl,
       controlWinRate: new Prisma.Decimal(0),
     };
@@ -1012,7 +1016,7 @@ describe('control decision priority', () => {
             AND?: unknown[];
           };
           if (where.notes?.contains === 'online_reward') return null;
-          if (where.OR || where.AND) return missedDepositControl;
+          if (where.OR || where.AND) return forceLossDepositControl;
           return null;
         }),
         update: vi.fn(),
@@ -1022,7 +1026,7 @@ describe('control decision priority', () => {
       },
       manualDetectionControl: {
         findMany: vi.fn(async () => {
-          throw new Error('manual detection should not run after a deposit intervention miss');
+          throw new Error('manual detection should not run after a deposit decision');
         }),
       },
     };
@@ -1034,13 +1038,15 @@ describe('control decision priority', () => {
       predictedResult(100, 200, 2),
     );
 
-    expect(outcome.controlled).toBe(false);
-    expect(outcome.won).toBe(true);
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('deposit_control');
+    expect(outcome.payout.toFixed(2)).toBe('0.00');
     expect(tx.memberDepositControl.update).not.toHaveBeenCalled();
   });
 
-  it('lets an active deposit control miss stay natural instead of falling through to the daily cap', async () => {
-    const missedDepositControl = {
+  it('uses active deposit loss control before falling through to the daily cap', async () => {
+    const forceLossDepositControl = {
       ...depositControl,
       controlWinRate: new Prisma.Decimal(0),
     };
@@ -1074,7 +1080,7 @@ describe('control decision priority', () => {
             AND?: unknown[];
           };
           if (where.notes?.contains === 'online_reward') return null;
-          if (where.OR || where.AND) return missedDepositControl;
+          if (where.OR || where.AND) return forceLossDepositControl;
           return null;
         }),
         update: vi.fn(),
@@ -1091,9 +1097,10 @@ describe('control decision priority', () => {
       predictedResult(100, 200, 2),
     );
 
-    expect(outcome.controlled).toBe(false);
-    expect(outcome.won).toBe(true);
-    expect(outcome.payout.toFixed(2)).toBe('200.00');
+    expect(outcome.controlled).toBe(true);
+    expect(outcome.won).toBe(false);
+    expect(outcome.flipReason).toBe('deposit_control');
+    expect(outcome.payout.toFixed(2)).toBe('0.00');
   });
 
   it('stops at natural result when an applicable burst control misses all intervention rolls', async () => {
@@ -2270,7 +2277,7 @@ describe('global member daily win cap', () => {
       capitalRetentionRatio: new Prisma.Decimal(0),
       minEligibilityLoss: new Prisma.Decimal(0),
       riskWinLimit: new Prisma.Decimal(999999),
-      cooldownRounds: 10,
+      cooldownRounds: 0,
       currentGameDay: today,
       isActive: true,
       notes: null,
@@ -2315,6 +2322,7 @@ describe('global member daily win cap', () => {
     expect(outcome.controlled).toBe(true);
     expect(outcome.won).toBe(true);
     expect(outcome.flipReason).toBe('burst_win');
+    expect(outcome.burstCooldownRounds).toBe(0);
   });
 
   it('restores the global daily cap when burst control is paused', async () => {
@@ -2351,11 +2359,14 @@ describe('burst cooldown', () => {
     expect(__controlsTestHooks.randomBurstCooldownRounds()).toBe(20);
   });
 
-  it('falls back old burst logs to at least 10 cooldown rounds', () => {
+  it('falls back old burst logs to 10 rounds while respecting stored cooldown settings', () => {
     expect(__controlsTestHooks.getStoredBurstCooldownRounds({})).toBe(10);
-    expect(__controlsTestHooks.getStoredBurstCooldownRounds({ burstCooldownRounds: 0 })).toBe(10);
-    expect(__controlsTestHooks.getStoredBurstCooldownRounds({ burstCooldownRounds: 8 })).toBe(10);
+    expect(__controlsTestHooks.getStoredBurstCooldownRounds({ burstCooldownRounds: 0 })).toBe(0);
+    expect(__controlsTestHooks.getStoredBurstCooldownRounds({ burstCooldownRounds: 8 })).toBe(8);
     expect(__controlsTestHooks.getStoredBurstCooldownRounds({ burstCooldownRounds: 16 })).toBe(16);
-    expect(__controlsTestHooks.getStoredBurstCooldownRounds({ burstCooldownRounds: 99 })).toBe(20);
+    expect(__controlsTestHooks.getStoredBurstCooldownRounds({ burstCooldownRounds: 99 })).toBe(99);
+    expect(__controlsTestHooks.getStoredBurstCooldownRounds({ burstCooldownRounds: 250 })).toBe(
+      200,
+    );
   });
 });

@@ -41,7 +41,7 @@ const password = 'ControlApiTest123!';
 const runId = `ctrl_api_${new Date()
   .toISOString()
   .replace(/[-:.TZ]/g, '')
-  .slice(0, 14)}`;
+  .slice(0, 17)}_${process.pid}`;
 const clientSeed = `${runId}_client`;
 const testSeedBase = `${runId}_server`;
 const gameFilter = argCsv('--game');
@@ -244,6 +244,7 @@ const controlCases = [
     desired: 'WIN',
     raw: 'loss',
     expectedReasons: ['burst_win', 'burst_small_win', 'burst_risk_cap'],
+    appliesToGame: isBurstEligibleGame,
     acceptPlan: acceptsBurstWinPlan,
     supportsToggle: true,
     listUrl: '/api/admin/controls/burst',
@@ -265,6 +266,7 @@ const controlCases = [
     desired: 'LOSS',
     raw: 'win',
     expectedReasons: ['burst_loss', 'burst_budget_guard', 'burst_risk_guard'],
+    appliesToGame: isBurstEligibleGame,
     acceptPlan: acceptsBurstLossPlan,
     supportsToggle: true,
     listUrl: '/api/admin/controls/burst',
@@ -318,18 +320,17 @@ async function main() {
   await reportPotentialInterference();
   const games = selectedGames();
   const controls = selectedControls();
-  await precomputePlans(games, controls);
+  const cases = selectedControlGameCases(games, controls);
+  await precomputePlans(cases);
 
   let done = 0;
-  const total = games.length * controls.length;
-  for (const game of games) {
-    for (const control of controls) {
-      done += 1;
-      process.stdout.write(`[${done}/${total}] ${game.id} :: ${control.key} ... `);
-      const result = await runControlGameCase(control, game);
-      results.push(result);
-      console.log(result.ok ? `PASS ${result.note ?? ''}` : `FAIL ${result.error}`);
-    }
+  const total = cases.length;
+  for (const { game, control } of cases) {
+    done += 1;
+    process.stdout.write(`[${done}/${total}] ${game.id} :: ${control.key} ... `);
+    const result = await runControlGameCase(control, game);
+    results.push(result);
+    console.log(result.ok ? `PASS ${result.note ?? ''}` : `FAIL ${result.error}`);
   }
 
   printSummary();
@@ -370,6 +371,21 @@ function selectedControls() {
   return controlFilter
     ? controlCases.filter((control) => controlFilter.has(control.key))
     : controlCases;
+}
+
+function selectedControlGameCases(games, controls) {
+  const cases = [];
+  for (const game of games) {
+    for (const control of controls) {
+      if (control.appliesToGame && !control.appliesToGame(game)) continue;
+      cases.push({ game, control });
+    }
+  }
+  return cases;
+}
+
+function isBurstEligibleGame(game) {
+  return slotGameIds.includes(game.id);
 }
 
 function acceptsBurstLossPlan(plan) {
@@ -482,12 +498,10 @@ async function loginPlayer() {
   playerToken = userLogin.body.accessToken;
 }
 
-async function precomputePlans(games, controls) {
-  for (const game of games) {
-    game.plans = {};
-    for (const control of controls) {
-      game.plans[control.key] = findPlan(game, control.raw, control.acceptPlan);
-    }
+async function precomputePlans(cases) {
+  for (const { game, control } of cases) {
+    game.plans ??= {};
+    game.plans[control.key] = findPlan(game, control.raw, control.acceptPlan);
   }
 }
 
@@ -1054,8 +1068,8 @@ function burstBody(overrides) {
     targetMemberUsername: player.username,
     dailyBudget: '10000',
     memberDailyCap: '10000',
-    minBurstProfit: '1',
-    maxBurstProfit: '20',
+    minBurstProfit: '10',
+    maxBurstProfit: '200',
     singleMultiplierCap: '3',
     smallWinMultiplier: '1.5',
     compensationLoss: '0',
