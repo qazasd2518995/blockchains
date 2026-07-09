@@ -10,6 +10,7 @@ export const BETTING_LIMIT_RANGE_OPTIONS = [
   { key: 'range_10_3000', label: '基本款 10-3000', min: 10, max: 3000, rank: 2.5 },
   { key: 'range_10_5000', label: '基本款 10-5000', min: 10, max: 5000, rank: 3 },
   { key: 'range_500_5000', label: '500-5000', min: 500, max: 5000, rank: 3 },
+  { key: 'range_100_10000', label: '100-10000', min: 100, max: 10000, rank: 4 },
   { key: 'range_1000_10000', label: '1000-10000', min: 1000, max: 10000, rank: 4 },
   { key: 'range_5000_50000', label: '5000-50000', min: 5000, max: 50000, rank: 5 },
 ] as const;

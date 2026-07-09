@@ -69,4 +69,23 @@ describe('admin betting limits', () => {
     expect(requested[GameId.TWENTY_ONE_HALF_DOLL]).toBeUndefined();
     expect(requested[GameId.DICE]).toBe('range_100_2000');
   });
+
+  it('accepts the 100-10000 range at the same hierarchy rank as 1000-10000', () => {
+    const normalized = normalizeStoredBettingLimits(
+      {
+        [GameId.DICE]: 'range_100_10000',
+      },
+      'range_10_3000',
+    );
+
+    expect(normalized[GameId.DICE]).toBe('range_100_10000');
+    expect(() =>
+      assertBettingLimitsWithinParent(
+        { [GameId.DICE]: 'range_100_10000' },
+        'range_10_3000',
+        { [GameId.DICE]: 'range_1000_10000' },
+        'range_1000_10000',
+      ),
+    ).not.toThrow();
+  });
 });

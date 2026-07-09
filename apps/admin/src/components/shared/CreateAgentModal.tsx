@@ -514,6 +514,7 @@ function normalizeBettingLimit(
     value === 'range_10_3000' ||
     value === 'range_10_5000' ||
     value === 'range_500_5000' ||
+    value === 'range_100_10000' ||
     value === 'range_1000_10000' ||
     value === 'range_5000_50000'
   ) {
