@@ -15,3 +15,9 @@ If either file is missing, the app uses a synthesized fallback sound and keeps r
   - Artist: Splashdust (Freesound)
   - License: Pixabay Content License
   - Added: 2026-07-10
+- `mahjong-tile-clack.mp3`
+  - Source file: `spinopel-ceramic-tile-411505.mp3`
+  - Source page: https://pixabay.com/sound-effects/ceramic-tile-411505/
+  - Artist: spinopel
+  - License: Pixabay Content License
+  - Added: 2026-07-10
