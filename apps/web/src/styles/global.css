@@ -2668,8 +2668,14 @@
   }
 
   .game-warm-shell .slot-game-page--classic .game-main-stack > .slot-result-card {
-    background: rgba(255, 251, 241, 0.88) !important;
-    color: var(--game-warm-ink) !important;
+    border-color: rgba(180, 83, 9, 0.34) !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 247, 237, 0.9)),
+      radial-gradient(circle at 50% 0%, rgba(254, 215, 170, 0.32), transparent 54%) !important;
+    color: #243041 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 16px 34px rgba(154, 52, 18, 0.18) !important;
   }
 
   @media (max-width: 640px) {
@@ -3601,7 +3607,15 @@
     margin: 0.75rem auto 0.5rem;
     overflow: visible;
     transform: none;
-    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.32);
+    border-color: rgba(212, 162, 74, 0.34);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.9)),
+      radial-gradient(circle at 50% 0%, rgba(255, 230, 153, 0.26), transparent 54%);
+    color: #1f2937;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      0 14px 36px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(16px) saturate(1.16);
   }
 
   @media (min-width: 768px) {
@@ -3666,24 +3680,34 @@
     font-weight: 900;
     line-height: 1.05;
     letter-spacing: 0.22em;
-    color: #f3d67d;
+    color: #8a4b08;
     text-align: center;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 1px rgba(64, 42, 12, 0.46);
   }
 
   .slot-result-lines {
     font-size: 2.25rem;
     line-height: 1;
-    color: #ffffff;
+    color: #111827;
     text-align: center;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.82),
+      0 0 1px rgba(15, 23, 42, 0.28);
   }
 
   .slot-result-meta {
     margin: 0;
     font-size: 11px;
+    font-weight: 900;
     line-height: 1.1;
     letter-spacing: 0.25em;
-    color: rgba(255, 255, 255, 0.75);
+    color: #334155;
     text-align: center;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.86),
+      0 0 1px rgba(15, 23, 42, 0.34);
   }
 
   .slot-result-payout {
@@ -3693,10 +3717,15 @@
     gap: 0.35em;
     width: 100%;
     margin: 0;
-    color: #f3d67d;
+    color: #7c2d12;
     font-size: 1.5rem;
+    font-weight: 950;
     line-height: 1.05;
     text-align: center;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95),
+      0 0 1px rgba(67, 20, 7, 0.7),
+      0 2px 8px rgba(154, 52, 18, 0.16);
   }
 
   .slot-result-payout > span,
@@ -3711,10 +3740,22 @@
   .slot-result-profit {
     width: 100%;
     margin: 0;
-    color: #7dd3fc;
+    color: #0369a1;
     font-size: 1.875rem;
+    font-weight: 950;
     line-height: 1.05;
     text-align: center;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.86),
+      0 0 1px rgba(7, 89, 133, 0.38);
+  }
+
+  .slot-result-card .text-\[\#7DD3FC\] {
+    color: #0369a1 !important;
+    font-weight: 950;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.86),
+      0 0 1px rgba(7, 89, 133, 0.38);
   }
 
   .slot-landscape-gate {
@@ -13596,11 +13637,22 @@
   .game-warm-shell .local-table-hand-panel .text-\[\#FDE68A\],
   .game-warm-shell .game-result-card .text-\[\#F3D67D\],
   .game-warm-shell .game-result-card .text-\[\#FDE68A\],
+  .game-warm-shell .slot-result-title,
   .game-warm-shell .slot-result-payout {
-    color: #8a4b08 !important;
+    color: #7c2d12 !important;
+    font-weight: 950 !important;
     text-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.84),
-      0 0 1px rgba(72, 48, 16, 0.45) !important;
+      0 1px 0 rgba(255, 255, 255, 0.92),
+      0 0 1px rgba(67, 20, 7, 0.7),
+      0 2px 8px rgba(154, 52, 18, 0.16) !important;
+  }
+
+  .game-warm-shell .slot-result-meta {
+    color: #334155 !important;
+    font-weight: 900 !important;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.86),
+      0 0 1px rgba(15, 23, 42, 0.34) !important;
   }
 
   .game-warm-shell .card-war-seat__hint,
