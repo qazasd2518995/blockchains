@@ -17,6 +17,7 @@ import {
   type BlackjackRoundResult,
   type BlackjackRoundState,
 } from '@bg/shared';
+import { Sfx } from '@bg/game-engine';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -80,6 +81,7 @@ export function BlackjackPage() {
   const animationTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
 
   useEffect(() => {
+    Sfx.preloadTableGames();
     void api
       .get<{ state: BlackjackRoundState | null }>('/games/blackjack/active')
       .then((res) => {
@@ -104,7 +106,10 @@ export function BlackjackPage() {
   );
   const playerScoreLabel = formatBlackjackScore(displayActiveHand?.score ?? null);
   const settled = round && round.status !== 'ACTIVE' && !animating;
-  const resultSummary = useMemo(() => summarizeRound(round, t.games.blackjack), [round, t.games.blackjack]);
+  const resultSummary = useMemo(
+    () => summarizeRound(round, t.games.blackjack),
+    [round, t.games.blackjack],
+  );
   const settledProfit = settled ? blackjackRoundProfit(round) : 0;
   const enteringCardKeys = useMemo(
     () => new Set(animationMeta.enteringCards),
@@ -164,10 +169,12 @@ export function BlackjackPage() {
 
   const runAction = async (path: string, fallbackBet = amount) => {
     if (!round || busy || animating) return;
+    Sfx.unlock();
     setBusy(true);
     setError(null);
     try {
       const res = await api.post<BlackjackRoundResult>(path, { roundId: round.roundId });
+      Sfx.tableCardFlip();
       applyResult(res.data, fallbackBet);
     } catch (err) {
       setError(extractApiError(err).message);
@@ -180,12 +187,14 @@ export function BlackjackPage() {
     if (busy || animating) return;
     if (!requireLogin()) return;
     if (amount < MIN_BET_AMOUNT || amount > balance) return;
+    Sfx.unlock();
     setBusy(true);
     setError(null);
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
     const previousBalance = useAuthStore.getState().debitBalance(amount);
     try {
       const res = await api.post<BlackjackRoundResult>('/games/blackjack/start', { amount });
+      Sfx.tableCardFlip();
       applyResult(res.data, amount);
     } catch (err) {
       if (previousBalance) setBalance(previousBalance);
@@ -341,7 +350,9 @@ export function BlackjackPage() {
                                 hand.outcome === 'LOSE' ? 'text-[#FCA5A5]' : 'text-white/52'
                               }
                             >
-                              {hand.outcome ? outcomeLabel(hand.outcome, t.games.blackjack) : hand.status}
+                              {hand.outcome
+                                ? outcomeLabel(hand.outcome, t.games.blackjack)
+                                : hand.status}
                             </span>
                             <span className="data-num text-[#6EE7B7]">
                               {hand.payout ? formatAmount(hand.payout) : '--'}
@@ -1077,7 +1088,9 @@ function suitLabel(suit: number): string {
   return CARD_FILE_SUITS[suit] ?? 'spades';
 }
 
-type BlackjackDict = ReturnType<typeof import('@/i18n/useTranslation').useTranslation>['t']['games']['blackjack'];
+type BlackjackDict = ReturnType<
+  typeof import('@/i18n/useTranslation').useTranslation
+>['t']['games']['blackjack'];
 
 function outcomeLabel(outcome: string, tBj: BlackjackDict): string {
   switch (outcome) {

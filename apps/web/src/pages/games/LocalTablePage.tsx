@@ -364,6 +364,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
     if (!requireLogin()) return;
     if (isTenHalfActive || isStagedActive) return;
     if (amount < MIN_BET_AMOUNT || amount > balance) return;
+    Sfx.unlock();
     setBusy(true);
     setError(null);
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
@@ -378,6 +379,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
             amount,
           },
         );
+        Sfx.tableCardFlip();
         setResult(null);
         setTenHalfState(res.data);
         setStagedState(null);
@@ -390,6 +392,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
           gameId,
           amount,
         });
+        if (isCardWar) Sfx.tableCardFlip();
         setResult(null);
         setTenHalfState(null);
         setStagedState(res.data);
@@ -401,6 +404,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
         gameId,
         amount,
       });
+      Sfx.tableCardFlip();
       setResult(res.data);
       setTenHalfState(null);
       setStagedState(null);
@@ -416,6 +420,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
 
   const handleStagedReveal = async (revealIndex?: number) => {
     if (busy || !stagedState || stagedState.status !== 'ACTIVE' || !stagedState.canReveal) return;
+    Sfx.unlock();
     setBusy(true);
     setError(null);
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
@@ -424,6 +429,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
         roundId: stagedState.roundId,
         ...(typeof revealIndex === 'number' ? { revealIndex } : {}),
       });
+      if (!isTuiTongzi && !isBlackDot && !isCardWar) Sfx.tableCardFlip();
       setStagedState(res.data);
       if (res.data.newBalance) setBalance(res.data.newBalance);
     } catch (err) {
@@ -456,6 +462,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
 
   const handleTenHalfAction = async (action: 'hit' | 'stand' | 'banker-draw') => {
     if (busy || !tenHalfState || tenHalfState.status !== 'ACTIVE') return;
+    Sfx.unlock();
     setBusy(true);
     setError(null);
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
@@ -464,6 +471,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
         `/games/table-games/twenty-one-half/${action}`,
         { roundId: tenHalfState.roundId },
       );
+      if (action !== 'stand') Sfx.tableCardFlip();
       setTenHalfState(res.data);
       if (res.data.newBalance) setBalance(res.data.newBalance);
     } catch (err) {

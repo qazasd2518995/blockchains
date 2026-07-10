@@ -6,6 +6,7 @@ import {
   type HiLoGuessResult,
   type HiLoCashoutResult,
 } from '@bg/shared';
+import { Sfx } from '@bg/game-engine';
 import { api, extractApiError } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { BetControls } from '@/components/game/BetControls';
@@ -65,6 +66,7 @@ export function HiLoPage() {
   }, []);
 
   useEffect(() => {
+    Sfx.preloadTableGames();
     void api
       .get<{ state: HiLoRoundState | null }>('/games/hilo/active')
       .then((res) => {
@@ -81,6 +83,7 @@ export function HiLoPage() {
     if (busy) return;
     if (!requireLogin()) return;
     if (amount < MIN_BET_AMOUNT || amount > balance) return;
+    Sfx.unlock();
     setBusy(true);
     setError(null);
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
@@ -88,6 +91,7 @@ export function HiLoPage() {
     try {
       sceneRef.current?.reset();
       const res = await api.post<HiLoRoundState>('/games/hilo/start', { amount });
+      Sfx.tableCardFlip();
       setRound(res.data);
       roundRef.current = res.data;
       sceneRef.current?.setCurrentCard(res.data.currentCard);
@@ -102,12 +106,14 @@ export function HiLoPage() {
 
   const handleGuess = async (guess: 'higher' | 'lower') => {
     if (!round || busy) return;
+    Sfx.unlock();
     setBusy(true);
     try {
       const res = await api.post<HiLoGuessResult>('/games/hilo/guess', {
         roundId: round.roundId,
         guess,
       });
+      Sfx.tableCardFlip();
       await sceneRef.current?.playDraw(res.data.drawn, res.data.correct);
       setRound(res.data.state);
       roundRef.current = res.data.state;
@@ -138,9 +144,11 @@ export function HiLoPage() {
 
   const handleSkip = async () => {
     if (!round || busy) return;
+    Sfx.unlock();
     setBusy(true);
     try {
       const res = await api.post<HiLoRoundState>('/games/hilo/skip', { roundId: round.roundId });
+      Sfx.tableCardFlip();
       setRound(res.data);
       roundRef.current = res.data;
       sceneRef.current?.setCurrentCard(res.data.currentCard);
