@@ -111,6 +111,7 @@ const LOCAL_TABLE_STAGE_ART: Partial<Record<string, string>> = {
   'card-war': '/game-art/local-table/stages/rooms/card-war-stage.webp',
 };
 const MAHJONG_TILE_ASSETS = [
+  '/game-art/mahjong/Back.svg',
   '/game-art/mahjong/WhiteDragon.svg',
   ...['Pin', 'Sou', 'Man'].flatMap((suit) =>
     Array.from({ length: 9 }, (_, index) => `/game-art/mahjong/${suit}${index + 1}.svg`),

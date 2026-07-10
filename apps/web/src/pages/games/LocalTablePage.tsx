@@ -219,6 +219,7 @@ const STAGED_TABLE_PAGE_IDS = new Set<LocalTableGameIdType>([
   ...BLACK_DOT_GAME_IDS,
   GameId.CARD_WAR,
 ]);
+const MAHJONG_BACK_SRC = '/game-art/mahjong/Back.svg';
 
 export function LocalTablePage({ gameId }: LocalTablePageProps) {
   const theme = ROOM_THEMES[gameId];
@@ -1206,6 +1207,17 @@ function TuiTongziHiddenTile({
       aria-label={label}
     >
       <span className="tui-tongzi-hidden-tile__shine" aria-hidden="true" />
+      <span className="tui-tongzi-hidden-tile__bezel" aria-hidden="true">
+        <img
+          src={MAHJONG_BACK_SRC}
+          alt=""
+          width={300}
+          height={400}
+          decoding="async"
+          draggable={false}
+          className="tui-tongzi-hidden-tile__image"
+        />
+      </span>
       <span className="tui-tongzi-hidden-tile__label">{disabled ? '待翻' : '點擊翻牌'}</span>
     </button>
   );
@@ -1615,6 +1627,7 @@ function PieceView({
   index: number;
   tone: 'player' | 'banker' | 'neutral';
 }) {
+  const isMahjongPiece = piece.kind === 'tube';
   const dealClass =
     tone === 'player'
       ? 'local-table-piece-shell--player'
@@ -1627,7 +1640,21 @@ function PieceView({
       style={{ '--local-table-piece-index': index } as CSSProperties}
     >
       <div className="local-table-piece-flipper">
-        <div className="local-table-piece-back" aria-hidden="true" />
+        <div
+          className={`local-table-piece-back ${isMahjongPiece ? 'local-table-piece-back--mahjong' : ''}`}
+          aria-hidden="true"
+        >
+          {isMahjongPiece ? (
+            <img
+              src={MAHJONG_BACK_SRC}
+              alt=""
+              width={300}
+              height={400}
+              decoding="async"
+              draggable={false}
+            />
+          ) : null}
+        </div>
         <div className="local-table-piece-face">
           {piece.kind === 'card' ? (
             <CardPiece card={piece} />

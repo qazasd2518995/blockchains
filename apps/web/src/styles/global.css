@@ -479,6 +479,38 @@
     );
   }
 
+  .local-table-piece-back--mahjong {
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-color: color-mix(in srgb, #c9f8d2 68%, rgba(255, 255, 255, 0.18));
+    background:
+      radial-gradient(circle at 32% 18%, rgba(255, 255, 255, 0.32), transparent 30%),
+      radial-gradient(circle at 70% 82%, rgba(28, 185, 124, 0.32), transparent 38%),
+      linear-gradient(145deg, #e9fff0 0%, #1fa36f 38%, #08624d 70%, #083d36 100%);
+  }
+
+  .local-table-piece-back--mahjong::before {
+    inset: 8%;
+    z-index: 0;
+    border-radius: 12px;
+    border-color: rgba(218, 255, 221, 0.36);
+    background:
+      radial-gradient(circle at 40% 18%, rgba(255, 255, 255, 0.34), transparent 32%),
+      linear-gradient(160deg, rgba(232, 255, 237, 0.3), rgba(5, 73, 58, 0.22));
+  }
+
+  .local-table-piece-back--mahjong img {
+    position: relative;
+    z-index: 1;
+    width: 88%;
+    height: 92%;
+    object-fit: contain;
+    opacity: 0.94;
+    filter: hue-rotate(112deg) saturate(1.2) brightness(0.86)
+      drop-shadow(0 3px 4px rgba(0, 0, 0, 0.18));
+  }
+
   .local-table-tube-piece {
     border-color: color-mix(in srgb, var(--local-table-glow) 55%, rgba(255, 255, 255, 0.2));
     background:
@@ -918,6 +950,7 @@
     gap: clamp(10px, 2vw, 14px);
     margin-top: 14px;
     align-items: stretch;
+    justify-items: center;
   }
 
   .tui-tongzi-lane__detail {
@@ -928,44 +961,50 @@
   }
 
   .tui-tongzi-tile-slot {
+    display: grid;
+    width: 100%;
     min-width: 0;
+    place-items: center;
+  }
+
+  .tui-tongzi-tile-slot .local-table-piece-shell {
+    width: clamp(68px, 18vw, 98px);
+    max-width: 100%;
   }
 
   .tui-tongzi-tile-slot .local-table-piece-flipper,
   .tui-tongzi-tile-slot .local-table-piece-face {
     height: 100%;
+    width: 100%;
+  }
+
+  .tui-tongzi-tile-slot .local-table-tube-piece {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 4;
+    border-radius: 16px;
   }
 
   .tui-tongzi-hidden-tile {
     position: relative;
     display: grid;
-    height: 80px;
+    width: clamp(68px, 18vw, 98px);
+    height: auto;
     min-width: 0;
+    max-width: 100%;
+    aspect-ratio: 3 / 4;
     place-items: center;
     overflow: hidden;
-    border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--local-table-glow) 50%, transparent);
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, #c9f8d2 64%, transparent);
     background:
-      radial-gradient(
-        circle at 50% 42%,
-        color-mix(in srgb, var(--local-table-glow) 20%, transparent),
-        transparent 34%
-      ),
-      repeating-linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--local-table-glow) 16%, transparent) 0 7px,
-        color-mix(in srgb, var(--local-table-accent) 28%, rgba(0, 0, 0, 0.28)) 7px 14px
-      ),
-      linear-gradient(
-        145deg,
-        color-mix(in srgb, var(--local-table-accent) 64%, #111827),
-        #111827 58%,
-        color-mix(in srgb, var(--local-table-felt) 72%, #07111f)
-      );
-    color: var(--local-table-glow);
+      radial-gradient(circle at 32% 18%, rgba(255, 255, 255, 0.34), transparent 30%),
+      radial-gradient(circle at 74% 78%, rgba(28, 185, 124, 0.28), transparent 38%),
+      linear-gradient(145deg, #e9fff0 0%, #1fa36f 38%, #08624d 70%, #083d36 100%);
+    color: #f4ffe4;
     box-shadow:
-      inset 0 0 0 2px rgba(255, 255, 255, 0.08),
-      inset 0 0 0 6px rgba(0, 0, 0, 0.12),
+      inset 0 0 0 2px rgba(255, 255, 255, 0.16),
+      inset 0 -14px 24px rgba(3, 42, 35, 0.28),
       0 14px 30px rgba(0, 0, 0, 0.28);
     transition:
       transform 160ms ease,
@@ -978,8 +1017,8 @@
     transform: translateY(-2px);
     border-color: color-mix(in srgb, var(--local-table-glow) 92%, rgba(255, 255, 255, 0.18));
     box-shadow:
-      inset 0 0 0 2px rgba(255, 255, 255, 0.1),
-      inset 0 0 0 6px rgba(0, 0, 0, 0.1),
+      inset 0 0 0 2px rgba(255, 255, 255, 0.2),
+      inset 0 -12px 22px rgba(3, 42, 35, 0.22),
       0 0 0 1px color-mix(in srgb, var(--local-table-glow) 24%, transparent),
       0 18px 34px rgba(0, 0, 0, 0.34);
     filter: brightness(1.08);
@@ -996,25 +1035,58 @@
   .tui-tongzi-hidden-tile__shine {
     pointer-events: none;
     position: absolute;
-    inset: 7px;
-    border-radius: 10px;
-    border: 1px solid color-mix(in srgb, var(--local-table-glow) 20%, transparent);
+    inset: 8%;
+    z-index: 2;
+    border-radius: 12px;
+    border: 1px solid rgba(218, 255, 221, 0.32);
     background:
-      linear-gradient(115deg, transparent 0 38%, rgba(255, 255, 255, 0.2) 45%, transparent 52%),
-      radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.18), transparent 28%);
+      linear-gradient(118deg, transparent 0 36%, rgba(255, 255, 255, 0.26) 46%, transparent 56%),
+      radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.24), transparent 30%);
+  }
+
+  .tui-tongzi-hidden-tile__bezel {
+    position: absolute;
+    inset: 9%;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 12px;
+    background:
+      radial-gradient(circle at 45% 18%, rgba(255, 255, 255, 0.26), transparent 32%),
+      linear-gradient(160deg, rgba(232, 255, 237, 0.18), rgba(5, 73, 58, 0.2));
+  }
+
+  .tui-tongzi-hidden-tile__image {
+    width: 92%;
+    height: 96%;
+    object-fit: contain;
+    opacity: 0.95;
+    filter: hue-rotate(112deg) saturate(1.2) brightness(0.86)
+      drop-shadow(0 3px 4px rgba(0, 0, 0, 0.18));
+    user-select: none;
   }
 
   .tui-tongzi-hidden-tile__label {
     position: relative;
-    z-index: 1;
+    z-index: 3;
+    margin-top: auto;
+    margin-bottom: 12%;
+    border-radius: 999px;
+    background: rgba(5, 58, 48, 0.42);
+    padding: 2px 6px;
+    color: #f4ffe4;
     font-size: 12px;
     font-weight: 1000;
     letter-spacing: 0.08em;
+    line-height: 1.15;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
   }
 
   @media (min-width: 640px) {
     .tui-tongzi-hidden-tile {
-      height: 128px;
+      width: clamp(88px, 10vw, 118px);
+      height: auto;
     }
   }
 
@@ -3987,11 +4059,19 @@
       line-height: 1.15;
     }
 
+    .game-fullscreen-shell[data-game-id^='tui-tongzi']
+      .tui-tongzi-tile-slot
+      .local-table-piece-shell {
+      width: clamp(50px, 15vw, 62px);
+    }
+
     .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-hidden-tile,
     .game-fullscreen-shell[data-game-id^='tui-tongzi']
       .tui-tongzi-tile-slot
       .local-table-tube-piece {
-      height: clamp(54px, 14.6vw, 66px);
+      width: clamp(50px, 15vw, 62px);
+      height: auto;
+      aspect-ratio: 3 / 4;
       border-radius: 11px;
     }
 
@@ -4006,13 +4086,20 @@
     }
 
     .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-hidden-tile__shine {
-      inset: 5px;
+      inset: 7%;
+      border-radius: 8px;
+    }
+
+    .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-hidden-tile__bezel {
+      inset: 8%;
       border-radius: 8px;
     }
 
     .game-fullscreen-shell[data-game-id^='tui-tongzi'] .tui-tongzi-hidden-tile__label {
       font-size: 10px;
       letter-spacing: 0.04em;
+      margin-bottom: 10%;
+      padding: 1px 5px;
     }
 
     .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-result-card {
