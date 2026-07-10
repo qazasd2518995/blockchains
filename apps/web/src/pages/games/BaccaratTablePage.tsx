@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { AlertCircle, Sparkles } from 'lucide-react';
 import { Sfx } from '@bg/game-engine';
 import {
@@ -136,6 +136,10 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
   const statusLabel = busy ? '開牌中' : result?.outcomeLabel ?? '等待下注';
   const selectedOption = BET_OPTIONS.find((option) => option.side === side) ?? BET_OPTIONS[0]!;
 
+  useEffect(() => {
+    Sfx.preloadTableGames();
+  }, []);
+
   const handleBet = async () => {
     if (busy) return;
     if (!requireLogin()) return;
@@ -145,6 +149,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
     Sfx.tableCardFlip();
     setBusy(true);
     setError(null);
+    setResult(null);
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
     const previousBalance = useAuthStore.getState().debitBalance(amount);
 
@@ -183,7 +188,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
       <div className="game-play-grid grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(320px,0.82fr)]">
         <div className="game-main-stack space-y-4">
           <section
-            className="game-stage-panel scanlines relative min-h-[660px] overflow-hidden rounded-[22px] border border-white/10 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.25)] sm:p-5"
+            className="game-stage-panel baccarat-stage-panel scanlines relative min-h-[560px] overflow-hidden rounded-[22px] border border-white/10 p-3 shadow-[0_24px_60px_rgba(0,0,0,0.25)] sm:min-h-[660px] sm:p-5"
             style={{
               background: `radial-gradient(circle at 50% 10%, ${themeConfig.accent}33, transparent 30%), linear-gradient(180deg, ${themeConfig.felt}, #050812 74%)`,
             }}
@@ -203,7 +208,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(5,8,18,0.18)_0%,rgba(5,8,18,0.42)_36%,rgba(5,8,18,0.94)_100%)]" />
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(255,255,255,0.14),transparent_28%)]" />
 
-            <div className="relative z-10 flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3">
+            <div className="baccarat-stage-header relative z-10 flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3">
               <div>
                 <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/58">
                   <Sparkles className="h-4 w-4" style={{ color: themeConfig.accent }} />
@@ -213,7 +218,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
                   {statusLabel}
                 </h2>
               </div>
-              <div className="rounded-[14px] border border-white/14 bg-black/32 px-4 py-2 text-right backdrop-blur">
+              <div className="baccarat-multiplier-card rounded-[14px] border border-white/14 bg-black/32 px-4 py-2 text-right backdrop-blur">
                 <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/52">
                   派彩倍率
                 </div>
@@ -226,7 +231,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
               </div>
             </div>
 
-            <div className="relative z-10 mt-4 grid items-stretch gap-3 md:grid-cols-[1fr_auto_1fr]">
+            <div className="baccarat-hands-grid relative z-10 mt-4 grid items-stretch gap-3 md:grid-cols-[1fr_auto_1fr]">
               <BaccaratHandPanel
                 title="閒家"
                 hand={result?.player ?? null}
@@ -251,7 +256,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
               />
             </div>
 
-            <div className="relative z-10 mt-4 grid gap-2 sm:grid-cols-3">
+            <div className="baccarat-choice-grid relative z-10 mt-4 grid gap-2 sm:grid-cols-3">
               {BET_OPTIONS.map((option) => (
                 <button
                   key={option.side}
@@ -261,32 +266,34 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
                     setSide(option.side);
                   }}
                   disabled={busy}
-                  className={`rounded-[18px] border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/70 disabled:cursor-not-allowed disabled:opacity-55 ${
+                  className={`baccarat-choice-card rounded-[18px] border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/70 disabled:cursor-not-allowed disabled:opacity-55 ${
                     side === option.side
                       ? 'border-[#FDE68A]/70 bg-[#FDE68A]/18 shadow-[0_14px_30px_rgba(245,158,11,0.18)]'
                       : 'border-white/12 bg-black/28 hover:border-white/24 hover:bg-black/38'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[18px] font-black text-white">{option.title}</span>
+                    <span className="baccarat-choice-title text-[18px] font-black text-white">
+                      {option.title}
+                    </span>
                     <span className="data-num rounded-full bg-black/32 px-2.5 py-1 text-[12px] font-black text-[#FDE68A]">
                       {option.payout}
                     </span>
                   </div>
-                  <p className="mt-2 text-[11px] font-semibold leading-5 text-white/58">
+                  <p className="baccarat-choice-hint mt-2 text-[11px] font-semibold leading-5 text-white/58">
                     {option.hint}
                   </p>
                 </button>
               ))}
             </div>
 
-            <div className="relative z-10 mt-4 rounded-[18px] border border-white/12 bg-white/[0.92] p-4 text-[#172033] shadow-[0_16px_36px_rgba(0,0,0,0.16)]">
+            <div className="baccarat-result-card relative z-10 mt-4 rounded-[18px] border border-white/12 bg-white/[0.92] p-4 text-[#172033] shadow-[0_16px_36px_rgba(0,0,0,0.16)]">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#64748B]">
                     Result
                   </div>
-                  <div className="mt-1 text-[16px] font-black">
+                  <div className="baccarat-result-summary mt-1 text-[16px] font-black">
                     {result?.summary ??
                       `目前選擇：${selectedOption.title}。下注後依標準百家樂補牌表立即開牌。`}
                   </div>
@@ -342,7 +349,18 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
         </div>
 
         <aside className="game-control-stack game-side-stack space-y-4">
-          <div className="game-side-card p-5">
+          <div className="game-side-card baccarat-control-card p-5">
+            <div className="baccarat-selected-box mb-4 rounded-[16px] border border-[#FDE68A]/55 bg-white/[0.94] p-3 text-[#172033] shadow-[0_10px_26px_rgba(15,23,42,0.14)]">
+              <div className="baccarat-selected-label text-[11px] font-black uppercase tracking-[0.16em] text-[#92400E]">
+                下注門
+              </div>
+              <div className="baccarat-selected-title mt-1 text-[15px] font-black text-[#172033]">
+                {selectedOption.title} · {selectedOption.payout}
+              </div>
+              <p className="baccarat-selected-hint mt-1 text-[12px] font-semibold leading-5 text-[#64748B]">
+                {selectedOption.hint}
+              </p>
+            </div>
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
@@ -350,22 +368,11 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
               disabled={busy}
               gameId={gameId}
             />
-            <div className="mt-4 rounded-[16px] border border-[#FDE68A]/24 bg-[#FDE68A]/10 p-3">
-              <div className="text-[11px] font-black uppercase tracking-[0.16em] text-[#FDE68A]">
-                下注門
-              </div>
-              <div className="mt-1 text-[15px] font-black text-white">
-                {selectedOption.title} · {selectedOption.payout}
-              </div>
-              <p className="mt-1 text-[12px] font-semibold leading-5 text-white/60">
-                {selectedOption.hint}
-              </p>
-            </div>
             <button
               type="button"
               onClick={handleBet}
               disabled={busy || amount < MIN_BET_AMOUNT || amount > balance}
-              className="mt-4 inline-flex h-14 w-full items-center justify-center rounded-[14px] bg-[#EA580C] text-[16px] font-black text-white shadow-[0_12px_28px_rgba(234,88,12,0.28)] transition hover:bg-[#C2410C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/75 disabled:cursor-not-allowed disabled:opacity-45"
+              className="baccarat-submit-button mt-4 inline-flex h-14 w-full items-center justify-center rounded-[14px] bg-[#EA580C] text-[16px] font-black text-white shadow-[0_12px_28px_rgba(234,88,12,0.28)] transition hover:bg-[#C2410C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/75 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {busy ? '開牌中' : result ? '下一局下注' : '下注開牌'} · {formatAmount(amount)}
             </button>
@@ -392,14 +399,18 @@ function BaccaratHandPanel({
   const cards = hand?.cards ?? [];
   return (
     <div
-      className={`rounded-[20px] border p-4 backdrop-blur ${
-        active ? 'border-white/28 bg-white/[0.16]' : 'border-white/12 bg-black/30'
+      className={`baccarat-hand-panel rounded-[20px] border p-4 backdrop-blur ${
+        active
+          ? 'baccarat-hand-panel--active border-white/32 bg-slate-950/72'
+          : 'baccarat-hand-panel--idle border-white/16 bg-slate-950/64'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[13px] font-black text-white/60">{title}</div>
-          <div className="mt-1 text-[28px] font-black text-white">
+          <div className="baccarat-hand-title text-[13px] font-black text-white/90">
+            {title}
+          </div>
+          <div className="baccarat-hand-score mt-1 text-[28px] font-black text-white">
             {hand ? `${hand.points}點` : busy ? '發牌中' : '待開牌'}
           </div>
         </div>
@@ -413,10 +424,15 @@ function BaccaratHandPanel({
         ) : null}
       </div>
 
-      <div className="mt-4 flex min-h-[118px] flex-wrap items-center gap-2">
+      <div className="baccarat-card-row mt-4 flex min-h-[118px] flex-wrap items-center gap-2">
         {cards.length > 0
           ? cards.map((card, index) => (
-              <PlayingCard key={`${card.label}-${index}`} card={card} accent={accent} />
+              <PlayingCard
+                key={`${card.label}-${index}-${hand?.points ?? 'pending'}`}
+                card={card}
+                accent={accent}
+                index={index}
+              />
             ))
           : [0, 1].map((index) => <CardBack key={index} busy={busy} accent={accent} />)}
       </div>
@@ -424,15 +440,35 @@ function BaccaratHandPanel({
   );
 }
 
-function PlayingCard({ card, accent }: { card: BaccaratTableCard; accent: string }) {
+function PlayingCard({
+  card,
+  accent,
+  index,
+}: {
+  card: BaccaratTableCard;
+  accent: string;
+  index: number;
+}) {
   return (
-    <img
-      src={cardImageSrc(card)}
-      alt={card.label}
-      draggable={false}
-      className="h-[112px] w-[76px] rounded-[8px] bg-white object-contain shadow-[0_12px_26px_rgba(0,0,0,0.35)]"
-      style={{ border: `2px solid ${accent}` }}
-    />
+    <span
+      className="baccarat-playing-card baccarat-card-flip-shell h-[112px] w-[76px]"
+      style={{ '--baccarat-card-index': index, '--baccarat-card-accent': accent } as CSSProperties}
+    >
+      <span className="baccarat-card-flipper">
+        <span className="baccarat-card-face baccarat-card-face-back">
+          <CardBack busy={false} accent={accent} />
+        </span>
+        <span className="baccarat-card-face baccarat-card-face-front">
+          <img
+            src={cardImageSrc(card)}
+            alt={card.label}
+            draggable={false}
+            className="h-full w-full rounded-[8px] bg-white object-contain shadow-[0_12px_26px_rgba(0,0,0,0.35)]"
+            style={{ border: `2px solid ${accent}` }}
+          />
+        </span>
+      </span>
+    </span>
   );
 }
 
@@ -441,7 +477,7 @@ function CardBack({ busy, accent }: { busy: boolean; accent: string }) {
     <div
       className={`flex h-[112px] w-[76px] items-center justify-center rounded-[8px] border bg-[linear-gradient(135deg,rgba(255,255,255,0.16),rgba(255,255,255,0.03)),repeating-linear-gradient(135deg,rgba(255,255,255,0.12)_0,rgba(255,255,255,0.12)_8px,transparent_8px,transparent_16px)] text-[11px] font-black text-white/68 shadow-[0_12px_26px_rgba(0,0,0,0.30)] ${
         busy ? 'animate-pulse' : ''
-      }`}
+      } baccarat-card-back`}
       style={{ borderColor: `${accent}77`, backgroundColor: `${accent}33` }}
     >
       待發
