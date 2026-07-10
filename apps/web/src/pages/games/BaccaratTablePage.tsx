@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { AlertCircle, Sparkles } from 'lucide-react';
 import { Sfx } from '@bg/game-engine';
 import {
@@ -105,6 +105,16 @@ const BET_OPTIONS: Array<{
   { side: 'tie', title: '和', payout: '8:1', hint: '閒莊同點派彩 9.00x' },
 ];
 
+const BET_CONTROL_ORDER: BaccaratTableBetSide[] = ['player', 'tie', 'banker'];
+const BET_CONTROL_OPTIONS = BET_CONTROL_ORDER.map(
+  (side) => BET_OPTIONS.find((option) => option.side === side)!,
+);
+
+const BACCARAT_REVEAL_INITIAL_DELAY_MS = 180;
+const BACCARAT_REVEAL_STEP_MS = 520;
+const BACCARAT_REVEAL_SETTLE_MS = 360;
+const INITIAL_REVEAL_STATE: BaccaratRevealState = { player: 0, banker: 0, complete: false };
+
 const CARD_FILE_RANKS = [
   'ace',
   '2',
@@ -122,6 +132,12 @@ const CARD_FILE_RANKS = [
 ] as const;
 const CARD_FILE_SUITS = ['spades', 'hearts', 'diamonds', 'clubs'] as const;
 
+interface BaccaratRevealState {
+  player: number;
+  banker: number;
+  complete: boolean;
+}
+
 export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
   const themeConfig = BACCARAT_THEMES[gameId];
   const { user, setBalance } = useAuthStore();
@@ -132,13 +148,25 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<BaccaratTableBetResult | null>(null);
-  const profitValue = Number(result?.profit ?? 0);
-  const statusLabel = busy ? '開牌中' : result?.outcomeLabel ?? '等待下注';
+  const [revealState, setRevealState] = useState<BaccaratRevealState>(INITIAL_REVEAL_STATE);
+  const revealRunRef = useRef(0);
+  const revealComplete = Boolean(result && revealState.complete);
+  const playerHand = result ? visibleBaccaratHand(result.player, revealState.player) : null;
+  const bankerHand = result ? visibleBaccaratHand(result.banker, revealState.banker) : null;
+  const profitValue = revealComplete ? Number(result?.profit ?? 0) : 0;
+  const statusLabel = revealComplete && result ? result.outcomeLabel : busy ? '逐張開牌' : '等待下注';
   const selectedOption = BET_OPTIONS.find((option) => option.side === side) ?? BET_OPTIONS[0]!;
 
   useEffect(() => {
     Sfx.preloadTableGames();
   }, []);
+
+  useEffect(
+    () => () => {
+      revealRunRef.current += 1;
+    },
+    [],
+  );
 
   const handleBet = async () => {
     if (busy) return;
@@ -146,21 +174,24 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
     if (amount < MIN_BET_AMOUNT || amount > balance) return;
 
     Sfx.unlock();
-    Sfx.tableCardFlip();
+    Sfx.tick();
     setBusy(true);
     setError(null);
     setResult(null);
+    setRevealState(INITIAL_REVEAL_STATE);
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
     const previousBalance = useAuthStore.getState().debitBalance(amount);
 
     try {
       const payload: BaccaratTableBetRequest = { gameId, amount, side };
       const res = await api.post<BaccaratTableBetResult>('/games/baccarat/bet', payload);
-      Sfx.tableCardFlip();
       setResult(res.data);
       setBalance(res.data.newBalance);
+      await revealBaccaratRound(res.data, revealRunRef, setRevealState);
     } catch (err) {
       if (previousBalance) setBalance(previousBalance);
+      setResult(null);
+      setRevealState(INITIAL_REVEAL_STATE);
       setError(extractApiError(err).message);
     } finally {
       releaseBalanceRefresh();
@@ -224,9 +255,9 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
                 </div>
                 <div
                   className="data-num text-[26px] font-black"
-                  style={{ color: result ? themeConfig.accent : '#FDE68A' }}
+                  style={{ color: revealComplete ? themeConfig.accent : '#FDE68A' }}
                 >
-                  {formatMultiplier(result?.multiplier ?? 0)}
+                  {formatMultiplier(revealComplete ? (result?.multiplier ?? 0) : 0)}
                 </div>
               </div>
             </div>
@@ -234,10 +265,12 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
             <div className="baccarat-hands-grid relative z-10 mt-4 grid items-stretch gap-3 md:grid-cols-[1fr_auto_1fr]">
               <BaccaratHandPanel
                 title="閒家"
-                hand={result?.player ?? null}
+                hand={playerHand}
+                fullCardCount={result?.player.cards.length ?? 2}
                 active={side === 'player'}
                 accent="#38BDF8"
                 busy={busy}
+                roundKey={result?.betId ?? 'idle'}
               />
               <div className="hidden items-center justify-center md:flex">
                 <div
@@ -249,42 +282,13 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
               </div>
               <BaccaratHandPanel
                 title="莊家"
-                hand={result?.banker ?? null}
+                hand={bankerHand}
+                fullCardCount={result?.banker.cards.length ?? 2}
                 active={side === 'banker'}
                 accent={themeConfig.accent}
                 busy={busy}
+                roundKey={result?.betId ?? 'idle'}
               />
-            </div>
-
-            <div className="baccarat-choice-grid relative z-10 mt-4 grid gap-2 sm:grid-cols-3">
-              {BET_OPTIONS.map((option) => (
-                <button
-                  key={option.side}
-                  type="button"
-                  onClick={() => {
-                    Sfx.tick();
-                    setSide(option.side);
-                  }}
-                  disabled={busy}
-                  className={`baccarat-choice-card rounded-[18px] border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/70 disabled:cursor-not-allowed disabled:opacity-55 ${
-                    side === option.side
-                      ? 'border-[#FDE68A]/70 bg-[#FDE68A]/18 shadow-[0_14px_30px_rgba(245,158,11,0.18)]'
-                      : 'border-white/12 bg-black/28 hover:border-white/24 hover:bg-black/38'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="baccarat-choice-title text-[18px] font-black text-white">
-                      {option.title}
-                    </span>
-                    <span className="data-num rounded-full bg-black/32 px-2.5 py-1 text-[12px] font-black text-[#FDE68A]">
-                      {option.payout}
-                    </span>
-                  </div>
-                  <p className="baccarat-choice-hint mt-2 text-[11px] font-semibold leading-5 text-white/58">
-                    {option.hint}
-                  </p>
-                </button>
-              ))}
             </div>
 
             <div className="baccarat-result-card relative z-10 mt-4 rounded-[18px] border border-white/12 bg-white/[0.92] p-4 text-[#172033] shadow-[0_16px_36px_rgba(0,0,0,0.16)]">
@@ -294,13 +298,16 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
                     Result
                   </div>
                   <div className="baccarat-result-summary mt-1 text-[16px] font-black">
-                    {result?.summary ??
-                      `目前選擇：${selectedOption.title}。下注後依標準百家樂補牌表立即開牌。`}
+                    {revealComplete
+                      ? result?.summary
+                      : result
+                        ? '牌局進行中，依序翻開閒莊前兩張，補牌最後揭曉。'
+                        : `目前選擇：${selectedOption.title}。下注後依標準百家樂補牌表立即開牌。`}
                   </div>
-                  {result ? (
+                  {revealComplete ? (
                     <div className="mt-2 text-[12px] font-semibold text-[#64748B]">
-                      閒 {result.playerPoints} 點 · 莊 {result.bankerPoints} 點
-                      {result.natural ? ' · Natural' : ''}
+                      閒 {result?.playerPoints} 點 · 莊 {result?.bankerPoints} 點
+                      {result?.natural ? ' · Natural' : ''}
                     </div>
                   ) : null}
                 </div>
@@ -315,7 +322,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
                           : 'text-[#334155]'
                     }`}
                   >
-                    {result ? formatAmount(result.profit) : '0.00'}
+                    {revealComplete ? formatAmount(result?.profit ?? 0) : '0.00'}
                   </div>
                 </div>
               </div>
@@ -366,7 +373,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
               </div>
 
               <div className="baccarat-bet-option-grid mt-3 grid grid-cols-3 gap-2">
-                {BET_OPTIONS.map((option) => {
+                {BET_CONTROL_OPTIONS.map((option) => {
                   const selected = side === option.side;
                   return (
                     <button
@@ -377,16 +384,16 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
                         setSide(option.side);
                       }}
                       disabled={busy}
-                      className={`baccarat-bet-button baccarat-bet-button--${option.side} rounded-[14px] border px-2 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B]/60 disabled:cursor-not-allowed disabled:opacity-55 ${
+                      className={`baccarat-bet-button baccarat-bet-button--${option.side} rounded-[14px] border px-2 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/85 disabled:cursor-not-allowed disabled:opacity-55 ${
                         selected
-                          ? 'baccarat-bet-button--selected border-[#D97706] bg-[#FEF3C7] shadow-[0_10px_22px_rgba(217,119,6,0.18)]'
-                          : 'border-[#E5E7EB] bg-white hover:border-[#F59E0B]/45 hover:bg-[#FFFBEB]'
+                          ? 'baccarat-bet-button--selected ring-2 ring-[#FDE68A]/80'
+                          : 'hover:brightness-110'
                       }`}
                     >
-                      <span className="block text-[15px] font-black text-[#111827]">
+                      <span className="block text-[15px] font-black text-white">
                         {option.title}
                       </span>
-                      <span className="data-num mt-1 block text-[13px] font-black text-[#92400E]">
+                      <span className="data-num mt-1 block text-[13px] font-black text-white/85">
                         {option.payout}
                       </span>
                     </button>
@@ -423,17 +430,23 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
 function BaccaratHandPanel({
   title,
   hand,
+  fullCardCount,
   active,
   accent,
   busy,
+  roundKey,
 }: {
   title: string;
   hand: BaccaratTableHand | null;
+  fullCardCount: number;
   active: boolean;
   accent: string;
   busy: boolean;
+  roundKey: string;
 }) {
   const cards = hand?.cards ?? [];
+  const slotCount = Math.max(2, cards.length >= 3 ? Math.min(fullCardCount, cards.length) : 2);
+  const scoreLabel = cards.length > 0 ? `${hand?.points ?? 0}點` : busy ? '等待翻牌' : '待開牌';
   return (
     <div
       className={`baccarat-hand-panel rounded-[20px] border p-4 backdrop-blur ${
@@ -448,7 +461,7 @@ function BaccaratHandPanel({
             {title}
           </div>
           <div className="baccarat-hand-score mt-1 text-[28px] font-black text-white">
-            {hand ? `${hand.points}點` : busy ? '發牌中' : '待開牌'}
+            {scoreLabel}
           </div>
         </div>
         {hand?.drewThirdCard ? (
@@ -462,16 +475,19 @@ function BaccaratHandPanel({
       </div>
 
       <div className="baccarat-card-row mt-4 flex min-h-[118px] flex-wrap items-center gap-2">
-        {cards.length > 0
-          ? cards.map((card, index) => (
+        {Array.from({ length: slotCount }, (_, index) => {
+          const card = cards[index];
+          return card ? (
               <PlayingCard
-                key={`${card.label}-${index}-${hand?.points ?? 'pending'}`}
+                key={`${roundKey}-${card.label}-${index}`}
                 card={card}
                 accent={accent}
                 index={index}
               />
-            ))
-          : [0, 1].map((index) => <CardBack key={index} busy={busy} accent={accent} />)}
+          ) : (
+            <CardBack key={`${roundKey}-back-${index}`} busy={busy} accent={accent} />
+          );
+        })}
       </div>
     </div>
   );
@@ -520,6 +536,77 @@ function CardBack({ busy, accent }: { busy: boolean; accent: string }) {
       待發
     </div>
   );
+}
+
+async function revealBaccaratRound(
+  round: BaccaratTableBetResult,
+  revealRunRef: { current: number },
+  setRevealState: (state: BaccaratRevealState) => void,
+): Promise<void> {
+  const runId = (revealRunRef.current += 1);
+  const steps = buildBaccaratRevealSteps(round);
+
+  await wait(BACCARAT_REVEAL_INITIAL_DELAY_MS);
+  for (const step of steps) {
+    if (runId !== revealRunRef.current) return;
+    Sfx.tableCardFlip();
+    setRevealState({ ...step, complete: false });
+    await wait(BACCARAT_REVEAL_STEP_MS);
+  }
+
+  if (runId !== revealRunRef.current) return;
+  await wait(BACCARAT_REVEAL_SETTLE_MS);
+  if (runId !== revealRunRef.current) return;
+  setRevealState({
+    player: round.player.cards.length,
+    banker: round.banker.cards.length,
+    complete: true,
+  });
+}
+
+function buildBaccaratRevealSteps(round: BaccaratTableBetResult): BaccaratRevealState[] {
+  const steps: BaccaratRevealState[] = [];
+  const playerMax = round.player.cards.length;
+  const bankerMax = round.banker.cards.length;
+  const push = (player: number, banker: number) => {
+    const next = {
+      player: Math.min(player, playerMax),
+      banker: Math.min(banker, bankerMax),
+      complete: false,
+    };
+    const previous = steps.at(-1);
+    if (!previous || previous.player !== next.player || previous.banker !== next.banker) {
+      steps.push(next);
+    }
+  };
+
+  push(1, 0);
+  push(1, 1);
+  push(2, 1);
+  push(2, 2);
+  if (playerMax > 2) push(3, 2);
+  if (bankerMax > 2) push(playerMax, 3);
+  return steps;
+}
+
+function visibleBaccaratHand(hand: BaccaratTableHand, visibleCount: number): BaccaratTableHand {
+  const cards = hand.cards.slice(0, Math.max(0, visibleCount));
+  return {
+    ...hand,
+    cards,
+    points: baccaratVisiblePoints(cards),
+    drewThirdCard: hand.drewThirdCard && cards.length >= 3,
+  };
+}
+
+function baccaratVisiblePoints(cards: BaccaratTableCard[]): number {
+  return cards.reduce((sum, card) => sum + card.value, 0) % 10;
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 }
 
 function cardImageSrc(card: BaccaratTableCard): string {
