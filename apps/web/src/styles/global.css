@@ -3717,15 +3717,16 @@
     gap: 0.35em;
     width: 100%;
     margin: 0;
-    color: #7c2d12;
+    color: #b77905;
     font-size: 1.5rem;
     font-weight: 950;
     line-height: 1.05;
     text-align: center;
     text-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95),
-      0 0 1px rgba(67, 20, 7, 0.7),
-      0 2px 8px rgba(154, 52, 18, 0.16);
+      0 1px 0 rgba(255, 255, 255, 0.96),
+      0 0 1px rgba(92, 58, 0, 0.86),
+      0 0 8px rgba(245, 158, 11, 0.32),
+      0 2px 10px rgba(120, 53, 15, 0.22);
   }
 
   .slot-result-payout > span,
@@ -13637,14 +13638,23 @@
   .game-warm-shell .local-table-hand-panel .text-\[\#FDE68A\],
   .game-warm-shell .game-result-card .text-\[\#F3D67D\],
   .game-warm-shell .game-result-card .text-\[\#FDE68A\],
-  .game-warm-shell .slot-result-title,
-  .game-warm-shell .slot-result-payout {
+  .game-warm-shell .slot-result-title {
     color: #7c2d12 !important;
     font-weight: 950 !important;
     text-shadow:
       0 1px 0 rgba(255, 255, 255, 0.92),
       0 0 1px rgba(67, 20, 7, 0.7),
       0 2px 8px rgba(154, 52, 18, 0.16) !important;
+  }
+
+  .game-warm-shell .slot-result-payout {
+    color: #b77905 !important;
+    font-weight: 950 !important;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.96),
+      0 0 1px rgba(92, 58, 0, 0.86),
+      0 0 8px rgba(245, 158, 11, 0.32),
+      0 2px 10px rgba(120, 53, 15, 0.22) !important;
   }
 
   .game-warm-shell .slot-result-meta {
