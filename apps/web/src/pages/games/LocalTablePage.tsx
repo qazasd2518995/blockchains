@@ -392,6 +392,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
           gameId,
           amount,
         });
+        if (isTuiTongzi) Sfx.tableMahjongFlip();
         if (isCardWar) Sfx.tableCardFlip();
         setResult(null);
         setTenHalfState(null);
