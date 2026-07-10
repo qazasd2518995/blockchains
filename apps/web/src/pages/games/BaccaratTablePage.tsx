@@ -350,13 +350,50 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
 
         <aside className="game-control-stack game-side-stack space-y-4">
           <div className="game-side-card baccarat-control-card p-5">
-            <div className="baccarat-selected-box mb-4 rounded-[16px] border border-[#FDE68A]/55 bg-white/[0.94] p-3 text-[#172033] shadow-[0_10px_26px_rgba(15,23,42,0.14)]">
-              <div className="baccarat-selected-label text-[11px] font-black uppercase tracking-[0.16em] text-[#92400E]">
-                下注門
+            <div className="baccarat-bet-panel mb-4 rounded-[18px] border border-[#F59E0B]/35 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,251,235,0.94))] p-3 text-[#172033] shadow-[0_12px_28px_rgba(15,23,42,0.13)]">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="baccarat-selected-label text-[11px] font-black uppercase tracking-[0.16em] text-[#92400E]">
+                    下注區
+                  </div>
+                  <div className="baccarat-selected-title mt-1 text-[15px] font-black text-[#172033]">
+                    選擇下注門
+                  </div>
+                </div>
+                <div className="rounded-full bg-[#111827] px-3 py-1 text-[11px] font-black text-[#FDE68A]">
+                  {selectedOption.title} · {selectedOption.payout}
+                </div>
               </div>
-              <div className="baccarat-selected-title mt-1 text-[15px] font-black text-[#172033]">
-                {selectedOption.title} · {selectedOption.payout}
+
+              <div className="baccarat-bet-option-grid mt-3 grid grid-cols-3 gap-2">
+                {BET_OPTIONS.map((option) => {
+                  const selected = side === option.side;
+                  return (
+                    <button
+                      key={`control-${option.side}`}
+                      type="button"
+                      onClick={() => {
+                        Sfx.tick();
+                        setSide(option.side);
+                      }}
+                      disabled={busy}
+                      className={`baccarat-bet-button baccarat-bet-button--${option.side} rounded-[14px] border px-2 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B]/60 disabled:cursor-not-allowed disabled:opacity-55 ${
+                        selected
+                          ? 'baccarat-bet-button--selected border-[#D97706] bg-[#FEF3C7] shadow-[0_10px_22px_rgba(217,119,6,0.18)]'
+                          : 'border-[#E5E7EB] bg-white hover:border-[#F59E0B]/45 hover:bg-[#FFFBEB]'
+                      }`}
+                    >
+                      <span className="block text-[15px] font-black text-[#111827]">
+                        {option.title}
+                      </span>
+                      <span className="data-num mt-1 block text-[13px] font-black text-[#92400E]">
+                        {option.payout}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
+
               <p className="baccarat-selected-hint mt-1 text-[12px] font-semibold leading-5 text-[#64748B]">
                 {selectedOption.hint}
               </p>
@@ -416,7 +453,7 @@ function BaccaratHandPanel({
         </div>
         {hand?.drewThirdCard ? (
           <span
-            className="rounded-full px-2.5 py-1 text-[11px] font-black"
+            className="baccarat-third-card-badge rounded-full px-2.5 py-1 text-[11px] font-black"
             style={{ backgroundColor: `${accent}2B`, color: accent }}
           >
             補第三張
