@@ -1,4 +1,10 @@
-import { CARD_WAR_GAME_IDS, GameId, SLOT_GAME_IDS, type GameIdType } from '@bg/shared';
+import {
+  BACCARAT_TABLE_GAME_IDS,
+  CARD_WAR_GAME_IDS,
+  GameId,
+  SLOT_GAME_IDS,
+  type GameIdType,
+} from '@bg/shared';
 
 const SLOT_MAX_MULTIPLIERS: Partial<Record<GameIdType, number>> = {
   [GameId.HOTLINE]: 25000,
@@ -32,6 +38,7 @@ const CRASH_GAME_IDS = new Set<GameIdType>([
 ]);
 
 const CARD_WAR_PROMO_IDS = new Set<GameIdType>([...CARD_WAR_GAME_IDS]);
+const BACCARAT_TABLE_PROMO_IDS = new Set<GameIdType>([...BACCARAT_TABLE_GAME_IDS]);
 
 const HOT_GAME_IDS = new Set<GameIdType>([
   GameId.AVIATOR,
@@ -48,6 +55,7 @@ const HOT_GAME_IDS = new Set<GameIdType>([
   GameId.WHEEL,
   GameId.CARNIVAL,
   GameId.BLACKJACK,
+  ...BACCARAT_TABLE_GAME_IDS,
   GameId.TWENTY_ONE_HALF_DOLL,
   GameId.TUI_TONGZI_DRAGON,
   GameId.BLACK_DOT_TIANJIU,
@@ -68,6 +76,7 @@ export function getGamePromoMultiplier(gameId: string): number {
   if (id === GameId.WHEEL) return 48.25;
   if (id === GameId.MINI_ROULETTE || id === GameId.CARNIVAL) return 12;
   if (id === GameId.BLACKJACK) return 2.5;
+  if (BACCARAT_TABLE_PROMO_IDS.has(id)) return 9;
   if (
     id === GameId.TWENTY_ONE_HALF_DOLL ||
     id === GameId.TWENTY_ONE_HALF_BUNNY ||

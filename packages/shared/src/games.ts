@@ -2,6 +2,11 @@ export const GameId = {
   BACCARAT: 'baccarat',
   BACCARAT_NOVA: 'baccarat-nova',
   BACCARAT_IMPERIAL: 'baccarat-imperial',
+  BACCARAT_DRAGON: 'baccarat-dragon',
+  BACCARAT_PANDA: 'baccarat-panda',
+  BACCARAT_FOX: 'baccarat-fox',
+  BACCARAT_TIGER: 'baccarat-tiger',
+  BACCARAT_PHOENIX: 'baccarat-phoenix',
   BLACKJACK: 'blackjack',
   TWENTY_ONE_HALF_DOLL: 'twenty-one-half-doll',
   TWENTY_ONE_HALF_BUNNY: 'twenty-one-half-bunny',
@@ -60,6 +65,18 @@ export const BACCARAT_GAME_IDS = [
 ] as const;
 export type BaccaratGameIdType = (typeof BACCARAT_GAME_IDS)[number];
 
+export const BACCARAT_TABLE_GAME_IDS = [
+  GameId.BACCARAT_DRAGON,
+  GameId.BACCARAT_PANDA,
+  GameId.BACCARAT_FOX,
+  GameId.BACCARAT_TIGER,
+  GameId.BACCARAT_PHOENIX,
+] as const;
+export type BaccaratTableGameIdType = (typeof BACCARAT_TABLE_GAME_IDS)[number];
+
+export const ALL_BACCARAT_GAME_IDS = [...BACCARAT_GAME_IDS, ...BACCARAT_TABLE_GAME_IDS] as const;
+export type AnyBaccaratGameIdType = (typeof ALL_BACCARAT_GAME_IDS)[number];
+
 export const TWENTY_ONE_HALF_GAME_IDS = [
   GameId.TWENTY_ONE_HALF_DOLL,
   GameId.TWENTY_ONE_HALF_BUNNY,
@@ -102,6 +119,7 @@ export const LOCAL_TABLE_GAME_IDS = [
 export type LocalTableGameIdType = (typeof LOCAL_TABLE_GAME_IDS)[number];
 
 const LOCAL_TABLE_GAME_ID_SET = new Set<string>(LOCAL_TABLE_GAME_IDS);
+const BACCARAT_TABLE_GAME_ID_SET = new Set<string>(BACCARAT_TABLE_GAME_IDS);
 
 export const LOCAL_TABLE_BETA_ALLOWED_USERNAMES = ['testplayer'] as const;
 
@@ -111,12 +129,19 @@ export function isLocalTableGameId(gameId: string): gameId is LocalTableGameIdTy
   return LOCAL_TABLE_GAME_ID_SET.has(gameId);
 }
 
+export function isBaccaratTableGameId(gameId: string): gameId is BaccaratTableGameIdType {
+  return BACCARAT_TABLE_GAME_ID_SET.has(gameId);
+}
+
 export function canAccessLocalTableBeta(username?: string | null): boolean {
   return LOCAL_TABLE_BETA_ALLOWED_USERNAME_SET.has(username?.trim().toLowerCase() ?? '');
 }
 
 export function isGameVisibleForUsername(gameId: string, username?: string | null): boolean {
-  return !isLocalTableGameId(gameId) || canAccessLocalTableBeta(username);
+  return (
+    (!isLocalTableGameId(gameId) && !isBaccaratTableGameId(gameId)) ||
+    canAccessLocalTableBeta(username)
+  );
 }
 
 export const SLOT_GAME_IDS = [
@@ -183,6 +208,61 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     rtp: 0.9894,
     icon: 'baccarat',
     enabled: false,
+  },
+  [GameId.BACCARAT_DRAGON]: {
+    id: GameId.BACCARAT_DRAGON,
+    name: 'Dragon Empress Baccarat',
+    nameZh: '龍姬百家',
+    category: 'table',
+    description: 'Standard punto banco baccarat with a crimson dragon table.',
+    descriptionZh: '標準百家樂，閒莊和三門下注，紅金龍姬主題',
+    rtp: 0.9894,
+    icon: 'baccarat',
+    enabled: true,
+  },
+  [GameId.BACCARAT_PANDA]: {
+    id: GameId.BACCARAT_PANDA,
+    name: 'Panda Palace Baccarat',
+    nameZh: '熊貓百家',
+    category: 'table',
+    description: 'Standard punto banco baccarat with a jade panda palace table.',
+    descriptionZh: '標準百家樂，閒莊和三門下注，玉殿熊貓主題',
+    rtp: 0.9894,
+    icon: 'baccarat',
+    enabled: true,
+  },
+  [GameId.BACCARAT_FOX]: {
+    id: GameId.BACCARAT_FOX,
+    name: 'Fox Spirit Baccarat',
+    nameZh: '狐姬百家',
+    category: 'table',
+    description: 'Standard punto banco baccarat with a moonlit fox spirit table.',
+    descriptionZh: '標準百家樂，閒莊和三門下注，月夜狐姬主題',
+    rtp: 0.9894,
+    icon: 'baccarat',
+    enabled: true,
+  },
+  [GameId.BACCARAT_TIGER]: {
+    id: GameId.BACCARAT_TIGER,
+    name: 'Tiger Royale Baccarat',
+    nameZh: '虎爵百家',
+    category: 'table',
+    description: 'Standard punto banco baccarat with a black-and-gold tiger table.',
+    descriptionZh: '標準百家樂，閒莊和三門下注，黑金虎爵主題',
+    rtp: 0.9894,
+    icon: 'baccarat',
+    enabled: true,
+  },
+  [GameId.BACCARAT_PHOENIX]: {
+    id: GameId.BACCARAT_PHOENIX,
+    name: 'Phoenix Baccarat',
+    nameZh: '鳳凰百家',
+    category: 'table',
+    description: 'Standard punto banco baccarat with a sapphire phoenix table.',
+    descriptionZh: '標準百家樂，閒莊和三門下注，藍金鳳凰主題',
+    rtp: 0.9894,
+    icon: 'baccarat',
+    enabled: true,
   },
   [GameId.BLACKJACK]: {
     id: GameId.BLACKJACK,

@@ -10,6 +10,7 @@ import {
   diceMultiplier,
   getHotlineReelCount,
   getHotlineRowCount,
+  hmacIntStream,
   hiloDraw,
   hiloMultiplier,
   hiloProbHigherOrEqual,
@@ -33,7 +34,7 @@ import {
   wheelMultiplier,
   wheelSpin,
 } from '@bg/provably-fair';
-import { GameId, SLOT_GAME_IDS } from '@bg/shared';
+import { BACCARAT_TABLE_GAME_IDS, GameId, SLOT_GAME_IDS } from '@bg/shared';
 
 const prisma = new PrismaClient();
 const amount = 100;
@@ -57,6 +58,7 @@ let lineAgent;
 let player;
 
 const slotGameIds = [...SLOT_GAME_IDS];
+const betaOnlyTableGameIds = [...BACCARAT_TABLE_GAME_IDS];
 
 const httpGames = [
   makeDiceGame(),
@@ -70,6 +72,9 @@ const httpGames = [
   makeTowerGame(),
   makeChickenRoadGame(),
   makeBlackjackGame(),
+  ...(process.env.CONTROL_API_INCLUDE_BETA_TABLES === '1'
+    ? betaOnlyTableGameIds.map(makeBaccaratGame)
+    : []),
   ...slotGameIds.map(makeHotlineGame),
 ];
 
@@ -1021,6 +1026,29 @@ function makeBlackjackGame() {
   };
 }
 
+function makeBaccaratGame(id) {
+  const payload = { amount, gameId: id, side: 'player', clientSeed };
+  return {
+    id,
+    seedCategory: `baccarat:${id}`,
+    maxSearch: 20000,
+    plan: (seed, c, nonce) => {
+      const result = settleBaccarat(seed, c, nonce, payload.side);
+      const payout = baccaratControlPayout(payload.side, result.result, amount);
+      return {
+        rawWin: payout > amount,
+        multiplier: payout / amount,
+        payout,
+        payload,
+      };
+    },
+    run: async (plan) => {
+      const res = await playerPost('/api/games/baccarat/bet', plan.payload);
+      return { effect: Number(res.body.payout) > amount ? 'WIN' : 'LOSS', body: res.body };
+    },
+  };
+}
+
 function settleBlackjackStand(seed, c, nonce) {
   const deck = blackjackDeck(seed, c, nonce);
   const playerCards = [deck[0], deck[2]];
@@ -1046,6 +1074,92 @@ function settleBlackjackStand(seed, c, nonce) {
   if (playerScore.total > finalDealerScore.total) return { payout: amount * 2, playerScore };
   if (playerScore.total === finalDealerScore.total) return { payout: amount, playerScore };
   return { payout: 0, playerScore };
+}
+
+function settleBaccarat(seed, c, nonce, side) {
+  const cards = baccaratShoe(seed, c, nonce);
+  const playerCards = [cards[0], cards[2]];
+  const bankerCards = [cards[1], cards[3]];
+  let nextIndex = 4;
+  const initialPlayer = baccaratPoints(playerCards);
+  const initialBanker = baccaratPoints(bankerCards);
+  const natural = initialPlayer >= 8 || initialBanker >= 8;
+
+  let playerThird = null;
+  if (!natural) {
+    if (initialPlayer <= 5) {
+      playerThird = cards[nextIndex++];
+      playerCards.push(playerThird);
+    }
+    const banker = baccaratPoints(bankerCards);
+    const bankerDraws = playerThird
+      ? baccaratBankerDraws(banker, playerThird.value)
+      : banker <= 5;
+    if (bankerDraws) bankerCards.push(cards[nextIndex++]);
+  }
+
+  const playerPoints = baccaratPoints(playerCards);
+  const bankerPoints = baccaratPoints(bankerCards);
+  const outcome =
+    playerPoints > bankerPoints ? 'PLAYER' : bankerPoints > playerPoints ? 'BANKER' : 'TIE';
+  const result = baccaratSideResult(side, outcome);
+  return { outcome, result, playerPoints, bankerPoints };
+}
+
+function baccaratShoe(seed, c, nonce) {
+  const ranks = Array.from({ length: 13 }, (_, index) => index + 1);
+  const suits = [0, 1, 2, 3];
+  const shoe = [];
+  for (let deck = 0; deck < 8; deck += 1) {
+    for (const suit of suits) {
+      for (const rank of ranks) {
+        shoe.push({ rank, suit, value: baccaratCardValue(rank) });
+      }
+    }
+  }
+  const stream = hmacIntStream(seed, c, nonce);
+  for (let index = shoe.length - 1; index > 0; index -= 1) {
+    const swapIndex = stream.next().value % (index + 1);
+    const current = shoe[index];
+    shoe[index] = shoe[swapIndex];
+    shoe[swapIndex] = current;
+  }
+  return shoe;
+}
+
+function baccaratCardValue(rank) {
+  if (rank === 1) return 1;
+  if (rank >= 10) return 0;
+  return rank;
+}
+
+function baccaratPoints(cards) {
+  return cards.reduce((sum, card) => sum + card.value, 0) % 10;
+}
+
+function baccaratBankerDraws(points, playerThirdValue) {
+  if (points <= 2) return true;
+  if (points === 3) return playerThirdValue !== 8;
+  if (points === 4) return playerThirdValue >= 2 && playerThirdValue <= 7;
+  if (points === 5) return playerThirdValue >= 4 && playerThirdValue <= 7;
+  if (points === 6) return playerThirdValue === 6 || playerThirdValue === 7;
+  return false;
+}
+
+function baccaratSideResult(side, outcome) {
+  if (outcome === 'TIE' && side !== 'tie') return 'PUSH';
+  if (side === 'player' && outcome === 'PLAYER') return 'WIN';
+  if (side === 'banker' && outcome === 'BANKER') return 'WIN';
+  if (side === 'tie' && outcome === 'TIE') return 'WIN';
+  return 'LOSE';
+}
+
+function baccaratControlPayout(side, result, stake) {
+  if (result === 'PUSH') return stake;
+  if (result === 'LOSE') return 0;
+  if (side === 'banker') return stake * 1.95;
+  if (side === 'tie') return stake * 9;
+  return stake * 2;
 }
 
 function firstIndex(predicate, max) {
@@ -1162,6 +1276,11 @@ function printSummary() {
     '  skipped realtime socket games: rocket, aviator, space-fleet, jetx, balloon, jetx3, double-x',
   );
   console.log('  skipped disabled/external games: baccarat, baccarat-nova, baccarat-imperial');
+  if (process.env.CONTROL_API_INCLUDE_BETA_TABLES !== '1') {
+    console.log(
+      '  skipped testplayer-only table games: baccarat-dragon, baccarat-panda, baccarat-fox, baccarat-tiger, baccarat-phoenix',
+    );
+  }
   console.log('  skipped registry-only game without backend route: plinko-x');
   if (failed.length > 0) {
     console.log('\nFailures:');

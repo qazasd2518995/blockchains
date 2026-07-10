@@ -1,6 +1,6 @@
 import { ManualDetectionScope, Prisma } from '@prisma/client';
 import type { MemberAutoBalanceControl, PrismaClient } from '@prisma/client';
-import { BACCARAT_GAME_IDS } from '@bg/shared';
+import { ALL_BACCARAT_GAME_IDS } from '@bg/shared';
 import {
   isMemberInControlExcludedLine,
   listAgentDescendants,
@@ -1608,7 +1608,7 @@ async function queryBetAggregate(
     db.bet.aggregate({
       where: {
         ...userWhere,
-        gameId: { in: [...BACCARAT_GAME_IDS] },
+        gameId: { in: [...ALL_BACCARAT_GAME_IDS] },
         status: 'SETTLED',
         createdAt: { gte: window.start, lt: window.end },
       },

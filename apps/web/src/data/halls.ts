@@ -1,5 +1,5 @@
 import type { GameIdType } from '@bg/shared';
-import { canAccessLocalTableBeta, GameId, isGameVisibleForUsername } from '@bg/shared';
+import { GameId, isGameVisibleForUsername } from '@bg/shared';
 
 export type HallId = 'crash' | 'tables' | 'slots' | 'roulette' | 'classic' | 'strategy';
 
@@ -39,6 +39,11 @@ export const HALLS: Record<HallId, HallMeta> = {
     gradient: 'linear-gradient(135deg, #1B2030 0%, #225B66 46%, #C9A247 100%)',
     artwork: '/halls/tables-card.png',
     gameIds: [
+      GameId.BACCARAT_DRAGON,
+      GameId.BACCARAT_PANDA,
+      GameId.BACCARAT_FOX,
+      GameId.BACCARAT_TIGER,
+      GameId.BACCARAT_PHOENIX,
       GameId.BLACKJACK,
       GameId.TWENTY_ONE_HALF_DOLL,
       GameId.TWENTY_ONE_HALF_BUNNY,
@@ -137,8 +142,7 @@ export function getVisibleGameIdsForUsername(
 }
 
 export function getVisibleHallsForUsername(username?: string | null): HallMeta[] {
-  const canSeeLocalTables = canAccessLocalTableBeta(username);
-  return HALL_LIST.filter((hall) => hall.id !== 'tables' || canSeeLocalTables);
+  return HALL_LIST.filter((hall) => getVisibleGameIdsForUsername(hall.gameIds, username).length > 0);
 }
 
 export function getVisibleHallById(

@@ -58,6 +58,13 @@ const CRASH_VARIANTS: Record<string, string> = {
   jetx3: 'jet3',
   'double-x': 'double',
 };
+const BACCARAT_TABLE_GAME_IDS = [
+  'baccarat-dragon',
+  'baccarat-panda',
+  'baccarat-fox',
+  'baccarat-tiger',
+  'baccarat-phoenix',
+] as const;
 const LOCAL_TABLE_GAME_IDS = [
   'twenty-one-half-doll',
   'twenty-one-half-bunny',
@@ -215,6 +222,9 @@ export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
       criticalAsset('/game-art/chicken-road/vehicles.png', 'sprite'),
     ],
   },
+  ...Object.fromEntries(
+    BACCARAT_TABLE_GAME_IDS.map((gameId) => [gameId, baccaratTableGame(gameId)]),
+  ),
   ...Object.fromEntries(LOCAL_TABLE_GAME_IDS.map((gameId) => [gameId, localTableGame(gameId)])),
   ...Object.fromEntries(Object.keys(CRASH_VARIANTS).map((gameId) => [gameId, crashGame(gameId)])),
   ...Object.fromEntries(
@@ -290,6 +300,16 @@ function coverOnlyGame(gameId: string): GameAssetManifest {
   return {
     gameId,
     assets: [criticalAsset(getLobbyGameCover(gameId), 'cover')],
+  };
+}
+
+function baccaratTableGame(gameId: string): GameAssetManifest {
+  return {
+    gameId,
+    assets: [
+      criticalAsset(getLobbyGameCover(gameId), 'cover'),
+      ...POKER_CARD_ASSETS.map((src) => asset(src, 'card')),
+    ],
   };
 }
 

@@ -66,6 +66,8 @@ describe('local table game rules', () => {
     expect(canAccessLocalTableBeta('player001')).toBe(false);
     expect(isGameVisibleForUsername(GameId.TUI_TONGZI_DRAGON, 'testplayer')).toBe(true);
     expect(isGameVisibleForUsername(GameId.TUI_TONGZI_DRAGON, 'player001')).toBe(false);
+    expect(isGameVisibleForUsername(GameId.BACCARAT_DRAGON, 'testplayer')).toBe(true);
+    expect(isGameVisibleForUsername(GameId.BACCARAT_DRAGON, 'player001')).toBe(false);
     expect(isGameVisibleForUsername(GameId.BLACKJACK, 'player001')).toBe(true);
   });
 

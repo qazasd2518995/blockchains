@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-09T11:53:07.963Z",
+  "generatedAt": "2026-07-10T09:13:05.969Z",
   "widths": [
     480,
     960,
@@ -157,6 +157,31 @@
       "960": "/_optimized/game-art/baccarat/cover@960.webp",
       "1600": "/_optimized/game-art/baccarat/cover@1600.webp"
     },
+    "/game-art/baccarat-table/dragon-cover.webp": {
+      "480": "/_optimized/game-art/baccarat-table/dragon-cover@480.webp",
+      "960": "/_optimized/game-art/baccarat-table/dragon-cover@960.webp",
+      "1600": "/_optimized/game-art/baccarat-table/dragon-cover@1600.webp"
+    },
+    "/game-art/baccarat-table/fox-cover.webp": {
+      "480": "/_optimized/game-art/baccarat-table/fox-cover@480.webp",
+      "960": "/_optimized/game-art/baccarat-table/fox-cover@960.webp",
+      "1600": "/_optimized/game-art/baccarat-table/fox-cover@1600.webp"
+    },
+    "/game-art/baccarat-table/panda-cover.webp": {
+      "480": "/_optimized/game-art/baccarat-table/panda-cover@480.webp",
+      "960": "/_optimized/game-art/baccarat-table/panda-cover@960.webp",
+      "1600": "/_optimized/game-art/baccarat-table/panda-cover@1600.webp"
+    },
+    "/game-art/baccarat-table/phoenix-cover.webp": {
+      "480": "/_optimized/game-art/baccarat-table/phoenix-cover@480.webp",
+      "960": "/_optimized/game-art/baccarat-table/phoenix-cover@960.webp",
+      "1600": "/_optimized/game-art/baccarat-table/phoenix-cover@1600.webp"
+    },
+    "/game-art/baccarat-table/tiger-cover.webp": {
+      "480": "/_optimized/game-art/baccarat-table/tiger-cover@480.webp",
+      "960": "/_optimized/game-art/baccarat-table/tiger-cover@960.webp",
+      "1600": "/_optimized/game-art/baccarat-table/tiger-cover@1600.webp"
+    },
     "/game-art/blackjack/background.png": {
       "480": "/_optimized/game-art/blackjack/background@480.webp",
       "960": "/_optimized/game-art/blackjack/background@960.webp",
@@ -306,6 +331,21 @@
       "480": "/_optimized/game-art/local-table/card-war-cover@480.webp",
       "960": "/_optimized/game-art/local-table/card-war-cover@960.webp",
       "1600": "/_optimized/game-art/local-table/card-war-cover@1600.webp"
+    },
+    "/game-art/local-table/card-war-crystal-cover.webp": {
+      "480": "/_optimized/game-art/local-table/card-war-crystal-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/card-war-crystal-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/card-war-crystal-cover@1600.webp"
+    },
+    "/game-art/local-table/card-war-gold-cover.webp": {
+      "480": "/_optimized/game-art/local-table/card-war-gold-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/card-war-gold-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/card-war-gold-cover@1600.webp"
+    },
+    "/game-art/local-table/card-war-neon-cover.webp": {
+      "480": "/_optimized/game-art/local-table/card-war-neon-cover@480.webp",
+      "960": "/_optimized/game-art/local-table/card-war-neon-cover@960.webp",
+      "1600": "/_optimized/game-art/local-table/card-war-neon-cover@1600.webp"
     },
     "/game-art/local-table/stages/black-dot-stage.webp": {
       "480": "/_optimized/game-art/local-table/stages/black-dot-stage@480.webp",

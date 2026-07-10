@@ -17,6 +17,7 @@ export * from './dto/crash.js';
 export * from './dto/blackjack.js';
 export * from './dto/chickenRoad.js';
 export * from './dto/tableGames.js';
+export * from './dto/baccaratTable.js';
 // Admin (agent backoffice)
 export * from './dto/admin/auth.js';
 export * from './dto/admin/agent.js';

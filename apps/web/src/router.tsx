@@ -23,7 +23,13 @@ import type { Locale } from '@/i18n/types';
 import { PlatformBgm } from '@/lib/platformBgm';
 import { errorMessage, reloadAfterRuntimeFailure } from '@/lib/runtimeRecovery';
 import { CRASH_CONFIGS } from '@/pages/games/crashConfigs';
-import { canAccessLocalTableBeta, LOCAL_TABLE_GAME_IDS, type LocalTableGameIdType } from '@bg/shared';
+import {
+  BACCARAT_TABLE_GAME_IDS,
+  canAccessLocalTableBeta,
+  LOCAL_TABLE_GAME_IDS,
+  type BaccaratTableGameIdType,
+  type LocalTableGameIdType,
+} from '@bg/shared';
 import { useAuthStore } from '@/stores/authStore';
 
 const RUNTIME_ERROR_COPY: Record<
@@ -93,6 +99,10 @@ const VerifyPage = lazyPage(() => import('@/pages/VerifyPage'), 'VerifyPage');
 const PromosPage = lazyPage(() => import('@/pages/PromosPage'), 'PromosPage');
 const NotFoundPage = lazyPage(() => import('@/pages/NotFoundPage'), 'NotFoundPage');
 const BlackjackPage = lazyPage(() => import('@/pages/games/BlackjackPage'), 'BlackjackPage');
+const BaccaratTablePage = lazyPage(
+  () => import('@/pages/games/BaccaratTablePage'),
+  'BaccaratTablePage',
+);
 const CrashPage = lazyPage(() => import('@/pages/games/CrashPage'), 'CrashPage');
 const DicePage = lazyPage(() => import('@/pages/games/DicePage'), 'DicePage');
 const HiLoPage = lazyPage(() => import('@/pages/games/HiLoPage'), 'HiLoPage');
@@ -185,6 +195,12 @@ function LocalTableBetaRoute({ gameId }: { gameId: LocalTableGameIdType }) {
   return <LocalTablePage gameId={gameId} />;
 }
 
+function BaccaratTableBetaRoute({ gameId }: { gameId: BaccaratTableGameIdType }) {
+  const username = useAuthStore((state) => state.user?.username ?? null);
+  if (!canAccessLocalTableBeta(username)) return <Navigate to="/lobby" replace />;
+  return <BaccaratTablePage gameId={gameId} />;
+}
+
 function RouteViewportReset() {
   const { pathname } = useLocation();
 
@@ -195,7 +211,11 @@ function RouteViewportReset() {
   }, [pathname]);
 
   useLayoutEffect(() => {
-    PlatformBgm.setRouteSuppressed(pathname.startsWith('/games/baccarat'));
+    PlatformBgm.setRouteSuppressed(
+      pathname === '/games/baccarat' ||
+        pathname === '/games/baccarat-nova' ||
+        pathname === '/games/baccarat-imperial',
+    );
     PlatformBgm.init();
   }, [pathname]);
 
@@ -235,6 +255,9 @@ export const router = createBrowserRouter([
         element: <GameFullscreenShell />,
         children: [
           gameRoute('/games/dice', 'dice', <DicePage />),
+          ...BACCARAT_TABLE_GAME_IDS.map((gameId) =>
+            gameRoute(`/games/${gameId}`, gameId, <BaccaratTableBetaRoute gameId={gameId} />),
+          ),
           ...LOCAL_TABLE_GAME_IDS.map((gameId) =>
             gameRoute(`/games/${gameId}`, gameId, <LocalTableBetaRoute gameId={gameId} />),
           ),

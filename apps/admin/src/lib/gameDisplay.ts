@@ -1,5 +1,6 @@
 import {
   BLACK_DOT_GAME_IDS,
+  BACCARAT_TABLE_GAME_IDS,
   CARD_WAR_GAME_IDS,
   GAMES_REGISTRY,
   LOCAL_TABLE_GAME_IDS,
@@ -51,6 +52,7 @@ const LOCAL_TABLE_ENGLISH_TITLE_FALLBACK: Record<string, string> = {
 };
 
 const LOCAL_TABLE_GAME_ID_SET = new Set<string>(LOCAL_TABLE_GAME_IDS);
+const BACCARAT_TABLE_GAME_ID_SET = new Set<string>(BACCARAT_TABLE_GAME_IDS);
 const TWENTY_ONE_HALF_GAME_ID_SET = new Set<string>(TWENTY_ONE_HALF_GAME_IDS);
 const TUI_TONGZI_GAME_ID_SET = new Set<string>(TUI_TONGZI_GAME_IDS);
 const BLACK_DOT_GAME_ID_SET = new Set<string>(BLACK_DOT_GAME_IDS);
@@ -102,6 +104,7 @@ function getLocalTableSubtitle(gameId: string, locale: Locale): string | null {
 }
 
 function getLocalTableSubtitleZhHant(gameId: string): string | null {
+  if (BACCARAT_TABLE_GAME_ID_SET.has(gameId)) return '牌桌遊戲 · 百家樂';
   if (TWENTY_ONE_HALF_GAME_ID_SET.has(gameId)) return '牌桌遊戲 · 十點半';
   if (gameId === 'tui-tongzi-jade' || gameId === 'tui-tongzi-neon') return '牌桌遊戲 · 推索子';
   if (gameId === 'tui-tongzi-gold') return '牌桌遊戲 · 推萬子';
@@ -112,6 +115,7 @@ function getLocalTableSubtitleZhHant(gameId: string): string | null {
 }
 
 function getLocalTableSubtitleEnglish(gameId: string): string | null {
+  if (BACCARAT_TABLE_GAME_ID_SET.has(gameId)) return 'Table Game · Baccarat';
   if (TWENTY_ONE_HALF_GAME_ID_SET.has(gameId)) return 'Table Game · 10.5';
   if (gameId === 'tui-tongzi-jade' || gameId === 'tui-tongzi-neon') return 'Table Game · Suozi';
   if (gameId === 'tui-tongzi-gold') return 'Table Game · Wanzi';

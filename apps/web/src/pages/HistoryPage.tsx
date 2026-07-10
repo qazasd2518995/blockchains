@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { getGameMeta, isLocalTableGameId } from '@bg/shared';
+import { getGameMeta, isBaccaratTableGameId, isLocalTableGameId } from '@bg/shared';
 import type { BetDetailResponse, TransactionListResponse, TransactionType } from '@bg/shared';
 import { CalendarDays, ReceiptText, Search, X } from 'lucide-react';
 import { api, extractApiError } from '@/lib/api';
@@ -881,6 +881,9 @@ function friendlyResultEntries(
   if (isLocalTableGameId(gameId) || isLocalTableResult(record)) {
     return localTableResultEntries(gameId, record, locale);
   }
+  if (isBaccaratTableGameId(gameId) || getStringScalar(record.kind) === 'baccarat') {
+    return baccaratTableResultEntries(record);
+  }
   if (gameId === 'dice') return diceResultEntries(record);
   if (gameId === 'wheel') return wheelResultEntries(record);
   if (gameId === 'plinko') return plinkoResultEntries(record);
@@ -891,6 +894,59 @@ function friendlyResultEntries(
   if (gameId === 'chicken-road') return chickenRoadResultEntries(record);
   if (gameId === 'mini-roulette' || gameId === 'carnival') return rouletteResultEntries(record);
   return [];
+}
+
+function baccaratTableResultEntries(record: Record<string, unknown>): ResultEntry[] {
+  const roomName = getStringScalar(record.roomName);
+  const betLabel = getStringScalar(record.betLabel);
+  const outcomeLabel = getStringScalar(record.outcomeLabel);
+  const resultLabel = getStringScalar(record.resultLabel);
+  const summary = getStringScalar(record.summary);
+  const natural = getBoolean(record.natural);
+  const multiplier = getNumber(record.multiplier);
+  const payout = getNumber(record.payout);
+  const playerCards = getCardArray(record.playerCards);
+  const bankerCards = getCardArray(record.bankerCards);
+  const playerPoints = getScalar(record.playerPoints);
+  const bankerPoints = getScalar(record.bankerPoints);
+
+  return compactResultEntries([
+    {
+      key: 'baccarat-summary',
+      label: '本局結果',
+      value: (
+        <SummaryStack
+          items={[
+            roomName ? `房間：${roomName}` : null,
+            betLabel ? `下注：${betLabel}` : null,
+            outcomeLabel ? `開出：${outcomeLabel}` : null,
+            resultLabel ? `結果：${resultLabel}` : null,
+            natural === true ? 'Natural 8/9 停牌' : null,
+            summary ?? null,
+            multiplier !== undefined ? `倍率 ${formatMultiplierValue(multiplier)}` : null,
+            payout !== undefined ? `派彩 ${formatAmount(String(payout))}` : null,
+          ]}
+        />
+      ),
+    },
+    playerCards.length > 0 || bankerCards.length > 0
+      ? {
+          key: 'baccarat-cards',
+          label: '牌局內容',
+          value: (
+            <BaccaratCardsView
+              data={{
+                playerCards,
+                bankerCards,
+                playerPoints,
+                bankerPoints,
+                result: outcomeLabel ?? undefined,
+              }}
+            />
+          ),
+        }
+      : null,
+  ]);
 }
 
 function diceResultEntries(record: Record<string, unknown>): ResultEntry[] {

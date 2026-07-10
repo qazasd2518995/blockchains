@@ -9,7 +9,7 @@ import {
 } from '../../../utils/hierarchy.js';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
 import type { ReportQuery, AgentAnalysisQuery } from './report.schema.js';
-import { BACCARAT_GAME_IDS, type DashboardSummaryResponse } from '@bg/shared';
+import { ALL_BACCARAT_GAME_IDS, type DashboardSummaryResponse } from '@bg/shared';
 import {
   getAdminGameDay,
   getAdminGameDayWindowByDay,
@@ -862,7 +862,7 @@ export class ReportService {
     baccaratBetAmount: Prisma.Decimal;
   }> {
     const shouldQueryBaccarat = !input.gameId || isBaccaratGameId(input.gameId);
-    const baccaratGameFilter = input.gameId ? input.gameId : [...BACCARAT_GAME_IDS];
+    const baccaratGameFilter = input.gameId ? input.gameId : [...ALL_BACCARAT_GAME_IDS];
     const shouldQueryHedgedGames = includesHedgedTurnoverGame(input.gameId);
     const [standardAgg, baccaratAgg, crashAgg, hedgedRows] = await Promise.all([
       this.prisma.bet.aggregate({

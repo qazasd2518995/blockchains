@@ -31,6 +31,7 @@ import { rouletteRoutes } from './modules/games/roulette/roulette.routes.js';
 import { hotlineRoutes } from './modules/games/hotline/hotline.routes.js';
 import { towerRoutes } from './modules/games/tower/tower.routes.js';
 import { blackjackRoutes } from './modules/games/blackjack/blackjack.routes.js';
+import { baccaratRoutes } from './modules/games/baccarat/baccarat.routes.js';
 import { chickenRoadRoutes } from './modules/games/chicken-road/chicken-road.routes.js';
 import { crashRoutes } from './modules/games/crash/crash.routes.js';
 import { tableGamesRoutes } from './modules/games/table-games/table-games.routes.js';
@@ -300,6 +301,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(hotlineRoutes, { prefix: '/api/games/hotline' });
   await server.register(towerRoutes, { prefix: '/api/games/tower' });
   await server.register(blackjackRoutes, { prefix: '/api/games/blackjack' });
+  await server.register(baccaratRoutes, { prefix: '/api/games/baccarat' });
   await server.register(chickenRoadRoutes, { prefix: '/api/games/chicken-road' });
   await server.register(crashRoutes, { prefix: '/api/games/crash' });
   await server.register(tableGamesRoutes, { prefix: '/api/games/table-games' });
