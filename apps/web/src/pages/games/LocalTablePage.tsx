@@ -394,6 +394,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
         });
         if (isTuiTongzi) Sfx.tableMahjongFlip();
         if (isCardWar) Sfx.tableCardFlip();
+        if (isBlackDot) Sfx.tableDominoFlip();
         setResult(null);
         setTenHalfState(null);
         setStagedState(res.data);
@@ -430,7 +431,8 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
         roundId: stagedState.roundId,
         ...(typeof revealIndex === 'number' ? { revealIndex } : {}),
       });
-      if (!isTuiTongzi && !isBlackDot && !isCardWar) Sfx.tableCardFlip();
+      if (isBlackDot) Sfx.tableDominoFlip();
+      else if (!isTuiTongzi && !isCardWar) Sfx.tableCardFlip();
       setStagedState(res.data);
       if (res.data.newBalance) setBalance(res.data.newBalance);
     } catch (err) {
@@ -443,6 +445,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
 
   const handleStagedSplit = async (splitId: string) => {
     if (busy || !stagedState || stagedState.status !== 'ACTIVE' || !stagedState.canSplit) return;
+    Sfx.unlock();
     setBusy(true);
     setError(null);
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
@@ -451,6 +454,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
         roundId: stagedState.roundId,
         splitId,
       });
+      if (isBlackDot) Sfx.tableDominoFlip();
       setStagedState(res.data);
       if (res.data.newBalance) setBalance(res.data.newBalance);
     } catch (err) {

@@ -20,6 +20,7 @@ const SLOT_AUDIO = {
 const TABLE_AUDIO = {
   mahjongFlip: '/sfx/table/mahjong-tile-clack.mp3',
   cardFlip: '/sfx/table/card-flip.mp3',
+  dominoFlip: '/sfx/table/black-dot-domino.mp3',
 } as const;
 
 type SlotWinTier = 'small' | 'medium' | 'big';
@@ -186,7 +187,7 @@ class SfxEngineImpl {
     return promise;
   }
 
-  private playBufferNow(buffer: AudioBuffer, baseVolume: number): void {
+  private playBufferNow(buffer: AudioBuffer, baseVolume: number, durationSec?: number): void {
     const ctx = this.ensureCtx();
     const out = this.out;
     if (!ctx || !out || this.prefs.muted) return;
@@ -196,7 +197,12 @@ class SfxEngineImpl {
     gain.gain.value = this.getFileVolume(baseVolume);
     source.connect(gain);
     gain.connect(out);
-    source.start();
+    const duration =
+      typeof durationSec === 'number'
+        ? Math.max(0.01, Math.min(durationSec, buffer.duration))
+        : undefined;
+    if (duration) source.start(ctx.currentTime, 0, duration);
+    else source.start();
     source.onended = () => {
       source.disconnect();
       gain.disconnect();
@@ -237,12 +243,17 @@ class SfxEngineImpl {
     });
   }
 
-  private playFileWithFallback(src: string, baseVolume: number, fallback: () => void): void {
+  private playFileWithFallback(
+    src: string,
+    baseVolume: number,
+    fallback: () => void,
+    durationSec?: number,
+  ): void {
     this.unlock();
     if (this.prefs.muted) return;
     const cached = this.fileCache.get(src);
     if (cached) {
-      this.playBufferNow(cached, baseVolume);
+      this.playBufferNow(cached, baseVolume, durationSec);
       return;
     }
     if (this.missingFiles.has(src)) {
@@ -250,7 +261,7 @@ class SfxEngineImpl {
       return;
     }
     void this.loadFileBuffer(src).then((buffer) => {
-      if (buffer && !this.prefs.muted) this.playBufferNow(buffer, baseVolume);
+      if (buffer && !this.prefs.muted) this.playBufferNow(buffer, baseVolume, durationSec);
       else if (!this.prefs.muted) fallback();
     });
   }
@@ -330,6 +341,10 @@ class SfxEngineImpl {
 
   tableCardFlip(): void {
     this.playFileWithFallback(TABLE_AUDIO.cardFlip, 0.62, () => this.syntheticCardFlip());
+  }
+
+  tableDominoFlip(): void {
+    this.playFileWithFallback(TABLE_AUDIO.dominoFlip, 0.72, () => this.syntheticDominoFlip(), 0.72);
   }
 
   // ───────── 程序合成 sound primitives ─────────
@@ -494,6 +509,43 @@ class SfxEngineImpl {
       peakGain: 0.04,
       delaySec: 0.085,
       filter: { type: 'bandpass', freq: 3400, q: 2.4 },
+    });
+  }
+
+  private syntheticDominoFlip(): void {
+    this.noise({
+      durationSec: 0.035,
+      peakGain: 0.12,
+      filter: { type: 'bandpass', freq: 1150, q: 5 },
+    });
+    this.tone({
+      freq: 320,
+      type: 'triangle',
+      durationSec: 0.075,
+      peakGain: 0.08,
+      pitchEndFreq: 180,
+      pitchSweepShape: 'linear',
+      attack: 0.002,
+      release: 0.045,
+      filter: { type: 'bandpass', freq: 540, q: 4 },
+    });
+    this.noise({
+      durationSec: 0.032,
+      peakGain: 0.088,
+      delaySec: 0.062,
+      filter: { type: 'bandpass', freq: 1450, q: 6 },
+    });
+    this.tone({
+      freq: 260,
+      type: 'triangle',
+      durationSec: 0.085,
+      peakGain: 0.052,
+      pitchEndFreq: 150,
+      pitchSweepShape: 'linear',
+      delaySec: 0.065,
+      attack: 0.002,
+      release: 0.055,
+      filter: { type: 'bandpass', freq: 420, q: 4 },
     });
   }
 
