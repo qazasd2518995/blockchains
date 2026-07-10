@@ -174,6 +174,24 @@ describe('local table game rules', () => {
     expect(first.banker.pieces).toEqual(second.banker.pieces);
   });
 
+  it('uses friendly room names and card-war kind for every Card War table variant', () => {
+    const amount = new Prisma.Decimal(100);
+
+    for (const gameId of CARD_WAR_GAME_IDS) {
+      const round = buildRound(
+        gameId,
+        amount,
+        { serverSeed: `card-war-room-${gameId}`, clientSeed: 'client', nonce: 9 },
+        0,
+      );
+
+      expect(round.gameId).toBe(gameId);
+      expect(round.kind).toBe('card-war');
+      expect(round.roomName).not.toBe(gameId);
+      expect(round.roomName).not.toContain('card-war');
+    }
+  });
+
   it('keeps every generated local-table result aligned with payout accounting', () => {
     const amount = new Prisma.Decimal(100);
 
