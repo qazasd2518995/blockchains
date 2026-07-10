@@ -54,6 +54,9 @@ export const HALLS: Record<HallId, HallMeta> = {
       GameId.BLACK_DOT_SHADOW,
       GameId.BLACK_DOT_GOLD,
       GameId.CARD_WAR,
+      GameId.CARD_WAR_NEON,
+      GameId.CARD_WAR_GOLD,
+      GameId.CARD_WAR_CRYSTAL,
       GameId.HILO,
     ],
   },
@@ -149,10 +152,7 @@ export function getVisibleHallById(
     : undefined;
 }
 
-export function getHallByGameId(
-  gameId: string,
-  username?: string | null,
-): HallMeta | undefined {
+export function getHallByGameId(gameId: string, username?: string | null): HallMeta | undefined {
   return getVisibleHallsForUsername(username).find((hall) =>
     hall.gameIds.includes(gameId as GameIdType),
   );

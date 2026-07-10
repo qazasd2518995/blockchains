@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import {
   BLACK_DOT_GAME_IDS,
-  GameId,
+  CARD_WAR_GAME_IDS,
   LOCAL_TABLE_GAME_IDS,
   MAX_BET_AMOUNT,
   MIN_BET_AMOUNT,
@@ -42,13 +42,13 @@ export const twentyOneHalfActiveQuerySchema = z.object({
 const stagedTableGameIds = [
   ...TUI_TONGZI_GAME_IDS,
   ...BLACK_DOT_GAME_IDS,
-  GameId.CARD_WAR,
+  ...CARD_WAR_GAME_IDS,
 ] as [
   (typeof TUI_TONGZI_GAME_IDS)[number],
   ...Array<
     | (typeof TUI_TONGZI_GAME_IDS)[number]
     | (typeof BLACK_DOT_GAME_IDS)[number]
-    | typeof GameId.CARD_WAR
+    | (typeof CARD_WAR_GAME_IDS)[number]
   >,
 ];
 

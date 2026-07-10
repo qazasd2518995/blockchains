@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { hmacIntStream } from '@bg/provably-fair';
 import {
   BLACK_DOT_GAME_IDS,
+  CARD_WAR_GAME_IDS,
   GameId,
   LOCAL_TABLE_GAME_IDS,
   TUI_TONGZI_GAME_IDS,
@@ -183,7 +184,7 @@ const BLACK_DOT_ID_SET = new Set<string>(BLACK_DOT_GAME_IDS);
 const STAGED_LOCAL_TABLE_GAME_IDS = [
   ...TUI_TONGZI_GAME_IDS,
   ...BLACK_DOT_GAME_IDS,
-  GameId.CARD_WAR,
+  ...CARD_WAR_GAME_IDS,
 ] as const;
 const STAGED_LOCAL_TABLE_ID_SET = new Set<string>(STAGED_LOCAL_TABLE_GAME_IDS);
 
@@ -234,16 +235,10 @@ const ROOM_CONFIGS: Record<LocalTableGameIdType, RoomConfig> = {
   [GameId.BLACK_DOT_STREET]: blackDotRoom(GameId.BLACK_DOT_STREET, '街頭黑粒'),
   [GameId.BLACK_DOT_SHADOW]: blackDotRoom(GameId.BLACK_DOT_SHADOW, '影武黑粒'),
   [GameId.BLACK_DOT_GOLD]: blackDotRoom(GameId.BLACK_DOT_GOLD, '金礦黑粒'),
-  [GameId.CARD_WAR]: {
-    gameId: GameId.CARD_WAR,
-    kind: 'card-war',
-    roomName: '王牌比大小',
-    ruleSummary: [
-      '閒家與莊家各發一張牌，A 最大，K 至 2 依序往下。',
-      '閒家牌面大於莊家即勝，小於莊家即負。',
-      '同點數視為和局，退回本金。',
-    ],
-  },
+  [GameId.CARD_WAR]: cardWarRoom(GameId.CARD_WAR, '王牌比大小'),
+  [GameId.CARD_WAR_NEON]: cardWarRoom(GameId.CARD_WAR_NEON, '霓夜比大小'),
+  [GameId.CARD_WAR_GOLD]: cardWarRoom(GameId.CARD_WAR_GOLD, '金爵比大小'),
+  [GameId.CARD_WAR_CRYSTAL]: cardWarRoom(GameId.CARD_WAR_CRYSTAL, '冰晶比大小'),
 };
 
 const CARD_SUITS: LocalTableCard['suit'][] = ['spades', 'hearts', 'diamonds', 'clubs'];
@@ -2254,6 +2249,19 @@ function blackDotRoom(gameId: LocalTableGameIdType, roomName: string): RoomConfi
       '使用天九牌三十二張，莊閒各四張。',
       '四張分成高低兩墩，對子大於點數，至尊寶為最大對。',
       '閒家高低兩墩都大於莊家才算勝，一勝一負為和，平點莊吃。',
+    ],
+  };
+}
+
+function cardWarRoom(gameId: LocalTableGameIdType, roomName: string): RoomConfig {
+  return {
+    gameId,
+    kind: 'card-war',
+    roomName,
+    ruleSummary: [
+      '閒家與莊家各發一張牌，A 最大，K 至 2 依序往下。',
+      '閒家牌面大於莊家即勝，小於莊家即負。',
+      '同點數視為和局，退回本金。',
     ],
   };
 }

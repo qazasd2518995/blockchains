@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import {
   BLACK_DOT_GAME_IDS,
+  CARD_WAR_GAME_IDS,
   LOCAL_TABLE_GAME_IDS,
   TUI_TONGZI_GAME_IDS,
   TWENTY_ONE_HALF_GAME_IDS,
@@ -227,7 +228,11 @@ describe('local table game rules', () => {
       controlId: 'test-loss',
     };
 
-    for (const gameId of [...TWENTY_ONE_HALF_GAME_IDS, ...TUI_TONGZI_GAME_IDS, GameId.CARD_WAR]) {
+    for (const gameId of [
+      ...TWENTY_ONE_HALF_GAME_IDS,
+      ...TUI_TONGZI_GAME_IDS,
+      ...CARD_WAR_GAME_IDS,
+    ]) {
       const seed = { serverSeed: `controlled-${gameId}`, clientSeed: 'client', nonce: 17 };
       const natural = buildRound(gameId, amount, seed, 0);
 
@@ -282,7 +287,7 @@ describe('local table game rules', () => {
       gameMatchedPayoutOnly: true,
     };
 
-    for (const gameId of [GameId.TUI_TONGZI_DRAGON, GameId.CARD_WAR]) {
+    for (const gameId of [GameId.TUI_TONGZI_DRAGON, ...CARD_WAR_GAME_IDS]) {
       const seed = { serverSeed: `cap-${gameId}`, clientSeed: 'client', nonce: 11 };
       const natural = buildRound(gameId, amount, seed, 0);
       const { round, control: effectiveControl } = shapeRoundForControl(

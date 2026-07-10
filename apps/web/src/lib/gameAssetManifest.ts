@@ -73,6 +73,9 @@ const LOCAL_TABLE_GAME_IDS = [
   'black-dot-shadow',
   'black-dot-gold',
   'card-war',
+  'card-war-neon',
+  'card-war-gold',
+  'card-war-crystal',
 ] as const;
 const TUI_TONGZI_GAME_IDS = new Set([
   'tui-tongzi-dragon',
@@ -93,6 +96,9 @@ const POKER_LOCAL_TABLE_GAME_IDS = new Set([
   'twenty-one-half-bunny',
   'twenty-one-half-star',
   'card-war',
+  'card-war-neon',
+  'card-war-gold',
+  'card-war-crystal',
 ]);
 const LOCAL_TABLE_STAGE_ART: Partial<Record<string, string>> = {
   'twenty-one-half-doll': '/game-art/local-table/stages/rooms/ten-half-doll-stage.webp',
@@ -109,6 +115,9 @@ const LOCAL_TABLE_STAGE_ART: Partial<Record<string, string>> = {
   'black-dot-shadow': '/game-art/local-table/stages/rooms/black-dot-shadow-stage.webp',
   'black-dot-gold': '/game-art/local-table/stages/rooms/black-dot-gold-stage.webp',
   'card-war': '/game-art/local-table/stages/rooms/card-war-stage.webp',
+  'card-war-neon': '/game-art/local-table/card-war-neon-cover.webp',
+  'card-war-gold': '/game-art/local-table/card-war-gold-cover.webp',
+  'card-war-crystal': '/game-art/local-table/card-war-crystal-cover.webp',
 };
 const MAHJONG_TILE_ASSETS = [
   '/game-art/mahjong/Back.svg',
@@ -307,7 +316,7 @@ function localTableStageArt(gameId: string): string {
   if (roomStage) return roomStage;
   if (TUI_TONGZI_GAME_IDS.has(gameId)) return '/game-art/local-table/stages/tui-tongzi-stage.webp';
   if (BLACK_DOT_GAME_IDS.has(gameId)) return '/game-art/local-table/stages/black-dot-stage.webp';
-  if (gameId === 'card-war') return '/game-art/local-table/stages/card-war-stage.webp';
+  if (gameId.startsWith('card-war')) return '/game-art/local-table/stages/card-war-stage.webp';
   return '/game-art/local-table/stages/ten-half-stage.webp';
 }
 

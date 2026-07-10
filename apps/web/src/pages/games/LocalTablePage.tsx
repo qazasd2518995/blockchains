@@ -3,6 +3,7 @@ import { AlertCircle, Sparkles } from 'lucide-react';
 import { Sfx } from '@bg/game-engine';
 import {
   BLACK_DOT_GAME_IDS,
+  CARD_WAR_GAME_IDS,
   GameId,
   MIN_BET_AMOUNT,
   TUI_TONGZI_GAME_IDS,
@@ -212,13 +213,50 @@ const ROOM_THEMES: Record<LocalTableGameIdType, RoomTheme> = {
     '王牌荷官',
     '/game-art/local-table/stages/rooms/card-war-stage.webp',
   ),
+  [GameId.CARD_WAR_NEON]: roomTheme(
+    '霓夜比大小',
+    'NEON WAR',
+    '霓虹賽博牌桌 · 單張比大小 · A 最大',
+    'CARD_WAR_NEON',
+    '#22D3EE',
+    '#F472B6',
+    '#07111F',
+    '霓',
+    '霓夜荷官',
+    '/game-art/local-table/card-war-neon-cover.webp',
+  ),
+  [GameId.CARD_WAR_GOLD]: roomTheme(
+    '金爵比大小',
+    'GOLD WAR',
+    '黑金殿堂牌桌 · 單張比大小 · 平手退回本金',
+    'CARD_WAR_GOLD',
+    '#F59E0B',
+    '#FDE68A',
+    '#221303',
+    '金',
+    '金爵荷官',
+    '/game-art/local-table/card-war-gold-cover.webp',
+  ),
+  [GameId.CARD_WAR_CRYSTAL]: roomTheme(
+    '冰晶比大小',
+    'CRYSTAL WAR',
+    '冰晶藍光牌桌 · 單張比大小 · 莊閒即開牌',
+    'CARD_WAR_CRYSTAL',
+    '#60A5FA',
+    '#BAE6FD',
+    '#06172F',
+    '冰',
+    '冰晶荷官',
+    '/game-art/local-table/card-war-crystal-cover.webp',
+  ),
 };
 
 const TWENTY_ONE_HALF_PAGE_IDS = new Set<LocalTableGameIdType>([...TWENTY_ONE_HALF_GAME_IDS]);
+const CARD_WAR_PAGE_IDS = new Set<LocalTableGameIdType>([...CARD_WAR_GAME_IDS]);
 const STAGED_TABLE_PAGE_IDS = new Set<LocalTableGameIdType>([
   ...TUI_TONGZI_GAME_IDS,
   ...BLACK_DOT_GAME_IDS,
-  GameId.CARD_WAR,
+  ...CARD_WAR_GAME_IDS,
 ]);
 const MAHJONG_BACK_SRC = '/game-art/mahjong/Back.svg';
 
@@ -238,7 +276,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
   const isStagedTable = STAGED_TABLE_PAGE_IDS.has(gameId);
   const isTuiTongzi = TUI_TONGZI_GAME_IDS.includes(gameId as (typeof TUI_TONGZI_GAME_IDS)[number]);
   const isBlackDot = BLACK_DOT_GAME_IDS.includes(gameId as (typeof BLACK_DOT_GAME_IDS)[number]);
-  const isCardWar = gameId === GameId.CARD_WAR;
+  const isCardWar = CARD_WAR_PAGE_IDS.has(gameId);
   const displayRound = isTwentyOneHalf ? tenHalfState : isStagedTable ? stagedState : result;
   const extraHands =
     displayRound && 'extraHands' in displayRound ? displayRound.extraHands : undefined;

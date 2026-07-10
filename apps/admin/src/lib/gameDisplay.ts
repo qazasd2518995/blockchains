@@ -1,5 +1,6 @@
 import {
   BLACK_DOT_GAME_IDS,
+  CARD_WAR_GAME_IDS,
   GAMES_REGISTRY,
   LOCAL_TABLE_GAME_IDS,
   TUI_TONGZI_GAME_IDS,
@@ -24,6 +25,9 @@ const LOCAL_TABLE_TITLE_FALLBACK: Record<string, string> = {
   'black-dot-shadow': '影武黑粒',
   'black-dot-gold': '金礦黑粒',
   'card-war': '王牌比大小',
+  'card-war-neon': '霓夜比大小',
+  'card-war-gold': '金爵比大小',
+  'card-war-crystal': '冰晶比大小',
 };
 
 const LOCAL_TABLE_ENGLISH_TITLE_FALLBACK: Record<string, string> = {
@@ -41,12 +45,16 @@ const LOCAL_TABLE_ENGLISH_TITLE_FALLBACK: Record<string, string> = {
   'black-dot-shadow': 'Shadow Black Dot',
   'black-dot-gold': 'Golden Black Dot',
   'card-war': 'Card War',
+  'card-war-neon': 'Neon High Card',
+  'card-war-gold': 'Golden High Card',
+  'card-war-crystal': 'Crystal High Card',
 };
 
 const LOCAL_TABLE_GAME_ID_SET = new Set<string>(LOCAL_TABLE_GAME_IDS);
 const TWENTY_ONE_HALF_GAME_ID_SET = new Set<string>(TWENTY_ONE_HALF_GAME_IDS);
 const TUI_TONGZI_GAME_ID_SET = new Set<string>(TUI_TONGZI_GAME_IDS);
 const BLACK_DOT_GAME_ID_SET = new Set<string>(BLACK_DOT_GAME_IDS);
+const CARD_WAR_GAME_ID_SET = new Set<string>(CARD_WAR_GAME_IDS);
 
 export function getAdminGameTitle(gameId: string, locale: Locale = 'zh-Hant'): string {
   const meta = getGameMeta(gameId);
@@ -99,7 +107,7 @@ function getLocalTableSubtitleZhHant(gameId: string): string | null {
   if (gameId === 'tui-tongzi-gold') return '牌桌遊戲 · 推萬子';
   if (TUI_TONGZI_GAME_ID_SET.has(gameId)) return '牌桌遊戲 · 推筒子';
   if (BLACK_DOT_GAME_ID_SET.has(gameId)) return '牌桌遊戲 · 黑粒仔';
-  if (gameId === 'card-war') return '牌桌遊戲 · 比大小';
+  if (CARD_WAR_GAME_ID_SET.has(gameId)) return '牌桌遊戲 · 比大小';
   return null;
 }
 
@@ -109,6 +117,6 @@ function getLocalTableSubtitleEnglish(gameId: string): string | null {
   if (gameId === 'tui-tongzi-gold') return 'Table Game · Wanzi';
   if (TUI_TONGZI_GAME_ID_SET.has(gameId)) return 'Table Game · Tongzi';
   if (BLACK_DOT_GAME_ID_SET.has(gameId)) return 'Table Game · Black Dot';
-  if (gameId === 'card-war') return 'Table Game · High Card';
+  if (CARD_WAR_GAME_ID_SET.has(gameId)) return 'Table Game · High Card';
   return null;
 }

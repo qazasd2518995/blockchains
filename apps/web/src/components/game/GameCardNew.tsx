@@ -28,6 +28,9 @@ const HAS_COVER = new Set<string>([
   'black-dot-shadow',
   'black-dot-gold',
   'card-war',
+  'card-war-neon',
+  'card-war-gold',
+  'card-war-crystal',
   'dice',
   'mines',
   'hilo',
@@ -108,9 +111,7 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
           <strong className="num max-w-full truncate text-[11px] font-black leading-none">
             {multiplierLabel}
           </strong>
-          <small className="mt-0.5 text-[8px] font-black leading-none">
-            最高爆分
-          </small>
+          <small className="mt-0.5 text-[8px] font-black leading-none">最高爆分</small>
         </span>
         {cover ? (
           <ResponsiveImage

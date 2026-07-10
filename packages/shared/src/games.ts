@@ -17,6 +17,9 @@ export const GameId = {
   BLACK_DOT_SHADOW: 'black-dot-shadow',
   BLACK_DOT_GOLD: 'black-dot-gold',
   CARD_WAR: 'card-war',
+  CARD_WAR_NEON: 'card-war-neon',
+  CARD_WAR_GOLD: 'card-war-gold',
+  CARD_WAR_CRYSTAL: 'card-war-crystal',
   DICE: 'dice',
   MINES: 'mines',
   HILO: 'hilo',
@@ -82,11 +85,19 @@ export const BLACK_DOT_GAME_IDS = [
 ] as const;
 export type BlackDotGameIdType = (typeof BLACK_DOT_GAME_IDS)[number];
 
+export const CARD_WAR_GAME_IDS = [
+  GameId.CARD_WAR,
+  GameId.CARD_WAR_NEON,
+  GameId.CARD_WAR_GOLD,
+  GameId.CARD_WAR_CRYSTAL,
+] as const;
+export type CardWarGameIdType = (typeof CARD_WAR_GAME_IDS)[number];
+
 export const LOCAL_TABLE_GAME_IDS = [
   ...TWENTY_ONE_HALF_GAME_IDS,
   ...TUI_TONGZI_GAME_IDS,
   ...BLACK_DOT_GAME_IDS,
-  GameId.CARD_WAR,
+  ...CARD_WAR_GAME_IDS,
 ] as const;
 export type LocalTableGameIdType = (typeof LOCAL_TABLE_GAME_IDS)[number];
 
@@ -334,6 +345,39 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     category: 'table',
     description: 'Single-card high card showdown against the banker.',
     descriptionZh: '撲克牌單張比大小，A 最大，平手退回本金',
+    rtp: 0.96,
+    icon: 'cards',
+    enabled: true,
+  },
+  [GameId.CARD_WAR_NEON]: {
+    id: GameId.CARD_WAR_NEON,
+    name: 'Neon High Card',
+    nameZh: '霓夜比大小',
+    category: 'table',
+    description: 'Cyberpunk high card showdown against the banker.',
+    descriptionZh: '霓虹主題單張比大小，A 最大，平手退回本金',
+    rtp: 0.96,
+    icon: 'cards',
+    enabled: true,
+  },
+  [GameId.CARD_WAR_GOLD]: {
+    id: GameId.CARD_WAR_GOLD,
+    name: 'Golden High Card',
+    nameZh: '金爵比大小',
+    category: 'table',
+    description: 'Black-and-gold high card showdown against the banker.',
+    descriptionZh: '金爵主題單張比大小，A 最大，平手退回本金',
+    rtp: 0.96,
+    icon: 'cards',
+    enabled: true,
+  },
+  [GameId.CARD_WAR_CRYSTAL]: {
+    id: GameId.CARD_WAR_CRYSTAL,
+    name: 'Crystal High Card',
+    nameZh: '冰晶比大小',
+    category: 'table',
+    description: 'Crystal casino high card showdown against the banker.',
+    descriptionZh: '冰晶主題單張比大小，A 最大，平手退回本金',
     rtp: 0.96,
     icon: 'cards',
     enabled: true,
