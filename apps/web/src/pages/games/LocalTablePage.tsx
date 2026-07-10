@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { AlertCircle, Sparkles } from 'lucide-react';
+import { Sfx } from '@bg/game-engine';
 import {
   BLACK_DOT_GAME_IDS,
   GameId,
@@ -301,6 +302,10 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
             : isStagedTable
               ? '等待入局'
               : '等待開牌';
+
+  useEffect(() => {
+    Sfx.preloadTableGames();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1029,12 +1034,17 @@ function CardWarHiddenCard({
   active?: boolean;
   onReveal?: () => void;
 }) {
+  const handleClick = (): void => {
+    Sfx.tableCardFlip();
+    onReveal?.();
+  };
+
   return (
     <button
       type="button"
       className={`card-war-hidden-card ${active ? 'card-war-hidden-card--active' : ''}`}
       disabled={disabled}
-      onClick={onReveal}
+      onClick={handleClick}
       aria-label={label}
     >
       <span className="card-war-hidden-card__shine" aria-hidden="true" />
@@ -1198,12 +1208,17 @@ function TuiTongziHiddenTile({
   active?: boolean;
   onClick?: () => void;
 }) {
+  const handleClick = (): void => {
+    Sfx.tableMahjongFlip();
+    onClick?.();
+  };
+
   return (
     <button
       type="button"
       className={`tui-tongzi-hidden-tile ${active ? 'tui-tongzi-hidden-tile--active' : ''}`}
       disabled={disabled}
-      onClick={onClick}
+      onClick={handleClick}
       aria-label={label}
     >
       <span className="tui-tongzi-hidden-tile__shine" aria-hidden="true" />
