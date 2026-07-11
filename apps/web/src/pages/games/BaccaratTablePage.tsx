@@ -110,9 +110,10 @@ const BET_CONTROL_OPTIONS = BET_CONTROL_ORDER.map(
   (side) => BET_OPTIONS.find((option) => option.side === side)!,
 );
 
-const BACCARAT_REVEAL_INITIAL_DELAY_MS = 180;
-const BACCARAT_REVEAL_STEP_MS = 520;
-const BACCARAT_REVEAL_SETTLE_MS = 360;
+const BACCARAT_REVEAL_INITIAL_DELAY_MS = 280;
+const BACCARAT_REVEAL_STEP_MS = 760;
+const BACCARAT_REVEAL_THIRD_CARD_PAUSE_MS = 1180;
+const BACCARAT_REVEAL_SETTLE_MS = 520;
 const INITIAL_REVEAL_STATE: BaccaratRevealState = { player: 0, banker: 0, complete: false };
 
 const CARD_FILE_RANKS = [
@@ -136,6 +137,10 @@ interface BaccaratRevealState {
   player: number;
   banker: number;
   complete: boolean;
+}
+
+interface BaccaratRevealStep extends BaccaratRevealState {
+  isThirdCard?: boolean;
 }
 
 export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
@@ -186,8 +191,8 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
       const payload: BaccaratTableBetRequest = { gameId, amount, side };
       const res = await api.post<BaccaratTableBetResult>('/games/baccarat/bet', payload);
       setResult(res.data);
-      setBalance(res.data.newBalance);
       await revealBaccaratRound(res.data, revealRunRef, setRevealState);
+      setBalance(res.data.newBalance);
     } catch (err) {
       if (previousBalance) setBalance(previousBalance);
       setResult(null);
@@ -291,7 +296,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
               />
             </div>
 
-            <div className="baccarat-result-card relative z-10 mt-4 rounded-[18px] border border-white/12 bg-white/[0.92] p-4 text-[#172033] shadow-[0_16px_36px_rgba(0,0,0,0.16)]">
+            <div className="baccarat-result-card relative z-10 mt-auto rounded-[18px] border border-white/12 bg-white/[0.92] p-4 text-[#172033] shadow-[0_16px_36px_rgba(0,0,0,0.16)]">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#64748B]">
@@ -302,7 +307,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
                       ? result?.summary
                       : result
                         ? '牌局進行中，依序翻開閒莊前兩張，補牌最後揭曉。'
-                        : `目前選擇：${selectedOption.title}。下注後依標準百家樂補牌表立即開牌。`}
+                        : `目前選擇：${selectedOption.title}。下注後立即開牌。`}
                   </div>
                   {revealComplete ? (
                     <div className="mt-2 text-[12px] font-semibold text-[#64748B]">
@@ -358,21 +363,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
         <aside className="game-control-stack game-side-stack space-y-4">
           <div className="game-side-card baccarat-control-card p-5">
             <div className="baccarat-bet-panel mb-4 rounded-[18px] border border-[#F59E0B]/35 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,251,235,0.94))] p-3 text-[#172033] shadow-[0_12px_28px_rgba(15,23,42,0.13)]">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="baccarat-selected-label text-[11px] font-black uppercase tracking-[0.16em] text-[#92400E]">
-                    下注區
-                  </div>
-                  <div className="baccarat-selected-title mt-1 text-[15px] font-black text-[#172033]">
-                    選擇下注門
-                  </div>
-                </div>
-                <div className="rounded-full bg-[#111827] px-3 py-1 text-[11px] font-black text-[#FDE68A]">
-                  {selectedOption.title} · {selectedOption.payout}
-                </div>
-              </div>
-
-              <div className="baccarat-bet-option-grid mt-3 grid grid-cols-3 gap-2">
+              <div className="baccarat-bet-option-grid grid grid-cols-3 gap-2">
                 {BET_CONTROL_OPTIONS.map((option) => {
                   const selected = side === option.side;
                   return (
@@ -384,7 +375,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
                         setSide(option.side);
                       }}
                       disabled={busy}
-                      className={`baccarat-bet-button baccarat-bet-button--${option.side} rounded-[14px] border px-2 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/85 disabled:cursor-not-allowed disabled:opacity-55 ${
+                      className={`baccarat-bet-button baccarat-bet-button--${option.side} flex flex-col items-center justify-center rounded-[14px] border px-2 py-3 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/85 disabled:cursor-not-allowed disabled:opacity-55 ${
                         selected
                           ? 'baccarat-bet-button--selected ring-2 ring-[#FDE68A]/80'
                           : 'hover:brightness-110'
@@ -400,10 +391,6 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
                   );
                 })}
               </div>
-
-              <p className="baccarat-selected-hint mt-1 text-[12px] font-semibold leading-5 text-[#64748B]">
-                {selectedOption.hint}
-              </p>
             </div>
             <BetControls
               amount={amount}
@@ -447,6 +434,7 @@ function BaccaratHandPanel({
   const cards = hand?.cards ?? [];
   const slotCount = Math.max(2, cards.length >= 3 ? Math.min(fullCardCount, cards.length) : 2);
   const scoreLabel = cards.length > 0 ? `${hand?.points ?? 0}點` : busy ? '等待翻牌' : '待開牌';
+  const hasThirdCard = slotCount >= 3;
   return (
     <div
       className={`baccarat-hand-panel rounded-[20px] border p-4 backdrop-blur ${
@@ -474,16 +462,22 @@ function BaccaratHandPanel({
         ) : null}
       </div>
 
-      <div className="baccarat-card-row mt-4 flex min-h-[118px] flex-wrap items-center gap-2">
+      <div
+        className={`baccarat-card-row mt-4 flex min-h-[118px] flex-wrap items-center gap-2 ${
+          hasThirdCard ? 'baccarat-card-row--third' : ''
+        }`}
+      >
         {Array.from({ length: slotCount }, (_, index) => {
           const card = cards[index];
+          const isThirdCard = index === 2;
           return card ? (
-              <PlayingCard
-                key={`${roundKey}-${card.label}-${index}`}
-                card={card}
-                accent={accent}
-                index={index}
-              />
+            <PlayingCard
+              key={`${roundKey}-${card.label}-${index}`}
+              card={card}
+              accent={accent}
+              index={index}
+              isThirdCard={isThirdCard}
+            />
           ) : (
             <CardBack key={`${roundKey}-back-${index}`} busy={busy} accent={accent} />
           );
@@ -497,14 +491,18 @@ function PlayingCard({
   card,
   accent,
   index,
+  isThirdCard = false,
 }: {
   card: BaccaratTableCard;
   accent: string;
   index: number;
+  isThirdCard?: boolean;
 }) {
   return (
     <span
-      className="baccarat-playing-card baccarat-card-flip-shell h-[112px] w-[76px]"
+      className={`baccarat-playing-card baccarat-card-flip-shell h-[112px] w-[76px] ${
+        isThirdCard ? 'baccarat-playing-card--third' : ''
+      }`}
       style={{ '--baccarat-card-index': index, '--baccarat-card-accent': accent } as CSSProperties}
     >
       <span className="baccarat-card-flipper">
@@ -549,6 +547,8 @@ async function revealBaccaratRound(
   await wait(BACCARAT_REVEAL_INITIAL_DELAY_MS);
   for (const step of steps) {
     if (runId !== revealRunRef.current) return;
+    if (step.isThirdCard) await wait(BACCARAT_REVEAL_THIRD_CARD_PAUSE_MS);
+    if (runId !== revealRunRef.current) return;
     Sfx.tableCardFlip();
     setRevealState({ ...step, complete: false });
     await wait(BACCARAT_REVEAL_STEP_MS);
@@ -564,15 +564,16 @@ async function revealBaccaratRound(
   });
 }
 
-function buildBaccaratRevealSteps(round: BaccaratTableBetResult): BaccaratRevealState[] {
-  const steps: BaccaratRevealState[] = [];
+function buildBaccaratRevealSteps(round: BaccaratTableBetResult): BaccaratRevealStep[] {
+  const steps: BaccaratRevealStep[] = [];
   const playerMax = round.player.cards.length;
   const bankerMax = round.banker.cards.length;
-  const push = (player: number, banker: number) => {
+  const push = (player: number, banker: number, isThirdCard = false) => {
     const next = {
       player: Math.min(player, playerMax),
       banker: Math.min(banker, bankerMax),
       complete: false,
+      isThirdCard,
     };
     const previous = steps.at(-1);
     if (!previous || previous.player !== next.player || previous.banker !== next.banker) {
@@ -584,8 +585,8 @@ function buildBaccaratRevealSteps(round: BaccaratTableBetResult): BaccaratReveal
   push(1, 1);
   push(2, 1);
   push(2, 2);
-  if (playerMax > 2) push(3, 2);
-  if (bankerMax > 2) push(playerMax, 3);
+  if (playerMax > 2) push(3, 2, true);
+  if (bankerMax > 2) push(playerMax, 3, true);
   return steps;
 }
 
