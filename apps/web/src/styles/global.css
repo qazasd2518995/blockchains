@@ -14883,7 +14883,16 @@
   .game-warm-shell .blackjack-score-tile:first-child .blackjack-score-tile__value,
   .game-fullscreen-shell[data-game-id='blackjack']
     .blackjack-score-tile:first-child
-    .blackjack-score-tile__value,
+    .blackjack-score-tile__value {
+    color: #9a4b00 !important;
+    font-weight: 950 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.82),
+      0 0 1px rgba(120, 53, 15, 0.32) !important;
+  }
+
   .game-warm-shell .blackjack-hand-bet-pill,
   .game-fullscreen-shell[data-game-id='blackjack'] .blackjack-hand-bet-pill {
     color: #9a4b00 !important;
