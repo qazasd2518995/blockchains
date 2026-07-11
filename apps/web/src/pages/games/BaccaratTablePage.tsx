@@ -225,9 +225,14 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
         <div className="game-main-stack space-y-4">
           <section
             className="game-stage-panel baccarat-stage-panel scanlines relative min-h-[560px] overflow-hidden rounded-[22px] border border-white/10 p-3 shadow-[0_24px_60px_rgba(0,0,0,0.25)] sm:min-h-[660px] sm:p-5"
-            style={{
-              background: `radial-gradient(circle at 50% 10%, ${themeConfig.accent}33, transparent 30%), linear-gradient(180deg, ${themeConfig.felt}, #050812 74%)`,
-            }}
+            style={
+              {
+                '--baccarat-theme-accent': themeConfig.accent,
+                '--baccarat-theme-secondary': themeConfig.secondary,
+                '--baccarat-theme-felt': themeConfig.felt,
+                background: `radial-gradient(circle at 50% 10%, ${themeConfig.accent}33, transparent 30%), linear-gradient(180deg, ${themeConfig.felt}, #050812 74%)`,
+              } as CSSProperties
+            }
           >
             <ResponsiveImage
               src={themeConfig.cover}
@@ -239,10 +244,10 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
               fetchPriority="high"
               width={1024}
               height={1365}
-              className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_22%] opacity-55"
+              className="baccarat-stage-art pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_22%] opacity-55"
             />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(5,8,18,0.18)_0%,rgba(5,8,18,0.42)_36%,rgba(5,8,18,0.94)_100%)]" />
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(255,255,255,0.14),transparent_28%)]" />
+            <div className="baccarat-stage-vignette pointer-events-none absolute inset-0" />
+            <div className="baccarat-stage-glow pointer-events-none absolute inset-0" />
 
             <div className="baccarat-stage-header relative z-10 flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3">
               <div>
@@ -442,6 +447,7 @@ function BaccaratHandPanel({
           ? 'baccarat-hand-panel--active border-white/32 bg-slate-950/72'
           : 'baccarat-hand-panel--idle border-white/16 bg-slate-950/64'
       }`}
+      style={{ '--baccarat-panel-accent': accent } as CSSProperties}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
