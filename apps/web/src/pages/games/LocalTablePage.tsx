@@ -856,15 +856,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
                   : '開牌中'
                 : isTenHalfActive || isStagedActive
                   ? '牌局進行中'
-                  : isTwentyOneHalf
-                    ? tenHalfState?.status === 'SETTLED'
-                      ? '下一局發牌'
-                      : '下注發牌'
-                    : isStagedTable
-                      ? stagedState?.status === 'SETTLED'
-                        ? '下一局入局'
-                        : '下注入局'
-                      : '下注開牌'}
+                  : `下注・${formatAmount(amount)}`}
             </button>
           </div>
         </aside>

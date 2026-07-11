@@ -4534,12 +4534,17 @@
 
     .game-fullscreen-shell[data-game-id^='baccarat'] .baccarat-hands-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      flex: 1 1 auto;
       gap: 0.4rem !important;
       margin-top: 0.4rem !important;
+      min-height: 0;
     }
 
     .game-fullscreen-shell[data-game-id^='baccarat'] .baccarat-hand-panel {
+      display: flex;
       min-width: 0;
+      min-height: 0;
+      flex-direction: column;
       border-radius: 14px !important;
       background:
         linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.72)),
@@ -4581,21 +4586,25 @@
     }
 
     .game-fullscreen-shell[data-game-id^='baccarat'] .baccarat-card-row {
-      min-height: 75px !important;
+      min-height: 0 !important;
+      flex: 1 1 auto;
       flex-wrap: nowrap !important;
       gap: 0.28rem !important;
       margin-top: 0.42rem !important;
+      align-items: center !important;
+      justify-content: center !important;
       overflow: hidden;
     }
 
     .game-fullscreen-shell[data-game-id^='baccarat'] .baccarat-card-row--third {
       display: grid !important;
       grid-template-columns: repeat(2, max-content);
-      justify-content: start;
+      justify-content: center;
       align-items: center;
-      min-height: 122px !important;
-      row-gap: 0.16rem !important;
-      column-gap: 0.28rem !important;
+      min-height: 0 !important;
+      row-gap: 0.22rem !important;
+      column-gap: 0.38rem !important;
+      align-content: center;
       overflow: visible;
     }
 
@@ -4609,10 +4618,10 @@
 
     .game-fullscreen-shell[data-game-id^='baccarat'] .baccarat-playing-card,
     .game-fullscreen-shell[data-game-id^='baccarat'] .baccarat-card-back {
-      width: clamp(42px, 12.5vw, 54px) !important;
+      width: clamp(58px, 17.2vw, 72px) !important;
       height: auto !important;
       aspect-ratio: 76 / 112;
-      border-radius: 7px !important;
+      border-radius: 8px !important;
     }
 
     .game-fullscreen-shell[data-game-id^='baccarat'] .baccarat-result-card {

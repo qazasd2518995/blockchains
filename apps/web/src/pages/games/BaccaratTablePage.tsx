@@ -405,7 +405,7 @@ export function BaccaratTablePage({ gameId }: BaccaratTablePageProps) {
               disabled={busy || amount < MIN_BET_AMOUNT || amount > balance}
               className="baccarat-submit-button mt-4 inline-flex h-14 w-full items-center justify-center rounded-[14px] bg-[#EA580C] text-[16px] font-black text-white shadow-[0_12px_28px_rgba(234,88,12,0.28)] transition hover:bg-[#C2410C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A]/75 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              {busy ? '開牌中' : result ? '下一局下注' : '下注開牌'} · {formatAmount(amount)}
+              {busy ? '開牌中' : `下注・${formatAmount(amount)}`}
             </button>
           </div>
         </aside>
