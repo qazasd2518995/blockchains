@@ -14808,3 +14808,42 @@
     }
   }
 }
+
+@layer components {
+  .game-warm-shell .baccarat-hand-panel .baccarat-hand-title,
+  .game-fullscreen-shell[data-game-id^='baccarat'] .baccarat-hand-title {
+    color: rgba(255, 255, 255, 0.96) !important;
+    text-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.82),
+      0 0 8px rgba(15, 23, 42, 0.64) !important;
+  }
+
+  .game-warm-shell .baccarat-hand-panel .baccarat-hand-score,
+  .game-fullscreen-shell[data-game-id^='baccarat'] .baccarat-hand-score {
+    color: #fff7ed !important;
+    -webkit-text-stroke: 0.2px rgba(255, 255, 255, 0.42);
+    text-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.88),
+      0 0 12px rgba(255, 247, 237, 0.3) !important;
+  }
+
+  .game-warm-shell .keno-result-title,
+  .game-fullscreen-shell[data-game-id='keno'] .keno-result-title {
+    color: #243041 !important;
+    font-weight: 950 !important;
+    user-select: none;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9),
+      0 0 1px rgba(15, 23, 42, 0.36) !important;
+  }
+
+  .game-warm-shell .keno-result-meta,
+  .game-warm-shell .keno-result-label,
+  .game-fullscreen-shell[data-game-id='keno'] .keno-result-meta,
+  .game-fullscreen-shell[data-game-id='keno'] .keno-result-label {
+    color: rgba(36, 48, 65, 0.74) !important;
+    font-weight: 900 !important;
+    user-select: none;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+  }
+}

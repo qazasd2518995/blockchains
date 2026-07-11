@@ -882,15 +882,15 @@ export function KenoPage() {
             >
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="font-display text-4xl text-white">
+                  <div className="keno-result-title font-display text-4xl">
                     {result.hitCount} / {result.selected.length} {t.games.keno.hits}
                   </div>
-                  <div className="mt-1 text-[11px] tracking-[0.25em] text-white/75">
+                  <div className="keno-result-meta mt-1 text-[11px] tracking-[0.25em]">
                     {formatMultiplier(result.multiplier)} {t.games.dice.payout}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] text-white/55">{t.history.net}</div>
+                  <div className="keno-result-label text-[10px]">{t.history.net}</div>
                   <div
                     className={`num text-3xl ${
                       Number.parseFloat(result.profit) >= 0 ? 'text-[#7DD3FC]' : 'text-[#FCA5A5]'
