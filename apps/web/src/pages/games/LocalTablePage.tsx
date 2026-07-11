@@ -1523,12 +1523,17 @@ function BlackDotMound({
   hand?: LocalTableHand;
   tone: 'player' | 'banker';
 }) {
+  const scoreLabel = hand?.scoreLabel?.trim();
+  const rankLabel = hand?.rankLabel?.trim();
+  const displayRankLabel = rankLabel ?? (!hand ? '待開' : '');
+  const showRankLabel = Boolean(displayRankLabel && displayRankLabel !== scoreLabel);
+
   return (
     <div className="black-dot-mound">
       <div className="black-dot-mound__header">
         <span>{title}</span>
         <strong>{hand?.scoreLabel ?? '--'}</strong>
-        <em>{hand?.rankLabel ?? '待開'}</em>
+        {showRankLabel ? <em>{displayRankLabel}</em> : null}
       </div>
       <div className="black-dot-mound__tiles">
         {hand?.pieces.length ? (

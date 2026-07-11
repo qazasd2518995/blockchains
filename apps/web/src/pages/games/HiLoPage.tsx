@@ -265,23 +265,27 @@ export function HiLoPage() {
                   type="button"
                   onClick={() => handleGuess('higher')}
                   disabled={!isActive || busy}
-                  className="hilo-choice-card group rounded-[16px] border border-[rgba(9,184,38,0.22)] bg-[linear-gradient(180deg,rgba(9,184,38,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-4 text-left transition hover:border-[rgba(9,184,38,0.38)] hover:bg-[linear-gradient(180deg,rgba(9,184,38,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40 sm:rounded-[20px] sm:p-5"
+                  className="hilo-choice-card group rounded-[16px] border border-[rgba(9,184,38,0.28)] bg-[linear-gradient(180deg,rgba(236,253,245,0.96)_0%,rgba(255,255,255,0.94)_100%)] p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_12px_28px_rgba(15,23,42,0.08)] transition hover:border-[rgba(9,184,38,0.44)] hover:bg-[linear-gradient(180deg,rgba(220,252,231,0.98)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40 sm:rounded-[20px] sm:p-5"
                 >
-                  <div className="text-[10px] tracking-[0.3em] text-white/55">
+                  <div className="hilo-choice-kicker text-[10px] font-black tracking-[0.3em] text-[#0F766E]/70">
                     {t.games.hilo.higher}
                   </div>
-                  <div className="mt-1 font-display text-2xl text-[#6EE7B7] sm:text-3xl">
+                  <div className="hilo-choice-title mt-1 font-display text-2xl text-[#059669] sm:text-3xl">
                     ▲ {t.games.hilo.high}
                   </div>
-                  <div className="mt-2 flex items-baseline justify-between text-[11px]">
-                    <span className="text-white/75">{t.games.hilo.chance}</span>
-                    <span className="data-num text-white">
+                  <div className="hilo-choice-stat-row mt-2 flex items-baseline justify-between rounded-[10px] bg-white/[0.72] px-2 py-1 text-[11px] shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+                    <span className="hilo-choice-stat-label font-black text-[#64748B]">
+                      {t.games.hilo.chance}
+                    </span>
+                    <span className="hilo-choice-stat-value data-num font-black text-[#172033]">
                       {(round.higherChance * 100).toFixed(1)}%
                     </span>
                   </div>
-                  <div className="flex items-baseline justify-between text-[11px]">
-                    <span className="text-white/75">{t.games.hilo.nextMult}</span>
-                    <span className="data-num text-[#6EE7B7]">
+                  <div className="hilo-choice-stat-row flex items-baseline justify-between rounded-[10px] bg-white/[0.72] px-2 py-1 text-[11px] shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+                    <span className="hilo-choice-stat-label font-black text-[#64748B]">
+                      {t.games.hilo.nextMult}
+                    </span>
+                    <span className="hilo-choice-stat-value hilo-choice-stat-value--higher data-num font-black text-[#059669]">
                       {formatMultiplier(round.higherMultiplier)}
                     </span>
                   </div>
@@ -290,23 +294,27 @@ export function HiLoPage() {
                   type="button"
                   onClick={() => handleGuess('lower')}
                   disabled={!isActive || busy}
-                  className="hilo-choice-card group rounded-[16px] border border-[rgba(212,87,74,0.22)] bg-[linear-gradient(180deg,rgba(212,87,74,0.08)_0%,rgba(255,255,255,0.94)_100%)] p-4 text-left transition hover:border-[rgba(212,87,74,0.38)] hover:bg-[linear-gradient(180deg,rgba(212,87,74,0.12)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40 sm:rounded-[20px] sm:p-5"
+                  className="hilo-choice-card group rounded-[16px] border border-[rgba(212,87,74,0.28)] bg-[linear-gradient(180deg,rgba(254,242,242,0.96)_0%,rgba(255,255,255,0.94)_100%)] p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_12px_28px_rgba(15,23,42,0.08)] transition hover:border-[rgba(212,87,74,0.44)] hover:bg-[linear-gradient(180deg,rgba(254,226,226,0.98)_0%,rgba(255,255,255,0.98)_100%)] disabled:opacity-40 sm:rounded-[20px] sm:p-5"
                 >
-                  <div className="text-[10px] tracking-[0.3em] text-white/55">
+                  <div className="hilo-choice-kicker text-[10px] font-black tracking-[0.3em] text-[#991B1B]/62">
                     {t.games.hilo.lower}
                   </div>
-                  <div className="mt-1 font-display text-2xl text-[#FCA5A5] sm:text-3xl">
+                  <div className="hilo-choice-title mt-1 font-display text-2xl text-[#DC2626] sm:text-3xl">
                     ▼ {t.games.hilo.low}
                   </div>
-                  <div className="mt-2 flex items-baseline justify-between text-[11px]">
-                    <span className="text-white/75">{t.games.hilo.chance}</span>
-                    <span className="data-num text-white">
+                  <div className="hilo-choice-stat-row mt-2 flex items-baseline justify-between rounded-[10px] bg-white/[0.72] px-2 py-1 text-[11px] shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+                    <span className="hilo-choice-stat-label font-black text-[#64748B]">
+                      {t.games.hilo.chance}
+                    </span>
+                    <span className="hilo-choice-stat-value data-num font-black text-[#172033]">
                       {(round.lowerChance * 100).toFixed(1)}%
                     </span>
                   </div>
-                  <div className="flex items-baseline justify-between text-[11px]">
-                    <span className="text-white/75">{t.games.hilo.nextMult}</span>
-                    <span className="data-num text-[#FCA5A5]">
+                  <div className="hilo-choice-stat-row flex items-baseline justify-between rounded-[10px] bg-white/[0.72] px-2 py-1 text-[11px] shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+                    <span className="hilo-choice-stat-label font-black text-[#64748B]">
+                      {t.games.hilo.nextMult}
+                    </span>
+                    <span className="hilo-choice-stat-value hilo-choice-stat-value--lower data-num font-black text-[#DC2626]">
                       {formatMultiplier(round.lowerMultiplier)}
                     </span>
                   </div>

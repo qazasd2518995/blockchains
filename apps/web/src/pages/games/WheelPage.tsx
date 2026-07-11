@@ -168,7 +168,7 @@ export function WheelPage() {
             >
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="font-display text-4xl text-white">
+                  <div className="wheel-result-multiplier font-display text-4xl">
                     {formatMultiplier(result.multiplier)}
                   </div>
                   <div className="text-[11px] tracking-[0.25em] text-white/75">
@@ -207,7 +207,7 @@ export function WheelPage() {
             />
             {result && (
               <div className="wheel-control-result">
-                <span className="font-display text-white">
+                <span className="wheel-control-result__multiplier font-display">
                   {formatMultiplier(result.multiplier)}
                 </span>
                 <span className="data-num text-[#7DD3FC]">

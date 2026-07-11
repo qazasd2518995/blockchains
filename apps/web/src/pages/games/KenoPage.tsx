@@ -797,24 +797,17 @@ export function KenoPage() {
                 const picked = selected.has(n);
                 const isDrawn = drawn.has(n);
                 const isHit = hits.has(n);
-                let cls =
-                  'border-white/12 bg-white/[0.06] text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]';
-                if (isHit)
-                  cls =
-                    'border-[#F3D67D] bg-[#F3D67D] text-[#0A0806] shadow-[0_0_18px_rgba(243,214,125,0.45),inset_0_1px_0_rgba(255,255,255,0.42)]';
-                else if (isDrawn)
-                  cls =
-                    'border-[#D4574A]/70 bg-[#D4574A]/16 text-[#FFD7D3] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]';
-                else if (picked)
-                  cls =
-                    'border-[#FDBA74]/80 bg-[#F97316]/18 text-[#FED7AA] shadow-[0_0_14px_rgba(253,186,116,0.22),inset_0_1px_0_rgba(255,255,255,0.16)]';
+                let cls = 'keno-number-cell--idle';
+                if (isHit) cls = 'keno-number-cell--hit';
+                else if (isDrawn) cls = 'keno-number-cell--drawn';
+                else if (picked) cls = 'keno-number-cell--picked';
                 return (
                   <button
                     key={n}
                     type="button"
                     onClick={() => toggle(n)}
                     disabled={controlsLocked}
-                    className={`aspect-square min-h-[46px] rounded-[12px] border-2 font-display text-lg font-black leading-none transition ${cls} hover:border-neon-ice/50 sm:rounded-[18px] sm:text-2xl`}
+                    className={`keno-number-cell aspect-square min-h-[46px] rounded-[12px] border-2 font-display text-lg font-black leading-none transition ${cls} sm:rounded-[18px] sm:text-2xl`}
                   >
                     {n}
                   </button>

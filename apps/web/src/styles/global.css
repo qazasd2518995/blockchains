@@ -1854,7 +1854,28 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-weight: 950;
     line-height: 1;
+  }
+
+  .roulette-number-btn .roulette-bet-main {
+    color: #fff8e7 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  }
+
+  .roulette-outside-btn--neutral .roulette-bet-main {
+    color: #172033 !important;
+    text-shadow: none;
+  }
+
+  .roulette-outside-btn--red .roulette-bet-main {
+    color: #7f1d1d !important;
+    text-shadow: none;
+  }
+
+  .roulette-outside-btn--black .roulette-bet-main {
+    color: #fff8e7 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
   }
 
   .roulette-bet-odds {
@@ -1862,8 +1883,15 @@
     font-size: 0.56em;
     font-weight: 900;
     letter-spacing: 0.02em;
-    color: rgba(243, 214, 125, 0.92);
+    color: #f3d67d;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.36);
     line-height: 1;
+  }
+
+  .roulette-outside-btn--neutral .roulette-bet-odds,
+  .roulette-outside-btn--red .roulette-bet-odds {
+    color: #b7791f;
+    text-shadow: none;
   }
 
   .roulette-outside-btn .roulette-bet-odds {
@@ -1873,6 +1901,15 @@
   .roulette-chip-title,
   .wheel-control-result {
     display: none;
+  }
+
+  .wheel-result-multiplier,
+  .wheel-control-result__multiplier {
+    color: #f3d67d;
+    font-weight: 950;
+    text-shadow:
+      0 1px 0 rgba(0, 0, 0, 0.3),
+      0 0 14px rgba(243, 214, 125, 0.32);
   }
 
   .crash-history-strip {
@@ -1983,6 +2020,40 @@
     padding: 0.24rem 0.56rem;
     white-space: nowrap;
     color: #bae6fd;
+  }
+
+  .crash-flight-status-button .crash-cashout-summary {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: inherit !important;
+  }
+
+  .crash-flight-status-button .crash-cashout-summary__main {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .crash-flight-status-button .crash-cashout-summary__label {
+    color: rgba(255, 255, 255, 0.9) !important;
+    opacity: 1;
+    text-shadow: 0 1px 2px rgba(124, 45, 18, 0.34);
+  }
+
+  .crash-flight-status-button .crash-cashout-summary__amount {
+    color: #fff7ed !important;
+    text-shadow: 0 1px 2px rgba(124, 45, 18, 0.34);
+  }
+
+  .crash-flight-status-button .crash-cashout-summary__multiplier {
+    border-color: rgba(255, 255, 255, 0.46) !important;
+    background: rgba(255, 255, 255, 0.18) !important;
+    color: #fff7ed !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.34),
+      0 4px 10px rgba(124, 45, 18, 0.16) !important;
+    text-shadow: 0 1px 2px rgba(124, 45, 18, 0.32);
   }
 
   .crash-mobile-live-bets {
@@ -2117,6 +2188,87 @@
   .dice-mobile-result-pill--loss {
     border-color: rgba(252, 165, 165, 0.46);
     color: #fca5a5;
+  }
+
+  .dice-live-stats {
+    color: #e5edf8 !important;
+  }
+
+  .dice-live-stat__label {
+    color: rgba(226, 232, 240, 0.9);
+    font-weight: 900;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.42);
+  }
+
+  .dice-live-stat__value {
+    color: #ffffff;
+    font-weight: 950;
+    letter-spacing: 0.06em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.46);
+  }
+
+  .dice-live-stat__value--blue {
+    color: #7dd3fc;
+  }
+
+  .dice-live-stat__value--green {
+    color: #6ee7b7;
+  }
+
+  .keno-number-cell {
+    border-color: rgba(168, 85, 247, 0.34) !important;
+    background:
+      radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.9), transparent 40%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(245, 243, 255, 0.78)) !important;
+    color: #243041 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.88),
+      0 8px 18px rgba(88, 28, 135, 0.08) !important;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+  }
+
+  .keno-number-cell:hover:not(:disabled) {
+    border-color: rgba(14, 165, 233, 0.6) !important;
+    background:
+      radial-gradient(circle at 50% 8%, rgba(224, 242, 254, 0.92), transparent 42%),
+      linear-gradient(180deg, rgba(240, 249, 255, 0.98), rgba(219, 234, 254, 0.82)) !important;
+  }
+
+  .keno-number-cell--picked {
+    border-color: rgba(249, 115, 22, 0.74) !important;
+    background:
+      radial-gradient(circle at 50% 8%, rgba(255, 237, 213, 0.92), transparent 42%),
+      linear-gradient(180deg, rgba(255, 237, 213, 0.98), rgba(253, 186, 116, 0.82)) !important;
+    color: #7c2d12 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.76),
+      0 0 16px rgba(249, 115, 22, 0.24) !important;
+  }
+
+  .keno-number-cell--drawn {
+    border-color: rgba(220, 38, 38, 0.62) !important;
+    background:
+      radial-gradient(circle at 50% 8%, rgba(254, 226, 226, 0.9), transparent 42%),
+      linear-gradient(180deg, rgba(254, 226, 226, 0.98), rgba(252, 165, 165, 0.76)) !important;
+    color: #7f1d1d !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.74),
+      0 0 14px rgba(220, 38, 38, 0.18) !important;
+  }
+
+  .keno-number-cell--hit {
+    border-color: rgba(180, 83, 9, 0.72) !important;
+    background:
+      radial-gradient(circle at 50% 8%, rgba(254, 243, 199, 0.95), transparent 42%),
+      linear-gradient(180deg, #fde68a, #f59e0b) !important;
+    color: #241f0b !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      0 0 20px rgba(245, 158, 11, 0.38) !important;
+  }
+
+  .keno-number-cell:disabled {
+    opacity: 0.66;
   }
 
   .blackjack-card-flip-shell {
@@ -6120,7 +6272,7 @@
     .game-fullscreen-shell .roulette-number-grid,
     .game-fullscreen-shell .roulette-outside-grid,
     .game-fullscreen-shell .roulette-column-grid {
-      gap: 0.18rem !important;
+      gap: 0.26rem !important;
     }
 
     .game-fullscreen-shell .roulette-number-grid button,
@@ -6130,9 +6282,13 @@
       min-height: 35px !important;
       height: 35px !important;
       border-radius: 8px !important;
+      border-width: 1px !important;
       padding: 0.16rem 0.1rem !important;
       font-size: 11px !important;
       line-height: 1 !important;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.34),
+        0 6px 14px rgba(15, 23, 42, 0.1) !important;
     }
 
     .game-fullscreen-shell .roulette-column-grid button {
@@ -6142,17 +6298,34 @@
 
     .game-fullscreen-shell .roulette-number-btn .roulette-bet-main {
       font-size: 13px;
+      color: #fff8e7 !important;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.58);
     }
 
     .game-fullscreen-shell .roulette-number-btn .roulette-bet-odds,
     .game-fullscreen-shell .roulette-outside-btn .roulette-bet-odds {
       font-size: 8px;
       letter-spacing: 0;
+      opacity: 1;
     }
 
     .game-fullscreen-shell .roulette-outside-btn .roulette-bet-main {
       font-size: 10px;
+      font-weight: 950;
       letter-spacing: 0.02em;
+    }
+
+    .game-fullscreen-shell .roulette-outside-btn--neutral .roulette-bet-main {
+      color: #172033 !important;
+    }
+
+    .game-fullscreen-shell .roulette-outside-btn--red .roulette-bet-main {
+      color: #7f1d1d !important;
+    }
+
+    .game-fullscreen-shell .roulette-outside-btn--black .roulette-bet-main {
+      color: #fff8e7 !important;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.58);
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .game-control-stack,
@@ -6184,12 +6357,23 @@
     .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-action-panel,
     .game-fullscreen-shell[data-game-id='carnival'] .roulette-action-panel {
       min-width: 0;
+      border: 1px solid rgba(201, 162, 71, 0.24);
+      border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 247, 237, 0.7)),
+        radial-gradient(circle at 88% 8%, rgba(234, 222, 255, 0.36), transparent 42%);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.82),
+        0 6px 16px rgba(85, 60, 32, 0.08);
+      padding: 0.32rem;
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-chip-title,
     .game-fullscreen-shell[data-game-id='carnival'] .roulette-chip-title {
       display: block;
       margin-bottom: 0.22rem;
+      color: #64748b !important;
+      font-weight: 900;
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-chip-panel .bet-controls__entry,
@@ -6197,7 +6381,10 @@
       grid-template-columns: minmax(0, 1fr) 58px;
       gap: 0.22rem;
       min-height: 36px;
+      border-color: rgba(201, 162, 71, 0.32) !important;
+      background: rgba(255, 255, 255, 0.92) !important;
       padding: 0.2rem !important;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette'] .roulette-chip-panel .bet-controls__input,
@@ -6205,6 +6392,7 @@
       min-height: 34px !important;
       padding: 0.08rem 0.32rem !important;
       font-size: 16px !important;
+      color: #172033 !important;
     }
 
     .game-fullscreen-shell[data-game-id='mini-roulette']
@@ -6270,7 +6458,9 @@
       background: transparent;
       padding: 0 !important;
       box-shadow: none;
+      color: #64748b !important;
       font-size: 9px !important;
+      font-weight: 900;
       line-height: 1.1;
     }
 
@@ -6541,6 +6731,10 @@
       min-height: 78px;
       border-radius: 12px !important;
       padding: 0.48rem 0.5rem !important;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.9)) !important;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.82),
+        0 8px 18px rgba(15, 23, 42, 0.08) !important;
     }
 
     .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-card > div:first-child {
@@ -6561,6 +6755,35 @@
     .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-card .text-\[11px\] {
       font-size: 10px !important;
       line-height: 1.15;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-stat-row {
+      margin-top: 0.16rem !important;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.06);
+      padding: 0.12rem 0.32rem;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-stat-label {
+      color: #64748b !important;
+      font-weight: 850;
+      opacity: 1 !important;
+      text-shadow: none !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-stat-value {
+      color: #172033 !important;
+      font-weight: 950;
+      opacity: 1 !important;
+      text-shadow: none !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-stat-value--higher {
+      color: #059669 !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='hilo'] .hilo-choice-stat-value--lower {
+      color: #dc2626 !important;
     }
 
     .game-fullscreen-shell[data-game-id='hilo'] .hilo-control-stack--active {
@@ -6958,6 +7181,26 @@
     .game-fullscreen-shell[data-game-id='dice'] .dice-canvas {
       flex-basis: 230px !important;
       min-height: 210px !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-live-stats {
+      top: 0.7rem !important;
+      right: 0.7rem !important;
+      min-width: 132px !important;
+      border-color: rgba(125, 211, 252, 0.42) !important;
+      background:
+        linear-gradient(180deg, rgba(7, 19, 31, 0.92), rgba(15, 23, 42, 0.84)) !important;
+      padding: 0.42rem 0.56rem !important;
+      font-size: 9px !important;
+      letter-spacing: 0.08em !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-live-stat__label {
+      color: rgba(226, 232, 240, 0.92) !important;
+    }
+
+    .game-fullscreen-shell[data-game-id='dice'] .dice-live-stat__value {
+      font-size: 10px !important;
     }
 
     .game-fullscreen-shell[data-game-id='dice'] .dice-threshold-panel {
@@ -13150,7 +13393,6 @@
   .game-warm-shell .crash-control-card,
   .game-warm-shell .crash-control-card > .bet-controls,
   .game-warm-shell .crash-auto-cashout,
-  .game-warm-shell .crash-cashout-summary,
   .game-warm-shell .dice-control-card,
   .game-warm-shell .keno-control-card,
   .game-warm-shell .plinko-control-card,
@@ -13243,6 +13485,17 @@
   .game-warm-shell .roulette-active-bets,
   .game-warm-shell .roulette-active-bets span {
     color: rgba(73, 82, 99, 0.78) !important;
+  }
+
+  .game-warm-shell .wheel-result-multiplier,
+  .game-warm-shell .wheel-control-result__multiplier,
+  .game-fullscreen-shell[data-game-id='wheel'] .wheel-result-multiplier,
+  .game-fullscreen-shell[data-game-id='wheel'] .wheel-control-result__multiplier {
+    color: #7c2d12 !important;
+    -webkit-text-stroke: 0.2px rgba(255, 255, 255, 0.58);
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.78),
+      0 2px 8px rgba(124, 45, 18, 0.18) !important;
   }
 }
 
@@ -13531,7 +13784,6 @@
   .game-warm-shell .crash-control-card,
   .game-warm-shell .crash-control-card > .bet-controls,
   .game-warm-shell .crash-auto-cashout,
-  .game-warm-shell .crash-cashout-summary,
   .game-warm-shell .dice-control-card,
   .game-warm-shell .keno-control-card,
   .game-warm-shell .plinko-control-card,
@@ -13626,6 +13878,32 @@
   .game-warm-shell .crash-cashout-summary__amount,
   .game-warm-shell .crash-cashout-summary__multiplier {
     color: #6d28d9 !important;
+  }
+
+  .game-warm-shell .crash-flight-status-button .crash-cashout-summary {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .game-warm-shell .crash-flight-status-button .crash-cashout-summary__label {
+    color: rgba(255, 255, 255, 0.92) !important;
+    text-shadow: 0 1px 2px rgba(124, 45, 18, 0.34) !important;
+  }
+
+  .game-warm-shell .crash-flight-status-button .crash-cashout-summary__amount {
+    color: #fff7ed !important;
+    text-shadow: 0 1px 2px rgba(124, 45, 18, 0.34) !important;
+  }
+
+  .game-warm-shell .crash-flight-status-button .crash-cashout-summary__multiplier {
+    border-color: rgba(255, 255, 255, 0.46) !important;
+    background: rgba(255, 255, 255, 0.18) !important;
+    color: #fff7ed !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.34),
+      0 4px 10px rgba(124, 45, 18, 0.16) !important;
+    text-shadow: 0 1px 2px rgba(124, 45, 18, 0.32) !important;
   }
 
   .game-warm-shell .game-choice-btn,
@@ -14008,6 +14286,8 @@
   }
 
   .game-warm-shell .local-table-multiplier-value,
+  .game-warm-shell .wheel-result-multiplier,
+  .game-warm-shell .wheel-control-result__multiplier,
   .game-warm-shell .local-table-hand-panel .text-\[\#FDE68A\],
   .game-warm-shell .game-result-card .text-\[\#F3D67D\],
   .game-warm-shell .game-result-card .text-\[\#FDE68A\],

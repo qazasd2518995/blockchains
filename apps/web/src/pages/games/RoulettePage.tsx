@@ -439,14 +439,20 @@ function NumberBtn({
   placedAmount: number;
   variant: 'red' | 'black' | 'green';
 }) {
-  const bg = { red: 'bg-[#D4574A]', black: 'bg-[#10263A]', green: 'bg-[#1F8B5F]' }[variant];
+  const bg = {
+    red: 'roulette-number-btn--red bg-[linear-gradient(180deg,#E35E56_0%,#C73F37_100%)]',
+    black: 'roulette-number-btn--black bg-[linear-gradient(180deg,#12314B_0%,#061827_100%)]',
+    green: 'roulette-number-btn--green bg-[linear-gradient(180deg,#1FA06B_0%,#087A52_100%)]',
+  }[variant];
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`roulette-number-btn relative aspect-square min-h-[42px] rounded-[12px] border border-white/8 ${bg} font-display text-lg text-white transition hover:border-[#C9A247] hover:shadow-[0_12px_24px_-18px_rgba(15,23,42,0.55)] sm:rounded-[16px] sm:text-2xl ${placedAmount > 0 ? 'ring-2 ring-[#F3D67D]/70' : ''}`}
+      className={`roulette-number-btn relative aspect-square min-h-[42px] rounded-[12px] border border-[rgba(243,214,125,0.42)] ${bg} font-display text-lg !text-[#FFF8E7] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_8px_18px_rgba(15,23,42,0.16)] transition hover:border-[#FFE08A] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_12px_24px_-12px_rgba(15,23,42,0.45)] sm:rounded-[16px] sm:text-2xl ${placedAmount > 0 ? 'ring-2 ring-[#F3D67D]/80' : ''}`}
     >
-      <span className="roulette-bet-main">{n}</span>
+      <span className="roulette-bet-main text-[#FFF8E7] drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
+        {n}
+      </span>
       <span className="roulette-bet-odds">{ROULETTE_STRAIGHT_ODDS}</span>
       {placedAmount > 0 && (
         <span className="absolute -right-1 -top-1 rounded-full border border-ink-50 bg-neon-acid px-1.5 font-mono text-[9px] text-ink-50">
@@ -471,12 +477,16 @@ function OutsideBtn({
   color?: 'red' | 'black';
 }) {
   const bg =
-    color === 'red' ? 'bg-[#D4574A]/16' : color === 'black' ? 'bg-[#10263A]' : 'bg-white/[0.08]';
+    color === 'red'
+      ? 'roulette-outside-btn--red border-[#EF4444]/50 bg-[linear-gradient(180deg,rgba(254,226,226,0.96)_0%,rgba(252,165,165,0.82)_100%)] text-[#7F1D1D]'
+      : color === 'black'
+        ? 'roulette-outside-btn--black border-[rgba(243,214,125,0.42)] bg-[linear-gradient(180deg,#12314B_0%,#061827_100%)] text-[#FFF8E7]'
+        : 'roulette-outside-btn--neutral border-[rgba(201,162,71,0.38)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(255,247,237,0.86)_100%)] text-[#172033]';
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`roulette-outside-btn relative min-h-[42px] rounded-[12px] border border-white/10 ${bg} px-1 py-2 font-mono text-[10px] tracking-[0.08em] ${color === 'black' ? 'text-white' : 'text-white/85'} transition hover:border-[#C9A247] hover:text-[#EA580C] sm:rounded-[14px] sm:text-[11px] sm:tracking-[0.2em] ${placedAmount > 0 ? 'border-[#F3D67D]/70 text-[#F3D67D]' : ''}`}
+      className={`roulette-outside-btn relative min-h-[42px] rounded-[12px] border ${bg} px-1 py-2 font-mono text-[10px] font-black tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.54),0_8px_18px_rgba(15,23,42,0.08)] transition hover:border-[#FFE08A] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.68),0_10px_20px_rgba(15,23,42,0.14)] sm:rounded-[14px] sm:text-[11px] sm:tracking-[0.2em] ${placedAmount > 0 ? 'border-[#F3D67D]/80 ring-2 ring-[rgba(243,214,125,0.55)]' : ''}`}
     >
       <span className="roulette-bet-main">{label}</span>
       <span className="roulette-bet-odds">{odds}</span>

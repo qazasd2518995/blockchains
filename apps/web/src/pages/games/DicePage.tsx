@@ -705,20 +705,20 @@ export function DicePage() {
               <canvas ref={canvasRef} className="h-full w-full" />
 
               {/* 右上角即時統計（疊在画布上） */}
-              <div className="pointer-events-none absolute right-3 top-3 flex flex-col items-end gap-1 rounded-[16px] border border-white/10 bg-[#07131F]/50 px-3 py-2 text-[10px] tracking-[0.2em] text-white/62 backdrop-blur">
-                <div>
-                  {t.bet.multiplier.toUpperCase()}{' '}
-                  <span className="data-num ml-1 text-[#7DD3FC]">
+              <div className="dice-live-stats pointer-events-none absolute right-3 top-3 flex min-w-[148px] flex-col gap-1 rounded-[16px] border border-[rgba(125,211,252,0.32)] bg-[linear-gradient(180deg,rgba(7,19,31,0.88),rgba(15,23,42,0.78))] px-3 py-2 text-[10px] font-black tracking-[0.14em] text-[#E5EDF8] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(0,0,0,0.28)] backdrop-blur-md">
+                <div className="dice-live-stat flex items-center justify-between gap-3">
+                  <span className="dice-live-stat__label">{t.bet.multiplier.toUpperCase()}</span>
+                  <span className="dice-live-stat__value dice-live-stat__value--blue data-num">
                     {formatMultiplier(multiplier)}
                   </span>
                 </div>
-                <div>
-                  {t.bet.winChance.toUpperCase()}{' '}
-                  <span className="data-num ml-1 text-white">{winChance.toFixed(2)}%</span>
+                <div className="dice-live-stat flex items-center justify-between gap-3">
+                  <span className="dice-live-stat__label">{t.bet.winChance.toUpperCase()}</span>
+                  <span className="dice-live-stat__value data-num">{winChance.toFixed(2)}%</span>
                 </div>
-                <div>
-                  {t.bet.potentialPayout.toUpperCase()}{' '}
-                  <span className="data-num ml-1 text-[#6EE7B7]">
+                <div className="dice-live-stat flex items-center justify-between gap-3">
+                  <span className="dice-live-stat__label">{t.bet.potentialPayout.toUpperCase()}</span>
+                  <span className="dice-live-stat__value dice-live-stat__value--green data-num">
                     {formatAmount(potentialPayout)}
                   </span>
                 </div>
