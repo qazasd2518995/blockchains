@@ -325,7 +325,7 @@ export function BlackjackPage() {
                             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/50">
                               {t.games.blackjack.hand} {index + 1}
                             </div>
-                            <div className="rounded-full bg-white/[0.08] px-2 py-1 text-[10px] font-bold text-[#E8D48A]">
+                            <div className="blackjack-hand-bet-pill rounded-full bg-white/[0.08] px-2 py-1 text-[10px] font-bold text-[#E8D48A]">
                               下注 {formatAmount(hand.bet)} ·{' '}
                               {formatBlackjackScore(hand.cards.length > 0 ? hand.score : null)}
                             </div>
@@ -540,10 +540,10 @@ function ActionButton({
 function TableLabel({ title, value }: { title: string; value: string }) {
   return (
     <div className="blackjack-table-label flex items-center justify-between gap-3 rounded-full border border-white/10 bg-[#050A13]/58 px-3 py-2 backdrop-blur">
-      <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#E8D48A]">
+      <div className="blackjack-table-label__title text-[11px] font-black uppercase tracking-[0.22em] text-[#E8D48A]">
         {title}
       </div>
-      <div className="data-num text-[11px] font-black uppercase tracking-[0.18em] text-white/70">
+      <div className="blackjack-table-label__value data-num text-[11px] font-black uppercase tracking-[0.18em] text-white/70">
         {value}
       </div>
     </div>
@@ -564,9 +564,11 @@ function BlackjackScoreTile({
 
   return (
     <div className="blackjack-score-tile rounded-[14px] border border-white/10 bg-[#050A13]/68 px-2 py-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
-      <div className="text-[9px] font-black uppercase tracking-[0.18em] text-white/50">{label}</div>
+      <div className="blackjack-score-tile__label text-[9px] font-black uppercase tracking-[0.18em] text-white/50">
+        {label}
+      </div>
       <div
-        className={`mt-1 truncate font-display text-[18px] font-black leading-none sm:text-[24px] ${valueClass}`}
+        className={`blackjack-score-tile__value mt-1 truncate font-display text-[18px] font-black leading-none sm:text-[24px] ${valueClass}`}
       >
         {value}
       </div>
