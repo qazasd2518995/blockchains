@@ -250,6 +250,8 @@ const HALF_21_SPECIAL_MULTIPLIER = new Prisma.Decimal('2.4');
 const TUI_TONGZI_PAIR_MULTIPLIER = new Prisma.Decimal('2.4');
 const TUI_TONGZI_SUPREME_MULTIPLIER = new Prisma.Decimal('3');
 const ZERO = new Prisma.Decimal(0);
+const BLACK_DOT_FLEX_SEARCH_OFFSETS = 64;
+const BLACK_DOT_FLEX_AMOUNT = new Prisma.Decimal(1);
 
 const TUBE_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0] as const;
 
@@ -799,7 +801,7 @@ export class LocalTableService {
       let data: StagedLocalTableStoredData;
 
       if (config.kind === 'black-dot') {
-        const deck = drawDominoTiles(makeStream(seedBundle, 0), 32);
+        const deck = drawControlFlexibleBlackDotDeck(input.gameId, seedBundle);
         data = {
           kind: 'black-dot',
           status: 'ACTIVE',
@@ -1390,13 +1392,14 @@ function toTwentyOneHalfHand(
   };
 }
 
-function forceTwentyOneHalfHitSafe(data: TwentyOneHalfStoredData): TwentyOneHalfStoredData | null {
+function forceTwentyOneHalfHitProgress(
+  data: TwentyOneHalfStoredData,
+): TwentyOneHalfStoredData | null {
   const base = cloneTwentyOneHalfData(data);
-  const index = findDeckCardIndex(
-    base,
-    base.deckIndex,
-    (card) => half21Score([...base.player, card]) <= TEN_HALF_LIMIT,
-  );
+  const index = findDeckCardIndex(base, base.deckIndex, (card) => {
+    const player = [...base.player, card];
+    return half21Score(player) <= TEN_HALF_LIMIT && !isTwentyOneHalfFinalPlayerHand(player);
+  });
   if (index < 0) return null;
   swapDeckCards(base.deck, base.deckIndex, index);
   base.player.push(base.deck[base.deckIndex]!);
@@ -1426,6 +1429,12 @@ function shapeTwentyOneHalfHitForControl(
   const shaped = findTwentyOneHalfHitDataByOutcome(data, amount, desired, control);
   if (shaped) return { kind: 'settled', ...shaped, control };
 
+  if (!control.won) {
+    const progress = forceTwentyOneHalfHitProgress(data);
+    if (progress) return { kind: 'progress', data: progress };
+    return null;
+  }
+
   if (control.won) {
     const forcedLoss = findTwentyOneHalfHitDataByOutcome(data, amount, 'LOSE', control);
     if (forcedLoss && naturalRound.profit.greaterThan(0)) {
@@ -1436,10 +1445,8 @@ function shapeTwentyOneHalfHitForControl(
       };
     }
 
-    const safeProgress = forceTwentyOneHalfHitSafe(data);
-    if (safeProgress && !isTwentyOneHalfFinalPlayerHand(safeProgress.player)) {
-      return { kind: 'progress', data: safeProgress };
-    }
+    const safeProgress = forceTwentyOneHalfHitProgress(data);
+    if (safeProgress) return { kind: 'progress', data: safeProgress };
   }
 
   return null;
@@ -1474,26 +1481,8 @@ function shapeTwentyOneHalfBankerForControl(
   control: ControlOutcome,
 ): { data: TwentyOneHalfStoredData; round: RoundDraft; control: ControlOutcome } | null {
   const desired: LocalTableOutcome = control.won ? 'WIN' : 'LOSE';
-  const natural = settleTwentyOneHalfBanker(data);
-  const naturalRound = buildTwentyOneHalfRoundFromState(natural, amount);
-  if (
-    naturalRound.outcome === desired &&
-    (desired !== 'WIN' || multiplierMatchesControlBounds(naturalRound.multiplier, amount, control))
-  ) {
-    return { data: natural, round: naturalRound, control };
-  }
-
-  for (let index = data.deckIndex; index < data.deck.length; index += 1) {
-    const candidate = cloneTwentyOneHalfData(data);
-    swapDeckCards(candidate.deck, candidate.deckIndex, index);
-    const settled = settleTwentyOneHalfBanker(candidate);
-    const round = buildTwentyOneHalfRoundFromState(settled, amount);
-    if (round.outcome !== desired) continue;
-    if (desired === 'WIN' && !multiplierMatchesControlBounds(round.multiplier, amount, control)) {
-      continue;
-    }
-    return { data: settled, round, control };
-  }
+  const shaped = findTwentyOneHalfBankerDataByOutcome(data, amount, desired, control);
+  if (shaped) return { ...shaped, control };
 
   if (control.won) {
     const forcedLoss = shapeTwentyOneHalfBankerForControl(
@@ -1505,6 +1494,91 @@ function shapeTwentyOneHalfBankerForControl(
   }
 
   return null;
+}
+
+function findTwentyOneHalfBankerDataByOutcome(
+  data: TwentyOneHalfStoredData,
+  amount: Prisma.Decimal,
+  desired: LocalTableOutcome,
+  control: ControlOutcome,
+): { data: TwentyOneHalfStoredData; round: RoundDraft } | null {
+  const natural = settleTwentyOneHalfBanker(data);
+  const naturalRound = buildTwentyOneHalfRoundFromState(natural, amount);
+  if (
+    naturalRound.outcome === desired &&
+    (desired !== 'WIN' || multiplierMatchesControlBounds(naturalRound.multiplier, amount, control))
+  ) {
+    return { data: natural, round: naturalRound };
+  }
+
+  const remaining = data.deck.slice(data.deckIndex);
+  const maxDraws = Math.min(remaining.length, Math.max(0, 5 - data.banker.length));
+  const used = new Set<number>();
+
+  const search = (selectedIndexes: number[], bankerCards: CardInternal[]): {
+    data: TwentyOneHalfStoredData;
+    round: RoundDraft;
+  } | null => {
+    const probe = {
+      ...data,
+      banker: bankerCards,
+      deckIndex: data.deckIndex + selectedIndexes.length,
+    };
+    if (!shouldTwentyOneHalfBankerDraw(probe) || selectedIndexes.length >= maxDraws) {
+      return evaluateTwentyOneHalfBankerSequence(
+        data,
+        amount,
+        desired,
+        control,
+        selectedIndexes,
+      );
+    }
+
+    const seenValues = new Set<number>();
+    for (let index = 0; index < remaining.length; index += 1) {
+      if (used.has(index)) continue;
+      const card = remaining[index]!;
+      const value = half21CardValue(card.rankValue);
+      if (seenValues.has(value)) continue;
+      seenValues.add(value);
+
+      used.add(index);
+      const found = search([...selectedIndexes, index], [...bankerCards, card]);
+      used.delete(index);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  return search([], data.banker.map((card) => ({ ...card })));
+}
+
+function evaluateTwentyOneHalfBankerSequence(
+  data: TwentyOneHalfStoredData,
+  amount: Prisma.Decimal,
+  desired: LocalTableOutcome,
+  control: ControlOutcome,
+  selectedIndexes: number[],
+): { data: TwentyOneHalfStoredData; round: RoundDraft } | null {
+  if (selectedIndexes.length === 0) return null;
+
+  const remaining = data.deck.slice(data.deckIndex);
+  const selected = selectedIndexes.map((index) => remaining[index]!);
+  const selectedSet = new Set(selectedIndexes);
+  const rest = remaining.filter((_, index) => !selectedSet.has(index));
+  const candidate = cloneTwentyOneHalfData(data);
+  candidate.deck = [...data.deck.slice(0, data.deckIndex), ...selected, ...rest].map((card) => ({
+    ...card,
+  }));
+  candidate.deckIndex = data.deckIndex;
+
+  const settled = settleTwentyOneHalfBanker(candidate);
+  const round = buildTwentyOneHalfRoundFromState(settled, amount);
+  if (round.outcome !== desired) return null;
+  if (desired === 'WIN' && !multiplierMatchesControlBounds(round.multiplier, amount, control)) {
+    return null;
+  }
+  return { data: settled, round };
 }
 
 function prepareTwentyOneHalfBankerTurnData(
@@ -2600,6 +2674,73 @@ function buildBlackDotRoundFromSplitForGame(
   );
 }
 
+function drawControlFlexibleBlackDotDeck(
+  gameId: LocalTableGameIdType,
+  seed: SeedBundle,
+): DominoTileInternal[] {
+  let fallback: DominoTileInternal[] | null = null;
+  for (let offset = 0; offset < BLACK_DOT_FLEX_SEARCH_OFFSETS; offset += 1) {
+    const deck = drawDominoTiles(makeStream(seed, offset), 32);
+    fallback ??= deck;
+    if (blackDotDeckSupportsControlFlexibility(gameId, deck)) return deck;
+  }
+  return fallback ?? drawDominoTiles(makeStream(seed, 0), 32);
+}
+
+function blackDotDeckSupportsControlFlexibility(
+  gameId: LocalTableGameIdType,
+  deck: DominoTileInternal[],
+): boolean {
+  const playerTiles = deck.slice(0, 4);
+  const options = buildBlackDotSplitOptions(playerTiles);
+  if (options.length === 0) return false;
+
+  const data: StagedLocalTableStoredData = {
+    kind: 'black-dot',
+    status: 'ACTIVE',
+    stage: 'AWAIT_SPLIT',
+    gameId,
+    roomName: ROOM_CONFIGS[gameId].roomName,
+    playerTiles,
+    deck,
+    deckIndex: 4,
+    summary: null,
+  };
+  const winControl = blackDotFlexControl(true);
+  const lossControl = blackDotFlexControl(false);
+
+  return options.every(
+    (split) =>
+      Boolean(
+        findBlackDotBankerRoundForOutcome(
+          data,
+          BLACK_DOT_FLEX_AMOUNT,
+          split.id,
+          'WIN',
+          winControl,
+        ),
+      ) &&
+      Boolean(
+        findBlackDotBankerRoundForOutcome(
+          data,
+          BLACK_DOT_FLEX_AMOUNT,
+          split.id,
+          'LOSE',
+          lossControl,
+        ),
+      ),
+  );
+}
+
+function blackDotFlexControl(won: boolean): ControlOutcome {
+  return {
+    won,
+    multiplier: won ? TABLE_WIN_MULTIPLIER : ZERO,
+    payout: won ? BLACK_DOT_FLEX_AMOUNT.mul(TABLE_WIN_MULTIPLIER) : ZERO,
+    controlled: true,
+  };
+}
+
 function shapeBlackDotRoundForControl(
   data: StagedLocalTableStoredData,
   amount: Prisma.Decimal,
@@ -2639,7 +2780,7 @@ function findBlackDotBankerRoundForOutcome(
   const deck = data.deck ?? [];
   const start = data.deckIndex ?? 4;
   const remaining = deck.slice(start);
-  const limit = Math.min(remaining.length, 20);
+  const limit = remaining.length;
 
   for (let a = 0; a < limit - 3; a += 1) {
     for (let b = a + 1; b < limit - 2; b += 1) {
@@ -3121,8 +3262,10 @@ export const __localTableServiceTestHooks = {
   cardWarRank,
   compareRankedHands,
   controlAsForcedLoss,
+  drawControlFlexibleBlackDotDeck,
   drawDominoTiles,
   half21Score,
+  blackDotDeckSupportsControlFlexibility,
   makeStream,
   prepareTwentyOneHalfBankerTurnData,
   rankDominoPair,

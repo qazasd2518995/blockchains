@@ -15,8 +15,10 @@ import { __localTableServiceTestHooks } from './table-games.service.js';
 const {
   buildBlackDotRoundFromSplitForGame,
   buildBlackDotSplitOptions,
+  blackDotDeckSupportsControlFlexibility,
   buildRound,
   buildTwentyOneHalfRoundFromState,
+  drawControlFlexibleBlackDotDeck,
   drawDominoTiles,
   half21Score,
   makeStream,
@@ -163,6 +165,52 @@ describe('local table game rules', () => {
     expect(wong.rank).toBeGreaterThan(gong.rank);
     expect(gong.category).toBeGreaterThan(ninePoint.category);
     expect(ninePoint.rank).toBe(9);
+  });
+
+  it('deals Black Dot player splits that remain controllable after the player chooses', () => {
+    const amount = new Prisma.Decimal(100);
+    const control = {
+      won: false,
+      multiplier: new Prisma.Decimal(0),
+      payout: new Prisma.Decimal(0),
+      controlled: true,
+      flipReason: 'deposit_control',
+      controlId: 'deposit-1',
+    };
+
+    for (const gameId of BLACK_DOT_GAME_IDS) {
+      for (let nonce = 0; nonce < 10; nonce += 1) {
+        const seed = { serverSeed: `black-dot-flex-${gameId}`, clientSeed: 'client', nonce };
+        const deck = drawControlFlexibleBlackDotDeck(gameId, seed);
+        expect(blackDotDeckSupportsControlFlexibility(gameId, deck)).toBe(true);
+
+        const data = {
+          kind: 'black-dot' as const,
+          status: 'ACTIVE' as const,
+          stage: 'AWAIT_SPLIT' as const,
+          gameId,
+          roomName: '黑粒測試',
+          playerTiles: deck.slice(0, 4),
+          deck,
+          deckIndex: 4,
+          summary: '測試',
+        };
+        for (const split of buildBlackDotSplitOptions(data.playerTiles)) {
+          const natural = buildBlackDotRoundFromSplitForGame(
+            gameId,
+            amount,
+            data.playerTiles,
+            deck.slice(4, 8),
+            split.id,
+          );
+          if (!natural.profit.greaterThan(0)) continue;
+
+          const shaped = shapeBlackDotRoundForControl(data, amount, split.id, natural, control);
+          expect(shaped.round.outcome).toBe('LOSE');
+          expect(shaped.control.controlled).toBe(true);
+        }
+      }
+    }
   });
 
   it('builds deterministic Card War rounds from the same seed bundle', () => {
@@ -365,6 +413,45 @@ describe('local table game rules', () => {
     expect(shaped.data.player).toHaveLength(2);
   });
 
+  it('keeps Ten-and-a-Half loss control alive by avoiding an immediate special win', () => {
+    const amount = new Prisma.Decimal(100);
+    const data = {
+      kind: 'twenty-one-half' as const,
+      status: 'ACTIVE' as const,
+      gameId: GameId.TWENTY_ONE_HALF_BUNNY,
+      roomName: '兔糖十點半',
+      player: [card('7', 7), card('K', 13)],
+      banker: [card('K', 13, 'hearts')],
+      deck: [card('3', 3), card('A', 1), card('Q', 12), card('J', 11)],
+      deckIndex: 0,
+      summary: '測試',
+    };
+    const naturalSpecial = {
+      ...data,
+      player: [...data.player, data.deck[0]!],
+      deckIndex: 1,
+    };
+    const naturalRound = buildTwentyOneHalfRoundFromState(naturalSpecial, amount);
+    const shaped = shapeTwentyOneHalfHitForControl(
+      data,
+      amount,
+      {
+        won: false,
+        multiplier: new Prisma.Decimal(0),
+        payout: new Prisma.Decimal(0),
+        controlled: true,
+        flipReason: 'deposit_control',
+        controlId: 'deposit-1',
+      },
+      naturalRound,
+    );
+
+    expect(shaped?.kind).toBe('progress');
+    if (shaped?.kind !== 'progress') throw new Error('expected progress shape');
+    expect(shaped.data.player.map((item) => item.rank)).toEqual(['7', 'K', 'A']);
+    expect(half21Score(shaped.data.player)).toBe(8.5);
+  });
+
   it('stages Ten-and-a-Half banker draws one card at a time after player stands', () => {
     const amount = new Prisma.Decimal(100);
     const data = {
@@ -409,6 +496,42 @@ describe('local table game rules', () => {
     expect(afterOneDraw.banker).toHaveLength(2);
     expect(half21Score(afterOneDraw.banker)).toBe(2.5);
     expect(shouldTwentyOneHalfBankerDraw(afterOneDraw)).toBe(true);
+  });
+
+  it('can control Ten-and-a-Half banker turns with a multi-card draw sequence', () => {
+    const amount = new Prisma.Decimal(100);
+    const shaped = shapeTwentyOneHalfBankerForControl(
+      {
+        kind: 'twenty-one-half',
+        status: 'ACTIVE',
+        gameId: GameId.TWENTY_ONE_HALF_DOLL,
+        roomName: '萌娃十點半',
+        player: [card('8', 8)],
+        banker: [card('3', 3, 'hearts')],
+        deck: [
+          card('9', 9),
+          card('9', 9, 'hearts'),
+          card('2', 2),
+          card('3', 3),
+          card('K', 13),
+        ],
+        deckIndex: 0,
+        summary: '測試',
+      },
+      amount,
+      {
+        won: false,
+        multiplier: new Prisma.Decimal(0),
+        payout: new Prisma.Decimal(0),
+        controlled: true,
+        flipReason: 'deposit_control',
+        controlId: 'deposit-1',
+      },
+    );
+
+    expect(shaped?.round.outcome).toBe('LOSE');
+    expect(shaped?.round.profit.toFixed(2)).toBe('-100.00');
+    expect(shaped?.data.banker.map((item) => item.rank)).toEqual(['3', '2', '3', 'K']);
   });
 
   it('guards Ten-and-a-Half stand wins that cannot fit a payout ceiling', () => {
