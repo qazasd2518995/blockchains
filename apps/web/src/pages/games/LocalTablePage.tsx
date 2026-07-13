@@ -26,6 +26,7 @@ import { formatAmount, formatMultiplier } from '@/lib/utils';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 import { ResponsiveImage } from '@/lib/optimizedImages';
+import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 
 interface LocalTablePageProps {
   gameId: LocalTableGameIdType;
@@ -262,6 +263,7 @@ const MAHJONG_BACK_SRC = '/game-art/mahjong/Back.svg';
 
 export function LocalTablePage({ gameId }: LocalTablePageProps) {
   const theme = ROOM_THEMES[gameId];
+  const coverArt = getLobbyGameCover(gameId);
   const { user, setBalance } = useAuthStore();
   const requireLogin = useRequireLogin();
   const balance = Number.parseFloat(user?.balance ?? '0');
@@ -597,7 +599,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
         description={theme.description}
         rtpLabel="RTP 95%+"
         rtpAccent="ember"
-        artwork={theme.stageArt}
+        artwork={coverArt}
         artworkPreset="game-stage"
         artworkSizes={stageImageSizes}
       />
@@ -609,7 +611,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
             style={localTableStageStyle(theme)}
           >
             <ResponsiveImage
-              src={theme.stageArt}
+              src={coverArt}
               alt=""
               aria-hidden="true"
               preset="game-stage"

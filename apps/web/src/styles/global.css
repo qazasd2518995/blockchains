@@ -15098,3 +15098,157 @@
     border-radius: 13px;
   }
 }
+
+@layer components {
+  .local-table-stage-panel {
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 18% 10%, color-mix(in srgb, var(--local-table-glow) 28%, transparent), transparent 30%),
+      linear-gradient(135deg, color-mix(in srgb, var(--local-table-felt) 66%, #020617), #050812 100%) !important;
+  }
+
+  .local-table-stage-panel::after {
+    pointer-events: none;
+    content: '';
+    position: absolute;
+    inset: 7px;
+    z-index: 3;
+    border-radius: 18px;
+    border: 1px solid color-mix(in srgb, var(--local-table-glow) 32%, rgba(255, 255, 255, 0.12));
+    box-shadow:
+      inset 0 0 20px color-mix(in srgb, var(--local-table-glow) 9%, transparent),
+      0 0 30px color-mix(in srgb, var(--local-table-accent) 12%, transparent);
+  }
+
+  .game-warm-shell .local-table-stage-panel {
+    background:
+      radial-gradient(circle at 18% 10%, color-mix(in srgb, var(--local-table-glow) 24%, transparent), transparent 30%),
+      linear-gradient(135deg, color-mix(in srgb, var(--local-table-felt) 58%, #020617), #050812 100%) !important;
+  }
+
+  .local-table-stage-art {
+    z-index: 0;
+    opacity: 0.92 !important;
+    object-position: center 18% !important;
+    filter: saturate(1.18) contrast(1.06) brightness(1.06);
+    transform: scale(1.025);
+  }
+
+  .game-warm-shell .local-table-stage-art,
+  .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-stage-art,
+  .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-stage-art,
+  .game-fullscreen-shell[data-game-id^='black-dot'] .local-table-stage-art,
+  .game-fullscreen-shell[data-game-id^='card-war'] .local-table-stage-art {
+    opacity: 0.94 !important;
+    object-position: center 16% !important;
+    filter: saturate(1.2) contrast(1.08) brightness(1.08);
+  }
+
+  .local-table-stage-wash,
+  .game-warm-shell .local-table-stage-wash {
+    z-index: 1;
+    background:
+      radial-gradient(circle at 50% 24%, transparent 0 28%, rgba(2, 6, 23, 0.12) 58%, rgba(2, 6, 23, 0.5) 100%),
+      linear-gradient(180deg, rgba(2, 6, 23, 0.03), rgba(2, 6, 23, 0.16) 54%, rgba(2, 6, 23, 0.56)) !important;
+  }
+
+  .local-table-stage-glow {
+    z-index: 2;
+    opacity: 0.52;
+    mix-blend-mode: screen;
+    background:
+      radial-gradient(
+        circle at 50% 38%,
+        color-mix(in srgb, var(--local-table-glow) 22%, transparent),
+        transparent 34%
+      ),
+      radial-gradient(
+        circle at 18% 12%,
+        color-mix(in srgb, var(--local-table-accent) 18%, transparent),
+        transparent 30%
+      ) !important;
+  }
+
+  .local-table-hand-panel,
+  .tui-tongzi-board,
+  .tui-tongzi-lane,
+  .black-dot-table,
+  .card-war-board,
+  .card-war-seat {
+    backdrop-filter: blur(2px) saturate(1.1) !important;
+    -webkit-backdrop-filter: blur(2px) saturate(1.1) !important;
+  }
+
+  .local-table-hand-panel,
+  .game-warm-shell .local-table-hand-panel {
+    border-color: color-mix(in srgb, var(--local-table-glow) 24%, rgba(255, 255, 255, 0.12)) !important;
+    background:
+      linear-gradient(180deg, rgba(8, 13, 24, 0.36), rgba(8, 13, 24, 0.18)),
+      radial-gradient(circle at 20% 12%, color-mix(in srgb, var(--local-table-accent) 12%, transparent), transparent 34%),
+      rgba(8, 13, 24, 0.16) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 0 0 1px rgba(255, 244, 214, 0.06),
+      0 14px 30px rgba(0, 0, 0, 0.22) !important;
+  }
+
+  .local-table-hand-panel--active,
+  .game-warm-shell .local-table-hand-panel--active {
+    border-color: color-mix(in srgb, var(--local-table-glow) 42%, rgba(255, 255, 255, 0.14)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      0 0 0 1px color-mix(in srgb, var(--local-table-glow) 10%, transparent),
+      0 16px 34px rgba(0, 0, 0, 0.24) !important;
+  }
+
+  .local-table-hand-panel .rounded-\[10px\],
+  .game-warm-shell .local-table-hand-panel .rounded-\[10px\] {
+    background: rgba(2, 6, 23, 0.26) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+  }
+
+  .tui-tongzi-board,
+  .card-war-board,
+  .black-dot-table {
+    border-color: color-mix(in srgb, var(--local-table-glow) 24%, rgba(255, 255, 255, 0.1)) !important;
+    background:
+      radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--local-table-glow) 8%, transparent), transparent 32%),
+      radial-gradient(circle at 16% 76%, color-mix(in srgb, var(--local-table-accent) 7%, transparent), transparent 32%),
+      rgba(4, 10, 22, 0.2) !important;
+  }
+
+  .tui-tongzi-board__felt,
+  .card-war-board__felt,
+  .black-dot-table::before {
+    opacity: 0.24 !important;
+  }
+
+  .tui-tongzi-lane,
+  .card-war-seat,
+  .game-warm-shell .tui-tongzi-lane,
+  .game-warm-shell .card-war-seat {
+    border-color: color-mix(in srgb, var(--local-table-glow) 22%, rgba(255, 255, 255, 0.1)) !important;
+    background:
+      radial-gradient(circle at 22% 12%, color-mix(in srgb, var(--local-table-glow) 8%, transparent), transparent 30%),
+      rgba(5, 10, 18, 0.18) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 14px 28px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .local-table-result-card,
+  .game-warm-shell .local-table-result-card {
+    border-color: rgba(255, 255, 255, 0.28) !important;
+    background: rgba(255, 255, 255, 0.88) !important;
+    backdrop-filter: blur(5px) saturate(1.08) !important;
+    -webkit-backdrop-filter: blur(5px) saturate(1.08) !important;
+  }
+
+  .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-stage-panel::after,
+  .game-fullscreen-shell[data-game-id^='tui-tongzi'] .local-table-stage-panel::after,
+  .game-fullscreen-shell[data-game-id^='black-dot'] .local-table-stage-panel::after,
+  .game-fullscreen-shell[data-game-id^='card-war'] .local-table-stage-panel::after {
+    inset: 4px;
+    border-radius: 13px;
+  }
+}
