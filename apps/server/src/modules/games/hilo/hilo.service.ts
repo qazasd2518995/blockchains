@@ -128,15 +128,7 @@ export class HiLoService {
         controlled.won &&
         multiplierExceedsControlCeiling(nextMultiplier, round.betAmount, controlled);
       const shapedControl = controlledWinExceedsHiLoCeiling
-        ? {
-            ...controlled,
-            won: false,
-            multiplier: new Prisma.Decimal(0),
-            payout: new Prisma.Decimal(0),
-            flipReason: controlled.flipReason?.startsWith('burst_')
-              ? 'burst_risk_guard'
-              : controlled.flipReason,
-          }
+        ? forceControlOutcomeToLoss(controlled)
         : controlled;
       const entertainmentSafeProgress = shouldAllowEntertainmentSafeProgress({
         outcome: shapedControl,

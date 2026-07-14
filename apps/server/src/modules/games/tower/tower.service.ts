@@ -136,15 +136,7 @@ export class TowerService {
         controlled.won &&
         multiplierExceedsControlCeiling(nextMult, round.betAmount, controlled);
       const shapedControl = controlledWinExceedsTowerCeiling
-        ? {
-            ...controlled,
-            won: false,
-            multiplier: new Prisma.Decimal(0),
-            payout: new Prisma.Decimal(0),
-            flipReason: controlled.flipReason?.startsWith('burst_')
-              ? 'burst_risk_guard'
-              : controlled.flipReason,
-          }
+        ? forceControlOutcomeToLoss(controlled)
         : controlled;
       const lateLevelForcedLoss = mustForceTowerLateLevelLoss(difficulty, round.currentLevel);
       const repeatedColumnForcedLoss = mustForceTowerRepeatedColumnLoss(round.picks, input.col);

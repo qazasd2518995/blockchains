@@ -588,7 +588,9 @@ export class CrashSoloService {
           multiplier: new Prisma.Decimal(0),
           payout: new Prisma.Decimal(0),
           controlled: true,
-          flipReason: 'burst_budget_guard',
+          flipReason: control.flipReason?.startsWith('burst_')
+            ? 'burst_budget_guard'
+            : 'control_bounds_guard',
           controlId: control.controlId,
         },
       };

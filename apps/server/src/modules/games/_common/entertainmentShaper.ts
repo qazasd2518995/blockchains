@@ -74,6 +74,7 @@ export function buildAutoBalanceEntertainmentEnvelope(
     : maxPayoutByMultiplier;
 
   if (maxPayout.lessThanOrEqualTo(0)) return null;
+  if (desired === 'WIN' && maxPayout.lessThanOrEqualTo(amount)) return null;
 
   return {
     enabled: true,

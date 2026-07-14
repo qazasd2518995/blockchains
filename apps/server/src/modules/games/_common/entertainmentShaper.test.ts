@@ -78,7 +78,7 @@ describe('Entertainment Shaper', () => {
     expect(shaped!.meta.presentationProfile).toBe('controlled_drain');
   });
 
-  it('does not force a revive win above the upstream payout envelope', () => {
+  it('does not shape impossible revive wins below the original stake', () => {
     vi.stubEnv('ENTERTAINMENT_SHAPER_ENABLED', 'true');
 
     const amount = new Prisma.Decimal(5000);
@@ -98,10 +98,7 @@ describe('Entertainment Shaper', () => {
       4,
     );
 
-    expect(shaped).not.toBeNull();
-    expect(shaped!.outcome.payout.lessThanOrEqualTo(4990)).toBe(true);
-    expect(shaped!.outcome.multiplier.lessThanOrEqualTo('0.9980')).toBe(true);
-    expect(shaped!.outcome.won).toBe(false);
+    expect(shaped).toBeNull();
   });
 
   it('does not shape non-auto-balance control reasons', () => {

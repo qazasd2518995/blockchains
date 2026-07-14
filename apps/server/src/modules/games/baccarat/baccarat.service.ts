@@ -362,7 +362,7 @@ function controlAsForcedLoss(control: ControlOutcome): ControlOutcome {
     payout: ZERO,
     controlled: true,
     flipReason:
-      control.flipReason === 'burst_risk_cap' ? 'burst_risk_guard' : 'burst_budget_guard',
+      control.flipReason === 'burst_risk_cap' ? 'burst_risk_guard' : 'control_bounds_guard',
   };
 }
 

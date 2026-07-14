@@ -130,15 +130,7 @@ export class MinesService {
         controlled.won &&
         multiplierExceedsControlCeiling(safeMultiplier, round.betAmount, controlled);
       const shapedControl = controlledWinExceedsMinesCeiling
-        ? {
-            ...controlled,
-            won: false,
-            multiplier: new Prisma.Decimal(0),
-            payout: new Prisma.Decimal(0),
-            flipReason: controlled.flipReason?.startsWith('burst_')
-              ? 'burst_risk_guard'
-              : controlled.flipReason,
-          }
+        ? forceControlOutcomeToLoss(controlled)
         : controlled;
       const entertainmentSafeProgress = shouldAllowEntertainmentSafeProgress({
         outcome: shapedControl,

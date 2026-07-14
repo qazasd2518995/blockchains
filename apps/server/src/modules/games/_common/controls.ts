@@ -2864,6 +2864,9 @@ export function forceControlOutcomeToLoss(outcome: ControlOutcome): ControlOutco
     won: false,
     multiplier: new Prisma.Decimal(0),
     payout: new Prisma.Decimal(0),
+    flipReason: outcome.flipReason?.startsWith('burst_')
+      ? 'burst_risk_guard'
+      : 'control_bounds_guard',
     gameMatchedPayoutOnly: undefined,
   };
 }

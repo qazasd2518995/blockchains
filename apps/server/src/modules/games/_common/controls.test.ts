@@ -4,6 +4,7 @@ import { GameId } from '@bg/shared';
 import {
   __controlsTestHooks,
   applyControls,
+  forceControlOutcomeToLoss,
   isBurstControlEligible,
   multiplierExceedsControlCeiling,
   passesControlInterventionRate,
@@ -335,6 +336,21 @@ describe('rankWinLossControls priority', () => {
 });
 
 describe('resolveGameMatchedCashoutControl', () => {
+  it('records non-burst forced losses as bounds guards', () => {
+    const resolved = forceControlOutcomeToLoss({
+      won: true,
+      multiplier: new Prisma.Decimal('1.01'),
+      payout: new Prisma.Decimal(101),
+      controlled: true,
+      flipReason: 'auto_balance_revive',
+      controlId: 'auto-1',
+    });
+
+    expect(resolved.won).toBe(false);
+    expect(resolved.payout.toFixed(2)).toBe('0.00');
+    expect(resolved.flipReason).toBe('control_bounds_guard');
+  });
+
   it('falls back to the actual game multiplier when a controlled loss cannot be represented by cashout state', () => {
     const resolved = resolveGameMatchedCashoutControl(
       new Prisma.Decimal('1.35'),

@@ -22,6 +22,7 @@ import {
 import {
   applyControls,
   finalizeControls,
+  forceControlOutcomeToLoss,
   multiplierExceedsControlCeiling,
   resolveGameMatchedCashoutControl,
 } from '../_common/controls.js';
@@ -142,15 +143,7 @@ export class ChickenRoadService {
         controlled.won &&
         multiplierExceedsControlCeiling(nextMult, bet.amount, controlled);
       const shapedControl = controlledWinExceedsChickenRoadCeiling
-        ? {
-            ...controlled,
-            won: false,
-            multiplier: new Prisma.Decimal(0),
-            payout: new Prisma.Decimal(0),
-            flipReason: controlled.flipReason?.startsWith('burst_')
-              ? 'burst_risk_guard'
-              : controlled.flipReason,
-          }
+        ? forceControlOutcomeToLoss(controlled)
         : controlled;
 
       const finalPath = rawPath.slice();

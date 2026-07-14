@@ -67,7 +67,7 @@ export class DiceService {
               flipReason:
                 controlled.flipReason === 'burst_risk_cap'
                   ? 'burst_risk_guard'
-                  : 'burst_budget_guard',
+                  : 'control_bounds_guard',
               controlId: controlled.controlId,
             }
           : controlled;

@@ -599,6 +599,8 @@ function shouldPreserveControlledMegaFreeGameTarget(
 ): boolean {
   if (!control.controlled || !control.won) return false;
   return (
+    control.flipReason === 'auto_balance_revive' ||
+    control.flipReason === 'auto_balance_path_guard' ||
     control.flipReason === 'burst_win' ||
     control.flipReason === 'burst_small_win' ||
     control.flipReason === 'burst_risk_cap'
