@@ -17,6 +17,16 @@ describe('local table route access gate', () => {
     });
   });
 
+  it('allows additional test player accounts to use local table APIs', async () => {
+    const store = {
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ username: 'testplayer4' }),
+      },
+    };
+
+    await expect(assertLocalTableBetaAccess(store, 'u-test-4')).resolves.toBeUndefined();
+  });
+
   it('blocks every other member from local table APIs', async () => {
     const store = {
       user: {

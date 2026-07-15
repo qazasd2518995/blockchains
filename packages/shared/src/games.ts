@@ -121,7 +121,14 @@ export type LocalTableGameIdType = (typeof LOCAL_TABLE_GAME_IDS)[number];
 const LOCAL_TABLE_GAME_ID_SET = new Set<string>(LOCAL_TABLE_GAME_IDS);
 const BACCARAT_TABLE_GAME_ID_SET = new Set<string>(BACCARAT_TABLE_GAME_IDS);
 
-export const LOCAL_TABLE_BETA_ALLOWED_USERNAMES = ['testplayer'] as const;
+export const LOCAL_TABLE_BETA_ALLOWED_USERNAMES = [
+  'testplayer',
+  'testplayer2',
+  'testplayer3',
+  'testplayer4',
+  'testplayer5',
+  'testplayer6',
+] as const;
 
 const LOCAL_TABLE_BETA_ALLOWED_USERNAME_SET = new Set<string>(LOCAL_TABLE_BETA_ALLOWED_USERNAMES);
 

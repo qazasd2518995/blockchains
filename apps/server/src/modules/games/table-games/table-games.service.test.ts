@@ -65,10 +65,14 @@ describe('local table game rules', () => {
   it('keeps local table games visible only for the beta account', () => {
     expect(canAccessLocalTableBeta('testplayer')).toBe(true);
     expect(canAccessLocalTableBeta('TestPlayer')).toBe(true);
+    expect(canAccessLocalTableBeta('testplayer2')).toBe(true);
+    expect(canAccessLocalTableBeta('TestPlayer6')).toBe(true);
     expect(canAccessLocalTableBeta('player001')).toBe(false);
     expect(isGameVisibleForUsername(GameId.TUI_TONGZI_DRAGON, 'testplayer')).toBe(true);
+    expect(isGameVisibleForUsername(GameId.TUI_TONGZI_DRAGON, 'testplayer2')).toBe(true);
     expect(isGameVisibleForUsername(GameId.TUI_TONGZI_DRAGON, 'player001')).toBe(false);
     expect(isGameVisibleForUsername(GameId.BACCARAT_DRAGON, 'testplayer')).toBe(true);
+    expect(isGameVisibleForUsername(GameId.BACCARAT_DRAGON, 'testplayer6')).toBe(true);
     expect(isGameVisibleForUsername(GameId.BACCARAT_DRAGON, 'player001')).toBe(false);
     expect(isGameVisibleForUsername(GameId.BLACKJACK, 'player001')).toBe(true);
   });
