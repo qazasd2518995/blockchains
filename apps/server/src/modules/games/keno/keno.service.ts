@@ -20,7 +20,7 @@ import {
   multiplierMatchesControlBounds,
   type ControlOutcome,
 } from '../_common/controls.js';
-import { pickWeightedRandom } from '../_common/resultSelection.js';
+import { pickWeightedRandom, selectControlledLossBand } from '../_common/resultSelection.js';
 import type { KenoBetInput } from './keno.schema.js';
 
 export class KenoService {
@@ -145,22 +145,23 @@ function chooseKenoHitCount(
     multiplier: kenoMultiplier(risk, pickCount, hits),
   }));
 
-  if (!wantWin) {
-    const losingCandidates = candidates.filter((x) => x.multiplier <= 1);
-    const picked = pickWeightedRandom(losingCandidates, (x) => controlledLossWeight(x.multiplier));
-    return picked?.hits ?? 0;
-  }
-
   const boundedWins = candidates.filter(
     (x) => x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled),
   );
-  if (boundedWins.length === 0) return 0;
+  if (wantWin && boundedWins.length > 0) {
+    const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
+    const picked = pickWeightedRandom(boundedWins, (x) =>
+      controlTargetWeight(x.multiplier, targetMultiplier),
+    );
+    return picked?.hits ?? boundedWins[0]?.hits ?? 0;
+  }
 
-  const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
-  const picked = pickWeightedRandom(boundedWins, (x) =>
-    controlTargetWeight(x.multiplier, targetMultiplier),
-  );
-  return picked?.hits ?? 0;
+  // A requested win can be impossible under a payout cap. In that case, use
+  // the same natural loss distribution instead of hard-coding zero hits.
+  const losingCandidates = candidates.filter((x) => x.multiplier < 1);
+  const lossBand = selectControlledLossBand(losingCandidates);
+  const picked = pickWeightedRandom(lossBand, (x) => controlledLossWeight(x.multiplier));
+  return picked?.hits ?? losingCandidates[0]?.hits ?? 0;
 }
 
 function controlTargetWeight(multiplier: number, targetMultiplier: number): number {
@@ -169,8 +170,9 @@ function controlTargetWeight(multiplier: number, targetMultiplier: number): numb
 }
 
 function controlledLossWeight(multiplier: number): number {
-  if (multiplier >= 0.75 && multiplier <= 1) return 2.4;
-  if (multiplier > 0 && multiplier < 0.75) return 1.4;
+  if (multiplier >= 0.75 && multiplier < 1) return 2.4;
+  if (multiplier >= 0.5) return 1.7;
+  if (multiplier > 0) return 1.2;
   return 1;
 }
 

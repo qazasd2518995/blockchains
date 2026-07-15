@@ -8,21 +8,43 @@ describe('roulette controlled slot shaping', () => {
     vi.restoreAllMocks();
   });
 
-  it('varies controlled loss slots instead of always picking the softest loss', () => {
-    vi.spyOn(Math, 'random')
-      .mockReturnValueOnce(0.01)
-      .mockReturnValueOnce(0.99)
-      .mockReturnValueOnce(0.45);
+  it('prefers the half-back slot for the soft-loss band', () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.1).mockReturnValueOnce(0.2);
 
     const bets: RouletteBet[] = [{ type: 'red', amount: 10 }];
     const amount = new Prisma.Decimal(10);
-    const picks = Array.from({ length: 3 }, () =>
-      __rouletteServiceTestHooks.chooseRouletteSlot(bets, 10, false, amount, {
-        multiplier: new Prisma.Decimal(0),
-      }),
-    );
+    const slot = __rouletteServiceTestHooks.chooseRouletteSlot(bets, 10, false, amount, {
+      multiplier: new Prisma.Decimal(0),
+    });
 
-    expect(new Set(picks).size).toBeGreaterThan(1);
-    expect(picks.every((slot) => rouletteEvaluate(slot, bets).totalPayout < 10)).toBe(true);
+    expect(slot).toBe(0);
+    expect(rouletteEvaluate(slot, bets).totalPayout).toBe(5);
+  });
+
+  it('still produces a full loss from the full-loss band', () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.95).mockReturnValueOnce(0.2);
+
+    const bets: RouletteBet[] = [{ type: 'red', amount: 10 }];
+    const amount = new Prisma.Decimal(10);
+    const slot = __rouletteServiceTestHooks.chooseRouletteSlot(bets, 10, false, amount, {
+      multiplier: new Prisma.Decimal(0),
+    });
+
+    expect(slot).not.toBe(0);
+    expect(rouletteEvaluate(slot, bets).totalPayout).toBe(0);
+  });
+
+  it('uses half-back loss shaping when a capped win has no legal slot', () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.1).mockReturnValueOnce(0.2);
+
+    const bets: RouletteBet[] = [{ type: 'red', amount: 1000 }];
+    const amount = new Prisma.Decimal(1000);
+    const slot = __rouletteServiceTestHooks.chooseRouletteSlot(bets, 1000, true, amount, {
+      multiplier: new Prisma.Decimal(1.01),
+      maxPayout: new Prisma.Decimal(500),
+    });
+
+    expect(slot).toBe(0);
+    expect(rouletteEvaluate(slot, bets).totalPayout).toBe(500);
   });
 });

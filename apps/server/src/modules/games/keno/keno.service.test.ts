@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { kenoEvaluate } from '@bg/provably-fair';
+import { kenoEvaluate, kenoMultiplier } from '@bg/provably-fair';
 import { __kenoServiceTestHooks } from './keno.service.js';
 
 function longestRun(numbers: number[]): number {
@@ -57,20 +57,45 @@ describe('keno controlled draw shaping', () => {
     expect(hitIndexes.some((index) => index > 0 && index < drawn.length - 1)).toBe(true);
   });
 
-  it('varies controlled loss hit counts instead of always choosing the softest loss', () => {
+  it('shapes controlled losses across soft, partial, and full-loss bands', () => {
     vi.spyOn(Math, 'random')
-      .mockReturnValueOnce(0.01)
-      .mockReturnValueOnce(0.99)
-      .mockReturnValueOnce(0.45);
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.2)
+      .mockReturnValueOnce(0.8)
+      .mockReturnValueOnce(0.2)
+      .mockReturnValueOnce(0.95)
+      .mockReturnValueOnce(0.2);
 
-    const picks = new Set(
-      Array.from({ length: 3 }, () =>
-        __kenoServiceTestHooks.chooseKenoHitCount('low', 10, false, new Prisma.Decimal(10), {
-          multiplier: new Prisma.Decimal(0),
-        }),
-      ),
+    const picks = Array.from({ length: 3 }, () =>
+      __kenoServiceTestHooks.chooseKenoHitCount('high', 8, false, new Prisma.Decimal(10), {
+        multiplier: new Prisma.Decimal(0),
+      }),
     );
+    const multipliers = picks.map((hits) => kenoMultiplier('high', 8, hits));
 
-    expect(picks.size).toBeGreaterThan(1);
+    expect(multipliers[0]).toBeGreaterThanOrEqual(0.5);
+    expect(multipliers[0]).toBeLessThan(1);
+    expect(multipliers[1]).toBeGreaterThan(0);
+    expect(multipliers[1]).toBeLessThan(0.5);
+    expect(multipliers[2]).toBe(0);
+  });
+
+  it('uses loss shaping when a capped win has no legal hit count', () => {
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0.1).mockReturnValueOnce(0.2);
+
+    const hits = __kenoServiceTestHooks.chooseKenoHitCount(
+      'medium',
+      8,
+      true,
+      new Prisma.Decimal(1000),
+      {
+        multiplier: new Prisma.Decimal(1.01),
+        maxPayout: new Prisma.Decimal(500),
+      },
+    );
+    const multiplier = kenoMultiplier('medium', 8, hits);
+
+    expect(multiplier).toBeGreaterThanOrEqual(0.5);
+    expect(multiplier).toBeLessThan(1);
   });
 });

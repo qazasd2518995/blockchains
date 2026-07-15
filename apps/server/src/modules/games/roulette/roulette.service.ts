@@ -19,7 +19,7 @@ import {
   multiplierMatchesControlBounds,
   type ControlOutcome,
 } from '../_common/controls.js';
-import { pickWeightedRandom } from '../_common/resultSelection.js';
+import { pickWeightedRandom, selectControlledLossBand } from '../_common/resultSelection.js';
 import type { RouletteBetInput } from './roulette.schema.js';
 
 export class RouletteService {
@@ -147,7 +147,7 @@ function chooseRouletteSlot(
   amount: Prisma.Decimal,
   controlled: Pick<ControlOutcome, 'multiplier' | 'minMultiplier' | 'maxMultiplier' | 'maxPayout'>,
 ): number {
-  const candidates = Array.from({ length: ROULETTE_SLOTS }, (_, slot) => {
+  const outcomes = Array.from({ length: ROULETTE_SLOTS }, (_, slot) => {
     const evaluated = rouletteEvaluate(slot, bets);
     return {
       slot,
@@ -155,30 +155,26 @@ function chooseRouletteSlot(
       payout: evaluated.totalPayout,
       multiplier: totalAmount > 0 ? evaluated.totalPayout / totalAmount : 0,
     };
-  }).filter((x) =>
-    wantWin
-      ? x.profit > 0 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
-      : x.profit < 0,
+  });
+  const boundedWins = outcomes.filter(
+    (outcome) =>
+      outcome.profit > 0 && multiplierMatchesControlBounds(outcome.multiplier, amount, controlled),
   );
-  const losingFallback = Array.from({ length: ROULETTE_SLOTS }, (_, slot) => {
-    const evaluated = rouletteEvaluate(slot, bets);
-    return {
-      slot,
-      profit: evaluated.totalPayout - totalAmount,
-      payout: evaluated.totalPayout,
-      multiplier: totalAmount > 0 ? evaluated.totalPayout / totalAmount : 0,
-    };
-  }).filter((x) => x.profit < 0);
-  const pool = candidates.length > 0 ? candidates : losingFallback;
-  if (wantWin) {
+  if (wantWin && boundedWins.length > 0) {
     const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
-    const picked = pickWeightedRandom(pool, (x) =>
+    const picked = pickWeightedRandom(boundedWins, (x) =>
       controlTargetWeight(x.multiplier, targetMultiplier),
     );
-    return picked?.slot ?? pool[0]?.slot ?? 0;
+    return picked?.slot ?? boundedWins[0]?.slot ?? 0;
   }
-  const picked = pickWeightedRandom(pool, (x) => controlledLossWeight(x.multiplier));
-  return picked?.slot ?? pool[0]?.slot ?? 0;
+
+  // Roulette and Carnival can contain a legal half-back outcome. Select by
+  // loss severity first so the single soft-loss slot is not drowned out by
+  // many zero-payout slots. This also handles an impossible bounded win.
+  const losingOutcomes = outcomes.filter((outcome) => outcome.profit < 0);
+  const lossBand = selectControlledLossBand(losingOutcomes);
+  const picked = pickWeightedRandom(lossBand, (x) => controlledLossWeight(x.multiplier));
+  return picked?.slot ?? losingOutcomes[0]?.slot ?? 0;
 }
 
 function controlTargetWeight(multiplier: number, targetMultiplier: number): number {

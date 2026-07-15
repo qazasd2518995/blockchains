@@ -14,7 +14,7 @@ import {
   multiplierMatchesControlBounds,
   type ControlOutcome,
 } from '../_common/controls.js';
-import { pickWeightedRandom } from '../_common/resultSelection.js';
+import { pickWeightedRandom, selectControlledLossBand } from '../_common/resultSelection.js';
 import type { WheelBetInput } from './wheel.schema.js';
 
 export class WheelService {
@@ -151,21 +151,6 @@ function chooseWheelSegment(
     controlledLossWeight(x.multiplier),
   );
   return picked?.segmentIndex ?? pool[0]?.segmentIndex ?? 0;
-}
-
-function selectControlledLossBand<T extends { multiplier: number }>(pool: T[]): T[] {
-  const softLosses = pool.filter((item) => item.multiplier >= 0.5 && item.multiplier < 1);
-  const partialLosses = pool.filter((item) => item.multiplier > 0 && item.multiplier < 0.5);
-  const fullLosses = pool.filter((item) => item.multiplier === 0);
-  const roll = Math.random();
-
-  if (roll < 0.72) return firstNonEmpty(softLosses, partialLosses, fullLosses, pool);
-  if (roll < 0.9) return firstNonEmpty(partialLosses, softLosses, fullLosses, pool);
-  return firstNonEmpty(fullLosses, partialLosses, softLosses, pool);
-}
-
-function firstNonEmpty<T>(...groups: T[][]): T[] {
-  return groups.find((group) => group.length > 0) ?? [];
 }
 
 function controlTargetWeight(multiplier: number, targetMultiplier: number): number {
