@@ -8,51 +8,41 @@ export const WHEEL_TARGET_RTP = 0.965;
 // 數字 0 表示該段為 0x (輸)
 type WheelTable = Record<WheelRisk, Record<WheelSegmentCount, number[]>>;
 
-// Simplified Stake-style tables. Segments 多則 0 變多。
-const TABLE: WheelTable = {
-  low: {
-    10: [1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.2, 1.2, 1.2, 0],
-    20: [
-      1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.2, 1.2, 1.2, 0, 1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.2, 1.2, 1.2, 0,
-    ],
-    30: Array.from({ length: 30 }, (_, i) => (i % 5 === 4 ? 0 : i % 5 === 0 ? 1.5 : 1.2)),
-    40: Array.from({ length: 40 }, (_, i) => (i % 4 === 3 ? 0 : 1.2)),
-    50: Array.from({ length: 50 }, (_, i) => (i % 5 === 4 ? 0 : 1.2)),
-  },
-  medium: {
-    10: [1.9, 3, 1.5, 0, 1.5, 0, 2, 1.5, 2, 0],
-    20: Array.from({ length: 20 }, (_, i) => {
-      if (i === 0) return 3;
-      if (i === 10) return 3;
-      if (i % 4 === 2) return 0;
-      return 1.7;
-    }),
-    30: Array.from({ length: 30 }, (_, i) => (i % 6 === 0 ? 3 : i % 3 === 2 ? 0 : 1.7)),
-    40: Array.from({ length: 40 }, (_, i) => (i % 8 === 0 ? 3 : i % 4 === 2 ? 0 : 1.7)),
-    50: Array.from({ length: 50 }, (_, i) => (i % 10 === 0 ? 3 : i % 5 === 2 ? 0 : 1.7)),
-  },
-  high: {
-    10: [9.9, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    20: [19.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    30: Array.from({ length: 30 }, (_, i) => (i === 0 ? 29.7 : 0)),
-    40: Array.from({ length: 40 }, (_, i) => (i === 0 ? 39.6 : 0)),
-    50: Array.from({ length: 50 }, (_, i) => (i === 0 ? 49.5 : 0)),
-  },
-};
+const LOW_PATTERN = [1.7, 1.4, 1.15, 0.85, 1.1, 1.15, 0.3, 1.1, 0.9, 0];
+const MEDIUM_PATTERN = [2.5, 1.6, 1.4, 0, 1.2, 0.3, 1.15, 0.65, 0.85, 0];
+const HIGH_LOSS_PATTERN = [0, 0, 0.15, 0, 0.35, 0, 0.65, 0, 0.85, 0];
+const SEGMENT_COUNTS: WheelSegmentCount[] = [10, 20, 30, 40, 50];
 
-function applyTargetRtp(table: number[]): number[] {
-  const currentRtp = table.reduce((sum, multiplier) => sum + multiplier, 0) / table.length;
-  if (currentRtp <= 0) return table;
-  const scale = WHEEL_TARGET_RTP / currentRtp;
-  return table.map((multiplier) => {
-    if (multiplier <= 0) return 0;
-    return Math.floor(multiplier * scale * 10000) / 10000;
-  });
+function repeatPattern(pattern: number[], segments: WheelSegmentCount): number[] {
+  return Array.from({ length: segments }, (_, index) => pattern[index % pattern.length] ?? 0);
 }
 
+function highRiskTable(segments: WheelSegmentCount): number[] {
+  const losses = Array.from(
+    { length: segments - 1 },
+    (_, index) => HIGH_LOSS_PATTERN[index % HIGH_LOSS_PATTERN.length] ?? 0,
+  );
+  const targetTotal = segments * WHEEL_TARGET_RTP;
+  const lossTotal = losses.reduce((sum, multiplier) => sum + multiplier, 0);
+  return [Number((targetTotal - lossTotal).toFixed(4)), ...losses];
+}
+
+const TABLE = Object.fromEntries(
+  (['low', 'medium', 'high'] as const).map((risk) => [
+    risk,
+    Object.fromEntries(
+      SEGMENT_COUNTS.map((segments) => [
+        segments,
+        risk === 'high'
+          ? highRiskTable(segments)
+          : repeatPattern(risk === 'low' ? LOW_PATTERN : MEDIUM_PATTERN, segments),
+      ]),
+    ),
+  ]),
+) as WheelTable;
+
 export function wheelTable(risk: WheelRisk, segments: WheelSegmentCount): number[] {
-  const rows = TABLE[risk][segments];
-  return applyTargetRtp(rows);
+  return [...TABLE[risk][segments]];
 }
 
 export function wheelSpin(
@@ -71,6 +61,5 @@ export function wheelMultiplier(
   segments: WheelSegmentCount,
   segmentIndex: number,
 ): number {
-  const table = TABLE[risk][segments];
-  return applyTargetRtp(table)[segmentIndex] ?? 0;
+  return TABLE[risk][segments][segmentIndex] ?? 0;
 }

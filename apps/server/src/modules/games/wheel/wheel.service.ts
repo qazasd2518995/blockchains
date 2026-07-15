@@ -134,21 +134,38 @@ function chooseWheelSegment(
     .filter((x) =>
       wantWin
         ? x.multiplier > 1 && multiplierMatchesControlBounds(x.multiplier, amount, controlled)
-        : x.multiplier <= 1,
+        : x.multiplier < 1,
     );
   const losingFallback = table
     .map((multiplier, segmentIndex) => ({ segmentIndex, multiplier }))
-    .filter((x) => x.multiplier <= 1);
-  const pool = candidates.length > 0 ? candidates : losingFallback;
-  if (wantWin) {
+    .filter((x) => x.multiplier < 1);
+  if (wantWin && candidates.length > 0) {
     const targetMultiplier = Number(controlled.multiplier ?? controlled.minMultiplier ?? 2);
-    const picked = pickWeightedRandom(pool, (x) =>
+    const picked = pickWeightedRandom(candidates, (x) =>
       controlTargetWeight(x.multiplier, targetMultiplier),
     );
-    return picked?.segmentIndex ?? pool[0]?.segmentIndex ?? 0;
+    return picked?.segmentIndex ?? candidates[0]?.segmentIndex ?? 0;
   }
-  const picked = pickWeightedRandom(pool, (x) => controlledLossWeight(x.multiplier));
+  const pool = wantWin ? losingFallback : candidates.length > 0 ? candidates : losingFallback;
+  const picked = pickWeightedRandom(selectControlledLossBand(pool), (x) =>
+    controlledLossWeight(x.multiplier),
+  );
   return picked?.segmentIndex ?? pool[0]?.segmentIndex ?? 0;
+}
+
+function selectControlledLossBand<T extends { multiplier: number }>(pool: T[]): T[] {
+  const softLosses = pool.filter((item) => item.multiplier >= 0.5 && item.multiplier < 1);
+  const partialLosses = pool.filter((item) => item.multiplier > 0 && item.multiplier < 0.5);
+  const fullLosses = pool.filter((item) => item.multiplier === 0);
+  const roll = Math.random();
+
+  if (roll < 0.72) return firstNonEmpty(softLosses, partialLosses, fullLosses, pool);
+  if (roll < 0.9) return firstNonEmpty(partialLosses, softLosses, fullLosses, pool);
+  return firstNonEmpty(fullLosses, partialLosses, softLosses, pool);
+}
+
+function firstNonEmpty<T>(...groups: T[][]): T[] {
+  return groups.find((group) => group.length > 0) ?? [];
 }
 
 function controlTargetWeight(multiplier: number, targetMultiplier: number): number {
@@ -157,8 +174,9 @@ function controlTargetWeight(multiplier: number, targetMultiplier: number): numb
 }
 
 function controlledLossWeight(multiplier: number): number {
-  if (multiplier >= 0.85 && multiplier <= 1) return 2.4;
-  if (multiplier > 0 && multiplier < 0.85) return 1.4;
+  if (multiplier >= 0.85 && multiplier < 1) return 2.4;
+  if (multiplier >= 0.5) return 1.7;
+  if (multiplier > 0) return 1.2;
   return 1;
 }
 

@@ -53,7 +53,14 @@ const GAME_POOL: Array<{
     maxWin: 1880000,
   },
   { game: '彈珠台', gameId: 'plinko', minMult: 8, maxMult: 165, minWin: 26000, maxWin: 880000 },
-  { game: '彩色轉輪', gameId: 'wheel', minMult: 2, maxMult: 48, minWin: 15000, maxWin: 260000 },
+  {
+    game: '彩色轉輪',
+    gameId: 'wheel',
+    minMult: 2,
+    maxMult: 38.25,
+    minWin: 15000,
+    maxWin: 260000,
+  },
   {
     game: '迷你輪盤',
     gameId: 'mini-roulette',

@@ -43,4 +43,18 @@ describe('wheelMultiplier', () => {
       }
     }
   });
+
+  it('offers full, partial, and soft losses for every risk level', () => {
+    const risks: WheelRisk[] = ['low', 'medium', 'high'];
+    const segments: WheelSegmentCount[] = [10, 20, 30, 40, 50];
+    for (const risk of risks) {
+      for (const segmentCount of segments) {
+        const table = wheelTable(risk, segmentCount);
+        expect(table.some((multiplier) => multiplier === 0)).toBe(true);
+        expect(table.some((multiplier) => multiplier > 0 && multiplier < 0.5)).toBe(true);
+        expect(table.some((multiplier) => multiplier >= 0.5 && multiplier < 1)).toBe(true);
+        expect(table.some((multiplier) => multiplier > 1)).toBe(true);
+      }
+    }
+  });
 });

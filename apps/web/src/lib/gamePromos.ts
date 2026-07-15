@@ -73,7 +73,7 @@ export function getGamePromoMultiplier(gameId: string): number {
   if (id === GameId.TOWER) return 800;
   if (id === GameId.DICE) return 32.33;
   if (id === GameId.KENO) return 1000;
-  if (id === GameId.WHEEL) return 48.25;
+  if (id === GameId.WHEEL) return 38.25;
   if (id === GameId.MINI_ROULETTE || id === GameId.CARNIVAL) return 12;
   if (id === GameId.BLACKJACK) return 2.5;
   if (BACCARAT_TABLE_PROMO_IDS.has(id)) return 9;

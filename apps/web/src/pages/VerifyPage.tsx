@@ -417,7 +417,7 @@ const GAMES: Game[] = [
     english: 'Color Wheel',
     cover: '/game-art/wheel/cover.png',
     rtp: '96.5%',
-    maxMultiplier: '48.25×',
+    maxMultiplier: '38.25×',
     duration: '單局 6 秒',
     intro: '旋轉轉輪，指針停在你押注的顏色即贏。',
     howToPlay: [
