@@ -505,6 +505,7 @@ function MobileGameCard({
   const featured = variant === 'hero';
   const tall = variant === 'tall';
   const clipPath = MOBILE_COVER_CLIP_PATHS[variant];
+  const hasLongTitle = title.length >= 5;
 
   return (
     <Link
@@ -564,8 +565,15 @@ function MobileGameCard({
         <div className="flex items-end justify-between gap-1">
           <div className="min-w-0">
             <h3
+              title={title}
               className={`truncate font-black leading-none text-[#FFF0A6] [text-shadow:0_2px_0_#5A1F05,0_4px_0_rgba(0,0,0,0.35),0_6px_12px_rgba(0,0,0,0.95)] ${
-                featured ? 'text-[31px]' : 'text-[20px]'
+                featured
+                  ? hasLongTitle
+                    ? 'text-[25px] tracking-[-0.04em] min-[390px]:text-[27px]'
+                    : 'text-[27px] min-[390px]:text-[29px]'
+                  : hasLongTitle
+                    ? 'text-[14px] tracking-[-0.04em] min-[390px]:text-[15px]'
+                    : 'text-[16px] min-[390px]:text-[17px]'
               }`}
             >
               {title}
@@ -578,8 +586,16 @@ function MobileGameCard({
               {game.name}
             </p>
           </div>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#FFE27A]/70 bg-[#EA580C] text-white shadow-[0_6px_12px_rgba(234,88,12,0.34)]">
-            <GameIcon className="h-4 w-4" aria-hidden="true" strokeWidth={2} />
+          <span
+            className={`flex shrink-0 items-center justify-center rounded-full border border-[#FFE27A]/70 bg-[#EA580C] text-white shadow-[0_6px_12px_rgba(234,88,12,0.34)] ${
+              featured ? 'h-8 w-8' : 'h-7 w-7'
+            }`}
+          >
+            <GameIcon
+              className={featured ? 'h-4 w-4' : 'h-3.5 w-3.5'}
+              aria-hidden="true"
+              strokeWidth={2}
+            />
           </span>
         </div>
       </div>
