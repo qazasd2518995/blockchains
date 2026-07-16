@@ -122,6 +122,10 @@ interface DepositLifecycleState {
   currentBalance: string;
   currentPercent: string;
   currentStageIndex: number;
+  stageNumber?: number | null;
+  totalStages?: number;
+  completedStages?: number;
+  finalTargetPercent?: number | null;
   targetPercent: number | null;
   targetBalance: string | null;
   direction: 'WIN' | 'LOSS' | 'HOLD' | 'DONE';
@@ -620,6 +624,11 @@ export function ControlsOverviewPage(): JSX.Element {
       label: '目前阶段',
       render: (r) => {
         const state = r.lifecycleState;
+        const totalStages =
+          state?.totalStages ??
+          r.lifecycleSteps?.length ??
+          Math.max(1, state?.currentStageIndex ?? 0);
+        const finalTargetPercent = state?.finalTargetPercent ?? r.lifecycleSteps?.at(-1) ?? null;
         const progress = state
           ? Number.parseFloat(state.progressPercent)
           : depositProgressPercent(r);
@@ -648,10 +657,21 @@ export function ControlsOverviewPage(): JSX.Element {
             <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-ink-400">
               {state ? (
                 <>
-                  <span>第 {state.currentStageIndex + 1} 阶</span>
-                  <span>
-                    目标 {state.targetPercent ?? '—'}% · {fmt(state.targetBalance)}
-                  </span>
+                  {state.isCompleted || state.direction === 'DONE' ? (
+                    <>
+                      <span>{totalStages} 阶全部完成</span>
+                      <span>最终目标 {finalTargetPercent ?? '—'}%</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>
+                        第 {state.stageNumber ?? state.currentStageIndex + 1}/{totalStages} 阶
+                      </span>
+                      <span>
+                        目标 {state.targetPercent ?? '—'}% · {fmt(state.targetBalance)}
+                      </span>
+                    </>
+                  )}
                 </>
               ) : (
                 <>

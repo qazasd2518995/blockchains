@@ -113,6 +113,11 @@ function serializeDepositLifecycleState(
     currentBalance: current.toFixed(2),
     currentPercent: currentPercent.toFixed(2),
     currentStageIndex: state.currentStageIndex,
+    stageNumber: targetPercent === null ? null : state.currentStageIndex + 1,
+    totalStages: steps.length,
+    completedStages:
+      targetPercent === null ? steps.length : Math.min(state.currentStageIndex, steps.length),
+    finalTargetPercent: steps.at(-1) ?? null,
     targetPercent,
     targetBalance: targetBalance?.toFixed(2) ?? null,
     direction,
@@ -683,7 +688,7 @@ function formatAutoBalancePhase(phase: string): string {
   return phase;
 }
 
-function formatAutoBalanceLogDetail(control: {
+export function formatAutoBalanceLogDetail(control: {
   memberUsername: string;
   baselineBalance: Prisma.Decimal;
   biteTargetBalance: Prisma.Decimal;
@@ -701,20 +706,30 @@ function formatAutoBalanceLogDetail(control: {
     return `會員 ${control.memberUsername}，基準 ${control.baselineBalance.toFixed(2)}，咬到 ${control.biteTargetBalance.toFixed(2)}，回到 ${control.reviveTargetBalance.toFixed(2)}，階段 ${formatAutoBalancePhase(control.phase)}`;
   }
   const stage = control.currentStageIndex;
+  const totalStages = steps.length;
   const fromPercent = stage === 0 ? 100 : (steps[stage - 1] ?? 100);
   const targetPercent = steps[stage] ?? null;
+  const isCompleted = control.lifecycleCompletedAt !== null || targetPercent === null;
   const direction =
-    targetPercent === null
-      ? '已完成'
-      : targetPercent > fromPercent
-        ? `控贏到 ${targetPercent}%`
-        : targetPercent < fromPercent
-          ? `控輸到 ${targetPercent}%`
-          : `維持 ${targetPercent}%`;
+    targetPercent !== null && targetPercent > fromPercent
+      ? `控贏到 ${targetPercent}%`
+      : targetPercent !== null && targetPercent < fromPercent
+        ? `控輸到 ${targetPercent}%`
+        : targetPercent !== null
+          ? `維持 ${targetPercent}%`
+          : null;
   const path = steps.map((step) => `${step}%`).join(' » ');
   const current = control.lastBalance?.toFixed(2) ?? '—';
+  const currentPercent =
+    control.lastBalance && control.baselineBalance.greaterThan(0)
+      ? control.lastBalance.div(control.baselineBalance).mul(100).toFixed(2)
+      : '—';
   const guard = control.secondLineAmount?.toFixed(2) ?? '—';
-  return `會員 ${control.memberUsername}，自動大盤 ${control.templateKey ?? '預設'}，本金 ${control.baselineBalance.toFixed(2)}，目前 ${current}，第 ${stage + 1} 階 ${direction}，路徑 ${path}，第二防線 ${guard}`;
+  const finalTargetPercent = steps.at(-1) ?? null;
+  const stageDetail = isCompleted
+    ? `路徑已完成（${totalStages}/${totalStages} 階，最終目標 ${finalTargetPercent ?? '—'}%，已進入完成區間）`
+    : `第 ${Math.min(stage + 1, totalStages)}/${totalStages} 階：${direction ?? '維持'}（目標餘額 ${lifecycleTargetBalance(control.baselineBalance, targetPercent ?? 0).toFixed(2)}）`;
+  return `目前控制狀態（非本筆介入當下快照）：會員 ${control.memberUsername}，自動大盤 ${control.templateKey ?? '預設'}，本金 ${control.baselineBalance.toFixed(2)}，最新餘額 ${current}（${currentPercent}%），${stageDetail}，路徑 ${path}，第二防線 ${guard}`;
 }
 
 function resolveControlLogActionLabel(log: ControlLogRecord): string {
