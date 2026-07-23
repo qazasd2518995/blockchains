@@ -248,6 +248,12 @@ export const manualDetectionControlSchema = z
     houseTakePercentage: rateDecimal.default('10'),
     completionBehavior: z.enum(['hold_target', 'stop_on_target']).optional().nullable(),
     lifecycleTemplateKeys: z.array(z.string().min(1)).min(1).max(8).optional().nullable(),
+    lifecycleSteps: z
+      .array(z.coerce.number().min(0).max(100))
+      .min(1)
+      .max(100)
+      .optional()
+      .nullable(),
     lineFreezeThreshold: decimal.default('50000'),
   })
   .superRefine((value, ctx) => {
@@ -265,12 +271,42 @@ export const manualDetectionControlSchema = z
         path: ['targetMemberUsername'],
       });
     }
-    if (value.controlMode === 'lifecycle_path' && !value.lifecycleTemplateKeys?.length) {
+    if (
+      value.controlMode === 'lifecycle_path' &&
+      !value.lifecycleTemplateKeys?.length &&
+      !value.lifecycleSteps?.length
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: '本金路径控制必须至少选择一组路径',
+        message: '本金路径控制必须选择预设路径或提供生成路径',
         path: ['lifecycleTemplateKeys'],
       });
+    }
+    if (value.lifecycleSteps?.length) {
+      if (value.lifecycleSteps.at(-1) !== 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '生成路径最后一阶段必须是 0%',
+          path: ['lifecycleSteps'],
+        });
+      }
+      if (value.lifecycleSteps[0] === 100) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '生成路径第一阶段不可与起始本金 100% 相同',
+          path: ['lifecycleSteps', 0],
+        });
+      }
+      const repeatedIndex = value.lifecycleSteps.findIndex(
+        (step, index) => index > 0 && step === value.lifecycleSteps?.[index - 1],
+      );
+      if (repeatedIndex >= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '相邻阶段不可使用相同百分比',
+          path: ['lifecycleSteps', repeatedIndex],
+        });
+      }
     }
   });
 

@@ -228,6 +228,17 @@ export function normalizeAutoBalanceTemplateKeys(
   return Array.from(new Set(keys));
 }
 
+export function normalizeCustomLifecycleSteps(
+  value: Prisma.JsonValue | number[] | null | undefined,
+): number[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === 'number' ? item : Number.parseFloat(String(item))))
+    .filter((item) => Number.isFinite(item) && item >= 0 && item <= 100)
+    .slice(0, 100)
+    .map((item) => Number(item.toFixed(2)));
+}
+
 function pickRandomAutoBalanceTemplate(keys: AutoBalanceTemplateKey[]) {
   if (keys.length === 0) return resolveAutoBalanceTemplate(null);
   const index = Math.floor(Math.random() * keys.length);
@@ -413,11 +424,18 @@ export async function resetMemberAutoBalanceControl(
     username: input.memberUsername,
     agentId: input.agentId,
   });
-  const template = pathControl
-    ? pickRandomAutoBalanceTemplate(
-        normalizeAutoBalanceTemplateKeys(pathControl.control.lifecycleTemplateKeys),
-      )
-    : resolveAutoBalanceTemplate(runtimeConfig.templateKey);
+  const customLifecycleSteps = pathControl
+    ? normalizeCustomLifecycleSteps(pathControl.control.lifecycleSteps)
+    : [];
+  const template =
+    pathControl && customLifecycleSteps.length === 0
+      ? pickRandomAutoBalanceTemplate(
+          normalizeAutoBalanceTemplateKeys(pathControl.control.lifecycleTemplateKeys),
+        )
+      : resolveAutoBalanceTemplate(runtimeConfig.templateKey);
+  const lifecycleSteps =
+    customLifecycleSteps.length > 0 ? customLifecycleSteps : [...template.steps];
+  const templateKey = customLifecycleSteps.length > 0 ? 'CUSTOM_GENERATED' : template.key;
   const secondLineAmount =
     pathControl?.control.lineFreezeThreshold ?? runtimeConfig.secondLineAmount;
   const controlPercentage = pathControl?.control.controlPercentage ?? null;
@@ -447,8 +465,8 @@ export async function resetMemberAutoBalanceControl(
       biteTargetBalance,
       reviveTargetBalance,
       phase: 'BITE_TO_30',
-      templateKey: template.key,
-      lifecycleSteps: template.steps as unknown as Prisma.InputJsonValue,
+      templateKey,
+      lifecycleSteps: lifecycleSteps as unknown as Prisma.InputJsonValue,
       currentStageIndex: 0,
       lifecycleCompletedAt: null,
       lastBalance: baselineBalance,
@@ -465,8 +483,8 @@ export async function resetMemberAutoBalanceControl(
       biteTargetBalance,
       reviveTargetBalance,
       phase: 'BITE_TO_30',
-      templateKey: template.key,
-      lifecycleSteps: template.steps as unknown as Prisma.InputJsonValue,
+      templateKey,
+      lifecycleSteps: lifecycleSteps as unknown as Prisma.InputJsonValue,
       currentStageIndex: 0,
       lifecycleCompletedAt: null,
       lastBalance: baselineBalance,
@@ -666,7 +684,10 @@ export async function findApplicableManualLifecyclePathControl(
 ) {
   const controls = (await getAllActiveManualDetectionControls(db)).filter((control) => {
     if ((control.controlMode ?? 'settlement') !== MANUAL_LIFECYCLE_PATH_MODE) return false;
-    return normalizeAutoBalanceTemplateKeys(control.lifecycleTemplateKeys).length > 0;
+    return (
+      normalizeCustomLifecycleSteps(control.lifecycleSteps).length > 0 ||
+      normalizeAutoBalanceTemplateKeys(control.lifecycleTemplateKeys).length > 0
+    );
   });
   if (controls.length === 0) return null;
 

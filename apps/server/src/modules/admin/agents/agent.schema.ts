@@ -5,7 +5,9 @@ const nonNegativeMoneyString = z
   .string()
   .regex(/^\d+(\.\d{1,2})?$/)
   .refine((value) => Number.parseFloat(value) >= 0, 'must be >= 0');
-const bettingLimitsSchema = z.record(z.string(), z.string()).optional();
+const bettingLimitsSchema = z
+  .record(z.string(), z.union([z.string(), z.array(z.string()).min(1)]))
+  .optional();
 
 export const createAgentSchema = z.object({
   parentId: z.string().min(1),

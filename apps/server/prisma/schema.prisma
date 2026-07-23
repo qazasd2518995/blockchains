@@ -721,6 +721,7 @@ model ManualDetectionControl {
   targetSettlement         Decimal              @db.Decimal(20, 2)
   controlPercentage        Int                  @default(50)
   lifecycleTemplateKeys    Json?
+  lifecycleSteps           Json?
   lineFreezeThreshold      Decimal?             @db.Decimal(20, 2)
   bitePercentage           Decimal?             @db.Decimal(5, 2)
   houseTakePercentage      Decimal              @default(10) @db.Decimal(5, 2)

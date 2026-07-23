@@ -13,7 +13,7 @@ export interface CreateAgentRequest {
   baccaratRebateMode?: RebateModeDto;
   baccaratRebatePercentage?: string;
   bettingLimitLevel?: string;
-  bettingLimits?: Record<string, string>;
+  bettingLimits?: Record<string, string[]>;
   notes?: string;
 }
 

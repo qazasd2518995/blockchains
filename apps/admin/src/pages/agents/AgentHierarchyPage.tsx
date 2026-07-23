@@ -56,7 +56,7 @@ export function AgentHierarchyPage(): JSX.Element {
     id: string;
     username: string;
     currentLevel: string;
-    currentLimits?: Record<string, string>;
+    currentLimits?: Record<string, string | string[]>;
   } | null>(null);
   const [agentTransferFor, setAgentTransferFor] = useState<{
     id: string;

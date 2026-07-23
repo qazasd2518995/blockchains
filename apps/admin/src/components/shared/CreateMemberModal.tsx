@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BETTING_LIMIT_RANGE_OPTIONS,
   DEFAULT_BETTING_LIMIT_RANGE,
+  isBettingLimitOptionAllowed,
   normalizeBettingLimitRangeKey,
   resolveDefaultChildBettingLimitRange,
   type AgentPublic,
@@ -16,6 +17,8 @@ import { Modal } from './Modal';
 import { useTranslation } from '@/i18n/useTranslation';
 import { requestAdminLiveRefresh } from '@/lib/adminRefreshEvents';
 import {
+  BETTING_LIMIT_ENABLED_GAMES,
+  buildAgentBettingLimitOptionsSelection,
   BettingLimitsInlineEditor,
   buildBettingLimitsSelection,
   summarizeBettingLimits,
@@ -65,7 +68,7 @@ interface Props {
     level: number;
     role?: AgentPublic['role'];
     bettingLimitLevel?: string;
-    bettingLimits?: Record<string, string>;
+    bettingLimits?: Record<string, string[]>;
   };
 }
 
@@ -91,6 +94,7 @@ export function CreateMemberModal({
     register,
     handleSubmit,
     reset,
+    setValue,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<FormInput>({
@@ -153,17 +157,40 @@ export function CreateMemberModal({
       : normalizeBettingLimitRangeKey(selectedAgent?.bettingLimitLevel ?? 'range_5000_50000');
   const parentLimits = useMemo(
     () =>
-      buildBettingLimitsSelection(
+      buildAgentBettingLimitOptionsSelection(
         selectedAgent?.role === 'SUPER_ADMIN' ? null : selectedAgent?.bettingLimits,
         parentLimitLevel,
       ),
     [parentLimitLevel, selectedAgent?.bettingLimits, selectedAgent?.role],
   );
+  const globallyAllowedLimitKeys = useMemo(
+    () =>
+      new Set(
+        BETTING_LIMIT_RANGE_OPTIONS.filter((option) =>
+          BETTING_LIMIT_ENABLED_GAMES.every((game) =>
+            isBettingLimitOptionAllowed(option.key, parentLimits[game.id] ?? []),
+          ),
+        ).map((option) => option.key),
+      ),
+    [parentLimits],
+  );
+
+  useEffect(() => {
+    if (
+      !open ||
+      globallyAllowedLimitKeys.has(normalizeBettingLimitRangeKey(watchedBettingLimitLevel))
+    )
+      return;
+    const fallback = BETTING_LIMIT_RANGE_OPTIONS.find((option) =>
+      globallyAllowedLimitKeys.has(option.key),
+    );
+    if (fallback) setValue('bettingLimitLevel', fallback.key);
+  }, [globallyAllowedLimitKeys, open, setValue, watchedBettingLimitLevel]);
 
   useEffect(() => {
     if (!open || customLimitOpen) return;
-    setBettingLimits(buildBettingLimitsSelection(null, watchedBettingLimitLevel));
-  }, [customLimitOpen, open, watchedBettingLimitLevel]);
+    setBettingLimits(buildBettingLimitsSelection(null, watchedBettingLimitLevel, parentLimits));
+  }, [customLimitOpen, open, parentLimits, watchedBettingLimitLevel]);
 
   const onSubmit = async (data: FormInput) => {
     setErr(null);
@@ -197,137 +224,141 @@ export function CreateMemberModal({
   return (
     <>
       <Modal open={open} onClose={onClose} title={modalTitle} subtitle="新增下线会员" width="md">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {lockedAgent ? (
-          <div className="rounded-md border border-[#C9A247]/35 bg-[#FFF8DA] px-4 py-3">
-            <input type="hidden" {...register('agentId')} />
-            <div className="label mb-1">所属代理</div>
-            <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-ink-900">
-              <span className="font-mono">{lockedAgent.username}</span>
-              <span className="tag tag-acid">L{lockedAgent.level}</span>
-              <span className="text-[11px] font-normal text-ink-500">
-                本会员会建立在当前层级下面
-              </span>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {lockedAgent ? (
+            <div className="rounded-md border border-[#C9A247]/35 bg-[#FFF8DA] px-4 py-3">
+              <input type="hidden" {...register('agentId')} />
+              <div className="label mb-1">所属代理</div>
+              <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-ink-900">
+                <span className="font-mono">{lockedAgent.username}</span>
+                <span className="tag tag-acid">L{lockedAgent.level}</span>
+                <span className="text-[11px] font-normal text-ink-500">
+                  本会员会建立在当前层级下面
+                </span>
+              </div>
             </div>
+          ) : (
+            <Field label={t.members.agent} code="01" error={errors.agentId?.message}>
+              <select {...register('agentId')} className="term-input">
+                <option value="">— {t.common.search} —</option>
+                {defaultAgentId && !agents.find((a) => a.id === defaultAgentId) && (
+                  <option value={defaultAgentId}>{defaultAgentId}</option>
+                )}
+                {agents.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.username}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+
+          <Field label={t.members.username} code="02" error={errors.username?.message}>
+            <input
+              type="text"
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              {...register('username')}
+              className="term-input"
+              placeholder="请输入会员账号"
+            />
+          </Field>
+
+          <Field label={t.members.password} code="03" error={errors.password?.message}>
+            <input
+              type="password"
+              {...register('password')}
+              className="term-input"
+              placeholder="至少 8 位，含英数"
+            />
+          </Field>
+
+          <Field label="确认密码" code="04" error={errors.confirmPassword?.message}>
+            <input
+              type="password"
+              {...register('confirmPassword')}
+              className="term-input"
+              placeholder="请再次输入密码"
+            />
+          </Field>
+
+          <Field label="名称 / 备注" code="05" error={errors.notes?.message}>
+            <textarea
+              rows={2}
+              {...register('notes')}
+              className="term-input resize-none"
+              placeholder="保存后显示在账号下方（选填）"
+            />
+          </Field>
+
+          <Field label={t.members.initialBalance} code="06" error={errors.initialBalance?.message}>
+            <input
+              type="text"
+              inputMode="decimal"
+              {...register('initialBalance')}
+              className="term-input"
+              placeholder="0.00 (选填)"
+            />
+          </Field>
+
+          <div className="rounded-md border border-ink-200 bg-ink-100/30 p-4">
+            <Field label="限红预设" code="07" error={errors.bettingLimitLevel?.message}>
+              <select {...register('bettingLimitLevel')} className="term-input">
+                {BETTING_LIMIT_RANGE_OPTIONS.map((option) => (
+                  <option
+                    key={option.key}
+                    value={option.key}
+                    disabled={!globallyAllowedLimitKeys.has(option.key)}
+                  >
+                    {option.label}
+                    {option.key === DEFAULT_BETTING_LIMIT_RANGE ? '（預設）' : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-ink-200 bg-white px-3 py-2">
+              <div>
+                <div className="text-[11px] font-semibold tracking-[0.16em] text-ink-700">
+                  分類限紅
+                </div>
+                <div className="mt-1 text-[11px] text-ink-500">
+                  目前 {summarizeBettingLimits(bettingLimits)}，可展开調整飛行、拉霸、電子即開。
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCustomLimitOpen((value) => !value)}
+                className="btn-chip shrink-0"
+              >
+                {customLimitOpen ? '收起' : '分類設定'}
+              </button>
+            </div>
+            {customLimitOpen && (
+              <BettingLimitsInlineEditor
+                value={bettingLimits}
+                parentOptions={parentLimits}
+                onChange={setBettingLimits}
+                className="mt-3 max-h-[360px] overflow-y-auto pr-1"
+              />
+            )}
           </div>
-        ) : (
-          <Field label={t.members.agent} code="01" error={errors.agentId?.message}>
-            <select {...register('agentId')} className="term-input">
-              <option value="">— {t.common.search} —</option>
-              {defaultAgentId && !agents.find((a) => a.id === defaultAgentId) && (
-                <option value={defaultAgentId}>{defaultAgentId}</option>
-              )}
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.username}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
 
-        <Field label={t.members.username} code="02" error={errors.username?.message}>
-          <input
-            type="text"
-            autoComplete="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            {...register('username')}
-            className="term-input"
-            placeholder="请输入会员账号"
-          />
-        </Field>
-
-        <Field label={t.members.password} code="03" error={errors.password?.message}>
-          <input
-            type="password"
-            {...register('password')}
-            className="term-input"
-            placeholder="至少 8 位，含英数"
-          />
-        </Field>
-
-        <Field label="确认密码" code="04" error={errors.confirmPassword?.message}>
-          <input
-            type="password"
-            {...register('confirmPassword')}
-            className="term-input"
-            placeholder="请再次输入密码"
-          />
-        </Field>
-
-        <Field label="名称 / 备注" code="05" error={errors.notes?.message}>
-          <textarea
-            rows={2}
-            {...register('notes')}
-            className="term-input resize-none"
-            placeholder="保存后显示在账号下方（选填）"
-          />
-        </Field>
-
-        <Field label={t.members.initialBalance} code="06" error={errors.initialBalance?.message}>
-          <input
-            type="text"
-            inputMode="decimal"
-            {...register('initialBalance')}
-            className="term-input"
-            placeholder="0.00 (选填)"
-          />
-        </Field>
-
-        <div className="rounded-md border border-ink-200 bg-ink-100/30 p-4">
-          <Field label="限红预设" code="07" error={errors.bettingLimitLevel?.message}>
-            <select {...register('bettingLimitLevel')} className="term-input">
-              {BETTING_LIMIT_RANGE_OPTIONS.map((option) => (
-                <option key={option.key} value={option.key}>
-                  {option.label}
-                  {option.key === DEFAULT_BETTING_LIMIT_RANGE ? '（預設）' : ''}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-ink-200 bg-white px-3 py-2">
-            <div>
-              <div className="text-[11px] font-semibold tracking-[0.16em] text-ink-700">
-                分類限紅
-              </div>
-              <div className="mt-1 text-[11px] text-ink-500">
-                目前 {summarizeBettingLimits(bettingLimits)}，可展开調整飛行、拉霸、電子即開。
-              </div>
+          {err && (
+            <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
+              ⚠ {err}
             </div>
-            <button
-              type="button"
-              onClick={() => setCustomLimitOpen((value) => !value)}
-              className="btn-chip shrink-0"
-            >
-              {customLimitOpen ? '收起' : '分類設定'}
+          )}
+
+          <div className="flex items-center gap-2 pt-2">
+            <button type="submit" disabled={isSubmitting} className="btn-acid">
+              → 建立会员
+            </button>
+            <button type="button" onClick={onClose} className="btn-teal-outline">
+              [{t.common.cancel}]
             </button>
           </div>
-          {customLimitOpen && (
-            <BettingLimitsInlineEditor
-              value={bettingLimits}
-              parentLimits={parentLimits}
-              onChange={setBettingLimits}
-              className="mt-3 max-h-[360px] overflow-y-auto pr-1"
-            />
-          )}
-        </div>
-
-        {err && (
-          <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
-            ⚠ {err}
-          </div>
-        )}
-
-        <div className="flex items-center gap-2 pt-2">
-          <button type="submit" disabled={isSubmitting} className="btn-acid">
-            → 建立会员
-          </button>
-          <button type="button" onClick={onClose} className="btn-teal-outline">
-            [{t.common.cancel}]
-          </button>
-        </div>
-      </form>
+        </form>
       </Modal>
       <AccountCreationShareModal info={shareInfo} onClose={() => setShareInfo(null)} />
     </>

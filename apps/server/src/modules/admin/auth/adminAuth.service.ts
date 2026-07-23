@@ -16,7 +16,7 @@ import {
   generateTotpSecret,
   verifyTotp,
 } from './totp.js';
-import { normalizeStoredBettingLimits } from '../bettingLimits.js';
+import { normalizeStoredAgentBettingLimitOptions } from '../bettingLimits.js';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -249,7 +249,10 @@ export class AdminAuthService {
       baccaratRebatePercentage: agent.baccaratRebatePercentage.toFixed(4),
       maxBaccaratRebatePercentage: agent.maxBaccaratRebatePercentage.toFixed(4),
       bettingLimitLevel: agent.bettingLimitLevel,
-      bettingLimits: normalizeStoredBettingLimits(agent.bettingLimits, agent.bettingLimitLevel),
+      bettingLimits: normalizeStoredAgentBettingLimitOptions(
+        agent.bettingLimits,
+        agent.bettingLimitLevel,
+      ),
       status: agent.status,
       role: agent.role,
       notes: agent.notes,

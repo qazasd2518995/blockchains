@@ -220,7 +220,9 @@ const AUTO_BALANCE_BITE_INTERVENTION_RATE = 0.3;
 const AUTO_BALANCE_DRAIN_INTERVENTION_RATE = 0.4;
 const GLOBAL_MEMBER_DAILY_WIN_CAP_DRAIN_INTERVENTION_RATE = AUTO_BALANCE_DRAIN_INTERVENTION_RATE;
 const LIFECYCLE_PATH_TARGET_BAND_RATE = new Prisma.Decimal('0.05');
-const LIFECYCLE_PATH_STAGE_BAND_PERCENT = 10;
+const LIFECYCLE_PATH_STAGE_BAND_RATIO = 0.2;
+const LIFECYCLE_PATH_STAGE_BAND_MIN_PERCENT = 0.25;
+const LIFECYCLE_PATH_STAGE_BAND_MAX_PERCENT = 10;
 const CONTROL_RELEASE_LOG_WINDOW = 8;
 const CONTROL_RELEASE_STAKE_JUMP_RATIO = new Prisma.Decimal('1.5');
 const CONTROL_RELEASE_TOTAL_LOSS_PROFIT_RATIO = new Prisma.Decimal('0.25');
@@ -1786,22 +1788,30 @@ function isLifecycleStageReached(
 ): boolean {
   if (targetPercent === null) return true;
   if (startBalance.lessThanOrEqualTo(0)) return false;
+  const stageBandPercent = lifecycleStageBandPercent(fromPercent, targetPercent);
   if (direction === 'WIN') {
-    const thresholdPercent = Math.max(0, targetPercent - LIFECYCLE_PATH_STAGE_BAND_PERCENT);
+    const thresholdPercent = Math.max(0, targetPercent - stageBandPercent);
     return currentBalance.greaterThanOrEqualTo(
       lifecycleBalanceForPercent(startBalance, thresholdPercent),
     );
   }
   if (direction === 'LOSS') {
-    const thresholdPercent = Math.min(
-      Math.max(0, fromPercent - LIFECYCLE_PATH_STAGE_BAND_PERCENT),
-      Math.max(0, targetPercent + LIFECYCLE_PATH_STAGE_BAND_PERCENT),
-    );
+    const thresholdPercent = Math.max(0, targetPercent + stageBandPercent);
     return currentBalance.lessThanOrEqualTo(
       lifecycleBalanceForPercent(startBalance, thresholdPercent),
     );
   }
   return true;
+}
+
+function lifecycleStageBandPercent(fromPercent: number, targetPercent: number): number {
+  const distance = Math.abs(targetPercent - fromPercent);
+  if (distance <= 0) return 0;
+  return Math.min(
+    LIFECYCLE_PATH_STAGE_BAND_MAX_PERCENT,
+    Math.max(LIFECYCLE_PATH_STAGE_BAND_MIN_PERCENT, distance * LIFECYCLE_PATH_STAGE_BAND_RATIO),
+    distance / 2,
+  );
 }
 
 function legacyAutoBalancePathGuardDecision(

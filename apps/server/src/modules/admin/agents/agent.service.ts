@@ -24,10 +24,11 @@ import type {
 } from './agent.schema.js';
 import type { FastifyRequest } from 'fastify';
 import {
+  assertAgentBettingLimitOptionsWithinParent,
   assertBettingLimitsWithinParent,
-  normalizeStoredBettingLimits,
+  normalizeStoredAgentBettingLimitOptions,
   resolveDefaultChildBettingLimitLevel,
-  resolveRequestedBettingLimits,
+  resolveRequestedAgentBettingLimitOptions,
 } from '../bettingLimits.js';
 
 const BCRYPT_ROUNDS = 12;
@@ -126,14 +127,14 @@ export class AgentService {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
     const requestedBettingLimitLevel =
       input.bettingLimitLevel ?? resolveDefaultChildBettingLimitLevel(parent.bettingLimitLevel);
-    const bettingLimits = resolveRequestedBettingLimits(
+    const bettingLimits = resolveRequestedAgentBettingLimitOptions(
       input.bettingLimits,
       requestedBettingLimitLevel,
       parent.bettingLimits,
       parent.bettingLimitLevel,
     );
     if (parent.role !== 'SUPER_ADMIN') {
-      assertBettingLimitsWithinParent(
+      assertAgentBettingLimitOptionsWithinParent(
         bettingLimits,
         input.bettingLimitLevel,
         parent.bettingLimits,
@@ -147,12 +148,10 @@ export class AgentService {
       : new Prisma.Decimal(0);
 
     const { created, fundingAgentId } = await runSerializable(this.prisma, async (tx) => {
-      let sourceAgent:
-        | {
-            id: string;
-            balance: Prisma.Decimal;
-          }
-        | null = null;
+      let sourceAgent: {
+        id: string;
+        balance: Prisma.Decimal;
+      } | null = null;
       let sourceAfterBalance = new Prisma.Decimal(0);
 
       if (initialBalance.greaterThan(0)) {
@@ -458,14 +457,14 @@ export class AgentService {
     const ok = await canManageAgent(this.prisma, operator, id);
     if (!ok) throw new ApiError('FORBIDDEN', 'Cannot modify betting limit');
     const nextLevel = input.bettingLimitLevel ?? existing.bettingLimitLevel;
-    const nextLimits = resolveRequestedBettingLimits(
+    const nextLimits = resolveRequestedAgentBettingLimitOptions(
       input.bettingLimits,
       input.bettingLimitLevel,
       existing.bettingLimits,
       existing.bettingLimitLevel,
     );
     if (existing.parent && existing.parent.role !== 'SUPER_ADMIN') {
-      assertBettingLimitsWithinParent(
+      assertAgentBettingLimitOptionsWithinParent(
         nextLimits,
         nextLevel,
         existing.parent.bettingLimits,
@@ -482,7 +481,7 @@ export class AgentService {
     });
     for (const child of children) {
       try {
-        assertBettingLimitsWithinParent(
+        assertAgentBettingLimitOptionsWithinParent(
           child.bettingLimits,
           child.bettingLimitLevel,
           nextLimits,
@@ -619,7 +618,10 @@ export function toPublic(agent: {
     baccaratRebatePercentage: agent.baccaratRebatePercentage.toFixed(4),
     maxBaccaratRebatePercentage: agent.maxBaccaratRebatePercentage.toFixed(4),
     bettingLimitLevel: agent.bettingLimitLevel,
-    bettingLimits: normalizeStoredBettingLimits(agent.bettingLimits, agent.bettingLimitLevel),
+    bettingLimits: normalizeStoredAgentBettingLimitOptions(
+      agent.bettingLimits,
+      agent.bettingLimitLevel,
+    ),
     status: agent.status,
     role: agent.role,
     notes: agent.notes,

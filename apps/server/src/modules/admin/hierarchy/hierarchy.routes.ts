@@ -8,7 +8,10 @@ import {
 } from '../../../utils/hierarchy.js';
 import type { Prisma } from '@prisma/client';
 import type { AdminCurrent } from '../../../plugins/adminAuth.js';
-import { normalizeStoredBettingLimits } from '../bettingLimits.js';
+import {
+  normalizeStoredAgentBettingLimitOptions,
+  normalizeStoredBettingLimits,
+} from '../bettingLimits.js';
 
 const querySchema = z.object({
   parentId: z.string().optional(), // 目標代理；不填 = 自己
@@ -182,7 +185,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           rebatePercentage: string;
           baccaratRebatePercentage?: string;
           bettingLimitLevel: string;
-          bettingLimits: Record<string, string>;
+          bettingLimits: Record<string, string[]>;
           status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
           role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
           createdAt: string;
@@ -220,7 +223,10 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           rebatePercentage: a.rebatePercentage.toFixed(4),
           baccaratRebatePercentage: a.baccaratRebatePercentage.toFixed(4),
           bettingLimitLevel: a.bettingLimitLevel,
-          bettingLimits: normalizeStoredBettingLimits(a.bettingLimits, a.bettingLimitLevel),
+          bettingLimits: normalizeStoredAgentBettingLimitOptions(
+            a.bettingLimits,
+            a.bettingLimitLevel,
+          ),
           status: a.status,
           role: a.role,
           createdAt: a.createdAt.toISOString(),
@@ -264,7 +270,10 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         maxBaccaratRebatePercentage: parent.maxBaccaratRebatePercentage.toFixed(4),
         baccaratRebateMode: parent.baccaratRebateMode,
         bettingLimitLevel: parent.bettingLimitLevel,
-        bettingLimits: normalizeStoredBettingLimits(parent.bettingLimits, parent.bettingLimitLevel),
+        bettingLimits: normalizeStoredAgentBettingLimitOptions(
+          parent.bettingLimits,
+          parent.bettingLimitLevel,
+        ),
         role: parent.role,
         status: parent.status,
         parentId: parent.parentId,

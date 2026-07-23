@@ -10,7 +10,7 @@ export type HierarchyItem =
       rebatePercentage: string;
       baccaratRebatePercentage?: string;
       bettingLimitLevel: string;
-      bettingLimits: Record<string, string>;
+      bettingLimits: Record<string, string[]>;
       status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
       role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
       createdAt: string;
@@ -50,7 +50,7 @@ export interface HierarchyResponse {
     maxBaccaratRebatePercentage: string;
     baccaratRebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
     bettingLimitLevel: string;
-    bettingLimits: Record<string, string>;
+    bettingLimits: Record<string, string[]>;
     role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
     status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
     parentId: string | null;

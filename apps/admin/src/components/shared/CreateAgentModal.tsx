@@ -5,18 +5,20 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BETTING_LIMIT_RANGE_OPTIONS,
   DEFAULT_BETTING_LIMIT_RANGE,
+  isBettingLimitOptionAllowed,
   normalizeBettingLimitRangeKey,
   resolveDefaultChildBettingLimitRange,
   type AgentPublic,
-  type BettingLimitsByGame,
+  type BettingLimitOptionsByGame,
 } from '@bg/shared';
 import { adminApi, extractApiError } from '@/lib/adminApi';
 import { Modal } from './Modal';
 import { type RebateMode, getEffectiveParentRebatePct, rebateFractionForMode } from '@/lib/rebate';
 import {
-  BettingLimitsInlineEditor,
-  buildBettingLimitsSelection,
-  summarizeBettingLimits,
+  AgentBettingLimitOptionsInlineEditor,
+  BETTING_LIMIT_ENABLED_GAMES,
+  buildAgentBettingLimitOptionsSelection,
+  summarizeAgentBettingLimitOptions,
 } from './BettingLimitModal';
 import {
   AccountCreationShareModal,
@@ -85,8 +87,8 @@ export function CreateAgentModal({
   const [parents, setParents] = useState<AgentPublic[]>([]);
   const [selectedParent, setSelectedParent] = useState<LockedParentAgent | null>(null);
   const [customLimitOpen, setCustomLimitOpen] = useState(false);
-  const [bettingLimits, setBettingLimits] = useState<BettingLimitsByGame>(() =>
-    buildBettingLimitsSelection(null, DEFAULT_BETTING_LIMIT_RANGE),
+  const [bettingLimits, setBettingLimits] = useState<BettingLimitOptionsByGame>(() =>
+    buildAgentBettingLimitOptionsSelection(null, DEFAULT_BETTING_LIMIT_RANGE),
   );
   const [err, setErr] = useState<string | null>(null);
   const [shareInfo, setShareInfo] = useState<CreatedAccountShareInfo | null>(null);
@@ -128,7 +130,7 @@ export function CreateAgentModal({
     const defaultLimit = resolveDefaultChildBettingLimitRange(
       normalizeBettingLimit(lockedParent?.bettingLimitLevel) ?? DEFAULT_BETTING_LIMIT_RANGE,
     );
-    setBettingLimits(buildBettingLimitsSelection(null, defaultLimit));
+    setBettingLimits(buildAgentBettingLimitOptionsSelection(null, defaultLimit));
     reset({
       parentId: resolvedParentId,
       username: '',
@@ -152,7 +154,7 @@ export function CreateAgentModal({
             parentLimit ?? DEFAULT_BETTING_LIMIT_RANGE,
           );
           setValue('bettingLimitLevel', childDefaultLimit);
-          setBettingLimits(buildBettingLimitsSelection(null, childDefaultLimit));
+          setBettingLimits(buildAgentBettingLimitOptionsSelection(null, childDefaultLimit));
         } catch {
           setSelectedParent(lockedParent);
         }
@@ -193,17 +195,42 @@ export function CreateAgentModal({
       : (normalizeBettingLimit(selectedParent?.bettingLimitLevel) ?? 'range_5000_50000');
   const parentLimits = useMemo(
     () =>
-      buildBettingLimitsSelection(
+      buildAgentBettingLimitOptionsSelection(
         selectedParent?.role === 'SUPER_ADMIN' ? null : selectedParent?.bettingLimits,
         parentLimitLevel,
       ),
     [parentLimitLevel, selectedParent?.bettingLimits, selectedParent?.role],
   );
+  const globallyAllowedLimitKeys = useMemo(
+    () =>
+      new Set(
+        BETTING_LIMIT_RANGE_OPTIONS.filter((option) =>
+          BETTING_LIMIT_ENABLED_GAMES.every((game) =>
+            isBettingLimitOptionAllowed(option.key, parentLimits[game.id] ?? []),
+          ),
+        ).map((option) => option.key),
+      ),
+    [parentLimits],
+  );
+
+  useEffect(() => {
+    if (
+      !open ||
+      globallyAllowedLimitKeys.has(normalizeBettingLimitRangeKey(watchedBettingLimitLevel))
+    )
+      return;
+    const fallback = BETTING_LIMIT_RANGE_OPTIONS.find((option) =>
+      globallyAllowedLimitKeys.has(option.key),
+    );
+    if (fallback) setValue('bettingLimitLevel', fallback.key);
+  }, [globallyAllowedLimitKeys, open, setValue, watchedBettingLimitLevel]);
 
   useEffect(() => {
     if (!open || customLimitOpen) return;
-    setBettingLimits(buildBettingLimitsSelection(null, watchedBettingLimitLevel));
-  }, [customLimitOpen, open, watchedBettingLimitLevel]);
+    setBettingLimits(
+      buildAgentBettingLimitOptionsSelection(null, watchedBettingLimitLevel, parentLimits),
+    );
+  }, [customLimitOpen, open, parentLimits, watchedBettingLimitLevel]);
 
   useEffect(() => {
     if (!open || electronicParentMaxPct === null) return;
@@ -277,148 +304,153 @@ export function CreateAgentModal({
   return (
     <>
       <Modal open={open} onClose={onClose} title={modalTitle} subtitle="新增下级代理" width="md">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {lockedParent ? (
-          <div className="rounded-md border border-[#C9A247]/35 bg-[#FFF8DA] px-4 py-3">
-            <input type="hidden" {...register('parentId')} />
-            <div className="label mb-1">上级代理</div>
-            <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-ink-900">
-              <span className="font-mono">{lockedParent.username}</span>
-              {lockedParentLevel !== undefined && (
-                <span className="tag tag-acid">L{lockedParentLevel}</span>
-              )}
-              {nextLevel !== null && <span className="tag tag-gold">新代理 L{nextLevel}</span>}
-              <span className="text-[11px] font-normal text-ink-500">
-                本代理会建立在当前层级下面
-              </span>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {lockedParent ? (
+            <div className="rounded-md border border-[#C9A247]/35 bg-[#FFF8DA] px-4 py-3">
+              <input type="hidden" {...register('parentId')} />
+              <div className="label mb-1">上级代理</div>
+              <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-ink-900">
+                <span className="font-mono">{lockedParent.username}</span>
+                {lockedParentLevel !== undefined && (
+                  <span className="tag tag-acid">L{lockedParentLevel}</span>
+                )}
+                {nextLevel !== null && <span className="tag tag-gold">新代理 L{nextLevel}</span>}
+                <span className="text-[11px] font-normal text-ink-500">
+                  本代理会建立在当前层级下面
+                </span>
+              </div>
             </div>
-          </div>
-        ) : (
-          <Field label="上级代理" code="01" error={errors.parentId?.message}>
-            <select {...register('parentId')} className="term-input">
-              <option value="">— 选择上级 —</option>
-              {defaultParentId && !parents.find((a) => a.id === defaultParentId) && (
-                <option value={defaultParentId}>{defaultParentId}</option>
-              )}
-              {parents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.username}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
+          ) : (
+            <Field label="上级代理" code="01" error={errors.parentId?.message}>
+              <select {...register('parentId')} className="term-input">
+                <option value="">— 选择上级 —</option>
+                {defaultParentId && !parents.find((a) => a.id === defaultParentId) && (
+                  <option value={defaultParentId}>{defaultParentId}</option>
+                )}
+                {parents.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.username}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="账号" code="02" error={errors.username?.message}>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="账号" code="02" error={errors.username?.message}>
+              <input
+                type="text"
+                autoComplete="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                {...register('username')}
+                className="term-input font-mono"
+                placeholder="请输入代理账号"
+              />
+            </Field>
+            <Field label="密码" code="03" error={errors.password?.message}>
+              <input
+                type="password"
+                {...register('password')}
+                className="term-input"
+                placeholder="至少 8 位，含英数"
+              />
+            </Field>
+          </div>
+
+          <Field label="名称 / 备注" code="04" error={errors.notes?.message}>
+            <textarea
+              rows={2}
+              {...register('notes')}
+              className="term-input resize-none"
+              placeholder="保存后显示在账号下方（选填）"
+            />
+          </Field>
+
+          <Field label="初始餘額" code="05" error={errors.initialBalance?.message}>
             <input
               type="text"
-              autoComplete="off"
-              autoCapitalize="off"
-              spellCheck={false}
-              {...register('username')}
-              className="term-input font-mono"
-              placeholder="请输入代理账号"
-            />
-          </Field>
-          <Field label="密码" code="03" error={errors.password?.message}>
-            <input
-              type="password"
-              {...register('password')}
+              inputMode="decimal"
+              {...register('initialBalance')}
               className="term-input"
-              placeholder="至少 8 位，含英数"
+              placeholder="0.00（選填）"
             />
           </Field>
-        </div>
 
-        <Field label="名称 / 备注" code="04" error={errors.notes?.message}>
-          <textarea
-            rows={2}
-            {...register('notes')}
-            className="term-input resize-none"
-            placeholder="保存后显示在账号下方（选填）"
+          <RebateEditor
+            title="电子退水"
+            codePrefix="06"
+            description={
+              electronicParentMaxPct === null
+                ? '读取当前层级可分配退水中。'
+                : `当前层级最多可往下分配 ${electronicParentMaxPct.toFixed(2)}%。`
+            }
+            modeError={errors.rebateMode?.message}
+            amountError={errors.rebatePercentageDisplay?.message}
+            modeRegister={register('rebateMode')}
+            amountRegister={register('rebatePercentageDisplay')}
+            mode={watchedRebateMode}
+            parentMaxPct={electronicParentMaxPct}
           />
-        </Field>
 
-        <Field label="初始餘額" code="05" error={errors.initialBalance?.message}>
-          <input
-            type="text"
-            inputMode="decimal"
-            {...register('initialBalance')}
-            className="term-input"
-            placeholder="0.00（選填）"
-          />
-        </Field>
-
-        <RebateEditor
-          title="电子退水"
-          codePrefix="06"
-          description={
-            electronicParentMaxPct === null
-              ? '读取当前层级可分配退水中。'
-              : `当前层级最多可往下分配 ${electronicParentMaxPct.toFixed(2)}%。`
-          }
-          modeError={errors.rebateMode?.message}
-          amountError={errors.rebatePercentageDisplay?.message}
-          modeRegister={register('rebateMode')}
-          amountRegister={register('rebatePercentageDisplay')}
-          mode={watchedRebateMode}
-          parentMaxPct={electronicParentMaxPct}
-        />
-
-        <div className="rounded-md border border-ink-200 bg-ink-100/30 p-4">
-          <Field label="限红预设" code="08" error={errors.bettingLimitLevel?.message}>
-            <select {...register('bettingLimitLevel')} className="term-input">
-              {BETTING_LIMIT_RANGE_OPTIONS.map((option) => (
-                <option key={option.key} value={option.key}>
-                  {option.label}
-                  {option.key === DEFAULT_BETTING_LIMIT_RANGE ? '（預設）' : ''}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-ink-200 bg-white px-3 py-2">
-            <div>
-              <div className="text-[11px] font-semibold tracking-[0.16em] text-ink-700">
-                分類限紅
+          <div className="rounded-md border border-ink-200 bg-ink-100/30 p-4">
+            <Field label="限红预设" code="08" error={errors.bettingLimitLevel?.message}>
+              <select {...register('bettingLimitLevel')} className="term-input">
+                {BETTING_LIMIT_RANGE_OPTIONS.map((option) => (
+                  <option
+                    key={option.key}
+                    value={option.key}
+                    disabled={!globallyAllowedLimitKeys.has(option.key)}
+                  >
+                    {option.label}
+                    {option.key === DEFAULT_BETTING_LIMIT_RANGE ? '（預設）' : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-ink-200 bg-white px-3 py-2">
+              <div>
+                <div className="text-[11px] font-semibold tracking-[0.16em] text-ink-700">
+                  分類限紅
+                </div>
+                <div className="mt-1 text-[11px] text-ink-500">
+                  目前 {summarizeAgentBettingLimitOptions(bettingLimits)}
+                  ，可展開複選飛行、拉霸、電子即開。
+                </div>
               </div>
-              <div className="mt-1 text-[11px] text-ink-500">
-                目前 {summarizeBettingLimits(bettingLimits)}，可展开調整飛行、拉霸、電子即開。
-              </div>
+              <button
+                type="button"
+                onClick={() => setCustomLimitOpen((value) => !value)}
+                className="btn-chip shrink-0"
+              >
+                {customLimitOpen ? '收起' : '分類設定'}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setCustomLimitOpen((value) => !value)}
-              className="btn-chip shrink-0"
-            >
-              {customLimitOpen ? '收起' : '分類設定'}
+            {customLimitOpen && (
+              <AgentBettingLimitOptionsInlineEditor
+                value={bettingLimits}
+                parentOptions={parentLimits}
+                onChange={setBettingLimits}
+                className="mt-3 max-h-[360px] overflow-y-auto pr-1"
+              />
+            )}
+          </div>
+
+          {err && (
+            <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
+              ⚠ {err}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 pt-2">
+            <button type="submit" disabled={isSubmitting} className="btn-acid">
+              → 建立代理
+            </button>
+            <button type="button" onClick={onClose} className="btn-teal-outline">
+              [取消]
             </button>
           </div>
-          {customLimitOpen && (
-            <BettingLimitsInlineEditor
-              value={bettingLimits}
-              parentLimits={parentLimits}
-              onChange={setBettingLimits}
-              className="mt-3 max-h-[360px] overflow-y-auto pr-1"
-            />
-          )}
-        </div>
-
-        {err && (
-          <div className="border border-[#D4574A]/40 bg-[#FDF0EE] p-3 text-[12px] text-[#D4574A]">
-            ⚠ {err}
-          </div>
-        )}
-
-        <div className="flex items-center gap-2 pt-2">
-          <button type="submit" disabled={isSubmitting} className="btn-acid">
-            → 建立代理
-          </button>
-          <button type="button" onClick={onClose} className="btn-teal-outline">
-            [取消]
-          </button>
-        </div>
-      </form>
+        </form>
       </Modal>
       <AccountCreationShareModal info={shareInfo} onClose={() => setShareInfo(null)} />
     </>

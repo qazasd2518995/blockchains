@@ -166,6 +166,50 @@ describe('resetMemberAutoBalanceControl', () => {
     expect(create.isActive).toBe(true);
   });
 
+  it('uses a generated custom lifecycle path without changing the control cycle rules', async () => {
+    const upsert = vi.fn().mockResolvedValue({});
+    const customSteps = [95, 97, 90, 93, 85, 87, 0];
+    const db = {
+      $queryRaw: vi.fn().mockResolvedValue([{ exists: false }]),
+      memberDepositControl: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      manualDetectionControl: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'manual-custom-path-1',
+            scope: 'MEMBER',
+            controlMode: 'lifecycle_path',
+            targetMemberUsername: 'custom_path_member',
+            targetAgentId: null,
+            lifecycleTemplateKeys: [],
+            lifecycleSteps: customSteps,
+            lineFreezeThreshold: new Prisma.Decimal(50000),
+            controlPercentage: new Prisma.Decimal(60),
+            isActive: true,
+            isCompleted: false,
+            operatorUsername: 'admin',
+            createdAt: new Date('2026-07-23T12:00:00Z'),
+          },
+        ]),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      memberAutoBalanceControl: { upsert },
+    };
+
+    await resetMemberAutoBalanceControl(db as never, {
+      memberId: 'member-custom-path-1',
+      memberUsername: 'custom_path_member',
+      agentId: 'agent-1',
+      balanceAfter: new Prisma.Decimal(100000),
+      reason: 'deposit',
+    });
+
+    const create = upsert.mock.calls[0]?.[0]?.create;
+    expect(create.templateKey).toBe('CUSTOM_GENERATED');
+    expect(create.lifecycleSteps).toEqual(customSteps);
+    expect(create.controlPercentage.toFixed(2)).toBe('60.00');
+    expect(create.resetReason).toBe('deposit:manual_path:manual-custom-path-1');
+  });
+
   it('restarts a frozen path from stage zero on explicit point-in or point-out reset', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.25);
     const upsert = vi.fn().mockResolvedValue({});

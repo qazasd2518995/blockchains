@@ -27,6 +27,7 @@ import {
   listAutoBalanceTemplates,
   MANUAL_LIFECYCLE_PATH_MODE,
   normalizeAutoBalanceTemplateKeys,
+  normalizeCustomLifecycleSteps,
   normalizeManualDetectionCompletionBehavior,
   normalizeAgentLineCapDay,
   normalizeBurstControlDay,
@@ -218,17 +219,28 @@ async function serializeManualControl(
     control.targetMemberUsername,
   );
   const lifecycleTemplateKeys = normalizeAutoBalanceTemplateKeys(control.lifecycleTemplateKeys);
+  const lifecycleSteps = normalizeCustomLifecycleSteps(control.lifecycleSteps);
   const templatesByKey = new Map(
     listAutoBalanceTemplates().map((template) => [template.key, template]),
   );
-  const lifecycleTemplates = lifecycleTemplateKeys
-    .map((key) => templatesByKey.get(key))
-    .filter((template): template is NonNullable<typeof template> => Boolean(template));
+  const lifecycleTemplates =
+    lifecycleSteps.length > 0
+      ? [
+          {
+            key: 'CUSTOM_GENERATED',
+            label: `自訂 ${lifecycleSteps.length} 階`,
+            steps: lifecycleSteps,
+          },
+        ]
+      : lifecycleTemplateKeys
+          .map((key) => templatesByKey.get(key))
+          .filter((template): template is NonNullable<typeof template> => Boolean(template));
 
   return {
     ...control,
     controlMode: control.controlMode ?? 'settlement',
     lifecycleTemplateKeys,
+    lifecycleSteps,
     lifecycleTemplates,
     lineFreezeThreshold: control.lineFreezeThreshold?.toFixed(2) ?? null,
     targetSettlement: control.targetSettlement.toFixed(2),
@@ -306,6 +318,7 @@ async function enrichControlLogs(
         targetMemberUsername: true,
         controlMode: true,
         lifecycleTemplateKeys: true,
+        lifecycleSteps: true,
         lineFreezeThreshold: true,
         targetSettlement: true,
         controlPercentage: true,
@@ -429,6 +442,7 @@ function resolveControlLogMeta(
         targetMemberUsername: string | null;
         controlMode: string | null;
         lifecycleTemplateKeys: Prisma.JsonValue | null;
+        lifecycleSteps: Prisma.JsonValue | null;
         lineFreezeThreshold: Prisma.Decimal | null;
         targetSettlement: Prisma.Decimal;
         controlPercentage: number;
@@ -554,9 +568,11 @@ function resolveControlLogMeta(
       const scopeLabel = formatManualLogScope(control.scope);
       const targetLabel = formatManualLogTarget(control);
       if (control.controlMode === MANUAL_LIFECYCLE_PATH_MODE) {
-        const templateText = normalizeAutoBalanceTemplateKeys(control.lifecycleTemplateKeys).join(
-          ', ',
-        );
+        const customSteps = normalizeCustomLifecycleSteps(control.lifecycleSteps);
+        const templateText =
+          customSteps.length > 0
+            ? `自訂 ${customSteps.length} 階`
+            : normalizeAutoBalanceTemplateKeys(control.lifecycleTemplateKeys).join(', ');
         const guard = control.lineFreezeThreshold?.toFixed(2) ?? '—';
         return {
           source: 'manual_detection',
@@ -1705,10 +1721,13 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
       const lifecycleTemplateKeys = isLifecyclePath
         ? normalizeAutoBalanceTemplateKeys(body.lifecycleTemplateKeys)
         : [];
-      if (isLifecyclePath && lifecycleTemplateKeys.length === 0) {
+      const lifecycleSteps = isLifecyclePath
+        ? normalizeCustomLifecycleSteps(body.lifecycleSteps)
+        : [];
+      if (isLifecyclePath && lifecycleTemplateKeys.length === 0 && lifecycleSteps.length === 0) {
         reply.code(400).send({
           code: 'INVALID_LIFECYCLE_TEMPLATES',
-          message: 'Lifecycle path control requires at least one valid template',
+          message: 'Lifecycle path control requires a valid preset or generated path',
         });
         return;
       }
@@ -1766,6 +1785,10 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         lifecycleTemplateKeys: isLifecyclePath
           ? (lifecycleTemplateKeys as unknown as Prisma.InputJsonValue)
           : Prisma.DbNull,
+        lifecycleSteps:
+          isLifecyclePath && lifecycleSteps.length > 0
+            ? (lifecycleSteps as unknown as Prisma.InputJsonValue)
+            : Prisma.DbNull,
         lineFreezeThreshold,
         targetSettlement,
         controlPercentage: body.controlPercentage,
@@ -1811,6 +1834,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
           targetMemberUsername: record.targetMemberUsername,
           controlMode: record.controlMode,
           lifecycleTemplateKeys,
+          lifecycleSteps,
           lineFreezeThreshold: record.lineFreezeThreshold?.toFixed(2) ?? null,
           targetSettlement: record.targetSettlement.toFixed(2),
           controlPercentage: record.controlPercentage,

@@ -1395,6 +1395,31 @@ describe('control decision priority', () => {
     expect(tx.memberAutoBalanceControl.update).not.toHaveBeenCalled();
   });
 
+  it('uses a proportional stage band for fine-grained lifecycle paths', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const tx = createAutoReviveTx(
+      vi.fn(async () => []),
+      {
+        balance: new Prisma.Decimal(9600),
+        baselineBalance: new Prisma.Decimal(10000),
+        lifecycleSteps: [95, 97, 90, 93, 0],
+        currentStageIndex: 0,
+        lastBalance: new Prisma.Decimal(10000),
+        controlPercentage: 50,
+      },
+    );
+
+    await applyControls(tx as never, 'member-1', GameId.DICE, predictedResult(100, 120, 1.2));
+
+    expect(tx.memberAutoBalanceControl.update).toHaveBeenCalledWith({
+      where: { id: 'auto-1' },
+      data: expect.objectContaining({
+        currentStageIndex: 1,
+        lastBalance: new Prisma.Decimal(9600),
+      }),
+    });
+  });
+
   it('caps auto-balance lifecycle natural burst wins at the active path band when revive misses', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.99);
     const tx = createAutoReviveTx(

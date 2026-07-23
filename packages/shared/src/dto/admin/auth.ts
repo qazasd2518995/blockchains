@@ -17,6 +17,7 @@ export type AgentStatusDto = 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
 export type MarketTypeDto = 'D' | 'A';
 export type RebateModeDto = 'PERCENTAGE' | 'ALL' | 'NONE';
 export type BettingLimitsByGameDto = Record<string, string>;
+export type AgentBettingLimitOptionsByGameDto = Record<string, string[]>;
 
 export interface AgentPublic {
   id: string;
@@ -35,7 +36,7 @@ export interface AgentPublic {
   baccaratRebatePercentage: string;
   maxBaccaratRebatePercentage: string;
   bettingLimitLevel: string;
-  bettingLimits: BettingLimitsByGameDto;
+  bettingLimits: AgentBettingLimitOptionsByGameDto;
   status: AgentStatusDto;
   role: AdminRoleDto;
   notes: string | null;

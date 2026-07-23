@@ -17,6 +17,7 @@ export const BETTING_LIMIT_RANGE_OPTIONS = [
 
 export type BettingLimitRangeKey = (typeof BETTING_LIMIT_RANGE_OPTIONS)[number]['key'];
 export type BettingLimitsByGame = Record<string, BettingLimitRangeKey>;
+export type BettingLimitOptionsByGame = Record<string, BettingLimitRangeKey[]>;
 
 export const DEFAULT_BETTING_LIMIT_RANGE: BettingLimitRangeKey = 'range_10_3000';
 
@@ -55,8 +56,43 @@ export function normalizeBettingLimitsByGame(value: unknown): BettingLimitsByGam
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>)
       .filter(([gameId]) => typeof gameId === 'string' && gameId.length > 0)
-      .map(([gameId, range]) => [gameId, normalizeBettingLimitRangeKey(range)]),
+      .map(([gameId, range]) => [
+        gameId,
+        normalizeBettingLimitRangeKey(Array.isArray(range) ? range[0] : range),
+      ]),
   );
+}
+
+export function normalizeBettingLimitOptionsByGame(value: unknown): BettingLimitOptionsByGame {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([gameId]) => typeof gameId === 'string' && gameId.length > 0)
+      .map(([gameId, ranges]) => {
+        if (Array.isArray(ranges)) {
+          const normalized = Array.from(
+            new Set(ranges.map((range) => normalizeBettingLimitRangeKey(range))),
+          );
+          return [gameId, normalized];
+        }
+        return [gameId, bettingLimitRangesAtOrBelow(ranges)];
+      }),
+  );
+}
+
+export function bettingLimitRangesAtOrBelow(value: unknown): BettingLimitRangeKey[] {
+  const rank = resolveBettingLimitRange(value).rank;
+  return BETTING_LIMIT_RANGE_OPTIONS.filter((option) => option.rank <= rank).map(
+    (option) => option.key,
+  );
+}
+
+export function isBettingLimitOptionAllowed(
+  selectedRange: unknown,
+  allowedRanges: readonly unknown[],
+): boolean {
+  const selected = normalizeBettingLimitRangeKey(selectedRange);
+  return allowedRanges.some((range) => normalizeBettingLimitRangeKey(range) === selected);
 }
 
 export function getBettingLimitForGame(
