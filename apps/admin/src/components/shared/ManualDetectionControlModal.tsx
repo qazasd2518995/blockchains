@@ -390,6 +390,20 @@ function GeneratedPathEditor({
                 {steps.length} 階 · 回正 {actualRecoveryCount} 次
               </div>
             </div>
+            <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
+              <span className="inline-flex items-center gap-1 text-[#A53C32]">
+                <span className="h-2 w-2 rounded-full bg-[#D4574A]" aria-hidden="true" />
+                紅色＝控輸
+              </span>
+              <span className="inline-flex items-center gap-1 text-[#1F7A4D]">
+                <span className="h-2 w-2 rounded-full bg-[#4EA780]" aria-hidden="true" />
+                綠色＝控贏
+              </span>
+              <span className="inline-flex items-center gap-1 text-[#7A5F15]">
+                <span className="h-2 w-2 rounded-full bg-[#C9A24C]" aria-hidden="true" />
+                黃色＝回正 100%
+              </span>
+            </div>
             <div className="flex max-h-36 flex-wrap gap-1.5 overflow-y-auto overscroll-contain pr-1 font-mono text-[10px]">
               {steps.map((step, index) => {
                 const previous = index === 0 ? 100 : (steps[index - 1] ?? 100);
@@ -405,8 +419,8 @@ function GeneratedPathEditor({
                           : direction === 'up'
                             ? 'border-[#74B7A0] bg-[#EDFFF5] text-[#1F7A4D]'
                             : direction === 'final'
-                              ? 'border-[#D4574A] bg-[#FDF0EE] text-[#A53C32]'
-                              : 'border-[#D7E3EA] bg-[#F8FAFC] text-[#475569]'
+                              ? 'border-[#A53C32] bg-[#F9E2DF] font-semibold text-[#8F2F27]'
+                              : 'border-[#D4574A] bg-[#FDF0EE] text-[#A53C32]'
                       }`}
                     >
                       {step}%
