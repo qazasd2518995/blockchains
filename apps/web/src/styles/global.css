@@ -15252,3 +15252,97 @@
     border-radius: 13px;
   }
 }
+
+@layer components {
+  /*
+   * Local-table room art varies from very bright to nearly black. Keep status
+   * copy on a stable contrast surface instead of inheriting the warm-shell
+   * dark text that is intended for light result cards.
+   */
+  .game-warm-shell .local-table-status-label {
+    display: inline-block;
+    width: fit-content;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 0.34em;
+    background: rgba(2, 6, 23, 0.68);
+    padding: 0.08em 0.28em 0.12em;
+    color: #f8fafc !important;
+    text-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.96),
+      0 2px 10px rgba(0, 0, 0, 0.78) !important;
+    backdrop-filter: blur(6px) saturate(1.08);
+    -webkit-backdrop-filter: blur(6px) saturate(1.08);
+  }
+
+  .game-warm-shell .local-table-stage-header > div:first-child > .text-\[11px\] {
+    display: block;
+    width: fit-content;
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.62);
+    padding: 0.14em 0.5em;
+    color: rgba(248, 250, 252, 0.82) !important;
+    text-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.92),
+      0 2px 8px rgba(0, 0, 0, 0.7) !important;
+  }
+
+  .game-warm-shell .local-table-hand-panel {
+    background:
+      linear-gradient(180deg, rgba(5, 10, 20, 0.7), rgba(5, 10, 20, 0.58)),
+      radial-gradient(
+        circle at 20% 12%,
+        color-mix(in srgb, var(--local-table-accent) 12%, transparent),
+        transparent 34%
+      ) !important;
+    backdrop-filter: blur(7px) saturate(1.06) !important;
+    -webkit-backdrop-filter: blur(7px) saturate(1.06) !important;
+  }
+
+  .game-warm-shell .tui-tongzi-lane,
+  .game-warm-shell .card-war-seat {
+    background:
+      radial-gradient(
+        circle at 22% 12%,
+        color-mix(in srgb, var(--local-table-glow) 9%, transparent),
+        transparent 30%
+      ),
+      rgba(3, 8, 18, 0.66) !important;
+    backdrop-filter: blur(7px) saturate(1.06) !important;
+    -webkit-backdrop-filter: blur(7px) saturate(1.06) !important;
+  }
+
+  .game-warm-shell .local-table-hand-panel .text-white,
+  .game-warm-shell .card-war-seat__score,
+  .game-warm-shell .tui-tongzi-lane__score {
+    color: #f8fafc !important;
+    text-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.98),
+      0 2px 9px rgba(0, 0, 0, 0.74) !important;
+  }
+
+  .game-warm-shell .local-table-hand-panel .text-white\/55,
+  .game-warm-shell .local-table-hand-panel .text-white\/50,
+  .game-warm-shell .card-war-seat__eyebrow,
+  .game-warm-shell .tui-tongzi-lane__label,
+  .game-warm-shell .tui-tongzi-lane__detail {
+    color: rgba(248, 250, 252, 0.8) !important;
+    text-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.96),
+      0 2px 7px rgba(0, 0, 0, 0.7) !important;
+  }
+
+  .game-warm-shell .card-war-seat__hint,
+  .game-warm-shell .tui-tongzi-lane__rank,
+  .game-warm-shell .local-table-hand-panel .text-\[\#FDE68A\] {
+    color: #bae6fd !important;
+    text-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.96),
+      0 2px 7px rgba(0, 0, 0, 0.72) !important;
+  }
+
+  .game-warm-shell .tui-tongzi-lane__rank,
+  .game-warm-shell .local-table-hand-panel .rounded-\[10px\] {
+    border-color: rgba(186, 230, 253, 0.24) !important;
+    background: rgba(2, 6, 23, 0.72) !important;
+  }
+}
