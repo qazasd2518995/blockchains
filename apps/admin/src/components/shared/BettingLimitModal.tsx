@@ -47,10 +47,15 @@ const CRASH_LIMIT_GAME_IDS = [
 
 const SLOT_LIMIT_GAME_IDS = SLOT_GAME_IDS;
 
+const TABLE_LIMIT_GAME_IDS = BETTING_LIMIT_ENABLED_GAMES.filter(
+  (game) => game.category === 'table',
+).map((game) => game.id);
+
 const INSTANT_LIMIT_GAME_IDS = BETTING_LIMIT_ENABLED_GAMES.map((game) => game.id).filter(
   (gameId) =>
     !(CRASH_LIMIT_GAME_IDS as readonly string[]).includes(gameId) &&
-    !(SLOT_LIMIT_GAME_IDS as readonly string[]).includes(gameId),
+    !(SLOT_LIMIT_GAME_IDS as readonly string[]).includes(gameId) &&
+    !TABLE_LIMIT_GAME_IDS.includes(gameId),
 );
 
 const BETTING_LIMIT_GROUPS = [
@@ -65,6 +70,12 @@ const BETTING_LIMIT_GROUPS = [
     label: '拉霸類',
     description: '9 輪、15 輪、30 輪與 Mega 拉霸',
     gameIds: [...SLOT_LIMIT_GAME_IDS],
+  },
+  {
+    key: 'tables',
+    label: '牌桌類',
+    description: '百家樂、二十一點、十點半、推筒、黑粒與比大小牌桌遊戲',
+    gameIds: TABLE_LIMIT_GAME_IDS,
   },
   {
     key: 'instant',

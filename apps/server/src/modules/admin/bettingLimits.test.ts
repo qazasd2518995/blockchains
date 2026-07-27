@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { GameId } from '@bg/shared';
+import {
+  BACCARAT_TABLE_GAME_IDS,
+  BETTING_LIMIT_MANAGED_GAME_IDS,
+  ENABLED_GAMES,
+  GameId,
+  LOCAL_TABLE_GAME_IDS,
+  getBettingLimitForGame,
+} from '@bg/shared';
 import {
   assertAgentBettingLimitOptionsWithinParent,
   assertBettingLimitsWithinParent,
@@ -10,7 +17,13 @@ import {
 } from './bettingLimits.js';
 
 describe('admin betting limits', () => {
-  it('excludes beta local table games from normalized stored limits', () => {
+  it('manages betting limits for every enabled game', () => {
+    expect(new Set(BETTING_LIMIT_MANAGED_GAME_IDS)).toEqual(
+      new Set(ENABLED_GAMES.map((game) => game.id)),
+    );
+  });
+
+  it('includes every released table game in normalized stored limits', () => {
     const normalized = normalizeStoredBettingLimits(
       {
         [GameId.TWENTY_ONE_HALF_DOLL]: 'range_5000_50000',
@@ -19,15 +32,18 @@ describe('admin betting limits', () => {
       'range_10_3000',
     );
 
-    expect(normalized[GameId.TWENTY_ONE_HALF_DOLL]).toBeUndefined();
+    expect(normalized[GameId.TWENTY_ONE_HALF_DOLL]).toBe('range_5000_50000');
     expect(normalized[GameId.DICE]).toBe('range_1_500');
+    for (const gameId of [...BACCARAT_TABLE_GAME_IDS, ...LOCAL_TABLE_GAME_IDS]) {
+      expect(normalized[gameId]).toBeDefined();
+    }
   });
 
-  it('ignores beta local table game violations but still blocks public game violations', () => {
+  it('enforces parent permissions for released local table games', () => {
     expect(() =>
       assertBettingLimitsWithinParent(
         {
-          [GameId.TWENTY_ONE_HALF_DOLL]: 'range_5000_50000',
+          [GameId.TWENTY_ONE_HALF_DOLL]: 'range_1_500',
           [GameId.DICE]: 'range_1_500',
         },
         'range_1_500',
@@ -42,8 +58,8 @@ describe('admin betting limits', () => {
     expect(() =>
       assertBettingLimitsWithinParent(
         {
-          [GameId.TWENTY_ONE_HALF_DOLL]: 'range_1_500',
-          [GameId.DICE]: 'range_5000_50000',
+          [GameId.TWENTY_ONE_HALF_DOLL]: 'range_5000_50000',
+          [GameId.DICE]: 'range_1_500',
         },
         'range_1_500',
         {
@@ -52,10 +68,10 @@ describe('admin betting limits', () => {
         },
         'range_1_500',
       ),
-    ).toThrow('骰子');
+    ).toThrow('萌娃十點半');
   });
 
-  it('drops beta local table games from requested custom limits', () => {
+  it('keeps released local table games in requested custom limits', () => {
     const requested = resolveRequestedBettingLimits(
       {
         [GameId.TWENTY_ONE_HALF_DOLL]: 'range_5000_50000',
@@ -69,8 +85,21 @@ describe('admin betting limits', () => {
       'range_1_500',
     );
 
-    expect(requested[GameId.TWENTY_ONE_HALF_DOLL]).toBeUndefined();
+    expect(requested[GameId.TWENTY_ONE_HALF_DOLL]).toBe('range_5000_50000');
     expect(requested[GameId.DICE]).toBe('range_100_2000');
+  });
+
+  it('applies saved and legacy fallback limits while table bets are validated', () => {
+    expect(
+      getBettingLimitForGame(
+        { [GameId.TUI_TONGZI_DRAGON]: 'range_100_10000' },
+        GameId.TUI_TONGZI_DRAGON,
+        'range_10_3000',
+      ).label,
+    ).toBe('100-10000');
+    expect(getBettingLimitForGame({}, GameId.TUI_TONGZI_DRAGON, 'range_10_3000').label).toBe(
+      '基本款 10-3000',
+    );
   });
 
   it('accepts the 100-10000 range at the same hierarchy rank as 1000-10000', () => {

@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { canAccessLocalTableBeta } from '@bg/shared';
 import { ResponsiveImage } from '@/lib/optimizedImages';
 import { useTranslation } from '@/i18n/useTranslation';
-import { useAuthStore } from '@/stores/authStore';
 
 interface Slide {
   id: string;
@@ -16,8 +14,6 @@ interface Slide {
 
 export function HeroBanner() {
   const { t } = useTranslation();
-  const username = useAuthStore((state) => state.user?.username ?? null);
-  const canSeeLocalTables = canAccessLocalTableBeta(username);
   const [idx, setIdx] = useState(0);
   const slides: Slide[] = useMemo(
     () => [
@@ -45,20 +41,16 @@ export function HeroBanner() {
         image: '/banners/hero-strategy-dealer.png',
         imagePosition: 'object-[72%_center]',
       },
-      ...(canSeeLocalTables
-        ? [
-            {
-              id: 'tables',
-              eyebrow: t.hero.tablesEyebrow,
-              title: t.hero.tablesTitle,
-              subtitle: t.hero.tablesSubtitle,
-              image: '/halls/tables-card.png',
-              imagePosition: 'object-[78%_center]',
-            },
-          ]
-        : []),
+      {
+        id: 'tables',
+        eyebrow: t.hero.tablesEyebrow,
+        title: t.hero.tablesTitle,
+        subtitle: t.hero.tablesSubtitle,
+        image: '/halls/tables-card.png',
+        imagePosition: 'object-[78%_center]',
+      },
     ],
-    [canSeeLocalTables, t.hero],
+    [t.hero],
   );
 
   useEffect(() => {

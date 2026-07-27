@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen } from 'lucide-react';
-import { canAccessLocalTableBeta } from '@bg/shared';
 import { SectionHeading } from '@/components/layout/SectionHeading';
 import { MobilePageHeader } from '@/components/layout/MobilePageHeader';
 import { getLocalizedGameTitle } from '@/i18n/gameLabels';
 import { toSimplified } from '@/i18n/dict.zh-Hans';
 import type { Locale } from '@/i18n/types';
 import { useTranslation } from '@/i18n/useTranslation';
-import { useAuthStore } from '@/stores/authStore';
 
 type HallKey = 'crash' | 'tables' | 'slots' | 'roulette' | 'classic' | 'strategy';
 
@@ -684,14 +682,8 @@ const GAMES: Game[] = [
   },
 ];
 
-const HIDDEN_GAME_IDS = new Set([
-  'baccarat',
-  'baccarat-nova',
-  'baccarat-imperial',
-  'chicken-road',
-]);
+const HIDDEN_GAME_IDS = new Set(['baccarat', 'baccarat-nova', 'baccarat-imperial', 'chicken-road']);
 const VISIBLE_GAMES = GAMES.filter((game) => !HIDDEN_GAME_IDS.has(game.id));
-const LEGACY_TABLE_GUIDE_GAME_IDS = new Set(['blackjack', 'hilo']);
 
 type GuideTextLocale = 'en' | 'th' | 'vi';
 type LocalizedGuideCopy = Pick<Game, 'intro' | 'howToPlay' | 'tips'>;
@@ -813,7 +805,8 @@ const VERIFY_COPY: Record<Locale, VerifyPageCopy> = {
     allGames: 'Tất cả game',
     countLabel: (count) => `${count} game`,
     allWithCount: (count) => `Tất cả ${count} game`,
-    heroTitle: (count) => `${count} game phổ biến với luật chơi và giới hạn trả thưởng trong một trang.`,
+    heroTitle: (count) =>
+      `${count} game phổ biến với luật chơi và giới hạn trả thưởng trong một trang.`,
     heroDescription:
       'Phòng bay, bàn chơi, slot, roulette, game tức thì và thử thách chiến thuật được chia rõ ràng. Mỗi thẻ game có bước cược, điểm cần chú ý và hệ số tối đa để bạn bắt đầu nhanh.',
     chips: ['RTP 96%–97%', 'Tối đa 1,000,000×', 'Trả thưởng tức thì'],
@@ -831,17 +824,10 @@ const VERIFY_COPY: Record<Locale, VerifyPageCopy> = {
   },
 };
 
-const NON_TABLE_HERO_DESCRIPTION: Record<Locale, string> = {
-  'zh-Hant':
-    '飛行、拉霸、輪盤、即開電子、策略挑戰五大主題館，從快節奏 Crash 到骰子、基諾、彈珠與策略玩法，都附上玩法步驟、RTP 與最高倍率，幫你快速上手。',
-  'zh-Hans':
-    '飞行、拉霸、轮盘、即开电子、策略挑战五大主题馆，从快节奏 Crash 到骰子、基诺、弹珠与策略玩法，都附上玩法步骤、RTP 与最高倍率，帮你快速上手。',
-  en: 'Flight, slots, roulette, instant games and strategy challenges are grouped into clear halls. Each card explains how to bet, what to watch and the maximum multiplier so you can start quickly.',
-  th: 'ห้องบิน สล็อต รูเล็ต เกมทันใจ และเกมกลยุทธ์ถูกจัดเป็นหมวดชัดเจน การ์ดแต่ละเกมบอกวิธีเดิมพัน จุดที่ต้องดู และตัวคูณสูงสุดเพื่อให้เริ่มเล่นได้ทันที',
-  vi: 'Flight, slot, roulette, game nhanh và thử thách chiến lược được chia thành các sảnh rõ ràng. Mỗi thẻ giải thích cách cược, điểm cần chú ý và hệ số tối đa để bắt đầu nhanh.',
-};
-
-const HALL_TEXT: Record<GuideTextLocale, Record<HallKey, Pick<Hall, 'title' | 'subtitle' | 'intro' | 'vibe'>>> = {
+const HALL_TEXT: Record<
+  GuideTextLocale,
+  Record<HallKey, Pick<Hall, 'title' | 'subtitle' | 'intro' | 'vibe'>>
+> = {
   en: {
     crash: {
       title: 'Crash Flight Hall',
@@ -864,7 +850,8 @@ const HALL_TEXT: Record<GuideTextLocale, Record<HallKey, Pick<Hall, 'title' | 's
     roulette: {
       title: 'Roulette Hall',
       subtitle: 'Roulette Hall',
-      intro: 'Roulette and wheel games use intuitive betting zones for numbers, colors and segments.',
+      intro:
+        'Roulette and wheel games use intuitive betting zones for numbers, colors and segments.',
       vibe: 'Pick zones, watch the wheel stop',
     },
     classic: {
@@ -934,7 +921,8 @@ const HALL_TEXT: Record<GuideTextLocale, Record<HallKey, Pick<Hall, 'title' | 's
     slots: {
       title: 'Phòng Slot',
       subtitle: 'Slots Hall',
-      intro: 'Các game vòng quay, biểu tượng, dòng thắng và slot trả thưởng theo số lượng được gom tại đây.',
+      intro:
+        'Các game vòng quay, biểu tượng, dòng thắng và slot trả thưởng theo số lượng được gom tại đây.',
       vibe: 'Chủ đề rõ, ván ngắn, thắng lớn',
     },
     roulette: {
@@ -1102,7 +1090,8 @@ function getEnglishGuideCopy(game: Game, name: string): LocalizedGuideCopy {
   switch (game.id) {
     case 'blackjack':
       return {
-        intro: 'Blackjack compares your hand against the dealer. Reach 21 or beat the dealer without busting.',
+        intro:
+          'Blackjack compares your hand against the dealer. Reach 21 or beat the dealer without busting.',
         howToPlay: [
           'Start with two cards and choose hit, stand, double or split when available.',
           'Face cards count as 10, A can count as 1 or 11, and totals over 21 bust.',
@@ -1112,7 +1101,8 @@ function getEnglishGuideCopy(game: Game, name: string): LocalizedGuideCopy {
       };
     case 'hilo':
       return {
-        intro: 'Hi-Lo asks whether the next card will be higher/equal or lower/equal than the current card.',
+        intro:
+          'Hi-Lo asks whether the next card will be higher/equal or lower/equal than the current card.',
         howToPlay: [
           'Check the current card and choose High or Low for the next draw.',
           'Correct guesses raise the multiplier and let you continue or cash out.',
@@ -1122,7 +1112,8 @@ function getEnglishGuideCopy(game: Game, name: string): LocalizedGuideCopy {
       };
     case 'dice':
       return {
-        intro: 'Dice lets you predict whether the result will land over or under your target number.',
+        intro:
+          'Dice lets you predict whether the result will land over or under your target number.',
         howToPlay: [
           'Set a target from 3.00 to 97.00 and choose Over or Under.',
           'The system rolls a value from 0.00 to 99.99.',
@@ -1173,7 +1164,8 @@ function getEnglishGuideCopy(game: Game, name: string): LocalizedGuideCopy {
       };
     case 'mines':
       return {
-        intro: 'Mines hides bombs inside a 5x5 board. Reveal safe gems and cash out before hitting a mine.',
+        intro:
+          'Mines hides bombs inside a 5x5 board. Reveal safe gems and cash out before hitting a mine.',
         howToPlay: [
           'Choose the number of mines and start the round.',
           'Each safe tile raises the multiplier and current payout.',
@@ -1183,7 +1175,8 @@ function getEnglishGuideCopy(game: Game, name: string): LocalizedGuideCopy {
       };
     case 'tower':
       return {
-        intro: 'Stairs is a step-by-step challenge. Pick the safe tile on each level to climb higher.',
+        intro:
+          'Stairs is a step-by-step challenge. Pick the safe tile on each level to climb higher.',
         howToPlay: [
           'Choose a difficulty and place your bet.',
           'Pick one tile per level and avoid the trap.',
@@ -1382,7 +1375,8 @@ function getVietnameseGuideCopy(game: Game, name: string): LocalizedGuideCopy {
   switch (game.id) {
     case 'blackjack':
       return {
-        intro: 'Blackjack so điểm bài của bạn với nhà cái. Mục tiêu là gần 21 hơn mà không bị quá điểm.',
+        intro:
+          'Blackjack so điểm bài của bạn với nhà cái. Mục tiêu là gần 21 hơn mà không bị quá điểm.',
         howToPlay: [
           'Bắt đầu với hai lá bài và chọn rút, dừng, nhân đôi hoặc tách bài khi có thể.',
           'J/Q/K tính 10, A tính 1 hoặc 11, tổng trên 21 là bù.',
@@ -1496,37 +1490,12 @@ function getVietnameseGuideCopy(game: Game, name: string): LocalizedGuideCopy {
 
 export function VerifyPage() {
   const { locale } = useTranslation();
-  const username = useAuthStore((state) => state.user?.username ?? null);
-  const canSeeLocalTables = canAccessLocalTableBeta(username);
   const [activeHall, setActiveHall] = useState<HallKey | 'all'>('all');
-  const baseCopy = VERIFY_COPY[locale];
-  const copy = useMemo(
-    () =>
-      canSeeLocalTables
-        ? baseCopy
-        : { ...baseCopy, heroDescription: NON_TABLE_HERO_DESCRIPTION[locale] },
-    [baseCopy, canSeeLocalTables, locale],
-  );
-  const halls = useMemo(
-    () => localizeGuideHalls(locale).filter((hall) => canSeeLocalTables || hall.key !== 'tables'),
-    [canSeeLocalTables, locale],
-  );
+  const copy = VERIFY_COPY[locale];
+  const halls = useMemo(() => localizeGuideHalls(locale), [locale]);
   const visibleGames = useMemo(
-    () =>
-      VISIBLE_GAMES.filter(
-        (game) =>
-          canSeeLocalTables ||
-          game.hall !== 'tables' ||
-          LEGACY_TABLE_GUIDE_GAME_IDS.has(game.id),
-      ).map((game) =>
-        localizeGuideGame(
-          !canSeeLocalTables && game.hall === 'tables'
-            ? { ...game, hall: 'classic' }
-            : game,
-          locale,
-        ),
-      ),
-    [canSeeLocalTables, locale],
+    () => VISIBLE_GAMES.map((game) => localizeGuideGame(game, locale)),
+    [locale],
   );
 
   useEffect(() => {
@@ -1670,7 +1639,7 @@ export function VerifyPage() {
                   activeHall === 'all'
                     ? 'border-[#0F172A] bg-[#0F172A] text-white'
                     : 'border-[#E5E7EB] bg-white text-[#0F172A] hover:border-[#0F172A]/40'
-                  }`}
+                }`}
               >
                 <span>{copy.allWithCount(visibleGames.length)}</span>
                 <span className="text-[12px] opacity-70">{visibleGames.length}</span>

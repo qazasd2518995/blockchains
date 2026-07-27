@@ -121,17 +121,6 @@ export type LocalTableGameIdType = (typeof LOCAL_TABLE_GAME_IDS)[number];
 const LOCAL_TABLE_GAME_ID_SET = new Set<string>(LOCAL_TABLE_GAME_IDS);
 const BACCARAT_TABLE_GAME_ID_SET = new Set<string>(BACCARAT_TABLE_GAME_IDS);
 
-export const LOCAL_TABLE_BETA_ALLOWED_USERNAMES = [
-  'testplayer',
-  'testplayer2',
-  'testplayer3',
-  'testplayer4',
-  'testplayer5',
-  'testplayer6',
-] as const;
-
-const LOCAL_TABLE_BETA_ALLOWED_USERNAME_SET = new Set<string>(LOCAL_TABLE_BETA_ALLOWED_USERNAMES);
-
 export function isLocalTableGameId(gameId: string): gameId is LocalTableGameIdType {
   return LOCAL_TABLE_GAME_ID_SET.has(gameId);
 }
@@ -140,15 +129,8 @@ export function isBaccaratTableGameId(gameId: string): gameId is BaccaratTableGa
   return BACCARAT_TABLE_GAME_ID_SET.has(gameId);
 }
 
-export function canAccessLocalTableBeta(username?: string | null): boolean {
-  return LOCAL_TABLE_BETA_ALLOWED_USERNAME_SET.has(username?.trim().toLowerCase() ?? '');
-}
-
-export function isGameVisibleForUsername(gameId: string, username?: string | null): boolean {
-  return (
-    (!isLocalTableGameId(gameId) && !isBaccaratTableGameId(gameId)) ||
-    canAccessLocalTableBeta(username)
-  );
+export function isGameVisibleForUsername(_gameId: string, _username?: string | null): boolean {
+  return true;
 }
 
 export const SLOT_GAME_IDS = [
@@ -803,9 +785,7 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
 
 export const ENABLED_GAMES = Object.values(GAMES_REGISTRY).filter((g) => g.enabled);
 
-export const BETTING_LIMIT_MANAGED_GAME_IDS = ENABLED_GAMES.map((game) => game.id).filter(
-  (gameId) => !isLocalTableGameId(gameId),
-);
+export const BETTING_LIMIT_MANAGED_GAME_IDS = ENABLED_GAMES.map((game) => game.id);
 
 const BETTING_LIMIT_MANAGED_GAME_ID_SET = new Set<string>(BETTING_LIMIT_MANAGED_GAME_IDS);
 

@@ -58,7 +58,7 @@ let lineAgent;
 let player;
 
 const slotGameIds = [...SLOT_GAME_IDS];
-const betaOnlyTableGameIds = [...BACCARAT_TABLE_GAME_IDS];
+const baccaratTableGameIds = [...BACCARAT_TABLE_GAME_IDS];
 
 const httpGames = [
   makeDiceGame(),
@@ -72,9 +72,7 @@ const httpGames = [
   makeTowerGame(),
   makeChickenRoadGame(),
   makeBlackjackGame(),
-  ...(process.env.CONTROL_API_INCLUDE_BETA_TABLES === '1'
-    ? betaOnlyTableGameIds.map(makeBaccaratGame)
-    : []),
+  ...baccaratTableGameIds.map(makeBaccaratGame),
   ...slotGameIds.map(makeHotlineGame),
 ];
 
@@ -1092,9 +1090,7 @@ function settleBaccarat(seed, c, nonce, side) {
       playerCards.push(playerThird);
     }
     const banker = baccaratPoints(bankerCards);
-    const bankerDraws = playerThird
-      ? baccaratBankerDraws(banker, playerThird.value)
-      : banker <= 5;
+    const bankerDraws = playerThird ? baccaratBankerDraws(banker, playerThird.value) : banker <= 5;
     if (bankerDraws) bankerCards.push(cards[nextIndex++]);
   }
 
@@ -1276,11 +1272,6 @@ function printSummary() {
     '  skipped realtime socket games: rocket, aviator, space-fleet, jetx, balloon, jetx3, double-x',
   );
   console.log('  skipped disabled/external games: baccarat, baccarat-nova, baccarat-imperial');
-  if (process.env.CONTROL_API_INCLUDE_BETA_TABLES !== '1') {
-    console.log(
-      '  skipped testplayer-only table games: baccarat-dragon, baccarat-panda, baccarat-fox, baccarat-tiger, baccarat-phoenix',
-    );
-  }
   console.log('  skipped registry-only game without backend route: plinko-x');
   if (failed.length > 0) {
     console.log('\nFailures:');

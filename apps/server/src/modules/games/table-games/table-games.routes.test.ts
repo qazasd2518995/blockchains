@@ -1,41 +1,49 @@
+import type { FastifyInstance } from 'fastify';
 import { describe, expect, it, vi } from 'vitest';
-import { ApiError } from '../../../utils/errors.js';
-import { assertLocalTableBetaAccess } from './table-games.routes.js';
+import { BACCARAT_TABLE_GAME_IDS, LOCAL_TABLE_GAME_IDS } from '@bg/shared';
+import { baccaratRoutes } from '../baccarat/baccarat.routes.js';
+import { baccaratBetSchema } from '../baccarat/baccarat.schema.js';
+import { tableGamesRoutes } from './table-games.routes.js';
+import { localTableBetSchema } from './table-games.schema.js';
 
-describe('local table route access gate', () => {
-  it('allows the beta account to use local table APIs', async () => {
-    const store = {
-      user: {
-        findUnique: vi.fn().mockResolvedValue({ username: 'testplayer' }),
-      },
-    };
+function makeRouteRegistrar(): {
+  fastify: FastifyInstance;
+  authenticate: ReturnType<typeof vi.fn>;
+  addHook: ReturnType<typeof vi.fn>;
+} {
+  const authenticate = vi.fn();
+  const addHook = vi.fn();
+  const fastify = {
+    prisma: {},
+    authenticate,
+    addHook,
+    get: vi.fn(),
+    post: vi.fn(),
+  } as unknown as FastifyInstance;
+  return { fastify, authenticate, addHook };
+}
 
-    await expect(assertLocalTableBetaAccess(store, 'u-test')).resolves.toBeUndefined();
-    expect(store.user.findUnique).toHaveBeenCalledWith({
-      where: { id: 'u-test' },
-      select: { username: true },
-    });
+describe('public table game route access', () => {
+  it.each([
+    ['local table', tableGamesRoutes],
+    ['baccarat table', baccaratRoutes],
+  ])('keeps authentication as the only %s API access gate', async (_label, registerRoutes) => {
+    const { fastify, authenticate, addHook } = makeRouteRegistrar();
+
+    await registerRoutes(fastify);
+
+    expect(addHook).toHaveBeenCalledTimes(1);
+    expect(addHook).toHaveBeenCalledWith('preHandler', authenticate);
   });
 
-  it('allows additional test player accounts to use local table APIs', async () => {
-    const store = {
-      user: {
-        findUnique: vi.fn().mockResolvedValue({ username: 'testplayer4' }),
-      },
-    };
-
-    await expect(assertLocalTableBetaAccess(store, 'u-test-4')).resolves.toBeUndefined();
-  });
-
-  it('blocks every other member from local table APIs', async () => {
-    const store = {
-      user: {
-        findUnique: vi.fn().mockResolvedValue({ username: 'normalplayer' }),
-      },
-    };
-
-    await expect(assertLocalTableBetaAccess(store, 'u-normal')).rejects.toMatchObject({
-      code: 'FORBIDDEN',
-    } satisfies Partial<ApiError>);
+  it('accepts valid bet payloads for every released table game', () => {
+    for (const gameId of LOCAL_TABLE_GAME_IDS) {
+      expect(localTableBetSchema.safeParse({ gameId, amount: 100 }).success).toBe(true);
+    }
+    for (const gameId of BACCARAT_TABLE_GAME_IDS) {
+      expect(baccaratBetSchema.safeParse({ gameId, amount: 100, side: 'player' }).success).toBe(
+        true,
+      );
+    }
   });
 });

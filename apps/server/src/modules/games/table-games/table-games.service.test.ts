@@ -1,12 +1,12 @@
 import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import {
+  BACCARAT_TABLE_GAME_IDS,
   BLACK_DOT_GAME_IDS,
   CARD_WAR_GAME_IDS,
   LOCAL_TABLE_GAME_IDS,
   TUI_TONGZI_GAME_IDS,
   TWENTY_ONE_HALF_GAME_IDS,
-  canAccessLocalTableBeta,
   GameId,
   isGameVisibleForUsername,
 } from '@bg/shared';
@@ -62,19 +62,14 @@ const domino = (
 });
 
 describe('local table game rules', () => {
-  it('keeps local table games visible only for the beta account', () => {
-    expect(canAccessLocalTableBeta('testplayer')).toBe(true);
-    expect(canAccessLocalTableBeta('TestPlayer')).toBe(true);
-    expect(canAccessLocalTableBeta('testplayer2')).toBe(true);
-    expect(canAccessLocalTableBeta('TestPlayer6')).toBe(true);
-    expect(canAccessLocalTableBeta('player001')).toBe(false);
-    expect(isGameVisibleForUsername(GameId.TUI_TONGZI_DRAGON, 'testplayer')).toBe(true);
-    expect(isGameVisibleForUsername(GameId.TUI_TONGZI_DRAGON, 'testplayer2')).toBe(true);
-    expect(isGameVisibleForUsername(GameId.TUI_TONGZI_DRAGON, 'player001')).toBe(false);
-    expect(isGameVisibleForUsername(GameId.BACCARAT_DRAGON, 'testplayer')).toBe(true);
-    expect(isGameVisibleForUsername(GameId.BACCARAT_DRAGON, 'testplayer6')).toBe(true);
-    expect(isGameVisibleForUsername(GameId.BACCARAT_DRAGON, 'player001')).toBe(false);
-    expect(isGameVisibleForUsername(GameId.BLACKJACK, 'player001')).toBe(true);
+  it('shows every released table game to all players and guests', () => {
+    const releasedTableGames = [...BACCARAT_TABLE_GAME_IDS, ...LOCAL_TABLE_GAME_IDS];
+
+    for (const gameId of releasedTableGames) {
+      expect(isGameVisibleForUsername(gameId, 'memberA')).toBe(true);
+      expect(isGameVisibleForUsername(gameId, 'player001')).toBe(true);
+      expect(isGameVisibleForUsername(gameId, null)).toBe(true);
+    }
   });
 
   it('scores Ten-and-a-Half cards with face cards as half points', () => {
@@ -512,13 +507,7 @@ describe('local table game rules', () => {
         roomName: '萌娃十點半',
         player: [card('8', 8)],
         banker: [card('3', 3, 'hearts')],
-        deck: [
-          card('9', 9),
-          card('9', 9, 'hearts'),
-          card('2', 2),
-          card('3', 3),
-          card('K', 13),
-        ],
+        deck: [card('9', 9), card('9', 9, 'hearts'), card('2', 2), card('3', 3), card('K', 13)],
         deckIndex: 0,
         summary: '測試',
       },

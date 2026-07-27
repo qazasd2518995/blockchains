@@ -23,14 +23,7 @@ import type { Locale } from '@/i18n/types';
 import { PlatformBgm } from '@/lib/platformBgm';
 import { errorMessage, reloadAfterRuntimeFailure } from '@/lib/runtimeRecovery';
 import { CRASH_CONFIGS } from '@/pages/games/crashConfigs';
-import {
-  BACCARAT_TABLE_GAME_IDS,
-  canAccessLocalTableBeta,
-  LOCAL_TABLE_GAME_IDS,
-  type BaccaratTableGameIdType,
-  type LocalTableGameIdType,
-} from '@bg/shared';
-import { useAuthStore } from '@/stores/authStore';
+import { BACCARAT_TABLE_GAME_IDS, LOCAL_TABLE_GAME_IDS } from '@bg/shared';
 
 const RUNTIME_ERROR_COPY: Record<
   Locale,
@@ -189,18 +182,6 @@ function gameRoute(path: string, gameId: string, element: ReactNode) {
   };
 }
 
-function LocalTableBetaRoute({ gameId }: { gameId: LocalTableGameIdType }) {
-  const username = useAuthStore((state) => state.user?.username ?? null);
-  if (!canAccessLocalTableBeta(username)) return <Navigate to="/lobby" replace />;
-  return <LocalTablePage gameId={gameId} />;
-}
-
-function BaccaratTableBetaRoute({ gameId }: { gameId: BaccaratTableGameIdType }) {
-  const username = useAuthStore((state) => state.user?.username ?? null);
-  if (!canAccessLocalTableBeta(username)) return <Navigate to="/lobby" replace />;
-  return <BaccaratTablePage gameId={gameId} />;
-}
-
 function RouteViewportReset() {
   const { pathname } = useLocation();
 
@@ -256,10 +237,10 @@ export const router = createBrowserRouter([
         children: [
           gameRoute('/games/dice', 'dice', <DicePage />),
           ...BACCARAT_TABLE_GAME_IDS.map((gameId) =>
-            gameRoute(`/games/${gameId}`, gameId, <BaccaratTableBetaRoute gameId={gameId} />),
+            gameRoute(`/games/${gameId}`, gameId, <BaccaratTablePage gameId={gameId} />),
           ),
           ...LOCAL_TABLE_GAME_IDS.map((gameId) =>
-            gameRoute(`/games/${gameId}`, gameId, <LocalTableBetaRoute gameId={gameId} />),
+            gameRoute(`/games/${gameId}`, gameId, <LocalTablePage gameId={gameId} />),
           ),
           gameRoute('/games/mines', 'mines', <MinesPage />),
           gameRoute('/games/hilo', 'hilo', <HiLoPage />),
