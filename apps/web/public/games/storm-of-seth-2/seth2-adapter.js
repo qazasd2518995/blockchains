@@ -4,6 +4,7 @@
   var params = new URLSearchParams(window.location.search);
   var apiBase = (params.get('apiBase') || (window.location.origin + '/api')).replace(/\/$/, '');
   var protocolUrl = apiBase + '/games/seth2/protocol';
+  var requestTimeoutMs = 15000;
   var patched = false;
   var loginStarted = false;
   var refreshInFlight = null;
@@ -74,6 +75,10 @@
   function authorizedFetch(url, body, retried) {
     var auth = readAuth();
     if (!auth.accessToken) return Promise.reject(new Error('找不到登入憑證，請回到大廳重新登入'));
+    var controller = typeof AbortController === 'function' ? new AbortController() : null;
+    var timeout = window.setTimeout(function () {
+      if (controller) controller.abort();
+    }, requestTimeoutMs);
     return fetch(url, {
       method: 'POST',
       headers: {
@@ -81,6 +86,7 @@
         'Authorization': 'Bearer ' + auth.accessToken,
       },
       body: JSON.stringify(body || {}),
+      signal: controller ? controller.signal : undefined,
     }).then(function (response) {
       if (response.status === 401 && !retried) {
         return refreshAccessToken().then(function () {
@@ -91,7 +97,35 @@
         if (!response.ok) throw new Error(payload.message || payload.error || '遊戲伺服器拒絕請求');
         return payload;
       });
+    }).catch(function (error) {
+      if (error && error.name === 'AbortError') {
+        throw new Error('遊戲伺服器回應逾時，請稍後重試');
+      }
+      throw error;
+    }).finally(function () {
+      window.clearTimeout(timeout);
     });
+  }
+
+  function recoverGameInteraction(request) {
+    if (!request || (request.type !== 'gameToolsList' && request.type !== 'buyFreeGame')) return;
+    window.setTimeout(function () {
+      try {
+        var Game = window.__require && window.__require('Game').default;
+        var game = Game && Game.instance;
+        if (!game) return;
+        if (typeof game.getIsAuto === 'function' && game.getIsAuto() && typeof game.endAuto === 'function') {
+          game.endAuto();
+        }
+        game.isCanClick = true;
+        if (!game.isBuyGame && !game.isFreeGame && typeof game.setBtnState === 'function') {
+          game.setBtnState(true);
+        }
+        if (typeof game.getUserInfo === 'function') game.getUserInfo();
+      } catch (error) {
+        console.warn('[Seth2 Adapter] Failed to recover game controls', error);
+      }
+    }, 0);
   }
 
   function showFatal(message) {
@@ -131,10 +165,11 @@
 
   LocalGameSocket.prototype.send = function (raw) {
     var socket = this;
+    var request = null;
     if (socket.readyState !== LocalGameSocket.OPEN) throw new Error('Socket is not open');
     socket._queue = socket._queue.then(function () {
-      var message = JSON.parse(raw);
-      return authorizedFetch(protocolUrl, message, false).then(function (payload) {
+      request = JSON.parse(raw);
+      return authorizedFetch(protocolUrl, request, false).then(function (payload) {
         if (payload && payload.data && payload.data.balance !== undefined) {
           notifyParent('seth2:balance', { balance: Number(payload.data.balance) });
         }
@@ -148,6 +183,7 @@
         socket.onmessage({ data: JSON.stringify({ type: 'msg', data: { message: message } }) });
       }
       if (socket.onerror) socket.onerror(error);
+      recoverGameInteraction(request);
     });
   };
 

@@ -5,6 +5,7 @@
   var params = new URLSearchParams(window.location.search);
   var apiBase = (params.get('apiBase') || (window.location.origin + '/api')).replace(/\/$/, '');
   var gameApi = apiBase + '/games/fruit-mary';
+  var requestTimeoutMs = 15000;
   var refreshInFlight = null;
 
   function parentStorage() {
@@ -78,6 +79,10 @@
   function authorizedRequest(url, method, body, retried) {
     var auth = readAuth();
     if (!auth.accessToken) return Promise.reject(new Error('找不到登入憑證，請回到大廳重新登入'));
+    var controller = typeof AbortController === 'function' ? new AbortController() : null;
+    var timeout = window.setTimeout(function () {
+      if (controller) controller.abort();
+    }, requestTimeoutMs);
     return fetch(url, {
       method: method,
       headers: {
@@ -85,6 +90,7 @@
         Authorization: 'Bearer ' + auth.accessToken,
       },
       body: method === 'GET' ? undefined : body || '{}',
+      signal: controller ? controller.signal : undefined,
     }).then(function (response) {
       if (response.status === 401 && !retried) {
         return refreshAccessToken().then(function () {
@@ -95,6 +101,13 @@
         if (!response.ok) throw new Error(payload.message || payload.error || '遊戲伺服器拒絕請求');
         return payload;
       });
+    }).catch(function (error) {
+      if (error && error.name === 'AbortError') {
+        throw new Error('遊戲伺服器回應逾時，請稍後重試');
+      }
+      throw error;
+    }).finally(function () {
+      window.clearTimeout(timeout);
     });
   }
 

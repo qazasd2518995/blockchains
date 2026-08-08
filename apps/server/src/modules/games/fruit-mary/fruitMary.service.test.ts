@@ -38,4 +38,21 @@ describe('Fruit Mary control outcome selection', () => {
     expect(result.totalPayoutUnits).toBeGreaterThan(16);
     expect(result.totalPayoutUnits).toBeLessThanOrEqual(32);
   });
+
+  it('applies the room denomination when checking monetary payout bounds', () => {
+    const result = chooseControlledFruitOutcome(
+      bets,
+      new Prisma.Decimal(160),
+      {
+        won: true,
+        multiplier: new Prisma.Decimal(1.25),
+        minMultiplier: new Prisma.Decimal(1.01),
+        maxMultiplier: new Prisma.Decimal(2),
+        maxPayout: new Prisma.Decimal(320),
+      },
+      10,
+    );
+    expect(result.totalPayoutUnits).toBeGreaterThan(16);
+    expect(result.totalPayoutUnits).toBeLessThanOrEqual(32);
+  });
 });

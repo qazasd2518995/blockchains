@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
 
 const GAME_PATH = '/games/fruit-mary/index.html';
+const ERROR_NOTICE_MS = 6_000;
 
 export function FruitMaryPage() {
   const user = useAuthStore((state) => state.user);
@@ -60,6 +61,12 @@ export function FruitMaryPage() {
     return () => window.removeEventListener('message', onMessage);
   }, [setBalance, setTokens]);
 
+  useEffect(() => {
+    if (!error) return;
+    const timeout = window.setTimeout(() => setError(''), ERROR_NOTICE_MS);
+    return () => window.clearTimeout(timeout);
+  }, [error]);
+
   if (!user) {
     return (
       <AccessPanel
@@ -95,7 +102,7 @@ export function FruitMaryPage() {
         </div>
       )}
       {error && (
-        <div className="absolute bottom-5 left-1/2 z-20 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-xl border border-red-300/30 bg-red-950/95 px-4 py-3 text-sm text-red-50 shadow-xl">
+        <div className="pointer-events-none absolute bottom-5 left-1/2 z-20 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-xl border border-red-300/30 bg-red-950/95 px-4 py-3 text-sm text-red-50 shadow-xl">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
           {error}
         </div>

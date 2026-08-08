@@ -6,6 +6,7 @@
   var apiBase = (params.get('apiBase') || (window.location.origin + '/api')).replace(/\/$/, '');
   var gameApi = apiBase + '/games/h5-slots';
   var gameCode = params.get('gameId') || '161';
+  var requestTimeoutMs = 15000;
   var refreshInFlight = null;
   var latestSession = null;
   var ROOM_BET_AMOUNTS = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
@@ -138,6 +139,10 @@
   function authorizedRequest(url, method, body, retried) {
     var auth = readAuth();
     if (!auth.accessToken) return Promise.reject(new Error('找不到登入憑證，請回到大廳重新登入'));
+    var controller = typeof AbortController === 'function' ? new AbortController() : null;
+    var timeout = window.setTimeout(function () {
+      if (controller) controller.abort();
+    }, requestTimeoutMs);
     return fetch(url, {
       method: method,
       headers: {
@@ -145,6 +150,7 @@
         Authorization: 'Bearer ' + auth.accessToken,
       },
       body: method === 'GET' ? undefined : JSON.stringify(body || {}),
+      signal: controller ? controller.signal : undefined,
     }).then(function (response) {
       if (response.status === 401 && !retried) {
         return refreshAccessToken().then(function () {
@@ -155,6 +161,13 @@
         if (!response.ok) throw new Error(payload.message || payload.error || '遊戲伺服器拒絕請求');
         return payload;
       });
+    }).catch(function (error) {
+      if (error && error.name === 'AbortError') {
+        throw new Error('遊戲伺服器回應逾時，請稍後重試');
+      }
+      throw error;
+    }).finally(function () {
+      window.clearTimeout(timeout);
     });
   }
 
@@ -662,11 +675,12 @@
     } catch (_error) {
       payload = {};
     }
-    var amount = Number(payload.nBetList && payload.nBetList[0]);
-    if (!Number.isFinite(amount) || amount <= 0) {
+    var requestedAmount = Number(payload.nBetList && payload.nBetList[0]);
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
       socket._trigger('lotteryResult', { ResultCode: -2, msg: '投注金額不正確' });
       return;
     }
+    var amount = Math.max(ROOM_BET_AMOUNTS[0], requestedAmount);
     authorizedRequest(gameApi + '/spin', 'POST', {
       gameCode: gameCode,
       amount: amount,
@@ -684,12 +698,12 @@
       })
       .catch(function (error) {
         var message = error && error.message ? error.message : '遊戲伺服器連線失敗';
-        socket._trigger('lotteryResult', {
-          ResultCode: -2,
-          ResultMsg: message,
-          msg: message,
-          userscore: Number(latestSession && latestSession.balance || 0),
-        });
+        socket._trigger('lotteryResult', buildLotteryResponse({
+          grid: [],
+          payout: 0,
+          multiplier: 0,
+          newBalance: Number(latestSession && latestSession.balance || 0),
+        }));
         notifyParent('h5-slots:error', { message: message });
       });
   }

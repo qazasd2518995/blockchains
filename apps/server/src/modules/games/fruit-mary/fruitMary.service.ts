@@ -33,6 +33,8 @@ import type {
   FruitMarySpinInput,
 } from './fruitMary.schema.js';
 
+const FRUIT_MARY_DENOMINATION = 10;
+
 const GAME_ID = GameId.FRUIT_MARY;
 const BET_ID_SET = new Set<number>(FRUIT_MARY_BET_IDS);
 
@@ -58,7 +60,7 @@ export class FruitMaryService {
 
   async room(userId: string) {
     await this.requireUser(userId);
-    return { code: '200', data: { multiple: 1 } };
+    return { code: '200', data: { multiple: FRUIT_MARY_DENOMINATION } };
   }
 
   async authorize(userId: string) {
@@ -84,7 +86,7 @@ export class FruitMaryService {
     }
 
     return runSerializable(this.prisma, async (tx) => {
-      const amount = new Prisma.Decimal(totalUnits);
+      const amount = new Prisma.Decimal(totalUnits).mul(FRUIT_MARY_DENOMINATION);
       const user = await lockUserAndCheckFunds(tx, userId, amount, GAME_ID, {
         limitAmounts: [amount],
       });
@@ -92,16 +94,20 @@ export class FruitMaryService {
 
       const seed = await new SeedHelper(tx).getActiveBundle(userId, GAME_ID);
       const originalOutcome = fruitMarySpin(seed.serverSeed, seed.clientSeed, seed.nonce, bets);
-      const originalPayout = new Prisma.Decimal(originalOutcome.totalPayoutUnits);
+      const originalPayout = new Prisma.Decimal(originalOutcome.totalPayoutUnits).mul(
+        FRUIT_MARY_DENOMINATION,
+      );
       const originalPrediction = prediction(amount, originalPayout);
       const controlled = await applyControls(tx, userId, GAME_ID, originalPrediction, {
         burstEligible: true,
         burstPotentialMultiplier: new Prisma.Decimal(100),
       });
       const finalOutcome = controlled.controlled
-        ? chooseControlledFruitOutcome(bets, amount, controlled)
+        ? chooseControlledFruitOutcome(bets, amount, controlled, FRUIT_MARY_DENOMINATION)
         : originalOutcome;
-      const finalPayout = new Prisma.Decimal(finalOutcome.totalPayoutUnits);
+      const finalPayout = new Prisma.Decimal(finalOutcome.totalPayoutUnits).mul(
+        FRUIT_MARY_DENOMINATION,
+      );
       const finalPrediction = prediction(amount, finalPayout);
       const betMultiplier = finalPayout
         .div(amount)
@@ -342,11 +348,12 @@ export function chooseControlledFruitOutcome(
     ControlOutcome,
     'won' | 'multiplier' | 'minMultiplier' | 'maxMultiplier' | 'maxPayout'
   >,
+  denomination = 1,
 ): FruitMaryOutcome {
   const candidates = [10, 22, ...FRUIT_MARY_PAYOUT_POSITIONS]
     .map((position) => fruitMaryOutcomeForPosition(position, bets))
     .filter((candidate) => {
-      const payout = new Prisma.Decimal(candidate.totalPayoutUnits);
+      const payout = new Prisma.Decimal(candidate.totalPayoutUnits).mul(denomination);
       const multiplier = payout.div(amount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
       return (
         (control.won ? multiplier.greaterThan(1) : multiplier.lessThanOrEqualTo(1)) &&
@@ -356,10 +363,12 @@ export function chooseControlledFruitOutcome(
   if (candidates.length === 0) return fruitMaryOutcomeForPosition(control.won ? 4 : 10, bets);
   return candidates.sort((left, right) => {
     const leftDelta = new Prisma.Decimal(left.totalPayoutUnits)
+      .mul(denomination)
       .div(amount)
       .minus(control.multiplier)
       .abs();
     const rightDelta = new Prisma.Decimal(right.totalPayoutUnits)
+      .mul(denomination)
       .div(amount)
       .minus(control.multiplier)
       .abs();
