@@ -132,13 +132,10 @@ export function isBaccaratTableGameId(gameId: string): gameId is BaccaratTableGa
   return BACCARAT_TABLE_GAME_ID_SET.has(gameId);
 }
 
-export const IMPORTED_GAME_TEST_USERNAMES = ['testplayer'] as const;
-export const SETH2_TEST_USERNAMES = IMPORTED_GAME_TEST_USERNAMES;
+const IMPORTED_GAME_TEST_USERNAME_PATTERN = /^testplayer(?:[1-9]\d*)?$/;
 
 export function isImportedGameTestUsername(username?: string | null): boolean {
-  return Boolean(
-    username && IMPORTED_GAME_TEST_USERNAMES.includes(username as 'testplayer'),
-  );
+  return Boolean(username && IMPORTED_GAME_TEST_USERNAME_PATTERN.test(username));
 }
 
 export function isSeth2TestUsername(username?: string | null): boolean {

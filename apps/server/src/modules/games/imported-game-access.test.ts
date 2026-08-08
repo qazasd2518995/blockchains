@@ -13,16 +13,35 @@ const IMPORTED_TEST_GAMES = [
 ] as const;
 
 describe('imported test-game access', () => {
-  it('recognizes only the exact testplayer account', () => {
-    expect(isImportedGameTestUsername('testplayer')).toBe(true);
-    expect(isImportedGameTestUsername('TestPlayer')).toBe(false);
-    expect(isImportedGameTestUsername('admin')).toBe(false);
-    expect(isImportedGameTestUsername(null)).toBe(false);
+  it('recognizes the numbered testplayer account series', () => {
+    for (const username of [
+      'testplayer',
+      'testplayer2',
+      'testplayer3',
+      'testplayer4',
+      'testplayer5',
+      'testplayer6',
+      'testplayer25',
+    ]) {
+      expect(isImportedGameTestUsername(username)).toBe(true);
+    }
+
+    for (const username of [
+      'TestPlayer',
+      'testplayer0',
+      'testplayer02',
+      'testplayer-demo',
+      'admin',
+      null,
+    ]) {
+      expect(isImportedGameTestUsername(username)).toBe(false);
+    }
   });
 
   it('keeps every imported test game hidden from guests and regular members', () => {
     for (const gameId of IMPORTED_TEST_GAMES) {
       expect(isGameVisibleForUsername(gameId, 'testplayer')).toBe(true);
+      expect(isGameVisibleForUsername(gameId, 'testplayer6')).toBe(true);
       expect(isGameVisibleForUsername(gameId, 'admin')).toBe(false);
       expect(isGameVisibleForUsername(gameId, null)).toBe(false);
     }
