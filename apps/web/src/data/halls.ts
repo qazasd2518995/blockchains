@@ -74,6 +74,9 @@ export const HALLS: Record<HallId, HallMeta> = {
     artwork: '/halls/slots-card.png',
     gameIds: [
       GameId.HOTLINE,
+      GameId.STORM_OF_SETH_2,
+      GameId.FRUIT_MARY,
+      GameId.H5_SLOT_COLLECTION,
       GameId.FRUIT_SLOT,
       GameId.FORTUNE_SLOT,
       GameId.OCEAN_SLOT,

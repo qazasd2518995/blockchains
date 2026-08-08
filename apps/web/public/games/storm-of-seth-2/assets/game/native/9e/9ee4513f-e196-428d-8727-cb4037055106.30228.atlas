@@ -1,0 +1,97 @@
+
+symbol_transition.png
+size: 392,288
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+light
+  rotate: false
+  xy: 94, 79
+  size: 98, 98
+  orig: 98, 98
+  offset: 0, 0
+  index: -1
+light2
+  rotate: false
+  xy: 1, 178
+  size: 102, 108
+  orig: 105, 113
+  offset: 1, 2
+  index: -1
+sparkle
+  rotate: true
+  xy: 193, 79
+  size: 26, 29
+  orig: 31, 36
+  offset: 3, 4
+  index: -1
+t1
+  rotate: false
+  xy: 1, 71
+  size: 92, 106
+  orig: 92, 106
+  offset: 0, 0
+  index: -1
+t10
+  rotate: true
+  xy: 274, 136
+  size: 67, 115
+  orig: 67, 115
+  offset: 0, 0
+  index: -1
+t2
+  rotate: true
+  xy: 193, 204
+  size: 82, 97
+  orig: 82, 97
+  offset: 0, 0
+  index: -1
+t3
+  rotate: false
+  xy: 193, 106
+  size: 80, 97
+  orig: 81, 97
+  offset: 0, 0
+  index: -1
+t4
+  rotate: true
+  xy: 291, 207
+  size: 79, 97
+  orig: 79, 97
+  offset: 0, 0
+  index: -1
+t5
+  rotate: false
+  xy: 225, 13
+  size: 84, 92
+  orig: 84, 92
+  offset: 0, 0
+  index: -1
+t6
+  rotate: false
+  xy: 104, 182
+  size: 88, 104
+  orig: 88, 104
+  offset: 0, 0
+  index: -1
+t7
+  rotate: true
+  xy: 115, 7
+  size: 71, 109
+  orig: 71, 109
+  offset: 0, 0
+  index: -1
+t8
+  rotate: true
+  xy: 1, 1
+  size: 69, 113
+  orig: 69, 113
+  offset: 0, 0
+  index: -1
+t9
+  rotate: false
+  xy: 310, 21
+  size: 67, 114
+  orig: 67, 114
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,20 @@
+
+jp_grand_bg.png
+size: 1060,480
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+bg_base
+  rotate: true
+  xy: 814, 13
+  size: 466, 242
+  orig: 490, 244
+  offset: 12, 1
+  index: -1
+bg_light
+  rotate: false
+  xy: 1, 1
+  size: 812, 478
+  orig: 882, 482
+  offset: 54, 1
+  index: -1

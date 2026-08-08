@@ -1,5 +1,8 @@
 const LOBBY_COVER_OVERRIDES: Record<string, string> = {
   hotline: '/slots/cyber/cover-v2.png',
+  'storm-of-seth-2': '/game-art/generated/storm-of-seth-2-cover-v1.png',
+  'fruit-mary': '/game-art/generated/fruit-mary-cover-v1.png',
+  'h5-slot-collection': '/game-art/generated/h5-slot-collection-cover-v1.png',
   'fruit-slot': '/slots/fruit/cover-v2.png',
   'fortune-slot': '/slots/fortune/cover-v2.png',
   'ocean-slot': '/slots/ocean/cover-v2.png',

@@ -1,0 +1,48 @@
+
+w_legend_bg.png
+size: 860,1036
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+legend_base
+  rotate: true
+  xy: 608, 471
+  size: 564, 251
+  orig: 592, 253
+  offset: 14, 1
+  index: -1
+legend_light
+  rotate: true
+  xy: 1, 142
+  size: 893, 504
+  orig: 896, 504
+  offset: 0, 0
+  index: -1
+legend_pattern
+  rotate: true
+  xy: 506, 147
+  size: 888, 101
+  orig: 894, 104
+  offset: 2, 1
+  index: -1
+legend_wing_01
+  rotate: true
+  xy: 608, 202
+  size: 268, 218
+  orig: 272, 224
+  offset: 2, 2
+  index: -1
+legend_wing_02
+  rotate: false
+  xy: 1, 1
+  size: 314, 140
+  orig: 319, 175
+  offset: 2, 31
+  index: -1
+legend_wing_03
+  rotate: true
+  xy: 608, 157
+  size: 44, 198
+  orig: 46, 202
+  offset: 0, 1
+  index: -1

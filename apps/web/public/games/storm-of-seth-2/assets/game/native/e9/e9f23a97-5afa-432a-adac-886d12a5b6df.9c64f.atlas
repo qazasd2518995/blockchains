@@ -1,0 +1,27 @@
+
+w_super_bg.png
+size: 1076,600
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+super_base
+  rotate: true
+  xy: 809, 150
+  size: 448, 264
+  orig: 474, 294
+  offset: 13, 15
+  index: -1
+super_light
+  rotate: false
+  xy: 1, 103
+  size: 807, 495
+  orig: 857, 509
+  offset: 34, 10
+  index: -1
+super_pattern
+  rotate: false
+  xy: 1, 1
+  size: 888, 101
+  orig: 894, 104
+  offset: 2, 1
+  index: -1

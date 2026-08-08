@@ -108,9 +108,13 @@ export class HotlineService {
     return toJackpotSnapshot(pool, new Date());
   }
 
-  async bet(userId: string, input: HotlineBetInput): Promise<HotlineBetResult> {
+  async bet(
+    userId: string,
+    input: HotlineBetInput,
+    gameIdOverride?: string,
+  ): Promise<HotlineBetResult> {
     const baseAmount = new Prisma.Decimal(input.amount);
-    const gameId = input.gameId ?? GameId.HOTLINE;
+    const gameId = gameIdOverride ?? input.gameId ?? GameId.HOTLINE;
     const reelCount = getHotlineReelCount(gameId);
     const rowCount = getHotlineRowCount(gameId);
     const buyFeature = Boolean(input.buyFeature);

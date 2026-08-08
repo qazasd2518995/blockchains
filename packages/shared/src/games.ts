@@ -33,6 +33,9 @@ export const GameId = {
   MINI_ROULETTE: 'mini-roulette',
   PLINKO: 'plinko',
   HOTLINE: 'hotline',
+  STORM_OF_SETH_2: 'storm-of-seth-2',
+  FRUIT_MARY: 'fruit-mary',
+  H5_SLOT_COLLECTION: 'h5-slot-collection',
   FRUIT_SLOT: 'fruit-slot',
   FORTUNE_SLOT: 'fortune-slot',
   OCEAN_SLOT: 'ocean-slot',
@@ -129,12 +132,32 @@ export function isBaccaratTableGameId(gameId: string): gameId is BaccaratTableGa
   return BACCARAT_TABLE_GAME_ID_SET.has(gameId);
 }
 
-export function isGameVisibleForUsername(_gameId: string, _username?: string | null): boolean {
-  return true;
+export const IMPORTED_GAME_TEST_USERNAMES = ['testplayer'] as const;
+export const SETH2_TEST_USERNAMES = IMPORTED_GAME_TEST_USERNAMES;
+
+export function isImportedGameTestUsername(username?: string | null): boolean {
+  return Boolean(
+    username && IMPORTED_GAME_TEST_USERNAMES.includes(username as 'testplayer'),
+  );
+}
+
+export function isSeth2TestUsername(username?: string | null): boolean {
+  return isImportedGameTestUsername(username);
+}
+
+export function isGameVisibleForUsername(gameId: string, username?: string | null): boolean {
+  const importedTestGame =
+    gameId === GameId.STORM_OF_SETH_2 ||
+    gameId === GameId.FRUIT_MARY ||
+    gameId === GameId.H5_SLOT_COLLECTION;
+  return !importedTestGame || isImportedGameTestUsername(username);
 }
 
 export const SLOT_GAME_IDS = [
   GameId.HOTLINE,
+  GameId.STORM_OF_SETH_2,
+  GameId.FRUIT_MARY,
+  GameId.H5_SLOT_COLLECTION,
   GameId.FRUIT_SLOT,
   GameId.FORTUNE_SLOT,
   GameId.OCEAN_SLOT,
@@ -535,6 +558,39 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     category: 'single-step',
     description: 'Neon-themed slot machine.',
     descriptionZh: '霓虹风格老虎机',
+    rtp: 0.95,
+    icon: 'slots',
+    enabled: true,
+  },
+  [GameId.STORM_OF_SETH_2]: {
+    id: GameId.STORM_OF_SETH_2,
+    name: 'Storm of Seth 2 – Awakening',
+    nameZh: '黃金賽特 II：覺醒之力',
+    category: 'single-step',
+    description: 'A 6x5 cascading cluster slot with split multipliers and awakening free games.',
+    descriptionZh: '6x5 消除式同符號派彩，含分裂倍率、隱藏彩金與覺醒免費遊戲',
+    rtp: 0.9689,
+    icon: 'slots',
+    enabled: true,
+  },
+  [GameId.FRUIT_MARY]: {
+    id: GameId.FRUIT_MARY,
+    name: 'Fruit Mary',
+    nameZh: '歡樂水果機',
+    category: 'single-step',
+    description: 'A classic 24-light fruit wheel with eight bet areas and bonus shows.',
+    descriptionZh: '經典 24 格水果小瑪莉，含八區下注、彩金演出與比大小玩法',
+    rtp: 0.96,
+    icon: 'slots',
+    enabled: true,
+  },
+  [GameId.H5_SLOT_COLLECTION]: {
+    id: GameId.H5_SLOT_COLLECTION,
+    name: 'Original Cocos Game Collection',
+    nameZh: '原版 Cocos 遊戲合集（25款）',
+    category: 'single-step',
+    description: 'Twenty-one original Cocos slots and four fishing games connected to Yachiyo settlement.',
+    descriptionZh: '21 款原版 Cocos 拉霸與 4 款捕魚遊戲，接入八千代本地結算',
     rtp: 0.95,
     icon: 'slots',
     enabled: true,

@@ -1,0 +1,174 @@
+
+coin_spray.png
+size: 760,184
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+a_01
+  rotate: false
+  xy: 183, 2
+  size: 90, 85
+  orig: 92, 87
+  offset: 1, 1
+  index: -1
+a_02
+  rotate: true
+  xy: 1, 88
+  size: 95, 83
+  orig: 97, 85
+  offset: 1, 1
+  index: -1
+a_03
+  rotate: false
+  xy: 274, 2
+  size: 90, 85
+  orig: 92, 87
+  offset: 1, 1
+  index: -1
+a_04
+  rotate: true
+  xy: 513, 17
+  size: 73, 90
+  orig: 75, 92
+  offset: 1, 1
+  index: -1
+a_05
+  rotate: false
+  xy: 313, 89
+  size: 45, 94
+  orig: 47, 96
+  offset: 1, 1
+  index: -1
+a_06
+  rotate: false
+  xy: 301, 88
+  size: 11, 95
+  orig: 13, 97
+  offset: 1, 1
+  index: -1
+a_07
+  rotate: false
+  xy: 229, 88
+  size: 45, 95
+  orig: 47, 97
+  offset: 1, 1
+  index: -1
+a_08
+  rotate: false
+  xy: 543, 93
+  size: 73, 90
+  orig: 75, 92
+  offset: 1, 1
+  index: -1
+b_01
+  rotate: true
+  xy: 678, 2
+  size: 90, 67
+  orig: 92, 69
+  offset: 1, 1
+  index: -1
+b_02
+  rotate: true
+  xy: 168, 88
+  size: 95, 60
+  orig: 97, 62
+  offset: 1, 1
+  index: -1
+b_03
+  rotate: true
+  xy: 691, 93
+  size: 90, 67
+  orig: 92, 69
+  offset: 1, 1
+  index: -1
+b_04
+  rotate: false
+  xy: 365, 6
+  size: 73, 82
+  orig: 75, 84
+  offset: 1, 1
+  index: -1
+b_05
+  rotate: false
+  xy: 451, 91
+  size: 45, 92
+  orig: 47, 94
+  offset: 1, 1
+  index: -1
+b_06
+  rotate: false
+  xy: 275, 88
+  size: 12, 95
+  orig: 14, 97
+  offset: 1, 1
+  index: -1
+b_07
+  rotate: false
+  xy: 497, 91
+  size: 45, 92
+  orig: 47, 94
+  offset: 1, 1
+  index: -1
+b_08
+  rotate: false
+  xy: 439, 6
+  size: 73, 82
+  orig: 75, 84
+  offset: 1, 1
+  index: -1
+c_01
+  rotate: true
+  xy: 85, 88
+  size: 95, 82
+  orig: 97, 84
+  offset: 1, 1
+  index: -1
+c_02
+  rotate: false
+  xy: 1, 1
+  size: 90, 86
+  orig: 92, 88
+  offset: 1, 1
+  index: -1
+c_03
+  rotate: false
+  xy: 604, 2
+  size: 73, 90
+  orig: 75, 92
+  offset: 1, 1
+  index: -1
+c_04
+  rotate: false
+  xy: 359, 89
+  size: 45, 94
+  orig: 47, 96
+  offset: 1, 1
+  index: -1
+c_05
+  rotate: false
+  xy: 288, 88
+  size: 12, 95
+  orig: 14, 97
+  offset: 1, 1
+  index: -1
+c_06
+  rotate: false
+  xy: 405, 89
+  size: 45, 94
+  orig: 47, 96
+  offset: 1, 1
+  index: -1
+c_07
+  rotate: false
+  xy: 617, 93
+  size: 73, 90
+  orig: 75, 92
+  offset: 1, 1
+  index: -1
+c_08
+  rotate: false
+  xy: 92, 1
+  size: 90, 86
+  orig: 92, 88
+  offset: 1, 1
+  index: -1

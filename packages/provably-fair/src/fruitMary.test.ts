@@ -1,0 +1,65 @@
+import { describe, expect, it } from 'vitest';
+import {
+  type FruitMaryBetId,
+  type FruitMaryBetSelection,
+  fruitMaryGamble,
+  fruitMaryOutcomeForPosition,
+  fruitMarySpin,
+  fruitMaryTheoreticalRtp,
+} from './fruitMary.js';
+
+const FRUIT_MARY_BET_IDS: FruitMaryBetId[] = [4, 16, 20, 8, 2, 19, 13, 5];
+
+const ALL_BETS: FruitMaryBetSelection[] = FRUIT_MARY_BET_IDS.map((fruitId) => ({
+  fruitId,
+  units: 1,
+}));
+
+describe('Fruit Mary provably-fair engine', () => {
+  it('is deterministic for the same seed bundle', () => {
+    expect(fruitMarySpin('server', 'client', 17, ALL_BETS)).toEqual(
+      fruitMarySpin('server', 'client', 17, ALL_BETS),
+    );
+  });
+
+  it('keeps the exact source position multipliers', () => {
+    expect(fruitMaryOutcomeForPosition(4, [{ fruitId: 4, units: 3 }]).totalPayoutUnits).toBe(
+      300,
+    );
+    expect(fruitMaryOutcomeForPosition(16, [{ fruitId: 16, units: 2 }]).totalPayoutUnits).toBe(
+      40,
+    );
+    expect(fruitMaryOutcomeForPosition(10, ALL_BETS).totalPayoutUnits).toBe(0);
+  });
+
+  it.each(FRUIT_MARY_BET_IDS)('returns exactly 96%% theoretical RTP for fruit %s', (fruitId) => {
+    expect(fruitMaryTheoreticalRtp(fruitId)).toBeCloseTo(0.96, 12);
+  });
+
+  it('produces fixed HMAC regression vectors', () => {
+    expect(
+      Array.from({ length: 8 }, (_, nonce) => {
+        const result = fruitMarySpin('server-vector', 'client-vector', nonce, ALL_BETS);
+        return [result.legacyType, result.positions, result.totalPayoutUnits];
+      }),
+    ).toEqual([
+      [0, [12], 2],
+      [0, [12], 2],
+      [0, [12], 2],
+      [0, [22], 0],
+      [0, [20], 20],
+      [0, [2], 10],
+      [0, [23], 5],
+      [0, [13], 10],
+    ]);
+  });
+
+  it('makes the 1–7 and 8–14 gamble ranges complementary', () => {
+    for (let nonce = 0; nonce < 50; nonce += 1) {
+      const small = fruitMaryGamble('gamble-server', 'gamble-client', nonce, 1);
+      const big = fruitMaryGamble('gamble-server', 'gamble-client', nonce, 2);
+      expect(small.number).toBe(big.number);
+      expect(small.won).toBe(!big.won);
+    }
+  });
+});

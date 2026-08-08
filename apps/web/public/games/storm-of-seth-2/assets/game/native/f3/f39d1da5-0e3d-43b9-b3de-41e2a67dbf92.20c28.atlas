@@ -1,0 +1,55 @@
+
+symbol_lock.png
+size: 1124,231
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+frame
+  rotate: true
+  xy: 816, 35
+  size: 195, 193
+  orig: 195, 193
+  offset: 0, 0
+  index: -1
+pattern_A
+  rotate: true
+  xy: 231, 31
+  size: 199, 194
+  orig: 199, 194
+  offset: 0, 0
+  index: -1
+pattern_B
+  rotate: true
+  xy: 426, 31
+  size: 199, 194
+  orig: 199, 194
+  offset: 0, 0
+  index: -1
+pattern_C
+  rotate: true
+  xy: 621, 31
+  size: 199, 194
+  orig: 199, 194
+  offset: 0, 0
+  index: -1
+shine
+  rotate: false
+  xy: 1, 1
+  size: 229, 229
+  orig: 229, 229
+  offset: 0, 0
+  index: -1
+smoke
+  rotate: true
+  xy: 1010, 105
+  size: 125, 113
+  orig: 125, 113
+  offset: 0, 0
+  index: -1
+star
+  rotate: true
+  xy: 1010, 18
+  size: 86, 63
+  orig: 86, 63
+  offset: 0, 0
+  index: -1

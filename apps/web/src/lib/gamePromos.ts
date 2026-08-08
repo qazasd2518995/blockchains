@@ -7,6 +7,9 @@ import {
 } from '@bg/shared';
 
 const SLOT_MAX_MULTIPLIERS: Partial<Record<GameIdType, number>> = {
+  [GameId.STORM_OF_SETH_2]: 81000,
+  [GameId.FRUIT_MARY]: 100,
+  [GameId.H5_SLOT_COLLECTION]: 450,
   [GameId.HOTLINE]: 25000,
   [GameId.FRUIT_SLOT]: 25000,
   [GameId.FORTUNE_SLOT]: 25000,
@@ -46,6 +49,8 @@ const HOT_GAME_IDS = new Set<GameIdType>([
   GameId.PLINKO,
   GameId.MINES,
   GameId.HOTLINE,
+  GameId.FRUIT_MARY,
+  GameId.H5_SLOT_COLLECTION,
   GameId.FORTUNE_SLOT,
   GameId.OCEAN_SLOT,
   GameId.CANDY_SLOT,

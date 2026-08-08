@@ -1,0 +1,41 @@
+
+f_spins_bg.png
+size: 1553, 788
+format: RGBA8888
+filter: Linear, Linear
+repeat: none
+freespin_light01-1
+  rotate: true
+  xy: 1078, 2
+  size: 784, 473
+  orig: 786, 473
+  offset: 1, 0
+  index: -1
+freespin_light01-2
+  rotate: true
+  xy: 1078, 2
+  size: 784, 473
+  orig: 786, 473
+  offset: 1, 0
+  index: -1
+freespin_light01-3
+  rotate: true
+  xy: 1078, 2
+  size: 784, 473
+  orig: 786, 473
+  offset: 1, 0
+  index: -1
+freespin_light02
+  rotate: false
+  xy: 2, 327
+  size: 1074, 459
+  orig: 1140, 507
+  offset: 33, 27
+  index: -1
+freespin_pattern
+  rotate: false
+  xy: 2, 107
+  size: 830, 218
+  orig: 865, 223
+  offset: 27, 2
+  index: -1

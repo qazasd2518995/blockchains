@@ -1,0 +1,76 @@
+
+spin.png
+size: 668,220
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+frame
+  rotate: false
+  xy: 1, 22
+  size: 198, 197
+  orig: 206, 204
+  offset: 4, 3
+  index: -1
+light
+  rotate: false
+  xy: 200, 32
+  size: 73, 58
+  orig: 151, 122
+  offset: 40, 33
+  index: -1
+light_01
+  rotate: false
+  xy: 329, 1
+  size: 107, 105
+  orig: 223, 221
+  offset: 58, 58
+  index: -1
+light_02
+  rotate: true
+  xy: 443, 1
+  size: 106, 107
+  orig: 216, 219
+  offset: 55, 56
+  index: -1
+light_03
+  rotate: false
+  xy: 200, 91
+  size: 128, 128
+  orig: 294, 294
+  offset: 83, 83
+  index: -1
+light_04
+  rotate: false
+  xy: 551, 25
+  size: 84, 82
+  orig: 176, 174
+  offset: 46, 46
+  index: -1
+light_dot
+  rotate: false
+  xy: 636, 76
+  size: 31, 31
+  orig: 39, 36
+  offset: 4, 2
+  index: -1
+mg_btn_spin_bg_disabled
+  rotate: false
+  xy: 555, 108
+  size: 111, 111
+  orig: 111, 111
+  offset: 0, 0
+  index: -1
+mg_btn_spin_bg_normal
+  rotate: false
+  xy: 329, 107
+  size: 113, 112
+  orig: 113, 112
+  offset: 0, 0
+  index: -1
+mg_btn_spin_bg_pressed
+  rotate: false
+  xy: 443, 108
+  size: 111, 111
+  orig: 111, 111
+  offset: 0, 0
+  index: -1

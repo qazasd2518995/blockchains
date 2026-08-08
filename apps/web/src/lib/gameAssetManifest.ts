@@ -167,6 +167,9 @@ const preloadCache = new Map<string, Promise<void>>();
 const warmedGames = new Set<string>();
 
 export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
+  'storm-of-seth-2': coverOnlyGame('storm-of-seth-2'),
+  'fruit-mary': coverOnlyGame('fruit-mary'),
+  'h5-slot-collection': coverOnlyGame('h5-slot-collection'),
   blackjack: {
     gameId: 'blackjack',
     assets: [

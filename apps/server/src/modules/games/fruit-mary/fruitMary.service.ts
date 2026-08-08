@@ -1,0 +1,385 @@
+import { Prisma, type PrismaClient } from '@prisma/client';
+import {
+  FRUIT_MARY_PAYOUT_POSITIONS,
+  fruitMaryGamble,
+  fruitMaryOutcomeForPosition,
+  fruitMarySpin,
+  type FruitMaryBetSelection,
+  type FruitMaryOutcome,
+} from '@bg/provably-fair';
+import {
+  GameId,
+  FRUIT_MARY_BET_IDS,
+  isImportedGameTestUsername,
+  type FruitMaryLegacySpinResponse,
+} from '@bg/shared';
+import {
+  SeedHelper,
+  creditAndRecord,
+  debitAndRecord,
+  lockUserAndCheckFunds,
+  runSerializable,
+} from '../_common/BaseGameService.js';
+import {
+  applyControls,
+  finalizeControls,
+  multiplierMatchesControlBounds,
+  type ControlOutcome,
+} from '../_common/controls.js';
+import { ApiError } from '../../../utils/errors.js';
+import type {
+  FruitMaryGambleInput,
+  FruitMaryHistoryInput,
+  FruitMarySpinInput,
+} from './fruitMary.schema.js';
+
+const GAME_ID = GameId.FRUIT_MARY;
+const BET_ID_SET = new Set<number>(FRUIT_MARY_BET_IDS);
+
+export class FruitMaryService {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async session(userId: string) {
+    const user = await this.requireUser(userId);
+    return {
+      code: '200',
+      data: {
+        info: {
+          uid: user.id,
+          gold: Number(user.balance.toFixed(2)),
+          nickname: user.displayName ?? user.username,
+        },
+        uid: user.id,
+        nickname: user.displayName ?? user.username,
+        avatar: '',
+      },
+    };
+  }
+
+  async room(userId: string) {
+    await this.requireUser(userId);
+    return { code: '200', data: { multiple: 1 } };
+  }
+
+  async authorize(userId: string) {
+    await this.requireUser(userId);
+    return { code: 1, data: { authorized: true } };
+  }
+
+  async noop(userId: string) {
+    await this.requireUser(userId);
+    return { code: '200', data: {} };
+  }
+
+  async disabled(userId: string) {
+    await this.requireUser(userId);
+    return { code: 0, msg: '此版本僅使用八千代測試點數，不提供儲值、提領或推廣功能' };
+  }
+
+  async spin(userId: string, input: FruitMarySpinInput): Promise<FruitMaryLegacySpinResponse> {
+    const bets = normalizeBets(input);
+    const totalUnits = bets.reduce((total, bet) => total + bet.units, 0);
+    if (totalUnits !== input.money) {
+      throw new ApiError('INVALID_BET', '投注總數與各水果注數不一致');
+    }
+
+    return runSerializable(this.prisma, async (tx) => {
+      const amount = new Prisma.Decimal(totalUnits);
+      const user = await lockUserAndCheckFunds(tx, userId, amount, GAME_ID, {
+        limitAmounts: [amount],
+      });
+      requireTestUser(user.username);
+
+      const seed = await new SeedHelper(tx).getActiveBundle(userId, GAME_ID);
+      const originalOutcome = fruitMarySpin(seed.serverSeed, seed.clientSeed, seed.nonce, bets);
+      const originalPayout = new Prisma.Decimal(originalOutcome.totalPayoutUnits);
+      const originalPrediction = prediction(amount, originalPayout);
+      const controlled = await applyControls(tx, userId, GAME_ID, originalPrediction, {
+        burstEligible: true,
+        burstPotentialMultiplier: new Prisma.Decimal(100),
+      });
+      const finalOutcome = controlled.controlled
+        ? chooseControlledFruitOutcome(bets, amount, controlled)
+        : originalOutcome;
+      const finalPayout = new Prisma.Decimal(finalOutcome.totalPayoutUnits);
+      const finalPrediction = prediction(amount, finalPayout);
+      const betMultiplier = finalPayout
+        .div(amount)
+        .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
+
+      const originalResult = serializeSpinResult(originalOutcome, bets, totalUnits);
+      const finalResult = {
+        ...serializeSpinResult(finalOutcome, bets, totalUnits),
+        gambleAmount: finalPayout.toFixed(2),
+        controlled: controlled.controlled,
+        flipReason: controlled.flipReason ?? null,
+        raw: controlled.controlled ? originalResult : null,
+      };
+      const bet = await tx.bet.create({
+        data: {
+          userId,
+          gameId: GAME_ID,
+          amount,
+          multiplier: betMultiplier,
+          payout: finalPayout,
+          profit: finalPayout.minus(amount),
+          nonce: seed.nonce,
+          clientSeedUsed: seed.clientSeed,
+          serverSeedId: seed.serverSeedId,
+          resultData: finalResult as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      await debitAndRecord(tx, userId, amount, bet.id, { gameId: GAME_ID, kind: 'wheel' });
+      const balance = finalPayout.greaterThan(0)
+        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN', {
+            gameId: GAME_ID,
+            kind: 'wheel',
+          })
+        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+
+      await finalizeControls(
+        tx,
+        userId,
+        GAME_ID,
+        originalPrediction,
+        finalPrediction,
+        controlled,
+        bet.id,
+        originalResult as unknown as Prisma.InputJsonValue,
+        finalResult as unknown as Prisma.InputJsonValue,
+      );
+
+      const firstPosition = finalOutcome.positions[0] ?? 10;
+      return {
+        code: 1,
+        data: {
+          data: {
+            type: finalOutcome.legacyType,
+            pos:
+              finalOutcome.legacyType === 0
+                ? firstPosition
+                : { pos: firstPosition, luck: finalOutcome.positions.slice(1) },
+          },
+          money: finalOutcome.payoutByPosition,
+        },
+        balance: Number(balance.toFixed(2)),
+        spinId: bet.id,
+      };
+    });
+  }
+
+  async gamble(userId: string, input: FruitMaryGambleInput) {
+    return runSerializable(this.prisma, async (tx) => {
+      const amount = new Prisma.Decimal(input.balance).toDecimalPlaces(
+        2,
+        Prisma.Decimal.ROUND_DOWN,
+      );
+      const user = await lockUserAndCheckFunds(tx, userId, new Prisma.Decimal(0), GAME_ID, {
+        limitAmounts: [amount],
+      });
+      requireTestUser(user.username);
+      const previous = await tx.bet.findFirst({
+        where: { userId, gameId: GAME_ID },
+        orderBy: { createdAt: 'desc' },
+        select: { resultData: true },
+      });
+      const available = readGambleAmount(previous?.resultData);
+      if (available.lessThanOrEqualTo(0) || !available.equals(amount)) {
+        throw new ApiError('INVALID_ACTION', '本輪可比大小分數已失效');
+      }
+      if (user.balance.lessThan(amount)) {
+        throw new ApiError('INSUFFICIENT_FUNDS', 'Insufficient balance');
+      }
+
+      const choice = input.size as 1 | 2;
+      const seed = await new SeedHelper(tx).getActiveBundle(userId, GAME_ID);
+      const originalOutcome = fruitMaryGamble(seed.serverSeed, seed.clientSeed, seed.nonce, choice);
+      const originalPayout = originalOutcome.won ? amount.mul(2) : new Prisma.Decimal(0);
+      const originalPrediction = prediction(amount, originalPayout);
+      const controlled = await applyControls(tx, userId, GAME_ID, originalPrediction);
+      const finalOutcome = controlled.controlled
+        ? controlledGambleOutcome(choice, controlled.won)
+        : originalOutcome;
+      const finalPayout = finalOutcome.won ? amount.mul(2) : new Prisma.Decimal(0);
+      const finalPrediction = prediction(amount, finalPayout);
+      const result = {
+        kind: 'gamble',
+        choice,
+        number: finalOutcome.number,
+        won: finalOutcome.won,
+        gambleAmount: finalOutcome.won ? finalPayout.toFixed(2) : '0.00',
+        controlled: controlled.controlled,
+        flipReason: controlled.flipReason ?? null,
+        raw: controlled.controlled ? originalOutcome : null,
+      };
+      const bet = await tx.bet.create({
+        data: {
+          userId,
+          gameId: GAME_ID,
+          amount,
+          multiplier: finalOutcome.won ? new Prisma.Decimal(2) : new Prisma.Decimal(0),
+          payout: finalPayout,
+          profit: finalPayout.minus(amount),
+          nonce: seed.nonce,
+          clientSeedUsed: seed.clientSeed,
+          serverSeedId: seed.serverSeedId,
+          resultData: result as unknown as Prisma.InputJsonValue,
+        },
+      });
+      await debitAndRecord(tx, userId, amount, bet.id, { gameId: GAME_ID, kind: 'gamble' });
+      const balance = finalPayout.greaterThan(0)
+        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN', {
+            gameId: GAME_ID,
+            kind: 'gamble',
+          })
+        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+      await finalizeControls(
+        tx,
+        userId,
+        GAME_ID,
+        originalPrediction,
+        finalPrediction,
+        controlled,
+        bet.id,
+        originalOutcome as unknown as Prisma.InputJsonValue,
+        result as unknown as Prisma.InputJsonValue,
+      );
+      return {
+        code: 1,
+        data: finalOutcome.number,
+        balance: Number(balance.toFixed(2)),
+        spinId: bet.id,
+      };
+    });
+  }
+
+  async history(userId: string, input: FruitMaryHistoryInput) {
+    await this.requireUser(userId);
+    const [bets, count] = await this.prisma.$transaction([
+      this.prisma.bet.findMany({
+        where: { userId, gameId: GAME_ID },
+        orderBy: { createdAt: 'desc' },
+        skip: input.offset,
+        take: input.length,
+        select: { amount: true, payout: true, profit: true, createdAt: true },
+      }),
+      this.prisma.bet.count({ where: { userId, gameId: GAME_ID } }),
+    ]);
+    return {
+      code: 1,
+      data: {
+        count,
+        data: bets.map((bet) => ({
+          money: Number(bet.amount.toFixed(2)),
+          in_money: Number(bet.payout.toFixed(2)),
+          profit: Number(bet.profit.toFixed(2)),
+          log_time: bet.createdAt.toISOString().replace('T', ' ').slice(0, 19),
+        })),
+      },
+    };
+  }
+
+  private async requireUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        balance: true,
+        frozenAt: true,
+        disabledAt: true,
+      },
+    });
+    if (!user) throw new ApiError('UNAUTHORIZED', 'Authentication required');
+    requireTestUser(user.username);
+    if (user.frozenAt || user.disabledAt) {
+      throw new ApiError('MEMBER_FROZEN', 'Member account is frozen');
+    }
+    return user;
+  }
+}
+
+function normalizeBets(input: FruitMarySpinInput): FruitMaryBetSelection[] {
+  const seen = new Set<number>();
+  return input.fruits.map(([fruitId, units]) => {
+    if (!BET_ID_SET.has(fruitId) || seen.has(fruitId)) {
+      throw new ApiError('INVALID_BET', '水果下注項目重複或不存在');
+    }
+    seen.add(fruitId);
+    return { fruitId: fruitId as FruitMaryBetSelection['fruitId'], units };
+  });
+}
+
+function requireTestUser(username: string): void {
+  if (!isImportedGameTestUsername(username)) {
+    throw new ApiError('FORBIDDEN', '此遊戲目前僅開放指定測試帳號');
+  }
+}
+
+function prediction(amount: Prisma.Decimal, payout: Prisma.Decimal) {
+  return {
+    won: payout.greaterThan(amount),
+    amount,
+    multiplier: payout.div(amount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN),
+    payout,
+  };
+}
+
+function serializeSpinResult(
+  outcome: FruitMaryOutcome,
+  bets: readonly FruitMaryBetSelection[],
+  totalUnits: number,
+) {
+  return { kind: 'wheel', totalUnits, bets, outcome };
+}
+
+export function chooseControlledFruitOutcome(
+  bets: readonly FruitMaryBetSelection[],
+  amount: Prisma.Decimal,
+  control: Pick<
+    ControlOutcome,
+    'won' | 'multiplier' | 'minMultiplier' | 'maxMultiplier' | 'maxPayout'
+  >,
+): FruitMaryOutcome {
+  const candidates = [10, 22, ...FRUIT_MARY_PAYOUT_POSITIONS]
+    .map((position) => fruitMaryOutcomeForPosition(position, bets))
+    .filter((candidate) => {
+      const payout = new Prisma.Decimal(candidate.totalPayoutUnits);
+      const multiplier = payout.div(amount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
+      return (
+        (control.won ? multiplier.greaterThan(1) : multiplier.lessThanOrEqualTo(1)) &&
+        multiplierMatchesControlBounds(multiplier, amount, control)
+      );
+    });
+  if (candidates.length === 0) return fruitMaryOutcomeForPosition(control.won ? 4 : 10, bets);
+  return candidates.sort((left, right) => {
+    const leftDelta = new Prisma.Decimal(left.totalPayoutUnits)
+      .div(amount)
+      .minus(control.multiplier)
+      .abs();
+    const rightDelta = new Prisma.Decimal(right.totalPayoutUnits)
+      .div(amount)
+      .minus(control.multiplier)
+      .abs();
+    return leftDelta.comparedTo(rightDelta);
+  })[0]!;
+}
+
+function readGambleAmount(resultData: Prisma.JsonValue | undefined): Prisma.Decimal {
+  if (!resultData || typeof resultData !== 'object' || Array.isArray(resultData)) {
+    return new Prisma.Decimal(0);
+  }
+  const value = (resultData as Record<string, unknown>).gambleAmount;
+  try {
+    return new Prisma.Decimal(String(value ?? 0));
+  } catch {
+    return new Prisma.Decimal(0);
+  }
+}
+
+function controlledGambleOutcome(choice: 1 | 2, won: boolean) {
+  if (choice === 1) return { number: won ? 7 : 8, won };
+  return { number: won ? 8 : 7, won };
+}

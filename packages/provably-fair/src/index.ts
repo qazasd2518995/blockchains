@@ -8,6 +8,8 @@ export * from './wheel.js';
 export * from './plinko.js';
 export * from './roulette.js';
 export * from './hotline.js';
+export * from './seth2.js';
+export * from './fruitMary.js';
 export * from './tower.js';
 export * from './blackjack.js';
 export * from './chicken-road.js';

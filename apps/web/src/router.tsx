@@ -100,6 +100,15 @@ const CrashPage = lazyPage(() => import('@/pages/games/CrashPage'), 'CrashPage')
 const DicePage = lazyPage(() => import('@/pages/games/DicePage'), 'DicePage');
 const HiLoPage = lazyPage(() => import('@/pages/games/HiLoPage'), 'HiLoPage');
 const HotlinePage = lazyPage(() => import('@/pages/games/HotlinePage'), 'HotlinePage');
+const Seth2Page = lazyPage(() => import('@/pages/games/Seth2Page'), 'Seth2Page');
+const FruitMaryPage = lazyPage(
+  () => import('@/pages/games/FruitMaryPage'),
+  'FruitMaryPage',
+);
+const H5SlotCollectionPage = lazyPage(
+  () => import('@/pages/games/H5SlotCollectionPage'),
+  'H5SlotCollectionPage',
+);
 const KenoPage = lazyPage(() => import('@/pages/games/KenoPage'), 'KenoPage');
 const LocalTablePage = lazyPage(() => import('@/pages/games/LocalTablePage'), 'LocalTablePage');
 const MinesPage = lazyPage(() => import('@/pages/games/MinesPage'), 'MinesPage');
@@ -255,6 +264,13 @@ export const router = createBrowserRouter([
           gameRoute('/games/carnival', 'carnival', <RoulettePage variant="carnival" />),
           gameRoute('/games/plinko', 'plinko', <PlinkoPage />),
           gameRoute('/games/hotline', 'hotline', <HotlinePage theme="cyber" />),
+          gameRoute('/games/storm-of-seth-2', 'storm-of-seth-2', <Seth2Page />),
+          gameRoute('/games/fruit-mary', 'fruit-mary', <FruitMaryPage />),
+          gameRoute(
+            '/games/h5-slot-collection',
+            'h5-slot-collection',
+            <H5SlotCollectionPage />,
+          ),
           gameRoute('/games/fruit-slot', 'fruit-slot', <HotlinePage theme="fruit" />),
           gameRoute('/games/fortune-slot', 'fortune-slot', <HotlinePage theme="fortune" />),
           gameRoute('/games/ocean-slot', 'ocean-slot', <HotlinePage theme="ocean" />),

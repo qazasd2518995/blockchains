@@ -1,0 +1,27 @@
+
+w_big_bg.png
+size: 640,1128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+big_base
+  rotate: false
+  xy: 1, 1
+  size: 409, 252
+  orig: 419, 254
+  offset: 5, 1
+  index: -1
+big_light
+  rotate: true
+  xy: 1, 254
+  size: 871, 535
+  orig: 890, 536
+  offset: 4, 0
+  index: -1
+big_pattern
+  rotate: true
+  xy: 537, 237
+  size: 888, 100
+  orig: 894, 104
+  offset: 2, 2
+  index: -1
