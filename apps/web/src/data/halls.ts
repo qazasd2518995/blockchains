@@ -1,5 +1,5 @@
 import type { GameIdType } from '@bg/shared';
-import { GameId, isGameVisibleForUsername } from '@bg/shared';
+import { GameId, H5_GAME_IDS, isGameVisibleForUsername } from '@bg/shared';
 
 export type HallId = 'crash' | 'tables' | 'slots' | 'roulette' | 'classic' | 'strategy';
 
@@ -76,7 +76,7 @@ export const HALLS: Record<HallId, HallMeta> = {
       GameId.HOTLINE,
       GameId.STORM_OF_SETH_2,
       GameId.FRUIT_MARY,
-      GameId.H5_SLOT_COLLECTION,
+      ...H5_GAME_IDS,
       GameId.FRUIT_SLOT,
       GameId.FORTUNE_SLOT,
       GameId.OCEAN_SLOT,
@@ -145,7 +145,9 @@ export function getVisibleGameIdsForUsername(
 }
 
 export function getVisibleHallsForUsername(username?: string | null): HallMeta[] {
-  return HALL_LIST.filter((hall) => getVisibleGameIdsForUsername(hall.gameIds, username).length > 0);
+  return HALL_LIST.filter(
+    (hall) => getVisibleGameIdsForUsername(hall.gameIds, username).length > 0,
+  );
 }
 
 export function getVisibleHallById(

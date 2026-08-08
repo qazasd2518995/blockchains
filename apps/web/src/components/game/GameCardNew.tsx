@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import type { GameMetadata } from '@bg/shared';
+import { H5_GAME_IDS, type GameMetadata } from '@bg/shared';
 import { warmGameAssets } from '@/lib/gameAssetManifest';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 import { ResponsiveImage } from '@/lib/optimizedImages';
@@ -47,6 +47,7 @@ const HAS_COVER = new Set<string>([
   'storm-of-seth-2',
   'fruit-mary',
   'h5-slot-collection',
+  ...H5_GAME_IDS,
   'fruit-slot',
   'fortune-slot',
   'ocean-slot',

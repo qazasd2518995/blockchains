@@ -1,3 +1,11 @@
+import {
+  H5_GAME_IDS,
+  H5_GAMES,
+  H5_INDIVIDUAL_GAME_IDS,
+  isH5IndividualGameId,
+  type H5IndividualGameId,
+} from './dto/h5Slots.js';
+
 export const GameId = {
   BACCARAT: 'baccarat',
   BACCARAT_NOVA: 'baccarat-nova',
@@ -36,6 +44,7 @@ export const GameId = {
   STORM_OF_SETH_2: 'storm-of-seth-2',
   FRUIT_MARY: 'fruit-mary',
   H5_SLOT_COLLECTION: 'h5-slot-collection',
+  ...H5_INDIVIDUAL_GAME_IDS,
   FRUIT_SLOT: 'fruit-slot',
   FORTUNE_SLOT: 'fortune-slot',
   OCEAN_SLOT: 'ocean-slot',
@@ -146,7 +155,8 @@ export function isGameVisibleForUsername(gameId: string, username?: string | nul
   const importedTestGame =
     gameId === GameId.STORM_OF_SETH_2 ||
     gameId === GameId.FRUIT_MARY ||
-    gameId === GameId.H5_SLOT_COLLECTION;
+    gameId === GameId.H5_SLOT_COLLECTION ||
+    isH5IndividualGameId(gameId);
   return !importedTestGame || isImportedGameTestUsername(username);
 }
 
@@ -154,7 +164,7 @@ export const SLOT_GAME_IDS = [
   GameId.HOTLINE,
   GameId.STORM_OF_SETH_2,
   GameId.FRUIT_MARY,
-  GameId.H5_SLOT_COLLECTION,
+  ...H5_GAME_IDS,
   GameId.FRUIT_SLOT,
   GameId.FORTUNE_SLOT,
   GameId.OCEAN_SLOT,
@@ -183,6 +193,23 @@ export interface GameMetadata {
   enabled: boolean;
   thumbnail?: string;
 }
+
+const H5_INDIVIDUAL_GAME_REGISTRY = Object.fromEntries(
+  H5_GAMES.map((game) => [
+    game.gameId,
+    {
+      id: game.gameId,
+      name: game.title,
+      nameZh: game.titleZh,
+      category: 'single-step',
+      description: `${game.title} original Cocos game connected to Yachiyo settlement.`,
+      descriptionZh: `${game.titleZh}原版 Cocos 遊戲，接入八千代本地結算`,
+      rtp: 0.95,
+      icon: 'slots',
+      enabled: true,
+    },
+  ]),
+) as Record<H5IndividualGameId, GameMetadata>;
 
 export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
   [GameId.BACCARAT]: {
@@ -586,12 +613,14 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     name: 'Original Cocos Game Collection',
     nameZh: '原版 Cocos 遊戲合集（25款）',
     category: 'single-step',
-    description: 'Twenty-one original Cocos slots and four fishing games connected to Yachiyo settlement.',
+    description:
+      'Twenty-one original Cocos slots and four fishing games connected to Yachiyo settlement.',
     descriptionZh: '21 款原版 Cocos 拉霸與 4 款捕魚遊戲，接入八千代本地結算',
     rtp: 0.95,
     icon: 'slots',
-    enabled: true,
+    enabled: false,
   },
+  ...H5_INDIVIDUAL_GAME_REGISTRY,
   [GameId.FRUIT_SLOT]: {
     id: GameId.FRUIT_SLOT,
     name: 'Fruit Slots',

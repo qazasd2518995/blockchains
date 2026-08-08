@@ -1,9 +1,44 @@
 import type { Locale } from './types';
+import { H5_GAMES } from '@bg/shared';
 
 interface GameLabel {
   title: string;
   subtitle?: string;
 }
+
+const H5_GAME_LABELS_ZH_HANT = Object.fromEntries(
+  H5_GAMES.map((game) => [game.gameId, { title: game.titleZh }]),
+) as Record<string, GameLabel>;
+const H5_GAME_LABELS_EN = Object.fromEntries(
+  H5_GAMES.map((game) => [game.gameId, { title: game.title }]),
+) as Record<string, GameLabel>;
+const H5_GAME_LABELS_ZH_HANS: Record<string, GameLabel> = {
+  'h5-nine-line-pull-king': { title: '九线拉王' },
+  'h5-water-margin': { title: '水浒传' },
+  'h5-diamond-strike': { title: '钻石冲击' },
+  'h5-yu-pu-tuan': { title: '玉蒲团' },
+  'h5-fruit-little-mary': { title: '水果小玛莉' },
+  'h5-aztec-treasure': { title: '阿兹特克宝藏' },
+  'h5-fire-88': { title: '火焰 88' },
+  'h5-lucky-777': { title: '幸运 777' },
+  'h5-caishen-fa-fa-fa': { title: '财神发发发' },
+  'h5-flying-together': { title: '比翼双飞' },
+  'h5-star-97': { title: '明星 97' },
+  'h5-fortune-ox': { title: '招财金牛' },
+  'h5-mahjong-ways': { title: '麻将胡了' },
+  'h5-mahjong-ways-2': { title: '麻将胡了 2' },
+  'h5-dragon-hatch': { title: '龙之孵化' },
+  'h5-captains-bounty': { title: '船长赏金' },
+  'h5-caishen-wins': { title: '财神赢' },
+  'h5-queen-of-bounty': { title: '赏金女王' },
+  'h5-golden-empire': { title: '黄金帝国' },
+  'h5-fortune-gems': { title: '幸运宝石' },
+  'h5-gates-of-olympus': { title: '奥林匹斯之门' },
+  'h5-ocean-king-2': { title: '海王 2' },
+  'h5-deep-sea-fishing': { title: '深海捕鱼' },
+  'h5-thunder-fishing': { title: '雷霆战机' },
+  'h5-happy-fishing': { title: '快乐捕鱼' },
+};
 
 export const GAME_LABELS: Record<Locale, Record<string, GameLabel>> = {
   'zh-Hant': {
@@ -44,6 +79,7 @@ export const GAME_LABELS: Record<Locale, Record<string, GameLabel>> = {
     'storm-of-seth-2': { title: '黃金賽特 II：覺醒之力' },
     'fruit-mary': { title: '歡樂水果機' },
     'h5-slot-collection': { title: '原版 Cocos 遊戲合集' },
+    ...H5_GAME_LABELS_ZH_HANT,
     'fruit-slot': { title: '水果拉霸' },
     'fortune-slot': { title: '財虎拉霸' },
     'ocean-slot': { title: '海神寶藏' },
@@ -105,6 +141,7 @@ export const GAME_LABELS: Record<Locale, Record<string, GameLabel>> = {
     'storm-of-seth-2': { title: '黄金赛特 II：觉醒之力' },
     'fruit-mary': { title: '欢乐水果机' },
     'h5-slot-collection': { title: '原版 Cocos 游戏合集' },
+    ...H5_GAME_LABELS_ZH_HANS,
     'fruit-slot': { title: '水果拉霸' },
     'fortune-slot': { title: '财虎拉霸' },
     'ocean-slot': { title: '海神宝藏' },
@@ -166,6 +203,7 @@ export const GAME_LABELS: Record<Locale, Record<string, GameLabel>> = {
     'storm-of-seth-2': { title: 'Storm of Seth 2' },
     'fruit-mary': { title: 'Fruit Mary' },
     'h5-slot-collection': { title: 'Original Cocos Game Collection' },
+    ...H5_GAME_LABELS_EN,
     'fruit-slot': { title: 'Fruit Slot' },
     'fortune-slot': { title: 'Fortune Tiger' },
     'ocean-slot': { title: 'Ocean Treasure' },
@@ -226,6 +264,7 @@ export const GAME_LABELS: Record<Locale, Record<string, GameLabel>> = {
     hotline: { title: 'Hotline' },
     'storm-of-seth-2': { title: 'Storm of Seth 2' },
     'fruit-mary': { title: 'Fruit Mary' },
+    ...H5_GAME_LABELS_EN,
     'fruit-slot': { title: 'สล็อตผลไม้' },
     'fortune-slot': { title: 'เสือนำโชค' },
     'ocean-slot': { title: 'สมบัติทะเล' },
@@ -286,6 +325,7 @@ export const GAME_LABELS: Record<Locale, Record<string, GameLabel>> = {
     hotline: { title: 'Hotline' },
     'storm-of-seth-2': { title: 'Storm of Seth 2' },
     'fruit-mary': { title: 'Fruit Mary' },
+    ...H5_GAME_LABELS_EN,
     'fruit-slot': { title: 'Slot trái cây' },
     'fortune-slot': { title: 'Hổ tài lộc' },
     'ocean-slot': { title: 'Kho báu đại dương' },

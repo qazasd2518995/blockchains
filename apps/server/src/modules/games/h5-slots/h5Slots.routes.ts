@@ -1,5 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { GameId, isImportedGameTestUsername } from '@bg/shared';
+import {
+  getH5GameByCode,
+  isH5GameCode,
+  isImportedGameTestUsername,
+  type H5GameCode,
+} from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
 import { HotlineService } from '../hotline/hotline.service.js';
 import { h5SlotSpinSchema } from './h5Slots.schema.js';
@@ -46,6 +51,7 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/spin', async (request) => {
     await requireTestUser(request.userId);
     const input = h5SlotSpinSchema.parse(request.body);
+    const game = getH5GameByCode(input.gameCode);
     if (input.isBuyFree) {
       throw new ApiError('INVALID_ACTION', '此測試版本尚未開放購買免費遊戲');
     }
@@ -55,15 +61,20 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
         amount: input.amount,
         clientSeed: input.clientSeed,
       },
-      GameId.H5_SLOT_COLLECTION,
+      game.gameId,
     );
     return { ...result, gameCode: input.gameCode };
   });
 
   fastify.get('/history', async (request) => {
     await requireTestUser(request.userId);
+    const requestedCode = (request.query as { gameCode?: string }).gameCode;
+    if (!requestedCode || !isH5GameCode(requestedCode)) {
+      throw new ApiError('INVALID_ACTION', '缺少有效的遊戲代碼');
+    }
+    const game = getH5GameByCode(requestedCode as H5GameCode);
     const bets = await fastify.prisma.bet.findMany({
-      where: { userId: request.userId, gameId: GameId.H5_SLOT_COLLECTION },
+      where: { userId: request.userId, gameId: game.gameId },
       orderBy: { createdAt: 'desc' },
       take: 50,
       select: { id: true, amount: true, payout: true, createdAt: true },

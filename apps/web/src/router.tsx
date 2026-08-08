@@ -23,7 +23,7 @@ import type { Locale } from '@/i18n/types';
 import { PlatformBgm } from '@/lib/platformBgm';
 import { errorMessage, reloadAfterRuntimeFailure } from '@/lib/runtimeRecovery';
 import { CRASH_CONFIGS } from '@/pages/games/crashConfigs';
-import { BACCARAT_TABLE_GAME_IDS, LOCAL_TABLE_GAME_IDS } from '@bg/shared';
+import { BACCARAT_TABLE_GAME_IDS, H5_GAMES, LOCAL_TABLE_GAME_IDS } from '@bg/shared';
 
 const RUNTIME_ERROR_COPY: Record<
   Locale,
@@ -101,13 +101,10 @@ const DicePage = lazyPage(() => import('@/pages/games/DicePage'), 'DicePage');
 const HiLoPage = lazyPage(() => import('@/pages/games/HiLoPage'), 'HiLoPage');
 const HotlinePage = lazyPage(() => import('@/pages/games/HotlinePage'), 'HotlinePage');
 const Seth2Page = lazyPage(() => import('@/pages/games/Seth2Page'), 'Seth2Page');
-const FruitMaryPage = lazyPage(
-  () => import('@/pages/games/FruitMaryPage'),
-  'FruitMaryPage',
-);
-const H5SlotCollectionPage = lazyPage(
+const FruitMaryPage = lazyPage(() => import('@/pages/games/FruitMaryPage'), 'FruitMaryPage');
+const H5SlotGamePage = lazyPage(
   () => import('@/pages/games/H5SlotCollectionPage'),
-  'H5SlotCollectionPage',
+  'H5SlotGamePage',
 );
 const KenoPage = lazyPage(() => import('@/pages/games/KenoPage'), 'KenoPage');
 const LocalTablePage = lazyPage(() => import('@/pages/games/LocalTablePage'), 'LocalTablePage');
@@ -266,10 +263,16 @@ export const router = createBrowserRouter([
           gameRoute('/games/hotline', 'hotline', <HotlinePage theme="cyber" />),
           gameRoute('/games/storm-of-seth-2', 'storm-of-seth-2', <Seth2Page />),
           gameRoute('/games/fruit-mary', 'fruit-mary', <FruitMaryPage />),
-          gameRoute(
-            '/games/h5-slot-collection',
-            'h5-slot-collection',
-            <H5SlotCollectionPage />,
+          {
+            path: '/games/h5-slot-collection',
+            element: <Navigate to={`/games/${H5_GAMES[0]!.gameId}`} replace />,
+          },
+          ...H5_GAMES.map((game) =>
+            gameRoute(
+              `/games/${game.gameId}`,
+              game.gameId,
+              <H5SlotGamePage gameCode={game.code} />,
+            ),
           ),
           gameRoute('/games/fruit-slot', 'fruit-slot', <HotlinePage theme="fruit" />),
           gameRoute('/games/fortune-slot', 'fortune-slot', <HotlinePage theme="fortune" />),

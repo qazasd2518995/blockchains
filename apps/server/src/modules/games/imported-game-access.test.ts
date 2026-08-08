@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   GameId,
+  H5_GAME_IDS,
   isGameVisibleForUsername,
   isImportedGameTestUsername,
 } from '@bg/shared';
@@ -10,6 +11,7 @@ const IMPORTED_TEST_GAMES = [
   GameId.STORM_OF_SETH_2,
   GameId.FRUIT_MARY,
   GameId.H5_SLOT_COLLECTION,
+  ...H5_GAME_IDS,
 ] as const;
 
 describe('imported test-game access', () => {
@@ -47,12 +49,14 @@ describe('imported test-game access', () => {
     }
   });
 
-  it('does not allow the H5 collection through the public Hotline bet schema', () => {
-    expect(
-      hotlineBetSchema.safeParse({
-        amount: 10,
-        gameId: GameId.H5_SLOT_COLLECTION,
-      }).success,
-    ).toBe(false);
+  it('does not allow H5 games through the public Hotline bet schema', () => {
+    for (const gameId of [GameId.H5_SLOT_COLLECTION, ...H5_GAME_IDS]) {
+      expect(
+        hotlineBetSchema.safeParse({
+          amount: 10,
+          gameId,
+        }).success,
+      ).toBe(false);
+    }
   });
 });

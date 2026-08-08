@@ -1,12 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { AlertCircle, ChevronDown, LoaderCircle } from 'lucide-react';
-import {
-  H5_GAMES,
-  isH5GameCode,
-  isImportedGameTestUsername,
-  type H5GameCode,
-} from '@bg/shared';
+import { Link } from 'react-router-dom';
+import { AlertCircle, LoaderCircle } from 'lucide-react';
+import { getH5GameByCode, isImportedGameTestUsername, type H5GameCode } from '@bg/shared';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
 
@@ -24,16 +19,12 @@ const PORTRAIT_GAME_CODES = new Set<H5GameCode>([
   '302',
 ]);
 
-export function H5SlotCollectionPage() {
+export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
   const user = useAuthStore((state) => state.user);
   const setBalance = useAuthStore((state) => state.setBalance);
   const setTokens = useAuthStore((state) => state.setTokens);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const requestedGame = searchParams.get('game');
-  const selectedCode: H5GameCode =
-    requestedGame && isH5GameCode(requestedGame) ? requestedGame : '161';
-  const selectedGame = H5_GAMES.find((game) => game.code === selectedCode)!;
-  const isPortraitGame = PORTRAIT_GAME_CODES.has(selectedCode);
+  const selectedGame = getH5GameByCode(gameCode);
+  const isPortraitGame = PORTRAIT_GAME_CODES.has(gameCode);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
 
@@ -42,7 +33,7 @@ export function H5SlotCollectionPage() {
     const apiBase = `${configuredBase || window.location.origin}/api`;
     const query = new URLSearchParams({
       apiBase,
-      gameId: selectedCode,
+      gameId: gameCode,
       roomId: '1',
       roomMul: '0.2',
       room_id: '1',
@@ -52,12 +43,12 @@ export function H5SlotCollectionPage() {
       build: 'yachiyo-h5-slots-v1',
     });
     return `${GAME_PATH}?${query.toString()}`;
-  }, [selectedCode]);
+  }, [gameCode]);
 
   useEffect(() => {
     setReady(false);
     setError('');
-  }, [selectedCode]);
+  }, [gameCode]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -105,7 +96,7 @@ export function H5SlotCollectionPage() {
         message="登入指定測試帳號後即可進入遊戲。"
         action={
           <Link
-            to={buildLoginPath('/games/h5-slot-collection', 'game')}
+            to={buildLoginPath(`/games/${selectedGame.gameId}`, 'game')}
             className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-[#EA580C] px-5 text-sm font-black text-white"
           >
             前往登入
@@ -116,7 +107,7 @@ export function H5SlotCollectionPage() {
   }
 
   if (!isImportedGameTestUsername(user.username)) {
-    return <AccessPanel message="原版 Cocos 遊戲合集目前僅對指定測試帳號開放。" />;
+    return <AccessPanel message={`${selectedGame.titleZh}目前僅對指定測試帳號開放。`} />;
   }
 
   return (
@@ -124,30 +115,21 @@ export function H5SlotCollectionPage() {
       <div className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-white/10 bg-[#111827]/95 px-3 sm:px-4">
         <div className="min-w-0 flex-1">
           <div className="truncate text-[10px] font-black uppercase tracking-[0.2em] text-[#E8C96A]">
-            原版 Cocos 遊戲合集 · 21 款拉霸＋4 款捕魚
+            原版 Cocos 遊戲 · 八千代正式結算
           </div>
           <div className="truncate text-sm font-black text-white">{selectedGame.titleZh}</div>
         </div>
-        <label className="relative min-w-[148px] sm:min-w-[220px]">
-          <span className="sr-only">切換遊戲</span>
-          <select
-            value={selectedCode}
-            onChange={(event) => setSearchParams({ game: event.target.value })}
-            className="h-10 w-full appearance-none rounded-xl border border-[#E8C96A]/35 bg-[#1F2937] pl-3 pr-9 text-xs font-bold text-white outline-none focus:border-[#E8C96A]"
-          >
-            {H5_GAMES.map((game) => (
-              <option key={game.code} value={game.code}>
-                {game.titleZh} · {game.title}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#E8C96A]" />
-        </label>
+        <div className="shrink-0 rounded-lg border border-[#E8C96A]/30 bg-[#1F2937] px-3 py-1.5 text-right">
+          <div className="text-[9px] font-black uppercase tracking-[0.15em] text-[#E8C96A]">
+            正式遊玩
+          </div>
+          <div className="text-[11px] font-bold text-white/80">{selectedGame.title}</div>
+        </div>
       </div>
 
       <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
         <iframe
-          key={selectedCode}
+          key={gameCode}
           src={gameUrl}
           title={`${selectedGame.titleZh} · ${selectedGame.title}`}
           allow="autoplay; fullscreen"

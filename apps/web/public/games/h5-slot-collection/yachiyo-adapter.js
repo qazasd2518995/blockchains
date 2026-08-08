@@ -3,7 +3,7 @@
 
   var NativeXHR = window.XMLHttpRequest;
   var params = new URLSearchParams(window.location.search);
-  var apiBase = (params.get('apiBase') || (window.location.origin + '/api')).replace(/\/$/, '');
+  var apiBase = (params.get('apiBase') || window.location.origin + '/api').replace(/\/$/, '');
   var gameApi = apiBase + '/games/h5-slots';
   var gameCode = params.get('gameId') || '161';
   var requestTimeoutMs = 15000;
@@ -24,20 +24,30 @@
     AudioContextClass.prototype.decodeAudioData = function (audioData, onSuccess, onError) {
       var context = this;
       function silentBuffer(error) {
-        console.warn('[Yachiyo H5 Slots] replaced an unreadable source audio asset with silence', error);
+        console.warn(
+          '[Yachiyo H5 Slots] replaced an unreadable source audio asset with silence',
+          error,
+        );
         return context.createBuffer(1, 1, context.sampleRate || 44100);
       }
       if (typeof onSuccess === 'function') {
-        var callbackDecode = originalDecodeAudioData.call(context, audioData, onSuccess, function (error) {
-          onSuccess(silentBuffer(error));
-        });
+        var callbackDecode = originalDecodeAudioData.call(
+          context,
+          audioData,
+          onSuccess,
+          function (error) {
+            onSuccess(silentBuffer(error));
+          },
+        );
         return callbackDecode && typeof callbackDecode.catch === 'function'
           ? callbackDecode.catch(function () {})
           : callbackDecode;
       }
       var decoded = originalDecodeAudioData.call(context, audioData);
       return decoded && typeof decoded.catch === 'function'
-        ? decoded.catch(function (error) { return silentBuffer(error); })
+        ? decoded.catch(function (error) {
+            return silentBuffer(error);
+          })
         : decoded;
     };
   }
@@ -45,27 +55,27 @@
   installAudioDecodeFallback();
 
   var GAME_SHAPES = {
-    '113': { family: 'classic', cells: 15 },
-    '116': { family: 'classic', cells: 15 },
-    '135': { family: 'classic', cells: 15 },
-    '155': { family: 'classic', cells: 20 },
-    '160': { family: 'classic', cells: 15 },
-    '161': { family: 'classic', cells: 9, multiplierWheel: true },
-    '188': { family: 'classic', cells: 9 },
-    '232': { family: 'classic', cells: 9 },
-    '244': { family: 'classic', cells: 15 },
-    '252': { family: 'classic', cells: 15 },
-    '262': { family: 'classic', cells: 9 },
-    '264': { family: 'classic', cells: 12 },
-    '269': { family: 'mahjong', cells: 20 },
-    '271': { family: 'mahjong', cells: 25 },
-    '273': { family: 'tumble', cells: 30 },
-    '276': { family: 'step', cells: 15 },
-    '278': { family: 'ways', cells: 30 },
-    '281': { family: 'step', cells: 15 },
-    '301': { family: 'classic', cells: 15 },
-    '302': { family: 'classic', cells: 9, extraCard: true },
-    '321': { family: 'tumble', cells: 30 },
+    113: { family: 'classic', cells: 15 },
+    116: { family: 'classic', cells: 15 },
+    135: { family: 'classic', cells: 15 },
+    155: { family: 'classic', cells: 20 },
+    160: { family: 'classic', cells: 15 },
+    161: { family: 'classic', cells: 9, multiplierWheel: true },
+    188: { family: 'classic', cells: 9 },
+    232: { family: 'classic', cells: 9 },
+    244: { family: 'classic', cells: 15 },
+    252: { family: 'classic', cells: 15 },
+    262: { family: 'classic', cells: 9 },
+    264: { family: 'classic', cells: 12 },
+    269: { family: 'mahjong', cells: 20 },
+    271: { family: 'mahjong', cells: 25 },
+    273: { family: 'tumble', cells: 30 },
+    276: { family: 'step', cells: 15 },
+    278: { family: 'ways', cells: 30 },
+    281: { family: 'step', cells: 15 },
+    301: { family: 'classic', cells: 15 },
+    302: { family: 'classic', cells: 9, extraCard: true },
+    321: { family: 'tumble', cells: 30 },
   };
 
   function parentStorage() {
@@ -88,7 +98,10 @@
 
   function notifyParent(type, payload) {
     try {
-      window.parent.postMessage(Object.assign({ type: type }, payload || {}), window.location.origin);
+      window.parent.postMessage(
+        Object.assign({ type: type }, payload || {}),
+        window.location.origin,
+      );
     } catch (_error) {
       // The original Cocos build remains usable when opened outside the platform shell.
     }
@@ -151,24 +164,28 @@
       },
       body: method === 'GET' ? undefined : JSON.stringify(body || {}),
       signal: controller ? controller.signal : undefined,
-    }).then(function (response) {
-      if (response.status === 401 && !retried) {
-        return refreshAccessToken().then(function () {
-          return authorizedRequest(url, method, body, true);
+    })
+      .then(function (response) {
+        if (response.status === 401 && !retried) {
+          return refreshAccessToken().then(function () {
+            return authorizedRequest(url, method, body, true);
+          });
+        }
+        return response.json().then(function (payload) {
+          if (!response.ok)
+            throw new Error(payload.message || payload.error || '遊戲伺服器拒絕請求');
+          return payload;
         });
-      }
-      return response.json().then(function (payload) {
-        if (!response.ok) throw new Error(payload.message || payload.error || '遊戲伺服器拒絕請求');
-        return payload;
+      })
+      .catch(function (error) {
+        if (error && error.name === 'AbortError') {
+          throw new Error('遊戲伺服器回應逾時，請稍後重試');
+        }
+        throw error;
+      })
+      .finally(function () {
+        window.clearTimeout(timeout);
       });
-    }).catch(function (error) {
-      if (error && error.name === 'AbortError') {
-        throw new Error('遊戲伺服器回應逾時，請稍後重試');
-      }
-      throw error;
-    }).finally(function () {
-      window.clearTimeout(timeout);
-    });
   }
 
   function localSession() {
@@ -248,7 +265,11 @@
       return;
     }
     if (this._route.kind === 'blocked') {
-      return this._complete({ code: 0, status: 0, message: 'External service disabled by Yachiyo' });
+      return this._complete({
+        code: 0,
+        status: 0,
+        message: 'External service disabled by Yachiyo',
+      });
     }
     localSession()
       .then(function (session) {
@@ -291,7 +312,7 @@
       network.loginAccount_Function(
         'http://127.0.0.1:0',
         (latestSession && latestSession.username) || 'testplayer',
-        'yachiyo-local'
+        'yachiyo-local',
       );
     } catch (error) {
       console.error('[Yachiyo H5 Slots] unable to continue local lobby login', error);
@@ -310,10 +331,16 @@
     if (this._native) this._native.setRequestHeader(name, value);
   };
   BridgeXHR.prototype.getResponseHeader = function (name) {
-    return this._native ? this._native.getResponseHeader(name) : name.toLowerCase() === 'content-type' ? 'application/json' : null;
+    return this._native
+      ? this._native.getResponseHeader(name)
+      : name.toLowerCase() === 'content-type'
+        ? 'application/json'
+        : null;
   };
   BridgeXHR.prototype.getAllResponseHeaders = function () {
-    return this._native ? this._native.getAllResponseHeaders() : 'content-type: application/json\r\n';
+    return this._native
+      ? this._native.getAllResponseHeaders()
+      : 'content-type: application/json\r\n';
   };
   BridgeXHR.prototype.overrideMimeType = function (mime) {
     if (this._native && this._native.overrideMimeType) this._native.overrideMimeType(mime);
@@ -336,7 +363,16 @@
   };
 
   function wireNative(bridge) {
-    ['readystatechange', 'load', 'error', 'timeout', 'abort', 'loadstart', 'loadend', 'progress'].forEach(function (type) {
+    [
+      'readystatechange',
+      'load',
+      'error',
+      'timeout',
+      'abort',
+      'loadstart',
+      'loadend',
+      'progress',
+    ].forEach(function (type) {
       bridge._native.addEventListener(type, function (event) {
         bridge._dispatch(type, event);
       });
@@ -351,24 +387,67 @@
   }
 
   Object.defineProperties(BridgeXHR.prototype, {
-    readyState: { get: function () { return nativeOr(this, 'readyState', '_readyState'); } },
-    status: { get: function () { return nativeOr(this, 'status', '_status'); } },
-    statusText: { get: function () { return nativeOr(this, 'statusText', '_statusText'); } },
-    responseText: { get: function () { return nativeOr(this, 'responseText', '_responseText'); } },
-    response: { get: function () { return nativeOr(this, 'response', '_response'); } },
-    responseURL: { get: function () { return this._native ? this._native.responseURL : ''; } },
-    responseXML: { get: function () { return this._native ? this._native.responseXML : null; } },
+    readyState: {
+      get: function () {
+        return nativeOr(this, 'readyState', '_readyState');
+      },
+    },
+    status: {
+      get: function () {
+        return nativeOr(this, 'status', '_status');
+      },
+    },
+    statusText: {
+      get: function () {
+        return nativeOr(this, 'statusText', '_statusText');
+      },
+    },
+    responseText: {
+      get: function () {
+        return nativeOr(this, 'responseText', '_responseText');
+      },
+    },
+    response: {
+      get: function () {
+        return nativeOr(this, 'response', '_response');
+      },
+    },
+    responseURL: {
+      get: function () {
+        return this._native ? this._native.responseURL : '';
+      },
+    },
+    responseXML: {
+      get: function () {
+        return this._native ? this._native.responseXML : null;
+      },
+    },
     responseType: {
-      get: function () { return this._native ? this._native.responseType : this._responseType; },
-      set: function (value) { this._responseType = value; if (this._native) this._native.responseType = value; },
+      get: function () {
+        return this._native ? this._native.responseType : this._responseType;
+      },
+      set: function (value) {
+        this._responseType = value;
+        if (this._native) this._native.responseType = value;
+      },
     },
     timeout: {
-      get: function () { return this._native ? this._native.timeout : this._timeout; },
-      set: function (value) { this._timeout = value; if (this._native) this._native.timeout = value; },
+      get: function () {
+        return this._native ? this._native.timeout : this._timeout;
+      },
+      set: function (value) {
+        this._timeout = value;
+        if (this._native) this._native.timeout = value;
+      },
     },
     withCredentials: {
-      get: function () { return this._native ? this._native.withCredentials : this._withCredentials; },
-      set: function (value) { this._withCredentials = value; if (this._native) this._native.withCredentials = value; },
+      get: function () {
+        return this._native ? this._native.withCredentials : this._withCredentials;
+      },
+      set: function (value) {
+        this._withCredentials = value;
+        if (this._native) this._native.withCredentials = value;
+      },
     },
   });
 
@@ -388,8 +467,14 @@
 
   FakeSocket.prototype.on = function (event, handler) {
     (this.$events[event] || (this.$events[event] = [])).push(handler);
-    if (this.connected && this._connectAnnounced && (event === 'connected' || event === 'connect')) {
-      window.setTimeout(function () { handler(true); }, 0);
+    if (
+      this.connected &&
+      this._connectAnnounced &&
+      (event === 'connected' || event === 'connect')
+    ) {
+      window.setTimeout(function () {
+        handler(true);
+      }, 0);
     }
     return this;
   };
@@ -404,14 +489,17 @@
   FakeSocket.prototype.off = function (event, handler) {
     if (!event) this.$events = {};
     else if (!handler) delete this.$events[event];
-    else this.$events[event] = (this.$events[event] || []).filter(function (candidate) {
-      return candidate !== handler;
-    });
+    else
+      this.$events[event] = (this.$events[event] || []).filter(function (candidate) {
+        return candidate !== handler;
+      });
     return this;
   };
   FakeSocket.prototype.removeListener = FakeSocket.prototype.off;
   FakeSocket.prototype.removeListen = FakeSocket.prototype.off;
-  FakeSocket.prototype.removeAllListeners = function (event) { return this.off(event); };
+  FakeSocket.prototype.removeAllListeners = function (event) {
+    return this.off(event);
+  };
   FakeSocket.prototype._trigger = function (event, payload) {
     (this.$events[event] || []).slice().forEach(function (handler) {
       try {
@@ -442,9 +530,11 @@
         }, 0);
         return this;
       }
-      localSession().then(function (session) {
-        socket._trigger('loginResult', buildLobbyLogin(session));
-      }).catch(reportSocketError);
+      localSession()
+        .then(function (session) {
+          socket._trigger('loginResult', buildLobbyLogin(session));
+        })
+        .catch(reportSocketError);
     } else if (event === 'LoginGame') {
       if (latestSession) {
         window.setTimeout(function () {
@@ -452,9 +542,11 @@
         }, 0);
         return this;
       }
-      localSession().then(function (session) {
-        emitGameLogin(socket, session);
-      }).catch(reportSocketError);
+      localSession()
+        .then(function (session) {
+          emitGameLogin(socket, session);
+        })
+        .catch(reportSocketError);
     } else if (event === 'LoginRoom') {
       emitRoomLogin(socket);
     } else if (event === 'fishShoot') {
@@ -470,8 +562,15 @@
         socket._trigger('LoginfreeCountResult', { ResultCode: 1, freeCount: 0, freeType: 0 });
       }, 0);
     } else if (event === 'history') {
-      authorizedRequest(gameApi + '/history', 'GET', null, false)
-        .then(function (payload) { socket._trigger('historyResult', payload); })
+      authorizedRequest(
+        gameApi + '/history?gameCode=' + encodeURIComponent(gameCode),
+        'GET',
+        null,
+        false,
+      )
+        .then(function (payload) {
+          socket._trigger('historyResult', payload);
+        })
         .catch(reportSocketError);
     } else if (event === 'lottery') {
       settleSpin(socket, rawPayload);
@@ -516,14 +615,16 @@
         ResultData: {
           TableId: 'yachiyo-local-table',
           seatId: 0,
-          userList: [{
-            seatId: 0,
-            nickname: session.nickname || session.username || 'testplayer',
-            score: Number(session.balance || 0),
-            diamond: 0,
-            userId: session.id,
-            headimgurl: '',
-          }],
+          userList: [
+            {
+              seatId: 0,
+              nickname: session.nickname || session.username || 'testplayer',
+              score: Number(session.balance || 0),
+              diamond: 0,
+              userId: session.id,
+              headimgurl: '',
+            },
+          ],
         },
       });
       startFishStream(socket);
@@ -542,7 +643,7 @@
 
   function parseSocketPayload(rawPayload) {
     try {
-      return typeof rawPayload === 'string' ? JSON.parse(rawPayload) : (rawPayload || {});
+      return typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload || {};
     } catch (_error) {
       return {};
     }
@@ -554,11 +655,16 @@
     var amount = Math.max(10, Number(shot.bet || 1) * fishRoomBet);
     fishBullets[bulletId] = { hit: null, result: null };
     socket._trigger('fishShoot', shot);
-    authorizedRequest(gameApi + '/spin', 'POST', {
-      gameCode: gameCode,
-      amount: amount,
-      isBuyFree: false,
-    }, false)
+    authorizedRequest(
+      gameApi + '/spin',
+      'POST',
+      {
+        gameCode: gameCode,
+        amount: amount,
+        isBuyFree: false,
+      },
+      false,
+    )
       .then(function (result) {
         var bullet = fishBullets[bulletId];
         if (!bullet) return;
@@ -591,9 +697,7 @@
     var bullet = fishBullets[bulletId];
     if (!bullet || !bullet.result) return;
     var payout = Number(bullet.result.payout || 0);
-    var targetFishId = bullet.hit && bullet.hit.fishId
-      ? bullet.hit.fishId
-      : fishTargets.pop();
+    var targetFishId = bullet.hit && bullet.hit.fishId ? bullet.hit.fishId : fishTargets.pop();
     if (payout > 0) {
       socket._trigger('HitResult', {
         ResultCode: 1,
@@ -671,7 +775,7 @@
   function settleSpin(socket, rawPayload) {
     var payload;
     try {
-      payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : (rawPayload || {});
+      payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload || {};
     } catch (_error) {
       payload = {};
     }
@@ -681,11 +785,16 @@
       return;
     }
     var amount = Math.max(ROOM_BET_AMOUNTS[0], requestedAmount);
-    authorizedRequest(gameApi + '/spin', 'POST', {
-      gameCode: gameCode,
-      amount: amount,
-      isBuyFree: payload.isBuyFree === 1,
-    }, false)
+    authorizedRequest(
+      gameApi + '/spin',
+      'POST',
+      {
+        gameCode: gameCode,
+        amount: amount,
+        isBuyFree: payload.isBuyFree === 1,
+      },
+      false,
+    )
       .then(function (result) {
         latestSession = latestSession || {};
         latestSession.balance = Number(result.newBalance || 0);
@@ -698,12 +807,15 @@
       })
       .catch(function (error) {
         var message = error && error.message ? error.message : '遊戲伺服器連線失敗';
-        socket._trigger('lotteryResult', buildLotteryResponse({
-          grid: [],
-          payout: 0,
-          multiplier: 0,
-          newBalance: Number(latestSession && latestSession.balance || 0),
-        }));
+        socket._trigger(
+          'lotteryResult',
+          buildLotteryResponse({
+            grid: [],
+            payout: 0,
+            multiplier: 0,
+            newBalance: Number((latestSession && latestSession.balance) || 0),
+          }),
+        );
         notifyParent('h5-slots:error', { message: message });
       });
   }
@@ -749,7 +861,9 @@
   }
 
   function falseList(length) {
-    return Array.from({ length: length }, function () { return false; });
+    return Array.from({ length: length }, function () {
+      return false;
+    });
   }
 
   function buildClassic(symbols, payout, multiplier, shape) {
@@ -780,7 +894,7 @@
       nWinDetail: [],
       goldCards: mahjong ? [] : undefined,
       winscore: payout,
-      user_score: Number(latestSession && latestSession.balance || 0),
+      user_score: Number((latestSession && latestSession.balance) || 0),
       getFreeTime: { bFlag: false, nFreeTime: 0 },
     };
   }
@@ -797,7 +911,7 @@
       sr: [],
       srd: [],
       winscore: payout,
-      user_score: Number(latestSession && latestSession.balance || 0),
+      user_score: Number((latestSession && latestSession.balance) || 0),
     };
   }
 
@@ -834,12 +948,16 @@
   try {
     Object.defineProperty(window, 'io', {
       configurable: true,
-      get: function () { return fakeIo; },
-      set: function () { /* Keep all legacy socket traffic local. */ },
+      get: function () {
+        return fakeIo;
+      },
+      set: function () {
+        /* Keep all legacy socket traffic local. */
+      },
     });
   } catch (_error) {
     window.io = fakeIo;
   }
   window.SocketIO = fakeIo;
   console.info('[Yachiyo H5 Slots] authenticated local bridge enabled for game', gameCode);
-}());
+})();

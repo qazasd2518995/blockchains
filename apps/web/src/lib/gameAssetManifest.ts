@@ -1,4 +1,5 @@
 import { SLOT_THEMES, type SlotThemeConfig, type SlotThemeId } from '@/lib/slotThemes';
+import { H5_GAMES } from '@bg/shared';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 import { SLOT_BIG_WIN_TIER_ASSETS } from '@/lib/slotWinTiers';
 import { getOptimizedImageSrcSet, type ResponsivePreset } from '@/lib/optimizedImages';
@@ -170,6 +171,7 @@ export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
   'storm-of-seth-2': coverOnlyGame('storm-of-seth-2'),
   'fruit-mary': coverOnlyGame('fruit-mary'),
   'h5-slot-collection': coverOnlyGame('h5-slot-collection'),
+  ...Object.fromEntries(H5_GAMES.map((game) => [game.gameId, coverOnlyGame(game.gameId)])),
   blackjack: {
     gameId: 'blackjack',
     assets: [
