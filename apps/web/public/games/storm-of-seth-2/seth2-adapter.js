@@ -223,7 +223,13 @@
 
       var originalStart = LoginNode.prototype.start;
       LoginNode.prototype.start = function () {
-        if (originalStart) originalStart.call(this);
+        if (originalStart) {
+          try {
+            originalStart.call(this);
+          } catch (error) {
+            console.warn('[Seth2 Adapter] Original login startup failed; continuing with Yachiyo login', error);
+          }
+        }
         if (loginStarted) return;
         loginStarted = true;
         if (this.node) this.node.active = false;
