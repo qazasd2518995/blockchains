@@ -45,17 +45,18 @@ interface Seth2SessionState {
   betAmount: string;
 }
 
-interface DemoState {
-  freeSpinsRemaining: number;
-  featureMode: Exclude<Seth2FeatureMode, 'none'>;
-  betAmount: number;
-  nonce: number;
-}
-
 interface Seth2Settlement {
   returnData: Seth2ReturnData;
   balance: number;
   spinId: string;
+}
+
+interface Seth2MachineStatsRow {
+  machineId: number;
+  todayBet: Prisma.Decimal;
+  todayPayout: Prisma.Decimal;
+  thirtyDayBet: Prisma.Decimal;
+  thirtyDayPayout: Prisma.Decimal;
 }
 
 const EMPTY_SESSION: Seth2SessionState = {
@@ -65,8 +66,6 @@ const EMPTY_SESSION: Seth2SessionState = {
 };
 
 export class Seth2Service {
-  private readonly demoStates = new Map<string, DemoState>();
-
   constructor(private readonly prisma: PrismaClient) {}
 
   async session(userId: string) {
@@ -79,7 +78,6 @@ export class Seth2Service {
           userName: user.username,
           nickname: user.displayName ?? user.username,
           score: Number(user.balance.toFixed(2)),
-          free_bet: 1_000_000,
           socketPort: '',
         },
       },
@@ -98,13 +96,19 @@ export class Seth2Service {
         const session = await this.session(userId);
         return response(input.type, session.data.userInfo);
       }
-      case 'getMachineList':
+      case 'getMachineList': {
         await this.requireUser(userId);
-        return response(input.type, { machineList: machineList() });
-      case 'getMachineInfo':
+        const stats = await this.machineStats();
+        return response(input.type, { machineList: machineList(stats) });
+      }
+      case 'getMachineInfo': {
         await this.requireUser(userId);
-        return response(input.type, { machineInfo: machineInfo(requireMachineId(input.machineId)) });
+        const machineId = requireMachineId(input.machineId);
+        const stats = await this.machineStats();
+        return response(input.type, { machineInfo: machineInfo(machineId, stats.get(machineId)) });
+      }
       case 'useMachine': {
+        requireFormalPlay(input.isFreeModel);
         await this.requireUser(userId);
         const machineId = requireMachineId(input.machineId);
         return response(input.type, { machineId, success: true });
@@ -113,14 +117,10 @@ export class Seth2Service {
         return response(input.type, await this.history(userId));
       case 'gameToolsList':
       case 'buyFreeGame': {
+        requireFormalPlay(input.isFreeModel);
         const buying = input.type === 'buyFreeGame';
         const bet = requireBet(input.yazhu);
         const machineId = requireMachineId(input.machineId);
-        if (input.isFreeModel === 1) {
-          return response(input.type, {
-            returnData: await this.demoSpin(userId, bet, buying),
-          });
-        }
         const settlement = await this.settle(userId, bet, machineId, buying);
         return response(input.type, {
           returnData: settlement.returnData,
@@ -171,41 +171,38 @@ export class Seth2Service {
     return user;
   }
 
-  private async demoSpin(userId: string, requestedBet: number, buying: boolean) {
-    await this.requireUser(userId);
-    const current = this.demoStates.get(userId) ?? {
-      freeSpinsRemaining: 0,
-      featureMode: 'standard' as const,
-      betAmount: requestedBet,
-      nonce: 0,
-    };
-    const freeSpin = !buying && current.freeSpinsRemaining > 0;
-    const bet = freeSpin ? current.betAmount : requestedBet;
-    const mode: Seth2SpinMode = buying
-      ? 'awakening_free'
-      : freeSpin
-        ? current.featureMode === 'awakening'
-          ? 'awakening_free'
-          : 'standard_free'
-        : 'base';
-    const outcome = seth2Spin('seth2-demo-server', userId, current.nonce, bet, mode);
-    current.nonce += 1;
-    if (buying) {
-      current.betAmount = bet;
-      current.featureMode = 'awakening';
-      current.freeSpinsRemaining = SETH2_FREE_SPINS - 1;
-    } else if (freeSpin) {
-      current.freeSpinsRemaining -= 1;
-    } else if (outcome.triggeredFreeSpins) {
-      current.betAmount = bet;
-      current.featureMode = 'standard';
-      current.freeSpinsRemaining = SETH2_FREE_SPINS;
-    } else {
-      current.freeSpinsRemaining = 0;
-    }
-    this.demoStates.set(userId, current);
-    applyFeatureState(outcome.returnData, current.freeSpinsRemaining, buying || outcome.triggeredFreeSpins);
-    return outcome.returnData;
+  private async machineStats(): Promise<Map<number, Seth2MachineStatsRow>> {
+    const rows = await this.prisma.$queryRaw<Seth2MachineStatsRow[]>(Prisma.sql`
+      SELECT
+        ("resultData"->>'machineId')::integer AS "machineId",
+        COALESCE(
+          SUM("amount") FILTER (
+            WHERE "createdAt" >= date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')
+              AT TIME ZONE 'Asia/Taipei'
+          ),
+          0
+        ) AS "todayBet",
+        COALESCE(
+          SUM("payout") FILTER (
+            WHERE "createdAt" >= date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')
+              AT TIME ZONE 'Asia/Taipei'
+          ),
+          0
+        ) AS "todayPayout",
+        COALESCE(SUM("amount"), 0) AS "thirtyDayBet",
+        COALESCE(SUM("payout"), 0) AS "thirtyDayPayout"
+      FROM "Bet"
+      WHERE "gameId" = ${GAME_ID}
+        AND "status" = 'SETTLED'
+        AND "createdAt" >= (
+          date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Taipei')
+            AT TIME ZONE 'Asia/Taipei'
+        ) - INTERVAL '29 days'
+        AND jsonb_typeof("resultData") = 'object'
+        AND ("resultData"->>'machineId') ~ '^(?:[1-9]|1[0-9]|20)$'
+      GROUP BY ("resultData"->>'machineId')::integer
+    `);
+    return new Map(rows.map((row) => [Number(row.machineId), row]));
   }
 
   private async settle(
@@ -403,16 +400,25 @@ function requireMachineId(value: number | undefined): number {
   return value;
 }
 
-function machineInfo(id: number) {
-  const totalBet = 18_000_000 + id * 937_421;
+function requireFormalPlay(isFreeModel: number | undefined): void {
+  if (isFreeModel === 1) {
+    throw new ApiError('INVALID_ACTION', '試玩模式已停用，請使用正式點數遊玩');
+  }
+}
+
+export function machineInfo(id: number, stats?: Seth2MachineStatsRow) {
+  const todayBet = stats?.todayBet ?? new Prisma.Decimal(0);
+  const todayPayout = stats?.todayPayout ?? new Prisma.Decimal(0);
+  const thirtyDayBet = stats?.thirtyDayBet ?? new Prisma.Decimal(0);
+  const thirtyDayPayout = stats?.thirtyDayPayout ?? new Prisma.Decimal(0);
   return {
     id,
     code: String(id).padStart(3, '0'),
     use_status: 0,
-    day_rate: '96.89',
-    totalBet,
-    totalBet30: Math.floor(totalBet * 0.38),
-    day_rate_30: '96.89',
+    day_rate: payoutRate(todayBet, todayPayout),
+    totalBet: Number(todayBet.toFixed(2)),
+    totalBet30: Number(thirtyDayBet.toFixed(2)),
+    day_rate_30: payoutRate(thirtyDayBet, thirtyDayPayout),
     MINI_start_number: 25,
     MINI_JP_store: Number((id * 0.13).toFixed(2)),
     MINOR_start_number: 100,
@@ -424,8 +430,20 @@ function machineInfo(id: number) {
   };
 }
 
-function machineList() {
-  return Array.from({ length: 20 }, (_, index) => machineInfo(index + 1));
+function machineList(stats: Map<number, Seth2MachineStatsRow>) {
+  return Array.from({ length: 20 }, (_, index) => {
+    const id = index + 1;
+    return machineInfo(id, stats.get(id));
+  });
+}
+
+function payoutRate(bet: Prisma.Decimal, payout: Prisma.Decimal): string {
+  if (bet.lessThanOrEqualTo(0)) return '0.00';
+  return payout
+    .div(bet)
+    .mul(100)
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
+    .toFixed(2);
 }
 
 function readSession(resultData: Prisma.JsonValue | undefined): Seth2SessionState {

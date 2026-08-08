@@ -6,6 +6,7 @@
   var protocolUrl = apiBase + '/games/seth2/protocol';
   var requestTimeoutMs = 15000;
   var patched = false;
+  var gameModulesPatched = false;
   var loginStarted = false;
   var refreshInFlight = null;
 
@@ -169,6 +170,13 @@
     if (socket.readyState !== LocalGameSocket.OPEN) throw new Error('Socket is not open');
     socket._queue = socket._queue.then(function () {
       request = JSON.parse(raw);
+      if (
+        request.type === 'useMachine' ||
+        request.type === 'gameToolsList' ||
+        request.type === 'buyFreeGame'
+      ) {
+        request.isFreeModel = 0;
+      }
       return authorizedFetch(protocolUrl, request, false).then(function (payload) {
         if (payload && payload.data && payload.data.balance !== undefined) {
           notifyParent('seth2:balance', { balance: Number(payload.data.balance) });
@@ -282,9 +290,71 @@
     }
   }
 
+  function patchGameModules() {
+    if (gameModulesPatched || typeof window.__require !== 'function') return;
+    try {
+      var Game = window.__require('Game').default;
+      var RoomListView = window.__require('RoomListView').default;
+      if (!Game || !RoomListView) return;
+
+      var originalGameOnLoad = Game.prototype.onLoad;
+      Game.prototype.onLoad = function () {
+        if (originalGameOnLoad) originalGameOnLoad.call(this);
+        this.cur_game_model = 1;
+      };
+
+      var findNodeByName = function (node, name) {
+        if (!node) return null;
+        if (node.name === name) return node;
+        var children = node.children || [];
+        for (var index = 0; index < children.length; index += 1) {
+          var match = findNodeByName(children[index], name);
+          if (match) return match;
+        }
+        return null;
+      };
+
+      var enforceFormalRoom = function (room) {
+        var roomRoot = room && room.node;
+        if (!roomRoot) return;
+        var trialButton = findNodeByName(roomRoot, 'BtnFree');
+        var enterButton = findNodeByName(roomRoot, 'BtnEnter');
+        if (trialButton && enterButton && trialButton.parent === enterButton.parent) {
+          enterButton.x = (trialButton.x + enterButton.x) / 2;
+        }
+        if (trialButton) trialButton.active = false;
+        if (room.ttf_game_coin && room.ttf_game_coin.node) room.ttf_game_coin.node.active = false;
+        var hideTrialLabel = function (node) {
+          if (!node) return;
+          var label = node.getComponent && node.getComponent(cc.Label);
+          if (label && (label.string === '免費體驗' || label.string === '遊戲幣餘額')) {
+            node.active = false;
+          }
+          (node.children || []).forEach(hideTrialLabel);
+        };
+        hideTrialLabel(roomRoot);
+      };
+
+      var originalRoomOnLoad = RoomListView.prototype.onLoad;
+      RoomListView.prototype.onLoad = function () {
+        if (originalRoomOnLoad) originalRoomOnLoad.call(this);
+        enforceFormalRoom(this);
+      };
+      RoomListView.prototype.clickFree = function () {
+        return this.clickEnterGame();
+      };
+      gameModulesPatched = true;
+      console.info('[Seth2 Adapter] formal-play-only room enabled');
+    } catch (_error) {
+      // The game bundle loads after authentication; keep polling until it is available.
+    }
+  }
+
   var patchTimer = window.setInterval(function () {
     patchClient();
-    if (patched) window.clearInterval(patchTimer);
+    patchGameModules();
+    if (patched && gameModulesPatched) window.clearInterval(patchTimer);
   }, 10);
   patchClient();
+  patchGameModules();
 }());

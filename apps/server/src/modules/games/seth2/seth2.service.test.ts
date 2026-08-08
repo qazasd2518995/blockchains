@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
-import { chooseControlledSethFactor } from './seth2.service.js';
+import { chooseControlledSethFactor, machineInfo, Seth2Service } from './seth2.service.js';
 
 describe('Seth2 controlled result selection', () => {
   it('selects a visual win matching normal-spin control bounds', () => {
@@ -30,5 +30,62 @@ describe('Seth2 controlled result selection', () => {
       maxPayout: new Prisma.Decimal(3600),
     });
     expect(factor).toBe(0);
+  });
+});
+
+describe('Seth2 formal-play-only mode', () => {
+  it('rejects legacy trial machine entry', async () => {
+    const service = new Seth2Service({} as never);
+
+    await expect(
+      service.protocol('test-user', {
+        type: 'useMachine',
+        machineId: 1,
+        isFreeModel: 1,
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_ACTION' });
+  });
+
+  it('rejects legacy trial spins before settlement', async () => {
+    const service = new Seth2Service({} as never);
+
+    await expect(
+      service.protocol('test-user', {
+        type: 'gameToolsList',
+        machineId: 1,
+        yazhu: 18,
+        isFreeModel: 1,
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_ACTION' });
+  });
+});
+
+describe('Seth2 machine statistics', () => {
+  it('reports each machine from its own settled bet and payout totals', () => {
+    const machine = machineInfo(7, {
+      machineId: 7,
+      todayBet: new Prisma.Decimal(200),
+      todayPayout: new Prisma.Decimal(150),
+      thirtyDayBet: new Prisma.Decimal(1_000),
+      thirtyDayPayout: new Prisma.Decimal(968.95),
+    });
+
+    expect(machine).toMatchObject({
+      id: 7,
+      code: '007',
+      totalBet: 200,
+      day_rate: '75.00',
+      totalBet30: 1_000,
+      day_rate_30: '96.89',
+    });
+  });
+
+  it('shows zero activity instead of fabricated room history', () => {
+    expect(machineInfo(2)).toMatchObject({
+      totalBet: 0,
+      day_rate: '0.00',
+      totalBet30: 0,
+      day_rate_30: '0.00',
+    });
   });
 });
