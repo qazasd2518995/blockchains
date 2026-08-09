@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { getH5GameByCode, isImportedGameTestUsername, type H5GameCode } from '@bg/shared';
 import { Sfx } from '@bg/game-engine';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
+import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 import { PlatformBgm } from '@/lib/platformBgm';
 
 const GAME_PATH = '/games/h5-slot-collection/index.html';
@@ -30,6 +31,8 @@ const PORTRAIT_GAME_CODES = new Set<H5GameCode>([
 ]);
 
 export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
+  const navigate = useNavigate();
+  const returnTarget = useGameReturnTarget();
   const user = useAuthStore((state) => state.user);
   const setBalance = useAuthStore((state) => state.setBalance);
   const setTokens = useAuthStore((state) => state.setTokens);
@@ -90,13 +93,27 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || !event.data) return;
+      if (event.source !== iframeRef.current?.contentWindow) return;
       const payload = event.data as {
         type?: string;
         balance?: unknown;
         message?: unknown;
         accessToken?: unknown;
         refreshToken?: unknown;
+        data?: {
+          name?: unknown;
+          arg?: { action?: unknown };
+        };
       };
+      const requestedClose =
+        payload.type === 'h5-slots:close' ||
+        (payload.type === 'WEB_INVOKE_APPSERVICE' &&
+          payload.data?.name === 'postMessage' &&
+          payload.data.arg?.action === 'close');
+      if (requestedClose) {
+        navigate(returnTarget.to);
+        return;
+      }
       if (payload.type === 'h5-slots:ready') {
         setError('');
       }
@@ -117,7 +134,7 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [setBalance, setTokens]);
+  }, [navigate, returnTarget.to, setBalance, setTokens]);
 
   useEffect(() => {
     if (!error) return;

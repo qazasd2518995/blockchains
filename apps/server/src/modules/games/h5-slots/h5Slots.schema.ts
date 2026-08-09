@@ -8,4 +8,10 @@ export const h5SlotSpinSchema = z.object({
   isBuyFree: z.boolean().optional(),
 });
 
+export const h5FishSkillSchema = z.object({
+  gameCode: z.enum(H5_GAME_CODES),
+  skillId: z.literal(1),
+});
+
 export type H5SlotSpinInput = z.infer<typeof h5SlotSpinSchema>;
+export type H5FishSkillInput = z.infer<typeof h5FishSkillSchema>;

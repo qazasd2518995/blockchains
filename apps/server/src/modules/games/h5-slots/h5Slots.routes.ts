@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { Prisma } from '@prisma/client';
 import {
   getH5GameByCode,
   isH5GameCode,
@@ -6,16 +7,34 @@ import {
   type H5GameCode,
 } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
+import {
+  debitAndRecord,
+  lockUserAndCheckFunds,
+  runLockedTransaction,
+} from '../_common/BaseGameService.js';
 import { HotlineService } from '../hotline/hotline.service.js';
-import { h5SlotSpinSchema } from './h5Slots.schema.js';
+import { h5FishSkillSchema, h5SlotSpinSchema } from './h5Slots.schema.js';
 
 const H5_BUY_FREE_COST_MULTIPLIERS: Partial<Record<H5GameCode, number>> = {
   '278': 50,
   '321': 50,
 };
 
+const H5_FISH_FREEZE_SKILL_COSTS: Partial<Record<H5GameCode, number>> = {
+  '2': 100,
+  '12': 100,
+  '13': 100,
+  '14': 100,
+};
+
+export const H5_FISH_FREEZE_DURATION_MS = 5_000;
+
 export function getH5BuyFreeCostMultiplier(gameCode: H5GameCode): number | undefined {
   return H5_BUY_FREE_COST_MULTIPLIERS[gameCode];
+}
+
+export function getH5FishFreezeSkillCost(gameCode: H5GameCode): number | undefined {
+  return H5_FISH_FREEZE_SKILL_COSTS[gameCode];
 }
 
 export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
@@ -81,6 +100,35 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
         : undefined,
     );
     return { ...result, gameCode: input.gameCode };
+  });
+
+  fastify.post('/fish/skill', async (request) => {
+    const user = await requireTestUser(request.userId);
+    const input = h5FishSkillSchema.parse(request.body);
+    const skillCost = getH5FishFreezeSkillCost(input.gameCode);
+    if (skillCost === undefined) {
+      throw new ApiError('INVALID_ACTION', '此遊戲沒有捕魚冰凍技能');
+    }
+    const game = getH5GameByCode(input.gameCode);
+    const cost = new Prisma.Decimal(skillCost);
+    const balance = await runLockedTransaction(fastify.prisma, async (tx) => {
+      await lockUserAndCheckFunds(tx, request.userId, cost, game.gameId, {
+        limitAmounts: [cost],
+      });
+      return debitAndRecord(tx, request.userId, cost, null, {
+        gameId: game.gameId,
+        kind: 'fish-freeze-skill',
+        skillId: input.skillId,
+      });
+    });
+    return {
+      ResultCode: 1,
+      userId: user.id,
+      skillId: input.skillId,
+      cost: skillCost,
+      durationMs: H5_FISH_FREEZE_DURATION_MS,
+      balance: Number(balance.toFixed(2)),
+    };
   });
 
   fastify.get('/history', async (request) => {

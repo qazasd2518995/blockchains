@@ -11,7 +11,7 @@ const collectionPath = fileURLToPath(
 );
 const adapterSource = fs.readFileSync(adapterPath, 'utf8');
 
-function loadAdapter(gameCode, storedValues = {}) {
+function loadAdapter(gameCode, storedValues = {}, options = {}) {
   const storage = {
     getItem: (key) => storedValues[key] ?? null,
     setItem: (key, value) => {
@@ -22,7 +22,9 @@ function loadAdapter(gameCode, storedValues = {}) {
     URL,
     URLSearchParams,
     AbortController,
-    fetch: () => Promise.reject(new Error('network disabled in adapter unit tests')),
+    fetch:
+      options.fetch ??
+      (() => Promise.reject(new Error('network disabled in adapter unit tests'))),
     console: { info: () => {}, warn: () => {}, error: () => {}, log: () => {} },
     XMLHttpRequest: function XMLHttpRequest() {},
     location: {
@@ -38,6 +40,79 @@ function loadAdapter(gameCode, storedValues = {}) {
   context.window = context;
   vm.runInNewContext(adapterSource, context, { filename: adapterPath });
   return context.__YachiyoH5AdapterTest;
+}
+
+{
+  const classic = loadAdapter('113');
+  const caishen = loadAdapter('278');
+  assert.equal(classic.shouldHideLegacyButtonHandler('onCLick_buyCoin'), true);
+  assert.equal(classic.shouldHideLegacyButtonHandler('onBtnBuyFreeShow'), false);
+  assert.equal(classic.shouldHideLegacyButtonHandler('onBtnGuess'), false);
+  assert.equal(caishen.shouldHideLegacyButtonHandler('onBtnGuess'), true);
+  assert.equal(caishen.shouldHideLegacyButtonHandler('onBtnBuyFreeShow'), false);
+}
+
+{
+  const adapter = loadAdapter('2');
+  assert.equal(adapter.calculateCannonAimAngle({ x: 100, y: 0 }, { x: 100, y: 200 }, 0), 0);
+  assert.ok(adapter.calculateCannonAimAngle({ x: 100, y: 0 }, { x: 300, y: 200 }, 0) < 0);
+  assert.ok(adapter.calculateCannonAimAngle({ x: 100, y: 400 }, { x: -100, y: 200 }, 3) > 0);
+  assert.equal(adapter.calculateCannonAimAngle({ x: 100, y: 0 }, { x: 100, y: -20 }, 0), null);
+
+  const spawns = Array.from({ length: 18 }, (_, index) => adapter.buildFishSpawn(index + 1));
+  assert.ok(new Set(spawns.map((spawn) => spawn.fishPath)).size > 12);
+  assert.ok(spawns.some((spawn) => spawn.fishPath < 14));
+  assert.ok(spawns.some((spawn) => spawn.fishPath >= 14 && spawn.fishPath < 28));
+  assert.ok(spawns.some((spawn) => spawn.fishLineup > 0 && spawn.fishCount > 1));
+  assert.equal(
+    spawns.every(
+      (spawn) =>
+        spawn.fishPath >= 0 && spawn.fishPath < 43 && spawn.fishId.length === spawn.fishCount,
+    ),
+    true,
+  );
+  assert.equal(adapter.isFishHitReady({ result: {}, hit: null }), false);
+  assert.equal(adapter.isFishHitReady({ result: null, hit: {} }), false);
+  assert.equal(adapter.isFishHitReady({ result: {}, hit: {} }), true);
+}
+
+{
+  const requests = [];
+  const storedValues = {
+    'bg-auth': JSON.stringify({
+      state: { accessToken: 'test-access', refreshToken: 'test-refresh' },
+      version: 0,
+    }),
+  };
+  const adapter = loadAdapter('2', storedValues, {
+    fetch: async (url, init) => {
+      requests.push({ url, init });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ResultCode: 1,
+          userId: 'player-1',
+          skillId: 1,
+          cost: 100,
+          durationMs: 5000,
+          balance: 900,
+        }),
+      };
+    },
+  });
+  const socket = adapter.createFakeSocket();
+  let result = null;
+  socket.on('useSkillResult', (payload) => {
+    result = payload;
+  });
+  socket.emit('useSKill', JSON.stringify({ uid: 'player-1', sid: 1 }));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, 'https://example.test/api/games/h5-slots/fish/skill');
+  assert.equal(requests[0].init.method, 'POST');
+  assert.deepEqual(JSON.parse(requests[0].init.body), { gameCode: '2', skillId: 1 });
+  assert.deepEqual({ ...result }, { ResultCode: 1, uid: 'player-1', sid: 1, cost: 100 });
 }
 
 function walkFiles(directory) {

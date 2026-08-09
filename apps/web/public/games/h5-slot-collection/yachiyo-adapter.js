@@ -19,6 +19,11 @@
   var fishBullets = {};
   var fishSequence = 0;
   var fishTargets = [];
+  var fishStreamToken = 0;
+  var fishFrozenUntil = 0;
+  var fishSkillInFlight = false;
+  var FISH_PATH_COUNT = 43;
+  var FISH_STREAM_INTERVAL_MS = 1500;
   var pendingLegacyResponses = [];
   var freeSelectionCount = 0;
   var SFX_PREFS_KEY = 'bg.sfx.prefs';
@@ -247,6 +252,117 @@
     scheduleAudioBridge();
   }
 
+  function shouldHideLegacyButtonHandler(handler) {
+    if (handler === 'onCLick_buyCoin') return true;
+    // Caishen Wins settles every awarded free round atomically on the server.
+    // Its source gamble changes the number/multiplier of those already-settled
+    // rounds, so exposing it would make the animation disagree with the ledger.
+    return gameCode === '278' && handler === 'onBtnGuess';
+  }
+
+  function hideUnsupportedLegacyButtons() {
+    if (!window.cc || !window.cc.director || !window.cc.Button) return 0;
+    var scene = window.cc.director.getScene();
+    if (!scene) return 0;
+    var hiddenCount = 0;
+
+    function visit(node) {
+      if (!node) return;
+      var button = typeof node.getComponent === 'function' && node.getComponent(window.cc.Button);
+      var clickEvents = button && (button.clickEvents || button._clickEvents);
+      if (
+        Array.isArray(clickEvents) &&
+        clickEvents.some(function (clickEvent) {
+          return clickEvent && shouldHideLegacyButtonHandler(clickEvent.handler);
+        })
+      ) {
+        node.active = false;
+        hiddenCount += 1;
+        return;
+      }
+      (node.children || []).slice().forEach(visit);
+    }
+
+    visit(scene);
+    return hiddenCount;
+  }
+
+  function calculateCannonAimAngle(cannonPosition, targetPosition, seatId) {
+    if (!cannonPosition || !targetPosition) return null;
+    var cannonX = Number(cannonPosition.x);
+    var cannonY = Number(cannonPosition.y);
+    var targetX = Number(targetPosition.x);
+    var targetY = Number(targetPosition.y);
+    if (![cannonX, cannonY, targetX, targetY].every(Number.isFinite)) return null;
+    var forward = Number(seatId) > 1 ? cannonY - targetY : targetY - cannonY;
+    if (forward <= 1) return null;
+    var angle = (-Math.atan2(targetX - cannonX, forward) * 180) / Math.PI;
+    if (angle === 0) return 0;
+    return Math.max(-88, Math.min(88, angle));
+  }
+
+  function findFishMainComponent() {
+    if (!isFishGame || !window.cc || !window.cc.director) return null;
+    var canvas = window.cc.find('Canvas');
+    var scene = window.cc.director.getScene();
+    var main = canvas && scene && canvas.getComponent(scene.name);
+    if (!main && canvas && typeof canvas.getComponents === 'function') {
+      var components = canvas.getComponents(window.cc.Component) || [];
+      main = components.find(function (component) {
+        return component && component.fishNet && component.fishBg && component.cannonList;
+      });
+    }
+    return main || null;
+  }
+
+  function enhanceFishAimControls() {
+    if (!isFishGame || !window.cc || !window.cc.director) return false;
+    try {
+      var main = findFishMainComponent();
+      if (!main || !main.touchLayer || main.__yachiyoAimEnhanced) return false;
+
+      var updateAim = function (event) {
+        var seatId = main.fishNet ? Number(main.fishNet.seatId || 0) : 0;
+        var cannon = main.cannonList && main.cannonList[seatId];
+        var target = event && typeof event.getLocation === 'function' ? event.getLocation() : null;
+        var angle = cannon && calculateCannonAimAngle(cannon.cannonPos, target, seatId);
+        var cannonNode =
+          cannon && cannon.cannonAnim && (cannon.cannonAnim.node || cannon.cannonAnim);
+        if (cannonNode && Number.isFinite(angle)) cannonNode.angle = angle;
+      };
+      main.touchLayer.on('touchstart', updateAim, main);
+      main.touchLayer.on('touchmove', updateAim, main);
+      main.__yachiyoAimEnhanced = true;
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function applyCocosScenePolicies() {
+    hideUnsupportedLegacyButtons();
+    enhanceFishAimControls();
+  }
+
+  function installCocosScenePolicies() {
+    if (typeof document === 'undefined') return;
+    var attempts = 0;
+    function install() {
+      if (!window.cc || !window.cc.director) {
+        attempts += 1;
+        if (attempts < 600) window.setTimeout(install, 100);
+        return;
+      }
+      var afterLaunch = window.cc.Director && window.cc.Director.EVENT_AFTER_SCENE_LAUNCH;
+      if (afterLaunch) window.cc.director.on(afterLaunch, applyCocosScenePolicies);
+      applyCocosScenePolicies();
+      [250, 1000, 2500].forEach(function (delay) {
+        window.setTimeout(applyCocosScenePolicies, delay);
+      });
+    }
+    install();
+  }
+
   function installAudioDecodeFallback() {
     var AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass || !AudioContextClass.prototype.decodeAudioData) return;
@@ -284,6 +400,7 @@
 
   installAudioDecodeFallback();
   installPlatformAudioBridge();
+  installCocosScenePolicies();
 
   var GAME_SHAPES = {
     113: { family: 'classic', reels: 5, rows: 3, free: 'view' },
@@ -767,6 +884,7 @@
   FakeSocket.prototype.disconnect = function () {
     if (!this.connected) return this;
     this.connected = false;
+    if (isFishGame) fishStreamToken += 1;
     this._trigger('disconnect', 'yachiyo scene switch');
     return this;
   };
@@ -807,6 +925,8 @@
       socket._trigger('changePowerResult', parseSocketPayload(rawPayload));
     } else if (event === 'changeCannon') {
       socket._trigger('changeCannonResult', parseSocketPayload(rawPayload));
+    } else if (event === 'useSKill') {
+      handleFishSkill(socket, rawPayload);
     } else if (event === 'LoginfreeCount') {
       window.setTimeout(function () {
         socket._trigger('LoginfreeCountResult', {
@@ -941,7 +1061,48 @@
       })
       .catch(function (error) {
         delete fishBullets[bulletId];
+        if (latestSession) syncFishBalance(Number(latestSession.balance || 0));
         reportSocketError(error);
+      });
+  }
+
+  function handleFishSkill(socket, rawPayload) {
+    var skill = parseSocketPayload(rawPayload);
+    var skillId = Number(skill.sid || 0);
+    if (!isFishGame || skillId !== 1) {
+      reportSocketError(new Error('此捕魚技能目前無法使用'));
+      return;
+    }
+    if (fishSkillInFlight || Date.now() < fishFrozenUntil) return;
+    fishSkillInFlight = true;
+    authorizedRequest(
+      gameApi + '/fish/skill',
+      'POST',
+      {
+        gameCode: gameCode,
+        skillId: skillId,
+      },
+      false,
+    )
+      .then(function (result) {
+        latestSession = latestSession || {};
+        latestSession.balance = Number(result.balance || 0);
+        fishFrozenUntil = Date.now() + Number(result.durationMs || 5000);
+        socket._trigger('useSkillResult', {
+          ResultCode: 1,
+          uid: result.userId || skill.uid || (latestSession && latestSession.id),
+          sid: skillId,
+          cost: Number(result.cost || 0),
+        });
+        syncFishBalance(Number(result.balance || 0));
+        notifyParent('h5-slots:balance', {
+          balance: Number(result.balance || 0),
+          gameCode: gameCode,
+        });
+      })
+      .catch(reportSocketError)
+      .finally(function () {
+        fishSkillInFlight = false;
       });
   }
 
@@ -956,9 +1117,12 @@
 
   function resolveFishHit(socket, bulletId) {
     var bullet = fishBullets[bulletId];
-    if (!bullet || !bullet.result) return;
+    if (!isFishHitReady(bullet)) return;
     var payout = Number(bullet.result.payout || 0);
-    var targetFishId = bullet.hit && bullet.hit.fishId ? bullet.hit.fishId : fishTargets.pop();
+    var targetFishId = bullet.hit.fishId;
+    fishTargets = fishTargets.filter(function (fishId) {
+      return fishId !== targetFishId;
+    });
     if (payout > 0) {
       socket._trigger('HitResult', {
         ResultCode: 1,
@@ -973,13 +1137,15 @@
     delete fishBullets[bulletId];
   }
 
+  function isFishHitReady(bullet) {
+    return Boolean(bullet && bullet.result && bullet.hit);
+  }
+
   function syncFishBalance(balance) {
     if (!window.cc || !Number.isFinite(balance)) return;
     function applyBalance() {
       try {
-        var canvas = window.cc.find('Canvas');
-        var scene = window.cc.director.getScene();
-        var main = canvas && scene && canvas.getComponent(scene.name);
+        var main = findFishMainComponent();
         var seatId = main && main.fishNet ? main.fishNet.seatId : 0;
         if (main && main.playerList && main.playerList[seatId]) {
           main.playerList[seatId].score = balance;
@@ -994,23 +1160,46 @@
   }
 
   function startFishStream(socket) {
+    fishStreamToken += 1;
+    var streamToken = fishStreamToken;
     function spawnFish() {
-      if (!socket.connected) return;
+      if (!socket.connected || streamToken !== fishStreamToken) return;
       if (latestSession) syncFishBalance(Number(latestSession.balance || 0));
+      enhanceFishAimControls();
+      if (Date.now() < fishFrozenUntil) {
+        window.setTimeout(spawnFish, 500);
+        return;
+      }
       fishSequence += 1;
-      var fishId = 'yachiyo-fish-' + fishSequence;
-      fishTargets.push(fishId);
-      if (fishTargets.length > 24) fishTargets.shift();
-      socket._trigger('FishOut', {
-        fishType: 1 + (fishSequence % 4),
-        fishPath: 0,
-        fishLineup: 0,
-        fishCount: 1,
-        fishId: [fishId],
-      });
-      window.setTimeout(spawnFish, 1400);
+      var spawn = buildFishSpawn(fishSequence);
+      fishTargets = fishTargets.concat(spawn.fishId);
+      if (fishTargets.length > 96) fishTargets = fishTargets.slice(-96);
+      socket._trigger('FishOut', spawn);
+      window.setTimeout(spawnFish, FISH_STREAM_INTERVAL_MS);
     }
     window.setTimeout(spawnFish, 600);
+  }
+
+  function buildFishSpawn(sequence) {
+    var patterns = [
+      { fishLineup: 0, fishCount: 1 },
+      { fishLineup: 1, fishCount: 3 },
+      { fishLineup: 0, fishCount: 1 },
+      { fishLineup: 2, fishCount: 4 },
+      { fishLineup: 0, fishCount: 2 },
+      { fishLineup: 4, fishCount: 6 },
+    ];
+    var pattern = patterns[sequence % patterns.length];
+    var fishIds = Array.from({ length: pattern.fishCount }, function (_value, index) {
+      return 'yachiyo-fish-' + sequence + '-' + index;
+    });
+    return {
+      fishType: 1 + ((sequence * 7) % 12),
+      fishPath: (sequence * 17 + Math.floor(sequence / patterns.length) * 11) % FISH_PATH_COUNT,
+      fishLineup: pattern.fishLineup,
+      fishCount: pattern.fishCount,
+      fishId: fishIds,
+    };
   }
 
   function buildLobbyLogin(session) {
@@ -1579,6 +1768,13 @@
     winFields: winFields,
     installCocosAudioControls: installCocosAudioControls,
     readPlatformAudioPrefs: readPlatformAudioPrefs,
+    shouldHideLegacyButtonHandler: shouldHideLegacyButtonHandler,
+    calculateCannonAimAngle: calculateCannonAimAngle,
+    buildFishSpawn: buildFishSpawn,
+    isFishHitReady: isFishHitReady,
+    createFakeSocket: function () {
+      return new FakeSocket();
+    },
   };
   window.__YachiyoUnlockAudio = resumeCocosAudio;
   window.__YachiyoFakeIo = fakeIo;
