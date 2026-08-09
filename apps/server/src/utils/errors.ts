@@ -1,5 +1,12 @@
 import type { ErrorCodeType } from '@bg/shared';
 
+export const INTERNAL_ERROR_MESSAGE = '系統暫時無法處理請求，請稍後再試。';
+
+export function publicErrorMessage(statusCode: number, message?: string): string {
+  if (statusCode >= 500) return INTERNAL_ERROR_MESSAGE;
+  return message || 'Request failed';
+}
+
 export class ApiError extends Error {
   public readonly code: ErrorCodeType;
   public readonly details?: unknown;

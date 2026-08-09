@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
 
-  <title>八千代｜原版 Cocos 遊戲合集</title>
+  <title>八千代遊戲</title>
 
   <!--http://www.html5rocks.com/en/mobile/mobifying/-->
   <meta name="viewport"
@@ -39,6 +39,14 @@
 
   <link rel="stylesheet" type="text/css" href="style-mobile.25fc5.css"/>
   <link rel="icon" href="favicon.8de18.ico"/>
+  <!-- Parallelize the Cocos engine and required launch bundles. Only the
+       shared shell is preloaded here; the selected game's scene remains
+       demand-loaded so the complete 419 MB collection is never fetched. -->
+  <link rel="preload" href="cocos2d-js-min.22f51.js" as="script" fetchpriority="high"/>
+  <link rel="preload" href="assets/resources/config.9bbee.json" as="fetch" crossorigin="anonymous"/>
+  <link rel="preload" href="assets/resources/index.9bbee.js" as="script"/>
+  <link rel="preload" href="assets/main/config.9d2e3.json" as="fetch" crossorigin="anonymous"/>
+  <link rel="preload" href="assets/main/index.9d2e3.js" as="script"/>
 </head>
 <body>
   <canvas id="GameCanvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
@@ -51,7 +59,7 @@
 <script src="yachiyo-adapter.js?v=5" charset="utf-8"></script>
 <script src="src/settings.33a69.js" charset="utf-8"></script>
 
-<script src="main.645ae.js" charset="utf-8"></script>
+<script src="main.5ee37.js" charset="utf-8"></script>
 
 <script type="text/javascript">
 (function () {

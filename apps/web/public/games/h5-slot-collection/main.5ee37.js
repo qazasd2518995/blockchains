@@ -25,8 +25,21 @@ window.boot = function () {
     }
 
     var onStart = function () {
-
-        cc.view.enableRetina(true);
+        // A DPR 3 mobile canvas renders nine times as many pixels as DPR 1.
+        // Keep full Retina quality on desktop and lower-DPR devices, but avoid
+        // the fill-rate and framebuffer cost that causes stalls on phones.
+        var devicePixelRatio = window.devicePixelRatio || 1;
+        var forceRetina = cc.sys.isBrowser && window.location &&
+            /(?:^|[?&])retina=1(?:&|$)/.test(window.location.search || '');
+        var useRetina = forceRetina || !cc.sys.isMobile || devicePixelRatio <= 1.5;
+        cc.view.enableRetina(useRetina);
+        cc.macro.CLEANUP_IMAGE_CACHE = true;
+        if (typeof document !== 'undefined') {
+            document.documentElement.setAttribute(
+                'data-cocos-render-quality',
+                useRetina ? 'retina' : 'mobile-balanced'
+            );
+        }
         cc.view.resizeWithBrowserSize(true);
 
         if (cc.sys.isBrowser) {

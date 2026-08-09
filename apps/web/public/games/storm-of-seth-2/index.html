@@ -39,6 +39,17 @@
 
   <link rel="stylesheet" type="text/css" href="style-mobile.25fc5.css"/>
   <link rel="icon" href="favicon.8de18.ico"/>
+  <!-- Start the engine and launch-bundle downloads while the small bootstrap
+       scripts execute. Without these hints Cocos discovers each layer only
+       after the previous script has completed, creating a visible waterfall. -->
+  <link rel="preload" href="cocos2d-js-min.b1c26.js" as="script" fetchpriority="high"/>
+  <link rel="preload" href="physics-min.941a2.js" as="script"/>
+  <link rel="preload" href="assets/resources/config.1e032.json" as="fetch" crossorigin="anonymous"/>
+  <link rel="preload" href="assets/resources/index.1e032.js" as="script"/>
+  <link rel="preload" href="assets/main/config.739c1.json" as="fetch" crossorigin="anonymous"/>
+  <link rel="preload" href="assets/main/index.739c1.js" as="script"/>
+  <link rel="preload" href="assets/game/config.6c478.json" as="fetch" crossorigin="anonymous"/>
+  <link rel="preload" href="assets/game/index.6c478.js" as="script"/>
 </head>
 <body>
   <canvas id="GameCanvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
@@ -50,8 +61,8 @@
 
 <script src="src/settings.a1d24.js" charset="utf-8"></script>
 
-<script src="main.ec164.js" charset="utf-8"></script>
-<script src="seth2-adapter.js?v=5" charset="utf-8"></script>
+<script src="main.71ab9.js" charset="utf-8"></script>
+<script src="seth2-adapter.js?v=6" charset="utf-8"></script>
 
 <script type="text/javascript">
 (function () {

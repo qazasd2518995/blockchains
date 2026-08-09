@@ -38,7 +38,7 @@ import { baccaratRoutes } from './modules/games/baccarat/baccarat.routes.js';
 import { chickenRoadRoutes } from './modules/games/chicken-road/chicken-road.routes.js';
 import { crashRoutes } from './modules/games/crash/crash.routes.js';
 import { tableGamesRoutes } from './modules/games/table-games/table-games.routes.js';
-import { ApiError, errorCodeToStatus } from './utils/errors.js';
+import { ApiError, errorCodeToStatus, publicErrorMessage } from './utils/errors.js';
 import {
   getRequestLogContext,
   getSafeRequestPayload,
@@ -195,7 +195,11 @@ export async function buildServer(): Promise<FastifyInstance> {
       }
       reply
         .code(statusCode)
-        .send({ code: error.code, message: error.message, details: error.details });
+        .send({
+          code: error.code,
+          message: publicErrorMessage(statusCode, error.message),
+          details: statusCode >= 500 ? undefined : error.details,
+        });
       return;
     }
     if (error instanceof ZodError) {
@@ -227,7 +231,7 @@ export async function buildServer(): Promise<FastifyInstance> {
     );
     reply.code(statusCode).send({
       code: statusCode === 400 ? 'INVALID_BET' : 'INTERNAL',
-      message: error.message || 'Internal server error',
+      message: publicErrorMessage(statusCode, error.message),
     });
   });
 

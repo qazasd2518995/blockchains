@@ -86,6 +86,52 @@ services:
       pnpm --filter @bg/web run build
     staticPublishPath: apps/web/dist
     pullRequestPreviewsEnabled: false
+    headers:
+      # Vite and Cocos build artifacts are content/version fingerprinted. Keep
+      # mutable HTML and adapter bridges out of these rules so releases remain
+      # immediately replaceable while repeat game visits reuse the heavy files.
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/src/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/cocos2d-js-min.b1c26.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/physics-min.941a2.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/main.71ab9.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/style-mobile.25fc5.css
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/favicon.8de18.ico
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/h5-slot-collection/assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/h5-slot-collection/src/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/h5-slot-collection/cocos2d-js-min.22f51.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/h5-slot-collection/main.5ee37.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/h5-slot-collection/style-mobile.25fc5.css
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/h5-slot-collection/favicon.8de18.ico
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
     routes:
       - type: rewrite
         source: /*

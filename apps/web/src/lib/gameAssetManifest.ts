@@ -166,6 +166,38 @@ const SLOT_GAMES_WITH_INDIVIDUAL_SYMBOLS = new Set<SlotThemeId>([
 ]);
 const preloadCache = new Map<string, Promise<void>>();
 const warmedGames = new Set<string>();
+const warmedCocosShellAssets = new Set<string>();
+const H5_GAME_ID_SET = new Set<string>(H5_GAMES.map((game) => game.gameId));
+
+interface CocosShellAsset {
+  src: string;
+  as: 'fetch' | 'script';
+}
+
+const SETH2_SHELL_ASSETS: readonly CocosShellAsset[] = [
+  { src: '/games/storm-of-seth-2/src/settings.a1d24.js', as: 'script' },
+  { src: '/games/storm-of-seth-2/main.71ab9.js', as: 'script' },
+  { src: '/games/storm-of-seth-2/seth2-adapter.js?v=6', as: 'script' },
+  { src: '/games/storm-of-seth-2/cocos2d-js-min.b1c26.js', as: 'script' },
+  { src: '/games/storm-of-seth-2/physics-min.941a2.js', as: 'script' },
+  { src: '/games/storm-of-seth-2/assets/resources/config.1e032.json', as: 'fetch' },
+  { src: '/games/storm-of-seth-2/assets/resources/index.1e032.js', as: 'script' },
+  { src: '/games/storm-of-seth-2/assets/main/config.739c1.json', as: 'fetch' },
+  { src: '/games/storm-of-seth-2/assets/main/index.739c1.js', as: 'script' },
+  { src: '/games/storm-of-seth-2/assets/game/config.6c478.json', as: 'fetch' },
+  { src: '/games/storm-of-seth-2/assets/game/index.6c478.js', as: 'script' },
+];
+
+const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [
+  { src: '/games/h5-slot-collection/yachiyo-adapter.js?v=5', as: 'script' },
+  { src: '/games/h5-slot-collection/src/settings.33a69.js', as: 'script' },
+  { src: '/games/h5-slot-collection/main.5ee37.js', as: 'script' },
+  { src: '/games/h5-slot-collection/cocos2d-js-min.22f51.js', as: 'script' },
+  { src: '/games/h5-slot-collection/assets/resources/config.9bbee.json', as: 'fetch' },
+  { src: '/games/h5-slot-collection/assets/resources/index.9bbee.js', as: 'script' },
+  { src: '/games/h5-slot-collection/assets/main/config.9d2e3.json', as: 'fetch' },
+  { src: '/games/h5-slot-collection/assets/main/index.9d2e3.js', as: 'script' },
+];
 
 export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
   'storm-of-seth-2': coverOnlyGame('storm-of-seth-2'),
@@ -245,6 +277,7 @@ export function preloadGameAssets(
   gameId: string,
   options: PreloadGameAssetsOptions = {},
 ): Promise<void> {
+  warmCocosShell(gameId);
   const includeNonCritical = options.includeNonCritical ?? false;
   const cacheKey = `${gameId}:${includeNonCritical ? 'all' : 'critical'}:${options.usePixi ?? true}`;
   const cached = preloadCache.get(cacheKey);
@@ -265,6 +298,28 @@ export function preloadGameAssets(
 
 export function warmGameAssets(gameId: string): void {
   void preloadGameAssets(gameId, { includeNonCritical: false, usePixi: false });
+}
+
+function warmCocosShell(gameId: string): void {
+  if (typeof document === 'undefined') return;
+  const shellAssets =
+    gameId === 'storm-of-seth-2'
+      ? SETH2_SHELL_ASSETS
+      : H5_GAME_ID_SET.has(gameId)
+        ? H5_SHELL_ASSETS
+        : null;
+  if (!shellAssets) return;
+
+  for (const assetEntry of shellAssets) {
+    if (warmedCocosShellAssets.has(assetEntry.src)) continue;
+    warmedCocosShellAssets.add(assetEntry.src);
+    const link = document.createElement('link');
+    link.rel = 'prefetch';
+    link.as = assetEntry.as;
+    link.href = assetEntry.src;
+    if (assetEntry.as === 'fetch') link.crossOrigin = 'anonymous';
+    document.head.appendChild(link);
+  }
 }
 
 function warmRemainingGameAssets(gameId: string, options: PreloadGameAssetsOptions): void {

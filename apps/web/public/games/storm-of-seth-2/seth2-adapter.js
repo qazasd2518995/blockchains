@@ -51,6 +51,18 @@
     }
   }
 
+  function publicGameError(payload, fallback) {
+    var message = payload && (payload.message || payload.error);
+    var internal = payload && payload.code === 'INTERNAL';
+    if (
+      internal ||
+      /prisma\.|query execution|prismaclient|postgres(?:ql)?|connectorerror/i.test(String(message || ''))
+    ) {
+      return '遊戲結算暫時失敗，請稍後再試';
+    }
+    return message || fallback;
+  }
+
   function refreshAccessToken() {
     if (refreshInFlight) return refreshInFlight;
     var auth = readAuth();
@@ -95,7 +107,7 @@
         });
       }
       return response.json().then(function (payload) {
-        if (!response.ok) throw new Error(payload.message || payload.error || '遊戲伺服器拒絕請求');
+        if (!response.ok) throw new Error(publicGameError(payload, '遊戲伺服器拒絕請求'));
         return payload;
       });
     }).catch(function (error) {
@@ -203,6 +215,9 @@
   };
 
   window.WebSocket = LocalGameSocket;
+  window.__YachiyoSeth2AdapterTest = {
+    publicGameError: publicGameError,
+  };
 
   function requestSession(callback) {
     authorizedFetch(apiBase + '/games/seth2/session', {}, false).then(function (body) {
