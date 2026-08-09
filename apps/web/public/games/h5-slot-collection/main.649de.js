@@ -25,21 +25,8 @@ window.boot = function () {
     }
 
     var onStart = function () {
-        // A DPR 3 mobile canvas renders nine times as many pixels as DPR 1.
-        // Keep full Retina quality on desktop and lower-DPR devices, but avoid
-        // the fill-rate and framebuffer cost that causes stalls on phones.
-        var devicePixelRatio = window.devicePixelRatio || 1;
-        var forceRetina = cc.sys.isBrowser && window.location &&
-            /(?:^|[?&])retina=1(?:&|$)/.test(window.location.search || '');
-        var useRetina = forceRetina || !cc.sys.isMobile || devicePixelRatio <= 1.5;
-        cc.view.enableRetina(useRetina);
-        cc.macro.CLEANUP_IMAGE_CACHE = true;
-        if (typeof document !== 'undefined') {
-            document.documentElement.setAttribute(
-                'data-cocos-render-quality',
-                useRetina ? 'retina' : 'mobile-balanced'
-            );
-        }
+
+        cc.view.enableRetina(true);
         cc.view.resizeWithBrowserSize(true);
 
         if (cc.sys.isBrowser) {
@@ -136,7 +123,7 @@ window.boot = function () {
 if (window.jsb) {
     var isRuntime = (typeof loadRuntime === 'function');
     if (isRuntime) {
-        require('src/settings.a1d24.js');
+        require('src/settings.33a69.js');
         require('src/cocos2d-runtime.js');
         if (CC_PHYSICS_BUILTIN || CC_PHYSICS_CANNON) {
             require('src/physics.js');
@@ -144,7 +131,7 @@ if (window.jsb) {
         require('jsb-adapter/engine/index.js');
     }
     else {
-        require('src/settings.a1d24.js');
+        require('src/settings.33a69.js');
         require('src/cocos2d-jsb.js');
         if (CC_PHYSICS_BUILTIN || CC_PHYSICS_CANNON) {
             require('src/physics.js');

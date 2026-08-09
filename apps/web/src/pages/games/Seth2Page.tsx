@@ -16,7 +16,7 @@ export function Seth2Page() {
   const gameUrl = useMemo(() => {
     const configuredBase = String(import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
     const apiBase = `${configuredBase || window.location.origin}/api`;
-    const query = new URLSearchParams({ apiBase, build: 'yachiyo-seth2-v1' });
+    const query = new URLSearchParams({ apiBase, build: 'yachiyo-seth2-v2' });
     return `${GAME_PATH}?${query.toString()}`;
   }, []);
 

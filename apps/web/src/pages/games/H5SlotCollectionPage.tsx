@@ -63,7 +63,7 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
       language: 'zh',
       uid: 'yachiyo',
       token: 'yachiyo-session',
-      build: 'yachiyo-h5-slots-v1',
+      build: 'yachiyo-h5-slots-v2',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, [gameCode]);
