@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, LoaderCircle } from 'lucide-react';
 import { getH5GameByCode, isImportedGameTestUsername, type H5GameCode } from '@bg/shared';
+import { Sfx } from '@bg/game-engine';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
+import { PlatformBgm } from '@/lib/platformBgm';
 
 const GAME_PATH = '/games/h5-slot-collection/index.html';
 const ERROR_NOTICE_MS = 6_000;
@@ -35,6 +37,20 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
   const isPortraitGame = PORTRAIT_GAME_CODES.has(gameCode);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const syncOriginalGameAudio = () => {
+    const frameWindow = iframeRef.current?.contentWindow as H5AudioBridgeWindow | null;
+    frameWindow?.postMessage({ type: 'h5-slots:audio-sync' }, window.location.origin);
+  };
+
+  const unlockOriginalGameAudio = () => {
+    const frameWindow = iframeRef.current?.contentWindow as H5AudioBridgeWindow | null;
+    // Same-origin direct invocation keeps the browser's user-activation stack,
+    // which is required by Safari and Chromium to resume the Cocos AudioContext.
+    frameWindow?.__YachiyoUnlockAudio?.();
+    frameWindow?.postMessage({ type: 'h5-slots:audio-unlock' }, window.location.origin);
+  };
 
   const gameUrl = useMemo(() => {
     const configuredBase = String(import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -57,6 +73,21 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
     setReady(false);
     setError('');
   }, [gameCode]);
+
+  useEffect(() => {
+    const sync = () => syncOriginalGameAudio();
+    const unsubscribeSfx = Sfx.subscribe(sync);
+    const unsubscribeBgm = PlatformBgm.subscribe(sync);
+    const events: Array<keyof WindowEventMap> = ['pointerdown', 'touchstart', 'keydown'];
+    events.forEach((eventName) =>
+      window.addEventListener(eventName, unlockOriginalGameAudio, { passive: true }),
+    );
+    return () => {
+      unsubscribeSfx();
+      unsubscribeBgm();
+      events.forEach((eventName) => window.removeEventListener(eventName, unlockOriginalGameAudio));
+    };
+  }, []);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -137,10 +168,12 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
 
       <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
         <iframe
+          ref={iframeRef}
           key={gameCode}
           src={gameUrl}
           title={`${selectedGame.titleZh} · ${selectedGame.title}`}
           allow="autoplay; fullscreen"
+          onLoad={syncOriginalGameAudio}
           className={
             isPortraitGame
               ? 'absolute left-1/2 top-0 h-full w-auto max-w-full -translate-x-1/2 border-0 bg-black aspect-[756/1334]'
@@ -163,6 +196,10 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
     </div>
   );
 }
+
+type H5AudioBridgeWindow = Window & {
+  __YachiyoUnlockAudio?: () => void;
+};
 
 function AccessPanel({ message, action }: { message: string; action?: ReactNode }) {
   return (

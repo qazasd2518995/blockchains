@@ -25,6 +25,8 @@ import { errorMessage, reloadAfterRuntimeFailure } from '@/lib/runtimeRecovery';
 import { CRASH_CONFIGS } from '@/pages/games/crashConfigs';
 import { BACCARAT_TABLE_GAME_IDS, H5_GAMES, LOCAL_TABLE_GAME_IDS } from '@bg/shared';
 
+const ORIGINAL_AUDIO_GAME_PATHS = new Set(H5_GAMES.map((game) => `/games/${game.gameId}`));
+
 const RUNTIME_ERROR_COPY: Record<
   Locale,
   { eyebrow: string; title: string; compact: string; full: string; reload: string }
@@ -201,7 +203,8 @@ function RouteViewportReset() {
     PlatformBgm.setRouteSuppressed(
       pathname === '/games/baccarat' ||
         pathname === '/games/baccarat-nova' ||
-        pathname === '/games/baccarat-imperial',
+        pathname === '/games/baccarat-imperial' ||
+        ORIGINAL_AUDIO_GAME_PATHS.has(pathname),
     );
     PlatformBgm.init();
   }, [pathname]);

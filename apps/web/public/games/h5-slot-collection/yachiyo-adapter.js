@@ -21,6 +21,231 @@
   var fishTargets = [];
   var pendingLegacyResponses = [];
   var freeSelectionCount = 0;
+  var SFX_PREFS_KEY = 'bg.sfx.prefs';
+  var BGM_PREFS_KEY = 'bg.bgm.prefs';
+  var audioBridge = null;
+  var audioBridgeAttempts = 0;
+  var platformAudioPrefs = readPlatformAudioPrefs();
+
+  function clampVolume(value, fallback) {
+    if (value === null || value === undefined || value === '') return fallback;
+    var parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(0, Math.min(1, parsed));
+  }
+
+  function readAudioPrefs(storageKey, defaultVolume) {
+    try {
+      var raw = parentStorage().getItem(storageKey);
+      var saved = raw ? JSON.parse(raw) : null;
+      return {
+        muted: Boolean(saved && saved.muted),
+        volume: clampVolume(saved && saved.volume, defaultVolume),
+      };
+    } catch (_error) {
+      return { muted: false, volume: defaultVolume };
+    }
+  }
+
+  function readPlatformAudioPrefs() {
+    var music = readAudioPrefs(BGM_PREFS_KEY, 0.32);
+    var effects = readAudioPrefs(SFX_PREFS_KEY, 0.6);
+    return {
+      musicMuted: music.muted,
+      musicVolume: music.volume,
+      effectsMuted: effects.muted,
+      effectsVolume: effects.volume,
+    };
+  }
+
+  function installCocosAudioControls(engine) {
+    if (!engine || typeof engine.setMusicVolume !== 'function') return null;
+    if (engine.__yachiyoAudioBridge) return engine.__yachiyoAudioBridge;
+
+    var originalSetMusicVolume = engine.setMusicVolume.bind(engine);
+    var originalSetEffectsVolume = engine.setEffectsVolume.bind(engine);
+    var originalPlay = typeof engine.play === 'function' ? engine.play.bind(engine) : null;
+    var originalPlayMusic =
+      typeof engine.playMusic === 'function' ? engine.playMusic.bind(engine) : null;
+    var originalPlayEffect =
+      typeof engine.playEffect === 'function' ? engine.playEffect.bind(engine) : null;
+    var originalSetVolume =
+      typeof engine.setVolume === 'function' ? engine.setVolume.bind(engine) : null;
+    var categorizedPlayDepth = 0;
+    var applyingPrefs = false;
+    var directAudio = {};
+    var requestedMusicVolume = clampVolume(
+      typeof engine.getMusicVolume === 'function' ? engine.getMusicVolume() : 1,
+      1,
+    );
+    var requestedEffectsVolume = clampVolume(
+      typeof engine.getEffectsVolume === 'function' ? engine.getEffectsVolume() : 1,
+      1,
+    );
+    var currentPrefs = platformAudioPrefs;
+
+    function apply() {
+      applyingPrefs = true;
+      try {
+        originalSetMusicVolume(
+          currentPrefs.musicMuted ? 0 : requestedMusicVolume * currentPrefs.musicVolume,
+        );
+        originalSetEffectsVolume(
+          currentPrefs.effectsMuted ? 0 : requestedEffectsVolume * currentPrefs.effectsVolume,
+        );
+        if (originalSetVolume) {
+          Object.keys(directAudio).forEach(function (id) {
+            if (engine._id2audio && !engine._id2audio[id]) {
+              delete directAudio[id];
+              return;
+            }
+            var entry = directAudio[id];
+            var muted =
+              entry.kind === 'music' ? currentPrefs.musicMuted : currentPrefs.effectsMuted;
+            var master =
+              entry.kind === 'music' ? currentPrefs.musicVolume : currentPrefs.effectsVolume;
+            originalSetVolume(id, muted ? 0 : entry.volume * master);
+          });
+        }
+      } finally {
+        applyingPrefs = false;
+      }
+    }
+
+    engine.setMusicVolume = function (volume) {
+      requestedMusicVolume = clampVolume(volume, requestedMusicVolume);
+      apply();
+    };
+    engine.setEffectsVolume = function (volume) {
+      requestedEffectsVolume = clampVolume(volume, requestedEffectsVolume);
+      apply();
+    };
+    if (originalPlay) {
+      engine.play = function (clip, loop, volume) {
+        if (categorizedPlayDepth > 0) return originalPlay(clip, loop, volume);
+        var kind = loop ? 'music' : 'effects';
+        var requestedVolume = clampVolume(volume, 1);
+        var muted = kind === 'music' ? currentPrefs.musicMuted : currentPrefs.effectsMuted;
+        var master = kind === 'music' ? currentPrefs.musicVolume : currentPrefs.effectsVolume;
+        var id = originalPlay(clip, loop, muted ? 0 : requestedVolume * master);
+        directAudio[String(id)] = { kind: kind, volume: requestedVolume };
+        return id;
+      };
+    }
+    if (originalPlayMusic) {
+      engine.playMusic = function () {
+        categorizedPlayDepth += 1;
+        try {
+          return originalPlayMusic.apply(null, arguments);
+        } finally {
+          categorizedPlayDepth -= 1;
+        }
+      };
+    }
+    if (originalPlayEffect) {
+      engine.playEffect = function () {
+        categorizedPlayDepth += 1;
+        try {
+          return originalPlayEffect.apply(null, arguments);
+        } finally {
+          categorizedPlayDepth -= 1;
+        }
+      };
+    }
+    if (originalSetVolume) {
+      engine.setVolume = function (id, volume) {
+        if (applyingPrefs) return originalSetVolume(id, volume);
+        var entry = directAudio[String(id)];
+        if (!entry) return originalSetVolume(id, volume);
+        entry.volume = clampVolume(volume, entry.volume);
+        var muted = entry.kind === 'music' ? currentPrefs.musicMuted : currentPrefs.effectsMuted;
+        var master =
+          entry.kind === 'music' ? currentPrefs.musicVolume : currentPrefs.effectsVolume;
+        return originalSetVolume(id, muted ? 0 : entry.volume * master);
+      };
+    }
+
+    var bridge = {
+      apply: apply,
+      updatePrefs: function (prefs) {
+        currentPrefs = prefs;
+        apply();
+      },
+      getState: function () {
+        return {
+          musicMuted: currentPrefs.musicMuted,
+          musicVolume: currentPrefs.musicVolume,
+          effectsMuted: currentPrefs.effectsMuted,
+          effectsVolume: currentPrefs.effectsVolume,
+          requestedMusicVolume: requestedMusicVolume,
+          requestedEffectsVolume: requestedEffectsVolume,
+          directAudioCount: Object.keys(directAudio).length,
+        };
+      },
+    };
+    try {
+      Object.defineProperty(engine, '__yachiyoAudioBridge', {
+        configurable: true,
+        value: bridge,
+      });
+    } catch (_error) {
+      engine.__yachiyoAudioBridge = bridge;
+    }
+    apply();
+    return bridge;
+  }
+
+  function getCocosAudioContext() {
+    var support = window.cc && window.cc.sys && window.cc.sys.__audioSupport;
+    return support && support.context;
+  }
+
+  function syncCocosAudio() {
+    var engine = window.cc && window.cc.audioEngine;
+    if (!engine) return false;
+    audioBridge = installCocosAudioControls(engine);
+    if (!audioBridge) return false;
+    audioBridge.updatePrefs(platformAudioPrefs);
+    return true;
+  }
+
+  function resumeCocosAudio() {
+    syncCocosAudio();
+    var context = getCocosAudioContext();
+    if (context && context.state === 'suspended' && typeof context.resume === 'function') {
+      var resumed = context.resume();
+      if (resumed && typeof resumed.catch === 'function') resumed.catch(function () {});
+    }
+  }
+
+  function scheduleAudioBridge() {
+    if (syncCocosAudio() || audioBridgeAttempts >= 600) return;
+    audioBridgeAttempts += 1;
+    window.setTimeout(scheduleAudioBridge, 100);
+  }
+
+  function updatePlatformAudioPrefs() {
+    platformAudioPrefs = readPlatformAudioPrefs();
+    if (audioBridge) audioBridge.updatePrefs(platformAudioPrefs);
+  }
+
+  function installPlatformAudioBridge() {
+    if (typeof window.addEventListener !== 'function' || typeof document === 'undefined') return;
+    window.addEventListener('storage', function (event) {
+      if (event.key === SFX_PREFS_KEY || event.key === BGM_PREFS_KEY) {
+        updatePlatformAudioPrefs();
+      }
+    });
+    window.addEventListener('message', function (event) {
+      if (event.origin !== window.location.origin || !event.data) return;
+      if (event.data.type === 'h5-slots:audio-sync') updatePlatformAudioPrefs();
+      if (event.data.type === 'h5-slots:audio-unlock') resumeCocosAudio();
+    });
+    ['pointerdown', 'touchstart', 'keydown'].forEach(function (eventName) {
+      window.addEventListener(eventName, resumeCocosAudio, { capture: true, passive: true });
+    });
+    scheduleAudioBridge();
+  }
 
   function installAudioDecodeFallback() {
     var AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -58,6 +283,7 @@
   }
 
   installAudioDecodeFallback();
+  installPlatformAudioBridge();
 
   var GAME_SHAPES = {
     113: { family: 'classic', reels: 5, rows: 3, free: 'view' },
@@ -1351,7 +1577,10 @@
     buildLotteryResponses: buildLotteryResponses,
     flattenSymbols: flattenSymbols,
     winFields: winFields,
+    installCocosAudioControls: installCocosAudioControls,
+    readPlatformAudioPrefs: readPlatformAudioPrefs,
   };
+  window.__YachiyoUnlockAudio = resumeCocosAudio;
   window.__YachiyoFakeIo = fakeIo;
   window.XMLHttpRequest = BridgeXHR;
   try {

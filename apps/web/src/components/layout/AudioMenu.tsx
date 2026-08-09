@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Music, Volume2, VolumeOff, VolumeX } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { Sfx } from '@bg/game-engine';
+import { H5_GAMES } from '@bg/shared';
 import { PlatformBgm, type BgmState } from '@/lib/platformBgm';
 import { useTranslation } from '@/i18n/useTranslation';
+
+const ORIGINAL_AUDIO_GAME_PATHS = new Set(H5_GAMES.map((game) => `/games/${game.gameId}`));
 
 interface Props {
   variant?: 'dark' | 'light';
@@ -16,6 +20,7 @@ export function AudioMenu({
   showLabel = false,
 }: Props): JSX.Element {
   const { t } = useTranslation();
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [sfxMuted, setSfxMuted] = useState(() => Sfx.isMuted());
   const [bgmState, setBgmState] = useState<BgmState>(() => PlatformBgm.getSnapshot());
@@ -40,7 +45,8 @@ export function AudioMenu({
     };
   }, [open]);
 
-  const musicMuted = bgmState.muted || bgmState.suppressed;
+  const usesOriginalGameAudio = ORIGINAL_AUDIO_GAME_PATHS.has(pathname);
+  const musicMuted = bgmState.muted || (bgmState.suppressed && !usesOriginalGameAudio);
   const allMuted = sfxMuted && musicMuted;
   const ButtonIcon = allMuted ? VolumeX : Volume2;
 
