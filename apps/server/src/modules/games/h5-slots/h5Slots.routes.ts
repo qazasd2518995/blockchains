@@ -9,6 +9,15 @@ import { ApiError } from '../../../utils/errors.js';
 import { HotlineService } from '../hotline/hotline.service.js';
 import { h5SlotSpinSchema } from './h5Slots.schema.js';
 
+const H5_BUY_FREE_COST_MULTIPLIERS: Partial<Record<H5GameCode, number>> = {
+  '278': 50,
+  '321': 50,
+};
+
+export function getH5BuyFreeCostMultiplier(gameCode: H5GameCode): number | undefined {
+  return H5_BUY_FREE_COST_MULTIPLIERS[gameCode];
+}
+
 export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new HotlineService(fastify.prisma);
   fastify.addHook('preHandler', fastify.authenticate);
@@ -52,16 +61,24 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
     await requireTestUser(request.userId);
     const input = h5SlotSpinSchema.parse(request.body);
     const game = getH5GameByCode(input.gameCode);
-    if (input.isBuyFree) {
-      throw new ApiError('INVALID_ACTION', '此測試版本尚未開放購買免費遊戲');
+    const buyFeatureCostMultiplier = getH5BuyFreeCostMultiplier(input.gameCode);
+    if (input.isBuyFree && !buyFeatureCostMultiplier) {
+      throw new ApiError('INVALID_ACTION', '此遊戲沒有購買免費遊戲功能');
     }
     const result = await service.bet(
       request.userId,
       {
         amount: input.amount,
         clientSeed: input.clientSeed,
+        ...(input.isBuyFree ? { buyFeature: true } : {}),
       },
       game.gameId,
+      input.isBuyFree
+        ? {
+            buyFeatureCostMultiplier,
+            buyFeatureMaxStake: null,
+          }
+        : undefined,
     );
     return { ...result, gameCode: input.gameCode };
   });

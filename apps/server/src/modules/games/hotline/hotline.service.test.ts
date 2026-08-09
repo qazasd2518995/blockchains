@@ -487,6 +487,26 @@ describe('hotline controlled round shaping', () => {
     ).toBe(true);
   });
 
+  it('settles imported fixed-line buy-free rounds with the requested feature price', () => {
+    const baseAmount = new Prisma.Decimal(20);
+    const stakeAmount = __hotlineServiceTestHooks.megaBuyFeatureStakeAmount(baseAmount, 50, null);
+    const round = __hotlineServiceTestHooks.buildHotlineRound(
+      'server',
+      'client',
+      7,
+      'h5-caishen-wins',
+      6,
+      5,
+      true,
+    );
+
+    expect(stakeAmount.toFixed(2)).toBe('1000.00');
+    expect(round.grid).toHaveLength(6);
+    expect(round.grid.every((column) => column.length === 5)).toBe(true);
+    expect(round.features?.freeSpinsAwarded).toBeGreaterThan(0);
+    expect(round.features?.freeSpinRounds.length).toBe(round.features?.freeSpinsPlayed);
+  });
+
   it('keeps normal mega buy-feature payout and displayed free-game total capped at 1x stake', () => {
     const baseAmount = new Prisma.Decimal(10);
     const stakeAmount = __hotlineServiceTestHooks.megaBuyFeatureStakeAmount(baseAmount);

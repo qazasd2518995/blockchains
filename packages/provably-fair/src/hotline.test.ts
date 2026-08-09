@@ -15,6 +15,8 @@ import {
   getHotlineRowCount,
   hotlineBuyFreeSpins,
   hotlineSpinCascades,
+  isHotlineCascadeGame,
+  isHotlineFeatureGame,
 } from './hotline.js';
 
 function megaScatterPayout(count: number): number {
@@ -178,6 +180,39 @@ describe('hotlineSpin', () => {
     expect(HOTLINE_MEGA_SYMBOLS.length).toBe(8);
     expect(getHotlineReelCount('thunder-slot')).toBe(HOTLINE_MEGA_REELS);
     expect(getHotlineRowCount('thunder-slot')).toBe(HOTLINE_MEGA_ROWS);
+  });
+
+  it('uses each imported Cocos slot layout and mechanic instead of one shared 5x3 board', () => {
+    expect([
+      getHotlineReelCount('h5-aztec-treasure'),
+      getHotlineRowCount('h5-aztec-treasure'),
+    ]).toEqual([3, 3]);
+    expect([getHotlineReelCount('h5-yu-pu-tuan'), getHotlineRowCount('h5-yu-pu-tuan')]).toEqual([
+      5, 4,
+    ]);
+    expect([
+      getHotlineReelCount('h5-mahjong-ways-2'),
+      getHotlineRowCount('h5-mahjong-ways-2'),
+    ]).toEqual([5, 5]);
+    expect([
+      getHotlineReelCount('h5-gates-of-olympus'),
+      getHotlineRowCount('h5-gates-of-olympus'),
+    ]).toEqual([6, 5]);
+    expect(isHotlineCascadeGame('h5-captains-bounty')).toBe(true);
+    expect(isHotlineCascadeGame('h5-nine-line-pull-king')).toBe(false);
+    expect(isHotlineFeatureGame('h5-fortune-gems')).toBe(true);
+    expect(isHotlineFeatureGame('h5-dragon-hatch')).toBe(false);
+  });
+
+  it('can attach free-game results to fixed-line imported layouts without changing dimensions', () => {
+    const result = hotlineSpinCascades('h5-server', 'h5-client', 9, 3, 3, 1, true);
+
+    expect(result.initialGrid).toHaveLength(3);
+    expect(result.initialGrid.every((column) => column.length === 3)).toBe(true);
+    expect(result.features).toBeDefined();
+    expect(result.features!.freeSpinRounds.every((round) => round.initialGrid.length === 3)).toBe(
+      true,
+    );
   });
 
   it('uses the 8-symbol soft-hit mega paytable', () => {

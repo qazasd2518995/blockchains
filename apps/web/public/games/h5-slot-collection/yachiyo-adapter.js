@@ -6,7 +6,10 @@
   var apiBase = (params.get('apiBase') || window.location.origin + '/api').replace(/\/$/, '');
   var gameApi = apiBase + '/games/h5-slots';
   var gameCode = params.get('gameId') || '161';
-  var requestTimeoutMs = 15000;
+  // The original Cocos scenes recover their spin controls after 45 seconds.
+  // Finish the authenticated request (or report an error) before that guard,
+  // while allowing for the server's transaction queue under concurrent tests.
+  var requestTimeoutMs = 40000;
   var refreshInFlight = null;
   var latestSession = null;
   var ROOM_BET_AMOUNTS = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
@@ -16,6 +19,8 @@
   var fishBullets = {};
   var fishSequence = 0;
   var fishTargets = [];
+  var pendingLegacyResponses = [];
+  var freeSelectionCount = 0;
 
   function installAudioDecodeFallback() {
     var AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -55,27 +60,46 @@
   installAudioDecodeFallback();
 
   var GAME_SHAPES = {
-    113: { family: 'classic', cells: 15 },
-    116: { family: 'classic', cells: 15 },
-    135: { family: 'classic', cells: 15 },
-    155: { family: 'classic', cells: 20 },
-    160: { family: 'classic', cells: 15 },
-    161: { family: 'classic', cells: 9, multiplierWheel: true },
-    188: { family: 'classic', cells: 9 },
-    232: { family: 'classic', cells: 9 },
-    244: { family: 'classic', cells: 15 },
-    252: { family: 'classic', cells: 15 },
-    262: { family: 'classic', cells: 9 },
-    264: { family: 'classic', cells: 12 },
-    269: { family: 'mahjong', cells: 20 },
-    271: { family: 'mahjong', cells: 25 },
-    273: { family: 'tumble', cells: 30 },
-    276: { family: 'step', cells: 15 },
-    278: { family: 'ways', cells: 30 },
-    281: { family: 'step', cells: 15 },
-    301: { family: 'classic', cells: 15 },
-    302: { family: 'classic', cells: 9, extraCard: true },
-    321: { family: 'tumble', cells: 30 },
+    113: { family: 'classic', reels: 5, rows: 3, free: 'view' },
+    116: { family: 'classic', reels: 5, rows: 3, free: 'view' },
+    135: { family: 'classic', reels: 5, rows: 3, free: 'view' },
+    155: { family: 'classic', reels: 5, rows: 4, free: 'view' },
+    160: { family: 'classic', reels: 5, rows: 3, free: 'view' },
+    161: {
+      family: 'classic',
+      reels: 3,
+      rows: 3,
+      free: 'view',
+      multiplierWheel: true,
+    },
+    188: { family: 'classic', reels: 3, rows: 3, free: 'view' },
+    232: { family: 'classic', reels: 3, rows: 3, free: 'view' },
+    244: { family: 'classic', reels: 5, rows: 3, free: 'view' },
+    252: { family: 'classic', reels: 5, rows: 3, free: 'view' },
+    262: { family: 'classic', reels: 3, rows: 3, free: 'view' },
+    264: { family: 'classic', reels: 3, rows: 4, free: 'view' },
+    269: { family: 'mahjong', reels: 5, rows: 4, free: 'top', scatter: 10 },
+    271: { family: 'mahjong', reels: 5, rows: 5, free: 'top', scatter: 11 },
+    273: { family: 'tumble', reels: 6, rows: 5, order: 'column', free: 'none' },
+    276: { family: 'step', reels: 5, rows: 3, free: 'top', scatter: 8 },
+    278: { family: 'ways', reels: 6, rows: 5, free: 'top', scatter: 12 },
+    281: { family: 'step', reels: 5, rows: 3, free: 'top', scatter: 8 },
+    301: { family: 'ways', reels: 6, rows: 5, free: 'top', scatter: 11 },
+    302: {
+      family: 'classic',
+      reels: 3,
+      rows: 3,
+      free: 'view',
+      extraCard: true,
+    },
+    321: {
+      family: 'tumble',
+      reels: 6,
+      rows: 5,
+      order: 'column',
+      free: 'fs',
+      scatter: 9,
+    },
   };
 
   function parentStorage() {
@@ -559,7 +583,11 @@
       socket._trigger('changeCannonResult', parseSocketPayload(rawPayload));
     } else if (event === 'LoginfreeCount') {
       window.setTimeout(function () {
-        socket._trigger('LoginfreeCountResult', { ResultCode: 1, freeCount: 0, freeType: 0 });
+        socket._trigger('LoginfreeCountResult', {
+          ResultCode: 1,
+          freeCount: freeSelectionCount,
+          freeType: freeSelectionCount > 0 ? 1 : 0,
+        });
       }, 0);
     } else if (event === 'history') {
       authorizedRequest(
@@ -575,8 +603,15 @@
     } else if (event === 'lottery') {
       settleSpin(socket, rawPayload);
     } else if (event === 'freeTimeType') {
+      var freeTypePayload = parseSocketPayload(rawPayload);
       window.setTimeout(function () {
-        socket._trigger('freeTimeTypeResult', { ResultCode: 1, ResultData: { type: 1 } });
+        socket._trigger('freeTimeTypeResult', {
+          ResultCode: 1,
+          ResultData: {
+            type: Math.max(1, Number(freeTypePayload.type || 1)),
+            freeCount: freeSelectionCount,
+          },
+        });
       }, 0);
     }
     return this;
@@ -779,26 +814,41 @@
     } catch (_error) {
       payload = {};
     }
-    var requestedAmount = Number(payload.nBetList && payload.nBetList[0]);
-    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
-      socket._trigger('lotteryResult', { ResultCode: -2, msg: '投注金額不正確' });
+    if (pendingLegacyResponses.length > 0) {
+      emitQueuedLotteryResponse(socket);
       return;
     }
-    var amount = Math.max(ROOM_BET_AMOUNTS[0], requestedAmount);
+    var requestedAmount = Number(payload.nBetList && payload.nBetList[0]);
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+      emitLotteryError(socket, '投注金額不正確', -2);
+      return;
+    }
+    if (requestedAmount < ROOM_BET_AMOUNTS[0]) {
+      emitLotteryError(socket, '最低下注為 10，請調整下注金額', -2);
+      return;
+    }
+    var amount = requestedAmount;
+    var isFeaturePurchase = payload.isBuyFree === 1 && (gameCode === '278' || gameCode === '321');
     authorizedRequest(
       gameApi + '/spin',
       'POST',
       {
         gameCode: gameCode,
         amount: amount,
-        isBuyFree: payload.isBuyFree === 1,
+        isBuyFree: isFeaturePurchase,
       },
       false,
     )
       .then(function (result) {
         latestSession = latestSession || {};
         latestSession.balance = Number(result.newBalance || 0);
-        socket._trigger('lotteryResult', buildLotteryResponse(result));
+        pendingLegacyResponses = buildLotteryResponses(result);
+        freeSelectionCount = Number(
+          result.features && result.features.freeSpinsAwarded
+            ? result.features.freeSpinsAwarded
+            : 0,
+        );
+        emitQueuedLotteryResponse(socket);
         notifyParent('h5-slots:balance', {
           balance: Number(result.newBalance || 0),
           gameCode: gameCode,
@@ -807,57 +857,369 @@
       })
       .catch(function (error) {
         var message = error && error.message ? error.message : '遊戲伺服器連線失敗';
-        socket._trigger(
-          'lotteryResult',
-          buildLotteryResponse({
-            grid: [],
-            payout: 0,
-            multiplier: 0,
-            newBalance: Number((latestSession && latestSession.balance) || 0),
-          }),
-        );
+        emitLotteryError(socket, message, /餘額|限紅|下注|balance|fund/i.test(message) ? -2 : -998);
         notifyParent('h5-slots:error', { message: message });
       });
   }
 
-  function buildLotteryResponse(result) {
+  function emitLotteryError(socket, message, resultCode) {
+    socket._trigger('lotteryResult', {
+      ResultCode: resultCode,
+      msg: message,
+      error: message,
+      userscore: Number((latestSession && latestSession.balance) || 0),
+    });
+  }
+
+  function emitQueuedLotteryResponse(socket) {
+    var queued = pendingLegacyResponses.shift();
+    if (!queued) return;
+    if (queued.startsFreeSpin) {
+      freeSelectionCount = Math.max(0, freeSelectionCount - 1);
+    }
+    window.setTimeout(function () {
+      socket._trigger('lotteryResult', queued.response);
+    }, 0);
+  }
+
+  function buildLotteryResponses(result) {
     var shape = GAME_SHAPES[gameCode] || GAME_SHAPES['161'];
-    var payout = Number(result.payout || 0);
-    var balance = Number(result.newBalance || 0);
-    var symbols = flattenSymbols(result.grid, shape.cells);
+    var totalPayout = Number(result.payout || 0);
+    var finalBalance = Number(result.newBalance || 0);
+    var baseAmount = Number(result.baseAmount || result.amount || 0);
+    var features = result.features || null;
+    var freeRounds =
+      features && Array.isArray(features.freeSpinRounds) ? features.freeSpinRounds : [];
+    var basePayout = features
+      ? roundMoney(baseAmount * Number(features.baseTotalMultiplier || 0))
+      : totalPayout;
+    basePayout = Math.max(0, Math.min(totalPayout, basePayout));
+    var freePayouts = freeRounds.map(function (round) {
+      return roundMoney(baseAmount * Number(round.totalMultiplier || 0));
+    });
+    var allocatedPayout =
+      basePayout +
+      freePayouts.reduce(function (sum, value) {
+        return sum + value;
+      }, 0);
+    if (freePayouts.length > 0) {
+      freePayouts[freePayouts.length - 1] = roundMoney(
+        Math.max(0, freePayouts[freePayouts.length - 1] + totalPayout - allocatedPayout),
+      );
+    } else {
+      basePayout = totalPayout;
+    }
+
+    var sequence = [];
+    var displayedBalance = finalBalance - totalPayout + basePayout;
+    var baseRound = {
+      grid: firstVisibleGrid(result),
+      finalGrid: result.grid,
+      lines: result.lines || [],
+      cascades: result.cascades || [],
+      multiplier: result.multiplier,
+      scatterSymbols: features ? features.scatterSymbols || [] : [],
+    };
+    var triggerMeta =
+      features && Number(features.freeSpinsAwarded || 0) > 0
+        ? {
+            trigger: true,
+            awarded: Number(features.freeSpinsAwarded || 0),
+            remaining: Number(features.freeSpinsAwarded || 0),
+            totalWin: roundMoney(totalPayout - basePayout),
+            multiplier: Number(features.freeSpinMultiplierBank || 1),
+          }
+        : null;
+    sequence = sequence.concat(
+      buildRoundResponses(baseRound, basePayout, displayedBalance, triggerMeta, baseAmount, shape),
+    );
+
+    freeRounds.forEach(function (round, index) {
+      var payout = freePayouts[index] || 0;
+      displayedBalance = roundMoney(displayedBalance + payout);
+      var remaining = freeRounds.length - index - 1;
+      var freeMeta = {
+        trigger: false,
+        awarded: Number(features.freeSpinsAwarded || freeRounds.length),
+        remaining: remaining,
+        totalWin: roundMoney(totalPayout - basePayout),
+        multiplier: Number(round.appliedMultiplier || features.freeSpinMultiplierBank || 1),
+      };
+      var responses = buildRoundResponses(
+        {
+          grid: firstVisibleGrid(round),
+          finalGrid: round.finalGrid,
+          lines: round.lines || [],
+          cascades: round.cascades || [],
+          multiplier: round.appliedMultiplier,
+          scatterSymbols: round.scatterSymbols || [],
+        },
+        payout,
+        displayedBalance,
+        freeMeta,
+        baseAmount,
+        shape,
+      );
+      if (responses.length > 0) responses[0].startsFreeSpin = true;
+      sequence = sequence.concat(responses);
+    });
+
+    if (sequence.length === 0) {
+      sequence.push({
+        response: makeLotteryEnvelope({
+          userscore: finalBalance,
+          winscore: 0,
+          freeCount: 0,
+          getFreeTime: { bFlag: false, nFreeTime: 0 },
+          viewarray: buildClassicData([], [], 0, 0, shape, finalBalance, baseAmount),
+        }),
+      });
+    }
+    return sequence;
+  }
+
+  function firstVisibleGrid(round) {
+    return round && Array.isArray(round.cascades) && round.cascades[0]
+      ? round.cascades[0].grid
+      : round && (round.initialGrid || round.grid);
+  }
+
+  function buildRoundResponses(round, payout, balance, freeMeta, baseAmount, shape) {
+    if (shape.family === 'tumble') {
+      return buildTumbleResponses(round, payout, balance, freeMeta, baseAmount, shape);
+    }
+
     var data = {
       userscore: balance,
       winscore: payout,
-      freeCount: 0,
+      freeCount: freeMeta ? freeMeta.remaining + 1 : 0,
       getFreeTime: { bFlag: false, nFreeTime: 0 },
     };
-
-    if (shape.family === 'mahjong') {
-      data.viewarray = [buildStep(symbols, payout, true)];
-    } else if (shape.family === 'step') {
-      data.viewarray = [buildStep(symbols, payout, false)];
-    } else if (shape.family === 'ways') {
-      data.viewarray = [buildWaysStep(symbols, payout)];
-    } else if (shape.family === 'tumble') {
-      data.viewarray = buildTumble(symbols, payout);
-      data.aw = payout;
+    if (shape.family === 'mahjong' || shape.family === 'step' || shape.family === 'ways') {
+      data.viewarray = buildCascadeSteps(round, payout, baseAmount, shape);
     } else {
-      data.viewarray = buildClassic(symbols, payout, result.multiplier, shape);
+      var symbols = flattenSymbols(
+        applySpecialSymbols(round.grid, round.scatterSymbols, shape),
+        shape,
+      );
+      data.viewarray = buildClassicData(
+        symbols,
+        round.lines || [],
+        payout,
+        round.multiplier,
+        shape,
+        balance,
+        baseAmount,
+      );
     }
+    applyFreeMeta(data, shape, freeMeta);
+    return [{ response: makeLotteryEnvelope(data) }];
+  }
+
+  function buildCascadeSteps(round, payout, baseAmount, shape) {
+    var cascades = Array.isArray(round.cascades) ? round.cascades : [];
+    var steps = cascades.map(function (cascade, index) {
+      var stepPayout = roundMoney(baseAmount * Number(cascade.multiplier || 0));
+      var symbols = flattenSymbols(cascade.grid, shape);
+      return shape.family === 'ways'
+        ? buildWaysStep(symbols, cascade.lines || [], stepPayout, shape, index, baseAmount)
+        : buildStep(
+            symbols,
+            cascade.lines || [],
+            stepPayout,
+            shape.family === 'mahjong',
+            shape,
+            index,
+            baseAmount,
+          );
+    });
+    if (steps.length > 0) {
+      var allocated = steps.reduce(function (sum, step) {
+        return sum + Number(step.win || step.winscore || 0);
+      }, 0);
+      var delta = roundMoney(payout - allocated);
+      steps[steps.length - 1].win = roundMoney(Number(steps[steps.length - 1].win || 0) + delta);
+      steps[steps.length - 1].winscore = steps[steps.length - 1].win;
+    }
+    var finalSymbols = flattenSymbols(
+      applySpecialSymbols(round.finalGrid || round.grid, round.scatterSymbols, shape),
+      shape,
+    );
+    steps.push(
+      shape.family === 'ways'
+        ? buildWaysStep(finalSymbols, [], 0, shape, steps.length, baseAmount)
+        : buildStep(
+            finalSymbols,
+            [],
+            0,
+            shape.family === 'mahjong',
+            shape,
+            steps.length,
+            baseAmount,
+          ),
+    );
+    return steps;
+  }
+
+  function buildTumbleResponses(round, payout, balance, freeMeta, baseAmount, shape) {
+    var cascades = Array.isArray(round.cascades) ? round.cascades : [];
+    var responses = [];
+    var accumulated = 0;
+    cascades.forEach(function (cascade, index) {
+      var stepPayout = roundMoney(baseAmount * Number(cascade.multiplier || 0));
+      if (index === cascades.length - 1) {
+        stepPayout = roundMoney(stepPayout + payout - accumulated - stepPayout);
+      }
+      accumulated = roundMoney(accumulated + stepPayout);
+      var data = buildTumbleData(
+        cascade.grid,
+        cascade.lines || [],
+        stepPayout,
+        accumulated,
+        balance,
+        2,
+        shape,
+        baseAmount,
+      );
+      // Gates of Olympus reads fs.s while every tumble step is settling, not
+      // only after the final drop. Preserve the free-spin state throughout
+      // the whole legacy response sequence.
+      applyFreeMeta(data, shape, freeMeta);
+      responses.push({ response: makeLotteryEnvelope(data) });
+    });
+    var finalData = buildTumbleData(
+      applySpecialSymbols(round.finalGrid || round.grid, round.scatterSymbols, shape),
+      [],
+      cascades.length ? 0 : payout,
+      payout,
+      balance,
+      1,
+      shape,
+      baseAmount,
+    );
+    applyFreeMeta(finalData, shape, freeMeta);
+    responses.push({ response: makeLotteryEnvelope(finalData) });
+    return responses;
+  }
+
+  function makeLotteryEnvelope(data) {
     return { ResultCode: 1, ResultData: data };
   }
 
-  function flattenSymbols(grid, count) {
+  function applyFreeMeta(data, shape, meta) {
+    var freeTime = {
+      bFlag: Boolean(meta && meta.trigger),
+      nFreeTime: meta ? meta.awarded : 0,
+    };
+    data.freeCount = meta ? meta.remaining + 1 : 0;
+    data.getFreeTime = shape.free === 'top' ? freeTime : { bFlag: false, nFreeTime: 0 };
+    if (shape.free === 'view' && data.viewarray && !Array.isArray(data.viewarray)) {
+      data.viewarray.getFreeTime = freeTime;
+    }
+    if (shape.free === 'fs' && data.viewarray && !Array.isArray(data.viewarray) && meta) {
+      data.viewarray.fs = {
+        ps: 0,
+        s: meta.trigger ? meta.awarded : meta.remaining + 1,
+        ts: meta.awarded,
+        aw: meta.totalWin,
+        tgm: Math.max(1, Number(meta.multiplier || 1)),
+      };
+      data.viewarray.ts = meta.awarded;
+    }
+  }
+
+  function applySpecialSymbols(grid, specialSymbols, shape) {
+    var cloned = (Array.isArray(grid) ? grid : []).map(function (column) {
+      return Array.isArray(column) ? column.slice() : [];
+    });
+    if (!shape.scatter) return cloned;
+    (Array.isArray(specialSymbols) ? specialSymbols : []).forEach(function (special) {
+      if (cloned[special.reel] && cloned[special.reel][special.row] !== undefined) {
+        cloned[special.reel][special.row] = shape.scatter - 1;
+      }
+    });
+    return cloned;
+  }
+
+  function flattenSymbols(grid, shape) {
     var source = [];
-    (Array.isArray(grid) ? grid : []).forEach(function (column) {
-      (Array.isArray(column) ? column : []).forEach(function (symbol) {
-        source.push((Number(symbol) % 6) + 1);
+    var reels = shape.reels;
+    var rows = shape.rows;
+    if (shape.order === 'column') {
+      for (var reel = 0; reel < reels; reel += 1) {
+        for (var row = 0; row < rows; row += 1) {
+          source.push(mapSymbol(grid && grid[reel] && grid[reel][row]));
+        }
+      }
+    } else {
+      for (var rowIndex = 0; rowIndex < rows; rowIndex += 1) {
+        for (var reelIndex = 0; reelIndex < reels; reelIndex += 1) {
+          source.push(mapSymbol(grid && grid[reelIndex] && grid[reelIndex][rowIndex]));
+        }
+      }
+    }
+    return source;
+  }
+
+  function mapSymbol(symbol) {
+    var numeric = Number(symbol);
+    return Number.isFinite(numeric) ? Math.abs(Math.trunc(numeric)) + 1 : 1;
+  }
+
+  function positionIndex(position, shape) {
+    return shape.order === 'column'
+      ? Number(position.reel) * shape.rows + Number(position.row)
+      : Number(position.row) * shape.reels + Number(position.reel);
+  }
+
+  function winLinePositions(line, shape) {
+    var positions = Array.isArray(line && line.positions) ? line.positions : [];
+    if (positions.length === 0 && line && Array.isArray(line.path)) {
+      var start = Number(line.startReel || 0);
+      var count = Number(line.count || line.path.length);
+      for (var offset = 0; offset < count; offset += 1) {
+        var reel = start + offset;
+        if (line.direction === 'rtl') reel = start + count - 1 - offset;
+        if (line.path[reel] !== undefined) positions.push({ reel: reel, row: line.path[reel] });
+      }
+    }
+    return positions
+      .map(function (position) {
+        return positionIndex(position, shape);
+      })
+      .filter(function (index) {
+        return Number.isInteger(index) && index >= 0 && index < shape.reels * shape.rows;
+      });
+  }
+
+  function winFields(lines, shape, baseAmount) {
+    var details = (Array.isArray(lines) ? lines : [])
+      .map(function (line) {
+        return winLinePositions(line, shape);
+      })
+      .filter(function (positions) {
+        return positions.length > 0;
+      });
+    var cards = falseList(shape.reels * shape.rows);
+    details.forEach(function (positions) {
+      positions.forEach(function (index) {
+        cards[index] = true;
       });
     });
-    if (!source.length) source = [1, 2, 3, 4, 5, 6];
-    var output = [];
-    for (var index = 0; index < count; index += 1) output.push(source[index % source.length]);
-    return output;
+    return {
+      nWinCards: cards,
+      nWinLinesDetail: details,
+      nWinLines: details.map(function (_positions, index) {
+        return index;
+      }),
+      nWinDetail: (Array.isArray(lines) ? lines : []).slice(0, details.length).map(function (line) {
+        return roundMoney(Number(line.payout || 0) * Number(baseAmount || 0));
+      }),
+    };
+  }
+
+  function roundMoney(value) {
+    return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
   }
 
   function falseList(length) {
@@ -866,13 +1228,14 @@
     });
   }
 
-  function buildClassic(symbols, payout, multiplier, shape) {
-    return {
+  function buildClassicData(symbols, lines, payout, multiplier, shape, balance, baseAmount) {
+    var wins = winFields(lines, shape, baseAmount);
+    var data = {
       nHandCards: symbols,
-      nWinCards: falseList(symbols.length),
-      nWinLinesDetail: [],
-      nWinLines: [],
-      nWinDetail: [],
+      nWinCards: wins.nWinCards,
+      nWinLinesDetail: wins.nWinLinesDetail,
+      nWinLines: wins.nWinLines,
+      nWinDetail: wins.nWinDetail,
       fMultiple: shape.multiplierWheel ? Math.max(1, Number(multiplier || 1)) : 0,
       getFreeTime: { bFlag: false, nFreeTime: 0 },
       getOpenBox: { bFlag: false, card: 0 },
@@ -880,55 +1243,94 @@
       getBigWin: { bFlag: false, isStart: false },
       exCard: shape.extraCard ? 0 : undefined,
       winEx: false,
-      user_score: 0,
+      user_score: balance,
       winscore: payout,
     };
+    return data;
   }
 
-  function buildStep(symbols, payout, mahjong) {
+  function buildStep(symbols, lines, payout, mahjong, shape, index, baseAmount) {
+    var wins = winFields(lines, shape, baseAmount);
     return {
       nHandCards: symbols,
-      nWinCards: falseList(symbols.length),
-      nWinLinesDetail: [],
-      nWinLines: [],
-      nWinDetail: [],
+      nWinCards: wins.nWinCards,
+      nWinLinesDetail: wins.nWinLinesDetail,
+      nWinLines: wins.nWinLines,
+      nWinDetail: wins.nWinDetail,
       goldCards: mahjong ? [] : undefined,
+      combo_num: index,
+      win: payout,
       winscore: payout,
       user_score: Number((latestSession && latestSession.balance) || 0),
       getFreeTime: { bFlag: false, nFreeTime: 0 },
     };
   }
 
-  function buildWaysStep(symbols, payout) {
+  function buildWaysStep(symbols, lines, payout, shape, index, baseAmount) {
+    var wins = winFields(lines, shape, baseAmount);
     return {
       nHandCards: symbols,
-      nWinCards: falseList(symbols.length),
+      nWinCards: wins.nWinCards,
       nWinCards_top: falseList(4),
-      nWinLinesDetail: [],
-      nWinLines: [],
-      nWinDetail: [],
+      nWinLinesDetail: wins.nWinLinesDetail,
+      nWinLines: wins.nWinLines,
+      nWinDetail: wins.nWinDetail,
       trl: [1, 2, 3, 4],
       sr: [],
       srd: [],
+      combo_num: index,
+      win: payout,
       winscore: payout,
       user_score: Number((latestSession && latestSession.balance) || 0),
     };
   }
 
-  function buildTumble(symbols, payout) {
+  function buildTumbleData(
+    grid,
+    lines,
+    stepPayout,
+    accumulatedPayout,
+    balance,
+    nextState,
+    shape,
+    baseAmount,
+  ) {
+    var symbols = flattenSymbols(grid, shape);
+    var wins = winFields(lines, shape, baseAmount);
+    var ways = {};
+    wins.nWinLinesDetail.forEach(function (positions, index) {
+      ways[String(index)] = positions;
+    });
     return {
-      nst: 1,
-      aw: payout,
-      tw: payout,
-      ctw: payout,
-      cb: 0,
-      orl: symbols,
-      rl: symbols,
-      wp: {},
-      gm: 0,
-      fs: null,
-      ts: null,
-      df: [],
+      userscore: balance,
+      winscore: stepPayout,
+      freeCount: 0,
+      getFreeTime: { bFlag: false, nFreeTime: 0 },
+      viewarray: {
+        nst: nextState,
+        aw: accumulatedPayout,
+        tw: stepPayout,
+        ctw: accumulatedPayout,
+        cb: wins.nWinLinesDetail.reduce(function (sum, positions) {
+          return sum + positions.length;
+        }, 0),
+        orl: symbols,
+        rl: symbols,
+        wp: ways,
+        gm: 1,
+        fs: null,
+        ts: null,
+        df: [],
+        nHandCards: symbols,
+        // The tumble scene animates wins from `wp`. Its inherited 5x3 line
+        // animator cannot address the 6x5 board and crashes when these legacy
+        // fields contain tumble positions.
+        nWinCards: falseList(shape.reels * shape.rows),
+        nWinLinesDetail: [],
+        nWinLines: [],
+        nWinDetail: [],
+      },
+      aw: accumulatedPayout,
     };
   }
 
@@ -943,6 +1345,13 @@
   fakeIo.connect = fakeIo;
   fakeIo.io = fakeIo;
 
+  window.__YachiyoH5AdapterTest = {
+    gameCode: gameCode,
+    shape: GAME_SHAPES[gameCode],
+    buildLotteryResponses: buildLotteryResponses,
+    flattenSymbols: flattenSymbols,
+    winFields: winFields,
+  };
   window.__YachiyoFakeIo = fakeIo;
   window.XMLHttpRequest = BridgeXHR;
   try {

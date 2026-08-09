@@ -16,6 +16,44 @@ export const HOTLINE_MEGA_GAME_IDS = new Set([
   'jungle-slot',
   'vampire-slot',
 ]);
+const HOTLINE_GAME_LAYOUTS = new Map<string, { reels: number; rows: number }>([
+  ['h5-nine-line-pull-king', { reels: 5, rows: 3 }],
+  ['h5-water-margin', { reels: 5, rows: 3 }],
+  ['h5-diamond-strike', { reels: 5, rows: 3 }],
+  ['h5-yu-pu-tuan', { reels: 5, rows: 4 }],
+  ['h5-fruit-little-mary', { reels: 5, rows: 3 }],
+  ['h5-aztec-treasure', { reels: 3, rows: 3 }],
+  ['h5-fire-88', { reels: 3, rows: 3 }],
+  ['h5-lucky-777', { reels: 3, rows: 3 }],
+  ['h5-caishen-fa-fa-fa', { reels: 5, rows: 3 }],
+  ['h5-flying-together', { reels: 5, rows: 3 }],
+  ['h5-star-97', { reels: 3, rows: 3 }],
+  ['h5-fortune-ox', { reels: 3, rows: 4 }],
+  ['h5-mahjong-ways', { reels: 5, rows: 4 }],
+  ['h5-mahjong-ways-2', { reels: 5, rows: 5 }],
+  ['h5-dragon-hatch', { reels: 6, rows: 5 }],
+  ['h5-captains-bounty', { reels: 5, rows: 3 }],
+  ['h5-caishen-wins', { reels: 6, rows: 5 }],
+  ['h5-queen-of-bounty', { reels: 5, rows: 3 }],
+  ['h5-golden-empire', { reels: 6, rows: 5 }],
+  ['h5-fortune-gems', { reels: 3, rows: 3 }],
+  ['h5-gates-of-olympus', { reels: 6, rows: 5 }],
+]);
+export const HOTLINE_CASCADE_GAME_IDS = new Set([
+  ...HOTLINE_MEGA_GAME_IDS,
+  'h5-mahjong-ways',
+  'h5-mahjong-ways-2',
+  'h5-dragon-hatch',
+  'h5-captains-bounty',
+  'h5-caishen-wins',
+  'h5-queen-of-bounty',
+  'h5-golden-empire',
+  'h5-gates-of-olympus',
+]);
+export const HOTLINE_FEATURE_GAME_IDS = new Set([
+  ...HOTLINE_MEGA_GAME_IDS,
+  ...Array.from(HOTLINE_GAME_LAYOUTS.keys()).filter((gameId) => gameId !== 'h5-dragon-hatch'),
+]);
 const HOTLINE_5X3_PAYTABLE = [
   { weight: 58, payout3: 0.92, payout4: 2.3, payout5: 4.8 },
   { weight: 46, payout3: 1.2, payout4: 3.2, payout5: 6.8 },
@@ -206,6 +244,7 @@ export function hotlineSpinCascades(
   reelCount = HOTLINE_MEGA_REELS,
   rowCount = HOTLINE_MEGA_ROWS,
   maxCascades = HOTLINE_MEGA_MAX_CASCADES,
+  enableFeatures = rowCount >= HOTLINE_MEGA_ROWS,
 ): HotlineCascadeResult {
   const stream = hmacIntStream(serverSeed, clientSeed, nonce);
   const symbols = getHotlineSymbolsForGrid(reelCount, rowCount);
@@ -218,10 +257,9 @@ export function hotlineSpinCascades(
   };
 
   const round = runHotlineCascadeRound(nextSymbol, reelCount, rowCount, maxCascades);
-  const features =
-    rowCount >= HOTLINE_MEGA_ROWS
-      ? buildMegaFeatureResult(round, nextRandom01, nextSymbol, reelCount, rowCount, maxCascades)
-      : undefined;
+  const features = enableFeatures
+    ? buildMegaFeatureResult(round, nextRandom01, nextSymbol, reelCount, rowCount, maxCascades)
+    : undefined;
 
   return {
     initialGrid: round.initialGrid,
@@ -677,17 +715,29 @@ export const HOTLINE_PAYLINES_3X3 = [
 export const HOTLINE_PAYLINES = HOTLINE_PAYLINES_5X3;
 
 export function getHotlineReelCount(gameId?: string): number {
+  const layout = gameId ? HOTLINE_GAME_LAYOUTS.get(gameId) : undefined;
+  if (layout) return layout.reels;
   if (gameId && HOTLINE_3X3_GAME_IDS.has(gameId)) return HOTLINE_MINI_REELS;
   if (gameId && HOTLINE_MEGA_GAME_IDS.has(gameId)) return HOTLINE_MEGA_REELS;
   return HOTLINE_REELS;
 }
 
 export function getHotlineRowCount(gameId?: string): number {
+  const layout = gameId ? HOTLINE_GAME_LAYOUTS.get(gameId) : undefined;
+  if (layout) return layout.rows;
   return gameId && HOTLINE_MEGA_GAME_IDS.has(gameId) ? HOTLINE_MEGA_ROWS : HOTLINE_ROWS;
 }
 
 export function isHotlineMegaGame(gameId?: string): boolean {
   return Boolean(gameId && HOTLINE_MEGA_GAME_IDS.has(gameId));
+}
+
+export function isHotlineCascadeGame(gameId?: string): boolean {
+  return Boolean(gameId && HOTLINE_CASCADE_GAME_IDS.has(gameId));
+}
+
+export function isHotlineFeatureGame(gameId?: string): boolean {
+  return Boolean(gameId && HOTLINE_FEATURE_GAME_IDS.has(gameId));
 }
 
 function getHotlinePaylines(reelCount: number) {

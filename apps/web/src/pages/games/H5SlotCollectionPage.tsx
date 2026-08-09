@@ -7,6 +7,14 @@ import { buildLoginPath } from '@/hooks/useRequireLogin';
 
 const GAME_PATH = '/games/h5-slot-collection/index.html';
 const ERROR_NOTICE_MS = 6_000;
+const ROOM_MULTIPLIER_BY_GAME: Partial<Record<H5GameCode, string>> = {
+  // These source games calculate the displayed stake from hard-coded legacy
+  // denominations. Keep their first visible stake at or above the platform's
+  // 10-point minimum so the displayed, submitted, and debited amounts agree.
+  '232': '1',
+  '244': '2',
+  '278': '0.5',
+};
 const PORTRAIT_GAME_CODES = new Set<H5GameCode>([
   '264',
   '269',
@@ -35,7 +43,7 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
       apiBase,
       gameId: gameCode,
       roomId: '1',
-      roomMul: '0.2',
+      roomMul: ROOM_MULTIPLIER_BY_GAME[gameCode] ?? '0.2',
       room_id: '1',
       language: 'zh',
       uid: 'yachiyo',

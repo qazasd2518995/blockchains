@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "echo \"(web lint skipped)\"",
     "typecheck": "tsc -b --noEmit",
-    "test": "echo \"(web has no tests yet)\""
+    "test": "node scripts/test-h5-adapter.mjs"
   },
   "dependencies": {
     "@bg/game-engine": "workspace:*",

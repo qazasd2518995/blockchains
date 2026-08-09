@@ -14,6 +14,9 @@ import {
   hotlineBuyFreeSpins,
   hotlineSpinCascades,
   hotlineEvaluate,
+  isHotlineCascadeGame,
+  isHotlineFeatureGame,
+  isHotlineMegaGame,
 } from '@bg/provably-fair';
 import {
   GameId,
@@ -96,11 +99,16 @@ type HotlineJackpotRecord = {
 
 type HotlineJackpotValues = Pick<HotlineJackpotRecord, 'grand' | 'major' | 'minor' | 'mini'>;
 
+interface HotlineBetOptions {
+  buyFeatureCostMultiplier?: number;
+  buyFeatureMaxStake?: Prisma.Decimal.Value | null;
+}
+
 export class HotlineService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async jackpot(gameId: string): Promise<HotlineJackpotSnapshot> {
-    if (getHotlineRowCount(gameId) <= 3) {
+    if (!isHotlineMegaGame(gameId)) {
       throw new Error('JACKPOT_ONLY_AVAILABLE_FOR_MEGA_SLOT');
     }
 
@@ -112,16 +120,23 @@ export class HotlineService {
     userId: string,
     input: HotlineBetInput,
     gameIdOverride?: string,
+    options: HotlineBetOptions = {},
   ): Promise<HotlineBetResult> {
     const baseAmount = new Prisma.Decimal(input.amount);
     const gameId = gameIdOverride ?? input.gameId ?? GameId.HOTLINE;
     const reelCount = getHotlineReelCount(gameId);
     const rowCount = getHotlineRowCount(gameId);
     const buyFeature = Boolean(input.buyFeature);
-    if (buyFeature && rowCount <= 3) {
+    if (buyFeature && !isHotlineFeatureGame(gameId)) {
       throw new Error('BUY_FEATURE_ONLY_AVAILABLE_FOR_MEGA_SLOT');
     }
-    const stakeAmount = buyFeature ? megaBuyFeatureStakeAmount(baseAmount) : baseAmount;
+    const stakeAmount = buyFeature
+      ? megaBuyFeatureStakeAmount(
+          baseAmount,
+          options.buyFeatureCostMultiplier,
+          options.buyFeatureMaxStake,
+        )
+      : baseAmount;
 
     return runLockedTransaction(this.prisma, async (tx) => {
       await lockUserAndCheckFunds(tx, userId, stakeAmount, gameId, {
@@ -132,6 +147,7 @@ export class HotlineService {
         seed.serverSeed,
         seed.clientSeed,
         seed.nonce,
+        gameId,
         reelCount,
         rowCount,
         buyFeature,
@@ -196,7 +212,7 @@ export class HotlineService {
             );
           }
           finalFeatures =
-            rowCount > 3
+            buyFeature || isHotlineCascadeGame(gameId)
               ? buyFeature
                 ? buildControlledMegaFeature(
                     baseAmount.greaterThan(0)
@@ -230,7 +246,12 @@ export class HotlineService {
 
       if (
         finalFeatures &&
-        shouldApplyMegaFreeGameSettlementCap(rowCount, finalFeatures, buyFeature, effectiveControl)
+        shouldApplyMegaFreeGameSettlementCap(
+          buyFeature || isHotlineCascadeGame(gameId),
+          finalFeatures,
+          buyFeature,
+          effectiveControl,
+        )
       ) {
         const allowFreeGameAboveOne = canMegaFreeGameExceedOne(effectiveControl);
         const preserveControlledTarget =
@@ -308,8 +329,9 @@ export class HotlineService {
         originalResult as unknown as Prisma.InputJsonValue,
         finalResult as unknown as Prisma.InputJsonValue,
       );
-      const jackpot =
-        rowCount > 3 ? await this.addJackpotContribution(tx, gameId, stakeAmount) : undefined;
+      const jackpot = isHotlineMegaGame(gameId)
+        ? await this.addJackpotContribution(tx, gameId, stakeAmount)
+        : undefined;
 
       return {
         betId: bet.id,
@@ -317,13 +339,9 @@ export class HotlineService {
         lines: finalLines,
         cascades: finalCascades,
         ...(finalFeatures ? { features: finalFeatures } : {}),
-        ...(buyFeature
-          ? {
-              buyFeature: true,
-              baseAmount: baseAmount.toFixed(2),
-              stakeAmount: stakeAmount.toFixed(2),
-            }
-          : {}),
+        ...(buyFeature ? { buyFeature: true } : {}),
+        baseAmount: baseAmount.toFixed(2),
+        stakeAmount: stakeAmount.toFixed(2),
         multiplier: Number(finalMultiplier.toFixed(4)),
         amount: stakeAmount.toFixed(2),
         payout: finalPayout.toFixed(2),
@@ -479,11 +497,18 @@ const MEGA_FREE_GAME_LOW_TARGET_MAX = 0.98;
 const MEGA_FREE_GAME_HIGH_TARGET_MIN = 1.1;
 const MEGA_FREE_GAME_HIGH_TARGET_MAX = 2;
 
-function megaBuyFeatureStakeAmount(baseAmount: Prisma.Decimal): Prisma.Decimal {
-  return Prisma.Decimal.min(
-    baseAmount.mul(HOTLINE_MEGA_BUY_FEATURE_COST_MULTIPLIER),
-    MEGA_BUY_FEATURE_MAX_STAKE,
-  ).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+function megaBuyFeatureStakeAmount(
+  baseAmount: Prisma.Decimal,
+  costMultiplier = HOTLINE_MEGA_BUY_FEATURE_COST_MULTIPLIER,
+  maxStake: Prisma.Decimal.Value | null = MEGA_BUY_FEATURE_MAX_STAKE,
+): Prisma.Decimal {
+  const exactStake = baseAmount.mul(costMultiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  return maxStake == null
+    ? exactStake
+    : Prisma.Decimal.min(exactStake, new Prisma.Decimal(maxStake)).toDecimalPlaces(
+        2,
+        Prisma.Decimal.ROUND_DOWN,
+      );
 }
 
 function capMegaFreeGameSettlement(
@@ -552,13 +577,15 @@ function capMegaFreeGameSettlement(
 }
 
 function shouldApplyMegaFreeGameSettlementCap(
-  rowCount: number,
+  featureGameOrRowCount: boolean | number,
   features: HotlineMegaFeatureResult | undefined,
   buyFeature: boolean,
   control: Pick<ControlOutcome, 'controlled'>,
 ): boolean {
+  const featureGame =
+    typeof featureGameOrRowCount === 'number' ? featureGameOrRowCount > 3 : featureGameOrRowCount;
   return Boolean(
-    rowCount > 3 && features && features.freeSpinsAwarded > 0 && (buyFeature || control.controlled),
+    featureGame && features && features.freeSpinsAwarded > 0 && (buyFeature || control.controlled),
   );
 }
 
@@ -625,14 +652,23 @@ function buildHotlineRound(
   serverSeed: string,
   clientSeed: string,
   nonce: number,
+  gameId: string,
   reelCount: number,
   rowCount: number,
   buyFeature = false,
 ): HotlineRound {
-  if (rowCount > 3) {
+  if (buyFeature || isHotlineCascadeGame(gameId) || isHotlineFeatureGame(gameId)) {
     const cascaded = buyFeature
       ? hotlineBuyFreeSpins(serverSeed, clientSeed, nonce, reelCount, rowCount)
-      : hotlineSpinCascades(serverSeed, clientSeed, nonce, reelCount, rowCount);
+      : hotlineSpinCascades(
+          serverSeed,
+          clientSeed,
+          nonce,
+          reelCount,
+          rowCount,
+          isHotlineCascadeGame(gameId) ? undefined : 1,
+          isHotlineFeatureGame(gameId),
+        );
     return {
       grid: cascaded.finalGrid,
       lines: cascaded.lines,
@@ -672,7 +708,7 @@ function strictWinningHotlineRound(
 ): HotlineRound | null {
   const reelCount = getHotlineReelCount(gameId);
   const rowCount = getHotlineRowCount(gameId);
-  if (rowCount > 3) {
+  if (usesHotlineWaysEvaluation(gameId)) {
     return winningMegaHotlineRound(gameId, amount, controlled, variant);
   }
 
@@ -783,6 +819,8 @@ function classicWinCandidateRounds(gameId: string, variant = 0): HotlineRound[] 
 
 function megaWinCandidateRounds(gameId: string, variant = 0): HotlineRound[] {
   const rounds: HotlineRound[] = [];
+  const reelCount = getHotlineReelCount(gameId);
+  const rowCount = getHotlineRowCount(gameId);
   const symbolSets: readonly (readonly number[])[] = [
     ...HOTLINE_SOFT_WIN_SYMBOLS.map((symbol) => [symbol] as const),
     [4, 5],
@@ -797,7 +835,13 @@ function megaWinCandidateRounds(gameId: string, variant = 0): HotlineRound[] {
       rounds.push(
         roundFromMegaGrid(
           gameId,
-          megaClusterHotlineGrid(symbols, variant + clusterCount * 100 + index * 13, clusterCount),
+          megaClusterHotlineGrid(
+            symbols,
+            variant + clusterCount * 100 + index * 13,
+            clusterCount,
+            reelCount,
+            rowCount,
+          ),
           variant + clusterCount * 100 + index * 13,
         ),
       );
@@ -805,7 +849,13 @@ function megaWinCandidateRounds(gameId: string, variant = 0): HotlineRound[] {
   }
 
   HOTLINE_SOFT_WIN_SYMBOLS.forEach((symbol, index) => {
-    rounds.push(roundFromMegaGrid(gameId, fullScreenMegaGrid(symbol), variant + 701 + index));
+    rounds.push(
+      roundFromMegaGrid(
+        gameId,
+        fullScreenMegaGrid(symbol, reelCount, rowCount),
+        variant + 701 + index,
+      ),
+    );
   });
 
   return dedupeHotlineRounds(rounds);
@@ -872,11 +922,15 @@ function controlTargetWeight(multiplier: number, targetMultiplier: number): numb
 function softLossHotlineRound(gameId: string, variant = 0): HotlineRound {
   const reelCount = getHotlineReelCount(gameId);
   const rowCount = getHotlineRowCount(gameId);
-  if (rowCount > 3) {
+  if (usesHotlineWaysEvaluation(gameId)) {
     const symbol =
       pickRandomItem(HOTLINE_SOFT_LOSS_SYMBOLS) ??
       HOTLINE_SOFT_LOSS_SYMBOLS[Math.abs(variant) % HOTLINE_SOFT_LOSS_SYMBOLS.length]!;
-    return roundFromMegaGrid(gameId, megaClusterHotlineGrid([symbol], variant), variant);
+    return roundFromMegaGrid(
+      gameId,
+      megaClusterHotlineGrid([symbol], variant, 8, reelCount, rowCount),
+      variant,
+    );
   }
 
   const symbol =
@@ -924,7 +978,7 @@ function entertainmentLossHotlineRound(
   const pool = [
     ...classicSoftLossCandidateRounds(gameId, variant),
     ...Array.from({ length: 16 }, (_, index) => softLossHotlineRound(gameId, variant + index * 19)),
-    ...(getHotlineRowCount(gameId) > 3
+    ...(usesHotlineWaysEvaluation(gameId)
       ? megaWinCandidateRounds(gameId, variant)
       : classicWinCandidateRounds(gameId, variant)),
   ];
@@ -943,7 +997,7 @@ function entertainmentLossHotlineRound(
 }
 
 function classicSoftLossCandidateRounds(gameId: string, variant = 0): HotlineRound[] {
-  if (getHotlineRowCount(gameId) > 3) return [];
+  if (usesHotlineWaysEvaluation(gameId)) return [];
   const reelCount = getHotlineReelCount(gameId);
   return HOTLINE_SOFT_LOSS_SYMBOLS.map((symbol, index) =>
     roundFromClassicGrid(singleSoftLineClassicGrid(reelCount, symbol, variant + index * 23)),
@@ -981,7 +1035,7 @@ function singleSoftLineClassicGrid(reelCount: number, symbol: number, variant = 
 
 function hardLossHotlineRound(gameId: string, variant = 0): HotlineRound {
   const grid = blankHotlineGrid(gameId, variant);
-  return getHotlineRowCount(gameId) > 3
+  return usesHotlineWaysEvaluation(gameId)
     ? roundFromMegaGrid(gameId, grid, variant)
     : roundFromClassicGrid(grid);
 }
@@ -1039,17 +1093,20 @@ function roundFromMegaGrid(
 function blankHotlineGrid(gameId: string, variant = 0): number[][] {
   const reelCount = getHotlineReelCount(gameId);
   const rowCount = getHotlineRowCount(gameId);
-  if (rowCount > 3) {
+  if (usesHotlineWaysEvaluation(gameId)) {
     return noWinMegaGrid(variant, reelCount, rowCount);
   }
 
-  return [
+  const baseGrid = [
     [3, 5, 0],
     [2, 5, 3],
     [2, 3, 4],
     [0, 4, 0],
     [5, 0, 3],
   ].slice(0, reelCount);
+  return baseGrid.map((column, reel) =>
+    Array.from({ length: rowCount }, (_, row) => column[row % column.length] ?? (reel + row) % 6),
+  );
 }
 
 function noWinMegaGrid(variant: number, reelCount = 6, rowCount = 5): number[][] {
@@ -1163,26 +1220,32 @@ function applyFixedLineTargets(
 function fullScreenClassicGrid(gameId: string, symbol: number, variant = 0): number[][] {
   const reelCount = getHotlineReelCount(gameId);
   const rowCount = getHotlineRowCount(gameId);
-  if (rowCount > 3) return fullScreenMegaGrid(symbol);
+  if (usesHotlineWaysEvaluation(gameId)) {
+    return fullScreenMegaGrid(symbol, reelCount, rowCount);
+  }
   return Array.from({ length: reelCount }, () => Array.from({ length: rowCount }, () => symbol));
 }
 
-function fullScreenMegaGrid(symbol: number): number[][] {
-  return Array.from({ length: 6 }, () => Array.from({ length: 5 }, () => symbol));
+function usesHotlineWaysEvaluation(gameId: string): boolean {
+  return getHotlineRowCount(gameId) >= 5;
+}
+
+function fullScreenMegaGrid(symbol: number, reelCount = 6, rowCount = 5): number[][] {
+  return Array.from({ length: reelCount }, () => Array.from({ length: rowCount }, () => symbol));
 }
 
 function megaClusterHotlineGrid(
   symbols: readonly number[],
   variant = 0,
   countPerSymbol = 8,
+  reelCount = 6,
+  rowCount = 5,
 ): number[][] {
   const targetSymbols = symbols.slice(0, 3);
   const blocked = new Set(targetSymbols);
   const fillers = HOTLINE_MEGA_SYMBOLS.map((_symbol, symbol) => symbol).filter(
     (symbol) => !blocked.has(symbol),
   );
-  const reelCount = 6;
-  const rowCount = 5;
   const grid = Array.from({ length: reelCount }, (_, reel) =>
     Array.from(
       { length: rowCount },
@@ -1695,4 +1758,5 @@ export const __hotlineServiceTestHooks = {
   winningHotlineRound,
   strictWinningHotlineRound,
   megaClusterHotlineGrid,
+  buildHotlineRound,
 };
