@@ -252,6 +252,47 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
   assert.equal(lotteryResult.ResultCode, 1);
 }
 
+{
+  const requests = [];
+  let resolveRequest;
+  const storedValues = {
+    'bg-auth': JSON.stringify({
+      state: { accessToken: 'test-access', refreshToken: 'test-refresh' },
+      version: 0,
+    }),
+  };
+  const adapter = loadAdapter('113', storedValues, {
+    fetch: (url, init) => {
+      requests.push({ url, init });
+      return new Promise((resolve) => {
+        resolveRequest = resolve;
+      });
+    },
+  });
+  const socket = adapter.createFakeSocket();
+  socket.emit('lottery', JSON.stringify({ nBetList: [10] }));
+  socket.emit('lottery', JSON.stringify({ nBetList: [10] }));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(requests.length, 1, 'a legacy double click must create one settlement only');
+
+  resolveRequest({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      betId: 'single-flight-test',
+      grid: grid(5, 3),
+      lines: [],
+      cascades: [],
+      multiplier: 0,
+      amount: '10.00',
+      baseAmount: '10.00',
+      payout: '0.00',
+      newBalance: '990.00',
+    }),
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function walkFiles(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = `${directory}/${entry.name}`;

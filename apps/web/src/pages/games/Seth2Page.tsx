@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, LoaderCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { isSeth2TestUsername } from '@bg/shared';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
@@ -11,7 +11,6 @@ export function Seth2Page() {
   const user = useAuthStore((state) => state.user);
   const setBalance = useAuthStore((state) => state.setBalance);
   const setTokens = useAuthStore((state) => state.setTokens);
-  const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const gameUrl = useMemo(() => {
     const configuredBase = String(import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -31,7 +30,6 @@ export function Seth2Page() {
         refreshToken?: unknown;
       };
       if (payload.type === 'seth2:ready') {
-        setReady(true);
         setError('');
       }
       if (payload.type === 'seth2:balance' || payload.type === 'seth2:ready') {
@@ -39,7 +37,6 @@ export function Seth2Page() {
         if (Number.isFinite(balance)) setBalance(balance.toFixed(2));
       }
       if (payload.type === 'seth2:error') {
-        setReady(true);
         setError(String(payload.message || '遊戲連線失敗'));
       }
       if (
@@ -57,7 +54,7 @@ export function Seth2Page() {
   if (!user) {
     return (
       <AccessPanel
-        message="登入指定測試帳號後即可進入遊戲。"
+        message="請先登入後即可進入遊戲。"
         action={
           <Link
             to={buildLoginPath('/games/storm-of-seth-2', 'game')}
@@ -71,7 +68,7 @@ export function Seth2Page() {
   }
 
   if (!isSeth2TestUsername(user.username)) {
-    return <AccessPanel message="黃金賽特 II 目前僅對指定測試帳號開放。" />;
+    return <AccessPanel message="黃金賽特 II 目前尚未對此帳號開放。" />;
   }
 
   return (
@@ -82,12 +79,6 @@ export function Seth2Page() {
         allow="autoplay; fullscreen"
         className="absolute inset-0 h-full w-full border-0 bg-black"
       />
-      {!ready && !error && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-2 bg-gradient-to-t from-[#10091D] via-[#10091D]/75 to-transparent pb-6 pt-16 text-xs font-bold text-[#E8D48A]">
-          <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-          正在驗證測試帳號並載入遊戲…
-        </div>
-      )}
       {error && (
         <div className="absolute bottom-5 left-1/2 z-20 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-xl border border-red-300/30 bg-red-950/95 px-4 py-3 text-sm text-red-50 shadow-xl">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />

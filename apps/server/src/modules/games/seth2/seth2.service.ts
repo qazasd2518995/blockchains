@@ -22,7 +22,7 @@ import {
   creditAndRecord,
   debitAndRecord,
   lockUserAndCheckFunds,
-  runSerializable,
+  runLockedTransaction,
 } from '../_common/BaseGameService.js';
 import {
   applyControls,
@@ -215,7 +215,7 @@ export class Seth2Service {
     buying: boolean,
     boughtFeatureMode: Seth2FeatureMode,
   ): Promise<Seth2Settlement> {
-    return runSerializable(this.prisma, async (tx) => {
+    return runLockedTransaction(this.prisma, async (tx) => {
       const requestedBaseAmount = new Prisma.Decimal(requestedBet);
       const user = await lockUserAndCheckFunds(tx, userId, new Prisma.Decimal(0), GAME_ID, {
         limitAmounts: [requestedBaseAmount],

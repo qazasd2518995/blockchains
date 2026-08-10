@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, LoaderCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { isImportedGameTestUsername } from '@bg/shared';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
@@ -12,7 +12,6 @@ export function FruitMaryPage() {
   const user = useAuthStore((state) => state.user);
   const setBalance = useAuthStore((state) => state.setBalance);
   const setTokens = useAuthStore((state) => state.setTokens);
-  const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const gameUrl = useMemo(() => {
     const configuredBase = String(import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -38,7 +37,6 @@ export function FruitMaryPage() {
         refreshToken?: unknown;
       };
       if (payload.type === 'fruit-mary:ready') {
-        setReady(true);
         setError('');
       }
       if (payload.type === 'fruit-mary:balance' || payload.type === 'fruit-mary:ready') {
@@ -46,7 +44,6 @@ export function FruitMaryPage() {
         if (Number.isFinite(balance)) setBalance(balance.toFixed(2));
       }
       if (payload.type === 'fruit-mary:error') {
-        setReady(true);
         setError(String(payload.message || '遊戲連線失敗'));
       }
       if (
@@ -70,7 +67,7 @@ export function FruitMaryPage() {
   if (!user) {
     return (
       <AccessPanel
-        message="登入指定測試帳號後即可進入遊戲。"
+        message="請先登入後即可進入遊戲。"
         action={
           <Link
             to={buildLoginPath('/games/fruit-mary', 'game')}
@@ -84,7 +81,7 @@ export function FruitMaryPage() {
   }
 
   if (!isImportedGameTestUsername(user.username)) {
-    return <AccessPanel message="歡樂水果機目前僅對指定測試帳號開放。" />;
+    return <AccessPanel message="歡樂水果機目前尚未對此帳號開放。" />;
   }
 
   return (
@@ -95,12 +92,6 @@ export function FruitMaryPage() {
         allow="autoplay; fullscreen"
         className="absolute inset-y-0 left-1/2 h-full w-full max-w-[750px] -translate-x-1/2 border-0 bg-black"
       />
-      {!ready && !error && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center justify-center gap-2 bg-gradient-to-t from-[#4A1600] via-[#4A1600]/75 to-transparent pb-6 pt-16 text-xs font-bold text-[#FFE08A]">
-          <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-          正在驗證測試帳號並載入水果機…
-        </div>
-      )}
       {error && (
         <div className="pointer-events-none absolute bottom-5 left-1/2 z-20 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-xl border border-red-300/30 bg-red-950/95 px-4 py-3 text-sm text-red-50 shadow-xl">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />

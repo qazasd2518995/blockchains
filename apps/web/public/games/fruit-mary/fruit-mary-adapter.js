@@ -7,6 +7,9 @@
   var gameApi = apiBase + '/games/fruit-mary';
   var requestTimeoutMs = 15000;
   var refreshInFlight = null;
+  var settlementInFlight = false;
+  var animationGuardAttempts = 0;
+  var animationCompletionTimeoutMs = 45000;
 
   function parentStorage() {
     try {
@@ -196,6 +199,18 @@
     var bridge = this;
     var route = this._route;
     this._dispatch('loadstart');
+    if (route.kind === 'settlement' && settlementInFlight) {
+      window.setTimeout(function () {
+        bridge._complete({
+          code: 0,
+          msg: '本輪仍在結算，請稍候',
+          message: '本輪仍在結算，請稍候',
+        });
+      }, 0);
+      return;
+    }
+    var ownsSettlement = route.kind === 'settlement';
+    if (ownsSettlement) settlementInFlight = true;
     authorizedRequest(route.url, route.method, body, false)
       .then(function (payload) {
         if (route.kind === 'session' && payload.data && payload.data.info) {
@@ -208,8 +223,12 @@
       })
       .catch(function (error) {
         var message = error && error.message ? error.message : '遊戲伺服器連線失敗';
+        recoverFruitMaryRequestState();
         notifyParent('fruit-mary:error', { message: message });
         bridge._complete({ code: 0, msg: message, message: message });
+      })
+      .finally(function () {
+        if (ownsSettlement) settlementInFlight = false;
       });
   };
 
@@ -308,6 +327,138 @@
     },
   });
 
+  function recoverFruitMaryRequestState() {
+    try {
+      if (window.cc && window.cc.vv && window.cc.vv.PrefabFactory._mask) {
+        window.cc.vv.PrefabFactory._mask.active = false;
+      }
+      if (!window.cc || typeof window.cc.find !== 'function') return false;
+      var canvas = window.cc.find('Canvas');
+      var playLogic = canvas && canvas.getComponent && canvas.getComponent('PlayLogic');
+      var menuLogic = canvas && canvas.getComponent && canvas.getComponent('MenuLogic');
+      if (playLogic && playLogic._playing) return false;
+      if (menuLogic && typeof menuLogic.initButton === 'function') menuLogic.initButton();
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function shortBonusCompletionIndex(positions) {
+    return Math.max(0, (Array.isArray(positions) ? positions.length : 0) - 1);
+  }
+
+  function patchFruitMaryPlayLogic(playLogic) {
+    if (!playLogic || playLogic.__yachiyoCompletionGuard) return Boolean(playLogic);
+    var originalShowSixiShan = playLogic.showSixiShan;
+    if (typeof originalShowSixiShan === 'function') {
+      playLogic.showSixiShan = function (resultPositions, cycleState, done) {
+        var positions = resultPositions || this._result_pos_arr || [];
+        if (positions.length >= 4) {
+          return originalShowSixiShan.call(this, resultPositions, cycleState, done);
+        }
+        var state = cycleState || { index_int: 0 };
+        if (state.index_int >= 3) {
+          if (typeof done === 'function') done();
+          return;
+        }
+        state.index_int += 1;
+        var completionIndex = shortBonusCompletionIndex(positions);
+        if (completionIndex < 1) {
+          if (typeof done === 'function') done();
+          return;
+        }
+        if (window.cc && window.cc.vv && window.cc.vv.AudioMgr) {
+          window.cc.vv.AudioMgr.playSFX('sounds/lukeyShan/Y009', false, function () {}, true);
+        }
+        for (var index = 1; index < positions.length; index += 1) {
+          (function (component, positionIndex) {
+            var position = positions[positionIndex];
+            component.setPosShan(position, 0.1, 3, function (blinkIndex) {
+              if (blinkIndex !== 3) return;
+              component.setPosShan(component.changeNumTo24(position + 1), 0.1, 3, function () {});
+              component.setPosShan(component.changeNumTo24(position - 1), 0.1, 3, function () {});
+              if (positionIndex === completionIndex) {
+                component.showSixiShan(resultPositions, state, done);
+              }
+            });
+          })(this, index);
+        }
+      };
+    }
+
+    var originalPlay = playLogic.play;
+    if (typeof originalPlay === 'function') {
+      playLogic.play = function (type, positions, isWin, done) {
+        if (this._playing) return originalPlay.call(this, type, positions, isWin, done);
+        var component = this;
+        var completed = false;
+        if (component.__yachiyoAnimationTimer) {
+          window.clearTimeout(component.__yachiyoAnimationTimer);
+        }
+        function finish() {
+          if (completed) return;
+          completed = true;
+          if (component.__yachiyoAnimationTimer) {
+            window.clearTimeout(component.__yachiyoAnimationTimer);
+            component.__yachiyoAnimationTimer = null;
+          }
+          if (typeof done === 'function') return done.apply(component, arguments);
+        }
+        component.__yachiyoAnimationTimer = window.setTimeout(function () {
+          try {
+            if (typeof component.stopAllAni === 'function') component.stopAllAni();
+            if (component.mask) component.mask.active = false;
+          } catch (_error) {
+            // The authoritative settlement still completes even if source cleanup fails.
+          }
+          notifyParent('fruit-mary:error', {
+            message: '遊戲動畫逾時，已自動恢復本輪結算',
+          });
+          finish();
+        }, animationCompletionTimeoutMs);
+        try {
+          return originalPlay.call(component, type, positions, isWin, finish);
+        } catch (error) {
+          notifyParent('fruit-mary:error', {
+            message: '遊戲動畫發生錯誤，已自動恢復本輪結算',
+          });
+          finish();
+          return undefined;
+        }
+      };
+    }
+    playLogic.__yachiyoCompletionGuard = true;
+    return true;
+  }
+
+  function applyFruitMaryRuntimeGuards() {
+    try {
+      if (!window.cc || typeof window.cc.find !== 'function') return false;
+      var canvas = window.cc.find('Canvas');
+      var playLogic = canvas && canvas.getComponent && canvas.getComponent('PlayLogic');
+      return patchFruitMaryPlayLogic(playLogic);
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function installFruitMaryRuntimeGuards() {
+    function install() {
+      if (applyFruitMaryRuntimeGuards()) return;
+      animationGuardAttempts += 1;
+      if (animationGuardAttempts < 600) window.setTimeout(install, 100);
+    }
+    install();
+  }
+
   window.XMLHttpRequest = BridgeXHR;
+  window.__YachiyoFruitMaryAdapterTest = {
+    shortBonusCompletionIndex: shortBonusCompletionIndex,
+    patchFruitMaryPlayLogic: patchFruitMaryPlayLogic,
+    recoverFruitMaryRequestState: recoverFruitMaryRequestState,
+    createBridgeXHR: function () { return new BridgeXHR(); },
+  };
+  installFruitMaryRuntimeGuards();
   console.info('[Fruit Mary Adapter] Yachiyo authenticated HTTP bridge enabled');
 }());

@@ -23,6 +23,7 @@
   var fishStreamToken = 0;
   var fishFrozenUntil = 0;
   var fishSkillInFlight = false;
+  var slotSettlementInFlight = false;
   var FISH_PATH_COUNT = 43;
   var FISH_STREAM_MIN_INTERVAL_MS = 900;
   var FISH_STREAM_JITTER_MS = 650;
@@ -1435,6 +1436,10 @@
       emitQueuedLotteryResponse(socket);
       return;
     }
+    // A few legacy scenes can emit a second `lottery` event before the first
+    // authenticated settlement returns. Keep the first request authoritative;
+    // its response releases the same source controls without charging twice.
+    if (slotSettlementInFlight) return;
     var requestedAmount = Number(payload.nBetList && payload.nBetList[0]);
     if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
       emitLotteryError(socket, '投注金額不正確', -2);
@@ -1446,6 +1451,7 @@
     }
     var amount = requestedAmount;
     var isFeaturePurchase = payload.isBuyFree === 1 && (gameCode === '278' || gameCode === '321');
+    slotSettlementInFlight = true;
     authorizedRequest(
       gameApi + '/spin',
       'POST',
@@ -1476,6 +1482,9 @@
         var message = error && error.message ? error.message : '遊戲伺服器連線失敗';
         emitLotteryError(socket, message, /餘額|限紅|下注|balance|fund/i.test(message) ? -2 : -998);
         notifyParent('h5-slots:error', { message: message });
+      })
+      .finally(function () {
+        slotSettlementInFlight = false;
       });
   }
 

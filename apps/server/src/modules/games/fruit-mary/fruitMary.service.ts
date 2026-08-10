@@ -18,7 +18,7 @@ import {
   creditAndRecord,
   debitAndRecord,
   lockUserAndCheckFunds,
-  runSerializable,
+  runLockedTransaction,
 } from '../_common/BaseGameService.js';
 import {
   applyControls,
@@ -85,7 +85,7 @@ export class FruitMaryService {
       throw new ApiError('INVALID_BET', '投注總數與各水果注數不一致');
     }
 
-    return runSerializable(this.prisma, async (tx) => {
+    return runLockedTransaction(this.prisma, async (tx) => {
       const amount = new Prisma.Decimal(totalUnits).mul(FRUIT_MARY_DENOMINATION);
       const user = await lockUserAndCheckFunds(tx, userId, amount, GAME_ID, {
         limitAmounts: [amount],
@@ -176,7 +176,7 @@ export class FruitMaryService {
   }
 
   async gamble(userId: string, input: FruitMaryGambleInput) {
-    return runSerializable(this.prisma, async (tx) => {
+    return runLockedTransaction(this.prisma, async (tx) => {
       const amount = new Prisma.Decimal(input.balance).toDecimalPlaces(
         2,
         Prisma.Decimal.ROUND_DOWN,
