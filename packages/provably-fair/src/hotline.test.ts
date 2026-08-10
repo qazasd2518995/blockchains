@@ -183,21 +183,32 @@ describe('hotlineSpin', () => {
   });
 
   it('uses each imported Cocos slot layout and mechanic instead of one shared 5x3 board', () => {
-    expect([
-      getHotlineReelCount('h5-aztec-treasure'),
-      getHotlineRowCount('h5-aztec-treasure'),
-    ]).toEqual([3, 3]);
-    expect([getHotlineReelCount('h5-yu-pu-tuan'), getHotlineRowCount('h5-yu-pu-tuan')]).toEqual([
-      5, 4,
-    ]);
-    expect([
-      getHotlineReelCount('h5-mahjong-ways-2'),
-      getHotlineRowCount('h5-mahjong-ways-2'),
-    ]).toEqual([5, 5]);
-    expect([
-      getHotlineReelCount('h5-gates-of-olympus'),
-      getHotlineRowCount('h5-gates-of-olympus'),
-    ]).toEqual([6, 5]);
+    const layouts: Record<string, [number, number]> = {
+      'h5-nine-line-pull-king': [5, 3],
+      'h5-water-margin': [5, 3],
+      'h5-diamond-strike': [5, 3],
+      'h5-yu-pu-tuan': [5, 4],
+      'h5-fruit-little-mary': [5, 3],
+      'h5-aztec-treasure': [3, 3],
+      'h5-fire-88': [3, 3],
+      'h5-lucky-777': [3, 3],
+      'h5-caishen-fa-fa-fa': [5, 3],
+      'h5-flying-together': [5, 3],
+      'h5-star-97': [3, 3],
+      'h5-fortune-ox': [3, 4],
+      'h5-mahjong-ways': [5, 4],
+      'h5-mahjong-ways-2': [5, 5],
+      'h5-dragon-hatch': [6, 5],
+      'h5-captains-bounty': [5, 3],
+      'h5-caishen-wins': [6, 5],
+      'h5-queen-of-bounty': [5, 3],
+      'h5-golden-empire': [6, 5],
+      'h5-fortune-gems': [3, 3],
+      'h5-gates-of-olympus': [6, 5],
+    };
+    for (const [gameId, expected] of Object.entries(layouts)) {
+      expect([getHotlineReelCount(gameId), getHotlineRowCount(gameId)]).toEqual(expected);
+    }
     expect(isHotlineCascadeGame('h5-captains-bounty')).toBe(true);
     expect(isHotlineCascadeGame('h5-nine-line-pull-king')).toBe(false);
     expect(isHotlineFeatureGame('h5-fortune-gems')).toBe(true);

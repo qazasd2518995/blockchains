@@ -1,6 +1,11 @@
 import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
-import { chooseControlledSethFactor, machineInfo, Seth2Service } from './seth2.service.js';
+import {
+  advanceSession,
+  chooseControlledSethFactor,
+  machineInfo,
+  Seth2Service,
+} from './seth2.service.js';
 
 describe('Seth2 controlled result selection', () => {
   it('selects a visual win matching normal-spin control bounds', () => {
@@ -87,5 +92,82 @@ describe('Seth2 machine statistics', () => {
       totalBet30: 0,
       day_rate_30: '0.00',
     });
+  });
+});
+
+describe('Seth2 free-game session progression', () => {
+  const baseInput = {
+    buying: false,
+    freeSpin: false,
+    betAmount: new Prisma.Decimal(18),
+    triggeredFreeSpins: false,
+    triggeredFeatureMode: 'none' as const,
+    boughtFeatureMode: 'none' as const,
+    extraSpins: 0,
+  };
+
+  it('starts all fifteen games after a natural standard trigger', () => {
+    expect(
+      advanceSession(
+        { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00' },
+        {
+          ...baseInput,
+          triggeredFreeSpins: true,
+          triggeredFeatureMode: 'standard',
+        },
+      ),
+    ).toEqual({ freeSpinsRemaining: 15, featureMode: 'standard', betAmount: '18.00' });
+  });
+
+  it('keeps golden-SCATTER triggers in awakening mode', () => {
+    expect(
+      advanceSession(
+        { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00' },
+        {
+          ...baseInput,
+          triggeredFreeSpins: true,
+          triggeredFeatureMode: 'awakening',
+        },
+      ),
+    ).toEqual({ freeSpinsRemaining: 15, featureMode: 'awakening', betAmount: '18.00' });
+  });
+
+  it.each(['standard', 'awakening'] as const)(
+    'records the selected %s purchase mode and consumes its first game',
+    (featureMode) => {
+      expect(
+        advanceSession(
+          { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00' },
+          { ...baseInput, buying: true, boughtFeatureMode: featureMode },
+        ),
+      ).toEqual({ freeSpinsRemaining: 14, featureMode, betAmount: '18.00' });
+    },
+  );
+
+  it('adds five retrigger games after consuming the current game', () => {
+    expect(
+      advanceSession(
+        { freeSpinsRemaining: 1, featureMode: 'awakening', betAmount: '18.00' },
+        { ...baseInput, freeSpin: true, extraSpins: 5 },
+      ),
+    ).toEqual({ freeSpinsRemaining: 5, featureMode: 'awakening', betAmount: '18.00' });
+  });
+
+  it('caps accumulated free games at one hundred', () => {
+    expect(
+      advanceSession(
+        { freeSpinsRemaining: 98, featureMode: 'standard', betAmount: '18.00' },
+        { ...baseInput, freeSpin: true, extraSpins: 5 },
+      ),
+    ).toEqual({ freeSpinsRemaining: 100, featureMode: 'standard', betAmount: '18.00' });
+  });
+
+  it('clears the feature only after the final non-retrigger spin', () => {
+    expect(
+      advanceSession(
+        { freeSpinsRemaining: 1, featureMode: 'standard', betAmount: '18.00' },
+        { ...baseInput, freeSpin: true },
+      ),
+    ).toEqual({ freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00' });
   });
 });

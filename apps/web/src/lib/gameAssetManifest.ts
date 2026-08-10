@@ -177,7 +177,7 @@ interface CocosShellAsset {
 const SETH2_SHELL_ASSETS: readonly CocosShellAsset[] = [
   { src: '/games/storm-of-seth-2/src/settings.a1d24.js', as: 'script' },
   { src: '/games/storm-of-seth-2/main.47d5a.js', as: 'script' },
-  { src: '/games/storm-of-seth-2/seth2-adapter.js?v=6', as: 'script' },
+  { src: '/games/storm-of-seth-2/seth2-adapter.js?v=7', as: 'script' },
   { src: '/games/storm-of-seth-2/cocos2d-js-min.b1c26.js', as: 'script' },
   { src: '/games/storm-of-seth-2/physics-min.941a2.js', as: 'script' },
   { src: '/games/storm-of-seth-2/assets/resources/config.1e032.json', as: 'fetch' },
@@ -189,7 +189,7 @@ const SETH2_SHELL_ASSETS: readonly CocosShellAsset[] = [
 ];
 
 const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [
-  { src: '/games/h5-slot-collection/yachiyo-adapter.js?v=6', as: 'script' },
+  { src: '/games/h5-slot-collection/yachiyo-adapter.js?v=10', as: 'script' },
   { src: '/games/h5-slot-collection/src/settings.33a69.js', as: 'script' },
   { src: '/games/h5-slot-collection/main.649de.js', as: 'script' },
   { src: '/games/h5-slot-collection/cocos2d-js-min.22f51.js', as: 'script' },

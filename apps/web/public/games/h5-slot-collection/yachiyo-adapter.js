@@ -17,13 +17,15 @@
   var isFishGame = FISH_GAME_CODES.indexOf(gameCode) !== -1;
   var fishRoomBet = 10;
   var fishBullets = {};
+  var fishExplosionSettlements = {};
   var fishSequence = 0;
   var fishTargets = [];
   var fishStreamToken = 0;
   var fishFrozenUntil = 0;
   var fishSkillInFlight = false;
   var FISH_PATH_COUNT = 43;
-  var FISH_STREAM_INTERVAL_MS = 1500;
+  var FISH_STREAM_MIN_INTERVAL_MS = 900;
+  var FISH_STREAM_JITTER_MS = 650;
   var pendingLegacyResponses = [];
   var freeSelectionCount = 0;
   var SFX_PREFS_KEY = 'bg.sfx.prefs';
@@ -31,6 +33,105 @@
   var audioBridge = null;
   var audioBridgeAttempts = 0;
   var platformAudioPrefs = readPlatformAudioPrefs();
+
+  var MISSING_SOURCE_FONT_FALLBACKS = {
+    'FZY4JW--GB1-0.ttf':
+      'local("PingFang TC"), local("Microsoft JhengHei"), local("Arial Unicode MS"), local("Arial")',
+    'BRLNSDB.ttf': 'local("Arial Black"), local("Arial Bold"), local("Arial")',
+    'arialbd_0.ttf': 'local("Arial Bold"), local("Arial")',
+    'TTF_BasicFont_Bold.ttf': 'local("Arial Bold"), local("Arial")',
+    'TTF_BasicFont_Normal.ttf': 'local("Arial"), local("Helvetica")',
+  };
+
+  function sourceFontFallback(source) {
+    var sourceText = String(source || '');
+    var names = Object.keys(MISSING_SOURCE_FONT_FALLBACKS);
+    for (var index = 0; index < names.length; index += 1) {
+      if (sourceText.indexOf(names[index]) !== -1) {
+        return MISSING_SOURCE_FONT_FALLBACKS[names[index]];
+      }
+    }
+    return null;
+  }
+
+  function isLegacyBrandWebViewUrl(value) {
+    return /(?:^|\/)pglogo\/indexlogo\.html(?:[?#]|$)/i.test(String(value || ''));
+  }
+
+  function installLegacyBrandWebViewBlocker() {
+    var FrameClass = window.HTMLIFrameElement;
+    if (!FrameClass || !FrameClass.prototype) return false;
+    var prototype = FrameClass.prototype;
+    if (prototype.__yachiyoLegacyBrandBlocked) return true;
+    var descriptor = Object.getOwnPropertyDescriptor(prototype, 'src');
+    if (!descriptor || typeof descriptor.set !== 'function' || !descriptor.configurable) {
+      return false;
+    }
+    try {
+      Object.defineProperty(prototype, 'src', {
+        configurable: descriptor.configurable,
+        enumerable: descriptor.enumerable,
+        get: descriptor.get,
+        set: function (value) {
+          if (isLegacyBrandWebViewUrl(value)) {
+            this.style.display = 'none';
+            descriptor.set.call(this, 'about:blank');
+            return;
+          }
+          descriptor.set.call(this, value);
+        },
+      });
+      Object.defineProperty(prototype, '__yachiyoLegacyBrandBlocked', { value: true });
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function installMissingSourceFontFallbacks() {
+    var NativeFontFace = window.FontFace;
+    if (typeof NativeFontFace !== 'function' || NativeFontFace.__yachiyoFontFallbackBridge) {
+      return false;
+    }
+    function YachiyoFontFace(family, source, descriptors) {
+      return new NativeFontFace(family, sourceFontFallback(source) || source, descriptors);
+    }
+    YachiyoFontFace.prototype = NativeFontFace.prototype;
+    try {
+      Object.setPrototypeOf(YachiyoFontFace, NativeFontFace);
+      Object.defineProperty(YachiyoFontFace, '__yachiyoFontFallbackBridge', {
+        value: true,
+      });
+    } catch (_error) {
+      YachiyoFontFace.__yachiyoFontFallbackBridge = true;
+    }
+    window.FontFace = YachiyoFontFace;
+    var NodeClass = window.Node;
+    if (NodeClass && NodeClass.prototype && !NodeClass.prototype.__yachiyoAppendChild) {
+      var nativeAppendChild = NodeClass.prototype.appendChild;
+      NodeClass.prototype.appendChild = function (child) {
+        if (child && String(child.tagName || '').toUpperCase() === 'STYLE') {
+          child.textContent = rewriteMissingSourceFontStyle(child.textContent);
+        }
+        return nativeAppendChild.call(this, child);
+      };
+      try {
+        Object.defineProperty(NodeClass.prototype, '__yachiyoAppendChild', { value: true });
+      } catch (_error) {
+        NodeClass.prototype.__yachiyoAppendChild = true;
+      }
+    }
+    return true;
+  }
+
+  function rewriteMissingSourceFontStyle(styleText) {
+    var fallback = sourceFontFallback(styleText);
+    if (!fallback) return styleText;
+    return String(styleText).replace(/src\s*:\s*url\([^;]+\);?/i, 'src:' + fallback + ';');
+  }
+
+  installLegacyBrandWebViewBlocker();
+  installMissingSourceFontFallbacks();
 
   function clampVolume(value, fallback) {
     if (value === null || value === undefined || value === '') return fallback;
@@ -339,9 +440,56 @@
     }
   }
 
+  function shouldHideFishSeatNode(nodeName) {
+    return /^noPlayer[1-3]$/.test(String(nodeName || ''));
+  }
+
+  function hideUnusedFishSeats() {
+    if (!isFishGame || !window.cc) return 0;
+    var controlGround = window.cc.find('Canvas/GameNode/ControlGround');
+    if (!controlGround) return 0;
+    var hiddenCount = 0;
+    (controlGround.children || []).forEach(function (node) {
+      if (!node || !shouldHideFishSeatNode(node.name)) return;
+      node.active = false;
+      hiddenCount += 1;
+    });
+    return hiddenCount;
+  }
+
+  function disableLegacyBrandWebViews() {
+    if (!window.cc || !window.cc.director) return 0;
+    var scene = window.cc.director.getScene && window.cc.director.getScene();
+    if (!scene) return 0;
+    var disabledCount = 0;
+    var pending = [scene];
+    while (pending.length) {
+      var node = pending.pop();
+      if (!node) continue;
+      var component =
+        window.cc.WebView && typeof node.getComponent === 'function'
+          ? node.getComponent(window.cc.WebView)
+          : null;
+      var componentUrl = component && (component.url || component._url);
+      if (
+        component &&
+        (isLegacyBrandWebViewUrl(componentUrl) || String(node.name || '') === 'New WebView')
+      ) {
+        node.active = false;
+        disabledCount += 1;
+      }
+      (node.children || []).forEach(function (child) {
+        pending.push(child);
+      });
+    }
+    return disabledCount;
+  }
+
   function applyCocosScenePolicies() {
     hideUnsupportedLegacyButtons();
     enhanceFishAimControls();
+    hideUnusedFishSeats();
+    disableLegacyBrandWebViews();
   }
 
   function installCocosScenePolicies() {
@@ -921,6 +1069,8 @@
       handleFishShoot(socket, rawPayload);
     } else if (event === 'fishHit') {
       handleFishCollision(socket, rawPayload);
+    } else if (event === 'boomFishHit') {
+      handleFishExplosion(socket, rawPayload);
     } else if (event === 'changePower') {
       socket._trigger('changePowerResult', parseSocketPayload(rawPayload));
     } else if (event === 'changeCannon') {
@@ -959,6 +1109,10 @@
           },
         });
       }, 0);
+    } else if (event === 'cleanLineOut') {
+      // Source scenes emit this while being destroyed. The local bridge has
+      // no shared table membership to clean up, but handling it explicitly
+      // keeps the source socket contract complete.
     }
     return this;
   };
@@ -1124,17 +1278,64 @@
       return fishId !== targetFishId;
     });
     if (payout > 0) {
+      var userId = (latestSession && latestSession.id) || (bullet.hit && bullet.hit.uid);
+      fishExplosionSettlements[String(targetFishId)] = {
+        hitSocre: payout / fishRoomBet,
+        userId: userId,
+      };
       socket._trigger('HitResult', {
         ResultCode: 1,
         ResultData: {
           fishId: targetFishId,
-          userId: (latestSession && latestSession.id) || (bullet.hit && bullet.hit.uid),
+          userId: userId,
           hitSocre: payout / fishRoomBet,
         },
       });
+      window.setTimeout(function () {
+        delete fishExplosionSettlements[String(targetFishId)];
+      }, 2500);
     }
     syncFishBalance(Number(bullet.result.newBalance || 0));
     delete fishBullets[bulletId];
+  }
+
+  function buildFishExplosionResult(payload, settlement, activeTargets) {
+    var source = Array.isArray(payload && payload.fishIdList) ? payload.fishIdList : [];
+    var bombFishId = String((payload && payload.fishId) || '');
+    var active = new Set((Array.isArray(activeTargets) ? activeTargets : []).map(String));
+    var seen = new Set();
+    var fishList = source
+      .map(String)
+      .filter(function (fishId) {
+        if (!fishId || fishId === bombFishId || seen.has(fishId) || !active.has(fishId)) {
+          return false;
+        }
+        seen.add(fishId);
+        return true;
+      })
+      .slice(0, 8);
+    return {
+      ResultCode: 1,
+      ResultData: {
+        userId: settlement && settlement.userId,
+        fishList: fishList,
+        hitSocre: Math.max(0, Number((settlement && settlement.hitSocre) || 0)),
+      },
+    };
+  }
+
+  function handleFishExplosion(socket, rawPayload) {
+    var payload = parseSocketPayload(rawPayload);
+    var bombFishId = String(payload.fishId || '');
+    var settlement = fishExplosionSettlements[bombFishId];
+    var result = buildFishExplosionResult(payload, settlement, fishTargets);
+    fishTargets = fishTargets.filter(function (fishId) {
+      return result.ResultData.fishList.indexOf(String(fishId)) === -1;
+    });
+    delete fishExplosionSettlements[bombFishId];
+    window.setTimeout(function () {
+      socket._trigger('boomFishHitResult', result);
+    }, 0);
   }
 
   function isFishHitReady(bullet) {
@@ -1166,6 +1367,7 @@
       if (!socket.connected || streamToken !== fishStreamToken) return;
       if (latestSession) syncFishBalance(Number(latestSession.balance || 0));
       enhanceFishAimControls();
+      hideUnusedFishSeats();
       if (Date.now() < fishFrozenUntil) {
         window.setTimeout(spawnFish, 500);
         return;
@@ -1175,31 +1377,31 @@
       fishTargets = fishTargets.concat(spawn.fishId);
       if (fishTargets.length > 96) fishTargets = fishTargets.slice(-96);
       socket._trigger('FishOut', spawn);
-      window.setTimeout(spawnFish, FISH_STREAM_INTERVAL_MS);
+      window.setTimeout(spawnFish, getFishSpawnDelay(fishSequence));
     }
     window.setTimeout(spawnFish, 600);
   }
 
   function buildFishSpawn(sequence) {
-    var patterns = [
-      { fishLineup: 0, fishCount: 1 },
-      { fishLineup: 1, fishCount: 3 },
-      { fishLineup: 0, fishCount: 1 },
-      { fishLineup: 2, fishCount: 4 },
-      { fishLineup: 0, fishCount: 2 },
-      { fishLineup: 4, fishCount: 6 },
-    ];
-    var pattern = patterns[sequence % patterns.length];
-    var fishIds = Array.from({ length: pattern.fishCount }, function (_value, index) {
+    var fishType = 1 + ((sequence * 7) % 12);
+    var generation = Math.floor(sequence / 12);
+    var isSmallFish = fishType <= 4;
+    var shouldSchool = isSmallFish && (generation + fishType) % 2 === 0;
+    var fishCount = shouldSchool ? 2 + ((generation + fishType) % 4 === 0 ? 1 : 0) : 1;
+    var fishIds = Array.from({ length: fishCount }, function (_value, index) {
       return 'yachiyo-fish-' + sequence + '-' + index;
     });
     return {
-      fishType: 1 + ((sequence * 7) % 12),
-      fishPath: (sequence * 17 + Math.floor(sequence / patterns.length) * 11) % FISH_PATH_COUNT,
-      fishLineup: pattern.fishLineup,
-      fishCount: pattern.fishCount,
+      fishType: fishType,
+      fishPath: (sequence * 17 + Math.floor(sequence / 6) * 11) % FISH_PATH_COUNT,
+      fishLineup: shouldSchool ? 1 : 0,
+      fishCount: fishCount,
       fishId: fishIds,
     };
+  }
+
+  function getFishSpawnDelay(sequence) {
+    return FISH_STREAM_MIN_INTERVAL_MS + ((sequence * 137) % FISH_STREAM_JITTER_MS);
   }
 
   function buildLobbyLogin(session) {
@@ -1769,9 +1971,15 @@
     installCocosAudioControls: installCocosAudioControls,
     readPlatformAudioPrefs: readPlatformAudioPrefs,
     shouldHideLegacyButtonHandler: shouldHideLegacyButtonHandler,
+    shouldHideFishSeatNode: shouldHideFishSeatNode,
     calculateCannonAimAngle: calculateCannonAimAngle,
     buildFishSpawn: buildFishSpawn,
+    getFishSpawnDelay: getFishSpawnDelay,
     isFishHitReady: isFishHitReady,
+    buildFishExplosionResult: buildFishExplosionResult,
+    sourceFontFallback: sourceFontFallback,
+    rewriteMissingSourceFontStyle: rewriteMissingSourceFontStyle,
+    isLegacyBrandWebViewUrl: isLegacyBrandWebViewUrl,
     createFakeSocket: function () {
       return new FakeSocket();
     },

@@ -11,6 +11,32 @@ const collectionPath = fileURLToPath(
 );
 const adapterSource = fs.readFileSync(adapterPath, 'utf8');
 
+{
+  const bridgedSourceSocketEvents = [
+    'login',
+    'LoginGame',
+    'LoginRoom',
+    'fishShoot',
+    'fishHit',
+    'boomFishHit',
+    'changePower',
+    'changeCannon',
+    'useSKill',
+    'LoginfreeCount',
+    'history',
+    'lottery',
+    'freeTimeType',
+    'cleanLineOut',
+  ];
+  for (const event of bridgedSourceSocketEvents) {
+    assert.match(
+      adapterSource,
+      new RegExp(`event === ['"]${event}['"]`),
+      `${event} must have an explicit local socket handler`,
+    );
+  }
+}
+
 function loadAdapter(gameCode, storedValues = {}, options = {}) {
   const storage = {
     getItem: (key) => storedValues[key] ?? null,
@@ -50,6 +76,11 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
   assert.equal(classic.shouldHideLegacyButtonHandler('onBtnGuess'), false);
   assert.equal(caishen.shouldHideLegacyButtonHandler('onBtnGuess'), true);
   assert.equal(caishen.shouldHideLegacyButtonHandler('onBtnBuyFreeShow'), false);
+  assert.equal(classic.shouldHideFishSeatNode('noPlayer0'), false);
+  assert.equal(classic.shouldHideFishSeatNode('noPlayer1'), true);
+  assert.equal(classic.shouldHideFishSeatNode('noPlayer2'), true);
+  assert.equal(classic.shouldHideFishSeatNode('noPlayer3'), true);
+  assert.equal(classic.shouldHideFishSeatNode('player1'), false);
 }
 
 {
@@ -59,11 +90,21 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
   assert.ok(adapter.calculateCannonAimAngle({ x: 100, y: 400 }, { x: -100, y: 200 }, 3) > 0);
   assert.equal(adapter.calculateCannonAimAngle({ x: 100, y: 0 }, { x: 100, y: -20 }, 0), null);
 
-  const spawns = Array.from({ length: 18 }, (_, index) => adapter.buildFishSpawn(index + 1));
-  assert.ok(new Set(spawns.map((spawn) => spawn.fishPath)).size > 12);
+  const spawns = Array.from({ length: 72 }, (_, index) => adapter.buildFishSpawn(index + 1));
+  assert.ok(new Set(spawns.map((spawn) => spawn.fishPath)).size > 35);
   assert.ok(spawns.some((spawn) => spawn.fishPath < 14));
   assert.ok(spawns.some((spawn) => spawn.fishPath >= 14 && spawn.fishPath < 28));
   assert.ok(spawns.some((spawn) => spawn.fishLineup > 0 && spawn.fishCount > 1));
+  assert.ok(spawns.some((spawn) => spawn.fishType <= 4 && spawn.fishCount === 1));
+  assert.equal(
+    spawns.every((spawn) =>
+      spawn.fishType > 4
+        ? spawn.fishCount === 1 && spawn.fishLineup === 0
+        : spawn.fishCount >= 1 && spawn.fishCount <= 3,
+    ),
+    true,
+  );
+  assert.ok(spawns.filter((spawn) => spawn.fishCount > 1).length < spawns.length / 4);
   assert.equal(
     spawns.every(
       (spawn) =>
@@ -71,9 +112,60 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
     ),
     true,
   );
+  const spawnDelays = spawns.map((_, index) => adapter.getFishSpawnDelay(index + 1));
+  assert.ok(new Set(spawnDelays).size > 20);
+  assert.ok(spawnDelays.every((delay) => delay >= 900 && delay < 1550));
   assert.equal(adapter.isFishHitReady({ result: {}, hit: null }), false);
   assert.equal(adapter.isFishHitReady({ result: null, hit: {} }), false);
   assert.equal(adapter.isFishHitReady({ result: {}, hit: {} }), true);
+
+  const explosion = adapter.buildFishExplosionResult(
+    {
+      fishId: 'bomb',
+      fishIdList: ['bomb', 'fish-1', 'fish-1', 'missing', 'fish-2', 'fish-3'],
+    },
+    { userId: 'player-1', hitSocre: 12.5 },
+    ['fish-1', 'fish-2', 'fish-3'],
+  );
+  assert.deepEqual(
+    {
+      ...explosion,
+      ResultData: { ...explosion.ResultData, fishList: Array.from(explosion.ResultData.fishList) },
+    },
+    {
+      ResultCode: 1,
+      ResultData: {
+        userId: 'player-1',
+        fishList: ['fish-1', 'fish-2', 'fish-3'],
+        hitSocre: 12.5,
+      },
+    },
+  );
+}
+
+{
+  const adapter = loadAdapter('244');
+  assert.match(adapter.sourceFontFallback('url("/native/FZY4JW--GB1-0.ttf")'), /PingFang TC/);
+  assert.match(adapter.sourceFontFallback('url("/native/BRLNSDB.ttf")'), /Arial Black/);
+  assert.match(adapter.sourceFontFallback('url("/native/arialbd_0.ttf")'), /Arial Bold/);
+  assert.match(adapter.sourceFontFallback('url("/native/TTF_BasicFont_Bold.ttf")'), /Arial Bold/);
+  assert.match(adapter.sourceFontFallback('url("/native/TTF_BasicFont_Normal.ttf")'), /Arial/);
+  assert.equal(adapter.sourceFontFallback('url("/native/original-present-font.ttf")'), null);
+  assert.equal(adapter.isLegacyBrandWebViewUrl('/pglogo/indexlogo.html'), true);
+  assert.equal(adapter.isLegacyBrandWebViewUrl('https://legacy.test/pglogo/indexlogo.html?v=1'), true);
+  assert.equal(adapter.isLegacyBrandWebViewUrl('/games/help/index.html'), false);
+  assert.equal(
+    adapter.rewriteMissingSourceFontStyle(
+      "@font-face { font-family:'legacy'; src:url('/native/FZY4JW--GB1-0.ttf');}",
+    ),
+    "@font-face { font-family:'legacy'; src:local(\"PingFang TC\"), local(\"Microsoft JhengHei\"), local(\"Arial Unicode MS\"), local(\"Arial\");}",
+  );
+  assert.equal(
+    adapter.rewriteMissingSourceFontStyle(
+      "@font-face { font-family:'original'; src:url('/native/original-present-font.ttf');}",
+    ),
+    "@font-face { font-family:'original'; src:url('/native/original-present-font.ttf');}",
+  );
 }
 
 {
@@ -113,6 +205,51 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
   assert.equal(requests[0].init.method, 'POST');
   assert.deepEqual(JSON.parse(requests[0].init.body), { gameCode: '2', skillId: 1 });
   assert.deepEqual({ ...result }, { ResultCode: 1, uid: 'player-1', sid: 1, cost: 100 });
+}
+
+{
+  const requests = [];
+  const storedValues = {
+    'bg-auth': JSON.stringify({
+      state: { accessToken: 'test-access', refreshToken: 'test-refresh' },
+      version: 0,
+    }),
+  };
+  const adapter = loadAdapter('278', storedValues, {
+    fetch: async (url, init) => {
+      requests.push({ url, init });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          betId: 'buy-free-test',
+          grid: grid(6, 5),
+          lines: [],
+          cascades: [],
+          multiplier: 0,
+          amount: '10.00',
+          baseAmount: '10.00',
+          payout: '0.00',
+          newBalance: '1000.00',
+        }),
+      };
+    },
+  });
+  const socket = adapter.createFakeSocket();
+  let lotteryResult = null;
+  socket.on('lotteryResult', (payload) => {
+    lotteryResult = payload;
+  });
+  socket.emit('lottery', JSON.stringify({ nBetList: [10], isBuyFree: 1 }));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, 'https://example.test/api/games/h5-slots/spin');
+  assert.deepEqual(JSON.parse(requests[0].init.body), {
+    gameCode: '278',
+    amount: 10,
+    isBuyFree: true,
+  });
+  assert.equal(lotteryResult.ResultCode, 1);
 }
 
 function walkFiles(directory) {
@@ -156,6 +293,69 @@ function clusterLine() {
     count: 8,
     payout: 2,
   };
+}
+
+{
+  const slotLayouts = {
+    113: [5, 3, 'classic'],
+    116: [5, 3, 'classic'],
+    135: [5, 3, 'classic'],
+    155: [5, 4, 'classic'],
+    160: [5, 3, 'classic'],
+    161: [3, 3, 'classic'],
+    188: [3, 3, 'classic'],
+    232: [3, 3, 'classic'],
+    244: [5, 3, 'classic'],
+    252: [5, 3, 'classic'],
+    262: [3, 3, 'classic'],
+    264: [3, 4, 'classic'],
+    269: [5, 4, 'mahjong'],
+    271: [5, 5, 'mahjong'],
+    273: [6, 5, 'tumble'],
+    276: [5, 3, 'step'],
+    278: [6, 5, 'ways'],
+    281: [5, 3, 'step'],
+    301: [6, 5, 'ways'],
+    302: [3, 3, 'classic'],
+    321: [6, 5, 'tumble'],
+  };
+
+  for (const [code, [reels, rows, family]] of Object.entries(slotLayouts)) {
+    const adapter = loadAdapter(code);
+    assert.equal(adapter.shape.reels, reels, `${code} reel contract`);
+    assert.equal(adapter.shape.rows, rows, `${code} row contract`);
+    assert.equal(adapter.shape.family, family, `${code} response family`);
+    const responses = adapter.buildLotteryResponses({
+      grid: grid(reels, rows),
+      lines: [],
+      cascades: [],
+      multiplier: 0,
+      amount: '10.00',
+      baseAmount: '10.00',
+      payout: '0.00',
+      newBalance: '100.00',
+    });
+    assert.ok(responses.length > 0, `${code} must produce a legacy response`);
+    for (const queued of responses) {
+      assert.equal(queued.response.ResultCode, 1, `${code} result code`);
+      const data = queued.response.ResultData;
+      assert.equal(Number.isFinite(data.userscore), true, `${code} balance`);
+      if (family === 'classic') {
+        assert.equal(data.viewarray.nHandCards.length, reels * rows, `${code} symbol count`);
+        assert.equal(data.viewarray.nWinCards.length, reels * rows, `${code} win mask count`);
+      } else if (family === 'tumble') {
+        assert.equal(data.viewarray.nHandCards.length, reels * rows, `${code} tumble symbol count`);
+        assert.ok(data.viewarray.nst === 1 || data.viewarray.nst === 2, `${code} tumble state`);
+      } else {
+        assert.ok(Array.isArray(data.viewarray), `${code} step sequence`);
+        assert.equal(
+          data.viewarray.at(-1).nHandCards.length,
+          reels * rows,
+          `${code} final step symbol count`,
+        );
+      }
+    }
+  }
 }
 
 {

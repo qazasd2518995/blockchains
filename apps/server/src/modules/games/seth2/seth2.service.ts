@@ -10,6 +10,7 @@ import {
   SETH2_ALLOWED_BETS,
   SETH2_BUY_FEATURE_MULTIPLIER,
   SETH2_FREE_SPINS,
+  SETH2_MAX_FREE_SPINS,
   SETH2_MAX_WIN_MULTIPLIER,
   isSeth2TestUsername,
   type Seth2FeatureMode,
@@ -35,11 +36,11 @@ import type { Seth2ProtocolInput } from './seth2.schema.js';
 const GAME_ID = GameId.STORM_OF_SETH_2;
 const ALLOWED_BET_SET = new Set<number>(SETH2_ALLOWED_BETS);
 const CONTROL_FACTORS = [
-  0, 0.5, 1, 2, 3, 4, 5, 8, 10, 20, 45, 50, 100, 200, 205, 220, 250, 300, 350, 400,
-  450, 500, 1000, 2015, 5000, 10_000, 20_000, 50_000, 81_000,
+  0, 0.5, 1, 2, 3, 4, 5, 8, 10, 20, 45, 50, 100, 200, 205, 220, 250, 300, 350, 400, 450, 500, 1000,
+  2015, 5000, 10_000, 20_000, 50_000, 81_000,
 ] as const;
 
-interface Seth2SessionState {
+export interface Seth2SessionState {
   freeSpinsRemaining: number;
   featureMode: Seth2FeatureMode;
   betAmount: string;
@@ -121,7 +122,9 @@ export class Seth2Service {
         const buying = input.type === 'buyFreeGame';
         const bet = requireBet(input.yazhu);
         const machineId = requireMachineId(input.machineId);
-        const settlement = await this.settle(userId, bet, machineId, buying);
+        const boughtFeatureMode: Seth2FeatureMode =
+          input.gameModelType === 1 ? 'awakening' : 'standard';
+        const settlement = await this.settle(userId, bet, machineId, buying, boughtFeatureMode);
         return response(input.type, {
           returnData: settlement.returnData,
           balance: settlement.balance,
@@ -210,6 +213,7 @@ export class Seth2Service {
     requestedBet: number,
     machineId: number,
     buying: boolean,
+    boughtFeatureMode: Seth2FeatureMode,
   ): Promise<Seth2Settlement> {
     return runSerializable(this.prisma, async (tx) => {
       const requestedBaseAmount = new Prisma.Decimal(requestedBet);
@@ -245,7 +249,9 @@ export class Seth2Service {
       }
 
       const mode: Seth2SpinMode = buying
-        ? 'awakening_free'
+        ? boughtFeatureMode === 'awakening'
+          ? 'awakening_free'
+          : 'bought_standard_free'
         : freeSpin
           ? currentSession.featureMode === 'awakening'
             ? 'awakening_free'
@@ -301,11 +307,16 @@ export class Seth2Service {
         freeSpin,
         betAmount: baseAmount,
         triggeredFreeSpins: finalOutcome.triggeredFreeSpins,
+        triggeredFeatureMode: finalOutcome.featureMode,
+        boughtFeatureMode,
+        extraSpins: finalOutcome.returnData.addGameCiShu,
       });
       applyFeatureState(
         finalOutcome.returnData,
         nextSession.freeSpinsRemaining,
-        buying || finalOutcome.triggeredFreeSpins || (freeSpin && nextSession.freeSpinsRemaining > 0),
+        buying ||
+          finalOutcome.triggeredFreeSpins ||
+          (freeSpin && nextSession.freeSpinsRemaining > 0),
       );
 
       const originalResult = {
@@ -439,11 +450,7 @@ function machineList(stats: Map<number, Seth2MachineStatsRow>) {
 
 function payoutRate(bet: Prisma.Decimal, payout: Prisma.Decimal): string {
   if (bet.lessThanOrEqualTo(0)) return '0.00';
-  return payout
-    .div(bet)
-    .mul(100)
-    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
-    .toFixed(2);
+  return payout.div(bet).mul(100).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN).toFixed(2);
 }
 
 function readSession(resultData: Prisma.JsonValue | undefined): Seth2SessionState {
@@ -459,7 +466,7 @@ function readSession(resultData: Prisma.JsonValue | undefined): Seth2SessionStat
   if (
     !Number.isInteger(remaining) ||
     remaining < 0 ||
-    remaining > SETH2_FREE_SPINS ||
+    remaining > SETH2_MAX_FREE_SPINS ||
     !ALLOWED_BET_SET.has(Number(betAmount)) ||
     (featureMode !== 'none' && featureMode !== 'standard' && featureMode !== 'awakening')
   ) {
@@ -468,24 +475,30 @@ function readSession(resultData: Prisma.JsonValue | undefined): Seth2SessionStat
   return { freeSpinsRemaining: remaining, featureMode, betAmount };
 }
 
-function advanceSession(
+export function advanceSession(
   current: Seth2SessionState,
   input: {
     buying: boolean;
     freeSpin: boolean;
     betAmount: Prisma.Decimal;
     triggeredFreeSpins: boolean;
+    triggeredFeatureMode: Seth2FeatureMode;
+    boughtFeatureMode: Seth2FeatureMode;
+    extraSpins: number;
   },
 ): Seth2SessionState {
   if (input.buying) {
     return {
       freeSpinsRemaining: SETH2_FREE_SPINS - 1,
-      featureMode: 'awakening',
+      featureMode: input.boughtFeatureMode,
       betAmount: input.betAmount.toFixed(2),
     };
   }
   if (input.freeSpin) {
-    const remaining = Math.max(0, current.freeSpinsRemaining - 1);
+    const remaining = Math.min(
+      SETH2_MAX_FREE_SPINS,
+      Math.max(0, current.freeSpinsRemaining - 1 + input.extraSpins),
+    );
     return {
       freeSpinsRemaining: remaining,
       featureMode: remaining > 0 ? current.featureMode : 'none',
@@ -495,7 +508,7 @@ function advanceSession(
   if (input.triggeredFreeSpins) {
     return {
       freeSpinsRemaining: SETH2_FREE_SPINS,
-      featureMode: 'standard',
+      featureMode: input.triggeredFeatureMode === 'awakening' ? 'awakening' : 'standard',
       betAmount: input.betAmount.toFixed(2),
     };
   }
@@ -512,9 +525,7 @@ function applyFeatureState(
 }
 
 function payoutForFactor(baseAmount: Prisma.Decimal, factor: number): Prisma.Decimal {
-  return baseAmount
-    .mul(new Prisma.Decimal(factor))
-    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  return baseAmount.mul(new Prisma.Decimal(factor)).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
 }
 
 export function chooseControlledSethFactor(

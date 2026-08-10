@@ -141,6 +141,64 @@
     }, 0);
   }
 
+  function recoverAnimationFailure(error, returnData) {
+    console.error('[Seth2 Adapter] Spin animation failed; recovering game flow', error);
+    notifyParent('seth2:animation-error', {
+      message: error && error.message ? error.message : 'Spin animation failed',
+    });
+    window.setTimeout(function () {
+      try {
+        var Game = window.__require && window.__require('Game').default;
+        var eventModule = window.__require && window.__require('GameEvent');
+        var game = Game && Game.instance;
+        if (!game) return;
+        if (game.colMain) game.colMain.isRoll = false;
+        if (typeof game.getIsAuto === 'function' && game.getIsAuto() && typeof game.endAuto === 'function') {
+          game.endAuto();
+        }
+        game.isCanClick = true;
+
+        var eventBus = eventModule && eventModule.default && eventModule.default.getInstance();
+        var eventNames = eventModule && eventModule.GameEventName;
+        if (eventBus && eventNames) {
+          eventBus.emit(eventNames.GAME_END_REFRESH_MY_SCORE);
+          if (game.isBuyGame) {
+            eventBus.emit(eventNames.BUY_GAME_NEXT_STEP);
+            return;
+          }
+          if (game.isFreeGame) {
+            eventBus.emit(eventNames.FREE_GAME_NEXT_STEP);
+            return;
+          }
+          if (returnData && returnData.is_sjc === 1) {
+            game.isFreeGame = true;
+            game.freeGameTime = returnData.freeGameCount || 0;
+            game.freeGameState = 0;
+            eventBus.emit(eventNames.FREE_GAME_NEXT_STEP);
+            return;
+          }
+        } else if (typeof game.getUserInfo === 'function') {
+          game.getUserInfo();
+        }
+
+        if (typeof game.setBtnState === 'function') game.setBtnState(true);
+      } catch (recoveryError) {
+        console.warn('[Seth2 Adapter] Failed to recover a rejected spin animation', recoveryError);
+      }
+    }, 0);
+  }
+
+  function syncAuthoritativeResultMultiplier(game) {
+    var returnData = game && game.colMain && game.colMain.returnData;
+    var baseScore = Number(game && game.cur_top_ying_fen);
+    var totalGold = Number(returnData && returnData.total_gold);
+    if (!Number.isFinite(baseScore) || baseScore <= 0 || !Number.isFinite(totalGold)) return;
+    var multiplier = totalGold / baseScore;
+    if (!Number.isFinite(multiplier) || multiplier <= 0) return;
+    game.cur_top_mul = multiplier;
+    if (game.ttf_top_mul) game.ttf_top_mul.string = String(multiplier);
+  }
+
   function showFatal(message) {
     var overlay = document.createElement('div');
     overlay.style.cssText = [
@@ -217,6 +275,8 @@
   window.WebSocket = LocalGameSocket;
   window.__YachiyoSeth2AdapterTest = {
     publicGameError: publicGameError,
+    recoverAnimationFailure: recoverAnimationFailure,
+    syncAuthoritativeResultMultiplier: syncAuthoritativeResultMultiplier,
   };
 
   function requestSession(callback) {
@@ -309,13 +369,34 @@
     if (gameModulesPatched || typeof window.__require !== 'function') return;
     try {
       var Game = window.__require('Game').default;
+      var ColMain = window.__require('ColMain').default;
       var RoomListView = window.__require('RoomListView').default;
-      if (!Game || !RoomListView) return;
+      if (!Game || !ColMain || !RoomListView) return;
 
       var originalGameOnLoad = Game.prototype.onLoad;
       Game.prototype.onLoad = function () {
         if (originalGameOnLoad) originalGameOnLoad.call(this);
         this.cur_game_model = 1;
+      };
+
+      var originalShowResultScore = Game.prototype.showResultScore;
+      Game.prototype.showResultScore = function () {
+        syncAuthoritativeResultMultiplier(this);
+        return originalShowResultScore.call(this);
+      };
+
+      var originalColMainStartRoll = ColMain.prototype.startRoll;
+      ColMain.prototype.startRoll = function (returnData) {
+        try {
+          var pending = originalColMainStartRoll.call(this, returnData);
+          if (!pending || typeof pending.catch !== 'function') return pending;
+          return pending.catch(function (error) {
+            recoverAnimationFailure(error, returnData);
+          });
+        } catch (error) {
+          recoverAnimationFailure(error, returnData);
+          return Promise.resolve();
+        }
       };
 
       var findNodeByName = function (node, name) {

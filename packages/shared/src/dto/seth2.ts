@@ -3,6 +3,7 @@ export const SETH2_RTP = 96.89;
 export const SETH2_MAX_WIN_MULTIPLIER = 81_000;
 export const SETH2_BUY_FEATURE_MULTIPLIER = 200;
 export const SETH2_FREE_SPINS = 15;
+export const SETH2_MAX_FREE_SPINS = 100;
 
 export const SETH2_ALLOWED_BETS = [
   2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 60, 64, 72, 80,
