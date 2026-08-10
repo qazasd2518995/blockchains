@@ -191,10 +191,11 @@ export class FruitMaryService {
         select: { resultData: true },
       });
       const available = readGambleAmount(previous?.resultData);
-      if (available.lessThanOrEqualTo(0) || !available.equals(amount)) {
+      const allocationStatus = fruitMaryGambleAllocationStatus(available, amount, user.balance);
+      if (allocationStatus === 'expired') {
         throw new ApiError('INVALID_ACTION', '本輪可比大小分數已失效');
       }
-      if (user.balance.lessThan(amount)) {
+      if (allocationStatus === 'insufficient') {
         throw new ApiError('INSUFFICIENT_FUNDS', 'Insufficient balance');
       }
 
@@ -386,6 +387,18 @@ function readGambleAmount(resultData: Prisma.JsonValue | undefined): Prisma.Deci
   } catch {
     return new Prisma.Decimal(0);
   }
+}
+
+export function fruitMaryGambleAllocationStatus(
+  pendingValue: Prisma.Decimal.Value,
+  requestedValue: Prisma.Decimal.Value,
+  balanceValue: Prisma.Decimal.Value,
+): 'ok' | 'expired' | 'insufficient' {
+  const pending = new Prisma.Decimal(pendingValue);
+  if (pending.lessThanOrEqualTo(0)) return 'expired';
+  const requested = new Prisma.Decimal(requestedValue);
+  const balance = new Prisma.Decimal(balanceValue);
+  return requested.greaterThan(balance) ? 'insufficient' : 'ok';
 }
 
 function controlledGambleOutcome(choice: 1 | 2, won: boolean) {

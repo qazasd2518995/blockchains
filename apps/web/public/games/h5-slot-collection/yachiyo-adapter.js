@@ -266,8 +266,7 @@
         if (!entry) return originalSetVolume(id, volume);
         entry.volume = clampVolume(volume, entry.volume);
         var muted = entry.kind === 'music' ? currentPrefs.musicMuted : currentPrefs.effectsMuted;
-        var master =
-          entry.kind === 'music' ? currentPrefs.musicVolume : currentPrefs.effectsVolume;
+        var master = entry.kind === 'music' ? currentPrefs.musicVolume : currentPrefs.effectsVolume;
         return originalSetVolume(id, muted ? 0 : entry.volume * master);
       };
     }
@@ -1819,13 +1818,16 @@
   }
 
   function winFields(lines, shape, baseAmount) {
-    var details = (Array.isArray(lines) ? lines : [])
+    var winningLines = (Array.isArray(lines) ? lines : [])
       .map(function (line) {
-        return winLinePositions(line, shape);
+        return { line: line, positions: winLinePositions(line, shape) };
       })
-      .filter(function (positions) {
-        return positions.length > 0;
+      .filter(function (entry) {
+        return entry.positions.length > 0;
       });
+    var details = winningLines.map(function (entry) {
+      return entry.positions;
+    });
     var cards = falseList(shape.reels * shape.rows);
     details.forEach(function (positions) {
       positions.forEach(function (index) {
@@ -1835,11 +1837,16 @@
     return {
       nWinCards: cards,
       nWinLinesDetail: details,
-      nWinLines: details.map(function (_positions, index) {
+      nWinLines: winningLines.map(function (entry, index) {
+        var explicitIndex = Number(entry.line && entry.line.lineIndex);
+        if (Number.isInteger(explicitIndex) && explicitIndex >= 0) return explicitIndex;
+        var lineId = String((entry.line && entry.line.lineId) || '');
+        var numberedLine = /^line-(\d+)$/.exec(lineId);
+        if (numberedLine) return Math.max(0, Number(numberedLine[1]) - 1);
         return index;
       }),
-      nWinDetail: (Array.isArray(lines) ? lines : []).slice(0, details.length).map(function (line) {
-        return roundMoney(Number(line.payout || 0) * Number(baseAmount || 0));
+      nWinDetail: winningLines.map(function (entry) {
+        return roundMoney(Number(entry.line.payout || 0) * Number(baseAmount || 0));
       }),
     };
   }

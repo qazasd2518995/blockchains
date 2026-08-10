@@ -39,6 +39,23 @@ const HOTLINE_GAME_LAYOUTS = new Map<string, { reels: number; rows: number }>([
   ['h5-fortune-gems', { reels: 3, rows: 3 }],
   ['h5-gates-of-olympus', { reels: 6, rows: 5 }],
 ]);
+export type HotlineEvaluationMode = 'paylines' | 'ways' | 'cluster';
+
+/** Imported games whose source scenes advertise an all-ways payout model. */
+export const HOTLINE_WAYS_GAME_IDS = new Set([
+  'h5-flying-together',
+  'h5-mahjong-ways',
+  'h5-mahjong-ways-2',
+  'h5-caishen-wins',
+  'h5-golden-empire',
+]);
+
+/** Imported games whose source scenes remove every matching symbol as a cluster. */
+export const HOTLINE_CLUSTER_GAME_IDS = new Set([
+  ...HOTLINE_MEGA_GAME_IDS,
+  'h5-dragon-hatch',
+  'h5-gates-of-olympus',
+]);
 export const HOTLINE_CASCADE_GAME_IDS = new Set([
   ...HOTLINE_MEGA_GAME_IDS,
   'h5-mahjong-ways',
@@ -226,6 +243,8 @@ export interface HotlineCascadeResult {
 
 export interface HotlineWinLine {
   lineId: string;
+  /** Zero-based index of the source scene's line overlay. */
+  lineIndex?: number;
   path: number[];
   positions?: HotlineWinPosition[];
   startReel: number;
@@ -245,6 +264,7 @@ export function hotlineSpinCascades(
   rowCount = HOTLINE_MEGA_ROWS,
   maxCascades = HOTLINE_MEGA_MAX_CASCADES,
   enableFeatures = rowCount >= HOTLINE_MEGA_ROWS,
+  gameId?: string,
 ): HotlineCascadeResult {
   const stream = hmacIntStream(serverSeed, clientSeed, nonce);
   const symbols = getHotlineSymbolsForGrid(reelCount, rowCount);
@@ -256,9 +276,17 @@ export function hotlineSpinCascades(
     return pickSymbol(nextRandom01(), symbols);
   };
 
-  const round = runHotlineCascadeRound(nextSymbol, reelCount, rowCount, maxCascades);
+  const round = runHotlineCascadeRound(nextSymbol, reelCount, rowCount, maxCascades, gameId);
   const features = enableFeatures
-    ? buildMegaFeatureResult(round, nextRandom01, nextSymbol, reelCount, rowCount, maxCascades)
+    ? buildMegaFeatureResult(
+        round,
+        nextRandom01,
+        nextSymbol,
+        reelCount,
+        rowCount,
+        maxCascades,
+        gameId,
+      )
     : undefined;
 
   return {
@@ -278,6 +306,7 @@ export function hotlineBuyFreeSpins(
   reelCount = HOTLINE_MEGA_REELS,
   rowCount = HOTLINE_MEGA_ROWS,
   maxCascades = HOTLINE_MEGA_MAX_CASCADES,
+  gameId?: string,
 ): HotlineCascadeResult {
   const stream = hmacIntStream(serverSeed, clientSeed, nonce);
   const symbols = getHotlineSymbolsForGrid(reelCount, rowCount);
@@ -303,6 +332,7 @@ export function hotlineBuyFreeSpins(
     reelCount,
     rowCount,
     maxCascades,
+    gameId,
   );
   const features: HotlineMegaFeatureResult = {
     scatterSymbols,
@@ -337,6 +367,7 @@ function runHotlineCascadeRound(
   reelCount: number,
   rowCount: number,
   maxCascades: number,
+  gameId?: string,
 ): HotlineInternalCascadeRound {
   let grid = Array.from({ length: reelCount }, () =>
     Array.from({ length: rowCount }, () => nextSymbol()),
@@ -347,7 +378,7 @@ function runHotlineCascadeRound(
   let totalMultiplier = 0;
 
   for (let index = 0; index < maxCascades; index += 1) {
-    const evaluated = hotlineEvaluate(grid);
+    const evaluated = hotlineEvaluate(grid, gameId);
     if (evaluated.lines.length === 0 || evaluated.totalMultiplier <= 0) break;
 
     const removed = collectHotlineWinPositions(grid, evaluated.lines);
@@ -381,6 +412,7 @@ function buildMegaFeatureResult(
   reelCount: number,
   rowCount: number,
   maxCascades: number,
+  gameId?: string,
 ): HotlineMegaFeatureResult {
   const scatterSymbols = drawMegaScatterSymbols(nextRandom01, reelCount, rowCount, false);
   const baseScatterMultiplier = getMegaScatterPayout(scatterSymbols.length);
@@ -410,6 +442,7 @@ function buildMegaFeatureResult(
     rowCount,
     maxCascades,
     initialFreeSpinsAwarded,
+    gameId,
   );
 
   return {
@@ -436,6 +469,7 @@ function runMegaFreeSpinRounds(
   rowCount: number,
   maxCascades: number,
   initialFreeSpinsAwarded: number,
+  gameId?: string,
 ): {
   freeSpinsAwarded: number;
   freeSpinRounds: HotlineFreeSpinRound[];
@@ -451,7 +485,7 @@ function runMegaFreeSpinRounds(
   const freeSpinRounds: HotlineFreeSpinRound[] = [];
 
   for (let index = 0; index < freeSpinsAwarded && index < HOTLINE_MEGA_MAX_FREE_SPINS; index += 1) {
-    const round = runHotlineCascadeRound(nextSymbol, reelCount, rowCount, maxCascades);
+    const round = runHotlineCascadeRound(nextSymbol, reelCount, rowCount, maxCascades, gameId);
     const scatterRoundSymbols = drawMegaScatterSymbols(nextRandom01, reelCount, rowCount, true);
     const roundScatterMultiplier = getMegaScatterPayout(scatterRoundSymbols.length);
     const roundSymbolWinMultiplier = round.totalMultiplier;
@@ -514,6 +548,7 @@ function buildBuyFeatureFreeSpinsWithinCap(
   reelCount: number,
   rowCount: number,
   maxCascades: number,
+  gameId?: string,
 ): {
   freeSpinsAwarded: number;
   freeSpinRounds: HotlineFreeSpinRound[];
@@ -527,6 +562,7 @@ function buildBuyFeatureFreeSpinsWithinCap(
     rowCount,
     maxCascades,
     HOTLINE_MEGA_FREE_SPIN_BASE_AWARD,
+    gameId,
   );
   if (best.freeSpinWinMultiplier <= HOTLINE_MEGA_BUY_FEATURE_MAX_TOTAL_MULTIPLIER) {
     return best;
@@ -540,6 +576,7 @@ function buildBuyFeatureFreeSpinsWithinCap(
       rowCount,
       maxCascades,
       HOTLINE_MEGA_FREE_SPIN_BASE_AWARD,
+      gameId,
     );
     if (candidate.freeSpinWinMultiplier < best.freeSpinWinMultiplier) {
       best = candidate;
@@ -696,7 +733,14 @@ function capMegaMultiplier(value: number): number {
   return Math.min(HOTLINE_MEGA_MAX_TOTAL_MULTIPLIER, roundMultiplier(value));
 }
 
-export const HOTLINE_PAYLINES_5X3 = [
+export interface HotlinePaylineDefinition {
+  id: string;
+  path: readonly number[];
+  /** Zero-based child index under the original Cocos WinLine node. */
+  lineIndex?: number;
+}
+
+export const HOTLINE_PAYLINES_5X3: readonly HotlinePaylineDefinition[] = [
   { id: 'top', path: [0, 0, 0, 0, 0] },
   { id: 'middle', path: [1, 1, 1, 1, 1] },
   { id: 'bottom', path: [2, 2, 2, 2, 2] },
@@ -704,7 +748,7 @@ export const HOTLINE_PAYLINES_5X3 = [
   { id: 'v-up', path: [2, 1, 0, 1, 2] },
 ] as const;
 
-export const HOTLINE_PAYLINES_3X3 = [
+export const HOTLINE_PAYLINES_3X3: readonly HotlinePaylineDefinition[] = [
   { id: 'top', path: [0, 0, 0] },
   { id: 'middle', path: [1, 1, 1] },
   { id: 'bottom', path: [2, 2, 2] },
@@ -713,6 +757,162 @@ export const HOTLINE_PAYLINES_3X3 = [
 ] as const;
 
 export const HOTLINE_PAYLINES = HOTLINE_PAYLINES_5X3;
+
+const H5_PAYLINES_5X3_15_PATHS = [
+  [1, 1, 1, 1, 1],
+  [0, 0, 0, 0, 0],
+  [2, 2, 2, 2, 2],
+  [0, 1, 2, 1, 0],
+  [2, 1, 0, 1, 2],
+  [0, 0, 1, 0, 0],
+  [2, 2, 1, 2, 2],
+  [1, 0, 1, 2, 1],
+  [1, 2, 1, 0, 1],
+  [1, 0, 0, 0, 1],
+  [1, 2, 2, 2, 1],
+  [0, 1, 1, 1, 0],
+  [2, 1, 1, 1, 2],
+  [0, 1, 0, 1, 0],
+  [2, 1, 2, 1, 2],
+] as const;
+
+/** The source scene numbers these center, top, bottom, V-down, V-up, then four zigzags. */
+export const H5_NINE_LINE_PAYLINES: readonly HotlinePaylineDefinition[] = makeIndexedPaylines(
+  H5_PAYLINES_5X3_15_PATHS.slice(0, 9),
+);
+
+const H5_FIFTEEN_LINE_PAYLINES = makeIndexedPaylines(H5_PAYLINES_5X3_15_PATHS);
+const H5_FIVE_LINE_PAYLINES_5X3 = makeIndexedPaylines(H5_PAYLINES_5X3_15_PATHS.slice(0, 5));
+const H5_PAYLINES_3X3_8 = makeIndexedPaylines([
+  [1, 1, 1],
+  [0, 0, 0],
+  [2, 2, 2],
+  [0, 1, 2],
+  [2, 1, 0],
+  [0, 1, 0],
+  [2, 1, 2],
+  [1, 0, 1],
+]);
+const H5_PAYLINES_3X4_10 = makeIndexedPaylines([
+  [1, 1, 1],
+  [2, 2, 2],
+  [0, 0, 0],
+  [3, 3, 3],
+  [0, 1, 2],
+  [1, 2, 3],
+  [2, 1, 0],
+  [3, 2, 1],
+  [0, 1, 0],
+  [3, 2, 3],
+]);
+const H5_PAYLINES_5X4_50 = makeIndexedPaylines(
+  buildBalancedPaylinePaths(5, 4, 50, [
+    [1, 1, 1, 1, 1],
+    [2, 2, 2, 2, 2],
+    [0, 0, 0, 0, 0],
+    [3, 3, 3, 3, 3],
+    [0, 1, 2, 1, 0],
+    [3, 2, 1, 2, 3],
+    [0, 0, 1, 0, 0],
+    [3, 3, 2, 3, 3],
+    [1, 0, 1, 2, 1],
+    [2, 3, 2, 1, 2],
+  ]),
+);
+
+const H5_FIXED_PAYLINE_COUNTS: Readonly<Record<string, number>> = {
+  'h5-nine-line-pull-king': 9,
+  'h5-water-margin': 9,
+  'h5-diamond-strike': 15,
+  'h5-yu-pu-tuan': 50,
+  'h5-fruit-little-mary': 9,
+  'h5-aztec-treasure': 5,
+  'h5-fire-88': 7,
+  'h5-lucky-777': 5,
+  'h5-caishen-fa-fa-fa': 9,
+  'h5-star-97': 8,
+  'h5-fortune-ox': 10,
+  'h5-captains-bounty': 5,
+  'h5-queen-of-bounty': 5,
+  'h5-fortune-gems': 5,
+};
+
+function makeIndexedPaylines(paths: readonly (readonly number[])[]): HotlinePaylineDefinition[] {
+  return paths.map((path, lineIndex) => ({
+    id: `line-${lineIndex + 1}`,
+    path: [...path],
+    lineIndex,
+  }));
+}
+
+function buildBalancedPaylinePaths(
+  reelCount: number,
+  rowCount: number,
+  count: number,
+  preferred: readonly (readonly number[])[],
+): number[][] {
+  const keyed = new Map<string, number[]>();
+  const add = (path: readonly number[]): void => {
+    if (path.length !== reelCount || path.some((row) => row < 0 || row >= rowCount)) return;
+    keyed.set(path.join(','), [...path]);
+  };
+  preferred.forEach(add);
+
+  const candidates: number[][] = [];
+  const visit = (path: number[]): void => {
+    if (path.length === reelCount) {
+      candidates.push([...path]);
+      return;
+    }
+    for (let row = 0; row < rowCount; row += 1) {
+      if (path.length > 0 && Math.abs(row - path[path.length - 1]!) > 1) continue;
+      path.push(row);
+      visit(path);
+      path.pop();
+    }
+  };
+  visit([]);
+  const center = (rowCount - 1) / 2;
+  candidates.sort((a, b) => {
+    const movement = (path: number[]): number =>
+      path.slice(1).reduce((sum, row, index) => sum + Math.abs(row - path[index]!), 0);
+    const centerDistance = (path: number[]): number =>
+      path.reduce((sum, row) => sum + Math.abs(row - center), 0);
+    return (
+      movement(a) - movement(b) ||
+      centerDistance(a) - centerDistance(b) ||
+      a.join('').localeCompare(b.join(''))
+    );
+  });
+  candidates.forEach(add);
+  return [...keyed.values()].slice(0, count);
+}
+
+export function getHotlineEvaluationMode(
+  gameId: string | undefined,
+  rowCount = getHotlineRowCount(gameId),
+): HotlineEvaluationMode {
+  if (gameId && HOTLINE_WAYS_GAME_IDS.has(gameId)) return 'ways';
+  if (gameId && HOTLINE_CLUSTER_GAME_IDS.has(gameId)) return 'cluster';
+  return rowCount >= HOTLINE_MEGA_ROWS ? 'cluster' : 'paylines';
+}
+
+export function getHotlinePaylinesForGame(
+  gameId: string | undefined,
+  reelCount = getHotlineReelCount(gameId),
+  rowCount = getHotlineRowCount(gameId),
+): readonly HotlinePaylineDefinition[] {
+  const count = gameId ? H5_FIXED_PAYLINE_COUNTS[gameId] : undefined;
+  if (!count) return reelCount === HOTLINE_MINI_REELS ? HOTLINE_PAYLINES_3X3 : HOTLINE_PAYLINES_5X3;
+  if (reelCount === 5 && rowCount === 4) return H5_PAYLINES_5X4_50.slice(0, count);
+  if (reelCount === 5) {
+    if (count <= 5) return H5_FIVE_LINE_PAYLINES_5X3.slice(0, count);
+    if (count <= 9) return H5_NINE_LINE_PAYLINES.slice(0, count);
+    return H5_FIFTEEN_LINE_PAYLINES.slice(0, count);
+  }
+  if (rowCount === 4) return H5_PAYLINES_3X4_10.slice(0, count);
+  return H5_PAYLINES_3X3_8.slice(0, count);
+}
 
 export function getHotlineReelCount(gameId?: string): number {
   const layout = gameId ? HOTLINE_GAME_LAYOUTS.get(gameId) : undefined;
@@ -740,10 +940,6 @@ export function isHotlineFeatureGame(gameId?: string): boolean {
   return Boolean(gameId && HOTLINE_FEATURE_GAME_IDS.has(gameId));
 }
 
-function getHotlinePaylines(reelCount: number) {
-  return reelCount === HOTLINE_MINI_REELS ? HOTLINE_PAYLINES_3X3 : HOTLINE_PAYLINES_5X3;
-}
-
 function getHotlineSymbolsForGrid(reelCount: number, rowCount: number): readonly HotlineSymbol[] {
   if (rowCount >= HOTLINE_MEGA_ROWS) return HOTLINE_MEGA_SYMBOLS;
   if (reelCount === HOTLINE_MINI_REELS) return HOTLINE_MINI_SYMBOLS;
@@ -751,33 +947,36 @@ function getHotlineSymbolsForGrid(reelCount: number, rowCount: number): readonly
 }
 
 function makeHotlineWinLine(
-  payline: { id: string; path: readonly number[] },
+  payline: HotlinePaylineDefinition,
   symbol: number,
   count: number,
   startReel: number,
   direction: 'ltr' | 'rtl',
   symbols: readonly HotlineSymbol[],
+  payoutScale = 1,
 ): HotlineWinLine {
   const sym = symbols[symbol]!;
-  const payout = count === 5 ? sym.payout5 : count === 4 ? sym.payout4 : sym.payout3;
+  const rawPayout = count >= 5 ? sym.payout5 : count === 4 ? sym.payout4 : sym.payout3;
   return {
     lineId: payline.id,
+    ...(payline.lineIndex !== undefined ? { lineIndex: payline.lineIndex } : {}),
     path: [...payline.path],
     startReel,
     direction,
     row: payline.path[startReel]!,
     symbol,
     count,
-    payout,
+    payout: roundMultiplier(rawPayout * payoutScale),
   };
 }
 
 function evaluatePaylineEdge(
   grid: number[][],
-  payline: { id: string; path: readonly number[] },
+  payline: HotlinePaylineDefinition,
   reelCount: number,
   direction: 'ltr' | 'rtl',
   symbols: readonly HotlineSymbol[],
+  payoutScale: number,
 ): HotlineWinLine | null {
   const edgeReel = direction === 'ltr' ? 0 : reelCount - 1;
   const step = direction === 'ltr' ? 1 : -1;
@@ -792,7 +991,7 @@ function evaluatePaylineEdge(
 
   if (count < 3) return null;
   const startReel = direction === 'ltr' ? 0 : reelCount - count;
-  return makeHotlineWinLine(payline, symbol, count, startReel, direction, symbols);
+  return makeHotlineWinLine(payline, symbol, count, startReel, direction, symbols, payoutScale);
 }
 
 function isSamePaylineWin(a: HotlineWinLine, b: HotlineWinLine): boolean {
@@ -809,22 +1008,31 @@ function isSamePaylineWin(a: HotlineWinLine, b: HotlineWinLine): boolean {
  * This matches common "Both Ways" slots: symbols must be adjacent on a payline
  * and start from the leftmost or rightmost reel. Middle-only runs do not pay.
  */
-export function hotlineEvaluate(grid: number[][]): {
+export function hotlineEvaluate(
+  grid: number[][],
+  gameId?: string,
+): {
   lines: HotlineWinLine[];
   totalMultiplier: number;
 } {
   const rowCount = Math.max(...grid.map((col) => col.length), 0);
-  if (rowCount >= HOTLINE_MEGA_ROWS) return hotlineEvaluateWays(grid);
+  const mode = getHotlineEvaluationMode(gameId, rowCount);
+  if (mode === 'cluster') return hotlineEvaluateClusters(grid);
+  if (mode === 'ways') return hotlineEvaluateAdjacentWays(grid);
 
   const lines: HotlineWinLine[] = [];
   let totalMultiplier = 0;
   const reelCount = grid.length === HOTLINE_MINI_REELS ? HOTLINE_MINI_REELS : HOTLINE_REELS;
-  const paylines = getHotlinePaylines(reelCount);
+  const paylines = getHotlinePaylinesForGame(gameId, reelCount, rowCount);
   const symbols = getHotlineSymbolsForGrid(reelCount, rowCount);
+  // The generic paytable was calibrated around five active lines. Imported
+  // games expose the total stake, so normalize additional source paylines to
+  // avoid multiplying the expected return merely by enabling their overlays.
+  const payoutScale = Math.min(1, 5 / Math.max(1, paylines.length));
 
   for (const payline of paylines) {
-    const leftWin = evaluatePaylineEdge(grid, payline, reelCount, 'ltr', symbols);
-    const rightWin = evaluatePaylineEdge(grid, payline, reelCount, 'rtl', symbols);
+    const leftWin = evaluatePaylineEdge(grid, payline, reelCount, 'ltr', symbols, payoutScale);
+    const rightWin = evaluatePaylineEdge(grid, payline, reelCount, 'rtl', symbols, payoutScale);
     if (leftWin) {
       lines.push(leftWin);
       totalMultiplier += leftWin.payout;
@@ -835,10 +1043,10 @@ export function hotlineEvaluate(grid: number[][]): {
     }
   }
 
-  return { lines, totalMultiplier };
+  return { lines, totalMultiplier: roundMultiplier(totalMultiplier) };
 }
 
-function hotlineEvaluateWays(grid: number[][]): {
+function hotlineEvaluateClusters(grid: number[][]): {
   lines: HotlineWinLine[];
   totalMultiplier: number;
 } {
@@ -858,6 +1066,76 @@ function hotlineEvaluateWays(grid: number[][]): {
     lines,
     totalMultiplier: Number(totalMultiplier.toFixed(4)),
   };
+}
+
+function hotlineEvaluateAdjacentWays(grid: number[][]): {
+  lines: HotlineWinLine[];
+  totalMultiplier: number;
+} {
+  const reelCount = grid.length;
+  const rowCount = Math.max(...grid.map((column) => column.length), 0);
+  const symbols = getHotlineSymbolsForGrid(reelCount, rowCount);
+  const payoutDivisor = getAdjacentWaysPayoutDivisor(reelCount, rowCount);
+  const lines: HotlineWinLine[] = [];
+  let totalMultiplier = 0;
+
+  for (let symbol = 0; symbol < symbols.length; symbol += 1) {
+    const positions: HotlineWinPosition[] = [];
+    let consecutiveReels = 0;
+    let ways = 1;
+    for (let reel = 0; reel < reelCount; reel += 1) {
+      const matches: HotlineWinPosition[] = [];
+      for (let row = 0; row < (grid[reel]?.length ?? 0); row += 1) {
+        if (grid[reel]?.[row] === symbol) matches.push({ reel, row });
+      }
+      if (matches.length === 0) break;
+      consecutiveReels += 1;
+      ways *= matches.length;
+      positions.push(...matches);
+    }
+    if (consecutiveReels < 3) continue;
+
+    const symbolMeta = symbols[symbol]!;
+    const rawPayout =
+      consecutiveReels >= 5
+        ? symbolMeta.payout5
+        : consecutiveReels === 4
+          ? symbolMeta.payout4
+          : symbolMeta.payout3;
+    const payout = roundMultiplier((rawPayout * ways) / payoutDivisor);
+    if (payout <= 0) continue;
+    const firstRows = Array.from({ length: reelCount }, (_, reel) =>
+      reel < consecutiveReels
+        ? (positions.find((position) => position.reel === reel)?.row ?? 0)
+        : 0,
+    );
+    lines.push({
+      lineId: `ways-${symbol}`,
+      path: firstRows,
+      positions,
+      startReel: 0,
+      direction: 'ltr',
+      row: firstRows[0] ?? 0,
+      symbol,
+      count: consecutiveReels,
+      payout,
+      ways,
+    });
+    totalMultiplier += payout;
+  }
+
+  return { lines, totalMultiplier: roundMultiplier(totalMultiplier) };
+}
+
+/**
+ * The shared symbol tables are total-stake multipliers rather than per-way
+ * coin values. These layout divisors keep their long-run return aligned with
+ * the fixed-line variants while still paying proportionally to winning ways.
+ */
+function getAdjacentWaysPayoutDivisor(reelCount: number, rowCount: number): number {
+  if (rowCount >= 5) return reelCount >= 6 ? 7 : 6.1;
+  if (rowCount === 4) return 33.1;
+  return 9.1;
 }
 
 function collectSymbolPositions(grid: number[][], symbol: number): HotlineWinPosition[] {

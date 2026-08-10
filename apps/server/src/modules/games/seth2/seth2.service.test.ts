@@ -133,14 +133,14 @@ describe('Seth2 free-game session progression', () => {
   });
 
   it.each(['standard', 'awakening'] as const)(
-    'records the selected %s purchase mode and consumes its first game',
+    'records the selected %s purchase mode without consuming the entry board as a game',
     (featureMode) => {
       expect(
         advanceSession(
           { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00' },
           { ...baseInput, buying: true, boughtFeatureMode: featureMode },
         ),
-      ).toEqual({ freeSpinsRemaining: 14, featureMode, betAmount: '18.00' });
+      ).toEqual({ freeSpinsRemaining: 15, featureMode, betAmount: '18.00' });
     },
   );
 

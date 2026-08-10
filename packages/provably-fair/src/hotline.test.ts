@@ -13,6 +13,8 @@ import {
   HOTLINE_MEGA_SYMBOLS,
   getHotlineReelCount,
   getHotlineRowCount,
+  getHotlineEvaluationMode,
+  getHotlinePaylinesForGame,
   hotlineBuyFreeSpins,
   hotlineSpinCascades,
   isHotlineCascadeGame,
@@ -213,6 +215,38 @@ describe('hotlineSpin', () => {
     expect(isHotlineCascadeGame('h5-nine-line-pull-king')).toBe(false);
     expect(isHotlineFeatureGame('h5-fortune-gems')).toBe(true);
     expect(isHotlineFeatureGame('h5-dragon-hatch')).toBe(false);
+  });
+
+  it('uses each imported fixed-line count instead of the shared five-line fallback', () => {
+    const lineCounts: Record<string, number> = {
+      'h5-nine-line-pull-king': 9,
+      'h5-water-margin': 9,
+      'h5-diamond-strike': 15,
+      'h5-yu-pu-tuan': 50,
+      'h5-fruit-little-mary': 9,
+      'h5-aztec-treasure': 5,
+      'h5-fire-88': 7,
+      'h5-lucky-777': 5,
+      'h5-caishen-fa-fa-fa': 9,
+      'h5-star-97': 8,
+      'h5-fortune-ox': 10,
+      'h5-captains-bounty': 5,
+      'h5-queen-of-bounty': 5,
+      'h5-fortune-gems': 5,
+    };
+
+    for (const [gameId, expectedCount] of Object.entries(lineCounts)) {
+      const paylines = getHotlinePaylinesForGame(gameId);
+      expect(paylines, gameId).toHaveLength(expectedCount);
+      expect(
+        paylines.every(
+          (payline) =>
+            payline.path.length === getHotlineReelCount(gameId) &&
+            payline.path.every((row) => row >= 0 && row < getHotlineRowCount(gameId)),
+        ),
+        gameId,
+      ).toBe(true);
+    }
   });
 
   it('can attach free-game results to fixed-line imported layouts without changing dimensions', () => {
@@ -432,6 +466,58 @@ describe('hotlineSpin', () => {
 });
 
 describe('hotlineEvaluate', () => {
+  it('uses all nine source paylines and preserves the Cocos overlay index', () => {
+    expect(getHotlinePaylinesForGame('h5-nine-line-pull-king')).toHaveLength(9);
+    const grid = [
+      [7, 1, 2],
+      [7, 4, 5],
+      [6, 7, 1],
+      [7, 3, 4],
+      [7, 6, 0],
+    ];
+    const { lines } = hotlineEvaluate(grid, 'h5-nine-line-pull-king');
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({
+      lineId: 'line-6',
+      lineIndex: 5,
+      path: [0, 0, 1, 0, 0],
+      symbol: 7,
+      count: 5,
+    });
+  });
+
+  it('evaluates the fourth row on imported 5x4 fixed-line games', () => {
+    expect(getHotlinePaylinesForGame('h5-yu-pu-tuan')).toHaveLength(50);
+    const grid = [
+      [0, 1, 2, 7],
+      [4, 5, 6, 7],
+      [1, 2, 3, 7],
+      [5, 6, 0, 7],
+      [2, 3, 4, 7],
+    ];
+    const { lines } = hotlineEvaluate(grid, 'h5-yu-pu-tuan');
+    const bottom = lines.find((line) => line.lineIndex === 3);
+
+    expect(bottom).toMatchObject({ lineId: 'line-4', path: [3, 3, 3, 3, 3], count: 5 });
+  });
+
+  it('uses adjacent-reel ways instead of fixed lines or anywhere clusters', () => {
+    expect(getHotlineEvaluationMode('h5-flying-together')).toBe('ways');
+    const grid = [
+      [7, 7, 0],
+      [7, 1, 2],
+      [7, 7, 3],
+      [0, 1, 2],
+      [3, 4, 5],
+    ];
+    const { lines } = hotlineEvaluate(grid, 'h5-flying-together');
+    const win = lines.find((line) => line.symbol === 7);
+
+    expect(win).toMatchObject({ lineId: 'ways-7', count: 3, ways: 4, direction: 'ltr' });
+    expect(win?.positions).toHaveLength(5);
+  });
+
   it('detects a 3-of-a-kind line', () => {
     const grid = [
       [0, 1, 2],

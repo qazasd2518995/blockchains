@@ -94,6 +94,7 @@ interface FemaleMultiplierPlan extends MultiplierPlan {
 const TARGET_RTP = 0.9689;
 const FREE_SPIN_SCALE = 1 - SETH2_FREE_RETRIGGER_PROBABILITY * SETH2_RETRIGGER_SPINS;
 const GOLDEN_FEATURE_SHARE = 0.01;
+const NON_WINNING_MULTIPLIER_PROBABILITY = 0.2;
 const SCATTER_EXPECTED_FACTOR = 3;
 const BASE_NON_FEATURE_EV = 0.3389;
 
@@ -242,12 +243,78 @@ function baseReturnData(roundOrRounds: Seth2CascadeRound | Seth2CascadeRound[]):
 }
 
 function buildLoss(rng: Seth2RandomSource): Seth2Outcome {
-  const round = emptyRound(safeFill(SETH2_GRID_SIZE, new Set(), rng));
+  const multiplierCells: Seth2Cell[] = [];
+  if (rng() < NON_WINNING_MULTIPLIER_PROBABILITY) {
+    const count = rng() < 0.12 ? 2 : 1;
+    for (let index = 0; index < count; index += 1) {
+      const valueRoll = rng();
+      const multiplier =
+        valueRoll < 0.42
+          ? 2
+          : valueRoll < 0.67
+            ? 3
+            : valueRoll < 0.8
+              ? 5
+              : valueRoll < 0.89
+                ? 10
+                : valueRoll < 0.95
+                  ? 20
+                  : valueRoll < 0.98
+                    ? 50
+                    : valueRoll < 0.995
+                      ? 100
+                      : 500;
+      multiplierCells.push(cell(10, multiplier, rng() < 0.2 ? 0 : 1));
+    }
+  }
+  const startData = [
+    ...multiplierCells,
+    ...safeFill(SETH2_GRID_SIZE - multiplierCells.length, new Set(), rng),
+  ];
+  const round = emptyRound(shuffle(startData, rng));
   return {
     payoutFactor: 0,
     triggeredFreeSpins: false,
     featureMode: 'none',
     returnData: baseReturnData(round),
+  };
+}
+
+function buildBoughtFeatureEntry(
+  featureMode: Exclude<Seth2FeatureMode, 'none'>,
+  rng: Seth2RandomSource,
+): Seth2Outcome {
+  const awakening = featureMode === 'awakening';
+  const scatterCells = [
+    ...Array.from({ length: awakening ? 3 : 4 }, () => cell(15)),
+    ...(awakening ? [cell(16)] : []),
+  ];
+  const startData = [
+    ...scatterCells,
+    ...safeFill(SETH2_GRID_SIZE - scatterCells.length, new Set([15, 16]), rng),
+  ];
+  shuffle(startData, rng);
+  const removeTypes = awakening ? [15, 16] : [15];
+  const round: Seth2CascadeRound = {
+    start_data: startData,
+    remove_type: removeTypes,
+    round_data: safeFill(scatterCells.length, new Set([15, 16]), rng),
+    scoreList: removeTypes.map(() => 0),
+    upgrade_mul_list: [],
+    total_mul: 0,
+    score: 0,
+    total_gold: 0,
+    remove_count: 0,
+    is_over: 1,
+  };
+  const returnData = baseReturnData(round);
+  returnData.is_sjc = 1;
+  returnData.freeGameCount = 15;
+  return {
+    payoutFactor: 0,
+    triggeredFreeSpins: true,
+    featureMode,
+    returnData,
   };
 }
 
@@ -640,6 +707,15 @@ export function seth2SpinForFactor(
 ): Seth2Outcome {
   const rng = randomSource(serverSeed, clientSeed, nonce);
   return factor > 0 ? buildWin(bet, factor, mode, rng) : buildLoss(rng);
+}
+
+export function seth2BuyFeatureEntry(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  featureMode: Exclude<Seth2FeatureMode, 'none'>,
+): Seth2Outcome {
+  return buildBoughtFeatureEntry(featureMode, randomSource(serverSeed, clientSeed, nonce));
 }
 
 function expectedValue(outcomes: WeightedOutcome[]): number {

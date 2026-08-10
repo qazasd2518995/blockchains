@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { Prisma } from '@prisma/client';
 import type { FruitMaryBetSelection } from '@bg/provably-fair';
-import { chooseControlledFruitOutcome } from './fruitMary.service.js';
+import {
+  chooseControlledFruitOutcome,
+  fruitMaryGambleAllocationStatus,
+} from './fruitMary.service.js';
+import { fruitMaryGambleSchema } from './fruitMary.schema.js';
 
 const bets: FruitMaryBetSelection[] = [
   { fruitId: 4, units: 2 },
@@ -54,5 +58,30 @@ describe('Fruit Mary control outcome selection', () => {
     );
     expect(result.totalPayoutUnits).toBeGreaterThan(16);
     expect(result.totalPayoutUnits).toBeLessThanOrEqual(32);
+  });
+});
+
+describe('Fruit Mary gamble allocation', () => {
+  it('allows moving part of the pending win back to balance', () => {
+    expect(fruitMaryGambleAllocationStatus(100, 40, 500)).toBe('ok');
+  });
+
+  it('allows adding wallet balance to the pending gamble amount', () => {
+    expect(fruitMaryGambleAllocationStatus(100, 200, 500)).toBe('ok');
+  });
+
+  it('still rejects expired rounds and amounts above the actual balance', () => {
+    expect(fruitMaryGambleAllocationStatus(0, 40, 500)).toBe('expired');
+    expect(fruitMaryGambleAllocationStatus(100, 501, 500)).toBe('insufficient');
+  });
+
+  it('accepts a positive text-entered round amount', () => {
+    expect(fruitMaryGambleSchema.parse({ balance: '123', size: 1 }).balance).toBe(123);
+  });
+
+  it('rejects empty, zero and negative round amounts', () => {
+    expect(() => fruitMaryGambleSchema.parse({ balance: '', size: 1 })).toThrow();
+    expect(() => fruitMaryGambleSchema.parse({ balance: 0, size: 1 })).toThrow();
+    expect(() => fruitMaryGambleSchema.parse({ balance: -1, size: 1 })).toThrow();
   });
 });

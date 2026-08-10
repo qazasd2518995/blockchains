@@ -4,12 +4,12 @@ import {
   HOTLINE_MEGA_SYMBOLS,
   HOTLINE_MEGA_MAX_TOTAL_MULTIPLIER,
   HOTLINE_MINI_SYMBOLS,
-  HOTLINE_PAYLINES_3X3,
-  HOTLINE_PAYLINES_5X3,
   HOTLINE_ROWS,
   HOTLINE_SYMBOLS,
   getHotlineReelCount,
   getHotlineRowCount,
+  getHotlineEvaluationMode,
+  getHotlinePaylinesForGame,
   hotlineSpin,
   hotlineBuyFreeSpins,
   hotlineSpinCascades,
@@ -659,7 +659,7 @@ function buildHotlineRound(
 ): HotlineRound {
   if (buyFeature || isHotlineCascadeGame(gameId) || isHotlineFeatureGame(gameId)) {
     const cascaded = buyFeature
-      ? hotlineBuyFreeSpins(serverSeed, clientSeed, nonce, reelCount, rowCount)
+      ? hotlineBuyFreeSpins(serverSeed, clientSeed, nonce, reelCount, rowCount, undefined, gameId)
       : hotlineSpinCascades(
           serverSeed,
           clientSeed,
@@ -668,6 +668,7 @@ function buildHotlineRound(
           rowCount,
           isHotlineCascadeGame(gameId) ? undefined : 1,
           isHotlineFeatureGame(gameId),
+          gameId,
         );
     return {
       grid: cascaded.finalGrid,
@@ -679,7 +680,7 @@ function buildHotlineRound(
   }
 
   const grid = hotlineSpin(serverSeed, clientSeed, nonce, reelCount, rowCount);
-  const evaluated = hotlineEvaluate(grid);
+  const evaluated = hotlineEvaluate(grid, gameId);
   return {
     grid,
     lines: evaluated.lines,
@@ -783,13 +784,17 @@ function winningMegaHotlineRound(
 
 function classicWinCandidateRounds(gameId: string, variant = 0): HotlineRound[] {
   const reelCount = getHotlineReelCount(gameId);
+  const rowCount = getHotlineRowCount(gameId);
   const runLengths = reelCount >= 5 ? ([3, 4, 5] as const) : ([3] as const);
   const rounds: HotlineRound[] = [];
 
   for (const runLength of runLengths) {
     HOTLINE_SOFT_WIN_SYMBOLS.forEach((symbol, index) => {
       rounds.push(
-        roundFromClassicGrid(fixedLineHotlineGrid(reelCount, [symbol], variant + index, runLength)),
+        roundFromClassicGrid(
+          fixedLineHotlineGrid(reelCount, [symbol], variant + index, runLength, rowCount, gameId),
+          gameId,
+        ),
       );
     });
   }
@@ -805,13 +810,23 @@ function classicWinCandidateRounds(gameId: string, variant = 0): HotlineRound[] 
     const runLength = reelCount >= 5 ? 5 : 3;
     rounds.push(
       roundFromClassicGrid(
-        fixedLineHotlineGrid(reelCount, symbols, variant + 100 + index * 17, runLength),
+        fixedLineHotlineGrid(
+          reelCount,
+          symbols,
+          variant + 100 + index * 17,
+          runLength,
+          rowCount,
+          gameId,
+        ),
+        gameId,
       ),
     );
   });
 
   HOTLINE_SOFT_WIN_SYMBOLS.forEach((symbol, index) => {
-    rounds.push(roundFromClassicGrid(fullScreenClassicGrid(gameId, symbol, variant + 301 + index)));
+    rounds.push(
+      roundFromClassicGrid(fullScreenClassicGrid(gameId, symbol, variant + 301 + index), gameId),
+    );
   });
 
   return dedupeHotlineRounds(rounds);
@@ -936,7 +951,10 @@ function softLossHotlineRound(gameId: string, variant = 0): HotlineRound {
   const symbol =
     pickRandomItem(HOTLINE_SOFT_LOSS_SYMBOLS) ??
     HOTLINE_SOFT_LOSS_SYMBOLS[Math.abs(variant) % HOTLINE_SOFT_LOSS_SYMBOLS.length]!;
-  return roundFromClassicGrid(fixedLineHotlineGrid(reelCount, [symbol], variant));
+  return roundFromClassicGrid(
+    fixedLineHotlineGrid(reelCount, [symbol], variant, undefined, rowCount, gameId),
+    gameId,
+  );
 }
 
 function lossHotlineRound(
@@ -999,20 +1017,30 @@ function entertainmentLossHotlineRound(
 function classicSoftLossCandidateRounds(gameId: string, variant = 0): HotlineRound[] {
   if (usesHotlineWaysEvaluation(gameId)) return [];
   const reelCount = getHotlineReelCount(gameId);
+  const rowCount = getHotlineRowCount(gameId);
   return HOTLINE_SOFT_LOSS_SYMBOLS.map((symbol, index) =>
-    roundFromClassicGrid(singleSoftLineClassicGrid(reelCount, symbol, variant + index * 23)),
+    roundFromClassicGrid(
+      singleSoftLineClassicGrid(reelCount, symbol, variant + index * 23, rowCount, gameId),
+      gameId,
+    ),
   );
 }
 
-function singleSoftLineClassicGrid(reelCount: number, symbol: number, variant = 0): number[][] {
-  const paylines = reelCount === 3 ? HOTLINE_PAYLINES_3X3 : HOTLINE_PAYLINES_5X3;
+function singleSoftLineClassicGrid(
+  reelCount: number,
+  symbol: number,
+  variant = 0,
+  rowCount = HOTLINE_ROWS,
+  gameId?: string,
+): number[][] {
+  const paylines = getHotlinePaylinesForGame(gameId, reelCount, rowCount);
   const fillers: number[] = HOTLINE_SYMBOL_INDEXES.filter((value) => value !== symbol);
 
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const line = paylines[Math.abs(variant + attempt) % Math.min(3, paylines.length)]!;
     const grid: number[][] = Array.from({ length: reelCount }, (_, reel) =>
       Array.from(
-        { length: HOTLINE_ROWS },
+        { length: rowCount },
         (_, row) => fillers[(variant + attempt * 11 + reel * 5 + row * 3) % fillers.length]!,
       ),
     );
@@ -1020,12 +1048,12 @@ function singleSoftLineClassicGrid(reelCount: number, symbol: number, variant = 
       const row = line.path[reel]!;
       grid[reel]![row] = symbol;
     }
-    const evaluated = hotlineEvaluate(grid);
+    const evaluated = hotlineEvaluate(grid, gameId);
     if (evaluated.totalMultiplier > 0 && evaluated.totalMultiplier < 1) return grid;
   }
 
   const grid: number[][] = Array.from({ length: reelCount }, (_, reel) =>
-    Array.from({ length: HOTLINE_ROWS }, (_, row) => fillers[(reel * 3 + row) % fillers.length]!),
+    Array.from({ length: rowCount }, (_, row) => fillers[(reel * 3 + row) % fillers.length]!),
   );
   for (let reel = 0; reel < Math.min(3, reelCount); reel += 1) {
     grid[reel]![0] = symbol;
@@ -1037,7 +1065,7 @@ function hardLossHotlineRound(gameId: string, variant = 0): HotlineRound {
   const grid = blankHotlineGrid(gameId, variant);
   return usesHotlineWaysEvaluation(gameId)
     ? roundFromMegaGrid(gameId, grid, variant)
-    : roundFromClassicGrid(grid);
+    : roundFromClassicGrid(grid, gameId);
 }
 
 function targetControlMultiplier(controlled: HotlineControlBounds): number {
@@ -1047,8 +1075,8 @@ function targetControlMultiplier(controlled: HotlineControlBounds): number {
   return min ?? max ?? 2;
 }
 
-function roundFromClassicGrid(grid: number[][]): HotlineRound {
-  const evaluated = hotlineEvaluate(grid);
+function roundFromClassicGrid(grid: number[][], gameId?: string): HotlineRound {
+  const evaluated = hotlineEvaluate(grid, gameId);
   return {
     grid,
     lines: evaluated.lines,
@@ -1063,7 +1091,7 @@ function roundFromMegaGrid(
   variant = 0,
   includeFeatures = true,
 ): HotlineRound {
-  const evaluated = hotlineEvaluate(initialGrid);
+  const evaluated = hotlineEvaluate(initialGrid, gameId);
   const removed = collectHotlineRoundWinPositions(initialGrid, evaluated.lines);
   const finalGrid = blankHotlineGrid(gameId, variant + 97);
   const cascades: HotlineCascadeStep[] =
@@ -1138,21 +1166,32 @@ function fixedLineHotlineGrid(
   symbols: readonly number[],
   variant = 0,
   runLengthOverride?: number,
+  rowCount = HOTLINE_ROWS,
+  gameId?: string,
 ): number[][] {
   const targetSymbols = symbols.slice(0, 3);
   const normalizedVariant = Math.abs(variant);
   const symbolsForGrid = reelCount === 3 ? HOTLINE_MINI_SYMBOLS : HOTLINE_SYMBOLS;
   const runLength = Math.max(3, Math.min(runLengthOverride ?? 3, reelCount));
+  const paylines = getHotlinePaylinesForGame(gameId, reelCount, rowCount);
+  const payoutScale = Math.min(1, 5 / Math.max(1, paylines.length));
   const expectedMultiplier = targetSymbols.reduce((sum, symbol) => {
     const meta = symbolsForGrid[symbol];
     if (!meta) return sum;
-    return sum + (runLength >= 5 ? meta.payout5 : runLength === 4 ? meta.payout4 : meta.payout3);
+    const payout = runLength >= 5 ? meta.payout5 : runLength === 4 ? meta.payout4 : meta.payout3;
+    return sum + payout * payoutScale;
   }, 0);
 
   for (let attempt = 0; attempt < 160; attempt += 1) {
-    const grid = makeClassicNoWinGrid(reelCount, targetSymbols, normalizedVariant + attempt);
-    applyFixedLineTargets(grid, targetSymbols, normalizedVariant + attempt, runLength);
-    const evaluated = hotlineEvaluate(grid);
+    const grid = makeClassicNoWinGrid(
+      reelCount,
+      targetSymbols,
+      normalizedVariant + attempt,
+      rowCount,
+      gameId,
+    );
+    applyFixedLineTargets(grid, targetSymbols, normalizedVariant + attempt, runLength, gameId);
+    const evaluated = hotlineEvaluate(grid, gameId);
     const cleanHit =
       Math.abs(evaluated.totalMultiplier - expectedMultiplier) < 0.0001 &&
       evaluated.lines.length === targetSymbols.length &&
@@ -1164,8 +1203,8 @@ function fixedLineHotlineGrid(
     }
   }
 
-  const grid = makeClassicNoWinGrid(reelCount, targetSymbols, normalizedVariant);
-  applyFixedLineTargets(grid, targetSymbols, normalizedVariant, runLength);
+  const grid = makeClassicNoWinGrid(reelCount, targetSymbols, normalizedVariant, rowCount, gameId);
+  applyFixedLineTargets(grid, targetSymbols, normalizedVariant, runLength, gameId);
   return grid;
 }
 
@@ -1173,22 +1212,27 @@ function makeClassicNoWinGrid(
   reelCount: number,
   blockedSymbols: readonly number[],
   variant = 0,
+  rowCount = HOTLINE_ROWS,
+  gameId?: string,
 ): number[][] {
   const blocked = new Set(blockedSymbols);
   const fillers = HOTLINE_SYMBOL_INDEXES.filter((symbol) => !blocked.has(symbol));
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const grid = Array.from({ length: reelCount }, (_, reel) =>
       Array.from(
-        { length: 3 },
+        { length: rowCount },
         (_, row) =>
           fillers[(variant + attempt * 5 + reel * 7 + row * 3 + reel * row * 2) % fillers.length]!,
       ),
     );
-    if (hotlineEvaluate(grid).lines.length === 0) return grid;
+    if (hotlineEvaluate(grid, gameId).lines.length === 0) return grid;
   }
 
-  return blankHotlineGrid(reelCount === 3 ? GameId.CANDY_SLOT : GameId.HOTLINE).map((col) =>
-    col.map((symbol) => (blocked.has(symbol) ? fillers[symbol % fillers.length]! : symbol)),
+  return Array.from({ length: reelCount }, (_, reel) =>
+    Array.from({ length: rowCount }, (_, row) => {
+      const symbol = (reel * rowCount + row) % HOTLINE_SYMBOL_INDEXES.length;
+      return blocked.has(symbol) ? fillers[symbol % fillers.length]! : symbol;
+    }),
   );
 }
 
@@ -1197,9 +1241,11 @@ function applyFixedLineTargets(
   symbols: readonly number[],
   variant = 0,
   runLengthOverride?: number,
+  gameId?: string,
 ): void {
   const reelCount = grid.length;
-  const paylines = reelCount === 3 ? HOTLINE_PAYLINES_3X3 : HOTLINE_PAYLINES_5X3;
+  const rowCount = Math.max(...grid.map((column) => column.length), 0);
+  const paylines = getHotlinePaylinesForGame(gameId, reelCount, rowCount);
   const straightPaylines = paylines.slice(0, 3);
   const directionOffset = Math.floor(variant / Math.max(1, paylines.length));
   const direction: 'ltr' | 'rtl' = directionOffset % 2 === 1 && reelCount > 3 ? 'rtl' : 'ltr';
@@ -1227,7 +1273,7 @@ function fullScreenClassicGrid(gameId: string, symbol: number, variant = 0): num
 }
 
 function usesHotlineWaysEvaluation(gameId: string): boolean {
-  return getHotlineRowCount(gameId) >= 5;
+  return getHotlineEvaluationMode(gameId) !== 'paylines';
 }
 
 function fullScreenMegaGrid(symbol: number, reelCount = 6, rowCount = 5): number[][] {

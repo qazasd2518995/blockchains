@@ -42,6 +42,7 @@ export interface HotlineJackpotSnapshot {
 
 export interface HotlineWinLine {
   lineId?: string;
+  lineIndex?: number;
   path?: number[];
   positions?: HotlineWinPosition[];
   startReel?: number;

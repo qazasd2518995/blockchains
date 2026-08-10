@@ -49,8 +49,7 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
     URLSearchParams,
     AbortController,
     fetch:
-      options.fetch ??
-      (() => Promise.reject(new Error('network disabled in adapter unit tests'))),
+      options.fetch ?? (() => Promise.reject(new Error('network disabled in adapter unit tests'))),
     console: { info: () => {}, warn: () => {}, error: () => {}, log: () => {} },
     XMLHttpRequest: function XMLHttpRequest() {},
     location: {
@@ -152,13 +151,16 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
   assert.match(adapter.sourceFontFallback('url("/native/TTF_BasicFont_Normal.ttf")'), /Arial/);
   assert.equal(adapter.sourceFontFallback('url("/native/original-present-font.ttf")'), null);
   assert.equal(adapter.isLegacyBrandWebViewUrl('/pglogo/indexlogo.html'), true);
-  assert.equal(adapter.isLegacyBrandWebViewUrl('https://legacy.test/pglogo/indexlogo.html?v=1'), true);
+  assert.equal(
+    adapter.isLegacyBrandWebViewUrl('https://legacy.test/pglogo/indexlogo.html?v=1'),
+    true,
+  );
   assert.equal(adapter.isLegacyBrandWebViewUrl('/games/help/index.html'), false);
   assert.equal(
     adapter.rewriteMissingSourceFontStyle(
       "@font-face { font-family:'legacy'; src:url('/native/FZY4JW--GB1-0.ttf');}",
     ),
-    "@font-face { font-family:'legacy'; src:local(\"PingFang TC\"), local(\"Microsoft JhengHei\"), local(\"Arial Unicode MS\"), local(\"Arial\");}",
+    '@font-face { font-family:\'legacy\'; src:local("PingFang TC"), local("Microsoft JhengHei"), local("Arial Unicode MS"), local("Arial");}',
   );
   assert.equal(
     adapter.rewriteMissingSourceFontStyle(
@@ -420,6 +422,26 @@ function clusterLine() {
 }
 
 {
+  const adapter = loadAdapter('113');
+  const lineSix = {
+    ...classicLine(0),
+    lineId: 'line-6',
+    lineIndex: 5,
+    path: [0, 0, 1, 0, 0],
+    count: 5,
+  };
+  const wins = adapter.winFields(
+    [{ positions: [{ reel: 99, row: 99 }], payout: 99, lineIndex: 8 }, lineSix],
+    adapter.shape,
+    10,
+  );
+
+  assert.deepEqual(Array.from(wins.nWinLines), [5]);
+  assert.deepEqual(Array.from(wins.nWinLinesDetail[0]), [0, 1, 7, 3, 4]);
+  assert.deepEqual(Array.from(wins.nWinDetail), [20]);
+}
+
+{
   const adapter = loadAdapter('276');
   const initial = grid(5, 3);
   const final = grid(5, 3, 3);
@@ -666,8 +688,14 @@ function clusterLine() {
   const bridge = adapter.installCocosAudioControls(engine);
   const directMusicId = engine.play({ name: 'fish-bgm' }, true);
   const directEffectId = engine.play({ name: 'fish-shot' }, false);
-  assert.equal(calls.find((call) => call.id === directMusicId && call.method === 'play').volume, 0.32);
-  assert.equal(calls.find((call) => call.id === directEffectId && call.method === 'play').volume, 0.6);
+  assert.equal(
+    calls.find((call) => call.id === directMusicId && call.method === 'play').volume,
+    0.32,
+  );
+  assert.equal(
+    calls.find((call) => call.id === directEffectId && call.method === 'play').volume,
+    0.6,
+  );
 
   const categorizedId = engine.playMusic({ name: 'slot-bgm' }, true);
   assert.equal(
@@ -684,13 +712,15 @@ function clusterLine() {
   });
   assert.equal(
     calls.some(
-      (call) => call.method === 'direct-volume' && call.id === String(directMusicId) && call.volume === 0,
+      (call) =>
+        call.method === 'direct-volume' && call.id === String(directMusicId) && call.volume === 0,
     ),
     true,
   );
   assert.equal(
     calls.some(
-      (call) => call.method === 'direct-volume' && call.id === String(directEffectId) && call.volume === 0,
+      (call) =>
+        call.method === 'direct-volume' && call.id === String(directEffectId) && call.volume === 0,
     ),
     true,
   );
@@ -710,11 +740,7 @@ function clusterLine() {
 {
   const allFiles = walkFiles(collectionPath);
   const audioFiles = allFiles.filter((path) => /\.(?:mp3|ogg|wav|m4a)$/i.test(path));
-  assert.equal(
-    audioFiles.length,
-    471,
-    'every original Cocos audio clip must have its native file',
-  );
+  assert.equal(audioFiles.length, 471, 'every original Cocos audio clip must have its native file');
   assert.equal(
     audioFiles.every((path) => fs.statSync(path).size > 0),
     true,
@@ -737,9 +763,7 @@ function clusterLine() {
     'assets/main/native/e7/e729e78f-69b3-4c38-9798-86829a7be730.62225.m4a',
   ];
   assert.equal(
-    recoveredOriginalM4a.every((path) =>
-      fs.existsSync(`${collectionPath}/${path}`),
-    ),
+    recoveredOriginalM4a.every((path) => fs.existsSync(`${collectionPath}/${path}`)),
     true,
     'the seven original voice clips and main BGM must be available under every referenced UUID',
   );

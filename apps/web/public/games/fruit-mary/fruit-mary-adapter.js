@@ -10,6 +10,7 @@
   var settlementInFlight = false;
   var animationGuardAttempts = 0;
   var animationCompletionTimeoutMs = 45000;
+  var allocationEditorId = 'fruit-mary-allocation-editor';
 
   function parentStorage() {
     try {
@@ -348,6 +349,259 @@
     return Math.max(0, (Array.isArray(positions) ? positions.length : 0) - 1);
   }
 
+  function safeAllocationNumber(value) {
+    var parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.max(0, Math.floor(parsed));
+  }
+
+  function normalizeFruitMaryAllocation(currentRound, balance, requestedRound) {
+    var current = safeAllocationNumber(currentRound);
+    var availableBalance = safeAllocationNumber(balance);
+    var total = current + availableBalance;
+    var requested = Math.min(total, safeAllocationNumber(requestedRound));
+    return {
+      currentRound: requested,
+      balance: total - requested,
+      total: total,
+    };
+  }
+
+  function adjustFruitMaryAllocation(currentRound, balance, direction, step) {
+    var current = safeAllocationNumber(currentRound);
+    var availableBalance = safeAllocationNumber(balance);
+    var transfer = Math.max(1, safeAllocationNumber(step));
+    var requested = direction === 'to-balance' ? current - transfer : current + transfer;
+    return normalizeFruitMaryAllocation(current, availableBalance, requested);
+  }
+
+  function numberBox(node) {
+    return node && typeof node.getComponent === 'function'
+      ? node.getComponent('ShuziBoxLogic')
+      : null;
+  }
+
+  function readAllocation(menuLogic) {
+    var currentBox = numberBox(menuLogic && menuLogic.shuzibenlun);
+    var balanceBox = numberBox(menuLogic && menuLogic.shuziyue);
+    if (!currentBox || !balanceBox) return null;
+    return normalizeFruitMaryAllocation(currentBox.getNum(), balanceBox.getNum(), currentBox.getNum());
+  }
+
+  function writeAllocation(menuLogic, requestedRound) {
+    var allocation = readAllocation(menuLogic);
+    if (!allocation) return null;
+    var next = normalizeFruitMaryAllocation(
+      allocation.currentRound,
+      allocation.balance,
+      requestedRound,
+    );
+    numberBox(menuLogic.shuzibenlun).setNum(String(next.currentRound));
+    numberBox(menuLogic.shuziyue).setNum(String(next.balance));
+    if (window.cc && window.cc.vv && window.cc.vv.UserInfo) {
+      window.cc.vv.UserInfo.balance = next.balance;
+    }
+    return next;
+  }
+
+  function closeAllocationEditor() {
+    var editor = document.getElementById(allocationEditorId);
+    if (editor && editor.parentNode) editor.parentNode.removeChild(editor);
+  }
+
+  function openAllocationEditor(menuLogic) {
+    if (!menuLogic || !menuLogic._kaishiBiDdaxiao_bool) return false;
+    var playLogic = menuLogic.node && menuLogic.node.getComponent
+      ? menuLogic.node.getComponent('PlayLogic')
+      : null;
+    if (playLogic && playLogic._playing) return false;
+    var allocation = readAllocation(menuLogic);
+    if (!allocation) return false;
+
+    closeAllocationEditor();
+    var overlay = document.createElement('div');
+    overlay.id = allocationEditorId;
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', '調整本輪金額');
+    overlay.style.cssText = [
+      'position:fixed', 'inset:0', 'z-index:100000', 'display:flex',
+      'align-items:center', 'justify-content:center', 'padding:20px',
+      'background:rgba(9,5,20,.76)', 'font-family:system-ui,-apple-system,sans-serif',
+    ].join(';');
+
+    var panel = document.createElement('div');
+    panel.style.cssText = [
+      'width:min(420px,100%)', 'border:2px solid #f4c85b', 'border-radius:18px',
+      'background:linear-gradient(180deg,#2f164e,#160b29)', 'color:#fff',
+      'padding:20px', 'box-shadow:0 20px 60px rgba(0,0,0,.5)',
+    ].join(';');
+    panel.innerHTML = ''
+      + '<div style="font-size:20px;font-weight:800">調整本輪金額</div>'
+      + '<div style="margin-top:6px;color:#d9cdea;font-size:13px">可用總額 '
+      + allocation.total.toLocaleString() + '，輸入要拿去猜大小的金額。</div>'
+      + '<label style="display:block;margin-top:16px;font-size:13px;color:#f4c85b">本輪金額</label>'
+      + '<input data-fruit-mary-allocation-input inputmode="numeric" autocomplete="off" '
+      + 'style="box-sizing:border-box;width:100%;margin-top:7px;border:2px solid #8659b8;border-radius:12px;'
+      + 'background:#0d0718;color:#fff;padding:13px 14px;font:700 22px ui-monospace,monospace;outline:none" />'
+      + '<label style="display:block;margin-top:12px;font-size:13px;color:#f4c85b">保留餘額</label>'
+      + '<input data-fruit-mary-balance-input inputmode="numeric" autocomplete="off" '
+      + 'style="box-sizing:border-box;width:100%;margin-top:7px;border:2px solid #8659b8;border-radius:12px;'
+      + 'background:#0d0718;color:#fff;padding:13px 14px;font:700 22px ui-monospace,monospace;outline:none" />'
+      + '<div data-fruit-mary-allocation-preview style="margin-top:8px;color:#d9cdea;font-size:13px"></div>'
+      + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px">'
+      + '<button type="button" data-allocation="0">全部領回</button>'
+      + '<button type="button" data-allocation="half">投入一半</button>'
+      + '<button type="button" data-allocation="all">全部投入</button>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">'
+      + '<button type="button" data-action="cancel">取消</button>'
+      + '<button type="button" data-action="apply">套用</button>'
+      + '</div>';
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    var buttons = panel.querySelectorAll('button');
+    for (var buttonIndex = 0; buttonIndex < buttons.length; buttonIndex += 1) {
+      buttons[buttonIndex].style.cssText = [
+        'border:1px solid #9d78c5', 'border-radius:10px', 'background:#3b205c',
+        'color:#fff', 'padding:11px 8px', 'font-size:13px', 'font-weight:700',
+      ].join(';');
+    }
+    var input = panel.querySelector('[data-fruit-mary-allocation-input]');
+    var balanceInput = panel.querySelector('[data-fruit-mary-balance-input]');
+    var preview = panel.querySelector('[data-fruit-mary-allocation-preview]');
+    var applyButton = panel.querySelector('[data-action="apply"]');
+    if (applyButton) applyButton.style.background = '#bd7b20';
+
+    function renderAllocation(next) {
+      input.value = String(next.currentRound);
+      balanceInput.value = String(next.balance);
+      preview.textContent = '本輪＋餘額固定為 ' + next.total.toLocaleString();
+      return next;
+    }
+
+    function updatePreview(value) {
+      var next = normalizeFruitMaryAllocation(
+        allocation.currentRound,
+        allocation.balance,
+        value,
+      );
+      return renderAllocation(next);
+    }
+
+    updatePreview(allocation.currentRound);
+    input.addEventListener('input', function () {
+      var digits = input.value.replace(/[^0-9]/g, '');
+      updatePreview(digits === '' ? 0 : digits);
+    });
+    balanceInput.addEventListener('input', function () {
+      var digits = balanceInput.value.replace(/[^0-9]/g, '');
+      var requestedBalance = Math.min(
+        allocation.total,
+        safeAllocationNumber(digits === '' ? 0 : digits),
+      );
+      renderAllocation(
+        normalizeFruitMaryAllocation(
+          allocation.currentRound,
+          allocation.balance,
+          allocation.total - requestedBalance,
+        ),
+      );
+    });
+    panel.addEventListener('click', function (event) {
+      var target = event.target;
+      if (!target || target.tagName !== 'BUTTON') return;
+      var allocationValue = target.getAttribute('data-allocation');
+      if (allocationValue !== null) {
+        updatePreview(
+          allocationValue === 'half'
+            ? Math.floor(allocation.total / 2)
+            : allocationValue === 'all'
+              ? allocation.total
+              : 0,
+        );
+        return;
+      }
+      var action = target.getAttribute('data-action');
+      if (action === 'cancel') {
+        closeAllocationEditor();
+      } else if (action === 'apply') {
+        var applied = writeAllocation(menuLogic, input.value);
+        closeAllocationEditor();
+        if (applied && applied.currentRound === 0 && typeof menuLogic.clickKaishi === 'function') {
+          menuLogic.clickKaishi();
+        }
+      }
+    });
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay) closeAllocationEditor();
+    });
+    window.setTimeout(function () {
+      if (input && typeof input.focus === 'function') {
+        input.focus();
+        input.select();
+      }
+    }, 0);
+    return true;
+  }
+
+  function patchFruitMaryMenuLogic(menuLogic) {
+    if (!menuLogic || menuLogic.__yachiyoAllocationControls) return Boolean(menuLogic);
+    if (!menuLogic.shuzibenlun || !menuLogic.shuziyue) return false;
+
+    function playButtonSound() {
+      if (window.cc && window.cc.vv && window.cc.vv.AudioMgr) {
+        window.cc.vv.AudioMgr.playSFX('sounds/anniu/Y210', false, null, false);
+      }
+    }
+
+    menuLogic.clickZuo = function () {
+      var allocation = readAllocation(this);
+      if (!allocation) return;
+      var next = adjustFruitMaryAllocation(
+        allocation.currentRound,
+        allocation.balance,
+        'to-round',
+        1,
+      );
+      if (next.currentRound === allocation.currentRound) {
+        if (typeof this.unschedule === 'function') this.unschedule(this.clickZuo);
+        return;
+      }
+      playButtonSound();
+      writeAllocation(this, next.currentRound);
+    };
+
+    menuLogic.clickYou = function () {
+      var allocation = readAllocation(this);
+      if (!allocation) return;
+      var next = adjustFruitMaryAllocation(
+        allocation.currentRound,
+        allocation.balance,
+        'to-balance',
+        1,
+      );
+      playButtonSound();
+      writeAllocation(this, next.currentRound);
+      if (next.currentRound === 0) {
+        if (typeof this.unschedule === 'function') this.unschedule(this.clickYou);
+        if (typeof this.clickKaishi === 'function') this.clickKaishi();
+      }
+    };
+
+    function registerEditorTarget(node) {
+      if (!node || typeof node.on !== 'function' || !window.cc || !window.cc.Node) return;
+      node.on(window.cc.Node.EventType.TOUCH_END, function () {
+        openAllocationEditor(menuLogic);
+      });
+    }
+    registerEditorTarget(menuLogic.shuzibenlun);
+    registerEditorTarget(menuLogic.shuziyue);
+    menuLogic.__yachiyoAllocationControls = true;
+    return true;
+  }
+
   function patchFruitMaryPlayLogic(playLogic) {
     if (!playLogic || playLogic.__yachiyoCompletionGuard) return Boolean(playLogic);
     var originalShowSixiShan = playLogic.showSixiShan;
@@ -437,7 +691,8 @@
       if (!window.cc || typeof window.cc.find !== 'function') return false;
       var canvas = window.cc.find('Canvas');
       var playLogic = canvas && canvas.getComponent && canvas.getComponent('PlayLogic');
-      return patchFruitMaryPlayLogic(playLogic);
+      var menuLogic = canvas && canvas.getComponent && canvas.getComponent('MenuLogic');
+      return patchFruitMaryPlayLogic(playLogic) && patchFruitMaryMenuLogic(menuLogic);
     } catch (_error) {
       return false;
     }
@@ -454,6 +709,9 @@
 
   window.XMLHttpRequest = BridgeXHR;
   window.__YachiyoFruitMaryAdapterTest = {
+    adjustFruitMaryAllocation: adjustFruitMaryAllocation,
+    normalizeFruitMaryAllocation: normalizeFruitMaryAllocation,
+    patchFruitMaryMenuLogic: patchFruitMaryMenuLogic,
     shortBonusCompletionIndex: shortBonusCompletionIndex,
     patchFruitMaryPlayLogic: patchFruitMaryPlayLogic,
     recoverFruitMaryRequestState: recoverFruitMaryRequestState,

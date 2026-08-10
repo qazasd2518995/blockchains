@@ -44,8 +44,23 @@ const context = {
 context.window = context;
 vm.runInNewContext(adapterSource, context, { filename: adapterPath });
 
-const { patchFruitMaryPlayLogic, shortBonusCompletionIndex, createBridgeXHR } =
-  context.__YachiyoFruitMaryAdapterTest;
+const {
+  adjustFruitMaryAllocation,
+  createBridgeXHR,
+  normalizeFruitMaryAllocation,
+  patchFruitMaryMenuLogic,
+  patchFruitMaryPlayLogic,
+  shortBonusCompletionIndex,
+} = context.__YachiyoFruitMaryAdapterTest;
+
+assert.equal(normalizeFruitMaryAllocation(40, 60, 70).currentRound, 70);
+assert.equal(normalizeFruitMaryAllocation(40, 60, 70).balance, 30);
+assert.equal(normalizeFruitMaryAllocation(40, 60, 999).currentRound, 100);
+assert.equal(normalizeFruitMaryAllocation(40, 60, -5).currentRound, 0);
+assert.equal(adjustFruitMaryAllocation(40, 60, 'to-round', 1).currentRound, 41);
+assert.equal(adjustFruitMaryAllocation(40, 60, 'to-round', 1).balance, 59);
+assert.equal(adjustFruitMaryAllocation(40, 60, 'to-balance', 1).currentRound, 39);
+assert.equal(adjustFruitMaryAllocation(40, 60, 'to-balance', 1).balance, 61);
 
 assert.equal(shortBonusCompletionIndex([22, 5]), 1);
 assert.equal(shortBonusCompletionIndex([10, 23, 11, 5, 17]), 4);
@@ -53,12 +68,54 @@ assert.equal(shortBonusCompletionIndex([]), 0);
 
 const audioCalls = [];
 context.cc = {
+  Node: { EventType: { TOUCH_END: 'touchend' } },
   vv: {
     AudioMgr: {
       playSFX: (...args) => audioCalls.push(args),
     },
+    UserInfo: { balance: 60 },
   },
 };
+
+function numberNode(initialValue) {
+  const box = {
+    value: initialValue,
+    getNum() { return this.value; },
+    setNum(value) { this.value = Number(value); },
+  };
+  return {
+    box,
+    listeners: {},
+    getComponent(name) { return name === 'ShuziBoxLogic' ? box : null; },
+    on(type, listener) { this.listeners[type] = listener; },
+  };
+}
+
+const currentRoundNode = numberNode(40);
+const balanceNode = numberNode(60);
+let collectCalls = 0;
+const menuLogic = {
+  _kaishiBiDdaxiao_bool: true,
+  shuzibenlun: currentRoundNode,
+  shuziyue: balanceNode,
+  node: { getComponent: () => ({ _playing: false }) },
+  unschedule() {},
+  clickKaishi() { collectCalls += 1; },
+};
+assert.equal(patchFruitMaryMenuLogic(menuLogic), true);
+menuLogic.clickZuo();
+assert.equal(currentRoundNode.box.getNum(), 41, 'left adds one point to the round');
+assert.equal(balanceNode.box.getNum(), 59, 'left removes the same point from balance');
+menuLogic.clickYou();
+assert.equal(currentRoundNode.box.getNum(), 40, 'right returns one point from the round');
+assert.equal(balanceNode.box.getNum(), 60, 'right restores the same point to balance');
+currentRoundNode.box.setNum(1);
+balanceNode.box.setNum(99);
+menuLogic.clickYou();
+assert.equal(currentRoundNode.box.getNum(), 0);
+assert.equal(balanceNode.box.getNum(), 100);
+assert.equal(collectCalls, 1, 'returning the final point collects the round');
+audioCalls.length = 0;
 const blinkedPositions = [];
 let originalShortHandlerCalls = 0;
 let completedAnimations = 0;

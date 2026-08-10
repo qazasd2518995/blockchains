@@ -8,6 +8,7 @@ import {
   SETH2_RETRIGGER_SPINS,
   SETH2_SCATTER_PAYTABLE,
   SETH2_SKILL_SYMBOL_PAY,
+  seth2BuyFeatureEntry,
   seth2Spin,
   seth2SpinForFactor,
   type Seth2Outcome,
@@ -166,6 +167,25 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(outcome.returnData.freeGameCount).toBe(15);
   });
 
+  it.each(['standard', 'awakening'] as const)(
+    'uses a four-SCATTER entry board and preserves all 15 spins for a %s feature purchase',
+    (featureMode) => {
+      const outcome = seth2BuyFeatureEntry('buy-entry', 'client', 7, featureMode);
+      const scatterTypes = outcome.returnData.list[0]!.start_data
+        .filter((current) => current.type === 15 || current.type === 16)
+        .map((current) => current.type);
+
+      expect(scatterTypes).toHaveLength(4);
+      expect(scatterTypes.includes(16)).toBe(featureMode === 'awakening');
+      expect(outcome.triggeredFreeSpins).toBe(true);
+      expect(outcome.featureMode).toBe(featureMode);
+      expect(outcome.returnData.is_sjc).toBe(1);
+      expect(outcome.returnData.freeGameCount).toBe(15);
+      expect(outcome.payoutFactor).toBe(0);
+      expect(outcome.returnData.total_gold).toBe(0);
+    },
+  );
+
   it.each(['standard_free', 'awakening_free', 'bought_standard_free'] as const)(
     'adds five games for a three-SCATTER retrigger in %s',
     (mode) => {
@@ -210,6 +230,29 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       }
     }
     expect(multiplierTypes).toEqual(new Set([0, 1]));
+  });
+
+  it('can throw multiplier balls on a non-winning spin without collecting them', () => {
+    const animationTypes = new Set<number>();
+    let observed = 0;
+    for (let nonce = 0; nonce < 2_000 && animationTypes.size < 2; nonce += 1) {
+      const outcome = seth2SpinForFactor('dead-multiplier', 'client', nonce, BET, 0, 'base');
+      const round = outcome.returnData.list[0]!;
+      const balls = round.start_data.filter((current) => current.type === 10);
+      if (balls.length === 0) continue;
+      observed += 1;
+      expect(round.remove_type).toEqual([]);
+      expect(round.total_mul).toBe(0);
+      expect(outcome.payoutFactor).toBe(0);
+      expect(outcome.returnData.total_gold).toBe(0);
+      for (const ball of balls) {
+        expect(ball.mul).toBeGreaterThanOrEqual(2);
+        expect(ball.mul).toBeLessThanOrEqual(SETH2_MAX_SYMBOL_MULTIPLIER);
+        animationTypes.add(ball.mul_type ?? -1);
+      }
+    }
+    expect(observed).toBeGreaterThan(0);
+    expect(animationTypes).toEqual(new Set([0, 1]));
   });
 
   it.each([

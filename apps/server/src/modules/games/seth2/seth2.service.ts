@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
+  seth2BuyFeatureEntry,
   seth2Spin,
   seth2SpinForFactor,
   type Seth2Outcome,
@@ -258,13 +259,14 @@ export class Seth2Service {
             : 'standard_free'
           : 'base';
       const seed = await new SeedHelper(tx).getActiveBundle(userId, GAME_ID);
-      const originalOutcome = seth2Spin(
-        seed.serverSeed,
-        seed.clientSeed,
-        seed.nonce,
-        baseBet,
-        mode,
-      );
+      const originalOutcome = buying
+        ? seth2BuyFeatureEntry(
+            seed.serverSeed,
+            seed.clientSeed,
+            seed.nonce,
+            boughtFeatureMode === 'awakening' ? 'awakening' : 'standard',
+          )
+        : seth2Spin(seed.serverSeed, seed.clientSeed, seed.nonce, baseBet, mode);
       const originalPayout = payoutForFactor(baseAmount, originalOutcome.payoutFactor);
       const controlAmount = debitAmount.greaterThan(0) ? debitAmount : baseAmount;
       const originalMultiplier = originalPayout
@@ -276,15 +278,17 @@ export class Seth2Service {
         multiplier: originalMultiplier,
         payout: originalPayout,
       };
-      const controlled = await applyControls(tx, userId, GAME_ID, originalPrediction, {
-        burstEligible: true,
-        burstPotentialMultiplier: baseAmount
-          .mul(SETH2_MAX_WIN_MULTIPLIER)
-          .div(controlAmount)
-          .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN),
-      });
+      const controlled: ControlOutcome = buying
+        ? { ...originalPrediction, controlled: false }
+        : await applyControls(tx, userId, GAME_ID, originalPrediction, {
+            burstEligible: true,
+            burstPotentialMultiplier: baseAmount
+              .mul(SETH2_MAX_WIN_MULTIPLIER)
+              .div(controlAmount)
+              .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN),
+          });
 
-      const finalOutcome = controlled.controlled
+      const finalOutcome = !buying && controlled.controlled
         ? seth2SpinForFactor(
             seed.serverSeed,
             seed.clientSeed,
@@ -489,7 +493,7 @@ export function advanceSession(
 ): Seth2SessionState {
   if (input.buying) {
     return {
-      freeSpinsRemaining: SETH2_FREE_SPINS - 1,
+      freeSpinsRemaining: SETH2_FREE_SPINS,
       featureMode: input.boughtFeatureMode,
       betAmount: input.betAmount.toFixed(2),
     };
