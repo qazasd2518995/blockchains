@@ -394,6 +394,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
 
       try {
         const payload: PlinkoBatchBetRequest = {
+          gameId: isX ? 'plinko-x' : 'plinko',
           amount: betAmount,
           rows: betRows,
           risk: betRisk,
@@ -480,6 +481,7 @@ export function PlinkoPage({ variant = 'classic' }: PlinkoPageProps) {
       applyAutoResult,
       changeActiveDrops,
       requireLogin,
+      isX,
       risk,
       rows,
       sceneReady,

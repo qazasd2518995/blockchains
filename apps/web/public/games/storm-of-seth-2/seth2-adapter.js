@@ -188,15 +188,13 @@
     }, 0);
   }
 
-  function syncAuthoritativeResultMultiplier(game) {
-    var returnData = game && game.colMain && game.colMain.returnData;
-    var baseScore = Number(game && game.cur_top_ying_fen);
-    var totalGold = Number(returnData && returnData.total_gold);
-    if (!Number.isFinite(baseScore) || baseScore <= 0 || !Number.isFinite(totalGold)) return;
-    var multiplier = totalGold / baseScore;
-    if (!Number.isFinite(multiplier) || multiplier <= 0) return;
-    game.cur_top_mul = multiplier;
-    if (game.ttf_top_mul) game.ttf_top_mul.string = String(multiplier);
+  function syncMultiplierBankBefore(game, returnData) {
+    var multiplierBank = Number(returnData && returnData.multiplierBankBefore);
+    if (!Number.isInteger(multiplierBank) || multiplierBank < 0) return;
+    var rightMultiplier = game && game.rightBeiShu;
+    if (!rightMultiplier) return;
+    rightMultiplier.cur_beishu = multiplierBank;
+    if (rightMultiplier.ttf_beishu) rightMultiplier.ttf_beishu.string = multiplierBank + 'x';
   }
 
   function showFatal(message) {
@@ -276,7 +274,7 @@
   window.__YachiyoSeth2AdapterTest = {
     publicGameError: publicGameError,
     recoverAnimationFailure: recoverAnimationFailure,
-    syncAuthoritativeResultMultiplier: syncAuthoritativeResultMultiplier,
+    syncMultiplierBankBefore: syncMultiplierBankBefore,
   };
 
   function requestSession(callback) {
@@ -379,15 +377,10 @@
         this.cur_game_model = 1;
       };
 
-      var originalShowResultScore = Game.prototype.showResultScore;
-      Game.prototype.showResultScore = function () {
-        syncAuthoritativeResultMultiplier(this);
-        return originalShowResultScore.call(this);
-      };
-
       var originalColMainStartRoll = ColMain.prototype.startRoll;
       ColMain.prototype.startRoll = function (returnData) {
         try {
+          syncMultiplierBankBefore(Game.instance, returnData);
           var pending = originalColMainStartRoll.call(this, returnData);
           if (!pending || typeof pending.catch !== 'function') return pending;
           return pending.catch(function (error) {

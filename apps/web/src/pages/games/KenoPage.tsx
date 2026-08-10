@@ -361,7 +361,7 @@ export function KenoPage() {
               timestamp: Date.now(),
               betAmount: stake,
               multiplier: res.data.multiplier,
-              payout: stake * res.data.multiplier,
+              payout: Number.parseFloat(res.data.payout),
               won: res.data.multiplier > 1,
               detail: `${res.data.hits.length}/${res.data.selected.length} 命中`,
             },

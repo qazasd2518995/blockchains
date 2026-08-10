@@ -22,6 +22,10 @@ export type Seth2SpinMode = 'base' | 'standard_free' | 'awakening_free' | 'bough
 export type Seth2FeatureMode = 'none' | 'standard' | 'awakening';
 export type Seth2RandomSource = () => number;
 
+function isFreeGameMode(mode: Seth2SpinMode): boolean {
+  return mode !== 'base';
+}
+
 export interface Seth2Cell {
   type: number;
   mul: number;
@@ -54,6 +58,9 @@ export interface Seth2ReturnData {
   JPGold: number;
   score: number;
   total_gold: number;
+  multiplierBankBefore: number;
+  multiplierBankAdded: number;
+  multiplierBankAfter: number;
 }
 
 export interface Seth2Outcome {
@@ -80,6 +87,14 @@ interface MultiplierPlan {
   cells: Seth2Cell[];
   upgrades: Array<{ mul: number; new_mul: number }>;
   finalTotal: number;
+}
+
+interface Seth2WinPlan {
+  patterns: WinPattern[];
+  /** Multiplier contributed by balls on the current board. */
+  multiplier: number;
+  /** Multiplier shown after the saved free-game bank is collected. */
+  effectiveMultiplier: number;
 }
 
 interface MaleMultiplierPlan extends MultiplierPlan {
@@ -223,7 +238,11 @@ function emptyRound(startData: Seth2Cell[]): Seth2CascadeRound {
   };
 }
 
-function baseReturnData(roundOrRounds: Seth2CascadeRound | Seth2CascadeRound[]): Seth2ReturnData {
+function baseReturnData(
+  roundOrRounds: Seth2CascadeRound | Seth2CascadeRound[],
+  multiplierBankBefore = 0,
+  multiplierBankAdded = 0,
+): Seth2ReturnData {
   const rounds = Array.isArray(roundOrRounds) ? roundOrRounds : [roundOrRounds];
   const finalRound = rounds.at(-1)!;
   return {
@@ -239,10 +258,17 @@ function baseReturnData(roundOrRounds: Seth2CascadeRound | Seth2CascadeRound[]):
     JPGold: 0,
     score: rounds.reduce((total, round) => total + round.score, 0),
     total_gold: finalRound.total_gold,
+    multiplierBankBefore,
+    multiplierBankAdded,
+    multiplierBankAfter: multiplierBankBefore + multiplierBankAdded,
   };
 }
 
-function buildLoss(rng: Seth2RandomSource): Seth2Outcome {
+function buildLoss(
+  rng: Seth2RandomSource,
+  mode: Seth2SpinMode = 'base',
+  multiplierBank = 0,
+): Seth2Outcome {
   const multiplierCells: Seth2Cell[] = [];
   if (rng() < NON_WINNING_MULTIPLIER_PROBABILITY) {
     const count = rng() < 0.12 ? 2 : 1;
@@ -276,7 +302,7 @@ function buildLoss(rng: Seth2RandomSource): Seth2Outcome {
     payoutFactor: 0,
     triggeredFreeSpins: false,
     featureMode: 'none',
-    returnData: baseReturnData(round),
+    returnData: baseReturnData(round, isFreeGameMode(mode) ? multiplierBank : 0),
   };
 }
 
@@ -367,7 +393,11 @@ function buildScatterTrigger(bet: number, rng: Seth2RandomSource): Seth2Outcome 
   };
 }
 
-function buildRetrigger(rng: Seth2RandomSource): Seth2Outcome {
+function buildRetrigger(
+  rng: Seth2RandomSource,
+  mode: Seth2SpinMode,
+  multiplierBank: number,
+): Seth2Outcome {
   const scatterCells = Array.from({ length: 3 }, () => cell(15));
   const startData = [
     ...scatterCells,
@@ -386,7 +416,7 @@ function buildRetrigger(rng: Seth2RandomSource): Seth2Outcome {
     remove_count: 0,
     is_over: 1,
   };
-  const returnData = baseReturnData(round);
+  const returnData = baseReturnData(round, isFreeGameMode(mode) ? multiplierBank : 0);
   returnData.addGameCiShu = SETH2_RETRIGGER_SPINS;
   return {
     payoutFactor: 0,
@@ -401,6 +431,22 @@ function exactMultiplier(factor: number, scoreFactor: number): number | null {
   const rounded = Math.round(multiplier);
   if (Math.abs(multiplier - rounded) > 1e-9) return null;
   return rounded === 1 || rounded >= 2 ? rounded : null;
+}
+
+function multiplierTargetForScore(
+  factor: number,
+  scoreFactor: number,
+  multiplierBank: number,
+): { current: number; effective: number } | null {
+  const effective = exactMultiplier(factor, scoreFactor);
+  if (effective === null) return null;
+  // A 1x result contains no multiplier ball, so the saved bank is not used.
+  if (effective === 1) return { current: 1, effective: 1 };
+  const current = effective - multiplierBank;
+  // Source multiplier balls start at 2x. Without a current ball the original
+  // client never collects the right-side bank for this round.
+  if (current < 2 || !Number.isInteger(current)) return null;
+  return { current, effective };
 }
 
 function splitMultiplierTotal(total: number, maxParts: number): number[] | null {
@@ -524,14 +570,25 @@ function chooseSinglePattern(
   factor: number,
   extraScoreFactor: number,
   reservedCells: number,
+  multiplierBank: number,
   rng: Seth2RandomSource,
-): { patterns: WinPattern[]; multiplier: number } | null {
+): Seth2WinPlan | null {
   const candidates = WIN_PATTERNS.flatMap((pattern) => {
-    const multiplier = exactMultiplier(factor, pattern.factor + extraScoreFactor);
-    if (multiplier === null) return [];
-    const multiplierParts = multiplier === 1 ? 0 : Math.ceil(multiplier / 500);
+    const target = multiplierTargetForScore(
+      factor,
+      pattern.factor + extraScoreFactor,
+      multiplierBank,
+    );
+    if (!target) return [];
+    const multiplierParts = target.current === 1 ? 0 : Math.ceil(target.current / 500);
     if (pattern.count + multiplierParts + reservedCells > SETH2_GRID_SIZE) return [];
-    return [{ patterns: [pattern], multiplier }];
+    return [
+      {
+        patterns: [pattern],
+        multiplier: target.current,
+        effectiveMultiplier: target.effective,
+      },
+    ];
   });
   return choosePattern(candidates, rng);
 }
@@ -539,23 +596,57 @@ function chooseSinglePattern(
 function chooseRegularWinPlan(
   factor: number,
   reservedCells: number,
+  multiplierBank: number,
   rng: Seth2RandomSource,
-): { patterns: WinPattern[]; multiplier: number } {
-  const cascadeCandidates: Array<{ patterns: WinPattern[]; multiplier: number }> = [];
+): Seth2WinPlan | null {
+  const cascadeCandidates: Seth2WinPlan[] = [];
   for (const first of WIN_PATTERNS) {
     for (const second of WIN_PATTERNS) {
       if (first.type === second.type || first.count !== second.count) continue;
-      const multiplier = exactMultiplier(factor, first.factor + second.factor);
-      if (multiplier === null) continue;
-      const multiplierParts = multiplier === 1 ? 0 : Math.ceil(multiplier / 500);
+      const target = multiplierTargetForScore(factor, first.factor + second.factor, multiplierBank);
+      if (!target) continue;
+      const multiplierParts = target.current === 1 ? 0 : Math.ceil(target.current / 500);
       if (first.count + multiplierParts + reservedCells > SETH2_GRID_SIZE) continue;
-      cascadeCandidates.push({ patterns: [first, second], multiplier });
+      cascadeCandidates.push({
+        patterns: [first, second],
+        multiplier: target.current,
+        effectiveMultiplier: target.effective,
+      });
     }
   }
   if (cascadeCandidates.length > 0 && rng() < 0.35) {
     return choosePattern(cascadeCandidates, rng)!;
   }
-  return chooseSinglePattern(factor, 0, reservedCells, rng)!;
+  return chooseSinglePattern(factor, 0, reservedCells, multiplierBank, rng);
+}
+
+export function isSeth2FactorRepresentable(
+  factor: number,
+  mode: Seth2SpinMode = 'base',
+  multiplierBank = 0,
+): boolean {
+  if (factor === 0) return true;
+  if (!Number.isFinite(factor) || factor < 0) return false;
+  const activeMultiplierBank = isFreeGameMode(mode) ? multiplierBank : 0;
+  const reservedCells = jackpotForFactor(factor, mode)?.count ?? 0;
+  const fits = (patterns: WinPattern[]) => {
+    const target = multiplierTargetForScore(
+      factor,
+      patterns.reduce((total, pattern) => total + pattern.factor, 0),
+      activeMultiplierBank,
+    );
+    if (!target) return false;
+    const multiplierParts = target.current === 1 ? 0 : Math.ceil(target.current / 500);
+    return patterns[0]!.count + multiplierParts + reservedCells <= SETH2_GRID_SIZE;
+  };
+
+  if (WIN_PATTERNS.some((pattern) => fits([pattern]))) return true;
+  return WIN_PATTERNS.some((first) =>
+    WIN_PATTERNS.some(
+      (second) =>
+        first.type !== second.type && first.count === second.count && fits([first, second]),
+    ),
+  );
 }
 
 function buildWin(
@@ -563,23 +654,34 @@ function buildWin(
   factor: number,
   mode: Seth2SpinMode,
   rng: Seth2RandomSource,
+  multiplierBank = 0,
+  targetIncludesMultiplierBank = false,
 ): Seth2Outcome {
   const jackpot = jackpotForFactor(factor, mode);
   const jackpotCells = jackpot ? jackpot.count : 0;
   const awakening = mode === 'awakening_free';
   let skill: 'male' | 'female' | null = null;
-  let selected = null as { patterns: WinPattern[]; multiplier: number } | null;
+  let selected: Seth2WinPlan | null = null;
+  const activeMultiplierBank = isFreeGameMode(mode) ? multiplierBank : 0;
+  const selectionBank = targetIncludesMultiplierBank ? activeMultiplierBank : 0;
 
   if (awakening && factor >= 20 && rng() < 0.7) {
     const proposedSkill = rng() < 0.5 ? 'male' : 'female';
-    const skillPlan = chooseSinglePattern(factor, SETH2_SKILL_SYMBOL_PAY / 20, 3, rng);
+    const skillPlan = chooseSinglePattern(
+      factor,
+      SETH2_SKILL_SYMBOL_PAY / 20,
+      3,
+      selectionBank,
+      rng,
+    );
     if (skillPlan && skillPlan.multiplier >= 4) {
       skill = proposedSkill;
       selected = skillPlan;
     }
   }
 
-  selected ??= chooseRegularWinPlan(factor, jackpotCells, rng);
+  selected ??= chooseRegularWinPlan(factor, jackpotCells, selectionBank, rng);
+  if (!selected) return buildLoss(rng, mode, activeMultiplierBank);
   const multiplierTotal = selected.multiplier;
   const firstPattern = selected.patterns[0]!;
   const secondPattern = selected.patterns[1];
@@ -591,11 +693,16 @@ function buildWin(
     skill === 'female' ? femaleMultiplierPlan(multiplierTotal, multiplierRoom, rng) : null;
   const multiplierPlan =
     malePlan ?? femalePlan ?? regularMultiplierPlan(multiplierTotal, multiplierRoom, rng)!;
+  const currentMultiplierContribution =
+    multiplierPlan.cells.length > 0 ? multiplierPlan.finalTotal : 0;
+  const effectiveMultiplier =
+    currentMultiplierContribution > 0 ? currentMultiplierContribution + activeMultiplierBank : 1;
   const skillType = skill === 'male' ? 17 : skill === 'female' ? 18 : null;
   const skillScoreFactor = skill ? SETH2_SKILL_SYMBOL_PAY / 20 : 0;
   const rawScoreFactor =
     selected.patterns.reduce((total, pattern) => total + pattern.factor, 0) + skillScoreFactor;
-  const payout = money(bet * factor);
+  const actualPayoutFactor = money(rawScoreFactor * effectiveMultiplier);
+  const payout = money(bet * actualPayoutFactor);
   const fixedCells = [
     ...Array.from({ length: firstPattern.count }, () => cell(firstPattern.type)),
     ...multiplierPlan.cells,
@@ -624,9 +731,9 @@ function buildWin(
       index === 0 ? money(bet * firstPattern.factor) : money(bet * skillScoreFactor),
     ),
     upgrade_mul_list: secondPattern ? [] : multiplierPlan.upgrades,
-    total_mul: multiplierTotal > 1 ? multiplierTotal : 0,
+    total_mul: effectiveMultiplier > 1 ? effectiveMultiplier : 0,
     score: firstScore,
-    total_gold: secondPattern ? money(firstScore * multiplierTotal) : payout,
+    total_gold: secondPattern ? money(firstScore * effectiveMultiplier) : payout,
     remove_count: 0,
     is_over: secondPattern ? 0 : 1,
   };
@@ -639,7 +746,7 @@ function buildWin(
       round_data: safeFill(secondPattern.count, new Set([secondPattern.type]), rng),
       scoreList: [secondScore],
       upgrade_mul_list: multiplierPlan.upgrades,
-      total_mul: multiplierTotal > 1 ? multiplierTotal : 0,
+      total_mul: effectiveMultiplier > 1 ? effectiveMultiplier : 0,
       score: secondScore,
       total_gold: payout,
       remove_count: 1,
@@ -647,7 +754,11 @@ function buildWin(
     });
   }
 
-  const returnData = baseReturnData(rounds);
+  const returnData = baseReturnData(
+    rounds,
+    activeMultiplierBank,
+    isFreeGameMode(mode) ? currentMultiplierContribution : 0,
+  );
   if (malePlan && skill === 'male') {
     returnData.type17_beishu = { mul: malePlan.source.mul };
     returnData.type17_mul_list = malePlan.copies;
@@ -668,7 +779,7 @@ function buildWin(
   returnData.score = money(bet * rawScoreFactor);
   returnData.total_gold = payout;
   return {
-    payoutFactor: factor,
+    payoutFactor: actualPayoutFactor,
     triggeredFreeSpins: false,
     featureMode: 'none',
     returnData,
@@ -681,6 +792,7 @@ export function seth2Spin(
   nonce: number,
   bet: number,
   mode: Seth2SpinMode = 'base',
+  multiplierBank = 0,
 ): Seth2Outcome {
   if (!Number.isFinite(bet) || bet <= 0) throw new Error('Bet must be a positive number');
   const rng = randomSource(serverSeed, clientSeed, nonce);
@@ -692,9 +804,9 @@ export function seth2Spin(
         : AWAKENING_FREE_OUTCOMES;
   const selection = pickWeighted(table, rng);
   if (selection.trigger) return buildScatterTrigger(bet, rng);
-  if (selection.retrigger) return buildRetrigger(rng);
-  if (!selection.factor) return buildLoss(rng);
-  return buildWin(bet, selection.factor, mode, rng);
+  if (selection.retrigger) return buildRetrigger(rng, mode, multiplierBank);
+  if (!selection.factor) return buildLoss(rng, mode, multiplierBank);
+  return buildWin(bet, selection.factor, mode, rng, multiplierBank);
 }
 
 export function seth2SpinForFactor(
@@ -704,9 +816,12 @@ export function seth2SpinForFactor(
   bet: number,
   factor: number,
   mode: Seth2SpinMode = 'base',
+  multiplierBank = 0,
 ): Seth2Outcome {
   const rng = randomSource(serverSeed, clientSeed, nonce);
-  return factor > 0 ? buildWin(bet, factor, mode, rng) : buildLoss(rng);
+  return factor > 0
+    ? buildWin(bet, factor, mode, rng, multiplierBank, true)
+    : buildLoss(rng, mode, multiplierBank);
 }
 
 export function seth2BuyFeatureEntry(

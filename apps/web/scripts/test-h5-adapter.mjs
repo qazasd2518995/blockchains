@@ -402,6 +402,20 @@ function clusterLine() {
 }
 
 {
+  const adapter = loadAdapter('278');
+  assert.deepEqual(
+    Array.from(adapter.reconcilePayoutParts(0.01, [0.01, 0.01, 0])),
+    [0.01, 0, 0],
+    'rounding must never make animated free-spin payouts exceed settlement',
+  );
+  assert.deepEqual(
+    Array.from(adapter.reconcilePayoutParts(0.03, [0.01, 0])),
+    [0.01, 0.02],
+    'the animation sequence must allocate the complete authoritative payout',
+  );
+}
+
+{
   const adapter = loadAdapter('113');
   const [queued] = adapter.buildLotteryResponses({
     grid: grid(5, 3),
@@ -466,6 +480,7 @@ function clusterLine() {
   assert.equal(steps.length, 2);
   assert.equal(steps[0].nWinLinesDetail.length, 1);
   assert.equal(steps[0].win, 20);
+  assert.equal(steps[0].user_score, 120);
   assert.equal(steps[1].nWinLinesDetail.length, 0);
 }
 
@@ -597,6 +612,11 @@ function clusterLine() {
   assert.equal(responses[1].startsFreeSpin, true);
   assert.equal(responses[2].startsFreeSpin, true);
   assert.equal(responses[2].response.ResultData.freeCount, 1);
+  assert.equal(
+    responses.reduce((sum, queued) => sum + Number(queued.response.ResultData.winscore || 0), 0),
+    20,
+  );
+  assert.equal(responses.at(-1).response.ResultData.userscore, 520);
 }
 
 {

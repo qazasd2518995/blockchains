@@ -104,32 +104,43 @@ describe('Seth2 free-game session progression', () => {
     triggeredFeatureMode: 'none' as const,
     boughtFeatureMode: 'none' as const,
     extraSpins: 0,
+    multiplierBankAfter: 0,
   };
 
   it('starts all fifteen games after a natural standard trigger', () => {
     expect(
       advanceSession(
-        { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00' },
+        { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00', multiplierBank: 0 },
         {
           ...baseInput,
           triggeredFreeSpins: true,
           triggeredFeatureMode: 'standard',
         },
       ),
-    ).toEqual({ freeSpinsRemaining: 15, featureMode: 'standard', betAmount: '18.00' });
+    ).toEqual({
+      freeSpinsRemaining: 15,
+      featureMode: 'standard',
+      betAmount: '18.00',
+      multiplierBank: 0,
+    });
   });
 
   it('keeps golden-SCATTER triggers in awakening mode', () => {
     expect(
       advanceSession(
-        { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00' },
+        { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00', multiplierBank: 0 },
         {
           ...baseInput,
           triggeredFreeSpins: true,
           triggeredFeatureMode: 'awakening',
         },
       ),
-    ).toEqual({ freeSpinsRemaining: 15, featureMode: 'awakening', betAmount: '18.00' });
+    ).toEqual({
+      freeSpinsRemaining: 15,
+      featureMode: 'awakening',
+      betAmount: '18.00',
+      multiplierBank: 0,
+    });
   });
 
   it.each(['standard', 'awakening'] as const)(
@@ -137,37 +148,72 @@ describe('Seth2 free-game session progression', () => {
     (featureMode) => {
       expect(
         advanceSession(
-          { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00' },
+          { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00', multiplierBank: 0 },
           { ...baseInput, buying: true, boughtFeatureMode: featureMode },
         ),
-      ).toEqual({ freeSpinsRemaining: 15, featureMode, betAmount: '18.00' });
+      ).toEqual({
+        freeSpinsRemaining: 15,
+        featureMode,
+        betAmount: '18.00',
+        multiplierBank: 0,
+      });
     },
   );
 
   it('adds five retrigger games after consuming the current game', () => {
     expect(
       advanceSession(
-        { freeSpinsRemaining: 1, featureMode: 'awakening', betAmount: '18.00' },
-        { ...baseInput, freeSpin: true, extraSpins: 5 },
+        {
+          freeSpinsRemaining: 1,
+          featureMode: 'awakening',
+          betAmount: '18.00',
+          multiplierBank: 40,
+        },
+        { ...baseInput, freeSpin: true, extraSpins: 5, multiplierBankAfter: 52 },
       ),
-    ).toEqual({ freeSpinsRemaining: 5, featureMode: 'awakening', betAmount: '18.00' });
+    ).toEqual({
+      freeSpinsRemaining: 5,
+      featureMode: 'awakening',
+      betAmount: '18.00',
+      multiplierBank: 52,
+    });
   });
 
   it('caps accumulated free games at one hundred', () => {
     expect(
       advanceSession(
-        { freeSpinsRemaining: 98, featureMode: 'standard', betAmount: '18.00' },
-        { ...baseInput, freeSpin: true, extraSpins: 5 },
+        {
+          freeSpinsRemaining: 98,
+          featureMode: 'standard',
+          betAmount: '18.00',
+          multiplierBank: 20,
+        },
+        { ...baseInput, freeSpin: true, extraSpins: 5, multiplierBankAfter: 30 },
       ),
-    ).toEqual({ freeSpinsRemaining: 100, featureMode: 'standard', betAmount: '18.00' });
+    ).toEqual({
+      freeSpinsRemaining: 100,
+      featureMode: 'standard',
+      betAmount: '18.00',
+      multiplierBank: 30,
+    });
   });
 
   it('clears the feature only after the final non-retrigger spin', () => {
     expect(
       advanceSession(
-        { freeSpinsRemaining: 1, featureMode: 'standard', betAmount: '18.00' },
-        { ...baseInput, freeSpin: true },
+        {
+          freeSpinsRemaining: 1,
+          featureMode: 'standard',
+          betAmount: '18.00',
+          multiplierBank: 120,
+        },
+        { ...baseInput, freeSpin: true, multiplierBankAfter: 140 },
       ),
-    ).toEqual({ freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00' });
+    ).toEqual({
+      freeSpinsRemaining: 0,
+      featureMode: 'none',
+      betAmount: '0.00',
+      multiplierBank: 0,
+    });
   });
 });

@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { PLINKO_MIN_ROWS, PLINKO_MAX_ROWS } from '@bg/provably-fair';
-import { MAX_BET_AMOUNT, MIN_BET_AMOUNT, PLINKO_MAX_BALLS } from '@bg/shared';
+import { GameId, MAX_BET_AMOUNT, MIN_BET_AMOUNT, PLINKO_MAX_BALLS } from '@bg/shared';
 
 export const plinkoBetSchema = z.object({
+  gameId: z.enum([GameId.PLINKO, GameId.PLINKO_X]),
   amount: z.number().min(MIN_BET_AMOUNT).max(MAX_BET_AMOUNT),
   rows: z.number().int().min(PLINKO_MIN_ROWS).max(PLINKO_MAX_ROWS),
   risk: z.enum(['low', 'medium', 'high']),

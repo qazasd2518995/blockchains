@@ -32,7 +32,7 @@ export class PlinkoService {
     const amount = new Prisma.Decimal(input.amount);
 
     return runLockedTransaction(this.prisma, async (tx) => {
-      await lockUserAndCheckFunds(tx, userId, amount, GameId.PLINKO);
+      await lockUserAndCheckFunds(tx, userId, amount, input.gameId);
       return this.settleOne(tx, userId, input, amount);
     });
   }
@@ -42,13 +42,13 @@ export class PlinkoService {
     const totalStake = amount.mul(input.balls);
 
     return runLockedTransaction(this.prisma, async (tx) => {
-      const user = await lockUserAndCheckFunds(tx, userId, amount, GameId.PLINKO);
+      const user = await lockUserAndCheckFunds(tx, userId, amount, input.gameId);
       if (user.balance.lessThan(totalStake)) {
         throw new ApiError('INSUFFICIENT_FUNDS', 'Insufficient balance');
       }
       const seedBundles = await new SeedHelper(tx).getActiveBundles(
         userId,
-        'plinko',
+        input.gameId,
         input.balls,
         input.clientSeed,
       );
@@ -80,13 +80,14 @@ export class PlinkoService {
     batchShapeContext?: PlinkoBatchShapeContext,
   ): Promise<PlinkoBetResult> {
     const seed =
-      seedBundle ?? (await new SeedHelper(tx).getActiveBundle(userId, 'plinko', input.clientSeed));
+      seedBundle ??
+      (await new SeedHelper(tx).getActiveBundle(userId, input.gameId, input.clientSeed));
     const { path, bucket } = plinkoPath(seed.serverSeed, seed.clientSeed, seed.nonce, input.rows);
     const multiplier = plinkoMultiplier(input.risk, input.rows, bucket);
     const multipliers = plinkoTable(input.risk, input.rows);
     const multiplierD = new Prisma.Decimal(multiplier.toFixed(4));
     const payout = amount.mul(multiplierD).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
-    const controlled = await applyControls(tx, userId, GameId.PLINKO, {
+    const controlled = await applyControls(tx, userId, input.gameId, {
       won: payout.greaterThan(amount),
       amount,
       multiplier: multiplierD,
@@ -132,7 +133,7 @@ export class PlinkoService {
     const bet = await tx.bet.create({
       data: {
         userId,
-        gameId: GameId.PLINKO,
+        gameId: input.gameId,
         amount,
         multiplier: finalMultiplier,
         payout: finalPayout,
@@ -150,7 +151,7 @@ export class PlinkoService {
     await finalizeControls(
       tx,
       userId,
-      GameId.PLINKO,
+      input.gameId,
       { won: payout.greaterThan(amount), amount, multiplier: multiplierD, payout },
       {
         won: finalPayout.greaterThan(amount),

@@ -369,6 +369,7 @@ export async function finalizeControls(
   originalResult: Prisma.InputJsonValue,
   finalResult: Prisma.InputJsonValue,
 ): Promise<void> {
+  assertFinalizedControlResultContract(final);
   const member = await tx.user.findUnique({
     where: { id: userId },
     select: { id: true, username: true, agentId: true, balance: true },
@@ -420,6 +421,38 @@ export async function finalizeControls(
         flipReason: outcome.flipReason,
       },
     });
+  }
+}
+
+/**
+ * Every game sends the same multiplier/payout pair to Bet, the wallet and the
+ * control log. Reject a settlement when those monetary values no longer
+ * describe the same result. The tolerance only covers the loss of precision
+ * from storing multipliers at four decimal places.
+ */
+export function assertFinalizedControlResultContract(final: FinalizedControlResult): void {
+  if (
+    !final.amount.isFinite() ||
+    !final.multiplier.isFinite() ||
+    !final.payout.isFinite() ||
+    final.amount.lessThanOrEqualTo(0) ||
+    final.multiplier.isNegative() ||
+    final.payout.isNegative()
+  ) {
+    throw new Error('SETTLEMENT_CONTRACT_INVALID_VALUE');
+  }
+  const expectedPayout = final.amount
+    .mul(final.multiplier)
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const tolerance = Prisma.Decimal.max(
+    new Prisma.Decimal('0.02'),
+    final.amount.mul('0.0001').add('0.01'),
+  );
+  if (expectedPayout.minus(final.payout).abs().greaterThan(tolerance)) {
+    throw new Error('SETTLEMENT_CONTRACT_PAYOUT_MISMATCH');
+  }
+  if (final.won !== final.payout.greaterThan(final.amount)) {
+    throw new Error('SETTLEMENT_CONTRACT_OUTCOME_MISMATCH');
   }
 }
 

@@ -102,7 +102,7 @@ export function WheelPage() {
             timestamp: Date.now(),
             betAmount: amount,
             multiplier: res.data.multiplier,
-            payout: amount * res.data.multiplier,
+            payout: Number.parseFloat(res.data.payout),
             won: res.data.multiplier > 1,
             detail: `${risk} · ${segments} 段`,
           },

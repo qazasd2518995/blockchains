@@ -1522,18 +1522,9 @@
     var freePayouts = freeRounds.map(function (round) {
       return roundMoney(baseAmount * Number(round.totalMultiplier || 0));
     });
-    var allocatedPayout =
-      basePayout +
-      freePayouts.reduce(function (sum, value) {
-        return sum + value;
-      }, 0);
-    if (freePayouts.length > 0) {
-      freePayouts[freePayouts.length - 1] = roundMoney(
-        Math.max(0, freePayouts[freePayouts.length - 1] + totalPayout - allocatedPayout),
-      );
-    } else {
-      basePayout = totalPayout;
-    }
+    var payoutParts = reconcilePayoutParts(totalPayout, [basePayout].concat(freePayouts));
+    basePayout = payoutParts[0] || 0;
+    freePayouts = payoutParts.slice(1);
 
     var sequence = [];
     var displayedBalance = finalBalance - totalPayout + basePayout;
@@ -1621,7 +1612,7 @@
       getFreeTime: { bFlag: false, nFreeTime: 0 },
     };
     if (shape.family === 'mahjong' || shape.family === 'step' || shape.family === 'ways') {
-      data.viewarray = buildCascadeSteps(round, payout, baseAmount, shape);
+      data.viewarray = buildCascadeSteps(round, payout, balance, baseAmount, shape);
     } else {
       var symbols = flattenSymbols(
         applySpecialSymbols(round.grid, round.scatterSymbols, shape),
@@ -1641,13 +1632,13 @@
     return [{ response: makeLotteryEnvelope(data) }];
   }
 
-  function buildCascadeSteps(round, payout, baseAmount, shape) {
+  function buildCascadeSteps(round, payout, balance, baseAmount, shape) {
     var cascades = Array.isArray(round.cascades) ? round.cascades : [];
     var steps = cascades.map(function (cascade, index) {
       var stepPayout = roundMoney(baseAmount * Number(cascade.multiplier || 0));
       var symbols = flattenSymbols(cascade.grid, shape);
       return shape.family === 'ways'
-        ? buildWaysStep(symbols, cascade.lines || [], stepPayout, shape, index, baseAmount)
+        ? buildWaysStep(symbols, cascade.lines || [], stepPayout, shape, index, baseAmount, balance)
         : buildStep(
             symbols,
             cascade.lines || [],
@@ -1656,15 +1647,20 @@
             shape,
             index,
             baseAmount,
+            balance,
           );
     });
     if (steps.length > 0) {
-      var allocated = steps.reduce(function (sum, step) {
-        return sum + Number(step.win || step.winscore || 0);
-      }, 0);
-      var delta = roundMoney(payout - allocated);
-      steps[steps.length - 1].win = roundMoney(Number(steps[steps.length - 1].win || 0) + delta);
-      steps[steps.length - 1].winscore = steps[steps.length - 1].win;
+      var stepPayouts = reconcilePayoutParts(
+        payout,
+        steps.map(function (step) {
+          return Number(step.win || step.winscore || 0);
+        }),
+      );
+      steps.forEach(function (step, index) {
+        step.win = stepPayouts[index] || 0;
+        step.winscore = step.win;
+      });
     }
     var finalSymbols = flattenSymbols(
       applySpecialSymbols(round.finalGrid || round.grid, round.scatterSymbols, shape),
@@ -1672,7 +1668,7 @@
     );
     steps.push(
       shape.family === 'ways'
-        ? buildWaysStep(finalSymbols, [], 0, shape, steps.length, baseAmount)
+        ? buildWaysStep(finalSymbols, [], 0, shape, steps.length, baseAmount, balance)
         : buildStep(
             finalSymbols,
             [],
@@ -1681,6 +1677,7 @@
             shape,
             steps.length,
             baseAmount,
+            balance,
           ),
     );
     return steps;
@@ -1690,11 +1687,14 @@
     var cascades = Array.isArray(round.cascades) ? round.cascades : [];
     var responses = [];
     var accumulated = 0;
+    var stepPayouts = reconcilePayoutParts(
+      payout,
+      cascades.map(function (cascade) {
+        return roundMoney(baseAmount * Number(cascade.multiplier || 0));
+      }),
+    );
     cascades.forEach(function (cascade, index) {
-      var stepPayout = roundMoney(baseAmount * Number(cascade.multiplier || 0));
-      if (index === cascades.length - 1) {
-        stepPayout = roundMoney(stepPayout + payout - accumulated - stepPayout);
-      }
+      var stepPayout = stepPayouts[index] || 0;
       accumulated = roundMoney(accumulated + stepPayout);
       var data = buildTumbleData(
         cascade.grid,
@@ -1855,6 +1855,31 @@
     return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
   }
 
+  function reconcilePayoutParts(total, values) {
+    var targetCents = Math.max(0, Math.round(roundMoney(total) * 100));
+    var cents = (Array.isArray(values) ? values : []).map(function (value) {
+      return Math.max(0, Math.round(roundMoney(value) * 100));
+    });
+    if (cents.length === 0) return [];
+    var allocated = cents.reduce(function (sum, value) {
+      return sum + value;
+    }, 0);
+    var delta = targetCents - allocated;
+    if (delta > 0) {
+      cents[cents.length - 1] += delta;
+    } else if (delta < 0) {
+      var remaining = -delta;
+      for (var index = cents.length - 1; index >= 0 && remaining > 0; index -= 1) {
+        var deduction = Math.min(cents[index], remaining);
+        cents[index] -= deduction;
+        remaining -= deduction;
+      }
+    }
+    return cents.map(function (value) {
+      return value / 100;
+    });
+  }
+
   function falseList(length) {
     return Array.from({ length: length }, function () {
       return false;
@@ -1882,7 +1907,7 @@
     return data;
   }
 
-  function buildStep(symbols, lines, payout, mahjong, shape, index, baseAmount) {
+  function buildStep(symbols, lines, payout, mahjong, shape, index, baseAmount, balance) {
     var wins = winFields(lines, shape, baseAmount);
     return {
       nHandCards: symbols,
@@ -1894,12 +1919,12 @@
       combo_num: index,
       win: payout,
       winscore: payout,
-      user_score: Number((latestSession && latestSession.balance) || 0),
+      user_score: balance,
       getFreeTime: { bFlag: false, nFreeTime: 0 },
     };
   }
 
-  function buildWaysStep(symbols, lines, payout, shape, index, baseAmount) {
+  function buildWaysStep(symbols, lines, payout, shape, index, baseAmount, balance) {
     var wins = winFields(lines, shape, baseAmount);
     return {
       nHandCards: symbols,
@@ -1914,7 +1939,7 @@
       combo_num: index,
       win: payout,
       winscore: payout,
-      user_score: Number((latestSession && latestSession.balance) || 0),
+      user_score: balance,
     };
   }
 
@@ -1982,6 +2007,7 @@
     gameCode: gameCode,
     shape: GAME_SHAPES[gameCode],
     buildLotteryResponses: buildLotteryResponses,
+    reconcilePayoutParts: reconcilePayoutParts,
     flattenSymbols: flattenSymbols,
     winFields: winFields,
     installCocosAudioControls: installCocosAudioControls,

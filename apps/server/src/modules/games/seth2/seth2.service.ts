@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
+  isSeth2FactorRepresentable,
   seth2BuyFeatureEntry,
   seth2Spin,
   seth2SpinForFactor,
@@ -36,6 +37,7 @@ import type { Seth2ProtocolInput } from './seth2.schema.js';
 
 const GAME_ID = GameId.STORM_OF_SETH_2;
 const ALLOWED_BET_SET = new Set<number>(SETH2_ALLOWED_BETS);
+const MAX_MULTIPLIER_BANK = SETH2_MAX_FREE_SPINS * 30 * 500;
 const CONTROL_FACTORS = [
   0, 0.5, 1, 2, 3, 4, 5, 8, 10, 20, 45, 50, 100, 200, 205, 220, 250, 300, 350, 400, 450, 500, 1000,
   2015, 5000, 10_000, 20_000, 50_000, 81_000,
@@ -45,6 +47,7 @@ export interface Seth2SessionState {
   freeSpinsRemaining: number;
   featureMode: Seth2FeatureMode;
   betAmount: string;
+  multiplierBank: number;
 }
 
 interface Seth2Settlement {
@@ -65,6 +68,7 @@ const EMPTY_SESSION: Seth2SessionState = {
   freeSpinsRemaining: 0,
   featureMode: 'none',
   betAmount: '0.00',
+  multiplierBank: 0,
 };
 
 export class Seth2Service {
@@ -258,6 +262,7 @@ export class Seth2Service {
             ? 'awakening_free'
             : 'standard_free'
           : 'base';
+      const multiplierBankBefore = freeSpin ? currentSession.multiplierBank : 0;
       const seed = await new SeedHelper(tx).getActiveBundle(userId, GAME_ID);
       const originalOutcome = buying
         ? seth2BuyFeatureEntry(
@@ -266,7 +271,14 @@ export class Seth2Service {
             seed.nonce,
             boughtFeatureMode === 'awakening' ? 'awakening' : 'standard',
           )
-        : seth2Spin(seed.serverSeed, seed.clientSeed, seed.nonce, baseBet, mode);
+        : seth2Spin(
+            seed.serverSeed,
+            seed.clientSeed,
+            seed.nonce,
+            baseBet,
+            mode,
+            multiplierBankBefore,
+          );
       const originalPayout = payoutForFactor(baseAmount, originalOutcome.payoutFactor);
       const controlAmount = debitAmount.greaterThan(0) ? debitAmount : baseAmount;
       const originalMultiplier = originalPayout
@@ -288,16 +300,24 @@ export class Seth2Service {
               .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN),
           });
 
-      const finalOutcome = !buying && controlled.controlled
-        ? seth2SpinForFactor(
-            seed.serverSeed,
-            seed.clientSeed,
-            seed.nonce,
-            baseBet,
-            chooseControlledSethFactor(baseAmount, controlAmount, controlled),
-            mode,
-          )
-        : originalOutcome;
+      const finalOutcome =
+        !buying && controlled.controlled
+          ? seth2SpinForFactor(
+              seed.serverSeed,
+              seed.clientSeed,
+              seed.nonce,
+              baseBet,
+              chooseControlledSethFactor(
+                baseAmount,
+                controlAmount,
+                controlled,
+                mode,
+                multiplierBankBefore,
+              ),
+              mode,
+              multiplierBankBefore,
+            )
+          : originalOutcome;
       const finalPayout = payoutForFactor(baseAmount, finalOutcome.payoutFactor);
       const finalControlMultiplier = finalPayout
         .div(controlAmount)
@@ -314,6 +334,7 @@ export class Seth2Service {
         triggeredFeatureMode: finalOutcome.featureMode,
         boughtFeatureMode,
         extraSpins: finalOutcome.returnData.addGameCiShu,
+        multiplierBankAfter: finalOutcome.returnData.multiplierBankAfter,
       });
       applyFeatureState(
         finalOutcome.returnData,
@@ -467,16 +488,20 @@ function readSession(resultData: Prisma.JsonValue | undefined): Seth2SessionStat
   const remaining = Number(value.freeSpinsRemaining);
   const betAmount = String(value.betAmount ?? '0');
   const featureMode = value.featureMode;
+  const multiplierBank = value.multiplierBank === undefined ? 0 : Number(value.multiplierBank);
   if (
     !Number.isInteger(remaining) ||
     remaining < 0 ||
     remaining > SETH2_MAX_FREE_SPINS ||
+    !Number.isInteger(multiplierBank) ||
+    multiplierBank < 0 ||
+    multiplierBank > MAX_MULTIPLIER_BANK ||
     !ALLOWED_BET_SET.has(Number(betAmount)) ||
     (featureMode !== 'none' && featureMode !== 'standard' && featureMode !== 'awakening')
   ) {
     return EMPTY_SESSION;
   }
-  return { freeSpinsRemaining: remaining, featureMode, betAmount };
+  return { freeSpinsRemaining: remaining, featureMode, betAmount, multiplierBank };
 }
 
 export function advanceSession(
@@ -489,6 +514,7 @@ export function advanceSession(
     triggeredFeatureMode: Seth2FeatureMode;
     boughtFeatureMode: Seth2FeatureMode;
     extraSpins: number;
+    multiplierBankAfter: number;
   },
 ): Seth2SessionState {
   if (input.buying) {
@@ -496,6 +522,7 @@ export function advanceSession(
       freeSpinsRemaining: SETH2_FREE_SPINS,
       featureMode: input.boughtFeatureMode,
       betAmount: input.betAmount.toFixed(2),
+      multiplierBank: 0,
     };
   }
   if (input.freeSpin) {
@@ -507,6 +534,7 @@ export function advanceSession(
       freeSpinsRemaining: remaining,
       featureMode: remaining > 0 ? current.featureMode : 'none',
       betAmount: remaining > 0 ? current.betAmount : '0.00',
+      multiplierBank: remaining > 0 ? input.multiplierBankAfter : 0,
     };
   }
   if (input.triggeredFreeSpins) {
@@ -514,6 +542,7 @@ export function advanceSession(
       freeSpinsRemaining: SETH2_FREE_SPINS,
       featureMode: input.triggeredFeatureMode === 'awakening' ? 'awakening' : 'standard',
       betAmount: input.betAmount.toFixed(2),
+      multiplierBank: 0,
     };
   }
   return EMPTY_SESSION;
@@ -539,8 +568,11 @@ export function chooseControlledSethFactor(
     ControlOutcome,
     'won' | 'multiplier' | 'minMultiplier' | 'maxMultiplier' | 'maxPayout'
   >,
+  mode: Seth2SpinMode = 'base',
+  multiplierBank = 0,
 ): number {
   const candidates = CONTROL_FACTORS.filter((factor) => {
+    if (!isSeth2FactorRepresentable(factor, mode, multiplierBank)) return false;
     const accountingMultiplier = baseAmount
       .mul(factor)
       .div(controlAmount)

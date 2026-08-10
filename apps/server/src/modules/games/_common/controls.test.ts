@@ -4,6 +4,7 @@ import { GameId } from '@bg/shared';
 import {
   __controlsTestHooks,
   applyControls,
+  assertFinalizedControlResultContract,
   forceControlOutcomeToLoss,
   isBurstControlEligible,
   multiplierExceedsControlCeiling,
@@ -11,6 +12,41 @@ import {
   rankWinLossControls,
   resolveGameMatchedCashoutControl,
 } from './controls.js';
+
+describe('settlement result contract', () => {
+  it('accepts the four-decimal multiplier rounding used by every game service', () => {
+    expect(() =>
+      assertFinalizedControlResultContract({
+        won: true,
+        amount: new Prisma.Decimal('333.33'),
+        multiplier: new Prisma.Decimal('1.2346'),
+        payout: new Prisma.Decimal('411.53'),
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects a payout that does not match the multiplier before control finalization', () => {
+    expect(() =>
+      assertFinalizedControlResultContract({
+        won: true,
+        amount: new Prisma.Decimal('100'),
+        multiplier: new Prisma.Decimal('8'),
+        payout: new Prisma.Decimal('400'),
+      }),
+    ).toThrow('SETTLEMENT_CONTRACT_PAYOUT_MISMATCH');
+  });
+
+  it('rejects a win flag that disagrees with the actual net result', () => {
+    expect(() =>
+      assertFinalizedControlResultContract({
+        won: true,
+        amount: new Prisma.Decimal('100'),
+        multiplier: new Prisma.Decimal('1'),
+        payout: new Prisma.Decimal('100'),
+      }),
+    ).toThrow('SETTLEMENT_CONTRACT_OUTCOME_MISMATCH');
+  });
+});
 
 const prediction = (multiplier: number) => ({
   multiplier: new Prisma.Decimal(multiplier),

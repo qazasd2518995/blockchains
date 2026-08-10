@@ -2,6 +2,31 @@ import { Prisma } from '@prisma/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { plinkoTable } from '@bg/provably-fair';
 import { __plinkoServiceTestHooks } from './plinko.service.js';
+import { plinkoBatchBetSchema } from './plinko.schema.js';
+
+describe('plinko game identity', () => {
+  it.each(['plinko', 'plinko-x'] as const)(
+    'keeps %s as a distinct control and ledger game',
+    (gameId) => {
+      expect(
+        plinkoBatchBetSchema.parse({ gameId, amount: 10, rows: 10, risk: 'medium', balls: 1 })
+          .gameId,
+      ).toBe(gameId);
+    },
+  );
+
+  it('rejects an unrelated game id', () => {
+    expect(() =>
+      plinkoBatchBetSchema.parse({
+        gameId: 'wheel',
+        amount: 10,
+        rows: 10,
+        risk: 'medium',
+        balls: 1,
+      }),
+    ).toThrow();
+  });
+});
 
 describe('plinko controlled loss shaping', () => {
   afterEach(() => {

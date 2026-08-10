@@ -1,6 +1,8 @@
 export type PlinkoRisk = 'low' | 'medium' | 'high';
+export type PlinkoGameId = 'plinko' | 'plinko-x';
 
 export interface PlinkoBetRequest {
+  gameId: PlinkoGameId;
   amount: number;
   rows: number;
   risk: PlinkoRisk;

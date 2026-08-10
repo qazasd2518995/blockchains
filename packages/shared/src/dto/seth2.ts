@@ -47,6 +47,9 @@ export interface Seth2ReturnData {
   JPGold: number;
   score: number;
   total_gold: number;
+  multiplierBankBefore: number;
+  multiplierBankAdded: number;
+  multiplierBankAfter: number;
 }
 
 export interface Seth2ProtocolRequest {

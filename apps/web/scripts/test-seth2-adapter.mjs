@@ -24,7 +24,7 @@ context.window = context;
 vm.createContext(context);
 vm.runInContext(source, context);
 
-const { publicGameError, recoverAnimationFailure, syncAuthoritativeResultMultiplier } =
+const { publicGameError, recoverAnimationFailure, syncMultiplierBankBefore } =
   context.__YachiyoSeth2AdapterTest;
 assert.equal(
   publicGameError(
@@ -90,13 +90,13 @@ assert.equal(game.isCanClick, true);
 assert.deepEqual(emitted, ['refresh-score', 'buy-next']);
 
 const resultGame = {
-  colMain: { returnData: { total_gold: 3690 } },
-  cur_top_ying_fen: 18,
-  cur_top_mul: 218,
-  ttf_top_mul: { string: '218' },
+  rightBeiShu: {
+    cur_beishu: 0,
+    ttf_beishu: { string: '0x' },
+  },
 };
-syncAuthoritativeResultMultiplier(resultGame);
-assert.equal(resultGame.cur_top_mul, 205);
-assert.equal(resultGame.ttf_top_mul.string, '205');
+syncMultiplierBankBefore(resultGame, { multiplierBankBefore: 218 });
+assert.equal(resultGame.rightBeiShu.cur_beishu, 218);
+assert.equal(resultGame.rightBeiShu.ttf_beishu.string, '218x');
 
 console.log('Seth2 adapter public error contract tests passed.');

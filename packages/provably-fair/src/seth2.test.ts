@@ -50,10 +50,10 @@ function finalMultiplier(outcome: Seth2Outcome): number {
       target.upgraded = true;
     }
   }
-  return (
+  const currentMultiplier =
     multipliers.reduce((total, current) => total + current.mul, 0) +
-    outcome.returnData.type17_mul_list.reduce((total, current) => total + current.mul, 0)
-  );
+    outcome.returnData.type17_mul_list.reduce((total, current) => total + current.mul, 0);
+  return currentMultiplier > 0 ? currentMultiplier + outcome.returnData.multiplierBankBefore : 0;
 }
 
 function removedCellCount(outcome: Seth2Outcome): number {
@@ -171,9 +171,9 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     'uses a four-SCATTER entry board and preserves all 15 spins for a %s feature purchase',
     (featureMode) => {
       const outcome = seth2BuyFeatureEntry('buy-entry', 'client', 7, featureMode);
-      const scatterTypes = outcome.returnData.list[0]!.start_data
-        .filter((current) => current.type === 15 || current.type === 16)
-        .map((current) => current.type);
+      const scatterTypes = outcome.returnData.list[0]!.start_data.filter(
+        (current) => current.type === 15 || current.type === 16,
+      ).map((current) => current.type);
 
       expect(scatterTypes).toHaveLength(4);
       expect(scatterTypes.includes(16)).toBe(featureMode === 'awakening');
@@ -351,6 +351,67 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(
       outcome.returnData.list[0]!.start_data.filter((current) => current.type === type),
     ).toHaveLength(count);
+  });
+
+  it('collects a saved free-game multiplier only when the current winning board has a ball', () => {
+    let withoutBank: Seth2Outcome | undefined;
+    let nonce = 0;
+    for (; nonce < 10_000; nonce += 1) {
+      const candidate = seth2Spin('free-bank-natural', 'client', nonce, BET, 'standard_free');
+      if (candidate.returnData.score > 0 && finalMultiplier(candidate) > 0) {
+        withoutBank = candidate;
+        break;
+      }
+    }
+    expect(withoutBank).toBeDefined();
+
+    const bank = 25;
+    const withBank = seth2Spin('free-bank-natural', 'client', nonce, BET, 'standard_free', bank);
+    const currentMultiplier = finalMultiplier(withoutBank!);
+    expect(withBank.returnData.multiplierBankBefore).toBe(bank);
+    expect(withBank.returnData.multiplierBankAdded).toBe(currentMultiplier);
+    expect(withBank.returnData.multiplierBankAfter).toBe(bank + currentMultiplier);
+    expect(finalMultiplier(withBank)).toBe(bank + currentMultiplier);
+    expect(withBank.returnData.total_gold).toBe(
+      money(withBank.returnData.score * (bank + currentMultiplier)),
+    );
+  });
+
+  it('generates a controlled low win without showing or collecting a large saved multiplier', () => {
+    const outcome = seth2SpinForFactor(
+      'controlled-low-with-bank',
+      'client',
+      0,
+      BET,
+      2,
+      'standard_free',
+      40,
+    );
+    const round = outcome.returnData.list[0]!;
+    expect(round.start_data.filter((current) => current.type === 10)).toHaveLength(0);
+    expect(round.total_mul).toBe(0);
+    expect(outcome.returnData.score).toBe(BET * 2);
+    expect(outcome.returnData.total_gold).toBe(BET * 2);
+    expect(outcome.returnData.multiplierBankBefore).toBe(40);
+    expect(outcome.returnData.multiplierBankAdded).toBe(0);
+    expect(outcome.returnData.multiplierBankAfter).toBe(40);
+  });
+
+  it('builds a controlled multiplier result whose animation already equals its final payout', () => {
+    const outcome = seth2SpinForFactor(
+      'controlled-win-with-bank',
+      'client',
+      7,
+      BET,
+      100,
+      'standard_free',
+      10,
+    );
+    const multiplier = finalMultiplier(outcome);
+    expect(outcome.returnData.multiplierBankAdded).toBeGreaterThan(0);
+    expect(outcome.returnData.list.at(-1)!.total_mul).toBe(multiplier);
+    expect(outcome.returnData.total_gold).toBe(money(outcome.returnData.score * multiplier));
+    expect(outcome.returnData.total_gold).toBe(BET * 100);
   });
 
   it('keeps raw scores, final multipliers and authoritative payouts mathematically consistent', () => {
