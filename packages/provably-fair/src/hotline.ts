@@ -781,6 +781,19 @@ export const H5_NINE_LINE_PAYLINES: readonly HotlinePaylineDefinition[] = makeIn
   H5_PAYLINES_5X3_15_PATHS.slice(0, 9),
 );
 
+/** Exact Line_1 through Line_9 order drawn by the original Nine-Line Pull King scene. */
+const H5_NINE_LINE_PULL_KING_PAYLINES: readonly HotlinePaylineDefinition[] = makeIndexedPaylines([
+  [1, 1, 1, 1, 1],
+  [0, 0, 0, 0, 0],
+  [2, 2, 2, 2, 2],
+  [0, 1, 2, 1, 0],
+  [2, 1, 0, 1, 2],
+  [1, 0, 0, 0, 1],
+  [1, 2, 2, 2, 1],
+  [0, 0, 1, 2, 2],
+  [2, 2, 1, 0, 0],
+]);
+
 const H5_FIFTEEN_LINE_PAYLINES = makeIndexedPaylines(H5_PAYLINES_5X3_15_PATHS);
 const H5_FIVE_LINE_PAYLINES_5X3 = makeIndexedPaylines(H5_PAYLINES_5X3_15_PATHS.slice(0, 5));
 const H5_PAYLINES_3X3_8 = makeIndexedPaylines([
@@ -904,6 +917,9 @@ export function getHotlinePaylinesForGame(
 ): readonly HotlinePaylineDefinition[] {
   const count = gameId ? H5_FIXED_PAYLINE_COUNTS[gameId] : undefined;
   if (!count) return reelCount === HOTLINE_MINI_REELS ? HOTLINE_PAYLINES_3X3 : HOTLINE_PAYLINES_5X3;
+  if (gameId === 'h5-nine-line-pull-king' && reelCount === 5 && rowCount === 3) {
+    return H5_NINE_LINE_PULL_KING_PAYLINES;
+  }
   if (reelCount === 5 && rowCount === 4) return H5_PAYLINES_5X4_50.slice(0, count);
   if (reelCount === 5) {
     if (count <= 5) return H5_FIVE_LINE_PAYLINES_5X3.slice(0, count);

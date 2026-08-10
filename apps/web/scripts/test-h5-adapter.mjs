@@ -441,7 +441,7 @@ function clusterLine() {
     ...classicLine(0),
     lineId: 'line-6',
     lineIndex: 5,
-    path: [0, 0, 1, 0, 0],
+    path: [1, 0, 0, 0, 1],
     count: 5,
   };
   const wins = adapter.winFields(
@@ -451,7 +451,7 @@ function clusterLine() {
   );
 
   assert.deepEqual(Array.from(wins.nWinLines), [5]);
-  assert.deepEqual(Array.from(wins.nWinLinesDetail[0]), [0, 1, 7, 3, 4]);
+  assert.deepEqual(Array.from(wins.nWinLinesDetail[0]), [5, 1, 2, 3, 9]);
   assert.deepEqual(Array.from(wins.nWinDetail), [20]);
 }
 

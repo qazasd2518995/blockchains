@@ -466,14 +466,24 @@ describe('hotlineSpin', () => {
 });
 
 describe('hotlineEvaluate', () => {
-  it('uses all nine source paylines and preserves the Cocos overlay index', () => {
-    expect(getHotlinePaylinesForGame('h5-nine-line-pull-king')).toHaveLength(9);
+  it('matches all nine original Cocos overlays and preserves the overlay index', () => {
+    expect(getHotlinePaylinesForGame('h5-nine-line-pull-king').map((line) => line.path)).toEqual([
+      [1, 1, 1, 1, 1],
+      [0, 0, 0, 0, 0],
+      [2, 2, 2, 2, 2],
+      [0, 1, 2, 1, 0],
+      [2, 1, 0, 1, 2],
+      [1, 0, 0, 0, 1],
+      [1, 2, 2, 2, 1],
+      [0, 0, 1, 2, 2],
+      [2, 2, 1, 0, 0],
+    ]);
     const grid = [
-      [7, 1, 2],
+      [1, 7, 2],
       [7, 4, 5],
-      [6, 7, 1],
+      [7, 6, 1],
       [7, 3, 4],
-      [7, 6, 0],
+      [0, 7, 6],
     ];
     const { lines } = hotlineEvaluate(grid, 'h5-nine-line-pull-king');
 
@@ -481,7 +491,7 @@ describe('hotlineEvaluate', () => {
     expect(lines[0]).toMatchObject({
       lineId: 'line-6',
       lineIndex: 5,
-      path: [0, 0, 1, 0, 0],
+      path: [1, 0, 0, 0, 1],
       symbol: 7,
       count: 5,
     });
