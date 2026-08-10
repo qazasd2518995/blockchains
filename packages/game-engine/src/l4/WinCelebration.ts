@@ -25,6 +25,8 @@ export interface WinCelebrationOptions {
   amountLabel?: string;     // 'WIN' default
   /** 是否由共用慶祝元件播放音效；個別遊戲可自行接管 */
   playSound?: boolean;
+  /** 延後配置粒子 Graphics，避免複雜場景在首屏建立大量不可見物件。 */
+  lazyParticles?: boolean;
 }
 
 const DEFAULT_PRIMARY = 0xF3D67D;   // 金
@@ -81,8 +83,9 @@ export class WinCelebration {
     this.textLayer.eventMode = 'none';
     this.parent.addChild(this.textLayer);
 
-    this.particlePool = new ParticlePool(this.fxLayer, 220);
-    this.confettiPool = new ParticlePool(this.fxLayer, 160);
+    const particleOptions = { lazy: opts.lazyParticles ?? false };
+    this.particlePool = new ParticlePool(this.fxLayer, 220, particleOptions);
+    this.confettiPool = new ParticlePool(this.fxLayer, 160, particleOptions);
 
     this.shaker = opts.shakeTarget ? new ShakeController(opts.shakeTarget, opts.app) : null;
 

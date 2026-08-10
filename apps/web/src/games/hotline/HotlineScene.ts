@@ -3,7 +3,6 @@ import {
   Assets,
   Container,
   Graphics,
-  Rectangle,
   Sprite,
   Text,
   TextStyle,
@@ -22,13 +21,13 @@ import {
   emitEdgeGlow,
   emitGlowBurst,
   emitRayBurst,
-  prewarmShaders,
   prefersReducedMotion,
   GAME_FONT_NUM,
   Sfx,
 } from '@bg/game-engine';
 import { getHotlineSymbolMeta } from '@/lib/hotlineSymbols';
 import { getSlotTheme, type SlotThemeConfig } from '@/lib/slotThemes';
+import { getOptimizedImageUrl } from '@/lib/optimizedImages';
 import { describeSlotDebugError, slotDebug, SLOT_DEBUG_BUILD } from '@/lib/slotDebug';
 import { WinCelebration } from '@bg/game-engine';
 import { SCENE_LABELS, type SceneLabels } from '@/i18n/sceneLabels';
@@ -46,7 +45,12 @@ const COLOR_WHITE = 0xffffff;
 const DEFAULT_REELS = 5;
 const ROWS = 3;
 const MEGA_ROWS = 5;
-const REEL_STRIP_LEN = 18; // reel 內部轉動用的延伸符號，控制物件量避免手機卡頓
+// 只保留可見列與落地動畫需要的緩衝列。被遮罩的列依然會增加 Pixi 每幀遍歷成本。
+const CLASSIC_REEL_STRIP_LEN = 9;
+const MEGA_REEL_STRIP_LEN = 13;
+const THEME_TEXTURE_BATCH_SIZE = 2;
+const DEFERRED_SCENE_SETUP_MS = 120;
+const IDLE_RENDER_STOP_DELAY_MS = 4200;
 const FINAL_STOP_ROW = 2;
 const CLASSIC_RENDER_DPR = 1.6;
 const MEGA_RENDER_DPR = 2;
@@ -84,17 +88,6 @@ function themeSymbolImage(theme: SlotThemeConfig, symbolIdx: number): string {
 
 function themeSpecialImage(theme: SlotThemeConfig, type: HotlineSpecialSymbol['type']): string {
   return theme.symbolSheet.replace(/symbols\.png$/, `${type}.png`);
-}
-
-function optimizedPublicImage(src: string, width: 480 | 960 | 1600): string {
-  if (!src || src.startsWith('data:') || src.startsWith('blob:') || /^https?:\/\//i.test(src)) {
-    return src;
-  }
-  if (!/\.(avif|jpe?g|png|webp)$/i.test(src)) return src;
-  const normalized = src.replace(/^\//, '');
-  const extensionIndex = normalized.lastIndexOf('.');
-  const withoutExtension = extensionIndex > -1 ? normalized.slice(0, extensionIndex) : normalized;
-  return `/_optimized/${withoutExtension}@${width}.webp`;
 }
 
 function specialKey(special?: HotlineSpecialSymbol): string {
@@ -182,8 +175,8 @@ export class HotlineScene {
   private theme: SlotThemeConfig = getSlotTheme('cyber');
   private reelCount = DEFAULT_REELS;
   private rowCount = ROWS;
+  private stripLength = CLASSIC_REEL_STRIP_LEN;
   private backgroundTexture: Texture | null = null;
-  private symbolSheetTexture: Texture | null = null;
   private symbolTextures: Array<Texture | null> = [];
   private scatterTexture: Texture | null = null;
   private multiplierTexture: Texture | null = null;
@@ -216,6 +209,8 @@ export class HotlineScene {
   private rendererKind: 'webgl' | 'canvas' | 'webgpu' | 'unknown' = 'unknown';
   private lineFxTimers: number[] = [];
   private playbackFast = false;
+  private deferredSetupTimer: number | null = null;
+  private renderStopTimer: number | null = null;
 
   constructor(labels: SceneLabels['hotline'] = SCENE_LABELS['zh-Hant'].hotline) {
     this.labels = labels;
@@ -234,9 +229,11 @@ export class HotlineScene {
     this.theme = theme;
     this.reelCount = theme.reels;
     this.rowCount = theme.rows ?? ROWS;
+    this.stripLength = this.rowCount > ROWS ? MEGA_REEL_STRIP_LEN : CLASSIC_REEL_STRIP_LEN;
 
     let app = new Application();
     const useConstrainedRenderer = this.shouldUseConstrainedMegaRenderer();
+    const preferCanvasRenderer = this.shouldPreferCanvasRenderer();
     const rendererResolution = this.getRendererResolution();
     const preferWebGLVersion: 1 | 2 = useConstrainedRenderer ? 1 : 2;
     const initOptions: Partial<ApplicationOptions> = {
@@ -251,7 +248,9 @@ export class HotlineScene {
         this.rowCount <= ROWS &&
         rendererResolution <= CLASSIC_RENDER_DPR,
       powerPreference: useConstrainedRenderer ? 'low-power' : 'high-performance',
-      preference: ['webgl', 'canvas'],
+      // iOS WebKit 在複雜 Graphics 首幀可能長時間編譯 WebGL shader。CanvasRenderer
+      // 依然使用同一份高解析原圖與 DPR，但可避免進戲時卡在第一幀。
+      preference: preferCanvasRenderer ? ['canvas', 'webgl'] : ['webgl', 'canvas'],
       preferWebGLVersion,
     };
     slotDebug('hotline-scene:init:start', {
@@ -262,9 +261,10 @@ export class HotlineScene {
       rowCount: this.rowCount,
       reelCount: this.reelCount,
       rendererResolution,
-      rendererPreference: ['webgl', 'canvas'],
+      rendererPreference: preferCanvasRenderer ? ['canvas', 'webgl'] : ['webgl', 'canvas'],
+      preferCanvasRenderer,
       useConstrainedRenderer,
-      shaderEffects: !useConstrainedRenderer,
+      shaderEffects: !useConstrainedRenderer && !preferCanvasRenderer,
       devicePixelRatio: typeof window === 'undefined' ? null : window.devicePixelRatio,
       viewport: {
         innerWidth: typeof window === 'undefined' ? null : window.innerWidth,
@@ -332,22 +332,9 @@ export class HotlineScene {
       throw new Error('Hotline scene disposed during init');
     }
     this.app = app;
+    // 靜態盤面不需要每秒重繪 60 次；動畫開始時再喚醒 ticker。
+    app.stop();
     app.stage.eventMode = 'none';
-    if (this.canUseShaderEffects()) {
-      slotDebug('hotline-scene:effects:enabled');
-      this.winFx = new WinCelebration({
-        app,
-        parent: app.stage,
-        shakeTarget: app.stage,
-        width: this.width,
-        height: this.height,
-      });
-    } else {
-      slotDebug('hotline-scene:effects:disabled', {
-        rowCount: this.rowCount,
-        constrainedMegaRenderer: this.shouldUseConstrainedMegaRenderer(),
-      });
-    }
 
     slotDebug('hotline-scene:assets:start', {
       themeId: this.theme.id,
@@ -359,7 +346,6 @@ export class HotlineScene {
     slotDebug('hotline-scene:assets:ready', {
       themeId: this.theme.id,
       backgroundLoaded: Boolean(this.backgroundTexture),
-      symbolSheetLoaded: Boolean(this.symbolSheetTexture),
       symbolTextureCount: this.symbolTextures.filter(Boolean).length,
       scatterLoaded: Boolean(this.scatterTexture),
       multiplierLoaded: Boolean(this.multiplierTexture),
@@ -411,9 +397,10 @@ export class HotlineScene {
     this.reelsContainer = new Container();
     app.stage.addChild(this.reelsContainer);
 
-    // 建立主題指定的轉軸數量
+    // 分批建立轉軸，讓瀏覽器能在每軸之間處理繪製與輸入。
     for (let r = 0; r < this.reelCount; r += 1) {
       this.createReel(r);
+      if (r < this.reelCount - 1) await this.yieldToBrowser();
     }
 
     // 中獎連線層
@@ -426,19 +413,6 @@ export class HotlineScene {
     this.shockwaves = new Container();
     app.stage.addChild(this.shockwaves);
 
-    this.particlePool = new ParticlePool(
-      app.stage,
-      this.rowCount > ROWS ? MEGA_PARTICLE_POOL_SIZE : CLASSIC_PARTICLE_POOL_SIZE,
-    );
-    this.shaker = new ShakeController(app.stage, app);
-    this.poolTicker = (tk) => this.particlePool?.update(tk);
-    app.ticker.add(this.poolTicker);
-
-    if (this.canUseShaderEffects()) {
-      prewarmShaders(app);
-    }
-    Sfx.preloadSlotMachine();
-
     // 全螢幕閃光（JACKPOT 用）
     this.flashOverlay = new Graphics()
       .rect(0, 0, width, height)
@@ -446,36 +420,86 @@ export class HotlineScene {
     app.stage.addChild(this.flashOverlay);
 
     this.startTickers();
+    app.render();
+    this.scheduleDeferredSceneSetup();
   }
 
   private async preloadThemeAssets(): Promise<void> {
-    const [backgroundTexture, symbolSheetTexture, symbolTextures, bigWinTexture] =
-      await Promise.all([
-        this.loadTexture(this.theme.background, this.rowCount > ROWS ? 960 : 960),
-        this.loadTexture(this.theme.symbolSheet, this.rowCount > ROWS ? 480 : 960),
-        Promise.all(
-          this.theme.symbols.map((_symbol, symbolIdx) =>
-            this.loadTexture(themeSymbolImage(this.theme, symbolIdx), 960),
-          ),
+    const backgroundPromise = this.loadTexture(this.theme.background, 1600);
+    const symbolTextures: Array<Texture | null> = [];
+    for (let start = 0; start < this.theme.symbols.length; start += THEME_TEXTURE_BATCH_SIZE) {
+      const end = Math.min(this.theme.symbols.length, start + THEME_TEXTURE_BATCH_SIZE);
+      const batch = await Promise.all(
+        Array.from({ length: end - start }, (_, offset) =>
+          this.loadTexture(themeSymbolImage(this.theme, start + offset), 480),
         ),
-        this.rowCount > ROWS && this.theme.bigWin ? this.loadTexture(this.theme.bigWin, 960) : null,
-      ]);
-    this.backgroundTexture = backgroundTexture;
-    this.symbolSheetTexture = symbolSheetTexture;
-    this.symbolTextures = symbolTextures;
-    this.bigWinTexture = bigWinTexture;
-    if (this.rowCount > ROWS) {
-      const [scatterTexture, multiplierTexture] = await Promise.all([
-        this.loadTexture(themeSpecialImage(this.theme, 'scatter'), 960),
-        this.loadTexture(themeSpecialImage(this.theme, 'multiplier'), 960),
-      ]);
-      this.scatterTexture = scatterTexture;
-      this.multiplierTexture = multiplierTexture;
+      );
+      symbolTextures.push(...batch);
+      if (end < this.theme.symbols.length) await this.yieldToBrowser();
     }
+    this.backgroundTexture = await backgroundPromise;
+    this.symbolTextures = symbolTextures;
+  }
+
+  private yieldToBrowser(): Promise<void> {
+    return new Promise((resolve) => window.setTimeout(resolve, 0));
+  }
+
+  private scheduleDeferredSceneSetup(): void {
+    if (this.deferredSetupTimer !== null) window.clearTimeout(this.deferredSetupTimer);
+    this.deferredSetupTimer = window.setTimeout(() => {
+      this.deferredSetupTimer = null;
+      const app = this.app;
+      if (this.disposed || !app) return;
+
+      this.particlePool = new ParticlePool(
+        app.stage,
+        this.rowCount > ROWS ? MEGA_PARTICLE_POOL_SIZE : CLASSIC_PARTICLE_POOL_SIZE,
+        { lazy: true },
+      );
+      this.shaker = new ShakeController(app.stage, app);
+      this.poolTicker = (tk) => this.particlePool?.update(tk);
+      app.ticker.add(this.poolTicker);
+
+      if (this.canUseShaderEffects()) {
+        slotDebug('hotline-scene:effects:enabled');
+        this.winFx = new WinCelebration({
+          app,
+          parent: app.stage,
+          shakeTarget: app.stage,
+          width: this.width,
+          height: this.height,
+          lazyParticles: true,
+        });
+      } else {
+        slotDebug('hotline-scene:effects:disabled', {
+          rowCount: this.rowCount,
+          constrainedMegaRenderer: this.shouldUseConstrainedMegaRenderer(),
+        });
+      }
+
+      Sfx.preloadSlotMachine();
+      void this.preloadOptionalThemeAssets();
+    }, DEFERRED_SCENE_SETUP_MS);
+  }
+
+  private async preloadOptionalThemeAssets(): Promise<void> {
+    if (this.rowCount <= ROWS) return;
+    const [bigWinTexture, scatterTexture, multiplierTexture] = await Promise.all([
+      this.theme.bigWin ? this.loadTexture(this.theme.bigWin, 960) : null,
+      this.loadTexture(themeSpecialImage(this.theme, 'scatter'), 480),
+      this.loadTexture(themeSpecialImage(this.theme, 'multiplier'), 480),
+    ]);
+    if (this.disposed) return;
+    this.bigWinTexture = bigWinTexture;
+    this.scatterTexture = scatterTexture;
+    this.multiplierTexture = multiplierTexture;
   }
 
   private async loadTexture(src: string, width: 480 | 960 | 1600): Promise<Texture | null> {
-    const optimizedSrc = optimizedPublicImage(src, width);
+    const optimizedSrc = src.startsWith('/_optimized/')
+      ? src
+      : getOptimizedImageUrl(src, width, 'game-stage');
     if (optimizedSrc !== src) {
       const optimized = await Assets.load<Texture>(optimizedSrc).catch((err) => {
         slotDebug(
@@ -527,6 +551,13 @@ export class HotlineScene {
     return coarsePointer || narrowViewport || compactHeight || shortSide <= 560;
   }
 
+  private shouldPreferCanvasRenderer(): boolean {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+    const iOSUserAgent = /iPad|iPhone|iPod/i.test(navigator.userAgent);
+    const iPadDesktopMode = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    return iOSUserAgent || iPadDesktopMode;
+  }
+
   private getPixiRendererKind(app: Application): 'webgl' | 'canvas' | 'webgpu' | 'unknown' {
     const rendererName = app.renderer?.constructor?.name?.toLowerCase() ?? '';
     if (rendererName.includes('canvas')) return 'canvas';
@@ -568,21 +599,6 @@ export class HotlineScene {
     }
   }
 
-  private createSymbolTextures(sheet: Texture | null, count: number): Texture[] {
-    if (!sheet) return [];
-    const frameCount = Math.min(6, count);
-    const cellW = sheet.width / 3;
-    const cellH = sheet.height / 2;
-    return Array.from({ length: frameCount }, (_, symbolIdx) => {
-      const col = symbolIdx % 3;
-      const row = Math.floor(symbolIdx / 3);
-      return new Texture({
-        source: sheet.source,
-        frame: new Rectangle(col * cellW, row * cellH, cellW, cellH),
-      });
-    });
-  }
-
   private createBackground(): void {
     if (!this.app) return;
     const isMegaLayout = this.rowCount > ROWS;
@@ -603,11 +619,20 @@ export class HotlineScene {
       .fill({ color: 0x020817, alpha: isMegaLayout ? 0.06 : 0.22 });
     this.app.stage.addChild(stageShade);
 
-    const glow = new Graphics()
-      .circle(this.width / 2, this.height / 2, this.width * 0.4)
-      .fill({ color: COLOR_ACID, alpha: 0.08 });
-    if (this.canUseShaderEffects()) {
-      glow.filters = [new BlurFilter({ strength: 50 })];
+    // 靜態背景不要掛 BlurFilter：Pixi 會每幀重跑大範圍模糊著色器。
+    // 以多層向量光暈保留柔和視覺，但只需要一般批次繪製。
+    const glow = new Graphics();
+    const glowLayers = [
+      { radius: 0.46, alpha: 0.012 },
+      { radius: 0.39, alpha: 0.018 },
+      { radius: 0.32, alpha: 0.024 },
+      { radius: 0.25, alpha: 0.032 },
+      { radius: 0.18, alpha: 0.04 },
+    ];
+    for (const layer of glowLayers) {
+      glow
+        .circle(this.width / 2, this.height / 2, this.width * layer.radius)
+        .fill({ color: COLOR_ACID, alpha: layer.alpha });
     }
     this.app.stage.addChild(glow);
 
@@ -638,14 +663,14 @@ export class HotlineScene {
     reelContainer.mask = mask;
     this.reelsContainer.addChild(reelContainer);
 
-    // 隨機填充 strip（REEL_STRIP_LEN 個符號，會滾動）
+    // 隨機填充可見列與動畫緩衝列。
     const strip: number[] = [];
-    for (let i = 0; i < REEL_STRIP_LEN; i += 1) {
+    for (let i = 0; i < this.stripLength; i += 1) {
       strip.push(this.randomSymbolIndex());
     }
 
     const symbols: ReelSymbol[] = [];
-    for (let i = 0; i < REEL_STRIP_LEN; i += 1) {
+    for (let i = 0; i < this.stripLength; i += 1) {
       const sym = this.createSymbolTile(strip[i]!);
       sym.x = this.cellWidth / 2;
       sym.y = i * this.cellSize + this.cellSize / 2;
@@ -699,25 +724,10 @@ export class HotlineScene {
       return;
     }
 
-    // tile 陰影
-    const shadow = new Graphics()
-      .roundRect(-width / 2 + 5, -height / 2 + 6, width - 8, height - 8, 12)
-      .fill({ color: COLOR_INK, alpha: 0.22 });
-    c.addChild(shadow);
-
-    const tile = new Graphics()
-      .roundRect(-width / 2 + 3, -height / 2 + 3, width - 6, height - 6, 12)
-      .fill({ color: COLOR_INK, alpha: 0.84 })
-      .stroke({ color, width: 2, alpha: 0.46 });
-    c.addChild(tile);
-
-    const tileGlow = new Graphics()
-      .roundRect(-width / 2 + 7, -height / 2 + 7, width - 14, height - 14, 10)
-      .fill({ color, alpha: 0.08 });
-    c.addChild(tileGlow);
-
     const symbolTexture = this.symbolTextures[symbolIdx];
     if (symbolTexture) {
+      // 原版 symbol 圖本身已包含底板、邊框與高光，直接使用原圖可避免每格再建立
+      // 重複的 Graphics 幾何與著色器，也不會用向量底板遮住原素材細節。
       const render = themeSymbol?.render;
       const sprite = new Sprite(symbolTexture);
       sprite.eventMode = 'none';
@@ -731,18 +741,19 @@ export class HotlineScene {
       sprite.y = (render?.offsetY ?? 0) * height;
       sprite.alpha = 0.98;
       c.addChild(sprite);
-
-      const frame = new Graphics()
-        .roundRect(-width / 2 + 3, -height / 2 + 3, width - 6, height - 6, 12)
-        .stroke({ color, width: 2, alpha: 0.6 });
-      c.addChild(frame);
-
-      const shine = new Graphics()
-        .roundRect(-width / 2 + 7, -height / 2 + 7, width - 14, (height - 14) * 0.34, 10)
-        .fill({ color: COLOR_WHITE, alpha: 0.08 });
-      c.addChild(shine);
       return;
     }
+
+    // 素材無法載入時才使用向量底板與幾何圖示備援。
+    const tileBase = new Graphics()
+      .roundRect(-width / 2 + 5, -height / 2 + 6, width - 8, height - 8, 12)
+      .fill({ color: COLOR_INK, alpha: 0.22 })
+      .roundRect(-width / 2 + 3, -height / 2 + 3, width - 6, height - 6, 12)
+      .fill({ color: COLOR_INK, alpha: 0.84 })
+      .stroke({ color, width: 2, alpha: 0.46 })
+      .roundRect(-width / 2 + 7, -height / 2 + 7, width - 14, height - 14, 10)
+      .fill({ color, alpha: 0.08 });
+    c.addChild(tileBase);
 
     // tile 頂部高光
     const hl = new Graphics()
@@ -1066,6 +1077,31 @@ export class HotlineScene {
     return icon;
   }
 
+  private startRendering(): void {
+    if (this.renderStopTimer !== null) {
+      window.clearTimeout(this.renderStopTimer);
+      this.renderStopTimer = null;
+    }
+    this.app?.start();
+  }
+
+  private scheduleIdleRenderStop(delay = IDLE_RENDER_STOP_DELAY_MS): void {
+    if (this.renderStopTimer !== null) window.clearTimeout(this.renderStopTimer);
+    this.renderStopTimer = window.setTimeout(() => {
+      this.renderStopTimer = null;
+      const app = this.app;
+      if (!app || this.anticipating) return;
+      app.render();
+      app.stop();
+    }, delay);
+  }
+
+  private renderStaticFrame(): void {
+    const app = this.app;
+    if (!app) return;
+    app.render();
+  }
+
   private startTickers(): void {
     if (!this.app) return;
     this.particleTicker = (tk: Ticker) => {
@@ -1101,6 +1137,7 @@ export class HotlineScene {
   private anticipating = false;
   startAnticipation(fast = false): void {
     if (this.anticipating || !this.app) return;
+    this.startRendering();
     this.anticipating = true;
     Sfx.slotSpinStart();
     for (const reel of this.reels) {
@@ -1118,7 +1155,7 @@ export class HotlineScene {
       for (let reelIndex = 0; reelIndex < this.reels.length; reelIndex += 1) {
         const reel = this.reels[reelIndex]!;
         const speed = speeds[reelIndex] ?? reel.cellSize * 0.24;
-        const totalH = REEL_STRIP_LEN * reel.cellSize;
+        const totalH = this.stripLength * reel.cellSize;
         const maxY = totalH + reel.cellSize / 2;
         for (const sym of reel.symbols) {
           sym.y += speed * delta;
@@ -1136,6 +1173,7 @@ export class HotlineScene {
     if (!this.anticipating) {
       this.clearAnticipationTicker();
       if (stopSound) Sfx.slotSpinStop();
+      if (stopSound) this.scheduleIdleRenderStop();
       return;
     }
     this.clearAnticipationTicker();
@@ -1148,6 +1186,7 @@ export class HotlineScene {
     }
     this.anticipating = false;
     if (stopSound) Sfx.slotSpinStop();
+    if (stopSound) this.scheduleIdleRenderStop();
   }
 
   private clearAnticipationTicker(): void {
@@ -1162,6 +1201,7 @@ export class HotlineScene {
     lines: HotlineLine[],
     options: HotlineCascadePlaybackOptions = {},
   ): Promise<void> {
+    this.startRendering();
     this.playbackFast = Boolean(options.fast);
     this.stopAnticipation(false, false);
     this.resetWinLines();
@@ -1192,6 +1232,7 @@ export class HotlineScene {
       await this.sleep(this.scaleMs(200));
       this.showWinLines(lines, options.payoutAmount);
     }
+    this.scheduleIdleRenderStop();
   }
 
   snapToGrid(finalGrid: number[][], specialSymbols: HotlineSpecialSymbol[] = []): void {
@@ -1207,10 +1248,13 @@ export class HotlineScene {
         this.getSpecialColumn(specialByCell, reelIdx),
       );
     }
+    this.renderStaticFrame();
   }
 
   showResultLines(lines: HotlineLine[], payoutAmount?: number): void {
+    this.startRendering();
     this.showWinLines(lines, payoutAmount);
+    this.scheduleIdleRenderStop();
   }
 
   async playCascadeSpin(
@@ -1218,6 +1262,7 @@ export class HotlineScene {
     finalGrid: number[][],
     options: HotlineCascadePlaybackOptions = {},
   ): Promise<void> {
+    this.startRendering();
     this.playbackFast = Boolean(options.fast);
     const finalSpecialSymbols = options.finalSpecialSymbols ?? options.specialSymbols ?? [];
     if (cascades.length === 0) {
@@ -1243,6 +1288,7 @@ export class HotlineScene {
     for (let i = 1; i < cascades.length; i += 1) {
       const step = cascades[i]!;
       await this.sleep(this.scaleMs(720));
+      this.startRendering();
       await this.animateCascadeToGrid(step.grid, previous.removed, specialByCell);
       this.showWinLines(step.lines, options.payoutAmount);
       this.showCascadeStepWinPop(step, options.onStepWin?.(step), options.payoutAmount);
@@ -1250,7 +1296,9 @@ export class HotlineScene {
     }
 
     await this.sleep(this.scaleMs(720));
+    this.startRendering();
     await this.animateCascadeToGrid(finalGrid, previous.removed, finalSpecialByCell);
+    this.scheduleIdleRenderStop();
   }
 
   async highlightSpecialSymbols(
@@ -1266,6 +1314,7 @@ export class HotlineScene {
       this.playbackFast = previousFast;
       return;
     }
+    this.startRendering();
 
     const kind = options.type ?? filtered[0]?.type ?? 'scatter';
     const color = kind === 'scatter' ? COLOR_AMBER : COLOR_ICE;
@@ -1280,6 +1329,7 @@ export class HotlineScene {
 
     await Promise.all([bannerPromise, ...pulsePromises]);
     this.playbackFast = previousFast;
+    this.scheduleIdleRenderStop();
   }
 
   private showSpecialBanner(label: string, color: number): Promise<void> {
@@ -1442,7 +1492,7 @@ export class HotlineScene {
       const cellSize = reel.cellSize;
       const startRow = Math.max(
         FINAL_STOP_ROW + this.rowCount + 1,
-        REEL_STRIP_LEN - this.rowCount - 2 - reelIndex,
+        this.stripLength - this.rowCount - 2 - reelIndex,
       );
       const currentPhase = this.getReelScrollPhase(reel);
       const landingStrip = this.buildLandingStrip(reel, finalColumn, startRow);
@@ -1474,7 +1524,7 @@ export class HotlineScene {
 
   private buildLandingStrip(reel: ReelData, finalColumn: number[], startRow: number): number[] {
     const currentVisible = this.getVisibleSymbols(reel);
-    const strip = Array.from({ length: REEL_STRIP_LEN }, () => this.randomSymbolIndex());
+    const strip = Array.from({ length: this.stripLength }, () => this.randomSymbolIndex());
 
     for (let i = 0; i < this.rowCount; i += 1) {
       strip[FINAL_STOP_ROW + i] = finalColumn[i] ?? 0;
@@ -1768,7 +1818,7 @@ export class HotlineScene {
   ): void {
     const newStrip: number[] = [];
     for (let i = 0; i < this.rowCount; i += 1) newStrip.push(finalColumn[i] ?? 0);
-    for (let i = this.rowCount; i < REEL_STRIP_LEN; i += 1) {
+    for (let i = this.rowCount; i < this.stripLength; i += 1) {
       newStrip.push(this.randomSymbolIndex());
     }
     reel.container.y = this.reelY0;
@@ -2727,6 +2777,14 @@ export class HotlineScene {
       height: this.height,
     });
     this.disposed = true;
+    if (this.deferredSetupTimer !== null) {
+      window.clearTimeout(this.deferredSetupTimer);
+      this.deferredSetupTimer = null;
+    }
+    if (this.renderStopTimer !== null) {
+      window.clearTimeout(this.renderStopTimer);
+      this.renderStopTimer = null;
+    }
     if (this.initializing && !this.app) return;
     Sfx.slotSpinStop();
     this.stopAnticipation();
@@ -2751,6 +2809,11 @@ export class HotlineScene {
     this.shockwaves = null;
     this.flashOverlay = null;
     this.particleList = [];
+    this.backgroundTexture = null;
+    this.symbolTextures = [];
+    this.scatterTexture = null;
+    this.multiplierTexture = null;
+    this.bigWinTexture = null;
     this.rendererKind = 'unknown';
     slotDebug('hotline-scene:dispose:done');
   }
@@ -2758,10 +2821,13 @@ export class HotlineScene {
   /** L4 共用大獎慶典 — GamePage 在拿到 result 後呼叫一次 */
   playWinFx(multiplier: number, won: boolean, payoutAmount?: number): void {
     if (!won) return;
+    this.startRendering();
     if (this.rowCount > ROWS && multiplier >= MEGA_WIN_MEDIUM_THRESHOLD) {
       this.showMegaWinPresentation(multiplier, payoutAmount);
+      this.scheduleIdleRenderStop(6000);
       return;
     }
     this.winFx?.celebrate(multiplier, won);
+    this.scheduleIdleRenderStop(6000);
   }
 }

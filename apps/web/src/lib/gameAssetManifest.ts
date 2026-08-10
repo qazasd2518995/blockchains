@@ -1,8 +1,12 @@
-import { SLOT_THEMES, type SlotThemeConfig, type SlotThemeId } from '@/lib/slotThemes';
+import { SLOT_THEMES, type SlotThemeConfig } from '@/lib/slotThemes';
 import { H5_GAMES } from '@bg/shared';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 import { SLOT_BIG_WIN_TIER_ASSETS } from '@/lib/slotWinTiers';
-import { getOptimizedImageSrcSet, type ResponsivePreset } from '@/lib/optimizedImages';
+import {
+  getOptimizedImageSrcSet,
+  getOptimizedImageUrl,
+  type ResponsivePreset,
+} from '@/lib/optimizedImages';
 
 export type GameAssetKind =
   | 'background'
@@ -157,13 +161,6 @@ const PAI_GOW_TILE_ASSETS = [
   '1+4',
   '2+3',
 ].map((pair) => `/game-art/pai-gow/Domino-${pair}.svg`);
-const SLOT_GAMES_WITH_INDIVIDUAL_SYMBOLS = new Set<SlotThemeId>([
-  'thunder',
-  'dragonMega',
-  'nebula',
-  'jungle',
-  'vampire',
-]);
 const preloadCache = new Map<string, Promise<void>>();
 const warmedGames = new Set<string>();
 const warmedCocosShellAssets = new Set<string>();
@@ -414,27 +411,35 @@ function crashGame(gameId: string): GameAssetManifest {
 
 function slotGame(theme: SlotThemeConfig): GameAssetManifest {
   const assets: GameAssetEntry[] = [
-    criticalAsset(theme.cover, 'cover'),
-    criticalPixiAsset(theme.background, 'background'),
-    criticalPixiAsset(theme.symbolSheet, 'symbol'),
-    criticalPixiAsset(theme.symbolSheet.replace(/symbols\.png$/, 'scatter.png'), 'symbol'),
+    // Router 只等封面完成就進入頁面；盤面圖由 scene 與閒置預熱共用瀏覽器 cache。
+    // 不再阻塞等待整張 symbols.png 與全部原始 PNG 解碼。
+    optimizedAsset(theme.cover, 960, 'hero', 'cover', true),
+    optimizedAsset(theme.background, 1600, 'game-stage', 'background'),
+    ...theme.symbols.map((_symbol, index) =>
+      optimizedAsset(
+        theme.symbolSheet.replace(/symbols\.png$/, `symbol-${index}.png`),
+        480,
+        'game-stage',
+        'symbol',
+      ),
+    ),
   ];
 
-  if (theme.bigWin) assets.push(asset(theme.bigWin, 'big-win'));
+  if (theme.bigWin) assets.push(exactImageAsset(theme.bigWin, 'big-win'));
   if (theme.reels === 6 && theme.rows === 5) {
-    assets.push(...SLOT_BIG_WIN_TIER_ASSETS.map((src) => asset(src, 'big-win')));
-  }
-
-  if (SLOT_GAMES_WITH_INDIVIDUAL_SYMBOLS.has(theme.id)) {
+    assets.push(...SLOT_BIG_WIN_TIER_ASSETS.map((src) => exactImageAsset(src, 'big-win')));
     assets.push(
-      criticalPixiAsset(theme.symbolSheet.replace(/symbols\.png$/, 'multiplier.png'), 'symbol'),
-    );
-    assets.push(
-      ...theme.symbols.map((_symbol, index) =>
-        criticalPixiAsset(
-          theme.symbolSheet.replace(/symbols\.png$/, `symbol-${index}.png`),
-          'symbol',
-        ),
+      optimizedAsset(
+        theme.symbolSheet.replace(/symbols\.png$/, 'scatter.png'),
+        480,
+        'game-stage',
+        'symbol',
+      ),
+      optimizedAsset(
+        theme.symbolSheet.replace(/symbols\.png$/, 'multiplier.png'),
+        480,
+        'game-stage',
+        'symbol',
       ),
     );
   }
@@ -452,6 +457,23 @@ function criticalAsset(src: string, kind: GameAssetKind): GameAssetEntry {
 
 function criticalPixiAsset(src: string, kind: GameAssetKind): GameAssetEntry {
   return { src, kind, critical: true, pixi: true };
+}
+
+function exactImageAsset(src: string, kind: GameAssetKind, critical = false): GameAssetEntry {
+  return { src, kind, critical, pixi: true };
+}
+
+function optimizedAsset(
+  src: string,
+  width: number,
+  preset: ResponsivePreset,
+  kind: GameAssetKind,
+  critical = false,
+): GameAssetEntry {
+  const optimizedSrc = src.startsWith('/_optimized/')
+    ? src
+    : getOptimizedImageUrl(src, width, preset);
+  return exactImageAsset(optimizedSrc, kind, critical);
 }
 
 async function preloadAsset(
@@ -475,7 +497,7 @@ function preloadBrowserImage(entry: GameAssetEntry): Promise<void> {
     if ('fetchPriority' in image && entry.critical) {
       image.fetchPriority = 'high';
     }
-    if (!entry.pixi) {
+    if (!entry.pixi && !src.startsWith('/_optimized/')) {
       const preset = preloadPresetFor(entry);
       const srcSet = getOptimizedImageSrcSet(src, preset);
       if (srcSet) {

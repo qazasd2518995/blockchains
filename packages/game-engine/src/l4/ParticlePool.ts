@@ -40,6 +40,11 @@ export interface EmitOptions {
   shape?: 'square' | 'circle' | 'mixed';
 }
 
+export interface ParticlePoolOptions {
+  /** 延後建立 Graphics，直到第一次 emit；適合物件數較多的場景。 */
+  lazy?: boolean;
+}
+
 /**
  * L4 粒子池：預分配 N 個 Graphics 循環使用，避免熱路徑 new。
  * Stake/Roobet 等平台技術：同屏 < 300 粒子以保 60fps。
@@ -49,37 +54,11 @@ export class ParticlePool {
   private readonly container: Container;
   private readonly capacity: number;
 
-  constructor(parent: Container, capacity = 200) {
+  constructor(parent: Container, capacity = 200, options: ParticlePoolOptions = {}) {
     this.capacity = capacity;
     this.container = new Container();
     parent.addChild(this.container);
-    for (let i = 0; i < capacity; i += 1) {
-      const g = new Graphics();
-      g.visible = false;
-      this.container.addChild(g);
-      this.pool.push({
-        g,
-        vx: 0,
-        vy: 0,
-        life: 0,
-        maxLife: 0,
-        gravity: 0,
-        rot: 0,
-        rotSpeed: 0,
-        scale: 1,
-        scaleFrom: 1,
-        scaleTo: 0.1,
-        alphaFrom: 1,
-        alphaTo: 0,
-        drag: 0.98,
-        drift: 0,
-        phase: 0,
-        spark: false,
-        twinkle: 0,
-        stretch: 0,
-        active: false,
-      });
-    }
+    if (!options.lazy) this.allocate(capacity);
   }
 
   emit(opts: EmitOptions): void {
@@ -99,6 +78,7 @@ export class ParticlePool {
       angleRad = -Math.PI / 2,
       shape = 'mixed',
     } = opts;
+    this.ensureAvailable(count);
     let emitted = 0;
     for (const p of this.pool) {
       if (emitted >= count) break;
@@ -173,6 +153,42 @@ export class ParticlePool {
       p.stretch = 0.12 + Math.random() * 0.28;
       p.active = true;
       emitted += 1;
+    }
+  }
+
+  private ensureAvailable(count: number): void {
+    const available = this.pool.reduce((total, particle) => total + (particle.active ? 0 : 1), 0);
+    const needed = Math.min(this.capacity - this.pool.length, Math.max(0, count - available));
+    if (needed > 0) this.allocate(needed);
+  }
+
+  private allocate(count: number): void {
+    for (let i = 0; i < count && this.pool.length < this.capacity; i += 1) {
+      const g = new Graphics();
+      g.visible = false;
+      this.container.addChild(g);
+      this.pool.push({
+        g,
+        vx: 0,
+        vy: 0,
+        life: 0,
+        maxLife: 0,
+        gravity: 0,
+        rot: 0,
+        rotSpeed: 0,
+        scale: 1,
+        scaleFrom: 1,
+        scaleTo: 0.1,
+        alphaFrom: 1,
+        alphaTo: 0,
+        drag: 0.98,
+        drift: 0,
+        phase: 0,
+        spark: false,
+        twinkle: 0,
+        stretch: 0,
+        active: false,
+      });
     }
   }
 

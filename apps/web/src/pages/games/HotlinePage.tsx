@@ -50,6 +50,7 @@ import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 import { getMegaSlotMaxWinMultiplier } from '@/lib/gamePromos';
 import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
+import { getOptimizedImageUrl } from '@/lib/optimizedImages';
 
 interface Props {
   theme?: SlotThemeId;
@@ -65,7 +66,7 @@ const MEGA_FREE_SPIN_SESSION_TTL_MS = 45 * 60 * 1000;
 const SCENE_RESIZE_DEBOUNCE_MS = 160;
 const ORIENTATION_SCENE_RESIZE_DEBOUNCE_MS = 520;
 const MEGA_RENDERER_RETRY_MS = 900;
-const MEGA_SCENE_INIT_TIMEOUT_MS = 8500;
+const MEGA_SCENE_INIT_TIMEOUT_MS = 30000;
 const JACKPOT_KEYS = ['grand', 'major', 'minor', 'mini'] as const;
 type JackpotKey = (typeof JACKPOT_KEYS)[number];
 const JACKPOT_LABELS: Record<JackpotKey, string> = {
@@ -257,10 +258,10 @@ function isPixiRendererUnavailableError(error: unknown): boolean {
 export function HotlinePage({ theme = 'cyber' }: Props) {
   const { user, setBalance } = useAuthStore();
   const { t, locale } = useTranslation();
-  const sceneLabels = getSceneLabels(locale).hotline;
+  const sceneLabels = useMemo(() => getSceneLabels(locale).hotline, [locale]);
   const requireLogin = useRequireLogin();
   const returnTarget = useGameReturnTarget();
-  const slotTheme = getSlotTheme(theme);
+  const slotTheme = useMemo(() => getSlotTheme(theme), [theme]);
   const isMegaSlot = slotTheme.rows > 3;
   const megaBuyFeatureMaxWinMultiplier = getMegaSlotMaxWinMultiplier(slotTheme.gameId);
   const configuredBettingLimit = user
@@ -335,6 +336,14 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const megaInputResizeIgnoreUntilRef = useRef(0);
   const fallbackGrid = useMemo(() => createFallbackGrid(slotTheme), [slotTheme]);
   const fallbackJackpotValues = useMemo(() => createFallbackJackpotValues(), [slotTheme.id]);
+  const optimizedMegaBackground = useMemo(
+    () => getOptimizedImageUrl(slotTheme.background, 1600, 'game-stage'),
+    [slotTheme.background],
+  );
+  const optimizedMegaCover = useMemo(
+    () => getOptimizedImageUrl(slotTheme.cover, 960, 'game-stage'),
+    [slotTheme.cover],
+  );
   const megaFallbackDisplayGrid = liveMegaRound?.grid ?? fallbackGrid;
   const megaFallbackDisplaySpecialSymbols = mergeMegaFallbackSpecialSymbols(
     liveMegaRound?.specialSymbols,
@@ -349,12 +358,12 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         setSceneLoadingProgress(100);
         setSceneLoadingMessage('正在準備高畫質遊戲畫面');
         setError((prev) => (prev === '遊戲畫面載入中，請稍候' ? null : prev));
-      } else if (isMegaSlot) {
+      } else {
         setSceneLoadingProgress(8);
       }
       setSceneReady(ready);
     },
-    [isMegaSlot],
+    [],
   );
 
   const scheduleSceneRecovery = useCallback((): void => {
@@ -412,7 +421,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   }, [result]);
 
   useEffect(() => {
-    if (isMegaSlot) preloadSlotBigWinTierAssets();
+    if (!isMegaSlot) return;
+    const timer = window.setTimeout(() => preloadSlotBigWinTierAssets(), 500);
+    return () => window.clearTimeout(timer);
   }, [isMegaSlot]);
 
   useEffect(() => {
@@ -441,6 +452,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   }, [busy, spinning]);
 
   useEffect(() => {
+    pageActiveRef.current = true;
     return () => {
       pageActiveRef.current = false;
       autoSpinStopRequestedRef.current = true;
@@ -521,12 +533,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     };
     canvas.addEventListener('webglcontextlost', handleContextLost, false);
 
-    const fillCanvas = () => {
-      canvas.style.display = 'block';
-      canvas.style.width = '100%';
-      canvas.style.height = '100%';
-    };
-
     const readSize = () => {
       const rect = (canvas.parentElement ?? canvas).getBoundingClientRect();
       const w = Math.round(rect.width || canvas.clientWidth);
@@ -537,7 +543,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     const initScene = (w: number, h: number) => {
       if (cancelled) return;
       forceNextRebuild = false;
-      fillCanvas();
       lastWidth = w;
       lastHeight = h;
       const token = ++initToken;
@@ -568,8 +573,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         initTimeout = window.setTimeout(() => {
           clearInitTimeout();
           if (cancelled || token !== initToken || sceneReadyRef.current) return;
+          initToken += 1;
           slotDebug(
-            'hotline-page:init-scene:timeout-remount',
+            'hotline-page:init-scene:timeout-recover',
             {
               token,
               canvasKey: sceneCanvasKey,
@@ -586,10 +592,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
           }
           if (scene === nextScene) scene = null;
           if (sceneRef.current === nextScene) sceneRef.current = null;
-          pendingSceneResizeRef.current = true;
-          setSceneLoadingMessage('正在重新建立高畫質遊戲畫面');
+          setSceneLoadingMessage('遊戲畫面載入逾時，正在重新連線');
           setSceneAvailability(false, false);
-          setSceneCanvasKey((key) => key + 1);
+          scheduleSceneRecovery();
         }, MEGA_SCENE_INIT_TIMEOUT_MS);
         initTimeouts.add(initTimeout);
       }
@@ -606,7 +611,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             nextScene.dispose();
             return;
           }
-          fillCanvas();
           sceneRef.current = nextScene;
           setSceneAvailability(true, false);
           slotDebug('hotline-page:init-scene:ready', {
@@ -690,7 +694,6 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
 
     const ensureSceneSize = () => {
       if (cancelled) return;
-      fillCanvas();
       const { w, h } = readSize();
       if (w < 10 || h < 10) {
         slotDebug('hotline-page:ensure-size:too-small', { width: w, height: h });
@@ -2362,8 +2365,8 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
         className={`slot-game-page slot-game-page--mega mega-slot-machine ${fastSpin ? 'mega-slot-machine--fast' : ''}`}
         style={
           {
-            '--mega-slot-bg': `url(${slotTheme.background})`,
-            '--mega-slot-cover': `url(${slotTheme.cover})`,
+            '--mega-slot-bg': `url(${optimizedMegaBackground})`,
+            '--mega-slot-cover': `url(${optimizedMegaCover})`,
             '--mega-slot-accent': slotTheme.symbols[5]?.accentHex ?? '#F3D67D',
           } as CSSProperties
         }
@@ -2466,7 +2469,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 <MegaFallbackGrid
                   theme={slotTheme}
                   grid={megaFallbackDisplayGrid}
-                  hidden
+                  hidden={sceneReady}
                   spinning={megaFallbackSpinning}
                   fast={fastSpin}
                   dropping={megaFallbackDropping}
@@ -2753,6 +2756,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             </div>
 
             <div className={`game-canvas-shell game-canvas-wide ${canvasAspectClass} w-full p-2`}>
+              <SlotCanvasFallbackGrid
+                theme={slotTheme}
+                grid={fallbackGrid}
+                hidden={sceneReady}
+              />
               <canvas
                 ref={canvasRef}
                 className={`slot-canvas h-full w-full ${!sceneReady ? 'slot-canvas--hidden' : ''}`}
@@ -3010,6 +3018,58 @@ function SlotSymbolBadge({
   );
 }
 
+function SlotCanvasFallbackGrid({
+  theme,
+  grid,
+  hidden,
+}: {
+  theme: SlotThemeConfig;
+  grid: number[][];
+  hidden: boolean;
+}) {
+  return (
+    <div
+      className={`slot-canvas-fallback-grid ${hidden ? 'slot-canvas-fallback-grid--hidden' : ''}`}
+      aria-hidden="true"
+    >
+      <div
+        className="slot-canvas-fallback-frame"
+        style={
+          {
+            '--slot-fallback-reels': theme.reels,
+            '--slot-fallback-rows': theme.rows,
+          } as CSSProperties
+        }
+      >
+        {grid.map((reel, reelIndex) => (
+          <div className="slot-canvas-fallback-reel" key={`${theme.id}-${reelIndex}`}>
+            {reel.map((symbol, rowIndex) => {
+              const meta = theme.symbols[symbol] ?? theme.symbols[0]!;
+              const symbolImage = getSlotSymbolImage(theme, symbol);
+              return (
+                <div
+                  className="slot-canvas-fallback-symbol"
+                  key={`${reelIndex}:${rowIndex}`}
+                  style={
+                    {
+                      '--slot-fallback-accent': meta.accentHex,
+                      borderColor: `${meta.accentHex}66`,
+                    } as CSSProperties
+                  }
+                >
+                  {symbolImage ? (
+                    <img src={symbolImage} alt="" decoding="async" draggable={false} />
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SlotPayoutTable({
   slotTheme,
   isMegaSlot,
@@ -3211,11 +3271,13 @@ function buildMegaFallbackDropOffsets(
 
 function getSlotSymbolImage(theme: SlotThemeConfig, symbol: number): string | null {
   if (!Number.isInteger(symbol) || symbol < 0 || symbol >= theme.symbols.length) return null;
-  return theme.symbolSheet.replace(/symbols\.png$/, `symbol-${symbol}.png`);
+  const source = theme.symbolSheet.replace(/symbols\.png$/, `symbol-${symbol}.png`);
+  return getOptimizedImageUrl(source, 480, 'game-stage');
 }
 
 function getSlotSpecialImage(theme: SlotThemeConfig, type: HotlineSpecialSymbol['type']): string {
-  return theme.symbolSheet.replace(/symbols\.png$/, `${type}.png`);
+  const source = theme.symbolSheet.replace(/symbols\.png$/, `${type}.png`);
+  return getOptimizedImageUrl(source, 480, 'game-stage');
 }
 
 function positionKey(position: HotlineWinPosition): string {
