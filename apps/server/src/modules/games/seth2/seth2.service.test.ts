@@ -3,9 +3,14 @@ import { describe, expect, it } from 'vitest';
 import {
   advanceSession,
   chooseControlledSethFactor,
+  machineDisplayRate,
   machineInfo,
+  machineList,
   Seth2Service,
 } from './seth2.service.js';
+import { seth2ProtocolSchema } from './seth2.schema.js';
+
+const MACHINE_RATE_TIME = 1_800_000_000_000;
 
 describe('Seth2 controlled result selection', () => {
   it('selects a visual win matching normal-spin control bounds', () => {
@@ -67,31 +72,65 @@ describe('Seth2 formal-play-only mode', () => {
 
 describe('Seth2 machine statistics', () => {
   it('reports each machine from its own settled bet and payout totals', () => {
-    const machine = machineInfo(7, {
-      machineId: 7,
-      todayBet: new Prisma.Decimal(200),
-      todayPayout: new Prisma.Decimal(150),
-      thirtyDayBet: new Prisma.Decimal(1_000),
-      thirtyDayPayout: new Prisma.Decimal(968.95),
-    });
+    const machine = machineInfo(
+      7,
+      {
+        machineId: 7,
+        todayBet: new Prisma.Decimal(200),
+        todayPayout: new Prisma.Decimal(150),
+        thirtyDayBet: new Prisma.Decimal(1_000),
+        thirtyDayPayout: new Prisma.Decimal(968.95),
+      },
+      MACHINE_RATE_TIME,
+    );
 
     expect(machine).toMatchObject({
       id: 7,
-      code: '007',
+      code: '0007',
       totalBet: 200,
-      day_rate: '75.00',
+      day_rate: machineDisplayRate(7, MACHINE_RATE_TIME),
       totalBet30: 1_000,
-      day_rate_30: '96.89',
+      day_rate_30: machineDisplayRate(7, MACHINE_RATE_TIME, 1),
     });
   });
 
-  it('shows zero activity instead of fabricated room history', () => {
-    expect(machineInfo(2)).toMatchObject({
+  it('keeps empty machine totals at zero while still showing the animated selection rate', () => {
+    expect(machineInfo(2, undefined, MACHINE_RATE_TIME)).toMatchObject({
       totalBet: 0,
-      day_rate: '0.00',
+      day_rate: machineDisplayRate(2, MACHINE_RATE_TIME),
       totalBet30: 0,
-      day_rate_30: '0.00',
+      day_rate_30: machineDisplayRate(2, MACHINE_RATE_TIME, 1),
     });
+  });
+
+  it('returns eight distinct 500-machine pages covering machine 0001 through 4000', () => {
+    const rates = new Set<string>();
+    for (let page = 1; page <= 8; page += 1) {
+      const machines = machineList(new Map(), page, MACHINE_RATE_TIME);
+      expect(machines).toHaveLength(500);
+      expect(machines[0]!.id).toBe((page - 1) * 500 + 1);
+      expect(machines.at(-1)!.id).toBe(page * 500);
+      for (const machine of machines) {
+        expect(machine.day_rate).toMatch(/^\d{2,3}\.\d{2}$/);
+        expect(Number(machine.day_rate)).toBeGreaterThanOrEqual(70);
+        rates.add(machine.day_rate);
+      }
+    }
+    expect(rates.size).toBe(4_000);
+  });
+
+  it('changes machine rates every 2.5 seconds and accepts the complete page/id range', () => {
+    expect(machineDisplayRate(3974, MACHINE_RATE_TIME + 2_500)).not.toBe(
+      machineDisplayRate(3974, MACHINE_RATE_TIME),
+    );
+    expect(seth2ProtocolSchema.parse({ type: 'getMachineList', page: 8 })).toMatchObject({
+      page: 8,
+    });
+    expect(seth2ProtocolSchema.parse({ type: 'useMachine', machineId: 4000 })).toMatchObject({
+      machineId: 4000,
+    });
+    expect(() => seth2ProtocolSchema.parse({ type: 'getMachineList', page: 9 })).toThrow();
+    expect(() => seth2ProtocolSchema.parse({ type: 'useMachine', machineId: 4001 })).toThrow();
   });
 });
 

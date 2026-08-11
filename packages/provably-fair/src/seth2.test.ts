@@ -4,13 +4,17 @@ import {
   SETH2_GRID_SIZE,
   SETH2_MATH,
   SETH2_MAX_SYMBOL_MULTIPLIER,
+  SETH2_MULTIPLIER_DROP_VALUES,
+  SETH2_MULTIPLIER_VALUES,
   SETH2_PAYTABLE,
   SETH2_RETRIGGER_SPINS,
   SETH2_SCATTER_PAYTABLE,
   SETH2_SKILL_SYMBOL_PAY,
+  isSeth2MultiplierValue,
   seth2BuyFeatureEntry,
   seth2Spin,
   seth2SpinForFactor,
+  splitSeth2MultiplierTotal,
   type Seth2Outcome,
   type Seth2SpinMode,
 } from './seth2.js';
@@ -93,6 +97,24 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(SETH2_MATH.expectedFeatureSpins).toBeCloseTo(15 / 0.95, 8);
     expect(SETH2_MATH.theoreticalRtp).toBeCloseTo(0.9689, 8);
     expect(SETH2_MATH.buyFeatureRtp).toBeCloseTo(0.9689, 8);
+  });
+
+  it('separates direct multiplier values from the 6x and 8x upgrade steps', () => {
+    expect(SETH2_MULTIPLIER_DROP_VALUES).toEqual([2, 3, 4, 5, 10, 15, 25, 50, 100, 200, 300, 500]);
+    expect(SETH2_MULTIPLIER_VALUES).toEqual([2, 3, 4, 5, 6, 8, 10, 15, 25, 50, 100, 200, 300, 500]);
+    for (const total of [
+      2, 3, 4, 5, 6, 8, 10, 20, 109, 218, 501, 999, 2015, 5000, 10_000, 15_000,
+    ]) {
+      const parts = splitSeth2MultiplierTotal(total, SETH2_GRID_SIZE);
+      expect(parts, `official split for ${total}x`).not.toBeNull();
+      expect(parts!.reduce((sum, value) => sum + value, 0)).toBe(total);
+      expect(
+        parts!.every((value) =>
+          (SETH2_MULTIPLIER_DROP_VALUES as readonly number[]).includes(value),
+        ),
+      ).toBe(true);
+      expect(parts!.length).toBeLessThanOrEqual(SETH2_GRID_SIZE);
+    }
   });
 
   it('emits all nine regular symbols and prices each 8/10/12-symbol win correctly', () => {
@@ -218,6 +240,8 @@ describe('Storm of Seth 2 provably-fair engine', () => {
           for (const ball of balls) {
             expect(ball.mul).toBeLessThanOrEqual(SETH2_MAX_SYMBOL_MULTIPLIER);
             expect(ball.mul).toBeGreaterThanOrEqual(2);
+            expect(isSeth2MultiplierValue(ball.mul)).toBe(true);
+            if (ball.mul === 6 || ball.mul === 8) expect(ball.mul_type).toBe(0);
             multiplierTypes.add(ball.mul_type ?? -1);
           }
           for (const upgrade of outcome.returnData.list.flatMap(
@@ -225,11 +249,36 @@ describe('Storm of Seth 2 provably-fair engine', () => {
           )) {
             expect(upgrade.new_mul).toBeLessThanOrEqual(SETH2_MAX_SYMBOL_MULTIPLIER);
             expect(upgrade.new_mul).toBeGreaterThan(upgrade.mul);
+            expect(isSeth2MultiplierValue(upgrade.mul)).toBe(true);
+            expect(isSeth2MultiplierValue(upgrade.new_mul)).toBe(true);
+            const oldIndex = (SETH2_MULTIPLIER_VALUES as readonly number[]).indexOf(upgrade.mul);
+            expect(upgrade.new_mul).toBe(SETH2_MULTIPLIER_VALUES[oldIndex + 1]);
           }
         }
       }
     }
     expect(multiplierTypes).toEqual(new Set([0, 1]));
+  });
+
+  it('animates the source 6x → 8x → 10x upgrade steps instead of skipping them', () => {
+    const observed = new Set<string>();
+    for (let nonce = 0; nonce < 5_000 && observed.size < 2; nonce += 1) {
+      for (const factor of [4, 5]) {
+        const outcome = seth2SpinForFactor(
+          'official-upgrade-chain',
+          'client',
+          nonce,
+          BET,
+          factor,
+          'base',
+        );
+        for (const upgrade of outcome.returnData.list.flatMap((round) => round.upgrade_mul_list)) {
+          if (upgrade.mul === 6 && upgrade.new_mul === 8) observed.add('6→8');
+          if (upgrade.mul === 8 && upgrade.new_mul === 10) observed.add('8→10');
+        }
+      }
+    }
+    expect(observed).toEqual(new Set(['6→8', '8→10']));
   });
 
   it('can throw multiplier balls on a non-winning spin without collecting them', () => {
@@ -248,6 +297,8 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       for (const ball of balls) {
         expect(ball.mul).toBeGreaterThanOrEqual(2);
         expect(ball.mul).toBeLessThanOrEqual(SETH2_MAX_SYMBOL_MULTIPLIER);
+        expect(isSeth2MultiplierValue(ball.mul)).toBe(true);
+        expect(SETH2_MULTIPLIER_DROP_VALUES).toContain(ball.mul);
         animationTypes.add(ball.mul_type ?? -1);
       }
     }
@@ -293,6 +344,10 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(outcome!.returnData.type17_mul_list).toEqual(
       Array.from({ length: copyCount }, () => ({ ...source })),
     );
+    expect(isSeth2MultiplierValue(source.mul)).toBe(true);
+    expect(
+      outcome!.returnData.type17_mul_list.every((ball) => isSeth2MultiplierValue(ball.mul)),
+    ).toBe(true);
     expect(round.round_data.length + copyCount).toBe(removedCellCount(outcome!));
     expect(round.scoreList[1]).toBe(money((BET * SETH2_SKILL_SYMBOL_PAY) / 20));
     expect(finalMultiplier(outcome!)).toBe(round.total_mul);
@@ -317,6 +372,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
         .filter((current) => current.type === 10)
         .map((current) => current.mul);
       for (const selected of locked) {
+        expect(isSeth2MultiplierValue(selected.mul)).toBe(true);
         const index = available.indexOf(selected.mul);
         expect(index).toBeGreaterThanOrEqual(0);
         available.splice(index, 1);

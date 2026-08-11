@@ -16,6 +16,14 @@ export const SETH2_SCATTER_PAYTABLE = { four: 50, five: 100, six: 2000 } as cons
 export const SETH2_SKILL_SYMBOL_PAY = 5;
 export const SETH2_GRID_SIZE = 30;
 export const SETH2_MAX_SYMBOL_MULTIPLIER = 500;
+/** Every value that can be shown by a multiplier ball, including upgrade-only 6x and 8x. */
+export const SETH2_MULTIPLIER_VALUES = [
+  2, 3, 4, 5, 6, 8, 10, 15, 25, 50, 100, 200, 300, 500,
+] as const;
+/** Values that can land directly, matching the source game's colour/value table. */
+export const SETH2_MULTIPLIER_DROP_VALUES = [
+  2, 3, 4, 5, 10, 15, 25, 50, 100, 200, 300, 500,
+] as const;
 export const SETH2_RETRIGGER_SPINS = 5;
 export const SETH2_FREE_RETRIGGER_PROBABILITY = 0.01;
 export type Seth2SpinMode = 'base' | 'standard_free' | 'awakening_free' | 'bought_standard_free';
@@ -112,6 +120,37 @@ const GOLDEN_FEATURE_SHARE = 0.01;
 const NON_WINNING_MULTIPLIER_PROBABILITY = 0.2;
 const SCATTER_EXPECTED_FACTOR = 3;
 const BASE_NON_FEATURE_EV = 0.3389;
+const SETH2_MAX_BOARD_MULTIPLIER = SETH2_GRID_SIZE * SETH2_MAX_SYMBOL_MULTIPLIER;
+const NO_MULTIPLIER_PARTS = 32_767;
+const MULTIPLIER_SPLITS = new Map<number, { parts: Int16Array; choice: Int16Array }>();
+
+const NON_WINNING_MULTIPLIERS = [
+  { value: 2, weight: 42 },
+  { value: 3, weight: 25 },
+  { value: 4, weight: 8 },
+  { value: 5, weight: 5 },
+  { value: 10, weight: 7 },
+  { value: 15, weight: 4 },
+  { value: 25, weight: 2 },
+  { value: 50, weight: 3 },
+  { value: 100, weight: 2 },
+  { value: 200, weight: 1 },
+  { value: 300, weight: 0.7 },
+  { value: 500, weight: 0.3 },
+] as const;
+
+const OFFICIAL_MULTIPLIER_EXPANSIONS = new Map<number, readonly [number, number]>([
+  [500, [300, 200]],
+  [300, [200, 100]],
+  [200, [100, 100]],
+  [100, [50, 50]],
+  [50, [25, 25]],
+  [25, [15, 10]],
+  [15, [10, 5]],
+  [10, [5, 5]],
+  [5, [3, 2]],
+  [4, [2, 2]],
+]);
 
 const STANDARD_FREE_BASE_OUTCOMES: WeightedOutcome[] = [
   { probability: 0.2, factor: 0.5 },
@@ -200,6 +239,92 @@ function pickWeighted(outcomes: WeightedOutcome[], rng: Seth2RandomSource): Weig
   return { probability: 1, factor: 0 };
 }
 
+function pickNonWinningMultiplier(rng: Seth2RandomSource): number {
+  const totalWeight = NON_WINNING_MULTIPLIERS.reduce((sum, entry) => sum + entry.weight, 0);
+  let cursor = rng() * totalWeight;
+  for (const entry of NON_WINNING_MULTIPLIERS) {
+    if (cursor < entry.weight) return entry.value;
+    cursor -= entry.weight;
+  }
+  return SETH2_MULTIPLIER_VALUES[0];
+}
+
+export function isSeth2MultiplierValue(value: number): boolean {
+  return (SETH2_MULTIPLIER_VALUES as readonly number[]).includes(value);
+}
+
+function multiplierSplitTable(excludedValue = 0): {
+  parts: Int16Array;
+  choice: Int16Array;
+} {
+  const cached = MULTIPLIER_SPLITS.get(excludedValue);
+  if (cached) return cached;
+
+  const parts = new Int16Array(SETH2_MAX_BOARD_MULTIPLIER + 1);
+  const choice = new Int16Array(SETH2_MAX_BOARD_MULTIPLIER + 1);
+  parts.fill(NO_MULTIPLIER_PARTS);
+  parts[0] = 0;
+  const values = [...SETH2_MULTIPLIER_DROP_VALUES].reverse();
+  for (let total = 1; total <= SETH2_MAX_BOARD_MULTIPLIER; total += 1) {
+    for (const value of values) {
+      if (value === excludedValue || value > total) continue;
+      const previous = parts[total - value]!;
+      if (previous === NO_MULTIPLIER_PARTS || previous + 1 >= parts[total]!) continue;
+      parts[total] = previous + 1;
+      choice[total] = value;
+    }
+  }
+  const table = { parts, choice };
+  MULTIPLIER_SPLITS.set(excludedValue, table);
+  return table;
+}
+
+function minimumMultiplierPartCount(total: number, excludedValue = 0): number {
+  if (total === 0 || total === 1) return 0;
+  if (!Number.isInteger(total) || total < 0 || total > SETH2_MAX_BOARD_MULTIPLIER) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const count = multiplierSplitTable(excludedValue).parts[total]!;
+  return count === NO_MULTIPLIER_PARTS ? Number.POSITIVE_INFINITY : count;
+}
+
+export function splitSeth2MultiplierTotal(
+  total: number,
+  maxParts: number,
+  excludedValue = 0,
+): number[] | null {
+  if (total === 1 || total === 0) return [];
+  const table = multiplierSplitTable(excludedValue);
+  const required = minimumMultiplierPartCount(total, excludedValue);
+  if (!Number.isFinite(required) || required > maxParts) return null;
+
+  const values: number[] = [];
+  let remaining = total;
+  while (remaining > 0) {
+    const value = table.choice[remaining]!;
+    if (!isSeth2MultiplierValue(value) || value === excludedValue) return null;
+    values.push(value);
+    remaining -= value;
+  }
+  return values.sort((left, right) => right - left);
+}
+
+function expandMultiplierParts(values: number[], minimumParts: number, maxParts: number): number[] {
+  const expanded = [...values];
+  while (expanded.length < minimumParts && expanded.length < maxParts) {
+    const index = expanded.findIndex((value) => OFFICIAL_MULTIPLIER_EXPANSIONS.has(value));
+    if (index < 0) break;
+    const replacement = OFFICIAL_MULTIPLIER_EXPANSIONS.get(expanded[index]!)!;
+    expanded.splice(index, 1, ...replacement);
+  }
+  return expanded.sort((left, right) => right - left);
+}
+
+function previousMultiplierValue(value: number): number | null {
+  const index = SETH2_MULTIPLIER_VALUES.indexOf(value as (typeof SETH2_MULTIPLIER_VALUES)[number]);
+  return index > 0 ? SETH2_MULTIPLIER_VALUES[index - 1]! : null;
+}
+
 function cell(type: number, mul = 0, mulType = 0): Seth2Cell {
   return mul > 0 ? { type, mul, mul_type: mulType } : { type, mul };
 }
@@ -273,23 +398,7 @@ function buildLoss(
   if (rng() < NON_WINNING_MULTIPLIER_PROBABILITY) {
     const count = rng() < 0.12 ? 2 : 1;
     for (let index = 0; index < count; index += 1) {
-      const valueRoll = rng();
-      const multiplier =
-        valueRoll < 0.42
-          ? 2
-          : valueRoll < 0.67
-            ? 3
-            : valueRoll < 0.8
-              ? 5
-              : valueRoll < 0.89
-                ? 10
-                : valueRoll < 0.95
-                  ? 20
-                  : valueRoll < 0.98
-                    ? 50
-                    : valueRoll < 0.995
-                      ? 100
-                      : 500;
+      const multiplier = pickNonWinningMultiplier(rng);
       multiplierCells.push(cell(10, multiplier, rng() < 0.2 ? 0 : 1));
     }
   }
@@ -449,28 +558,24 @@ function multiplierTargetForScore(
   return { current, effective };
 }
 
-function splitMultiplierTotal(total: number, maxParts: number): number[] | null {
-  if (total === 1) return [];
-  const partCount = Math.ceil(total / SETH2_MAX_SYMBOL_MULTIPLIER);
-  if (partCount > maxParts) return null;
-  const part = Math.floor(total / partCount);
-  if (part < 2) return null;
-  const remainder = total - part * partCount;
-  return Array.from({ length: partCount }, (_, index) => part + (index < remainder ? 1 : 0));
-}
-
 function regularMultiplierPlan(
   total: number,
   maxParts: number,
   rng: Seth2RandomSource,
 ): MultiplierPlan | null {
-  const values = splitMultiplierTotal(total, maxParts);
-  if (!values) return null;
-  const useRare = values.length > 0 && values[0]! >= 4 && rng() < 0.25;
+  const directValues = splitSeth2MultiplierTotal(total, maxParts);
+  if (!directValues) return null;
+  const forceUpgradeStep = (total === 6 || total === 8) && maxParts >= 1;
+  const values = forceUpgradeStep ? [total] : directValues;
+  const upgradeIndex = forceUpgradeStep
+    ? 0
+    : values.length > 0 && rng() < 0.25
+      ? values.findIndex((value) => previousMultiplierValue(value) !== null)
+      : -1;
   const upgrades: Array<{ mul: number; new_mul: number }> = [];
   const cells = values.map((value, index) => {
-    if (index !== 0 || !useRare) return cell(10, value, 1);
-    const displayed = Math.max(2, Math.floor(value / 2));
+    if (index !== upgradeIndex) return cell(10, value, 1);
+    const displayed = previousMultiplierValue(value)!;
     upgrades.push({ mul: displayed, new_mul: value });
     return cell(10, displayed, 0);
   });
@@ -482,26 +587,22 @@ function femaleMultiplierPlan(
   maxParts: number,
   rng: Seth2RandomSource,
 ): FemaleMultiplierPlan | null {
-  const minimumPartCount = Math.ceil(total / SETH2_MAX_SYMBOL_MULTIPLIER);
   const skillRoll = rng();
   const requestedLockCount = skillRoll < 0.2 ? 1 : skillRoll < 0.85 ? 2 + Math.floor(rng() * 4) : 6;
   const lockCount = Math.max(1, Math.min(requestedLockCount, 6, maxParts, Math.floor(total / 2)));
-  const partCount = Math.max(minimumPartCount, lockCount);
-  if (partCount > maxParts || partCount > Math.floor(total / 2)) return null;
+  const compactValues = splitSeth2MultiplierTotal(total, maxParts);
+  if (!compactValues) return null;
+  const values = expandMultiplierParts(compactValues, lockCount, maxParts);
+  if (values.length < lockCount) return null;
 
-  const baseValue = Math.floor(total / partCount);
-  const remainder = total - baseValue * partCount;
-  const values = Array.from(
-    { length: partCount },
-    (_, index) => baseValue + (index < remainder ? 1 : 0),
-  );
-  if (values.some((value) => value < 2 || value > SETH2_MAX_SYMBOL_MULTIPLIER)) return null;
-
-  const useRare = values[0]! >= 4 && rng() < 0.25;
+  const upgradeIndex =
+    values.length > 0 && rng() < 0.25
+      ? values.findIndex((value) => previousMultiplierValue(value) !== null)
+      : -1;
   const upgrades: Array<{ mul: number; new_mul: number }> = [];
   const cells = values.map((value, index) => {
-    if (index !== 0 || !useRare) return cell(10, value, 1);
-    const displayed = Math.max(2, Math.floor(value / 2));
+    if (index !== upgradeIndex) return cell(10, value, 1);
+    const displayed = previousMultiplierValue(value)!;
     upgrades.push({ mul: displayed, new_mul: value });
     return cell(10, displayed, 0);
   });
@@ -519,23 +620,28 @@ function maleMultiplierPlan(
   rng: Seth2RandomSource,
 ): MaleMultiplierPlan | null {
   const splitCount = total >= 1000 ? 6 : total >= 100 ? 2 : 1;
-  let sourceValue = Math.min(SETH2_MAX_SYMBOL_MULTIPLIER, Math.floor(total / (splitCount + 1)));
+  const maxSourceValue = Math.min(
+    SETH2_MAX_SYMBOL_MULTIPLIER,
+    Math.floor(total / (splitCount + 1)),
+  );
+  let sourceValue = 0;
   let extras: number[] | null = null;
-  while (sourceValue >= 2) {
-    const remainder = total - sourceValue * (splitCount + 1);
+  for (const candidateSource of [...SETH2_MULTIPLIER_DROP_VALUES].reverse()) {
+    if (candidateSource > maxSourceValue) continue;
+    const remainder = total - candidateSource * (splitCount + 1);
     const candidate =
       remainder === 1
         ? null
         : remainder > 0
-          ? splitMultiplierTotal(remainder, maxInitialParts - 1)
+          ? splitSeth2MultiplierTotal(remainder, maxInitialParts - 1, candidateSource)
           : [];
     // The imported client locates the split source by multiplier value only.
     // Keep that value unique so it cannot animate a different multiplier ball.
-    if (candidate && !candidate.includes(sourceValue)) {
+    if (candidate) {
+      sourceValue = candidateSource;
       extras = candidate;
       break;
     }
-    sourceValue -= 1;
   }
   if (sourceValue < 2 || !extras) return null;
   const mulType = rng() < 0.25 ? 0 : 1;
@@ -580,7 +686,8 @@ function chooseSinglePattern(
       multiplierBank,
     );
     if (!target) return [];
-    const multiplierParts = target.current === 1 ? 0 : Math.ceil(target.current / 500);
+    const multiplierParts = target.current === 1 ? 0 : minimumMultiplierPartCount(target.current);
+    if (!Number.isFinite(multiplierParts)) return [];
     if (pattern.count + multiplierParts + reservedCells > SETH2_GRID_SIZE) return [];
     return [
       {
@@ -605,7 +712,8 @@ function chooseRegularWinPlan(
       if (first.type === second.type || first.count !== second.count) continue;
       const target = multiplierTargetForScore(factor, first.factor + second.factor, multiplierBank);
       if (!target) continue;
-      const multiplierParts = target.current === 1 ? 0 : Math.ceil(target.current / 500);
+      const multiplierParts = target.current === 1 ? 0 : minimumMultiplierPartCount(target.current);
+      if (!Number.isFinite(multiplierParts)) continue;
       if (first.count + multiplierParts + reservedCells > SETH2_GRID_SIZE) continue;
       cascadeCandidates.push({
         patterns: [first, second],
@@ -636,7 +744,8 @@ export function isSeth2FactorRepresentable(
       activeMultiplierBank,
     );
     if (!target) return false;
-    const multiplierParts = target.current === 1 ? 0 : Math.ceil(target.current / 500);
+    const multiplierParts = target.current === 1 ? 0 : minimumMultiplierPartCount(target.current);
+    if (!Number.isFinite(multiplierParts)) return false;
     return patterns[0]!.count + multiplierParts + reservedCells <= SETH2_GRID_SIZE;
   };
 

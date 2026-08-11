@@ -2,13 +2,43 @@
   'use strict';
 
   var params = new URLSearchParams(window.location.search);
-  var apiBase = (params.get('apiBase') || (window.location.origin + '/api')).replace(/\/$/, '');
+  var apiBase = (params.get('apiBase') || window.location.origin + '/api').replace(/\/$/, '');
   var protocolUrl = apiBase + '/games/seth2/protocol';
   var requestTimeoutMs = 15000;
   var patched = false;
   var gameModulesPatched = false;
   var loginStarted = false;
   var refreshInFlight = null;
+  var selectedMachinePage = 1;
+  var officialMultiplierValues = [2, 3, 4, 5, 6, 8, 10, 15, 25, 50, 100, 200, 300, 500];
+
+  function machinePageNumber(pageIndex) {
+    var index = Number(pageIndex);
+    if (!Number.isInteger(index)) return 1;
+    return Math.max(1, Math.min(8, index + 1));
+  }
+
+  function machineDisplayRate(machineId, timestamp, salt) {
+    var id = Number(machineId);
+    var now = Number.isFinite(Number(timestamp)) ? Number(timestamp) : Date.now();
+    var rateSalt = Number(salt) || 0;
+    var bucket = Math.floor(now / 2500) % 6000;
+    var machineFactor = 137 + (bucket % 97) * 60;
+    var rateUnits = (id * machineFactor + bucket * 431 + rateSalt * 1877) % 6000;
+    return (70 + rateUnits / 100).toFixed(2);
+  }
+
+  function multiplierVisualTier(value) {
+    var multiplier = Number(value);
+    if (multiplier >= 200) return 3;
+    if (multiplier >= 50) return 2;
+    if (multiplier >= 10) return 1;
+    return 0;
+  }
+
+  function multiplierAssetName(value, rare) {
+    return 'game/pic/symbol/symbol_' + (10 + multiplierVisualTier(value)) + (rare ? '_01' : '');
+  }
 
   function parentStorage() {
     try {
@@ -45,7 +75,10 @@
 
   function notifyParent(type, payload) {
     try {
-      window.parent.postMessage(Object.assign({ type: type }, payload || {}), window.location.origin);
+      window.parent.postMessage(
+        Object.assign({ type: type }, payload || {}),
+        window.location.origin,
+      );
     } catch (error) {
       console.warn('[Seth2 Adapter] Parent notification failed', error);
     }
@@ -56,7 +89,9 @@
     var internal = payload && payload.code === 'INTERNAL';
     if (
       internal ||
-      /prisma\.|query execution|prismaclient|postgres(?:ql)?|connectorerror/i.test(String(message || ''))
+      /prisma\.|query execution|prismaclient|postgres(?:ql)?|connectorerror/i.test(
+        String(message || ''),
+      )
     ) {
       return '遊戲結算暫時失敗，請稍後再試';
     }
@@ -71,17 +106,19 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: auth.refreshToken }),
-    }).then(function (response) {
-      return response.json().then(function (body) {
-        if (!response.ok || !body.accessToken || !body.refreshToken) {
-          throw new Error(body.message || '登入已過期，請回到大廳重新登入');
-        }
-        writeTokens(body.accessToken, body.refreshToken);
-        return body.accessToken;
+    })
+      .then(function (response) {
+        return response.json().then(function (body) {
+          if (!response.ok || !body.accessToken || !body.refreshToken) {
+            throw new Error(body.message || '登入已過期，請回到大廳重新登入');
+          }
+          writeTokens(body.accessToken, body.refreshToken);
+          return body.accessToken;
+        });
+      })
+      .finally(function () {
+        refreshInFlight = null;
       });
-    }).finally(function () {
-      refreshInFlight = null;
-    });
     return refreshInFlight;
   }
 
@@ -96,28 +133,31 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + auth.accessToken,
+        Authorization: 'Bearer ' + auth.accessToken,
       },
       body: JSON.stringify(body || {}),
       signal: controller ? controller.signal : undefined,
-    }).then(function (response) {
-      if (response.status === 401 && !retried) {
-        return refreshAccessToken().then(function () {
-          return authorizedFetch(url, body, true);
+    })
+      .then(function (response) {
+        if (response.status === 401 && !retried) {
+          return refreshAccessToken().then(function () {
+            return authorizedFetch(url, body, true);
+          });
+        }
+        return response.json().then(function (payload) {
+          if (!response.ok) throw new Error(publicGameError(payload, '遊戲伺服器拒絕請求'));
+          return payload;
         });
-      }
-      return response.json().then(function (payload) {
-        if (!response.ok) throw new Error(publicGameError(payload, '遊戲伺服器拒絕請求'));
-        return payload;
+      })
+      .catch(function (error) {
+        if (error && error.name === 'AbortError') {
+          throw new Error('遊戲伺服器回應逾時，請稍後重試');
+        }
+        throw error;
+      })
+      .finally(function () {
+        window.clearTimeout(timeout);
       });
-    }).catch(function (error) {
-      if (error && error.name === 'AbortError') {
-        throw new Error('遊戲伺服器回應逾時，請稍後重試');
-      }
-      throw error;
-    }).finally(function () {
-      window.clearTimeout(timeout);
-    });
   }
 
   function recoverGameInteraction(request) {
@@ -127,7 +167,11 @@
         var Game = window.__require && window.__require('Game').default;
         var game = Game && Game.instance;
         if (!game) return;
-        if (typeof game.getIsAuto === 'function' && game.getIsAuto() && typeof game.endAuto === 'function') {
+        if (
+          typeof game.getIsAuto === 'function' &&
+          game.getIsAuto() &&
+          typeof game.endAuto === 'function'
+        ) {
           game.endAuto();
         }
         game.isCanClick = true;
@@ -153,7 +197,11 @@
         var game = Game && Game.instance;
         if (!game) return;
         if (game.colMain) game.colMain.isRoll = false;
-        if (typeof game.getIsAuto === 'function' && game.getIsAuto() && typeof game.endAuto === 'function') {
+        if (
+          typeof game.getIsAuto === 'function' &&
+          game.getIsAuto() &&
+          typeof game.endAuto === 'function'
+        ) {
           game.endAuto();
         }
         game.isCanClick = true;
@@ -200,13 +248,23 @@
   function showFatal(message) {
     var overlay = document.createElement('div');
     overlay.style.cssText = [
-      'position:fixed', 'inset:0', 'z-index:99999', 'display:flex',
-      'align-items:center', 'justify-content:center', 'background:#10091d',
-      'color:#fff', 'font-family:system-ui,sans-serif', 'text-align:center',
+      'position:fixed',
+      'inset:0',
+      'z-index:99999',
+      'display:flex',
+      'align-items:center',
+      'justify-content:center',
+      'background:#10091d',
+      'color:#fff',
+      'font-family:system-ui,sans-serif',
+      'text-align:center',
       'padding:24px',
     ].join(';');
-    overlay.innerHTML = '<div><div style="font-size:20px;font-weight:700;margin-bottom:10px">遊戲連線失敗</div>'
-      + '<div style="color:#c9bdd9">' + String(message).replace(/[<>&]/g, '') + '</div></div>';
+    overlay.innerHTML =
+      '<div><div style="font-size:20px;font-weight:700;margin-bottom:10px">遊戲連線失敗</div>' +
+      '<div style="color:#c9bdd9">' +
+      String(message).replace(/[<>&]/g, '') +
+      '</div></div>';
     document.body.appendChild(overlay);
     notifyParent('seth2:error', { message: message });
   }
@@ -235,32 +293,37 @@
   LocalGameSocket.prototype.send = function (raw) {
     var socket = this;
     var request = null;
+    var machinePageAtSend = selectedMachinePage;
     if (socket.readyState !== LocalGameSocket.OPEN) throw new Error('Socket is not open');
-    socket._queue = socket._queue.then(function () {
-      request = JSON.parse(raw);
-      if (
-        request.type === 'useMachine' ||
-        request.type === 'gameToolsList' ||
-        request.type === 'buyFreeGame'
-      ) {
-        request.isFreeModel = 0;
-      }
-      return authorizedFetch(protocolUrl, request, false).then(function (payload) {
-        if (payload && payload.data && payload.data.balance !== undefined) {
-          notifyParent('seth2:balance', { balance: Number(payload.data.balance) });
+    socket._queue = socket._queue
+      .then(function () {
+        request = JSON.parse(raw);
+        if (request.type === 'getMachineList') request.page = machinePageAtSend;
+        if (
+          request.type === 'useMachine' ||
+          request.type === 'gameToolsList' ||
+          request.type === 'buyFreeGame'
+        ) {
+          request.isFreeModel = 0;
         }
+        return authorizedFetch(protocolUrl, request, false).then(function (payload) {
+          if (request.type === 'getMachineList' && request.page !== selectedMachinePage) return;
+          if (payload && payload.data && payload.data.balance !== undefined) {
+            notifyParent('seth2:balance', { balance: Number(payload.data.balance) });
+          }
+          if (socket.readyState === LocalGameSocket.OPEN && socket.onmessage) {
+            socket.onmessage({ data: JSON.stringify(payload) });
+          }
+        });
+      })
+      .catch(function (error) {
+        var message = error && error.message ? error.message : '遊戲伺服器連線失敗';
         if (socket.readyState === LocalGameSocket.OPEN && socket.onmessage) {
-          socket.onmessage({ data: JSON.stringify(payload) });
+          socket.onmessage({ data: JSON.stringify({ type: 'msg', data: { message: message } }) });
         }
+        if (socket.onerror) socket.onerror(error);
+        recoverGameInteraction(request);
       });
-    }).catch(function (error) {
-      var message = error && error.message ? error.message : '遊戲伺服器連線失敗';
-      if (socket.readyState === LocalGameSocket.OPEN && socket.onmessage) {
-        socket.onmessage({ data: JSON.stringify({ type: 'msg', data: { message: message } }) });
-      }
-      if (socket.onerror) socket.onerror(error);
-      recoverGameInteraction(request);
-    });
   };
 
   LocalGameSocket.prototype.close = function () {
@@ -272,17 +335,24 @@
 
   window.WebSocket = LocalGameSocket;
   window.__YachiyoSeth2AdapterTest = {
+    officialMultiplierValues: officialMultiplierValues.slice(),
+    machineDisplayRate: machineDisplayRate,
+    machinePageNumber: machinePageNumber,
+    multiplierVisualTier: multiplierVisualTier,
+    multiplierAssetName: multiplierAssetName,
     publicGameError: publicGameError,
     recoverAnimationFailure: recoverAnimationFailure,
     syncMultiplierBankBefore: syncMultiplierBankBefore,
   };
 
   function requestSession(callback) {
-    authorizedFetch(apiBase + '/games/seth2/session', {}, false).then(function (body) {
-      callback(true, body);
-    }).catch(function (error) {
-      callback(false, { code: 0, msg: error.message || '無法連線到遊戲伺服器' });
-    });
+    authorizedFetch(apiBase + '/games/seth2/session', {}, false)
+      .then(function (body) {
+        callback(true, body);
+      })
+      .catch(function (error) {
+        callback(false, { code: 0, msg: error.message || '無法連線到遊戲伺服器' });
+      });
   }
 
   function finishLogin(component, ok, response, modules) {
@@ -344,7 +414,10 @@
           try {
             originalStart.call(this);
           } catch (error) {
-            console.warn('[Seth2 Adapter] Original login startup failed; continuing with Yachiyo login', error);
+            console.warn(
+              '[Seth2 Adapter] Original login startup failed; continuing with Yachiyo login',
+              error,
+            );
           }
         }
         if (loginStarted) return;
@@ -368,8 +441,49 @@
     try {
       var Game = window.__require('Game').default;
       var ColMain = window.__require('ColMain').default;
+      var ColSingleItem = window.__require('ColSingleItem').default;
+      var ResMgr = window.__require('ResMgr').default;
+      var ResourceManager = window.__require('ResourceManager').default;
+      var RoomListSingleItem = window.__require('RoomListSingleItem').default;
       var RoomListView = window.__require('RoomListView').default;
-      if (!Game || !ColMain || !RoomListView) return;
+      if (
+        !Game ||
+        !ColMain ||
+        !ColSingleItem ||
+        !ResMgr ||
+        !ResourceManager ||
+        !RoomListSingleItem ||
+        !RoomListView
+      )
+        return;
+
+      if (!ColSingleItem.prototype.__yachiyoOfficialMultiplierPatched) {
+        var originalSetIconByType = ColSingleItem.prototype.setIconByType;
+        ColSingleItem.prototype.setIconByType = function () {
+          if (ResMgr.getMulItemTypeList().indexOf(this.item_type) === -1) {
+            return originalSetIconByType.call(this);
+          }
+          var item = this;
+          var path = multiplierAssetName(this.mulNum, Number(this.mul_type) === 0);
+          return ResourceManager.getSpriteFrame(path).then(function (frame) {
+            if (item.item_icon) item.item_icon.spriteFrame = frame;
+          });
+        };
+        ColSingleItem.prototype.__yachiyoOfficialMultiplierPatched = true;
+      }
+
+      if (!ResMgr.__yachiyoOfficialMultiplierPatched) {
+        var originalGetSpineByType = ResMgr.getSpineByType;
+        ResMgr.getSpineByType = function (type, multiplier, multiplierType) {
+          if (ResMgr.getMulItemTypeList().indexOf(type) === -1) {
+            return originalGetSpineByType.call(ResMgr, type, multiplier, multiplierType);
+          }
+          var tier = multiplierVisualTier(multiplier);
+          var spineIndex = Number(multiplierType) === 0 ? 21 - tier : 9 + tier;
+          return ResMgr.instance.symbol_spine_list[spineIndex];
+        };
+        ResMgr.__yachiyoOfficialMultiplierPatched = true;
+      }
 
       var originalGameOnLoad = Game.prototype.onLoad;
       Game.prototype.onLoad = function () {
@@ -428,12 +542,65 @@
       RoomListView.prototype.onLoad = function () {
         if (originalRoomOnLoad) originalRoomOnLoad.call(this);
         enforceFormalRoom(this);
+        if (!this.__yachiyoRateTicker && typeof this.schedule === 'function') {
+          this.__yachiyoRateTicker = true;
+          var room = this;
+          this.schedule(function () {
+            var machine = room.cur_mac_info;
+            if (!machine) return;
+            machine.day_rate = machineDisplayRate(machine.id, Date.now(), 0);
+            machine.day_rate_30 = machineDisplayRate(machine.id, Date.now(), 1);
+            if (room.ttf_total_score_percent) {
+              room.ttf_total_score_percent.string = machine.day_rate + '%';
+            }
+            if (room.ttf_month_score_percent) {
+              room.ttf_month_score_percent.string = machine.day_rate_30 + '%';
+            }
+          }, 2.5);
+        }
+      };
+
+      var originalRoomClickBtn = RoomListView.prototype.clickBtn;
+      RoomListView.prototype.clickBtn = function () {
+        selectedMachinePage = machinePageNumber(arguments[1]);
+        return originalRoomClickBtn.apply(this, arguments);
+      };
+
+      var originalShowMachineList = RoomListView.prototype.showMachineList;
+      RoomListView.prototype.showMachineList = function (payload) {
+        if (payload && Array.isArray(payload.machineList)) {
+          this.scroll_ori_data = payload.machineList;
+        }
+        var result = originalShowMachineList.call(this, payload);
+        if (this.page_index !== 0 && this.scroll_ori_data.length > 0) {
+          var room = this;
+          this.scheduleOnce(function () {
+            room.setMacState(room.getEmptyMachiine());
+          });
+        }
+        return result;
+      };
+
+      var originalRoomItemUpdate = RoomListSingleItem.prototype.updateItem;
+      RoomListSingleItem.prototype.updateItem = function (data) {
+        if (data && data.id) data.day_rate = machineDisplayRate(data.id, Date.now(), 0);
+        var result = originalRoomItemUpdate.call(this, data);
+        if (!this.__yachiyoRateTicker && typeof this.schedule === 'function') {
+          this.__yachiyoRateTicker = true;
+          var item = this;
+          this.schedule(function () {
+            if (!item.data || !item.ttf_percent || !item.node.activeInHierarchy) return;
+            item.data.day_rate = machineDisplayRate(item.data.id, Date.now(), 0);
+            item.ttf_percent.string = item.data.day_rate + '%';
+          }, 2.5);
+        }
+        return result;
       };
       RoomListView.prototype.clickFree = function () {
         return this.clickEnterGame();
       };
       gameModulesPatched = true;
-      console.info('[Seth2 Adapter] formal-play-only room enabled');
+      console.info('[Seth2 Adapter] 8-page, 4,000-machine room enabled');
     } catch (_error) {
       // The game bundle loads after authentication; keep polling until it is available.
     }
@@ -446,4 +613,4 @@
   }, 10);
   patchClient();
   patchGameModules();
-}());
+})();

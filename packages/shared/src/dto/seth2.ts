@@ -4,12 +4,14 @@ export const SETH2_MAX_WIN_MULTIPLIER = 81_000;
 export const SETH2_BUY_FEATURE_MULTIPLIER = 200;
 export const SETH2_FREE_SPINS = 15;
 export const SETH2_MAX_FREE_SPINS = 100;
+export const SETH2_MACHINE_PAGES = 8;
+export const SETH2_MACHINES_PER_PAGE = 500;
+export const SETH2_MACHINE_COUNT = SETH2_MACHINE_PAGES * SETH2_MACHINES_PER_PAGE;
 
 export const SETH2_ALLOWED_BETS = [
-  2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 60, 64, 72, 80,
-  100, 120, 140, 160, 180, 200, 240, 280, 300, 320, 360, 400, 420, 480, 500, 540, 560,
-  600, 640, 700, 720, 800, 840, 900, 960, 980, 1000, 1080, 1120, 1200, 1260, 1280, 1400,
-  1440, 1660, 1800, 2000,
+  2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 60, 64, 72, 80, 100, 120, 140,
+  160, 180, 200, 240, 280, 300, 320, 360, 400, 420, 480, 500, 540, 560, 600, 640, 700, 720, 800,
+  840, 900, 960, 980, 1000, 1080, 1120, 1200, 1260, 1280, 1400, 1440, 1660, 1800, 2000,
 ] as const;
 
 export type Seth2FeatureMode = 'none' | 'standard' | 'awakening';
@@ -54,6 +56,7 @@ export interface Seth2ReturnData {
 
 export interface Seth2ProtocolRequest {
   type: string;
+  page?: number;
   machineId?: number;
   yazhu?: number;
   isFreeModel?: number;

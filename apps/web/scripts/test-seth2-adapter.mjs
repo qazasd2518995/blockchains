@@ -24,8 +24,55 @@ context.window = context;
 vm.createContext(context);
 vm.runInContext(source, context);
 
-const { publicGameError, recoverAnimationFailure, syncMultiplierBankBefore } =
-  context.__YachiyoSeth2AdapterTest;
+const {
+  officialMultiplierValues,
+  machineDisplayRate,
+  machinePageNumber,
+  multiplierAssetName,
+  multiplierVisualTier,
+  publicGameError,
+  recoverAnimationFailure,
+  syncMultiplierBankBefore,
+} = context.__YachiyoSeth2AdapterTest;
+assert.equal(machinePageNumber(0), 1);
+assert.equal(machinePageNumber(7), 8);
+assert.equal(machinePageNumber(99), 8);
+const machineRates = new Set();
+for (let machineId = 1; machineId <= 4000; machineId += 1) {
+  const rate = machineDisplayRate(machineId, 1_800_000_000_000, 0);
+  assert.match(rate, /^\d{2,3}\.\d{2}$/);
+  assert.ok(Number(rate) >= 70);
+  machineRates.add(rate);
+}
+assert.equal(machineRates.size, 4000);
+assert.notEqual(
+  machineDisplayRate(3974, 1_800_000_000_000, 0),
+  machineDisplayRate(3974, 1_800_000_002_500, 0),
+);
+assert.deepEqual(
+  Array.from(officialMultiplierValues),
+  [2, 3, 4, 5, 6, 8, 10, 15, 25, 50, 100, 200, 300, 500],
+);
+for (const [value, tier] of [
+  [2, 0],
+  [3, 0],
+  [4, 0],
+  [5, 0],
+  [6, 0],
+  [8, 0],
+  [10, 1],
+  [15, 1],
+  [25, 1],
+  [50, 2],
+  [100, 2],
+  [200, 3],
+  [300, 3],
+  [500, 3],
+]) {
+  assert.equal(multiplierVisualTier(value), tier);
+  assert.equal(multiplierAssetName(value, false), `game/pic/symbol/symbol_${10 + tier}`);
+  assert.equal(multiplierAssetName(value, true), `game/pic/symbol/symbol_${10 + tier}_01`);
+}
 assert.equal(
   publicGameError(
     {

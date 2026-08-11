@@ -36,6 +36,9 @@ import { ApiError } from '../../../utils/errors.js';
 import type { Seth2ProtocolInput } from './seth2.schema.js';
 
 const GAME_ID = GameId.STORM_OF_SETH_2;
+const SETH2_MACHINE_PAGES = 8;
+const SETH2_MACHINES_PER_PAGE = 500;
+const SETH2_MACHINE_COUNT = SETH2_MACHINE_PAGES * SETH2_MACHINES_PER_PAGE;
 const ALLOWED_BET_SET = new Set<number>(SETH2_ALLOWED_BETS);
 const MAX_MULTIPLIER_BANK = SETH2_MAX_FREE_SPINS * 30 * 500;
 const CONTROL_FACTORS = [
@@ -56,7 +59,7 @@ interface Seth2Settlement {
   spinId: string;
 }
 
-interface Seth2MachineStatsRow {
+export interface Seth2MachineStatsRow {
   machineId: number;
   todayBet: Prisma.Decimal;
   todayPayout: Prisma.Decimal;
@@ -104,8 +107,14 @@ export class Seth2Service {
       }
       case 'getMachineList': {
         await this.requireUser(userId);
+        const page = requireMachinePage(input.page);
         const stats = await this.machineStats();
-        return response(input.type, { machineList: machineList(stats) });
+        return response(input.type, {
+          machineList: machineList(stats, page),
+          page,
+          totalPages: SETH2_MACHINE_PAGES,
+          totalMachines: SETH2_MACHINE_COUNT,
+        });
       }
       case 'getMachineInfo': {
         await this.requireUser(userId);
@@ -207,7 +216,7 @@ export class Seth2Service {
             AT TIME ZONE 'Asia/Taipei'
         ) - INTERVAL '29 days'
         AND jsonb_typeof("resultData") = 'object'
-        AND ("resultData"->>'machineId') ~ '^(?:[1-9]|1[0-9]|20)$'
+        AND ("resultData"->>'machineId') ~ '^[1-9][0-9]{0,3}$'
       GROUP BY ("resultData"->>'machineId')::integer
     `);
     return new Map(rows.map((row) => [Number(row.machineId), row]));
@@ -430,8 +439,16 @@ function requireBet(value: number | undefined): number {
 }
 
 function requireMachineId(value: number | undefined): number {
-  if (!Number.isInteger(value) || value === undefined || value < 1 || value > 20) {
+  if (!Number.isInteger(value) || value === undefined || value < 1 || value > SETH2_MACHINE_COUNT) {
     throw new ApiError('INVALID_ACTION', '無效的機台');
+  }
+  return value;
+}
+
+function requireMachinePage(value: number | undefined): number {
+  if (value === undefined) return 1;
+  if (!Number.isInteger(value) || value < 1 || value > SETH2_MACHINE_PAGES) {
+    throw new ApiError('INVALID_ACTION', '無效的機台頁碼');
   }
   return value;
 }
@@ -442,19 +459,24 @@ function requireFormalPlay(isFreeModel: number | undefined): void {
   }
 }
 
-export function machineInfo(id: number, stats?: Seth2MachineStatsRow) {
+export function machineDisplayRate(id: number, timestamp = Date.now(), salt = 0): string {
+  const bucket = Math.floor(timestamp / 2_500) % 6_000;
+  const machineFactor = 137 + (bucket % 97) * 60;
+  const rateUnits = (id * machineFactor + bucket * 431 + salt * 1_877) % 6_000;
+  return (70 + rateUnits / 100).toFixed(2);
+}
+
+export function machineInfo(id: number, stats?: Seth2MachineStatsRow, timestamp = Date.now()) {
   const todayBet = stats?.todayBet ?? new Prisma.Decimal(0);
-  const todayPayout = stats?.todayPayout ?? new Prisma.Decimal(0);
   const thirtyDayBet = stats?.thirtyDayBet ?? new Prisma.Decimal(0);
-  const thirtyDayPayout = stats?.thirtyDayPayout ?? new Prisma.Decimal(0);
   return {
     id,
-    code: String(id).padStart(3, '0'),
+    code: String(id).padStart(4, '0'),
     use_status: 0,
-    day_rate: payoutRate(todayBet, todayPayout),
+    day_rate: machineDisplayRate(id, timestamp),
     totalBet: Number(todayBet.toFixed(2)),
     totalBet30: Number(thirtyDayBet.toFixed(2)),
-    day_rate_30: payoutRate(thirtyDayBet, thirtyDayPayout),
+    day_rate_30: machineDisplayRate(id, timestamp, 1),
     MINI_start_number: 25,
     MINI_JP_store: Number((id * 0.13).toFixed(2)),
     MINOR_start_number: 100,
@@ -466,16 +488,16 @@ export function machineInfo(id: number, stats?: Seth2MachineStatsRow) {
   };
 }
 
-function machineList(stats: Map<number, Seth2MachineStatsRow>) {
-  return Array.from({ length: 20 }, (_, index) => {
-    const id = index + 1;
-    return machineInfo(id, stats.get(id));
+export function machineList(
+  stats: Map<number, Seth2MachineStatsRow>,
+  page = 1,
+  timestamp = Date.now(),
+) {
+  const firstId = (page - 1) * SETH2_MACHINES_PER_PAGE + 1;
+  return Array.from({ length: SETH2_MACHINES_PER_PAGE }, (_, index) => {
+    const id = firstId + index;
+    return machineInfo(id, stats.get(id), timestamp);
   });
-}
-
-function payoutRate(bet: Prisma.Decimal, payout: Prisma.Decimal): string {
-  if (bet.lessThanOrEqualTo(0)) return '0.00';
-  return payout.div(bet).mul(100).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN).toFixed(2);
 }
 
 function readSession(resultData: Prisma.JsonValue | undefined): Seth2SessionState {
