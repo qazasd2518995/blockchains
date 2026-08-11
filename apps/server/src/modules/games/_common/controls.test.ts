@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GameId } from '@bg/shared';
+import { GameId, H5_GAMES } from '@bg/shared';
 import {
   __controlsTestHooks,
   applyControls,
@@ -140,6 +140,9 @@ describe('isBurstControlEligible', () => {
     expect(isBurstControlEligible(GameId.DRAGON_MEGA_SLOT, prediction(0))).toBe(true);
     expect(isBurstControlEligible(GameId.HOTLINE, prediction(0))).toBe(true);
     expect(isBurstControlEligible(GameId.FRUIT_SLOT, prediction(0))).toBe(true);
+    for (const game of H5_GAMES) {
+      expect(isBurstControlEligible(game.gameId, prediction(0)), game.gameId).toBe(true);
+    }
   });
 
   it('does not apply burst control to non-slot games', () => {

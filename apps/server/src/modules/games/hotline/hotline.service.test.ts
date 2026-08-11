@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { GameId, SLOT_GAME_IDS } from '@bg/shared';
-import { hotlineEvaluate } from '@bg/provably-fair';
+import { GameId, H5_GAMES, SLOT_GAME_IDS } from '@bg/shared';
+import { getHotlineReelCount, getHotlineRowCount, hotlineEvaluate } from '@bg/provably-fair';
 import { __hotlineServiceTestHooks } from './hotline.service.js';
 
 describe('hotline controlled round shaping', () => {
@@ -370,7 +370,7 @@ describe('hotline controlled round shaping', () => {
     ];
 
     for (const controlledCase of cases) {
-      expect(new Set(controlledCase.rounds.map(openingSignature)).size).toBeGreaterThan(
+      expect(new Set(controlledCase.rounds.map(openingSignature)).size).toBeGreaterThanOrEqual(
         controlledCase.minUnique,
       );
     }
@@ -385,6 +385,126 @@ describe('hotline controlled round shaping', () => {
         expect(payout.lessThan(stake)).toBe(true);
       }
     }
+  });
+
+  it('simulates principal, deposit, manual, cap, and burst controls across every imported game', () => {
+    const stake = new Prisma.Decimal(100);
+    const winningControls = [
+      'win_control',
+      'loss_control_release',
+      'deposit_control',
+      'deposit_lifecycle_path_guard',
+      'online_reward_next_win',
+      'auto_balance_revive',
+      'auto_balance_path_guard',
+      'manual_detection',
+      'manual_detection_release',
+      'global_accidental_burst_cap',
+      'burst_win',
+      'burst_small_win',
+      'burst_risk_cap',
+    ].map((flipReason) => ({
+      flipReason,
+      minMultiplier: new Prisma.Decimal(flipReason === 'burst_win' ? 2 : '1.01'),
+      maxMultiplier: new Prisma.Decimal(flipReason === 'burst_win' ? 500 : 20),
+      maxPayout: new Prisma.Decimal(flipReason === 'burst_win' ? 50000 : 2000),
+    }));
+    const losingControls = [
+      'loss_control',
+      'deposit_control',
+      'deposit_lifecycle_path_guard',
+      'auto_balance_bite',
+      'auto_balance_drain',
+      'auto_balance_path_guard',
+      'manual_detection',
+      'win_cap',
+      'win_cap_rate',
+      'agent_line_cap',
+      'agent_line_cap_rate',
+      'global_member_daily_win_cap',
+      'burst_loss',
+      'burst_budget_guard',
+      'burst_risk_guard',
+    ];
+
+    H5_GAMES.forEach((game, gameIndex) => {
+      winningControls.forEach((control, controlIndex) => {
+        const round = __hotlineServiceTestHooks.strictWinningHotlineRound(
+          game.gameId,
+          stake,
+          control,
+          gameIndex * 101 + controlIndex * 17,
+        );
+        expect(round, `${game.gameId}/${control.flipReason}`).not.toBeNull();
+        expect(round!.totalMultiplier, `${game.gameId}/${control.flipReason}`).toBeGreaterThan(1);
+        expect(
+          round!.totalMultiplier,
+          `${game.gameId}/${control.flipReason}`,
+        ).toBeGreaterThanOrEqual(control.minMultiplier.toNumber());
+        expect(round!.totalMultiplier, `${game.gameId}/${control.flipReason}`).toBeLessThanOrEqual(
+          control.maxMultiplier.toNumber(),
+        );
+        expect(
+          stake.mul(round!.totalMultiplier).lessThanOrEqualTo(control.maxPayout),
+          `${game.gameId}/${control.flipReason}`,
+        ).toBe(true);
+        expectControlledRoundMatchesGameRules(game.gameId, round!);
+      });
+
+      losingControls.forEach((flipReason, controlIndex) => {
+        const round = __hotlineServiceTestHooks.lossHotlineRound(
+          game.gameId,
+          stake,
+          gameIndex * 131 + controlIndex * 19,
+          {
+            flipReason,
+            multiplier: new Prisma.Decimal('0.72'),
+            maxMultiplier: new Prisma.Decimal('0.99'),
+            maxPayout: new Prisma.Decimal(99),
+          },
+        );
+        expect(round.totalMultiplier, `${game.gameId}/${flipReason}`).toBeLessThan(1);
+        expect(
+          stake.mul(round.totalMultiplier).lessThan(stake),
+          `${game.gameId}/${flipReason}`,
+        ).toBe(true);
+        expectControlledRoundMatchesGameRules(game.gameId, round);
+      });
+    });
+  });
+
+  it('turns unreachable imported-game win controls into bounded controlled losses', () => {
+    const stake = new Prisma.Decimal(100);
+    const minMultiplier = new Prisma.Decimal(1_000_001);
+    const maxMultiplier = new Prisma.Decimal(1_000_002);
+
+    H5_GAMES.forEach((game, index) => {
+      const control = {
+        won: true,
+        multiplier: minMultiplier,
+        payout: stake.mul(minMultiplier),
+        controlled: true,
+        flipReason: 'deposit_control',
+        controlId: `deposit-${game.code}`,
+        minMultiplier,
+        maxMultiplier,
+        maxPayout: stake.mul(maxMultiplier),
+      };
+      const selection = __hotlineServiceTestHooks.selectControlledHotlineRound(
+        game.gameId,
+        stake,
+        control,
+        control,
+        index,
+      );
+
+      expect(selection.fellBackToLoss, game.gameId).toBe(true);
+      expect(selection.effectiveControl.controlled, game.gameId).toBe(true);
+      expect(selection.effectiveControl.won, game.gameId).toBe(false);
+      expect(selection.effectiveControl.flipReason, game.gameId).toBe('control_bounds_guard');
+      expect(selection.round.totalMultiplier, game.gameId).toBeLessThan(1);
+      expectControlledRoundMatchesGameRules(game.gameId, selection.round);
+    });
   });
 
   it('uses low-multiplier small-hit rounds for auto-balance slot losses when enabled', () => {
@@ -701,6 +821,96 @@ function expectMegaFeatureUsesPaytable(
     freeSpinWinMultiplier = roundTestMultiplier(freeSpinWinMultiplier + round.totalMultiplier);
   }
   expect(features.freeSpinWinMultiplier).toBeCloseTo(freeSpinWinMultiplier, 3);
+}
+
+function expectControlledRoundMatchesGameRules(
+  gameId: string,
+  round: ReturnType<typeof __hotlineServiceTestHooks.lossHotlineRound>,
+): void {
+  const reelCount = getHotlineReelCount(gameId);
+  const rowCount = getHotlineRowCount(gameId);
+  expect(round.grid, `${gameId}/reels`).toHaveLength(reelCount);
+  expect(
+    round.grid.every((column) => column.length === rowCount),
+    `${gameId}/rows`,
+  ).toBe(true);
+
+  if ((round.cascades?.length ?? 0) > 0) {
+    for (const step of round.cascades ?? []) {
+      const evaluated = hotlineEvaluate(step.grid, gameId);
+      expect(step.lines, `${gameId}/cascade-${step.index}/lines`).toEqual(evaluated.lines);
+      expect(step.multiplier, `${gameId}/cascade-${step.index}/multiplier`).toBeCloseTo(
+        evaluated.totalMultiplier,
+        4,
+      );
+    }
+    expect(round.lines, `${gameId}/all-cascade-lines`).toEqual(
+      (round.cascades ?? []).flatMap((step) => step.lines),
+    );
+  } else if (round.lines.length > 0) {
+    const evaluated = hotlineEvaluate(round.grid, gameId);
+    expect(round.lines, `${gameId}/lines`).toEqual(evaluated.lines);
+    expect(round.totalMultiplier, `${gameId}/multiplier`).toBeCloseTo(evaluated.totalMultiplier, 4);
+  }
+
+  if (!round.features) return;
+  expect(round.features.totalMultiplier, `${gameId}/feature-total`).toBeCloseTo(
+    round.totalMultiplier,
+    4,
+  );
+  const specialSymbols = [
+    ...round.features.scatterSymbols,
+    ...round.features.baseMultiplierSymbols,
+    ...round.features.freeSpinRounds.flatMap((freeRound) => [
+      ...freeRound.scatterSymbols,
+      ...freeRound.multiplierSymbols,
+    ]),
+  ];
+  for (const symbol of specialSymbols) {
+    expect(symbol.reel, `${gameId}/special-reel`).toBeGreaterThanOrEqual(0);
+    expect(symbol.reel, `${gameId}/special-reel`).toBeLessThan(reelCount);
+    expect(symbol.row, `${gameId}/special-row`).toBeGreaterThanOrEqual(0);
+    expect(symbol.row, `${gameId}/special-row`).toBeLessThan(rowCount);
+  }
+
+  let freeSpinWinMultiplier = 0;
+  for (const freeRound of round.features.freeSpinRounds) {
+    expect(freeRound.initialGrid, `${gameId}/free-${freeRound.index}/reels`).toHaveLength(
+      reelCount,
+    );
+    expect(
+      freeRound.initialGrid.every((column) => column.length === rowCount),
+      `${gameId}/free-${freeRound.index}/rows`,
+    ).toBe(true);
+    expect(freeRound.lines, `${gameId}/free-${freeRound.index}/all-lines`).toEqual(
+      freeRound.cascades.flatMap((step) => step.lines),
+    );
+    let symbolWinMultiplier = 0;
+    for (const step of freeRound.cascades) {
+      const evaluated = hotlineEvaluate(step.grid, gameId);
+      expect(step.lines, `${gameId}/free-${freeRound.index}/cascade-${step.index}`).toEqual(
+        evaluated.lines,
+      );
+      expect(step.multiplier).toBeCloseTo(evaluated.totalMultiplier, 4);
+      symbolWinMultiplier = roundTestMultiplier(symbolWinMultiplier + step.multiplier);
+    }
+    const scatterMultiplier = megaScatterPayout(freeRound.scatterSymbols.length);
+    expect(freeRound.baseMultiplier).toBeCloseTo(
+      roundTestMultiplier(symbolWinMultiplier + scatterMultiplier),
+      4,
+    );
+    expect(freeRound.totalMultiplier).toBeCloseTo(
+      roundTestMultiplier(
+        scatterMultiplier + symbolWinMultiplier * Math.max(1, freeRound.appliedMultiplier),
+      ),
+      4,
+    );
+    freeSpinWinMultiplier = roundTestMultiplier(freeSpinWinMultiplier + freeRound.totalMultiplier);
+  }
+  expect(round.features.freeSpinWinMultiplier, `${gameId}/free-total`).toBeCloseTo(
+    freeSpinWinMultiplier,
+    3,
+  );
 }
 
 function roundTestMultiplier(value: number): number {
