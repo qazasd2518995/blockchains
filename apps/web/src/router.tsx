@@ -25,7 +25,10 @@ import { errorMessage, reloadAfterRuntimeFailure } from '@/lib/runtimeRecovery';
 import { CRASH_CONFIGS } from '@/pages/games/crashConfigs';
 import { BACCARAT_TABLE_GAME_IDS, H5_GAMES, LOCAL_TABLE_GAME_IDS } from '@bg/shared';
 
-const ORIGINAL_AUDIO_GAME_PATHS = new Set(H5_GAMES.map((game) => `/games/${game.gameId}`));
+const ORIGINAL_AUDIO_GAME_PATHS = new Set([
+  ...H5_GAMES.map((game) => `/games/${game.gameId}`),
+  '/games/storm-of-seth-2',
+]);
 
 const RUNTIME_ERROR_COPY: Record<
   Locale,

@@ -38,6 +38,8 @@ export interface Seth2CascadeRound {
 
 export interface Seth2ReturnData {
   list: Seth2CascadeRound[];
+  featureMode: Seth2FeatureMode;
+  gameModelType: 0 | 1;
   is_sjc: 0 | 1;
   freeGameCount: number;
   addGameCiShu: number;

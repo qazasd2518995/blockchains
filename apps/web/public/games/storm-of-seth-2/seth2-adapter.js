@@ -11,6 +11,11 @@
   var refreshInFlight = null;
   var selectedMachinePage = 1;
   var officialMultiplierValues = [2, 3, 4, 5, 6, 8, 10, 15, 25, 50, 100, 200, 300, 500];
+  var SFX_PREFS_KEY = 'bg.sfx.prefs';
+  var BGM_PREFS_KEY = 'bg.bgm.prefs';
+  var audioBridge = null;
+  var audioBridgeAttempts = 0;
+  var platformAudioPrefs = readPlatformAudioPrefs();
 
   function machinePageNumber(pageIndex) {
     var index = Number(pageIndex);
@@ -38,6 +43,228 @@
 
   function multiplierAssetName(value, rare) {
     return 'game/pic/symbol/symbol_' + (10 + multiplierVisualTier(value)) + (rare ? '_01' : '');
+  }
+
+  function clampVolume(value, fallback) {
+    if (value === null || value === undefined || value === '') return fallback;
+    var parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(0, Math.min(1, parsed));
+  }
+
+  function readAudioPrefs(storageKey, defaultVolume) {
+    try {
+      var raw = parentStorage().getItem(storageKey);
+      var saved = raw ? JSON.parse(raw) : null;
+      return {
+        muted: Boolean(saved && saved.muted),
+        volume: clampVolume(saved && saved.volume, defaultVolume),
+      };
+    } catch (_error) {
+      return { muted: false, volume: defaultVolume };
+    }
+  }
+
+  function readPlatformAudioPrefs() {
+    var music = readAudioPrefs(BGM_PREFS_KEY, 0.32);
+    var effects = readAudioPrefs(SFX_PREFS_KEY, 0.6);
+    return {
+      musicMuted: music.muted,
+      musicVolume: music.volume,
+      effectsMuted: effects.muted,
+      effectsVolume: effects.volume,
+    };
+  }
+
+  function installCocosAudioControls(engine) {
+    if (!engine || typeof engine.setMusicVolume !== 'function') return null;
+    if (engine.__yachiyoSeth2AudioBridge) return engine.__yachiyoSeth2AudioBridge;
+
+    var originalSetMusicVolume = engine.setMusicVolume.bind(engine);
+    var originalSetEffectsVolume = engine.setEffectsVolume.bind(engine);
+    var originalPlay = typeof engine.play === 'function' ? engine.play.bind(engine) : null;
+    var originalPlayMusic =
+      typeof engine.playMusic === 'function' ? engine.playMusic.bind(engine) : null;
+    var originalPlayEffect =
+      typeof engine.playEffect === 'function' ? engine.playEffect.bind(engine) : null;
+    var originalSetVolume =
+      typeof engine.setVolume === 'function' ? engine.setVolume.bind(engine) : null;
+    var categorizedPlayDepth = 0;
+    var applyingPrefs = false;
+    var directAudio = {};
+    var requestedMusicVolume = clampVolume(
+      typeof engine.getMusicVolume === 'function' ? engine.getMusicVolume() : 1,
+      1,
+    );
+    var requestedEffectsVolume = clampVolume(
+      typeof engine.getEffectsVolume === 'function' ? engine.getEffectsVolume() : 1,
+      1,
+    );
+    var currentPrefs = platformAudioPrefs;
+
+    function apply() {
+      applyingPrefs = true;
+      try {
+        originalSetMusicVolume(
+          currentPrefs.musicMuted ? 0 : requestedMusicVolume * currentPrefs.musicVolume,
+        );
+        originalSetEffectsVolume(
+          currentPrefs.effectsMuted ? 0 : requestedEffectsVolume * currentPrefs.effectsVolume,
+        );
+        if (originalSetVolume) {
+          Object.keys(directAudio).forEach(function (id) {
+            if (engine._id2audio && !engine._id2audio[id]) {
+              delete directAudio[id];
+              return;
+            }
+            var entry = directAudio[id];
+            var muted =
+              entry.kind === 'music' ? currentPrefs.musicMuted : currentPrefs.effectsMuted;
+            var master =
+              entry.kind === 'music' ? currentPrefs.musicVolume : currentPrefs.effectsVolume;
+            originalSetVolume(id, muted ? 0 : entry.volume * master);
+          });
+        }
+      } finally {
+        applyingPrefs = false;
+      }
+    }
+
+    engine.setMusicVolume = function (volume) {
+      requestedMusicVolume = clampVolume(volume, requestedMusicVolume);
+      apply();
+    };
+    engine.setEffectsVolume = function (volume) {
+      requestedEffectsVolume = clampVolume(volume, requestedEffectsVolume);
+      apply();
+    };
+    if (originalPlay) {
+      engine.play = function (clip, loop, volume) {
+        if (categorizedPlayDepth > 0) return originalPlay(clip, loop, volume);
+        var kind = loop ? 'music' : 'effects';
+        var requestedVolume = clampVolume(volume, 1);
+        var muted = kind === 'music' ? currentPrefs.musicMuted : currentPrefs.effectsMuted;
+        var master = kind === 'music' ? currentPrefs.musicVolume : currentPrefs.effectsVolume;
+        var id = originalPlay(clip, loop, muted ? 0 : requestedVolume * master);
+        directAudio[String(id)] = { kind: kind, volume: requestedVolume };
+        return id;
+      };
+    }
+    if (originalPlayMusic) {
+      engine.playMusic = function () {
+        categorizedPlayDepth += 1;
+        try {
+          return originalPlayMusic.apply(null, arguments);
+        } finally {
+          categorizedPlayDepth -= 1;
+        }
+      };
+    }
+    if (originalPlayEffect) {
+      engine.playEffect = function () {
+        categorizedPlayDepth += 1;
+        try {
+          return originalPlayEffect.apply(null, arguments);
+        } finally {
+          categorizedPlayDepth -= 1;
+        }
+      };
+    }
+    if (originalSetVolume) {
+      engine.setVolume = function (id, volume) {
+        if (applyingPrefs) return originalSetVolume(id, volume);
+        var entry = directAudio[String(id)];
+        if (!entry) return originalSetVolume(id, volume);
+        entry.volume = clampVolume(volume, entry.volume);
+        var muted = entry.kind === 'music' ? currentPrefs.musicMuted : currentPrefs.effectsMuted;
+        var master = entry.kind === 'music' ? currentPrefs.musicVolume : currentPrefs.effectsVolume;
+        return originalSetVolume(id, muted ? 0 : entry.volume * master);
+      };
+    }
+
+    var bridge = {
+      apply: apply,
+      updatePrefs: function (prefs) {
+        currentPrefs = prefs;
+        apply();
+      },
+      getState: function () {
+        return {
+          musicMuted: currentPrefs.musicMuted,
+          musicVolume: currentPrefs.musicVolume,
+          effectsMuted: currentPrefs.effectsMuted,
+          effectsVolume: currentPrefs.effectsVolume,
+        };
+      },
+    };
+    try {
+      Object.defineProperty(engine, '__yachiyoSeth2AudioBridge', {
+        configurable: true,
+        value: bridge,
+      });
+    } catch (_error) {
+      engine.__yachiyoSeth2AudioBridge = bridge;
+    }
+    apply();
+    return bridge;
+  }
+
+  function getCocosAudioContext() {
+    var support = window.cc && window.cc.sys && window.cc.sys.__audioSupport;
+    return support && support.context;
+  }
+
+  function syncCocosAudio() {
+    var engine = window.cc && window.cc.audioEngine;
+    if (!engine) return false;
+    audioBridge = installCocosAudioControls(engine);
+    if (!audioBridge) return false;
+    audioBridge.updatePrefs(platformAudioPrefs);
+    return true;
+  }
+
+  function resumeCocosAudio() {
+    syncCocosAudio();
+    var context = getCocosAudioContext();
+    if (context && context.state === 'suspended' && typeof context.resume === 'function') {
+      var resumed = context.resume();
+      if (resumed && typeof resumed.catch === 'function') resumed.catch(function () {});
+    }
+  }
+
+  function scheduleAudioBridge() {
+    if (syncCocosAudio() || audioBridgeAttempts >= 600) return;
+    audioBridgeAttempts += 1;
+    window.setTimeout(scheduleAudioBridge, 100);
+  }
+
+  function updatePlatformAudioPrefs() {
+    platformAudioPrefs = readPlatformAudioPrefs();
+    if (audioBridge) audioBridge.updatePrefs(platformAudioPrefs);
+  }
+
+  function installPlatformAudioBridge() {
+    if (typeof window.addEventListener !== 'function') return;
+    window.addEventListener('storage', function (event) {
+      if (event.key === SFX_PREFS_KEY || event.key === BGM_PREFS_KEY) {
+        updatePlatformAudioPrefs();
+      }
+    });
+    window.addEventListener('message', function (event) {
+      if (
+        event.origin !== window.location.origin ||
+        event.source !== window.parent ||
+        !event.data
+      ) {
+        return;
+      }
+      if (event.data.type === 'seth2:audio-sync') updatePlatformAudioPrefs();
+      if (event.data.type === 'seth2:audio-unlock') resumeCocosAudio();
+    });
+    ['pointerdown', 'touchstart', 'keydown'].forEach(function (eventName) {
+      window.addEventListener(eventName, resumeCocosAudio, { capture: true, passive: true });
+    });
+    scheduleAudioBridge();
   }
 
   function parentStorage() {
@@ -245,6 +472,48 @@
     if (rightMultiplier.ttf_beishu) rightMultiplier.ttf_beishu.string = multiplierBank + 'x';
   }
 
+  function featureModelType(returnData) {
+    if (!returnData || typeof returnData !== 'object') return 0;
+    return Number(returnData.gameModelType) === 1 || returnData.featureMode === 'awakening' ? 1 : 0;
+  }
+
+  function syncFeatureMode(returnData) {
+    var modelType = featureModelType(returnData);
+    try {
+      var Game = window.__require && window.__require('Game').default;
+      if (Game && Game.instance) Game.instance.gameModelType = modelType;
+    } catch (_error) {
+      // The result contract remains available for the next animation stage.
+    }
+    return modelType;
+  }
+
+  function formatPrizeAmount(value) {
+    var amount = Number(value);
+    if (!Number.isFinite(amount)) amount = 0;
+    var parts = amount.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+  }
+
+  function addJackpotAmount(view, amount) {
+    if (!window.cc || !view || !view.node || view.node.getChildByName('YachiyoJPAmount')) return;
+    var scoreNode = new cc.Node('YachiyoJPAmount');
+    scoreNode.parent = view.node;
+    scoreNode.y = -105;
+    scoreNode.zIndex = 9999;
+    scoreNode.color = cc.color(255, 224, 94);
+    var label = scoreNode.addComponent(cc.Label);
+    label.string = formatPrizeAmount(amount);
+    label.fontSize = 48;
+    label.lineHeight = 56;
+    label.horizontalAlign = cc.Label.HorizontalAlign.CENTER;
+    label.verticalAlign = cc.Label.VerticalAlign.CENTER;
+    var outline = scoreNode.addComponent(cc.LabelOutline);
+    outline.color = cc.color(80, 32, 0);
+    outline.width = 3;
+  }
+
   function showFatal(message) {
     var overlay = document.createElement('div');
     overlay.style.cssText = [
@@ -311,8 +580,17 @@
           if (payload && payload.data && payload.data.balance !== undefined) {
             notifyParent('seth2:balance', { balance: Number(payload.data.balance) });
           }
+          var returnData = payload && payload.data && payload.data.returnData;
+          if (returnData) syncFeatureMode(returnData);
           if (socket.readyState === LocalGameSocket.OPEN && socket.onmessage) {
             socket.onmessage({ data: JSON.stringify(payload) });
+          }
+          // BuyFreeView writes its old client-side random mode after processing the
+          // response. Restore the server-authoritative mode before the entry popup.
+          if (returnData) {
+            window.setTimeout(function () {
+              syncFeatureMode(returnData);
+            }, 0);
           }
         });
       })
@@ -343,6 +621,9 @@
     publicGameError: publicGameError,
     recoverAnimationFailure: recoverAnimationFailure,
     syncMultiplierBankBefore: syncMultiplierBankBefore,
+    featureModelType: featureModelType,
+    formatPrizeAmount: formatPrizeAmount,
+    installCocosAudioControls: installCocosAudioControls,
   };
 
   function requestSession(callback) {
@@ -446,6 +727,12 @@
       var ResourceManager = window.__require('ResourceManager').default;
       var RoomListSingleItem = window.__require('RoomListSingleItem').default;
       var RoomListView = window.__require('RoomListView').default;
+      var AudioManager = window.__require('AudioManager').default;
+      var FreeTransInOut = window.__require('FreeTransInOut').default;
+      var JPRewardView = window.__require('JPRewardView').default;
+      var PopDataLayer = window.__require('PopDataLayer').default;
+      var WinView = window.__require('WinView').default;
+      var i18nModule = window.__require('i18nMgr');
       if (
         !Game ||
         !ColMain ||
@@ -453,9 +740,86 @@
         !ResMgr ||
         !ResourceManager ||
         !RoomListSingleItem ||
-        !RoomListView
+        !RoomListView ||
+        !AudioManager ||
+        !FreeTransInOut ||
+        !JPRewardView ||
+        !PopDataLayer ||
+        !WinView
       )
         return;
+
+      // The bundled i18n directory belongs to an unrelated flower-shop demo.
+      // Keep Seth's original Traditional Chinese bitmap labels and prevent those
+      // legacy resources from replacing them with an incompatible UI language.
+      if (i18nModule && i18nModule.i18nMgr && !i18nModule.i18nMgr.__yachiyoSethIsolated) {
+        i18nModule.i18nMgr._getLabel = function (key) {
+          return key;
+        };
+        i18nModule.i18nMgr._getSprite = function (_key, callback) {
+          callback(null);
+        };
+        i18nModule.i18nMgr.__yachiyoSethIsolated = true;
+      }
+
+      if (!FreeTransInOut.prototype.__yachiyoFeatureAudioPatched) {
+        var originalFreeTransOnLoad = FreeTransInOut.prototype.onLoad;
+        FreeTransInOut.prototype.onLoad = function () {
+          if (originalFreeTransOnLoad) originalFreeTransOnLoad.call(this);
+          var view = this;
+          this.freeIn.setCompleteListener(function () {
+            var eventModule = window.__require('GameEvent');
+            var eventBus = eventModule.default.getInstance;
+            if (view.gameType === 'buy') {
+              eventBus.emit(eventModule.GameEventName.BUY_GAME_NEXT_STEP);
+            } else if (view.gameType === 'free') {
+              eventBus.emit(eventModule.GameEventName.FREE_GAME_NEXT_STEP);
+            }
+            var awakening = Game.instance && Game.instance.gameModelType === 1;
+            AudioManager.instance.playBg(awakening ? 'audios/bgm_golden_fg' : 'audios/bgm_fg');
+            view.closeMyView();
+          });
+        };
+        FreeTransInOut.prototype.__yachiyoFeatureAudioPatched = true;
+      }
+
+      if (!JPRewardView.prototype.__yachiyoPrizePatched) {
+        var originalJPStart = JPRewardView.prototype.start;
+        JPRewardView.prototype.start = function () {
+          var dataLayer = this.getComponent(PopDataLayer);
+          var data = (dataLayer && dataLayer.data) || {};
+          var originalScheduleOnce = this.scheduleOnce;
+          this.scheduleOnce = function (callback, delay) {
+            return originalScheduleOnce.call(this, callback, delay === 3 ? 4.5 : delay);
+          };
+          try {
+            if (originalJPStart) originalJPStart.call(this);
+          } finally {
+            this.scheduleOnce = originalScheduleOnce;
+          }
+          addJackpotAmount(this, data.jpGold);
+          if (Number(data.jpType) === 12) {
+            AudioManager.instance.playEffect('audios/btm_w_major_vocal');
+          }
+        };
+        JPRewardView.prototype.__yachiyoPrizePatched = true;
+      }
+
+      if (!WinView.prototype.__yachiyoPrizeTimingPatched) {
+        var originalWinOnLoad = WinView.prototype.onLoad;
+        WinView.prototype.onLoad = function () {
+          var originalScheduleOnce = this.scheduleOnce;
+          this.scheduleOnce = function (callback, delay) {
+            return originalScheduleOnce.call(this, callback, delay === 3 ? 4.5 : delay);
+          };
+          try {
+            return originalWinOnLoad && originalWinOnLoad.call(this);
+          } finally {
+            this.scheduleOnce = originalScheduleOnce;
+          }
+        };
+        WinView.prototype.__yachiyoPrizeTimingPatched = true;
+      }
 
       if (!ColSingleItem.prototype.__yachiyoOfficialMultiplierPatched) {
         var originalSetIconByType = ColSingleItem.prototype.setIconByType;
@@ -600,7 +964,7 @@
         return this.clickEnterGame();
       };
       gameModulesPatched = true;
-      console.info('[Seth2 Adapter] 8-page, 4,000-machine room enabled');
+      console.info('[Seth2 Adapter] Seth feature, prize, audio, and machine patches enabled');
     } catch (_error) {
       // The game bundle loads after authentication; keep polling until it is available.
     }
@@ -611,6 +975,8 @@
     patchGameModules();
     if (patched && gameModulesPatched) window.clearInterval(patchTimer);
   }, 10);
+  window.__YachiyoSeth2UnlockAudio = resumeCocosAudio;
+  installPlatformAudioBridge();
   patchClient();
   patchGameModules();
 })();

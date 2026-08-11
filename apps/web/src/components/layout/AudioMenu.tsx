@@ -6,7 +6,10 @@ import { H5_GAMES } from '@bg/shared';
 import { PlatformBgm, type BgmState } from '@/lib/platformBgm';
 import { useTranslation } from '@/i18n/useTranslation';
 
-const ORIGINAL_AUDIO_GAME_PATHS = new Set(H5_GAMES.map((game) => `/games/${game.gameId}`));
+const ORIGINAL_AUDIO_GAME_PATHS = new Set([
+  ...H5_GAMES.map((game) => `/games/${game.gameId}`),
+  '/games/storm-of-seth-2',
+]);
 
 interface Props {
   variant?: 'dark' | 'light';

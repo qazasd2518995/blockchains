@@ -1,7 +1,7 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
   isSeth2FactorRepresentable,
-  seth2BuyFeatureEntry,
+  seth2BuyFeature,
   seth2Spin,
   seth2SpinForFactor,
   type Seth2Outcome,
@@ -136,9 +136,7 @@ export class Seth2Service {
         const buying = input.type === 'buyFreeGame';
         const bet = requireBet(input.yazhu);
         const machineId = requireMachineId(input.machineId);
-        const boughtFeatureMode: Seth2FeatureMode =
-          input.gameModelType === 1 ? 'awakening' : 'standard';
-        const settlement = await this.settle(userId, bet, machineId, buying, boughtFeatureMode);
+        const settlement = await this.settle(userId, bet, machineId, buying);
         return response(input.type, {
           returnData: settlement.returnData,
           balance: settlement.balance,
@@ -227,7 +225,6 @@ export class Seth2Service {
     requestedBet: number,
     machineId: number,
     buying: boolean,
-    boughtFeatureMode: Seth2FeatureMode,
   ): Promise<Seth2Settlement> {
     return runLockedTransaction(this.prisma, async (tx) => {
       const requestedBaseAmount = new Prisma.Decimal(requestedBet);
@@ -262,32 +259,29 @@ export class Seth2Service {
         throw new ApiError('INSUFFICIENT_FUNDS', 'Insufficient balance');
       }
 
-      const mode: Seth2SpinMode = buying
-        ? boughtFeatureMode === 'awakening'
+      const sessionMode: Seth2SpinMode = freeSpin
+        ? currentSession.featureMode === 'awakening'
           ? 'awakening_free'
-          : 'bought_standard_free'
-        : freeSpin
-          ? currentSession.featureMode === 'awakening'
-            ? 'awakening_free'
-            : 'standard_free'
-          : 'base';
+          : 'standard_free'
+        : 'base';
       const multiplierBankBefore = freeSpin ? currentSession.multiplierBank : 0;
       const seed = await new SeedHelper(tx).getActiveBundle(userId, GAME_ID);
       const originalOutcome = buying
-        ? seth2BuyFeatureEntry(
-            seed.serverSeed,
-            seed.clientSeed,
-            seed.nonce,
-            boughtFeatureMode === 'awakening' ? 'awakening' : 'standard',
-          )
+        ? seth2BuyFeature(seed.serverSeed, seed.clientSeed, seed.nonce)
         : seth2Spin(
             seed.serverSeed,
             seed.clientSeed,
             seed.nonce,
             baseBet,
-            mode,
+            sessionMode,
             multiplierBankBefore,
           );
+      const boughtFeatureMode: Seth2FeatureMode = buying ? originalOutcome.featureMode : 'none';
+      const mode: Seth2SpinMode = buying
+        ? boughtFeatureMode === 'awakening'
+          ? 'awakening_free'
+          : 'bought_standard_free'
+        : sessionMode;
       const originalPayout = payoutForFactor(baseAmount, originalOutcome.payoutFactor);
       const controlAmount = debitAmount.greaterThan(0) ? debitAmount : baseAmount;
       const originalMultiplier = originalPayout
@@ -345,12 +339,20 @@ export class Seth2Service {
         extraSpins: finalOutcome.returnData.addGameCiShu,
         multiplierBankAfter: finalOutcome.returnData.multiplierBankAfter,
       });
+      const responseFeatureMode: Seth2FeatureMode = buying
+        ? boughtFeatureMode
+        : freeSpin
+          ? currentSession.featureMode
+          : finalOutcome.triggeredFreeSpins
+            ? finalOutcome.featureMode
+            : 'none';
       applyFeatureState(
         finalOutcome.returnData,
         nextSession.freeSpinsRemaining,
         buying ||
           finalOutcome.triggeredFreeSpins ||
           (freeSpin && nextSession.freeSpinsRemaining > 0),
+        responseFeatureMode,
       );
 
       const originalResult = {
@@ -574,9 +576,12 @@ function applyFeatureState(
   data: Seth2ReturnData | Seth2Outcome['returnData'],
   remaining: number,
   featureActive: boolean,
+  featureMode: Seth2FeatureMode,
 ): void {
   data.is_sjc = featureActive ? 1 : 0;
   data.freeGameCount = remaining;
+  data.featureMode = featureMode;
+  data.gameModelType = featureMode === 'awakening' ? 1 : 0;
 }
 
 function payoutForFactor(baseAmount: Prisma.Decimal, factor: number): Prisma.Decimal {

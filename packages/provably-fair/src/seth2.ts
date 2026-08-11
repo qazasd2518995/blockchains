@@ -55,6 +55,8 @@ export interface Seth2CascadeRound {
 
 export interface Seth2ReturnData {
   list: Seth2CascadeRound[];
+  featureMode: Seth2FeatureMode;
+  gameModelType: 0 | 1;
   is_sjc: 0 | 1;
   freeGameCount: number;
   addGameCiShu: number;
@@ -117,6 +119,7 @@ interface FemaleMultiplierPlan extends MultiplierPlan {
 const TARGET_RTP = 0.9689;
 const FREE_SPIN_SCALE = 1 - SETH2_FREE_RETRIGGER_PROBABILITY * SETH2_RETRIGGER_SPINS;
 const GOLDEN_FEATURE_SHARE = 0.01;
+export const SETH2_BOUGHT_AWAKENING_SHARE = 0.3;
 const NON_WINNING_MULTIPLIER_PROBABILITY = 0.2;
 const SCATTER_EXPECTED_FACTOR = 3;
 const BASE_NON_FEATURE_EV = 0.3389;
@@ -372,6 +375,8 @@ function baseReturnData(
   const finalRound = rounds.at(-1)!;
   return {
     list: rounds,
+    featureMode: 'none',
+    gameModelType: 0,
     is_sjc: 0,
     freeGameCount: 0,
     addGameCiShu: 0,
@@ -443,6 +448,8 @@ function buildBoughtFeatureEntry(
     is_over: 1,
   };
   const returnData = baseReturnData(round);
+  returnData.featureMode = featureMode;
+  returnData.gameModelType = awakening ? 1 : 0;
   returnData.is_sjc = 1;
   returnData.freeGameCount = 15;
   return {
@@ -492,6 +499,8 @@ function buildScatterTrigger(bet: number, rng: Seth2RandomSource): Seth2Outcome 
     is_over: 1,
   };
   const returnData = baseReturnData(round);
+  returnData.featureMode = featureMode;
+  returnData.gameModelType = golden ? 1 : 0;
   returnData.is_sjc = 1;
   returnData.freeGameCount = 15;
   return {
@@ -908,14 +917,18 @@ export function seth2Spin(
   const table =
     mode === 'base'
       ? BASE_OUTCOMES
-      : mode === 'standard_free' || mode === 'bought_standard_free'
+      : mode === 'standard_free'
         ? STANDARD_FREE_OUTCOMES
         : AWAKENING_FREE_OUTCOMES;
   const selection = pickWeighted(table, rng);
-  if (selection.trigger) return buildScatterTrigger(bet, rng);
-  if (selection.retrigger) return buildRetrigger(rng, mode, multiplierBank);
-  if (!selection.factor) return buildLoss(rng, mode, multiplierBank);
-  return buildWin(bet, selection.factor, mode, rng, multiplierBank);
+  const outcome = selection.trigger
+    ? buildScatterTrigger(bet, rng)
+    : selection.retrigger
+      ? buildRetrigger(rng, mode, multiplierBank)
+      : !selection.factor
+        ? buildLoss(rng, mode, multiplierBank)
+        : buildWin(bet, selection.factor, mode, rng, multiplierBank);
+  return applySpinFeatureMode(outcome, mode);
 }
 
 export function seth2SpinForFactor(
@@ -928,9 +941,24 @@ export function seth2SpinForFactor(
   multiplierBank = 0,
 ): Seth2Outcome {
   const rng = randomSource(serverSeed, clientSeed, nonce);
-  return factor > 0
-    ? buildWin(bet, factor, mode, rng, multiplierBank, true)
-    : buildLoss(rng, mode, multiplierBank);
+  const outcome =
+    factor > 0
+      ? buildWin(bet, factor, mode, rng, multiplierBank, true)
+      : buildLoss(rng, mode, multiplierBank);
+  return applySpinFeatureMode(outcome, mode);
+}
+
+function applySpinFeatureMode(outcome: Seth2Outcome, mode: Seth2SpinMode): Seth2Outcome {
+  const featureMode = outcome.triggeredFreeSpins
+    ? outcome.featureMode
+    : mode === 'awakening_free'
+      ? 'awakening'
+      : mode === 'standard_free' || mode === 'bought_standard_free'
+        ? 'standard'
+        : 'none';
+  outcome.returnData.featureMode = featureMode;
+  outcome.returnData.gameModelType = featureMode === 'awakening' ? 1 : 0;
+  return outcome;
 }
 
 export function seth2BuyFeatureEntry(
@@ -940,6 +968,16 @@ export function seth2BuyFeatureEntry(
   featureMode: Exclude<Seth2FeatureMode, 'none'>,
 ): Seth2Outcome {
   return buildBoughtFeatureEntry(featureMode, randomSource(serverSeed, clientSeed, nonce));
+}
+
+export function seth2BuyFeature(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+): Seth2Outcome {
+  const rng = randomSource(serverSeed, clientSeed, nonce);
+  const featureMode = rng() < SETH2_BOUGHT_AWAKENING_SHARE ? 'awakening' : 'standard';
+  return buildBoughtFeatureEntry(featureMode, rng);
 }
 
 function expectedValue(outcomes: WeightedOutcome[]): number {
@@ -957,6 +995,7 @@ export const SETH2_MATH = {
   baseDirect: expectedValue(BASE_OUTCOMES),
   standardFree: expectedValue(STANDARD_FREE_OUTCOMES),
   awakeningFree: expectedValue(AWAKENING_FREE_OUTCOMES),
+  boughtStandardFree: expectedValue(AWAKENING_FREE_OUTCOMES),
   standardFeatureTotal: expectedValue(STANDARD_FREE_OUTCOMES) * EXPECTED_FEATURE_SPINS,
   awakeningFeatureTotal: expectedValue(AWAKENING_FREE_OUTCOMES) * EXPECTED_FEATURE_SPINS,
   expectedFeatureSpins: EXPECTED_FEATURE_SPINS,

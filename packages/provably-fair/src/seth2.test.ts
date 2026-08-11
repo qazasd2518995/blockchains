@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  SETH2_BOUGHT_AWAKENING_SHARE,
   SETH2_FREE_RETRIGGER_PROBABILITY,
   SETH2_GRID_SIZE,
   SETH2_MATH,
@@ -11,6 +12,7 @@ import {
   SETH2_SCATTER_PAYTABLE,
   SETH2_SKILL_SYMBOL_PAY,
   isSeth2MultiplierValue,
+  seth2BuyFeature,
   seth2BuyFeatureEntry,
   seth2Spin,
   seth2SpinForFactor,
@@ -79,11 +81,12 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     }
   });
 
-  it('uses the standard free-game table for a purchased standard feature', () => {
+  it('keeps awakening character skills out of a purchased standard feature', () => {
     for (let nonce = 0; nonce < 500; nonce += 1) {
-      expect(seth2Spin('standard-buy', 'client', nonce, BET, 'bought_standard_free')).toEqual(
-        seth2Spin('standard-buy', 'client', nonce, BET, 'standard_free'),
-      );
+      const outcome = seth2Spin('standard-buy', 'client', nonce, BET, 'bought_standard_free');
+      expect(outcome.returnData.featureMode).toBe('standard');
+      expect(outcome.returnData.type17_mul_list).toEqual([]);
+      expect(outcome.returnData.type18_start_mul_list).toEqual([]);
     }
   });
 
@@ -97,6 +100,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(SETH2_MATH.expectedFeatureSpins).toBeCloseTo(15 / 0.95, 8);
     expect(SETH2_MATH.theoreticalRtp).toBeCloseTo(0.9689, 8);
     expect(SETH2_MATH.buyFeatureRtp).toBeCloseTo(0.9689, 8);
+    expect(SETH2_MATH.boughtStandardFree).toBeCloseTo(SETH2_MATH.awakeningFree, 8);
   });
 
   it('separates direct multiplier values from the 6x and 8x upgrade steps', () => {
@@ -187,6 +191,8 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(scatterTypes).toContain(16);
     expect(outcome.returnData.is_sjc).toBe(1);
     expect(outcome.returnData.freeGameCount).toBe(15);
+    expect(outcome.returnData.featureMode).toBe('awakening');
+    expect(outcome.returnData.gameModelType).toBe(1);
   });
 
   it.each(['standard', 'awakening'] as const)(
@@ -203,8 +209,44 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       expect(outcome.featureMode).toBe(featureMode);
       expect(outcome.returnData.is_sjc).toBe(1);
       expect(outcome.returnData.freeGameCount).toBe(15);
+      expect(outcome.returnData.featureMode).toBe(featureMode);
+      expect(outcome.returnData.gameModelType).toBe(featureMode === 'awakening' ? 1 : 0);
       expect(outcome.payoutFactor).toBe(0);
       expect(outcome.returnData.total_gold).toBe(0);
+    },
+  );
+
+  it('selects both 200x purchase modes with server-verifiable randomness', () => {
+    const modes = new Set(
+      Array.from(
+        { length: 100 },
+        (_, nonce) => seth2BuyFeature('buy-mode', 'client', nonce).featureMode,
+      ),
+    );
+    expect(modes).toEqual(new Set(['standard', 'awakening']));
+  });
+
+  it('keeps the 200x server-side awakening selection near the source client 30% rate', () => {
+    const purchases = 10_000;
+    let awakening = 0;
+    for (let nonce = 0; nonce < purchases; nonce += 1) {
+      if (seth2BuyFeature('buy-mode-rate', 'client', nonce).featureMode === 'awakening') {
+        awakening += 1;
+      }
+    }
+    expect(awakening / purchases).toBeCloseTo(SETH2_BOUGHT_AWAKENING_SHARE, 1);
+  });
+
+  it.each([
+    ['standard_free', 'standard', 0],
+    ['bought_standard_free', 'standard', 0],
+    ['awakening_free', 'awakening', 1],
+  ] as const)(
+    'returns the authoritative feature presentation for %s',
+    (mode, featureMode, gameModelType) => {
+      const outcome = seth2SpinForFactor('feature-mode', 'client', 3, BET, 0, mode);
+      expect(outcome.returnData.featureMode).toBe(featureMode);
+      expect(outcome.returnData.gameModelType).toBe(gameModelType);
     },
   );
 

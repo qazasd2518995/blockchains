@@ -33,6 +33,9 @@ const {
   publicGameError,
   recoverAnimationFailure,
   syncMultiplierBankBefore,
+  featureModelType,
+  formatPrizeAmount,
+  installCocosAudioControls,
 } = context.__YachiyoSeth2AdapterTest;
 assert.equal(machinePageNumber(0), 1);
 assert.equal(machinePageNumber(7), 8);
@@ -88,6 +91,31 @@ assert.equal(
   '遊戲結算暫時失敗，請稍後再試',
 );
 assert.equal(publicGameError({ message: '餘額不足' }, 'fallback'), '餘額不足');
+assert.equal(featureModelType({ featureMode: 'standard', gameModelType: 0 }), 0);
+assert.equal(featureModelType({ featureMode: 'awakening', gameModelType: 0 }), 1);
+assert.equal(featureModelType({ featureMode: 'standard', gameModelType: 1 }), 1);
+assert.equal(formatPrizeAmount(1234567.8), '1,234,567.80');
+
+const audioState = { music: 1, effects: 1 };
+const audioEngine = {
+  setMusicVolume: (volume) => {
+    audioState.music = volume;
+  },
+  setEffectsVolume: (volume) => {
+    audioState.effects = volume;
+  },
+  getMusicVolume: () => 1,
+  getEffectsVolume: () => 1,
+};
+const audioBridge = installCocosAudioControls(audioEngine);
+audioBridge.updatePrefs({
+  musicMuted: false,
+  musicVolume: 0.25,
+  effectsMuted: true,
+  effectsVolume: 0.75,
+});
+assert.equal(audioState.music, 0.25);
+assert.equal(audioState.effects, 0);
 
 const emitted = [];
 const eventNames = {

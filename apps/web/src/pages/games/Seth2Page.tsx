@@ -1,27 +1,62 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { isSeth2TestUsername } from '@bg/shared';
+import { Sfx } from '@bg/game-engine';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
+import { useTranslation } from '@/i18n/useTranslation';
+import { PlatformBgm } from '@/lib/platformBgm';
 
 const GAME_PATH = '/games/storm-of-seth-2/index.html';
 
 export function Seth2Page() {
+  const { locale } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const setBalance = useAuthStore((state) => state.setBalance);
   const setTokens = useAuthStore((state) => state.setTokens);
   const [error, setError] = useState('');
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const syncOriginalGameAudio = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'seth2:audio-sync' },
+      window.location.origin,
+    );
+  }, []);
+  const unlockOriginalGameAudio = useCallback(() => {
+    const frameWindow = iframeRef.current?.contentWindow as Seth2AudioBridgeWindow | null;
+    frameWindow?.__YachiyoSeth2UnlockAudio?.();
+    frameWindow?.postMessage({ type: 'seth2:audio-unlock' }, window.location.origin);
+  }, []);
   const gameUrl = useMemo(() => {
     const configuredBase = String(import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
     const apiBase = `${configuredBase || window.location.origin}/api`;
-    const query = new URLSearchParams({ apiBase, build: 'yachiyo-seth2-v2' });
+    const query = new URLSearchParams({
+      apiBase,
+      language: locale,
+      build: 'yachiyo-seth2-v3',
+    });
     return `${GAME_PATH}?${query.toString()}`;
-  }, []);
+  }, [locale]);
+
+  useEffect(() => {
+    const unsubscribeSfx = Sfx.subscribe(syncOriginalGameAudio);
+    const unsubscribeBgm = PlatformBgm.subscribe(syncOriginalGameAudio);
+    const events: Array<keyof WindowEventMap> = ['pointerdown', 'touchstart', 'keydown'];
+    events.forEach((eventName) =>
+      window.addEventListener(eventName, unlockOriginalGameAudio, { passive: true }),
+    );
+    return () => {
+      unsubscribeSfx();
+      unsubscribeBgm();
+      events.forEach((eventName) => window.removeEventListener(eventName, unlockOriginalGameAudio));
+    };
+  }, [syncOriginalGameAudio, unlockOriginalGameAudio]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || !event.data) return;
+      if (event.source !== iframeRef.current?.contentWindow) return;
       const payload = event.data as {
         type?: string;
         balance?: unknown;
@@ -31,6 +66,7 @@ export function Seth2Page() {
       };
       if (payload.type === 'seth2:ready') {
         setError('');
+        syncOriginalGameAudio();
       }
       if (payload.type === 'seth2:balance' || payload.type === 'seth2:ready') {
         const balance = Number(payload.balance);
@@ -49,7 +85,7 @@ export function Seth2Page() {
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [setBalance, setTokens]);
+  }, [setBalance, setTokens, syncOriginalGameAudio]);
 
   if (!user) {
     return (
@@ -74,9 +110,11 @@ export function Seth2Page() {
   return (
     <div className="relative h-[calc(100svh-5.25rem)] min-h-[420px] overflow-hidden rounded-2xl border border-[#E8D48A]/25 bg-[#08040F] shadow-[0_20px_60px_rgba(8,4,15,0.48)]">
       <iframe
+        ref={iframeRef}
         src={gameUrl}
         title="黃金賽特 II：覺醒之力"
         allow="autoplay; fullscreen"
+        onLoad={syncOriginalGameAudio}
         className="absolute inset-0 h-full w-full border-0 bg-black"
       />
       {error && (
@@ -88,6 +126,10 @@ export function Seth2Page() {
     </div>
   );
 }
+
+type Seth2AudioBridgeWindow = Window & {
+  __YachiyoSeth2UnlockAudio?: () => void;
+};
 
 function AccessPanel({ message, action }: { message: string; action?: ReactNode }) {
   return (
