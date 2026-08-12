@@ -13,11 +13,22 @@ import {
   runLockedTransaction,
 } from '../_common/BaseGameService.js';
 import { HotlineService } from '../hotline/hotline.service.js';
-import { h5FishSkillSchema, h5SlotSpinSchema } from './h5Slots.schema.js';
+import {
+  h5BountyFreeModeSchema,
+  h5CaishenFreeDecisionSchema,
+  h5CaishenFreeGambleSchema,
+  h5FishSkillSchema,
+  h5SlotSpinSchema,
+} from './h5Slots.schema.js';
 
 const H5_BUY_FREE_COST_MULTIPLIERS: Partial<Record<H5GameCode, number>> = {
   '278': 50,
-  '321': 50,
+  // gatesofolympushbMain renders the confirmation amount as 75 * betSum.
+  '321': 75,
+};
+
+const H5_ENHANCED_BET_MULTIPLIERS: Partial<Record<H5GameCode, number>> = {
+  '302': 1.5,
 };
 
 const H5_FISH_FREEZE_SKILL_COSTS: Partial<Record<H5GameCode, number>> = {
@@ -31,6 +42,10 @@ export const H5_FISH_FREEZE_DURATION_MS = 5_000;
 
 export function getH5BuyFreeCostMultiplier(gameCode: H5GameCode): number | undefined {
   return H5_BUY_FREE_COST_MULTIPLIERS[gameCode];
+}
+
+export function getH5EnhancedBetMultiplier(gameCode: H5GameCode): number | undefined {
+  return H5_ENHANCED_BET_MULTIPLIERS[gameCode];
 }
 
 export function getH5FishFreezeSkillCost(gameCode: H5GameCode): number | undefined {
@@ -65,6 +80,18 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/session', async (request) => {
     const user = await requireTestUser(request.userId);
+    const requestedCode = (request.query as { gameCode?: string }).gameCode;
+    const requestedGame =
+      requestedCode && isH5GameCode(requestedCode) ? getH5GameByCode(requestedCode) : undefined;
+    const pendingFreeMode = requestedGame
+      ? await service.getPendingSourceFreeMode(request.userId, requestedGame.gameId)
+      : null;
+    const pendingCaishenFree =
+      requestedCode === '278' ? await service.getPendingCaishenFreeDecision(request.userId) : null;
+    const jackpot =
+      requestedCode === '113' || requestedCode === '160'
+        ? await service.jackpot(getH5GameByCode(requestedCode).gameId)
+        : undefined;
     return {
       code: 1,
       user: {
@@ -73,6 +100,9 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
         nickname: user.displayName ?? user.username,
         balance: Number(user.balance.toFixed(2)),
       },
+      ...(pendingFreeMode ? { pendingFreeMode } : {}),
+      ...(pendingCaishenFree ? { pendingCaishenFree } : {}),
+      ...(jackpot ? { jackpot } : {}),
     };
   });
 
@@ -81,8 +111,15 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
     const input = h5SlotSpinSchema.parse(request.body);
     const game = getH5GameByCode(input.gameCode);
     const buyFeatureCostMultiplier = getH5BuyFreeCostMultiplier(input.gameCode);
+    const enhancedBetMultiplier = getH5EnhancedBetMultiplier(input.gameCode);
     if (input.isBuyFree && !buyFeatureCostMultiplier) {
       throw new ApiError('INVALID_ACTION', '此遊戲沒有購買免費遊戲功能');
+    }
+    if (input.isEnhancedBet && !enhancedBetMultiplier) {
+      throw new ApiError('INVALID_ACTION', '此遊戲沒有額外投注功能');
+    }
+    if (input.isBuyFree && input.isEnhancedBet) {
+      throw new ApiError('INVALID_ACTION', '不能同時購買免費遊戲與啟用額外投注');
     }
     const result = await service.bet(
       request.userId,
@@ -92,13 +129,49 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
         ...(input.isBuyFree ? { buyFeature: true } : {}),
       },
       game.gameId,
-      input.isBuyFree
-        ? {
-            buyFeatureCostMultiplier,
-            buyFeatureMaxStake: null,
-          }
-        : undefined,
+      {
+        ...(input.isBuyFree
+          ? {
+              buyFeatureCostMultiplier,
+              buyFeatureMaxStake: null,
+            }
+          : input.isEnhancedBet
+            ? {
+                stakeMultiplier: enhancedBetMultiplier,
+                sourceFeatureMode: 'fortune-gems-extra-bet' as const,
+              }
+            : {}),
+        ...(input.gameCode === '281' || input.gameCode === '232'
+          ? { deferSourceFreeModeSelection: true }
+          : {}),
+        ...(input.gameCode === '278' ? { deferCaishenFreeDecision: true } : {}),
+      },
     );
+    return { ...result, gameCode: input.gameCode };
+  });
+
+  fastify.post('/select-free-mode', async (request) => {
+    await requireTestUser(request.userId);
+    const input = h5BountyFreeModeSchema.parse(request.body);
+    const result = await service.selectSourceFreeMode(
+      request.userId,
+      getH5GameByCode(input.gameCode).gameId,
+      input.betId,
+      input.type,
+    );
+    return { ...result, gameCode: input.gameCode };
+  });
+
+  fastify.post('/caishen/gamble-free', async (request) => {
+    await requireTestUser(request.userId);
+    const input = h5CaishenFreeGambleSchema.parse(request.body);
+    return service.gambleCaishenFree(request.userId, input.betId, input.type);
+  });
+
+  fastify.post('/caishen/collect-free', async (request) => {
+    await requireTestUser(request.userId);
+    const input = h5CaishenFreeDecisionSchema.parse(request.body);
+    const result = await service.collectCaishenFree(request.userId, input.betId);
     return { ...result, gameCode: input.gameCode };
   });
 

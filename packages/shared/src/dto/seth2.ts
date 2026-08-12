@@ -2,7 +2,8 @@ export const SETH2_GAME_CODE = 'storm-of-seth-2' as const;
 export const SETH2_RTP = 96.89;
 export const SETH2_MAX_WIN_MULTIPLIER = 81_000;
 export const SETH2_BUY_FEATURE_MULTIPLIER = 200;
-export const SETH2_FREE_SPINS = 15;
+// The source server opens every natural or purchased feature with 20 games.
+export const SETH2_FREE_SPINS = 20;
 export const SETH2_MAX_FREE_SPINS = 100;
 export const SETH2_MACHINE_PAGES = 8;
 export const SETH2_MACHINES_PER_PAGE = 500;
@@ -21,6 +22,16 @@ export interface Seth2Cell {
   type: number;
   mul: number;
   mul_type?: number;
+  /** Zero-based board slot used by the imported skill animations. */
+  code?: number;
+}
+
+export interface Seth2MultiplierUpgrade {
+  mul: number;
+  new_mul: number;
+  mul_type?: number;
+  type?: number;
+  code?: number;
 }
 
 export interface Seth2CascadeRound {
@@ -28,7 +39,7 @@ export interface Seth2CascadeRound {
   remove_type: number[];
   round_data: Seth2Cell[];
   scoreList: number[];
-  upgrade_mul_list: Array<{ mul: number; new_mul: number }>;
+  upgrade_mul_list: Seth2MultiplierUpgrade[];
   total_mul: number;
   score: number;
   total_gold: number;
@@ -44,8 +55,8 @@ export interface Seth2ReturnData {
   freeGameCount: number;
   addGameCiShu: number;
   type17_mul_list: Seth2Cell[];
-  type17_beishu: { mul: number };
-  type18_start_mul_list: Array<{ mul: number }>;
+  type17_beishu: Seth2Cell | null;
+  type18_start_mul_list: Seth2Cell[];
   type18_mul_count: number;
   JPtype: number;
   JPGold: number;

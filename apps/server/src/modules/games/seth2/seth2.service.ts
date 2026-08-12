@@ -51,6 +51,17 @@ export interface Seth2SessionState {
   featureMode: Seth2FeatureMode;
   betAmount: string;
   multiplierBank: number;
+  femaleLock: Seth2FemaleLockState | null;
+}
+
+export interface Seth2FemaleLockState {
+  cells: Array<{
+    type: 10;
+    mul: number;
+    mul_type: number;
+    code: number;
+  }>;
+  gamesRemaining: number;
 }
 
 interface Seth2Settlement {
@@ -72,6 +83,7 @@ const EMPTY_SESSION: Seth2SessionState = {
   featureMode: 'none',
   betAmount: '0.00',
   multiplierBank: 0,
+  femaleLock: null,
 };
 
 export class Seth2Service {
@@ -321,6 +333,10 @@ export class Seth2Service {
               multiplierBankBefore,
             )
           : originalOutcome;
+      const femaleLock = applyFemaleLockState(
+        finalOutcome.returnData,
+        freeSpin ? currentSession.femaleLock : null,
+      );
       const finalPayout = payoutForFactor(baseAmount, finalOutcome.payoutFactor);
       const finalControlMultiplier = finalPayout
         .div(controlAmount)
@@ -338,6 +354,7 @@ export class Seth2Service {
         boughtFeatureMode,
         extraSpins: finalOutcome.returnData.addGameCiShu,
         multiplierBankAfter: finalOutcome.returnData.multiplierBankAfter,
+        femaleLock,
       });
       const responseFeatureMode: Seth2FeatureMode = buying
         ? boughtFeatureMode
@@ -513,6 +530,7 @@ function readSession(resultData: Prisma.JsonValue | undefined): Seth2SessionStat
   const betAmount = String(value.betAmount ?? '0');
   const featureMode = value.featureMode;
   const multiplierBank = value.multiplierBank === undefined ? 0 : Number(value.multiplierBank);
+  const femaleLock = readFemaleLock(value.femaleLock);
   if (
     !Number.isInteger(remaining) ||
     remaining < 0 ||
@@ -521,11 +539,97 @@ function readSession(resultData: Prisma.JsonValue | undefined): Seth2SessionStat
     multiplierBank < 0 ||
     multiplierBank > MAX_MULTIPLIER_BANK ||
     !ALLOWED_BET_SET.has(Number(betAmount)) ||
-    (featureMode !== 'none' && featureMode !== 'standard' && featureMode !== 'awakening')
+    (featureMode !== 'none' && featureMode !== 'standard' && featureMode !== 'awakening') ||
+    femaleLock === undefined
   ) {
     return EMPTY_SESSION;
   }
-  return { freeSpinsRemaining: remaining, featureMode, betAmount, multiplierBank };
+  return { freeSpinsRemaining: remaining, featureMode, betAmount, multiplierBank, femaleLock };
+}
+
+function readFemaleLock(value: unknown): Seth2FemaleLockState | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const lock = value as Record<string, unknown>;
+  const gamesRemaining = Number(lock.gamesRemaining);
+  if (!Number.isInteger(gamesRemaining) || gamesRemaining < 1 || gamesRemaining > 4) {
+    return undefined;
+  }
+  if (!Array.isArray(lock.cells) || lock.cells.length < 1 || lock.cells.length > 6) return undefined;
+  const cells: Seth2FemaleLockState['cells'] = [];
+  for (const raw of lock.cells) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+    const source = raw as Record<string, unknown>;
+    const mul = Number(source.mul);
+    const mulType = Number(source.mul_type);
+    const code = Number(source.code);
+    if (
+      !Number.isInteger(mul) ||
+      mul < 2 ||
+      mul > 500 ||
+      !Number.isInteger(mulType) ||
+      (mulType !== 0 && mulType !== 1) ||
+      !Number.isInteger(code) ||
+      code < 0 ||
+      code >= 30
+    ) {
+      return undefined;
+    }
+    cells.push({ type: 10, mul, mul_type: mulType, code });
+  }
+  return { cells, gamesRemaining };
+}
+
+export function applyFemaleLockState(
+  data: Seth2ReturnData,
+  current: Seth2FemaleLockState | null,
+): Seth2FemaleLockState | null {
+  if (data.type18_start_mul_list.length > 0) {
+    const cells = data.type18_start_mul_list.map((cell) => ({
+      type: 10 as const,
+      mul: cell.mul,
+      mul_type: cell.mul_type ?? 0,
+      code: cell.code ?? 0,
+    }));
+    data.type18_start_mul_list = cells.map((cell) => ({ ...cell }));
+    data.type18_mul_count = 4;
+    return { cells, gamesRemaining: 3 };
+  }
+  if (!current) {
+    data.type18_start_mul_list = [];
+    data.type18_mul_count = 0;
+    return null;
+  }
+  placeFemaleLockCells(data, current.cells);
+  data.type18_start_mul_list = current.cells.map((cell) => ({ ...cell }));
+  data.type18_mul_count = current.gamesRemaining;
+  return current.gamesRemaining > 1
+    ? { cells: current.cells.map((cell) => ({ ...cell })), gamesRemaining: current.gamesRemaining - 1 }
+    : null;
+}
+
+function placeFemaleLockCells(
+  data: Seth2ReturnData,
+  cells: Seth2FemaleLockState['cells'],
+): void {
+  const board = data.list[0]?.start_data;
+  if (!board || board.length !== 30) return;
+  const targetCodes = new Set(cells.map((cell) => cell.code));
+  for (const locked of cells) {
+    const target = locked.code;
+    const displaced = board[target];
+    if (!displaced) continue;
+    if (data.list[0]!.remove_type.includes(displaced.type) || displaced.type === 10) {
+      const swapIndex = board.findIndex(
+        (candidate, index) =>
+          !targetCodes.has(index) &&
+          candidate.type !== 10 &&
+          !data.list[0]!.remove_type.includes(candidate.type),
+      );
+      if (swapIndex >= 0) board[swapIndex] = displaced;
+    }
+    board[target] = { ...locked };
+  }
 }
 
 export function advanceSession(
@@ -539,6 +643,7 @@ export function advanceSession(
     boughtFeatureMode: Seth2FeatureMode;
     extraSpins: number;
     multiplierBankAfter: number;
+    femaleLock: Seth2FemaleLockState | null;
   },
 ): Seth2SessionState {
   if (input.buying) {
@@ -547,6 +652,7 @@ export function advanceSession(
       featureMode: input.boughtFeatureMode,
       betAmount: input.betAmount.toFixed(2),
       multiplierBank: 0,
+      femaleLock: null,
     };
   }
   if (input.freeSpin) {
@@ -559,6 +665,7 @@ export function advanceSession(
       featureMode: remaining > 0 ? current.featureMode : 'none',
       betAmount: remaining > 0 ? current.betAmount : '0.00',
       multiplierBank: remaining > 0 ? input.multiplierBankAfter : 0,
+      femaleLock: remaining > 0 ? input.femaleLock : null,
     };
   }
   if (input.triggeredFreeSpins) {
@@ -567,6 +674,7 @@ export function advanceSession(
       featureMode: input.triggeredFeatureMode === 'awakening' ? 'awakening' : 'standard',
       betAmount: input.betAmount.toFixed(2),
       multiplierBank: 0,
+      femaleLock: null,
     };
   }
   return EMPTY_SESSION;

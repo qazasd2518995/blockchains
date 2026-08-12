@@ -52,6 +52,7 @@ export interface HotlineWinLine {
   count: number;
   payout: number;
   ways?: number;
+  jackpotShare?: number;
 }
 
 export interface HotlineWinPosition {
@@ -65,6 +66,27 @@ export interface HotlineCascadeStep {
   lines: HotlineWinLine[];
   multiplier: number;
   removed: HotlineWinPosition[];
+  goldPositions?: HotlineWinPosition[];
+  sourceAction?: HotlineCascadeSourceAction;
+  sourceGrid?: number[][];
+  collectedSymbols?: number;
+  collectedThisStep?: number;
+  sourceStacks?: HotlineSourceStack[];
+  sourceAppliedMultiplier?: number;
+}
+
+export interface HotlineSourceStack {
+  id: number;
+  symbol: number;
+  positions: HotlineWinPosition[];
+  state: 'ordinary' | 'gold' | 'wild';
+  remaining?: number;
+}
+
+export interface HotlineCascadeSourceAction {
+  type: 'dragon-earth' | 'dragon-water' | 'dragon-fire' | 'dragon-queen';
+  positions: HotlineWinPosition[];
+  symbol?: number;
 }
 
 export interface HotlineSpecialSymbol extends HotlineWinPosition {
@@ -83,8 +105,47 @@ export interface HotlineFreeSpinRound {
   multiplierSymbols: HotlineSpecialSymbol[];
   multiplierTotal: number;
   appliedMultiplier: number;
+  sourceMultiplierBank?: number;
   totalMultiplier: number;
   extraFreeSpinsAwarded: number;
+  sourceJackpot?: HotlineSourceJackpotResult;
+  sourceMiniGame?: HotlineFruitLittleMaryMiniGameResult;
+  sourceFeature?: HotlineSourceFeatureResult;
+  finalGoldPositions?: HotlineWinPosition[];
+  finalSourceStacks?: HotlineSourceStack[];
+}
+
+export type HotlineSourceJackpotResult =
+  | {
+      type: 'diamond-strike-jackpot';
+      tierMultiplier: 10 | 30 | 100 | 1000;
+      picks: number[];
+      payoutMultiplier: number;
+    }
+  | {
+      type: 'fruit-little-mary-jackpot';
+      positions: HotlineWinPosition[];
+      payoutMultiplier: number;
+    }
+  | {
+      type: 'fire-88-jackpot';
+      tierMultiplier: 38 | 88 | 888;
+      picks: number[];
+      payoutMultiplier: number;
+    };
+
+export interface HotlineFruitLittleMaryMiniRound {
+  reelSymbols: number[];
+  stopIndex: number;
+  lineBetMultiplier: number;
+}
+
+export interface HotlineFruitLittleMaryMiniGameResult {
+  type: 'fruit-little-mary';
+  attempts: number;
+  rounds: HotlineFruitLittleMaryMiniRound[];
+  lineBetMultiplier: number;
+  payoutMultiplier: number;
 }
 
 export interface HotlineMegaFeatureResult {
@@ -101,14 +162,47 @@ export interface HotlineMegaFeatureResult {
   freeSpinMultiplierBank: number;
   freeSpinWinMultiplier: number;
   totalMultiplier: number;
+  sourceFreeModeType?: number;
+  sourceFreeWinMultiplier?: number;
+  sourceJackpot?: HotlineSourceJackpotResult;
+  sourceMiniGame?: HotlineFruitLittleMaryMiniGameResult;
 }
+
+export type HotlineSourceFeatureResult =
+  | {
+      type: 'fortune-ox-respin';
+      triggered: boolean;
+      respins: number;
+      fullScreenMultiplier: number;
+    }
+  | {
+      type: 'fortune-gems-multiplier';
+      multiplierIndex: number;
+      multiplier: number;
+      enhancedBet: boolean;
+      winEx: boolean;
+    }
+  | {
+      type: 'aztec-gems-multiplier';
+      multiplierIndex: number;
+      multiplier: 1 | 2 | 3 | 5 | 10 | 15;
+    }
+  | {
+      type: 'star-97-seven-multiplier';
+      sevenCount: number;
+      multiplier: number;
+    };
 
 export interface HotlineBetResult {
   betId: string;
   grid: number[][];
   lines: HotlineWinLine[];
   cascades?: HotlineCascadeStep[];
+  finalGoldPositions?: HotlineWinPosition[];
+  finalSourceStacks?: HotlineSourceStack[];
   features?: HotlineMegaFeatureResult;
+  sourceFeature?: HotlineSourceFeatureResult;
+  enhancedBet?: boolean;
   buyFeature?: boolean;
   baseAmount?: string;
   stakeAmount?: string;
@@ -121,4 +215,12 @@ export interface HotlineBetResult {
   nonce: number;
   serverSeedHash: string;
   clientSeed: string;
+  /** The paid trigger is stored server-side until the source selector replies. */
+  requiresFreeModeSelection?: boolean;
+  /** Response contains only the already-selected free-game continuation. */
+  freeModeContinuation?: boolean;
+  /** Caishen's trigger is waiting for collect or a free-game gamble. */
+  requiresCaishenFreeDecision?: boolean;
+  /** Response contains Caishen free rounds settled after the source decision. */
+  caishenFreeContinuation?: boolean;
 }

@@ -25,10 +25,25 @@
   var fishSkillInFlight = false;
   var slotSettlementInFlight = false;
   var FISH_PATH_COUNT = 43;
-  var FISH_STREAM_MIN_INTERVAL_MS = 900;
-  var FISH_STREAM_JITTER_MS = 650;
+  // Counts recovered from the four source scenes.  Fish IDs are zero based;
+  // restricting every room to ids 1-12 left most of the original prefabs
+  // unused and made the stream look like the same school repeating forever.
+  var FISH_TYPE_COUNTS = { 2: 24, 12: 28, 13: 24, 14: 34 };
+  // The live source emits roughly one school every 0.3-0.8 seconds.  Keep the
+  // same density while retaining a bounded target list below, so movement
+  // stays populated without accumulating off-screen objects indefinitely.
+  var FISH_STREAM_MIN_INTERVAL_MS = 420;
+  var FISH_STREAM_JITTER_MS = 480;
   var pendingLegacyResponses = [];
   var freeSelectionCount = 0;
+  var pendingFreeModeBetId = null;
+  var pendingFreeModeTrigger = null;
+  var freeModeSelectionInFlight = false;
+  var pendingCaishenBetId = null;
+  var pendingCaishenTrigger = null;
+  var caishenFreeCount = 8;
+  var caishenFreeMul = 8;
+  var caishenDecisionInFlight = false;
   var SFX_PREFS_KEY = 'bg.sfx.prefs';
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
   var audioBridge = null;
@@ -354,11 +369,7 @@
   }
 
   function shouldHideLegacyButtonHandler(handler) {
-    if (handler === 'onCLick_buyCoin') return true;
-    // Caishen Wins settles every awarded free round atomically on the server.
-    // Its source gamble changes the number/multiplier of those already-settled
-    // rounds, so exposing it would make the animation disagree with the ledger.
-    return gameCode === '278' && handler === 'onBtnGuess';
+    return handler === 'onCLick_buyCoin';
   }
 
   function hideUnsupportedLegacyButtons() {
@@ -485,11 +496,68 @@
     return disabledCount;
   }
 
+  function patchLegacyFreeSpinCountdown() {
+    var componentName =
+      gameCode === '113'
+        ? 'JXLWMain'
+        : gameCode === '135'
+          ? 'DiamondMain'
+          : gameCode === '155'
+            ? 'YPTMain'
+            : gameCode === '160'
+              ? 'SGXMLMain'
+              : gameCode === '188'
+                ? 'Fire88Main'
+                : gameCode === '232'
+                  ? 'lucky777Main'
+                  : '';
+    if (!componentName || !window.cc) return false;
+    var canvas = window.cc.find('Canvas');
+    var game = canvas && canvas.getComponent(componentName);
+    if (
+      !game ||
+      game.__yachiyoFreeSpinCountdownPatched ||
+      typeof game.startFreeGame !== 'function'
+    ) {
+      return false;
+    }
+    var originalStartFreeGame = game.startFreeGame;
+    if (gameCode === '188') {
+      game.startFreeGame = function () {
+        var main = this;
+        // Fire88 schedules its base-win cleanup and free-mode start for the
+        // same frame. Finish that cleanup first and pause base autoplay so it
+        // cannot issue a second paid request alongside the free respin.
+        this.auto = false;
+        this.scheduleOnce(function () {
+          main.stopFree = false;
+          main.freeTimes = 0;
+          originalStartFreeGame.call(main);
+        }, 0.15);
+      };
+      game.__yachiyoFreeSpinCountdownPatched = true;
+      return true;
+    }
+    game.startFreeGame = function () {
+      // These packaged clients consume one counter before sending the first
+      // free request. Diamond consumes it inside startFreeGame; Nine-Line and
+      // Yu Pu Tuan consume it immediately before the call. Restore that
+      // counter so an advertised award of N produces exactly N backend rounds.
+      var recoveringPredecrementedSession =
+        (gameCode === '135' || gameCode === '160') && !this.bIsFreeGame;
+      this.freeTimes += recoveringPredecrementedSession ? 2 : 1;
+      return originalStartFreeGame.apply(this, arguments);
+    };
+    game.__yachiyoFreeSpinCountdownPatched = true;
+    return true;
+  }
+
   function applyCocosScenePolicies() {
     hideUnsupportedLegacyButtons();
     enhanceFishAimControls();
     hideUnusedFishSeats();
     disableLegacyBrandWebViews();
+    patchLegacyFreeSpinCountdown();
   }
 
   function installCocosScenePolicies() {
@@ -551,37 +619,196 @@
   installCocosScenePolicies();
 
   var GAME_SHAPES = {
-    113: { family: 'classic', reels: 5, rows: 3, free: 'view' },
-    116: { family: 'classic', reels: 5, rows: 3, free: 'view' },
-    135: { family: 'classic', reels: 5, rows: 3, free: 'view' },
-    155: { family: 'classic', reels: 5, rows: 4, free: 'view' },
-    160: { family: 'classic', reels: 5, rows: 3, free: 'view' },
+    113: {
+      family: 'classic',
+      reels: 5,
+      rows: 3,
+      free: 'view',
+      standardSymbols: 14,
+      seven: 11,
+      jackpotChest: 12,
+      freeDiamond: 13,
+      bar: 14,
+    },
+    116: {
+      family: 'classic',
+      reels: 5,
+      rows: 3,
+      free: 'view',
+      standardSymbols: 9,
+      bonusDragon: 9,
+    },
+    135: {
+      family: 'classic',
+      reels: 5,
+      rows: 3,
+      free: 'view',
+      standardSymbols: 9,
+      seven: 6,
+      scatter: 7,
+      wild: 8,
+      goldenSeven: 9,
+    },
+    155: {
+      family: 'classic',
+      reels: 5,
+      rows: 4,
+      free: 'view',
+      standardSymbols: 13,
+      wild: 9,
+      scatter: 10,
+    },
+    160: {
+      family: 'classic',
+      reels: 5,
+      rows: 3,
+      free: 'view',
+      standardSymbols: 11,
+      bonus: 9,
+      scatter: 10,
+      wild: 11,
+      featureTrigger: 9,
+    },
     161: {
       family: 'classic',
       reels: 3,
       rows: 3,
       free: 'view',
       multiplierWheel: true,
+      standardSymbols: 8,
+      wild: 8,
     },
-    188: { family: 'classic', reels: 3, rows: 3, free: 'view' },
-    232: { family: 'classic', reels: 3, rows: 3, free: 'view' },
-    244: { family: 'classic', reels: 5, rows: 3, free: 'view' },
-    252: { family: 'classic', reels: 5, rows: 3, free: 'view' },
-    262: { family: 'classic', reels: 3, rows: 3, free: 'view' },
-    264: { family: 'classic', reels: 3, rows: 4, free: 'view' },
-    269: { family: 'mahjong', reels: 5, rows: 4, free: 'top', scatter: 10 },
-    271: { family: 'mahjong', reels: 5, rows: 5, free: 'top', scatter: 11 },
-    273: { family: 'tumble', reels: 6, rows: 5, order: 'column', free: 'none' },
-    276: { family: 'step', reels: 5, rows: 3, free: 'top', scatter: 8 },
-    278: { family: 'ways', reels: 6, rows: 5, free: 'top', scatter: 12 },
-    281: { family: 'step', reels: 5, rows: 3, free: 'top', scatter: 8 },
-    301: { family: 'ways', reels: 6, rows: 5, free: 'top', scatter: 11 },
+    188: {
+      family: 'classic',
+      reels: 3,
+      rows: 3,
+      free: 'view',
+      standardSymbols: 8,
+      wild: 7,
+      jackpot88: 8,
+    },
+    232: {
+      family: 'classic',
+      reels: 3,
+      rows: 3,
+      free: 'view',
+      standardSymbols: 9,
+      wild: 9,
+      featureTrigger: 9,
+    },
+    244: {
+      family: 'classic',
+      reels: 5,
+      rows: 3,
+      free: 'view',
+      standardSymbols: 11,
+      scatter: 9,
+      featureTrigger: 9,
+      blueWild: 10,
+      redWild: 11,
+      caishenFaFaFa: true,
+    },
+    252: {
+      family: 'classic',
+      reels: 5,
+      rows: 3,
+      free: 'view',
+      standardSymbols: 13,
+      wild: 13,
+    },
+    262: {
+      family: 'classic',
+      reels: 3,
+      rows: 3,
+      free: 'view',
+      standardSymbols: 9,
+      star97: true,
+    },
+    264: {
+      family: 'classic',
+      reels: 3,
+      rows: 4,
+      reelRows: [3, 4, 3],
+      rowOffsets: [1, 0, 1],
+      blankSymbol: 8,
+      wild: 7,
+      free: 'view',
+    },
+    269: {
+      family: 'mahjong',
+      reels: 5,
+      rows: 4,
+      free: 'top',
+      standardSymbols: 8,
+      scatter: 9,
+      wild: 10,
+    },
+    271: {
+      family: 'mahjong',
+      reels: 5,
+      rows: 5,
+      reelRows: [4, 5, 5, 5, 4],
+      rowOffsets: [0, 0, 0, 0, 0],
+      blankSymbol: 12,
+      free: 'top',
+      standardSymbols: 9,
+      scatter: 10,
+      wild: 11,
+    },
+    273: {
+      family: 'tumble',
+      reels: 5,
+      rows: 5,
+      order: 'column',
+      free: 'none',
+      standardSymbols: 8,
+      wild: 9,
+      collection: true,
+    },
+    276: {
+      family: 'step',
+      reels: 5,
+      rows: 3,
+      free: 'top',
+      standardSymbols: 7,
+      scatter: 8,
+      wild: 9,
+    },
+    278: {
+      family: 'ways',
+      reels: 6,
+      rows: 5,
+      free: 'top',
+      standardSymbols: 7,
+      wild: 11,
+      scatter: 12,
+    },
+    281: {
+      family: 'step',
+      reels: 5,
+      rows: 3,
+      free: 'top',
+      standardSymbols: 7,
+      scatter: 8,
+      wild: 9,
+    },
+    301: {
+      family: 'ways',
+      reels: 6,
+      rows: 5,
+      free: 'top',
+      standardSymbols: 10,
+      scatter: 11,
+      wild: 12,
+    },
     302: {
       family: 'classic',
       reels: 3,
       rows: 3,
       free: 'view',
       extraCard: true,
+      standardSymbols: 8,
+      wild: 8,
     },
     321: {
       family: 'tumble',
@@ -589,7 +816,8 @@
       rows: 5,
       order: 'column',
       free: 'fs',
-      scatter: 9,
+      standardSymbols: 9,
+      scatter: 10,
     },
   };
 
@@ -705,8 +933,35 @@
 
   function localSession() {
     if (latestSession) return Promise.resolve(latestSession);
-    return authorizedRequest(gameApi + '/session', 'GET', null, false).then(function (payload) {
+    return authorizedRequest(
+      gameApi + '/session?gameCode=' + encodeURIComponent(gameCode),
+      'GET',
+      null,
+      false,
+    ).then(function (payload) {
       latestSession = payload.user;
+      if (payload.jackpot) latestSession.jackpot = payload.jackpot;
+      if ((gameCode === '281' || gameCode === '232') && payload.pendingFreeMode) {
+        pendingFreeModeBetId = payload.pendingFreeMode.betId;
+        pendingFreeModeTrigger = payload.pendingFreeMode;
+        freeSelectionCount = gameCode === '232' ? 28 : 20;
+      }
+      if (gameCode === '278' && payload.pendingCaishenFree) {
+        pendingCaishenBetId = payload.pendingCaishenFree.betId;
+        pendingCaishenTrigger = payload.pendingCaishenFree;
+        caishenFreeCount = Number(
+          payload.pendingCaishenFree.features &&
+            payload.pendingCaishenFree.features.freeSpinsAwarded
+            ? payload.pendingCaishenFree.features.freeSpinsAwarded
+            : 8,
+        );
+        caishenFreeMul = Number(
+          payload.pendingCaishenFree.features &&
+            payload.pendingCaishenFree.features.sourceFreeWinMultiplier
+            ? payload.pendingCaishenFree.features.sourceFreeWinMultiplier
+            : 8,
+        );
+      }
       return latestSession;
     });
   }
@@ -1077,13 +1332,32 @@
       socket._trigger('changeCannonResult', parseSocketPayload(rawPayload));
     } else if (event === 'useSKill') {
       handleFishSkill(socket, rawPayload);
+    } else if (event === 'guessFree') {
+      gambleCaishenFree(socket, rawPayload);
     } else if (event === 'LoginfreeCount') {
       window.setTimeout(function () {
+        if (gameCode === '278' && pendingCaishenTrigger) {
+          socket._trigger('LoginfreeCountResult', {
+            ResultCode: 1,
+            freeCount: 0,
+            freeMul: caishenFreeMul,
+            freeStart: false,
+          });
+          pendingLegacyResponses = buildLotteryResponses(pendingCaishenTrigger);
+          pendingCaishenTrigger = null;
+          emitQueuedLotteryResponse(socket);
+          return;
+        }
         socket._trigger('LoginfreeCountResult', {
           ResultCode: 1,
-          freeCount: freeSelectionCount,
-          freeType: freeSelectionCount > 0 ? 1 : 0,
+          freeCount: pendingFreeModeTrigger ? 0 : freeSelectionCount,
+          freeType: pendingFreeModeTrigger ? 0 : freeSelectionCount > 0 ? 1 : 0,
         });
+        if (pendingFreeModeTrigger) {
+          pendingLegacyResponses = buildLotteryResponses(pendingFreeModeTrigger);
+          pendingFreeModeTrigger = null;
+          emitQueuedLotteryResponse(socket);
+        }
       }, 0);
     } else if (event === 'history') {
       authorizedRequest(
@@ -1100,15 +1374,19 @@
       settleSpin(socket, rawPayload);
     } else if (event === 'freeTimeType') {
       var freeTypePayload = parseSocketPayload(rawPayload);
-      window.setTimeout(function () {
-        socket._trigger('freeTimeTypeResult', {
-          ResultCode: 1,
-          ResultData: {
-            type: Math.max(1, Number(freeTypePayload.type || 1)),
-            freeCount: freeSelectionCount,
-          },
-        });
-      }, 0);
+      if ((gameCode === '281' || gameCode === '232') && pendingFreeModeBetId) {
+        settleBountyFreeModeSelection(socket, freeTypePayload);
+      } else {
+        window.setTimeout(function () {
+          socket._trigger('freeTimeTypeResult', {
+            ResultCode: 1,
+            ResultData: {
+              type: Math.max(1, Number(freeTypePayload.type || 1)),
+              freeCount: freeSelectionCount,
+            },
+          });
+        }, 0);
+      }
     } else if (event === 'cleanLineOut') {
       // Source scenes emit this while being destroyed. The local bridge has
       // no shared table membership to clean up, but handling it explicitly
@@ -1118,6 +1396,8 @@
   };
 
   function emitGameLogin(socket, session) {
+    var visibleJackpot = Number(session.jackpot && session.jackpot.grand);
+    if (!Number.isFinite(visibleJackpot)) visibleJackpot = 1000000;
     if (isFishGame && window.cc) {
       try {
         var lobbyCanvas = window.cc.find('Canvas');
@@ -1132,7 +1412,7 @@
     socket._trigger('loginGameResult', {
       resultid: 1,
       Obj: {
-        nGamblingWinPool: 1000000,
+        nGamblingWinPool: visibleJackpot,
         score: Number(session.balance || 0),
         bet: fishRoomBet,
         cannonConfig: [],
@@ -1379,35 +1659,84 @@
       socket._trigger('FishOut', spawn);
       window.setTimeout(spawnFish, getFishSpawnDelay(fishSequence));
     }
-    window.setTimeout(spawnFish, 600);
+    window.setTimeout(spawnFish, 350);
+  }
+
+  function mixFishSequence(sequence, salt) {
+    var value = Math.imul((Number(sequence) || 0) ^ salt, 0x45d9f3b);
+    value = Math.imul(value ^ (value >>> 16), 0x45d9f3b);
+    return (value ^ (value >>> 16)) >>> 0;
   }
 
   function buildFishSpawn(sequence) {
-    var fishType = 1 + ((sequence * 7) % 12);
-    var generation = Math.floor(sequence / 12);
-    var isSmallFish = fishType <= 4;
-    var shouldSchool = isSmallFish && (generation + fishType) % 2 === 0;
-    var fishCount = shouldSchool ? 2 + ((generation + fishType) % 4 === 0 ? 1 : 0) : 1;
+    var typeCount = FISH_TYPE_COUNTS[gameCode] || 24;
+    var typeRoll = mixFishSequence(sequence, 0x13579bdf);
+    var rarityRoll = typeRoll % 100;
+    var commonCount = Math.min(10, typeCount);
+    var fishType;
+    if (rarityRoll < 72) {
+      fishType = mixFishSequence(sequence, 0x2468ace0) % commonCount;
+    } else if (rarityRoll < 94) {
+      fishType =
+        commonCount +
+        (mixFishSequence(sequence, 0x10203040) % Math.max(1, typeCount - commonCount));
+    } else {
+      // Surface the large/boss prefabs occasionally instead of starving them
+      // completely as the former twelve-type loop did.
+      fishType = Math.max(0, typeCount - 1 - (typeRoll % Math.min(4, typeCount)));
+    }
+
+    var formationRoll = mixFishSequence(sequence, 0x55aa55aa) % 20;
+    var fishLineup = 0;
+    var fishCount = 1;
+    var canSchool = fishType < Math.min(16, typeCount);
+    if (canSchool && formationRoll < 10) {
+      if (formationRoll < 5) {
+        fishLineup = 0;
+        fishCount = 2 + (mixFishSequence(sequence, 0x11223344) % 4);
+      } else if (formationRoll < 7) {
+        fishLineup = 1;
+        fishCount = 2 + (mixFishSequence(sequence, 0x22334455) % 3);
+      } else if (formationRoll === 7) {
+        fishLineup = 2;
+        fishCount = 4;
+      } else if (formationRoll === 8) {
+        fishLineup = 3;
+        fishCount = 3 + (mixFishSequence(sequence, 0x33445566) % 3);
+      } else {
+        fishLineup = 4;
+        fishCount = 6;
+      }
+    } else if (!canSchool && formationRoll === 0) {
+      fishCount = 2;
+    }
     var fishIds = Array.from({ length: fishCount }, function (_value, index) {
       return 'yachiyo-fish-' + sequence + '-' + index;
     });
     return {
       fishType: fishType,
-      fishPath: (sequence * 17 + Math.floor(sequence / 6) * 11) % FISH_PATH_COUNT,
-      fishLineup: shouldSchool ? 1 : 0,
+      fishPath: mixFishSequence(sequence, 0x7f4a7c15) % FISH_PATH_COUNT,
+      fishLineup: fishLineup,
       fishCount: fishCount,
       fishId: fishIds,
+      lineup: false,
+      propCount: 0,
     };
   }
 
   function getFishSpawnDelay(sequence) {
-    return FISH_STREAM_MIN_INTERVAL_MS + ((sequence * 137) % FISH_STREAM_JITTER_MS);
+    return (
+      FISH_STREAM_MIN_INTERVAL_MS +
+      (mixFishSequence(sequence, 0x6c8e9cf5) % FISH_STREAM_JITTER_MS)
+    );
   }
 
   function buildLobbyLogin(session) {
+    var visibleJackpot = Number(session.jackpot && session.jackpot.grand);
+    if (!Number.isFinite(visibleJackpot)) visibleJackpot = 1000000;
     return {
       resultid: 1,
-      win_pool: 1000000,
+      win_pool: visibleJackpot,
       Obj: {
         account: session.username,
         sign: 'yachiyo-local',
@@ -1435,6 +1764,10 @@
       emitQueuedLotteryResponse(socket);
       return;
     }
+    if (gameCode === '278' && pendingCaishenBetId) {
+      collectCaishenFree(socket);
+      return;
+    }
     // A few legacy scenes can emit a second `lottery` event before the first
     // authenticated settlement returns. Keep the first request authoritative;
     // its response releases the same source controls without charging twice.
@@ -1450,21 +1783,40 @@
     }
     var amount = requestedAmount;
     var isFeaturePurchase = payload.isBuyFree === 1 && (gameCode === '278' || gameCode === '321');
+    var isEnhancedBet = payload.isBuyFree === 1 && gameCode === '302';
+    var spinRequest = {
+      gameCode: gameCode,
+      amount: amount,
+      isBuyFree: isFeaturePurchase,
+    };
+    if (isEnhancedBet) spinRequest.isEnhancedBet = true;
     slotSettlementInFlight = true;
-    authorizedRequest(
-      gameApi + '/spin',
-      'POST',
-      {
-        gameCode: gameCode,
-        amount: amount,
-        isBuyFree: isFeaturePurchase,
-      },
-      false,
-    )
+    authorizedRequest(gameApi + '/spin', 'POST', spinRequest, false)
       .then(function (result) {
         latestSession = latestSession || {};
         latestSession.balance = Number(result.newBalance || 0);
+        if (result.jackpot) {
+          latestSession.jackpot = result.jackpot;
+          socket._trigger('pushGamblingWinPool', {
+            ResultCode: 1,
+            nGamblingWinPool: Number(result.jackpot.grand || 0),
+          });
+        }
         pendingLegacyResponses = buildLotteryResponses(result);
+        pendingFreeModeBetId = result.requiresFreeModeSelection ? result.betId : null;
+        pendingCaishenBetId = result.requiresCaishenFreeDecision ? result.betId : null;
+        if (pendingCaishenBetId) {
+          caishenFreeCount = Number(
+            result.features && result.features.freeSpinsAwarded
+              ? result.features.freeSpinsAwarded
+              : 8,
+          );
+          caishenFreeMul = Number(
+            result.features && result.features.sourceFreeWinMultiplier
+              ? result.features.sourceFreeWinMultiplier
+              : 8,
+          );
+        }
         freeSelectionCount = Number(
           result.features && result.features.freeSpinsAwarded
             ? result.features.freeSpinsAwarded
@@ -1487,6 +1839,133 @@
       });
   }
 
+  function gambleCaishenFree(socket, rawPayload) {
+    if (gameCode !== '278' || !pendingCaishenBetId || caishenDecisionInFlight) return;
+    var payload = parseSocketPayload(rawPayload);
+    var guessType = Math.trunc(Number(payload.type));
+    if (guessType !== 0 && guessType !== 1) return;
+    caishenDecisionInFlight = true;
+    authorizedRequest(
+      gameApi + '/caishen/gamble-free',
+      'POST',
+      { gameCode: gameCode, betId: pendingCaishenBetId, type: guessType },
+      false,
+    )
+      .then(function (result) {
+        caishenFreeCount = Number(result.freeCount || 0);
+        caishenFreeMul = Number(result.freeMul || caishenFreeMul);
+        if (Number(result.guessResult) === 0) pendingCaishenBetId = null;
+        latestSession = latestSession || {};
+        latestSession.balance = Number(result.newBalance || latestSession.balance || 0);
+        socket._trigger('guessFreeResult', {
+          ResultCode: 1,
+          guessResult: Number(result.guessResult) === 1 ? 1 : 0,
+          freeCount: caishenFreeCount,
+          freeMul: caishenFreeMul,
+        });
+        notifyParent('h5-slots:balance', {
+          balance: Number(latestSession.balance || 0),
+          gameCode: gameCode,
+          spinId: result.settlement && result.settlement.betId,
+        });
+      })
+      .catch(function (error) {
+        var message = error && error.message ? error.message : '免費遊戲猜獎失敗';
+        socket._trigger('guessFreeResult', { ResultCode: -1, msg: message });
+        notifyParent('h5-slots:error', { message: message });
+      })
+      .finally(function () {
+        caishenDecisionInFlight = false;
+      });
+  }
+
+  function collectCaishenFree(socket) {
+    if (!pendingCaishenBetId || caishenDecisionInFlight) return;
+    var selectedBetId = pendingCaishenBetId;
+    caishenDecisionInFlight = true;
+    authorizedRequest(
+      gameApi + '/caishen/collect-free',
+      'POST',
+      { gameCode: gameCode, betId: selectedBetId },
+      false,
+    )
+      .then(function (result) {
+        latestSession = latestSession || {};
+        latestSession.balance = Number(result.newBalance || 0);
+        pendingLegacyResponses = buildLotteryResponses(result).filter(function (queued) {
+          return queued.startsFreeSpin;
+        });
+        freeSelectionCount = pendingLegacyResponses.filter(function (queued) {
+          return queued.startsFreeSpin;
+        }).length;
+        pendingCaishenBetId = null;
+        emitQueuedLotteryResponse(socket);
+        notifyParent('h5-slots:balance', {
+          balance: Number(result.newBalance || 0),
+          gameCode: gameCode,
+          spinId: result.betId,
+        });
+      })
+      .catch(function (error) {
+        var message = error && error.message ? error.message : '免費遊戲領取失敗';
+        emitLotteryError(socket, message, -998);
+        notifyParent('h5-slots:error', { message: message });
+      })
+      .finally(function () {
+        caishenDecisionInFlight = false;
+      });
+  }
+
+  function settleBountyFreeModeSelection(socket, rawPayload) {
+    if (freeModeSelectionInFlight || !pendingFreeModeBetId) return;
+    var selectedType = Math.max(1, Math.min(3, Math.trunc(Number(rawPayload.type || 1))));
+    var selectedBetId = pendingFreeModeBetId;
+    freeModeSelectionInFlight = true;
+    authorizedRequest(
+      gameApi + '/select-free-mode',
+      'POST',
+      { gameCode: gameCode, betId: selectedBetId, type: selectedType },
+      false,
+    )
+      .then(function (result) {
+        latestSession = latestSession || {};
+        latestSession.balance = Number(result.newBalance || 0);
+        pendingLegacyResponses = buildLotteryResponses(result).filter(function (queued) {
+          return queued.startsFreeSpin;
+        });
+        freeSelectionCount =
+          gameCode === '232'
+            ? selectedType === 1
+              ? 28
+              : selectedType === 2
+                ? 14
+                : 7
+            : selectedType === 1
+              ? 20
+              : selectedType === 2
+                ? 10
+                : 5;
+        pendingFreeModeBetId = null;
+        socket._trigger('freeTimeTypeResult', {
+          ResultCode: 1,
+          ResultData: { type: selectedType, freeCount: freeSelectionCount },
+        });
+        notifyParent('h5-slots:balance', {
+          balance: Number(result.newBalance || 0),
+          gameCode: gameCode,
+          spinId: result.betId,
+        });
+      })
+      .catch(function (error) {
+        var message = error && error.message ? error.message : '免費遊戲模式選擇失敗';
+        socket._trigger('freeTimeTypeResult', { ResultCode: -1, msg: message });
+        notifyParent('h5-slots:error', { message: message });
+      })
+      .finally(function () {
+        freeModeSelectionInFlight = false;
+      });
+  }
+
   function emitLotteryError(socket, message, resultCode) {
     socket._trigger('lotteryResult', {
       ResultCode: resultCode,
@@ -1501,6 +1980,21 @@
     if (!queued) return;
     if (queued.startsFreeSpin) {
       freeSelectionCount = Math.max(0, freeSelectionCount - 1);
+    }
+    if (queued.endsStar97FreeSpin && window.cc && typeof window.cc.find === 'function') {
+      try {
+        var star97Canvas = window.cc.find('Canvas');
+        var star97Main =
+          star97Canvas && typeof star97Canvas.getComponent === 'function'
+            ? star97Canvas.getComponent('mingxing972023Main')
+            : null;
+        // The packaged source only arms stopFree while a counter greater than
+        // zero is being decremented. A legitimate one-spin gift starts at
+        // zero after its initial decrement, so explicitly mark the queued
+        // final response and let the original stopFreeTimes animation close
+        // the free-game background after the reels settle.
+        if (star97Main) star97Main.stopFree = true;
+      } catch (_error) {}
     }
     window.setTimeout(function () {
       socket._trigger('lotteryResult', queued.response);
@@ -1535,15 +2029,33 @@
       cascades: result.cascades || [],
       multiplier: result.multiplier,
       scatterSymbols: features ? features.scatterSymbols || [] : [],
+      sourceFeature: (features && features.sourceMiniGame) || result.sourceFeature || null,
+      sourceJackpot: features ? features.sourceJackpot || null : null,
+      finalGoldPositions: result.finalGoldPositions || [],
+      finalSourceStacks: result.finalSourceStacks || [],
+      sourceMultiplierSymbols: features ? features.baseMultiplierSymbols || [] : [],
+      sourceAppliedMultiplier: features ? features.baseAppliedMultiplier || 1 : 1,
     };
+    var retriggeredFreeSpins = freeRounds.reduce(function (sum, round) {
+      return sum + Math.max(0, Number(round.extraFreeSpinsAwarded || 0));
+    }, 0);
+    var initialFreeSpinsAwarded = Math.max(
+      0,
+      Number((features && features.freeSpinsAwarded) || 0) - retriggeredFreeSpins,
+    );
     var triggerMeta =
       features && Number(features.freeSpinsAwarded || 0) > 0
         ? {
             trigger: true,
-            awarded: Number(features.freeSpinsAwarded || 0),
+            awarded: initialFreeSpinsAwarded,
             remaining: Number(features.freeSpinsAwarded || 0),
             totalWin: roundMoney(totalPayout - basePayout),
-            multiplier: Number(features.freeSpinMultiplierBank || 1),
+            multiplier: Number(
+              gameCode === '321'
+                ? 1
+                : features.sourceFreeWinMultiplier || features.freeSpinMultiplierBank || 1,
+            ),
+            sourceFreeModeType: Number(features.sourceFreeModeType || 0),
           }
         : null;
     sequence = sequence.concat(
@@ -1554,12 +2066,21 @@
       var payout = freePayouts[index] || 0;
       displayedBalance = roundMoney(displayedBalance + payout);
       var remaining = freeRounds.length - index - 1;
+      var extraFreeSpinsAwarded = Math.max(0, Number(round.extraFreeSpinsAwarded || 0));
       var freeMeta = {
-        trigger: false,
+        trigger: extraFreeSpinsAwarded > 0,
         awarded: Number(features.freeSpinsAwarded || freeRounds.length),
         remaining: remaining,
+        nextFreeTime: extraFreeSpinsAwarded > 0 ? remaining : undefined,
         totalWin: roundMoney(totalPayout - basePayout),
-        multiplier: Number(round.appliedMultiplier || features.freeSpinMultiplierBank || 1),
+        multiplier: Number(
+          features.sourceFreeWinMultiplier ||
+            round.sourceMultiplierBank ||
+            round.appliedMultiplier ||
+            features.freeSpinMultiplierBank ||
+            1,
+        ),
+        sourceFreeModeType: Number(features.sourceFreeModeType || 0),
       };
       var responses = buildRoundResponses(
         {
@@ -1569,6 +2090,12 @@
           cascades: round.cascades || [],
           multiplier: round.appliedMultiplier,
           scatterSymbols: round.scatterSymbols || [],
+          finalGoldPositions: round.finalGoldPositions || [],
+          finalSourceStacks: round.finalSourceStacks || [],
+          sourceMultiplierSymbols: round.multiplierSymbols || [],
+          sourceAppliedMultiplier: round.appliedMultiplier || 1,
+          sourceJackpot: round.sourceJackpot || null,
+          sourceFeature: round.sourceFeature || round.sourceMiniGame || null,
         },
         payout,
         displayedBalance,
@@ -1577,6 +2104,9 @@
         shape,
       );
       if (responses.length > 0) responses[0].startsFreeSpin = true;
+      if (gameCode === '262' && index === freeRounds.length - 1 && responses.length > 0) {
+        responses[responses.length - 1].endsStar97FreeSpin = true;
+      }
       sequence = sequence.concat(responses);
     });
 
@@ -1605,8 +2135,12 @@
       return buildTumbleResponses(round, payout, balance, freeMeta, baseAmount, shape);
     }
 
+    var sourceBalance =
+      gameCode === '188' ? roundMoney(Number(balance || 0) - Number(payout || 0)) : balance;
     var data = {
-      userscore: balance,
+      // Fire88Main adds winscore locally after all three reels stop. Supplying
+      // the final balance here would credit the same award a second time.
+      userscore: sourceBalance,
       winscore: payout,
       freeCount: freeMeta ? freeMeta.remaining + 1 : 0,
       getFreeTime: { bFlag: false, nFreeTime: 0 },
@@ -1626,6 +2160,7 @@
         shape,
         balance,
         baseAmount,
+        round.sourceJackpot || round.sourceFeature,
       );
     }
     applyFreeMeta(data, shape, freeMeta);
@@ -1636,9 +2171,21 @@
     var cascades = Array.isArray(round.cascades) ? round.cascades : [];
     var steps = cascades.map(function (cascade, index) {
       var stepPayout = roundMoney(baseAmount * Number(cascade.multiplier || 0));
-      var symbols = flattenSymbols(cascade.grid, shape);
+      var symbols = flattenSymbols(
+        index === 0 ? applySpecialSymbols(cascade.grid, round.scatterSymbols, shape) : cascade.grid,
+        shape,
+      );
       return shape.family === 'ways'
-        ? buildWaysStep(symbols, cascade.lines || [], stepPayout, shape, index, baseAmount, balance)
+        ? buildWaysStep(
+            symbols,
+            cascade.lines || [],
+            stepPayout,
+            shape,
+            index,
+            baseAmount,
+            balance,
+            cascade.sourceStacks || [],
+          )
         : buildStep(
             symbols,
             cascade.lines || [],
@@ -1648,6 +2195,7 @@
             index,
             baseAmount,
             balance,
+            cascade.goldPositions || [],
           );
     });
     if (steps.length > 0) {
@@ -1663,12 +2211,25 @@
       });
     }
     var finalSymbols = flattenSymbols(
-      applySpecialSymbols(round.finalGrid || round.grid, round.scatterSymbols, shape),
+      applySpecialSymbols(
+        round.finalGrid || round.grid,
+        cascades.length === 0 ? round.scatterSymbols : [],
+        shape,
+      ),
       shape,
     );
     steps.push(
       shape.family === 'ways'
-        ? buildWaysStep(finalSymbols, [], 0, shape, steps.length, baseAmount, balance)
+        ? buildWaysStep(
+            finalSymbols,
+            [],
+            0,
+            shape,
+            steps.length,
+            baseAmount,
+            balance,
+            round.finalSourceStacks || [],
+          )
         : buildStep(
             finalSymbols,
             [],
@@ -1678,6 +2239,7 @@
             steps.length,
             baseAmount,
             balance,
+            round.finalGoldPositions || [],
           ),
     );
     return steps;
@@ -1687,15 +2249,33 @@
     var cascades = Array.isArray(round.cascades) ? round.cascades : [];
     var responses = [];
     var accumulated = 0;
+    var collected = 0;
     var stepPayouts = reconcilePayoutParts(
       payout,
       cascades.map(function (cascade) {
         return roundMoney(baseAmount * Number(cascade.multiplier || 0));
       }),
     );
+    var sourceMultiplierSymbols =
+      gameCode !== '321' && Array.isArray(round.sourceMultiplierSymbols)
+        ? round.sourceMultiplierSymbols
+        : [];
+    var sourceMultiplierStep = sourceMultiplierSymbols.length > 0 ? cascades.length - 1 : -1;
     cascades.forEach(function (cascade, index) {
       var stepPayout = stepPayouts[index] || 0;
       accumulated = roundMoney(accumulated + stepPayout);
+      var collectedThisStep = shape.collection
+        ? Math.max(
+            0,
+            Number.isFinite(Number(cascade.collectedThisStep))
+              ? Number(cascade.collectedThisStep)
+              : uniqueCascadePositionCount(cascade.lines || []),
+          )
+        : 0;
+      collected =
+        shape.collection && Number.isFinite(Number(cascade.collectedSymbols))
+          ? Math.max(collected, Number(cascade.collectedSymbols))
+          : collected + collectedThisStep;
       var data = buildTumbleData(
         cascade.grid,
         cascade.lines || [],
@@ -1705,6 +2285,14 @@
         2,
         shape,
         baseAmount,
+        Object.assign({}, cascade, {
+          sourceMultiplierSymbols: index === sourceMultiplierStep ? sourceMultiplierSymbols : [],
+          sourceAppliedMultiplier: Number(
+            cascade.sourceAppliedMultiplier || round.sourceAppliedMultiplier || 1,
+          ),
+        }),
+        collected,
+        collectedThisStep,
       );
       // Gates of Olympus reads fs.s while every tumble step is settling, not
       // only after the final drop. Preserve the free-spin state throughout
@@ -1721,10 +2309,23 @@
       1,
       shape,
       baseAmount,
+      null,
+      collected,
+      0,
     );
     applyFreeMeta(finalData, shape, freeMeta);
     responses.push({ response: makeLotteryEnvelope(finalData) });
     return responses;
+  }
+
+  function uniqueCascadePositionCount(lines) {
+    var positions = {};
+    (Array.isArray(lines) ? lines : []).forEach(function (line) {
+      (Array.isArray(line && line.positions) ? line.positions : []).forEach(function (position) {
+        positions[String(position.reel) + ':' + String(position.row)] = true;
+      });
+    });
+    return Object.keys(positions).length;
   }
 
   function makeLotteryEnvelope(data) {
@@ -1732,9 +2333,18 @@
   }
 
   function applyFreeMeta(data, shape, meta) {
+    var sourceCounterOffset = Number(shape.freeCounterOffset || 0);
     var freeTime = {
       bFlag: Boolean(meta && meta.trigger),
-      nFreeTime: meta ? meta.awarded : 0,
+      nFreeType: meta ? Number(meta.sourceFreeModeType || 0) : 0,
+      nFreeTime: Math.max(
+        0,
+        (meta && meta.nextFreeTime !== undefined
+          ? Number(meta.nextFreeTime)
+          : meta
+            ? meta.awarded
+            : 0) + sourceCounterOffset,
+      ),
     };
     data.freeCount = meta ? meta.remaining + 1 : 0;
     data.getFreeTime = shape.free === 'top' ? freeTime : { bFlag: false, nFreeTime: 0 };
@@ -1757,10 +2367,11 @@
     var cloned = (Array.isArray(grid) ? grid : []).map(function (column) {
       return Array.isArray(column) ? column.slice() : [];
     });
-    if (!shape.scatter) return cloned;
+    var triggerSymbol = Number(shape.featureTrigger || shape.scatter || 0);
+    if (!triggerSymbol) return cloned;
     (Array.isArray(specialSymbols) ? specialSymbols : []).forEach(function (special) {
       if (cloned[special.reel] && cloned[special.reel][special.row] !== undefined) {
-        cloned[special.reel][special.row] = shape.scatter - 1;
+        cloned[special.reel][special.row] = triggerSymbol - 1;
       }
     });
     return cloned;
@@ -1779,7 +2390,18 @@
     } else {
       for (var rowIndex = 0; rowIndex < rows; rowIndex += 1) {
         for (var reelIndex = 0; reelIndex < reels; reelIndex += 1) {
-          source.push(mapSymbol(grid && grid[reelIndex] && grid[reelIndex][rowIndex]));
+          var offset = Array.isArray(shape.rowOffsets)
+            ? Number(shape.rowOffsets[reelIndex] || 0)
+            : 0;
+          var sourceRow = rowIndex - offset;
+          var reelRows = Array.isArray(shape.reelRows)
+            ? Number(shape.reelRows[reelIndex] || rows)
+            : rows;
+          if (sourceRow < 0 || sourceRow >= reelRows) {
+            source.push(Number(shape.blankSymbol || 1));
+          } else {
+            source.push(mapSymbol(grid && grid[reelIndex] && grid[reelIndex][sourceRow]));
+          }
         }
       }
     }
@@ -1792,9 +2414,12 @@
   }
 
   function positionIndex(position, shape) {
+    var rowOffset = Array.isArray(shape.rowOffsets)
+      ? Number(shape.rowOffsets[Number(position.reel)] || 0)
+      : 0;
     return shape.order === 'column'
       ? Number(position.reel) * shape.rows + Number(position.row)
-      : Number(position.row) * shape.reels + Number(position.reel);
+      : (Number(position.row) + rowOffset) * shape.reels + Number(position.reel);
   }
 
   function winLinePositions(line, shape) {
@@ -1886,36 +2511,166 @@
     });
   }
 
-  function buildClassicData(symbols, lines, payout, multiplier, shape, balance, baseAmount) {
+  function buildClassicData(
+    symbols,
+    lines,
+    payout,
+    multiplier,
+    shape,
+    balance,
+    baseAmount,
+    sourceFeature,
+  ) {
     var wins = winFields(lines, shape, baseAmount);
+    var fortuneOxFeature =
+      sourceFeature && sourceFeature.type === 'fortune-ox-respin' ? sourceFeature : null;
+    var fortuneGemsFeature =
+      sourceFeature && sourceFeature.type === 'fortune-gems-multiplier' ? sourceFeature : null;
+    var aztecGemsFeature =
+      sourceFeature && sourceFeature.type === 'aztec-gems-multiplier' ? sourceFeature : null;
+    var star97Feature =
+      sourceFeature && sourceFeature.type === 'star-97-seven-multiplier' ? sourceFeature : null;
+    var diamondStrikeJackpot =
+      sourceFeature && sourceFeature.type === 'diamond-strike-jackpot' ? sourceFeature : null;
+    var fire88Jackpot =
+      sourceFeature && sourceFeature.type === 'fire-88-jackpot' ? sourceFeature : null;
+    var fruitLittleMaryJackpot =
+      sourceFeature && sourceFeature.type === 'fruit-little-mary-jackpot' ? sourceFeature : null;
+    var fruitLittleMary =
+      sourceFeature && sourceFeature.type === 'fruit-little-mary' ? sourceFeature : null;
+    var fruitMiniRounds =
+      fruitLittleMary && Array.isArray(fruitLittleMary.rounds) ? fruitLittleMary.rounds : [];
+    var caishenAllSame = null;
+    if (
+      shape.caishenFaFaFa &&
+      Array.isArray(symbols) &&
+      symbols.length === shape.reels * shape.rows &&
+      symbols.every(function (symbol) {
+        return Number(symbol) === Number(symbols[0]);
+      })
+    ) {
+      var caishenSymbol = Number(symbols[0]);
+      var caishenColor =
+        caishenSymbol >= 1 && caishenSymbol <= 8
+          ? caishenSymbol - 1
+          : caishenSymbol === 10 || caishenSymbol === 11
+            ? 9
+            : -1;
+      if (caishenColor >= 0) caishenAllSame = { bFlag: true, color: caishenColor };
+    }
+    if (fruitLittleMaryJackpot && Array.isArray(fruitLittleMaryJackpot.positions)) {
+      fruitLittleMaryJackpot.positions.forEach(function (position) {
+        var index = positionIndex(position, shape);
+        if (Number.isInteger(index) && index >= 0 && index < wins.nWinCards.length) {
+          wins.nWinCards[index] = true;
+        }
+      });
+    }
     var data = {
       nHandCards: symbols,
       nWinCards: wins.nWinCards,
       nWinLinesDetail: wins.nWinLinesDetail,
       nWinLines: wins.nWinLines,
       nWinDetail: wins.nWinDetail,
-      fMultiple: shape.multiplierWheel ? Math.max(1, Number(multiplier || 1)) : 0,
+      fMultiple:
+        shape.multiplierWheel || shape.star97
+          ? Math.max(
+              1,
+              Number(
+                (star97Feature && star97Feature.multiplier) ||
+                  (aztecGemsFeature && aztecGemsFeature.multiplier) ||
+                  multiplier ||
+                  1,
+              ),
+            )
+          : 0,
       getFreeTime: { bFlag: false, nFreeTime: 0 },
-      getOpenBox: { bFlag: false, card: 0 },
-      getAllSame: { bFlag: false },
-      getBigWin: { bFlag: false, isStart: false },
-      exCard: shape.extraCard ? 0 : undefined,
-      winEx: false,
+      getOpenBox: fruitLittleMary
+        ? {
+            bFlag: true,
+            win: roundMoney(
+              Number(baseAmount || 0) * Number(fruitLittleMary.payoutMultiplier || 0),
+            ),
+            user_score: balance,
+            cishu: Math.max(0, Math.trunc(Number(fruitLittleMary.attempts || 0))),
+            chouma: roundMoney(Number(baseAmount || 0) / 9),
+            gameList: fruitMiniRounds.map(function (round) {
+              return Array.isArray(round.reelSymbols) ? round.reelSymbols.slice(0, 4) : [];
+            }),
+            roundList: fruitMiniRounds.map(function (round) {
+              return Math.max(0, Math.min(23, Math.trunc(Number(round.stopIndex || 0))));
+            }),
+            scoreList: fruitMiniRounds.map(function (round) {
+              return roundMoney(
+                (Number(baseAmount || 0) / 9) * Number(round.lineBetMultiplier || 0),
+              );
+            }),
+          }
+        : diamondStrikeJackpot || fire88Jackpot
+          ? {
+              bFlag: true,
+              win_list: Array.isArray((diamondStrikeJackpot || fire88Jackpot).picks)
+                ? (diamondStrikeJackpot || fire88Jackpot).picks.slice()
+                : [],
+              win_card: Number((diamondStrikeJackpot || fire88Jackpot).tierMultiplier || 10),
+              win: roundMoney(
+                Number(baseAmount || 0) *
+                  Number((diamondStrikeJackpot || fire88Jackpot).payoutMultiplier || 0),
+              ),
+            }
+          : { bFlag: false, card: 0 },
+      getAllSame: caishenAllSame || { bFlag: false },
+      getBigWin: {
+        bFlag: Boolean(
+          fortuneOxFeature &&
+          (fortuneOxFeature.triggered || Number(fortuneOxFeature.fullScreenMultiplier || 1) > 1),
+        ),
+        isStart: Boolean(fortuneOxFeature),
+      },
+      exCard: shape.extraCard
+        ? Math.max(
+            0,
+            Math.min(5, Number((fortuneGemsFeature && fortuneGemsFeature.multiplierIndex) || 0)),
+          )
+        : undefined,
+      winEx: Boolean(fortuneGemsFeature && fortuneGemsFeature.winEx),
       user_score: balance,
       winscore: payout,
     };
     return data;
   }
 
-  function buildStep(symbols, lines, payout, mahjong, shape, index, baseAmount, balance) {
+  function buildStep(
+    symbols,
+    lines,
+    payout,
+    mahjong,
+    shape,
+    index,
+    baseAmount,
+    balance,
+    goldPositions,
+  ) {
     var wins = winFields(lines, shape, baseAmount);
+    var goldCards = (Array.isArray(goldPositions) ? goldPositions : [])
+      .map(function (position) {
+        return positionIndex(position, shape);
+      })
+      .filter(function (position, listIndex, list) {
+        return (
+          Number.isInteger(position) &&
+          position >= 0 &&
+          position < shape.reels * shape.rows &&
+          list.indexOf(position) === listIndex
+        );
+      });
     return {
       nHandCards: symbols,
       nWinCards: wins.nWinCards,
       nWinLinesDetail: wins.nWinLinesDetail,
       nWinLines: wins.nWinLines,
       nWinDetail: wins.nWinDetail,
-      goldCards: mahjong ? [] : undefined,
+      goldCards: mahjong ? goldCards : undefined,
       combo_num: index,
       win: payout,
       winscore: payout,
@@ -1924,8 +2679,20 @@
     };
   }
 
-  function buildWaysStep(symbols, lines, payout, shape, index, baseAmount, balance) {
+  function buildWaysStep(symbols, lines, payout, shape, index, baseAmount, balance, sourceStacks) {
     var wins = winFields(lines, shape, baseAmount);
+    if (gameCode === '301') patchGoldenEmpireRuntime();
+    var stackMetadata =
+      gameCode === '278' || gameCode === '301'
+        ? buildSourceStackMetadata(symbols, shape, sourceStacks)
+        : null;
+    var topReel =
+      gameCode === '278' || gameCode === '301'
+        ? [1, 2, 3, 4].map(function (reel) {
+            var value = Number(symbols[reel]);
+            return Number.isFinite(value) && value > 0 ? value : 1;
+          })
+        : [1, 2, 3, 4];
     return {
       nHandCards: symbols,
       nWinCards: wins.nWinCards,
@@ -1933,14 +2700,135 @@
       nWinLinesDetail: wins.nWinLinesDetail,
       nWinLines: wins.nWinLines,
       nWinDetail: wins.nWinDetail,
-      trl: [1, 2, 3, 4],
-      sr: [],
-      srd: [],
+      trl: topReel,
+      sr: stackMetadata ? stackMetadata.sr : [],
+      srd: stackMetadata ? stackMetadata.srd : [],
       combo_num: index,
       win: payout,
       winscore: payout,
       user_score: balance,
     };
+  }
+
+  function buildSourceStackMetadata(symbols, shape, sourceStacks) {
+    var sr = [];
+    var srd = [];
+    if (Array.isArray(sourceStacks) && sourceStacks.length > 0) {
+      sourceStacks.forEach(function (stack) {
+        var id = Math.max(0, Math.trunc(Number(stack.id || 0)));
+        var positions = (Array.isArray(stack.positions) ? stack.positions : [])
+          .map(function (position) {
+            return Number(position.row) * shape.reels + Number(position.reel);
+          })
+          .filter(function (position) {
+            return (
+              Number.isInteger(position) && position >= 0 && position < shape.reels * shape.rows
+            );
+          });
+        if (positions.length <= 1 && stack.state === 'ordinary') return;
+        sr[id] = positions;
+        var sourceSymbol = mapSymbol(stack.symbol);
+        if (stack.state === 'gold') {
+          srd[id] = { bt: 1, ls: 2, r: sourceSymbol };
+        } else if (stack.state === 'wild') {
+          srd[id] = {
+            bt: 1,
+            ls: 3,
+            r: Number(shape.wild || sourceSymbol),
+            times: Math.max(1, Math.trunc(Number(stack.remaining || positions.length || 1))),
+          };
+        } else {
+          srd[id] = { bt: 0, ls: 0, r: sourceSymbol };
+        }
+      });
+      return { sr: sr, srd: srd };
+    }
+    for (var reel = 0; reel < shape.reels; reel += 1) {
+      if (gameCode === '301' && (reel < 1 || reel > 4)) continue;
+      var visualIndexes = [];
+      for (var visualRow = 0; visualRow < shape.rows; visualRow += 1) {
+        visualIndexes.push((shape.rows - 1 - visualRow) * shape.reels + reel);
+      }
+      for (var start = 0; start < visualIndexes.length; ) {
+        var firstIndex = visualIndexes[start];
+        var symbol = Number(symbols[firstIndex]);
+        var group = [firstIndex];
+        var next = start + 1;
+        while (
+          next < visualIndexes.length &&
+          Number(symbols[visualIndexes[next]]) === symbol &&
+          group.length < 4
+        ) {
+          group.push(visualIndexes[next]);
+          next += 1;
+        }
+        if (group.length > 1) {
+          sr.push(group);
+          // bt=0/ls=0 is an ordinary large symbol. The original scene uses
+          // the same sr shape for silver/gold framed transitions later.
+          srd.push({ bt: 0, ls: 0, r: symbol });
+        }
+        start = next;
+      }
+    }
+    return { sr: sr, srd: srd };
+  }
+
+  function patchGoldenEmpireRuntime() {
+    var game = window.gameJs;
+    if (!game || game.__yachiyoGoldenEmpirePatched || typeof game.getWheelInfos !== 'function') {
+      return;
+    }
+    var original = game.getWheelInfos;
+    game.getWheelInfos = function (reel, stepIndex) {
+      var infos = original.call(this, reel, stepIndex);
+      if (Number(reel) >= 6 || !Array.isArray(infos)) return infos;
+      var steps = this.lotteryRes && this.lotteryRes.viewarray;
+      var step = Array.isArray(steps) ? steps[stepIndex] : null;
+      if (!step || !step.sr || !step.srd) return infos;
+      var infoIndex = 0;
+      for (var visualRow = 0; visualRow < 5 && infoIndex < infos.length; ) {
+        var position = 6 * (4 - visualRow) + Number(reel);
+        var groupId = -1;
+        for (var id in step.sr) {
+          if (Array.isArray(step.sr[id]) && step.sr[id].indexOf(position) !== -1) {
+            groupId = id;
+            break;
+          }
+        }
+        var groupSize = groupId !== -1 ? step.sr[groupId].length : 1;
+        var detail = groupId !== -1 ? step.srd[groupId] : null;
+        if (detail && Number(detail.ls) === 3) {
+          infos[infoIndex].times = Math.max(1, Math.trunc(Number(detail.times || groupSize)));
+        }
+        visualRow += Math.max(1, groupSize);
+        infoIndex += 1;
+      }
+      return infos;
+    };
+    if (typeof game.onCLick === 'function') {
+      var originalClick = game.onCLick;
+      game.onCLick = function (event, action) {
+        var result = originalClick.call(this, event, action);
+        if (action === 'help' && this.helpUI) {
+          try {
+            var webViewNode = this.helpUI.getChildByName('webView');
+            var webView = webViewNode && webViewNode.getComponent(cc.WebView);
+            if (webView && typeof webView.url === 'string') {
+              webView.url = webView.url.replace('name=SuperAce', 'name=GoldenEmpire');
+            }
+          } catch (_error) {}
+        }
+        return result;
+      };
+    }
+    game.__yachiyoGoldenEmpirePatched = true;
+  }
+
+  if (gameCode === '301' && window.document) {
+    [0, 250, 1000, 2500].forEach(function (delay) {
+      window.setTimeout(patchGoldenEmpireRuntime, delay);
+    });
   }
 
   function buildTumbleData(
@@ -1952,13 +2840,88 @@
     nextState,
     shape,
     baseAmount,
+    cascadeMeta,
+    collectedSymbols,
+    collectedThisStep,
   ) {
-    var symbols = flattenSymbols(grid, shape);
+    var symbols = flattenSymbols(
+      cascadeMeta && Array.isArray(cascadeMeta.sourceGrid) ? cascadeMeta.sourceGrid : grid,
+      shape,
+    );
+    var resultSymbols = flattenSymbols(grid, shape);
     var wins = winFields(lines, shape, baseAmount);
     var ways = {};
     wins.nWinLinesDetail.forEach(function (positions, index) {
       ways[String(index)] = positions;
     });
+    var sourceAction = cascadeMeta && cascadeMeta.sourceAction;
+    var sourceMultiplierSymbols =
+      cascadeMeta && Array.isArray(cascadeMeta.sourceMultiplierSymbols)
+        ? cascadeMeta.sourceMultiplierSymbols
+        : [];
+    var sourceAppliedMultiplier = Math.max(
+      1,
+      Number((cascadeMeta && cascadeMeta.sourceAppliedMultiplier) || 1),
+    );
+    var dragonActionType = {
+      'dragon-earth': 3,
+      'dragon-water': 2,
+      'dragon-fire': 1,
+      'dragon-queen': 0,
+    };
+    var dragonFeature =
+      shape.collection && sourceAction && dragonActionType[sourceAction.type] !== undefined
+        ? [
+            {
+              idh: true,
+              p: (Array.isArray(sourceAction.positions) ? sourceAction.positions : [])
+                .map(function (position) {
+                  return positionIndex(position, shape);
+                })
+                .filter(function (position, index, list) {
+                  return (
+                    Number.isInteger(position) &&
+                    position >= 0 &&
+                    position < shape.reels * shape.rows &&
+                    list.indexOf(position) === index
+                  );
+                }),
+              dt: dragonActionType[sourceAction.type],
+            },
+          ]
+        : [];
+    if (gameCode === '321' && sourceMultiplierSymbols.length === 0 && sourceAppliedMultiplier > 1) {
+      var thorPositions = (
+        Array.isArray(cascadeMeta && cascadeMeta.removed) ? cascadeMeta.removed : []
+      )
+        .map(function (position) {
+          return positionIndex(position, shape);
+        })
+        .filter(function (position, index, list) {
+          return (
+            Number.isInteger(position) &&
+            position >= 0 &&
+            position < shape.reels * shape.rows &&
+            list.indexOf(position) === index
+          );
+        });
+      if (thorPositions.length > 0) {
+        dragonFeature = [
+          {
+            idh: true,
+            p: thorPositions,
+            dt: Math.min(3, Math.max(0, sourceAppliedMultiplier - 2)),
+            multiplier: sourceAppliedMultiplier,
+          },
+        ];
+      }
+    }
+    var sourceResultSymbols = resultSymbols.slice();
+    if (sourceAction && sourceAction.type === 'dragon-earth') {
+      dragonFeature[0].p.forEach(function (position) {
+        sourceResultSymbols[position] = 0;
+      });
+    }
     return {
       userscore: balance,
       winscore: stepPayout,
@@ -1969,17 +2932,20 @@
         aw: accumulatedPayout,
         tw: stepPayout,
         ctw: accumulatedPayout,
-        cb: wins.nWinLinesDetail.reduce(function (sum, positions) {
-          return sum + positions.length;
-        }, 0),
+        cb: shape.collection
+          ? Math.max(0, Number(collectedSymbols || 0))
+          : wins.nWinLinesDetail.reduce(function (sum, positions) {
+              return sum + positions.length;
+            }, 0),
+        cbc: shape.collection ? Math.max(0, Number(collectedThisStep || 0)) : 0,
         orl: symbols,
-        rl: symbols,
+        rl: sourceResultSymbols,
         wp: ways,
-        gm: 1,
+        gm: gameCode === '321' ? sourceAppliedMultiplier : 1,
         fs: null,
         ts: null,
-        df: [],
-        nHandCards: symbols,
+        df: dragonFeature,
+        nHandCards: resultSymbols,
         // The tumble scene animates wins from `wp`. Its inherited 5x3 line
         // animator cannot address the 6x5 board and crashes when these legacy
         // fields contain tumble positions.

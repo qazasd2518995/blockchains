@@ -25,6 +25,7 @@ export const SETH2_MULTIPLIER_DROP_VALUES = [
   2, 3, 4, 5, 10, 15, 25, 50, 100, 200, 300, 500,
 ] as const;
 export const SETH2_RETRIGGER_SPINS = 5;
+export const SETH2_FREE_SPINS = 20;
 export const SETH2_FREE_RETRIGGER_PROBABILITY = 0.01;
 export type Seth2SpinMode = 'base' | 'standard_free' | 'awakening_free' | 'bought_standard_free';
 export type Seth2FeatureMode = 'none' | 'standard' | 'awakening';
@@ -38,6 +39,15 @@ export interface Seth2Cell {
   type: number;
   mul: number;
   mul_type?: number;
+  code?: number;
+}
+
+export interface Seth2MultiplierUpgrade {
+  mul: number;
+  new_mul: number;
+  mul_type?: number;
+  type?: number;
+  code?: number;
 }
 
 export interface Seth2CascadeRound {
@@ -45,7 +55,7 @@ export interface Seth2CascadeRound {
   remove_type: number[];
   round_data: Seth2Cell[];
   scoreList: number[];
-  upgrade_mul_list: Array<{ mul: number; new_mul: number }>;
+  upgrade_mul_list: Seth2MultiplierUpgrade[];
   total_mul: number;
   score: number;
   total_gold: number;
@@ -61,8 +71,8 @@ export interface Seth2ReturnData {
   freeGameCount: number;
   addGameCiShu: number;
   type17_mul_list: Seth2Cell[];
-  type17_beishu: { mul: number };
-  type18_start_mul_list: Array<{ mul: number }>;
+  type17_beishu: Seth2Cell | null;
+  type18_start_mul_list: Seth2Cell[];
   type18_mul_count: number;
   JPtype: number;
   JPGold: number;
@@ -95,7 +105,7 @@ interface WinPattern {
 
 interface MultiplierPlan {
   cells: Seth2Cell[];
-  upgrades: Array<{ mul: number; new_mul: number }>;
+  upgrades: Seth2MultiplierUpgrade[];
   finalTotal: number;
 }
 
@@ -123,6 +133,10 @@ export const SETH2_BOUGHT_AWAKENING_SHARE = 0.3;
 const NON_WINNING_MULTIPLIER_PROBABILITY = 0.2;
 const SCATTER_EXPECTED_FACTOR = 3;
 const BASE_NON_FEATURE_EV = 0.3389;
+// The archived implementation was previously modelled as fifteen games.  The
+// live source server was observed returning twenty, so scale per-game feature
+// weights to preserve the same total feature EV and 200x purchase RTP.
+const FREE_GAME_OUTCOME_SCALE = 15 / SETH2_FREE_SPINS;
 const SETH2_MAX_BOARD_MULTIPLIER = SETH2_GRID_SIZE * SETH2_MAX_SYMBOL_MULTIPLIER;
 const NO_MULTIPLIER_PARTS = 32_767;
 const MULTIPLIER_SPLITS = new Map<number, { parts: Int16Array; choice: Int16Array }>();
@@ -187,8 +201,10 @@ function weightedFactorEv(outcomes: WeightedOutcome[]): number {
   );
 }
 
-const STANDARD_FEATURE_TOTAL_EV = 15 * weightedFactorEv(STANDARD_FREE_BASE_OUTCOMES);
-const AWAKENING_FEATURE_TOTAL_EV = 15 * weightedFactorEv(AWAKENING_FREE_BASE_OUTCOMES);
+const STANDARD_FEATURE_TOTAL_EV =
+  SETH2_FREE_SPINS * FREE_GAME_OUTCOME_SCALE * weightedFactorEv(STANDARD_FREE_BASE_OUTCOMES);
+const AWAKENING_FEATURE_TOTAL_EV =
+  SETH2_FREE_SPINS * FREE_GAME_OUTCOME_SCALE * weightedFactorEv(AWAKENING_FREE_BASE_OUTCOMES);
 const NATURAL_FEATURE_TOTAL_EV =
   STANDARD_FEATURE_TOTAL_EV * (1 - GOLDEN_FEATURE_SHARE) +
   AWAKENING_FEATURE_TOTAL_EV * GOLDEN_FEATURE_SHARE;
@@ -215,8 +231,17 @@ function withRetriggers(outcomes: WeightedOutcome[]): WeightedOutcome[] {
   ];
 }
 
-const STANDARD_FREE_OUTCOMES = withRetriggers(STANDARD_FREE_BASE_OUTCOMES);
-const AWAKENING_FREE_OUTCOMES = withRetriggers(AWAKENING_FREE_BASE_OUTCOMES);
+function scaleFeatureOutcomes(outcomes: WeightedOutcome[]): WeightedOutcome[] {
+  return outcomes.map((outcome) => ({
+    ...outcome,
+    probability: outcome.probability * FREE_GAME_OUTCOME_SCALE,
+  }));
+}
+
+const STANDARD_FREE_OUTCOMES = withRetriggers(scaleFeatureOutcomes(STANDARD_FREE_BASE_OUTCOMES));
+const AWAKENING_FREE_OUTCOMES = withRetriggers(
+  scaleFeatureOutcomes(AWAKENING_FREE_BASE_OUTCOMES),
+);
 
 const WIN_PATTERNS: WinPattern[] = Object.entries(SETH2_PAYTABLE).flatMap(([type, pays]) => [
   { type: Number(type), count: 8 as const, factor: pays.eight / 20 },
@@ -332,6 +357,15 @@ function cell(type: number, mul = 0, mulType = 0): Seth2Cell {
   return mul > 0 ? { type, mul, mul_type: mulType } : { type, mul };
 }
 
+function animatedMultiplierCell(value: Seth2Cell, code: number): Seth2Cell {
+  return {
+    type: 10,
+    mul: value.mul,
+    mul_type: value.mul_type ?? 0,
+    code,
+  };
+}
+
 function shuffle<T>(values: T[], rng: Seth2RandomSource): T[] {
   for (let index = values.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(rng() * (index + 1));
@@ -381,7 +415,7 @@ function baseReturnData(
     freeGameCount: 0,
     addGameCiShu: 0,
     type17_mul_list: [],
-    type17_beishu: { mul: 0 },
+    type17_beishu: null,
     type18_start_mul_list: [],
     type18_mul_count: 0,
     JPtype: 0,
@@ -451,7 +485,7 @@ function buildBoughtFeatureEntry(
   returnData.featureMode = featureMode;
   returnData.gameModelType = awakening ? 1 : 0;
   returnData.is_sjc = 1;
-  returnData.freeGameCount = 15;
+  returnData.freeGameCount = SETH2_FREE_SPINS;
   return {
     payoutFactor: 0,
     triggeredFreeSpins: true,
@@ -502,7 +536,7 @@ function buildScatterTrigger(bet: number, rng: Seth2RandomSource): Seth2Outcome 
   returnData.featureMode = featureMode;
   returnData.gameModelType = golden ? 1 : 0;
   returnData.is_sjc = 1;
-  returnData.freeGameCount = 15;
+  returnData.freeGameCount = SETH2_FREE_SPINS;
   return {
     payoutFactor: factor,
     triggeredFreeSpins: true,
@@ -581,7 +615,7 @@ function regularMultiplierPlan(
     : values.length > 0 && rng() < 0.25
       ? values.findIndex((value) => previousMultiplierValue(value) !== null)
       : -1;
-  const upgrades: Array<{ mul: number; new_mul: number }> = [];
+  const upgrades: Seth2MultiplierUpgrade[] = [];
   const cells = values.map((value, index) => {
     if (index !== upgradeIndex) return cell(10, value, 1);
     const displayed = previousMultiplierValue(value)!;
@@ -608,7 +642,7 @@ function femaleMultiplierPlan(
     values.length > 0 && rng() < 0.25
       ? values.findIndex((value) => previousMultiplierValue(value) !== null)
       : -1;
-  const upgrades: Array<{ mul: number; new_mul: number }> = [];
+  const upgrades: Seth2MultiplierUpgrade[] = [];
   const cells = values.map((value, index) => {
     if (index !== upgradeIndex) return cell(10, value, 1);
     const displayed = previousMultiplierValue(value)!;
@@ -848,13 +882,29 @@ function buildWin(
     scoreList: firstRemoveTypes.map((_, index) =>
       index === 0 ? money(bet * firstPattern.factor) : money(bet * skillScoreFactor),
     ),
-    upgrade_mul_list: secondPattern ? [] : multiplierPlan.upgrades,
+    upgrade_mul_list: [],
     total_mul: effectiveMultiplier > 1 ? effectiveMultiplier : 0,
     score: firstScore,
     total_gold: secondPattern ? money(firstScore * effectiveMultiplier) : payout,
     remove_count: 0,
     is_over: secondPattern ? 0 : 1,
   };
+  const availableUpgradeCells = firstRound.start_data
+    .map((current, code) => ({ current, code }))
+    .filter(({ current }) => current.type === 10 && current.mul_type === 0);
+  const animatedUpgrades = multiplierPlan.upgrades.map((upgrade) => {
+    const matchIndex = availableUpgradeCells.findIndex(
+      ({ current }) => current.mul === upgrade.mul,
+    );
+    const match = availableUpgradeCells.splice(Math.max(0, matchIndex), 1)[0];
+    return {
+      ...upgrade,
+      type: 10,
+      mul_type: 0,
+      code: match?.code ?? -1,
+    };
+  });
+  firstRound.upgrade_mul_list = secondPattern ? [] : animatedUpgrades;
   const rounds = [firstRound];
   if (secondPattern) {
     const secondScore = money(bet * secondPattern.factor);
@@ -863,7 +913,7 @@ function buildWin(
       remove_type: [secondPattern.type],
       round_data: safeFill(secondPattern.count, new Set([secondPattern.type]), rng),
       scoreList: [secondScore],
-      upgrade_mul_list: multiplierPlan.upgrades,
+      upgrade_mul_list: animatedUpgrades,
       total_mul: effectiveMultiplier > 1 ? effectiveMultiplier : 0,
       score: secondScore,
       total_gold: payout,
@@ -878,17 +928,28 @@ function buildWin(
     isFreeGameMode(mode) ? currentMultiplierContribution : 0,
   );
   if (malePlan && skill === 'male') {
-    returnData.type17_beishu = { mul: malePlan.source.mul };
-    returnData.type17_mul_list = malePlan.copies;
+    const sourceCode = firstRound.start_data.findIndex(
+      (current) => current.type === 10 && current.mul === malePlan.source.mul,
+    );
+    returnData.type17_beishu = animatedMultiplierCell(malePlan.source, sourceCode);
+    returnData.type17_mul_list = malePlan.copies.map((copy) => ({ ...copy }));
   }
   if (skill === 'female') {
-    returnData.type18_start_mul_list = (femalePlan?.locked ?? [multiplierPlan.cells[0]!]).map(
-      ({ mul }) => ({ mul }),
-    );
-    // The imported client can safely retain a lock inside the current tumble.
-    // Cross-spin locks require persisting exact grid coordinates, so release at
-    // the end of this settled spin instead of risking a short next start_data.
-    returnData.type18_mul_count = 1;
+    const locked = femalePlan?.locked ?? [multiplierPlan.cells[0]!];
+    const availableCodes = firstRound.start_data
+      .map((current, code) => ({ current, code }))
+      .filter(({ current }) => current.type === 10);
+    returnData.type18_start_mul_list = locked.map((selected) => {
+      const matchIndex = availableCodes.findIndex(
+        ({ current }) =>
+          current.mul === selected.mul && current.mul_type === selected.mul_type,
+      );
+      const match = availableCodes.splice(Math.max(0, matchIndex), 1)[0];
+      return animatedMultiplierCell(match?.current ?? selected, match?.code ?? -1);
+    });
+    // Source observation: every woman-lock skill spans a four-game sequence and
+    // the client counts 4 -> 3 -> 2 -> 1 before releasing it.
+    returnData.type18_mul_count = 4;
   }
   if (jackpot) {
     returnData.JPtype = jackpot.type;
@@ -989,7 +1050,7 @@ function expectedValue(outcomes: WeightedOutcome[]): number {
   );
 }
 
-const EXPECTED_FEATURE_SPINS = 15 / FREE_SPIN_SCALE;
+const EXPECTED_FEATURE_SPINS = SETH2_FREE_SPINS / FREE_SPIN_SCALE;
 
 export const SETH2_MATH = {
   baseDirect: expectedValue(BASE_OUTCOMES),

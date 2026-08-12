@@ -52,10 +52,12 @@ describe('imported H5 control presentation matrix', () => {
           ),
         );
         expect(animatedPayout, `${context}/animated-payout`).toBe(Number(result.payout));
-        expect(
-          roundMoney(Number(responses.at(-1)!.response.ResultData.userscore)),
-          `${context}/final-balance`,
-        ).toBe(Number(result.newBalance));
+        const finalResponse = responses.at(-1)!.response.ResultData;
+        const displayedFinalBalance = roundMoney(
+          Number(finalResponse.userscore) +
+            (game.code === '188' ? Number(finalResponse.winscore ?? 0) : 0),
+        );
+        expect(displayedFinalBalance, `${context}/final-balance`).toBe(Number(result.newBalance));
 
         for (const queued of responses) {
           const data = queued.response.ResultData;
@@ -73,10 +75,10 @@ describe('imported H5 control presentation matrix', () => {
 
   it('keeps controlled feature purchases entirely inside their visible free-game sequence', () => {
     const baseAmount = new Prisma.Decimal(10);
-    const stake = baseAmount.mul(50);
     const games = H5_SLOT_GAMES.filter((game) => game.code === '278' || game.code === '321');
 
     games.forEach((game, gameIndex) => {
+      const stake = baseAmount.mul(game.code === '321' ? 75 : 50);
       const adapter = loadAdapter(game.code);
       allControlProfiles(stake).forEach((profile, profileIndex) => {
         const variant = 9000 + gameIndex * 101 + profileIndex * 17;
@@ -103,6 +105,40 @@ describe('imported H5 control presentation matrix', () => {
           roundMoney(Number(responses.at(-1)!.response.ResultData.userscore)),
           `${context}/final-balance`,
         ).toBe(Number(result.newBalance));
+
+        if (game.code === '321') {
+          const features = result.features as {
+            freeSpinMultiplierBank: number;
+            freeSpinRounds: Array<{
+              baseMultiplier: number;
+              multiplierSymbols: Array<{ value?: number }>;
+              multiplierTotal: number;
+              appliedMultiplier: number;
+              sourceMultiplierBank?: number;
+              totalMultiplier: number;
+              cascades: Array<{
+                multiplier: number;
+                sourceAppliedMultiplier?: number;
+              }>;
+            }>;
+          };
+          let multiplierBank = 1;
+          for (const round of features.freeSpinRounds) {
+            expect(round.multiplierSymbols, `${context}/no-invented-balls`).toEqual([]);
+            expect(round.multiplierTotal, `${context}/no-hidden-ball-total`).toBe(0);
+            expect(round.appliedMultiplier, `${context}/neutral-post-multiplier`).toBe(1);
+            for (const cascade of round.cascades) {
+              expect(cascade.sourceAppliedMultiplier, `${context}/visible-tumble-multiplier`).toBe(
+                multiplierBank,
+              );
+              if (cascade.multiplier > 0) multiplierBank += 1;
+            }
+            if (round.sourceMultiplierBank !== undefined) {
+              expect(round.sourceMultiplierBank, `${context}/persistent-bank`).toBe(multiplierBank);
+            }
+          }
+          expect(features.freeSpinMultiplierBank, `${context}/final-ladder`).toBe(multiplierBank);
+        }
       });
     });
   });
@@ -280,11 +316,15 @@ function controlledResult(
     control,
     variant,
   );
-  const round = selection.round;
+  const round =
+    gameId === 'h5-fortune-gems'
+      ? __hotlineServiceTestHooks.decorateFortuneGemsRound(selection.round, 1, false)
+      : selection.round;
   let multiplier = new Prisma.Decimal(round.totalMultiplier.toFixed(4));
   let payout = stake.mul(multiplier).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
   let features =
-    buyFeature || isHotlineCascadeGame(gameId) || Boolean(round.features)
+    gameId !== 'h5-dragon-hatch' &&
+    (buyFeature || isHotlineCascadeGame(gameId) || Boolean(round.features))
       ? buyFeature
         ? __hotlineServiceTestHooks.buildControlledMegaFeature(
             payout.div(baseAmount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN).toNumber(),
@@ -334,6 +374,7 @@ function controlledResult(
     lines: buyFeature ? [] : round.lines,
     cascades: buyFeature ? [] : round.cascades,
     ...(features ? { features } : {}),
+    ...(round.sourceFeature ? { sourceFeature: round.sourceFeature } : {}),
     buyFeature,
     baseAmount: baseAmount.toFixed(2),
     stakeAmount: stake.toFixed(2),

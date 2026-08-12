@@ -6,10 +6,19 @@ import { Sfx } from '@bg/game-engine';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
+import { useTranslation } from '@/i18n/useTranslation';
+import type { Locale } from '@/i18n/types';
 import { PlatformBgm } from '@/lib/platformBgm';
 
 const GAME_PATH = '/games/h5-slot-collection/index.html';
 const ERROR_NOTICE_MS = 6_000;
+const ORIGINAL_LANGUAGE_BY_PLATFORM_LOCALE: Record<Locale, string> = {
+  'zh-Hant': 'cht',
+  'zh-Hans': 'zh',
+  en: 'en',
+  th: 'th',
+  vi: 'vn',
+};
 const ROOM_MULTIPLIER_BY_GAME: Partial<Record<H5GameCode, string>> = {
   // These source games calculate the displayed stake from hard-coded legacy
   // denominations. Keep their first visible stake at or above the platform's
@@ -33,6 +42,7 @@ const PORTRAIT_GAME_CODES = new Set<H5GameCode>([
 export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
   const navigate = useNavigate();
   const returnTarget = useGameReturnTarget();
+  const { locale } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const setBalance = useAuthStore((state) => state.setBalance);
   const setTokens = useAuthStore((state) => state.setTokens);
@@ -63,13 +73,13 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
       roomId: '1',
       roomMul: ROOM_MULTIPLIER_BY_GAME[gameCode] ?? '0.2',
       room_id: '1',
-      language: 'zh',
+      language: ORIGINAL_LANGUAGE_BY_PLATFORM_LOCALE[locale],
       uid: 'yachiyo',
       token: 'yachiyo-session',
       build: 'yachiyo-h5-slots-v2',
     });
     return `${GAME_PATH}?${query.toString()}`;
-  }, [gameCode]);
+  }, [gameCode, locale]);
 
   useEffect(() => {
     setError('');

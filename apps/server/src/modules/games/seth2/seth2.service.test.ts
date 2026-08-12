@@ -1,7 +1,9 @@
 import { Prisma } from '@prisma/client';
+import type { Seth2ReturnData } from '@bg/shared';
 import { describe, expect, it } from 'vitest';
 import {
   advanceSession,
+  applyFemaleLockState,
   chooseControlledSethFactor,
   machineDisplayRate,
   machineInfo,
@@ -144,12 +146,19 @@ describe('Seth2 free-game session progression', () => {
     boughtFeatureMode: 'none' as const,
     extraSpins: 0,
     multiplierBankAfter: 0,
+    femaleLock: null,
   };
 
-  it('starts all fifteen games after a natural standard trigger', () => {
+  it('starts all twenty source games after a natural standard trigger', () => {
     expect(
       advanceSession(
-        { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00', multiplierBank: 0 },
+        {
+          freeSpinsRemaining: 0,
+          featureMode: 'none',
+          betAmount: '0.00',
+          multiplierBank: 0,
+          femaleLock: null,
+        },
         {
           ...baseInput,
           triggeredFreeSpins: true,
@@ -157,17 +166,24 @@ describe('Seth2 free-game session progression', () => {
         },
       ),
     ).toEqual({
-      freeSpinsRemaining: 15,
+      freeSpinsRemaining: 20,
       featureMode: 'standard',
       betAmount: '18.00',
       multiplierBank: 0,
+      femaleLock: null,
     });
   });
 
   it('keeps golden-SCATTER triggers in awakening mode', () => {
     expect(
       advanceSession(
-        { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00', multiplierBank: 0 },
+        {
+          freeSpinsRemaining: 0,
+          featureMode: 'none',
+          betAmount: '0.00',
+          multiplierBank: 0,
+          femaleLock: null,
+        },
         {
           ...baseInput,
           triggeredFreeSpins: true,
@@ -175,10 +191,11 @@ describe('Seth2 free-game session progression', () => {
         },
       ),
     ).toEqual({
-      freeSpinsRemaining: 15,
+      freeSpinsRemaining: 20,
       featureMode: 'awakening',
       betAmount: '18.00',
       multiplierBank: 0,
+      femaleLock: null,
     });
   });
 
@@ -187,14 +204,21 @@ describe('Seth2 free-game session progression', () => {
     (featureMode) => {
       expect(
         advanceSession(
-          { freeSpinsRemaining: 0, featureMode: 'none', betAmount: '0.00', multiplierBank: 0 },
+          {
+            freeSpinsRemaining: 0,
+            featureMode: 'none',
+            betAmount: '0.00',
+            multiplierBank: 0,
+            femaleLock: null,
+          },
           { ...baseInput, buying: true, boughtFeatureMode: featureMode },
         ),
       ).toEqual({
-        freeSpinsRemaining: 15,
+        freeSpinsRemaining: 20,
         featureMode,
         betAmount: '18.00',
         multiplierBank: 0,
+        femaleLock: null,
       });
     },
   );
@@ -207,6 +231,7 @@ describe('Seth2 free-game session progression', () => {
           featureMode: 'awakening',
           betAmount: '18.00',
           multiplierBank: 40,
+          femaleLock: null,
         },
         { ...baseInput, freeSpin: true, extraSpins: 5, multiplierBankAfter: 52 },
       ),
@@ -215,6 +240,7 @@ describe('Seth2 free-game session progression', () => {
       featureMode: 'awakening',
       betAmount: '18.00',
       multiplierBank: 52,
+      femaleLock: null,
     });
   });
 
@@ -226,6 +252,7 @@ describe('Seth2 free-game session progression', () => {
           featureMode: 'standard',
           betAmount: '18.00',
           multiplierBank: 20,
+          femaleLock: null,
         },
         { ...baseInput, freeSpin: true, extraSpins: 5, multiplierBankAfter: 30 },
       ),
@@ -234,6 +261,7 @@ describe('Seth2 free-game session progression', () => {
       featureMode: 'standard',
       betAmount: '18.00',
       multiplierBank: 30,
+      femaleLock: null,
     });
   });
 
@@ -245,6 +273,7 @@ describe('Seth2 free-game session progression', () => {
           featureMode: 'standard',
           betAmount: '18.00',
           multiplierBank: 120,
+          femaleLock: null,
         },
         { ...baseInput, freeSpin: true, multiplierBankAfter: 140 },
       ),
@@ -253,6 +282,38 @@ describe('Seth2 free-game session progression', () => {
       featureMode: 'none',
       betAmount: '0.00',
       multiplierBank: 0,
+      femaleLock: null,
     });
+  });
+
+  it('keeps the woman multiplier lock for the source 4 -> 3 -> 2 -> 1 sequence', () => {
+    const cell = { type: 10 as const, mul: 5, mul_type: 0, code: 13 };
+    const firstData = {
+      type18_start_mul_list: [cell],
+      type18_mul_count: 4,
+    } as unknown as Seth2ReturnData;
+    const first = applyFemaleLockState(firstData, null);
+    expect(firstData.type18_mul_count).toBe(4);
+    expect(first).toEqual({ cells: [cell], gamesRemaining: 3 });
+
+    const observed: number[] = [];
+    let current = first;
+    for (let index = 0; index < 3; index += 1) {
+      const start_data = Array.from({ length: 30 }, (_, code) => ({
+        type: (code % 9) + 1,
+        mul: 0,
+      }));
+      const data = {
+        list: [{ start_data, remove_type: [] }],
+        type18_start_mul_list: [],
+        type18_mul_count: 0,
+      } as unknown as Seth2ReturnData;
+      current = applyFemaleLockState(data, current);
+      observed.push(data.type18_mul_count);
+      expect(data.type18_start_mul_list).toEqual([cell]);
+      expect(data.list[0]!.start_data[cell.code]).toEqual(cell);
+    }
+    expect(observed).toEqual([3, 2, 1]);
+    expect(current).toBeNull();
   });
 });

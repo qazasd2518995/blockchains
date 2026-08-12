@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { GameId, H5_GAMES, SLOT_GAME_IDS } from '@bg/shared';
-import { getHotlineReelCount, getHotlineRowCount, hotlineEvaluate } from '@bg/provably-fair';
+import {
+  getHotlineReelCount,
+  getHotlineReelRowCounts,
+  getHotlineRowCount,
+  hotlineEvaluate,
+  hotlineSelectBountyFreeMode,
+  hotlineSelectLucky777FreeMode,
+} from '@bg/provably-fair';
 import { __hotlineServiceTestHooks } from './hotline.service.js';
 
 describe('hotline controlled round shaping', () => {
@@ -561,6 +568,64 @@ describe('hotline controlled round shaping', () => {
     ).toBe(30000);
   });
 
+  it('keeps Fortune Gems 50% Extra Bet accounting aligned with its fourth-reel multiplier', () => {
+    expect(
+      __hotlineServiceTestHooks.sourceStakeAmount(new Prisma.Decimal(10), 1.5).toNumber(),
+    ).toBe(15);
+    const round = __hotlineServiceTestHooks.decorateFortuneGemsRound(
+      {
+        grid: [
+          [0, 1, 2],
+          [0, 3, 4],
+          [0, 5, 6],
+        ],
+        lines: [
+          {
+            lineId: 'line-1',
+            path: [0, 0, 0],
+            startReel: 0,
+            direction: 'ltr',
+            row: 0,
+            symbol: 0,
+            count: 3,
+            payout: 0.5,
+          },
+        ],
+        cascades: [],
+        totalMultiplier: 0.5,
+      },
+      2,
+      true,
+    );
+    expect(round.totalMultiplier).toBe(1);
+    expect(round.lines[0]!.payout).toBe(1);
+    expect(round.sourceFeature).toEqual({
+      type: 'fortune-gems-multiplier',
+      multiplierIndex: 1,
+      multiplier: 2,
+      enhancedBet: true,
+      winEx: true,
+    });
+
+    const scaled = __hotlineServiceTestHooks.scaleControlForSourcePresentation(
+      {
+        won: true,
+        multiplier: new Prisma.Decimal(2),
+        payout: new Prisma.Decimal(200),
+        controlled: true,
+        minMultiplier: new Prisma.Decimal('1.01'),
+        maxMultiplier: new Prisma.Decimal(20),
+        maxPayout: new Prisma.Decimal(200),
+      },
+      1.5,
+      2,
+    );
+    expect(scaled.multiplier.toNumber()).toBe(1.5);
+    expect(scaled.minMultiplier?.toNumber()).toBe(0.7575);
+    expect(scaled.maxMultiplier?.toNumber()).toBe(15);
+    expect(scaled.maxPayout?.toNumber()).toBe(100);
+  });
+
   it('varies controlled mega free-spin blank boards without accidental wins', () => {
     const feature = __hotlineServiceTestHooks.buildControlledMegaFeature(0, true, 12);
     const signatures = new Set(
@@ -585,6 +650,233 @@ describe('hotline controlled round shaping', () => {
     for (const round of blankRounds) {
       expect(hotlineEvaluate(round.initialGrid).lines).toHaveLength(0);
     }
+  });
+
+  it('builds controlled Yu Pu Tuan features from ten visible source-paytable rounds', () => {
+    const feature = __hotlineServiceTestHooks.buildControlledMegaFeature(
+      4,
+      true,
+      12,
+      undefined,
+      'h5-yu-pu-tuan',
+    );
+
+    expect(feature.freeSpinsAwarded).toBe(10);
+    expect(feature.freeSpinRounds).toHaveLength(10);
+    expect(feature.scatterSymbols.map((symbol) => symbol.reel).sort()).toEqual([0, 1, 2]);
+    expect(feature.baseMultiplierSymbols).toEqual([]);
+    expect(feature.freeSpinMultiplierBank).toBe(0);
+    let displayedTotal = 0;
+    for (const round of feature.freeSpinRounds) {
+      const evaluated = hotlineEvaluate(round.initialGrid, 'h5-yu-pu-tuan');
+      expect(round.initialGrid).toEqual(round.finalGrid);
+      expect(round.lines).toEqual(evaluated.lines);
+      expect(round.totalMultiplier).toBe(evaluated.totalMultiplier);
+      expect(round.appliedMultiplier).toBe(1);
+      expect(round.multiplierSymbols).toEqual([]);
+      expect(round.initialGrid.flat()).not.toContain(5);
+      displayedTotal = roundTestMultiplier(displayedTotal + evaluated.totalMultiplier);
+    }
+    expect(feature.freeSpinWinMultiplier).toBe(displayedTotal);
+    expect(feature.totalMultiplier).toBe(displayedTotal);
+    expect(feature.totalMultiplier).toBeLessThanOrEqual(4);
+  });
+
+  it('builds Caishen Fa Fa Fa control output from ten visible expanded-Wild rounds', () => {
+    const gameId = 'h5-caishen-fa-fa-fa';
+    const feature = __hotlineServiceTestHooks.buildControlledMegaFeature(
+      12,
+      true,
+      24,
+      undefined,
+      gameId,
+    );
+
+    expect(feature.freeSpinsAwarded).toBe(10);
+    expect(feature.freeSpinRounds).toHaveLength(10);
+    expect(feature.scatterSymbols.map((symbol) => symbol.reel)).toEqual([0, 1, 2]);
+    expect(feature.sourceFreeWinMultiplier).toBe(1);
+    expect(feature.baseMultiplierSymbols).toEqual([]);
+    expect(feature.freeSpinMultiplierBank).toBe(0);
+    let displayedTotal = 0;
+    for (const round of feature.freeSpinRounds) {
+      const expandedColumns = round.initialGrid.filter((column) =>
+        column.every((symbol) => symbol === 10),
+      );
+      expect(expandedColumns.length).toBeGreaterThanOrEqual(1);
+      expect(expandedColumns.length).toBeLessThanOrEqual(3);
+      expect(round.initialGrid).toEqual(round.finalGrid);
+      expect(round.cascades).toEqual([]);
+      expect(round.multiplierSymbols).toEqual([]);
+      expect(round.appliedMultiplier).toBe(1);
+      const evaluated = hotlineEvaluate(round.initialGrid, gameId);
+      expect(round.lines).toEqual(evaluated.lines);
+      expect(round.totalMultiplier).toBe(evaluated.totalMultiplier);
+      displayedTotal = roundTestMultiplier(displayedTotal + evaluated.totalMultiplier);
+    }
+    expect(feature.freeSpinWinMultiplier).toBe(displayedTotal);
+    expect(feature.totalMultiplier).toBe(displayedTotal);
+    expect(feature.totalMultiplier).toBeLessThanOrEqual(12);
+  });
+
+  it('persists Star 97 cherry and bell gifts and settles each free board from its visible result', () => {
+    const gameId = 'h5-star-97';
+    const cherryTrigger = __hotlineServiceTestHooks.roundFromClassicGrid(
+      [
+        [0, 1, 2],
+        [0, 2, 3],
+        [0, 3, 4],
+      ],
+      gameId,
+    );
+    const decoratedCherry = __hotlineServiceTestHooks.decorateStar97Round(
+      cherryTrigger,
+      { cherryLineWins: 6, bellLineWins: 0 },
+      'star-97-server',
+      'star-97-client',
+      97,
+    );
+    expect(decoratedCherry.features?.freeSpinsAwarded).toBeGreaterThanOrEqual(1);
+    expect(decoratedCherry.features?.freeSpinRounds.length).toBe(
+      decoratedCherry.features?.freeSpinsAwarded,
+    );
+    expect(decoratedCherry.star97Progress?.cherryLineWins).toBeLessThan(7);
+
+    let displayedTotal = cherryTrigger.totalMultiplier;
+    for (const freeRound of decoratedCherry.features?.freeSpinRounds ?? []) {
+      const evaluated = hotlineEvaluate(freeRound.initialGrid, gameId);
+      expect(freeRound.initialGrid).toEqual(freeRound.finalGrid);
+      expect(freeRound.lines).toEqual(evaluated.lines);
+      expect(freeRound.totalMultiplier).toBe(evaluated.totalMultiplier);
+      expect(freeRound.sourceFeature).toMatchObject({
+        type: 'star-97-seven-multiplier',
+        sevenCount: freeRound.initialGrid.flat().filter((symbol) => symbol === 8).length,
+      });
+      expect(
+        freeRound.sourceFeature?.type === 'star-97-seven-multiplier'
+          ? freeRound.sourceFeature.multiplier
+          : 0,
+      ).toBeGreaterThanOrEqual(1);
+      displayedTotal = roundTestMultiplier(displayedTotal + evaluated.totalMultiplier);
+    }
+    expect(decoratedCherry.totalMultiplier).toBe(displayedTotal);
+
+    const bellTrigger = __hotlineServiceTestHooks.roundFromClassicGrid(
+      [
+        [3, 1, 2],
+        [3, 2, 4],
+        [3, 4, 1],
+      ],
+      gameId,
+    );
+    const decoratedBell = __hotlineServiceTestHooks.decorateStar97Round(
+      bellTrigger,
+      { cherryLineWins: 0, bellLineWins: 4 },
+      'star-97-server',
+      'star-97-client',
+      98,
+    );
+    expect(decoratedBell.features?.freeSpinsAwarded).toBeGreaterThanOrEqual(1);
+    expect(decoratedBell.star97Progress?.bellLineWins).toBeLessThan(5);
+  });
+
+  it('builds Fruit Little Mary control output from one visible source-paytable draw', () => {
+    const freeMode = __hotlineServiceTestHooks.buildControlledFruitLittleMaryFreeSpins(2, 12);
+
+    expect(freeMode.freeSpinsAwarded).toBe(1);
+    expect(freeMode.freeSpinRounds).toHaveLength(1);
+    expect(freeMode.freeSpinMultiplierBank).toBe(0);
+    const [round] = freeMode.freeSpinRounds;
+    expect(round).toBeDefined();
+    const evaluated = hotlineEvaluate(round!.initialGrid, 'h5-fruit-little-mary');
+    expect(round!.initialGrid).toEqual(round!.finalGrid);
+    expect(round!.lines).toEqual(evaluated.lines);
+    expect(round!.totalMultiplier).toBe(evaluated.totalMultiplier);
+    expect(round!.appliedMultiplier).toBe(1);
+    expect(round!.multiplierSymbols).toEqual([]);
+    expect(round!.initialGrid.flat().every((symbol) => symbol < 8)).toBe(true);
+    expect(freeMode.freeSpinWinMultiplier).toBe(evaluated.totalMultiplier);
+    expect(freeMode.freeSpinWinMultiplier).toBeLessThanOrEqual(2);
+
+    const trigger = __hotlineServiceTestHooks.buildControlledScatterSymbols(
+      12,
+      'h5-fruit-little-mary',
+    );
+    expect(trigger.map((symbol) => symbol.reel)).toEqual([0, 1, 2]);
+    expect(trigger.every((symbol) => symbol.type === 'scatter')).toBe(true);
+  });
+
+  it('awards Fruit Little Mary pool only for three red sevens at the source max bet', () => {
+    const gameId = 'h5-fruit-little-mary';
+    const grid = __hotlineServiceTestHooks.blankHotlineGrid(gameId, 91);
+    grid[0]![0] = 9;
+    grid[2]![1] = 9;
+    grid[4]![2] = 9;
+    const features = __hotlineServiceTestHooks.buildControlledMegaFeature(
+      0,
+      false,
+      91,
+      undefined,
+      gameId,
+    );
+    const sourceRound = {
+      grid,
+      lines: [],
+      cascades: [],
+      totalMultiplier: features.totalMultiplier,
+      features,
+    };
+
+    const belowMax = __hotlineServiceTestHooks.resolveFruitLittleMaryJackpotAward(
+      sourceRound,
+      new Prisma.Decimal(250_000),
+      new Prisma.Decimal(2000),
+    );
+    expect(belowMax).toBe(sourceRound);
+
+    const awarded = __hotlineServiceTestHooks.resolveFruitLittleMaryJackpotAward(
+      sourceRound,
+      new Prisma.Decimal(250_000),
+      new Prisma.Decimal(5000),
+    );
+    expect(awarded.totalMultiplier).toBe(50);
+    expect(awarded.features?.baseTotalMultiplier).toBe(50);
+    expect(awarded.features?.sourceJackpot).toEqual({
+      type: 'fruit-little-mary-jackpot',
+      positions: [
+        { reel: 0, row: 0 },
+        { reel: 2, row: 1 },
+        { reel: 4, row: 2 },
+      ],
+      payoutMultiplier: 50,
+    });
+  });
+
+  it('keeps controlled Aztec Gems payouts tied to its visible fourth-reel multiplier', () => {
+    const gameId = 'h5-aztec-treasure';
+    const round = __hotlineServiceTestHooks.strictWinningHotlineRound(
+      gameId,
+      new Prisma.Decimal(100),
+      {
+        flipReason: 'deposit_control',
+        minMultiplier: new Prisma.Decimal(2),
+        maxMultiplier: new Prisma.Decimal(3),
+        maxPayout: new Prisma.Decimal(300),
+      },
+      712,
+    );
+    expect(round).not.toBeNull();
+    expect(round!.sourceFeature).toMatchObject({ type: 'aztec-gems-multiplier' });
+    const wheel =
+      round!.sourceFeature?.type === 'aztec-gems-multiplier' ? round!.sourceFeature.multiplier : 0;
+    expect([1, 2, 3, 5, 10, 15]).toContain(wheel);
+    const base = hotlineEvaluate(round!.grid, gameId);
+    expect(round!.lines.map((line) => line.payout)).toEqual(
+      base.lines.map((line) => roundTestMultiplier(line.payout * wheel)),
+    );
+    expect(round!.totalMultiplier).toBe(roundTestMultiplier(base.totalMultiplier * wheel));
+    expect(round!.totalMultiplier).toBeGreaterThanOrEqual(2);
+    expect(round!.totalMultiplier).toBeLessThanOrEqual(3);
   });
 
   it('does not cap naturally-triggered mega free games without a control hit', () => {
@@ -625,6 +917,123 @@ describe('hotline controlled round shaping', () => {
     expect(round.grid.every((column) => column.length === 5)).toBe(true);
     expect(round.features?.freeSpinsAwarded).toBeGreaterThan(0);
     expect(round.features?.freeSpinRounds.length).toBe(round.features?.freeSpinsPlayed);
+  });
+
+  it('keeps Queen free-mode control fallbacks inside the selected source mode', () => {
+    const stake = new Prisma.Decimal(100);
+    const scatterSymbols = [0, 1, 2].map((reel) => ({
+      reel,
+      row: 0,
+      type: 'scatter' as const,
+    }));
+
+    for (const [modeType, minimumSpins] of [
+      [1, 20],
+      [2, 10],
+      [3, 5],
+    ] as const) {
+      const natural = hotlineSelectBountyFreeMode(
+        'queen-control-server',
+        'queen-control-client',
+        71,
+        'h5-queen-of-bounty',
+        modeType,
+      );
+      const selection = __hotlineServiceTestHooks.selectBountyFreeFeaturesForControl(
+        natural,
+        {
+          won: true,
+          multiplier: new Prisma.Decimal(1_000_001),
+          payout: new Prisma.Decimal(100_000_100),
+          controlled: true,
+          flipReason: 'deposit_control',
+          controlId: 'queen-unreachable',
+          minMultiplier: new Prisma.Decimal(1_000_001),
+          maxMultiplier: new Prisma.Decimal(1_000_002),
+          maxPayout: new Prisma.Decimal(100_000_200),
+        },
+        'queen-control-server',
+        'queen-control-client',
+        71,
+        'h5-queen-of-bounty',
+        modeType,
+        stake,
+        stake,
+        scatterSymbols,
+      );
+
+      expect(selection.control.controlled).toBe(true);
+      expect(selection.control.won).toBe(false);
+      expect(selection.control.flipReason).toBe('control_bounds_guard');
+      expect(selection.features.sourceFreeModeType).toBe(modeType);
+      expect(selection.features.freeSpinsAwarded).toBe(minimumSpins);
+      expect(selection.features.freeSpinRounds).toHaveLength(minimumSpins);
+      expect(selection.features.totalMultiplier).toBe(0);
+      expect(
+        selection.features.freeSpinRounds.every(
+          (round) => round.totalMultiplier === 0 && round.multiplierSymbols.length === 0,
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it('keeps Lucky 777 control fallbacks inside the selected 28/14/7-spin mode', () => {
+    const stake = new Prisma.Decimal(12);
+    const triggerSymbols = [0, 1, 2].map((reel) => ({
+      reel,
+      row: reel,
+      type: 'scatter' as const,
+    }));
+
+    for (const [modeType, spins, multiplier] of [
+      [1, 28, 1],
+      [2, 14, 2],
+      [3, 7, 4],
+    ] as const) {
+      const natural = hotlineSelectLucky777FreeMode(
+        'lucky-control-server',
+        'lucky-control-client',
+        93,
+        modeType,
+      );
+      expect(natural).toMatchObject({
+        sourceFreeModeType: modeType,
+        sourceFreeWinMultiplier: multiplier,
+        freeSpinsAwarded: spins,
+      });
+      const selection = __hotlineServiceTestHooks.selectBountyFreeFeaturesForControl(
+        natural,
+        {
+          won: true,
+          multiplier: new Prisma.Decimal(1_000_001),
+          payout: new Prisma.Decimal(12_000_012),
+          controlled: true,
+          flipReason: 'principal_control',
+          controlId: 'lucky-unreachable',
+          minMultiplier: new Prisma.Decimal(1_000_001),
+          maxMultiplier: new Prisma.Decimal(1_000_002),
+          maxPayout: new Prisma.Decimal(12_000_024),
+        },
+        'lucky-control-server',
+        'lucky-control-client',
+        93,
+        'h5-lucky-777',
+        modeType,
+        stake,
+        stake,
+        triggerSymbols,
+      );
+
+      expect(selection.control).toMatchObject({
+        controlled: true,
+        won: false,
+        flipReason: 'control_bounds_guard',
+      });
+      expect(selection.features.sourceFreeModeType).toBe(modeType);
+      expect(selection.features.freeSpinsAwarded).toBe(spins);
+      expect(selection.features.freeSpinRounds).toHaveLength(spins);
+      expect(selection.features.totalMultiplier).toBe(0);
+    }
   });
 
   it('keeps normal mega buy-feature payout and displayed free-game total capped at 1x stake', () => {
@@ -829,15 +1238,22 @@ function expectControlledRoundMatchesGameRules(
 ): void {
   const reelCount = getHotlineReelCount(gameId);
   const rowCount = getHotlineRowCount(gameId);
+  const reelRows = getHotlineReelRowCounts(gameId, reelCount, rowCount);
   expect(round.grid, `${gameId}/reels`).toHaveLength(reelCount);
   expect(
-    round.grid.every((column) => column.length === rowCount),
+    round.grid.every((column, reel) => column.length === reelRows[reel]),
     `${gameId}/rows`,
   ).toBe(true);
 
   if ((round.cascades?.length ?? 0) > 0) {
     for (const step of round.cascades ?? []) {
-      const evaluated = hotlineEvaluate(step.grid, gameId);
+      if (gameId === 'h5-golden-empire') {
+        expect(
+          (step.sourceStacks ?? []).length,
+          `${gameId}/cascade-${step.index}/source-stacks`,
+        ).toBeGreaterThan(0);
+      }
+      const evaluated = hotlineEvaluate(step.grid, gameId, step.sourceStacks);
       expect(step.lines, `${gameId}/cascade-${step.index}/lines`).toEqual(evaluated.lines);
       expect(step.multiplier, `${gameId}/cascade-${step.index}/multiplier`).toBeCloseTo(
         evaluated.totalMultiplier,
@@ -849,8 +1265,26 @@ function expectControlledRoundMatchesGameRules(
     );
   } else if (round.lines.length > 0) {
     const evaluated = hotlineEvaluate(round.grid, gameId);
-    expect(round.lines, `${gameId}/lines`).toEqual(evaluated.lines);
-    expect(round.totalMultiplier, `${gameId}/multiplier`).toBeCloseTo(evaluated.totalMultiplier, 4);
+    if (gameId === 'h5-aztec-treasure') {
+      const wheel =
+        round.sourceFeature?.type === 'aztec-gems-multiplier' ? round.sourceFeature.multiplier : 1;
+      expect(round.lines, `${gameId}/lines`).toEqual(
+        evaluated.lines.map((line) => ({
+          ...line,
+          payout: roundTestMultiplier(line.payout * wheel),
+        })),
+      );
+      expect(round.totalMultiplier, `${gameId}/multiplier`).toBeCloseTo(
+        evaluated.totalMultiplier * wheel,
+        4,
+      );
+    } else {
+      expect(round.lines, `${gameId}/lines`).toEqual(evaluated.lines);
+      expect(round.totalMultiplier, `${gameId}/multiplier`).toBeCloseTo(
+        evaluated.totalMultiplier,
+        4,
+      );
+    }
   }
 
   if (!round.features) return;
@@ -870,16 +1304,18 @@ function expectControlledRoundMatchesGameRules(
     expect(symbol.reel, `${gameId}/special-reel`).toBeGreaterThanOrEqual(0);
     expect(symbol.reel, `${gameId}/special-reel`).toBeLessThan(reelCount);
     expect(symbol.row, `${gameId}/special-row`).toBeGreaterThanOrEqual(0);
-    expect(symbol.row, `${gameId}/special-row`).toBeLessThan(rowCount);
+    expect(symbol.row, `${gameId}/special-row`).toBeLessThan(reelRows[symbol.reel]!);
   }
 
   let freeSpinWinMultiplier = 0;
+  let persistentFreeMultiplier = 1;
   for (const freeRound of round.features.freeSpinRounds) {
+    const fixedSourceMultiplier = Number(round.features.sourceFreeWinMultiplier || 1);
     expect(freeRound.initialGrid, `${gameId}/free-${freeRound.index}/reels`).toHaveLength(
       reelCount,
     );
     expect(
-      freeRound.initialGrid.every((column) => column.length === rowCount),
+      freeRound.initialGrid.every((column, reel) => column.length === reelRows[reel]),
       `${gameId}/free-${freeRound.index}/rows`,
     ).toBe(true);
     expect(freeRound.lines, `${gameId}/free-${freeRound.index}/all-lines`).toEqual(
@@ -887,12 +1323,25 @@ function expectControlledRoundMatchesGameRules(
     );
     let symbolWinMultiplier = 0;
     for (const step of freeRound.cascades) {
-      const evaluated = hotlineEvaluate(step.grid, gameId);
+      const evaluated = hotlineEvaluate(step.grid, gameId, step.sourceStacks);
+      const sourceMultiplier =
+        gameId === 'h5-golden-empire' || gameId === 'h5-gates-of-olympus'
+          ? persistentFreeMultiplier
+          : fixedSourceMultiplier;
       expect(step.lines, `${gameId}/free-${freeRound.index}/cascade-${step.index}`).toEqual(
-        evaluated.lines,
+        evaluated.lines.map((line) => ({
+          ...line,
+          payout: roundTestMultiplier(line.payout * sourceMultiplier),
+        })),
       );
-      expect(step.multiplier).toBeCloseTo(evaluated.totalMultiplier, 4);
+      expect(step.multiplier).toBeCloseTo(evaluated.totalMultiplier * sourceMultiplier, 4);
       symbolWinMultiplier = roundTestMultiplier(symbolWinMultiplier + step.multiplier);
+      if (
+        (gameId === 'h5-golden-empire' || gameId === 'h5-gates-of-olympus') &&
+        step.multiplier > 0
+      ) {
+        persistentFreeMultiplier += 1;
+      }
     }
     const scatterMultiplier = megaScatterPayout(freeRound.scatterSymbols.length);
     expect(freeRound.baseMultiplier).toBeCloseTo(
@@ -911,6 +1360,11 @@ function expectControlledRoundMatchesGameRules(
     freeSpinWinMultiplier,
     3,
   );
+  if (gameId === 'h5-golden-empire' || gameId === 'h5-gates-of-olympus') {
+    expect(round.features.freeSpinMultiplierBank, `${gameId}/free-bank`).toBe(
+      round.features.freeSpinRounds.length > 0 ? persistentFreeMultiplier : 0,
+    );
+  }
 }
 
 function roundTestMultiplier(value: number): number {

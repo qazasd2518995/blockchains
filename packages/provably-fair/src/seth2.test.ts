@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   SETH2_BOUGHT_AWAKENING_SHARE,
   SETH2_FREE_RETRIGGER_PROBABILITY,
+  SETH2_FREE_SPINS,
   SETH2_GRID_SIZE,
   SETH2_MATH,
   SETH2_MAX_SYMBOL_MULTIPLIER,
@@ -94,10 +95,10 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(SETH2_PAYTABLE[1]).toEqual({ eight: 200, ten: 500, twelve: 1000 });
     expect(SETH2_PAYTABLE[9]).toEqual({ eight: 5, ten: 15, twelve: 40 });
     expect(SETH2_FREE_RETRIGGER_PROBABILITY).toBe(0.01);
-    expect(SETH2_MATH.standardFree).toBeCloseTo(1.007, 8);
+    expect(SETH2_MATH.standardFree).toBeCloseTo(1.007 * (15 / SETH2_FREE_SPINS), 8);
     expect(SETH2_MATH.standardFeatureTotal).toBeCloseTo(15.9, 8);
     expect(SETH2_MATH.awakeningFeatureTotal).toBeCloseTo(193.78, 6);
-    expect(SETH2_MATH.expectedFeatureSpins).toBeCloseTo(15 / 0.95, 8);
+    expect(SETH2_MATH.expectedFeatureSpins).toBeCloseTo(SETH2_FREE_SPINS / 0.95, 8);
     expect(SETH2_MATH.theoreticalRtp).toBeCloseTo(0.9689, 8);
     expect(SETH2_MATH.buyFeatureRtp).toBeCloseTo(0.9689, 8);
     expect(SETH2_MATH.boughtStandardFree).toBeCloseTo(SETH2_MATH.awakeningFree, 8);
@@ -175,7 +176,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     );
     expect(outcome.payoutFactor).toBe(factor);
     expect(outcome.returnData.total_gold).toBe(money(BET * factor));
-    expect(outcome.returnData.freeGameCount).toBe(15);
+    expect(outcome.returnData.freeGameCount).toBe(SETH2_FREE_SPINS);
   });
 
   it('uses a golden SCATTER to enter awakening free games', () => {
@@ -190,13 +191,13 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     ).map((current) => current.type);
     expect(scatterTypes).toContain(16);
     expect(outcome.returnData.is_sjc).toBe(1);
-    expect(outcome.returnData.freeGameCount).toBe(15);
+    expect(outcome.returnData.freeGameCount).toBe(SETH2_FREE_SPINS);
     expect(outcome.returnData.featureMode).toBe('awakening');
     expect(outcome.returnData.gameModelType).toBe(1);
   });
 
   it.each(['standard', 'awakening'] as const)(
-    'uses a four-SCATTER entry board and preserves all 15 spins for a %s feature purchase',
+    'uses a four-SCATTER entry board and preserves all 20 source spins for a %s feature purchase',
     (featureMode) => {
       const outcome = seth2BuyFeatureEntry('buy-entry', 'client', 7, featureMode);
       const scatterTypes = outcome.returnData.list[0]!.start_data.filter(
@@ -208,7 +209,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       expect(outcome.triggeredFreeSpins).toBe(true);
       expect(outcome.featureMode).toBe(featureMode);
       expect(outcome.returnData.is_sjc).toBe(1);
-      expect(outcome.returnData.freeGameCount).toBe(15);
+      expect(outcome.returnData.freeGameCount).toBe(SETH2_FREE_SPINS);
       expect(outcome.returnData.featureMode).toBe(featureMode);
       expect(outcome.returnData.gameModelType).toBe(featureMode === 'awakening' ? 1 : 0);
       expect(outcome.payoutFactor).toBe(0);
@@ -375,16 +376,23 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(outcome).toBeDefined();
     const round = outcome!.returnData.list[0]!;
     const source = round.start_data.find(
-      (current) => current.type === 10 && current.mul === outcome!.returnData.type17_beishu.mul,
+      (current) => current.type === 10 && current.mul === outcome!.returnData.type17_beishu!.mul,
     )!;
     expect(
       round.start_data.filter(
-        (current) => current.type === 10 && current.mul === outcome!.returnData.type17_beishu.mul,
+        (current) => current.type === 10 && current.mul === outcome!.returnData.type17_beishu!.mul,
       ),
     ).toHaveLength(1);
     expect(outcome!.returnData.type17_mul_list).toHaveLength(copyCount);
     expect(outcome!.returnData.type17_mul_list).toEqual(
-      Array.from({ length: copyCount }, () => ({ ...source })),
+      Array.from({ length: copyCount }, () => ({
+        type: source.type,
+        mul: source.mul,
+        mul_type: source.mul_type,
+      })),
+    );
+    expect(outcome!.returnData.type17_beishu?.code).toBe(
+      round.start_data.indexOf(source),
     );
     expect(isSeth2MultiplierValue(source.mul)).toBe(true);
     expect(
@@ -419,7 +427,8 @@ describe('Storm of Seth 2 provably-fair engine', () => {
         expect(index).toBeGreaterThanOrEqual(0);
         available.splice(index, 1);
       }
-      expect(outcome.returnData.type18_mul_count).toBe(1);
+      expect(outcome.returnData.type18_mul_count).toBe(4);
+      expect(locked.every((cell) => Number.isInteger(cell.code))).toBe(true);
       expect(round.round_data).toHaveLength(removedCellCount(outcome));
       expect(round.scoreList[1]).toBe(money((BET * SETH2_SKILL_SYMBOL_PAY) / 20));
       expect(finalMultiplier(outcome)).toBe(round.total_mul);
