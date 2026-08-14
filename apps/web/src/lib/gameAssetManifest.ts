@@ -172,17 +172,26 @@ interface CocosShellAsset {
 }
 
 const SETH2_SHELL_ASSETS: readonly CocosShellAsset[] = [
-  { src: '/games/storm-of-seth-2/src/settings.a1d24.js', as: 'script' },
-  { src: '/games/storm-of-seth-2/main.47d5a.js', as: 'script' },
-  { src: '/games/storm-of-seth-2/seth2-adapter.js?v=7', as: 'script' },
-  { src: '/games/storm-of-seth-2/cocos2d-js-min.b1c26.js', as: 'script' },
-  { src: '/games/storm-of-seth-2/physics-min.941a2.js', as: 'script' },
-  { src: '/games/storm-of-seth-2/assets/resources/config.1e032.json', as: 'fetch' },
-  { src: '/games/storm-of-seth-2/assets/resources/index.1e032.js', as: 'script' },
-  { src: '/games/storm-of-seth-2/assets/main/config.739c1.json', as: 'fetch' },
-  { src: '/games/storm-of-seth-2/assets/main/index.739c1.js', as: 'script' },
-  { src: '/games/storm-of-seth-2/assets/game/config.6c478.json', as: 'fetch' },
-  { src: '/games/storm-of-seth-2/assets/game/index.6c478.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/app.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/src/settings.json', as: 'fetch' },
+  { src: '/games/storm-of-seth-2-v115/src/seth2-local-adapter.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/cocos-js/cc.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/assets/internal/config.json', as: 'fetch' },
+  { src: '/games/storm-of-seth-2-v115/assets/internal/index.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/assets/main/config.json', as: 'fetch' },
+  { src: '/games/storm-of-seth-2-v115/assets/main/index.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/assets/resources/config.json', as: 'fetch' },
+  { src: '/games/storm-of-seth-2-v115/assets/g1005/config.json', as: 'fetch' },
+  { src: '/games/storm-of-seth-2-v115/assets/g1005/index.js', as: 'script' },
+  { src: '/slotFramework/manifest.json', as: 'fetch' },
+  {
+    src: '/slotFramework/40401f29702686de9cfed69b217641b6029834f7/config.json',
+    as: 'fetch',
+  },
+  {
+    src: '/slotFramework/40401f29702686de9cfed69b217641b6029834f7/index.js',
+    as: 'script',
+  },
 ];
 
 const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [

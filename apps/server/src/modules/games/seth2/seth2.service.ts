@@ -2,8 +2,10 @@ import { Prisma, type PrismaClient } from '@prisma/client';
 import {
   isSeth2FactorRepresentable,
   seth2BuyFeature,
+  seth2BuyFeatureEntry,
   seth2Spin,
   seth2SpinForFactor,
+  seth2SuperMainSpin,
   type Seth2Outcome,
   type Seth2SpinMode,
 } from '@bg/provably-fair';
@@ -11,10 +13,10 @@ import {
   GameId,
   SETH2_ALLOWED_BETS,
   SETH2_BUY_FEATURE_MULTIPLIER,
+  SETH2_BUY_FEATURE_MULTIPLIERS,
   SETH2_FREE_SPINS,
   SETH2_MAX_FREE_SPINS,
   SETH2_MAX_WIN_MULTIPLIER,
-  isSeth2TestUsername,
   type Seth2FeatureMode,
   type Seth2ProtocolResponse,
   type Seth2ReturnData,
@@ -33,7 +35,14 @@ import {
   type ControlOutcome,
 } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
-import type { Seth2ProtocolInput } from './seth2.schema.js';
+import type { Seth2ProtocolInput, Seth2SourceInput } from './seth2.schema.js';
+import {
+  SETH2_SOURCE_DEFINITION,
+  seth2SourceGameStates,
+  seth2SourceInitialState,
+  seth2SourcePlatform,
+  type Seth2SourceAction,
+} from './seth2.source.js';
 
 const GAME_ID = GameId.STORM_OF_SETH_2;
 const SETH2_MACHINE_PAGES = 8;
@@ -52,6 +61,7 @@ export interface Seth2SessionState {
   betAmount: string;
   multiplierBank: number;
   femaleLock: Seth2FemaleLockState | null;
+  featureWinnings: number;
 }
 
 export interface Seth2FemaleLockState {
@@ -68,6 +78,12 @@ interface Seth2Settlement {
   returnData: Seth2ReturnData;
   balance: number;
   spinId: string;
+  session: Seth2SessionState;
+  freeSpin: boolean;
+  buying: boolean;
+  featureIndex: 0 | 1 | 2 | null;
+  totalStake: number;
+  featureWinningsBefore: number;
 }
 
 export interface Seth2MachineStatsRow {
@@ -84,6 +100,7 @@ const EMPTY_SESSION: Seth2SessionState = {
   betAmount: '0.00',
   multiplierBank: 0,
   femaleLock: null,
+  featureWinnings: 0,
 };
 
 export class Seth2Service {
@@ -158,6 +175,153 @@ export class Seth2Service {
     }
   }
 
+  async source(userId: string, input: Seth2SourceInput): Promise<Record<string, unknown>> {
+    const request = input.data;
+    switch (input.event) {
+      case 'initial': {
+        const user = await this.requireUser(userId);
+        const stats = await this.machineStats();
+        const platformBase = seth2SourcePlatform(
+          {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            balance: Number(user.balance.toFixed(2)),
+          },
+          1,
+        );
+        const platform = {
+          ...platformBase,
+          tables: sourceMachineTables(machineList(stats, 1), userId, 1),
+        };
+        return {
+          status: 200,
+          isResuming: false,
+          engine: {
+            definition: SETH2_SOURCE_DEFINITION,
+            gameState: [seth2SourceInitialState()],
+            spinId: '',
+          },
+          platform,
+        };
+      }
+      case 'spin': {
+        const buying = request.action === 'buyFeature';
+        if (buying) {
+          const totalStake = sourceTotalStake(request);
+          const machineId = sourceMachineId(request);
+          const featureIndex = sourceFeatureIndex(request.featureIndex);
+          const settlement = await this.settle(userId, totalStake, machineId, true, featureIndex);
+          // v1.1.5 buys a feature in two requests: reserve the result, then
+          // request the already-settled visual outcome with the returned spinId.
+          return {
+            status: 200,
+            engine: { gameState: { spinId: settlement.spinId }, spinId: settlement.spinId },
+            platform: sourceBalancePlatform(settlement.balance),
+          };
+        }
+
+        const requestedSpinId = sourceSpinId(request.spinId);
+        const settlement = requestedSpinId
+          ? await this.replayPurchasedSpin(userId, requestedSpinId)
+          : await this.settle(
+              userId,
+              sourceTotalStake(request),
+              sourceMachineId(request),
+              false,
+              null,
+            );
+        const featureIndex = settlement.featureIndex;
+        const action: Seth2SourceAction =
+          featureIndex === 2 ? 'superSpin' : settlement.freeSpin ? 'freeSpin' : 'spin';
+        const gameState = seth2SourceGameStates(settlement.returnData, {
+          action,
+          spinId: settlement.spinId,
+          totalStake: settlement.totalStake,
+          freeGameCount: settlement.session.freeSpinsRemaining,
+          featureWinningsBefore: settlement.featureWinningsBefore,
+          isGoldenFg:
+            settlement.session.featureMode === 'awakening' ||
+            settlement.returnData.featureMode === 'awakening' ||
+            featureIndex === 1,
+        });
+        return {
+          status: 200,
+          engine: { gameState, spinId: settlement.spinId },
+          platform: sourceBalancePlatform(settlement.balance),
+        };
+      }
+      case 'closeSpin': {
+        const user = await this.requireUser(userId);
+        return {
+          status: 200,
+          platform: sourceBalancePlatform(Number(user.balance.toFixed(2))),
+        };
+      }
+      case 'updateSettings':
+        await this.requireUser(userId);
+        return { status: 200 };
+      case 'getBetRecords':
+      case 'getUserReport': {
+        const history = await this.history(userId);
+        return { status: 200, ...history };
+      }
+      case 'getSlotTables': {
+        await this.requireUser(userId);
+        const page = requireMachinePage(Number(request.page ?? 1));
+        const selected = sourceMachineId(request);
+        const stats = await this.machineStats();
+        return {
+          status: 200,
+          tables: sourceMachineTables(machineList(stats, page), userId, selected),
+          lock: sourceTableLock(),
+          tableMeta: {
+            currentPage: page,
+            tablePerPage: SETH2_MACHINES_PER_PAGE,
+            totalPages: SETH2_MACHINE_PAGES,
+            totalTableCount: SETH2_MACHINE_COUNT,
+          },
+        };
+      }
+      case 'getSlotTableDetail': {
+        await this.requireUser(userId);
+        const machineId = sourceMachineId(request);
+        const stats = await this.machineStats();
+        const machine = machineInfo(machineId, stats.get(machineId));
+        return {
+          status: 200,
+          detail: {
+            dayWin: machine.totalBet * (Number(machine.day_rate_30) / 100),
+            dayBet: machine.totalBet,
+            hourWin: machine.totalBet * (Number(machine.day_rate) / 100),
+            hourBet: machine.totalBet,
+            todayBet: machine.totalBet,
+            todayWin: machine.totalBet * (Number(machine.day_rate) / 100),
+            mgCounts: [0, 0, 0],
+          },
+          lock: sourceTableLock(),
+        };
+      }
+      case 'updateSlotTable': {
+        await this.requireUser(userId);
+        const machineId = sourceMachineId(request.table ?? request);
+        return {
+          status: 200,
+          table: {
+            roomId: machineId,
+            number: machineId,
+            status: 'Full',
+            detail: null,
+            lock: sourceTableLock(),
+          },
+        };
+      }
+      case 'lockSlotTable':
+        await this.requireUser(userId);
+        return { status: 200, lock: sourceTableLock() };
+    }
+  }
+
   async history(userId: string) {
     await this.requireUser(userId);
     const bets = await this.prisma.bet.findMany({
@@ -189,9 +353,6 @@ export class Seth2Service {
       },
     });
     if (!user) throw new ApiError('UNAUTHORIZED', 'Authentication required');
-    if (!isSeth2TestUsername(user.username)) {
-      throw new ApiError('FORBIDDEN', '此遊戲目前僅開放指定測試帳號');
-    }
     if (user.frozenAt || user.disabledAt) {
       throw new ApiError('MEMBER_FROZEN', 'Member account is frozen');
     }
@@ -237,16 +398,13 @@ export class Seth2Service {
     requestedBet: number,
     machineId: number,
     buying: boolean,
+    featureIndex: 0 | 1 | 2 | null = buying ? 0 : null,
   ): Promise<Seth2Settlement> {
     return runLockedTransaction(this.prisma, async (tx) => {
       const requestedBaseAmount = new Prisma.Decimal(requestedBet);
       const user = await lockUserAndCheckFunds(tx, userId, new Prisma.Decimal(0), GAME_ID, {
         limitAmounts: [requestedBaseAmount],
       });
-      if (!isSeth2TestUsername(user.username)) {
-        throw new ApiError('FORBIDDEN', '此遊戲目前僅開放指定測試帳號');
-      }
-
       const previous = await tx.bet.findFirst({
         where: { userId, gameId: GAME_ID },
         orderBy: { createdAt: 'desc' },
@@ -262,8 +420,11 @@ export class Seth2Service {
         ? new Prisma.Decimal(currentSession.betAmount)
         : requestedBaseAmount;
       const baseBet = requireBet(Number(baseAmount.toFixed(2)));
+      const buyRate = buying
+        ? SETH2_BUY_FEATURE_MULTIPLIERS[featureIndex ?? 0]
+        : SETH2_BUY_FEATURE_MULTIPLIER;
       const debitAmount = buying
-        ? baseAmount.mul(SETH2_BUY_FEATURE_MULTIPLIER)
+        ? baseAmount.mul(buyRate)
         : freeSpin
           ? new Prisma.Decimal(0)
           : baseAmount;
@@ -279,7 +440,11 @@ export class Seth2Service {
       const multiplierBankBefore = freeSpin ? currentSession.multiplierBank : 0;
       const seed = await new SeedHelper(tx).getActiveBundle(userId, GAME_ID);
       const originalOutcome = buying
-        ? seth2BuyFeature(seed.serverSeed, seed.clientSeed, seed.nonce)
+        ? featureIndex === 1
+          ? seth2BuyFeatureEntry(seed.serverSeed, seed.clientSeed, seed.nonce, 'awakening')
+          : featureIndex === 2
+            ? seth2SuperMainSpin(seed.serverSeed, seed.clientSeed, seed.nonce, baseBet)
+            : seth2BuyFeature(seed.serverSeed, seed.clientSeed, seed.nonce)
         : seth2Spin(
             seed.serverSeed,
             seed.clientSeed,
@@ -290,7 +455,7 @@ export class Seth2Service {
           );
       const boughtFeatureMode: Seth2FeatureMode = buying ? originalOutcome.featureMode : 'none';
       const mode: Seth2SpinMode = buying
-        ? boughtFeatureMode === 'awakening'
+        ? featureIndex === 2 || boughtFeatureMode === 'awakening'
           ? 'awakening_free'
           : 'bought_standard_free'
         : sessionMode;
@@ -305,7 +470,7 @@ export class Seth2Service {
         multiplier: originalMultiplier,
         payout: originalPayout,
       };
-      const controlled: ControlOutcome = buying
+      const controlled: ControlOutcome = buying && featureIndex !== 2
         ? { ...originalPrediction, controlled: false }
         : await applyControls(tx, userId, GAME_ID, originalPrediction, {
             burstEligible: true,
@@ -316,7 +481,7 @@ export class Seth2Service {
           });
 
       const finalOutcome =
-        !buying && controlled.controlled
+        (!buying || featureIndex === 2) && controlled.controlled
           ? seth2SpinForFactor(
               seed.serverSeed,
               seed.clientSeed,
@@ -347,6 +512,7 @@ export class Seth2Service {
 
       const nextSession = advanceSession(currentSession, {
         buying,
+        featureIndex,
         freeSpin,
         betAmount: baseAmount,
         triggeredFreeSpins: finalOutcome.triggeredFreeSpins,
@@ -355,6 +521,7 @@ export class Seth2Service {
         extraSpins: finalOutcome.returnData.addGameCiShu,
         multiplierBankAfter: finalOutcome.returnData.multiplierBankAfter,
         femaleLock,
+        roundPayout: Number(finalPayout.toFixed(2)),
       });
       const responseFeatureMode: Seth2FeatureMode = buying
         ? boughtFeatureMode
@@ -366,7 +533,7 @@ export class Seth2Service {
       applyFeatureState(
         finalOutcome.returnData,
         nextSession.freeSpinsRemaining,
-        buying ||
+        (buying && featureIndex !== 2) ||
           finalOutcome.triggeredFreeSpins ||
           (freeSpin && nextSession.freeSpinsRemaining > 0),
         responseFeatureMode,
@@ -382,6 +549,8 @@ export class Seth2Service {
       const finalResult = {
         mode: buying ? 'buy' : mode,
         machineId,
+        buying,
+        featureIndex,
         baseAmount: baseAmount.toFixed(2),
         debitAmount: debitAmount.toFixed(2),
         session: nextSession,
@@ -441,8 +610,39 @@ export class Seth2Service {
         returnData: finalOutcome.returnData,
         balance: Number(newBalance.toFixed(2)),
         spinId: bet.id,
+        session: nextSession,
+        freeSpin,
+        buying,
+        featureIndex,
+        totalStake: baseBet,
+        featureWinningsBefore: freeSpin ? currentSession.featureWinnings : 0,
       };
     });
+  }
+
+  private async replayPurchasedSpin(userId: string, spinId: string): Promise<Seth2Settlement> {
+    const [user, bet] = await Promise.all([
+      this.requireUser(userId),
+      this.prisma.bet.findFirst({
+        where: { id: spinId, userId, gameId: GAME_ID },
+        select: { resultData: true },
+      }),
+    ]);
+    const stored = readPurchasedSettlement(bet?.resultData);
+    if (!stored) {
+      throw new ApiError('INVALID_ACTION', '找不到購買功能的開獎結果');
+    }
+    return {
+      returnData: stored.returnData,
+      balance: Number(user.balance.toFixed(2)),
+      spinId,
+      session: stored.session,
+      freeSpin: false,
+      buying: true,
+      featureIndex: stored.featureIndex,
+      totalStake: stored.totalStake,
+      featureWinningsBefore: 0,
+    };
   }
 }
 
@@ -530,6 +730,7 @@ function readSession(resultData: Prisma.JsonValue | undefined): Seth2SessionStat
   const betAmount = String(value.betAmount ?? '0');
   const featureMode = value.featureMode;
   const multiplierBank = value.multiplierBank === undefined ? 0 : Number(value.multiplierBank);
+  const featureWinnings = value.featureWinnings === undefined ? 0 : Number(value.featureWinnings);
   const femaleLock = readFemaleLock(value.femaleLock);
   if (
     !Number.isInteger(remaining) ||
@@ -538,13 +739,53 @@ function readSession(resultData: Prisma.JsonValue | undefined): Seth2SessionStat
     !Number.isInteger(multiplierBank) ||
     multiplierBank < 0 ||
     multiplierBank > MAX_MULTIPLIER_BANK ||
+    !Number.isFinite(featureWinnings) ||
+    featureWinnings < 0 ||
     !ALLOWED_BET_SET.has(Number(betAmount)) ||
     (featureMode !== 'none' && featureMode !== 'standard' && featureMode !== 'awakening') ||
     femaleLock === undefined
   ) {
     return EMPTY_SESSION;
   }
-  return { freeSpinsRemaining: remaining, featureMode, betAmount, multiplierBank, femaleLock };
+  return {
+    freeSpinsRemaining: remaining,
+    featureMode,
+    betAmount,
+    multiplierBank,
+    femaleLock,
+    featureWinnings,
+  };
+}
+
+function readPurchasedSettlement(resultData: Prisma.JsonValue | undefined): {
+  returnData: Seth2ReturnData;
+  session: Seth2SessionState;
+  featureIndex: 0 | 1 | 2;
+  totalStake: number;
+} | null {
+  if (!resultData || typeof resultData !== 'object' || Array.isArray(resultData)) return null;
+  const stored = resultData as Record<string, unknown>;
+  const featureIndex = Number(stored.featureIndex);
+  const totalStake = Number(stored.baseAmount);
+  const returnData = stored.returnData;
+  if (
+    stored.buying !== true ||
+    (featureIndex !== 0 && featureIndex !== 1 && featureIndex !== 2) ||
+    !ALLOWED_BET_SET.has(totalStake) ||
+    !returnData ||
+    typeof returnData !== 'object' ||
+    Array.isArray(returnData)
+  ) {
+    return null;
+  }
+  const outcome = returnData as Record<string, unknown>;
+  if (!Array.isArray(outcome.list) || !Number.isFinite(Number(outcome.total_gold))) return null;
+  return {
+    returnData: returnData as unknown as Seth2ReturnData,
+    session: readSession(resultData),
+    featureIndex,
+    totalStake,
+  };
 }
 
 function readFemaleLock(value: unknown): Seth2FemaleLockState | null | undefined {
@@ -636,6 +877,7 @@ export function advanceSession(
   current: Seth2SessionState,
   input: {
     buying: boolean;
+    featureIndex?: 0 | 1 | 2 | null;
     freeSpin: boolean;
     betAmount: Prisma.Decimal;
     triggeredFreeSpins: boolean;
@@ -644,15 +886,18 @@ export function advanceSession(
     extraSpins: number;
     multiplierBankAfter: number;
     femaleLock: Seth2FemaleLockState | null;
+    roundPayout?: number;
   },
 ): Seth2SessionState {
   if (input.buying) {
+    if (input.featureIndex === 2) return EMPTY_SESSION;
     return {
       freeSpinsRemaining: SETH2_FREE_SPINS,
       featureMode: input.boughtFeatureMode,
       betAmount: input.betAmount.toFixed(2),
       multiplierBank: 0,
       femaleLock: null,
+      featureWinnings: 0,
     };
   }
   if (input.freeSpin) {
@@ -666,6 +911,7 @@ export function advanceSession(
       betAmount: remaining > 0 ? current.betAmount : '0.00',
       multiplierBank: remaining > 0 ? input.multiplierBankAfter : 0,
       femaleLock: remaining > 0 ? input.femaleLock : null,
+      featureWinnings: remaining > 0 ? current.featureWinnings + (input.roundPayout ?? 0) : 0,
     };
   }
   if (input.triggeredFreeSpins) {
@@ -675,6 +921,7 @@ export function advanceSession(
       betAmount: input.betAmount.toFixed(2),
       multiplierBank: 0,
       femaleLock: null,
+      featureWinnings: 0,
     };
   }
   return EMPTY_SESSION;
@@ -725,4 +972,67 @@ export function chooseControlledSethFactor(
   return candidates.reduce((best, factor) =>
     Math.abs(factor - targetFactor) < Math.abs(best - targetFactor) ? factor : best,
   );
+}
+
+function sourceFeatureIndex(value: unknown): 0 | 1 | 2 {
+  const featureIndex = Number(value);
+  if (featureIndex !== 0 && featureIndex !== 1 && featureIndex !== 2) {
+    throw new ApiError('INVALID_ACTION', '無效的購買功能');
+  }
+  return featureIndex;
+}
+
+function sourceSpinId(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || value.length > 128 || !/^[A-Za-z0-9_-]+$/.test(value)) {
+    throw new ApiError('INVALID_ACTION', '無效的開獎編號');
+  }
+  return value;
+}
+
+function sourceTotalStake(data: Record<string, unknown>): number {
+  const stakeValue = Number(data.stakeValue ?? 1);
+  const ratioValue = Number(data.ratioValue ?? 0.1);
+  const totalStake = Number((stakeValue * ratioValue * 20).toFixed(2));
+  return requireBet(totalStake);
+}
+
+function sourceMachineId(data: unknown): number {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return 1;
+  const value = data as Record<string, unknown>;
+  const nested = value.table;
+  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+    return sourceMachineId(nested);
+  }
+  const candidate = Number(value.machineId ?? value.roomId ?? value.number ?? 1);
+  return requireMachineId(candidate);
+}
+
+function sourceBalancePlatform(balance: number) {
+  return { player: { balance: { currency: 'POINT', amount: balance, gemAmount: 0, betAmount: 0 } } };
+}
+
+function sourceTableLock() {
+  return { roomId: 0, number: 0, time: 0, resetDef: 0, expiredDef: 0 };
+}
+
+function sourceMachineTables(
+  machines: ReturnType<typeof machineList>,
+  userId: string,
+  selectedMachineId: number,
+) {
+  return machines.map((machine) => {
+    const bet = Math.max(100, machine.totalBet);
+    const win = Number((bet * (Number(machine.day_rate) / 100)).toFixed(2));
+    const selected = machine.id === selectedMachineId;
+    return {
+      roomId: machine.id,
+      number: machine.id,
+      bet,
+      win,
+      today: { bet, win },
+      status: selected ? 'Full' : 'Empty',
+      user: selected ? { userId } : null,
+    };
+  });
 }

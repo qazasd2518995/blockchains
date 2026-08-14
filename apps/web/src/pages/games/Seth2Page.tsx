@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
-import { isSeth2TestUsername } from '@bg/shared';
 import { Sfx } from '@bg/game-engine';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
 import { useTranslation } from '@/i18n/useTranslation';
 import { PlatformBgm } from '@/lib/platformBgm';
 
-const GAME_PATH = '/games/storm-of-seth-2/index.html';
+const GAME_PATH = '/games/storm-of-seth-2-v115/index.html';
 
 export function Seth2Page() {
   const { locale } = useTranslation();
@@ -16,6 +15,9 @@ export function Seth2Page() {
   const setBalance = useAuthStore((state) => state.setBalance);
   const setTokens = useAuthStore((state) => state.setTokens);
   const [error, setError] = useState('');
+  const [viewMode, setViewMode] = useState<'portrait' | 'landscape'>(() =>
+    window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape',
+  );
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const syncOriginalGameAudio = useCallback(() => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -33,11 +35,28 @@ export function Seth2Page() {
     const apiBase = `${configuredBase || window.location.origin}/api`;
     const query = new URLSearchParams({
       apiBase,
-      language: locale,
-      build: 'yachiyo-seth2-v3',
+      t: 'yachiyo-local',
+      gn: 'golden-seth',
+      l: sourceLocale(locale),
+      ct: 'slot',
+      gt: 'slot-erase-any-times-2',
+      socket_url: 'seth2-local',
+      view_mode: viewMode,
+      client_type: 'web',
+      gv: '260609',
+      build: 'yachiyo-seth2-v115',
     });
     return `${GAME_PATH}?${query.toString()}`;
-  }, [locale]);
+  }, [locale, viewMode]);
+
+  useEffect(() => {
+    const query = window.matchMedia('(orientation: portrait)');
+    const onChange = (event: MediaQueryListEvent) => {
+      setViewMode(event.matches ? 'portrait' : 'landscape');
+    };
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
 
   useEffect(() => {
     const unsubscribeSfx = Sfx.subscribe(syncOriginalGameAudio);
@@ -103,10 +122,6 @@ export function Seth2Page() {
     );
   }
 
-  if (!isSeth2TestUsername(user.username)) {
-    return <AccessPanel message="黃金賽特 II 目前尚未對此帳號開放。" />;
-  }
-
   return (
     <div className="relative h-[calc(100svh-5.25rem)] min-h-[420px] overflow-hidden rounded-2xl border border-[#E8D48A]/25 bg-[#08040F] shadow-[0_20px_60px_rgba(8,4,15,0.48)]">
       <iframe
@@ -125,6 +140,14 @@ export function Seth2Page() {
       )}
     </div>
   );
+}
+
+function sourceLocale(locale: string): string {
+  if (locale === 'zh-Hans') return 'zh-cn';
+  if (locale === 'zh-Hant') return 'zh-tw';
+  if (locale === 'th') return 'th';
+  if (locale === 'vi') return 'vn';
+  return 'en';
 }
 
 type Seth2AudioBridgeWindow = Window & {

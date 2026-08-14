@@ -2,8 +2,9 @@ export const SETH2_GAME_CODE = 'storm-of-seth-2' as const;
 export const SETH2_RTP = 96.89;
 export const SETH2_MAX_WIN_MULTIPLIER = 81_000;
 export const SETH2_BUY_FEATURE_MULTIPLIER = 200;
-// The source server opens every natural or purchased feature with 20 games.
-export const SETH2_FREE_SPINS = 20;
+export const SETH2_BUY_FEATURE_MULTIPLIERS = [200, 500, 2_000] as const;
+// Source v1.1.5 opens natural and purchased free-game features with 15 games.
+export const SETH2_FREE_SPINS = 15;
 export const SETH2_MAX_FREE_SPINS = 100;
 export const SETH2_MACHINE_PAGES = 8;
 export const SETH2_MACHINES_PER_PAGE = 500;
@@ -79,4 +80,21 @@ export interface Seth2ProtocolRequest {
 export interface Seth2ProtocolResponse {
   type: string;
   data: unknown;
+}
+
+export type Seth2SourceEvent =
+  | 'initial'
+  | 'spin'
+  | 'closeSpin'
+  | 'updateSettings'
+  | 'getBetRecords'
+  | 'getUserReport'
+  | 'getSlotTables'
+  | 'getSlotTableDetail'
+  | 'updateSlotTable'
+  | 'lockSlotTable';
+
+export interface Seth2SourceRequest {
+  event: Seth2SourceEvent;
+  data: Record<string, unknown>;
 }

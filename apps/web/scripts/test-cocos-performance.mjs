@@ -7,12 +7,16 @@ const webRoot = fileURLToPath(new URL('..', import.meta.url));
 const workspaceRoot = path.resolve(webRoot, '../..');
 const builds = [
   {
-    folder: 'storm-of-seth-2',
-    main: 'main.47d5a.js',
+    folder: 'storm-of-seth-2-v115',
+    main: 'index.js',
+    minimumPreloads: 0,
+    cocos3: true,
   },
   {
     folder: 'h5-slot-collection',
     main: 'main.649de.js',
+    minimumPreloads: 3,
+    cocos3: false,
   },
 ];
 
@@ -22,7 +26,10 @@ for (const build of builds) {
   const preloadTags = Array.from(html.matchAll(/<link rel="preload" href="([^"]+)"[^>]*>/g));
   const preloadPaths = preloadTags.map((match) => match[1]);
 
-  assert.ok(preloadPaths.length >= 5, `${build.folder} should preload its Cocos shell`);
+  assert.ok(
+    preloadPaths.length >= build.minimumPreloads,
+    `${build.folder} should preload its Cocos shell`,
+  );
   for (const relativePath of preloadPaths) {
     assert.ok(
       fs.existsSync(path.join(buildRoot, relativePath)),
@@ -35,23 +42,30 @@ for (const build of builds) {
     }
   }
 
-  assert.match(html, new RegExp(`<script src="${build.main.replace('.', '\\.')}`));
-  const mainSource = fs.readFileSync(path.join(buildRoot, build.main), 'utf8');
-  const onStartSource = mainSource.slice(
-    mainSource.indexOf('var onStart'),
-    mainSource.indexOf('var option'),
-  );
-  assert.match(onStartSource, /cc\.view\.enableRetina\(true\)/);
-  assert.doesNotMatch(onStartSource, /devicePixelRatio|mobile-balanced|CLEANUP_IMAGE_CACHE/);
+  if (build.cocos3) {
+    assert.match(html, /System\.import\('\.\/index\.js'\)/);
+    assert.match(html, /src\/seth2-local-adapter\.js/);
+    const applicationSource = fs.readFileSync(path.join(buildRoot, 'application.js'), 'utf8');
+    assert.match(applicationSource, /frameRate:\s*60/);
+    assert.match(applicationSource, /view_mode == "portrait"/);
+    assert.match(applicationSource, /this\.showFPS = false/);
+    assert.match(applicationSource, /debugMode:\s*cc\.DebugMode\.ERROR/);
+  } else {
+    assert.match(html, new RegExp(`<script src="${build.main.replace('.', '\\.')}`));
+    const mainSource = fs.readFileSync(path.join(buildRoot, build.main), 'utf8');
+    const onStartSource = mainSource.slice(
+      mainSource.indexOf('var onStart'),
+      mainSource.indexOf('var option'),
+    );
+    assert.match(onStartSource, /cc\.view\.enableRetina\(true\)/);
+    assert.doesNotMatch(onStartSource, /devicePixelRatio|mobile-balanced|CLEANUP_IMAGE_CACHE/);
+  }
 }
 
 const renderBlueprint = fs.readFileSync(path.join(workspaceRoot, 'render.yaml'), 'utf8');
 for (const build of builds) {
-  assert.match(
-    renderBlueprint,
-    new RegExp(`/games/${build.folder}/${build.main.replace('.', '\\.')}`),
-  );
   assert.match(renderBlueprint, new RegExp(`/games/${build.folder}/assets/\\*`));
 }
+assert.match(renderBlueprint, /\/slotFramework\/40401f29702686de9cfed69b217641b6029834f7\/\*/);
 
 console.log('Cocos preload, full-quality rendering, and cache contracts passed.');

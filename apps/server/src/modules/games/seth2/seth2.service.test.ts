@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { seth2BuyFeatureEntry } from '@bg/provably-fair';
 import type { Seth2ReturnData } from '@bg/shared';
 import { describe, expect, it } from 'vitest';
 import {
@@ -69,6 +70,80 @@ describe('Seth2 formal-play-only mode', () => {
         isFreeModel: 1,
       }),
     ).rejects.toMatchObject({ code: 'INVALID_ACTION' });
+  });
+});
+
+describe('Seth2 v1.1.5 feature-purchase handshake', () => {
+  const returnData = seth2BuyFeatureEntry('server', 'client', 7, 'awakening').returnData;
+  const settlement = {
+    returnData,
+    balance: 12_345,
+    spinId: 'purchase-spin-1',
+    session: {
+      freeSpinsRemaining: 15,
+      featureMode: 'awakening' as const,
+      betAmount: '2.00',
+      multiplierBank: 0,
+      femaleLock: null,
+      featureWinnings: 0,
+    },
+    freeSpin: false,
+    buying: true,
+    featureIndex: 1 as const,
+    totalStake: 2,
+    featureWinningsBefore: 0,
+  };
+
+  it('returns only a spinId from the purchase request, matching the source client callback', async () => {
+    const service = new Seth2Service({} as never);
+    (service as unknown as { settle: () => Promise<typeof settlement> }).settle = async () =>
+      settlement;
+
+    const result = await service.source('user-1', {
+      event: 'spin',
+      data: {
+        action: 'buyFeature',
+        featureIndex: 1,
+        stakeValue: 1,
+        ratioValue: 0.1,
+        machineId: 1,
+      },
+    });
+
+    expect(result).toMatchObject({
+      status: 200,
+      engine: { gameState: { spinId: 'purchase-spin-1' }, spinId: 'purchase-spin-1' },
+      platform: { player: { balance: { amount: 12_345 } } },
+    });
+    expect(Array.isArray((result.engine as { gameState: unknown }).gameState)).toBe(false);
+  });
+
+  it('returns the reserved visual result without settling or debiting a second time', async () => {
+    const service = new Seth2Service({} as never);
+    let replayCount = 0;
+    (service as unknown as { replayPurchasedSpin: () => Promise<typeof settlement> })
+      .replayPurchasedSpin = async () => {
+        replayCount += 1;
+        return settlement;
+      };
+    (service as unknown as { settle: () => never }).settle = () => {
+      throw new Error('follow-up visual request must not settle again');
+    };
+
+    const result = await service.source('user-1', {
+      event: 'spin',
+      data: { spinId: 'purchase-spin-1', machineId: 1 },
+    });
+
+    const states = (result.engine as { gameState: Array<Record<string, unknown>> }).gameState;
+    expect(replayCount).toBe(1);
+    expect(states.length).toBeGreaterThan(0);
+    expect(states[0]).toMatchObject({
+      spinId: 'purchase-spin-1',
+      startFreeGame: true,
+      freeGameCount: 15,
+      isGoldenFg: true,
+    });
   });
 });
 
@@ -149,7 +224,7 @@ describe('Seth2 free-game session progression', () => {
     femaleLock: null,
   };
 
-  it('starts all twenty source games after a natural standard trigger', () => {
+  it('starts all fifteen source games after a natural standard trigger', () => {
     expect(
       advanceSession(
         {
@@ -158,6 +233,7 @@ describe('Seth2 free-game session progression', () => {
           betAmount: '0.00',
           multiplierBank: 0,
           femaleLock: null,
+          featureWinnings: 0,
         },
         {
           ...baseInput,
@@ -166,11 +242,12 @@ describe('Seth2 free-game session progression', () => {
         },
       ),
     ).toEqual({
-      freeSpinsRemaining: 20,
+      freeSpinsRemaining: 15,
       featureMode: 'standard',
       betAmount: '18.00',
       multiplierBank: 0,
       femaleLock: null,
+      featureWinnings: 0,
     });
   });
 
@@ -183,6 +260,7 @@ describe('Seth2 free-game session progression', () => {
           betAmount: '0.00',
           multiplierBank: 0,
           femaleLock: null,
+          featureWinnings: 0,
         },
         {
           ...baseInput,
@@ -191,11 +269,12 @@ describe('Seth2 free-game session progression', () => {
         },
       ),
     ).toEqual({
-      freeSpinsRemaining: 20,
+      freeSpinsRemaining: 15,
       featureMode: 'awakening',
       betAmount: '18.00',
       multiplierBank: 0,
       femaleLock: null,
+      featureWinnings: 0,
     });
   });
 
@@ -210,15 +289,17 @@ describe('Seth2 free-game session progression', () => {
             betAmount: '0.00',
             multiplierBank: 0,
             femaleLock: null,
+            featureWinnings: 0,
           },
           { ...baseInput, buying: true, boughtFeatureMode: featureMode },
         ),
       ).toEqual({
-        freeSpinsRemaining: 20,
+        freeSpinsRemaining: 15,
         featureMode,
         betAmount: '18.00',
         multiplierBank: 0,
         femaleLock: null,
+        featureWinnings: 0,
       });
     },
   );
@@ -232,6 +313,7 @@ describe('Seth2 free-game session progression', () => {
           betAmount: '18.00',
           multiplierBank: 40,
           femaleLock: null,
+          featureWinnings: 10,
         },
         { ...baseInput, freeSpin: true, extraSpins: 5, multiplierBankAfter: 52 },
       ),
@@ -241,6 +323,7 @@ describe('Seth2 free-game session progression', () => {
       betAmount: '18.00',
       multiplierBank: 52,
       femaleLock: null,
+      featureWinnings: 10,
     });
   });
 
@@ -253,6 +336,7 @@ describe('Seth2 free-game session progression', () => {
           betAmount: '18.00',
           multiplierBank: 20,
           femaleLock: null,
+          featureWinnings: 10,
         },
         { ...baseInput, freeSpin: true, extraSpins: 5, multiplierBankAfter: 30 },
       ),
@@ -262,6 +346,7 @@ describe('Seth2 free-game session progression', () => {
       betAmount: '18.00',
       multiplierBank: 30,
       femaleLock: null,
+      featureWinnings: 10,
     });
   });
 
@@ -274,6 +359,7 @@ describe('Seth2 free-game session progression', () => {
           betAmount: '18.00',
           multiplierBank: 120,
           femaleLock: null,
+          featureWinnings: 25,
         },
         { ...baseInput, freeSpin: true, multiplierBankAfter: 140 },
       ),
@@ -283,6 +369,7 @@ describe('Seth2 free-game session progression', () => {
       betAmount: '0.00',
       multiplierBank: 0,
       femaleLock: null,
+      featureWinnings: 0,
     });
   });
 

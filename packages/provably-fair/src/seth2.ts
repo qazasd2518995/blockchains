@@ -12,7 +12,7 @@ export const SETH2_PAYTABLE = {
   9: { eight: 5, ten: 15, twelve: 40 },
 } as const;
 
-export const SETH2_SCATTER_PAYTABLE = { four: 50, five: 100, six: 2000 } as const;
+export const SETH2_SCATTER_PAYTABLE = { four: 60, five: 100, six: 2000 } as const;
 export const SETH2_SKILL_SYMBOL_PAY = 5;
 export const SETH2_GRID_SIZE = 30;
 export const SETH2_MAX_SYMBOL_MULTIPLIER = 500;
@@ -25,7 +25,7 @@ export const SETH2_MULTIPLIER_DROP_VALUES = [
   2, 3, 4, 5, 10, 15, 25, 50, 100, 200, 300, 500,
 ] as const;
 export const SETH2_RETRIGGER_SPINS = 5;
-export const SETH2_FREE_SPINS = 20;
+export const SETH2_FREE_SPINS = 15;
 export const SETH2_FREE_RETRIGGER_PROBABILITY = 0.01;
 export type Seth2SpinMode = 'base' | 'standard_free' | 'awakening_free' | 'bought_standard_free';
 export type Seth2FeatureMode = 'none' | 'standard' | 'awakening';
@@ -133,9 +133,7 @@ export const SETH2_BOUGHT_AWAKENING_SHARE = 0.3;
 const NON_WINNING_MULTIPLIER_PROBABILITY = 0.2;
 const SCATTER_EXPECTED_FACTOR = 3;
 const BASE_NON_FEATURE_EV = 0.3389;
-// The archived implementation was previously modelled as fifteen games.  The
-// live source server was observed returning twenty, so scale per-game feature
-// weights to preserve the same total feature EV and 200x purchase RTP.
+// The v1.1.5 source opens a feature with fifteen games.
 const FREE_GAME_OUTCOME_SCALE = 15 / SETH2_FREE_SPINS;
 const SETH2_MAX_BOARD_MULTIPLIER = SETH2_GRID_SIZE * SETH2_MAX_SYMBOL_MULTIPLIER;
 const NO_MULTIPLIER_PARTS = 32_767;
@@ -192,6 +190,21 @@ const AWAKENING_FREE_BASE_OUTCOMES: WeightedOutcome[] = [
   { probability: 0.008, factor: 200 },
   { probability: 0.005, factor: 500 },
   { probability: 0.0019993383, factor: 2015 },
+];
+
+// The 2,000x purchase is one high-volatility super main-game round rather
+// than a free-game session. These weights produce a 96.89% theoretical RTP
+// against the 2,000x purchase price while keeping every visible result in the
+// same representable multiplier set used by the reel animator.
+const SUPER_MAIN_OUTCOMES: WeightedOutcome[] = [
+  { probability: 0.48264, factor: 0 },
+  { probability: 0.12, factor: 500 },
+  { probability: 0.1, factor: 1000 },
+  { probability: 0.13, factor: 2000 },
+  { probability: 0.11736, factor: 5000 },
+  { probability: 0.04, factor: 10_000 },
+  { probability: 0.009, factor: 50_000 },
+  { probability: 0.001, factor: 81_000 },
 ];
 
 function weightedFactorEv(outcomes: WeightedOutcome[]): number {
@@ -1009,6 +1022,25 @@ export function seth2SpinForFactor(
   return applySpinFeatureMode(outcome, mode);
 }
 
+export function seth2SuperMainSpin(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  bet: number,
+): Seth2Outcome {
+  if (!Number.isFinite(bet) || bet <= 0) throw new Error('Bet must be a positive number');
+  const rng = randomSource(serverSeed, clientSeed, nonce);
+  const selection = pickWeighted(SUPER_MAIN_OUTCOMES, rng);
+  const outcome = selection.factor
+    ? buildWin(bet, selection.factor, 'awakening_free', rng)
+    : buildLoss(rng, 'awakening_free');
+  outcome.returnData.featureMode = 'awakening';
+  outcome.returnData.gameModelType = 1;
+  outcome.returnData.is_sjc = 0;
+  outcome.returnData.freeGameCount = 0;
+  return outcome;
+}
+
 function applySpinFeatureMode(outcome: Seth2Outcome, mode: Seth2SpinMode): Seth2Outcome {
   const featureMode = outcome.triggeredFreeSpins
     ? outcome.featureMode
@@ -1065,4 +1097,5 @@ export const SETH2_MATH = {
   theoreticalRtp:
     expectedValue(BASE_OUTCOMES) + BASE_FEATURE_TRIGGER_PROBABILITY * NATURAL_FEATURE_TOTAL_EV,
   buyFeatureRtp: (expectedValue(AWAKENING_FREE_OUTCOMES) * EXPECTED_FEATURE_SPINS) / 200,
+  superMainRtp: expectedValue(SUPER_MAIN_OUTCOMES) / 2000,
 } as const;

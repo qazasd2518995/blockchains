@@ -114,6 +114,24 @@ services:
       - path: /games/storm-of-seth-2/favicon.8de18.ico
         name: Cache-Control
         value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2-v115/src/seth2-local-adapter.js
+        name: Cache-Control
+        value: no-cache
+      - path: /games/storm-of-seth-2-v115/assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2-v115/cocos-js/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2-v115/src/chunks/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /slotFramework/40401f29702686de9cfed69b217641b6029834f7/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /slotFramework/manifest.json
+        name: Cache-Control
+        value: no-cache
       - path: /games/h5-slot-collection/assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable

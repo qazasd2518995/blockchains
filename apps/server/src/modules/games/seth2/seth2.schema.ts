@@ -21,3 +21,21 @@ export const seth2ProtocolSchema = z.object({
 });
 
 export type Seth2ProtocolInput = z.infer<typeof seth2ProtocolSchema>;
+
+export const seth2SourceSchema = z.object({
+  event: z.enum([
+    'initial',
+    'spin',
+    'closeSpin',
+    'updateSettings',
+    'getBetRecords',
+    'getUserReport',
+    'getSlotTables',
+    'getSlotTableDetail',
+    'updateSlotTable',
+    'lockSlotTable',
+  ]),
+  data: z.record(z.unknown()).default({}),
+});
+
+export type Seth2SourceInput = z.infer<typeof seth2SourceSchema>;
