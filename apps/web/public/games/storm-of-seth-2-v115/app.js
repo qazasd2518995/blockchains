@@ -96,8 +96,12 @@ const onload = () => {
 
   const setLogo = () => {
     logoContainer.style.display = 'none'
-    const logo = urlParams.get('p') || 'atg'
+    const logo = urlParams.get('p')
     const defaultUrl = './public/atg.png'
+    if (!logo) {
+      showLogo(defaultUrl)
+      return
+    }
     const remoteUrl = `${window.location.origin}/images/logos/${logo}.png`
 
     const imageLoader = new Image()

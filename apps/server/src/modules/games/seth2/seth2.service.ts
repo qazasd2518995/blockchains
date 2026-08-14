@@ -534,8 +534,7 @@ export class Seth2Service {
         finalOutcome.returnData,
         nextSession.freeSpinsRemaining,
         (buying && featureIndex !== 2) ||
-          finalOutcome.triggeredFreeSpins ||
-          (freeSpin && nextSession.freeSpinsRemaining > 0),
+          finalOutcome.triggeredFreeSpins,
         responseFeatureMode,
       );
 

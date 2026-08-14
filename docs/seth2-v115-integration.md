@@ -47,6 +47,10 @@
 
 這個流程避免重複扣款，也符合原版 `BUY_FEATURE_RESPONSE → buyFeatureSpin(spinId)` 的行為。
 
+原版 v1.1.5 會從同一個 `engine.gameState` 陣列逐局播放整段免費遊戲，而本地後端為了交易與控制安全仍逐局結算。因此 bridge 會在入口結果確定後依序預取剩餘免費局，保留每局後端已控制的盤面與最終餘額，再合併並重新編排 `currentView`／`totalViews`。只有入口 state 設定 `startFreeGame`，後續局不會重複開啟進場提示。
+
+橫向版 Slot Framework 在總贏分為 0 時沒有完成 tween callback；bridge 只針對這個零值且要求完成的事件補回一次性 completion，避免 Scatter 入場後卡住，並不改動得分。男角複製球由數學結果的 `type17_mul_list` 補入落下盤面，`splitList` 因此一定指向實際倍數球節點，不會再送出空目標造成技能流程停住。
+
 ## 派彩與控制一致性
 
 後端結果是唯一真實來源。控制系統在建立可見盤面之前選定可表示的結果，再由同一份 `returnData` 產生：
@@ -71,4 +75,4 @@ pnpm --filter @bg/web typecheck
 pnpm --filter @bg/web test
 ```
 
-Web 測試會逐檔核對素材 manifest、雙方向／六語言、三種購買素材、男女角色、94 個音訊檔、60 FPS 與正式環境不顯示 FPS／debug overlay。後端測試會核對遊戲局數、Scatter、角色技能狀態、控制結果、5×6 完整盤面、派彩一致性，以及購買特色的兩段式防重複扣款流程。
+Web 測試會逐檔核對素材 manifest、雙方向／六語言、三種購買素材、男女角色、94 個音訊檔、60 FPS、零分入場 callback 與完整免費遊戲序列，並確認正式環境不顯示 FPS／debug overlay。後端測試會核對遊戲局數、Scatter、男女角色技能等級與目標節點、控制結果、5×6 完整盤面、派彩一致性，以及購買特色的兩段式防重複扣款流程。

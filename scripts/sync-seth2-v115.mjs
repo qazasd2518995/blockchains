@@ -24,6 +24,7 @@ const coreFiles = [
   'index.js',
   'public/apple-touch-icon.png',
   'public/atg.png',
+  'public/bg_blur.jpg',
   'public/favicon-16x16.png',
   'public/favicon-32x32.png',
   'public/favicon.ico',

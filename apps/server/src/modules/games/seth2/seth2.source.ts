@@ -133,13 +133,32 @@ function sourceView(board: Seth2Cell[]): number[][] {
   );
 }
 
-function timesSymbols(board: Seth2Cell[], lockCount: number): SourceTimesSymbol[] {
+function lockedPositions(
+  cells: readonly Seth2Cell[],
+  originalToCurrent: ReadonlyMap<number, number>,
+): Set<number> {
+  return new Set(
+    cells.flatMap((cell) => {
+      const originalPosition = Number(cell.code);
+      const position = originalToCurrent.get(originalPosition) ?? originalPosition;
+      return Number.isInteger(position) && position >= 0 && position < 30 ? [position] : [];
+    }),
+  );
+}
+
+function timesSymbols(
+  board: Seth2Cell[],
+  lockCount: number,
+  lockedCells: readonly Seth2Cell[],
+  originalToCurrent: ReadonlyMap<number, number>,
+): SourceTimesSymbol[] {
+  const locked = lockedPositions(lockedCells, originalToCurrent);
   return board.flatMap((cell, symbolPos) =>
     cell.type === 10
       ? [
           {
             isRare: Number(cell.mul_type ?? 0) === 0,
-            lock: lockCount > 0 ? lockCount : 0,
+            lock: lockCount > 0 && locked.has(symbolPos) ? lockCount : 0,
             symbol: multiplierSymbol(cell.mul),
             symbolPos,
             times: cell.mul,
@@ -203,17 +222,34 @@ function sourceWinSymbols(
   });
 }
 
-function upgradeList(
-  data: Seth2ReturnData,
-  roundIndex: number,
-  transition: BoardTransition | null,
+function resolveUpgradePositions(
+  board: readonly Seth2Cell[],
+  upgrades: Seth2ReturnData['list'][number]['upgrade_mul_list'],
+  originalToCurrent: ReadonlyMap<number, number>,
 ) {
-  return data.list[roundIndex]!.upgrade_mul_list.flatMap((upgrade) => {
-    const beforePos = Number(upgrade.code);
-    if (!Number.isInteger(beforePos) || beforePos < 0) return [];
-    const symbolPos = transition?.beforeToAfter.get(beforePos) ?? beforePos;
+  const used = new Set<number>();
+  return upgrades.flatMap((upgrade) => {
+    const originalPosition = Number(upgrade.code);
+    const mappedPosition = originalToCurrent.get(originalPosition);
+    const exactPosition =
+      mappedPosition !== undefined &&
+      board[mappedPosition]?.type === 10 &&
+      board[mappedPosition]?.mul === upgrade.mul
+        ? mappedPosition
+        : undefined;
+    const fallbackPosition = board.findIndex(
+      (cell, position) =>
+        !used.has(position) &&
+        cell.type === 10 &&
+        cell.mul === upgrade.mul &&
+        Number(cell.mul_type ?? 0) === Number(upgrade.mul_type ?? 0),
+    );
+    const symbolPos = exactPosition ?? (fallbackPosition >= 0 ? fallbackPosition : undefined);
+    if (symbolPos === undefined || used.has(symbolPos)) return [];
+    used.add(symbolPos);
     return [
       {
+        upgrade,
         beforeSymbol: multiplierSymbol(upgrade.mul),
         beforeTimes: upgrade.mul,
         afterSymbol: multiplierSymbol(upgrade.new_mul),
@@ -226,22 +262,22 @@ function upgradeList(
 
 function applyUpgrades(
   board: Seth2Cell[],
-  upgrades: Seth2ReturnData['list'][number]['upgrade_mul_list'],
+  upgrades: ReturnType<typeof resolveUpgradePositions>,
   transition: BoardTransition,
 ) {
-  for (const upgrade of upgrades) {
-    const beforePosition = Number(upgrade.code);
-    if (!Number.isInteger(beforePosition) || beforePosition < 0) continue;
-    const position = transition.beforeToAfter.get(beforePosition) ?? beforePosition;
+  for (const resolved of upgrades) {
+    const position = transition.beforeToAfter.get(resolved.symbolPos) ?? resolved.symbolPos;
     if (position >= board.length) continue;
     const cell = board[position];
-    if (cell?.type === 10) board[position] = { ...cell, mul: upgrade.new_mul, mul_type: 1 };
+    if (cell?.type === 10) {
+      board[position] = { ...cell, mul: resolved.upgrade.new_mul, mul_type: 1 };
+    }
   }
 }
 
-function splitList(data: Seth2ReturnData, transition: BoardTransition | null) {
+function splitList(data: Seth2ReturnData, transition: BoardTransition | null, roundIndex: number) {
   const source = data.type17_beishu;
-  if (!source || data.type17_mul_list.length === 0) return [];
+  if (roundIndex !== 0 || !source || data.type17_mul_list.length === 0) return [];
   const from = Number(source.code);
   const candidatePositions = transition
     ? [...transition.newPositions].filter((position) => {
@@ -249,7 +285,35 @@ function splitList(data: Seth2ReturnData, transition: BoardTransition | null) {
         return cell?.type === 10 && cell.mul === source.mul;
       })
     : [];
-  return [{ from, to: candidatePositions.slice(0, data.type17_mul_list.length) }];
+  const targets = candidatePositions.slice(0, data.type17_mul_list.length);
+  return targets.length > 0 ? [{ from, to: targets }] : [];
+}
+
+function roundRefill(
+  data: Seth2ReturnData,
+  round: Seth2ReturnData['list'][number],
+  board: readonly Seth2Cell[],
+  roundIndex: number,
+) {
+  if (roundIndex !== 0 || data.type17_mul_list.length === 0) return round.round_data;
+  const removed = new Set(round.remove_type);
+  const removedCount = board.reduce(
+    (count, current) => count + (removed.has(current.type) ? 1 : 0),
+    0,
+  );
+  // The authoritative math payload keeps the man's cloned multiplier balls in
+  // type17_mul_list and deliberately omits them from round_data.  The source
+  // client, however, needs those balls in the collapsed board so splitList can
+  // animate to real target nodes.  Captured upstream responses may already put
+  // them in round_data, so only supply the exact missing number here.
+  const missing = Math.max(0, removedCount - round.round_data.length);
+  return [...round.round_data, ...data.type17_mul_list.slice(0, missing)];
+}
+
+function totemLevel(count: number): number {
+  if (count >= 5) return 3;
+  if (count >= 3) return 2;
+  return count > 0 ? 1 : 0;
 }
 
 export function seth2SourceGameStates(
@@ -262,13 +326,24 @@ export function seth2SourceGameStates(
   }
   const states: Seth2SourceGameState[] = [];
   let transitionFromPrevious: BoardTransition | null = null;
+  let originalToCurrent = new Map(Array.from({ length: 30 }, (_, position) => [position, position]));
   let roundWinnings = 0;
 
   for (let roundIndex = 0; roundIndex < data.list.length; roundIndex += 1) {
     const round = data.list[roundIndex]!;
-    if (round.start_data.length === 30) board = round.start_data.map((cell) => ({ ...cell }));
+    if (round.start_data.length === 30) {
+      board = round.start_data.map((cell) => ({ ...cell }));
+      originalToCurrent = new Map(
+        Array.from({ length: 30 }, (_, position) => [position, position]),
+      );
+    }
     roundWinnings = money(roundWinnings + round.score * Math.max(1, round.total_mul || 1));
-    const currentTimes = timesSymbols(board, data.type18_mul_count);
+    const currentTimes = timesSymbols(
+      board,
+      data.type18_mul_count,
+      data.type18_start_mul_list,
+      originalToCurrent,
+    );
     // Scatter triggers remain on the board while the dedicated free-game intro
     // animates them.  Treating them as an ordinary erase win removes their
     // nodes before playScatterWin runs and crashes the source client.
@@ -280,22 +355,43 @@ export function seth2SourceGameStates(
           newPositions: new Set<number>(),
           beforeToAfter: new Map<number, number>(),
         }
-      : collapseBoard(board, round.remove_type, round.round_data);
-    const upgrades = upgradeList(data, roundIndex, transition);
+      : collapseBoard(board, round.remove_type, roundRefill(data, round, board, roundIndex));
+    // The source client maps timesUpgrade.symbolPos through this state's
+    // posTransform itself.  Keep the pre-fall position here; sending the
+    // already-transformed position can map it a second time onto another ball.
+    const resolvedUpgrades = resolveUpgradePositions(
+      board,
+      round.upgrade_mul_list,
+      originalToCurrent,
+    );
+    const upgrades = resolvedUpgrades.map(({ upgrade: _upgrade, ...sourceUpgrade }) => sourceUpgrade);
+    const maleLevel =
+      roundIndex === 0 && round.remove_type.includes(17)
+        ? totemLevel(data.type17_mul_list.length)
+        : 0;
+    const femaleLevel =
+      roundIndex === 0 && round.remove_type.includes(18)
+        ? totemLevel(data.type18_start_mul_list.length)
+        : 0;
     states.push({
       view: sourceView(board),
       spinId: options.spinId,
       roundWinnings: money(roundWinnings),
-      maleTotemLevel: data.type17_mul_list.length > 0 ? 2 : 0,
+      maleTotemLevel: maleLevel,
       totalWinnings: money(options.featureWinningsBefore + roundWinnings),
       totalViews: 0,
       action: options.action,
       startFreeGame: data.is_sjc === 1,
-      currentTimes: data.multiplierBankBefore + data.multiplierBankAdded || -1,
+      // showTimesMoving first renders this saved bank and then adds every ball
+      // in timesSymbols.  Supplying multiplierBankAfter here double-counts the
+      // current board during the original collection animation.
+      currentTimes: data.multiplierBankBefore || -1,
       currentView: states.length,
-      splitList: splitList(data, transition),
+      splitList: splitList(data, transition, roundIndex),
       newTimesSymbols: currentTimes.filter((entry) =>
-        transitionFromPrevious ? transitionFromPrevious.newPositions.has(entry.symbolPos) : true,
+        transitionFromPrevious
+          ? transitionFromPrevious.newPositions.has(entry.symbolPos)
+          : entry.lock === 0 || data.type18_mul_count === 4,
       ),
       timesUpgrade: upgrades,
       timesSymbols: currentTimes,
@@ -306,12 +402,21 @@ export function seth2SourceGameStates(
       // supplies the freshly entered symbols after this transform completes.
       posTransform: transition.posTransform,
       superMainGameCount: options.action === 'superSpin' ? 1 : 0,
-      femaleTotemLevel: data.type18_start_mul_list.length > 0 ? 2 : 0,
+      femaleTotemLevel: femaleLevel,
       freeGameCount: options.freeGameCount,
       isGoldenFg: options.isGoldenFg,
       totalStake: options.totalStake,
     });
-    applyUpgrades(transition.board, round.upgrade_mul_list, transition);
+    applyUpgrades(transition.board, resolvedUpgrades, transition);
+    const nextOriginalToCurrent = new Map<number, number>();
+    for (const [originalPosition, currentPosition] of originalToCurrent) {
+      const nextPosition = transition.beforeToAfter.get(currentPosition);
+      if (nextPosition !== undefined) nextOriginalToCurrent.set(originalPosition, nextPosition);
+      else if (!round.remove_type.includes(board[currentPosition]?.type ?? -1)) {
+        nextOriginalToCurrent.set(originalPosition, currentPosition);
+      }
+    }
+    originalToCurrent = nextOriginalToCurrent;
     board = transition.board;
     transitionFromPrevious = transition;
   }
@@ -320,7 +425,12 @@ export function seth2SourceGameStates(
   // post-collapse view when the previous state actually removed symbols;
   // otherwise the client interprets the duplicate board as a second spin.
   if (states.at(-1)?.winSymbols.length) {
-    const finalTimes = timesSymbols(board, data.type18_mul_count);
+    const finalTimes = timesSymbols(
+      board,
+      data.type18_mul_count,
+      data.type18_start_mul_list,
+      originalToCurrent,
+    );
     states.push({
       view: sourceView(board),
       spinId: options.spinId,
@@ -330,7 +440,7 @@ export function seth2SourceGameStates(
       totalViews: 0,
       action: options.action,
       startFreeGame: data.is_sjc === 1,
-      currentTimes: data.multiplierBankAfter || -1,
+      currentTimes: data.multiplierBankBefore || -1,
       currentView: states.length,
       splitList: [],
       newTimesSymbols: finalTimes.filter((entry) =>

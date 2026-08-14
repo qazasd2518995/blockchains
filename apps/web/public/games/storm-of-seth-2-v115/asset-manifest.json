@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-08-14T21:58:26.509Z",
+  "capturedAt": "2026-08-14T23:52:31.653Z",
   "source": {
     "gameRevision": "361d567d94ac569664c82068a30b762e8d8438b8",
     "gameVersion": "1.1.5",
@@ -42,8 +42,8 @@
   "gameFiles": [
     {
       "path": "app.js",
-      "bytes": 10222,
-      "sha256": "bc723e383947824cbe5eb874e5a0a19a5f9999bfb18d1e7c12a9c0eb1c534780"
+      "bytes": 10276,
+      "sha256": "fe181a2fccaaa2fdcdd85ea26e974decf1fd0b621b64078ca211bb46569f8a07"
     },
     {
       "path": "application.js",
@@ -12621,6 +12621,11 @@
       "sha256": "fbadb190da4591371cf7cc204fc26299c9c733c6b9b8d875da58b51fc3746485"
     },
     {
+      "path": "public/bg_blur.jpg",
+      "bytes": 56935,
+      "sha256": "66e5751045f9f0ceb6d34daa82ed09d95c18059dc0361b1a7f0b2918053ae408"
+    },
+    {
       "path": "public/favicon-16x16.png",
       "bytes": 916,
       "sha256": "b590ee1e9f0ac52f687ad96f56c74924cc0ea304cad217c0061039a0dde2c577"
@@ -12702,8 +12707,8 @@
     },
     {
       "path": "src/seth2-local-adapter.js",
-      "bytes": 11016,
-      "sha256": "36b26ea0285136ce84dcb781ee2ccb78a63f4a6788d2eedb50e3ae86376e2cb7"
+      "bytes": 16428,
+      "sha256": "108114e9ac4e4a04cfa0b4b4ccc053798dececb1c57cbb87c5b73673377e54fb"
     },
     {
       "path": "src/settings.json",

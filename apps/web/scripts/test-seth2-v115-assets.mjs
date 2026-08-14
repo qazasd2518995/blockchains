@@ -21,6 +21,10 @@ assert.deepEqual(manifest.source, {
 });
 assert.ok(manifest.gameFiles.length >= 2_500, 'the complete game build must be present');
 assert.ok(manifest.frameworkFiles.length >= 320, 'the complete slot framework must be present');
+assert.ok(
+  manifest.gameFiles.some((entry) => entry.path === 'public/bg_blur.jpg'),
+  'the full-resolution startup background must be captured',
+);
 assert.deepEqual(
   manifest.bundleSummary.map((bundle) => bundle.name),
   ['internal', 'main', 'resources', 'g1005', 'slotFramework'],

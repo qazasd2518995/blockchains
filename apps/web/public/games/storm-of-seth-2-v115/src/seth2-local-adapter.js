@@ -9,6 +9,68 @@
   var selectedMachineId = 1;
   var SFX_PREFS_KEY = 'bg.sfx.prefs';
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
+  var UPDATE_TOTAL_WINNINGS = 'SlotFrameworkEvent:UPDATE_TOTAL_WINNINGS';
+
+  function wrapFrameworkDispatch(dispatcher) {
+    if (typeof dispatcher !== 'function' || dispatcher.__yachiyoTotalWinGuard) return dispatcher;
+    function guardedDispatch() {
+      var eventName = arguments[0];
+      var event = arguments[1];
+      var data = event && event.data;
+      var needsZeroCompletion =
+        eventName === UPDATE_TOTAL_WINNINGS &&
+        data &&
+        data.needComplete === true &&
+        Object.prototype.hasOwnProperty.call(data, 'value') &&
+        Number(data.value) === 0 &&
+        !Number(data.accValue) &&
+        typeof event.complete === 'function';
+      var completed = false;
+      if (needsZeroCompletion) {
+        var originalComplete = event.complete;
+        event.complete = function () {
+          if (completed) return;
+          completed = true;
+          return originalComplete.apply(this, arguments);
+        };
+      }
+      var result = dispatcher.apply(this, arguments);
+      // The landscape v1.1.5 framework forgets to complete a zero-value total
+      // win tween.  Complete on the next task so every registered listener has
+      // still received the event, while keeping the callback idempotent for the
+      // portrait framework which already handles this case correctly.
+      if (needsZeroCompletion && !completed) {
+        window.setTimeout(function () {
+          if (!completed) event.complete();
+        }, 0);
+      }
+      return result;
+    }
+    guardedDispatch.__yachiyoTotalWinGuard = true;
+    return guardedDispatch;
+  }
+
+  function installFrameworkDispatchGuard() {
+    if (typeof window.dispatch === 'function') {
+      window.dispatch = wrapFrameworkDispatch(window.dispatch);
+      return;
+    }
+    try {
+      Object.defineProperty(window, 'dispatch', {
+        configurable: true,
+        set: function (dispatcher) {
+          Object.defineProperty(window, 'dispatch', {
+            configurable: true,
+            writable: true,
+            value: wrapFrameworkDispatch(dispatcher),
+          });
+        },
+      });
+    } catch (_error) {
+      // Cocos will install dispatch during boot; old browsers can fall back to
+      // the framework behavior without preventing the source adapter itself.
+    }
+  }
 
   function protectPlatformStorage() {
     if (typeof Storage === 'undefined' || Storage.prototype.__yachiyoProtectedClear) return;
@@ -29,6 +91,7 @@
   }
 
   protectPlatformStorage();
+  installFrameworkDispatchGuard();
 
   function parentStorage() {
     try {
@@ -142,6 +205,78 @@
       });
   }
 
+  function gameStates(response) {
+    var states = response && response.engine && response.engine.gameState;
+    return Array.isArray(states) ? states : [];
+  }
+
+  function normalizeFeatureSequence(response, states) {
+    var totalViews = states.length;
+    states.forEach(function (state, currentView) {
+      state.currentView = currentView;
+      state.totalViews = totalViews;
+      // Only the purchased/natural trigger opens the intro.  Subsequent free
+      // spins are already in the same source sequence and must advance instead
+      // of reopening the 15-game alert.
+      if (currentView > 0) state.startFreeGame = false;
+    });
+    response.engine.gameState = states;
+    return response;
+  }
+
+  function collectFeatureSequence(socket, event, eventData, response) {
+    var states = gameStates(response).slice();
+    var entry = states[0];
+    if (
+      event !== 'spin' ||
+      !entry ||
+      !entry.startFreeGame ||
+      entry.action === 'superSpin' ||
+      Number(entry.freeGameCount) <= 0
+    ) {
+      return Promise.resolve(response);
+    }
+
+    var remaining = Number(states[states.length - 1].freeGameCount);
+    var collectedGames = 0;
+    var nextData = Object.assign({}, socket.lastStakeData, eventData, {
+      action: 'spin',
+      machineId: selectedMachineId,
+    });
+    delete nextData.featureIndex;
+    delete nextData.spinId;
+
+    function collectNext() {
+      if (remaining <= 0) return Promise.resolve(normalizeFeatureSequence(response, states));
+      if (collectedGames >= 100) {
+        return Promise.reject(new Error('免費遊戲局數超過安全上限'));
+      }
+      collectedGames += 1;
+      return authorizedPost({ event: 'spin', data: nextData }, false).then(function (nextResponse) {
+        var nextStates = gameStates(nextResponse);
+        var finalState = nextStates[nextStates.length - 1];
+        if (!finalState || finalState.action !== 'freeSpin') {
+          throw new Error('免費遊戲序列不完整，請稍後重試');
+        }
+        nextStates.forEach(function (state) {
+          state.startFreeGame = false;
+          states.push(state);
+        });
+        remaining = Number(finalState.freeGameCount);
+        if (!Number.isFinite(remaining) || remaining < 0) {
+          throw new Error('免費遊戲剩餘局數無效');
+        }
+        if (nextResponse.platform) response.platform = nextResponse.platform;
+        if (nextResponse.engine && nextResponse.engine.spinId) {
+          response.engine.spinId = nextResponse.engine.spinId;
+        }
+        return collectNext();
+      });
+    }
+
+    return collectNext();
+  }
+
   function readAudioPreference(key, fallback) {
     try {
       var raw = parentStorage().getItem(key);
@@ -193,6 +328,7 @@
     this.connected = false;
     this.handlers = Object.create(null);
     this.queue = Promise.resolve();
+    this.lastStakeData = Object.create(null);
     var socket = this;
     window.setTimeout(function () {
       socket.connected = true;
@@ -228,10 +364,18 @@
     if (event === 'spin' || event === 'getSlotTables') {
       eventData.machineId = selectedMachineId;
     }
+    if (event === 'spin') {
+      ['stakeIndex', 'stakeValue', 'ratioIndex', 'ratioValue'].forEach(function (key) {
+        if (eventData[key] !== undefined) socket.lastStakeData[key] = eventData[key];
+      });
+    }
     var request = { event: event, data: eventData };
     this.queue = this.queue
       .then(function () {
         return authorizedPost(request, false);
+      })
+      .then(function (response) {
+        return collectFeatureSequence(socket, event, eventData, response);
       })
       .then(function (response) {
         if (event === 'initial') {
@@ -303,6 +447,8 @@
   window.__YachiyoSeth2SourceAdapterTest = {
     LocalSocket: LocalSocket,
     applyAudioPreferences: applyAudioPreferences,
+    collectFeatureSequence: collectFeatureSequence,
     publicError: publicError,
+    wrapFrameworkDispatch: wrapFrameworkDispatch,
   };
 })();

@@ -1,10 +1,65 @@
 import { seth2BuyFeatureEntry, seth2SpinForFactor } from '@bg/provably-fair';
+import type { Seth2Cell, Seth2ReturnData } from '@bg/shared';
 import { describe, expect, it } from 'vitest';
 import {
   SETH2_SOURCE_DEFINITION,
   seth2SourceGameStates,
   seth2SourceInitialState,
 } from './seth2.source.js';
+
+const SOURCE_OPTIONS = {
+  action: 'freeSpin' as const,
+  spinId: 'source-contract',
+  totalStake: 2,
+  freeGameCount: 10,
+  featureWinningsBefore: 0,
+  isGoldenFg: true,
+};
+
+function cell(type: number, mul = 0, mulType?: number, code?: number): Seth2Cell {
+  return {
+    type,
+    mul,
+    ...(mulType === undefined ? {} : { mul_type: mulType }),
+    ...(code === undefined ? {} : { code }),
+  };
+}
+
+function sourceFixture(overrides: Partial<Seth2ReturnData> = {}): Seth2ReturnData {
+  return {
+    list: [
+      {
+        start_data: Array.from({ length: 30 }, () => cell(2)),
+        remove_type: [],
+        round_data: [],
+        scoreList: [],
+        upgrade_mul_list: [],
+        total_mul: 0,
+        score: 0,
+        total_gold: 0,
+        remove_count: 0,
+        is_over: 1,
+      },
+    ],
+    featureMode: 'none',
+    gameModelType: 1,
+    is_sjc: 0,
+    freeGameCount: 10,
+    addGameCiShu: 0,
+    type17_mul_list: [],
+    type17_beishu: null,
+    type18_start_mul_list: [],
+    type18_mul_count: 0,
+    JPtype: 0,
+    JPGold: 0,
+    score: 0,
+    total_gold: 0,
+    multiplierBankBefore: 0,
+    multiplierBankAdded: 0,
+    multiplierBankAfter: 0,
+    ...overrides,
+  };
+}
 
 describe('Seth 2 v1.1.5 source contract', () => {
   it('matches the captured paytable, 15-game award and all three purchase modes', () => {
@@ -102,5 +157,264 @@ describe('Seth 2 v1.1.5 source contract', () => {
       symbols.delete(transform.beforePos);
       symbols.add(transform.afterPos);
     }
+  });
+
+  it.each([
+    [1, 1],
+    [3, 2],
+    [6, 3],
+  ] as const)('maps %i male split targets to source animation level %i once', (copies, level) => {
+    const start = Array.from({ length: 30 }, () => cell(2));
+    start[0] = cell(10, 25, 1);
+    start[1] = cell(17);
+    start[2] = cell(17);
+    start[3] = cell(17);
+    for (let position = 4; position < 10; position += 1) start[position] = cell(1);
+    // The math result transports male clones separately in type17_mul_list;
+    // round_data only contains the ordinary refill cells.
+    const firstRefill = Array.from({ length: 9 - copies }, () => cell(4));
+    const data = sourceFixture({
+      list: [
+        {
+          start_data: start,
+          remove_type: [1, 17],
+          round_data: firstRefill,
+          scoreList: [2, 1],
+          upgrade_mul_list: [],
+          total_mul: 25 * (copies + 1),
+          score: 3,
+          total_gold: 3,
+          remove_count: 0,
+          is_over: 0,
+        },
+        {
+          start_data: [],
+          remove_type: [2],
+          round_data: Array.from({ length: 26 }, () => cell(3)),
+          scoreList: [1],
+          upgrade_mul_list: [],
+          total_mul: 25 * (copies + 1),
+          score: 1,
+          total_gold: 4,
+          remove_count: 1,
+          is_over: 1,
+        },
+      ],
+      type17_beishu: cell(10, 25, 1, 0),
+      type17_mul_list: Array.from({ length: copies }, () => cell(10, 25, 1)),
+      score: 4,
+      total_gold: 4,
+    });
+    const states = seth2SourceGameStates(data, SOURCE_OPTIONS);
+    expect(states[0]!.maleTotemLevel).toBe(level);
+    expect(states[0]!.splitList[0]?.from).toBe(0);
+    expect(states[0]!.splitList[0]?.to).toHaveLength(copies);
+    expect(states[1]!.timesSymbols.filter((entry) => entry.times === 25)).toHaveLength(copies + 1);
+    expect(states[1]!.maleTotemLevel).toBe(0);
+    expect(states[1]!.splitList).toEqual([]);
+  });
+
+  it.each([
+    [1, 1],
+    [3, 2],
+    [6, 3],
+  ] as const)('maps %i newly locked balls to female animation level %i', (locks, level) => {
+    const start = Array.from({ length: 30 }, () => cell(2));
+    const locked = Array.from({ length: locks }, (_, position) => {
+      start[position] = cell(10, 10 + position, 1);
+      return cell(10, 10 + position, 1, position);
+    });
+    start[10] = cell(18);
+    start[11] = cell(18);
+    start[12] = cell(18);
+    const data = sourceFixture({
+      list: [
+        {
+          ...sourceFixture().list[0]!,
+          start_data: start,
+          remove_type: [18],
+          round_data: [cell(4), cell(5), cell(6)],
+          scoreList: [1],
+          total_mul: 10,
+          score: 1,
+          total_gold: 1,
+        },
+      ],
+      type18_start_mul_list: locked,
+      type18_mul_count: 4,
+      score: 1,
+      total_gold: 1,
+    });
+    const first = seth2SourceGameStates(data, SOURCE_OPTIONS)[0]!;
+    expect(first.femaleTotemLevel).toBe(level);
+    expect(first.timesSymbols.filter((entry) => entry.lock === 4)).toHaveLength(locks);
+  });
+
+  it('locks only the selected female balls and does not replay the woman on carry-over games', () => {
+    const start = Array.from({ length: 30 }, () => cell(2));
+    start[4] = cell(10, 25, 1);
+    start[5] = cell(10, 50, 1);
+    const data = sourceFixture({
+      list: [{ ...sourceFixture().list[0]!, start_data: start }],
+      type18_start_mul_list: [cell(10, 25, 1, 4)],
+      type18_mul_count: 3,
+      multiplierBankBefore: 10,
+      multiplierBankAfter: 10,
+    });
+    const first = seth2SourceGameStates(data, SOURCE_OPTIONS)[0]!;
+    expect(first.femaleTotemLevel).toBe(0);
+    expect(first.timesSymbols).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ symbolPos: 4, times: 25, lock: 3 }),
+        expect.objectContaining({ symbolPos: 5, times: 50, lock: 0 }),
+      ]),
+    );
+    expect(first.newTimesSymbols.map((entry) => entry.symbolPos)).toEqual([5]);
+  });
+
+  it('keeps the female lock attached to its multiplier after the board falls', () => {
+    const start = Array.from({ length: 30 }, () => cell(2));
+    start[0] = cell(10, 25, 1);
+    start[6] = cell(1);
+    start[12] = cell(1);
+    start[18] = cell(1);
+    start[1] = cell(18);
+    start[2] = cell(18);
+    start[3] = cell(18);
+    const data = sourceFixture({
+      list: [
+        {
+          ...sourceFixture().list[0]!,
+          start_data: start,
+          remove_type: [1, 18],
+          round_data: Array.from({ length: 6 }, () => cell(4)),
+          scoreList: [1, 1],
+          total_mul: 25,
+          score: 2,
+          total_gold: 50,
+        },
+      ],
+      type18_start_mul_list: [cell(10, 25, 1, 0)],
+      type18_mul_count: 4,
+      score: 2,
+      total_gold: 50,
+    });
+    const states = seth2SourceGameStates(data, SOURCE_OPTIONS);
+    expect(states[0]!.timesSymbols).toEqual(
+      expect.arrayContaining([expect.objectContaining({ symbolPos: 0, times: 25, lock: 4 })]),
+    );
+    expect(states.at(-1)!.timesSymbols).toEqual(
+      expect.arrayContaining([expect.objectContaining({ symbolPos: 18, times: 25, lock: 4 })]),
+    );
+  });
+
+  it('keeps upgrade positions pre-fall so the Cocos client transforms them exactly once', () => {
+    const start = Array.from({ length: 30 }, () => cell(2));
+    start[0] = cell(10, 6, 0);
+    start[5] = cell(4);
+    start[6] = cell(1);
+    start[12] = cell(1);
+    start[18] = cell(2);
+    start[24] = cell(1);
+    const upgrade = { type: 10, mul: 6, new_mul: 8, mul_type: 0, code: 0 };
+    const data = sourceFixture({
+      list: [
+        {
+          ...sourceFixture().list[0]!,
+          start_data: start,
+          remove_type: [1],
+          round_data: [cell(3), cell(3), cell(3)],
+          scoreList: [2],
+          score: 2,
+          total_gold: 2,
+          upgrade_mul_list: [upgrade],
+        },
+      ],
+      score: 2,
+      total_gold: 2,
+    });
+    const states = seth2SourceGameStates(data, SOURCE_OPTIONS);
+    expect(states[0]!.posTransform).toEqual(
+      expect.arrayContaining([
+        { beforePos: 0, afterPos: 18 },
+        { beforePos: 18, afterPos: 24 },
+      ]),
+    );
+    expect(states[0]!.timesUpgrade[0]).toMatchObject({
+      symbolPos: 0,
+      beforeTimes: 6,
+      afterTimes: 8,
+    });
+    expect(states.at(-1)!.timesSymbols).toEqual(
+      expect.arrayContaining([expect.objectContaining({ symbolPos: 18, times: 8 })]),
+    );
+  });
+
+  it('tracks an original multiplier into a later cascade before upgrading it', () => {
+    const start = Array.from({ length: 30 }, () => cell(2));
+    start[0] = cell(10, 6, 0);
+    start[5] = cell(4);
+    start[6] = cell(1);
+    start[12] = cell(1);
+    start[24] = cell(1);
+    const upgrade = { type: 10, mul: 6, new_mul: 8, mul_type: 0, code: 0 };
+    const data = sourceFixture({
+      list: [
+        {
+          ...sourceFixture().list[0]!,
+          start_data: start,
+          remove_type: [1],
+          round_data: [cell(3), cell(3), cell(3)],
+          scoreList: [2],
+          score: 2,
+          total_gold: 2,
+          is_over: 0,
+        },
+        {
+          ...sourceFixture().list[0]!,
+          start_data: [],
+          remove_type: [4],
+          round_data: [cell(5)],
+          scoreList: [1],
+          score: 1,
+          total_gold: 3,
+          upgrade_mul_list: [upgrade],
+        },
+      ],
+      score: 3,
+      total_gold: 3,
+    });
+    const states = seth2SourceGameStates(data, SOURCE_OPTIONS);
+    expect(states[1]!.timesUpgrade[0]).toMatchObject({ symbolPos: 18, afterTimes: 8 });
+    expect(states.at(-1)!.timesSymbols).toEqual(
+      expect.arrayContaining([expect.objectContaining({ symbolPos: 18, times: 8 })]),
+    );
+  });
+
+  it('sends the saved multiplier bank before the client collects current balls', () => {
+    const start = Array.from({ length: 30 }, () => cell(2));
+    start[0] = cell(10, 10, 1);
+    start[1] = cell(1);
+    const data = sourceFixture({
+      list: [
+        {
+          ...sourceFixture().list[0]!,
+          start_data: start,
+          remove_type: [1],
+          round_data: [cell(3)],
+          scoreList: [2],
+          total_mul: 35,
+          score: 2,
+          total_gold: 70,
+        },
+      ],
+      score: 2,
+      total_gold: 70,
+      multiplierBankBefore: 25,
+      multiplierBankAdded: 10,
+      multiplierBankAfter: 35,
+    });
+    const states = seth2SourceGameStates(data, SOURCE_OPTIONS);
+    expect(states.every((state) => state.currentTimes === 25)).toBe(true);
   });
 });

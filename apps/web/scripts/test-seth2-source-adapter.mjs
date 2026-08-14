@@ -29,6 +29,7 @@ const storage = new TestStorage();
 const parentMessages = [];
 const zeroTimers = [];
 const requests = [];
+const responseQueue = [];
 const response = {
   status: 200,
   engine: { gameState: [{}] },
@@ -59,7 +60,8 @@ const context = {
   clearTimeout: () => {},
   fetch: async (url, options) => {
     requests.push({ url, options });
-    return { ok: true, status: 200, json: async () => structuredClone(response) };
+    const nextResponse = responseQueue.length > 0 ? responseQueue.shift() : response;
+    return { ok: true, status: 200, json: async () => structuredClone(nextResponse) };
   },
   io: { Manager: function Manager() {}, connect: function remoteConnect() {} },
 };
@@ -74,7 +76,7 @@ assert.equal(storage.getItem('bg.bgm.prefs')?.includes('0.25'), true);
 assert.equal(storage.getItem('bg.sfx.prefs')?.includes('0.75'), true);
 assert.equal(storage.getItem('source-client-temporary-key'), null);
 
-const { LocalSocket, applyAudioPreferences, publicError } =
+const { LocalSocket, applyAudioPreferences, publicError, wrapFrameworkDispatch } =
   context.__YachiyoSeth2SourceAdapterTest;
 assert.equal(typeof context.io.connect, 'function');
 assert.equal(String(context.io.connect).includes('LocalSocket'), true);
@@ -83,6 +85,23 @@ assert.equal(
   publicError({ code: 'INTERNAL', message: 'Invalid prisma.bet.create invocation' }, 'fallback'),
   '遊戲結算暫時失敗，請稍後再試',
 );
+
+let zeroTotalWinCompletions = 0;
+let dispatchedZeroTotalWin;
+const guardedDispatch = wrapFrameworkDispatch((_eventName, event) => {
+  dispatchedZeroTotalWin = event;
+});
+guardedDispatch('SlotFrameworkEvent:UPDATE_TOTAL_WINNINGS', {
+  data: { value: 0, needComplete: true },
+  complete: () => {
+    zeroTotalWinCompletions += 1;
+  },
+});
+assert.equal(zeroTotalWinCompletions, 0);
+zeroTimers.shift()();
+assert.equal(zeroTotalWinCompletions, 1);
+dispatchedZeroTotalWin.complete();
+assert.equal(zeroTotalWinCompletions, 1);
 
 const audioResponse = structuredClone(response);
 applyAudioPreferences(audioResponse);
@@ -110,6 +129,85 @@ assert.equal(requestBody.event, 'spin');
 assert.equal(requestBody.data.machineId, 1);
 assert.equal(parentMessages.at(-1).type, 'seth2:balance');
 assert.equal(parentMessages.at(-1).balance, 123.45);
+
+responseQueue.push(
+  {
+    ...structuredClone(response),
+    engine: {
+      spinId: 'feature-entry',
+      gameState: [
+        {
+          spinId: 'feature-entry',
+          action: 'spin',
+          startFreeGame: true,
+          freeGameCount: 2,
+          currentView: 0,
+          totalViews: 1,
+        },
+      ],
+    },
+  },
+  {
+    ...structuredClone(response),
+    engine: {
+      spinId: 'free-1',
+      gameState: [
+        {
+          spinId: 'free-1',
+          action: 'freeSpin',
+          startFreeGame: false,
+          freeGameCount: 1,
+          currentView: 0,
+          totalViews: 1,
+        },
+      ],
+    },
+  },
+  {
+    ...structuredClone(response),
+    engine: {
+      spinId: 'free-2',
+      gameState: [
+        {
+          spinId: 'free-2',
+          action: 'freeSpin',
+          startFreeGame: false,
+          freeGameCount: 0,
+          currentView: 0,
+          totalViews: 1,
+        },
+      ],
+    },
+  },
+);
+const requestCountBeforeFeature = requests.length;
+const featureResult = await new Promise((resolve) => {
+  socket.emit(
+    'spin',
+    { spinId: 'feature-entry', stakeIndex: 0, stakeValue: 1, ratioIndex: 0, ratioValue: 0.1 },
+    resolve,
+  );
+});
+assert.equal(requests.length - requestCountBeforeFeature, 3);
+assert.equal(featureResult.engine.gameState.length, 3);
+assert.deepEqual(
+  featureResult.engine.gameState.map((state) => [
+    state.currentView,
+    state.totalViews,
+    state.startFreeGame,
+    state.freeGameCount,
+  ]),
+  [
+    [0, 3, true, 2],
+    [1, 3, false, 1],
+    [2, 3, false, 0],
+  ],
+);
+const prefetchedRequest = JSON.parse(requests.at(-1).options.body);
+assert.equal(prefetchedRequest.event, 'spin');
+assert.equal(prefetchedRequest.data.spinId, undefined);
+assert.equal(prefetchedRequest.data.stakeValue, 1);
+assert.equal(prefetchedRequest.data.ratioValue, 0.1);
 
 socket.close();
 assert.equal(socket.connected, false);
