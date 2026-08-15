@@ -56,6 +56,8 @@ model User {
   towerRounds     TowerRound[]
   blackjackRounds BlackjackRound[]
   refreshTokens   RefreshToken[]
+  seth2State      Seth2PlayerState?
+  seth2Sequences  Seth2FeatureSequence[]
 
   @@index([username])
   @@index([agentId])
@@ -165,19 +167,78 @@ model Bet {
   status         BetStatus  @default(SETTLED)
   createdAt      DateTime   @default(now())
   settledAt      DateTime   @default(now())
+  operationId    String?
 
-  transactions     Transaction[]
-  minesRound       MinesRound?     @relation(fields: [minesRoundId], references: [id])
-  minesRoundId     String?         @unique
-  hiloRound        HiLoRound?      @relation(fields: [hiloRoundId], references: [id])
-  hiloRoundId      String?         @unique
-  towerRound       TowerRound?     @relation(fields: [towerRoundId], references: [id])
-  towerRoundId     String?         @unique
-  blackjackRound   BlackjackRound? @relation(fields: [blackjackRoundId], references: [id])
-  blackjackRoundId String?         @unique
+  transactions         Transaction[]
+  minesRound           MinesRound?           @relation(fields: [minesRoundId], references: [id])
+  minesRoundId         String?               @unique
+  hiloRound            HiLoRound?            @relation(fields: [hiloRoundId], references: [id])
+  hiloRoundId          String?               @unique
+  towerRound           TowerRound?           @relation(fields: [towerRoundId], references: [id])
+  towerRoundId         String?               @unique
+  blackjackRound       BlackjackRound?       @relation(fields: [blackjackRoundId], references: [id])
+  blackjackRoundId     String?               @unique
+  seth2FeatureSequence Seth2FeatureSequence?
 
+  @@unique([userId, gameId, operationId])
   @@index([userId, createdAt])
   @@index([gameId, createdAt])
+}
+
+enum Seth2FeatureSequenceStatus {
+  READY
+  CONSUMED
+}
+
+/// Durable player-side state that must survive iframe reloads and devices.
+/// Financial feature state is intentionally kept in Seth2FeatureSequence.
+model Seth2PlayerState {
+  userId            String   @id
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selectedMachineId Int      @default(1)
+  settings          Json     @default("{}")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+/// A complete, already-settled feature animation. The whole sequence and its
+/// wallet result are committed atomically with the parent Bet and can then be
+/// replayed without running game math or touching money again.
+model Seth2FeatureSequence {
+  id                String                     @id @default(cuid())
+  userId            String
+  user              User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  betId             String                     @unique
+  bet               Bet                        @relation(fields: [betId], references: [id], onDelete: Cascade)
+  operationId       String
+  machineId         Int
+  featureIndex      Int?
+  baseAmount        Decimal                    @db.Decimal(20, 2)
+  debitAmount       Decimal                    @db.Decimal(20, 2)
+  finalPayout       Decimal                    @db.Decimal(20, 2)
+  finalBalance      Decimal                    @db.Decimal(20, 2)
+  entryGameStates   Json
+  featureGameStates Json
+  mathResults       Json
+  controlResult     Json
+  definitionVersion String                     @default("seth2-v1.1.5-sequence-v1")
+  status            Seth2FeatureSequenceStatus @default(READY)
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  consumedAt        DateTime?
+
+  @@unique([userId, operationId])
+  @@index([userId, status, createdAt])
+}
+
+model Seth2JackpotPool {
+  gameId    String   @id
+  grand     Decimal  @default(200000) @db.Decimal(20, 2)
+  major     Decimal  @default(70000) @db.Decimal(20, 2)
+  minor     Decimal  @default(13000) @db.Decimal(20, 2)
+  mini      Decimal  @default(1600) @db.Decimal(20, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model HotlineJackpotPool {

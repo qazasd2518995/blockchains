@@ -1,4 +1,9 @@
-import type { Seth2ReturnData, Seth2Cell } from '@bg/shared';
+import {
+  SETH2_RATIO_VALUES,
+  SETH2_STAKE_VALUES,
+  type Seth2ReturnData,
+  type Seth2Cell,
+} from '@bg/shared';
 
 export const SETH2_SOURCE_DEFINITION = {
   autoConfirmTime: 0,
@@ -541,11 +546,50 @@ export function seth2SourceInitialState(totalStake = 2) {
 export function seth2SourcePlatform(
   player: { id: string; username: string; displayName: string | null; balance: number },
   machineId = 1,
+  savedSettings: Record<string, unknown> | null = null,
+  jackpotPools: Record<string, number> | null = null,
 ) {
+  const defaultSettings = {
+    advancedSettings: {
+      sounds: { background: true, backgroundVolume: 0.32, effect: true, effectVolume: 0.6 },
+      notify: true,
+      turbo: false,
+    },
+    autoPlay: {
+      numberOfPlays: [10, 25, 50, 100, -1],
+      stopOnWinMultiplier: 0,
+      stopOnBalance: 0,
+      stopOnFreeSpin: false,
+      stopOnJackpot: false,
+    },
+    stakeIndex: 0,
+    ratioIndex: 0,
+  };
+  const savedAdvanced = objectValue(savedSettings?.advancedSettings);
+  const savedSounds = objectValue(savedAdvanced?.sounds);
+  const savedAutoPlay = objectValue(savedSettings?.autoPlay);
+  const settings = savedSettings
+    ? {
+        ...defaultSettings,
+        ...savedSettings,
+        advancedSettings: {
+          ...defaultSettings.advancedSettings,
+          ...savedAdvanced,
+          sounds: {
+            ...defaultSettings.advancedSettings.sounds,
+            ...savedSounds,
+          },
+        },
+        autoPlay: {
+          ...defaultSettings.autoPlay,
+          ...savedAutoPlay,
+        },
+      }
+    : defaultSettings;
   return {
     game: {
-      stakeValues: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-      ratioValues: [0.1, 0.2, 0.4, 1, 3, 4, 5, 6, 7, 8, 10, 15],
+      stakeValues: [...SETH2_STAKE_VALUES],
+      ratioValues: [...SETH2_RATIO_VALUES],
       stakeList: [],
       superMgRealStakeLimit: 10_000_000,
     },
@@ -556,22 +600,7 @@ export function seth2SourcePlatform(
       avatar: 0,
       avatarUrl: '',
       balance: { currency: 'POINT', amount: player.balance, gemAmount: 0, betAmount: 0 },
-      settings: {
-        advancedSettings: {
-          sounds: { background: true, backgroundVolume: 0.32, effect: true, effectVolume: 0.6 },
-          notify: true,
-          turbo: false,
-        },
-        autoPlay: {
-          numberOfPlays: [10, 25, 50, 100, -1],
-          stopOnWinMultiplier: 0,
-          stopOnBalance: 0,
-          stopOnFreeSpin: false,
-          stopOnJackpot: false,
-        },
-        stakeIndex: 0,
-        ratioIndex: 0,
-      },
+      settings,
       nameDisplayOn: false,
       displayName: player.displayName ?? player.username,
       displayNameBlockTime: 0,
@@ -582,12 +611,19 @@ export function seth2SourcePlatform(
       number: machineId,
       status: 'Full',
       detail: null,
-      lock: { roomId: 0, number: 0, time: 0, resetDef: 0, expiredDef: 0 },
+      lock: {
+        roomId: machineId,
+        number: machineId,
+        time: 0,
+        resetDef: 0,
+        expiredDef: 0,
+      },
     },
     slotTablesOn: true,
     tables: [],
     slotTableUpdated: 0,
     jackpotOn: true,
+    jackpotPools,
     avatars: [],
     theme: null,
     isInstantClose: false,
@@ -595,4 +631,10 @@ export function seth2SourcePlatform(
     slotRankOn: false,
     tableMeta: { currentPage: 1, tablePerPage: 500, totalPages: 8, totalTableCount: 4_000 },
   };
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }

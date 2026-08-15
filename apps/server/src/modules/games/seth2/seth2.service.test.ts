@@ -4,15 +4,20 @@ import type { Seth2ReturnData } from '@bg/shared';
 import { describe, expect, it } from 'vitest';
 import {
   advanceSession,
+  applySeth2JackpotAward,
   applyFemaleLockState,
   chooseControlledSethFactor,
+  chooseControlledSethFeatureFactor,
+  generateFeatureRun,
   machineDisplayRate,
   machineInfo,
   machineList,
+  mergeSeth2PlayerSettings,
   normalizeFemaleLockAccounting,
+  splitSeth2FeatureFactor,
   Seth2Service,
 } from './seth2.service.js';
-import { seth2ProtocolSchema } from './seth2.schema.js';
+import { seth2ProtocolSchema, seth2SourceSchema } from './seth2.schema.js';
 
 const MACHINE_RATE_TIME = 1_800_000_000_000;
 
@@ -62,6 +67,75 @@ describe('Seth2 controlled result selection', () => {
     );
     expect(factor).toBe(20);
   });
+
+  it('maps control accounting to a complete feature total instead of one free round', () => {
+    expect(
+      chooseControlledSethFeatureFactor(
+        new Prisma.Decimal(2),
+        new Prisma.Decimal(400),
+        {
+          won: true,
+          multiplier: new Prisma.Decimal(2),
+          minMultiplier: new Prisma.Decimal(2),
+          maxMultiplier: new Prisma.Decimal(2),
+        },
+        'bought_standard_free',
+      ),
+    ).toBe(400);
+    expect(splitSeth2FeatureFactor(19_997, 'awakening_free')).toEqual(
+      expect.arrayContaining([10_000, 9_997]),
+    );
+  });
+
+  it.each([3, 200, 400, 20_000, 81_000])(
+    'builds an atomic 15-game sequence whose visible total is exactly %s x',
+    (totalFactor) => {
+      const entryOutcome = seth2BuyFeatureEntry('atomic-entry', 'client', 1, 'awakening', 2);
+      const seeds = Array.from({ length: 100 }, (_, index) => ({
+        serverSeedId: 'server-seed-id',
+        serverSeed: 'atomic-feature-seed',
+        serverSeedHash: 'hash',
+        clientSeed: 'client',
+        nonce: index + 2,
+      }));
+      const run = generateFeatureRun({
+        entryOutcome,
+        seeds,
+        baseBet: 2,
+        buying: true,
+        featureIndex: 1,
+        featureMode: 'awakening',
+        forcedTotalFactor: totalFactor,
+      });
+
+      expect(run.rounds).toHaveLength(15);
+      expect(entryOutcome.payoutFactor + run.totalPayoutFactor).toBe(totalFactor);
+      expect(run.finalSession.freeSpinsRemaining).toBe(0);
+      expect(run.finalSession.featureWinnings).toBe(0);
+    },
+  );
+});
+
+describe('Seth2 progressive jackpot settlement', () => {
+  it('replaces the display and authoritative payout with the same locked pool value', () => {
+    const outcome = seth2SpinForFactor('jp', 'client', 1, 18, 20, 'base');
+    expect(outcome.returnData.JPtype).toBe(14);
+    applySeth2JackpotAward(outcome, new Prisma.Decimal(18), {
+      grand: new Prisma.Decimal(200_000),
+      major: new Prisma.Decimal(70_000),
+      minor: new Prisma.Decimal(13_000),
+      mini: new Prisma.Decimal('1600.02'),
+    });
+
+    expect(outcome.returnData.JPGold).toBe(1_600.02);
+    expect(outcome.returnData.total_gold).toBe(1_600.02);
+    expect(
+      new Prisma.Decimal(18)
+        .mul(outcome.payoutFactor)
+        .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
+        .toFixed(2),
+    ).toBe('1600.02');
+  });
 });
 
 describe('Seth2 formal-play-only mode', () => {
@@ -86,8 +160,133 @@ describe('Seth2 formal-play-only mode', () => {
         machineId: 1,
         yazhu: 18,
         isFreeModel: 1,
+        operationId: 'formal-play-test-operation',
       }),
     ).rejects.toMatchObject({ code: 'INVALID_ACTION' });
+  });
+});
+
+describe('Seth2 event contracts', () => {
+  it('rejects money requests without an idempotency key or explicit stake fields', () => {
+    expect(
+      seth2SourceSchema.safeParse({
+        event: 'spin',
+        data: { action: 'spin', stakeValue: 1, ratioValue: 0.1, machineId: 1 },
+      }).success,
+    ).toBe(false);
+    expect(
+      seth2SourceSchema.safeParse({
+        event: 'spin',
+        data: { action: 'spin', operationId: 'schema-operation-id', machineId: 1 },
+      }).success,
+    ).toBe(false);
+    expect(
+      seth2SourceSchema.safeParse({
+        event: 'spin',
+        data: {
+          action: 'spin',
+          stakeValue: 1,
+          ratioValue: 0.1,
+          machineId: 1,
+          operationId: 'schema-operation-id',
+        },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('requires a durable sequence id instead of trusting a free-spin stake from the client', () => {
+    expect(
+      seth2SourceSchema.safeParse({
+        event: 'collectFeatureSequence',
+        data: { stakeValue: 1, ratioValue: 0.1, machineId: 1 },
+      }).success,
+    ).toBe(false);
+    expect(
+      seth2SourceSchema.safeParse({
+        event: 'collectFeatureSequence',
+        data: { sequenceId: 'settled-feature-sequence' },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('accepts the source turbo patch and merges it without discarding persisted audio settings', () => {
+    const request = {
+      event: 'updateSettings',
+      data: { settings: { type: 'game', data: { turbo: true } } },
+    } as const;
+    expect(seth2SourceSchema.safeParse(request).success).toBe(true);
+    expect(
+      mergeSeth2PlayerSettings(
+        {
+          stakeIndex: 2,
+          advancedSettings: {
+            sounds: { background: false, backgroundVolume: 0.25 },
+            turbo: false,
+          },
+        },
+        request.data.settings,
+      ),
+    ).toEqual({
+      stakeIndex: 2,
+      advancedSettings: {
+        sounds: { background: false, backgroundVolume: 0.25 },
+        turbo: true,
+      },
+    });
+  });
+});
+
+describe('Seth2 idempotent settlement replay', () => {
+  it('returns the stored wallet result before any second Bet or wallet mutation', async () => {
+    const returnData = seth2SpinForFactor('stored', 'client', 1, 18, 10, 'base').returnData;
+    let createdBets = 0;
+    const tx = {
+      $queryRaw: async () => [
+        {
+          id: 'user-1',
+          username: 'player',
+          agentId: null,
+          balance: new Prisma.Decimal('999.00'),
+          displayName: 'Player',
+          disabledAt: null,
+          frozenAt: null,
+          bettingLimits: {},
+          bettingLimitLevel: 'range_10_5000',
+        },
+      ],
+      bet: {
+        findFirst: async () => ({
+          id: 'stored-bet',
+          resultData: {
+            mode: 'base',
+            machineId: 1,
+            buying: false,
+            featureIndex: null,
+            baseAmount: '18.00',
+            balanceAfter: '1161.00',
+            atomicFeature: true,
+            featureWinningsBefore: 0,
+            returnData,
+          },
+        }),
+        create: async () => {
+          createdBets += 1;
+          throw new Error('duplicate must not create a Bet');
+        },
+      },
+    };
+    const service = new Seth2Service({
+      $transaction: async (callback: (client: typeof tx) => unknown) => callback(tx),
+    } as never);
+
+    const settlement = await (
+      service as unknown as {
+        settle: (...args: unknown[]) => Promise<{ spinId: string; balance: number }>;
+      }
+    ).settle('user-1', 18, 1, false, null, false, 'same-operation-id', true);
+
+    expect(settlement).toMatchObject({ spinId: 'stored-bet', balance: 1_161 });
+    expect(createdBets).toBe(0);
   });
 });
 
@@ -125,6 +324,7 @@ describe('Seth2 v1.1.5 feature-purchase handshake', () => {
         stakeValue: 1,
         ratioValue: 0.1,
         machineId: 1,
+        operationId: 'feature-purchase-operation',
       },
     });
 
@@ -167,6 +367,90 @@ describe('Seth2 v1.1.5 feature-purchase handshake', () => {
 });
 
 describe('Seth2 v1.1.5 source loading', () => {
+  it('resumes the exact already-settled sequence after reload without rerunning math', async () => {
+    const baseState = {
+      view: Array.from({ length: 5 }, () => [1, 2, 3, 4, 5, 6]),
+      spinId: 'resume-bet',
+      currentView: 0,
+      totalViews: 1,
+      startFreeGame: true,
+    };
+    const service = new Seth2Service({
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          username: 'player',
+          displayName: 'Player',
+          balance: new Prisma.Decimal('888.00'),
+          frozenAt: null,
+          disabledAt: null,
+        }),
+      },
+      seth2PlayerState: {
+        findUnique: async () => ({
+          selectedMachineId: 77,
+          settings: { stakeIndex: 2, ratioIndex: 3 },
+        }),
+      },
+      seth2FeatureSequence: {
+        findFirst: async () => ({
+          betId: 'resume-bet',
+          entryGameStates: [baseState],
+          featureGameStates: [{ ...baseState, action: 'freeSpin', startFreeGame: false }],
+        }),
+      },
+      seth2JackpotPool: { findUnique: async () => null },
+    } as never);
+
+    const result = await service.source('user-1', { event: 'initial', data: {} });
+    const engine = result.engine as {
+      spinId: string;
+      gameState: Array<{ currentView: number; totalViews: number; startFreeGame: boolean }>;
+    };
+    const platform = result.platform as {
+      table: { roomId: number };
+      player: { settings: { stakeIndex: number; ratioIndex: number } };
+    };
+
+    expect(result.isResuming).toBe(true);
+    expect(engine.spinId).toBe('resume-bet');
+    expect(engine.gameState).toHaveLength(2);
+    expect(engine.gameState.map((state) => [state.currentView, state.totalViews])).toEqual([
+      [0, 2],
+      [1, 2],
+    ]);
+    expect(platform.table.roomId).toBe(77);
+    expect(platform.player.settings).toMatchObject({ stakeIndex: 2, ratioIndex: 3 });
+  });
+
+  it('fails closed when a durable feature sequence is corrupt instead of showing a blank game', async () => {
+    const service = new Seth2Service({
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          username: 'player',
+          displayName: 'Player',
+          balance: new Prisma.Decimal('888.00'),
+          frozenAt: null,
+          disabledAt: null,
+        }),
+      },
+      seth2PlayerState: { findUnique: async () => null },
+      seth2FeatureSequence: {
+        findFirst: async () => ({
+          betId: 'corrupt-feature',
+          entryGameStates: { invalid: true },
+          featureGameStates: [],
+        }),
+      },
+      seth2JackpotPool: { findUnique: async () => null },
+    } as never);
+
+    await expect(service.source('user-1', { event: 'initial', data: {} })).rejects.toMatchObject({
+      code: 'INTERNAL',
+    });
+  });
+
   it('keeps the 30-day machine aggregate out of the initial game boot', async () => {
     let aggregateQueries = 0;
     const service = new Seth2Service({
@@ -180,6 +464,9 @@ describe('Seth2 v1.1.5 source loading', () => {
           disabledAt: null,
         }),
       },
+      seth2PlayerState: { findUnique: async () => null },
+      seth2FeatureSequence: { findFirst: async () => null },
+      seth2JackpotPool: { findUnique: async () => null },
       $queryRaw: async () => {
         aggregateQueries += 1;
         return [];
@@ -200,60 +487,42 @@ describe('Seth2 v1.1.5 source loading', () => {
   });
 
   it('collects an entire free-game sequence in one source request', async () => {
-    const service = new Seth2Service({} as never);
-    const settlements = [1, 0].map((freeSpinsRemaining, index) => {
-      const outcome = seth2SpinForFactor(
-        'feature-sequence',
-        'client',
-        index,
-        2,
-        index === 0 ? 10 : 20,
-        'awakening_free',
-      );
-      return {
-        returnData: outcome.returnData,
-        balance: 1_000 + index * 20,
-        spinId: `free-${index + 1}`,
-        session: {
-          freeSpinsRemaining,
-          featureMode: freeSpinsRemaining > 0 ? ('awakening' as const) : ('none' as const),
-          betAmount: '2.00',
-          multiplierBank: outcome.returnData.multiplierBankAfter,
-          femaleLock: null,
-          featureWinnings: index === 0 ? 20 : 60,
-        },
-        freeSpin: true,
-        buying: false,
-        featureIndex: null,
-        totalStake: 2,
-        featureWinningsBefore: index === 0 ? 0 : 20,
-      };
-    });
-    const requireFreeSpinValues: boolean[] = [];
-    (
-      service as unknown as {
-        settle: (...args: unknown[]) => Promise<(typeof settlements)[number]>;
-      }
-    ).settle = async (...args) => {
-      requireFreeSpinValues.push(args[5] === true);
-      const next = settlements.shift();
-      if (!next) throw new Error('feature sequence settled too many games');
-      return next;
-    };
+    const outcome = seth2SpinForFactor('feature-sequence', 'client', 1, 2, 20, 'awakening_free');
+    const states = [
+      {
+        view: Array.from({ length: 5 }, () => [1, 2, 3, 4, 5, 6]),
+        spinId: 'feature-parent',
+        action: 'freeSpin',
+        freeGameCount: 0,
+        totalWinnings: outcome.returnData.total_gold,
+      },
+    ];
+    const service = new Seth2Service({
+      seth2FeatureSequence: {
+        findFirst: async () => ({
+          id: 'sequence-1',
+          betId: 'feature-parent',
+          finalBalance: new Prisma.Decimal(1_020),
+          featureGameStates: states,
+        }),
+      },
+    } as never);
 
     const result = await service.source('user-1', {
       event: 'collectFeatureSequence',
-      data: { stakeValue: 1, ratioValue: 0.2, machineId: 7 },
+      data: { sequenceId: 'feature-parent' },
     });
     const engine = result.engine as {
       spinId: string;
       gameState: Array<{ action: string; freeGameCount: number; totalWinnings: number }>;
     };
 
-    expect(requireFreeSpinValues).toEqual([true, true]);
-    expect(engine.spinId).toBe('free-2');
+    expect(engine.spinId).toBe('feature-parent');
     expect(engine.gameState.every((state) => state.action === 'freeSpin')).toBe(true);
-    expect(engine.gameState.at(-1)).toMatchObject({ freeGameCount: 0, totalWinnings: 60 });
+    expect(engine.gameState.at(-1)).toMatchObject({
+      freeGameCount: 0,
+      totalWinnings: outcome.returnData.total_gold,
+    });
     expect(result).toMatchObject({
       platform: { player: { balance: { amount: 1_020 } } },
     });

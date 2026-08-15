@@ -11,6 +11,8 @@ const RETRYABLE_ACTIVE_STATE_UNIQUE_INDEXES = new Set([
   'HiLoRound_one_active_per_user_key',
   'TowerRound_one_active_per_user_key',
   'BlackjackRound_one_active_per_user_key',
+  'Seth2JackpotPool_pkey',
+  'Seth2FeatureSequence_one_ready_per_user_key',
 ]);
 
 function formatBetLimit(value: number): string {
@@ -115,7 +117,7 @@ export async function lockUserAndCheckFunds(
   userId: string,
   amount: Prisma.Decimal,
   gameId?: string,
-  options: { limitAmounts?: Prisma.Decimal[] } = {},
+  options: { limitAmounts?: Prisma.Decimal[]; skipBetValidation?: boolean } = {},
 ): Promise<{
   id: string;
   username: string;
@@ -156,6 +158,7 @@ export async function lockUserAndCheckFunds(
   if (user.disabledAt || user.frozenAt) {
     throw new ApiError('MEMBER_FROZEN', 'Member account is frozen');
   }
+  if (options.skipBetValidation) return user;
   const configuredLimit = getBettingLimitForGame(
     user.bettingLimits,
     gameId,

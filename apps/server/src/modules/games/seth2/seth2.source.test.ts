@@ -9,6 +9,7 @@ import {
   SETH2_SOURCE_DEFINITION,
   seth2SourceGameStates,
   seth2SourceInitialState,
+  seth2SourcePlatform,
 } from './seth2.source.js';
 
 const SOURCE_OPTIONS = {
@@ -66,6 +67,28 @@ function sourceFixture(overrides: Partial<Seth2ReturnData> = {}): Seth2ReturnDat
 }
 
 describe('Seth 2 v1.1.5 source contract', () => {
+  it('deep-merges persisted setting patches with all framework defaults', () => {
+    const platform = seth2SourcePlatform(
+      { id: 'player', username: 'player', displayName: null, balance: 100 },
+      1,
+      { advancedSettings: { turbo: true } },
+    );
+    expect(platform.player.settings).toMatchObject({
+      advancedSettings: {
+        turbo: true,
+        notify: true,
+        sounds: {
+          background: true,
+          backgroundVolume: 0.32,
+          effect: true,
+          effectVolume: 0.6,
+        },
+      },
+      stakeIndex: 0,
+      ratioIndex: 0,
+    });
+  });
+
   it('matches the captured paytable, 15-game award and all three purchase modes', () => {
     expect(SETH2_SOURCE_DEFINITION.oddsList[15]).toEqual({ 4: 60, 5: 100, 6: 2_000 });
     expect(SETH2_SOURCE_DEFINITION.extraFgRounds).toBe(5);
@@ -220,9 +243,7 @@ describe('Seth 2 v1.1.5 source contract', () => {
       expect(states.length).toBeLessThanOrEqual(11);
       expect(states.every((state) => state.action === 'superSpin')).toBe(true);
       expect(
-        states.some((state) =>
-          state.timesSymbols.some((symbol) => symbol.times === 500),
-        ),
+        states.some((state) => state.timesSymbols.some((symbol) => symbol.times === 500)),
       ).toBe(true);
       expect(states.at(-1)!.totalWinnings).toBe(outcome.returnData.total_gold);
     }

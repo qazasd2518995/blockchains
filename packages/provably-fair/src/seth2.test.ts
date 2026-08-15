@@ -263,7 +263,9 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       const round = outcome.returnData.list[0]!;
       const awakening = mode === 'awakening_free';
       const scatterType = awakening ? 16 : 15;
-      const scatterCount = round.start_data.filter((current) => current.type === scatterType).length;
+      const scatterCount = round.start_data.filter(
+        (current) => current.type === scatterType,
+      ).length;
       expect(scatterCount).toBeGreaterThanOrEqual(3);
       expect(scatterCount).toBeLessThanOrEqual(awakening ? 4 : 3);
       expect(round.start_data.filter((current) => current.type === (awakening ? 15 : 16))).toEqual(
@@ -467,6 +469,24 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     ).toHaveLength(count);
   });
 
+  it('keeps a control-forced large win out of the shared jackpot trigger path', () => {
+    const outcome = seth2SpinForFactor(
+      'controlled-no-jp',
+      'client',
+      1,
+      BET,
+      500,
+      'base',
+      0,
+      false,
+      true,
+      false,
+    );
+    expect(outcome.payoutFactor).toBe(500);
+    expect(outcome.returnData.JPtype).toBe(0);
+    expect(outcome.returnData.JPGold).toBe(0);
+  });
+
   it('collects a saved free-game multiplier only when the current winning board has a ball', () => {
     let withoutBank: Seth2Outcome | undefined;
     let nonce = 0;
@@ -589,8 +609,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       const visible500 = outcome.returnData.list.some((round) =>
         round.start_data.some((current) => current.type === 10 && current.mul === 500),
       );
-      const sourceViews =
-        outcome.returnData.list.length + (outcome.returnData.score > 0 ? 1 : 0);
+      const sourceViews = outcome.returnData.list.length + (outcome.returnData.score > 0 ? 1 : 0);
 
       expect(visible500).toBe(true);
       expect(sourceViews).toBeGreaterThanOrEqual(5);

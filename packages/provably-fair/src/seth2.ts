@@ -603,11 +603,7 @@ function multiplierTargetForScore(
   return { current, effective };
 }
 
-function multiplierFitsBoard(
-  total: number,
-  maxParts: number,
-  requiredValue = 0,
-): boolean {
+function multiplierFitsBoard(total: number, maxParts: number, requiredValue = 0): boolean {
   if (requiredValue > 0) {
     if (total < requiredValue || maxParts < 1) return false;
     const remainder = total - requiredValue;
@@ -873,8 +869,9 @@ function buildWin(
   hasPersistentMultiplier = false,
   requiredMultiplierValue = 0,
   allowSkill = true,
+  allowJackpot = true,
 ): Seth2Outcome {
-  const jackpot = jackpotForFactor(factor, mode);
+  const jackpot = allowJackpot ? jackpotForFactor(factor, mode) : null;
   const jackpotCells = jackpot ? jackpot.count : 0;
   const awakening = mode === 'awakening_free';
   let skill: 'male' | 'female' | null = null;
@@ -1090,13 +1087,45 @@ export function seth2SpinForFactor(
   mode: Seth2SpinMode = 'base',
   multiplierBank = 0,
   hasPersistentMultiplier = false,
+  allowSkill = true,
+  allowJackpot = true,
 ): Seth2Outcome {
-  const rng = randomSource(serverSeed, clientSeed, nonce);
-  const outcome =
-    factor > 0
-      ? buildWin(bet, factor, mode, rng, multiplierBank, true, hasPersistentMultiplier)
-      : buildLoss(rng, mode, multiplierBank);
-  return applySpinFeatureMode(outcome, mode);
+  if (factor <= 0) {
+    return applySpinFeatureMode(
+      buildLoss(randomSource(serverSeed, clientSeed, nonce), mode, multiplierBank),
+      mode,
+    );
+  }
+  // A factor can have several valid score/multiplier decompositions. A single
+  // random candidate may pick one that does not fit the board even though a
+  // later deterministic candidate does. Controlled results must never silently
+  // fall back to zero, so walk a domain-separated deterministic attempt space
+  // and accept only an outcome that visibly settles the requested factor.
+  for (let attempt = 0; attempt < 128; attempt += 1) {
+    const domainClientSeed =
+      attempt === 0 ? clientSeed : `${clientSeed}:seth2-factor:${factor}:${attempt}`;
+    const outcome = buildWin(
+      bet,
+      factor,
+      mode,
+      randomSource(serverSeed, domainClientSeed, nonce),
+      multiplierBank,
+      true,
+      hasPersistentMultiplier,
+      0,
+      allowSkill,
+      allowJackpot,
+    );
+    if (outcome.payoutFactor === factor) return applySpinFeatureMode(outcome, mode);
+  }
+  return applySpinFeatureMode(
+    buildLoss(
+      randomSource(serverSeed, `${clientSeed}:seth2-factor:fallback`, nonce),
+      mode,
+      multiplierBank,
+    ),
+    mode,
+  );
 }
 
 function superMainIdleRound(rng: Seth2RandomSource): Seth2CascadeRound {
@@ -1107,11 +1136,7 @@ function superMainIdleRound(rng: Seth2RandomSource): Seth2CascadeRound {
   return emptyRound(shuffle(board, rng));
 }
 
-function buildSuperMainOutcome(
-  bet: number,
-  factor: number,
-  rng: Seth2RandomSource,
-): Seth2Outcome {
+function buildSuperMainOutcome(bet: number, factor: number, rng: Seth2RandomSource): Seth2Outcome {
   const useCharacterPath = factor >= 20 && rng() < 0.35;
   const primaryOutcome =
     factor <= 0

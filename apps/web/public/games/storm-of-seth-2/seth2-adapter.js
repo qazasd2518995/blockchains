@@ -10,12 +10,57 @@
   var loginStarted = false;
   var refreshInFlight = null;
   var selectedMachinePage = 1;
+  var PENDING_OPERATION_KEY = 'bg.seth2.legacy.pending-operation';
   var officialMultiplierValues = [2, 3, 4, 5, 6, 8, 10, 15, 25, 50, 100, 200, 300, 500];
   var SFX_PREFS_KEY = 'bg.sfx.prefs';
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
   var audioBridge = null;
   var audioBridgeAttempts = 0;
   var platformAudioPrefs = readPlatformAudioPrefs();
+
+  function attachOperationId(request) {
+    var fingerprint = JSON.stringify({
+      type: request.type,
+      machineId: Number(request.machineId),
+      yazhu: Number(request.yazhu),
+      gameModelType: Number(request.gameModelType || 0),
+    });
+    var pending = null;
+    try {
+      pending = JSON.parse(window.sessionStorage.getItem(PENDING_OPERATION_KEY) || 'null');
+    } catch (_error) {
+      pending = null;
+    }
+    var operationId =
+      pending && pending.fingerprint === fingerprint
+        ? pending.operationId
+        : 'seth2_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2).repeat(2);
+    request.operationId = operationId;
+    try {
+      window.sessionStorage.setItem(
+        PENDING_OPERATION_KEY,
+        JSON.stringify({ fingerprint: fingerprint, operationId: operationId }),
+      );
+    } catch (_error) {
+      // Database idempotency remains authoritative if browser storage is blocked.
+    }
+    return operationId;
+  }
+
+  function clearOperationId(operationId) {
+    try {
+      var pending = JSON.parse(window.sessionStorage.getItem(PENDING_OPERATION_KEY) || 'null');
+      if (
+        pending &&
+        pending.operationId === operationId &&
+        typeof window.sessionStorage.removeItem === 'function'
+      ) {
+        window.sessionStorage.removeItem(PENDING_OPERATION_KEY);
+      }
+    } catch (_error) {
+      // Storage failures must never lock a successfully settled game.
+    }
+  }
 
   function machinePageNumber(pageIndex) {
     var index = Number(pageIndex);
@@ -575,6 +620,9 @@
         ) {
           request.isFreeModel = 0;
         }
+        if (request.type === 'gameToolsList' || request.type === 'buyFreeGame') {
+          attachOperationId(request);
+        }
         return authorizedFetch(protocolUrl, request, false).then(function (payload) {
           if (request.type === 'getMachineList' && request.page !== selectedMachinePage) return;
           if (payload && payload.data && payload.data.balance !== undefined) {
@@ -582,6 +630,7 @@
           }
           var returnData = payload && payload.data && payload.data.returnData;
           if (returnData) syncFeatureMode(returnData);
+          if (request.operationId) clearOperationId(request.operationId);
           if (socket.readyState === LocalGameSocket.OPEN && socket.onmessage) {
             socket.onmessage({ data: JSON.stringify(payload) });
           }

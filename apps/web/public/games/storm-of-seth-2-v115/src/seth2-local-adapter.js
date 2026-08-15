@@ -8,6 +8,8 @@
   var refreshInFlight = null;
   var initialResponseInFlight = null;
   var selectedMachineId = 1;
+  var lastSpinId = '';
+  var PENDING_OPERATION_KEY = 'bg.seth2.pending-operation';
   var SFX_PREFS_KEY = 'bg.sfx.prefs';
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
   var UPDATE_TOTAL_WINNINGS = 'SlotFrameworkEvent:UPDATE_TOTAL_WINNINGS';
@@ -195,6 +197,63 @@
     }
   }
 
+  function randomOperationId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID().replace(/-/g, '');
+    }
+    var random = Math.random().toString(36).slice(2);
+    return 'seth2_' + Date.now().toString(36) + '_' + random + random;
+  }
+
+  function operationFingerprint(data) {
+    return JSON.stringify({
+      action: data.action || 'spin',
+      featureIndex: data.featureIndex === undefined ? null : Number(data.featureIndex),
+      stakeValue: Number(data.stakeValue),
+      ratioValue: Number(data.ratioValue),
+      machineId: Number(data.machineId || selectedMachineId),
+    });
+  }
+
+  function attachPendingOperation(data) {
+    var fingerprint = operationFingerprint(data);
+    var pending = null;
+    try {
+      pending = JSON.parse(window.sessionStorage.getItem(PENDING_OPERATION_KEY) || 'null');
+    } catch (_error) {
+      pending = null;
+    }
+    var operationId =
+      pending && pending.fingerprint === fingerprint && pending.operationId
+        ? pending.operationId
+        : randomOperationId();
+    data.operationId = operationId;
+    try {
+      window.sessionStorage.setItem(
+        PENDING_OPERATION_KEY,
+        JSON.stringify({ fingerprint: fingerprint, operationId: operationId }),
+      );
+    } catch (_error) {
+      // The database unique key still protects retries when storage is unavailable.
+    }
+    return operationId;
+  }
+
+  function clearPendingOperation(operationId) {
+    try {
+      var pending = JSON.parse(window.sessionStorage.getItem(PENDING_OPERATION_KEY) || 'null');
+      if (
+        pending &&
+        pending.operationId === operationId &&
+        typeof window.sessionStorage.removeItem === 'function'
+      ) {
+        window.sessionStorage.removeItem(PENDING_OPERATION_KEY);
+      }
+    } catch (_error) {
+      // Private browsing/storage policy failures must not break a settled spin.
+    }
+  }
+
   function writeTokens(accessToken, refreshToken) {
     try {
       var storage = parentStorage();
@@ -338,12 +397,9 @@
       return Promise.resolve(response);
     }
 
-    var nextData = Object.assign({}, socket.lastStakeData, eventData, {
-      action: 'spin',
-      machineId: selectedMachineId,
-    });
-    delete nextData.featureIndex;
-    delete nextData.spinId;
+    var nextData = {
+      sequenceId: response.engine && response.engine.spinId,
+    };
 
     return authorizedPost({ event: 'collectFeatureSequence', data: nextData }, false).then(
       function (nextResponse) {
@@ -402,6 +458,12 @@
     return response;
   }
 
+  function syncJackpotPools(socket, response) {
+    var pools = response && response.platform && response.platform.jackpotPools;
+    if (!pools) return;
+    socket.dispatch('notify', { type: 'jackpotUpdate', data: pools });
+  }
+
   function syncRunningAudio() {
     var music = readAudioPreference(BGM_PREFS_KEY, 0.32);
     var effects = readAudioPreference(SFX_PREFS_KEY, 0.6);
@@ -455,8 +517,11 @@
   LocalSocket.prototype.emit = function (event, data, callback) {
     var socket = this;
     var eventData = Object.assign({}, data || {});
-    if (event === 'updateSlotTable' && eventData.table) {
-      selectedMachineId = Number(eventData.table.roomId || eventData.table.number || 1);
+    if (event === 'updateSlotTable') {
+      var requestedTable = eventData.table || eventData;
+      selectedMachineId = Number(
+        requestedTable.machineId || requestedTable.roomId || requestedTable.number || 1,
+      );
     }
     if (event === 'spin' || event === 'getSlotTables') {
       eventData.machineId = selectedMachineId;
@@ -465,6 +530,17 @@
       ['stakeIndex', 'stakeValue', 'ratioIndex', 'ratioValue'].forEach(function (key) {
         if (eventData[key] !== undefined) socket.lastStakeData[key] = eventData[key];
       });
+    }
+    if (event === 'initial') {
+      // Read-only boot requests are intentionally not assigned operation IDs.
+    } else if (event === 'spin' && !eventData.spinId) {
+      attachPendingOperation(eventData);
+    }
+    if (event === 'closeSpin') {
+      eventData.spinId = String(eventData.spinId || lastSpinId || '');
+    }
+    if (event === 'updateSettings' && !eventData.settings) {
+      eventData = { settings: Object.assign({}, eventData) };
     }
     var request = { event: event, data: eventData };
     this.queue = this.queue
@@ -475,7 +551,25 @@
         return collectFeatureSequence(socket, event, eventData, response);
       })
       .then(function (response) {
+        var responseSpinId =
+          response &&
+          response.engine &&
+          (response.engine.spinId ||
+            (Array.isArray(response.engine.gameState) &&
+              response.engine.gameState[0] &&
+              response.engine.gameState[0].spinId));
+        if (responseSpinId) lastSpinId = String(responseSpinId);
+        syncJackpotPools(socket, response);
+        if (event === 'spin' && eventData.operationId) {
+          clearPendingOperation(eventData.operationId);
+        }
         if (event === 'initial') {
+          var table = response && response.platform && response.platform.table;
+          if (table) selectedMachineId = Number(table.roomId || table.number || 1);
+          if (response.isResuming && gameStates(response).length > 1) {
+            normalizeFeatureSequence(response, gameStates(response));
+            lastSpinId = String(response.engine.spinId || gameStates(response)[0].spinId || '');
+          }
           applyAudioPreferences(response);
           var balance = Number(
             response &&
@@ -495,6 +589,13 @@
       .catch(function (error) {
         var message = error && error.message ? error.message : '遊戲連線失敗';
         notifyParent('seth2:error', { message: message });
+        if (event === 'spin' && eventData.action === 'buyFeature') {
+          try {
+            dispatch('GameEvent:CLOSE_FEATURE_POPUP');
+          } catch (_error) {
+            // If the game module has not mounted yet, the next open creates fresh buttons.
+          }
+        }
         if (typeof callback === 'function')
           callback({ status: 500, code: 'LOCAL_BRIDGE', message: message });
         socket.dispatch('error', { message: message });

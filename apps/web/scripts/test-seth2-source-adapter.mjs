@@ -38,6 +38,12 @@ const response = {
   status: 200,
   engine: { gameState: [{}] },
   platform: {
+    jackpotPools: {
+      'jp-mini': 1600.01,
+      'jp-minor': 13000.02,
+      'jp-major': 70000.03,
+      'jp-grand': 200000.04,
+    },
     player: {
       balance: { amount: 123.45 },
       settings: {
@@ -55,6 +61,7 @@ const context = {
   console,
   location: { origin: 'https://example.test', search: '' },
   localStorage: storage,
+  sessionStorage: storage,
   parent: { localStorage: storage, postMessage: (message) => parentMessages.push(message) },
   addEventListener: () => {},
   setTimeout: (callback, delay) => {
@@ -150,8 +157,12 @@ assert.equal(audioResponse.platform.player.settings.advancedSettings.sounds.effe
 
 const socket = new LocalSocket();
 let connected = false;
+let latestJackpotNotification;
 socket.on('connect', () => {
   connected = true;
+});
+socket.on('notify', (notification) => {
+  if (notification.type === 'jackpotUpdate') latestJackpotNotification = notification;
 });
 zeroTimers.shift()();
 assert.equal(socket.connected, true);
@@ -166,6 +177,8 @@ assert.equal(initialResult.status, 200);
 assert.equal(requests.length - requestCountBeforeInitial, 1);
 assert.equal(JSON.parse(requests.at(-1).options.body).event, 'initial');
 assert.equal(parentMessages.at(-1).type, 'seth2:ready');
+assert.equal(latestJackpotNotification.type, 'jackpotUpdate');
+assert.deepEqual(structuredClone(latestJackpotNotification.data), response.platform.jackpotPools);
 requests.length = 0;
 parentMessages.length = 0;
 
@@ -178,8 +191,19 @@ assert.equal(requests[0].options.headers.Authorization, 'Bearer test-access');
 const requestBody = JSON.parse(requests[0].options.body);
 assert.equal(requestBody.event, 'spin');
 assert.equal(requestBody.data.machineId, 1);
+assert.equal(typeof requestBody.data.operationId, 'string');
+assert.ok(requestBody.data.operationId.length >= 16);
 assert.equal(parentMessages.at(-1).type, 'seth2:balance');
 assert.equal(parentMessages.at(-1).balance, 123.45);
+
+await new Promise((resolve) => {
+  socket.emit('updateSettings', { type: 'game', data: { turbo: true } }, resolve);
+});
+const settingsRequest = JSON.parse(requests.at(-1).options.body);
+assert.deepEqual(settingsRequest, {
+  event: 'updateSettings',
+  data: { settings: { type: 'game', data: { turbo: true } } },
+});
 
 responseQueue.push(
   {
@@ -248,9 +272,9 @@ assert.deepEqual(
 );
 const prefetchedRequest = JSON.parse(requests.at(-1).options.body);
 assert.equal(prefetchedRequest.event, 'collectFeatureSequence');
-assert.equal(prefetchedRequest.data.spinId, undefined);
-assert.equal(prefetchedRequest.data.stakeValue, 1);
-assert.equal(prefetchedRequest.data.ratioValue, 0.1);
+assert.equal(prefetchedRequest.data.sequenceId, 'feature-entry');
+assert.equal(prefetchedRequest.data.stakeValue, undefined);
+assert.equal(prefetchedRequest.data.ratioValue, undefined);
 
 socket.close();
 assert.equal(socket.connected, false);
