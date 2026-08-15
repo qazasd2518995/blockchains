@@ -14,8 +14,12 @@
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
   var UPDATE_TOTAL_WINNINGS = 'SlotFrameworkEvent:UPDATE_TOTAL_WINNINGS';
   var GAME_ENTRY_GATE_ID = 'yachiyo-seth2-entry-gate';
+  var GAME_ENTRY_TRANSITION_TIMEOUT_MS = 12000;
   var gameEntryPollTimer = 0;
   var gameEntryPollAttempt = 0;
+  var gameEntryTransitionTimer = 0;
+  var gameEntryTransitionStartedAt = 0;
+  var gameEntryPaintPending = false;
   var gameEntryInProgress = false;
 
   function wrapFrameworkDispatch(dispatcher) {
@@ -544,13 +548,129 @@
     }
   }
 
+  function gameEntryGate() {
+    if (typeof document === 'undefined') return null;
+    return document.getElementById(GAME_ENTRY_GATE_ID);
+  }
+
+  function gameEntryButton(gate) {
+    return gate && typeof gate.querySelector === 'function' ? gate.querySelector('button') : null;
+  }
+
+  function setGameEntryGateState(state) {
+    var gate = gameEntryGate();
+    var button = gameEntryButton(gate);
+    if (!gate || !button) return;
+
+    gate.setAttribute('aria-busy', state === 'entering' ? 'true' : 'false');
+    gate.style.pointerEvents = state === 'ready' ? 'none' : 'auto';
+    gate.style.background =
+      state === 'ready'
+        ? 'transparent'
+        : 'radial-gradient(circle at center,rgba(39,16,77,.82) 0%,rgba(5,2,14,.96) 72%)';
+    button.dataset.action = state === 'retry' ? 'reload' : 'enter';
+    button.disabled = state === 'entering';
+    button.textContent =
+      state === 'entering'
+        ? '正在進入遊戲…'
+        : state === 'retry'
+          ? '載入逾時・重新整理'
+          : '進入遊戲';
+    button.setAttribute('aria-label', button.textContent);
+    button.style.opacity = state === 'entering' ? '0.82' : '1';
+    button.style.cursor = state === 'entering' ? 'wait' : 'pointer';
+  }
+
+  function isGameEntryTransitionReady() {
+    try {
+      var app = window.App;
+      var loading = app && app.gameLoading;
+      var gameView = app && app.gameView;
+      var loadingClosed = !loading || !loading.node || loading.node.active === false;
+      var gameViewActive =
+        gameView &&
+        gameView.node &&
+        gameView.node.active !== false &&
+        gameView.node.activeInHierarchy !== false;
+      return Boolean(loadingClosed && gameViewActive);
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function afterGameEntryPaint(callback, remainingFrames) {
+    var frames = remainingFrames === undefined ? 3 : Number(remainingFrames);
+    if (frames <= 0) {
+      // WebKit can report active scene nodes one frame before their textures
+      // are presented. Give it one short compositor turn before uncovering it.
+      window.setTimeout(callback, 120);
+      return;
+    }
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(function () {
+        afterGameEntryPaint(callback, frames - 1);
+      });
+      return;
+    }
+    window.setTimeout(function () {
+      afterGameEntryPaint(callback, frames - 1);
+    }, 16);
+  }
+
+  function failGameEntryTransition() {
+    if (gameEntryTransitionTimer) {
+      window.clearTimeout(gameEntryTransitionTimer);
+      gameEntryTransitionTimer = 0;
+    }
+    gameEntryPaintPending = false;
+    gameEntryInProgress = false;
+    setGameEntryGateState('retry');
+    notifyParent('seth2:entry-timeout', { stage: 'game-view' });
+  }
+
+  function watchGameEntryTransition() {
+    if (!gameEntryInProgress) return;
+    if (gameEntryTransitionTimer) {
+      window.clearTimeout(gameEntryTransitionTimer);
+      gameEntryTransitionTimer = 0;
+    }
+
+    if (isGameEntryTransitionReady()) {
+      if (gameEntryPaintPending) return;
+      gameEntryPaintPending = true;
+      afterGameEntryPaint(function () {
+        gameEntryPaintPending = false;
+        if (!gameEntryInProgress) return;
+        if (!isGameEntryTransitionReady()) {
+          watchGameEntryTransition();
+          return;
+        }
+        removeGameEntryGate();
+        notifyParent('seth2:entered');
+      });
+      return;
+    }
+
+    if (Date.now() - gameEntryTransitionStartedAt >= GAME_ENTRY_TRANSITION_TIMEOUT_MS) {
+      failGameEntryTransition();
+      return;
+    }
+    gameEntryTransitionTimer = window.setTimeout(watchGameEntryTransition, 100);
+  }
+
   function removeGameEntryGate() {
     if (gameEntryPollTimer) {
       window.clearTimeout(gameEntryPollTimer);
       gameEntryPollTimer = 0;
     }
+    if (gameEntryTransitionTimer) {
+      window.clearTimeout(gameEntryTransitionTimer);
+      gameEntryTransitionTimer = 0;
+    }
+    gameEntryPaintPending = false;
+    gameEntryInProgress = false;
     if (typeof document === 'undefined') return;
-    var gate = document.getElementById(GAME_ENTRY_GATE_ID);
+    var gate = gameEntryGate();
     if (gate && gate.parentNode) gate.parentNode.removeChild(gate);
   }
 
@@ -559,6 +679,8 @@
     var introView = findIntroView();
     if (!introView) return false;
     gameEntryInProgress = true;
+    gameEntryTransitionStartedAt = Date.now();
+    setGameEntryGateState('entering');
     resumeAudioFromGesture();
     try {
       var eventType =
@@ -566,10 +688,15 @@
           ? window.cc.Node.EventType.TOUCH_START
           : 'touch-start';
       introView.bbr.emit(eventType, {});
-      removeGameEntryGate();
+      watchGameEntryTransition();
       return true;
     } catch (_error) {
+      if (gameEntryTransitionTimer) {
+        window.clearTimeout(gameEntryTransitionTimer);
+        gameEntryTransitionTimer = 0;
+      }
       gameEntryInProgress = false;
+      setGameEntryGateState('ready');
       return false;
     }
   }
@@ -584,7 +711,8 @@
     gate.setAttribute('aria-label', '遊戲載入完成');
     gate.style.cssText =
       'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;' +
-      'justify-content:center;pointer-events:none;padding:24px;box-sizing:border-box;';
+      'justify-content:center;pointer-events:none;padding:24px;box-sizing:border-box;' +
+      'background:transparent;transition:background .18s ease;';
 
     var button = document.createElement('button');
     button.type = 'button';
@@ -600,6 +728,10 @@
     button.addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
+      if (button.dataset.action === 'reload') {
+        window.location.reload();
+        return;
+      }
       if (!enterReadyGame()) gameEntryInProgress = false;
     });
     gate.appendChild(button);
@@ -639,6 +771,8 @@
 
   function scheduleGameEntryGate() {
     gameEntryPollAttempt = 0;
+    gameEntryTransitionStartedAt = 0;
+    gameEntryPaintPending = false;
     gameEntryInProgress = false;
     showGameEntryGateWhenReady();
   }
@@ -822,7 +956,10 @@
     wrapFrameworkDispatch: wrapFrameworkDispatch,
     findIntroView: findIntroView,
     enterReadyGame: enterReadyGame,
+    failGameEntryTransition: failGameEntryTransition,
+    isGameEntryTransitionReady: isGameEntryTransitionReady,
     markLoadingComplete: markLoadingComplete,
+    watchGameEntryTransition: watchGameEntryTransition,
   };
 
   if (typeof document !== 'undefined') prefetchInitialResponse();

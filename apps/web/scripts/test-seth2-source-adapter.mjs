@@ -34,6 +34,12 @@ const zeroTimers = [];
 const longTimers = [];
 const requests = [];
 const responseQueue = [];
+let testNow = 1_000;
+class TestDate extends Date {
+  static now() {
+    return testNow;
+  }
+}
 const response = {
   status: 200,
   engine: { gameState: [{}] },
@@ -58,6 +64,7 @@ const context = {
   URLSearchParams,
   AbortController,
   Storage: TestStorage,
+  Date: TestDate,
   console,
   location: { origin: 'https://example.test', search: '' },
   localStorage: storage,
@@ -70,6 +77,10 @@ const context = {
     return 1;
   },
   clearTimeout: () => {},
+  requestAnimationFrame: (callback) => {
+    zeroTimers.push(callback);
+    return 1;
+  },
   fetch: async (url, options) => {
     requests.push({ url, options });
     const nextResponse = responseQueue.length > 0 ? responseQueue.shift() : response;
@@ -97,6 +108,7 @@ const {
   wrapFrameworkDispatch,
   findIntroView,
   enterReadyGame,
+  isGameEntryTransitionReady,
   markLoadingComplete,
 } = context.__YachiyoSeth2SourceAdapterTest;
 assert.equal(typeof context.io.connect, 'function');
@@ -184,12 +196,18 @@ assert.equal(latestJackpotNotification.type, 'jackpotUpdate');
 assert.deepEqual(structuredClone(latestJackpotNotification.data), response.platform.jackpotPools);
 
 let introTouchStarts = 0;
+let completeEntryTransition = true;
 const introView = {
   node: { name: 'IntroView' },
   bbr: {
     emit: (eventName) => {
       assert.equal(eventName, 'touch-start');
       introTouchStarts += 1;
+      if (completeEntryTransition) {
+        context.App.gameLoading.node.active = false;
+        context.App.gameView.node.active = true;
+        context.App.gameView.node.activeInHierarchy = true;
+      }
     },
   },
   startGame: {},
@@ -200,7 +218,39 @@ context.cc = {
   director: { getScene: () => ({ getComponentsInChildren: () => [introView] }) },
 };
 context.App = {
-  gameLoading: { loadTotal: 25, loadedNum: 24, percentText: { string: '96%' } },
+  gameLoading: {
+    loadTotal: 25,
+    loadedNum: 24,
+    percentText: { string: '96%' },
+    node: { active: true },
+  },
+  gameView: { node: { active: false, activeInHierarchy: false } },
+};
+let activeEntryGate;
+function createEntryGateDouble() {
+  const button = {
+    dataset: { action: 'enter' },
+    disabled: false,
+    style: {},
+    textContent: '進入遊戲',
+    setAttribute: () => {},
+  };
+  const gate = {
+    button,
+    parentNode: {
+      removeChild: () => {
+        activeEntryGate = null;
+      },
+    },
+    style: {},
+    setAttribute: () => {},
+    querySelector: (selector) => (selector === 'button' ? button : null),
+  };
+  return gate;
+}
+activeEntryGate = createEntryGateDouble();
+context.document = {
+  getElementById: (id) => (id === 'yachiyo-seth2-entry-gate' ? activeEntryGate : null),
 };
 assert.equal(findIntroView(), introView);
 markLoadingComplete();
@@ -208,6 +258,31 @@ assert.equal(context.App.gameLoading.loadedNum, 24);
 assert.equal(context.App.gameLoading.percentText.string, '100%');
 assert.equal(enterReadyGame(), true);
 assert.equal(introTouchStarts, 1);
+assert.equal(isGameEntryTransitionReady(), true);
+assert.ok(activeEntryGate, 'entry gate must remain while WebKit paints the game scene');
+assert.equal(activeEntryGate.button.textContent, '正在進入遊戲…');
+for (let frame = 0; frame < 3; frame += 1) zeroTimers.shift()();
+const paintDelay = longTimers.findLast((timer) => timer.delay === 120);
+assert.ok(paintDelay);
+paintDelay.callback();
+assert.equal(activeEntryGate, null, 'entry gate is removed only after the game scene is painted');
+
+activeEntryGate = createEntryGateDouble();
+completeEntryTransition = false;
+context.App.gameLoading.node.active = true;
+context.App.gameView.node.active = false;
+context.App.gameView.node.activeInHierarchy = false;
+testNow = 2_000;
+assert.equal(enterReadyGame(), true);
+assert.ok(activeEntryGate);
+testNow += 12_001;
+const entryTimeout = longTimers.findLast((timer) => timer.delay === 100);
+assert.ok(entryTimeout);
+entryTimeout.callback();
+assert.ok(activeEntryGate, 'timed-out entry keeps a visible recovery control');
+assert.equal(activeEntryGate.button.dataset.action, 'reload');
+assert.equal(activeEntryGate.button.disabled, false);
+assert.equal(activeEntryGate.button.textContent, '載入逾時・重新整理');
 requests.length = 0;
 parentMessages.length = 0;
 
