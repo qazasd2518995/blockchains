@@ -45,13 +45,20 @@ for (const build of builds) {
   if (build.cocos3) {
     assert.match(html, /System\.import\('\.\/index\.js'\)/);
     assert.match(html, /src\/seth2-local-adapter\.js/);
+    assert.match(html, /id="loadingMsg"[^>]*>遊戲載入中…<\/div>/);
     const applicationSource = fs.readFileSync(path.join(buildRoot, 'application.js'), 'utf8');
+    const appSource = fs.readFileSync(path.join(buildRoot, 'app.js'), 'utf8');
     assert.match(applicationSource, /frameRate:\s*60/);
     assert.match(applicationSource, /view_mode == "portrait"/);
     assert.match(applicationSource, /this\.showFPS = false/);
     assert.match(applicationSource, /debugMode:\s*cc\.DebugMode\.ERROR/);
     assert.match(applicationSource, /maxConcurrency = concurrency/);
     assert.match(applicationSource, /maxRequestsPerFrame = concurrency/);
+    assert.match(appSource, /cocosHasTakenOver/);
+    assert.match(appSource, /requestAnimationFrame\(\(\) => window\.requestAnimationFrame\(finishHandoff\)\)/);
+    assert.match(appSource, /setTimeout\(showLoadingRetry, 45000\)/);
+    assert.match(appSource, /重新載入/);
+    assert.doesNotMatch(appSource, /setTimeout\(hideLogo, 500\)/);
     assert.match(html, /assets\/g1005\/config\.json/);
     assert.match(html, /assets\/g1005\/index\.js/);
   } else {

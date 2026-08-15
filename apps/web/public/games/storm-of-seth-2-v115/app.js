@@ -149,6 +149,31 @@ const start = (cc) => {
   orientationEle.addEventListener('touchend',(e)=>{e.preventDefault()},{passive:false});
   // const debugEle = document.getElementById('debug')
   let showSwipeTimeId = null
+  let cocosHasTakenOver = false
+  let bootTimeoutId = null
+
+  const setLoadingMessage = (message) => {
+    if (cocosHasTakenOver) return
+    loadingMsg.replaceChildren(document.createTextNode(message))
+    loadingMsg.style.display = 'block'
+  }
+
+  const showLoadingRetry = () => {
+    if (cocosHasTakenOver) return
+
+    const message = document.createElement('span')
+    message.textContent = '載入時間較長，請檢查網路後再試一次。'
+    const retryButton = document.createElement('button')
+    retryButton.type = 'button'
+    retryButton.className = 'loading-retry-button'
+    retryButton.textContent = '重新載入'
+    retryButton.addEventListener('click', () => window.location.reload())
+    loadingMsg.replaceChildren(message, retryButton)
+    loadingMsg.style.display = 'block'
+  }
+
+  setLoadingMessage('遊戲載入中…')
+  bootTimeoutId = setTimeout(showLoadingRetry, 45000)
 
   // version.textContent = `${date}`
 
@@ -202,13 +227,34 @@ const start = (cc) => {
   if (isMobileDevice() && (!isIframe())&& (!isLiGu())) showSwipeTimeId = setTimeout(showSwipe, 10);
 
   const hideLogo = () => {
-    logoEle.style.display = 'none'
-    loadingMsg.style.display = 'none'
+    if (cocosHasTakenOver) return
+    cocosHasTakenOver = true
+    bootTimeoutId && clearTimeout(bootTimeoutId)
+
+    const finishHandoff = () => {
+      logoEle.style.display = 'none'
+      loadingMsg.style.display = 'none'
+    }
+
+    // GameLoading calls this only after its Cocos loading view is ready. Waiting
+    // for two paint frames prevents a black frame between the DOM splash and canvas.
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => window.requestAnimationFrame(finishHandoff))
+    } else {
+      setTimeout(finishHandoff, 50)
+    }
   }
   window.hideLogo = hideLogo;
 
   const updatingLoadingMsg = (msg) => {
-    loadingMsg.textContent = msg
+    const source = String(msg || '')
+    if (source.includes('slotFramework')) {
+      setLoadingMessage('正在準備遊戲介面…')
+    } else if (source.includes('g1005') || source.includes('load bundle') || source.includes('assets/')) {
+      setLoadingMessage('正在載入完整遊戲素材…')
+    } else {
+      setLoadingMessage('遊戲載入中…')
+    }
   }
   window.updatingLoadingMsg = updatingLoadingMsg;
 
@@ -221,7 +267,6 @@ const start = (cc) => {
     ) ? viewMode : null
 
     let orientationType = null
-    let hideLogoTimeId = null
     let hasResize = false
     const updateOrientationUI = () => {
       const { os, platform, browserType } = cc.sys
@@ -306,9 +351,10 @@ const start = (cc) => {
 
       updateUITimeId && clearTimeout(updateUITimeId)
       updateUITimeId = setTimeout(updateOrientationUI, 500)
-      if (hideLogoTimeId) clearTimeout(hideLogoTimeId)
-      logoEle.style.display = 'block'
-      hideLogoTimeId = setTimeout(hideLogo, 500)
+      if (!cocosHasTakenOver) {
+        logoEle.style.display = 'block'
+        loadingMsg.style.display = 'block'
+      }
 
     }
 

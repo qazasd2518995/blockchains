@@ -42,8 +42,8 @@
   "gameFiles": [
     {
       "path": "app.js",
-      "bytes": 10276,
-      "sha256": "fe181a2fccaaa2fdcdd85ea26e974decf1fd0b621b64078ca211bb46569f8a07"
+      "bytes": 11994,
+      "sha256": "d9517df69acbbb965902936774caeebc670b9e73249ca8cd41bc791fcaac7777"
     },
     {
       "path": "application.js",
@@ -12602,8 +12602,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 3603,
-      "sha256": "76a49f3b5f810f8a3847a178c5374c7ac687fbbb01802c8381c3d0f8dd19ac4d"
+      "bytes": 3654,
+      "sha256": "8f68a40415b415386ad4798fa8b4ec15f7a02c5e09b4b9f8b236c978c981b0d9"
     },
     {
       "path": "index.js",
@@ -12722,8 +12722,8 @@
     },
     {
       "path": "style.css",
-      "bytes": 5180,
-      "sha256": "325dc3784ea85b334c08883bd363d7bc7e988a46ba3dfc2ae46231711e81cfc7"
+      "bytes": 5628,
+      "sha256": "685fcc3beb8b99d933bf836ef4a6e065b7bdf3c5f1a6b9e97a9a943df7241b3c"
     }
   ],
   "frameworkFiles": [

@@ -213,10 +213,28 @@ iframe {
   position: fixed;
   z-index: 10000;
   bottom: 2rem;
-  color: #787878;
+  box-sizing: border-box;
+  padding: 0 1.5rem;
+  color: rgba(255, 255, 255, 0.76);
   text-align: center;
   width: 100%;
   font-size: 13px;
+  line-height: 1.5;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+#loadingMsg .loading-retry-button {
+  display: block;
+  min-width: 7rem;
+  margin: 0.75rem auto 0;
+  padding: 0.55rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  font: inherit;
+  pointer-events: auto;
 }
 
 #GameDiv {
