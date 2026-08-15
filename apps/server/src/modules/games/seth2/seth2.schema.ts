@@ -26,6 +26,7 @@ export const seth2SourceSchema = z.object({
   event: z.enum([
     'initial',
     'spin',
+    'collectFeatureSequence',
     'closeSpin',
     'updateSettings',
     'getBetRecords',

@@ -21,6 +21,9 @@
     <link rel="icon" href="public/favicon.ico" />
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="game.css" />
+    <!-- Pull the 2.2 MB engine onto the wire before the SystemJS bootstrap
+         reaches it, without changing texture or rendering quality. -->
+    <link rel="preload" href="./cocos-js/cc.js" as="script" />
   </head>
   <body>
     <div id="logo"><img src="./public/atg.png" alt="" /></div>

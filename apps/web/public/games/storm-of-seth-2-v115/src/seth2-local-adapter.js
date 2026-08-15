@@ -6,6 +6,7 @@
   var sourceUrl = apiBase + '/games/seth2/source';
   var requestTimeoutMs = 20000;
   var refreshInFlight = null;
+  var initialResponseInFlight = null;
   var selectedMachineId = 1;
   var SFX_PREFS_KEY = 'bg.sfx.prefs';
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
@@ -72,6 +73,77 @@
     }
   }
 
+  function guardBigwinClass(BigwinView) {
+    var prototype = BigwinView && BigwinView.prototype;
+    if (!prototype || prototype.__yachiyoCompletionGuard) return false;
+    var originalOnClose = prototype.onClose;
+    var originalShowBigwin = prototype.showBigwin;
+    if (typeof originalOnClose !== 'function' || typeof originalShowBigwin !== 'function') {
+      return false;
+    }
+
+    prototype.onClose = function () {
+      var completion = this.completedCB;
+      if (
+        typeof completion === 'function' &&
+        this.showWinStatus !== 4 &&
+        !this.__yachiyoCompletingBigwin
+      ) {
+        // The source close button calls onClose directly.  Its original method
+        // tears down every scheduled callback before the flow completion runs,
+        // leaving the already-settled game permanently locked. Complete the
+        // flow first; completedCB calls onClose again with status 4.
+        this.__yachiyoCompletingBigwin = true;
+        try {
+          return completion.call(this);
+        } finally {
+          this.__yachiyoCompletingBigwin = false;
+        }
+      }
+      return originalOnClose.apply(this, arguments);
+    };
+
+    prototype.showBigwin = function () {
+      var view = this;
+      var result = originalShowBigwin.apply(this, arguments);
+      window.setTimeout(function () {
+        if (
+          view &&
+          view.showWinStatus !== 4 &&
+          typeof view.completedCB === 'function' &&
+          !view.__yachiyoCompletingBigwin
+        ) {
+          view.__yachiyoCompletingBigwin = true;
+          try {
+            view.completedCB.call(view);
+          } finally {
+            view.__yachiyoCompletingBigwin = false;
+          }
+        }
+      }, 35000);
+      return result;
+    };
+    prototype.__yachiyoCompletionGuard = true;
+    return true;
+  }
+
+  function installBigwinCompletionGuard(attempt) {
+    var tries = Number(attempt || 0);
+    var loader = window.System;
+    var moduleId = 'chunks:///_virtual/BigwinView.ts';
+    try {
+      var loaded = loader && typeof loader.get === 'function' ? loader.get(moduleId) : null;
+      if (loaded && guardBigwinClass(loaded.BigwinView || loaded.default)) return;
+    } catch (_error) {
+      // The module may be registered but not executed yet.
+    }
+    if (tries < 240) {
+      window.setTimeout(function () {
+        installBigwinCompletionGuard(tries + 1);
+      }, 250);
+    }
+  }
+
   function protectPlatformStorage() {
     if (typeof Storage === 'undefined' || Storage.prototype.__yachiyoProtectedClear) return;
     var originalClear = Storage.prototype.clear;
@@ -92,6 +164,7 @@
 
   protectPlatformStorage();
   installFrameworkDispatchGuard();
+  installBigwinCompletionGuard(0);
 
   function parentStorage() {
     try {
@@ -113,7 +186,10 @@
 
   function notifyParent(type, payload) {
     try {
-      window.parent.postMessage(Object.assign({ type: type }, payload || {}), window.location.origin);
+      window.parent.postMessage(
+        Object.assign({ type: type }, payload || {}),
+        window.location.origin,
+      );
     } catch (_error) {
       // Standalone mode has no parent store to update.
     }
@@ -162,7 +238,9 @@
     var message = payload && (payload.message || payload.error);
     if (
       (payload && payload.code === 'INTERNAL') ||
-      /prisma\.|query execution|prismaclient|postgres(?:ql)?|connectorerror/i.test(String(message || ''))
+      /prisma\.|query execution|prismaclient|postgres(?:ql)?|connectorerror/i.test(
+        String(message || ''),
+      )
     ) {
       return '遊戲結算暫時失敗，請稍後再試';
     }
@@ -205,6 +283,29 @@
       });
   }
 
+  function prefetchInitialResponse() {
+    if (initialResponseInFlight || !readAuth().accessToken) return initialResponseInFlight;
+    // Start the read-only platform request while Cocos downloads and parses its
+    // engine/assets.  A failed speculative request is ignored and retried when
+    // the game actually emits `initial`.
+    initialResponseInFlight = authorizedPost({ event: 'initial', data: {} }, false).catch(
+      function () {
+        return null;
+      },
+    );
+    return initialResponseInFlight;
+  }
+
+  function sendRequest(request) {
+    if (request.event !== 'initial') return authorizedPost(request, false);
+    var prefetched = initialResponseInFlight;
+    initialResponseInFlight = null;
+    if (!prefetched) return authorizedPost(request, false);
+    return prefetched.then(function (response) {
+      return response || authorizedPost(request, false);
+    });
+  }
+
   function gameStates(response) {
     var states = response && response.engine && response.engine.gameState;
     return Array.isArray(states) ? states : [];
@@ -237,8 +338,6 @@
       return Promise.resolve(response);
     }
 
-    var remaining = Number(states[states.length - 1].freeGameCount);
-    var collectedGames = 0;
     var nextData = Object.assign({}, socket.lastStakeData, eventData, {
       action: 'spin',
       machineId: selectedMachineId,
@@ -246,35 +345,29 @@
     delete nextData.featureIndex;
     delete nextData.spinId;
 
-    function collectNext() {
-      if (remaining <= 0) return Promise.resolve(normalizeFeatureSequence(response, states));
-      if (collectedGames >= 100) {
-        return Promise.reject(new Error('免費遊戲局數超過安全上限'));
-      }
-      collectedGames += 1;
-      return authorizedPost({ event: 'spin', data: nextData }, false).then(function (nextResponse) {
+    return authorizedPost({ event: 'collectFeatureSequence', data: nextData }, false).then(
+      function (nextResponse) {
         var nextStates = gameStates(nextResponse);
         var finalState = nextStates[nextStates.length - 1];
-        if (!finalState || finalState.action !== 'freeSpin') {
+        if (
+          nextStates.length === 0 ||
+          !finalState ||
+          finalState.action !== 'freeSpin' ||
+          Number(finalState.freeGameCount) !== 0
+        ) {
           throw new Error('免費遊戲序列不完整，請稍後重試');
         }
         nextStates.forEach(function (state) {
           state.startFreeGame = false;
           states.push(state);
         });
-        remaining = Number(finalState.freeGameCount);
-        if (!Number.isFinite(remaining) || remaining < 0) {
-          throw new Error('免費遊戲剩餘局數無效');
-        }
         if (nextResponse.platform) response.platform = nextResponse.platform;
         if (nextResponse.engine && nextResponse.engine.spinId) {
           response.engine.spinId = nextResponse.engine.spinId;
         }
-        return collectNext();
-      });
-    }
-
-    return collectNext();
+        return normalizeFeatureSequence(response, states);
+      },
+    );
   }
 
   function readAudioPreference(key, fallback) {
@@ -292,8 +385,12 @@
   }
 
   function applyAudioPreferences(response) {
-    var sounds = response && response.platform && response.platform.player &&
-      response.platform.player.settings && response.platform.player.settings.advancedSettings &&
+    var sounds =
+      response &&
+      response.platform &&
+      response.platform.player &&
+      response.platform.player.settings &&
+      response.platform.player.settings.advancedSettings &&
       response.platform.player.settings.advancedSettings.sounds;
     if (!sounds) return response;
     var music = readAudioPreference(BGM_PREFS_KEY, 0.32);
@@ -372,7 +469,7 @@
     var request = { event: event, data: eventData };
     this.queue = this.queue
       .then(function () {
-        return authorizedPost(request, false);
+        return sendRequest(request);
       })
       .then(function (response) {
         return collectFeatureSequence(socket, event, eventData, response);
@@ -380,8 +477,13 @@
       .then(function (response) {
         if (event === 'initial') {
           applyAudioPreferences(response);
-          var balance = Number(response && response.platform && response.platform.player &&
-            response.platform.player.balance && response.platform.player.balance.amount);
+          var balance = Number(
+            response &&
+              response.platform &&
+              response.platform.player &&
+              response.platform.player.balance &&
+              response.platform.player.balance.amount,
+          );
           notifyParent('seth2:ready', { balance: balance });
         } else if (response && response.platform && response.platform.player) {
           notifyParent('seth2:balance', {
@@ -393,7 +495,8 @@
       .catch(function (error) {
         var message = error && error.message ? error.message : '遊戲連線失敗';
         notifyParent('seth2:error', { message: message });
-        if (typeof callback === 'function') callback({ status: 500, code: 'LOCAL_BRIDGE', message: message });
+        if (typeof callback === 'function')
+          callback({ status: 500, code: 'LOCAL_BRIDGE', message: message });
         socket.dispatch('error', { message: message });
       });
     return this;
@@ -427,7 +530,9 @@
   try {
     Object.defineProperty(window, 'io', {
       configurable: true,
-      get: function () { return localIo; },
+      get: function () {
+        return localIo;
+      },
       set: captureOriginalIo,
     });
   } catch (_error) {
@@ -435,7 +540,8 @@
   }
 
   window.addEventListener('message', function (event) {
-    if (event.origin !== window.location.origin || event.source !== window.parent || !event.data) return;
+    if (event.origin !== window.location.origin || event.source !== window.parent || !event.data)
+      return;
     if (event.data.type === 'seth2:audio-sync' || event.data.type === 'seth2:audio-unlock') {
       syncRunningAudio();
     }
@@ -448,7 +554,11 @@
     LocalSocket: LocalSocket,
     applyAudioPreferences: applyAudioPreferences,
     collectFeatureSequence: collectFeatureSequence,
+    prefetchInitialResponse: prefetchInitialResponse,
     publicError: publicError,
+    guardBigwinClass: guardBigwinClass,
     wrapFrameworkDispatch: wrapFrameworkDispatch,
   };
+
+  if (typeof document !== 'undefined') prefetchInitialResponse();
 })();

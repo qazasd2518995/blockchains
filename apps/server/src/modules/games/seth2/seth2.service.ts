@@ -6,6 +6,7 @@ import {
   seth2Spin,
   seth2SpinForFactor,
   seth2SuperMainSpin,
+  seth2SuperMainSpinForFactor,
   type Seth2Outcome,
   type Seth2SpinMode,
 } from '@bg/provably-fair';
@@ -180,7 +181,6 @@ export class Seth2Service {
     switch (input.event) {
       case 'initial': {
         const user = await this.requireUser(userId);
-        const stats = await this.machineStats();
         const platformBase = seth2SourcePlatform(
           {
             id: user.id,
@@ -192,7 +192,11 @@ export class Seth2Service {
         );
         const platform = {
           ...platformBase,
-          tables: sourceMachineTables(machineList(stats, 1), userId, 1),
+          // Machine statistics are only needed when the player opens the
+          // table selector.  Keeping the 30-day aggregate off the initial
+          // game boot removes a database scan from the critical path while
+          // preserving all 500 first-page tables and animated rates.
+          tables: sourceMachineTables(machineList(new Map(), 1), userId, 1),
         };
         return {
           status: 200,
@@ -250,6 +254,45 @@ export class Seth2Service {
           engine: { gameState, spinId: settlement.spinId },
           platform: sourceBalancePlatform(settlement.balance),
         };
+      }
+      case 'collectFeatureSequence': {
+        const totalStake = sourceTotalStake(request);
+        const machineId = sourceMachineId(request);
+        const gameState: ReturnType<typeof seth2SourceGameStates> = [];
+        let finalBalance = 0;
+        let finalSpinId = '';
+
+        // The source build expects the whole feature as one game-state array.
+        // Collect it server-side so a 15-spin feature costs one player-to-API
+        // round trip instead of 15 sequential long-distance requests.
+        for (let game = 0; game < 100; game += 1) {
+          const settlement = await this.settle(userId, totalStake, machineId, false, null, true);
+          const featureIndex = settlement.featureIndex;
+          const action: Seth2SourceAction =
+            featureIndex === 2 ? 'superSpin' : settlement.freeSpin ? 'freeSpin' : 'spin';
+          gameState.push(
+            ...seth2SourceGameStates(settlement.returnData, {
+              action,
+              spinId: settlement.spinId,
+              totalStake: settlement.totalStake,
+              freeGameCount: settlement.session.freeSpinsRemaining,
+              featureWinningsBefore: settlement.featureWinningsBefore,
+              isGoldenFg:
+                settlement.session.featureMode === 'awakening' ||
+                settlement.returnData.featureMode === 'awakening',
+            }),
+          );
+          finalBalance = settlement.balance;
+          finalSpinId = settlement.spinId;
+          if (settlement.session.freeSpinsRemaining <= 0) {
+            return {
+              status: 200,
+              engine: { gameState, spinId: finalSpinId },
+              platform: sourceBalancePlatform(finalBalance),
+            };
+          }
+        }
+        throw new ApiError('INVALID_ACTION', '免費遊戲局數超過安全上限');
       }
       case 'closeSpin': {
         const user = await this.requireUser(userId);
@@ -399,6 +442,7 @@ export class Seth2Service {
     machineId: number,
     buying: boolean,
     featureIndex: 0 | 1 | 2 | null = buying ? 0 : null,
+    requireFreeSpin = false,
   ): Promise<Seth2Settlement> {
     return runLockedTransaction(this.prisma, async (tx) => {
       const requestedBaseAmount = new Prisma.Decimal(requestedBet);
@@ -412,6 +456,9 @@ export class Seth2Service {
       });
       const currentSession = readSession(previous?.resultData);
       const freeSpin = !buying && currentSession.freeSpinsRemaining > 0;
+      if (requireFreeSpin && !freeSpin) {
+        throw new ApiError('INVALID_ACTION', '目前沒有可收集的免費遊戲');
+      }
       if (buying && currentSession.freeSpinsRemaining > 0) {
         throw new ApiError('INVALID_ACTION', '免費遊戲進行中，無法再次購買功能');
       }
@@ -446,10 +493,10 @@ export class Seth2Service {
       const seed = await new SeedHelper(tx).getActiveBundle(userId, GAME_ID);
       const originalOutcome = buying
         ? featureIndex === 1
-          ? seth2BuyFeatureEntry(seed.serverSeed, seed.clientSeed, seed.nonce, 'awakening')
+          ? seth2BuyFeatureEntry(seed.serverSeed, seed.clientSeed, seed.nonce, 'awakening', baseBet)
           : featureIndex === 2
             ? seth2SuperMainSpin(seed.serverSeed, seed.clientSeed, seed.nonce, baseBet)
-            : seth2BuyFeature(seed.serverSeed, seed.clientSeed, seed.nonce)
+            : seth2BuyFeature(seed.serverSeed, seed.clientSeed, seed.nonce, baseBet)
         : seth2Spin(
             seed.serverSeed,
             seed.clientSeed,
@@ -494,23 +541,38 @@ export class Seth2Service {
 
       const finalOutcome =
         (!buying || featureIndex === 2) && controlled.controlled
-          ? seth2SpinForFactor(
-              seed.serverSeed,
-              seed.clientSeed,
-              seed.nonce,
-              baseBet,
-              chooseControlledSethFactor(
-                baseAmount,
-                controlAmount,
-                controlled,
+          ? featureIndex === 2
+            ? seth2SuperMainSpinForFactor(
+                seed.serverSeed,
+                seed.clientSeed,
+                seed.nonce,
+                baseBet,
+                chooseControlledSethFactor(
+                  baseAmount,
+                  controlAmount,
+                  controlled,
+                  mode,
+                  effectiveMultiplierBankBefore,
+                  hasPersistentMultiplier,
+                ),
+              )
+            : seth2SpinForFactor(
+                seed.serverSeed,
+                seed.clientSeed,
+                seed.nonce,
+                baseBet,
+                chooseControlledSethFactor(
+                  baseAmount,
+                  controlAmount,
+                  controlled,
+                  mode,
+                  effectiveMultiplierBankBefore,
+                  hasPersistentMultiplier,
+                ),
                 mode,
                 effectiveMultiplierBankBefore,
                 hasPersistentMultiplier,
-              ),
-              mode,
-              effectiveMultiplierBankBefore,
-              hasPersistentMultiplier,
-            )
+              )
           : originalOutcome;
       if (finalOutcome !== originalOutcome) {
         normalizeFemaleLockAccounting(
@@ -966,7 +1028,7 @@ export function advanceSession(
       betAmount: input.betAmount.toFixed(2),
       multiplierBank: 0,
       femaleLock: null,
-      featureWinnings: 0,
+      featureWinnings: input.roundPayout ?? 0,
     };
   }
   if (input.freeSpin) {
@@ -990,7 +1052,7 @@ export function advanceSession(
       betAmount: input.betAmount.toFixed(2),
       multiplierBank: 0,
       femaleLock: null,
-      featureWinnings: 0,
+      featureWinnings: input.roundPayout ?? 0,
     };
   }
   return EMPTY_SESSION;

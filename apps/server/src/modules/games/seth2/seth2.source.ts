@@ -343,6 +343,14 @@ function sourceCurrentTimes(
   return data.multiplierBankBefore;
 }
 
+function sourceJackpotType(tier: number): string {
+  if (tier === 11) return 'jp-grand';
+  if (tier === 12) return 'jp-major';
+  if (tier === 13) return 'jp-minor';
+  if (tier === 14) return 'jp-mini';
+  return '';
+}
+
 export function seth2SourceGameStates(
   data: Seth2ReturnData,
   options: Seth2SourceStateOptions,
@@ -356,7 +364,7 @@ export function seth2SourceGameStates(
   let originalToCurrent = new Map(
     Array.from({ length: 30 }, (_, position) => [position, position]),
   );
-  let roundWinnings = 0;
+  let accumulatedBaseWinnings = 0;
   const maleTriggerRound = skillTriggerRound(data, 17);
   const femaleTriggerRound = skillTriggerRound(data, 18);
 
@@ -364,11 +372,16 @@ export function seth2SourceGameStates(
     const round = data.list[roundIndex]!;
     if (round.start_data.length === 30) {
       board = round.start_data.map((cell) => ({ ...cell }));
+      transitionFromPrevious = null;
       originalToCurrent = new Map(
         Array.from({ length: 30 }, (_, position) => [position, position]),
       );
     }
-    roundWinnings = money(roundWinnings + round.score * Math.max(1, round.total_mul || 1));
+    // The v1.1.5 client first counts each raw erase win, then collects the
+    // multiplier balls on the following no-win view.  Multiplying a winning
+    // cascade here makes the client skip (or double-count) that collection.
+    accumulatedBaseWinnings = money(accumulatedBaseWinnings + round.score);
+    const roundWinnings = accumulatedBaseWinnings;
     const femaleLockActive = femaleTriggerRound < 0 || roundIndex >= femaleTriggerRound;
     const currentTimes = timesSymbols(
       board,
@@ -408,9 +421,9 @@ export function seth2SourceGameStates(
     states.push({
       view: sourceView(board),
       spinId: options.spinId,
-      roundWinnings: money(roundWinnings),
+      roundWinnings,
       maleTotemLevel: maleLevel,
-      totalWinnings: money(options.featureWinningsBefore + roundWinnings),
+      totalWinnings: money(options.featureWinningsBefore + accumulatedBaseWinnings),
       totalViews: 0,
       action: options.action,
       startFreeGame: data.is_sjc === 1,
@@ -428,7 +441,7 @@ export function seth2SourceGameStates(
       ),
       timesUpgrade: upgrades,
       timesSymbols: currentTimes,
-      isJp: data.JPtype ? String(data.JPtype) : '',
+      isJp: sourceJackpotType(data.JPtype),
       noWinReward: 0,
       winSymbols: isFeatureEntry ? [] : sourceWinSymbols(board, round.remove_type, round.scoreList),
       // Falling is part of the current winning view.  The following state only
@@ -481,7 +494,7 @@ export function seth2SourceGameStates(
       ),
       timesUpgrade: [],
       timesSymbols: finalTimes,
-      isJp: data.JPtype ? String(data.JPtype) : '',
+      isJp: sourceJackpotType(data.JPtype),
       noWinReward: 0,
       winSymbols: [],
       posTransform: [],

@@ -15,9 +15,12 @@ export function Seth2Page() {
   const setBalance = useAuthStore((state) => state.setBalance);
   const setTokens = useAuthStore((state) => state.setTokens);
   const [error, setError] = useState('');
-  const [viewMode, setViewMode] = useState<'portrait' | 'landscape'>(() =>
+  // The embedded source client already handles orientation changes.  Keep its
+  // launch mode stable for this mount so rotating a phone does not destroy and
+  // boot the 3D iframe again.
+  const viewMode = useRef<'portrait' | 'landscape'>(
     window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape',
-  );
+  ).current;
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const syncOriginalGameAudio = useCallback(() => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -48,15 +51,6 @@ export function Seth2Page() {
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, [locale, viewMode]);
-
-  useEffect(() => {
-    const query = window.matchMedia('(orientation: portrait)');
-    const onChange = (event: MediaQueryListEvent) => {
-      setViewMode(event.matches ? 'portrait' : 'landscape');
-    };
-    query.addEventListener('change', onChange);
-    return () => query.removeEventListener('change', onChange);
-  }, []);
 
   useEffect(() => {
     const unsubscribeSfx = Sfx.subscribe(syncOriginalGameAudio);

@@ -1,4 +1,8 @@
-import { seth2BuyFeatureEntry, seth2SpinForFactor } from '@bg/provably-fair';
+import {
+  seth2BuyFeatureEntry,
+  seth2SpinForFactor,
+  seth2SuperMainSpinForFactor,
+} from '@bg/provably-fair';
 import type { Seth2Cell, Seth2ReturnData } from '@bg/shared';
 import { describe, expect, it } from 'vitest';
 import {
@@ -73,7 +77,7 @@ describe('Seth 2 v1.1.5 source contract', () => {
   });
 
   it('renders a purchased awakening entry as three normal plus one golden scatter', () => {
-    const outcome = seth2BuyFeatureEntry('server', 'client', 1, 'awakening');
+    const outcome = seth2BuyFeatureEntry('server', 'client', 1, 'awakening', 2);
     const states = seth2SourceGameStates(outcome.returnData, {
       action: 'spin',
       spinId: 'spin-1',
@@ -87,9 +91,23 @@ describe('Seth 2 v1.1.5 source contract', () => {
     expect(flat.filter((symbol) => symbol === 15)).toHaveLength(3);
     expect(flat.filter((symbol) => symbol === 16)).toHaveLength(1);
     expect(states[0]).toMatchObject({ startFreeGame: true, freeGameCount: 15, isGoldenFg: true });
+    expect(states[0]).toMatchObject({ roundWinnings: 6, totalWinnings: 6 });
     expect(states).toHaveLength(1);
     expect(states[0]!.winSymbols).toEqual([]);
     expect(states[0]!.posTransform).toEqual([]);
+  });
+
+  it.each([
+    [14, 'jp-mini'],
+    [13, 'jp-minor'],
+    [12, 'jp-major'],
+    [11, 'jp-grand'],
+  ] as const)('maps internal JP tier %i to the source animation key %s', (tier, key) => {
+    const states = seth2SourceGameStates(sourceFixture({ JPtype: tier }), {
+      ...SOURCE_OPTIONS,
+      action: 'spin',
+    });
+    expect(states[0]!.isJp).toBe(key);
   });
 
   it('keeps the final visual total equal to the settled payout and ends on a no-win view', () => {
@@ -109,6 +127,151 @@ describe('Seth 2 v1.1.5 source contract', () => {
     expect(final.roundWinnings).toBe(outcome.returnData.total_gold);
     expect(final.totalWinnings).toBe(10 + outcome.returnData.total_gold);
     expect(outcome.returnData.total_gold).toBe(800);
+  });
+
+  it('shows the raw erase win before collecting the multiplier into the final payout', () => {
+    const start = Array.from({ length: 30 }, () => cell(2));
+    for (let position = 0; position < 8; position += 1) start[position] = cell(9);
+    start[20] = cell(10, 10, 1);
+    const data = sourceFixture({
+      list: [
+        {
+          ...sourceFixture().list[0]!,
+          start_data: start,
+          remove_type: [9],
+          round_data: Array.from({ length: 8 }, () => cell(3)),
+          scoreList: [5],
+          total_mul: 10,
+          score: 5,
+          total_gold: 50,
+        },
+      ],
+      score: 5,
+      total_gold: 50,
+      multiplierBankAdded: 10,
+      multiplierBankAfter: 10,
+    });
+
+    const states = seth2SourceGameStates(data, {
+      ...SOURCE_OPTIONS,
+      action: 'spin',
+      freeGameCount: 0,
+      isGoldenFg: false,
+    });
+
+    expect(states).toHaveLength(2);
+    expect(states[0]).toMatchObject({ roundWinnings: 5, totalWinnings: 5 });
+    expect(states[0]!.winSymbols).toEqual([expect.objectContaining({ symbol: 9, winnings: 5 })]);
+    expect(states[1]).toMatchObject({ roundWinnings: 50, totalWinnings: 50, winSymbols: [] });
+  });
+
+  it('accumulates cascade wins before the separate multiplier settlement view', () => {
+    const first = Array.from({ length: 30 }, () => cell(2));
+    for (let position = 0; position < 8; position += 1) first[position] = cell(9);
+    first[20] = cell(10, 4, 1);
+    const data = sourceFixture({
+      list: [
+        {
+          ...sourceFixture().list[0]!,
+          start_data: first,
+          remove_type: [9],
+          round_data: Array.from({ length: 8 }, () => cell(8)),
+          scoreList: [20],
+          total_mul: 4,
+          score: 20,
+          total_gold: 80,
+          is_over: 0,
+        },
+        {
+          ...sourceFixture().list[0]!,
+          start_data: [],
+          remove_type: [8],
+          round_data: Array.from({ length: 8 }, () => cell(3)),
+          scoreList: [20],
+          total_mul: 4,
+          score: 20,
+          total_gold: 160,
+        },
+      ],
+      score: 40,
+      total_gold: 160,
+      multiplierBankAdded: 4,
+      multiplierBankAfter: 4,
+    });
+    const states = seth2SourceGameStates(data, {
+      ...SOURCE_OPTIONS,
+      featureWinningsBefore: 6,
+    });
+
+    expect(states[0]).toMatchObject({ roundWinnings: 20, totalWinnings: 26 });
+    expect(states[1]).toMatchObject({ roundWinnings: 40, totalWinnings: 46 });
+    expect(states[2]).toMatchObject({ roundWinnings: 160, totalWinnings: 166, winSymbols: [] });
+  });
+
+  it('renders controlled super-main outcomes as a 5–11-view 500x sequence', () => {
+    for (const factor of [0, 20, 500, 5_000]) {
+      const outcome = seth2SuperMainSpinForFactor('source-super', 'client', factor, 2, factor);
+      const states = seth2SourceGameStates(outcome.returnData, {
+        ...SOURCE_OPTIONS,
+        action: 'superSpin',
+        freeGameCount: 0,
+      });
+      expect(states.length).toBeGreaterThanOrEqual(5);
+      expect(states.length).toBeLessThanOrEqual(11);
+      expect(states.every((state) => state.action === 'superSpin')).toBe(true);
+      expect(
+        states.some((state) =>
+          state.timesSymbols.some((symbol) => symbol.times === 500),
+        ),
+      ).toBe(true);
+      expect(states.at(-1)!.totalWinnings).toBe(outcome.returnData.total_gold);
+    }
+  });
+
+  it('keeps every controlled factor visually identical to its authoritative payout', () => {
+    const modes = ['base', 'standard_free', 'awakening_free', 'bought_standard_free'] as const;
+    const factors = [0, 0.5, 1, 2, 5, 8, 10, 20, 45, 100, 205, 500, 2_015, 5_000, 81_000];
+
+    for (const mode of modes) {
+      for (const factor of factors) {
+        for (let nonce = 0; nonce < 10; nonce += 1) {
+          const outcome = seth2SpinForFactor(
+            'source-payout-parity',
+            'client',
+            nonce,
+            2,
+            factor,
+            mode,
+          );
+          const featureWinningsBefore = mode === 'base' ? 0 : 123.45;
+          const states = seth2SourceGameStates(outcome.returnData, {
+            action: mode === 'base' ? 'spin' : 'freeSpin',
+            spinId: `${mode}-${factor}-${nonce}`,
+            totalStake: 2,
+            freeGameCount: mode === 'base' ? 0 : 7,
+            featureWinningsBefore,
+            isGoldenFg: mode === 'awakening_free',
+          });
+          const final = states.at(-1)!;
+
+          expect(final.totalWinnings).toBe(
+            moneyForTest(featureWinningsBefore + outcome.returnData.total_gold),
+          );
+          if (outcome.returnData.score > 0) {
+            expect(final.winSymbols).toEqual([]);
+            expect(final.roundWinnings).toBe(outcome.returnData.total_gold);
+            let cumulativeBase = 0;
+            outcome.returnData.list.forEach((round, roundIndex) => {
+              cumulativeBase = moneyForTest(cumulativeBase + round.score);
+              expect(states[roundIndex]!.roundWinnings).toBe(cumulativeBase);
+            });
+          } else {
+            expect(states).toHaveLength(1);
+            expect(final.roundWinnings).toBe(0);
+          }
+        }
+      }
+    }
   });
 
   it('always emits a complete 5x6 board in both initial and result states', () => {
@@ -175,7 +338,7 @@ describe('Seth 2 v1.1.5 source contract', () => {
   it.each([
     [1, 1],
     [3, 2],
-    [6, 3],
+    [5, 3],
   ] as const)('maps %i male split targets to source animation level %i once', (copies, level) => {
     const start = Array.from({ length: 30 }, () => cell(2));
     start[0] = cell(10, 25, 1);
@@ -512,3 +675,7 @@ describe('Seth 2 v1.1.5 source contract', () => {
     expect(superStates.every((state) => state.superMainGameCount === 0)).toBe(true);
   });
 });
+
+function moneyForTest(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}

@@ -17,6 +17,8 @@ import {
   seth2BuyFeatureEntry,
   seth2Spin,
   seth2SpinForFactor,
+  seth2SuperMainSpin,
+  seth2SuperMainSpinForFactor,
   splitSeth2MultiplierTotal,
   type Seth2Outcome,
   type Seth2SpinMode,
@@ -201,7 +203,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
   it.each(['standard', 'awakening'] as const)(
     'uses a four-SCATTER entry board and preserves all 20 source spins for a %s feature purchase',
     (featureMode) => {
-      const outcome = seth2BuyFeatureEntry('buy-entry', 'client', 7, featureMode);
+      const outcome = seth2BuyFeatureEntry('buy-entry', 'client', 7, featureMode, BET);
       const scatterTypes = outcome.returnData.list[0]!.start_data.filter(
         (current) => current.type === 15 || current.type === 16,
       ).map((current) => current.type);
@@ -214,8 +216,9 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       expect(outcome.returnData.freeGameCount).toBe(SETH2_FREE_SPINS);
       expect(outcome.returnData.featureMode).toBe(featureMode);
       expect(outcome.returnData.gameModelType).toBe(featureMode === 'awakening' ? 1 : 0);
-      expect(outcome.payoutFactor).toBe(0);
-      expect(outcome.returnData.total_gold).toBe(0);
+      expect(outcome.payoutFactor).toBe(SETH2_SCATTER_PAYTABLE.four / 20);
+      expect(outcome.returnData.score).toBe(BET * (SETH2_SCATTER_PAYTABLE.four / 20));
+      expect(outcome.returnData.total_gold).toBe(BET * (SETH2_SCATTER_PAYTABLE.four / 20));
     },
   );
 
@@ -223,7 +226,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     const modes = new Set(
       Array.from(
         { length: 100 },
-        (_, nonce) => seth2BuyFeature('buy-mode', 'client', nonce).featureMode,
+        (_, nonce) => seth2BuyFeature('buy-mode', 'client', nonce, BET).featureMode,
       ),
     );
     expect(modes).toEqual(new Set(['standard', 'awakening']));
@@ -233,7 +236,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     const purchases = 10_000;
     let awakening = 0;
     for (let nonce = 0; nonce < purchases; nonce += 1) {
-      if (seth2BuyFeature('buy-mode-rate', 'client', nonce).featureMode === 'awakening') {
+      if (seth2BuyFeature('buy-mode-rate', 'client', nonce, BET).featureMode === 'awakening') {
         awakening += 1;
       }
     }
@@ -254,12 +257,19 @@ describe('Storm of Seth 2 provably-fair engine', () => {
   );
 
   it.each(['standard_free', 'awakening_free', 'bought_standard_free'] as const)(
-    'adds five games for a three-SCATTER retrigger in %s',
+    'adds five games with the source SCATTER type for a retrigger in %s',
     (mode) => {
       const outcome = findSpin(mode, (current) => current.returnData.addGameCiShu > 0);
       const round = outcome.returnData.list[0]!;
-      expect(round.start_data.filter((current) => current.type === 15)).toHaveLength(3);
-      expect(round.remove_type).toEqual([15]);
+      const awakening = mode === 'awakening_free';
+      const scatterType = awakening ? 16 : 15;
+      const scatterCount = round.start_data.filter((current) => current.type === scatterType).length;
+      expect(scatterCount).toBeGreaterThanOrEqual(3);
+      expect(scatterCount).toBeLessThanOrEqual(awakening ? 4 : 3);
+      expect(round.start_data.filter((current) => current.type === (awakening ? 15 : 16))).toEqual(
+        [],
+      );
+      expect(round.remove_type).toEqual([scatterType]);
       expect(outcome.returnData.addGameCiShu).toBe(SETH2_RETRIGGER_SPINS);
       expect(outcome.payoutFactor).toBe(0);
     },
@@ -353,9 +363,9 @@ describe('Storm of Seth 2 provably-fair engine', () => {
 
   it.each([
     [20, 1],
-    [100, 2],
-    [500, 6],
-    [5000, 6],
+    [100, 3],
+    [500, 5],
+    [5000, 5],
   ] as const)('male skill creates %i x result with %i split copies', (factor, copyCount) => {
     let outcome: Seth2Outcome | undefined;
     for (let nonce = 0; nonce < 500; nonce += 1) {
@@ -448,12 +458,12 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     [45, 13, 3],
     [100, 12, 4],
     [500, 11, 5],
-  ] as const)('maps a %sx base win to the original JP tier', (factor, type, count) => {
+  ] as const)('maps a %sx base win to the original repeated-JP tier', (factor, type, count) => {
     const outcome = seth2SpinForFactor('jackpots', 'client', factor, BET, factor, 'base');
     expect(outcome.returnData.JPtype).toBe(type);
     expect(outcome.returnData.JPGold).toBe(money(BET * factor));
     expect(
-      outcome.returnData.list[0]!.start_data.filter((current) => current.type === type),
+      outcome.returnData.list[0]!.start_data.filter((current) => current.type === 14),
     ).toHaveLength(count);
   });
 
@@ -569,6 +579,49 @@ describe('Storm of Seth 2 provably-fair engine', () => {
           expect(outcome.returnData.list[0]!.start_data).toHaveLength(SETH2_GRID_SIZE);
         }
       }
+    }
+  });
+
+  it('matches the captured 2,000x super-main presentation contract', () => {
+    const characterSkills = new Set<number>();
+    for (let nonce = 0; nonce < 100; nonce += 1) {
+      const outcome = seth2SuperMainSpin('super-main', 'client', nonce, BET);
+      const visible500 = outcome.returnData.list.some((round) =>
+        round.start_data.some((current) => current.type === 10 && current.mul === 500),
+      );
+      const sourceViews =
+        outcome.returnData.list.length + (outcome.returnData.score > 0 ? 1 : 0);
+
+      expect(visible500).toBe(true);
+      expect(sourceViews).toBeGreaterThanOrEqual(5);
+      expect(sourceViews).toBeLessThanOrEqual(11);
+      expect(outcome.returnData).toMatchObject({
+        featureMode: 'awakening',
+        gameModelType: 1,
+        is_sjc: 0,
+        freeGameCount: 0,
+      });
+      if (outcome.returnData.type17_mul_list.length > 0) characterSkills.add(17);
+      if (outcome.returnData.type18_start_mul_list.length > 0) characterSkills.add(18);
+    }
+    expect(characterSkills).toEqual(new Set([17, 18]));
+  });
+
+  it('keeps controlled super-main visuals equal to the controlled payout', () => {
+    for (const factor of [0, 0.5, 2, 20, 125, 500, 1_000, 5_000, 50_000]) {
+      const outcome = seth2SuperMainSpinForFactor(
+        'controlled-super-main',
+        'client',
+        factor,
+        BET,
+        factor,
+      );
+      expect(outcome.returnData.total_gold).toBe(money(BET * factor));
+      expect(
+        outcome.returnData.list.some((round) =>
+          round.start_data.some((current) => current.type === 10 && current.mul === 500),
+        ),
+      ).toBe(true);
     }
   });
 });

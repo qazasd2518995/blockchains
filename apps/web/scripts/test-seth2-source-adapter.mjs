@@ -8,7 +8,10 @@ const adapterPath = fileURLToPath(
 );
 const source = fs.readFileSync(adapterPath, 'utf8');
 const values = new Map([
-  ['bg-auth', JSON.stringify({ state: { accessToken: 'test-access', refreshToken: 'test-refresh' } })],
+  [
+    'bg-auth',
+    JSON.stringify({ state: { accessToken: 'test-access', refreshToken: 'test-refresh' } }),
+  ],
   ['bg.bgm.prefs', JSON.stringify({ muted: false, volume: 0.25 })],
   ['bg.sfx.prefs', JSON.stringify({ muted: true, volume: 0.75 })],
 ]);
@@ -28,6 +31,7 @@ class TestStorage {
 const storage = new TestStorage();
 const parentMessages = [];
 const zeroTimers = [];
+const longTimers = [];
 const requests = [];
 const responseQueue = [];
 const response = {
@@ -55,6 +59,7 @@ const context = {
   addEventListener: () => {},
   setTimeout: (callback, delay) => {
     if (delay === 0) zeroTimers.push(callback);
+    else longTimers.push({ callback, delay });
     return 1;
   },
   clearTimeout: () => {},
@@ -76,8 +81,14 @@ assert.equal(storage.getItem('bg.bgm.prefs')?.includes('0.25'), true);
 assert.equal(storage.getItem('bg.sfx.prefs')?.includes('0.75'), true);
 assert.equal(storage.getItem('source-client-temporary-key'), null);
 
-const { LocalSocket, applyAudioPreferences, publicError, wrapFrameworkDispatch } =
-  context.__YachiyoSeth2SourceAdapterTest;
+const {
+  LocalSocket,
+  applyAudioPreferences,
+  prefetchInitialResponse,
+  publicError,
+  guardBigwinClass,
+  wrapFrameworkDispatch,
+} = context.__YachiyoSeth2SourceAdapterTest;
 assert.equal(typeof context.io.connect, 'function');
 assert.equal(String(context.io.connect).includes('LocalSocket'), true);
 assert.equal(typeof context.__YachiyoOriginalIo.Manager, 'function');
@@ -100,6 +111,34 @@ guardedDispatch('SlotFrameworkEvent:UPDATE_TOTAL_WINNINGS', {
 assert.equal(zeroTotalWinCompletions, 0);
 zeroTimers.shift()();
 assert.equal(zeroTotalWinCompletions, 1);
+
+let originalBigwinCloses = 0;
+let completedBigwins = 0;
+function BigwinView() {
+  this.showWinStatus = 2;
+  this.completedCB = () => {
+    completedBigwins += 1;
+    this.showWinStatus = 4;
+    this.onClose();
+  };
+}
+BigwinView.prototype.onClose = function () {
+  originalBigwinCloses += 1;
+};
+BigwinView.prototype.showBigwin = function () {};
+assert.equal(guardBigwinClass(BigwinView), true);
+const manuallyClosedBigwin = new BigwinView();
+manuallyClosedBigwin.onClose();
+assert.equal(completedBigwins, 1);
+assert.equal(originalBigwinCloses, 1);
+
+const watchedBigwin = new BigwinView();
+watchedBigwin.showBigwin();
+const watchdog = longTimers.find((timer) => timer.delay === 35000);
+assert.ok(watchdog);
+watchdog.callback();
+assert.equal(completedBigwins, 2);
+assert.equal(originalBigwinCloses, 2);
 dispatchedZeroTotalWin.complete();
 assert.equal(zeroTotalWinCompletions, 1);
 
@@ -117,6 +156,18 @@ socket.on('connect', () => {
 zeroTimers.shift()();
 assert.equal(socket.connected, true);
 assert.equal(connected, true);
+
+const requestCountBeforeInitial = requests.length;
+prefetchInitialResponse();
+const initialResult = await new Promise((resolve) => {
+  socket.emit('initial', {}, resolve);
+});
+assert.equal(initialResult.status, 200);
+assert.equal(requests.length - requestCountBeforeInitial, 1);
+assert.equal(JSON.parse(requests.at(-1).options.body).event, 'initial');
+assert.equal(parentMessages.at(-1).type, 'seth2:ready');
+requests.length = 0;
+parentMessages.length = 0;
 
 const result = await new Promise((resolve) => {
   socket.emit('spin', { stakeValue: 1, ratioValue: 0.1 }, resolve);
@@ -150,7 +201,7 @@ responseQueue.push(
   {
     ...structuredClone(response),
     engine: {
-      spinId: 'free-1',
+      spinId: 'free-2',
       gameState: [
         {
           spinId: 'free-1',
@@ -160,14 +211,6 @@ responseQueue.push(
           currentView: 0,
           totalViews: 1,
         },
-      ],
-    },
-  },
-  {
-    ...structuredClone(response),
-    engine: {
-      spinId: 'free-2',
-      gameState: [
         {
           spinId: 'free-2',
           action: 'freeSpin',
@@ -188,7 +231,7 @@ const featureResult = await new Promise((resolve) => {
     resolve,
   );
 });
-assert.equal(requests.length - requestCountBeforeFeature, 3);
+assert.equal(requests.length - requestCountBeforeFeature, 2);
 assert.equal(featureResult.engine.gameState.length, 3);
 assert.deepEqual(
   featureResult.engine.gameState.map((state) => [
@@ -204,7 +247,7 @@ assert.deepEqual(
   ],
 );
 const prefetchedRequest = JSON.parse(requests.at(-1).options.body);
-assert.equal(prefetchedRequest.event, 'spin');
+assert.equal(prefetchedRequest.event, 'collectFeatureSequence');
 assert.equal(prefetchedRequest.data.spinId, undefined);
 assert.equal(prefetchedRequest.data.stakeValue, 1);
 assert.equal(prefetchedRequest.data.ratioValue, 0.1);

@@ -9,7 +9,7 @@ const builds = [
   {
     folder: 'storm-of-seth-2-v115',
     main: 'index.js',
-    minimumPreloads: 0,
+    minimumPreloads: 1,
     cocos3: true,
   },
   {

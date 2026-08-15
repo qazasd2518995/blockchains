@@ -445,6 +445,7 @@ function buildLoss(
 function buildBoughtFeatureEntry(
   featureMode: Exclude<Seth2FeatureMode, 'none'>,
   rng: Seth2RandomSource,
+  bet: number,
 ): Seth2Outcome {
   const awakening = featureMode === 'awakening';
   const scatterCells = [
@@ -457,15 +458,17 @@ function buildBoughtFeatureEntry(
   ];
   shuffle(startData, rng);
   const removeTypes = awakening ? [15, 16] : [15];
+  const payoutFactor = SETH2_SCATTER_PAYTABLE.four / 20;
+  const payout = money(bet * payoutFactor);
   const round: Seth2CascadeRound = {
     start_data: startData,
     remove_type: removeTypes,
     round_data: safeFill(scatterCells.length, new Set([15, 16]), rng),
-    scoreList: removeTypes.map(() => 0),
+    scoreList: removeTypes.map((_, index) => (index === 0 ? payout : 0)),
     upgrade_mul_list: [],
     total_mul: 0,
-    score: 0,
-    total_gold: 0,
+    score: payout,
+    total_gold: payout,
     remove_count: 0,
     is_over: 1,
   };
@@ -475,7 +478,7 @@ function buildBoughtFeatureEntry(
   returnData.is_sjc = 1;
   returnData.freeGameCount = SETH2_FREE_SPINS;
   return {
-    payoutFactor: 0,
+    payoutFactor,
     triggeredFreeSpins: true,
     featureMode,
     returnData,
@@ -538,7 +541,12 @@ function buildRetrigger(
   mode: Seth2SpinMode,
   multiplierBank: number,
 ): Seth2Outcome {
-  const scatterCells = Array.from({ length: 3 }, () => cell(15));
+  // Captured v1.1.5 rules use normal SCATTERs in the regular feature, while
+  // awakening retriggers are made from three or four golden SCATTERs.
+  const awakening = mode === 'awakening_free';
+  const scatterType = awakening ? 16 : 15;
+  const scatterCount = awakening && rng() < 0.2 ? 4 : 3;
+  const scatterCells = Array.from({ length: scatterCount }, () => cell(scatterType));
   const startData = [
     ...scatterCells,
     ...safeFill(SETH2_GRID_SIZE - scatterCells.length, new Set([15, 16]), rng),
@@ -546,7 +554,7 @@ function buildRetrigger(
   shuffle(startData, rng);
   const round: Seth2CascadeRound = {
     start_data: startData,
-    remove_type: [15],
+    remove_type: [scatterType],
     round_data: safeFill(scatterCells.length, new Set([15, 16]), rng),
     scoreList: [0],
     upgrade_mul_list: [],
@@ -595,6 +603,20 @@ function multiplierTargetForScore(
   return { current, effective };
 }
 
+function multiplierFitsBoard(
+  total: number,
+  maxParts: number,
+  requiredValue = 0,
+): boolean {
+  if (requiredValue > 0) {
+    if (total < requiredValue || maxParts < 1) return false;
+    const remainder = total - requiredValue;
+    if (remainder === 1) return false;
+    return splitSeth2MultiplierTotal(remainder, maxParts - 1) !== null;
+  }
+  return minimumMultiplierPartCount(total) <= maxParts;
+}
+
 function regularMultiplierPlan(
   total: number,
   maxParts: number,
@@ -617,6 +639,23 @@ function regularMultiplierPlan(
     return cell(10, displayed, 0);
   });
   return { cells, upgrades, finalTotal: total };
+}
+
+function requiredMultiplierPlan(
+  total: number,
+  maxParts: number,
+  requiredValue: number,
+): MultiplierPlan | null {
+  if (!multiplierFitsBoard(total, maxParts, requiredValue)) return null;
+  const remainder = splitSeth2MultiplierTotal(total - requiredValue, maxParts - 1);
+  if (!remainder) return null;
+  return {
+    // A required super-main 500x object must visibly land as 500x.  Do not
+    // turn it into a 300x rare ball that only upgrades after the win.
+    cells: [cell(10, requiredValue, 1), ...remainder.map((value) => cell(10, value, 1))],
+    upgrades: [],
+    finalTotal: total,
+  };
 }
 
 function femaleMultiplierPlan(
@@ -656,52 +695,63 @@ function maleMultiplierPlan(
   maxInitialParts: number,
   rng: Seth2RandomSource,
 ): MaleMultiplierPlan | null {
-  const splitCount = total >= 1000 ? 6 : total >= 100 ? 2 : 1;
-  const maxSourceValue = Math.min(
-    SETH2_MAX_SYMBOL_MULTIPLIER,
-    Math.floor(total / (splitCount + 1)),
-  );
-  let sourceValue = 0;
-  let extras: number[] | null = null;
-  for (const candidateSource of [...SETH2_MULTIPLIER_DROP_VALUES].reverse()) {
-    if (candidateSource > maxSourceValue) continue;
-    const remainder = total - candidateSource * (splitCount + 1);
-    const candidate =
-      remainder === 1
-        ? null
-        : remainder > 0
-          ? splitSeth2MultiplierTotal(remainder, maxInitialParts - 1, candidateSource)
-          : [];
-    // The imported client locates the split source by multiplier value only.
-    // Keep that value unique so it cannot animate a different multiplier ball.
-    if (candidate) {
-      sourceValue = candidateSource;
-      extras = candidate;
-      break;
+  // The man's three animation levels create 1 / 3 / 5 copies.  The previous
+  // 1 / 2 / 6 mapping was inferred from payout size and does not match either
+  // the rules or the captured level-2 response (one 6x source -> three 6x
+  // targets). Pick a level first, then fall back only when the target total
+  // cannot be represented by that many copies.
+  const roll = rng();
+  const preferred = roll < 0.55 ? 1 : roll < 0.88 ? 3 : 5;
+  const splitCounts = [preferred, ...([1, 3, 5] as const).filter((count) => count !== preferred)];
+
+  for (const splitCount of splitCounts) {
+    const maxSourceValue = Math.min(
+      SETH2_MAX_SYMBOL_MULTIPLIER,
+      Math.floor(total / (splitCount + 1)),
+    );
+    let sourceValue = 0;
+    let extras: number[] | null = null;
+    for (const candidateSource of [...SETH2_MULTIPLIER_DROP_VALUES].reverse()) {
+      if (candidateSource > maxSourceValue) continue;
+      const remainder = total - candidateSource * (splitCount + 1);
+      const candidate =
+        remainder === 1
+          ? null
+          : remainder > 0
+            ? splitSeth2MultiplierTotal(remainder, maxInitialParts - 1, candidateSource)
+            : [];
+      // The imported client locates the split source by multiplier value only.
+      // Keep that value unique so it cannot animate a different multiplier ball.
+      if (candidate) {
+        sourceValue = candidateSource;
+        extras = candidate;
+        break;
+      }
     }
+    if (sourceValue < 2 || !extras) continue;
+    const mulType = rng() < 0.25 ? 0 : 1;
+    const source = cell(10, sourceValue, mulType);
+    const copies = Array.from({ length: splitCount }, () => cell(10, sourceValue, mulType));
+    return {
+      source,
+      copies,
+      cells: [source, ...extras.map((value) => cell(10, value, 1))],
+      upgrades: [],
+      finalTotal: total,
+    };
   }
-  if (sourceValue < 2 || !extras) return null;
-  const mulType = rng() < 0.25 ? 0 : 1;
-  const source = cell(10, sourceValue, mulType);
-  const copies = Array.from({ length: splitCount }, () => cell(10, sourceValue, mulType));
-  return {
-    source,
-    copies,
-    cells: [source, ...extras.map((value) => cell(10, value, 1))],
-    upgrades: [],
-    finalTotal: total,
-  };
+  return null;
 }
 
 function jackpotForFactor(
   factor: number,
   mode: Seth2SpinMode,
-): { count: number; type: number } | null {
+): { count: number; tier: number } | null {
   if (mode !== 'base' || factor < 20) return null;
-  if (factor >= 500) return { count: 5, type: 11 };
-  if (factor >= 100) return { count: 4, type: 12 };
-  if (factor >= 45) return { count: 3, type: 13 };
-  return { count: 2, type: 14 };
+  if (factor >= 500) return { count: 5, tier: 11 };
+  if (factor >= 100) return { count: 4, tier: 12 };
+  if (factor >= 45) return { count: 3, tier: 13 };
+  return { count: 2, tier: 14 };
 }
 
 function choosePattern<T>(values: T[], rng: Seth2RandomSource): T | null {
@@ -716,6 +766,7 @@ function chooseSinglePattern(
   multiplierBank: number,
   rng: Seth2RandomSource,
   hasPersistentMultiplier = false,
+  requiredMultiplierValue = 0,
 ): Seth2WinPlan | null {
   const candidates = WIN_PATTERNS.flatMap((pattern) => {
     const target = multiplierTargetForScore(
@@ -725,9 +776,8 @@ function chooseSinglePattern(
       hasPersistentMultiplier,
     );
     if (!target) return [];
-    const multiplierParts = target.current === 1 ? 0 : minimumMultiplierPartCount(target.current);
-    if (!Number.isFinite(multiplierParts)) return [];
-    if (pattern.count + multiplierParts + reservedCells > SETH2_GRID_SIZE) return [];
+    const multiplierRoom = SETH2_GRID_SIZE - pattern.count - reservedCells;
+    if (!multiplierFitsBoard(target.current, multiplierRoom, requiredMultiplierValue)) return [];
     return [
       {
         patterns: [pattern],
@@ -745,6 +795,7 @@ function chooseRegularWinPlan(
   multiplierBank: number,
   rng: Seth2RandomSource,
   hasPersistentMultiplier = false,
+  requiredMultiplierValue = 0,
 ): Seth2WinPlan | null {
   const cascadeCandidates: Seth2WinPlan[] = [];
   for (const first of WIN_PATTERNS) {
@@ -757,9 +808,8 @@ function chooseRegularWinPlan(
         hasPersistentMultiplier,
       );
       if (!target) continue;
-      const multiplierParts = target.current === 1 ? 0 : minimumMultiplierPartCount(target.current);
-      if (!Number.isFinite(multiplierParts)) continue;
-      if (first.count + multiplierParts + reservedCells > SETH2_GRID_SIZE) continue;
+      const multiplierRoom = SETH2_GRID_SIZE - first.count - reservedCells;
+      if (!multiplierFitsBoard(target.current, multiplierRoom, requiredMultiplierValue)) continue;
       cascadeCandidates.push({
         patterns: [first, second],
         multiplier: target.current,
@@ -777,6 +827,7 @@ function chooseRegularWinPlan(
     multiplierBank,
     rng,
     hasPersistentMultiplier,
+    requiredMultiplierValue,
   );
 }
 
@@ -820,6 +871,8 @@ function buildWin(
   multiplierBank = 0,
   targetIncludesMultiplierBank = false,
   hasPersistentMultiplier = false,
+  requiredMultiplierValue = 0,
+  allowSkill = true,
 ): Seth2Outcome {
   const jackpot = jackpotForFactor(factor, mode);
   const jackpotCells = jackpot ? jackpot.count : 0;
@@ -829,7 +882,7 @@ function buildWin(
   const activeMultiplierBank = isFreeGameMode(mode) ? multiplierBank : 0;
   const selectionBank = targetIncludesMultiplierBank ? activeMultiplierBank : 0;
 
-  if (awakening && factor >= 20 && rng() < 0.7) {
+  if (allowSkill && awakening && factor >= 20 && requiredMultiplierValue === 0 && rng() < 0.7) {
     const proposedSkill = rng() < 0.5 ? 'male' : 'female';
     const skillPlan = chooseSinglePattern(
       factor,
@@ -851,6 +904,7 @@ function buildWin(
     selectionBank,
     rng,
     hasPersistentMultiplier,
+    requiredMultiplierValue,
   );
   if (!selected) return buildLoss(rng, mode, activeMultiplierBank);
   const multiplierTotal = selected.multiplier;
@@ -863,7 +917,12 @@ function buildWin(
   const femalePlan =
     skill === 'female' ? femaleMultiplierPlan(multiplierTotal, multiplierRoom, rng) : null;
   const multiplierPlan =
-    malePlan ?? femalePlan ?? regularMultiplierPlan(multiplierTotal, multiplierRoom, rng)!;
+    (requiredMultiplierValue > 0
+      ? requiredMultiplierPlan(multiplierTotal, multiplierRoom, requiredMultiplierValue)
+      : null) ??
+    malePlan ??
+    femalePlan ??
+    regularMultiplierPlan(multiplierTotal, multiplierRoom, rng)!;
   const currentMultiplierContribution =
     multiplierPlan.cells.length > 0 ? multiplierPlan.finalTotal : 0;
   const effectiveMultiplier =
@@ -880,7 +939,10 @@ function buildWin(
     ...Array.from({ length: firstPattern.count }, () => cell(firstPattern.type)),
     ...multiplierPlan.cells,
     ...(skillType ? Array.from({ length: 3 }, () => cell(skillType)) : []),
-    ...(jackpot ? Array.from({ length: jackpot.count }, () => cell(jackpot.type)) : []),
+    // The paytable has one JP reel symbol (14); its repeated count chooses the
+    // tier.  Values 11–13 are multiplier-ball render ids in the source client,
+    // not separate jackpot reel symbols.
+    ...(jackpot ? Array.from({ length: jackpot.count }, () => cell(14)) : []),
   ];
   const excluded = new Set(selected.patterns.map((pattern) => pattern.type));
   const startData = [
@@ -970,7 +1032,7 @@ function buildWin(
     returnData.type18_mul_count = femalePlan?.lockDuration ?? 2;
   }
   if (jackpot) {
-    returnData.JPtype = jackpot.type;
+    returnData.JPtype = jackpot.tier;
     returnData.JPGold = payout;
   }
   returnData.score = money(bet * rawScoreFactor);
@@ -1037,6 +1099,58 @@ export function seth2SpinForFactor(
   return applySpinFeatureMode(outcome, mode);
 }
 
+function superMainIdleRound(rng: Seth2RandomSource): Seth2CascadeRound {
+  const board = [
+    cell(10, 500, 1),
+    ...safeFill(SETH2_GRID_SIZE - 1, new Set([10, 15, 16, 17, 18]), rng),
+  ];
+  return emptyRound(shuffle(board, rng));
+}
+
+function buildSuperMainOutcome(
+  bet: number,
+  factor: number,
+  rng: Seth2RandomSource,
+): Seth2Outcome {
+  const useCharacterPath = factor >= 20 && rng() < 0.35;
+  const primaryOutcome =
+    factor <= 0
+      ? null
+      : useCharacterPath
+        ? buildWin(bet, factor, 'awakening_free', rng, 0, true)
+        : buildWin(bet, factor, 'awakening_free', rng, 0, true, false, 500, false);
+  const outcome =
+    primaryOutcome && primaryOutcome.payoutFactor === factor
+      ? primaryOutcome
+      : factor > 0
+        ? buildWin(bet, factor, 'awakening_free', rng, 0, true)
+        : buildLoss(rng, 'awakening_free');
+
+  // Five captured super-main fixtures contain 5–11 source views and every one
+  // visibly contains a 500x object, including a zero-payout result.  Pre-spin
+  // views are math-neutral; the final winning cascade remains authoritative.
+  const targetViews = 5 + Math.floor(rng() * 7);
+  const hasSettlementView = outcome.returnData.score > 0;
+  const idleViews = Math.max(
+    0,
+    targetViews - outcome.returnData.list.length - (hasSettlementView ? 1 : 0),
+  );
+  outcome.returnData.list = [
+    ...Array.from({ length: idleViews }, () => superMainIdleRound(rng)),
+    ...outcome.returnData.list,
+  ];
+  const hasVisible500 = outcome.returnData.list.some((round) =>
+    round.start_data.some((current) => current.type === 10 && current.mul === 500),
+  );
+  if (!hasVisible500) outcome.returnData.list.unshift(superMainIdleRound(rng));
+
+  outcome.returnData.featureMode = 'awakening';
+  outcome.returnData.gameModelType = 1;
+  outcome.returnData.is_sjc = 0;
+  outcome.returnData.freeGameCount = 0;
+  return outcome;
+}
+
 export function seth2SuperMainSpin(
   serverSeed: string,
   clientSeed: string,
@@ -1046,14 +1160,19 @@ export function seth2SuperMainSpin(
   if (!Number.isFinite(bet) || bet <= 0) throw new Error('Bet must be a positive number');
   const rng = randomSource(serverSeed, clientSeed, nonce);
   const selection = pickWeighted(SUPER_MAIN_OUTCOMES, rng);
-  const outcome = selection.factor
-    ? buildWin(bet, selection.factor, 'awakening_free', rng)
-    : buildLoss(rng, 'awakening_free');
-  outcome.returnData.featureMode = 'awakening';
-  outcome.returnData.gameModelType = 1;
-  outcome.returnData.is_sjc = 0;
-  outcome.returnData.freeGameCount = 0;
-  return outcome;
+  return buildSuperMainOutcome(bet, selection.factor ?? 0, rng);
+}
+
+export function seth2SuperMainSpinForFactor(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  bet: number,
+  factor: number,
+): Seth2Outcome {
+  if (!Number.isFinite(bet) || bet <= 0) throw new Error('Bet must be a positive number');
+  if (!Number.isFinite(factor) || factor < 0) throw new Error('Factor must be non-negative');
+  return buildSuperMainOutcome(bet, factor, randomSource(serverSeed, clientSeed, nonce));
 }
 
 function applySpinFeatureMode(outcome: Seth2Outcome, mode: Seth2SpinMode): Seth2Outcome {
@@ -1074,18 +1193,22 @@ export function seth2BuyFeatureEntry(
   clientSeed: string,
   nonce: number,
   featureMode: Exclude<Seth2FeatureMode, 'none'>,
+  bet: number,
 ): Seth2Outcome {
-  return buildBoughtFeatureEntry(featureMode, randomSource(serverSeed, clientSeed, nonce));
+  if (!Number.isFinite(bet) || bet <= 0) throw new Error('Bet must be a positive number');
+  return buildBoughtFeatureEntry(featureMode, randomSource(serverSeed, clientSeed, nonce), bet);
 }
 
 export function seth2BuyFeature(
   serverSeed: string,
   clientSeed: string,
   nonce: number,
+  bet: number,
 ): Seth2Outcome {
+  if (!Number.isFinite(bet) || bet <= 0) throw new Error('Bet must be a positive number');
   const rng = randomSource(serverSeed, clientSeed, nonce);
   const featureMode = rng() < SETH2_BOUGHT_AWAKENING_SHARE ? 'awakening' : 'standard';
-  return buildBoughtFeatureEntry(featureMode, rng);
+  return buildBoughtFeatureEntry(featureMode, rng, bet);
 }
 
 function expectedValue(outcomes: WeightedOutcome[]): number {

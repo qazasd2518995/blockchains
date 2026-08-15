@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { seth2BuyFeatureEntry } from '@bg/provably-fair';
+import { seth2BuyFeatureEntry, seth2SpinForFactor } from '@bg/provably-fair';
 import type { Seth2ReturnData } from '@bg/shared';
 import { describe, expect, it } from 'vitest';
 import {
@@ -92,7 +92,7 @@ describe('Seth2 formal-play-only mode', () => {
 });
 
 describe('Seth2 v1.1.5 feature-purchase handshake', () => {
-  const returnData = seth2BuyFeatureEntry('server', 'client', 7, 'awakening').returnData;
+  const returnData = seth2BuyFeatureEntry('server', 'client', 7, 'awakening', 2).returnData;
   const settlement = {
     returnData,
     balance: 12_345,
@@ -162,6 +162,100 @@ describe('Seth2 v1.1.5 feature-purchase handshake', () => {
       startFreeGame: true,
       freeGameCount: 15,
       isGoldenFg: true,
+    });
+  });
+});
+
+describe('Seth2 v1.1.5 source loading', () => {
+  it('keeps the 30-day machine aggregate out of the initial game boot', async () => {
+    let aggregateQueries = 0;
+    const service = new Seth2Service({
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          username: 'player',
+          displayName: 'Player',
+          balance: new Prisma.Decimal('123.45'),
+          frozenAt: null,
+          disabledAt: null,
+        }),
+      },
+      $queryRaw: async () => {
+        aggregateQueries += 1;
+        return [];
+      },
+    } as never);
+
+    const result = await service.source('user-1', { event: 'initial', data: {} });
+    const platform = result.platform as { tables: unknown[]; tableMeta: Record<string, number> };
+
+    expect(aggregateQueries).toBe(0);
+    expect(platform.tables).toHaveLength(500);
+    expect(platform.tableMeta).toMatchObject({
+      currentPage: 1,
+      tablePerPage: 500,
+      totalPages: 8,
+      totalTableCount: 4_000,
+    });
+  });
+
+  it('collects an entire free-game sequence in one source request', async () => {
+    const service = new Seth2Service({} as never);
+    const settlements = [1, 0].map((freeSpinsRemaining, index) => {
+      const outcome = seth2SpinForFactor(
+        'feature-sequence',
+        'client',
+        index,
+        2,
+        index === 0 ? 10 : 20,
+        'awakening_free',
+      );
+      return {
+        returnData: outcome.returnData,
+        balance: 1_000 + index * 20,
+        spinId: `free-${index + 1}`,
+        session: {
+          freeSpinsRemaining,
+          featureMode: freeSpinsRemaining > 0 ? ('awakening' as const) : ('none' as const),
+          betAmount: '2.00',
+          multiplierBank: outcome.returnData.multiplierBankAfter,
+          femaleLock: null,
+          featureWinnings: index === 0 ? 20 : 60,
+        },
+        freeSpin: true,
+        buying: false,
+        featureIndex: null,
+        totalStake: 2,
+        featureWinningsBefore: index === 0 ? 0 : 20,
+      };
+    });
+    const requireFreeSpinValues: boolean[] = [];
+    (
+      service as unknown as {
+        settle: (...args: unknown[]) => Promise<(typeof settlements)[number]>;
+      }
+    ).settle = async (...args) => {
+      requireFreeSpinValues.push(args[5] === true);
+      const next = settlements.shift();
+      if (!next) throw new Error('feature sequence settled too many games');
+      return next;
+    };
+
+    const result = await service.source('user-1', {
+      event: 'collectFeatureSequence',
+      data: { stakeValue: 1, ratioValue: 0.2, machineId: 7 },
+    });
+    const engine = result.engine as {
+      spinId: string;
+      gameState: Array<{ action: string; freeGameCount: number; totalWinnings: number }>;
+    };
+
+    expect(requireFreeSpinValues).toEqual([true, true]);
+    expect(engine.spinId).toBe('free-2');
+    expect(engine.gameState.every((state) => state.action === 'freeSpin')).toBe(true);
+    expect(engine.gameState.at(-1)).toMatchObject({ freeGameCount: 0, totalWinnings: 60 });
+    expect(result).toMatchObject({
+      platform: { player: { balance: { amount: 1_020 } } },
     });
   });
 });
@@ -298,7 +392,7 @@ describe('Seth2 free-game session progression', () => {
   });
 
   it.each(['standard', 'awakening'] as const)(
-    'records the selected %s purchase mode without consuming the entry board as a game',
+    'records the selected %s purchase mode and carries the entry SCATTER win',
     (featureMode) => {
       expect(
         advanceSession(
@@ -310,7 +404,7 @@ describe('Seth2 free-game session progression', () => {
             femaleLock: null,
             featureWinnings: 0,
           },
-          { ...baseInput, buying: true, boughtFeatureMode: featureMode },
+          { ...baseInput, buying: true, boughtFeatureMode: featureMode, roundPayout: 54 },
         ),
       ).toEqual({
         freeSpinsRemaining: 15,
@@ -318,7 +412,7 @@ describe('Seth2 free-game session progression', () => {
         betAmount: '18.00',
         multiplierBank: 0,
         femaleLock: null,
-        featureWinnings: 0,
+        featureWinnings: 54,
       });
     },
   );
