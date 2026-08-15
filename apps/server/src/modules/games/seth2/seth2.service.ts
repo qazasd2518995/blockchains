@@ -438,6 +438,11 @@ export class Seth2Service {
           : 'standard_free'
         : 'base';
       const multiplierBankBefore = freeSpin ? currentSession.multiplierBank : 0;
+      const lockedMultiplierContribution = freeSpin
+        ? femaleLockContribution(currentSession.femaleLock)
+        : 0;
+      const effectiveMultiplierBankBefore = multiplierBankBefore + lockedMultiplierContribution;
+      const hasPersistentMultiplier = lockedMultiplierContribution > 0;
       const seed = await new SeedHelper(tx).getActiveBundle(userId, GAME_ID);
       const originalOutcome = buying
         ? featureIndex === 1
@@ -451,8 +456,14 @@ export class Seth2Service {
             seed.nonce,
             baseBet,
             sessionMode,
-            multiplierBankBefore,
+            effectiveMultiplierBankBefore,
+            hasPersistentMultiplier,
           );
+      normalizeFemaleLockAccounting(
+        originalOutcome.returnData,
+        multiplierBankBefore,
+        lockedMultiplierContribution,
+      );
       const boughtFeatureMode: Seth2FeatureMode = buying ? originalOutcome.featureMode : 'none';
       const mode: Seth2SpinMode = buying
         ? featureIndex === 2 || boughtFeatureMode === 'awakening'
@@ -470,15 +481,16 @@ export class Seth2Service {
         multiplier: originalMultiplier,
         payout: originalPayout,
       };
-      const controlled: ControlOutcome = buying && featureIndex !== 2
-        ? { ...originalPrediction, controlled: false }
-        : await applyControls(tx, userId, GAME_ID, originalPrediction, {
-            burstEligible: true,
-            burstPotentialMultiplier: baseAmount
-              .mul(SETH2_MAX_WIN_MULTIPLIER)
-              .div(controlAmount)
-              .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN),
-          });
+      const controlled: ControlOutcome =
+        buying && featureIndex !== 2
+          ? { ...originalPrediction, controlled: false }
+          : await applyControls(tx, userId, GAME_ID, originalPrediction, {
+              burstEligible: true,
+              burstPotentialMultiplier: baseAmount
+                .mul(SETH2_MAX_WIN_MULTIPLIER)
+                .div(controlAmount)
+                .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN),
+            });
 
       const finalOutcome =
         (!buying || featureIndex === 2) && controlled.controlled
@@ -492,12 +504,21 @@ export class Seth2Service {
                 controlAmount,
                 controlled,
                 mode,
-                multiplierBankBefore,
+                effectiveMultiplierBankBefore,
+                hasPersistentMultiplier,
               ),
               mode,
-              multiplierBankBefore,
+              effectiveMultiplierBankBefore,
+              hasPersistentMultiplier,
             )
           : originalOutcome;
+      if (finalOutcome !== originalOutcome) {
+        normalizeFemaleLockAccounting(
+          finalOutcome.returnData,
+          multiplierBankBefore,
+          lockedMultiplierContribution,
+        );
+      }
       const femaleLock = applyFemaleLockState(
         finalOutcome.returnData,
         freeSpin ? currentSession.femaleLock : null,
@@ -533,8 +554,7 @@ export class Seth2Service {
       applyFeatureState(
         finalOutcome.returnData,
         nextSession.freeSpinsRemaining,
-        (buying && featureIndex !== 2) ||
-          finalOutcome.triggeredFreeSpins,
+        (buying && featureIndex !== 2) || finalOutcome.triggeredFreeSpins,
         responseFeatureMode,
       );
 
@@ -792,10 +812,11 @@ function readFemaleLock(value: unknown): Seth2FemaleLockState | null | undefined
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
   const lock = value as Record<string, unknown>;
   const gamesRemaining = Number(lock.gamesRemaining);
-  if (!Number.isInteger(gamesRemaining) || gamesRemaining < 1 || gamesRemaining > 4) {
+  if (!Number.isInteger(gamesRemaining) || gamesRemaining < 1 || gamesRemaining > 6) {
     return undefined;
   }
-  if (!Array.isArray(lock.cells) || lock.cells.length < 1 || lock.cells.length > 6) return undefined;
+  if (!Array.isArray(lock.cells) || lock.cells.length < 1 || lock.cells.length > 30)
+    return undefined;
   const cells: Seth2FemaleLockState['cells'] = [];
   for (const raw of lock.cells) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
@@ -824,34 +845,83 @@ export function applyFemaleLockState(
   data: Seth2ReturnData,
   current: Seth2FemaleLockState | null,
 ): Seth2FemaleLockState | null {
+  if (current) placeFemaleLockCells(data, current.cells);
   if (data.type18_start_mul_list.length > 0) {
-    const cells = data.type18_start_mul_list.map((cell) => ({
-      type: 10 as const,
-      mul: cell.mul,
-      mul_type: cell.mul_type ?? 0,
-      code: cell.code ?? 0,
-    }));
-    data.type18_start_mul_list = cells.map((cell) => ({ ...cell }));
-    data.type18_mul_count = 4;
-    return { cells, gamesRemaining: 3 };
+    const board = data.list[0]?.start_data ?? [];
+    const cells = board.flatMap((cell, code) =>
+      cell.type === 10
+        ? [{ type: 10 as const, mul: cell.mul, mul_type: cell.mul_type ?? 0, code }]
+        : [],
+    );
+    const visibleCells =
+      cells.length > 0
+        ? cells
+        : data.type18_start_mul_list.map((cell) => ({
+            type: 10 as const,
+            mul: cell.mul,
+            mul_type: cell.mul_type ?? 0,
+            code: cell.code ?? 0,
+          }));
+    const duration =
+      data.type18_mul_count === 6 || data.type18_mul_count === 4 || data.type18_mul_count === 2
+        ? data.type18_mul_count
+        : 2;
+    data.type18_start_mul_list = visibleCells.map((cell) => ({ ...cell }));
+    data.type18_mul_count = duration;
+    const persistedCells = applyPersistedMultiplierUpgrades(data, visibleCells);
+    return duration > 1 ? { cells: persistedCells, gamesRemaining: duration - 1 } : null;
   }
   if (!current) {
     data.type18_start_mul_list = [];
     data.type18_mul_count = 0;
     return null;
   }
-  placeFemaleLockCells(data, current.cells);
   data.type18_start_mul_list = current.cells.map((cell) => ({ ...cell }));
   data.type18_mul_count = current.gamesRemaining;
   return current.gamesRemaining > 1
-    ? { cells: current.cells.map((cell) => ({ ...cell })), gamesRemaining: current.gamesRemaining - 1 }
+    ? {
+        cells: current.cells.map((cell) => ({ ...cell })),
+        gamesRemaining: current.gamesRemaining - 1,
+      }
     : null;
 }
 
-function placeFemaleLockCells(
+function applyPersistedMultiplierUpgrades(
   data: Seth2ReturnData,
   cells: Seth2FemaleLockState['cells'],
+): Seth2FemaleLockState['cells'] {
+  return cells.map((cell) => {
+    let mul = cell.mul;
+    for (const round of data.list) {
+      const upgrade = round.upgrade_mul_list.find(
+        (candidate) =>
+          Number(candidate.code) === cell.code &&
+          candidate.mul === mul &&
+          Number(candidate.mul_type ?? 0) === cell.mul_type,
+      );
+      if (upgrade) mul = upgrade.new_mul;
+    }
+    return { ...cell, mul };
+  });
+}
+
+function femaleLockContribution(lock: Seth2FemaleLockState | null): number {
+  return lock?.cells.reduce((total, cell) => total + cell.mul, 0) ?? 0;
+}
+
+export function normalizeFemaleLockAccounting(
+  data: Seth2ReturnData,
+  savedBankBefore: number,
+  lockedMultiplierContribution: number,
 ): void {
+  const generatedContribution = data.multiplierBankAdded;
+  const collectedLockedContribution = data.score > 0 ? lockedMultiplierContribution : 0;
+  data.multiplierBankBefore = savedBankBefore;
+  data.multiplierBankAdded = generatedContribution + collectedLockedContribution;
+  data.multiplierBankAfter = savedBankBefore + data.multiplierBankAdded;
+}
+
+function placeFemaleLockCells(data: Seth2ReturnData, cells: Seth2FemaleLockState['cells']): void {
   const board = data.list[0]?.start_data;
   if (!board || board.length !== 30) return;
   const targetCodes = new Set(cells.map((cell) => cell.code));
@@ -951,9 +1021,12 @@ export function chooseControlledSethFactor(
   >,
   mode: Seth2SpinMode = 'base',
   multiplierBank = 0,
+  hasPersistentMultiplier = false,
 ): number {
   const candidates = CONTROL_FACTORS.filter((factor) => {
-    if (!isSeth2FactorRepresentable(factor, mode, multiplierBank)) return false;
+    if (!isSeth2FactorRepresentable(factor, mode, multiplierBank, hasPersistentMultiplier)) {
+      return false;
+    }
     const accountingMultiplier = baseAmount
       .mul(factor)
       .div(controlAmount)
@@ -1008,7 +1081,9 @@ function sourceMachineId(data: unknown): number {
 }
 
 function sourceBalancePlatform(balance: number) {
-  return { player: { balance: { currency: 'POINT', amount: balance, gemAmount: 0, betAmount: 0 } } };
+  return {
+    player: { balance: { currency: 'POINT', amount: balance, gemAmount: 0, betAmount: 0 } },
+  };
 }
 
 function sourceTableLock() {

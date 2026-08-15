@@ -104,9 +104,11 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(SETH2_MATH.boughtStandardFree).toBeCloseTo(SETH2_MATH.awakeningFree, 8);
   });
 
-  it('separates direct multiplier values from the 6x and 8x upgrade steps', () => {
+  it('separates direct multiplier values from every captured upgrade-only step', () => {
     expect(SETH2_MULTIPLIER_DROP_VALUES).toEqual([2, 3, 4, 5, 10, 15, 25, 50, 100, 200, 300, 500]);
-    expect(SETH2_MULTIPLIER_VALUES).toEqual([2, 3, 4, 5, 6, 8, 10, 15, 25, 50, 100, 200, 300, 500]);
+    expect(SETH2_MULTIPLIER_VALUES).toEqual([
+      2, 3, 4, 5, 6, 8, 10, 12, 15, 18, 25, 50, 100, 200, 300, 500,
+    ]);
     for (const total of [
       2, 3, 4, 5, 6, 8, 10, 20, 109, 218, 501, 999, 2015, 5000, 10_000, 15_000,
     ]) {
@@ -391,9 +393,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
         mul_type: source.mul_type,
       })),
     );
-    expect(outcome!.returnData.type17_beishu?.code).toBe(
-      round.start_data.indexOf(source),
-    );
+    expect(outcome!.returnData.type17_beishu?.code).toBe(round.start_data.indexOf(source));
     expect(isSeth2MultiplierValue(source.mul)).toBe(true);
     expect(
       outcome!.returnData.type17_mul_list.every((ball) => isSeth2MultiplierValue(ball.mul)),
@@ -403,9 +403,9 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(finalMultiplier(outcome!)).toBe(round.total_mul);
   });
 
-  it('female skill selects 1, 2-5 and 6 multiplier balls while keeping refill complete', () => {
-    const tiers = new Set<'single' | 'middle' | 'max'>();
-    for (let nonce = 0; nonce < 2_000 && tiers.size < 3; nonce += 1) {
+  it('female skill locks every multiplier ball for a 2, 4 or 6-game source sequence', () => {
+    const durations = new Set<number>();
+    for (let nonce = 0; nonce < 4_000 && durations.size < 3; nonce += 1) {
       const outcome = seth2SpinForFactor(
         'female-skill-levels',
         'client',
@@ -417,23 +417,20 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       const round = outcome.returnData.list[0]!;
       if (!round.remove_type.includes(18)) continue;
       const locked = outcome.returnData.type18_start_mul_list;
-      tiers.add(locked.length === 1 ? 'single' : locked.length === 6 ? 'max' : 'middle');
-      const available = round.start_data
-        .filter((current) => current.type === 10)
-        .map((current) => current.mul);
-      for (const selected of locked) {
-        expect(isSeth2MultiplierValue(selected.mul)).toBe(true);
-        const index = available.indexOf(selected.mul);
-        expect(index).toBeGreaterThanOrEqual(0);
-        available.splice(index, 1);
-      }
-      expect(outcome.returnData.type18_mul_count).toBe(4);
+      const available = round.start_data.filter((current) => current.type === 10);
+      durations.add(outcome.returnData.type18_mul_count);
+      expect([2, 4, 6]).toContain(outcome.returnData.type18_mul_count);
+      expect(locked).toHaveLength(available.length);
+      expect(locked.map((cell) => cell.code).sort((a, b) => Number(a) - Number(b))).toEqual(
+        available.map((current) => round.start_data.indexOf(current)).sort((a, b) => a - b),
+      );
+      expect(locked.every((cell) => isSeth2MultiplierValue(cell.mul))).toBe(true);
       expect(locked.every((cell) => Number.isInteger(cell.code))).toBe(true);
       expect(round.round_data).toHaveLength(removedCellCount(outcome));
       expect(round.scoreList[1]).toBe(money((BET * SETH2_SKILL_SYMBOL_PAY) / 20));
       expect(finalMultiplier(outcome)).toBe(round.total_mul);
     }
-    expect(tiers).toEqual(new Set(['single', 'middle', 'max']));
+    expect(durations).toEqual(new Set([2, 4, 6]));
   });
 
   it('limits both character skills to awakening mode', () => {
@@ -502,6 +499,31 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(outcome.returnData.multiplierBankBefore).toBe(40);
     expect(outcome.returnData.multiplierBankAdded).toBe(0);
     expect(outcome.returnData.multiplierBankAfter).toBe(40);
+  });
+
+  it('lets a persistent locked ball collect the bank without dropping a replacement ball', () => {
+    let outcome: Seth2Outcome | undefined;
+    for (let nonce = 0; nonce < 200; nonce += 1) {
+      const candidate = seth2SpinForFactor(
+        'controlled-lock-bank',
+        'client',
+        nonce,
+        BET,
+        20,
+        'standard_free',
+        10,
+        true,
+      );
+      if (candidate.returnData.list[0]!.start_data.every((current) => current.type !== 10)) {
+        outcome = candidate;
+        break;
+      }
+    }
+    expect(outcome).toBeDefined();
+    const round = outcome!.returnData.list[0]!;
+    expect(round.start_data.filter((current) => current.type === 10)).toHaveLength(0);
+    expect(round.total_mul).toBe(10);
+    expect(outcome!.returnData.total_gold).toBe(BET * 20);
   });
 
   it('builds a controlled multiplier result whose animation already equals its final payout', () => {

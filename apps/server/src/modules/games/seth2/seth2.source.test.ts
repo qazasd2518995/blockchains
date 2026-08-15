@@ -132,6 +132,19 @@ describe('Seth 2 v1.1.5 source contract', () => {
     expect(states).toHaveLength(1);
   });
 
+  it('maps official multiplier colours from green low values to red/gold high values', () => {
+    const start = Array.from({ length: 30 }, () => cell(2));
+    start[0] = cell(10, 2, 1);
+    start[1] = cell(10, 10, 1);
+    start[2] = cell(10, 50, 1);
+    start[3] = cell(10, 500, 1);
+    const state = seth2SourceGameStates(
+      sourceFixture({ list: [{ ...sourceFixture().list[0]!, start_data: start }] }),
+      SOURCE_OPTIONS,
+    )[0]!;
+    expect(state.view.flat().slice(0, 4)).toEqual([13, 12, 11, 10]);
+  });
+
   it('attaches falling transforms to the winning view in collision-safe order', () => {
     const outcome = seth2SpinForFactor('server', 'client', 3, 2, 10, 'base');
     const states = seth2SourceGameStates(outcome.returnData, {
@@ -215,15 +228,14 @@ describe('Seth 2 v1.1.5 source contract', () => {
   });
 
   it.each([
-    [1, 1],
-    [3, 2],
+    [2, 1],
+    [4, 2],
     [6, 3],
-  ] as const)('maps %i newly locked balls to female animation level %i', (locks, level) => {
+  ] as const)('maps a %i-game lock to female animation level %i', (duration, level) => {
     const start = Array.from({ length: 30 }, () => cell(2));
-    const locked = Array.from({ length: locks }, (_, position) => {
-      start[position] = cell(10, 10 + position, 1);
-      return cell(10, 10 + position, 1, position);
-    });
+    const locked = [cell(10, 10, 1, 0), cell(10, 15, 1, 1)];
+    start[0] = cell(10, 10, 1);
+    start[1] = cell(10, 15, 1);
     start[10] = cell(18);
     start[11] = cell(18);
     start[12] = cell(18);
@@ -241,13 +253,73 @@ describe('Seth 2 v1.1.5 source contract', () => {
         },
       ],
       type18_start_mul_list: locked,
-      type18_mul_count: 4,
+      type18_mul_count: duration,
       score: 1,
       total_gold: 1,
     });
     const first = seth2SourceGameStates(data, SOURCE_OPTIONS)[0]!;
     expect(first.femaleTotemLevel).toBe(level);
-    expect(first.timesSymbols.filter((entry) => entry.lock === 4)).toHaveLength(locks);
+    expect(first.timesSymbols.filter((entry) => entry.lock === duration)).toHaveLength(2);
+  });
+
+  it('fires male and female skills on their actual cascade instead of forcing the first view', () => {
+    const maleStart = Array.from({ length: 30 }, () => cell(2));
+    maleStart[0] = cell(10, 25, 1);
+    maleStart[1] = cell(17);
+    maleStart[2] = cell(17);
+    maleStart[3] = cell(17);
+    for (let position = 4; position < 12; position += 1) maleStart[position] = cell(1);
+    const maleData = sourceFixture({
+      list: [
+        {
+          ...sourceFixture().list[0]!,
+          start_data: maleStart,
+          remove_type: [1],
+          round_data: Array.from({ length: 8 }, () => cell(4)),
+          scoreList: [2],
+          score: 2,
+          total_gold: 2,
+          is_over: 0,
+        },
+        {
+          ...sourceFixture().list[0]!,
+          start_data: [],
+          remove_type: [17],
+          round_data: [cell(4), cell(4)],
+          scoreList: [1],
+          score: 1,
+          total_gold: 3,
+        },
+      ],
+      type17_beishu: cell(10, 25, 1, 0),
+      type17_mul_list: [cell(10, 25, 1)],
+      score: 3,
+      total_gold: 3,
+    });
+    const maleStates = seth2SourceGameStates(maleData, SOURCE_OPTIONS);
+    expect(maleStates[0]).toMatchObject({ maleTotemLevel: 0, splitList: [] });
+    expect(maleStates[1]!.maleTotemLevel).toBe(1);
+    expect(maleStates[1]!.splitList[0]?.to).toHaveLength(1);
+
+    const femaleStart = maleStart.map((current) => ({ ...current }));
+    femaleStart[1] = cell(18);
+    femaleStart[2] = cell(18);
+    femaleStart[3] = cell(18);
+    const femaleData = sourceFixture({
+      list: [
+        { ...maleData.list[0]!, start_data: femaleStart },
+        { ...maleData.list[1]!, remove_type: [18], round_data: [cell(4), cell(4), cell(4)] },
+      ],
+      type18_start_mul_list: [cell(10, 25, 1, 0)],
+      type18_mul_count: 6,
+      score: 3,
+      total_gold: 3,
+    });
+    const femaleStates = seth2SourceGameStates(femaleData, SOURCE_OPTIONS);
+    expect(femaleStates[0]!.femaleTotemLevel).toBe(0);
+    expect(femaleStates[0]!.timesSymbols[0]!.lock).toBe(0);
+    expect(femaleStates[1]!.femaleTotemLevel).toBe(3);
+    expect(femaleStates[1]!.timesSymbols[0]!.lock).toBe(6);
   });
 
   it('locks only the selected female balls and does not replay the woman on carry-over games', () => {
@@ -346,7 +418,7 @@ describe('Seth 2 v1.1.5 source contract', () => {
       afterTimes: 8,
     });
     expect(states.at(-1)!.timesSymbols).toEqual(
-      expect.arrayContaining([expect.objectContaining({ symbolPos: 18, times: 8 })]),
+      expect.arrayContaining([expect.objectContaining({ symbolPos: 18, times: 8, isRare: true })]),
     );
   });
 
@@ -416,5 +488,27 @@ describe('Seth 2 v1.1.5 source contract', () => {
     });
     const states = seth2SourceGameStates(data, SOURCE_OPTIONS);
     expect(states.every((state) => state.currentTimes === 25)).toBe(true);
+  });
+
+  it('uses captured currentTimes and super-main counters for active and final views', () => {
+    const freeLoss = seth2SourceGameStates(sourceFixture(), SOURCE_OPTIONS);
+    expect(freeLoss[0]!.currentTimes).toBe(0);
+
+    const baseOutcome = seth2SpinForFactor('current-times', 'client', 0, 2, 10, 'base');
+    const baseStates = seth2SourceGameStates(baseOutcome.returnData, {
+      ...SOURCE_OPTIONS,
+      action: 'spin',
+      isGoldenFg: false,
+      freeGameCount: 0,
+    });
+    expect(baseStates[0]!.currentTimes).toBe(0);
+    expect(baseStates.at(-1)!.currentTimes).toBe(-1);
+
+    const superStates = seth2SourceGameStates(baseOutcome.returnData, {
+      ...SOURCE_OPTIONS,
+      action: 'superSpin',
+      freeGameCount: 0,
+    });
+    expect(superStates.every((state) => state.superMainGameCount === 0)).toBe(true);
   });
 });

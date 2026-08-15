@@ -9,6 +9,7 @@ import {
   machineDisplayRate,
   machineInfo,
   machineList,
+  normalizeFemaleLockAccounting,
   Seth2Service,
 } from './seth2.service.js';
 import { seth2ProtocolSchema } from './seth2.schema.js';
@@ -43,6 +44,23 @@ describe('Seth2 controlled result selection', () => {
       maxPayout: new Prisma.Decimal(3600),
     });
     expect(factor).toBe(0);
+  });
+
+  it('selects only factors representable by a visible persistent lock', () => {
+    const factor = chooseControlledSethFactor(
+      new Prisma.Decimal(18),
+      new Prisma.Decimal(18),
+      {
+        won: true,
+        multiplier: new Prisma.Decimal(20),
+        minMultiplier: new Prisma.Decimal(20),
+        maxMultiplier: new Prisma.Decimal(20),
+      },
+      'awakening_free',
+      10,
+      true,
+    );
+    expect(factor).toBe(20);
   });
 });
 
@@ -121,11 +139,12 @@ describe('Seth2 v1.1.5 feature-purchase handshake', () => {
   it('returns the reserved visual result without settling or debiting a second time', async () => {
     const service = new Seth2Service({} as never);
     let replayCount = 0;
-    (service as unknown as { replayPurchasedSpin: () => Promise<typeof settlement> })
-      .replayPurchasedSpin = async () => {
-        replayCount += 1;
-        return settlement;
-      };
+    (
+      service as unknown as { replayPurchasedSpin: () => Promise<typeof settlement> }
+    ).replayPurchasedSpin = async () => {
+      replayCount += 1;
+      return settlement;
+    };
     (service as unknown as { settle: () => never }).settle = () => {
       throw new Error('follow-up visual request must not settle again');
     };
@@ -373,34 +392,76 @@ describe('Seth2 free-game session progression', () => {
     });
   });
 
-  it('keeps the woman multiplier lock for the source 4 -> 3 -> 2 -> 1 sequence', () => {
+  it('keeps the captured level-three woman lock for the 6 -> 5 -> ... -> 1 sequence', () => {
     const cell = { type: 10 as const, mul: 5, mul_type: 0, code: 13 };
+    const start_data = Array.from({ length: 30 }, (_, code) => ({
+      type: (code % 9) + 1,
+      mul: 0,
+    }));
+    start_data[cell.code] = cell;
     const firstData = {
+      list: [
+        {
+          start_data,
+          remove_type: [1],
+          upgrade_mul_list: [{ type: 10, mul: 5, new_mul: 6, mul_type: 0, code: 13 }],
+        },
+      ],
       type18_start_mul_list: [cell],
-      type18_mul_count: 4,
+      type18_mul_count: 6,
     } as unknown as Seth2ReturnData;
     const first = applyFemaleLockState(firstData, null);
-    expect(firstData.type18_mul_count).toBe(4);
-    expect(first).toEqual({ cells: [cell], gamesRemaining: 3 });
+    expect(firstData.type18_mul_count).toBe(6);
+    expect(firstData.type18_start_mul_list).toEqual([cell]);
+    const upgradedCell = { ...cell, mul: 6 };
+    expect(first).toEqual({ cells: [upgradedCell], gamesRemaining: 5 });
 
     const observed: number[] = [];
     let current = first;
-    for (let index = 0; index < 3; index += 1) {
-      const start_data = Array.from({ length: 30 }, (_, code) => ({
+    for (let index = 0; index < 5; index += 1) {
+      const nextStart = Array.from({ length: 30 }, (_, code) => ({
         type: (code % 9) + 1,
         mul: 0,
       }));
       const data = {
-        list: [{ start_data, remove_type: [] }],
+        list: [{ start_data: nextStart, remove_type: [], upgrade_mul_list: [] }],
         type18_start_mul_list: [],
         type18_mul_count: 0,
       } as unknown as Seth2ReturnData;
       current = applyFemaleLockState(data, current);
       observed.push(data.type18_mul_count);
-      expect(data.type18_start_mul_list).toEqual([cell]);
-      expect(data.list[0]!.start_data[cell.code]).toEqual(cell);
+      expect(data.type18_start_mul_list).toEqual([upgradedCell]);
+      expect(data.list[0]!.start_data[cell.code]).toEqual(upgradedCell);
     }
-    expect(observed).toEqual([3, 2, 1]);
+    expect(observed).toEqual([5, 4, 3, 2, 1]);
     expect(current).toBeNull();
+  });
+
+  it('re-adds locked balls to the multiplier bank only on a winning free spin', () => {
+    const win = {
+      score: 2,
+      multiplierBankBefore: 35,
+      multiplierBankAdded: 10,
+      multiplierBankAfter: 45,
+    } as unknown as Seth2ReturnData;
+    normalizeFemaleLockAccounting(win, 25, 10);
+    expect(win).toMatchObject({
+      multiplierBankBefore: 25,
+      multiplierBankAdded: 20,
+      multiplierBankAfter: 45,
+    });
+
+    const loss = {
+      score: 0,
+      multiplierBankBefore: 35,
+      multiplierBankAdded: 0,
+      multiplierBankAfter: 35,
+    } as unknown as Seth2ReturnData;
+    normalizeFemaleLockAccounting(loss, 25, 10);
+    expect(loss).toMatchObject({
+      multiplierBankBefore: 25,
+      multiplierBankAdded: 0,
+      multiplierBankAfter: 25,
+    });
   });
 });

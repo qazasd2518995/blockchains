@@ -117,10 +117,11 @@ function money(value: number): number {
 }
 
 function multiplierSymbol(value: number): 10 | 11 | 12 | 13 {
-  if (value >= 200) return 13;
-  if (value >= 50) return 12;
-  if (value >= 10) return 11;
-  return 10;
+  // T1 is the red/gold high-value ball and T4 is the green low-value ball.
+  if (value >= 200) return 10;
+  if (value >= 50) return 11;
+  if (value >= 10) return 12;
+  return 13;
 }
 
 function sourceSymbol(cell: Seth2Cell): number {
@@ -128,9 +129,7 @@ function sourceSymbol(cell: Seth2Cell): number {
 }
 
 function sourceView(board: Seth2Cell[]): number[][] {
-  return Array.from({ length: 5 }, (_, row) =>
-    board.slice(row * 6, row * 6 + 6).map(sourceSymbol),
-  );
+  return Array.from({ length: 5 }, (_, row) => board.slice(row * 6, row * 6 + 6).map(sourceSymbol));
 }
 
 function lockedPositions(
@@ -270,15 +269,32 @@ function applyUpgrades(
     if (position >= board.length) continue;
     const cell = board[position];
     if (cell?.type === 10) {
-      board[position] = { ...cell, mul: resolved.upgrade.new_mul, mul_type: 1 };
+      board[position] = {
+        ...cell,
+        mul: resolved.upgrade.new_mul,
+        // Rare balls remain rare after upgrading and may upgrade again in a
+        // later cascade. Converting them to regular stops the source animation.
+        mul_type: resolved.upgrade.mul_type ?? cell.mul_type ?? 0,
+      };
     }
   }
 }
 
-function splitList(data: Seth2ReturnData, transition: BoardTransition | null, roundIndex: number) {
+function skillTriggerRound(data: Seth2ReturnData, symbol: 17 | 18): number {
+  return data.list.findIndex((round) => round.remove_type.includes(symbol));
+}
+
+function splitList(
+  data: Seth2ReturnData,
+  transition: BoardTransition | null,
+  roundIndex: number,
+  triggerRound: number,
+  originalToCurrent: ReadonlyMap<number, number>,
+) {
   const source = data.type17_beishu;
-  if (roundIndex !== 0 || !source || data.type17_mul_list.length === 0) return [];
-  const from = Number(source.code);
+  if (roundIndex !== triggerRound || !source || data.type17_mul_list.length === 0) return [];
+  const originalFrom = Number(source.code);
+  const from = originalToCurrent.get(originalFrom) ?? originalFrom;
   const candidatePositions = transition
     ? [...transition.newPositions].filter((position) => {
         const cell = transition.board[position];
@@ -294,8 +310,9 @@ function roundRefill(
   round: Seth2ReturnData['list'][number],
   board: readonly Seth2Cell[],
   roundIndex: number,
+  triggerRound: number,
 ) {
-  if (roundIndex !== 0 || data.type17_mul_list.length === 0) return round.round_data;
+  if (roundIndex !== triggerRound || data.type17_mul_list.length === 0) return round.round_data;
   const removed = new Set(round.remove_type);
   const removedCount = board.reduce(
     (count, current) => count + (removed.has(current.type) ? 1 : 0),
@@ -316,6 +333,16 @@ function totemLevel(count: number): number {
   return count > 0 ? 1 : 0;
 }
 
+function sourceCurrentTimes(
+  data: Seth2ReturnData,
+  action: Seth2SourceAction,
+  finalView = false,
+): number {
+  if (data.is_sjc === 1) return -1;
+  if (finalView && action !== 'freeSpin') return -1;
+  return data.multiplierBankBefore;
+}
+
 export function seth2SourceGameStates(
   data: Seth2ReturnData,
   options: Seth2SourceStateOptions,
@@ -326,8 +353,12 @@ export function seth2SourceGameStates(
   }
   const states: Seth2SourceGameState[] = [];
   let transitionFromPrevious: BoardTransition | null = null;
-  let originalToCurrent = new Map(Array.from({ length: 30 }, (_, position) => [position, position]));
+  let originalToCurrent = new Map(
+    Array.from({ length: 30 }, (_, position) => [position, position]),
+  );
   let roundWinnings = 0;
+  const maleTriggerRound = skillTriggerRound(data, 17);
+  const femaleTriggerRound = skillTriggerRound(data, 18);
 
   for (let roundIndex = 0; roundIndex < data.list.length; roundIndex += 1) {
     const round = data.list[roundIndex]!;
@@ -338,9 +369,10 @@ export function seth2SourceGameStates(
       );
     }
     roundWinnings = money(roundWinnings + round.score * Math.max(1, round.total_mul || 1));
+    const femaleLockActive = femaleTriggerRound < 0 || roundIndex >= femaleTriggerRound;
     const currentTimes = timesSymbols(
       board,
-      data.type18_mul_count,
+      femaleLockActive ? data.type18_mul_count : 0,
       data.type18_start_mul_list,
       originalToCurrent,
     );
@@ -355,7 +387,11 @@ export function seth2SourceGameStates(
           newPositions: new Set<number>(),
           beforeToAfter: new Map<number, number>(),
         }
-      : collapseBoard(board, round.remove_type, roundRefill(data, round, board, roundIndex));
+      : collapseBoard(
+          board,
+          round.remove_type,
+          roundRefill(data, round, board, roundIndex, maleTriggerRound),
+        );
     // The source client maps timesUpgrade.symbolPos through this state's
     // posTransform itself.  Keep the pre-fall position here; sending the
     // already-transformed position can map it a second time onto another ball.
@@ -364,15 +400,11 @@ export function seth2SourceGameStates(
       round.upgrade_mul_list,
       originalToCurrent,
     );
-    const upgrades = resolvedUpgrades.map(({ upgrade: _upgrade, ...sourceUpgrade }) => sourceUpgrade);
-    const maleLevel =
-      roundIndex === 0 && round.remove_type.includes(17)
-        ? totemLevel(data.type17_mul_list.length)
-        : 0;
-    const femaleLevel =
-      roundIndex === 0 && round.remove_type.includes(18)
-        ? totemLevel(data.type18_start_mul_list.length)
-        : 0;
+    const upgrades = resolvedUpgrades.map(
+      ({ upgrade: _upgrade, ...sourceUpgrade }) => sourceUpgrade,
+    );
+    const maleLevel = roundIndex === maleTriggerRound ? totemLevel(data.type17_mul_list.length) : 0;
+    const femaleLevel = roundIndex === femaleTriggerRound ? totemLevel(data.type18_mul_count) : 0;
     states.push({
       view: sourceView(board),
       spinId: options.spinId,
@@ -385,13 +417,14 @@ export function seth2SourceGameStates(
       // showTimesMoving first renders this saved bank and then adds every ball
       // in timesSymbols.  Supplying multiplierBankAfter here double-counts the
       // current board during the original collection animation.
-      currentTimes: data.multiplierBankBefore || -1,
+      currentTimes: sourceCurrentTimes(data, options.action),
       currentView: states.length,
-      splitList: splitList(data, transition, roundIndex),
+      splitList: splitList(data, transition, roundIndex, maleTriggerRound, originalToCurrent),
       newTimesSymbols: currentTimes.filter((entry) =>
         transitionFromPrevious
-          ? transitionFromPrevious.newPositions.has(entry.symbolPos)
-          : entry.lock === 0 || data.type18_mul_count === 4,
+          ? transitionFromPrevious.newPositions.has(entry.symbolPos) ||
+            roundIndex === femaleTriggerRound
+          : entry.lock === 0 || roundIndex === femaleTriggerRound,
       ),
       timesUpgrade: upgrades,
       timesSymbols: currentTimes,
@@ -401,7 +434,7 @@ export function seth2SourceGameStates(
       // Falling is part of the current winning view.  The following state only
       // supplies the freshly entered symbols after this transform completes.
       posTransform: transition.posTransform,
-      superMainGameCount: options.action === 'superSpin' ? 1 : 0,
+      superMainGameCount: 0,
       femaleTotemLevel: femaleLevel,
       freeGameCount: options.freeGameCount,
       isGoldenFg: options.isGoldenFg,
@@ -440,7 +473,7 @@ export function seth2SourceGameStates(
       totalViews: 0,
       action: options.action,
       startFreeGame: data.is_sjc === 1,
-      currentTimes: data.multiplierBankBefore || -1,
+      currentTimes: sourceCurrentTimes(data, options.action, true),
       currentView: states.length,
       splitList: [],
       newTimesSymbols: finalTimes.filter((entry) =>
