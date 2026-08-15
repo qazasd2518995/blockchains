@@ -108,6 +108,8 @@ const {
   wrapFrameworkDispatch,
   findIntroView,
   enterReadyGame,
+  gameCanvasIsReady,
+  guardGameViewClass,
   isGameEntryTransitionReady,
   markLoadingComplete,
 } = context.__YachiyoSeth2SourceAdapterTest;
@@ -224,7 +226,30 @@ context.App = {
     percentText: { string: '96%' },
     node: { active: true },
   },
-  gameView: { node: { active: false, activeInHierarchy: false } },
+  gameView: {
+    node: { active: false, activeInHierarchy: false },
+    slotUIMap: new Map([
+      ['InfoBarP', {}],
+      ['SpinBarP', {}],
+      ['TopBarP', {}],
+      ['PrizeNotify', {}],
+    ]),
+    gameLayer: {
+      children: ['BackgroundView', 'ReelView', 'SymbolView'].map((name) => ({
+        name,
+        active: true,
+        activeInHierarchy: true,
+      })),
+    },
+  },
+};
+let gameCanvasContextLost = false;
+const gameCanvas = {
+  width: 720,
+  height: 1280,
+  addEventListener: () => {},
+  getContext: (type) =>
+    type === 'webgl2' ? { isContextLost: () => gameCanvasContextLost } : null,
 };
 let activeEntryGate;
 function createEntryGateDouble() {
@@ -250,22 +275,45 @@ function createEntryGateDouble() {
 }
 activeEntryGate = createEntryGateDouble();
 context.document = {
-  getElementById: (id) => (id === 'yachiyo-seth2-entry-gate' ? activeEntryGate : null),
+  getElementById: (id) => {
+    if (id === 'yachiyo-seth2-entry-gate') return activeEntryGate;
+    if (id === 'GameCanvas') return gameCanvas;
+    return null;
+  },
 };
 assert.equal(findIntroView(), introView);
+
+// Cocos activates GameView before GameView.init() builds its four UI layers.
+// That state used to uncover a black canvas on iOS and must not count as ready.
+const readySlotUIMap = context.App.gameView.slotUIMap;
+context.App.gameLoading.node.active = false;
+context.App.gameView.node.active = true;
+context.App.gameView.node.activeInHierarchy = true;
+context.App.gameView.slotUIMap = new Map();
+assert.equal(isGameEntryTransitionReady(), false);
+context.App.gameLoading.node.active = true;
+context.App.gameView.node.active = false;
+context.App.gameView.node.activeInHierarchy = false;
+context.App.gameView.slotUIMap = readySlotUIMap;
+
 markLoadingComplete();
 assert.equal(context.App.gameLoading.loadedNum, 24);
 assert.equal(context.App.gameLoading.percentText.string, '100%');
 assert.equal(enterReadyGame(), true);
 assert.equal(introTouchStarts, 1);
+assert.equal(gameCanvasIsReady(), true);
 assert.equal(isGameEntryTransitionReady(), true);
 assert.ok(activeEntryGate, 'entry gate must remain while WebKit paints the game scene');
 assert.equal(activeEntryGate.button.textContent, '正在進入遊戲…');
-for (let frame = 0; frame < 3; frame += 1) zeroTimers.shift()();
-const paintDelay = longTimers.findLast((timer) => timer.delay === 120);
+for (let frame = 0; frame < 6; frame += 1) zeroTimers.shift()();
+const paintDelay = longTimers.findLast((timer) => timer.delay === 300);
 assert.ok(paintDelay);
 paintDelay.callback();
 assert.equal(activeEntryGate, null, 'entry gate is removed only after the game scene is painted');
+gameCanvasContextLost = true;
+assert.equal(gameCanvasIsReady(), false);
+assert.equal(isGameEntryTransitionReady(), false);
+gameCanvasContextLost = false;
 
 activeEntryGate = createEntryGateDouble();
 completeEntryTransition = false;
@@ -283,6 +331,17 @@ assert.ok(activeEntryGate, 'timed-out entry keeps a visible recovery control');
 assert.equal(activeEntryGate.button.dataset.action, 'reload');
 assert.equal(activeEntryGate.button.disabled, false);
 assert.equal(activeEntryGate.button.textContent, '載入逾時・重新整理');
+
+function GuardedGameView() {}
+let guardedInitializations = 0;
+GuardedGameView.prototype.init = function () {
+  guardedInitializations += 1;
+};
+assert.equal(guardGameViewClass(GuardedGameView), true);
+const guardedView = new GuardedGameView();
+guardedView.init();
+assert.equal(guardedInitializations, 1);
+assert.equal(guardedView.__yachiyoInitializationStatus, 'ready');
 requests.length = 0;
 parentMessages.length = 0;
 

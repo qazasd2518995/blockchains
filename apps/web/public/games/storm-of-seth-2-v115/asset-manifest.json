@@ -12707,8 +12707,8 @@
     },
     {
       "path": "src/seth2-local-adapter.js",
-      "bytes": 34165,
-      "sha256": "200cd32bcdf7334281ad7ced90e1114037c1c3f06586c9b1df55aaa5ca463976"
+      "bytes": 39304,
+      "sha256": "37272b4410924b0ac16aec73795402f3fe176c7872d1b2e6a2782882f272d86c"
     },
     {
       "path": "src/settings.json",

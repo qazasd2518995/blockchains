@@ -14,13 +14,17 @@
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
   var UPDATE_TOTAL_WINNINGS = 'SlotFrameworkEvent:UPDATE_TOTAL_WINNINGS';
   var GAME_ENTRY_GATE_ID = 'yachiyo-seth2-entry-gate';
+  var GAME_ENTRY_BOOT_TIMEOUT_MS = 25000;
   var GAME_ENTRY_TRANSITION_TIMEOUT_MS = 12000;
+  var GAME_ENTRY_REQUIRED_UI_COUNT = 4;
   var gameEntryPollTimer = 0;
-  var gameEntryPollAttempt = 0;
+  var gameEntryPollStartedAt = 0;
   var gameEntryTransitionTimer = 0;
   var gameEntryTransitionStartedAt = 0;
   var gameEntryPaintPending = false;
   var gameEntryInProgress = false;
+  var gameCanvasRecoveryBound = false;
+  var gameCanvasContextLost = false;
 
   function wrapFrameworkDispatch(dispatcher) {
     if (typeof dispatcher !== 'function' || dispatcher.__yachiyoTotalWinGuard) return dispatcher;
@@ -154,6 +158,50 @@
     }
   }
 
+  function guardGameViewClass(GameView) {
+    var prototype = GameView && GameView.prototype;
+    if (!prototype || prototype.__yachiyoInitializationGuard) return false;
+    var originalInit = prototype.init;
+    if (typeof originalInit !== 'function') return false;
+
+    prototype.init = function () {
+      this.__yachiyoInitializationStatus = 'running';
+      this.__yachiyoInitializationError = '';
+      try {
+        var result = originalInit.apply(this, arguments);
+        this.__yachiyoInitializationStatus = 'ready';
+        return result;
+      } catch (error) {
+        this.__yachiyoInitializationStatus = 'failed';
+        this.__yachiyoInitializationError =
+          error && error.message ? String(error.message) : 'unknown game view error';
+        window.setTimeout(function () {
+          failGameEntryTransition('遊戲介面初始化失敗・重新整理', 'game-view-init');
+        }, 0);
+        throw error;
+      }
+    };
+    prototype.__yachiyoInitializationGuard = true;
+    return true;
+  }
+
+  function installGameViewInitializationGuard(attempt) {
+    var tries = Number(attempt || 0);
+    var loader = window.System;
+    var moduleId = 'chunks:///_virtual/GameView.ts';
+    try {
+      var loaded = loader && typeof loader.get === 'function' ? loader.get(moduleId) : null;
+      if (loaded && guardGameViewClass(loaded.default || loaded.GameView)) return;
+    } catch (_error) {
+      // The game bundle registers this class after the framework has loaded.
+    }
+    if (tries < 240) {
+      window.setTimeout(function () {
+        installGameViewInitializationGuard(tries + 1);
+      }, 250);
+    }
+  }
+
   function protectPlatformStorage() {
     if (typeof Storage === 'undefined' || Storage.prototype.__yachiyoProtectedClear) return;
     var originalClear = Storage.prototype.clear;
@@ -175,6 +223,7 @@
   protectPlatformStorage();
   installFrameworkDispatchGuard();
   installBigwinCompletionGuard(0);
+  installGameViewInitializationGuard(0);
 
   function parentStorage() {
     try {
@@ -557,28 +606,64 @@
     return gate && typeof gate.querySelector === 'function' ? gate.querySelector('button') : null;
   }
 
-  function setGameEntryGateState(state) {
+  function setGameEntryGateState(state, label) {
     var gate = gameEntryGate();
     var button = gameEntryButton(gate);
     if (!gate || !button) return;
 
-    gate.setAttribute('aria-busy', state === 'entering' ? 'true' : 'false');
+    var waiting = state === 'loading' || state === 'entering';
+    gate.setAttribute('aria-busy', waiting ? 'true' : 'false');
     gate.style.pointerEvents = state === 'ready' ? 'none' : 'auto';
     gate.style.background =
       state === 'ready'
         ? 'transparent'
         : 'radial-gradient(circle at center,rgba(39,16,77,.82) 0%,rgba(5,2,14,.96) 72%)';
     button.dataset.action = state === 'retry' ? 'reload' : 'enter';
-    button.disabled = state === 'entering';
-    button.textContent =
-      state === 'entering'
-        ? '正在進入遊戲…'
-        : state === 'retry'
-          ? '載入逾時・重新整理'
-          : '進入遊戲';
+    button.disabled = waiting;
+    button.textContent = label
+      ? label
+      : state === 'loading'
+        ? '正在準備遊戲…'
+        : state === 'entering'
+          ? '正在進入遊戲…'
+          : state === 'retry'
+            ? '載入逾時・重新整理'
+            : '進入遊戲';
     button.setAttribute('aria-label', button.textContent);
-    button.style.opacity = state === 'entering' ? '0.82' : '1';
-    button.style.cursor = state === 'entering' ? 'wait' : 'pointer';
+    button.style.opacity = waiting ? '0.82' : '1';
+    button.style.cursor = waiting ? 'wait' : 'pointer';
+  }
+
+  function activeChildNamed(parent, name) {
+    var children = parent && parent.children;
+    if (!children || typeof children.length !== 'number') return false;
+    for (var index = 0; index < children.length; index += 1) {
+      var child = children[index];
+      if (
+        child &&
+        child.name === name &&
+        child.active !== false &&
+        child.activeInHierarchy !== false
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function gameCanvasIsReady() {
+    if (gameCanvasContextLost || typeof document === 'undefined') return false;
+    var canvas = document.getElementById('GameCanvas');
+    if (!canvas || Number(canvas.width) < 2 || Number(canvas.height) < 2) return false;
+    try {
+      var context =
+        (typeof canvas.getContext === 'function' && canvas.getContext('webgl2')) ||
+        (typeof canvas.getContext === 'function' && canvas.getContext('webgl')) ||
+        (typeof canvas.getContext === 'function' && canvas.getContext('experimental-webgl'));
+      return Boolean(context && (!context.isContextLost || !context.isContextLost()));
+    } catch (_error) {
+      return false;
+    }
   }
 
   function isGameEntryTransitionReady() {
@@ -592,18 +677,28 @@
         gameView.node &&
         gameView.node.active !== false &&
         gameView.node.activeInHierarchy !== false;
-      return Boolean(loadingClosed && gameViewActive);
+      var uiReady =
+        gameView &&
+        gameView.__yachiyoInitializationStatus !== 'failed' &&
+        gameView.slotUIMap &&
+        Number(gameView.slotUIMap.size) >= GAME_ENTRY_REQUIRED_UI_COUNT;
+      var boardReady =
+        gameView &&
+        activeChildNamed(gameView.gameLayer, 'BackgroundView') &&
+        activeChildNamed(gameView.gameLayer, 'ReelView') &&
+        activeChildNamed(gameView.gameLayer, 'SymbolView');
+      return Boolean(loadingClosed && gameViewActive && uiReady && boardReady && gameCanvasIsReady());
     } catch (_error) {
       return false;
     }
   }
 
   function afterGameEntryPaint(callback, remainingFrames) {
-    var frames = remainingFrames === undefined ? 3 : Number(remainingFrames);
+    var frames = remainingFrames === undefined ? 6 : Number(remainingFrames);
     if (frames <= 0) {
       // WebKit can report active scene nodes one frame before their textures
-      // are presented. Give it one short compositor turn before uncovering it.
-      window.setTimeout(callback, 120);
+      // are presented. Give it a compositor turn before uncovering it.
+      window.setTimeout(callback, 300);
       return;
     }
     if (typeof window.requestAnimationFrame === 'function') {
@@ -617,15 +712,40 @@
     }, 16);
   }
 
-  function failGameEntryTransition() {
+  function bindGameCanvasRecovery() {
+    if (gameCanvasRecoveryBound || typeof document === 'undefined') return false;
+    var canvas = document.getElementById('GameCanvas');
+    if (!canvas || typeof canvas.addEventListener !== 'function') return false;
+    gameCanvasRecoveryBound = true;
+    canvas.addEventListener(
+      'webglcontextlost',
+      function (event) {
+        gameCanvasContextLost = true;
+        if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        failGameEntryTransition('遊戲畫面已中斷・重新整理', 'webgl-context-lost');
+      },
+      false,
+    );
+    canvas.addEventListener(
+      'webglcontextrestored',
+      function () {
+        gameCanvasContextLost = false;
+      },
+      false,
+    );
+    return true;
+  }
+
+  function failGameEntryTransition(label, stage) {
     if (gameEntryTransitionTimer) {
       window.clearTimeout(gameEntryTransitionTimer);
       gameEntryTransitionTimer = 0;
     }
     gameEntryPaintPending = false;
     gameEntryInProgress = false;
-    setGameEntryGateState('retry');
-    notifyParent('seth2:entry-timeout', { stage: 'game-view' });
+    createGameEntryGate('retry');
+    setGameEntryGateState('retry', label);
+    notifyParent('seth2:entry-timeout', { stage: stage || 'game-view' });
   }
 
   function watchGameEntryTransition() {
@@ -633,6 +753,16 @@
     if (gameEntryTransitionTimer) {
       window.clearTimeout(gameEntryTransitionTimer);
       gameEntryTransitionTimer = 0;
+    }
+
+    var gameView = window.App && window.App.gameView;
+    if (gameView && gameView.__yachiyoInitializationStatus === 'failed') {
+      failGameEntryTransition('遊戲介面初始化失敗・重新整理', 'game-view-init');
+      return;
+    }
+    if (gameCanvasContextLost) {
+      failGameEntryTransition('遊戲畫面已中斷・重新整理', 'webgl-context-lost');
+      return;
     }
 
     if (isGameEntryTransitionReady()) {
@@ -652,7 +782,7 @@
     }
 
     if (Date.now() - gameEntryTransitionStartedAt >= GAME_ENTRY_TRANSITION_TIMEOUT_MS) {
-      failGameEntryTransition();
+      failGameEntryTransition('載入逾時・重新整理', 'game-view');
       return;
     }
     gameEntryTransitionTimer = window.setTimeout(watchGameEntryTransition, 100);
@@ -701,9 +831,12 @@
     }
   }
 
-  function createGameEntryGate() {
+  function createGameEntryGate(initialState) {
     if (typeof document === 'undefined' || !document.body) return false;
-    if (document.getElementById(GAME_ENTRY_GATE_ID)) return true;
+    if (document.getElementById(GAME_ENTRY_GATE_ID)) {
+      if (initialState) setGameEntryGateState(initialState);
+      return true;
+    }
 
     var gate = document.createElement('div');
     gate.id = GAME_ENTRY_GATE_ID;
@@ -736,6 +869,7 @@
     });
     gate.appendChild(button);
     document.body.appendChild(gate);
+    setGameEntryGateState(initialState || 'ready');
     window.setTimeout(function () {
       if (typeof button.focus === 'function') button.focus({ preventScroll: true });
     }, 0);
@@ -747,33 +881,33 @@
     if (gameEntryPollTimer) window.clearTimeout(gameEntryPollTimer);
     gameEntryPollTimer = 0;
 
-    try {
-      var loading = window.App && window.App.gameLoading;
-      if (loading && loading.node && loading.node.active === false) {
-        removeGameEntryGate();
-        return;
-      }
-    } catch (_error) {
-      // Continue polling until both the loading view and IntroView are mounted.
+    if (isGameEntryTransitionReady()) {
+      removeGameEntryGate();
+      notifyParent('seth2:entered');
+      return;
     }
 
     if (findIntroView()) {
       markLoadingComplete();
-      createGameEntryGate();
+      createGameEntryGate('ready');
       return;
     }
 
-    gameEntryPollAttempt += 1;
-    if (gameEntryPollAttempt < 1440) {
-      gameEntryPollTimer = window.setTimeout(showGameEntryGateWhenReady, 125);
+    if (Date.now() - gameEntryPollStartedAt >= GAME_ENTRY_BOOT_TIMEOUT_MS) {
+      failGameEntryTransition('遊戲素材載入逾時・重新整理', 'intro-view');
+      return;
     }
+    createGameEntryGate('loading');
+    gameEntryPollTimer = window.setTimeout(showGameEntryGateWhenReady, 125);
   }
 
   function scheduleGameEntryGate() {
-    gameEntryPollAttempt = 0;
+    gameEntryPollStartedAt = Date.now();
     gameEntryTransitionStartedAt = 0;
     gameEntryPaintPending = false;
     gameEntryInProgress = false;
+    bindGameCanvasRecovery();
+    createGameEntryGate('loading');
     showGameEntryGateWhenReady();
   }
 
@@ -957,6 +1091,8 @@
     findIntroView: findIntroView,
     enterReadyGame: enterReadyGame,
     failGameEntryTransition: failGameEntryTransition,
+    gameCanvasIsReady: gameCanvasIsReady,
+    guardGameViewClass: guardGameViewClass,
     isGameEntryTransitionReady: isGameEntryTransitionReady,
     markLoadingComplete: markLoadingComplete,
     watchGameEntryTransition: watchGameEntryTransition,
