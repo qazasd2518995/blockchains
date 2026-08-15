@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SETH2_RATIO_VALUES } from '@bg/shared';
+import { SETH2_RATIO_VALUES, SETH2_STAKE_VALUES } from '@bg/shared';
 
 const operationId = z
   .string()
@@ -123,7 +123,28 @@ const settingsData = z.union([
     .refine((value) => Object.keys(value).length > 0, 'Empty settings update'),
   z.object({
     type: z.literal('game'),
-    data: z.object({ turbo: z.boolean() }).strict(),
+    data: z
+      .object({
+        turbo: z.boolean().optional(),
+        notify: z.boolean().optional(),
+        stopOnJackpot: z.boolean().optional(),
+        backgroundVolume: z.coerce.number().min(0).max(1).optional(),
+        effectVolume: z.coerce.number().min(0).max(1).optional(),
+        stakeIndex: z.coerce
+          .number()
+          .int()
+          .min(0)
+          .max(SETH2_STAKE_VALUES.length - 1)
+          .optional(),
+        ratioIndex: z.coerce
+          .number()
+          .int()
+          .min(0)
+          .max(SETH2_RATIO_VALUES.length - 1)
+          .optional(),
+      })
+      .strict()
+      .refine((value) => Object.keys(value).length > 0, 'Empty game settings update'),
   }),
 ]);
 

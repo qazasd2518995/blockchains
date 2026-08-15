@@ -5,7 +5,7 @@
     <title>黃金賽特 II：覺醒之力</title>
     <meta
       name="viewport"
-      content="width=device-width,user-scalable=no,initial-scale=1,minimum-scale=1,maximum-scale=1,minimal-ui=true"
+      content="width=device-width,user-scalable=no,initial-scale=1,minimum-scale=1,maximum-scale=1"
     />
     <meta name="apple-mobile-web-app-capable" content="false" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -27,20 +27,10 @@
     <link rel="preload" href="./application.js" as="script" />
     <link rel="preload" href="./src/settings.json" as="fetch" crossorigin="anonymous" />
     <link rel="preload" href="./cocos-js/cc.js" as="script" />
-    <link
-      rel="preload"
-      href="./assets/internal/config.json"
-      as="fetch"
-      crossorigin="anonymous"
-    />
+    <link rel="preload" href="./assets/internal/config.json" as="fetch" crossorigin="anonymous" />
     <link rel="preload" href="./assets/main/config.json" as="fetch" crossorigin="anonymous" />
     <link rel="preload" href="./assets/main/index.js" as="script" crossorigin="anonymous" />
-    <link
-      rel="preload"
-      href="./assets/resources/config.json"
-      as="fetch"
-      crossorigin="anonymous"
-    />
+    <link rel="preload" href="./assets/resources/config.json" as="fetch" crossorigin="anonymous" />
     <link rel="preload" href="./assets/g1005/config.json" as="fetch" crossorigin="anonymous" />
     <link rel="preload" href="./assets/g1005/index.js" as="script" crossorigin="anonymous" />
   </head>
@@ -49,7 +39,10 @@
     <div id="loadingMsg" role="status" aria-live="polite">遊戲載入中…</div>
     <div id="orientation"><div class="icon"></div></div>
     <div class="blur"></div>
-    <div id="swipe"><div class="swipe"></div><div class="fullscreen-icon"></div></div>
+    <div id="swipe">
+      <div class="swipe"></div>
+      <div class="fullscreen-icon"></div>
+    </div>
     <div id="GameWrapper">
       <div id="GameDiv" cc_exact_fit_screen="true">
         <div id="Cocos3dGameContainer">

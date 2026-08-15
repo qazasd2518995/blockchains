@@ -108,6 +108,7 @@ const {
   wrapFrameworkDispatch,
   findIntroView,
   enterReadyGame,
+  bindGameCanvasRecovery,
   gameCanvasIsReady,
   guardGameViewClass,
   isGameEntryTransitionReady,
@@ -242,14 +243,21 @@ context.App = {
       })),
     },
   },
+  globalAudio: {
+    musicVolume: 1,
+    effectVolume: 1,
+    isMusicOn: false,
+    isEffectOn: true,
+  },
 };
-let gameCanvasContextLost = false;
+const gameCanvasListeners = new Map();
 const gameCanvas = {
   width: 720,
   height: 1280,
-  addEventListener: () => {},
-  getContext: (type) =>
-    type === 'webgl2' ? { isContextLost: () => gameCanvasContextLost } : null,
+  addEventListener: (type, listener) => gameCanvasListeners.set(type, listener),
+  getContext: () => {
+    throw new Error('entry readiness must not reacquire a mobile WebGL context');
+  },
 };
 let activeEntryGate;
 function createEntryGateDouble() {
@@ -282,6 +290,12 @@ context.document = {
   },
 };
 assert.equal(findIntroView(), introView);
+assert.equal(bindGameCanvasRecovery(), true);
+context.__YachiyoSeth2UnlockAudio();
+assert.equal(context.App.globalAudio.musicVolume, 0.25);
+assert.equal(context.App.globalAudio.effectVolume, 0);
+assert.equal(context.App.globalAudio.isMusicOn, true);
+assert.equal(context.App.globalAudio.isEffectOn, false);
 
 // Cocos activates GameView before GameView.init() builds its four UI layers.
 // That state used to uncover a black canvas on iOS and must not count as ready.
@@ -310,10 +324,17 @@ const paintDelay = longTimers.findLast((timer) => timer.delay === 300);
 assert.ok(paintDelay);
 paintDelay.callback();
 assert.equal(activeEntryGate, null, 'entry gate is removed only after the game scene is painted');
-gameCanvasContextLost = true;
+let preventedContextLoss = false;
+gameCanvasListeners.get('webglcontextlost')({
+  preventDefault: () => {
+    preventedContextLoss = true;
+  },
+});
+assert.equal(preventedContextLoss, true);
 assert.equal(gameCanvasIsReady(), false);
 assert.equal(isGameEntryTransitionReady(), false);
-gameCanvasContextLost = false;
+gameCanvasListeners.get('webglcontextrestored')();
+assert.equal(gameCanvasIsReady(), true);
 
 activeEntryGate = createEntryGateDouble();
 completeEntryTransition = false;

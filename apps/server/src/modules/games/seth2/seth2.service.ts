@@ -18,6 +18,7 @@ import {
   SETH2_FREE_SPINS,
   SETH2_MAX_FREE_SPINS,
   SETH2_MAX_WIN_MULTIPLIER,
+  getBettingLimitForGame,
   type Seth2FeatureMode,
   type Seth2ProtocolResponse,
   type Seth2ReturnData,
@@ -221,6 +222,11 @@ export class Seth2Service {
         ]);
         const machineId = playerState?.selectedMachineId ?? 1;
         const savedSettings = jsonObject(playerState?.settings);
+        const bettingLimit = getBettingLimitForGame(
+          user.bettingLimits,
+          GAME_ID,
+          user.bettingLimitLevel,
+        );
         const platformBase = seth2SourcePlatform(
           {
             id: user.id,
@@ -231,6 +237,16 @@ export class Seth2Service {
           machineId,
           savedSettings,
           jackpotPoolPayload(jackpotPool ?? SETH2_JACKPOT_SEEDS),
+          bettingLimit,
+        );
+        const initialStakeIndex = platformBase.player.settings.stakeIndex;
+        const initialRatioIndex = platformBase.player.settings.ratioIndex;
+        const initialTotalStake = Number(
+          (
+            platformBase.game.stakeValues[initialStakeIndex]! *
+            platformBase.game.ratioValues[initialRatioIndex]! *
+            SETH2_SOURCE_DEFINITION.winlineDefs.length
+          ).toFixed(2),
         );
         const platform = {
           ...platformBase,
@@ -251,7 +267,7 @@ export class Seth2Service {
           isResuming: Boolean(resumedStates),
           engine: {
             definition: SETH2_SOURCE_DEFINITION,
-            gameState: resumedStates ?? [seth2SourceInitialState()],
+            gameState: resumedStates ?? [seth2SourceInitialState(initialTotalStake)],
             spinId: resumedStates ? activeSequence!.betId : '',
           },
           platform,
@@ -454,6 +470,8 @@ export class Seth2Service {
         username: true,
         displayName: true,
         balance: true,
+        bettingLimits: true,
+        bettingLimitLevel: true,
         frozenAt: true,
         disabledAt: true,
       },
@@ -1791,9 +1809,42 @@ export function mergeSeth2PlayerSettings(
   if (patch.type === 'game') {
     const gameData = jsonObject(patch.data as Prisma.JsonValue);
     const advanced = jsonObject(existing.advancedSettings as Prisma.JsonValue) ?? {};
+    const sounds = jsonObject(advanced.sounds as Prisma.JsonValue) ?? {};
+    const autoPlay = jsonObject(existing.autoPlay as Prisma.JsonValue) ?? {};
+    const hasAdvancedPatch =
+      gameData?.turbo !== undefined ||
+      gameData?.notify !== undefined ||
+      gameData?.backgroundVolume !== undefined ||
+      gameData?.effectVolume !== undefined;
     return {
       ...existing,
-      advancedSettings: { ...advanced, turbo: Boolean(gameData?.turbo) },
+      ...(gameData?.stakeIndex === undefined ? {} : { stakeIndex: Number(gameData.stakeIndex) }),
+      ...(gameData?.ratioIndex === undefined ? {} : { ratioIndex: Number(gameData.ratioIndex) }),
+      ...(gameData?.stopOnJackpot === undefined
+        ? {}
+        : { autoPlay: { ...autoPlay, stopOnJackpot: Boolean(gameData.stopOnJackpot) } }),
+      ...(hasAdvancedPatch
+        ? {
+            advancedSettings: {
+              ...advanced,
+              ...(gameData?.turbo === undefined ? {} : { turbo: Boolean(gameData.turbo) }),
+              ...(gameData?.notify === undefined ? {} : { notify: Boolean(gameData.notify) }),
+              ...(gameData?.backgroundVolume === undefined && gameData?.effectVolume === undefined
+                ? {}
+                : {
+                    sounds: {
+                      ...sounds,
+                      ...(gameData.backgroundVolume === undefined
+                        ? {}
+                        : { backgroundVolume: Number(gameData.backgroundVolume) }),
+                      ...(gameData.effectVolume === undefined
+                        ? {}
+                        : { effectVolume: Number(gameData.effectVolume) }),
+                    },
+                  }),
+            },
+          }
+        : {}),
     };
   }
   const advanced = jsonObject(existing.advancedSettings as Prisma.JsonValue) ?? {};

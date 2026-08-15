@@ -526,14 +526,14 @@
     var effects = readAudioPreference(SFX_PREFS_KEY, 0.6);
     try {
       var audio = window.App && window.App.globalAudio;
-      if (audio && typeof audio.getAudioInfo === 'function') {
-        var info = audio.getAudioInfo();
-        if (info && info.musicSource) info.musicSource.volume = music.muted ? 0 : music.volume;
-        if (info && Array.isArray(info.effectSources)) {
-          info.effectSources.forEach(function (source) {
-            source.volume = effects.muted ? 0 : effects.volume;
-          });
-        }
+      if (audio) {
+        // GlobalAudio.getAudioInfo(url, bundle) loads one specific effect and
+        // rejects when called without both arguments. AudioComponent already
+        // exposes authoritative setters that update every running source.
+        if ('musicVolume' in audio) audio.musicVolume = music.muted ? 0 : music.volume;
+        if ('effectVolume' in audio) audio.effectVolume = effects.muted ? 0 : effects.volume;
+        if ('isMusicOn' in audio) audio.isMusicOn = !music.muted;
+        if ('isEffectOn' in audio) audio.isEffectOn = !effects.muted;
       }
     } catch (_error) {
       // Initial settings remain authoritative until the audio nodes are ready.
@@ -587,9 +587,12 @@
   function resumeAudioFromGesture() {
     syncRunningAudio();
     try {
-      var audioContext =
-        window.cc && window.cc.audioEngine && window.cc.audioEngine._audioContext;
-      if (audioContext && audioContext.state === 'suspended' && typeof audioContext.resume === 'function') {
+      var audioContext = window.cc && window.cc.audioEngine && window.cc.audioEngine._audioContext;
+      if (
+        audioContext &&
+        audioContext.state === 'suspended' &&
+        typeof audioContext.resume === 'function'
+      ) {
         audioContext.resume().catch(function () {});
       }
     } catch (_error) {
@@ -654,16 +657,10 @@
   function gameCanvasIsReady() {
     if (gameCanvasContextLost || typeof document === 'undefined') return false;
     var canvas = document.getElementById('GameCanvas');
-    if (!canvas || Number(canvas.width) < 2 || Number(canvas.height) < 2) return false;
-    try {
-      var context =
-        (typeof canvas.getContext === 'function' && canvas.getContext('webgl2')) ||
-        (typeof canvas.getContext === 'function' && canvas.getContext('webgl')) ||
-        (typeof canvas.getContext === 'function' && canvas.getContext('experimental-webgl'));
-      return Boolean(context && (!context.isContextLost || !context.isContextLost()));
-    } catch (_error) {
-      return false;
-    }
+    // Re-requesting an existing WebGL context is unreliable in mobile Safari
+    // and can return null even while the Cocos scene is visibly rendering.
+    // Canvas dimensions plus the explicit context-lost event are stable.
+    return Boolean(canvas && Number(canvas.width) >= 2 && Number(canvas.height) >= 2);
   }
 
   function isGameEntryTransitionReady() {
@@ -687,7 +684,9 @@
         activeChildNamed(gameView.gameLayer, 'BackgroundView') &&
         activeChildNamed(gameView.gameLayer, 'ReelView') &&
         activeChildNamed(gameView.gameLayer, 'SymbolView');
-      return Boolean(loadingClosed && gameViewActive && uiReady && boardReady && gameCanvasIsReady());
+      return Boolean(
+        loadingClosed && gameViewActive && uiReady && boardReady && gameCanvasIsReady(),
+      );
     } catch (_error) {
       return false;
     }
@@ -1090,6 +1089,7 @@
     wrapFrameworkDispatch: wrapFrameworkDispatch,
     findIntroView: findIntroView,
     enterReadyGame: enterReadyGame,
+    bindGameCanvasRecovery: bindGameCanvasRecovery,
     failGameEntryTransition: failGameEntryTransition,
     gameCanvasIsReady: gameCanvasIsReady,
     guardGameViewClass: guardGameViewClass,

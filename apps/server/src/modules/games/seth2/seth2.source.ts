@@ -543,12 +543,91 @@ export function seth2SourceInitialState(totalStake = 2) {
   };
 }
 
+interface Seth2SourceBettingLimit {
+  min: number;
+  max: number;
+}
+
+export function seth2SourceBetOptions(limit?: Seth2SourceBettingLimit) {
+  const allStakes = [...SETH2_STAKE_VALUES];
+  const allRatios = [...SETH2_RATIO_VALUES];
+  if (
+    !limit ||
+    !Number.isFinite(limit.min) ||
+    !Number.isFinite(limit.max) ||
+    limit.min <= 0 ||
+    limit.max < limit.min
+  ) {
+    return { stakeValues: allStakes, ratioValues: allRatios, stakeList: [] };
+  }
+
+  let best:
+    | {
+        stakeValues: number[];
+        ratioValues: number[];
+        minGap: number;
+        maxGap: number;
+        combinations: number;
+      }
+    | undefined;
+  for (let stakeStart = 0; stakeStart < allStakes.length; stakeStart += 1) {
+    for (let stakeEnd = stakeStart; stakeEnd < allStakes.length; stakeEnd += 1) {
+      for (let ratioStart = 0; ratioStart < allRatios.length; ratioStart += 1) {
+        for (let ratioEnd = ratioStart; ratioEnd < allRatios.length; ratioEnd += 1) {
+          const minimum = money(allStakes[stakeStart]! * allRatios[ratioStart]! * 20);
+          const maximum = money(allStakes[stakeEnd]! * allRatios[ratioEnd]! * 20);
+          if (minimum < limit.min || maximum > limit.max) continue;
+          const candidate = {
+            stakeValues: allStakes.slice(stakeStart, stakeEnd + 1),
+            ratioValues: allRatios.slice(ratioStart, ratioEnd + 1),
+            minGap: minimum - limit.min,
+            maxGap: limit.max - maximum,
+            combinations: (stakeEnd - stakeStart + 1) * (ratioEnd - ratioStart + 1),
+          };
+          if (
+            !best ||
+            candidate.minGap < best.minGap ||
+            (candidate.minGap === best.minGap && candidate.maxGap < best.maxGap) ||
+            (candidate.minGap === best.minGap &&
+              candidate.maxGap === best.maxGap &&
+              candidate.combinations > best.combinations)
+          ) {
+            best = candidate;
+          }
+        }
+      }
+    }
+  }
+
+  if (!best) return { stakeValues: allStakes, ratioValues: allRatios, stakeList: [] };
+  const stakeList = Array.from(
+    new Set(
+      best.stakeValues.flatMap((stake) =>
+        best.ratioValues.map((ratio) => money(stake * ratio * 20)),
+      ),
+    ),
+  ).sort((left, right) => left - right);
+  return {
+    stakeValues: best.stakeValues,
+    ratioValues: best.ratioValues,
+    stakeList,
+  };
+}
+
+function sourceSettingIndex(value: unknown, length: number): number {
+  const index = Number(value);
+  if (!Number.isInteger(index)) return 0;
+  return Math.max(0, Math.min(length - 1, index));
+}
+
 export function seth2SourcePlatform(
   player: { id: string; username: string; displayName: string | null; balance: number },
   machineId = 1,
   savedSettings: Record<string, unknown> | null = null,
   jackpotPools: Record<string, number> | null = null,
+  bettingLimit?: Seth2SourceBettingLimit,
 ) {
+  const betOptions = seth2SourceBetOptions(bettingLimit);
   const defaultSettings = {
     advancedSettings: {
       sounds: { background: true, backgroundVolume: 0.32, effect: true, effectVolume: 0.6 },
@@ -568,7 +647,7 @@ export function seth2SourcePlatform(
   const savedAdvanced = objectValue(savedSettings?.advancedSettings);
   const savedSounds = objectValue(savedAdvanced?.sounds);
   const savedAutoPlay = objectValue(savedSettings?.autoPlay);
-  const settings = savedSettings
+  const mergedSettings = savedSettings
     ? {
         ...defaultSettings,
         ...savedSettings,
@@ -586,11 +665,16 @@ export function seth2SourcePlatform(
         },
       }
     : defaultSettings;
+  const settings = {
+    ...mergedSettings,
+    stakeIndex: sourceSettingIndex(mergedSettings.stakeIndex, betOptions.stakeValues.length),
+    ratioIndex: sourceSettingIndex(mergedSettings.ratioIndex, betOptions.ratioValues.length),
+  };
   return {
     game: {
-      stakeValues: [...SETH2_STAKE_VALUES],
-      ratioValues: [...SETH2_RATIO_VALUES],
-      stakeList: [],
+      stakeValues: betOptions.stakeValues,
+      ratioValues: betOptions.ratioValues,
+      stakeList: betOptions.stakeList,
       superMgRealStakeLimit: 10_000_000,
     },
     player: {

@@ -234,6 +234,51 @@ describe('Seth2 event contracts', () => {
       },
     });
   });
+
+  it('accepts original stake controls and persists both indices without changing turbo', () => {
+    const request = {
+      event: 'updateSettings',
+      data: {
+        settings: {
+          type: 'game',
+          data: {
+            stakeIndex: 3,
+            ratioIndex: 2,
+            backgroundVolume: 0.4,
+            effectVolume: 0.7,
+            notify: false,
+            stopOnJackpot: true,
+          },
+        },
+      },
+    } as const;
+    expect(seth2SourceSchema.safeParse(request).success).toBe(true);
+    expect(
+      mergeSeth2PlayerSettings(
+        {
+          advancedSettings: { sounds: { background: true, effect: true }, turbo: true },
+          autoPlay: { numberOfPlays: [10] },
+          stakeIndex: 0,
+          ratioIndex: 0,
+        },
+        request.data.settings,
+      ),
+    ).toEqual({
+      advancedSettings: {
+        sounds: {
+          background: true,
+          effect: true,
+          backgroundVolume: 0.4,
+          effectVolume: 0.7,
+        },
+        turbo: true,
+        notify: false,
+      },
+      autoPlay: { numberOfPlays: [10], stopOnJackpot: true },
+      stakeIndex: 3,
+      ratioIndex: 2,
+    });
+  });
 });
 
 describe('Seth2 idempotent settlement replay', () => {

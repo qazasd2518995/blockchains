@@ -89,6 +89,25 @@ describe('Seth 2 v1.1.5 source contract', () => {
     });
   });
 
+  it('only publishes stake combinations inside the member betting limit', () => {
+    const platform = seth2SourcePlatform(
+      { id: 'player', username: 'player', displayName: null, balance: 100 },
+      1,
+      null,
+      null,
+      { min: 10, max: 5_000 },
+    );
+    const totals = platform.game.stakeValues.flatMap((stake) =>
+      platform.game.ratioValues.map((ratio) => Number((stake * ratio * 20).toFixed(2))),
+    );
+
+    expect(platform.player.settings.stakeIndex).toBe(0);
+    expect(platform.player.settings.ratioIndex).toBe(0);
+    expect(Math.min(...totals)).toBe(10);
+    expect(Math.max(...totals)).toBeLessThanOrEqual(5_000);
+    expect(platform.game.stakeList).toEqual([...new Set(totals)].sort((a, b) => a - b));
+  });
+
   it('matches the captured paytable, 15-game award and all three purchase modes', () => {
     expect(SETH2_SOURCE_DEFINITION.oddsList[15]).toEqual({ 4: 60, 5: 100, 6: 2_000 });
     expect(SETH2_SOURCE_DEFINITION.extraFgRounds).toBe(5);
