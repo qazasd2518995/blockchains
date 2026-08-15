@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { H5_GAME_IDS, type GameMetadata } from '@bg/shared';
 import { warmGameAssets } from '@/lib/gameAssetManifest';
@@ -93,6 +94,20 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
   const routeState = returnTo ? { returnTo, returnLabel } : undefined;
   const warmAssets = () => warmGameAssets(game.id);
   const title = getLocalizedGameTitle(game.id, locale, game.nameZh);
+
+  useEffect(() => {
+    if (game.id !== 'storm-of-seth-2') return undefined;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    if (idleWindow.requestIdleCallback) {
+      const handle = idleWindow.requestIdleCallback(warmAssets, { timeout: 1200 });
+      return () => idleWindow.cancelIdleCallback?.(handle);
+    }
+    const handle = window.setTimeout(warmAssets, 450);
+    return () => window.clearTimeout(handle);
+  }, [game.id]);
 
   return (
     <Link

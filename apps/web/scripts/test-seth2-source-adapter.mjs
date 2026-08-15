@@ -95,6 +95,9 @@ const {
   publicError,
   guardBigwinClass,
   wrapFrameworkDispatch,
+  findIntroView,
+  enterReadyGame,
+  markLoadingComplete,
 } = context.__YachiyoSeth2SourceAdapterTest;
 assert.equal(typeof context.io.connect, 'function');
 assert.equal(String(context.io.connect).includes('LocalSocket'), true);
@@ -179,6 +182,32 @@ assert.equal(JSON.parse(requests.at(-1).options.body).event, 'initial');
 assert.equal(parentMessages.at(-1).type, 'seth2:ready');
 assert.equal(latestJackpotNotification.type, 'jackpotUpdate');
 assert.deepEqual(structuredClone(latestJackpotNotification.data), response.platform.jackpotPools);
+
+let introTouchStarts = 0;
+const introView = {
+  node: { name: 'IntroView' },
+  bbr: {
+    emit: (eventName) => {
+      assert.equal(eventName, 'touch-start');
+      introTouchStarts += 1;
+    },
+  },
+  startGame: {},
+};
+context.cc = {
+  Component: function Component() {},
+  Node: { EventType: { TOUCH_START: 'touch-start' } },
+  director: { getScene: () => ({ getComponentsInChildren: () => [introView] }) },
+};
+context.App = {
+  gameLoading: { loadTotal: 25, loadedNum: 24, percentText: { string: '96%' } },
+};
+assert.equal(findIntroView(), introView);
+markLoadingComplete();
+assert.equal(context.App.gameLoading.loadedNum, 24);
+assert.equal(context.App.gameLoading.percentText.string, '100%');
+assert.equal(enterReadyGame(), true);
+assert.equal(introTouchStarts, 1);
 requests.length = 0;
 parentMessages.length = 0;
 

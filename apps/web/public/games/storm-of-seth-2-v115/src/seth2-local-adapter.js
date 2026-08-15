@@ -13,6 +13,10 @@
   var SFX_PREFS_KEY = 'bg.sfx.prefs';
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
   var UPDATE_TOTAL_WINNINGS = 'SlotFrameworkEvent:UPDATE_TOTAL_WINNINGS';
+  var GAME_ENTRY_GATE_ID = 'yachiyo-seth2-entry-gate';
+  var gameEntryPollTimer = 0;
+  var gameEntryPollAttempt = 0;
+  var gameEntryInProgress = false;
 
   function wrapFrameworkDispatch(dispatcher) {
     if (typeof dispatcher !== 'function' || dispatcher.__yachiyoTotalWinGuard) return dispatcher;
@@ -483,6 +487,162 @@
     }
   }
 
+  function findIntroView() {
+    try {
+      var cocos = window.cc;
+      var scene = cocos && cocos.director && cocos.director.getScene();
+      if (!scene || typeof scene.getComponentsInChildren !== 'function') return null;
+      var components = scene.getComponentsInChildren(cocos.Component) || [];
+      for (var index = 0; index < components.length; index += 1) {
+        var component = components[index];
+        if (
+          component &&
+          component.node &&
+          component.node.name === 'IntroView' &&
+          component.bbr &&
+          typeof component.bbr.emit === 'function' &&
+          typeof component.startGame === 'object'
+        ) {
+          return component;
+        }
+      }
+    } catch (_error) {
+      // The scene graph is still being built; the ready poll will try again.
+    }
+    return null;
+  }
+
+  function markLoadingComplete() {
+    try {
+      var loading = window.App && window.App.gameLoading;
+      if (!loading) return;
+      // GameLoading.complete() contributes the final handler-ready unit. Keep
+      // the internal counter at total - 1 so that click reaches exactly 100%
+      // (setting it to total here would produce 104% and skip Cocos' hide path).
+      var total = Number(loading.loadTotal);
+      if (Number.isFinite(total) && total > 0 && Number(loading.loadedNum) >= total) {
+        loading.loadedNum = total - 1;
+      }
+      if (loading.percentText) loading.percentText.string = '100%';
+      if (loading.bar) loading.bar.progress = 1;
+    } catch (_error) {
+      // The entry button remains authoritative even when a source build uses a
+      // different loading-label implementation.
+    }
+  }
+
+  function resumeAudioFromGesture() {
+    syncRunningAudio();
+    try {
+      var audioContext =
+        window.cc && window.cc.audioEngine && window.cc.audioEngine._audioContext;
+      if (audioContext && audioContext.state === 'suspended' && typeof audioContext.resume === 'function') {
+        audioContext.resume().catch(function () {});
+      }
+    } catch (_error) {
+      // The original IntroView handler still performs its normal audio setup.
+    }
+  }
+
+  function removeGameEntryGate() {
+    if (gameEntryPollTimer) {
+      window.clearTimeout(gameEntryPollTimer);
+      gameEntryPollTimer = 0;
+    }
+    if (typeof document === 'undefined') return;
+    var gate = document.getElementById(GAME_ENTRY_GATE_ID);
+    if (gate && gate.parentNode) gate.parentNode.removeChild(gate);
+  }
+
+  function enterReadyGame() {
+    if (gameEntryInProgress) return false;
+    var introView = findIntroView();
+    if (!introView) return false;
+    gameEntryInProgress = true;
+    resumeAudioFromGesture();
+    try {
+      var eventType =
+        window.cc && window.cc.Node && window.cc.Node.EventType
+          ? window.cc.Node.EventType.TOUCH_START
+          : 'touch-start';
+      introView.bbr.emit(eventType, {});
+      removeGameEntryGate();
+      return true;
+    } catch (_error) {
+      gameEntryInProgress = false;
+      return false;
+    }
+  }
+
+  function createGameEntryGate() {
+    if (typeof document === 'undefined' || !document.body) return false;
+    if (document.getElementById(GAME_ENTRY_GATE_ID)) return true;
+
+    var gate = document.createElement('div');
+    gate.id = GAME_ENTRY_GATE_ID;
+    gate.setAttribute('role', 'dialog');
+    gate.setAttribute('aria-label', '遊戲載入完成');
+    gate.style.cssText =
+      'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;' +
+      'justify-content:center;pointer-events:none;padding:24px;box-sizing:border-box;';
+
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = '進入遊戲';
+    button.setAttribute('aria-label', '進入遊戲');
+    button.style.cssText =
+      'pointer-events:auto;min-width:180px;min-height:58px;padding:14px 34px;border:2px solid #ffe894;' +
+      'border-radius:999px;background:linear-gradient(180deg,#8c4cff 0%,#5a20c9 100%);' +
+      'box-shadow:0 8px 28px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.45);' +
+      'color:#fff;font:800 20px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
+      'letter-spacing:.08em;text-shadow:0 2px 3px rgba(0,0,0,.55);touch-action:manipulation;' +
+      '-webkit-tap-highlight-color:transparent;cursor:pointer;';
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!enterReadyGame()) gameEntryInProgress = false;
+    });
+    gate.appendChild(button);
+    document.body.appendChild(gate);
+    window.setTimeout(function () {
+      if (typeof button.focus === 'function') button.focus({ preventScroll: true });
+    }, 0);
+    return true;
+  }
+
+  function showGameEntryGateWhenReady() {
+    if (typeof document === 'undefined') return;
+    if (gameEntryPollTimer) window.clearTimeout(gameEntryPollTimer);
+    gameEntryPollTimer = 0;
+
+    try {
+      var loading = window.App && window.App.gameLoading;
+      if (loading && loading.node && loading.node.active === false) {
+        removeGameEntryGate();
+        return;
+      }
+    } catch (_error) {
+      // Continue polling until both the loading view and IntroView are mounted.
+    }
+
+    if (findIntroView()) {
+      markLoadingComplete();
+      createGameEntryGate();
+      return;
+    }
+
+    gameEntryPollAttempt += 1;
+    if (gameEntryPollAttempt < 1440) {
+      gameEntryPollTimer = window.setTimeout(showGameEntryGateWhenReady, 125);
+    }
+  }
+
+  function scheduleGameEntryGate() {
+    gameEntryPollAttempt = 0;
+    gameEntryInProgress = false;
+    showGameEntryGateWhenReady();
+  }
+
   function LocalSocket() {
     this.connected = false;
     this.handlers = Object.create(null);
@@ -579,6 +739,7 @@
               response.platform.player.balance.amount,
           );
           notifyParent('seth2:ready', { balance: balance });
+          scheduleGameEntryGate();
         } else if (response && response.platform && response.platform.player) {
           notifyParent('seth2:balance', {
             balance: Number(response.platform.player.balance.amount),
@@ -659,6 +820,9 @@
     publicError: publicError,
     guardBigwinClass: guardBigwinClass,
     wrapFrameworkDispatch: wrapFrameworkDispatch,
+    findIntroView: findIntroView,
+    enterReadyGame: enterReadyGame,
+    markLoadingComplete: markLoadingComplete,
   };
 
   if (typeof document !== 'undefined') prefetchInitialResponse();

@@ -21,9 +21,28 @@
     <link rel="icon" href="public/favicon.ico" />
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="game.css" />
-    <!-- Pull the 2.2 MB engine onto the wire before the SystemJS bootstrap
-         reaches it, without changing texture or rendering quality. -->
+    <!-- Pull the startup dependency chain onto the wire before SystemJS and
+         Cocos discover it serially. These are the original full-quality files. -->
+    <link rel="preload" href="./app.js" as="script" />
+    <link rel="preload" href="./application.js" as="script" />
+    <link rel="preload" href="./src/settings.json" as="fetch" crossorigin="anonymous" />
     <link rel="preload" href="./cocos-js/cc.js" as="script" />
+    <link
+      rel="preload"
+      href="./assets/internal/config.json"
+      as="fetch"
+      crossorigin="anonymous"
+    />
+    <link rel="preload" href="./assets/main/config.json" as="fetch" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/main/index.js" as="script" crossorigin="anonymous" />
+    <link
+      rel="preload"
+      href="./assets/resources/config.json"
+      as="fetch"
+      crossorigin="anonymous"
+    />
+    <link rel="preload" href="./assets/g1005/config.json" as="fetch" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/g1005/index.js" as="script" crossorigin="anonymous" />
   </head>
   <body>
     <div id="logo"><img src="./public/atg.png" alt="" /></div>

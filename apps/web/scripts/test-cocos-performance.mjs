@@ -37,7 +37,7 @@ for (const build of builds) {
     );
   }
   for (const match of preloadTags) {
-    if (match[1].startsWith('assets/')) {
+    if (match[1].includes('/assets/')) {
       assert.match(match[0], /crossorigin="anonymous"/);
     }
   }
@@ -50,6 +50,10 @@ for (const build of builds) {
     assert.match(applicationSource, /view_mode == "portrait"/);
     assert.match(applicationSource, /this\.showFPS = false/);
     assert.match(applicationSource, /debugMode:\s*cc\.DebugMode\.ERROR/);
+    assert.match(applicationSource, /maxConcurrency = concurrency/);
+    assert.match(applicationSource, /maxRequestsPerFrame = concurrency/);
+    assert.match(html, /assets\/g1005\/config\.json/);
+    assert.match(html, /assets\/g1005\/index\.js/);
   } else {
     assert.match(html, new RegExp(`<script src="${build.main.replace('.', '\\.')}`));
     const mainSource = fs.readFileSync(path.join(buildRoot, build.main), 'utf8');

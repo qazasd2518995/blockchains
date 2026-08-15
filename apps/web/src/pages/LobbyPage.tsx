@@ -507,6 +507,20 @@ function MobileGameCard({
   const clipPath = MOBILE_COVER_CLIP_PATHS[variant];
   const hasLongTitle = title.length >= 5;
 
+  useEffect(() => {
+    if (game.id !== 'storm-of-seth-2') return undefined;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    if (idleWindow.requestIdleCallback) {
+      const handle = idleWindow.requestIdleCallback(warmAssets, { timeout: 1200 });
+      return () => idleWindow.cancelIdleCallback?.(handle);
+    }
+    const handle = window.setTimeout(warmAssets, 450);
+    return () => window.clearTimeout(handle);
+  }, [game.id]);
+
   return (
     <Link
       to={mobileGamePath(game.id)}

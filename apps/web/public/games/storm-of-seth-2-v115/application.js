@@ -28,6 +28,16 @@ System.register([], function (_export, _context) {
           key: "init",
           value: function init(engine) {
             cc = engine;
+            // The source build ships with Cocos' conservative default of six
+            // downloads.  Its startup graph contains hundreds of small files,
+            // so allow HTTP/2 to fetch more of them in parallel without
+            // changing texture resolution, audio, or rendering quality.
+            if (cc.assetManager && cc.assetManager.downloader) {
+              var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+              var concurrency = isMobile ? 12 : 16;
+              cc.assetManager.downloader.maxConcurrency = concurrency;
+              cc.assetManager.downloader.maxRequestsPerFrame = concurrency;
+            }
             cc.game.onPostBaseInitDelegate.add(this.onPostInitBase.bind(this));
             cc.game.onPostSubsystemInitDelegate.add(this.onPostSystemInit.bind(this));
           }

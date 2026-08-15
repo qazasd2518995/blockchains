@@ -320,10 +320,20 @@ function warmCocosShell(gameId: string): void {
     if (warmedCocosShellAssets.has(assetEntry.src)) continue;
     warmedCocosShellAssets.add(assetEntry.src);
     const link = document.createElement('link');
-    link.rel = 'prefetch';
+    // Safari may indefinitely defer `prefetch`, especially on iPhone. Preload
+    // is intentional here: this only runs for an explicit pointer intent or
+    // the idle Seth 2 warmup, and lets the same-origin iframe reuse the HTTP
+    // cache immediately.
+    link.rel = 'preload';
     link.as = assetEntry.as;
     link.href = assetEntry.src;
-    if (assetEntry.as === 'fetch') link.crossOrigin = 'anonymous';
+    if (
+      assetEntry.as === 'fetch' ||
+      assetEntry.src.includes('/assets/') ||
+      assetEntry.src.includes('/slotFramework/')
+    ) {
+      link.crossOrigin = 'anonymous';
+    }
     document.head.appendChild(link);
   }
 }

@@ -47,8 +47,8 @@
     },
     {
       "path": "application.js",
-      "bytes": 3374,
-      "sha256": "1851986edba890bb4ffe148cdd151bf5e5bc4455bd8b412612d527e1e7579d12"
+      "bytes": 4040,
+      "sha256": "f38c11080cb8722d7e6f91578a44d24223fcbc5f474bc96315bc41787ddaea40"
     },
     {
       "path": "assets/g1005/config.json",
@@ -12602,8 +12602,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 2750,
-      "sha256": "ab011decdf420bc76948a5f280615cac5b9bf0ff69d7603551d9e3b3aa36c8a0"
+      "bytes": 3603,
+      "sha256": "76a49f3b5f810f8a3847a178c5374c7ac687fbbb01802c8381c3d0f8dd19ac4d"
     },
     {
       "path": "index.js",
@@ -12707,8 +12707,8 @@
     },
     {
       "path": "src/seth2-local-adapter.js",
-      "bytes": 23563,
-      "sha256": "18b34ec3418e2b922a12c273fb88485079c18da25dd05c67c0a6364048c153c9"
+      "bytes": 29483,
+      "sha256": "2ac06da61a52178c7bf25a1240bdaec40a5101deb049c1f48f2deeb1c2688b3b"
     },
     {
       "path": "src/settings.json",
