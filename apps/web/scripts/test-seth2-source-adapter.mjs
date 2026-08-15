@@ -7,6 +7,8 @@ const adapterPath = fileURLToPath(
   new URL('../public/games/storm-of-seth-2-v115/src/seth2-local-adapter.js', import.meta.url),
 );
 const source = fs.readFileSync(adapterPath, 'utf8');
+assert.equal(source.includes('yachiyo-seth2-entry-gate'), false);
+assert.equal(source.includes('audio.getAudioInfo()'), false);
 const values = new Map([
   [
     'bg-auth',
@@ -107,12 +109,16 @@ const {
   guardBigwinClass,
   wrapFrameworkDispatch,
   findIntroView,
-  enterReadyGame,
   bindGameCanvasRecovery,
   gameCanvasIsReady,
   guardGameViewClass,
   isGameEntryTransitionReady,
-  markLoadingComplete,
+  normalizeUpdateSettings,
+  patchRotateScreenButtons,
+  requestViewMode,
+  disposeGameForRemount,
+  syncRunningAudioWhenReady,
+  watchOriginalGameEntry,
 } = context.__YachiyoSeth2SourceAdapterTest;
 assert.equal(typeof context.io.connect, 'function');
 assert.equal(String(context.io.connect).includes('LocalSocket'), true);
@@ -199,26 +205,38 @@ assert.equal(latestJackpotNotification.type, 'jackpotUpdate');
 assert.deepEqual(structuredClone(latestJackpotNotification.data), response.platform.jackpotPools);
 
 let introTouchStarts = 0;
-let completeEntryTransition = true;
 const introView = {
   node: { name: 'IntroView' },
   bbr: {
-    emit: (eventName) => {
-      assert.equal(eventName, 'touch-start');
+    emit: () => {
       introTouchStarts += 1;
-      if (completeEntryTransition) {
-        context.App.gameLoading.node.active = false;
-        context.App.gameView.node.active = true;
-        context.App.gameView.node.activeInHierarchy = true;
-      }
     },
   },
   startGame: {},
 };
+let originalRotateRuns = 0;
+const rotateScreenButton = {
+  rotateScreenHandler: () => {
+    originalRotateRuns += 1;
+  },
+  showConfirmAlert: () => {},
+};
+let gamePaused = false;
+let directorPaused = false;
 context.cc = {
   Component: function Component() {},
   Node: { EventType: { TOUCH_START: 'touch-start' } },
-  director: { getScene: () => ({ getComponentsInChildren: () => [introView] }) },
+  game: {
+    pause: () => {
+      gamePaused = true;
+    },
+  },
+  director: {
+    getScene: () => ({ getComponentsInChildren: () => [introView, rotateScreenButton] }),
+    pause: () => {
+      directorPaused = true;
+    },
+  },
 };
 context.App = {
   gameLoading: {
@@ -243,11 +261,26 @@ context.App = {
       })),
     },
   },
-  globalAudio: {
-    musicVolume: 1,
-    effectVolume: 1,
-    isMusicOn: false,
-    isEffectOn: true,
+  globalAudio: { audioData: null },
+};
+const audioState = {
+  musicVolume: 1,
+  effectVolume: 1,
+  isMusicOn: false,
+  isEffectOn: true,
+};
+context.App.globalAudio.audioData = {
+  setMusicVolume: (value) => {
+    audioState.musicVolume = value;
+  },
+  setEffectVolume: (value) => {
+    audioState.effectVolume = value;
+  },
+  setMusicStatus: (value) => {
+    audioState.isMusicOn = value;
+  },
+  setEffectStatus: (value) => {
+    audioState.isEffectOn = value;
   },
 };
 const gameCanvasListeners = new Map();
@@ -259,46 +292,29 @@ const gameCanvas = {
     throw new Error('entry readiness must not reacquire a mobile WebGL context');
   },
 };
-let activeEntryGate;
-function createEntryGateDouble() {
-  const button = {
-    dataset: { action: 'enter' },
-    disabled: false,
-    style: {},
-    textContent: '進入遊戲',
-    setAttribute: () => {},
-  };
-  const gate = {
-    button,
-    parentNode: {
-      removeChild: () => {
-        activeEntryGate = null;
-      },
-    },
-    style: {},
-    setAttribute: () => {},
-    querySelector: (selector) => (selector === 'button' ? button : null),
-  };
-  return gate;
-}
-activeEntryGate = createEntryGateDouble();
 context.document = {
   getElementById: (id) => {
-    if (id === 'yachiyo-seth2-entry-gate') return activeEntryGate;
     if (id === 'GameCanvas') return gameCanvas;
     return null;
   },
 };
 assert.equal(findIntroView(), introView);
+parentMessages.length = 0;
+assert.equal(patchRotateScreenButtons(), true);
+assert.equal(rotateScreenButton.__yachiyoViewModeBridge, true);
+assert.equal(rotateScreenButton.rotateScreenHandler(), true);
+assert.equal(originalRotateRuns, 0, 'source rotate handler must not reload the iframe directly');
+assert.deepEqual(structuredClone(parentMessages.at(-1)), {
+  type: 'seth2:view-mode-request',
+  viewMode: 'portrait',
+});
+assert.equal(requestViewMode('invalid'), false);
 assert.equal(bindGameCanvasRecovery(), true);
-context.__YachiyoSeth2UnlockAudio();
-assert.equal(context.App.globalAudio.musicVolume, 0.25);
-assert.equal(context.App.globalAudio.effectVolume, 0);
-assert.equal(context.App.globalAudio.isMusicOn, true);
-assert.equal(context.App.globalAudio.isEffectOn, false);
+assert.equal(context.__YachiyoSeth2UnlockAudio(), false);
+assert.equal(audioState.musicVolume, 1, 'audio bridge waits until the game view exists');
 
 // Cocos activates GameView before GameView.init() builds its four UI layers.
-// That state used to uncover a black canvas on iOS and must not count as ready.
+// That state must not count as a fully entered game.
 const readySlotUIMap = context.App.gameView.slotUIMap;
 context.App.gameLoading.node.active = false;
 context.App.gameView.node.active = true;
@@ -310,20 +326,28 @@ context.App.gameView.node.active = false;
 context.App.gameView.node.activeInHierarchy = false;
 context.App.gameView.slotUIMap = readySlotUIMap;
 
-markLoadingComplete();
-assert.equal(context.App.gameLoading.loadedNum, 24);
-assert.equal(context.App.gameLoading.percentText.string, '100%');
-assert.equal(enterReadyGame(), true);
-assert.equal(introTouchStarts, 1);
+parentMessages.length = 0;
+watchOriginalGameEntry();
+assert.equal(parentMessages.at(-1).type, 'seth2:intro-ready');
+assert.equal(introTouchStarts, 0, 'adapter must not synthesize the original IntroView touch');
+assert.equal(
+  context.document.getElementById('yachiyo-seth2-entry-gate'),
+  null,
+  'the purple DOM entry gate is not created',
+);
+
+context.App.gameLoading.node.active = false;
+context.App.gameView.node.active = true;
+context.App.gameView.node.activeInHierarchy = true;
+watchOriginalGameEntry();
 assert.equal(gameCanvasIsReady(), true);
 assert.equal(isGameEntryTransitionReady(), true);
-assert.ok(activeEntryGate, 'entry gate must remain while WebKit paints the game scene');
-assert.equal(activeEntryGate.button.textContent, '正在進入遊戲…');
-for (let frame = 0; frame < 6; frame += 1) zeroTimers.shift()();
-const paintDelay = longTimers.findLast((timer) => timer.delay === 300);
-assert.ok(paintDelay);
-paintDelay.callback();
-assert.equal(activeEntryGate, null, 'entry gate is removed only after the game scene is painted');
+assert.equal(parentMessages.at(-1).type, 'seth2:entered');
+assert.equal(syncRunningAudioWhenReady(), true);
+assert.equal(audioState.musicVolume, 0.25);
+assert.equal(audioState.effectVolume, 0);
+assert.equal(audioState.isMusicOn, true);
+assert.equal(audioState.isEffectOn, false);
 let preventedContextLoss = false;
 gameCanvasListeners.get('webglcontextlost')({
   preventDefault: () => {
@@ -333,25 +357,40 @@ gameCanvasListeners.get('webglcontextlost')({
 assert.equal(preventedContextLoss, true);
 assert.equal(gameCanvasIsReady(), false);
 assert.equal(isGameEntryTransitionReady(), false);
+assert.equal(parentMessages.at(-1).type, 'seth2:error');
 gameCanvasListeners.get('webglcontextrestored')();
 assert.equal(gameCanvasIsReady(), true);
 
-activeEntryGate = createEntryGateDouble();
-completeEntryTransition = false;
-context.App.gameLoading.node.active = true;
-context.App.gameView.node.active = false;
-context.App.gameView.node.activeInHierarchy = false;
-testNow = 2_000;
-assert.equal(enterReadyGame(), true);
-assert.ok(activeEntryGate);
-testNow += 12_001;
-const entryTimeout = longTimers.findLast((timer) => timer.delay === 100);
-assert.ok(entryTimeout);
-entryTimeout.callback();
-assert.ok(activeEntryGate, 'timed-out entry keeps a visible recovery control');
-assert.equal(activeEntryGate.button.dataset.action, 'reload');
-assert.equal(activeEntryGate.button.disabled, false);
-assert.equal(activeEntryGate.button.textContent, '載入逾時・重新整理');
+let lostWebGlContext = false;
+gameCanvas.getContext = () => ({
+  getExtension: (name) =>
+    name === 'WEBGL_lose_context'
+      ? {
+          loseContext: () => {
+            lostWebGlContext = true;
+          },
+        }
+      : null,
+});
+parentMessages.length = 0;
+assert.equal(disposeGameForRemount(), true);
+assert.equal(gamePaused, true);
+assert.equal(directorPaused, true);
+assert.equal(lostWebGlContext, true);
+zeroTimers.shift()();
+assert.equal(parentMessages.at(-1).type, 'seth2:disposed');
+assert.equal(disposeGameForRemount(), false, 'disposal is idempotent');
+
+assert.deepEqual(
+  structuredClone(
+    normalizeUpdateSettings({
+      request: 'updateSettings',
+      type: 'game',
+      data: { turbo: true, stakeIndex: 3, unsupportedSourceFlag: true },
+    }),
+  ),
+  { type: 'game', data: { turbo: true, stakeIndex: 3 } },
+);
 
 function GuardedGameView() {}
 let guardedInitializations = 0;
@@ -381,7 +420,15 @@ assert.equal(parentMessages.at(-1).type, 'seth2:balance');
 assert.equal(parentMessages.at(-1).balance, 123.45);
 
 await new Promise((resolve) => {
-  socket.emit('updateSettings', { type: 'game', data: { turbo: true } }, resolve);
+  socket.emit(
+    'updateSettings',
+    {
+      request: 'updateSettings',
+      type: 'game',
+      data: { turbo: true, unsupportedSourceFlag: true },
+    },
+    resolve,
+  );
 });
 const settingsRequest = JSON.parse(requests.at(-1).options.body);
 assert.deepEqual(settingsRequest, {

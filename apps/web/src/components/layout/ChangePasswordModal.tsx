@@ -6,6 +6,7 @@ import { api, extractApiError } from '@/lib/api';
 interface ChangePasswordModalProps {
   open: boolean;
   onClose: () => void;
+  portalRoot?: HTMLElement | null;
 }
 
 const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).{8,128}$/;
@@ -28,7 +29,7 @@ function readModalViewport(): ModalViewport | null {
   };
 }
 
-export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps) {
+export function ChangePasswordModal({ open, onClose, portalRoot }: ChangePasswordModalProps) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -219,5 +220,5 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
   );
 
   if (typeof document === 'undefined') return modal;
-  return createPortal(modal, document.body);
+  return createPortal(modal, portalRoot ?? document.body);
 }

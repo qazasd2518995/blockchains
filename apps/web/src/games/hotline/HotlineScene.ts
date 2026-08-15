@@ -48,7 +48,6 @@ const MEGA_ROWS = 5;
 // 只保留可見列與落地動畫需要的緩衝列。被遮罩的列依然會增加 Pixi 每幀遍歷成本。
 const CLASSIC_REEL_STRIP_LEN = 9;
 const MEGA_REEL_STRIP_LEN = 13;
-const THEME_TEXTURE_BATCH_SIZE = 2;
 const DEFERRED_SCENE_SETUP_MS = 120;
 const IDLE_RENDER_STOP_DELAY_MS = 4200;
 const FINAL_STOP_ROW = 2;
@@ -233,9 +232,8 @@ export class HotlineScene {
 
     let app = new Application();
     const useConstrainedRenderer = this.shouldUseConstrainedMegaRenderer();
-    const preferCanvasRenderer = this.shouldPreferCanvasRenderer();
     const rendererResolution = this.getRendererResolution();
-    const preferWebGLVersion: 1 | 2 = useConstrainedRenderer ? 1 : 2;
+    const preferWebGLVersion: 1 | 2 = 2;
     const initOptions: Partial<ApplicationOptions> = {
       canvas,
       width,
@@ -248,9 +246,9 @@ export class HotlineScene {
         this.rowCount <= ROWS &&
         rendererResolution <= CLASSIC_RENDER_DPR,
       powerPreference: useConstrainedRenderer ? 'low-power' : 'high-performance',
-      // iOS WebKit 在複雜 Graphics 首幀可能長時間編譯 WebGL shader。CanvasRenderer
-      // 依然使用同一份高解析原圖與 DPR，但可避免進戲時卡在第一幀。
-      preference: preferCanvasRenderer ? ['canvas', 'webgl'] : ['webgl', 'canvas'],
+      // WebGL 才能完整還原原版粒子、發光與濾鏡。Canvas 只作為真正無 WebGL
+      // 時的容錯，不再對 iPhone 強制啟用簡化 renderer。
+      preference: ['webgl', 'canvas'],
       preferWebGLVersion,
     };
     slotDebug('hotline-scene:init:start', {
@@ -261,10 +259,9 @@ export class HotlineScene {
       rowCount: this.rowCount,
       reelCount: this.reelCount,
       rendererResolution,
-      rendererPreference: preferCanvasRenderer ? ['canvas', 'webgl'] : ['webgl', 'canvas'],
-      preferCanvasRenderer,
+      rendererPreference: ['webgl', 'canvas'],
       useConstrainedRenderer,
-      shaderEffects: !useConstrainedRenderer && !preferCanvasRenderer,
+      shaderEffects: true,
       devicePixelRatio: typeof window === 'undefined' ? null : window.devicePixelRatio,
       viewport: {
         innerWidth: typeof window === 'undefined' ? null : window.innerWidth,
@@ -425,20 +422,27 @@ export class HotlineScene {
   }
 
   private async preloadThemeAssets(): Promise<void> {
-    const backgroundPromise = this.loadTexture(this.theme.background, 1600);
-    const symbolTextures: Array<Texture | null> = [];
-    for (let start = 0; start < this.theme.symbols.length; start += THEME_TEXTURE_BATCH_SIZE) {
-      const end = Math.min(this.theme.symbols.length, start + THEME_TEXTURE_BATCH_SIZE);
-      const batch = await Promise.all(
-        Array.from({ length: end - start }, (_, offset) =>
-          this.loadTexture(themeSymbolImage(this.theme, start + offset), 480),
+    // 所有首屏素材同時發出，讓 HTTP/2 與瀏覽器 cache 去重，避免 6×5 符號
+    // 分批 await 造成載入瀏布。只將非首屏的大獎全螢幕素材延後。
+    const [backgroundTexture, symbolTextures, scatterTexture, multiplierTexture] =
+      await Promise.all([
+        this.loadTexture(this.theme.background, 1600),
+        Promise.all(
+          this.theme.symbols.map((_symbol, symbolIndex) =>
+            this.loadTexture(themeSymbolImage(this.theme, symbolIndex), 960),
+          ),
         ),
-      );
-      symbolTextures.push(...batch);
-      if (end < this.theme.symbols.length) await this.yieldToBrowser();
-    }
-    this.backgroundTexture = await backgroundPromise;
+        this.rowCount > ROWS
+          ? this.loadTexture(themeSpecialImage(this.theme, 'scatter'), 960)
+          : null,
+        this.rowCount > ROWS
+          ? this.loadTexture(themeSpecialImage(this.theme, 'multiplier'), 960)
+          : null,
+      ]);
+    this.backgroundTexture = backgroundTexture;
     this.symbolTextures = symbolTextures;
+    this.scatterTexture = scatterTexture;
+    this.multiplierTexture = multiplierTexture;
   }
 
   private yieldToBrowser(): Promise<void> {
@@ -484,16 +488,10 @@ export class HotlineScene {
   }
 
   private async preloadOptionalThemeAssets(): Promise<void> {
-    if (this.rowCount <= ROWS) return;
-    const [bigWinTexture, scatterTexture, multiplierTexture] = await Promise.all([
-      this.theme.bigWin ? this.loadTexture(this.theme.bigWin, 960) : null,
-      this.loadTexture(themeSpecialImage(this.theme, 'scatter'), 480),
-      this.loadTexture(themeSpecialImage(this.theme, 'multiplier'), 480),
-    ]);
+    if (this.rowCount <= ROWS || !this.theme.bigWin) return;
+    const bigWinTexture = await this.loadTexture(this.theme.bigWin, 1600);
     if (this.disposed) return;
     this.bigWinTexture = bigWinTexture;
-    this.scatterTexture = scatterTexture;
-    this.multiplierTexture = multiplierTexture;
   }
 
   private async loadTexture(src: string, width: 480 | 960 | 1600): Promise<Texture | null> {
@@ -551,13 +549,6 @@ export class HotlineScene {
     return coarsePointer || narrowViewport || compactHeight || shortSide <= 560;
   }
 
-  private shouldPreferCanvasRenderer(): boolean {
-    if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-    const iOSUserAgent = /iPad|iPhone|iPod/i.test(navigator.userAgent);
-    const iPadDesktopMode = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
-    return iOSUserAgent || iPadDesktopMode;
-  }
-
   private getPixiRendererKind(app: Application): 'webgl' | 'canvas' | 'webgpu' | 'unknown' {
     const rendererName = app.renderer?.constructor?.name?.toLowerCase() ?? '';
     if (rendererName.includes('canvas')) return 'canvas';
@@ -567,7 +558,7 @@ export class HotlineScene {
   }
 
   private canUseShaderEffects(): boolean {
-    return !this.shouldUseConstrainedMegaRenderer() && this.rendererKind !== 'canvas';
+    return this.rendererKind !== 'canvas';
   }
 
   private destroyPixiApp(app: Application | null): void {

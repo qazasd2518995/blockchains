@@ -564,7 +564,10 @@ export class Seth2Service {
         orderBy: { createdAt: 'desc' },
         select: { resultData: true },
       });
-      const currentSession = readSession(previous?.resultData);
+      // Source v1.1.5 settles an entire feature atomically and resumes it from
+      // Seth2FeatureSequence. Legacy per-spin sessions left by older releases
+      // must not block a new buy forever once no READY sequence exists.
+      const currentSession = settlementSession(previous?.resultData, atomicFeature);
       const freeSpin = !buying && currentSession.freeSpinsRemaining > 0;
       if (requireFreeSpin && !freeSpin) {
         throw new ApiError('INVALID_ACTION', '目前沒有可收集的免費遊戲');
@@ -1108,6 +1111,13 @@ function readSession(resultData: Prisma.JsonValue | undefined): Seth2SessionStat
     femaleLock,
     featureWinnings,
   };
+}
+
+export function settlementSession(
+  resultData: Prisma.JsonValue | undefined,
+  atomicFeature: boolean,
+): Seth2SessionState {
+  return atomicFeature ? EMPTY_SESSION : readSession(resultData);
 }
 
 function readPurchasedSettlement(resultData: Prisma.JsonValue | undefined): {

@@ -15,13 +15,20 @@ export function Seth2Page() {
   const setBalance = useAuthStore((state) => state.setBalance);
   const setTokens = useAuthStore((state) => state.setTokens);
   const [error, setError] = useState('');
-  // The embedded source client already handles orientation changes.  Keep its
-  // launch mode stable for this mount so rotating a phone does not destroy and
-  // boot the 3D iframe again.
-  const viewMode = useRef<'portrait' | 'landscape'>(
-    window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape',
+  const initialViewMode = useRef<'portrait' | 'landscape'>(
+    readSavedViewMode() ??
+      (window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape'),
   ).current;
+  const [viewMode, setViewMode] = useState<'portrait' | 'landscape'>(initialViewMode);
+  const [iframeMounted, setIframeMounted] = useState(true);
+  const [iframeGeneration, setIframeGeneration] = useState(0);
+  const [orientationSwitching, setOrientationSwitching] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const currentViewModeRef = useRef(viewMode);
+  const pendingViewModeRef = useRef<'portrait' | 'landscape' | null>(null);
+  const disposeFallbackTimerRef = useRef<number | null>(null);
+  const remountTimerRef = useRef<number | null>(null);
+  const remountFrameRef = useRef<number | null>(null);
   const syncOriginalGameAudio = useCallback(() => {
     iframeRef.current?.contentWindow?.postMessage(
       { type: 'seth2:audio-sync' },
@@ -33,6 +40,54 @@ export function Seth2Page() {
     frameWindow?.__YachiyoSeth2UnlockAudio?.();
     frameWindow?.postMessage({ type: 'seth2:audio-unlock' }, window.location.origin);
   }, []);
+  const finishViewModeSwitch = useCallback((nextViewMode: 'portrait' | 'landscape') => {
+    if (disposeFallbackTimerRef.current !== null) {
+      window.clearTimeout(disposeFallbackTimerRef.current);
+      disposeFallbackTimerRef.current = null;
+    }
+    pendingViewModeRef.current = null;
+    currentViewModeRef.current = nextViewMode;
+    saveViewMode(nextViewMode);
+    // First remove the old WebGL iframe. Mount the new Cocos scene only after
+    // WebKit has painted without it, giving the old GPU context a cleanup turn.
+    setIframeMounted(false);
+    setViewMode(nextViewMode);
+    setIframeGeneration((generation) => generation + 1);
+    remountFrameRef.current = window.requestAnimationFrame(() => {
+      remountFrameRef.current = window.requestAnimationFrame(() => {
+        remountFrameRef.current = null;
+        remountTimerRef.current = window.setTimeout(() => {
+          remountTimerRef.current = null;
+          setIframeMounted(true);
+          setOrientationSwitching(false);
+        }, 80);
+      });
+    });
+  }, []);
+  const requestViewModeSwitch = useCallback(
+    (nextViewMode: 'portrait' | 'landscape') => {
+      if (
+        nextViewMode === currentViewModeRef.current ||
+        pendingViewModeRef.current !== null
+      ) {
+        return;
+      }
+      pendingViewModeRef.current = nextViewMode;
+      setError('');
+      setOrientationSwitching(true);
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: 'seth2:dispose' },
+        window.location.origin,
+      );
+      // Older cached adapters do not acknowledge disposal. The fallback still
+      // removes that iframe, but current adapters release WebGL first.
+      disposeFallbackTimerRef.current = window.setTimeout(
+        () => finishViewModeSwitch(nextViewMode),
+        350,
+      );
+    },
+    [finishViewModeSwitch],
+  );
   const gameUrl = useMemo(() => {
     const configuredBase = String(import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
     const apiBase = `${configuredBase || window.location.origin}/api`;
@@ -47,7 +102,7 @@ export function Seth2Page() {
       view_mode: viewMode,
       client_type: 'web',
       gv: '260609',
-      build: 'yachiyo-seth2-v115',
+      build: 'yachiyo-seth2-v115-orientation-3',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, [locale, viewMode]);
@@ -76,7 +131,17 @@ export function Seth2Page() {
         message?: unknown;
         accessToken?: unknown;
         refreshToken?: unknown;
+        viewMode?: unknown;
       };
+      if (
+        payload.type === 'seth2:view-mode-request' &&
+        (payload.viewMode === 'portrait' || payload.viewMode === 'landscape')
+      ) {
+        requestViewModeSwitch(payload.viewMode);
+      }
+      if (payload.type === 'seth2:disposed' && pendingViewModeRef.current) {
+        finishViewModeSwitch(pendingViewModeRef.current);
+      }
       if (payload.type === 'seth2:ready') {
         setError('');
         syncOriginalGameAudio();
@@ -98,7 +163,18 @@ export function Seth2Page() {
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [setBalance, setTokens, syncOriginalGameAudio]);
+  }, [finishViewModeSwitch, requestViewModeSwitch, setBalance, setTokens, syncOriginalGameAudio]);
+
+  useEffect(
+    () => () => {
+      if (disposeFallbackTimerRef.current !== null) {
+        window.clearTimeout(disposeFallbackTimerRef.current);
+      }
+      if (remountTimerRef.current !== null) window.clearTimeout(remountTimerRef.current);
+      if (remountFrameRef.current !== null) window.cancelAnimationFrame(remountFrameRef.current);
+    },
+    [],
+  );
 
   if (!user) {
     return (
@@ -118,14 +194,30 @@ export function Seth2Page() {
 
   return (
     <div className="relative h-[calc(100svh-5.25rem)] min-h-[420px] overflow-hidden rounded-2xl border border-[#E8D48A]/25 bg-[#08040F] shadow-[0_20px_60px_rgba(8,4,15,0.48)]">
-      <iframe
-        ref={iframeRef}
-        src={gameUrl}
-        title="黃金賽特 II：覺醒之力"
-        allow="autoplay; fullscreen"
-        onLoad={syncOriginalGameAudio}
-        className="absolute inset-0 h-full w-full border-0 bg-black"
-      />
+      {iframeMounted ? (
+        <iframe
+          key={`${viewMode}-${iframeGeneration}`}
+          ref={iframeRef}
+          src={gameUrl}
+          title="黃金賽特 II：覺醒之力"
+          allow="autoplay; fullscreen"
+          onLoad={syncOriginalGameAudio}
+          className="absolute inset-0 h-full w-full border-0 bg-black"
+        />
+      ) : (
+        <div
+          className="absolute inset-0 grid place-items-center bg-black text-sm font-bold text-white/75"
+          role="status"
+          aria-live="polite"
+        >
+          正在切換遊戲方向…
+        </div>
+      )}
+      {orientationSwitching ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-5 z-10 text-center text-xs font-bold text-white/65">
+          正在重新建立完整畫質遊戲畫面…
+        </div>
+      ) : null}
       {error && (
         <div className="absolute bottom-5 left-1/2 z-20 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-xl border border-red-300/30 bg-red-950/95 px-4 py-3 text-sm text-red-50 shadow-xl">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -134,6 +226,23 @@ export function Seth2Page() {
       )}
     </div>
   );
+}
+
+function readSavedViewMode(): 'portrait' | 'landscape' | null {
+  try {
+    const value = window.localStorage.getItem('golden-seth_view_mode');
+    return value === 'portrait' || value === 'landscape' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveViewMode(viewMode: 'portrait' | 'landscape') {
+  try {
+    window.localStorage.setItem('golden-seth_view_mode', viewMode);
+  } catch {
+    // The iframe query remains authoritative when storage is unavailable.
+  }
 }
 
 function sourceLocale(locale: string): string {

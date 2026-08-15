@@ -13,18 +13,16 @@
   var SFX_PREFS_KEY = 'bg.sfx.prefs';
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
   var UPDATE_TOTAL_WINNINGS = 'SlotFrameworkEvent:UPDATE_TOTAL_WINNINGS';
-  var GAME_ENTRY_GATE_ID = 'yachiyo-seth2-entry-gate';
-  var GAME_ENTRY_BOOT_TIMEOUT_MS = 25000;
-  var GAME_ENTRY_TRANSITION_TIMEOUT_MS = 12000;
+  var GAME_ENTRY_BOOT_TIMEOUT_MS = 60000;
   var GAME_ENTRY_REQUIRED_UI_COUNT = 4;
   var gameEntryPollTimer = 0;
   var gameEntryPollStartedAt = 0;
-  var gameEntryTransitionTimer = 0;
-  var gameEntryTransitionStartedAt = 0;
-  var gameEntryPaintPending = false;
-  var gameEntryInProgress = false;
+  var gameEntryIntroNotified = false;
+  var gameEntryCompleted = false;
   var gameCanvasRecoveryBound = false;
   var gameCanvasContextLost = false;
+  var gameEntryDisposing = false;
+  var rotateScreenPatched = false;
 
   function wrapFrameworkDispatch(dispatcher) {
     if (typeof dispatcher !== 'function' || dispatcher.__yachiyoTotalWinGuard) return dispatcher;
@@ -176,7 +174,10 @@
         this.__yachiyoInitializationError =
           error && error.message ? String(error.message) : 'unknown game view error';
         window.setTimeout(function () {
-          failGameEntryTransition('遊戲介面初始化失敗・重新整理', 'game-view-init');
+          notifyParent('seth2:error', {
+            message: '遊戲介面初始化失敗，請重新整理後再試',
+            stage: 'game-view-init',
+          });
         }, 0);
         throw error;
       }
@@ -330,15 +331,30 @@
     if (refreshInFlight) return refreshInFlight;
     var auth = readAuth();
     if (!auth.refreshToken) return Promise.reject(new Error('登入已過期，請回到大廳重新登入'));
+    var attemptedRefreshToken = auth.refreshToken;
     refreshInFlight = fetch(apiBase + '/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: auth.refreshToken }),
+      body: JSON.stringify({ refreshToken: attemptedRefreshToken }),
     })
       .then(function (response) {
         return response.json().then(function (body) {
           if (!response.ok || !body.accessToken || !body.refreshToken) {
-            throw new Error(body.message || '登入已過期，請回到大廳重新登入');
+            // The parent React application and this same-origin iframe share
+            // one rotating refresh token. If the parent won the refresh race,
+            // reuse the newly persisted pair instead of treating the consumed
+            // token as a logout and leaving the Cocos canvas black.
+            var latest = readAuth();
+            if (
+              latest.accessToken &&
+              latest.refreshToken &&
+              latest.refreshToken !== attemptedRefreshToken
+            ) {
+              return latest.accessToken;
+            }
+            var error = new Error(body.message || '登入已過期，請回到大廳重新登入');
+            error.code = body.code || 'UNAUTHORIZED';
+            throw error;
           }
           writeTokens(body.accessToken, body.refreshToken);
           return body.accessToken;
@@ -526,18 +542,32 @@
     var effects = readAudioPreference(SFX_PREFS_KEY, 0.6);
     try {
       var audio = window.App && window.App.globalAudio;
-      if (audio) {
-        // GlobalAudio.getAudioInfo(url, bundle) loads one specific effect and
-        // rejects when called without both arguments. AudioComponent already
-        // exposes authoritative setters that update every running source.
-        if ('musicVolume' in audio) audio.musicVolume = music.muted ? 0 : music.volume;
-        if ('effectVolume' in audio) audio.effectVolume = effects.muted ? 0 : effects.volume;
-        if ('isMusicOn' in audio) audio.isMusicOn = !music.muted;
-        if ('isEffectOn' in audio) audio.isEffectOn = !effects.muted;
+      var audioData = audio && audio.audioData;
+      if (!audioData) return;
+      // Use the public AudioData methods only after Cocos has created the
+      // singleton. Calling GlobalAudio.getAudioInfo() without a URL/bundle (or
+      // touching the bridge while it is half-initialized) rejects on iOS.
+      if (typeof audioData.setMusicVolume === 'function') {
+        audioData.setMusicVolume(music.muted ? 0 : music.volume);
+      }
+      if (typeof audioData.setEffectVolume === 'function') {
+        audioData.setEffectVolume(effects.muted ? 0 : effects.volume);
+      }
+      if (typeof audioData.setMusicStatus === 'function') {
+        audioData.setMusicStatus(!music.muted);
+      }
+      if (typeof audioData.setEffectStatus === 'function') {
+        audioData.setEffectStatus(!effects.muted);
       }
     } catch (_error) {
       // Initial settings remain authoritative until the audio nodes are ready.
     }
+  }
+
+  function syncRunningAudioWhenReady() {
+    if (!gameEntryCompleted && !isGameEntryTransitionReady()) return false;
+    syncRunningAudio();
+    return true;
   }
 
   function findIntroView() {
@@ -565,76 +595,86 @@
     return null;
   }
 
-  function markLoadingComplete() {
+  function sourceViewMode() {
+    var mode = params.get('view_mode') || window.viewMode;
+    return mode === 'portrait' ? 'portrait' : 'landscape';
+  }
+
+  function requestViewMode(nextViewMode) {
+    if (nextViewMode !== 'portrait' && nextViewMode !== 'landscape') return false;
     try {
-      var loading = window.App && window.App.gameLoading;
-      if (!loading) return;
-      // GameLoading.complete() contributes the final handler-ready unit. Keep
-      // the internal counter at total - 1 so that click reaches exactly 100%
-      // (setting it to total here would produce 104% and skip Cocos' hide path).
-      var total = Number(loading.loadTotal);
-      if (Number.isFinite(total) && total > 0 && Number(loading.loadedNum) >= total) {
-        loading.loadedNum = total - 1;
-      }
-      if (loading.percentText) loading.percentText.string = '100%';
-      if (loading.bar) loading.bar.progress = 1;
+      window.localStorage.setItem((params.get('gn') || 'golden-seth') + '_view_mode', nextViewMode);
     } catch (_error) {
-      // The entry button remains authoritative even when a source build uses a
-      // different loading-label implementation.
+      // The query value on the next iframe remains authoritative.
+    }
+    notifyParent('seth2:view-mode-request', { viewMode: nextViewMode });
+    return true;
+  }
+
+  function patchRotateScreenButtons() {
+    try {
+      var cocos = window.cc;
+      var scene = cocos && cocos.director && cocos.director.getScene();
+      if (!scene || typeof scene.getComponentsInChildren !== 'function') return false;
+      var components = scene.getComponentsInChildren(cocos.Component) || [];
+      var patched = false;
+      for (var index = 0; index < components.length; index += 1) {
+        var component = components[index];
+        if (
+          !component ||
+          component.__yachiyoViewModeBridge ||
+          typeof component.rotateScreenHandler !== 'function' ||
+          typeof component.showConfirmAlert !== 'function'
+        ) {
+          continue;
+        }
+        component.__yachiyoViewModeBridge = true;
+        component.rotateScreenHandler = function () {
+          return requestViewMode(sourceViewMode() === 'portrait' ? 'landscape' : 'portrait');
+        };
+        patched = true;
+      }
+      rotateScreenPatched = rotateScreenPatched || patched;
+      return rotateScreenPatched;
+    } catch (_error) {
+      return false;
     }
   }
 
-  function resumeAudioFromGesture() {
-    syncRunningAudio();
+  function disposeGameForRemount() {
+    if (gameEntryDisposing) return false;
+    gameEntryDisposing = true;
+    gameEntryCompleted = true;
+    if (gameEntryPollTimer) {
+      window.clearTimeout(gameEntryPollTimer);
+      gameEntryPollTimer = 0;
+    }
     try {
-      var audioContext = window.cc && window.cc.audioEngine && window.cc.audioEngine._audioContext;
-      if (
-        audioContext &&
-        audioContext.state === 'suspended' &&
-        typeof audioContext.resume === 'function'
-      ) {
-        audioContext.resume().catch(function () {});
+      if (window.cc && window.cc.game && typeof window.cc.game.pause === 'function') {
+        window.cc.game.pause();
+      }
+      if (window.cc && window.cc.director && typeof window.cc.director.pause === 'function') {
+        window.cc.director.pause();
       }
     } catch (_error) {
-      // The original IntroView handler still performs its normal audio setup.
+      // Removing the iframe remains the final cleanup boundary.
     }
-  }
-
-  function gameEntryGate() {
-    if (typeof document === 'undefined') return null;
-    return document.getElementById(GAME_ENTRY_GATE_ID);
-  }
-
-  function gameEntryButton(gate) {
-    return gate && typeof gate.querySelector === 'function' ? gate.querySelector('button') : null;
-  }
-
-  function setGameEntryGateState(state, label) {
-    var gate = gameEntryGate();
-    var button = gameEntryButton(gate);
-    if (!gate || !button) return;
-
-    var waiting = state === 'loading' || state === 'entering';
-    gate.setAttribute('aria-busy', waiting ? 'true' : 'false');
-    gate.style.pointerEvents = state === 'ready' ? 'none' : 'auto';
-    gate.style.background =
-      state === 'ready'
-        ? 'transparent'
-        : 'radial-gradient(circle at center,rgba(39,16,77,.82) 0%,rgba(5,2,14,.96) 72%)';
-    button.dataset.action = state === 'retry' ? 'reload' : 'enter';
-    button.disabled = waiting;
-    button.textContent = label
-      ? label
-      : state === 'loading'
-        ? '正在準備遊戲…'
-        : state === 'entering'
-          ? '正在進入遊戲…'
-          : state === 'retry'
-            ? '載入逾時・重新整理'
-            : '進入遊戲';
-    button.setAttribute('aria-label', button.textContent);
-    button.style.opacity = waiting ? '0.82' : '1';
-    button.style.cursor = waiting ? 'wait' : 'pointer';
+    try {
+      var canvas = document.getElementById('GameCanvas');
+      var context =
+        canvas &&
+        (canvas.getContext('webgl2') ||
+          canvas.getContext('webgl') ||
+          canvas.getContext('experimental-webgl'));
+      var loseContext = context && context.getExtension('WEBGL_lose_context');
+      if (loseContext && typeof loseContext.loseContext === 'function') loseContext.loseContext();
+    } catch (_error) {
+      // Some WebKit versions reject context access while navigation is pending.
+    }
+    window.setTimeout(function () {
+      notifyParent('seth2:disposed');
+    }, 0);
+    return true;
   }
 
   function activeChildNamed(parent, name) {
@@ -692,25 +732,6 @@
     }
   }
 
-  function afterGameEntryPaint(callback, remainingFrames) {
-    var frames = remainingFrames === undefined ? 6 : Number(remainingFrames);
-    if (frames <= 0) {
-      // WebKit can report active scene nodes one frame before their textures
-      // are presented. Give it a compositor turn before uncovering it.
-      window.setTimeout(callback, 300);
-      return;
-    }
-    if (typeof window.requestAnimationFrame === 'function') {
-      window.requestAnimationFrame(function () {
-        afterGameEntryPaint(callback, frames - 1);
-      });
-      return;
-    }
-    window.setTimeout(function () {
-      afterGameEntryPaint(callback, frames - 1);
-    }, 16);
-  }
-
   function bindGameCanvasRecovery() {
     if (gameCanvasRecoveryBound || typeof document === 'undefined') return false;
     var canvas = document.getElementById('GameCanvas');
@@ -721,7 +742,11 @@
       function (event) {
         gameCanvasContextLost = true;
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
-        failGameEntryTransition('遊戲畫面已中斷・重新整理', 'webgl-context-lost');
+        if (gameEntryDisposing) return;
+        notifyParent('seth2:error', {
+          message: '遊戲畫面已中斷，請重新整理後再試',
+          stage: 'webgl-context-lost',
+        });
       },
       false,
     );
@@ -729,185 +754,110 @@
       'webglcontextrestored',
       function () {
         gameCanvasContextLost = false;
+        scheduleGameEntryObserver();
       },
       false,
     );
     return true;
   }
 
-  function failGameEntryTransition(label, stage) {
-    if (gameEntryTransitionTimer) {
-      window.clearTimeout(gameEntryTransitionTimer);
-      gameEntryTransitionTimer = 0;
-    }
-    gameEntryPaintPending = false;
-    gameEntryInProgress = false;
-    createGameEntryGate('retry');
-    setGameEntryGateState('retry', label);
-    notifyParent('seth2:entry-timeout', { stage: stage || 'game-view' });
-  }
-
-  function watchGameEntryTransition() {
-    if (!gameEntryInProgress) return;
-    if (gameEntryTransitionTimer) {
-      window.clearTimeout(gameEntryTransitionTimer);
-      gameEntryTransitionTimer = 0;
-    }
-
+  function watchOriginalGameEntry() {
+    if (gameEntryCompleted) return;
+    if (gameEntryPollTimer) window.clearTimeout(gameEntryPollTimer);
+    gameEntryPollTimer = 0;
+    patchRotateScreenButtons();
     var gameView = window.App && window.App.gameView;
     if (gameView && gameView.__yachiyoInitializationStatus === 'failed') {
-      failGameEntryTransition('遊戲介面初始化失敗・重新整理', 'game-view-init');
-      return;
-    }
-    if (gameCanvasContextLost) {
-      failGameEntryTransition('遊戲畫面已中斷・重新整理', 'webgl-context-lost');
-      return;
-    }
-
-    if (isGameEntryTransitionReady()) {
-      if (gameEntryPaintPending) return;
-      gameEntryPaintPending = true;
-      afterGameEntryPaint(function () {
-        gameEntryPaintPending = false;
-        if (!gameEntryInProgress) return;
-        if (!isGameEntryTransitionReady()) {
-          watchGameEntryTransition();
-          return;
-        }
-        removeGameEntryGate();
-        notifyParent('seth2:entered');
+      gameEntryCompleted = true;
+      notifyParent('seth2:error', {
+        message: '遊戲介面初始化失敗，請重新整理後再試',
+        stage: 'game-view-init',
       });
       return;
     }
-
-    if (Date.now() - gameEntryTransitionStartedAt >= GAME_ENTRY_TRANSITION_TIMEOUT_MS) {
-      failGameEntryTransition('載入逾時・重新整理', 'game-view');
+    if (gameCanvasContextLost) {
       return;
     }
-    gameEntryTransitionTimer = window.setTimeout(watchGameEntryTransition, 100);
-  }
-
-  function removeGameEntryGate() {
-    if (gameEntryPollTimer) {
-      window.clearTimeout(gameEntryPollTimer);
-      gameEntryPollTimer = 0;
-    }
-    if (gameEntryTransitionTimer) {
-      window.clearTimeout(gameEntryTransitionTimer);
-      gameEntryTransitionTimer = 0;
-    }
-    gameEntryPaintPending = false;
-    gameEntryInProgress = false;
-    if (typeof document === 'undefined') return;
-    var gate = gameEntryGate();
-    if (gate && gate.parentNode) gate.parentNode.removeChild(gate);
-  }
-
-  function enterReadyGame() {
-    if (gameEntryInProgress) return false;
-    var introView = findIntroView();
-    if (!introView) return false;
-    gameEntryInProgress = true;
-    gameEntryTransitionStartedAt = Date.now();
-    setGameEntryGateState('entering');
-    resumeAudioFromGesture();
-    try {
-      var eventType =
-        window.cc && window.cc.Node && window.cc.Node.EventType
-          ? window.cc.Node.EventType.TOUCH_START
-          : 'touch-start';
-      introView.bbr.emit(eventType, {});
-      watchGameEntryTransition();
-      return true;
-    } catch (_error) {
-      if (gameEntryTransitionTimer) {
-        window.clearTimeout(gameEntryTransitionTimer);
-        gameEntryTransitionTimer = 0;
-      }
-      gameEntryInProgress = false;
-      setGameEntryGateState('ready');
-      return false;
-    }
-  }
-
-  function createGameEntryGate(initialState) {
-    if (typeof document === 'undefined' || !document.body) return false;
-    if (document.getElementById(GAME_ENTRY_GATE_ID)) {
-      if (initialState) setGameEntryGateState(initialState);
-      return true;
-    }
-
-    var gate = document.createElement('div');
-    gate.id = GAME_ENTRY_GATE_ID;
-    gate.setAttribute('role', 'dialog');
-    gate.setAttribute('aria-label', '遊戲載入完成');
-    gate.style.cssText =
-      'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;' +
-      'justify-content:center;pointer-events:none;padding:24px;box-sizing:border-box;' +
-      'background:transparent;transition:background .18s ease;';
-
-    var button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = '進入遊戲';
-    button.setAttribute('aria-label', '進入遊戲');
-    button.style.cssText =
-      'pointer-events:auto;min-width:180px;min-height:58px;padding:14px 34px;border:2px solid #ffe894;' +
-      'border-radius:999px;background:linear-gradient(180deg,#8c4cff 0%,#5a20c9 100%);' +
-      'box-shadow:0 8px 28px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.45);' +
-      'color:#fff;font:800 20px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
-      'letter-spacing:.08em;text-shadow:0 2px 3px rgba(0,0,0,.55);touch-action:manipulation;' +
-      '-webkit-tap-highlight-color:transparent;cursor:pointer;';
-    button.addEventListener('click', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      if (button.dataset.action === 'reload') {
-        window.location.reload();
-        return;
-      }
-      if (!enterReadyGame()) gameEntryInProgress = false;
-    });
-    gate.appendChild(button);
-    document.body.appendChild(gate);
-    setGameEntryGateState(initialState || 'ready');
-    window.setTimeout(function () {
-      if (typeof button.focus === 'function') button.focus({ preventScroll: true });
-    }, 0);
-    return true;
-  }
-
-  function showGameEntryGateWhenReady() {
-    if (typeof document === 'undefined') return;
-    if (gameEntryPollTimer) window.clearTimeout(gameEntryPollTimer);
-    gameEntryPollTimer = 0;
 
     if (isGameEntryTransitionReady()) {
-      removeGameEntryGate();
+      gameEntryCompleted = true;
+      syncRunningAudio();
       notifyParent('seth2:entered');
       return;
     }
 
-    if (findIntroView()) {
-      markLoadingComplete();
-      createGameEntryGate('ready');
+    if (findIntroView() && !gameEntryIntroNotified) {
+      // Keep the original full-art IntroView and its native Cocos touch
+      // handler. The custom purple DOM gate used to cover this scene and then
+      // emit an incomplete synthetic touch, which is the mobile black screen.
+      gameEntryIntroNotified = true;
+      notifyParent('seth2:intro-ready');
+    }
+    if (
+      !gameEntryIntroNotified &&
+      Date.now() - gameEntryPollStartedAt >= GAME_ENTRY_BOOT_TIMEOUT_MS
+    ) {
+      gameEntryCompleted = true;
+      notifyParent('seth2:error', {
+        message: '遊戲素材載入逾時，請重新整理後再試',
+        stage: 'intro-view',
+      });
       return;
     }
-
-    if (Date.now() - gameEntryPollStartedAt >= GAME_ENTRY_BOOT_TIMEOUT_MS) {
-      failGameEntryTransition('遊戲素材載入逾時・重新整理', 'intro-view');
-      return;
-    }
-    createGameEntryGate('loading');
-    gameEntryPollTimer = window.setTimeout(showGameEntryGateWhenReady, 125);
+    gameEntryPollTimer = window.setTimeout(watchOriginalGameEntry, 125);
   }
 
-  function scheduleGameEntryGate() {
+  function scheduleGameEntryObserver() {
     gameEntryPollStartedAt = Date.now();
-    gameEntryTransitionStartedAt = 0;
-    gameEntryPaintPending = false;
-    gameEntryInProgress = false;
+    gameEntryIntroNotified = false;
+    gameEntryCompleted = false;
     bindGameCanvasRecovery();
-    createGameEntryGate('loading');
-    showGameEntryGateWhenReady();
+    watchOriginalGameEntry();
+  }
+
+  function copyKnownSettings(source, keys) {
+    var target = {};
+    if (!source || typeof source !== 'object') return target;
+    keys.forEach(function (key) {
+      if (source[key] !== undefined) target[key] = source[key];
+    });
+    return target;
+  }
+
+  function normalizeUpdateSettings(data) {
+    var settings = data && data.settings ? data.settings : data;
+    if (!settings || typeof settings !== 'object') return null;
+    if (settings.type === 'game') {
+      var gameData = copyKnownSettings(settings.data, [
+        'turbo',
+        'notify',
+        'stopOnJackpot',
+        'backgroundVolume',
+        'effectVolume',
+        'stakeIndex',
+        'ratioIndex',
+      ]);
+      return Object.keys(gameData).length > 0 ? { type: 'game', data: gameData } : null;
+    }
+
+    var normalized = copyKnownSettings(settings, ['autoPlay', 'stakeIndex', 'ratioIndex']);
+    var advanced = settings.advancedSettings;
+    if (advanced && typeof advanced === 'object') {
+      var normalizedAdvanced = copyKnownSettings(advanced, ['notify', 'turbo']);
+      if (advanced.sounds && typeof advanced.sounds === 'object') {
+        var sounds = copyKnownSettings(advanced.sounds, [
+          'background',
+          'backgroundVolume',
+          'effect',
+          'effectVolume',
+        ]);
+        if (Object.keys(sounds).length > 0) normalizedAdvanced.sounds = sounds;
+      }
+      if (Object.keys(normalizedAdvanced).length > 0) {
+        normalized.advancedSettings = normalizedAdvanced;
+      }
+    }
+    return Object.keys(normalized).length > 0 ? normalized : null;
   }
 
   function LocalSocket() {
@@ -966,8 +916,20 @@
     if (event === 'closeSpin') {
       eventData.spinId = String(eventData.spinId || lastSpinId || '');
     }
-    if (event === 'updateSettings' && !eventData.settings) {
-      eventData = { settings: Object.assign({}, eventData) };
+    if (event === 'updateSettings') {
+      var normalizedSettings = normalizeUpdateSettings(eventData);
+      if (!normalizedSettings) {
+        // Unknown source-only preferences do not affect wallet/gameplay. Treat
+        // them as a local no-op instead of returning HTTP 400 and navigating
+        // the original client's generic error path.
+        if (typeof callback === 'function') {
+          window.setTimeout(function () {
+            callback({ status: 200 });
+          }, 0);
+        }
+        return this;
+      }
+      eventData = { settings: normalizedSettings };
     }
     var request = { event: event, data: eventData };
     this.queue = this.queue
@@ -1006,7 +968,7 @@
               response.platform.player.balance.amount,
           );
           notifyParent('seth2:ready', { balance: balance });
-          scheduleGameEntryGate();
+          scheduleGameEntryObserver();
         } else if (response && response.platform && response.platform.player) {
           notifyParent('seth2:balance', {
             balance: Number(response.platform.player.balance.amount),
@@ -1072,13 +1034,16 @@
     if (event.origin !== window.location.origin || event.source !== window.parent || !event.data)
       return;
     if (event.data.type === 'seth2:audio-sync' || event.data.type === 'seth2:audio-unlock') {
-      syncRunningAudio();
+      syncRunningAudioWhenReady();
     }
+    if (event.data.type === 'seth2:dispose') disposeGameForRemount();
   });
   window.addEventListener('storage', function (event) {
-    if (event.key === SFX_PREFS_KEY || event.key === BGM_PREFS_KEY) syncRunningAudio();
+    if (event.key === SFX_PREFS_KEY || event.key === BGM_PREFS_KEY) {
+      syncRunningAudioWhenReady();
+    }
   });
-  window.__YachiyoSeth2UnlockAudio = syncRunningAudio;
+  window.__YachiyoSeth2UnlockAudio = syncRunningAudioWhenReady;
   window.__YachiyoSeth2SourceAdapterTest = {
     LocalSocket: LocalSocket,
     applyAudioPreferences: applyAudioPreferences,
@@ -1088,14 +1053,17 @@
     guardBigwinClass: guardBigwinClass,
     wrapFrameworkDispatch: wrapFrameworkDispatch,
     findIntroView: findIntroView,
-    enterReadyGame: enterReadyGame,
     bindGameCanvasRecovery: bindGameCanvasRecovery,
-    failGameEntryTransition: failGameEntryTransition,
     gameCanvasIsReady: gameCanvasIsReady,
     guardGameViewClass: guardGameViewClass,
     isGameEntryTransitionReady: isGameEntryTransitionReady,
-    markLoadingComplete: markLoadingComplete,
-    watchGameEntryTransition: watchGameEntryTransition,
+    normalizeUpdateSettings: normalizeUpdateSettings,
+    patchRotateScreenButtons: patchRotateScreenButtons,
+    requestViewMode: requestViewMode,
+    scheduleGameEntryObserver: scheduleGameEntryObserver,
+    disposeGameForRemount: disposeGameForRemount,
+    syncRunningAudioWhenReady: syncRunningAudioWhenReady,
+    watchOriginalGameEntry: watchOriginalGameEntry,
   };
 
   if (typeof document !== 'undefined') prefetchInitialResponse();

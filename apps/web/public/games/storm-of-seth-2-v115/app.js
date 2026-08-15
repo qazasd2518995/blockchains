@@ -39,25 +39,19 @@ const isIframe = () => {
 const getViewMode = () => {
   let currentURL = new URL(window.location.href)
   let urlParams = currentURL.searchParams
-  let view_mode = urlParams.get("view_mode");
+  let requestedViewMode = urlParams.get("view_mode");
   let key = urlParams.get("gn") + "_" + "view_mode";
   let localViewMode = localStorage.getItem(key);
-  if (localViewMode != null) {
-    if(window.viewMode==null){
-      window.viewMode = localViewMode;
-    }else{
-      view_mode = window.viewMode;
-    }
-    view_mode = localViewMode
-  }else{
-    if(view_mode!=null){
-      window.viewMode=view_mode;
-    }
-  }
-  if(view_mode==null){
-    view_mode="landscape";
-    window.viewMode=view_mode;
-  }
+  // The parent shell owns orientation changes.  A query value belongs to the
+  // current iframe generation and must win over stale standalone/PWA storage;
+  // otherwise the engine can load the portrait scene with landscape sizing.
+  let view_mode = requestedViewMode === "portrait" || requestedViewMode === "landscape"
+    ? requestedViewMode
+    : localViewMode === "portrait" || localViewMode === "landscape"
+      ? localViewMode
+      : "landscape";
+  window.viewMode = view_mode;
+  if (localViewMode !== view_mode) localStorage.setItem(key, view_mode);
   return view_mode;
 }
 
@@ -346,7 +340,11 @@ const start = (cc) => {
 
     const setUpdateUITime = (content) => {
       if (isMobileDevice()) {
-        orientationEle.style.display = getShowViewMode() ? 'block' : 'none'
+        // The Yachiyo shell embeds the game and owns the requested layout.  Its
+        // fullscreen/PWA viewport may stay physically portrait while Cocos
+        // renders the selected landscape scene, so the source black rotation
+        // curtain must never cover an embedded game.
+        orientationEle.style.display = !isIframe() && getShowViewMode() ? 'block' : 'none'
       }
 
       updateUITimeId && clearTimeout(updateUITimeId)

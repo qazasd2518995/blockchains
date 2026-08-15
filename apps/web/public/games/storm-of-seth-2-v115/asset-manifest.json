@@ -42,13 +42,13 @@
   "gameFiles": [
     {
       "path": "app.js",
-      "bytes": 11994,
-      "sha256": "d9517df69acbbb965902936774caeebc670b9e73249ca8cd41bc791fcaac7777"
+      "bytes": 12522,
+      "sha256": "36a0ca9b16a9b01460a40fe1647d6e4831aeb8d7e4f50b79cafc1cfb1bb9c751"
     },
     {
       "path": "application.js",
-      "bytes": 4040,
-      "sha256": "f38c11080cb8722d7e6f91578a44d24223fcbc5f474bc96315bc41787ddaea40"
+      "bytes": 4657,
+      "sha256": "76ce38dfadcbc11c5982dcadaad447130e8eba62cb71ee5538ed712f99b4acd1"
     },
     {
       "path": "assets/g1005/config.json",
@@ -12602,8 +12602,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 3601,
-      "sha256": "1403419605584a1c4df8a45e5b4195265df6235788594d60457e9f4b54785599"
+      "bytes": 3626,
+      "sha256": "fbc3b4c0e806a2e973ff15a8ff7f04596cf8417b0319858a1793a9dcb77bc144"
     },
     {
       "path": "index.js",
@@ -12707,8 +12707,8 @@
     },
     {
       "path": "src/seth2-local-adapter.js",
-      "bytes": 39364,
-      "sha256": "6576502db8915efbd6f609f6cc3cdd980b5954c8a9d3f138ae984272f0329cef"
+      "bytes": 38158,
+      "sha256": "fb21695322b43641ad4a3d73a0eb772df4e46d26c92b570abac5c65b87647730"
     },
     {
       "path": "src/settings.json",

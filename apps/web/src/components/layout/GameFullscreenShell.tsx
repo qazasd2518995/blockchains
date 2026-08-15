@@ -194,7 +194,11 @@ export function GameFullscreenShell() {
       data-game-id={game.id}
       data-slot-layout={slotLayout}
     >
-      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
+      <ChangePasswordModal
+        open={passwordOpen}
+        onClose={() => setPasswordOpen(false)}
+        portalRoot={shellRef.current}
+      />
       <div className="pointer-events-none fixed inset-0">
         <ResponsiveImage
           src="/backgrounds/casino-atmosphere.png"

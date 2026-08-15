@@ -53,12 +53,20 @@ System.register([], function (_export, _context) {
         }, {
           key: "start",
           value: function start() {
-            let view_mode = urlParams.get("view_mode");
+            let requestedViewMode = urlParams.get("view_mode");
             let key = urlParams.get("gn") + "_" + "view_mode";
             let localViewMode = localStorage.getItem(key);
-            if (localViewMode != null) {
-              view_mode = localViewMode
-            }
+            // Keep the scene, design resolution and the parent iframe URL on
+            // one authoritative orientation.  Standalone Safari persists a
+            // separate localStorage value which may otherwise override a new
+            // iframe generation and boot the wrong scene into a black canvas.
+            let view_mode = requestedViewMode == "portrait" || requestedViewMode == "landscape"
+              ? requestedViewMode
+              : localViewMode == "portrait" || localViewMode == "landscape"
+                ? localViewMode
+                : "landscape";
+            window.viewMode = view_mode;
+            if (localViewMode !== view_mode) localStorage.setItem(key, view_mode);
             let launchScene = view_mode == "portrait" ? "mainPortrait" : "main";
             let designWidth = view_mode == "portrait" ? 720 : 1280;
             let designHeight = view_mode == "portrait" ? 1280 : 720;

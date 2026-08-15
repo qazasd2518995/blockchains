@@ -14,6 +14,7 @@ import {
   machineList,
   mergeSeth2PlayerSettings,
   normalizeFemaleLockAccounting,
+  settlementSession,
   splitSeth2FeatureFactor,
   Seth2Service,
 } from './seth2.service.js';
@@ -407,6 +408,38 @@ describe('Seth2 v1.1.5 feature-purchase handshake', () => {
       startFreeGame: true,
       freeGameCount: 15,
       isGoldenFg: true,
+    });
+  });
+});
+
+describe('Seth2 atomic source session recovery', () => {
+  const staleLegacyResult = {
+    session: {
+      freeSpinsRemaining: 15,
+      featureMode: 'standard',
+      betAmount: '18.00',
+      multiplierBank: 20,
+      femaleLock: null,
+      featureWinnings: 50,
+    },
+  } as Prisma.JsonObject;
+
+  it('does not let an obsolete per-spin session block a new atomic feature purchase', () => {
+    expect(settlementSession(staleLegacyResult, true)).toEqual({
+      freeSpinsRemaining: 0,
+      featureMode: 'none',
+      betAmount: '0.00',
+      multiplierBank: 0,
+      femaleLock: null,
+      featureWinnings: 0,
+    });
+  });
+
+  it('preserves the same session for the legacy per-spin protocol', () => {
+    expect(settlementSession(staleLegacyResult, false)).toMatchObject({
+      freeSpinsRemaining: 15,
+      featureMode: 'standard',
+      betAmount: '18.00',
     });
   });
 });
