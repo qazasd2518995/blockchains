@@ -601,8 +601,9 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     }
   });
 
-  it('matches the captured 2,000x super-main presentation contract', () => {
+  it('matches the live 2,000x Eternal Rise drop and optional-skill contract', () => {
     const characterSkills = new Set<number>();
+    let outcomesWithoutSkill = 0;
     for (let nonce = 0; nonce < 100; nonce += 1) {
       const outcome = seth2SuperMainSpin('super-main', 'client', nonce, BET);
       const visible500 = outcome.returnData.list.some((round) =>
@@ -633,8 +634,15 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       });
       if (outcome.returnData.type17_mul_list.length > 0) characterSkills.add(17);
       if (outcome.returnData.type18_start_mul_list.length > 0) characterSkills.add(18);
+      if (
+        outcome.returnData.type17_mul_list.length === 0 &&
+        outcome.returnData.type18_start_mul_list.length === 0
+      ) {
+        outcomesWithoutSkill += 1;
+      }
     }
     expect(characterSkills).toEqual(new Set([17, 18]));
+    expect(outcomesWithoutSkill).toBeGreaterThan(0);
   });
 
   it('keeps controlled super-main visuals equal to the controlled payout', () => {
