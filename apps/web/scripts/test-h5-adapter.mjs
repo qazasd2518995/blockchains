@@ -1770,6 +1770,79 @@ function clusterLine() {
 }
 
 {
+  const requests = [];
+  const adapter = loadAdapter(
+    '321',
+    {
+      'bg-auth': JSON.stringify({
+        state: { accessToken: 'test-access', refreshToken: 'test-refresh' },
+        version: 0,
+      }),
+    },
+    {
+      fetch: async (url, init) => {
+        requests.push({ url, init });
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ betId: 'deferred-gates-1', newBalance: '725.00' }),
+        };
+      },
+    },
+  );
+  const freeRounds = Array.from({ length: 2 }, (_, index) => ({
+    index,
+    initialGrid: grid(6, 5, index),
+    finalGrid: grid(6, 5, index + 1),
+    cascades: [],
+    lines: [],
+    baseMultiplier: 5,
+    scatterSymbols: [],
+    multiplierSymbols: [],
+    multiplierTotal: 0,
+    appliedMultiplier: 1,
+    totalMultiplier: 5,
+    extraFreeSpinsAwarded: 0,
+  }));
+  const responses = adapter.buildLotteryResponses({
+    betId: 'deferred-gates-1',
+    grid: grid(6, 5),
+    lines: [],
+    cascades: [],
+    multiplier: 0,
+    amount: '750.00',
+    baseAmount: '10.00',
+    payout: '100.00',
+    newBalance: '625.00',
+    payoutDeferred: true,
+    features: {
+      scatterSymbols: [],
+      freeSpinsAwarded: 2,
+      freeSpinsPlayed: 2,
+      baseTotalMultiplier: 0,
+      freeSpinRounds: freeRounds,
+      freeSpinMultiplierBank: 1,
+      freeSpinWinMultiplier: 10,
+      totalMultiplier: 10,
+    },
+  });
+
+  assert.equal(
+    responses.every((queued) => queued.response.ResultData.userscore === 625),
+    true,
+    'a deferred feature must keep the post-purchase wallet balance through every free round',
+  );
+  assert.equal(adapter.getPendingDeferredFeatureBetId(), 'deferred-gates-1');
+  await adapter.completeDeferredFeature();
+  assert.equal(requests[0].url, 'https://example.test/api/games/h5-slots/complete-feature');
+  assert.deepEqual(JSON.parse(requests[0].init.body), {
+    gameCode: '321',
+    betId: 'deferred-gates-1',
+  });
+  assert.equal(adapter.getPendingDeferredFeatureBetId(), null);
+}
+
+{
   const adapter = loadAdapter('273');
   assert.equal(adapter.shape.collection, true, 'Dragon Hatch must use its collection protocol');
   const sourceGrid = grid(5, 5, 0);

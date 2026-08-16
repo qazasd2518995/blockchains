@@ -25,6 +25,11 @@ export const h5CaishenFreeDecisionSchema = z.object({
   betId: z.string().min(1).max(128),
 });
 
+export const h5FeatureCompleteSchema = z.object({
+  gameCode: z.union([z.literal('278'), z.literal('321')]),
+  betId: z.string().min(1).max(128),
+});
+
 export const h5CaishenFreeGambleSchema = h5CaishenFreeDecisionSchema.extend({
   type: z.union([z.literal(0), z.literal(1)]),
 });
@@ -34,3 +39,4 @@ export type H5FishSkillInput = z.infer<typeof h5FishSkillSchema>;
 export type H5BountyFreeModeInput = z.infer<typeof h5BountyFreeModeSchema>;
 export type H5CaishenFreeDecisionInput = z.infer<typeof h5CaishenFreeDecisionSchema>;
 export type H5CaishenFreeGambleInput = z.infer<typeof h5CaishenFreeGambleSchema>;
+export type H5FeatureCompleteInput = z.infer<typeof h5FeatureCompleteSchema>;

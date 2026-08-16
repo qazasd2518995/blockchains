@@ -17,6 +17,7 @@ import {
   h5BountyFreeModeSchema,
   h5CaishenFreeDecisionSchema,
   h5CaishenFreeGambleSchema,
+  h5FeatureCompleteSchema,
   h5FishSkillSchema,
   h5SlotSpinSchema,
 } from './h5Slots.schema.js';
@@ -88,6 +89,9 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
       : null;
     const pendingCaishenFree =
       requestedCode === '278' ? await service.getPendingCaishenFreeDecision(request.userId) : null;
+    const pendingFeature = requestedGame
+      ? await service.getPendingDeferredFeature(request.userId, requestedGame.gameId)
+      : null;
     const jackpot =
       requestedCode === '113' || requestedCode === '160'
         ? await service.jackpot(getH5GameByCode(requestedCode).gameId)
@@ -102,6 +106,7 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
       },
       ...(pendingFreeMode ? { pendingFreeMode } : {}),
       ...(pendingCaishenFree ? { pendingCaishenFree } : {}),
+      ...(pendingFeature ? { pendingFeature } : {}),
       ...(jackpot ? { jackpot } : {}),
     };
   });
@@ -173,6 +178,18 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
     const input = h5CaishenFreeDecisionSchema.parse(request.body);
     const result = await service.collectCaishenFree(request.userId, input.betId);
     return { ...result, gameCode: input.gameCode };
+  });
+
+  fastify.post('/complete-feature', async (request) => {
+    await requireTestUser(request.userId);
+    const input = h5FeatureCompleteSchema.parse(request.body);
+    const game = getH5GameByCode(input.gameCode);
+    const newBalance = await service.completeDeferredFeature(
+      request.userId,
+      game.gameId,
+      input.betId,
+    );
+    return { gameCode: input.gameCode, betId: input.betId, newBalance };
   });
 
   fastify.post('/fish/skill', async (request) => {

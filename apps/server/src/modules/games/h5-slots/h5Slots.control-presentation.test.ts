@@ -105,6 +105,14 @@ describe('imported H5 control presentation matrix', () => {
           roundMoney(Number(responses.at(-1)!.response.ResultData.userscore)),
           `${context}/final-balance`,
         ).toBe(Number(result.newBalance));
+        expect(
+          responses.every(
+            (queued) =>
+              roundMoney(Number(queued.response.ResultData.userscore)) ===
+              Number(result.newBalance),
+          ),
+          `${context}/deferred-balance`,
+        ).toBe(true);
 
         if (game.code === '321') {
           const features = result.features as {
@@ -366,7 +374,15 @@ function controlledResult(
     multiplier = capped.multiplier;
   }
 
-  const newBalance = new Prisma.Decimal(10000).sub(stake).add(payout).toDecimalPlaces(2);
+  const payoutDeferred = Boolean(
+    (gameId === 'h5-caishen-wins' || gameId === 'h5-gates-of-olympus') &&
+    features &&
+    features.freeSpinRounds.length > 0,
+  );
+  const newBalance = new Prisma.Decimal(10000)
+    .sub(stake)
+    .add(payoutDeferred ? 0 : payout)
+    .toDecimalPlaces(2);
   return {
     grid: buyFeature
       ? __hotlineServiceTestHooks.blankHotlineGrid(gameId, variant + 503)
@@ -382,6 +398,7 @@ function controlledResult(
     amount: stake.toFixed(2),
     payout: payout.toFixed(2),
     newBalance: newBalance.toFixed(2),
+    payoutDeferred,
   };
 }
 

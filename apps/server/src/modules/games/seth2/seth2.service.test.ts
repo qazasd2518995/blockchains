@@ -21,6 +21,7 @@ import {
   normalizeFemaleLockAccounting,
   settlementSession,
   splitSeth2FeatureFactor,
+  SETH2_DEFERRED_PAYOUT_SEQUENCE_VERSION,
   Seth2Service,
 } from './seth2.service.js';
 import { seth2ProtocolSchema, seth2SourceSchema } from './seth2.schema.js';
@@ -92,6 +93,22 @@ describe('Seth2 controlled result selection', () => {
     const parts = splitSeth2FeatureFactor(19_997, 'awakening_free')!;
     expect(parts.filter((factor) => factor > 0).length).toBeGreaterThanOrEqual(5);
     expect(parts.reduce((total, factor) => total + factor, 0)).toBe(19_997);
+  });
+
+  it('varies controlled feature win amounts as well as their spin positions', () => {
+    const amountCompositions = new Set<string>();
+    const winningRoundCounts = new Set<number>();
+
+    for (let entropy = 0; entropy < 120; entropy += 1) {
+      const parts = splitSeth2FeatureFactor(397, 'awakening_free', entropy)!;
+      const winningParts = parts.filter((factor) => factor > 0);
+      expect(parts.reduce((total, factor) => total + factor, 0)).toBe(397);
+      amountCompositions.add([...winningParts].sort((left, right) => left - right).join(','));
+      winningRoundCounts.add(winningParts.length);
+    }
+
+    expect(amountCompositions.size).toBeGreaterThanOrEqual(30);
+    expect([...winningRoundCounts].sort()).toEqual([5, 6, 7, 8, 9]);
   });
 
   it.each([
@@ -729,6 +746,16 @@ describe('Seth2 v1.1.5 source loading', () => {
       },
     ];
     const service = new Seth2Service({
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          username: 'player',
+          displayName: 'Player',
+          balance: new Prisma.Decimal(600),
+          frozenAt: null,
+          disabledAt: null,
+        }),
+      },
       seth2FeatureSequence: {
         findFirst: async () => ({
           id: 'sequence-1',
@@ -755,8 +782,125 @@ describe('Seth2 v1.1.5 source loading', () => {
       totalWinnings: outcome.returnData.total_gold,
     });
     expect(result).toMatchObject({
-      platform: { player: { balance: { amount: 1_020 } } },
+      platform: { player: { balance: { amount: 600 } } },
     });
+  });
+
+  it('credits a deferred feature exactly once when closeSpin finishes the game', async () => {
+    let walletBalance = new Prisma.Decimal(600);
+    let sequenceStatus: 'READY' | 'CONSUMED' = 'READY';
+    let winCredits = 0;
+    const tx = {
+      $queryRaw: async () => [
+        {
+          id: 'user-1',
+          username: 'player',
+          agentId: null,
+          balance: walletBalance,
+          displayName: 'Player',
+          disabledAt: null,
+          frozenAt: null,
+          bettingLimits: {},
+          bettingLimitLevel: 'range_10_5000',
+        },
+      ],
+      user: {
+        update: async ({ data }: { data: { balance: { increment: Prisma.Decimal } } }) => {
+          walletBalance = walletBalance.add(data.balance.increment);
+          return { balance: walletBalance };
+        },
+      },
+      transaction: {
+        create: async ({ data }: { data: { type: string } }) => {
+          if (data.type === 'BET_WIN') winCredits += 1;
+          return data;
+        },
+      },
+      seth2FeatureSequence: {
+        findFirst: async () => ({
+          id: 'sequence-1',
+          betId: 'feature-parent',
+          machineId: 7,
+          finalPayout: new Prisma.Decimal(125),
+          definitionVersion: SETH2_DEFERRED_PAYOUT_SEQUENCE_VERSION,
+          status: sequenceStatus,
+        }),
+        updateMany: async () => {
+          sequenceStatus = 'CONSUMED';
+          return { count: 1 };
+        },
+      },
+    };
+    const service = new Seth2Service({
+      $transaction: async (callback: (client: typeof tx) => unknown) => callback(tx),
+    } as never);
+
+    const first = await service.source('user-1', {
+      event: 'closeSpin',
+      data: { spinId: 'feature-parent' },
+    });
+    const repeated = await service.source('user-1', {
+      event: 'closeSpin',
+      data: { spinId: 'feature-parent' },
+    });
+
+    expect(first).toMatchObject({ platform: { player: { balance: { amount: 725 } } } });
+    expect(repeated).toMatchObject({ platform: { player: { balance: { amount: 725 } } } });
+    expect(winCredits).toBe(1);
+  });
+
+  it('consumes legacy feature sequences without paying their already-credited result again', async () => {
+    const walletBalance = new Prisma.Decimal(900);
+    let sequenceStatus: 'READY' | 'CONSUMED' = 'READY';
+    let walletUpdates = 0;
+    const tx = {
+      $queryRaw: async () => [
+        {
+          id: 'user-1',
+          username: 'player',
+          agentId: null,
+          balance: walletBalance,
+          displayName: 'Player',
+          disabledAt: null,
+          frozenAt: null,
+          bettingLimits: {},
+          bettingLimitLevel: 'range_10_5000',
+        },
+      ],
+      user: {
+        update: async () => {
+          walletUpdates += 1;
+          return { balance: walletBalance };
+        },
+      },
+      transaction: { create: async () => ({}) },
+      seth2FeatureSequence: {
+        findFirst: async () => ({
+          id: 'legacy-sequence',
+          betId: 'legacy-feature',
+          machineId: 2,
+          finalPayout: new Prisma.Decimal(300),
+          definitionVersion: 'seth2-v1.1.5-sequence-v1',
+          status: sequenceStatus,
+        }),
+        updateMany: async () => {
+          sequenceStatus = 'CONSUMED';
+          return { count: 1 };
+        },
+      },
+    };
+    const service = new Seth2Service({
+      $transaction: async (callback: (client: typeof tx) => unknown) => callback(tx),
+    } as never);
+
+    const result = await service.source('user-1', {
+      event: 'closeSpin',
+      data: { spinId: 'legacy-feature' },
+    });
+
+    expect(result).toMatchObject({ platform: { player: { balance: { amount: 900 } } } });
+    expect(sequenceStatus).toBe('CONSUMED');
+    expect(walletUpdates).toBe(0);
   });
 });
 

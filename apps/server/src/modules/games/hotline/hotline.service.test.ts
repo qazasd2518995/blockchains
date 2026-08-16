@@ -9,7 +9,84 @@ import {
   hotlineSelectBountyFreeMode,
   hotlineSelectLucky777FreeMode,
 } from '@bg/provably-fair';
-import { __hotlineServiceTestHooks } from './hotline.service.js';
+import { __hotlineServiceTestHooks, HotlineService } from './hotline.service.js';
+
+describe('hotline deferred feature payout', () => {
+  it('credits a completed H5 free-game feature exactly once', async () => {
+    let walletBalance = new Prisma.Decimal(600);
+    let winCredits = 0;
+    let resultData: Record<string, unknown> = {
+      grid: [],
+      lines: [],
+      cascades: [],
+      buyFeature: true,
+      enhancedBet: false,
+      baseAmount: '10.00',
+      stakeAmount: '750.00',
+      walletSettlement: {
+        version: 'h5-feature-deferred-payout-v1',
+        status: 'DEFERRED',
+      },
+    };
+    const tx = {
+      $queryRaw: async () => [
+        {
+          id: 'user-1',
+          username: 'player',
+          agentId: null,
+          balance: walletBalance,
+          displayName: 'Player',
+          disabledAt: null,
+          frozenAt: null,
+          bettingLimits: {},
+          bettingLimitLevel: 'range_10_5000',
+        },
+      ],
+      user: {
+        update: async ({ data }: { data: { balance: { increment: Prisma.Decimal } } }) => {
+          walletBalance = walletBalance.add(data.balance.increment);
+          return { balance: walletBalance };
+        },
+      },
+      transaction: {
+        create: async ({ data }: { data: { type: string } }) => {
+          if (data.type === 'BET_WIN') winCredits += 1;
+          return data;
+        },
+      },
+      bet: {
+        findFirst: async () => ({
+          id: 'gates-feature-1',
+          payout: new Prisma.Decimal(125),
+          resultData,
+        }),
+        update: async ({ data }: { data: { resultData: Record<string, unknown> } }) => {
+          resultData = data.resultData;
+          return { id: 'gates-feature-1' };
+        },
+      },
+    };
+    const service = new HotlineService({
+      $transaction: async (callback: (client: typeof tx) => unknown) => callback(tx),
+    } as never);
+
+    const first = await service.completeDeferredFeature(
+      'user-1',
+      'h5-gates-of-olympus',
+      'gates-feature-1',
+    );
+    const repeated = await service.completeDeferredFeature(
+      'user-1',
+      'h5-gates-of-olympus',
+      'gates-feature-1',
+    );
+
+    expect(first).toBe('725.00');
+    expect(repeated).toBe('725.00');
+    expect(winCredits).toBe(1);
+    expect(resultData.walletSettlement).toMatchObject({ status: 'PAID' });
+  });
+});
 
 describe('hotline controlled round shaping', () => {
   afterEach(() => {

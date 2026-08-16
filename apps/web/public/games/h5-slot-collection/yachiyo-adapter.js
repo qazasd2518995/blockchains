@@ -44,6 +44,10 @@
   var caishenFreeCount = 8;
   var caishenFreeMul = 8;
   var caishenDecisionInFlight = false;
+  var pendingDeferredFeatureBetId = null;
+  var pendingDeferredFeatureTrigger = null;
+  var deferredFeatureCompletionInFlight = false;
+  var deferredFeatureCompletionAttempts = 0;
   var SFX_PREFS_KEY = 'bg.sfx.prefs';
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
   var audioBridge = null;
@@ -552,12 +556,91 @@
     return true;
   }
 
+  function syncDeferredFeatureBalance(balance) {
+    if (!Number.isFinite(balance) || !window.cc) return;
+    try {
+      var componentName =
+        gameCode === '278' ? 'caishenwinsMain' : gameCode === '321' ? 'gatesofolympushbMain' : '';
+      var canvas = window.cc.find('Canvas');
+      var game = canvas && componentName ? canvas.getComponent(componentName) : null;
+      if (!game) return;
+      game.money = balance;
+      if (game.playerInfo) game.playerInfo.playerCoin = balance;
+      var label = game.slotCtrl && game.slotCtrl.lblUserCoin;
+      if (label) {
+        label.string =
+          window.Helper && typeof window.Helper.BraziltoThousands === 'function'
+            ? window.Helper.BraziltoThousands(balance)
+            : balance.toFixed(2);
+      }
+    } catch (_error) {}
+  }
+
+  function completeDeferredFeature() {
+    if (!pendingDeferredFeatureBetId || deferredFeatureCompletionInFlight) return Promise.resolve();
+    var betId = pendingDeferredFeatureBetId;
+    deferredFeatureCompletionInFlight = true;
+    deferredFeatureCompletionAttempts += 1;
+    return authorizedRequest(
+      gameApi + '/complete-feature',
+      'POST',
+      { gameCode: gameCode, betId: betId },
+      false,
+    )
+      .then(function (result) {
+        if (pendingDeferredFeatureBetId === betId) pendingDeferredFeatureBetId = null;
+        deferredFeatureCompletionAttempts = 0;
+        latestSession = latestSession || {};
+        latestSession.balance = Number(result.newBalance || 0);
+        syncDeferredFeatureBalance(latestSession.balance);
+        notifyParent('h5-slots:balance', {
+          balance: latestSession.balance,
+          gameCode: gameCode,
+          spinId: betId,
+        });
+      })
+      .catch(function (error) {
+        if (deferredFeatureCompletionAttempts < 3) {
+          window.setTimeout(completeDeferredFeature, 1200);
+          return;
+        }
+        reportSocketError(error);
+      })
+      .finally(function () {
+        deferredFeatureCompletionInFlight = false;
+      });
+  }
+
+  function patchDeferredFeatureCompletion() {
+    var componentName =
+      gameCode === '278' ? 'caishenwinsMain' : gameCode === '321' ? 'gatesofolympushbMain' : '';
+    if (!componentName || !window.cc) return false;
+    var canvas = window.cc.find('Canvas');
+    var game = canvas && canvas.getComponent(componentName);
+    if (
+      !game ||
+      game.__yachiyoDeferredFeatureCompletionPatched ||
+      typeof game.stopFreeTimes !== 'function'
+    ) {
+      return false;
+    }
+    var originalStopFreeTimes = game.stopFreeTimes;
+    game.stopFreeTimes = function () {
+      var result = originalStopFreeTimes.apply(this, arguments);
+      completeDeferredFeature();
+      return result;
+    };
+    game.__yachiyoDeferredFeatureCompletionPatched = true;
+    return true;
+  }
+
   function applyCocosScenePolicies() {
     hideUnsupportedLegacyButtons();
     enhanceFishAimControls();
     hideUnusedFishSeats();
     disableLegacyBrandWebViews();
     patchLegacyFreeSpinCountdown();
+    patchDeferredFeatureCompletion();
   }
 
   function installCocosScenePolicies() {
@@ -962,6 +1045,10 @@
             : 8,
         );
       }
+      if ((gameCode === '278' || gameCode === '321') && payload.pendingFeature) {
+        pendingDeferredFeatureBetId = payload.pendingFeature.betId;
+        pendingDeferredFeatureTrigger = payload.pendingFeature;
+      }
       return latestSession;
     });
   }
@@ -1336,6 +1423,22 @@
       gambleCaishenFree(socket, rawPayload);
     } else if (event === 'LoginfreeCount') {
       window.setTimeout(function () {
+        if (pendingDeferredFeatureTrigger) {
+          socket._trigger('LoginfreeCountResult', {
+            ResultCode: 1,
+            freeCount: 0,
+            freeMul: Number(
+              (pendingDeferredFeatureTrigger.features &&
+                pendingDeferredFeatureTrigger.features.sourceFreeWinMultiplier) ||
+                1,
+            ),
+            freeStart: false,
+          });
+          pendingLegacyResponses = buildLotteryResponses(pendingDeferredFeatureTrigger);
+          pendingDeferredFeatureTrigger = null;
+          emitQueuedLotteryResponse(socket);
+          return;
+        }
         if (gameCode === '278' && pendingCaishenTrigger) {
           socket._trigger('LoginfreeCountResult', {
             ResultCode: 1,
@@ -1726,8 +1829,7 @@
 
   function getFishSpawnDelay(sequence) {
     return (
-      FISH_STREAM_MIN_INTERVAL_MS +
-      (mixFishSequence(sequence, 0x6c8e9cf5) % FISH_STREAM_JITTER_MS)
+      FISH_STREAM_MIN_INTERVAL_MS + (mixFishSequence(sequence, 0x6c8e9cf5) % FISH_STREAM_JITTER_MS)
     );
   }
 
@@ -2005,6 +2107,10 @@
     var shape = GAME_SHAPES[gameCode] || GAME_SHAPES['161'];
     var totalPayout = Number(result.payout || 0);
     var finalBalance = Number(result.newBalance || 0);
+    var payoutDeferred = result.payoutDeferred === true;
+    if (payoutDeferred && result.betId) {
+      pendingDeferredFeatureBetId = String(result.betId);
+    }
     var baseAmount = Number(result.baseAmount || result.amount || 0);
     var features = result.features || null;
     var freeRounds =
@@ -2021,7 +2127,7 @@
     freePayouts = payoutParts.slice(1);
 
     var sequence = [];
-    var displayedBalance = finalBalance - totalPayout + basePayout;
+    var displayedBalance = payoutDeferred ? finalBalance : finalBalance - totalPayout + basePayout;
     var baseRound = {
       grid: firstVisibleGrid(result),
       finalGrid: result.grid,
@@ -2064,7 +2170,7 @@
 
     freeRounds.forEach(function (round, index) {
       var payout = freePayouts[index] || 0;
-      displayedBalance = roundMoney(displayedBalance + payout);
+      if (!payoutDeferred) displayedBalance = roundMoney(displayedBalance + payout);
       var remaining = freeRounds.length - index - 1;
       var extraFreeSpinsAwarded = Math.max(0, Number(round.extraFreeSpinsAwarded || 0));
       var freeMeta = {
@@ -2988,6 +3094,11 @@
     sourceFontFallback: sourceFontFallback,
     rewriteMissingSourceFontStyle: rewriteMissingSourceFontStyle,
     isLegacyBrandWebViewUrl: isLegacyBrandWebViewUrl,
+    completeDeferredFeature: completeDeferredFeature,
+    patchDeferredFeatureCompletion: patchDeferredFeatureCompletion,
+    getPendingDeferredFeatureBetId: function () {
+      return pendingDeferredFeatureBetId;
+    },
     createFakeSocket: function () {
       return new FakeSocket();
     },

@@ -211,6 +211,8 @@ export interface HotlineBetResult {
   payout: string;
   profit: string;
   newBalance: string;
+  /** The feature payout remains pending until the source finishes its free-game animation. */
+  payoutDeferred?: boolean;
   jackpot?: HotlineJackpotSnapshot;
   nonce: number;
   serverSeedHash: string;

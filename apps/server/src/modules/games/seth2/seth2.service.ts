@@ -54,6 +54,7 @@ const SETH2_MACHINES_PER_PAGE = 500;
 const SETH2_MACHINE_COUNT = SETH2_MACHINE_PAGES * SETH2_MACHINES_PER_PAGE;
 const ALLOWED_BET_SET = new Set<number>(SETH2_ALLOWED_BETS);
 const MAX_MULTIPLIER_BANK = SETH2_MAX_FREE_SPINS * 30 * 500;
+export const SETH2_DEFERRED_PAYOUT_SEQUENCE_VERSION = 'seth2-v1.1.5-sequence-v2-deferred-payout';
 const CONTROL_FACTORS = [
   0, 0.5, 1, 2, 3, 4, 5, 8, 10, 20, 45, 50, 100, 200, 205, 220, 250, 300, 350, 400, 450, 500, 1000,
   2015, 5000, 10_000, 20_000, 50_000, 81_000,
@@ -332,33 +333,73 @@ export class Seth2Service {
       }
       case 'collectFeatureSequence': {
         const sequenceId = String(request.sequenceId);
-        const sequence = await this.prisma.seth2FeatureSequence.findFirst({
-          where: {
-            userId,
-            OR: [{ id: sequenceId }, { betId: sequenceId }],
-          },
-        });
+        const [sequence, user] = await Promise.all([
+          this.prisma.seth2FeatureSequence.findFirst({
+            where: {
+              userId,
+              OR: [{ id: sequenceId }, { betId: sequenceId }],
+            },
+          }),
+          this.requireUser(userId),
+        ]);
         if (!sequence) throw new ApiError('INVALID_ACTION', '找不到可重播的免費遊戲序列');
         const gameState = readStoredGameStateArray(sequence.featureGameStates);
         if (!gameState) throw new ApiError('INTERNAL', '免費遊戲序列資料損壞');
         return {
           status: 200,
           engine: { gameState, spinId: sequence.betId },
-          platform: sourceBalancePlatform(Number(sequence.finalBalance.toFixed(2))),
+          // The sequence contains the complete visual result, but its payout
+          // must remain hidden from the wallet until the source closes it.
+          platform: sourceBalancePlatform(Number(user.balance.toFixed(2))),
         };
       }
       case 'closeSpin': {
         const spinId = sourceSpinId(request.spinId);
         if (!spinId) throw new ApiError('INVALID_ACTION', '缺少開獎編號');
-        await this.prisma.seth2FeatureSequence.updateMany({
-          where: { userId, betId: spinId, status: 'READY' },
-          data: { status: 'CONSUMED', consumedAt: new Date() },
+        return runLockedTransaction(this.prisma, async (tx) => {
+          const user = await lockUserAndCheckFunds(tx, userId, new Prisma.Decimal(0), GAME_ID, {
+            skipBetValidation: true,
+          });
+          const sequence = await tx.seth2FeatureSequence.findFirst({
+            where: { userId, betId: spinId },
+            select: {
+              id: true,
+              betId: true,
+              machineId: true,
+              finalPayout: true,
+              definitionVersion: true,
+              status: true,
+            },
+          });
+          let balance = user.balance;
+          if (sequence?.status === 'READY') {
+            // v1 sequences were credited when they were created. Only v2 and
+            // later deferred sequences are paid here, preserving compatibility
+            // with in-flight rounds created before this deployment.
+            if (sequence.definitionVersion === SETH2_DEFERRED_PAYOUT_SEQUENCE_VERSION) {
+              balance = await creditAndRecord(
+                tx,
+                userId,
+                sequence.finalPayout,
+                sequence.betId,
+                'BET_WIN',
+                {
+                  gameId: GAME_ID,
+                  mode: 'feature-close',
+                  machineId: sequence.machineId,
+                },
+              );
+            }
+            await tx.seth2FeatureSequence.updateMany({
+              where: { id: sequence.id, status: 'READY' },
+              data: { status: 'CONSUMED', consumedAt: new Date() },
+            });
+          }
+          return {
+            status: 200,
+            platform: sourceBalancePlatform(Number(balance.toFixed(2))),
+          };
         });
-        const user = await this.requireUser(userId);
-        return {
-          status: 200,
-          platform: sourceBalancePlatform(Number(user.balance.toFixed(2))),
-        };
       }
       case 'updateSettings':
         await this.requireUser(userId);
@@ -885,7 +926,10 @@ export class Seth2Service {
         flipReason: effectiveControl.flipReason ?? (gameCapApplied ? 'game_max_win' : null),
         raw: effectiveControl.controlled || gameCapApplied ? originalResult : null,
         operationId,
-        balanceAfter: user.balance.minus(debitAmount).add(finalPayout).toFixed(2),
+        balanceAfter: (finalFeatureRun
+          ? user.balance.minus(debitAmount)
+          : user.balance.minus(debitAmount).add(finalPayout)
+        ).toFixed(2),
         hasFeatureSequence: Boolean(finalFeatureRun),
         atomicFeature,
         jackpotPools,
@@ -906,20 +950,21 @@ export class Seth2Service {
         },
       });
 
-      if (debitAmount.greaterThan(0)) {
-        await debitAndRecord(tx, userId, debitAmount, bet.id, {
-          gameId: GAME_ID,
-          mode: buying ? 'buy' : mode,
-          machineId,
-        });
-      }
-      const newBalance = finalPayout.greaterThan(0)
-        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN', {
+      const debitedBalance = debitAmount.greaterThan(0)
+        ? await debitAndRecord(tx, userId, debitAmount, bet.id, {
             gameId: GAME_ID,
             mode: buying ? 'buy' : mode,
             machineId,
           })
-        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+        : user.balance;
+      const newBalance =
+        !finalFeatureRun && finalPayout.greaterThan(0)
+          ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN', {
+              gameId: GAME_ID,
+              mode: buying ? 'buy' : mode,
+              machineId,
+            })
+          : debitedBalance;
 
       if (finalFeatureRun) {
         const entryGameStates = seth2SourceGameStates(finalOutcome.returnData, {
@@ -941,7 +986,7 @@ export class Seth2Service {
             baseAmount,
             debitAmount,
             finalPayout,
-            finalBalance: newBalance,
+            finalBalance: debitedBalance.add(finalPayout),
             entryGameStates: entryGameStates as unknown as Prisma.InputJsonValue,
             featureGameStates: featureGameStates as unknown as Prisma.InputJsonValue,
             mathResults: finalFeatureRun.rounds.map((round, index) => ({
@@ -957,6 +1002,7 @@ export class Seth2Service {
               originalPayout: originalPayout.toFixed(2),
               finalPayout: finalPayout.toFixed(2),
             },
+            definitionVersion: SETH2_DEFERRED_PAYOUT_SEQUENCE_VERSION,
           },
         });
       }
@@ -1584,7 +1630,7 @@ export function splitSeth2FeatureFactor(
 ): number[] | null {
   const target = Number(totalFactor.toFixed(4));
   if (target < 0) return null;
-  const parts = naturalFeatureFactorParts(target, mode);
+  const parts = naturalFeatureFactorParts(target, mode, entropy);
   if (!parts) return null;
   if (parts.length > SETH2_FREE_SPINS) return null;
   const result = Array.from({ length: SETH2_FREE_SPINS }, () => 0);
@@ -1603,12 +1649,31 @@ export function splitSeth2FeatureFactor(
   return result;
 }
 
-function naturalFeatureFactorParts(target: number, mode: Seth2SpinMode): number[] | null {
+function naturalFeatureFactorParts(
+  target: number,
+  mode: Seth2SpinMode,
+  entropy: number,
+): number[] | null {
   if (target === 0) return [];
-  const smallFactors = [3, 5, 8, 10, 4, 2, 1, 0.5].filter((factor) =>
+  const baseSmallFactors = [3, 5, 8, 10, 4, 2, 1, 0.5].filter((factor) =>
     isSeth2FactorRepresentable(factor, mode, 0, false),
   );
-  const desiredParts = Math.min(6, Math.max(1, Math.floor(target / 10)));
+  const normalizedEntropy = Math.abs(Math.trunc(entropy));
+  const maximumParts = Math.min(9, Math.max(1, Math.floor(target / 10)));
+  const minimumParts = maximumParts >= 5 ? 5 : Math.max(1, maximumParts - 2);
+  const partCountRange = maximumParts - minimumParts + 1;
+  const desiredParts = minimumParts + (normalizedEntropy % partCountRange);
+  const rotation =
+    baseSmallFactors.length > 0
+      ? Math.floor(normalizedEntropy / partCountRange) % baseSmallFactors.length
+      : 0;
+  let smallFactors = [...baseSmallFactors.slice(rotation), ...baseSmallFactors.slice(0, rotation)];
+  if (
+    baseSmallFactors.length > 0 &&
+    Math.floor(normalizedEntropy / (partCountRange * baseSmallFactors.length)) % 2 === 1
+  ) {
+    smallFactors = smallFactors.reverse();
+  }
 
   for (let partCount = desiredParts; partCount >= 1; partCount -= 1) {
     const prefixCount = partCount - 1;

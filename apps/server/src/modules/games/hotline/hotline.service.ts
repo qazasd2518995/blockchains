@@ -95,6 +95,8 @@ const HOTLINE_JACKPOT_PASSIVE_GROWTH = {
 } as const;
 const HOTLINE_JACKPOT_RESET = new Prisma.Decimal(HOTLINE_JACKPOT_RESET_VALUE);
 const H5_FRUIT_LITTLE_MARY_MAX_BET = new Prisma.Decimal(5000);
+const H5_DEFERRED_PAYOUT_GAME_IDS = new Set(['h5-caishen-wins', 'h5-gates-of-olympus']);
+const H5_DEFERRED_PAYOUT_VERSION = 'h5-feature-deferred-payout-v1';
 const HOTLINE_JACKPOT_EPOCH_MS = Date.parse(HOTLINE_JACKPOT_SIMULATION_EPOCH);
 const HOTLINE_JACKPOT_RESET_INTERVAL_MS: Record<HotlineJackpotKey, number> = {
   grand: Number.parseInt(HOTLINE_JACKPOT_RESET_INTERVAL_SECONDS.grand, 10) * 1000,
@@ -131,8 +133,163 @@ interface HotlineBetOptions {
   sourceFreeModeType?: number;
 }
 
+interface H5WalletSettlement {
+  version: typeof H5_DEFERRED_PAYOUT_VERSION;
+  status: 'DEFERRED' | 'PAID';
+  completedAt?: string;
+}
+
+interface DeferredHotlineResultData {
+  grid: number[][];
+  lines: HotlineWinLine[];
+  cascades: HotlineCascadeStep[];
+  features?: HotlineMegaFeatureResult;
+  sourceFeature?: HotlineSourceFeatureResult;
+  finalGoldPositions?: HotlineWinPosition[];
+  finalSourceStacks?: HotlineSourceStack[];
+  buyFeature: boolean;
+  enhancedBet: boolean;
+  baseAmount: string;
+  stakeAmount: string;
+}
+
+function jsonRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function deferredH5WalletSettlement(): H5WalletSettlement {
+  return { version: H5_DEFERRED_PAYOUT_VERSION, status: 'DEFERRED' };
+}
+
+function readH5WalletSettlement(value: unknown): H5WalletSettlement | null {
+  const record = jsonRecord(value);
+  if (
+    record?.version !== H5_DEFERRED_PAYOUT_VERSION ||
+    (record.status !== 'DEFERRED' && record.status !== 'PAID')
+  ) {
+    return null;
+  }
+  return record as unknown as H5WalletSettlement;
+}
+
+function shouldDeferH5FeaturePayout(
+  gameId: string,
+  features: HotlineMegaFeatureResult | undefined,
+): boolean {
+  return (
+    H5_DEFERRED_PAYOUT_GAME_IDS.has(gameId) &&
+    Boolean(features && features.freeSpinRounds.length > 0)
+  );
+}
+
+function readDeferredHotlineResultData(value: unknown): DeferredHotlineResultData | null {
+  const record = jsonRecord(value);
+  if (
+    !record ||
+    readH5WalletSettlement(record.walletSettlement)?.status !== 'DEFERRED' ||
+    !Array.isArray(record.grid) ||
+    !Array.isArray(record.lines) ||
+    !Array.isArray(record.cascades) ||
+    typeof record.baseAmount !== 'string' ||
+    typeof record.stakeAmount !== 'string' ||
+    typeof record.buyFeature !== 'boolean' ||
+    typeof record.enhancedBet !== 'boolean'
+  ) {
+    return null;
+  }
+  return record as unknown as DeferredHotlineResultData;
+}
+
 export class HotlineService {
   constructor(private readonly prisma: PrismaClient) {}
+
+  async getPendingDeferredFeature(
+    userId: string,
+    gameId: string,
+  ): Promise<HotlineBetResult | null> {
+    if (!H5_DEFERRED_PAYOUT_GAME_IDS.has(gameId)) return null;
+    const bet = await this.prisma.bet.findFirst({
+      where: {
+        userId,
+        gameId,
+        status: 'SETTLED',
+        resultData: { path: ['walletSettlement', 'status'], equals: 'DEFERRED' },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { serverSeed: { select: { seedHash: true } } },
+    });
+    if (!bet) return null;
+    const stored = readDeferredHotlineResultData(bet.resultData);
+    if (!stored) throw new ApiError('INTERNAL', '免費遊戲延後結算資料損壞');
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { balance: true },
+    });
+    return {
+      betId: bet.id,
+      grid: stored.grid,
+      lines: stored.lines,
+      cascades: stored.cascades,
+      ...(stored.features ? { features: stored.features } : {}),
+      ...(stored.sourceFeature ? { sourceFeature: stored.sourceFeature } : {}),
+      ...(stored.finalGoldPositions ? { finalGoldPositions: stored.finalGoldPositions } : {}),
+      ...(stored.finalSourceStacks ? { finalSourceStacks: stored.finalSourceStacks } : {}),
+      ...(stored.buyFeature ? { buyFeature: true } : {}),
+      ...(stored.enhancedBet ? { enhancedBet: true } : {}),
+      baseAmount: stored.baseAmount,
+      stakeAmount: stored.stakeAmount,
+      multiplier: Number(bet.multiplier.toFixed(4)),
+      amount: bet.amount.toFixed(2),
+      payout: bet.payout.toFixed(2),
+      profit: bet.profit.toFixed(2),
+      newBalance: user.balance.toFixed(2),
+      payoutDeferred: true,
+      nonce: bet.nonce,
+      serverSeedHash: bet.serverSeed.seedHash,
+      clientSeed: bet.clientSeedUsed,
+    };
+  }
+
+  async completeDeferredFeature(userId: string, gameId: string, betId: string): Promise<string> {
+    if (!H5_DEFERRED_PAYOUT_GAME_IDS.has(gameId)) {
+      throw new ApiError('INVALID_ACTION', '此遊戲沒有可延後結算的免費遊戲');
+    }
+    return runLockedTransaction(this.prisma, async (tx) => {
+      const user = await lockUserAndCheckFunds(tx, userId, new Prisma.Decimal(0), gameId, {
+        skipBetValidation: true,
+      });
+      const bet = await tx.bet.findFirst({
+        where: { id: betId, userId, gameId, status: 'SETTLED' },
+        select: { id: true, payout: true, resultData: true },
+      });
+      if (!bet) throw new ApiError('INVALID_ACTION', '找不到免費遊戲結算資料');
+      const resultData = jsonRecord(bet.resultData);
+      const walletSettlement = readH5WalletSettlement(resultData?.walletSettlement);
+      if (!resultData || walletSettlement?.status !== 'DEFERRED') {
+        return user.balance.toFixed(2);
+      }
+      const newBalance = await creditAndRecord(tx, userId, bet.payout, bet.id, 'BET_WIN', {
+        gameId,
+        mode: 'feature-close',
+      });
+      await tx.bet.update({
+        where: { id: bet.id },
+        data: {
+          resultData: {
+            ...resultData,
+            walletSettlement: {
+              ...walletSettlement,
+              status: 'PAID',
+              completedAt: new Date().toISOString(),
+            },
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return newBalance.toFixed(2);
+    });
+  }
 
   async jackpot(gameId: string): Promise<HotlineJackpotSnapshot> {
     if (
@@ -507,6 +664,8 @@ export class HotlineService {
       selection.control.flipReason ?? null,
       selection.control.controlled ? originalResult : null,
     );
+    const payoutDeferred = shouldDeferH5FeaturePayout(gameId, finalFeatures);
+    if (payoutDeferred) finalResult.walletSettlement = deferredH5WalletSettlement();
     await tx.bet.update({
       where: { id: bet.id },
       data: {
@@ -518,9 +677,11 @@ export class HotlineService {
         resultData: finalResult as unknown as Prisma.InputJsonValue,
       },
     });
-    const newBalance = finalPayout.greaterThan(0)
-      ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
-      : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+    const currentBalance = (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+    const newBalance =
+      !payoutDeferred && finalPayout.greaterThan(0)
+        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
+        : currentBalance;
     await finalizeControls(
       tx,
       userId,
@@ -551,6 +712,7 @@ export class HotlineService {
       payout: finalPayout.toFixed(2),
       profit: profit.toFixed(2),
       newBalance: newBalance.toFixed(2),
+      ...(payoutDeferred ? { payoutDeferred: true } : {}),
       nonce: bet.nonce,
       serverSeedHash: bet.serverSeed.seedHash,
       clientSeed: bet.clientSeedUsed,
@@ -583,6 +745,23 @@ export class HotlineService {
       : sourceStakeAmount(baseAmount, options.stakeMultiplier);
 
     return runLockedTransaction(this.prisma, async (tx) => {
+      await lockUserAndCheckFunds(tx, userId, stakeAmount, gameId, {
+        limitAmounts: [baseAmount],
+      });
+      if (H5_DEFERRED_PAYOUT_GAME_IDS.has(gameId)) {
+        const pendingFeature = await tx.bet.findFirst({
+          where: {
+            userId,
+            gameId,
+            status: 'SETTLED',
+            resultData: { path: ['walletSettlement', 'status'], equals: 'DEFERRED' },
+          },
+          select: { id: true },
+        });
+        if (pendingFeature) {
+          throw new ApiError('INVALID_ACTION', `請先完成目前的免費遊戲：${pendingFeature.id}`);
+        }
+      }
       if (
         ((gameId === 'h5-queen-of-bounty' || gameId === 'h5-lucky-777') &&
           (options.deferSourceFreeModeSelection || options.deferBountyFreeModeSelection)) ||
@@ -596,9 +775,6 @@ export class HotlineService {
           throw new ApiError('INVALID_ACTION', '請先完成目前的免費遊戲選擇');
         }
       }
-      await lockUserAndCheckFunds(tx, userId, stakeAmount, gameId, {
-        limitAmounts: [baseAmount],
-      });
       const seed = await new SeedHelper(tx).getActiveBundle(userId, gameId, input.clientSeed);
       const star97StartingProgress =
         gameId === 'h5-star-97'
@@ -845,6 +1021,7 @@ export class HotlineService {
         finalMultiplier = capped.multiplier;
       }
       const profit = finalPayout.minus(stakeAmount);
+      const payoutDeferred = shouldDeferH5FeaturePayout(gameId, finalFeatures);
 
       const originalResult = {
         grid: generatedRound.grid,
@@ -881,6 +1058,7 @@ export class HotlineService {
         flipReason: effectiveControl.flipReason ?? null,
         ...(entertainmentMeta ? { entertainment: entertainmentMeta } : {}),
         raw: effectiveControl.controlled ? originalResult : null,
+        ...(payoutDeferred ? { walletSettlement: deferredH5WalletSettlement() } : {}),
       };
 
       const bet = await tx.bet.create({
@@ -897,10 +1075,11 @@ export class HotlineService {
           resultData: finalResult as unknown as Prisma.InputJsonValue,
         },
       });
-      await debitAndRecord(tx, userId, stakeAmount, bet.id);
-      const newBalance = finalPayout.greaterThan(0)
-        ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
-        : (await tx.user.findUniqueOrThrow({ where: { id: userId } })).balance;
+      const debitedBalance = await debitAndRecord(tx, userId, stakeAmount, bet.id);
+      const newBalance =
+        !payoutDeferred && finalPayout.greaterThan(0)
+          ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN')
+          : debitedBalance;
       await finalizeControls(
         tx,
         userId,
@@ -949,6 +1128,7 @@ export class HotlineService {
         payout: finalPayout.toFixed(2),
         profit: profit.toFixed(2),
         newBalance: newBalance.toFixed(2),
+        ...(payoutDeferred ? { payoutDeferred: true } : {}),
         ...(jackpot ? { jackpot } : {}),
         nonce: seed.nonce,
         serverSeedHash: seed.serverSeedHash,

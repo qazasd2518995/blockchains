@@ -201,9 +201,9 @@ model Seth2PlayerState {
   updatedAt         DateTime @updatedAt
 }
 
-/// A complete, already-settled feature animation. The whole sequence and its
-/// wallet result are committed atomically with the parent Bet and can then be
-/// replayed without running game math or touching money again.
+/// A complete feature animation whose result is committed with the parent Bet.
+/// Current sequences defer wallet payout until closeSpin; legacy v1 sequences
+/// were already paid and remain distinguishable through definitionVersion.
 model Seth2FeatureSequence {
   id                String                     @id @default(cuid())
   userId            String
