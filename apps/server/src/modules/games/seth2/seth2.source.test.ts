@@ -282,6 +282,29 @@ describe('Seth 2 v1.1.5 source contract', () => {
     }
   });
 
+  it('maps every segment-scoped Eternal Rise character event to the source animation', () => {
+    for (let nonce = 0; nonce < 500; nonce += 1) {
+      const outcome = seth2SuperMainSpinForFactor('source-multi-skill', 'client', nonce, 2, 5_000);
+      const expectedSkills = outcome.returnData.list.filter(
+        (round) =>
+          (round.male_mul_list?.length ?? 0) > 0 || (round.female_start_mul_list?.length ?? 0) > 0,
+      ).length;
+      if (expectedSkills < 2) continue;
+      const states = seth2SourceGameStates(outcome.returnData, {
+        ...SOURCE_OPTIONS,
+        action: 'superSpin',
+        freeGameCount: 0,
+      });
+      const animatedSkills = states.filter(
+        (state) => state.maleTotemLevel > 0 || state.femaleTotemLevel > 0,
+      );
+      expect(animatedSkills).toHaveLength(expectedSkills);
+      expect(states.at(-1)!.totalWinnings).toBe(outcome.returnData.total_gold);
+      return;
+    }
+    throw new Error('Expected a deterministic multi-skill Eternal Rise fixture');
+  });
+
   it('carries a female lock through later Eternal Rise games with a decreasing counter', () => {
     const outcome = seth2SuperMainSpin('audit-multi', 'client', 9, 2);
     expect(outcome.payoutFactor).toBe(2_000);

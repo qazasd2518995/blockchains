@@ -57,6 +57,11 @@ export interface Seth2CascadeRound {
   /** Female-lock state carried into a later Eternal Rise main-game segment. */
   locked_mul_list?: Seth2Cell[];
   locked_mul_count?: number;
+  /** Character metadata scoped to this Eternal Rise segment. */
+  male_mul_list?: Seth2Cell[];
+  male_source?: Seth2Cell | null;
+  female_start_mul_list?: Seth2Cell[];
+  female_mul_count?: number;
 }
 
 export interface Seth2ReturnData {

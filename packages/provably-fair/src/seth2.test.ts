@@ -654,4 +654,27 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       ).toBe(true);
     }
   });
+
+  it('allows separate Eternal Rise segments to trigger their own character skills', () => {
+    let multiSkillOutcome: ReturnType<typeof seth2SuperMainSpinForFactor> | undefined;
+    for (let nonce = 0; nonce < 500; nonce += 1) {
+      const outcome = seth2SuperMainSpinForFactor(
+        'multi-skill-super-main',
+        'client',
+        nonce,
+        BET,
+        5_000,
+      );
+      const skillRounds = outcome.returnData.list.filter(
+        (round) =>
+          (round.male_mul_list?.length ?? 0) > 0 || (round.female_start_mul_list?.length ?? 0) > 0,
+      );
+      if (skillRounds.length > 1) {
+        multiSkillOutcome = outcome;
+        break;
+      }
+    }
+    expect(multiSkillOutcome).toBeDefined();
+    expect(multiSkillOutcome!.returnData.total_gold).toBe(BET * 5_000);
+  });
 });

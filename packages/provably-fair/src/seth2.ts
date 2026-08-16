@@ -70,6 +70,11 @@ export interface Seth2CascadeRound {
   /** Female-lock state carried into a later Eternal Rise main-game segment. */
   locked_mul_list?: Seth2Cell[];
   locked_mul_count?: number;
+  /** Character metadata scoped to this Eternal Rise segment. */
+  male_mul_list?: Seth2Cell[];
+  male_source?: Seth2Cell | null;
+  female_start_mul_list?: Seth2Cell[];
+  female_mul_count?: number;
 }
 
 export interface Seth2ReturnData {
@@ -1252,7 +1257,7 @@ function buildSuperMainOutcome(bet: number, factor: number, rng: Seth2RandomSour
   for (let index = 0; index < factors.length; index += 1) {
     const segmentFactor = factors[index]!;
     const lockedContribution = activeFemaleCells.reduce((total, current) => total + current.mul, 0);
-    const preferSkill = index === 0 && segmentFactor >= 500 && rng() < 0.4;
+    const preferSkill = segmentFactor >= 500 && rng() < 0.4;
     let segment = preferSkill
       ? exactSuperWin(bet, segmentFactor, rng, {
           require500: true,
@@ -1301,6 +1306,22 @@ function buildSuperMainOutcome(bet: number, factor: number, rng: Seth2RandomSour
         ...current,
       }));
       activeFemaleCount = segment.returnData.type18_mul_count;
+    }
+    const maleRound = segment.returnData.list.find((round) => round.remove_type.includes(17));
+    if (maleRound) {
+      maleRound.male_mul_list = segment.returnData.type17_mul_list.map((current) => ({
+        ...current,
+      }));
+      maleRound.male_source = segment.returnData.type17_beishu
+        ? { ...segment.returnData.type17_beishu }
+        : null;
+    }
+    const femaleRound = segment.returnData.list.find((round) => round.remove_type.includes(18));
+    if (femaleRound) {
+      femaleRound.female_start_mul_list = segment.returnData.type18_start_mul_list.map(
+        (current) => ({ ...current }),
+      );
+      femaleRound.female_mul_count = segment.returnData.type18_mul_count;
     }
     segment.returnData.list.at(-1)!.collect_gold = money(bet * segmentFactor);
     segmentOutcomes.push(segment);

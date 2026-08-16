@@ -34,6 +34,7 @@ import {
 import {
   applyControls,
   finalizeControls,
+  forceControlOutcomeToLoss,
   multiplierMatchesControlBounds,
   type ControlOutcome,
 } from '../_common/controls.js';
@@ -686,9 +687,75 @@ export class Seth2Service {
             });
       const gameCapApplied =
         originalTotalFactor > SETH2_MAX_WIN_MULTIPLIER && !controlled.controlled;
+      const capControl = {
+        won: true,
+        multiplier: new Prisma.Decimal(SETH2_MAX_WIN_MULTIPLIER),
+        minMultiplier: new Prisma.Decimal(SETH2_MAX_WIN_MULTIPLIER),
+        maxMultiplier: new Prisma.Decimal(SETH2_MAX_WIN_MULTIPLIER),
+      };
+      let effectiveControl = controlled;
+      let controlledSingleFactor: number | null = null;
+      let controlledFeatureFactor: number | null = null;
+      if (gameCapApplied && !originalFeatureRun) {
+        controlledSingleFactor = chooseControlledSethFactor(
+          baseAmount,
+          controlAmount,
+          capControl,
+          mode,
+          effectiveMultiplierBankBefore,
+          hasPersistentMultiplier,
+        );
+      } else if (controlled.controlled) {
+        if (buying && featureIndex !== 2) {
+          controlledFeatureFactor = chooseControlledSethFeatureFactor(
+            baseAmount,
+            controlAmount,
+            effectiveControl,
+            mode,
+          );
+        } else {
+          controlledSingleFactor = chooseControlledSethFactor(
+            baseAmount,
+            controlAmount,
+            effectiveControl,
+            mode,
+            effectiveMultiplierBankBefore,
+            hasPersistentMultiplier,
+          );
+        }
+        if (controlledSingleFactor === null && controlledFeatureFactor === null) {
+          effectiveControl = forceControlOutcomeToLoss(controlled);
+          if (buying && featureIndex !== 2) {
+            controlledFeatureFactor = chooseControlledSethFeatureFactor(
+              baseAmount,
+              controlAmount,
+              effectiveControl,
+              mode,
+            );
+          } else {
+            controlledSingleFactor = chooseControlledSethFactor(
+              baseAmount,
+              controlAmount,
+              effectiveControl,
+              mode,
+              effectiveMultiplierBankBefore,
+              hasPersistentMultiplier,
+            );
+          }
+        }
+      }
+      if (
+        (gameCapApplied && !originalFeatureRun && controlledSingleFactor === null) ||
+        (effectiveControl.controlled &&
+          (buying && featureIndex !== 2
+            ? controlledFeatureFactor === null
+            : controlledSingleFactor === null))
+      ) {
+        throw new ApiError('INTERNAL', '控制結果超出賽特 2 可顯示的賠率範圍');
+      }
 
       const finalOutcome =
-        controlled.controlled || (gameCapApplied && !originalFeatureRun)
+        effectiveControl.controlled || (gameCapApplied && !originalFeatureRun)
           ? buying && featureIndex !== 2
             ? originalOutcome
             : featureIndex === 2
@@ -697,42 +764,14 @@ export class Seth2Service {
                   seed.clientSeed,
                   seed.nonce,
                   baseBet,
-                  chooseControlledSethFactor(
-                    baseAmount,
-                    controlAmount,
-                    gameCapApplied
-                      ? {
-                          won: true,
-                          multiplier: new Prisma.Decimal(SETH2_MAX_WIN_MULTIPLIER),
-                          minMultiplier: new Prisma.Decimal(SETH2_MAX_WIN_MULTIPLIER),
-                          maxMultiplier: new Prisma.Decimal(SETH2_MAX_WIN_MULTIPLIER),
-                        }
-                      : controlled,
-                    mode,
-                    effectiveMultiplierBankBefore,
-                    hasPersistentMultiplier,
-                  ),
+                  controlledSingleFactor!,
                 )
               : seth2SpinForFactor(
                   seed.serverSeed,
                   seed.clientSeed,
                   seed.nonce,
                   baseBet,
-                  chooseControlledSethFactor(
-                    baseAmount,
-                    controlAmount,
-                    gameCapApplied
-                      ? {
-                          won: true,
-                          multiplier: new Prisma.Decimal(SETH2_MAX_WIN_MULTIPLIER),
-                          minMultiplier: new Prisma.Decimal(SETH2_MAX_WIN_MULTIPLIER),
-                          maxMultiplier: new Prisma.Decimal(SETH2_MAX_WIN_MULTIPLIER),
-                        }
-                      : controlled,
-                    mode,
-                    effectiveMultiplierBankBefore,
-                    hasPersistentMultiplier,
-                  ),
+                  controlledSingleFactor!,
                   mode,
                   effectiveMultiplierBankBefore,
                   hasPersistentMultiplier,
@@ -758,7 +797,7 @@ export class Seth2Service {
               featureMode: buying ? boughtFeatureMode : originalOutcome.featureMode,
               forcedTotalFactor: SETH2_MAX_WIN_MULTIPLIER,
             })
-          : buying && featureIndex !== 2 && controlled.controlled
+          : buying && featureIndex !== 2 && effectiveControl.controlled
             ? generateFeatureRun({
                 entryOutcome: finalOutcome,
                 seeds: featureSeeds,
@@ -766,12 +805,7 @@ export class Seth2Service {
                 buying: true,
                 featureIndex,
                 featureMode: boughtFeatureMode,
-                forcedTotalFactor: chooseControlledSethFeatureFactor(
-                  baseAmount,
-                  controlAmount,
-                  controlled,
-                  mode,
-                ),
+                forcedTotalFactor: controlledFeatureFactor!,
               })
             : finalOutcome === originalOutcome
               ? originalFeatureRun
@@ -822,7 +856,7 @@ export class Seth2Service {
         naturalJackpotTier > 0 &&
         finalOutcome === originalOutcome &&
         !gameCapApplied &&
-        !controlled.controlled;
+        !effectiveControl.controlled;
       const settledJackpotPool = jackpotPool
         ? jackpotPoolAfterSettlement(jackpotPool, naturalJackpotTier, settlesNaturalJackpot)
         : null;
@@ -847,9 +881,9 @@ export class Seth2Service {
         displaySession: nextSession,
         featureWinningsBefore: freeSpin ? currentSession.featureWinnings : 0,
         returnData: finalOutcome.returnData,
-        controlled: controlled.controlled || gameCapApplied,
-        flipReason: controlled.flipReason ?? (gameCapApplied ? 'game_max_win' : null),
-        raw: controlled.controlled || gameCapApplied ? originalResult : null,
+        controlled: effectiveControl.controlled || gameCapApplied,
+        flipReason: effectiveControl.flipReason ?? (gameCapApplied ? 'game_max_win' : null),
+        raw: effectiveControl.controlled || gameCapApplied ? originalResult : null,
         operationId,
         balanceAfter: user.balance.minus(debitAmount).add(finalPayout).toFixed(2),
         hasFeatureSequence: Boolean(finalFeatureRun),
@@ -917,8 +951,8 @@ export class Seth2Service {
               payoutFactor: round.payoutFactor,
             })) as unknown as Prisma.InputJsonValue,
             controlResult: {
-              controlled: controlled.controlled || gameCapApplied,
-              reason: controlled.flipReason ?? (gameCapApplied ? 'game_max_win' : null),
+              controlled: effectiveControl.controlled || gameCapApplied,
+              reason: effectiveControl.flipReason ?? (gameCapApplied ? 'game_max_win' : null),
               accountingAmount: controlAmount.toFixed(2),
               originalPayout: originalPayout.toFixed(2),
               finalPayout: finalPayout.toFixed(2),
@@ -941,7 +975,7 @@ export class Seth2Service {
           multiplier: finalControlMultiplier,
           payout: finalPayout,
         },
-        controlled,
+        effectiveControl,
         bet.id,
         originalResult as unknown as Prisma.InputJsonValue,
         finalResult as unknown as Prisma.InputJsonValue,
@@ -1462,6 +1496,7 @@ export function generateFeatureRun(input: {
             : input.buying
               ? 'bought_standard_free'
               : 'standard_free',
+          input.seeds[0]?.nonce ?? 0,
         );
   if (input.forcedTotalFactor !== undefined && !forcedFactors) {
     throw new ApiError('INTERNAL', '控制結果無法生成一致的免費遊戲動畫');
@@ -1501,6 +1536,7 @@ export function generateFeatureRun(input: {
             mode,
             effectiveBank,
             lockedContribution > 0,
+            true,
             false,
           );
     normalizeFemaleLockAccounting(outcome.returnData, session.multiplierBank, lockedContribution);
@@ -1541,32 +1577,85 @@ export function generateFeatureRun(input: {
   return { rounds, totalPayoutFactor, finalSession: session };
 }
 
-export function splitSeth2FeatureFactor(totalFactor: number, mode: Seth2SpinMode): number[] | null {
+export function splitSeth2FeatureFactor(
+  totalFactor: number,
+  mode: Seth2SpinMode,
+  entropy = 0,
+): number[] | null {
   const target = Number(totalFactor.toFixed(4));
   if (target < 0) return null;
-  const parts: number[] = [];
-  if (target > 0) {
-    if (isSeth2FactorRepresentable(target, mode, 0, false)) {
-      parts.push(target);
-    } else {
-      const first = [...CONTROL_FACTORS]
-        .reverse()
-        .find(
-          (candidate) =>
-            candidate > 0 &&
-            candidate < target &&
-            isSeth2FactorRepresentable(candidate, mode, 0, false) &&
-            isSeth2FactorRepresentable(Number((target - candidate).toFixed(4)), mode, 0, false),
-        );
-      if (first === undefined) return null;
-      parts.push(first, Number((target - first).toFixed(4)));
-    }
-  }
+  const parts = naturalFeatureFactorParts(target, mode);
+  if (!parts) return null;
   if (parts.length > SETH2_FREE_SPINS) return null;
-  return [
-    ...parts.sort((left, right) => left - right),
-    ...Array.from({ length: SETH2_FREE_SPINS - parts.length }, () => 0),
-  ];
+  const result = Array.from({ length: SETH2_FREE_SPINS }, () => 0);
+  if (parts.length === 0) return result;
+  const slots = new Set<number>();
+  let cursor = Math.abs(Math.trunc(entropy)) % SETH2_FREE_SPINS;
+  while (slots.size < parts.length) {
+    slots.add(cursor);
+    cursor = (cursor + 3 + slots.size) % SETH2_FREE_SPINS;
+  }
+  [...slots]
+    .sort((left, right) => left - right)
+    .forEach((slot, index) => {
+      result[slot] = parts[index]!;
+    });
+  return result;
+}
+
+function naturalFeatureFactorParts(target: number, mode: Seth2SpinMode): number[] | null {
+  if (target === 0) return [];
+  const smallFactors = [3, 5, 8, 10, 4, 2, 1, 0.5].filter((factor) =>
+    isSeth2FactorRepresentable(factor, mode, 0, false),
+  );
+  const desiredParts = Math.min(6, Math.max(1, Math.floor(target / 10)));
+
+  for (let partCount = desiredParts; partCount >= 1; partCount -= 1) {
+    const prefixCount = partCount - 1;
+    const prefix: number[] = [];
+    const findPrefix = (depth: number, sum: number): number[] | null => {
+      if (depth === prefixCount) {
+        const remainder = Number((target - sum).toFixed(4));
+        return remainder > 0 && isSeth2FactorRepresentable(remainder, mode, 0, false)
+          ? [...prefix, remainder]
+          : null;
+      }
+      const orderedFactors = [
+        ...smallFactors.slice(depth % smallFactors.length),
+        ...smallFactors.slice(0, depth % smallFactors.length),
+      ];
+      for (const factor of orderedFactors) {
+        if (sum + factor >= target) continue;
+        prefix.push(factor);
+        const result = findPrefix(depth + 1, Number((sum + factor).toFixed(4)));
+        prefix.pop();
+        if (result) return result;
+      }
+      return null;
+    };
+    const result = findPrefix(0, 0);
+    if (result) return result;
+  }
+  return null;
+}
+
+function controlFactorCandidates(
+  baseAmount: Prisma.Decimal,
+  controlAmount: Prisma.Decimal,
+  control: Pick<ControlOutcome, 'multiplier' | 'minMultiplier' | 'maxMultiplier'>,
+): number[] {
+  const values = new Set<number>(CONTROL_FACTORS);
+  const addMultiplier = (multiplier: Prisma.Decimal | undefined) => {
+    if (!multiplier) return;
+    const factor = Number(multiplier.mul(controlAmount).div(baseAmount).toFixed(4));
+    if (Number.isFinite(factor) && factor >= 0 && factor <= SETH2_MAX_WIN_MULTIPLIER) {
+      values.add(factor);
+    }
+  };
+  addMultiplier(control.multiplier);
+  addMultiplier(control.minMultiplier);
+  addMultiplier(control.maxMultiplier);
+  return [...values];
 }
 
 export function chooseControlledSethFeatureFactor(
@@ -1577,22 +1666,24 @@ export function chooseControlledSethFeatureFactor(
     'won' | 'multiplier' | 'minMultiplier' | 'maxMultiplier' | 'maxPayout'
   >,
   mode: Seth2SpinMode,
-): number {
-  const candidates = CONTROL_FACTORS.filter((factor) => {
-    if (factor < 3 || !splitSeth2FeatureFactor(factor - 3, mode)) return false;
-    const accountingMultiplier = baseAmount
-      .mul(factor)
-      .div(controlAmount)
-      .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
-    if (control.won) {
-      return (
-        accountingMultiplier.greaterThan(1) &&
-        multiplierMatchesControlBounds(accountingMultiplier, controlAmount, control)
-      );
-    }
-    return accountingMultiplier.lessThanOrEqualTo(1);
-  });
-  if (candidates.length === 0) return 3;
+): number | null {
+  const candidates = controlFactorCandidates(baseAmount, controlAmount, control).filter(
+    (factor) => {
+      if (factor < 3 || !splitSeth2FeatureFactor(factor - 3, mode)) return false;
+      const accountingMultiplier = baseAmount
+        .mul(factor)
+        .div(controlAmount)
+        .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
+      if (control.won) {
+        return (
+          accountingMultiplier.greaterThan(1) &&
+          multiplierMatchesControlBounds(accountingMultiplier, controlAmount, control)
+        );
+      }
+      return accountingMultiplier.lessThanOrEqualTo(1);
+    },
+  );
+  if (candidates.length === 0) return null;
   const target = Number(control.multiplier.mul(controlAmount).div(baseAmount).toFixed(4));
   return candidates.reduce((best, factor) =>
     Math.abs(factor - target) < Math.abs(best - target) ? factor : best,
@@ -1725,24 +1816,26 @@ export function chooseControlledSethFactor(
   mode: Seth2SpinMode = 'base',
   multiplierBank = 0,
   hasPersistentMultiplier = false,
-): number {
-  const candidates = CONTROL_FACTORS.filter((factor) => {
-    if (!isSeth2FactorRepresentable(factor, mode, multiplierBank, hasPersistentMultiplier)) {
-      return false;
-    }
-    const accountingMultiplier = baseAmount
-      .mul(factor)
-      .div(controlAmount)
-      .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
-    if (control.won) {
-      return (
-        accountingMultiplier.greaterThan(1) &&
-        multiplierMatchesControlBounds(accountingMultiplier, controlAmount, control)
-      );
-    }
-    return accountingMultiplier.lessThanOrEqualTo(1);
-  });
-  if (candidates.length === 0) return 0;
+): number | null {
+  const candidates = controlFactorCandidates(baseAmount, controlAmount, control).filter(
+    (factor) => {
+      if (!isSeth2FactorRepresentable(factor, mode, multiplierBank, hasPersistentMultiplier)) {
+        return false;
+      }
+      const accountingMultiplier = baseAmount
+        .mul(factor)
+        .div(controlAmount)
+        .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
+      if (control.won) {
+        return (
+          accountingMultiplier.greaterThan(1) &&
+          multiplierMatchesControlBounds(accountingMultiplier, controlAmount, control)
+        );
+      }
+      return accountingMultiplier.lessThanOrEqualTo(1);
+    },
+  );
+  if (candidates.length === 0) return null;
   const targetFactor = Number(control.multiplier.mul(controlAmount).div(baseAmount).toFixed(4));
   return candidates.reduce((best, factor) =>
     Math.abs(factor - targetFactor) < Math.abs(best - targetFactor) ? factor : best,

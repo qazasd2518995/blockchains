@@ -49,13 +49,13 @@ describe('Seth2 controlled result selection', () => {
     expect(factor).toBe(400);
   });
 
-  it('falls back to a loss when no legal controlled win exists', () => {
+  it('reports when no legal controlled win exists so settlement can safely downgrade it', () => {
     const factor = chooseControlledSethFactor(new Prisma.Decimal(18), new Prisma.Decimal(3600), {
       won: true,
       multiplier: new Prisma.Decimal(2),
       maxPayout: new Prisma.Decimal(3600),
     });
-    expect(factor).toBe(0);
+    expect(factor).toBeNull();
   });
 
   it('selects only factors representable by a visible persistent lock', () => {
@@ -89,10 +89,34 @@ describe('Seth2 controlled result selection', () => {
         'bought_standard_free',
       ),
     ).toBe(400);
-    expect(splitSeth2FeatureFactor(19_997, 'awakening_free')).toEqual(
-      expect.arrayContaining([10_000, 9_997]),
-    );
+    const parts = splitSeth2FeatureFactor(19_997, 'awakening_free')!;
+    expect(parts.filter((factor) => factor > 0).length).toBeGreaterThanOrEqual(5);
+    expect(parts.reduce((total, factor) => total + factor, 0)).toBe(19_997);
   });
+
+  it.each([
+    [200, 10, 2_000],
+    [500, 1.5, 750],
+    [500, 5, 2_500],
+    [500, 50, 25_000],
+  ])(
+    'represents a %sx purchase controlled to %sx as exactly %sx base bet',
+    (rate, target, factor) => {
+      expect(
+        chooseControlledSethFeatureFactor(
+          new Prisma.Decimal(2),
+          new Prisma.Decimal(2 * rate),
+          {
+            won: true,
+            multiplier: new Prisma.Decimal(target),
+            minMultiplier: new Prisma.Decimal(target),
+            maxMultiplier: new Prisma.Decimal(target),
+          },
+          'awakening_free',
+        ),
+      ).toBe(factor);
+    },
+  );
 
   it.each([3, 200, 400, 20_000, 81_000])(
     'builds an atomic 15-game sequence whose visible total is exactly %s x',
@@ -121,6 +145,42 @@ describe('Seth2 controlled result selection', () => {
       expect(run.finalSession.featureWinnings).toBe(0);
     },
   );
+
+  it('keeps controlled awakening features distributed and preserves both character skills', () => {
+    const seenSkills = new Set<number>();
+    for (let runIndex = 0; runIndex < 200; runIndex += 1) {
+      const entryOutcome = seth2BuyFeatureEntry(
+        `controlled-character-entry-${runIndex}`,
+        'client',
+        runIndex,
+        'awakening',
+        2,
+      );
+      const seeds = Array.from({ length: 100 }, (_, index) => ({
+        serverSeedId: `controlled-character-${runIndex}-${index}`,
+        serverSeed: `controlled-character-seed-${runIndex}`,
+        serverSeedHash: 'hash',
+        clientSeed: 'client',
+        nonce: runIndex * 100 + index + 1,
+      }));
+      const run = generateFeatureRun({
+        entryOutcome,
+        seeds,
+        baseBet: 2,
+        buying: true,
+        featureIndex: 1,
+        featureMode: 'awakening',
+        forcedTotalFactor: 400,
+      });
+      expect(run.rounds.filter((round) => round.payoutFactor > 0).length).toBeGreaterThanOrEqual(5);
+      expect(entryOutcome.payoutFactor + run.totalPayoutFactor).toBe(400);
+      for (const round of run.rounds) {
+        if (round.returnData.type17_mul_list.length > 0) seenSkills.add(17);
+        if (round.returnData.type18_start_mul_list.length > 0) seenSkills.add(18);
+      }
+    }
+    expect(seenSkills).toEqual(new Set([17, 18]));
+  });
 });
 
 describe('Seth2 three buy-feature contracts', () => {

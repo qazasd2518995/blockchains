@@ -290,14 +290,12 @@ function skillTriggerRound(data: Seth2ReturnData, symbol: 17 | 18): number {
 }
 
 function splitList(
-  data: Seth2ReturnData,
+  source: Seth2Cell | null,
+  copies: readonly Seth2Cell[],
   transition: BoardTransition | null,
-  roundIndex: number,
-  triggerRound: number,
   originalToCurrent: ReadonlyMap<number, number>,
 ) {
-  const source = data.type17_beishu;
-  if (roundIndex !== triggerRound || !source || data.type17_mul_list.length === 0) return [];
+  if (!source || copies.length === 0) return [];
   const originalFrom = Number(source.code);
   const from = originalToCurrent.get(originalFrom) ?? originalFrom;
   const candidatePositions = transition
@@ -306,18 +304,16 @@ function splitList(
         return cell?.type === 10 && cell.mul === source.mul;
       })
     : [];
-  const targets = candidatePositions.slice(0, data.type17_mul_list.length);
+  const targets = candidatePositions.slice(0, copies.length);
   return targets.length > 0 ? [{ from, to: targets }] : [];
 }
 
 function roundRefill(
-  data: Seth2ReturnData,
+  maleCopies: readonly Seth2Cell[],
   round: Seth2ReturnData['list'][number],
   board: readonly Seth2Cell[],
-  roundIndex: number,
-  triggerRound: number,
 ) {
-  if (roundIndex !== triggerRound || data.type17_mul_list.length === 0) return round.round_data;
+  if (maleCopies.length === 0) return round.round_data;
   const removed = new Set(round.remove_type);
   const removedCount = board.reduce(
     (count, current) => count + (removed.has(current.type) ? 1 : 0),
@@ -329,7 +325,7 @@ function roundRefill(
   // animate to real target nodes.  Captured upstream responses may already put
   // them in round_data, so only supply the exact missing number here.
   const missing = Math.max(0, removedCount - round.round_data.length);
-  return [...round.round_data, ...data.type17_mul_list.slice(0, missing)];
+  return [...round.round_data, ...maleCopies.slice(0, missing)];
 }
 
 function totemLevel(count: number): number {
@@ -377,6 +373,17 @@ export function seth2SourceGameStates(
 
   for (let roundIndex = 0; roundIndex < data.list.length; roundIndex += 1) {
     const round = data.list[roundIndex]!;
+    const maleCopies =
+      round.male_mul_list ?? (roundIndex === maleTriggerRound ? data.type17_mul_list : []);
+    const maleSource =
+      round.male_source ?? (roundIndex === maleTriggerRound ? data.type17_beishu : null);
+    const femaleStartCells =
+      round.female_start_mul_list ??
+      (roundIndex === femaleTriggerRound ? data.type18_start_mul_list : []);
+    const femaleDuration =
+      round.female_mul_count ?? (roundIndex === femaleTriggerRound ? data.type18_mul_count : 0);
+    const isMaleTrigger = maleCopies.length > 0 && round.remove_type.includes(17);
+    const isFemaleTrigger = femaleStartCells.length > 0 && round.remove_type.includes(18);
     if (round.start_data.length === 30) {
       if (options.action === 'superSpin') accumulatedBaseWinnings = 0;
       board = round.start_data.map((cell) => ({ ...cell }));
@@ -395,9 +402,14 @@ export function seth2SourceGameStates(
         (options.action === 'superSpin' ? settledSuperWinnings : 0) +
         accumulatedBaseWinnings,
     );
-    const roundLockedCells = round.locked_mul_list ?? data.type18_start_mul_list;
-    const roundLockCount = round.locked_mul_count ?? data.type18_mul_count;
+    const roundLockedCells = isFemaleTrigger
+      ? femaleStartCells
+      : (round.locked_mul_list ?? data.type18_start_mul_list);
+    const roundLockCount = isFemaleTrigger
+      ? femaleDuration
+      : (round.locked_mul_count ?? data.type18_mul_count);
     const femaleLockActive =
+      isFemaleTrigger ||
       round.locked_mul_list !== undefined ||
       femaleTriggerRound < 0 ||
       roundIndex >= femaleTriggerRound;
@@ -421,7 +433,7 @@ export function seth2SourceGameStates(
       : collapseBoard(
           board,
           round.remove_type,
-          roundRefill(data, round, board, roundIndex, maleTriggerRound),
+          roundRefill(isMaleTrigger ? maleCopies : [], round, board),
         );
     // The source client maps timesUpgrade.symbolPos through this state's
     // posTransform itself.  Keep the pre-fall position here; sending the
@@ -434,8 +446,8 @@ export function seth2SourceGameStates(
     const upgrades = resolvedUpgrades.map(
       ({ upgrade: _upgrade, ...sourceUpgrade }) => sourceUpgrade,
     );
-    const maleLevel = roundIndex === maleTriggerRound ? totemLevel(data.type17_mul_list.length) : 0;
-    const femaleLevel = roundIndex === femaleTriggerRound ? totemLevel(data.type18_mul_count) : 0;
+    const maleLevel = isMaleTrigger ? totemLevel(maleCopies.length) : 0;
+    const femaleLevel = isFemaleTrigger ? totemLevel(femaleDuration) : 0;
     states.push({
       view: sourceView(board),
       spinId: options.spinId,
@@ -453,12 +465,11 @@ export function seth2SourceGameStates(
           ? -1
           : sourceCurrentTimes(data, options.action),
       currentView: states.length,
-      splitList: splitList(data, transition, roundIndex, maleTriggerRound, originalToCurrent),
+      splitList: splitList(maleSource, maleCopies, transition, originalToCurrent),
       newTimesSymbols: currentTimes.filter((entry) =>
         transitionFromPrevious
-          ? transitionFromPrevious.newPositions.has(entry.symbolPos) ||
-            roundIndex === femaleTriggerRound
-          : entry.lock === 0 || roundIndex === femaleTriggerRound,
+          ? transitionFromPrevious.newPositions.has(entry.symbolPos) || isFemaleTrigger
+          : entry.lock === 0 || isFemaleTrigger,
       ),
       timesUpgrade: upgrades,
       timesSymbols: currentTimes,
