@@ -61,6 +61,15 @@ export interface Seth2CascadeRound {
   total_gold: number;
   remove_count: number;
   is_over: number;
+  /**
+   * Eternal Rise can contain several independent tumble/collect cycles in one
+   * protocol response.  The source client shows the raw tumble winnings first
+   * and then a no-win collection view with this authoritative segment payout.
+   */
+  collect_gold?: number;
+  /** Female-lock state carried into a later Eternal Rise main-game segment. */
+  locked_mul_list?: Seth2Cell[];
+  locked_mul_count?: number;
 }
 
 export interface Seth2ReturnData {
@@ -660,9 +669,16 @@ function femaleMultiplierPlan(
   rng: Seth2RandomSource,
 ): FemaleMultiplierPlan | null {
   const durationRoll = rng();
-  const lockDuration: 2 | 4 | 6 = durationRoll < 0.2 ? 2 : durationRoll < 0.85 ? 4 : 6;
   const values = splitSeth2MultiplierTotal(total, maxParts);
   if (!values || values.length === 0) return null;
+
+  // Captured v1.1.5 responses tie the woman's three levels to both the number
+  // of selected multiplier objects and their lifetime: 1/2/3 balls for
+  // 2/4/6 games.  Do not persist every visible ball; unselected balls keep a
+  // zero lock value in the official response.
+  const requestedLevel = durationRoll < 0.2 ? 1 : durationRoll < 0.85 ? 2 : 3;
+  const level = Math.min(requestedLevel, values.length, 3) as 1 | 2 | 3;
+  const lockDuration = (level * 2) as 2 | 4 | 6;
 
   const upgradeIndex =
     values.length > 0 && rng() < 0.25
@@ -679,9 +695,10 @@ function femaleMultiplierPlan(
     cells,
     upgrades,
     finalTotal: total,
-    // The source rules lock every multiplier object currently on the board;
-    // the skill level controls duration, not how many balls are selected.
-    locked: cells,
+    locked: shuffle(
+      cells.map((current) => ({ ...current })),
+      rng,
+    ).slice(0, level),
     lockDuration,
   };
 }
@@ -1128,7 +1145,7 @@ export function seth2SpinForFactor(
   );
 }
 
-function superMainIdleRound(rng: Seth2RandomSource): Seth2CascadeRound {
+function superMainDropRound(rng: Seth2RandomSource): Seth2CascadeRound {
   const board = [
     cell(10, 500, 1),
     ...safeFill(SETH2_GRID_SIZE - 1, new Set([10, 15, 16, 17, 18]), rng),
@@ -1136,44 +1153,191 @@ function superMainIdleRound(rng: Seth2RandomSource): Seth2CascadeRound {
   return emptyRound(shuffle(board, rng));
 }
 
-function buildSuperMainOutcome(bet: number, factor: number, rng: Seth2RandomSource): Seth2Outcome {
-  const useCharacterPath = factor >= 20 && rng() < 0.35;
-  const primaryOutcome =
-    factor <= 0
-      ? null
-      : useCharacterPath
-        ? buildWin(bet, factor, 'awakening_free', rng, 0, true)
-        : buildWin(bet, factor, 'awakening_free', rng, 0, true, false, 500, false);
-  const outcome =
-    primaryOutcome && primaryOutcome.payoutFactor === factor
-      ? primaryOutcome
-      : factor > 0
-        ? buildWin(bet, factor, 'awakening_free', rng, 0, true)
-        : buildLoss(rng, 'awakening_free');
-
-  // Five captured super-main fixtures contain 5–11 source views and every one
-  // visibly contains a 500x object, including a zero-payout result.  Pre-spin
-  // views are math-neutral; the final winning cascade remains authoritative.
-  const targetViews = 5 + Math.floor(rng() * 7);
-  const hasSettlementView = outcome.returnData.score > 0;
-  const idleViews = Math.max(
-    0,
-    targetViews - outcome.returnData.list.length - (hasSettlementView ? 1 : 0),
+function hasVisibleMultiplier(outcome: Seth2Outcome, value: number): boolean {
+  return outcome.returnData.list.some((round) =>
+    round.start_data.some((current) => current.type === 10 && current.mul === value),
   );
-  outcome.returnData.list = [
-    ...Array.from({ length: idleViews }, () => superMainIdleRound(rng)),
-    ...outcome.returnData.list,
+}
+
+function hasCharacterSkill(outcome: Seth2Outcome): boolean {
+  return (
+    outcome.returnData.type17_mul_list.length > 0 ||
+    outcome.returnData.type18_start_mul_list.length > 0
+  );
+}
+
+function exactSuperWin(
+  bet: number,
+  factor: number,
+  rng: Seth2RandomSource,
+  options: {
+    require500: boolean;
+    preferSkill: boolean;
+    multiplierBank?: number;
+    hasPersistentMultiplier?: boolean;
+  },
+): Seth2Outcome | null {
+  for (let attempt = 0; attempt < 128; attempt += 1) {
+    const outcome = buildWin(
+      bet,
+      factor,
+      'awakening_free',
+      rng,
+      options.multiplierBank ?? 0,
+      true,
+      options.hasPersistentMultiplier ?? false,
+      options.require500 && !options.preferSkill ? 500 : 0,
+      options.preferSkill,
+      false,
+    );
+    if (outcome.payoutFactor !== factor) continue;
+    if (options.require500 && !hasVisibleMultiplier(outcome, 500)) continue;
+    if (options.preferSkill && !hasCharacterSkill(outcome)) continue;
+    return outcome;
+  }
+  return null;
+}
+
+function placeSuperLockedCells(round: Seth2CascadeRound, cells: readonly Seth2Cell[]): void {
+  if (round.start_data.length !== SETH2_GRID_SIZE) return;
+  const targetCodes = new Set(cells.map((current) => Number(current.code)));
+  for (const locked of cells) {
+    const target = Number(locked.code);
+    if (!Number.isInteger(target) || target < 0 || target >= SETH2_GRID_SIZE) continue;
+    const displaced = round.start_data[target];
+    if (!displaced) continue;
+    if (round.remove_type.includes(displaced.type) || displaced.type === 10) {
+      const swapIndex = round.start_data.findIndex(
+        (candidate, index) =>
+          !targetCodes.has(index) &&
+          candidate.type !== 10 &&
+          !round.remove_type.includes(candidate.type),
+      );
+      if (swapIndex >= 0) round.start_data[swapIndex] = displaced;
+    }
+    round.start_data[target] = { ...locked };
+  }
+}
+
+function superSegmentFactors(factor: number, rng: Seth2RandomSource): number[] {
+  if (factor < 1_000 || factor % 500 !== 0) return [factor];
+  const units = factor / 500;
+  const maxSegments = Math.min(4, units);
+  const segmentCount = 1 + Math.floor(rng() * maxSegments);
+  if (segmentCount === 1) return [factor];
+  return [
+    factor - (segmentCount - 1) * 500,
+    ...Array.from({ length: segmentCount - 1 }, () => 500),
   ];
-  const hasVisible500 = outcome.returnData.list.some((round) =>
-    round.start_data.some((current) => current.type === 10 && current.mul === 500),
-  );
-  if (!hasVisible500) outcome.returnData.list.unshift(superMainIdleRound(rng));
+}
 
-  outcome.returnData.featureMode = 'awakening';
-  outcome.returnData.gameModelType = 1;
-  outcome.returnData.is_sjc = 0;
-  outcome.returnData.freeGameCount = 0;
-  return outcome;
+function buildSuperMainOutcome(bet: number, factor: number, rng: Seth2RandomSource): Seth2Outcome {
+  if (factor <= 0) {
+    const outcome = buildLoss(rng, 'awakening_free');
+    // The guaranteed object may land without an elimination.  This is a real
+    // one-view result in the captured protocol, not five duplicated idle views.
+    outcome.returnData.list = [superMainDropRound(rng)];
+    outcome.returnData.featureMode = 'awakening';
+    outcome.returnData.gameModelType = 1;
+    outcome.returnData.is_sjc = 0;
+    outcome.returnData.freeGameCount = 0;
+    outcome.featureMode = 'awakening';
+    return outcome;
+  }
+
+  const factors = superSegmentFactors(factor, rng);
+  const segmentOutcomes: Seth2Outcome[] = [];
+  let activeFemaleCells: Seth2Cell[] = [];
+  let activeFemaleCount = 0;
+  for (let index = 0; index < factors.length; index += 1) {
+    const segmentFactor = factors[index]!;
+    const lockedContribution = activeFemaleCells.reduce((total, current) => total + current.mul, 0);
+    const preferSkill = index === 0 && segmentFactor >= 500 && rng() < 0.4;
+    let segment = preferSkill
+      ? exactSuperWin(bet, segmentFactor, rng, {
+          require500: true,
+          preferSkill: true,
+          multiplierBank: lockedContribution,
+          hasPersistentMultiplier: activeFemaleCells.length > 0,
+        })
+      : null;
+    segment ??= exactSuperWin(bet, segmentFactor, rng, {
+      require500: true,
+      preferSkill: false,
+      multiplierBank: lockedContribution,
+      hasPersistentMultiplier: activeFemaleCells.length > 0,
+    });
+    if (!segment) {
+      // Controlled factors below the guaranteed object's value cannot consume
+      // that 500x object without changing the payout. Show the guaranteed drop
+      // as a genuine no-win super spin, then settle the requested win exactly.
+      segment = exactSuperWin(bet, segmentFactor, rng, {
+        require500: false,
+        preferSkill: false,
+        multiplierBank: lockedContribution,
+        hasPersistentMultiplier: activeFemaleCells.length > 0,
+      });
+      if (!segment) {
+        // The control selector must never request a factor outside the visual
+        // paytable domain. Throwing keeps the surrounding database transaction
+        // atomic; silently returning a loss would settle a different payout.
+        throw new Error(`Eternal Rise factor ${segmentFactor} is not representable`);
+      }
+      segment.returnData.list.unshift(superMainDropRound(rng));
+    }
+    if (activeFemaleCells.length > 0 && activeFemaleCount > 0) {
+      for (const round of segment.returnData.list) {
+        if (round.start_data.length === SETH2_GRID_SIZE) {
+          placeSuperLockedCells(round, activeFemaleCells);
+        }
+        round.locked_mul_list = activeFemaleCells.map((current) => ({ ...current }));
+        round.locked_mul_count = activeFemaleCount;
+      }
+      activeFemaleCount -= 1;
+      if (activeFemaleCount <= 0) activeFemaleCells = [];
+    }
+    if (segment.returnData.type18_start_mul_list.length > 0) {
+      activeFemaleCells = segment.returnData.type18_start_mul_list.map((current) => ({
+        ...current,
+      }));
+      activeFemaleCount = segment.returnData.type18_mul_count;
+    }
+    segment.returnData.list.at(-1)!.collect_gold = money(bet * segmentFactor);
+    segmentOutcomes.push(segment);
+  }
+
+  const rounds = segmentOutcomes.flatMap((segment) => segment.returnData.list);
+  const returnData = baseReturnData(rounds);
+  const skillOutcome = segmentOutcomes.find(hasCharacterSkill);
+  if (skillOutcome) {
+    returnData.type17_mul_list = skillOutcome.returnData.type17_mul_list.map((cell) => ({
+      ...cell,
+    }));
+    returnData.type17_beishu = skillOutcome.returnData.type17_beishu
+      ? { ...skillOutcome.returnData.type17_beishu }
+      : null;
+    returnData.type18_start_mul_list = skillOutcome.returnData.type18_start_mul_list.map(
+      (cell) => ({ ...cell }),
+    );
+    returnData.type18_mul_count = skillOutcome.returnData.type18_mul_count;
+  }
+  returnData.featureMode = 'awakening';
+  returnData.gameModelType = 1;
+  returnData.is_sjc = 0;
+  returnData.freeGameCount = 0;
+  returnData.score = money(
+    segmentOutcomes.reduce((total, segment) => total + segment.returnData.score, 0),
+  );
+  returnData.total_gold = money(bet * factor);
+  returnData.multiplierBankBefore = 0;
+  returnData.multiplierBankAdded = 0;
+  returnData.multiplierBankAfter = 0;
+  return {
+    payoutFactor: factor,
+    triggeredFreeSpins: false,
+    featureMode: 'awakening',
+    returnData,
+  };
 }
 
 export function seth2SuperMainSpin(

@@ -370,12 +370,15 @@ export function seth2SourceGameStates(
     Array.from({ length: 30 }, (_, position) => [position, position]),
   );
   let accumulatedBaseWinnings = 0;
+  let settledSuperWinnings = 0;
+  let superGameIndex = 0;
   const maleTriggerRound = skillTriggerRound(data, 17);
   const femaleTriggerRound = skillTriggerRound(data, 18);
 
   for (let roundIndex = 0; roundIndex < data.list.length; roundIndex += 1) {
     const round = data.list[roundIndex]!;
     if (round.start_data.length === 30) {
+      if (options.action === 'superSpin') accumulatedBaseWinnings = 0;
       board = round.start_data.map((cell) => ({ ...cell }));
       transitionFromPrevious = null;
       originalToCurrent = new Map(
@@ -387,11 +390,21 @@ export function seth2SourceGameStates(
     // cascade here makes the client skip (or double-count) that collection.
     accumulatedBaseWinnings = money(accumulatedBaseWinnings + round.score);
     const roundWinnings = accumulatedBaseWinnings;
-    const femaleLockActive = femaleTriggerRound < 0 || roundIndex >= femaleTriggerRound;
+    const displayedTotalWinnings = money(
+      options.featureWinningsBefore +
+        (options.action === 'superSpin' ? settledSuperWinnings : 0) +
+        accumulatedBaseWinnings,
+    );
+    const roundLockedCells = round.locked_mul_list ?? data.type18_start_mul_list;
+    const roundLockCount = round.locked_mul_count ?? data.type18_mul_count;
+    const femaleLockActive =
+      round.locked_mul_list !== undefined ||
+      femaleTriggerRound < 0 ||
+      roundIndex >= femaleTriggerRound;
     const currentTimes = timesSymbols(
       board,
-      femaleLockActive ? data.type18_mul_count : 0,
-      data.type18_start_mul_list,
+      femaleLockActive ? roundLockCount : 0,
+      roundLockedCells,
       originalToCurrent,
     );
     // Scatter triggers remain on the board while the dedicated free-game intro
@@ -428,14 +441,17 @@ export function seth2SourceGameStates(
       spinId: options.spinId,
       roundWinnings,
       maleTotemLevel: maleLevel,
-      totalWinnings: money(options.featureWinningsBefore + accumulatedBaseWinnings),
+      totalWinnings: displayedTotalWinnings,
       totalViews: 0,
       action: options.action,
       startFreeGame: data.is_sjc === 1,
       // showTimesMoving first renders this saved bank and then adds every ball
       // in timesSymbols.  Supplying multiplierBankAfter here double-counts the
       // current board during the original collection animation.
-      currentTimes: sourceCurrentTimes(data, options.action),
+      currentTimes:
+        options.action === 'superSpin' && superGameIndex > 0
+          ? -1
+          : sourceCurrentTimes(data, options.action),
       currentView: states.length,
       splitList: splitList(data, transition, roundIndex, maleTriggerRound, originalToCurrent),
       newTimesSymbols: currentTimes.filter((entry) =>
@@ -470,6 +486,49 @@ export function seth2SourceGameStates(
     originalToCurrent = nextOriginalToCurrent;
     board = transition.board;
     transitionFromPrevious = transition;
+
+    if (options.action === 'superSpin' && round.collect_gold !== undefined) {
+      const collected = money(round.collect_gold);
+      const finalTimes = timesSymbols(board, roundLockCount, roundLockedCells, originalToCurrent);
+      states.push({
+        view: sourceView(board),
+        spinId: options.spinId,
+        roundWinnings: collected,
+        maleTotemLevel: 0,
+        totalWinnings: money(options.featureWinningsBefore + settledSuperWinnings + collected),
+        totalViews: 0,
+        action: options.action,
+        startFreeGame: false,
+        currentTimes: superGameIndex > 0 ? -1 : sourceCurrentTimes(data, options.action),
+        currentView: states.length,
+        splitList: [],
+        newTimesSymbols: finalTimes.filter((entry) =>
+          transitionFromPrevious ? transitionFromPrevious.newPositions.has(entry.symbolPos) : true,
+        ),
+        timesUpgrade: [],
+        timesSymbols: finalTimes,
+        isJp: sourceJackpotType(data.JPtype),
+        noWinReward: 0,
+        winSymbols: [],
+        posTransform: [],
+        superMainGameCount: 0,
+        femaleTotemLevel: 0,
+        freeGameCount: options.freeGameCount,
+        isGoldenFg: options.isGoldenFg,
+        totalStake: options.totalStake,
+      });
+      settledSuperWinnings = money(settledSuperWinnings + collected);
+      accumulatedBaseWinnings = 0;
+      superGameIndex += 1;
+    } else if (
+      options.action === 'superSpin' &&
+      round.start_data.length === 30 &&
+      round.remove_type.length === 0
+    ) {
+      // A guaranteed 500x object is allowed to land without an elimination.
+      // It is one completed super-main game and must not be multiplied.
+      superGameIndex += 1;
+    }
   }
 
   // A losing result is already complete in its first view.  Only append a

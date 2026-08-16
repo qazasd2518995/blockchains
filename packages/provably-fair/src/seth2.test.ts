@@ -415,7 +415,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(finalMultiplier(outcome!)).toBe(round.total_mul);
   });
 
-  it('female skill locks every multiplier ball for a 2, 4 or 6-game source sequence', () => {
+  it('female skill locks 1, 2 or 3 selected balls for a 2, 4 or 6-game sequence', () => {
     const durations = new Set<number>();
     for (let nonce = 0; nonce < 4_000 && durations.size < 3; nonce += 1) {
       const outcome = seth2SpinForFactor(
@@ -432,10 +432,9 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       const available = round.start_data.filter((current) => current.type === 10);
       durations.add(outcome.returnData.type18_mul_count);
       expect([2, 4, 6]).toContain(outcome.returnData.type18_mul_count);
-      expect(locked).toHaveLength(available.length);
-      expect(locked.map((cell) => cell.code).sort((a, b) => Number(a) - Number(b))).toEqual(
-        available.map((current) => round.start_data.indexOf(current)).sort((a, b) => a - b),
-      );
+      expect(locked).toHaveLength(outcome.returnData.type18_mul_count / 2);
+      const availableCodes = new Set(available.map((current) => round.start_data.indexOf(current)));
+      expect(locked.every((cell) => availableCodes.has(Number(cell.code)))).toBe(true);
       expect(locked.every((cell) => isSeth2MultiplierValue(cell.mul))).toBe(true);
       expect(locked.every((cell) => Number.isInteger(cell.code))).toBe(true);
       expect(round.round_data).toHaveLength(removedCellCount(outcome));
@@ -609,11 +608,23 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       const visible500 = outcome.returnData.list.some((round) =>
         round.start_data.some((current) => current.type === 10 && current.mul === 500),
       );
-      const sourceViews = outcome.returnData.list.length + (outcome.returnData.score > 0 ? 1 : 0);
+      const collectionViews = outcome.returnData.list.filter(
+        (round) => round.collect_gold !== undefined,
+      );
+      const sourceViews = outcome.returnData.list.length + collectionViews.length;
 
       expect(visible500).toBe(true);
-      expect(sourceViews).toBeGreaterThanOrEqual(5);
-      expect(sourceViews).toBeLessThanOrEqual(11);
+      expect(sourceViews).toBeGreaterThanOrEqual(1);
+      expect(sourceViews).toBeLessThanOrEqual(12);
+      if (outcome.payoutFactor === 0) {
+        expect(sourceViews).toBe(1);
+      } else {
+        expect(collectionViews.length).toBeGreaterThan(0);
+        expect(collectionViews.every((round) => round.remove_type.length > 0)).toBe(true);
+        expect(
+          money(collectionViews.reduce((total, round) => total + Number(round.collect_gold), 0)),
+        ).toBe(outcome.returnData.total_gold);
+      }
       expect(outcome.returnData).toMatchObject({
         featureMode: 'awakening',
         gameModelType: 1,

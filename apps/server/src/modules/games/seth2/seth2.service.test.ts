@@ -1,6 +1,11 @@
 import { Prisma } from '@prisma/client';
-import { seth2BuyFeatureEntry, seth2SpinForFactor } from '@bg/provably-fair';
-import type { Seth2ReturnData } from '@bg/shared';
+import {
+  seth2BuyFeature,
+  seth2BuyFeatureEntry,
+  seth2SpinForFactor,
+  seth2SuperMainSpinForFactor,
+} from '@bg/provably-fair';
+import type { Seth2Cell, Seth2ReturnData } from '@bg/shared';
 import { describe, expect, it } from 'vitest';
 import {
   advanceSession,
@@ -19,6 +24,7 @@ import {
   Seth2Service,
 } from './seth2.service.js';
 import { seth2ProtocolSchema, seth2SourceSchema } from './seth2.schema.js';
+import { seth2SourceGameStates } from './seth2.source.js';
 
 const MACHINE_RATE_TIME = 1_800_000_000_000;
 
@@ -115,6 +121,93 @@ describe('Seth2 controlled result selection', () => {
       expect(run.finalSession.featureWinnings).toBe(0);
     },
   );
+});
+
+describe('Seth2 three buy-feature contracts', () => {
+  const baseBet = 2;
+  const seeds = Array.from({ length: 100 }, (_, index) => ({
+    serverSeedId: `feature-seed-${index}`,
+    serverSeed: 'three-feature-run',
+    serverSeedHash: 'hash',
+    clientSeed: 'client',
+    nonce: index + 10,
+  }));
+
+  function assertFeatureRun(
+    entryOutcome: ReturnType<typeof seth2BuyFeatureEntry>,
+    featureIndex: 0 | 1,
+  ) {
+    const run = generateFeatureRun({
+      entryOutcome,
+      seeds,
+      baseBet,
+      buying: true,
+      featureIndex,
+      featureMode: entryOutcome.featureMode,
+    });
+    expect(run.rounds.length).toBeGreaterThanOrEqual(15);
+    expect(run.rounds.length).toBeLessThanOrEqual(100);
+    for (const round of run.rounds) {
+      const states = seth2SourceGameStates(round.returnData, {
+        action: 'freeSpin',
+        spinId: 'three-feature-run',
+        totalStake: baseBet,
+        freeGameCount: round.sessionAfter.freeSpinsRemaining,
+        featureWinningsBefore: round.featureWinningsBefore,
+        isGoldenFg: entryOutcome.featureMode === 'awakening',
+      });
+      expect(round.returnData.total_gold).toBeCloseTo(baseBet * round.payoutFactor, 2);
+      expect(states.at(-1)!.totalWinnings).toBeCloseTo(
+        round.featureWinningsBefore + round.returnData.total_gold,
+        2,
+      );
+    }
+    expect(run.finalSession.freeSpinsRemaining).toBe(0);
+  }
+
+  it('keeps the 200x purchase random between normal and awakening entries', () => {
+    const entries = Array.from({ length: 500 }, (_, nonce) =>
+      seth2BuyFeature('feature-zero', 'client', nonce, baseBet),
+    );
+    const standard = entries.find((entry) => entry.featureMode === 'standard')!;
+    const awakening = entries.find((entry) => entry.featureMode === 'awakening')!;
+    expect(standard.returnData.list[0]!.start_data.filter((cell) => cell.type === 15)).toHaveLength(
+      4,
+    );
+    expect(standard.returnData.list[0]!.start_data.some((cell) => cell.type === 16)).toBe(false);
+    expect(
+      awakening.returnData.list[0]!.start_data.filter((cell) => cell.type === 15),
+    ).toHaveLength(3);
+    expect(
+      awakening.returnData.list[0]!.start_data.filter((cell) => cell.type === 16),
+    ).toHaveLength(1);
+    assertFeatureRun(standard, 0);
+    assertFeatureRun(awakening, 0);
+  });
+
+  it('keeps the 500x purchase in awakening mode for all 15+ games', () => {
+    const entry = seth2BuyFeatureEntry('feature-one', 'client', 1, 'awakening', baseBet);
+    expect(entry.featureMode).toBe('awakening');
+    expect(entry.returnData.gameModelType).toBe(1);
+    assertFeatureRun(entry, 1);
+  });
+
+  it('keeps the 2,000x purchase as super-main cycles without a free-game session', () => {
+    const outcome = seth2SuperMainSpinForFactor('feature-two', 'client', 1, baseBet, 5_000);
+    const states = seth2SourceGameStates(outcome.returnData, {
+      action: 'superSpin',
+      spinId: 'feature-two',
+      totalStake: baseBet,
+      freeGameCount: 0,
+      featureWinningsBefore: 0,
+      isGoldenFg: false,
+    });
+    expect(outcome.returnData.freeGameCount).toBe(0);
+    expect(outcome.returnData.list.some((round) => round.collect_gold !== undefined)).toBe(true);
+    expect(states.every((state) => state.startFreeGame === false)).toBe(true);
+    expect(states.at(-1)!.totalWinnings).toBe(outcome.returnData.total_gold);
+    expect(outcome.returnData.total_gold).toBe(baseBet * 5_000);
+  });
 });
 
 describe('Seth2 progressive jackpot settlement', () => {
@@ -876,6 +969,30 @@ describe('Seth2 free-game session progression', () => {
     }
     expect(observed).toEqual([5, 4, 3, 2, 1]);
     expect(current).toBeNull();
+  });
+
+  it('persists only the woman-selected balls when other multiplier balls are visible', () => {
+    const startData: Seth2Cell[] = Array.from({ length: 30 }, (_, code) => ({
+      type: (code % 9) + 1,
+      mul: 0,
+    }));
+    startData[2] = { type: 10, mul: 25, mul_type: 1 };
+    startData[7] = { type: 10, mul: 50, mul_type: 1 };
+    startData[12] = { type: 10, mul: 100, mul_type: 0 };
+    startData[21] = { type: 10, mul: 500, mul_type: 1 };
+    const data = {
+      list: [{ start_data: startData, remove_type: [], upgrade_mul_list: [] }],
+      type18_start_mul_list: [
+        { type: 10, mul: 25, mul_type: 1, code: 2 },
+        { type: 10, mul: 500, mul_type: 1, code: 21 },
+      ],
+      type18_mul_count: 4,
+    } as unknown as Seth2ReturnData;
+
+    const saved = applyFemaleLockState(data, null);
+    expect(data.type18_start_mul_list.map((cell) => cell.code)).toEqual([2, 21]);
+    expect(saved?.cells.map((cell) => cell.code)).toEqual([2, 21]);
+    expect(saved?.cells).toHaveLength(2);
   });
 
   it('re-adds locked balls to the multiplier bank only on a winning free spin', () => {

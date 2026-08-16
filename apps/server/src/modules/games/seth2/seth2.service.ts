@@ -1255,20 +1255,34 @@ export function applyFemaleLockState(
   if (current) placeFemaleLockCells(data, current.cells);
   if (data.type18_start_mul_list.length > 0) {
     const board = data.list[0]?.start_data ?? [];
-    const cells = board.flatMap((cell, code) =>
-      cell.type === 10
-        ? [{ type: 10 as const, mul: cell.mul, mul_type: cell.mul_type ?? 0, code }]
-        : [],
-    );
-    const visibleCells =
-      cells.length > 0
-        ? cells
-        : data.type18_start_mul_list.map((cell) => ({
-            type: 10 as const,
-            mul: cell.mul,
-            mul_type: cell.mul_type ?? 0,
-            code: cell.code ?? 0,
-          }));
+    const usedCodes = new Set<number>();
+    const visibleCells = data.type18_start_mul_list.map((selected) => {
+      const requestedCode = Number(selected.code);
+      const exact =
+        Number.isInteger(requestedCode) &&
+        requestedCode >= 0 &&
+        requestedCode < board.length &&
+        board[requestedCode]?.type === 10
+          ? requestedCode
+          : -1;
+      const matched = board.findIndex(
+        (cell, code) =>
+          !usedCodes.has(code) &&
+          cell.type === 10 &&
+          cell.mul === selected.mul &&
+          (cell.mul_type ?? 0) === (selected.mul_type ?? 0),
+      );
+      const code = exact >= 0 && !usedCodes.has(exact) ? exact : matched;
+      const safeCode = code >= 0 ? code : Math.max(0, Math.min(29, requestedCode || 0));
+      usedCodes.add(safeCode);
+      const cell = board[safeCode];
+      return {
+        type: 10 as const,
+        mul: cell?.type === 10 ? cell.mul : selected.mul,
+        mul_type: cell?.type === 10 ? (cell.mul_type ?? 0) : (selected.mul_type ?? 0),
+        code: safeCode,
+      };
+    });
     const duration =
       data.type18_mul_count === 6 || data.type18_mul_count === 4 || data.type18_mul_count === 2
         ? data.type18_mul_count

@@ -52,6 +52,11 @@ export interface Seth2CascadeRound {
   total_gold: number;
   remove_count: number;
   is_over: number;
+  /** Authoritative payout collected after an Eternal Rise tumble segment. */
+  collect_gold?: number;
+  /** Female-lock state carried into a later Eternal Rise main-game segment. */
+  locked_mul_list?: Seth2Cell[];
+  locked_mul_count?: number;
 }
 
 export interface Seth2ReturnData {

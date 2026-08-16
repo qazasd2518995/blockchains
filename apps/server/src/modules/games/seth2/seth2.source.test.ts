@@ -1,6 +1,7 @@
 import {
   seth2BuyFeatureEntry,
   seth2SpinForFactor,
+  seth2SuperMainSpin,
   seth2SuperMainSpinForFactor,
 } from '@bg/provably-fair';
 import type { Seth2Cell, Seth2ReturnData } from '@bg/shared';
@@ -250,7 +251,7 @@ describe('Seth 2 v1.1.5 source contract', () => {
     expect(states[2]).toMatchObject({ roundWinnings: 160, totalWinnings: 166, winSymbols: [] });
   });
 
-  it('renders controlled super-main outcomes as a 5–11-view 500x sequence', () => {
+  it('renders controlled super-main outcomes as real tumble/collect cycles with a 500x object', () => {
     for (const factor of [0, 20, 500, 5_000]) {
       const outcome = seth2SuperMainSpinForFactor('source-super', 'client', factor, 2, factor);
       const states = seth2SourceGameStates(outcome.returnData, {
@@ -258,14 +259,48 @@ describe('Seth 2 v1.1.5 source contract', () => {
         action: 'superSpin',
         freeGameCount: 0,
       });
-      expect(states.length).toBeGreaterThanOrEqual(5);
-      expect(states.length).toBeLessThanOrEqual(11);
+      expect(states.length).toBeGreaterThanOrEqual(1);
+      expect(states.length).toBeLessThanOrEqual(13);
       expect(states.every((state) => state.action === 'superSpin')).toBe(true);
       expect(
         states.some((state) => state.timesSymbols.some((symbol) => symbol.times === 500)),
       ).toBe(true);
       expect(states.at(-1)!.totalWinnings).toBe(outcome.returnData.total_gold);
+      if (factor === 0) {
+        expect(states).toHaveLength(1);
+        expect(states[0]!.winSymbols).toEqual([]);
+      } else {
+        const segments = outcome.returnData.list.filter(
+          (round) => round.collect_gold !== undefined,
+        );
+        expect(segments.length).toBeGreaterThan(0);
+        expect(segments.every((round) => round.remove_type.length > 0)).toBe(true);
+        expect(
+          moneyForTest(segments.reduce((total, round) => total + Number(round.collect_gold), 0)),
+        ).toBe(outcome.returnData.total_gold);
+      }
     }
+  });
+
+  it('carries a female lock through later Eternal Rise games with a decreasing counter', () => {
+    const outcome = seth2SuperMainSpin('audit-multi', 'client', 9, 2);
+    expect(outcome.payoutFactor).toBe(2_000);
+    expect(outcome.returnData.type18_start_mul_list).toHaveLength(2);
+    expect(outcome.returnData.type18_mul_count).toBe(4);
+    expect(
+      outcome.returnData.list.filter((round) => round.collect_gold !== undefined),
+    ).toHaveLength(4);
+
+    const states = seth2SourceGameStates(outcome.returnData, {
+      ...SOURCE_OPTIONS,
+      action: 'superSpin',
+      freeGameCount: 0,
+    });
+    const winningGames = states.filter((state) => state.winSymbols.length > 0);
+    expect(
+      winningGames.map((state) => Math.max(0, ...state.timesSymbols.map((symbol) => symbol.lock))),
+    ).toEqual([4, 4, 3, 2]);
+    expect(states.at(-1)!.totalWinnings).toBe(outcome.returnData.total_gold);
   });
 
   it('keeps every controlled factor visually identical to its authoritative payout', () => {
