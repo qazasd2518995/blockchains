@@ -144,7 +144,9 @@ export function isBaccaratTableGameId(gameId: string): gameId is BaccaratTableGa
 const IMPORTED_GAME_TEST_USERNAME_PATTERN = /^testplayer(?:[1-9]\d*)?$/;
 
 export function isImportedGameTestUsername(username?: string | null): boolean {
-  return Boolean(username && IMPORTED_GAME_TEST_USERNAME_PATTERN.test(username));
+  if (!username) return false;
+  const normalized = username.normalize('NFKC').trim().toLowerCase();
+  return IMPORTED_GAME_TEST_USERNAME_PATTERN.test(normalized);
 }
 
 export function isSeth2TestUsername(username?: string | null): boolean {

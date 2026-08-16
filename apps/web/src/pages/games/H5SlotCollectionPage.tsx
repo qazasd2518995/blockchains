@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
-import { getH5GameByCode, isImportedGameTestUsername, type H5GameCode } from '@bg/shared';
+import { getH5GameByCode, type H5GameCode } from '@bg/shared';
 import { Sfx } from '@bg/game-engine';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
@@ -166,10 +166,6 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
         }
       />
     );
-  }
-
-  if (!isImportedGameTestUsername(user.username)) {
-    return <AccessPanel message="此遊戲目前尚未開放。" />;
   }
 
   return (

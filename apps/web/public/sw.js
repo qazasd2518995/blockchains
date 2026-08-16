@@ -1,5 +1,5 @@
-const VERSION = 'yachiyo-assets-v6-responsive-images-20260706';
-const DEBUG_VERSION = 'responsive-image-preload-20260706-01';
+const VERSION = 'yachiyo-assets-v7-access-refresh-20260817';
+const DEBUG_VERSION = 'access-refresh-20260817-01';
 const IMAGE_CACHE = `${VERSION}:images`;
 const IMAGE_MAX_ENTRIES = 420;
 const RELOAD_CLIENTS_ON_ACTIVATE = true;

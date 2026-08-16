@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
-import { isImportedGameTestUsername } from '@bg/shared';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
 
@@ -78,10 +77,6 @@ export function FruitMaryPage() {
         }
       />
     );
-  }
-
-  if (!isImportedGameTestUsername(user.username)) {
-    return <AccessPanel message="歡樂水果機目前尚未對此帳號開放。" />;
   }
 
   return (

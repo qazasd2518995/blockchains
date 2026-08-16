@@ -24,18 +24,13 @@ describe('imported test-game access', () => {
       'testplayer5',
       'testplayer6',
       'testplayer25',
+      ' TestPlayer3 ',
+      'ＴＥＳＴＰＬＡＹＥＲ４',
     ]) {
       expect(isImportedGameTestUsername(username)).toBe(true);
     }
 
-    for (const username of [
-      'TestPlayer',
-      'testplayer0',
-      'testplayer02',
-      'testplayer-demo',
-      'admin',
-      null,
-    ]) {
+    for (const username of ['testplayer0', 'testplayer02', 'testplayer-demo', 'admin', null]) {
       expect(isImportedGameTestUsername(username)).toBe(false);
     }
   });

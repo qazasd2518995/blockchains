@@ -87,6 +87,21 @@ services:
     staticPublishPath: apps/web/dist
     pullRequestPreviewsEnabled: false
     headers:
+      # Mutable app-shell files must always revalidate. This is especially
+      # important for Android/iOS installed Web Apps, otherwise an old shell
+      # can keep loading a removed account gate indefinitely.
+      - path: /
+        name: Cache-Control
+        value: no-store, no-cache, must-revalidate
+      - path: /index.html
+        name: Cache-Control
+        value: no-store, no-cache, must-revalidate
+      - path: /sw.js
+        name: Cache-Control
+        value: no-store, no-cache, must-revalidate
+      - path: /manifest.webmanifest
+        name: Cache-Control
+        value: no-cache, must-revalidate
       # Vite and Cocos build artifacts are content/version fingerprinted. Keep
       # mutable HTML and adapter bridges out of these rules so releases remain
       # immediately replaceable while repeat game visits reuse the heavy files.
