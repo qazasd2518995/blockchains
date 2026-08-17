@@ -446,15 +446,7 @@ export class Seth2Service {
         return {
           status: 200,
           data: {
-            detail: {
-              dayWin: machine.totalBet * (Number(machine.day_rate_30) / 100),
-              dayBet: machine.totalBet,
-              hourWin: machine.totalBet * (Number(machine.day_rate) / 100),
-              hourBet: machine.totalBet,
-              todayBet: machine.totalBet,
-              todayWin: machine.totalBet * (Number(machine.day_rate) / 100),
-              mgCounts: [0, 0, 0],
-            },
+            detail: sourceMachineDetail(machine),
             lock: sourceTableLock(machineId),
           },
         };
@@ -2161,8 +2153,9 @@ function sourceMachineTables(
   selectedMachineId: number,
 ) {
   return machines.map((machine) => {
-    const bet = Math.max(100, machine.totalBet);
-    const win = Number((bet * (Number(machine.day_rate) / 100)).toFixed(2));
+    const detail = sourceMachineDetail(machine);
+    const bet = detail.todayBet;
+    const win = detail.todayWin;
     const selected = machine.id === selectedMachineId;
     return {
       roomId: machine.id,
@@ -2174,4 +2167,23 @@ function sourceMachineTables(
       user: selected ? { userId } : null,
     };
   });
+}
+
+function sourceMachineDetail(machine: ReturnType<typeof machineInfo>) {
+  // The source UI replaces the rate shown on the selected table with this
+  // detail response. Keep the same display baseline as the table list so an
+  // empty table does not visibly change from its advertised rate to 0%.
+  const todayBet = Math.max(100, machine.totalBet);
+  const todayWin = Number((todayBet * (Number(machine.day_rate) / 100)).toFixed(2));
+  const dayBet = Math.max(100, machine.totalBet30);
+  const dayWin = Number((dayBet * (Number(machine.day_rate_30) / 100)).toFixed(2));
+  return {
+    dayWin,
+    dayBet,
+    hourWin: todayWin,
+    hourBet: todayBet,
+    todayBet,
+    todayWin,
+    mgCounts: [0, 0, 0],
+  };
 }

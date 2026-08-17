@@ -6,7 +6,7 @@ import {
   seth2SuperMainSpinForFactor,
 } from '@bg/provably-fair';
 import type { Seth2Cell, Seth2ReturnData } from '@bg/shared';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   advanceSession,
   applySeth2JackpotAward,
@@ -875,7 +875,7 @@ describe('Seth2 v1.1.5 source loading', () => {
     });
   });
 
-  it('wraps machine detail in the source data envelope so the table loader can stop', async () => {
+  it('keeps an empty machine detail rate aligned with its table-list rate', async () => {
     const service = new Seth2Service({
       user: {
         findUnique: async () => ({
@@ -889,26 +889,64 @@ describe('Seth2 v1.1.5 source loading', () => {
       },
       $queryRaw: async () => [],
     } as never);
+    const now = vi.spyOn(Date, 'now').mockReturnValue(MACHINE_RATE_TIME);
 
-    const result = await service.source('user-1', {
-      event: 'getSlotTableDetail',
-      data: { roomId: 15 },
-    });
+    try {
+      const detailResult = await service.source('user-1', {
+        event: 'getSlotTableDetail',
+        data: { roomId: 15 },
+      });
+      const tableResult = await service.source('user-1', {
+        event: 'getSlotTables',
+        data: { page: 1, machineId: 1 },
+      });
+      const detail = (
+        detailResult as {
+          data: {
+            detail: {
+              dayBet: number;
+              dayWin: number;
+              hourBet: number;
+              hourWin: number;
+              todayBet: number;
+              todayWin: number;
+              mgCounts: number[];
+            };
+          };
+        }
+      ).data.detail;
+      const table = (
+        tableResult as {
+          data: { tables: Array<{ roomId: number; today: { bet: number; win: number } }> };
+        }
+      ).data.tables.find((candidate) => candidate.roomId === 15);
 
-    expect(result).toMatchObject({
-      status: 200,
-      data: {
-        detail: {
-          dayBet: 0,
-          hourBet: 0,
-          todayBet: 0,
-          mgCounts: [0, 0, 0],
+      expect(detailResult).toMatchObject({
+        status: 200,
+        data: {
+          detail: {
+            dayBet: 100,
+            hourBet: 100,
+            todayBet: 100,
+            mgCounts: [0, 0, 0],
+          },
+          lock: { roomId: 15 },
         },
-        lock: { roomId: 15 },
-      },
-    });
-    expect(result).not.toHaveProperty('detail');
-    expect(result).not.toHaveProperty('lock');
+      });
+      expect(detail.todayWin).toBeGreaterThan(0);
+      expect(detail.hourWin).toBe(detail.todayWin);
+      expect(detail.dayWin).toBeGreaterThan(0);
+      expect(table).toMatchObject({
+        today: {
+          bet: detail.todayBet,
+          win: detail.todayWin,
+        },
+      });
+      expect(detailResult).not.toHaveProperty('detail');
+      expect(detailResult).not.toHaveProperty('lock');
+    } finally {
+      now.mockRestore();
+    }
   });
 
   it('wraps paged machine tables in the source data envelope', async () => {
