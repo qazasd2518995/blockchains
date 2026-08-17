@@ -49,7 +49,11 @@ function filesUnder(root, ignored = new Set()) {
 
 function verifyManifest(root, entries, ignored = new Set()) {
   const listed = entries.map((entry) => entry.path).sort();
-  assert.deepEqual(filesUnder(root, ignored), listed, `${root} contains an untracked or missing asset`);
+  assert.deepEqual(
+    filesUnder(root, ignored),
+    listed,
+    `${root} contains an untracked or missing asset`,
+  );
   for (const entry of entries) {
     const absolute = path.join(root, entry.path);
     const data = fs.readFileSync(absolute);
@@ -65,6 +69,21 @@ function verifyManifest(root, entries, ignored = new Set()) {
 
 verifyManifest(gameRoot, manifest.gameFiles, new Set(['asset-manifest.json']));
 verifyManifest(frameworkRoot, manifest.frameworkFiles);
+
+const frameworkRuntime = fs.readFileSync(path.join(frameworkRoot, 'index.js'), 'utf8');
+for (const referenceRateLabel of [
+  '模擬參考率',
+  '模拟参考率',
+  'Simulated rate',
+  'Tỷ lệ mô phỏng',
+  'อัตราจำลอง',
+  'Simülasyon oranı',
+]) {
+  assert.ok(
+    frameworkRuntime.includes(`slotTableRtp:"${referenceRateLabel}"`),
+    `the simulated rate label is missing: ${referenceRateLabel}`,
+  );
+}
 
 const gameConfig = JSON.parse(
   fs.readFileSync(path.join(gameRoot, 'assets/g1005/config.json'), 'utf8'),

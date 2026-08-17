@@ -15,7 +15,9 @@
   var UPDATE_TOTAL_WINNINGS = 'SlotFrameworkEvent:UPDATE_TOTAL_WINNINGS';
   var GAME_ENTRY_BOOT_TIMEOUT_MS = 60000;
   var GAME_ENTRY_REQUIRED_UI_COUNT = 4;
+  var TABLE_REFERENCE_REFRESH_MS = 5000;
   var gameEntryPollTimer = 0;
+  var tableReferenceRefreshTimer = 0;
   var gameEntryPollStartedAt = 0;
   var gameEntryIntroNotified = false;
   var gameEntryCompleted = false;
@@ -596,6 +598,113 @@
     return null;
   }
 
+  function findSlotTableView() {
+    try {
+      var cocos = window.cc;
+      var scene = cocos && cocos.director && cocos.director.getScene();
+      if (!scene || typeof scene.getComponentsInChildren !== 'function') return null;
+      var components = scene.getComponentsInChildren(cocos.Component) || [];
+      for (var index = 0; index < components.length; index += 1) {
+        var component = components[index];
+        if (
+          component &&
+          component.node &&
+          component.node.activeInHierarchy !== false &&
+          component.slotTableMap &&
+          typeof component.slotTableMap.forEach === 'function' &&
+          typeof component.slotTableMap.has === 'function' &&
+          typeof component.setTableInfo === 'function'
+        ) {
+          return component;
+        }
+      }
+    } catch (_error) {
+      // The selector may be opening or closing between refresh ticks.
+    }
+    return null;
+  }
+
+  function machineReferenceRate(machineId, timestamp, salt) {
+    var tick = Math.floor(timestamp / TABLE_REFERENCE_REFRESH_MS);
+    var baseUnits = 7800 + ((machineId * 137 + salt * 911) % 4400);
+    var phaseUnits = (tick + machineId * 29 + salt * 173) % 720;
+    var waveUnits = Math.round(Math.sin((phaseUnits / 720) * Math.PI * 2) * 500);
+    var rateUnits = Math.max(7000, Math.min(12999, baseUnits + waveUnits));
+    return rateUnits / 100;
+  }
+
+  function machineReferenceStats(machineId, timestamp) {
+    var dayMs = 86400000;
+    var dayBucket = Math.floor(timestamp / dayMs);
+    var tickInDay = Math.floor((timestamp - dayBucket * dayMs) / TABLE_REFERENCE_REFRESH_MS);
+    var seed = (machineId * 8191 + dayBucket * 131) % 100003;
+    var openingBetCents = 100000 + (seed % 900000);
+    var incrementCents = 25 + (seed % 176);
+    var todayBet = Number(((openingBetCents + tickInDay * incrementCents) / 100).toFixed(2));
+    var dayBet = Number((todayBet + 150000 + ((seed * 37) % 650000)).toFixed(2));
+    var todayRate = machineReferenceRate(machineId, timestamp, 0);
+    var dayRate = machineReferenceRate(machineId, timestamp, 1);
+    var todayWin = Number((todayBet * (todayRate / 100)).toFixed(2));
+    var dayWin = Number((dayBet * (dayRate / 100)).toFixed(2));
+    var currentCycle = 24 + (seed % 73);
+    return {
+      dayWin: dayWin,
+      dayBet: dayBet,
+      hourWin: todayWin,
+      hourBet: todayBet,
+      todayBet: todayBet,
+      todayWin: todayWin,
+      mgCounts: [
+        1 + ((tickInDay + seed) % currentCycle),
+        6 + ((seed * 17 + dayBucket) % 91),
+        8 + ((seed * 29 + dayBucket * 3) % 103),
+      ],
+    };
+  }
+
+  function applyTableReferenceStats(view, timestamp) {
+    if (
+      !view ||
+      !view.slotTableMap ||
+      typeof view.slotTableMap.forEach !== 'function' ||
+      typeof view.slotTableMap.has !== 'function'
+    )
+      return false;
+    view.slotTableMap.forEach(function (item, roomId) {
+      if (!item || !item.tableVO || typeof item.setData !== 'function') return;
+      var stats = machineReferenceStats(Number(roomId), timestamp);
+      var table = Object.assign({}, item.tableVO, {
+        bet: stats.todayBet,
+        win: stats.todayWin,
+        today: { bet: stats.todayBet, win: stats.todayWin },
+      });
+      item.setData(table);
+    });
+    var selectedRoomId = Number(view.selectRoomId);
+    if (
+      Number.isFinite(selectedRoomId) &&
+      view.slotTableMap.has(selectedRoomId) &&
+      typeof view.setTableInfo === 'function'
+    ) {
+      view.setTableInfo({ data: { detail: machineReferenceStats(selectedRoomId, timestamp) } });
+    }
+    return true;
+  }
+
+  function refreshTableReferenceStats() {
+    tableReferenceRefreshTimer = 0;
+    if (!gameEntryDisposing) applyTableReferenceStats(findSlotTableView(), Date.now());
+    scheduleTableReferenceRefresh();
+  }
+
+  function scheduleTableReferenceRefresh() {
+    if (gameEntryDisposing || tableReferenceRefreshTimer) return;
+    tableReferenceRefreshTimer = window.setTimeout(
+      refreshTableReferenceStats,
+      TABLE_REFERENCE_REFRESH_MS,
+    );
+  }
+
   function sourceViewMode() {
     var mode = params.get('view_mode') || window.viewMode;
     return mode === 'portrait' ? 'portrait' : 'landscape';
@@ -649,6 +758,10 @@
     if (gameEntryPollTimer) {
       window.clearTimeout(gameEntryPollTimer);
       gameEntryPollTimer = 0;
+    }
+    if (tableReferenceRefreshTimer) {
+      window.clearTimeout(tableReferenceRefreshTimer);
+      tableReferenceRefreshTimer = 0;
     }
     try {
       if (window.cc && window.cc.game && typeof window.cc.game.pause === 'function') {
@@ -966,6 +1079,7 @@
           );
           notifyParent('seth2:ready', { balance: balance });
           scheduleGameEntryObserver();
+          scheduleTableReferenceRefresh();
         } else if (response && response.platform && response.platform.player) {
           notifyParent('seth2:balance', {
             balance: Number(response.platform.player.balance.amount),
@@ -1008,6 +1122,10 @@
   LocalSocket.prototype.close = function () {
     if (!this.connected) return this;
     this.connected = false;
+    if (tableReferenceRefreshTimer) {
+      window.clearTimeout(tableReferenceRefreshTimer);
+      tableReferenceRefreshTimer = 0;
+    }
     this.dispatch('disconnect', { reason: 'client close' });
     return this;
   };
@@ -1085,11 +1203,14 @@
     guardBigwinClass: guardBigwinClass,
     wrapFrameworkDispatch: wrapFrameworkDispatch,
     findIntroView: findIntroView,
+    findSlotTableView: findSlotTableView,
     bindGameCanvasRecovery: bindGameCanvasRecovery,
     gameCanvasIsReady: gameCanvasIsReady,
     guardGameViewClass: guardGameViewClass,
     isGameEntryTransitionReady: isGameEntryTransitionReady,
     normalizeUpdateSettings: normalizeUpdateSettings,
+    machineReferenceStats: machineReferenceStats,
+    applyTableReferenceStats: applyTableReferenceStats,
     tableMachineId: tableMachineId,
     patchRotateScreenButtons: patchRotateScreenButtons,
     requestViewMode: requestViewMode,

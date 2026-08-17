@@ -125,6 +125,8 @@ const {
   guardGameViewClass,
   isGameEntryTransitionReady,
   normalizeUpdateSettings,
+  machineReferenceStats,
+  applyTableReferenceStats,
   tableMachineId,
   patchRotateScreenButtons,
   requestViewMode,
@@ -142,6 +144,40 @@ assert.equal(
   publicError({ code: 'INTERNAL', message: 'Invalid prisma.bet.create invocation' }, 'fallback'),
   '遊戲結算暫時失敗，請稍後再試',
 );
+
+const referenceNow = 1_800_000_000_000;
+const referenceStats = structuredClone(machineReferenceStats(45, referenceNow));
+const nextReferenceStats = structuredClone(machineReferenceStats(45, referenceNow + 5_000));
+assert.ok(referenceStats.todayBet > 100);
+assert.ok(referenceStats.dayBet > referenceStats.todayBet);
+assert.ok(referenceStats.mgCounts.every((count) => count > 0));
+assert.ok(nextReferenceStats.todayBet > referenceStats.todayBet);
+assert.ok(
+  Math.abs(
+    nextReferenceStats.todayWin / nextReferenceStats.todayBet -
+      referenceStats.todayWin / referenceStats.todayBet,
+  ) < 0.002,
+  'the simulated reference rate must drift smoothly between refreshes',
+);
+
+const referenceItem = {
+  tableVO: { roomId: 45, number: 45, bet: 0, win: 0, today: { bet: 0, win: 0 } },
+  setData(table) {
+    this.tableVO = table;
+  },
+};
+const referenceView = {
+  slotTableMap: new Map([[45, referenceItem]]),
+  selectRoomId: 45,
+  detail: null,
+  setTableInfo(event) {
+    this.detail = event.data.detail;
+  },
+};
+assert.equal(applyTableReferenceStats(referenceView, referenceNow), true);
+assert.equal(referenceItem.tableVO.today.bet, referenceView.detail.todayBet);
+assert.equal(referenceItem.tableVO.today.win, referenceView.detail.todayWin);
+assert.deepEqual(structuredClone(referenceView.detail.mgCounts), referenceStats.mgCounts);
 
 let zeroTotalWinCompletions = 0;
 let dispatchedZeroTotalWin;

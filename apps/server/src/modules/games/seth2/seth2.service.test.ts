@@ -925,17 +925,21 @@ describe('Seth2 v1.1.5 source loading', () => {
         status: 200,
         data: {
           detail: {
-            dayBet: 100,
-            hourBet: 100,
-            todayBet: 100,
-            mgCounts: [0, 0, 0],
+            mgCounts: expect.arrayContaining([
+              expect.any(Number),
+              expect.any(Number),
+              expect.any(Number),
+            ]),
           },
           lock: { roomId: 15 },
         },
       });
+      expect(detail.todayBet).toBeGreaterThan(100);
+      expect(detail.dayBet).toBeGreaterThan(detail.todayBet);
       expect(detail.todayWin).toBeGreaterThan(0);
       expect(detail.hourWin).toBe(detail.todayWin);
       expect(detail.dayWin).toBeGreaterThan(0);
+      expect(detail.mgCounts.every((count) => count > 0)).toBe(true);
       expect(table).toMatchObject({
         today: {
           bet: detail.todayBet,
@@ -1203,13 +1207,17 @@ describe('Seth2 machine statistics', () => {
         rates.add(machine.day_rate);
       }
     }
-    expect(rates.size).toBe(4_000);
+    expect(rates.size).toBeGreaterThan(2_500);
   });
 
-  it('changes machine rates every 2.5 seconds and accepts the complete page/id range', () => {
-    expect(machineDisplayRate(3974, MACHINE_RATE_TIME + 2_500)).not.toBe(
-      machineDisplayRate(3974, MACHINE_RATE_TIME),
+  it('drifts machine rates smoothly every five seconds and accepts the complete page/id range', () => {
+    const rates = Array.from({ length: 13 }, (_, index) =>
+      Number(machineDisplayRate(3974, MACHINE_RATE_TIME + index * 5_000)),
     );
+    expect(new Set(rates).size).toBeGreaterThan(1);
+    for (let index = 1; index < rates.length; index += 1) {
+      expect(Math.abs(rates[index]! - rates[index - 1]!)).toBeLessThanOrEqual(0.1);
+    }
     expect(seth2ProtocolSchema.parse({ type: 'getMachineList', page: 8 })).toMatchObject({
       page: 8,
     });

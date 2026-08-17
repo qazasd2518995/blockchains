@@ -250,13 +250,19 @@ export class Seth2Service {
             SETH2_SOURCE_DEFINITION.winlineDefs.length
           ).toFixed(2),
         );
+        const referenceTimestamp = Date.now();
         const platform = {
           ...platformBase,
           // Machine statistics are only needed when the player opens the
           // table selector.  Keeping the 30-day aggregate off the initial
           // game boot removes a database scan from the critical path while
           // preserving all 500 first-page tables and animated rates.
-          tables: sourceMachineTables(machineList(new Map(), 1), userId, machineId),
+          tables: sourceMachineTables(
+            machineList(new Map(), 1, referenceTimestamp),
+            userId,
+            machineId,
+            referenceTimestamp,
+          ),
         };
         const resumedStates = activeSequence
           ? readStoredGameStates(activeSequence.entryGameStates, activeSequence.featureGameStates)
@@ -424,10 +430,16 @@ export class Seth2Service {
         const page = requireMachinePage(Number(request.page ?? 1));
         const selected = sourceMachineId(request);
         const stats = await this.machineStats();
+        const referenceTimestamp = Date.now();
         return {
           status: 200,
           data: {
-            tables: sourceMachineTables(machineList(stats, page), userId, selected),
+            tables: sourceMachineTables(
+              machineList(stats, page, referenceTimestamp),
+              userId,
+              selected,
+              referenceTimestamp,
+            ),
             lock: sourceTableLock(selected),
             tableMeta: {
               currentPage: page,
@@ -442,11 +454,12 @@ export class Seth2Service {
         await this.requireUser(userId);
         const machineId = sourceMachineId(request);
         const stats = await this.machineStats();
-        const machine = machineInfo(machineId, stats.get(machineId));
+        const referenceTimestamp = Date.now();
+        const machine = machineInfo(machineId, stats.get(machineId), referenceTimestamp);
         return {
           status: 200,
           data: {
-            detail: sourceMachineDetail(machine),
+            detail: sourceMachineDetail(machine, referenceTimestamp),
             lock: sourceTableLock(machineId),
           },
         };
@@ -1115,11 +1128,16 @@ function requireFormalPlay(isFreeModel: number | undefined): void {
   }
 }
 
+const MACHINE_REFERENCE_TICK_MS = 5_000;
+const MACHINE_REFERENCE_DAY_MS = 86_400_000;
+
 export function machineDisplayRate(id: number, timestamp = Date.now(), salt = 0): string {
-  const bucket = Math.floor(timestamp / 2_500) % 6_000;
-  const machineFactor = 137 + (bucket % 97) * 60;
-  const rateUnits = (id * machineFactor + bucket * 431 + salt * 1_877) % 6_000;
-  return (70 + rateUnits / 100).toFixed(2);
+  const tick = Math.floor(timestamp / MACHINE_REFERENCE_TICK_MS);
+  const baseUnits = 7_800 + ((id * 137 + salt * 911) % 4_400);
+  const phaseUnits = (tick + id * 29 + salt * 173) % 720;
+  const waveUnits = Math.round(Math.sin((phaseUnits / 720) * Math.PI * 2) * 500);
+  const rateUnits = Math.max(7_000, Math.min(12_999, baseUnits + waveUnits));
+  return (rateUnits / 100).toFixed(2);
 }
 
 export function machineInfo(id: number, stats?: Seth2MachineStatsRow, timestamp = Date.now()) {
@@ -2151,9 +2169,10 @@ function sourceMachineTables(
   machines: ReturnType<typeof machineList>,
   userId: string,
   selectedMachineId: number,
+  timestamp = Date.now(),
 ) {
   return machines.map((machine) => {
-    const detail = sourceMachineDetail(machine);
+    const detail = sourceMachineDetail(machine, timestamp);
     const bet = detail.todayBet;
     const win = detail.todayWin;
     const selected = machine.id === selectedMachineId;
@@ -2169,14 +2188,29 @@ function sourceMachineTables(
   });
 }
 
-function sourceMachineDetail(machine: ReturnType<typeof machineInfo>) {
-  // The source UI replaces the rate shown on the selected table with this
-  // detail response. Keep the same display baseline as the table list so an
-  // empty table does not visibly change from its advertised rate to 0%.
-  const todayBet = Math.max(100, machine.totalBet);
+function sourceMachineDetail(machine: ReturnType<typeof machineInfo>, timestamp = Date.now()) {
+  // These values are explicitly presented by the source UI as simulated
+  // reference statistics. They move in small deterministic steps so the list
+  // and detail panel stay coherent without pretending to be live player bets.
+  const dayBucket = Math.floor(timestamp / MACHINE_REFERENCE_DAY_MS);
+  const tickInDay = Math.floor(
+    (timestamp - dayBucket * MACHINE_REFERENCE_DAY_MS) / MACHINE_REFERENCE_TICK_MS,
+  );
+  const seed = (machine.id * 8_191 + dayBucket * 131) % 100_003;
+  const openingBetCents = 100_000 + (seed % 900_000);
+  const incrementCents = 25 + (seed % 176);
+  const referenceTodayBet = (openingBetCents + tickInDay * incrementCents) / 100;
+  const referenceDayBet = referenceTodayBet + 150_000 + ((seed * 37) % 650_000);
+  const todayBet = Number(referenceTodayBet.toFixed(2));
   const todayWin = Number((todayBet * (Number(machine.day_rate) / 100)).toFixed(2));
-  const dayBet = Math.max(100, machine.totalBet30);
+  const dayBet = Number(referenceDayBet.toFixed(2));
   const dayWin = Number((dayBet * (Number(machine.day_rate_30) / 100)).toFixed(2));
+  const currentCycle = 24 + (seed % 73);
+  const mgCounts = [
+    1 + ((tickInDay + seed) % currentCycle),
+    6 + ((seed * 17 + dayBucket) % 91),
+    8 + ((seed * 29 + dayBucket * 3) % 103),
+  ];
   return {
     dayWin,
     dayBet,
@@ -2184,6 +2218,6 @@ function sourceMachineDetail(machine: ReturnType<typeof machineInfo>) {
     hourBet: todayBet,
     todayBet,
     todayWin,
-    mgCounts: [0, 0, 0],
+    mgCounts,
   };
 }
