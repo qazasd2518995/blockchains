@@ -426,13 +426,15 @@ export class Seth2Service {
         const stats = await this.machineStats();
         return {
           status: 200,
-          tables: sourceMachineTables(machineList(stats, page), userId, selected),
-          lock: sourceTableLock(selected),
-          tableMeta: {
-            currentPage: page,
-            tablePerPage: SETH2_MACHINES_PER_PAGE,
-            totalPages: SETH2_MACHINE_PAGES,
-            totalTableCount: SETH2_MACHINE_COUNT,
+          data: {
+            tables: sourceMachineTables(machineList(stats, page), userId, selected),
+            lock: sourceTableLock(selected),
+            tableMeta: {
+              currentPage: page,
+              tablePerPage: SETH2_MACHINES_PER_PAGE,
+              totalPages: SETH2_MACHINE_PAGES,
+              totalTableCount: SETH2_MACHINE_COUNT,
+            },
           },
         };
       }
@@ -443,16 +445,18 @@ export class Seth2Service {
         const machine = machineInfo(machineId, stats.get(machineId));
         return {
           status: 200,
-          detail: {
-            dayWin: machine.totalBet * (Number(machine.day_rate_30) / 100),
-            dayBet: machine.totalBet,
-            hourWin: machine.totalBet * (Number(machine.day_rate) / 100),
-            hourBet: machine.totalBet,
-            todayBet: machine.totalBet,
-            todayWin: machine.totalBet * (Number(machine.day_rate) / 100),
-            mgCounts: [0, 0, 0],
+          data: {
+            detail: {
+              dayWin: machine.totalBet * (Number(machine.day_rate_30) / 100),
+              dayBet: machine.totalBet,
+              hourWin: machine.totalBet * (Number(machine.day_rate) / 100),
+              hourBet: machine.totalBet,
+              todayBet: machine.totalBet,
+              todayWin: machine.totalBet * (Number(machine.day_rate) / 100),
+              mgCounts: [0, 0, 0],
+            },
+            lock: sourceTableLock(machineId),
           },
-          lock: sourceTableLock(machineId),
         };
       }
       case 'updateSlotTable': {

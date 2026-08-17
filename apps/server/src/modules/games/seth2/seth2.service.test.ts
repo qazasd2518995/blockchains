@@ -875,6 +875,80 @@ describe('Seth2 v1.1.5 source loading', () => {
     });
   });
 
+  it('wraps machine detail in the source data envelope so the table loader can stop', async () => {
+    const service = new Seth2Service({
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          username: 'player',
+          displayName: 'Player',
+          balance: new Prisma.Decimal('123.45'),
+          frozenAt: null,
+          disabledAt: null,
+        }),
+      },
+      $queryRaw: async () => [],
+    } as never);
+
+    const result = await service.source('user-1', {
+      event: 'getSlotTableDetail',
+      data: { roomId: 15 },
+    });
+
+    expect(result).toMatchObject({
+      status: 200,
+      data: {
+        detail: {
+          dayBet: 0,
+          hourBet: 0,
+          todayBet: 0,
+          mgCounts: [0, 0, 0],
+        },
+        lock: { roomId: 15 },
+      },
+    });
+    expect(result).not.toHaveProperty('detail');
+    expect(result).not.toHaveProperty('lock');
+  });
+
+  it('wraps paged machine tables in the source data envelope', async () => {
+    const service = new Seth2Service({
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          username: 'player',
+          displayName: 'Player',
+          balance: new Prisma.Decimal('123.45'),
+          frozenAt: null,
+          disabledAt: null,
+        }),
+      },
+      $queryRaw: async () => [],
+    } as never);
+
+    const result = await service.source('user-1', {
+      event: 'getSlotTables',
+      data: { page: 2, machineId: 15 },
+    });
+
+    expect(result).toMatchObject({
+      status: 200,
+      data: {
+        lock: { roomId: 15 },
+        tableMeta: {
+          currentPage: 2,
+          tablePerPage: 500,
+          totalPages: 8,
+          totalTableCount: 4_000,
+        },
+      },
+    });
+    expect((result as { data: { tables: unknown[] } }).data.tables).toHaveLength(500);
+    expect(result).not.toHaveProperty('tables');
+    expect(result).not.toHaveProperty('lock');
+    expect(result).not.toHaveProperty('tableMeta');
+  });
+
   it('collects an entire free-game sequence in one source request', async () => {
     const outcome = seth2SpinForFactor('feature-sequence', 'client', 1, 2, 20, 'awakening_free');
     const states = [
