@@ -56,9 +56,14 @@ const ALLOWED_BET_SET = new Set<number>(SETH2_ALLOWED_BETS);
 const MAX_MULTIPLIER_BANK = SETH2_MAX_FREE_SPINS * 30 * 500;
 const INTERRUPTED_SPIN_RESUME_WINDOW_MS = 24 * 60 * 60 * 1_000;
 export const SETH2_DEFERRED_PAYOUT_SEQUENCE_VERSION = 'seth2-v1.1.5-sequence-v2-deferred-payout';
+// Every sub-2x value here is verified by isSeth2FactorRepresentable(). Keeping
+// the legal small-win ladder lets lifecycle recovery honor a narrow payout cap
+// instead of falling back to a loss merely because its 1.01x target is not an
+// exact Seth board factor.
 const CONTROL_FACTORS = [
-  0, 0.5, 1, 2, 3, 4, 5, 8, 10, 20, 45, 50, 100, 200, 205, 220, 250, 300, 350, 400, 450, 500, 1000,
-  2015, 5000, 10_000, 20_000, 50_000, 81_000,
+  0, 0.5, 1, 1.05, 1.2, 1.25, 1.3, 1.4, 1.5, 1.6, 1.65, 1.75, 1.8, 1.9, 1.95, 2, 3, 4, 5, 8, 10, 20,
+  45, 50, 100, 200, 205, 220, 250, 300, 350, 400, 450, 500, 1000, 2015, 5000, 10_000, 20_000,
+  50_000, 81_000,
 ] as const;
 
 export interface Seth2SessionState {

@@ -155,6 +155,81 @@ describe('Seth2 controlled result selection', () => {
     expect(factor).toBeNull();
   });
 
+  it('uses diverse legal small wins inside a narrow principal or deposit recovery cap', () => {
+    const factors = Array.from({ length: 24 }, (_, entropy) =>
+      chooseControlledSethFactor(
+        new Prisma.Decimal(10),
+        new Prisma.Decimal(10),
+        {
+          won: true,
+          multiplier: new Prisma.Decimal('1.01'),
+          minMultiplier: new Prisma.Decimal('1.01'),
+          maxPayout: new Prisma.Decimal('13.50'),
+        },
+        'base',
+        0,
+        false,
+        entropy,
+      ),
+    );
+
+    expect(factors.every((factor) => factor !== null)).toBe(true);
+    expect(new Set(factors)).toEqual(new Set([1.05, 1.2, 1.25, 1.3]));
+    for (const factor of factors) {
+      const outcome = seth2SpinForFactor('small-recovery', 'client', 1, 10, factor!, 'base');
+      expect(outcome.payoutFactor).toBe(factor);
+      expect(outcome.returnData.total_gold).toBeCloseTo(10 * factor!, 2);
+      expect(outcome.returnData.total_gold).toBeGreaterThan(10);
+      expect(outcome.returnData.total_gold).toBeLessThanOrEqual(13.5);
+    }
+  });
+
+  it('fails closed only below the smallest legal ordinary-spin win', () => {
+    const factor = chooseControlledSethFactor(new Prisma.Decimal(10), new Prisma.Decimal(10), {
+      won: true,
+      multiplier: new Prisma.Decimal('1.01'),
+      minMultiplier: new Prisma.Decimal('1.01'),
+      maxPayout: new Prisma.Decimal('10.49'),
+    });
+
+    expect(factor).toBeNull();
+  });
+
+  it('keeps a 1.01x recovery target representable across all three feature purchases', () => {
+    const baseAmount = new Prisma.Decimal(10);
+    const controlFor = (buyRate: number) => ({
+      won: true,
+      multiplier: new Prisma.Decimal('1.01'),
+      minMultiplier: new Prisma.Decimal('1.01'),
+      maxPayout: baseAmount.mul(buyRate).mul('1.05'),
+    });
+
+    expect(
+      chooseControlledSethFeatureFactor(
+        baseAmount,
+        baseAmount.mul(200),
+        controlFor(200),
+        'bought_standard_free',
+      ),
+    ).toBe(202);
+    expect(
+      chooseControlledSethFeatureFactor(
+        baseAmount,
+        baseAmount.mul(500),
+        controlFor(500),
+        'awakening_free',
+      ),
+    ).toBe(505);
+    expect(
+      chooseControlledSethFactor(
+        baseAmount,
+        baseAmount.mul(2_000),
+        controlFor(2_000),
+        'awakening_free',
+      ),
+    ).toBe(2_020);
+  });
+
   it('selects only factors representable by a visible persistent lock', () => {
     const factor = chooseControlledSethFactor(
       new Prisma.Decimal(18),
