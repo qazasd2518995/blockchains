@@ -50,6 +50,102 @@ describe('Seth2 controlled result selection', () => {
     expect(factor).toBe(400);
   });
 
+  it('diversifies a controlled 1.01x Eternal Rise win without leaving its bounds', () => {
+    const factors = new Set<number>();
+    for (let entropy = 0; entropy < 24; entropy += 1) {
+      const factor = chooseControlledSethFactor(
+        new Prisma.Decimal(10),
+        new Prisma.Decimal(20_000),
+        {
+          won: true,
+          multiplier: new Prisma.Decimal('1.01'),
+          minMultiplier: new Prisma.Decimal('1.01'),
+          maxMultiplier: new Prisma.Decimal('1.35'),
+          maxPayout: new Prisma.Decimal(27_000),
+        },
+        'awakening_free',
+        0,
+        false,
+        entropy,
+      );
+      expect(factor).not.toBeNull();
+      expect(factor!).toBeGreaterThanOrEqual(2_020);
+      expect(factor!).toBeLessThanOrEqual(2_700);
+      const outcome = seth2SuperMainSpinForFactor(
+        'controlled-diverse-win',
+        'client',
+        entropy,
+        10,
+        factor!,
+      );
+      expect(outcome.returnData.total_gold).toBe(10 * factor!);
+      expect(
+        outcome.returnData.list.some((round) =>
+          round.start_data.some((cell) => cell.type === 10 && cell.mul === 500),
+        ),
+      ).toBe(true);
+      factors.add(factor!);
+    }
+
+    expect(factors.size).toBeGreaterThanOrEqual(6);
+    expect(factors.size).toBeLessThan(24);
+  });
+
+  it('diversifies controlled Eternal Rise losses while every result remains a net loss', () => {
+    const factors = new Set<number>();
+    for (let entropy = 0; entropy < 18; entropy += 1) {
+      const factor = chooseControlledSethFactor(
+        new Prisma.Decimal(10),
+        new Prisma.Decimal(20_000),
+        { won: false, multiplier: new Prisma.Decimal(0) },
+        'awakening_free',
+        0,
+        false,
+        entropy,
+      );
+      expect(factor).not.toBeNull();
+      expect(factor!).toBeGreaterThanOrEqual(0);
+      expect(factor!).toBeLessThanOrEqual(2_000);
+      const outcome = seth2SuperMainSpinForFactor(
+        'controlled-diverse-loss',
+        'client',
+        entropy,
+        10,
+        factor!,
+      );
+      expect(outcome.returnData.total_gold).toBe(10 * factor!);
+      expect(
+        outcome.returnData.list.some((round) =>
+          round.start_data.some((cell) => cell.type === 10 && cell.mul === 500),
+        ),
+      ).toBe(true);
+      factors.add(factor!);
+    }
+
+    expect(factors.size).toBeGreaterThanOrEqual(4);
+  });
+
+  it('keeps exact control bounds exact even when diversity entropy is supplied', () => {
+    const factors = Array.from({ length: 20 }, (_, entropy) =>
+      chooseControlledSethFactor(
+        new Prisma.Decimal(10),
+        new Prisma.Decimal(20_000),
+        {
+          won: true,
+          multiplier: new Prisma.Decimal(2),
+          minMultiplier: new Prisma.Decimal(2),
+          maxMultiplier: new Prisma.Decimal(2),
+        },
+        'awakening_free',
+        0,
+        false,
+        entropy,
+      ),
+    );
+
+    expect(new Set(factors)).toEqual(new Set([4_000]));
+  });
+
   it('reports when no legal controlled win exists so settlement can safely downgrade it', () => {
     const factor = chooseControlledSethFactor(new Prisma.Decimal(18), new Prisma.Decimal(3600), {
       won: true,
@@ -669,6 +765,51 @@ describe('Seth2 v1.1.5 source loading', () => {
     ]);
     expect(platform.table.roomId).toBe(77);
     expect(platform.player.settings).toMatchObject({ stakeIndex: 2, ratioIndex: 3 });
+  });
+
+  it('resumes one-round Eternal Rise from entry states without fake free-game states', async () => {
+    const service = new Seth2Service({
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          username: 'player',
+          displayName: 'Player',
+          balance: new Prisma.Decimal('80000.00'),
+          frozenAt: null,
+          disabledAt: null,
+        }),
+      },
+      seth2PlayerState: { findUnique: async () => null },
+      seth2FeatureSequence: {
+        findFirst: async () => ({
+          betId: 'super-main-bet',
+          entryGameStates: [
+            {
+              view: Array.from({ length: 5 }, () => [1, 2, 3, 4, 5, 6]),
+              spinId: 'super-main-bet',
+              action: 'superSpin',
+              freeGameCount: 0,
+              startFreeGame: false,
+            },
+          ],
+          featureGameStates: [],
+        }),
+      },
+      seth2JackpotPool: { findUnique: async () => null },
+    } as never);
+
+    const result = await service.source('user-1', { event: 'initial', data: {} });
+    const states = (result.engine as { gameState: Array<Record<string, unknown>> }).gameState;
+
+    expect(result.isResuming).toBe(true);
+    expect(states).toHaveLength(1);
+    expect(states[0]).toMatchObject({
+      action: 'superSpin',
+      spinId: 'super-main-bet',
+      currentView: 0,
+      totalViews: 1,
+      startFreeGame: false,
+    });
   });
 
   it('fails closed when a durable feature sequence is corrupt instead of showing a blank game', async () => {

@@ -745,6 +745,7 @@ export class Seth2Service {
           mode,
           effectiveMultiplierBankBefore,
           hasPersistentMultiplier,
+          seed.nonce,
         );
       } else if (controlled.controlled) {
         if (buying && featureIndex !== 2) {
@@ -753,6 +754,7 @@ export class Seth2Service {
             controlAmount,
             effectiveControl,
             mode,
+            seed.nonce,
           );
         } else {
           controlledSingleFactor = chooseControlledSethFactor(
@@ -762,6 +764,7 @@ export class Seth2Service {
             mode,
             effectiveMultiplierBankBefore,
             hasPersistentMultiplier,
+            seed.nonce,
           );
         }
         if (controlledSingleFactor === null && controlledFeatureFactor === null) {
@@ -772,6 +775,7 @@ export class Seth2Service {
               controlAmount,
               effectiveControl,
               mode,
+              seed.nonce,
             );
           } else {
             controlledSingleFactor = chooseControlledSethFactor(
@@ -781,6 +785,7 @@ export class Seth2Service {
               mode,
               effectiveMultiplierBankBefore,
               hasPersistentMultiplier,
+              seed.nonce,
             );
           }
         }
@@ -859,6 +864,8 @@ export class Seth2Service {
         finalOutcome.payoutFactor + (finalFeatureRun?.totalPayoutFactor ?? 0);
       const finalPayout = payoutForFactor(baseAmount, finalTotalFactor);
       const entryPayout = payoutForFactor(baseAmount, finalOutcome.payoutFactor);
+      const deferredPayout =
+        Boolean(finalFeatureRun) || (atomicFeature && buying && featureIndex === 2);
       const finalControlMultiplier = finalPayout
         .div(controlAmount)
         .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
@@ -926,11 +933,11 @@ export class Seth2Service {
         flipReason: effectiveControl.flipReason ?? (gameCapApplied ? 'game_max_win' : null),
         raw: effectiveControl.controlled || gameCapApplied ? originalResult : null,
         operationId,
-        balanceAfter: (finalFeatureRun
+        balanceAfter: (deferredPayout
           ? user.balance.minus(debitAmount)
           : user.balance.minus(debitAmount).add(finalPayout)
         ).toFixed(2),
-        hasFeatureSequence: Boolean(finalFeatureRun),
+        hasFeatureSequence: deferredPayout,
         atomicFeature,
         jackpotPools,
       };
@@ -958,7 +965,7 @@ export class Seth2Service {
           })
         : user.balance;
       const newBalance =
-        !finalFeatureRun && finalPayout.greaterThan(0)
+        !deferredPayout && finalPayout.greaterThan(0)
           ? await creditAndRecord(tx, userId, finalPayout, bet.id, 'BET_WIN', {
               gameId: GAME_ID,
               mode: buying ? 'buy' : mode,
@@ -966,16 +973,18 @@ export class Seth2Service {
             })
           : debitedBalance;
 
-      if (finalFeatureRun) {
+      if (deferredPayout) {
         const entryGameStates = seth2SourceGameStates(finalOutcome.returnData, {
-          action: 'spin',
+          action: featureIndex === 2 ? 'superSpin' : 'spin',
           spinId: bet.id,
           totalStake: baseBet,
           freeGameCount: nextSession.freeSpinsRemaining,
           featureWinningsBefore: 0,
           isGoldenFg: responseFeatureMode === 'awakening',
         });
-        const featureGameStates = featureRunGameStates(finalFeatureRun, bet.id, baseBet);
+        const featureGameStates = finalFeatureRun
+          ? featureRunGameStates(finalFeatureRun, bet.id, baseBet)
+          : [];
         await tx.seth2FeatureSequence.create({
           data: {
             userId,
@@ -989,12 +998,21 @@ export class Seth2Service {
             finalBalance: debitedBalance.add(finalPayout),
             entryGameStates: entryGameStates as unknown as Prisma.InputJsonValue,
             featureGameStates: featureGameStates as unknown as Prisma.InputJsonValue,
-            mathResults: finalFeatureRun.rounds.map((round, index) => ({
-              nonce: featureSeeds[index]?.nonce,
-              serverSeedId: featureSeeds[index]?.serverSeedId,
-              returnData: round.returnData,
-              payoutFactor: round.payoutFactor,
-            })) as unknown as Prisma.InputJsonValue,
+            mathResults: (finalFeatureRun
+              ? finalFeatureRun.rounds.map((round, index) => ({
+                  nonce: featureSeeds[index]?.nonce,
+                  serverSeedId: featureSeeds[index]?.serverSeedId,
+                  returnData: round.returnData,
+                  payoutFactor: round.payoutFactor,
+                }))
+              : [
+                  {
+                    nonce: seed.nonce,
+                    serverSeedId: seed.serverSeedId,
+                    returnData: finalOutcome.returnData,
+                    payoutFactor: finalOutcome.payoutFactor,
+                  },
+                ]) as unknown as Prisma.InputJsonValue,
             controlResult: {
               controlled: effectiveControl.controlled || gameCapApplied,
               reason: effectiveControl.flipReason ?? (gameCapApplied ? 'game_max_win' : null),
@@ -1710,13 +1728,33 @@ function controlFactorCandidates(
   control: Pick<ControlOutcome, 'multiplier' | 'minMultiplier' | 'maxMultiplier'>,
 ): number[] {
   const values = new Set<number>(CONTROL_FACTORS);
-  const addMultiplier = (multiplier: Prisma.Decimal | undefined) => {
-    if (!multiplier) return;
-    const factor = Number(multiplier.mul(controlAmount).div(baseAmount).toFixed(4));
-    if (Number.isFinite(factor) && factor >= 0 && factor <= SETH2_MAX_WIN_MULTIPLIER) {
-      values.add(factor);
+  const addFactor = (factor: Prisma.Decimal | number) => {
+    const normalized = Number(new Prisma.Decimal(factor).toDecimalPlaces(4).toFixed(4));
+    if (Number.isFinite(normalized) && normalized >= 0 && normalized <= SETH2_MAX_WIN_MULTIPLIER) {
+      values.add(normalized);
     }
   };
+  const addMultiplier = (multiplier: Prisma.Decimal | undefined) => {
+    if (!multiplier) return;
+    const factor = multiplier.mul(controlAmount).div(baseAmount);
+    addFactor(factor);
+    if (multiplier.greaterThan(0)) {
+      // Controlled wins used to expose the exact same total on every round
+      // (notably 2,020x for a 2,000x buy controlled to 1.01x). Build a narrow
+      // family around the requested target; the game-specific selector still
+      // rejects anything outside every min/max/payout bound.
+      for (const scale of [1.025, 1.05, 1.075, 1.1, 1.125, 1.15, 1.2, 1.25]) {
+        addFactor(factor.mul(scale).mul(2).round().div(2));
+      }
+    }
+  };
+  const breakEvenFactor = controlAmount.div(baseAmount);
+  // A LOSS means net payout <= the accounting stake, not necessarily a zero
+  // return. These anchors provide visibly different losing amounts while the
+  // existing control bounds remain authoritative.
+  for (const ratio of [0, 0.1, 0.25, 0.5, 0.75, 1]) {
+    addFactor(breakEvenFactor.mul(ratio).mul(2).round().div(2));
+  }
   addMultiplier(control.multiplier);
   addMultiplier(control.minMultiplier);
   addMultiplier(control.maxMultiplier);
@@ -1731,6 +1769,7 @@ export function chooseControlledSethFeatureFactor(
     'won' | 'multiplier' | 'minMultiplier' | 'maxMultiplier' | 'maxPayout'
   >,
   mode: Seth2SpinMode,
+  entropy?: number,
 ): number | null {
   const candidates = controlFactorCandidates(baseAmount, controlAmount, control).filter(
     (factor) => {
@@ -1750,9 +1789,38 @@ export function chooseControlledSethFeatureFactor(
   );
   if (candidates.length === 0) return null;
   const target = Number(control.multiplier.mul(controlAmount).div(baseAmount).toFixed(4));
-  return candidates.reduce((best, factor) =>
-    Math.abs(factor - target) < Math.abs(best - target) ? factor : best,
+  return selectControlledSethFactor(
+    candidates,
+    target,
+    control.won,
+    Number(controlAmount.div(baseAmount).toFixed(4)),
+    entropy,
   );
+}
+
+function selectControlledSethFactor(
+  candidates: number[],
+  target: number,
+  won: boolean,
+  breakEvenFactor: number,
+  entropy?: number,
+): number {
+  const nearest = (expected: number) =>
+    candidates.reduce((best, factor) =>
+      Math.abs(factor - expected) < Math.abs(best - expected) ? factor : best,
+    );
+  if (entropy === undefined || candidates.length === 1) return nearest(target);
+
+  const pool = won
+    ? candidates
+        .filter((factor) => factor >= target && factor <= Math.max(target + 0.5, target * 1.25))
+        .sort((left, right) => left - right)
+    : [0, 0.1, 0.25, 0.5, 0.75, 1]
+        .map((ratio) => nearest(breakEvenFactor * ratio))
+        .filter((factor, index, factors) => factors.indexOf(factor) === index)
+        .sort((left, right) => left - right);
+  if (pool.length < 2) return nearest(target);
+  return pool[Math.abs(Math.trunc(entropy)) % pool.length]!;
 }
 
 function featureRunGameStates(run: Seth2FeatureRun, spinId: string, totalStake: number) {
@@ -1881,6 +1949,7 @@ export function chooseControlledSethFactor(
   mode: Seth2SpinMode = 'base',
   multiplierBank = 0,
   hasPersistentMultiplier = false,
+  entropy?: number,
 ): number | null {
   const candidates = controlFactorCandidates(baseAmount, controlAmount, control).filter(
     (factor) => {
@@ -1902,8 +1971,12 @@ export function chooseControlledSethFactor(
   );
   if (candidates.length === 0) return null;
   const targetFactor = Number(control.multiplier.mul(controlAmount).div(baseAmount).toFixed(4));
-  return candidates.reduce((best, factor) =>
-    Math.abs(factor - targetFactor) < Math.abs(best - targetFactor) ? factor : best,
+  return selectControlledSethFactor(
+    candidates,
+    targetFactor,
+    control.won,
+    Number(controlAmount.div(baseAmount).toFixed(4)),
+    entropy,
   );
 }
 
@@ -2066,7 +2139,9 @@ function readStoredGameStates(
 ): Array<Record<string, unknown>> | null {
   const entry = readStoredGameStateArray(entryValue);
   const feature = readStoredGameStateArray(featureValue);
-  if (!entry || !feature || entry.length === 0 || feature.length === 0) return null;
+  // Eternal Rise is one super-main sequence stored entirely in entry states;
+  // the two 15-game features append their rounds in feature states.
+  if (!entry || !feature || entry.length === 0) return null;
   const states = [...entry, ...feature];
   states.forEach((state, currentView) => {
     state.currentView = currentView;

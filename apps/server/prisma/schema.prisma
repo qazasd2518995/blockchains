@@ -201,7 +201,7 @@ model Seth2PlayerState {
   updatedAt         DateTime @updatedAt
 }
 
-/// A complete feature animation whose result is committed with the parent Bet.
+/// A complete free-game or one-round Super Main animation committed with its parent Bet.
 /// Current sequences defer wallet payout until closeSpin; legacy v1 sequences
 /// were already paid and remain distinguishable through definitionVersion.
 model Seth2FeatureSequence {

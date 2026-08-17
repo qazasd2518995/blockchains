@@ -554,6 +554,72 @@ assert.equal(prefetchedRequest.data.sequenceId, 'feature-entry');
 assert.equal(prefetchedRequest.data.stakeValue, undefined);
 assert.equal(prefetchedRequest.data.ratioValue, undefined);
 
+responseQueue.push({
+  status: 200,
+  engine: { gameState: { spinId: 'super-main-entry' }, spinId: 'super-main-entry' },
+  platform: { player: { balance: { amount: 80_000 } } },
+});
+parentMessages.length = 0;
+const superPurchase = await new Promise((resolve) => {
+  socket.emit(
+    'spin',
+    {
+      action: 'buyFeature',
+      featureIndex: 2,
+      stakeIndex: 4,
+      stakeValue: 1,
+      ratioIndex: 3,
+      ratioValue: 1,
+    },
+    resolve,
+  );
+});
+assert.equal(superPurchase.platform.player.balance.amount, 80_000);
+assert.deepEqual(structuredClone(parentMessages.at(-1)), {
+  type: 'seth2:balance',
+  balance: 80_000,
+});
+
+responseQueue.push({
+  status: 200,
+  engine: {
+    spinId: 'super-main-entry',
+    gameState: [
+      {
+        spinId: 'super-main-entry',
+        action: 'superSpin',
+        startFreeGame: false,
+        freeGameCount: 0,
+        currentView: 0,
+        totalViews: 1,
+      },
+    ],
+  },
+  platform: { player: { balance: { amount: 80_000 } } },
+});
+const superReplay = await new Promise((resolve) => {
+  socket.emit('spin', { spinId: 'super-main-entry' }, resolve);
+});
+assert.equal(superReplay.platform.player.balance.amount, 80_000);
+assert.equal(superReplay.engine.gameState[0].action, 'superSpin');
+
+responseQueue.push({
+  status: 200,
+  platform: { player: { balance: { amount: 102_000 } } },
+});
+parentMessages.length = 0;
+await new Promise((resolve) => {
+  socket.emit('closeSpin', {}, resolve);
+});
+assert.deepEqual(JSON.parse(requests.at(-1).options.body), {
+  event: 'closeSpin',
+  data: { spinId: 'super-main-entry' },
+});
+assert.deepEqual(structuredClone(parentMessages.at(-1)), {
+  type: 'seth2:balance',
+  balance: 102_000,
+});
+
 socket.close();
 assert.equal(socket.connected, false);
 console.log('Seth2 v1.1.5 Socket.IO bridge and audio contract tests passed.');
