@@ -36,6 +36,10 @@ class TestStorage {
     values.set(key, value);
   }
 
+  removeItem(key) {
+    values.delete(key);
+  }
+
   clear() {
     values.clear();
   }
@@ -114,6 +118,8 @@ assert.equal(storage.getItem('source-client-temporary-key'), null);
 
 const {
   LocalSocket,
+  advanceActiveSpinProgress,
+  applyStoredResumeProgress,
   applyAudioPreferences,
   prefetchInitialResponse,
   publicError,
@@ -126,6 +132,8 @@ const {
   isGameEntryTransitionReady,
   normalizeUpdateSettings,
   machineReferenceStats,
+  readActiveSpin,
+  rememberNewSpin,
   applyTableReferenceStats,
   tableMachineId,
   patchRotateScreenButtons,
@@ -655,6 +663,131 @@ assert.deepEqual(structuredClone(parentMessages.at(-1)), {
   type: 'seth2:balance',
   balance: 102_000,
 });
+
+storage.setItem(
+  'bg.seth2.active-spin',
+  JSON.stringify({ spinId: 'resume-one', cursor: 2, totalViews: 3, durable: true }),
+);
+responseQueue.push({
+  ...structuredClone(response),
+  isResuming: true,
+  resumeKind: 'feature',
+  resumeCursor: 0,
+  resumeTotalViews: 3,
+  engine: {
+    spinId: 'resume-one',
+    gameState: [0, 1, 2].map((currentView) => ({
+      spinId: 'resume-one',
+      sourceView: currentView,
+      action: 'superSpin',
+      startFreeGame: false,
+      freeGameCount: 0,
+      currentView,
+      totalViews: 3,
+    })),
+  },
+});
+const resumedTail = await new Promise((resolve) => {
+  socket.emit('initial', {}, resolve);
+});
+assert.equal(resumedTail.isResuming, true);
+assert.equal(resumedTail.engine.gameState.length, 2);
+assert.deepEqual(
+  resumedTail.engine.gameState.map((state) => [
+    state.sourceView,
+    state.currentView,
+    state.totalViews,
+  ]),
+  [
+    [1, 0, 2],
+    [2, 1, 2],
+  ],
+);
+assert.deepEqual(structuredClone(readActiveSpin()), {
+  spinId: 'resume-one',
+  cursor: 1,
+  totalViews: 3,
+  durable: true,
+});
+
+responseQueue.push({
+  status: 200,
+  platform: { player: { balance: { amount: 102_000 } } },
+});
+await new Promise((resolve) => {
+  socket.emit('closeSpin', {}, resolve);
+});
+assert.deepEqual(JSON.parse(requests.at(-1).options.body), {
+  event: 'closeSpin',
+  data: { spinId: 'resume-one' },
+});
+assert.equal(readActiveSpin(), null);
+
+storage.setItem(
+  'bg.seth2.active-spin',
+  JSON.stringify({ spinId: 'resume-single', cursor: 1, totalViews: 1, durable: true }),
+);
+responseQueue.push({
+  ...structuredClone(response),
+  isResuming: true,
+  resumeKind: 'feature',
+  resumeCursor: 0,
+  resumeTotalViews: 1,
+  engine: {
+    spinId: 'resume-single',
+    gameState: [
+      {
+        spinId: 'resume-single',
+        action: 'superSpin',
+        startFreeGame: false,
+        freeGameCount: 0,
+        currentView: 0,
+        totalViews: 1,
+      },
+    ],
+  },
+});
+const resumedSingle = await new Promise((resolve) => {
+  socket.emit('initial', {}, resolve);
+});
+assert.equal(resumedSingle.engine.gameState.length, 1);
+responseQueue.push({
+  status: 200,
+  platform: { player: { balance: { amount: 102_000 } } },
+});
+await new Promise((resolve) => {
+  socket.emit('closeSpin', {}, resolve);
+});
+assert.deepEqual(JSON.parse(requests.at(-1).options.body), {
+  event: 'closeSpin',
+  data: { spinId: 'resume-single' },
+});
+assert.equal(readActiveSpin(), null);
+
+storage.setItem(
+  'bg.seth2.active-spin',
+  JSON.stringify({ spinId: 'ordinary-spin', cursor: 0, totalViews: 2, durable: false }),
+);
+assert.equal(advanceActiveSpinProgress().cursor, 1);
+assert.equal(readActiveSpin().cursor, 1);
+assert.equal(typeof applyStoredResumeProgress, 'function');
+assert.equal(typeof rememberNewSpin, 'function');
+storage.removeItem('bg.seth2.active-spin');
+
+storage.setItem(
+  'bg.seth2.active-spin',
+  JSON.stringify({ spinId: 'durable-spin', cursor: 0, totalViews: 2, durable: true }),
+);
+responseQueue.push({ status: 200 });
+const requestCountBeforeProgress = requests.length;
+advanceActiveSpinProgress();
+await new Promise((resolve) => setImmediate(resolve));
+assert.equal(requests.length - requestCountBeforeProgress, 1);
+assert.deepEqual(JSON.parse(requests.at(-1).options.body), {
+  event: 'updateFeatureProgress',
+  data: { sequenceId: 'durable-spin', completedViews: 1 },
+});
+storage.removeItem('bg.seth2.active-spin');
 
 socket.close();
 assert.equal(socket.connected, false);

@@ -54,6 +54,7 @@ const SETH2_MACHINES_PER_PAGE = 500;
 const SETH2_MACHINE_COUNT = SETH2_MACHINE_PAGES * SETH2_MACHINES_PER_PAGE;
 const ALLOWED_BET_SET = new Set<number>(SETH2_ALLOWED_BETS);
 const MAX_MULTIPLIER_BANK = SETH2_MAX_FREE_SPINS * 30 * 500;
+const INTERRUPTED_SPIN_RESUME_WINDOW_MS = 24 * 60 * 60 * 1_000;
 export const SETH2_DEFERRED_PAYOUT_SEQUENCE_VERSION = 'seth2-v1.1.5-sequence-v2-deferred-payout';
 const CONTROL_FACTORS = [
   0, 0.5, 1, 2, 3, 4, 5, 8, 10, 20, 45, 50, 100, 200, 205, 220, 250, 300, 350, 400, 450, 500, 1000,
@@ -213,6 +214,7 @@ export class Seth2Service {
     const request = input.data;
     switch (input.event) {
       case 'initial': {
+        const interruptedSpinId = sourceSpinId(request.resumeSpinId);
         const [user, playerState, activeSequence, jackpotPool] = await Promise.all([
           this.requireUser(userId),
           this.prisma.seth2PlayerState.findUnique({ where: { userId } }),
@@ -222,6 +224,24 @@ export class Seth2Service {
           }),
           this.prisma.seth2JackpotPool.findUnique({ where: { gameId: GAME_ID } }),
         ]);
+        const interruptedBet =
+          !activeSequence && interruptedSpinId
+            ? await this.prisma.bet.findFirst({
+                where: {
+                  id: interruptedSpinId,
+                  userId,
+                  gameId: GAME_ID,
+                  createdAt: {
+                    gte: new Date(Date.now() - INTERRUPTED_SPIN_RESUME_WINDOW_MS),
+                  },
+                },
+                select: {
+                  id: true,
+                  resultData: true,
+                  seth2FeatureSequence: { select: { status: true } },
+                },
+              })
+            : null;
         const machineId = playerState?.selectedMachineId ?? 1;
         const savedSettings = jsonObject(playerState?.settings);
         const bettingLimit = getBettingLimitForGame(
@@ -264,22 +284,81 @@ export class Seth2Service {
             referenceTimestamp,
           ),
         };
-        const resumedStates = activeSequence
+        const storedSequenceStates = activeSequence
           ? readStoredGameStates(activeSequence.entryGameStates, activeSequence.featureGameStates)
           : null;
-        if (activeSequence && !resumedStates) {
+        if (activeSequence && !storedSequenceStates) {
           throw new ApiError('INTERNAL', '免費遊戲恢復資料損壞，已停止建立新的下注');
         }
+        const sequenceResume = storedSequenceStates
+          ? resumeStoredGameStates(storedSequenceStates, activeSequence?.resumeCursor ?? 0)
+          : null;
+        // Ordinary spins settle immediately, but the source may still be in
+        // the middle of a tumble animation when the iframe is closed. A
+        // same-device resume marker can safely replay that already-settled bet
+        // without charging or crediting it again. Feature bets are excluded;
+        // READY feature sequences above remain the sole financial authority.
+        const interruptedSettlement =
+          interruptedBet && !interruptedBet.seth2FeatureSequence
+            ? readInterruptedSettlement(
+                interruptedBet.id,
+                interruptedBet.resultData,
+                Number(user.balance.toFixed(2)),
+              )
+            : null;
+        const interruptedGameStates = interruptedSettlement
+          ? seth2SourceGameStates(interruptedSettlement.returnData, {
+              action: interruptedSettlement.freeSpin ? 'freeSpin' : 'spin',
+              spinId: interruptedSettlement.spinId,
+              totalStake: interruptedSettlement.totalStake,
+              freeGameCount: interruptedSettlement.session.freeSpinsRemaining,
+              featureWinningsBefore: interruptedSettlement.featureWinningsBefore,
+              isGoldenFg:
+                interruptedSettlement.session.featureMode === 'awakening' ||
+                interruptedSettlement.returnData.featureMode === 'awakening',
+            })
+          : null;
+        const interruptedResume = interruptedGameStates
+          ? resumeStoredGameStates(
+              interruptedGameStates as unknown as Array<Record<string, unknown>>,
+              0,
+            )
+          : null;
+        const resumedStates = sequenceResume?.gameStates ?? interruptedResume?.gameStates ?? null;
+        const resumedSpinId = sequenceResume
+          ? activeSequence!.betId
+          : interruptedResume
+            ? interruptedSettlement!.spinId
+            : '';
+        const resumeCursor = sequenceResume?.resumeCursor ?? interruptedResume?.resumeCursor ?? 0;
+        const resumeTotalViews = sequenceResume?.totalViews ?? interruptedResume?.totalViews ?? 0;
         return {
           status: 200,
           isResuming: Boolean(resumedStates),
+          resumeKind: sequenceResume ? 'feature' : interruptedResume ? 'spin' : null,
+          resumeCursor,
+          resumeTotalViews,
           engine: {
             definition: SETH2_SOURCE_DEFINITION,
             gameState: resumedStates ?? [seth2SourceInitialState(initialTotalStake)],
-            spinId: resumedStates ? activeSequence!.betId : '',
+            spinId: resumedSpinId,
           },
           platform,
         };
+      }
+      case 'updateFeatureProgress': {
+        const sequenceId = String(request.sequenceId);
+        const completedViews = Number(request.completedViews);
+        await this.prisma.seth2FeatureSequence.updateMany({
+          where: {
+            userId,
+            status: 'READY',
+            resumeCursor: { lt: completedViews },
+            OR: [{ id: sequenceId }, { betId: sequenceId }],
+          },
+          data: { resumeCursor: completedViews },
+        });
+        return { status: 200, sequenceId, completedViews };
       }
       case 'spin': {
         const buying = request.action === 'buyFeature';
@@ -2163,6 +2242,55 @@ function readStoredGameStates(
     if (currentView > 0) state.startFreeGame = false;
   });
   return states;
+}
+
+function resumeStoredGameStates(
+  states: Array<Record<string, unknown>>,
+  completedViews: number,
+): {
+  gameStates: Array<Record<string, unknown>>;
+  resumeCursor: number;
+  totalViews: number;
+} {
+  const totalViews = states.length;
+  const requestedCursor = Number.isInteger(completedViews) ? completedViews : 0;
+  // The last view must be replayed when it finished locally but closeSpin did
+  // not reach the server. That gives the source client another deterministic
+  // chance to send the deferred settlement request.
+  const nextCursor = Math.max(0, Math.min(requestedCursor, totalViews - 1));
+  // Source collection views depend on the preceding win view (`preSpinData`).
+  // Replaying one completed view reconstructs that transient client context
+  // while still skipping the rest of a long feature sequence.
+  const resumeCursor = nextCursor > 0 ? nextCursor - 1 : 0;
+  const gameStates = states.slice(resumeCursor).map((state, currentView, remaining) => ({
+    ...state,
+    currentView,
+    totalViews: remaining.length,
+    startFreeGame: currentView === 0 ? state.startFreeGame : false,
+  }));
+  return { gameStates, resumeCursor, totalViews };
+}
+
+function readInterruptedSettlement(
+  spinId: string,
+  resultData: Prisma.JsonValue | undefined,
+  currentBalance: number,
+): Seth2Settlement | null {
+  if (!resultData || typeof resultData !== 'object' || Array.isArray(resultData)) return null;
+  const stored = resultData as Record<string, unknown>;
+  if (stored.buying === true) return null;
+  const requestedBet = Number(stored.baseAmount);
+  const machineId = Number(stored.machineId);
+  const atomicFeature = stored.atomicFeature === true;
+  if (!ALLOWED_BET_SET.has(requestedBet) || !Number.isInteger(machineId)) return null;
+  const settlement = readStoredSettlement(spinId, resultData, {
+    requestedBet,
+    machineId,
+    buying: false,
+    featureIndex: null,
+    atomicFeature,
+  });
+  return settlement ? { ...settlement, balance: currentBalance } : null;
 }
 
 function sourceMachineTables(

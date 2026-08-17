@@ -739,8 +739,12 @@ describe('Seth2 v1.1.5 source loading', () => {
       seth2FeatureSequence: {
         findFirst: async () => ({
           betId: 'resume-bet',
+          resumeCursor: 2,
           entryGameStates: [baseState],
-          featureGameStates: [{ ...baseState, action: 'freeSpin', startFreeGame: false }],
+          featureGameStates: [
+            { ...baseState, action: 'freeSpin', startFreeGame: false },
+            { ...baseState, action: 'freeSpin', startFreeGame: false },
+          ],
         }),
       },
       seth2JackpotPool: { findUnique: async () => null },
@@ -757,12 +761,15 @@ describe('Seth2 v1.1.5 source loading', () => {
     };
 
     expect(result.isResuming).toBe(true);
+    expect(result.resumeCursor).toBe(1);
+    expect(result.resumeTotalViews).toBe(3);
     expect(engine.spinId).toBe('resume-bet');
     expect(engine.gameState).toHaveLength(2);
     expect(engine.gameState.map((state) => [state.currentView, state.totalViews])).toEqual([
       [0, 2],
       [1, 2],
     ]);
+    expect(engine.gameState.every((state) => state.startFreeGame === false)).toBe(true);
     expect(platform.table.roomId).toBe(77);
     expect(platform.player.settings).toMatchObject({ stakeIndex: 2, ratioIndex: 3 });
   });
@@ -810,6 +817,74 @@ describe('Seth2 v1.1.5 source loading', () => {
       totalViews: 1,
       startFreeGame: false,
     });
+  });
+
+  it('replays a recent interrupted ordinary tumble without charging it again', async () => {
+    const outcome = seth2SpinForFactor('resume-ordinary', 'client', 1, 10, 20, 'base');
+    let betLookups = 0;
+    const service = new Seth2Service({
+      user: {
+        findUnique: async () => ({
+          id: 'user-1',
+          username: 'player',
+          displayName: 'Player',
+          balance: new Prisma.Decimal('1234.50'),
+          frozenAt: null,
+          disabledAt: null,
+        }),
+      },
+      seth2PlayerState: { findUnique: async () => null },
+      seth2FeatureSequence: { findFirst: async () => null },
+      seth2JackpotPool: { findUnique: async () => null },
+      bet: {
+        findFirst: async () => {
+          betLookups += 1;
+          return {
+            id: 'ordinary-bet',
+            seth2FeatureSequence: null,
+            resultData: {
+              mode: 'base',
+              machineId: 28,
+              buying: false,
+              featureIndex: null,
+              baseAmount: '10.00',
+              balanceAfter: '900.00',
+              atomicFeature: true,
+              displaySession: {
+                freeSpinsRemaining: 0,
+                featureMode: 'none',
+                betAmount: '0.00',
+                multiplierBank: 0,
+                femaleLock: null,
+                featureWinnings: 0,
+              },
+              featureWinningsBefore: 0,
+              returnData: outcome.returnData,
+            },
+          };
+        },
+      },
+    } as never);
+
+    const result = await service.source('user-1', {
+      event: 'initial',
+      data: { resumeSpinId: 'ordinary-bet' },
+    });
+    const engine = result.engine as {
+      spinId: string;
+      gameState: Array<{ action: string; spinId: string }>;
+    };
+
+    expect(betLookups).toBe(1);
+    expect(result).toMatchObject({
+      isResuming: true,
+      resumeKind: 'spin',
+      platform: { player: { balance: { amount: 1234.5 } } },
+    });
+    expect(engine.spinId).toBe('ordinary-bet');
+    expect(engine.gameState.length).toBeGreaterThan(0);
+    expect(engine.gameState.every((state) => state.action === 'spin')).toBe(true);
+    expect(engine.gameState.every((state) => state.spinId === 'ordinary-bet')).toBe(true);
   });
 
   it('fails closed when a durable feature sequence is corrupt instead of showing a blank game', async () => {
@@ -1040,6 +1115,38 @@ describe('Seth2 v1.1.5 source loading', () => {
     });
     expect(result).toMatchObject({
       platform: { player: { balance: { amount: 600 } } },
+    });
+  });
+
+  it('checkpoints feature playback monotonically without touching the wallet', async () => {
+    let updateArgs: unknown;
+    const service = new Seth2Service({
+      seth2FeatureSequence: {
+        updateMany: async (args: unknown) => {
+          updateArgs = args;
+          return { count: 1 };
+        },
+      },
+    } as never);
+
+    const result = await service.source('user-1', {
+      event: 'updateFeatureProgress',
+      data: { sequenceId: 'feature-parent', completedViews: 7 },
+    });
+
+    expect(result).toEqual({
+      status: 200,
+      sequenceId: 'feature-parent',
+      completedViews: 7,
+    });
+    expect(updateArgs).toEqual({
+      where: {
+        userId: 'user-1',
+        status: 'READY',
+        resumeCursor: { lt: 7 },
+        OR: [{ id: 'feature-parent' }, { betId: 'feature-parent' }],
+      },
+      data: { resumeCursor: 7 },
     });
   });
 

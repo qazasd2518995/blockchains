@@ -63,6 +63,8 @@
 
 原版 v1.1.5 會從同一個 `engine.gameState` 陣列逐局播放整段免費遊戲，而本地後端為了交易與控制安全仍逐局結算。因此 bridge 會在入口結果確定後依序預取剩餘免費局，保留每局後端已控制的盤面與最終餘額，再合併並重新編排 `currentView`／`totalViews`。只有入口 state 設定 `startFreeGame`，後續局不會重複開啟進場提示。
 
+每個已播放完成的特色 state 會以單調遞增的 `resumeCursor` 寫回 `Seth2FeatureSequence`，瀏覽器也保存同一個 `spinId` 與本地游標。重新進入時從最近安全邊界恢復，並保留前一個 view 供倍率收集動畫重建 `preSpinData`；最後一個 view 若已播放但 `closeSpin` 未送達，仍會重播結尾再完成延後派彩。一般連消局已即時結算，不建立特色序列，但同裝置在 24 小時內仍可用保存的 `spinId` 重播未完動畫，且不會再次扣款或派彩。
+
 橫向版 Slot Framework 在總贏分為 0 時沒有完成 tween callback；bridge 只針對這個零值且要求完成的事件補回一次性 completion，避免 Scatter 入場後卡住，並不改動得分。男角複製球由數學結果的 `type17_mul_list` 補入落下盤面，`splitList` 因此一定指向實際倍數球節點，不會再送出空目標造成技能流程停住。男女角色事件會先尋找實際含 17／18 的連消段，再於該段送出技能等級、分裂目標或鎖定狀態。
 
 ## 派彩與控制一致性

@@ -222,6 +222,7 @@ model Seth2FeatureSequence {
   mathResults       Json
   controlResult     Json
   definitionVersion String                     @default("seth2-v1.1.5-sequence-v1")
+  resumeCursor      Int                        @default(0)
   status            Seth2FeatureSequenceStatus @default(READY)
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt

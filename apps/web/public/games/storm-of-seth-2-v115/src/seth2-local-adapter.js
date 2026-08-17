@@ -10,9 +10,11 @@
   var selectedMachineId = 1;
   var lastSpinId = '';
   var PENDING_OPERATION_KEY = 'bg.seth2.pending-operation';
+  var ACTIVE_SPIN_KEY = 'bg.seth2.active-spin';
   var SFX_PREFS_KEY = 'bg.sfx.prefs';
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
   var UPDATE_TOTAL_WINNINGS = 'SlotFrameworkEvent:UPDATE_TOTAL_WINNINGS';
+  var CREATE_SPIN_COMPLETE_FLOW = 'GameEvent:CREATE_SPIN_COMPLETE_FLOW';
   var GAME_ENTRY_BOOT_TIMEOUT_MS = 60000;
   var GAME_ENTRY_REQUIRED_UI_COUNT = 4;
   var TABLE_REFERENCE_REFRESH_MS = 5000;
@@ -26,12 +28,15 @@
   var gameEntryDisposing = false;
   var rotateScreenPatched = false;
   var shellHandlesTableChanges = false;
+  var progressInFlight = null;
+  var queuedProgress = null;
 
   function wrapFrameworkDispatch(dispatcher) {
     if (typeof dispatcher !== 'function' || dispatcher.__yachiyoTotalWinGuard) return dispatcher;
     function guardedDispatch() {
       var eventName = arguments[0];
       var event = arguments[1];
+      if (eventName === CREATE_SPIN_COMPLETE_FLOW) advanceActiveSpinProgress();
       var data = event && event.data;
       var needsZeroCompletion =
         eventName === UPDATE_TOTAL_WINNINGS &&
@@ -209,7 +214,13 @@
   function protectPlatformStorage() {
     if (typeof Storage === 'undefined' || Storage.prototype.__yachiyoProtectedClear) return;
     var originalClear = Storage.prototype.clear;
-    var protectedKeys = ['bg-auth', SFX_PREFS_KEY, BGM_PREFS_KEY];
+    var protectedKeys = [
+      'bg-auth',
+      PENDING_OPERATION_KEY,
+      ACTIVE_SPIN_KEY,
+      SFX_PREFS_KEY,
+      BGM_PREFS_KEY,
+    ];
     Storage.prototype.clear = function () {
       var preserved = {};
       protectedKeys.forEach(function (key) {
@@ -235,6 +246,153 @@
     } catch (_error) {
       return window.localStorage;
     }
+  }
+
+  function readActiveSpin() {
+    try {
+      var value = JSON.parse(parentStorage().getItem(ACTIVE_SPIN_KEY) || 'null');
+      if (
+        !value ||
+        typeof value.spinId !== 'string' ||
+        !/^[A-Za-z0-9_-]+$/.test(value.spinId) ||
+        !Number.isFinite(Number(value.cursor)) ||
+        !Number.isFinite(Number(value.totalViews))
+      ) {
+        return null;
+      }
+      return {
+        spinId: value.spinId,
+        cursor: Math.max(0, Math.floor(Number(value.cursor))),
+        totalViews: Math.max(1, Math.floor(Number(value.totalViews))),
+        durable: value.durable === true,
+      };
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function writeActiveSpin(value) {
+    try {
+      parentStorage().setItem(ACTIVE_SPIN_KEY, JSON.stringify(value));
+    } catch (_error) {
+      // Server-side feature recovery still replays the complete sequence when
+      // persistent browser storage is unavailable.
+    }
+    return value;
+  }
+
+  function clearActiveSpin(spinId) {
+    var active = readActiveSpin();
+    if (spinId && active && active.spinId !== String(spinId)) return;
+    try {
+      var storage = parentStorage();
+      if (typeof storage.removeItem === 'function') storage.removeItem(ACTIVE_SPIN_KEY);
+      else storage.setItem(ACTIVE_SPIN_KEY, '');
+    } catch (_error) {
+      // A stale marker is harmless: the server only resumes a recent spin
+      // owned by the current player and ignores completed feature sequences.
+    }
+  }
+
+  function initialRequestData(data) {
+    var result = Object.assign({}, data || {});
+    var active = readActiveSpin();
+    if (active) result.resumeSpinId = active.spinId;
+    return result;
+  }
+
+  function responseSpinId(response) {
+    return String(
+      (response &&
+        response.engine &&
+        (response.engine.spinId ||
+          (Array.isArray(response.engine.gameState) &&
+            response.engine.gameState[0] &&
+            response.engine.gameState[0].spinId))) ||
+        '',
+    );
+  }
+
+  function rememberNewSpin(response) {
+    var states = gameStates(response);
+    var spinId = responseSpinId(response);
+    if (!spinId || states.length === 0) return null;
+    var durable = states.some(function (state) {
+      return state.startFreeGame || state.action === 'freeSpin' || state.action === 'superSpin';
+    });
+    return writeActiveSpin({
+      spinId: spinId,
+      cursor: 0,
+      totalViews: states.length,
+      durable: durable,
+    });
+  }
+
+  function applyStoredResumeProgress(response) {
+    var states = gameStates(response);
+    var spinId = responseSpinId(response);
+    if (!response || !response.isResuming || !spinId || states.length === 0) return response;
+    var serverCursor = Math.max(0, Math.floor(Number(response.resumeCursor) || 0));
+    var totalViews = Math.max(
+      states.length + serverCursor,
+      Math.floor(Number(response.resumeTotalViews) || 0),
+    );
+    var active = readActiveSpin();
+    var requestedCursor =
+      active && active.spinId === spinId ? Math.max(serverCursor, active.cursor) : serverCursor;
+    var nextCursor = Math.min(requestedCursor, totalViews - 1);
+    // A multiplier collection view reads the preceding win from preSpinData.
+    // Keep one completed view as context instead of resuming on an isolated
+    // collection frame that would silently skip its animation.
+    var absoluteCursor =
+      nextCursor > serverCursor ? Math.max(serverCursor, nextCursor - 1) : serverCursor;
+    var relativeCursor = Math.min(Math.max(0, absoluteCursor - serverCursor), states.length - 1);
+    if (relativeCursor > 0) states = states.slice(relativeCursor);
+    normalizeFeatureSequence(response, states);
+    response.resumeCursor = serverCursor + relativeCursor;
+    response.resumeTotalViews = totalViews;
+    writeActiveSpin({
+      spinId: spinId,
+      cursor: response.resumeCursor,
+      totalViews: totalViews,
+      durable: response.resumeKind === 'feature',
+    });
+    return response;
+  }
+
+  function flushFeatureProgress() {
+    if (progressInFlight || !queuedProgress) return;
+    var progress = queuedProgress;
+    queuedProgress = null;
+    progressInFlight = authorizedPost(
+      {
+        event: 'updateFeatureProgress',
+        data: { sequenceId: progress.spinId, completedViews: progress.cursor },
+      },
+      false,
+    )
+      .catch(function () {
+        // The local cursor remains available for same-device recovery; a later
+        // completed view retries with a monotonically larger cursor.
+        return null;
+      })
+      .finally(function () {
+        progressInFlight = null;
+        flushFeatureProgress();
+      });
+  }
+
+  function advanceActiveSpinProgress() {
+    var active = readActiveSpin();
+    if (!active) return null;
+    active.cursor = Math.min(active.totalViews, active.cursor + 1);
+    writeActiveSpin(active);
+    if (active.durable && active.cursor > 0) {
+      if (!queuedProgress || queuedProgress.spinId !== active.spinId) queuedProgress = active;
+      else queuedProgress.cursor = Math.max(queuedProgress.cursor, active.cursor);
+      flushFeatureProgress();
+    }
+    return active;
   }
 
   function readAuth() {
@@ -423,11 +581,12 @@
     // Start the read-only platform request while Cocos downloads and parses its
     // engine/assets.  A failed speculative request is ignored and retried when
     // the game actually emits `initial`.
-    initialResponseInFlight = authorizedPost({ event: 'initial', data: {} }, false).catch(
-      function () {
-        return null;
-      },
-    );
+    initialResponseInFlight = authorizedPost(
+      { event: 'initial', data: initialRequestData({}) },
+      false,
+    ).catch(function () {
+      return null;
+    });
     return initialResponseInFlight;
   }
 
@@ -1020,6 +1179,9 @@
     }
     if (event === 'initial') {
       // Read-only boot requests are intentionally not assigned operation IDs.
+      // A persisted spin id only asks the server to replay an already-settled
+      // ordinary spin; READY feature sequences are discovered server-side.
+      eventData = initialRequestData(eventData);
     } else if (event === 'spin' && !eventData.spinId) {
       attachPendingOperation(eventData);
     }
@@ -1050,14 +1212,17 @@
         return collectFeatureSequence(socket, event, eventData, response);
       })
       .then(function (response) {
-        var responseSpinId =
-          response &&
-          response.engine &&
-          (response.engine.spinId ||
-            (Array.isArray(response.engine.gameState) &&
-              response.engine.gameState[0] &&
-              response.engine.gameState[0].spinId));
-        if (responseSpinId) lastSpinId = String(responseSpinId);
+        if (event === 'initial') {
+          if (response && response.isResuming && gameStates(response).length > 0) {
+            applyStoredResumeProgress(response);
+          } else {
+            clearActiveSpin();
+          }
+        } else if (event === 'spin' && gameStates(response).length > 0) {
+          rememberNewSpin(response);
+        }
+        var resolvedSpinId = responseSpinId(response);
+        if (resolvedSpinId) lastSpinId = resolvedSpinId;
         syncJackpotPools(socket, response);
         if (event === 'spin' && eventData.operationId) {
           clearPendingOperation(eventData.operationId);
@@ -1065,8 +1230,7 @@
         if (event === 'initial') {
           var table = response && response.platform && response.platform.table;
           if (table) selectedMachineId = tableMachineId(table, selectedMachineId);
-          if (response.isResuming && gameStates(response).length > 1) {
-            normalizeFeatureSequence(response, gameStates(response));
+          if (response.isResuming && gameStates(response).length > 0) {
             lastSpinId = String(response.engine.spinId || gameStates(response)[0].spinId || '');
           }
           applyAudioPreferences(response);
@@ -1085,6 +1249,7 @@
             balance: Number(response.platform.player.balance.amount),
           });
         }
+        if (event === 'closeSpin') clearActiveSpin(eventData.spinId || lastSpinId);
         if (event === 'updateSlotTable' && Number(response && response.status) === 200) {
           selectedMachineId = tableMachineId(
             response && response.table,
@@ -1196,6 +1361,8 @@
   window.__YachiyoSeth2UnlockAudio = syncRunningAudioWhenReady;
   window.__YachiyoSeth2SourceAdapterTest = {
     LocalSocket: LocalSocket,
+    advanceActiveSpinProgress: advanceActiveSpinProgress,
+    applyStoredResumeProgress: applyStoredResumeProgress,
     applyAudioPreferences: applyAudioPreferences,
     collectFeatureSequence: collectFeatureSequence,
     prefetchInitialResponse: prefetchInitialResponse,
@@ -1210,6 +1377,8 @@
     isGameEntryTransitionReady: isGameEntryTransitionReady,
     normalizeUpdateSettings: normalizeUpdateSettings,
     machineReferenceStats: machineReferenceStats,
+    readActiveSpin: readActiveSpin,
+    rememberNewSpin: rememberNewSpin,
     applyTableReferenceStats: applyTableReferenceStats,
     tableMachineId: tableMachineId,
     patchRotateScreenButtons: patchRotateScreenButtons,

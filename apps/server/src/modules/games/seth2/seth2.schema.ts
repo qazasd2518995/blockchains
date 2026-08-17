@@ -150,6 +150,19 @@ const settingsData = z.union([
 
 export const seth2SourceSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('initial'), data: sourceReadData }),
+  z.object({
+    event: z.literal('updateFeatureProgress'),
+    data: z
+      .object({
+        sequenceId: z
+          .string()
+          .min(1)
+          .max(128)
+          .regex(/^[A-Za-z0-9_-]+$/),
+        completedViews: z.coerce.number().int().min(1).max(1_000),
+      })
+      .passthrough(),
+  }),
   z.object({ event: z.literal('spin'), data: z.union([buyFeatureData, replayData, paidSpinData]) }),
   z.object({
     event: z.literal('collectFeatureSequence'),
