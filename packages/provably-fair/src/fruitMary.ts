@@ -176,9 +176,29 @@ function decoratedLanding(
   else if (roll < 0.024) legacyType = 5;
   else if (roll < 0.032) legacyType = 6;
   else if (roll < 0.038) legacyType = 7;
-  return legacyType === 0
-    ? outcome(0, [position], bets)
-    : outcome(legacyType, [position <= 10 ? 22 : 10, position], bets);
+  if (legacyType === 0) return outcome(0, [position], bets);
+
+  // A lucky landing in the source client is a short sequence, not a second
+  // single landing. Keep the selected payout unchanged by using unbet symbols
+  // as presentation hops, then finish on the authoritative landing. Players
+  // therefore see two or three lights after LUCKY without changing RTP.
+  const activeBetIds = new Set(bets.filter((bet) => bet.units > 0).map((bet) => bet.fruitId));
+  const safeHops = FRUIT_MARY_PAYOUT_POSITIONS.filter((candidate) => {
+    const betId = FRUIT_MARY_POSITION_BET_IDS[candidate] ?? 0;
+    return candidate !== position && betId !== 0 && !activeBetIds.has(betId);
+  });
+  const resultCount = rng() < 0.5 ? 2 : 3;
+  const intermediateCount = resultCount - 1;
+  const intermediate: number[] = [];
+  while (intermediate.length < intermediateCount) {
+    if (safeHops.length === 0) {
+      intermediate.push(intermediate.length % 2 === 0 ? 10 : 22);
+      continue;
+    }
+    const index = Math.floor(rng() * safeHops.length);
+    intermediate.push(safeHops.splice(Math.min(index, safeHops.length - 1), 1)[0]!);
+  }
+  return outcome(legacyType, [position <= 10 ? 22 : 10, ...intermediate, position], bets);
 }
 
 export function fruitMarySpin(
@@ -216,6 +236,23 @@ export function fruitMaryOutcomeForPosition(
     throw new Error('Fruit Mary position must be an integer from 1 to 24');
   }
   return outcome(0, [position], bets);
+}
+
+export function fruitMaryOutcomeForPresentation(
+  legacyType: number,
+  positions: readonly number[],
+  bets: readonly FruitMaryBetSelection[],
+): FruitMaryOutcome {
+  if (!Number.isInteger(legacyType) || legacyType < 0 || legacyType > 9) {
+    throw new Error('Fruit Mary legacy type must be an integer from 0 to 9');
+  }
+  if (
+    positions.length === 0 ||
+    positions.some((position) => !Number.isInteger(position) || position < 1 || position > 24)
+  ) {
+    throw new Error('Fruit Mary positions must contain integers from 1 to 24');
+  }
+  return outcome(legacyType, positions, bets);
 }
 
 export function fruitMaryTheoreticalRtp(fruitId: FruitMaryBetId): number {

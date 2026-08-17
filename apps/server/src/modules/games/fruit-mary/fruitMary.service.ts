@@ -3,6 +3,7 @@ import {
   FRUIT_MARY_PAYOUT_POSITIONS,
   fruitMaryGamble,
   fruitMaryOutcomeForPosition,
+  fruitMaryOutcomeForPresentation,
   fruitMarySpin,
   type FruitMaryBetSelection,
   type FruitMaryOutcome,
@@ -103,7 +104,13 @@ export class FruitMaryService {
         burstPotentialMultiplier: new Prisma.Decimal(100),
       });
       const finalOutcome = controlled.controlled
-        ? chooseControlledFruitOutcome(bets, amount, controlled, FRUIT_MARY_DENOMINATION)
+        ? chooseControlledFruitOutcome(
+            bets,
+            amount,
+            controlled,
+            FRUIT_MARY_DENOMINATION,
+            fruitOutcomeEntropy(originalOutcome, seed.nonce),
+          )
         : originalOutcome;
       const finalPayout = new Prisma.Decimal(finalOutcome.totalPayoutUnits).mul(
         FRUIT_MARY_DENOMINATION,
@@ -350,31 +357,98 @@ export function chooseControlledFruitOutcome(
     'won' | 'multiplier' | 'minMultiplier' | 'maxMultiplier' | 'maxPayout'
   >,
   denomination = 1,
+  entropy?: number,
 ): FruitMaryOutcome {
-  const candidates = [10, 22, ...FRUIT_MARY_PAYOUT_POSITIONS]
-    .map((position) => fruitMaryOutcomeForPosition(position, bets))
-    .filter((candidate) => {
-      const payout = new Prisma.Decimal(candidate.totalPayoutUnits).mul(denomination);
-      const multiplier = payout.div(amount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
-      return (
-        (control.won ? multiplier.greaterThan(1) : multiplier.lessThanOrEqualTo(1)) &&
-        multiplierMatchesControlBounds(multiplier, amount, control)
+  const allCandidates = controlledFruitCandidates(bets);
+  const candidates = allCandidates.filter((candidate) => {
+    const payout = new Prisma.Decimal(candidate.totalPayoutUnits).mul(denomination);
+    const multiplier = payout.div(amount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
+    return (
+      (control.won ? multiplier.greaterThan(1) : multiplier.lessThanOrEqualTo(1)) &&
+      multiplierMatchesControlBounds(multiplier, amount, control)
+    );
+  });
+  const fallback = allCandidates.filter((candidate) => {
+    const payout = new Prisma.Decimal(candidate.totalPayoutUnits).mul(denomination);
+    return control.won ? payout.greaterThan(amount) : payout.lessThanOrEqualTo(amount);
+  });
+  const eligible = candidates.length > 0 ? candidates : fallback;
+  if (eligible.length === 0) return fruitMaryOutcomeForPosition(control.won ? 4 : 10, bets);
+
+  const deltaFor = (candidate: FruitMaryOutcome) =>
+    new Prisma.Decimal(candidate.totalPayoutUnits)
+      .mul(denomination)
+      .div(amount)
+      .minus(control.multiplier)
+      .abs();
+  const minimumDelta = eligible.reduce((minimum, candidate) => {
+    const delta = deltaFor(candidate);
+    return delta.lessThan(minimum) ? delta : minimum;
+  }, deltaFor(eligible[0]!));
+  const nearest = eligible.filter((candidate) => deltaFor(candidate).equals(minimumDelta));
+  if (entropy === undefined || nearest.length === 1) return nearest[0]!;
+
+  const normalizedEntropy = Math.abs(Math.trunc(entropy));
+  const normal = nearest.filter((candidate) => candidate.legacyType === 0);
+  const lucky = nearest.filter((candidate) => candidate.legacyType !== 0);
+  // Keep ordinary landings as the majority while regularly allowing a
+  // controlled round to use the same bounded LUCKY presentations.
+  const pool =
+    normalizedEntropy % 5 === 0 && lucky.length > 0 ? lucky : normal.length > 0 ? normal : nearest;
+  return pool[Math.floor(normalizedEntropy / 5) % pool.length]!;
+}
+
+const CONTROLLED_BONUS_TEMPLATES: ReadonlyArray<{
+  legacyType: number;
+  positions: readonly number[];
+}> = [
+  { legacyType: 1, positions: [10, 6, 12, 24] },
+  { legacyType: 2, positions: [22, 5, 1, 2] },
+  { legacyType: 3, positions: [10, 23, 11, 5, 17] },
+  { legacyType: 4, positions: [22, 9, 15, 18] },
+  { legacyType: 5, positions: [10, 8, 16, 20] },
+  { legacyType: 6, positions: [22, 21, 12, 6] },
+  { legacyType: 7, positions: [10, 7, 13, 19] },
+  { legacyType: 8, positions: [10, ...FRUIT_MARY_PAYOUT_POSITIONS] },
+];
+
+function controlledFruitCandidates(
+  bets: readonly FruitMaryBetSelection[],
+): FruitMaryOutcome[] {
+  const positions = [10, 22, ...FRUIT_MARY_PAYOUT_POSITIONS];
+  const zeroPayoutPositions = FRUIT_MARY_PAYOUT_POSITIONS.filter(
+    (position) => fruitMaryOutcomeForPosition(position, bets).totalPayoutUnits === 0,
+  );
+  const candidates: FruitMaryOutcome[] = [];
+  for (const [positionIndex, position] of positions.entries()) {
+    candidates.push(fruitMaryOutcomeForPosition(position, bets));
+    for (let variant = 0; variant < 2; variant += 1) {
+      const intermediate = Array.from({ length: variant + 1 }, (_, hopIndex) => {
+        if (zeroPayoutPositions.length === 0) return hopIndex % 2 === 0 ? 10 : 22;
+        return zeroPayoutPositions[
+          (positionIndex * 3 + variant + hopIndex) % zeroPayoutPositions.length
+        ]!;
+      });
+      candidates.push(
+        fruitMaryOutcomeForPresentation(
+          6 + variant,
+          [position <= 10 ? 22 : 10, ...intermediate, position],
+          bets,
+        ),
       );
-    });
-  if (candidates.length === 0) return fruitMaryOutcomeForPosition(control.won ? 4 : 10, bets);
-  return candidates.sort((left, right) => {
-    const leftDelta = new Prisma.Decimal(left.totalPayoutUnits)
-      .mul(denomination)
-      .div(amount)
-      .minus(control.multiplier)
-      .abs();
-    const rightDelta = new Prisma.Decimal(right.totalPayoutUnits)
-      .mul(denomination)
-      .div(amount)
-      .minus(control.multiplier)
-      .abs();
-    return leftDelta.comparedTo(rightDelta);
-  })[0]!;
+    }
+  }
+  for (const template of CONTROLLED_BONUS_TEMPLATES) {
+    candidates.push(fruitMaryOutcomeForPresentation(template.legacyType, template.positions, bets));
+  }
+  return candidates;
+}
+
+function fruitOutcomeEntropy(outcome: FruitMaryOutcome, nonce: number): number {
+  return outcome.positions.reduce(
+    (entropy, position, index) => entropy + position * (index + 17),
+    nonce * 31 + outcome.legacyType * 101,
+  );
 }
 
 function readGambleAmount(resultData: Prisma.JsonValue | undefined): Prisma.Decimal {

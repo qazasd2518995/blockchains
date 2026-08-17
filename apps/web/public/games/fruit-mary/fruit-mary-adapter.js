@@ -11,6 +11,7 @@
   var animationGuardAttempts = 0;
   var animationCompletionTimeoutMs = 45000;
   var allocationEditorId = 'fruit-mary-allocation-editor';
+  var fruitMaryDenomination = 10;
 
   function parentStorage() {
     try {
@@ -124,7 +125,9 @@
     }
     var path = parsed.pathname;
     if (path.endsWith('/api/user/user/show')) return { method: 'GET', url: gameApi + '/session', kind: 'session' };
-    if (path.endsWith('/api/game/room/show')) return { method: 'GET', url: gameApi + '/room' };
+    if (path.endsWith('/api/game/room/show')) {
+      return { method: 'GET', url: gameApi + '/room', kind: 'room' };
+    }
     if (/\/api\/game\/play\/(start|stop|coin|inGold)$/.test(path)) {
       return { method: 'POST', url: gameApi + '/noop' };
     }
@@ -214,6 +217,12 @@
     if (ownsSettlement) settlementInFlight = true;
     authorizedRequest(route.url, route.method, body, false)
       .then(function (payload) {
+        if (route.kind === 'room' && payload.data) {
+          var roomDenomination = Number(payload.data.multiple);
+          if (Number.isFinite(roomDenomination) && roomDenomination > 0) {
+            fruitMaryDenomination = roomDenomination;
+          }
+        }
         if (route.kind === 'session' && payload.data && payload.data.info) {
           notifyParent('fruit-mary:ready', { balance: Number(payload.data.info.gold || 0) });
         }
@@ -554,6 +563,20 @@
       if (window.cc && window.cc.vv && window.cc.vv.AudioMgr) {
         window.cc.vv.AudioMgr.playSFX('sounds/anniu/Y210', false, null, false);
       }
+    }
+
+    var originalAddWinNum = menuLogic.addWinNum;
+    if (
+      typeof originalAddWinNum === 'function' &&
+      typeof menuLogic.getPosPutNum === 'function' &&
+      typeof menuLogic.getPosBeishu === 'function' &&
+      typeof menuLogic.yueAdd === 'function'
+    ) {
+      menuLogic.addWinNum = function (position) {
+        var payoutUnits = Number(this.getPosPutNum(position)) * Number(this.getPosBeishu(position));
+        if (!Number.isFinite(payoutUnits)) return originalAddWinNum.call(this, position);
+        this.yueAdd(payoutUnits * fruitMaryDenomination);
+      };
     }
 
     menuLogic.clickZuo = function () {

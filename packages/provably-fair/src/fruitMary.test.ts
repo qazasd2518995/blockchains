@@ -32,6 +32,21 @@ describe('Fruit Mary provably-fair engine', () => {
     expect(fruitMaryOutcomeForPosition(10, ALL_BETS).totalPayoutUnits).toBe(0);
   });
 
+  it('turns lucky landings into two or three result lights without adding hidden payout', () => {
+    const orangeBet: FruitMaryBetSelection[] = [{ fruitId: 13, units: 1 }];
+    const luckyResults = Array.from({ length: 1_000 }, (_, nonce) =>
+      fruitMarySpin('lucky-server', 'lucky-client', nonce, orangeBet),
+    ).filter((result) => [1, 2, 4, 5, 6, 7].includes(result.legacyType));
+
+    expect(luckyResults.length).toBeGreaterThan(0);
+    for (const result of luckyResults) {
+      expect(result.positions.length).toBeGreaterThanOrEqual(3);
+      expect(result.positions.length).toBeLessThanOrEqual(4);
+      expect(result.payoutByPosition.slice(1, -1).every((payout) => payout === 0)).toBe(true);
+      expect(result.totalPayoutUnits).toBe(result.payoutByPosition.at(-1));
+    }
+  });
+
   it.each(FRUIT_MARY_BET_IDS)('returns exactly 96%% theoretical RTP for fruit %s', (fruitId) => {
     expect(fruitMaryTheoreticalRtp(fruitId)).toBeCloseTo(0.96, 12);
   });

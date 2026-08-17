@@ -94,6 +94,7 @@ function numberNode(initialValue) {
 const currentRoundNode = numberNode(40);
 const balanceNode = numberNode(60);
 let collectCalls = 0;
+let animatedWin = 0;
 const menuLogic = {
   _kaishiBiDdaxiao_bool: true,
   shuzibenlun: currentRoundNode,
@@ -101,8 +102,14 @@ const menuLogic = {
   node: { getComponent: () => ({ _playing: false }) },
   unschedule() {},
   clickKaishi() { collectCalls += 1; },
+  getPosPutNum() { return 1; },
+  getPosBeishu() { return 10; },
+  yueAdd(value) { animatedWin += value; },
+  addWinNum(position) { this.yueAdd(this.getPosPutNum(position) * this.getPosBeishu(position)); },
 };
 assert.equal(patchFruitMaryMenuLogic(menuLogic), true);
+menuLogic.addWinNum(1);
+assert.equal(animatedWin, 100, 'animated score uses the same room denomination as settlement');
 menuLogic.clickZuo();
 assert.equal(currentRoundNode.box.getNum(), 41, 'left adds one point to the round');
 assert.equal(balanceNode.box.getNum(), 59, 'left removes the same point from balance');

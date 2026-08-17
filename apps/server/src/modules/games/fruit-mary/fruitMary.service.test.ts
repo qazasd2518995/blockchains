@@ -59,6 +59,57 @@ describe('Fruit Mary control outcome selection', () => {
     expect(result.totalPayoutUnits).toBeGreaterThan(16);
     expect(result.totalPayoutUnits).toBeLessThanOrEqual(32);
   });
+
+  it('rotates equivalent controlled results instead of always using one fruit position', () => {
+    const results = Array.from({ length: 30 }, (_, entropy) =>
+      chooseControlledFruitOutcome(
+        bets,
+        new Prisma.Decimal(16),
+        {
+          won: true,
+          multiplier: new Prisma.Decimal(1.25),
+          minMultiplier: new Prisma.Decimal(1.01),
+          maxMultiplier: new Prisma.Decimal(2),
+          maxPayout: new Prisma.Decimal(32),
+        },
+        1,
+        entropy,
+      ),
+    );
+    const presentations = new Set(
+      results.map((result) => `${result.legacyType}:${result.positions.join(',')}`),
+    );
+
+    expect(presentations.size).toBeGreaterThan(3);
+    expect(results.some((result) => result.legacyType !== 0)).toBe(true);
+    for (const result of results) {
+      expect(result.totalPayoutUnits).toBeGreaterThan(16);
+      expect(result.totalPayoutUnits).toBeLessThanOrEqual(32);
+    }
+  });
+
+  it('uses two or three post-LUCKY lights for controlled bonus presentations', () => {
+    const result = chooseControlledFruitOutcome(
+      [{ fruitId: 13, units: 10 }],
+      new Prisma.Decimal(10),
+      {
+        won: false,
+        multiplier: new Prisma.Decimal(0),
+        minMultiplier: new Prisma.Decimal(0),
+        maxMultiplier: new Prisma.Decimal(1),
+        maxPayout: new Prisma.Decimal(10),
+      },
+      1,
+      0,
+    );
+
+    expect(result.legacyType).not.toBe(0);
+    expect([10, 22]).toContain(result.positions[0]);
+    expect(result.positions.length).toBeGreaterThanOrEqual(3);
+    expect(result.positions.length).toBeLessThanOrEqual(4);
+    expect(result.totalPayoutUnits).toBe(0);
+    expect(result.positions.slice(1).some((position) => ![10, 22].includes(position))).toBe(true);
+  });
 });
 
 describe('Fruit Mary gamble allocation', () => {
