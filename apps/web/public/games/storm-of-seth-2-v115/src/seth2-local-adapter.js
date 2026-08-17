@@ -23,6 +23,7 @@
   var gameCanvasContextLost = false;
   var gameEntryDisposing = false;
   var rotateScreenPatched = false;
+  var shellHandlesTableChanges = false;
 
   function wrapFrameworkDispatch(dispatcher) {
     if (typeof dispatcher !== 'function' || dispatcher.__yachiyoTotalWinGuard) return dispatcher;
@@ -894,12 +895,8 @@
   LocalSocket.prototype.emit = function (event, data, callback) {
     var socket = this;
     var eventData = Object.assign({}, data || {});
-    if (event === 'updateSlotTable') {
-      var requestedTable = eventData.table || eventData;
-      selectedMachineId = Number(
-        requestedTable.machineId || requestedTable.roomId || requestedTable.number || 1,
-      );
-    }
+    var requestedMachineId =
+      event === 'updateSlotTable' ? tableMachineId(eventData, selectedMachineId) : null;
     if (event === 'spin' || event === 'getSlotTables') {
       eventData.machineId = selectedMachineId;
     }
@@ -954,7 +951,7 @@
         }
         if (event === 'initial') {
           var table = response && response.platform && response.platform.table;
-          if (table) selectedMachineId = Number(table.roomId || table.number || 1);
+          if (table) selectedMachineId = tableMachineId(table, selectedMachineId);
           if (response.isResuming && gameStates(response).length > 1) {
             normalizeFeatureSequence(response, gameStates(response));
             lastSpinId = String(response.engine.spinId || gameStates(response)[0].spinId || '');
@@ -973,6 +970,21 @@
           notifyParent('seth2:balance', {
             balance: Number(response.platform.player.balance.amount),
           });
+        }
+        if (event === 'updateSlotTable' && Number(response && response.status) === 200) {
+          selectedMachineId = tableMachineId(
+            response && response.table,
+            requestedMachineId || selectedMachineId,
+          );
+          if (shellHandlesTableChanges) {
+            // The source callback reloads Cocos inside the existing iframe.
+            // Mobile WebKit can retain that iframe's WebGL context and freeze
+            // the replacement scene at the loading spinner. Let the React
+            // shell dispose and remount the iframe exactly as orientation
+            // changes do. Standalone pages keep the untouched source reload.
+            notifyParent('seth2:table-change-request', { machineId: selectedMachineId });
+            return response;
+          }
         }
         if (typeof callback === 'function') callback(response);
       })
@@ -1001,6 +1013,23 @@
   };
 
   LocalSocket.prototype.disconnect = LocalSocket.prototype.close;
+
+  function tableMachineId(value, fallback) {
+    var source = value;
+    if (source && typeof source === 'object' && source.table !== undefined) {
+      source = source.table;
+    }
+    var candidate;
+    if (source && typeof source === 'object') {
+      candidate = source.machineId || source.roomId || source.number;
+    } else {
+      candidate = source;
+    }
+    var machineId = Number(candidate);
+    return Number.isFinite(machineId) && machineId >= 1
+      ? Math.floor(machineId)
+      : Number(fallback || 1);
+  }
 
   var originalIo = window.io;
   function localIo() {
@@ -1036,6 +1065,9 @@
     if (event.data.type === 'seth2:audio-sync' || event.data.type === 'seth2:audio-unlock') {
       syncRunningAudioWhenReady();
     }
+    if (event.data.type === 'seth2:shell-capabilities') {
+      shellHandlesTableChanges = event.data.tableChangeRemount === true;
+    }
     if (event.data.type === 'seth2:dispose') disposeGameForRemount();
   });
   window.addEventListener('storage', function (event) {
@@ -1058,6 +1090,7 @@
     guardGameViewClass: guardGameViewClass,
     isGameEntryTransitionReady: isGameEntryTransitionReady,
     normalizeUpdateSettings: normalizeUpdateSettings,
+    tableMachineId: tableMachineId,
     patchRotateScreenButtons: patchRotateScreenButtons,
     requestViewMode: requestViewMode,
     scheduleGameEntryObserver: scheduleGameEntryObserver,

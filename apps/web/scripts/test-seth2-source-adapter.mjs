@@ -7,8 +7,18 @@ const adapterPath = fileURLToPath(
   new URL('../public/games/storm-of-seth-2-v115/src/seth2-local-adapter.js', import.meta.url),
 );
 const source = fs.readFileSync(adapterPath, 'utf8');
+const shellSource = fs.readFileSync(
+  fileURLToPath(new URL('../src/pages/games/Seth2Page.tsx', import.meta.url)),
+  'utf8',
+);
 assert.equal(source.includes('yachiyo-seth2-entry-gate'), false);
 assert.equal(source.includes('audio.getAudioInfo()'), false);
+assert.equal(shellSource.includes("type: 'seth2:shell-capabilities'"), true);
+assert.equal(shellSource.includes("payload.type === 'seth2:table-change-request'"), true);
+assert.equal(
+  shellSource.includes("requestIframeRemount(currentViewModeRef.current, 'table')"),
+  true,
+);
 const values = new Map([
   [
     'bg-auth',
@@ -34,6 +44,7 @@ const storage = new TestStorage();
 const parentMessages = [];
 const zeroTimers = [];
 const longTimers = [];
+const windowListeners = new Map();
 const requests = [];
 const responseQueue = [];
 let testNow = 1_000;
@@ -72,7 +83,7 @@ const context = {
   localStorage: storage,
   sessionStorage: storage,
   parent: { localStorage: storage, postMessage: (message) => parentMessages.push(message) },
-  addEventListener: () => {},
+  addEventListener: (type, listener) => windowListeners.set(type, listener),
   setTimeout: (callback, delay) => {
     if (delay === 0) zeroTimers.push(callback);
     else longTimers.push({ callback, delay });
@@ -114,6 +125,7 @@ const {
   guardGameViewClass,
   isGameEntryTransitionReady,
   normalizeUpdateSettings,
+  tableMachineId,
   patchRotateScreenButtons,
   requestViewMode,
   disposeGameForRemount,
@@ -123,6 +135,9 @@ const {
 assert.equal(typeof context.io.connect, 'function');
 assert.equal(String(context.io.connect).includes('LocalSocket'), true);
 assert.equal(typeof context.__YachiyoOriginalIo.Manager, 'function');
+assert.equal(tableMachineId({ table: { roomId: 42 } }, 1), 42);
+assert.equal(tableMachineId('17', 1), 17);
+assert.equal(tableMachineId({}, 9), 9);
 assert.equal(
   publicError({ code: 'INTERNAL', message: 'Invalid prisma.bet.create invocation' }, 'fallback'),
   '遊戲結算暫時失敗，請稍後再試',
@@ -203,6 +218,38 @@ assert.equal(JSON.parse(requests.at(-1).options.body).event, 'initial');
 assert.equal(parentMessages.at(-1).type, 'seth2:ready');
 assert.equal(latestJackpotNotification.type, 'jackpotUpdate');
 assert.deepEqual(structuredClone(latestJackpotNotification.data), response.platform.jackpotPools);
+
+responseQueue.push({ status: 200, table: { roomId: 7, number: 7 } });
+const standaloneTableResult = await new Promise((resolve) => {
+  socket.emit('updateSlotTable', { roomId: 7 }, resolve);
+});
+assert.equal(standaloneTableResult.status, 200);
+assert.deepEqual(JSON.parse(requests.at(-1).options.body), {
+  event: 'updateSlotTable',
+  data: { roomId: 7 },
+});
+
+windowListeners.get('message')({
+  origin: 'https://example.test',
+  source: context.parent,
+  data: { type: 'seth2:shell-capabilities', tableChangeRemount: true },
+});
+responseQueue.push({ status: 200, table: { roomId: 42, number: 42 } });
+parentMessages.length = 0;
+let shellTableCallbackCalled = false;
+socket.emit('updateSlotTable', { roomId: 42 }, () => {
+  shellTableCallbackCalled = true;
+});
+await socket.queue;
+assert.equal(
+  shellTableCallbackCalled,
+  false,
+  'the shell remount replaces the source iframe reload',
+);
+assert.deepEqual(structuredClone(parentMessages.at(-1)), {
+  type: 'seth2:table-change-request',
+  machineId: 42,
+});
 
 let introTouchStarts = 0;
 const introView = {
@@ -413,7 +460,7 @@ assert.equal(requests[0].url, 'https://example.test/api/games/seth2/source');
 assert.equal(requests[0].options.headers.Authorization, 'Bearer test-access');
 const requestBody = JSON.parse(requests[0].options.body);
 assert.equal(requestBody.event, 'spin');
-assert.equal(requestBody.data.machineId, 1);
+assert.equal(requestBody.data.machineId, 42);
 assert.equal(typeof requestBody.data.operationId, 'string');
 assert.ok(requestBody.data.operationId.length >= 16);
 assert.equal(parentMessages.at(-1).type, 'seth2:balance');

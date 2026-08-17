@@ -22,10 +22,13 @@ export function Seth2Page() {
   const [viewMode, setViewMode] = useState<'portrait' | 'landscape'>(initialViewMode);
   const [iframeMounted, setIframeMounted] = useState(true);
   const [iframeGeneration, setIframeGeneration] = useState(0);
-  const [orientationSwitching, setOrientationSwitching] = useState(false);
+  const [remountReason, setRemountReason] = useState<'orientation' | 'table' | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const currentViewModeRef = useRef(viewMode);
-  const pendingViewModeRef = useRef<'portrait' | 'landscape' | null>(null);
+  const pendingRemountRef = useRef<{
+    viewMode: 'portrait' | 'landscape';
+    reason: 'orientation' | 'table';
+  } | null>(null);
   const disposeFallbackTimerRef = useRef<number | null>(null);
   const remountTimerRef = useRef<number | null>(null);
   const remountFrameRef = useRef<number | null>(null);
@@ -35,17 +38,24 @@ export function Seth2Page() {
       window.location.origin,
     );
   }, []);
+  const handleIframeLoad = useCallback(() => {
+    syncOriginalGameAudio();
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'seth2:shell-capabilities', tableChangeRemount: true },
+      window.location.origin,
+    );
+  }, [syncOriginalGameAudio]);
   const unlockOriginalGameAudio = useCallback(() => {
     const frameWindow = iframeRef.current?.contentWindow as Seth2AudioBridgeWindow | null;
     frameWindow?.__YachiyoSeth2UnlockAudio?.();
     frameWindow?.postMessage({ type: 'seth2:audio-unlock' }, window.location.origin);
   }, []);
-  const finishViewModeSwitch = useCallback((nextViewMode: 'portrait' | 'landscape') => {
+  const finishIframeRemount = useCallback((nextViewMode: 'portrait' | 'landscape') => {
     if (disposeFallbackTimerRef.current !== null) {
       window.clearTimeout(disposeFallbackTimerRef.current);
       disposeFallbackTimerRef.current = null;
     }
-    pendingViewModeRef.current = null;
+    pendingRemountRef.current = null;
     currentViewModeRef.current = nextViewMode;
     saveViewMode(nextViewMode);
     // First remove the old WebGL iframe. Mount the new Cocos scene only after
@@ -59,22 +69,17 @@ export function Seth2Page() {
         remountTimerRef.current = window.setTimeout(() => {
           remountTimerRef.current = null;
           setIframeMounted(true);
-          setOrientationSwitching(false);
+          setRemountReason(null);
         }, 80);
       });
     });
   }, []);
-  const requestViewModeSwitch = useCallback(
-    (nextViewMode: 'portrait' | 'landscape') => {
-      if (
-        nextViewMode === currentViewModeRef.current ||
-        pendingViewModeRef.current !== null
-      ) {
-        return;
-      }
-      pendingViewModeRef.current = nextViewMode;
+  const requestIframeRemount = useCallback(
+    (nextViewMode: 'portrait' | 'landscape', reason: 'orientation' | 'table') => {
+      if (pendingRemountRef.current !== null) return;
+      pendingRemountRef.current = { viewMode: nextViewMode, reason };
       setError('');
-      setOrientationSwitching(true);
+      setRemountReason(reason);
       iframeRef.current?.contentWindow?.postMessage(
         { type: 'seth2:dispose' },
         window.location.origin,
@@ -82,12 +87,22 @@ export function Seth2Page() {
       // Older cached adapters do not acknowledge disposal. The fallback still
       // removes that iframe, but current adapters release WebGL first.
       disposeFallbackTimerRef.current = window.setTimeout(
-        () => finishViewModeSwitch(nextViewMode),
+        () => finishIframeRemount(nextViewMode),
         350,
       );
     },
-    [finishViewModeSwitch],
+    [finishIframeRemount],
   );
+  const requestViewModeSwitch = useCallback(
+    (nextViewMode: 'portrait' | 'landscape') => {
+      if (nextViewMode === currentViewModeRef.current) return;
+      requestIframeRemount(nextViewMode, 'orientation');
+    },
+    [requestIframeRemount],
+  );
+  const requestTableChangeRemount = useCallback(() => {
+    requestIframeRemount(currentViewModeRef.current, 'table');
+  }, [requestIframeRemount]);
   const gameUrl = useMemo(() => {
     const configuredBase = String(import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
     const apiBase = `${configuredBase || window.location.origin}/api`;
@@ -102,7 +117,7 @@ export function Seth2Page() {
       view_mode: viewMode,
       client_type: 'web',
       gv: '260609',
-      build: 'yachiyo-seth2-v115-orientation-3',
+      build: 'yachiyo-seth2-v115-table-remount-1',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, [locale, viewMode]);
@@ -139,8 +154,11 @@ export function Seth2Page() {
       ) {
         requestViewModeSwitch(payload.viewMode);
       }
-      if (payload.type === 'seth2:disposed' && pendingViewModeRef.current) {
-        finishViewModeSwitch(pendingViewModeRef.current);
+      if (payload.type === 'seth2:table-change-request') {
+        requestTableChangeRemount();
+      }
+      if (payload.type === 'seth2:disposed' && pendingRemountRef.current) {
+        finishIframeRemount(pendingRemountRef.current.viewMode);
       }
       if (payload.type === 'seth2:ready') {
         setError('');
@@ -163,7 +181,14 @@ export function Seth2Page() {
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [finishViewModeSwitch, requestViewModeSwitch, setBalance, setTokens, syncOriginalGameAudio]);
+  }, [
+    finishIframeRemount,
+    requestTableChangeRemount,
+    requestViewModeSwitch,
+    setBalance,
+    setTokens,
+    syncOriginalGameAudio,
+  ]);
 
   useEffect(
     () => () => {
@@ -201,7 +226,7 @@ export function Seth2Page() {
           src={gameUrl}
           title="黃金賽特 II：覺醒之力"
           allow="autoplay; fullscreen"
-          onLoad={syncOriginalGameAudio}
+          onLoad={handleIframeLoad}
           className="absolute inset-0 h-full w-full border-0 bg-black"
         />
       ) : (
@@ -210,10 +235,10 @@ export function Seth2Page() {
           role="status"
           aria-live="polite"
         >
-          正在切換遊戲方向…
+          {remountReason === 'table' ? '正在切換機台…' : '正在切換遊戲方向…'}
         </div>
       )}
-      {orientationSwitching ? (
+      {remountReason ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-5 z-10 text-center text-xs font-bold text-white/65">
           正在重新建立完整畫質遊戲畫面…
         </div>
