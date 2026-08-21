@@ -23,7 +23,14 @@ import type { Locale } from '@/i18n/types';
 import { PlatformBgm } from '@/lib/platformBgm';
 import { errorMessage, reloadAfterRuntimeFailure } from '@/lib/runtimeRecovery';
 import { CRASH_CONFIGS } from '@/pages/games/crashConfigs';
-import { BACCARAT_TABLE_GAME_IDS, H5_GAMES, LOCAL_TABLE_GAME_IDS } from '@bg/shared';
+import { useAuthStore } from '@/stores/authStore';
+import {
+  BACCARAT_TABLE_GAME_IDS,
+  GameId,
+  H5_GAMES,
+  isGameVisibleForUsername,
+  LOCAL_TABLE_GAME_IDS,
+} from '@bg/shared';
 
 const ORIGINAL_AUDIO_GAME_PATHS = new Set([
   ...H5_GAMES.map((game) => `/games/${game.gameId}`),
@@ -130,6 +137,14 @@ function RouteLoading(): JSX.Element {
 
 function suspended(element: ReactNode): JSX.Element {
   return <Suspense fallback={<RouteLoading />}>{element}</Suspense>;
+}
+
+function TestGameAccessGuard({ gameId, children }: { gameId: string; children: ReactNode }) {
+  const username = useAuthStore((state) => state.user?.username ?? null);
+  if (!isGameVisibleForUsername(gameId, username)) {
+    return <Navigate to="/lobby" replace />;
+  }
+  return <>{children}</>;
 }
 
 function RouteLoadFailed({ error }: { error: unknown }): JSX.Element {
@@ -267,7 +282,13 @@ export const router = createBrowserRouter([
           gameRoute('/games/carnival', 'carnival', <RoulettePage variant="carnival" />),
           gameRoute('/games/plinko', 'plinko', <PlinkoPage />),
           gameRoute('/games/hotline', 'hotline', <HotlinePage theme="cyber" />),
-          gameRoute('/games/storm-of-seth-2', 'storm-of-seth-2', <Seth2Page />),
+          gameRoute(
+            '/games/storm-of-seth-2',
+            GameId.STORM_OF_SETH_2,
+            <TestGameAccessGuard gameId={GameId.STORM_OF_SETH_2}>
+              <Seth2Page />
+            </TestGameAccessGuard>,
+          ),
           gameRoute('/games/fruit-mary', 'fruit-mary', <FruitMaryPage />),
           {
             path: '/games/h5-slot-collection',

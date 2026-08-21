@@ -1,10 +1,22 @@
 import type { FastifyInstance } from 'fastify';
+import { isSeth2TestUsername } from '@bg/shared';
+import { ApiError } from '../../../utils/errors.js';
 import { seth2ProtocolSchema, seth2SourceSchema } from './seth2.schema.js';
 import { Seth2Service } from './seth2.service.js';
 
 export async function seth2Routes(fastify: FastifyInstance): Promise<void> {
   const service = new Seth2Service(fastify.prisma);
   fastify.addHook('preHandler', fastify.authenticate);
+  fastify.addHook('preHandler', async (request) => {
+    const user = await fastify.prisma.user.findUnique({
+      where: { id: request.userId },
+      select: { username: true },
+    });
+    if (!user) throw new ApiError('UNAUTHORIZED', 'Authentication required');
+    if (!isSeth2TestUsername(user.username)) {
+      throw new ApiError('FORBIDDEN', '賽特 2 目前僅開放指定測試帳號');
+    }
+  });
 
   fastify.post('/session', async (request) => service.session(request.userId));
   fastify.post('/protocol', async (request) => {

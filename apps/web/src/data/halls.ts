@@ -145,9 +145,14 @@ export function getVisibleGameIdsForUsername(
 }
 
 export function getVisibleHallsForUsername(username?: string | null): HallMeta[] {
-  return HALL_LIST.filter(
-    (hall) => getVisibleGameIdsForUsername(hall.gameIds, username).length > 0,
-  );
+  // Return a filtered copy of each hall, not only a filtered hall list. The
+  // mobile lobby flattens these gameIds directly, so retaining the original
+  // list here would expose test-only games whenever the same hall also
+  // contained at least one public game.
+  return HALL_LIST.map((hall) => ({
+    ...hall,
+    gameIds: getVisibleGameIdsForUsername(hall.gameIds, username),
+  })).filter((hall) => hall.gameIds.length > 0);
 }
 
 export function getVisibleHallById(

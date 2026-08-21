@@ -18,19 +18,27 @@ describe('imported test-game access', () => {
   it('recognizes the numbered testplayer account series', () => {
     for (const username of [
       'testplayer',
+      'testplayer1',
       'testplayer2',
       'testplayer3',
       'testplayer4',
       'testplayer5',
       'testplayer6',
-      'testplayer25',
       ' TestPlayer3 ',
       'ＴＥＳＴＰＬＡＹＥＲ４',
     ]) {
       expect(isImportedGameTestUsername(username)).toBe(true);
     }
 
-    for (const username of ['testplayer0', 'testplayer02', 'testplayer-demo', 'admin', null]) {
+    for (const username of [
+      'testplayer0',
+      'testplayer02',
+      'testplayer7',
+      'testplayer25',
+      'testplayer-demo',
+      'admin',
+      null,
+    ]) {
       expect(isImportedGameTestUsername(username)).toBe(false);
     }
   });
