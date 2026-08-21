@@ -289,16 +289,28 @@ export const router = createBrowserRouter([
               <Seth2Page />
             </TestGameAccessGuard>,
           ),
-          gameRoute('/games/fruit-mary', 'fruit-mary', <FruitMaryPage />),
+          gameRoute(
+            '/games/fruit-mary',
+            GameId.FRUIT_MARY,
+            <TestGameAccessGuard gameId={GameId.FRUIT_MARY}>
+              <FruitMaryPage />
+            </TestGameAccessGuard>,
+          ),
           {
             path: '/games/h5-slot-collection',
-            element: <Navigate to={`/games/${H5_GAMES[0]!.gameId}`} replace />,
+            element: (
+              <TestGameAccessGuard gameId={GameId.H5_SLOT_COLLECTION}>
+                <Navigate to={`/games/${H5_GAMES[0]!.gameId}`} replace />
+              </TestGameAccessGuard>
+            ),
           },
           ...H5_GAMES.map((game) =>
             gameRoute(
               `/games/${game.gameId}`,
               game.gameId,
-              <H5SlotGamePage gameCode={game.code} />,
+              <TestGameAccessGuard gameId={game.gameId}>
+                <H5SlotGamePage gameCode={game.code} />
+              </TestGameAccessGuard>,
             ),
           ),
           gameRoute('/games/fruit-slot', 'fruit-slot', <HotlinePage theme="fruit" />),

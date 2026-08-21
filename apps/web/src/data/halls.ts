@@ -160,10 +160,7 @@ export function getVisibleHallById(
   username?: string | null,
 ): HallMeta | undefined {
   if (!hallId || !(hallId in HALLS)) return undefined;
-  const hall = HALLS[hallId as HallId];
-  return getVisibleHallsForUsername(username).some((visibleHall) => visibleHall.id === hall.id)
-    ? hall
-    : undefined;
+  return getVisibleHallsForUsername(username).find((hall) => hall.id === hallId);
 }
 
 export function getHallByGameId(gameId: string, username?: string | null): HallMeta | undefined {
