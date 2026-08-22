@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GameId, H5_GAMES } from '@bg/shared';
+import { GameId, H5_GAMES, IMPORTED_GAME_TEST_USERNAMES } from '@bg/shared';
 import {
   __controlsTestHooks,
   applyControls,
@@ -1784,6 +1784,7 @@ describe('control decision priority', () => {
       agent: {
         findUnique: vi.fn(async () => ({
           id: 'agent-1',
+          role: 'AGENT',
           parentId: null,
           rebateMode: 'NONE',
           rebatePercentage: new Prisma.Decimal(0),
@@ -1818,6 +1819,7 @@ describe('control decision priority', () => {
         findUnique: vi.fn(async () => ({
           id: 'auto-guard-1',
           secondLineAmount: new Prisma.Decimal(50000),
+          isActive: true,
         })),
         update: autoBalanceUpdate,
       },
@@ -1836,7 +1838,12 @@ describe('control decision priority', () => {
     );
 
     expect(memberUpdateMany).toHaveBeenCalledWith({
-      where: { agentId: { in: ['agent-1', 'agent-child-1'] }, disabledAt: null, frozenAt: null },
+      where: {
+        agentId: { in: ['agent-1', 'agent-child-1'] },
+        username: { notIn: [...IMPORTED_GAME_TEST_USERNAMES] },
+        disabledAt: null,
+        frozenAt: null,
+      },
       data: { frozenAt: expect.any(Date) },
     });
     expect(agentUpdateMany).toHaveBeenCalledWith({
@@ -1855,6 +1862,167 @@ describe('control decision priority', () => {
         lifecycleCompletedAt: expect.any(Date),
       }),
     });
+  });
+
+  it.each(['testplayer', 'testplayer1', 'testplayer6', ' TestPlayer3 '])(
+    'never lets the test account %s trigger banker-guard freezing',
+    async (username) => {
+      const findControl = vi.fn();
+      const memberUpdateMany = vi.fn();
+      const agentUpdateMany = vi.fn();
+      const tx = {
+        memberAutoBalanceControl: { findUnique: findControl },
+        user: { updateMany: memberUpdateMany },
+        agent: { updateMany: agentUpdateMany },
+      };
+
+      await __controlsTestHooks.enforceAutoBalanceBankerGuard(
+        tx as never,
+        { id: 'test-member', username, agentId: 'root-agent' },
+        {
+          won: true,
+          multiplier: new Prisma.Decimal(4),
+          payout: new Prisma.Decimal(16000),
+          controlled: true,
+          flipReason: 'auto_balance_path_guard',
+        },
+      );
+
+      expect(findControl).not.toHaveBeenCalled();
+      expect(memberUpdateMany).not.toHaveBeenCalled();
+      expect(agentUpdateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    null,
+    { id: 'inactive-guard', secondLineAmount: new Prisma.Decimal(50000), isActive: false },
+  ])('does not run banker guard without an active member control', async (control) => {
+    const memberUpdateMany = vi.fn();
+    const tx = {
+      memberAutoBalanceControl: { findUnique: vi.fn(async () => control) },
+      user: { updateMany: memberUpdateMany },
+    };
+
+    await __controlsTestHooks.enforceAutoBalanceBankerGuard(
+      tx as never,
+      { id: 'member-1', username: 'regular-member', agentId: null },
+      {
+        won: true,
+        multiplier: new Prisma.Decimal(10),
+        payout: new Prisma.Decimal(100000),
+        controlled: true,
+        flipReason: 'auto_balance_path_guard',
+      },
+    );
+
+    expect(memberUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('does not let a member directly below a super admin freeze the platform tree', async () => {
+    const memberUpdateMany = vi.fn();
+    const agentUpdateMany = vi.fn();
+    const autoBalanceUpdate = vi.fn();
+    const tx = {
+      $queryRaw: vi.fn(async () => [{ exists: false }]),
+      user: {
+        findUnique: vi.fn(async () => ({ id: 'member-1', agentId: 'root-agent' })),
+        updateMany: memberUpdateMany,
+      },
+      agent: {
+        findUnique: vi.fn(async () => ({
+          id: 'root-agent',
+          role: 'SUPER_ADMIN',
+          parentId: null,
+          rebateMode: 'NONE',
+          rebatePercentage: new Prisma.Decimal(0),
+          maxRebatePercentage: new Prisma.Decimal(0),
+          baccaratRebateMode: 'NONE',
+          baccaratRebatePercentage: new Prisma.Decimal(0),
+          maxBaccaratRebatePercentage: new Prisma.Decimal(0),
+        })),
+        updateMany: agentUpdateMany,
+      },
+      bet: {
+        aggregate: vi.fn(async (args?: { where?: { gameId?: unknown } }) => ({
+          _count: { _all: args?.where?.gameId ? 0 : 1 },
+          _sum: args?.where?.gameId
+            ? { amount: new Prisma.Decimal(0) }
+            : {
+                amount: new Prisma.Decimal(10000),
+                payout: new Prisma.Decimal(70000),
+                profit: new Prisma.Decimal(60000),
+              },
+        })),
+        findMany: vi.fn(async () => [{ userId: 'member-1' }]),
+      },
+      crashBet: {
+        aggregate: vi.fn(async () => ({
+          _count: { _all: 0 },
+          _sum: { amount: new Prisma.Decimal(0), payout: new Prisma.Decimal(0) },
+        })),
+        findMany: vi.fn(async () => []),
+      },
+      memberAutoBalanceControl: {
+        findUnique: vi.fn(async () => ({
+          id: 'auto-guard-1',
+          secondLineAmount: new Prisma.Decimal(50000),
+          isActive: true,
+        })),
+        update: autoBalanceUpdate,
+      },
+    };
+
+    await __controlsTestHooks.enforceAutoBalanceBankerGuard(
+      tx as never,
+      { id: 'member-1', username: 'regular-member', agentId: 'root-agent' },
+      {
+        won: false,
+        multiplier: new Prisma.Decimal(0),
+        payout: new Prisma.Decimal(0),
+        controlled: true,
+        flipReason: 'auto_balance_drain',
+      },
+    );
+
+    expect(memberUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'member-1', disabledAt: null, frozenAt: null },
+      data: { frozenAt: expect.any(Date) },
+    });
+    expect(agentUpdateMany).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(autoBalanceUpdate).toHaveBeenCalledWith({
+      where: { id: 'auto-guard-1' },
+      data: expect.objectContaining({
+        isActive: false,
+        resetReason: 'banker_guard_frozen',
+      }),
+    });
+  });
+
+  it('does not freeze a member on a control-excluded line', async () => {
+    const findControl = vi.fn();
+    const memberUpdateMany = vi.fn();
+    const tx = {
+      $queryRaw: vi.fn(async () => [{ exists: true }]),
+      memberAutoBalanceControl: { findUnique: findControl },
+      user: { updateMany: memberUpdateMany },
+    };
+
+    await __controlsTestHooks.enforceAutoBalanceBankerGuard(
+      tx as never,
+      { id: 'member-1', username: 'regular-member', agentId: 'excluded-agent' },
+      {
+        won: true,
+        multiplier: new Prisma.Decimal(10),
+        payout: new Prisma.Decimal(100000),
+        controlled: true,
+        flipReason: 'auto_balance_path_guard',
+      },
+    );
+
+    expect(findControl).not.toHaveBeenCalled();
+    expect(memberUpdateMany).not.toHaveBeenCalled();
   });
 
   it('lets crash-style probes force an active loss control at game start', async () => {

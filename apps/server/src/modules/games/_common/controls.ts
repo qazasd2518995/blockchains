@@ -1,5 +1,9 @@
 import { AutoBalancePhase, ManualDetectionScope, Prisma } from '@prisma/client';
-import { SLOT_GAME_IDS } from '@bg/shared';
+import {
+  IMPORTED_GAME_TEST_USERNAMES,
+  SLOT_GAME_IDS,
+  isImportedGameTestUsername,
+} from '@bg/shared';
 import {
   calculateCurrentSettlement,
   checkAndCompleteManualDetectionControls,
@@ -16,7 +20,10 @@ import {
   resetMemberAutoBalanceControl,
   setMemberAutoBalancePhase,
 } from '../../admin/controls/controls.runtime.js';
-import { isMemberInControlExcludedLine, listAgentDescendants } from '../../../utils/hierarchy.js';
+import {
+  isMemberInControlExcludedLine,
+  listControlIncludedAgentDescendants,
+} from '../../../utils/hierarchy.js';
 
 type Db = Prisma.TransactionClient;
 
@@ -2506,13 +2513,16 @@ async function enforceAutoBalanceBankerGuard(
   member: { id: string; username: string; agentId: string | null },
   outcome: ControlOutcome,
 ): Promise<void> {
-  if (isBankerGuardExemptOutcome(outcome)) return;
+  if (isBankerGuardExemptOutcome(outcome) || isImportedGameTestUsername(member.username)) return;
+  if (member.agentId && (await isMemberInControlExcludedLine(tx, member))) return;
 
   const control = (await tx.memberAutoBalanceControl.findUnique({
     where: { memberId: member.id },
-    select: { id: true, secondLineAmount: true },
-  })) as { id: string; secondLineAmount: Prisma.Decimal | null } | null;
-  const guardAmount = control?.secondLineAmount ?? new Prisma.Decimal(50000);
+    select: { id: true, secondLineAmount: true, isActive: true },
+  })) as { id: string; secondLineAmount: Prisma.Decimal | null; isActive: boolean } | null;
+  if (!control?.isActive) return;
+
+  const guardAmount = control.secondLineAmount ?? new Prisma.Decimal(50000);
   if (guardAmount.lessThanOrEqualTo(0)) return;
 
   const settlement = await calculateCurrentSettlement(
@@ -2530,29 +2540,6 @@ async function enforceAutoBalanceBankerGuard(
       where: { id: member.id, disabledAt: null, frozenAt: null },
       data: { frozenAt: now },
     });
-    if (control) {
-      await tx.memberAutoBalanceControl.update({
-        where: { id: control.id },
-        data: {
-          isActive: false,
-          resetReason: 'banker_guard_frozen',
-          lifecycleCompletedAt: now,
-        },
-      });
-    }
-    return;
-  }
-
-  const agentIds = await listAgentDescendants(tx, member.agentId);
-  await tx.user.updateMany({
-    where: { agentId: { in: agentIds }, disabledAt: null, frozenAt: null },
-    data: { frozenAt: now },
-  });
-  await tx.agent.updateMany({
-    where: { id: { in: agentIds }, status: 'ACTIVE', role: { not: 'SUPER_ADMIN' } },
-    data: { status: 'FROZEN' },
-  });
-  if (control) {
     await tx.memberAutoBalanceControl.update({
       where: { id: control.id },
       data: {
@@ -2561,7 +2548,51 @@ async function enforceAutoBalanceBankerGuard(
         lifecycleCompletedAt: now,
       },
     });
+    return;
   }
+
+  const ownerAgent = await tx.agent.findUnique({
+    where: { id: member.agentId },
+    select: { role: true },
+  });
+  if (!ownerAgent || ownerAgent.role === 'SUPER_ADMIN') {
+    await tx.user.updateMany({
+      where: { id: member.id, disabledAt: null, frozenAt: null },
+      data: { frozenAt: now },
+    });
+    await tx.memberAutoBalanceControl.update({
+      where: { id: control.id },
+      data: {
+        isActive: false,
+        resetReason: 'banker_guard_frozen',
+        lifecycleCompletedAt: now,
+      },
+    });
+    return;
+  }
+
+  const agentIds = await listControlIncludedAgentDescendants(tx, member.agentId);
+  await tx.user.updateMany({
+    where: {
+      agentId: { in: agentIds },
+      username: { notIn: [...IMPORTED_GAME_TEST_USERNAMES] },
+      disabledAt: null,
+      frozenAt: null,
+    },
+    data: { frozenAt: now },
+  });
+  await tx.agent.updateMany({
+    where: { id: { in: agentIds }, status: 'ACTIVE', role: { not: 'SUPER_ADMIN' } },
+    data: { status: 'FROZEN' },
+  });
+  await tx.memberAutoBalanceControl.update({
+    where: { id: control.id },
+    data: {
+      isActive: false,
+      resetReason: 'banker_guard_frozen',
+      lifecycleCompletedAt: now,
+    },
+  });
 }
 
 function isBankerGuardExemptOutcome(outcome: ControlOutcome): boolean {
