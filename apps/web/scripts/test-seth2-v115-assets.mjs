@@ -11,6 +11,21 @@ const frameworkRoot = path.join(
   'public/slotFramework/40401f29702686de9cfed69b217641b6029834f7',
 );
 const manifest = JSON.parse(fs.readFileSync(path.join(gameRoot, 'asset-manifest.json'), 'utf8'));
+const gameLabelsSource = fs.readFileSync(path.join(webRoot, 'src/i18n/gameLabels.ts'), 'utf8');
+const sethPageSource = fs.readFileSync(path.join(webRoot, 'src/pages/games/Seth2Page.tsx'), 'utf8');
+const sharedGamesSource = fs.readFileSync(
+  path.resolve(webRoot, '../../packages/shared/src/games.ts'),
+  'utf8',
+);
+
+for (const source of [gameLabelsSource, sethPageSource, sharedGamesSource]) {
+  assert.doesNotMatch(source, /黃金賽特|黄金赛特/, 'the incorrect Golden Seth name must not return');
+}
+assert.match(gameLabelsSource, /戰神賽特 II：覺醒之力/);
+assert.match(gameLabelsSource, /战神赛特 II：觉醒之力/);
+assert.match(gameLabelsSource, /Storm of Seth 2 – Awakening/);
+assert.match(sethPageSource, /title="戰神賽特 II：覺醒之力"/);
+assert.match(sharedGamesSource, /nameZh: '戰神賽特 II：覺醒之力'/);
 
 assert.deepEqual(manifest.source, {
   gameRevision: '361d567d94ac569664c82068a30b762e8d8438b8',

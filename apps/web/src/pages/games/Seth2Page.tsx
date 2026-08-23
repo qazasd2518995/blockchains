@@ -224,7 +224,7 @@ export function Seth2Page() {
           key={`${viewMode}-${iframeGeneration}`}
           ref={iframeRef}
           src={gameUrl}
-          title="黃金賽特 II：覺醒之力"
+          title="戰神賽特 II：覺醒之力"
           allow="autoplay; fullscreen"
           onLoad={handleIframeLoad}
           className="absolute inset-0 h-full w-full border-0 bg-black"

@@ -1,15 +1,30 @@
 import { H5_GAMES } from '@bg/shared';
 
+const H5_ORIGINAL_GAME_COVERS: Readonly<Record<string, string>> = {
+  'h5-fire-88': '/game-art/original/h5-individual/h5-fire-88-cover-v1.webp',
+  'h5-lucky-777': '/game-art/original/h5-individual/h5-lucky-777-cover-v1.webp',
+  'h5-fortune-ox': '/game-art/original/h5-individual/h5-fortune-ox-cover-v1.webp',
+  'h5-mahjong-ways': '/game-art/original/h5-individual/h5-mahjong-ways-cover-v1.webp',
+  'h5-mahjong-ways-2': '/game-art/original/h5-individual/h5-mahjong-ways-2-cover-v1.webp',
+  'h5-dragon-hatch': '/game-art/original/h5-individual/h5-dragon-hatch-cover-v1.webp',
+  'h5-captains-bounty':
+    '/game-art/original/h5-individual/h5-captains-bounty-cover-v1.webp',
+  'h5-caishen-wins': '/game-art/original/h5-individual/h5-caishen-wins-cover-v1.webp',
+  'h5-queen-of-bounty':
+    '/game-art/original/h5-individual/h5-queen-of-bounty-cover-v1.webp',
+};
+
 const H5_GAME_COVERS = Object.fromEntries(
   H5_GAMES.map((game) => [
     game.gameId,
-    `/game-art/generated/h5-individual/${game.gameId}-cover-v1.webp`,
+    H5_ORIGINAL_GAME_COVERS[game.gameId] ??
+      `/game-art/generated/h5-individual/${game.gameId}-cover-v1.webp`,
   ]),
 );
 
 const LOBBY_COVER_OVERRIDES: Record<string, string> = {
   hotline: '/slots/cyber/cover-v2.png',
-  'storm-of-seth-2': '/game-art/generated/storm-of-seth-2-cover-v1.png',
+  'storm-of-seth-2': '/game-art/original/storm-of-seth-2-cover-v1.webp',
   'fruit-mary': '/game-art/generated/fruit-mary-cover-v1.png',
   'h5-slot-collection': '/game-art/generated/h5-slot-collection-cover-v1.png',
   ...H5_GAME_COVERS,

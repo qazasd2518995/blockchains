@@ -601,7 +601,7 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
   [GameId.STORM_OF_SETH_2]: {
     id: GameId.STORM_OF_SETH_2,
     name: 'Storm of Seth 2 – Awakening',
-    nameZh: '黃金賽特 II：覺醒之力',
+    nameZh: '戰神賽特 II：覺醒之力',
     category: 'single-step',
     description: 'A 6x5 cascading cluster slot with split multipliers and awakening free games.',
     descriptionZh: '6x5 消除式同符號派彩，含分裂倍率、隱藏彩金與覺醒免費遊戲',
