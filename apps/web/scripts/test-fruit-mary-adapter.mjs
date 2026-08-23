@@ -29,6 +29,21 @@ assert.match(
   /setInterval\(checkFrameHealth, 5_000\)/,
   'Fruit Mary shell must detect partial renderer loss while the page remains visible',
 );
+assert.doesNotMatch(
+  adapterSource,
+  /getImageData|canvasDetailScore|fruitMaryCanvasHasDetail/,
+  'Fruit Mary health checks must not read back WebGL pixels on Mobile Safari',
+);
+assert.match(
+  pageSource,
+  /RECOVERY_STABILITY_WINDOW_MS = 60_000/,
+  'Fruit Mary automatic recovery must require a stable minute before resetting its circuit breaker',
+);
+assert.doesNotMatch(
+  pageSource,
+  /payload\.type === ['"]fruit-mary:ready['"][\s\S]{0,160}automaticRecoveryAttemptsRef\.current = 0/,
+  'Fruit Mary ready events must not immediately re-arm automatic iframe recovery',
+);
 const storedValues = {
   'bg-auth': JSON.stringify({
     state: { accessToken: 'test-access', refreshToken: 'test-refresh' },
@@ -72,22 +87,8 @@ const {
   normalizeFruitMaryAllocation,
   patchFruitMaryMenuLogic,
   patchFruitMaryPlayLogic,
-  canvasDetailScore,
   shortBonusCompletionIndex,
 } = context.__YachiyoFruitMaryAdapterTest;
-
-const flatPixels = new Uint8ClampedArray(4 * 4 * 4).fill(40);
-for (let index = 3; index < flatPixels.length; index += 4) flatPixels[index] = 255;
-const detailedPixels = new Uint8ClampedArray(flatPixels);
-for (let index = 0; index < detailedPixels.length; index += 4) {
-  const pixelIndex = index / 4;
-  const value = (pixelIndex + Math.floor(pixelIndex / 4)) % 2 === 0 ? 0 : 255;
-  detailedPixels[index] = value;
-  detailedPixels[index + 1] = 255 - value;
-  detailedPixels[index + 2] = value;
-}
-assert.equal(canvasDetailScore(flatPixels, 4, 4), 0);
-assert.ok(canvasDetailScore(detailedPixels, 4, 4) > 100);
 
 assert.equal(normalizeFruitMaryAllocation(40, 60, 70).currentRound, 70);
 assert.equal(normalizeFruitMaryAllocation(40, 60, 70).balance, 30);

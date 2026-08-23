@@ -7,6 +7,7 @@ import { buildLoginPath } from '@/hooks/useRequireLogin';
 const GAME_PATH = '/games/fruit-mary/index.html';
 const GAME_READY_TIMEOUT_MS = 45_000;
 const IFRAME_RECOVERY_DELAY_MS = 100;
+const RECOVERY_STABILITY_WINDOW_MS = 60_000;
 
 export function FruitMaryPage() {
   // The iframe reports balance frequently while playing; auth presence is the
@@ -22,6 +23,7 @@ export function FruitMaryPage() {
   const readyTimerRef = useRef<number | null>(null);
   const recoveryTimerRef = useRef<number | null>(null);
   const recoveryFrameRef = useRef<number | null>(null);
+  const recoveryStabilityTimerRef = useRef<number | null>(null);
   const recoveryPendingRef = useRef(false);
   const automaticRecoveryAttemptsRef = useRef(0);
 
@@ -39,6 +41,20 @@ export function FruitMaryPage() {
     }, GAME_READY_TIMEOUT_MS);
   }, [clearReadyTimer]);
 
+  const clearRecoveryStabilityTimer = useCallback(() => {
+    if (recoveryStabilityTimerRef.current === null) return;
+    window.clearTimeout(recoveryStabilityTimerRef.current);
+    recoveryStabilityTimerRef.current = null;
+  }, []);
+
+  const armRecoveryStabilityTimer = useCallback(() => {
+    clearRecoveryStabilityTimer();
+    recoveryStabilityTimerRef.current = window.setTimeout(() => {
+      recoveryStabilityTimerRef.current = null;
+      automaticRecoveryAttemptsRef.current = 0;
+    }, RECOVERY_STABILITY_WINDOW_MS);
+  }, [clearRecoveryStabilityTimer]);
+
   const releaseIframe = useCallback((frame: HTMLIFrameElement | null) => {
     if (!frame) return;
     const frameWindow = frame.contentWindow as FruitMaryBridgeWindow | null;
@@ -53,9 +69,11 @@ export function FruitMaryPage() {
     (reason: string, force = false) => {
       if (recoveryPendingRef.current) return;
       if (!force && automaticRecoveryAttemptsRef.current >= 1) {
+        clearRecoveryStabilityTimer();
         setError(reason || '遊戲畫面已中斷，請點擊重新載入。');
         return;
       }
+      clearRecoveryStabilityTimer();
       if (force) automaticRecoveryAttemptsRef.current = 0;
       automaticRecoveryAttemptsRef.current += 1;
       recoveryPendingRef.current = true;
@@ -77,7 +95,7 @@ export function FruitMaryPage() {
         });
       });
     },
-    [armReadyTimer, clearReadyTimer, releaseIframe],
+    [armReadyTimer, clearReadyTimer, clearRecoveryStabilityTimer, releaseIframe],
   );
 
   const handleIframeLoad = useCallback(() => {
@@ -92,7 +110,7 @@ export function FruitMaryPage() {
       token: 'yachiyo-session',
       room_id: '1',
       window_type: 'web',
-      build: 'yachiyo-fruit-mary-v3-visual-recovery',
+      build: 'yachiyo-fruit-mary-v4-stable-health',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, []);
@@ -111,7 +129,7 @@ export function FruitMaryPage() {
       };
       if (payload.type === 'fruit-mary:ready') {
         clearReadyTimer();
-        automaticRecoveryAttemptsRef.current = 0;
+        if (automaticRecoveryAttemptsRef.current > 0) armRecoveryStabilityTimer();
         setRecoveryReason('');
         setError('');
       }
@@ -138,7 +156,7 @@ export function FruitMaryPage() {
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [clearReadyTimer, requestIframeRecovery, setBalance, setTokens]);
+  }, [armRecoveryStabilityTimer, clearReadyTimer, requestIframeRecovery, setBalance, setTokens]);
 
   useEffect(() => {
     const checkFrameHealth = () => {
@@ -166,10 +184,11 @@ export function FruitMaryPage() {
   useEffect(
     () => () => {
       clearReadyTimer();
+      clearRecoveryStabilityTimer();
       if (recoveryTimerRef.current !== null) window.clearTimeout(recoveryTimerRef.current);
       if (recoveryFrameRef.current !== null) window.cancelAnimationFrame(recoveryFrameRef.current);
     },
-    [clearReadyTimer],
+    [clearReadyTimer, clearRecoveryStabilityTimer],
   );
 
   if (!isAuthenticated) {
