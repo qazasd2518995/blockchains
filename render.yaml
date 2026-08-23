@@ -1,14 +1,15 @@
 # Render Blueprint — 加密博彩遊戲平台
-# 3 個服務 + 既有 PostgreSQL
+# 4 個服務 + 既有 PostgreSQL
 #
 # 服務組成：
 #   1. bg-api      (Node) — Fastify 後端 API + Socket.IO
 #   2. bg-web      (Static) — 玩家前端 apps/web
-#   3. bg-admin    (Static) — 代理後台 apps/admin
+#   3. bg-qmoney   (Static) — 新娛樂城前端，共用 bg-api 與既有資料庫
+#   4. bg-admin    (Static) — 代理後台 apps/admin
 #
 # 部署步驟：
 #   1. 在 Render → New → Blueprint，選本 repo
-#   2. Render 會讀這份 YAML 自動建立三個服務
+#   2. Render 會讀這份 YAML 自動建立四個服務
 #   3. 手動設 Secret：DATABASE_URL / JWT_SECRET / SUPER_ADMIN_PASSWORD / BACCARAT_INTEGRATION_SECRET
 #   4. Deploy 後在 api service 跑 migration + seed-agent（見 README 部署章節）
 #
@@ -102,6 +103,21 @@ services:
       - path: /manifest.webmanifest
         name: Cache-Control
         value: no-cache, must-revalidate
+      - path: /qmoney/index.html
+        name: Cache-Control
+        value: no-store, no-cache, must-revalidate
+      - path: /qmoney/app.js
+        name: Cache-Control
+        value: no-cache, must-revalidate
+      - path: /qmoney/config.js
+        name: Cache-Control
+        value: no-store, no-cache, must-revalidate
+      - path: /qmoney/styles.css
+        name: Cache-Control
+        value: no-cache, must-revalidate
+      - path: /qmoney/assets/*
+        name: Cache-Control
+        value: public, max-age=604800
       # Vite and Cocos build artifacts are content/version fingerprinted. Keep
       # mutable HTML and adapter bridges out of these rules so releases remain
       # immediately replaceable while repeat game visits reuse the heavy files.
@@ -173,6 +189,12 @@ services:
         value: no-cache, must-revalidate
     routes:
       - type: rewrite
+        source: /qmoney
+        destination: /qmoney/index.html
+      - type: rewrite
+        source: /qmoney/
+        destination: /qmoney/index.html
+      - type: rewrite
         source: /*
         destination: /index.html
     envVars:
@@ -188,7 +210,72 @@ services:
         sync: false # Cloudflare Transform/CDN 網域，例如 https://cdn.example.com
 
   # ──────────────────────────────────────────
-  # 3. 代理後台（apps/admin）
+  # 3. 新娛樂城前端（與 bg-web 共用同一份 build、API 與資料庫）
+  # ──────────────────────────────────────────
+  - type: web
+    name: bg-qmoney
+    runtime: static
+    buildCommand: |
+      corepack enable
+      corepack prepare pnpm@9.15.4 --activate
+      pnpm install --frozen-lockfile --prod=false
+      pnpm --filter @bg/shared run build
+      pnpm --filter @bg/provably-fair run build
+      pnpm --filter @bg/web run build
+    staticPublishPath: apps/web/dist
+    pullRequestPreviewsEnabled: false
+    headers:
+      - path: /
+        name: Cache-Control
+        value: no-store, no-cache, must-revalidate
+      - path: /index.html
+        name: Cache-Control
+        value: no-store, no-cache, must-revalidate
+      - path: /qmoney/index.html
+        name: Cache-Control
+        value: no-store, no-cache, must-revalidate
+      - path: /qmoney/app.js
+        name: Cache-Control
+        value: no-cache, must-revalidate
+      - path: /qmoney/config.js
+        name: Cache-Control
+        value: no-store, no-cache, must-revalidate
+      - path: /qmoney/styles.css
+        name: Cache-Control
+        value: no-cache, must-revalidate
+      - path: /qmoney/assets/*
+        name: Cache-Control
+        value: public, max-age=604800
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      # 新站根網址直接顯示 Qmoney 大廳；遊戲路由仍交給 React app。
+      - type: rewrite
+        source: /
+        destination: /qmoney/index.html
+      - type: rewrite
+        source: /qmoney
+        destination: /qmoney/index.html
+      - type: rewrite
+        source: /qmoney/
+        destination: /qmoney/index.html
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # 都是公開的前端端點；新站與現有 bg-web 共用同一個正式 API。
+      - key: VITE_API_BASE
+        value: https://bg-api-xxs7.onrender.com
+      - key: VITE_SOCKET_BASE
+        value: https://bg-api-xxs7.onrender.com
+      - key: VITE_BACCARAT_URL
+        value: https://baccarat-frontend-74oz.onrender.com
+      - key: VITE_IMAGE_TRANSFORM_PROVIDER
+        value: local
+
+  # ──────────────────────────────────────────
+  # 4. 代理後台（apps/admin）
   # ──────────────────────────────────────────
   - type: web
     name: bg-admin

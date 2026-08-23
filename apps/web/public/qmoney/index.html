@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#80dfff">
+    <meta name="color-scheme" content="light">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src 'self' https:; img-src 'self' data:; media-src 'self'; font-src 'self'; style-src 'self'; script-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+    >
+    <title>Qmoney77 遊戲大廳</title>
+    <link rel="icon" href="/qmoney/assets/favicon.ico">
+    <link rel="stylesheet" href="/qmoney/styles.css">
+    <script src="/qmoney/config.js"></script>
+    <script src="/qmoney/app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-frame" id="appFrame">
+      <section class="login-page view is-active" id="loginView" aria-label="登入畫面">
+        <div class="login-actions" aria-label="會員登入入口">
+          <button class="pill-button pill-button--line" id="lineLogin" type="button">
+            <span><img class="line-login-icon" src="/qmoney/assets/imgs_soc/media/user_default.webp" alt="">會員登入</span>
+          </button>
+          <button class="pill-button pill-button--web" id="webLogin" type="button">
+            <span>帳密登入</span>
+          </button>
+        </div>
+        <div class="login-page-footer" aria-hidden="true">
+          <img class="footer-art footer-art--left" src="/qmoney/assets/imgs_soc/media/login-page_footer-left.webp" alt="">
+          <img class="footer-art footer-art--right" src="/qmoney/assets/imgs_soc/media/login-page_footer-right.webp" alt="">
+        </div>
+      </section>
+
+      <section class="lobby view" id="lobbyView" aria-label="遊戲大廳" aria-hidden="true">
+        <header class="lobby-header">
+          <button class="profile-button" type="button" data-action="profile" aria-label="會員資料">
+            <img src="/qmoney/assets/imgs_soc/media/user_default.webp" alt="會員頭像">
+          </button>
+          <div class="account-copy">
+            <div class="account-row">
+              <span class="account-name" id="accountName">會員</span>
+              <span class="vip-chip">正式帳戶</span>
+            </div>
+            <button class="balance-row" type="button" data-action="refresh-balance" aria-label="更新點數">
+              <img src="/qmoney/assets/imgs_soc/media/coin.webp" alt="">
+              <strong id="balanceValue">--</strong>
+              <img class="refresh-icon" src="/qmoney/assets/imgs_soc/icon/refresh.webp" alt="更新">
+            </button>
+          </div>
+          <div class="header-actions">
+            <button type="button" data-action="history" aria-label="投注紀錄">
+              <img src="/qmoney/assets/imgs_soc/media/CheckIn.webp" alt="">
+              <span>紀錄</span>
+            </button>
+            <button type="button" data-action="settings" aria-label="設定">
+              <img src="/qmoney/assets/imgs_soc/media/setting.svg" alt="">
+              <span>設定</span>
+            </button>
+          </div>
+        </header>
+
+        <nav class="category-tabs" id="categoryTabs" aria-label="遊戲分類">
+          <button class="category-tab is-active" type="button" data-category="首頁"><span>熱門</span></button>
+          <button class="category-tab" type="button" data-category="賽特"><span>賽特</span></button>
+          <button class="category-tab" type="button" data-category="H5拉霸"><span>H5 拉霸</span></button>
+          <button class="category-tab" type="button" data-category="捕魚"><span>捕魚</span></button>
+          <button class="category-tab" type="button" data-category="MegaSlot"><span>MegaSlot</span></button>
+        </nav>
+
+        <main class="lobby-scroll" id="lobbyScroll">
+          <section class="hero-carousel" aria-label="活動輪播">
+            <div class="hero-track" id="heroTrack">
+              <button class="hero-slide is-active" type="button" data-banner="0">
+                <img src="/qmoney/assets/img/task/%E6%96%B0%E5%A2%9E%E8%B3%87%E6%96%99%E5%A4%BE/drive-download-20250207T020939Z-001/img_banner1tw.webp" alt="新遊戲大廳">
+              </button>
+              <button class="hero-slide" type="button" data-banner="1">
+                <img src="/qmoney/assets/img/task/%E6%96%B0%E5%A2%9E%E8%B3%87%E6%96%99%E5%A4%BE/drive-download-20250207T020939Z-001/img_banner2tw.webp" alt="H5 原版遊戲">
+              </button>
+              <button class="hero-slide" type="button" data-banner="2">
+                <img src="/qmoney/assets/img/task/%E6%96%B0%E5%A2%9E%E8%B3%87%E6%96%99%E5%A4%BE/drive-download-20250207T020939Z-001/img_banner3tw.webp" alt="MegaSlot 遊戲">
+              </button>
+              <button class="hero-slide" type="button" data-banner="3">
+                <img src="/qmoney/assets/img/task/%E6%96%B0%E5%A2%9E%E8%B3%87%E6%96%99%E5%A4%BE/drive-download-20250207T020939Z-001/img_banner4tw.webp" alt="平台活動">
+              </button>
+            </div>
+            <div class="carousel-dots" id="carouselDots" aria-label="選擇活動">
+              <button class="is-active" type="button" data-slide="0" aria-label="第 1 張"></button>
+              <button type="button" data-slide="1" aria-label="第 2 張"></button>
+              <button type="button" data-slide="2" aria-label="第 3 張"></button>
+              <button type="button" data-slide="3" aria-label="第 4 張"></button>
+            </div>
+          </section>
+
+          <button class="jackpot-card" type="button" data-action="jackpot" aria-label="查看幸運彩池">
+            <span class="jackpot-label">平台狀態</span>
+            <span class="jackpot-value" id="jackpotValue">連線中</span>
+          </button>
+
+          <section class="quick-actions" aria-label="快速功能">
+            <button type="button" data-action="refresh-balance"><img src="/qmoney/assets/imgs_soc/media/button_store.webp" alt=""><span>點數</span></button>
+            <button type="button" data-action="history"><img src="/qmoney/assets/imgs_soc/media/task.webp" alt=""><span>投注紀錄</span></button>
+            <button type="button" data-action="all-games"><img src="/qmoney/assets/imgs_soc/media/turntable.webp" alt=""><span>全部遊戲</span></button>
+            <button type="button" data-action="settings"><img src="/qmoney/assets/imgs_soc/media/pk.webp" alt=""><span>設定</span></button>
+          </section>
+
+          <section class="games-section" aria-labelledby="gamesTitle">
+            <div class="section-heading">
+              <div>
+                <span class="eyebrow">YACHIYO NEW GAMES</span>
+                <h1 id="gamesTitle">熱門推薦</h1>
+              </div>
+              <label class="game-search">
+                <span class="sr-only">搜尋遊戲</span>
+                <input id="gameSearch" type="search" placeholder="搜尋遊戲" autocomplete="off">
+                <span aria-hidden="true">⌕</span>
+              </label>
+            </div>
+            <div class="game-grid" id="gameGrid" aria-live="polite"></div>
+            <p class="empty-state" id="emptyState" hidden>找不到符合條件的遊戲</p>
+          </section>
+        </main>
+
+        <div class="side-tools" aria-label="聯絡功能">
+          <button type="button" data-action="refresh-balance" aria-label="更新點數"><img src="/qmoney/assets/imgs_soc/media/chat.webp" alt=""></button>
+          <button type="button" data-action="settings" aria-label="設定"><img src="/qmoney/assets/imgs_soc/media/customer.webp" alt=""></button>
+        </div>
+
+        <nav class="bottom-nav" aria-label="主要功能">
+          <button type="button" data-footer="紀錄"><img src="/qmoney/assets/imgs_soc/footer/store.webp" alt=""><span>紀錄</span></button>
+          <button type="button" data-footer="點數"><img src="/qmoney/assets/imgs_soc/footer/gift.webp" alt=""><span>點數</span></button>
+          <button class="is-active" type="button" data-footer="遊戲"><img src="/qmoney/assets/imgs_soc/footer/menu.webp" alt=""><span>遊戲</span></button>
+          <button type="button" data-footer="設定"><img src="/qmoney/assets/imgs_soc/footer/guild.webp" alt=""><span>設定</span></button>
+          <button type="button" data-footer="登出"><img src="/qmoney/assets/imgs_soc/footer/more.webp" alt=""><span>登出</span></button>
+        </nav>
+      </section>
+
+      <div class="modal-backdrop" id="modalBackdrop" hidden>
+        <section class="modal-card" id="modalCard" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+          <button class="modal-close" id="modalClose" type="button" aria-label="關閉">×</button>
+          <div id="modalContent"></div>
+        </section>
+      </div>
+
+      <div class="loading-overlay" id="loadingOverlay" role="status" aria-live="polite" hidden>
+        <div class="source-loader">
+          <img id="loadingImage" src="/qmoney/assets/imgs_soc/media/loading.gif" alt="">
+          <p>載入中...</p>
+          <strong id="loadingGameName">正在啟動遊戲</strong>
+        </div>
+      </div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+
+    <audio id="loginMusic" src="/qmoney/assets/imgs_soc/mp3/login_page.mp3" preload="metadata" loop></audio>
+    <audio id="lobbyMusic" src="/qmoney/assets/imgs_soc/mp3/lobby_page.mp3" preload="metadata" loop></audio>
+    <audio id="storeMusic" src="/qmoney/assets/imgs_soc/mp3/store_page.mp3" preload="metadata" loop></audio>
+    <audio id="clickTab" data-volume="0.602" src="/qmoney/assets/imgs_soc/mp3/click_tab.mp3" preload="auto"></audio>
+    <audio id="clickGame" src="/qmoney/assets/imgs_soc/mp3/click_game.mp3" preload="auto"></audio>
+    <audio id="clickConfirm" src="/qmoney/assets/imgs_soc/mp3/click_confirm.mp3" preload="auto"></audio>
+    <audio id="clickCancel" src="/qmoney/assets/imgs_soc/mp3/click_cancel.mp3" preload="auto"></audio>
+    <audio id="clickFooter" src="/qmoney/assets/imgs_soc/mp3/click_footer.mp3" preload="auto"></audio>
+    <audio id="addFavorite" data-volume="0.602" src="/qmoney/assets/imgs_soc/mp3/add_favorite.mp3" preload="auto"></audio>
+    <audio id="removeFavorite" data-volume="0.602" src="/qmoney/assets/imgs_soc/mp3/remove_favorite.mp3" preload="auto"></audio>
+  </body>
+</html>

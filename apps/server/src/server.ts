@@ -38,6 +38,7 @@ import { baccaratRoutes } from './modules/games/baccarat/baccarat.routes.js';
 import { chickenRoadRoutes } from './modules/games/chicken-road/chicken-road.routes.js';
 import { crashRoutes } from './modules/games/crash/crash.routes.js';
 import { tableGamesRoutes } from './modules/games/table-games/table-games.routes.js';
+import { gameCatalogRoutes } from './modules/games/catalog/catalog.routes.js';
 import { ApiError, errorCodeToStatus, publicErrorMessage } from './utils/errors.js';
 import {
   getRequestLogContext,
@@ -298,6 +299,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(publicAnnouncementRoutes, { prefix: '/api/public' });
 
   // Games
+  await server.register(gameCatalogRoutes, { prefix: '/api/games/catalog' });
   await server.register(diceRoutes, { prefix: '/api/games/dice' });
   await server.register(minesRoutes, { prefix: '/api/games/mines' });
   await server.register(hiloRoutes, { prefix: '/api/games/hilo' });

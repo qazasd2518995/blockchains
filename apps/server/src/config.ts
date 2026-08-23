@@ -75,7 +75,7 @@ export function isAllowedOrigin(origin?: string): boolean {
     const url = new URL(origin);
     if (url.protocol !== 'https:') return false;
     if (builtInAllowedOriginSet.has(url.origin)) return true;
-    return /^(bg-web|bg-admin)(-[a-z0-9]+)?\.onrender\.com$/i.test(url.hostname);
+    return /^(bg-web|bg-admin|bg-qmoney)(-[a-z0-9]+)?\.onrender\.com$/i.test(url.hostname);
   } catch {
     return false;
   }

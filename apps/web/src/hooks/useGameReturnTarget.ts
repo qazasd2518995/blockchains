@@ -11,6 +11,13 @@ interface GameRouteState {
   returnLabel?: unknown;
 }
 
+function queryReturnTarget(search: string): { to: string; label: string | null } | null {
+  const params = new URLSearchParams(search);
+  const to = internalPath(params.get('returnTo'));
+  if (!to) return null;
+  return { to, label: params.get('returnLabel') };
+}
+
 function internalPath(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   if (!value.startsWith('/') || value.startsWith('//')) return null;
@@ -36,6 +43,14 @@ export function useGameReturnTarget(): { to: string; label: string } {
       };
     }
 
+    const queryTarget = queryReturnTarget(location.search);
+    if (queryTarget) {
+      return {
+        to: queryTarget.to,
+        label: queryTarget.label || t.common.lobby,
+      };
+    }
+
     if (isMobileLobbyViewport()) {
       return { to: '/lobby', label: t.common.lobby };
     }
@@ -44,5 +59,13 @@ export function useGameReturnTarget(): { to: string; label: string } {
     if (hall) return { to: `/hall/${hall.id}`, label: getLocalizedHallName(hall, locale) };
 
     return { to: '/lobby', label: t.common.lobby };
-  }, [locale, location.pathname, location.state, t.common.hall, t.common.lobby, username]);
+  }, [
+    locale,
+    location.pathname,
+    location.search,
+    location.state,
+    t.common.hall,
+    t.common.lobby,
+    username,
+  ]);
 }

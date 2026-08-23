@@ -234,6 +234,16 @@ function RootEntry() {
   return <Navigate to="/lobby" replace />;
 }
 
+function QmoneyStaticEntry() {
+  useEffect(() => {
+    // Game shells use React Router for their back button. Force a document
+    // navigation here so returning to the separately deployed Qmoney lobby
+    // loads its static application instead of the React not-found route.
+    window.location.replace('/qmoney/index.html');
+  }, []);
+  return <RouteLoading />;
+}
+
 export const router = createBrowserRouter([
   {
     errorElement: <RouteErrorScreen />,
@@ -242,6 +252,10 @@ export const router = createBrowserRouter([
       {
         path: '/',
         element: <RootEntry />,
+      },
+      {
+        path: '/qmoney/*',
+        element: <QmoneyStaticEntry />,
       },
       {
         path: '/landing',

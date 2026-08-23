@@ -1,0 +1,7 @@
+{
+  "name": "qmoney77-frontend-archive",
+  "catalogEndpoint": "/api/games/catalog",
+  "authStorageKey": "bg-auth",
+  "gameRoutePrefix": "/games/",
+  "assetCount": 41
+}
