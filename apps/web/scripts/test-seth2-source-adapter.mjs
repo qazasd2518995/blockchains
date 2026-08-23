@@ -132,6 +132,10 @@ const {
   isGameEntryTransitionReady,
   normalizeUpdateSettings,
   machineReferenceStats,
+  machineHasSimulatedPlayer,
+  simulatedMarqueeMessage,
+  startSimulatedMarquee,
+  stopSimulatedMarquee,
   readActiveSpin,
   rememberNewSpin,
   applyTableReferenceStats,
@@ -154,6 +158,48 @@ assert.equal(
 );
 
 const referenceNow = 1_800_000_000_000;
+const marqueeMessages = Array.from({ length: 64 }, (_, sequence) =>
+  structuredClone(simulatedMarqueeMessage(sequence, referenceNow + sequence * 6000)),
+);
+assert.ok(new Set(marqueeMessages.map((message) => message.data.player)).size >= 48);
+assert.ok(new Set(marqueeMessages.map((message) => message.data.winType)).size >= 8);
+assert.ok(marqueeMessages.every((message) => message.type === 'system'));
+assert.ok(marqueeMessages.every((message) => message.data.simulated === true));
+assert.ok(marqueeMessages.every((message) => message.data.gameCode === 'golden-seth'));
+assert.ok(marqueeMessages.every((message) => /^.+\*\*\*\d{4}$/.test(message.data.player)));
+assert.ok(
+  marqueeMessages.every(
+    (message) => message.data.roomNumber >= 1 && message.data.roomNumber <= 4000,
+  ),
+);
+assert.ok(marqueeMessages.every((message) => /^\d{1,3}(,\d{3})*\.\d{2}$/.test(message.data.win)));
+
+const simulatedNotifications = [];
+const simulatedSocket = {
+  connected: true,
+  dispatch(event, payload) {
+    simulatedNotifications.push({ event, payload });
+  },
+};
+const timerCountBeforeMarquee = longTimers.length;
+assert.equal(startSimulatedMarquee(simulatedSocket), true);
+const firstMarqueeTimer = longTimers.slice(timerCountBeforeMarquee).find((timer) => timer.delay === 2500);
+assert.ok(firstMarqueeTimer);
+firstMarqueeTimer.callback();
+assert.equal(simulatedNotifications.length, 1);
+assert.equal(simulatedNotifications[0].event, 'notify');
+assert.equal(simulatedNotifications[0].payload.data.simulated, true);
+assert.ok(
+  longTimers.slice(timerCountBeforeMarquee + 1).some((timer) => timer.delay >= 5000 && timer.delay < 7500),
+);
+stopSimulatedMarquee(simulatedSocket);
+assert.equal(simulatedSocket.simulatedMarqueeTimer, 0);
+
+const occupiedTables = Array.from({ length: 500 }, (_, index) => index + 1).filter((machineId) =>
+  machineHasSimulatedPlayer(machineId, referenceNow),
+);
+assert.ok(occupiedTables.length >= 375);
+assert.ok(occupiedTables.length <= 425);
 const referenceStats = structuredClone(machineReferenceStats(45, referenceNow));
 const nextReferenceStats = structuredClone(machineReferenceStats(45, referenceNow + 5_000));
 assert.ok(referenceStats.todayBet > 100);
@@ -169,7 +215,15 @@ assert.ok(
 );
 
 const referenceItem = {
-  tableVO: { roomId: 45, number: 45, bet: 0, win: 0, today: { bet: 0, win: 0 } },
+  tableVO: {
+    roomId: 45,
+    number: 45,
+    bet: 0,
+    win: 0,
+    today: { bet: 0, win: 0 },
+    status: 'Empty',
+    user: null,
+  },
   setData(table) {
     this.tableVO = table;
   },
@@ -186,6 +240,33 @@ assert.equal(applyTableReferenceStats(referenceView, referenceNow), true);
 assert.equal(referenceItem.tableVO.today.bet, referenceView.detail.todayBet);
 assert.equal(referenceItem.tableVO.today.win, referenceView.detail.todayWin);
 assert.deepEqual(structuredClone(referenceView.detail.mgCounts), referenceStats.mgCounts);
+assert.equal(referenceItem.tableVO.status, machineHasSimulatedPlayer(45, referenceNow) ? 'Full' : 'Empty');
+assert.equal(referenceItem.tableVO.user?.simulated ?? false, machineHasSimulatedPlayer(45, referenceNow));
+
+const currentPlayer = { userId: 'real-player' };
+const currentReferenceItem = {
+  tableVO: {
+    roomId: 46,
+    number: 46,
+    bet: 0,
+    win: 0,
+    today: { bet: 0, win: 0 },
+    status: 'Full',
+    user: currentPlayer,
+  },
+  setData(table) {
+    this.tableVO = table;
+  },
+};
+const currentReferenceView = {
+  slotTableMap: new Map([[46, currentReferenceItem]]),
+  currentRoomId: 46,
+  selectRoomId: 46,
+  setTableInfo() {},
+};
+assert.equal(applyTableReferenceStats(currentReferenceView, referenceNow), true);
+assert.equal(currentReferenceItem.tableVO.status, 'Full');
+assert.equal(currentReferenceItem.tableVO.user, currentPlayer);
 
 let zeroTotalWinCompletions = 0;
 let dispatchedZeroTotalWin;

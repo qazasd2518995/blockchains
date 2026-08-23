@@ -153,6 +153,64 @@ describe('Seth 2 v1.1.5 source contract', () => {
     expect(states[0]!.isJp).toBe(key);
   });
 
+  it.each([
+    [2, 13],
+    [8, 13],
+    [10, 12],
+    [25, 12],
+    [50, 11],
+    [80, 11],
+    [100, 10],
+    [500, 10],
+  ] as const)('maps a %ix multiplier to source ball symbol %i', (times, symbol) => {
+    const start = Array.from({ length: 30 }, () => cell(2));
+    start[0] = cell(10, times, 1);
+
+    const states = seth2SourceGameStates(
+      sourceFixture({
+        list: [{ ...sourceFixture().list[0]!, start_data: start }],
+      }),
+      SOURCE_OPTIONS,
+    );
+
+    expect(states[0]!.timesSymbols).toEqual([
+      expect.objectContaining({ symbol, symbolPos: 0, times }),
+    ]);
+    expect((states[0]!.view as number[][]).flat()[0]).toBe(symbol);
+  });
+
+  it('changes an upgraded 80x purple ball into a 100x red ball', () => {
+    const start = Array.from({ length: 30 }, () => cell(2));
+    start[0] = cell(10, 80, 0, 0);
+    start[1] = cell(1);
+    const states = seth2SourceGameStates(
+      sourceFixture({
+        list: [
+          {
+            ...sourceFixture().list[0]!,
+            start_data: start,
+            remove_type: [1],
+            round_data: [cell(3)],
+            scoreList: [1],
+            score: 1,
+            total_gold: 1,
+            upgrade_mul_list: [{ type: 10, mul: 80, new_mul: 100, mul_type: 0, code: 0 }],
+          },
+        ],
+        score: 1,
+        total_gold: 1,
+      }),
+      SOURCE_OPTIONS,
+    );
+
+    expect(states[0]!.timesUpgrade).toEqual([
+      expect.objectContaining({ beforeSymbol: 11, beforeTimes: 80, afterSymbol: 10, afterTimes: 100 }),
+    ]);
+    expect(states.at(-1)!.timesSymbols).toEqual([
+      expect.objectContaining({ symbol: 10, times: 100 }),
+    ]);
+  });
+
   it('keeps the final visual total equal to the settled payout and ends on a no-win view', () => {
     const outcome = seth2SpinForFactor('server', 'client', 2, 2, 400, 'awakening_free');
     const states = seth2SourceGameStates(outcome.returnData, {

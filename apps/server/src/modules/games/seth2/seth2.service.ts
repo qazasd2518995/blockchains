@@ -1214,6 +1214,10 @@ function requireFormalPlay(isFreeModel: number | undefined): void {
 
 const MACHINE_REFERENCE_TICK_MS = 5_000;
 const MACHINE_REFERENCE_DAY_MS = 86_400_000;
+const MACHINE_OCCUPANCY_TICK_MS = 30_000;
+const MACHINE_OCCUPANCY_MIN_COUNT = Math.ceil(SETH2_MACHINES_PER_PAGE * 0.75);
+const MACHINE_OCCUPANCY_MID_COUNT = Math.ceil(SETH2_MACHINES_PER_PAGE * 0.8);
+const MACHINE_OCCUPANCY_SWING_COUNT = Math.floor(SETH2_MACHINES_PER_PAGE * 0.05);
 
 export function machineDisplayRate(id: number, timestamp = Date.now(), salt = 0): string {
   const tick = Math.floor(timestamp / MACHINE_REFERENCE_TICK_MS);
@@ -1222,6 +1226,32 @@ export function machineDisplayRate(id: number, timestamp = Date.now(), salt = 0)
   const waveUnits = Math.round(Math.sin((phaseUnits / 720) * Math.PI * 2) * 500);
   const rateUnits = Math.max(7_000, Math.min(12_999, baseUnits + waveUnits));
   return (rateUnits / 100).toFixed(2);
+}
+
+/**
+ * Provides a display-only crowd for the private Seth 2 table selector.
+ *
+ * A page always has at least 75% occupied tables. The permutation rotates by
+ * one position per 30-second tick, so only a small number of tables change at
+ * once instead of the entire page visibly reshuffling. These occupants never
+ * create users, wallet entries, bets, or any other persisted records.
+ */
+export function machineHasSimulatedPlayer(id: number, timestamp = Date.now()): boolean {
+  const pageIndex = Math.floor((id - 1) / SETH2_MACHINES_PER_PAGE);
+  const pagePosition = (id - 1) % SETH2_MACHINES_PER_PAGE;
+  const tick = Math.floor(timestamp / MACHINE_OCCUPANCY_TICK_MS);
+  const occupiedCount = Math.max(
+    MACHINE_OCCUPANCY_MIN_COUNT,
+    Math.min(
+      SETH2_MACHINES_PER_PAGE,
+      MACHINE_OCCUPANCY_MID_COUNT +
+        Math.round(Math.sin((tick + pageIndex * 31) / 20) * MACHINE_OCCUPANCY_SWING_COUNT),
+    ),
+  );
+  // 137 is coprime with 500, so every page position receives one unique rank.
+  const rank =
+    (pagePosition * 137 + tick + pageIndex * 83) % SETH2_MACHINES_PER_PAGE;
+  return rank < occupiedCount;
 }
 
 export function machineInfo(id: number, stats?: Seth2MachineStatsRow, timestamp = Date.now()) {
@@ -2309,14 +2339,20 @@ function sourceMachineTables(
     const bet = detail.todayBet;
     const win = detail.todayWin;
     const selected = machine.id === selectedMachineId;
+    const simulated = !selected && machineHasSimulatedPlayer(machine.id, timestamp);
+    const occupied = selected || simulated;
     return {
       roomId: machine.id,
       number: machine.id,
       bet,
       win,
       today: { bet, win },
-      status: selected ? 'Full' : 'Empty',
-      user: selected ? { userId } : null,
+      status: occupied ? 'Full' : 'Empty',
+      user: selected
+        ? { userId }
+        : simulated
+          ? { userId: `sim:seth2:${machine.id}`, simulated: true }
+          : null,
     };
   });
 }

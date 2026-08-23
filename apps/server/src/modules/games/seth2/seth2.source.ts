@@ -122,8 +122,9 @@ function money(value: number): number {
 }
 
 function multiplierSymbol(value: number): 10 | 11 | 12 | 13 {
-  // T1 is the red/gold high-value ball and T4 is the green low-value ball.
-  if (value >= 200) return 10;
+  // The imported game's captured states use T1/T2/T3/T4 for
+  // red/purple/blue/green balls respectively. 100x already belongs to T1.
+  if (value >= 100) return 10;
   if (value >= 50) return 11;
   if (value >= 10) return 12;
   return 13;

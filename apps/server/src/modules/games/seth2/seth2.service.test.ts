@@ -15,6 +15,7 @@ import {
   chooseControlledSethFeatureFactor,
   generateFeatureRun,
   machineDisplayRate,
+  machineHasSimulatedPlayer,
   machineInfo,
   machineList,
   mergeSeth2PlayerSettings,
@@ -1067,9 +1068,27 @@ describe('Seth2 v1.1.5 source loading', () => {
       ).data.detail;
       const table = (
         tableResult as {
-          data: { tables: Array<{ roomId: number; today: { bet: number; win: number } }> };
+          data: {
+            tables: Array<{
+              roomId: number;
+              status: string;
+              user: { userId: string; simulated?: boolean } | null;
+              today: { bet: number; win: number };
+            }>;
+          };
         }
       ).data.tables.find((candidate) => candidate.roomId === 15);
+      const currentTable = (
+        tableResult as {
+          data: {
+            tables: Array<{
+              roomId: number;
+              status: string;
+              user: { userId: string; simulated?: boolean } | null;
+            }>;
+          };
+        }
+      ).data.tables.find((candidate) => candidate.roomId === 1);
 
       expect(detailResult).toMatchObject({
         status: 200,
@@ -1095,6 +1114,10 @@ describe('Seth2 v1.1.5 source loading', () => {
           bet: detail.todayBet,
           win: detail.todayWin,
         },
+      });
+      expect(currentTable).toMatchObject({
+        status: 'Full',
+        user: { userId: 'user-1' },
       });
       expect(detailResult).not.toHaveProperty('detail');
       expect(detailResult).not.toHaveProperty('lock');
@@ -1135,7 +1158,25 @@ describe('Seth2 v1.1.5 source loading', () => {
         },
       },
     });
-    expect((result as { data: { tables: unknown[] } }).data.tables).toHaveLength(500);
+    const tables = (
+      result as {
+        data: {
+          tables: Array<{
+            status: string;
+            user: { userId: string; simulated?: boolean } | null;
+          }>;
+        };
+      }
+    ).data.tables;
+    expect(tables).toHaveLength(500);
+    const occupiedTables = tables.filter((table) => table.status === 'Full');
+    expect(occupiedTables.length).toBeGreaterThanOrEqual(375);
+    expect(occupiedTables.length).toBeLessThanOrEqual(425);
+    expect(
+      occupiedTables.every(
+        (table) => table.user?.simulated === true && table.user.userId.startsWith('sim:seth2:'),
+      ),
+    ).toBe(true);
     expect(result).not.toHaveProperty('tables');
     expect(result).not.toHaveProperty('lock');
     expect(result).not.toHaveProperty('tableMeta');
@@ -1344,6 +1385,29 @@ describe('Seth2 v1.1.5 source loading', () => {
 });
 
 describe('Seth2 machine statistics', () => {
+  it('keeps at least three quarters of every machine page display-only occupied', () => {
+    for (let page = 0; page < 8; page += 1) {
+      const occupied = Array.from({ length: 500 }, (_, index) => page * 500 + index + 1).filter(
+        (machineId) => machineHasSimulatedPlayer(machineId, MACHINE_RATE_TIME),
+      );
+      expect(occupied.length).toBeGreaterThanOrEqual(375);
+      expect(occupied.length).toBeLessThanOrEqual(425);
+    }
+  });
+
+  it('moves only a small part of the simulated crowd between refresh periods', () => {
+    const before = Array.from({ length: 500 }, (_, index) =>
+      machineHasSimulatedPlayer(index + 1, MACHINE_RATE_TIME),
+    );
+    const after = Array.from({ length: 500 }, (_, index) =>
+      machineHasSimulatedPlayer(index + 1, MACHINE_RATE_TIME + 30_000),
+    );
+    const changes = before.filter((occupied, index) => occupied !== after[index]).length;
+
+    expect(changes).toBeGreaterThan(0);
+    expect(changes).toBeLessThanOrEqual(6);
+  });
+
   it('reports each machine from its own settled bet and payout totals', () => {
     const machine = machineInfo(
       7,

@@ -18,6 +18,11 @@
   var GAME_ENTRY_BOOT_TIMEOUT_MS = 60000;
   var GAME_ENTRY_REQUIRED_UI_COUNT = 4;
   var TABLE_REFERENCE_REFRESH_MS = 5000;
+  var TABLE_OCCUPANCY_REFRESH_MS = 30000;
+  var TABLES_PER_PAGE = 500;
+  var SIMULATED_MARQUEE_INITIAL_DELAY_MS = 2500;
+  var SIMULATED_MARQUEE_MIN_INTERVAL_MS = 5000;
+  var SIMULATED_MARQUEE_INTERVAL_SWING_MS = 2500;
   var gameEntryPollTimer = 0;
   var tableReferenceRefreshTimer = 0;
   var gameEntryPollStartedAt = 0;
@@ -792,6 +797,124 @@
     return rateUnits / 100;
   }
 
+  function machineHasSimulatedPlayer(machineId, timestamp) {
+    var pageIndex = Math.floor((machineId - 1) / TABLES_PER_PAGE);
+    var pagePosition = (machineId - 1) % TABLES_PER_PAGE;
+    var tick = Math.floor(timestamp / TABLE_OCCUPANCY_REFRESH_MS);
+    var minimumOccupied = Math.ceil(TABLES_PER_PAGE * 0.75);
+    var middleOccupied = Math.ceil(TABLES_PER_PAGE * 0.8);
+    var occupancySwing = Math.floor(TABLES_PER_PAGE * 0.05);
+    var occupiedCount = Math.max(
+      minimumOccupied,
+      Math.min(
+        TABLES_PER_PAGE,
+        middleOccupied + Math.round(Math.sin((tick + pageIndex * 31) / 20) * occupancySwing),
+      ),
+    );
+    var rank = (pagePosition * 137 + tick + pageIndex * 83) % TABLES_PER_PAGE;
+    return rank < occupiedCount;
+  }
+
+  function simulatedHash(value) {
+    var hash = value >>> 0;
+    hash = Math.imul(hash ^ (hash >>> 16), 2246822507);
+    hash = Math.imul(hash ^ (hash >>> 13), 3266489909);
+    return (hash ^ (hash >>> 16)) >>> 0;
+  }
+
+  function formatSimulatedWin(amount) {
+    return amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function simulatedMarqueeMessage(sequence, timestamp) {
+    var timeBucket = Math.floor(timestamp / 1000);
+    var seed = simulatedHash(timeBucket + sequence * 8191);
+    var idPrefixes = [
+      'Aki',
+      'Ace',
+      'Kai',
+      'Leo',
+      'Luna',
+      'Mina',
+      'Nova',
+      'Panda',
+      'Rex',
+      'Sky',
+      '阿凱',
+      '小宇',
+      '樂樂',
+      '大熊',
+      '星野',
+      '幸運',
+    ];
+    var prizeProfiles = [
+      { winType: 'bigWin', minimum: 800, maximum: 12000 },
+      { winType: 'bigWin', minimum: 1200, maximum: 18000 },
+      { winType: 'bigWin', minimum: 2000, maximum: 25000 },
+      { winType: 'superWin', minimum: 5000, maximum: 60000 },
+      { winType: 'superWin', minimum: 8000, maximum: 90000 },
+      { winType: 'megaWin', minimum: 20000, maximum: 180000 },
+      { winType: 'megaWin', minimum: 30000, maximum: 260000 },
+      { winType: 'ultraWin', minimum: 80000, maximum: 500000 },
+      { winType: 'legendaryWin', minimum: 200000, maximum: 1200000 },
+      { winType: 'jp-mini', minimum: 500, maximum: 5000 },
+      { winType: 'jp-mini', minimum: 800, maximum: 8000 },
+      { winType: 'jp-minor', minimum: 5000, maximum: 30000 },
+      { winType: 'jp-major', minimum: 30000, maximum: 160000 },
+      { winType: 'jp-grand', minimum: 200000, maximum: 900000 },
+    ];
+    var profile = prizeProfiles[seed % prizeProfiles.length];
+    var amountSeed = simulatedHash(seed + 1777);
+    var amountRangeCents = (profile.maximum - profile.minimum) * 100;
+    var amount = (profile.minimum * 100 + (amountSeed % (amountRangeCents + 1))) / 100;
+    var playerNumber = String(simulatedHash(seed + 311) % 10000).padStart(4, '0');
+    var roomNumber = 1 + (simulatedHash(seed + 977) % 4000);
+    return {
+      type: 'system',
+      data: {
+        player: idPrefixes[simulatedHash(seed + 101) % idPrefixes.length] + '***' + playerNumber,
+        game: '戰神賽特 II：覺醒之力',
+        // The source framework's localized key keeps its historical slug even
+        // though the displayed title is the corrected Storm of Seth 2 name.
+        gameCode: 'golden-seth',
+        win: formatSimulatedWin(amount),
+        winType: profile.winType,
+        roomNumber: roomNumber,
+        simulated: true,
+      },
+      expiredAt: timestamp + 60000,
+      shiftTime: 4,
+    };
+  }
+
+  function stopSimulatedMarquee(socket) {
+    if (!socket) return;
+    if (socket.simulatedMarqueeTimer) window.clearTimeout(socket.simulatedMarqueeTimer);
+    socket.simulatedMarqueeTimer = 0;
+  }
+
+  function startSimulatedMarquee(socket) {
+    if (!socket) return false;
+    stopSimulatedMarquee(socket);
+    socket.simulatedMarqueeSequence = Number(socket.simulatedMarqueeSequence) || 0;
+    function scheduleNext(delay) {
+      socket.simulatedMarqueeTimer = window.setTimeout(function () {
+        socket.simulatedMarqueeTimer = 0;
+        if (!socket.connected || gameEntryDisposing) return;
+        var timestamp = Date.now();
+        var sequence = socket.simulatedMarqueeSequence;
+        socket.simulatedMarqueeSequence += 1;
+        socket.dispatch('notify', simulatedMarqueeMessage(sequence, timestamp));
+        var interval =
+          SIMULATED_MARQUEE_MIN_INTERVAL_MS +
+          (simulatedHash(timestamp + sequence * 131) % SIMULATED_MARQUEE_INTERVAL_SWING_MS);
+        scheduleNext(interval);
+      }, delay);
+    }
+    scheduleNext(SIMULATED_MARQUEE_INITIAL_DELAY_MS);
+    return true;
+  }
+
   function machineReferenceStats(machineId, timestamp) {
     var dayMs = 86400000;
     var dayBucket = Math.floor(timestamp / dayMs);
@@ -831,11 +954,23 @@
       return false;
     view.slotTableMap.forEach(function (item, roomId) {
       if (!item || !item.tableVO || typeof item.setData !== 'function') return;
-      var stats = machineReferenceStats(Number(roomId), timestamp);
+      var machineId = Number(roomId);
+      var stats = machineReferenceStats(machineId, timestamp);
+      var currentUser = item.tableVO.user;
+      var isCurrentTable = machineId === Number(view.currentRoomId);
+      var hasRealPlayer = Boolean(currentUser && currentUser.simulated !== true);
+      var preservePlayer = isCurrentTable || hasRealPlayer;
+      var simulated = !preservePlayer && machineHasSimulatedPlayer(machineId, timestamp);
       var table = Object.assign({}, item.tableVO, {
         bet: stats.todayBet,
         win: stats.todayWin,
         today: { bet: stats.todayBet, win: stats.todayWin },
+        status: preservePlayer ? item.tableVO.status : simulated ? 'Full' : 'Empty',
+        user: preservePlayer
+          ? currentUser
+          : simulated
+            ? { userId: 'sim:seth2:' + machineId, simulated: true }
+            : null,
       });
       item.setData(table);
     });
@@ -1138,6 +1273,8 @@
     this.handlers = Object.create(null);
     this.queue = Promise.resolve();
     this.lastStakeData = Object.create(null);
+    this.simulatedMarqueeTimer = 0;
+    this.simulatedMarqueeSequence = 0;
     var socket = this;
     window.setTimeout(function () {
       socket.connected = true;
@@ -1244,6 +1381,7 @@
           notifyParent('seth2:ready', { balance: balance });
           scheduleGameEntryObserver();
           scheduleTableReferenceRefresh();
+          startSimulatedMarquee(socket);
         } else if (response && response.platform && response.platform.player) {
           notifyParent('seth2:balance', {
             balance: Number(response.platform.player.balance.amount),
@@ -1291,6 +1429,7 @@
       window.clearTimeout(tableReferenceRefreshTimer);
       tableReferenceRefreshTimer = 0;
     }
+    stopSimulatedMarquee(this);
     this.dispatch('disconnect', { reason: 'client close' });
     return this;
   };
@@ -1377,6 +1516,10 @@
     isGameEntryTransitionReady: isGameEntryTransitionReady,
     normalizeUpdateSettings: normalizeUpdateSettings,
     machineReferenceStats: machineReferenceStats,
+    machineHasSimulatedPlayer: machineHasSimulatedPlayer,
+    simulatedMarqueeMessage: simulatedMarqueeMessage,
+    startSimulatedMarquee: startSimulatedMarquee,
+    stopSimulatedMarquee: stopSimulatedMarquee,
     readActiveSpin: readActiveSpin,
     rememberNewSpin: rememberNewSpin,
     applyTableReferenceStats: applyTableReferenceStats,
