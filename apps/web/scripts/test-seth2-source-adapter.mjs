@@ -133,6 +133,7 @@ const {
   normalizeUpdateSettings,
   machineReferenceStats,
   machineHasSimulatedPlayer,
+  repairTerminalFemaleGuarantee,
   simulatedMarqueeMessage,
   startSimulatedMarquee,
   stopSimulatedMarquee,
@@ -156,6 +157,52 @@ assert.equal(
   publicError({ code: 'INTERNAL', message: 'Invalid prisma.bet.create invocation' }, 'fallback'),
   '遊戲結算暫時失敗，請稍後再試',
 );
+
+const terminalWin = {
+  view: [[1]],
+  action: 'freeSpin',
+  freeGameCount: 0,
+  currentTimes: 16,
+  femaleTotemLevel: 0,
+  maleTotemLevel: 0,
+  winSymbols: [{ symbol: 9, winnings: 2.5, symbolPos: [0] }],
+  timesSymbols: [{ symbol: 10, symbolPos: 0, times: 500, lock: 0 }],
+  totalWinnings: 367.5,
+};
+const malformedTerminalWoman = {
+  view: [[18]],
+  action: 'freeSpin',
+  freeGameCount: 0,
+  currentTimes: 16,
+  femaleTotemLevel: 1,
+  maleTotemLevel: 0,
+  winSymbols: [{ symbol: 18, winnings: 0, symbolPos: [0] }],
+  timesSymbols: [{ symbol: 13, symbolPos: 0, times: 2, lock: 2 }],
+  totalWinnings: 367.5,
+};
+const terminalSettlement = {
+  view: [[2]],
+  action: 'freeSpin',
+  freeGameCount: 0,
+  currentTimes: 16,
+  femaleTotemLevel: 0,
+  maleTotemLevel: 0,
+  winSymbols: [],
+  timesSymbols: [{ symbol: 13, symbolPos: 0, times: 2, lock: 2 }],
+  roundWinnings: 5190,
+  totalWinnings: 5555,
+};
+const repairedTerminal = repairTerminalFemaleGuarantee([
+  terminalWin,
+  malformedTerminalWoman,
+  terminalSettlement,
+]);
+assert.equal(repairedTerminal.length, 2);
+assert.equal(repairedTerminal[0], terminalWin);
+assert.equal(repairedTerminal[1].totalWinnings, 5555);
+assert.deepEqual(structuredClone(repairedTerminal[1].view), terminalWin.view);
+assert.deepEqual(structuredClone(repairedTerminal[1].timesSymbols), terminalWin.timesSymbols);
+assert.deepEqual(structuredClone(repairedTerminal[1].winSymbols), []);
 
 const referenceNow = 1_800_000_000_000;
 const marqueeMessages = Array.from({ length: 64 }, (_, sequence) =>
@@ -183,14 +230,18 @@ const simulatedSocket = {
 };
 const timerCountBeforeMarquee = longTimers.length;
 assert.equal(startSimulatedMarquee(simulatedSocket), true);
-const firstMarqueeTimer = longTimers.slice(timerCountBeforeMarquee).find((timer) => timer.delay === 2500);
+const firstMarqueeTimer = longTimers
+  .slice(timerCountBeforeMarquee)
+  .find((timer) => timer.delay === 2500);
 assert.ok(firstMarqueeTimer);
 firstMarqueeTimer.callback();
 assert.equal(simulatedNotifications.length, 1);
 assert.equal(simulatedNotifications[0].event, 'notify');
 assert.equal(simulatedNotifications[0].payload.data.simulated, true);
 assert.ok(
-  longTimers.slice(timerCountBeforeMarquee + 1).some((timer) => timer.delay >= 5000 && timer.delay < 7500),
+  longTimers
+    .slice(timerCountBeforeMarquee + 1)
+    .some((timer) => timer.delay >= 5000 && timer.delay < 7500),
 );
 stopSimulatedMarquee(simulatedSocket);
 assert.equal(simulatedSocket.simulatedMarqueeTimer, 0);
@@ -240,8 +291,14 @@ assert.equal(applyTableReferenceStats(referenceView, referenceNow), true);
 assert.equal(referenceItem.tableVO.today.bet, referenceView.detail.todayBet);
 assert.equal(referenceItem.tableVO.today.win, referenceView.detail.todayWin);
 assert.deepEqual(structuredClone(referenceView.detail.mgCounts), referenceStats.mgCounts);
-assert.equal(referenceItem.tableVO.status, machineHasSimulatedPlayer(45, referenceNow) ? 'Full' : 'Empty');
-assert.equal(referenceItem.tableVO.user?.simulated ?? false, machineHasSimulatedPlayer(45, referenceNow));
+assert.equal(
+  referenceItem.tableVO.status,
+  machineHasSimulatedPlayer(45, referenceNow) ? 'Full' : 'Empty',
+);
+assert.equal(
+  referenceItem.tableVO.user?.simulated ?? false,
+  machineHasSimulatedPlayer(45, referenceNow),
+);
 
 const currentPlayer = { userId: 'real-player' };
 const currentReferenceItem = {
@@ -801,6 +858,56 @@ await new Promise((resolve) => {
 assert.deepEqual(JSON.parse(requests.at(-1).options.body), {
   event: 'closeSpin',
   data: { spinId: 'resume-one' },
+});
+assert.equal(readActiveSpin(), null);
+
+storage.setItem(
+  'bg.seth2.active-spin',
+  JSON.stringify({ spinId: 'resume-terminal-lock', cursor: 25, totalViews: 27, durable: true }),
+);
+responseQueue.push({
+  ...structuredClone(response),
+  isResuming: true,
+  resumeKind: 'feature',
+  resumeCursor: 24,
+  resumeTotalViews: 27,
+  engine: {
+    spinId: 'resume-terminal-lock',
+    gameState: [terminalWin, malformedTerminalWoman, terminalSettlement].map((state) => ({
+      ...structuredClone(state),
+      spinId: 'resume-terminal-lock',
+    })),
+  },
+});
+const resumedTerminalLock = await new Promise((resolve) => {
+  socket.emit('initial', {}, resolve);
+});
+assert.equal(resumedTerminalLock.engine.gameState.length, 2);
+assert.equal(resumedTerminalLock.resumeCursor, 24);
+assert.equal(resumedTerminalLock.resumeTotalViews, 26);
+assert.deepEqual(
+  resumedTerminalLock.engine.gameState.map((state) => [
+    state.currentView,
+    state.totalViews,
+    state.totalWinnings,
+  ]),
+  [
+    [0, 2, 367.5],
+    [1, 2, 5555],
+  ],
+);
+assert.deepEqual(structuredClone(readActiveSpin()), {
+  spinId: 'resume-terminal-lock',
+  cursor: 24,
+  totalViews: 26,
+  durable: true,
+});
+responseQueue.push({
+  status: 200,
+  platform: { player: { balance: { amount: 5_562.61 } } },
+});
+await new Promise((resolve) => {
+  socket.emit('closeSpin', {}, resolve);
 });
 assert.equal(readActiveSpin(), null);
 

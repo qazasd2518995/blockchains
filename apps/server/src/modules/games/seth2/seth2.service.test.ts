@@ -20,6 +20,7 @@ import {
   machineList,
   mergeSeth2PlayerSettings,
   normalizeFemaleLockAccounting,
+  reserveSeth2AwakeningWindow,
   settlementSession,
   splitSeth2FeatureFactor,
   SETH2_DEFERRED_PAYOUT_SEQUENCE_VERSION,
@@ -283,6 +284,26 @@ describe('Seth2 controlled result selection', () => {
     expect([...winningRoundCounts].sort()).toEqual([5, 6, 7, 8, 9]);
   });
 
+  it('reserves a three-game zero window without changing the controlled payout', () => {
+    for (const target of [0, 197, 397, 19_997, 80_997]) {
+      for (let entropy = 0; entropy < 1_000; entropy += 1) {
+        const factors = splitSeth2FeatureFactor(target, 'awakening_free', entropy);
+        if (!factors) continue;
+        const reserved = reserveSeth2AwakeningWindow(factors, entropy);
+        expect(reserved.reduce((total, factor) => total + factor, 0)).toBe(target);
+        expect(reserved.filter((factor) => factor > 0).sort((a, b) => a - b)).toEqual(
+          factors.filter((factor) => factor > 0).sort((a, b) => a - b),
+        );
+        expect(
+          reserved.some(
+            (factor, index) =>
+              index <= 12 && factor === 0 && reserved[index + 1] === 0 && reserved[index + 2] === 0,
+          ),
+        ).toBe(true);
+      }
+    }
+  });
+
   it.each([
     [200, 10, 2_000],
     [500, 1.5, 750],
@@ -337,6 +358,23 @@ describe('Seth2 controlled result selection', () => {
           (round) =>
             round.returnData.type17_mul_list.length > 0 ||
             round.returnData.type18_start_mul_list.length > 0,
+        ),
+      ).toBe(true);
+      const guaranteedWomanIndex = run.rounds.findIndex(
+        (round) =>
+          round.payoutFactor === 0 &&
+          round.returnData.list.some((cascade) => cascade.remove_type.includes(18)),
+      );
+      if (guaranteedWomanIndex >= 0) {
+        expect(guaranteedWomanIndex).toBeLessThanOrEqual(12);
+        expect(run.rounds[guaranteedWomanIndex]!.returnData.list).toHaveLength(1);
+        expect(run.rounds[guaranteedWomanIndex + 1]!.returnData.type18_mul_count).toBe(1);
+      }
+      expect(
+        run.rounds.every((round) =>
+          round.returnData.list.every(
+            (cascade, cascadeIndex) => cascadeIndex === 0 || cascade.start_data.length === 0,
+          ),
         ),
       ).toBe(true);
     },
@@ -474,6 +512,131 @@ describe('Seth2 three buy-feature contracts', () => {
     expect(states.every((state) => state.startFreeGame === false)).toBe(true);
     expect(states.at(-1)!.totalWinnings).toBe(outcome.returnData.total_gold);
     expect(outcome.returnData.total_gold).toBe(baseBet * 5_000);
+  });
+
+  it('never starts a woman lock that overlaps another lock or outlives the feature', () => {
+    let womanTriggers = 0;
+    for (let runIndex = 0; runIndex < 2_000; runIndex += 1) {
+      const entry = seth2BuyFeatureEntry(
+        `safe-woman-entry-${runIndex}`,
+        'client',
+        runIndex,
+        'awakening',
+        baseBet,
+      );
+      const runSeeds = Array.from({ length: 100 }, (_, index) => ({
+        serverSeedId: `safe-woman-${runIndex}-${index}`,
+        serverSeed: `safe-woman-seed-${runIndex}`,
+        serverSeedHash: 'hash',
+        clientSeed: 'client',
+        nonce: index + 100,
+      }));
+      const run = generateFeatureRun({
+        entryOutcome: entry,
+        seeds: runSeeds,
+        baseBet,
+        buying: true,
+        featureIndex: 1,
+        featureMode: 'awakening',
+      });
+
+      for (const round of run.rounds) {
+        const triggersWoman = round.returnData.list.some((cascade) =>
+          cascade.remove_type.includes(18),
+        );
+        if (!triggersWoman) continue;
+        womanTriggers += 1;
+        expect(round.sessionBefore.femaleLock).toBeNull();
+        expect(round.returnData.type18_mul_count).toBeLessThanOrEqual(
+          round.sessionBefore.freeSpinsRemaining,
+        );
+      }
+    }
+    expect(womanTriggers).toBeGreaterThan(500);
+  });
+
+  it('moves male split and upgrade pointers together with a displaced multiplier ball', () => {
+    let outcome: ReturnType<typeof seth2SpinForFactor> | null = null;
+    for (let nonce = 0; nonce < 2_000; nonce += 1) {
+      const candidate = seth2SpinForFactor(
+        'locked-male-pointer',
+        'client',
+        nonce,
+        baseBet,
+        400,
+        'awakening_free',
+      );
+      if (candidate.returnData.type17_mul_list.length > 0) {
+        outcome = candidate;
+        break;
+      }
+    }
+    expect(outcome).not.toBeNull();
+    const source = { ...outcome!.returnData.type17_beishu! };
+    const sourceCode = Number(source.code);
+    const lockedValue = source.mul === 2 ? 10 : 2;
+    applyFemaleLockState(outcome!.returnData, {
+      cells: [{ type: 10, mul: lockedValue, mul_type: 1, code: sourceCode }],
+      gamesRemaining: 2,
+    });
+
+    const movedCode = Number(outcome!.returnData.type17_beishu!.code);
+    expect(movedCode).not.toBe(sourceCode);
+    expect(outcome!.returnData.list[0]!.start_data[movedCode]).toMatchObject({
+      type: 10,
+      mul: source.mul,
+    });
+    const states = seth2SourceGameStates(outcome!.returnData, {
+      action: 'freeSpin',
+      spinId: 'locked-male-pointer',
+      totalStake: baseBet,
+      freeGameCount: 10,
+      featureWinningsBefore: 0,
+      isGoldenFg: true,
+    });
+    const maleState = states.find((state) => state.maleTotemLevel > 0)!;
+    expect(maleState.splitList[0]!.from).toBe(movedCode);
+    expect(
+      maleState.timesSymbols.find((entry) => entry.symbolPos === movedCode)?.times,
+    ).toBe(source.mul);
+  });
+
+  it('keeps every displayed feature subtotal exact to the cent', () => {
+    for (let runIndex = 0; runIndex < 200; runIndex += 1) {
+      const entry = seth2BuyFeatureEntry(
+        `cent-entry-${runIndex}`,
+        'client',
+        runIndex,
+        'standard',
+        baseBet,
+      );
+      const runSeeds = Array.from({ length: 100 }, (_, index) => ({
+        serverSeedId: `cent-${runIndex}-${index}`,
+        serverSeed: `cent-seed-${runIndex}`,
+        serverSeedHash: 'hash',
+        clientSeed: 'client',
+        nonce: index + 100,
+      }));
+      const run = generateFeatureRun({
+        entryOutcome: entry,
+        seeds: runSeeds,
+        baseBet,
+        buying: true,
+        featureIndex: 0,
+        featureMode: 'standard',
+      });
+      let cumulativeFactor = new Prisma.Decimal(String(entry.payoutFactor));
+      for (const round of run.rounds) {
+        const expected = Number(
+          new Prisma.Decimal(String(baseBet))
+            .mul(cumulativeFactor)
+            .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
+            .toFixed(2),
+        );
+        expect(round.featureWinningsBefore).toBe(expected);
+        cumulativeFactor = cumulativeFactor.plus(String(round.payoutFactor));
+      }
+    }
   });
 });
 

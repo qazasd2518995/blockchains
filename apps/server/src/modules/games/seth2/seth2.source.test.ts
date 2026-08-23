@@ -313,6 +313,51 @@ describe('Seth 2 v1.1.5 source contract', () => {
     expect(states[2]).toMatchObject({ roundWinnings: 160, totalWinnings: 166, winSymbols: [] });
   });
 
+  it('inserts a terminal collection view before any later complete board', () => {
+    const first = Array.from({ length: 30 }, () => cell(2));
+    for (let position = 0; position < 8; position += 1) first[position] = cell(9);
+    first[20] = cell(10, 10, 1);
+    const unrelatedNextBoard = Array.from({ length: 30 }, (_, position) =>
+      cell((position % 8) + 1),
+    );
+    const data = sourceFixture({
+      list: [
+        {
+          ...sourceFixture().list[0]!,
+          start_data: first,
+          remove_type: [9],
+          round_data: Array.from({ length: 8 }, () => cell(3)),
+          scoreList: [5],
+          total_mul: 10,
+          score: 5,
+          total_gold: 50,
+        },
+        {
+          ...sourceFixture().list[0]!,
+          start_data: unrelatedNextBoard,
+          total_gold: 50,
+        },
+      ],
+      score: 5,
+      total_gold: 50,
+    });
+
+    const states = seth2SourceGameStates(data, SOURCE_OPTIONS);
+    expect(states).toHaveLength(3);
+    expect(states[0]!.winSymbols.length).toBeGreaterThan(0);
+    expect(states[1]).toMatchObject({
+      winSymbols: [],
+      roundWinnings: 50,
+      totalWinnings: 50,
+    });
+    expect(states[2]).toMatchObject({
+      winSymbols: [],
+      roundWinnings: 0,
+      totalWinnings: 50,
+    });
+    expect(states[2]!.view).not.toEqual(states[1]!.view);
+  });
+
   it('renders controlled super-main outcomes as real tumble/collect cycles with a 500x object', () => {
     for (const factor of [0, 20, 500, 5_000]) {
       const outcome = seth2SuperMainSpinForFactor('source-super', 'client', factor, 2, factor);

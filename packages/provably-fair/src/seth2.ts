@@ -1172,8 +1172,11 @@ function hasCharacterSkill(outcome: Seth2Outcome): boolean {
 
 /**
  * The paid Awakening feature guarantees one character event even when every
- * naturally generated free game misses one. Append a zero-value woman event
- * to the final spin so the presentation guarantee cannot change settlement.
+ * naturally generated free game misses one. Replace an otherwise empty free
+ * game with a zero-value woman event so the presentation guarantee cannot
+ * change settlement. The event must be its own spin: appending a fresh 30-cell
+ * board after another cascade makes the source client treat two unrelated
+ * boards as one tumble and leaves its symbol animation waiting forever.
  */
 export function addSeth2GuaranteedAwakeningSkill(
   outcome: Seth2Outcome,
@@ -1181,7 +1184,7 @@ export function addSeth2GuaranteedAwakeningSkill(
   clientSeed: string,
   nonce: number,
 ): Seth2Outcome {
-  if (hasCharacterSkill(outcome)) return outcome;
+  if (hasCharacterSkill(outcome) || outcome.payoutFactor !== 0) return outcome;
 
   const rng = randomSource(serverSeed, `${clientSeed}:seth2-awakening-guarantee`, nonce);
   const multiplier = cell(10, 2, 1);
@@ -1194,22 +1197,24 @@ export function addSeth2GuaranteedAwakeningSkill(
   ];
   shuffle(startData, rng);
   const multiplierCode = startData.indexOf(multiplier);
-  const previousRound = outcome.returnData.list.at(-1);
-  if (previousRound) previousRound.is_over = 0;
-  outcome.returnData.list.push({
-    start_data: startData,
-    remove_type: [18],
-    round_data: safeFill(3, new Set([18]), rng),
-    scoreList: [0],
-    upgrade_mul_list: [],
-    total_mul: 0,
-    score: 0,
-    total_gold: outcome.returnData.total_gold,
-    remove_count: outcome.returnData.list.length,
-    is_over: 1,
-  });
+  outcome.returnData.list = [
+    {
+      start_data: startData,
+      remove_type: [18],
+      round_data: safeFill(3, new Set([18]), rng),
+      scoreList: [0],
+      upgrade_mul_list: [],
+      total_mul: 0,
+      score: 0,
+      total_gold: 0,
+      remove_count: 0,
+      is_over: 1,
+    },
+  ];
   outcome.returnData.type18_start_mul_list = [animatedMultiplierCell(multiplier, multiplierCode)];
   outcome.returnData.type18_mul_count = 2;
+  outcome.returnData.score = 0;
+  outcome.returnData.total_gold = 0;
   return outcome;
 }
 

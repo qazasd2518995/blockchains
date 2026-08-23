@@ -368,6 +368,7 @@ export function seth2SourceGameStates(
   );
   let accumulatedBaseWinnings = 0;
   let settledSuperWinnings = 0;
+  let settledEmbeddedWinnings = 0;
   let superGameIndex = 0;
   const maleTriggerRound = skillTriggerRound(data, 17);
   const femaleTriggerRound = skillTriggerRound(data, 18);
@@ -385,6 +386,58 @@ export function seth2SourceGameStates(
       round.female_mul_count ?? (roundIndex === femaleTriggerRound ? data.type18_mul_count : 0);
     const isMaleTrigger = maleCopies.length > 0 && round.remove_type.includes(17);
     const isFemaleTrigger = femaleStartCells.length > 0 && round.remove_type.includes(18);
+    if (round.start_data.length === 30 && states.at(-1)?.winSymbols.length) {
+      // A complete board starts a new game, never another tumble. If malformed
+      // or legacy data places it directly after a winning view, finish the old
+      // multiplier collection first. Without this boundary v1.1.5 removes
+      // nodes from one board and waits for those same nodes on an unrelated
+      // board, leaving the spin flow permanently open.
+      const previousRound = data.list[roundIndex - 1]!;
+      const previousFemaleActive = femaleTriggerRound >= 0 && femaleTriggerRound < roundIndex;
+      const previousLockedCells =
+        previousRound.locked_mul_list ??
+        (previousFemaleActive ? data.type18_start_mul_list : []);
+      const previousLockCount =
+        previousRound.locked_mul_count ?? (previousFemaleActive ? data.type18_mul_count : 0);
+      const boundaryTimes = timesSymbols(
+        board,
+        previousLockCount,
+        previousLockedCells,
+        originalToCurrent,
+      );
+      const collected = money(previousRound.total_gold);
+      settledEmbeddedWinnings = collected;
+      states.push({
+        view: sourceView(board),
+        spinId: options.spinId,
+        roundWinnings: collected,
+        maleTotemLevel: 0,
+        totalWinnings: money(
+          options.featureWinningsBefore + settledSuperWinnings + settledEmbeddedWinnings,
+        ),
+        totalViews: 0,
+        action: options.action,
+        startFreeGame: false,
+        currentTimes: sourceCurrentTimes(data, options.action, true),
+        currentView: states.length,
+        splitList: [],
+        newTimesSymbols: boundaryTimes.filter((entry) =>
+          transitionFromPrevious ? transitionFromPrevious.newPositions.has(entry.symbolPos) : true,
+        ),
+        timesUpgrade: [],
+        timesSymbols: boundaryTimes,
+        isJp: sourceJackpotType(data.JPtype),
+        noWinReward: 0,
+        winSymbols: [],
+        posTransform: [],
+        superMainGameCount: 0,
+        femaleTotemLevel: 0,
+        freeGameCount: options.freeGameCount,
+        isGoldenFg: options.isGoldenFg,
+        totalStake: options.totalStake,
+      });
+      accumulatedBaseWinnings = 0;
+    }
     if (round.start_data.length === 30) {
       if (options.action === 'superSpin') accumulatedBaseWinnings = 0;
       board = round.start_data.map((cell) => ({ ...cell }));
@@ -401,6 +454,7 @@ export function seth2SourceGameStates(
     const displayedTotalWinnings = money(
       options.featureWinningsBefore +
         (options.action === 'superSpin' ? settledSuperWinnings : 0) +
+        settledEmbeddedWinnings +
         accumulatedBaseWinnings,
     );
     const roundLockedCells = isFemaleTrigger
@@ -507,7 +561,12 @@ export function seth2SourceGameStates(
         spinId: options.spinId,
         roundWinnings: collected,
         maleTotemLevel: 0,
-        totalWinnings: money(options.featureWinningsBefore + settledSuperWinnings + collected),
+        totalWinnings: money(
+          options.featureWinningsBefore +
+            settledSuperWinnings +
+            settledEmbeddedWinnings +
+            collected,
+        ),
         totalViews: 0,
         action: options.action,
         startFreeGame: false,

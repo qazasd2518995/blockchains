@@ -237,7 +237,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     }
   });
 
-  it('adds one payout-neutral awakening event when a paid feature has none', () => {
+  it('replaces an empty spin with one standalone payout-neutral awakening event', () => {
     const outcome = seth2SpinForFactor(
       'awakening-guarantee',
       'client',
@@ -253,11 +253,33 @@ describe('Storm of Seth 2 provably-fair engine', () => {
 
     expect(outcome.payoutFactor).toBe(payoutFactor);
     expect(outcome.returnData.total_gold).toBe(totalGold);
+    expect(outcome.returnData.list).toHaveLength(1);
+    expect(outcome.returnData.list[0]!.start_data).toHaveLength(SETH2_GRID_SIZE);
+    expect(outcome.returnData.list[0]!.start_data.filter((cell) => cell.type === 18)).toHaveLength(
+      3,
+    );
+    expect(outcome.returnData.list[0]!.remove_type).toEqual([18]);
     expect(outcome.returnData.type18_start_mul_list).toHaveLength(1);
     expect(outcome.returnData.type18_mul_count).toBe(2);
     expect(outcome.returnData.list.filter((round) => round.remove_type.includes(18))).toHaveLength(
       1,
     );
+  });
+
+  it('does not append a fresh presentation board after a paying cascade', () => {
+    const outcome = seth2SpinForFactor(
+      'awakening-guarantee-win',
+      'client',
+      1,
+      BET,
+      20,
+      'awakening_free',
+    );
+    const before = structuredClone(outcome.returnData);
+
+    addSeth2GuaranteedAwakeningSkill(outcome, 'awakening-guarantee-win', 'client', 1);
+
+    expect(outcome.returnData).toEqual(before);
   });
 
   it.each([

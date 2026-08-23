@@ -334,13 +334,15 @@
   }
 
   function applyStoredResumeProgress(response) {
-    var states = gameStates(response);
+    var originalStates = gameStates(response);
+    var states = repairTerminalFemaleGuarantee(originalStates);
     var spinId = responseSpinId(response);
     if (!response || !response.isResuming || !spinId || states.length === 0) return response;
     var serverCursor = Math.max(0, Math.floor(Number(response.resumeCursor) || 0));
+    var repairedViews = Math.max(0, originalStates.length - states.length);
     var totalViews = Math.max(
       states.length + serverCursor,
-      Math.floor(Number(response.resumeTotalViews) || 0),
+      Math.max(0, Math.floor(Number(response.resumeTotalViews) || 0) - repairedViews),
     );
     var active = readActiveSpin();
     var requestedCursor =
@@ -610,7 +612,56 @@
     return Array.isArray(states) ? states : [];
   }
 
+  function repairTerminalFemaleGuarantee(states) {
+    if (!Array.isArray(states) || states.length < 3) return states;
+    var previous = states[states.length - 3];
+    var trigger = states[states.length - 2];
+    var finalState = states[states.length - 1];
+    var triggerWins = trigger && trigger.winSymbols;
+    var triggerTimes = trigger && trigger.timesSymbols;
+    var malformed =
+      previous &&
+      Array.isArray(previous.winSymbols) &&
+      previous.winSymbols.length > 0 &&
+      trigger &&
+      Number(trigger.freeGameCount) === 0 &&
+      Number(trigger.femaleTotemLevel) > 0 &&
+      Array.isArray(triggerWins) &&
+      triggerWins.length > 0 &&
+      triggerWins.every(function (win) {
+        return Number(win && win.symbol) === 18 && Number(win && win.winnings) === 0;
+      }) &&
+      Array.isArray(triggerTimes) &&
+      triggerTimes.some(function (symbol) {
+        return Number(symbol && symbol.lock) > 0;
+      }) &&
+      finalState &&
+      Number(finalState.freeGameCount) === 0 &&
+      Array.isArray(finalState.winSymbols) &&
+      finalState.winSymbols.length === 0;
+    if (!malformed) return states;
+
+    // Builds deployed before the terminal-lock fix stored one bad presentation
+    // frame between the real last win and its authoritative collection view.
+    // Keep the original board/multipliers as transient client context, retain
+    // the final winnings from the server, and omit only that impossible frame.
+    var repairedFinal = Object.assign({}, finalState, {
+      view: previous.view,
+      currentTimes: previous.currentTimes,
+      femaleTotemLevel: 0,
+      maleTotemLevel: 0,
+      newTimesSymbols: [],
+      posTransform: [],
+      splitList: [],
+      timesSymbols: Array.isArray(previous.timesSymbols) ? previous.timesSymbols : [],
+      timesUpgrade: [],
+      winSymbols: [],
+    });
+    return states.slice(0, -3).concat([previous, repairedFinal]);
+  }
+
   function normalizeFeatureSequence(response, states) {
+    states = repairTerminalFemaleGuarantee(states);
     var totalViews = states.length;
     states.forEach(function (state, currentView) {
       state.currentView = currentView;
@@ -1517,6 +1568,7 @@
     normalizeUpdateSettings: normalizeUpdateSettings,
     machineReferenceStats: machineReferenceStats,
     machineHasSimulatedPlayer: machineHasSimulatedPlayer,
+    repairTerminalFemaleGuarantee: repairTerminalFemaleGuarantee,
     simulatedMarqueeMessage: simulatedMarqueeMessage,
     startSimulatedMarquee: startSimulatedMarquee,
     stopSimulatedMarquee: stopSimulatedMarquee,

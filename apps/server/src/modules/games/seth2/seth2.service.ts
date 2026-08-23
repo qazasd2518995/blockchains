@@ -1583,9 +1583,39 @@ function placeFemaleLockCells(data: Seth2ReturnData, cells: Seth2FemaleLockState
           candidate.type !== 10 &&
           !data.list[0]!.remove_type.includes(candidate.type),
       );
-      if (swapIndex >= 0) board[swapIndex] = displaced;
+      if (swapIndex >= 0) {
+        board[swapIndex] = displaced;
+        moveSeth2AnimatedCellMetadata(data, target, swapIndex);
+      }
     }
     board[target] = { ...locked };
+  }
+}
+
+/**
+ * Persistent woman-lock cells keep their original screen positions. When one
+ * lands on a newly generated multiplier, that multiplier is moved to a safe
+ * cell. Keep every animation pointer on the moved cell as well; otherwise the
+ * man's split animation (or a rare-ball upgrade) reads the locked ball at the
+ * old position and can wait on the wrong symbol node.
+ */
+function moveSeth2AnimatedCellMetadata(
+  data: Seth2ReturnData,
+  fromCode: number,
+  toCode: number,
+): void {
+  const maleSource = data.type17_beishu;
+  if (maleSource && Number(maleSource.code) === fromCode) {
+    data.type17_beishu = { ...maleSource, code: toCode };
+  }
+  for (const round of data.list) {
+    for (const upgrade of round.upgrade_mul_list) {
+      if (Number(upgrade.code) === fromCode) upgrade.code = toCode;
+    }
+    const roundMaleSource = round.male_source;
+    if (roundMaleSource && Number(roundMaleSource.code) === fromCode) {
+      round.male_source = { ...roundMaleSource, code: toCode };
+    }
   }
 }
 
@@ -1627,7 +1657,10 @@ export function advanceSession(
       betAmount: remaining > 0 ? current.betAmount : '0.00',
       multiplierBank: remaining > 0 ? input.multiplierBankAfter : 0,
       femaleLock: remaining > 0 ? input.femaleLock : null,
-      featureWinnings: remaining > 0 ? current.featureWinnings + (input.roundPayout ?? 0) : 0,
+      featureWinnings:
+        remaining > 0
+          ? addPayoutValues(current.featureWinnings, input.roundPayout ?? 0)
+          : 0,
     };
   }
   if (input.triggeredFreeSpins) {
@@ -1664,7 +1697,7 @@ export function generateFeatureRun(input: {
   featureMode: Seth2FeatureMode;
   forcedTotalFactor?: number;
 }): Seth2FeatureRun {
-  const entryPayout = moneyValue(input.baseBet * input.entryOutcome.payoutFactor);
+  const entryPayout = factorPayoutValue(input.baseBet, input.entryOutcome.payoutFactor);
   let session = advanceSession(EMPTY_SESSION, {
     buying: input.buying,
     featureIndex: input.featureIndex,
@@ -1678,7 +1711,7 @@ export function generateFeatureRun(input: {
     femaleLock: null,
     roundPayout: entryPayout,
   });
-  const forcedFactors =
+  let forcedFactors =
     input.forcedTotalFactor === undefined
       ? null
       : splitSeth2FeatureFactor(
@@ -1692,6 +1725,14 @@ export function generateFeatureRun(input: {
         );
   if (input.forcedTotalFactor !== undefined && !forcedFactors) {
     throw new ApiError('INTERNAL', '控制結果無法生成一致的免費遊戲動畫');
+  }
+  if (
+    forcedFactors &&
+    input.buying &&
+    input.featureIndex === 1 &&
+    input.featureMode === 'awakening'
+  ) {
+    forcedFactors = reserveSeth2AwakeningWindow(forcedFactors, input.seeds[0]?.nonce ?? 0);
   }
 
   const rounds: Seth2FeatureRound[] = [];
@@ -1732,16 +1773,54 @@ export function generateFeatureRun(input: {
             true,
             false,
           );
+    const triggersWoman = outcome.returnData.list.some((cascade) =>
+      cascade.remove_type.includes(18),
+    );
+    const unsafeWomanTrigger =
+      triggersWoman &&
+      (session.femaleLock !== null ||
+        outcome.returnData.type18_mul_count > session.freeSpinsRemaining);
+    if (unsafeWomanTrigger) {
+      // One lock cannot safely replace another in v1.1.5, and a newly selected
+      // duration must fit in the games that are still available. Re-render the
+      // exact same payout without a character event so settlement/RTP remains
+      // unchanged while the source animation always reaches its terminal view.
+      const safeOutcome = seth2SpinForFactor(
+        seed.serverSeed,
+        seed.clientSeed,
+        seed.nonce,
+        input.baseBet,
+        outcome.payoutFactor,
+        mode,
+        effectiveBank,
+        lockedContribution > 0,
+        false,
+        false,
+      );
+      if (safeOutcome.payoutFactor !== outcome.payoutFactor) {
+        throw new ApiError('INTERNAL', '女性鎖球結果無法生成一致的安全動畫');
+      }
+      outcome = safeOutcome;
+    }
     const currentHasAwakeningSkill =
       outcome.returnData.type17_mul_list.length > 0 ||
       outcome.returnData.type18_start_mul_list.length > 0;
+    const controlledLockWindow = forcedFactors?.slice(rounds.length, rounds.length + 3);
+    const canFinishControlledLockWithoutChangingPayout =
+      !controlledLockWindow ||
+      (controlledLockWindow.length === 3 && controlledLockWindow.every((current) => current === 0));
     const mustGuaranteePaidAwakening =
       input.buying &&
       input.featureIndex === 1 &&
       input.featureMode === 'awakening' &&
       !awakeningSkillSeen &&
       !currentHasAwakeningSkill &&
-      session.freeSpinsRemaining === 1 &&
+      outcome.payoutFactor === 0 &&
+      canFinishControlledLockWithoutChangingPayout &&
+      // A level-one woman lock needs a locked follow-up and then a clean final
+      // game. Injecting it on the terminal spin creates a visually impossible
+      // lock and deadlocks v1.1.5 before closeSpin releases the deferred payout.
+      session.freeSpinsRemaining >= 3 &&
       outcome.returnData.addGameCiShu === 0;
     if (mustGuaranteePaidAwakening) {
       outcome = addSeth2GuaranteedAwakeningSkill(
@@ -1768,7 +1847,7 @@ export function generateFeatureRun(input: {
       extraSpins: outcome.returnData.addGameCiShu,
       multiplierBankAfter: outcome.returnData.multiplierBankAfter,
       femaleLock,
-      roundPayout: moneyValue(input.baseBet * outcome.payoutFactor),
+      roundPayout: factorPayoutValue(input.baseBet, outcome.payoutFactor),
     });
     applyFeatureState(
       outcome.returnData,
@@ -1790,6 +1869,44 @@ export function generateFeatureRun(input: {
     throw new ApiError('INVALID_ACTION', '免費遊戲局數超過安全上限');
   }
   return { rounds, totalPayoutFactor, finalSession: session };
+}
+
+export function reserveSeth2AwakeningWindow(factors: readonly number[], entropy = 0): number[] {
+  const result = [...factors];
+  if (result.length < 3) return result;
+  const starts = Array.from({ length: result.length - 2 }, (_, index) => index);
+  const preferred = Math.abs(Math.trunc(entropy)) % starts.length;
+  starts.sort((left, right) => {
+    const leftWins = result.slice(left, left + 3).filter((factor) => factor !== 0).length;
+    const rightWins = result.slice(right, right + 3).filter((factor) => factor !== 0).length;
+    if (leftWins !== rightWins) return leftWins - rightWins;
+    return (
+      ((left - preferred + starts.length) % starts.length) -
+      ((right - preferred + starts.length) % starts.length)
+    );
+  });
+  const windowStart = starts[0]!;
+  const displaced: number[] = [];
+  for (let index = windowStart; index < windowStart + 3; index += 1) {
+    if (result[index] !== 0) displaced.push(result[index]!);
+    result[index] = 0;
+  }
+  const destinationStart = windowStart + 3;
+  const destinations = result
+    .map((factor, index) => ({ factor, index }))
+    .filter(
+      ({ factor, index }) => factor === 0 && (index < windowStart || index >= windowStart + 3),
+    )
+    .sort(
+      (left, right) =>
+        ((left.index - destinationStart + result.length) % result.length) -
+        ((right.index - destinationStart + result.length) % result.length),
+    );
+  if (destinations.length < displaced.length) return [...factors];
+  displaced.forEach((factor, index) => {
+    result[destinations[index]!.index] = factor;
+  });
+  return result;
 }
 
 export function splitSeth2FeatureFactor(
@@ -1989,8 +2106,22 @@ function featureRunGameStates(run: Seth2FeatureRun, spinId: string, totalStake: 
   );
 }
 
-function moneyValue(value: number): number {
-  return Math.floor((value + Number.EPSILON) * 100) / 100;
+function factorPayoutValue(baseBet: number, factor: number): number {
+  return Number(
+    new Prisma.Decimal(String(baseBet))
+      .mul(new Prisma.Decimal(String(factor)))
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
+      .toFixed(2),
+  );
+}
+
+function addPayoutValues(left: number, right: number): number {
+  return Number(
+    new Prisma.Decimal(String(left))
+      .plus(new Prisma.Decimal(String(right)))
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN)
+      .toFixed(2),
+  );
 }
 
 function payoutForFactor(baseAmount: Prisma.Decimal, factor: number): Prisma.Decimal {
