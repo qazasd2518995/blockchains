@@ -580,40 +580,43 @@ describe('Seth 2 v1.1.5 source contract', () => {
     expect(states[1]!.splitList).toEqual([]);
   });
 
-  it.each([
-    [2, 1],
-    [4, 2],
-    [6, 3],
-  ] as const)('maps a %i-game lock to female animation level %i', (duration, level) => {
-    const start = Array.from({ length: 30 }, () => cell(2));
-    const locked = [cell(10, 10, 1, 0), cell(10, 15, 1, 1)];
-    start[0] = cell(10, 10, 1);
-    start[1] = cell(10, 15, 1);
-    start[10] = cell(18);
-    start[11] = cell(18);
-    start[12] = cell(18);
-    const data = sourceFixture({
-      list: [
-        {
-          ...sourceFixture().list[0]!,
-          start_data: start,
-          remove_type: [18],
-          round_data: [cell(4), cell(5), cell(6)],
-          scoreList: [1],
-          total_mul: 10,
-          score: 1,
-          total_gold: 1,
-        },
-      ],
-      type18_start_mul_list: locked,
-      type18_mul_count: duration,
-      score: 1,
-      total_gold: 1,
-    });
-    const first = seth2SourceGameStates(data, SOURCE_OPTIONS)[0]!;
-    expect(first.femaleTotemLevel).toBe(level);
-    expect(first.timesSymbols.filter((entry) => entry.lock === duration)).toHaveLength(2);
-  });
+  it.each([1, 2, 3] as const)(
+    'maps %i selected woman-lock balls to the matching animation level',
+    (selectedCount) => {
+      const start = Array.from({ length: 30 }, () => cell(2));
+      const locked = [cell(10, 10, 1, 0), cell(10, 15, 1, 1), cell(10, 25, 1, 2)].slice(
+        0,
+        selectedCount,
+      );
+      locked.forEach((current, index) => {
+        start[index] = cell(10, current.mul, 1);
+      });
+      start[10] = cell(18);
+      start[11] = cell(18);
+      start[12] = cell(18);
+      const data = sourceFixture({
+        list: [
+          {
+            ...sourceFixture().list[0]!,
+            start_data: start,
+            remove_type: [18],
+            round_data: [cell(4), cell(5), cell(6)],
+            scoreList: [1],
+            total_mul: 10,
+            score: 1,
+            total_gold: 1,
+          },
+        ],
+        type18_start_mul_list: locked,
+        type18_mul_count: 6,
+        score: 1,
+        total_gold: 1,
+      });
+      const first = seth2SourceGameStates(data, SOURCE_OPTIONS)[0]!;
+      expect(first.femaleTotemLevel).toBe(selectedCount);
+      expect(first.timesSymbols.filter((entry) => entry.lock === 6)).toHaveLength(selectedCount);
+    },
+  );
 
   it('fires male and female skills on their actual cascade instead of forcing the first view', () => {
     const maleStart = Array.from({ length: 30 }, () => cell(2));
@@ -671,7 +674,7 @@ describe('Seth 2 v1.1.5 source contract', () => {
     const femaleStates = seth2SourceGameStates(femaleData, SOURCE_OPTIONS);
     expect(femaleStates[0]!.femaleTotemLevel).toBe(0);
     expect(femaleStates[0]!.timesSymbols[0]!.lock).toBe(0);
-    expect(femaleStates[1]!.femaleTotemLevel).toBe(3);
+    expect(femaleStates[1]!.femaleTotemLevel).toBe(1);
     expect(femaleStates[1]!.timesSymbols[0]!.lock).toBe(6);
   });
 

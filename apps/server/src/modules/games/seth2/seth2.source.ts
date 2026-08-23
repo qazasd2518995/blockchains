@@ -395,8 +395,7 @@ export function seth2SourceGameStates(
       const previousRound = data.list[roundIndex - 1]!;
       const previousFemaleActive = femaleTriggerRound >= 0 && femaleTriggerRound < roundIndex;
       const previousLockedCells =
-        previousRound.locked_mul_list ??
-        (previousFemaleActive ? data.type18_start_mul_list : []);
+        previousRound.locked_mul_list ?? (previousFemaleActive ? data.type18_start_mul_list : []);
       const previousLockCount =
         previousRound.locked_mul_count ?? (previousFemaleActive ? data.type18_mul_count : 0);
       const boundaryTimes = timesSymbols(
@@ -502,7 +501,9 @@ export function seth2SourceGameStates(
       ({ upgrade: _upgrade, ...sourceUpgrade }) => sourceUpgrade,
     );
     const maleLevel = isMaleTrigger ? totemLevel(maleCopies.length) : 0;
-    const femaleLevel = isFemaleTrigger ? totemLevel(femaleDuration) : 0;
+    // Female level is the number of selected balls (1 / 2 / 3), not the lock
+    // lifetime. Every level now shares the same five-game follow-up countdown.
+    const femaleLevel = isFemaleTrigger ? Math.min(3, femaleStartCells.length) : 0;
     states.push({
       view: sourceView(board),
       spinId: options.spinId,

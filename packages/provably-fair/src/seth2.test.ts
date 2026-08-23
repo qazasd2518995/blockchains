@@ -472,9 +472,9 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(finalMultiplier(outcome!)).toBe(round.total_mul);
   });
 
-  it('female skill locks 1, 2 or 3 selected balls for a 2, 4 or 6-game sequence', () => {
-    const durations = new Set<number>();
-    for (let nonce = 0; nonce < 4_000 && durations.size < 3; nonce += 1) {
+  it('female skill locks 1, 2 or 3 selected balls for five complete follow-up games', () => {
+    const levels = new Set<number>();
+    for (let nonce = 0; nonce < 4_000 && levels.size < 3; nonce += 1) {
       const outcome = seth2SpinForFactor(
         'female-skill-levels',
         'client',
@@ -487,9 +487,9 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       if (!round.remove_type.includes(18)) continue;
       const locked = outcome.returnData.type18_start_mul_list;
       const available = round.start_data.filter((current) => current.type === 10);
-      durations.add(outcome.returnData.type18_mul_count);
-      expect([2, 4, 6]).toContain(outcome.returnData.type18_mul_count);
-      expect(locked).toHaveLength(outcome.returnData.type18_mul_count / 2);
+      levels.add(locked.length);
+      expect(outcome.returnData.type18_mul_count).toBe(6);
+      expect([1, 2, 3]).toContain(locked.length);
       const availableCodes = new Set(available.map((current) => round.start_data.indexOf(current)));
       expect(locked.every((cell) => availableCodes.has(Number(cell.code)))).toBe(true);
       expect(locked.every((cell) => isSeth2MultiplierValue(cell.mul))).toBe(true);
@@ -498,7 +498,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       expect(round.scoreList[1]).toBe(money((BET * SETH2_SKILL_SYMBOL_PAY) / 20));
       expect(finalMultiplier(outcome)).toBe(round.total_mul);
     }
-    expect(durations).toEqual(new Set([2, 4, 6]));
+    expect(levels).toEqual(new Set([1, 2, 3]));
   });
 
   it('limits both character skills to awakening mode', () => {

@@ -152,7 +152,8 @@ interface MaleMultiplierPlan extends MultiplierPlan {
 
 interface FemaleMultiplierPlan extends MultiplierPlan {
   locked: Seth2Cell[];
-  lockDuration: 2 | 4 | 6;
+  /** Trigger view plus five complete follow-up games. */
+  lockDuration: 6;
 }
 
 const TARGET_RTP = 0.9689;
@@ -494,9 +495,10 @@ function buildLoss(
   rng: Seth2RandomSource,
   mode: Seth2SpinMode = 'base',
   multiplierBank = 0,
+  allowMultiplier = true,
 ): Seth2Outcome {
   const multiplierCells: Seth2Cell[] = [];
-  if (rng() < NON_WINNING_MULTIPLIER_PROBABILITY) {
+  if (allowMultiplier && rng() < NON_WINNING_MULTIPLIER_PROBABILITY) {
     const count = rng() < 0.12 ? 2 : 1;
     for (let index = 0; index < count; index += 1) {
       const multiplier = pickNonWinningMultiplier(rng);
@@ -733,17 +735,15 @@ function femaleMultiplierPlan(
   maxParts: number,
   rng: Seth2RandomSource,
 ): FemaleMultiplierPlan | null {
-  const durationRoll = rng();
+  const levelRoll = rng();
   const values = splitSeth2MultiplierTotal(total, maxParts);
   if (!values || values.length === 0) return null;
 
-  // Captured v1.1.5 responses tie the woman's three levels to both the number
-  // of selected multiplier objects and their lifetime: 1/2/3 balls for
-  // 2/4/6 games.  Do not persist every visible ball; unselected balls keep a
-  // zero lock value in the official response.
-  const requestedLevel = durationRoll < 0.2 ? 1 : durationRoll < 0.85 ? 2 : 3;
+  // The woman's three levels choose 1 / 2 / 3 multiplier objects. Level and
+  // lifetime are independent: every activation keeps its selected objects for
+  // five complete follow-up games. Unselected balls keep a zero lock value.
+  const requestedLevel = levelRoll < 0.2 ? 1 : levelRoll < 0.85 ? 2 : 3;
   const level = Math.min(requestedLevel, values.length, 3) as 1 | 2 | 3;
-  const lockDuration = (level * 2) as 2 | 4 | 6;
 
   const upgradeIndex =
     values.length > 0 && rng() < 0.25
@@ -764,7 +764,7 @@ function femaleMultiplierPlan(
       cells.map((current) => ({ ...current })),
       rng,
     ).slice(0, level),
-    lockDuration,
+    lockDuration: 6,
   };
 }
 
@@ -941,6 +941,20 @@ export function isSeth2FactorRepresentable(
   );
 }
 
+export function isSeth2UnmultipliedFactorRepresentable(factor: number): boolean {
+  if (!Number.isFinite(factor) || factor <= 0) return false;
+  const equals = (value: number) => Math.abs(value - factor) < 1e-9;
+  if (WIN_PATTERNS.some((pattern) => equals(pattern.factor))) return true;
+  return WIN_PATTERNS.some((first) =>
+    WIN_PATTERNS.some(
+      (second) =>
+        first.type !== second.type &&
+        first.count === second.count &&
+        equals(first.factor + second.factor),
+    ),
+  );
+}
+
 function buildWin(
   bet: number,
   factor: number,
@@ -953,6 +967,7 @@ function buildWin(
   allowSkill = true,
   allowJackpot = true,
   requireSkill = false,
+  allowFemaleSkill = true,
 ): Seth2Outcome {
   const jackpot = allowJackpot ? jackpotForFactor(factor, mode) : null;
   const jackpotCells = jackpot ? jackpot.count : 0;
@@ -969,7 +984,7 @@ function buildWin(
     requiredMultiplierValue === 0 &&
     (requireSkill || rng() < 0.7)
   ) {
-    const proposedSkill = rng() < 0.5 ? 'male' : 'female';
+    const proposedSkill = allowFemaleSkill && rng() < 0.5 ? 'female' : 'male';
     const skillPlan = chooseSinglePattern(
       factor,
       SETH2_SKILL_SYMBOL_PAY / 20,
@@ -999,7 +1014,7 @@ function buildWin(
   const multiplierRoom = SETH2_GRID_SIZE - firstPattern.count - jackpotCells - (skill ? 3 : 0);
   const malePlan =
     skill === 'male' ? maleMultiplierPlan(multiplierTotal, multiplierRoom, rng) : null;
-  if (skill === 'male' && !malePlan) skill = 'female';
+  if (skill === 'male' && !malePlan) skill = allowFemaleSkill ? 'female' : null;
   const femalePlan =
     skill === 'female' ? femaleMultiplierPlan(multiplierTotal, multiplierRoom, rng) : null;
   const multiplierPlan =
@@ -1115,7 +1130,7 @@ function buildWin(
       const match = availableCodes.splice(Math.max(0, matchIndex), 1)[0];
       return animatedMultiplierCell(match?.current ?? selected, match?.code ?? -1);
     });
-    returnData.type18_mul_count = femalePlan?.lockDuration ?? 2;
+    returnData.type18_mul_count = femalePlan?.lockDuration ?? 6;
   }
   if (jackpot) {
     returnData.JPtype = jackpot.tier;
@@ -1178,6 +1193,7 @@ export function seth2SpinForFactor(
   hasPersistentMultiplier = false,
   allowSkill = true,
   allowJackpot = true,
+  allowFemaleSkill = true,
 ): Seth2Outcome {
   if (factor <= 0) {
     return applySpinFeatureMode(
@@ -1204,6 +1220,8 @@ export function seth2SpinForFactor(
       0,
       allowSkill,
       allowJackpot,
+      false,
+      allowFemaleSkill,
     );
     if (outcome.payoutFactor === factor) return applySpinFeatureMode(outcome, mode);
   }
@@ -1215,6 +1233,44 @@ export function seth2SpinForFactor(
     ),
     mode,
   );
+}
+
+export function seth2SpinForFactorWithoutMultiplier(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  bet: number,
+  factor: number,
+  mode: Seth2SpinMode,
+  multiplierBank = 0,
+): Seth2Outcome {
+  if (factor <= 0) {
+    return applySpinFeatureMode(
+      buildLoss(randomSource(serverSeed, clientSeed, nonce), mode, multiplierBank, false),
+      mode,
+    );
+  }
+  if (!isSeth2UnmultipliedFactorRepresentable(factor)) {
+    throw new Error(`Unmultiplied Seth 2 factor ${factor} is not representable`);
+  }
+  for (let attempt = 0; attempt < 256; attempt += 1) {
+    const outcome = buildWin(
+      bet,
+      factor,
+      mode,
+      randomSource(serverSeed, `${clientSeed}:seth2-no-multiplier:${factor}:${attempt}`, nonce),
+      multiplierBank,
+      true,
+      false,
+      0,
+      false,
+      false,
+    );
+    if (outcome.payoutFactor === factor && outcome.returnData.multiplierBankAdded === 0) {
+      return applySpinFeatureMode(outcome, mode);
+    }
+  }
+  throw new Error(`Unmultiplied Seth 2 factor ${factor} could not be generated`);
 }
 
 export function seth2AwakeningSpinForFactorWithSkill(
@@ -1243,7 +1299,9 @@ export function seth2AwakeningSpinForFactorWithSkill(
       false,
       true,
     );
-    if (outcome.payoutFactor === factor && hasCharacterSkill(outcome)) {
+    const stableControlledMinimum =
+      factor !== 2 || multiplierBank !== 0 || outcome.returnData.multiplierBankAdded === 4;
+    if (outcome.payoutFactor === factor && hasCharacterSkill(outcome) && stableControlledMinimum) {
       return applySpinFeatureMode(outcome, 'awakening_free');
     }
   }

@@ -315,7 +315,7 @@ describe('Seth2 controlled result selection', () => {
     expect([...winningRoundCounts].sort()).toEqual([5, 6, 7, 8, 9]);
   });
 
-  it('reserves one paid skill and two safe lock games without changing the controlled payout', () => {
+  it('reserves one paid skill and five safe lock games without changing the controlled payout', () => {
     expect(reserveSeth2AwakeningWindow(Array.from({ length: 15 }, () => 0))).toBeNull();
     for (const target of [2, 197, 397, 19_997, 80_997]) {
       for (let entropy = 0; entropy < 1_000; entropy += 1) {
@@ -323,7 +323,7 @@ describe('Seth2 controlled result selection', () => {
         if (!factors) continue;
         const reserved = reserveSeth2AwakeningWindow(factors, entropy)!;
         expect(reserved.reduce((total, factor) => total + factor, 0)).toBe(target);
-        expect(reserved.slice(0, 3)).toEqual([2, 0, 0]);
+        expect(reserved.slice(0, 6)).toEqual([2, 0, 0, 0, 0, 0]);
         expect(
           reserved.every(
             (factor) =>
@@ -398,8 +398,13 @@ describe('Seth2 controlled result selection', () => {
       const guaranteedSkillIndex = guaranteedSkillCascade.remove_type.indexOf(guaranteedSkillType);
       expect(guaranteedSkillRound.payoutFactor).toBe(2);
       expect(guaranteedSkillCascade.scoreList[guaranteedSkillIndex]).toBe(0.5);
-      expect(run.rounds[1]!.payoutFactor).toBe(0);
-      expect(run.rounds[2]!.payoutFactor).toBe(0);
+      expect(guaranteedSkillRound.returnData.type18_start_mul_list.length > 0).toBe(
+        guaranteedSkillType === 18,
+      );
+      if (guaranteedSkillType === 18) {
+        expect(guaranteedSkillRound.returnData.type18_mul_count).toBe(6);
+      }
+      expect(run.rounds.slice(1, 6).map((round) => round.payoutFactor)).toEqual([0, 0, 0, 0, 0]);
       const guaranteedSourceStates = seth2SourceGameStates(guaranteedSkillRound.returnData, {
         action: 'freeSpin',
         spinId: `paid-character-${totalFactor}`,
@@ -583,16 +588,20 @@ describe('Seth2 three buy-feature contracts', () => {
         featureMode: 'awakening',
       });
 
-      for (const round of run.rounds) {
+      for (const [roundIndex, round] of run.rounds.entries()) {
         const triggersWoman = round.returnData.list.some((cascade) =>
           cascade.remove_type.includes(18),
         );
         if (!triggersWoman) continue;
         womanTriggers += 1;
         expect(round.sessionBefore.femaleLock).toBeNull();
-        expect(round.returnData.type18_mul_count).toBeLessThanOrEqual(
-          round.sessionBefore.freeSpinsRemaining,
-        );
+        expect(round.returnData.type18_mul_count).toBe(6);
+        expect(round.sessionBefore.freeSpinsRemaining).toBeGreaterThanOrEqual(6);
+        for (let offset = 1; offset <= 5; offset += 1) {
+          expect(run.rounds[roundIndex + offset]!.sessionBefore.femaleLock?.gamesRemaining).toBe(
+            6 - offset,
+          );
+        }
       }
     }
     expect(womanTriggers).toBeGreaterThan(500);

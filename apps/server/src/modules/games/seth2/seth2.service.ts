@@ -1,12 +1,14 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
   isSeth2FactorRepresentable,
+  isSeth2UnmultipliedFactorRepresentable,
   seth2AwakeningSpinForFactorWithSkill,
   seth2BoughtAwakeningGuaranteedSpin,
   seth2BuyFeature,
   seth2BuyFeatureEntry,
   seth2Spin,
   seth2SpinForFactor,
+  seth2SpinForFactorWithoutMultiplier,
   seth2SuperMainSpin,
   seth2SuperMainSpinForFactor,
   type Seth2Outcome,
@@ -1741,6 +1743,20 @@ export function generateFeatureRun(input: {
   const rounds: Seth2FeatureRound[] = [];
   let totalPayoutFactor = 0;
   let awakeningSkillSeen = false;
+  const controlledAwakening =
+    forcedFactors !== null &&
+    input.buying &&
+    input.featureIndex === 1 &&
+    input.featureMode === 'awakening';
+  let finalForcedWinIndex = -1;
+  if (forcedFactors) {
+    for (let index = forcedFactors.length - 1; index >= 0; index -= 1) {
+      if (forcedFactors[index]! > 0) {
+        finalForcedWinIndex = index;
+        break;
+      }
+    }
+  }
   while (session.freeSpinsRemaining > 0 && rounds.length < SETH2_MAX_FREE_SPINS) {
     const seed = input.seeds[rounds.length];
     if (!seed) throw new ApiError('INTERNAL', '免費遊戲種子不足');
@@ -1775,18 +1791,30 @@ export function generateFeatureRun(input: {
               effectiveBank,
               lockedContribution > 0,
             )
-          : seth2SpinForFactor(
-              seed.serverSeed,
-              seed.clientSeed,
-              seed.nonce,
-              input.baseBet,
-              factor,
-              mode,
-              effectiveBank,
-              lockedContribution > 0,
-              true,
-              false,
-            );
+          : controlledAwakening &&
+              rounds.length > 0 &&
+              (rounds.length <= 5 || (factor > 0 && rounds.length < finalForcedWinIndex))
+            ? seth2SpinForFactorWithoutMultiplier(
+                seed.serverSeed,
+                seed.clientSeed,
+                seed.nonce,
+                input.baseBet,
+                factor,
+                mode,
+                effectiveBank,
+              )
+            : seth2SpinForFactor(
+                seed.serverSeed,
+                seed.clientSeed,
+                seed.nonce,
+                input.baseBet,
+                factor,
+                mode,
+                effectiveBank,
+                lockedContribution > 0,
+                true,
+                false,
+              );
     const triggersWoman = outcome.returnData.list.some((cascade) =>
       cascade.remove_type.includes(18),
     );
@@ -1797,8 +1825,8 @@ export function generateFeatureRun(input: {
     if (unsafeWomanTrigger) {
       // One lock cannot safely replace another in v1.1.5, and a newly selected
       // duration must fit in the games that are still available. Re-render the
-      // exact same payout without a character event so settlement/RTP remains
-      // unchanged while the source animation always reaches its terminal view.
+      // exact same payout without a woman lock (a man event may remain) so
+      // settlement/RTP stays unchanged and the animation reaches its end.
       const safeOutcome = seth2SpinForFactor(
         seed.serverSeed,
         seed.clientSeed,
@@ -1808,6 +1836,7 @@ export function generateFeatureRun(input: {
         mode,
         effectiveBank,
         lockedContribution > 0,
+        true,
         false,
         false,
       );
@@ -1819,12 +1848,11 @@ export function generateFeatureRun(input: {
     const currentHasAwakeningSkill =
       outcome.returnData.type17_mul_list.length > 0 ||
       outcome.returnData.type18_start_mul_list.length > 0;
-    const controlledLockWindow = forcedFactors?.slice(rounds.length, rounds.length + 3);
+    const controlledLockWindow = forcedFactors?.slice(rounds.length, rounds.length + 6);
     const isReservedPaidSkillWindow =
-      controlledLockWindow?.length === 3 &&
+      controlledLockWindow?.length === 6 &&
       controlledLockWindow[0] === 2 &&
-      controlledLockWindow[1] === 0 &&
-      controlledLockWindow[2] === 0;
+      controlledLockWindow.slice(1).every((current) => current === 0);
     const mustGuaranteePaidAwakening =
       input.buying &&
       input.featureIndex === 1 &&
@@ -1833,10 +1861,10 @@ export function generateFeatureRun(input: {
       !currentHasAwakeningSkill &&
       outcome.payoutFactor === 2 &&
       isReservedPaidSkillWindow &&
-      // A level-one woman lock needs a locked follow-up and then a clean final
-      // game. Injecting it on the terminal spin creates a visually impossible
-      // lock and deadlocks v1.1.5 before closeSpin releases the deferred payout.
-      session.freeSpinsRemaining >= 3 &&
+      // A woman lock needs five complete follow-ups. Injecting it too late
+      // creates a visually incomplete lock and can leave v1.1.5 waiting before
+      // closeSpin releases the deferred payout.
+      session.freeSpinsRemaining >= 6 &&
       outcome.returnData.addGameCiShu === 0;
     if (mustGuaranteePaidAwakening) {
       outcome = seth2AwakeningSpinForFactorWithSkill(
@@ -1892,23 +1920,23 @@ export function reserveSeth2AwakeningWindow(
   factors: readonly number[],
   entropy = 0,
 ): number[] | null {
-  if (factors.length < 3) return null;
+  if (factors.length < 6) return null;
   const target = Number(factors.reduce((total, factor) => total + factor, 0).toFixed(4));
   if (target < 2) return null;
   const remainingParts = naturalFeatureFactorParts(
     Number((target - 2).toFixed(4)),
     'awakening_free',
     entropy,
+    true,
+    4,
   );
-  if (!remainingParts || remainingParts.length > factors.length - 3) return null;
+  if (!remainingParts || remainingParts.length > factors.length - 6) return null;
 
   // The paid 2x skill opens the sequence while the saved multiplier bank is
-  // still empty. Two clean games after it safely finish a level-one woman lock.
+  // still empty. Five clean games after it finish the complete woman lock.
   const result = Array.from({ length: factors.length }, () => 0);
   result[0] = 2;
-  const slots = Array.from({ length: factors.length - 3 }, (_, index) => index + 3);
-  const offset = slots.length > 0 ? Math.abs(Math.trunc(entropy)) % slots.length : 0;
-  const orderedSlots = [...slots.slice(offset), ...slots.slice(0, offset)];
+  const orderedSlots = Array.from({ length: factors.length - 6 }, (_, index) => index + 6);
   remainingParts.forEach((factor, index) => {
     result[orderedSlots[index]!] = factor;
   });
@@ -1945,10 +1973,14 @@ function naturalFeatureFactorParts(
   target: number,
   mode: Seth2SpinMode,
   entropy: number,
+  unmultipliedPrefixes = false,
+  finalMultiplierBank = 0,
 ): number[] | null {
   if (target === 0) return [];
   const baseSmallFactors = [3, 5, 8, 10, 4, 2.25, 2, 1.75, 1.5, 1.25, 1, 0.75, 0.5, 0.25].filter(
-    (factor) => isSeth2FactorRepresentable(factor, mode, 0, false),
+    (factor) =>
+      isSeth2FactorRepresentable(factor, mode, 0, false) &&
+      (!unmultipliedPrefixes || isSeth2UnmultipliedFactorRepresentable(factor)),
   );
   const normalizedEntropy = Math.abs(Math.trunc(entropy));
   const maximumParts = Math.min(9, Math.max(1, Math.floor(target / 10)));
@@ -1973,7 +2005,8 @@ function naturalFeatureFactorParts(
     const findPrefix = (depth: number, sum: number): number[] | null => {
       if (depth === prefixCount) {
         const remainder = Number((target - sum).toFixed(4));
-        return remainder > 0 && isSeth2FactorRepresentable(remainder, mode, 0, false)
+        return remainder > 0 &&
+          isSeth2FactorRepresentable(remainder, mode, finalMultiplierBank, false)
           ? [...prefix, remainder]
           : null;
       }
