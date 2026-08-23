@@ -54,13 +54,12 @@ assert.notEqual(
 );
 assert.deepEqual(
   Array.from(officialMultiplierValues),
-  [2, 3, 4, 5, 6, 8, 10, 15, 25, 50, 100, 200, 300, 500],
+  [2, 3, 4, 6, 8, 10, 15, 25, 50, 100, 200, 300, 500],
 );
 for (const [value, tier] of [
   [2, 0],
   [3, 0],
   [4, 0],
-  [5, 0],
   [6, 0],
   [8, 0],
   [10, 1],

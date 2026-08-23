@@ -107,10 +107,11 @@ describe('Storm of Seth 2 provably-fair engine', () => {
   });
 
   it('separates direct multiplier values from every captured upgrade-only step', () => {
-    expect(SETH2_MULTIPLIER_DROP_VALUES).toEqual([2, 3, 4, 5, 10, 15, 25, 50, 100, 200, 300, 500]);
+    expect(SETH2_MULTIPLIER_DROP_VALUES).toEqual([2, 3, 4, 10, 15, 25, 50, 100, 200, 300, 500]);
     expect(SETH2_MULTIPLIER_VALUES).toEqual([
-      2, 3, 4, 5, 6, 8, 10, 12, 15, 18, 25, 50, 100, 200, 300, 500,
+      2, 3, 4, 6, 8, 10, 12, 15, 18, 25, 50, 100, 200, 300, 500,
     ]);
+    expect(SETH2_MULTIPLIER_VALUES).not.toContain(5);
     for (const total of [
       2, 3, 4, 5, 6, 8, 10, 20, 109, 218, 501, 999, 2015, 5000, 10_000, 15_000,
     ]) {
@@ -317,10 +318,10 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(multiplierTypes).toEqual(new Set([0, 1]));
   });
 
-  it('animates the source 6x → 8x → 10x upgrade steps instead of skipping them', () => {
+  it('animates the source 2x → 3x → 4x → 6x → 8x → 10x upgrade steps', () => {
     const observed = new Set<string>();
-    for (let nonce = 0; nonce < 5_000 && observed.size < 2; nonce += 1) {
-      for (const factor of [4, 5]) {
+    for (let nonce = 0; nonce < 10_000 && observed.size < 5; nonce += 1) {
+      for (const factor of [1.5, 2, 3, 4, 5]) {
         const outcome = seth2SpinForFactor(
           'official-upgrade-chain',
           'client',
@@ -330,12 +331,15 @@ describe('Storm of Seth 2 provably-fair engine', () => {
           'base',
         );
         for (const upgrade of outcome.returnData.list.flatMap((round) => round.upgrade_mul_list)) {
+          if (upgrade.mul === 2 && upgrade.new_mul === 3) observed.add('2→3');
+          if (upgrade.mul === 3 && upgrade.new_mul === 4) observed.add('3→4');
+          if (upgrade.mul === 4 && upgrade.new_mul === 6) observed.add('4→6');
           if (upgrade.mul === 6 && upgrade.new_mul === 8) observed.add('6→8');
           if (upgrade.mul === 8 && upgrade.new_mul === 10) observed.add('8→10');
         }
       }
     }
-    expect(observed).toEqual(new Set(['6→8', '8→10']));
+    expect(observed).toEqual(new Set(['2→3', '3→4', '4→6', '6→8', '8→10']));
   });
 
   it('can throw multiplier balls on a non-winning spin without collecting them', () => {

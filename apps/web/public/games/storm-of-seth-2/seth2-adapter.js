@@ -11,7 +11,7 @@
   var refreshInFlight = null;
   var selectedMachinePage = 1;
   var PENDING_OPERATION_KEY = 'bg.seth2.legacy.pending-operation';
-  var officialMultiplierValues = [2, 3, 4, 5, 6, 8, 10, 15, 25, 50, 100, 200, 300, 500];
+  var officialMultiplierValues = [2, 3, 4, 6, 8, 10, 15, 25, 50, 100, 200, 300, 500];
   var SFX_PREFS_KEY = 'bg.sfx.prefs';
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
   var audioBridge = null;

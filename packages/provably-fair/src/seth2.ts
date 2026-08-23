@@ -18,11 +18,11 @@ export const SETH2_GRID_SIZE = 30;
 export const SETH2_MAX_SYMBOL_MULTIPLIER = 500;
 /** Every value that can be shown by a multiplier ball, including upgrade-only steps. */
 export const SETH2_MULTIPLIER_VALUES = [
-  2, 3, 4, 5, 6, 8, 10, 12, 15, 18, 25, 50, 100, 200, 300, 500,
+  2, 3, 4, 6, 8, 10, 12, 15, 18, 25, 50, 100, 200, 300, 500,
 ] as const;
 /** Values that can land directly, matching the source game's colour/value table. */
 export const SETH2_MULTIPLIER_DROP_VALUES = [
-  2, 3, 4, 5, 10, 15, 25, 50, 100, 200, 300, 500,
+  2, 3, 4, 10, 15, 25, 50, 100, 200, 300, 500,
 ] as const;
 export const SETH2_RETRIGGER_SPINS = 5;
 export const SETH2_FREE_SPINS = 15;
@@ -157,8 +157,9 @@ const MULTIPLIER_SPLITS = new Map<number, { parts: Int16Array; choice: Int16Arra
 const NON_WINNING_MULTIPLIERS = [
   { value: 2, weight: 42 },
   { value: 3, weight: 25 },
-  { value: 4, weight: 8 },
-  { value: 5, weight: 5 },
+  // The source sequence skips 5x: 2x -> 3x -> 4x -> 6x. Keep the former
+  // low-ball probability on 4x rather than emitting an invalid 5x object.
+  { value: 4, weight: 13 },
   { value: 10, weight: 7 },
   { value: 15, weight: 4 },
   { value: 25, weight: 2 },

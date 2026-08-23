@@ -1637,8 +1637,8 @@ describe('Seth2 free-game session progression', () => {
     });
   });
 
-  it('keeps the captured level-three woman lock for the 6 -> 5 -> ... -> 1 sequence', () => {
-    const cell = { type: 10 as const, mul: 5, mul_type: 0, code: 13 };
+  it('keeps the captured level-three woman lock through its six-game countdown', () => {
+    const cell = { type: 10 as const, mul: 4, mul_type: 0, code: 13 };
     const start_data = Array.from({ length: 30 }, (_, code) => ({
       type: (code % 9) + 1,
       mul: 0,
@@ -1649,7 +1649,7 @@ describe('Seth2 free-game session progression', () => {
         {
           start_data,
           remove_type: [1],
-          upgrade_mul_list: [{ type: 10, mul: 5, new_mul: 6, mul_type: 0, code: 13 }],
+          upgrade_mul_list: [{ type: 10, mul: 4, new_mul: 6, mul_type: 0, code: 13 }],
         },
       ],
       type18_start_mul_list: [cell],
