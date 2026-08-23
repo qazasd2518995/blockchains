@@ -15,14 +15,14 @@ const gameWebOrigins = [
   'https://www.yachiyo777.com',
   'https://yachiyo777.com',
 ] as const;
-const builtInAllowedOrigins = [...agentAdminOrigins, ...gameWebOrigins] as const;
-const builtInAllowedOriginSet = new Set<string>(builtInAllowedOrigins);
+const legacyBuiltInAllowedOrigins = [...agentAdminOrigins, ...gameWebOrigins] as const;
+const legacyBuiltInAllowedOriginSet = new Set<string>(legacyBuiltInAllowedOrigins);
 const defaultCorsOrigins = [
   'http://localhost:5173',
   'http://localhost:4173',
   'http://localhost:5174',
   'http://localhost:4174',
-  ...builtInAllowedOrigins,
+  ...legacyBuiltInAllowedOrigins,
 ].join(',');
 const booleanEnv = z
   .enum(['true', 'false', '1', '0', 'yes', 'no', 'on', 'off'])
@@ -38,6 +38,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   HOST: z.string().default('0.0.0.0'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  PLATFORM_REALM: z.enum(['legacy', 'qmoney']).default('legacy'),
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .default(defaultLogLevel),
@@ -66,17 +67,28 @@ if (!parsed.success) {
 export const config = parsed.data;
 export type AppConfig = typeof config;
 
-export function isAllowedOrigin(origin?: string): boolean {
+export function isAllowedOriginForRealm(
+  origin: string | undefined,
+  realm: AppConfig['PLATFORM_REALM'],
+  configuredOrigins: readonly string[],
+): boolean {
   if (!origin) return true;
-  if (config.CORS_ORIGIN.includes(origin)) return true;
-  if (builtInAllowedOriginSet.has(origin)) return true;
+  if (configuredOrigins.includes(origin)) return true;
+  if (realm === 'legacy' && legacyBuiltInAllowedOriginSet.has(origin)) return true;
 
   try {
     const url = new URL(origin);
     if (url.protocol !== 'https:') return false;
-    if (builtInAllowedOriginSet.has(url.origin)) return true;
-    return /^(bg-web|bg-admin|bg-qmoney)(-[a-z0-9]+)?\.onrender\.com$/i.test(url.hostname);
+    if (realm === 'legacy') {
+      if (legacyBuiltInAllowedOriginSet.has(url.origin)) return true;
+      return /^(bg-web|bg-admin)(-[a-z0-9]+)?\.onrender\.com$/i.test(url.hostname);
+    }
+    return /^(bg-qmoney|bg-qmoney-admin)(-[a-z0-9]+)?\.onrender\.com$/i.test(url.hostname);
   } catch {
     return false;
   }
+}
+
+export function isAllowedOrigin(origin?: string): boolean {
+  return isAllowedOriginForRealm(origin, config.PLATFORM_REALM, config.CORS_ORIGIN);
 }
