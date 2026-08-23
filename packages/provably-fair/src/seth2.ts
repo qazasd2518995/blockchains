@@ -109,6 +109,22 @@ interface WeightedOutcome {
   retrigger?: boolean;
 }
 
+/**
+ * Split a fixed payout bucket between its original value and the two adjacent
+ * legal quarter factors. Every variant is generated from the real paytable, so
+ * this changes only result variety: probability and EV stay exactly the same.
+ */
+function diversifyQuarterFactors(outcomes: WeightedOutcome[]): WeightedOutcome[] {
+  return outcomes.flatMap((outcome) => {
+    if (outcome.factor === undefined || outcome.factor < 0.5) return [outcome];
+    return [
+      { ...outcome, probability: outcome.probability / 4, factor: outcome.factor - 0.25 },
+      { ...outcome, probability: outcome.probability / 2 },
+      { ...outcome, probability: outcome.probability / 4, factor: outcome.factor + 0.25 },
+    ];
+  });
+}
+
 interface WinPattern {
   type: number;
   count: 8 | 10 | 12;
@@ -168,7 +184,7 @@ const NON_WINNING_MULTIPLIERS = [
   { value: 500, weight: 0.3 },
 ] as const;
 
-const STANDARD_FREE_BASE_OUTCOMES: WeightedOutcome[] = [
+const STANDARD_FREE_BASE_OUTCOMES: WeightedOutcome[] = diversifyQuarterFactors([
   { probability: 0.2, factor: 0.5 },
   { probability: 0.1, factor: 1 },
   { probability: 0.05, factor: 2 },
@@ -178,9 +194,9 @@ const STANDARD_FREE_BASE_OUTCOMES: WeightedOutcome[] = [
   { probability: 0.003, factor: 50 },
   { probability: 0.002, factor: 100 },
   { probability: 0.001, factor: 45 },
-];
+]);
 
-const AWAKENING_FREE_BASE_OUTCOMES: WeightedOutcome[] = [
+const AWAKENING_FREE_BASE_OUTCOMES: WeightedOutcome[] = diversifyQuarterFactors([
   { probability: 0.2, factor: 1 },
   { probability: 0.12, factor: 2 },
   { probability: 0.08, factor: 5 },
@@ -191,7 +207,7 @@ const AWAKENING_FREE_BASE_OUTCOMES: WeightedOutcome[] = [
   { probability: 0.008, factor: 200 },
   { probability: 0.005, factor: 500 },
   { probability: 0.0019993383, factor: 2015 },
-];
+]);
 
 // The 2,000x purchase is one high-volatility super main-game round rather
 // than a free-game session. These weights produce a 96.89% theoretical RTP
@@ -215,6 +231,51 @@ function weightedFactorEv(outcomes: WeightedOutcome[]): number {
   );
 }
 
+// Buying Awakening must always contain a real, paying character event. The
+// guaranteed opening spin has the same EV as one ordinary Awakening root spin:
+// low/loss buckets are folded into 2x (the smallest skill-representable factor)
+// and a matching amount is removed from the 2015x bucket. It therefore removes
+// the former fake 0-point character without increasing feature RTP.
+const GUARANTEED_AWAKENING_TARGET_EV = weightedFactorEv(AWAKENING_FREE_BASE_OUTCOMES);
+const GUARANTEED_AWAKENING_HIGH_OUTCOMES: WeightedOutcome[] = [
+  { probability: 0.08, factor: 5 },
+  { probability: 0.05, factor: 10 },
+  { probability: 0.035, factor: 20 },
+  { probability: 0.025, factor: 50 },
+  { probability: 0.015, factor: 100 },
+  { probability: 0.008, factor: 200 },
+  { probability: 0.005, factor: 500 },
+  { probability: 0.0019993383, factor: 2015 },
+];
+const GUARANTEED_AWAKENING_UNADJUSTED_EV = GUARANTEED_AWAKENING_HIGH_OUTCOMES.reduce(
+  (total, outcome) => total + outcome.probability * (outcome.factor ?? 0),
+  2 *
+    (1 -
+      GUARANTEED_AWAKENING_HIGH_OUTCOMES.reduce(
+        (probability, outcome) => probability + outcome.probability,
+        0,
+      )),
+);
+const GUARANTEED_AWAKENING_TOP_PROBABILITY_REDUCTION =
+  (GUARANTEED_AWAKENING_UNADJUSTED_EV - GUARANTEED_AWAKENING_TARGET_EV) / (2015 - 2);
+const GUARANTEED_AWAKENING_OUTCOMES: WeightedOutcome[] = (() => {
+  const high = GUARANTEED_AWAKENING_HIGH_OUTCOMES.map((outcome) =>
+    outcome.factor === 2015
+      ? {
+          ...outcome,
+          probability: outcome.probability - GUARANTEED_AWAKENING_TOP_PROBABILITY_REDUCTION,
+        }
+      : outcome,
+  );
+  return [
+    {
+      probability: 1 - high.reduce((total, outcome) => total + outcome.probability, 0),
+      factor: 2,
+    },
+    ...high,
+  ];
+})();
+
 const STANDARD_FEATURE_TOTAL_EV =
   SETH2_FREE_SPINS * FREE_GAME_OUTCOME_SCALE * weightedFactorEv(STANDARD_FREE_BASE_OUTCOMES);
 const AWAKENING_FEATURE_TOTAL_EV =
@@ -225,7 +286,7 @@ const NATURAL_FEATURE_TOTAL_EV =
 const BASE_FEATURE_TRIGGER_PROBABILITY =
   (TARGET_RTP - BASE_NON_FEATURE_EV) / (SCATTER_EXPECTED_FACTOR + NATURAL_FEATURE_TOTAL_EV);
 
-const BASE_OUTCOMES: WeightedOutcome[] = [
+const BASE_OUTCOMES: WeightedOutcome[] = diversifyQuarterFactors([
   { probability: BASE_FEATURE_TRIGGER_PROBABILITY, trigger: true },
   { probability: 0.16, factor: 0.5 },
   { probability: 0.08, factor: 1 },
@@ -233,7 +294,7 @@ const BASE_OUTCOMES: WeightedOutcome[] = [
   { probability: 0.015, factor: 4 },
   { probability: 0.004, factor: 8 },
   { probability: 0.000345, factor: 20 },
-];
+]);
 
 function withRetriggers(outcomes: WeightedOutcome[]): WeightedOutcome[] {
   return [
@@ -891,6 +952,7 @@ function buildWin(
   requiredMultiplierValue = 0,
   allowSkill = true,
   allowJackpot = true,
+  requireSkill = false,
 ): Seth2Outcome {
   const jackpot = allowJackpot ? jackpotForFactor(factor, mode) : null;
   const jackpotCells = jackpot ? jackpot.count : 0;
@@ -900,7 +962,13 @@ function buildWin(
   const activeMultiplierBank = isFreeGameMode(mode) ? multiplierBank : 0;
   const selectionBank = targetIncludesMultiplierBank ? activeMultiplierBank : 0;
 
-  if (allowSkill && awakening && factor >= 20 && requiredMultiplierValue === 0 && rng() < 0.7) {
+  if (
+    allowSkill &&
+    awakening &&
+    factor >= (requireSkill ? 2 : 20) &&
+    requiredMultiplierValue === 0 &&
+    (requireSkill || rng() < 0.7)
+  ) {
     const proposedSkill = rng() < 0.5 ? 'male' : 'female';
     const skillPlan = chooseSinglePattern(
       factor,
@@ -1149,6 +1217,50 @@ export function seth2SpinForFactor(
   );
 }
 
+export function seth2AwakeningSpinForFactorWithSkill(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  bet: number,
+  factor: number,
+  multiplierBank = 0,
+  hasPersistentMultiplier = false,
+): Seth2Outcome {
+  if (factor < 2) {
+    throw new Error(`Awakening skill factor ${factor} is below the legal 2x minimum`);
+  }
+  for (let attempt = 0; attempt < 256; attempt += 1) {
+    const outcome = buildWin(
+      bet,
+      factor,
+      'awakening_free',
+      randomSource(serverSeed, `${clientSeed}:seth2-required-skill:${factor}:${attempt}`, nonce),
+      multiplierBank,
+      true,
+      hasPersistentMultiplier,
+      0,
+      true,
+      false,
+      true,
+    );
+    if (outcome.payoutFactor === factor && hasCharacterSkill(outcome)) {
+      return applySpinFeatureMode(outcome, 'awakening_free');
+    }
+  }
+  throw new Error(`Awakening skill factor ${factor} is not representable`);
+}
+
+export function seth2BoughtAwakeningGuaranteedSpin(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  bet: number,
+): Seth2Outcome {
+  const rng = randomSource(serverSeed, `${clientSeed}:seth2-bought-awakening-guarantee`, nonce);
+  const factor = pickWeighted(GUARANTEED_AWAKENING_OUTCOMES, rng).factor ?? 2;
+  return seth2AwakeningSpinForFactorWithSkill(serverSeed, clientSeed, nonce, bet, factor);
+}
+
 function superMainDropRound(rng: Seth2RandomSource): Seth2CascadeRound {
   const board = [
     cell(10, 500, 1),
@@ -1168,54 +1280,6 @@ function hasCharacterSkill(outcome: Seth2Outcome): boolean {
     outcome.returnData.type17_mul_list.length > 0 ||
     outcome.returnData.type18_start_mul_list.length > 0
   );
-}
-
-/**
- * The paid Awakening feature guarantees one character event even when every
- * naturally generated free game misses one. Replace an otherwise empty free
- * game with a zero-value woman event so the presentation guarantee cannot
- * change settlement. The event must be its own spin: appending a fresh 30-cell
- * board after another cascade makes the source client treat two unrelated
- * boards as one tumble and leaves its symbol animation waiting forever.
- */
-export function addSeth2GuaranteedAwakeningSkill(
-  outcome: Seth2Outcome,
-  serverSeed: string,
-  clientSeed: string,
-  nonce: number,
-): Seth2Outcome {
-  if (hasCharacterSkill(outcome) || outcome.payoutFactor !== 0) return outcome;
-
-  const rng = randomSource(serverSeed, `${clientSeed}:seth2-awakening-guarantee`, nonce);
-  const multiplier = cell(10, 2, 1);
-  const startData = [
-    multiplier,
-    cell(18),
-    cell(18),
-    cell(18),
-    ...safeFill(SETH2_GRID_SIZE - 4, new Set([10, 15, 16, 17, 18]), rng),
-  ];
-  shuffle(startData, rng);
-  const multiplierCode = startData.indexOf(multiplier);
-  outcome.returnData.list = [
-    {
-      start_data: startData,
-      remove_type: [18],
-      round_data: safeFill(3, new Set([18]), rng),
-      scoreList: [0],
-      upgrade_mul_list: [],
-      total_mul: 0,
-      score: 0,
-      total_gold: 0,
-      remove_count: 0,
-      is_over: 1,
-    },
-  ];
-  outcome.returnData.type18_start_mul_list = [animatedMultiplierCell(multiplier, multiplierCode)];
-  outcome.returnData.type18_mul_count = 2;
-  outcome.returnData.score = 0;
-  outcome.returnData.total_gold = 0;
-  return outcome;
 }
 
 function exactSuperWin(
@@ -1519,6 +1583,7 @@ export const SETH2_MATH = {
   boughtStandardFree: expectedValue(AWAKENING_FREE_OUTCOMES),
   standardFeatureTotal: expectedValue(STANDARD_FREE_OUTCOMES) * EXPECTED_FEATURE_SPINS,
   awakeningFeatureTotal: expectedValue(AWAKENING_FREE_OUTCOMES) * EXPECTED_FEATURE_SPINS,
+  boughtAwakeningGuaranteedRoot: expectedValue(GUARANTEED_AWAKENING_OUTCOMES),
   expectedFeatureSpins: EXPECTED_FEATURE_SPINS,
   baseFeatureProbability: BASE_FEATURE_TRIGGER_PROBABILITY,
   goldenFeatureShare: GOLDEN_FEATURE_SHARE,

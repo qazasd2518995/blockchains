@@ -12,8 +12,9 @@ import {
   SETH2_RETRIGGER_SPINS,
   SETH2_SCATTER_PAYTABLE,
   SETH2_SKILL_SYMBOL_PAY,
-  addSeth2GuaranteedAwakeningSkill,
   isSeth2MultiplierValue,
+  seth2AwakeningSpinForFactorWithSkill,
+  seth2BoughtAwakeningGuaranteedSpin,
   seth2BuyFeature,
   seth2BuyFeatureEntry,
   seth2Spin,
@@ -101,10 +102,31 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(SETH2_MATH.standardFree).toBeCloseTo(1.007 * (15 / SETH2_FREE_SPINS), 8);
     expect(SETH2_MATH.standardFeatureTotal).toBeCloseTo(15.9, 8);
     expect(SETH2_MATH.awakeningFeatureTotal).toBeCloseTo(193.78, 6);
+    expect(SETH2_MATH.boughtAwakeningGuaranteedRoot).toBeCloseTo(
+      SETH2_MATH.awakeningFeatureTotal / SETH2_FREE_SPINS,
+      8,
+    );
     expect(SETH2_MATH.expectedFeatureSpins).toBeCloseTo(SETH2_FREE_SPINS / 0.95, 8);
     expect(SETH2_MATH.theoreticalRtp).toBeCloseTo(0.9689, 8);
     expect(SETH2_MATH.buyFeatureRtp).toBeCloseTo(0.9689, 8);
     expect(SETH2_MATH.boughtStandardFree).toBeCloseTo(SETH2_MATH.awakeningFree, 8);
+  });
+
+  it('mixes legal whole and quarter-factor results instead of repeating whole totals', () => {
+    for (const mode of ['base', 'standard_free', 'awakening_free'] as const) {
+      const factors = Array.from({ length: 5_000 }, (_, nonce) =>
+        seth2Spin('quarter-factor-diversity', 'client', nonce, 10, mode),
+      )
+        .filter((outcome) => outcome.payoutFactor > 0 && !outcome.triggeredFreeSpins)
+        .map((outcome) => outcome.payoutFactor);
+      const fractional = factors.filter((factor) => !Number.isInteger(factor));
+
+      expect(factors.some((factor) => Number.isInteger(factor))).toBe(true);
+      expect(fractional.length / factors.length).toBeGreaterThan(0.2);
+      expect(fractional.every((factor) => Number.isInteger(Number((factor * 4).toFixed(8))))).toBe(
+        true,
+      );
+    }
   });
 
   it('separates direct multiplier values from every captured upgrade-only step', () => {
@@ -237,49 +259,42 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     }
   });
 
-  it('replaces an empty spin with one standalone payout-neutral awakening event', () => {
-    const outcome = seth2SpinForFactor(
-      'awakening-guarantee',
-      'client',
-      1,
-      BET,
-      0,
-      'awakening_free',
-    );
-    const payoutFactor = outcome.payoutFactor;
-    const totalGold = outcome.returnData.total_gold;
+  it('guarantees a real paying character event at the legal 2x minimum', () => {
+    for (let nonce = 0; nonce < 100; nonce += 1) {
+      const outcome = seth2AwakeningSpinForFactorWithSkill(
+        'awakening-guarantee',
+        'client',
+        nonce,
+        BET,
+        2,
+      );
+      const round = outcome.returnData.list[0]!;
+      const skillType = round.remove_type.find((type) => type === 17 || type === 18)!;
+      const skillIndex = round.remove_type.indexOf(skillType);
 
-    addSeth2GuaranteedAwakeningSkill(outcome, 'awakening-guarantee', 'client', 1);
-
-    expect(outcome.payoutFactor).toBe(payoutFactor);
-    expect(outcome.returnData.total_gold).toBe(totalGold);
-    expect(outcome.returnData.list).toHaveLength(1);
-    expect(outcome.returnData.list[0]!.start_data).toHaveLength(SETH2_GRID_SIZE);
-    expect(outcome.returnData.list[0]!.start_data.filter((cell) => cell.type === 18)).toHaveLength(
-      3,
-    );
-    expect(outcome.returnData.list[0]!.remove_type).toEqual([18]);
-    expect(outcome.returnData.type18_start_mul_list).toHaveLength(1);
-    expect(outcome.returnData.type18_mul_count).toBe(2);
-    expect(outcome.returnData.list.filter((round) => round.remove_type.includes(18))).toHaveLength(
-      1,
-    );
+      expect(outcome.payoutFactor).toBe(2);
+      expect(round.scoreList[skillIndex]).toBe(money((BET * SETH2_SKILL_SYMBOL_PAY) / 20));
+      expect(round.scoreList[skillIndex]).toBeGreaterThan(0);
+    }
   });
 
-  it('does not append a fresh presentation board after a paying cascade', () => {
-    const outcome = seth2SpinForFactor(
-      'awakening-guarantee-win',
-      'client',
-      1,
-      BET,
-      20,
-      'awakening_free',
-    );
-    const before = structuredClone(outcome.returnData);
-
-    addSeth2GuaranteedAwakeningSkill(outcome, 'awakening-guarantee-win', 'client', 1);
-
-    expect(outcome.returnData).toEqual(before);
+  it('makes every purchased Awakening opening a paying man or woman event', () => {
+    const seen = new Set<number>();
+    for (let nonce = 0; nonce < 200; nonce += 1) {
+      const outcome = seth2BoughtAwakeningGuaranteedSpin(
+        'bought-awakening-guarantee',
+        'client',
+        nonce,
+        BET,
+      );
+      const round = outcome.returnData.list[0]!;
+      const skillType = round.remove_type.find((type) => type === 17 || type === 18)!;
+      const skillIndex = round.remove_type.indexOf(skillType);
+      seen.add(skillType);
+      expect(outcome.payoutFactor).toBeGreaterThanOrEqual(2);
+      expect(round.scoreList[skillIndex]).toBe(money((BET * SETH2_SKILL_SYMBOL_PAY) / 20));
+    }
+    expect(seen).toEqual(new Set([17, 18]));
   });
 
   it.each([

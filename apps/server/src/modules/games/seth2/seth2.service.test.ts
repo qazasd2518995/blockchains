@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import {
+  isSeth2FactorRepresentable,
   seth2BuyFeature,
   seth2BuyFeatureEntry,
   seth2SpinForFactor,
@@ -232,6 +233,36 @@ describe('Seth2 controlled result selection', () => {
     ).toBe(2_020);
   });
 
+  it('uses legal quarter factors to diversify controlled Awakening totals', () => {
+    const baseAmount = new Prisma.Decimal(10);
+    const controlAmount = baseAmount.mul(500);
+    const factors = Array.from({ length: 32 }, (_, entropy) =>
+      chooseControlledSethFeatureFactor(
+        baseAmount,
+        controlAmount,
+        {
+          won: true,
+          multiplier: new Prisma.Decimal('1.01'),
+          minMultiplier: new Prisma.Decimal('1.01'),
+          maxMultiplier: new Prisma.Decimal('1.05'),
+          maxPayout: controlAmount.mul('1.05'),
+        },
+        'awakening_free',
+        entropy,
+      ),
+    );
+
+    expect(factors.every((factor) => factor !== null)).toBe(true);
+    expect(factors.some((factor) => !Number.isInteger(factor!))).toBe(true);
+    for (const factor of factors) {
+      expect(factor!).toBeGreaterThanOrEqual(505);
+      expect(factor!).toBeLessThanOrEqual(525);
+      expect(Number.isInteger(Number((factor! * 4).toFixed(8)))).toBe(true);
+      const parts = splitSeth2FeatureFactor(factor! - 3, 'awakening_free', 0)!;
+      expect(reserveSeth2AwakeningWindow(parts)).not.toBeNull();
+    }
+  });
+
   it('selects only factors representable by a visible persistent lock', () => {
     const factor = chooseControlledSethFactor(
       new Prisma.Decimal(18),
@@ -284,20 +315,19 @@ describe('Seth2 controlled result selection', () => {
     expect([...winningRoundCounts].sort()).toEqual([5, 6, 7, 8, 9]);
   });
 
-  it('reserves a three-game zero window without changing the controlled payout', () => {
-    for (const target of [0, 197, 397, 19_997, 80_997]) {
+  it('reserves one paid skill and two safe lock games without changing the controlled payout', () => {
+    expect(reserveSeth2AwakeningWindow(Array.from({ length: 15 }, () => 0))).toBeNull();
+    for (const target of [2, 197, 397, 19_997, 80_997]) {
       for (let entropy = 0; entropy < 1_000; entropy += 1) {
         const factors = splitSeth2FeatureFactor(target, 'awakening_free', entropy);
         if (!factors) continue;
-        const reserved = reserveSeth2AwakeningWindow(factors, entropy);
+        const reserved = reserveSeth2AwakeningWindow(factors, entropy)!;
         expect(reserved.reduce((total, factor) => total + factor, 0)).toBe(target);
-        expect(reserved.filter((factor) => factor > 0).sort((a, b) => a - b)).toEqual(
-          factors.filter((factor) => factor > 0).sort((a, b) => a - b),
-        );
+        expect(reserved.slice(0, 3)).toEqual([2, 0, 0]);
         expect(
-          reserved.some(
-            (factor, index) =>
-              index <= 12 && factor === 0 && reserved[index + 1] === 0 && reserved[index + 2] === 0,
+          reserved.every(
+            (factor) =>
+              factor === 0 || isSeth2FactorRepresentable(factor, 'awakening_free', 0, false),
           ),
         ).toBe(true);
       }
@@ -328,7 +358,7 @@ describe('Seth2 controlled result selection', () => {
     },
   );
 
-  it.each([3, 200, 400, 20_000, 81_000])(
+  it.each([5, 200, 400, 20_000, 81_000])(
     'builds an atomic 15-game sequence whose visible total is exactly %s x',
     (totalFactor) => {
       const entryOutcome = seth2BuyFeatureEntry('atomic-entry', 'client', 1, 'awakening', 2);
@@ -360,16 +390,29 @@ describe('Seth2 controlled result selection', () => {
             round.returnData.type18_start_mul_list.length > 0,
         ),
       ).toBe(true);
-      const guaranteedWomanIndex = run.rounds.findIndex(
-        (round) =>
-          round.payoutFactor === 0 &&
-          round.returnData.list.some((cascade) => cascade.remove_type.includes(18)),
+      const guaranteedSkillRound = run.rounds[0]!;
+      const guaranteedSkillCascade = guaranteedSkillRound.returnData.list[0]!;
+      const guaranteedSkillType = guaranteedSkillCascade.remove_type.find(
+        (type) => type === 17 || type === 18,
+      )!;
+      const guaranteedSkillIndex = guaranteedSkillCascade.remove_type.indexOf(guaranteedSkillType);
+      expect(guaranteedSkillRound.payoutFactor).toBe(2);
+      expect(guaranteedSkillCascade.scoreList[guaranteedSkillIndex]).toBe(0.5);
+      expect(run.rounds[1]!.payoutFactor).toBe(0);
+      expect(run.rounds[2]!.payoutFactor).toBe(0);
+      const guaranteedSourceStates = seth2SourceGameStates(guaranteedSkillRound.returnData, {
+        action: 'freeSpin',
+        spinId: `paid-character-${totalFactor}`,
+        totalStake: 2,
+        freeGameCount: guaranteedSkillRound.sessionAfter.freeSpinsRemaining,
+        featureWinningsBefore: guaranteedSkillRound.featureWinningsBefore,
+        isGoldenFg: true,
+      });
+      const visibleCharacterWins = guaranteedSourceStates.flatMap((state) =>
+        state.winSymbols.filter((win) => win.symbol === 17 || win.symbol === 18),
       );
-      if (guaranteedWomanIndex >= 0) {
-        expect(guaranteedWomanIndex).toBeLessThanOrEqual(12);
-        expect(run.rounds[guaranteedWomanIndex]!.returnData.list).toHaveLength(1);
-        expect(run.rounds[guaranteedWomanIndex + 1]!.returnData.type18_mul_count).toBe(1);
-      }
+      expect(visibleCharacterWins).toHaveLength(1);
+      expect(visibleCharacterWins[0]!.winnings).toBe(0.5);
       expect(
         run.rounds.every((round) =>
           round.returnData.list.every(
@@ -596,9 +639,9 @@ describe('Seth2 three buy-feature contracts', () => {
     });
     const maleState = states.find((state) => state.maleTotemLevel > 0)!;
     expect(maleState.splitList[0]!.from).toBe(movedCode);
-    expect(
-      maleState.timesSymbols.find((entry) => entry.symbolPos === movedCode)?.times,
-    ).toBe(source.mul);
+    expect(maleState.timesSymbols.find((entry) => entry.symbolPos === movedCode)?.times).toBe(
+      source.mul,
+    );
   });
 
   it('keeps every displayed feature subtotal exact to the cent', () => {
