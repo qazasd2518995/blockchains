@@ -231,6 +231,9 @@ services:
       - path: /index.html
         name: Cache-Control
         value: no-store, no-cache, must-revalidate
+      - path: /platform.html
+        name: Cache-Control
+        value: no-store, no-cache, must-revalidate
       - path: /qmoney/index.html
         name: Cache-Control
         value: no-store, no-cache, must-revalidate
@@ -250,10 +253,6 @@ services:
         name: Cache-Control
         value: public, max-age=31536000, immutable
     routes:
-      # 新站根網址直接顯示 Qmoney 大廳；遊戲路由仍交給 React app。
-      - type: rewrite
-        source: /
-        destination: /qmoney/index.html
       - type: rewrite
         source: /qmoney
         destination: /qmoney/index.html
@@ -262,7 +261,7 @@ services:
         destination: /qmoney/index.html
       - type: rewrite
         source: /*
-        destination: /index.html
+        destination: /platform.html
     envVars:
       # 都是公開的前端端點；新站與現有 bg-web 共用同一個正式 API。
       - key: VITE_API_BASE
@@ -273,6 +272,8 @@ services:
         value: https://baccarat-frontend-74oz.onrender.com
       - key: VITE_IMAGE_TRANSFORM_PROVIDER
         value: local
+      - key: QMONEY_ROOT
+        value: 'true'
 
   # ──────────────────────────────────────────
   # 4. 代理後台（apps/admin）
