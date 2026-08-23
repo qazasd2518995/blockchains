@@ -12,6 +12,9 @@
   var animationCompletionTimeoutMs = 45000;
   var allocationEditorId = 'fruit-mary-allocation-editor';
   var fruitMaryDenomination = 10;
+  var gameDisposing = false;
+  var gameCanvasContextLost = false;
+  var renderFailureReported = false;
 
   function parentStorage() {
     try {
@@ -37,6 +40,82 @@
     } catch (_error) {
       // The Cocos client can continue even if it is opened outside the platform shell.
     }
+  }
+
+  function publicRenderError(error) {
+    var message = error && error.message ? error.message : String(error || '遊戲畫面中斷');
+    if (/webgl|context|getParameter|getExtension/i.test(message)) {
+      return '遊戲畫面無法建立，請關閉其他遊戲頁面後重新載入';
+    }
+    return message.length > 180 ? message.slice(0, 180) : message;
+  }
+
+  function reportFatalRenderFailure(stage, error) {
+    if (gameDisposing || renderFailureReported) return false;
+    renderFailureReported = true;
+    notifyParent('fruit-mary:fatal', {
+      stage: stage,
+      message: publicRenderError(error),
+    });
+    return true;
+  }
+
+  function bindGameCanvasRecovery() {
+    if (typeof document === 'undefined') return false;
+    var canvas = document.getElementById('GameCanvas');
+    if (!canvas || canvas.__yachiyoRecoveryBound) return false;
+    canvas.__yachiyoRecoveryBound = true;
+    canvas.addEventListener('webglcontextcreationerror', function (event) {
+      gameCanvasContextLost = true;
+      reportFatalRenderFailure(
+        'webgl-context-creation',
+        new Error((event && event.statusMessage) || '無法建立遊戲畫面'),
+      );
+    });
+    canvas.addEventListener('webglcontextlost', function (event) {
+      gameCanvasContextLost = true;
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      reportFatalRenderFailure('webgl-context-lost', new Error('遊戲畫面已中斷'));
+    });
+    canvas.addEventListener('webglcontextrestored', function () {
+      gameCanvasContextLost = false;
+    });
+    return true;
+  }
+
+  function disposeGameForRemount() {
+    if (gameDisposing) return false;
+    gameDisposing = true;
+    settlementInFlight = false;
+    try {
+      if (window.cc && window.cc.audioEngine && typeof window.cc.audioEngine.stopAll === 'function') {
+        window.cc.audioEngine.stopAll();
+      }
+      if (window.cc && window.cc.game && typeof window.cc.game.pause === 'function') {
+        window.cc.game.pause();
+      }
+      if (window.cc && window.cc.director && typeof window.cc.director.pause === 'function') {
+        window.cc.director.pause();
+      }
+    } catch (_error) {}
+    try {
+      var canvas = typeof document !== 'undefined' && document.getElementById('GameCanvas');
+      var context =
+        canvas &&
+        (canvas.getContext('webgl2') ||
+          canvas.getContext('webgl') ||
+          canvas.getContext('experimental-webgl'));
+      var loseContext = context && context.getExtension('WEBGL_lose_context');
+      if (loseContext && typeof loseContext.loseContext === 'function') loseContext.loseContext();
+    } catch (_error) {}
+    window.setTimeout(function () {
+      notifyParent('fruit-mary:disposed');
+    }, 0);
+    return true;
+  }
+
+  function addWindowListener(type, listener) {
+    if (typeof window.addEventListener === 'function') window.addEventListener(type, listener);
   }
 
   function writeTokens(accessToken, refreshToken) {
@@ -224,6 +303,7 @@
           }
         }
         if (route.kind === 'session' && payload.data && payload.data.info) {
+          renderFailureReported = false;
           notifyParent('fruit-mary:ready', { balance: Number(payload.data.info.gold || 0) });
         }
         if (route.kind === 'settlement' && payload.balance !== undefined) {
@@ -723,12 +803,43 @@
 
   function installFruitMaryRuntimeGuards() {
     function install() {
+      if (gameDisposing) return;
       if (applyFruitMaryRuntimeGuards()) return;
       animationGuardAttempts += 1;
       if (animationGuardAttempts < 600) window.setTimeout(install, 100);
     }
     install();
   }
+
+  bindGameCanvasRecovery();
+  addWindowListener('error', function (event) {
+    var error = event && (event.error || event.message);
+    var stack = error && error.stack ? String(error.stack) : '';
+    var message = publicRenderError(error);
+    if (
+      /fruit-mary|cocos2d-js/i.test(stack) &&
+      /webgl|context|getParameter|getExtension|Cannot read|undefined is not an object/i.test(message)
+    ) {
+      reportFatalRenderFailure('source-runtime-error', error);
+    }
+  });
+  addWindowListener('unhandledrejection', function (event) {
+    var reason = event && event.reason;
+    var stack = reason && reason.stack ? String(reason.stack) : '';
+    if (/fruit-mary|cocos2d-js/i.test(stack)) {
+      reportFatalRenderFailure('source-runtime-rejection', reason);
+    }
+  });
+  addWindowListener('message', function (event) {
+    if (event.origin !== window.location.origin || event.source !== window.parent || !event.data) {
+      return;
+    }
+    if (event.data.type === 'fruit-mary:dispose') disposeGameForRemount();
+    if (event.data.type === 'fruit-mary:health-check' && !gameDisposing) {
+      notifyParent('fruit-mary:health', { healthy: !gameCanvasContextLost });
+    }
+  });
+  addWindowListener('pagehide', disposeGameForRemount);
 
   window.XMLHttpRequest = BridgeXHR;
   window.__YachiyoFruitMaryAdapterTest = {
@@ -738,8 +849,11 @@
     shortBonusCompletionIndex: shortBonusCompletionIndex,
     patchFruitMaryPlayLogic: patchFruitMaryPlayLogic,
     recoverFruitMaryRequestState: recoverFruitMaryRequestState,
+    bindGameCanvasRecovery: bindGameCanvasRecovery,
+    disposeGameForRemount: disposeGameForRemount,
     createBridgeXHR: function () { return new BridgeXHR(); },
   };
+  window.__YachiyoDisposeFruitMaryGame = disposeGameForRemount;
   installFruitMaryRuntimeGuards();
   console.info('[Fruit Mary Adapter] Yachiyo authenticated HTTP bridge enabled');
 }());

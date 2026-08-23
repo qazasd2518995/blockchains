@@ -246,9 +246,9 @@ export class HotlineScene {
         this.rowCount <= ROWS &&
         rendererResolution <= CLASSIC_RENDER_DPR,
       powerPreference: useConstrainedRenderer ? 'low-power' : 'high-performance',
-      // WebGL 才能完整還原原版粒子、發光與濾鏡。Canvas 只作為真正無 WebGL
-      // 時的容錯，不再對 iPhone 強制啟用簡化 renderer。
-      preference: ['webgl', 'canvas'],
+      // 明確先建立 WebGL，避免 renderer 自動選擇時無聲降級成 Canvas。
+      // Canvas 只會在下面捕捉到 WebGL 建立失敗後才啟用。
+      preference: 'webgl',
       preferWebGLVersion,
     };
     slotDebug('hotline-scene:init:start', {
@@ -259,7 +259,7 @@ export class HotlineScene {
       rowCount: this.rowCount,
       reelCount: this.reelCount,
       rendererResolution,
-      rendererPreference: ['webgl', 'canvas'],
+      rendererPreference: ['webgl', 'canvas-after-explicit-failure'],
       useConstrainedRenderer,
       shaderEffects: true,
       devicePixelRatio: typeof window === 'undefined' ? null : window.devicePixelRatio,
@@ -555,6 +555,10 @@ export class HotlineScene {
     if (rendererName.includes('webgpu')) return 'webgpu';
     if (rendererName.includes('webgl')) return 'webgl';
     return 'unknown';
+  }
+
+  getRendererKind(): 'webgl' | 'canvas' | 'webgpu' | 'unknown' {
+    return this.rendererKind;
   }
 
   private canUseShaderEffects(): boolean {

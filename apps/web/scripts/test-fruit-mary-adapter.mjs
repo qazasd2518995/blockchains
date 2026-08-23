@@ -6,7 +6,24 @@ import { fileURLToPath } from 'node:url';
 const adapterPath = fileURLToPath(
   new URL('../public/games/fruit-mary/fruit-mary-adapter.js', import.meta.url),
 );
+const pagePath = fileURLToPath(new URL('../src/pages/games/FruitMaryPage.tsx', import.meta.url));
 const adapterSource = fs.readFileSync(adapterPath, 'utf8');
+const pageSource = fs.readFileSync(pagePath, 'utf8');
+assert.match(
+  adapterSource,
+  /getExtension\(['"]WEBGL_lose_context['"]\)/,
+  'Fruit Mary route changes must release the old Cocos WebGL context',
+);
+assert.match(
+  pageSource,
+  /payload\.type === ['"]fruit-mary:fatal['"]/,
+  'Fruit Mary shell must rebuild a failed source-game iframe',
+);
+assert.match(
+  pageSource,
+  /__YachiyoDisposeFruitMaryGame/,
+  'Fruit Mary shell must dispose the source game before removing its iframe',
+);
 const storedValues = {
   'bg-auth': JSON.stringify({
     state: { accessToken: 'test-access', refreshToken: 'test-refresh' },

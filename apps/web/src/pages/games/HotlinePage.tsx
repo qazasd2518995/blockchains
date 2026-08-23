@@ -280,6 +280,9 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<RecentBetRecord[]>([]);
   const [sceneReady, setSceneReady] = useState(false);
+  const [sceneRendererKind, setSceneRendererKind] = useState<
+    'webgl' | 'canvas' | 'webgpu' | 'unknown'
+  >('unknown');
   const [sceneLoadingProgress, setSceneLoadingProgress] = useState(0);
   const [sceneLoadingMessage, setSceneLoadingMessage] = useState('正在準備高畫質遊戲畫面');
   const [sceneCanvasKey, setSceneCanvasKey] = useState(0);
@@ -340,6 +343,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
       setError((prev) => (prev === '遊戲畫面載入中，請稍候' ? null : prev));
     } else {
       setSceneLoadingProgress(8);
+      setSceneRendererKind('unknown');
     }
     setSceneReady(ready);
   }, []);
@@ -384,6 +388,22 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     if (!scene || !sceneReadyRef.current) return null;
     return scene;
   }, []);
+
+  const rebuildMegaScene = useCallback((): void => {
+    const staleScene = sceneRef.current;
+    try {
+      staleScene?.stopAnticipation();
+      staleScene?.dispose();
+    } catch (err) {
+      console.warn('Mega scene manual rebuild cleanup failed', err);
+    }
+    if (sceneRef.current === staleScene) sceneRef.current = null;
+    pendingSceneResizeRef.current = false;
+    sceneRecoveryAttemptsRef.current = 0;
+    setSceneLoadingMessage('正在重新建立完整遊戲畫面');
+    setSceneAvailability(false, false);
+    setSceneCanvasKey((key) => key + 1);
+  }, [setSceneAvailability]);
 
   useEffect(() => {
     if (!megaAmountEditing) setMegaAmountText(amount.toFixed(2));
@@ -590,6 +610,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
             return;
           }
           sceneRef.current = nextScene;
+          setSceneRendererKind(nextScene.getRendererKind());
           setSceneAvailability(true, false);
           slotDebug('hotline-page:init-scene:ready', {
             token,
@@ -2069,6 +2090,15 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
     isBigWinResult &&
     dismissedBigWinBetId !== result.betId,
   );
+  const megaMachineStateClasses = [
+    megaScenePending ? 'mega-slot-machine--loading' : '',
+    busy || spinning ? 'mega-slot-machine--spinning' : '',
+    megaDisplayFreeSpinMode || megaFreeSpinIntro ? 'mega-slot-machine--free' : '',
+    !busy && !spinning && megaDisplayPayout > 0 ? 'mega-slot-machine--win' : '',
+    sceneRendererKind === 'canvas' ? 'mega-slot-machine--compat' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
   const resultTitle = isBigWinResult
     ? '恭喜爆分'
     : resultPayout > resultAmount
@@ -2282,7 +2312,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   if (isMegaSlot) {
     return (
       <div
-        className={`slot-game-page slot-game-page--mega mega-slot-machine ${fastSpin ? 'mega-slot-machine--fast' : ''}`}
+        className={`slot-game-page slot-game-page--mega mega-slot-machine ${megaMachineStateClasses} ${fastSpin ? 'mega-slot-machine--fast' : ''}`}
         style={
           {
             '--mega-slot-bg': `url(${optimizedMegaBackground})`,
@@ -2324,6 +2354,16 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               <History className="h-4 w-4" aria-hidden="true" />
               記錄
             </Link>
+            {sceneRendererKind === 'canvas' && (
+              <button
+                type="button"
+                className="mega-slot-quality-badge"
+                onClick={rebuildMegaScene}
+                title="目前為 Canvas 相容畫質，點擊重試 WebGL 高畫質"
+              >
+                相容畫質 · 重試高清
+              </button>
+            )}
             <AudioMenu variant="dark" />
           </header>
 
@@ -2377,7 +2417,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
               </div>
             </aside>
 
-            <section className="mega-slot-stage" aria-label={`${slotTheme.title} 6x5 盤面`}>
+            <section
+              className="mega-slot-stage"
+              aria-label={`${slotTheme.title} 6x5 盤面`}
+              aria-busy={megaScenePending || busy}
+            >
               <div
                 className={`mega-slot-win-meter ${result || megaDisplayPayout > 0 ? 'mega-slot-win-meter--settled' : ''}`}
               >
@@ -2386,6 +2430,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 <div className="mega-slot-win-meter__meta">{megaDisplayWinMeterMeta}</div>
               </div>
               <div className="mega-slot-board">
+                <div className="mega-slot-board__atmosphere" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
                 <canvas
                   key={sceneCanvasKey}
                   ref={canvasRef}
@@ -2402,6 +2451,11 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                         <span style={{ width: megaLoadingProgressLabel }} />
                       </div>
                       <div className="mega-slot-loading__meta">{sceneLoadingMessage}</div>
+                      {sceneLoadingProgress >= 94 && (
+                        <button type="button" onClick={rebuildMegaScene}>
+                          重新建立畫面
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -2537,6 +2591,7 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
                 className="mega-slot-spin"
                 aria-label={t.games.hotline.spin}
               >
+                <div className="mega-slot-spin__orbit" aria-hidden="true" />
                 <span>{megaSpinButtonLabel}</span>
                 <strong>{megaSpinButtonValue}</strong>
               </button>

@@ -10,8 +10,13 @@ const [sceneSource, pageSource, manifestSource, themesSource] = await Promise.al
 
 assert.match(
   sceneSource,
-  /preference:\s*\['webgl', 'canvas'\]/,
-  'Slot renderer must keep WebGL ahead of the Canvas compatibility renderer.',
+  /preference:\s*'webgl'/,
+  'Slot renderer must explicitly request WebGL before considering Canvas compatibility mode.',
+);
+assert.match(
+  sceneSource,
+  /preference:\s*'canvas'/,
+  'Mega slots must retain Canvas as a last-resort compatibility renderer.',
 );
 assert.doesNotMatch(
   sceneSource,

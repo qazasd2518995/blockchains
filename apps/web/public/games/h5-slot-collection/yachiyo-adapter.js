@@ -53,6 +53,13 @@
   var audioBridge = null;
   var audioBridgeAttempts = 0;
   var platformAudioPrefs = readPlatformAudioPrefs();
+  var activeSockets = [];
+  var gameDisposing = false;
+  var gameCanvasContextLost = false;
+  var renderFailureReported = false;
+  var slotStallTimer = 0;
+  var lastSpinRequestAt = 0;
+  var lastLotteryResponseAt = 0;
 
   var MISSING_SOURCE_FONT_FALLBACKS = {
     'FZY4JW--GB1-0.ttf':
@@ -945,6 +952,188 @@
     }
   }
 
+  function publicRenderError(error) {
+    var message = error && error.message ? error.message : String(error || '遊戲畫面中斷');
+    if (/webgl|context|getParameter|getExtension/i.test(message)) {
+      return '遊戲畫面無法建立，請關閉其他遊戲頁面後重新載入';
+    }
+    if (/slot-ui-stalled|控制列未恢復/i.test(message)) {
+      return '開獎已完成，但遊戲控制列未恢復';
+    }
+    return message.length > 180 ? message.slice(0, 180) : message;
+  }
+
+  function reportFatalRenderFailure(stage, error) {
+    if (gameDisposing || renderFailureReported) return false;
+    renderFailureReported = true;
+    notifyParent('h5-slots:fatal', {
+      gameCode: gameCode,
+      stage: stage,
+      message: publicRenderError(error),
+    });
+    return true;
+  }
+
+  function bindGameCanvasRecovery() {
+    if (typeof document === 'undefined') return false;
+    var canvas = document.getElementById('GameCanvas');
+    if (!canvas || canvas.__yachiyoRecoveryBound) return false;
+    canvas.__yachiyoRecoveryBound = true;
+    canvas.addEventListener(
+      'webglcontextcreationerror',
+      function (event) {
+        gameCanvasContextLost = true;
+        reportFatalRenderFailure(
+          'webgl-context-creation',
+          new Error((event && event.statusMessage) || '無法建立遊戲畫面'),
+        );
+      },
+      false,
+    );
+    canvas.addEventListener(
+      'webglcontextlost',
+      function (event) {
+        gameCanvasContextLost = true;
+        if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        reportFatalRenderFailure('webgl-context-lost', new Error('遊戲畫面已中斷'));
+      },
+      false,
+    );
+    canvas.addEventListener(
+      'webglcontextrestored',
+      function () {
+        gameCanvasContextLost = false;
+      },
+      false,
+    );
+    return true;
+  }
+
+  function sourceMainComponent() {
+    var componentByCode = {
+      113: 'JXLWMain',
+      116: 'SHZMain',
+      135: 'DiamondMain',
+      155: 'YPTMain',
+      160: 'SGXMLMain',
+      161: 'AZTKMain',
+      188: 'Fire88Main',
+      232: 'lucky777Main',
+      244: 'caishenfafafaBMain',
+      252: 'biyishuangfeiMain',
+      262: 'mingxing972023Main',
+      264: 'fortuneoxMain',
+      269: 'majianghulePGMain',
+      271: 'majianghule2PGMain',
+      273: 'dragonhatchMain',
+      276: 'captainsbountyMain',
+      278: 'caishenwinsMain',
+      281: 'queenbountyMain',
+      301: 'goldenempireMain',
+      302: 'fortunegemsMain',
+      321: 'gatesofolympushbMain',
+    };
+    try {
+      var canvas = window.cc && window.cc.find && window.cc.find('Canvas');
+      var componentName = componentByCode[Number(gameCode)];
+      return canvas && componentName && canvas.getComponent(componentName);
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function sourceNodeVisible(node) {
+    if (!node || node.active === false || node.activeInHierarchy === false) return false;
+    var face = node.children && node.children[0];
+    return !face || (face.active !== false && face.activeInHierarchy !== false);
+  }
+
+  function sourceFeatureIsPlaying(main) {
+    return Boolean(
+      main &&
+        (main.bigWinBoo ||
+          main.bIsFreeGame ||
+          main.isFreeStart ||
+          main.isFreeEnd ||
+          main.stopFree ||
+          Number(main.freeTimes || 0) > 0),
+    );
+  }
+
+  function watchForStalledSlotUi() {
+    if (gameDisposing) return;
+    if (
+      lastSpinRequestAt > 0 &&
+      lastLotteryResponseAt > 0 &&
+      Date.now() - lastLotteryResponseAt >= 22000 &&
+      !slotSettlementInFlight
+    ) {
+      var main = sourceMainComponent();
+      var controls = main && main.slotCtrl;
+      var sourceBusy = main && Number(main.status || 0) !== 0;
+      var hasUsableControl =
+        controls &&
+        (sourceNodeVisible(controls.Btn_start) ||
+          sourceNodeVisible(controls.Btn_stop) ||
+          sourceNodeVisible(controls.Btn_stopAuto) ||
+          sourceNodeVisible(controls.Btn_free));
+      if (sourceBusy && !hasUsableControl && !sourceFeatureIsPlaying(main)) {
+        reportFatalRenderFailure(
+          'slot-ui-stalled',
+          new Error('開獎已完成，但遊戲控制列未恢復'),
+        );
+      }
+    }
+    slotStallTimer = window.setTimeout(watchForStalledSlotUi, 2000);
+  }
+
+  function startSlotStallWatchdog() {
+    if (slotStallTimer || gameDisposing) return;
+    slotStallTimer = window.setTimeout(watchForStalledSlotUi, 2000);
+  }
+
+  function disposeGameForRemount() {
+    if (gameDisposing) return false;
+    gameDisposing = true;
+    if (slotStallTimer) {
+      window.clearTimeout(slotStallTimer);
+      slotStallTimer = 0;
+    }
+    fishStreamToken += 1;
+    activeSockets.slice().forEach(function (socket) {
+      try {
+        socket.disconnect();
+        socket.off();
+      } catch (_error) {}
+    });
+    activeSockets = [];
+    try {
+      if (window.cc && window.cc.audioEngine && typeof window.cc.audioEngine.stopAll === 'function') {
+        window.cc.audioEngine.stopAll();
+      }
+      if (window.cc && window.cc.game && typeof window.cc.game.pause === 'function') {
+        window.cc.game.pause();
+      }
+      if (window.cc && window.cc.director && typeof window.cc.director.pause === 'function') {
+        window.cc.director.pause();
+      }
+    } catch (_error) {}
+    try {
+      var canvas = typeof document !== 'undefined' && document.getElementById('GameCanvas');
+      var context =
+        canvas &&
+        (canvas.getContext('webgl2') ||
+          canvas.getContext('webgl') ||
+          canvas.getContext('experimental-webgl'));
+      var loseContext = context && context.getExtension('WEBGL_lose_context');
+      if (loseContext && typeof loseContext.loseContext === 'function') loseContext.loseContext();
+    } catch (_error) {}
+    window.setTimeout(function () {
+      notifyParent('h5-slots:disposed', { gameCode: gameCode });
+    }, 0);
+    return true;
+  }
+
   function writeTokens(accessToken, refreshToken) {
     try {
       var storage = parentStorage();
@@ -1325,6 +1514,7 @@
     this._connectAnnounced = false;
     this.id = 'yachiyo-local';
     this.$events = {};
+    activeSockets.push(this);
     var socket = this;
     window.setTimeout(function () {
       if (socket._connectAnnounced) return;
@@ -1375,6 +1565,9 @@
         handler(payload);
       } catch (error) {
         console.error('[Yachiyo H5 Slots] event handler failed', event, error);
+        if (event === 'lotteryResult' || event === 'LoginRoomResult') {
+          reportFatalRenderFailure('source-event-' + event, error);
+        }
       }
     });
   };
@@ -1534,6 +1727,7 @@
       },
     });
     if (!isFishGame) emitRoomLogin(socket);
+    if (!isFishGame) startSlotStallWatchdog();
     notifyParent('h5-slots:ready', { balance: Number(session.balance || 0), gameCode: gameCode });
   }
 
@@ -1869,6 +2063,8 @@
 
   function settleSpin(socket, rawPayload) {
     var payload;
+    lastSpinRequestAt = Date.now();
+    renderFailureReported = false;
     try {
       payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload || {};
     } catch (_error) {
@@ -1937,6 +2133,7 @@
             : 0,
         );
         emitQueuedLotteryResponse(socket);
+        lastLotteryResponseAt = Date.now();
         notifyParent('h5-slots:balance', {
           balance: Number(result.newBalance || 0),
           gameCode: gameCode,
@@ -3081,6 +3278,41 @@
     notifyParent('h5-slots:error', { message: message });
   }
 
+  bindGameCanvasRecovery();
+  function addWindowListener(type, listener) {
+    if (typeof window.addEventListener === 'function') window.addEventListener(type, listener);
+  }
+  addWindowListener('error', function (event) {
+    var error = event && (event.error || event.message);
+    var stack = error && error.stack ? String(error.stack) : '';
+    var message = publicRenderError(error);
+    if (
+      /h5-slot-collection|cocos2d-js/i.test(stack) &&
+      /webgl|context|getParameter|getExtension|Cannot read|undefined is not an object/i.test(message)
+    ) {
+      reportFatalRenderFailure('source-runtime-error', error);
+    }
+  });
+  addWindowListener('unhandledrejection', function (event) {
+    var reason = event && event.reason;
+    var stack = reason && reason.stack ? String(reason.stack) : '';
+    if (/h5-slot-collection|cocos2d-js/i.test(stack)) {
+      reportFatalRenderFailure('source-runtime-rejection', reason);
+    }
+  });
+  addWindowListener('message', function (event) {
+    if (event.origin !== window.location.origin || event.source !== window.parent || !event.data)
+      return;
+    if (event.data.type === 'h5-slots:dispose') disposeGameForRemount();
+    if (event.data.type === 'h5-slots:health-check' && !gameDisposing) {
+      notifyParent('h5-slots:health', {
+        gameCode: gameCode,
+        healthy: !gameCanvasContextLost,
+      });
+    }
+  });
+  addWindowListener('pagehide', disposeGameForRemount);
+
   function fakeIo() {
     return new FakeSocket();
   }
@@ -3106,6 +3338,11 @@
     sourceFontFallback: sourceFontFallback,
     rewriteMissingSourceFontStyle: rewriteMissingSourceFontStyle,
     isLegacyBrandWebViewUrl: isLegacyBrandWebViewUrl,
+    bindGameCanvasRecovery: bindGameCanvasRecovery,
+    disposeGameForRemount: disposeGameForRemount,
+    sourceMainComponent: sourceMainComponent,
+    sourceNodeVisible: sourceNodeVisible,
+    watchForStalledSlotUi: watchForStalledSlotUi,
     completeDeferredFeature: completeDeferredFeature,
     patchDeferredFeatureCompletion: patchDeferredFeatureCompletion,
     getPendingDeferredFeatureBetId: function () {
@@ -3116,6 +3353,7 @@
     },
   };
   window.__YachiyoUnlockAudio = resumeCocosAudio;
+  window.__YachiyoDisposeH5Game = disposeGameForRemount;
   window.__YachiyoFakeIo = fakeIo;
   window.XMLHttpRequest = BridgeXHR;
   try {

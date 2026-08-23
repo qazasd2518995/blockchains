@@ -25,6 +25,26 @@ assert.match(
   /typeof window\.PointerEvent === 'function'/,
   'touch devices with Pointer Events must not install duplicate touchstart and pointerdown work',
 );
+assert.match(
+  adapterSource,
+  /getExtension\(['"]WEBGL_lose_context['"]\)/,
+  'route changes must explicitly release the old Cocos WebGL context',
+);
+assert.match(
+  adapterSource,
+  /reportFatalRenderFailure\(\s*['"]slot-ui-stalled['"]/,
+  'settled spins must recover when the source controls remain hidden',
+);
+assert.match(
+  pageSource,
+  /payload\.type === ['"]h5-slots:fatal['"]/,
+  'the platform shell must rebuild a failed source-game iframe',
+);
+assert.match(
+  pageSource,
+  /__YachiyoDisposeH5Game/,
+  'the shell must release the source game before removing its iframe',
+);
 
 {
   const originalLanguageCodes = {
