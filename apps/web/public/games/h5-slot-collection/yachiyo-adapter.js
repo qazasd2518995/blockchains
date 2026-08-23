@@ -60,6 +60,7 @@
   var slotStallTimer = 0;
   var lastSpinRequestAt = 0;
   var lastLotteryResponseAt = 0;
+  var sourceReadyAt = 0;
 
   var MISSING_SOURCE_FONT_FALLBACKS = {
     'FZY4JW--GB1-0.ttf':
@@ -660,6 +661,9 @@
     disableLegacyBrandWebViews();
     patchLegacyFreeSpinCountdown();
     patchDeferredFeatureCompletion();
+    var main = sourceMainComponent();
+    restoreMahjongWaysTileBackgrounds(main);
+    repairIdleSlotControls(main);
   }
 
   function installCocosScenePolicies() {
@@ -1043,9 +1047,19 @@
   }
 
   function sourceNodeVisible(node) {
-    if (!node || node.active === false || node.activeInHierarchy === false) return false;
+    if (
+      !node ||
+      node.active === false ||
+      node.activeInHierarchy === false ||
+      node.opacity === 0
+    ) {
+      return false;
+    }
     var face = node.children && node.children[0];
-    return !face || (face.active !== false && face.activeInHierarchy !== false);
+    return (
+      !face ||
+      (face.active !== false && face.activeInHierarchy !== false && face.opacity !== 0)
+    );
   }
 
   function sourceFeatureIsPlaying(main) {
@@ -1060,24 +1074,151 @@
     );
   }
 
+  function reviveSourceSprite(node) {
+    if (!node || !node.getComponent || !window.cc) return false;
+    try {
+      var sprite = node.getComponent(window.cc.Sprite) || node.getComponent('cc.Sprite');
+      if (!sprite) return false;
+      sprite.enabled = true;
+      sprite._vertsDirty = true;
+      var frame = sprite.spriteFrame;
+      var texture = frame && typeof frame.getTexture === 'function' ? frame.getTexture() : null;
+      if (
+        texture &&
+        texture._image &&
+        typeof texture.isLoaded === 'function' &&
+        texture.isLoaded() &&
+        !texture._texture &&
+        typeof texture.handleLoadedTexture === 'function'
+      ) {
+        texture.handleLoadedTexture();
+      }
+      return Boolean(frame);
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function restoreMahjongWaysTileBackgrounds(main) {
+    if (gameCode !== '269' || !main || !Array.isArray(main.wheelList)) return false;
+    var restored = false;
+    for (var wheelIndex = 0; wheelIndex < main.wheelList.length; wheelIndex += 1) {
+      var wheel = main.wheelList[wheelIndex];
+      if (!wheel || !Array.isArray(wheel.rolePbList) || !Array.isArray(wheel.roleIdList)) {
+        continue;
+      }
+      // The centre reel intentionally switches to a gold plate during free games.
+      if (main.bIsFreeGame && Number(wheel.wheelId) === 2) continue;
+      for (var roleIndex = 0; roleIndex < wheel.rolePbList.length; roleIndex += 1) {
+        var roleId = Number(wheel.roleIdList[roleIndex] || 0);
+        var role = wheel.rolePbList[roleIndex];
+        var whitePlate = role && role.children && role.children[0];
+        // IDs 1-8 are the ordinary Mahjong tiles. Scatter/wild and gold IDs
+        // use their own authored plates and must not be overwritten.
+        if (roleId < 1 || roleId > 8 || !whitePlate) continue;
+        var needsRepair = whitePlate.active === false || whitePlate.opacity === 0;
+        if (needsRepair) restored = true;
+        whitePlate.active = true;
+        whitePlate.opacity = 255;
+        if (needsRepair || !whitePlate.__yachiyoVisualVerified) {
+          reviveSourceSprite(whitePlate);
+          whitePlate.__yachiyoVisualVerified = true;
+        }
+      }
+    }
+    return restored;
+  }
+
+  function sourceButtonComponent(node) {
+    if (!node || !node.getComponent) return null;
+    try {
+      return (
+        (window.cc && window.cc.Button && node.getComponent(window.cc.Button)) ||
+        node.getComponent('cc.Button')
+      );
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function repairIdleSlotControls(main) {
+    if (
+      !main ||
+      slotSettlementInFlight ||
+      Number(main.status || 0) !== 0 ||
+      sourceFeatureIsPlaying(main)
+    ) {
+      return false;
+    }
+    var controls = main.slotCtrl;
+    if (!controls || !controls.Btn_start) return false;
+    if (sourceNodeVisible(controls.Btn_start)) {
+      var visibleButton = sourceButtonComponent(controls.Btn_start);
+      if (!visibleButton || visibleButton.interactable !== false) return true;
+    }
+    try {
+      if (typeof controls.setSpinAnim === 'function') controls.setSpinAnim(0);
+      controls.Btn_start.active = true;
+      controls.Btn_start.opacity = 255;
+      var buttonFace = controls.Btn_start.children && controls.Btn_start.children[0];
+      if (buttonFace) {
+        buttonFace.active = true;
+        buttonFace.opacity = 255;
+        reviveSourceSprite(buttonFace);
+      }
+      var button = sourceButtonComponent(controls.Btn_start);
+      if (button) button.interactable = true;
+      if (controls.spin_AnimNode) {
+        controls.spin_AnimNode.active = true;
+        controls.spin_AnimNode.opacity = 255;
+        reviveSourceSprite(controls.spin_AnimNode);
+      }
+      if (controls.spin_AnimNode_turn) {
+        controls.spin_AnimNode_turn.active = true;
+        controls.spin_AnimNode_turn.opacity = 255;
+        reviveSourceSprite(controls.spin_AnimNode_turn);
+      }
+      return sourceNodeVisible(controls.Btn_start);
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function sourceSlotVisualHealthy() {
+    if (gameCanvasContextLost) return false;
+    if (isFishGame || !sourceReadyAt || Date.now() - sourceReadyAt < 12000) return true;
+    var main = sourceMainComponent();
+    if (!main) return false;
+    restoreMahjongWaysTileBackgrounds(main);
+    if (
+      slotSettlementInFlight ||
+      Number(main.status || 0) !== 0 ||
+      sourceFeatureIsPlaying(main)
+    ) {
+      return true;
+    }
+    return repairIdleSlotControls(main);
+  }
+
   function watchForStalledSlotUi() {
     if (gameDisposing) return;
+    var main = sourceMainComponent();
+    restoreMahjongWaysTileBackgrounds(main);
+    repairIdleSlotControls(main);
     if (
       lastSpinRequestAt > 0 &&
       lastLotteryResponseAt > 0 &&
       Date.now() - lastLotteryResponseAt >= 22000 &&
       !slotSettlementInFlight
     ) {
-      var main = sourceMainComponent();
       var controls = main && main.slotCtrl;
-      var sourceBusy = main && Number(main.status || 0) !== 0;
       var hasUsableControl =
         controls &&
         (sourceNodeVisible(controls.Btn_start) ||
           sourceNodeVisible(controls.Btn_stop) ||
           sourceNodeVisible(controls.Btn_stopAuto) ||
           sourceNodeVisible(controls.Btn_free));
-      if (sourceBusy && !hasUsableControl && !sourceFeatureIsPlaying(main)) {
+      if (main && !hasUsableControl && !sourceFeatureIsPlaying(main)) {
         reportFatalRenderFailure(
           'slot-ui-stalled',
           new Error('開獎已完成，但遊戲控制列未恢復'),
@@ -1728,6 +1869,7 @@
     });
     if (!isFishGame) emitRoomLogin(socket);
     if (!isFishGame) startSlotStallWatchdog();
+    sourceReadyAt = Date.now();
     notifyParent('h5-slots:ready', { balance: Number(session.balance || 0), gameCode: gameCode });
   }
 
@@ -3307,7 +3449,7 @@
     if (event.data.type === 'h5-slots:health-check' && !gameDisposing) {
       notifyParent('h5-slots:health', {
         gameCode: gameCode,
-        healthy: !gameCanvasContextLost,
+        healthy: sourceSlotVisualHealthy(),
       });
     }
   });
@@ -3342,6 +3484,10 @@
     disposeGameForRemount: disposeGameForRemount,
     sourceMainComponent: sourceMainComponent,
     sourceNodeVisible: sourceNodeVisible,
+    sourceFeatureIsPlaying: sourceFeatureIsPlaying,
+    repairIdleSlotControls: repairIdleSlotControls,
+    restoreMahjongWaysTileBackgrounds: restoreMahjongWaysTileBackgrounds,
+    sourceSlotVisualHealthy: sourceSlotVisualHealthy,
     watchForStalledSlotUi: watchForStalledSlotUi,
     completeDeferredFeature: completeDeferredFeature,
     patchDeferredFeatureCompletion: patchDeferredFeatureCompletion,

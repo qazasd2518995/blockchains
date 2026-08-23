@@ -134,7 +134,7 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
       language: ORIGINAL_LANGUAGE_BY_PLATFORM_LOCALE[locale],
       uid: 'yachiyo',
       token: 'yachiyo-session',
-      build: 'yachiyo-h5-slots-v3-recovery',
+      build: 'yachiyo-h5-slots-v4-visual-recovery',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, [gameCode, locale]);
@@ -229,7 +229,9 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
     };
     document.addEventListener('visibilitychange', checkFrameHealth);
     window.addEventListener('pageshow', checkFrameHealth);
+    const healthTimer = window.setInterval(checkFrameHealth, 5_000);
     return () => {
+      window.clearInterval(healthTimer);
       document.removeEventListener('visibilitychange', checkFrameHealth);
       window.removeEventListener('pageshow', checkFrameHealth);
     };

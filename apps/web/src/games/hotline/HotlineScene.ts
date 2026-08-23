@@ -652,6 +652,26 @@ export class HotlineScene {
       .fill({ color: 0xffffff });
     this.reelsContainer.addChild(mask);
 
+    // Mega Slot is a 6x5 matrix, not six uninterrupted strips. Draw an
+    // authored plate for every visible position so transparent source symbols
+    // still read as one symbol per cell on a phone-sized canvas.
+    if (this.rowCount > ROWS) {
+      const megaCellGrid = new Graphics();
+      for (let rowIndex = 0; rowIndex < this.rowCount; rowIndex += 1) {
+        megaCellGrid
+          .roundRect(
+            reelX + 2,
+            reelY + rowIndex * this.cellSize + 2,
+            this.cellWidth - 4,
+            this.cellSize - 4,
+            7,
+          )
+          .fill({ color: COLOR_INK, alpha: 0.2 })
+          .stroke({ color: COLOR_TILE_STROKE, width: 1.25, alpha: 0.62 });
+      }
+      this.reelsContainer.addChild(megaCellGrid);
+    }
+
     const reelContainer = new Container();
     reelContainer.x = reelX;
     reelContainer.y = reelY;

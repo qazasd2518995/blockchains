@@ -15,6 +15,8 @@
   var gameDisposing = false;
   var gameCanvasContextLost = false;
   var renderFailureReported = false;
+  var sourceReadyAt = 0;
+  var visualFailureSamples = 0;
 
   function parentStorage() {
     try {
@@ -304,6 +306,8 @@
         }
         if (route.kind === 'session' && payload.data && payload.data.info) {
           renderFailureReported = false;
+          sourceReadyAt = Date.now();
+          visualFailureSamples = 0;
           notifyParent('fruit-mary:ready', { balance: Number(payload.data.info.gold || 0) });
         }
         if (route.kind === 'settlement' && payload.balance !== undefined) {
@@ -795,7 +799,125 @@
       var canvas = window.cc.find('Canvas');
       var playLogic = canvas && canvas.getComponent && canvas.getComponent('PlayLogic');
       var menuLogic = canvas && canvas.getComponent && canvas.getComponent('MenuLogic');
-      return patchFruitMaryPlayLogic(playLogic) && patchFruitMaryMenuLogic(menuLogic);
+      var patched = patchFruitMaryPlayLogic(playLogic) && patchFruitMaryMenuLogic(menuLogic);
+      restoreFruitMaryVisualTree(playLogic, menuLogic);
+      return patched;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function sourceNodeVisible(node) {
+    return Boolean(
+      node && node.active !== false && node.activeInHierarchy !== false && node.opacity !== 0,
+    );
+  }
+
+  function restoreFruitMaryVisualTree(playLogic, menuLogic) {
+    if (!playLogic || !menuLogic) return false;
+    var changed = false;
+    var centre = playLogic.centerNode;
+    if (centre) {
+      if (centre.active === false || centre.opacity === 0) changed = true;
+      centre.active = true;
+      centre.opacity = 255;
+      var fruitRing = centre.getChildByName && centre.getChildByName('shuiguoNode');
+      if (fruitRing) {
+        if (fruitRing.active === false || fruitRing.opacity === 0) changed = true;
+        fruitRing.active = true;
+        fruitRing.opacity = 255;
+      }
+    }
+    if (sourceReadyAt > 0 && !playLogic._playing && !settlementInFlight) {
+      if (playLogic.mask) playLogic.mask.active = false;
+      if (window.cc && window.cc.vv && window.cc.vv.PrefabFactory._mask) {
+        window.cc.vv.PrefabFactory._mask.active = false;
+      }
+      var startNode = menuLogic.startBt && menuLogic.startBt.node;
+      if (startNode) {
+        if (!sourceNodeVisible(startNode)) changed = true;
+        startNode.active = true;
+        startNode.opacity = 255;
+        menuLogic.startBt.interactable = true;
+      }
+      var unavailableNode = menuLogic.unStartBt && menuLogic.unStartBt.node;
+      if (unavailableNode) unavailableNode.active = false;
+    }
+    return changed;
+  }
+
+  function canvasDetailScore(pixels, width, height) {
+    if (!pixels || width < 2 || height < 2) return 0;
+    var total = 0;
+    var comparisons = 0;
+    function addDifference(first, second) {
+      total +=
+        (Math.abs(pixels[first] - pixels[second]) +
+          Math.abs(pixels[first + 1] - pixels[second + 1]) +
+          Math.abs(pixels[first + 2] - pixels[second + 2])) /
+        3;
+      comparisons += 1;
+    }
+    for (var y = 0; y < height; y += 1) {
+      for (var x = 0; x < width; x += 1) {
+        var offset = (y * width + x) * 4;
+        if (x > 0) addDifference(offset, offset - 4);
+        if (y > 0) addDifference(offset, offset - width * 4);
+      }
+    }
+    return comparisons > 0 ? total / comparisons : 0;
+  }
+
+  function fruitMaryCanvasHasDetail() {
+    if (typeof document === 'undefined' || typeof document.createElement !== 'function') return true;
+    var source = document.getElementById('GameCanvas');
+    if (!source || !source.width || !source.height) return false;
+    try {
+      var probe = document.createElement('canvas');
+      probe.width = 32;
+      probe.height = 32;
+      var context = probe.getContext('2d', { willReadFrequently: true });
+      if (!context) return true;
+      context.drawImage(
+        source,
+        source.width * 0.12,
+        source.height * 0.2,
+        source.width * 0.76,
+        source.height * 0.5,
+        0,
+        0,
+        probe.width,
+        probe.height,
+      );
+      var pixels = context.getImageData(0, 0, probe.width, probe.height).data;
+      return canvasDetailScore(pixels, probe.width, probe.height) >= 6;
+    } catch (_error) {
+      // A browser privacy restriction must not cause a reload loop.
+      return true;
+    }
+  }
+
+  function fruitMaryVisualHealthy() {
+    if (gameCanvasContextLost) return false;
+    if (!sourceReadyAt || Date.now() - sourceReadyAt < 10000) return true;
+    try {
+      if (!window.cc || typeof window.cc.find !== 'function') return false;
+      var canvas = window.cc.find('Canvas');
+      var playLogic = canvas && canvas.getComponent && canvas.getComponent('PlayLogic');
+      var menuLogic = canvas && canvas.getComponent && canvas.getComponent('MenuLogic');
+      if (!playLogic || !menuLogic) return false;
+      restoreFruitMaryVisualTree(playLogic, menuLogic);
+      var centre = playLogic.centerNode;
+      var fruitRing = centre && centre.getChildByName && centre.getChildByName('shuiguoNode');
+      var structureHealthy =
+        sourceNodeVisible(centre) &&
+        sourceNodeVisible(fruitRing) &&
+        Array.isArray(fruitRing.children) &&
+        fruitRing.children.length >= 24;
+      if (!structureHealthy) return false;
+      if (playLogic._playing || settlementInFlight) return true;
+      var startNode = menuLogic.startBt && menuLogic.startBt.node;
+      return sourceNodeVisible(startNode) && fruitMaryCanvasHasDetail();
     } catch (_error) {
       return false;
     }
@@ -836,7 +958,11 @@
     }
     if (event.data.type === 'fruit-mary:dispose') disposeGameForRemount();
     if (event.data.type === 'fruit-mary:health-check' && !gameDisposing) {
-      notifyParent('fruit-mary:health', { healthy: !gameCanvasContextLost });
+      var healthy = fruitMaryVisualHealthy();
+      visualFailureSamples = healthy ? 0 : visualFailureSamples + 1;
+      // Require two consecutive samples so a single in-flight animation frame
+      // cannot tear down an otherwise healthy game.
+      notifyParent('fruit-mary:health', { healthy: healthy || visualFailureSamples < 2 });
     }
   });
   addWindowListener('pagehide', disposeGameForRemount);
@@ -848,6 +974,9 @@
     patchFruitMaryMenuLogic: patchFruitMaryMenuLogic,
     shortBonusCompletionIndex: shortBonusCompletionIndex,
     patchFruitMaryPlayLogic: patchFruitMaryPlayLogic,
+    restoreFruitMaryVisualTree: restoreFruitMaryVisualTree,
+    canvasDetailScore: canvasDetailScore,
+    fruitMaryVisualHealthy: fruitMaryVisualHealthy,
     recoverFruitMaryRequestState: recoverFruitMaryRequestState,
     bindGameCanvasRecovery: bindGameCanvasRecovery,
     disposeGameForRemount: disposeGameForRemount,

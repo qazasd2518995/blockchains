@@ -411,6 +411,21 @@ export function HotlinePage({ theme = 'cyber' }: Props) {
   }, [amount, megaAmountEditing]);
 
   useEffect(() => {
+    if (!isMegaSlot) return;
+    // A shared route can switch directly between slot themes. Do not carry a
+    // previous game's 100-point selection into a game whose member limit
+    // starts at 10; each Mega Slot opens at its actual configured minimum.
+    const openingAmount = Number.parseFloat(minBetLimit.toFixed(2));
+    setAmount(openingAmount);
+    setMegaAmountText(openingAmount.toFixed(2));
+    setMegaAmountEditing(false);
+    megaAmountEditingRef.current = false;
+    const openingAutoSpin = createDefaultAutoSpinSettings(openingAmount);
+    setAutoSpinSettings(openingAutoSpin);
+    setAutoSpinInputDraft(createAutoSpinInputDraft(openingAutoSpin));
+  }, [isMegaSlot, minBetLimit, slotTheme.gameId, user?.id]);
+
+  useEffect(() => {
     fastSpinRef.current = fastSpin;
   }, [fastSpin]);
 

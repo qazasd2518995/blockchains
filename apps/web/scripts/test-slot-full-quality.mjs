@@ -48,6 +48,16 @@ assert.match(
   /themeSpecialImage\(this\.theme, 'multiplier'\), 960/,
   'Mega multiplier art must be ready before the playable scene is exposed.',
 );
+assert.match(
+  sceneSource,
+  /const megaCellGrid = new Graphics\(\)/,
+  'Mega slots must render a distinct plate for every position in the 6x5 matrix.',
+);
+assert.match(
+  sceneSource,
+  /rowIndex < this\.rowCount/,
+  'The authored Mega grid must cover every visible row.',
+);
 
 assert.doesNotMatch(
   pageSource,
@@ -58,6 +68,11 @@ assert.match(
   pageSource,
   /!sceneReady && \(\s*<div className="mega-slot-loading"/,
   'Mega slots must keep the themed loading layer while the full scene initializes.',
+);
+assert.match(
+  pageSource,
+  /const openingAmount = Number\.parseFloat\(minBetLimit\.toFixed\(2\)\)/,
+  'Opening a Mega Slot must select the member configured minimum instead of carrying another game bet.',
 );
 
 const megaThemeCount = (themesSource.match(/reels:\s*6,\s*\n\s*rows:\s*5,/g) ?? []).length;

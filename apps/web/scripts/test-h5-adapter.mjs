@@ -45,6 +45,11 @@ assert.match(
   /__YachiyoDisposeH5Game/,
   'the shell must release the source game before removing its iframe',
 );
+assert.match(
+  pageSource,
+  /setInterval\(checkFrameHealth, 5_000\)/,
+  'the shell must continue checking partially rendered games while visible',
+);
 
 {
   const originalLanguageCodes = {
@@ -310,6 +315,39 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
     },
     { standardSymbols: 9, scatter: 10, wild: 11, reelRows: [4, 5, 5, 5, 4], blankSymbol: 12 },
   );
+
+  const startButtonComponent = { interactable: false };
+  const startFace = { active: false, opacity: 0, getComponent: () => null };
+  const startNode = {
+    active: false,
+    opacity: 0,
+    children: [startFace],
+    getComponent: () => startButtonComponent,
+  };
+  let spinAnimationRepairs = 0;
+  const idleMahjong2Main = {
+    status: 0,
+    slotCtrl: {
+      Btn_start: startNode,
+      spin_AnimNode: startFace,
+      setSpinAnim() { spinAnimationRepairs += 1; },
+    },
+  };
+  assert.equal(mahjongWays2.repairIdleSlotControls(idleMahjong2Main), true);
+  assert.equal(startNode.active, true);
+  assert.equal(startFace.active, true);
+  assert.equal(startButtonComponent.interactable, true);
+  assert.equal(spinAnimationRepairs, 1);
+
+  const whitePlate = { active: false, opacity: 0, getComponent: () => null };
+  const regularTile = { children: [whitePlate] };
+  const mahjong1Main = {
+    bIsFreeGame: false,
+    wheelList: [{ wheelId: 0, roleIdList: [3], rolePbList: [regularTile] }],
+  };
+  assert.equal(mahjongWays.restoreMahjongWaysTileBackgrounds(mahjong1Main), true);
+  assert.equal(whitePlate.active, true);
+  assert.equal(whitePlate.opacity, 255);
 
   const fruitGrid = [
     [0, 1, 2],

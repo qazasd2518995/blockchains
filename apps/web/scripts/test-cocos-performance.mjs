@@ -80,7 +80,11 @@ for (const build of builds) {
       /cc\.view\._maxPixelRatio = Math\.min\(1\.5, window\.devicePixelRatio/,
     );
     assert.match(onStartSource, /mobile-balanced-retina/);
-    assert.match(onStartSource, /cc\.macro\.CLEANUP_IMAGE_CACHE = true/);
+    assert.match(
+      onStartSource,
+      /cc\.macro\.CLEANUP_IMAGE_CACHE = false/,
+      `${build.folder} must retain decoded images so iOS can rebuild partially lost WebGL textures`,
+    );
   }
 }
 

@@ -92,7 +92,7 @@ export function FruitMaryPage() {
       token: 'yachiyo-session',
       room_id: '1',
       window_type: 'web',
-      build: 'yachiyo-fruit-mary-v2-recovery',
+      build: 'yachiyo-fruit-mary-v3-visual-recovery',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, []);
@@ -150,7 +150,9 @@ export function FruitMaryPage() {
     };
     document.addEventListener('visibilitychange', checkFrameHealth);
     window.addEventListener('pageshow', checkFrameHealth);
+    const healthTimer = window.setInterval(checkFrameHealth, 5_000);
     return () => {
+      window.clearInterval(healthTimer);
       document.removeEventListener('visibilitychange', checkFrameHealth);
       window.removeEventListener('pageshow', checkFrameHealth);
     };

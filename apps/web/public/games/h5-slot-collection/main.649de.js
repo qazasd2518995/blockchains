@@ -34,7 +34,10 @@ window.boot = function () {
             cc.view._maxPixelRatio = Math.min(1.5, window.devicePixelRatio || 1);
         }
         cc.view.enableRetina(true);
-        cc.macro.CLEANUP_IMAGE_CACHE = true;
+        // Keep the decoded source image on iOS. The legacy Cocos 2 renderer
+        // needs it to rebuild individual textures after a WebGL interruption;
+        // clearing it can leave only part of a slot scene visible.
+        cc.macro.CLEANUP_IMAGE_CACHE = false;
         if (typeof document !== 'undefined') {
             document.documentElement.setAttribute(
                 'data-cocos-render-quality',
@@ -153,6 +156,6 @@ if (window.jsb) {
         require('jsb-adapter/jsb-engine.js');
     }
 
-    cc.macro.CLEANUP_IMAGE_CACHE = true;
+    cc.macro.CLEANUP_IMAGE_CACHE = false;
     window.boot();
 }
