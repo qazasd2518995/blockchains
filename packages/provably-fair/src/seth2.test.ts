@@ -12,6 +12,7 @@ import {
   SETH2_RETRIGGER_SPINS,
   SETH2_SCATTER_PAYTABLE,
   SETH2_SKILL_SYMBOL_PAY,
+  addSeth2GuaranteedAwakeningSkill,
   isSeth2MultiplierValue,
   seth2BuyFeature,
   seth2BuyFeatureEntry,
@@ -223,25 +224,40 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     },
   );
 
-  it('selects both 200x purchase modes with server-verifiable randomness', () => {
-    const modes = new Set(
-      Array.from(
-        { length: 100 },
-        (_, nonce) => seth2BuyFeature('buy-mode', 'client', nonce, BET).featureMode,
-      ),
-    );
-    expect(modes).toEqual(new Set(['standard', 'awakening']));
+  it('keeps every 200x purchase in ordinary free-game mode', () => {
+    expect(SETH2_BOUGHT_AWAKENING_SHARE).toBe(0);
+    for (let nonce = 0; nonce < 500; nonce += 1) {
+      const outcome = seth2BuyFeature('buy-mode', 'client', nonce, BET);
+      const scatterTypes = outcome.returnData.list[0]!.start_data.filter(
+        (current) => current.type === 15 || current.type === 16,
+      ).map((current) => current.type);
+
+      expect(outcome.featureMode).toBe('standard');
+      expect(scatterTypes).toEqual([15, 15, 15, 15]);
+    }
   });
 
-  it('keeps the 200x server-side awakening selection near the source client 30% rate', () => {
-    const purchases = 10_000;
-    let awakening = 0;
-    for (let nonce = 0; nonce < purchases; nonce += 1) {
-      if (seth2BuyFeature('buy-mode-rate', 'client', nonce, BET).featureMode === 'awakening') {
-        awakening += 1;
-      }
-    }
-    expect(awakening / purchases).toBeCloseTo(SETH2_BOUGHT_AWAKENING_SHARE, 1);
+  it('adds one payout-neutral awakening event when a paid feature has none', () => {
+    const outcome = seth2SpinForFactor(
+      'awakening-guarantee',
+      'client',
+      1,
+      BET,
+      0,
+      'awakening_free',
+    );
+    const payoutFactor = outcome.payoutFactor;
+    const totalGold = outcome.returnData.total_gold;
+
+    addSeth2GuaranteedAwakeningSkill(outcome, 'awakening-guarantee', 'client', 1);
+
+    expect(outcome.payoutFactor).toBe(payoutFactor);
+    expect(outcome.returnData.total_gold).toBe(totalGold);
+    expect(outcome.returnData.type18_start_mul_list).toHaveLength(1);
+    expect(outcome.returnData.type18_mul_count).toBe(2);
+    expect(outcome.returnData.list.filter((round) => round.remove_type.includes(18))).toHaveLength(
+      1,
+    );
   });
 
   it.each([
@@ -620,7 +636,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
 
       expect(visible500).toBe(true);
       expect(sourceViews).toBeGreaterThanOrEqual(1);
-      expect(sourceViews).toBeLessThanOrEqual(12);
+      expect(sourceViews).toBeLessThanOrEqual(17);
       if (outcome.payoutFactor === 0) {
         expect(sourceViews).toBe(1);
       } else {
@@ -667,11 +683,11 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     }
   });
 
-  it('allows separate Eternal Rise segments to trigger their own character skills', () => {
-    let multiSkillOutcome: ReturnType<typeof seth2SuperMainSpinForFactor> | undefined;
-    for (let nonce = 0; nonce < 500; nonce += 1) {
+  it('runs at most one Eternal Rise skill and completes all five woman-lock follow-ups', () => {
+    let femaleOutcome: ReturnType<typeof seth2SuperMainSpinForFactor> | undefined;
+    for (let nonce = 0; nonce < 2_000; nonce += 1) {
       const outcome = seth2SuperMainSpinForFactor(
-        'multi-skill-super-main',
+        'single-skill-super-main',
         'client',
         nonce,
         BET,
@@ -681,12 +697,19 @@ describe('Storm of Seth 2 provably-fair engine', () => {
         (round) =>
           (round.male_mul_list?.length ?? 0) > 0 || (round.female_start_mul_list?.length ?? 0) > 0,
       );
-      if (skillRounds.length > 1) {
-        multiSkillOutcome = outcome;
+      expect(skillRounds.length).toBeLessThanOrEqual(1);
+      if (skillRounds.some((round) => (round.female_start_mul_list?.length ?? 0) > 0)) {
+        femaleOutcome = outcome;
         break;
       }
     }
-    expect(multiSkillOutcome).toBeDefined();
-    expect(multiSkillOutcome!.returnData.total_gold).toBe(BET * 5_000);
+    expect(femaleOutcome).toBeDefined();
+    expect(femaleOutcome!.returnData.type18_mul_count).toBe(6);
+    expect(
+      femaleOutcome!.returnData.list
+        .map((round) => round.locked_mul_count)
+        .filter((count): count is number => count !== undefined),
+    ).toEqual([5, 4, 3, 2, 1]);
+    expect(femaleOutcome!.returnData.total_gold).toBe(BET * 5_000);
   });
 });

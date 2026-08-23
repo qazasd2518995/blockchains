@@ -21,9 +21,7 @@ export const SETH2_MULTIPLIER_VALUES = [
   2, 3, 4, 6, 8, 10, 12, 15, 18, 25, 50, 100, 200, 300, 500,
 ] as const;
 /** Values that can land directly, matching the source game's colour/value table. */
-export const SETH2_MULTIPLIER_DROP_VALUES = [
-  2, 3, 4, 10, 15, 25, 50, 100, 200, 300, 500,
-] as const;
+export const SETH2_MULTIPLIER_DROP_VALUES = [2, 3, 4, 10, 15, 25, 50, 100, 200, 300, 500] as const;
 export const SETH2_RETRIGGER_SPINS = 5;
 export const SETH2_FREE_SPINS = 15;
 export const SETH2_FREE_RETRIGGER_PROBABILITY = 0.01;
@@ -144,7 +142,7 @@ interface FemaleMultiplierPlan extends MultiplierPlan {
 const TARGET_RTP = 0.9689;
 const FREE_SPIN_SCALE = 1 - SETH2_FREE_RETRIGGER_PROBABILITY * SETH2_RETRIGGER_SPINS;
 const GOLDEN_FEATURE_SHARE = 0.01;
-export const SETH2_BOUGHT_AWAKENING_SHARE = 0.3;
+export const SETH2_BOUGHT_AWAKENING_SHARE = 0;
 const NON_WINNING_MULTIPLIER_PROBABILITY = 0.2;
 const SCATTER_EXPECTED_FACTOR = 3;
 const BASE_NON_FEATURE_EV = 0.3389;
@@ -1172,6 +1170,49 @@ function hasCharacterSkill(outcome: Seth2Outcome): boolean {
   );
 }
 
+/**
+ * The paid Awakening feature guarantees one character event even when every
+ * naturally generated free game misses one. Append a zero-value woman event
+ * to the final spin so the presentation guarantee cannot change settlement.
+ */
+export function addSeth2GuaranteedAwakeningSkill(
+  outcome: Seth2Outcome,
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+): Seth2Outcome {
+  if (hasCharacterSkill(outcome)) return outcome;
+
+  const rng = randomSource(serverSeed, `${clientSeed}:seth2-awakening-guarantee`, nonce);
+  const multiplier = cell(10, 2, 1);
+  const startData = [
+    multiplier,
+    cell(18),
+    cell(18),
+    cell(18),
+    ...safeFill(SETH2_GRID_SIZE - 4, new Set([10, 15, 16, 17, 18]), rng),
+  ];
+  shuffle(startData, rng);
+  const multiplierCode = startData.indexOf(multiplier);
+  const previousRound = outcome.returnData.list.at(-1);
+  if (previousRound) previousRound.is_over = 0;
+  outcome.returnData.list.push({
+    start_data: startData,
+    remove_type: [18],
+    round_data: safeFill(3, new Set([18]), rng),
+    scoreList: [0],
+    upgrade_mul_list: [],
+    total_mul: 0,
+    score: 0,
+    total_gold: outcome.returnData.total_gold,
+    remove_count: outcome.returnData.list.length,
+    is_over: 1,
+  });
+  outcome.returnData.type18_start_mul_list = [animatedMultiplierCell(multiplier, multiplierCode)];
+  outcome.returnData.type18_mul_count = 2;
+  return outcome;
+}
+
 function exactSuperWin(
   bet: number,
   factor: number,
@@ -1225,6 +1266,18 @@ function placeSuperLockedCells(round: Seth2CascadeRound, cells: readonly Seth2Ce
   }
 }
 
+function superLockedContinuationRound(
+  rng: Seth2RandomSource,
+  cells: readonly Seth2Cell[],
+  lockCount: number,
+): Seth2CascadeRound {
+  const round = emptyRound(safeFill(SETH2_GRID_SIZE, new Set([10, 15, 16, 17, 18]), rng));
+  placeSuperLockedCells(round, cells);
+  round.locked_mul_list = cells.map((current) => ({ ...current }));
+  round.locked_mul_count = lockCount;
+  return round;
+}
+
 function superSegmentFactors(factor: number, rng: Seth2RandomSource): number[] {
   if (factor < 1_000 || factor % 500 !== 0) return [factor];
   const units = factor / 500;
@@ -1255,10 +1308,17 @@ function buildSuperMainOutcome(bet: number, factor: number, rng: Seth2RandomSour
   const segmentOutcomes: Seth2Outcome[] = [];
   let activeFemaleCells: Seth2Cell[] = [];
   let activeFemaleCount = 0;
+  let characterSkillTriggered = false;
   for (let index = 0; index < factors.length; index += 1) {
     const segmentFactor = factors[index]!;
     const lockedContribution = activeFemaleCells.reduce((total, current) => total + current.mul, 0);
-    const preferSkill = segmentFactor >= 500 && rng() < 0.4;
+    // Eternal Rise can activate one character effect. Put it on the final
+    // payout segment so a woman lock can then run five complete follow-ups.
+    const preferSkill =
+      !characterSkillTriggered &&
+      index === factors.length - 1 &&
+      segmentFactor >= 500 &&
+      rng() < 0.4;
     let segment = preferSkill
       ? exactSuperWin(bet, segmentFactor, rng, {
           require500: true,
@@ -1306,8 +1366,12 @@ function buildSuperMainOutcome(bet: number, factor: number, rng: Seth2RandomSour
       activeFemaleCells = segment.returnData.type18_start_mul_list.map((current) => ({
         ...current,
       }));
-      activeFemaleCount = segment.returnData.type18_mul_count;
+      // The trigger view is the first stage; the official right-side feature
+      // keeps the selected balls for five additional spins.
+      activeFemaleCount = 5;
+      segment.returnData.type18_mul_count = 6;
     }
+    if (hasCharacterSkill(segment)) characterSkillTriggered = true;
     const maleRound = segment.returnData.list.find((round) => round.remove_type.includes(17));
     if (maleRound) {
       maleRound.male_mul_list = segment.returnData.type17_mul_list.map((current) => ({
@@ -1328,7 +1392,18 @@ function buildSuperMainOutcome(bet: number, factor: number, rng: Seth2RandomSour
     segmentOutcomes.push(segment);
   }
 
-  const rounds = segmentOutcomes.flatMap((segment) => segment.returnData.list);
+  const lockContinuationRounds: Seth2CascadeRound[] = [];
+  while (activeFemaleCells.length > 0 && activeFemaleCount > 0) {
+    lockContinuationRounds.push(
+      superLockedContinuationRound(rng, activeFemaleCells, activeFemaleCount),
+    );
+    activeFemaleCount -= 1;
+  }
+
+  const rounds = [
+    ...segmentOutcomes.flatMap((segment) => segment.returnData.list),
+    ...lockContinuationRounds,
+  ];
   const returnData = baseReturnData(rounds);
   const skillOutcome = segmentOutcomes.find(hasCharacterSkill);
   if (skillOutcome) {
@@ -1418,8 +1493,7 @@ export function seth2BuyFeature(
 ): Seth2Outcome {
   if (!Number.isFinite(bet) || bet <= 0) throw new Error('Bet must be a positive number');
   const rng = randomSource(serverSeed, clientSeed, nonce);
-  const featureMode = rng() < SETH2_BOUGHT_AWAKENING_SHARE ? 'awakening' : 'standard';
-  return buildBoughtFeatureEntry(featureMode, rng, bet);
+  return buildBoughtFeatureEntry('standard', rng, bet);
 }
 
 function expectedValue(outcomes: WeightedOutcome[]): number {

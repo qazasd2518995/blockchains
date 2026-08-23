@@ -1,7 +1,6 @@
 import {
   seth2BuyFeatureEntry,
   seth2SpinForFactor,
-  seth2SuperMainSpin,
   seth2SuperMainSpinForFactor,
 } from '@bg/provably-fair';
 import type { Seth2Cell, Seth2ReturnData } from '@bg/shared';
@@ -204,7 +203,12 @@ describe('Seth 2 v1.1.5 source contract', () => {
     );
 
     expect(states[0]!.timesUpgrade).toEqual([
-      expect.objectContaining({ beforeSymbol: 11, beforeTimes: 80, afterSymbol: 10, afterTimes: 100 }),
+      expect.objectContaining({
+        beforeSymbol: 11,
+        beforeTimes: 80,
+        afterSymbol: 10,
+        afterTimes: 100,
+      }),
     ]);
     expect(states.at(-1)!.timesSymbols).toEqual([
       expect.objectContaining({ symbol: 10, times: 100 }),
@@ -318,7 +322,7 @@ describe('Seth 2 v1.1.5 source contract', () => {
         freeGameCount: 0,
       });
       expect(states.length).toBeGreaterThanOrEqual(1);
-      expect(states.length).toBeLessThanOrEqual(13);
+      expect(states.length).toBeLessThanOrEqual(18);
       expect(states.every((state) => state.action === 'superSpin')).toBe(true);
       expect(
         states.some((state) => state.timesSymbols.some((symbol) => symbol.times === 500)),
@@ -340,14 +344,15 @@ describe('Seth 2 v1.1.5 source contract', () => {
     }
   });
 
-  it('maps every segment-scoped Eternal Rise character event to the source animation', () => {
-    for (let nonce = 0; nonce < 500; nonce += 1) {
-      const outcome = seth2SuperMainSpinForFactor('source-multi-skill', 'client', nonce, 2, 5_000);
+  it('maps the single Eternal Rise skill and all five woman-lock follow-ups', () => {
+    for (let nonce = 0; nonce < 2_000; nonce += 1) {
+      const outcome = seth2SuperMainSpinForFactor('source-woman-lock', 'client', nonce, 2, 5_000);
       const expectedSkills = outcome.returnData.list.filter(
         (round) =>
           (round.male_mul_list?.length ?? 0) > 0 || (round.female_start_mul_list?.length ?? 0) > 0,
-      ).length;
-      if (expectedSkills < 2) continue;
+      );
+      expect(expectedSkills.length).toBeLessThanOrEqual(1);
+      if (!expectedSkills.some((round) => (round.female_start_mul_list?.length ?? 0) > 0)) continue;
       const states = seth2SourceGameStates(outcome.returnData, {
         ...SOURCE_OPTIONS,
         action: 'superSpin',
@@ -356,32 +361,16 @@ describe('Seth 2 v1.1.5 source contract', () => {
       const animatedSkills = states.filter(
         (state) => state.maleTotemLevel > 0 || state.femaleTotemLevel > 0,
       );
-      expect(animatedSkills).toHaveLength(expectedSkills);
+      const lockCounts = states
+        .map((state) => Math.max(0, ...state.timesSymbols.map((symbol) => symbol.lock)))
+        .filter((count) => count > 0)
+        .filter((count, index, counts) => index === 0 || count !== counts[index - 1]);
+      expect(animatedSkills).toHaveLength(1);
+      expect(lockCounts).toEqual([6, 5, 4, 3, 2, 1]);
       expect(states.at(-1)!.totalWinnings).toBe(outcome.returnData.total_gold);
       return;
     }
-    throw new Error('Expected a deterministic multi-skill Eternal Rise fixture');
-  });
-
-  it('carries a female lock through later Eternal Rise games with a decreasing counter', () => {
-    const outcome = seth2SuperMainSpin('audit-multi', 'client', 9, 2);
-    expect(outcome.payoutFactor).toBe(2_000);
-    expect(outcome.returnData.type18_start_mul_list).toHaveLength(2);
-    expect(outcome.returnData.type18_mul_count).toBe(4);
-    expect(
-      outcome.returnData.list.filter((round) => round.collect_gold !== undefined),
-    ).toHaveLength(4);
-
-    const states = seth2SourceGameStates(outcome.returnData, {
-      ...SOURCE_OPTIONS,
-      action: 'superSpin',
-      freeGameCount: 0,
-    });
-    const winningGames = states.filter((state) => state.winSymbols.length > 0);
-    expect(
-      winningGames.map((state) => Math.max(0, ...state.timesSymbols.map((symbol) => symbol.lock))),
-    ).toEqual([4, 4, 3, 2]);
-    expect(states.at(-1)!.totalWinnings).toBe(outcome.returnData.total_gold);
+    throw new Error('Expected a deterministic woman-lock Eternal Rise fixture');
   });
 
   it('keeps every controlled factor visually identical to its authoritative payout', () => {

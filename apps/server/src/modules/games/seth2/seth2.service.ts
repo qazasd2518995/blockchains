@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
+  addSeth2GuaranteedAwakeningSkill,
   isSeth2FactorRepresentable,
   seth2BuyFeature,
   seth2BuyFeatureEntry,
@@ -1249,8 +1250,7 @@ export function machineHasSimulatedPlayer(id: number, timestamp = Date.now()): b
     ),
   );
   // 137 is coprime with 500, so every page position receives one unique rank.
-  const rank =
-    (pagePosition * 137 + tick + pageIndex * 83) % SETH2_MACHINES_PER_PAGE;
+  const rank = (pagePosition * 137 + tick + pageIndex * 83) % SETH2_MACHINES_PER_PAGE;
   return rank < occupiedCount;
 }
 
@@ -1696,6 +1696,7 @@ export function generateFeatureRun(input: {
 
   const rounds: Seth2FeatureRound[] = [];
   let totalPayoutFactor = 0;
+  let awakeningSkillSeen = false;
   while (session.freeSpinsRemaining > 0 && rounds.length < SETH2_MAX_FREE_SPINS) {
     const seed = input.seeds[rounds.length];
     if (!seed) throw new ApiError('INTERNAL', '免費遊戲種子不足');
@@ -1708,7 +1709,7 @@ export function generateFeatureRun(input: {
     const lockedContribution = femaleLockContribution(session.femaleLock);
     const effectiveBank = session.multiplierBank + lockedContribution;
     const factor = forcedFactors?.[rounds.length];
-    const outcome =
+    let outcome =
       factor === undefined
         ? seth2Spin(
             seed.serverSeed,
@@ -1731,6 +1732,28 @@ export function generateFeatureRun(input: {
             true,
             false,
           );
+    const currentHasAwakeningSkill =
+      outcome.returnData.type17_mul_list.length > 0 ||
+      outcome.returnData.type18_start_mul_list.length > 0;
+    const mustGuaranteePaidAwakening =
+      input.buying &&
+      input.featureIndex === 1 &&
+      input.featureMode === 'awakening' &&
+      !awakeningSkillSeen &&
+      !currentHasAwakeningSkill &&
+      session.freeSpinsRemaining === 1 &&
+      outcome.returnData.addGameCiShu === 0;
+    if (mustGuaranteePaidAwakening) {
+      outcome = addSeth2GuaranteedAwakeningSkill(
+        outcome,
+        seed.serverSeed,
+        seed.clientSeed,
+        seed.nonce,
+      );
+    }
+    awakeningSkillSeen ||=
+      outcome.returnData.type17_mul_list.length > 0 ||
+      outcome.returnData.type18_start_mul_list.length > 0;
     normalizeFemaleLockAccounting(outcome.returnData, session.multiplierBank, lockedContribution);
     const femaleLock = applyFemaleLockState(outcome.returnData, session.femaleLock);
     const featureWinningsBefore = session.featureWinnings;

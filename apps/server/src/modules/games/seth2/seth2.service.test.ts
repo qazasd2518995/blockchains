@@ -332,6 +332,13 @@ describe('Seth2 controlled result selection', () => {
       expect(entryOutcome.payoutFactor + run.totalPayoutFactor).toBe(totalFactor);
       expect(run.finalSession.freeSpinsRemaining).toBe(0);
       expect(run.finalSession.featureWinnings).toBe(0);
+      expect(
+        run.rounds.some(
+          (round) =>
+            round.returnData.type17_mul_list.length > 0 ||
+            round.returnData.type18_start_mul_list.length > 0,
+        ),
+      ).toBe(true);
     },
   );
 
@@ -363,10 +370,18 @@ describe('Seth2 controlled result selection', () => {
       });
       expect(run.rounds.filter((round) => round.payoutFactor > 0).length).toBeGreaterThanOrEqual(5);
       expect(entryOutcome.payoutFactor + run.totalPayoutFactor).toBe(400);
+      const runSkills = new Set<number>();
       for (const round of run.rounds) {
-        if (round.returnData.type17_mul_list.length > 0) seenSkills.add(17);
-        if (round.returnData.type18_start_mul_list.length > 0) seenSkills.add(18);
+        if (round.returnData.type17_mul_list.length > 0) {
+          seenSkills.add(17);
+          runSkills.add(17);
+        }
+        if (round.returnData.type18_start_mul_list.length > 0) {
+          seenSkills.add(18);
+          runSkills.add(18);
+        }
       }
+      expect(runSkills.size).toBeGreaterThan(0);
     }
     expect(seenSkills).toEqual(new Set([17, 18]));
   });
@@ -412,33 +427,36 @@ describe('Seth2 three buy-feature contracts', () => {
       );
     }
     expect(run.finalSession.freeSpinsRemaining).toBe(0);
+    return run;
   }
 
-  it('keeps the 200x purchase random between normal and awakening entries', () => {
+  it('keeps all 200x purchases in ordinary free games', () => {
     const entries = Array.from({ length: 500 }, (_, nonce) =>
       seth2BuyFeature('feature-zero', 'client', nonce, baseBet),
     );
-    const standard = entries.find((entry) => entry.featureMode === 'standard')!;
-    const awakening = entries.find((entry) => entry.featureMode === 'awakening')!;
-    expect(standard.returnData.list[0]!.start_data.filter((cell) => cell.type === 15)).toHaveLength(
-      4,
-    );
-    expect(standard.returnData.list[0]!.start_data.some((cell) => cell.type === 16)).toBe(false);
+    expect(entries.every((entry) => entry.featureMode === 'standard')).toBe(true);
     expect(
-      awakening.returnData.list[0]!.start_data.filter((cell) => cell.type === 15),
-    ).toHaveLength(3);
-    expect(
-      awakening.returnData.list[0]!.start_data.filter((cell) => cell.type === 16),
-    ).toHaveLength(1);
-    assertFeatureRun(standard, 0);
-    assertFeatureRun(awakening, 0);
+      entries.every(
+        (entry) =>
+          entry.returnData.list[0]!.start_data.filter((cell) => cell.type === 15).length === 4 &&
+          !entry.returnData.list[0]!.start_data.some((cell) => cell.type === 16),
+      ),
+    ).toBe(true);
+    assertFeatureRun(entries[0]!, 0);
   });
 
-  it('keeps the 500x purchase in awakening mode for all 15+ games', () => {
+  it('keeps the 500x purchase in awakening mode and guarantees its skill', () => {
     const entry = seth2BuyFeatureEntry('feature-one', 'client', 1, 'awakening', baseBet);
     expect(entry.featureMode).toBe('awakening');
     expect(entry.returnData.gameModelType).toBe(1);
-    assertFeatureRun(entry, 1);
+    const run = assertFeatureRun(entry, 1);
+    expect(
+      run.rounds.some(
+        (round) =>
+          round.returnData.type17_mul_list.length > 0 ||
+          round.returnData.type18_start_mul_list.length > 0,
+      ),
+    ).toBe(true);
   });
 
   it('keeps the 2,000x purchase as super-main cycles without a free-game session', () => {
