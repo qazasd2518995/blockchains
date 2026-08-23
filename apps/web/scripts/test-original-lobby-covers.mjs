@@ -37,6 +37,30 @@ for (const [gameId, relativePath] of expectedCovers) {
   assert.ok(data.byteLength >= 20_000, `${relativePath} is unexpectedly small`);
   assert.equal(data.subarray(0, 4).toString('ascii'), 'RIFF', `${relativePath} is not RIFF`);
   assert.equal(data.subarray(8, 12).toString('ascii'), 'WEBP', `${relativePath} is not WebP`);
+
+  const parsed = path.parse(relativePath);
+  for (const width of [480, 960]) {
+    const optimizedRelativePath = path.join(
+      '_optimized',
+      parsed.dir,
+      `${parsed.name}@${width}.webp`,
+    );
+    const optimizedData = fs.readFileSync(path.join(publicRoot, optimizedRelativePath));
+    assert.ok(
+      optimizedData.byteLength >= 10_000,
+      `${optimizedRelativePath} is unexpectedly small`,
+    );
+    assert.equal(
+      optimizedData.subarray(0, 4).toString('ascii'),
+      'RIFF',
+      `${optimizedRelativePath} is not RIFF`,
+    );
+    assert.equal(
+      optimizedData.subarray(8, 12).toString('ascii'),
+      'WEBP',
+      `${optimizedRelativePath} is not WebP`,
+    );
+  }
 }
 
 console.log('Original Seth 2 and nine H5 lobby cover contracts passed.');
