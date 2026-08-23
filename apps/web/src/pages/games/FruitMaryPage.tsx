@@ -8,7 +8,9 @@ const GAME_PATH = '/games/fruit-mary/index.html';
 const ERROR_NOTICE_MS = 6_000;
 
 export function FruitMaryPage() {
-  const user = useAuthStore((state) => state.user);
+  // The iframe reports balance frequently while playing; auth presence is the
+  // only user state this wrapper needs, so balance changes should not re-render it.
+  const isAuthenticated = useAuthStore((state) => Boolean(state.user));
   const setBalance = useAuthStore((state) => state.setBalance);
   const setTokens = useAuthStore((state) => state.setTokens);
   const [error, setError] = useState('');
@@ -63,7 +65,7 @@ export function FruitMaryPage() {
     return () => window.clearTimeout(timeout);
   }, [error]);
 
-  if (!user) {
+  if (!isAuthenticated) {
     return (
       <AccessPanel
         message="請先登入後即可進入遊戲。"

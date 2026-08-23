@@ -210,6 +210,13 @@
     );
     var currentPrefs = platformAudioPrefs;
 
+    function pruneDirectAudio() {
+      if (!engine._id2audio) return;
+      Object.keys(directAudio).forEach(function (id) {
+        if (!engine._id2audio[id]) delete directAudio[id];
+      });
+    }
+
     function apply() {
       applyingPrefs = true;
       try {
@@ -220,11 +227,8 @@
           currentPrefs.effectsMuted ? 0 : requestedEffectsVolume * currentPrefs.effectsVolume,
         );
         if (originalSetVolume) {
+          pruneDirectAudio();
           Object.keys(directAudio).forEach(function (id) {
-            if (engine._id2audio && !engine._id2audio[id]) {
-              delete directAudio[id];
-              return;
-            }
             var entry = directAudio[id];
             var muted =
               entry.kind === 'music' ? currentPrefs.musicMuted : currentPrefs.effectsMuted;
@@ -249,6 +253,7 @@
     if (originalPlay) {
       engine.play = function (clip, loop, volume) {
         if (categorizedPlayDepth > 0) return originalPlay(clip, loop, volume);
+        if (Object.keys(directAudio).length >= 64) pruneDirectAudio();
         var kind = loop ? 'music' : 'effects';
         var requestedVolume = clampVolume(volume, 1);
         var muted = kind === 'music' ? currentPrefs.musicMuted : currentPrefs.effectsMuted;
@@ -335,7 +340,10 @@
   }
 
   function resumeCocosAudio() {
-    syncCocosAudio();
+    // Once installed, an input gesture only needs to resume the context.
+    // Re-applying every active sound's volume on every tap made rapid spin
+    // presses progressively more expensive in the legacy clients.
+    if (!audioBridge) syncCocosAudio();
     var context = getCocosAudioContext();
     if (context && context.state === 'suspended' && typeof context.resume === 'function') {
       var resumed = context.resume();
@@ -366,7 +374,11 @@
       if (event.data.type === 'h5-slots:audio-sync') updatePlatformAudioPrefs();
       if (event.data.type === 'h5-slots:audio-unlock') resumeCocosAudio();
     });
-    ['pointerdown', 'touchstart', 'keydown'].forEach(function (eventName) {
+    var activationEvents =
+      typeof window.PointerEvent === 'function'
+        ? ['pointerdown', 'keydown']
+        : ['touchstart', 'mousedown', 'keydown'];
+    activationEvents.forEach(function (eventName) {
       window.addEventListener(eventName, resumeCocosAudio, { capture: true, passive: true });
     });
     scheduleAudioBridge();

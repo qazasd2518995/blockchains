@@ -198,9 +198,9 @@ const SETH2_SHELL_ASSETS: readonly CocosShellAsset[] = [
 ];
 
 const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [
-  { src: '/games/h5-slot-collection/yachiyo-adapter.js?v=10', as: 'script' },
+  { src: '/games/h5-slot-collection/yachiyo-adapter.js?v=39', as: 'script' },
   { src: '/games/h5-slot-collection/src/settings.33a69.js', as: 'script' },
-  { src: '/games/h5-slot-collection/main.649de.js', as: 'script' },
+  { src: '/games/h5-slot-collection/main.649de.js?v=2', as: 'script' },
   { src: '/games/h5-slot-collection/cocos2d-js-min.22f51.js', as: 'script' },
   { src: '/games/h5-slot-collection/assets/resources/config.9bbee.json', as: 'fetch' },
   { src: '/games/h5-slot-collection/assets/resources/index.9bbee.js', as: 'script' },

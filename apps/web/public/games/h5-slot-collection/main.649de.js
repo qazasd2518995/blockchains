@@ -25,8 +25,22 @@ window.boot = function () {
     }
 
     var onStart = function () {
-
+        // Legacy Cocos 2 scenes are considerably more fill-rate heavy than
+        // Seth 2's newer renderer. The engine otherwise caps Retina at DPR 2,
+        // which still renders four physical pixels for every CSS pixel and
+        // stalls high-DPR phones during repeated reel animations. A 1.5 cap
+        // keeps text and symbols sharp while cutting that work by about 44%.
+        if (cc.sys.isMobile) {
+            cc.view._maxPixelRatio = Math.min(1.5, window.devicePixelRatio || 1);
+        }
         cc.view.enableRetina(true);
+        cc.macro.CLEANUP_IMAGE_CACHE = true;
+        if (typeof document !== 'undefined') {
+            document.documentElement.setAttribute(
+                'data-cocos-render-quality',
+                cc.sys.isMobile ? 'mobile-balanced-retina' : 'retina'
+            );
+        }
         cc.view.resizeWithBrowserSize(true);
 
         if (cc.sys.isBrowser) {

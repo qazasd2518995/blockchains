@@ -15,6 +15,17 @@ const pagePath = fileURLToPath(
 const adapterSource = fs.readFileSync(adapterPath, 'utf8');
 const pageSource = fs.readFileSync(pagePath, 'utf8');
 
+assert.match(
+  adapterSource,
+  /if \(!audioBridge\) syncCocosAudio\(\)/,
+  'input gestures must not re-apply every active audio volume after the bridge is installed',
+);
+assert.match(
+  adapterSource,
+  /typeof window\.PointerEvent === 'function'/,
+  'touch devices with Pointer Events must not install duplicate touchstart and pointerdown work',
+);
+
 {
   const originalLanguageCodes = {
     'zh-Hant': 'cht',

@@ -18,6 +18,12 @@ const builds = [
     minimumPreloads: 3,
     cocos3: false,
   },
+  {
+    folder: 'fruit-mary',
+    main: 'main.b4cc7.js',
+    minimumPreloads: 0,
+    cocos3: false,
+  },
 ];
 
 for (const build of builds) {
@@ -69,14 +75,19 @@ for (const build of builds) {
       mainSource.indexOf('var option'),
     );
     assert.match(onStartSource, /cc\.view\.enableRetina\(true\)/);
-    assert.doesNotMatch(onStartSource, /devicePixelRatio|mobile-balanced|CLEANUP_IMAGE_CACHE/);
+    assert.match(
+      onStartSource,
+      /cc\.view\._maxPixelRatio = Math\.min\(1\.5, window\.devicePixelRatio/,
+    );
+    assert.match(onStartSource, /mobile-balanced-retina/);
+    assert.match(onStartSource, /cc\.macro\.CLEANUP_IMAGE_CACHE = true/);
   }
 }
 
 const renderBlueprint = fs.readFileSync(path.join(workspaceRoot, 'render.yaml'), 'utf8');
-for (const build of builds) {
+for (const build of builds.filter((entry) => entry.folder !== 'fruit-mary')) {
   assert.match(renderBlueprint, new RegExp(`/games/${build.folder}/assets/\\*`));
 }
 assert.match(renderBlueprint, /\/slotFramework\/40401f29702686de9cfed69b217641b6029834f7\/\*/);
 
-console.log('Cocos preload, full-quality rendering, and cache contracts passed.');
+console.log('Cocos preload, adaptive mobile rendering, and cache contracts passed.');

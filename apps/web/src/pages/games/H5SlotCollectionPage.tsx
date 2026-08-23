@@ -43,7 +43,9 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
   const navigate = useNavigate();
   const returnTarget = useGameReturnTarget();
   const { locale } = useTranslation();
-  const user = useAuthStore((state) => state.user);
+  // Balance messages arrive after every spin. Subscribe only to the boolean
+  // needed by this shell so those updates do not re-render the iframe page.
+  const isAuthenticated = useAuthStore((state) => Boolean(state.user));
   const setBalance = useAuthStore((state) => state.setBalance);
   const setTokens = useAuthStore((state) => state.setTokens);
   const selectedGame = getH5GameByCode(gameCode);
@@ -152,7 +154,7 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
     return () => window.clearTimeout(timeout);
   }, [error]);
 
-  if (!user) {
+  if (!isAuthenticated) {
     return (
       <AccessPanel
         message="請先登入後再進入遊戲。"

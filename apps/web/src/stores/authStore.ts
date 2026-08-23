@@ -24,7 +24,10 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user }),
       setTokens: (accessToken, refreshToken) => set({ accessToken, refreshToken }),
       setBalance: (balance) =>
-        set((s) => (s.user ? { user: { ...s.user, balance } } : {})),
+        set((s) => {
+          if (!s.user || s.user.balance === balance) return s;
+          return { user: { ...s.user, balance } };
+        }),
       debitBalance: (amount) => {
         let previousBalance: string | null = null;
         set((s) => {
