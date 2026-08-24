@@ -61,6 +61,8 @@
   var lastSpinRequestAt = 0;
   var lastLotteryResponseAt = 0;
   var sourceReadyAt = 0;
+  var SOURCE_CONTROL_HEALTH_GRACE_MS = 12000;
+  var SOURCE_SCENE_LOAD_GRACE_MS = 45000;
 
   var MISSING_SOURCE_FONT_FALLBACKS = {
     'FZY4JW--GB1-0.ttf':
@@ -1241,8 +1243,14 @@
 
   function sourceSlotVisualHealthy() {
     if (gameCanvasContextLost) return false;
-    if (isFishGame || !sourceReadyAt || Date.now() - sourceReadyAt < 12000) return true;
+    if (isFishGame || !sourceReadyAt) return true;
+    var sourceReadyAge = Date.now() - sourceReadyAt;
+    if (sourceReadyAge < SOURCE_CONTROL_HEALTH_GRACE_MS) return true;
     var main = sourceMainComponent();
+    // Source login completes before Cocos finishes constructing large scenes.
+    // Keep the iframe healthy while that authored scene is still loading; the
+    // outer shell owns the longer load timeout and remains the final fallback.
+    if (!main && sourceReadyAge < SOURCE_SCENE_LOAD_GRACE_MS) return true;
     if (!main) return false;
     restoreMahjongWaysTileBackgrounds(main);
     if (slotSettlementInFlight || Number(main.status || 0) !== 0 || sourceFeatureIsPlaying(main)) {

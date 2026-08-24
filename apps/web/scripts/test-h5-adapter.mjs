@@ -36,6 +36,16 @@ assert.match(
   'settled spins must recover when the source controls remain hidden',
 );
 assert.match(
+  adapterSource,
+  /!main && sourceReadyAge < SOURCE_SCENE_LOAD_GRACE_MS/,
+  'large source scenes must retain a dedicated cold-load grace period before health recovery',
+);
+assert.match(
+  adapterSource,
+  /SOURCE_SCENE_LOAD_GRACE_MS = 45000/,
+  'the source-scene cold-load grace must remain below the outer shell timeout',
+);
+assert.match(
   pageSource,
   /payload\.type === ['"]h5-slots:fatal['"]/,
   'the platform shell must rebuild a failed source-game iframe',
