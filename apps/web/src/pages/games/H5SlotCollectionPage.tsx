@@ -192,7 +192,6 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
       }
       if (payload.type === 'h5-slots:ready') {
         clearReadyTimer();
-        automaticRecoveryAttemptsRef.current = 0;
         setRecoveryReason('');
         setError('');
       }

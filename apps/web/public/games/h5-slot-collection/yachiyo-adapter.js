@@ -1047,30 +1047,79 @@
   }
 
   function sourceNodeVisible(node) {
-    if (
-      !node ||
-      node.active === false ||
-      node.activeInHierarchy === false ||
-      node.opacity === 0
-    ) {
+    if (!node || node.active === false || node.activeInHierarchy === false || node.opacity === 0) {
       return false;
     }
     var face = node.children && node.children[0];
     return (
-      !face ||
-      (face.active !== false && face.activeInHierarchy !== false && face.opacity !== 0)
+      !face || (face.active !== false && face.activeInHierarchy !== false && face.opacity !== 0)
+    );
+  }
+
+  function sourceRootNodeVisible(node) {
+    return Boolean(
+      node && node.active !== false && node.activeInHierarchy !== false && node.opacity !== 0,
+    );
+  }
+
+  function sourceControlContract(main) {
+    if (!main) return null;
+    var controls = main.slotCtrl;
+    if (controls) {
+      var slotNodes = [
+        controls.Btn_start,
+        controls.Btn_stop,
+        controls.Btn_stopAuto,
+        controls.Btn_free,
+      ].filter(Boolean);
+      if (slotNodes.length > 0) {
+        return {
+          kind: 'slot-ctrl',
+          controls: controls,
+          primary: controls.Btn_start || slotNodes[0],
+          nodes: slotNodes,
+        };
+      }
+    }
+
+    // Four restored source scenes predate the shared slot_Ctrl component.
+    // Lucky 777 exposes a Sprite named startBtn; Water Margin, Yu Pu Tuan and
+    // Fire 88 expose the Animation attached to their roll button instead.
+    var directComponent = main.startBtn || main.rollBtnAnim;
+    var directNode = directComponent && (directComponent.node || directComponent);
+    if (!directNode) return null;
+    return {
+      kind: 'direct',
+      controls: null,
+      primary: directNode,
+      nodes: [directNode],
+    };
+  }
+
+  function sourceControlNodeVisible(contract, node) {
+    return contract && contract.kind === 'slot-ctrl'
+      ? sourceNodeVisible(node)
+      : sourceRootNodeVisible(node);
+  }
+
+  function sourceControlContractUsable(contract) {
+    return Boolean(
+      contract &&
+      contract.nodes.some(function (node) {
+        return sourceControlNodeVisible(contract, node);
+      }),
     );
   }
 
   function sourceFeatureIsPlaying(main) {
     return Boolean(
       main &&
-        (main.bigWinBoo ||
-          main.bIsFreeGame ||
-          main.isFreeStart ||
-          main.isFreeEnd ||
-          main.stopFree ||
-          Number(main.freeTimes || 0) > 0),
+      (main.bigWinBoo ||
+        main.bIsFreeGame ||
+        main.isFreeStart ||
+        main.isFreeEnd ||
+        main.stopFree ||
+        Number(main.freeTimes || 0) > 0),
     );
   }
 
@@ -1150,8 +1199,14 @@
     ) {
       return false;
     }
-    var controls = main.slotCtrl;
-    if (!controls || !controls.Btn_start) return false;
+    var contract = sourceControlContract(main);
+    if (!contract) return false;
+    // The older direct-control scenes already own their enabled/disabled
+    // timing during result animations. Their visible authored control is a
+    // valid health signal; forcing it interactable here would skip animations.
+    if (contract.kind === 'direct') return sourceControlContractUsable(contract);
+    var controls = contract.controls;
+    if (!controls || !controls.Btn_start) return sourceControlContractUsable(contract);
     if (sourceNodeVisible(controls.Btn_start)) {
       var visibleButton = sourceButtonComponent(controls.Btn_start);
       if (!visibleButton || visibleButton.interactable !== false) return true;
@@ -1190,13 +1245,12 @@
     var main = sourceMainComponent();
     if (!main) return false;
     restoreMahjongWaysTileBackgrounds(main);
-    if (
-      slotSettlementInFlight ||
-      Number(main.status || 0) !== 0 ||
-      sourceFeatureIsPlaying(main)
-    ) {
+    if (slotSettlementInFlight || Number(main.status || 0) !== 0 || sourceFeatureIsPlaying(main)) {
       return true;
     }
+    // Unknown source-control layouts must not be treated as a render failure.
+    // A watchdog may only remount scenes whose control contract it understands.
+    if (!sourceControlContract(main)) return true;
     return repairIdleSlotControls(main);
   }
 
@@ -1211,18 +1265,10 @@
       Date.now() - lastLotteryResponseAt >= 22000 &&
       !slotSettlementInFlight
     ) {
-      var controls = main && main.slotCtrl;
-      var hasUsableControl =
-        controls &&
-        (sourceNodeVisible(controls.Btn_start) ||
-          sourceNodeVisible(controls.Btn_stop) ||
-          sourceNodeVisible(controls.Btn_stopAuto) ||
-          sourceNodeVisible(controls.Btn_free));
-      if (main && !hasUsableControl && !sourceFeatureIsPlaying(main)) {
-        reportFatalRenderFailure(
-          'slot-ui-stalled',
-          new Error('開獎已完成，但遊戲控制列未恢復'),
-        );
+      var controlContract = sourceControlContract(main);
+      var hasUsableControl = sourceControlContractUsable(controlContract);
+      if (main && controlContract && !hasUsableControl && !sourceFeatureIsPlaying(main)) {
+        reportFatalRenderFailure('slot-ui-stalled', new Error('開獎已完成，但遊戲控制列未恢復'));
       }
     }
     slotStallTimer = window.setTimeout(watchForStalledSlotUi, 2000);
@@ -1249,7 +1295,11 @@
     });
     activeSockets = [];
     try {
-      if (window.cc && window.cc.audioEngine && typeof window.cc.audioEngine.stopAll === 'function') {
+      if (
+        window.cc &&
+        window.cc.audioEngine &&
+        typeof window.cc.audioEngine.stopAll === 'function'
+      ) {
         window.cc.audioEngine.stopAll();
       }
       if (window.cc && window.cc.game && typeof window.cc.game.pause === 'function') {
@@ -3430,7 +3480,9 @@
     var message = publicRenderError(error);
     if (
       /h5-slot-collection|cocos2d-js/i.test(stack) &&
-      /webgl|context|getParameter|getExtension|Cannot read|undefined is not an object/i.test(message)
+      /webgl|context|getParameter|getExtension|Cannot read|undefined is not an object/i.test(
+        message,
+      )
     ) {
       reportFatalRenderFailure('source-runtime-error', error);
     }
@@ -3484,6 +3536,9 @@
     disposeGameForRemount: disposeGameForRemount,
     sourceMainComponent: sourceMainComponent,
     sourceNodeVisible: sourceNodeVisible,
+    sourceRootNodeVisible: sourceRootNodeVisible,
+    sourceControlContract: sourceControlContract,
+    sourceControlContractUsable: sourceControlContractUsable,
     sourceFeatureIsPlaying: sourceFeatureIsPlaying,
     repairIdleSlotControls: repairIdleSlotControls,
     restoreMahjongWaysTileBackgrounds: restoreMahjongWaysTileBackgrounds,

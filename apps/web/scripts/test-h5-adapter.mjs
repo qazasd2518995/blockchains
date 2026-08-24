@@ -50,6 +50,11 @@ assert.match(
   /setInterval\(checkFrameHealth, 5_000\)/,
   'the shell must continue checking partially rendered games while visible',
 );
+assert.equal(
+  pageSource.match(/automaticRecoveryAttemptsRef\.current = 0/g)?.length,
+  2,
+  'a ready event must not reset the automatic recovery budget and create an iframe reload loop',
+);
 
 {
   const originalLanguageCodes = {
@@ -330,7 +335,9 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
     slotCtrl: {
       Btn_start: startNode,
       spin_AnimNode: startFace,
-      setSpinAnim() { spinAnimationRepairs += 1; },
+      setSpinAnim() {
+        spinAnimationRepairs += 1;
+      },
     },
   };
   assert.equal(mahjongWays2.repairIdleSlotControls(idleMahjong2Main), true);
@@ -338,6 +345,31 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
   assert.equal(startFace.active, true);
   assert.equal(startButtonComponent.interactable, true);
   assert.equal(spinAnimationRepairs, 1);
+
+  const directStartNode = {
+    active: true,
+    activeInHierarchy: true,
+    opacity: 255,
+    children: [],
+  };
+  const directControlGames = [waterMargin, yuPuTuan, fire88, lucky777];
+  const directControlMains = [
+    { status: 0, rollBtnAnim: { node: directStartNode } },
+    { status: 0, rollBtnAnim: { node: directStartNode } },
+    { status: 0, rollBtnAnim: { node: directStartNode } },
+    { status: 0, startBtn: { node: directStartNode } },
+  ];
+  directControlGames.forEach((adapter, index) => {
+    const main = directControlMains[index];
+    assert.equal(adapter.sourceControlContract(main).kind, 'direct');
+    assert.equal(adapter.sourceControlContractUsable(adapter.sourceControlContract(main)), true);
+    assert.equal(adapter.repairIdleSlotControls(main), true);
+  });
+  assert.equal(
+    lucky777.sourceControlContract({ status: 0 }),
+    null,
+    'unknown source-control layouts must remain unsupported instead of being falsely marked broken',
+  );
 
   const whitePlate = { active: false, opacity: 0, getComponent: () => null };
   const regularTile = { children: [whitePlate] };
