@@ -35,6 +35,63 @@
   var shellHandlesTableChanges = false;
   var progressInFlight = null;
   var queuedProgress = null;
+  var capturedAudioContexts = [];
+
+  function installAudioContextCapture() {
+    var NativeAudioContext = window.AudioContext || window.webkitAudioContext;
+    if (typeof NativeAudioContext !== 'function' || NativeAudioContext.__yachiyoAudioCapture) return;
+
+    function CapturedAudioContext() {
+      var args = Array.prototype.slice.call(arguments);
+      var context;
+      if (typeof Reflect === 'object' && typeof Reflect.construct === 'function') {
+        context = Reflect.construct(NativeAudioContext, args);
+      } else {
+        context = new NativeAudioContext();
+      }
+      if (capturedAudioContexts.indexOf(context) < 0) capturedAudioContexts.push(context);
+      return context;
+    }
+
+    CapturedAudioContext.prototype = NativeAudioContext.prototype;
+    CapturedAudioContext.__yachiyoAudioCapture = true;
+    try {
+      Object.setPrototypeOf(CapturedAudioContext, NativeAudioContext);
+    } catch (_error) {
+      // Static AudioContext properties are optional for the Cocos runtime.
+    }
+    try {
+      window.AudioContext = CapturedAudioContext;
+      if (window.webkitAudioContext === NativeAudioContext) {
+        window.webkitAudioContext = CapturedAudioContext;
+      }
+    } catch (_error) {
+      // Older WebViews can expose a read-only constructor. Cocos' own canvas
+      // gesture fallback remains available in that case.
+    }
+  }
+
+  function resumeCapturedAudioContexts() {
+    var activeContexts = [];
+    for (var index = 0; index < capturedAudioContexts.length; index += 1) {
+      var context = capturedAudioContexts[index];
+      if (!context || context.state === 'closed') continue;
+      activeContexts.push(context);
+      if (context.state === 'running' || typeof context.resume !== 'function') continue;
+      try {
+        var resumeResult = context.resume();
+        if (resumeResult && typeof resumeResult.catch === 'function') {
+          resumeResult.catch(function () {});
+        }
+      } catch (_error) {
+        // A later real gesture can retry the same suspended context.
+      }
+    }
+    capturedAudioContexts = activeContexts;
+    return activeContexts.length;
+  }
+
+  installAudioContextCapture();
 
   function wrapFrameworkDispatch(dispatcher) {
     if (typeof dispatcher !== 'function' || dispatcher.__yachiyoTotalWinGuard) return dispatcher;
@@ -788,6 +845,24 @@
     return true;
   }
 
+  function unlockOriginalGameAudio() {
+    // This must run synchronously inside the real pointer/touch/key gesture.
+    // postMessage alone is asynchronous and does not satisfy iOS autoplay.
+    resumeCapturedAudioContexts();
+    var synced = syncRunningAudioWhenReady();
+    if (!synced) return false;
+    var music = readAudioPreference(BGM_PREFS_KEY, 0.32);
+    var audioData = window.App && window.App.globalAudio && window.App.globalAudio.audioData;
+    if (!music.muted && audioData && typeof audioData.resumeMusic === 'function') {
+      try {
+        audioData.resumeMusic();
+      } catch (_error) {
+        // The next game sound will reuse the already-resumed AudioContext.
+      }
+    }
+    return true;
+  }
+
   function findIntroView() {
     try {
       var cocos = window.cc;
@@ -1535,9 +1610,10 @@
   window.addEventListener('message', function (event) {
     if (event.origin !== window.location.origin || event.source !== window.parent || !event.data)
       return;
-    if (event.data.type === 'seth2:audio-sync' || event.data.type === 'seth2:audio-unlock') {
+    if (event.data.type === 'seth2:audio-sync') {
       syncRunningAudioWhenReady();
     }
+    if (event.data.type === 'seth2:audio-unlock') unlockOriginalGameAudio();
     if (event.data.type === 'seth2:shell-capabilities') {
       shellHandlesTableChanges = event.data.tableChangeRemount === true;
     }
@@ -1548,7 +1624,10 @@
       syncRunningAudioWhenReady();
     }
   });
-  window.__YachiyoSeth2UnlockAudio = syncRunningAudioWhenReady;
+  ['pointerdown', 'touchend', 'mouseup', 'keydown'].forEach(function (eventName) {
+    window.addEventListener(eventName, unlockOriginalGameAudio, { capture: true, passive: true });
+  });
+  window.__YachiyoSeth2UnlockAudio = unlockOriginalGameAudio;
   window.__YachiyoSeth2SourceAdapterTest = {
     LocalSocket: LocalSocket,
     advanceActiveSpinProgress: advanceActiveSpinProgress,
@@ -1581,6 +1660,8 @@
     scheduleGameEntryObserver: scheduleGameEntryObserver,
     disposeGameForRemount: disposeGameForRemount,
     syncRunningAudioWhenReady: syncRunningAudioWhenReady,
+    unlockOriginalGameAudio: unlockOriginalGameAudio,
+    resumeCapturedAudioContexts: resumeCapturedAudioContexts,
     watchOriginalGameEntry: watchOriginalGameEntry,
   };
 

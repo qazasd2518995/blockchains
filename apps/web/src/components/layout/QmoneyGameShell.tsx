@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { House } from 'lucide-react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { GAMES_REGISTRY, type GameIdType } from '@bg/shared';
+import { AudioMenu } from '@/components/layout/AudioMenu';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 import { getLocalizedGameTitle } from '@/i18n/gameLabels';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -173,6 +174,10 @@ export function QmoneyGameShell() {
       <main className="qmoney-game-stage">
         <Outlet />
       </main>
+
+      <div className="qmoney-game-audio">
+        <AudioMenu variant="dark" />
+      </div>
 
       <a
         href={returnTarget.to}

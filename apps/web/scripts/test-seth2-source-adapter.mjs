@@ -13,6 +13,8 @@ const shellSource = fs.readFileSync(
 );
 assert.equal(source.includes('yachiyo-seth2-entry-gate'), false);
 assert.equal(source.includes('audio.getAudioInfo()'), false);
+assert.equal(source.includes("['pointerdown', 'touchend', 'mouseup', 'keydown']"), true);
+assert.equal(source.includes('resumeCapturedAudioContexts();'), true);
 assert.equal(shellSource.includes("type: 'seth2:shell-capabilities'"), true);
 assert.equal(shellSource.includes("payload.type === 'seth2:table-change-request'"), true);
 assert.equal(
@@ -51,6 +53,18 @@ const longTimers = [];
 const windowListeners = new Map();
 const requests = [];
 const responseQueue = [];
+let audioContextResumeCount = 0;
+class TestAudioContext {
+  constructor() {
+    this.state = 'suspended';
+  }
+
+  resume() {
+    audioContextResumeCount += 1;
+    this.state = 'running';
+    return Promise.resolve();
+  }
+}
 let testNow = 1_000;
 class TestDate extends Date {
   static now() {
@@ -86,6 +100,7 @@ const context = {
   location: { origin: 'https://example.test', search: '' },
   localStorage: storage,
   sessionStorage: storage,
+  AudioContext: TestAudioContext,
   parent: { localStorage: storage, postMessage: (message) => parentMessages.push(message) },
   addEventListener: (type, listener) => windowListeners.set(type, listener),
   setTimeout: (callback, delay) => {
@@ -108,6 +123,8 @@ const context = {
 context.window = context;
 vm.createContext(context);
 vm.runInContext(source, context);
+const capturedAudioContext = new context.AudioContext();
+assert.equal(capturedAudioContext instanceof TestAudioContext, true);
 
 storage.setItem('source-client-temporary-key', 'discard-me');
 storage.clear();
@@ -497,6 +514,7 @@ const audioState = {
   effectVolume: 1,
   isMusicOn: false,
   isEffectOn: true,
+  musicResumeCount: 0,
 };
 context.App.globalAudio.audioData = {
   setMusicVolume: (value) => {
@@ -510,6 +528,9 @@ context.App.globalAudio.audioData = {
   },
   setEffectStatus: (value) => {
     audioState.isEffectOn = value;
+  },
+  resumeMusic: () => {
+    audioState.musicResumeCount += 1;
   },
 };
 const gameCanvasListeners = new Map();
@@ -539,7 +560,11 @@ assert.deepEqual(structuredClone(parentMessages.at(-1)), {
 });
 assert.equal(requestViewMode('invalid'), false);
 assert.equal(bindGameCanvasRecovery(), true);
-assert.equal(context.__YachiyoSeth2UnlockAudio(), false);
+const gameAudioGesture = windowListeners.get('pointerdown');
+assert.equal(typeof gameAudioGesture, 'function');
+assert.equal(gameAudioGesture(), false);
+assert.equal(audioContextResumeCount, 1, 'the real gesture must resume Cocos Web Audio');
+assert.equal(capturedAudioContext.state, 'running');
 assert.equal(audioState.musicVolume, 1, 'audio bridge waits until the game view exists');
 
 // Cocos activates GameView before GameView.init() builds its four UI layers.
@@ -577,6 +602,8 @@ assert.equal(audioState.musicVolume, 0.25);
 assert.equal(audioState.effectVolume, 0);
 assert.equal(audioState.isMusicOn, true);
 assert.equal(audioState.isEffectOn, false);
+assert.equal(context.__YachiyoSeth2UnlockAudio(), true);
+assert.equal(audioState.musicResumeCount, 1, 'an unlocked game resumes the active source music');
 let preventedContextLoss = false;
 gameCanvasListeners.get('webglcontextlost')({
   preventDefault: () => {

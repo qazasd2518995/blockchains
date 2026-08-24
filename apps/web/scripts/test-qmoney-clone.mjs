@@ -21,7 +21,7 @@ for (const marker of [
   'data-action="notices"',
   'id="jackpotDigits"',
   'class="bottom-nav"',
-  '/qmoney/app.js?v=20260824-refresh-lock-1',
+  '/qmoney/app.js?v=20260824-audio-bridge-1',
 ]) {
   assert.ok(html.includes(marker), `missing lobby marker: ${marker}`);
 }
@@ -35,6 +35,9 @@ for (const marker of [
   '/games/catalog',
   '/wallet/balance',
   'TEST_PLAYER_PATTERN',
+  'GAME_BGM_PREFERENCES_KEY',
+  'GAME_SFX_PREFERENCES_KEY',
+  'syncGameAudioPreferences',
 ]) {
   assert.ok(`${html}\n${css}\n${app}`.includes(marker), `missing integration marker: ${marker}`);
 }

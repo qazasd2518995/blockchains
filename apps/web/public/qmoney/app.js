@@ -4,6 +4,8 @@ const API_BASE = `${CONFIGURED_API_ORIGIN}/api`;
 const AUTH_STORAGE_KEY = "bg-auth";
 const FAVORITES_STORAGE_KEY = "qmoney-new-casino-favorites";
 const PREFERENCES_STORAGE_KEY = "qmoney-lobby-preferences-v1";
+const GAME_BGM_PREFERENCES_KEY = "bg.bgm.prefs";
+const GAME_SFX_PREFERENCES_KEY = "bg.sfx.prefs";
 const RETURN_PATH = "/qmoney/";
 const TEST_PLAYER_PATTERN = /^testplayer(?:[1-6])?$/i;
 
@@ -157,14 +159,48 @@ function persistFavorites() {
 function readPreferences() {
   try {
     const stored = JSON.parse(window.localStorage.getItem(PREFERENCES_STORAGE_KEY) || "null");
-    return { musicOn: stored?.musicOn !== false, soundOn: stored?.soundOn !== false };
+    if (stored && typeof stored === "object") {
+      return { musicOn: stored.musicOn !== false, soundOn: stored.soundOn !== false };
+    }
+    const gameMusic = readGameAudioPreference(GAME_BGM_PREFERENCES_KEY);
+    const gameSound = readGameAudioPreference(GAME_SFX_PREFERENCES_KEY);
+    return { musicOn: gameMusic ? !gameMusic.muted : true, soundOn: gameSound ? !gameSound.muted : true };
   } catch {
     return { musicOn: true, soundOn: true };
   }
 }
 
+function readGameAudioPreference(key) {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(key) || "null");
+    if (!stored || typeof stored !== "object") return null;
+    return stored;
+  } catch {
+    return null;
+  }
+}
+
+function writeGameAudioPreference(key, muted, fallbackVolume) {
+  const current = readGameAudioPreference(key);
+  const volume = Number(current?.volume);
+  try {
+    window.localStorage.setItem(key, JSON.stringify({
+      muted,
+      volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : fallbackVolume,
+    }));
+  } catch {
+    // Audio defaults remain enabled when persistent storage is unavailable.
+  }
+}
+
+function syncGameAudioPreferences() {
+  writeGameAudioPreference(GAME_BGM_PREFERENCES_KEY, !state.musicOn, 0.32);
+  writeGameAudioPreference(GAME_SFX_PREFERENCES_KEY, !state.soundOn, 0.6);
+}
+
 function persistPreferences() {
   window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify({ musicOn: state.musicOn, soundOn: state.soundOn }));
+  syncGameAudioPreferences();
 }
 
 function isTestPlayer() {
@@ -850,6 +886,11 @@ document.querySelector("#webLogin").addEventListener("click", () => void showLog
 document.addEventListener("pointerdown", () => syncMusic(state.isLobby ? "lobby" : "login"), { once: true, capture: true });
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeModal(); });
 window.addEventListener("pageshow", () => {
+  const preferences = readPreferences();
+  state.musicOn = preferences.musicOn;
+  state.soundOn = preferences.soundOn;
+  syncGameAudioPreferences();
+  syncMusic(state.isLobby ? "lobby" : "login");
   elements.loadingOverlay.hidden = true;
   if (state.isLobby) void refreshBalance(true);
 });
@@ -868,6 +909,7 @@ window.setInterval(() => {
 }, 4_200);
 
 async function bootstrap() {
+  syncGameAudioPreferences();
   renderJackpot();
   if (!state.session) return showLoginView();
   try {

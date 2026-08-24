@@ -2448,6 +2448,13 @@
     font-weight: 800;
     line-height: 1;
   }
+
+  .qmoney-game-audio {
+    position: fixed;
+    z-index: 9999;
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+  }
 }
 
 @layer components {

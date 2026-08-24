@@ -4,7 +4,10 @@ import { useLocation } from 'react-router-dom';
 import { Sfx } from '@bg/game-engine';
 import { H5_GAMES } from '@bg/shared';
 import { PlatformBgm, type BgmState } from '@/lib/platformBgm';
+import { isQmoneyRealm } from '@/lib/platformRealm';
 import { useTranslation } from '@/i18n/useTranslation';
+
+const QMONEY_AUDIO_PREFERENCES_KEY = 'qmoney-lobby-preferences-v1';
 
 const ORIGINAL_AUDIO_GAME_PATHS = new Set([
   ...H5_GAMES.map((game) => `/games/${game.gameId}`),
@@ -65,12 +68,16 @@ export function AudioMenu({
     variant === 'dark' ? 'text-white/82 hover:bg-white/8' : 'text-[#0F172A] hover:bg-[#FFF7ED]';
 
   const toggleSfx = (): void => {
-    Sfx.setMuted(!sfxMuted);
+    const nextMuted = !sfxMuted;
+    Sfx.setMuted(nextMuted);
+    persistQmoneyAudioPreference({ soundOn: !nextMuted });
     if (sfxMuted) Sfx.tick();
   };
 
   const toggleMusic = (): void => {
-    PlatformBgm.toggleMuted();
+    const nextMuted = !bgmState.muted;
+    PlatformBgm.setMuted(nextMuted);
+    persistQmoneyAudioPreference({ musicOn: !nextMuted });
   };
 
   return (
@@ -114,6 +121,26 @@ export function AudioMenu({
       )}
     </div>
   );
+}
+
+function persistQmoneyAudioPreference(
+  patch: Partial<{ musicOn: boolean; soundOn: boolean }>,
+): void {
+  if (!isQmoneyRealm) return;
+  try {
+    const raw = window.localStorage.getItem(QMONEY_AUDIO_PREFERENCES_KEY);
+    const current = raw ? (JSON.parse(raw) as Partial<{ musicOn: boolean; soundOn: boolean }>) : {};
+    window.localStorage.setItem(
+      QMONEY_AUDIO_PREFERENCES_KEY,
+      JSON.stringify({
+        musicOn: current.musicOn !== false,
+        soundOn: current.soundOn !== false,
+        ...patch,
+      }),
+    );
+  } catch {
+    // The in-game audio preference remains active for this page load.
+  }
 }
 
 function AudioMenuItem({

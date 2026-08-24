@@ -36,6 +36,8 @@ for (const marker of [
   'data-platform-realm="qmoney"',
   'qmoney-game-stage',
   'qmoney-game-home',
+  'qmoney-game-audio',
+  '<AudioMenu variant="dark" />',
   '<span>回大廳</span>',
   'document.title = `錢女友｜${game.title}`',
 ]) {
@@ -61,6 +63,10 @@ assert.ok(
 assert.ok(
   main.includes('import.meta.env.PROD && !isQmoneyRealm'),
   'Qmoney must not register the legacy service worker',
+);
+assert.ok(
+  qmoneyApp.includes('syncGameAudioPreferences()'),
+  'Qmoney lobby preferences must drive the embedded games audio preferences',
 );
 assert.ok(
   !qmoneyApp
