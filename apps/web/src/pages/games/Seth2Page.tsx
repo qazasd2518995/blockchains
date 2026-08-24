@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
 import { useTranslation } from '@/i18n/useTranslation';
 import { PlatformBgm } from '@/lib/platformBgm';
+import { isQmoneyRealm } from '@/lib/platformRealm';
 
 const GAME_PATH = '/games/storm-of-seth-2-v115/index.html';
 
@@ -108,7 +109,7 @@ export function Seth2Page() {
     const apiBase = `${configuredBase || window.location.origin}/api`;
     const query = new URLSearchParams({
       apiBase,
-      t: 'yachiyo-local',
+      t: isQmoneyRealm ? 'qmoney-local' : 'yachiyo-local',
       gn: 'golden-seth',
       l: sourceLocale(locale),
       ct: 'slot',
@@ -117,7 +118,9 @@ export function Seth2Page() {
       view_mode: viewMode,
       client_type: 'web',
       gv: '260609',
-      build: 'yachiyo-seth2-v115-table-remount-1',
+      build: isQmoneyRealm
+        ? 'qmoney-seth2-v115-table-remount-1'
+        : 'yachiyo-seth2-v115-table-remount-1',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, [locale, viewMode]);

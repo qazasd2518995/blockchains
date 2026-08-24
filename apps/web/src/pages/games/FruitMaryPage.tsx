@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
+import { isQmoneyRealm } from '@/lib/platformRealm';
 
 const GAME_PATH = '/games/fruit-mary/index.html';
 const GAME_READY_TIMEOUT_MS = 45_000;
@@ -107,10 +108,12 @@ export function FruitMaryPage() {
     const apiBase = `${configuredBase || window.location.origin}/api`;
     const query = new URLSearchParams({
       apiBase,
-      token: 'yachiyo-session',
+      token: isQmoneyRealm ? 'qmoney-session' : 'yachiyo-session',
       room_id: '1',
       window_type: 'web',
-      build: 'yachiyo-fruit-mary-v4-stable-health',
+      build: isQmoneyRealm
+        ? 'qmoney-fruit-mary-v4-stable-health'
+        : 'yachiyo-fruit-mary-v4-stable-health',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, []);

@@ -17,11 +17,13 @@ import {
 import { AppShell } from '@/components/layout/AppShell';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { GameFullscreenShell } from '@/components/layout/GameFullscreenShell';
+import { QmoneyGameShell } from '@/components/layout/QmoneyGameShell';
 import { GuestGuard } from '@/components/layout/GuestGuard';
 import { preloadGameAssets } from '@/lib/gameAssetManifest';
 import { useTranslation } from '@/i18n/useTranslation';
 import type { Locale } from '@/i18n/types';
 import { PlatformBgm } from '@/lib/platformBgm';
+import { isQmoneyRealm, platformLobbyPath } from '@/lib/platformRealm';
 import { errorMessage, reloadAfterRuntimeFailure } from '@/lib/runtimeRecovery';
 import { CRASH_CONFIGS } from '@/pages/games/crashConfigs';
 import { useAuthStore } from '@/stores/authStore';
@@ -149,7 +151,7 @@ function TestGameAccessGuard({ gameId, children }: { gameId: string; children: R
     (QMONEY_TEST_ONLY && !isImportedGameTestUsername(username)) ||
     !isGameVisibleForUsername(gameId, username)
   ) {
-    return <Navigate to="/lobby" replace />;
+    return <Navigate to={platformLobbyPath} replace />;
   }
   return <>{children}</>;
 }
@@ -230,7 +232,8 @@ function RouteViewportReset() {
 
   useLayoutEffect(() => {
     PlatformBgm.setRouteSuppressed(
-      pathname === '/games/baccarat' ||
+      (isQmoneyRealm && pathname.startsWith('/games/')) ||
+        pathname === '/games/baccarat' ||
         pathname === '/games/baccarat-nova' ||
         pathname === '/games/baccarat-imperial' ||
         ORIGINAL_AUDIO_GAME_PATHS.has(pathname),
@@ -242,7 +245,7 @@ function RouteViewportReset() {
 }
 
 function RootEntry() {
-  return <Navigate to="/lobby" replace />;
+  return <Navigate to={platformLobbyPath} replace />;
 }
 
 function QmoneyStaticEntry() {
@@ -268,24 +271,28 @@ export const router = createBrowserRouter([
         path: '/qmoney/*',
         element: <QmoneyStaticEntry />,
       },
+      ...(!isQmoneyRealm
+        ? [
+            {
+              path: '/landing',
+              element: suspended(<LandingPage />),
+            },
+            {
+              element: (
+                <GuestGuard>
+                  <Outlet />
+                </GuestGuard>
+              ),
+              children: [{ path: '/login', element: suspended(<LoginPage />) }],
+            },
+          ]
+        : []),
+      { path: '/games/baccarat', element: <Navigate to={platformLobbyPath} replace /> },
+      { path: '/games/baccarat-nova', element: <Navigate to={platformLobbyPath} replace /> },
+      { path: '/games/baccarat-imperial', element: <Navigate to={platformLobbyPath} replace /> },
+      { path: '/games/chicken-road', element: <Navigate to={platformLobbyPath} replace /> },
       {
-        path: '/landing',
-        element: suspended(<LandingPage />),
-      },
-      {
-        element: (
-          <GuestGuard>
-            <Outlet />
-          </GuestGuard>
-        ),
-        children: [{ path: '/login', element: suspended(<LoginPage />) }],
-      },
-      { path: '/games/baccarat', element: <Navigate to="/lobby" replace /> },
-      { path: '/games/baccarat-nova', element: <Navigate to="/lobby" replace /> },
-      { path: '/games/baccarat-imperial', element: <Navigate to="/lobby" replace /> },
-      { path: '/games/chicken-road', element: <Navigate to="/lobby" replace /> },
-      {
-        element: <GameFullscreenShell />,
+        element: isQmoneyRealm ? <QmoneyGameShell /> : <GameFullscreenShell />,
         children: [
           gameRoute('/games/dice', 'dice', <DicePage />),
           ...BACCARAT_TABLE_GAME_IDS.map((gameId) =>
@@ -372,32 +379,36 @@ export const router = createBrowserRouter([
           gameRoute('/games/plinko-x', 'plinko-x', <PlinkoPage variant="x" />),
         ],
       },
-      {
-        element: (
-          <AppShell>
-            <Outlet />
-          </AppShell>
-        ),
-        children: [
-          { path: '/lobby', element: suspended(<LobbyPage />) },
-          { path: '/hall/:hallId', element: suspended(<HallPage />) },
-          { path: '/verify', element: suspended(<VerifyPage />) },
-          { path: '/promos', element: suspended(<PromosPage />) },
-          { path: '/profile', element: <Navigate to="/lobby" replace /> },
-        ],
-      },
-      {
-        element: (
-          <AuthGuard>
-            <AppShell>
-              <Outlet />
-            </AppShell>
-          </AuthGuard>
-        ),
-        children: [{ path: '/history', element: suspended(<HistoryPage />) }],
-      },
-      { path: '*', element: suspended(<NotFoundPage />) },
-      { path: '/404', element: <Navigate to="/" replace /> },
+      ...(isQmoneyRealm
+        ? [{ path: '*', element: <QmoneyStaticEntry /> }]
+        : [
+            {
+              element: (
+                <AppShell>
+                  <Outlet />
+                </AppShell>
+              ),
+              children: [
+                { path: '/lobby', element: suspended(<LobbyPage />) },
+                { path: '/hall/:hallId', element: suspended(<HallPage />) },
+                { path: '/verify', element: suspended(<VerifyPage />) },
+                { path: '/promos', element: suspended(<PromosPage />) },
+                { path: '/profile', element: <Navigate to="/lobby" replace /> },
+              ],
+            },
+            {
+              element: (
+                <AuthGuard>
+                  <AppShell>
+                    <Outlet />
+                  </AppShell>
+                </AuthGuard>
+              ),
+              children: [{ path: '/history', element: suspended(<HistoryPage />) }],
+            },
+            { path: '*', element: suspended(<NotFoundPage />) },
+            { path: '/404', element: <Navigate to="/" replace /> },
+          ]),
     ],
   },
 ]);

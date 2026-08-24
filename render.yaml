@@ -280,6 +280,8 @@ services:
         value: 'true'
       - key: VITE_QMONEY_TEST_ONLY
         value: 'true'
+      - key: VITE_PLATFORM_REALM
+        value: qmoney
 
   # ──────────────────────────────────────────
   # 4. 新娛樂城獨立 API（帳號、JWT、流水與控制資料完全分開）

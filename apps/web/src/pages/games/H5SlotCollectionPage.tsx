@@ -9,6 +9,7 @@ import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 import { useTranslation } from '@/i18n/useTranslation';
 import type { Locale } from '@/i18n/types';
 import { PlatformBgm } from '@/lib/platformBgm';
+import { isQmoneyRealm } from '@/lib/platformRealm';
 
 const GAME_PATH = '/games/h5-slot-collection/index.html';
 const GAME_READY_TIMEOUT_MS = 50_000;
@@ -132,9 +133,11 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
       roomMul: ROOM_MULTIPLIER_BY_GAME[gameCode] ?? '0.2',
       room_id: '1',
       language: ORIGINAL_LANGUAGE_BY_PLATFORM_LOCALE[locale],
-      uid: 'yachiyo',
-      token: 'yachiyo-session',
-      build: 'yachiyo-h5-slots-v4-visual-recovery',
+      uid: isQmoneyRealm ? 'qmoney' : 'yachiyo',
+      token: isQmoneyRealm ? 'qmoney-session' : 'yachiyo-session',
+      build: isQmoneyRealm
+        ? 'qmoney-h5-slots-v4-visual-recovery'
+        : 'yachiyo-h5-slots-v4-visual-recovery',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, [gameCode, locale]);

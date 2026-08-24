@@ -6,10 +6,8 @@ import { router } from './router';
 import { AddToHomeScreenPrompt } from './components/layout/AddToHomeScreenPrompt';
 import { ErrorBoundary } from './components/layout/ErrorBoundary';
 import { PlatformBgm } from './lib/platformBgm';
-import {
-  clearRuntimeRecoveryFlag,
-  reloadAfterRuntimeFailure,
-} from './lib/runtimeRecovery';
+import { isQmoneyRealm } from './lib/platformRealm';
+import { clearRuntimeRecoveryFlag, reloadAfterRuntimeFailure } from './lib/runtimeRecovery';
 import {
   installSlotDebugProbe,
   probeSlotDebugBackend,
@@ -39,7 +37,7 @@ window.addEventListener('unhandledrejection', (event) => {
 
 window.setTimeout(clearRuntimeRecoveryFlag, 12_000);
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+if ('serviceWorker' in navigator && import.meta.env.PROD && !isQmoneyRealm) {
   window.addEventListener('load', () => {
     const swUrl = `/sw.js?v=${encodeURIComponent(SLOT_DEBUG_BUILD)}`;
     navigator.serviceWorker
@@ -82,7 +80,7 @@ ReactDOM.createRoot(root).render(
       <AudioUnlocker />
       <ErrorBoundary>
         <RouterProvider router={router} future={{ v7_startTransition: true }} />
-        <AddToHomeScreenPrompt />
+        {!isQmoneyRealm && <AddToHomeScreenPrompt />}
       </ErrorBoundary>
     </I18nProvider>
   </React.StrictMode>,

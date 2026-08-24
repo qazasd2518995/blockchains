@@ -516,13 +516,8 @@ function showGame(gameId) {
   const game = state.games.find((item) => item.id === gameId);
   if (!game) return;
   state.activeGame = game;
-  state.modalKind = "game";
   playSound(elements.clickGame);
-  setModal(`
-    <div class="game-modal-cover"><img src="${escapeHtml(game.cover)}" alt="${escapeHtml(game.name)}"><div class="game-modal-cover-copy"><span>${escapeHtml(game.provider)}</span><h2 id="modalTitle">${escapeHtml(game.name)}</h2></div></div>
-    <div class="game-modal-body"><p>使用目前測試會員的正式點數、後端控制、結算及斷線續玩機制。</p><button class="modal-button modal-button--pink" type="button" data-modal-action="launch-game"><span>開始遊戲</span></button></div>`,
-    "modal-card--game",
-  );
+  launchActiveGame();
 }
 
 function launchActiveGame() {
