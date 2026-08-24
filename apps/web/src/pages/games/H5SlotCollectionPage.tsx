@@ -200,6 +200,7 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
         if (Number.isFinite(balance)) setBalance(balance.toFixed(2));
       }
       if (payload.type === 'h5-slots:error') {
+        clearReadyTimer();
         setError(String(payload.message || '遊戲連線失敗'));
       }
       if (payload.type === 'h5-slots:fatal') {

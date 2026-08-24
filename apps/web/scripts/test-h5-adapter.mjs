@@ -52,6 +52,11 @@ assert.match(
 );
 assert.match(
   pageSource,
+  /payload\.type === ['"]h5-slots:error['"]\) \{\s*clearReadyTimer\(\);/,
+  'a specific game or authentication error must not be overwritten by the generic load timeout',
+);
+assert.match(
+  pageSource,
   /__YachiyoDisposeH5Game/,
   'the shell must release the source game before removing its iframe',
 );
