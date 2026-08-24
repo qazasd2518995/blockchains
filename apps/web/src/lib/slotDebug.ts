@@ -1,4 +1,4 @@
-export const SLOT_DEBUG_BUILD = 'yachiyo-access-refresh-20260817-01';
+export const SLOT_DEBUG_BUILD = 'yachiyo-safe-sw-activate-20260824-01';
 
 const STORAGE_KEYS = ['slot-debug', 'slotDebug'];
 const TRUTHY_VALUES = new Set(['', '1', 'true', 'yes', 'on']);

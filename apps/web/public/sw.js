@@ -1,8 +1,7 @@
-const VERSION = 'yachiyo-assets-v7-access-refresh-20260817';
-const DEBUG_VERSION = 'access-refresh-20260817-01';
+const VERSION = 'yachiyo-assets-v8-safe-activate-20260824';
+const DEBUG_VERSION = 'safe-activate-20260824-01';
 const IMAGE_CACHE = `${VERSION}:images`;
 const IMAGE_MAX_ENTRIES = 420;
-const RELOAD_CLIENTS_ON_ACTIVATE = true;
 const IMAGE_PATH_RE =
   /^\/(?:_optimized|backgrounds|banners|cards|crash|game-art|games|halls|promos|slots)\//;
 const IMAGE_EXT_RE = /\.(?:avif|gif|jpe?g|png|svg|webp)$/i;
@@ -30,7 +29,7 @@ self.addEventListener('activate', (event) => {
               .map((key) => caches.delete(key)),
           ),
         ),
-    ]).then(() => reloadClientsOnActivate()),
+    ]),
   );
 });
 
@@ -42,17 +41,6 @@ self.addEventListener('message', (event) => {
     debugVersion: DEBUG_VERSION,
   });
 });
-
-async function reloadClientsOnActivate() {
-  if (!RELOAD_CLIENTS_ON_ACTIVATE) return;
-  const clients = await self.clients.matchAll({ type: 'window' });
-  await Promise.all(
-    clients.map((client) => {
-      if ('navigate' in client) return client.navigate(client.url);
-      return undefined;
-    }),
-  );
-}
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
