@@ -21,6 +21,8 @@ assert.equal(
   shellSource.includes("requestIframeRemount(currentViewModeRef.current, 'table')"),
   true,
 );
+assert.equal(shellSource.includes("query.set('table', '1')"), true);
+assert.equal(shellSource.includes('setTableSelectionConfirmed(true)'), true);
 const values = new Map([
   [
     'bg-auth',

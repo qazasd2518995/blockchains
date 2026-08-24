@@ -23,6 +23,7 @@ export function Seth2Page() {
   const [viewMode, setViewMode] = useState<'portrait' | 'landscape'>(initialViewMode);
   const [iframeMounted, setIframeMounted] = useState(true);
   const [iframeGeneration, setIframeGeneration] = useState(0);
+  const [tableSelectionConfirmed, setTableSelectionConfirmed] = useState(false);
   const [remountReason, setRemountReason] = useState<'orientation' | 'table' | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const currentViewModeRef = useRef(viewMode);
@@ -102,6 +103,10 @@ export function Seth2Page() {
     [requestIframeRemount],
   );
   const requestTableChangeRemount = useCallback(() => {
+    // The original source reload appends `table=1` after a successful table
+    // change. Preserve that semantic while letting the shell replace the whole
+    // WebGL iframe, otherwise the new Cocos scene opens the selector again.
+    setTableSelectionConfirmed(true);
     requestIframeRemount(currentViewModeRef.current, 'table');
   }, [requestIframeRemount]);
   const gameUrl = useMemo(() => {
@@ -122,8 +127,9 @@ export function Seth2Page() {
         ? 'qmoney-seth2-v115-table-remount-1'
         : 'yachiyo-seth2-v115-table-remount-1',
     });
+    if (tableSelectionConfirmed) query.set('table', '1');
     return `${GAME_PATH}?${query.toString()}`;
-  }, [locale, viewMode]);
+  }, [locale, tableSelectionConfirmed, viewMode]);
 
   useEffect(() => {
     const unsubscribeSfx = Sfx.subscribe(syncOriginalGameAudio);

@@ -1067,6 +1067,7 @@ describe('Seth2 v1.1.5 source loading', () => {
     const platform = result.platform as {
       table: { roomId: number };
       player: { settings: { stakeIndex: number; ratioIndex: number } };
+      disablePromotions: number;
     };
 
     expect(result.isResuming).toBe(true);
@@ -1081,6 +1082,7 @@ describe('Seth2 v1.1.5 source loading', () => {
     expect(engine.gameState.every((state) => state.startFreeGame === false)).toBe(true);
     expect(platform.table.roomId).toBe(77);
     expect(platform.player.settings).toMatchObject({ stakeIndex: 2, ratioIndex: 3 });
+    expect(platform.disablePromotions).toBe(1);
   });
 
   it('resumes one-round Eternal Rise from entry states without fake free-game states', async () => {

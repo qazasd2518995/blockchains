@@ -835,6 +835,10 @@ export function seth2SourcePlatform(
       },
     },
     slotTablesOn: true,
+    // The source framework otherwise cross-promotes Elder God Baphomet inside
+    // Seth 2, including above the table selector. This product keeps only the
+    // current game's own UI and artwork.
+    disablePromotions: 1,
     tables: [],
     slotTableUpdated: 0,
     jackpotOn: true,
