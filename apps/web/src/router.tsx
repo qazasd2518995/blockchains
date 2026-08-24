@@ -10,6 +10,7 @@ import {
   createBrowserRouter,
   Navigate,
   Outlet,
+  redirect,
   useLocation,
   useRouteError,
 } from 'react-router-dom';
@@ -29,8 +30,11 @@ import {
   GameId,
   H5_GAMES,
   isGameVisibleForUsername,
+  isImportedGameTestUsername,
   LOCAL_TABLE_GAME_IDS,
 } from '@bg/shared';
+
+const QMONEY_TEST_ONLY = import.meta.env.VITE_QMONEY_TEST_ONLY === 'true';
 
 const ORIGINAL_AUDIO_GAME_PATHS = new Set([
   ...H5_GAMES.map((game) => `/games/${game.gameId}`),
@@ -141,7 +145,10 @@ function suspended(element: ReactNode): JSX.Element {
 
 function TestGameAccessGuard({ gameId, children }: { gameId: string; children: ReactNode }) {
   const username = useAuthStore((state) => state.user?.username ?? null);
-  if (!isGameVisibleForUsername(gameId, username)) {
+  if (
+    (QMONEY_TEST_ONLY && !isImportedGameTestUsername(username)) ||
+    !isGameVisibleForUsername(gameId, username)
+  ) {
     return <Navigate to="/lobby" replace />;
   }
   return <>{children}</>;
@@ -201,10 +208,14 @@ function gameRoute(path: string, gameId: string, element: ReactNode) {
   return {
     path,
     loader: async () => {
+      const username = useAuthStore.getState().user?.username ?? null;
+      if (QMONEY_TEST_ONLY && !isImportedGameTestUsername(username)) {
+        return redirect('/qmoney/');
+      }
       await preloadGameAssets(gameId);
       return null;
     },
-    element: suspended(element),
+    element: <TestGameAccessGuard gameId={gameId}>{suspended(element)}</TestGameAccessGuard>,
   };
 }
 

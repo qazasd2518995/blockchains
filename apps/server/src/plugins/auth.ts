@@ -1,5 +1,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { isImportedGameTestUsername } from '@bg/shared';
+import { config } from '../config.js';
 import { ApiError } from '../utils/errors.js';
 
 declare module 'fastify' {
@@ -18,6 +20,17 @@ declare module '@fastify/jwt' {
   }
 }
 
+export function isGameplayRequestAllowedForRealm(
+  requestUrl: string,
+  username: string | null | undefined,
+  realm: 'legacy' | 'qmoney',
+): boolean {
+  const requestPath = requestUrl.split('?')[0] || '';
+  const isGameplayRequest =
+    requestPath.startsWith('/api/games/') && requestPath !== '/api/games/catalog';
+  return realm !== 'qmoney' || !isGameplayRequest || isImportedGameTestUsername(username);
+}
+
 async function pluginFn(fastify: FastifyInstance): Promise<void> {
   fastify.decorate('authenticate', async (req: FastifyRequest, _reply: FastifyReply) => {
     try {
@@ -26,7 +39,13 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
       if (!tokenUser?.sub) throw new Error('missing sub');
       const user = await fastify.prisma.user.findUnique({
         where: { id: tokenUser.sub },
-        select: { id: true, frozenAt: true, disabledAt: true, activeSessionId: true },
+        select: {
+          id: true,
+          username: true,
+          frozenAt: true,
+          disabledAt: true,
+          activeSessionId: true,
+        },
       });
       if (!user || user.disabledAt) throw new Error('user disabled');
       if (user.activeSessionId && user.activeSessionId !== tokenUser.sid) {
@@ -42,6 +61,11 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
         req.method !== 'OPTIONS'
       ) {
         throw new ApiError('MEMBER_FROZEN', 'Member account is frozen');
+      }
+      if (
+        !isGameplayRequestAllowedForRealm(req.raw.url || '', user.username, config.PLATFORM_REALM)
+      ) {
+        throw new ApiError('FORBIDDEN', 'This game is only available to test accounts');
       }
       (req as unknown as { userId: string }).userId = user.id;
     } catch (error) {

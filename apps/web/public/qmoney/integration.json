@@ -3,5 +3,5 @@
   "catalogEndpoint": "/api/games/catalog",
   "authStorageKey": "bg-auth",
   "gameRoutePrefix": "/games/",
-  "assetCount": 41
+  "assetCount": 196
 }

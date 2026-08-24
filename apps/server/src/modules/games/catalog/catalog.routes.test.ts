@@ -17,8 +17,16 @@ function registrar(username: string, role = 'PLAYER') {
 }
 
 describe('new casino game catalog', () => {
-  it('returns Seth, Fruit Mary, H5 and MegaSlot games to test players', async () => {
-    const registration = registrar('testplayer6');
+  it.each([
+    'testplayer',
+    'testplayer1',
+    'testplayer2',
+    'testplayer3',
+    'testplayer4',
+    'testplayer5',
+    'testplayer6',
+  ])('returns Seth, Fruit Mary, H5 and MegaSlot games to %s', async (username) => {
+    const registration = registrar(username);
     await gameCatalogRoutes(registration.fastify);
     const result = (await registration.readHandler()?.({ userId: 'test-user' })) as {
       games: Array<{ id: string }>;
@@ -31,16 +39,13 @@ describe('new casino game catalog', () => {
     expect(ids.has('nebula-slot')).toBe(true);
   });
 
-  it('does not leak test-only imported games to regular members', async () => {
+  it('does not expose any new-casino games to regular members', async () => {
     const registration = registrar('regular-member');
     await gameCatalogRoutes(registration.fastify);
     const result = (await registration.readHandler()?.({ userId: 'member-user' })) as {
       games: Array<{ id: string; restricted: boolean }>;
     };
 
-    expect(result.games.length).toBeGreaterThan(0);
-    expect(result.games.every((game) => game.restricted === false)).toBe(true);
-    expect(result.games.some((game) => game.id === 'storm-of-seth-2')).toBe(false);
-    expect(result.games.some((game) => game.id.startsWith('h5-'))).toBe(false);
+    expect(result.games).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 import { H5_FISH_GAMES, H5_SLOT_GAMES } from './dto/h5Slots.js';
-import { GameId, isGameVisibleForUsername } from './games.js';
+import { GameId, isImportedGameTestUsername } from './games.js';
 
 export const NEW_CASINO_CATALOG_VERSION = 1;
 
@@ -117,5 +117,5 @@ export const NEW_CASINO_GAMES: readonly NewCasinoGame[] = [
 ];
 
 export function getNewCasinoGamesForUsername(username?: string | null): readonly NewCasinoGame[] {
-  return NEW_CASINO_GAMES.filter((game) => isGameVisibleForUsername(game.id, username));
+  return isImportedGameTestUsername(username) ? NEW_CASINO_GAMES : [];
 }
