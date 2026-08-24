@@ -94,6 +94,8 @@ const state = {
   personalSummary: null,
 };
 
+let refreshInFlight = null;
+
 function uiAsset(path) {
   return `${UI_ASSET_BASE}${path}`;
 }
@@ -200,10 +202,50 @@ async function rawRequest(path, options = {}) {
   return payload;
 }
 
-async function refreshTokens() {
-  if (!state.session?.refreshToken) throw new Error("登入已過期");
-  const tokens = await rawRequest("/auth/refresh", { method: "POST", body: { refreshToken: state.session.refreshToken } });
-  persistSession({ ...state.session, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+function adoptRotatedStoredSession(attemptedRefreshToken) {
+  const latestSession = readStoredSession();
+  if (!latestSession?.refreshToken || latestSession.refreshToken === attemptedRefreshToken) return null;
+  state.session = latestSession;
+  return { accessToken: latestSession.accessToken, refreshToken: latestSession.refreshToken };
+}
+
+function refreshTokens() {
+  if (refreshInFlight) return refreshInFlight;
+  const attemptedRefreshToken = state.session?.refreshToken;
+  if (!attemptedRefreshToken) return Promise.reject(new Error("登入已過期"));
+
+  const request = rawRequest("/auth/refresh", {
+    method: "POST",
+    body: { refreshToken: attemptedRefreshToken },
+  })
+    .then((tokens) => {
+      if (!state.session || state.session.refreshToken !== attemptedRefreshToken) {
+        const adopted = adoptRotatedStoredSession(attemptedRefreshToken);
+        if (adopted) return adopted;
+        throw new Error("登入狀態已變更，請重新登入");
+      }
+      persistSession({
+        ...state.session,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      });
+      return tokens;
+    })
+    .catch((error) => {
+      // The Seth iframe and lobby share rotating credentials. If another
+      // same-origin context completed the rotation first, adopt that newer
+      // persisted pair instead of treating the stale response as a logout.
+      const adopted = adoptRotatedStoredSession(attemptedRefreshToken);
+      if (adopted) return adopted;
+      throw error;
+    });
+
+  refreshInFlight = request;
+  const clearRefresh = () => {
+    if (refreshInFlight === request) refreshInFlight = null;
+  };
+  void request.then(clearRefresh, clearRefresh);
+  return request;
 }
 
 async function apiRequest(path, options = {}, retried = false) {
@@ -215,11 +257,14 @@ async function apiRequest(path, options = {}, retried = false) {
     });
   } catch (error) {
     if (error.status === 401 && !retried && state.session?.refreshToken) {
+      const attemptedRefreshToken = state.session.refreshToken;
       try {
         await refreshTokens();
         return await apiRequest(path, options, true);
       } catch {
-        signOut(false);
+        // Never let a stale failed refresh erase a newer session that another
+        // concurrent request or same-origin game frame has already persisted.
+        if (state.session?.refreshToken === attemptedRefreshToken) signOut(false);
         throw new Error("登入已過期，請重新登入");
       }
     }
