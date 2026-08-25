@@ -334,6 +334,16 @@ describe('Seth2 controlled result selection', () => {
     }
   });
 
+  it('does not reserve five empty follow-ups for a controlled male split', () => {
+    for (const target of [197, 397, 19_997]) {
+      const factors = splitSeth2FeatureFactor(target, 'awakening_free', 17)!;
+      const reserved = reserveSeth2AwakeningWindow(factors, 17, 0)!;
+      expect(reserved.reduce((total, factor) => total + factor, 0)).toBe(target);
+      expect(reserved[0]).toBe(2);
+      expect(reserved.slice(1, 6).some((factor) => factor > 0)).toBe(true);
+    }
+  });
+
   it.each([
     [200, 10, 2_000],
     [500, 1.5, 750],
@@ -456,6 +466,13 @@ describe('Seth2 controlled result selection', () => {
       });
       expect(run.rounds.filter((round) => round.payoutFactor > 0).length).toBeGreaterThanOrEqual(5);
       expect(entryOutcome.payoutFactor + run.totalPayoutFactor).toBe(400);
+      const opening = run.rounds[0]!;
+      if (opening.returnData.type18_start_mul_list.length > 0) {
+        expect(run.rounds.slice(1, 6).map((round) => round.payoutFactor)).toEqual([0, 0, 0, 0, 0]);
+      } else {
+        expect(opening.returnData.type17_mul_list.length).toBeGreaterThan(0);
+        expect(run.rounds.slice(1, 6).some((round) => round.payoutFactor > 0)).toBe(true);
+      }
       const runSkills = new Set<number>();
       for (const round of run.rounds) {
         if (round.returnData.type17_mul_list.length > 0) {
@@ -564,6 +581,7 @@ describe('Seth2 three buy-feature contracts', () => {
 
   it('never starts a woman lock that overlaps another lock or outlives the feature', () => {
     let womanTriggers = 0;
+    let upgradedLockedWins = 0;
     for (let runIndex = 0; runIndex < 2_000; runIndex += 1) {
       const entry = seth2BuyFeatureEntry(
         `safe-woman-entry-${runIndex}`,
@@ -589,6 +607,18 @@ describe('Seth2 three buy-feature contracts', () => {
       });
 
       for (const [roundIndex, round] of run.rounds.entries()) {
+        const activeLock = round.sessionBefore.femaleLock;
+        if (
+          activeLock &&
+          round.returnData.score > 0 &&
+          activeLock.cells.some((cell) => cell.mul < 500)
+        ) {
+          upgradedLockedWins += 1;
+          expect(
+            round.returnData.list.flatMap((cascade) => cascade.upgrade_mul_list).length,
+          ).toBeGreaterThan(0);
+          expect(round.returnData.total_gold).toBeCloseTo(baseBet * round.payoutFactor, 8);
+        }
         const triggersWoman = round.returnData.list.some((cascade) =>
           cascade.remove_type.includes(18),
         );
@@ -605,6 +635,7 @@ describe('Seth2 three buy-feature contracts', () => {
       }
     }
     expect(womanTriggers).toBeGreaterThan(500);
+    expect(upgradedLockedWins).toBeGreaterThan(0);
   });
 
   it('moves male split and upgrade pointers together with a displaced multiplier ball', () => {
@@ -1966,6 +1997,67 @@ describe('Seth2 free-game session progression', () => {
       multiplierBankBefore: 25,
       multiplierBankAdded: 0,
       multiplierBankAfter: 25,
+    });
+  });
+
+  it('upgrades woman-locked balls once per winning cascade', () => {
+    const rare = { type: 10 as const, mul: 2, mul_type: 0, code: 3 };
+    const regular = { type: 10 as const, mul: 2, mul_type: 1, code: 4 };
+    const startData = Array.from({ length: 30 }, (_, code) => ({
+      type: (code % 9) + 1,
+      mul: 0,
+    }));
+    const data = {
+      list: [
+        {
+          start_data: startData,
+          remove_type: [1],
+          round_data: [],
+          scoreList: [1],
+          upgrade_mul_list: [],
+          total_mul: 0,
+          score: 1,
+          total_gold: 1,
+          remove_count: 0,
+          is_over: 0,
+        },
+        {
+          start_data: [],
+          remove_type: [2],
+          round_data: [],
+          scoreList: [1],
+          upgrade_mul_list: [],
+          total_mul: 0,
+          score: 1,
+          total_gold: 2,
+          remove_count: 1,
+          is_over: 1,
+        },
+      ],
+      type18_start_mul_list: [],
+      type18_mul_count: 0,
+      score: 2,
+    } as unknown as Seth2ReturnData;
+
+    const saved = applyFemaleLockState(data, {
+      cells: [rare, regular],
+      gamesRemaining: 5,
+    });
+
+    expect(data.list[0]!.upgrade_mul_list).toEqual([
+      expect.objectContaining({ code: 3, mul: 2, new_mul: 3 }),
+      expect.objectContaining({ code: 4, mul: 2, new_mul: 3 }),
+    ]);
+    expect(data.list[1]!.upgrade_mul_list).toEqual([
+      expect.objectContaining({ code: 3, mul: 3, new_mul: 4 }),
+      expect.objectContaining({ code: 4, mul: 3, new_mul: 4 }),
+    ]);
+    expect(saved).toEqual({
+      cells: [
+        { ...rare, mul: 4 },
+        { ...regular, mul: 4 },
+      ],
+      gamesRemaining: 4,
     });
   });
 });

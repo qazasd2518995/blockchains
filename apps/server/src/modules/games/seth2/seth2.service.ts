@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
+  SETH2_MULTIPLIER_VALUES,
   isSeth2FactorRepresentable,
   isSeth2UnmultipliedFactorRepresentable,
   seth2AwakeningSpinForFactorWithSkill,
@@ -1481,7 +1482,10 @@ export function applyFemaleLockState(
   data: Seth2ReturnData,
   current: Seth2FemaleLockState | null,
 ): Seth2FemaleLockState | null {
-  if (current) placeFemaleLockCells(data, current.cells);
+  if (current) {
+    placeFemaleLockCells(data, current.cells);
+    addFemaleLockWinUpgrades(data, current.cells);
+  }
   if (data.type18_start_mul_list.length > 0) {
     const board = data.list[0]?.start_data ?? [];
     const usedCodes = new Set<number>();
@@ -1528,9 +1532,10 @@ export function applyFemaleLockState(
   }
   data.type18_start_mul_list = current.cells.map((cell) => ({ ...cell }));
   data.type18_mul_count = current.gamesRemaining;
+  const persistedCells = applyPersistedMultiplierUpgrades(data, current.cells);
   return current.gamesRemaining > 1
     ? {
-        cells: current.cells.map((cell) => ({ ...cell })),
+        cells: persistedCells,
         gamesRemaining: current.gamesRemaining - 1,
       }
     : null;
@@ -1557,6 +1562,54 @@ function applyPersistedMultiplierUpgrades(
 
 function femaleLockContribution(lock: Seth2FemaleLockState | null): number {
   return lock?.cells.reduce((total, cell) => total + cell.mul, 0) ?? 0;
+}
+
+function nextFemaleLockMultiplier(value: number): number {
+  const index = SETH2_MULTIPLIER_VALUES.indexOf(value as (typeof SETH2_MULTIPLIER_VALUES)[number]);
+  return index >= 0 && index < SETH2_MULTIPLIER_VALUES.length - 1
+    ? SETH2_MULTIPLIER_VALUES[index + 1]!
+    : value;
+}
+
+function femaleLockCellsAfterWinningCascades(
+  cells: readonly Seth2FemaleLockState['cells'][number][],
+  winningCascades: number,
+): Seth2FemaleLockState['cells'] {
+  return cells.map((cell) => {
+    let mul = cell.mul;
+    for (let index = 0; index < winningCascades; index += 1) {
+      mul = nextFemaleLockMultiplier(mul);
+    }
+    return { ...cell, mul };
+  });
+}
+
+function winningCascadeCount(data: Seth2ReturnData): number {
+  return data.list.filter((round) => Number(round.score) > 0).length;
+}
+
+function addFemaleLockWinUpgrades(
+  data: Seth2ReturnData,
+  cells: readonly Seth2FemaleLockState['cells'][number][],
+): void {
+  const currentValues = new Map(cells.map((cell) => [Number(cell.code), cell.mul]));
+  for (const round of data.list) {
+    if (!(Number(round.score) > 0)) continue;
+    for (const cell of cells) {
+      const code = Number(cell.code);
+      const before = currentValues.get(code) ?? cell.mul;
+      const after = nextFemaleLockMultiplier(before);
+      if (after === before) continue;
+      round.upgrade_mul_list.push({
+        type: 10,
+        mul: before,
+        new_mul: after,
+        mul_type: cell.mul_type ?? 0,
+        code,
+      });
+      currentValues.set(code, after);
+    }
+  }
 }
 
 export function normalizeFemaleLockAccounting(
@@ -1727,13 +1780,28 @@ export function generateFeatureRun(input: {
   if (input.forcedTotalFactor !== undefined && !forcedFactors) {
     throw new ApiError('INTERNAL', '控制結果無法生成一致的免費遊戲動畫');
   }
-  if (
-    forcedFactors &&
+  const controlledAwakening =
+    forcedFactors !== null &&
     input.buying &&
     input.featureIndex === 1 &&
-    input.featureMode === 'awakening'
-  ) {
-    const reserved = reserveSeth2AwakeningWindow(forcedFactors, input.seeds[0]?.nonce ?? 0);
+    input.featureMode === 'awakening';
+  let controlledAwakeningOpening: Seth2Outcome | null = null;
+  if (forcedFactors && controlledAwakening) {
+    const openingSeed = input.seeds[0];
+    if (!openingSeed) throw new ApiError('INTERNAL', '免費遊戲種子不足');
+    controlledAwakeningOpening = seth2AwakeningSpinForFactorWithSkill(
+      openingSeed.serverSeed,
+      openingSeed.clientSeed,
+      openingSeed.nonce,
+      input.baseBet,
+      2,
+    );
+    const hasFemaleLock = controlledAwakeningOpening.returnData.type18_start_mul_list.length > 0;
+    const reserved = reserveSeth2AwakeningWindow(
+      forcedFactors,
+      openingSeed.nonce,
+      hasFemaleLock ? 5 : 0,
+    );
     if (!reserved) {
       throw new ApiError('INTERNAL', '覺醒之力控制結果低於角色符號的最低合法派彩');
     }
@@ -1742,12 +1810,6 @@ export function generateFeatureRun(input: {
 
   const rounds: Seth2FeatureRound[] = [];
   let totalPayoutFactor = 0;
-  let awakeningSkillSeen = false;
-  const controlledAwakening =
-    forcedFactors !== null &&
-    input.buying &&
-    input.featureIndex === 1 &&
-    input.featureMode === 'awakening';
   let finalForcedWinIndex = -1;
   if (forcedFactors) {
     for (let index = forcedFactors.length - 1; index >= 0; index -= 1) {
@@ -1769,60 +1831,66 @@ export function generateFeatureRun(input: {
     const lockedContribution = femaleLockContribution(session.femaleLock);
     const effectiveBank = session.multiplierBank + lockedContribution;
     const factor = forcedFactors?.[rounds.length];
-    let outcome =
-      factor === undefined &&
-      rounds.length === 0 &&
-      input.buying &&
-      input.featureIndex === 1 &&
-      input.featureMode === 'awakening'
-        ? seth2BoughtAwakeningGuaranteedSpin(
-            seed.serverSeed,
-            seed.clientSeed,
-            seed.nonce,
-            input.baseBet,
-          )
-        : factor === undefined
-          ? seth2Spin(
+    const buildOutcome = (multiplierBank: number): Seth2Outcome =>
+      controlledAwakeningOpening && rounds.length === 0
+        ? controlledAwakeningOpening
+        : factor === undefined &&
+            rounds.length === 0 &&
+            input.buying &&
+            input.featureIndex === 1 &&
+            input.featureMode === 'awakening'
+          ? seth2BoughtAwakeningGuaranteedSpin(
               seed.serverSeed,
               seed.clientSeed,
               seed.nonce,
               input.baseBet,
-              mode,
-              effectiveBank,
-              lockedContribution > 0,
             )
-          : controlledAwakening &&
-              rounds.length > 0 &&
-              (rounds.length <= 5 || (factor > 0 && rounds.length < finalForcedWinIndex))
-            ? seth2SpinForFactorWithoutMultiplier(
+          : factor === undefined
+            ? seth2Spin(
                 seed.serverSeed,
                 seed.clientSeed,
                 seed.nonce,
                 input.baseBet,
-                factor,
                 mode,
-                effectiveBank,
-              )
-            : seth2SpinForFactor(
-                seed.serverSeed,
-                seed.clientSeed,
-                seed.nonce,
-                input.baseBet,
-                factor,
-                mode,
-                effectiveBank,
+                multiplierBank,
                 lockedContribution > 0,
-                true,
-                false,
-              );
-    const triggersWoman = outcome.returnData.list.some((cascade) =>
-      cascade.remove_type.includes(18),
-    );
-    const unsafeWomanTrigger =
-      triggersWoman &&
-      (session.femaleLock !== null ||
-        outcome.returnData.type18_mul_count > session.freeSpinsRemaining);
-    if (unsafeWomanTrigger) {
+              )
+            : controlledAwakening &&
+                session.femaleLock === null &&
+                factor > 0 &&
+                rounds.length > 0 &&
+                rounds.length < finalForcedWinIndex
+              ? seth2SpinForFactorWithoutMultiplier(
+                  seed.serverSeed,
+                  seed.clientSeed,
+                  seed.nonce,
+                  input.baseBet,
+                  factor,
+                  mode,
+                  multiplierBank,
+                )
+              : seth2SpinForFactor(
+                  seed.serverSeed,
+                  seed.clientSeed,
+                  seed.nonce,
+                  input.baseBet,
+                  factor,
+                  mode,
+                  multiplierBank,
+                  lockedContribution > 0,
+                  true,
+                  false,
+                );
+    const buildSafeOutcome = (multiplierBank: number): Seth2Outcome => {
+      const candidate = buildOutcome(multiplierBank);
+      const triggersWoman = candidate.returnData.list.some((cascade) =>
+        cascade.remove_type.includes(18),
+      );
+      const unsafeWomanTrigger =
+        triggersWoman &&
+        (session.femaleLock !== null ||
+          candidate.returnData.type18_mul_count > session.freeSpinsRemaining);
+      if (!unsafeWomanTrigger) return candidate;
       // One lock cannot safely replace another in v1.1.5, and a newly selected
       // duration must fit in the games that are still available. Re-render the
       // exact same payout without a woman lock (a man event may remain) so
@@ -1832,54 +1900,51 @@ export function generateFeatureRun(input: {
         seed.clientSeed,
         seed.nonce,
         input.baseBet,
-        outcome.payoutFactor,
+        candidate.payoutFactor,
         mode,
-        effectiveBank,
+        multiplierBank,
         lockedContribution > 0,
         true,
         false,
         false,
       );
-      if (safeOutcome.payoutFactor !== outcome.payoutFactor) {
+      if (safeOutcome.payoutFactor !== candidate.payoutFactor) {
         throw new ApiError('INTERNAL', '女性鎖球結果無法生成一致的安全動畫');
       }
-      outcome = safeOutcome;
+      return safeOutcome;
+    };
+    let outcome = buildSafeOutcome(effectiveBank);
+    if (session.femaleLock && outcome.returnData.score > 0) {
+      // A rare ball selected by the woman advances once for every successful
+      // elimination. Re-render with the upgraded locked contribution so the
+      // visible multiplier, persisted state and authoritative payout agree.
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const upgradedCells = femaleLockCellsAfterWinningCascades(
+          session.femaleLock.cells,
+          winningCascadeCount(outcome.returnData),
+        );
+        const upgradedContribution = upgradedCells.reduce((total, cell) => total + cell.mul, 0);
+        if (upgradedContribution === lockedContribution) break;
+        const upgradedOutcome = buildSafeOutcome(session.multiplierBank + upgradedContribution);
+        const stableCascadeCount =
+          winningCascadeCount(upgradedOutcome.returnData) ===
+          winningCascadeCount(outcome.returnData);
+        outcome = upgradedOutcome;
+        if (stableCascadeCount) break;
+      }
     }
-    const currentHasAwakeningSkill =
-      outcome.returnData.type17_mul_list.length > 0 ||
-      outcome.returnData.type18_start_mul_list.length > 0;
-    const controlledLockWindow = forcedFactors?.slice(rounds.length, rounds.length + 6);
-    const isReservedPaidSkillWindow =
-      controlledLockWindow?.length === 6 &&
-      controlledLockWindow[0] === 2 &&
-      controlledLockWindow.slice(1).every((current) => current === 0);
-    const mustGuaranteePaidAwakening =
-      input.buying &&
-      input.featureIndex === 1 &&
-      input.featureMode === 'awakening' &&
-      !awakeningSkillSeen &&
-      !currentHasAwakeningSkill &&
-      outcome.payoutFactor === 2 &&
-      isReservedPaidSkillWindow &&
-      // A woman lock needs five complete follow-ups. Injecting it too late
-      // creates a visually incomplete lock and can leave v1.1.5 waiting before
-      // closeSpin releases the deferred payout.
-      session.freeSpinsRemaining >= 6 &&
-      outcome.returnData.addGameCiShu === 0;
-    if (mustGuaranteePaidAwakening) {
-      outcome = seth2AwakeningSpinForFactorWithSkill(
-        seed.serverSeed,
-        seed.clientSeed,
-        seed.nonce,
-        input.baseBet,
-        2,
-      );
-    }
-    awakeningSkillSeen ||=
-      outcome.returnData.type17_mul_list.length > 0 ||
-      outcome.returnData.type18_start_mul_list.length > 0;
-    normalizeFemaleLockAccounting(outcome.returnData, session.multiplierBank, lockedContribution);
     const femaleLock = applyFemaleLockState(outcome.returnData, session.femaleLock);
+    const accountedLockedContribution = session.femaleLock
+      ? applyPersistedMultiplierUpgrades(outcome.returnData, session.femaleLock.cells).reduce(
+          (total, cell) => total + cell.mul,
+          0,
+        )
+      : 0;
+    normalizeFemaleLockAccounting(
+      outcome.returnData,
+      session.multiplierBank,
+      accountedLockedContribution,
+    );
     const featureWinningsBefore = session.featureWinnings;
     const sessionAfter = advanceSession(session, {
       buying: false,
@@ -1919,8 +1984,11 @@ export function generateFeatureRun(input: {
 export function reserveSeth2AwakeningWindow(
   factors: readonly number[],
   entropy = 0,
+  femaleLockFollowUps = 5,
 ): number[] | null {
-  if (factors.length < 6) return null;
+  const reservedFollowUps = femaleLockFollowUps > 0 ? 5 : 0;
+  const firstAvailableSlot = reservedFollowUps + 1;
+  if (factors.length < firstAvailableSlot) return null;
   const target = Number(factors.reduce((total, factor) => total + factor, 0).toFixed(4));
   if (target < 2) return null;
   const remainingParts = naturalFeatureFactorParts(
@@ -1930,13 +1998,17 @@ export function reserveSeth2AwakeningWindow(
     true,
     4,
   );
-  if (!remainingParts || remainingParts.length > factors.length - 6) return null;
+  if (!remainingParts || remainingParts.length > factors.length - firstAvailableSlot) return null;
 
   // The paid 2x skill opens the sequence while the saved multiplier bank is
-  // still empty. Five clean games after it finish the complete woman lock.
+  // still empty. Only a woman skill reserves five clean locked follow-ups;
+  // a man's split completes in the opening game and the next result may pay.
   const result = Array.from({ length: factors.length }, () => 0);
   result[0] = 2;
-  const orderedSlots = Array.from({ length: factors.length - 6 }, (_, index) => index + 6);
+  const orderedSlots = Array.from(
+    { length: factors.length - firstAvailableSlot },
+    (_, index) => index + firstAvailableSlot,
+  );
   remainingParts.forEach((factor, index) => {
     result[orderedSlots[index]!] = factor;
   });

@@ -744,26 +744,26 @@ function femaleMultiplierPlan(
   // five complete follow-up games. Unselected balls keep a zero lock value.
   const requestedLevel = levelRoll < 0.2 ? 1 : levelRoll < 0.85 ? 2 : 3;
   const level = Math.min(requestedLevel, values.length, 3) as 1 | 2 | 3;
-
-  const upgradeIndex =
-    values.length > 0 && rng() < 0.25
-      ? values.findIndex((value) => previousMultiplierValue(value) !== null)
-      : -1;
+  const lockedIndexes = new Set(
+    shuffle(
+      values.map((_, index) => index),
+      rng,
+    ).slice(0, level),
+  );
   const upgrades: Seth2MultiplierUpgrade[] = [];
   const cells = values.map((value, index) => {
-    if (index !== upgradeIndex) return cell(10, value, 1);
-    const displayed = previousMultiplierValue(value)!;
-    upgrades.push({ mul: displayed, new_mul: value });
+    if (!lockedIndexes.has(index)) return cell(10, value, 1);
+    const displayed = previousMultiplierValue(value) ?? value;
+    if (displayed !== value) upgrades.push({ mul: displayed, new_mul: value });
+    // Woman-selected balls stay rare while locked and advance again after
+    // every later winning elimination. Male split copies never enter this set.
     return cell(10, displayed, 0);
   });
   return {
     cells,
     upgrades,
     finalTotal: total,
-    locked: shuffle(
-      cells.map((current) => ({ ...current })),
-      rng,
-    ).slice(0, level),
+    locked: [...lockedIndexes].map((index) => ({ ...cells[index]! })),
     lockDuration: 6,
   };
 }

@@ -463,6 +463,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       })),
     );
     expect(outcome!.returnData.type17_beishu?.code).toBe(round.start_data.indexOf(source));
+    expect(round.upgrade_mul_list).toEqual([]);
     expect(isSeth2MultiplierValue(source.mul)).toBe(true);
     expect(
       outcome!.returnData.type17_mul_list.every((ball) => isSeth2MultiplierValue(ball.mul)),
@@ -494,6 +495,7 @@ describe('Storm of Seth 2 provably-fair engine', () => {
       expect(locked.every((cell) => availableCodes.has(Number(cell.code)))).toBe(true);
       expect(locked.every((cell) => isSeth2MultiplierValue(cell.mul))).toBe(true);
       expect(locked.every((cell) => Number.isInteger(cell.code))).toBe(true);
+      expect(locked.every((cell) => cell.mul_type === 0)).toBe(true);
       expect(round.round_data).toHaveLength(removedCellCount(outcome));
       expect(round.scoreList[1]).toBe(money((BET * SETH2_SKILL_SYMBOL_PAY) / 20));
       expect(finalMultiplier(outcome)).toBe(round.total_mul);
