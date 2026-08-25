@@ -17,6 +17,12 @@ assert.equal(source.includes("['pointerdown', 'touchend', 'mouseup', 'keydown']"
 assert.equal(source.includes('resumeCapturedAudioContexts();'), true);
 assert.equal(shellSource.includes("type: 'seth2:shell-capabilities'"), true);
 assert.equal(shellSource.includes("payload.type === 'seth2:table-change-request'"), true);
+assert.equal(shellSource.includes("payload.type === 'seth2:recovery-request'"), true);
+assert.equal(
+  shellSource.includes("requestIframeRemount(currentViewModeRef.current, 'recovery')"),
+  true,
+);
+assert.equal(shellSource.includes('MAX_AUTOMATIC_RECOVERIES = 2'), true);
 assert.equal(
   shellSource.includes("requestIframeRemount(currentViewModeRef.current, 'table')"),
   true,

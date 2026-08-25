@@ -60,13 +60,20 @@ for (const build of builds) {
     assert.match(applicationSource, /debugMode:\s*cc\.DebugMode\.ERROR/);
     assert.match(applicationSource, /maxConcurrency = concurrency/);
     assert.match(applicationSource, /maxRequestsPerFrame = concurrency/);
+    assert.match(applicationSource, /var concurrency = isIOS \? 6 : isAndroid \? 10 : 16/);
     assert.match(appSource, /cocosHasTakenOver/);
-    assert.match(appSource, /requestAnimationFrame\(\(\) => window\.requestAnimationFrame\(finishHandoff\)\)/);
+    assert.match(
+      appSource,
+      /requestAnimationFrame\(\(\) => window\.requestAnimationFrame\(finishHandoff\)\)/,
+    );
     assert.match(appSource, /setTimeout\(showLoadingRetry, 45000\)/);
+    assert.match(appSource, /type: 'seth2:recovery-request'/);
+    assert.match(appSource, /Date\.now\(\) - lastResourceProgressAt < 30000/);
+    assert.match(appSource, /setTimeout\(reportBootstrapStall, 75000\)/);
     assert.match(appSource, /重新載入/);
     assert.doesNotMatch(appSource, /setTimeout\(hideLogo, 500\)/);
-    assert.match(html, /assets\/g1005\/config\.json/);
-    assert.match(html, /assets\/g1005\/index\.js/);
+    assert.doesNotMatch(html, /assets\/g1005\/config\.json/);
+    assert.doesNotMatch(html, /assets\/g1005\/index\.js/);
   } else {
     assert.match(html, new RegExp(`<script src="${build.main.replace('.', '\\.')}`));
     const mainSource = fs.readFileSync(path.join(buildRoot, build.main), 'utf8');

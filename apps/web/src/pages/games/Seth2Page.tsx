@@ -9,6 +9,14 @@ import { PlatformBgm } from '@/lib/platformBgm';
 import { isQmoneyRealm } from '@/lib/platformRealm';
 
 const GAME_PATH = '/games/storm-of-seth-2-v115/index.html';
+type Seth2RemountReason = 'orientation' | 'table' | 'recovery';
+const AUTOMATIC_RECOVERY_STAGES = new Set([
+  'bootstrap-stalled',
+  'webgl-context-lost',
+  'game-view-init',
+  'intro-view',
+]);
+const MAX_AUTOMATIC_RECOVERIES = 2;
 
 export function Seth2Page() {
   const { locale } = useTranslation();
@@ -24,13 +32,14 @@ export function Seth2Page() {
   const [iframeMounted, setIframeMounted] = useState(true);
   const [iframeGeneration, setIframeGeneration] = useState(0);
   const [tableSelectionConfirmed, setTableSelectionConfirmed] = useState(false);
-  const [remountReason, setRemountReason] = useState<'orientation' | 'table' | null>(null);
+  const [remountReason, setRemountReason] = useState<Seth2RemountReason | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const currentViewModeRef = useRef(viewMode);
   const pendingRemountRef = useRef<{
     viewMode: 'portrait' | 'landscape';
-    reason: 'orientation' | 'table';
+    reason: Seth2RemountReason;
   } | null>(null);
+  const automaticRecoveryCountRef = useRef(0);
   const disposeFallbackTimerRef = useRef<number | null>(null);
   const remountTimerRef = useRef<number | null>(null);
   const remountFrameRef = useRef<number | null>(null);
@@ -77,8 +86,8 @@ export function Seth2Page() {
     });
   }, []);
   const requestIframeRemount = useCallback(
-    (nextViewMode: 'portrait' | 'landscape', reason: 'orientation' | 'table') => {
-      if (pendingRemountRef.current !== null) return;
+    (nextViewMode: 'portrait' | 'landscape', reason: Seth2RemountReason) => {
+      if (pendingRemountRef.current !== null) return false;
       pendingRemountRef.current = { viewMode: nextViewMode, reason };
       setError('');
       setRemountReason(reason);
@@ -92,9 +101,16 @@ export function Seth2Page() {
         () => finishIframeRemount(nextViewMode),
         350,
       );
+      return true;
     },
     [finishIframeRemount],
   );
+  const requestAutomaticRecovery = useCallback(() => {
+    if (automaticRecoveryCountRef.current >= MAX_AUTOMATIC_RECOVERIES) return false;
+    const requested = requestIframeRemount(currentViewModeRef.current, 'recovery');
+    if (requested) automaticRecoveryCountRef.current += 1;
+    return requested;
+  }, [requestIframeRemount]);
   const requestViewModeSwitch = useCallback(
     (nextViewMode: 'portrait' | 'landscape') => {
       if (nextViewMode === currentViewModeRef.current) return;
@@ -124,8 +140,8 @@ export function Seth2Page() {
       client_type: 'web',
       gv: '260609',
       build: isQmoneyRealm
-        ? 'qmoney-seth2-v115-table-remount-1'
-        : 'yachiyo-seth2-v115-table-remount-1',
+        ? 'qmoney-seth2-v115-mobile-recovery-1'
+        : 'yachiyo-seth2-v115-mobile-recovery-1',
     });
     if (tableSelectionConfirmed) query.set('table', '1');
     return `${GAME_PATH}?${query.toString()}`;
@@ -156,6 +172,7 @@ export function Seth2Page() {
         accessToken?: unknown;
         refreshToken?: unknown;
         viewMode?: unknown;
+        stage?: unknown;
       };
       if (
         payload.type === 'seth2:view-mode-request' &&
@@ -178,7 +195,17 @@ export function Seth2Page() {
         if (Number.isFinite(balance)) setBalance(balance.toFixed(2));
       }
       if (payload.type === 'seth2:error') {
+        const stage = typeof payload.stage === 'string' ? payload.stage : '';
+        if (AUTOMATIC_RECOVERY_STAGES.has(stage)) {
+          if (pendingRemountRef.current?.reason === 'recovery') return;
+          if (requestAutomaticRecovery()) return;
+        }
         setError(String(payload.message || '遊戲連線失敗'));
+      }
+      if (payload.type === 'seth2:recovery-request') {
+        if (pendingRemountRef.current?.reason === 'recovery') return;
+        if (requestAutomaticRecovery()) return;
+        setError(String(payload.message || '遊戲畫面無法完成載入，請重新進入遊戲'));
       }
       if (
         payload.type === 'seth2:tokens' &&
@@ -193,6 +220,7 @@ export function Seth2Page() {
   }, [
     finishIframeRemount,
     requestTableChangeRemount,
+    requestAutomaticRecovery,
     requestViewModeSwitch,
     setBalance,
     setTokens,
@@ -244,7 +272,11 @@ export function Seth2Page() {
           role="status"
           aria-live="polite"
         >
-          {remountReason === 'table' ? '正在切換機台…' : '正在切換遊戲方向…'}
+          {remountReason === 'table'
+            ? '正在切換機台…'
+            : remountReason === 'recovery'
+              ? '正在恢復遊戲畫面…'
+              : '正在切換遊戲方向…'}
         </div>
       )}
       {remountReason ? (

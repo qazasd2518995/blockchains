@@ -21,18 +21,12 @@
     <link rel="icon" href="public/favicon.ico" />
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="game.css" />
-    <!-- Pull the startup dependency chain onto the wire before SystemJS and
-         Cocos discover it serially. These are the original full-quality files. -->
-    <link rel="preload" href="./app.js" as="script" />
+    <!-- Warm only the dependencies that are consumed immediately after
+         SystemJS starts. Preloading every Cocos bundle at once can starve
+         mobile Safari while it is also decoding the original artwork. -->
     <link rel="preload" href="./application.js" as="script" />
     <link rel="preload" href="./src/settings.json" as="fetch" crossorigin="anonymous" />
     <link rel="preload" href="./cocos-js/cc.js" as="script" />
-    <link rel="preload" href="./assets/internal/config.json" as="fetch" crossorigin="anonymous" />
-    <link rel="preload" href="./assets/main/config.json" as="fetch" crossorigin="anonymous" />
-    <link rel="preload" href="./assets/main/index.js" as="script" crossorigin="anonymous" />
-    <link rel="preload" href="./assets/resources/config.json" as="fetch" crossorigin="anonymous" />
-    <link rel="preload" href="./assets/g1005/config.json" as="fetch" crossorigin="anonymous" />
-    <link rel="preload" href="./assets/g1005/index.js" as="script" crossorigin="anonymous" />
   </head>
   <body>
     <div id="logo"><img src="./public/atg.png" alt="" /></div>
@@ -68,7 +62,7 @@
     <script src="./app.js"></script>
     <script src="src/polyfills.bundle.js" charset="utf-8"></script>
     <script src="src/system.bundle.js" charset="utf-8"></script>
-    <script src="src/seth2-local-adapter.js?v=20260824-audio-bridge-1"></script>
+    <script src="src/seth2-local-adapter.js?v=20260826-mobile-recovery-1"></script>
     <script src="src/import-map.json" type="systemjs-importmap" charset="utf-8"></script>
     <script>
       System.import('./index.js').catch(function (error) {

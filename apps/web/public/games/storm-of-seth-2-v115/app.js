@@ -145,6 +145,13 @@ const start = (cc) => {
   let showSwipeTimeId = null
   let cocosHasTakenOver = false
   let bootTimeoutId = null
+  let bootProgressTimerId = null
+  let bootRecoveryTimerId = null
+  let bootRecoveryReported = false
+  let lastResourceCount = typeof performance !== 'undefined' && performance.getEntriesByType
+    ? performance.getEntriesByType('resource').length
+    : 0
+  let lastResourceProgressAt = Date.now()
 
   const setLoadingMessage = (message) => {
     if (cocosHasTakenOver) return
@@ -166,8 +173,44 @@ const start = (cc) => {
     loadingMsg.style.display = 'block'
   }
 
+  const resourceCount = () => (
+    typeof performance !== 'undefined' && performance.getEntriesByType
+      ? performance.getEntriesByType('resource').length
+      : lastResourceCount
+  )
+
+  const observeBootProgress = () => {
+    if (cocosHasTakenOver) return
+    const nextResourceCount = resourceCount()
+    if (nextResourceCount > lastResourceCount) {
+      lastResourceCount = nextResourceCount
+      lastResourceProgressAt = Date.now()
+    }
+  }
+
+  const reportBootstrapStall = () => {
+    if (cocosHasTakenOver || bootRecoveryReported) return
+    observeBootProgress()
+    // Slow connections are allowed to keep loading. Recovery is requested
+    // only after the resource graph has stopped advancing for 30 seconds.
+    if (Date.now() - lastResourceProgressAt < 30000) {
+      bootRecoveryTimerId = setTimeout(reportBootstrapStall, 15000)
+      return
+    }
+    bootRecoveryReported = true
+    if (isIframe() && window.parent) {
+      window.parent.postMessage({
+        type: 'seth2:recovery-request',
+        stage: 'bootstrap-stalled',
+        message: '遊戲素材載入暫停，正在重新建立畫面',
+      }, window.location.origin)
+    }
+  }
+
   setLoadingMessage('遊戲載入中…')
   bootTimeoutId = setTimeout(showLoadingRetry, 45000)
+  bootProgressTimerId = setInterval(observeBootProgress, 5000)
+  bootRecoveryTimerId = setTimeout(reportBootstrapStall, 75000)
 
   // version.textContent = `${date}`
 
@@ -224,6 +267,8 @@ const start = (cc) => {
     if (cocosHasTakenOver) return
     cocosHasTakenOver = true
     bootTimeoutId && clearTimeout(bootTimeoutId)
+    bootProgressTimerId && clearInterval(bootProgressTimerId)
+    bootRecoveryTimerId && clearTimeout(bootRecoveryTimerId)
 
     const finishHandoff = () => {
       logoEle.style.display = 'none'

@@ -173,28 +173,15 @@ interface CocosShellAsset {
 
 const SETH2_SHELL_ASSETS: readonly CocosShellAsset[] = [
   { src: '/games/storm-of-seth-2-v115/app.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/src/polyfills.bundle.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/src/system.bundle.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/application.js', as: 'script' },
   { src: '/games/storm-of-seth-2-v115/src/settings.json', as: 'fetch' },
   {
-    src: '/games/storm-of-seth-2-v115/src/seth2-local-adapter.js?v=20260816-orientation-3',
+    src: '/games/storm-of-seth-2-v115/src/seth2-local-adapter.js?v=20260826-mobile-recovery-1',
     as: 'script',
   },
   { src: '/games/storm-of-seth-2-v115/cocos-js/cc.js', as: 'script' },
-  { src: '/games/storm-of-seth-2-v115/assets/internal/config.json', as: 'fetch' },
-  { src: '/games/storm-of-seth-2-v115/assets/internal/index.js', as: 'script' },
-  { src: '/games/storm-of-seth-2-v115/assets/main/config.json', as: 'fetch' },
-  { src: '/games/storm-of-seth-2-v115/assets/main/index.js', as: 'script' },
-  { src: '/games/storm-of-seth-2-v115/assets/resources/config.json', as: 'fetch' },
-  { src: '/games/storm-of-seth-2-v115/assets/g1005/config.json', as: 'fetch' },
-  { src: '/games/storm-of-seth-2-v115/assets/g1005/index.js', as: 'script' },
-  { src: '/slotFramework/manifest.json', as: 'fetch' },
-  {
-    src: '/slotFramework/40401f29702686de9cfed69b217641b6029834f7/config.json',
-    as: 'fetch',
-  },
-  {
-    src: '/slotFramework/40401f29702686de9cfed69b217641b6029834f7/index.js',
-    as: 'script',
-  },
 ];
 
 const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [
