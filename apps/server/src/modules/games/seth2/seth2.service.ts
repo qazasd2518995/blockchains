@@ -197,24 +197,15 @@ export class Seth2Service {
       case 'gameToolsList':
       case 'buyFreeGame': {
         requireFormalPlay(input.isFreeModel);
-        const buying = input.type === 'buyFreeGame';
-        const bet = requireBet(input.yazhu);
-        const machineId = requireMachineId(input.machineId);
-        const settlement = await this.settle(
-          userId,
-          bet,
-          machineId,
-          buying,
-          buying ? 0 : null,
-          false,
-          input.operationId,
-          false,
+        // The legacy client settles free games one request at a time, so it
+        // cannot enforce a single cap across the entry spin and the complete
+        // linked feature. Keep the read-only protocol for old table/session
+        // screens, but fail closed for every money action. The v1.1.5 source
+        // sequence is the only authoritative settlement path.
+        throw new ApiError(
+          'INVALID_ACTION',
+          '舊版賽特結算已停用，請由大廳重新進入新版賽特 2',
         );
-        return response(input.type, {
-          returnData: settlement.returnData,
-          balance: settlement.balance,
-          spinId: settlement.spinId,
-        });
       }
     }
   }

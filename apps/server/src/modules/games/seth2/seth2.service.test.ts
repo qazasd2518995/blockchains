@@ -816,6 +816,33 @@ describe('Seth2 formal-play-only mode', () => {
       }),
     ).rejects.toMatchObject({ code: 'INVALID_ACTION' });
   });
+
+  it('rejects legacy formal settlements so the full-cycle cap cannot be bypassed', async () => {
+    const service = new Seth2Service({} as never);
+
+    await expect(
+      service.protocol('test-user', {
+        type: 'gameToolsList',
+        machineId: 1,
+        yazhu: 18,
+        isFreeModel: 0,
+        operationId: 'legacy-cap-bypass-test',
+      }),
+    ).rejects.toMatchObject({
+      code: 'INVALID_ACTION',
+      message: '舊版賽特結算已停用，請由大廳重新進入新版賽特 2',
+    });
+
+    await expect(
+      service.protocol('test-user', {
+        type: 'buyFreeGame',
+        machineId: 1,
+        yazhu: 18,
+        isFreeModel: 0,
+        operationId: 'legacy-feature-cap-bypass-test',
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_ACTION' });
+  });
 });
 
 describe('Seth2 event contracts', () => {
