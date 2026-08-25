@@ -1,6 +1,9 @@
 export const SETH2_GAME_CODE = 'storm-of-seth-2' as const;
 export const SETH2_RTP = 96.89;
-export const SETH2_MAX_WIN_MULTIPLIER = 81_000;
+// Site-specific settlement ceiling. The imported ATG client advertises an
+// 81,000x native winning ratio, but this deployment caps the complete Seth 2
+// game cycle (base spin plus every linked free game) at 5,000x the base bet.
+export const SETH2_MAX_WIN_MULTIPLIER = 5_000;
 export const SETH2_BUY_FEATURE_MULTIPLIER = 200;
 export const SETH2_BUY_FEATURE_MULTIPLIERS = [200, 500, 2_000] as const;
 // Source v1.1.5 opens natural and purchased free-game features with 15 games.

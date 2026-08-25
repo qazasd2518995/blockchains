@@ -6,7 +6,7 @@ import {
   seth2SpinForFactor,
   seth2SuperMainSpinForFactor,
 } from '@bg/provably-fair';
-import type { Seth2Cell, Seth2ReturnData } from '@bg/shared';
+import { SETH2_MAX_WIN_MULTIPLIER, type Seth2Cell, type Seth2ReturnData } from '@bg/shared';
 import { describe, expect, it, vi } from 'vitest';
 import {
   advanceSession,
@@ -348,7 +348,6 @@ describe('Seth2 controlled result selection', () => {
     [200, 10, 2_000],
     [500, 1.5, 750],
     [500, 5, 2_500],
-    [500, 50, 25_000],
   ])(
     'represents a %sx purchase controlled to %sx as exactly %sx base bet',
     (rate, target, factor) => {
@@ -368,7 +367,23 @@ describe('Seth2 controlled result selection', () => {
     },
   );
 
-  it.each([5, 200, 400, 20_000, 81_000])(
+  it('rejects a purchased-feature control target above the Seth-only 5,000x cap', () => {
+    expect(
+      chooseControlledSethFeatureFactor(
+        new Prisma.Decimal(2),
+        new Prisma.Decimal(1_000),
+        {
+          won: true,
+          multiplier: new Prisma.Decimal(50),
+          minMultiplier: new Prisma.Decimal(50),
+          maxMultiplier: new Prisma.Decimal(50),
+        },
+        'awakening_free',
+      ),
+    ).toBeNull();
+  });
+
+  it.each([5, 200, 400, 2_000, SETH2_MAX_WIN_MULTIPLIER])(
     'builds an atomic 15-game sequence whose visible total is exactly %s x',
     (totalFactor) => {
       const entryOutcome = seth2BuyFeatureEntry('atomic-entry', 'client', 1, 'awakening', 2);
@@ -437,6 +452,36 @@ describe('Seth2 controlled result selection', () => {
       ).toBe(true);
     },
   );
+
+  it('limits controlled Seth outcomes to the site-specific 5,000x game-cycle cap', () => {
+    expect(SETH2_MAX_WIN_MULTIPLIER).toBe(5_000);
+    expect(
+      chooseControlledSethFactor(
+        new Prisma.Decimal(10),
+        new Prisma.Decimal(10),
+        {
+          won: true,
+          multiplier: new Prisma.Decimal(SETH2_MAX_WIN_MULTIPLIER),
+          minMultiplier: new Prisma.Decimal(SETH2_MAX_WIN_MULTIPLIER),
+          maxMultiplier: new Prisma.Decimal(SETH2_MAX_WIN_MULTIPLIER),
+        },
+        'base',
+      ),
+    ).toBe(SETH2_MAX_WIN_MULTIPLIER);
+    expect(
+      chooseControlledSethFactor(
+        new Prisma.Decimal(10),
+        new Prisma.Decimal(10),
+        {
+          won: true,
+          multiplier: new Prisma.Decimal(5_001),
+          minMultiplier: new Prisma.Decimal(5_001),
+          maxMultiplier: new Prisma.Decimal(5_001),
+        },
+        'base',
+      ),
+    ).toBeNull();
+  });
 
   it('keeps controlled awakening features distributed and preserves both character skills', () => {
     const seenSkills = new Set<number>();
