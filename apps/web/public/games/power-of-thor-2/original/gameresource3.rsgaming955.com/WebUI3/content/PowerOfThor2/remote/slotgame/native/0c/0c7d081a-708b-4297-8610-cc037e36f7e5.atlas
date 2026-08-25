@@ -1,0 +1,97 @@
+
+particle_line.jpg
+size: 1760,1204
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+ICE
+  rotate: false
+  xy: 1608, 1054
+  size: 150, 150
+  orig: 150, 150
+  offset: 0, 0
+  index: -1
+explore/explore0
+  rotate: false
+  xy: 0, 804
+  size: 400, 400
+  orig: 400, 400
+  offset: 0, 0
+  index: -1
+explore/explore1
+  rotate: false
+  xy: 0, 402
+  size: 400, 400
+  orig: 400, 400
+  offset: 0, 0
+  index: -1
+explore/explore10
+  rotate: false
+  xy: 1206, 402
+  size: 400, 400
+  orig: 400, 400
+  offset: 0, 0
+  index: -1
+explore/explore11
+  rotate: false
+  xy: 1206, 0
+  size: 400, 400
+  orig: 400, 400
+  offset: 0, 0
+  index: -1
+explore/explore2
+  rotate: false
+  xy: 0, 0
+  size: 400, 400
+  orig: 400, 400
+  offset: 0, 0
+  index: -1
+explore/explore3
+  rotate: false
+  xy: 402, 804
+  size: 400, 400
+  orig: 400, 400
+  offset: 0, 0
+  index: -1
+explore/explore4
+  rotate: false
+  xy: 402, 402
+  size: 400, 400
+  orig: 400, 400
+  offset: 0, 0
+  index: -1
+explore/explore5
+  rotate: false
+  xy: 402, 0
+  size: 400, 400
+  orig: 400, 400
+  offset: 0, 0
+  index: -1
+explore/explore6
+  rotate: false
+  xy: 804, 804
+  size: 400, 400
+  orig: 400, 400
+  offset: 0, 0
+  index: -1
+explore/explore7
+  rotate: false
+  xy: 804, 402
+  size: 400, 400
+  orig: 400, 400
+  offset: 0, 0
+  index: -1
+explore/explore8
+  rotate: false
+  xy: 804, 0
+  size: 400, 400
+  orig: 400, 400
+  offset: 0, 0
+  index: -1
+explore/explore9
+  rotate: false
+  xy: 1206, 804
+  size: 400, 400
+  orig: 400, 400
+  offset: 0, 0
+  index: -1

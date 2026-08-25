@@ -3,7 +3,7 @@ import { GameId, isImportedGameTestUsername } from './games.js';
 
 export const NEW_CASINO_CATALOG_VERSION = 1;
 
-export type NewCasinoCategory = '賽特' | 'H5拉霸' | '捕魚' | 'MegaSlot';
+export type NewCasinoCategory = '賽特' | '雷神' | 'H5拉霸' | '捕魚' | 'MegaSlot';
 
 export interface NewCasinoGame {
   id: string;
@@ -87,6 +87,18 @@ const MEGA_SLOT_CATALOG: readonly NewCasinoGame[] = [
 }));
 
 export const NEW_CASINO_GAMES: readonly NewCasinoGame[] = [
+  {
+    id: GameId.POWER_OF_THOR_2,
+    name: '雷神之錘 2：雷霆風暴',
+    nameEn: 'Power of Thor II: Thunder Storm',
+    provider: 'RSG 規則重建',
+    category: '雷神',
+    cover: '/_optimized/game-art/original/power-of-thor-2-cover-v1@960.webp',
+    route: '/games/power-of-thor-2',
+    featured: true,
+    badge: '新品',
+    restricted: true,
+  },
   {
     id: GameId.STORM_OF_SETH_2,
     name: '戰神賽特 II：覺醒之力',

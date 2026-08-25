@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,8 +16,10 @@ const [
   fruitHtml,
   h5Html,
   sethPage,
+  thorPage,
   fruitPage,
   h5Page,
+  newCasinoCatalog,
 ] = await Promise.all([
   read('src/components/layout/QmoneyGameShell.tsx'),
   read('src/router.tsx'),
@@ -28,8 +30,10 @@ const [
   read('public/games/fruit-mary/index.html'),
   read('public/games/h5-slot-collection/index.html'),
   read('src/pages/games/Seth2Page.tsx'),
+  read('src/pages/games/PowerOfThor2Page.tsx'),
   read('src/pages/games/FruitMaryPage.tsx'),
   read('src/pages/games/H5SlotCollectionPage.tsx'),
+  read('../../packages/shared/src/newCasino.ts'),
 ]);
 
 for (const marker of [
@@ -69,6 +73,10 @@ assert.ok(
   'Qmoney lobby preferences must drive the embedded games audio preferences',
 );
 assert.ok(
+  qmoneyApp.includes('game.category === "雷神"'),
+  'Qmoney electronic games category must include Power of Thor II',
+);
+assert.ok(
   !qmoneyApp
     .slice(qmoneyApp.indexOf('function showGame'), qmoneyApp.indexOf('function toggleFavorite'))
     .includes('data-modal-action="launch-game"'),
@@ -93,5 +101,28 @@ for (const page of [sethPage, fruitPage, h5Page]) {
     'embedded games must receive Qmoney-specific public launch identifiers',
   );
 }
+
+for (const marker of [
+  'id: GameId.POWER_OF_THOR_2',
+  "route: '/games/power-of-thor-2'",
+  "cover: '/_optimized/game-art/original/power-of-thor-2-cover-v1@960.webp'",
+  'restricted: true',
+]) {
+  assert.ok(newCasinoCatalog.includes(marker), `missing Qmoney Thor II catalog marker: ${marker}`);
+}
+assert.ok(
+  router.includes("gameRoute('/games/power-of-thor-2', GameId.POWER_OF_THOR_2"),
+  'Qmoney Thor II catalog route must resolve to a guarded React game route',
+);
+assert.ok(
+  thorPage.includes("const ASSET_ROOT = '/games/power-of-thor-2/ui'"),
+  'Qmoney Thor II route must use the local runtime asset bundle',
+);
+await access(
+  path.join(
+    webRoot,
+    'public/_optimized/game-art/original/power-of-thor-2-cover-v1@960.webp',
+  ),
+);
 
 console.log('Qmoney game separation contract passed');

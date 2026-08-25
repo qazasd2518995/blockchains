@@ -9,6 +9,7 @@ import { hotlineBetSchema } from './hotline/hotline.schema.js';
 
 const IMPORTED_TEST_GAMES = [
   GameId.STORM_OF_SETH_2,
+  GameId.POWER_OF_THOR_2,
   GameId.FRUIT_MARY,
   GameId.H5_SLOT_COLLECTION,
   ...H5_GAME_IDS,

@@ -14,6 +14,7 @@ export * from './dto/plinko.js';
 export * from './dto/roulette.js';
 export * from './dto/hotline.js';
 export * from './dto/seth2.js';
+export * from './dto/thor2.js';
 export * from './dto/fruitMary.js';
 export * from './dto/h5Slots.js';
 export * from './dto/tower.js';

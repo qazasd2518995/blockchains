@@ -25,7 +25,7 @@ describe('new casino game catalog', () => {
     'testplayer4',
     'testplayer5',
     'testplayer6',
-  ])('returns Seth, Fruit Mary, H5 and MegaSlot games to %s', async (username) => {
+  ])('returns Thor, Seth, Fruit Mary, H5 and MegaSlot games to %s', async (username) => {
     const registration = registrar(username);
     await gameCatalogRoutes(registration.fastify);
     const result = (await registration.readHandler()?.({ userId: 'test-user' })) as {
@@ -33,6 +33,7 @@ describe('new casino game catalog', () => {
     };
     const ids = new Set(result.games.map((game) => game.id));
 
+    expect(ids.has('power-of-thor-2')).toBe(true);
     expect(ids.has('storm-of-seth-2')).toBe(true);
     expect(ids.has('fruit-mary')).toBe(true);
     expect(ids.has('h5-mahjong-ways-2')).toBe(true);

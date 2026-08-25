@@ -1,0 +1,328 @@
+
+thor_notify_word.png
+size: 1896,1668
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+library/thor_notify_word/CN/free_popups_muti_2
+  rotate: true
+  xy: 542, 240
+  size: 344, 211
+  orig: 670, 220
+  offset: 325, 5
+  index: -1
+library/thor_notify_word/CN/free_popups_muti_3
+  rotate: false
+  xy: 500, 27
+  size: 345, 211
+  orig: 670, 220
+  offset: 324, 5
+  index: -1
+library/thor_notify_word/TW/free_popups_muti_0
+  rotate: false
+  xy: 1402, 265
+  size: 342, 212
+  orig: 670, 220
+  offset: 0, 5
+  index: -1
+library/thor_notify_word/TW/free_popups_muti_1
+  rotate: true
+  xy: 972, 245
+  size: 348, 213
+  orig: 670, 220
+  offset: 320, 4
+  index: -1
+library/thor_notify_word/TW/free_popups_muti_2
+  rotate: true
+  xy: 923, 826
+  size: 340, 209
+  orig: 670, 220
+  offset: 328, 5
+  index: -1
+library/thor_notify_word/TW/free_popups_muti_3
+  rotate: false
+  xy: 1402, 479
+  size: 345, 210
+  orig: 670, 220
+  offset: 324, 4
+  index: -1
+library/thor_notify_word/US/free_popups_muti_0
+  rotate: false
+  xy: 566, 954
+  size: 355, 212
+  orig: 701, 224
+  offset: 3, 7
+  index: -1
+library/thor_notify_word/US/free_popups_muti_1
+  rotate: true
+  xy: 1187, 379
+  size: 347, 213
+  orig: 701, 224
+  offset: 345, 6
+  index: -1
+library/thor_notify_word/US/free_popups_muti_2
+  rotate: true
+  xy: 755, 244
+  size: 349, 215
+  orig: 701, 224
+  offset: 346, 7
+  index: -1
+library/thor_notify_word/US/free_popups_muti_3
+  rotate: false
+  xy: 566, 737
+  size: 352, 215
+  orig: 701, 224
+  offset: 344, 5
+  index: -1
+library/thor_notify_word/light1_37
+  rotate: false
+  xy: 2, 28
+  size: 496, 213
+  orig: 507, 228
+  offset: 6, 8
+  index: -1
+library/thor_notify_word/light2/light2_37
+  rotate: false
+  xy: 1667, 9
+  size: 106, 69
+  orig: 570, 360
+  offset: 234, 147
+  index: -1
+library/thor_notify_word/light2/light2_38
+  rotate: false
+  xy: 2, 243
+  size: 538, 341
+  orig: 570, 360
+  offset: 16, 12
+  index: -1
+library/thor_notify_word/light2/light2_39
+  rotate: false
+  xy: 2, 947
+  size: 562, 360
+  orig: 570, 360
+  offset: 1, 0
+  index: -1
+library/thor_notify_word/light2/light2_40
+  rotate: false
+  xy: 2, 1309
+  size: 570, 357
+  orig: 570, 360
+  offset: 0, 3
+  index: -1
+library/thor_notify_word/light2/light2_41
+  rotate: false
+  xy: 2, 586
+  size: 560, 359
+  orig: 570, 360
+  offset: 3, 1
+  index: -1
+library/thor_notify_word/light2/light2_43
+  rotate: false
+  xy: 574, 1310
+  size: 558, 356
+  orig: 570, 360
+  offset: 6, 1
+  index: -1
+library/thor_notify_word/light2/light2_44
+  rotate: false
+  xy: 1134, 1339
+  size: 487, 327
+  orig: 570, 360
+  offset: 73, 12
+  index: -1
+library/thor_notify_word/light2/light2_45
+  rotate: false
+  xy: 1134, 1012
+  size: 485, 325
+  orig: 570, 360
+  offset: 72, 13
+  index: -1
+library/thor_notify_word/light2/light2_46
+  rotate: true
+  xy: 1623, 1251
+  size: 415, 260
+  orig: 570, 360
+  offset: 73, 62
+  index: -1
+library/thor_notify_word/light2/light2_48
+  rotate: true
+  xy: 1621, 833
+  size: 416, 259
+  orig: 570, 360
+  offset: 72, 62
+  index: -1
+library/thor_notify_word/thunder1/thunder1_09
+  rotate: false
+  xy: 1187, 257
+  size: 200, 120
+  orig: 200, 120
+  offset: 0, 0
+  index: -1
+library/thor_notify_word/thunder1/thunder1_10
+  rotate: false
+  xy: 1786, 84
+  size: 90, 83
+  orig: 200, 120
+  offset: 12, 10
+  index: -1
+library/thor_notify_word/thunder1/thunder1_11
+  rotate: true
+  xy: 1352, 58
+  size: 197, 120
+  orig: 200, 120
+  offset: 3, 0
+  index: -1
+library/thor_notify_word/thunder1/thunder1_12
+  rotate: true
+  xy: 1775, 2
+  size: 76, 67
+  orig: 200, 120
+  offset: 7, 15
+  index: -1
+library/thor_notify_word/thunder1/thunder1_13
+  rotate: false
+  xy: 1474, 33
+  size: 191, 109
+  orig: 200, 120
+  offset: 9, 0
+  index: -1
+library/thor_notify_word/thunder1/thunder1_16
+  rotate: true
+  xy: 1671, 80
+  size: 183, 113
+  orig: 200, 120
+  offset: 15, 0
+  index: -1
+library/thor_notify_word/thunder1/thunder1_17
+  rotate: true
+  xy: 1556, 940
+  size: 70, 50
+  orig: 200, 120
+  offset: 114, 55
+  index: -1
+library/thor_notify_word/thunder1/thunder1_18
+  rotate: true
+  xy: 1008, 633
+  size: 191, 117
+  orig: 200, 120
+  offset: 6, 0
+  index: -1
+library/thor_notify_word/thunder1/thunder1_20
+  rotate: true
+  xy: 920, 737
+  size: 87, 86
+  orig: 200, 120
+  offset: 92, 30
+  index: -1
+library/thor_notify_word/thunder1/thunder1_21
+  rotate: false
+  xy: 1474, 144
+  size: 195, 119
+  orig: 200, 120
+  offset: 0, 1
+  index: -1
+library/thor_notify_word/thunder1/thunder1_22
+  rotate: true
+  xy: 1111, 43
+  size: 200, 117
+  orig: 200, 120
+  offset: 0, 3
+  index: -1
+library/thor_notify_word/thunder1/thunder1_23
+  rotate: false
+  xy: 1749, 392
+  size: 117, 96
+  orig: 200, 120
+  offset: 42, 17
+  index: -1
+library/thor_notify_word/thunder1/thunder1_25
+  rotate: true
+  xy: 989, 43
+  size: 200, 120
+  orig: 200, 120
+  offset: 0, 0
+  index: -1
+library/thor_notify_word/thunder1/thunder1_26
+  rotate: false
+  xy: 1746, 280
+  size: 115, 110
+  orig: 200, 120
+  offset: 33, 0
+  index: -1
+library/thor_notify_word/thunder1/thunder1_27
+  rotate: true
+  xy: 1230, 55
+  size: 200, 120
+  orig: 200, 120
+  offset: 0, 0
+  index: -1
+library/thor_notify_word/thunder1/thunder1_28
+  rotate: true
+  xy: 1786, 169
+  size: 109, 100
+  orig: 200, 120
+  offset: 18, 4
+  index: -1
+library/thor_notify_word/thunder2/thunder2_40
+  rotate: false
+  xy: 868, 595
+  size: 113, 140
+  orig: 420, 140
+  offset: 153, 0
+  index: -1
+library/thor_notify_word/thunder2/thunder2_41
+  rotate: false
+  xy: 996, 1168
+  size: 131, 140
+  orig: 420, 140
+  offset: 144, 0
+  index: -1
+library/thor_notify_word/thunder2/thunder2_42
+  rotate: true
+  xy: 1749, 490
+  size: 199, 140
+  orig: 420, 140
+  offset: 118, 0
+  index: -1
+library/thor_notify_word/thunder2/thunder2_43
+  rotate: true
+  xy: 847, 2
+  size: 240, 140
+  orig: 420, 140
+  offset: 90, 0
+  index: -1
+library/thor_notify_word/thunder2/thunder2_44
+  rotate: false
+  xy: 564, 595
+  size: 302, 140
+  orig: 420, 140
+  offset: 63, 0
+  index: -1
+library/thor_notify_word/thunder2/thunder2_45
+  rotate: false
+  xy: 1525, 691
+  size: 366, 140
+  orig: 420, 140
+  offset: 27, 0
+  index: -1
+library/thor_notify_word/thunder2/thunder2_46
+  rotate: false
+  xy: 1134, 728
+  size: 389, 140
+  orig: 420, 140
+  offset: 15, 0
+  index: -1
+library/thor_notify_word/thunder2/thunder2_47
+  rotate: false
+  xy: 574, 1168
+  size: 420, 140
+  orig: 420, 140
+  offset: 0, 0
+  index: -1
+library/thor_notify_word/thunder2/thunder2_48
+  rotate: false
+  xy: 1134, 870
+  size: 420, 140
+  orig: 420, 140
+  offset: 0, 0
+  index: -1

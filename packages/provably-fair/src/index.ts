@@ -10,6 +10,7 @@ export * from './roulette.js';
 export * from './hotline.js';
 export * from './h5OriginalSpecs.js';
 export * from './seth2.js';
+export * from './thor2.js';
 export * from './fruitMary.js';
 export * from './tower.js';
 export * from './blackjack.js';

@@ -1,0 +1,202 @@
+/** 字體下載 */
+@font-face { font-family: monofonto;src: url(fnt/monofonto.otf) format("woff"), url(fnt/monofonto.otf) format("truetype");}
+@font-face { font-family: bahnschrift; src: url(fnt/Bahnschrift.woff) format("woff"), url(fnt/bahnschrift.ttf) format("truetype"); }
+@font-face { font-family: MalgunGothicRegular; src: url(fnt/MalgunGothicRegular.woff) format("woff"), url(fnt/MalgunGothicRegular.woff) format("truetype"); }
+@font-face { font-family: Tahoma; src: url(fnt/Tahoma.woff) format("woff"), url(fnt/Tahoma.woff) format("truetype"); }
+@font-face { font-family: Zawgyi-One; src: url(fnt/Zawgyi-One.woff) format("woff"), url(fnt/Zawgyi-One.woff) format("truetype"); }
+@font-face { font-family: NotoSansThai; src: url(fnt/NotoSansThai-Bold.woff) format("woff"), url(fnt/NotoSansThai-Bold.woff) format("truetype"); }
+@font-face { font-family: NotoSansThai-Regular; src: url(fnt/NotoSansThaiUI-Regular.woff) format("woff"), url(fnt/NotoSansThaiUI-Regular.woff) format("truetype"); }
+@font-face { font-family: NotoSans-Medium; src: url(fnt/NotoSans-Medium.woff) format("woff"), url(fnt/NotoSans-Medium.ttf) format("truetype"); }
+@font-face { font-family: Pyidaungsu; src: url(fnt/Pyidaungsu-Regular.ttf) format("truetype"); }
+
+/** 預載樣式用 */
+#preloader{
+  /*Image you want to preload*/
+  background-image:
+   url("../images/btn_close.svg")
+  ,url("../images/m/rotate90.png")
+  ,url("../images/m/rotate90_v.png")
+  ,url("../images/m/button_touch.png");
+  
+  width: 0px;
+  height: 0px;
+  display: inline;
+}
+
+#rsg_versions {
+  display: none; /* 隱藏元素 */
+}
+
+/* 轉向提示 */
+.rotationTips{
+  position: absolute;
+  width: 100%;
+  height: 100vh;
+  display: none;
+  background-color: #000;
+}
+.imgRotationTips{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  content: url("../images/m/rotate90.png");
+  max-width: 30%;
+  max-height: 30%;
+  /* -webkit-animation: rotationTipsAnim 2.5s linear infinite;
+  animation: rotationTipsAnim 2.5s linear infinite; */
+  transform-origin: 5% 95%;
+}
+.imgRotationVTips{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  content: url("../images/m/rotate90_v.png");
+  max-width: 30%;
+  max-height: 30%;
+  /* -webkit-animation: rotationTipsAnim 2.5s linear infinite;
+  animation: rotationTipsAnim 2.5s linear infinite; */
+  transform-origin: 5% 95%;
+}
+
+
+/* 滿版(全螢幕)提示 */
+.callFull {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: none;
+  background-color: rgba(0, 0, 0, 0.5); 
+}
+
+.callFullFinger_ios{
+  position: absolute;
+  top: 35%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  content: url("../images/m/button_touch.png");
+  max-width: 30%;
+  max-height: 30%;
+  animation: fingerAnim 1000ms infinite;
+  -webkit-animation: fingerAnim 1000ms infinite;
+}
+.callFullFinger{
+  position: absolute;
+  top: 35%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  content: url("../images/m/button_touch.png");
+  max-width: 30%;
+  max-height: 30%;
+  /* animation: fingerAnim 1000ms infinite;
+  -webkit-animation: fingerAnim 1000ms infinite; */
+}
+
+@keyframes rotationTipsAnim {
+  0% {
+    -webkit-transform: rotate3d(0, 0, 1, 0deg);
+    transform: rotate3d(0, 0, 1, 0deg);
+  }
+
+  50% {
+    -webkit-transform: rotate3d(0, 0, 1, 90deg);
+    transform: rotate3d(0, 0, 1, 90deg);
+  }
+
+  100% {
+    -webkit-transform: rotate3d(0, 0, 1, 0deg);
+    transform: rotate3d(0, 0, 1, 0deg);
+  }
+}
+
+@keyframes fingerAnim {
+  0%{
+    top: 35%;
+  }
+  50%{
+    top: 30%;
+  }
+  100%{
+    top: 35%;
+  }
+}
+@-webkit-keyframes fingerAnim {
+  0%{
+    top: 35%;
+  }
+  50%{
+    top: 30%;
+  }
+  100%{
+    top: 35%;
+  }
+}
+
+/** 手指滑動關閉按鈕 */
+.callFullClose{
+  background-image: url("../images/btn_close.svg");
+  background-repeat:no-repeat;
+  width: 40px;
+  height: 40px;
+  top: 50px;
+  right: 40px;
+  position: fixed;
+  background-size: 40px 40px;  
+}
+
+.callFullCloseH{
+  position: fixed;
+  top: 80px;
+  right: 200px;
+}
+
+
+/* Help */
+/* #Help {
+  position: absolute;
+  visibility: hidden;
+  display: none;
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+  overflow-y: scroll;
+  width: 100%;
+  height: 100%;
+  padding: 0 0 0 0;
+  top: 0px;
+} */
+
+/* .helpClose{
+  width: 40px;
+  height: 40px;
+  position: fixed;
+  top: 30px;
+  right: 30px;
+} */
+
+iframe {
+  width: 10px;
+  min-width: 100%;
+  /* 無邊框 */
+  border-style: none;
+  height: 100%;
+  min-height: 100%;
+}
+
+/** 
+ * iFrame外框容器
+ * ios os 12，需配置相關參數才可以滾動
+ */
+.iFrameOuterContainer {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+
+/** --- 啟用 --- */
+.helpClose:active:after {
+  opacity: 0.4;
+}
+
+.helpClose:active {
+  opacity: .6;
+}

@@ -41,6 +41,7 @@ const QMONEY_TEST_ONLY = import.meta.env.VITE_QMONEY_TEST_ONLY === 'true';
 const ORIGINAL_AUDIO_GAME_PATHS = new Set([
   ...H5_GAMES.map((game) => `/games/${game.gameId}`),
   '/games/storm-of-seth-2',
+  '/games/power-of-thor-2',
 ]);
 
 const RUNTIME_ERROR_COPY: Record<
@@ -119,6 +120,10 @@ const DicePage = lazyPage(() => import('@/pages/games/DicePage'), 'DicePage');
 const HiLoPage = lazyPage(() => import('@/pages/games/HiLoPage'), 'HiLoPage');
 const HotlinePage = lazyPage(() => import('@/pages/games/HotlinePage'), 'HotlinePage');
 const Seth2Page = lazyPage(() => import('@/pages/games/Seth2Page'), 'Seth2Page');
+const PowerOfThor2Page = lazyPage(
+  () => import('@/pages/games/PowerOfThor2Page'),
+  'PowerOfThor2Page',
+);
 const FruitMaryPage = lazyPage(() => import('@/pages/games/FruitMaryPage'), 'FruitMaryPage');
 const H5SlotGamePage = lazyPage(
   () => import('@/pages/games/H5SlotCollectionPage'),
@@ -321,6 +326,7 @@ export const router = createBrowserRouter([
               <Seth2Page />
             </TestGameAccessGuard>,
           ),
+          gameRoute('/games/power-of-thor-2', GameId.POWER_OF_THOR_2, <PowerOfThor2Page />),
           gameRoute(
             '/games/fruit-mary',
             GameId.FRUIT_MARY,

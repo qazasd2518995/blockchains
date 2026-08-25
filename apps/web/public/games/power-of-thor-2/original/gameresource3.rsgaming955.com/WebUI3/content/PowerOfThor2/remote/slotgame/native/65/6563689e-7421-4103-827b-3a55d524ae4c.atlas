@@ -1,0 +1,223 @@
+
+extra_bet_button.png
+size: 184,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+library/extra_bet_button/Rlight_00
+  rotate: false
+  xy: 2, 972
+  size: 136, 48
+  orig: 140, 52
+  offset: 2, 2
+  index: -1
+library/extra_bet_button/fire/fire_00
+  rotate: true
+  xy: 2, 252
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_02
+  rotate: true
+  xy: 47, 378
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_04
+  rotate: true
+  xy: 2, 127
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_06
+  rotate: true
+  xy: 47, 253
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_08
+  rotate: true
+  xy: 2, 2
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_10
+  rotate: true
+  xy: 47, 128
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_12
+  rotate: true
+  xy: 47, 3
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_14
+  rotate: true
+  xy: 92, 756
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_16
+  rotate: true
+  xy: 92, 631
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_18
+  rotate: true
+  xy: 92, 506
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_20
+  rotate: false
+  xy: 2, 881
+  size: 123, 44
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_22
+  rotate: true
+  xy: 92, 381
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_24
+  rotate: true
+  xy: 92, 256
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_26
+  rotate: true
+  xy: 92, 131
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_28
+  rotate: true
+  xy: 92, 6
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_30
+  rotate: true
+  xy: 2, 755
+  size: 124, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_32
+  rotate: true
+  xy: 2, 629
+  size: 124, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_34
+  rotate: true
+  xy: 137, 847
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_36
+  rotate: true
+  xy: 137, 722
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_38
+  rotate: true
+  xy: 137, 597
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_40
+  rotate: true
+  xy: 137, 472
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_42
+  rotate: true
+  xy: 137, 347
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_44
+  rotate: true
+  xy: 137, 222
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_46
+  rotate: true
+  xy: 47, 755
+  size: 124, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_48
+  rotate: true
+  xy: 2, 503
+  size: 124, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_50
+  rotate: true
+  xy: 47, 629
+  size: 124, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_52
+  rotate: true
+  xy: 2, 377
+  size: 124, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_54
+  rotate: true
+  xy: 137, 97
+  size: 123, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_56
+  rotate: true
+  xy: 47, 503
+  size: 124, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1
+library/extra_bet_button/fire/fire_58
+  rotate: false
+  xy: 2, 927
+  size: 124, 43
+  orig: 140, 60
+  offset: 8, 9
+  index: -1

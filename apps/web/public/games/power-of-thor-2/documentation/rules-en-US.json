@@ -1,0 +1,247 @@
+[
+  {
+    "type": "main-title",
+    "value": "BONUS",
+    "img": "base_symbolB1.png"
+  },
+  {
+    "type": "sub-title",
+    "value": "Credits times the total bet.",
+    "img": ""
+  },
+  {
+    "type": "main-title",
+    "value": "PAY TABLE",
+    "img": ""
+  },
+  {
+    "type": "remarks",
+    "value": "All wins shown with bet multiplier at 1.",
+    "img": ""
+  },
+  {
+    "type": "main-title",
+    "value": "MULTIPLIER FEATURE",
+    "img": ""
+  },
+  {
+    "type": "sub-title",
+    "value": "These are multiplier symbols.",
+    "img": "help_feature_0.png"
+  },
+  {
+    "type": "unordered-list",
+    "value": [
+      {
+        "value": "Whenever a multiplier symbol hits, it takes a random multiplier value from 2x to 1000x.",
+        "img": ""
+      },
+      {
+        "value": "When cascading ends, the values of all multiplier symbols on the screen are added together and the total win is multiplied by the final value.",
+        "img": ""
+      }
+    ]
+  },
+  {
+    "type": "main-title",
+    "value": "SUPER BONUS",
+    "img": "base_symbolB2.png"
+  },
+  {
+    "type": "sub-title",
+    "value": "Trigger the Free Spin Feature and land Super Bonus symbols at the same time to earn multiplier wins based on how many appear.",
+    "img": ""
+  },
+  {
+    "type": "unordered-list",
+    "value": [
+      {
+        "value": "Landing 1 Super Bonus symbol awards 100x bet win.",
+        "img": ""
+      },
+      {
+        "value": "Landing 2 Super Bonus symbol awards 500x bet win.",
+        "img": ""
+      },
+      {
+        "value": "Landing 3 Super Bonus symbol awards 5000x bet win.",
+        "img": ""
+      },
+      {
+        "value": "Landing 4 Super Bonus symbol awards 25000x bet win.",
+        "img": ""
+      }
+    ]
+  },
+  {
+    "type": "main-title",
+    "value": "FREE SPIN FEATURE",
+    "img": "base_symbolB1.png*4"
+  },
+  {
+    "type": "sub-title",
+    "value": "Any 4, 5 or 6 Bonus Symbol on the reels initiate 15 Free Spins respectively.",
+    "img": "help_feature_1.png"
+  },
+  {
+    "type": "unordered-list",
+    "value": [
+      {
+        "value": "During Free Spin Feature, whenever a multiplier symbol hit and the spin results in a win, the multiplier value gets added to the total multiplier.",
+        "img": ""
+      },
+      {
+        "value": "For the whole duration of the round, whenever any new multiplier symbol hits and results in a win the total multiplier value is also used to multiply the win.",
+        "img": ""
+      },
+      {
+        "value": "Additional 5 free spins may be awarded with 3, 4, 5 or 6 Bonus Symbols during Free Spin Feature to a maximum of 100 free spins.",
+        "img": ""
+      }
+    ]
+  },
+  {
+    "type": "main-title",
+    "value": "MULTIPLIER UPGRADE FEATURE",
+    "img": "help_feature_2.png"
+  },
+  {
+    "type": "unordered-list",
+    "value": [
+      {
+        "value": "In the Free Spin Feature, when a multiplier symbol appears and the player scores, there is a chance to trigger an upgrade of the multiplier symbol before it is applied and added to the score.",
+        "img": ""
+      },
+      {
+        "value": "There is a chance to trigger multiple upgrades when a multiplier symbol is upgraded. Each multiplier symbol can reach up to 1000×.",
+        "img": ""
+      },
+      {
+        "value": "In the Super Free Spin Feature, the chance to trigger multiplier symbol upgrades will be increased.",
+        "img": ""
+      }
+    ]
+  },
+  {
+    "type": "main-title",
+    "value": "MAX WIN",
+    "img": ""
+  },
+  {
+    "type": "sub-title",
+    "value": "The maximum winning points are 25000x the current bet.",
+    "img": ""
+  },
+  {
+    "type": "unordered-list",
+    "value": [
+      {
+        "value": "In the base game, when the winning points on screen has reached the upper limit, the current spin will automatically be ended with rewards distributed.",
+        "img": ""
+      },
+      {
+        "value": "In the  Free Spin Feature, when the winning points on screen has reached the upper limit, Free Spin will be automatically ended with rewards distributed.",
+        "img": ""
+      }
+    ]
+  },
+  {
+    "type": "main-title",
+    "value": "BUY FEATURE",
+    "img": ""
+  },
+  {
+    "type": "sub-title",
+    "value": "The Free Spin Feature can be instantly triggered from the base game by buying it for 100x current total bet.",
+    "img": ""
+  },
+  {
+    "type": "remarks",
+    "value": "During Free Spin Feature, the total bet credits remain the same as the spin that triggered Free Spin Feature.",
+    "img": ""
+  },
+  {
+    "type": "remarks",
+    "value": "When Free Spin Feature is triggered, press spin to play automatically until all free spins are used and wins are paid.",
+    "img": ""
+  },
+  {
+    "type": "main-title",
+    "value": "SUPER BUY FEATURE",
+    "img": ""
+  },
+  {
+    "type": "sub-title",
+    "value": "The Super Free Spin Feature can be instantly triggered from the base game by buying it for 500x current total bet.",
+    "img": ""
+  },
+  {
+    "type": "remarks",
+    "value": "During Super Free Spin Feature, the total bet credits remain the same as the spin that triggered Super Free Spin Feature.",
+    "img": ""
+  },
+  {
+    "type": "remarks",
+    "value": "When Super Free Spin Feature is triggered, press spin to play automatically until all free spins are used and wins are paid.",
+    "img": ""
+  },
+  {
+    "type": "main-title",
+    "value": "EXTRA BET",
+    "img": ""
+  },
+  {
+    "type": "sub-title",
+    "value": "The extra bet is 25% of the original.When activated, the chance to enter free spin doubles.",
+    "img": ""
+  },
+  {
+    "type": "remarks",
+    "value": "The additional bet is not included in prize calculations. All prizes are calculated based on the original base bet.",
+    "img": ""
+  },
+  {
+    "type": "main-title",
+    "value": "LUCKYSTRIKE",
+    "img": ""
+  },
+  {
+    "type": "sub-title",
+    "value": "In the base game, when spinning with 4000× the bet amount, all appearing multiplier symbols will be 1000×.",
+    "img": ""
+  },
+  {
+    "type": "remarks",
+    "value": "During Lucky Strike Feature, the total bet credits remain the same as the spin that triggered Lucky Strike Feature.",
+    "img": ""
+  },
+  {
+    "type": "remarks",
+    "value": "When Lucky Strike Feature is triggered, press spin to play automatically until the round is completed and wins are paid.",
+    "img": ""
+  },
+  {
+    "type": "main-title",
+    "value": "PAY ANYWHERE GENERAL RULES",
+    "img": ""
+  },
+  {
+    "type": "sub-title",
+    "value": "Minimum bet 20 credits.",
+    "img": ""
+  },
+  {
+    "type": "unordered-list",
+    "value": [
+      {
+        "value": "The total number of same symbol on the screen at the end of a spin determines the value of the win.",
+        "img": ""
+      }
+    ]
+  },
+  {
+    "type": "remarks",
+    "value": "Malfunction voids all plays and pays.",
+    "img": ""
+  }
+]

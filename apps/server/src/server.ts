@@ -30,6 +30,7 @@ import { plinkoRoutes } from './modules/games/plinko/plinko.routes.js';
 import { rouletteRoutes } from './modules/games/roulette/roulette.routes.js';
 import { hotlineRoutes } from './modules/games/hotline/hotline.routes.js';
 import { seth2Routes } from './modules/games/seth2/seth2.routes.js';
+import { thor2Routes } from './modules/games/thor2/thor2.routes.js';
 import { fruitMaryRoutes } from './modules/games/fruit-mary/fruitMary.routes.js';
 import { h5SlotsRoutes } from './modules/games/h5-slots/h5Slots.routes.js';
 import { towerRoutes } from './modules/games/tower/tower.routes.js';
@@ -309,6 +310,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(rouletteRoutes, { prefix: '/api/games' });
   await server.register(hotlineRoutes, { prefix: '/api/games/hotline' });
   await server.register(seth2Routes, { prefix: '/api/games/seth2' });
+  await server.register(thor2Routes, { prefix: '/api/games/thor2' });
   await server.register(fruitMaryRoutes, { prefix: '/api/games/fruit-mary' });
   await server.register(h5SlotsRoutes, { prefix: '/api/games/h5-slots' });
   await server.register(towerRoutes, { prefix: '/api/games/tower' });

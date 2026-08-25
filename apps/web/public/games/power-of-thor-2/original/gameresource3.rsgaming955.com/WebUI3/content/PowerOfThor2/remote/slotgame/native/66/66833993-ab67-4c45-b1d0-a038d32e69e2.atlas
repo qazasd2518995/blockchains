@@ -1,0 +1,1818 @@
+
+animation2.png
+size: 4004,2524
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+library/bg/city
+  rotate: false
+  xy: 2692, 34
+  size: 249, 162
+  orig: 249, 162
+  offset: 0, 0
+  index: -1
+library/bg/cloud_01
+  rotate: true
+  xy: 3508, 187
+  size: 259, 161
+  orig: 259, 161
+  offset: 0, 0
+  index: -1
+library/bg/cloud_02
+  rotate: true
+  xy: 3366, 1421
+  size: 349, 246
+  orig: 349, 246
+  offset: 0, 0
+  index: -1
+library/bg/cloud_03
+  rotate: true
+  xy: 3868, 1716
+  size: 310, 107
+  orig: 310, 107
+  offset: 0, 0
+  index: -1
+library/bg/cloud_04
+  rotate: true
+  xy: 3842, 1043
+  size: 337, 132
+  orig: 337, 132
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/body
+  rotate: true
+  xy: 802, 79
+  size: 97, 195
+  orig: 97, 195
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/boom
+  rotate: true
+  xy: 1306, 79
+  size: 634, 433
+  orig: 1298, 521
+  offset: 664, 88
+  index: -1
+library/bg_into_fg/cloak
+  rotate: true
+  xy: 2892, 2039
+  size: 135, 96
+  orig: 135, 96
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_00
+  rotate: false
+  xy: 3012, 177
+  size: 156, 182
+  orig: 220, 400
+  offset: 35, 48
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_60
+  rotate: false
+  xy: 3012, 177
+  size: 156, 182
+  orig: 220, 400
+  offset: 35, 48
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_04
+  rotate: true
+  xy: 3679, 39
+  size: 158, 200
+  orig: 220, 400
+  offset: 33, 36
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_08
+  rotate: false
+  xy: 3842, 1385
+  size: 159, 222
+  orig: 220, 400
+  offset: 31, 18
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_12
+  rotate: true
+  xy: 3392, 451
+  size: 155, 222
+  orig: 220, 400
+  offset: 33, 24
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_16
+  rotate: false
+  xy: 3842, 817
+  size: 149, 221
+  orig: 220, 400
+  offset: 38, 31
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_20
+  rotate: false
+  xy: 3840, 213
+  size: 149, 245
+  orig: 220, 400
+  offset: 37, 12
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_24
+  rotate: true
+  xy: 2946, 20
+  size: 152, 242
+  orig: 220, 400
+  offset: 34, 18
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_28
+  rotate: true
+  xy: 3436, 22
+  size: 160, 238
+  orig: 220, 400
+  offset: 28, 25
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_32
+  rotate: true
+  xy: 3193, 20
+  size: 163, 238
+  orig: 220, 400
+  offset: 25, 30
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_36
+  rotate: true
+  xy: 3619, 463
+  size: 164, 268
+  orig: 220, 400
+  offset: 25, 6
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_40
+  rotate: true
+  xy: 2741, 201
+  size: 158, 266
+  orig: 220, 400
+  offset: 31, 10
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_44
+  rotate: false
+  xy: 3674, 202
+  size: 161, 256
+  orig: 220, 400
+  offset: 29, 23
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_48
+  rotate: false
+  xy: 3173, 188
+  size: 162, 261
+  orig: 220, 400
+  offset: 26, 21
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_52
+  rotate: false
+  xy: 3340, 189
+  size: 163, 257
+  orig: 220, 400
+  offset: 27, 28
+  index: -1
+library/bg_into_fg/cloud/FG_cloud_56
+  rotate: true
+  xy: 3617, 632
+  size: 165, 249
+  orig: 220, 400
+  offset: 25, 37
+  index: -1
+library/bg_into_fg/cloud02/cloud02_00
+  rotate: true
+  xy: 2483, 1309
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_60
+  rotate: true
+  xy: 2483, 1309
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_04
+  rotate: false
+  xy: 2537, 904
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_08
+  rotate: true
+  xy: 2762, 1039
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_12
+  rotate: true
+  xy: 2762, 814
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_16
+  rotate: false
+  xy: 3167, 859
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_20
+  rotate: false
+  xy: 3392, 1016
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_24
+  rotate: false
+  xy: 3643, 1612
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_28
+  rotate: false
+  xy: 3617, 1207
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_32
+  rotate: false
+  xy: 2537, 499
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_36
+  rotate: true
+  xy: 2762, 589
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_40
+  rotate: false
+  xy: 3167, 454
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_44
+  rotate: false
+  xy: 3392, 611
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_48
+  rotate: false
+  xy: 3617, 802
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_52
+  rotate: true
+  xy: 2762, 364
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud02/cloud02_56
+  rotate: true
+  xy: 2336, 274
+  size: 220, 400
+  orig: 220, 400
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud_01
+  rotate: false
+  xy: 1766, 702
+  size: 593, 531
+  orig: 593, 531
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud_02
+  rotate: true
+  xy: 876, 181
+  size: 611, 425
+  orig: 1259, 425
+  offset: 648, 0
+  index: -1
+library/bg_into_fg/cloud_03
+  rotate: false
+  xy: 2, 797
+  size: 1305, 733
+  orig: 1305, 733
+  offset: 0, 0
+  index: -1
+library/bg_into_fg/cloud_04
+  rotate: false
+  xy: 1699, 1667
+  size: 860, 507
+  orig: 1468, 626
+  offset: 608, 0
+  index: -1
+library/bg_into_fg/mountain
+  rotate: false
+  xy: 2, 1535
+  size: 1692, 986
+  orig: 2203, 986
+  offset: 0, 0
+  index: -1
+library/fg/cloud01
+  rotate: false
+  xy: 2892, 1775
+  size: 746, 237
+  orig: 746, 237
+  offset: 0, 0
+  index: -1
+library/fg/cloud02
+  rotate: false
+  xy: 2, 6
+  size: 795, 213
+  orig: 795, 213
+  offset: 0, 0
+  index: -1
+library/fg/cloud03
+  rotate: true
+  xy: 2364, 768
+  size: 465, 168
+  orig: 465, 168
+  offset: 0, 0
+  index: -1
+library/fg/cloud04
+  rotate: false
+  xy: 1744, 17
+  size: 499, 197
+  orig: 499, 209
+  offset: 0, 4
+  index: -1
+library/fg/cloud05
+  rotate: false
+  xy: 2336, 108
+  size: 351, 161
+  orig: 351, 161
+  offset: 0, 0
+  index: -1
+library/fg/cloud06
+  rotate: false
+  xy: 2888, 1264
+  size: 413, 158
+  orig: 413, 158
+  offset: 0, 0
+  index: -1
+library/fg/cloud_add
+  rotate: false
+  xy: 2892, 1427
+  size: 469, 343
+  orig: 489, 359
+  offset: 20, 8
+  index: -1
+library/free_settlement/aurora_bg
+  rotate: true
+  xy: 2564, 1534
+  size: 640, 323
+  orig: 640, 600
+  offset: 0, 277
+  index: -1
+library/free_settlement/bridge
+  rotate: false
+  xy: 1699, 2179
+  size: 1313, 342
+  orig: 1313, 347
+  offset: 0, 3
+  index: -1
+library/free_settlement/building
+  rotate: true
+  xy: 2, 224
+  size: 568, 869
+  orig: 568, 870
+  offset: 0, 1
+  index: -1
+library/free_settlement/cloud_1
+  rotate: false
+  xy: 3017, 2017
+  size: 842, 504
+  orig: 842, 504
+  offset: 0, 0
+  index: -1
+library/free_settlement/cloud_2
+  rotate: true
+  xy: 1312, 718
+  size: 812, 449
+  orig: 812, 449
+  offset: 0, 0
+  index: -1
+library/free_settlement/cloud_3
+  rotate: false
+  xy: 1766, 1238
+  size: 712, 424
+  orig: 717, 425
+  offset: 0, 0
+  index: -1
+library/free_settlement/cloud_4
+  rotate: false
+  xy: 1744, 219
+  size: 499, 478
+  orig: 509, 478
+  offset: 10, 0
+  index: -1
+library/win_board/msg
+  rotate: false
+  xy: 802, 2
+  size: 496, 72
+  orig: 496, 72
+  offset: 0, 0
+  index: -1
+library/win_board/win1
+  rotate: true
+  xy: 3864, 2031
+  size: 490, 83
+  orig: 490, 83
+  offset: 0, 0
+  index: -1
+library/win_board/win2
+  rotate: true
+  xy: 2248, 157
+  size: 540, 83
+  orig: 540, 83
+  offset: 0, 0
+  index: -1
+
+animation2.jpg
+size: 4068,3352
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+library/jpg/bg/glow
+  rotate: false
+  xy: 1804, 1234
+  size: 47, 47
+  orig: 50, 50
+  offset: 1, 3
+  index: -1
+library/jpg/bg/light
+  rotate: false
+  xy: 2830, 2412
+  size: 440, 360
+  orig: 440, 360
+  offset: 0, 0
+  index: -1
+library/jpg/bg/light2
+  rotate: true
+  xy: 1290, 2252
+  size: 151, 753
+  orig: 178, 799
+  offset: 12, 31
+  index: -1
+library/jpg/bg_into_fg/add
+  rotate: true
+  xy: 2796, 2922
+  size: 425, 626
+  orig: 425, 626
+  offset: 0, 0
+  index: -1
+library/jpg/bg_into_fg/glow
+  rotate: false
+  xy: 1989, 1797
+  size: 264, 129
+  orig: 270, 150
+  offset: 4, 10
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_03
+  rotate: true
+  xy: 801, 31
+  size: 85, 216
+  orig: 250, 250
+  offset: 62, 20
+  index: -1
+library/jpg/fg/light/01/light1_03
+  rotate: true
+  xy: 801, 31
+  size: 85, 216
+  orig: 250, 250
+  offset: 62, 20
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_04
+  rotate: false
+  xy: 706, 17
+  size: 90, 217
+  orig: 250, 250
+  offset: 60, 19
+  index: -1
+library/jpg/fg/light/01/light1_04
+  rotate: false
+  xy: 706, 17
+  size: 90, 217
+  orig: 250, 250
+  offset: 60, 19
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_05
+  rotate: true
+  xy: 2417, 462
+  size: 147, 217
+  orig: 250, 250
+  offset: 53, 19
+  index: -1
+library/jpg/fg/light/01/light1_05
+  rotate: true
+  xy: 2417, 462
+  size: 147, 217
+  orig: 250, 250
+  offset: 53, 19
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_06
+  rotate: true
+  xy: 3192, 476
+  size: 147, 217
+  orig: 250, 250
+  offset: 53, 19
+  index: -1
+library/jpg/fg/light/01/light1_06
+  rotate: true
+  xy: 3192, 476
+  size: 147, 217
+  orig: 250, 250
+  offset: 53, 19
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_07
+  rotate: true
+  xy: 3663, 1361
+  size: 135, 217
+  orig: 250, 250
+  offset: 64, 19
+  index: -1
+library/jpg/fg/light/01/light1_07
+  rotate: true
+  xy: 3663, 1361
+  size: 135, 217
+  orig: 250, 250
+  offset: 64, 19
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_08
+  rotate: false
+  xy: 3791, 1140
+  size: 131, 216
+  orig: 250, 250
+  offset: 67, 20
+  index: -1
+library/jpg/fg/light/01/light1_08
+  rotate: false
+  xy: 3791, 1140
+  size: 131, 216
+  orig: 250, 250
+  offset: 67, 20
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_09
+  rotate: true
+  xy: 1743, 51
+  size: 137, 217
+  orig: 250, 250
+  offset: 61, 19
+  index: -1
+library/jpg/fg/light/01/light1_09
+  rotate: true
+  xy: 1743, 51
+  size: 137, 217
+  orig: 250, 250
+  offset: 61, 19
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_10
+  rotate: false
+  xy: 3502, 44
+  size: 137, 217
+  orig: 250, 250
+  offset: 61, 19
+  index: -1
+library/jpg/fg/light/01/light1_10
+  rotate: false
+  xy: 3502, 44
+  size: 137, 217
+  orig: 250, 250
+  offset: 61, 19
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_11
+  rotate: false
+  xy: 3981, 3130
+  size: 82, 217
+  orig: 250, 250
+  offset: 82, 19
+  index: -1
+library/jpg/fg/light/01/light1_11
+  rotate: false
+  xy: 3981, 3130
+  size: 82, 217
+  orig: 250, 250
+  offset: 82, 19
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_12
+  rotate: false
+  xy: 3981, 2908
+  size: 75, 217
+  orig: 250, 250
+  offset: 89, 19
+  index: -1
+library/jpg/fg/light/01/light1_12
+  rotate: false
+  xy: 3981, 2908
+  size: 75, 217
+  orig: 250, 250
+  offset: 89, 19
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_13
+  rotate: false
+  xy: 3927, 1159
+  size: 125, 217
+  orig: 250, 250
+  offset: 89, 19
+  index: -1
+library/jpg/fg/light/01/light1_13
+  rotate: false
+  xy: 3927, 1159
+  size: 125, 217
+  orig: 250, 250
+  offset: 89, 19
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_14
+  rotate: true
+  xy: 3195, 910
+  size: 133, 217
+  orig: 250, 250
+  offset: 89, 19
+  index: -1
+library/jpg/fg/light/01/light1_14
+  rotate: true
+  xy: 3195, 910
+  size: 133, 217
+  orig: 250, 250
+  offset: 89, 19
+  index: -1
+library/jpg/bg_into_fg/light/01/light1_15
+  rotate: true
+  xy: 3455, 1370
+  size: 147, 203
+  orig: 250, 250
+  offset: 57, 33
+  index: -1
+library/jpg/fg/light/01/light1_15
+  rotate: true
+  xy: 3455, 1370
+  size: 147, 203
+  orig: 250, 250
+  offset: 57, 33
+  index: -1
+library/jpg/bg_into_fg/light/02/light2_00
+  rotate: false
+  xy: 2903, 1162
+  size: 49, 219
+  orig: 70, 250
+  offset: 10, 17
+  index: -1
+library/jpg/fg/light/02/light2_00
+  rotate: false
+  xy: 2903, 1162
+  size: 49, 219
+  orig: 70, 250
+  offset: 10, 17
+  index: -1
+library/jpg/bg_into_fg/light/02/light2_03
+  rotate: true
+  xy: 1753, 193
+  size: 44, 219
+  orig: 70, 250
+  offset: 15, 17
+  index: -1
+library/jpg/fg/light/02/light2_03
+  rotate: true
+  xy: 1753, 193
+  size: 44, 219
+  orig: 70, 250
+  offset: 15, 17
+  index: -1
+library/jpg/bg_into_fg/light/02/light2_04
+  rotate: false
+  xy: 2290, 729
+  size: 45, 220
+  orig: 70, 250
+  offset: 14, 16
+  index: -1
+library/jpg/fg/light/02/light2_04
+  rotate: false
+  xy: 2290, 729
+  size: 45, 220
+  orig: 70, 250
+  offset: 14, 16
+  index: -1
+library/jpg/bg_into_fg/light/02/light2_05
+  rotate: true
+  xy: 1743, 9
+  size: 37, 219
+  orig: 70, 250
+  offset: 19, 17
+  index: -1
+library/jpg/fg/light/02/light2_05
+  rotate: true
+  xy: 1743, 9
+  size: 37, 219
+  orig: 70, 250
+  offset: 19, 17
+  index: -1
+library/jpg/bg_into_fg/light/02/light2_06
+  rotate: true
+  xy: 3502, 5
+  size: 34, 218
+  orig: 70, 250
+  offset: 23, 18
+  index: -1
+library/jpg/fg/light/02/light2_06
+  rotate: true
+  xy: 3502, 5
+  size: 34, 218
+  orig: 70, 250
+  offset: 23, 18
+  index: -1
+library/jpg/bg_into_fg/light/02/light2_08
+  rotate: false
+  xy: 3409, 686
+  size: 34, 219
+  orig: 70, 250
+  offset: 28, 17
+  index: -1
+library/jpg/fg/light/02/light2_08
+  rotate: false
+  xy: 3409, 686
+  size: 34, 219
+  orig: 70, 250
+  offset: 28, 17
+  index: -1
+library/jpg/bg_into_fg/light/02/light2_09
+  rotate: false
+  xy: 3954, 935
+  size: 44, 219
+  orig: 70, 250
+  offset: 26, 17
+  index: -1
+library/jpg/fg/light/02/light2_09
+  rotate: false
+  xy: 3954, 935
+  size: 44, 219
+  orig: 70, 250
+  offset: 26, 17
+  index: -1
+library/jpg/bg_into_fg/light/02/light2_10
+  rotate: false
+  xy: 2340, 730
+  size: 56, 219
+  orig: 70, 250
+  offset: 6, 17
+  index: -1
+library/jpg/fg/light/02/light2_10
+  rotate: false
+  xy: 2340, 730
+  size: 56, 219
+  orig: 70, 250
+  offset: 6, 17
+  index: -1
+library/jpg/bg_into_fg/light/02/light2_11
+  rotate: false
+  xy: 3398, 1635
+  size: 55, 219
+  orig: 70, 250
+  offset: 5, 17
+  index: -1
+library/jpg/fg/light/02/light2_11
+  rotate: false
+  xy: 3398, 1635
+  size: 55, 219
+  orig: 70, 250
+  offset: 5, 17
+  index: -1
+library/jpg/bg_into_fg/light/02/light2_12
+  rotate: false
+  xy: 3398, 1412
+  size: 52, 218
+  orig: 70, 250
+  offset: 6, 18
+  index: -1
+library/jpg/fg/light/02/light2_12
+  rotate: false
+  xy: 3398, 1412
+  size: 52, 218
+  orig: 70, 250
+  offset: 6, 18
+  index: -1
+library/jpg/bg_into_fg/light/02/light2_14
+  rotate: false
+  xy: 4003, 935
+  size: 43, 219
+  orig: 70, 250
+  offset: 10, 17
+  index: -1
+library/jpg/fg/light/02/light2_14
+  rotate: false
+  xy: 4003, 935
+  size: 43, 219
+  orig: 70, 250
+  offset: 10, 17
+  index: -1
+library/jpg/bg_into_fg/light/02/light2_15
+  rotate: true
+  xy: 2922, 205
+  size: 41, 219
+  orig: 70, 250
+  offset: 9, 17
+  index: -1
+library/jpg/fg/light/02/light2_15
+  rotate: true
+  xy: 2922, 205
+  size: 41, 219
+  orig: 70, 250
+  offset: 9, 17
+  index: -1
+library/jpg/bg_into_fg/mine_1
+  rotate: true
+  xy: 3427, 2949
+  size: 398, 549
+  orig: 573, 875
+  offset: 107, 326
+  index: -1
+library/jpg/bg_into_fg/mine_2
+  rotate: false
+  xy: 5, 997
+  size: 918, 1146
+  orig: 2117, 1458
+  offset: 631, 312
+  index: -1
+library/jpg/bg_into_fg/mine_3
+  rotate: false
+  xy: 5, 260
+  size: 662, 732
+  orig: 1070, 1205
+  offset: 0, 241
+  index: -1
+library/jpg/bg_into_fg/mine_4
+  rotate: false
+  xy: 1989, 1931
+  size: 264, 316
+  orig: 447, 416
+  offset: 83, 52
+  index: -1
+library/jpg/bg_into_fg/mine_5
+  rotate: false
+  xy: 2640, 1142
+  size: 258, 239
+  orig: 682, 799
+  offset: 285, 260
+  index: -1
+library/jpg/bg_into_fg/spark/spark_00
+  rotate: false
+  xy: 2645, 1386
+  size: 271, 214
+  orig: 300, 240
+  offset: 14, 11
+  index: -1
+library/jpg/bg_into_fg/spark/spark_02
+  rotate: false
+  xy: 2413, 900
+  size: 270, 216
+  orig: 300, 240
+  offset: 14, 11
+  index: -1
+library/jpg/bg_into_fg/spark/spark_04
+  rotate: true
+  xy: 2688, 866
+  size: 271, 216
+  orig: 300, 240
+  offset: 13, 12
+  index: -1
+library/jpg/bg_into_fg/spark/spark_06
+  rotate: true
+  xy: 2413, 1121
+  size: 271, 222
+  orig: 300, 240
+  offset: 13, 7
+  index: -1
+library/jpg/bg_into_fg/spark/spark_08
+  rotate: false
+  xy: 2638, 639
+  size: 270, 222
+  orig: 300, 240
+  offset: 14, 7
+  index: -1
+library/jpg/bg_into_fg/spark/spark_10
+  rotate: false
+  xy: 2639, 426
+  size: 269, 208
+  orig: 300, 240
+  offset: 15, 8
+  index: -1
+library/jpg/bg_into_fg/spark/spark_12
+  rotate: false
+  xy: 1469, 5
+  size: 269, 209
+  orig: 300, 240
+  offset: 15, 8
+  index: -1
+library/jpg/bg_into_fg/spark/spark_14
+  rotate: true
+  xy: 2957, 1130
+  size: 270, 211
+  orig: 300, 240
+  offset: 14, 7
+  index: -1
+library/jpg/bg_into_fg/spark/spark_16
+  rotate: true
+  xy: 3193, 2076
+  size: 270, 211
+  orig: 300, 240
+  offset: 14, 8
+  index: -1
+library/jpg/bg_into_fg/spark/spark_18
+  rotate: false
+  xy: 3182, 1859
+  size: 271, 212
+  orig: 300, 240
+  offset: 13, 8
+  index: -1
+library/jpg/bg_into_fg/spark/spark_20
+  rotate: false
+  xy: 3225, 39
+  size: 272, 213
+  orig: 300, 240
+  offset: 12, 8
+  index: -1
+library/jpg/bg_into_fg/spark/spark_22
+  rotate: false
+  xy: 3409, 2133
+  size: 273, 213
+  orig: 300, 240
+  offset: 12, 9
+  index: -1
+library/jpg/bg_into_fg/spark/spark_24
+  rotate: false
+  xy: 2913, 690
+  size: 274, 214
+  orig: 300, 240
+  offset: 11, 9
+  index: -1
+library/jpg/bg_into_fg/spark/spark_26
+  rotate: false
+  xy: 2913, 471
+  size: 274, 214
+  orig: 300, 240
+  offset: 11, 10
+  index: -1
+library/jpg/bg_into_fg/spark/spark_28
+  rotate: true
+  xy: 2413, 183
+  size: 274, 218
+  orig: 300, 240
+  offset: 11, 7
+  index: -1
+library/jpg/bg_into_fg/spark/spark_30
+  rotate: false
+  xy: 3770, 2326
+  size: 282, 218
+  orig: 300, 240
+  offset: 11, 7
+  index: -1
+library/jpg/bg_into_fg/spark/spark_32
+  rotate: false
+  xy: 2126, 1175
+  size: 282, 217
+  orig: 300, 240
+  offset: 10, 9
+  index: -1
+library/jpg/bg_into_fg/spark/spark_34
+  rotate: false
+  xy: 2126, 954
+  size: 282, 216
+  orig: 300, 240
+  offset: 10, 11
+  index: -1
+library/jpg/bg_into_fg/spark/spark_36
+  rotate: true
+  xy: 2417, 614
+  size: 281, 216
+  orig: 300, 240
+  offset: 10, 12
+  index: -1
+library/jpg/bg_into_fg/spark/spark_38
+  rotate: false
+  xy: 2636, 205
+  size: 281, 216
+  orig: 300, 240
+  offset: 10, 13
+  index: -1
+library/jpg/bg_into_fg/spark/spark_40
+  rotate: false
+  xy: 2909, 909
+  size: 281, 216
+  orig: 300, 240
+  offset: 10, 14
+  index: -1
+library/jpg/bg_into_fg/spark/spark_42
+  rotate: false
+  xy: 2410, 1993
+  size: 280, 222
+  orig: 300, 240
+  offset: 10, 9
+  index: -1
+library/jpg/bg_into_fg/spark/spark_44
+  rotate: false
+  xy: 2410, 1768
+  size: 279, 220
+  orig: 300, 240
+  offset: 10, 11
+  index: -1
+library/jpg/bg_into_fg/spark/spark_46
+  rotate: false
+  xy: 2007, 729
+  size: 278, 220
+  orig: 300, 240
+  offset: 11, 12
+  index: -1
+library/jpg/bg_into_fg/spark/spark_48
+  rotate: false
+  xy: 2290, 1538
+  size: 277, 225
+  orig: 300, 240
+  offset: 11, 8
+  index: -1
+library/jpg/bg_into_fg/spark/spark_50
+  rotate: true
+  xy: 1753, 242
+  size: 277, 224
+  orig: 300, 240
+  offset: 11, 9
+  index: -1
+library/jpg/bg_into_fg/spark/spark_52
+  rotate: true
+  xy: 3192, 628
+  size: 276, 212
+  orig: 300, 240
+  offset: 11, 9
+  index: -1
+library/jpg/bg_into_fg/spark/spark_54
+  rotate: false
+  xy: 3199, 257
+  size: 274, 214
+  orig: 300, 240
+  offset: 12, 8
+  index: -1
+library/jpg/bg_into_fg/spark/spark_56
+  rotate: false
+  xy: 3687, 2108
+  size: 273, 213
+  orig: 300, 240
+  offset: 12, 10
+  index: -1
+library/jpg/bg_into_fg/spark/spark_58
+  rotate: false
+  xy: 2922, 251
+  size: 272, 215
+  orig: 300, 240
+  offset: 13, 10
+  index: -1
+library/jpg/fg/glow
+  rotate: false
+  xy: 2007, 524
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+library/jpg/fg/glow1
+  rotate: false
+  xy: 2212, 524
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+library/jpg/fg/glow2
+  rotate: false
+  xy: 1233, 933
+  size: 50, 50
+  orig: 50, 50
+  offset: 0, 0
+  index: -1
+library/jpg/fg/house
+  rotate: false
+  xy: 1372, 1772
+  size: 378, 373
+  orig: 482, 475
+  offset: 51, 5
+  index: -1
+library/jpg/fg/house_v
+  rotate: true
+  xy: 1372, 913
+  size: 309, 339
+  orig: 360, 395
+  offset: 22, 12
+  index: -1
+library/jpg/fg/light/03/light3_00
+  rotate: false
+  xy: 3049, 1782
+  size: 12, 34
+  orig: 190, 400
+  offset: 81, 337
+  index: -1
+library/jpg/fg/light/03/light3_01
+  rotate: false
+  xy: 590, 5
+  size: 111, 229
+  orig: 190, 400
+  offset: 79, 142
+  index: -1
+library/jpg/fg/light/03/light3_02
+  rotate: true
+  xy: 1148, 5
+  size: 112, 206
+  orig: 190, 400
+  offset: 78, 165
+  index: -1
+library/jpg/fg/light/03/light3_03
+  rotate: false
+  xy: 1572, 233
+  size: 176, 263
+  orig: 190, 400
+  offset: 0, 109
+  index: -1
+library/jpg/fg/light/03/light3_04
+  rotate: true
+  xy: 3796, 2549
+  size: 176, 267
+  orig: 190, 400
+  offset: 0, 106
+  index: -1
+library/jpg/fg/light/03/light3_05
+  rotate: true
+  xy: 1278, 267
+  size: 176, 289
+  orig: 190, 400
+  offset: 0, 84
+  index: -1
+library/jpg/fg/light/03/light3_06
+  rotate: false
+  xy: 1716, 914
+  size: 176, 308
+  orig: 190, 400
+  offset: 0, 65
+  index: -1
+library/jpg/fg/light/03/light3_07
+  rotate: false
+  xy: 2258, 1922
+  size: 147, 325
+  orig: 190, 400
+  offset: 17, 48
+  index: -1
+library/jpg/fg/light/03/light3_08
+  rotate: true
+  xy: 2425, 2220
+  size: 145, 337
+  orig: 190, 400
+  offset: 19, 36
+  index: -1
+library/jpg/fg/light/03/light3_09
+  rotate: false
+  xy: 1755, 1778
+  size: 143, 367
+  orig: 190, 400
+  offset: 19, 5
+  index: -1
+library/jpg/fg/light/03/light3_10
+  rotate: false
+  xy: 2038, 1421
+  size: 129, 371
+  orig: 190, 400
+  offset: 19, 0
+  index: -1
+library/jpg/fg/light/03/light3_11
+  rotate: true
+  xy: 2048, 2252
+  size: 113, 372
+  orig: 190, 400
+  offset: 34, 2
+  index: -1
+library/jpg/fg/light/03/light3_12
+  rotate: false
+  xy: 2172, 1422
+  size: 113, 370
+  orig: 190, 400
+  offset: 34, 2
+  index: -1
+library/jpg/fg/light/03/light3_13
+  rotate: true
+  xy: 2767, 2172
+  size: 94, 368
+  orig: 190, 400
+  offset: 37, 6
+  index: -1
+library/jpg/fg/light/03/light3_14
+  rotate: false
+  xy: 1903, 1791
+  size: 81, 354
+  orig: 190, 400
+  offset: 49, 6
+  index: -1
+library/jpg/fg/light/03/light3_15
+  rotate: false
+  xy: 1897, 927
+  size: 80, 354
+  orig: 190, 400
+  offset: 50, 6
+  index: -1
+library/jpg/fg/light2
+  rotate: false
+  xy: 672, 239
+  size: 151, 753
+  orig: 178, 799
+  offset: 12, 31
+  index: -1
+library/jpg/free_settlement/bg
+  rotate: false
+  xy: 5, 2148
+  size: 1280, 1199
+  orig: 1280, 1199
+  offset: 0, 0
+  index: -1
+library/jpg/free_settlement/building_add
+  rotate: false
+  xy: 1290, 2408
+  size: 906, 939
+  orig: 906, 942
+  offset: 0, 3
+  index: -1
+library/jpg/free_settlement/circle
+  rotate: false
+  xy: 2201, 2764
+  size: 590, 583
+  orig: 590, 583
+  offset: 0, 0
+  index: -1
+library/jpg/free_settlement/glow1
+  rotate: false
+  xy: 3763, 949
+  size: 186, 186
+  orig: 200, 200
+  offset: 7, 7
+  index: -1
+library/jpg/free_settlement/light2
+  rotate: false
+  xy: 1949, 1407
+  size: 84, 379
+  orig: 89, 400
+  offset: 2, 15
+  index: -1
+library/jpg/free_settlement/line
+  rotate: true
+  xy: 928, 1519
+  size: 624, 300
+  orig: 624, 300
+  offset: 0, 0
+  index: -1
+library/jpg/free_settlement/line_02
+  rotate: false
+  xy: 2201, 2459
+  size: 624, 300
+  orig: 624, 300
+  offset: 0, 0
+  index: -1
+library/jpg/free_settlement/line_03
+  rotate: true
+  xy: 928, 890
+  size: 624, 300
+  orig: 624, 300
+  offset: 0, 0
+  index: -1
+library/jpg/free_settlement/line_04
+  rotate: true
+  xy: 828, 261
+  size: 624, 300
+  orig: 624, 300
+  offset: 0, 0
+  index: -1
+library/jpg/free_settlement/star/star_00
+  rotate: true
+  xy: 2175, 21
+  size: 188, 192
+  orig: 200, 200
+  offset: 9, 8
+  index: -1
+library/jpg/free_settlement/star/star_02
+  rotate: false
+  xy: 3841, 150
+  size: 189, 193
+  orig: 200, 200
+  offset: 8, 7
+  index: -1
+library/jpg/free_settlement/star/star_04
+  rotate: true
+  xy: 1977, 20
+  size: 189, 193
+  orig: 200, 200
+  offset: 8, 6
+  index: -1
+library/jpg/free_settlement/star/star_06
+  rotate: false
+  xy: 3820, 348
+  size: 189, 194
+  orig: 200, 200
+  offset: 8, 4
+  index: -1
+library/jpg/free_settlement/star/star_08
+  rotate: true
+  xy: 3868, 1719
+  size: 189, 195
+  orig: 200, 200
+  offset: 7, 3
+  index: -1
+library/jpg/free_settlement/star/star_10
+  rotate: false
+  xy: 3030, 5
+  size: 190, 195
+  orig: 200, 200
+  offset: 7, 3
+  index: -1
+library/jpg/free_settlement/star/star_12
+  rotate: true
+  xy: 3562, 971
+  size: 190, 196
+  orig: 200, 200
+  offset: 7, 1
+  index: -1
+library/jpg/free_settlement/star/star_14
+  rotate: true
+  xy: 3589, 1166
+  size: 190, 197
+  orig: 200, 200
+  offset: 7, 0
+  index: -1
+library/jpg/free_settlement/star/star_16
+  rotate: false
+  xy: 3448, 770
+  size: 190, 196
+  orig: 200, 200
+  offset: 7, 0
+  index: -1
+library/jpg/free_settlement/star/star_18
+  rotate: true
+  xy: 3643, 755
+  size: 189, 196
+  orig: 200, 200
+  offset: 8, 0
+  index: -1
+library/jpg/free_settlement/star/star_20
+  rotate: true
+  xy: 3844, 742
+  size: 188, 196
+  orig: 200, 200
+  offset: 8, 0
+  index: -1
+library/jpg/free_settlement/star/star_22
+  rotate: true
+  xy: 3868, 1526
+  size: 188, 195
+  orig: 200, 200
+  offset: 8, 0
+  index: -1
+library/jpg/free_settlement/star/star_24
+  rotate: true
+  xy: 3193, 1457
+  size: 192, 200
+  orig: 200, 200
+  offset: 8, 0
+  index: -1
+library/jpg/free_settlement/star/star_26
+  rotate: true
+  xy: 3663, 1911
+  size: 192, 200
+  orig: 200, 200
+  offset: 8, 0
+  index: -1
+library/jpg/free_settlement/star/star_28
+  rotate: false
+  xy: 3195, 1048
+  size: 192, 199
+  orig: 200, 200
+  offset: 8, 1
+  index: -1
+library/jpg/free_settlement/star/star_30
+  rotate: false
+  xy: 3392, 1167
+  size: 192, 198
+  orig: 200, 200
+  offset: 8, 1
+  index: -1
+library/jpg/free_settlement/star/star_32
+  rotate: true
+  xy: 3458, 1727
+  size: 196, 200
+  orig: 200, 200
+  offset: 4, 0
+  index: -1
+library/jpg/free_settlement/star/star_34
+  rotate: false
+  xy: 3193, 1654
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+library/jpg/free_settlement/star/star_36
+  rotate: false
+  xy: 3458, 1928
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+library/jpg/free_settlement/star/star_38
+  rotate: false
+  xy: 3173, 1252
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+library/jpg/free_settlement/star/star_40
+  rotate: false
+  xy: 3663, 1706
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+library/jpg/free_settlement/star/star_42
+  rotate: false
+  xy: 3458, 1522
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+library/jpg/free_settlement/star/star_44
+  rotate: false
+  xy: 3663, 1501
+  size: 200, 200
+  orig: 200, 200
+  offset: 0, 0
+  index: -1
+library/jpg/free_settlement/star/star_46
+  rotate: false
+  xy: 3559, 556
+  size: 192, 194
+  orig: 200, 200
+  offset: 8, 6
+  index: -1
+library/jpg/free_settlement/star/star_48
+  rotate: false
+  xy: 3623, 348
+  size: 192, 194
+  orig: 200, 200
+  offset: 8, 6
+  index: -1
+library/jpg/free_settlement/star/star_50
+  rotate: false
+  xy: 3644, 149
+  size: 192, 194
+  orig: 200, 200
+  offset: 8, 6
+  index: -1
+library/jpg/free_settlement/star/star_52
+  rotate: false
+  xy: 2636, 5
+  size: 192, 195
+  orig: 200, 200
+  offset: 8, 5
+  index: -1
+library/jpg/free_settlement/star/star_54
+  rotate: false
+  xy: 2833, 5
+  size: 192, 195
+  orig: 200, 200
+  offset: 8, 5
+  index: -1
+library/jpg/free_settlement/star/star_56
+  rotate: true
+  xy: 3868, 1913
+  size: 190, 195
+  orig: 200, 200
+  offset: 9, 5
+  index: -1
+library/jpg/free_settlement/star/star_58
+  rotate: true
+  xy: 3756, 547
+  size: 190, 196
+  orig: 200, 200
+  offset: 9, 4
+  index: -1
+library/jpg/win_board/light
+  rotate: true
+  xy: 1568, 501
+  size: 407, 144
+  orig: 407, 144
+  offset: 0, 0
+  index: -1
+library/jpg/win_board/light/light_01
+  rotate: true
+  xy: 828, 894
+  size: 98, 45
+  orig: 350, 140
+  offset: 127, 49
+  index: -1
+library/jpg/win_board/light/light_02
+  rotate: true
+  xy: 3965, 2150
+  size: 171, 79
+  orig: 350, 140
+  offset: 90, 32
+  index: -1
+library/jpg/win_board/light/light_03
+  rotate: true
+  xy: 3050, 1821
+  size: 346, 127
+  orig: 350, 140
+  offset: 0, 7
+  index: -1
+library/jpg/win_board/light/light_04
+  rotate: false
+  xy: 2695, 1891
+  size: 350, 135
+  orig: 350, 140
+  offset: 0, 2
+  index: -1
+library/jpg/win_board/light/light_05
+  rotate: false
+  xy: 2767, 2271
+  size: 350, 136
+  orig: 350, 140
+  offset: 0, 2
+  index: -1
+library/jpg/win_board/light/light_06
+  rotate: false
+  xy: 2695, 2031
+  size: 350, 136
+  orig: 350, 140
+  offset: 0, 2
+  index: -1
+library/jpg/win_board/light/light_07
+  rotate: false
+  xy: 2694, 1750
+  size: 350, 136
+  orig: 350, 140
+  offset: 0, 2
+  index: -1
+library/jpg/win_board/light/light_08
+  rotate: false
+  xy: 2290, 1397
+  size: 350, 136
+  orig: 350, 140
+  offset: 0, 2
+  index: -1
+library/jpg/win_board/light/light_09
+  rotate: true
+  xy: 3066, 1500
+  size: 316, 122
+  orig: 350, 140
+  offset: 33, 7
+  index: -1
+library/jpg/win_board/light/light_10
+  rotate: false
+  xy: 828, 121
+  size: 315, 135
+  orig: 350, 140
+  offset: 33, 3
+  index: -1
+library/jpg/win_board/light/light_11
+  rotate: true
+  xy: 1982, 219
+  size: 300, 136
+  orig: 350, 140
+  offset: 33, 2
+  index: -1
+library/jpg/win_board/light/light_13
+  rotate: true
+  xy: 1982, 1089
+  size: 313, 139
+  orig: 350, 140
+  offset: 24, 0
+  index: -1
+library/jpg/win_board/light/light_15
+  rotate: false
+  xy: 1148, 122
+  size: 316, 140
+  orig: 350, 140
+  offset: 24, 0
+  index: -1
+library/jpg/win_board/msg_light_00
+  rotate: false
+  xy: 3427, 2875
+  size: 536, 69
+  orig: 536, 69
+  offset: 0, 0
+  index: -1
+library/jpg/win_board/win1_light/win1_light_01
+  rotate: false
+  xy: 3902, 2730
+  size: 153, 140
+  orig: 540, 140
+  offset: 196, 0
+  index: -1
+library/jpg/win_board/win1_light/win1_light_02
+  rotate: false
+  xy: 3885, 1381
+  size: 175, 140
+  orig: 540, 140
+  offset: 185, 0
+  index: -1
+library/jpg/win_board/win1_light/win1_light_03
+  rotate: true
+  xy: 3414, 476
+  size: 205, 140
+  orig: 540, 140
+  offset: 170, 0
+  index: -1
+library/jpg/win_board/win1_light/win1_light_04
+  rotate: true
+  xy: 2123, 214
+  size: 305, 140
+  orig: 540, 140
+  offset: 121, 0
+  index: -1
+library/jpg/win_board/win1_light/win1_light_05
+  rotate: false
+  xy: 2572, 1605
+  size: 340, 140
+  orig: 540, 140
+  offset: 105, 0
+  index: -1
+library/jpg/win_board/win1_light/win1_light_06
+  rotate: true
+  xy: 1717, 524
+  size: 385, 140
+  orig: 540, 140
+  offset: 86, 0
+  index: -1
+library/jpg/win_board/win1_light/win1_light_07
+  rotate: true
+  xy: 1278, 448
+  size: 460, 140
+  orig: 540, 140
+  offset: 43, 0
+  index: -1
+library/jpg/win_board/win1_light/win1_light_08
+  rotate: false
+  xy: 3275, 2440
+  size: 487, 140
+  orig: 540, 140
+  offset: 29, 0
+  index: -1
+library/jpg/win_board/win1_light/win1_light_09
+  rotate: false
+  xy: 3381, 2730
+  size: 516, 140
+  orig: 540, 140
+  offset: 16, 0
+  index: -1
+library/jpg/win_board/win1_light/win1_light_10
+  rotate: true
+  xy: 1372, 1227
+  size: 540, 140
+  orig: 540, 140
+  offset: 0, 0
+  index: -1
+library/jpg/win_board/win1_light/win1_light_11
+  rotate: true
+  xy: 1517, 1227
+  size: 540, 140
+  orig: 540, 140
+  offset: 0, 0
+  index: -1
+library/jpg/win_board/win1_light/win1_light_12
+  rotate: true
+  xy: 1662, 1227
+  size: 540, 137
+  orig: 540, 140
+  offset: 0, 3
+  index: -1
+library/jpg/win_board/win1_light/win1_light_13
+  rotate: false
+  xy: 3275, 2351
+  size: 490, 84
+  orig: 540, 140
+  offset: 25, 28
+  index: -1
+library/jpg/win_board/win1_light2_12
+  rotate: false
+  xy: 5, 19
+  size: 540, 91
+  orig: 540, 91
+  offset: 0, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_01
+  rotate: false
+  xy: 3841, 5
+  size: 153, 140
+  orig: 580, 140
+  offset: 216, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_02
+  rotate: true
+  xy: 3417, 987
+  size: 175, 140
+  orig: 580, 140
+  offset: 205, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_03
+  rotate: true
+  xy: 3478, 266
+  size: 205, 140
+  orig: 580, 140
+  offset: 190, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_04
+  rotate: true
+  xy: 2268, 214
+  size: 305, 140
+  orig: 580, 140
+  offset: 141, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_05
+  rotate: true
+  xy: 2921, 1405
+  size: 340, 140
+  orig: 580, 140
+  offset: 125, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_06
+  rotate: true
+  xy: 1862, 524
+  size: 385, 140
+  orig: 580, 140
+  offset: 106, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_07
+  rotate: true
+  xy: 1423, 448
+  size: 460, 140
+  orig: 580, 140
+  offset: 63, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_08
+  rotate: true
+  xy: 1804, 1286
+  size: 487, 140
+  orig: 580, 140
+  offset: 49, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_09
+  rotate: false
+  xy: 3275, 2585
+  size: 516, 140
+  orig: 580, 140
+  offset: 36, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_10
+  rotate: false
+  xy: 2796, 2777
+  size: 580, 140
+  orig: 580, 140
+  offset: 0, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_11
+  rotate: false
+  xy: 5, 115
+  size: 580, 140
+  orig: 580, 140
+  offset: 0, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_12
+  rotate: true
+  xy: 1133, 305
+  size: 580, 140
+  orig: 580, 140
+  offset: 0, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_13
+  rotate: true
+  xy: 1233, 1568
+  size: 575, 134
+  orig: 580, 140
+  offset: 5, 0
+  index: -1
+library/jpg/win_board/win2_light/win2_light_14
+  rotate: true
+  xy: 1233, 988
+  size: 575, 134
+  orig: 580, 140
+  offset: 5, 1
+  index: -1
+library/jpg/win_board/win2_light/win2_light_15
+  rotate: false
+  xy: 2201, 2370
+  size: 540, 84
+  orig: 580, 140
+  offset: 20, 28
+  index: -1
+library/jpg/win_board/win2_light2_00
+  rotate: false
+  xy: 1290, 2150
+  size: 629, 97
+  orig: 629, 97
+  offset: 0, 0
+  index: -1

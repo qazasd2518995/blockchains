@@ -210,6 +210,7 @@ const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [
 
 export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
   'storm-of-seth-2': coverOnlyGame('storm-of-seth-2'),
+  'power-of-thor-2': coverOnlyGame('power-of-thor-2'),
   'fruit-mary': coverOnlyGame('fruit-mary'),
   'h5-slot-collection': coverOnlyGame('h5-slot-collection'),
   ...Object.fromEntries(H5_GAMES.map((game) => [game.gameId, coverOnlyGame(game.gameId)])),

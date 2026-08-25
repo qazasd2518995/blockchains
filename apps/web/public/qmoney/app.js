@@ -537,7 +537,7 @@ function gameMatches(game) {
   let inCategory = false;
   if (state.category === "全部") inCategory = true;
   else if (state.category === "最愛") inCategory = state.favorites.has(game.id);
-  else if (state.category === "電子") inCategory = game.category === "賽特" || game.category === "H5拉霸" || game.category === "MegaSlot";
+  else if (state.category === "電子") inCategory = game.category === "賽特" || game.category === "雷神" || game.category === "H5拉霸" || game.category === "MegaSlot";
   else if (state.category === "捕魚") inCategory = game.category === "捕魚";
   else if (state.category === "加密遊戲") inCategory = game.category === "MegaSlot";
   else if (state.category === "棋牌") inCategory = game.category === "棋牌";

@@ -42,6 +42,7 @@ export const GameId = {
   PLINKO: 'plinko',
   HOTLINE: 'hotline',
   STORM_OF_SETH_2: 'storm-of-seth-2',
+  POWER_OF_THOR_2: 'power-of-thor-2',
   FRUIT_MARY: 'fruit-mary',
   H5_SLOT_COLLECTION: 'h5-slot-collection',
   ...H5_INDIVIDUAL_GAME_IDS,
@@ -166,6 +167,7 @@ export function isSeth2TestUsername(username?: string | null): boolean {
 export function isGameVisibleForUsername(gameId: string, username?: string | null): boolean {
   const importedTestGame =
     gameId === GameId.STORM_OF_SETH_2 ||
+    gameId === GameId.POWER_OF_THOR_2 ||
     gameId === GameId.FRUIT_MARY ||
     gameId === GameId.H5_SLOT_COLLECTION ||
     isH5IndividualGameId(gameId);
@@ -175,6 +177,7 @@ export function isGameVisibleForUsername(gameId: string, username?: string | nul
 export const SLOT_GAME_IDS = [
   GameId.HOTLINE,
   GameId.STORM_OF_SETH_2,
+  GameId.POWER_OF_THOR_2,
   GameId.FRUIT_MARY,
   ...H5_GAME_IDS,
   GameId.FRUIT_SLOT,
@@ -606,6 +609,18 @@ export const GAMES_REGISTRY: Record<GameIdType, GameMetadata> = {
     description: 'A 6x5 cascading cluster slot with split multipliers and awakening free games.',
     descriptionZh: '6x5 消除式同符號派彩，含分裂倍率、隱藏彩金與覺醒免費遊戲',
     rtp: 0.9689,
+    icon: 'slots',
+    enabled: true,
+  },
+  [GameId.POWER_OF_THOR_2]: {
+    id: GameId.POWER_OF_THOR_2,
+    name: 'Power of Thor II: Thunder Storm',
+    nameZh: '雷神之錘 2：雷霆風暴',
+    category: 'single-step',
+    description:
+      'A 6x5 anywhere-pays cascading slot with collectible multipliers and two free-game buys.',
+    descriptionZh: '6x5 任意位置消除派彩，含倍數球、一般免費遊戲與 Super 免費遊戲',
+    rtp: 0.96,
     icon: 'slots',
     enabled: true,
   },

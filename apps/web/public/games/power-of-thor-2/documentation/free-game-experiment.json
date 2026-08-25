@@ -1,0 +1,86 @@
+{
+  "capturedAt": "2026-08-25T22:05:00+08:00",
+  "timezone": "Asia/Taipei",
+  "game": {
+    "name": "Power of Thor II: Thunder Storm",
+    "lobbyName": "雷神之錘2",
+    "provider": "RSG_RP",
+    "code": 129,
+    "resourceDirectory": "PowerOfThor2",
+    "clientVersion": "4.2.11",
+    "gameSha": "66c6098",
+    "commonSha": "f6217d3"
+  },
+  "baseBet": 1,
+  "boundedSpend": {
+    "regularBuy": 100,
+    "superBuy": 500,
+    "luckyStrikeBuy": 4000,
+    "total": 4600,
+    "luckyStrikePurchased": true,
+    "extraManualSpins": 0,
+    "postExperimentProtocolValidationSpins": 2,
+    "postExperimentProtocolValidationWager": 2
+  },
+  "experiments": [
+    {
+      "mode": "regular_free_buy",
+      "balanceBefore": 11335.2,
+      "cost": 100,
+      "balanceAfterDebit": 11235.2,
+      "initialFreeSpins": 15,
+      "completedFreeSpins": 15,
+      "highestObservedTotalMultiplier": 40,
+      "payout": 29,
+      "balanceAfterSettlement": 11264.2,
+      "netAfterCost": -71
+    },
+    {
+      "mode": "super_free_buy",
+      "balanceBefore": 11264.2,
+      "cost": 500,
+      "balanceAfterDebit": 10764.2,
+      "initialFreeSpins": 15,
+      "completedFreeSpins": 15,
+      "highestObservedTotalMultiplier": 1250,
+      "payout": 2066.25,
+      "balanceAfterSettlement": 12830.45,
+      "netAfterCost": 1566.25
+    },
+    {
+      "mode": "lucky_strike_buy",
+      "balanceBefore": 12829.45,
+      "cost": 4000,
+      "balanceAfterDebit": 8829.45,
+      "spins": 1,
+      "multiplierBallValue": 1000,
+      "purchaseScreenMaxWinChance": "1/6.44",
+      "payout": 0,
+      "balanceAfterSettlement": 8829.45,
+      "netAfterCost": -4000
+    }
+  ],
+  "observed": [
+    "buy debit",
+    "four bonus trigger symbols",
+    "15 free spins",
+    "multiplier accumulation",
+    "lightning multiplier upgrade",
+    "automatic free-spin progression",
+    "final settlement",
+    "balance update",
+    "Lucky Strike one-spin progression",
+    "Lucky Strike 1000x-only multiplier balls",
+    "Lucky Strike zero-win outcome"
+  ],
+  "rulesConfirmedButNotTriggeredInSamples": [
+    "five-spin retrigger",
+    "100-spin maximum",
+    "super bonus count awards",
+    "25000x maximum win"
+  ],
+  "limitations": [
+    "No provider RNG or payout-server source code was available.",
+    "Observed transactions validate these three runs only and do not establish the long-term 1-in-6.44 probability."
+  ]
+}
