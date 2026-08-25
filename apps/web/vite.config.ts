@@ -2,7 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
-const localApiTarget = process.env.VITE_DEV_API_TARGET ?? 'http://localhost:3001';
+// Keep local development aligned with apps/server/.env and the project README.
+// Port 3001 is also commonly used by unrelated local tools, which can make an
+// original game iframe appear broken even though its assets loaded correctly.
+const localApiTarget = process.env.VITE_DEV_API_TARGET ?? 'http://localhost:3000';
 
 export default defineConfig({
   plugins: [react()],

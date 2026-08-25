@@ -14,24 +14,24 @@
     "totalBet": 2,
     "payout": 0.4,
     "netChange": -1.6,
-    "note": "Authentication cookies, one-time launch tokens, session APIs, and dynamic account responses are excluded."
+    "note": "Authentication cookies, one-time launch tokens, session APIs, and dynamic account responses are excluded. The archive includes every original Cocos asset requested by a clean authenticated base-game launch."
   },
   "summary": {
-    "fileCount": 472,
-    "totalBytes": 50268568,
+    "fileCount": 548,
+    "totalBytes": 52291409,
     "mimeCounts": {
       "image/svg+xml": 2,
       "application/javascript": 24,
       "image/webp": 23,
-      "image/png": 42,
+      "image/png": 44,
       "text/css": 3,
-      "application/json": 239,
+      "application/json": 310,
       "application/wasm": 1,
+      "image/astc": 21,
       "application/octet-stream": 14,
       "audio/mpeg": 94,
       "font/ttf": 2,
       "text/plain": 8,
-      "image/astc": 18,
       "font/woff2": 1,
       "text/html": 1
     }
@@ -181,8 +181,8 @@
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/cocos-js/assets/spine-CC34fKUR.wasm",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/cocos-js/assets/spine-CC34fKUR.wasm",
       "mimeType": "application/wasm",
-      "bytes": 230518,
-      "sha256": "dc2d29c2f6ea88f6650ec69169671d0d9086edc07ac0339b94f202cd2513e3f9"
+      "bytes": 205175,
+      "sha256": "b3d705bd391da35dcf0980c1d8c526f609ad64ac12652dd8c0bf3b20a626f2f2"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/cocos-js/cc.js",
@@ -220,6 +220,118 @@
       "sha256": "659bc03fb8ae77adcae783852f9640616d2f6daa649977a1f16a356a8a7092e2"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/01/018b5fe21.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/01/018b5fe21.json",
+      "mimeType": "application/json",
+      "bytes": 5449,
+      "sha256": "396d3916d1e060143596e6499d07e653db2f3c0be0cd3872fdbd6b1e241f66ee"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/03/03223cb19.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/03/03223cb19.json",
+      "mimeType": "application/json",
+      "bytes": 5442,
+      "sha256": "7662bb4febad14d42d4063713e5186e475063b35066a87236bffe70b98031f7a"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/03/03591af25.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/03/03591af25.json",
+      "mimeType": "application/json",
+      "bytes": 5446,
+      "sha256": "cbbad000972b06e24a99b4517d0593e71c241bc39673333297a1ae1a004dffda"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/06/063efcd7f.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/06/063efcd7f.json",
+      "mimeType": "application/json",
+      "bytes": 5452,
+      "sha256": "ac703be90d45918eb5e07bf4f9bbeab7832c6201b18f2a5b195f871f26be4959"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/06/0645dde9c.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/06/0645dde9c.json",
+      "mimeType": "application/json",
+      "bytes": 5439,
+      "sha256": "41468dec61c151b11eeed6e8e89cb485ae850ac032d8906d568f83ffa3393755"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/07/072f0cd79.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/07/072f0cd79.json",
+      "mimeType": "application/json",
+      "bytes": 5448,
+      "sha256": "b93e29f391e5bf26c4d47be981365e6d1016f3d3f4e3afa5c1c6ba133e971ccd"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/07/074c88365.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/07/074c88365.json",
+      "mimeType": "application/json",
+      "bytes": 592,
+      "sha256": "3ea215b15e44f1060b4fa1b4c1b891c1749bfb4e4128d5913d8d118c2eebaec7"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/07/075369273.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/07/075369273.json",
+      "mimeType": "application/json",
+      "bytes": 5447,
+      "sha256": "e52cfa2441dbac66a2ba7189bc79802af4431960ee1fa46d9173a3ac77f3be85"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/0c/0c068ea5f.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/0c/0c068ea5f.json",
+      "mimeType": "application/json",
+      "bytes": 5443,
+      "sha256": "07da0f2e6ac241c61ba0fd405d5cc9b4cf02ad66888d9606dd7527681499b526"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/0c/0c42647f9.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/0c/0c42647f9.json",
+      "mimeType": "application/json",
+      "bytes": 5444,
+      "sha256": "ac2e4a8ec51e185ba4b684caa084453d9c00bda8d86125136a3fe1221ba1d704"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/0d/0d8c527d0.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/0d/0d8c527d0.json",
+      "mimeType": "application/json",
+      "bytes": 5439,
+      "sha256": "0605e61b58c781d894b78df7614f570daa9e618e1cd1d73e1c08bafbbac7a5a1"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/0e/0e82a1d3b.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/0e/0e82a1d3b.json",
+      "mimeType": "application/json",
+      "bytes": 5439,
+      "sha256": "0fb9b75a8588701dfbffd0a332e53759b7056a8362eea725f400453e94301c65"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/0e/0ebb3fad3.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/0e/0ebb3fad3.json",
+      "mimeType": "application/json",
+      "bytes": 5447,
+      "sha256": "947a1337aaac8b717be3474d83ba354f3258887cc83e8a903ac02b955a525306"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/0e/0ee2bb016.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/0e/0ee2bb016.json",
+      "mimeType": "application/json",
+      "bytes": 5443,
+      "sha256": "b1537accb5aa8604582eb5c5e53e1e48b7e179167cb40af46c878d50295e92bf"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/2c/2ce75dbc-1708-426f-9885-d18357f5498d.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/2c/2ce75dbc-1708-426f-9885-d18357f5498d.json",
+      "mimeType": "application/json",
+      "bytes": 81,
+      "sha256": "f1fb983d2530d19d94750f2ae2107727838b44591de6db3180cef3855a8f3b63"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/2c/2ce75dbc-1708-426f-9885-d18357f5498d@f9941.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/2c/2ce75dbc-1708-426f-9885-d18357f5498d@f9941.json",
+      "mimeType": "application/json",
+      "bytes": 672,
+      "sha256": "7fcac04005135c5614aa7ef89bfbb4bef5d73b8209a0aa7f5d19c7154530e292"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/ae/ae909033-f2c2-499a-8f9f-3aee8f7b3c1c@f9941.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/import/ae/ae909033-f2c2-499a-8f9f-3aee8f7b3c1c@f9941.json",
       "mimeType": "application/json",
@@ -232,6 +344,13 @@
       "mimeType": "application/javascript",
       "bytes": 602,
       "sha256": "c30b7a72cb680521ac53d569ee9f59b175af37807bca95cdb75da3e0654e99d5"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/native/2c/2ce75dbc-1708-426f-9885-d18357f5498d.astc",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/freegame/native/2c/2ce75dbc-1708-426f-9885-d18357f5498d.astc",
+      "mimeType": "image/astc",
+      "bytes": 450576,
+      "sha256": "2088eec81de940c13d5e157baec3a8256f7c084fc72a0d2d5c5b80e2a3901c65"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/internal/config.json",
@@ -311,6 +430,27 @@
       "sha256": "c53380a44db87e8a2a4f64a4c9d03d7c4d4a6e93e167045592901cac10bca69f"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/04/04b50941b.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/04/04b50941b.json",
+      "mimeType": "application/json",
+      "bytes": 4141,
+      "sha256": "42b5081b40beeb16a211f35652b0186f220e8e86572c3d87d6d90f8302945b04"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/05/05223477f.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/05/05223477f.json",
+      "mimeType": "application/json",
+      "bytes": 3059,
+      "sha256": "b4a9bc263061584087744ceba7836c53d5f9c32ddbc08d282e9a017bb35c4ad2"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/05/05c96c3b3.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/05/05c96c3b3.json",
+      "mimeType": "application/json",
+      "bytes": 4100,
+      "sha256": "c6cdab177f1bead48c9feb9c041568a5955120d4bb72ddf026df78e2a37bdd88"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/05/05de2dd35.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/05/05de2dd35.json",
       "mimeType": "application/json",
@@ -332,11 +472,39 @@
       "sha256": "81dfe03b318c82e89ba512b8aa7e4e334d35d9183c9143eb8d23891f7d025041"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/06/0699aaa4c.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/06/0699aaa4c.json",
+      "mimeType": "application/json",
+      "bytes": 659,
+      "sha256": "ee76f50b36db72c43bf87fc7244330f7f51d9c6848f4592941b01ddfdab50ee6"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/06/06b770e80.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/06/06b770e80.json",
       "mimeType": "application/json",
       "bytes": 7024,
       "sha256": "228a9f6908578deeb6f536781f17f8b366212e98cc4e9450bbaf42cc55b63227"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/06/06eef6de2.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/06/06eef6de2.json",
+      "mimeType": "application/json",
+      "bytes": 4137,
+      "sha256": "52fab8ec04cb4ffd975ffa05610fb3ee50aaa67675e3df6a9c9335d2cff1415e"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/06/06fd4b2fd.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/06/06fd4b2fd.json",
+      "mimeType": "application/json",
+      "bytes": 4185,
+      "sha256": "37b1473ac7f4db9362ec54fe129422b67af57be87ce2232e528144b8a0efd93e"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/07/071527e79.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/07/071527e79.json",
+      "mimeType": "application/json",
+      "bytes": 4285,
+      "sha256": "000d52bdf17f26a68b7f4212dfdce9767a1c558ee2053a93c640f208871639e1"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/08/08427daf7.json",
@@ -402,6 +570,13 @@
       "sha256": "426fcc9f8f8aa4405d85dd00bd419467df47bc6ed920e2b74133261605d7a40e"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/0c/0cbd23ea2.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/0c/0cbd23ea2.json",
+      "mimeType": "application/json",
+      "bytes": 76463,
+      "sha256": "acb298fb82ff65ba0bae01f9bbf422aea07dc2fe3dbe215d3a7455011269ed67"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/0c/0cf4f3462.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/0c/0cf4f3462.json",
       "mimeType": "application/json",
@@ -428,6 +603,13 @@
       "mimeType": "application/json",
       "bytes": 50191,
       "sha256": "829d149c479ccf20c58fbd620bb9731d1beaab10bb872d6d54c935a9c9bf795a"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/0e/0ead997ef.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/0e/0ead997ef.json",
+      "mimeType": "application/json",
+      "bytes": 8406,
+      "sha256": "d5268d39ee5a20791da914e53ae69891abad8cf03b2d5c90e73274a0959b46eb"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/11/11bdc4b0-64a8-4eb7-a2a7-9fb9e233e977.json",
@@ -491,6 +673,27 @@
       "mimeType": "application/octet-stream",
       "bytes": 1416,
       "sha256": "a364518542782cdb15eb352db7a06f2bb9ba618baf2db9bc8460a7044fe473fc"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/2b/2be15924-c72f-4636-b45d-2cd286eb3e91.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/2b/2be15924-c72f-4636-b45d-2cd286eb3e91.json",
+      "mimeType": "application/json",
+      "bytes": 72,
+      "sha256": "60928632edcd22b5694a8c22de01de0d2cbb6f374103242a99a4394cc767f44d"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/2b/2be15924-c72f-4636-b45d-2cd286eb3e91@f9941.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/2b/2be15924-c72f-4636-b45d-2cd286eb3e91@f9941.json",
+      "mimeType": "application/json",
+      "bytes": 640,
+      "sha256": "2e8a683500bd87936d99ce56a5576eb586f85919f052255afa7c54a3d88ebc1c"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/2d/2de45942-232b-4ef5-9912-e05c3e678ea5.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/2d/2de45942-232b-4ef5-9912-e05c3e678ea5.json",
+      "mimeType": "application/json",
+      "bytes": 4911,
+      "sha256": "77f35453cbdf4aaeae0e779ebe33da274b5bb928b9fde16596c5062071104e87"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/2f/2f5cb583-c3ae-48d9-81e7-a9e2dd8f847f.json",
@@ -689,11 +892,32 @@
       "sha256": "60928632edcd22b5694a8c22de01de0d2cbb6f374103242a99a4394cc767f44d"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/db/db2fd6dd-10c1-48c2-9500-d3d7d26c60a2.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/db/db2fd6dd-10c1-48c2-9500-d3d7d26c60a2.json",
+      "mimeType": "application/json",
+      "bytes": 1466,
+      "sha256": "48a4431e5424d41d4dbdb0db5aa67ebc941203529d021cfbb3a53f438750cd76"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/dd/ddb1c15f-127e-4352-9b53-955070b953c2.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/dd/ddb1c15f-127e-4352-9b53-955070b953c2.json",
       "mimeType": "application/json",
       "bytes": 72,
       "sha256": "60928632edcd22b5694a8c22de01de0d2cbb6f374103242a99a4394cc767f44d"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/e0/e0627368-63e8-4f6b-8362-2a6027cd2b35.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/e0/e0627368-63e8-4f6b-8362-2a6027cd2b35.json",
+      "mimeType": "application/json",
+      "bytes": 72,
+      "sha256": "60928632edcd22b5694a8c22de01de0d2cbb6f374103242a99a4394cc767f44d"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/e0/e0627368-63e8-4f6b-8362-2a6027cd2b35@f9941.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/e0/e0627368-63e8-4f6b-8362-2a6027cd2b35@f9941.json",
+      "mimeType": "application/json",
+      "bytes": 722,
+      "sha256": "64a6f0ba636e415ff9ba6a1ad7041007b2ad753b3a31aebd42bab0d886c2bce7"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/import/ea/ea809a12-4d8d-4a2b-aea3-b45e820517a2.json",
@@ -792,6 +1016,13 @@
       "mimeType": "image/png",
       "bytes": 113627,
       "sha256": "1ea42c49204d594dfbbdca3ea2297025a926ef7111343cd4afa3cb9aa5f4544a"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/native/2b/2be15924-c72f-4636-b45d-2cd286eb3e91.png",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/native/2b/2be15924-c72f-4636-b45d-2cd286eb3e91.png",
+      "mimeType": "image/png",
+      "bytes": 7068,
+      "sha256": "9b40c77859501f390efd20cd50b1ee6dd15cd2c32a894cd836c831b1a141004e"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/native/36/36b153f3-29b0-496c-a852-0d5c1853cb2a.png",
@@ -906,6 +1137,13 @@
       "sha256": "cf70fab1fda1aeb1a8d3987236bb83eaa65a8d3f148eea5a174e00f999bfdd67"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/native/e0/e0627368-63e8-4f6b-8362-2a6027cd2b35.png",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/native/e0/e0627368-63e8-4f6b-8362-2a6027cd2b35.png",
+      "mimeType": "image/png",
+      "bytes": 84256,
+      "sha256": "f132c1c4f96037014300c67361733e7f046057db8096c55350044b271da2d057"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/native/f1/f12a23c4-b924-4322-a260-3d982428f1e8.png",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/resources/native/f1/f12a23c4-b924-4322-a260-3d982428f1e8.png",
       "mimeType": "image/png",
@@ -934,11 +1172,39 @@
       "sha256": "2ec920102ca2d3533a5d4123e8205d2a563e185e150fa606de88b0ccc4e13c32"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/01/010098c88.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/01/010098c88.json",
+      "mimeType": "application/json",
+      "bytes": 2530,
+      "sha256": "99495ff5f03652ad52c0768b4fc9de7b8ae24ad9e334b756fec7d1fe6a3a56d4"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/01/013c304fd.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/01/013c304fd.json",
+      "mimeType": "application/json",
+      "bytes": 11587,
+      "sha256": "38b6e420dc040ccdb882b62479d6fe1bb25533c028e0aaea8bfa88244e173f41"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/01/01ad5833b.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/01/01ad5833b.json",
+      "mimeType": "application/json",
+      "bytes": 11580,
+      "sha256": "aac1ab62bcc47ecb4e3d68cf8017e9321a124e9b1e86f55c3a4c2e67c6c6f083"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/01/01d9374d-db7c-42e3-9a11-bdf6e96ad80e.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/01/01d9374d-db7c-42e3-9a11-bdf6e96ad80e.json",
       "mimeType": "application/json",
       "bytes": 128,
       "sha256": "37b08bfdde19d9c6b8986b56f3bed87f078da33d0b1bed4d399410ffc3ae628f"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/02/0227e9266.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/02/0227e9266.json",
+      "mimeType": "application/json",
+      "bytes": 7729,
+      "sha256": "04264b8455bca77a47b2ac20fa2627b0cbff55fa7cf7ba922e9f18771211525b"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/02/026fdb84e.json",
@@ -962,6 +1228,20 @@
       "sha256": "e98c7dff2a55f534cbed9559d3962cfa82cc24e624a3dd86443d79d831a46b9a"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/02/02c6cf902.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/02/02c6cf902.json",
+      "mimeType": "application/json",
+      "bytes": 11572,
+      "sha256": "06e3075f6be5cd1f65122ab8fcd3c945280e6cd7d43d9fdb1d09bbb42f4f18ad"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/02/02f404caf.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/02/02f404caf.json",
+      "mimeType": "application/json",
+      "bytes": 11595,
+      "sha256": "66757c370c0e263e094a0d11daa9c79286d5848b6b59c018b038d0a0c379705c"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/03/03832719-0e39-47a9-bfb1-f23c76ad441f.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/03/03832719-0e39-47a9-bfb1-f23c76ad441f.json",
       "mimeType": "application/json",
@@ -976,11 +1256,39 @@
       "sha256": "e5292c59e9c011d9ebf12b6e482217c82ee9c8b7e5fefceb6b29d1a13d747880"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/04/044d09c27.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/04/044d09c27.json",
+      "mimeType": "application/json",
+      "bytes": 11583,
+      "sha256": "786006218330f3bede8ccee5b0cd46db4346536d99ba65d681060391461b1a5b"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/04/0481ecbbe.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/04/0481ecbbe.json",
+      "mimeType": "application/json",
+      "bytes": 11593,
+      "sha256": "46c0ce2e4460ea0ca30a800f277593c63087404e5cc4ff68199e6ead2ad7b0a1"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/04/04b98f051.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/04/04b98f051.json",
       "mimeType": "application/json",
       "bytes": 1574,
       "sha256": "2023f6349d9f6d1735f18ca83ef6ba5b8c9b4b283246c586d45449f3c4d298bc"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/04/04e5deb35.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/04/04e5deb35.json",
+      "mimeType": "application/json",
+      "bytes": 2530,
+      "sha256": "bbbaef857e1d9df4402772a51e72efefedf5ef8a6acc252a11b214516dfa285a"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/04/04e65ce4f.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/04/04e65ce4f.json",
+      "mimeType": "application/json",
+      "bytes": 7729,
+      "sha256": "b0949bb6e21bf7d6f50df3644e6d8b244d71ed10b8746ec85cb20505b91a88f1"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/04/04e6ee891.json",
@@ -990,11 +1298,74 @@
       "sha256": "d346b0e4d31e64e6443faebfb5f4ce0043a71fb92c6a8aa8eed2fe3535f67d8a"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/05/0512a6cf0.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/05/0512a6cf0.json",
+      "mimeType": "application/json",
+      "bytes": 11587,
+      "sha256": "9263120407add3521ecd805c06cf175163dec521bb0bbdefc5b44b341435dc5c"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/05/053bd47e-c88b-49f6-9c3e-60582b7b2fcf.bin",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/05/053bd47e-c88b-49f6-9c3e-60582b7b2fcf.bin",
       "mimeType": "application/octet-stream",
       "bytes": 1692,
       "sha256": "a7293c3897fba44cf67eca4d9211f8aa813c08b216f4ba7c3fb87f8d462db6ec"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/05/054628e80.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/05/054628e80.json",
+      "mimeType": "application/json",
+      "bytes": 2531,
+      "sha256": "a38294060c9807e0535d62c47fd917d109fd6a5adf73995d0c48a92c741055c6"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/05/0548ec934.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/05/0548ec934.json",
+      "mimeType": "application/json",
+      "bytes": 2530,
+      "sha256": "abd1676224ee71a1d7d92b46c14c287654b1f189d9003d85f0c172583954226b"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/05/058bd14b7.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/05/058bd14b7.json",
+      "mimeType": "application/json",
+      "bytes": 7729,
+      "sha256": "a01a78362b39bdbcfa5f1d02090bda9b086783caaf3db28903173232dca15505"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/05/05df28c85.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/05/05df28c85.json",
+      "mimeType": "application/json",
+      "bytes": 11593,
+      "sha256": "076d27f8aaff626ac71356741b88f3d743b735323f8d0dc568a8f030e57feecb"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/06/062d414d3.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/06/062d414d3.json",
+      "mimeType": "application/json",
+      "bytes": 7729,
+      "sha256": "5675ab0680efaf10def1e21914df7a4b9e426ea79be10f9a451e05cbb2c146a6"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/06/064111256.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/06/064111256.json",
+      "mimeType": "application/json",
+      "bytes": 7729,
+      "sha256": "af34b8e09d9ce5c8a5031f95fd844cb681e8cbcb62a039114fc7a5d967d1158f"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/06/0676fd721.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/06/0676fd721.json",
+      "mimeType": "application/json",
+      "bytes": 7729,
+      "sha256": "005d4e41778a59451f2fe81f24d295669a01cda88add03b80d99d763859ac54c"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/06/068683341.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/06/068683341.json",
+      "mimeType": "application/json",
+      "bytes": 2529,
+      "sha256": "efd6ead1118a65e1736be5c276dd8c386535ab462012528a5866351f39362bdf"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/06/06a1dc74-027f-46c4-98f7-0876d78a6ae1.bin",
@@ -1004,11 +1375,46 @@
       "sha256": "f08de9db5526d93c89cc4042a452ed99d2b1466ddd2008e9056b72dcc74ebaee"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/071105e6b.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/071105e6b.json",
+      "mimeType": "application/json",
+      "bytes": 7729,
+      "sha256": "90ed84bc062c68cedf25fe26fc641f785bb681544566f6548f4e3fbfea282072"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/076013540.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/076013540.json",
+      "mimeType": "application/json",
+      "bytes": 7729,
+      "sha256": "e45a4661d2f6162be83a1bdd7c4b35b8740bb30b648a02c71633eeb7231047db"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/077552281.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/077552281.json",
       "mimeType": "application/json",
       "bytes": 2805904,
       "sha256": "2dcd3e8ce5ead8e05b0d8e0e09dc30e6e8833fd70041f6e4f9aaf2fe8f012033"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/0775f4b42.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/0775f4b42.json",
+      "mimeType": "application/json",
+      "bytes": 2529,
+      "sha256": "5b46bf1295c72a5b6fb0a969b6e21fa750d8c7a681aedd0993f7bd742af81913"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/079d7a241.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/079d7a241.json",
+      "mimeType": "application/json",
+      "bytes": 2529,
+      "sha256": "7195b3ff1f1ded239bd9cb85bc1bba652aac2ce2d8231a845147bec8355e5c1a"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/07d5abd60.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/07d5abd60.json",
+      "mimeType": "application/json",
+      "bytes": 7729,
+      "sha256": "e69ffaefff877e46447fcf7f475a9e88dbaa2262d443f38b1a350cdedb8cb81e"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/08/08a1bc7d-6fe0-44fb-8744-4547e9b47338.json",
@@ -1025,11 +1431,39 @@
       "sha256": "fdd30c2e7a2ddb520c83f16f9ad76207baf2a476136c6ff68f64ac9122a099b9"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/09/09bb9fb1b.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/09/09bb9fb1b.json",
+      "mimeType": "application/json",
+      "bytes": 2529,
+      "sha256": "bfdd5c59966076352fb5ffeb468575a63ce1f19fe5401fffcd31e8bad81df2ed"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/09/09bea8e38.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/09/09bea8e38.json",
+      "mimeType": "application/json",
+      "bytes": 2533,
+      "sha256": "5b65e86688ad20fccc39f2e39103f570cdd0b7d30b33d6ea1affce3d8e0030aa"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/09/09e460be3.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/09/09e460be3.json",
+      "mimeType": "application/json",
+      "bytes": 2529,
+      "sha256": "67a752fe13e1438f40ad569554c9a1362aafafeb47ed9d648849a1cfae43d9f0"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0a/0a1c5577c.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0a/0a1c5577c.json",
       "mimeType": "application/json",
       "bytes": 16887,
       "sha256": "3aa01bff5c5f155cc3a5991fc2d71c165453b4e187b7fedf5ed3d4b25fae849f"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0a/0a2e81cae.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0a/0a2e81cae.json",
+      "mimeType": "application/json",
+      "bytes": 11592,
+      "sha256": "f1ceeae0849ef9275af39ee7bff06209a53792d87005607847f8dfbe41c23ed8"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0a/0ad0f65f7.json",
@@ -1039,11 +1473,25 @@
       "sha256": "a31f8794644041cb3d5b16e843cb5dd61df5d1caef8cda937acc76223babb454"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0a/0aed64990.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0a/0aed64990.json",
+      "mimeType": "application/json",
+      "bytes": 2529,
+      "sha256": "acc5f3c41012baeaae1299943b86fadccc37adbd8ee41b7c449122c753aa0655"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0b/0b463c18-d429-4e68-b465-536dd7dfbda8.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0b/0b463c18-d429-4e68-b465-536dd7dfbda8.json",
       "mimeType": "application/json",
       "bytes": 136,
       "sha256": "254f6b2de6ee2bc69abab7f8b16e5ba87363a9a23604da7df41161e4a76993a8"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0c/0c0167851.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0c/0c0167851.json",
+      "mimeType": "application/json",
+      "bytes": 11585,
+      "sha256": "6ed954677c2f33b12c82da36b280f65147e36ca7a866238ce968d4a49b0073bc"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0c/0c029e17a.json",
@@ -1060,11 +1508,39 @@
       "sha256": "67cdaa017815f9d5f82044bd4cb0bf47114cecae9c37774819eb30aa79bb9b9a"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0c/0c8a45e11.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0c/0c8a45e11.json",
+      "mimeType": "application/json",
+      "bytes": 2530,
+      "sha256": "dc6448a912d15fcf88b7d7e6134996ce4e78f0cdbba7379d26700c557b77b04c"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0d/0d37b5f5f.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0d/0d37b5f5f.json",
+      "mimeType": "application/json",
+      "bytes": 7729,
+      "sha256": "c65a1fc63bd5fcdb60ad787e5a7831606120580312219d0d92a22d6a9072000a"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0d/0d5eb9880.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0d/0d5eb9880.json",
+      "mimeType": "application/json",
+      "bytes": 11574,
+      "sha256": "eeec6c53fa4c67602ee6d23fcf5dee32bae771095619e8fd0be181353513385b"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0d/0d8148d2-7dd7-4cb7-a94c-319d51e7b100.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0d/0d8148d2-7dd7-4cb7-a94c-319d51e7b100.json",
       "mimeType": "application/json",
       "bytes": 125,
       "sha256": "1dd0ddf8f274c0225d1e4dc0c422951530ccca9ec88e4a793db6928646e1dca9"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0d/0db78cae2.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0d/0db78cae2.json",
+      "mimeType": "application/json",
+      "bytes": 2530,
+      "sha256": "0471f5bb3cc8f2b37da8ccbea76db378d7e8cb43b3d7080eebea5a795156f720"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0d/0ddfac0f3.json",
@@ -1074,11 +1550,39 @@
       "sha256": "6c88ae5d682622ab3689b301d37f7fd782231ee527920d47f928a54a23078eca"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0e/0e3ceaa7e.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0e/0e3ceaa7e.json",
+      "mimeType": "application/json",
+      "bytes": 11602,
+      "sha256": "27cdb44fb0b5ba84891b1bff0ece3f186c9c7ad2c81ef7e1249dce9b78c72dc4"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0e/0e515db8-2e1b-4346-a56d-bea995ae5a29.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0e/0e515db8-2e1b-4346-a56d-bea995ae5a29.json",
       "mimeType": "application/json",
       "bytes": 128,
       "sha256": "10edb79909a563599d29ca28d8416fa65915cf1cf6d843c1b2ad079ecd19590b"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0e/0e5b019d9.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0e/0e5b019d9.json",
+      "mimeType": "application/json",
+      "bytes": 7729,
+      "sha256": "ff1ba6dc637171bbed19f3a3464f120e5bcf938dc87e68706cda3da3603541b6"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0e/0ecd99ea7.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0e/0ecd99ea7.json",
+      "mimeType": "application/json",
+      "bytes": 7729,
+      "sha256": "5548ad8a27d11918209b777fec6bf367d5f3fc0b4a91db7b0e6098b0d04b47c4"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0f/0f164b4af.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0f/0f164b4af.json",
+      "mimeType": "application/json",
+      "bytes": 11586,
+      "sha256": "1e8110a9a192f7d4486689d55d87c5e08ec31b55f6eba3fa90185be8dd910158"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/0f/0f3bfd4f-44f5-4f3b-9939-f8a791c3887e.json",
@@ -1529,6 +2033,13 @@
       "sha256": "461b9b9f8e1b3c3482a33b641c3b9d45577f6c75c6e2ae9f122c7f7a7dca3d01"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/6e/6e090b5e-3f98-4eac-a40f-19e93127de5a.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/6e/6e090b5e-3f98-4eac-a40f-19e93127de5a.json",
+      "mimeType": "application/json",
+      "bytes": 81,
+      "sha256": "f1fb983d2530d19d94750f2ae2107727838b44591de6db3180cef3855a8f3b63"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/70/70a0fc13-b377-4a54-b48b-610f8fdcf9d9.json",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/70/70a0fc13-b377-4a54-b48b-610f8fdcf9d9.json",
       "mimeType": "application/json",
@@ -1751,6 +2262,13 @@
       "mimeType": "application/octet-stream",
       "bytes": 6148,
       "sha256": "48d22680bfbcacefc1569b1e1b7765645d85108e4cb855cc536e35969282d628"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/a4/a467a626-a162-4ad2-a9af-1c425f4b1004.json",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/a4/a467a626-a162-4ad2-a9af-1c425f4b1004.json",
+      "mimeType": "application/json",
+      "bytes": 81,
+      "sha256": "f1fb983d2530d19d94750f2ae2107727838b44591de6db3180cef3855a8f3b63"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/a5/a5ae32cb-dc18-4874-9bf5-6f5a0b35c145.json",
@@ -2579,6 +3097,13 @@
       "sha256": "714c7dbe21deecd5f9c9bace3a09f66d70b9d42844645a64ff076b6b3c4a2efb"
     },
     {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/native/6e/6e090b5e-3f98-4eac-a40f-19e93127de5a.astc",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/native/6e/6e090b5e-3f98-4eac-a40f-19e93127de5a.astc",
+      "mimeType": "image/astc",
+      "bytes": 516112,
+      "sha256": "72ecf9aae8de052663d88aecbc1d027e80e4fd3d8f0471047251f526ec3e4b42"
+    },
+    {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/native/70/70a0fc13-b377-4a54-b48b-610f8fdcf9d9.atlas",
       "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/native/70/70a0fc13-b377-4a54-b48b-610f8fdcf9d9.atlas",
       "mimeType": "text/plain",
@@ -2780,6 +3305,13 @@
       "mimeType": "audio/mpeg",
       "bytes": 47011,
       "sha256": "335df15f5d0de796e1ae4ca953d9785fa89738b834e2cf29c1aeacb79e14eed1"
+    },
+    {
+      "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/native/a4/a467a626-a162-4ad2-a9af-1c425f4b1004.astc",
+      "publicUrl": "https://gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/native/a4/a467a626-a162-4ad2-a9af-1c425f4b1004.astc",
+      "mimeType": "image/astc",
+      "bytes": 524304,
+      "sha256": "e3391256cc953ea22ae4fbd46f4d043cf4c62176589b2ec2a8040f7762666ced"
     },
     {
       "path": "static-mirror/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/native/a5/a5ae32cb-dc18-4874-9bf5-6f5a0b35c145.webp",

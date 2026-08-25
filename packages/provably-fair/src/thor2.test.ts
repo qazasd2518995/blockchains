@@ -29,6 +29,7 @@ describe('Power of Thor II observed-rules engine', () => {
       expect(result.feature?.spinsAwarded).toBeLessThanOrEqual(THOR2_MAX_FREE_SPINS);
       expect(result.feature?.spinsPlayed).toBeGreaterThanOrEqual(15);
       expect(result.totalMultiplier).toBeGreaterThanOrEqual(3);
+      expect(result.grid.filter((cell) => cell.symbol === 1)).toHaveLength(4);
       for (const round of result.feature?.rounds ?? []) {
         expect(round.grid).toHaveLength(30);
         expect(round.finalGrid).toHaveLength(30);
@@ -46,6 +47,28 @@ describe('Power of Thor II observed-rules engine', () => {
       ]),
     );
     for (const value of values ?? []) expect(THOR2_LEGAL_MULTIPLIERS).toContain(value);
+  });
+
+  it('upgrades every eligible multiplier by one shared screen level', () => {
+    let checkedUpgrade = false;
+    for (let nonce = 1; nonce <= 32; nonce += 1) {
+      const result = thor2Spin('upgrade-server', 'upgrade-client', nonce, {
+        buyFeature: 'super',
+      });
+      for (const round of result.feature?.rounds ?? []) {
+        for (const cascade of round.cascades) {
+          if (cascade.upgrades.length === 0) continue;
+          checkedUpgrade = true;
+          const expectedPositions = cascade.before
+            .map((cell, position) => ({ cell, position }))
+            .filter(({ cell }) => cell.multiplier && cell.multiplier < 1_000)
+            .map(({ position }) => position);
+          expect(cascade.upgrades.map((upgrade) => upgrade.position)).toEqual(expectedPositions);
+          expect(new Set(cascade.upgrades.map((upgrade) => upgrade.level)).size).toBe(1);
+        }
+      }
+    }
+    expect(checkedUpgrade).toBe(true);
   });
 
   it('caps the presentation and settlement at 25,000x', () => {

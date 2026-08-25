@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <title>Power of Thor II</title>
+    <meta
+      name="viewport"
+      content="width=device-width,user-scalable=no,initial-scale=1,minimum-scale=1,maximum-scale=1,viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="false" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="renderer" content="webkit" />
+    <meta name="force-rendering" content="webkit" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <meta name="full-screen" content="yes" />
+    <meta name="x5-fullscreen" content="true" />
+    <meta name="360-fullscreen" content="true" />
+    <meta name="x5-page-mode" content="app" />
+    <link rel="stylesheet" id="game-style" />
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #030712;
+      }
+      .pcBackground,
+      #GameDiv,
+      #Cocos3dGameContainer,
+      #GameCanvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .pcBackground {
+        background: radial-gradient(circle at 50% 35%, #193a78 0, #061128 55%, #02040a 100%);
+      }
+      #GameCanvas {
+        display: block;
+        background: transparent;
+      }
+      .preview {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        background: #030712;
+        color: #f8d778;
+        font: 700 14px/1.5 system-ui, sans-serif;
+      }
+      .preview img {
+        display: block;
+        width: min(34vw, 150px);
+        height: auto;
+        margin: 0 auto 18px;
+      }
+      .loading-bar {
+        width: min(54vw, 260px);
+        height: 4px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgb(255 255 255 / 14%);
+      }
+      .loading-bar::after {
+        display: block;
+        width: 42%;
+        height: 100%;
+        content: '';
+        border-radius: inherit;
+        background: linear-gradient(90deg, #e6b640, #fff0a2);
+        animation: loading 1.15s ease-in-out infinite alternate;
+      }
+      @keyframes loading {
+        from { transform: translateX(-10%); }
+        to { transform: translateX(150%); }
+      }
+      #Help,
+      #gameActivites,
+      .rotationTips,
+      .callFull {
+        display: none;
+      }
+      #Help {
+        position: absolute;
+        inset: 0;
+        z-index: 100;
+        background: #080b12;
+      }
+      #Help iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+      #Help .helpClose {
+        position: absolute;
+        top: max(14px, env(safe-area-inset-top));
+        right: max(14px, env(safe-area-inset-right));
+        width: 42px;
+        height: 42px;
+        cursor: pointer;
+      }
+    </style>
+    <script>
+      var HOST_MIRROR_ROOT =
+        '../original/gameresource3.rsgaming955.com';
+      var MIRROR_ROOT = HOST_MIRROR_ROOT + '/WebUI3';
+      var CONTENT = MIRROR_ROOT + '/content/PowerOfThor2';
+      var gameWebSiteUrl = '';
+      var isHistoryEnabled = false;
+      var isHomeEnabled = true;
+      var wsPath = '/RewardableSlotUser';
+      var isIOS = /iPhone|iPod/i.test(navigator.userAgent);
+      var isIPad = /iPad/i.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+      function getGameCommonPath() { return MIRROR_ROOT + '/common'; }
+      function getHelpPath() { return MIRROR_ROOT + '/help/PowerOfThor2'; }
+      function getContentPath() { return CONTENT; }
+      function getRemoteResPath() { return MIRROR_ROOT + '/remoteRes'; }
+      function getRecordPath() { return './record/PowerOfThor2'; }
+      function getResourcePath() { return CONTENT; }
+      function getHistoryIsEnabled() { return false; }
+      function getHomeIsEnabled() { return isHomeEnabled; }
+      function getOuterLogo(callback) { callback({ isUsed: false, imgUrl: '' }); }
+      function getGameName(_gameId, _language, callback) { callback('Power of Thor II'); }
+      function setCompanySubSystem() {}
+      function reloadGame() { window.location.reload(); }
+      function redirectGame() {}
+      function eventGo() {}
+      function setEventGame() {}
+      function addShowVersion() {}
+      function isMobile() {
+        return Boolean(window.Fun && Fun.detectmobile && Fun.detectmobile.isMobile);
+      }
+      function hidePreView() {
+        var preview = document.querySelector('.preview');
+        if (preview) preview.style.display = 'none';
+      }
+      function exitGame() {
+        window.parent.postMessage({ type: 'thor2:close' }, window.location.origin);
+      }
+      function openHistory() {}
+      function onCloseHelp() {
+        var help = document.getElementById('Help');
+        if (help) help.style.display = 'none';
+      }
+      function onCloseHelpListener() { onCloseHelp(); }
+    </script>
+  </head>
+  <body>
+    <div class="pcBackground"></div>
+    <div class="preview" role="status" aria-live="polite">
+      <div>
+        <img
+          src="../original/gameresource3.rsgaming955.com/WebUI3/common/ui/images/loading/logo_RSG.webp"
+          alt=""
+        />
+        <div class="loading-bar"></div>
+      </div>
+    </div>
+    <div id="GameDiv" cc_exact_fit_screen="true">
+      <div id="Cocos3dGameContainer">
+        <canvas id="GameCanvas" oncontextmenu="event.preventDefault()" tabindex="99"></canvas>
+      </div>
+    </div>
+    <div id="Help">
+      <iframe id="help_iframe" title="遊戲規則"></iframe>
+      <img
+        class="helpClose"
+        src="../original/gameresource3.rsgaming955.com/WebUI3/common/ui/images/btn_close.svg"
+        alt="關閉"
+        onclick="onCloseHelp()"
+      />
+    </div>
+    <div id="gameActivites"></div>
+    <div class="rotationTips"></div>
+    <div class="callFull" id="fingermove"></div>
+
+    <script>
+      document.getElementById('game-style').href = CONTENT + '/style.css';
+    </script>
+    <script src="../original/gameresource3.rsgaming955.com/WebUI3/common/ui/js/jquery331.min.js"></script>
+    <script src="../original/gameresource3.rsgaming955.com/WebUI3/common/ui/js/fun.min.js"></script>
+    <script src="../original/gameresource3.rsgaming955.com/WebUI3/common/ui/js/screenfull.js"></script>
+    <script src="../original/gameresource3.rsgaming955.com/WebUI3/common/ui/js/iPhoneScreenfull.js"></script>
+    <script src="../original/gameresource3.rsgaming955.com/WebUI3/common/js/jsStart-cocos.js"></script>
+    <script src="./thor2-original-adapter.js?v=20260826-original-10"></script>
+    <script src="../original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/src/polyfills.bundle.js" charset="utf-8"></script>
+    <script src="../original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/src/system.bundle.js" charset="utf-8"></script>
+    <script
+      src="../original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/src/import-map.json"
+      type="systemjs-importmap"
+      charset="utf-8"
+    ></script>
+    <script>
+      System.import(CONTENT + '/index.js').catch(function (error) {
+        console.error(error);
+        window.parent.postMessage(
+          { type: 'thor2:error', message: '原始 Cocos 遊戲載入失敗：' + error.message },
+          window.location.origin,
+        );
+      });
+    </script>
+  </body>
+</html>

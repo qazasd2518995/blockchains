@@ -187,17 +187,22 @@ export function evaluateThor2AnywherePays(grid: readonly Thor2Cell[]): Thor2Symb
     .filter((win) => win.payMultiplier > 0);
 }
 
-function upgradeMultiplier(value: number, random: RandomSource, superMode: boolean) {
+function upgradeMultiplier(value: number, levels: 1 | 2 | 3) {
   const currentIndex = THOR2_LEGAL_MULTIPLIERS.indexOf(
     value as (typeof THOR2_LEGAL_MULTIPLIERS)[number],
   );
   if (currentIndex < 0 || currentIndex === THOR2_LEGAL_MULTIPLIERS.length - 1) return null;
-  const jump = superMode && random.chance(0.24) ? 3 : random.chance(0.35) ? 2 : 1;
-  const nextIndex = Math.min(THOR2_LEGAL_MULTIPLIERS.length - 1, currentIndex + jump);
+  const nextIndex = Math.min(THOR2_LEGAL_MULTIPLIERS.length - 1, currentIndex + levels);
   return {
     value: THOR2_LEGAL_MULTIPLIERS[nextIndex] ?? value,
-    level: Math.min(3, jump) as 1 | 2 | 3,
+    level: levels,
   };
+}
+
+function rollUpgradeLevels(random: RandomSource, superMode: boolean): 0 | 1 | 2 | 3 {
+  if (!random.chance(superMode ? 0.58 : 0.24)) return 0;
+  if (superMode && random.chance(0.24)) return 3;
+  return random.chance(0.35) ? 2 : 1;
 }
 
 function refillGrid(
@@ -243,11 +248,16 @@ function playRound(
     if (wins.length === 0) break;
     const before = current.map((cell) => ({ ...cell }));
     const upgrades: Thor2MultiplierEvent[] = [];
+    // The original client protocol carries one UpgradeLevel sequence for the
+    // whole screen. Every multiplier symbol advances by that same number of
+    // legal steps (with 1000x clamped), rather than independently rolling an
+    // upgrade per symbol.
+    const upgradeLevels = current.some((cell) => Boolean(cell.multiplier))
+      ? rollUpgradeLevels(random, superMode)
+      : 0;
     const upgraded = current.map((cell, position) => {
-      if (!cell.multiplier) return { ...cell };
-      const rate = superMode ? 0.58 : 0.24;
-      if (!random.chance(rate)) return { ...cell };
-      const next = upgradeMultiplier(cell.multiplier, random, superMode);
+      if (!cell.multiplier || upgradeLevels === 0) return { ...cell };
+      const next = upgradeMultiplier(cell.multiplier, upgradeLevels);
       if (!next) return { ...cell };
       upgrades.push({ position, from: cell.multiplier, to: next.value, level: next.level });
       const bucketIndex = MULTIPLIER_BUCKETS.findIndex((bucket) =>
@@ -468,7 +478,10 @@ export function thor2Spin(
   totalMultiplier = capResultMultiplier(totalMultiplier);
   const maxWinReached = totalMultiplier >= THOR2_MAX_WIN_MULTIPLIER;
   return {
-    grid,
+    // The top-level grid is the paid base-game screen. Free-game screens are
+    // retained in feature.rounds. Keeping the trigger screen here lets the
+    // original client enter its native free-game presentation correctly.
+    grid: base.round.grid,
     cascades: base.round.cascades,
     feature: {
       kind: featureKind,

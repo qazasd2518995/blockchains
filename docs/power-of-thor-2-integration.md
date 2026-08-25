@@ -2,11 +2,11 @@
 
 ## Scope
 
-The local game is an observed-rules implementation of **Power of Thor II: Thunder Storm**. It uses the preserved client rules, visuals, audio cues and two bounded one-credit feature-buy observations. It does not claim to reproduce the provider's private RNG or payout server.
+The Qmoney route executes the archived original **Power of Thor II: Thunder Storm** Cocos client. The scene graph, layouts, rule panels, symbols, Spine effects, control widgets and audio are loaded from the preserved build instead of being reconstructed in React. It does not claim to reproduce the provider's private RNG or payout server; authentication, wallet settlement and deterministic outcomes remain local Qmoney services.
 
-The captured source archive lives under `apps/web/public/games/power-of-thor-2/original/` and remains read-only. The React game only loads the semantic runtime subset under `ui/`; the archive currently contains 472 files, including all 94 captured MP3 cues and five Cocos bundles.
+The captured source archive lives under `apps/web/public/games/power-of-thor-2/original/` and remains read-only. It contains 548 files, including all 94 captured MP3 cues, five Cocos bundles, and the authenticated launch-only packs/textures requested by the original client. `original-runtime/index.html` recreates the original wrapper DOM and boots that archive. `thor2-original-adapter.js` implements the original encrypted Royal Slot WebSocket messages against the Qmoney HTTP API.
 
-The local runtime does not execute the captured vendor Cocos scene runner: its bootstrap depends on wrapper globals and a private provider socket protocol that are not present in the static capture. The playable integration therefore uses the original symbol/help artwork, nine original event-matched audio cues and a local React/CSS animation sequence for spin, drop, cascade, multiplier collection, multiplier upgrade and win presentation. The remaining captured scenes and audio are preserved for reference, but are not represented as wired runtime events. This distinction prevents the local presentation from being described as a pixel-identical clone of the provider client.
+The old semantic React/CSS reconstruction is no longer connected to the game route and there is no automatic fallback to it. If the Cocos archive cannot boot or the protocol mapping fails, the shell reports an error over `postMessage` while keeping the original canvas in place.
 
 ## Confirmed contracts
 
@@ -22,7 +22,7 @@ The local runtime does not execute the captured vendor Cocos scene runner: its b
 
 ## One-credit economics
 
-At a base bet of 1.00, the local API charges 100.00 for Regular, 500.00 for Super and 4,000.00 for Lucky Strike. A one-credit Lucky Strike was observed directly: 12,829.45 was debited to 8,829.45, the single spin showed only 1,000× multiplier balls, did not form a payable eight-symbol group and settled at zero. The purchase debit is visible immediately. Feature payout is kept in a deferred wallet settlement until every stored round has been animated and acknowledged in order.
+The original client's Qmoney bet menu starts at the platform limit of 10.00 and exposes values through 5,000.00. Feature prices retain the original 100×, 500× and 4,000× cost ratios. A one-credit Lucky Strike was observed directly during the authorized source study: 12,829.45 was debited to 8,829.45, the single spin showed only 1,000× multiplier balls, did not form a payable eight-symbol group and settled at zero. The purchase debit is visible immediately. Feature payout is kept in a deferred wallet settlement until every stored round has been animated and acknowledged in order.
 
 Progress only advances one round at a time. On reconnect, `/api/games/thor2/session` returns the pending feature and cursor; the client resumes from that cursor. `/feature/complete` rejects settlement before the final stored round.
 
@@ -33,5 +33,6 @@ The final deterministic verification sample covered 100,000 base spins and 10,00
 - Shared API types: `packages/shared/src/dto/thor2.ts`
 - Deterministic engine: `packages/provably-fair/src/thor2.ts`
 - Wallet/control service: `apps/server/src/modules/games/thor2/`
-- React presentation: `apps/web/src/pages/games/PowerOfThor2Page.tsx`
+- Original-client host: `apps/web/public/games/power-of-thor-2/original-runtime/`
+- React iframe shell: `apps/web/src/pages/games/PowerOfThor2Page.tsx`
 - Asset integrity test: `apps/web/scripts/test-thor2-assets.mjs`

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +10,7 @@ const gameRoot = path.join(publicRoot, 'games/power-of-thor-2');
 const originalRoot = path.join(gameRoot, 'original');
 const files = walk(originalRoot);
 
-assert.equal(files.length, 472, 'Thor 2 read-only source archive must retain all 472 files');
+assert.equal(files.length, 548, 'Thor 2 read-only source archive must retain all 548 files');
 assert.equal(
   files.filter((file) => file.endsWith('.mp3')).length,
   94,
@@ -19,7 +20,21 @@ assert.equal(
 const manifest = JSON.parse(
   fs.readFileSync(path.join(gameRoot, 'documentation/asset-manifest.json'), 'utf8'),
 );
-assert.equal(manifest.files.length, 472, 'Thor 2 asset manifest must cover every archived file');
+assert.equal(manifest.files.length, 548, 'Thor 2 asset manifest must cover every archived file');
+assert.equal(manifest.summary.fileCount, files.length, 'Thor 2 manifest summary is stale');
+const manifestByPath = new Map(manifest.files.map((entry) => [entry.path, entry]));
+for (const file of files) {
+  const relativePath = path.relative(originalRoot, file).split(path.sep).join('/');
+  const entry = manifestByPath.get(`static-mirror/${relativePath}`);
+  assert.ok(entry, `Thor 2 manifest is missing ${relativePath}`);
+  const contents = fs.readFileSync(file);
+  assert.equal(entry.bytes, contents.byteLength, `Thor 2 byte count changed: ${relativePath}`);
+  assert.equal(
+    entry.sha256,
+    createHash('sha256').update(contents).digest('hex'),
+    `Thor 2 checksum changed: ${relativePath}`,
+  );
+}
 assert.equal(
   manifest.capture.wageredSpins,
   2,
@@ -27,21 +42,18 @@ assert.equal(
 );
 assert.equal(manifest.capture.totalBet, 2, 'capture metadata must retain the bounded spend');
 
+const spineWasmPath = path.join(
+  originalRoot,
+  'gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/cocos-js/assets/spine-CC34fKUR.wasm',
+);
+const spineWasm = fs.readFileSync(spineWasmPath);
+assert.equal(spineWasm.byteLength, 205175, 'Thor 2 original Spine runtime has the wrong size');
+await WebAssembly.compile(spineWasm);
+
 for (const relativePath of [
-  'ui/symbols/base_symbolM1.png',
-  'ui/symbols/base_symbolB1.png',
-  'ui/symbols/base_symbolB2.png',
-  'ui/help_feature_0.png',
-  'ui/base-reference.png',
-  'ui/free-reference.png',
-  'ui/audio/spin.mp3',
-  'ui/audio/base-music.mp3',
-  'ui/audio/free-music.mp3',
-  'ui/audio/win.mp3',
-  'ui/audio/multiplier-collect.mp3',
-  'ui/audio/multiplier-hit.mp3',
-  'ui/audio/big-win.mp3',
-  'ui/audio/legend-win.mp3',
+  'original-runtime/index.html',
+  'original-runtime/thor2-original-adapter.js',
+  'original-runtime/record/PowerOfThor2/version.json',
   'documentation/rules-zh-TW.json',
   'documentation/rules-en-US.json',
   'documentation/cocos-asset-catalog.json',
@@ -53,17 +65,67 @@ const pageSource = fs.readFileSync(
   path.join(webRoot, 'src/pages/games/PowerOfThor2Page.tsx'),
   'utf8',
 );
-for (const contract of [
-  '/games/thor2/session',
-  '/games/thor2/spin',
-  '/games/thor2/feature/progress',
-  '/games/thor2/feature/complete',
-  "['regular', '免費遊戲'",
-  "['super', 'Super 免費遊戲'",
-  "'lucky',",
-  '1/6.44',
+assert.ok(
+  pageSource.includes('/games/power-of-thor-2/original-runtime/index.html'),
+  'The route must mount the archived original Cocos runtime',
+);
+for (const forbidden of ['Thor2Cascade', 'SymbolCell', 'base-reference.png', 'PowerOfThor2Page.css']) {
+  assert.ok(!pageSource.includes(forbidden), `React reconstruction leaked into the route: ${forbidden}`);
+}
+
+const viteSource = fs.readFileSync(path.join(webRoot, 'vite.config.ts'), 'utf8');
+assert.ok(
+  viteSource.includes("process.env.VITE_DEV_API_TARGET ?? 'http://localhost:3000'"),
+  'The local original-client bridge must default to the project API server',
+);
+
+const runtimeHtml = fs.readFileSync(path.join(gameRoot, 'original-runtime/index.html'), 'utf8');
+for (const originalBootAsset of [
+  'common/js/jsStart-cocos.js',
+  'content/PowerOfThor2/src/polyfills.bundle.js',
+  'content/PowerOfThor2/src/system.bundle.js',
+  'content/PowerOfThor2/src/import-map.json',
+  "System.import(CONTENT + '/index.js')",
 ]) {
-  assert.ok(pageSource.includes(contract), `Thor 2 client contract is missing: ${contract}`);
+  assert.ok(runtimeHtml.includes(originalBootAsset), `Original Cocos boot asset missing: ${originalBootAsset}`);
+}
+
+const adapterSource = fs.readFileSync(
+  path.join(gameRoot, 'original-runtime/thor2-original-adapter.js'),
+  'utf8',
+);
+for (const contract of [
+  "authorizedFetch('/session'",
+  "authorizedFetch('/spin'",
+  "authorizedFetch('/feature/progress'",
+  "authorizedFetch('/feature/complete'",
+  'PlayerReqestLogin',
+  'PlayerRequestBuyFeature',
+  'ServerResponseGameStart',
+  'AutoCompleteStatesResponse',
+  "CryptoJS.DES.encrypt",
+  "CryptoJS.DES.decrypt",
+  "Type: 'WalletUpdate'",
+  'flowEnd: isLastCascade ? options.flowEnd : 0',
+  'if (entersFree) baseGrid = ensureFreeTriggerGrid(baseGrid)',
+  'bonusCount < 4',
+  "Type: 'AddFreeGame'",
+  'AddFreeSpinTime: Math.max(0, Number(spins) || 0)',
+  'enterFreeSpins: entersFree ? feature.spinsAwarded : 0',
+  'normalizeMultiplierMatrix(rng, data.multiple)',
+  'return entry.freeRound > activeSequence.progressCursor',
+  'BetList: [10, 20, 50, 100, 200, 500, 1000, 2000, 5000]',
+]) {
+  assert.ok(adapterSource.includes(contract), `Original-client adapter contract is missing: ${contract}`);
+}
+for (const forbidden of [
+  'base-reference.png',
+  '/ui/',
+  'ReactDOM',
+  'fallbackGrid',
+  'FreeSpinTimesSelect: -1',
+]) {
+  assert.ok(!adapterSource.includes(forbidden), `Reconstructed fallback leaked into adapter: ${forbidden}`);
 }
 
 const cover = fs.readFileSync(
@@ -78,7 +140,7 @@ for (const width of [480, 960, 1600]) {
   assert.equal(optimized.subarray(8, 12).toString('ascii'), 'WEBP');
 }
 
-console.log('Thor 2 archive, runtime assets, cover and API client contracts passed.');
+console.log('Thor 2 original Cocos runtime, archive, cover and local adapter contracts passed.');
 
 function walk(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

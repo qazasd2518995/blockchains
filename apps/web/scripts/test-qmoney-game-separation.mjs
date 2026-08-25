@@ -115,8 +115,13 @@ assert.ok(
   'Qmoney Thor II catalog route must resolve to a guarded React game route',
 );
 assert.ok(
-  thorPage.includes("const ASSET_ROOT = '/games/power-of-thor-2/ui'"),
-  'Qmoney Thor II route must use the local runtime asset bundle',
+  thorPage.includes("const ORIGINAL_GAME_PATH = '/games/power-of-thor-2/original-runtime/index.html'"),
+  'Qmoney Thor II route must mount the original Cocos runtime',
+);
+assert.doesNotMatch(
+  thorPage,
+  /PowerOfThor2Page\.css|base-reference\.png|Thor2Cascade|SymbolCell/,
+  'Qmoney Thor II route must not retain the reconstructed React fallback',
 );
 await access(
   path.join(
