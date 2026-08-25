@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
+import { thor2Spin } from '@bg/provably-fair';
 
 const webRoot = fileURLToPath(new URL('..', import.meta.url));
 const publicRoot = path.join(webRoot, 'public');
@@ -101,12 +103,19 @@ for (const contract of [
   "authorizedFetch('/feature/complete'",
   'PlayerReqestLogin',
   'PlayerRequestBuyFeature',
+  "return Number(request.ExtraBetFeatureID) === 0 ? 'extra' : 'spin'",
   'ServerResponseGameStart',
   'AutoCompleteStatesResponse',
+  'RecoverableDataResponse',
+  "system.get('chunks:///_virtual/lz-string.min.js')",
+  'entry.freeRound === 0 || entry.freeRound <= cursor',
   "CryptoJS.DES.encrypt",
   "CryptoJS.DES.decrypt",
   "Type: 'WalletUpdate'",
-  'flowEnd: isLastCascade ? options.flowEnd : 0',
+  'var incomingDrop = cascadeIndex > 0 ? deriveDrop(cascades[cascadeIndex - 1]) : null',
+  'var finalDrop = deriveDrop(lastCascade)',
+  'assertDropAlignment(rng, multiple, dropScreen, dropMultiple)',
+  'Win: Number(data.spinWin || 0) * 20',
   'if (entersFree) baseGrid = ensureFreeTriggerGrid(baseGrid)',
   'bonusCount < 4',
   "Type: 'AddFreeGame'",
@@ -127,6 +136,161 @@ for (const forbidden of [
 ]) {
   assert.ok(!adapterSource.includes(forbidden), `Reconstructed fallback leaked into adapter: ${forbidden}`);
 }
+
+const storage = new Map();
+const fakeStorage = {
+  getItem: (key) => storage.get(key) ?? null,
+  setItem: (key, value) => storage.set(key, String(value)),
+  removeItem: (key) => storage.delete(key),
+};
+const browserWindow = {
+  location: { search: '', origin: 'https://qmoney.test' },
+  localStorage: fakeStorage,
+  sessionStorage: fakeStorage,
+  addEventListener() {},
+  postMessage() {},
+  setTimeout,
+  clearTimeout,
+  WebSocket: function NativeWebSocket() {},
+};
+browserWindow.parent = browserWindow;
+vm.runInNewContext(adapterSource, {
+  window: browserWindow,
+  URLSearchParams,
+  console,
+  fetch: () => Promise.reject(new Error('network is disabled in the adapter contract test')),
+  AbortController,
+  CryptoJS: {},
+  setTimeout,
+  clearTimeout,
+});
+const adapter = browserWindow.__QmoneyThor2OriginalAdapterTest;
+assert.ok(adapter, 'The original-client adapter test surface is unavailable');
+assert.equal(
+  adapter.requestAction({ Type: 'PlayerRequestGameStart', ExtraBet: false, ExtraBetFeatureID: 0 }),
+  'extra',
+  'The original +25% toggle is identified by ExtraBetFeatureID, not the always-false ExtraBet flag',
+);
+assert.equal(
+  adapter.requestAction({ Type: 'PlayerRequestGameStart', ExtraBet: false, ExtraBetFeatureID: -1 }),
+  'spin',
+);
+assert.equal(adapter.requestAmount({ Bet: 200, BetLevel: 10, Denom: 0.05 }), 10);
+
+const makeGrid = () =>
+  Array.from({ length: 30 }, (_, index) => ({ symbol: [3, 4, 5, 6, 9, 10][index % 6] }));
+const firstBefore = makeGrid();
+const firstAfter = makeGrid();
+firstAfter[0] = { symbol: 15, multiplier: 2 };
+const secondAfter = makeGrid();
+secondAfter[0] = { symbol: 15, multiplier: 3 };
+secondAfter[5] = { symbol: 15, multiplier: 4 };
+const sequence = adapter.buildSequence({
+  grid: secondAfter,
+  cascades: [
+    {
+      before: firstBefore,
+      after: firstAfter,
+      wins: [{ symbol: 3, count: 8, positions: [0, 1, 2, 3, 4, 5, 6, 7], payMultiplier: 0.2 }],
+      baseWinMultiplier: 0.2,
+      collectedMultiplier: 0,
+      accumulatedMultiplier: 0,
+      payoutMultiplier: 0.2,
+      upgrades: [],
+    },
+    {
+      before: firstAfter,
+      after: secondAfter,
+      wins: [{ symbol: 4, count: 8, positions: [5, 6, 7, 8, 9, 10, 11, 12], payMultiplier: 0.5 }],
+      baseWinMultiplier: 0.5,
+      collectedMultiplier: 3,
+      accumulatedMultiplier: 3,
+      payoutMultiplier: 1.5,
+      upgrades: [{ position: 0, from: 2, to: 3, level: 1 }],
+    },
+  ],
+  totalMultiplier: 1.7,
+  maxWinReached: false,
+});
+assert.equal(sequence.queue.length, 3, 'Two wins require two score packets and one drop-final packet');
+const packets = sequence.queue.map((entry) => JSON.parse(JSON.stringify(entry.payload)));
+assert.deepEqual(
+  packets[0].ExtraData.Extra.DropScreen,
+  [[], [], [], [], [], []],
+  'The initial winning screen cannot claim that its own replacement symbols already dropped',
+);
+assert.equal(packets[1].ExtraData.RNG[0][0], 15, 'The second packet must present the refilled screen');
+assert.equal(packets[1].ExtraData.Extra.DropMultiple[0][0], 2, 'The dropped 2x ball was lost');
+assert.equal(packets[1].ExtraData.Extra.MultipleOrigin[0][0], 2, 'Upgrade origin must stay at 2x');
+assert.equal(packets[1].ExtraData.Extra.Multiple[0][0], 3, 'Upgrade result must advance to 3x');
+assert.equal(packets[2].ExtraData.WinLines.length, 0, 'The terminal drop packet must not replay a win');
+assert.equal(packets[2].ExtraData.Extra.SubFlowEnd, 1, 'The terminal drop packet must close cascading');
+assert.equal(packets[2].ExtraData.FlowEnd, 1, 'The terminal packet must close the base spin flow');
+
+const legalMultipliers = new Set([2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50, 100, 250, 500, 1000]);
+for (const mode of [undefined, 'regular', 'super', 'lucky']) {
+  for (let nonce = 0; nonce < 24; nonce += 1) {
+    const engine = thor2Spin('adapter-sequence-server', `adapter-${mode ?? 'base'}`, nonce, {
+      ...(mode ? { buyFeature: mode } : {}),
+    });
+    const generated = adapter.buildSequence(engine);
+    assert.ok(generated.queue.length > 0, `${mode ?? 'base'} produced an empty presentation queue`);
+    const lastPacket = generated.queue.at(-1).payload;
+    assert.equal(lastPacket.ExtraData.Extra.SubFlowEnd, 1, `${mode ?? 'base'} did not end cascading`);
+    for (const { payload } of generated.queue) {
+      const rng = payload.ExtraData.RNG;
+      const multipliers = payload.ExtraData.Extra.Multiple;
+      const drop = payload.ExtraData.Extra.DropScreen;
+      const dropMultipliers = payload.ExtraData.Extra.DropMultiple;
+      for (let reel = 0; reel < 6; reel += 1) {
+        const rngFeatureCount = rng[reel].filter((symbol) => symbol >= 15 && symbol <= 19).length;
+        assert.equal(
+          multipliers[reel].length,
+          rngFeatureCount,
+          `${mode ?? 'base'} RNG multiplier count drifted on reel ${reel}`,
+        );
+        assert.ok(
+          multipliers[reel].every((value) => legalMultipliers.has(value)),
+          `${mode ?? 'base'} generated an illegal RNG multiplier`,
+        );
+        const dropFeatureCount = drop[reel].filter((symbol) => symbol >= 15 && symbol <= 19).length;
+        assert.equal(
+          dropMultipliers[reel].length,
+          dropFeatureCount,
+          `${mode ?? 'base'} drop multiplier count drifted on reel ${reel}`,
+        );
+        assert.ok(
+          dropMultipliers[reel].every((value) => legalMultipliers.has(value)),
+          `${mode ?? 'base'} generated an illegal drop multiplier`,
+        );
+      }
+    }
+  }
+}
+
+const recoverableEngine = thor2Spin('adapter-recovery-server', 'adapter-recovery-client', 7, {
+  buyFeature: 'regular',
+});
+adapter.prepareRecovery({
+  ...recoverableEngine,
+  action: 'regular',
+  baseBet: '10.00',
+  featureCursor: 2,
+});
+const recovery = adapter.getRecoveryState();
+assert.equal(recovery.activeSequence.progressCursor, 2, 'Recovery cursor was not retained');
+assert.ok(
+  recovery.activeSequence.queue.every((entry) => entry.freeRound > 2),
+  'Recovery replayed an already acknowledged free round',
+);
+assert.equal(recovery.recoverySnapshot.GameStartType, 'PlayerRequestBuyFeature');
+assert.equal(recovery.recoverySnapshot.BetLevel, 10);
+assert.ok(recovery.recoverySnapshot.ExtraDatas.length > 0, 'Recovery history is empty');
+assert.equal(
+  recovery.recoverySnapshot.GameSNs.length,
+  recovery.recoverySnapshot.ExtraDatas.length,
+  'Recovery serial numbers and responses are not aligned',
+);
 
 const cover = fs.readFileSync(
   path.join(publicRoot, 'game-art/original/power-of-thor-2-cover-v1.png'),

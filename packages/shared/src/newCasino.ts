@@ -91,7 +91,7 @@ export const NEW_CASINO_GAMES: readonly NewCasinoGame[] = [
     id: GameId.POWER_OF_THOR_2,
     name: '雷神之錘 2：雷霆風暴',
     nameEn: 'Power of Thor II: Thunder Storm',
-    provider: 'RSG 規則重建',
+    provider: 'RSG',
     category: '雷神',
     cover: '/_optimized/game-art/original/power-of-thor-2-cover-v1@960.webp',
     route: '/games/power-of-thor-2',

@@ -8,6 +8,7 @@
   var sessionInFlight = null;
   var platformSession = null;
   var activeSequence = null;
+  var recoverySnapshot = null;
   var requestTimeoutMs = 60000;
   var pendingOperationKey = 'bg.thor2.original.pending-operation';
   var capturedAudioContexts = [];
@@ -419,14 +420,11 @@
       return;
     }
     if (type === 'AutoCompleteStatesRequest') {
-      socket._respond({
-        Type: 'AutoCompleteStatesResponse',
-        Enable: true,
-        IsSuccess: true,
-        States: [],
-        Error: '',
-        Timestamp: Date.now(),
-      });
+      respondRecoveryStates(socket);
+      return;
+    }
+    if (type === 'RecoverableDataRequest') {
+      respondRecoverableData(socket);
       return;
     }
     if (type === 'PlayerRequestStrip') {
@@ -448,6 +446,94 @@
       return;
     }
     reportProtocolError(socket, new Error('不支援的原始遊戲請求：' + type));
+  }
+
+  function respondRecoveryStates(socket) {
+    loadSession(true)
+      .then(function (session) {
+        var pending = session.pendingFeature;
+        recoverySnapshot = null;
+        if (pending) prepareRecovery(pending);
+        var timestamp = Date.now();
+        socket._respond({
+          Type: 'AutoCompleteStatesResponse',
+          Enable: true,
+          IsSuccess: true,
+          States: pending ? [{ GameId: '129', ExpiredAt: timestamp + 86400000 }] : [],
+          Error: '',
+          Timestamp: timestamp,
+        });
+      })
+      .catch(function (error) {
+        reportProtocolError(socket, error);
+      });
+  }
+
+  function prepareRecovery(result) {
+    var sequence = buildSequence(result);
+    var cursor = Math.max(0, Number(result.featureCursor) || 0);
+    var isLucky = result.feature && result.feature.kind === 'lucky';
+    var history = sequence.queue.filter(function (entry) {
+      if (isLucky) return true;
+      return entry.freeRound === 0 || entry.freeRound <= cursor;
+    });
+    sequence.queue = sequence.queue.slice(history.length);
+    sequence.progressCursor = cursor;
+    sequence.pendingProgress = cursor;
+    sequence.recovered = true;
+    if (isLucky && history.length) sequence.pendingProgress = 1;
+    if (sequence.queue.length === 0) sequence.finalDelivered = true;
+    activeSequence = sequence;
+
+    var gameSNs = history.map(function (entry) {
+      return entry.payload.Msg.GameSerialNumber;
+    });
+    recoverySnapshot = {
+      GameStartType:
+        result.action === 'regular' || result.action === 'super' || result.action === 'lucky'
+          ? 'PlayerRequestBuyFeature'
+          : 'PlayerRequestGameStart',
+      Line: 0,
+      ExtraBet: false,
+      BetLevel: Number(result.baseBet) || 10,
+      Denom: 0.05,
+      ExtraBetFeatureID: result.action === 'extra' ? 0 : -1,
+      LatestSN: gameSNs.length ? gameSNs[gameSNs.length - 1] : '',
+      GameSNs: gameSNs,
+      ExtraDatas: history.map(function (entry) {
+        return entry.payload.ExtraData;
+      }),
+    };
+  }
+
+  function recoveryCompressor() {
+    var system = window.System;
+    var module =
+      system && typeof system.get === 'function'
+        ? system.get('chunks:///_virtual/lz-string.min.js')
+        : null;
+    var compressor = module && module.default;
+    if (!compressor || typeof compressor.compressToBase64 !== 'function') {
+      throw new Error('原版雷神續玩壓縮模組尚未載入');
+    }
+    return compressor;
+  }
+
+  function respondRecoverableData(socket) {
+    try {
+      var data = recoverySnapshot
+        ? recoveryCompressor().compressToBase64(JSON.stringify(recoverySnapshot))
+        : '';
+      socket._respond({
+        Type: 'RecoverableDataResponse',
+        IsSuccess: true,
+        Error: '',
+        Timestamp: Date.now(),
+        Data: data,
+      });
+    } catch (error) {
+      reportProtocolError(socket, error);
+    }
   }
 
   function loginResponse(session) {
@@ -611,7 +697,10 @@
       var feature = Number(request.ExtraData);
       return feature === 1 ? 'super' : feature === 2 ? 'lucky' : 'regular';
     }
-    return request.ExtraBet === true && Number(request.ExtraBetFeatureID) === 0 ? 'extra' : 'spin';
+    // Power of Thor II 4.2.11 keeps ExtraBet=false for both base and enhanced
+    // spins. The selected feature id is the authoritative flag: 0 means the
+    // original +25% wager is enabled, while -1 means a normal base spin.
+    return Number(request.ExtraBetFeatureID) === 0 ? 'extra' : 'spin';
   }
 
   function requestAmount(request) {
@@ -821,10 +910,14 @@
     var baseGrid =
       result.cascades && result.cascades.length ? result.cascades[0].before : result.grid;
     if (entersFree) baseGrid = ensureFreeTriggerGrid(baseGrid);
+    var baseFinalGrid =
+      result.cascades && result.cascades.length
+        ? result.cascades[result.cascades.length - 1].after
+        : result.grid;
     var baseRound = {
       index: 0,
       grid: baseGrid,
-      finalGrid: result.grid,
+      finalGrid: baseFinalGrid,
       cascades: result.cascades || [],
       payoutMultiplier: sumCascadePayout(result.cascades || []),
       accumulatedMultiplier: 0,
@@ -844,6 +937,7 @@
       freeGame: null,
       bonusPayMultiplier: baseBonusPay,
       freeRound: luckyRound ? 1 : 0,
+      isMaxWin: Boolean(result.maxWinReached && !entersFree),
     });
     cumulativeMultiplier += baseRound.payoutMultiplier + baseBonusPay;
 
@@ -862,6 +956,9 @@
           },
           bonusPayMultiplier: round.superBonusMultiplier || 0,
           freeRound: roundIndex + 1,
+          isMaxWin: Boolean(
+            result.maxWinReached && roundIndex === feature.rounds.length - 1,
+          ),
         });
         cumulativeMultiplier += Number(round.payoutMultiplier || 0);
       });
@@ -881,9 +978,12 @@
   function appendRound(queue, round, options) {
     var cascades = round.cascades || [];
     var runningTotal = Number(options.cumulativeStart || 0);
+    var roundWin = 0;
+    var roundWinOrigin = 0;
     if (cascades.length === 0) {
       var emptyTotal = runningTotal + Number(options.bonusPayMultiplier || 0);
-      var emptyFeatures = commonFeatures(round, null, emptyTotal, options);
+      var emptyRoundWin = Number(options.bonusPayMultiplier || 0);
+      var emptyFeatures = commonFeatures(round, null, emptyTotal, emptyRoundWin, 0);
       if (options.enterFreeSpins) {
         emptyFeatures.push(addFreeGameFeature(options.enterFreeSpins));
       }
@@ -906,6 +1006,8 @@
           flowEnd: options.flowEnd,
           subFlowEnd: 1,
           totalWin: emptyTotal,
+          spinWin: emptyRoundWin,
+          isMaxWin: options.isMaxWin,
           bonusLine: options.bonusPayMultiplier
             ? createBonusLine(round.grid, options.bonusPayMultiplier)
             : null,
@@ -917,26 +1019,20 @@
     }
 
     cascades.forEach(function (cascade, cascadeIndex) {
-      var isLastCascade = cascadeIndex === cascades.length - 1;
       runningTotal += Number(cascade.payoutMultiplier || 0);
-      var packetTotal =
-        runningTotal + (isLastCascade ? Number(options.bonusPayMultiplier || 0) : 0);
-      var features = commonFeatures(round, cascade, packetTotal, options);
-      if (isLastCascade && options.enterFreeSpins) {
-        features.push(addFreeGameFeature(options.enterFreeSpins));
-      }
-      if (isLastCascade && options.addFreeSpins) {
-        features.push({ Type: 'AddFreeGame', AddFreeSpinTime: options.addFreeSpins, AddType: 0 });
-      }
-      if (options.freeGame) features.push(freeGameFeature(options.freeGame, packetTotal));
-      var drop = deriveDrop(cascade);
+      roundWin += Number(cascade.payoutMultiplier || 0);
+      roundWinOrigin += Number(cascade.baseWinMultiplier || 0);
+      var features = commonFeatures(round, cascade, runningTotal, roundWin, roundWinOrigin);
+      if (options.freeGame) features.push(freeGameFeature(options.freeGame, runningTotal));
+      var incomingDrop = cascadeIndex > 0 ? deriveDrop(cascades[cascadeIndex - 1]) : null;
+      var presentationGrid = applyMultiplierUpgrades(cascade.before, cascade.upgrades);
       queue.push({
         payload: gameStartResponse({
-          grid: cascade.before,
+          grid: presentationGrid,
           wins: cascade.wins || [],
-          dropScreen: drop.symbols,
-          dropMultiple: drop.multipliers,
-          multiple: gridMultipliers(cascade.before, cascade.upgrades),
+          dropScreen: incomingDrop ? incomingDrop.symbols : emptyReels(),
+          dropMultiple: incomingDrop ? incomingDrop.multipliers : emptyReels(),
+          multiple: gridMultipliers(presentationGrid),
           multipleOrigin: cascade.upgrades && cascade.upgrades.length
             ? gridMultipliers(cascade.before)
             : [],
@@ -946,22 +1042,67 @@
           features: features,
           key: cascadeIndex === 0 ? options.key : 7,
           subKey: options.subKey,
-          flowEnd: isLastCascade ? options.flowEnd : 0,
-          subFlowEnd: isLastCascade ? 1 : 0,
-          totalWin: packetTotal,
-          bonusLine:
-            isLastCascade && options.bonusPayMultiplier
-              ? createBonusLine(cascade.before, options.bonusPayMultiplier)
-              : null,
+          flowEnd: 0,
+          subFlowEnd: 0,
+          totalWin: runningTotal,
+          spinWin: Number(cascade.payoutMultiplier || 0),
           upgrades: cascade.upgrades || [],
         }),
         freeRound: options.freeRound || 0,
-        freeRoundComplete: isLastCascade ? options.freeRound || 0 : 0,
+        freeRoundComplete: 0,
       });
+    });
+
+    // The archived client requests the next cascade packet only after it has
+    // animated the current win. The incoming DropScreen therefore belongs to
+    // the previous winning packet, while RNG is the already-refilled screen.
+    // A final no-win packet is required to finish that last drop and close the
+    // cascade state machine. Combining these stages makes a newly dropped
+    // multiplier resolve against the old RNG position and become an invalid 0x.
+    var lastCascade = cascades[cascades.length - 1];
+    var finalDrop = deriveDrop(lastCascade);
+    var finalGrid = round.finalGrid || lastCascade.after;
+    var finalBonus = Number(options.bonusPayMultiplier || 0);
+    var finalTotal = runningTotal + finalBonus;
+    var finalRoundWin = roundWin + finalBonus;
+    var finalFeatures = commonFeatures(
+      round,
+      null,
+      finalTotal,
+      finalRoundWin,
+      roundWinOrigin,
+    );
+    if (options.enterFreeSpins) finalFeatures.push(addFreeGameFeature(options.enterFreeSpins));
+    if (options.addFreeSpins) {
+      finalFeatures.push({ Type: 'AddFreeGame', AddFreeSpinTime: options.addFreeSpins, AddType: 0 });
+    }
+    if (options.freeGame) finalFeatures.push(freeGameFeature(options.freeGame, finalTotal));
+    queue.push({
+      payload: gameStartResponse({
+        grid: finalGrid,
+        wins: [],
+        dropScreen: finalDrop.symbols,
+        dropMultiple: finalDrop.multipliers,
+        multiple: gridMultipliers(finalGrid),
+        multipleOrigin: [],
+        screenOrigin: [],
+        features: finalFeatures,
+        key: 7,
+        subKey: options.subKey,
+        flowEnd: options.flowEnd,
+        subFlowEnd: 1,
+        totalWin: finalTotal,
+        spinWin: finalBonus,
+        isMaxWin: options.isMaxWin,
+        bonusLine: finalBonus ? createBonusLine(finalGrid, finalBonus) : null,
+        upgrades: [],
+      }),
+      freeRound: options.freeRound || 0,
+      freeRoundComplete: options.freeRound || 0,
     });
   }
 
-  function commonFeatures(round, cascade, runningTotal) {
+  function commonFeatures(round, cascade, runningTotal, roundWin, roundWinOrigin) {
     var collected = cascade ? Number(cascade.collectedMultiplier || 0) : 0;
     var accumulated = cascade
       ? Number(cascade.accumulatedMultiplier || 0)
@@ -970,8 +1111,8 @@
       { Type: 'ScreenMultiple', AddMultiple: collected, Multiple: accumulated },
       {
         Type: 'AccumulateWin',
-        TumblingWinOrigin: cascade ? Number(cascade.baseWinMultiplier || 0) * 20 : 0,
-        TumblingWin: cascade ? Number(cascade.payoutMultiplier || 0) * 20 : 0,
+        TumblingWinOrigin: Number(roundWinOrigin || 0) * 20,
+        TumblingWin: Number(roundWin || 0) * 20,
         TotalWin: Number(runningTotal || 0) * 20,
       },
     ];
@@ -1007,6 +1148,7 @@
     var multipleOrigin = screenOrigin.length
       ? normalizeMultiplierMatrix(screenOrigin, data.multipleOrigin)
       : [];
+    assertDropAlignment(rng, multiple, dropScreen, dropMultiple);
     var upgradeLevels = [];
     var highestUpgradeLevel = (data.upgrades || []).reduce(function (highest, upgrade) {
       return Math.max(highest, Math.max(1, Number(upgrade.level) || 1));
@@ -1019,7 +1161,7 @@
           DropMultiple: dropMultiple,
           DropScreen: dropScreen,
           Features: data.features,
-          IsMaxWin: false,
+          IsMaxWin: Boolean(data.isMaxWin),
           Multiple: multiple,
           MultipleOrigin: multipleOrigin,
           ScreenOrigin: screenOrigin,
@@ -1033,7 +1175,7 @@
         FlowEnd: data.flowEnd,
         Key: data.key,
         RNG: rng,
-        Win: Number(data.totalWin || 0) * 20,
+        Win: Number(data.spinWin || 0) * 20,
         WinLineCount: winLines.length,
         WinLines: winLines,
       },
@@ -1124,6 +1266,28 @@
     });
   }
 
+  function multiplierSymbol(value) {
+    var numeric = Number(value);
+    if (numeric >= 1000) return 19;
+    if (numeric >= 100) return 18;
+    if (numeric >= 50) return 17;
+    if (numeric >= 10) return 16;
+    return 15;
+  }
+
+  function applyMultiplierUpgrades(grid, upgrades) {
+    var next = (grid || []).map(function (cell) {
+      return cell ? Object.assign({}, cell) : { symbol: 13 };
+    });
+    (upgrades || []).forEach(function (upgrade) {
+      var position = Number(upgrade.position);
+      if (!Number.isInteger(position) || position < 0 || position >= next.length) return;
+      var value = normalizeFeatureMultiplier(Number(upgrade.to), 15);
+      next[position] = { symbol: multiplierSymbol(value), multiplier: value };
+    });
+    return next;
+  }
+
   function deriveDrop(cascade) {
     var removed = {};
     (cascade.wins || []).forEach(function (win) {
@@ -1200,6 +1364,46 @@
     return 2;
   }
 
+  function isFeatureSymbol(symbol) {
+    var numeric = Number(symbol);
+    return numeric >= 15 && numeric <= 19;
+  }
+
+  function featureMultiplierAt(symbols, multipliers, reel, row) {
+    var featureIndex = -1;
+    for (var cursor = 0; cursor <= row; cursor += 1) {
+      if (isFeatureSymbol(symbols[reel][cursor])) featureIndex += 1;
+    }
+    return featureIndex >= 0 ? Number(multipliers[reel][featureIndex]) : 0;
+  }
+
+  function assertDropAlignment(rng, multiple, dropScreen, dropMultiple) {
+    if (!dropScreen.length) return;
+    for (var reel = 0; reel < 6; reel += 1) {
+      var incoming = dropScreen[reel] || [];
+      for (var row = 0; row < incoming.length; row += 1) {
+        var incomingSymbol = Number(incoming[row]);
+        var resultSymbol = Number(rng[reel] && rng[reel][row]);
+        var bothFeature = isFeatureSymbol(incomingSymbol) && isFeatureSymbol(resultSymbol);
+        if (incomingSymbol !== resultSymbol && !bothFeature) {
+          throw new Error('雷神連消盤面與掉落符號不一致');
+        }
+        if (isFeatureSymbol(incomingSymbol)) {
+          var incomingMultiplier = featureMultiplierAt(
+            dropScreen,
+            dropMultiple,
+            reel,
+            row,
+          );
+          var resultMultiplier = featureMultiplierAt(rng, multiple, reel, row);
+          if (!legalFeatureMultipliers[incomingMultiplier] || !legalFeatureMultipliers[resultMultiplier]) {
+            throw new Error('雷神掉落倍數不是原版合法值');
+          }
+        }
+      }
+    }
+  }
+
   function countSymbol(grid, symbol) {
     return (grid || []).filter(function (cell) {
       return Number(cell.symbol) === symbol;
@@ -1237,6 +1441,10 @@
     LocalWebSocket: LocalWebSocket,
     buildSequence: buildSequence,
     deriveDrop: deriveDrop,
+    prepareRecovery: prepareRecovery,
+    getRecoveryState: function () {
+      return { activeSequence: activeSequence, recoverySnapshot: recoverySnapshot };
+    },
     normalizeMultiplierMatrix: normalizeMultiplierMatrix,
     positionMatrix: positionMatrix,
     requestAction: requestAction,
