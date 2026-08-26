@@ -420,7 +420,10 @@ export function thor2Spin(
   let grid = buildGrid(random, {
     bonusRate: kind ? 0 : 0.002,
     superBonusRate: 0.0012,
-    multiplierRate: isLucky ? 0.32 : 0.008,
+    // Lucky Strike already applies its dedicated 32% all-1000x roll in
+    // randomCell. Reusing 32% as the generic multiplier rate gave every cell
+    // a second chance and inflated the effective density to roughly 54%.
+    multiplierRate: isLucky ? 0 : 0.008,
     lucky: isLucky,
   });
   if (kind === 'regular' || kind === 'super') grid = forceBonusTrigger(grid, random);

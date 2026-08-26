@@ -133,6 +133,7 @@ describe('Power of Thor II observed-rules engine', () => {
 
   it('models Lucky Strike as one all-1000x spin with either no win or max win', () => {
     const payouts: number[] = [];
+    const losingBallCounts: number[] = [];
     for (let nonce = 1; nonce <= 128; nonce += 1) {
       const result = thor2Spin('lucky-server', 'lucky-client', nonce, { buyFeature: 'lucky' });
       expect(result.feature?.kind).toBe('lucky');
@@ -141,6 +142,15 @@ describe('Power of Thor II observed-rules engine', () => {
       expect(result.feature?.rounds).toHaveLength(1);
       expect([0, THOR2_MAX_WIN_MULTIPLIER]).toContain(result.totalMultiplier);
       payouts.push(result.totalMultiplier);
+      const round = result.feature!.rounds[0]!;
+      const initialBallCount = round.grid.filter((cell) => cell.multiplier).length;
+      if (result.totalMultiplier === 0) {
+        losingBallCounts.push(initialBallCount);
+        expect(round.cascades).toHaveLength(0);
+      } else {
+        expect(initialBallCount).toBeGreaterThanOrEqual(13);
+        expect(round.cascades.length).toBeGreaterThan(0);
+      }
       const cells = [
         result.grid,
         ...result.cascades.flatMap((cascade) => [cascade.before, cascade.after]),
@@ -154,5 +164,9 @@ describe('Power of Thor II observed-rules engine', () => {
     expect(payouts).toContain(THOR2_MAX_WIN_MULTIPLIER);
     expect(maxWins).toBeGreaterThanOrEqual(8);
     expect(maxWins).toBeLessThanOrEqual(32);
+    const averageLosingBallCount =
+      losingBallCounts.reduce((sum, count) => sum + count, 0) / losingBallCounts.length;
+    expect(averageLosingBallCount).toBeGreaterThan(8.5);
+    expect(averageLosingBallCount).toBeLessThan(10.75);
   });
 });
