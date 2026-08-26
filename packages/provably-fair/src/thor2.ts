@@ -1,6 +1,6 @@
 import { hmacIntStream } from './hmac.js';
 
-export const THOR2_MODEL_VERSION = 'thor2-observed-rules-v3-final-screen-multiplier';
+export const THOR2_MODEL_VERSION = 'thor2-observed-rules-v4-controlled-targets';
 export const THOR2_REELS = 6;
 export const THOR2_ROWS = 5;
 export const THOR2_MAX_CASCADES = 8;
@@ -71,6 +71,11 @@ export interface Thor2EngineResult {
   maxWinReached: boolean;
 }
 
+export interface Thor2SpinOptions {
+  extraBet?: boolean;
+  buyFeature?: 'regular' | 'super' | 'lucky';
+}
+
 type RandomSource = { nextInt(maxExclusive: number): number; chance(rate: number): boolean };
 
 const NORMAL_SYMBOLS = [3, 4, 5, 6, 9, 10, 11, 12, 13] as const;
@@ -97,6 +102,42 @@ const PAYTABLE: Record<number, readonly [number, number, number]> = {
   12: [0.08, 0.18, 0.8],
   13: [0.05, 0.15, 0.4],
 };
+
+interface Thor2PayPattern {
+  symbol: number;
+  count: 8 | 10 | 12;
+  payMultiplier: number;
+}
+
+interface Thor2ControlledRoundPlan extends Thor2PayPattern {
+  multiplierValues: number[];
+}
+
+const CONTROL_PAY_PATTERNS: Thor2PayPattern[] = Object.entries(PAYTABLE).flatMap(
+  ([symbol, values]) => [
+    { symbol: Number(symbol), count: 8, payMultiplier: values[0] },
+    { symbol: Number(symbol), count: 10, payMultiplier: values[1] },
+    { symbol: Number(symbol), count: 12, payMultiplier: values[2] },
+  ],
+);
+const THOR2_MAX_CONTROL_MULTIPLIER_TOTAL =
+  (THOR2_REELS * THOR2_ROWS - 8) * THOR2_LEGAL_MULTIPLIERS.at(-1)!;
+const NO_MULTIPLIER_PARTS = 32_767;
+const CONTROL_MULTIPLIER_PARTS = new Int16Array(THOR2_MAX_CONTROL_MULTIPLIER_TOTAL + 1);
+const CONTROL_MULTIPLIER_CHOICE = new Int16Array(THOR2_MAX_CONTROL_MULTIPLIER_TOTAL + 1);
+CONTROL_MULTIPLIER_PARTS.fill(NO_MULTIPLIER_PARTS);
+CONTROL_MULTIPLIER_PARTS[0] = 0;
+for (let total = 1; total <= THOR2_MAX_CONTROL_MULTIPLIER_TOTAL; total += 1) {
+  for (const value of [...THOR2_LEGAL_MULTIPLIERS].reverse()) {
+    if (value > total) continue;
+    const previous = CONTROL_MULTIPLIER_PARTS[total - value]!;
+    if (previous === NO_MULTIPLIER_PARTS || previous + 1 >= CONTROL_MULTIPLIER_PARTS[total]!) {
+      continue;
+    }
+    CONTROL_MULTIPLIER_PARTS[total] = previous + 1;
+    CONTROL_MULTIPLIER_CHOICE[total] = value;
+  }
+}
 
 function randomSource(serverSeed: string, clientSeed: string, nonce: number): RandomSource {
   const stream = hmacIntStream(serverSeed, clientSeed, nonce);
@@ -187,6 +228,117 @@ export function evaluateThor2AnywherePays(grid: readonly Thor2Cell[]): Thor2Symb
     .filter((win) => win.payMultiplier > 0);
 }
 
+function normalizeThor2Multiplier(value: number): number {
+  return Math.round((value + Number.EPSILON) * 10_000) / 10_000;
+}
+
+function sameThor2Multiplier(left: number, right: number): boolean {
+  return Math.abs(left - right) < 1e-8;
+}
+
+export function splitThor2MultiplierTotal(total: number, maxParts: number): number[] | null {
+  if (!Number.isInteger(total) || total < 0 || total > THOR2_MAX_CONTROL_MULTIPLIER_TOTAL) {
+    return null;
+  }
+  if (CONTROL_MULTIPLIER_PARTS[total]! > maxParts) return null;
+  const values: number[] = [];
+  let remaining = total;
+  while (remaining > 0) {
+    const value = CONTROL_MULTIPLIER_CHOICE[remaining]!;
+    if (!(THOR2_LEGAL_MULTIPLIERS as readonly number[]).includes(value)) return null;
+    values.push(value);
+    remaining -= value;
+  }
+  return values.sort((left, right) => right - left);
+}
+
+function controlledRoundPlans(factor: number, lucky: boolean): Thor2ControlledRoundPlan[] {
+  const normalized = normalizeThor2Multiplier(factor);
+  const plans: Thor2ControlledRoundPlan[] = [];
+  for (const pattern of CONTROL_PAY_PATTERNS) {
+    const room = THOR2_REELS * THOR2_ROWS - pattern.count;
+    if (!lucky && sameThor2Multiplier(normalized, pattern.payMultiplier)) {
+      plans.push({ ...pattern, multiplierValues: [] });
+    }
+    const multiplierTotal = normalized / pattern.payMultiplier;
+    const roundedTotal = Math.round(multiplierTotal);
+    if (!sameThor2Multiplier(multiplierTotal, roundedTotal) || roundedTotal < 2) continue;
+    const values = lucky
+      ? roundedTotal % 1_000 === 0 && roundedTotal / 1_000 <= room
+        ? Array.from({ length: roundedTotal / 1_000 }, () => 1_000)
+        : null
+      : splitThor2MultiplierTotal(roundedTotal, room);
+    if (!values || values.length === 0) continue;
+    plans.push({ ...pattern, multiplierValues: values });
+  }
+  return plans;
+}
+
+function controlledRoundTarget(totalFactor: number, options: Thor2SpinOptions): number {
+  return options.buyFeature === 'regular' || options.buyFeature === 'super'
+    ? normalizeThor2Multiplier(totalFactor - bonusPayForCount(4))
+    : normalizeThor2Multiplier(totalFactor);
+}
+
+export function isThor2FactorRepresentable(
+  totalFactor: number,
+  options: Thor2SpinOptions = {},
+): boolean {
+  if (!Number.isFinite(totalFactor) || totalFactor < 0 || totalFactor > THOR2_MAX_WIN_MULTIPLIER) {
+    return false;
+  }
+  const roundTarget = controlledRoundTarget(totalFactor, options);
+  if (roundTarget < 0) return false;
+  if (roundTarget === 0) return true;
+  return controlledRoundPlans(roundTarget, options.buyFeature === 'lucky').length > 0;
+}
+
+/**
+ * Return legal visible Thor II factors close to a control-system target.
+ * The service still applies every shared min/max/payout bound; this helper is
+ * only responsible for the game's paytable and board-capacity constraints.
+ */
+export function thor2ControlFactorCandidates(
+  targetFactor: number,
+  options: Thor2SpinOptions = {},
+): number[] {
+  if (!Number.isFinite(targetFactor)) return [];
+  const entryFactor =
+    options.buyFeature === 'regular' || options.buyFeature === 'super' ? bonusPayForCount(4) : 0;
+  const targetRound = Math.max(0, targetFactor - entryFactor);
+  const factors = new Set<number>();
+  const add = (roundFactor: number) => {
+    const total = normalizeThor2Multiplier(entryFactor + roundFactor);
+    if (total >= 0 && total <= THOR2_MAX_WIN_MULTIPLIER) factors.add(total);
+  };
+  add(0);
+  for (const pattern of CONTROL_PAY_PATTERNS) {
+    if (options.buyFeature !== 'lucky') add(pattern.payMultiplier);
+    if (options.buyFeature === 'lucky') {
+      const room = THOR2_REELS * THOR2_ROWS - pattern.count;
+      for (let count = 1; count <= room; count += 1) {
+        add(pattern.payMultiplier * count * 1_000);
+      }
+      continue;
+    }
+    const center = Math.round(targetRound / pattern.payMultiplier);
+    for (let offset = -16; offset <= 16; offset += 1) {
+      const multiplierTotal = center + offset;
+      if (multiplierTotal < 2) continue;
+      if (!splitThor2MultiplierTotal(multiplierTotal, THOR2_REELS * THOR2_ROWS - pattern.count)) {
+        continue;
+      }
+      add(pattern.payMultiplier * multiplierTotal);
+    }
+  }
+  return [...factors]
+    .filter((factor) => factor >= 0 && factor <= THOR2_MAX_WIN_MULTIPLIER)
+    .sort(
+      (left, right) =>
+        Math.abs(left - targetFactor) - Math.abs(right - targetFactor) || left - right,
+    );
+}
+
 function upgradeMultiplier(value: number, levels: 1 | 2 | 3) {
   const currentIndex = THOR2_LEGAL_MULTIPLIERS.indexOf(
     value as (typeof THOR2_LEGAL_MULTIPLIERS)[number],
@@ -247,7 +399,7 @@ function playRound(
     const before = current.map((cell) => ({ ...cell }));
     const baseWinMultiplier = wins.reduce((sum, win) => sum + win.payMultiplier, 0);
     const removed = new Set(wins.flatMap((win) => win.positions));
-    current = refillGrid(before, removed, random, superMode ? 0.095 : 0.065, lucky);
+    current = refillGrid(before, removed, random, lucky ? 0 : superMode ? 0.095 : 0.065, lucky);
     cascades.push({
       before,
       after: current.map((cell) => ({ ...cell })),
@@ -284,10 +436,7 @@ function playRound(
         multiplier: next.value,
       };
     });
-    const collectedMultiplier = current.reduce(
-      (sum, cell) => sum + (cell.multiplier ?? 0),
-      0,
-    );
+    const collectedMultiplier = current.reduce((sum, cell) => sum + (cell.multiplier ?? 0), 0);
     runningMultiplier += collectedMultiplier;
     const baseRoundMultiplier = cascades.reduce(
       (sum, cascade) => sum + cascade.baseWinMultiplier,
@@ -403,6 +552,258 @@ function maybeForceFeatureWin(
   return next;
 }
 
+function shuffleThor2Cells(values: Thor2Cell[], random: RandomSource): Thor2Cell[] {
+  for (let index = values.length - 1; index > 0; index -= 1) {
+    const swapIndex = random.nextInt(index + 1);
+    const current = values[index]!;
+    values[index] = values[swapIndex]!;
+    values[swapIndex] = current;
+  }
+  return values;
+}
+
+function controlledSafeCells(count: number, random: RandomSource, excludedSymbol = 0): Thor2Cell[] {
+  const symbols = NORMAL_SYMBOLS.filter((symbol) => symbol !== excludedSymbol);
+  const offset = random.nextInt(symbols.length);
+  return Array.from({ length: count }, (_, index) => ({
+    symbol: symbols[(offset + index) % symbols.length] ?? 13,
+  }));
+}
+
+function shapeControlledLossGrid(grid: readonly Thor2Cell[], lucky: boolean): Thor2Cell[] {
+  const next = grid.map((current) =>
+    lucky && current.multiplier ? { symbol: 19, multiplier: 1_000 } : { ...current },
+  );
+  const counts = new Map<number, number>();
+  for (let position = 0; position < next.length; position += 1) {
+    const current = next[position] ?? { symbol: 13 };
+    if (current.multiplier || !PAYTABLE[current.symbol]) continue;
+    const count = (counts.get(current.symbol) ?? 0) + 1;
+    if (count <= 7) {
+      counts.set(current.symbol, count);
+      continue;
+    }
+    const replacement = NORMAL_SYMBOLS.find((symbol) => (counts.get(symbol) ?? 0) < 7) ?? 13;
+    next[position] = { symbol: replacement };
+    counts.set(replacement, (counts.get(replacement) ?? 0) + 1);
+  }
+  return next;
+}
+
+function controlledLossRound(
+  random: RandomSource,
+  index: number,
+  accumulatedMultiplier: number,
+  multiplierRate: number,
+  lucky: boolean,
+): Thor2Round {
+  const grid = shapeControlledLossGrid(
+    buildGrid(random, {
+      bonusRate: 0,
+      superBonusRate: 0,
+      multiplierRate: lucky ? 0 : multiplierRate,
+      lucky,
+    }),
+    lucky,
+  );
+  return {
+    index,
+    grid,
+    finalGrid: grid.map((current) => ({ ...current })),
+    cascades: [],
+    payoutMultiplier: 0,
+    accumulatedMultiplier,
+    retriggeredSpins: 0,
+    superBonusMultiplier: 0,
+  };
+}
+
+function controlledRefillGrid(
+  before: readonly Thor2Cell[],
+  removed: ReadonlySet<number>,
+  winningSymbol: number,
+  random: RandomSource,
+): Thor2Cell[] {
+  const next = Array<Thor2Cell>(THOR2_REELS * THOR2_ROWS);
+  const counts = new Map<number, number>();
+  before.forEach((current, position) => {
+    if (removed.has(position) || current.multiplier || !PAYTABLE[current.symbol]) return;
+    counts.set(current.symbol, (counts.get(current.symbol) ?? 0) + 1);
+  });
+  const allowed = NORMAL_SYMBOLS.filter((symbol) => symbol !== winningSymbol);
+  const chooseSafeSymbol = (): Thor2Cell => {
+    const minimum = Math.min(...allowed.map((symbol) => counts.get(symbol) ?? 0));
+    const choices = allowed.filter((symbol) => (counts.get(symbol) ?? 0) === minimum);
+    const symbol = choices[random.nextInt(choices.length)] ?? allowed[0] ?? 13;
+    counts.set(symbol, (counts.get(symbol) ?? 0) + 1);
+    return { symbol };
+  };
+  for (let reel = 0; reel < THOR2_REELS; reel += 1) {
+    const survivors: Thor2Cell[] = [];
+    for (let row = THOR2_ROWS - 1; row >= 0; row -= 1) {
+      const position = reel * THOR2_ROWS + row;
+      if (!removed.has(position)) survivors.unshift({ ...(before[position] ?? { symbol: 13 }) });
+    }
+    const column = Array.from({ length: THOR2_ROWS - survivors.length }, chooseSafeSymbol).concat(
+      survivors,
+    );
+    for (let row = 0; row < THOR2_ROWS; row += 1) {
+      next[reel * THOR2_ROWS + row] = column[row] ?? { symbol: 13 };
+    }
+  }
+  return next;
+}
+
+function controlledWinningRound(
+  random: RandomSource,
+  index: number,
+  factor: number,
+  accumulatedMultiplier: number,
+  lucky: boolean,
+): Thor2Round {
+  const plans = controlledRoundPlans(factor, lucky);
+  const plan = plans[random.nextInt(plans.length)];
+  if (!plan) throw new Error(`Thor II factor ${factor} is not representable`);
+  const fixed = [
+    ...Array.from({ length: plan.count }, () => ({ symbol: plan.symbol })),
+    ...plan.multiplierValues.map((value) => multiplierCell(random, value)),
+  ];
+  const before = shuffleThor2Cells(
+    fixed.concat(controlledSafeCells(THOR2_REELS * THOR2_ROWS - fixed.length, random, plan.symbol)),
+    random,
+  );
+  const wins = evaluateThor2AnywherePays(before);
+  const removed = new Set(wins.flatMap((win) => win.positions));
+  const after = controlledRefillGrid(before, removed, plan.symbol, random);
+  const collectedMultiplier = plan.multiplierValues.reduce((total, value) => total + value, 0);
+  const nextAccumulatedMultiplier = accumulatedMultiplier + collectedMultiplier;
+  const effectiveMultiplier = lucky
+    ? Math.max(1, collectedMultiplier)
+    : Math.max(1, nextAccumulatedMultiplier);
+  const baseWinMultiplier = wins.reduce((total, win) => total + win.payMultiplier, 0);
+  const payoutMultiplier = normalizeThor2Multiplier(baseWinMultiplier * effectiveMultiplier);
+  if (!sameThor2Multiplier(payoutMultiplier, factor)) {
+    throw new Error(`Thor II factor ${factor} produced ${payoutMultiplier}`);
+  }
+  const cascade: Thor2Cascade = {
+    before: before.map((current) => ({ ...current })),
+    after: after.map((current) => ({ ...current })),
+    wins,
+    baseWinMultiplier,
+    collectedMultiplier,
+    accumulatedMultiplier: nextAccumulatedMultiplier,
+    payoutMultiplier,
+    upgrades: [],
+  };
+  return {
+    index,
+    grid: before,
+    finalGrid: after,
+    cascades: [cascade],
+    payoutMultiplier,
+    accumulatedMultiplier: nextAccumulatedMultiplier,
+    retriggeredSpins: 0,
+    superBonusMultiplier: 0,
+  };
+}
+
+function controlledFeatureEntryGrid(random: RandomSource): Thor2Cell[] {
+  return shuffleThor2Cells(
+    [
+      ...Array.from({ length: 4 }, () => ({ symbol: 1 })),
+      ...controlledSafeCells(THOR2_REELS * THOR2_ROWS - 4, random),
+    ],
+    random,
+  );
+}
+
+/**
+ * Generate a deterministic, fully visible result for a control-system target.
+ * Unlike re-rolling natural outcomes, every returned payout is constructed
+ * from the real Thor paytable, legal multiplier balls and the displayed tumble.
+ */
+export function thor2SpinForFactor(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  totalFactor: number,
+  options: Thor2SpinOptions = {},
+): Thor2EngineResult {
+  const target = normalizeThor2Multiplier(totalFactor);
+  if (!isThor2FactorRepresentable(target, options)) {
+    throw new Error(`Thor II factor ${totalFactor} is not representable`);
+  }
+  const random = randomSource(serverSeed, `${clientSeed}:thor2-factor:${target}`, nonce);
+  const kind = options.buyFeature;
+  if (kind === 'regular' || kind === 'super') {
+    const entryGrid = controlledFeatureEntryGrid(random);
+    const roundTarget = normalizeThor2Multiplier(target - bonusPayForCount(4));
+    const winningIndex = roundTarget > 0 ? random.nextInt(15) : -1;
+    const rounds: Thor2Round[] = [];
+    let accumulatedMultiplier = 0;
+    for (let index = 0; index < 15; index += 1) {
+      const round =
+        index === winningIndex
+          ? controlledWinningRound(random, index + 1, roundTarget, accumulatedMultiplier, false)
+          : controlledLossRound(
+              random,
+              index + 1,
+              accumulatedMultiplier,
+              kind === 'super' ? 0.1 : 0.07,
+              false,
+            );
+      accumulatedMultiplier = round.accumulatedMultiplier;
+      rounds.push(round);
+    }
+    return {
+      grid: entryGrid,
+      cascades: [],
+      feature: {
+        kind,
+        spinsAwarded: 15,
+        spinsPlayed: 15,
+        rounds,
+        accumulatedMultiplier,
+        totalMultiplier: target,
+        maxWinReached: target >= THOR2_MAX_WIN_MULTIPLIER,
+      },
+      totalMultiplier: target,
+      maxWinReached: target >= THOR2_MAX_WIN_MULTIPLIER,
+    };
+  }
+  if (kind === 'lucky') {
+    const round =
+      target > 0
+        ? controlledWinningRound(random, 1, target, 0, true)
+        : controlledLossRound(random, 1, 0, 0, true);
+    return {
+      grid: round.finalGrid,
+      cascades: round.cascades,
+      feature: {
+        kind: 'lucky',
+        spinsAwarded: 1,
+        spinsPlayed: 1,
+        rounds: [round],
+        accumulatedMultiplier: round.accumulatedMultiplier,
+        totalMultiplier: target,
+        maxWinReached: target >= THOR2_MAX_WIN_MULTIPLIER,
+      },
+      totalMultiplier: target,
+      maxWinReached: target >= THOR2_MAX_WIN_MULTIPLIER,
+    };
+  }
+  const round =
+    target > 0
+      ? controlledWinningRound(random, 0, target, 0, false)
+      : controlledLossRound(random, 0, 0, 0.008, false);
+  return {
+    grid: round.finalGrid,
+    cascades: round.cascades,
+    totalMultiplier: target,
+    maxWinReached: target >= THOR2_MAX_WIN_MULTIPLIER,
+  };
+}
+
 function capResultMultiplier(value: number): number {
   return Math.min(THOR2_MAX_WIN_MULTIPLIER, Math.max(0, Math.round(value * 10_000) / 10_000));
 }
@@ -411,7 +812,7 @@ export function thor2Spin(
   serverSeed: string,
   clientSeed: string,
   nonce: number,
-  options: { extraBet?: boolean; buyFeature?: 'regular' | 'super' | 'lucky' } = {},
+  options: Thor2SpinOptions = {},
 ): Thor2EngineResult {
   const random = randomSource(serverSeed, clientSeed, nonce);
   const kind = options.buyFeature;

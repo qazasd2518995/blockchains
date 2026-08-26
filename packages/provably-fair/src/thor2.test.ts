@@ -4,7 +4,11 @@ import {
   THOR2_MAX_FREE_SPINS,
   THOR2_MAX_WIN_MULTIPLIER,
   evaluateThor2AnywherePays,
+  isThor2FactorRepresentable,
+  splitThor2MultiplierTotal,
+  thor2ControlFactorCandidates,
   thor2Spin,
+  thor2SpinForFactor,
 } from './thor2.js';
 
 describe('Power of Thor II observed-rules engine', () => {
@@ -129,6 +133,70 @@ describe('Power of Thor II observed-rules engine', () => {
     expect(thor2Spin('same-server', 'same-client', 99, { buyFeature: 'regular' })).toEqual(
       thor2Spin('same-server', 'same-client', 99, { buyFeature: 'regular' }),
     );
+  });
+
+  it('constructs exact visible control targets for every paid action', () => {
+    const cases = [
+      { options: {}, factors: [0, 0.05, 1.05, 20, 1_000, 25_000] },
+      { options: { extraBet: true }, factors: [0, 1.28, 20, 1_000] },
+      { options: { buyFeature: 'regular' as const }, factors: [3, 50, 101, 500, 5_000] },
+      { options: { buyFeature: 'super' as const }, factors: [3, 500, 505, 5_000] },
+      { options: { buyFeature: 'lucky' as const }, factors: [0, 400, 4_080, 4_400, 8_000, 25_000] },
+    ];
+    for (const { options, factors } of cases) {
+      for (const factor of factors) {
+        expect(isThor2FactorRepresentable(factor, options)).toBe(true);
+        const result = thor2SpinForFactor(
+          'controlled-server',
+          `controlled-${options.buyFeature ?? 'base'}-${factor}`,
+          19,
+          factor,
+          options,
+        );
+        expect(result.totalMultiplier).toBe(factor);
+        if (options.buyFeature === 'regular' || options.buyFeature === 'super') {
+          expect(result.grid.filter((current) => current.symbol === 1)).toHaveLength(4);
+          expect(result.feature?.rounds).toHaveLength(15);
+          const visibleTotal =
+            3 +
+            (result.feature?.rounds.reduce((total, round) => total + round.payoutMultiplier, 0) ??
+              0);
+          expect(visibleTotal).toBeCloseTo(factor, 8);
+        } else if (options.buyFeature === 'lucky') {
+          expect(result.feature?.rounds).toHaveLength(1);
+          expect(result.feature?.rounds[0]?.payoutMultiplier).toBe(factor);
+          for (const current of result.feature?.rounds[0]?.grid ?? []) {
+            if (current.multiplier) expect(current.multiplier).toBe(1_000);
+          }
+        } else {
+          expect(result.cascades.reduce((total, round) => total + round.payoutMultiplier, 0)).toBe(
+            factor,
+          );
+        }
+      }
+    }
+  });
+
+  it('offers nearby legal factors instead of relying on random rerolls', () => {
+    const regular = thor2ControlFactorCandidates(101, { buyFeature: 'regular' });
+    expect(regular).toContain(101);
+    expect(
+      regular.every((factor) => isThor2FactorRepresentable(factor, { buyFeature: 'regular' })),
+    ).toBe(true);
+    const lucky = thor2ControlFactorCandidates(4_040, { buyFeature: 'lucky' });
+    expect(lucky[0]).toBe(4_000);
+    expect(lucky).toContain(4_080);
+    expect(lucky).toContain(4_400);
+  });
+
+  it('splits controlled multiplier totals into legal visible balls within board capacity', () => {
+    for (const total of [2, 5, 21, 101, 999, 5_001, 22_000]) {
+      const values = splitThor2MultiplierTotal(total, 22);
+      expect(values).not.toBeNull();
+      expect(values?.reduce((sum, value) => sum + value, 0)).toBe(total);
+      expect(values?.every((value) => THOR2_LEGAL_MULTIPLIERS.includes(value as never))).toBe(true);
+    }
+    expect(splitThor2MultiplierTotal(22_001, 22)).toBeNull();
   });
 
   it('models Lucky Strike as one all-1000x spin with either no win or max win', () => {

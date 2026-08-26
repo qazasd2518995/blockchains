@@ -1,5 +1,11 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
-import { thor2Spin, THOR2_MAX_WIN_MULTIPLIER, THOR2_MODEL_VERSION } from '@bg/provably-fair';
+import {
+  thor2ControlFactorCandidates,
+  thor2Spin,
+  thor2SpinForFactor,
+  THOR2_MAX_WIN_MULTIPLIER,
+  THOR2_MODEL_VERSION,
+} from '@bg/provably-fair';
 import {
   GameId,
   type Thor2SessionResult,
@@ -78,6 +84,65 @@ function buildCandidate(
   return { clientSeed, engine, payout, multiplier };
 }
 
+function buildControlledCandidate(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  baseBet: Prisma.Decimal,
+  stake: Prisma.Decimal,
+  action: Thor2SpinAction,
+  factor: number,
+): Candidate {
+  const controlledClientSeed = `${clientSeed}:thor2-control:${factor.toFixed(4)}`;
+  const engine = thor2SpinForFactor(
+    serverSeed,
+    controlledClientSeed,
+    nonce,
+    factor,
+    engineOptions(action),
+  );
+  const payout = thor2Payout(baseBet, engine.totalMultiplier);
+  const multiplier = payout.div(stake).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
+  return { clientSeed: controlledClientSeed, engine, payout, multiplier };
+}
+
+function controlledThor2Factors(
+  baseBet: Prisma.Decimal,
+  stake: Prisma.Decimal,
+  action: Thor2SpinAction,
+  control: Pick<ControlOutcome, 'won' | 'multiplier' | 'minMultiplier' | 'maxMultiplier'>,
+): number[] {
+  const options = engineOptions(action);
+  const costMultiplier = stake.div(baseBet);
+  const targets = new Set<number>();
+  const addAccountingMultiplier = (value: Prisma.Decimal | number | undefined) => {
+    if (value === undefined) return;
+    const factor = Number(new Prisma.Decimal(value).mul(costMultiplier).toFixed(4));
+    if (Number.isFinite(factor)) targets.add(Math.max(0, factor));
+  };
+  addAccountingMultiplier(control.multiplier);
+  addAccountingMultiplier(control.minMultiplier);
+  addAccountingMultiplier(control.maxMultiplier);
+  if (control.won) {
+    for (const scale of [1.05, 1.1, 1.2, 1.25]) {
+      addAccountingMultiplier(control.multiplier.mul(scale));
+    }
+  }
+  // Keep legal loss anchors available even for a requested win. If a narrow
+  // cap has no representable positive Thor result, the shared control contract
+  // must receive a real visible loss rather than a winning natural fallback.
+  for (const ratio of [0, 0.1, 0.25, 0.5, 0.75, 1]) {
+    addAccountingMultiplier(ratio);
+  }
+  const factors = new Set<number>();
+  for (const target of targets) {
+    for (const factor of thor2ControlFactorCandidates(target, options).slice(0, 64)) {
+      factors.add(factor);
+    }
+  }
+  return [...factors];
+}
+
 export function selectThor2Candidate(
   natural: Candidate,
   control: ControlOutcome,
@@ -91,42 +156,89 @@ export function selectThor2Candidate(
   },
 ): { candidate: Candidate; control: ControlOutcome } {
   if (!control.controlled) return { candidate: natural, control };
-  const candidates = [natural];
-  for (let index = 1; index <= 128; index += 1) {
-    candidates.push(
-      buildCandidate(
-        params.serverSeed,
-        `${params.clientSeed}:thor2-control:${index}`,
-        params.nonce,
-        params.baseBet,
-        params.stake,
-        params.action,
-      ),
-    );
+  const factorCandidates = controlledThor2Factors(
+    params.baseBet,
+    params.stake,
+    params.action,
+    control,
+  ).map((factor) => {
+    const payout = thor2Payout(params.baseBet, factor);
+    return {
+      factor,
+      payout,
+      multiplier: payout.div(params.stake).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN),
+    };
+  });
+  const naturalWon = natural.payout.greaterThan(params.stake);
+  if (
+    naturalWon === control.won &&
+    (!control.maxPayout || natural.payout.lessThanOrEqualTo(control.maxPayout)) &&
+    multiplierMatchesControlBounds(natural.multiplier, params.stake, control)
+  ) {
+    return { candidate: natural, control };
   }
-  const matching = candidates.filter((candidate) => {
+  const matching = factorCandidates.filter((candidate) => {
     const won = candidate.payout.greaterThan(params.stake);
     return (
       won === control.won &&
+      (!control.maxPayout || candidate.payout.lessThanOrEqualTo(control.maxPayout)) &&
       multiplierMatchesControlBounds(candidate.multiplier, params.stake, control)
     );
   });
   if (matching.length > 0) {
-    matching.sort((a, b) =>
+    const nearest = [...matching].sort((a, b) =>
       a.multiplier
         .minus(control.multiplier)
         .abs()
         .cmp(b.multiplier.minus(control.multiplier).abs()),
     );
-    return { candidate: matching[0] ?? natural, control };
+    const pool = control.won ? nearest.slice(0, Math.min(8, nearest.length)) : matching;
+    let selectedFactor: number;
+    if (control.won) {
+      selectedFactor = (pool[Math.abs(params.nonce) % pool.length] ?? nearest[0])!.factor;
+    } else {
+      const lossRatios = [0, 0.1, 0.25, 0.5, 0.75, 1];
+      const lossTarget = params.stake.mul(
+        lossRatios[Math.abs(params.nonce) % lossRatios.length] ?? 0,
+      );
+      const variedLosses = [...pool].sort((left, right) =>
+        left.payout.minus(lossTarget).abs().cmp(right.payout.minus(lossTarget).abs()),
+      );
+      selectedFactor = (variedLosses[0] ?? nearest[0])!.factor;
+    }
+    return {
+      candidate: buildControlledCandidate(
+        params.serverSeed,
+        params.clientSeed,
+        params.nonce,
+        params.baseBet,
+        params.stake,
+        params.action,
+        selectedFactor,
+      ),
+      control,
+    };
   }
-  const losses = candidates
+  const losses = factorCandidates
     .filter((candidate) => candidate.payout.lessThanOrEqualTo(params.stake))
     .sort((a, b) => a.payout.cmp(b.payout));
   if (losses.length > 0) {
-    return { candidate: losses[0] ?? natural, control: forceControlOutcomeToLoss(control) };
+    const selectedFactor = losses[0]!.factor;
+    return {
+      candidate: buildControlledCandidate(
+        params.serverSeed,
+        params.clientSeed,
+        params.nonce,
+        params.baseBet,
+        params.stake,
+        params.action,
+        selectedFactor,
+      ),
+      control: forceControlOutcomeToLoss(control),
+    };
   }
-  return { candidate: natural, control: forceControlOutcomeToLoss(control) };
+  if (!naturalWon) return { candidate: natural, control: forceControlOutcomeToLoss(control) };
+  throw new Error(`Thor II ${params.action} has no representable controlled loss`);
 }
 
 export class Thor2Service {
@@ -244,6 +356,15 @@ export class Thor2Service {
         engine: selected.engine,
         controlled: selection.control.controlled,
         flipReason: selection.control.flipReason ?? null,
+        controlResult: {
+          controlled: selection.control.controlled,
+          reason: selection.control.flipReason ?? null,
+          accountingAmount: stake.toFixed(2),
+          originalPayout: natural.payout.toFixed(2),
+          finalPayout: selected.payout.toFixed(2),
+          originalMultiplier: natural.multiplier.toFixed(4),
+          finalMultiplier: selected.multiplier.toFixed(4),
+        },
       };
       const bet = await tx.bet.create({
         data: {
