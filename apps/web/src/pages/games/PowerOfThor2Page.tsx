@@ -26,7 +26,7 @@ export function PowerOfThor2Page() {
       wspath: 'RewardableSlotUser',
       apiBase,
       lang: sourceLocale(locale),
-      build: 'qmoney-thor2-original-cocos-v1',
+      build: 'qmoney-thor2-original-cocos-v2-mobile-bootstrap',
     });
     return `${ORIGINAL_GAME_PATH}?${query.toString()}`;
   }, [locale]);

@@ -54,6 +54,7 @@ await WebAssembly.compile(spineWasm);
 
 for (const relativePath of [
   'original-runtime/index.html',
+  'original-runtime/thor2-runtime-compat.js',
   'original-runtime/thor2-original-adapter.js',
   'original-runtime/record/PowerOfThor2/version.json',
   'documentation/rules-zh-TW.json',
@@ -83,6 +84,7 @@ assert.ok(
 
 const runtimeHtml = fs.readFileSync(path.join(gameRoot, 'original-runtime/index.html'), 'utf8');
 for (const originalBootAsset of [
+  'thor2-runtime-compat.js?v=20260826-mobile-1',
   'common/js/jsStart-cocos.js',
   'content/PowerOfThor2/src/polyfills.bundle.js',
   'content/PowerOfThor2/src/system.bundle.js',
@@ -91,6 +93,47 @@ for (const originalBootAsset of [
 ]) {
   assert.ok(runtimeHtml.includes(originalBootAsset), `Original Cocos boot asset missing: ${originalBootAsset}`);
 }
+
+const compatSource = fs.readFileSync(
+  path.join(gameRoot, 'original-runtime/thor2-runtime-compat.js'),
+  'utf8',
+);
+const compatWindow = {
+  navigator: {
+    userAgent:
+      'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/149.0.0.0 Mobile Safari/537.36 OPR/100.0.0.0',
+  },
+  isIPad: false,
+};
+vm.runInNewContext(compatSource, { window: compatWindow, Number, Math, Boolean, String });
+const runtimeCompat = compatWindow.__QmoneyThor2RuntimeCompatTest;
+assert.ok(runtimeCompat, 'The Thor 2 mobile runtime compatibility layer is unavailable');
+assert.equal(
+  runtimeCompat.detectIOSVersion(compatWindow.navigator.userAgent, false),
+  Number.POSITIVE_INFINITY,
+  'Android must not enter an archived iOS fullscreen workaround',
+);
+assert.equal(
+  compatWindow.getIOSVersion(),
+  Number.POSITIVE_INFINITY,
+  'The archived runtime global must be available before Cocos bootstraps',
+);
+assert.equal(
+  runtimeCompat.detectIOSVersion(
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 15_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1',
+    false,
+  ),
+  15.5,
+  'iPhone fullscreen workarounds require the real iOS version',
+);
+assert.equal(
+  runtimeCompat.detectIOSVersion(
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Version/17.4 Mobile/15E148 Safari/604.1',
+    true,
+  ),
+  17.4,
+  'Desktop-mode iPad must retain its Safari version fallback',
+);
 
 const adapterSource = fs.readFileSync(
   path.join(gameRoot, 'original-runtime/thor2-original-adapter.js'),
