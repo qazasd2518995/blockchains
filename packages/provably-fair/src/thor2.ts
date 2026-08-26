@@ -1,6 +1,6 @@
 import { hmacIntStream } from './hmac.js';
 
-export const THOR2_MODEL_VERSION = 'thor2-observed-rules-v2';
+export const THOR2_MODEL_VERSION = 'thor2-observed-rules-v3-final-screen-multiplier';
 export const THOR2_REELS = 6;
 export const THOR2_ROWS = 5;
 export const THOR2_MAX_CASCADES = 8;
@@ -240,22 +240,38 @@ function playRound(
   const initialGrid = grid.map((cell) => ({ ...cell }));
   const cascades: Thor2Cascade[] = [];
   let current = grid;
-  let roundPayout = 0;
-  let runningMultiplier = accumulatedMultiplier;
 
   for (let cascadeIndex = 0; cascadeIndex < THOR2_MAX_CASCADES; cascadeIndex += 1) {
     const wins = evaluateThor2AnywherePays(current);
     if (wins.length === 0) break;
     const before = current.map((cell) => ({ ...cell }));
+    const baseWinMultiplier = wins.reduce((sum, win) => sum + win.payMultiplier, 0);
+    const removed = new Set(wins.flatMap((win) => win.positions));
+    current = refillGrid(before, removed, random, superMode ? 0.095 : 0.065, lucky);
+    cascades.push({
+      before,
+      after: current.map((cell) => ({ ...cell })),
+      wins,
+      baseWinMultiplier,
+      collectedMultiplier: 0,
+      accumulatedMultiplier,
+      payoutMultiplier: 0,
+      upgrades: [],
+    });
+  }
+
+  let runningMultiplier = accumulatedMultiplier;
+  let roundPayout = 0;
+  if (cascades.length > 0) {
     const upgrades: Thor2MultiplierEvent[] = [];
-    // The original client protocol carries one UpgradeLevel sequence for the
-    // whole screen. Every multiplier symbol advances by that same number of
-    // legal steps (with 1000x clamped), rather than independently rolling an
-    // upgrade per symbol.
+    // The original resolves multiplier balls after the complete tumble chain.
+    // Every ball on the final screen participates, including a ball introduced
+    // by the last refill. Upgrade animation also happens at this final collect
+    // stage, with one shared number of legal ladder steps for the whole screen.
     const upgradeLevels = current.some((cell) => Boolean(cell.multiplier))
       ? rollUpgradeLevels(random, superMode)
       : 0;
-    const upgraded = current.map((cell, position) => {
+    current = current.map((cell, position) => {
       if (!cell.multiplier || upgradeLevels === 0) return { ...cell };
       const next = upgradeMultiplier(cell.multiplier, upgradeLevels);
       if (!next) return { ...cell };
@@ -268,26 +284,28 @@ function playRound(
         multiplier: next.value,
       };
     });
-    const baseWinMultiplier = wins.reduce((sum, win) => sum + win.payMultiplier, 0);
-    const collectedMultiplier = upgraded.reduce((sum, cell) => sum + (cell.multiplier ?? 0), 0);
+    const collectedMultiplier = current.reduce(
+      (sum, cell) => sum + (cell.multiplier ?? 0),
+      0,
+    );
     runningMultiplier += collectedMultiplier;
+    const baseRoundMultiplier = cascades.reduce(
+      (sum, cascade) => sum + cascade.baseWinMultiplier,
+      0,
+    );
     const effectiveMultiplier = lucky
       ? Math.max(1, collectedMultiplier)
       : Math.max(1, runningMultiplier);
-    const payoutMultiplier = baseWinMultiplier * effectiveMultiplier;
-    roundPayout += payoutMultiplier;
-    const removed = new Set(wins.flatMap((win) => win.positions));
-    current = refillGrid(upgraded, removed, random, superMode ? 0.095 : 0.065, lucky);
-    cascades.push({
-      before,
-      after: current.map((cell) => ({ ...cell })),
-      wins,
-      baseWinMultiplier,
-      collectedMultiplier,
-      accumulatedMultiplier: runningMultiplier,
-      payoutMultiplier,
-      upgrades,
-    });
+    roundPayout = baseRoundMultiplier * effectiveMultiplier;
+
+    const finalCascade = cascades[cascades.length - 1];
+    if (finalCascade) {
+      finalCascade.after = current.map((cell) => ({ ...cell }));
+      finalCascade.collectedMultiplier = collectedMultiplier;
+      finalCascade.accumulatedMultiplier = runningMultiplier;
+      finalCascade.payoutMultiplier = roundPayout;
+      finalCascade.upgrades = upgrades;
+    }
   }
 
   const bonusCount = current.filter((cell) => cell.symbol === 1).length;

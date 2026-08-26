@@ -156,7 +156,9 @@ for (const contract of [
   "CryptoJS.DES.decrypt",
   "Type: 'WalletUpdate'",
   'var incomingDrop = cascadeIndex > 0 ? deriveDrop(cascades[cascadeIndex - 1]) : null',
-  'var finalDrop = deriveDrop(lastCascade)',
+  'var finalDrop = deriveDrop(lastCascade, finalOriginGrid)',
+  'var settlementDelta = Math.max(0, settledRoundWin - roundWinOrigin) + finalBonus',
+  'appendLegacyMultiplierRound(queue, round, options)',
   'assertDropAlignment(rng, multiple, dropScreen, dropMultiple)',
   'Win: Number(data.spinWin || 0) * 20',
   'if (entersFree) baseGrid = ensureFreeTriggerGrid(baseGrid)',
@@ -238,6 +240,73 @@ const sequence = adapter.buildSequence({
       baseWinMultiplier: 0.2,
       collectedMultiplier: 0,
       accumulatedMultiplier: 0,
+      payoutMultiplier: 0,
+      upgrades: [],
+    },
+    {
+      before: firstAfter,
+      after: secondAfter,
+      wins: [{ symbol: 4, count: 8, positions: [5, 6, 7, 8, 9, 10, 11, 12], payMultiplier: 0.5 }],
+      baseWinMultiplier: 0.5,
+      collectedMultiplier: 7,
+      accumulatedMultiplier: 7,
+      payoutMultiplier: 4.9,
+      upgrades: [{ position: 0, from: 2, to: 3, level: 1 }],
+    },
+  ],
+  totalMultiplier: 4.9,
+  maxWinReached: false,
+});
+assert.equal(sequence.queue.length, 3, 'Two wins require two score packets and one drop-final packet');
+const packets = sequence.queue.map((entry) => JSON.parse(JSON.stringify(entry.payload)));
+assert.deepEqual(
+  packets[0].ExtraData.Extra.DropScreen,
+  [[], [], [], [], [], []],
+  'The initial winning screen cannot claim that its own replacement symbols already dropped',
+);
+assert.equal(packets[1].ExtraData.RNG[0][0], 15, 'The second packet must present the refilled screen');
+assert.equal(packets[1].ExtraData.Extra.DropMultiple[0][0], 2, 'The dropped 2x ball was lost');
+assert.equal(
+  packets[1].ExtraData.Extra.TriggerUpgrade,
+  false,
+  'Multiplier upgrade cannot run before the tumble chain has ended',
+);
+assert.equal(
+  packets[1].ExtraData.Extra.Features[0].AddMultiple,
+  0,
+  'Multiplier balls cannot be collected during an intermediate tumble',
+);
+assert.equal(packets[2].ExtraData.WinLines.length, 0, 'The terminal drop packet must not replay a win');
+assert.equal(packets[2].ExtraData.Extra.MultipleOrigin[0][0], 2, 'Upgrade origin must stay at 2x');
+assert.equal(packets[2].ExtraData.Extra.Multiple[0][0], 3, 'Upgrade result must advance to 3x');
+assert.equal(packets[2].ExtraData.Extra.DropMultiple[1][0], 4, 'The last refill ball was lost');
+assert.equal(
+  packets[2].ExtraData.Extra.Features[0].AddMultiple,
+  7,
+  'The terminal collect must include every final-screen multiplier ball',
+);
+assert.equal(packets[2].ExtraData.Extra.Features[0].Multiple, 7);
+assert.equal(packets[2].ExtraData.Extra.Features[1].TumblingWinOrigin, 14);
+assert.equal(packets[2].ExtraData.Extra.Features[1].TumblingWin, 98);
+assert.equal(
+  packets[2].ExtraData.Extra.TriggerUpgrade,
+  true,
+  'The original lightning upgrade must run on the terminal collection packet',
+);
+assert.equal(packets[2].ExtraData.Extra.SubFlowEnd, 1, 'The terminal drop packet must close cascading');
+assert.equal(packets[2].ExtraData.FlowEnd, 1, 'The terminal packet must close the base spin flow');
+
+const legacySequence = adapter.buildSequence({
+  modelVersion: 'thor2-observed-rules-v2',
+  grid: secondAfter,
+  cascades: [
+    {
+      before: firstBefore,
+      after: firstAfter,
+      wins: [{ symbol: 3, count: 8, positions: [0, 1, 2, 3, 4, 5, 6, 7], payMultiplier: 0.2 }],
+      baseWinMultiplier: 0.2,
+      collectedMultiplier: 0,
+      accumulatedMultiplier: 0,
       payoutMultiplier: 0.2,
       upgrades: [],
     },
@@ -255,20 +324,16 @@ const sequence = adapter.buildSequence({
   totalMultiplier: 1.7,
   maxWinReached: false,
 });
-assert.equal(sequence.queue.length, 3, 'Two wins require two score packets and one drop-final packet');
-const packets = sequence.queue.map((entry) => JSON.parse(JSON.stringify(entry.payload)));
-assert.deepEqual(
-  packets[0].ExtraData.Extra.DropScreen,
-  [[], [], [], [], [], []],
-  'The initial winning screen cannot claim that its own replacement symbols already dropped',
+const legacyPackets = legacySequence.queue.map((entry) => entry.payload);
+assert.equal(legacyPackets.length, 3, 'Stored v2 rounds must remain recoverable after the v3 rollout');
+assert.equal(
+  legacyPackets[1].ExtraData.Extra.TriggerUpgrade,
+  true,
+  'A stored v2 round must preserve its already-settled upgrade timing',
 );
-assert.equal(packets[1].ExtraData.RNG[0][0], 15, 'The second packet must present the refilled screen');
-assert.equal(packets[1].ExtraData.Extra.DropMultiple[0][0], 2, 'The dropped 2x ball was lost');
-assert.equal(packets[1].ExtraData.Extra.MultipleOrigin[0][0], 2, 'Upgrade origin must stay at 2x');
-assert.equal(packets[1].ExtraData.Extra.Multiple[0][0], 3, 'Upgrade result must advance to 3x');
-assert.equal(packets[2].ExtraData.WinLines.length, 0, 'The terminal drop packet must not replay a win');
-assert.equal(packets[2].ExtraData.Extra.SubFlowEnd, 1, 'The terminal drop packet must close cascading');
-assert.equal(packets[2].ExtraData.FlowEnd, 1, 'The terminal packet must close the base spin flow');
+assert.equal(legacyPackets[1].ExtraData.Extra.Features[0].AddMultiple, 3);
+assert.equal(legacyPackets[2].ExtraData.Extra.DropMultiple[1][0], 4);
+assert.equal(legacyPackets[2].ExtraData.Extra.SubFlowEnd, 1);
 
 const legalMultipliers = new Set([2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50, 100, 250, 500, 1000]);
 for (const mode of [undefined, 'regular', 'super', 'lucky']) {
@@ -276,11 +341,46 @@ for (const mode of [undefined, 'regular', 'super', 'lucky']) {
     const engine = thor2Spin('adapter-sequence-server', `adapter-${mode ?? 'base'}`, nonce, {
       ...(mode ? { buyFeature: mode } : {}),
     });
-    const generated = adapter.buildSequence(engine);
+    let generated;
+    try {
+      generated = adapter.buildSequence(engine);
+    } catch (error) {
+      throw new Error(
+        `${mode ?? 'base'} nonce ${nonce} failed original-client sequence validation: ${error.message}`,
+        { cause: error },
+      );
+    }
     assert.ok(generated.queue.length > 0, `${mode ?? 'base'} produced an empty presentation queue`);
     const lastPacket = generated.queue.at(-1).payload;
     assert.equal(lastPacket.ExtraData.Extra.SubFlowEnd, 1, `${mode ?? 'base'} did not end cascading`);
     for (const { payload } of generated.queue) {
+      const screenMultiple = payload.ExtraData.Extra.Features.find(
+        (feature) => feature.Type === 'ScreenMultiple',
+      );
+      if (payload.ExtraData.Extra.SubFlowEnd === 0) {
+        assert.equal(
+          screenMultiple?.AddMultiple ?? 0,
+          0,
+          `${mode ?? 'base'} collected a multiplier before the tumble ended`,
+        );
+        assert.equal(
+          payload.ExtraData.Extra.TriggerUpgrade,
+          false,
+          `${mode ?? 'base'} played lightning before the tumble ended`,
+        );
+      }
+      if ((screenMultiple?.AddMultiple ?? 0) > 0) {
+        assert.equal(
+          payload.ExtraData.Extra.SubFlowEnd,
+          1,
+          `${mode ?? 'base'} must collect final-screen multipliers on the terminal packet`,
+        );
+        assert.equal(
+          payload.ExtraData.WinLines.filter((line) => line.WinType === 0).length,
+          0,
+          `${mode ?? 'base'} terminal multiplier settlement must not replay symbol wins`,
+        );
+      }
       const rng = payload.ExtraData.RNG;
       const multipliers = payload.ExtraData.Extra.Multiple;
       const drop = payload.ExtraData.Extra.DropScreen;

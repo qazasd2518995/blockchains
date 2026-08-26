@@ -56,19 +56,65 @@ describe('Power of Thor II observed-rules engine', () => {
         buyFeature: 'super',
       });
       for (const round of result.feature?.rounds ?? []) {
-        for (const cascade of round.cascades) {
+        for (const [cascadeIndex, cascade] of round.cascades.entries()) {
           if (cascade.upgrades.length === 0) continue;
           checkedUpgrade = true;
-          const expectedPositions = cascade.before
-            .map((cell, position) => ({ cell, position }))
-            .filter(({ cell }) => cell.multiplier && cell.multiplier < 1_000)
-            .map(({ position }) => position);
-          expect(cascade.upgrades.map((upgrade) => upgrade.position)).toEqual(expectedPositions);
+          expect(cascadeIndex).toBe(round.cascades.length - 1);
+          for (const upgrade of cascade.upgrades) {
+            expect(upgrade.to).toBeGreaterThan(upgrade.from);
+            expect(cascade.after[upgrade.position]?.multiplier).toBe(upgrade.to);
+          }
           expect(new Set(cascade.upgrades.map((upgrade) => upgrade.level)).size).toBe(1);
         }
       }
     }
     expect(checkedUpgrade).toBe(true);
+  });
+
+  it('collects the final screen once and applies it to the complete tumble win', () => {
+    let checkedRounds = 0;
+    let observedLastRefillMultiplier = false;
+    for (let nonce = 1; nonce <= 64; nonce += 1) {
+      const result = thor2Spin('final-screen-server', `final-screen-${nonce}`, nonce, {
+        buyFeature: 'super',
+      });
+      let accumulatedMultiplier = 0;
+      for (const round of result.feature?.rounds ?? []) {
+        if (round.cascades.length === 0) continue;
+        checkedRounds += 1;
+        const finalCascade = round.cascades.at(-1)!;
+        const earlierCascades = round.cascades.slice(0, -1);
+        expect(earlierCascades.every((cascade) => cascade.collectedMultiplier === 0)).toBe(true);
+        expect(earlierCascades.every((cascade) => cascade.payoutMultiplier === 0)).toBe(true);
+        expect(earlierCascades.every((cascade) => cascade.upgrades.length === 0)).toBe(true);
+
+        const collectedMultiplier = round.finalGrid.reduce(
+          (sum, cell) => sum + (cell.multiplier ?? 0),
+          0,
+        );
+        accumulatedMultiplier += collectedMultiplier;
+        const baseWinMultiplier = round.cascades.reduce(
+          (sum, cascade) => sum + cascade.baseWinMultiplier,
+          0,
+        );
+        expect(finalCascade.collectedMultiplier).toBe(collectedMultiplier);
+        expect(finalCascade.accumulatedMultiplier).toBe(accumulatedMultiplier);
+        expect(finalCascade.payoutMultiplier).toBeCloseTo(
+          baseWinMultiplier * Math.max(1, accumulatedMultiplier),
+          10,
+        );
+        expect(round.payoutMultiplier).toBeCloseTo(
+          finalCascade.payoutMultiplier + round.superBonusMultiplier,
+          10,
+        );
+
+        const beforeCount = finalCascade.before.filter((cell) => cell.multiplier).length;
+        const afterCount = finalCascade.after.filter((cell) => cell.multiplier).length;
+        if (afterCount > beforeCount) observedLastRefillMultiplier = true;
+      }
+    }
+    expect(checkedRounds).toBeGreaterThan(0);
+    expect(observedLastRefillMultiplier).toBe(true);
   });
 
   it('caps the presentation and settlement at 25,000x', () => {

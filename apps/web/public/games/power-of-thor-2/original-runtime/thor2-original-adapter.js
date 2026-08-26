@@ -903,6 +903,13 @@
   function buildSequence(result) {
     var queue = [];
     var feature = result.feature;
+    // A player can resume a deferred feature that was created before the
+    // final-screen multiplier model shipped. Preserve the old packet timing
+    // for those immutable stored results, while every v3/new result uses the
+    // original game's end-of-tumble collection flow below.
+    var legacyMultiplierSettlement = /^thor2-observed-rules-v(?:1|2)(?:$|-)/.test(
+      String(result.modelVersion || ''),
+    );
     var entersFree = feature && feature.kind !== 'lucky';
     var luckyRound = feature && feature.kind === 'lucky' && feature.rounds
       ? feature.rounds[0]
@@ -938,6 +945,7 @@
       bonusPayMultiplier: baseBonusPay,
       freeRound: luckyRound ? 1 : 0,
       isMaxWin: Boolean(result.maxWinReached && !entersFree),
+      legacyMultiplierSettlement: legacyMultiplierSettlement,
     });
     cumulativeMultiplier += baseRound.payoutMultiplier + baseBonusPay;
 
@@ -959,6 +967,7 @@
           isMaxWin: Boolean(
             result.maxWinReached && roundIndex === feature.rounds.length - 1,
           ),
+          legacyMultiplierSettlement: legacyMultiplierSettlement,
         });
         cumulativeMultiplier += Number(round.payoutMultiplier || 0);
       });
@@ -978,7 +987,6 @@
   function appendRound(queue, round, options) {
     var cascades = round.cascades || [];
     var runningTotal = Number(options.cumulativeStart || 0);
-    var roundWin = 0;
     var roundWinOrigin = 0;
     if (cascades.length === 0) {
       var emptyTotal = runningTotal + Number(options.bonusPayMultiplier || 0);
@@ -1018,6 +1026,110 @@
       return;
     }
 
+    if (options.legacyMultiplierSettlement) {
+      appendLegacyMultiplierRound(queue, round, options);
+      return;
+    }
+
+    var lastCascade = cascades[cascades.length - 1];
+    var collectedMultiplier = Number(lastCascade.collectedMultiplier || 0);
+    var accumulatedMultiplier = Number(lastCascade.accumulatedMultiplier || 0);
+    var multiplierBeforeRound = Math.max(0, accumulatedMultiplier - collectedMultiplier);
+
+    cascades.forEach(function (cascade, cascadeIndex) {
+      var cascadeBaseWin = Number(cascade.baseWinMultiplier || 0);
+      roundWinOrigin += cascadeBaseWin;
+      runningTotal = Number(options.cumulativeStart || 0) + roundWinOrigin;
+      var features = commonFeatures(
+        round,
+        { collectedMultiplier: 0, accumulatedMultiplier: multiplierBeforeRound },
+        runningTotal,
+        roundWinOrigin,
+        roundWinOrigin,
+      );
+      if (options.freeGame) features.push(freeGameFeature(options.freeGame, runningTotal));
+      var incomingDrop = cascadeIndex > 0 ? deriveDrop(cascades[cascadeIndex - 1]) : null;
+      queue.push({
+        payload: gameStartResponse({
+          grid: cascade.before,
+          wins: cascade.wins || [],
+          dropScreen: incomingDrop ? incomingDrop.symbols : emptyReels(),
+          dropMultiple: incomingDrop ? incomingDrop.multipliers : emptyReels(),
+          multiple: gridMultipliers(cascade.before),
+          multipleOrigin: [],
+          screenOrigin: [],
+          features: features,
+          key: cascadeIndex === 0 ? options.key : 7,
+          subKey: options.subKey,
+          flowEnd: 0,
+          subFlowEnd: 0,
+          totalWin: runningTotal,
+          spinWin: cascadeBaseWin,
+          upgrades: [],
+        }),
+        freeRound: options.freeRound || 0,
+        freeRoundComplete: 0,
+      });
+    });
+
+    // The archived client requests the next cascade packet only after it has
+    // animated the current win. The incoming DropScreen therefore belongs to
+    // the previous winning packet, while RNG is the already-refilled screen.
+    // A final no-win packet is required to finish that last drop and close the
+    // cascade state machine. Combining these stages makes a newly dropped
+    // multiplier resolve against the old RNG position and become an invalid 0x.
+    var finalGrid = round.finalGrid || lastCascade.after;
+    var finalUpgrades = lastCascade.upgrades || [];
+    var finalOriginGrid = revertMultiplierUpgrades(finalGrid, finalUpgrades);
+    var finalDrop = deriveDrop(lastCascade, finalOriginGrid);
+    var finalBonus = Number(options.bonusPayMultiplier || 0);
+    var settledRoundWin = sumCascadePayout(cascades);
+    var finalRoundWin = settledRoundWin + finalBonus;
+    var finalTotal = Number(options.cumulativeStart || 0) + finalRoundWin;
+    var settlementDelta = Math.max(0, settledRoundWin - roundWinOrigin) + finalBonus;
+    var finalFeatures = commonFeatures(
+      round,
+      lastCascade,
+      finalTotal,
+      finalRoundWin,
+      roundWinOrigin,
+    );
+    if (options.enterFreeSpins) finalFeatures.push(addFreeGameFeature(options.enterFreeSpins));
+    if (options.addFreeSpins) {
+      finalFeatures.push({ Type: 'AddFreeGame', AddFreeSpinTime: options.addFreeSpins, AddType: 0 });
+    }
+    if (options.freeGame) finalFeatures.push(freeGameFeature(options.freeGame, finalTotal));
+    queue.push({
+      payload: gameStartResponse({
+        grid: finalGrid,
+        wins: [],
+        dropScreen: finalDrop.symbols,
+        dropMultiple: finalDrop.multipliers,
+        multiple: gridMultipliers(finalGrid),
+        multipleOrigin: finalUpgrades.length ? gridMultipliers(finalOriginGrid) : [],
+        screenOrigin: finalUpgrades.length ? toReels(finalOriginGrid) : [],
+        features: finalFeatures,
+        key: 7,
+        subKey: options.subKey,
+        flowEnd: options.flowEnd,
+        subFlowEnd: 1,
+        totalWin: finalTotal,
+        spinWin: settlementDelta,
+        isMaxWin: options.isMaxWin,
+        bonusLine: finalBonus ? createBonusLine(finalGrid, finalBonus) : null,
+        upgrades: finalUpgrades,
+      }),
+      freeRound: options.freeRound || 0,
+      freeRoundComplete: options.freeRound || 0,
+    });
+  }
+
+  function appendLegacyMultiplierRound(queue, round, options) {
+    var cascades = round.cascades || [];
+    var runningTotal = Number(options.cumulativeStart || 0);
+    var roundWin = 0;
+    var roundWinOrigin = 0;
+
     cascades.forEach(function (cascade, cascadeIndex) {
       runningTotal += Number(cascade.payoutMultiplier || 0);
       roundWin += Number(cascade.payoutMultiplier || 0);
@@ -1053,25 +1165,13 @@
       });
     });
 
-    // The archived client requests the next cascade packet only after it has
-    // animated the current win. The incoming DropScreen therefore belongs to
-    // the previous winning packet, while RNG is the already-refilled screen.
-    // A final no-win packet is required to finish that last drop and close the
-    // cascade state machine. Combining these stages makes a newly dropped
-    // multiplier resolve against the old RNG position and become an invalid 0x.
     var lastCascade = cascades[cascades.length - 1];
     var finalDrop = deriveDrop(lastCascade);
     var finalGrid = round.finalGrid || lastCascade.after;
     var finalBonus = Number(options.bonusPayMultiplier || 0);
     var finalTotal = runningTotal + finalBonus;
     var finalRoundWin = roundWin + finalBonus;
-    var finalFeatures = commonFeatures(
-      round,
-      null,
-      finalTotal,
-      finalRoundWin,
-      roundWinOrigin,
-    );
+    var finalFeatures = commonFeatures(round, null, finalTotal, finalRoundWin, roundWinOrigin);
     if (options.enterFreeSpins) finalFeatures.push(addFreeGameFeature(options.enterFreeSpins));
     if (options.addFreeSpins) {
       finalFeatures.push({ Type: 'AddFreeGame', AddFreeSpinTime: options.addFreeSpins, AddType: 0 });
@@ -1288,7 +1388,20 @@
     return next;
   }
 
-  function deriveDrop(cascade) {
+  function revertMultiplierUpgrades(grid, upgrades) {
+    var next = (grid || []).map(function (cell) {
+      return cell ? Object.assign({}, cell) : { symbol: 13 };
+    });
+    (upgrades || []).forEach(function (upgrade) {
+      var position = Number(upgrade.position);
+      if (!Number.isInteger(position) || position < 0 || position >= next.length) return;
+      var value = normalizeFeatureMultiplier(Number(upgrade.from), 15);
+      next[position] = { symbol: multiplierSymbol(value), multiplier: value };
+    });
+    return next;
+  }
+
+  function deriveDrop(cascade, afterGrid) {
     var removed = {};
     (cascade.wins || []).forEach(function (win) {
       (win.positions || []).forEach(function (position) {
@@ -1305,7 +1418,7 @@
       symbols[reel] = [];
       multipliers[reel] = [];
       for (var nextRow = 0; nextRow < missing; nextRow += 1) {
-        var cell = cascade.after[reel * 5 + nextRow];
+        var cell = (afterGrid || cascade.after)[reel * 5 + nextRow];
         symbols[reel].push(Number(cell.symbol));
         if (Number(cell.symbol) >= 15 && Number(cell.symbol) <= 19) {
           multipliers[reel].push(
@@ -1386,7 +1499,16 @@
         var resultSymbol = Number(rng[reel] && rng[reel][row]);
         var bothFeature = isFeatureSymbol(incomingSymbol) && isFeatureSymbol(resultSymbol);
         if (incomingSymbol !== resultSymbol && !bothFeature) {
-          throw new Error('雷神連消盤面與掉落符號不一致');
+          throw new Error(
+            '雷神連消盤面與掉落符號不一致：reel=' +
+              reel +
+              ', row=' +
+              row +
+              ', drop=' +
+              incomingSymbol +
+              ', result=' +
+              resultSymbol,
+          );
         }
         if (isFeatureSymbol(incomingSymbol)) {
           var incomingMultiplier = featureMultiplierAt(
