@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   THOR2_LEGAL_MULTIPLIERS,
+  THOR2_MAX_FEATURE_MULTIPLIER_BALLS,
   THOR2_MAX_FREE_SPINS,
   THOR2_MAX_WIN_MULTIPLIER,
   evaluateThor2AnywherePays,
@@ -14,9 +15,9 @@ import {
 describe('Power of Thor II observed-rules engine', () => {
   it('evaluates anywhere-pays at 8, 10, and 12 matching symbols', () => {
     for (const [count, expected] of [
-      [8, 2],
-      [10, 5],
-      [12, 10],
+      [8, 10],
+      [10, 25],
+      [12, 50],
     ] as const) {
       const grid = Array.from({ length: 30 }, (_, index) => ({ symbol: index < count ? 3 : 13 }));
       expect(evaluateThor2AnywherePays(grid).find((win) => win.symbol === 3)?.payMultiplier).toBe(
@@ -64,6 +65,9 @@ describe('Power of Thor II observed-rules engine', () => {
           if (cascade.upgrades.length === 0) continue;
           checkedUpgrade = true;
           expect(cascadeIndex).toBe(round.cascades.length - 1);
+          expect(cascade.after.filter((cell) => cell.multiplier)).toHaveLength(
+            THOR2_MAX_FEATURE_MULTIPLIER_BALLS,
+          );
           for (const upgrade of cascade.upgrades) {
             expect(upgrade.to).toBeGreaterThan(upgrade.from);
             expect(cascade.after[upgrade.position]?.multiplier).toBe(upgrade.to);
@@ -73,6 +77,58 @@ describe('Power of Thor II observed-rules engine', () => {
       }
     }
     expect(checkedUpgrade).toBe(true);
+  });
+
+  it('limits feature screens to three multiplier balls and keeps the hammer out of regular free games', () => {
+    for (const buyFeature of ['regular', 'super'] as const) {
+      for (let nonce = 1; nonce <= 80; nonce += 1) {
+        const result = thor2Spin('feature-ball-cap', `${buyFeature}-${nonce}`, nonce, {
+          buyFeature,
+        });
+        for (const round of result.feature?.rounds ?? []) {
+          const screens = [
+            round.grid,
+            round.finalGrid,
+            ...round.cascades.flatMap((cascade) => [cascade.before, cascade.after]),
+          ];
+          expect(
+            screens.every(
+              (screen) =>
+                screen.filter((cell) => cell.multiplier).length <=
+                THOR2_MAX_FEATURE_MULTIPLIER_BALLS,
+            ),
+          ).toBe(true);
+          if (buyFeature === 'regular') {
+            expect(round.cascades.every((cascade) => cascade.upgrades.length === 0)).toBe(true);
+          }
+          for (const cascade of round.cascades) {
+            if (cascade.upgrades.length > 0) {
+              expect(buyFeature).toBe('super');
+              expect(cascade.after.filter((cell) => cell.multiplier).length).toBe(3);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('keeps SUPER BONUS out of paid entries and every free-game screen', () => {
+    for (const buyFeature of ['regular', 'super'] as const) {
+      for (let nonce = 1; nonce <= 64; nonce += 1) {
+        const result = thor2Spin('super-bonus-scope', `${buyFeature}-${nonce}`, nonce, {
+          buyFeature,
+        });
+        const screens = [
+          result.grid,
+          ...(result.feature?.rounds.flatMap((round) => [
+            round.grid,
+            round.finalGrid,
+            ...round.cascades.flatMap((cascade) => [cascade.before, cascade.after]),
+          ]) ?? []),
+        ];
+        expect(screens.every((screen) => screen.every((cell) => cell.symbol !== 20))).toBe(true);
+      }
+    }
   });
 
   it('collects the final screen once and applies it to the complete tumble win', () => {
@@ -137,11 +193,11 @@ describe('Power of Thor II observed-rules engine', () => {
 
   it('constructs exact visible control targets for every paid action', () => {
     const cases = [
-      { options: {}, factors: [0, 0.05, 1.05, 20, 1_000, 25_000] },
-      { options: { extraBet: true }, factors: [0, 1.28, 20, 1_000] },
-      { options: { buyFeature: 'regular' as const }, factors: [3, 50, 101, 500, 5_000] },
-      { options: { buyFeature: 'super' as const }, factors: [3, 500, 505, 5_000] },
-      { options: { buyFeature: 'lucky' as const }, factors: [0, 400, 4_080, 4_400, 8_000, 25_000] },
+      { options: {}, factors: [0, 0.25, 1, 20, 1_000, 25_000] },
+      { options: { extraBet: true }, factors: [0, 1.25, 20, 1_000] },
+      { options: { buyFeature: 'regular' as const }, factors: [3, 53, 103, 503, 5_003] },
+      { options: { buyFeature: 'super' as const }, factors: [3, 503, 1_003, 5_003] },
+      { options: { buyFeature: 'lucky' as const }, factors: [0, 400, 4_000, 4_400, 8_000, 25_000] },
     ];
     for (const { options, factors } of cases) {
       for (const factor of factors) {
@@ -178,14 +234,15 @@ describe('Power of Thor II observed-rules engine', () => {
   });
 
   it('offers nearby legal factors instead of relying on random rerolls', () => {
-    const regular = thor2ControlFactorCandidates(101, { buyFeature: 'regular' });
-    expect(regular).toContain(101);
+    const regular = thor2ControlFactorCandidates(103, { buyFeature: 'regular' });
+    expect(regular).toContain(103);
     expect(
       regular.every((factor) => isThor2FactorRepresentable(factor, { buyFeature: 'regular' })),
     ).toBe(true);
     const lucky = thor2ControlFactorCandidates(4_040, { buyFeature: 'lucky' });
     expect(lucky[0]).toBe(4_000);
-    expect(lucky).toContain(4_080);
+    expect(lucky).not.toContain(4_080);
+    expect(lucky).toContain(4_250);
     expect(lucky).toContain(4_400);
   });
 

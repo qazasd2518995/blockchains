@@ -59,11 +59,7 @@ export interface Seth2CascadeRound {
   total_gold: number;
   remove_count: number;
   is_over: number;
-  /**
-   * Eternal Rise can contain several independent tumble/collect cycles in one
-   * protocol response.  The source client shows the raw tumble winnings first
-   * and then a no-win collection view with this authoritative segment payout.
-   */
+  /** Authoritative Eternal Rise payout collected after its tumble chain. */
   collect_gold?: number;
   /** Female-lock state carried into a later Eternal Rise main-game segment. */
   locked_mul_list?: Seth2Cell[];
@@ -1405,18 +1401,6 @@ function superLockedContinuationRound(
   return round;
 }
 
-function superSegmentFactors(factor: number, rng: Seth2RandomSource): number[] {
-  if (factor < 1_000 || factor % 500 !== 0) return [factor];
-  const units = factor / 500;
-  const maxSegments = Math.min(4, units);
-  const segmentCount = 1 + Math.floor(rng() * maxSegments);
-  if (segmentCount === 1) return [factor];
-  return [
-    factor - (segmentCount - 1) * 500,
-    ...Array.from({ length: segmentCount - 1 }, () => 500),
-  ];
-}
-
 function buildSuperMainOutcome(bet: number, factor: number, rng: Seth2RandomSource): Seth2Outcome {
   if (factor <= 0) {
     const outcome = buildLoss(rng, 'awakening_free');
@@ -1431,7 +1415,11 @@ function buildSuperMainOutcome(bet: number, factor: number, rng: Seth2RandomSour
     return outcome;
   }
 
-  const factors = superSegmentFactors(factor, rng);
+  // Eternal Rise is one purchased main-game spin. A previous presentation
+  // helper split 1,000x+ buckets into as many as four independent spins; that
+  // made an unlocked result visibly run several times. Keep the full payout in
+  // one tumble/collect chain. Only a woman lock may append its five follow-ups.
+  const factors = [factor];
   const segmentOutcomes: Seth2Outcome[] = [];
   let activeFemaleCells: Seth2Cell[] = [];
   let activeFemaleCount = 0;

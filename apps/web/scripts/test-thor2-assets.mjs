@@ -93,6 +93,11 @@ for (const originalBootAsset of [
 ]) {
   assert.ok(runtimeHtml.includes(originalBootAsset), `Original Cocos boot asset missing: ${originalBootAsset}`);
 }
+assert.ok(
+  runtimeHtml.includes('display: none !important'),
+  'The unrelated provider splash must stay hidden while the native Thor canvas boots',
+);
+assert.ok(!runtimeHtml.includes('logo_RSG.webp'), 'The unrelated RSG splash logo leaked into Thor II');
 
 const compatSource = fs.readFileSync(
   path.join(gameRoot, 'original-runtime/thor2-runtime-compat.js'),
@@ -161,8 +166,11 @@ for (const contract of [
   'appendLegacyMultiplierRound(queue, round, options)',
   'assertDropAlignment(rng, multiple, dropScreen, dropMultiple)',
   'Win: Number(data.spinWin || 0) * 20',
-  'if (entersFree) baseGrid = ensureFreeTriggerGrid(baseGrid)',
+  'baseGrid = ensureFreeTriggerGrid(',
   'bonusCount < 4',
+  'JackpotDisplayEnabled: true',
+  "PoolName: ['GRAND', 'MAJOR', 'MINOR', 'MINI']",
+  'isUseJackpot: true',
   "Type: 'AddFreeGame'",
   'AddFreeSpinTime: Math.max(0, Number(spins) || 0)',
   'enterFreeSpins: entersFree ? feature.spinsAwarded : 0',
@@ -221,6 +229,20 @@ assert.equal(
   'spin',
 );
 assert.equal(adapter.requestAmount({ Bet: 200, BetLevel: 10, Denom: 0.05 }), 10);
+
+const sixBonusGrid = Array.from({ length: 30 }, (_, index) => ({
+  symbol: index < 6 ? 1 : 13,
+}));
+assert.equal(
+  adapter.ensureFreeTriggerGrid(sixBonusGrid, true).filter((cell) => cell.symbol === 1).length,
+  4,
+  'A purchased feature entry must show exactly four BONUS symbols',
+);
+assert.equal(
+  adapter.ensureFreeTriggerGrid(sixBonusGrid, false).filter((cell) => cell.symbol === 1).length,
+  6,
+  'A natural 5/6-BONUS trigger must preserve its real pay tier',
+);
 
 const makeGrid = () =>
   Array.from({ length: 30 }, (_, index) => ({ symbol: [3, 4, 5, 6, 9, 10][index % 6] }));

@@ -207,6 +207,17 @@ describe('Storm of Seth 2 provably-fair engine', () => {
     expect(outcome.returnData.freeGameCount).toBe(SETH2_FREE_SPINS);
   });
 
+  it('never shows a dead three-SCATTER base result', () => {
+    for (let nonce = 0; nonce < 5_000; nonce += 1) {
+      const outcome = seth2Spin('no-dead-scatter', 'client', nonce, BET, 'base');
+      if (outcome.triggeredFreeSpins) continue;
+      const scatterCount = outcome.returnData.list[0]!.start_data.filter(
+        (current) => current.type === 15 || current.type === 16,
+      ).length;
+      expect(scatterCount).toBe(0);
+    }
+  });
+
   it('uses a golden SCATTER to enter awakening free games', () => {
     const outcome = findSpin(
       'base',
@@ -684,6 +695,12 @@ describe('Storm of Seth 2 provably-fair engine', () => {
         expect(
           money(collectionViews.reduce((total, round) => total + Number(round.collect_gold), 0)),
         ).toBe(outcome.returnData.total_gold);
+      }
+      if (outcome.payoutFactor > 0 && outcome.returnData.type18_start_mul_list.length === 0) {
+        expect(collectionViews).toHaveLength(1);
+        expect(
+          outcome.returnData.list.filter((round) => round.start_data.length === SETH2_GRID_SIZE),
+        ).toHaveLength(1);
       }
       expect(outcome.returnData).toMatchObject({
         featureMode: 'awakening',

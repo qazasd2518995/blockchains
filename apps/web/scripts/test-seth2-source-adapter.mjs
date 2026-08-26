@@ -395,6 +395,22 @@ assert.equal(originalBigwinCloses, 2);
 dispatchedZeroTotalWin.complete();
 assert.equal(zeroTotalWinCompletions, 1);
 
+const animationOrder = [];
+const orderedDispatch = wrapFrameworkDispatch((eventName, event) => {
+  animationOrder.push(eventName);
+  if (eventName === 'GameEvent:SHOW_SYMBOLS_IN_ANIM') event.complete();
+});
+orderedDispatch('GameEvent:SHOW_CHARACTER_FIRE', { data: null });
+assert.deepEqual(animationOrder, [], 'character throw waits until multiplier balls have landed');
+orderedDispatch('GameEvent:SHOW_SYMBOLS_IN_ANIM', {
+  complete: () => animationOrder.push('landing-complete'),
+});
+assert.deepEqual(animationOrder, [
+  'GameEvent:SHOW_SYMBOLS_IN_ANIM',
+  'GameEvent:SHOW_CHARACTER_FIRE',
+  'landing-complete',
+]);
+
 const audioResponse = structuredClone(response);
 applyAudioPreferences(audioResponse);
 assert.equal(audioResponse.platform.player.settings.advancedSettings.sounds.backgroundVolume, 0.25);

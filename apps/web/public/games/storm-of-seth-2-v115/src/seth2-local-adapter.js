@@ -15,6 +15,12 @@
   var BGM_PREFS_KEY = 'bg.bgm.prefs';
   var UPDATE_TOTAL_WINNINGS = 'SlotFrameworkEvent:UPDATE_TOTAL_WINNINGS';
   var CREATE_SPIN_COMPLETE_FLOW = 'GameEvent:CREATE_SPIN_COMPLETE_FLOW';
+  var SHOW_CHARACTER_FIRE = 'GameEvent:SHOW_CHARACTER_FIRE';
+  var SYMBOL_LANDING_EVENTS = {
+    'GameEvent:SHOW_SYMBOLS_IN_ANIM': true,
+    'GameEvent:SHOW_NEW_SYMBOLS_IN_ANIM': true,
+    'GameEvent:SHOW_SYMBOLS_QUICK_IN_ANIM': true,
+  };
   var GAME_ENTRY_BOOT_TIMEOUT_MS = 60000;
   var GAME_ENTRY_REQUIRED_UI_COUNT = 4;
   var TABLE_REFERENCE_REFRESH_MS = 5000;
@@ -36,6 +42,7 @@
   var progressInFlight = null;
   var queuedProgress = null;
   var capturedAudioContexts = [];
+  var pendingCharacterFire = null;
 
   function installAudioContextCapture() {
     var NativeAudioContext = window.AudioContext || window.webkitAudioContext;
@@ -93,12 +100,50 @@
 
   installAudioContextCapture();
 
+  function flushPendingCharacterFire() {
+    var pending = pendingCharacterFire;
+    if (!pending) return false;
+    pendingCharacterFire = null;
+    if (pending.timer) window.clearTimeout(pending.timer);
+    pending.dispatcher.apply(pending.receiver, pending.args);
+    return true;
+  }
+
   function wrapFrameworkDispatch(dispatcher) {
     if (typeof dispatcher !== 'function' || dispatcher.__yachiyoTotalWinGuard) return dispatcher;
     function guardedDispatch() {
       var eventName = arguments[0];
       var event = arguments[1];
       if (eventName === CREATE_SPIN_COMPLETE_FLOW) advanceActiveSpinProgress();
+      if (eventName === SHOW_CHARACTER_FIRE) {
+        // v1.1.5 starts the male/female throw concurrently before the new
+        // multiplier balls have landed. Queue it and release it from the reel
+        // landing completion so the ball reaches its cell first.
+        flushPendingCharacterFire();
+        pendingCharacterFire = {
+          dispatcher: dispatcher,
+          receiver: this,
+          args: Array.prototype.slice.call(arguments),
+          timer: window.setTimeout(flushPendingCharacterFire, 4000),
+        };
+        return undefined;
+      }
+      if (SYMBOL_LANDING_EVENTS[eventName] && pendingCharacterFire) {
+        if (event && typeof event.complete === 'function') {
+          var originalLandingComplete = event.complete;
+          var landingCompleted = false;
+          event.complete = function () {
+            if (landingCompleted) return;
+            landingCompleted = true;
+            flushPendingCharacterFire();
+            return originalLandingComplete.apply(this, arguments);
+          };
+        } else {
+          // Quick-stop builds may auto-complete the landing event without a
+          // callback. Dispatching on the next task still preserves ordering.
+          window.setTimeout(flushPendingCharacterFire, 0);
+        }
+      }
       var data = event && event.data;
       var needsZeroCompletion =
         eventName === UPDATE_TOTAL_WINNINGS &&
@@ -1638,6 +1683,7 @@
     publicError: publicError,
     guardBigwinClass: guardBigwinClass,
     wrapFrameworkDispatch: wrapFrameworkDispatch,
+    flushPendingCharacterFire: flushPendingCharacterFire,
     findIntroView: findIntroView,
     findSlotTableView: findSlotTableView,
     bindGameCanvasRecovery: bindGameCanvasRecovery,

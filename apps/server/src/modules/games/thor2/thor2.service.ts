@@ -170,13 +170,10 @@ export function selectThor2Candidate(
     };
   });
   const naturalWon = natural.payout.greaterThan(params.stake);
-  if (
-    naturalWon === control.won &&
-    (!control.maxPayout || natural.payout.lessThanOrEqualTo(control.maxPayout)) &&
-    multiplierMatchesControlBounds(natural.multiplier, params.stake, control)
-  ) {
-    return { candidate: natural, control };
-  }
+  // A recorded control decision must always resolve through the deterministic
+  // controlled-board builder. Letting a coincidentally matching natural round
+  // pass through made the audit record say "controlled" while retaining the
+  // unqualified client seed and an unrelated presentation sequence.
   const matching = factorCandidates.filter((candidate) => {
     const won = candidate.payout.greaterThan(params.stake);
     return (

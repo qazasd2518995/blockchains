@@ -255,7 +255,7 @@
         EnableBuyFeature: true,
         ShowAmountType: 0,
         ShowHistoryType: 0,
-        JackpotDisplayEnabled: false,
+        JackpotDisplayEnabled: true,
         SerialNumDisplayEnabled: true,
         RestartBtnEnabled: true,
         CloseBtnEnabled: true,
@@ -563,13 +563,16 @@
       ExtraData: null,
       JackpotInfo: {
         PoolID: [0, 1, 2, 3],
-        PoolName: [null, null, null, null],
-        PoolAmt: [0, 0, 0, 0],
+        PoolName: ['GRAND', 'MAJOR', 'MINOR', 'MINI'],
+        // The imported client owns the progressive header presentation. These
+        // are display pools, matching the four-tier provider protocol; spin
+        // settlement remains authoritative on the QMoney server.
+        PoolAmt: [1246184.41, 115647.19, 20032.04, 3318.91],
         HaveExtra: false,
         ExtraData: null,
         Type: 'ServerRequestJackpotInfo',
       },
-      isUseJackpot: false,
+      isUseJackpot: true,
       CurrencyRatio: 1,
       Type: 'ServerResponseLogin',
     };
@@ -916,7 +919,12 @@
       : null;
     var baseGrid =
       result.cascades && result.cascades.length ? result.cascades[0].before : result.grid;
-    if (entersFree) baseGrid = ensureFreeTriggerGrid(baseGrid);
+    if (entersFree) {
+      baseGrid = ensureFreeTriggerGrid(
+        baseGrid,
+        feature.kind === 'regular' || feature.kind === 'super',
+      );
+    }
     var baseFinalGrid =
       result.cascades && result.cascades.length
         ? result.cascades[result.cascades.length - 1].after
@@ -1532,12 +1540,21 @@
     }).length;
   }
 
-  function ensureFreeTriggerGrid(grid) {
+  function ensureFreeTriggerGrid(grid, exactFour) {
     var next = (grid || []).map(function (cell) {
       return cell ? Object.assign({}, cell) : { symbol: 13 };
     });
+    if (next.length > 30) next.length = 30;
     while (next.length < 30) next.push({ symbol: 13 });
-    var bonusCount = countSymbol(next, 1);
+    var bonusCount = 0;
+    next = next.map(function (cell) {
+      if (Number(cell.symbol) !== 1) return cell;
+      // Paid/natural feature presentation must never be silently promoted to
+      // the five- or six-BONUS pay tier by a malformed stored board.
+      if (exactFour && bonusCount >= 4) return { symbol: 13 };
+      bonusCount += 1;
+      return cell;
+    });
     for (var position = 0; position < next.length && bonusCount < 4; position += 1) {
       var cell = next[position];
       if (Number(cell.symbol) === 1 || Number(cell.symbol) === 20 || cell.multiplier) continue;
@@ -1569,6 +1586,7 @@
     },
     normalizeMultiplierMatrix: normalizeMultiplierMatrix,
     positionMatrix: positionMatrix,
+    ensureFreeTriggerGrid: ensureFreeTriggerGrid,
     requestAction: requestAction,
     requestAmount: requestAmount,
     stripResponse: stripResponse,

@@ -45,40 +45,10 @@
         background: transparent;
       }
       .preview {
-        position: absolute;
-        inset: 0;
-        z-index: 20;
-        display: grid;
-        place-items: center;
-        background: #030712;
-        color: #f8d778;
-        font: 700 14px/1.5 system-ui, sans-serif;
-      }
-      .preview img {
-        display: block;
-        width: min(34vw, 150px);
-        height: auto;
-        margin: 0 auto 18px;
-      }
-      .loading-bar {
-        width: min(54vw, 260px);
-        height: 4px;
-        overflow: hidden;
-        border-radius: 999px;
-        background: rgb(255 255 255 / 14%);
-      }
-      .loading-bar::after {
-        display: block;
-        width: 42%;
-        height: 100%;
-        content: '';
-        border-radius: inherit;
-        background: linear-gradient(90deg, #e6b640, #fff0a2);
-        animation: loading 1.15s ease-in-out infinite alternate;
-      }
-      @keyframes loading {
-        from { transform: translateX(-10%); }
-        to { transform: translateX(150%); }
+        /* The archived provider wrapper showed an unrelated RSG splash before
+           Thor II. The lobby already owns loading feedback, so keep the hook
+           for hidePreView() but never cover the native game canvas with it. */
+        display: none !important;
       }
       #Help,
       #gameActivites,
@@ -155,15 +125,7 @@
   </head>
   <body>
     <div class="pcBackground"></div>
-    <div class="preview" role="status" aria-live="polite">
-      <div>
-        <img
-          src="../original/gameresource3.rsgaming955.com/WebUI3/common/ui/images/loading/logo_RSG.webp"
-          alt=""
-        />
-        <div class="loading-bar"></div>
-      </div>
-    </div>
+    <div class="preview" aria-hidden="true"></div>
     <div id="GameDiv" cc_exact_fit_screen="true">
       <div id="Cocos3dGameContainer">
         <canvas id="GameCanvas" oncontextmenu="event.preventDefault()" tabindex="99"></canvas>
@@ -191,7 +153,7 @@
     <script src="../original/gameresource3.rsgaming955.com/WebUI3/common/ui/js/iPhoneScreenfull.js"></script>
     <script src="./thor2-runtime-compat.js?v=20260826-mobile-1"></script>
     <script src="../original/gameresource3.rsgaming955.com/WebUI3/common/js/jsStart-cocos.js"></script>
-    <script src="./thor2-original-adapter.js?v=20260826-original-12-multiplier-compat"></script>
+    <script src="./thor2-original-adapter.js?v=20260827-official-feature-rules-1"></script>
     <script src="../original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/src/polyfills.bundle.js" charset="utf-8"></script>
     <script src="../original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/src/system.bundle.js" charset="utf-8"></script>
     <script

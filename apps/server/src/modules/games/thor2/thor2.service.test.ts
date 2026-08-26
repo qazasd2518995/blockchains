@@ -105,7 +105,7 @@ describe('Thor 2 controlled result selection', () => {
     );
   });
 
-  it('honors a narrow Lucky Strike control band without falling back to a loss', () => {
+  it('guards an unreachable narrow Lucky Strike band instead of inventing an illegal factor', () => {
     const serverSeed = 'thor2-lucky-narrow-server';
     const clientSeed = 'thor2-lucky-narrow-client';
     const nonce = 17;
@@ -131,10 +131,11 @@ describe('Thor 2 controlled result selection', () => {
       action: 'lucky',
     });
 
-    expect(selected.control.won).toBe(true);
-    expect(selected.candidate.multiplier.toNumber()).toBeCloseTo(1.02, 8);
-    expect(selected.candidate.engine.totalMultiplier).toBe(4_080);
-    expect(selected.candidate.engine.feature?.rounds[0]?.cascades.length).toBeGreaterThan(0);
+    expect(selected.control.won).toBe(false);
+    expect(selected.control.flipReason).toBe('control_bounds_guard');
+    expect(selected.candidate.payout.lessThanOrEqualTo(stake)).toBe(true);
+    expect(selected.candidate.engine.totalMultiplier).not.toBe(4_080);
+    expect(selected.candidate.clientSeed).toContain(':thor2-control:');
   });
 
   it('honors the exact payout ceiling used by burst and member-cap controls', () => {
