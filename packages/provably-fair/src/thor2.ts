@@ -1,12 +1,12 @@
 import { hmacIntStream } from './hmac.js';
 
-export const THOR2_MODEL_VERSION = 'thor2-observed-rules-v5-official-feature-rules';
+export const THOR2_MODEL_VERSION = 'thor2-observed-rules-v6-site-cycle-cap';
 export const THOR2_REELS = 6;
 export const THOR2_ROWS = 5;
 export const THOR2_MAX_CASCADES = 8;
 export const THOR2_MAX_FREE_SPINS = 100;
 export const THOR2_MAX_FEATURE_MULTIPLIER_BALLS = 3;
-export const THOR2_MAX_WIN_MULTIPLIER = 25_000;
+export const THOR2_MAX_WIN_MULTIPLIER = 5_000;
 export const THOR2_LEGAL_MULTIPLIERS = [
   2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50, 100, 250, 500, 1_000,
 ] as const;
@@ -261,10 +261,7 @@ function controlledRoundPlans(
   const normalized = normalizeThor2Multiplier(factor);
   const plans: Thor2ControlledRoundPlan[] = [];
   for (const pattern of CONTROL_PAY_PATTERNS) {
-    const room = Math.min(
-      THOR2_REELS * THOR2_ROWS - pattern.count,
-      maxMultiplierParts,
-    );
+    const room = Math.min(THOR2_REELS * THOR2_ROWS - pattern.count, maxMultiplierParts);
     if (!lucky && sameThor2Multiplier(normalized, pattern.payMultiplier)) {
       plans.push({ ...pattern, multiplierValues: [] });
     }
@@ -302,11 +299,9 @@ export function isThor2FactorRepresentable(
     options.buyFeature === 'regular' || options.buyFeature === 'super'
       ? THOR2_MAX_FEATURE_MULTIPLIER_BALLS
       : THOR2_REELS * THOR2_ROWS;
-  return controlledRoundPlans(
-    roundTarget,
-    options.buyFeature === 'lucky',
-    maxMultiplierParts,
-  ).length > 0;
+  return (
+    controlledRoundPlans(roundTarget, options.buyFeature === 'lucky', maxMultiplierParts).length > 0
+  );
 }
 
 /**
@@ -335,10 +330,7 @@ export function thor2ControlFactorCandidates(
   for (const pattern of CONTROL_PAY_PATTERNS) {
     if (options.buyFeature !== 'lucky') add(pattern.payMultiplier);
     if (options.buyFeature === 'lucky') {
-      const room = Math.min(
-        THOR2_REELS * THOR2_ROWS - pattern.count,
-        maxMultiplierParts,
-      );
+      const room = Math.min(THOR2_REELS * THOR2_ROWS - pattern.count, maxMultiplierParts);
       for (let count = 1; count <= room; count += 1) {
         add(pattern.payMultiplier * count * 1_000);
       }
@@ -884,6 +876,42 @@ export function thor2SpinForFactor(
   };
 }
 
+/**
+ * Build a legal presentation at (or immediately below) the site cap.
+ *
+ * Purchased/natural free games always show the three-multiplier BONUS entry,
+ * so exactly 5,000x is not necessarily representable for those modes. In that
+ * case use the nearest lower legal factor instead of showing a board above the
+ * cap and silently reducing settlement afterward.
+ */
+function cappedThor2Presentation(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  options: Thor2SpinOptions,
+  naturalFeature = false,
+): Thor2EngineResult {
+  const constructionOptions: Thor2SpinOptions = naturalFeature
+    ? { buyFeature: 'regular' }
+    : options;
+  const cappedFactor =
+    thor2ControlFactorCandidates(THOR2_MAX_WIN_MULTIPLIER, constructionOptions).find(
+      (factor) => factor <= THOR2_MAX_WIN_MULTIPLIER,
+    ) ?? 0;
+  const result = thor2SpinForFactor(
+    serverSeed,
+    `${clientSeed}:site-cycle-cap`,
+    nonce,
+    cappedFactor,
+    constructionOptions,
+  );
+  if (!naturalFeature || !result.feature) return result;
+  return {
+    ...result,
+    feature: { ...result.feature, kind: 'natural' },
+  };
+}
+
 function capResultMultiplier(value: number): number {
   return Math.min(THOR2_MAX_WIN_MULTIPLIER, Math.max(0, Math.round(value * 10_000) / 10_000));
 }
@@ -930,6 +958,9 @@ export function thor2Spin(
   );
   const naturalFeature = initialBonusCount >= 4 && !isLucky;
   if (!kind && !naturalFeature) {
+    if (base.round.payoutMultiplier > THOR2_MAX_WIN_MULTIPLIER) {
+      return cappedThor2Presentation(serverSeed, clientSeed, nonce, options);
+    }
     const totalMultiplier = capResultMultiplier(base.round.payoutMultiplier);
     return {
       grid: base.finalGrid,
@@ -939,6 +970,9 @@ export function thor2Spin(
     };
   }
   if (isLucky) {
+    if (base.round.payoutMultiplier > THOR2_MAX_WIN_MULTIPLIER) {
+      return cappedThor2Presentation(serverSeed, clientSeed, nonce, options);
+    }
     const totalMultiplier = capResultMultiplier(base.round.payoutMultiplier);
     return {
       grid: base.finalGrid,
@@ -988,6 +1022,15 @@ export function thor2Spin(
     rounds.push({ ...played.round, index: index + 1, retriggeredSpins: retrigger });
     grid = played.finalGrid;
     if (totalMultiplier >= THOR2_MAX_WIN_MULTIPLIER) break;
+  }
+  if (totalMultiplier > THOR2_MAX_WIN_MULTIPLIER) {
+    return cappedThor2Presentation(
+      serverSeed,
+      clientSeed,
+      nonce,
+      options,
+      featureKind === 'natural',
+    );
   }
   totalMultiplier = capResultMultiplier(totalMultiplier);
   const maxWinReached = totalMultiplier >= THOR2_MAX_WIN_MULTIPLIER;

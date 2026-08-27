@@ -8,6 +8,7 @@ import {
 } from '@bg/provably-fair';
 import {
   GameId,
+  type Thor2JackpotPools,
   type Thor2SessionResult,
   type Thor2SpinAction,
   type Thor2SpinResult,
@@ -33,6 +34,19 @@ import { thor2ActionCostMultiplier, thor2Payout } from './thor2.economics.js';
 
 const GAME_ID = GameId.POWER_OF_THOR_2;
 const WALLET_VERSION = 'thor2-deferred-feature-v1';
+const THOR2_JACKPOT_SEEDS = {
+  grand: new Prisma.Decimal('1246184.41'),
+  major: new Prisma.Decimal('115647.19'),
+  minor: new Prisma.Decimal('20032.04'),
+  mini: new Prisma.Decimal('3318.91'),
+} as const;
+
+type Thor2JackpotPoolValue = {
+  grand: Prisma.Decimal;
+  major: Prisma.Decimal;
+  minor: Prisma.Decimal;
+  mini: Prisma.Decimal;
+};
 
 type JsonRecord = Record<string, unknown>;
 
@@ -242,7 +256,7 @@ export class Thor2Service {
   constructor(private readonly prisma: PrismaClient) {}
 
   async session(userId: string): Promise<Thor2SessionResult> {
-    const [user, pending] = await Promise.all([
+    const [user, pending, jackpotPool] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { balance: true } }),
       this.prisma.bet.findFirst({
         where: {
@@ -253,6 +267,7 @@ export class Thor2Service {
         },
         orderBy: { createdAt: 'desc' },
       }),
+      this.prisma.seth2JackpotPool.findUnique({ where: { gameId: GAME_ID } }),
     ]);
     const pendingPublic = pending ? publicResultData(pending.resultData) : null;
     return {
@@ -260,6 +275,7 @@ export class Thor2Service {
       pendingFeature: pendingPublic
         ? { ...pendingPublic, newBalance: user.balance.toFixed(2), payoutDeferred: true }
         : null,
+      jackpotPools: thor2JackpotPoolPayload(jackpotPool ?? THOR2_JACKPOT_SEEDS),
     };
   }
 
@@ -274,11 +290,18 @@ export class Thor2Service {
       if (existing) {
         const stored = publicResultData(existing.resultData);
         if (!stored) throw new ApiError('INTERNAL', '雷神之錘回合資料損壞');
-        const user = await tx.user.findUniqueOrThrow({
-          where: { id: userId },
-          select: { balance: true },
-        });
-        return { ...stored, newBalance: user.balance.toFixed(2) };
+        const [user, jackpotPool] = await Promise.all([
+          tx.user.findUniqueOrThrow({
+            where: { id: userId },
+            select: { balance: true },
+          }),
+          tx.seth2JackpotPool.findUnique({ where: { gameId: GAME_ID } }),
+        ]);
+        return {
+          ...stored,
+          jackpotPools: thor2JackpotPoolPayload(jackpotPool ?? THOR2_JACKPOT_SEEDS),
+          newBalance: user.balance.toFixed(2),
+        };
       }
       await lockUserAndCheckFunds(tx, userId, stake, GAME_ID, { limitAmounts: [baseBet] });
       const pending = await tx.bet.findFirst({
@@ -291,6 +314,8 @@ export class Thor2Service {
         select: { id: true },
       });
       if (pending) throw new ApiError('INVALID_ACTION', '請先完成目前的雷神免費遊戲');
+
+      const jackpotPool = await contributeThor2Jackpot(tx, stake);
 
       const seed = await new SeedHelper(tx).getActiveBundle(userId, GAME_ID, input.clientSeed);
       const natural = buildCandidate(
@@ -336,6 +361,7 @@ export class Thor2Service {
         grid: selected.engine.grid,
         cascades: selected.engine.cascades,
         ...(selected.engine.feature ? { feature: selected.engine.feature } : {}),
+        jackpotPools: thor2JackpotPoolPayload(jackpotPool),
         payoutDeferred,
         ...(payoutDeferred ? { featureCursor: 0 } : {}),
         nonce: seed.nonce,
@@ -510,4 +536,40 @@ export class Thor2Service {
       payoutDeferred: isDeferred(bet.resultData),
     }));
   }
+}
+
+function thor2JackpotPoolPayload(pool: Thor2JackpotPoolValue): Thor2JackpotPools {
+  return {
+    grand: Number(pool.grand.toFixed(2)),
+    major: Number(pool.major.toFixed(2)),
+    minor: Number(pool.minor.toFixed(2)),
+    mini: Number(pool.mini.toFixed(2)),
+  };
+}
+
+async function contributeThor2Jackpot(
+  tx: Prisma.TransactionClient,
+  stake: Prisma.Decimal,
+): Promise<Thor2JackpotPoolValue> {
+  const contribution = stake.mul('0.01').toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const grand = contribution.mul('0.4').toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const major = contribution.mul('0.3').toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const minor = contribution.mul('0.2').toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const mini = contribution.minus(grand).minus(major).minus(minor);
+  return tx.seth2JackpotPool.upsert({
+    where: { gameId: GAME_ID },
+    create: {
+      gameId: GAME_ID,
+      grand: THOR2_JACKPOT_SEEDS.grand.add(grand),
+      major: THOR2_JACKPOT_SEEDS.major.add(major),
+      minor: THOR2_JACKPOT_SEEDS.minor.add(minor),
+      mini: THOR2_JACKPOT_SEEDS.mini.add(mini),
+    },
+    update: {
+      grand: { increment: grand },
+      major: { increment: major },
+      minor: { increment: minor },
+      mini: { increment: mini },
+    },
+  });
 }

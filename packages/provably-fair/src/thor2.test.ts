@@ -177,11 +177,48 @@ describe('Power of Thor II observed-rules engine', () => {
     expect(observedLastRefillMultiplier).toBe(true);
   });
 
-  it('caps the presentation and settlement at 25,000x', () => {
+  it('caps the presentation and settlement at the shared 5,000x cycle ceiling', () => {
     for (let nonce = 1; nonce <= 24; nonce += 1) {
       const result = thor2Spin('cap-server', 'cap-client', nonce, { buyFeature: 'super' });
       expect(result.totalMultiplier).toBeLessThanOrEqual(THOR2_MAX_WIN_MULTIPLIER);
       expect(result.feature?.totalMultiplier).toBe(result.totalMultiplier);
+    }
+  });
+
+  it('keeps every visible packet total aligned with the capped settlement', () => {
+    const options = [
+      {},
+      { extraBet: true },
+      { buyFeature: 'regular' as const },
+      { buyFeature: 'super' as const },
+      { buyFeature: 'lucky' as const },
+    ];
+    for (const currentOptions of options) {
+      for (let nonce = 1; nonce <= 96; nonce += 1) {
+        const result = thor2Spin('visible-cap-server', 'visible-cap-client', nonce, currentOptions);
+        const feature = result.feature;
+        const bonusCount = result.grid.filter((cell) => cell.symbol === 1).length;
+        const entryBonus =
+          feature && feature.kind !== 'lucky'
+            ? bonusCount >= 6
+              ? 100
+              : bonusCount === 5
+                ? 5
+                : bonusCount === 4
+                  ? 3
+                  : 0
+            : 0;
+        const visibleTotal =
+          feature?.kind === 'lucky'
+            ? (feature.rounds[0]?.payoutMultiplier ?? 0)
+            : result.cascades.reduce(
+                (total, cascade) => total + cascade.payoutMultiplier,
+                entryBonus,
+              ) +
+              (feature?.rounds.reduce((total, round) => total + round.payoutMultiplier, 0) ?? 0);
+        expect(visibleTotal).toBeLessThanOrEqual(THOR2_MAX_WIN_MULTIPLIER);
+        expect(visibleTotal).toBeCloseTo(result.totalMultiplier, 8);
+      }
     }
   });
 
@@ -193,11 +230,11 @@ describe('Power of Thor II observed-rules engine', () => {
 
   it('constructs exact visible control targets for every paid action', () => {
     const cases = [
-      { options: {}, factors: [0, 0.25, 1, 20, 1_000, 25_000] },
+      { options: {}, factors: [0, 0.25, 1, 20, 1_000, 5_000] },
       { options: { extraBet: true }, factors: [0, 1.25, 20, 1_000] },
-      { options: { buyFeature: 'regular' as const }, factors: [3, 53, 103, 503, 5_003] },
-      { options: { buyFeature: 'super' as const }, factors: [3, 503, 1_003, 5_003] },
-      { options: { buyFeature: 'lucky' as const }, factors: [0, 400, 4_000, 4_400, 8_000, 25_000] },
+      { options: { buyFeature: 'regular' as const }, factors: [3, 53, 103, 503, 4_963] },
+      { options: { buyFeature: 'super' as const }, factors: [3, 503, 1_003, 4_963] },
+      { options: { buyFeature: 'lucky' as const }, factors: [0, 400, 4_000, 4_400, 5_000] },
     ];
     for (const { options, factors } of cases) {
       for (const factor of factors) {
@@ -273,7 +310,8 @@ describe('Power of Thor II observed-rules engine', () => {
         losingBallCounts.push(initialBallCount);
         expect(round.cascades).toHaveLength(0);
       } else {
-        expect(initialBallCount).toBeGreaterThanOrEqual(13);
+        expect(initialBallCount).toBeGreaterThanOrEqual(1);
+        expect(initialBallCount).toBeLessThanOrEqual(20);
         expect(round.cascades.length).toBeGreaterThan(0);
       }
       const cells = [

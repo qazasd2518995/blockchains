@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { thor2Spin } from '@bg/provably-fair';
+import { thor2Spin, THOR2_MAX_WIN_MULTIPLIER } from '@bg/provably-fair';
 import { describe, expect, it } from 'vitest';
 import type { ControlOutcome } from '../_common/controls.js';
 import { thor2Payout } from './thor2.economics.js';
@@ -30,6 +30,14 @@ function naturalCandidate(
 }
 
 describe('Thor 2 controlled result selection', () => {
+  it('matches Seth 2 with a 5,000x base-bet cycle ceiling', () => {
+    expect(THOR2_MAX_WIN_MULTIPLIER).toBe(5_000);
+    expect(thor2Payout(new Prisma.Decimal(1), THOR2_MAX_WIN_MULTIPLIER).toFixed(2)).toBe('5000.00');
+    expect(thor2Payout(new Prisma.Decimal(10), THOR2_MAX_WIN_MULTIPLIER).toFixed(2)).toBe(
+      '50000.00',
+    );
+  });
+
   it('selects a bounded loss whose visible feature replay exactly matches settlement', () => {
     const serverSeed = 'thor2-control-test-server';
     const clientSeed = 'thor2-control-test-client';

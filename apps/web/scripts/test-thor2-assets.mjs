@@ -72,8 +72,16 @@ assert.ok(
   pageSource.includes('/games/power-of-thor-2/original-runtime/index.html'),
   'The route must mount the archived original Cocos runtime',
 );
-for (const forbidden of ['Thor2Cascade', 'SymbolCell', 'base-reference.png', 'PowerOfThor2Page.css']) {
-  assert.ok(!pageSource.includes(forbidden), `React reconstruction leaked into the route: ${forbidden}`);
+for (const forbidden of [
+  'Thor2Cascade',
+  'SymbolCell',
+  'base-reference.png',
+  'PowerOfThor2Page.css',
+]) {
+  assert.ok(
+    !pageSource.includes(forbidden),
+    `React reconstruction leaked into the route: ${forbidden}`,
+  );
 }
 
 const viteSource = fs.readFileSync(path.join(webRoot, 'vite.config.ts'), 'utf8');
@@ -85,19 +93,26 @@ assert.ok(
 const runtimeHtml = fs.readFileSync(path.join(gameRoot, 'original-runtime/index.html'), 'utf8');
 for (const originalBootAsset of [
   'thor2-runtime-compat.js?v=20260826-mobile-1',
+  'thor2-original-adapter.js?v=20260827-jackpot-cycle-cap-1',
   'common/js/jsStart-cocos.js',
   'content/PowerOfThor2/src/polyfills.bundle.js',
   'content/PowerOfThor2/src/system.bundle.js',
   'content/PowerOfThor2/src/import-map.json',
   "System.import(CONTENT + '/index.js')",
 ]) {
-  assert.ok(runtimeHtml.includes(originalBootAsset), `Original Cocos boot asset missing: ${originalBootAsset}`);
+  assert.ok(
+    runtimeHtml.includes(originalBootAsset),
+    `Original Cocos boot asset missing: ${originalBootAsset}`,
+  );
 }
 assert.ok(
   runtimeHtml.includes('display: none !important'),
   'The unrelated provider splash must stay hidden while the native Thor canvas boots',
 );
-assert.ok(!runtimeHtml.includes('logo_RSG.webp'), 'The unrelated RSG splash logo leaked into Thor II');
+assert.ok(
+  !runtimeHtml.includes('logo_RSG.webp'),
+  'The unrelated RSG splash logo leaked into Thor II',
+);
 
 const compatSource = fs.readFileSync(
   path.join(gameRoot, 'original-runtime/thor2-runtime-compat.js'),
@@ -157,8 +172,8 @@ for (const contract of [
   'RecoverableDataResponse',
   "system.get('chunks:///_virtual/lz-string.min.js')",
   'entry.freeRound === 0 || entry.freeRound <= cursor',
-  "CryptoJS.DES.encrypt",
-  "CryptoJS.DES.decrypt",
+  'CryptoJS.DES.encrypt',
+  'CryptoJS.DES.decrypt',
   "Type: 'WalletUpdate'",
   'var incomingDrop = cascadeIndex > 0 ? deriveDrop(cascades[cascadeIndex - 1]) : null',
   'var finalDrop = deriveDrop(lastCascade, finalOriginGrid)',
@@ -170,6 +185,9 @@ for (const contract of [
   'bonusCount < 4',
   'JackpotDisplayEnabled: true',
   "PoolName: ['GRAND', 'MAJOR', 'MINOR', 'MINI']",
+  "Type: 'ServerRequestJackpotInfo'",
+  'jackpotTickerId = window.setInterval',
+  'syncJackpotSnapshot(socket, result.jackpotPools)',
   'isUseJackpot: true',
   "Type: 'AddFreeGame'",
   'AddFreeSpinTime: Math.max(0, Number(spins) || 0)',
@@ -178,7 +196,10 @@ for (const contract of [
   'return entry.freeRound > activeSequence.progressCursor',
   'BetList: [10, 20, 50, 100, 200, 500, 1000, 2000, 5000]',
 ]) {
-  assert.ok(adapterSource.includes(contract), `Original-client adapter contract is missing: ${contract}`);
+  assert.ok(
+    adapterSource.includes(contract),
+    `Original-client adapter contract is missing: ${contract}`,
+  );
 }
 for (const forbidden of [
   'base-reference.png',
@@ -187,7 +208,10 @@ for (const forbidden of [
   'fallbackGrid',
   'FreeSpinTimesSelect: -1',
 ]) {
-  assert.ok(!adapterSource.includes(forbidden), `Reconstructed fallback leaked into adapter: ${forbidden}`);
+  assert.ok(
+    !adapterSource.includes(forbidden),
+    `Reconstructed fallback leaked into adapter: ${forbidden}`,
+  );
 }
 
 const storage = new Map();
@@ -229,6 +253,18 @@ assert.equal(
   'spin',
 );
 assert.equal(adapter.requestAmount({ Bet: 200, BetLevel: 10, Denom: 0.05 }), 10);
+assert.deepEqual(
+  Array.from(
+    adapter.normalizedJackpotAmounts({
+      grand: 200000,
+      major: 70000,
+      minor: 13000,
+      mini: 1600,
+    }),
+  ),
+  [200000, 70000, 13000, 1600],
+  'Thor II must forward all four authoritative jackpot pools in provider order',
+);
 
 const sixBonusGrid = Array.from({ length: 30 }, (_, index) => ({
   symbol: index < 6 ? 1 : 13,
@@ -279,14 +315,22 @@ const sequence = adapter.buildSequence({
   totalMultiplier: 4.9,
   maxWinReached: false,
 });
-assert.equal(sequence.queue.length, 3, 'Two wins require two score packets and one drop-final packet');
+assert.equal(
+  sequence.queue.length,
+  3,
+  'Two wins require two score packets and one drop-final packet',
+);
 const packets = sequence.queue.map((entry) => JSON.parse(JSON.stringify(entry.payload)));
 assert.deepEqual(
   packets[0].ExtraData.Extra.DropScreen,
   [[], [], [], [], [], []],
   'The initial winning screen cannot claim that its own replacement symbols already dropped',
 );
-assert.equal(packets[1].ExtraData.RNG[0][0], 15, 'The second packet must present the refilled screen');
+assert.equal(
+  packets[1].ExtraData.RNG[0][0],
+  15,
+  'The second packet must present the refilled screen',
+);
 assert.equal(packets[1].ExtraData.Extra.DropMultiple[0][0], 2, 'The dropped 2x ball was lost');
 assert.equal(
   packets[1].ExtraData.Extra.TriggerUpgrade,
@@ -298,7 +342,11 @@ assert.equal(
   0,
   'Multiplier balls cannot be collected during an intermediate tumble',
 );
-assert.equal(packets[2].ExtraData.WinLines.length, 0, 'The terminal drop packet must not replay a win');
+assert.equal(
+  packets[2].ExtraData.WinLines.length,
+  0,
+  'The terminal drop packet must not replay a win',
+);
 assert.equal(packets[2].ExtraData.Extra.MultipleOrigin[0][0], 2, 'Upgrade origin must stay at 2x');
 assert.equal(packets[2].ExtraData.Extra.Multiple[0][0], 3, 'Upgrade result must advance to 3x');
 assert.equal(packets[2].ExtraData.Extra.DropMultiple[1][0], 4, 'The last refill ball was lost');
@@ -315,7 +363,11 @@ assert.equal(
   true,
   'The original lightning upgrade must run on the terminal collection packet',
 );
-assert.equal(packets[2].ExtraData.Extra.SubFlowEnd, 1, 'The terminal drop packet must close cascading');
+assert.equal(
+  packets[2].ExtraData.Extra.SubFlowEnd,
+  1,
+  'The terminal drop packet must close cascading',
+);
 assert.equal(packets[2].ExtraData.FlowEnd, 1, 'The terminal packet must close the base spin flow');
 
 const legacySequence = adapter.buildSequence({
@@ -347,7 +399,11 @@ const legacySequence = adapter.buildSequence({
   maxWinReached: false,
 });
 const legacyPackets = legacySequence.queue.map((entry) => entry.payload);
-assert.equal(legacyPackets.length, 3, 'Stored v2 rounds must remain recoverable after the v3 rollout');
+assert.equal(
+  legacyPackets.length,
+  3,
+  'Stored v2 rounds must remain recoverable after the v3 rollout',
+);
 assert.equal(
   legacyPackets[1].ExtraData.Extra.TriggerUpgrade,
   true,
@@ -374,7 +430,11 @@ for (const mode of [undefined, 'regular', 'super', 'lucky']) {
     }
     assert.ok(generated.queue.length > 0, `${mode ?? 'base'} produced an empty presentation queue`);
     const lastPacket = generated.queue.at(-1).payload;
-    assert.equal(lastPacket.ExtraData.Extra.SubFlowEnd, 1, `${mode ?? 'base'} did not end cascading`);
+    assert.equal(
+      lastPacket.ExtraData.Extra.SubFlowEnd,
+      1,
+      `${mode ?? 'base'} did not end cascading`,
+    );
     for (const { payload } of generated.queue) {
       const screenMultiple = payload.ExtraData.Extra.Features.find(
         (feature) => feature.Type === 'ScreenMultiple',

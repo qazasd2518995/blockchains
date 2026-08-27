@@ -13,10 +13,14 @@
     <link rel="icon" href="/qmoney/assets/favicon.ico">
     <link rel="stylesheet" href="/qmoney/styles.css">
     <script src="/qmoney/config.js"></script>
-    <script src="/qmoney/app.js?v=20260824-audio-bridge-1" defer></script>
+    <script src="/qmoney/app.js?v=20260827-return-no-login-flash-1" defer></script>
   </head>
-  <body>
+  <body class="is-booting">
     <div class="app-frame" id="appFrame">
+      <div class="qmoney-boot-view" id="bootView" role="status" aria-label="遊戲大廳載入中">
+        <img src="/qmoney/assets/imgs_soc/media/loading.gif" alt="">
+        <span>正在返回遊戲大廳…</span>
+      </div>
       <section class="login-page view is-active" id="loginView" aria-label="登入畫面">
         <div class="login-actions" aria-label="會員登入入口">
           <button class="pill-button pill-button--line" id="lineLogin" type="button">

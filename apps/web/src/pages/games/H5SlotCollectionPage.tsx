@@ -10,6 +10,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import type { Locale } from '@/i18n/types';
 import { PlatformBgm } from '@/lib/platformBgm';
 import { isQmoneyRealm } from '@/lib/platformRealm';
+import { returnFromGame } from '@/lib/gameReturnNavigation';
 
 const GAME_PATH = '/games/h5-slot-collection/index.html';
 const GAME_READY_TIMEOUT_MS = 50_000;
@@ -187,7 +188,7 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
           payload.data?.name === 'postMessage' &&
           payload.data.arg?.action === 'close');
       if (requestedClose) {
-        navigate(returnTarget.to);
+        returnFromGame(navigate, returnTarget.to);
         return;
       }
       if (payload.type === 'h5-slots:ready') {

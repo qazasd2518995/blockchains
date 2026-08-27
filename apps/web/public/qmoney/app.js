@@ -494,8 +494,11 @@ async function refreshBalance(quiet = false) {
   }
 }
 
-async function enterLobby() {
-  if (!state.session) return showLoginForm();
+function finishInitialView() {
+  document.body.classList.remove("is-booting");
+}
+
+function activateLobbyView() {
   state.isLobby = true;
   elements.loginView.classList.remove("is-active");
   elements.lobbyView.classList.add("is-active");
@@ -504,6 +507,12 @@ async function enterLobby() {
   updateAccount();
   renderJackpot();
   syncMusic("lobby");
+  finishInitialView();
+}
+
+async function enterLobby() {
+  if (!state.session) return showLoginForm();
+  activateLobbyView();
   await Promise.all([loadCatalog(), refreshBalance(true), loadAnnouncements()]);
   window.requestAnimationFrame(() => elements.providerStrip.querySelector(".is-active")?.scrollIntoView({ inline: "center", block: "nearest" }));
   window.clearInterval(state.balanceTimer);
@@ -522,6 +531,7 @@ function showLoginView() {
   elements.lobbyView.setAttribute("aria-hidden", "true");
   elements.loginView.setAttribute("aria-hidden", "false");
   syncMusic("login");
+  finishInitialView();
 }
 
 async function signOut(callServer = true) {
@@ -912,6 +922,10 @@ async function bootstrap() {
   syncGameAudioPreferences();
   renderJackpot();
   if (!state.session) return showLoginView();
+  // Restore the persisted member shell synchronously. Waiting for /auth/me
+  // while the login view is active causes a visible login flash on every
+  // return from a game, especially on mobile networks.
+  activateLobbyView();
   try {
     const user = await apiRequest("/auth/me");
     persistSession({ ...state.session, user });

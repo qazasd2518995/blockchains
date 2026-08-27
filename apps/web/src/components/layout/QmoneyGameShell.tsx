@@ -189,9 +189,15 @@ export function QmoneyGameShell() {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onClick={(event) => {
-          if (!suppressClickRef.current) return;
           event.preventDefault();
-          suppressClickRef.current = false;
+          if (suppressClickRef.current) {
+            suppressClickRef.current = false;
+            return;
+          }
+          // The Qmoney lobby is a separate static document. Replace the game
+          // entry directly so React does not render an intermediate route and
+          // the browser Back action cannot reopen a settled game.
+          window.location.replace(returnTarget.to);
         }}
       >
         <House aria-hidden="true" />

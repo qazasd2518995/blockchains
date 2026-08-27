@@ -44,6 +44,7 @@ for (const marker of [
   '<AudioMenu variant="dark" />',
   '<span>回大廳</span>',
   'document.title = `錢女友｜${game.title}`',
+  'window.location.replace(returnTarget.to)',
 ]) {
   assert.ok(shell.includes(marker), `missing Qmoney game-shell marker: ${marker}`);
 }
@@ -115,8 +116,14 @@ assert.ok(
   'Qmoney Thor II catalog route must resolve to a guarded React game route',
 );
 assert.ok(
-  thorPage.includes("const ORIGINAL_GAME_PATH = '/games/power-of-thor-2/original-runtime/index.html'"),
+  thorPage.includes(
+    "const ORIGINAL_GAME_PATH = '/games/power-of-thor-2/original-runtime/index.html'",
+  ),
   'Qmoney Thor II route must mount the original Cocos runtime',
+);
+assert.ok(
+  thorPage.includes("payload.type === 'thor2:close'"),
+  'the original Thor II home action must return through the parent game shell',
 );
 assert.doesNotMatch(
   thorPage,
@@ -124,10 +131,7 @@ assert.doesNotMatch(
   'Qmoney Thor II route must not retain the reconstructed React fallback',
 );
 await access(
-  path.join(
-    webRoot,
-    'public/_optimized/game-art/original/power-of-thor-2-cover-v1@960.webp',
-  ),
+  path.join(webRoot, 'public/_optimized/game-art/original/power-of-thor-2-cover-v1@960.webp'),
 );
 
 console.log('Qmoney game separation contract passed');

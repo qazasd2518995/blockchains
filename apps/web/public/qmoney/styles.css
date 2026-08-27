@@ -110,6 +110,37 @@ img {
   display: block;
 }
 
+/* Keep the login artwork out of the first paint while the persisted session is
+   restored. Authenticated players now see a neutral lobby hand-off instead of
+   a one-frame login page when returning from a game. */
+.qmoney-boot-view {
+  position: absolute;
+  z-index: 1000;
+  inset: 0;
+  display: none;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  background: #dff3ff;
+  color: #ff5796;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.qmoney-boot-view img {
+  width: 92px;
+  height: 92px;
+  object-fit: contain;
+}
+
+body.is-booting .qmoney-boot-view {
+  display: grid;
+}
+
+body.is-booting .view {
+  display: none !important;
+}
+
 /* Login page */
 .login-page {
   overflow: hidden;

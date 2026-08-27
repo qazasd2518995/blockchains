@@ -77,8 +77,7 @@
       }
     </style>
     <script>
-      var HOST_MIRROR_ROOT =
-        '../original/gameresource3.rsgaming955.com';
+      var HOST_MIRROR_ROOT = '../original/gameresource3.rsgaming955.com';
       var MIRROR_ROOT = HOST_MIRROR_ROOT + '/WebUI3';
       var CONTENT = MIRROR_ROOT + '/content/PowerOfThor2';
       var gameWebSiteUrl = '';
@@ -86,21 +85,44 @@
       var isHomeEnabled = true;
       var wsPath = '/RewardableSlotUser';
       var isIOS = /iPhone|iPod/i.test(navigator.userAgent);
-      var isIPad = /iPad/i.test(navigator.userAgent) ||
+      var isIPad =
+        /iPad/i.test(navigator.userAgent) ||
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-      function getGameCommonPath() { return MIRROR_ROOT + '/common'; }
-      function getHelpPath() { return MIRROR_ROOT + '/help/PowerOfThor2'; }
-      function getContentPath() { return CONTENT; }
-      function getRemoteResPath() { return MIRROR_ROOT + '/remoteRes'; }
-      function getRecordPath() { return './record/PowerOfThor2'; }
-      function getResourcePath() { return CONTENT; }
-      function getHistoryIsEnabled() { return false; }
-      function getHomeIsEnabled() { return isHomeEnabled; }
-      function getOuterLogo(callback) { callback({ isUsed: false, imgUrl: '' }); }
-      function getGameName(_gameId, _language, callback) { callback('Power of Thor II'); }
+      function getGameCommonPath() {
+        return MIRROR_ROOT + '/common';
+      }
+      function getHelpPath() {
+        return MIRROR_ROOT + '/help/PowerOfThor2';
+      }
+      function getContentPath() {
+        return CONTENT;
+      }
+      function getRemoteResPath() {
+        return MIRROR_ROOT + '/remoteRes';
+      }
+      function getRecordPath() {
+        return './record/PowerOfThor2';
+      }
+      function getResourcePath() {
+        return CONTENT;
+      }
+      function getHistoryIsEnabled() {
+        return false;
+      }
+      function getHomeIsEnabled() {
+        return isHomeEnabled;
+      }
+      function getOuterLogo(callback) {
+        callback({ isUsed: false, imgUrl: '' });
+      }
+      function getGameName(_gameId, _language, callback) {
+        callback('Power of Thor II');
+      }
       function setCompanySubSystem() {}
-      function reloadGame() { window.location.reload(); }
+      function reloadGame() {
+        window.location.reload();
+      }
       function redirectGame() {}
       function eventGo() {}
       function setEventGame() {}
@@ -120,7 +142,9 @@
         var help = document.getElementById('Help');
         if (help) help.style.display = 'none';
       }
-      function onCloseHelpListener() { onCloseHelp(); }
+      function onCloseHelpListener() {
+        onCloseHelp();
+      }
     </script>
   </head>
   <body>
@@ -153,9 +177,15 @@
     <script src="../original/gameresource3.rsgaming955.com/WebUI3/common/ui/js/iPhoneScreenfull.js"></script>
     <script src="./thor2-runtime-compat.js?v=20260826-mobile-1"></script>
     <script src="../original/gameresource3.rsgaming955.com/WebUI3/common/js/jsStart-cocos.js"></script>
-    <script src="./thor2-original-adapter.js?v=20260827-official-feature-rules-1"></script>
-    <script src="../original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/src/polyfills.bundle.js" charset="utf-8"></script>
-    <script src="../original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/src/system.bundle.js" charset="utf-8"></script>
+    <script src="./thor2-original-adapter.js?v=20260827-jackpot-cycle-cap-1"></script>
+    <script
+      src="../original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/src/polyfills.bundle.js"
+      charset="utf-8"
+    ></script>
+    <script
+      src="../original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/src/system.bundle.js"
+      charset="utf-8"
+    ></script>
     <script
       src="../original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/src/import-map.json"
       type="systemjs-importmap"

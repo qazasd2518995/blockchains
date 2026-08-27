@@ -21,10 +21,23 @@ for (const marker of [
   'data-action="notices"',
   'id="jackpotDigits"',
   'class="bottom-nav"',
-  '/qmoney/app.js?v=20260824-audio-bridge-1',
+  '/qmoney/app.js?v=20260827-return-no-login-flash-1',
+  'class="is-booting"',
+  'id="bootView"',
 ]) {
   assert.ok(html.includes(marker), `missing lobby marker: ${marker}`);
 }
+
+assert.match(
+  app,
+  /if \(!state\.session\) return showLoginView\(\);\s*\/\/[^]*?activateLobbyView\(\);\s*try \{/,
+  'a persisted Qmoney session must restore the lobby before awaiting /auth/me',
+);
+assert.match(
+  css,
+  /body\.is-booting \.view\s*\{\s*display:\s*none !important;/,
+  'the login view must stay out of the initial paint while auth is restored',
+);
 
 for (const marker of [
   'lobbypopframebg.webp',

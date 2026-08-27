@@ -9,6 +9,11 @@
   var platformSession = null;
   var activeSequence = null;
   var recoverySnapshot = null;
+  var jackpotTickerId = 0;
+  var jackpotTickerSocket = null;
+  var jackpotTickAt = 0;
+  var jackpotAmounts = [1246184.41, 115647.19, 20032.04, 3318.91];
+  var jackpotRatesPerSecond = [0.12, 0.07, 0.03, 0.01];
   var requestTimeoutMs = 60000;
   var pendingOperationKey = 'bg.thor2.original.pending-operation';
   var capturedAudioContexts = [];
@@ -52,7 +57,10 @@
 
   function notifyParent(type, payload) {
     try {
-      window.parent.postMessage(Object.assign({ type: type }, payload || {}), window.location.origin);
+      window.parent.postMessage(
+        Object.assign({ type: type }, payload || {}),
+        window.location.origin,
+      );
     } catch (_error) {
       // Standalone diagnostics have no parent shell.
     }
@@ -349,7 +357,8 @@
   LocalWebSocket.prototype.CLOSING = 2;
   LocalWebSocket.prototype.CLOSED = 3;
   LocalWebSocket.prototype.addEventListener = function (type, listener) {
-    if (this._listeners[type] && typeof listener === 'function') this._listeners[type].push(listener);
+    if (this._listeners[type] && typeof listener === 'function')
+      this._listeners[type].push(listener);
   };
   LocalWebSocket.prototype.removeEventListener = function (type, listener) {
     if (!this._listeners[type]) return;
@@ -384,6 +393,7 @@
   };
   LocalWebSocket.prototype.close = function (code, reason) {
     if (this.readyState === LocalWebSocket.CLOSED) return;
+    if (jackpotTickerSocket === this) stopJackpotTicker();
     this.readyState = LocalWebSocket.CLOSING;
     var socket = this;
     window.setTimeout(function () {
@@ -410,6 +420,7 @@
       loadSession(false)
         .then(function (session) {
           socket._respond(loginResponse(session));
+          startJackpotTicker(socket, session.jackpotPools);
           window.setTimeout(function () {
             socket._respond(versionResponse());
           }, 0);
@@ -537,6 +548,7 @@
   }
 
   function loginResponse(session) {
+    applyJackpotSnapshot(session && session.jackpotPools);
     return {
       Success: true,
       ErrCode: '',
@@ -564,10 +576,10 @@
       JackpotInfo: {
         PoolID: [0, 1, 2, 3],
         PoolName: ['GRAND', 'MAJOR', 'MINOR', 'MINI'],
-        // The imported client owns the progressive header presentation. These
-        // are display pools, matching the four-tier provider protocol; spin
-        // settlement remains authoritative on the QMoney server.
-        PoolAmt: [1246184.41, 115647.19, 20032.04, 3318.91],
+        // The imported client owns the progressive header animation. The
+        // values come from the persistent game pool, then receive lightweight
+        // local ticks between authoritative wager snapshots.
+        PoolAmt: jackpotAmounts.slice(),
         HaveExtra: false,
         ExtraData: null,
         Type: 'ServerRequestJackpotInfo',
@@ -576,6 +588,69 @@
       CurrencyRatio: 1,
       Type: 'ServerResponseLogin',
     };
+  }
+
+  function normalizedJackpotAmounts(pools) {
+    var fallback = jackpotAmounts;
+    var keys = ['grand', 'major', 'minor', 'mini'];
+    return keys.map(function (key, index) {
+      var amount = Number(pools && pools[key]);
+      return Number.isFinite(amount) && amount >= 0 ? amount : fallback[index];
+    });
+  }
+
+  function applyJackpotSnapshot(pools) {
+    var snapshot = normalizedJackpotAmounts(pools);
+    jackpotAmounts = snapshot.map(function (amount, index) {
+      // A local visual tick can be slightly ahead of the last committed pool.
+      // Never jump backward when the next wager snapshot arrives.
+      return Number(Math.max(Number(jackpotAmounts[index]) || 0, amount).toFixed(2));
+    });
+    return jackpotAmounts.slice();
+  }
+
+  function jackpotInfoResponse() {
+    return {
+      PoolID: [0, 1, 2, 3],
+      PoolName: ['GRAND', 'MAJOR', 'MINOR', 'MINI'],
+      PoolAmt: jackpotAmounts.slice(),
+      HaveExtra: false,
+      ExtraData: null,
+      Type: 'ServerRequestJackpotInfo',
+    };
+  }
+
+  function syncJackpotSnapshot(socket, pools) {
+    if (!pools) return;
+    applyJackpotSnapshot(pools);
+    socket._respond(jackpotInfoResponse());
+  }
+
+  function stopJackpotTicker() {
+    if (jackpotTickerId) window.clearInterval(jackpotTickerId);
+    jackpotTickerId = 0;
+    jackpotTickerSocket = null;
+    jackpotTickAt = 0;
+  }
+
+  function startJackpotTicker(socket, pools) {
+    stopJackpotTicker();
+    applyJackpotSnapshot(pools);
+    jackpotTickerSocket = socket;
+    jackpotTickAt = Date.now();
+    jackpotTickerId = window.setInterval(function () {
+      if (!jackpotTickerSocket || jackpotTickerSocket.readyState !== LocalWebSocket.OPEN) {
+        stopJackpotTicker();
+        return;
+      }
+      var now = Date.now();
+      var elapsedSeconds = Math.max(0, Math.min(5, (now - jackpotTickAt) / 1000));
+      jackpotTickAt = now;
+      jackpotAmounts = jackpotAmounts.map(function (amount, index) {
+        return Number((amount + jackpotRatesPerSecond[index] * elapsedSeconds).toFixed(2));
+      });
+      jackpotTickerSocket._respond(jackpotInfoResponse());
+    }, 1000);
   }
 
   function versionResponse() {
@@ -597,8 +672,8 @@
 
   function stripResponse() {
     var strip = [
-      3, 9, 15, 10, 4, 11, 5, 13, 16, 6, 12, 9, 10, 17, 3, 4, 11, 18, 5, 6, 12, 13,
-      9, 10, 19, 3, 4, 5, 11, 6, 12, 13,
+      3, 9, 15, 10, 4, 11, 5, 13, 16, 6, 12, 9, 10, 17, 3, 4, 11, 18, 5, 6, 12, 13, 9, 10, 19, 3, 4,
+      5, 11, 6, 12, 13,
     ];
     var strips = Array.from({ length: 12 }, function (_value, index) {
       return strip.slice(index % 8).concat(strip.slice(0, index % 8));
@@ -753,6 +828,7 @@
     })
       .then(function (result) {
         clearOperation(operationId);
+        syncJackpotSnapshot(socket, result.jackpotPools);
         if (result.payoutDeferred) {
           platformSession.balance = result.newBalance;
           platformSession.pendingFeature = result;
@@ -914,9 +990,8 @@
       String(result.modelVersion || ''),
     );
     var entersFree = feature && feature.kind !== 'lucky';
-    var luckyRound = feature && feature.kind === 'lucky' && feature.rounds
-      ? feature.rounds[0]
-      : null;
+    var luckyRound =
+      feature && feature.kind === 'lucky' && feature.rounds ? feature.rounds[0] : null;
     var baseGrid =
       result.cascades && result.cascades.length ? result.cascades[0].before : result.grid;
     if (entersFree) {
@@ -972,9 +1047,7 @@
           },
           bonusPayMultiplier: round.superBonusMultiplier || 0,
           freeRound: roundIndex + 1,
-          isMaxWin: Boolean(
-            result.maxWinReached && roundIndex === feature.rounds.length - 1,
-          ),
+          isMaxWin: Boolean(result.maxWinReached && roundIndex === feature.rounds.length - 1),
           legacyMultiplierSettlement: legacyMultiplierSettlement,
         });
         cumulativeMultiplier += Number(round.payoutMultiplier || 0);
@@ -1004,7 +1077,11 @@
         emptyFeatures.push(addFreeGameFeature(options.enterFreeSpins));
       }
       if (options.addFreeSpins) {
-        emptyFeatures.push({ Type: 'AddFreeGame', AddFreeSpinTime: options.addFreeSpins, AddType: 0 });
+        emptyFeatures.push({
+          Type: 'AddFreeGame',
+          AddFreeSpinTime: options.addFreeSpins,
+          AddType: 0,
+        });
       }
       if (options.freeGame) emptyFeatures.push(freeGameFeature(options.freeGame, emptyTotal));
       queue.push({
@@ -1104,7 +1181,11 @@
     );
     if (options.enterFreeSpins) finalFeatures.push(addFreeGameFeature(options.enterFreeSpins));
     if (options.addFreeSpins) {
-      finalFeatures.push({ Type: 'AddFreeGame', AddFreeSpinTime: options.addFreeSpins, AddType: 0 });
+      finalFeatures.push({
+        Type: 'AddFreeGame',
+        AddFreeSpinTime: options.addFreeSpins,
+        AddType: 0,
+      });
     }
     if (options.freeGame) finalFeatures.push(freeGameFeature(options.freeGame, finalTotal));
     queue.push({
@@ -1153,12 +1234,9 @@
           dropScreen: incomingDrop ? incomingDrop.symbols : emptyReels(),
           dropMultiple: incomingDrop ? incomingDrop.multipliers : emptyReels(),
           multiple: gridMultipliers(presentationGrid),
-          multipleOrigin: cascade.upgrades && cascade.upgrades.length
-            ? gridMultipliers(cascade.before)
-            : [],
-          screenOrigin: cascade.upgrades && cascade.upgrades.length
-            ? toReels(cascade.before)
-            : [],
+          multipleOrigin:
+            cascade.upgrades && cascade.upgrades.length ? gridMultipliers(cascade.before) : [],
+          screenOrigin: cascade.upgrades && cascade.upgrades.length ? toReels(cascade.before) : [],
           features: features,
           key: cascadeIndex === 0 ? options.key : 7,
           subKey: options.subKey,
@@ -1182,7 +1260,11 @@
     var finalFeatures = commonFeatures(round, null, finalTotal, finalRoundWin, roundWinOrigin);
     if (options.enterFreeSpins) finalFeatures.push(addFreeGameFeature(options.enterFreeSpins));
     if (options.addFreeSpins) {
-      finalFeatures.push({ Type: 'AddFreeGame', AddFreeSpinTime: options.addFreeSpins, AddType: 0 });
+      finalFeatures.push({
+        Type: 'AddFreeGame',
+        AddFreeSpinTime: options.addFreeSpins,
+        AddType: 0,
+      });
     }
     if (options.freeGame) finalFeatures.push(freeGameFeature(options.freeGame, finalTotal));
     queue.push({
@@ -1289,7 +1371,8 @@
       },
       HaveExtra: true,
       Msg: {
-        GameSerialNumber: 'QM-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
+        GameSerialNumber:
+          'QM-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
         MathName: null,
         RNG: rng,
         WinLineCount: winLines.length,
@@ -1519,14 +1602,12 @@
           );
         }
         if (isFeatureSymbol(incomingSymbol)) {
-          var incomingMultiplier = featureMultiplierAt(
-            dropScreen,
-            dropMultiple,
-            reel,
-            row,
-          );
+          var incomingMultiplier = featureMultiplierAt(dropScreen, dropMultiple, reel, row);
           var resultMultiplier = featureMultiplierAt(rng, multiple, reel, row);
-          if (!legalFeatureMultipliers[incomingMultiplier] || !legalFeatureMultipliers[resultMultiplier]) {
+          if (
+            !legalFeatureMultipliers[incomingMultiplier] ||
+            !legalFeatureMultipliers[resultMultiplier]
+          ) {
             throw new Error('雷神掉落倍數不是原版合法值');
           }
         }
@@ -1589,6 +1670,7 @@
     ensureFreeTriggerGrid: ensureFreeTriggerGrid,
     requestAction: requestAction,
     requestAmount: requestAmount,
+    normalizedJackpotAmounts: normalizedJackpotAmounts,
     stripResponse: stripResponse,
   };
 })();

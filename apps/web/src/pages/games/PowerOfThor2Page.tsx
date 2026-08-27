@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { Sfx } from '@bg/game-engine';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
 import { useTranslation } from '@/i18n/useTranslation';
 import { PlatformBgm } from '@/lib/platformBgm';
+import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
+import { returnFromGame } from '@/lib/gameReturnNavigation';
 
 const ORIGINAL_GAME_PATH = '/games/power-of-thor-2/original-runtime/index.html';
 
 export function PowerOfThor2Page() {
+  const navigate = useNavigate();
+  const returnTarget = useGameReturnTarget();
   const { locale } = useTranslation();
   const isAuthenticated = useAuthStore((state) => Boolean(state.user));
   const setBalance = useAuthStore((state) => state.setBalance);
@@ -26,7 +30,7 @@ export function PowerOfThor2Page() {
       wspath: 'RewardableSlotUser',
       apiBase,
       lang: sourceLocale(locale),
-      build: 'qmoney-thor2-original-cocos-v3-multiplier-settlement',
+      build: 'qmoney-thor2-original-cocos-v4-jackpot-cycle-cap',
     });
     return `${ORIGINAL_GAME_PATH}?${query.toString()}`;
   }, [locale]);
@@ -69,6 +73,10 @@ export function PowerOfThor2Page() {
         accessToken?: unknown;
         refreshToken?: unknown;
       };
+      if (payload.type === 'thor2:close') {
+        returnFromGame(navigate, returnTarget.to);
+        return;
+      }
       if (payload.type === 'thor2:ready') setError('');
       if (payload.type === 'thor2:balance' || payload.type === 'thor2:ready') {
         const balance = Number(payload.balance);
@@ -87,7 +95,7 @@ export function PowerOfThor2Page() {
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [setBalance, setTokens]);
+  }, [navigate, returnTarget.to, setBalance, setTokens]);
 
   if (!isAuthenticated) {
     return (
