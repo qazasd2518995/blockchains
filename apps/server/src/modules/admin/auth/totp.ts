@@ -11,7 +11,6 @@ import { config } from '../../../config.js';
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 const TOTP_PERIOD_SECONDS = 30;
 const TOTP_DIGITS = 6;
-const ISSUER = 'Yachiyo Admin';
 
 export type TotpVerifyResult = {
   valid: boolean;
@@ -35,7 +34,12 @@ export function generateTotpSecret(byteLength = 20): string {
 }
 
 export function createOtpAuthUrl(username: string, secret: string): string {
-  return `otpauth://totp/${encodeURIComponent(ISSUER)}:${encodeURIComponent(username)}?secret=${encodeURIComponent(secret)}&issuer=${encodeURIComponent(ISSUER)}&algorithm=SHA1&digits=${TOTP_DIGITS}&period=${TOTP_PERIOD_SECONDS}`;
+  const issuer = totpIssuerForRealm(config.PLATFORM_REALM);
+  return `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(username)}?secret=${encodeURIComponent(secret)}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=${TOTP_DIGITS}&period=${TOTP_PERIOD_SECONDS}`;
+}
+
+export function totpIssuerForRealm(realm: 'legacy' | 'qmoney'): string {
+  return realm === 'qmoney' ? '金寶寶管理後台' : '八千代代理後台';
 }
 
 export function encryptTotpSecret(secret: string): string {

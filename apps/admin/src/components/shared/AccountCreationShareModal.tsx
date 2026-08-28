@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { resolveBettingLimitRange } from '@bg/shared';
 import { Modal } from './Modal';
+import { adminBrand } from '@admin-brand';
+import { displayUrl } from '@/brand/shared';
 
 type CreatedAccountKind = 'agent' | 'member';
 
@@ -15,9 +17,6 @@ interface Props {
   info: CreatedAccountShareInfo | null;
   onClose: () => void;
 }
-
-const GAME_LOGIN_URLS = ['yachiyo777.com', 'yachiyo666.com'];
-const AGENT_LOGIN_URLS = ['yachiyo168.com', 'yachiyo188.com'];
 
 export function AccountCreationShareModal({ info, onClose }: Props): JSX.Element {
   const [copied, setCopied] = useState(false);
@@ -111,19 +110,19 @@ function buildShareMessage(info: CreatedAccountShareInfo): string {
   const limit = resolveBettingLimitRange(info.bettingLimitLevel).label.replace('基本款 ', '');
   const lines = [
     '———————————-',
-    '八千代娛樂城推廣連結',
+    adminBrand.shareHeading,
     '',
     `${accountLabel}:${info.username}`,
     `${passwordLabel}:${password}`,
     `限紅:${limit}`,
     '遊戲登入網址:',
-    ...GAME_LOGIN_URLS,
+    ...adminBrand.playerLoginUrls.map(displayUrl),
     '(遊戲進入後建議按照步驟',
     '將網頁加到桌面,以提供更完整遊戲體驗)',
   ];
 
   if (info.kind === 'agent') {
-    lines.push('', '代理登入網址:', ...AGENT_LOGIN_URLS);
+    lines.push('', '代理登入網址:', ...adminBrand.agentLoginUrls.map(displayUrl));
   }
 
   return lines.join('\n');

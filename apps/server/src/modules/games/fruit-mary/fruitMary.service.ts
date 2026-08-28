@@ -28,6 +28,7 @@ import {
   type ControlOutcome,
 } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
+import { config } from '../../../config.js';
 import type {
   FruitMaryGambleInput,
   FruitMaryHistoryInput,
@@ -76,7 +77,8 @@ export class FruitMaryService {
 
   async disabled(userId: string) {
     await this.requireUser(userId);
-    return { code: 0, msg: '此版本僅使用八千代測試點數，不提供儲值、提領或推廣功能' };
+    const platformName = config.PLATFORM_REALM === 'qmoney' ? '金寶寶' : '八千代';
+    return { code: 0, msg: `此版本僅使用${platformName}測試點數，不提供儲值、提領或推廣功能` };
   }
 
   async spin(userId: string, input: FruitMarySpinInput): Promise<FruitMaryLegacySpinResponse> {

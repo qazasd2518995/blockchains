@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { adminBrand, isQmoneyAdmin } from '@admin-brand';
 
 interface Props {
   section: string;
@@ -29,12 +30,16 @@ export function PageHeader({
   return (
     <header className="admin-page-header relative mb-5 overflow-hidden rounded-[12px] border border-[#16324A]/12 bg-[#0B1827] px-4 py-5 shadow-[0_20px_48px_rgba(15,23,42,0.08)] sm:mb-7 sm:rounded-[14px] sm:px-6 sm:py-6">
       <img
-        src="/backgrounds/admin-shell-host.png"
+        src={adminBrand.shellArtworkAsset}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[72%_42%] opacity-24"
+        className={
+          adminBrand.artworkMode === 'mascot'
+            ? 'pointer-events-none absolute bottom-[-72%] right-[2%] h-[210%] w-auto object-contain opacity-30'
+            : 'pointer-events-none absolute inset-0 h-full w-full object-cover object-[72%_42%] opacity-24'
+        }
       />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(6,16,30,0.94)_0%,rgba(6,16,30,0.9)_36%,rgba(6,16,30,0.58)_100%)]" />
+      <div className={isQmoneyAdmin ? 'pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(49,26,105,0.97)_0%,rgba(91,47,164,0.91)_48%,rgba(210,111,179,0.66)_100%)]' : 'pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(6,16,30,0.94)_0%,rgba(6,16,30,0.9)_36%,rgba(6,16,30,0.58)_100%)]'} />
 
       <div className="relative flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
         <div className="flex min-w-0 flex-wrap items-center gap-2 font-mono text-[10px] tracking-[0.16em] text-white/58 sm:gap-3 sm:tracking-[0.3em]">

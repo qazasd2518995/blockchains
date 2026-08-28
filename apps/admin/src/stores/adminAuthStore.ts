@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AgentPublic } from '@bg/shared';
+import { adminBrand } from '@admin-brand';
 
 interface AdminAuthState {
   agent: AgentPublic | null;
@@ -23,6 +24,6 @@ export const useAdminAuthStore = create<AdminAuthState>()(
       setTokens: (accessToken, refreshToken) => set({ accessToken, refreshToken }),
       logout: () => set({ agent: null, accessToken: null, refreshToken: null }),
     }),
-    { name: 'bg-admin-auth' },
+    { name: adminBrand.sessionStorageKey },
   ),
 );

@@ -11,6 +11,7 @@ import { ProfileModal } from '@/components/shared/ProfileModal';
 import { ChangePasswordModal } from '@/components/shared/ChangePasswordModal';
 import { ADMIN_LIVE_REFRESH_EVENT } from '@/lib/adminRefreshEvents';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
+import { adminBrand, isQmoneyAdmin } from '@admin-brand';
 
 export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
   const { agent, accessToken, refreshToken, setAgent, logout } = useAdminAuthStore();
@@ -103,13 +104,18 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
   return (
     <div className="admin-shell relative min-h-[100svh] overflow-x-hidden bg-[#E9ECEF]">
       <div className="pointer-events-none fixed inset-0">
+        {isQmoneyAdmin && <div className="absolute inset-0 bg-[radial-gradient(circle_at_86%_8%,rgba(255,191,229,0.56),transparent_24%),linear-gradient(180deg,#f8f2ff_0%,#efe9ff_42%,#fff5fb_100%)]" />}
         <img
-          src="/backgrounds/admin-shell-host.png"
+          src={adminBrand.shellArtworkAsset}
           alt=""
           aria-hidden="true"
-          className="h-full w-full object-cover object-[72%_center] opacity-[0.12]"
+          className={
+            adminBrand.artworkMode === 'mascot'
+              ? 'absolute bottom-0 right-0 h-[78%] w-auto object-contain object-bottom opacity-[0.065]'
+              : 'h-full w-full object-cover object-[72%_center] opacity-[0.12]'
+          }
         />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(233,236,239,0.72)_0%,rgba(233,236,239,0.9)_34%,rgba(233,236,239,0.96)_100%)]" />
+        <div className={isQmoneyAdmin ? 'absolute inset-0 bg-[linear-gradient(180deg,rgba(248,242,255,0.72)_0%,rgba(246,241,255,0.9)_34%,rgba(255,249,252,0.96)_100%)]' : 'absolute inset-0 bg-[linear-gradient(180deg,rgba(233,236,239,0.72)_0%,rgba(233,236,239,0.9)_34%,rgba(233,236,239,0.96)_100%)]'} />
       </div>
 
       {/* Top strip — felt dark with brass */}
@@ -135,7 +141,7 @@ export function AdminShell({ children }: { children: ReactNode }): JSX.Element {
         <div className="admin-brand-row flex w-full flex-wrap items-center justify-between gap-3 border-t border-[#186073]/30 px-3 py-3 sm:px-6 sm:py-4">
           <Link to="/admin/dashboard" className="flex min-w-0 items-center gap-3">
             <span className="admin-brand-logo flex h-10 w-10 items-center justify-center overflow-hidden rounded-[8px] border border-[#F59E0B]/35 bg-[#130C07]/72 shadow-[0_10px_24px_rgba(245,158,11,0.18)]">
-              <img src="/brand/yachiyo-emblem.png" alt="" className="h-9 w-9 object-contain" />
+              <img src={adminBrand.emblemAsset} alt="" className="h-9 w-9 rounded-[7px] object-cover" />
             </span>
             <div className="hidden sm:block">
               <div className="text-[18px] font-bold leading-none text-white">{t.shell.brand}</div>

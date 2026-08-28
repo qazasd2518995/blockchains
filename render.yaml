@@ -332,11 +332,16 @@ services:
         generateValue: true
       - key: BACCARAT_INTEGRATION_SECRET
         generateValue: true
+      # 金寶寶總代理帳密由此服務獨立設定，不得沿用原娛樂城的 Render 環境變數。
+      - key: SUPER_ADMIN_USERNAME
+        sync: false
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false
       - key: CORS_ORIGIN
         value: https://bg-qmoney.onrender.com,https://bg-qmoney-admin.onrender.com
 
   # ──────────────────────────────────────────
-  # 5. 新娛樂城獨立代理後台（介面共用，資料只讀寫 bg-qmoney-api）
+  # 5. 金寶寶獨立代理後台（獨立品牌、登入狀態及 API realm）
   # ──────────────────────────────────────────
   - type: web
     name: bg-qmoney-admin
@@ -363,6 +368,14 @@ services:
     envVars:
       - key: VITE_API_BASE
         value: https://bg-qmoney-api.onrender.com
+      - key: VITE_ADMIN_REALM
+        value: qmoney
+      - key: VITE_API_REALM
+        value: qmoney
+      - key: VITE_PLAYER_LOGIN_URLS
+        value: https://bg-qmoney.onrender.com
+      - key: VITE_AGENT_LOGIN_URLS
+        value: https://bg-qmoney-admin.onrender.com
 
   # ──────────────────────────────────────────
   # 6. 原娛樂城代理後台（apps/admin）
@@ -392,6 +405,14 @@ services:
     envVars:
       - key: VITE_API_BASE
         sync: false
+      - key: VITE_ADMIN_REALM
+        value: legacy
+      - key: VITE_API_REALM
+        value: legacy
+      - key: VITE_PLAYER_LOGIN_URLS
+        value: https://yachiyo777.com,https://yachiyo666.com
+      - key: VITE_AGENT_LOGIN_URLS
+        value: https://yachiyo168.com,https://yachiyo188.com
 
 databases:
   # 新娛樂城使用獨立的持久化資料庫；不引用既有 blockchains DB。

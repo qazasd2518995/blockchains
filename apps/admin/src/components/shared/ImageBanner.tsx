@@ -1,3 +1,5 @@
+import { adminBrand, isQmoneyAdmin } from '@admin-brand';
+
 interface Props {
   image: string;
   eyebrow: string;
@@ -31,8 +33,18 @@ export function ImageBanner({
   return (
     <section className={`relative mb-5 overflow-hidden rounded-[12px] border ${style.border} shadow-[0_20px_48px_rgba(15,23,42,0.08)] sm:mb-6 sm:rounded-[14px]`}>
       <div className="absolute inset-0">
-        <img src={image} alt="" aria-hidden="true" className={`h-full w-full object-cover ${imagePosition}`} />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(6,16,30,0.94)_0%,rgba(6,16,30,0.88)_34%,rgba(6,16,30,0.48)_100%)]" />
+        {isQmoneyAdmin && <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_24%,rgba(255,205,235,0.72),transparent_28%),linear-gradient(120deg,#321c70_0%,#7141bd_50%,#de79b3_100%)]" />}
+        <img
+          src={image}
+          alt=""
+          aria-hidden="true"
+          className={
+            adminBrand.artworkMode === 'mascot'
+              ? 'absolute bottom-[-88%] right-[2%] h-[235%] w-auto object-contain opacity-72'
+              : `h-full w-full object-cover ${imagePosition}`
+          }
+        />
+        <div className={isQmoneyAdmin ? 'absolute inset-0 bg-[linear-gradient(90deg,rgba(42,22,94,0.96)_0%,rgba(72,39,132,0.86)_42%,rgba(128,63,153,0.28)_100%)]' : 'absolute inset-0 bg-[linear-gradient(90deg,rgba(6,16,30,0.94)_0%,rgba(6,16,30,0.88)_34%,rgba(6,16,30,0.48)_100%)]'} />
       </div>
 
       <div className="relative z-10 px-4 py-5 sm:px-6 sm:py-7 md:px-8 md:py-9">

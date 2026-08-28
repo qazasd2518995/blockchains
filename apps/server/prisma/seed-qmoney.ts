@@ -1,8 +1,10 @@
 import { PrismaClient, Prisma } from '@prisma/client';
+import bcrypt from 'bcrypt';
 import { createPlayerSeeds } from '../src/modules/auth/player-seeds.js';
 
 const EXPECTED_CONFIRMATION = 'create-isolated-qmoney-accounts';
 const TARGET_BALANCE = new Prisma.Decimal('900000');
+const BCRYPT_ROUNDS = 12;
 const accountMappings = [
   { targetUsername: 'testplayer1', sourceUsername: 'testplayer', displayName: '測試玩家1' },
   { targetUsername: 'testplayer2', sourceUsername: 'testplayer2', displayName: '測試玩家2' },
@@ -39,6 +41,11 @@ async function main(): Promise<void> {
 
   const sourceUrl = requiredEnv('QMONEY_SOURCE_DATABASE_URL');
   const targetUrl = requiredEnv('QMONEY_TARGET_DATABASE_URL');
+  const superUsername = requiredEnv('SUPER_ADMIN_USERNAME');
+  const superPassword = requiredEnv('SUPER_ADMIN_PASSWORD');
+  if (superPassword.length < 8) {
+    throw new Error('SUPER_ADMIN_PASSWORD must be at least 8 characters');
+  }
   if (databaseIdentity(sourceUrl) === databaseIdentity(targetUrl)) {
     throw new Error('Source and target databases must be different');
   }
@@ -47,14 +54,6 @@ async function main(): Promise<void> {
   const target = new PrismaClient({ datasourceUrl: targetUrl });
 
   try {
-    const sourceSuperAdmins = await source.agent.findMany({
-      where: { role: 'SUPER_ADMIN', status: 'ACTIVE' },
-      orderBy: { createdAt: 'asc' },
-    });
-    if (sourceSuperAdmins.length === 0) {
-      throw new Error('No active source super admin found');
-    }
-
     const sourceUsers = await source.user.findMany({
       where: { username: { in: accountMappings.map((account) => account.sourceUsername) } },
     });
@@ -65,67 +64,64 @@ async function main(): Promise<void> {
     if (missingSourceUsers.length > 0) {
       throw new Error(`Missing source test accounts: ${missingSourceUsers.join(', ')}`);
     }
+    const superPasswordHash = await bcrypt.hash(superPassword, BCRYPT_ROUNDS);
 
     await target.$transaction(
       async (tx) => {
-        const targetSuperAdminIdBySourceId = new Map<string, string>();
-        for (const sourceAdmin of sourceSuperAdmins) {
-          const targetAdmin = await tx.agent.upsert({
-            where: { username: sourceAdmin.username },
-            create: {
-              username: sourceAdmin.username,
-              passwordHash: sourceAdmin.passwordHash,
-              displayName: sourceAdmin.displayName,
-              parentId: null,
-              level: 0,
-              marketType: sourceAdmin.marketType,
-              balance: new Prisma.Decimal(0),
-              commissionBalance: new Prisma.Decimal(0),
-              commissionRate: sourceAdmin.commissionRate,
-              rebateMode: sourceAdmin.rebateMode,
-              rebatePercentage: sourceAdmin.rebatePercentage,
-              maxRebatePercentage: sourceAdmin.maxRebatePercentage,
-              baccaratRebateMode: sourceAdmin.baccaratRebateMode,
-              baccaratRebatePercentage: sourceAdmin.baccaratRebatePercentage,
-              maxBaccaratRebatePercentage: sourceAdmin.maxBaccaratRebatePercentage,
-              bettingLimitLevel: sourceAdmin.bettingLimitLevel,
-              bettingLimits: inputJson(sourceAdmin.bettingLimits),
-              excludeFromControlSettlement: sourceAdmin.excludeFromControlSettlement,
-              role: 'SUPER_ADMIN',
-              status: 'ACTIVE',
-              notes: 'Independent Qmoney management root',
-              twoFactorRequired: false,
-              twoFactorEnabled: false,
-            },
-            update: {
-              passwordHash: sourceAdmin.passwordHash,
-              displayName: sourceAdmin.displayName,
-              parentId: null,
-              level: 0,
-              marketType: sourceAdmin.marketType,
-              role: 'SUPER_ADMIN',
-              status: 'ACTIVE',
-              activeSessionId: null,
-              activeSessionAt: null,
-              twoFactorRequired: false,
-              twoFactorEnabled: false,
-              twoFactorSecret: null,
-              twoFactorLastUsedStep: null,
-              twoFactorLastUsedAt: null,
-            },
-          });
-          targetSuperAdminIdBySourceId.set(sourceAdmin.id, targetAdmin.id);
-        }
+        await tx.agent.updateMany({
+          where: {
+            role: 'SUPER_ADMIN',
+            username: { not: superUsername },
+          },
+          data: {
+            status: 'FROZEN',
+            activeSessionId: null,
+            activeSessionAt: null,
+            notes: 'Disabled during independent Jin Baobao admin provisioning',
+          },
+        });
 
-        const primarySuperAdminId = targetSuperAdminIdBySourceId.get(sourceSuperAdmins[0]!.id);
-        if (!primarySuperAdminId) throw new Error('Failed to create target super admin');
+        const targetSuperAdmin = await tx.agent.upsert({
+          where: { username: superUsername },
+          create: {
+            username: superUsername,
+            passwordHash: superPasswordHash,
+            displayName: '金寶寶總代理',
+            parentId: null,
+            level: 0,
+            marketType: 'D',
+            balance: new Prisma.Decimal(0),
+            commissionBalance: new Prisma.Decimal(0),
+            rebatePercentage: new Prisma.Decimal('0.025'),
+            maxRebatePercentage: new Prisma.Decimal('0.025'),
+            role: 'SUPER_ADMIN',
+            status: 'ACTIVE',
+            notes: 'Independent Jin Baobao management root',
+            twoFactorRequired: false,
+            twoFactorEnabled: false,
+          },
+          update: {
+            passwordHash: superPasswordHash,
+            displayName: '金寶寶總代理',
+            parentId: null,
+            level: 0,
+            role: 'SUPER_ADMIN',
+            status: 'ACTIVE',
+            activeSessionId: null,
+            activeSessionAt: null,
+            twoFactorRequired: false,
+            twoFactorEnabled: false,
+            twoFactorSecret: null,
+            twoFactorLastUsedStep: null,
+            twoFactorLastUsedAt: null,
+            notes: 'Independent Jin Baobao management root',
+          },
+        });
 
         for (const account of accountMappings) {
           const sourceUser = sourceUserByUsername.get(account.sourceUsername)!;
           const existing = await tx.user.findUnique({ where: { username: account.targetUsername } });
-          const assignedAgentId =
-            (sourceUser.agentId && targetSuperAdminIdBySourceId.get(sourceUser.agentId)) ||
-            primarySuperAdminId;
+          const assignedAgentId = targetSuperAdmin.id;
 
           const targetUser = existing
             ? await tx.user.update({
@@ -191,7 +187,7 @@ async function main(): Promise<void> {
     );
 
     console.log(
-      `[seed-qmoney] cloned ${sourceSuperAdmins.length} independent super admin(s) and provisioned ${accountMappings.length} test account(s) at ${TARGET_BALANCE.toFixed(2)} each`,
+      `[seed-qmoney] provisioned independent Jin Baobao super admin "${superUsername}" and ${accountMappings.length} test account(s) at ${TARGET_BALANCE.toFixed(2)} each`,
     );
   } finally {
     await Promise.allSettled([source.$disconnect(), target.$disconnect()]);

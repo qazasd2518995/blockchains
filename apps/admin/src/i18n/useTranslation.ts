@@ -21,13 +21,14 @@ import {
   type Locale,
 } from './types';
 import { installLegacyDomLocalizer } from './legacyDomLocalizer';
+import { adminBrand } from '@admin-brand';
 
-const STORAGE_KEY = 'bg.admin.locale';
+const STORAGE_KEY = adminBrand.localeStorageKey;
 
 const dictionaries: Record<Locale, Dict> = {
-  'zh-Hant': zhHant,
-  'zh-Hans': zhHans,
-  en,
+  'zh-Hant': applyBrandCopy(zhHant, 'zh-Hant'),
+  'zh-Hans': applyBrandCopy(zhHans, 'zh-Hans'),
+  en: applyBrandCopy(en, 'en'),
 };
 
 export interface LocaleOption {
@@ -95,4 +96,24 @@ function readInitialLocale(): Locale {
   if (isLocale(stored)) return stored;
 
   return DEFAULT_LOCALE;
+}
+
+function applyBrandCopy(dictionary: Dict, locale: Locale): Dict {
+  const copy = adminBrand.copy[locale];
+  return {
+    ...dictionary,
+    auth: {
+      ...dictionary.auth,
+      title: copy.authTitle,
+      subtitle: copy.authSubtitle,
+      heroEyebrow: copy.heroEyebrow,
+      heroTitle: copy.heroTitle,
+      heroDescription: copy.heroDescription,
+    },
+    shell: {
+      ...dictionary.shell,
+      brand: copy.brand,
+      brandShort: copy.brandShort,
+    },
+  };
 }

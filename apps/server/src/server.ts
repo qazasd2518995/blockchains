@@ -264,8 +264,16 @@ export async function buildServer(): Promise<FastifyInstance> {
   server.head('/', async (_request, reply) => {
     reply.code(204).send();
   });
-  server.get('/', async () => ({ ok: true, env: config.NODE_ENV }));
-  server.get('/api/health', async () => ({ ok: true, env: config.NODE_ENV }));
+  server.get('/', async () => ({
+    ok: true,
+    env: config.NODE_ENV,
+    platformRealm: config.PLATFORM_REALM,
+  }));
+  server.get('/api/health', async () => ({
+    ok: true,
+    env: config.NODE_ENV,
+    platformRealm: config.PLATFORM_REALM,
+  }));
   server.get('/api/debug/client-build', async (request) => {
     const query = request.query as Record<string, unknown>;
     const debugRequested =

@@ -6,6 +6,7 @@ import { ImageBanner } from '@/components/shared/ImageBanner';
 import { StatCard } from '@/components/shared/StatCard';
 import { useTranslation } from '@/i18n/useTranslation';
 import { formatAuditAction } from '@/lib/auditLabels';
+import { adminBrand } from '@admin-brand';
 import { getAdminGameOptionLabel } from '@/lib/gameDisplay';
 import type { AuditListResponse, DashboardSummaryResponse } from '@bg/shared';
 import { useAdminLiveRefresh } from '@/hooks/useAdminLiveRefresh';
@@ -56,7 +57,7 @@ export function AdminDashboardPage(): JSX.Element {
       />
 
       <ImageBanner
-        image="/banners/dashboard-agent-host.png"
+        image={adminBrand.dashboardArtworkAsset}
         eyebrow="运营总览"
         title="今日代理線、下注熱度與活躍會員，先在這裡看全局。"
         description="7 日投注量、派彩、遊戲分布與會員活躍集中呈現。先看哪條線最熱、哪款遊戲最會跑量，再往下處理代理與風控動作。"

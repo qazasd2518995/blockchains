@@ -6,6 +6,7 @@ import {
   getAdminGameTitle,
 } from '@/lib/gameDisplay';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { adminBrand } from '@admin-brand';
 import { ImageBanner } from '@/components/shared/ImageBanner';
 import { StatCard } from '@/components/shared/StatCard';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -1081,7 +1082,7 @@ export function ControlsOverviewPage(): JSX.Element {
       />
 
       <ImageBanner
-        image="/banners/controls-risk-host.png"
+        image={adminBrand.controlArtworkAsset}
         eyebrow="风控中心"
         title="用本金路徑控制會員週期，降低交收目標式控盤的可預測性。"
         description={

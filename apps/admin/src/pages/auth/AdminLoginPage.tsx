@@ -9,6 +9,7 @@ import { adminApi, extractApiError } from '@/lib/adminApi';
 import { useAdminAuthStore } from '@/stores/adminAuthStore';
 import { useTranslation } from '@/i18n/useTranslation';
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher';
+import { adminBrand, isQmoneyAdmin } from '@admin-brand';
 
 const schema = z.object({
   username: z.string().min(1, { message: 'REQUIRED' }),
@@ -130,23 +131,28 @@ export function AdminLoginPage(): JSX.Element {
   };
 
   return (
-    <div className="relative flex min-h-[100svh] flex-col overflow-hidden bg-[#06111D]">
+    <div className="admin-login relative flex min-h-[100svh] flex-col overflow-hidden bg-[#06111D]">
       <div className="pointer-events-none absolute inset-0">
+        {isQmoneyAdmin && <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_24%,rgba(255,222,244,0.96),transparent_30%),linear-gradient(135deg,#522ba8_0%,#8f5ee7_38%,#e48bc3_72%,#ffe2b6_100%)]" />}
         <img
-          src="/backgrounds/admin-login.png"
+          src={adminBrand.loginArtworkAsset}
           alt=""
           aria-hidden="true"
-          className="h-full w-full object-cover object-[68%_62%] opacity-90"
+          className={
+            adminBrand.artworkMode === 'mascot'
+              ? 'absolute bottom-[-4%] right-[2%] h-[94%] w-auto max-w-[58vw] object-contain object-bottom opacity-95'
+              : 'h-full w-full object-cover object-[68%_62%] opacity-90'
+          }
         />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,11,20,0.9)_0%,rgba(6,16,30,0.72)_38%,rgba(6,16,30,0.38)_66%,rgba(6,16,30,0.2)_100%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,11,20,0.18)_0%,rgba(4,11,20,0.08)_48%,rgba(4,11,20,0.28)_100%)]" />
+        <div className={isQmoneyAdmin ? 'absolute inset-0 bg-[linear-gradient(90deg,rgba(39,20,92,0.9)_0%,rgba(82,43,168,0.62)_42%,rgba(113,64,185,0.14)_75%,rgba(255,255,255,0.04)_100%)]' : 'absolute inset-0 bg-[linear-gradient(90deg,rgba(4,11,20,0.9)_0%,rgba(6,16,30,0.72)_38%,rgba(6,16,30,0.38)_66%,rgba(6,16,30,0.2)_100%)]'} />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,11,20,0.14)_0%,rgba(4,11,20,0.04)_48%,rgba(4,11,20,0.3)_100%)]" />
       </div>
 
       <header className="relative z-10 h-16 border-b border-white/8 bg-black/12 text-white backdrop-blur-sm">
         <div className="mx-auto flex h-full max-w-[1680px] items-center justify-between px-5">
           <div className="flex items-center gap-2 text-[22px] font-extrabold tracking-[0.05em]">
-            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[8px] border border-[#F59E0B]/35 bg-[#130C07]/72 shadow-[0_10px_24px_rgba(245,158,11,0.22)]">
-              <img src="/brand/yachiyo-emblem.png" alt="" className="h-9 w-9 object-contain" />
+            <span className="admin-login-emblem flex h-10 w-10 items-center justify-center overflow-hidden rounded-[8px] border border-[#F59E0B]/35 bg-[#130C07]/72 shadow-[0_10px_24px_rgba(245,158,11,0.22)]">
+              <img src={adminBrand.emblemAsset} alt="" className="h-9 w-9 rounded-[7px] object-cover" />
             </span>
             <span className="hidden text-[16px] font-bold text-white/90 sm:inline">
               {t.shell.brand}
@@ -190,15 +196,15 @@ export function AdminLoginPage(): JSX.Element {
 
           <div className="w-full max-w-[440px] justify-self-center rounded-[14px] border border-white/12 bg-white/92 p-5 shadow-[0_30px_80px_rgba(2,6,23,0.32)] backdrop-blur-md sm:rounded-[18px] sm:p-8">
             <div className="mb-6 text-center">
-              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-[16px] border border-[#F59E0B]/30 bg-[#130C07]/92 shadow-[0_14px_34px_rgba(245,158,11,0.24)]">
+              <div className="admin-login-emblem mx-auto mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-[16px] border border-[#F59E0B]/30 bg-[#130C07]/92 shadow-[0_14px_34px_rgba(245,158,11,0.24)]">
                 <img
-                  src="/brand/yachiyo-emblem.png"
+                  src={adminBrand.emblemAsset}
                   alt=""
-                  className="h-[72px] w-[72px] object-contain"
+                  className="h-[72px] w-[72px] rounded-[12px] object-cover"
                   draggable={false}
                 />
               </div>
-              <div className="mb-2 text-[18px] font-black tracking-[0.06em] text-[#B45309]">
+              <div className="admin-login-brand-name mb-2 text-[18px] font-black tracking-[0.06em] text-[#B45309]">
                 {t.shell.brand}
               </div>
               <h1 className="text-[24px] font-bold text-[#0F172A]">{t.auth.title}</h1>
