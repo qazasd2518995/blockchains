@@ -4,8 +4,8 @@ import {
   THOR2_MAX_FEATURE_MULTIPLIER_BALLS,
   THOR2_MAX_FREE_SPINS,
   THOR2_MAX_WIN_MULTIPLIER,
-  THOR2_REGULAR_FEATURE_BALL_ROUND_RATE,
-  THOR2_SUPER_FEATURE_BALL_ROUND_RATE,
+  THOR2_REGULAR_FEATURE_BALL_CELL_RATE,
+  THOR2_SUPER_FEATURE_BALL_CELL_RATE,
   evaluateThor2AnywherePays,
   isThor2FactorRepresentable,
   splitThor2MultiplierTotal,
@@ -114,28 +114,43 @@ describe('Power of Thor II observed-rules engine', () => {
     }
   });
 
-  it('uses varied multiplier-ball rounds instead of dropping balls on every free spin', () => {
+  it('uses independent low-density multiplier drops instead of an all-or-nothing round gate', () => {
     const observedRates = new Map<string, number>();
+    let uncollectedBallRounds = 0;
+    let refillBallRounds = 0;
     for (const buyFeature of ['regular', 'super'] as const) {
       let ballRounds = 0;
       let totalRounds = 0;
-      for (let nonce = 1; nonce <= 96; nonce += 1) {
+      for (let nonce = 1; nonce <= 160; nonce += 1) {
         const result = thor2Spin('feature-ball-cadence', `${buyFeature}-${nonce}`, nonce, {
           buyFeature,
         });
         for (const round of result.feature?.rounds ?? []) {
           totalRounds += 1;
-          if (round.grid.some((cell) => cell.multiplier)) ballRounds += 1;
+          const openingHasBall = round.grid.some((cell) => cell.multiplier);
+          if (openingHasBall) ballRounds += 1;
+          if (openingHasBall && round.cascades.length === 0) {
+            uncollectedBallRounds += 1;
+            expect(round.payoutMultiplier).toBe(0);
+          }
+          if (
+            !openingHasBall &&
+            round.cascades.some((cascade) => cascade.after.some((cell) => cell.multiplier))
+          ) {
+            refillBallRounds += 1;
+          }
         }
       }
       const rate = ballRounds / totalRounds;
       observedRates.set(buyFeature, rate);
-      expect(rate).toBeGreaterThan(0.08);
+      expect(rate).toBeGreaterThan(0.12);
       expect(rate).toBeLessThan(0.5);
     }
     expect(observedRates.get('super')!).toBeGreaterThan(observedRates.get('regular')!);
-    expect(THOR2_REGULAR_FEATURE_BALL_ROUND_RATE).toBe(0.2);
-    expect(THOR2_SUPER_FEATURE_BALL_ROUND_RATE).toBe(0.35);
+    expect(uncollectedBallRounds).toBeGreaterThan(0);
+    expect(refillBallRounds).toBeGreaterThan(0);
+    expect(THOR2_REGULAR_FEATURE_BALL_CELL_RATE).toBe(0.008);
+    expect(THOR2_SUPER_FEATURE_BALL_CELL_RATE).toBe(0.014);
   });
 
   it('keeps SUPER BONUS out of paid entries and every free-game screen', () => {
