@@ -337,6 +337,9 @@ services:
         sync: false
       - key: SUPER_ADMIN_PASSWORD
         sync: false
+      # 金寶寶例外測試線帳號名稱；密碼預設為不可猜測的內部值，可由總代理後台另行重設。
+      - key: QMONEY_CONTROL_EXCLUDED_AGENT_USERNAME
+        value: jinbaobao_exception
       - key: CORS_ORIGIN
         value: https://bg-qmoney.onrender.com,https://bg-qmoney-admin.onrender.com
 

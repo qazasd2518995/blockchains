@@ -1,5 +1,9 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import {
+  provisionQmoneyControlExcludedLine,
+  QMONEY_CONTROL_EXCLUDED_AGENT_USERNAME,
+} from './qmoney-agent-hierarchy.js';
 
 const prisma = new PrismaClient();
 
@@ -78,6 +82,21 @@ async function main(): Promise<void> {
     }
     console.log(
       `[seed-agent] independent Jin Baobao super-admin "${superUsername}" provisioned; disabled ${supersededRootIds.length} superseded root(s).`,
+    );
+
+    const exceptionPasswordHash = await bcrypt.hash(
+      `${superPassword}:${QMONEY_CONTROL_EXCLUDED_AGENT_USERNAME}:control-excluded-line`,
+      BCRYPT_ROUNDS,
+    );
+    const exceptionLine = await prisma.$transaction((tx) =>
+      provisionQmoneyControlExcludedLine(tx, {
+        superAdminId: superAdmin!.id,
+        createPasswordHash: exceptionPasswordHash,
+        assignTestPlayers: true,
+      }),
+    );
+    console.log(
+      `[seed-agent] Jin Baobao control-excluded line "${exceptionLine.username}" provisioned.`,
     );
   } else if (existingSuper) {
     console.log(`[seed-agent] super-admin "${superUsername}" already exists, skipping create.`);

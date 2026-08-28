@@ -46,6 +46,7 @@ const schema = z.object({
   rebateMode: z.enum(['PERCENTAGE', 'ALL', 'NONE']),
   rebatePercentageDisplay: z.string().regex(/^\d+(\.\d+)?$/, '请填写有效百分比'),
   bettingLimitLevel: z.string().min(1),
+  excludeFromControlSettlement: z.boolean(),
   notes: z.string().max(500).optional(),
 });
 
@@ -111,6 +112,7 @@ export function CreateAgentModal({
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
       bettingLimitLevel: DEFAULT_BETTING_LIMIT_RANGE,
+      excludeFromControlSettlement: false,
     },
   });
 
@@ -139,6 +141,7 @@ export function CreateAgentModal({
       rebateMode: 'PERCENTAGE',
       rebatePercentageDisplay: '0',
       bettingLimitLevel: defaultLimit,
+      excludeFromControlSettlement: false,
       notes: '',
     });
     if (lockedParent) {
@@ -281,6 +284,7 @@ export function CreateAgentModal({
         baccaratRebatePercentage: '0.0000',
         bettingLimitLevel: data.bettingLimitLevel,
         bettingLimits,
+        excludeFromControlSettlement: data.excludeFromControlSettlement,
         notes: data.notes || undefined,
       });
       const nextShareInfo: CreatedAccountShareInfo = {
@@ -376,6 +380,22 @@ export function CreateAgentModal({
               placeholder="0.00（選填）"
             />
           </Field>
+
+          {selectedParent?.role === 'SUPER_ADMIN' && (
+            <label className="flex items-start gap-3 rounded-md border border-[#D4574A]/35 bg-[#FDF0EE] px-4 py-3 text-[12px] text-ink-800">
+              <input
+                type="checkbox"
+                {...register('excludeFromControlSettlement')}
+                className="mt-0.5 h-4 w-4 accent-[#D4574A]"
+              />
+              <span>
+                <span className="block font-semibold text-[#A33E35]">建立為例外線（不計交收）</span>
+                <span className="mt-1 block leading-5 text-ink-600">
+                  整條下級樹仍可套用會員與代理控制，但不計入全盤控制交收及全域每日贏分限制。僅總代理可建立。
+                </span>
+              </span>
+            </label>
+          )}
 
           <RebateEditor
             title="电子退水"

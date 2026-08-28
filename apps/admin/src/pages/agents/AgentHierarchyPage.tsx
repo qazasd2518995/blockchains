@@ -347,6 +347,9 @@ export function AgentHierarchyPage(): JSX.Element {
                     {row.kind === 'agent' && row.role === 'SUPER_ADMIN' && (
                       <span className="tag tag-gold">{t.shell.super}</span>
                     )}
+                    {row.kind === 'agent' && row.excludeFromControlSettlement && (
+                      <span className="tag tag-ember">例外線・不計交收</span>
+                    )}
                   </div>
                   {(rowNote || row.kind === 'agent') && (
                     <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-semibold leading-5 text-ink-600">

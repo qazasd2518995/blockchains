@@ -11,6 +11,7 @@ export type HierarchyItem =
       baccaratRebatePercentage?: string;
       bettingLimitLevel: string;
       bettingLimits: Record<string, string[]>;
+      excludeFromControlSettlement: boolean;
       status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
       role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
       createdAt: string;

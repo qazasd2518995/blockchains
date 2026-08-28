@@ -37,6 +37,7 @@ export interface AgentPublic {
   maxBaccaratRebatePercentage: string;
   bettingLimitLevel: string;
   bettingLimits: AgentBettingLimitOptionsByGameDto;
+  excludeFromControlSettlement: boolean;
   status: AgentStatusDto;
   role: AdminRoleDto;
   notes: string | null;

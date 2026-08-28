@@ -104,6 +104,17 @@ export class AgentService {
       throw new ApiError('HIERARCHY_VIOLATION', `level must be ${parent.level + 1}`);
     }
 
+    const excludeFromControlSettlement = input.excludeFromControlSettlement ?? false;
+    if (
+      excludeFromControlSettlement &&
+      (operator.role !== 'SUPER_ADMIN' || parent.role !== 'SUPER_ADMIN')
+    ) {
+      throw new ApiError(
+        'FORBIDDEN',
+        'Control-excluded lines can only be created directly under the super admin',
+      );
+    }
+
     const rebateMode = input.rebateMode ?? 'PERCENTAGE';
     const maxAllowed = effectiveDownlineRebate(parent, 'electronic');
     const rebatePct = normalizeRebateForMode(rebateMode, input.rebatePercentage, maxAllowed);
@@ -191,6 +202,7 @@ export class AgentService {
           maxBaccaratRebatePercentage: baccaratMaxAllowed,
           bettingLimitLevel: requestedBettingLimitLevel,
           bettingLimits,
+          excludeFromControlSettlement,
           notes: accountNote,
           role: 'AGENT',
           status: 'ACTIVE',
@@ -236,6 +248,7 @@ export class AgentService {
         parentId: created.parentId,
         initialBalance: initialBalance.toFixed(2),
         fundingAgentId,
+        excludeFromControlSettlement: created.excludeFromControlSettlement,
       },
       req,
     });
@@ -595,6 +608,7 @@ export function toPublic(agent: {
   maxBaccaratRebatePercentage: Prisma.Decimal;
   bettingLimitLevel: string;
   bettingLimits?: Prisma.JsonValue;
+  excludeFromControlSettlement: boolean;
   status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
   role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
   notes: string | null;
@@ -622,6 +636,7 @@ export function toPublic(agent: {
       agent.bettingLimits,
       agent.bettingLimitLevel,
     ),
+    excludeFromControlSettlement: agent.excludeFromControlSettlement,
     status: agent.status,
     role: agent.role,
     notes: agent.notes,

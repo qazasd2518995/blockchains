@@ -33,6 +33,7 @@ export const createAgentSchema = z.object({
   baccaratRebatePercentage: decimalString.optional(),
   bettingLimitLevel: z.string().optional(),
   bettingLimits: bettingLimitsSchema,
+  excludeFromControlSettlement: z.boolean().optional(),
   notes: z.string().max(500).optional(),
 });
 

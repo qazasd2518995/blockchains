@@ -186,6 +186,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           baccaratRebatePercentage?: string;
           bettingLimitLevel: string;
           bettingLimits: Record<string, string[]>;
+          excludeFromControlSettlement: boolean;
           status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
           role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
           createdAt: string;
@@ -227,6 +228,7 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
             a.bettingLimits,
             a.bettingLimitLevel,
           ),
+          excludeFromControlSettlement: a.excludeFromControlSettlement,
           status: a.status,
           role: a.role,
           createdAt: a.createdAt.toISOString(),

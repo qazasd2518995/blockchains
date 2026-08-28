@@ -14,6 +14,7 @@ export interface CreateAgentRequest {
   baccaratRebatePercentage?: string;
   bettingLimitLevel?: string;
   bettingLimits?: Record<string, string[]>;
+  excludeFromControlSettlement?: boolean;
   notes?: string;
 }
 

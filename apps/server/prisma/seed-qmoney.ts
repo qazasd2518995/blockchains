@@ -1,6 +1,10 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { createPlayerSeeds } from '../src/modules/auth/player-seeds.js';
+import {
+  provisionQmoneyControlExcludedLine,
+  QMONEY_CONTROL_EXCLUDED_AGENT_USERNAME,
+} from './qmoney-agent-hierarchy.js';
 
 const EXPECTED_CONFIRMATION = 'create-isolated-qmoney-accounts';
 const TARGET_BALANCE = new Prisma.Decimal('900000');
@@ -65,6 +69,10 @@ async function main(): Promise<void> {
       throw new Error(`Missing source test accounts: ${missingSourceUsers.join(', ')}`);
     }
     const superPasswordHash = await bcrypt.hash(superPassword, BCRYPT_ROUNDS);
+    const exceptionPasswordHash = await bcrypt.hash(
+      `${superPassword}:${QMONEY_CONTROL_EXCLUDED_AGENT_USERNAME}:control-excluded-line`,
+      BCRYPT_ROUNDS,
+    );
 
     await target.$transaction(
       async (tx) => {
@@ -118,10 +126,15 @@ async function main(): Promise<void> {
           },
         });
 
+        const targetExceptionLine = await provisionQmoneyControlExcludedLine(tx, {
+          superAdminId: targetSuperAdmin.id,
+          createPasswordHash: exceptionPasswordHash,
+        });
+
         for (const account of accountMappings) {
           const sourceUser = sourceUserByUsername.get(account.sourceUsername)!;
           const existing = await tx.user.findUnique({ where: { username: account.targetUsername } });
-          const assignedAgentId = targetSuperAdmin.id;
+          const assignedAgentId = targetExceptionLine.id;
 
           const targetUser = existing
             ? await tx.user.update({
@@ -187,7 +200,7 @@ async function main(): Promise<void> {
     );
 
     console.log(
-      `[seed-qmoney] provisioned independent Jin Baobao super admin "${superUsername}" and ${accountMappings.length} test account(s) at ${TARGET_BALANCE.toFixed(2)} each`,
+      `[seed-qmoney] provisioned independent Jin Baobao super admin "${superUsername}", control-excluded line "${QMONEY_CONTROL_EXCLUDED_AGENT_USERNAME}", and ${accountMappings.length} test account(s) at ${TARGET_BALANCE.toFixed(2)} each`,
     );
   } finally {
     await Promise.allSettled([source.$disconnect(), target.$disconnect()]);

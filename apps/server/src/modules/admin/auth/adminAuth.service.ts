@@ -226,6 +226,7 @@ export class AdminAuthService {
     maxBaccaratRebatePercentage: Prisma.Decimal;
     bettingLimitLevel: string;
     bettingLimits?: Prisma.JsonValue;
+    excludeFromControlSettlement: boolean;
     status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
     role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
     notes: string | null;
@@ -253,6 +254,7 @@ export class AdminAuthService {
         agent.bettingLimits,
         agent.bettingLimitLevel,
       ),
+      excludeFromControlSettlement: agent.excludeFromControlSettlement,
       status: agent.status,
       role: agent.role,
       notes: agent.notes,
