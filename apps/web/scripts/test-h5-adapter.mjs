@@ -37,6 +37,16 @@ assert.match(
 );
 assert.match(
   adapterSource,
+  /SLOT_SPIN_PAUSE_MS = 650/,
+  'every paid slot round must retain a short visual pause before the next one',
+);
+assert.match(
+  adapterSource,
+  /if \(!deferredSlotSpinTimer\)[\s\S]{0,700}settleSpin\(queuedSocket, queuedPayload\)/,
+  'an early auto-spin must be queued once instead of dropped or settled concurrently',
+);
+assert.match(
+  adapterSource,
   /!main && sourceReadyAge < SOURCE_SCENE_LOAD_GRACE_MS/,
   'large source scenes must retain a dedicated cold-load grace period before health recovery',
 );

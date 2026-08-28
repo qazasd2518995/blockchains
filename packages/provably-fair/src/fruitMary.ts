@@ -26,24 +26,24 @@ export interface FruitMaryOutcome {
 
 export const FRUIT_MARY_POSITION_MULTIPLIERS: Readonly<Record<number, number>> = {
   1: 10,
-  2: 10,
+  2: 20,
   3: 50,
-  4: 100,
+  4: 120,
   5: 5,
   6: 2,
-  7: 10,
+  7: 15,
   8: 20,
   9: 2,
   10: 0,
   11: 5,
   12: 2,
   13: 10,
-  14: 10,
+  14: 20,
   15: 2,
-  16: 20,
+  16: 40,
   17: 5,
   18: 2,
-  19: 10,
+  19: 15,
   20: 30,
   21: 2,
   22: 0,
@@ -88,30 +88,52 @@ const FOUR_HAPPINESS_PROBABILITY = 0.0005;
 const GRAND_SLAM_PROBABILITY = 0.00002;
 const GRAND_SLAM_POSITIONS = [10, ...FRUIT_MARY_PAYOUT_POSITIONS] as const;
 const FOUR_HAPPINESS_POSITIONS = [10, 23, 11, 5, 17] as const;
-const BAR_POSITION_PROBABILITY = (0.96 - GRAND_SLAM_PROBABILITY * 150) / 150;
-const STANDARD_POSITION_PROBABILITY = (0.96 - GRAND_SLAM_PROBABILITY * 22) / 22;
-const STAR_POSITION_PROBABILITY = (0.96 - GRAND_SLAM_PROBABILITY * 32) / 32;
-const APPLE_POSITION_PROBABILITY =
-  (0.96 - GRAND_SLAM_PROBABILITY * 22 - FOUR_HAPPINESS_PROBABILITY * 20) / 22;
 
-const BAR_POSITIONS = new Set([3, 4]);
-const STAR_POSITIONS = new Set([20, 21]);
-const APPLE_POSITIONS = new Set([5, 6, 11, 17, 23]);
+function categoryPositionProbability(
+  positions: readonly number[],
+  fourHappinessPayoutUnits = 0,
+): number {
+  const categoryPayoutUnits = positions.reduce(
+    (total, position) => total + (FRUIT_MARY_POSITION_MULTIPLIERS[position] ?? 0),
+    0,
+  );
+  return (
+    (0.96 -
+      GRAND_SLAM_PROBABILITY * categoryPayoutUnits -
+      FOUR_HAPPINESS_PROBABILITY * fourHappinessPayoutUnits) /
+    categoryPayoutUnits
+  );
+}
+
+const CATEGORY_POSITIONS = [
+  [3, 4],
+  [15, 16],
+  [20, 21],
+  [8, 9],
+  [2, 14, 24],
+  [7, 18, 19],
+  [1, 12, 13],
+  [5, 6, 11, 17, 23],
+] as const;
+const POSITION_LANDING_PROBABILITY = new Map<number, number>();
+for (const positions of CATEGORY_POSITIONS) {
+  const isApple = positions[0] === 5;
+  const probability = categoryPositionProbability(positions, isApple ? 20 : 0);
+  for (const position of positions) POSITION_LANDING_PROBABILITY.set(position, probability);
+}
 
 const LANDING_WEIGHTS = FRUIT_MARY_PAYOUT_POSITIONS.map((position) => ({
   position,
-  probability: BAR_POSITIONS.has(position)
-    ? BAR_POSITION_PROBABILITY
-    : STAR_POSITIONS.has(position)
-      ? STAR_POSITION_PROBABILITY
-      : APPLE_POSITIONS.has(position)
-        ? APPLE_POSITION_PROBABILITY
-        : STANDARD_POSITION_PROBABILITY,
+  probability: POSITION_LANDING_PROBABILITY.get(position) ?? 0,
 }));
 
 export type FruitMaryRandomSource = () => number;
 
-function randomSource(serverSeed: string, clientSeed: string, nonce: number): FruitMaryRandomSource {
+function randomSource(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+): FruitMaryRandomSource {
   const stream = hmacFloatStream(serverSeed, clientSeed, nonce);
   return () => stream.next().value ?? 0;
 }
@@ -138,19 +160,21 @@ function payoutForPositions(
 
 function presentationFor(legacyType: number): FruitMaryOutcome['presentation'] {
   return (
-    [
-      'normal',
-      'small-triple',
-      'big-triple',
-      'four-happiness',
-      'flower-rain',
-      'eight-dragons',
-      'stumble',
-      'train',
-      'grand-slam',
-      'fail',
-    ] as const
-  )[legacyType] ?? 'normal';
+    (
+      [
+        'normal',
+        'small-triple',
+        'big-triple',
+        'four-happiness',
+        'flower-rain',
+        'eight-dragons',
+        'stumble',
+        'train',
+        'grand-slam',
+        'fail',
+      ] as const
+    )[legacyType] ?? 'normal'
+  );
 }
 
 function outcome(
@@ -263,11 +287,9 @@ export function fruitMaryTheoreticalRtp(fruitId: FruitMaryBetId): number {
   const oneUnitBet: FruitMaryBetSelection[] = [{ fruitId, units: 1 }];
   let expected =
     GRAND_SLAM_PROBABILITY * outcome(8, GRAND_SLAM_POSITIONS, oneUnitBet).totalPayoutUnits +
-    FOUR_HAPPINESS_PROBABILITY *
-      outcome(3, FOUR_HAPPINESS_POSITIONS, oneUnitBet).totalPayoutUnits;
+    FOUR_HAPPINESS_PROBABILITY * outcome(3, FOUR_HAPPINESS_POSITIONS, oneUnitBet).totalPayoutUnits;
   for (const landing of LANDING_WEIGHTS) {
-    expected +=
-      landing.probability * outcome(0, [landing.position], oneUnitBet).totalPayoutUnits;
+    expected += landing.probability * outcome(0, [landing.position], oneUnitBet).totalPayoutUnits;
   }
   return expected;
 }

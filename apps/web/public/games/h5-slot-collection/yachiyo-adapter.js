@@ -24,6 +24,12 @@
   var fishFrozenUntil = 0;
   var fishSkillInFlight = false;
   var slotSettlementInFlight = false;
+  var SLOT_SPIN_PAUSE_MS = 650;
+  var nextSlotSettlementAt = 0;
+  var deferredSlotSpinTimer = 0;
+  var deferredSlotSpinSocket = null;
+  var deferredSlotSpinPayload = null;
+  var slotCooldownRepairTimer = 0;
   var FISH_PATH_COUNT = 43;
   // Counts recovered from the four source scenes.  Fish IDs are zero based;
   // restricting every room to ids 1-12 left most of the original prefabs
@@ -1196,6 +1202,7 @@
     if (
       !main ||
       slotSettlementInFlight ||
+      Date.now() < nextSlotSettlementAt ||
       Number(main.status || 0) !== 0 ||
       sourceFeatureIsPlaying(main)
     ) {
@@ -1253,7 +1260,12 @@
     if (!main && sourceReadyAge < SOURCE_SCENE_LOAD_GRACE_MS) return true;
     if (!main) return false;
     restoreMahjongWaysTileBackgrounds(main);
-    if (slotSettlementInFlight || Number(main.status || 0) !== 0 || sourceFeatureIsPlaying(main)) {
+    if (
+      slotSettlementInFlight ||
+      Date.now() < nextSlotSettlementAt ||
+      Number(main.status || 0) !== 0 ||
+      sourceFeatureIsPlaying(main)
+    ) {
       return true;
     }
     // Unknown source-control layouts must not be treated as a render failure.
@@ -1294,6 +1306,16 @@
       window.clearTimeout(slotStallTimer);
       slotStallTimer = 0;
     }
+    if (deferredSlotSpinTimer) {
+      window.clearTimeout(deferredSlotSpinTimer);
+      deferredSlotSpinTimer = 0;
+    }
+    if (slotCooldownRepairTimer) {
+      window.clearTimeout(slotCooldownRepairTimer);
+      slotCooldownRepairTimer = 0;
+    }
+    deferredSlotSpinSocket = null;
+    deferredSlotSpinPayload = null;
     fishStreamToken += 1;
     activeSockets.slice().forEach(function (socket) {
       try {
@@ -2263,7 +2285,6 @@
 
   function settleSpin(socket, rawPayload) {
     var payload;
-    lastSpinRequestAt = Date.now();
     renderFailureReported = false;
     try {
       payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload || {};
@@ -2282,6 +2303,25 @@
     // authenticated settlement returns. Keep the first request authoritative;
     // its response releases the same source controls without charging twice.
     if (slotSettlementInFlight) return;
+    if (Date.now() < nextSlotSettlementAt) {
+      // Some archived scenes emit their next paid spin immediately when the
+      // prior callback returns. Queue one intent instead of dropping it, while
+      // ignoring repeated taps during the same short visual pause.
+      if (!deferredSlotSpinTimer) {
+        deferredSlotSpinSocket = socket;
+        deferredSlotSpinPayload = rawPayload;
+        deferredSlotSpinTimer = window.setTimeout(function () {
+          var queuedSocket = deferredSlotSpinSocket;
+          var queuedPayload = deferredSlotSpinPayload;
+          deferredSlotSpinTimer = 0;
+          deferredSlotSpinSocket = null;
+          deferredSlotSpinPayload = null;
+          if (!gameDisposing && queuedSocket) settleSpin(queuedSocket, queuedPayload);
+        }, Math.max(1, nextSlotSettlementAt - Date.now()));
+      }
+      return;
+    }
+    lastSpinRequestAt = Date.now();
     var requestedAmount = Number(payload.nBetList && payload.nBetList[0]);
     if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
       emitLotteryError(socket, '投注金額不正確', -2);
@@ -2332,6 +2372,16 @@
             ? result.features.freeSpinsAwarded
             : 0,
         );
+        nextSlotSettlementAt = Date.now() + SLOT_SPIN_PAUSE_MS;
+        if (slotCooldownRepairTimer) window.clearTimeout(slotCooldownRepairTimer);
+        slotCooldownRepairTimer = window.setTimeout(function () {
+          slotCooldownRepairTimer = 0;
+          if (!gameDisposing) repairIdleSlotControls(sourceMainComponent());
+        }, SLOT_SPIN_PAUSE_MS);
+        // The HTTP settlement is complete before the synchronous source
+        // callback runs. Release single-flight now so an immediate auto-spin
+        // callback is queued by the visual cooldown instead of being lost.
+        slotSettlementInFlight = false;
         emitQueuedLotteryResponse(socket);
         lastLotteryResponseAt = Date.now();
         notifyParent('h5-slots:balance', {

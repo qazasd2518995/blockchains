@@ -575,6 +575,9 @@ describe('Seth 2 v1.1.5 source contract', () => {
     expect(states[0]!.maleTotemLevel).toBe(level);
     expect(states[0]!.splitList[0]?.from).toBe(0);
     expect(states[0]!.splitList[0]?.to).toHaveLength(copies);
+    expect(states[0]!.splitList[0]!.to.every((position) => start[position]?.type !== 10)).toBe(
+      true,
+    );
     expect(states[1]!.timesSymbols.filter((entry) => entry.times === 25)).toHaveLength(copies + 1);
     expect(states[1]!.maleTotemLevel).toBe(0);
     expect(states[1]!.splitList).toEqual([]);
@@ -700,7 +703,7 @@ describe('Seth 2 v1.1.5 source contract', () => {
     expect(first.newTimesSymbols.map((entry) => entry.symbolPos)).toEqual([5]);
   });
 
-  it('keeps the female lock attached to its multiplier after the board falls', () => {
+  it('keeps a female-locked multiplier fixed without creating a duplicate after the board falls', () => {
     const start = Array.from({ length: 30 }, () => cell(2));
     start[0] = cell(10, 25, 1);
     start[6] = cell(1);
@@ -732,8 +735,10 @@ describe('Seth 2 v1.1.5 source contract', () => {
       expect.arrayContaining([expect.objectContaining({ symbolPos: 0, times: 25, lock: 4 })]),
     );
     expect(states.at(-1)!.timesSymbols).toEqual(
-      expect.arrayContaining([expect.objectContaining({ symbolPos: 18, times: 25, lock: 4 })]),
+      expect.arrayContaining([expect.objectContaining({ symbolPos: 0, times: 25, lock: 4 })]),
     );
+    expect(states[0]!.posTransform).not.toContainEqual(expect.objectContaining({ beforePos: 0 }));
+    expect(states.at(-1)!.timesSymbols.filter((entry) => entry.times === 25)).toHaveLength(1);
   });
 
   it('keeps upgrade positions pre-fall so the Cocos client transforms them exactly once', () => {

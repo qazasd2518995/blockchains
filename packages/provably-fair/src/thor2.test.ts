@@ -175,6 +175,7 @@ describe('Power of Thor II observed-rules engine', () => {
   it('collects the final screen once and applies it to the complete tumble win', () => {
     let checkedRounds = 0;
     let observedLastRefillMultiplier = false;
+    let observedAccumulatedOnlyRound = false;
     for (let nonce = 1; nonce <= 64; nonce += 1) {
       const result = thor2Spin('final-screen-server', `final-screen-${nonce}`, nonce, {
         buyFeature: 'super',
@@ -182,6 +183,7 @@ describe('Power of Thor II observed-rules engine', () => {
       let accumulatedMultiplier = 0;
       for (const round of result.feature?.rounds ?? []) {
         if (round.cascades.length === 0) continue;
+        const multiplierBeforeRound = accumulatedMultiplier;
         checkedRounds += 1;
         const finalCascade = round.cascades.at(-1)!;
         const earlierCascades = round.cascades.slice(0, -1);
@@ -208,6 +210,13 @@ describe('Power of Thor II observed-rules engine', () => {
           finalCascade.payoutMultiplier + round.superBonusMultiplier,
           10,
         );
+        if (collectedMultiplier === 0 && multiplierBeforeRound > 0) {
+          observedAccumulatedOnlyRound = true;
+          expect(finalCascade.payoutMultiplier).toBeCloseTo(
+            baseWinMultiplier * multiplierBeforeRound,
+            10,
+          );
+        }
 
         const beforeCount = finalCascade.before.filter((cell) => cell.multiplier).length;
         const afterCount = finalCascade.after.filter((cell) => cell.multiplier).length;
@@ -216,6 +225,7 @@ describe('Power of Thor II observed-rules engine', () => {
     }
     expect(checkedRounds).toBeGreaterThan(0);
     expect(observedLastRefillMultiplier).toBe(true);
+    expect(observedAccumulatedOnlyRound).toBe(true);
   });
 
   it('caps the presentation and settlement at the shared 5,000x cycle ceiling', () => {

@@ -8,6 +8,9 @@
   var requestTimeoutMs = 15000;
   var refreshInFlight = null;
   var settlementInFlight = false;
+  var FRUIT_MARY_SPIN_PAUSE_MS = 650;
+  var nextFruitMarySpinAt = 0;
+  var fruitMaryCooldownTimer = 0;
   var animationGuardAttempts = 0;
   var animationCompletionTimeoutMs = 45000;
   var allocationEditorId = 'fruit-mary-allocation-editor';
@@ -89,6 +92,10 @@
     if (gameDisposing) return false;
     gameDisposing = true;
     settlementInFlight = false;
+    if (fruitMaryCooldownTimer) {
+      window.clearTimeout(fruitMaryCooldownTimer);
+      fruitMaryCooldownTimer = 0;
+    }
     try {
       if (window.cc && window.cc.audioEngine && typeof window.cc.audioEngine.stopAll === 'function') {
         window.cc.audioEngine.stopAll();
@@ -311,6 +318,12 @@
           notifyParent('fruit-mary:ready', { balance: Number(payload.data.info.gold || 0) });
         }
         if (route.kind === 'settlement' && payload.balance !== undefined) {
+          nextFruitMarySpinAt = Date.now() + FRUIT_MARY_SPIN_PAUSE_MS;
+          if (fruitMaryCooldownTimer) window.clearTimeout(fruitMaryCooldownTimer);
+          fruitMaryCooldownTimer = window.setTimeout(function () {
+            fruitMaryCooldownTimer = 0;
+            applyFruitMaryRuntimeGuards();
+          }, FRUIT_MARY_SPIN_PAUSE_MS);
           notifyParent('fruit-mary:balance', { balance: Number(payload.balance) });
         }
         bridge._complete(payload);
@@ -639,6 +652,18 @@
     return true;
   }
 
+  var fruitMaryPositionMultipliers = {
+    1: 10, 2: 20, 3: 50, 4: 120, 5: 5, 6: 2,
+    7: 15, 8: 20, 9: 2, 10: 0, 11: 5, 12: 2,
+    13: 10, 14: 20, 15: 2, 16: 40, 17: 5, 18: 2,
+    19: 15, 20: 30, 21: 2, 22: 0, 23: 5, 24: 2,
+  };
+
+  function fruitMaryPayoutMultiplier(position, fallback) {
+    var multiplier = fruitMaryPositionMultipliers[Number(position)];
+    return Number.isFinite(multiplier) ? multiplier : Number(fallback);
+  }
+
   function patchFruitMaryMenuLogic(menuLogic) {
     if (!menuLogic || menuLogic.__yachiyoAllocationControls) return Boolean(menuLogic);
     if (!menuLogic.shuzibenlun || !menuLogic.shuziyue) return false;
@@ -647,6 +672,18 @@
       if (window.cc && window.cc.vv && window.cc.vv.AudioMgr) {
         window.cc.vv.AudioMgr.playSFX('sounds/anniu/Y210', false, null, false);
       }
+    }
+
+    var originalClickKaishi = menuLogic.clickKaishi;
+    if (typeof originalClickKaishi === 'function') {
+      menuLogic.clickKaishi = function () {
+        var collectingWin = Boolean(this._kaishiBiDdaxiao_bool);
+        if (!collectingWin && (settlementInFlight || Date.now() < nextFruitMarySpinAt)) {
+          return undefined;
+        }
+        if (!collectingWin && this.startBt) this.startBt.interactable = false;
+        return originalClickKaishi.apply(this, arguments);
+      };
     }
 
     var originalAddWinNum = menuLogic.addWinNum;
@@ -658,9 +695,10 @@
     ) {
       menuLogic.addWinNum = function (position) {
         var sourceMultiplier = Number(this.getPosBeishu(position));
-        // The visible cabinet paytable labels the main star as 30x, while the
-        // archived Cocos method still returns an obsolete 20x value.
-        var payoutMultiplier = Number(position) === 20 ? 30 : sourceMultiplier;
+        // The archived Cocos script contains an older multiplier table. Keep
+        // the cabinet animation on the same authoritative table used by the
+        // settlement service so the visible win and credited balance agree.
+        var payoutMultiplier = fruitMaryPayoutMultiplier(position, sourceMultiplier);
         var payoutUnits = Number(this.getPosPutNum(position)) * payoutMultiplier;
         if (!Number.isFinite(payoutUnits)) return originalAddWinNum.call(this, position);
         this.yueAdd(payoutUnits * fruitMaryDenomination);
@@ -832,7 +870,12 @@
         fruitRing.opacity = 255;
       }
     }
-    if (sourceReadyAt > 0 && !playLogic._playing && !settlementInFlight) {
+    if (
+      sourceReadyAt > 0 &&
+      !playLogic._playing &&
+      !settlementInFlight &&
+      Date.now() >= nextFruitMarySpinAt
+    ) {
       if (playLogic.mask) playLogic.mask.active = false;
       if (window.cc && window.cc.vv && window.cc.vv.PrefabFactory._mask) {
         window.cc.vv.PrefabFactory._mask.active = false;
@@ -927,6 +970,7 @@
   window.__YachiyoFruitMaryAdapterTest = {
     adjustFruitMaryAllocation: adjustFruitMaryAllocation,
     normalizeFruitMaryAllocation: normalizeFruitMaryAllocation,
+    fruitMaryPayoutMultiplier: fruitMaryPayoutMultiplier,
     patchFruitMaryMenuLogic: patchFruitMaryMenuLogic,
     shortBonusCompletionIndex: shortBonusCompletionIndex,
     patchFruitMaryPlayLogic: patchFruitMaryPlayLogic,

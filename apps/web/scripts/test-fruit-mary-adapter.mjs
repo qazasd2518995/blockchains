@@ -20,6 +20,16 @@ assert.match(
   'Fruit Mary shell must rebuild a failed source-game iframe',
 );
 assert.match(
+  adapterSource,
+  /FRUIT_MARY_SPIN_PAUSE_MS = 650/,
+  'Fruit Mary must pause briefly before accepting the next paid round',
+);
+assert.match(
+  adapterSource,
+  /!collectingWin && \(settlementInFlight \|\| Date\.now\(\) < nextFruitMarySpinAt\)/,
+  'Fruit Mary must ignore repeated start taps without blocking win collection',
+);
+assert.match(
   pageSource,
   /__YachiyoDisposeFruitMaryGame/,
   'Fruit Mary shell must dispose the source game before removing its iframe',
@@ -84,11 +94,18 @@ vm.runInNewContext(adapterSource, context, { filename: adapterPath });
 const {
   adjustFruitMaryAllocation,
   createBridgeXHR,
+  fruitMaryPayoutMultiplier,
   normalizeFruitMaryAllocation,
   patchFruitMaryMenuLogic,
   patchFruitMaryPlayLogic,
   shortBonusCompletionIndex,
 } = context.__YachiyoFruitMaryAdapterTest;
+
+assert.equal(fruitMaryPayoutMultiplier(4, 100), 120, 'BAR follows the visible 120x table');
+assert.equal(fruitMaryPayoutMultiplier(16, 20), 40, '77 follows the visible 40x table');
+assert.equal(fruitMaryPayoutMultiplier(14, 10), 20, 'bell follows the visible 20x table');
+assert.equal(fruitMaryPayoutMultiplier(7, 10), 15, 'lemon follows the visible 15x table');
+assert.equal(fruitMaryPayoutMultiplier(99, 7), 7, 'unknown source positions keep their fallback');
 
 assert.equal(normalizeFruitMaryAllocation(40, 60, 70).currentRound, 70);
 assert.equal(normalizeFruitMaryAllocation(40, 60, 70).balance, 30);
@@ -117,14 +134,22 @@ context.cc = {
 function numberNode(initialValue) {
   const box = {
     value: initialValue,
-    getNum() { return this.value; },
-    setNum(value) { this.value = Number(value); },
+    getNum() {
+      return this.value;
+    },
+    setNum(value) {
+      this.value = Number(value);
+    },
   };
   return {
     box,
     listeners: {},
-    getComponent(name) { return name === 'ShuziBoxLogic' ? box : null; },
-    on(type, listener) { this.listeners[type] = listener; },
+    getComponent(name) {
+      return name === 'ShuziBoxLogic' ? box : null;
+    },
+    on(type, listener) {
+      this.listeners[type] = listener;
+    },
   };
 }
 
@@ -138,11 +163,21 @@ const menuLogic = {
   shuziyue: balanceNode,
   node: { getComponent: () => ({ _playing: false }) },
   unschedule() {},
-  clickKaishi() { collectCalls += 1; },
-  getPosPutNum() { return 1; },
-  getPosBeishu(position) { return position === 20 ? 20 : 10; },
-  yueAdd(value) { animatedWin += value; },
-  addWinNum(position) { this.yueAdd(this.getPosPutNum(position) * this.getPosBeishu(position)); },
+  clickKaishi() {
+    collectCalls += 1;
+  },
+  getPosPutNum() {
+    return 1;
+  },
+  getPosBeishu(position) {
+    return position === 20 ? 20 : 10;
+  },
+  yueAdd(value) {
+    animatedWin += value;
+  },
+  addWinNum(position) {
+    this.yueAdd(this.getPosPutNum(position) * this.getPosBeishu(position));
+  },
 };
 assert.equal(patchFruitMaryMenuLogic(menuLogic), true);
 menuLogic.addWinNum(1);
@@ -251,6 +286,9 @@ pendingFetches[0].resolve({
 });
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(JSON.parse(first.responseText).code, 1);
-assert.equal(parentMessages.some((message) => message.type === 'fruit-mary:balance'), true);
+assert.equal(
+  parentMessages.some((message) => message.type === 'fruit-mary:balance'),
+  true,
+);
 
 console.log('Fruit Mary settlement and animation recovery tests passed.');

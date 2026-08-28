@@ -22,9 +22,11 @@ describe('Fruit Mary provably-fair engine', () => {
     );
   });
 
-  it('keeps the exact source position multipliers', () => {
-    expect(fruitMaryOutcomeForPosition(4, [{ fruitId: 4, units: 3 }]).totalPayoutUnits).toBe(300);
-    expect(fruitMaryOutcomeForPosition(16, [{ fruitId: 16, units: 2 }]).totalPayoutUnits).toBe(40);
+  it('keeps the exact visible cabinet position multipliers', () => {
+    expect(fruitMaryOutcomeForPosition(4, [{ fruitId: 4, units: 3 }]).totalPayoutUnits).toBe(360);
+    expect(fruitMaryOutcomeForPosition(16, [{ fruitId: 16, units: 2 }]).totalPayoutUnits).toBe(80);
+    expect(fruitMaryOutcomeForPosition(14, [{ fruitId: 2, units: 2 }]).totalPayoutUnits).toBe(40);
+    expect(fruitMaryOutcomeForPosition(7, [{ fruitId: 19, units: 2 }]).totalPayoutUnits).toBe(30);
     expect(fruitMaryOutcomeForPosition(20, [{ fruitId: 20, units: 1 }]).totalPayoutUnits).toBe(30);
     expect(fruitMaryOutcomeForPosition(21, [{ fruitId: 20, units: 1 }]).totalPayoutUnits).toBe(2);
     expect(fruitMaryOutcomeForPosition(10, ALL_BETS).totalPayoutUnits).toBe(0);
@@ -56,13 +58,13 @@ describe('Fruit Mary provably-fair engine', () => {
         return [result.legacyType, result.positions, result.totalPayoutUnits];
       }),
     ).toEqual([
-      [0, [12], 2],
-      [0, [12], 2],
-      [0, [12], 2],
+      [0, [13], 10],
+      [0, [13], 10],
+      [0, [13], 10],
       [0, [22], 0],
-      [0, [21], 2],
-      [0, [2], 10],
-      [0, [24], 2],
+      [0, [10], 0],
+      [0, [5], 5],
+      [0, [10], 0],
       [0, [13], 10],
     ]);
   });
