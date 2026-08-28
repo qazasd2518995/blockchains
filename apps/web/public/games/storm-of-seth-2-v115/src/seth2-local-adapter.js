@@ -21,6 +21,7 @@
     'GameEvent:SHOW_NEW_SYMBOLS_IN_ANIM': true,
     'GameEvent:SHOW_SYMBOLS_QUICK_IN_ANIM': true,
   };
+  var CHARACTER_FIRE_LEAD_MS = 700;
   var GAME_ENTRY_BOOT_TIMEOUT_MS = 60000;
   var GAME_ENTRY_REQUIRED_UI_COUNT = 4;
   var TABLE_REFERENCE_REFRESH_MS = 5000;
@@ -42,7 +43,8 @@
   var progressInFlight = null;
   var queuedProgress = null;
   var capturedAudioContexts = [];
-  var pendingCharacterFire = null;
+  var characterFireLeadUntil = 0;
+  var pendingSymbolLandingTimer = 0;
 
   function installAudioContextCapture() {
     var NativeAudioContext = window.AudioContext || window.webkitAudioContext;
@@ -100,15 +102,6 @@
 
   installAudioContextCapture();
 
-  function flushPendingCharacterFire() {
-    var pending = pendingCharacterFire;
-    if (!pending) return false;
-    pendingCharacterFire = null;
-    if (pending.timer) window.clearTimeout(pending.timer);
-    pending.dispatcher.apply(pending.receiver, pending.args);
-    return true;
-  }
-
   function wrapFrameworkDispatch(dispatcher) {
     if (typeof dispatcher !== 'function' || dispatcher.__yachiyoTotalWinGuard) return dispatcher;
     function guardedDispatch() {
@@ -116,32 +109,27 @@
       var event = arguments[1];
       if (eventName === CREATE_SPIN_COMPLETE_FLOW) advanceActiveSpinProgress();
       if (eventName === SHOW_CHARACTER_FIRE) {
-        // v1.1.5 starts the male/female throw concurrently before the new
-        // multiplier balls have landed. Queue it and release it from the reel
-        // landing completion so the ball reaches its cell first.
-        flushPendingCharacterFire();
-        pendingCharacterFire = {
-          dispatcher: dispatcher,
-          receiver: this,
-          args: Array.prototype.slice.call(arguments),
-          timer: window.setTimeout(flushPendingCharacterFire, 4000),
-        };
-        return undefined;
+        // Start the character/fireball immediately, then give it a visible
+        // lead before the new multiplier symbol begins falling. The source
+        // flow only leaves 300 ms and a previous adapter accidentally reversed
+        // the order, making the ball appear before the throw animation.
+        characterFireLeadUntil = Date.now() + CHARACTER_FIRE_LEAD_MS;
       }
-      if (SYMBOL_LANDING_EVENTS[eventName] && pendingCharacterFire) {
-        if (event && typeof event.complete === 'function') {
-          var originalLandingComplete = event.complete;
-          var landingCompleted = false;
-          event.complete = function () {
-            if (landingCompleted) return;
-            landingCompleted = true;
-            flushPendingCharacterFire();
-            return originalLandingComplete.apply(this, arguments);
-          };
-        } else {
-          // Quick-stop builds may auto-complete the landing event without a
-          // callback. Dispatching on the next task still preserves ordering.
-          window.setTimeout(flushPendingCharacterFire, 0);
+      if (SYMBOL_LANDING_EVENTS[eventName]) {
+        var landingDelay = characterFireLeadUntil - Date.now();
+        if (landingDelay > 0) {
+          var landingReceiver = this;
+          var landingArgs = Array.prototype.slice.call(arguments);
+          if (pendingSymbolLandingTimer) window.clearTimeout(pendingSymbolLandingTimer);
+          pendingSymbolLandingTimer = window.setTimeout(function () {
+            pendingSymbolLandingTimer = 0;
+            dispatcher.apply(landingReceiver, landingArgs);
+          }, landingDelay);
+          return undefined;
+        }
+        if (pendingSymbolLandingTimer) {
+          window.clearTimeout(pendingSymbolLandingTimer);
+          pendingSymbolLandingTimer = 0;
         }
       }
       var data = event && event.data;
@@ -1683,7 +1671,6 @@
     publicError: publicError,
     guardBigwinClass: guardBigwinClass,
     wrapFrameworkDispatch: wrapFrameworkDispatch,
-    flushPendingCharacterFire: flushPendingCharacterFire,
     findIntroView: findIntroView,
     findSlotTableView: findSlotTableView,
     bindGameCanvasRecovery: bindGameCanvasRecovery,

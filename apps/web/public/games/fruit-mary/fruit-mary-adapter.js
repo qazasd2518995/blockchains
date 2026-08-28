@@ -657,7 +657,11 @@
       typeof menuLogic.yueAdd === 'function'
     ) {
       menuLogic.addWinNum = function (position) {
-        var payoutUnits = Number(this.getPosPutNum(position)) * Number(this.getPosBeishu(position));
+        var sourceMultiplier = Number(this.getPosBeishu(position));
+        // The visible cabinet paytable labels the main star as 30x, while the
+        // archived Cocos method still returns an obsolete 20x value.
+        var payoutMultiplier = Number(position) === 20 ? 30 : sourceMultiplier;
+        var payoutUnits = Number(this.getPosPutNum(position)) * payoutMultiplier;
         if (!Number.isFinite(payoutUnits)) return originalAddWinNum.call(this, position);
         this.yueAdd(payoutUnits * fruitMaryDenomination);
       };

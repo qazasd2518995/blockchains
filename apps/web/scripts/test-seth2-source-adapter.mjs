@@ -401,13 +401,21 @@ const orderedDispatch = wrapFrameworkDispatch((eventName, event) => {
   if (eventName === 'GameEvent:SHOW_SYMBOLS_IN_ANIM') event.complete();
 });
 orderedDispatch('GameEvent:SHOW_CHARACTER_FIRE', { data: null });
-assert.deepEqual(animationOrder, [], 'character throw waits until multiplier balls have landed');
+assert.deepEqual(animationOrder, [
+  'GameEvent:SHOW_CHARACTER_FIRE',
+], 'character throw starts before multiplier balls land');
 orderedDispatch('GameEvent:SHOW_SYMBOLS_IN_ANIM', {
   complete: () => animationOrder.push('landing-complete'),
 });
 assert.deepEqual(animationOrder, [
-  'GameEvent:SHOW_SYMBOLS_IN_ANIM',
   'GameEvent:SHOW_CHARACTER_FIRE',
+], 'multiplier landing waits for the throw animation lead');
+const delayedLanding = longTimers.find((timer) => timer.delay === 700);
+assert.ok(delayedLanding);
+delayedLanding.callback();
+assert.deepEqual(animationOrder, [
+  'GameEvent:SHOW_CHARACTER_FIRE',
+  'GameEvent:SHOW_SYMBOLS_IN_ANIM',
   'landing-complete',
 ]);
 

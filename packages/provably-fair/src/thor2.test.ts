@@ -4,6 +4,8 @@ import {
   THOR2_MAX_FEATURE_MULTIPLIER_BALLS,
   THOR2_MAX_FREE_SPINS,
   THOR2_MAX_WIN_MULTIPLIER,
+  THOR2_REGULAR_FEATURE_BALL_ROUND_RATE,
+  THOR2_SUPER_FEATURE_BALL_ROUND_RATE,
   evaluateThor2AnywherePays,
   isThor2FactorRepresentable,
   splitThor2MultiplierTotal,
@@ -110,6 +112,30 @@ describe('Power of Thor II observed-rules engine', () => {
         }
       }
     }
+  });
+
+  it('uses varied multiplier-ball rounds instead of dropping balls on every free spin', () => {
+    const observedRates = new Map<string, number>();
+    for (const buyFeature of ['regular', 'super'] as const) {
+      let ballRounds = 0;
+      let totalRounds = 0;
+      for (let nonce = 1; nonce <= 96; nonce += 1) {
+        const result = thor2Spin('feature-ball-cadence', `${buyFeature}-${nonce}`, nonce, {
+          buyFeature,
+        });
+        for (const round of result.feature?.rounds ?? []) {
+          totalRounds += 1;
+          if (round.grid.some((cell) => cell.multiplier)) ballRounds += 1;
+        }
+      }
+      const rate = ballRounds / totalRounds;
+      observedRates.set(buyFeature, rate);
+      expect(rate).toBeGreaterThan(0.08);
+      expect(rate).toBeLessThan(0.5);
+    }
+    expect(observedRates.get('super')!).toBeGreaterThan(observedRates.get('regular')!);
+    expect(THOR2_REGULAR_FEATURE_BALL_ROUND_RATE).toBe(0.2);
+    expect(THOR2_SUPER_FEATURE_BALL_ROUND_RATE).toBe(0.35);
   });
 
   it('keeps SUPER BONUS out of paid entries and every free-game screen', () => {

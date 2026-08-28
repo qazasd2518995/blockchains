@@ -1,11 +1,13 @@
 import { hmacIntStream } from './hmac.js';
 
-export const THOR2_MODEL_VERSION = 'thor2-observed-rules-v6-site-cycle-cap';
+export const THOR2_MODEL_VERSION = 'thor2-observed-rules-v7-feature-ball-cadence';
 export const THOR2_REELS = 6;
 export const THOR2_ROWS = 5;
 export const THOR2_MAX_CASCADES = 8;
 export const THOR2_MAX_FREE_SPINS = 100;
 export const THOR2_MAX_FEATURE_MULTIPLIER_BALLS = 3;
+export const THOR2_REGULAR_FEATURE_BALL_ROUND_RATE = 0.2;
+export const THOR2_SUPER_FEATURE_BALL_ROUND_RATE = 0.35;
 export const THOR2_MAX_WIN_MULTIPLIER = 5_000;
 export const THOR2_LEGAL_MULTIPLIERS = [
   2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50, 100, 250, 500, 1_000,
@@ -89,6 +91,23 @@ const MULTIPLIER_BUCKETS = [
   [100, 250, 500],
   [1_000],
 ] as const;
+const THOR2_REGULAR_FEATURE_BALL_CELL_RATE = 0.07;
+const THOR2_SUPER_FEATURE_BALL_CELL_RATE = 0.1;
+const THOR2_REGULAR_FEATURE_REFILL_CELL_RATE = 0.065;
+const THOR2_SUPER_FEATURE_REFILL_CELL_RATE = 0.095;
+
+function featureBallCellRate(random: RandomSource, superMode: boolean): number {
+  const roundRate = superMode
+    ? THOR2_SUPER_FEATURE_BALL_ROUND_RATE
+    : THOR2_REGULAR_FEATURE_BALL_ROUND_RATE;
+  if (!random.chance(roundRate)) return 0;
+  return superMode ? THOR2_SUPER_FEATURE_BALL_CELL_RATE : THOR2_REGULAR_FEATURE_BALL_CELL_RATE;
+}
+
+function featureRefillCellRate(initialCellRate: number, superMode: boolean): number {
+  if (initialCellRate <= 0) return 0;
+  return superMode ? THOR2_SUPER_FEATURE_REFILL_CELL_RATE : THOR2_REGULAR_FEATURE_REFILL_CELL_RATE;
+}
 
 // The archived official help lists awards at the minimum 20-credit bet. The
 // engine settles in total-bet multipliers, so each displayed value is / 20.
@@ -429,6 +448,11 @@ function playRound(
   superMode: boolean,
   lucky: boolean,
   maxMultiplierBalls = THOR2_REELS * THOR2_ROWS,
+  refillMultiplierRate = lucky
+    ? 0
+    : superMode
+      ? THOR2_SUPER_FEATURE_REFILL_CELL_RATE
+      : THOR2_REGULAR_FEATURE_REFILL_CELL_RATE,
 ): { round: Thor2Round; finalGrid: Thor2Cell[] } {
   const initialGrid = limitMultiplierBalls(grid, random, maxMultiplierBalls);
   const cascades: Thor2Cascade[] = [];
@@ -440,14 +464,7 @@ function playRound(
     const before = current.map((cell) => ({ ...cell }));
     const baseWinMultiplier = wins.reduce((sum, win) => sum + win.payMultiplier, 0);
     const removed = new Set(wins.flatMap((win) => win.positions));
-    current = refillGrid(
-      before,
-      removed,
-      random,
-      lucky ? 0 : superMode ? 0.095 : 0.065,
-      lucky,
-      maxMultiplierBalls,
-    );
+    current = refillGrid(before, removed, random, refillMultiplierRate, lucky, maxMultiplierBalls);
     cascades.push({
       before,
       after: current.map((cell) => ({ ...cell })),
@@ -820,7 +837,7 @@ export function thor2SpinForFactor(
               random,
               index + 1,
               accumulatedMultiplier,
-              kind === 'super' ? 0.1 : 0.07,
+              featureBallCellRate(random, kind === 'super'),
               false,
               THOR2_MAX_FEATURE_MULTIPLIER_BALLS,
             );
@@ -997,11 +1014,12 @@ export function thor2Spin(
   let accumulatedMultiplier = 0;
   let totalMultiplier = base.round.payoutMultiplier + bonusPayForCount(initialBonusCount);
   for (let index = 0; index < awarded && index < THOR2_MAX_FREE_SPINS; index += 1) {
+    const multiplierRate = featureBallCellRate(random, featureKind === 'super');
     const freeGrid = maybeForceFeatureWin(
       buildGrid(random, {
         bonusRate: 0.004,
         superBonusRate: 0,
-        multiplierRate: featureKind === 'super' ? 0.1 : 0.07,
+        multiplierRate,
         lucky: false,
       }),
       random,
@@ -1014,6 +1032,7 @@ export function thor2Spin(
       featureKind === 'super',
       false,
       THOR2_MAX_FEATURE_MULTIPLIER_BALLS,
+      featureRefillCellRate(multiplierRate, featureKind === 'super'),
     );
     accumulatedMultiplier = played.round.accumulatedMultiplier;
     const retrigger = Math.min(played.round.retriggeredSpins, THOR2_MAX_FREE_SPINS - awarded);

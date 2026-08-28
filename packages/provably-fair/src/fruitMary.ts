@@ -44,7 +44,7 @@ export const FRUIT_MARY_POSITION_MULTIPLIERS: Readonly<Record<number, number>> =
   17: 5,
   18: 2,
   19: 10,
-  20: 20,
+  20: 30,
   21: 2,
   22: 0,
   23: 5,
@@ -90,19 +90,23 @@ const GRAND_SLAM_POSITIONS = [10, ...FRUIT_MARY_PAYOUT_POSITIONS] as const;
 const FOUR_HAPPINESS_POSITIONS = [10, 23, 11, 5, 17] as const;
 const BAR_POSITION_PROBABILITY = (0.96 - GRAND_SLAM_PROBABILITY * 150) / 150;
 const STANDARD_POSITION_PROBABILITY = (0.96 - GRAND_SLAM_PROBABILITY * 22) / 22;
+const STAR_POSITION_PROBABILITY = (0.96 - GRAND_SLAM_PROBABILITY * 32) / 32;
 const APPLE_POSITION_PROBABILITY =
   (0.96 - GRAND_SLAM_PROBABILITY * 22 - FOUR_HAPPINESS_PROBABILITY * 20) / 22;
 
 const BAR_POSITIONS = new Set([3, 4]);
+const STAR_POSITIONS = new Set([20, 21]);
 const APPLE_POSITIONS = new Set([5, 6, 11, 17, 23]);
 
 const LANDING_WEIGHTS = FRUIT_MARY_PAYOUT_POSITIONS.map((position) => ({
   position,
   probability: BAR_POSITIONS.has(position)
     ? BAR_POSITION_PROBABILITY
-    : APPLE_POSITIONS.has(position)
-      ? APPLE_POSITION_PROBABILITY
-      : STANDARD_POSITION_PROBABILITY,
+    : STAR_POSITIONS.has(position)
+      ? STAR_POSITION_PROBABILITY
+      : APPLE_POSITIONS.has(position)
+        ? APPLE_POSITION_PROBABILITY
+        : STANDARD_POSITION_PROBABILITY,
 }));
 
 export type FruitMaryRandomSource = () => number;

@@ -140,13 +140,15 @@ const menuLogic = {
   unschedule() {},
   clickKaishi() { collectCalls += 1; },
   getPosPutNum() { return 1; },
-  getPosBeishu() { return 10; },
+  getPosBeishu(position) { return position === 20 ? 20 : 10; },
   yueAdd(value) { animatedWin += value; },
   addWinNum(position) { this.yueAdd(this.getPosPutNum(position) * this.getPosBeishu(position)); },
 };
 assert.equal(patchFruitMaryMenuLogic(menuLogic), true);
 menuLogic.addWinNum(1);
 assert.equal(animatedWin, 100, 'animated score uses the same room denomination as settlement');
+menuLogic.addWinNum(20);
+assert.equal(animatedWin, 400, 'the visible 30x star pays 30 units instead of the obsolete 20x');
 menuLogic.clickZuo();
 assert.equal(currentRoundNode.box.getNum(), 41, 'left adds one point to the round');
 assert.equal(balanceNode.box.getNum(), 59, 'left removes the same point from balance');
