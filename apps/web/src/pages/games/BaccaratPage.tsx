@@ -12,6 +12,7 @@ import {
 } from '@/lib/baccaratWarmup';
 import { useAuthStore } from '@/stores/authStore';
 import { useRequireLogin } from '@/hooks/useRequireLogin';
+import { isQmoneyRealm } from '@/lib/platformRealm';
 
 interface LauncherDiagnostics {
   currentUser: string;
@@ -156,7 +157,7 @@ export function BaccaratPage({ variant = 'royal' }: BaccaratPageProps) {
       {status === 'ready' && launchUrl ? (
         <iframe
           key={iframeKey}
-          title={`八千代 ${config.englishTitle}`}
+          title={`${isQmoneyRealm ? '金寶寶' : '八千代'} ${config.englishTitle}`}
           src={launchUrl}
           className="absolute inset-0 h-full w-full border-0"
           style={{ backgroundColor: config.screenBg }}

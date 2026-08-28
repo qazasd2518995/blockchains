@@ -21,12 +21,16 @@ for (const marker of [
   'data-action="notices"',
   'id="jackpotDigits"',
   'class="bottom-nav"',
-  '/qmoney/app.js?v=20260827-return-no-login-flash-1',
+  '/qmoney/app.js?v=20260829-jin-baobao-brand-1',
   'class="is-booting"',
   'id="bootView"',
+  '金寶寶｜遊戲大廳',
+  '/qmoney/assets/brand/jin-baobao-provider.webp',
 ]) {
   assert.ok(html.includes(marker), `missing lobby marker: ${marker}`);
 }
+
+assert.ok(!`${html}\n${css}\n${app}`.includes('錢女友'), 'legacy Qmoney display name must be fully replaced');
 
 assert.match(
   app,
@@ -143,7 +147,7 @@ for (const source of [html, css]) {
     referencedAssets.add(decodeURIComponent(match[1]));
   }
 }
-for (const match of app.matchAll(/["`](imgs_soc\/[^"`$]+\.(?:webp|png|gif|svg|mp3))["`]/g)) {
+for (const match of app.matchAll(/["`]((?:imgs_soc|brand)\/[^"`$]+\.(?:webp|png|gif|svg|mp3))["`]/g)) {
   referencedAssets.add(match[1]);
 }
 

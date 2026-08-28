@@ -54,7 +54,7 @@ const elements = {
 };
 
 const FALLBACK_NOTICES = [
-  { title: "錢女友正式營運", content: "錢女友遊戲大廳正式營運，所有遊戲皆採用正式點數與後端結算。", date: "2026/01/10", kind: "網站公告", icon: "a" },
+  { title: "金寶寶正式營運", content: "金寶寶遊戲大廳正式營運，所有遊戲皆採用正式點數與後端結算。", date: "2026/01/10", kind: "網站公告", icon: "a" },
   { title: "新手指南", content: "登入測試會員後，從遊戲大廳選擇遊戲即可進入。遊戲點數與會員餘額共用。", date: "2026/01/11", kind: "全部通知", icon: "a" },
   { title: "儲值管道", content: "本測試站目前由獨立 API 與資料庫管理，請依管理端設定進行點數作業。", date: "2026/01/11", kind: "銀行公告", icon: "a" },
   { title: "多項活動大放送 🎁", content: "活動內容與開放期間以管理端最新公告為準。", date: "2026/01/11", kind: "福利通知", icon: "d" },
@@ -383,7 +383,7 @@ function updateAccount() {
 
 function loginFormMarkup(captcha, message = "") {
   return `
-    <img class="modal-icon" src="${uiAsset("imgs_soc/media/user_default.webp")}" alt="">
+    <img class="modal-icon" src="/qmoney/assets/brand/jin-baobao-avatar.webp" alt="">
     <h1 class="modal-title" id="modalTitle">會員登入</h1>
     <p class="modal-subtitle">登入後使用獨立 Qmoney 會員點數、測試帳號權限與正式遊戲結算。</p>
     <form class="real-login-form" id="realLoginForm">
@@ -622,7 +622,7 @@ function launchActiveGame() {
   elements.loadingOverlay.hidden = false;
   const target = new URL(game.route, window.location.origin);
   target.searchParams.set("returnTo", RETURN_PATH);
-  target.searchParams.set("returnLabel", "錢女友遊戲大廳");
+  target.searchParams.set("returnLabel", "金寶寶遊戲大廳");
   window.setTimeout(() => window.location.assign(target), 320);
 }
 
@@ -732,14 +732,14 @@ function personalHomeMarkup() {
   const progress = Math.min(100, (validAmount / target) * 100);
   return `
     <div class="personal-profile">
-      <div class="personal-avatar"><img src="${uiAsset("imgs_soc/media/user_default.webp")}" alt="會員頭像"></div>
+      <div class="personal-avatar"><img src="/qmoney/assets/brand/jin-baobao-avatar.webp" alt="會員頭像"></div>
       <div class="personal-name"><small>暱稱</small><strong>${escapeHtml(nickname)}</strong><span>${escapeHtml(username)}</span><div class="personal-mini-actions"><button type="button" data-modal-action="profile-hint">♻ 改暱稱</button><button type="button" data-modal-action="notices">📣 大聲公</button></div></div>
     </div>
     <div class="personal-actions"><button type="button" data-modal-action="share">⌯ 分享連結</button><button type="button" data-modal-action="personal-history">▣ 遊戲紀錄</button></div>
-    <div class="personal-signature">歡迎來到錢女友遊戲大廳</div>
+    <div class="personal-signature">歡迎來到金寶寶遊戲大廳</div>
     <div class="vip-card">
       <div class="vip-medal"><img src="${uiAsset("imgs_soc/vip/lv0.webp")}" alt="VIP 0"><strong>VIP Level 0</strong></div>
-      <div class="vip-info"><div class="vip-info-row"><span>會員帳號</span><strong>${escapeHtml(username)}</strong></div><div class="vip-info-row"><span>會員餘額</span><strong>${formatAmount(user.balance)}</strong></div><div class="vip-info-row"><span>手機認證</span><strong>測試帳號</strong></div><div class="vip-info-row"><span>介紹人</span><strong>錢女友SEO</strong></div></div>
+      <div class="vip-info"><div class="vip-info-row"><span>會員帳號</span><strong>${escapeHtml(username)}</strong></div><div class="vip-info-row"><span>會員餘額</span><strong>${formatAmount(user.balance)}</strong></div><div class="vip-info-row"><span>手機認證</span><strong>測試帳號</strong></div><div class="vip-info-row"><span>介紹人</span><strong>金寶寶SEO</strong></div></div>
     </div>
     <div class="task-card"><div class="task-title"><span><img src="${uiAsset("imgs_soc/personal/9584568 1.png")}" alt="">投注任務</span><b class="task-state">${progress >= 100 ? "已達標" : "未達標"}</b></div><div class="task-line"><span>本週已投注</span><strong>${formatAmount(validAmount)} / ${target.toLocaleString("zh-TW")}</strong></div><div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div><div class="task-line"><span>達標獎勵</span><strong>🪙 8</strong></div></div>`;
 }
@@ -780,7 +780,7 @@ function showSimplePopup(title, icon, message, musicScene = "lobby") {
 }
 
 async function shareLobby() {
-  const shareData = { title: "錢女友遊戲大廳", text: "錢女友遊戲大廳", url: window.location.href };
+  const shareData = { title: "金寶寶遊戲大廳", text: "金寶寶遊戲大廳", url: window.location.href };
   try {
     if (navigator.share) await navigator.share(shareData);
     else {
@@ -872,7 +872,7 @@ elements.lobbyView.addEventListener("click", (event) => {
   if (action === "settings") showSettings();
   else if (action === "profile") void showPersonal();
   else if (action === "notices") showNotices();
-  else if (action === "jackpot") showSimplePopup("幸運彩池", "imgs_soc/jackpot/character.png", "Jackpot 數字會持續更新；遊戲派彩仍以各遊戲伺服器結算為準。", "lobby");
+  else if (action === "jackpot") showSimplePopup("幸運彩池", "brand/jin-baobao-mascot.webp", "Jackpot 數字會持續更新；遊戲派彩仍以各遊戲伺服器結算為準。", "lobby");
   else if (action === "check-in") { playSound(elements.getReward); showSimplePopup("每日簽到", "imgs_soc/media/CheckIn.webp", "簽到與任務獎勵將依管理端活動設定開放。", "lobby"); }
   else if (action === "refresh-balance") void refreshBalance();
   else if (action === "scroll-top") elements.lobbyScroll.scrollTo({ top: 0, behavior: "smooth" });

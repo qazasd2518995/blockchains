@@ -107,12 +107,12 @@ export function QmoneyGameShell() {
     const previousThemeColor = themeColor?.content;
     const previousAppleTitle = appleTitle?.content;
 
-    document.title = `錢女友｜${game.title}`;
+    document.title = `金寶寶｜${game.title}`;
     document.documentElement.lang = 'zh-Hant';
     document.documentElement.dataset.platformRealm = 'qmoney';
     document.body.dataset.platformRealm = 'qmoney';
     themeColor?.setAttribute('content', '#000000');
-    appleTitle?.setAttribute('content', '錢女友');
+    appleTitle?.setAttribute('content', '金寶寶');
 
     return () => {
       document.title = previousTitle;

@@ -47,9 +47,9 @@ if (qmoneyRoot) {
     )
     .replace(
       '<meta name="apple-mobile-web-app-title" content="八千代娛樂城" />',
-      '<meta name="apple-mobile-web-app-title" content="錢女友" />',
+      '<meta name="apple-mobile-web-app-title" content="金寶寶" />',
     )
-    .replace('<title>八千代娛樂城 · 電子遊戲殿堂</title>', '<title>錢女友｜遊戲載入中</title>')
+    .replace('<title>八千代娛樂城 · 電子遊戲殿堂</title>', '<title>金寶寶｜遊戲載入中</title>')
     .replace(/\s*<link rel="manifest" href="\/manifest\.webmanifest" \/>/, '')
     .replace(
       /<link rel="icon" type="image\/png" href="\/favicon\.png\?v=\d+" \/>/,

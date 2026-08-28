@@ -19,6 +19,7 @@ const [
   thorPage,
   fruitPage,
   h5Page,
+  baccaratPage,
   newCasinoCatalog,
 ] = await Promise.all([
   read('src/components/layout/QmoneyGameShell.tsx'),
@@ -33,6 +34,7 @@ const [
   read('src/pages/games/PowerOfThor2Page.tsx'),
   read('src/pages/games/FruitMaryPage.tsx'),
   read('src/pages/games/H5SlotCollectionPage.tsx'),
+  read('src/pages/games/BaccaratPage.tsx'),
   read('../../packages/shared/src/newCasino.ts'),
 ]);
 
@@ -43,7 +45,7 @@ for (const marker of [
   'qmoney-game-audio',
   '<AudioMenu variant="dark" />',
   '<span>回大廳</span>',
-  'document.title = `錢女友｜${game.title}`',
+  'document.title = `金寶寶｜${game.title}`',
   'window.location.replace(returnTarget.to)',
 ]) {
   assert.ok(shell.includes(marker), `missing Qmoney game-shell marker: ${marker}`);
@@ -96,6 +98,10 @@ const embeddedGameTitles = [fruitHtml, h5Html]
   .map((html) => html.match(/<title>([^<]+)<\/title>/i)?.[1] ?? '')
   .join('\n');
 assert.doesNotMatch(embeddedGameTitles, /八千代|Yachiyo/i);
+assert.ok(
+  baccaratPage.includes("isQmoneyRealm ? '金寶寶' : '八千代'"),
+  'the Qmoney baccarat frame must not expose the legacy casino name',
+);
 for (const page of [sethPage, fruitPage, h5Page]) {
   assert.ok(
     page.includes("isQmoneyRealm ? 'qmoney"),

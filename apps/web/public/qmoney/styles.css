@@ -144,7 +144,7 @@ body.is-booting .view {
 /* Login page */
 .login-page {
   overflow: hidden;
-  background: #fff1f6 url("/qmoney/assets/imgs_soc/media/login-page_bg.webp") center top / cover no-repeat;
+  background: #fff1f6 url("/qmoney/assets/brand/jin-baobao-login.webp") center top / cover no-repeat;
 }
 
 .login-page::after {
@@ -610,7 +610,7 @@ body.is-booting .view {
   margin: 0 13px 10px;
   overflow: hidden;
   border-radius: 25px;
-  background: url("/qmoney/assets/imgs_soc/jackpot/bg.webp") center / 100% 100% no-repeat;
+  background: url("/qmoney/assets/brand/jin-baobao-jackpot.webp") center / 100% 128% no-repeat;
   filter: drop-shadow(0 7px 9px rgba(69, 34, 1, 0.16));
   transition: transform 120ms ease;
 }
