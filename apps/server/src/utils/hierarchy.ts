@@ -182,7 +182,10 @@ export async function listPlatformSuperAdminIds(db: Db): Promise<string[]> {
 
 export async function resolvePlatformRootAgentId(db: Db, fallbackId: string): Promise<string> {
   const [root] = await db.agent.findMany({
-    where: { role: 'SUPER_ADMIN', status: { not: 'DELETED' } },
+    // 已被取代的歷史 SUPER_ADMIN 會保留供報表追溯，但不能再成為
+    // 帳號管理／新增帳號的操作根節點。只選啟用中的平台根，避免
+    // qmoney 登入新根帳號後仍被建立時間較早的凍結根攔截。
+    where: { role: 'SUPER_ADMIN', status: 'ACTIVE' },
     select: { id: true },
     orderBy: { createdAt: 'asc' },
     take: 1,
