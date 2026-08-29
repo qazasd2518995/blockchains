@@ -385,7 +385,7 @@ function loginFormMarkup(captcha, message = "") {
   return `
     <img class="modal-icon" src="/qmoney/assets/brand/jin-baobao-avatar.webp" alt="">
     <h1 class="modal-title" id="modalTitle">會員登入</h1>
-    <p class="modal-subtitle">登入後使用獨立 Qmoney 會員點數、測試帳號權限與正式遊戲結算。</p>
+    <p class="modal-subtitle">登入後使用金寶寶娛樂城（JBB GAMES）獨立會員點數、測試帳號權限與正式遊戲結算。</p>
     <form class="real-login-form" id="realLoginForm">
       <label><span>會員帳號</span><input name="username" autocomplete="username" maxlength="40" required></label>
       <label><span>密碼</span><input name="password" type="password" autocomplete="current-password" required></label>
@@ -405,7 +405,7 @@ async function showLoginForm(message = "") {
   } catch (error) {
     elements.modalContent.innerHTML = `
       <h1 class="modal-title" id="modalTitle">無法連線後端</h1>
-      <p class="modal-subtitle">${escapeHtml(error.message)}。請確認 Qmoney API 已啟動後再試一次。</p>
+      <p class="modal-subtitle">${escapeHtml(error.message)}。請確認金寶寶遊戲服務已啟動後再試一次。</p>
       <button class="modal-button" type="button" data-modal-action="retry-login"><span>重新連線</span></button>`;
   }
 }
@@ -886,7 +886,7 @@ document.querySelector(".bottom-nav").addEventListener("click", (event) => {
   const action = button.dataset.footer;
   if (action === "其他") { syncMusic("lobby"); selectCategory("全部"); elements.lobbyScroll.scrollTo({ top: 0, behavior: "smooth" }); }
   else if (action === "排行榜") showSimplePopup("排行榜", "imgs_soc/ranking/1.webp", "排行榜將依有效投注與活動期間結果顯示。", "lobby");
-  else if (action === "商城") showSimplePopup("商城", "imgs_soc/footer/store.webp", "會員商城與兌換內容由獨立 Qmoney 後台管理。", "shop");
+  else if (action === "商城") showSimplePopup("商城", "imgs_soc/footer/store.webp", "會員商城與兌換內容由金寶寶獨立營運後台管理。", "shop");
   else if (action === "贈禮") showSimplePopup("贈禮", "imgs_soc/gift.webp", "贈禮功能將依測試活動設定開放。", "lobby");
   else if (action === "公會") showSimplePopup("公會", "imgs_soc/footer/guild.webp", "公會功能目前尚未建立會員資料。", "lobby");
 });

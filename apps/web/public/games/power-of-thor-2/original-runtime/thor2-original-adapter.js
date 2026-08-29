@@ -241,8 +241,8 @@
     var user = auth.user || {};
     return {
       online: '1',
-      account: String(user.username || 'qmoney-player'),
-      webid: 'QMONEY',
+      account: String(user.username || 'jbb-player'),
+      webid: 'JBB',
       lang: params.get('lang') || 'zh-TW',
       server: 'thor2.local',
       port: '80',
@@ -250,10 +250,10 @@
       gameServer: 'ws://thor2.local/RewardableSlotUser',
       userIP: '127.0.0.1',
       Extra: {
-        SystemCode: 'QMONEY',
-        Company: 'QMONEY',
+        SystemCode: 'JBB',
+        Company: 'JBB GAMES',
         Device: 'web',
-        GameTokenId: 'qmoney-thor2-local',
+        GameTokenId: 'jbb-thor2-local',
         Mode: 4,
         SingleCredit: 'true',
         HomeIsEnabled: true,
@@ -657,7 +657,7 @@
     return {
       ServerMode: 'Prod',
       Versions: {
-        Server: 'qmoney-local',
+        Server: 'jbb-local',
         Game: '2.9.0',
         Math: '2.9.0',
         GameCommon: '1.5.0',

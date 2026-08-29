@@ -21,7 +21,7 @@ for (const marker of [
   'data-action="notices"',
   'id="jackpotDigits"',
   'class="bottom-nav"',
-  '/qmoney/app.js?v=20260829-jin-baobao-brand-1',
+  '/qmoney/app.js?v=20260829-jbb-games-brand-2',
   'class="is-booting"',
   'id="bootView"',
   '金寶寶｜遊戲大廳',
@@ -31,6 +31,10 @@ for (const marker of [
 }
 
 assert.ok(!`${html}\n${css}\n${app}`.includes('錢女友'), 'legacy Qmoney display name must be fully replaced');
+assert.ok(!app.includes('獨立 Qmoney'), 'player-facing copy must not display the retired Qmoney name');
+assert.ok(!app.includes('Qmoney API'), 'player-facing errors must use the Jin Baobao service name');
+assert.ok(!app.includes('Qmoney 後台'), 'player-facing copy must use the Jin Baobao admin name');
+assert.ok(app.includes('JBB GAMES'), 'player-facing English brand must be JBB GAMES');
 
 assert.match(
   app,

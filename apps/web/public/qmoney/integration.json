@@ -1,5 +1,5 @@
 {
-  "name": "qmoney77-frontend-archive",
+  "name": "jin-baobao-jbb-games-frontend",
   "catalogEndpoint": "/api/games/catalog",
   "authStorageKey": "bg-auth",
   "gameRoutePrefix": "/games/",
