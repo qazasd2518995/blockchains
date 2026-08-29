@@ -41,7 +41,9 @@ async function main(): Promise<void> {
         notes: 'Independent Jin Baobao management root',
       },
       update: {
-        passwordHash,
+        // Existing credentials are managed through the reset-password flow. A
+        // provisioning rerun must not silently invalidate the operator's saved
+        // Jin Baobao credentials.
         displayName: '金寶寶總代理',
         parentId: null,
         level: 0,

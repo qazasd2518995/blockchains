@@ -109,7 +109,8 @@ async function main(): Promise<void> {
             twoFactorEnabled: false,
           },
           update: {
-            passwordHash: superPasswordHash,
+            // Preserve an explicitly reset production password when this
+            // account/bootstrap script is rerun.
             displayName: '金寶寶總代理',
             parentId: null,
             level: 0,
