@@ -15748,3 +15748,55 @@
     background: rgba(2, 6, 23, 0.72) !important;
   }
 }
+
+@layer components {
+  /*
+   * Multi-step table rounds add an action dock after the first deal. On a
+   * narrow viewport that dock reduces the table stage, so the player hand must
+   * remain scrollable instead of being clipped behind the controls.
+   */
+  @media (max-width: 767px) {
+    .game-fullscreen-shell[data-game-id^='twenty-one-half'] .local-table-stage-panel {
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
+      scroll-padding-block: 0.65rem max(0.75rem, env(safe-area-inset-bottom));
+      overscroll-behavior-y: contain;
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    .game-fullscreen-shell[data-game-id^='twenty-one-half']
+      .local-table-stage-panel::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+
+    .game-fullscreen-shell .local-table-control-stack {
+      max-height: min(42dvh, 310px) !important;
+      overflow: visible !important;
+    }
+
+    .game-fullscreen-shell .local-table-control-card {
+      max-height: min(42dvh, 310px) !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      padding-bottom: max(0.58rem, env(safe-area-inset-bottom)) !important;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    .game-fullscreen-shell .local-table-control-card::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+
+    .game-fullscreen-shell
+      .local-table-control-stack--active
+      .local-table-main-button {
+      display: none !important;
+    }
+  }
+}

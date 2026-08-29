@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { AlertCircle, Sparkles } from 'lucide-react';
 import { Sfx } from '@bg/game-engine';
 import {
@@ -274,6 +274,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
   const [result, setResult] = useState<LocalTableBetResult | null>(null);
   const [tenHalfState, setTenHalfState] = useState<TwentyOneHalfRoundState | null>(null);
   const [stagedState, setStagedState] = useState<LocalTableRoundState | null>(null);
+  const stagePanelRef = useRef<HTMLElement>(null);
   const isTwentyOneHalf = TWENTY_ONE_HALF_PAGE_IDS.has(gameId);
   const isStagedTable = STAGED_TABLE_PAGE_IDS.has(gameId);
   const isTuiTongzi = TUI_TONGZI_GAME_IDS.includes(gameId as (typeof TUI_TONGZI_GAME_IDS)[number]);
@@ -554,6 +555,42 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
     tenHalfState?.status,
   ]);
 
+  useEffect(() => {
+    if (!isTwentyOneHalf || tenHalfState?.status !== 'ACTIVE') return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const stage = stagePanelRef.current;
+      if (!stage) return;
+
+      const tone = tenHalfState.phase === 'BANKER_TURN' ? 'banker' : 'player';
+      const hand = stage.querySelector<HTMLElement>(`.local-table-hand-panel--${tone}`);
+      if (!hand) return;
+
+      const stageRect = stage.getBoundingClientRect();
+      const handRect = hand.getBoundingClientRect();
+      const edgeInset = 10;
+      const clippedBelow = handRect.bottom - (stageRect.bottom - edgeInset);
+      const clippedAbove = stageRect.top + edgeInset - handRect.top;
+      const delta = clippedBelow > 0 ? clippedBelow : clippedAbove > 0 ? -clippedAbove : 0;
+      if (Math.abs(delta) < 1) return;
+
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      stage.scrollBy({
+        top: delta,
+        behavior: reducedMotion ? 'auto' : 'smooth',
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [
+    isTwentyOneHalf,
+    tenHalfState?.banker.pieces.length,
+    tenHalfState?.phase,
+    tenHalfState?.player.pieces.length,
+    tenHalfState?.roundId,
+    tenHalfState?.status,
+  ]);
+
   const resultCard = (
     <div className="local-table-result-card relative z-10 mt-3 rounded-[18px] border border-white/10 bg-black/24 p-3 sm:mt-4 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -607,6 +644,7 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
       <div className="game-play-grid game-play-grid--local-table grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(320px,0.82fr)]">
         <div className="game-main-stack space-y-4">
           <section
+            ref={stagePanelRef}
             className={`local-table-stage-panel game-stage-panel scanlines relative overflow-hidden rounded-[22px] border border-white/10 p-4 shadow-[0_24px_60px_rgba(0,0,0,0.24)] ${stageToneClass} ${tableKindClass} ${stagePhaseClass}`}
             style={localTableStageStyle(theme)}
           >
@@ -756,8 +794,10 @@ export function LocalTablePage({ gameId }: LocalTablePageProps) {
           </section>
         </div>
 
-        <aside className="game-control-stack game-side-stack space-y-4">
-          <div className="game-side-card p-5">
+        <aside
+          className={`local-table-control-stack game-control-stack game-side-stack space-y-4 ${tableActive ? 'local-table-control-stack--active' : ''}`}
+        >
+          <div className="local-table-control-card game-side-card p-5">
             <BetControls
               amount={amount}
               onAmountChange={setAmount}
