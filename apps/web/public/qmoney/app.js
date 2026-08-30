@@ -350,7 +350,7 @@ function loginFormMarkup(captcha, message = "") {
   return `
     <img class="modal-icon" src="/qmoney/assets/brand/jin-baobao-avatar.webp" alt="">
     <h1 class="modal-title" id="modalTitle">會員登入</h1>
-    <p class="modal-subtitle">登入後使用金寶寶娛樂城（JBB GAMES）獨立會員點數、測試帳號權限與正式遊戲結算。</p>
+    <p class="modal-subtitle">登入後使用金寶寶娛樂城的獨立會員點數、測試帳號權限與正式遊戲結算。</p>
     <form class="real-login-form" id="realLoginForm">
       <label><span>會員帳號</span><input name="username" autocomplete="username" maxlength="40" required></label>
       <label><span>密碼</span><input name="password" type="password" autocomplete="current-password" required></label>
@@ -513,7 +513,7 @@ async function signOut(callServer = true) {
 function gameMatches(game) {
   if (game.category !== state.category) return false;
   if (!state.query) return true;
-  return `${game.name} ${game.nameEn} ${game.provider} ${game.category}`.toLocaleLowerCase("zh-Hant").includes(state.query);
+  return `${game.name} ${game.nameEn} ${game.category}`.toLocaleLowerCase("zh-Hant").includes(state.query);
 }
 
 function renderHero() {
@@ -532,7 +532,7 @@ function renderHero() {
   elements.heroTrack.innerHTML = games.map((game, index) => `
     <button class="hero-slide${index === 0 ? " is-active" : ""}" type="button" data-hero-game="${escapeHtml(game.id)}" aria-label="立即遊玩 ${escapeHtml(game.name)}">
       <img src="${escapeHtml(game.cover)}" alt="" loading="${index === 0 ? "eager" : "lazy"}">
-      <span class="hero-slide-copy"><small>${escapeHtml(game.provider)} · ${escapeHtml(game.category)}</small><strong>${escapeHtml(game.name)}</strong><em>立即遊玩</em></span>
+      <span class="hero-slide-copy"><small>${escapeHtml(game.category)}</small><strong>${escapeHtml(game.name)}</strong><em>立即遊玩</em></span>
     </button>`).join("");
   elements.carouselDots.innerHTML = games.map((game, index) => `<button class="${index === 0 ? "is-active" : ""}" type="button" data-slide="${index}" aria-label="顯示 ${escapeHtml(game.name)}"></button>`).join("");
   elements.heroCarousel.hidden = games.length === 0;
@@ -556,7 +556,7 @@ function renderGames() {
     launch.setAttribute("aria-label", `開啟 ${game.name}`);
     launch.innerHTML = `
       <div class="game-card-image">${game.badge ? `<span class="game-badge">${escapeHtml(game.badge)}</span>` : ""}<img src="${escapeHtml(game.cover)}" alt="${escapeHtml(game.name)}" loading="lazy"></div>
-      <div class="game-card-copy"><span class="game-card-title">${escapeHtml(game.name)}</span><span class="game-card-provider">${escapeHtml(game.provider)}</span></div>`;
+      <div class="game-card-copy"><span class="game-card-title">${escapeHtml(game.name)}</span></div>`;
     launch.querySelector("img")?.addEventListener("error", (event) => {
       event.currentTarget.hidden = true;
       event.currentTarget.parentElement?.classList.add("is-missing-cover");

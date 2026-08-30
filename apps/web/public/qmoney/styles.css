@@ -698,8 +698,7 @@ body.is-booting .view {
   text-shadow: 1px 1px 2px #0b1b32;
 }
 
-.game-card-title,
-.game-card-provider {
+.game-card-title {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -709,12 +708,6 @@ body.is-booting .view {
 .game-card-title {
   font-size: clamp(10px, 3.1vw, 14px);
   font-weight: 800;
-}
-
-.game-card-provider {
-  margin-top: -1px;
-  font-size: 8px;
-  opacity: 0.78;
 }
 
 .game-card.is-featured .game-card-title {

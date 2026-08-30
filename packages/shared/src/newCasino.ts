@@ -1,6 +1,6 @@
 import { GameId, isImportedGameTestUsername } from './games.js';
 
-export const NEW_CASINO_CATALOG_VERSION = 3;
+export const NEW_CASINO_CATALOG_VERSION = 4;
 
 export type NewCasinoCategory = '熱門' | '拉霸' | '捕魚' | '棋牌';
 
@@ -8,7 +8,6 @@ export interface NewCasinoGame {
   id: string;
   name: string;
   nameEn: string;
-  provider: string;
   category: NewCasinoCategory;
   cover: string;
   route: string;
@@ -39,7 +38,6 @@ function h5Game(
     id,
     name,
     nameEn,
-    provider: '原版 H5',
     category,
     cover: h5Cover(id),
     route: `/games/${id}`,
@@ -54,7 +52,6 @@ function megaSlot(id: string, name: string, nameEn: string, theme: string): NewC
     id,
     name,
     nameEn,
-    provider: 'MEGA SLOT',
     category: '拉霸',
     cover: `/slots/${theme}/cover-v2.png`,
     route: `/games/${id}`,
@@ -74,7 +71,6 @@ function tableGame(
     id,
     name,
     nameEn,
-    provider: 'JBB 棋牌',
     category: '棋牌',
     cover,
     route: options.route ?? `/games/${id}`,
@@ -89,7 +85,6 @@ const POPULAR_GAMES: readonly NewCasinoGame[] = [
     id: GameId.STORM_OF_SETH_2,
     name: '戰神賽特 II：覺醒之力',
     nameEn: 'Storm of Seth 2 – Awakening',
-    provider: 'ATG',
     category: '熱門',
     cover: '/game-art/original/storm-of-seth-2-cover-v1.webp',
     route: '/games/storm-of-seth-2',
@@ -101,7 +96,6 @@ const POPULAR_GAMES: readonly NewCasinoGame[] = [
     id: GameId.POWER_OF_THOR_2,
     name: '雷神之錘 2：雷霆風暴',
     nameEn: 'Power of Thor II: Thunder Storm',
-    provider: 'RSG',
     category: '熱門',
     cover: '/game-art/original/power-of-thor-2-cover-v1.png',
     route: '/games/power-of-thor-2',
@@ -113,7 +107,6 @@ const POPULAR_GAMES: readonly NewCasinoGame[] = [
     id: GameId.FRUIT_MARY,
     name: '歡樂水果機',
     nameEn: 'Fruit Mary',
-    provider: 'CLASSIC',
     category: '熱門',
     cover: '/game-art/generated/fruit-mary-cover-v1.png',
     route: '/games/fruit-mary',

@@ -25,7 +25,7 @@ for (const marker of [
   'data-category="棋牌"',
   'data-action="notices"',
   'id="heroTrack"',
-  '/qmoney/app.js?v=20260831-jbb-lobby-3',
+  '/qmoney/app.js?v=20260831-player-labels-5',
   'class="is-booting"',
   'id="bootView"',
   '金寶寶｜遊戲大廳',
@@ -59,7 +59,11 @@ assert.ok(!`${html}\n${css}\n${app}`.includes('錢女友'), 'legacy Qmoney displ
 assert.ok(!app.includes('獨立 Qmoney'), 'player-facing copy must not display the retired Qmoney name');
 assert.ok(!app.includes('Qmoney API'), 'player-facing errors must use the Jin Baobao service name');
 assert.ok(!app.includes('Qmoney 後台'), 'player-facing copy must use the Jin Baobao admin name');
-assert.ok(app.includes('JBB GAMES'), 'player-facing English brand must be JBB GAMES');
+for (const internalLabel of ['JBB GAMES', 'JBB 棋牌', 'ATG', 'RSG', 'MEGA SLOT', 'MEGASLOT', '原版 H5']) {
+  assert.ok(!app.includes(internalLabel), `internal provider label must not be player-facing: ${internalLabel}`);
+}
+assert.ok(!app.includes('game.provider'), 'the player lobby must not render or search internal provider metadata');
+assert.ok(!css.includes('game-card-provider'), 'provider labels must not reserve space on game cards');
 
 assert.match(
   app,
@@ -229,6 +233,7 @@ for (const relativePath of referencedAssets) {
 }
 
 const integration = JSON.parse(integrationText);
+assert.equal(integration.name, 'jin-baobao-casino-frontend');
 assert.equal(integration.authStorageKey, 'bg-auth');
 assert.equal(integration.gameRoutePrefix, '/games/');
 assert.ok(integration.assetCount >= referencedAssets.size);

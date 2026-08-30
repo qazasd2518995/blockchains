@@ -42,11 +42,12 @@ describe('new casino game catalog', () => {
     const namesIn = (category: string) =>
       result.games.filter((game) => game.category === category).map((game) => game.name);
 
-    expect(result.version).toBe(3);
+    expect(result.version).toBe(4);
     expect(result.games).toHaveLength(27);
     expect(new Set(result.games.map((game) => game.id)).size).toBe(27);
     expect(result.games.every((game) => game.route.startsWith('/games/'))).toBe(true);
     expect(result.games.every((game) => game.restricted)).toBe(true);
+    expect(result.games.every((game) => !Object.hasOwn(game, 'provider'))).toBe(true);
     expect(namesIn('熱門')).toEqual([
       '戰神賽特 II：覺醒之力',
       '雷神之錘 2：雷霆風暴',
