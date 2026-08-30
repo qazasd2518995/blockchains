@@ -2,7 +2,6 @@ const UI_ASSET_BASE = "/qmoney/assets/";
 const CONFIGURED_API_ORIGIN = String(window.__QMONEY_CONFIG__?.apiOrigin || "").replace(/\/$/, "");
 const API_BASE = `${CONFIGURED_API_ORIGIN}/api`;
 const AUTH_STORAGE_KEY = "bg-auth";
-const FAVORITES_STORAGE_KEY = "qmoney-new-casino-favorites";
 const PREFERENCES_STORAGE_KEY = "qmoney-lobby-preferences-v1";
 const GAME_BGM_PREFERENCES_KEY = "bg.bgm.prefs";
 const GAME_SFX_PREFERENCES_KEY = "bg.sfx.prefs";
@@ -31,41 +30,23 @@ const elements = {
   accountName: document.querySelector("#accountName"),
   accountId: document.querySelector("#accountId"),
   balanceValue: document.querySelector("#balanceValue"),
-  vipLevel: document.querySelector("#vipLevel"),
   balanceButton: document.querySelector(".balance-row"),
-  jackpotDigits: document.querySelector("#jackpotDigits"),
   tickerTrack: document.querySelector("#tickerTrack"),
-  heroSlides: [...document.querySelectorAll(".hero-slide")],
-  carouselDots: [...document.querySelectorAll("#carouselDots button")],
+  heroCarousel: document.querySelector("#heroCarousel"),
+  heroTrack: document.querySelector("#heroTrack"),
+  carouselDots: document.querySelector("#carouselDots"),
   loadingOverlay: document.querySelector("#loadingOverlay"),
   loadingImage: document.querySelector("#loadingImage"),
   loadingGameName: document.querySelector("#loadingGameName"),
   loginMusic: document.querySelector("#loginMusic"),
   lobbyMusic: document.querySelector("#lobbyMusic"),
-  storeMusic: document.querySelector("#storeMusic"),
   clickTab: document.querySelector("#clickTab"),
   clickGame: document.querySelector("#clickGame"),
   clickConfirm: document.querySelector("#clickConfirm"),
   clickCancel: document.querySelector("#clickCancel"),
-  clickFooter: document.querySelector("#clickFooter"),
-  addFavorite: document.querySelector("#addFavorite"),
-  removeFavorite: document.querySelector("#removeFavorite"),
-  getReward: document.querySelector("#getReward"),
 };
 
-const FALLBACK_NOTICES = [
-  { title: "金寶寶正式營運", content: "金寶寶遊戲大廳正式營運，所有遊戲皆採用正式點數與後端結算。", date: "2026/01/10", kind: "網站公告", icon: "a" },
-  { title: "新手指南", content: "登入測試會員後，從遊戲大廳選擇遊戲即可進入。遊戲點數與會員餘額共用。", date: "2026/01/11", kind: "全部通知", icon: "a" },
-  { title: "儲值管道", content: "本測試站目前由獨立 API 與資料庫管理，請依管理端設定進行點數作業。", date: "2026/01/11", kind: "銀行公告", icon: "a" },
-  { title: "多項活動大放送 🎁", content: "活動內容與開放期間以管理端最新公告為準。", date: "2026/01/11", kind: "福利通知", icon: "d" },
-  { title: "完成任務送好禮", content: "投注任務將依會員的有效投注紀錄自動累計。", date: "2026/01/11", kind: "福利通知", icon: "d" },
-  { title: "【嚴防詐騙／禁止代操／勿信謠言】", content: "請認明正式網站入口，請勿將帳號、密碼或驗證資訊交付他人。", date: "2026/01/11", kind: "網站公告", icon: "a" },
-  { title: "VIP等級條件調整通知", content: "VIP 等級、任務與獎勵內容以平台最新公告為準。", date: "2026/03/02", kind: "網站公告", icon: "a" },
-  { title: "【RSG 電子遊戲例行維護】", content: "館別維護期間遊戲入口將暫停開放，完成後自動恢復。", date: "2026/01/11", kind: "遊戲維護", icon: "b" },
-];
-
 const SETTINGS_COPY = {
-  blocklist: { title: "封鎖名單", body: "目前沒有封鎖的會員。這個測試大廳不會公開其他會員的個人資料。" },
   terms: { title: "服務條款", body: "使用本服務前請確認您已符合所在地的法定年齡與相關規範。測試帳號、點數及遊戲結果僅限授權測試用途。" },
   privacy: { title: "隱私條款", body: "平台只會使用登入、會員、點數與遊戲紀錄資料來提供本服務及維護帳號安全；權杖儲存在目前裝置，不會顯示於畫面或記錄到前端日誌。" },
   rules: { title: "遊戲規章", body: "遊戲下注、派彩、免費遊戲及中斷續玩皆以伺服器正式結算結果為準。請勿重複送出下注或嘗試繞過帳號權限。" },
@@ -75,8 +56,8 @@ const state = {
   session: readStoredSession(),
   games: [],
   category: "全部",
+  provider: "全部",
   query: "",
-  favorites: readFavorites(),
   currentSlide: 0,
   ...readPreferences(),
   isLobby: false,
@@ -84,16 +65,20 @@ const state = {
   activeGame: null,
   catalogError: "",
   accessDenied: false,
-  notices: [...FALLBACK_NOTICES],
-  noticeMode: "公告",
-  noticeKind: "全部通知",
-  personalTab: "我的",
+  notices: [],
+  history: {
+    period: "7d",
+    items: [],
+    summary: null,
+    nextCursor: null,
+    loading: false,
+    error: "",
+    requestId: 0,
+  },
   modalKind: "",
   toastTimer: null,
   balanceTimer: null,
   lastFocus: null,
-  jackpotValue: 335141310,
-  personalSummary: null,
 };
 
 let refreshInFlight = null;
@@ -119,7 +104,7 @@ function formatAmount(value) {
 
 function formatDate(value) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "2026/01/11";
+  if (Number.isNaN(date.getTime())) return "--";
   return new Intl.DateTimeFormat("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
 
@@ -141,19 +126,6 @@ function persistSession(session) {
     return;
   }
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ state: session, version: 0 }));
-}
-
-function readFavorites() {
-  try {
-    const values = JSON.parse(window.localStorage.getItem(FAVORITES_STORAGE_KEY) || "[]");
-    return new Set(Array.isArray(values) ? values.filter((value) => typeof value === "string") : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function persistFavorites() {
-  window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...state.favorites]));
 }
 
 function readPreferences() {
@@ -321,7 +293,7 @@ function playSound(node) {
 
 function syncMusic(scene = state.musicScene) {
   state.musicScene = scene;
-  const tracks = { login: elements.loginMusic, lobby: elements.lobbyMusic, shop: elements.storeMusic };
+  const tracks = { login: elements.loginMusic, lobby: elements.lobbyMusic };
   const activeTrack = tracks[scene] || elements.lobbyMusic;
   for (const track of Object.values(tracks)) {
     if (track !== activeTrack) {
@@ -368,17 +340,12 @@ function sourcePopup(ribbon, body) {
   return `<div class="source-popup-ribbon">${ribbon}</div><div class="source-popup-body">${body}</div>`;
 }
 
-function ribbonTabs(tabs, active, action) {
-  return `<div class="ribbon-tabs">${tabs.map((tab) => `<button class="${tab === active ? "is-active" : ""}" type="button" data-modal-action="${action}" data-value="${escapeHtml(tab)}">${escapeHtml(tab)}</button>`).join("")}</div>`;
-}
-
 function updateAccount() {
   const user = state.session?.user;
   const username = user?.username || "--";
   elements.accountName.textContent = user?.displayName || username || "會員";
   elements.accountId.textContent = username;
   elements.balanceValue.textContent = formatAmount(user?.balance);
-  elements.vipLevel.textContent = String(user?.vipLevel ?? 0);
 }
 
 function loginFormMarkup(captcha, message = "") {
@@ -445,6 +412,8 @@ async function loadCatalog() {
   state.accessDenied = !isTestPlayer();
   if (state.accessDenied) {
     state.games = [];
+    renderProviders();
+    renderHero();
     renderGames();
     return;
   }
@@ -455,6 +424,8 @@ async function loadCatalog() {
     state.games = [];
     state.catalogError = error.message;
   }
+  renderProviders();
+  renderHero();
   renderGames();
 }
 
@@ -466,17 +437,19 @@ async function loadAnnouncements() {
   const [marqueeResult, popupResult] = await Promise.allSettled(requests);
   const marqueeItems = marqueeResult.status === "fulfilled" && Array.isArray(marqueeResult.value?.items) ? marqueeResult.value.items : [];
   const popupItems = popupResult.status === "fulfilled" && Array.isArray(popupResult.value?.items) ? popupResult.value.items : [];
-  if (popupItems.length) {
-    state.notices = popupItems.map((item, index) => ({
-      title: String(item.content || "平台公告").split(/[\n。]/)[0].slice(0, 28) || "平台公告",
-      content: String(item.content || ""),
-      date: formatDate(item.createdAt),
-      kind: index % 3 === 0 ? "福利通知" : "網站公告",
-      icon: index % 3 === 0 ? "d" : "a",
-    }));
-  }
+  const allNotices = [...popupItems, ...marqueeItems].filter((item, index, items) => {
+    const key = String(item.id || item.content || "");
+    return items.findIndex((candidate) => String(candidate.id || candidate.content || "") === key) === index;
+  });
+  state.notices = allNotices.map((item) => ({
+    title: String(item.content || "平台公告").split(/[\n。]/)[0].slice(0, 28) || "平台公告",
+    content: String(item.content || ""),
+    date: formatDate(item.createdAt),
+    kind: "系統公告",
+    icon: "a",
+  }));
   const tickerMessages = marqueeItems.map((item) => String(item.content || "").trim()).filter(Boolean);
-  elements.tickerTrack.textContent = tickerMessages.length ? tickerMessages.join("　｜　") : FALLBACK_NOTICES.slice(0, 5).map((item) => item.title).join("　｜　");
+  elements.tickerTrack.textContent = tickerMessages.length ? tickerMessages.join("　｜　") : "目前沒有新公告";
 }
 
 async function refreshBalance(quiet = false) {
@@ -505,7 +478,6 @@ function activateLobbyView() {
   elements.lobbyView.setAttribute("aria-hidden", "false");
   elements.loginView.setAttribute("aria-hidden", "true");
   updateAccount();
-  renderJackpot();
   syncMusic("lobby");
   finishInitialView();
 }
@@ -546,19 +518,50 @@ async function signOut(callServer = true) {
 function gameMatches(game) {
   let inCategory = false;
   if (state.category === "全部") inCategory = true;
-  else if (state.category === "最愛") inCategory = state.favorites.has(game.id);
   else if (state.category === "電子") inCategory = game.category === "賽特" || game.category === "雷神" || game.category === "H5拉霸" || game.category === "MegaSlot";
   else if (state.category === "捕魚") inCategory = game.category === "捕魚";
-  else if (state.category === "加密遊戲") inCategory = game.category === "MegaSlot";
-  else if (state.category === "棋牌") inCategory = game.category === "棋牌";
   if (!inCategory) return false;
+  if (state.provider !== "全部" && game.provider !== state.provider) return false;
   if (!state.query) return true;
   return `${game.name} ${game.nameEn} ${game.provider} ${game.category}`.toLocaleLowerCase("zh-Hant").includes(state.query);
 }
 
+function renderProviders() {
+  const providers = ["全部", ...new Set(state.games.map((game) => String(game.provider || "").trim()).filter(Boolean))];
+  if (!providers.includes(state.provider)) state.provider = "全部";
+  elements.providerStrip.innerHTML = providers.map((provider) => `
+    <button class="provider-button${provider === state.provider ? " is-active" : ""}" type="button" data-provider="${escapeHtml(provider)}">
+      <span>${provider === "全部" ? "全部館別" : escapeHtml(provider)}</span>
+    </button>`).join("");
+  elements.providerStrip.hidden = providers.length <= 1;
+}
+
+function renderHero() {
+  const priorities = ["power-of-thor-2", "storm-of-seth-2"];
+  const games = [...state.games]
+    .sort((a, b) => {
+      const aPriority = priorities.indexOf(a.id);
+      const bPriority = priorities.indexOf(b.id);
+      if (aPriority >= 0 || bPriority >= 0) return (aPriority < 0 ? 99 : aPriority) - (bPriority < 0 ? 99 : bPriority);
+      if (a.category === "捕魚" && b.category !== "捕魚") return -1;
+      if (b.category === "捕魚" && a.category !== "捕魚") return 1;
+      return Number(Boolean(b.featured)) - Number(Boolean(a.featured));
+    })
+    .filter((game, index, all) => index < 6 && all.findIndex((item) => item.id === game.id) === index);
+
+  elements.heroTrack.innerHTML = games.map((game, index) => `
+    <button class="hero-slide${index === 0 ? " is-active" : ""}" type="button" data-hero-game="${escapeHtml(game.id)}" aria-label="立即遊玩 ${escapeHtml(game.name)}">
+      <img src="${escapeHtml(game.cover)}" alt="" loading="${index === 0 ? "eager" : "lazy"}">
+      <span class="hero-slide-copy"><small>${escapeHtml(game.provider)} · ${escapeHtml(game.category)}</small><strong>${escapeHtml(game.name)}</strong><em>立即遊玩</em></span>
+    </button>`).join("");
+  elements.carouselDots.innerHTML = games.map((game, index) => `<button class="${index === 0 ? "is-active" : ""}" type="button" data-slide="${index}" aria-label="顯示 ${escapeHtml(game.name)}"></button>`).join("");
+  elements.heroCarousel.hidden = games.length === 0;
+  state.currentSlide = 0;
+}
+
 function renderGames() {
   const visibleGames = state.games.filter(gameMatches);
-  const titles = { 全部: "熱門遊戲", 最愛: "我的最愛", 電子: "電子遊戲", 捕魚: "捕魚遊戲", 棋牌: "棋牌遊戲", 加密遊戲: "加密遊戲" };
+  const titles = { 全部: "熱門遊戲", 電子: "電子遊戲", 捕魚: "捕魚遊戲" };
   elements.gamesTitle.textContent = titles[state.category] || state.category;
   elements.gamesCount.textContent = visibleGames.length ? `${visibleGames.length} 款` : "";
   elements.gameGrid.replaceChildren();
@@ -578,13 +581,7 @@ function renderGames() {
       event.currentTarget.hidden = true;
       event.currentTarget.parentElement?.classList.add("is-missing-cover");
     });
-    const favorite = document.createElement("button");
-    favorite.className = `favorite-button${state.favorites.has(game.id) ? " is-favorite" : ""}`;
-    favorite.type = "button";
-    favorite.dataset.favorite = game.id;
-    favorite.setAttribute("aria-label", `${state.favorites.has(game.id) ? "移除" : "加入"}${game.name}最愛`);
-    favorite.textContent = state.favorites.has(game.id) ? "♥" : "♡";
-    card.append(launch, favorite);
+    card.append(launch);
     elements.gameGrid.append(card);
   }
   elements.emptyState.hidden = visibleGames.length > 0;
@@ -600,6 +597,12 @@ function renderGames() {
 function selectCategory(category) {
   state.category = category;
   for (const tab of elements.categoryTabs.querySelectorAll(".category-tab")) tab.classList.toggle("is-active", tab.dataset.category === category);
+  renderGames();
+}
+
+function selectProvider(provider) {
+  state.provider = provider;
+  for (const button of elements.providerStrip.querySelectorAll("[data-provider]")) button.classList.toggle("is-active", button.dataset.provider === provider);
   renderGames();
 }
 
@@ -626,40 +629,6 @@ function launchActiveGame() {
   window.setTimeout(() => window.location.assign(target), 320);
 }
 
-function toggleFavorite(gameId) {
-  const game = state.games.find((item) => item.id === gameId);
-  if (!game) return;
-  if (state.favorites.has(gameId)) {
-    state.favorites.delete(gameId);
-    playSound(elements.removeFavorite);
-    showToast(`已將「${game.name}」移出最愛`);
-  } else {
-    state.favorites.add(gameId);
-    playSound(elements.addFavorite);
-    showToast(`已將「${game.name}」加入最愛`);
-  }
-  persistFavorites();
-  renderGames();
-}
-
-function renderJackpot() {
-  const formatted = String(Math.max(0, Math.floor(state.jackpotValue))).padStart(9, "0").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  elements.jackpotDigits.replaceChildren();
-  for (const [index, character] of [...formatted].entries()) {
-    const image = document.createElement("img");
-    image.alt = character;
-    image.style.animationDelay = `${index * 22}ms`;
-    if (character === ",") {
-      image.src = uiAsset("imgs_soc/jackpot/jp_comma.webp");
-      image.className = "is-comma";
-    } else {
-      image.src = uiAsset(`imgs_soc/jackpot/jp_${character}.webp`);
-    }
-    elements.jackpotDigits.append(image);
-  }
-  elements.jackpotDigits.setAttribute("aria-label", `Jackpot ${formatted}`);
-}
-
 function showSettings(page = "root") {
   state.modalKind = "settings";
   if (page !== "root" && SETTINGS_COPY[page]) {
@@ -670,12 +639,12 @@ function showSettings(page = "root") {
   const body = `
     <div class="settings-list">
       <div class="setting-row"><span>音效設定</span><div class="audio-controls"><button class="audio-toggle ${state.musicOn ? "is-on" : ""}" type="button" data-modal-action="toggle-music" aria-label="切換背景音樂"></button><button class="audio-toggle ${state.soundOn ? "is-on" : ""}" type="button" data-modal-action="toggle-sound" aria-label="切換遊戲音效"></button></div></div>
-      <button class="setting-row setting-row--button" type="button" data-modal-action="settings-page" data-value="blocklist"><span>封鎖名單</span></button>
+      <button class="setting-row setting-row--button" type="button" data-modal-action="game-history"><span>遊戲紀錄</span><strong>正式注單</strong></button>
       <button class="setting-row setting-row--button" type="button" data-modal-action="settings-page" data-value="terms"><span>服務條款</span></button>
       <button class="setting-row setting-row--button" type="button" data-modal-action="settings-page" data-value="privacy"><span>隱私條款</span></button>
       <button class="setting-row setting-row--button" type="button" data-modal-action="settings-page" data-value="rules"><span>遊戲規章</span></button>
     </div>
-    <div class="settings-footer"><button class="logout-pill" type="button" data-modal-action="logout">登出</button><span class="version-copy">版本號: v1.00</span></div>`;
+    <div class="settings-footer"><button class="logout-pill" type="button" data-modal-action="logout">登出</button></div>`;
   setModal(sourcePopup(`<span id="modalTitle">設定</span>`, body), "source-popup");
 }
 
@@ -683,119 +652,152 @@ function noticeIcon(item) {
   return uiAsset(`imgs_soc/icon/notic/${item.icon || "all"}.webp`);
 }
 
-function filteredNotices() {
-  if (state.noticeKind === "全部通知") return state.notices;
-  return state.notices.filter((item) => item.kind === state.noticeKind);
-}
-
 function showNotices(detailIndex = null) {
   state.modalKind = "notices";
-  const tabs = ribbonTabs(["活動", "公告"], state.noticeMode, "notice-mode");
+  const ribbon = `<span id="modalTitle">系統公告</span>`;
   if (detailIndex !== null) {
     const notice = state.notices[detailIndex];
     if (!notice) return showNotices();
     const detail = `<div class="notice-detail"><button class="back-pill" type="button" data-modal-action="notice-back">‹ 返回公告</button><h3>${escapeHtml(notice.title)}</h3><time>${escapeHtml(notice.date)}</time><p>${escapeHtml(notice.content)}</p></div>`;
-    setModal(sourcePopup(tabs, detail), "source-popup");
+    setModal(sourcePopup(ribbon, detail), "source-popup");
     return;
   }
-  const kinds = [
-    ["全部通知", "all"],
-    ["福利通知", "d"],
-    ["網站公告", "a"],
-    ["遊戲維護", "b"],
-    ["銀行公告", "c"],
-  ];
-  const kindMarkup = `<div class="notice-kinds">${kinds.map(([label, icon]) => `<button class="${state.noticeKind === label ? "is-active" : ""}" type="button" data-modal-action="notice-kind" data-value="${label}"><img src="${uiAsset(`imgs_soc/icon/notic/${icon}.webp`)}" alt=""><span>${label}</span></button>`).join("")}</div>`;
-  const list = filteredNotices().map((item) => {
-    const index = state.notices.indexOf(item);
+  const list = state.notices.map((item, index) => {
     return `<button class="notice-item" type="button" data-modal-action="notice-detail" data-value="${index}"><img src="${noticeIcon(item)}" alt=""><span class="notice-item-copy"><strong>${escapeHtml(item.title)}</strong><time>${escapeHtml(item.date)}</time></span><span class="notice-arrow">›</span></button>`;
   }).join("");
-  const empty = `<div class="placeholder-panel"><div><img src="${uiAsset("imgs_soc/media/empty.webp")}" alt=""><p>目前沒有這個分類的公告</p></div></div>`;
-  setModal(sourcePopup(tabs, `${kindMarkup}<div class="notice-list">${list || empty}</div>`), "source-popup");
+  const empty = `<div class="placeholder-panel"><div><img src="${uiAsset("imgs_soc/media/empty.webp")}" alt=""><p>目前沒有系統公告</p></div></div>`;
+  setModal(sourcePopup(ribbon, `<div class="notice-list">${list || empty}</div>`), "source-popup");
 }
 
-function historyMarkup(result) {
-  const items = Array.isArray(result?.items) ? result.items : [];
-  const rows = items.length
-    ? items.map((item) => `<div class="history-row"><div><strong>${escapeHtml(item.gameId || item.type)}</strong><span>${escapeHtml(new Date(item.createdAt).toLocaleString("zh-TW"))}</span></div><div><strong class="${Number(item.profit) >= 0 ? "is-positive" : "is-negative"}">${Number(item.profit) >= 0 ? "+" : ""}${formatAmount(item.profit)}</strong><span>下注 ${formatAmount(item.betAmount)}</span></div></div>`).join("")
-    : '<div class="placeholder-panel"><div><img src="/qmoney/assets/imgs_soc/media/empty.webp" alt=""><p>目前還沒有投注紀錄</p></div></div>';
-  return `<div class="history-summary"><span>總有效下注<strong>${formatAmount(result?.summary?.validAmount ?? 0)}</strong></span><span>總輸贏<strong>${formatAmount(result?.summary?.net ?? 0)}</strong></span></div><div class="history-list">${rows}</div>`;
+const HISTORY_PERIODS = [
+  ["today", "今日"],
+  ["7d", "近 7 日"],
+  ["30d", "近 30 日"],
+  ["all", "全部"],
+];
+
+function gameDisplayName(gameId) {
+  return state.games.find((game) => game.id === gameId)?.name || gameId || "遊戲注單";
 }
 
-function personalHomeMarkup() {
-  const user = state.session?.user || {};
-  const username = user.username || "--";
-  const nickname = user.displayName || username;
-  const summary = state.personalSummary?.summary || {};
-  const validAmount = Math.max(0, Number(summary.validAmount || 0));
-  const target = 3000;
-  const progress = Math.min(100, (validAmount / target) * 100);
-  return `
-    <div class="personal-profile">
-      <div class="personal-avatar"><img src="/qmoney/assets/brand/jin-baobao-avatar.webp" alt="會員頭像"></div>
-      <div class="personal-name"><small>暱稱</small><strong>${escapeHtml(nickname)}</strong><span>${escapeHtml(username)}</span><div class="personal-mini-actions"><button type="button" data-modal-action="profile-hint">♻ 改暱稱</button><button type="button" data-modal-action="notices">📣 大聲公</button></div></div>
-    </div>
-    <div class="personal-actions"><button type="button" data-modal-action="share">⌯ 分享連結</button><button type="button" data-modal-action="personal-history">▣ 遊戲紀錄</button></div>
-    <div class="personal-signature">歡迎來到金寶寶遊戲大廳</div>
-    <div class="vip-card">
-      <div class="vip-medal"><img src="${uiAsset("imgs_soc/vip/lv0.webp")}" alt="VIP 0"><strong>VIP Level 0</strong></div>
-      <div class="vip-info"><div class="vip-info-row"><span>會員帳號</span><strong>${escapeHtml(username)}</strong></div><div class="vip-info-row"><span>會員餘額</span><strong>${formatAmount(user.balance)}</strong></div><div class="vip-info-row"><span>手機認證</span><strong>測試帳號</strong></div><div class="vip-info-row"><span>介紹人</span><strong>金寶寶SEO</strong></div></div>
-    </div>
-    <div class="task-card"><div class="task-title"><span><img src="${uiAsset("imgs_soc/personal/9584568 1.png")}" alt="">投注任務</span><b class="task-state">${progress >= 100 ? "已達標" : "未達標"}</b></div><div class="task-line"><span>本週已投注</span><strong>${formatAmount(validAmount)} / ${target.toLocaleString("zh-TW")}</strong></div><div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div><div class="task-line"><span>達標獎勵</span><strong>🪙 8</strong></div></div>`;
+function historyPeriodStart(period) {
+  if (period === "all") return null;
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  if (period === "7d") date.setDate(date.getDate() - 6);
+  if (period === "30d") date.setDate(date.getDate() - 29);
+  return date.toISOString();
 }
 
-function personalPlaceholder(tab) {
-  const copy = tab === "信箱" ? ["icon/message.webp", "目前沒有新訊息"] : ["icon/user-lock.webp", "好友功能目前僅供測試帳號使用"];
-  return `<div class="placeholder-panel"><div><img src="${uiAsset(`imgs_soc/${copy[0]}`)}" alt=""><p>${copy[1]}</p></div></div>`;
-}
-
-function renderPersonal() {
-  const tabs = ribbonTabs(["我的", "存摺", "信箱", "好友"], state.personalTab, "personal-tab");
-  let body = personalHomeMarkup();
-  if (state.personalTab === "存摺") body = state.personalSummary ? historyMarkup(state.personalSummary) : '<div class="placeholder-panel"><div><img src="/qmoney/assets/imgs_soc/media/loading.gif" alt=""><p>正在載入投注紀錄</p></div></div>';
-  else if (state.personalTab === "信箱" || state.personalTab === "好友") body = personalPlaceholder(state.personalTab);
-  setModal(sourcePopup(tabs, body), "source-popup");
-}
-
-async function showPersonal(tab = "我的") {
-  state.modalKind = "personal";
-  state.personalTab = tab;
-  renderPersonal();
-  if (!state.personalSummary) {
-    try {
-      state.personalSummary = await apiRequest("/wallet/transactions?limit=20");
-      if (state.modalKind === "personal") renderPersonal();
-    } catch {
-      state.personalSummary = { items: [], summary: { validAmount: 0, net: 0 } };
-      if (state.modalKind === "personal") renderPersonal();
-    }
+function updateSourceModal(title, body) {
+  const content = sourcePopup(`<span id="modalTitle">${escapeHtml(title)}</span>`, body);
+  if (elements.modalBackdrop.hidden) setModal(content, "source-popup");
+  else {
+    elements.modalCard.className = "modal-card source-popup";
+    elements.modalContent.innerHTML = content;
   }
 }
 
-function showSimplePopup(title, icon, message, musicScene = "lobby") {
-  state.modalKind = "simple";
-  syncMusic(musicScene);
-  const body = `<div class="placeholder-panel"><div><img src="${uiAsset(icon)}" alt=""><h3>${escapeHtml(title)}</h3><p>${escapeHtml(message)}</p></div></div>`;
-  setModal(sourcePopup(`<span id="modalTitle">${escapeHtml(title)}</span>`, body), "source-popup");
+function historyRowMarkup(item) {
+  const profit = Number(item.profit || 0);
+  const hasDetail = Boolean(item.betId);
+  return `<button class="history-row" type="button" ${hasDetail ? `data-modal-action="history-detail" data-value="${escapeHtml(item.betId)}"` : "disabled"}>
+    <span class="history-row-main"><strong>${escapeHtml(gameDisplayName(item.gameId))}</strong><time>${escapeHtml(new Date(item.createdAt).toLocaleString("zh-TW"))}</time><small>注單 ${escapeHtml(String(item.betId || item.id).slice(-10))}</small></span>
+    <span class="history-row-money"><strong class="${profit >= 0 ? "is-positive" : "is-negative"}">${profit >= 0 ? "+" : ""}${formatAmount(profit)}</strong><small>下注 ${formatAmount(item.betAmount)} · 派彩 ${formatAmount(item.payout)}</small><em>餘額 ${formatAmount(item.balanceAfter)} ›</em></span>
+  </button>`;
 }
 
-async function shareLobby() {
-  const shareData = { title: "金寶寶遊戲大廳", text: "金寶寶遊戲大廳", url: window.location.href };
+function renderGameHistory() {
+  const history = state.history;
+  const periodButtons = HISTORY_PERIODS.map(([value, label]) => `<button class="${history.period === value ? "is-active" : ""}" type="button" data-modal-action="history-period" data-value="${value}">${label}</button>`).join("");
+  let list = history.items.map(historyRowMarkup).join("");
+  if (history.loading && history.items.length === 0) list = `<div class="history-state"><img src="${uiAsset("imgs_soc/media/loading.gif")}" alt=""><p>正在讀取正式注單</p></div>`;
+  else if (history.error && history.items.length === 0) list = `<div class="history-state"><p>${escapeHtml(history.error)}</p><button type="button" data-modal-action="history-refresh">重新載入</button></div>`;
+  else if (!list) list = `<div class="history-state"><img src="${uiAsset("imgs_soc/media/empty.webp")}" alt=""><p>這個期間沒有遊戲注單</p></div>`;
+  const summary = history.summary || {};
+  const body = `
+    <div class="history-periods" aria-label="紀錄期間">${periodButtons}</div>
+    <div class="history-summary">
+      <span>注單數<strong>${Number(summary.totalCount || 0).toLocaleString("zh-TW")}</strong></span>
+      <span>有效下注<strong>${formatAmount(summary.validAmount || 0)}</strong></span>
+      <span>總輸贏<strong class="${Number(summary.net || 0) >= 0 ? "is-positive" : "is-negative"}">${Number(summary.net || 0) >= 0 ? "+" : ""}${formatAmount(summary.net || 0)}</strong></span>
+    </div>
+    ${history.error && history.items.length ? `<p class="history-inline-error">${escapeHtml(history.error)}</p>` : ""}
+    <div class="history-list">${list}</div>
+    ${history.nextCursor ? `<button class="history-more" type="button" data-modal-action="history-more" ${history.loading ? "disabled" : ""}>${history.loading ? "載入中…" : "載入更多"}</button>` : ""}`;
+  updateSourceModal("遊戲紀錄", body);
+}
+
+async function loadGameHistory(reset = true) {
+  const history = state.history;
+  const requestId = history.requestId + 1;
+  history.requestId = requestId;
+  history.loading = true;
+  history.error = "";
+  if (reset) {
+    history.items = [];
+    history.summary = null;
+    history.nextCursor = null;
+  }
+  renderGameHistory();
+  const params = new URLSearchParams({ limit: "20" });
+  const from = historyPeriodStart(history.period);
+  if (from) params.set("from", from);
+  if (!reset && history.nextCursor) params.set("cursor", history.nextCursor);
   try {
-    if (navigator.share) await navigator.share(shareData);
-    else {
-      await navigator.clipboard.writeText(window.location.href);
-      showToast("分享連結已複製");
-    }
-  } catch {
-    // User cancellation is not an error that needs UI.
+    const result = await apiRequest(`/wallet/transactions?${params.toString()}`);
+    if (history.requestId !== requestId) return;
+    history.items = reset ? (result.items || []) : [...history.items, ...(result.items || [])];
+    history.summary = result.summary || null;
+    history.nextCursor = result.nextCursor || null;
+  } catch (error) {
+    if (history.requestId !== requestId) return;
+    history.error = error.message;
+  } finally {
+    if (history.requestId === requestId) history.loading = false;
+    if (state.modalKind === "game-history") renderGameHistory();
+  }
+}
+
+function showGameHistory(period = state.history.period) {
+  state.modalKind = "game-history";
+  state.history.period = period;
+  void loadGameHistory(true);
+}
+
+async function showBetDetail(betId) {
+  state.modalKind = "bet-detail";
+  updateSourceModal("注單明細", `<div class="history-state"><img src="${uiAsset("imgs_soc/media/loading.gif")}" alt=""><p>正在讀取單局明細</p></div>`);
+  try {
+    const detail = await apiRequest(`/wallet/bets/${encodeURIComponent(betId)}`);
+    if (state.modalKind !== "bet-detail") return;
+    const profit = Number(detail.profit || 0);
+    const multiplier = Number(detail.multiplier || 0);
+    const rows = [
+      ["遊戲", gameDisplayName(detail.gameId)],
+      ["下注時間", new Date(detail.createdAt).toLocaleString("zh-TW")],
+      ["下注金額", formatAmount(detail.amount)],
+      ["派彩金額", formatAmount(detail.payout)],
+      ["輸贏", `${profit >= 0 ? "+" : ""}${formatAmount(profit)}`],
+      ["派彩倍數", `${multiplier.toLocaleString("zh-TW", { maximumFractionDigits: 4 })}x`],
+      ["狀態", detail.status === "SETTLED" ? "已結算" : String(detail.status || "--")],
+      ["注單編號", detail.id],
+    ];
+    const body = `<div class="bet-detail"><button class="back-pill" type="button" data-modal-action="history-back">‹ 返回遊戲紀錄</button>${rows.map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}</div>`;
+    updateSourceModal("注單明細", body);
+  } catch (error) {
+    if (state.modalKind !== "bet-detail") return;
+    updateSourceModal("注單明細", `<div class="history-state"><p>${escapeHtml(error.message)}</p><button type="button" data-modal-action="history-back">返回遊戲紀錄</button></div>`);
   }
 }
 
 function setSlide(index) {
-  state.currentSlide = (index + elements.heroSlides.length) % elements.heroSlides.length;
-  elements.heroSlides.forEach((slide, i) => slide.classList.toggle("is-active", i === state.currentSlide));
-  elements.carouselDots.forEach((dot, i) => dot.classList.toggle("is-active", i === state.currentSlide));
+  const slides = [...elements.heroTrack.querySelectorAll(".hero-slide")];
+  const dots = [...elements.carouselDots.querySelectorAll("button")];
+  if (slides.length === 0) return;
+  state.currentSlide = (index + slides.length) % slides.length;
+  slides.forEach((slide, i) => slide.classList.toggle("is-active", i === state.currentSlide));
+  dots.forEach((dot, i) => dot.classList.toggle("is-active", i === state.currentSlide));
 }
 
 elements.modalClose.addEventListener("click", () => { playSound(elements.clickCancel); closeModal(); });
@@ -810,16 +812,16 @@ elements.modalContent.addEventListener("click", (event) => {
   else if (action === "toggle-music") { state.musicOn = !state.musicOn; control.classList.toggle("is-on", state.musicOn); persistPreferences(); syncMusic(); }
   else if (action === "toggle-sound") { state.soundOn = !state.soundOn; control.classList.toggle("is-on", state.soundOn); persistPreferences(); playSound(elements.clickConfirm); }
   else if (action === "logout") void signOut();
+  else if (action === "game-history") showGameHistory();
   else if (action === "settings-page") showSettings(value);
   else if (action === "settings-back") showSettings();
-  else if (action === "notice-mode") { state.noticeMode = value; showNotices(); }
-  else if (action === "notice-kind") { state.noticeKind = value; showNotices(); }
   else if (action === "notice-detail") showNotices(Number(value));
-  else if (action === "notice-back" || action === "notices") showNotices();
-  else if (action === "personal-tab") void showPersonal(value);
-  else if (action === "personal-history") void showPersonal("存摺");
-  else if (action === "share") void shareLobby();
-  else if (action === "profile-hint") showToast("暱稱修改由代理後台管理");
+  else if (action === "notice-back") showNotices();
+  else if (action === "history-period") showGameHistory(value);
+  else if (action === "history-refresh") void loadGameHistory(true);
+  else if (action === "history-more") void loadGameHistory(false);
+  else if (action === "history-detail") void showBetDetail(value);
+  else if (action === "history-back") { state.modalKind = "game-history"; renderGameHistory(); }
   else if (action === "close") closeModal();
 });
 
@@ -829,12 +831,11 @@ elements.categoryTabs.addEventListener("click", (event) => {
 });
 
 elements.providerStrip.addEventListener("click", (event) => {
-  const provider = event.target.closest("[data-provider-category]");
+  const provider = event.target.closest("[data-provider]");
   if (!provider) return;
   playSound(elements.clickTab);
-  for (const button of elements.providerStrip.querySelectorAll("button")) button.classList.toggle("is-active", button === provider);
   provider.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-  selectCategory(provider.dataset.providerCategory);
+  selectProvider(provider.dataset.provider);
 });
 
 elements.gameSearch.addEventListener("input", (event) => {
@@ -855,14 +856,18 @@ elements.searchClose.addEventListener("click", () => {
 });
 
 elements.gameGrid.addEventListener("click", (event) => {
-  const favorite = event.target.closest("[data-favorite]");
-  if (favorite) return toggleFavorite(favorite.dataset.favorite);
   const launch = event.target.closest("[data-game]");
   if (launch) showGame(launch.dataset.game);
 });
 
-elements.carouselDots.forEach((dot) => dot.addEventListener("click", () => setSlide(Number(dot.dataset.slide))));
-elements.heroSlides.forEach((slide) => slide.addEventListener("click", showNotices));
+elements.carouselDots.addEventListener("click", (event) => {
+  const dot = event.target.closest("[data-slide]");
+  if (dot) setSlide(Number(dot.dataset.slide));
+});
+elements.heroTrack.addEventListener("click", (event) => {
+  const slide = event.target.closest("[data-hero-game]");
+  if (slide) showGame(slide.dataset.heroGame);
+});
 
 elements.lobbyView.addEventListener("click", (event) => {
   const button = event.target.closest("[data-action]");
@@ -870,28 +875,11 @@ elements.lobbyView.addEventListener("click", (event) => {
   playSound(elements.clickTab);
   const action = button.dataset.action;
   if (action === "settings") showSettings();
-  else if (action === "profile") void showPersonal();
   else if (action === "notices") showNotices();
-  else if (action === "jackpot") showSimplePopup("幸運彩池", "brand/jin-baobao-mascot.webp", "Jackpot 數字會持續更新；遊戲派彩仍以各遊戲伺服器結算為準。", "lobby");
-  else if (action === "check-in") { playSound(elements.getReward); showSimplePopup("每日簽到", "imgs_soc/media/CheckIn.webp", "簽到與任務獎勵將依管理端活動設定開放。", "lobby"); }
   else if (action === "refresh-balance") void refreshBalance();
   else if (action === "scroll-top") elements.lobbyScroll.scrollTo({ top: 0, behavior: "smooth" });
 });
 
-document.querySelector(".bottom-nav").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-footer]");
-  if (!button) return;
-  playSound(elements.clickFooter);
-  for (const item of document.querySelectorAll(".bottom-nav button")) item.classList.toggle("is-active", item === button);
-  const action = button.dataset.footer;
-  if (action === "其他") { syncMusic("lobby"); selectCategory("全部"); elements.lobbyScroll.scrollTo({ top: 0, behavior: "smooth" }); }
-  else if (action === "排行榜") showSimplePopup("排行榜", "imgs_soc/ranking/1.webp", "排行榜將依有效投注與活動期間結果顯示。", "lobby");
-  else if (action === "商城") showSimplePopup("商城", "imgs_soc/footer/store.webp", "會員商城與兌換內容由金寶寶獨立營運後台管理。", "shop");
-  else if (action === "贈禮") showSimplePopup("贈禮", "imgs_soc/gift.webp", "贈禮功能將依測試活動設定開放。", "lobby");
-  else if (action === "公會") showSimplePopup("公會", "imgs_soc/footer/guild.webp", "公會功能目前尚未建立會員資料。", "lobby");
-});
-
-document.querySelector("#lineLogin").addEventListener("click", () => void showLoginForm());
 document.querySelector("#webLogin").addEventListener("click", () => void showLoginForm());
 document.addEventListener("pointerdown", () => syncMusic(state.isLobby ? "lobby" : "login"), { once: true, capture: true });
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeModal(); });
@@ -911,16 +899,10 @@ window.addEventListener("storage", (event) => {
   else if (state.isLobby) { updateAccount(); void refreshBalance(true); }
 });
 
-window.setInterval(() => { if (state.isLobby && elements.modalBackdrop.hidden) setSlide(state.currentSlide + 1); }, 4_800);
-window.setInterval(() => {
-  if (!state.isLobby || document.visibilityState !== "visible") return;
-  state.jackpotValue += Math.floor(Math.random() * 700) + 12;
-  renderJackpot();
-}, 4_200);
+window.setInterval(() => { if (state.isLobby && elements.modalBackdrop.hidden && document.visibilityState === "visible") setSlide(state.currentSlide + 1); }, 4_800);
 
 async function bootstrap() {
   syncGameAudioPreferences();
-  renderJackpot();
   if (!state.session) return showLoginView();
   // Restore the persisted member shell synchronously. Waiting for /auth/me
   // while the login view is active causes a visible login flash on every

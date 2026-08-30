@@ -5,11 +5,14 @@ import { fileURLToPath } from 'node:url';
 
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const qmoneyRoot = path.join(webRoot, 'public', 'qmoney');
-const [html, css, app, integrationText] = await Promise.all([
+const [html, css, app, integrationText, walletRoutes, publicAnnouncements, adminAnnouncements] = await Promise.all([
   readFile(path.join(qmoneyRoot, 'index.html'), 'utf8'),
   readFile(path.join(qmoneyRoot, 'styles.css'), 'utf8'),
   readFile(path.join(qmoneyRoot, 'app.js'), 'utf8'),
   readFile(path.join(qmoneyRoot, 'integration.json'), 'utf8'),
+  readFile(path.join(webRoot, '..', 'server', 'src', 'modules', 'wallet', 'wallet.routes.ts'), 'utf8'),
+  readFile(path.join(webRoot, '..', 'server', 'src', 'modules', 'public', 'announcements.routes.ts'), 'utf8'),
+  readFile(path.join(webRoot, '..', 'server', 'src', 'modules', 'admin', 'announcements', 'announcement.routes.ts'), 'utf8'),
 ]);
 
 // Parse the browser script without executing DOM-dependent code.
@@ -17,17 +20,37 @@ new Function(app);
 
 for (const marker of [
   'data-category="全部"',
-  'data-category="最愛"',
+  'data-category="電子"',
+  'data-category="捕魚"',
   'data-action="notices"',
-  'id="jackpotDigits"',
-  'class="bottom-nav"',
-  '/qmoney/app.js?v=20260829-jbb-games-brand-2',
+  'id="heroTrack"',
+  'id="providerStrip"',
+  '/qmoney/app.js?v=20260831-jbb-real-lobby-1',
   'class="is-booting"',
   'id="bootView"',
   '金寶寶｜遊戲大廳',
-  '/qmoney/assets/brand/jin-baobao-provider.webp',
+  '/qmoney/assets/brand/jin-baobao-avatar.webp',
 ]) {
   assert.ok(html.includes(marker), `missing lobby marker: ${marker}`);
+}
+
+for (const removedShell of [
+  'id="lineLogin"',
+  'class="bottom-nav"',
+  'id="jackpotDigits"',
+  'data-action="check-in"',
+  'data-action="jackpot"',
+  'data-action="profile"',
+  'data-footer=',
+  'data-category="棋牌"',
+  'data-category="加密遊戲"',
+  'data-category="最愛"',
+]) {
+  assert.ok(!html.includes(removedShell), `retired shell must be absent: ${removedShell}`);
+}
+
+for (const fakeCopy of ['每日續存', '電子救援金', '完成任務送好禮', '封鎖名單', 'VIP等級', '幸運彩池']) {
+  assert.ok(!`${html}\n${app}`.includes(fakeCopy), `unsupported lobby copy must be removed: ${fakeCopy}`);
 }
 
 assert.ok(!`${html}\n${css}\n${app}`.includes('錢女友'), 'legacy Qmoney display name must be fully replaced');
@@ -50,11 +73,12 @@ assert.match(
 for (const marker of [
   'lobbypopframebg.webp',
   'lobbypopbg.webp',
-  'footer-bg.webp',
-  'jp_${character}.webp',
   '/auth/login',
   '/games/catalog',
   '/wallet/balance',
+  '/wallet/transactions?',
+  '/wallet/bets/',
+  '/public/announcements?kind=marquee',
   'TEST_PLAYER_PATTERN',
   'GAME_BGM_PREFERENCES_KEY',
   'GAME_SFX_PREFERENCES_KEY',
@@ -62,6 +86,24 @@ for (const marker of [
 ]) {
   assert.ok(`${html}\n${css}\n${app}`.includes(marker), `missing integration marker: ${marker}`);
 }
+
+for (const marker of [
+  'data-hero-game=',
+  'game.cover',
+  'data-provider=',
+  'data-modal-action="game-history"',
+  'data-modal-action="history-detail"',
+  'data-modal-action="history-more"',
+  'function showBetDetail',
+]) {
+  assert.ok(app.includes(marker), `missing real lobby interaction: ${marker}`);
+}
+
+assert.ok(walletRoutes.includes("fastify.get(\n    '/transactions'"), 'bet history must use the authenticated wallet ledger');
+assert.ok(walletRoutes.includes("where: { id: betId, userId: req.userId }"), 'bet details must remain isolated to the logged-in player');
+assert.ok(publicAnnouncements.includes("q.kind) where.kind = q.kind"), 'public marquee must read the configured announcement kind');
+assert.ok(adminAnnouncements.includes("fastify.post(\n    '/'"), 'the admin backend must support creating marquee announcements');
+assert.ok(adminAnnouncements.includes("'/:id/toggle'"), 'the admin backend must support enabling and disabling announcements');
 
 for (const [pattern, message] of [
   [/let refreshInFlight = null;/, 'the Qmoney lobby must maintain one shared token refresh'],

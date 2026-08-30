@@ -11,9 +11,9 @@
     >
     <title>金寶寶｜遊戲大廳</title>
     <link rel="icon" href="/qmoney/assets/favicon.ico">
-    <link rel="stylesheet" href="/qmoney/styles.css?v=20260829-jbb-games-brand-2">
+    <link rel="stylesheet" href="/qmoney/styles.css?v=20260831-jbb-real-lobby-1">
     <script src="/qmoney/config.js"></script>
-    <script src="/qmoney/app.js?v=20260829-jbb-games-brand-2" defer></script>
+    <script src="/qmoney/app.js?v=20260831-jbb-real-lobby-1" defer></script>
   </head>
   <body class="is-booting">
     <div class="app-frame" id="appFrame">
@@ -23,11 +23,8 @@
       </div>
       <section class="login-page view is-active" id="loginView" aria-label="登入畫面">
         <div class="login-actions" aria-label="會員登入入口">
-          <button class="pill-button pill-button--line" id="lineLogin" type="button">
-            <span><img class="line-login-icon" src="/qmoney/assets/imgs_soc/icon/line.webp" alt="">會員登入</span>
-          </button>
           <button class="pill-button pill-button--web" id="webLogin" type="button">
-            <span>帳密登入</span>
+            <span>會員帳密登入</span>
           </button>
         </div>
         <div class="login-page-footer" aria-hidden="true">
@@ -38,13 +35,13 @@
 
       <section class="lobby view" id="lobbyView" aria-label="遊戲大廳" aria-hidden="true">
         <header class="lobby-header">
-          <button class="profile-button" type="button" data-action="profile" aria-label="開啟我的資料">
+          <div class="profile-button" aria-hidden="true">
             <img src="/qmoney/assets/brand/jin-baobao-avatar.webp" alt="會員頭像">
-          </button>
-          <button class="member-summary" type="button" data-action="profile">
+          </div>
+          <div class="member-summary" aria-label="目前登入會員">
             <strong><span id="accountName">會員</span> (<span id="accountId">--</span>)</strong>
-            <span class="member-tags"><b>◉我的</b><i>VIP<span id="vipLevel">0</span></i></span>
-          </button>
+            <span class="member-status">會員帳號</span>
+          </div>
           <button class="balance-row" type="button" data-action="refresh-balance" aria-label="更新點數">
             <img src="/qmoney/assets/imgs_soc/media/coin.webp" alt="">
             <strong id="balanceValue">--</strong>
@@ -56,41 +53,20 @@
         </header>
 
         <main class="lobby-scroll" id="lobbyScroll">
-          <section class="hero-carousel" aria-label="活動輪播">
-            <div class="hero-track" id="heroTrack">
-              <button class="hero-slide is-active" type="button" data-banner="0">
-                <img src="/qmoney/assets/img/task/%E6%96%B0%E5%A2%9E%E8%B3%87%E6%96%99%E5%A4%BE/drive-download-20250207T020939Z-001/img_banner3tw.webp" alt="真人每週任務">
-              </button>
-              <button class="hero-slide" type="button" data-banner="1">
-                <img src="/qmoney/assets/img/task/%E6%96%B0%E5%A2%9E%E8%B3%87%E6%96%99%E5%A4%BE/drive-download-20250207T020939Z-001/img_banner1tw.webp" alt="電子每週任務">
-              </button>
-              <button class="hero-slide" type="button" data-banner="2">
-                <img src="/qmoney/assets/img/task/%E6%96%B0%E5%A2%9E%E8%B3%87%E6%96%99%E5%A4%BE/drive-download-20250207T020939Z-001/img_banner2tw.webp" alt="每日續存">
-              </button>
-              <button class="hero-slide" type="button" data-banner="3">
-                <img src="/qmoney/assets/img/task/%E6%96%B0%E5%A2%9E%E8%B3%87%E6%96%99%E5%A4%BE/drive-download-20250207T020939Z-001/img_banner4tw.webp" alt="電子救援金">
-              </button>
-            </div>
-            <div class="carousel-dots" id="carouselDots" aria-label="選擇活動">
-              <button class="is-active" type="button" data-slide="0" aria-label="第 1 張"></button>
-              <button type="button" data-slide="1" aria-label="第 2 張"></button>
-              <button type="button" data-slide="2" aria-label="第 3 張"></button>
-              <button type="button" data-slide="3" aria-label="第 4 張"></button>
-            </div>
+          <section class="hero-carousel" id="heroCarousel" aria-label="精選遊戲輪播">
+            <div class="hero-track" id="heroTrack"></div>
+            <div class="carousel-dots" id="carouselDots" aria-label="選擇精選遊戲"></div>
           </section>
 
           <button class="announcement-ticker" type="button" data-action="notices" aria-label="查看公告">
             <span class="ticker-speaker">🔊</span>
-            <span class="ticker-window"><span id="tickerTrack">金寶寶遊戲大廳已上線，立即開玩</span></span>
+            <span class="ticker-window"><span id="tickerTrack">正在讀取系統公告…</span></span>
           </button>
 
           <nav class="category-tabs" id="categoryTabs" aria-label="遊戲分類">
             <button class="category-tab is-active" type="button" data-category="全部"><span>全部</span></button>
-            <button class="category-tab" type="button" data-category="最愛"><span>最愛</span></button>
             <button class="category-tab" type="button" data-category="電子"><span>電子</span></button>
             <button class="category-tab" type="button" data-category="捕魚"><span>捕魚</span></button>
-            <button class="category-tab" type="button" data-category="棋牌"><span>棋牌</span></button>
-            <button class="category-tab" type="button" data-category="加密遊戲"><span>加密遊戲</span></button>
             <button class="category-search" id="searchToggle" type="button" aria-label="搜尋遊戲">⌕</button>
           </nav>
 
@@ -100,24 +76,7 @@
             <button type="button" id="searchClose" aria-label="關閉搜尋">×</button>
           </label>
 
-          <section class="provider-strip" id="providerStrip" aria-label="遊戲館別">
-            <button type="button" data-provider-category="電子" aria-label="電子遊戲">
-              <img src="/qmoney/assets/imgs_soc/game/CN/atg.webp" alt="ATG Gaming">
-            </button>
-            <button class="is-active" type="button" data-provider-category="全部" aria-label="金寶寶遊戲">
-              <img src="/qmoney/assets/brand/jin-baobao-provider.webp" alt="金寶寶">
-            </button>
-            <button type="button" data-provider-category="電子" aria-label="KS Gaming">
-              <img src="/qmoney/assets/imgs_soc/game/CN/ks.webp" alt="KS Gaming">
-            </button>
-            <button type="button" data-provider-category="捕魚" aria-label="RSG Gaming">
-              <img src="/qmoney/assets/imgs_soc/game/CN/rsg.webp" alt="RSG Gaming">
-            </button>
-          </section>
-
-          <button class="jackpot-card" type="button" data-action="jackpot" aria-label="查看幸運彩池">
-            <span class="jackpot-digits" id="jackpotDigits" aria-label="Jackpot 0335141310"></span>
-          </button>
+          <section class="provider-strip" id="providerStrip" aria-label="實際遊戲館別"></section>
 
           <section class="games-section" aria-labelledby="gamesTitle">
             <div class="section-heading">
@@ -130,20 +89,9 @@
           <div class="lobby-safe-space" aria-hidden="true"></div>
         </main>
 
-        <div class="side-tools" aria-label="快捷功能">
-          <button type="button" data-action="notices"><img src="/qmoney/assets/imgs_soc/media/chat.webp" alt=""><span>聊天</span></button>
-          <button type="button" data-action="check-in"><img src="/qmoney/assets/imgs_soc/media/CheckIn.webp" alt=""><span>簽到</span></button>
-          <button type="button" data-action="jackpot"><img src="/qmoney/assets/imgs_soc/media/turntable.webp" alt=""><span>輪盤</span></button>
+        <div class="side-tools" aria-label="頁面快捷功能">
           <button class="scroll-top" type="button" data-action="scroll-top" aria-label="回到頂端">⌃</button>
         </div>
-
-        <nav class="bottom-nav" aria-label="主要功能">
-          <button class="is-active" type="button" data-footer="其他"><img src="/qmoney/assets/imgs_soc/footer/more.webp" alt=""><span>其他</span></button>
-          <button type="button" data-footer="排行榜"><img src="/qmoney/assets/imgs_soc/footer/winner.webp" alt=""><span>排行榜</span></button>
-          <button class="bottom-store" type="button" data-footer="商城"><img src="/qmoney/assets/imgs_soc/footer/store.webp" alt=""><span>商城</span></button>
-          <button type="button" data-footer="贈禮"><img src="/qmoney/assets/imgs_soc/footer/gift.webp" alt=""><span>贈禮</span></button>
-          <button type="button" data-footer="公會"><img src="/qmoney/assets/imgs_soc/footer/guild.webp" alt=""><span>公會</span></button>
-        </nav>
       </section>
 
       <div class="modal-backdrop" id="modalBackdrop" hidden>
@@ -166,14 +114,9 @@
 
     <audio id="loginMusic" src="/qmoney/assets/imgs_soc/mp3/login_page.mp3" preload="metadata" loop></audio>
     <audio id="lobbyMusic" src="/qmoney/assets/imgs_soc/mp3/lobby_page.mp3" preload="metadata" loop></audio>
-    <audio id="storeMusic" src="/qmoney/assets/imgs_soc/mp3/store_page.mp3" preload="metadata" loop></audio>
     <audio id="clickTab" data-volume="0.602" src="/qmoney/assets/imgs_soc/mp3/click_tab.mp3" preload="auto"></audio>
     <audio id="clickGame" src="/qmoney/assets/imgs_soc/mp3/click_game.mp3" preload="auto"></audio>
     <audio id="clickConfirm" src="/qmoney/assets/imgs_soc/mp3/click_confirm.mp3" preload="auto"></audio>
     <audio id="clickCancel" src="/qmoney/assets/imgs_soc/mp3/click_cancel.mp3" preload="auto"></audio>
-    <audio id="clickFooter" src="/qmoney/assets/imgs_soc/mp3/click_footer.mp3" preload="auto"></audio>
-    <audio id="addFavorite" data-volume="0.602" src="/qmoney/assets/imgs_soc/mp3/add_favorite.mp3" preload="auto"></audio>
-    <audio id="removeFavorite" data-volume="0.602" src="/qmoney/assets/imgs_soc/mp3/remove_favorite.mp3" preload="auto"></audio>
-    <audio id="getReward" src="/qmoney/assets/imgs_soc/mp3/get_reward.mp3" preload="auto"></audio>
   </body>
 </html>
