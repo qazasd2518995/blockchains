@@ -110,6 +110,21 @@ assert.match(
   /\.balance-row strong\s*\{[^}]*font-variant-numeric:\s*tabular-nums;[^}]*\}/s,
   'the lobby balance must reserve a stable full-width numeric row',
 );
+assert.match(
+  css,
+  /\.setting-row--button\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto\s+24px;[^}]*column-gap:\s*8px;/s,
+  'settings action rows should reserve one row for label, detail, and chevron',
+);
+assert.match(
+  css,
+  /\.setting-row--button::after\s*\{[^}]*grid-column:\s*3;[^}]*justify-self:\s*end;/s,
+  'settings chevrons should stay in the final column',
+);
+assert.match(
+  css,
+  /\.setting-row strong\s*\{[^}]*grid-column:\s*2;[^}]*white-space:\s*nowrap;/s,
+  'settings detail labels should not wrap',
+);
 
 assert.ok(walletRoutes.includes("fastify.get(\n    '/transactions'"), 'bet history must use the authenticated wallet ledger');
 assert.ok(walletRoutes.includes("where: { id: betId, userId: req.userId }"), 'bet details must remain isolated to the logged-in player');
