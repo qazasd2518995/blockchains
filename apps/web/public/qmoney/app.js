@@ -13,7 +13,6 @@ const elements = {
   lobbyView: document.querySelector("#lobbyView"),
   lobbyScroll: document.querySelector("#lobbyScroll"),
   categoryTabs: document.querySelector("#categoryTabs"),
-  providerStrip: document.querySelector("#providerStrip"),
   gameGrid: document.querySelector("#gameGrid"),
   gameSearch: document.querySelector("#gameSearch"),
   gameSearchWrap: document.querySelector("#gameSearchWrap"),
@@ -56,7 +55,6 @@ const state = {
   session: readStoredSession(),
   games: [],
   category: "熱門",
-  provider: "全部",
   query: "",
   currentSlide: 0,
   ...readPreferences(),
@@ -412,7 +410,6 @@ async function loadCatalog() {
   state.accessDenied = !isTestPlayer();
   if (state.accessDenied) {
     state.games = [];
-    renderProviders();
     renderHero();
     renderGames();
     return;
@@ -424,7 +421,6 @@ async function loadCatalog() {
     state.games = [];
     state.catalogError = error.message;
   }
-  renderProviders();
   renderHero();
   renderGames();
 }
@@ -486,7 +482,6 @@ async function enterLobby() {
   if (!state.session) return showLoginForm();
   activateLobbyView();
   await Promise.all([loadCatalog(), refreshBalance(true), loadAnnouncements()]);
-  window.requestAnimationFrame(() => elements.providerStrip.querySelector(".is-active")?.scrollIntoView({ inline: "center", block: "nearest" }));
   window.clearInterval(state.balanceTimer);
   state.balanceTimer = window.setInterval(() => {
     if (document.visibilityState === "visible") void refreshBalance(true);
@@ -517,20 +512,8 @@ async function signOut(callServer = true) {
 
 function gameMatches(game) {
   if (game.category !== state.category) return false;
-  if (state.provider !== "全部" && game.provider !== state.provider) return false;
   if (!state.query) return true;
   return `${game.name} ${game.nameEn} ${game.provider} ${game.category}`.toLocaleLowerCase("zh-Hant").includes(state.query);
-}
-
-function renderProviders() {
-  const categoryGames = state.games.filter((game) => game.category === state.category);
-  const providers = ["全部", ...new Set(categoryGames.map((game) => String(game.provider || "").trim()).filter(Boolean))];
-  if (!providers.includes(state.provider)) state.provider = "全部";
-  elements.providerStrip.innerHTML = providers.map((provider) => `
-    <button class="provider-button${provider === state.provider ? " is-active" : ""}" type="button" data-provider="${escapeHtml(provider)}">
-      <span>${provider === "全部" ? "全部館別" : escapeHtml(provider)}</span>
-    </button>`).join("");
-  elements.providerStrip.hidden = providers.length <= 1;
 }
 
 function renderHero() {
@@ -594,13 +577,6 @@ function renderGames() {
 function selectCategory(category) {
   state.category = category;
   for (const tab of elements.categoryTabs.querySelectorAll(".category-tab")) tab.classList.toggle("is-active", tab.dataset.category === category);
-  renderProviders();
-  renderGames();
-}
-
-function selectProvider(provider) {
-  state.provider = provider;
-  for (const button of elements.providerStrip.querySelectorAll("[data-provider]")) button.classList.toggle("is-active", button.dataset.provider === provider);
   renderGames();
 }
 
@@ -826,14 +802,6 @@ elements.modalContent.addEventListener("click", (event) => {
 elements.categoryTabs.addEventListener("click", (event) => {
   const tab = event.target.closest("[data-category]");
   if (tab) { playSound(elements.clickTab); selectCategory(tab.dataset.category); }
-});
-
-elements.providerStrip.addEventListener("click", (event) => {
-  const provider = event.target.closest("[data-provider]");
-  if (!provider) return;
-  playSound(elements.clickTab);
-  provider.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-  selectProvider(provider.dataset.provider);
 });
 
 elements.gameSearch.addEventListener("input", (event) => {

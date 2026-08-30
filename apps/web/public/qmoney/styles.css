@@ -275,7 +275,7 @@ body.is-booting .view {
 
 .member-summary {
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 108px;
   text-align: left;
 }
 
@@ -306,9 +306,10 @@ body.is-booting .view {
 
 .balance-row {
   display: flex;
-  min-width: 148px;
+  min-width: 154px;
+  max-width: 184px;
   height: 38px;
-  flex: 0 0 148px;
+  flex: 1 1 166px;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
@@ -319,19 +320,20 @@ body.is-booting .view {
 }
 
 .balance-row > img:first-child {
-  width: 38px;
-  height: 38px;
-  margin-left: -3px;
+  width: 30px;
+  height: 30px;
+  margin-left: 1px;
   object-fit: contain;
 }
 
 .balance-row strong {
-  min-width: 64px;
-  overflow: hidden;
+  min-width: 0;
+  flex: 1 1 auto;
   color: #fff8e4;
-  font-size: 16px;
+  font-size: clamp(13px, 3.7vw, 16px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
   text-align: right;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -581,40 +583,6 @@ body.is-booting .view {
   border-radius: 50%;
   background: #f1f4f8;
   font-size: 22px;
-}
-
-.provider-strip {
-  display: flex;
-  gap: 7px;
-  padding: 2px 20px 12px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.provider-strip::-webkit-scrollbar {
-  display: none;
-}
-
-.provider-button {
-  min-width: max-content;
-  height: 38px;
-  padding: 0 16px;
-  color: #1a467c;
-  border: 1px solid rgba(67, 122, 191, 0.18);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 5px 10px rgba(69, 34, 1, 0.1);
-  font-size: 12px;
-  font-weight: 800;
-  transition: color 180ms ease, background 180ms ease, transform 180ms ease;
-}
-
-.provider-button.is-active {
-  color: #fff;
-  border-color: transparent;
-  background: linear-gradient(180deg, #00d4ef, #009fc6);
-  box-shadow: 0 7px 14px rgba(0, 166, 204, 0.28);
-  transform: translateY(-1px);
 }
 
 .games-section {
@@ -1878,18 +1846,18 @@ body.is-booting .view {
   }
 
   .balance-row {
-    min-width: 140px;
-    flex-basis: 140px;
+    min-width: 146px;
+    max-width: none;
+    flex-basis: 150px;
   }
 
   .balance-row strong {
-    min-width: 65px;
     font-size: 13px;
   }
 
   .balance-row > img:first-child {
-    width: 32px;
-    height: 32px;
+    width: 26px;
+    height: 26px;
   }
 
   .balance-row .refresh-icon {

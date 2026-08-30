@@ -25,8 +25,7 @@ for (const marker of [
   'data-category="棋牌"',
   'data-action="notices"',
   'id="heroTrack"',
-  'id="providerStrip"',
-  '/qmoney/app.js?v=20260831-jbb-catalog-2',
+  '/qmoney/app.js?v=20260831-jbb-lobby-3',
   'class="is-booting"',
   'id="bootView"',
   '金寶寶｜遊戲大廳',
@@ -47,6 +46,7 @@ for (const removedShell of [
   'data-category="電子"',
   'data-category="加密遊戲"',
   'data-category="最愛"',
+  'id="providerStrip"',
 ]) {
   assert.ok(!html.includes(removedShell), `retired shell must be absent: ${removedShell}`);
 }
@@ -92,7 +92,6 @@ for (const marker of [
 for (const marker of [
   'data-hero-game=',
   'game.cover',
-  'data-provider=',
   'data-modal-action="game-history"',
   'data-modal-action="history-detail"',
   'data-modal-action="history-more"',
@@ -100,6 +99,17 @@ for (const marker of [
 ]) {
   assert.ok(app.includes(marker), `missing real lobby interaction: ${marker}`);
 }
+
+assert.doesNotMatch(
+  `${html}\n${css}\n${app}`,
+  /provider-strip|provider-button|providerStrip|data-provider=/,
+  'category tabs must show all games directly without a provider submenu',
+);
+assert.match(
+  css,
+  /\.balance-row strong\s*\{[^}]*font-variant-numeric:\s*tabular-nums;[^}]*\}/s,
+  'the lobby balance must reserve a stable full-width numeric row',
+);
 
 assert.ok(walletRoutes.includes("fastify.get(\n    '/transactions'"), 'bet history must use the authenticated wallet ledger');
 assert.ok(walletRoutes.includes("where: { id: betId, userId: req.userId }"), 'bet details must remain isolated to the logged-in player');
