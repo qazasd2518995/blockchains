@@ -1,9 +1,8 @@
-import { H5_FISH_GAMES, H5_SLOT_GAMES } from './dto/h5Slots.js';
 import { GameId, isImportedGameTestUsername } from './games.js';
 
-export const NEW_CASINO_CATALOG_VERSION = 1;
+export const NEW_CASINO_CATALOG_VERSION = 2;
 
-export type NewCasinoCategory = '賽特' | '雷神' | 'H5拉霸' | '捕魚' | 'MegaSlot';
+export type NewCasinoCategory = '熱門' | '拉霸' | '捕魚' | '棋牌';
 
 export interface NewCasinoGame {
   id: string;
@@ -18,16 +17,11 @@ export interface NewCasinoGame {
   restricted: boolean;
 }
 
-const ORIGINAL_H5_COVERS = new Set([
-  'h5-fire-88',
-  'h5-lucky-777',
-  'h5-fortune-ox',
-  'h5-mahjong-ways',
-  'h5-mahjong-ways-2',
-  'h5-dragon-hatch',
-  'h5-captains-bounty',
-  'h5-caishen-wins',
-  'h5-queen-of-bounty',
+const ORIGINAL_H5_COVERS = new Set<string>([
+  GameId.H5_FORTUNE_OX,
+  GameId.H5_DRAGON_HATCH,
+  GameId.H5_CAPTAINS_BOUNTY,
+  GameId.H5_QUEEN_OF_BOUNTY,
 ]);
 
 function h5Cover(gameId: string): string {
@@ -35,76 +29,67 @@ function h5Cover(gameId: string): string {
   return `/game-art/${source}/h5-individual/${gameId}-cover-v1.webp`;
 }
 
-const H5_SLOT_CATALOG: readonly NewCasinoGame[] = H5_SLOT_GAMES.map((game, index) => ({
-  id: game.gameId,
-  name: game.titleZh,
-  nameEn: game.title,
-  provider: '原版 H5',
-  category: 'H5拉霸',
-  cover: h5Cover(game.gameId),
-  route: `/games/${game.gameId}`,
-  featured: index < 6,
-  badge: ORIGINAL_H5_COVERS.has(game.gameId) ? '原版' : index < 3 ? '新品' : undefined,
-  restricted: true,
-}));
-
-const H5_FISH_CATALOG: readonly NewCasinoGame[] = H5_FISH_GAMES.map((game, index) => ({
-  id: game.gameId,
-  name: game.titleZh,
-  nameEn: game.title,
-  provider: '原版 H5',
-  category: '捕魚',
-  cover: h5Cover(game.gameId),
-  route: `/games/${game.gameId}`,
-  featured: index === 0,
-  badge: index === 0 ? '新品' : undefined,
-  restricted: true,
-}));
-
-const MEGA_SLOT_CATALOG: readonly NewCasinoGame[] = [
-  ['fruit-slot', '水果拉霸', 'Fruit Slot', 'fruit'],
-  ['fortune-slot', '財虎拉霸', 'Fortune Tiger', 'fortune'],
-  ['ocean-slot', '海神寶藏', 'Ocean Treasure', 'ocean'],
-  ['temple-slot', '聖殿寶石', 'Temple Gems', 'temple'],
-  ['candy-slot', '糖果派對', 'Candy Party', 'candy'],
-  ['sakura-slot', '夜櫻武士', 'Sakura Samurai', 'sakura'],
-  ['thunder-slot', '索爾神槌', 'Thunder Hammer', 'thunder'],
-  ['dragon-mega-slot', '龍焰巨輪', 'Dragon Mega', 'dragon-mega'],
-  ['nebula-slot', '星河寶藏', 'Nebula Treasure', 'nebula'],
-  ['jungle-slot', '秘境遺跡', 'Jungle Relics', 'jungle'],
-  ['vampire-slot', '暗夜古堡', 'Vampire Castle', 'vampire'],
-].map(([id, name, nameEn, theme], index) => ({
-  id: id!,
-  name: name!,
-  nameEn: nameEn!,
-  provider: 'MEGA SLOT',
-  category: 'MegaSlot' as const,
-  cover: `/slots/${theme}/cover-v2.png`,
-  route: `/games/${id}`,
-  featured: index < 4,
-  badge: index === 0 ? ('熱門' as const) : index >= 7 ? ('新品' as const) : undefined,
-  restricted: false,
-}));
-
-export const NEW_CASINO_GAMES: readonly NewCasinoGame[] = [
-  {
-    id: GameId.POWER_OF_THOR_2,
-    name: '雷神之錘 2：雷霆風暴',
-    nameEn: 'Power of Thor II: Thunder Storm',
-    provider: 'RSG',
-    category: '雷神',
-    cover: '/_optimized/game-art/original/power-of-thor-2-cover-v1@960.webp',
-    route: '/games/power-of-thor-2',
-    featured: true,
-    badge: '新品',
+function h5Game(
+  id: string,
+  name: string,
+  nameEn: string,
+  category: Extract<NewCasinoCategory, '拉霸' | '捕魚'>,
+): NewCasinoGame {
+  return {
+    id,
+    name,
+    nameEn,
+    provider: '原版 H5',
+    category,
+    cover: h5Cover(id),
+    route: `/games/${id}`,
+    featured: false,
+    badge: ORIGINAL_H5_COVERS.has(id) ? '原版' : undefined,
     restricted: true,
-  },
+  };
+}
+
+function megaSlot(id: string, name: string, nameEn: string, theme: string): NewCasinoGame {
+  return {
+    id,
+    name,
+    nameEn,
+    provider: 'MEGA SLOT',
+    category: '拉霸',
+    cover: `/slots/${theme}/cover-v2.png`,
+    route: `/games/${id}`,
+    featured: false,
+    restricted: true,
+  };
+}
+
+function tableGame(
+  id: string,
+  name: string,
+  nameEn: string,
+  cover: string,
+  route = `/games/${id}`,
+): NewCasinoGame {
+  return {
+    id,
+    name,
+    nameEn,
+    provider: 'JBB 棋牌',
+    category: '棋牌',
+    cover,
+    route,
+    featured: false,
+    restricted: true,
+  };
+}
+
+const POPULAR_GAMES: readonly NewCasinoGame[] = [
   {
     id: GameId.STORM_OF_SETH_2,
-    name: '戰神賽特 II：覺醒之力',
-    nameEn: 'Storm of Seth 2 – Awakening',
+    name: '賽特2',
+    nameEn: 'Storm of Seth 2',
     provider: 'ATG',
-    category: '賽特',
+    category: '熱門',
     cover: '/game-art/original/storm-of-seth-2-cover-v1.webp',
     route: '/games/storm-of-seth-2',
     featured: true,
@@ -112,20 +97,116 @@ export const NEW_CASINO_GAMES: readonly NewCasinoGame[] = [
     restricted: true,
   },
   {
+    id: GameId.POWER_OF_THOR_2,
+    name: '雷神2',
+    nameEn: 'Power of Thor II',
+    provider: 'RSG',
+    category: '熱門',
+    cover: '/_optimized/game-art/original/power-of-thor-2-cover-v1@960.webp',
+    route: '/games/power-of-thor-2',
+    featured: true,
+    badge: '新品',
+    restricted: true,
+  },
+  {
     id: GameId.FRUIT_MARY,
     name: '歡樂水果機',
     nameEn: 'Fruit Mary',
     provider: 'CLASSIC',
-    category: 'H5拉霸',
+    category: '熱門',
     cover: '/game-art/generated/fruit-mary-cover-v1.png',
     route: '/games/fruit-mary',
     featured: true,
     badge: '熱門',
     restricted: true,
   },
-  ...H5_SLOT_CATALOG,
-  ...H5_FISH_CATALOG,
-  ...MEGA_SLOT_CATALOG,
+];
+
+const SLOT_GAMES: readonly NewCasinoGame[] = [
+  h5Game(GameId.H5_CAPTAINS_BOUNTY, '船長賞金', "Captain's Bounty", '拉霸'),
+  h5Game(GameId.H5_FORTUNE_OX, '招財金牛', 'Fortune Ox', '拉霸'),
+  h5Game(GameId.H5_DRAGON_HATCH, '龍之孵化', 'Dragon Hatch', '拉霸'),
+  h5Game(GameId.H5_QUEEN_OF_BOUNTY, '賞金女王', 'Queen of Bounty', '拉霸'),
+  h5Game(GameId.H5_FORTUNE_GEMS, '幸運寶石', 'Fortune Gems', '拉霸'),
+  h5Game(GameId.H5_GATES_OF_OLYMPUS, '奧林匹斯之門', 'Gates of Olympus', '拉霸'),
+  megaSlot(GameId.FRUIT_SLOT, '水果拉霸', 'Fruit Slot', 'fruit'),
+  megaSlot(GameId.SAKURA_SLOT, '夜櫻武士', 'Sakura Samurai', 'sakura'),
+  megaSlot(GameId.THUNDER_SLOT, '索爾神鎚', 'Thunder Hammer', 'thunder'),
+  megaSlot(GameId.VAMPIRE_SLOT, '暗夜古堡', 'Vampire Castle', 'vampire'),
+];
+
+const FISH_GAMES: readonly NewCasinoGame[] = [
+  h5Game(GameId.H5_DEEP_SEA_FISHING, '深海捕魚', 'Deep Sea Fishing', '捕魚'),
+  h5Game(GameId.H5_HAPPY_FISHING, '快樂捕魚', 'Happy Fishing', '捕魚'),
+  h5Game(GameId.H5_THUNDER_FISHING, '雷霆戰機', 'Thunder Fighter', '捕魚'),
+];
+
+const TABLE_GAMES: readonly NewCasinoGame[] = [
+  tableGame(
+    GameId.BLACKJACK,
+    '21點 第1桌',
+    'Blackjack Table 1',
+    '/game-art/blackjack/cover-v2.png',
+    '/games/blackjack',
+  ),
+  tableGame(
+    'blackjack-table-2',
+    '21點 第2桌',
+    'Blackjack Table 2',
+    '/game-art/blackjack/cover.png',
+    '/games/blackjack',
+  ),
+  tableGame(
+    GameId.TWENTY_ONE_HALF_DOLL,
+    '10點半 第1桌',
+    'Ten and a Half Table 1',
+    '/game-art/local-table/ten-half-doll-cover.webp',
+  ),
+  tableGame(
+    GameId.TWENTY_ONE_HALF_BUNNY,
+    '10點半 第2桌',
+    'Ten and a Half Table 2',
+    '/game-art/local-table/ten-half-bunny-cover.webp',
+  ),
+  tableGame(
+    GameId.BLACK_DOT_TIANJIU,
+    '黑粒 第1桌',
+    'Black Dot Table 1',
+    '/game-art/local-table/black-dot-tianjiu-cover.webp',
+  ),
+  tableGame(
+    GameId.BLACK_DOT_ROYAL,
+    '黑粒 第2桌',
+    'Black Dot Table 2',
+    '/game-art/local-table/black-dot-royal-cover.webp',
+  ),
+  tableGame(GameId.MINES, '踩地雷', 'Mines', '/game-art/mines/cover-v2.png'),
+  tableGame(GameId.TOWER, '爬樓梯', 'Tower', '/game-art/tower/cover-v2.png'),
+  tableGame(
+    GameId.TUI_TONGZI_DRAGON,
+    '推桶',
+    'Push Tongzi',
+    '/game-art/local-table/tui-tongzi-dragon-cover.webp',
+  ),
+  tableGame(
+    GameId.TUI_TONGZI_JADE,
+    '推索',
+    'Push Suozi',
+    '/game-art/local-table/tui-suozi-jade-cover.webp',
+  ),
+  tableGame(
+    GameId.TUI_TONGZI_GOLD,
+    '推萬',
+    'Push Wanzi',
+    '/game-art/local-table/tui-wanzi-gold-cover.webp',
+  ),
+];
+
+export const NEW_CASINO_GAMES: readonly NewCasinoGame[] = [
+  ...POPULAR_GAMES,
+  ...SLOT_GAMES,
+  ...FISH_GAMES,
+  ...TABLE_GAMES,
 ];
 
 export function getNewCasinoGamesForUsername(username?: string | null): readonly NewCasinoGame[] {

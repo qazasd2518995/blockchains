@@ -76,8 +76,8 @@ assert.ok(
   'Qmoney lobby preferences must drive the embedded games audio preferences',
 );
 assert.ok(
-  qmoneyApp.includes('game.category === "雷神"'),
-  'Qmoney electronic games category must include Power of Thor II',
+  qmoneyApp.includes('game.category !== state.category'),
+  'Jin Baobao categories must use the curated backend category directly',
 );
 assert.ok(
   !qmoneyApp

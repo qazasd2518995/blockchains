@@ -55,7 +55,7 @@ const SETTINGS_COPY = {
 const state = {
   session: readStoredSession(),
   games: [],
-  category: "全部",
+  category: "熱門",
   provider: "全部",
   query: "",
   currentSlide: 0,
@@ -516,18 +516,15 @@ async function signOut(callServer = true) {
 }
 
 function gameMatches(game) {
-  let inCategory = false;
-  if (state.category === "全部") inCategory = true;
-  else if (state.category === "電子") inCategory = game.category === "賽特" || game.category === "雷神" || game.category === "H5拉霸" || game.category === "MegaSlot";
-  else if (state.category === "捕魚") inCategory = game.category === "捕魚";
-  if (!inCategory) return false;
+  if (game.category !== state.category) return false;
   if (state.provider !== "全部" && game.provider !== state.provider) return false;
   if (!state.query) return true;
   return `${game.name} ${game.nameEn} ${game.provider} ${game.category}`.toLocaleLowerCase("zh-Hant").includes(state.query);
 }
 
 function renderProviders() {
-  const providers = ["全部", ...new Set(state.games.map((game) => String(game.provider || "").trim()).filter(Boolean))];
+  const categoryGames = state.games.filter((game) => game.category === state.category);
+  const providers = ["全部", ...new Set(categoryGames.map((game) => String(game.provider || "").trim()).filter(Boolean))];
   if (!providers.includes(state.provider)) state.provider = "全部";
   elements.providerStrip.innerHTML = providers.map((provider) => `
     <button class="provider-button${provider === state.provider ? " is-active" : ""}" type="button" data-provider="${escapeHtml(provider)}">
@@ -537,7 +534,7 @@ function renderProviders() {
 }
 
 function renderHero() {
-  const priorities = ["power-of-thor-2", "storm-of-seth-2"];
+  const priorities = ["storm-of-seth-2", "power-of-thor-2", "fruit-mary"];
   const games = [...state.games]
     .sort((a, b) => {
       const aPriority = priorities.indexOf(a.id);
@@ -561,7 +558,7 @@ function renderHero() {
 
 function renderGames() {
   const visibleGames = state.games.filter(gameMatches);
-  const titles = { 全部: "熱門遊戲", 電子: "電子遊戲", 捕魚: "捕魚遊戲" };
+  const titles = { 熱門: "熱門遊戲", 拉霸: "拉霸遊戲", 捕魚: "捕魚遊戲", 棋牌: "棋牌遊戲" };
   elements.gamesTitle.textContent = titles[state.category] || state.category;
   elements.gamesCount.textContent = visibleGames.length ? `${visibleGames.length} 款` : "";
   elements.gameGrid.replaceChildren();
@@ -597,6 +594,7 @@ function renderGames() {
 function selectCategory(category) {
   state.category = category;
   for (const tab of elements.categoryTabs.querySelectorAll(".category-tab")) tab.classList.toggle("is-active", tab.dataset.category === category);
+  renderProviders();
   renderGames();
 }
 

@@ -19,13 +19,14 @@ const [html, css, app, integrationText, walletRoutes, publicAnnouncements, admin
 new Function(app);
 
 for (const marker of [
-  'data-category="全部"',
-  'data-category="電子"',
+  'data-category="熱門"',
+  'data-category="拉霸"',
   'data-category="捕魚"',
+  'data-category="棋牌"',
   'data-action="notices"',
   'id="heroTrack"',
   'id="providerStrip"',
-  '/qmoney/app.js?v=20260831-jbb-real-lobby-1',
+  '/qmoney/app.js?v=20260831-jbb-catalog-2',
   'class="is-booting"',
   'id="bootView"',
   '金寶寶｜遊戲大廳',
@@ -42,7 +43,8 @@ for (const removedShell of [
   'data-action="jackpot"',
   'data-action="profile"',
   'data-footer=',
-  'data-category="棋牌"',
+  'data-category="全部"',
+  'data-category="電子"',
   'data-category="加密遊戲"',
   'data-category="最愛"',
 ]) {
