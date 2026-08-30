@@ -112,7 +112,7 @@ for (const page of [sethPage, fruitPage, h5Page]) {
 for (const marker of [
   'id: GameId.POWER_OF_THOR_2',
   "route: '/games/power-of-thor-2'",
-  "cover: '/_optimized/game-art/original/power-of-thor-2-cover-v1@960.webp'",
+  "cover: '/game-art/original/power-of-thor-2-cover-v1.png'",
   'restricted: true',
 ]) {
   assert.ok(newCasinoCatalog.includes(marker), `missing Qmoney Thor II catalog marker: ${marker}`);
@@ -136,8 +136,6 @@ assert.doesNotMatch(
   /PowerOfThor2Page\.css|base-reference\.png|Thor2Cascade|SymbolCell/,
   'Qmoney Thor II route must not retain the reconstructed React fallback',
 );
-await access(
-  path.join(webRoot, 'public/_optimized/game-art/original/power-of-thor-2-cover-v1@960.webp'),
-);
+await access(path.join(webRoot, 'public/game-art/original/power-of-thor-2-cover-v1.png'));
 
 console.log('Qmoney game separation contract passed');

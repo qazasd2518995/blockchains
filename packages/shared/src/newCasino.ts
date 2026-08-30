@@ -1,6 +1,6 @@
 import { GameId, isImportedGameTestUsername } from './games.js';
 
-export const NEW_CASINO_CATALOG_VERSION = 2;
+export const NEW_CASINO_CATALOG_VERSION = 3;
 
 export type NewCasinoCategory = '熱門' | '拉霸' | '捕魚' | '棋牌';
 
@@ -13,7 +13,7 @@ export interface NewCasinoGame {
   cover: string;
   route: string;
   featured: boolean;
-  badge?: '熱門' | '新品' | '原版';
+  badge?: '熱門' | '新品' | '原版' | '第1桌' | '第2桌';
   restricted: boolean;
 }
 
@@ -68,7 +68,7 @@ function tableGame(
   name: string,
   nameEn: string,
   cover: string,
-  route = `/games/${id}`,
+  options: { route?: string; badge?: '第1桌' | '第2桌' } = {},
 ): NewCasinoGame {
   return {
     id,
@@ -77,8 +77,9 @@ function tableGame(
     provider: 'JBB 棋牌',
     category: '棋牌',
     cover,
-    route,
+    route: options.route ?? `/games/${id}`,
     featured: false,
+    badge: options.badge,
     restricted: true,
   };
 }
@@ -86,8 +87,8 @@ function tableGame(
 const POPULAR_GAMES: readonly NewCasinoGame[] = [
   {
     id: GameId.STORM_OF_SETH_2,
-    name: '賽特2',
-    nameEn: 'Storm of Seth 2',
+    name: '戰神賽特 II：覺醒之力',
+    nameEn: 'Storm of Seth 2 – Awakening',
     provider: 'ATG',
     category: '熱門',
     cover: '/game-art/original/storm-of-seth-2-cover-v1.webp',
@@ -98,11 +99,11 @@ const POPULAR_GAMES: readonly NewCasinoGame[] = [
   },
   {
     id: GameId.POWER_OF_THOR_2,
-    name: '雷神2',
-    nameEn: 'Power of Thor II',
+    name: '雷神之錘 2：雷霆風暴',
+    nameEn: 'Power of Thor II: Thunder Storm',
     provider: 'RSG',
     category: '熱門',
-    cover: '/_optimized/game-art/original/power-of-thor-2-cover-v1@960.webp',
+    cover: '/game-art/original/power-of-thor-2-cover-v1.png',
     route: '/games/power-of-thor-2',
     featured: true,
     badge: '新品',
@@ -129,75 +130,73 @@ const SLOT_GAMES: readonly NewCasinoGame[] = [
   h5Game(GameId.H5_QUEEN_OF_BOUNTY, '賞金女王', 'Queen of Bounty', '拉霸'),
   h5Game(GameId.H5_FORTUNE_GEMS, '幸運寶石', 'Fortune Gems', '拉霸'),
   h5Game(GameId.H5_GATES_OF_OLYMPUS, '奧林匹斯之門', 'Gates of Olympus', '拉霸'),
-  megaSlot(GameId.FRUIT_SLOT, '水果拉霸', 'Fruit Slot', 'fruit'),
-  megaSlot(GameId.SAKURA_SLOT, '夜櫻武士', 'Sakura Samurai', 'sakura'),
-  megaSlot(GameId.THUNDER_SLOT, '索爾神鎚', 'Thunder Hammer', 'thunder'),
-  megaSlot(GameId.VAMPIRE_SLOT, '暗夜古堡', 'Vampire Castle', 'vampire'),
+  megaSlot(GameId.FRUIT_SLOT, '水果拉霸', 'Fruit Slots', 'fruit'),
+  megaSlot(GameId.SAKURA_SLOT, '夜櫻武士', 'Sakura Blade 3x3', 'sakura'),
+  megaSlot(GameId.THUNDER_SLOT, '索爾神槌', 'Thor Hammer Mega', 'thunder'),
+  megaSlot(GameId.VAMPIRE_SLOT, '暗夜古堡', 'Vampire Castle Mega', 'vampire'),
 ];
 
 const FISH_GAMES: readonly NewCasinoGame[] = [
   h5Game(GameId.H5_DEEP_SEA_FISHING, '深海捕魚', 'Deep Sea Fishing', '捕魚'),
   h5Game(GameId.H5_HAPPY_FISHING, '快樂捕魚', 'Happy Fishing', '捕魚'),
-  h5Game(GameId.H5_THUNDER_FISHING, '雷霆戰機', 'Thunder Fighter', '捕魚'),
+  h5Game(GameId.H5_THUNDER_FISHING, '雷霆戰機', 'Thunder Fishing', '捕魚'),
 ];
 
 const TABLE_GAMES: readonly NewCasinoGame[] = [
-  tableGame(
-    GameId.BLACKJACK,
-    '21點 第1桌',
-    'Blackjack Table 1',
-    '/game-art/blackjack/cover-v2.png',
-    '/games/blackjack',
-  ),
-  tableGame(
-    'blackjack-table-2',
-    '21點 第2桌',
-    'Blackjack Table 2',
-    '/game-art/blackjack/cover.png',
-    '/games/blackjack',
-  ),
+  tableGame(GameId.BLACKJACK, '21點', 'Blackjack 21', '/game-art/blackjack/cover-v2.png', {
+    route: '/games/blackjack',
+    badge: '第1桌',
+  }),
+  tableGame('blackjack-table-2', '21點', 'Blackjack 21', '/game-art/blackjack/cover-v2.png', {
+    route: '/games/blackjack',
+    badge: '第2桌',
+  }),
   tableGame(
     GameId.TWENTY_ONE_HALF_DOLL,
-    '10點半 第1桌',
-    'Ten and a Half Table 1',
+    '萌娃十點半',
+    'Dolly 10.5',
     '/game-art/local-table/ten-half-doll-cover.webp',
+    { badge: '第1桌' },
   ),
   tableGame(
     GameId.TWENTY_ONE_HALF_BUNNY,
-    '10點半 第2桌',
-    'Ten and a Half Table 2',
+    '兔糖十點半',
+    'Bunny 10.5',
     '/game-art/local-table/ten-half-bunny-cover.webp',
+    { badge: '第2桌' },
   ),
   tableGame(
     GameId.BLACK_DOT_TIANJIU,
-    '黑粒 第1桌',
-    'Black Dot Table 1',
+    '天九黑粒',
+    'Tin Kau Black Dot',
     '/game-art/local-table/black-dot-tianjiu-cover.webp',
+    { badge: '第1桌' },
   ),
   tableGame(
     GameId.BLACK_DOT_ROYAL,
-    '黑粒 第2桌',
-    'Black Dot Table 2',
+    '御殿黑粒',
+    'Royal Black Dot',
     '/game-art/local-table/black-dot-royal-cover.webp',
+    { badge: '第2桌' },
   ),
   tableGame(GameId.MINES, '踩地雷', 'Mines', '/game-art/mines/cover-v2.png'),
-  tableGame(GameId.TOWER, '爬樓梯', 'Tower', '/game-art/tower/cover-v2.png'),
+  tableGame(GameId.TOWER, '爬階梯', 'Stairs', '/game-art/tower/cover-v2.png'),
   tableGame(
     GameId.TUI_TONGZI_DRAGON,
-    '推桶',
-    'Push Tongzi',
+    '龍門推筒',
+    'Dragon Tongzi',
     '/game-art/local-table/tui-tongzi-dragon-cover.webp',
   ),
   tableGame(
     GameId.TUI_TONGZI_JADE,
-    '推索',
-    'Push Suozi',
+    '玉兔推索',
+    'Jade Suozi',
     '/game-art/local-table/tui-suozi-jade-cover.webp',
   ),
   tableGame(
     GameId.TUI_TONGZI_GOLD,
-    '推萬',
-    'Push Wanzi',
+    '金殿推萬',
+    'Golden Wanzi',
     '/game-art/local-table/tui-wanzi-gold-cover.webp',
   ),
 ];

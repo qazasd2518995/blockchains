@@ -34,6 +34,7 @@ describe('new casino game catalog', () => {
         id: string;
         name: string;
         category: string;
+        cover: string;
         route: string;
         restricted: boolean;
       }>;
@@ -41,12 +42,16 @@ describe('new casino game catalog', () => {
     const namesIn = (category: string) =>
       result.games.filter((game) => game.category === category).map((game) => game.name);
 
-    expect(result.version).toBe(2);
+    expect(result.version).toBe(3);
     expect(result.games).toHaveLength(27);
     expect(new Set(result.games.map((game) => game.id)).size).toBe(27);
     expect(result.games.every((game) => game.route.startsWith('/games/'))).toBe(true);
     expect(result.games.every((game) => game.restricted)).toBe(true);
-    expect(namesIn('熱門')).toEqual(['賽特2', '雷神2', '歡樂水果機']);
+    expect(namesIn('熱門')).toEqual([
+      '戰神賽特 II：覺醒之力',
+      '雷神之錘 2：雷霆風暴',
+      '歡樂水果機',
+    ]);
     expect(namesIn('拉霸')).toEqual([
       '船長賞金',
       '招財金牛',
@@ -56,22 +61,57 @@ describe('new casino game catalog', () => {
       '奧林匹斯之門',
       '水果拉霸',
       '夜櫻武士',
-      '索爾神鎚',
+      '索爾神槌',
       '暗夜古堡',
     ]);
     expect(namesIn('捕魚')).toEqual(['深海捕魚', '快樂捕魚', '雷霆戰機']);
     expect(namesIn('棋牌')).toEqual([
-      '21點 第1桌',
-      '21點 第2桌',
-      '10點半 第1桌',
-      '10點半 第2桌',
-      '黑粒 第1桌',
-      '黑粒 第2桌',
+      '21點',
+      '21點',
+      '萌娃十點半',
+      '兔糖十點半',
+      '天九黑粒',
+      '御殿黑粒',
       '踩地雷',
-      '爬樓梯',
-      '推桶',
-      '推索',
-      '推萬',
+      '爬階梯',
+      '龍門推筒',
+      '玉兔推索',
+      '金殿推萬',
+    ]);
+    expect(result.games.map((game) => [game.id, game.cover])).toEqual([
+      ['storm-of-seth-2', '/game-art/original/storm-of-seth-2-cover-v1.webp'],
+      ['power-of-thor-2', '/game-art/original/power-of-thor-2-cover-v1.png'],
+      ['fruit-mary', '/game-art/generated/fruit-mary-cover-v1.png'],
+      ['h5-captains-bounty', '/game-art/original/h5-individual/h5-captains-bounty-cover-v1.webp'],
+      ['h5-fortune-ox', '/game-art/original/h5-individual/h5-fortune-ox-cover-v1.webp'],
+      ['h5-dragon-hatch', '/game-art/original/h5-individual/h5-dragon-hatch-cover-v1.webp'],
+      ['h5-queen-of-bounty', '/game-art/original/h5-individual/h5-queen-of-bounty-cover-v1.webp'],
+      ['h5-fortune-gems', '/game-art/generated/h5-individual/h5-fortune-gems-cover-v1.webp'],
+      [
+        'h5-gates-of-olympus',
+        '/game-art/generated/h5-individual/h5-gates-of-olympus-cover-v1.webp',
+      ],
+      ['fruit-slot', '/slots/fruit/cover-v2.png'],
+      ['sakura-slot', '/slots/sakura/cover-v2.png'],
+      ['thunder-slot', '/slots/thunder/cover-v2.png'],
+      ['vampire-slot', '/slots/vampire/cover-v2.png'],
+      [
+        'h5-deep-sea-fishing',
+        '/game-art/generated/h5-individual/h5-deep-sea-fishing-cover-v1.webp',
+      ],
+      ['h5-happy-fishing', '/game-art/generated/h5-individual/h5-happy-fishing-cover-v1.webp'],
+      ['h5-thunder-fishing', '/game-art/generated/h5-individual/h5-thunder-fishing-cover-v1.webp'],
+      ['blackjack', '/game-art/blackjack/cover-v2.png'],
+      ['blackjack-table-2', '/game-art/blackjack/cover-v2.png'],
+      ['twenty-one-half-doll', '/game-art/local-table/ten-half-doll-cover.webp'],
+      ['twenty-one-half-bunny', '/game-art/local-table/ten-half-bunny-cover.webp'],
+      ['black-dot-tianjiu', '/game-art/local-table/black-dot-tianjiu-cover.webp'],
+      ['black-dot-royal', '/game-art/local-table/black-dot-royal-cover.webp'],
+      ['mines', '/game-art/mines/cover-v2.png'],
+      ['tower', '/game-art/tower/cover-v2.png'],
+      ['tui-tongzi-dragon', '/game-art/local-table/tui-tongzi-dragon-cover.webp'],
+      ['tui-tongzi-jade', '/game-art/local-table/tui-suozi-jade-cover.webp'],
+      ['tui-tongzi-gold', '/game-art/local-table/tui-wanzi-gold-cover.webp'],
     ]);
     expect(result.games.filter((game) => game.route === '/games/blackjack')).toHaveLength(2);
     expect(result.games.some((game) => game.id === 'h5-ocean-king-2')).toBe(false);
