@@ -431,6 +431,27 @@
     return hiddenCount;
   }
 
+  function hideLegacyLaunchSplash() {
+    if (!window.cc || !window.cc.director) return 0;
+    var scene = window.cc.director.getScene && window.cc.director.getScene();
+    if (!scene) return 0;
+    var hiddenCount = 0;
+    var pending = [scene];
+    while (pending.length) {
+      var node = pending.pop();
+      if (!node) continue;
+      if (String(node.name || '') === 'logo_loading') {
+        node.active = false;
+        hiddenCount += 1;
+        continue;
+      }
+      (node.children || []).forEach(function (child) {
+        pending.push(child);
+      });
+    }
+    return hiddenCount;
+  }
+
   function calculateCannonAimAngle(cannonPosition, targetPosition, seatId) {
     if (!cannonPosition || !targetPosition) return null;
     var cannonX = Number(cannonPosition.x);
@@ -663,6 +684,7 @@
   }
 
   function applyCocosScenePolicies() {
+    hideLegacyLaunchSplash();
     hideUnsupportedLegacyButtons();
     enhanceFishAimControls();
     hideUnusedFishSeats();
@@ -3580,6 +3602,7 @@
     winFields: winFields,
     installCocosAudioControls: installCocosAudioControls,
     readPlatformAudioPrefs: readPlatformAudioPrefs,
+    hideLegacyLaunchSplash: hideLegacyLaunchSplash,
     shouldHideLegacyButtonHandler: shouldHideLegacyButtonHandler,
     shouldHideFishSeatNode: shouldHideFishSeatNode,
     calculateCannonAimAngle: calculateCannonAimAngle,

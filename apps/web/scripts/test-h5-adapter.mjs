@@ -12,8 +12,51 @@ const collectionPath = fileURLToPath(
 const pagePath = fileURLToPath(
   new URL('../src/pages/games/H5SlotCollectionPage.tsx', import.meta.url),
 );
+const collectionIndexPath = fileURLToPath(
+  new URL('../public/games/h5-slot-collection/index.html', import.meta.url),
+);
+const collectionStylePath = fileURLToPath(
+  new URL('../public/games/h5-slot-collection/style-mobile.25fc5.css', import.meta.url),
+);
+const collectionMainPath = fileURLToPath(
+  new URL('../public/games/h5-slot-collection/main.649de.js', import.meta.url),
+);
 const adapterSource = fs.readFileSync(adapterPath, 'utf8');
 const pageSource = fs.readFileSync(pagePath, 'utf8');
+const collectionIndexSource = fs.readFileSync(collectionIndexPath, 'utf8');
+const collectionStyleSource = fs.readFileSync(collectionStylePath, 'utf8');
+const collectionMainSource = fs.readFileSync(collectionMainPath, 'utf8');
+
+assert.match(
+  collectionStyleSource,
+  /#splash\s*\{[^}]*display:\s*none\s*!important/s,
+  'the archived full-screen HTML splash must remain hidden',
+);
+assert.match(
+  adapterSource,
+  /function hideLegacyLaunchSplash\(\)[\s\S]{0,700}node\.name[\s\S]{0,120}logo_loading[\s\S]{0,120}node\.active\s*=\s*false/,
+  'the archived Cocos launch scene must hide its legacy logo and slogan node',
+);
+assert.match(
+  collectionMainSource,
+  /hideLegacyLaunchSplash\(scene\);\s*cc\.director\.runSceneImmediate\(scene\)/,
+  'the legacy Cocos launch scene must be hidden before its first rendered frame',
+);
+assert.match(
+  adapterSource,
+  /function applyCocosScenePolicies\(\)\s*\{\s*hideLegacyLaunchSplash\(\)/,
+  'the legacy launch splash must be removed after every scene launch',
+);
+assert.match(
+  collectionIndexSource,
+  /yachiyo-adapter\.js\?v=45/,
+  'the shared collection must load the splash-removal adapter revision',
+);
+assert.match(
+  collectionIndexSource,
+  /main\.649de\.js\?v=4/,
+  'the shared collection must load the pre-render splash-removal bootstrap revision',
+);
 
 assert.match(
   adapterSource,
@@ -142,6 +185,7 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
     URL,
     URLSearchParams,
     AbortController,
+    cc: options.cc,
     fetch:
       options.fetch ?? (() => Promise.reject(new Error('network disabled in adapter unit tests'))),
     console: { info: () => {}, warn: () => {}, error: () => {}, log: () => {} },
@@ -159,6 +203,21 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
   context.window = context;
   vm.runInNewContext(adapterSource, context, { filename: adapterPath });
   return context.__YachiyoH5AdapterTest;
+}
+
+{
+  const scene = {
+    name: 'HotUpdate',
+    active: true,
+    children: [
+      { name: 'game-router', active: true, children: [] },
+      { name: 'logo_loading', active: true, children: [{ name: 'legacy-slogan', active: true }] },
+    ],
+  };
+  const testApi = loadAdapter('113', {}, { cc: { director: { getScene: () => scene } } });
+  assert.equal(testApi.hideLegacyLaunchSplash(), 1);
+  assert.equal(scene.children[1].active, false);
+  assert.equal(scene.children[0].active, true);
 }
 
 {

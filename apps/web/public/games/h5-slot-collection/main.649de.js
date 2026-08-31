@@ -6,6 +6,20 @@ window.boot = function () {
     var RESOURCES = cc.AssetManager.BuiltinBundleName.RESOURCES;
     var INTERNAL = cc.AssetManager.BuiltinBundleName.INTERNAL;
     var MAIN = cc.AssetManager.BuiltinBundleName.MAIN;
+    function hideLegacyLaunchSplash (scene) {
+        var pending = scene ? [scene] : [];
+        while (pending.length) {
+            var node = pending.pop();
+            if (!node) continue;
+            if (String(node.name || '') === 'logo_loading') {
+                node.active = false;
+                continue;
+            }
+            (node.children || []).forEach(function (child) {
+                pending.push(child);
+            });
+        }
+    }
     function setLoadingDisplay () {
         // Loading splash scene
         var splash = document.getElementById('splash');
@@ -84,6 +98,10 @@ window.boot = function () {
         bundle.loadScene(launchScene, null, onProgress,
             function (err, scene) {
                 if (!err) {
+                    // Remove the archived black logo/slogan scene before its
+                    // first render. The adapter repeats this policy after
+                    // later scene switches as a defensive fallback.
+                    hideLegacyLaunchSplash(scene);
                     cc.director.runSceneImmediate(scene);
                     if (cc.sys.isBrowser) {
                         // show canvas
