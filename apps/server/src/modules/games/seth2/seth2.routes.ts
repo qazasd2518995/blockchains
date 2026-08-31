@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { isSeth2TestUsername } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
+import { isImportedGameAccessUsername } from '../_common/importedGameAccess.js';
 import { seth2ProtocolSchema, seth2SourceSchema } from './seth2.schema.js';
 import { Seth2Service } from './seth2.service.js';
 
@@ -13,7 +13,7 @@ export async function seth2Routes(fastify: FastifyInstance): Promise<void> {
       select: { username: true },
     });
     if (!user) throw new ApiError('UNAUTHORIZED', 'Authentication required');
-    if (!isSeth2TestUsername(user.username)) {
+    if (!isImportedGameAccessUsername(user.username)) {
       throw new ApiError('FORBIDDEN', '賽特 2 目前僅開放指定測試帳號');
     }
   });

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { isImportedGameTestUsername } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
+import { isImportedGameAccessUsername } from '../_common/importedGameAccess.js';
 import {
   thor2FeatureCompleteSchema,
   thor2FeatureProgressSchema,
@@ -17,7 +17,7 @@ export async function thor2Routes(fastify: FastifyInstance): Promise<void> {
       select: { username: true },
     });
     if (!user) throw new ApiError('UNAUTHORIZED', 'Authentication required');
-    if (!isImportedGameTestUsername(user.username)) {
+    if (!isImportedGameAccessUsername(user.username)) {
       throw new ApiError('FORBIDDEN', '雷神之錘 2 目前僅開放指定測試帳號');
     }
   });

@@ -312,7 +312,9 @@ export class ChickenRoadService {
         multiplier,
         payout,
       };
-      const controlOutcome = await applyControls(tx, userId, GameId.CHICKEN_ROAD, predicted);
+      const controlOutcome = await applyControls(tx, userId, GameId.CHICKEN_ROAD, predicted, {
+        forceControlOnMatch: true,
+      });
       const effectiveControl = resolveGameMatchedCashoutControl(
         multiplier,
         bet.amount,

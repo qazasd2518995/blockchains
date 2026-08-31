@@ -1,11 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
-import {
-  getH5GameByCode,
-  isH5GameCode,
-  isImportedGameTestUsername,
-  type H5GameCode,
-} from '@bg/shared';
+import { getH5GameByCode, isH5GameCode, type H5GameCode } from '@bg/shared';
 import { ApiError } from '../../../utils/errors.js';
 import {
   debitAndRecord,
@@ -13,6 +8,7 @@ import {
   runLockedTransaction,
 } from '../_common/BaseGameService.js';
 import { HotlineService } from '../hotline/hotline.service.js';
+import { isImportedGameAccessUsername } from '../_common/importedGameAccess.js';
 import {
   h5BountyFreeModeSchema,
   h5CaishenFreeDecisionSchema,
@@ -70,7 +66,7 @@ export async function h5SlotsRoutes(fastify: FastifyInstance): Promise<void> {
       },
     });
     if (!user) throw new ApiError('UNAUTHORIZED', 'Authentication required');
-    if (!isImportedGameTestUsername(user.username)) {
+    if (!isImportedGameAccessUsername(user.username)) {
       throw new ApiError('FORBIDDEN', '此遊戲目前僅開放指定測試帳號');
     }
     if (user.frozenAt || user.disabledAt) {

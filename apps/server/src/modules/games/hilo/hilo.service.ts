@@ -296,7 +296,9 @@ export class HiLoService {
         multiplier,
         payout,
       };
-      const controlOutcome = await applyControls(tx, userId, GameId.HILO, predicted);
+      const controlOutcome = await applyControls(tx, userId, GameId.HILO, predicted, {
+        forceControlOnMatch: true,
+      });
       const effectiveControl = resolveGameMatchedCashoutControl(
         multiplier,
         round.betAmount,

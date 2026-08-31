@@ -8,12 +8,7 @@ import {
   type FruitMaryBetSelection,
   type FruitMaryOutcome,
 } from '@bg/provably-fair';
-import {
-  GameId,
-  FRUIT_MARY_BET_IDS,
-  isImportedGameTestUsername,
-  type FruitMaryLegacySpinResponse,
-} from '@bg/shared';
+import { GameId, FRUIT_MARY_BET_IDS, type FruitMaryLegacySpinResponse } from '@bg/shared';
 import {
   SeedHelper,
   creditAndRecord,
@@ -29,6 +24,7 @@ import {
 } from '../_common/controls.js';
 import { ApiError } from '../../../utils/errors.js';
 import { config } from '../../../config.js';
+import { isImportedGameAccessUsername } from '../_common/importedGameAccess.js';
 import type {
   FruitMaryGambleInput,
   FruitMaryHistoryInput,
@@ -118,9 +114,7 @@ export class FruitMaryService {
         FRUIT_MARY_DENOMINATION,
       );
       const finalPrediction = prediction(amount, finalPayout);
-      const betMultiplier = finalPayout
-        .div(amount)
-        .toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
+      const betMultiplier = finalPayout.div(amount).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
 
       const originalResult = serializeSpinResult(originalOutcome, bets, totalUnits);
       const finalResult = {
@@ -329,7 +323,7 @@ function normalizeBets(input: FruitMarySpinInput): FruitMaryBetSelection[] {
 }
 
 function requireTestUser(username: string): void {
-  if (!isImportedGameTestUsername(username)) {
+  if (!isImportedGameAccessUsername(username)) {
     throw new ApiError('FORBIDDEN', '此遊戲目前僅開放指定測試帳號');
   }
 }
@@ -414,9 +408,7 @@ const CONTROLLED_BONUS_TEMPLATES: ReadonlyArray<{
   { legacyType: 8, positions: [10, ...FRUIT_MARY_PAYOUT_POSITIONS] },
 ];
 
-function controlledFruitCandidates(
-  bets: readonly FruitMaryBetSelection[],
-): FruitMaryOutcome[] {
+function controlledFruitCandidates(bets: readonly FruitMaryBetSelection[]): FruitMaryOutcome[] {
   const positions = [10, 22, ...FRUIT_MARY_PAYOUT_POSITIONS];
   const zeroPayoutPositions = FRUIT_MARY_PAYOUT_POSITIONS.filter(
     (position) => fruitMaryOutcomeForPosition(position, bets).totalPayoutUnits === 0,

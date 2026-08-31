@@ -17,6 +17,8 @@ const {
   buildBlackDotSplitOptions,
   blackDotDeckSupportsControlFlexibility,
   buildRound,
+  buildTwentyOneHalfAutoplayRound,
+  buildTwentyOneHalfControlledAutoplayRound,
   buildTwentyOneHalfRoundFromState,
   drawControlFlexibleBlackDotDeck,
   drawDominoTiles,
@@ -93,6 +95,37 @@ describe('local table game rules', () => {
     ]);
 
     expect(score).toBe(10.5);
+  });
+
+  it('models reachable win and loss controls for every Ten-and-a-Half room', () => {
+    const amount = new Prisma.Decimal(100);
+
+    for (const gameId of TWENTY_ONE_HALF_GAME_IDS) {
+      for (const desiredWin of [true, false]) {
+        let found = false;
+        for (let nonce = 1; nonce <= 500; nonce += 1) {
+          const seed = { serverSeed: `control-${gameId}`, clientSeed: 'client', nonce };
+          const natural = buildTwentyOneHalfAutoplayRound(gameId, amount, seed);
+          if (natural.profit.greaterThan(0) === desiredWin) continue;
+
+          const controlled = buildTwentyOneHalfControlledAutoplayRound(
+            gameId,
+            amount,
+            seed,
+            desiredWin,
+          );
+          if (controlled.profit.greaterThan(0) === desiredWin) {
+            expectRoundAccounting(controlled, amount);
+            found = true;
+            break;
+          }
+        }
+        expect(
+          found,
+          `${gameId} should have a reachable ${desiredWin ? 'WIN' : 'LOSS'} control`,
+        ).toBe(true);
+      }
+    }
   });
 
   it('ranks Tui Tongzi special hands above normal points', () => {

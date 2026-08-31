@@ -6,8 +6,10 @@ import {
   blackjackScore,
   chickenRoadMultiplier,
   chickenRoadPath,
+  crashPoint,
   diceDetermine,
   diceMultiplier,
+  fruitMarySpin,
   getHotlineReelCount,
   getHotlineRowCount,
   hmacIntStream,
@@ -27,14 +29,23 @@ import {
   plinkoPath,
   rouletteEvaluate,
   rouletteSpin,
+  seth2Spin,
   sha256,
   TOWER_CONFIG,
   towerLayout,
   towerMultiplier,
+  thor2Spin,
   wheelMultiplier,
   wheelSpin,
 } from '@bg/provably-fair';
-import { BACCARAT_TABLE_GAME_IDS, GameId, SLOT_GAME_IDS } from '@bg/shared';
+import {
+  BACCARAT_TABLE_GAME_IDS,
+  GameId,
+  GAMES_REGISTRY,
+  H5_GAMES,
+  LOCAL_TABLE_GAME_IDS,
+  SLOT_GAME_IDS,
+} from '@bg/shared';
 
 const prisma = new PrismaClient();
 const amount = 100;
@@ -47,6 +58,12 @@ const clientSeed = `${runId}_client`;
 const testSeedBase = `${runId}_server`;
 const gameFilter = argCsv('--game');
 const controlFilter = argCsv('--control');
+const shardCount = argPositiveInt('--shard-count', 1);
+const shardIndex = argPositiveInt('--shard-index', 0, true);
+
+if (shardIndex >= shardCount) {
+  throw new Error(`--shard-index must be between 0 and ${shardCount - 1}`);
+}
 
 const results = [];
 let app;
@@ -56,15 +73,45 @@ let playerToken;
 let adminAgent;
 let lineAgent;
 let player;
+let localTableTestHooks;
+let hotlineTestHooks;
+let towerTestHooks;
+let operationCounter = 0;
+const verifiedControlToggleKeys = new Set();
 
 const slotGameIds = [...SLOT_GAME_IDS];
 const baccaratTableGameIds = [...BACCARAT_TABLE_GAME_IDS];
+const localTableGameIds = [...LOCAL_TABLE_GAME_IDS];
+const hotlineGameIds = [
+  GameId.HOTLINE,
+  GameId.FRUIT_SLOT,
+  GameId.FORTUNE_SLOT,
+  GameId.OCEAN_SLOT,
+  GameId.TEMPLE_SLOT,
+  GameId.CANDY_SLOT,
+  GameId.SAKURA_SLOT,
+  GameId.THUNDER_SLOT,
+  GameId.DRAGON_MEGA_SLOT,
+  GameId.NEBULA_SLOT,
+  GameId.JUNGLE_SLOT,
+  GameId.VAMPIRE_SLOT,
+];
+const crashGameIds = [
+  GameId.ROCKET,
+  GameId.AVIATOR,
+  GameId.SPACE_FLEET,
+  GameId.JETX,
+  GameId.BALLOON,
+  GameId.JETX3,
+  GameId.DOUBLE_X,
+];
 
 const httpGames = [
   makeDiceGame(),
   makeKenoGame(),
   makeWheelGame(),
-  makePlinkoGame(),
+  makePlinkoGame(GameId.PLINKO),
+  makePlinkoGame(GameId.PLINKO_X),
   makeRouletteGame(GameId.MINI_ROULETTE, '/api/games/mini-roulette/bet', 'mini roulette'),
   makeRouletteGame(GameId.CARNIVAL, '/api/games/carnival/bet', 'carnival roulette'),
   makeMinesGame(),
@@ -73,7 +120,13 @@ const httpGames = [
   makeChickenRoadGame(),
   makeBlackjackGame(),
   ...baccaratTableGameIds.map(makeBaccaratGame),
-  ...slotGameIds.map(makeHotlineGame),
+  ...hotlineGameIds.map(makeHotlineGame),
+  makeSeth2Game(),
+  makeThor2Game(),
+  makeFruitMaryGame(),
+  ...H5_GAMES.map(makeH5Game),
+  ...localTableGameIds.map(makeLocalTableGame),
+  ...crashGameIds.map(makeCrashGame),
 ];
 
 const controlCases = [
@@ -206,6 +259,77 @@ const controlCases = [
     },
   },
   {
+    key: 'deposit_path_down',
+    label: 'Deposit lifecycle drives balance downward',
+    desired: 'LOSS',
+    raw: 'win',
+    expectedReasons: ['deposit_control', 'deposit_lifecycle_path_guard'],
+    supportsToggle: true,
+    listUrl: '/api/admin/controls/deposit',
+    deleteUrl: (id) => `/api/admin/controls/deposit/${id}`,
+    toggleUrl: (id) => `/api/admin/controls/deposit/${id}/toggle`,
+    create: async () => {
+      const fresh = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+      return adminPost('/api/admin/controls/deposit', {
+        memberId: player.id,
+        memberUsername: player.username,
+        startBalance: fresh.balance.toFixed(2),
+        controlWinRate: '1',
+        lifecycleSteps: [50],
+        notes: `${runId}:path-down`,
+      });
+    },
+  },
+  {
+    key: 'deposit_path_up',
+    label: 'Deposit lifecycle drives balance upward',
+    desired: 'WIN',
+    raw: 'loss',
+    expectedReasons: ['deposit_control', 'deposit_lifecycle_path_guard'],
+    supportsToggle: true,
+    listUrl: '/api/admin/controls/deposit',
+    deleteUrl: (id) => `/api/admin/controls/deposit/${id}`,
+    toggleUrl: (id) => `/api/admin/controls/deposit/${id}/toggle`,
+    create: async () => {
+      const fresh = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+      return adminPost('/api/admin/controls/deposit', {
+        memberId: player.id,
+        memberUsername: player.username,
+        startBalance: fresh.balance.toFixed(2),
+        controlWinRate: '1',
+        lifecycleSteps: [150],
+        notes: `${runId}:path-up`,
+      });
+    },
+  },
+  makeAutoBalanceControlCase({
+    key: 'auto_balance_bite',
+    label: 'Principal phase bites toward 30%',
+    phase: 'BITE_TO_30',
+    desired: 'LOSS',
+    raw: 'win',
+    reason: 'auto_balance_bite',
+    baselineFactor: 1,
+  }),
+  makeAutoBalanceControlCase({
+    key: 'auto_balance_revive',
+    label: 'Principal phase revives toward 70%',
+    phase: 'REVIVE_TO_70',
+    desired: 'WIN',
+    raw: 'loss',
+    reason: 'auto_balance_revive',
+    baselineFactor: 2,
+  }),
+  makeAutoBalanceControlCase({
+    key: 'auto_balance_drain',
+    label: 'Principal phase drains toward zero',
+    phase: 'DRAIN_TO_ZERO',
+    desired: 'LOSS',
+    raw: 'win',
+    reason: 'auto_balance_drain',
+    baselineFactor: 1,
+  }),
+  {
     key: 'manual_detection_win',
     label: 'Manual detection force WIN',
     desired: 'WIN',
@@ -282,6 +406,10 @@ const controlCases = [
           burstRate: '0',
           smallWinRate: '0',
           lossRate: '100',
+          dailyBudget: '999999999',
+          memberDailyCap: '999999999',
+          maxBurstProfit: '999999999',
+          singleMultiplierCap: '1000000',
         }),
       ),
   },
@@ -314,7 +442,14 @@ if (cleanupOnlyPrefix) {
 
 async function main() {
   process.env.LOG_LEVEL = process.env.CONTROL_API_LOG_LEVEL ?? process.env.LOG_LEVEL ?? 'silent';
+  process.env.CONTROL_API_FIXTURE_PREFIX = runId;
   ({ buildServer } = await import('../dist/server.js'));
+  ({ __localTableServiceTestHooks: localTableTestHooks } =
+    await import('../dist/modules/games/table-games/table-games.service.js'));
+  ({ __hotlineServiceTestHooks: hotlineTestHooks } =
+    await import('../dist/modules/games/hotline/hotline.service.js'));
+  ({ __towerServiceTestHooks: towerTestHooks } =
+    await import('../dist/modules/games/tower/tower.service.js'));
   console.log(`[control-api] runId=${runId}`);
   app = await buildServer();
   await cleanup(runId);
@@ -322,8 +457,12 @@ async function main() {
   await login();
   await reportPotentialInterference();
   const games = selectedGames();
+  assertEnabledGameCoverage();
   const controls = selectedControls();
   const cases = selectedControlGameCases(games, controls);
+  console.log(
+    `[control-api] games=${games.length} controls=${controls.length} cases=${cases.length}`,
+  );
   await precomputePlans(cases);
 
   let done = 0;
@@ -337,6 +476,9 @@ async function main() {
   }
 
   printSummary();
+  if (results.some((result) => !result.ok)) {
+    throw new Error('control API matrix contains failed cases');
+  }
 }
 
 async function shutdown(code) {
@@ -352,6 +494,9 @@ async function shutdown(code) {
     code = code || 1;
   }
   await prisma.$disconnect().catch(() => undefined);
+  if (process.env.CONTROL_API_FIXTURE_PREFIX === runId) {
+    delete process.env.CONTROL_API_FIXTURE_PREFIX;
+  }
   process.exit(code);
 }
 
@@ -366,8 +511,19 @@ function argCsv(name) {
   );
 }
 
+function argPositiveInt(name, fallback, allowZero = false) {
+  const index = process.argv.indexOf(name);
+  if (index < 0 || !process.argv[index + 1]) return fallback;
+  const value = Number.parseInt(process.argv[index + 1], 10);
+  if (!Number.isInteger(value) || value < (allowZero ? 0 : 1)) {
+    throw new Error(`${name} must be ${allowZero ? 'a non-negative' : 'a positive'} integer`);
+  }
+  return value;
+}
+
 function selectedGames() {
-  return gameFilter ? httpGames.filter((game) => gameFilter.has(game.id)) : httpGames;
+  const filtered = gameFilter ? httpGames.filter((game) => gameFilter.has(game.id)) : httpGames;
+  return filtered.filter((_, index) => index % shardCount === shardIndex);
 }
 
 function selectedControls() {
@@ -502,43 +658,61 @@ async function loginPlayer() {
 }
 
 async function precomputePlans(cases) {
+  const cache = new Map();
   for (const { game, control } of cases) {
     game.plans ??= {};
-    game.plans[control.key] = findPlan(game, control.raw, control.acceptPlan);
+    const acceptPlan =
+      control.acceptPlan ??
+      (control.desired === 'WIN' ? acceptsControlSafeWinPlan : acceptsControlSafeLossPlan);
+    const cacheKey = `${game.id}:${control.raw}:${acceptPlan.name}`;
+    if (!cache.has(cacheKey)) {
+      cache.set(cacheKey, findPlan(game, control.raw, acceptPlan));
+    }
+    game.plans[control.key] = cache.get(cacheKey);
+  }
+}
+
+function acceptsControlSafeWinPlan(plan) {
+  return plan.controlSafeWin !== false;
+}
+
+function acceptsControlSafeLossPlan(plan) {
+  return plan.controlSafeLoss !== false;
+}
+
+function assertEnabledGameCoverage() {
+  const tested = new Set(httpGames.map((game) => game.id));
+  const missing = Object.values(GAMES_REGISTRY)
+    .filter((game) => game.enabled && !tested.has(game.id))
+    .map((game) => game.id);
+  if (missing.length) {
+    throw new Error(`enabled games missing from API matrix: ${missing.join(', ')}`);
   }
 }
 
 async function runControlGameCase(control, game) {
   let created;
   try {
-    await resetOpenRounds();
+    await resetFixtureFinancialState();
     created = await control.create();
     const controlId = created.body.id;
-    await assertListed(control, controlId);
+    if (control.listUrl) await assertListed(control, controlId);
 
-    if (control.supportsToggle) {
+    if (control.supportsToggle && !verifiedControlToggleKeys.has(control.key)) {
       await adminPatch(control.toggleUrl(controlId), { isActive: false });
       await adminPatch(control.toggleUrl(controlId), { isActive: true });
+      verifiedControlToggleKeys.add(control.key);
     }
 
     const plan = game.plans[control.key];
     await prepareSeed(game.seedCategory, plan.seed, plan.nonce);
-    const run = await game.run(plan);
+    const balanceBefore = await playerBalance();
+    const run = await game.run(plan, control);
+    const settlement = await assertFinancialSettlement(game, run, balanceBefore);
     const log = await latestControlLog(controlId, game.id);
 
-    const pendingWinPass =
-      control.desired === 'WIN' && game.winCanRemainPending && run.effect === 'WIN' && !log;
-    if (pendingWinPass) {
-      return {
-        ok: true,
-        gameId: game.id,
-        control: control.key,
-        note: 'pending win effect verified',
-      };
-    }
-
     if (!log) {
-      throw new Error(`no WinLossControlLogs row for ${controlId}; effect=${run.effect}`);
+      throw new Error(`no WinLossControlLogs row for ${controlId}; effect=${settlement.effect}`);
     }
     if (!control.expectedReasons.includes(log.flipReason)) {
       throw new Error(
@@ -553,7 +727,12 @@ async function runControlGameCase(control, game) {
       throw new Error(`final result was not LOSS: ${JSON.stringify(log.finalResult)}`);
     }
 
-    return { ok: true, gameId: game.id, control: control.key, note: `log=${log.flipReason}` };
+    return {
+      ok: true,
+      gameId: game.id,
+      control: control.key,
+      note: `log=${log.flipReason} balance=${settlement.balanceDelta}`,
+    };
   } catch (error) {
     return {
       ok: false,
@@ -578,12 +757,111 @@ async function assertListed(control, id) {
 }
 
 async function deleteControl(control, id) {
+  if (control.cleanup) {
+    await control.cleanup(id);
+    return;
+  }
   if (control.key.startsWith('manual_detection')) {
     await adminPost('/api/admin/controls/manual-detection/deactivate', { id }).catch(
       () => undefined,
     );
   }
   await adminDelete(control.deleteUrl(id));
+}
+
+function makeAutoBalanceControlCase({ key, label, phase, desired, raw, reason, baselineFactor }) {
+  return {
+    key,
+    label,
+    phase,
+    desired,
+    raw,
+    expectedReasons: [reason, 'auto_balance_path_guard'],
+    supportsToggle: false,
+    create: async () => {
+      const fresh = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+      const baseline = fresh.balance.mul(baselineFactor).toDecimalPlaces(2);
+      const control = await prisma.memberAutoBalanceControl.upsert({
+        where: { memberId: player.id },
+        create: {
+          memberId: player.id,
+          memberUsername: player.username,
+          agentId: player.agentId,
+          baselineBalance: baseline,
+          biteTargetBalance: baseline.mul('0.30').toDecimalPlaces(2),
+          reviveTargetBalance: baseline.mul('0.70').toDecimalPlaces(2),
+          phase,
+          controlPercentage: 100,
+          isActive: true,
+          operatorUsername: adminAgent.username,
+        },
+        update: {
+          baselineBalance: baseline,
+          biteTargetBalance: baseline.mul('0.30').toDecimalPlaces(2),
+          reviveTargetBalance: baseline.mul('0.70').toDecimalPlaces(2),
+          phase,
+          lifecycleSteps: Prisma.DbNull,
+          currentStageIndex: 0,
+          lifecycleCompletedAt: null,
+          controlPercentage: 100,
+          isActive: true,
+          operatorUsername: adminAgent.username,
+        },
+      });
+      return { body: { id: control.id } };
+    },
+    cleanup: (id) => prisma.memberAutoBalanceControl.deleteMany({ where: { id } }),
+  };
+}
+
+async function playerBalance() {
+  const current = await prisma.user.findUniqueOrThrow({
+    where: { id: player.id },
+    select: { balance: true },
+  });
+  return current.balance;
+}
+
+async function assertFinancialSettlement(game, run, balanceBefore) {
+  const balanceAfter = await playerBalance();
+  if (run.accounting === 'crash') {
+    const bet = run.crashBetId
+      ? await prisma.crashBet.findUnique({ where: { id: run.crashBetId } })
+      : await prisma.crashBet.findFirst({
+          where: { userId: player.id, round: { gameId: game.id } },
+          orderBy: { createdAt: 'desc' },
+        });
+    if (!bet || !bet.controlFinalizedAt) throw new Error('crash bet was not finalized');
+    const expected = balanceBefore.minus(bet.amount).plus(bet.payout);
+    assertDecimalClose(balanceAfter, expected, 'crash wallet balance');
+    return {
+      effect: bet.payout.greaterThan(bet.amount) ? 'WIN' : 'LOSS',
+      balanceDelta: balanceAfter.minus(balanceBefore).toFixed(2),
+    };
+  }
+
+  const bet = run.betId
+    ? await prisma.bet.findUnique({ where: { id: run.betId } })
+    : await latestBet(game.id);
+  if (!bet || bet.status !== 'SETTLED') {
+    throw new Error(`bet did not settle; status=${bet?.status ?? 'missing'}`);
+  }
+  assertDecimalClose(bet.profit, bet.payout.minus(bet.amount), 'bet profit');
+  assertDecimalClose(bet.payout, bet.amount.mul(bet.multiplier), 'bet payout/multiplier');
+  const expected = balanceBefore.minus(bet.amount).plus(bet.payout);
+  assertDecimalClose(balanceAfter, expected, 'wallet balance');
+  return {
+    effect: bet.payout.greaterThan(bet.amount) ? 'WIN' : 'LOSS',
+    balanceDelta: balanceAfter.minus(balanceBefore).toFixed(2),
+  };
+}
+
+function assertDecimalClose(actual, expected, label) {
+  if (new Prisma.Decimal(actual).minus(expected).abs().greaterThan('0.011')) {
+    throw new Error(
+      `${label} mismatch: actual=${actual.toString()} expected=${expected.toString()}`,
+    );
+  }
 }
 
 async function latestControlLog(controlId, gameId) {
@@ -641,9 +919,48 @@ async function resetOpenRounds() {
     data: { status: 'BUSTED', finishedAt: new Date() },
   });
   await prisma.bet.updateMany({
-    where: { userId: player.id, gameId: GameId.CHICKEN_ROAD, status: 'PENDING' },
+    where: { userId: player.id, status: 'PENDING' },
     data: { status: 'VOID', settledAt: new Date() },
   });
+  const runningCrashRounds = await prisma.crashRound.findMany({
+    where: { status: 'RUNNING', bets: { some: { userId: player.id } } },
+    select: { id: true },
+  });
+  if (runningCrashRounds.length) {
+    await prisma.crashRound.updateMany({
+      where: { id: { in: runningCrashRounds.map((round) => round.id) } },
+      data: { status: 'CRASHED', crashedAt: new Date() },
+    });
+  }
+}
+
+async function resetFixtureFinancialState() {
+  await resetOpenRounds();
+  const crashRounds = await prisma.crashBet.findMany({
+    where: { userId: player.id },
+    select: { roundId: true },
+  });
+  await prisma.$transaction([
+    prisma.transaction.deleteMany({ where: { userId: player.id } }),
+    prisma.crashBet.deleteMany({ where: { userId: player.id } }),
+    ...(crashRounds.length
+      ? [
+          prisma.crashRound.deleteMany({
+            where: { id: { in: crashRounds.map((round) => round.roundId) } },
+          }),
+        ]
+      : []),
+    prisma.bet.deleteMany({ where: { userId: player.id } }),
+    prisma.minesRound.deleteMany({ where: { userId: player.id } }),
+    prisma.hiLoRound.deleteMany({ where: { userId: player.id } }),
+    prisma.towerRound.deleteMany({ where: { userId: player.id } }),
+    prisma.blackjackRound.deleteMany({ where: { userId: player.id } }),
+    prisma.winLossControlLogs.deleteMany({ where: { userId: player.id } }),
+    prisma.user.update({
+      where: { id: player.id },
+      data: { balance: new Prisma.Decimal('10000000') },
+    }),
+  ]);
 }
 
 function findPlan(game, raw, acceptPlan) {
@@ -651,7 +968,7 @@ function findPlan(game, raw, acceptPlan) {
   const seed = `${testSeedBase}:${game.id}:plan:${raw}`;
   for (let nonce = 1; nonce <= (game.maxSearch ?? 50000); nonce += 1) {
     const plan = game.plan(seed, clientSeed, nonce, raw);
-    if (plan.rawWin === wantWin && (!acceptPlan || acceptPlan(plan)))
+    if (plan.valid !== false && plan.rawWin === wantWin && (!acceptPlan || acceptPlan(plan)))
       return { ...plan, nonce, seed };
   }
   throw new Error(`cannot find raw ${raw} plan for ${game.id}`);
@@ -725,11 +1042,11 @@ function makeWheelGame() {
   };
 }
 
-function makePlinkoGame() {
-  const payload = { amount, rows: 10, risk: 'medium', clientSeed };
+function makePlinkoGame(id) {
+  const payload = { gameId: id, amount, rows: 10, risk: 'medium', clientSeed };
   return {
-    id: GameId.PLINKO,
-    seedCategory: 'plinko',
+    id,
+    seedCategory: id,
     maxSearch: 10000,
     plan: (seed, c, nonce) => {
       const path = plinkoPath(seed, c, nonce, payload.rows);
@@ -795,6 +1112,364 @@ function makeHotlineGame(id) {
   };
 }
 
+function makeSeth2Game() {
+  const payload = {
+    event: 'spin',
+    data: {
+      action: 'spin',
+      stakeValue: 5,
+      ratioValue: 1,
+      machineId: 1,
+    },
+  };
+  return {
+    id: GameId.STORM_OF_SETH_2,
+    seedCategory: GameId.STORM_OF_SETH_2,
+    maxSearch: 5000,
+    plan: (seed, c, nonce) => {
+      const outcome = seth2Spin(seed, c, nonce, amount);
+      const payout = outcome.payoutFactor * amount;
+      return {
+        rawWin: payout > amount,
+        multiplier: outcome.payoutFactor,
+        payout,
+        payload,
+      };
+    },
+    run: async (plan) => {
+      const res = await playerPost('/api/games/seth2/source', {
+        ...plan.payload,
+        data: { ...plan.payload.data, operationId: nextOperationId('seth2') },
+      });
+      const betId = res.body?.engine?.spinId;
+      if (!betId) throw new Error('Seth 2 spin did not return a bet id');
+      const sequence = await prisma.seth2FeatureSequence.findUnique({ where: { betId } });
+      if (sequence?.status === 'READY') {
+        await playerPost('/api/games/seth2/source', {
+          event: 'closeSpin',
+          data: { spinId: betId },
+        });
+      }
+      return { betId, body: res.body };
+    },
+  };
+}
+
+function makeThor2Game() {
+  return {
+    id: GameId.POWER_OF_THOR_2,
+    seedCategory: GameId.POWER_OF_THOR_2,
+    maxSearch: 10000,
+    plan: (seed, c, nonce) => {
+      const outcome = thor2Spin(seed, c, nonce);
+      const payout = outcome.totalMultiplier * amount;
+      return {
+        rawWin: payout > amount,
+        multiplier: outcome.totalMultiplier,
+        payout,
+      };
+    },
+    run: async () => {
+      const res = await playerPost('/api/games/thor2/spin', {
+        action: 'spin',
+        amount,
+        operationId: nextOperationId('thor2'),
+        clientSeed,
+      });
+      if (res.body.payoutDeferred) {
+        await playerPost('/api/games/thor2/feature/complete', { betId: res.body.betId });
+      }
+      return { betId: res.body.betId, body: res.body };
+    },
+  };
+}
+
+function makeFruitMaryGame() {
+  const selections = [{ fruitId: 5, units: 10 }];
+  const payload = { fruits: [[5, 10]], money: 10 };
+  return {
+    id: GameId.FRUIT_MARY,
+    seedCategory: GameId.FRUIT_MARY,
+    maxSearch: 10000,
+    plan: (seed, c, nonce) => {
+      const outcome = fruitMarySpin(seed, c, nonce, selections);
+      const payout = outcome.totalPayoutUnits * 10;
+      return {
+        rawWin: payout > amount,
+        multiplier: payout / amount,
+        payout,
+        payload,
+      };
+    },
+    run: async (plan) => {
+      const res = await playerPost('/api/games/fruit-mary/spin', plan.payload);
+      return { betId: res.body.spinId, body: res.body };
+    },
+  };
+}
+
+function makeH5Game(game) {
+  const payload = { gameCode: game.code, amount, clientSeed };
+  return {
+    id: game.gameId,
+    seedCategory: game.gameId,
+    maxSearch: 100000,
+    plan: (seed, c, nonce) => {
+      const reelCount = getHotlineReelCount(game.gameId);
+      const rowCount = getHotlineRowCount(game.gameId);
+      const round = hotlineTestHooks?.buildHotlineRound(
+        seed,
+        c,
+        nonce,
+        game.gameId,
+        reelCount,
+        rowCount,
+        false,
+        undefined,
+        undefined,
+      );
+      if (!round) {
+        return { valid: false, rawWin: false, multiplier: 0, payout: 0, payload };
+      }
+      const payout = round.totalMultiplier * amount;
+      const scatterCount = Number(round.features?.scatterCount ?? 0);
+      const selectionDeferred =
+        ((game.code === '281' || game.code === '232') && scatterCount >= 3) ||
+        (game.code === '278' && scatterCount >= 4);
+      const visualDeferred =
+        (game.code === '278' || game.code === '321') &&
+        Boolean(round.features?.freeSpinRounds?.length);
+      return {
+        valid: !selectionDeferred && !visualDeferred,
+        rawWin: payout > amount,
+        multiplier: round.totalMultiplier,
+        payout,
+        payload,
+      };
+    },
+    run: async (plan) => {
+      let res = await playerPost('/api/games/h5-slots/spin', plan.payload);
+      const betId = res.body.betId;
+      if (!betId) throw new Error(`${game.gameId} spin did not return a bet id`);
+      const current = await prisma.bet.findUnique({ where: { id: betId } });
+      if (current?.status === 'PENDING' && (game.code === '281' || game.code === '232')) {
+        res = await playerPost('/api/games/h5-slots/select-free-mode', {
+          gameCode: game.code,
+          betId,
+          type: 1,
+        });
+      } else if (current?.status === 'PENDING' && game.code === '278') {
+        res = await playerPost('/api/games/h5-slots/caishen/collect-free', {
+          gameCode: game.code,
+          betId,
+        });
+      }
+      if (res.body.payoutDeferred) {
+        await playerPost('/api/games/h5-slots/complete-feature', {
+          gameCode: game.code,
+          betId,
+        });
+      }
+      return { betId, body: res.body };
+    },
+  };
+}
+
+function makeLocalTableGame(id) {
+  const payload = { gameId: id, amount, clientSeed };
+  const kind = localTableKind(id);
+  return {
+    id,
+    seedCategory: `table:${kind}`,
+    maxSearch: 10000,
+    plan: (seed, c, nonce) => {
+      if (!localTableTestHooks) {
+        return { valid: false, rawWin: false, multiplier: 0, payout: 0, payload };
+      }
+      const seedBundle = { serverSeed: seed, clientSeed: c, nonce };
+      let splitId;
+      let round;
+      if (kind === 'black-dot') {
+        const deck = localTableTestHooks.drawControlFlexibleBlackDotDeck(id, seedBundle);
+        const playerTiles = deck.slice(0, 4);
+        splitId = localTableTestHooks.buildBlackDotSplitOptions(playerTiles)[0]?.id;
+        if (!splitId) {
+          return { valid: false, rawWin: false, multiplier: 0, payout: 0, payload };
+        }
+        round = localTableTestHooks.buildBlackDotRoundFromSplitForGame(
+          id,
+          new Prisma.Decimal(amount),
+          playerTiles,
+          deck.slice(4, 8),
+          splitId,
+        );
+      } else {
+        round =
+          kind === 'twenty-one-half'
+            ? localTableTestHooks.buildTwentyOneHalfAutoplayRound(
+                id,
+                new Prisma.Decimal(amount),
+                seedBundle,
+              )
+            : localTableTestHooks.buildRound(id, new Prisma.Decimal(amount), seedBundle, 0);
+      }
+      return {
+        rawWin: round.profit.greaterThan(0),
+        multiplier: Number(round.multiplier),
+        payout: Number(round.payout),
+        payload,
+        splitId,
+        controlSafeWin:
+          kind !== 'twenty-one-half' ||
+          localTableTestHooks
+            .buildTwentyOneHalfControlledAutoplayRound(
+              id,
+              new Prisma.Decimal(amount),
+              seedBundle,
+              true,
+            )
+            .profit.greaterThan(0),
+        controlSafeLoss:
+          kind !== 'twenty-one-half' ||
+          !localTableTestHooks
+            .buildTwentyOneHalfControlledAutoplayRound(
+              id,
+              new Prisma.Decimal(amount),
+              seedBundle,
+              false,
+            )
+            .profit.greaterThan(0),
+      };
+    },
+    run: async (plan) => {
+      if (kind === 'twenty-one-half') {
+        let state = (await playerPost('/api/games/table-games/twenty-one-half/start', plan.payload))
+          .body;
+        for (let step = 0; state.status === 'ACTIVE' && step < 20; step += 1) {
+          if (state.phase === 'BANKER_TURN') {
+            state = (
+              await playerPost('/api/games/table-games/twenty-one-half/banker-draw', {
+                roundId: state.roundId,
+              })
+            ).body;
+          } else if (
+            state.canHit &&
+            (state.forcedAction === 'hit' || Number.parseFloat(state.player.scoreLabel) < 7)
+          ) {
+            state = (
+              await playerPost('/api/games/table-games/twenty-one-half/hit', {
+                roundId: state.roundId,
+              })
+            ).body;
+          } else {
+            state = (
+              await playerPost('/api/games/table-games/twenty-one-half/stand', {
+                roundId: state.roundId,
+              })
+            ).body;
+          }
+        }
+        if (state.status !== 'SETTLED') throw new Error(`${id} did not settle after 20 actions`);
+        return { betId: state.roundId, body: state };
+      }
+
+      let state = (await playerPost('/api/games/table-games/round/start', plan.payload)).body;
+      for (let step = 0; state.status === 'ACTIVE' && step < 10; step += 1) {
+        if (state.canSplit) {
+          const splitId = plan.splitId ?? state.splitOptions?.[0]?.id;
+          if (!splitId) throw new Error(`${id} requested a split without options`);
+          state = (
+            await playerPost('/api/games/table-games/round/split', {
+              roundId: state.roundId,
+              splitId,
+            })
+          ).body;
+        } else {
+          state = (
+            await playerPost('/api/games/table-games/round/reveal', {
+              roundId: state.roundId,
+              ...(state.revealablePlayerIndexes?.length
+                ? { revealIndex: state.revealablePlayerIndexes[0] }
+                : {}),
+            })
+          ).body;
+        }
+      }
+      if (state.status !== 'SETTLED') throw new Error(`${id} did not settle after 10 actions`);
+      return { betId: state.roundId, body: state };
+    },
+  };
+}
+
+function makeCrashGame(id) {
+  return {
+    id,
+    seedCategory: `crash:${id}`,
+    maxSearch: 1,
+    plan: (_seed, _c, _nonce, raw) => ({
+      rawWin: raw === 'win',
+      multiplier: raw === 'win' ? 2 : 0,
+      payout: raw === 'win' ? amount * 2 : 0,
+    }),
+    run: async (plan) => {
+      const lastRound = await prisma.crashRound.findFirst({
+        where: { gameId: id },
+        orderBy: { roundNumber: 'desc' },
+        select: { roundNumber: true },
+      });
+      const nextRoundNumber = (lastRound?.roundNumber ?? 0) + 1;
+      let selectedSeed = plan.seed;
+      for (let variant = 0; variant < 10000; variant += 1) {
+        const candidate = `${plan.seed}:crash:${variant}`;
+        const point = crashPoint(candidate, `${id}:${nextRoundNumber}`);
+        const matches = plan.rawWin ? point > 1.01 : point < 1000;
+        if (matches) {
+          selectedSeed = candidate;
+          break;
+        }
+      }
+      await prisma.serverSeed.updateMany({
+        where: { userId: player.id, gameCategory: `crash:${id}`, isActive: true },
+        data: { seed: selectedSeed, seedHash: sha256(selectedSeed) },
+      });
+      const start = await playerPost('/api/games/crash/bet', {
+        gameId: id,
+        amount,
+        autoCashOut: plan.rawWin ? 1.01 : 1000,
+        clientSeed,
+      });
+      let state = start.body;
+      if (start.body.status === 'RUNNING') {
+        await prisma.crashRound.update({
+          where: { id: start.body.roundId },
+          data: { startedAt: new Date(Date.now() - 1000) },
+        });
+        state = (await playerGet(`/api/games/crash/round/${start.body.roundId}`)).body;
+        if (state.status === 'RUNNING') {
+          await playerPost('/api/games/crash/cashout', { roundId: start.body.roundId });
+        }
+      }
+      return {
+        accounting: 'crash',
+        crashBetId: start.body.betId,
+        body: start.body,
+      };
+    },
+  };
+}
+
+function localTableKind(id) {
+  if (id.startsWith('twenty-one-half-')) return 'twenty-one-half';
+  if (id.startsWith('tui-tongzi-')) return 'tui-tongzi';
+  if (id.startsWith('black-dot-')) return 'black-dot';
+  return 'card-war';
+}
+
+function nextOperationId(prefix) {
+  operationCounter += 1;
+  return `${runId}_${prefix}_${operationCounter}`;
+}
+
 function makeMinesGame() {
   const startPayload = { amount, mineCount: 3, clientSeed };
   return {
@@ -804,7 +1479,10 @@ function makeMinesGame() {
     maxSearch: 500,
     plan: (seed, c, nonce, raw) => {
       const positions = minesPositions(seed, c, nonce, startPayload.mineCount);
-      const winCell = firstIndex((n) => !positions.includes(n), 25);
+      const winCells = Array.from({ length: 25 }, (_, index) => index)
+        .filter((index) => !positions.includes(index))
+        .slice(0, 6);
+      const winCell = winCells[0];
       const lossCell = positions[0];
       const multiplier = minesMultiplier(startPayload.mineCount, 1);
       return {
@@ -813,18 +1491,29 @@ function makeMinesGame() {
         payout: multiplier * amount,
         startPayload,
         winAction: { cellIndex: winCell },
+        winActions: winCells.map((cellIndex) => ({ cellIndex })),
         lossAction: { cellIndex: lossCell },
         winPays: multiplier * amount > amount,
       };
     },
-    run: async (plan) => {
+    run: async (plan, control) => {
       const start = await playerPost('/api/games/mines/start', plan.startPayload);
-      const action = plan.rawWin ? plan.winAction : plan.lossAction;
-      const reveal = await playerPost('/api/games/mines/reveal', {
-        roundId: start.body.roundId,
-        cellIndex: action.cellIndex,
-      });
-      return { effect: reveal.body.hitMine ? 'LOSS' : 'WIN', body: reveal.body };
+      const actions =
+        control.desired === 'LOSS' && plan.rawWin
+          ? plan.winActions
+          : [plan.rawWin ? plan.winAction : plan.lossAction];
+      let reveal;
+      for (const action of actions) {
+        reveal = await playerPost('/api/games/mines/reveal', {
+          roundId: start.body.roundId,
+          cellIndex: action.cellIndex,
+        });
+        if (reveal.body.hitMine) break;
+      }
+      if (!reveal?.body.hitMine) {
+        await playerPost('/api/games/mines/cashout', { roundId: start.body.roundId });
+      }
+      return { body: reveal?.body ?? start.body };
     },
   };
 }
@@ -838,26 +1527,28 @@ function makeHiloGame() {
     maxSearch: 2000,
     plan: (seed, c, nonce, raw) => {
       if (raw === 'win') {
-        for (const guess of ['higher', 'lower']) {
-          const current = hiloDraw(seed, c, nonce, 0);
-          const next = hiloDraw(seed, c, nonce, 1);
-          const rawCorrect =
-            guess === 'higher' ? next.rank >= current.rank : next.rank <= current.rank;
+        const guessActions = [];
+        let current = hiloDraw(seed, c, nonce, 0);
+        let multiplier = 1;
+        for (let index = 1; index <= 6; index += 1) {
+          const next = hiloDraw(seed, c, nonce, index);
+          const guess = next.rank >= current.rank ? 'higher' : 'lower';
           const chance =
             guess === 'higher'
               ? hiloProbHigherOrEqual(current.rank)
               : hiloProbLowerOrEqual(current.rank);
-          const multiplier = hiloMultiplier(chance);
-          if (rawCorrect && multiplier * amount > amount) {
-            return {
-              rawWin: true,
-              multiplier,
-              payout: multiplier * amount,
-              startPayload,
-              guessPayload: { guess },
-            };
-          }
+          multiplier *= hiloMultiplier(chance);
+          guessActions.push({ guess });
+          current = next;
         }
+        return {
+          rawWin: multiplier * amount > amount,
+          multiplier,
+          payout: multiplier * amount,
+          startPayload,
+          guessPayload: guessActions[0],
+          guessActions,
+        };
       } else {
         const current = hiloDraw(seed, c, nonce, 0);
         const next = hiloDraw(seed, c, nonce, 1);
@@ -890,27 +1581,40 @@ function makeHiloGame() {
         guessPayload: { guess: 'higher' },
       };
     },
-    run: async (plan) => {
+    run: async (plan, control) => {
       const start = await playerPost('/api/games/hilo/start', plan.startPayload);
-      const guess = await playerPost('/api/games/hilo/guess', {
-        roundId: start.body.roundId,
-        guess: plan.guessPayload.guess,
-      });
-      return { effect: guess.body.correct ? 'WIN' : 'LOSS', body: guess.body };
+      const actions =
+        control.desired === 'LOSS' && plan.rawWin ? plan.guessActions : [plan.guessPayload];
+      let guess;
+      for (const action of actions) {
+        guess = await playerPost('/api/games/hilo/guess', {
+          roundId: start.body.roundId,
+          guess: action.guess,
+        });
+        if (!guess.body.correct) break;
+      }
+      if (guess?.body.correct) {
+        await playerPost('/api/games/hilo/cashout', { roundId: start.body.roundId });
+      }
+      return { body: guess?.body ?? start.body };
     },
   };
 }
 
 function makeTowerGame() {
   const startPayload = { amount, difficulty: 'medium', clientSeed };
-  const winLevels = 4;
+  const winLevels = 6;
   return {
     id: GameId.TOWER,
     seedCategory: 'tower',
     winCanRemainPending: true,
     maxSearch: 500,
     plan: (seed, c, nonce, raw) => {
-      const layout = towerLayout(seed, c, nonce, startPayload.difficulty);
+      const layout = towerTestHooks.ensureTowerVisibleLayout(
+        towerLayout(seed, c, nonce, startPayload.difficulty),
+        startPayload.difficulty,
+        nonce,
+      );
       const safeCols = layout[0] ?? [];
       const safeCol = safeCols[0];
       const trapCol = firstIndex(
@@ -940,26 +1644,39 @@ function makeTowerGame() {
         winPays: multiplier * amount > amount,
       };
     },
-    run: async (plan) => {
+    run: async (plan, control) => {
       const start = await playerPost('/api/games/tower/start', plan.startPayload);
-      if (plan.rawWin) {
+      if (control.desired === 'WIN') {
         let last;
-        for (const action of plan.winActions) {
+        const winActions = plan.rawWin
+          ? plan.winActions
+          : [plan.lossAction, ...plan.winActions.slice(1)];
+        for (const [level, action] of winActions.entries()) {
           last = await playerPost('/api/games/tower/pick', {
             roundId: start.body.roundId,
-            level: action.level,
+            level,
             col: action.col,
           });
           if (last.body.hitTrap) break;
         }
-        return { effect: last?.body.hitTrap ? 'LOSS' : 'WIN', body: last?.body ?? start.body };
+        if (!last?.body.hitTrap) {
+          await playerPost('/api/games/tower/cashout', { roundId: start.body.roundId });
+        }
+        return { body: last?.body ?? start.body };
       }
-      const action = plan.lossAction;
-      const pick = await playerPost('/api/games/tower/pick', {
-        roundId: start.body.roundId,
-        col: action.col,
-      });
-      return { effect: pick.body.hitTrap ? 'LOSS' : 'WIN', body: pick.body };
+      const actions = plan.rawWin ? plan.winActions : [plan.lossAction];
+      let pick;
+      for (const action of actions) {
+        pick = await playerPost('/api/games/tower/pick', {
+          roundId: start.body.roundId,
+          col: action.col,
+        });
+        if (pick.body.hitTrap) break;
+      }
+      if (!pick?.body.hitTrap) {
+        await playerPost('/api/games/tower/cashout', { roundId: start.body.roundId });
+      }
+      return { body: pick?.body ?? start.body };
     },
   };
 }
@@ -982,7 +1699,10 @@ function makeChickenRoadGame() {
       const step = await playerPost('/api/games/chicken-road/step', {
         roundId: start.body.roundId,
       });
-      return { effect: step.body.hit ? 'LOSS' : 'WIN', body: step.body };
+      if (!step.body.hit) {
+        await playerPost('/api/games/chicken-road/cashout', { roundId: start.body.roundId });
+      }
+      return { body: step.body };
     },
   };
 }
@@ -1212,6 +1932,10 @@ async function playerPost(url, payload) {
   return request('POST', url, playerToken, payload);
 }
 
+async function playerGet(url) {
+  return request('GET', url, playerToken);
+}
+
 async function request(method, url, token, payload, retryAuth = true) {
   const response = await app.inject({
     method,
@@ -1268,11 +1992,7 @@ function printSummary() {
   console.log('\n[control-api] Summary');
   console.log(`  passed: ${passed}`);
   console.log(`  failed: ${failed.length}`);
-  console.log(
-    '  skipped realtime socket games: rocket, aviator, space-fleet, jetx, balloon, jetx3, double-x',
-  );
   console.log('  skipped disabled/external games: baccarat, baccarat-nova, baccarat-imperial');
-  console.log('  skipped registry-only game without backend route: plinko-x');
   if (failed.length > 0) {
     console.log('\nFailures:');
     for (const item of failed) {
@@ -1302,6 +2022,9 @@ async function cleanup(prefix) {
   await prisma.memberDepositControl.deleteMany({
     where: { memberUsername: { startsWith: prefix } },
   });
+  if (userIds.length) {
+    await prisma.memberAutoBalanceControl.deleteMany({ where: { memberId: { in: userIds } } });
+  }
   if (agentIds.length) {
     await prisma.agentLineWinCap.deleteMany({ where: { agentId: { in: agentIds } } });
   }
@@ -1332,8 +2055,17 @@ async function cleanup(prefix) {
   await prisma.auditLog.deleteMany({ where: { actorUsername: { startsWith: prefix } } });
 
   if (userIds.length) {
+    const crashRounds = await prisma.crashBet.findMany({
+      where: { userId: { in: userIds } },
+      select: { roundId: true },
+    });
     await prisma.transaction.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.crashBet.deleteMany({ where: { userId: { in: userIds } } });
+    if (crashRounds.length) {
+      await prisma.crashRound.deleteMany({
+        where: { id: { in: crashRounds.map((round) => round.roundId) } },
+      });
+    }
     await prisma.bet.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.minesRound.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.hiLoRound.deleteMany({ where: { userId: { in: userIds } } });

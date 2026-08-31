@@ -336,7 +336,9 @@ export class TowerService {
         multiplier,
         payout,
       };
-      const controlOutcome = await applyControls(tx, userId, GameId.TOWER, predicted);
+      const controlOutcome = await applyControls(tx, userId, GameId.TOWER, predicted, {
+        forceControlOnMatch: true,
+      });
       const effectiveControl = resolveGameMatchedCashoutControl(
         multiplier,
         round.betAmount,

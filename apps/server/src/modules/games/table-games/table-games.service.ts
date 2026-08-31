@@ -1515,7 +1515,10 @@ function findTwentyOneHalfBankerDataByOutcome(
   const maxDraws = Math.min(remaining.length, Math.max(0, 5 - data.banker.length));
   const used = new Set<number>();
 
-  const search = (selectedIndexes: number[], bankerCards: CardInternal[]): {
+  const search = (
+    selectedIndexes: number[],
+    bankerCards: CardInternal[],
+  ): {
     data: TwentyOneHalfStoredData;
     round: RoundDraft;
   } | null => {
@@ -1525,13 +1528,7 @@ function findTwentyOneHalfBankerDataByOutcome(
       deckIndex: data.deckIndex + selectedIndexes.length,
     };
     if (!shouldTwentyOneHalfBankerDraw(probe) || selectedIndexes.length >= maxDraws) {
-      return evaluateTwentyOneHalfBankerSequence(
-        data,
-        amount,
-        desired,
-        control,
-        selectedIndexes,
-      );
+      return evaluateTwentyOneHalfBankerSequence(data, amount, desired, control, selectedIndexes);
     }
 
     const seenValues = new Set<number>();
@@ -1550,7 +1547,10 @@ function findTwentyOneHalfBankerDataByOutcome(
     return null;
   };
 
-  return search([], data.banker.map((card) => ({ ...card })));
+  return search(
+    [],
+    data.banker.map((card) => ({ ...card })),
+  );
 }
 
 function evaluateTwentyOneHalfBankerSequence(
@@ -2489,6 +2489,86 @@ function buildTwentyOneHalfRound(
   };
 }
 
+function buildTwentyOneHalfAutoplayRound(
+  gameId: LocalTableGameIdType,
+  amount: Prisma.Decimal,
+  seed: SeedBundle,
+): RoundDraft {
+  const deck = drawCards(makeStream(seed, 0), 52);
+  const data: TwentyOneHalfStoredData = {
+    kind: 'twenty-one-half',
+    status: 'ACTIVE',
+    phase: 'PLAYER_TURN',
+    gameId,
+    roomName: ROOM_CONFIGS[gameId].roomName,
+    player: [deck[0]!],
+    banker: [deck[1]!],
+    deck,
+    deckIndex: 2,
+    summary: null,
+  };
+  while (
+    getTwentyOneHalfAvailableAction(data.player).canHit &&
+    half21Score(data.player) < TEN_HALF_PLAYER_HIT_BELOW
+  ) {
+    data.player.push(data.deck[data.deckIndex]!);
+    data.deckIndex += 1;
+  }
+  return buildTwentyOneHalfRoundFromState(settleTwentyOneHalfBanker(data), amount);
+}
+
+function buildTwentyOneHalfControlledAutoplayRound(
+  gameId: LocalTableGameIdType,
+  amount: Prisma.Decimal,
+  seed: SeedBundle,
+  won: boolean,
+): RoundDraft {
+  const deck = drawCards(makeStream(seed, 0), 52);
+  let data: TwentyOneHalfStoredData = {
+    kind: 'twenty-one-half',
+    status: 'ACTIVE',
+    phase: 'PLAYER_TURN',
+    gameId,
+    roomName: ROOM_CONFIGS[gameId].roomName,
+    player: [deck[0]!],
+    banker: [deck[1]!],
+    deck,
+    deckIndex: 2,
+    summary: null,
+  };
+  const control: ControlOutcome = {
+    won,
+    multiplier: won ? TABLE_WIN_MULTIPLIER : ZERO,
+    payout: won ? amount.mul(TABLE_WIN_MULTIPLIER).toDecimalPlaces(2) : ZERO,
+    controlled: true,
+    flipReason: won ? 'win_control' : 'loss_control',
+    controlId: 'matrix-probe',
+  };
+
+  for (let step = 0; step < 20; step += 1) {
+    const action = getTwentyOneHalfAvailableAction(data.player);
+    if (action.canHit && half21Score(data.player) < TEN_HALF_PLAYER_HIT_BELOW) {
+      const beforeHit = cloneTwentyOneHalfData(data);
+      data.player.push(data.deck[data.deckIndex]!);
+      data.deckIndex += 1;
+      if (!isTwentyOneHalfFinalPlayerHand(data.player)) continue;
+
+      const natural = buildTwentyOneHalfRoundFromState(data, amount);
+      const shaped = shapeTwentyOneHalfHitForControl(beforeHit, amount, control, natural);
+      if (shaped?.kind === 'progress') {
+        data = shaped.data;
+        continue;
+      }
+      return shaped?.kind === 'settled' ? shaped.round : natural;
+    }
+
+    const natural = buildTwentyOneHalfRoundFromState(settleTwentyOneHalfBanker(data), amount);
+    return shapeTwentyOneHalfBankerForControl(data, amount, control)?.round ?? natural;
+  }
+
+  return buildTwentyOneHalfRoundFromState(settleTwentyOneHalfBanker(data), amount);
+}
+
 function buildTuiTongziRound(
   config: RoomConfig,
   amount: Prisma.Decimal,
@@ -2712,13 +2792,7 @@ function blackDotDeckSupportsControlFlexibility(
   return options.every(
     (split) =>
       Boolean(
-        findBlackDotBankerRoundForOutcome(
-          data,
-          BLACK_DOT_FLEX_AMOUNT,
-          split.id,
-          'WIN',
-          winControl,
-        ),
+        findBlackDotBankerRoundForOutcome(data, BLACK_DOT_FLEX_AMOUNT, split.id, 'WIN', winControl),
       ) &&
       Boolean(
         findBlackDotBankerRoundForOutcome(
@@ -3254,6 +3328,8 @@ function toResultData(round: RoundDraft, control: ControlOutcome): Prisma.InputJ
 
 export const __localTableServiceTestHooks = {
   buildRound,
+  buildTwentyOneHalfAutoplayRound,
+  buildTwentyOneHalfControlledAutoplayRound,
   buildBlackDotRoundFromSplit,
   buildBlackDotRoundFromSplitForGame,
   buildBlackDotSplitOptions,

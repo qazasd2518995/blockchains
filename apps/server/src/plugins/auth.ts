@@ -1,8 +1,8 @@
 import fp from 'fastify-plugin';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { isImportedGameTestUsername } from '@bg/shared';
 import { config } from '../config.js';
 import { ApiError } from '../utils/errors.js';
+import { isImportedGameAccessUsername } from '../modules/games/_common/importedGameAccess.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -28,7 +28,7 @@ export function isGameplayRequestAllowedForRealm(
   const requestPath = requestUrl.split('?')[0] || '';
   const isGameplayRequest =
     requestPath.startsWith('/api/games/') && requestPath !== '/api/games/catalog';
-  return realm !== 'qmoney' || !isGameplayRequest || isImportedGameTestUsername(username);
+  return realm !== 'qmoney' || !isGameplayRequest || isImportedGameAccessUsername(username);
 }
 
 async function pluginFn(fastify: FastifyInstance): Promise<void> {

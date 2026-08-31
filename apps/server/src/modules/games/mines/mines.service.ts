@@ -282,7 +282,9 @@ export class MinesService {
         multiplier,
         payout,
       };
-      const controlOutcome = await applyControls(tx, userId, GameId.MINES, predicted);
+      const controlOutcome = await applyControls(tx, userId, GameId.MINES, predicted, {
+        forceControlOnMatch: true,
+      });
       const effectiveControl = resolveGameMatchedCashoutControl(
         multiplier,
         round.betAmount,
