@@ -259,6 +259,37 @@
     });
   }
 
+  function applyLayout(layout) {
+    var normalized = layout === 'portrait' ? 'portrait' : 'landscape';
+    if (document && document.documentElement) {
+      document.documentElement.setAttribute('data-thor2-layout', normalized);
+    }
+    function resizeOriginalGame() {
+      try {
+        window.dispatchEvent(new Event('resize'));
+        if (
+          window.cc &&
+          window.cc.view &&
+          typeof window.cc.view.resizeWithBrowserSize === 'function'
+        ) {
+          window.cc.view.resizeWithBrowserSize(true);
+        }
+      } catch (_error) {
+        // The native resize event is enough on Cocos builds without cc.view.
+      }
+    }
+    window.requestAnimationFrame(resizeOriginalGame);
+    window.setTimeout(resizeOriginalGame, 80);
+    window.setTimeout(function () {
+      resizeOriginalGame();
+      notifyParent('thor2:layout-ready', {
+        layout: normalized,
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }, 240);
+  }
+
   installAudioContextCapture();
   installVisualReadyProbe();
   window.__QmoneyThor2UnlockAudio = unlockAudio;
@@ -267,6 +298,10 @@
       return;
     if (event.data.type === 'thor2:audio-sync' || event.data.type === 'thor2:audio-unlock') {
       unlockAudio();
+      return;
+    }
+    if (event.data.type === 'thor2:layout') {
+      applyLayout(event.data.layout);
     }
   });
   ['pointerdown', 'touchend', 'mouseup', 'keydown'].forEach(function (eventName) {
@@ -1708,6 +1743,7 @@
     requestAction: requestAction,
     requestAmount: requestAmount,
     normalizedJackpotAmounts: normalizedJackpotAmounts,
+    applyLayout: applyLayout,
     stripResponse: stripResponse,
   };
 })();

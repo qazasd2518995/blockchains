@@ -13,6 +13,7 @@
   var fruitMaryCooldownTimer = 0;
   var animationGuardAttempts = 0;
   var animationCompletionTimeoutMs = 45000;
+  var audioCompletionTimeoutMs = 7000;
   var allocationEditorId = 'fruit-mary-allocation-editor';
   var fruitMaryDenomination = 10;
   var gameDisposing = false;
@@ -97,6 +98,18 @@
       fruitMaryCooldownTimer = 0;
     }
     try {
+      if (window.cc && window.cc.find && window.cc.find('Canvas')) {
+        var canvasNode = window.cc.find('Canvas');
+        var menuLogic = canvasNode.getComponent && canvasNode.getComponent('MenuLogic');
+        var playLogic = canvasNode.getComponent && canvasNode.getComponent('PlayLogic');
+        if (menuLogic && typeof menuLogic.clickCancelAuto === 'function') {
+          menuLogic.clickCancelAuto();
+        }
+        if (playLogic && playLogic.__yachiyoAnimationTimer) {
+          window.clearTimeout(playLogic.__yachiyoAnimationTimer);
+          playLogic.__yachiyoAnimationTimer = null;
+        }
+      }
       if (window.cc && window.cc.audioEngine && typeof window.cc.audioEngine.stopAll === 'function') {
         window.cc.audioEngine.stopAll();
       }
@@ -686,6 +699,21 @@
       };
     }
 
+    var originalClickCancelAuto = menuLogic.clickCancelAuto;
+    if (typeof originalClickCancelAuto === 'function') {
+      menuLogic.clickCancelAuto = function () {
+        this.isAutoPut_bool = false;
+        if (typeof this.unschedule === 'function') {
+          this.unschedule(this.clickKaishi);
+          if (typeof this.kaishi === 'function') this.unschedule(this.kaishi);
+          if (typeof this.updateTime === 'function') this.unschedule(this.updateTime);
+        }
+        var result = originalClickCancelAuto.apply(this, arguments);
+        restoreFruitMaryAutoButtonState(this);
+        return result;
+      };
+    }
+
     var originalAddWinNum = menuLogic.addWinNum;
     if (
       typeof originalAddWinNum === 'function' &&
@@ -831,7 +859,53 @@
         }
       };
     }
+
+    function exitToLobby() {
+      var menuLogic =
+        this.node && this.node.getComponent && this.node.getComponent('MenuLogic');
+      if (menuLogic && typeof menuLogic.clickCancelAuto === 'function') {
+        menuLogic.clickCancelAuto();
+      }
+      notifyParent('fruit-mary:exit');
+    }
+    if (typeof playLogic.clickExit === 'function') playLogic.clickExit = exitToLobby;
+    if (typeof playLogic.reportGameEnd === 'function') playLogic.reportGameEnd = exitToLobby;
     playLogic.__yachiyoCompletionGuard = true;
+    return true;
+  }
+
+  function patchFruitMaryAudioManager(audioManager) {
+    if (!audioManager || audioManager.__yachiyoCompletionGuard) return Boolean(audioManager);
+    var originalPlaySFX = audioManager.playSFX;
+    if (typeof originalPlaySFX !== 'function') return false;
+    audioManager.playSFX = function (path, loop, callback) {
+      if (typeof callback !== 'function') return originalPlaySFX.apply(this, arguments);
+      var args = Array.prototype.slice.call(arguments);
+      var manager = this;
+      var completed = false;
+      var timer = window.setTimeout(function () {
+        if (completed || gameDisposing) return;
+        completed = true;
+        callback.call(manager, -1);
+      }, audioCompletionTimeoutMs);
+      args[2] = function () {
+        if (completed || gameDisposing) return;
+        completed = true;
+        window.clearTimeout(timer);
+        return callback.apply(this, arguments);
+      };
+      try {
+        return originalPlaySFX.apply(manager, args);
+      } catch (_error) {
+        if (!completed && !gameDisposing) {
+          completed = true;
+          window.clearTimeout(timer);
+          callback.call(manager, -1);
+        }
+        return undefined;
+      }
+    };
+    audioManager.__yachiyoCompletionGuard = true;
     return true;
   }
 
@@ -841,7 +915,11 @@
       var canvas = window.cc.find('Canvas');
       var playLogic = canvas && canvas.getComponent && canvas.getComponent('PlayLogic');
       var menuLogic = canvas && canvas.getComponent && canvas.getComponent('MenuLogic');
-      var patched = patchFruitMaryPlayLogic(playLogic) && patchFruitMaryMenuLogic(menuLogic);
+      var audioManager = window.cc.vv && window.cc.vv.AudioMgr;
+      var patched =
+        patchFruitMaryAudioManager(audioManager) &&
+        patchFruitMaryPlayLogic(playLogic) &&
+        patchFruitMaryMenuLogic(menuLogic);
       restoreFruitMaryVisualTree(playLogic, menuLogic);
       return patched;
     } catch (_error) {
@@ -853,6 +931,27 @@
     return Boolean(
       node && node.active !== false && node.activeInHierarchy !== false && node.opacity !== 0,
     );
+  }
+
+  function restoreFruitMaryAutoButtonState(menuLogic) {
+    if (!menuLogic) return false;
+    var autoplay = Boolean(menuLogic.isAutoPut_bool);
+    var startNode = menuLogic.startBt && menuLogic.startBt.node;
+    var stopNode = menuLogic.unStartBt && menuLogic.unStartBt.node;
+    var changed = false;
+    if (startNode) {
+      if (startNode.active === autoplay) changed = true;
+      startNode.active = !autoplay;
+      startNode.opacity = 255;
+      menuLogic.startBt.interactable = !settlementInFlight && !autoplay;
+    }
+    if (stopNode) {
+      if (stopNode.active !== autoplay) changed = true;
+      stopNode.active = autoplay;
+      stopNode.opacity = 255;
+      menuLogic.unStartBt.interactable = autoplay;
+    }
+    return changed;
   }
 
   function restoreFruitMaryVisualTree(playLogic, menuLogic) {
@@ -880,15 +979,7 @@
       if (window.cc && window.cc.vv && window.cc.vv.PrefabFactory._mask) {
         window.cc.vv.PrefabFactory._mask.active = false;
       }
-      var startNode = menuLogic.startBt && menuLogic.startBt.node;
-      if (startNode) {
-        if (!sourceNodeVisible(startNode)) changed = true;
-        startNode.active = true;
-        startNode.opacity = 255;
-        menuLogic.startBt.interactable = true;
-      }
-      var unavailableNode = menuLogic.unStartBt && menuLogic.unStartBt.node;
-      if (unavailableNode) unavailableNode.active = false;
+      if (restoreFruitMaryAutoButtonState(menuLogic)) changed = true;
     }
     return changed;
   }
@@ -972,8 +1063,10 @@
     normalizeFruitMaryAllocation: normalizeFruitMaryAllocation,
     fruitMaryPayoutMultiplier: fruitMaryPayoutMultiplier,
     patchFruitMaryMenuLogic: patchFruitMaryMenuLogic,
+    patchFruitMaryAudioManager: patchFruitMaryAudioManager,
     shortBonusCompletionIndex: shortBonusCompletionIndex,
     patchFruitMaryPlayLogic: patchFruitMaryPlayLogic,
+    restoreFruitMaryAutoButtonState: restoreFruitMaryAutoButtonState,
     restoreFruitMaryVisualTree: restoreFruitMaryVisualTree,
     fruitMaryVisualHealthy: fruitMaryVisualHealthy,
     recoverFruitMaryRequestState: recoverFruitMaryRequestState,

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import {
   thor2ControlFactorCandidates,
@@ -349,8 +350,9 @@ export class Thor2Service {
       const selected = selection.candidate;
       const payoutDeferred = Boolean(selected.engine.feature);
       const profit = selected.payout.minus(stake);
+      const betId = randomUUID();
       const publicResult: Omit<Thor2SpinResult, 'newBalance'> = {
-        betId: '',
+        betId,
         operationId: input.operationId,
         modelVersion: THOR2_MODEL_VERSION,
         action,
@@ -391,6 +393,7 @@ export class Thor2Service {
       };
       const bet = await tx.bet.create({
         data: {
+          id: betId,
           userId,
           gameId: GAME_ID,
           amount: stake,
@@ -408,14 +411,6 @@ export class Thor2Service {
               ? { walletSettlement: { version: WALLET_VERSION, status: 'DEFERRED', cursor: 0 } }
               : { walletSettlement: { version: WALLET_VERSION, status: 'PAID' } }),
           } as unknown as Prisma.InputJsonValue,
-        },
-      });
-      publicResult.betId = bet.id;
-      const data = record(bet.resultData) ?? {};
-      await tx.bet.update({
-        where: { id: bet.id },
-        data: {
-          resultData: { ...data, publicResult } as unknown as Prisma.InputJsonValue,
         },
       });
       const debited = await debitAndRecord(tx, userId, stake, bet.id, {

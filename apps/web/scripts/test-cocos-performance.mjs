@@ -114,6 +114,20 @@ assert.equal(
   2,
   'Thor II native asset cache rules should cover both static sites',
 );
+for (const fingerprintedAsset of ['_virtual_cc-\\*.js', 'spine-\\*.js']) {
+  assert.equal(
+    (
+      renderBlueprint.match(
+        new RegExp(
+          `/games/power-of-thor-2/original/gameresource3\\.rsgaming955\\.com/WebUI3/content/PowerOfThor2/cocos-js/${fingerprintedAsset}`,
+          'g',
+        ),
+      ) ?? []
+    ).length,
+    2,
+    `Thor II ${fingerprintedAsset} cache rules should cover both static sites`,
+  );
+}
 
 const gameManifestSource = fs.readFileSync(
   path.join(webRoot, 'src/lib/gameAssetManifest.ts'),
@@ -123,5 +137,12 @@ assert.match(gameManifestSource, /yachiyo-adapter\.js\?v=45/);
 assert.match(gameManifestSource, /main\.649de\.js\?v=5/);
 assert.match(gameManifestSource, /THOR2_SHELL_ASSETS/);
 assert.match(gameManifestSource, /FRUIT_MARY_SHELL_ASSETS/);
+
+const thor2PageSource = fs.readFileSync(
+  path.join(webRoot, 'src/pages/games/PowerOfThor2Page.tsx'),
+  'utf8',
+);
+assert.match(thor2PageSource, /holdWalletBalanceRefresh/);
+assert.match(thor2PageSource, /contain: 'layout paint'/);
 
 console.log('Cocos preload, adaptive mobile rendering, and cache contracts passed.');

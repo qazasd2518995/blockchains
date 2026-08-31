@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Monitor, Smartphone } from 'lucide-react';
 import { Sfx } from '@bg/game-engine';
 import { useAuthStore } from '@/stores/authStore';
+import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
 import { useTranslation } from '@/i18n/useTranslation';
 import { PlatformBgm } from '@/lib/platformBgm';
@@ -11,6 +12,9 @@ import { returnFromGame } from '@/lib/gameReturnNavigation';
 import { ensureGameLoadStarted, recordGameLoadMilestone } from '@/lib/gameLoadPerformance';
 
 const ORIGINAL_GAME_PATH = '/games/power-of-thor-2/original-runtime/index.html';
+const LAYOUT_STORAGE_KEY = 'bg.thor2.layout';
+
+type Thor2Layout = 'portrait' | 'landscape';
 
 export function PowerOfThor2Page() {
   const navigate = useNavigate();
@@ -20,11 +24,19 @@ export function PowerOfThor2Page() {
   const setBalance = useAuthStore((state) => state.setBalance);
   const setTokens = useAuthStore((state) => state.setTokens);
   const [error, setError] = useState('');
+  const [deviceLayout, setDeviceLayout] = useState<Thor2Layout>(readDeviceLayout);
+  const [preferredLayout, setPreferredLayout] = useState<Thor2Layout | null>(readSavedLayout);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const layout = preferredLayout ?? deviceLayout;
 
   useEffect(() => {
     ensureGameLoadStarted('power-of-thor-2');
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    return holdWalletBalanceRefresh();
+  }, [isAuthenticated]);
 
   const gameUrl = useMemo(() => {
     const configuredBase = String(import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -43,6 +55,13 @@ export function PowerOfThor2Page() {
   const syncOriginalGameAudio = useCallback(() => {
     iframeRef.current?.contentWindow?.postMessage(
       { type: 'thor2:audio-sync' },
+      window.location.origin,
+    );
+  }, []);
+
+  const syncOriginalGameLayout = useCallback((nextLayout: Thor2Layout) => {
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'thor2:layout', layout: nextLayout },
       window.location.origin,
     );
   }, []);
@@ -66,6 +85,22 @@ export function PowerOfThor2Page() {
       events.forEach((eventName) => window.removeEventListener(eventName, unlockOriginalGameAudio));
     };
   }, [syncOriginalGameAudio, unlockOriginalGameAudio]);
+
+  useEffect(() => {
+    const media = window.matchMedia('(orientation: landscape)');
+    const updateDeviceLayout = () => setDeviceLayout(media.matches ? 'landscape' : 'portrait');
+    media.addEventListener('change', updateDeviceLayout);
+    return () => media.removeEventListener('change', updateDeviceLayout);
+  }, []);
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => syncOriginalGameLayout(layout));
+    const timerId = window.setTimeout(() => syncOriginalGameLayout(layout), 180);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timerId);
+    };
+  }, [layout, syncOriginalGameLayout]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -125,18 +160,48 @@ export function PowerOfThor2Page() {
   }
 
   return (
-    <div className="relative h-[calc(100svh-5.25rem)] min-h-[420px] overflow-hidden rounded-2xl border border-[#E9C35C]/30 bg-black shadow-[0_20px_60px_rgba(0,0,0,0.55)]">
-      <iframe
-        ref={iframeRef}
-        src={gameUrl}
-        title="雷神之錘 II"
-        allow="autoplay; fullscreen"
-        onLoad={() => {
-          recordGameLoadMilestone('power-of-thor-2', 'iframe-loaded');
-          syncOriginalGameAudio();
+    <div
+      className="relative h-[calc(100svh-5.25rem)] min-h-[420px] overflow-hidden rounded-2xl border border-[#E9C35C]/30 bg-black shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
+      data-thor2-layout={layout}
+    >
+      <div className="absolute inset-0 grid place-items-center overflow-hidden bg-black">
+        <div
+          className={frameClassName(layout, deviceLayout)}
+          data-thor2-frame={layout}
+          style={{ contain: 'layout paint', isolation: 'isolate' }}
+        >
+          <iframe
+            ref={iframeRef}
+            src={gameUrl}
+            title="雷神之錘 II"
+            allow="autoplay; fullscreen"
+            onLoad={() => {
+              recordGameLoadMilestone('power-of-thor-2', 'iframe-loaded');
+              syncOriginalGameAudio();
+              syncOriginalGameLayout(layout);
+            }}
+            className="absolute inset-0 h-full w-full border-0 bg-black"
+          />
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          const nextLayout = layout === 'portrait' ? 'landscape' : 'portrait';
+          setPreferredLayout(nextLayout);
+          saveLayout(nextLayout);
         }}
-        className="absolute inset-0 h-full w-full border-0 bg-black"
-      />
+        className="absolute left-1/2 top-[max(10px,env(safe-area-inset-top))] z-30 inline-flex h-10 -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/25 bg-[#07152E]/85 px-3 text-xs font-black text-white shadow-[0_6px_18px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95"
+        aria-label={layout === 'portrait' ? '切換為橫式版面' : '切換為直式版面'}
+        title={layout === 'portrait' ? '切換為橫式版面' : '切換為直式版面'}
+      >
+        {layout === 'portrait' ? (
+          <Monitor className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <Smartphone className="h-4 w-4" aria-hidden="true" />
+        )}
+        <span>{layout === 'portrait' ? '橫式' : '直式'}</span>
+      </button>
       {error ? (
         <div className="absolute bottom-5 left-1/2 z-20 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-xl border border-red-300/30 bg-red-950/95 px-4 py-3 text-sm text-red-50 shadow-xl">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -145,6 +210,37 @@ export function PowerOfThor2Page() {
       ) : null}
     </div>
   );
+}
+
+function readDeviceLayout(): Thor2Layout {
+  if (typeof window === 'undefined') return 'landscape';
+  return window.matchMedia('(orientation: landscape)').matches ? 'landscape' : 'portrait';
+}
+
+function readSavedLayout(): Thor2Layout | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
+    return saved === 'portrait' || saved === 'landscape' ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLayout(layout: Thor2Layout) {
+  try {
+    window.localStorage.setItem(LAYOUT_STORAGE_KEY, layout);
+  } catch {
+    // Private WebViews can deny storage; the current session still switches.
+  }
+}
+
+function frameClassName(layout: Thor2Layout, deviceLayout: Thor2Layout): string {
+  const base = 'relative max-h-full max-w-full overflow-hidden bg-black';
+  if (layout === 'portrait') return `${base} h-full aspect-[12/25]`;
+  return deviceLayout === 'portrait'
+    ? `${base} w-full aspect-video`
+    : `${base} h-full aspect-video`;
 }
 
 function sourceLocale(locale: string): string {

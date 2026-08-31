@@ -26,6 +26,11 @@ assert.match(
 );
 assert.match(
   adapterSource,
+  /audioCompletionTimeoutMs = 7000/,
+  'Fruit Mary must release source animations whose audio completion callback is lost',
+);
+assert.match(
+  adapterSource,
   /!collectingWin && \(settlementInFlight \|\| Date\.now\(\) < nextFruitMarySpinAt\)/,
   'Fruit Mary must ignore repeated start taps without blocking win collection',
 );
@@ -33,6 +38,11 @@ assert.match(
   pageSource,
   /__YachiyoDisposeFruitMaryGame/,
   'Fruit Mary shell must dispose the source game before removing its iframe',
+);
+assert.match(
+  pageSource,
+  /payload\.type === ['"]fruit-mary:exit['"]/,
+  'Fruit Mary source exit must return through the platform game shell',
 );
 assert.match(
   pageSource,
@@ -96,8 +106,10 @@ const {
   createBridgeXHR,
   fruitMaryPayoutMultiplier,
   normalizeFruitMaryAllocation,
+  patchFruitMaryAudioManager,
   patchFruitMaryMenuLogic,
   patchFruitMaryPlayLogic,
+  restoreFruitMaryAutoButtonState,
   shortBonusCompletionIndex,
 } = context.__YachiyoFruitMaryAdapterTest;
 
@@ -131,6 +143,27 @@ context.cc = {
   },
 };
 
+const audioFallbackCallbacks = [];
+context.setTimeout = (callback) => {
+  audioFallbackCallbacks.push(callback);
+  return audioFallbackCallbacks.length;
+};
+context.clearTimeout = () => {};
+let lostAudioCompletion = 0;
+const stalledAudioManager = {
+  playSFX() {},
+};
+assert.equal(patchFruitMaryAudioManager(stalledAudioManager), true);
+stalledAudioManager.playSFX('sounds/test', false, () => {
+  lostAudioCompletion += 1;
+});
+audioFallbackCallbacks.at(-1)();
+assert.equal(lostAudioCompletion, 1, 'a missing audio callback cannot freeze the wheel animation');
+audioFallbackCallbacks.at(-1)();
+assert.equal(lostAudioCompletion, 1, 'the audio fallback callback is idempotent');
+context.setTimeout = () => 1;
+context.clearTimeout = () => {};
+
 function numberNode(initialValue) {
   const box = {
     value: initialValue,
@@ -162,7 +195,19 @@ const menuLogic = {
   shuzibenlun: currentRoundNode,
   shuziyue: balanceNode,
   node: { getComponent: () => ({ _playing: false }) },
-  unschedule() {},
+  unscheduled: [],
+  unschedule(callback) {
+    this.unscheduled.push(callback);
+  },
+  updateTime() {},
+  kaishi() {},
+  clickCancelAuto() {
+    this.startBt.node.active = true;
+    this.unStartBt.node.active = false;
+    this.isAutoPut_bool = false;
+  },
+  startBt: { node: { active: true, opacity: 255 }, interactable: true },
+  unStartBt: { node: { active: false, opacity: 255 }, interactable: false },
   clickKaishi() {
     collectCalls += 1;
   },
@@ -196,6 +241,15 @@ menuLogic.clickYou();
 assert.equal(currentRoundNode.box.getNum(), 0);
 assert.equal(balanceNode.box.getNum(), 100);
 assert.equal(collectCalls, 1, 'returning the final point collects the round');
+menuLogic.isAutoPut_bool = true;
+restoreFruitMaryAutoButtonState(menuLogic);
+assert.equal(menuLogic.startBt.node.active, false, 'autoplay keeps the start control hidden');
+assert.equal(menuLogic.unStartBt.node.active, true, 'autoplay keeps its stop control visible');
+menuLogic.clickCancelAuto();
+assert.equal(menuLogic.isAutoPut_bool, false, 'the stop control clears autoplay immediately');
+assert.equal(menuLogic.startBt.node.active, true, 'stopping autoplay restores the start control');
+assert.equal(menuLogic.unStartBt.node.active, false, 'stopping autoplay hides the stop control');
+assert.equal(menuLogic.unscheduled.includes(menuLogic.kaishi), true);
 audioCalls.length = 0;
 const blinkedPositions = [];
 let originalShortHandlerCalls = 0;
@@ -229,6 +283,9 @@ assert.equal(blinkedPositions.includes(5), true);
 let normalHandlerCalls = 0;
 const longBonus = {
   _playing: false,
+  node: { getComponent: () => menuLogic },
+  clickExit() {},
+  reportGameEnd() {},
   showSixiShan() {
     normalHandlerCalls += 1;
   },
@@ -237,6 +294,12 @@ const longBonus = {
 patchFruitMaryPlayLogic(longBonus);
 longBonus.showSixiShan([10, 23, 11, 5, 17], { index_int: 0 }, () => {});
 assert.equal(normalHandlerCalls, 1, 'four-happiness keeps its original presentation');
+longBonus.clickExit();
+assert.equal(
+  parentMessages.some((message) => message.type === 'fruit-mary:exit'),
+  true,
+  'the archived exit button must return to the platform lobby even during autoplay',
+);
 
 const scheduledCallbacks = [];
 context.setTimeout = (callback) => {

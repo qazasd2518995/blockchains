@@ -224,6 +224,12 @@ services:
       - path: /games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/cocos-js/assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable
+      - path: /games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/cocos-js/_virtual_cc-*.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/cocos-js/spine-*.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
     routes:
       - type: rewrite
         source: /qmoney
@@ -389,6 +395,12 @@ services:
         name: Cache-Control
         value: public, max-age=31536000, immutable
       - path: /games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/cocos-js/assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/cocos-js/_virtual_cc-*.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/cocos-js/spine-*.js
         name: Cache-Control
         value: public, max-age=31536000, immutable
     routes:

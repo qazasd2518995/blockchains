@@ -197,7 +197,7 @@ const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [
 ];
 
 const FRUIT_MARY_SHELL_ASSETS: readonly CocosShellAsset[] = [
-  { src: '/games/fruit-mary/fruit-mary-adapter.js?v=10', as: 'script' },
+  { src: '/games/fruit-mary/fruit-mary-adapter.js?v=11', as: 'script' },
   { src: '/games/fruit-mary/src/settings.e124f.js', as: 'script' },
   { src: '/games/fruit-mary/main.b4cc7.js?v=4', as: 'script' },
   { src: '/games/fruit-mary/cocos2d-js-min.3cdbc.js', as: 'script' },
@@ -215,7 +215,7 @@ const THOR2_SHELL_ASSETS: readonly CocosShellAsset[] = [
     as: 'script',
   },
   {
-    src: '/games/power-of-thor-2/original-runtime/thor2-original-adapter.js?v=20260831-load-metrics-1',
+    src: '/games/power-of-thor-2/original-runtime/thor2-original-adapter.js?v=20260901-layout-1',
     as: 'script',
   },
   { src: `${THOR2_CONTENT_ROOT}/src/polyfills.bundle.js`, as: 'script' },

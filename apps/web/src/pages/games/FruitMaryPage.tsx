@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
 import { isQmoneyRealm } from '@/lib/platformRealm';
+import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
+import { returnFromGame } from '@/lib/gameReturnNavigation';
 import { ensureGameLoadStarted, recordGameLoadMilestone } from '@/lib/gameLoadPerformance';
 
 const GAME_PATH = '/games/fruit-mary/index.html';
@@ -12,6 +14,8 @@ const IFRAME_RECOVERY_DELAY_MS = 100;
 const RECOVERY_STABILITY_WINDOW_MS = 60_000;
 
 export function FruitMaryPage() {
+  const navigate = useNavigate();
+  const returnTarget = useGameReturnTarget();
   // The iframe reports balance frequently while playing; auth presence is the
   // only user state this wrapper needs, so balance changes should not re-render it.
   const isAuthenticated = useAuthStore((state) => Boolean(state.user));
@@ -143,6 +147,10 @@ export function FruitMaryPage() {
         setRecoveryReason('');
         setError('');
       }
+      if (payload.type === 'fruit-mary:exit') {
+        returnFromGame(navigate, returnTarget.to);
+        return;
+      }
       if (payload.type === 'fruit-mary:visual-ready') {
         recordGameLoadMilestone('fruit-mary', 'visual-ready');
       }
@@ -169,7 +177,15 @@ export function FruitMaryPage() {
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [armRecoveryStabilityTimer, clearReadyTimer, requestIframeRecovery, setBalance, setTokens]);
+  }, [
+    armRecoveryStabilityTimer,
+    clearReadyTimer,
+    navigate,
+    requestIframeRecovery,
+    returnTarget.to,
+    setBalance,
+    setTokens,
+  ]);
 
   useEffect(() => {
     const checkFrameHealth = () => {

@@ -12,6 +12,43 @@ const gameRoot = path.join(publicRoot, 'games/power-of-thor-2');
 const originalRoot = path.join(gameRoot, 'original');
 const files = walk(originalRoot);
 
+const sourceSettings = JSON.parse(
+  fs.readFileSync(
+    path.join(
+      originalRoot,
+      'gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/src/settings.json',
+    ),
+    'utf8',
+  ),
+);
+assert.deepEqual(
+  sourceSettings.screen.designResolution,
+  { width: 1280, height: 720, policy: 2 },
+  'Thor 2 must retain the original landscape design resolution',
+);
+assert.equal(sourceSettings.screen.orientation, 'auto', 'Thor 2 must retain adaptive orientation');
+
+const slotGameSource = fs.readFileSync(
+  path.join(
+    originalRoot,
+    'gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/slotgame/import/07/077552281.json',
+  ),
+  'utf8',
+);
+for (const orientationContract of [
+  'base_bg_v',
+  '"width":720,"height":1500',
+  '"name":"base_bg"',
+  '"width":1280,"height":720',
+  'landscapeProperties',
+  'portraitProperties',
+]) {
+  assert.ok(
+    slotGameSource.includes(orientationContract),
+    `Thor 2 source is missing its dual-orientation contract: ${orientationContract}`,
+  );
+}
+
 assert.equal(files.length, 548, 'Thor 2 read-only source archive must retain all 548 files');
 assert.equal(
   files.filter((file) => file.endsWith('.mp3')).length,
@@ -93,7 +130,7 @@ assert.ok(
 const runtimeHtml = fs.readFileSync(path.join(gameRoot, 'original-runtime/index.html'), 'utf8');
 for (const originalBootAsset of [
   'thor2-runtime-compat.js?v=20260826-mobile-1',
-  'thor2-original-adapter.js?v=20260831-load-metrics-1',
+  'thor2-original-adapter.js?v=20260901-layout-1',
   'common/js/jsStart-cocos.js',
   'content/PowerOfThor2/src/polyfills.bundle.js',
   'content/PowerOfThor2/src/system.bundle.js',
@@ -195,12 +232,21 @@ for (const contract of [
   'normalizeMultiplierMatrix(rng, data.multiple)',
   'return entry.freeRound > activeSequence.progressCursor',
   'BetList: [10, 20, 50, 100, 200, 500, 1000, 2000, 5000]',
+  "event.data.type === 'thor2:layout'",
+  'window.cc.view.resizeWithBrowserSize(true)',
 ]) {
   assert.ok(
     adapterSource.includes(contract),
     `Original-client adapter contract is missing: ${contract}`,
   );
 }
+assert.ok(pageSource.includes('data-thor2-layout={layout}'), 'Thor 2 layout state is not exposed');
+assert.ok(pageSource.includes("'切換為橫式版面'"), 'Thor 2 is missing its landscape control');
+assert.ok(pageSource.includes("'切換為直式版面'"), 'Thor 2 is missing its portrait control');
+assert.ok(
+  pageSource.includes("{ type: 'thor2:layout', layout: nextLayout }"),
+  'Thor 2 layout control does not notify the original Cocos runtime',
+);
 for (const forbidden of [
   'base-reference.png',
   '/ui/',
