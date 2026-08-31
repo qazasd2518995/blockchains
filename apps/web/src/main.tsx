@@ -37,7 +37,7 @@ window.addEventListener('unhandledrejection', (event) => {
 
 window.setTimeout(clearRuntimeRecoveryFlag, 12_000);
 
-if ('serviceWorker' in navigator && import.meta.env.PROD && !isQmoneyRealm) {
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     const swUrl = `/sw.js?v=${encodeURIComponent(SLOT_DEBUG_BUILD)}`;
     navigator.serviceWorker

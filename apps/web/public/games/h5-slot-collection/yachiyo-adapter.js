@@ -67,6 +67,7 @@
   var lastSpinRequestAt = 0;
   var lastLotteryResponseAt = 0;
   var sourceReadyAt = 0;
+  var visualReadyReported = false;
   var SOURCE_CONTROL_HEALTH_GRACE_MS = 12000;
   var SOURCE_SCENE_LOAD_GRACE_MS = 45000;
 
@@ -694,6 +695,12 @@
     var main = sourceMainComponent();
     restoreMahjongWaysTileBackgrounds(main);
     repairIdleSlotControls(main);
+    var scene = window.cc && window.cc.director && window.cc.director.getScene();
+    var selectedScene = params.get('scene') || '';
+    if (!visualReadyReported && scene && selectedScene && scene.name === selectedScene) {
+      visualReadyReported = true;
+      notifyParent('h5-slots:visual-ready', { gameCode: gameCode, scene: scene.name });
+    }
   }
 
   function installCocosScenePolicies() {

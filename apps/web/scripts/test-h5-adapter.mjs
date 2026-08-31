@@ -54,7 +54,7 @@ assert.match(
 );
 assert.match(
   collectionIndexSource,
-  /main\.649de\.js\?v=4/,
+  /main\.649de\.js\?v=5/,
   'the shared collection must load the pre-render splash-removal bootstrap revision',
 );
 

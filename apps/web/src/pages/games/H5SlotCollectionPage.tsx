@@ -11,6 +11,7 @@ import type { Locale } from '@/i18n/types';
 import { PlatformBgm } from '@/lib/platformBgm';
 import { isQmoneyRealm } from '@/lib/platformRealm';
 import { returnFromGame } from '@/lib/gameReturnNavigation';
+import { ensureGameLoadStarted, recordGameLoadMilestone } from '@/lib/gameLoadPerformance';
 
 const GAME_PATH = '/games/h5-slot-collection/index.html';
 const GAME_READY_TIMEOUT_MS = 50_000;
@@ -120,9 +121,10 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
   );
 
   const handleIframeLoad = useCallback(() => {
+    recordGameLoadMilestone(selectedGame.gameId, 'iframe-loaded');
     syncOriginalGameAudio();
     armReadyTimer();
-  }, [armReadyTimer, syncOriginalGameAudio]);
+  }, [armReadyTimer, selectedGame.gameId, syncOriginalGameAudio]);
 
   const gameUrl = useMemo(() => {
     const configuredBase = String(import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -130,6 +132,7 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
     const query = new URLSearchParams({
       apiBase,
       gameId: gameCode,
+      scene: selectedGame.scene,
       roomId: '1',
       roomMul: ROOM_MULTIPLIER_BY_GAME[gameCode] ?? '0.2',
       room_id: '1',
@@ -141,7 +144,11 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
         : 'yachiyo-h5-slots-v4-visual-recovery',
     });
     return `${GAME_PATH}?${query.toString()}`;
-  }, [gameCode, locale]);
+  }, [gameCode, locale, selectedGame.scene]);
+
+  useEffect(() => {
+    ensureGameLoadStarted(selectedGame.gameId);
+  }, [selectedGame.gameId]);
 
   useEffect(() => {
     setError('');
@@ -192,9 +199,13 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
         return;
       }
       if (payload.type === 'h5-slots:ready') {
+        recordGameLoadMilestone(selectedGame.gameId, 'session-ready');
         clearReadyTimer();
         setRecoveryReason('');
         setError('');
+      }
+      if (payload.type === 'h5-slots:visual-ready') {
+        recordGameLoadMilestone(selectedGame.gameId, 'visual-ready');
       }
       if (payload.type === 'h5-slots:balance' || payload.type === 'h5-slots:ready') {
         const balance = Number(payload.balance);
@@ -221,7 +232,15 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [clearReadyTimer, navigate, requestIframeRecovery, returnTarget.to, setBalance, setTokens]);
+  }, [
+    clearReadyTimer,
+    navigate,
+    requestIframeRecovery,
+    returnTarget.to,
+    selectedGame.gameId,
+    setBalance,
+    setTokens,
+  ]);
 
   useEffect(() => {
     const checkFrameHealth = () => {

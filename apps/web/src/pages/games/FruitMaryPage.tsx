@@ -4,6 +4,7 @@ import { AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { buildLoginPath } from '@/hooks/useRequireLogin';
 import { isQmoneyRealm } from '@/lib/platformRealm';
+import { ensureGameLoadStarted, recordGameLoadMilestone } from '@/lib/gameLoadPerformance';
 
 const GAME_PATH = '/games/fruit-mary/index.html';
 const GAME_READY_TIMEOUT_MS = 45_000;
@@ -100,6 +101,7 @@ export function FruitMaryPage() {
   );
 
   const handleIframeLoad = useCallback(() => {
+    recordGameLoadMilestone('fruit-mary', 'iframe-loaded');
     armReadyTimer();
   }, [armReadyTimer]);
 
@@ -119,6 +121,10 @@ export function FruitMaryPage() {
   }, []);
 
   useEffect(() => {
+    ensureGameLoadStarted('fruit-mary');
+  }, []);
+
+  useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || !event.data) return;
       if (event.source !== iframeRef.current?.contentWindow) return;
@@ -131,10 +137,14 @@ export function FruitMaryPage() {
         refreshToken?: unknown;
       };
       if (payload.type === 'fruit-mary:ready') {
+        recordGameLoadMilestone('fruit-mary', 'session-ready');
         clearReadyTimer();
         if (automaticRecoveryAttemptsRef.current > 0) armRecoveryStabilityTimer();
         setRecoveryReason('');
         setError('');
+      }
+      if (payload.type === 'fruit-mary:visual-ready') {
+        recordGameLoadMilestone('fruit-mary', 'visual-ready');
       }
       if (payload.type === 'fruit-mary:balance' || payload.type === 'fruit-mary:ready') {
         const balance = Number(payload.balance);

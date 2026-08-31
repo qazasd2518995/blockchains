@@ -8,6 +8,7 @@ import { useTranslation } from '@/i18n/useTranslation';
 import { PlatformBgm } from '@/lib/platformBgm';
 import { useGameReturnTarget } from '@/hooks/useGameReturnTarget';
 import { returnFromGame } from '@/lib/gameReturnNavigation';
+import { ensureGameLoadStarted, recordGameLoadMilestone } from '@/lib/gameLoadPerformance';
 
 const ORIGINAL_GAME_PATH = '/games/power-of-thor-2/original-runtime/index.html';
 
@@ -20,6 +21,10 @@ export function PowerOfThor2Page() {
   const setTokens = useAuthStore((state) => state.setTokens);
   const [error, setError] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    ensureGameLoadStarted('power-of-thor-2');
+  }, []);
 
   const gameUrl = useMemo(() => {
     const configuredBase = String(import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -77,7 +82,13 @@ export function PowerOfThor2Page() {
         returnFromGame(navigate, returnTarget.to);
         return;
       }
-      if (payload.type === 'thor2:ready') setError('');
+      if (payload.type === 'thor2:ready') {
+        recordGameLoadMilestone('power-of-thor-2', 'session-ready');
+        setError('');
+      }
+      if (payload.type === 'thor2:visual-ready') {
+        recordGameLoadMilestone('power-of-thor-2', 'visual-ready');
+      }
       if (payload.type === 'thor2:balance' || payload.type === 'thor2:ready') {
         const balance = Number(payload.balance);
         if (Number.isFinite(balance)) setBalance(balance.toFixed(2));
@@ -120,7 +131,10 @@ export function PowerOfThor2Page() {
         src={gameUrl}
         title="雷神之錘 II"
         allow="autoplay; fullscreen"
-        onLoad={syncOriginalGameAudio}
+        onLoad={() => {
+          recordGameLoadMilestone('power-of-thor-2', 'iframe-loaded');
+          syncOriginalGameAudio();
+        }}
         className="absolute inset-0 h-full w-full border-0 bg-black"
       />
       {error ? (

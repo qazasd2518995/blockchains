@@ -7,6 +7,7 @@ import { buildLoginPath } from '@/hooks/useRequireLogin';
 import { useTranslation } from '@/i18n/useTranslation';
 import { PlatformBgm } from '@/lib/platformBgm';
 import { isQmoneyRealm } from '@/lib/platformRealm';
+import { ensureGameLoadStarted, recordGameLoadMilestone } from '@/lib/gameLoadPerformance';
 
 const GAME_PATH = '/games/storm-of-seth-2-v115/index.html';
 type Seth2RemountReason = 'orientation' | 'table' | 'recovery';
@@ -50,6 +51,7 @@ export function Seth2Page() {
     );
   }, []);
   const handleIframeLoad = useCallback(() => {
+    recordGameLoadMilestone('storm-of-seth-2', 'iframe-loaded');
     syncOriginalGameAudio();
     iframeRef.current?.contentWindow?.postMessage(
       { type: 'seth2:shell-capabilities', tableChangeRemount: true },
@@ -148,6 +150,10 @@ export function Seth2Page() {
   }, [locale, tableSelectionConfirmed, viewMode]);
 
   useEffect(() => {
+    ensureGameLoadStarted('storm-of-seth-2');
+  }, []);
+
+  useEffect(() => {
     const unsubscribeSfx = Sfx.subscribe(syncOriginalGameAudio);
     const unsubscribeBgm = PlatformBgm.subscribe(syncOriginalGameAudio);
     const events: Array<keyof WindowEventMap> = ['pointerdown', 'touchstart', 'keydown'];
@@ -187,8 +193,12 @@ export function Seth2Page() {
         finishIframeRemount(pendingRemountRef.current.viewMode);
       }
       if (payload.type === 'seth2:ready') {
+        recordGameLoadMilestone('storm-of-seth-2', 'session-ready');
         setError('');
         syncOriginalGameAudio();
+      }
+      if (payload.type === 'seth2:visual-ready') {
+        recordGameLoadMilestone('storm-of-seth-2', 'visual-ready');
       }
       if (payload.type === 'seth2:balance' || payload.type === 'seth2:ready') {
         const balance = Number(payload.balance);

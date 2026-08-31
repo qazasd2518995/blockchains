@@ -68,5 +68,16 @@ assert.equal(claimCount, 1, 'activation should claim existing clients');
 assert.equal(matchAllCount, 0, 'activation must not enumerate clients for forced navigation');
 assert.deepEqual(deletedCaches, ['yachiyo-assets-v7-access-refresh-20260817:images']);
 assert.doesNotMatch(source, /\.navigate\s*\(/, 'activation must not navigate or reload a page');
+assert.match(source, /GAME_CACHE/, 'service worker should maintain a separate game asset cache');
+assert.match(
+  source,
+  /staleWhileRevalidate/,
+  'repeat visits should reuse cached assets while refreshing them safely',
+);
+assert.match(
+  source,
+  /request\.headers\.get\('range'\)/,
+  'partial media responses must not be stored as complete game assets',
+);
 
 console.log('Service worker activation test passed.');

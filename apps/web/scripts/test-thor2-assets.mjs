@@ -93,7 +93,7 @@ assert.ok(
 const runtimeHtml = fs.readFileSync(path.join(gameRoot, 'original-runtime/index.html'), 'utf8');
 for (const originalBootAsset of [
   'thor2-runtime-compat.js?v=20260826-mobile-1',
-  'thor2-original-adapter.js?v=20260827-jackpot-cycle-cap-1',
+  'thor2-original-adapter.js?v=20260831-load-metrics-1',
   'common/js/jsStart-cocos.js',
   'content/PowerOfThor2/src/polyfills.bundle.js',
   'content/PowerOfThor2/src/system.bundle.js',

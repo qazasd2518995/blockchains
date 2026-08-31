@@ -8,6 +8,7 @@ import { getGameIcon } from '@/lib/platformIcons';
 import { getLocalizedGameTitle } from '@/i18n/gameLabels';
 import { useTranslation } from '@/i18n/useTranslation';
 import { getGamePromoMultiplierLabel, isGamePromoHot } from '@/lib/gamePromos';
+import { markGameNavigationStart } from '@/lib/gameLoadPerformance';
 
 // 與 LobbyPage 現有的資料一致
 const HAS_COVER = new Set<string>([
@@ -116,6 +117,7 @@ export function GameCardNew({ game, returnTo, returnLabel }: GameCardNewProps) {
       onFocus={warmAssets}
       onPointerDown={warmAssets}
       onPointerEnter={warmAssets}
+      onClick={() => markGameNavigationStart(game.id)}
       className="group relative block overflow-visible rounded-[14px] transition-all duration-300 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EA580C]/45 focus-visible:ring-offset-2"
     >
       {isHot && (

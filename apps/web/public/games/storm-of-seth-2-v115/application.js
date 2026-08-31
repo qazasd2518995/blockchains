@@ -98,6 +98,12 @@ System.register([], function (_export, _context) {
               }
             }).then(function () {
               window.appStart(cc)
+              var afterLaunch = cc.Director && cc.Director.EVENT_AFTER_SCENE_LAUNCH;
+              if (afterLaunch && cc.director) {
+                cc.director.once(afterLaunch, function () {
+                  window.parent.postMessage({ type: 'seth2:visual-ready' }, window.location.origin);
+                });
+              }
               return cc.game.run();
             });
           }

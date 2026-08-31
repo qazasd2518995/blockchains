@@ -66,6 +66,42 @@
     }
   }
 
+  function installVisualReadyProbe() {
+    var attempts = 0;
+    var eventBound = false;
+    var reported = false;
+    function scheduleProbe() {
+      var timer = window.setTimeout(probe, 250);
+      if (timer && typeof timer.unref === 'function') timer.unref();
+    }
+    function report() {
+      if (reported) return;
+      reported = true;
+      notifyParent('thor2:visual-ready');
+    }
+    function probe() {
+      var engine = window.cc;
+      if (!engine || !engine.director) {
+        attempts += 1;
+        if (attempts < 240) scheduleProbe();
+        return;
+      }
+      if (engine.director.getScene && engine.director.getScene()) {
+        report();
+        return;
+      }
+      var afterLaunch = engine.Director && engine.Director.EVENT_AFTER_SCENE_LAUNCH;
+      if (!eventBound && afterLaunch) {
+        eventBound = true;
+        engine.director.once(afterLaunch, report);
+      } else if (!afterLaunch) {
+        attempts += 1;
+        if (attempts < 240) scheduleProbe();
+      }
+    }
+    probe();
+  }
+
   function publicError(payload, fallback) {
     var message = payload && (payload.message || payload.error);
     if (
@@ -224,6 +260,7 @@
   }
 
   installAudioContextCapture();
+  installVisualReadyProbe();
   window.__QmoneyThor2UnlockAudio = unlockAudio;
   window.addEventListener('message', function (event) {
     if (event.origin !== window.location.origin || event.source !== window.parent || !event.data)

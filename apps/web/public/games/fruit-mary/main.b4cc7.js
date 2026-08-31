@@ -6,6 +6,29 @@ window.boot = function () {
     var RESOURCES = cc.AssetManager.BuiltinBundleName.RESOURCES;
     var INTERNAL = cc.AssetManager.BuiltinBundleName.INTERNAL;
     var MAIN = cc.AssetManager.BuiltinBundleName.MAIN;
+    function getForegroundLoadOptions () {
+        var connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        var effectiveType = String(connection && connection.effectiveType || '');
+        var cores = Number(navigator.hardwareConcurrency || 4);
+        var maxConcurrency = 10;
+        if ((connection && connection.saveData) || /(^|-)2g$/.test(effectiveType)) {
+            maxConcurrency = 2;
+        }
+        else if (cores <= 2) {
+            maxConcurrency = 2;
+        }
+        else if (cc.sys.os === cc.sys.OS_IOS) {
+            maxConcurrency = cores >= 6 ? 6 : 4;
+        }
+        else if (cc.sys.os === cc.sys.OS_ANDROID) {
+            maxConcurrency = cores >= 8 ? 8 : 5;
+        }
+        return {
+            priority: 2,
+            maxConcurrency: maxConcurrency,
+            maxRequestsPerFrame: Math.min(maxConcurrency, 6)
+        };
+    }
     function setLoadingDisplay () {
         // Loading splash scene
         var splash = document.getElementById('splash');
@@ -65,12 +88,10 @@ window.boot = function () {
             ].indexOf(cc.sys.browserType) < 0);
         }
 
-        // Limit downloading max concurrent task to 2,
-        // more tasks simultaneously may cause performance draw back on some android system / browsers.
-        // You can adjust the number based on your own test result, you have to set it before any loading process to take effect.
-        if (cc.sys.isBrowser && cc.sys.os === cc.sys.OS_ANDROID) {
-            cc.assetManager.downloader.maxConcurrency = 2;
-            cc.assetManager.downloader.maxRequestsPerFrame = 2;
+        var foregroundLoadOptions = getForegroundLoadOptions();
+        if (cc.sys.isBrowser) {
+            cc.assetManager.downloader.maxConcurrency = foregroundLoadOptions.maxConcurrency;
+            cc.assetManager.downloader.maxRequestsPerFrame = foregroundLoadOptions.maxRequestsPerFrame;
         }
 
         var launchScene = settings.launchScene;
@@ -78,10 +99,17 @@ window.boot = function () {
             return b.getSceneInfo(launchScene);
         });
         
-        bundle.loadScene(launchScene, null, onProgress,
+        bundle.loadScene(launchScene, foregroundLoadOptions, onProgress,
             function (err, scene) {
                 if (!err) {
                     cc.director.runSceneImmediate(scene);
+                    try {
+                        window.parent.postMessage(
+                            { type: 'fruit-mary:visual-ready', scene: launchScene },
+                            window.location.origin
+                        );
+                    }
+                    catch (_) {}
                     if (cc.sys.isBrowser) {
                         // show canvas
                         var canvas = document.getElementById('GameCanvas');

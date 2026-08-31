@@ -191,6 +191,39 @@ services:
       - path: /games/fruit-mary/fruit-mary-adapter.js
         name: Cache-Control
         value: no-cache, must-revalidate
+      - path: /games/fruit-mary/assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/fruit-mary/src/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/fruit-mary/cocos2d-js-min.3cdbc.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/fruit-mary/main.b4cc7.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/fruit-mary/style-mobile.f0101.css
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/fruit-mary/favicon.8de18.ico
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/power-of-thor-2/original-runtime/thor2-original-adapter.js
+        name: Cache-Control
+        value: no-cache, must-revalidate
+      - path: /games/power-of-thor-2/original-runtime/thor2-runtime-compat.js
+        name: Cache-Control
+        value: no-cache, must-revalidate
+      - path: /games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/*/native/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/*/import/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/cocos-js/assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
     routes:
       - type: rewrite
         source: /qmoney
@@ -238,6 +271,12 @@ services:
       - path: /platform.html
         name: Cache-Control
         value: no-store, no-cache, must-revalidate
+      - path: /sw.js
+        name: Cache-Control
+        value: no-store, no-cache, must-revalidate
+      - path: /manifest.webmanifest
+        name: Cache-Control
+        value: no-cache, must-revalidate
       - path: /qmoney/index.html
         name: Cache-Control
         value: no-store, no-cache, must-revalidate
@@ -254,6 +293,102 @@ services:
         name: Cache-Control
         value: public, max-age=604800
       - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/src/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/cocos2d-js-min.b1c26.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/physics-min.941a2.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/main.47d5a.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/style-mobile.25fc5.css
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2/favicon.8de18.ico
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2-v115/src/seth2-local-adapter.js
+        name: Cache-Control
+        value: no-cache
+      - path: /games/storm-of-seth-2-v115/assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2-v115/cocos-js/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/storm-of-seth-2-v115/src/chunks/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /slotFramework/40401f29702686de9cfed69b217641b6029834f7/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /slotFramework/manifest.json
+        name: Cache-Control
+        value: no-cache
+      - path: /games/h5-slot-collection/assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/h5-slot-collection/yachiyo-adapter.js
+        name: Cache-Control
+        value: no-cache, must-revalidate
+      - path: /games/h5-slot-collection/src/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/h5-slot-collection/cocos2d-js-min.22f51.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/h5-slot-collection/main.649de.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/h5-slot-collection/style-mobile.25fc5.css
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/h5-slot-collection/favicon.8de18.ico
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/fruit-mary/fruit-mary-adapter.js
+        name: Cache-Control
+        value: no-cache, must-revalidate
+      - path: /games/fruit-mary/assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/fruit-mary/src/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/fruit-mary/cocos2d-js-min.3cdbc.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/fruit-mary/main.b4cc7.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/fruit-mary/style-mobile.f0101.css
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/fruit-mary/favicon.8de18.ico
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/power-of-thor-2/original-runtime/thor2-original-adapter.js
+        name: Cache-Control
+        value: no-cache, must-revalidate
+      - path: /games/power-of-thor-2/original-runtime/thor2-runtime-compat.js
+        name: Cache-Control
+        value: no-cache, must-revalidate
+      - path: /games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/*/native/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/remote/*/import/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2/cocos-js/assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable
     routes:

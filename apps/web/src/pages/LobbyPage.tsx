@@ -16,6 +16,7 @@ import {
 } from '@/data/fakeStats';
 import { useAuthStore } from '@/stores/authStore';
 import { warmGameAssets } from '@/lib/gameAssetManifest';
+import { markGameNavigationStart } from '@/lib/gameLoadPerformance';
 import { getLobbyGameCover } from '@/lib/gameCoverAssets';
 import { ResponsiveImage } from '@/lib/optimizedImages';
 import { getGameIcon, getHallIcon } from '@/lib/platformIcons';
@@ -528,6 +529,7 @@ function MobileGameCard({
       onFocus={warmAssets}
       onPointerDown={warmAssets}
       onPointerEnter={warmAssets}
+      onClick={() => markGameNavigationStart(game.id)}
       className={`group relative overflow-visible rounded-[13px] bg-transparent shadow-[0_8px_16px_rgba(15,23,42,0.12)] active:scale-[0.99] ${
         featured ? 'col-span-2 min-h-[190px]' : tall ? 'min-h-[150px]' : 'min-h-[132px]'
       }`}

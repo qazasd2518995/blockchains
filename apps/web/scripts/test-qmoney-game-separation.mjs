@@ -68,8 +68,12 @@ assert.ok(
   'Qmoney must not render the legacy PWA prompt',
 );
 assert.ok(
-  main.includes('import.meta.env.PROD && !isQmoneyRealm'),
-  'Qmoney must not register the legacy service worker',
+  main.includes("'serviceWorker' in navigator && import.meta.env.PROD"),
+  'both realms should register the same-origin public-asset service worker',
+);
+assert.ok(
+  !main.includes('import.meta.env.PROD && !isQmoneyRealm'),
+  'Qmoney must not be excluded from the realm-neutral game asset cache',
 );
 assert.ok(
   qmoneyApp.includes('syncGameAudioPreferences()'),

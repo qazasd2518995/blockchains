@@ -21,7 +21,7 @@ const builds = [
   {
     folder: 'fruit-mary',
     main: 'main.b4cc7.js',
-    minimumPreloads: 0,
+    minimumPreloads: 6,
     cocos3: false,
   },
 ];
@@ -92,13 +92,36 @@ for (const build of builds) {
       /cc\.macro\.CLEANUP_IMAGE_CACHE = false/,
       `${build.folder} must retain decoded images so iOS can rebuild partially lost WebGL textures`,
     );
+    assert.match(mainSource, /getForegroundLoadOptions/);
+    assert.match(mainSource, /navigator\.hardwareConcurrency/);
+    assert.match(mainSource, /connection\.saveData/);
+    assert.match(mainSource, /bundle\.loadScene\(launchScene, foregroundLoadOptions/);
   }
 }
 
 const renderBlueprint = fs.readFileSync(path.join(workspaceRoot, 'render.yaml'), 'utf8');
-for (const build of builds.filter((entry) => entry.folder !== 'fruit-mary')) {
-  assert.match(renderBlueprint, new RegExp(`/games/${build.folder}/assets/\\*`));
+for (const build of builds) {
+  const matches = renderBlueprint.match(new RegExp(`/games/${build.folder}/assets/\\*`, 'g')) ?? [];
+  assert.equal(matches.length, 2, `${build.folder} cache rules should cover both static sites`);
 }
 assert.match(renderBlueprint, /\/slotFramework\/40401f29702686de9cfed69b217641b6029834f7\/\*/);
+assert.equal(
+  (
+    renderBlueprint.match(
+      /\/games\/power-of-thor-2\/original\/gameresource3\.rsgaming955\.com\/WebUI3\/content\/PowerOfThor2\/remote\/\*\/native\/\*/g,
+    ) ?? []
+  ).length,
+  2,
+  'Thor II native asset cache rules should cover both static sites',
+);
+
+const gameManifestSource = fs.readFileSync(
+  path.join(webRoot, 'src/lib/gameAssetManifest.ts'),
+  'utf8',
+);
+assert.match(gameManifestSource, /yachiyo-adapter\.js\?v=45/);
+assert.match(gameManifestSource, /main\.649de\.js\?v=5/);
+assert.match(gameManifestSource, /THOR2_SHELL_ASSETS/);
+assert.match(gameManifestSource, /FRUIT_MARY_SHELL_ASSETS/);
 
 console.log('Cocos preload, adaptive mobile rendering, and cache contracts passed.');

@@ -162,6 +162,7 @@ const PAI_GOW_TILE_ASSETS = [
   '2+3',
 ].map((pair) => `/game-art/pai-gow/Domino-${pair}.svg`);
 const preloadCache = new Map<string, Promise<void>>();
+const routeModuleWarmups = new Map<string, Promise<unknown>>();
 const warmedGames = new Set<string>();
 const warmedCocosShellAssets = new Set<string>();
 const H5_GAME_ID_SET = new Set<string>(H5_GAMES.map((game) => game.gameId));
@@ -185,14 +186,44 @@ const SETH2_SHELL_ASSETS: readonly CocosShellAsset[] = [
 ];
 
 const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [
-  { src: '/games/h5-slot-collection/yachiyo-adapter.js?v=44', as: 'script' },
+  { src: '/games/h5-slot-collection/yachiyo-adapter.js?v=45', as: 'script' },
   { src: '/games/h5-slot-collection/src/settings.33a69.js', as: 'script' },
-  { src: '/games/h5-slot-collection/main.649de.js?v=2', as: 'script' },
+  { src: '/games/h5-slot-collection/main.649de.js?v=5', as: 'script' },
   { src: '/games/h5-slot-collection/cocos2d-js-min.22f51.js', as: 'script' },
   { src: '/games/h5-slot-collection/assets/resources/config.9bbee.json', as: 'fetch' },
   { src: '/games/h5-slot-collection/assets/resources/index.9bbee.js', as: 'script' },
   { src: '/games/h5-slot-collection/assets/main/config.9d2e3.json', as: 'fetch' },
   { src: '/games/h5-slot-collection/assets/main/index.9d2e3.js', as: 'script' },
+];
+
+const FRUIT_MARY_SHELL_ASSETS: readonly CocosShellAsset[] = [
+  { src: '/games/fruit-mary/fruit-mary-adapter.js?v=10', as: 'script' },
+  { src: '/games/fruit-mary/src/settings.e124f.js', as: 'script' },
+  { src: '/games/fruit-mary/main.b4cc7.js?v=4', as: 'script' },
+  { src: '/games/fruit-mary/cocos2d-js-min.3cdbc.js', as: 'script' },
+  { src: '/games/fruit-mary/assets/resources/config.16aee.json', as: 'fetch' },
+  { src: '/games/fruit-mary/assets/resources/index.16aee.js', as: 'script' },
+  { src: '/games/fruit-mary/assets/main/config.c2167.json', as: 'fetch' },
+  { src: '/games/fruit-mary/assets/main/index.c2167.js', as: 'script' },
+];
+
+const THOR2_CONTENT_ROOT =
+  '/games/power-of-thor-2/original/gameresource3.rsgaming955.com/WebUI3/content/PowerOfThor2';
+const THOR2_SHELL_ASSETS: readonly CocosShellAsset[] = [
+  {
+    src: '/games/power-of-thor-2/original-runtime/thor2-runtime-compat.js?v=20260826-mobile-1',
+    as: 'script',
+  },
+  {
+    src: '/games/power-of-thor-2/original-runtime/thor2-original-adapter.js?v=20260831-load-metrics-1',
+    as: 'script',
+  },
+  { src: `${THOR2_CONTENT_ROOT}/src/polyfills.bundle.js`, as: 'script' },
+  { src: `${THOR2_CONTENT_ROOT}/src/system.bundle.js`, as: 'script' },
+  { src: `${THOR2_CONTENT_ROOT}/src/settings.json`, as: 'fetch' },
+  { src: `${THOR2_CONTENT_ROOT}/cocos-js/cc.js`, as: 'script' },
+  { src: `${THOR2_CONTENT_ROOT}/remote/slotgame/config.json`, as: 'fetch' },
+  { src: `${THOR2_CONTENT_ROOT}/remote/slotgame/index.js`, as: 'script' },
 ];
 
 export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
@@ -294,7 +325,22 @@ export function preloadGameAssets(
 }
 
 export function warmGameAssets(gameId: string): void {
+  warmGameRouteModule(gameId);
   void preloadGameAssets(gameId, { includeNonCritical: false, usePixi: false });
+}
+
+function warmGameRouteModule(gameId: string): void {
+  if (routeModuleWarmups.has(gameId)) return;
+  let warmup: Promise<unknown> | null = null;
+  if (gameId === 'storm-of-seth-2') warmup = import('@/pages/games/Seth2Page');
+  else if (gameId === 'power-of-thor-2') warmup = import('@/pages/games/PowerOfThor2Page');
+  else if (gameId === 'fruit-mary') warmup = import('@/pages/games/FruitMaryPage');
+  else if (H5_GAME_ID_SET.has(gameId)) warmup = import('@/pages/games/H5SlotCollectionPage');
+  if (!warmup) return;
+  routeModuleWarmups.set(
+    gameId,
+    warmup.catch(() => undefined),
+  );
 }
 
 function warmCocosShell(gameId: string): void {
@@ -302,9 +348,13 @@ function warmCocosShell(gameId: string): void {
   const shellAssets =
     gameId === 'storm-of-seth-2'
       ? SETH2_SHELL_ASSETS
-      : H5_GAME_ID_SET.has(gameId)
-        ? H5_SHELL_ASSETS
-        : null;
+      : gameId === 'power-of-thor-2'
+        ? THOR2_SHELL_ASSETS
+        : gameId === 'fruit-mary'
+          ? FRUIT_MARY_SHELL_ASSETS
+          : H5_GAME_ID_SET.has(gameId)
+            ? H5_SHELL_ASSETS
+            : null;
   if (!shellAssets) return;
 
   for (const assetEntry of shellAssets) {

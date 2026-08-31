@@ -6,6 +6,49 @@ window.boot = function () {
     var RESOURCES = cc.AssetManager.BuiltinBundleName.RESOURCES;
     var INTERNAL = cc.AssetManager.BuiltinBundleName.INTERNAL;
     var MAIN = cc.AssetManager.BuiltinBundleName.MAIN;
+    function getForegroundLoadOptions () {
+        var connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        var effectiveType = String(connection && connection.effectiveType || '');
+        var cores = Number(navigator.hardwareConcurrency || 4);
+        var maxConcurrency = 10;
+        if ((connection && connection.saveData) || /(^|-)2g$/.test(effectiveType)) {
+            maxConcurrency = 2;
+        }
+        else if (cores <= 2) {
+            maxConcurrency = 2;
+        }
+        else if (cc.sys.os === cc.sys.OS_IOS) {
+            maxConcurrency = cores >= 6 ? 6 : 4;
+        }
+        else if (cc.sys.os === cc.sys.OS_ANDROID) {
+            maxConcurrency = cores >= 8 ? 8 : 5;
+        }
+        return {
+            priority: 2,
+            maxConcurrency: maxConcurrency,
+            maxRequestsPerFrame: Math.min(maxConcurrency, 6)
+        };
+    }
+    function getSelectedSceneName () {
+        try {
+            return new URLSearchParams(window.location.search).get('scene') || '';
+        }
+        catch (_) {
+            return '';
+        }
+    }
+    function warmSelectedScene (bundle, launchScene, loadOptions) {
+        var selectedScene = getSelectedSceneName();
+        if (!selectedScene || selectedScene === launchScene || !bundle.getSceneInfo(selectedScene)) return;
+        var warmOptions = {
+            priority: 1,
+            maxConcurrency: loadOptions.maxConcurrency,
+            maxRequestsPerFrame: loadOptions.maxRequestsPerFrame
+        };
+        bundle.preloadScene(selectedScene, warmOptions, null, function (err) {
+            if (err) console.warn('Unable to warm selected scene: ' + selectedScene, err);
+        });
+    }
     function hideLegacyLaunchSplash (scene) {
         var pending = scene ? [scene] : [];
         while (pending.length) {
@@ -82,12 +125,13 @@ window.boot = function () {
             ].indexOf(cc.sys.browserType) < 0);
         }
 
-        // Limit downloading max concurrent task to 2,
-        // more tasks simultaneously may cause performance draw back on some android system / browsers.
-        // You can adjust the number based on your own test result, you have to set it before any loading process to take effect.
-        if (cc.sys.isBrowser && cc.sys.os === cc.sys.OS_ANDROID) {
-            cc.assetManager.downloader.maxConcurrency = 2;
-            cc.assetManager.downloader.maxRequestsPerFrame = 2;
+        // Preserve every authored asset while allowing capable devices to use
+        // more of the available network. Slow connections and low-core phones
+        // retain the original conservative limit.
+        var foregroundLoadOptions = getForegroundLoadOptions();
+        if (cc.sys.isBrowser) {
+            cc.assetManager.downloader.maxConcurrency = foregroundLoadOptions.maxConcurrency;
+            cc.assetManager.downloader.maxRequestsPerFrame = foregroundLoadOptions.maxRequestsPerFrame;
         }
 
         var launchScene = settings.launchScene;
@@ -95,7 +139,7 @@ window.boot = function () {
             return b.getSceneInfo(launchScene);
         });
         
-        bundle.loadScene(launchScene, null, onProgress,
+        bundle.loadScene(launchScene, foregroundLoadOptions, onProgress,
             function (err, scene) {
                 if (!err) {
                     // Remove the archived black logo/slogan scene before its
@@ -103,6 +147,10 @@ window.boot = function () {
                     // later scene switches as a defensive fallback.
                     hideLegacyLaunchSplash(scene);
                     cc.director.runSceneImmediate(scene);
+                    // Download the selected game scene while the original
+                    // launch scene performs its normal session/bootstrap work.
+                    // This does not run the scene or bypass any game logic.
+                    warmSelectedScene(bundle, launchScene, foregroundLoadOptions);
                     if (cc.sys.isBrowser) {
                         // show canvas
                         var canvas = document.getElementById('GameCanvas');
