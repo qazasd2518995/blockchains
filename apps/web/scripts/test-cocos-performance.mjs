@@ -133,7 +133,10 @@ const gameManifestSource = fs.readFileSync(
   path.join(webRoot, 'src/lib/gameAssetManifest.ts'),
   'utf8',
 );
-assert.match(gameManifestSource, /yachiyo-adapter\.js\?v=45/);
+assert.match(gameManifestSource, /yachiyo-adapter\.js\?v=46/);
+assert.match(gameManifestSource, /fruit-mary-adapter\.js\?v=13/);
+assert.match(gameManifestSource, /seth2-local-adapter\.js\?v=20260901-auth-recovery-1/);
+assert.match(gameManifestSource, /thor2-original-adapter\.js\?v=20260901-auth-recovery-1/);
 assert.match(gameManifestSource, /main\.649de\.js\?v=5/);
 assert.match(gameManifestSource, /THOR2_SHELL_ASSETS/);
 assert.match(gameManifestSource, /FRUIT_MARY_SHELL_ASSETS/);

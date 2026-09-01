@@ -49,8 +49,8 @@ assert.match(
 );
 assert.match(
   collectionIndexSource,
-  /yachiyo-adapter\.js\?v=45/,
-  'the shared collection must load the splash-removal adapter revision',
+  /yachiyo-adapter\.js\?v=46/,
+  'the shared collection must load the stable-session adapter revision',
 );
 assert.match(
   collectionIndexSource,
@@ -89,16 +89,6 @@ assert.match(
   'an early auto-spin must be queued once instead of dropped or settled concurrently',
 );
 assert.match(
-  adapterSource,
-  /!main && sourceReadyAge < SOURCE_SCENE_LOAD_GRACE_MS/,
-  'large source scenes must retain a dedicated cold-load grace period before health recovery',
-);
-assert.match(
-  adapterSource,
-  /SOURCE_SCENE_LOAD_GRACE_MS = 45000/,
-  'the source-scene cold-load grace must remain below the outer shell timeout',
-);
-assert.match(
   pageSource,
   /payload\.type === ['"]h5-slots:fatal['"]/,
   'the platform shell must rebuild a failed source-game iframe',
@@ -110,13 +100,43 @@ assert.match(
 );
 assert.match(
   pageSource,
-  /__YachiyoDisposeH5Game/,
-  'the shell must release the source game before removing its iframe',
+  /payload\.type === ['"]h5-slots:visual-ready['"]\)[\s\S]{0,180}clearReadyTimer\(\)/,
+  'the one-shot startup timeout must remain armed until the selected Cocos scene is visible',
 );
 assert.match(
   pageSource,
-  /setInterval\(checkFrameHealth, 5_000\)/,
-  'the shell must continue checking partially rendered games while visible',
+  /__YachiyoDisposeH5Game/,
+  'the shell must release the source game before removing its iframe',
+);
+assert.doesNotMatch(
+  pageSource,
+  /h5-slots:health-check|setInterval\(checkFrameHealth/,
+  'transient source animation states must not cause the shell to rebuild the Cocos iframe',
+);
+assert.doesNotMatch(
+  adapterSource,
+  /h5-slots:health-check|h5-slots:health['"]|sourceSlotVisualHealthy/,
+  'the adapter must not classify temporary Cocos node changes as a disconnect',
+);
+assert.match(
+  adapterSource,
+  /function isExplicitWebglFailure\([\s\S]{0,700}webglcontext\(\?:lost\|creationerror\)/,
+  'global runtime errors may rebuild the iframe only for explicit WebGL failures',
+);
+assert.doesNotMatch(
+  adapterSource,
+  /getParameter\|getExtension\|Cannot read\|undefined is not an object/,
+  'ordinary source-game exceptions must remain visible errors instead of forcing a remount',
+);
+assert.match(
+  adapterSource,
+  /if \(!auth\.accessToken\) \{[\s\S]{0,260}refreshAccessToken\(\)[\s\S]{0,220}authorizedRequest\(url, method, body, true\)/,
+  'an iframe that observes the rotating access-token gap must refresh once before failing',
+);
+assert.match(
+  adapterSource,
+  /attemptedRefreshToken[\s\S]{0,850}latest\.refreshToken !== attemptedRefreshToken/,
+  'the H5 adapter must adopt tokens rotated concurrently by the platform shell',
 );
 assert.equal(
   pageSource.match(/automaticRecoveryAttemptsRef\.current = 0/g)?.length,
@@ -218,6 +238,20 @@ function loadAdapter(gameCode, storedValues = {}, options = {}) {
   assert.equal(testApi.hideLegacyLaunchSplash(), 1);
   assert.equal(scene.children[1].active, false);
   assert.equal(scene.children[0].active, true);
+}
+
+{
+  const adapter = loadAdapter('113');
+  assert.equal(
+    adapter.isExplicitWebglFailure(new TypeError("Cannot read properties of null (reading 'node')")),
+    false,
+    'ordinary source-scene timing errors must not destroy and recreate the iframe',
+  );
+  assert.equal(
+    adapter.isExplicitWebglFailure(new Error('WebGL context is lost')),
+    true,
+    'an explicit WebGL context loss must still use the bounded recovery path',
+  );
 }
 
 {

@@ -138,7 +138,7 @@ assert.ok(
 const runtimeHtml = fs.readFileSync(path.join(gameRoot, 'original-runtime/index.html'), 'utf8');
 for (const originalBootAsset of [
   'thor2-runtime-compat.js?v=20260826-mobile-1',
-  'thor2-original-adapter.js?v=20260901-remount-2',
+  'thor2-original-adapter.js?v=20260901-auth-recovery-1',
   'common/js/jsStart-cocos.js',
   'content/PowerOfThor2/src/polyfills.bundle.js',
   'content/PowerOfThor2/src/system.bundle.js',
@@ -203,6 +203,16 @@ assert.equal(
 const adapterSource = fs.readFileSync(
   path.join(gameRoot, 'original-runtime/thor2-original-adapter.js'),
   'utf8',
+);
+assert.match(
+  adapterSource,
+  /if \(!auth\.accessToken\) \{[\s\S]{0,260}refreshAccessToken\(\)[\s\S]{0,240}authorizedFetch\(path, method, body, true\)/,
+  'Thor 2 must refresh once when the iframe observes an access-token rotation gap',
+);
+assert.match(
+  adapterSource,
+  /attemptedRefreshToken[\s\S]{0,950}latest\.refreshToken !== attemptedRefreshToken/,
+  'Thor 2 must adopt tokens rotated concurrently by the platform shell',
 );
 for (const contract of [
   "authorizedFetch('/session'",

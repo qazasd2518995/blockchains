@@ -12602,8 +12602,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 3060,
-      "sha256": "14f642ec0b2cbf0129a0d5b7084fd10040e904ab9533bf3dd934103c56df6715"
+      "bytes": 3057,
+      "sha256": "3309946f2ecd94e486936eeb6499294e15ea5cccfd3779e647ac1dc37d551ea5"
     },
     {
       "path": "index.js",
@@ -12707,8 +12707,8 @@
     },
     {
       "path": "src/seth2-local-adapter.js",
-      "bytes": 62868,
-      "sha256": "a3bd491a743420a114bd3c31867fccbe76df7ce4331cc705ecb2dd36edb2722a"
+      "bytes": 63045,
+      "sha256": "fd5f155918ecf0147815349eb49bada392c139f842e63b6fb78097bfdc1dcffb"
     },
     {
       "path": "src/settings.json",

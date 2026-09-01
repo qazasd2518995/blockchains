@@ -179,14 +179,14 @@ const SETH2_SHELL_ASSETS: readonly CocosShellAsset[] = [
   { src: '/games/storm-of-seth-2-v115/application.js', as: 'script' },
   { src: '/games/storm-of-seth-2-v115/src/settings.json', as: 'fetch' },
   {
-    src: '/games/storm-of-seth-2-v115/src/seth2-local-adapter.js?v=20260828-character-flight-2',
+    src: '/games/storm-of-seth-2-v115/src/seth2-local-adapter.js?v=20260901-auth-recovery-1',
     as: 'script',
   },
   { src: '/games/storm-of-seth-2-v115/cocos-js/cc.js', as: 'script' },
 ];
 
 const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [
-  { src: '/games/h5-slot-collection/yachiyo-adapter.js?v=45', as: 'script' },
+  { src: '/games/h5-slot-collection/yachiyo-adapter.js?v=46', as: 'script' },
   { src: '/games/h5-slot-collection/src/settings.33a69.js', as: 'script' },
   { src: '/games/h5-slot-collection/main.649de.js?v=5', as: 'script' },
   { src: '/games/h5-slot-collection/cocos2d-js-min.22f51.js', as: 'script' },
@@ -197,7 +197,7 @@ const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [
 ];
 
 const FRUIT_MARY_SHELL_ASSETS: readonly CocosShellAsset[] = [
-  { src: '/games/fruit-mary/fruit-mary-adapter.js?v=11', as: 'script' },
+  { src: '/games/fruit-mary/fruit-mary-adapter.js?v=13', as: 'script' },
   { src: '/games/fruit-mary/src/settings.e124f.js', as: 'script' },
   { src: '/games/fruit-mary/main.b4cc7.js?v=4', as: 'script' },
   { src: '/games/fruit-mary/cocos2d-js-min.3cdbc.js', as: 'script' },
@@ -215,7 +215,7 @@ const THOR2_SHELL_ASSETS: readonly CocosShellAsset[] = [
     as: 'script',
   },
   {
-    src: '/games/power-of-thor-2/original-runtime/thor2-original-adapter.js?v=20260901-remount-2',
+    src: '/games/power-of-thor-2/original-runtime/thor2-original-adapter.js?v=20260901-auth-recovery-1',
     as: 'script',
   },
   { src: `${THOR2_CONTENT_ROOT}/src/polyfills.bundle.js`, as: 'script' },

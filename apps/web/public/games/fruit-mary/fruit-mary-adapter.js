@@ -164,14 +164,23 @@
     if (refreshInFlight) return refreshInFlight;
     var auth = readAuth();
     if (!auth.refreshToken) return Promise.reject(new Error('登入已過期，請回到大廳重新登入'));
+    var attemptedRefreshToken = auth.refreshToken;
     refreshInFlight = fetch(apiBase + '/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: auth.refreshToken }),
+      body: JSON.stringify({ refreshToken: attemptedRefreshToken }),
     })
       .then(function (response) {
         return response.json().then(function (body) {
           if (!response.ok || !body.accessToken || !body.refreshToken) {
+            var latest = readAuth();
+            if (
+              latest.accessToken &&
+              latest.refreshToken &&
+              latest.refreshToken !== attemptedRefreshToken
+            ) {
+              return latest.accessToken;
+            }
             throw new Error(body.message || '登入已過期，請回到大廳重新登入');
           }
           writeTokens(body.accessToken, body.refreshToken);

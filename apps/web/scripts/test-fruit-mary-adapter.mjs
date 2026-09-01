@@ -69,6 +69,11 @@ assert.doesNotMatch(
   /payload\.type === ['"]fruit-mary:ready['"][\s\S]{0,160}automaticRecoveryAttemptsRef\.current = 0/,
   'Fruit Mary ready events must not immediately re-arm automatic iframe recovery',
 );
+assert.match(
+  adapterSource,
+  /attemptedRefreshToken[\s\S]{0,850}latest\.refreshToken !== attemptedRefreshToken/,
+  'Fruit Mary must adopt tokens rotated concurrently by the platform shell',
+);
 const storedValues = {
   'bg-auth': JSON.stringify({
     state: { accessToken: 'test-access', refreshToken: 'test-refresh' },

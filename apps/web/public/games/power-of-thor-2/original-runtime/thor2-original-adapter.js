@@ -166,7 +166,14 @@
 
   function authorizedFetch(path, method, body, retried) {
     var auth = readAuth();
-    if (!auth.accessToken) return Promise.reject(new Error('找不到登入憑證，請回到大廳重新登入'));
+    if (!auth.accessToken) {
+      if (!retried && auth.refreshToken) {
+        return refreshAccessToken().then(function () {
+          return authorizedFetch(path, method, body, true);
+        });
+      }
+      return Promise.reject(new Error('找不到登入憑證，請回到大廳重新登入'));
+    }
     var controller = typeof AbortController === 'function' ? new AbortController() : null;
     var timeout = window.setTimeout(function () {
       if (controller) controller.abort();

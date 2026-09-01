@@ -29,6 +29,16 @@ assert.equal(
 );
 assert.equal(shellSource.includes("query.set('table', '1')"), true);
 assert.equal(shellSource.includes('setTableSelectionConfirmed(true)'), true);
+assert.match(
+  source,
+  /if \(!auth\.accessToken\) \{[\s\S]{0,260}refreshAccessToken\(\)[\s\S]{0,220}authorizedPost\(body, true\)/,
+  'Seth 2 must refresh once when the iframe observes an access-token rotation gap',
+);
+assert.match(
+  source,
+  /attemptedRefreshToken[\s\S]{0,1100}latest\.refreshToken !== attemptedRefreshToken/,
+  'Seth 2 must adopt tokens rotated concurrently by the platform shell',
+);
 const values = new Map([
   [
     'bg-auth',

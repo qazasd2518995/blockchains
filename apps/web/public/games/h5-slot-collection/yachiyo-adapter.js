@@ -61,15 +61,11 @@
   var platformAudioPrefs = readPlatformAudioPrefs();
   var activeSockets = [];
   var gameDisposing = false;
-  var gameCanvasContextLost = false;
   var renderFailureReported = false;
   var slotStallTimer = 0;
   var lastSpinRequestAt = 0;
   var lastLotteryResponseAt = 0;
-  var sourceReadyAt = 0;
   var visualReadyReported = false;
-  var SOURCE_CONTROL_HEALTH_GRACE_MS = 12000;
-  var SOURCE_SCENE_LOAD_GRACE_MS = 45000;
 
   var MISSING_SOURCE_FONT_FALLBACKS = {
     'FZY4JW--GB1-0.ttf':
@@ -1023,7 +1019,6 @@
     canvas.addEventListener(
       'webglcontextcreationerror',
       function (event) {
-        gameCanvasContextLost = true;
         reportFatalRenderFailure(
           'webgl-context-creation',
           new Error((event && event.statusMessage) || '無法建立遊戲畫面'),
@@ -1034,16 +1029,8 @@
     canvas.addEventListener(
       'webglcontextlost',
       function (event) {
-        gameCanvasContextLost = true;
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
         reportFatalRenderFailure('webgl-context-lost', new Error('遊戲畫面已中斷'));
-      },
-      false,
-    );
-    canvas.addEventListener(
-      'webglcontextrestored',
-      function () {
-        gameCanvasContextLost = false;
       },
       false,
     );
@@ -1277,32 +1264,6 @@
     }
   }
 
-  function sourceSlotVisualHealthy() {
-    if (gameCanvasContextLost) return false;
-    if (isFishGame || !sourceReadyAt) return true;
-    var sourceReadyAge = Date.now() - sourceReadyAt;
-    if (sourceReadyAge < SOURCE_CONTROL_HEALTH_GRACE_MS) return true;
-    var main = sourceMainComponent();
-    // Source login completes before Cocos finishes constructing large scenes.
-    // Keep the iframe healthy while that authored scene is still loading; the
-    // outer shell owns the longer load timeout and remains the final fallback.
-    if (!main && sourceReadyAge < SOURCE_SCENE_LOAD_GRACE_MS) return true;
-    if (!main) return false;
-    restoreMahjongWaysTileBackgrounds(main);
-    if (
-      slotSettlementInFlight ||
-      Date.now() < nextSlotSettlementAt ||
-      Number(main.status || 0) !== 0 ||
-      sourceFeatureIsPlaying(main)
-    ) {
-      return true;
-    }
-    // Unknown source-control layouts must not be treated as a render failure.
-    // A watchdog may only remount scenes whose control contract it understands.
-    if (!sourceControlContract(main)) return true;
-    return repairIdleSlotControls(main);
-  }
-
   function watchForStalledSlotUi() {
     if (gameDisposing) return;
     var main = sourceMainComponent();
@@ -1406,14 +1367,23 @@
     if (refreshInFlight) return refreshInFlight;
     var auth = readAuth();
     if (!auth.refreshToken) return Promise.reject(new Error('登入已過期，請回到大廳重新登入'));
+    var attemptedRefreshToken = auth.refreshToken;
     refreshInFlight = fetch(apiBase + '/auth/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: auth.refreshToken }),
+      body: JSON.stringify({ refreshToken: attemptedRefreshToken }),
     })
       .then(function (response) {
         return response.json().then(function (body) {
           if (!response.ok || !body.accessToken || !body.refreshToken) {
+            var latest = readAuth();
+            if (
+              latest.accessToken &&
+              latest.refreshToken &&
+              latest.refreshToken !== attemptedRefreshToken
+            ) {
+              return latest.accessToken;
+            }
             throw new Error(body.message || '登入已過期，請回到大廳重新登入');
           }
           writeTokens(body.accessToken, body.refreshToken);
@@ -1428,7 +1398,14 @@
 
   function authorizedRequest(url, method, body, retried) {
     var auth = readAuth();
-    if (!auth.accessToken) return Promise.reject(new Error('找不到登入憑證，請回到大廳重新登入'));
+    if (!auth.accessToken) {
+      if (!retried && auth.refreshToken) {
+        return refreshAccessToken().then(function () {
+          return authorizedRequest(url, method, body, true);
+        });
+      }
+      return Promise.reject(new Error('找不到登入憑證，請回到大廳重新登入'));
+    }
     var controller = typeof AbortController === 'function' ? new AbortController() : null;
     var timeout = window.setTimeout(function () {
       if (controller) controller.abort();
@@ -1978,7 +1955,6 @@
     });
     if (!isFishGame) emitRoomLogin(socket);
     if (!isFishGame) startSlotStallWatchdog();
-    sourceReadyAt = Date.now();
     notifyParent('h5-slots:ready', { balance: Number(session.balance || 0), gameCode: gameCode });
   }
 
@@ -3557,27 +3533,27 @@
     notifyParent('h5-slots:error', { message: message });
   }
 
+  function isExplicitWebglFailure(error) {
+    var message = error && error.message ? String(error.message) : String(error || '');
+    var stack = error && error.stack ? String(error.stack) : '';
+    return /webglcontext(?:lost|creationerror)|context_lost_webgl|webgl context (?:is )?lost|failed to (?:create|initialize) webgl|error creating webgl context/i.test(
+      message + ' ' + stack,
+    );
+  }
+
   bindGameCanvasRecovery();
   function addWindowListener(type, listener) {
     if (typeof window.addEventListener === 'function') window.addEventListener(type, listener);
   }
   addWindowListener('error', function (event) {
     var error = event && (event.error || event.message);
-    var stack = error && error.stack ? String(error.stack) : '';
-    var message = publicRenderError(error);
-    if (
-      /h5-slot-collection|cocos2d-js/i.test(stack) &&
-      /webgl|context|getParameter|getExtension|Cannot read|undefined is not an object/i.test(
-        message,
-      )
-    ) {
+    if (isExplicitWebglFailure(error)) {
       reportFatalRenderFailure('source-runtime-error', error);
     }
   });
   addWindowListener('unhandledrejection', function (event) {
     var reason = event && event.reason;
-    var stack = reason && reason.stack ? String(reason.stack) : '';
-    if (/h5-slot-collection|cocos2d-js/i.test(stack)) {
+    if (isExplicitWebglFailure(reason)) {
       reportFatalRenderFailure('source-runtime-rejection', reason);
     }
   });
@@ -3585,12 +3561,6 @@
     if (event.origin !== window.location.origin || event.source !== window.parent || !event.data)
       return;
     if (event.data.type === 'h5-slots:dispose') disposeGameForRemount();
-    if (event.data.type === 'h5-slots:health-check' && !gameDisposing) {
-      notifyParent('h5-slots:health', {
-        gameCode: gameCode,
-        healthy: sourceSlotVisualHealthy(),
-      });
-    }
   });
   addWindowListener('pagehide', disposeGameForRemount);
 
@@ -3630,7 +3600,7 @@
     sourceFeatureIsPlaying: sourceFeatureIsPlaying,
     repairIdleSlotControls: repairIdleSlotControls,
     restoreMahjongWaysTileBackgrounds: restoreMahjongWaysTileBackgrounds,
-    sourceSlotVisualHealthy: sourceSlotVisualHealthy,
+    isExplicitWebglFailure: isExplicitWebglFailure,
     watchForStalledSlotUi: watchForStalledSlotUi,
     completeDeferredFeature: completeDeferredFeature,
     patchDeferredFeatureCompletion: patchDeferredFeatureCompletion,

@@ -140,8 +140,8 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
       uid: isQmoneyRealm ? 'qmoney' : 'yachiyo',
       token: isQmoneyRealm ? 'qmoney-session' : 'yachiyo-session',
       build: isQmoneyRealm
-        ? 'qmoney-h5-slots-v4-visual-recovery'
-        : 'yachiyo-h5-slots-v4-visual-recovery',
+        ? 'qmoney-h5-slots-v5-stable-session'
+        : 'yachiyo-h5-slots-v5-stable-session',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, [gameCode, locale, selectedGame.scene]);
@@ -181,7 +181,6 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
         balance?: unknown;
         message?: unknown;
         stage?: unknown;
-        healthy?: unknown;
         accessToken?: unknown;
         refreshToken?: unknown;
         data?: {
@@ -200,12 +199,14 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
       }
       if (payload.type === 'h5-slots:ready') {
         recordGameLoadMilestone(selectedGame.gameId, 'session-ready');
-        clearReadyTimer();
         setRecoveryReason('');
         setError('');
       }
       if (payload.type === 'h5-slots:visual-ready') {
         recordGameLoadMilestone(selectedGame.gameId, 'visual-ready');
+        clearReadyTimer();
+        setRecoveryReason('');
+        setError('');
       }
       if (payload.type === 'h5-slots:balance' || payload.type === 'h5-slots:ready') {
         const balance = Number(payload.balance);
@@ -218,9 +219,6 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
       if (payload.type === 'h5-slots:fatal') {
         const message = String(payload.message || '遊戲畫面已中斷');
         requestIframeRecovery(message);
-      }
-      if (payload.type === 'h5-slots:health' && payload.healthy === false) {
-        requestIframeRecovery('遊戲畫面已中斷，正在重新建立畫面');
       }
       if (
         payload.type === 'h5-slots:tokens' &&
@@ -241,24 +239,6 @@ export function H5SlotGamePage({ gameCode }: { gameCode: H5GameCode }) {
     setBalance,
     setTokens,
   ]);
-
-  useEffect(() => {
-    const checkFrameHealth = () => {
-      if (document.visibilityState !== 'visible') return;
-      iframeRef.current?.contentWindow?.postMessage(
-        { type: 'h5-slots:health-check' },
-        window.location.origin,
-      );
-    };
-    document.addEventListener('visibilitychange', checkFrameHealth);
-    window.addEventListener('pageshow', checkFrameHealth);
-    const healthTimer = window.setInterval(checkFrameHealth, 5_000);
-    return () => {
-      window.clearInterval(healthTimer);
-      document.removeEventListener('visibilitychange', checkFrameHealth);
-      window.removeEventListener('pageshow', checkFrameHealth);
-    };
-  }, []);
 
   useEffect(() => {
     const mountedFrame = iframeRef.current;
