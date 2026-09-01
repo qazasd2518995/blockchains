@@ -352,9 +352,9 @@ function loginFormMarkup(captcha, message = "") {
     <h1 class="modal-title" id="modalTitle">會員登入</h1>
     <p class="modal-subtitle">登入後使用金寶寶娛樂城的獨立會員點數、測試帳號權限與正式遊戲結算。</p>
     <form class="real-login-form" id="realLoginForm">
-      <label><span>會員帳號</span><input name="username" autocomplete="username" maxlength="40" required></label>
-      <label><span>密碼</span><input name="password" type="password" autocomplete="current-password" required></label>
-      <label><span>驗證碼</span><div class="captcha-row"><input name="captchaCode" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required><button type="button" data-login-action="captcha" aria-label="更新驗證碼">${escapeHtml(captcha.captchaCode)}</button></div></label>
+      <label><span>會員帳號</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" enterkeyhint="next" maxlength="40" required></label>
+      <label><span>密碼</span><input name="password" type="password" autocomplete="current-password" enterkeyhint="next" required></label>
+      <label><span>驗證碼</span><div class="captcha-row"><input name="captchaCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{4}" enterkeyhint="done" maxlength="4" required><button type="button" data-login-action="captcha" aria-label="更新驗證碼">${escapeHtml(captcha.captchaCode)}</button></div></label>
       <p class="form-error" id="loginError" ${message ? "" : "hidden"}>${escapeHtml(message)}</p>
       <button class="modal-button modal-button--pink" type="submit"><span>登入遊戲大廳</span></button>
     </form>`;
@@ -377,7 +377,12 @@ async function showLoginForm(message = "") {
 
 function bindLoginForm(captcha) {
   const form = elements.modalContent.querySelector("#realLoginForm");
-  form?.querySelector('[name="username"]')?.focus();
+  if (
+    window.innerWidth >= 768 &&
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches
+  ) {
+    form?.querySelector('[name="username"]')?.focus();
+  }
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const submit = form.querySelector('[type="submit"]');
@@ -468,6 +473,7 @@ function finishInitialView() {
 }
 
 function activateLobbyView() {
+  releaseMobileInputViewport();
   state.isLobby = true;
   elements.loginView.classList.remove("is-active");
   elements.lobbyView.classList.add("is-active");
@@ -476,6 +482,14 @@ function activateLobbyView() {
   updateAccount();
   syncMusic("lobby");
   finishInitialView();
+}
+
+function releaseMobileInputViewport() {
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  window.requestAnimationFrame(() => {
+    window.scrollTo(0, 0);
+    elements.lobbyScroll.scrollTop = 0;
+  });
 }
 
 async function enterLobby() {

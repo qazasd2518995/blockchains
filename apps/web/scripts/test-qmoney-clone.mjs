@@ -25,7 +25,7 @@ for (const marker of [
   'data-category="棋牌"',
   'data-action="notices"',
   'id="heroTrack"',
-  '/qmoney/app.js?v=20260831-player-labels-5',
+  '/qmoney/app.js?v=20260901-mobile-viewport-6',
   'class="is-booting"',
   'id="bootView"',
   '金寶寶｜遊戲大廳',
@@ -74,6 +74,31 @@ assert.match(
   css,
   /body\.is-booting \.view\s*\{\s*display:\s*none !important;/,
   'the login view must stay out of the initial paint while auth is restored',
+);
+assert.match(
+  css,
+  /\.real-login-form input\s*\{[^}]*font-size:\s*16px;/s,
+  'login inputs must stay at 16px so iOS does not zoom the lobby viewport',
+);
+assert.match(
+  css,
+  /\.game-search input\s*\{[^}]*font-size:\s*16px;/s,
+  'the mobile lobby search field must not trigger Safari focus zoom',
+);
+assert.match(
+  css,
+  /\.app-frame\s*\{[^}]*height:\s*100dvh;[^}]*min-height:\s*0;/s,
+  'the Qmoney frame must follow the live mobile viewport without forcing a tall canvas',
+);
+assert.match(
+  app,
+  /window\.innerWidth >= 768[^]*matchMedia\("\(hover: hover\) and \(pointer: fine\)"\)\.matches/,
+  'mobile login must not autofocus and open the software keyboard',
+);
+assert.match(
+  app,
+  /function releaseMobileInputViewport\(\)[^]*document\.activeElement\.blur\(\)[^]*window\.scrollTo\(0, 0\)/,
+  'entering the lobby must release the login focus and restore the viewport origin',
 );
 
 for (const marker of [
