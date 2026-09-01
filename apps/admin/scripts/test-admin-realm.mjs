@@ -5,13 +5,14 @@ import process from 'node:process';
 const appRoot = process.cwd();
 const repoRoot = path.resolve(appRoot, '../..');
 
-const [renderConfig, qmoneyBrand, authStore, shareModal, viteConfig, qmoneySeed] = await Promise.all([
+const [renderConfig, qmoneyBrand, authStore, shareModal, viteConfig, qmoneySeed, hierarchyPage] = await Promise.all([
   read('render.yaml', repoRoot),
   read('src/brand/qmoney.ts', appRoot),
   read('src/stores/adminAuthStore.ts', appRoot),
   read('src/components/shared/AccountCreationShareModal.tsx', appRoot),
   read('vite.config.ts', appRoot),
   read('apps/server/prisma/seed-qmoney.ts', repoRoot),
+  read('src/pages/agents/AgentHierarchyPage.tsx', appRoot),
 ]);
 
 assertContains(qmoneyBrand, [
@@ -53,8 +54,19 @@ assertContains(qmoneySeed, [
   "username: { not: superUsername }",
 ]);
 assertNotContains(qmoneySeed, ['sourceAdmin.passwordHash', 'sourceSuperAdmins']);
+assertContains(hierarchyPage, [
+  'const openBalanceTransfer = (row: HierarchyItem): void =>',
+  'onClick={() => openBalanceTransfer(row)}',
+  'onClick={() => selectParent(row.id)}',
+  'setAgentTransferFor({',
+  'if (member) setTransferFor(member);',
+]);
+assertNotContains(hierarchyPage, [
+  'const onRowClick = (row: HierarchyItem)',
+  'onClick={() => onRowClick(row)}',
+]);
 
-console.log('[admin-test] realm-specific brand, session, URLs and Render isolation verified.');
+console.log('[admin-test] realm isolation and explicit hierarchy balance transfer interactions verified.');
 
 async function read(relativePath, root) {
   return readFile(path.join(root, relativePath), 'utf8');

@@ -28,8 +28,8 @@ const ACCOUNT_TABLE_GRID_STYLE = { gridTemplateColumns: ACCOUNT_TABLE_COLUMNS };
 /**
  * 账号管理（混合阶层）
  *   - 呈现某 parent 的「直属代理 + 直属会员」
- *   - 点代理 row → 下钻到该代理
- *   - 会员 row 只做账号资料与操作，不在账号管理显示下注纪录
+ *   - 点代理账号 → 下钻到该代理
+ *   - 点余额 → 开启该账号的点数转移视窗
  *   - breadcrumb 可回到上层
  */
 export function AgentHierarchyPage(): JSX.Element {
@@ -107,12 +107,6 @@ export function AgentHierarchyPage(): JSX.Element {
     setParams(next);
   };
 
-  const onRowClick = (row: HierarchyItem) => {
-    if (row.kind === 'agent') {
-      selectParent(row.id);
-    }
-  };
-
   const handleAgentStatus = async (id: string, username: string, next: AccountStatus) => {
     if (next === 'FROZEN' && !confirm(t.agents.confirmFreezeAgentTpl.replace('{name}', username)))
       return;
@@ -182,6 +176,20 @@ export function AgentHierarchyPage(): JSX.Element {
       lastLoginAt: null,
       createdAt: row.createdAt,
     };
+  };
+
+  const openBalanceTransfer = (row: HierarchyItem): void => {
+    if (row.kind === 'agent') {
+      setAgentTransferFor({
+        id: row.id,
+        username: row.username,
+        balance: row.balance,
+      });
+      return;
+    }
+
+    const member = asMemberForModal(row);
+    if (member) setTransferFor(member);
   };
 
   const rememberPromotionPassword = (
@@ -350,13 +358,52 @@ export function AgentHierarchyPage(): JSX.Element {
           </div>
           {data?.items.map((row) => {
             const rowNote = row.notes?.trim();
+            const accountDetails = (
+              <>
+                <div className="flex items-center gap-2 font-mono text-ink-900">
+                  <span className="truncate">{row.username}</span>
+                  {row.kind === 'agent' && row.role === 'SUPER_ADMIN' && (
+                    <span className="tag tag-gold">{t.shell.super}</span>
+                  )}
+                  {row.kind === 'agent' && row.excludeFromControlSettlement && (
+                    <span className="tag tag-ember">例外線・不計交收</span>
+                  )}
+                  {row.kind === 'agent' && row.canManageControlZone && (
+                    <span className="tag tag-gold">線路輸贏控制者</span>
+                  )}
+                  {row.kind === 'agent' && (
+                    <span aria-hidden="true" className="ml-auto text-base text-[#186073]">
+                      ›
+                    </span>
+                  )}
+                </div>
+                {(rowNote || row.kind === 'agent') && (
+                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-semibold leading-5 text-ink-600">
+                    {rowNote && (
+                      <span className="min-w-0 max-w-[320px] truncate text-[13px] font-bold text-ink-800">
+                        {rowNote}
+                      </span>
+                    )}
+                    {row.kind === 'agent' && (
+                      <>
+                        <span>
+                          {t.agents.subAgents}{' '}
+                          <span className="data-num text-ink-800">{row.childCount}</span>
+                        </span>
+                        <span>
+                          {t.agents.membersLabel}{' '}
+                          <span className="data-num text-ink-800">{row.memberCount}</span>
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            );
             return (
               <div
                 key={`${row.kind}-${row.id}`}
-                onClick={() => onRowClick(row)}
-                className={`account-hierarchy-row grid min-w-[960px] items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition ${
-                  row.kind === 'agent' ? 'cursor-pointer hover:bg-[#FAF2D7]/60' : 'cursor-default'
-                }`}
+                className="account-hierarchy-row grid min-w-[960px] items-center gap-2 border-b border-ink-100 px-4 py-3 text-[12px] transition hover:bg-[#FAF2D7]/35"
                 style={ACCOUNT_TABLE_GRID_STYLE}
               >
                 {row.kind === 'agent' ? (
@@ -365,46 +412,32 @@ export function AgentHierarchyPage(): JSX.Element {
                   <span className="tag tag-toxic">{t.agents.typeMember}</span>
                 )}
 
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 font-mono text-ink-900">
-                    <span className="truncate">{row.username}</span>
-                    {row.kind === 'agent' && row.role === 'SUPER_ADMIN' && (
-                      <span className="tag tag-gold">{t.shell.super}</span>
-                    )}
-                    {row.kind === 'agent' && row.excludeFromControlSettlement && (
-                      <span className="tag tag-ember">例外線・不計交收</span>
-                    )}
-                    {row.kind === 'agent' && row.canManageControlZone && (
-                      <span className="tag tag-gold">線路輸贏控制者</span>
-                    )}
-                  </div>
-                  {(rowNote || row.kind === 'agent') && (
-                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-semibold leading-5 text-ink-600">
-                      {rowNote && (
-                        <span className="min-w-0 max-w-[320px] truncate text-[13px] font-bold text-ink-800">
-                          {rowNote}
-                        </span>
-                      )}
-                      {row.kind === 'agent' && (
-                        <>
-                          <span>
-                            {t.agents.subAgents}{' '}
-                            <span className="data-num text-ink-800">{row.childCount}</span>
-                          </span>
-                          <span>
-                            {t.agents.membersLabel}{' '}
-                            <span className="data-num text-ink-800">{row.memberCount}</span>
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
+                {row.kind === 'agent' ? (
+                  <button
+                    type="button"
+                    onClick={() => selectParent(row.id)}
+                    aria-label={`${t.agents.enterDownline}：${row.username}`}
+                    title={t.agents.enterDownline}
+                    className="min-w-0 rounded-md px-1 py-1 text-left transition hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#186073]"
+                  >
+                    {accountDetails}
+                  </button>
+                ) : (
+                  <div className="min-w-0 px-1 py-1">{accountDetails}</div>
+                )}
 
                 <span className="text-center data-num text-ink-700">
                   {row.kind === 'agent' ? `L${row.level}` : '—'}
                 </span>
-                <span className="text-right data-num text-[#186073]">{fmt(row.balance)}</span>
+                <button
+                  type="button"
+                  onClick={() => openBalanceTransfer(row)}
+                  aria-label={`${t.agents.adjustBalance}：${row.username}`}
+                  title={t.agents.balanceClickHint}
+                  className="data-num min-h-10 rounded-md px-2 text-right font-semibold text-[#186073] underline decoration-[#186073]/35 decoration-dotted underline-offset-4 transition hover:bg-[#E5F5F3] hover:decoration-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#186073]"
+                >
+                  {fmt(row.balance)}
+                </button>
                 <span className="text-center">
                   {row.status === 'DISABLED' ? (
                     <span className="tag tag-ember">{t.agent.status.DISABLED}</span>
