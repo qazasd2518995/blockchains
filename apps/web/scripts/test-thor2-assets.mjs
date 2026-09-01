@@ -109,6 +109,14 @@ assert.ok(
   pageSource.includes('/games/power-of-thor-2/original-runtime/index.html'),
   'The route must mount the archived original Cocos runtime',
 );
+assert.ok(
+  pageSource.includes('function OrientationSwitchIcon()'),
+  'The orientation control must use the dedicated device-rotation icon',
+);
+assert.ok(
+  !pageSource.includes('RotateCw'),
+  'The orientation control must not look like a refresh action',
+);
 for (const forbidden of [
   'Thor2Cascade',
   'SymbolCell',

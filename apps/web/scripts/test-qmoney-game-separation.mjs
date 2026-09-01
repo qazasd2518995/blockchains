@@ -116,7 +116,7 @@ for (const page of [sethPage, fruitPage, h5Page]) {
 for (const marker of [
   'id: GameId.POWER_OF_THOR_2',
   "route: '/games/power-of-thor-2'",
-  "cover: '/game-art/original/power-of-thor-2-cover-v1.png'",
+  "cover: '/game-art/lobby/qmoney77/power-of-thor-2.webp'",
   'restricted: true',
 ]) {
   assert.ok(newCasinoCatalog.includes(marker), `missing Qmoney Thor II catalog marker: ${marker}`);

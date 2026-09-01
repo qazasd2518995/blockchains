@@ -1,31 +1,29 @@
 import { H5_GAMES } from '@bg/shared';
 
-const H5_ORIGINAL_GAME_COVERS: Readonly<Record<string, string>> = {
+const H5_EXACT_GAME_COVERS: Readonly<Record<string, string>> = {
   'h5-fire-88': '/game-art/original/h5-individual/h5-fire-88-cover-v1.webp',
   'h5-lucky-777': '/game-art/original/h5-individual/h5-lucky-777-cover-v1.webp',
-  'h5-fortune-ox': '/game-art/original/h5-individual/h5-fortune-ox-cover-v1.webp',
+  'h5-fortune-ox': '/game-art/lobby/richpanda/fortune-ox.png',
   'h5-mahjong-ways': '/game-art/original/h5-individual/h5-mahjong-ways-cover-v1.webp',
   'h5-mahjong-ways-2': '/game-art/original/h5-individual/h5-mahjong-ways-2-cover-v1.webp',
   'h5-dragon-hatch': '/game-art/original/h5-individual/h5-dragon-hatch-cover-v1.webp',
-  'h5-captains-bounty':
-    '/game-art/original/h5-individual/h5-captains-bounty-cover-v1.webp',
+  'h5-captains-bounty': '/game-art/original/h5-individual/h5-captains-bounty-cover-v1.webp',
   'h5-caishen-wins': '/game-art/original/h5-individual/h5-caishen-wins-cover-v1.webp',
-  'h5-queen-of-bounty':
-    '/game-art/original/h5-individual/h5-queen-of-bounty-cover-v1.webp',
+  'h5-queen-of-bounty': '/game-art/lobby/qmoney77/queen-of-bounty.webp',
 };
 
 const H5_GAME_COVERS = Object.fromEntries(
   H5_GAMES.map((game) => [
     game.gameId,
-    H5_ORIGINAL_GAME_COVERS[game.gameId] ??
+    H5_EXACT_GAME_COVERS[game.gameId] ??
       `/game-art/generated/h5-individual/${game.gameId}-cover-v1.webp`,
   ]),
 );
 
 const LOBBY_COVER_OVERRIDES: Record<string, string> = {
   hotline: '/slots/cyber/cover-v2.png',
-  'storm-of-seth-2': '/game-art/original/storm-of-seth-2-cover-v1.webp',
-  'power-of-thor-2': '/game-art/original/power-of-thor-2-cover-v1.png',
+  'storm-of-seth-2': '/game-art/lobby/qmoney77/storm-of-seth-2.webp',
+  'power-of-thor-2': '/game-art/lobby/qmoney77/power-of-thor-2.webp',
   'fruit-mary': '/game-art/generated/fruit-mary-cover-v1.png',
   'h5-slot-collection': '/game-art/generated/h5-slot-collection-cover-v1.png',
   ...H5_GAME_COVERS,
@@ -48,7 +46,7 @@ const LOBBY_COVER_OVERRIDES: Record<string, string> = {
   'baccarat-fox': '/game-art/baccarat-table/fox-cover.webp',
   'baccarat-tiger': '/game-art/baccarat-table/tiger-cover.webp',
   'baccarat-phoenix': '/game-art/baccarat-table/phoenix-cover.webp',
-  blackjack: '/game-art/blackjack/cover-v2.png',
+  blackjack: '/game-art/lobby/qmoney77/royal-blackjack.webp',
   'twenty-one-half-doll': '/game-art/local-table/ten-half-doll-cover.webp',
   'twenty-one-half-bunny': '/game-art/local-table/ten-half-bunny-cover.webp',
   'twenty-one-half-star': '/game-art/local-table/ten-half-star-cover.webp',
@@ -67,13 +65,13 @@ const LOBBY_COVER_OVERRIDES: Record<string, string> = {
   'card-war-gold': '/game-art/local-table/card-war-gold-cover.webp',
   'card-war-crystal': '/game-art/local-table/card-war-crystal-cover.webp',
   dice: '/game-art/dice/cover-v2.png',
-  mines: '/game-art/mines/cover-v2.png',
+  mines: '/game-art/lobby/qmoney77/mines.webp',
   hilo: '/game-art/hilo/cover-v2.png',
   plinko: '/game-art/plinko/cover-v2.png',
   keno: '/game-art/keno/cover-v2.png',
   wheel: '/game-art/wheel/cover-v2.png',
   'mini-roulette': '/game-art/mini-roulette/cover-v2.png',
-  tower: '/game-art/tower/cover-v2.png',
+  tower: '/game-art/lobby/qmoney77/tower-rush.webp',
   'chicken-road': '/game-art/chicken-road/cover.png',
   carnival: '/game-art/carnival/cover-v2.png',
   rocket: '/games/lobby/rocket-v2.png',

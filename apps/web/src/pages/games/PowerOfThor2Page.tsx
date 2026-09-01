@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, RotateCw } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { Sfx } from '@bg/game-engine';
 import { useAuthStore } from '@/stores/authStore';
 import { holdWalletBalanceRefresh } from '@/hooks/useLiveBalance';
@@ -38,9 +38,7 @@ export function PowerOfThor2Page() {
   const setTokens = useAuthStore((state) => state.setTokens);
   const [error, setError] = useState('');
   const [deviceLayout, setDeviceLayout] = useState<Thor2Layout>(readDeviceLayout);
-  const [layout, setLayout] = useState<Thor2Layout>(
-    () => readSavedLayout() ?? readDeviceLayout(),
-  );
+  const [layout, setLayout] = useState<Thor2Layout>(() => readSavedLayout() ?? readDeviceLayout());
   const [iframeMounted, setIframeMounted] = useState(true);
   const [iframeGeneration, setIframeGeneration] = useState(0);
   const [remountReason, setRemountReason] = useState<Thor2RemountReason | null>(null);
@@ -195,7 +193,8 @@ export function PowerOfThor2Page() {
   useEffect(() => {
     const fullscreenDocument = document as Thor2FullscreenDocument;
     const updateFullscreenState = () => {
-      const activeElement = document.fullscreenElement ?? fullscreenDocument.webkitFullscreenElement;
+      const activeElement =
+        document.fullscreenElement ?? fullscreenDocument.webkitFullscreenElement;
       setFullscreenActive(activeElement === pageRef.current);
       if (!activeElement) ownsFullscreenRef.current = false;
     };
@@ -333,11 +332,11 @@ export function PowerOfThor2Page() {
           setRequestedLayout(nextLayout);
         }}
         disabled={remountReason !== null}
-        className="absolute right-[max(10px,env(safe-area-inset-right))] top-[calc(env(safe-area-inset-top)+68px)] z-30 grid h-12 w-12 place-items-center rounded-full border border-white/25 bg-[#07152E]/90 text-white shadow-[0_6px_18px_rgba(0,0,0,0.38)] backdrop-blur-md transition enabled:active:scale-95 disabled:cursor-wait disabled:opacity-55"
+        className="absolute right-[max(10px,env(safe-area-inset-right))] top-[calc(env(safe-area-inset-top)+68px)] z-30 grid h-12 w-12 place-items-center rounded-full border border-[#E9C35C]/65 bg-[#07152E]/92 text-[#F8E6A5] shadow-[0_0_0_2px_rgba(7,21,46,0.72),0_6px_18px_rgba(0,0,0,0.42)] backdrop-blur-md transition enabled:hover:border-[#F8DF8C] enabled:hover:bg-[#102A52]/95 enabled:active:scale-95 disabled:cursor-wait disabled:opacity-55"
         aria-label={layout === 'portrait' ? '切換為橫式版面' : '切換為直式版面'}
         title={layout === 'portrait' ? '切換為橫式版面' : '切換為直式版面'}
       >
-        <RotateCw className="h-5 w-5" aria-hidden="true" />
+        <OrientationSwitchIcon />
       </button>
       {requestedLayout ? (
         <div
@@ -395,6 +394,32 @@ export function PowerOfThor2Page() {
   );
 }
 
+function OrientationSwitchIcon() {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      className="h-7 w-7"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M5.5 11.2A10.9 10.9 0 0 1 13.2 4" />
+      <path d="m10.5 2.9 3.2.8-1.1 3.1" />
+      <path d="M26.5 20.8a10.9 10.9 0 0 1-7.7 7.2" />
+      <path d="m21.5 29.1-3.2-.8 1.1-3.1" />
+      <g transform="rotate(-38 16 16)">
+        <rect x="10.5" y="6.5" width="11" height="19" rx="2.6" />
+        <path d="M14 9h4" />
+        <path d="M14.8 22.7h2.4" />
+      </g>
+    </svg>
+  );
+}
+
 function readDeviceLayout(): Thor2Layout {
   if (typeof window === 'undefined') return 'landscape';
   return window.matchMedia('(orientation: landscape)').matches ? 'landscape' : 'portrait';
@@ -423,8 +448,7 @@ function pageClassName(
   deviceLayout: Thor2Layout,
   fullscreenActive: boolean,
 ): string {
-  const base =
-    'overflow-hidden bg-black shadow-[0_20px_60px_rgba(0,0,0,0.55)] transition-none';
+  const base = 'overflow-hidden bg-black shadow-[0_20px_60px_rgba(0,0,0,0.55)] transition-none';
   if (fullscreenActive || (layout === 'landscape' && deviceLayout === 'portrait')) {
     return `${base} fixed inset-0 z-[100] h-[100dvh] w-[100dvw] min-h-0 rounded-none border-0`;
   }

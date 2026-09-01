@@ -1,0 +1,71 @@
+{
+  "retrievedAt": "2026-09-01",
+  "policy": "Only exact provider and product-code matches are used; similar titles are intentionally excluded.",
+  "assets": [
+    {
+      "file": "qmoney77/storm-of-seth-2.webp",
+      "source": "https://www.qmoney77.com/img/gameChild/atg/CN/golden-seth.webp?v=4",
+      "provider": "ATG",
+      "productCode": "golden-seth",
+      "dimensions": "400x400",
+      "sha256": "eb643f407be0e8a7fa5f8c3811fd75bae5788b75baebf0cb2100f09120a0b73c"
+    },
+    {
+      "file": "qmoney77/power-of-thor-2.webp",
+      "source": "https://www.qmoney77.com/img/gameChild/rsg/CN/129.webp?v=4",
+      "provider": "RSG",
+      "productCode": "129",
+      "dimensions": "334x334",
+      "sha256": "482a7558ea350f24f130788f71666a631dc9c33274399b23ad8526dcec84dd4e"
+    },
+    {
+      "file": "qmoney77/queen-of-bounty.webp",
+      "source": "https://www.qmoney77.com/img/gameChild/live22/CN/35033.webp?v=4",
+      "provider": "Live22",
+      "productCode": "35033",
+      "dimensions": "496x496",
+      "sha256": "0c58db92698fd9bcc3991a8b854513bf1d5dc7cb40942d18e1491552b358e935"
+    },
+    {
+      "file": "qmoney77/royal-blackjack.webp",
+      "source": "https://www.qmoney77.com/img/gameChild/gd/CN/1207.webp?v=4",
+      "provider": "GD",
+      "productCode": "1207",
+      "dimensions": "441x440",
+      "sha256": "8893d519273b16eb6fbf866d5353f1c5b4c06f1f5aa414e54a0d7a29c32c218b"
+    },
+    {
+      "file": "qmoney77/classic-blackjack.webp",
+      "source": "https://www.qmoney77.com/img/gameChild/gd/CN/1206.webp?v=4",
+      "provider": "GD",
+      "productCode": "1206",
+      "dimensions": "441x440",
+      "sha256": "b3099a931f0a089c5badb7f8531caee57136d0d74729b6e6b89ef89efbab854b"
+    },
+    {
+      "file": "qmoney77/mines.webp",
+      "source": "https://www.qmoney77.com/img/gameChild/live22/CN/35017.webp?v=4",
+      "provider": "Live22",
+      "productCode": "35017",
+      "dimensions": "496x496",
+      "sha256": "522b77c90c75bb112f111660ccb9ad563c2d61edad0c6935c98e2de2818b8d48"
+    },
+    {
+      "file": "qmoney77/tower-rush.webp",
+      "source": "https://www.qmoney77.com/img/gameChild/qt/CN/GLX-towerrush.webp?v=4",
+      "provider": "QT",
+      "productCode": "GLX-towerrush",
+      "dimensions": "426x426",
+      "sha256": "9d5e17e1bbad7e25f9b3c3608a168a27ce32a006be5cc3e87acb48ebf2a3800b"
+    },
+    {
+      "file": "richpanda/fortune-ox.png",
+      "source": "https://s3.richpanda.vip/GAME/2ead0078302fea777f4252a196ec2d12",
+      "sourceProvider": "OMG_RP",
+      "originalProvider": "PG",
+      "productCode": "98",
+      "dimensions": "1024x1024",
+      "sha256": "32fb3a7465b4d6b54fe895267827b3ae5c56737b046f2ea1be4c94fbcdc15929"
+    }
+  ]
+}

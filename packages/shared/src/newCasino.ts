@@ -1,6 +1,6 @@
 import { GameId, isImportedGameTestUsername } from './games.js';
 
-export const NEW_CASINO_CATALOG_VERSION = 5;
+export const NEW_CASINO_CATALOG_VERSION = 6;
 
 export type NewCasinoCategory = '熱門' | '拉霸' | '捕魚' | '棋牌';
 
@@ -23,7 +23,15 @@ const ORIGINAL_H5_COVERS = new Set<string>([
   GameId.H5_QUEEN_OF_BOUNTY,
 ]);
 
+const VERIFIED_LOBBY_H5_COVERS: Readonly<Record<string, string>> = {
+  [GameId.H5_FORTUNE_OX]: '/game-art/lobby/richpanda/fortune-ox.png',
+  [GameId.H5_QUEEN_OF_BOUNTY]: '/game-art/lobby/qmoney77/queen-of-bounty.webp',
+};
+
 function h5Cover(gameId: string): string {
+  const verifiedCover = VERIFIED_LOBBY_H5_COVERS[gameId];
+  if (verifiedCover) return verifiedCover;
+
   const source = ORIGINAL_H5_COVERS.has(gameId) ? 'original' : 'generated';
   return `/game-art/${source}/h5-individual/${gameId}-cover-v1.webp`;
 }
@@ -84,7 +92,7 @@ const POPULAR_GAMES: readonly NewCasinoGame[] = [
     name: '戰神賽特 II：覺醒之力',
     nameEn: 'Storm of Seth 2 – Awakening',
     category: '熱門',
-    cover: '/game-art/original/storm-of-seth-2-cover-v1.webp',
+    cover: '/game-art/lobby/qmoney77/storm-of-seth-2.webp',
     route: '/games/storm-of-seth-2',
     featured: true,
     badge: '熱門',
@@ -95,7 +103,7 @@ const POPULAR_GAMES: readonly NewCasinoGame[] = [
     name: '雷神之錘 2：雷霆風暴',
     nameEn: 'Power of Thor II: Thunder Storm',
     category: '熱門',
-    cover: '/game-art/original/power-of-thor-2-cover-v1.png',
+    cover: '/game-art/lobby/qmoney77/power-of-thor-2.webp',
     route: '/games/power-of-thor-2',
     featured: true,
     badge: '新品',
@@ -134,12 +142,24 @@ const FISH_GAMES: readonly NewCasinoGame[] = [
 ];
 
 const TABLE_GAMES: readonly NewCasinoGame[] = [
-  tableGame(GameId.BLACKJACK, '皇家21點', 'Royal Blackjack', '/game-art/blackjack/cover-v2.png', {
-    route: '/games/blackjack',
-  }),
-  tableGame('blackjack-table-2', '經典21點', 'Classic Blackjack', '/game-art/blackjack/cover.png', {
-    route: '/games/blackjack',
-  }),
+  tableGame(
+    GameId.BLACKJACK,
+    '皇家21點',
+    'Royal Blackjack',
+    '/game-art/lobby/qmoney77/royal-blackjack.webp',
+    {
+      route: '/games/blackjack',
+    },
+  ),
+  tableGame(
+    'blackjack-table-2',
+    '經典21點',
+    'Classic Blackjack',
+    '/game-art/lobby/qmoney77/classic-blackjack.webp',
+    {
+      route: '/games/blackjack',
+    },
+  ),
   tableGame(
     GameId.TWENTY_ONE_HALF_DOLL,
     '萌娃十點半',
@@ -164,8 +184,8 @@ const TABLE_GAMES: readonly NewCasinoGame[] = [
     'Royal Black Dot',
     '/game-art/local-table/black-dot-royal-cover.webp',
   ),
-  tableGame(GameId.MINES, '踩地雷', 'Mines', '/game-art/mines/cover-v2.png'),
-  tableGame(GameId.TOWER, '爬階梯', 'Stairs', '/game-art/tower/cover-v2.png'),
+  tableGame(GameId.MINES, '踩地雷', 'Mines', '/game-art/lobby/qmoney77/mines.webp'),
+  tableGame(GameId.TOWER, '爬階梯', 'Stairs', '/game-art/lobby/qmoney77/tower-rush.webp'),
   tableGame(
     GameId.TUI_TONGZI_DRAGON,
     '龍門推筒',
