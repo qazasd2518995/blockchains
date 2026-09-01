@@ -1,6 +1,6 @@
 import { GameId, isImportedGameTestUsername } from './games.js';
 
-export const NEW_CASINO_CATALOG_VERSION = 4;
+export const NEW_CASINO_CATALOG_VERSION = 5;
 
 export type NewCasinoCategory = '熱門' | '拉霸' | '捕魚' | '棋牌';
 
@@ -12,7 +12,7 @@ export interface NewCasinoGame {
   cover: string;
   route: string;
   featured: boolean;
-  badge?: '熱門' | '新品' | '原版' | '第1桌' | '第2桌';
+  badge?: '熱門' | '新品';
   restricted: boolean;
 }
 
@@ -42,7 +42,6 @@ function h5Game(
     cover: h5Cover(id),
     route: `/games/${id}`,
     featured: false,
-    badge: ORIGINAL_H5_COVERS.has(id) ? '原版' : undefined,
     restricted: true,
   };
 }
@@ -65,7 +64,7 @@ function tableGame(
   name: string,
   nameEn: string,
   cover: string,
-  options: { route?: string; badge?: '第1桌' | '第2桌' } = {},
+  options: { route?: string } = {},
 ): NewCasinoGame {
   return {
     id,
@@ -75,7 +74,6 @@ function tableGame(
     cover,
     route: options.route ?? `/games/${id}`,
     featured: false,
-    badge: options.badge,
     restricted: true,
   };
 }
@@ -136,41 +134,35 @@ const FISH_GAMES: readonly NewCasinoGame[] = [
 ];
 
 const TABLE_GAMES: readonly NewCasinoGame[] = [
-  tableGame(GameId.BLACKJACK, '21點', 'Blackjack 21', '/game-art/blackjack/cover-v2.png', {
+  tableGame(GameId.BLACKJACK, '皇家21點', 'Royal Blackjack', '/game-art/blackjack/cover-v2.png', {
     route: '/games/blackjack',
-    badge: '第1桌',
   }),
-  tableGame('blackjack-table-2', '21點', 'Blackjack 21', '/game-art/blackjack/cover-v2.png', {
+  tableGame('blackjack-table-2', '經典21點', 'Classic Blackjack', '/game-art/blackjack/cover.png', {
     route: '/games/blackjack',
-    badge: '第2桌',
   }),
   tableGame(
     GameId.TWENTY_ONE_HALF_DOLL,
     '萌娃十點半',
     'Dolly 10.5',
     '/game-art/local-table/ten-half-doll-cover.webp',
-    { badge: '第1桌' },
   ),
   tableGame(
     GameId.TWENTY_ONE_HALF_BUNNY,
     '兔糖十點半',
     'Bunny 10.5',
     '/game-art/local-table/ten-half-bunny-cover.webp',
-    { badge: '第2桌' },
   ),
   tableGame(
     GameId.BLACK_DOT_TIANJIU,
     '天九黑粒',
     'Tin Kau Black Dot',
     '/game-art/local-table/black-dot-tianjiu-cover.webp',
-    { badge: '第1桌' },
   ),
   tableGame(
     GameId.BLACK_DOT_ROYAL,
     '御殿黑粒',
     'Royal Black Dot',
     '/game-art/local-table/black-dot-royal-cover.webp',
-    { badge: '第2桌' },
   ),
   tableGame(GameId.MINES, '踩地雷', 'Mines', '/game-art/mines/cover-v2.png'),
   tableGame(GameId.TOWER, '爬階梯', 'Stairs', '/game-art/tower/cover-v2.png'),

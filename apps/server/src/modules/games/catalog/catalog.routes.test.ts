@@ -36,13 +36,14 @@ describe('new casino game catalog', () => {
         category: string;
         cover: string;
         route: string;
+        badge?: string;
         restricted: boolean;
       }>;
     };
     const namesIn = (category: string) =>
       result.games.filter((game) => game.category === category).map((game) => game.name);
 
-    expect(result.version).toBe(4);
+    expect(result.version).toBe(5);
     expect(result.games).toHaveLength(27);
     expect(new Set(result.games.map((game) => game.id)).size).toBe(27);
     expect(result.games.every((game) => game.route.startsWith('/games/'))).toBe(true);
@@ -67,8 +68,8 @@ describe('new casino game catalog', () => {
     ]);
     expect(namesIn('捕魚')).toEqual(['深海捕魚', '快樂捕魚', '雷霆戰機']);
     expect(namesIn('棋牌')).toEqual([
-      '21點',
-      '21點',
+      '皇家21點',
+      '經典21點',
       '萌娃十點半',
       '兔糖十點半',
       '天九黑粒',
@@ -103,7 +104,7 @@ describe('new casino game catalog', () => {
       ['h5-happy-fishing', '/game-art/generated/h5-individual/h5-happy-fishing-cover-v1.webp'],
       ['h5-thunder-fishing', '/game-art/generated/h5-individual/h5-thunder-fishing-cover-v1.webp'],
       ['blackjack', '/game-art/blackjack/cover-v2.png'],
-      ['blackjack-table-2', '/game-art/blackjack/cover-v2.png'],
+      ['blackjack-table-2', '/game-art/blackjack/cover.png'],
       ['twenty-one-half-doll', '/game-art/local-table/ten-half-doll-cover.webp'],
       ['twenty-one-half-bunny', '/game-art/local-table/ten-half-bunny-cover.webp'],
       ['black-dot-tianjiu', '/game-art/local-table/black-dot-tianjiu-cover.webp'],
@@ -115,6 +116,9 @@ describe('new casino game catalog', () => {
       ['tui-tongzi-gold', '/game-art/local-table/tui-wanzi-gold-cover.webp'],
     ]);
     expect(result.games.filter((game) => game.route === '/games/blackjack')).toHaveLength(2);
+    expect(result.games.every((game) => !['原版', '第1桌', '第2桌'].includes(String(game.badge)))).toBe(
+      true,
+    );
     expect(result.games.some((game) => game.id === 'h5-ocean-king-2')).toBe(false);
     expect(result.games.some((game) => game.id === 'h5-mahjong-ways-2')).toBe(false);
     expect(result.games.some((game) => game.id === 'nebula-slot')).toBe(false);
