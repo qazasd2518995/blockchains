@@ -211,28 +211,33 @@ export function AgentHierarchyPage(): JSX.Element {
   };
 
   const currentLayerAgent = data?.parent ?? null;
+  // The platform-root hierarchy normally returns the signed-in super admin as
+  // `parent`. Keep the creation controls available while that response is
+  // refreshing, and if an older API response omits the virtual root parent.
+  const creationParent =
+    currentLayerAgent ?? (me?.role === 'SUPER_ADMIN' && me.status === 'ACTIVE' ? me : null);
   const createTarget = useMemo(
     () =>
-      currentLayerAgent
+      creationParent
         ? {
-            id: currentLayerAgent.id,
-            username: currentLayerAgent.username,
-            level: currentLayerAgent.level,
-            marketType: currentLayerAgent.marketType,
-            rebateMode: currentLayerAgent.rebateMode,
-            rebatePercentage: currentLayerAgent.rebatePercentage,
-            maxRebatePercentage: currentLayerAgent.maxRebatePercentage,
-            baccaratRebateMode: currentLayerAgent.baccaratRebateMode,
-            baccaratRebatePercentage: currentLayerAgent.baccaratRebatePercentage,
-            maxBaccaratRebatePercentage: currentLayerAgent.maxBaccaratRebatePercentage,
-            role: currentLayerAgent.role,
-            bettingLimitLevel: currentLayerAgent.bettingLimitLevel,
-            bettingLimits: currentLayerAgent.bettingLimits,
+            id: creationParent.id,
+            username: creationParent.username,
+            level: creationParent.level,
+            marketType: creationParent.marketType,
+            rebateMode: creationParent.rebateMode,
+            rebatePercentage: creationParent.rebatePercentage,
+            maxRebatePercentage: creationParent.maxRebatePercentage,
+            baccaratRebateMode: creationParent.baccaratRebateMode,
+            baccaratRebatePercentage: creationParent.baccaratRebatePercentage,
+            maxBaccaratRebatePercentage: creationParent.maxBaccaratRebatePercentage,
+            role: creationParent.role,
+            bettingLimitLevel: creationParent.bettingLimitLevel,
+            bettingLimits: creationParent.bettingLimits,
           }
         : undefined,
-    [currentLayerAgent],
+    [creationParent],
   );
-  const canCreateSubAgent = currentLayerAgent ? currentLayerAgent.level < 15 : false;
+  const canCreateSubAgent = creationParent ? creationParent.level < 15 : false;
   const previousCrumb =
     data && data.breadcrumb.length > 1 ? data.breadcrumb[data.breadcrumb.length - 2] : null;
   const agentTransferSource = resolveHierarchyTransferSource(me, data);
@@ -256,7 +261,7 @@ export function AgentHierarchyPage(): JSX.Element {
             )}
             <button
               type="button"
-              disabled={!currentLayerAgent}
+              disabled={!createTarget}
               onClick={() => setOpenCreateMember(true)}
               className="btn-acid text-[11px] disabled:cursor-not-allowed disabled:opacity-45"
             >
@@ -265,7 +270,7 @@ export function AgentHierarchyPage(): JSX.Element {
             {canCreateSubAgent && (
               <button
                 type="button"
-                disabled={!currentLayerAgent}
+                disabled={!createTarget}
                 onClick={() => setOpenCreateAgent(true)}
                 className="btn-teal-outline text-[11px] disabled:cursor-not-allowed disabled:opacity-45"
               >
@@ -407,9 +412,11 @@ export function AgentHierarchyPage(): JSX.Element {
                 style={ACCOUNT_TABLE_GRID_STYLE}
               >
                 {row.kind === 'agent' ? (
-                  <span className="tag tag-acid">{t.agents.typeAgent}</span>
+                  <span className="account-hierarchy-type tag tag-acid">{t.agents.typeAgent}</span>
                 ) : (
-                  <span className="tag tag-toxic">{t.agents.typeMember}</span>
+                  <span className="account-hierarchy-type tag tag-toxic">
+                    {t.agents.typeMember}
+                  </span>
                 )}
 
                 {row.kind === 'agent' ? (
@@ -418,15 +425,17 @@ export function AgentHierarchyPage(): JSX.Element {
                     onClick={() => selectParent(row.id)}
                     aria-label={`${t.agents.enterDownline}：${row.username}`}
                     title={t.agents.enterDownline}
-                    className="min-w-0 rounded-md px-1 py-1 text-left transition hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#186073]"
+                    className="account-hierarchy-account min-w-0 rounded-md px-1 py-1 text-left transition hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#186073]"
                   >
                     {accountDetails}
                   </button>
                 ) : (
-                  <div className="min-w-0 px-1 py-1">{accountDetails}</div>
+                  <div className="account-hierarchy-account min-w-0 px-1 py-1">
+                    {accountDetails}
+                  </div>
                 )}
 
-                <span className="text-center data-num text-ink-700">
+                <span className="account-hierarchy-level text-center data-num text-ink-700">
                   {row.kind === 'agent' ? `L${row.level}` : '—'}
                 </span>
                 <button
@@ -434,11 +443,11 @@ export function AgentHierarchyPage(): JSX.Element {
                   onClick={() => openBalanceTransfer(row)}
                   aria-label={`${t.agents.adjustBalance}：${row.username}`}
                   title={t.agents.balanceClickHint}
-                  className="data-num min-h-10 rounded-md px-2 text-right font-semibold text-[#186073] underline decoration-[#186073]/35 decoration-dotted underline-offset-4 transition hover:bg-[#E5F5F3] hover:decoration-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#186073]"
+                  className="account-hierarchy-balance data-num min-h-10 rounded-md px-2 text-right font-semibold text-[#186073] underline decoration-[#186073]/35 decoration-dotted underline-offset-4 transition hover:bg-[#E5F5F3] hover:decoration-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#186073]"
                 >
                   {fmt(row.balance)}
                 </button>
-                <span className="text-center">
+                <span className="account-hierarchy-status text-center">
                   {row.status === 'DISABLED' ? (
                     <span className="tag tag-ember">{t.agent.status.DISABLED}</span>
                   ) : row.status === 'FROZEN' ? (

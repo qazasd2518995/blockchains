@@ -5,7 +5,17 @@ import process from 'node:process';
 const appRoot = process.cwd();
 const repoRoot = path.resolve(appRoot, '../..');
 
-const [renderConfig, qmoneyBrand, authStore, shareModal, viteConfig, qmoneySeed, hierarchyPage] = await Promise.all([
+const [
+  renderConfig,
+  qmoneyBrand,
+  authStore,
+  shareModal,
+  viteConfig,
+  qmoneySeed,
+  hierarchyPage,
+  sidebar,
+  globalStyles,
+] = await Promise.all([
   read('render.yaml', repoRoot),
   read('src/brand/qmoney.ts', appRoot),
   read('src/stores/adminAuthStore.ts', appRoot),
@@ -13,6 +23,8 @@ const [renderConfig, qmoneyBrand, authStore, shareModal, viteConfig, qmoneySeed,
   read('vite.config.ts', appRoot),
   read('apps/server/prisma/seed-qmoney.ts', repoRoot),
   read('src/pages/agents/AgentHierarchyPage.tsx', appRoot),
+  read('src/components/layout/Sidebar.tsx', appRoot),
+  read('src/styles/global.css', appRoot),
 ]);
 
 assertContains(qmoneyBrand, [
@@ -51,7 +63,7 @@ assertContains(qmoneySeed, [
   "requiredEnv('SUPER_ADMIN_PASSWORD')",
   'bcrypt.hash(superPassword, BCRYPT_ROUNDS)',
   "displayName: '金寶寶總代理'",
-  "username: { not: superUsername }",
+  'username: { not: superUsername }',
 ]);
 assertNotContains(qmoneySeed, ['sourceAdmin.passwordHash', 'sourceSuperAdmins']);
 assertContains(hierarchyPage, [
@@ -60,13 +72,28 @@ assertContains(hierarchyPage, [
   'onClick={() => selectParent(row.id)}',
   'setAgentTransferFor({',
   'if (member) setTransferFor(member);',
+  "me?.role === 'SUPER_ADMIN' && me.status === 'ACTIVE' ? me : null",
+  'const canCreateSubAgent = creationParent ? creationParent.level < 15 : false;',
+  'account-hierarchy-actions',
 ]);
 assertNotContains(hierarchyPage, [
   'const onRowClick = (row: HierarchyItem)',
   'onClick={() => onRowClick(row)}',
 ]);
+assertContains(sidebar, [
+  "{ to: '/admin/transfers', key: 'transfers' }",
+  "{ to: '/admin/audit', key: 'audit' }",
+  "{ to: '/admin/controls', key: 'controls', controlManagerOnly: true }",
+]);
+assertContains(globalStyles, [
+  "html[data-admin-realm='qmoney'] .admin-page-header .btn-teal-outline",
+  'grid-template-areas:',
+  "'actions actions actions'",
+]);
 
-console.log('[admin-test] realm isolation and explicit hierarchy balance transfer interactions verified.');
+console.log(
+  '[admin-test] realm isolation, navigation parity, control delegation, and mobile hierarchy actions verified.',
+);
 
 async function read(relativePath, root) {
   return readFile(path.join(root, relativePath), 'utf8');

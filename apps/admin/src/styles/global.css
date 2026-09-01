@@ -12,7 +12,11 @@
 
   html[data-admin-realm='qmoney'] .admin-brand-row {
     border-color: rgb(255 205 235 / 22%) !important;
-    background: linear-gradient(90deg, rgb(49 27 105 / 97%) 0%, rgb(83 42 145 / 96%) 100%) !important;
+    background: linear-gradient(
+      90deg,
+      rgb(49 27 105 / 97%) 0%,
+      rgb(83 42 145 / 96%) 100%
+    ) !important;
   }
 
   html[data-admin-realm='qmoney'] .admin-brand-logo {
@@ -24,7 +28,11 @@
 
   html[data-admin-realm='qmoney'] .admin-nav-panel {
     border-color: rgb(158 105 219 / 28%) !important;
-    background: linear-gradient(180deg, rgb(64 35 132 / 98%) 0%, rgb(46 27 98 / 98%) 100%) !important;
+    background: linear-gradient(
+      180deg,
+      rgb(64 35 132 / 98%) 0%,
+      rgb(46 27 98 / 98%) 100%
+    ) !important;
     box-shadow: 0 16px 36px rgb(72 39 132 / 20%) !important;
   }
 
@@ -51,6 +59,18 @@
 
   html[data-admin-realm='qmoney'] .btn-teal-outline:hover {
     background: rgb(116 71 216 / 9%) !important;
+  }
+
+  html[data-admin-realm='qmoney'] .admin-page-header .btn-teal-outline {
+    border-color: rgb(255 255 255 / 68%) !important;
+    background: rgb(255 255 255 / 12%) !important;
+    color: white !important;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 5%) !important;
+  }
+
+  html[data-admin-realm='qmoney'] .admin-page-header .btn-teal-outline:hover {
+    border-color: white !important;
+    background: rgb(255 255 255 / 22%) !important;
   }
 
   html[data-admin-realm='qmoney'] .term-input:focus {
@@ -397,21 +417,69 @@
     }
 
     .admin-shell .account-hierarchy-list {
-      margin-inline: -0.75rem !important;
-      overflow-x: auto !important;
+      margin-inline: 0 !important;
+      overflow: visible !important;
+      border: 0 !important;
       border-radius: 0 !important;
-      -webkit-overflow-scrolling: touch;
+      background: transparent !important;
+      box-shadow: none !important;
     }
 
-    .admin-shell .account-hierarchy-head,
+    .admin-shell .account-hierarchy-head {
+      display: none !important;
+    }
+
     .admin-shell .account-hierarchy-row {
-      min-width: 820px !important;
-      gap: 0.35rem !important;
-      padding: 0.55rem 0.7rem !important;
+      min-width: 0 !important;
+      grid-template-columns: auto minmax(0, 1fr) auto !important;
+      grid-template-areas:
+        'type account status'
+        'level balance balance'
+        'actions actions actions';
+      gap: 0.55rem 0.65rem !important;
+      margin-bottom: 0.65rem;
+      border: 1px solid rgb(116 71 216 / 18%) !important;
+      border-radius: 12px;
+      background: white;
+      padding: 0.75rem !important;
+      box-shadow: 0 8px 22px rgb(72 39 132 / 8%);
+    }
+
+    .admin-shell .account-hierarchy-type {
+      grid-area: type;
+      align-self: start;
+    }
+
+    .admin-shell .account-hierarchy-account {
+      grid-area: account;
+    }
+
+    .admin-shell .account-hierarchy-level {
+      grid-area: level;
+      align-self: center;
+      text-align: left !important;
+    }
+
+    .admin-shell .account-hierarchy-balance {
+      grid-area: balance;
+      width: 100%;
+      min-height: 36px !important;
+      padding-inline: 0.45rem !important;
+      text-align: left !important;
+    }
+
+    .admin-shell .account-hierarchy-status {
+      grid-area: status;
+      align-self: start;
+      text-align: right !important;
     }
 
     .admin-shell .account-hierarchy-actions {
+      grid-area: actions;
       gap: 0.3rem !important;
+      margin-top: 0.15rem;
+      border-top: 1px solid rgb(116 71 216 / 12%);
+      padding-top: 0.65rem;
     }
 
     .admin-shell .account-hierarchy-actions .btn-chip {

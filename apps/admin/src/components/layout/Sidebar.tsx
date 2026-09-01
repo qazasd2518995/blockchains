@@ -12,9 +12,11 @@ const items: {
   { to: '/admin/dashboard', key: 'dashboard' },
   { to: '/admin/accounts', key: 'accounts' },
   { to: '/admin/subaccounts', key: 'subAccounts' },
+  { to: '/admin/transfers', key: 'transfers' },
   { to: '/admin/logs', key: 'logs' },
   { to: '/admin/reports', key: 'reports' },
   { to: '/admin/controls', key: 'controls', controlManagerOnly: true },
+  { to: '/admin/audit', key: 'audit' },
   { to: '/admin/announcements', key: 'announcements', superAdminOnly: true },
 ];
 
