@@ -1,3 +1,107 @@
+// Warm the original first-screen artwork while Cocos is starting. The source
+// build contains hundreds of small dependency requests, so waiting for the
+// scene graph to discover every large texture creates several serial network
+// waves on mobile. Fetching a small, orientation-specific hot set at low
+// priority keeps the exact original files and lets Cocos reuse the HTTP cache.
+const SETH2_BOOT_ASSET_ROOT = './assets/g1005/native/'
+const SETH2_BOOT_ASSETS = {
+  shared: [
+    'f3/f312d335-f0f6-4041-a253-c15d2f12d777.png',
+    '41/41353c8f-fd75-4c86-8fa1-f87567f3d3e5.png',
+    'e0/e0fbe345-00c7-4fb7-af63-cbd3f28c2e6a.png',
+    '34/3492fc7a-c5cf-4e62-9479-52142e05b838.png',
+    '22/22520ae6-a95a-41f7-a813-f635b33d4427.png',
+    'c4/c46d3524-b1b6-4d9d-a9a7-b2186d1622b1.png',
+    'a8/a8a07507-a5d6-46ad-9bb2-e0a2bf0e47b0.png',
+  ],
+  portrait: [
+    '89/892f4204-be10-4993-af1a-5652f3f5ba79.png',
+    'e9/e9ec2734-64ac-41f6-a74f-91996a24fa1e.png',
+    '62/629ec8d2-4bd6-49e6-bc1b-393a01ee2b5e.png',
+    '40/4001ca46-5bf4-495a-a129-b460a79f2ebb.png',
+    '20/2094f048-7895-44d7-a32d-89c9f63baef1.astc',
+    'ae/aee673d7-6210-4fc7-8307-7b71b275c7b0.astc',
+    'c7/c7d3635e-e242-4819-bf70-d7f835c908e6.png',
+    '97/974d1347-ef12-4d9e-b4a3-5f69893d008b.png',
+    '75/7525bb22-5c34-4ba9-b969-4f0ddf889d79.png',
+    '8f/8f86dfae-8402-45bc-ae83-a6e024ebf55e.png',
+    '3b/3bed4d74-13cb-4a2f-aa90-fa75bf162d1d.png',
+    '6a/6ab67b38-82b9-4926-8a4f-abd73663e113.png',
+    '2f/2f568a3b-f53b-40c4-8769-122ebcb70515.astc',
+    'a0/a0fc5a3b-0c70-4e46-8661-d90908456f71.jpg',
+    '5c/5c8504b6-5005-4bd1-9be7-013cbce699ae.png',
+    '66/6698c8b7-ad6d-49a9-9f3d-53daece944fe.png',
+  ],
+  landscape: [
+    '01/019f9c0d-392a-49c0-8c23-8b50d16b782c.png',
+    'ab/abdb53b8-9191-4c17-ba24-446fab598ecc.jpg',
+    'c8/c84889a3-9809-46ee-aaa2-55ec956b222a.jpg',
+    'd3/d37ffe56-2fe6-4b40-81fb-7b823081746d.astc',
+    '88/8827bb1d-38d4-4a7a-a053-c144880ec36d.astc',
+    'e2/e2ea8be3-ad45-40dc-8fe2-fba27edc3309.astc',
+    'ed/edc0377c-377e-47f3-afce-3bc5c0d637f2.mp3',
+    'e9/e9e5fccd-29da-4c94-9c07-dd8f53e0290a.mp3',
+    '54/547a76a4-1eb4-4b10-bc4c-bab567fdc75e.jpg',
+    'b6/b621d350-971f-48eb-b688-e5af118a831c.astc',
+    'e2/e263ef56-e4c1-4b79-aa38-e9f5f1cd28fa.mp3',
+    'f5/f5a7cf05-4ca0-4721-86f7-8af304e364a3.mp3',
+    'e4/e465019f-b53c-4505-93c7-1b3f3a053f2c.mp3',
+    'e6/e6f24f08-d1a4-4ccc-ad02-a831fd5a5bab.mp3',
+    'c4/c4880b43-e65e-4755-aeda-2313b34d33e8.png',
+    '9e/9e350aad-88f6-4a3c-8ab2-d7dd5a601093.png',
+    '51/51329bfb-b80c-49e4-a516-398c73d6fa3d.png',
+    '6e/6ebe9268-ac6c-4348-bdd2-6674b4a98fce.png',
+    '54/548e4d1f-4890-47fc-a4ef-83a16bef771c.png',
+    'e7/e7067062-8191-4a2b-ab32-6918f43c56c5.mp3',
+    'c3/c3c61c1d-ecc6-41cc-913e-6e1de146b7ed.mp3',
+  ],
+}
+
+let seth2BootWarmupStarted = false
+const warmSeth2BootAssets = () => {
+  if (seth2BootWarmupStarted) return
+  seth2BootWarmupStarted = true
+
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+  const effectiveType = connection && connection.effectiveType ? connection.effectiveType : ''
+  if ((connection && connection.saveData) || effectiveType === 'slow-2g' || effectiveType === '2g') {
+    return
+  }
+
+  const params = new URL(window.location.href).searchParams
+  const requestedMode = params.get('view_mode')
+  const storageMode = localStorage.getItem(`${params.get('gn')}_view_mode`)
+  const viewMode = requestedMode === 'portrait' || requestedMode === 'landscape'
+    ? requestedMode
+    : storageMode === 'portrait' || storageMode === 'landscape'
+      ? storageMode
+      : window.innerWidth < window.innerHeight ? 'portrait' : 'landscape'
+  const assets = SETH2_BOOT_ASSETS.shared.concat(SETH2_BOOT_ASSETS[viewMode])
+  const hardwareConcurrency = navigator.hardwareConcurrency || 4
+  const workerCount = effectiveType === '3g' || hardwareConcurrency <= 4 ? 2 : 3
+  let cursor = 0
+
+  const worker = async () => {
+    while (cursor < assets.length) {
+      const asset = assets[cursor]
+      cursor += 1
+      try {
+        await fetch(SETH2_BOOT_ASSET_ROOT + asset, {
+          cache: 'force-cache',
+          credentials: 'same-origin',
+          priority: 'low',
+        })
+      } catch (_error) {
+        // Cocos owns retries and user-facing recovery; warmup is best effort.
+      }
+    }
+  }
+
+  Promise.all(Array.from({ length: workerCount }, worker)).catch(() => undefined)
+}
+
+window.setTimeout(warmSeth2BootAssets, 250)
+
 const isMobileDevice = () => /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 const isIOSDevice = () => /iPhone|iPad|iPod/i.test(navigator.userAgent)
 const isWebView = () => {

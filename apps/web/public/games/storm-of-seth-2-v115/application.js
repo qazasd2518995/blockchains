@@ -28,17 +28,29 @@ System.register([], function (_export, _context) {
           key: "init",
           value: function init(engine) {
             cc = engine;
-            // Keep the original full-quality files, but do not overwhelm iOS
-            // WebKit with a dozen simultaneous Cocos downloads. A saturated
-            // mobile decoder can leave the canvas alive while bundle loading
-            // stops making progress. Android tolerates a little more parallel
-            // work and desktop keeps the faster path.
+            // Keep the original full-quality files while adapting discovery
+            // throughput to the device. Powerful Android devices can overlap
+            // more of the source build's many small requests; low-memory/iOS
+            // devices retain the conservative path that avoids decoder stalls.
             if (cc.assetManager && cc.assetManager.downloader) {
               var isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
               var isAndroid = /Android/i.test(navigator.userAgent);
-              var concurrency = isIOS ? 6 : isAndroid ? 10 : 16;
+              var hardwareConcurrency = navigator.hardwareConcurrency || 4;
+              var deviceMemory = navigator.deviceMemory;
+              var isLowEndDevice = hardwareConcurrency <= 4
+                || typeof deviceMemory === "number" && deviceMemory <= 4;
+              var concurrency = isIOS
+                ? isLowEndDevice ? 6 : 8
+                : isAndroid
+                  ? isLowEndDevice ? 10 : 14
+                  : 18;
+              var requestsPerFrame = isIOS
+                ? Math.min(concurrency, 6)
+                : isAndroid
+                  ? Math.min(concurrency, 10)
+                  : 12;
               cc.assetManager.downloader.maxConcurrency = concurrency;
-              cc.assetManager.downloader.maxRequestsPerFrame = concurrency;
+              cc.assetManager.downloader.maxRequestsPerFrame = requestsPerFrame;
             }
             cc.game.onPostBaseInitDelegate.add(this.onPostInitBase.bind(this));
             cc.game.onPostSubsystemInitDelegate.add(this.onPostSystemInit.bind(this));

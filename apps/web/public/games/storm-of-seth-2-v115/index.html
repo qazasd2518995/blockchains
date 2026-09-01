@@ -21,12 +21,32 @@
     <link rel="icon" href="public/favicon.ico" />
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="game.css" />
-    <!-- Warm only the dependencies that are consumed immediately after
-         SystemJS starts. Preloading every Cocos bundle at once can starve
-         mobile Safari while it is also decoding the original artwork. -->
+    <!-- Warm the dependency maps consumed immediately after SystemJS starts.
+         Large original artwork stays low-priority in app.js so these small
+         bundle controls cannot be trapped behind later network waves. -->
     <link rel="preload" href="./application.js" as="script" />
     <link rel="preload" href="./src/settings.json" as="fetch" crossorigin="anonymous" />
     <link rel="preload" href="./cocos-js/cc.js" as="script" />
+    <link rel="preload" href="./assets/internal/config.json" as="fetch" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/internal/index.js" as="script" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/resources/config.json" as="fetch" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/resources/index.js" as="script" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/main/config.json" as="fetch" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/main/index.js" as="script" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/g1005/config.json" as="fetch" crossorigin="anonymous" />
+    <link rel="preload" href="./assets/g1005/index.js" as="script" crossorigin="anonymous" />
+    <link
+      rel="preload"
+      href="../../slotFramework/40401f29702686de9cfed69b217641b6029834f7/config.json"
+      as="fetch"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preload"
+      href="../../slotFramework/40401f29702686de9cfed69b217641b6029834f7/index.js"
+      as="script"
+      crossorigin="anonymous"
+    />
   </head>
   <body>
     <div id="logo"><img src="./public/atg.png" alt="" /></div>

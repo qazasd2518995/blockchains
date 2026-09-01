@@ -42,13 +42,13 @@
   "gameFiles": [
     {
       "path": "app.js",
-      "bytes": 14236,
-      "sha256": "4a4a54dc8d1a75d7500c902cf5156b52585cc0e9e9f1488012ea21bf96916fa4"
+      "bytes": 18700,
+      "sha256": "03a832a2d5207b5a9e4b8bb9ceda054213fad6a101b6d08fd5015d13732e8ba8"
     },
     {
       "path": "application.js",
-      "bytes": 5121,
-      "sha256": "a37bee6b0d55d62ed4874a3588e5d90f00799ffc01157c1c51280a8707022661"
+      "bytes": 5634,
+      "sha256": "446e3d435aaa678857239bea0069dbea9f7f75e550bdb935a6eccbbc6d08c1f2"
     },
     {
       "path": "assets/g1005/config.json",
@@ -12602,8 +12602,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 3057,
-      "sha256": "3309946f2ecd94e486936eeb6499294e15ea5cccfd3779e647ac1dc37d551ea5"
+      "bytes": 4174,
+      "sha256": "dc459eb542bc77ebdcfb19e3cce928ac7d2df4c73d330dd4c20b143f23949e49"
     },
     {
       "path": "index.js",

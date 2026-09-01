@@ -183,6 +183,22 @@ const SETH2_SHELL_ASSETS: readonly CocosShellAsset[] = [
     as: 'script',
   },
   { src: '/games/storm-of-seth-2-v115/cocos-js/cc.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/assets/internal/config.json', as: 'fetch' },
+  { src: '/games/storm-of-seth-2-v115/assets/internal/index.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/assets/resources/config.json', as: 'fetch' },
+  { src: '/games/storm-of-seth-2-v115/assets/resources/index.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/assets/main/config.json', as: 'fetch' },
+  { src: '/games/storm-of-seth-2-v115/assets/main/index.js', as: 'script' },
+  { src: '/games/storm-of-seth-2-v115/assets/g1005/config.json', as: 'fetch' },
+  { src: '/games/storm-of-seth-2-v115/assets/g1005/index.js', as: 'script' },
+  {
+    src: '/slotFramework/40401f29702686de9cfed69b217641b6029834f7/config.json',
+    as: 'fetch',
+  },
+  {
+    src: '/slotFramework/40401f29702686de9cfed69b217641b6029834f7/index.js',
+    as: 'script',
+  },
 ];
 
 const H5_SHELL_ASSETS: readonly CocosShellAsset[] = [

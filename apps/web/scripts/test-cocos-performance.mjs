@@ -59,9 +59,28 @@ for (const build of builds) {
     assert.match(applicationSource, /this\.showFPS = false/);
     assert.match(applicationSource, /debugMode:\s*cc\.DebugMode\.ERROR/);
     assert.match(applicationSource, /maxConcurrency = concurrency/);
-    assert.match(applicationSource, /maxRequestsPerFrame = concurrency/);
-    assert.match(applicationSource, /var concurrency = isIOS \? 6 : isAndroid \? 10 : 16/);
+    assert.match(applicationSource, /maxRequestsPerFrame = requestsPerFrame/);
+    assert.match(applicationSource, /isLowEndDevice/);
+    assert.match(applicationSource, /isLowEndDevice \? 10 : 14/);
     assert.match(appSource, /cocosHasTakenOver/);
+    assert.match(appSource, /SETH2_BOOT_ASSETS/);
+    assert.match(appSource, /priority: 'low'/);
+    assert.match(appSource, /connection\.saveData/);
+    const bootAssetBlock = appSource.slice(
+      appSource.indexOf('const SETH2_BOOT_ASSETS'),
+      appSource.indexOf('let seth2BootWarmupStarted'),
+    );
+    const bootAssetPaths = Array.from(
+      bootAssetBlock.matchAll(/'([0-9a-f]{2}\/[0-9a-f-]+\.(?:astc|jpg|mp3|png))'/g),
+      (match) => match[1],
+    );
+    assert.ok(bootAssetPaths.length >= 40, 'Seth II should warm the measured first-screen hot set');
+    for (const assetPath of bootAssetPaths) {
+      assert.ok(
+        fs.existsSync(path.join(buildRoot, 'assets/g1005/native', assetPath)),
+        `Seth II warmup target is missing: ${assetPath}`,
+      );
+    }
     assert.match(
       appSource,
       /requestAnimationFrame\(\(\) => window\.requestAnimationFrame\(finishHandoff\)\)/,
@@ -72,8 +91,9 @@ for (const build of builds) {
     assert.match(appSource, /setTimeout\(reportBootstrapStall, 75000\)/);
     assert.match(appSource, /重新載入/);
     assert.doesNotMatch(appSource, /setTimeout\(hideLogo, 500\)/);
-    assert.doesNotMatch(html, /assets\/g1005\/config\.json/);
-    assert.doesNotMatch(html, /assets\/g1005\/index\.js/);
+    assert.match(html, /assets\/g1005\/config\.json/);
+    assert.match(html, /assets\/g1005\/index\.js/);
+    assert.match(html, /slotFramework\/40401f29702686de9cfed69b217641b6029834f7\/config\.json/);
   } else {
     assert.match(html, new RegExp(`<script src="${build.main.replace('.', '\\.')}`));
     const mainSource = fs.readFileSync(path.join(buildRoot, build.main), 'utf8');
