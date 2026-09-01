@@ -16,11 +16,13 @@
   var audioCompletionTimeoutMs = 7000;
   var allocationEditorId = 'fruit-mary-allocation-editor';
   var fruitMaryDenomination = 10;
+  var fruitMaryMinimumBet = 10;
+  var fruitMaryMaximumBet = 5000;
+  var fruitMaryLastLimitNoticeAt = 0;
   var gameDisposing = false;
   var gameCanvasContextLost = false;
   var renderFailureReported = false;
   var sourceReadyAt = 0;
-  var visualFailureSamples = 0;
 
   function parentStorage() {
     try {
@@ -184,7 +186,14 @@
 
   function authorizedRequest(url, method, body, retried) {
     var auth = readAuth();
-    if (!auth.accessToken) return Promise.reject(new Error('找不到登入憑證，請回到大廳重新登入'));
+    if (!auth.accessToken) {
+      if (!retried && auth.refreshToken) {
+        return refreshAccessToken().then(function () {
+          return authorizedRequest(url, method, body, true);
+        });
+      }
+      return Promise.reject(new Error('找不到登入憑證，請回到大廳重新登入'));
+    }
     var controller = typeof AbortController === 'function' ? new AbortController() : null;
     var timeout = window.setTimeout(function () {
       if (controller) controller.abort();
@@ -319,15 +328,11 @@
     authorizedRequest(route.url, route.method, body, false)
       .then(function (payload) {
         if (route.kind === 'room' && payload.data) {
-          var roomDenomination = Number(payload.data.multiple);
-          if (Number.isFinite(roomDenomination) && roomDenomination > 0) {
-            fruitMaryDenomination = roomDenomination;
-          }
+          updateFruitMaryBetLimits(payload.data);
         }
         if (route.kind === 'session' && payload.data && payload.data.info) {
           renderFailureReported = false;
           sourceReadyAt = Date.now();
-          visualFailureSamples = 0;
           notifyParent('fruit-mary:ready', { balance: Number(payload.data.info.gold || 0) });
         }
         if (route.kind === 'settlement' && payload.balance !== undefined) {
@@ -468,6 +473,26 @@
     return Math.max(0, (Array.isArray(positions) ? positions.length : 0) - 1);
   }
 
+  function updateFruitMaryBetLimits(room) {
+    var roomDenomination = Number(room && room.multiple);
+    var roomMinimumBet = Number(room && room.minBet);
+    var roomMaximumBet = Number(room && room.maxBet);
+    if (Number.isFinite(roomDenomination) && roomDenomination > 0) {
+      fruitMaryDenomination = roomDenomination;
+    }
+    if (Number.isFinite(roomMinimumBet) && roomMinimumBet > 0) {
+      fruitMaryMinimumBet = roomMinimumBet;
+    }
+    if (Number.isFinite(roomMaximumBet) && roomMaximumBet > 0) {
+      fruitMaryMaximumBet = Math.max(fruitMaryMinimumBet, roomMaximumBet);
+    }
+    return {
+      denomination: fruitMaryDenomination,
+      minBet: fruitMaryMinimumBet,
+      maxBet: fruitMaryMaximumBet,
+    };
+  }
+
   function safeAllocationNumber(value) {
     var parsed = Number(value);
     if (!Number.isFinite(parsed)) return 0;
@@ -492,6 +517,80 @@
     var transfer = Math.max(1, safeAllocationNumber(step));
     var requested = direction === 'to-balance' ? current - transfer : current + transfer;
     return normalizeFruitMaryAllocation(current, availableBalance, requested);
+  }
+
+  function fruitMaryMaximumGambleAmount() {
+    return Math.max(1, Math.floor(fruitMaryMaximumBet));
+  }
+
+  function normalizeFruitMaryGambleAllocation(currentRound, balance, requestedRound) {
+    return normalizeFruitMaryAllocation(
+      currentRound,
+      balance,
+      Math.min(safeAllocationNumber(requestedRound), fruitMaryMaximumGambleAmount()),
+    );
+  }
+
+  function fruitMaryBetUnits(menuLogic, includeStoredBet) {
+    var children = menuLogic && menuLogic.numNode && menuLogic.numNode.children;
+    var total = 0;
+    if (children && typeof children.length === 'number') {
+      for (var index = 0; index < Math.min(8, children.length); index += 1) {
+        var box = numberBox(children[index]);
+        if (box) total += safeAllocationNumber(box.getNum());
+      }
+    }
+    if (total > 0 || !includeStoredBet) return total;
+    try {
+      return safeAllocationNumber(window.cc && window.cc.sys.localStorage.getItem('money'));
+    } catch (_error) {
+      return 0;
+    }
+  }
+
+  function fruitMaryBetSnapshot(menuLogic) {
+    var children = menuLogic && menuLogic.numNode && menuLogic.numNode.children;
+    if (!children || typeof children.length !== 'number') return [];
+    var snapshot = [];
+    for (var index = 0; index < Math.min(8, children.length); index += 1) {
+      var box = numberBox(children[index]);
+      snapshot.push(box ? safeAllocationNumber(box.getNum()) : 0);
+    }
+    return snapshot;
+  }
+
+  function restoreFruitMaryBetSnapshot(menuLogic, snapshot) {
+    var children = menuLogic && menuLogic.numNode && menuLogic.numNode.children;
+    if (!children || !Array.isArray(snapshot)) return false;
+    for (var index = 0; index < Math.min(snapshot.length, children.length); index += 1) {
+      var box = numberBox(children[index]);
+      if (box) box.setNum(String(snapshot[index]));
+    }
+    if (typeof menuLogic.getAllPut === 'function') menuLogic.getAllPut();
+    return true;
+  }
+
+  function fruitMaryLimitMessage() {
+    return '本遊戲限紅為 '
+      + fruitMaryMinimumBet.toLocaleString()
+      + '-'
+      + fruitMaryMaximumBet.toLocaleString();
+  }
+
+  function showFruitMaryLimitMessage() {
+    var now = Date.now();
+    if (now - fruitMaryLastLimitNoticeAt < 600) return;
+    fruitMaryLastLimitNoticeAt = now;
+    if (window.cc && window.cc.vv && window.cc.vv.Logic) {
+      window.cc.vv.Logic.addPopBox(fruitMaryLimitMessage());
+    }
+  }
+
+  function fruitMaryBetIsWithinLimit(menuLogic) {
+    var units = fruitMaryBetUnits(menuLogic, true);
+    if (units <= 0) return true;
+    var amount = units * fruitMaryDenomination;
+    return amount >= fruitMaryMinimumBet && amount <= fruitMaryMaximumBet;
   }
 
   function numberBox(node) {
@@ -558,7 +657,8 @@
     panel.innerHTML = ''
       + '<div style="font-size:20px;font-weight:800">調整本輪金額</div>'
       + '<div style="margin-top:6px;color:#d9cdea;font-size:13px">可用總額 '
-      + allocation.total.toLocaleString() + '，輸入要拿去猜大小的金額。</div>'
+      + allocation.total.toLocaleString() + '，猜大小單次上限 '
+      + fruitMaryMaximumBet.toLocaleString() + '。</div>'
       + '<label style="display:block;margin-top:16px;font-size:13px;color:#f4c85b">本輪金額</label>'
       + '<input data-fruit-mary-allocation-input inputmode="numeric" autocomplete="off" '
       + 'style="box-sizing:border-box;width:100%;margin-top:7px;border:2px solid #8659b8;border-radius:12px;'
@@ -601,7 +701,7 @@
     }
 
     function updatePreview(value) {
-      var next = normalizeFruitMaryAllocation(
+      var next = normalizeFruitMaryGambleAllocation(
         allocation.currentRound,
         allocation.balance,
         value,
@@ -621,7 +721,7 @@
         safeAllocationNumber(digits === '' ? 0 : digits),
       );
       renderAllocation(
-        normalizeFruitMaryAllocation(
+        normalizeFruitMaryGambleAllocation(
           allocation.currentRound,
           allocation.balance,
           allocation.total - requestedBalance,
@@ -637,7 +737,7 @@
           allocationValue === 'half'
             ? Math.floor(allocation.total / 2)
             : allocationValue === 'all'
-              ? allocation.total
+              ? Math.min(allocation.total, fruitMaryMaximumGambleAmount())
               : 0,
         );
         return;
@@ -694,6 +794,12 @@
         if (!collectingWin && (settlementInFlight || Date.now() < nextFruitMarySpinAt)) {
           return undefined;
         }
+        if (!collectingWin && !fruitMaryBetIsWithinLimit(this)) {
+          if (typeof this.clickCancelAuto === 'function') this.clickCancelAuto();
+          if (typeof this.initButton === 'function') this.initButton();
+          showFruitMaryLimitMessage();
+          return undefined;
+        }
         if (!collectingWin && this.startBt) this.startBt.interactable = false;
         return originalClickKaishi.apply(this, arguments);
       };
@@ -711,6 +817,35 @@
         var result = originalClickCancelAuto.apply(this, arguments);
         restoreFruitMaryAutoButtonState(this);
         return result;
+      };
+    }
+
+    var originalBetIncrement = menuLogic.kaishi;
+    if (typeof originalBetIncrement === 'function') {
+      menuLogic.kaishi = function () {
+        var snapshot = fruitMaryBetSnapshot(this);
+        var result = originalBetIncrement.apply(this, arguments);
+        if (fruitMaryBetUnits(this, false) * fruitMaryDenomination > fruitMaryMaximumBet) {
+          restoreFruitMaryBetSnapshot(this, snapshot);
+          if (typeof this.unschedule === 'function') this.unschedule(this.kaishi);
+          showFruitMaryLimitMessage();
+        }
+        return result;
+      };
+    }
+
+    var originalClickDaOrXiao = menuLogic.clickDaOrXiao;
+    if (typeof originalClickDaOrXiao === 'function') {
+      menuLogic.clickDaOrXiao = function () {
+        var allocation = readAllocation(this);
+        if (!allocation || allocation.currentRound < fruitMaryMinimumBet) {
+          showFruitMaryLimitMessage();
+          return undefined;
+        }
+        if (allocation.currentRound > fruitMaryMaximumGambleAmount()) {
+          writeAllocation(this, fruitMaryMaximumGambleAmount());
+        }
+        return originalClickDaOrXiao.apply(this, arguments);
       };
     }
 
@@ -742,8 +877,18 @@
         'to-round',
         1,
       );
+      if (next.currentRound > fruitMaryMaximumGambleAmount()) {
+        next = normalizeFruitMaryGambleAllocation(
+          allocation.currentRound,
+          allocation.balance,
+          fruitMaryMaximumGambleAmount(),
+        );
+      }
       if (next.currentRound === allocation.currentRound) {
         if (typeof this.unschedule === 'function') this.unschedule(this.clickZuo);
+        if (allocation.currentRound >= fruitMaryMaximumGambleAmount()) {
+          showFruitMaryLimitMessage();
+        }
         return;
       }
       playButtonSound();
@@ -927,12 +1072,6 @@
     }
   }
 
-  function sourceNodeVisible(node) {
-    return Boolean(
-      node && node.active !== false && node.activeInHierarchy !== false && node.opacity !== 0,
-    );
-  }
-
   function restoreFruitMaryAutoButtonState(menuLogic) {
     if (!menuLogic) return false;
     var autoplay = Boolean(menuLogic.isAutoPut_bool);
@@ -985,32 +1124,11 @@
   }
 
   function fruitMaryVisualHealthy() {
-    if (gameCanvasContextLost) return false;
-    if (!sourceReadyAt || Date.now() - sourceReadyAt < 10000) return true;
-    try {
-      if (!window.cc || typeof window.cc.find !== 'function') return false;
-      var canvas = window.cc.find('Canvas');
-      var playLogic = canvas && canvas.getComponent && canvas.getComponent('PlayLogic');
-      var menuLogic = canvas && canvas.getComponent && canvas.getComponent('MenuLogic');
-      if (!playLogic || !menuLogic) return false;
-      restoreFruitMaryVisualTree(playLogic, menuLogic);
-      var centre = playLogic.centerNode;
-      var fruitRing = centre && centre.getChildByName && centre.getChildByName('shuiguoNode');
-      var structureHealthy =
-        sourceNodeVisible(centre) &&
-        sourceNodeVisible(fruitRing) &&
-        Array.isArray(fruitRing.children) &&
-        fruitRing.children.length >= 24;
-      if (!structureHealthy) return false;
-      // Never read pixels back from the WebGL canvas here. Mobile Safari may
-      // expose an empty drawing buffer even while Cocos is rendering normally,
-      // which used to turn this health check into a permanent iframe reload
-      // loop. Explicit context-loss/runtime events remain authoritative, while
-      // this periodic check only verifies the stable source-scene structure.
-      return true;
-    } catch (_error) {
-      return false;
-    }
+    // Source scene nodes are intentionally hidden and rebuilt during wheel and
+    // gamble animations. Treating those transient states as renderer failure
+    // destroyed the iframe after two healthy spins. Only browser-reported
+    // WebGL loss is authoritative enough to rebuild the whole game.
+    return !gameCanvasContextLost && !renderFailureReported;
   }
 
   function installFruitMaryRuntimeGuards() {
@@ -1028,17 +1146,17 @@
     var error = event && (event.error || event.message);
     var stack = error && error.stack ? String(error.stack) : '';
     var message = publicRenderError(error);
-    if (
-      /fruit-mary|cocos2d-js/i.test(stack) &&
-      /webgl|context|getParameter|getExtension|Cannot read|undefined is not an object/i.test(message)
-    ) {
+    if (/fruit-mary|cocos2d-js/i.test(stack) && /webgl|context|getParameter|getExtension/i.test(message)) {
       reportFatalRenderFailure('source-runtime-error', error);
     }
   });
   addWindowListener('unhandledrejection', function (event) {
     var reason = event && event.reason;
     var stack = reason && reason.stack ? String(reason.stack) : '';
-    if (/fruit-mary|cocos2d-js/i.test(stack)) {
+    if (
+      /fruit-mary|cocos2d-js/i.test(stack) &&
+      /webgl|context|getParameter|getExtension/i.test(publicRenderError(reason))
+    ) {
       reportFatalRenderFailure('source-runtime-rejection', reason);
     }
   });
@@ -1047,13 +1165,6 @@
       return;
     }
     if (event.data.type === 'fruit-mary:dispose') disposeGameForRemount();
-    if (event.data.type === 'fruit-mary:health-check' && !gameDisposing) {
-      var healthy = fruitMaryVisualHealthy();
-      visualFailureSamples = healthy ? 0 : visualFailureSamples + 1;
-      // Require two consecutive samples so a single in-flight animation frame
-      // cannot tear down an otherwise healthy game.
-      notifyParent('fruit-mary:health', { healthy: healthy || visualFailureSamples < 2 });
-    }
   });
   addWindowListener('pagehide', disposeGameForRemount);
 
@@ -1061,6 +1172,9 @@
   window.__YachiyoFruitMaryAdapterTest = {
     adjustFruitMaryAllocation: adjustFruitMaryAllocation,
     normalizeFruitMaryAllocation: normalizeFruitMaryAllocation,
+    normalizeFruitMaryGambleAllocation: normalizeFruitMaryGambleAllocation,
+    updateFruitMaryBetLimits: updateFruitMaryBetLimits,
+    fruitMaryBetIsWithinLimit: fruitMaryBetIsWithinLimit,
     fruitMaryPayoutMultiplier: fruitMaryPayoutMultiplier,
     patchFruitMaryMenuLogic: patchFruitMaryMenuLogic,
     patchFruitMaryAudioManager: patchFruitMaryAudioManager,

@@ -118,8 +118,8 @@ export function FruitMaryPage() {
       room_id: '1',
       window_type: 'web',
       build: isQmoneyRealm
-        ? 'qmoney-fruit-mary-v4-stable-health'
-        : 'yachiyo-fruit-mary-v4-stable-health',
+        ? 'qmoney-fruit-mary-v5-stable-session'
+        : 'yachiyo-fruit-mary-v5-stable-session',
     });
     return `${GAME_PATH}?${query.toString()}`;
   }, []);
@@ -136,7 +136,6 @@ export function FruitMaryPage() {
         type?: string;
         balance?: unknown;
         message?: unknown;
-        healthy?: unknown;
         accessToken?: unknown;
         refreshToken?: unknown;
       };
@@ -164,9 +163,6 @@ export function FruitMaryPage() {
       if (payload.type === 'fruit-mary:fatal') {
         requestIframeRecovery(String(payload.message || '遊戲畫面已中斷'));
       }
-      if (payload.type === 'fruit-mary:health' && payload.healthy === false) {
-        requestIframeRecovery('遊戲畫面已中斷，正在重新建立畫面');
-      }
       if (
         payload.type === 'fruit-mary:tokens' &&
         typeof payload.accessToken === 'string' &&
@@ -186,24 +182,6 @@ export function FruitMaryPage() {
     setBalance,
     setTokens,
   ]);
-
-  useEffect(() => {
-    const checkFrameHealth = () => {
-      if (document.visibilityState !== 'visible') return;
-      iframeRef.current?.contentWindow?.postMessage(
-        { type: 'fruit-mary:health-check' },
-        window.location.origin,
-      );
-    };
-    document.addEventListener('visibilitychange', checkFrameHealth);
-    window.addEventListener('pageshow', checkFrameHealth);
-    const healthTimer = window.setInterval(checkFrameHealth, 5_000);
-    return () => {
-      window.clearInterval(healthTimer);
-      document.removeEventListener('visibilitychange', checkFrameHealth);
-      window.removeEventListener('pageshow', checkFrameHealth);
-    };
-  }, []);
 
   useEffect(() => {
     const mountedFrame = iframeRef.current;

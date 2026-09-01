@@ -8,7 +8,13 @@ import {
   type FruitMaryBetSelection,
   type FruitMaryOutcome,
 } from '@bg/provably-fair';
-import { GameId, FRUIT_MARY_BET_IDS, type FruitMaryLegacySpinResponse } from '@bg/shared';
+import {
+  GameId,
+  FRUIT_MARY_BET_IDS,
+  MIN_BET_AMOUNT,
+  getBettingLimitForGame,
+  type FruitMaryLegacySpinResponse,
+} from '@bg/shared';
 import {
   SeedHelper,
   creditAndRecord,
@@ -57,8 +63,22 @@ export class FruitMaryService {
   }
 
   async room(userId: string) {
-    await this.requireUser(userId);
-    return { code: '200', data: { multiple: FRUIT_MARY_DENOMINATION } };
+    const user = await this.requireUser(userId);
+    const limit = resolveFruitMaryBettingLimit(
+      user.bettingLimits,
+      user.bettingLimitLevel,
+      config.MAX_SINGLE_BET,
+    );
+    return {
+      code: '200',
+      data: {
+        multiple: FRUIT_MARY_DENOMINATION,
+        minBet: limit.min,
+        maxBet: limit.max,
+        minUnits: Math.max(1, Math.ceil(limit.min / FRUIT_MARY_DENOMINATION)),
+        maxUnits: Math.max(1, Math.floor(limit.max / FRUIT_MARY_DENOMINATION)),
+      },
+    };
   }
 
   async authorize(userId: string) {
@@ -300,6 +320,8 @@ export class FruitMaryService {
         balance: true,
         frozenAt: true,
         disabledAt: true,
+        bettingLimits: true,
+        bettingLimitLevel: true,
       },
     });
     if (!user) throw new ApiError('UNAUTHORIZED', 'Authentication required');
@@ -309,6 +331,18 @@ export class FruitMaryService {
     }
     return user;
   }
+}
+
+export function resolveFruitMaryBettingLimit(
+  bettingLimits: unknown,
+  bettingLimitLevel: unknown,
+  configuredMaximum: number,
+): { min: number; max: number } {
+  const configured = getBettingLimitForGame(bettingLimits, GAME_ID, bettingLimitLevel);
+  return {
+    min: Math.max(MIN_BET_AMOUNT, configured.min),
+    max: Math.min(configuredMaximum, configured.max),
+  };
 }
 
 function normalizeBets(input: FruitMarySpinInput): FruitMaryBetSelection[] {

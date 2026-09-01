@@ -4,6 +4,7 @@ import type { FruitMaryBetSelection } from '@bg/provably-fair';
 import {
   chooseControlledFruitOutcome,
   fruitMaryGambleAllocationStatus,
+  resolveFruitMaryBettingLimit,
 } from './fruitMary.service.js';
 import { fruitMaryGambleSchema } from './fruitMary.schema.js';
 
@@ -134,5 +135,24 @@ describe('Fruit Mary gamble allocation', () => {
     expect(() => fruitMaryGambleSchema.parse({ balance: '', size: 1 })).toThrow();
     expect(() => fruitMaryGambleSchema.parse({ balance: 0, size: 1 })).toThrow();
     expect(() => fruitMaryGambleSchema.parse({ balance: -1, size: 1 })).toThrow();
+  });
+});
+
+describe('Fruit Mary betting limit contract', () => {
+  it('returns the game-specific member limit used by settlement validation', () => {
+    expect(
+      resolveFruitMaryBettingLimit(
+        { 'fruit-mary': 'range_10_5000' },
+        'range_1000_10000',
+        100_000,
+      ),
+    ).toEqual({ min: 10, max: 5000 });
+  });
+
+  it('still honors the deployment-wide maximum', () => {
+    expect(resolveFruitMaryBettingLimit({}, 'range_5000_50000', 20_000)).toEqual({
+      min: 5000,
+      max: 20_000,
+    });
   });
 });

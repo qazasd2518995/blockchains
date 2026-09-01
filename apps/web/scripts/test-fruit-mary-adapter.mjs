@@ -44,10 +44,15 @@ assert.match(
   /payload\.type === ['"]fruit-mary:exit['"]/,
   'Fruit Mary source exit must return through the platform game shell',
 );
-assert.match(
+assert.doesNotMatch(
   pageSource,
-  /setInterval\(checkFrameHealth, 5_000\)/,
-  'Fruit Mary shell must detect partial renderer loss while the page remains visible',
+  /fruit-mary:health-check|setInterval\(checkFrameHealth/,
+  'Fruit Mary shell must not rebuild the iframe from transient source-scene animation states',
+);
+assert.doesNotMatch(
+  adapterSource,
+  /fruit-mary:health-check|fruit-mary:health['"]/,
+  'Fruit Mary adapter must not classify temporary Cocos node changes as a disconnect',
 );
 assert.doesNotMatch(
   adapterSource,
@@ -104,13 +109,16 @@ vm.runInNewContext(adapterSource, context, { filename: adapterPath });
 const {
   adjustFruitMaryAllocation,
   createBridgeXHR,
+  fruitMaryBetIsWithinLimit,
   fruitMaryPayoutMultiplier,
+  normalizeFruitMaryGambleAllocation,
   normalizeFruitMaryAllocation,
   patchFruitMaryAudioManager,
   patchFruitMaryMenuLogic,
   patchFruitMaryPlayLogic,
   restoreFruitMaryAutoButtonState,
   shortBonusCompletionIndex,
+  updateFruitMaryBetLimits,
 } = context.__YachiyoFruitMaryAdapterTest;
 
 assert.equal(fruitMaryPayoutMultiplier(4, 100), 120, 'BAR follows the visible 120x table');
@@ -127,6 +135,11 @@ assert.equal(adjustFruitMaryAllocation(40, 60, 'to-round', 1).currentRound, 41);
 assert.equal(adjustFruitMaryAllocation(40, 60, 'to-round', 1).balance, 59);
 assert.equal(adjustFruitMaryAllocation(40, 60, 'to-balance', 1).currentRound, 39);
 assert.equal(adjustFruitMaryAllocation(40, 60, 'to-balance', 1).balance, 61);
+
+updateFruitMaryBetLimits({ multiple: 10, minBet: 10, maxBet: 50 });
+assert.equal(normalizeFruitMaryGambleAllocation(40, 60, 999).currentRound, 50);
+assert.equal(normalizeFruitMaryGambleAllocation(40, 60, 999).balance, 50);
+updateFruitMaryBetLimits({ multiple: 10, minBet: 10, maxBet: 5000 });
 
 assert.equal(shortBonusCompletionIndex([22, 5]), 1);
 assert.equal(shortBonusCompletionIndex([10, 23, 11, 5, 17]), 4);
@@ -185,6 +198,19 @@ function numberNode(initialValue) {
     },
   };
 }
+
+updateFruitMaryBetLimits({ multiple: 10, minBet: 10, maxBet: 50 });
+assert.equal(
+  fruitMaryBetIsWithinLimit({ numNode: { children: [numberNode(5)] } }),
+  true,
+  'the visible fruit allocation may reach the account maximum',
+);
+assert.equal(
+  fruitMaryBetIsWithinLimit({ numNode: { children: [numberNode(6)] } }),
+  false,
+  'the source client must stop an over-limit spin before it reaches the API',
+);
+updateFruitMaryBetLimits({ multiple: 10, minBet: 10, maxBet: 5000 });
 
 const currentRoundNode = numberNode(40);
 const balanceNode = numberNode(60);
