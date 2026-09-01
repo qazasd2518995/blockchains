@@ -13,6 +13,13 @@
   var fruitMaryCooldownTimer = 0;
   var animationGuardAttempts = 0;
   var animationCompletionTimeoutMs = 45000;
+  // The archived type-9 (miss) presentation completes through an audio
+  // callback. Some Android WebViews never deliver that callback after the
+  // wheel has visibly stopped, leaving every control disabled. The wheel
+  // itself completes in under five seconds, so this narrower watchdog can
+  // safely release only that presentation without shortening large-prize
+  // animations.
+  var missAnimationCompletionTimeoutMs = 12000;
   var audioCompletionTimeoutMs = 7000;
   var allocationEditorId = 'fruit-mary-allocation-editor';
   var fruitMaryDenomination = 10;
@@ -990,6 +997,7 @@
           }
           if (typeof done === 'function') return done.apply(component, arguments);
         }
+        var isMissPresentation = Number(type) === -1;
         component.__yachiyoAnimationTimer = window.setTimeout(function () {
           try {
             if (typeof component.stopAllAni === 'function') component.stopAllAni();
@@ -997,11 +1005,16 @@
           } catch (_error) {
             // The authoritative settlement still completes even if source cleanup fails.
           }
-          notifyParent('fruit-mary:error', {
-            message: '遊戲動畫逾時，已自動恢復本輪結算',
-          });
+          // A missing type-9 audio completion is a known source-client issue,
+          // not a failed settlement. Recover it silently so a normal miss does
+          // not show an alarming error after the authoritative result settled.
+          if (!isMissPresentation) {
+            notifyParent('fruit-mary:error', {
+              message: '遊戲動畫逾時，已自動恢復本輪結算',
+            });
+          }
           finish();
-        }, animationCompletionTimeoutMs);
+        }, isMissPresentation ? missAnimationCompletionTimeoutMs : animationCompletionTimeoutMs);
         try {
           return originalPlay.call(component, type, positions, isWin, finish);
         } catch (error) {
@@ -1189,6 +1202,7 @@
     patchFruitMaryAudioManager: patchFruitMaryAudioManager,
     shortBonusCompletionIndex: shortBonusCompletionIndex,
     patchFruitMaryPlayLogic: patchFruitMaryPlayLogic,
+    missAnimationCompletionTimeoutMs: missAnimationCompletionTimeoutMs,
     restoreFruitMaryAutoButtonState: restoreFruitMaryAutoButtonState,
     restoreFruitMaryVisualTree: restoreFruitMaryVisualTree,
     fruitMaryVisualHealthy: fruitMaryVisualHealthy,

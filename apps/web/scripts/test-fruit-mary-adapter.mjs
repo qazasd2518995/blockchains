@@ -31,6 +31,11 @@ assert.match(
 );
 assert.match(
   adapterSource,
+  /missAnimationCompletionTimeoutMs = 12000/,
+  'Fruit Mary must promptly release the Android type-9 miss animation',
+);
+assert.match(
+  adapterSource,
   /!collectingWin && \(settlementInFlight \|\| Date\.now\(\) < nextFruitMarySpinAt\)/,
   'Fruit Mary must ignore repeated start taps without blocking win collection',
 );
@@ -121,10 +126,17 @@ const {
   patchFruitMaryAudioManager,
   patchFruitMaryMenuLogic,
   patchFruitMaryPlayLogic,
+  missAnimationCompletionTimeoutMs,
   restoreFruitMaryAutoButtonState,
   shortBonusCompletionIndex,
   updateFruitMaryBetLimits,
 } = context.__YachiyoFruitMaryAdapterTest;
+
+assert.equal(
+  missAnimationCompletionTimeoutMs,
+  12000,
+  'the miss presentation watchdog must recover before the player assumes the cabinet froze',
+);
 
 assert.equal(fruitMaryPayoutMultiplier(4, 100), 120, 'BAR follows the visible 120x table');
 assert.equal(fruitMaryPayoutMultiplier(16, 20), 40, '77 follows the visible 40x table');
@@ -333,8 +345,8 @@ assert.equal(
 );
 
 const scheduledCallbacks = [];
-context.setTimeout = (callback) => {
-  scheduledCallbacks.push(callback);
+context.setTimeout = (callback, delay) => {
+  scheduledCallbacks.push({ callback, delay });
   return scheduledCallbacks.length;
 };
 context.clearTimeout = () => {};
@@ -355,10 +367,39 @@ patchFruitMaryPlayLogic(stalledAnimation);
 stalledAnimation.play(9999, [10, 1], true, () => {
   watchdogCompletions += 1;
 });
-scheduledCallbacks.at(-1)();
+assert.equal(scheduledCallbacks.at(-1).delay, 45000);
+scheduledCallbacks.at(-1).callback();
 assert.equal(watchdogStops, 1);
 assert.equal(watchdogCompletions, 1, 'animation watchdog must release a missing source callback');
 assert.equal(stalledAnimation.mask.active, false);
+
+scheduledCallbacks.length = 0;
+watchdogCompletions = 0;
+watchdogStops = 0;
+const stalledMissAnimation = {
+  _playing: false,
+  mask: { active: true },
+  showSixiShan() {},
+  stopAllAni() {
+    watchdogStops += 1;
+  },
+  play() {
+    this._playing = true;
+  },
+};
+patchFruitMaryPlayLogic(stalledMissAnimation);
+stalledMissAnimation.play(-1, [22], false, () => {
+  watchdogCompletions += 1;
+});
+assert.equal(
+  scheduledCallbacks.at(-1).delay,
+  missAnimationCompletionTimeoutMs,
+  'type-9 misses use the prompt mobile-safe watchdog',
+);
+scheduledCallbacks.at(-1).callback();
+assert.equal(watchdogStops, 1);
+assert.equal(watchdogCompletions, 1, 'a missing miss-audio callback must restore the controls');
+assert.equal(stalledMissAnimation.mask.active, false);
 
 context.setTimeout = setTimeout;
 context.clearTimeout = clearTimeout;
