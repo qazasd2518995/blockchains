@@ -12,6 +12,7 @@
   var jackpotTickerId = 0;
   var jackpotTickerSocket = null;
   var jackpotTickAt = 0;
+  var gameEntryDisposing = false;
   var jackpotAmounts = [1246184.41, 115647.19, 20032.04, 3318.91];
   var jackpotRatesPerSecond = [0.12, 0.07, 0.03, 0.01];
   var requestTimeoutMs = 60000;
@@ -290,6 +291,59 @@
     }, 240);
   }
 
+  function disposeGameForRemount() {
+    if (gameEntryDisposing) return false;
+    gameEntryDisposing = true;
+    stopJackpotTicker();
+    if (activeSequence && activeSequence.settlementTimer) {
+      window.clearTimeout(activeSequence.settlementTimer);
+      activeSequence.settlementTimer = 0;
+    }
+    capturedAudioContexts.forEach(function (context) {
+      if (!context || context.state === 'closed') return;
+      try {
+        var releaseResult =
+          typeof context.close === 'function'
+            ? context.close()
+            : typeof context.suspend === 'function'
+              ? context.suspend()
+              : null;
+        if (releaseResult && typeof releaseResult.catch === 'function') {
+          releaseResult.catch(function () {});
+        }
+      } catch (_error) {
+        // Removing the iframe remains the final audio cleanup boundary.
+      }
+    });
+    capturedAudioContexts = [];
+    try {
+      if (window.cc && window.cc.game && typeof window.cc.game.pause === 'function') {
+        window.cc.game.pause();
+      }
+      if (window.cc && window.cc.director && typeof window.cc.director.pause === 'function') {
+        window.cc.director.pause();
+      }
+    } catch (_error) {
+      // The iframe removal still stops the old Cocos scene.
+    }
+    try {
+      var canvas = document.getElementById('GameCanvas');
+      var context =
+        canvas &&
+        (canvas.getContext('webgl2') ||
+          canvas.getContext('webgl') ||
+          canvas.getContext('experimental-webgl'));
+      var loseContext = context && context.getExtension('WEBGL_lose_context');
+      if (loseContext && typeof loseContext.loseContext === 'function') loseContext.loseContext();
+    } catch (_error) {
+      // Some WebKit versions reject context access during teardown.
+    }
+    window.setTimeout(function () {
+      notifyParent('thor2:disposed');
+    }, 0);
+    return true;
+  }
+
   installAudioContextCapture();
   installVisualReadyProbe();
   window.__QmoneyThor2UnlockAudio = unlockAudio;
@@ -302,6 +356,10 @@
     }
     if (event.data.type === 'thor2:layout') {
       applyLayout(event.data.layout);
+      return;
+    }
+    if (event.data.type === 'thor2:dispose') {
+      disposeGameForRemount();
     }
   });
   ['pointerdown', 'touchend', 'mouseup', 'keydown'].forEach(function (eventName) {

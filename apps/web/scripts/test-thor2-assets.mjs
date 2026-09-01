@@ -130,7 +130,7 @@ assert.ok(
 const runtimeHtml = fs.readFileSync(path.join(gameRoot, 'original-runtime/index.html'), 'utf8');
 for (const originalBootAsset of [
   'thor2-runtime-compat.js?v=20260826-mobile-1',
-  'thor2-original-adapter.js?v=20260901-layout-1',
+  'thor2-original-adapter.js?v=20260901-remount-2',
   'common/js/jsStart-cocos.js',
   'content/PowerOfThor2/src/polyfills.bundle.js',
   'content/PowerOfThor2/src/system.bundle.js',
@@ -233,6 +233,9 @@ for (const contract of [
   'return entry.freeRound > activeSequence.progressCursor',
   'BetList: [10, 20, 50, 100, 200, 500, 1000, 2000, 5000]',
   "event.data.type === 'thor2:layout'",
+  "event.data.type === 'thor2:dispose'",
+  "notifyParent('thor2:disposed')",
+  "getExtension('WEBGL_lose_context')",
   'window.cc.view.resizeWithBrowserSize(true)',
 ]) {
   assert.ok(
@@ -247,6 +250,19 @@ assert.ok(
   pageSource.includes("{ type: 'thor2:layout', layout: nextLayout }"),
   'Thor 2 layout control does not notify the original Cocos runtime',
 );
+for (const remountContract of [
+  'const [iframeMounted, setIframeMounted] = useState(true)',
+  "{ type: 'thor2:dispose' }",
+  "payload.type === 'thor2:disposed'",
+  'setIframeGeneration((generation) => generation + 1)',
+  'key={`${layout}-${iframeGeneration}`}',
+  '正在重新建立完整畫質遊戲畫面…',
+]) {
+  assert.ok(
+    pageSource.includes(remountContract),
+    `Thor 2 Seth-style orientation remount is missing: ${remountContract}`,
+  );
+}
 for (const forbidden of [
   'base-reference.png',
   '/ui/',

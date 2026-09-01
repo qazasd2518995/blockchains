@@ -215,7 +215,7 @@ const THOR2_SHELL_ASSETS: readonly CocosShellAsset[] = [
     as: 'script',
   },
   {
-    src: '/games/power-of-thor-2/original-runtime/thor2-original-adapter.js?v=20260901-layout-1',
+    src: '/games/power-of-thor-2/original-runtime/thor2-original-adapter.js?v=20260901-remount-2',
     as: 'script',
   },
   { src: `${THOR2_CONTENT_ROOT}/src/polyfills.bundle.js`, as: 'script' },
