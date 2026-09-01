@@ -38,6 +38,8 @@ export interface AgentPublic {
   bettingLimitLevel: string;
   bettingLimits: AgentBettingLimitOptionsByGameDto;
   excludeFromControlSettlement: boolean;
+  canManageControlZone: boolean;
+  controlZoneGrantedAt: string | null;
   status: AgentStatusDto;
   role: AdminRoleDto;
   notes: string | null;

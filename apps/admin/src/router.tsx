@@ -133,6 +133,15 @@ function SuperAdminOnly({ children }: { children: ReactNode }): JSX.Element {
   return <>{children}</>;
 }
 
+function ControlManagerOnly({ children }: { children: ReactNode }): JSX.Element {
+  const { agent } = useAdminAuthStore();
+  const allowed =
+    agent?.role === 'SUPER_ADMIN' ||
+    (agent?.role === 'AGENT' && agent.canManageControlZone === true);
+  if (!allowed) return <Navigate to="/admin/dashboard" replace />;
+  return <>{children}</>;
+}
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -175,9 +184,9 @@ export const router = createBrowserRouter([
       {
         path: '/admin/controls',
         element: suspended(
-          <SuperAdminOnly>
+          <ControlManagerOnly>
             <ControlsOverviewPage />
-          </SuperAdminOnly>,
+          </ControlManagerOnly>,
         ),
       },
       { path: '/admin/audit', element: suspended(<AuditLogPage />) },

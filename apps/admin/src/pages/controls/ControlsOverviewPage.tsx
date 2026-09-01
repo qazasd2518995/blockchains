@@ -13,6 +13,7 @@ import { DataTable, type Column } from '@/components/shared/DataTable';
 import { DepositControlModal } from '@/components/shared/DepositControlModal';
 import { BurstControlModal } from '@/components/shared/BurstControlModal';
 import { ManualDetectionControlModal } from '@/components/shared/ManualDetectionControlModal';
+import { WinLossControlModal } from '@/components/shared/WinLossControlModal';
 import {
   AccountSearchSelect,
   type AccountSearchOption,
@@ -1224,6 +1225,29 @@ export function ControlsOverviewPage(): JSX.Element {
             </Section>
           )}
 
+          {!isSuperAdmin && (
+            <Section
+              title="§ 線路輸贏控制"
+              subtitle="僅限目前被下放的代理線"
+              actions={
+                <button
+                  type="button"
+                  onClick={() => setWlOpen(true)}
+                  className="btn-acid text-[11px]"
+                >
+                  + 新增
+                </button>
+              }
+            >
+              <DataTable
+                columns={wlCols}
+                rows={wl}
+                rowKey={(row) => row.id}
+                empty="目前沒有輸贏控制規則"
+              />
+            </Section>
+          )}
+
           {isSuperAdmin && (
             <>
               <Section
@@ -1380,6 +1404,11 @@ export function ControlsOverviewPage(): JSX.Element {
         onClose={() => setManualOpen(false)}
         onDone={() => void reload()}
         templates={autoBalanceConfig?.templates ?? []}
+      />
+      <WinLossControlModal
+        open={wlOpen}
+        onClose={() => setWlOpen(false)}
+        onDone={() => void reload()}
       />
       <DepositControlModal
         open={dcOpen}

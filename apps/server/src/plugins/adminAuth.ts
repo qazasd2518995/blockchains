@@ -17,6 +17,7 @@ export interface AdminCurrent {
   username: string;
   role: AdminJwtPayload['role'];
   level: number;
+  canManageControlZone: boolean;
   status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
 }
 
@@ -50,6 +51,7 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
         username: true,
         role: true,
         level: true,
+        canManageControlZone: true,
         status: true,
         activeSessionId: true,
         activeSessionAt: true,
@@ -64,7 +66,10 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
         'Logged out because this account signed in on another device',
       );
     }
-    if (agent.activeSessionAt && Date.now() - agent.activeSessionAt.getTime() > adminSessionTtlMs()) {
+    if (
+      agent.activeSessionAt &&
+      Date.now() - agent.activeSessionAt.getTime() > adminSessionTtlMs()
+    ) {
       await fastify.prisma.agent.updateMany({
         where: { id: agent.id, activeSessionId: raw.sid },
         data: { activeSessionId: null, activeSessionAt: null },
@@ -76,6 +81,7 @@ async function pluginFn(fastify: FastifyInstance): Promise<void> {
       username: agent.username,
       role: agent.role,
       level: agent.level,
+      canManageControlZone: agent.canManageControlZone,
       status: agent.status,
     };
   });

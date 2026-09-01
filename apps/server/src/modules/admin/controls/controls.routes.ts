@@ -36,6 +36,13 @@ import {
 } from './controls.runtime.js';
 import { writeAudit } from '../audit/audit.service.js';
 import { listAgentDescendants } from '../../../utils/hierarchy.js';
+import type { AdminCurrent } from '../../../plugins/adminAuth.js';
+import { ApiError } from '../../../utils/errors.js';
+import {
+  requireAccessibleControlAgent,
+  requireAccessibleControlMember,
+  requireControlAccessContext,
+} from './controlZone.service.js';
 
 const ZERO = new Prisma.Decimal(0);
 
@@ -855,20 +862,32 @@ function jsonDecimalNumber(value: Prisma.JsonValue, key: string): number | null 
 }
 
 /**
- * 控制表 CRUD。整個模組僅限 Super Admin —— 任何代理皆無法檢視或操作控制。
+ * 控制表 CRUD。Super Admin 可使用完整風控；只有被明確下放的代理主帳號
+ * 可使用自己控制區的輸贏控制與介入紀錄。其他代理與所有子帳號一律拒絕。
  * 所有 mutation 都寫 AuditLog。
  */
 export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.addHook('preHandler', async (req, reply) => {
     await fastify.authenticateAdmin(req, reply);
-    await fastify.requireSuperAdmin(req, reply);
+    requireControlAccessContext(req.admin);
   });
 
-  const auditActor = (req: { admin: { id: string; username: string } }) => ({
+  const auditActor = (req: { admin: AdminCurrent }) => ({
     id: req.admin.id,
-    type: 'super_admin' as const,
+    type: req.admin.role === 'SUPER_ADMIN' ? ('super_admin' as const) : ('agent' as const),
     username: req.admin.username,
   });
+
+  const controlZoneRootAgentId = (admin: AdminCurrent): string | null =>
+    requireControlAccessContext(admin).zoneRootAgentId;
+
+  const requireOwnedWinLossControl = async (admin: AdminCurrent, id: string) => {
+    const record = await fastify.prisma.winLossControl.findFirst({
+      where: { id, controlZoneRootAgentId: controlZoneRootAgentId(admin) },
+    });
+    if (!record) throw new ApiError('INVALID_ACTION', 'Control rule not found in this zone');
+    return record;
+  };
 
   function resolveWinLossTarget(body: WinLossControlInput): {
     targetType: string | null;
@@ -890,32 +909,37 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     };
   }
 
-  fastify.get('/auto-balance/config', async () => {
+  fastify.get('/auto-balance/config', { preHandler: [fastify.requireSuperAdmin] }, async () => {
     const config = await getAutoBalanceRuntimeConfig(fastify.prisma);
     return serializeAutoBalanceConfig(config);
   });
 
-  fastify.patch('/auto-balance/config', async (req) => {
-    const body = autoBalanceConfigSchema.parse(req.body);
-    const config = await updateAutoBalanceRuntimeConfig(fastify.prisma, {
-      isEnabled: body.isEnabled,
-      templateKey: body.templateKey,
-      secondLineAmount: body.secondLineAmount,
-      operatorUsername: req.admin.username,
-    });
-    await writeAudit(fastify.prisma, {
-      actor: auditActor(req),
-      action: 'control.auto_balance.config.update',
-      targetType: 'control',
-      targetId: 'auto-balance-config',
-      newValues: body,
-      req,
-    });
-    return serializeAutoBalanceConfig(config);
-  });
+  fastify.patch(
+    '/auto-balance/config',
+    { preHandler: [fastify.requireSuperAdmin] },
+    async (req) => {
+      const body = autoBalanceConfigSchema.parse(req.body);
+      const config = await updateAutoBalanceRuntimeConfig(fastify.prisma, {
+        isEnabled: body.isEnabled,
+        templateKey: body.templateKey,
+        secondLineAmount: body.secondLineAmount,
+        operatorUsername: req.admin.username,
+      });
+      await writeAudit(fastify.prisma, {
+        actor: auditActor(req),
+        action: 'control.auto_balance.config.update',
+        targetType: 'control',
+        targetId: 'auto-balance-config',
+        newValues: body,
+        req,
+      });
+      return serializeAutoBalanceConfig(config);
+    },
+  );
 
-  fastify.get('/logs', async () => {
+  fastify.get('/logs', async (req) => {
     const logs = await fastify.prisma.winLossControlLogs.findMany({
+      where: { controlZoneRootAgentId: controlZoneRootAgentId(req.admin) },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -928,8 +952,9 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
     return { items: await enrichControlLogs(fastify, logs, usernames) };
   });
 
-  fastify.get('/win-loss', async () => {
+  fastify.get('/win-loss', async (req) => {
     const items = await fastify.prisma.winLossControl.findMany({
+      where: { controlZoneRootAgentId: controlZoneRootAgentId(req.admin) },
       orderBy: { createdAt: 'desc' },
     });
     return { items };
@@ -938,6 +963,18 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post('/win-loss', async (req, reply) => {
     const body = winLossControlSchema.parse(req.body);
     const target = resolveWinLossTarget(body);
+    const access = requireControlAccessContext(req.admin);
+    if (body.controlMode === 'SINGLE_MEMBER') {
+      const member = await requireAccessibleControlMember(fastify.prisma, access, target.targetId);
+      target.targetType = 'member';
+      target.targetId = member.id;
+      target.targetUsername = member.username;
+    } else if (body.controlMode === 'AGENT_LINE') {
+      const agent = await requireAccessibleControlAgent(fastify.prisma, access, target.targetId);
+      target.targetType = 'agent';
+      target.targetId = agent.id;
+      target.targetUsername = agent.username;
+    }
     const targetBitePercentage =
       body.lossControl && body.targetBitePercentage
         ? decimal(body.targetBitePercentage).toDecimalPlaces(2)
@@ -948,13 +985,17 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
       const scope =
         body.controlMode === 'SINGLE_MEMBER'
           ? ManualDetectionScope.MEMBER
-          : body.controlMode === 'AGENT_LINE'
+          : body.controlMode === 'AGENT_LINE' || access.role === 'delegated'
             ? ManualDetectionScope.AGENT_LINE
             : ManualDetectionScope.ALL;
       startBalanceAmount = await calculateControlCapital(
         fastify.prisma,
         scope,
-        body.controlMode === 'AGENT_LINE' ? target.targetId : null,
+        body.controlMode === 'AGENT_LINE'
+          ? target.targetId
+          : access.role === 'delegated'
+            ? access.zoneRootAgentId
+            : null,
         body.controlMode === 'SINGLE_MEMBER' ? target.targetUsername : null,
       );
       targetLossAmount = startBalanceAmount.mul(targetBitePercentage).div(100).toDecimalPlaces(2);
@@ -978,6 +1019,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
         startPeriod: body.startPeriod ?? null,
         operatorId: req.admin.id,
         operatorUsername: req.admin.username,
+        controlZoneRootAgentId: access.zoneRootAgentId,
       },
     });
     await writeAudit(fastify.prisma, {
@@ -999,6 +1041,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.patch('/win-loss/:id/toggle', async (req, reply) => {
     const { id } = req.params as { id: string };
     const { isActive } = toggleSchema.parse(req.body);
+    await requireOwnedWinLossControl(req.admin, id);
     const updated = await fastify.prisma.winLossControl.update({
       where: { id },
       data: { isActive },
@@ -1016,6 +1059,7 @@ export async function controlRoutes(fastify: FastifyInstance): Promise<void> {
 
   fastify.delete('/win-loss/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
+    await requireOwnedWinLossControl(req.admin, id);
     await fastify.prisma.winLossControl.delete({ where: { id } });
     await writeAudit(fastify.prisma, {
       actor: auditActor(req),

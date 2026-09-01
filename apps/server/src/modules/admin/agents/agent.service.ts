@@ -609,6 +609,8 @@ export function toPublic(agent: {
   bettingLimitLevel: string;
   bettingLimits?: Prisma.JsonValue;
   excludeFromControlSettlement: boolean;
+  canManageControlZone: boolean;
+  controlZoneGrantedAt: Date | null;
   status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
   role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
   notes: string | null;
@@ -637,6 +639,8 @@ export function toPublic(agent: {
       agent.bettingLimitLevel,
     ),
     excludeFromControlSettlement: agent.excludeFromControlSettlement,
+    canManageControlZone: agent.canManageControlZone,
+    controlZoneGrantedAt: agent.controlZoneGrantedAt?.toISOString() ?? null,
     status: agent.status,
     role: agent.role,
     notes: agent.notes,

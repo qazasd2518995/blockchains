@@ -7,13 +7,14 @@ const items: {
   to: string;
   key: keyof ReturnType<typeof useTranslation>['t']['nav'];
   superAdminOnly?: boolean;
+  controlManagerOnly?: boolean;
 }[] = [
   { to: '/admin/dashboard', key: 'dashboard' },
   { to: '/admin/accounts', key: 'accounts' },
   { to: '/admin/subaccounts', key: 'subAccounts' },
   { to: '/admin/logs', key: 'logs' },
   { to: '/admin/reports', key: 'reports' },
-  { to: '/admin/controls', key: 'controls', superAdminOnly: true },
+  { to: '/admin/controls', key: 'controls', controlManagerOnly: true },
   { to: '/admin/announcements', key: 'announcements', superAdminOnly: true },
 ];
 
@@ -25,7 +26,11 @@ export function Sidebar({ onLogout }: SidebarProps): JSX.Element {
   const { t } = useTranslation();
   const { agent } = useAdminAuthStore();
   const visibleItems = items.filter(
-    (item) => !item.superAdminOnly || agent?.role === 'SUPER_ADMIN',
+    (item) =>
+      (!item.superAdminOnly || agent?.role === 'SUPER_ADMIN') &&
+      (!item.controlManagerOnly ||
+        agent?.role === 'SUPER_ADMIN' ||
+        agent?.canManageControlZone === true),
   );
 
   return (

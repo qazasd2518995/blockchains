@@ -54,6 +54,8 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
         baccaratRebatePercentage: true,
         bettingLimitLevel: true,
         bettingLimits: true,
+        canManageControlZone: true,
+        controlZoneGrantedAt: true,
         role: true,
         status: true,
         parentId: true,
@@ -187,6 +189,8 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           bettingLimitLevel: string;
           bettingLimits: Record<string, string[]>;
           excludeFromControlSettlement: boolean;
+          canManageControlZone: boolean;
+          controlZoneGrantedAt: string | null;
           status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
           role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
           createdAt: string;
@@ -229,6 +233,8 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
             a.bettingLimitLevel,
           ),
           excludeFromControlSettlement: a.excludeFromControlSettlement,
+          canManageControlZone: a.canManageControlZone,
+          controlZoneGrantedAt: a.controlZoneGrantedAt?.toISOString() ?? null,
           status: a.status,
           role: a.role,
           createdAt: a.createdAt.toISOString(),
@@ -276,6 +282,8 @@ export async function hierarchyRoutes(fastify: FastifyInstance): Promise<void> {
           parent.bettingLimits,
           parent.bettingLimitLevel,
         ),
+        canManageControlZone: parent.canManageControlZone,
+        controlZoneGrantedAt: parent.controlZoneGrantedAt?.toISOString() ?? null,
         role: parent.role,
         status: parent.status,
         parentId: parent.parentId,

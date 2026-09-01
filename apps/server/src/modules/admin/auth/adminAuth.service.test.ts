@@ -88,7 +88,14 @@ describe('AdminAuthService.changePassword', () => {
 
     await expect(
       service.changePassword(
-        { id: 'a1', username: 'agent', role: 'AGENT', level: 1, status: 'ACTIVE' },
+        {
+          id: 'a1',
+          username: 'agent',
+          role: 'AGENT',
+          level: 1,
+          canManageControlZone: false,
+          status: 'ACTIVE',
+        },
         { currentPassword: 'WrongPass1', newPassword: 'NewPass1' },
       ),
     ).rejects.toMatchObject({
@@ -117,7 +124,14 @@ describe('AdminAuthService.changePassword', () => {
     const service = new AdminAuthService(prisma as never, { sign: vi.fn(() => 'access') });
 
     await service.changePassword(
-      { id: 'a1', username: 'agent', role: 'AGENT', level: 1, status: 'ACTIVE' },
+      {
+        id: 'a1',
+        username: 'agent',
+        role: 'AGENT',
+        level: 1,
+        canManageControlZone: false,
+        status: 'ACTIVE',
+      },
       { currentPassword: 'OldPass1', newPassword: 'NewPass1' },
     );
 

@@ -24,6 +24,7 @@ import {
   isMemberInControlExcludedLine,
   listControlIncludedAgentDescendants,
 } from '../../../utils/hierarchy.js';
+import { resolveDelegatedControlZoneForAgent } from '../../admin/controls/controlZone.service.js';
 
 type Db = Prisma.TransactionClient;
 
@@ -403,6 +404,13 @@ export async function finalizeControls(
   await enforceAutoBalanceBankerGuard(tx, member, outcome);
 
   if (outcome.controlled && outcome.controlId && outcome.flipReason) {
+    // The log belongs to the rule's owner, not merely to the member's line.
+    // Central burst/cap/manual controls may still act on a delegated line and
+    // must remain visible only to central administrators.
+    const winLossOwner = await tx.winLossControl.findUnique({
+      where: { id: outcome.controlId },
+      select: { controlZoneRootAgentId: true },
+    });
     await tx.winLossControlLogs.create({
       data: {
         controlId: outcome.controlId,
@@ -426,6 +434,7 @@ export async function finalizeControls(
           result: finalResult,
         },
         flipReason: outcome.flipReason,
+        controlZoneRootAgentId: winLossOwner?.controlZoneRootAgentId ?? null,
       },
     });
   }
@@ -508,6 +517,7 @@ async function findControlDecision(
   }
 
   const isControlExcludedLine = await isMemberInControlExcludedLine(tx, member);
+  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(tx, member.agentId);
 
   const burst = await findBurstDecision(tx, member, gameId, predicted, options);
   if (isControlInterventionMiss(burst)) return null;
@@ -518,7 +528,13 @@ async function findControlDecision(
   if (isControlPathNatural(onlineReward)) return CONTROL_PATH_NATURAL;
   if (onlineReward) return onlineReward;
 
-  const targetedWinLoss = await findWinLossDecision(tx, member, predicted, 'targeted');
+  const targetedWinLoss = await findWinLossDecision(
+    tx,
+    member,
+    predicted,
+    'targeted',
+    controlZoneRootAgentId,
+  );
   if (isControlInterventionMiss(targetedWinLoss)) return null;
   if (isControlPathNatural(targetedWinLoss)) return CONTROL_PATH_NATURAL;
   if (targetedWinLoss?.desired === 'WIN' && targetedWinLoss.reason === 'win_control') {
@@ -527,7 +543,13 @@ async function findControlDecision(
 
   const explicitWinLoss =
     targetedWinLoss ??
-    (await findWinLossDecision(tx, member, predicted, isControlExcludedLine ? 'targeted' : 'all'));
+    (await findWinLossDecision(
+      tx,
+      member,
+      predicted,
+      isControlExcludedLine ? 'targeted' : 'all',
+      controlZoneRootAgentId,
+    ));
   if (isControlInterventionMiss(explicitWinLoss)) return null;
   if (isControlPathNatural(explicitWinLoss)) return CONTROL_PATH_NATURAL;
   if (explicitWinLoss) return explicitWinLoss;
@@ -652,9 +674,10 @@ async function findWinLossDecision(
   member: MemberScope,
   predicted: PredictedResult,
   scope: WinLossDecisionScope = 'all',
+  controlZoneRootAgentId: string | null = null,
 ): Promise<ControlDecisionLookup> {
   const controls = await tx.winLossControl.findMany({
-    where: { isActive: true, isCompleted: false },
+    where: { isActive: true, isCompleted: false, controlZoneRootAgentId },
     orderBy: { createdAt: 'desc' },
   });
   if (controls.length === 0) return null;
@@ -2774,12 +2797,14 @@ async function findApplicableLossTargetControls(
     currentLossAmount: Prisma.Decimal;
   }>
 > {
+  const controlZoneRootAgentId = await resolveDelegatedControlZoneForAgent(tx, member.agentId);
   const controls = await tx.winLossControl.findMany({
     where: {
       isActive: true,
       isCompleted: false,
       lossControl: true,
       targetLossAmount: { not: null },
+      controlZoneRootAgentId,
     },
     orderBy: { createdAt: 'desc' },
     select: {
@@ -3000,6 +3025,7 @@ export const __controlsTestHooks = {
   applyGlobalMemberDailyWinCap,
   enforceAutoBalanceBankerGuard,
   findControlDecision,
+  findWinLossDecision,
   findAutoBalanceDecision,
   findAutoBalanceReviveDecision,
   findDepositControlDecision,

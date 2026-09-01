@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import { AgentService } from './agent.service.js';
 import { ApiError } from '../../../utils/errors.js';
 import {
@@ -16,6 +17,10 @@ import {
   resetPasswordSchema,
   updateBettingLimitSchema,
 } from './agent.schema.js';
+import { grantControlZone, revokeControlZone } from '../controls/controlZone.service.js';
+import { writeAudit } from '../audit/audit.service.js';
+
+const controlZoneActionSchema = z.object({ action: z.enum(['grant', 'revoke']) });
 
 export async function agentRoutes(fastify: FastifyInstance): Promise<void> {
   const service = new AgentService(fastify.prisma);
@@ -134,6 +139,35 @@ export async function agentRoutes(fastify: FastifyInstance): Promise<void> {
     const body = updateAgentSchema.parse(req.body);
     return service.update(req.admin, id, body, req);
   });
+
+  fastify.put(
+    '/:id/control-zone',
+    { preHandler: [fastify.authenticateAdmin, fastify.requireSuperAdmin] },
+    async (req) => {
+      const { id } = req.params as { id: string };
+      const { action } = controlZoneActionSchema.parse(req.body);
+      const target =
+        action === 'grant'
+          ? await grantControlZone(fastify.prisma, req.admin, id)
+          : await revokeControlZone(fastify.prisma, req.admin, id);
+      await writeAudit(fastify.prisma, {
+        actor: { id: req.admin.id, type: 'super_admin', username: req.admin.username },
+        action: action === 'grant' ? 'control.zone.grant' : 'control.zone.revoke',
+        targetType: 'agent',
+        targetId: id,
+        newValues: {
+          username: target.username,
+          canManageControlZone: target.canManageControlZone,
+        },
+        req,
+      });
+      return {
+        success: true,
+        message: action === 'grant' ? '線路輸贏控制權已下放' : '線路輸贏控制權已收回',
+        target,
+      };
+    },
+  );
 
   fastify.put('/:id/rebate', { preHandler: [fastify.authenticateAdmin] }, async (req) => {
     const { id } = req.params as { id: string };

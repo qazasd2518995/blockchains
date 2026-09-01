@@ -74,6 +74,7 @@ export function AgentHierarchyPage(): JSX.Element {
     id: string;
     username: string;
   } | null>(null);
+  const [controlZoneBusyId, setControlZoneBusyId] = useState<string | null>(null);
   useAdminLiveRefresh(() => setReloadKey((k) => k + 1));
 
   useEffect(() => {
@@ -136,6 +137,29 @@ export function AgentHierarchyPage(): JSX.Element {
       setReloadKey((k) => k + 1);
     } catch (e) {
       setError(extractApiError(e).message);
+    }
+  };
+
+  const handleControlZone = async (
+    id: string,
+    username: string,
+    currentlyGranted: boolean,
+  ): Promise<void> => {
+    if (me?.role !== 'SUPER_ADMIN') return;
+    const action = currentlyGranted ? 'revoke' : 'grant';
+    const warning = currentlyGranted
+      ? `確定收回 ${username} 的線路輸贏控制權？該線所有啟用中的輸贏控制會立即停用，該帳號也會登出。`
+      : `確定將 ${username} 設為這條線唯一的輸贏控制者？只有這個代理主帳號可以看見及操作該線控制，下級代理與子帳號都不會取得權限。`;
+    if (!window.confirm(warning)) return;
+    setControlZoneBusyId(id);
+    setError(null);
+    try {
+      await adminApi.put(`/agents/${id}/control-zone`, { action });
+      setReloadKey((key) => key + 1);
+    } catch (e) {
+      setError(extractApiError(e).message);
+    } finally {
+      setControlZoneBusyId(null);
     }
   };
 
@@ -350,6 +374,9 @@ export function AgentHierarchyPage(): JSX.Element {
                     {row.kind === 'agent' && row.excludeFromControlSettlement && (
                       <span className="tag tag-ember">例外線・不計交收</span>
                     )}
+                    {row.kind === 'agent' && row.canManageControlZone && (
+                      <span className="tag tag-gold">線路輸贏控制者</span>
+                    )}
                   </div>
                   {(rowNote || row.kind === 'agent') && (
                     <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-semibold leading-5 text-ink-600">
@@ -435,6 +462,26 @@ export function AgentHierarchyPage(): JSX.Element {
                       >
                         限红
                       </button>
+                      {me?.role === 'SUPER_ADMIN' && (
+                        <button
+                          type="button"
+                          disabled={controlZoneBusyId === row.id}
+                          onClick={() =>
+                            void handleControlZone(row.id, row.username, row.canManageControlZone)
+                          }
+                          className={
+                            row.canManageControlZone
+                              ? 'btn-chip border-[#D4574A]/45 text-[#A33E35]'
+                              : 'btn-chip border-[#2BAA6A]/45 text-[#1F7A4D]'
+                          }
+                        >
+                          {controlZoneBusyId === row.id
+                            ? '處理中…'
+                            : row.canManageControlZone
+                              ? '收回控制'
+                              : '下放控制'}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() =>

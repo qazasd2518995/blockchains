@@ -55,6 +55,8 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   'control.manual_detection.delete': '删除手动侦测',
   'control.online_reward.create': '在线玩家均分派发',
   'control.online_reward_next_win.create': '在线玩家均分必赢',
+  'control.zone.grant': '下放線路輸贏控制',
+  'control.zone.revoke': '收回線路輸贏控制',
 
   'announcement.create': '新增公告',
   'announcement.update': '更新公告',

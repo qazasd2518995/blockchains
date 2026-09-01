@@ -12,6 +12,8 @@ export type HierarchyItem =
       bettingLimitLevel: string;
       bettingLimits: Record<string, string[]>;
       excludeFromControlSettlement: boolean;
+      canManageControlZone: boolean;
+      controlZoneGrantedAt: string | null;
       status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
       role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
       createdAt: string;
@@ -52,6 +54,8 @@ export interface HierarchyResponse {
     baccaratRebateMode: 'PERCENTAGE' | 'ALL' | 'NONE';
     bettingLimitLevel: string;
     bettingLimits: Record<string, string[]>;
+    canManageControlZone: boolean;
+    controlZoneGrantedAt: string | null;
     role: 'SUPER_ADMIN' | 'AGENT' | 'SUB_ACCOUNT';
     status: 'ACTIVE' | 'FROZEN' | 'DISABLED' | 'DELETED';
     parentId: string | null;

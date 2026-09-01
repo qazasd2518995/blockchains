@@ -374,6 +374,64 @@ describe('rankWinLossControls priority', () => {
   });
 });
 
+describe('win/loss control-zone isolation', () => {
+  it('queries only the delegated zone assigned to the member line', async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      winLossControl({
+        id: 'delegated-win',
+        controlMode: 'NORMAL',
+        targetId: null,
+        winControl: true,
+      }),
+    ]);
+    const tx = { winLossControl: { findMany } };
+
+    const decision = await __controlsTestHooks.findWinLossDecision(
+      tx as never,
+      { id: 'member-1', username: 'member-1', agentId: null },
+      predictedResult(10, 0, 0),
+      'all',
+      'delegated-root',
+    );
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        isActive: true,
+        isCompleted: false,
+        controlZoneRootAgentId: 'delegated-root',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(decision).toMatchObject({
+      desired: 'WIN',
+      controlId: 'delegated-win',
+      reason: 'win_control',
+    });
+  });
+
+  it('queries only central controls for members outside delegated zones', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const tx = { winLossControl: { findMany } };
+
+    await __controlsTestHooks.findWinLossDecision(
+      tx as never,
+      { id: 'member-1', username: 'member-1', agentId: null },
+      predictedResult(10, 0, 0),
+      'all',
+      null,
+    );
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        isActive: true,
+        isCompleted: false,
+        controlZoneRootAgentId: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  });
+});
+
 describe('resolveGameMatchedCashoutControl', () => {
   it('records non-burst forced losses as bounds guards', () => {
     const resolved = forceControlOutcomeToLoss({
