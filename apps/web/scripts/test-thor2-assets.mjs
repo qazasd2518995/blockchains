@@ -246,6 +246,23 @@ for (const contract of [
 assert.ok(pageSource.includes('data-thor2-layout={layout}'), 'Thor 2 layout state is not exposed');
 assert.ok(pageSource.includes("'切換為橫式版面'"), 'Thor 2 is missing its landscape control');
 assert.ok(pageSource.includes("'切換為直式版面'"), 'Thor 2 is missing its portrait control');
+for (const fullscreenContract of [
+  'requestThor2LandscapeFullscreen',
+  "lock?.('landscape')",
+  'releaseThor2LandscapeFullscreen',
+  'allowFullScreen',
+  "'rotated-fullscreen'",
+  'h-[100dvw] w-[100dvh]',
+]) {
+  assert.ok(
+    pageSource.includes(fullscreenContract),
+    `Thor 2 true-landscape display contract is missing: ${fullscreenContract}`,
+  );
+}
+assert.ok(
+  !pageSource.includes('w-full aspect-video'),
+  'Thor 2 landscape must not collapse into a short 16:9 strip on portrait phones',
+);
 assert.ok(
   pageSource.includes("{ type: 'thor2:layout', layout: nextLayout }"),
   'Thor 2 layout control does not notify the original Cocos runtime',

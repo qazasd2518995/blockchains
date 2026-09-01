@@ -17,6 +17,17 @@ const DISPOSE_FALLBACK_MS = 350;
 
 type Thor2Layout = 'portrait' | 'landscape';
 type Thor2RemountReason = 'orientation';
+type Thor2FullscreenTarget = HTMLElement & {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+};
+type Thor2FullscreenDocument = Document & {
+  webkitExitFullscreen?: () => Promise<void> | void;
+  webkitFullscreenElement?: Element | null;
+};
+type Thor2ScreenOrientation = ScreenOrientation & {
+  lock?: (orientation: 'landscape') => Promise<void>;
+  unlock?: () => void;
+};
 
 export function PowerOfThor2Page() {
   const navigate = useNavigate();
@@ -34,7 +45,10 @@ export function PowerOfThor2Page() {
   const [iframeGeneration, setIframeGeneration] = useState(0);
   const [remountReason, setRemountReason] = useState<Thor2RemountReason | null>(null);
   const [requestedLayout, setRequestedLayout] = useState<Thor2Layout | null>(null);
+  const [fullscreenActive, setFullscreenActive] = useState(false);
+  const pageRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const ownsFullscreenRef = useRef(false);
   const currentLayoutRef = useRef(layout);
   const pendingRemountRef = useRef<{
     layout: Thor2Layout;
@@ -63,7 +77,7 @@ export function PowerOfThor2Page() {
       apiBase,
       lang: sourceLocale(locale),
       layout,
-      build: 'qmoney-thor2-original-cocos-v5-orientation-remount',
+      build: 'qmoney-thor2-original-cocos-v6-true-landscape',
     });
     return `${ORIGINAL_GAME_PATH}?${query.toString()}`;
   }, [layout, locale]);
@@ -141,6 +155,16 @@ export function PowerOfThor2Page() {
     [requestIframeRemount],
   );
 
+  const enterLandscapeDisplay = useCallback(() => {
+    const target = pageRef.current;
+    if (!target) return;
+    void requestThor2LandscapeFullscreen(target, ownsFullscreenRef);
+  }, []);
+
+  const leaveLandscapeDisplay = useCallback(() => {
+    void releaseThor2LandscapeFullscreen(ownsFullscreenRef);
+  }, []);
+
   const handleIframeLoad = useCallback(() => {
     recordGameLoadMilestone('power-of-thor-2', 'iframe-loaded');
     syncOriginalGameAudio();
@@ -166,6 +190,22 @@ export function PowerOfThor2Page() {
     const updateDeviceLayout = () => setDeviceLayout(media.matches ? 'landscape' : 'portrait');
     media.addEventListener('change', updateDeviceLayout);
     return () => media.removeEventListener('change', updateDeviceLayout);
+  }, []);
+
+  useEffect(() => {
+    const fullscreenDocument = document as Thor2FullscreenDocument;
+    const updateFullscreenState = () => {
+      const activeElement = document.fullscreenElement ?? fullscreenDocument.webkitFullscreenElement;
+      setFullscreenActive(activeElement === pageRef.current);
+      if (!activeElement) ownsFullscreenRef.current = false;
+    };
+    document.addEventListener('fullscreenchange', updateFullscreenState);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenState);
+    updateFullscreenState();
+    return () => {
+      document.removeEventListener('fullscreenchange', updateFullscreenState);
+      document.removeEventListener('webkitfullscreenchange', updateFullscreenState);
+    };
   }, []);
 
   useEffect(() => {
@@ -228,6 +268,7 @@ export function PowerOfThor2Page() {
       }
       if (remountTimerRef.current !== null) window.clearTimeout(remountTimerRef.current);
       if (remountFrameRef.current !== null) window.cancelAnimationFrame(remountFrameRef.current);
+      void releaseThor2LandscapeFullscreen(ownsFullscreenRef);
     },
     [],
   );
@@ -250,10 +291,14 @@ export function PowerOfThor2Page() {
 
   return (
     <div
-      className="relative h-[calc(100svh-5.25rem)] min-h-[420px] overflow-hidden rounded-2xl border border-[#E9C35C]/30 bg-black shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
+      ref={pageRef}
+      className={pageClassName(layout, deviceLayout, fullscreenActive)}
       data-thor2-layout={layout}
+      data-thor2-display={
+        layout === 'landscape' && deviceLayout === 'portrait' ? 'rotated-fullscreen' : 'native'
+      }
     >
-      <div className="absolute inset-0 grid place-items-center overflow-hidden bg-black">
+      <div className="absolute inset-0 overflow-hidden bg-black">
         <div
           className={frameClassName(layout, deviceLayout)}
           data-thor2-frame={layout}
@@ -266,6 +311,7 @@ export function PowerOfThor2Page() {
               src={gameUrl}
               title="雷神之錘 II"
               allow="autoplay; fullscreen"
+              allowFullScreen
               onLoad={handleIframeLoad}
               className="absolute inset-0 h-full w-full border-0 bg-black"
             />
@@ -319,6 +365,10 @@ export function PowerOfThor2Page() {
                 type="button"
                 onClick={() => {
                   const nextLayout = requestedLayout;
+                  // Keep the Fullscreen API inside the click gesture. Android browsers
+                  // reject delayed requests after the orientation remount has begun.
+                  if (nextLayout === 'landscape') enterLandscapeDisplay();
+                  else leaveLandscapeDisplay();
                   setRequestedLayout(null);
                   requestLayoutSwitch(nextLayout);
                 }}
@@ -368,12 +418,78 @@ function saveLayout(layout: Thor2Layout) {
   }
 }
 
+function pageClassName(
+  layout: Thor2Layout,
+  deviceLayout: Thor2Layout,
+  fullscreenActive: boolean,
+): string {
+  const base =
+    'overflow-hidden bg-black shadow-[0_20px_60px_rgba(0,0,0,0.55)] transition-none';
+  if (fullscreenActive || (layout === 'landscape' && deviceLayout === 'portrait')) {
+    return `${base} fixed inset-0 z-[100] h-[100dvh] w-[100dvw] min-h-0 rounded-none border-0`;
+  }
+  return `${base} relative h-[calc(100svh-5.25rem)] min-h-[420px] rounded-2xl border border-[#E9C35C]/30`;
+}
+
 function frameClassName(layout: Thor2Layout, deviceLayout: Thor2Layout): string {
-  const base = 'relative max-h-full max-w-full overflow-hidden bg-black';
-  if (layout === 'portrait') return `${base} h-full aspect-[12/25]`;
-  return deviceLayout === 'portrait'
-    ? `${base} w-full aspect-video`
-    : `${base} h-full aspect-video`;
+  const base = 'absolute overflow-hidden bg-black';
+  if (layout === 'landscape' && deviceLayout === 'portrait') {
+    // iOS Safari does not expose arbitrary-element Fullscreen or orientation lock.
+    // Swap the viewport dimensions and rotate the native 1280x720 client so it still
+    // occupies the whole display instead of becoming a short 16:9 strip.
+    return `${base} left-1/2 top-1/2 h-[100dvw] w-[100dvh] max-h-none max-w-none -translate-x-1/2 -translate-y-1/2 rotate-90`;
+  }
+  return `${base} inset-0 h-full w-full`;
+}
+
+async function requestThor2LandscapeFullscreen(
+  target: HTMLElement,
+  ownsFullscreenRef: { current: boolean },
+): Promise<void> {
+  const fullscreenDocument = document as Thor2FullscreenDocument;
+  const activeElement = document.fullscreenElement ?? fullscreenDocument.webkitFullscreenElement;
+  const fullscreenTarget = target as Thor2FullscreenTarget;
+
+  try {
+    if (!activeElement && target.requestFullscreen) {
+      await target.requestFullscreen({ navigationUI: 'hide' });
+      ownsFullscreenRef.current = true;
+    } else if (!activeElement && fullscreenTarget.webkitRequestFullscreen) {
+      await fullscreenTarget.webkitRequestFullscreen();
+      ownsFullscreenRef.current = true;
+    }
+  } catch {
+    // The rotated full-viewport fallback below remains available on iOS/WebViews.
+  }
+
+  try {
+    await (screen.orientation as Thor2ScreenOrientation | undefined)?.lock?.('landscape');
+  } catch {
+    // Browsers may require installed/PWA mode or may not implement orientation lock.
+  }
+}
+
+async function releaseThor2LandscapeFullscreen(ownsFullscreenRef: {
+  current: boolean;
+}): Promise<void> {
+  try {
+    (screen.orientation as Thor2ScreenOrientation | undefined)?.unlock?.();
+  } catch {
+    // Orientation unlock is optional on iOS/WebViews.
+  }
+
+  if (!ownsFullscreenRef.current) return;
+  ownsFullscreenRef.current = false;
+  const fullscreenDocument = document as Thor2FullscreenDocument;
+  try {
+    if (document.fullscreenElement && document.exitFullscreen) {
+      await document.exitFullscreen();
+    } else if (fullscreenDocument.webkitFullscreenElement) {
+      await fullscreenDocument.webkitExitFullscreen?.();
+    }
+  } catch {
+    // The browser may already have left fullscreen through its own UI.
+  }
 }
 
 function sourceLocale(locale: string): string {
