@@ -34,8 +34,8 @@ assertContains(qmoneyBrand, [
   "sessionStorageKey: 'bg-qmoney-admin-auth'",
   "localeStorageKey: 'bg.qmoney.admin.locale'",
   "shareHeading: '金寶寶娛樂城推廣連結'",
-  'https://bg-qmoney.onrender.com',
-  'https://bg-qmoney-admin.onrender.com',
+  'https://qmoney.yachiyo777.com',
+  'https://qmoney.yachiyo168.com',
 ]);
 assertContains(authStore, ['adminBrand.sessionStorageKey']);
 assertContains(shareModal, [

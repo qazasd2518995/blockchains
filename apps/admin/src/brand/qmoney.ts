@@ -15,10 +15,10 @@ export const adminBrand: AdminBrand = {
   localeStorageKey: 'bg.qmoney.admin.locale',
   shareHeading: '金寶寶娛樂城推廣連結',
   playerLoginUrls: resolveUrlList(import.meta.env.VITE_PLAYER_LOGIN_URLS, [
-    'https://bg-qmoney.onrender.com',
+    'https://qmoney.yachiyo777.com',
   ]),
   agentLoginUrls: resolveUrlList(import.meta.env.VITE_AGENT_LOGIN_URLS, [
-    'https://bg-qmoney-admin.onrender.com',
+    'https://qmoney.yachiyo168.com',
   ]),
   copy: {
     'zh-Hant': {
