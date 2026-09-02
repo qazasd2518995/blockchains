@@ -10,7 +10,7 @@ const RETRYABLE_ACTIVE_STATE_UNIQUE_INDEXES = new Set([
   'MinesRound_one_active_per_user_key',
   'HiLoRound_one_active_per_user_key',
   'TowerRound_one_active_per_user_key',
-  'BlackjackRound_one_active_per_user_key',
+  'BlackjackRound_one_active_per_user_table_key',
   'Seth2JackpotPool_pkey',
   'Seth2FeatureSequence_one_ready_per_user_key',
 ]);

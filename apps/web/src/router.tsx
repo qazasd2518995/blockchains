@@ -308,7 +308,12 @@ export const router = createBrowserRouter([
           ),
           gameRoute('/games/mines', 'mines', <MinesPage />),
           gameRoute('/games/hilo', 'hilo', <HiLoPage />),
-          gameRoute('/games/blackjack', 'blackjack', <BlackjackPage />),
+          gameRoute('/games/blackjack', 'blackjack', <BlackjackPage tableId="royal" />),
+          gameRoute(
+            '/games/blackjack-table-2',
+            'blackjack-table-2',
+            <BlackjackPage tableId="classic" />,
+          ),
           gameRoute('/games/keno', 'keno', <KenoPage />),
           gameRoute('/games/wheel', 'wheel', <WheelPage />),
           gameRoute(

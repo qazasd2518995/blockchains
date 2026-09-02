@@ -342,6 +342,7 @@ model BlackjackRound {
   id                String      @id @default(cuid())
   userId            String
   user              User        @relation(fields: [userId], references: [id])
+  tableId           String      @default("royal")
   betAmount         Decimal     @db.Decimal(20, 2)
   totalBetAmount    Decimal     @default(0) @db.Decimal(20, 2)
   dealerHand        Json
@@ -360,6 +361,7 @@ model BlackjackRound {
   bet Bet?
 
   @@index([userId, status])
+  @@index([userId, tableId, status])
 }
 
 // ───────────────────────────────────────────────

@@ -17,6 +17,7 @@ const MEGA_SLOT_GAME_IDS = new Set([
 
 const ACCESSIBLE_TABLE_GAME_IDS = new Set<string>([
   'blackjack',
+  'blackjack-table-2',
   'mines',
   'tower',
   ...LOCAL_TABLE_GAME_IDS,
@@ -68,6 +69,7 @@ export function QmoneyGameShell() {
 
   const slotLayout = MEGA_SLOT_GAME_IDS.has(game.id) ? 'mega' : 'standard';
   const isTableGame = ACCESSIBLE_TABLE_GAME_IDS.has(game.id);
+  const layoutGameId = game.id === 'blackjack-table-2' ? 'blackjack' : game.id;
 
   useLayoutEffect(() => {
     const shell = shellRef.current;
@@ -177,7 +179,8 @@ export function QmoneyGameShell() {
       className={`game-fullscreen-shell qmoney-game-shell relative overflow-hidden bg-black text-white ${
         isTableGame ? 'qmoney-game-shell--table' : ''
       }`}
-      data-game-id={game.id}
+      data-game-id={layoutGameId}
+      data-catalog-game-id={game.id}
       data-slot-layout={slotLayout}
       data-platform-realm="qmoney"
     >

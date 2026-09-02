@@ -16,6 +16,7 @@ import {
   type BlackjackPlayerHand,
   type BlackjackRoundResult,
   type BlackjackRoundState,
+  type BlackjackTableId,
 } from '@bg/shared';
 import { Sfx } from '@bg/game-engine';
 import { api, extractApiError } from '@/lib/api';
@@ -51,6 +52,35 @@ const HOLE_FLIP_MS = 560;
 const RESULT_REVEAL_MS = 280;
 const DEALER_HOLE_KEY = 'dealer:hole';
 
+const BLACKJACK_TABLE_CONFIG: Record<
+  BlackjackTableId,
+  {
+    catalogGameId: string;
+    title: string;
+    titleSuffix: string;
+    section: string;
+    breadcrumb: string;
+    stageName: string;
+  }
+> = {
+  royal: {
+    catalogGameId: 'blackjack',
+    title: '皇家21點',
+    titleSuffix: 'ROYAL BLACKJACK',
+    section: '§ ROYAL CLUB',
+    breadcrumb: 'ROYAL_BLACKJACK',
+    stageName: '皇家21點',
+  },
+  classic: {
+    catalogGameId: 'blackjack-table-2',
+    title: '經典21點',
+    titleSuffix: 'CLASSIC BLACKJACK',
+    section: '§ CLASSIC CLUB',
+    breadcrumb: 'CLASSIC_BLACKJACK',
+    stageName: '經典21點',
+  },
+};
+
 interface BlackjackAnimationMeta {
   enteringCards: string[];
   flipDealerHole?: boolean;
@@ -65,7 +95,7 @@ interface BlackjackAnimationFrame {
 
 const IDLE_ANIMATION_META: BlackjackAnimationMeta = { enteringCards: [] };
 
-export function BlackjackPage() {
+export function BlackjackPage({ tableId = 'royal' }: { tableId?: BlackjackTableId }) {
   const { user, setBalance } = useAuthStore();
   const { t } = useTranslation();
   const requireLogin = useRequireLogin();
@@ -79,17 +109,35 @@ export function BlackjackPage() {
   const [animationMeta, setAnimationMeta] = useState<BlackjackAnimationMeta>(IDLE_ANIMATION_META);
   const [error, setError] = useState<string | null>(null);
   const animationTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const tableConfig = BLACKJACK_TABLE_CONFIG[tableId];
 
   useEffect(() => {
+    let active = true;
+    clearAnimationTimers(animationTimers.current);
+    setRound(null);
+    setDisplayRound(null);
+    setHistory([]);
+    setBusy(false);
+    setAnimating(false);
+    setAnimationMeta(IDLE_ANIMATION_META);
+    setError(null);
     Sfx.preloadTableGames();
     void api
-      .get<{ state: BlackjackRoundState | null }>('/games/blackjack/active')
+      .get<{ state: BlackjackRoundState | null }>('/games/blackjack/active', {
+        params: { tableId },
+      })
       .then((res) => {
+        if (!active) return;
         setRound(res.data.state);
         setDisplayRound(res.data.state);
       })
       .catch(() => undefined);
-  }, []);
+
+    return () => {
+      active = false;
+      clearAnimationTimers(animationTimers.current);
+    };
+  }, [tableId]);
 
   useEffect(() => () => clearAnimationTimers(animationTimers.current), []);
 
@@ -173,7 +221,10 @@ export function BlackjackPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.post<BlackjackRoundResult>(path, { roundId: round.roundId });
+      const res = await api.post<BlackjackRoundResult>(path, {
+        roundId: round.roundId,
+        tableId,
+      });
       Sfx.tableCardFlip();
       applyResult(res.data, fallbackBet);
     } catch (err) {
@@ -193,7 +244,10 @@ export function BlackjackPage() {
     const releaseBalanceRefresh = holdWalletBalanceRefresh();
     const previousBalance = useAuthStore.getState().debitBalance(amount);
     try {
-      const res = await api.post<BlackjackRoundResult>('/games/blackjack/start', { amount });
+      const res = await api.post<BlackjackRoundResult>('/games/blackjack/start', {
+        amount,
+        tableId,
+      });
       Sfx.tableCardFlip();
       applyResult(res.data, amount);
     } catch (err) {
@@ -215,13 +269,13 @@ export function BlackjackPage() {
   };
 
   return (
-    <div>
+    <div className={`blackjack-page blackjack-page--${tableId}`} data-blackjack-table={tableId}>
       <GameHeader
         artwork="/game-art/blackjack/background.png"
-        section="§ TABLE 04"
-        breadcrumb="BLACKJACK_21"
-        title={t.games.blackjack.title}
-        titleSuffix={t.games.blackjack.suffix}
+        section={tableConfig.section}
+        breadcrumb={tableConfig.breadcrumb}
+        title={tableConfig.title}
+        titleSuffix={tableConfig.titleSuffix}
         titleSuffixColor="acid"
         description={t.games.blackjack.description}
         rtpLabel="RTP 97%"
@@ -232,10 +286,12 @@ export function BlackjackPage() {
         <div className="game-main-stack space-y-4">
           <div className="game-stage-panel scanlines overflow-hidden p-3 sm:p-4">
             <div className="game-stage-bar -mx-3 -mt-3 mb-3 rounded-t-[22px] sm:-mx-4 sm:-mt-4 sm:mb-4">
-              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">21點</span>
+              <span className="font-semibold tracking-[0.12em] text-[#E8D48A]">
+                {tableConfig.stageName}
+              </span>
               <span className="ml-2 text-white/40">·</span>
-              <span className="ml-2 text-white/55 uppercase">Blackjack</span>
-              <GameActivityHeat gameId="blackjack" />
+              <span className="ml-2 text-white/55 uppercase">{tableConfig.titleSuffix}</span>
+              <GameActivityHeat gameId={tableConfig.catalogGameId} />
               <span className="text-[#7EE0A4]">
                 <span className="dot-online" />
                 {tableRound

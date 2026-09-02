@@ -14,6 +14,7 @@ import {
   type BlackjackPlayerHand,
   type BlackjackRoundResult,
   type BlackjackRoundState,
+  type BlackjackTableId,
 } from '@bg/shared';
 import {
   SeedHelper,
@@ -48,6 +49,7 @@ export interface StoredBlackjackHand {
 
 interface BlackjackRoundRecord {
   id: string;
+  tableId: string;
   status: 'ACTIVE' | 'BUSTED' | 'CASHED_OUT';
   betAmount: Prisma.Decimal;
   totalBetAmount: Prisma.Decimal;
@@ -79,8 +81,12 @@ export class BlackjackService {
     const amount = new Prisma.Decimal(input.amount);
 
     return runSerializable(this.prisma, async (tx) => {
-      const active = await tx.blackjackRound.findFirst({ where: { userId, status: 'ACTIVE' } });
-      if (active) throw new ApiError('INVALID_ACTION', 'You have an active Blackjack round');
+      const active = await tx.blackjackRound.findFirst({
+        where: { userId, tableId: input.tableId, status: 'ACTIVE' },
+      });
+      if (active) {
+        throw new ApiError('INVALID_ACTION', 'You have an active round at this Blackjack table');
+      }
 
       await lockUserAndCheckFunds(tx, userId, amount, GameId.BLACKJACK);
       const seed = await new SeedHelper(tx).getActiveBundle(
@@ -126,6 +132,7 @@ export class BlackjackService {
       const round = await tx.blackjackRound.create({
         data: {
           userId,
+          tableId: input.tableId,
           betAmount: amount,
           totalBetAmount: amount,
           dealerHand: finalOpeningDealer as unknown as Prisma.InputJsonValue,
@@ -155,6 +162,7 @@ export class BlackjackService {
             clientSeedUsed: seed.clientSeed,
             serverSeedId: seed.serverSeedId,
             resultData: {
+              tableId: input.tableId,
               dealerHand: finalOpeningDealer,
               playerHands: finalOpeningHands,
               rules: blackjackRulesPayload(),
@@ -196,6 +204,7 @@ export class BlackjackService {
           controlledNatural?.outcome ?? openingControl!,
           bet.id,
           {
+            tableId: input.tableId,
             dealerHand,
             playerHands: natural.hands,
             totalPayout: natural.payout.toFixed(2),
@@ -203,6 +212,7 @@ export class BlackjackService {
             openingNatural: true,
           } as unknown as Prisma.InputJsonValue,
           {
+            tableId: input.tableId,
             dealerHand: finalOpeningDealer,
             playerHands: finalOpeningHands,
             totalPayout: finalOpeningPayout.toFixed(2),
@@ -222,211 +232,231 @@ export class BlackjackService {
   }
 
   async hit(userId: string, input: BlackjackActionInput): Promise<BlackjackRoundResult> {
-    return this.withActiveRound(userId, input.roundId, async (tx, round, serverSeedHash) => {
-      const hands = parseHands(round.playerHands);
-      const deck = parseDeck(round.deck);
-      const active = getActiveHandOrThrow(hands, round.activeHandIndex);
-      if (active.splitAces)
-        throw new ApiError('INVALID_ACTION', 'Split aces receive one card only');
+    return this.withActiveRound(
+      userId,
+      input.tableId,
+      input.roundId,
+      async (tx, round, serverSeedHash) => {
+        const hands = parseHands(round.playerHands);
+        const deck = parseDeck(round.deck);
+        const active = getActiveHandOrThrow(hands, round.activeHandIndex);
+        if (active.splitAces)
+          throw new ApiError('INVALID_ACTION', 'Split aces receive one card only');
 
-      const { card, nextIndex } = drawCard(deck, round.deckIndex);
-      active.cards = [...active.cards, card];
-      const score = blackjackScore(active.cards);
-      if (score.isBust) {
-        active.status = 'BUSTED';
-        active.outcome = 'LOSE';
-        active.payout = '0.00';
-        active.multiplier = '0.0000';
-      } else if (score.total === 21) {
-        active.status = 'STANDING';
-      }
+        const { card, nextIndex } = drawCard(deck, round.deckIndex);
+        active.cards = [...active.cards, card];
+        const score = blackjackScore(active.cards);
+        if (score.isBust) {
+          active.status = 'BUSTED';
+          active.outcome = 'LOSE';
+          active.payout = '0.00';
+          active.multiplier = '0.0000';
+        } else if (score.total === 21) {
+          active.status = 'STANDING';
+        }
 
-      const nextActive = findNextPlayingHand(hands, round.activeHandIndex);
-      if (nextActive === -1) {
-        return this.resolveRound(
-          tx,
-          userId,
-          round,
-          hands,
-          parseCards(round.dealerHand),
-          deck,
-          nextIndex,
-          serverSeedHash,
-        );
-      }
+        const nextActive = findNextPlayingHand(hands, round.activeHandIndex);
+        if (nextActive === -1) {
+          return this.resolveRound(
+            tx,
+            userId,
+            round,
+            hands,
+            parseCards(round.dealerHand),
+            deck,
+            nextIndex,
+            serverSeedHash,
+          );
+        }
 
-      const updated = await tx.blackjackRound.update({
-        where: { id: round.id },
-        data: {
-          playerHands: hands as unknown as Prisma.InputJsonValue,
-          activeHandIndex: nextActive,
-          deckIndex: nextIndex,
-        },
-      });
-      return { state: this.toState(updated, serverSeedHash) };
-    });
+        const updated = await tx.blackjackRound.update({
+          where: { id: round.id },
+          data: {
+            playerHands: hands as unknown as Prisma.InputJsonValue,
+            activeHandIndex: nextActive,
+            deckIndex: nextIndex,
+          },
+        });
+        return { state: this.toState(updated, serverSeedHash) };
+      },
+    );
   }
 
   async stand(userId: string, input: BlackjackActionInput): Promise<BlackjackRoundResult> {
-    return this.withActiveRound(userId, input.roundId, async (tx, round, serverSeedHash) => {
-      const hands = parseHands(round.playerHands);
-      const active = getActiveHandOrThrow(hands, round.activeHandIndex);
-      active.status = 'STANDING';
+    return this.withActiveRound(
+      userId,
+      input.tableId,
+      input.roundId,
+      async (tx, round, serverSeedHash) => {
+        const hands = parseHands(round.playerHands);
+        const active = getActiveHandOrThrow(hands, round.activeHandIndex);
+        active.status = 'STANDING';
 
-      const nextActive = findNextPlayingHand(hands, round.activeHandIndex);
-      if (nextActive === -1) {
-        return this.resolveRound(
-          tx,
-          userId,
-          round,
-          hands,
-          parseCards(round.dealerHand),
-          parseDeck(round.deck),
-          round.deckIndex,
-          serverSeedHash,
-        );
-      }
+        const nextActive = findNextPlayingHand(hands, round.activeHandIndex);
+        if (nextActive === -1) {
+          return this.resolveRound(
+            tx,
+            userId,
+            round,
+            hands,
+            parseCards(round.dealerHand),
+            parseDeck(round.deck),
+            round.deckIndex,
+            serverSeedHash,
+          );
+        }
 
-      const updated = await tx.blackjackRound.update({
-        where: { id: round.id },
-        data: {
-          playerHands: hands as unknown as Prisma.InputJsonValue,
-          activeHandIndex: nextActive,
-        },
-      });
-      return { state: this.toState(updated, serverSeedHash) };
-    });
+        const updated = await tx.blackjackRound.update({
+          where: { id: round.id },
+          data: {
+            playerHands: hands as unknown as Prisma.InputJsonValue,
+            activeHandIndex: nextActive,
+          },
+        });
+        return { state: this.toState(updated, serverSeedHash) };
+      },
+    );
   }
 
   async double(userId: string, input: BlackjackActionInput): Promise<BlackjackRoundResult> {
-    return this.withActiveRound(userId, input.roundId, async (tx, round, serverSeedHash) => {
-      const hands = parseHands(round.playerHands);
-      const deck = parseDeck(round.deck);
-      const active = getActiveHandOrThrow(hands, round.activeHandIndex);
-      if (!canDoubleHand(active))
-        throw new ApiError('INVALID_ACTION', 'You can double only on a fresh two-card hand');
+    return this.withActiveRound(
+      userId,
+      input.tableId,
+      input.roundId,
+      async (tx, round, serverSeedHash) => {
+        const hands = parseHands(round.playerHands);
+        const deck = parseDeck(round.deck);
+        const active = getActiveHandOrThrow(hands, round.activeHandIndex);
+        if (!canDoubleHand(active))
+          throw new ApiError('INVALID_ACTION', 'You can double only on a fresh two-card hand');
 
-      const extraBet = new Prisma.Decimal(active.bet);
-      await lockUserAndCheckFunds(tx, userId, extraBet, GameId.BLACKJACK);
-      let newBalance = await debitAndRecord(tx, userId, extraBet);
+        const extraBet = new Prisma.Decimal(active.bet);
+        await lockUserAndCheckFunds(tx, userId, extraBet, GameId.BLACKJACK);
+        let newBalance = await debitAndRecord(tx, userId, extraBet);
 
-      const { card, nextIndex } = drawCard(deck, round.deckIndex);
-      active.cards = [...active.cards, card];
-      active.bet = extraBet.mul(2).toFixed(2);
-      active.doubled = true;
-      const score = blackjackScore(active.cards);
-      if (score.isBust) {
-        active.status = 'BUSTED';
-        active.outcome = 'LOSE';
-        active.payout = '0.00';
-        active.multiplier = '0.0000';
-      } else {
-        active.status = 'STANDING';
-      }
+        const { card, nextIndex } = drawCard(deck, round.deckIndex);
+        active.cards = [...active.cards, card];
+        active.bet = extraBet.mul(2).toFixed(2);
+        active.doubled = true;
+        const score = blackjackScore(active.cards);
+        if (score.isBust) {
+          active.status = 'BUSTED';
+          active.outcome = 'LOSE';
+          active.payout = '0.00';
+          active.multiplier = '0.0000';
+        } else {
+          active.status = 'STANDING';
+        }
 
-      const nextTotalBet = round.totalBetAmount.add(extraBet);
-      const nextActive = findNextPlayingHand(hands, round.activeHandIndex);
-      const roundWithExtra = { ...round, totalBetAmount: nextTotalBet, deckIndex: nextIndex };
-      if (nextActive === -1) {
-        const settled = await this.resolveRound(
-          tx,
-          userId,
-          roundWithExtra,
-          hands,
-          parseCards(round.dealerHand),
-          deck,
-          nextIndex,
-          serverSeedHash,
-        );
-        return { ...settled, newBalance: settled.newBalance ?? newBalance.toFixed(2) };
-      }
+        const nextTotalBet = round.totalBetAmount.add(extraBet);
+        const nextActive = findNextPlayingHand(hands, round.activeHandIndex);
+        const roundWithExtra = { ...round, totalBetAmount: nextTotalBet, deckIndex: nextIndex };
+        if (nextActive === -1) {
+          const settled = await this.resolveRound(
+            tx,
+            userId,
+            roundWithExtra,
+            hands,
+            parseCards(round.dealerHand),
+            deck,
+            nextIndex,
+            serverSeedHash,
+          );
+          return { ...settled, newBalance: settled.newBalance ?? newBalance.toFixed(2) };
+        }
 
-      const updated = await tx.blackjackRound.update({
-        where: { id: round.id },
-        data: {
-          playerHands: hands as unknown as Prisma.InputJsonValue,
-          totalBetAmount: nextTotalBet,
-          activeHandIndex: nextActive,
-          deckIndex: nextIndex,
-        },
-      });
-      return { state: this.toState(updated, serverSeedHash), newBalance: newBalance.toFixed(2) };
-    });
+        const updated = await tx.blackjackRound.update({
+          where: { id: round.id },
+          data: {
+            playerHands: hands as unknown as Prisma.InputJsonValue,
+            totalBetAmount: nextTotalBet,
+            activeHandIndex: nextActive,
+            deckIndex: nextIndex,
+          },
+        });
+        return { state: this.toState(updated, serverSeedHash), newBalance: newBalance.toFixed(2) };
+      },
+    );
   }
 
   async split(userId: string, input: BlackjackActionInput): Promise<BlackjackRoundResult> {
-    return this.withActiveRound(userId, input.roundId, async (tx, round, serverSeedHash) => {
-      const hands = parseHands(round.playerHands);
-      const deck = parseDeck(round.deck);
-      const active = getActiveHandOrThrow(hands, round.activeHandIndex);
-      if (!canSplitHand(active, hands.length)) {
-        throw new ApiError('INVALID_ACTION', 'This hand cannot be split');
-      }
+    return this.withActiveRound(
+      userId,
+      input.tableId,
+      input.roundId,
+      async (tx, round, serverSeedHash) => {
+        const hands = parseHands(round.playerHands);
+        const deck = parseDeck(round.deck);
+        const active = getActiveHandOrThrow(hands, round.activeHandIndex);
+        if (!canSplitHand(active, hands.length)) {
+          throw new ApiError('INVALID_ACTION', 'This hand cannot be split');
+        }
 
-      const extraBet = new Prisma.Decimal(active.bet);
-      await lockUserAndCheckFunds(tx, userId, extraBet, GameId.BLACKJACK);
-      let newBalance = await debitAndRecord(tx, userId, extraBet);
+        const extraBet = new Prisma.Decimal(active.bet);
+        await lockUserAndCheckFunds(tx, userId, extraBet, GameId.BLACKJACK);
+        let newBalance = await debitAndRecord(tx, userId, extraBet);
 
-      const firstDraw = drawCard(deck, round.deckIndex);
-      const secondDraw = drawCard(deck, firstDraw.nextIndex);
-      const splitAces = active.cards[0]!.rank === 1;
-      const firstHand: StoredBlackjackHand = {
-        id: `${active.id}a`,
-        cards: [active.cards[0]!, firstDraw.card],
-        bet: active.bet,
-        status: splitAces ? 'STANDING' : 'PLAYING',
-        doubled: false,
-        splitAces,
-      };
-      const secondHand: StoredBlackjackHand = {
-        id: `${active.id}b`,
-        cards: [active.cards[1]!, secondDraw.card],
-        bet: active.bet,
-        status: splitAces ? 'STANDING' : 'PLAYING',
-        doubled: false,
-        splitAces,
-      };
-      hands.splice(round.activeHandIndex, 1, firstHand, secondHand);
+        const firstDraw = drawCard(deck, round.deckIndex);
+        const secondDraw = drawCard(deck, firstDraw.nextIndex);
+        const splitAces = active.cards[0]!.rank === 1;
+        const firstHand: StoredBlackjackHand = {
+          id: `${active.id}a`,
+          cards: [active.cards[0]!, firstDraw.card],
+          bet: active.bet,
+          status: splitAces ? 'STANDING' : 'PLAYING',
+          doubled: false,
+          splitAces,
+        };
+        const secondHand: StoredBlackjackHand = {
+          id: `${active.id}b`,
+          cards: [active.cards[1]!, secondDraw.card],
+          bet: active.bet,
+          status: splitAces ? 'STANDING' : 'PLAYING',
+          doubled: false,
+          splitAces,
+        };
+        hands.splice(round.activeHandIndex, 1, firstHand, secondHand);
 
-      const nextTotalBet = round.totalBetAmount.add(extraBet);
-      const nextActive = splitAces
-        ? findNextPlayingHand(hands, round.activeHandIndex)
-        : round.activeHandIndex;
-      const roundWithExtra = {
-        ...round,
-        totalBetAmount: nextTotalBet,
-        deckIndex: secondDraw.nextIndex,
-      };
-      if (nextActive === -1) {
-        const settled = await this.resolveRound(
-          tx,
-          userId,
-          roundWithExtra,
-          hands,
-          parseCards(round.dealerHand),
-          deck,
-          secondDraw.nextIndex,
-          serverSeedHash,
-        );
-        return { ...settled, newBalance: settled.newBalance ?? newBalance.toFixed(2) };
-      }
-
-      const updated = await tx.blackjackRound.update({
-        where: { id: round.id },
-        data: {
-          playerHands: hands as unknown as Prisma.InputJsonValue,
+        const nextTotalBet = round.totalBetAmount.add(extraBet);
+        const nextActive = splitAces
+          ? findNextPlayingHand(hands, round.activeHandIndex)
+          : round.activeHandIndex;
+        const roundWithExtra = {
+          ...round,
           totalBetAmount: nextTotalBet,
-          activeHandIndex: nextActive,
           deckIndex: secondDraw.nextIndex,
-        },
-      });
-      return { state: this.toState(updated, serverSeedHash), newBalance: newBalance.toFixed(2) };
-    });
+        };
+        if (nextActive === -1) {
+          const settled = await this.resolveRound(
+            tx,
+            userId,
+            roundWithExtra,
+            hands,
+            parseCards(round.dealerHand),
+            deck,
+            secondDraw.nextIndex,
+            serverSeedHash,
+          );
+          return { ...settled, newBalance: settled.newBalance ?? newBalance.toFixed(2) };
+        }
+
+        const updated = await tx.blackjackRound.update({
+          where: { id: round.id },
+          data: {
+            playerHands: hands as unknown as Prisma.InputJsonValue,
+            totalBetAmount: nextTotalBet,
+            activeHandIndex: nextActive,
+            deckIndex: secondDraw.nextIndex,
+          },
+        });
+        return { state: this.toState(updated, serverSeedHash), newBalance: newBalance.toFixed(2) };
+      },
+    );
   }
 
-  async getActive(userId: string): Promise<BlackjackRoundState | null> {
+  async getActive(userId: string, tableId: BlackjackTableId): Promise<BlackjackRoundState | null> {
     const round = await this.prisma.blackjackRound.findFirst({
-      where: { userId, status: 'ACTIVE' },
+      where: { userId, tableId, status: 'ACTIVE' },
     });
     if (!round) return null;
     const serverSeedRecord = await this.prisma.serverSeed.findUniqueOrThrow({
@@ -437,6 +467,7 @@ export class BlackjackService {
 
   private async withActiveRound<T>(
     userId: string,
+    tableId: BlackjackTableId,
     roundId: string,
     fn: (
       tx: Prisma.TransactionClient,
@@ -446,7 +477,7 @@ export class BlackjackService {
   ): Promise<T> {
     return runSerializable(this.prisma, async (tx) => {
       const round = await tx.blackjackRound.findFirst({
-        where: { id: roundId, userId },
+        where: { id: roundId, userId, tableId },
       });
       if (!round) throw new ApiError('ROUND_NOT_FOUND', 'Round not found');
       if (round.status !== 'ACTIVE') throw new ApiError('ROUND_NOT_ACTIVE', 'Round is not active');
@@ -503,6 +534,7 @@ export class BlackjackService {
     const profit = finalPayout.minus(round.totalBetAmount);
 
     const originalResult = {
+      tableId: round.tableId,
       dealerHand: finalDealerHand,
       playerHands: raw,
       deckIndex: nextDeckIndex,
@@ -510,6 +542,7 @@ export class BlackjackService {
       rules: blackjackRulesPayload(),
     };
     const finalResult = {
+      tableId: round.tableId,
       dealerHand: finalDealer,
       playerHands: finalHands,
       deckIndex: nextDeckIndex,
@@ -594,6 +627,7 @@ export class BlackjackService {
 
     return {
       roundId: round.id,
+      tableId: toBlackjackTableId(round.tableId),
       status: round.status,
       dealerCards: visibleDealerCards,
       dealerScore: visibleDealerCards.length > 0 ? blackjackScore(visibleDealerCards) : null,
@@ -612,6 +646,10 @@ export class BlackjackService {
       nonce: round.nonce,
     };
   }
+}
+
+function toBlackjackTableId(tableId: string): BlackjackTableId {
+  return tableId === 'classic' ? 'classic' : 'royal';
 }
 
 function settleOpeningBlackjack(

@@ -1,5 +1,9 @@
 import type { FastifyInstance } from 'fastify';
-import { blackjackActionSchema, blackjackStartSchema } from './blackjack.schema.js';
+import {
+  blackjackActionSchema,
+  blackjackActiveQuerySchema,
+  blackjackStartSchema,
+} from './blackjack.schema.js';
 import { BlackjackService } from './blackjack.service.js';
 
 export async function blackjackRoutes(fastify: FastifyInstance): Promise<void> {
@@ -32,7 +36,8 @@ export async function blackjackRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.get('/active', async (req) => {
-    const state = await service.getActive(req.userId);
+    const query = blackjackActiveQuerySchema.parse(req.query);
+    const state = await service.getActive(req.userId, query.tableId);
     return { state };
   });
 }

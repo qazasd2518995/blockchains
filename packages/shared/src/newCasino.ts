@@ -1,6 +1,6 @@
 import { GameId, isImportedGameTestUsername } from './games.js';
 
-export const NEW_CASINO_CATALOG_VERSION = 6;
+export const NEW_CASINO_CATALOG_VERSION = 7;
 
 export type NewCasinoCategory = '熱門' | '拉霸' | '捕魚' | '棋牌';
 
@@ -157,7 +157,7 @@ const TABLE_GAMES: readonly NewCasinoGame[] = [
     'Classic Blackjack',
     '/game-art/lobby/qmoney77/classic-blackjack.webp',
     {
-      route: '/games/blackjack',
+      route: '/games/blackjack-table-2',
     },
   ),
   tableGame(

@@ -43,7 +43,7 @@ describe('new casino game catalog', () => {
     const namesIn = (category: string) =>
       result.games.filter((game) => game.category === category).map((game) => game.name);
 
-    expect(result.version).toBe(6);
+    expect(result.version).toBe(7);
     expect(result.games).toHaveLength(27);
     expect(new Set(result.games.map((game) => game.id)).size).toBe(27);
     expect(result.games.every((game) => game.route.startsWith('/games/'))).toBe(true);
@@ -115,7 +115,10 @@ describe('new casino game catalog', () => {
       ['tui-tongzi-jade', '/game-art/local-table/tui-suozi-jade-cover.webp'],
       ['tui-tongzi-gold', '/game-art/local-table/tui-wanzi-gold-cover.webp'],
     ]);
-    expect(result.games.filter((game) => game.route === '/games/blackjack')).toHaveLength(2);
+    expect(result.games.find((game) => game.id === 'blackjack')?.route).toBe('/games/blackjack');
+    expect(result.games.find((game) => game.id === 'blackjack-table-2')?.route).toBe(
+      '/games/blackjack-table-2',
+    );
     expect(
       result.games.every((game) => !['原版', '第1桌', '第2桌'].includes(String(game.badge))),
     ).toBe(true);

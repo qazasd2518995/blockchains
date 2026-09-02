@@ -256,6 +256,14 @@ export const GAME_ASSET_MANIFESTS: Record<string, GameAssetManifest> = {
       ...POKER_CARD_ASSETS.map((src) => asset(src, 'card')),
     ],
   },
+  'blackjack-table-2': {
+    gameId: 'blackjack-table-2',
+    assets: [
+      criticalAsset('/game-art/lobby/qmoney77/classic-blackjack.webp', 'cover'),
+      criticalAsset('/game-art/blackjack/background.png', 'background'),
+      ...POKER_CARD_ASSETS.map((src) => asset(src, 'card')),
+    ],
+  },
   dice: simplePixiGame('dice'),
   mines: simplePixiGame('mines'),
   hilo: simplePixiGame('hilo'),

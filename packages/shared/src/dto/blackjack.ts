@@ -1,6 +1,8 @@
 export type BlackjackStatus = 'ACTIVE' | 'BUSTED' | 'CASHED_OUT';
 export type BlackjackHandStatus = 'PLAYING' | 'STANDING' | 'BUSTED' | 'RESOLVED';
 export type BlackjackOutcome = 'WIN' | 'LOSE' | 'PUSH' | 'BLACKJACK';
+export const BLACKJACK_TABLE_IDS = ['royal', 'classic'] as const;
+export type BlackjackTableId = (typeof BLACKJACK_TABLE_IDS)[number];
 
 export interface BlackjackCard {
   rank: number;
@@ -29,6 +31,7 @@ export interface BlackjackPlayerHand {
 
 export interface BlackjackRoundState {
   roundId: string;
+  tableId: BlackjackTableId;
   status: BlackjackStatus;
   dealerCards: BlackjackCard[];
   dealerScore: BlackjackHandScore | null;
@@ -49,6 +52,7 @@ export interface BlackjackRoundState {
 
 export interface BlackjackStartRequest {
   amount: number;
+  tableId: BlackjackTableId;
   clientSeed?: string;
 }
 
@@ -59,4 +63,5 @@ export interface BlackjackRoundResult {
 
 export interface BlackjackActionRequest {
   roundId: string;
+  tableId: BlackjackTableId;
 }
